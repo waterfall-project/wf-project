@@ -20,9 +20,15 @@ export function Dialog(props: ComponentProps<typeof DialogPrimitive.Root>) {
   return <DialogPrimitive.Root data-slot="dialog" {...props} />;
 }
 
-/** The content of a dialog, over the page, at its centre. */
+/**
+ * The content of a dialog, over the page, at its centre, scrolled when it is taller than the
+ * window. Radix moves the focus without scrolling — as the dialog opens, and from its last element
+ * back to its first —: the content scrolls to whatever takes the focus in it, which would otherwise
+ * be out of sight (WCAG 2.4.11, US-0710).
+ */
 export function DialogContent({
   className,
+  onFocus,
   ...props
 }: ComponentProps<typeof DialogPrimitive.Content>) {
   return (
@@ -33,6 +39,10 @@ export function DialogContent({
           "fixed top-1/2 left-1/2 z-50 grid max-h-[90svh] w-full max-w-lg -translate-1/2 gap-4 overflow-y-auto rounded-lg border bg-background p-6 shadow-md outline-hidden",
           className,
         )}
+        onFocus={(event) => {
+          onFocus?.(event);
+          event.target.scrollIntoView({ block: "nearest", inline: "nearest" });
+        }}
         {...props}
       />
     </DialogPrimitive.Portal>

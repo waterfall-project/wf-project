@@ -1,8 +1,6 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
 import { fireEvent, render, screen, within } from "@testing-library/react";
-import { RouterContext } from "next/dist/shared/lib/router-context.shared-runtime";
-import type { NextRouter } from "next/router";
 import { NextIntlClientProvider } from "next-intl";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -20,8 +18,18 @@ import { example, type Problem } from "@/test/fixtures";
 import { OutcomeNotice } from "./outcome-notice";
 import { rejected } from "./rejection";
 
+// The router of the application, as the notice reads it: a router that would take over the links of
+// the page is one a link of the router calls.
+const router = vi.hoisted(() => ({
+  push: vi.fn(),
+  replace: vi.fn(),
+  refresh: vi.fn(),
+  prefetch: vi.fn(() => Promise.resolve()),
+}));
+
 vi.mock("next/navigation", async (original) => ({
   ...(await original<typeof import("next/navigation")>()),
+  useRouter: () => router,
   usePathname: () => "/account",
   useSearchParams: () => new URLSearchParams(),
 }));
@@ -86,6 +94,7 @@ function refusedFor(lines: ReturnType<typeof borneLines>) {
 
 beforeEach(() => {
   forgetMessages();
+  vi.clearAllMocks();
 });
 
 describe("the notice of an outcome", () => {
@@ -236,14 +245,10 @@ describe("the notice of an outcome", () => {
     const lost = Object.assign(new Error("Server Components render"), {
       digest: SESSION_REQUIRED_DIGEST,
     });
-    // A router that would take over the links of the page: a link of the router calls it.
-    const router = { push: vi.fn(), replace: vi.fn(), prefetch: vi.fn(() => Promise.resolve()) };
     render(
-      <RouterContext.Provider value={router as unknown as NextRouter}>
-        <NextIntlClientProvider locale="fr" messages={CATALOGUES.fr}>
-          <OutcomeNotice outcome={rejected(lost)} onClear={vi.fn()} />
-        </NextIntlClientProvider>
-      </RouterContext.Provider>,
+      <NextIntlClientProvider locale="fr" messages={CATALOGUES.fr}>
+        <OutcomeNotice outcome={rejected(lost)} onClear={vi.fn()} />
+      </NextIntlClientProvider>,
     );
     const link = screen.getByRole("link", { name: "Se connecter" });
     expect(link).toHaveAttribute("href", "/login?next=%2Faccount");

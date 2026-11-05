@@ -20,7 +20,21 @@
  * the listeners the page set after the probe nor the focus, and the walk ends where it came back,
  * as when it read each press.
  */
-import type { Page } from "@playwright/test";
+import type { ElementHandle, Page } from "@playwright/test";
+
+/**
+ * The elements Tab may reach, before what makes it skip them — hidden, disabled, out of the order
+ * of the keyboard — is judged: one selector, which the walk and the wait for the hydration share
+ * (`untilHydrated`), so that the walk never starts before what it walks is hydrated (#784).
+ */
+export const REACHABLE =
+  "a[href], area[href], button, input:not([type=hidden]), select, textarea, iframe, summary, [tabindex], [contenteditable]:not([contenteditable=false])";
+
+/**
+ * What says it is a link, a button or a box to check, which the keyboard must reach unless a widget
+ * that moves the focus among its items holds it (#784).
+ */
+const PRESSABLE = 'a[href], button, [role="button"], [role="link"], [role="checkbox"]';
 
 /**
  * Whether the focus of an element shows, settled once it is left: unknown when the element is gone
@@ -44,6 +58,8 @@ export type Focus = { readonly settled: Settled | undefined } & (
       readonly covered: string | undefined;
       /** Whether its focus shows; unknown until it is left, for an element born after the start. */
       readonly marked: boolean | undefined;
+      /** Whether it lies outside what the walk is bounded to. */
+      readonly escaped: boolean;
     }
 );
 
@@ -53,6 +69,12 @@ export interface Start {
   readonly clipped: string[];
   /** The links and buttons out of the order of the keyboard, in no widget that moves the focus. */
   readonly untabbable: string[];
+}
+
+/** The selectors the page is given with its side of the walk. */
+interface Selectors {
+  readonly reachable: string;
+  readonly pressable: string;
 }
 
 /** What the page finds once a walk is over. */
@@ -65,14 +87,17 @@ export interface End {
 
 /** The side of a walk the page keeps. */
 interface Probe {
-  start: () => Start;
+  start: (root: Element | undefined) => Start;
   read: () => Focus[];
   finish: (taken: number) => End;
 }
 
+/** The selectors of the page's side of the walk. */
+const SELECTORS: Selectors = { reachable: REACHABLE, pressable: PRESSABLE };
+
 /** Give the page its side of the walk, if it has not got it yet. */
 async function install(page: Page): Promise<void> {
-  await page.evaluate(() => {
+  await page.evaluate(({ reachable: FOCUSABLE, pressable: PRESSABLE }: Selectors) => {
     const holder = window as unknown as { focusProbe?: Probe };
     if (holder.focusProbe !== undefined) {
       return;
@@ -81,8 +106,6 @@ async function install(page: Page): Promise<void> {
       .concat(["tablist", "toolbar"])
       .map((role) => `[role="${role}"]`)
       .join(", ");
-    const FOCUSABLE =
-      "a[href], area[href], button, input:not([type=hidden]), select, textarea, iframe, summary, [tabindex], [contenteditable]:not([contenteditable=false])";
 
     // An element by its role and its name: its label, the text it is labelled by, or its own.
     const say = (element: Element): string => {
@@ -279,12 +302,22 @@ async function install(page: Page): Promise<void> {
       return null;
     };
 
+    // What of an element the window shows, cut by what clips it: of its first box that shows — a
+    // link wrapped over two lines has a box per line, and the middle of the box around both may
+    // fall between them, on the text around it (#784).
+    const shownPart = (element: Element): Area | undefined => {
+      const area = room(element);
+      return [...element.getClientRects(), element.getBoundingClientRect()]
+        .map((box) => within(box, area))
+        .find((part) => part !== undefined);
+    };
+
     // Why the window does not show an element: hidden, out of it, or under what paints over it.
     const unseen = (element: Element): string | undefined => {
       if (!element.checkVisibility({ opacityProperty: true, visibilityProperty: true })) {
         return "hidden or transparent";
       }
-      const left = within(element.getBoundingClientRect(), room(element));
+      const left = shownPart(element);
       if (left === undefined) {
         return "out of the window";
       }
@@ -299,7 +332,7 @@ async function install(page: Page): Promise<void> {
     // What takes the pointer at the middle of an element instead of it — a transparent layer that
     // catches the clicks —, the sheet of the pointer left off.
     const covered = (element: Element): string | undefined => {
-      const left = within(element.getBoundingClientRect(), room(element));
+      const left = shownPart(element);
       if (left === undefined) {
         return undefined;
       }
@@ -495,6 +528,9 @@ async function install(page: Page): Promise<void> {
       });
 
     let baseline = new WeakMap<Element, Look>();
+    // What the walk is bounded to, if anything: an element and what it holds.
+    let scope: Element | undefined;
+    const inScope = (element: Element) => scope === undefined || scope.contains(element);
     let reachable: Element[] = [];
     let composites: Element[] = [];
     // The element of each reading of the walk, none when the focus was on no element.
@@ -555,7 +591,16 @@ async function install(page: Page): Promise<void> {
       }));
       const now = baseline.has(element) ? marked(looks, (drawn) => baseline.get(drawn)) : undefined;
       pending = now === undefined ? (pending ?? { element, said, looks }) : pending;
-      return { kind: "element", settled, id, said, unseen: hidden, covered: caught, marked: now };
+      return {
+        kind: "element",
+        settled,
+        id,
+        said,
+        unseen: hidden,
+        covered: caught,
+        marked: now,
+        escaped: !inScope(element),
+      };
     };
 
     // The readings of a walk: those the walk has not read yet, whether a press owes one, whether
@@ -630,19 +675,21 @@ async function install(page: Page): Promise<void> {
     );
 
     holder.focusProbe = {
-      start: () => {
+      start: (root) => {
         if (document.activeElement instanceof HTMLElement) {
           document.activeElement.blur();
         }
+        scope = root;
         reachable = [...document.querySelectorAll<HTMLElement>(FOCUSABLE)].filter(
           (element) =>
+            inScope(element) &&
             element.tabIndex >= 0 &&
             !element.matches(":disabled") &&
             element.closest("[inert]") === null &&
             element.checkVisibility({ visibilityProperty: true }),
         );
         composites = [...document.querySelectorAll(COMPOSITE)].filter(
-          (widget) => shown(widget) && widget.closest("[inert]") === null,
+          (widget) => inScope(widget) && shown(widget) && widget.closest("[inert]") === null,
         );
         baseline = new WeakMap();
         for (const drawn of reachable.flatMap((element) => [element, ...element.children])) {
@@ -659,9 +706,10 @@ async function install(page: Page): Promise<void> {
         walking = true;
         return {
           clipped: reachable.filter(clippedAway).map(say),
-          untabbable: [...document.querySelectorAll<HTMLElement>("a[href], button")]
+          untabbable: [...document.querySelectorAll<HTMLElement>(PRESSABLE)]
             .filter(
               (element) =>
+                inScope(element) &&
                 element.tabIndex < 0 &&
                 !element.matches(":disabled") &&
                 element.closest(COMPOSITE) === null &&
@@ -698,13 +746,20 @@ async function install(page: Page): Promise<void> {
         };
       },
     };
-  });
+  }, SELECTORS);
 }
 
-/** Start a walk: what the page lets Tab reach, before anything has the focus. */
-export async function startWalk(page: Page): Promise<Start> {
+/**
+ * Start a walk: what the page lets Tab reach, before anything has the focus — in the whole page, or
+ * in what `within` holds alone.
+ */
+export async function startWalk(page: Page, within?: ElementHandle<Element>): Promise<Start> {
   await install(page);
-  return page.evaluate(() => (window as unknown as { focusProbe: Probe }).focusProbe.start());
+  return page.evaluate(
+    (element) =>
+      (window as unknown as { focusProbe: Probe }).focusProbe.start(element ?? undefined),
+    within ?? null,
+  );
 }
 
 /**
@@ -728,8 +783,12 @@ export const readInPage = (): Focus[] =>
  * readings the walk took — the first `taken` of them.
  */
 export function finishWalk(page: Page, taken: number): Promise<End> {
-  return page.evaluate(
-    (count) => (window as unknown as { focusProbe: Probe }).focusProbe.finish(count),
-    taken,
-  );
+  return page.evaluate(finishInPage, taken);
 }
+
+/**
+ * What `finishWalk` runs in the page, which a test tells from the other calls by its identity, as
+ * `readInPage`.
+ */
+export const finishInPage = (taken: number): End =>
+  (window as unknown as { focusProbe: Probe }).focusProbe.finish(taken);

@@ -18,6 +18,7 @@ import { ListPages } from "@/components/grid/list-pages";
 import { ROW_REM } from "@/components/grid/grid-floor";
 import { PendingAddress } from "@/components/grid/pending-address";
 import { CATALOGUES } from "@/i18n/catalogues";
+import { CurrencyProvider } from "@/currency/context";
 import type { Locale } from "@/i18n/locale";
 import { expectAccessible } from "@/test/axe";
 import { roomForCharts } from "@/test/chart-room";
@@ -699,6 +700,38 @@ describe("the charts of the portfolio", () => {
       `juin 202619${NARROW}713${NARROW}579,4231${NARROW}417${NARROW}246,57`,
     );
   });
+
+  it.each([
+    ["EUR", { name: "EUR", nameLocation: "end" }],
+    [undefined, undefined],
+  ] as const)(
+    "titles the axis of the amounts of both charts with the currency (%s), none when it is unknown [WF-REF-0140-A]",
+    (currency, title) => {
+      const curves = example(
+        "portfolio_cost_curve_payment_delays",
+      ) as Schemas["PortfolioCostCurve"];
+      charts.props = [];
+      render(
+        <CurrencyProvider currency={currency}>
+          {inLanguage(
+            <>
+              <PortfolioCurveChart curves={curves} scope={curves.scope} />
+              <CashOutChart months={curves.cash_out_by_month ?? []} scope={curves.scope} />
+            </>,
+          )}
+        </CurrencyProvider>,
+      );
+      expect(charts.props).toHaveLength(2);
+      for (const props of charts.props) {
+        const axis = props.option(PALETTE).yAxis;
+        if (title === undefined) {
+          expect(axis).not.toHaveProperty("name");
+        } else {
+          expect(axis).toMatchObject(title);
+        }
+      }
+    },
+  );
 
   it("ends the step of the last month at the first of the next", () => {
     expect(monthAfter("2026-09")).toBe("2026-10");

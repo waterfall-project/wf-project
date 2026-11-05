@@ -19,6 +19,7 @@ Au-dessus de la grille :
 
 - **Date de début de planning** dit le jour où commencent les tâches automatiques sans prédécesseur, tel que le serveur le donne. **Modifier la date de début de planning**, là où la structure se saisit, demande le nouveau jour et le confirme : le serveur redate les tâches qui en dépendent, et refuse un jour sans heure travaillée au calendrier par défaut, en nommant le jour travaillé suivant.
 - **Lot ou poste** filtre la grille sur la tâche qui porte un lot ou un poste du lotissement, avec ses subordonnées et ses ancêtres. Le bandeau montre le filtre et permet de le lever.
+- **Origine** retient les tâches issues de la survenance d’un risque — **Issues d’un risque** — ou de celle d’un risque survenu que vous choisissez ; le serveur filtre, avec les ancêtres des tâches retenues, et l’adresse garde le choix. Une tâche issue d’un risque porte, après l’icône de sa nature, une marque discrète qui nomme ce risque ; les autres n’en portent aucune.
 - **Rechercher un libellé** retient les tâches dont le libellé contient le texte saisi.
 - **Colonnes** choisit les colonnes montrées ; **Arbre** plie tout, déplie tout, ou plie jusqu’à un niveau.
 - **Annuler** (`Ctrl+Z`) et **Rétablir** (`Ctrl+Maj+Z`), là où la structure se saisit. Elles restent indisponibles tant que le serveur ne conserve pas l’historique des saisies.

@@ -54,6 +54,7 @@ import { useShownProjectLabel } from "@/components/shell/shown-project";
 import { DenseGrid } from "./dense-grid";
 import { RowNumbers } from "./link-conflicts";
 import { nodeDependencies } from "./node-dependencies";
+import { OriginRisksProvider } from "./origin-mark";
 import {
   type NodeFilters,
   nodeNarrowing,
@@ -140,6 +141,11 @@ export interface PlanningGridProps {
    */
   readonly differential?: boolean | undefined;
   /**
+   * The labels of the risks occurred, by their identifier, which the mark of a row a risk merged
+   * names it by (`OriginMark`); none, and the mark says a risk without its name.
+   */
+  readonly origins?: Readonly<Record<string, string>> | undefined;
+  /**
    * What the Gantt reads besides the rows: the graduations of hours of a day (`hoursOfDay`), and
    * where it comes from, which its exported image names. None, it stops at days and is not
    * exported.
@@ -151,6 +157,15 @@ export interface PlanningGridProps {
 export interface PlanningGantt {
   readonly hoursPerDay: number | undefined;
   readonly exported: GanttExported;
+}
+
+/**
+ * Whether a reading is narrowed by neither a filter (`whole`) nor a search. The search field trims
+ * what it enters (`searchHref`), but an address typed by hand may carry a blank one, which the grid
+ * reads (`readGridQuery` keeps any non-empty text) and sends: it is then a search, as the server gets it.
+ */
+function unnarrowed(whole: boolean, query: GridQuery<NodeSortColumn>): boolean {
+  return whole && (query.search ?? "") === "";
 }
 
 /** The skeleton generated on a structure: its tasks as the grid reads them, and its version. */
@@ -297,6 +312,7 @@ export function PlanningGrid({
   timelines,
   timelineCreation,
   differential,
+  origins,
   gantt,
 }: PlanningGridProps) {
   const t = useTranslations("planningGrid");
@@ -463,7 +479,9 @@ export function PlanningGrid({
             </>
           ),
         };
-  const offered = nodes.items.length === 0 || ours !== undefined;
+  // The skeleton is for a structure with no task: a search or a filter that retains none leaves an
+  // empty grid that says so, with its totals (#819.4), and the skeleton filling it would ignore them.
+  const offered = (nodes.items.length === 0 && unnarrowed(whole, query)) || ours !== undefined;
   // The row of a task of the rows read, by its node, which a link in conflict is named by.
   const rowNumbers = useMemo(() => {
     const numbers = new Map(shown.items.map((node) => [node.node_id, node.row_number]));
@@ -485,30 +503,32 @@ export function PlanningGrid({
         <SkeletonOffer offer={skeleton} generate={generate} generated={ours} />
       ) : null}
       <RowNumbers value={rowNumbers}>
-        <DenseGrid
-          config={config}
-          rows={shown.items}
-          totals={shown.totals}
-          totalsCaption={(totals) => t("totals", { tasks: totals.task_count })}
-          query={query}
-          preferences={preferences}
-          dependencies={dependencies}
-          foldScope={structure.revision_id}
-          narrowing={nodeNarrowing(filters)}
-          undoable={undoable}
-          commands={zoomed}
-          around={(rows, table) => (
-            <GanttRows
-              rows={rows}
-              scope={`${config.key}:${structure.revision_id}`}
-              hoursPerDay={gantt?.hoursPerDay}
-              exported={gantt?.exported}
-            >
-              {table}
-              <GanttLegend />
-            </GanttRows>
-          )}
-        />
+        <OriginRisksProvider names={origins}>
+          <DenseGrid
+            config={config}
+            rows={shown.items}
+            totals={shown.totals}
+            totalsCaption={(totals) => t("totals", { tasks: totals.task_count })}
+            query={query}
+            preferences={preferences}
+            dependencies={dependencies}
+            foldScope={structure.revision_id}
+            narrowing={nodeNarrowing(filters)}
+            undoable={undoable}
+            commands={zoomed}
+            around={(rows, table) => (
+              <GanttRows
+                rows={rows}
+                scope={`${config.key}:${structure.revision_id}`}
+                hoursPerDay={gantt?.hoursPerDay}
+                exported={gantt?.exported}
+              >
+                {table}
+                <GanttLegend />
+              </GanttRows>
+            )}
+          />
+        </OriginRisksProvider>
       </RowNumbers>
     </>
   );

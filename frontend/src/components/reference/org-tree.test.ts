@@ -14,9 +14,9 @@ describe("the tree of the organisation in a list of choices", () => {
     const nodes = example("org_nodes") as OrgNode[];
     expect(nodes.map((node) => treeLabel(node.level, node.code))).toEqual([
       "DT",
-      " BE-ELEC",
-      "  AT-CABL",
-      " ACHATS",
+      "\u2003BE-ELEC",
+      "\u2003\u2003AT-CABL",
+      "\u2003ACHATS",
     ]);
   });
 

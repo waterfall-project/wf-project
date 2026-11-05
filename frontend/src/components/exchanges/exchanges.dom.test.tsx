@@ -20,6 +20,7 @@ import {
   type FakeAnswers,
   type FakeClient,
   fakeClient,
+  held,
   type Problem,
 } from "@/test/fixtures";
 import { heldLink } from "@/test/held-link";
@@ -45,7 +46,9 @@ vi.mock("next/navigation", async (original) => ({
   useSearchParams: () => new URLSearchParams(),
 }));
 
-type Import = components["schemas"]["Import"];
+type Import = components["schemas"]["ImportDetail"];
+type Listed = components["schemas"]["Import"];
+type Commands = Import["available_commands"];
 type Report = components["schemas"]["ImportReport"];
 
 const PROJECT = "01926f3a-7c00-7000-8000-000000000001";
@@ -103,11 +106,29 @@ function exportForm(revision = "revision") {
 
 /** The report of an import of the contract, as the screen shows it. */
 function report(entry: Import) {
-  const offers = importOffers(example("project") as Project);
-  return (
-    <ImportReport projectId={PROJECT} entry={entry} offer={offers[entry.kind]} start={START} />
-  );
+  return <ImportReport projectId={PROJECT} entry={entry} start={START} />;
 }
+
+/** The import of the list that stands in a given status, read whole with the commands it lists. */
+function detailOf(status: Listed["status"], available_commands: Commands): Import {
+  const { items } = example("imports") as { items: Listed[] };
+  const listed = items.find((entry) => entry.status === status);
+  if (listed === undefined) {
+    throw new Error(`the example of the imports holds none ${status}`);
+  }
+  return {
+    ...listed,
+    report: null,
+    task: (example("import_analysed") as Import).task,
+    available_commands,
+  };
+}
+
+/** An import applied, which lists both commands unavailable, with the condition each lacks. */
+const APPLIED: Commands = [
+  { command: "apply", is_available: false, missing_conditions: ["import_awaiting_decision"] },
+  { command: "abandon", is_available: false, missing_conditions: ["import_not_applied"] },
+];
 
 /** The line of the tracker of the shell that says a task. */
 function taskLine(text: string | RegExp) {
@@ -233,17 +254,14 @@ describe("the first step of an import", () => {
   });
 
   it("follows the analysis but stays where the user went when the import opens after the screen was left", async () => {
-    let answer!: () => void;
-    const held = new Promise<void>((resolve) => {
-      answer = resolve;
-    });
+    const answer = held();
     const client = fakeClient(
       {
         [UPLOAD]: { example: "file_upload", status: 201 },
         [OPEN]: { example: "import_analysing", status: 202 },
         [TASK]: "task_running",
       },
-      { hold: (route) => (route === OPEN ? held : undefined) },
+      { hold: (route) => (route === OPEN ? answer.until : undefined) },
     );
     server.client = client;
     open(importCommands());
@@ -258,7 +276,7 @@ describe("the first step of an import", () => {
       expect(routes(client)).toEqual([UPLOAD, OPEN]);
     });
     window.history.replaceState(null, "", `/projects/${PROJECT}/lifecycle`);
-    answer();
+    answer.release();
     await waitFor(() => {
       expect(screen.queryByRole("form")).toBeNull();
     });
@@ -464,7 +482,7 @@ describe("the report of an import", () => {
     });
     const { container } = open(report(example("import_analysed") as Import));
     const section = screen.getByRole("region", {
-      name: "Compte rendu de l’import « devis-avenant-2-reprise-des-essais.xlsx »",
+      name: "Compte rendu de l’import «\u00A0devis-avenant-2-reprise-des-essais.xlsx\u00A0»",
     });
     const rejected = within(section).getByRole("table", { name: "Lignes rejetées" });
     expect(
@@ -504,17 +522,8 @@ describe("the report of an import", () => {
       [TASK]: "task_import_succeeded",
     });
     const entry = example("import_analysed") as Import;
-    const offers = importOffers(example("project") as Project);
     const planning = `/projects/${PROJECT}/revisions/${REVISION}/planning`;
-    open(
-      <ImportReport
-        projectId={PROJECT}
-        entry={entry}
-        offer={offers[entry.kind]}
-        start={START}
-        then={planning}
-      />,
-    );
+    open(<ImportReport projectId={PROJECT} entry={entry} start={START} then={planning} />);
     await userEvent.click(screen.getByRole("button", { name: "Appliquer l’import" }));
     expect(router.push).not.toHaveBeenCalled();
     const confirmation = screen.getByRole("form", { name: "Confirmation de l’application" });
@@ -535,16 +544,9 @@ describe("the report of an import", () => {
       [TASK]: "task_import_succeeded",
     });
     const entry = example("import_analysed") as Import;
-    const offers = importOffers(example("project") as Project);
     const planning = `/projects/${PROJECT}/revisions/${REVISION}/planning`;
     const view = open(
-      <ImportReport
-        projectId={PROJECT}
-        entry={entry}
-        offer={offers[entry.kind]}
-        start={START}
-        then={planning}
-      />,
+      <ImportReport projectId={PROJECT} entry={entry} start={START} then={planning} />,
     );
     const confirmation = await askApplication();
     await confirmApplication(confirmation);
@@ -599,8 +601,15 @@ describe("the report of an import", () => {
     expect(alert).toHaveTextContent(
       /La durée du projet dépasserait quinze ans\.\s*Tâche en cause\s:\s« Mise en service »\./,
     );
-    expect(screen.queryByRole("button", { name: "Appliquer l’import" })).toBeNull();
-    expect(screen.getByRole("button", { name: "Abandonner l’import" })).toBeInTheDocument();
+    const apply = screen.getByRole("button", { name: "Appliquer l’import" });
+    expect(apply).toHaveAttribute("aria-disabled", "true");
+    expect(apply).toHaveAccessibleDescription(
+      "Condition non remplie\u00A0: fichier accepté par le compte rendu.",
+    );
+    expect(screen.getByRole("button", { name: "Abandonner l’import" })).not.toHaveAttribute(
+      "aria-disabled",
+      "true",
+    );
   });
 
   it("tells the condition a file rejected whole misses when the server refuses its application [WF-INTF-0040-A]", async () => {
@@ -627,11 +636,8 @@ describe("the report of an import", () => {
   });
 
   it("stays where the user went when the abandonment answers after another import was opened", async () => {
-    let answer!: () => void;
-    const held = new Promise<void>((resolve) => {
-      answer = resolve;
-    });
-    const client = fakeClient({ [ABANDON]: { status: 204 } }, { hold: () => held });
+    const answer = held();
+    const client = fakeClient({ [ABANDON]: { status: 204 } }, answer.timing);
     server.client = client;
     open(report(example("import_analysed") as Import));
     const abandon = screen.getByRole("button", { name: "Abandonner l’import" });
@@ -640,7 +646,7 @@ describe("the report of an import", () => {
       expect(client.calls).toHaveLength(1);
     });
     window.history.replaceState(null, "", `${START}&import=01926f3a-7c00-7000-8000-000000000a10`);
-    answer();
+    answer.release();
     await waitFor(() => {
       expect(abandon).toHaveAttribute("aria-busy", "false");
     });
@@ -649,32 +655,28 @@ describe("the report of an import", () => {
 
   it("closes the confirmation when the screen shows another import, which no longer awaits it", async () => {
     serve({});
-    const { items } = example("imports") as { items: Import[] };
-    const applied = items.find((entry) => entry.status === "applied");
-    if (applied === undefined) {
-      throw new Error("the example of the imports holds one applied");
-    }
+    const applied = detailOf("applied", APPLIED);
     const { rerender } = open(report(example("import_analysed") as Import));
     await userEvent.click(screen.getByRole("button", { name: "Appliquer l’import" }));
     expect(screen.getByRole("form", { name: "Confirmation de l’application" })).toBeVisible();
     rerender(shell(report(applied)));
     expect(screen.queryByRole("form")).toBeNull();
-    expect(screen.queryByRole("button", { name: "Appliquer l’import" })).toBeNull();
+    expect(screen.getByRole("button", { name: "Appliquer l’import" })).toHaveAttribute(
+      "aria-disabled",
+      "true",
+    );
   });
 
   it("tells the refusal of an abandonment under the import it was asked for, not the next one", async () => {
-    let answer!: () => void;
-    const held = new Promise<void>((resolve) => {
-      answer = resolve;
-    });
+    const answer = held();
     server.client = fakeClient(
       { [ABANDON]: { problem: { code: "PERMISSION_MISSING", status: 403 } } },
-      { hold: () => held },
+      answer.timing,
     );
     const { rerender } = open(report(example("import_analysed") as Import));
     await userEvent.click(screen.getByRole("button", { name: "Abandonner l’import" }));
     rerender(shell(report(example("import_planning_mismatch") as Import)));
-    answer();
+    answer.release();
     await waitFor(() => {
       expect(screen.getByRole("button", { name: "Abandonner l’import" })).toHaveAttribute(
         "aria-busy",
@@ -684,26 +686,10 @@ describe("the report of an import", () => {
     expect(screen.queryByRole("alert")).toBeNull();
   });
 
-  it("offers neither application nor abandonment of an import that no longer awaits a decision", () => {
-    serve({});
-    const { items } = example("imports") as { items: Import[] };
-    const applied = items.find((entry) => entry.status === "applied");
-    if (applied === undefined) {
-      throw new Error("the example of the imports holds one applied");
-    }
-    open(report(applied));
-    expect(within(screen.getByRole("main")).queryByRole("button")).toBeNull();
-    expect(screen.getByText("Cet import n’a pas de compte rendu.")).toBeVisible();
-  });
-
   it("offers no undo of an import applied: neither its report nor the list of the imports holds such a command [WF-IHM-0110-A]", () => {
     serve({});
-    const { items } = example("imports") as { items: Import[] };
-    const applied = items.find((entry) => entry.status === "applied");
-    if (applied === undefined) {
-      throw new Error("the example of the imports holds one applied");
-    }
-    const { unmount } = open(report(applied));
+    const { items } = example("imports") as { items: Listed[] };
+    const { unmount } = open(report(detailOf("applied", APPLIED)));
     expect(screen.queryByRole("button", { name: /Annuler|Rétablir/ })).toBeNull();
     unmount();
     open(<ImportList imports={items} total={items.length} current={undefined} start={START} />);
@@ -864,7 +850,7 @@ describe("the request of an export", () => {
     ]);
     await act(() => vi.advanceTimersByTimeAsync(POLL_INTERVAL));
     const download = await within(tasksRegion()).findByRole("link", {
-      name: "Télécharger le résultat : Export « Devis »",
+      name: "Télécharger le résultat\u00A0: Export «\u00A0Devis\u00A0»",
     });
     expect(download.getAttribute("href")).toMatch(
       /^\/tasks\/01926f3a-7c00-7000-8000-000000000935\/result\?from=/,
@@ -922,13 +908,10 @@ describe("the request of an export", () => {
   });
 
   it("holds a link clicked while the export is asked, and does not follow it when the server refuses it (#688)", async () => {
-    let release: () => void = () => undefined;
-    const released = new Promise<void>((resolve) => {
-      release = resolve;
-    });
+    const answer = held();
     server.client = fakeClient(
       { [EXPORT]: { problem: { code: "PERMISSION_MISSING", status: 403 } } },
-      { hold: () => released },
+      answer.timing,
     );
     open(exportForm("revision_estimator"));
     const link = heldLink();
@@ -937,7 +920,7 @@ describe("the request of an export", () => {
       await userEvent.click(within(form).getByRole("button", { name: "Demander l’export" }));
       link.click();
       await act(async () => {
-        release();
+        answer.release();
         await new Promise((resolve) => setTimeout(resolve, 0));
       });
       await settled(form);

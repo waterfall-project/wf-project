@@ -15,7 +15,7 @@ Each table is sorted, searched, filtered and paged by the server, and keeps its 
 
 At the top of the screen:
 
-- **Show the deactivated ones too** adds to the three tables the deactivated objects, and adds to them a filter of state; **Hide the deactivated ones** comes back from it. Offered to whoever may read the cost settings.
+- **Show the deactivated ones too** adds to the three tables the deactivated objects, and adds to them a filter of state; **Hide the deactivated ones** comes back from it. Offered to whoever may modify the cost settings: the contract keeps the deactivated objects for that permission, and the screen does not ask them of whoever may only read.
 - **Actual cost mapping** leads to the [actual cost extraction mapping](FBS-3.1.3.md).
 - **Modify the company name** opens its form: the name is required, of 200 characters at most.
 

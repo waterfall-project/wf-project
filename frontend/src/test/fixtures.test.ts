@@ -4,7 +4,7 @@ import { describe, expect, expectTypeOf, it } from "vitest";
 
 import type { Problem } from "@/api/problem";
 
-import { behindTheContract, example, type FakeAnswers, fakeClient } from "./fixtures";
+import { behindTheContract, example, type FakeAnswers, fakeClient, held } from "./fixtures";
 
 const PROJECT = "01926f3a-7c00-7000-8000-000000000001";
 const REVISION = "01926f3a-7c00-7000-8000-000000000102";
@@ -202,20 +202,20 @@ describe("fakeClient", () => {
   });
 
   it("holds an answer until told, so that a later call is answered first", async () => {
-    let release: () => void = () => undefined;
-    const held = new Promise<void>((resolve) => {
-      release = resolve;
-    });
+    const answer = held();
     const client = fakeClient(
       { "GET /projects": ["projects", NOT_FOUND] },
-      { hold: (route, index) => (route === "GET /projects" && index === 0 ? held : undefined) },
+      {
+        hold: (route, index) =>
+          route === "GET /projects" && index === 0 ? answer.until : undefined,
+      },
     );
     const settled: number[] = [];
     const first = client.GET("/projects").then(({ response }) => settled.push(response.status));
     const second = client.GET("/projects").then(({ response }) => settled.push(response.status));
     await second;
     expect(settled).toEqual([404]);
-    release();
+    answer.release();
     await first;
     expect(settled).toEqual([404, 200]);
     expect(client.calls).toHaveLength(2);

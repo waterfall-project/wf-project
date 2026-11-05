@@ -60,7 +60,7 @@ PRISM   := npx --yes @stoplight/prism-cli@$(PRISM_VERSION)
 
 .DEFAULT_GOAL := help
 .PHONY: help build-doc build-doc-strict build-openapi lint-openapi inventory allocate-pbs mock \
-	mock-spec mock-data mock-data-up-to-date dev dev-down lint-compose service-up service-install service-logs service-down migrate \
+	mock-tools mock-spec mock-data mock-data-up-to-date dev dev-down lint-compose service-up service-install service-logs service-down migrate \
 	build-keycloak build-cache test-keycloak check-keycloak keycloak-authority e2e-service check-service images \
 	production-trial check-production \
 	test-tools lint-tools typecheck-tools sources fixtures check-fixtures requirements \
@@ -163,6 +163,13 @@ inventory: ## Regenerate the endpoint inventory and the requirement coverage
 
 allocate-pbs: ## Write the PBS field of every requirement into the Word document
 	@python3 $(SPEC)/tools/allocate_pbs.py
+
+# The pinned tools of the fake back, fetched once before the harness starts it: left to `npx` at
+# the first `make mock`, their installation counted in the 120 s Playwright gives the fake back
+# (`webServer`), which a slow network used up in the chain (#1901).
+mock-tools: ## Fetch the pinned Redocly and Prism into the cache of npx, so that the fake back starts at once
+	@$(REDOCLY) --version >/dev/null
+	@$(PRISM) --version >/dev/null
 
 mock-spec: lint-openapi ## Derive from the contract the variant the fake back serves
 	@mkdir -p $(dir $(MOCK_SPEC))
@@ -477,10 +484,14 @@ prerendered-front: ## The production build of the front prerendered no page that
 # With SHARD, one part of the tests measured alone, its report written for coverage-front-merge
 # (frontend/.vitest/blob/), the thresholds held on the parts gathered alone. Beside the blob, which
 # says nothing of a test that fails, the dot reporter names it and its error in the log of the part:
-# a part of the chain that failed silent cost a run to diagnose (US-0590b).
-coverage-front: install-front ## Code coverage of the front: 90 % of lines, 85 % of branches (US-0060); SHARD=lint or i/N measures one part of the tests, for coverage-front-merge
+# a part of the chain that failed silent cost a run to diagnose (US-0590b). The part lint, the
+# guards that run ESLint, is played and not measured: they cover nothing of src/, and measured they
+# took three times as long, the first test of a guard starving on its minute while three of them
+# built the program of the project at once (#2015); no report of theirs is written or gathered.
+FRONT_MEASURE = $(if $(filter lint,$(SHARD)),,--coverage --reporter=blob)
+coverage-front: install-front ## Code coverage of the front: 90 % of lines, 85 % of branches (US-0060); SHARD=i/N measures one part of the tests, for coverage-front-merge; SHARD=lint plays the guards, which cover nothing, unmeasured
 ifdef SHARD
-	@$(PNPM_TESTING) exec vitest run --coverage --silent $(FRONT_PART) --reporter=blob --reporter=dot
+	@$(PNPM_TESTING) exec vitest run --silent $(FRONT_PART) $(FRONT_MEASURE) --reporter=dot
 else
 	@$(PNPM_TESTING) exec vitest run --coverage --silent
 	@$(WFTOOLS).codecoverage istanbul $(FRONT)/coverage/coverage-summary.json
@@ -525,12 +536,12 @@ e2e-build = $(if $(filter 1,$(E2E_BUILT) $(1)),,build-front)
 e2e: export E2E_PART = $(if $(SHARD),paths)
 e2e: export E2E_BUILT = 1
 e2e: export E2E_WORKERS = $(WORKERS)
-e2e: install-front $(call e2e-build,$(E2E_DEV_SERVER)) ## End-to-end paths, against the fake back that Playwright starts (US-0080), on the front built for production; SHARD=i/N plays the i-th of N parts of them, without the measure; WORKERS=n (1 to 40, by default half the processors, at most 40) plays them on n workers; TESTS=<file> plays one file; E2E_DEV_SERVER=1 plays them against next dev, on a workstation
+e2e: install-front mock-tools $(call e2e-build,$(E2E_DEV_SERVER)) ## End-to-end paths, against the fake back that Playwright starts (US-0080), on the front built for production; SHARD=i/N plays the i-th of N parts of them, without the measure; WORKERS=n (1 to 40, by default half the processors, at most 40) plays them on n workers; TESTS=<file> plays one file; E2E_DEV_SERVER=1 plays them against next dev, on a workstation
 	@$(PNPM_HEAVY) exec playwright test $(if $(SHARD),--shard=$(SHARD)) $(TESTS)
 
 e2e-measure: export E2E_PART = measure
 e2e-measure: export E2E_BUILT = 1
-e2e-measure: install-front $(call e2e-build) ## The measure of the second of §4.6.2 alone, against the front built for production (US-0110)
+e2e-measure: install-front mock-tools $(call e2e-build) ## The measure of the second of §4.6.2 alone, against the front built for production (US-0110)
 	@$(PNPM_HEAVY) exec playwright test
 
 # The paths of the Playwright project `service` (frontend/e2e/service/), against the real service:
@@ -557,7 +568,7 @@ e2e-service: export E2E_PART = service
 e2e-service: export WATERFALL_ADMIN_EMAIL := $(E2E_ADMIN_EMAIL)
 e2e-service: export E2E_ADMIN_EMAIL := $(E2E_ADMIN_EMAIL)
 e2e-service: export E2E_BUILT = 1
-e2e-service: install-front $(call e2e-build,$(E2E_DEV_SERVER)) ## End-to-end paths of the project `service` against the real service, through Prism as a proxy, on the front built for production (needs the secrets of service-up and a browser, make e2e-browsers)
+e2e-service: install-front mock-tools $(call e2e-build,$(E2E_DEV_SERVER)) ## End-to-end paths of the project `service` against the real service, through Prism as a proxy, on the front built for production (needs the secrets of service-up and a browser, make e2e-browsers)
 	@$(MAKE) --no-print-directory mock-spec MOCK_SPEC=$(PROXY_SPEC)
 	@$(MAKE) --no-print-directory service-up
 	@$(COMPOSE_SERVICE) up --detach --wait contract-proxy

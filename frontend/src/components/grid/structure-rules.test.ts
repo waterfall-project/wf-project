@@ -11,6 +11,8 @@ import {
   gesturesOn,
   dropOf,
   moveOf,
+  refusalsOn,
+  shownOn,
   type StructureGestures,
   topsOf,
 } from "./structure-rules";
@@ -149,6 +151,35 @@ describe("the gestures a row takes", () => {
     // The risk occurred stands after the factory acceptance, a milestone: it goes under none.
     expect(gesturesOn(RISK, offered())).not.toContain("indent");
     expect(gesturesOn(RISK, offered({ tasks: false }))).toEqual([]);
+  });
+});
+
+describe("the gestures a milestone makes unavailable [WF-PLA-0050-A]", () => {
+  const milestone = { ...LEAF, task: { ...LEAF.task, is_milestone: true } } as typeof LEAF;
+
+  it("name a sub-task of a milestone, shown after the creation below it with its condition", () => {
+    expect(refusalsOn(milestone, offered())).toEqual({ child: "milestoneChild" });
+    expect(shownOn(milestone, offered())).toEqual(["below", "child", "outdent", "down", "delete"]);
+    // The grid that lists no task, a task that is no milestone, a line: nothing to explain.
+    expect(refusalsOn(milestone, offered({ tasks: false }))).toEqual({});
+    expect(refusalsOn(LEAF, offered())).toEqual({});
+    expect(refusalsOn(LINE, offered())).toEqual({});
+    expect(refusalsOn(undefined, offered())).toEqual({});
+  });
+
+  it("name an indentation under the task just above when that is a milestone, and only then", () => {
+    const rows = estimate.items.map((each) =>
+      each.node_id === RELANCE.node_id
+        ? { ...each, task: { ...each.task, is_milestone: true } }
+        : each,
+    ) as typeof estimate.items;
+    expect(refusalsOn(TRANSPORT, offered({ rows }))).toEqual({ indent: "afterMilestone" });
+    expect(shownOn(TRANSPORT, offered({ rows }))).toContain("indent");
+    expect(gesturesOn(TRANSPORT, offered({ rows }))).not.toContain("indent");
+    expect(refusalsOn(TRANSPORT, offered())).toEqual({});
+    // Not where the grid does not show the milestone: the sibling the move rests on is missing.
+    const hidden = rows.filter((each) => each.node_id !== RELANCE.node_id);
+    expect(refusalsOn(TRANSPORT, offered({ rows: hidden }))).toEqual({});
   });
 });
 

@@ -125,7 +125,6 @@ function organisation(
       rows={rows}
       query={NO_QUERY}
       preferences={undefined}
-      readsInactive
       editable
       filters={{ code: undefined, level: undefined, state: undefined, levels: NO_BOUNDS }}
       levels={[1, 2, 3]}
@@ -146,7 +145,6 @@ function roleList(editable = true, categoriesRead = true, read?: readonly CostCa
       page={roles.meta}
       query={NO_QUERY}
       preferences={undefined}
-      readsInactive
       editable={editable}
       nodes={NODE_CHOICES}
       categories={read === undefined ? labour : read.map(categoryChoice)}
@@ -179,7 +177,6 @@ function calendarList(
       page={calendars.meta}
       query={NO_QUERY}
       preferences={undefined}
-      readsInactive
       editable={editable}
       state={undefined}
     />,
@@ -242,9 +239,9 @@ describe("the organisation", () => {
     expect(options(parent)).toEqual([
       "Aucun — racine",
       "DT · Direction technique",
-      " BE-ELEC · Bureau d'études électricité",
-      "  AT-CABL · Atelier de câblage",
-      " ACHATS · Service des achats",
+      "\u2003BE-ELEC · Bureau d'études électricité",
+      "\u2003\u2003AT-CABL · Atelier de câblage",
+      "\u2003ACHATS · Service des achats",
     ]);
     await userEvent.type(within(form).getByRole("textbox", { name: "Code" }), " BE-MECA ");
     await userEvent.type(
@@ -268,7 +265,7 @@ describe("the organisation", () => {
       },
     ]);
     expect(screen.queryByRole("dialog")).toBeNull();
-    expect(announced()).toContain("« Bureau d'études mécanique » créé.");
+    expect(announced()).toContain("«\u00A0Bureau d'études mécanique\u00A0» créé.");
   });
 
   it("creates a root when no parent is chosen", async () => {
@@ -329,7 +326,7 @@ describe("the organisation", () => {
     await userEvent.type(within(form).getByRole("textbox", { name: "Code" }), "VIS");
     await userEvent.type(within(form).getByRole("textbox", { name: "Libellé" }), "Cellule vision");
     const parent = within(form).getByRole("combobox", { name: "Parent" });
-    await userEvent.selectOptions(parent, " BE-ELEC · Bureau d'études électricité");
+    await userEvent.selectOptions(parent, "\u2003BE-ELEC · Bureau d'études électricité");
     await userEvent.click(within(form).getByRole("button", { name: "Créer" }));
     await vi.waitFor(() => {
       expect(parent).toHaveFocus();
@@ -343,8 +340,8 @@ describe("the organisation", () => {
     render(organisation());
     const office = nodeOf("BE-ELEC");
     const form = await opened(
-      "Modifier « Bureau d'études électricité »",
-      "Modifier « Bureau d'études électricité »",
+      "Modifier «\u00A0Bureau d'études électricité\u00A0»",
+      "Modifier «\u00A0Bureau d'études électricité\u00A0»",
     );
     const parent = within(form).getByRole("combobox", { name: "Parent" });
     expect(parent).toHaveValue(nodeOf("DT").org_node_id);
@@ -358,8 +355,8 @@ describe("the organisation", () => {
     // The workshop moved under the direction, as the example of the fake back answers it.
     const workshop = nodeOf("AT-CABL");
     const moved = await opened(
-      "Modifier « Atelier de câblage »",
-      "Modifier « Atelier de câblage »",
+      "Modifier «\u00A0Atelier de câblage\u00A0»",
+      "Modifier «\u00A0Atelier de câblage\u00A0»",
     );
     const workshopParent = within(moved).getByRole("combobox", { name: "Parent" });
     expect(workshopParent).toHaveValue(office.org_node_id);
@@ -379,7 +376,7 @@ describe("the organisation", () => {
       },
     });
     await vi.waitFor(() => {
-      expect(announced()).toContain("« Atelier de câblage » enregistré.");
+      expect(announced()).toContain("«\u00A0Atelier de câblage\u00A0» enregistré.");
     });
     expect(refresh).toHaveBeenCalledOnce();
     // Its row as the server answers it: on the second level now.
@@ -392,15 +389,15 @@ describe("the organisation", () => {
     render(organisation());
     // The example answers the workshop, whatever node was modified.
     const form = await opened(
-      "Modifier « Bureau d'études électricité »",
-      "Modifier « Bureau d'études électricité »",
+      "Modifier «\u00A0Bureau d'études électricité\u00A0»",
+      "Modifier «\u00A0Bureau d'études électricité\u00A0»",
     );
     await userEvent.click(within(form).getByRole("button", { name: "Enregistrer" }));
     expect(await within(form).findByRole("alert")).toHaveTextContent(
       "Erreur inattendue du service.",
     );
     expect(client.calls).toHaveLength(1);
-    expect(announced()).not.toContain("« Atelier de câblage » enregistré.");
+    expect(announced()).not.toContain("«\u00A0Atelier de câblage\u00A0» enregistré.");
     expect(refresh).toHaveBeenCalledOnce();
     expect(rowOf("Atelier de câblage").querySelector('td[data-column="level"]')).toHaveTextContent(
       "3",
@@ -416,7 +413,10 @@ describe("the organisation", () => {
         ACTIVE_NODES,
       ),
     );
-    const form = await opened("Modifier « Cellule robotique »", "Modifier « Cellule robotique »");
+    const form = await opened(
+      "Modifier «\u00A0Cellule robotique\u00A0»",
+      "Modifier «\u00A0Cellule robotique\u00A0»",
+    );
     const parent = within(form).getByRole("combobox", { name: "Parent" });
     expect(parent).toHaveValue(nodeOf("BE-AUTO").org_node_id);
     // Under the direction, its own parent, as the row of the list names it.
@@ -437,7 +437,10 @@ describe("the organisation", () => {
     serve();
     // The cell alone listed — narrowed by its code —: nothing says where its parent stands.
     render(organisation([nodeOf("CEL-ROBOT")], ACTIVE_NODES));
-    const form = await opened("Modifier « Cellule robotique »", "Modifier « Cellule robotique »");
+    const form = await opened(
+      "Modifier «\u00A0Cellule robotique\u00A0»",
+      "Modifier «\u00A0Cellule robotique\u00A0»",
+    );
     const parent = within(form).getByRole("combobox", { name: "Parent" });
     expect(parent).toHaveValue(nodeOf("BE-AUTO").org_node_id);
     expect(options(parent).at(-1)).toBe("Bureau d'études automatismes (désactivé)");
@@ -452,7 +455,10 @@ describe("the organisation", () => {
     const client = serve({ [NODE]: "org_node_renamed_under_inactive" });
     render(organisation(tree, closed));
     const robotics = nodeOf("CEL-ROBOT");
-    const form = await opened("Modifier « Cellule robotique »", "Modifier « Cellule robotique »");
+    const form = await opened(
+      "Modifier «\u00A0Cellule robotique\u00A0»",
+      "Modifier «\u00A0Cellule robotique\u00A0»",
+    );
     const parent = within(form).getByRole("combobox", { name: "Parent" });
     // Le déplacement sous un nœud désactivé est refusé : the purchases are not offered; the office of
     // automation, its parent, is, under the direction.
@@ -470,7 +476,7 @@ describe("the organisation", () => {
     await userEvent.type(label, "Cellule robotique et vision");
     await userEvent.click(within(form).getByRole("button", { name: "Enregistrer" }));
     await vi.waitFor(() => {
-      expect(announced()).toContain("« Cellule robotique et vision » enregistré.");
+      expect(announced()).toContain("«\u00A0Cellule robotique et vision\u00A0» enregistré.");
     });
     expect(writes(client)).toEqual([
       {
@@ -499,7 +505,10 @@ describe("the organisation", () => {
           : node,
     );
     render(organisation(tree, reorganised));
-    const form = await opened("Modifier « Atelier de câblage »", "Modifier « Atelier de câblage »");
+    const form = await opened(
+      "Modifier «\u00A0Atelier de câblage\u00A0»",
+      "Modifier «\u00A0Atelier de câblage\u00A0»",
+    );
     const parent = within(form).getByRole("combobox", { name: "Parent" });
     expect(parent).toHaveValue(nodeOf("BE-ELEC").org_node_id);
     // After the office of automation, as the tree orders them, and not right under the direction.
@@ -526,7 +535,10 @@ describe("the organisation", () => {
           : node,
     );
     render(organisation(tree, deeper));
-    const form = await opened("Modifier « Atelier de câblage »", "Modifier « Atelier de câblage »");
+    const form = await opened(
+      "Modifier «\u00A0Atelier de câblage\u00A0»",
+      "Modifier «\u00A0Atelier de câblage\u00A0»",
+    );
     const parent = within(form).getByRole("combobox", { name: "Parent" });
     expect(parent).toHaveValue(nodeOf("BE-ELEC").org_node_id);
     // Not at its place before the purchases, where it would seem a root above them.
@@ -544,8 +556,8 @@ describe("the organisation", () => {
     });
     render(organisation());
     const form = await opened(
-      "Modifier « Direction technique »",
-      "Modifier « Direction technique »",
+      "Modifier «\u00A0Direction technique\u00A0»",
+      "Modifier «\u00A0Direction technique\u00A0»",
     );
     await userEvent.click(within(form).getByRole("button", { name: "Enregistrer" }));
     const parent = within(form).getByRole("combobox", { name: "Parent" });
@@ -561,7 +573,10 @@ describe("the organisation", () => {
   it("tells under the form the modification of a node from a stale version, with the offer to read the page anew", async () => {
     serve({ [NODE]: { problem: example("org_node_update_stale") as Problem & { status: 412 } } });
     render(organisation());
-    const form = await opened("Modifier « Atelier de câblage »", "Modifier « Atelier de câblage »");
+    const form = await opened(
+      "Modifier «\u00A0Atelier de câblage\u00A0»",
+      "Modifier «\u00A0Atelier de câblage\u00A0»",
+    );
     await userEvent.click(within(form).getByRole("button", { name: "Enregistrer" }));
     const alert = await within(form).findByRole("alert");
     expect(alert).toHaveTextContent("Quelqu’un a modifié cette donnée entre-temps");
@@ -572,7 +587,10 @@ describe("the organisation", () => {
   it("says at the parent the refusal of an active node moved under a deactivated one", async () => {
     serve({ [NODE]: { problem: example("org_node_move_refused") as Problem & { status: 422 } } });
     render(organisation());
-    const form = await opened("Modifier « Atelier de câblage »", "Modifier « Atelier de câblage »");
+    const form = await opened(
+      "Modifier «\u00A0Atelier de câblage\u00A0»",
+      "Modifier «\u00A0Atelier de câblage\u00A0»",
+    );
     await userEvent.click(within(form).getByRole("button", { name: "Enregistrer" }));
     const parent = within(form).getByRole("combobox", { name: "Parent" });
     await vi.waitFor(() => {
@@ -584,10 +602,10 @@ describe("the organisation", () => {
     const client = serve();
     render(organisation());
     await userEvent.click(
-      screen.getByRole("button", { name: "Désactiver « Atelier de câblage »" }),
+      screen.getByRole("button", { name: "Désactiver «\u00A0Atelier de câblage\u00A0»" }),
     );
     expect(
-      await screen.findByRole("button", { name: "Réactiver « Atelier de câblage »" }),
+      await screen.findByRole("button", { name: "Réactiver «\u00A0Atelier de câblage\u00A0»" }),
     ).toBeInTheDocument();
     expect(writes(client)).toEqual([
       {
@@ -596,7 +614,7 @@ describe("the organisation", () => {
         body: { is_active: false, lock_version: 1 },
       },
     ]);
-    expect(announced()).toContain("« Atelier de câblage » désactivé.");
+    expect(announced()).toContain("«\u00A0Atelier de câblage\u00A0» désactivé.");
     // The page is read anew: the roles deactivated with it are the other list's (WF-REF-0080).
     expect(refresh).toHaveBeenCalledOnce();
   });
@@ -641,9 +659,9 @@ describe("the resource roles", () => {
     expect(options(within(form).getByRole("combobox", { name: "Nœud d’organisation" }))).toEqual([
       "Choisir…",
       "DT · Direction technique",
-      " BE-ELEC · Bureau d'études électricité",
-      "  AT-CABL · Atelier de câblage",
-      " ACHATS · Service des achats",
+      "\u2003BE-ELEC · Bureau d'études électricité",
+      "\u2003\u2003AT-CABL · Atelier de câblage",
+      "\u2003ACHATS · Service des achats",
     ]);
     expect(options(within(form).getByRole("combobox", { name: "Catégorie de coût" }))).toEqual([
       "Choisir…",
@@ -668,7 +686,7 @@ describe("the resource roles", () => {
     );
     await userEvent.selectOptions(
       within(form).getByRole("combobox", { name: "Nœud d’organisation" }),
-      " BE-ELEC · Bureau d'études électricité",
+      "\u2003BE-ELEC · Bureau d'études électricité",
     );
     const [category] = LABOUR;
     await userEvent.selectOptions(
@@ -700,7 +718,7 @@ describe("the resource roles", () => {
         },
       },
     ]);
-    expect(announced()).toContain("« Dessinateur électricien » créé.");
+    expect(announced()).toContain("«\u00A0Dessinateur électricien\u00A0» créé.");
   });
 
   it("says at the code the refusal of a code another role holds, deactivated ones counted, naming it [WF-REF-0090-A]", async () => {
@@ -808,8 +826,8 @@ describe("the resource roles", () => {
     });
     render(roleList());
     const form = await opened(
-      "Modifier « Technicien de mise en service »",
-      "Modifier « Technicien de mise en service »",
+      "Modifier «\u00A0Technicien de mise en service\u00A0»",
+      "Modifier «\u00A0Technicien de mise en service\u00A0»",
     );
     const headcount = within(form).getByRole("textbox", { name: "Effectif" });
     await userEvent.clear(headcount);
@@ -830,13 +848,13 @@ describe("the resource roles", () => {
     render(roleList());
     const technician = roles.items.find((role) => role.label === "Technicien de mise en service");
     const form = await opened(
-      "Modifier « Technicien de mise en service »",
-      "Modifier « Technicien de mise en service »",
+      "Modifier «\u00A0Technicien de mise en service\u00A0»",
+      "Modifier «\u00A0Technicien de mise en service\u00A0»",
     );
     // The node is set at the creation: a role is recreated under another rather than moved.
     expect(within(form).queryByRole("combobox", { name: "Nœud d’organisation" })).toBeNull();
     expect(form).toHaveAccessibleDescription(
-      "Le code, unique, le libellé, une catégorie de main-d’œuvre, le calendrier et la capacité sont requis. Le rôle reste sous « Bureau d'études électricité » : il se recrée sous un autre nœud plutôt que de s’y déplacer.",
+      "Le code, unique, le libellé, une catégorie de main-d’œuvre, le calendrier et la capacité sont requis. Le rôle reste sous «\u00A0Bureau d'études électricité\u00A0»\u00A0: il se recrée sous un autre nœud plutôt que de s’y déplacer.",
     );
     expect(within(form).getByRole("textbox", { name: "Heures par mois" })).toHaveValue("485324,00");
     expect(within(form).getByRole("combobox", { name: "Calendrier" })).toHaveValue(
@@ -872,7 +890,10 @@ describe("the resource roles", () => {
   it("keeps a deactivated calendar a role is attached to, marked, among the active ones offered", async () => {
     serve();
     render(roleList());
-    const form = await opened("Modifier « Automaticien »", "Modifier « Automaticien »");
+    const form = await opened(
+      "Modifier «\u00A0Automaticien\u00A0»",
+      "Modifier «\u00A0Automaticien\u00A0»",
+    );
     expect(options(within(form).getByRole("combobox", { name: "Calendrier" }))).toEqual([
       "Choisir…",
       "Semaine de quatre jours",
@@ -924,12 +945,12 @@ describe("the resource roles", () => {
     serve();
     render(roleList());
     await userEvent.click(
-      screen.getByRole("button", { name: "Désactiver « Ingénieur électricien »" }),
+      screen.getByRole("button", { name: "Désactiver «\u00A0Ingénieur électricien\u00A0»" }),
     );
     expect(
-      await screen.findByRole("button", { name: "Réactiver « Ingénieur électricien »" }),
+      await screen.findByRole("button", { name: "Réactiver «\u00A0Ingénieur électricien\u00A0»" }),
     ).toBeInTheDocument();
-    expect(announced()).toContain("« Ingénieur électricien » désactivé.");
+    expect(announced()).toContain("«\u00A0Ingénieur électricien\u00A0» désactivé.");
   });
 });
 

@@ -47,9 +47,15 @@ export function cellStateOf(cells: CellReading, key: string, position: CellPosit
   };
 }
 
-/** The ring of a cell whose write the server refused: none for another. */
+/**
+ * The ring of a cell whose write the server refused: none for another. Its focus is told by a
+ * second stroke, a dashed contour inside the ring, not by the colour of the ring alone
+ * (WF-IHM-0100, #819).
+ */
 export function invalidRing(invalid: string | undefined): string | null {
-  return invalid === undefined ? null : "ring-2 ring-destructive ring-inset";
+  return invalid === undefined
+    ? null
+    : "ring-2 ring-destructive ring-inset focus-visible:outline-2 focus-visible:outline-dashed focus-visible:outline-foreground focus-visible:-outline-offset-4";
 }
 
 /** The key that opens the menu of a cell, as `aria-keyshortcuts` names it (`CellMenu`). */
@@ -58,7 +64,9 @@ const MENU_KEY = "Shift+F10";
 /**
  * The attributes of a cell of the body: its place in the grid, and what it says of itself — the
  * key of its menu among them, where the grid offers one, so that a reader of the screen learns of
- * it (WF-IHM-0100, #339).
+ * it (WF-IHM-0100, #339). The active cell is the one stop of the grid in the order of the keyboard,
+ * but while its entry is open: the field of the entry is then, and the cell around it is not a
+ * second target the field would cover (US-0710).
  */
 export function cellAttributes(
   position: CellPosition,
@@ -70,7 +78,7 @@ export function cellAttributes(
   return {
     "data-row": position.row,
     "data-column": position.column,
-    tabIndex: state.active ? 0 : -1,
+    tabIndex: state.active && state.draft === undefined ? 0 : -1,
     "aria-keyshortcuts": shortcuts.length === 0 ? undefined : shortcuts.join(" "),
     "aria-readonly": enterable ? undefined : true,
     "aria-busy": state.pending === undefined ? undefined : true,

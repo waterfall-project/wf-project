@@ -1,6 +1,6 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { act, render, screen, waitFor, within } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -29,8 +29,10 @@ import {
   type FakeClient,
   fakeClient,
   type FakeTiming,
+  held,
   type Problem,
 } from "@/test/fixtures";
+import { heldLink } from "@/test/held-link";
 import { keysOf } from "@/test/grid-preferences";
 
 import { type User, userGrid } from "./admin-grids";
@@ -88,14 +90,14 @@ describe("the table of the accounts, its own entry", () => {
     expect(screen.getByRole("button", { name: "Créer un compte local" })).toBeInTheDocument();
     expect(within(grid()).getAllByRole("switch")).toHaveLength(7);
     expect(
-      within(grid()).getByRole("switch", { name: "Compte de « Alix Moreau » actif" }),
+      within(grid()).getByRole("switch", { name: "Compte de «\u00A0Alix Moreau\u00A0» actif" }),
     ).not.toBeChecked();
     expect(within(grid()).getAllByRole("button", { name: /^Rôles de «/ })).toHaveLength(7);
     // The five local accounts have a link; those of the directory and of the provider, none.
     expect(within(grid()).getAllByRole("button", { name: /^Lien de fixation/ })).toHaveLength(5);
     expect(
       within(grid()).queryByRole("button", {
-        name: "Lien de fixation du mot de passe de « Dominique Bernard »",
+        name: "Lien de fixation du mot de passe de «\u00A0Dominique Bernard\u00A0»",
       }),
     ).toBeNull();
     await expectAccessible(container);
@@ -135,7 +137,7 @@ describe("the table of the accounts, its own entry", () => {
     await userEvent.keyboard("Petit-Laurent{Enter}");
     expect(await within(grid()).findByText("Petit-Laurent")).toBeInTheDocument();
     await waitFor(() => {
-      expect(told().textContent).toBe("« Lucas Petit-Laurent » renommé.");
+      expect(told().textContent).toBe("«\u00A0Lucas Petit-Laurent\u00A0» renommé.");
     });
     const lucas = account("Petit");
     expect(writes(client)).toEqual([
@@ -163,7 +165,7 @@ describe("the table of the accounts, its own entry", () => {
     );
     render(accounts());
     await userEvent.click(
-      within(grid()).getByRole("switch", { name: "Compte de « Noé Vidal » actif" }),
+      within(grid()).getByRole("switch", { name: "Compte de «\u00A0Noé Vidal\u00A0» actif" }),
     );
     within(grid()).getByText("Vidal").closest<HTMLElement>("[tabindex]")?.focus();
     await userEvent.keyboard("Vidal-Roux{Enter}");
@@ -171,7 +173,7 @@ describe("the table of the accounts, its own entry", () => {
     expect(writes(client).map(([route]) => route)).toEqual(["PUT /users/{user_id}/activation"]);
     held.release();
     await waitFor(() => {
-      expect(told().textContent).toBe("« Noé Vidal-Roux » renommé.");
+      expect(told().textContent).toBe("«\u00A0Noé Vidal-Roux\u00A0» renommé.");
     });
     const noe = account("Vidal");
     const deactivated = example("user_deactivated") as User;
@@ -195,8 +197,12 @@ describe("the table of the accounts, its own entry", () => {
     const held = heldActivation();
     const client = serve({ "PUT /users/{user_id}/activation": "user_deactivated" }, held.timing);
     render(accounts());
-    const vidal = within(grid()).getByRole("switch", { name: "Compte de « Noé Vidal » actif" });
-    const trigger = within(grid()).getByRole("button", { name: "Rôles de « Noé Vidal »" });
+    const vidal = within(grid()).getByRole("switch", {
+      name: "Compte de «\u00A0Noé Vidal\u00A0» actif",
+    });
+    const trigger = within(grid()).getByRole("button", {
+      name: "Rôles de «\u00A0Noé Vidal\u00A0»",
+    });
     expect(vidal).not.toHaveAttribute("aria-disabled");
     await userEvent.click(vidal);
     await waitFor(() => {
@@ -205,7 +211,7 @@ describe("the table of the accounts, its own entry", () => {
     expect(vidal).toHaveAttribute("aria-disabled", "true");
     expect(trigger).toHaveAttribute("aria-busy", "true");
     await userEvent.click(trigger);
-    const list = await screen.findByRole("group", { name: "Rôles de « Noé Vidal »" });
+    const list = await screen.findByRole("group", { name: "Rôles de «\u00A0Noé Vidal\u00A0»" });
     const chiffreur = within(list).getByRole("checkbox", { name: "Chiffreur" });
     expect(chiffreur).toHaveAttribute("aria-disabled", "true");
     await userEvent.click(chiffreur);
@@ -236,7 +242,12 @@ describe("the anonymisation of an account", () => {
     const confirmation = await screen.findByRole("alertdialog", {
       name: "Anonymiser «\u00a0Alix Moreau\u00a0»\u00a0?",
     });
+    // It says all the anonymisation does (#942): irreversible, the name, the first name and the
+    // address erased, the avatar withdrawn, a local account withdrawn from the identity provider.
     expect(confirmation).toHaveTextContent("est irréversible");
+    expect(confirmation).toHaveTextContent("son nom, son prénom et son adresse sont effacés");
+    expect(confirmation).toHaveTextContent("son avatar est retiré");
+    expect(confirmation).toHaveTextContent("un compte local est retiré du fournisseur d’identité");
     await userEvent.click(within(confirmation).getByRole("button", { name: "Anonymiser" }));
     await waitFor(() => {
       expect(told().textContent).toBe("Compte anonymisé.");
@@ -319,6 +330,40 @@ describe("the anonymisation of an account", () => {
     expect(writes(client).map(([route]) => route)).toEqual(["PUT /users/{user_id}/activation"]);
   });
 
+  it("writes nothing and says so when a write of the row begins while the confirmation is open (#941)", async () => {
+    const held = heldActivation();
+    const client = serve({ "PUT /users/{user_id}/activation": "user_deactivated" }, held.timing);
+    render(accounts());
+    const activation = within(grid()).getByRole("switch", {
+      name: "Compte de «\u00a0Alix Moreau\u00a0» actif",
+    });
+    await userEvent.click(
+      within(grid()).getByRole("button", { name: "Anonymiser «\u00a0Alix Moreau\u00a0»" }),
+    );
+    const confirmation = await screen.findByRole("alertdialog");
+    // A write of the activation of her row begins behind the dialog, which no pointer reaches; the
+    // route is served the one example of the contract, which the test does not read.
+    act(() => {
+      activation.click();
+    });
+    await waitFor(() => {
+      expect(writes(client)).toHaveLength(1);
+    });
+    await userEvent.click(within(confirmation).getByRole("button", { name: "Anonymiser" }));
+    // Nothing is asked for her anonymisation, and the table says why.
+    expect(writes(client).map(([route]) => route)).toEqual(["PUT /users/{user_id}/activation"]);
+    await waitFor(() => {
+      expect(told().textContent).toBe(
+        "Une écriture de « Alix Moreau » est en cours : rien n’a été écrit, renouvelez la demande une fois la réponse donnée.",
+      );
+    });
+    held.release();
+    await waitFor(() => {
+      expect(activation).toHaveAttribute("aria-busy", "false");
+    });
+    expect(writes(client)).toHaveLength(1);
+  });
+
   it("presents the reactivation and the anonymisation of an anonymised account unavailable, each naming the condition it lacks [WF-ADM-0060-A]", async () => {
     const client = serve({});
     render(accounts(true, anonymized));
@@ -372,16 +417,19 @@ describe("the state of an account, on its switch", () => {
     const client = serve({ "PUT /users/{user_id}/activation": "user_deactivated" });
     render(accounts());
     const vidal = within(grid()).getByRole("switch", {
-      name: "Compte de « Noé Vidal » actif",
+      name: "Compte de «\u00A0Noé Vidal\u00A0» actif",
     });
     expect(vidal).toBeChecked();
     await userEvent.click(vidal);
     await waitFor(() => {
-      expect(told().textContent).toBe("« Noé Vidal » désactivé.");
+      expect(told().textContent).toBe("«\u00A0Noé Vidal\u00A0» désactivé.");
     });
     // Noted in the history of the messages, about the account (#1181).
     expect(readMessages().messages).toEqual([
-      expect.objectContaining({ sentence: "« Noé Vidal » désactivé.", object: "Noé Vidal" }),
+      expect.objectContaining({
+        sentence: "«\u00A0Noé Vidal\u00A0» désactivé.",
+        object: "Noé Vidal",
+      }),
     ]);
     expect(vidal).not.toBeChecked();
     expect(vidal.closest("td")).toHaveTextContent("Désactivé");
@@ -400,10 +448,10 @@ describe("the state of an account, on its switch", () => {
     const client = serve({});
     render(accounts());
     const camille = within(grid()).getByRole("switch", {
-      name: "Compte de « Camille Martin » actif",
+      name: "Compte de «\u00A0Camille Martin\u00A0» actif",
     });
     const unmet =
-      "Condition non remplie : un autre compte actif portant les permissions d’administration.";
+      "Condition non remplie\u00A0: un autre compte actif portant les permissions d’administration.";
     expect(camille).toHaveAttribute("aria-disabled", "true");
     expect(camille).toHaveAccessibleDescription(unmet);
     await userEvent.click(camille);
@@ -427,6 +475,31 @@ describe("the state of an account, on its switch", () => {
     expect(roux).toBeChecked();
     expect(told().textContent).toBe("");
   });
+
+  it("holds a link clicked while a deactivation answers, and does not follow it when the server refuses it: the refusal is told above the table (#688, #889)", async () => {
+    const answer = held();
+    const refused = { problem: { code: "PERMISSION_MISSING", status: 403 } } as const;
+    serve({ "PUT /users/{user_id}/activation": refused }, answer.timing);
+    render(accounts());
+    const link = heldLink();
+    try {
+      await userEvent.click(
+        within(grid()).getByRole("switch", { name: "Compte de «\u00a0Inès Roux\u00a0» actif" }),
+      );
+      link.click();
+      await act(async () => {
+        answer.release();
+        await new Promise((resolve) => setTimeout(resolve, 0));
+      });
+
+      expect(await screen.findByRole("alert")).toHaveTextContent(
+        CATALOGUES.fr.errors.PERMISSION_MISSING,
+      );
+      expect(link.followed).not.toHaveBeenCalled();
+    } finally {
+      link.remove();
+    }
+  });
 });
 
 describe("the access roles of an account, cell by cell", () => {
@@ -434,15 +507,15 @@ describe("the access roles of an account, cell by cell", () => {
     const client = serve({ "PUT /users/{user_id}/access-roles": "user_access_roles_set" });
     render(accounts());
     await userEvent.click(
-      within(grid()).getByRole("button", { name: "Rôles de « Sacha Lefèvre »" }),
+      within(grid()).getByRole("button", { name: "Rôles de «\u00A0Sacha Lefèvre\u00A0»" }),
     );
-    const list = await screen.findByRole("group", { name: "Rôles de « Sacha Lefèvre »" });
+    const list = await screen.findByRole("group", { name: "Rôles de «\u00A0Sacha Lefèvre\u00A0»" });
     // Every role of the installation, whatever the node of the account (WF-ADM-0030).
     expect(within(list).getAllByRole("checkbox")).toHaveLength(roles.length);
     expect(within(list).getByRole("checkbox", { name: "Chiffreur" })).not.toBeChecked();
     await userEvent.click(within(list).getByRole("checkbox", { name: "Chiffreur" }));
     await waitFor(() => {
-      expect(told().textContent).toBe("Rôles de « Sacha Lefèvre » attribués.");
+      expect(told().textContent).toBe("Rôles de «\u00A0Sacha Lefèvre\u00A0» attribués.");
     });
     expect(within(list).getByRole("checkbox", { name: "Chiffreur" })).toBeChecked();
     const sacha = account("Lefèvre");
@@ -458,12 +531,14 @@ describe("the access roles of an account, cell by cell", () => {
   it("withdraws her one role from an account, which then holds none, and says so (WF-ADM-0050)", async () => {
     const client = serve({ "PUT /users/{user_id}/access-roles": "user_access_roles_cleared" });
     render(accounts());
-    const trigger = within(grid()).getByRole("button", { name: "Rôles de « Inès Roux »" });
+    const trigger = within(grid()).getByRole("button", {
+      name: "Rôles de «\u00A0Inès Roux\u00A0»",
+    });
     await userEvent.click(trigger);
-    const list = await screen.findByRole("group", { name: "Rôles de « Inès Roux »" });
+    const list = await screen.findByRole("group", { name: "Rôles de «\u00A0Inès Roux\u00A0»" });
     await userEvent.click(within(list).getByRole("checkbox", { name: "Pilotage de projet" }));
     await waitFor(() => {
-      expect(told().textContent).toBe("Rôles de « Inès Roux » attribués.");
+      expect(told().textContent).toBe("Rôles de «\u00A0Inès Roux\u00A0» attribués.");
     });
     expect(trigger).toHaveTextContent("Aucun rôle");
     expect(within(list).getByRole("checkbox", { name: "Pilotage de projet" })).not.toBeChecked();
@@ -480,12 +555,14 @@ describe("the access roles of an account, cell by cell", () => {
   it("attributes a second role to an account, which then holds both, in the order given (WF-ADM-0050)", async () => {
     const client = serve({ "PUT /users/{user_id}/access-roles": "user_access_roles_two" });
     render(accounts());
-    const trigger = within(grid()).getByRole("button", { name: "Rôles de « Noé Vidal »" });
+    const trigger = within(grid()).getByRole("button", {
+      name: "Rôles de «\u00A0Noé Vidal\u00A0»",
+    });
     await userEvent.click(trigger);
-    const list = await screen.findByRole("group", { name: "Rôles de « Noé Vidal »" });
+    const list = await screen.findByRole("group", { name: "Rôles de «\u00A0Noé Vidal\u00A0»" });
     await userEvent.click(within(list).getByRole("checkbox", { name: "Chiffreur" }));
     await waitFor(() => {
-      expect(told().textContent).toBe("Rôles de « Noé Vidal » attribués.");
+      expect(told().textContent).toBe("Rôles de «\u00A0Noé Vidal\u00A0» attribués.");
     });
     expect(trigger).toHaveTextContent(/^AuditeurChiffreur$/);
     expect(within(list).getByRole("checkbox", { name: "Auditeur" })).toBeChecked();
@@ -508,10 +585,10 @@ describe("the access roles of an account, cell by cell", () => {
     });
     render(accounts());
     await userEvent.click(
-      within(grid()).getByRole("button", { name: "Rôles de « Camille Martin »" }),
+      within(grid()).getByRole("button", { name: "Rôles de «\u00A0Camille Martin\u00A0»" }),
     );
     const list = await screen.findByRole("group", {
-      name: "Rôles de « Camille Martin »",
+      name: "Rôles de «\u00A0Camille Martin\u00A0»",
     });
     const direction = roles.find((role) => role.id === DIRECTION)?.label ?? "";
     await userEvent.click(within(list).getByRole("checkbox", { name: direction }));
@@ -530,13 +607,15 @@ describe("the access roles of an account, cell by cell", () => {
     });
     render(accounts());
     await userEvent.click(
-      within(grid()).getByRole("switch", { name: "Compte de « Noé Vidal » actif" }),
+      within(grid()).getByRole("switch", { name: "Compte de «\u00A0Noé Vidal\u00A0» actif" }),
     );
     await waitFor(() => {
-      expect(told().textContent).toBe("« Noé Vidal » désactivé.");
+      expect(told().textContent).toBe("«\u00A0Noé Vidal\u00A0» désactivé.");
     });
-    await userEvent.click(within(grid()).getByRole("button", { name: "Rôles de « Noé Vidal »" }));
-    const list = await screen.findByRole("group", { name: "Rôles de « Noé Vidal »" });
+    await userEvent.click(
+      within(grid()).getByRole("button", { name: "Rôles de «\u00A0Noé Vidal\u00A0»" }),
+    );
+    const list = await screen.findByRole("group", { name: "Rôles de «\u00A0Noé Vidal\u00A0»" });
     await userEvent.click(within(list).getByRole("checkbox", { name: "Chiffreur" }));
     await waitFor(() => {
       expect(writes(client)).toHaveLength(2);
@@ -551,14 +630,14 @@ describe("the access roles of an account, cell by cell", () => {
   it("opens the roles of the active cell on Enter, the grid one stop of the tabulation, and gives the focus back to the cell on Escape", async () => {
     render(accounts());
     const trigger = within(grid()).getByRole("button", {
-      name: "Rôles de « Lucas Petit »",
+      name: "Rôles de «\u00A0Lucas Petit\u00A0»",
     });
     expect(trigger).toHaveAttribute("tabindex", "-1");
     const cell = trigger.closest("td") as HTMLElement;
     cell.focus();
     await userEvent.keyboard("{Enter}");
     expect(
-      await screen.findByRole("group", { name: "Rôles de « Lucas Petit »" }),
+      await screen.findByRole("group", { name: "Rôles de «\u00A0Lucas Petit\u00A0»" }),
     ).toBeInTheDocument();
     await userEvent.keyboard("{Escape}");
     await waitFor(() => {
@@ -581,7 +660,7 @@ describe("the creation of a local account", () => {
     );
     await userEvent.click(within(form).getByRole("button", { name: "Créer" }));
     await waitFor(() => {
-      expect(told().textContent).toBe("Compte « Léa Garnier » créé.");
+      expect(told().textContent).toBe("Compte «\u00A0Léa Garnier\u00A0» créé.");
     });
     expect(screen.queryByRole("dialog")).toBeNull();
     expect(screen.getByRole("button", { name: "Créer un compte local" })).toHaveFocus();
@@ -648,11 +727,10 @@ describe("the creation of a local account", () => {
       held.timing,
     );
     render(accounts());
-    await userEvent.click(
-      within(grid()).getByRole("button", {
-        name: "Lien de fixation du mot de passe de «\u00a0Camille Martin\u00a0»",
-      }),
-    );
+    const martinLink = within(grid()).getByRole("button", {
+      name: "Lien de fixation du mot de passe de «\u00a0Camille Martin\u00a0»",
+    });
+    await userEvent.click(martinLink);
     await createGarnier(await openCreation());
     const offer = await screen.findByRole("button", { name: "Remettre le lien" });
     expect(offer).toHaveAttribute("aria-busy", "true");
@@ -671,6 +749,13 @@ describe("the creation of a local account", () => {
     await waitFor(() => {
       expect(offer).toHaveAttribute("aria-busy", "false");
     });
+    // The link of Martin closed over the creation (#951): the creation stays open, alone, and the
+    // focus is not left in the dialog of the link, gone. Which element holds it otherwise is a
+    // browser's to say: its trap (Radix `FocusScope`) pulls it back into the creation, which
+    // happy-dom does not run, so this test does not say it.
+    expect(screen.queryByRole("dialog", { name: /Camille Martin/ })).toBeNull();
+    expect(screen.getAllByRole("dialog")).toHaveLength(1);
+    expect(screen.getByRole("dialog", { name: "Créer un compte local" })).toBeVisible();
     expect(offer).not.toHaveAttribute("aria-disabled");
     await userEvent.click(offer);
     expect(

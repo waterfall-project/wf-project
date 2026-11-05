@@ -39,8 +39,8 @@ import type { ProjectReading } from "@/components/context/reading";
 import { EstimateSummary } from "@/components/estimate/estimate-summary";
 import { ExchangesLink } from "@/components/exchanges/exchanges-link";
 import { breakdownChip } from "@/components/grid/breakdown-filter";
-import { BreakdownFilterChoice } from "@/components/grid/breakdown-filter-choice";
-import { DifferencesOnly } from "@/components/grid/differences-only";
+import { GridFilters } from "@/components/grid/grid-filters";
+import { originNames } from "@/components/grid/origin-filter";
 import {
   ESTIMATE_FIELDS,
   ESTIMATE_GRID,
@@ -52,6 +52,7 @@ import { EstimateGrid } from "@/components/grid/estimate-grid";
 import type { NodeTotals } from "@/components/grid/nodes";
 import { PendingAddress } from "@/components/grid/pending-address";
 import { FUNCTION_DENSITY, FUNCTION_ICONS, LEAF_ICONS } from "@/components/shell/function-display";
+import { MockupNotice } from "@/components/shell/mockup-notice";
 import { PageHeader, Screen } from "@/components/shell/page-header";
 import { buttonVariants } from "@/components/ui/button";
 import type { PageSearchParams } from "@/navigation/context";
@@ -137,8 +138,9 @@ async function readOptional<T>(
 
 /**
  * The query of a list of the reference data: the deactivated objects too, for a session that bears
- * the permission of that part of the reference — the contract refuses `include_inactive` without it
- * (403) —, the active ones alone otherwise, which an estimator enters on (#351).
+ * the permission of modifying that part of the reference — the contract refuses
+ * `include_inactive` without it (403) —, the active ones alone otherwise, which an estimator
+ * enters on (#351).
  */
 function referenceQuery(permissions: readonly Permission[], permission: Permission) {
   return permissions.includes(permission) ? { include_inactive: true } : {};
@@ -157,8 +159,8 @@ function referenceQuery(permissions: readonly Permission[], permission: Permissi
 async function readReference(projectId: string): Promise<EstimateReference> {
   const client = serverClient();
   const permissions = (await requestSession())?.permissions ?? [];
-  const categoryQuery = referenceQuery(permissions, "cost_settings.read");
-  const roleQuery = referenceQuery(permissions, "resource_settings.read");
+  const categoryQuery = referenceQuery(permissions, "cost_settings.write");
+  const roleQuery = referenceQuery(permissions, "resource_settings.write");
   const [categories, roles, subprojects] = await Promise.all([
     readEveryPageUnlessRefused("listCostCategories", OPTIONAL_READ_REFUSALS, (page) =>
       client.GET("/reference/cost-categories", {
@@ -282,6 +284,7 @@ export default async function EstimatePage({
       fields: ESTIMATE_FIELDS,
       byBreakdown: true,
       byDifference: true,
+      byOrigin: true,
       chooses: true,
     }),
     readEstimateFigures(at),
@@ -316,16 +319,19 @@ export default async function EstimatePage({
             <ExchangesLink project={screen.reading.project} kind="estimate" context={at.context} />
           }
         />
+        <MockupNotice lists />
         <EstimateSummary
           indicators={indicators}
           missingRates={missingRates}
           permissions={session?.permissions ?? []}
           currency={currency}
         />
-        {screen.breakdown === undefined ? null : (
-          <BreakdownFilterChoice choices={screen.breakdown} />
-        )}
-        <DifferencesOnly filter={screen.difference} offered={screen.kind === "amendment"} />
+        <GridFilters
+          breakdown={screen.breakdown}
+          difference={screen.difference}
+          differential={screen.kind === "amendment"}
+          origin={screen.origin}
+        />
         <EstimateGrid
           key={screen.structure.structure_id}
           nodes={subprojectsEntered ? screen.nodes : withoutSubprojectIds(screen.nodes)}
@@ -338,6 +344,7 @@ export default async function EstimatePage({
           query={screen.query}
           preferences={screen.preferences}
           differential={screen.kind === "amendment"}
+          origins={originNames(screen.origin)}
           inflation={inflationOf(screen.reading)}
         />
       </Screen>

@@ -6,7 +6,7 @@ The accounts of the installation, outside any project: each account with its ori
 
 At the top, the report of the last reading of the accounts of the identity provider that succeeded, or the indication that none has succeeded yet: the accounts created — without a role —, updated, deactivated, the identities of local accounts restored in the provider, the local accounts that were removed from it, and what was left as it was, with its reason, under **Details of the last reading**.
 
-Under this report, the **Reading schedule**: the platform reads the accounts of the identity provider by itself, every day by default, at the hour and, for a weekly reading, on the day set; the screen says whether the scheduled reading is active or suspended, its frequency, its day and its hour in universal time (UTC).
+Under this report, the **Reading periodicity**: the platform reads the accounts of the identity provider by itself, every day by default, at the hour and, for a weekly reading, on the day set; the screen says whether the scheduled reading is active or suspended, its frequency, its day and its hour in universal time (UTC).
 
 Then the table of the accounts, which the server sorts, searches, filters and pages; its footer says how many accounts it keeps.
 
@@ -16,15 +16,15 @@ These commands are offered only to whoever may modify the accounts; to the other
 
 - **Read the accounts** asks for a new reading of the accounts of the identity provider. It runs as a background task: the panel of the tasks follows it and offers, at its end, to read the screen again, where its report appears.
 - **Create a local account** opens the form: last name, first name and email address, all three required. The account is born without a role nor a means to sign in: its holder receives by email the link that has them set their password. When no invitation could be sent, the form says so and offers **Hand over the link**.
-- **Modify the schedule** opens the form of the reading schedule: active or suspended, daily or weekly, the day for a weekly reading only, and the hour in universal time (UTC), with the local hour of this workstation it stands for. The schedule is saved whole; a reading in progress is not interrupted, the setting holds from the next one.
+- **Modify the periodicity** opens the form of the reading periodicity: active or suspended, daily or weekly, the day for a weekly reading only, and the hour in universal time (UTC), with the local hour of this workstation it stands for. The periodicity is saved whole; a reading in progress is not interrupted, the setting holds from the next one.
 - In the table, the last name and the first name of an account created in Waterfall are entered in their cell; those of an account of the directory or of the identity provider are their own, and are not entered.
 - **State**: the switch activates or deactivates the account. Deactivation is unavailable for the last active account that holds the administration permissions (“another active account holding the administration permissions”), and the reactivation of an anonymised account always is.
 - **Access roles**: the list of the roles of the installation, to check or uncheck, none, one or several. The server refuses the roles that would take from the last administrator their permissions.
 - **Link** gives the link to set the password of an account created in Waterfall, to hand over by another channel: it serves only once, will not be shown again, and asking for another one voids the previous one. Unavailable for a deactivated account (“active account”).
 - **Email** has the identity provider send again, to the address of an account created in Waterfall, the email that bears the link to set the password: for a holder who did not receive it, lost it or let it expire. A previous link ceases to hold, and the sending is written in the audit log. Unavailable for a deactivated account (“active account”). When the provider cannot send it — an installation without mail, a mail server failing —, the screen says the refusal, never an email sent: **Link** then gives the link to hand over by another channel.
-- **Anonymise**, once confirmed, erases the last name, the first name and the address of a deactivated account, from the table as from the audit log; the operation is final, and the account is no longer reactivated. Offered to the deactivated account alone, unavailable once the account is anonymised.
+- **Anonymise**, once confirmed in a dialog that says all it does, erases the last name, the first name and the address of a deactivated account, from the table as from the audit log, removes its avatar and, for an account created in Waterfall, removes it from the identity provider; the operation is final, and the account is no longer reactivated. Offered to the deactivated account alone, unavailable once the account is anonymised.
 
-While a write of a row is in progress, the commands of that row wait for its answer.
+While a write of a row is in progress, the commands of that row wait for its answer; a confirmation of anonymisation that comes in the meantime writes nothing and says so. While a link is asked or shown, the state switch of the accounts waits too: no link is given for an account being deactivated, and no account is deactivated while its link is on the way.
 
 Above the table, for all:
 

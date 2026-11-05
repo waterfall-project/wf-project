@@ -84,7 +84,6 @@ function natures(rows: readonly CostType[] = types.items) {
       query={NO_QUERY}
       preferences={undefined}
       state={undefined}
-      readsInactive
       editable
       kinds={[]}
     />,
@@ -105,7 +104,6 @@ function categoryList(
       query={NO_QUERY}
       preferences={undefined}
       state={undefined}
-      readsInactive
       editable
       natures={offered}
       every={every}
@@ -533,7 +531,7 @@ describe("the nature of a category, as its commands say it", () => {
     expect(
       within(dialog("Modify “Sous-traitance”")).getByRole("combobox", { name: "Cost type" }),
     ).toHaveAccessibleDescription(
-      "The type of the deactivated nature cannot be read: it alone is offered. Unmet condition: category employed by no line.",
+      "The type of the deactivated cost type cannot be read: it alone is offered. Unmet condition: category employed by no line.",
     );
   });
 

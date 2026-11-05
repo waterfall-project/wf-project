@@ -10,11 +10,11 @@ The gestures of structure, in the menu of a cell and at their keys, as in the es
 
 The submenu **Subproject** carries the line, or the selection, to a subproject; it is not offered on a provision line, nor on the line of a started task whose subproject has received actual costs.
 
-The grid takes no paste. It is entered where the structure lists “Update the estimate to complete” available, and each line where it says it accepts it: the lines of a completed task are no longer modified. A task is completed when all its lines bear a zero remaining to commit; it is reopened from the [Kanban](FBS-4.5.3.md).
+The grid takes no paste. It is entered where the structure lists “Re-estimate the remaining to commit” available, and each line where it says it accepts it: the lines of a completed task are no longer modified. A task is completed when all its lines bear a zero remaining to commit; it is reopened from the [Kanban](FBS-4.5.3.md).
 
 ## Its columns and computed values
 
-The budgeted amount is the one the reference revision set; the re-estimated amount follows the reviews of the remaining to commit. The three amounts are computed: a computed cell says what it depends on. The mark “Started task past its finish” comes from the server.
+The budgeted amount is the one the reference revision set; the re-estimated amount follows the reviews of the remaining to commit. The three amounts are computed: a computed cell says what it depends on. The mark “Started task past its finish” comes from the server. So does **Own lines open**, an icon and a text: it marks a started summary task whose subordinates are all completed, and its own lines outside provisions, the only open lines of the phase; a provision line is never marked. The screen does not deduce it from the subordinates.
 
 ## Keyboard gestures
 

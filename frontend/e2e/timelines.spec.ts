@@ -5,6 +5,7 @@ import { expect, type Locator, type Page, test } from "@playwright/test";
 import { columnsOf } from "./columns";
 import { openHydrated, WORKING } from "./hydration";
 import { scrollToPosition } from "./scroll";
+import { isServerAction } from "./server-action";
 
 // The inscription of a task to a timeline, from the menu of its cell (US-0480, WF-PLA-0060), against
 // the fake back. It keeps nothing: it serves the first example of each read, and the first of
@@ -13,7 +14,9 @@ import { scrollToPosition } from "./scroll";
 // proven by `choice-menu.dom.test.tsx`; the journey proves the menu, the answer shown in the column
 // that the account shows, and the sentence the screen says, in a browser. The journey reads the
 // structure by a mark the generator writes (`test_the_marks_the_journeys_read`): row 5, the task
-// « Revue de conception », not yet inscribed to a timeline.
+// « Revue de conception », not yet inscribed to a timeline; and by ranks among the tasks, which
+// `test_the_ranks_among_the_tasks_the_planning_journeys_read` holds (tools/tests/
+// test_mockstructure.py): row 5 is the 4th task, row 6, the milestone after it, the 5th.
 const PROJECT = "01926f3a-7c00-7000-8000-000000000001";
 const REVISION = "01926f3a-7c00-7000-8000-000000000102";
 const IN_REVISION = `/projects/${PROJECT}/revisions/${REVISION}`;
@@ -43,7 +46,7 @@ test("inscribes a task to a timeline from the menu of its cell, sees it in the c
   await page.keyboard.press("Escape");
   const at = await columnsOf(grid, { label: "Libellé", timelines: "Chronologies" });
 
-  const review = await scrollToPosition(grid, 5);
+  const review = await scrollToPosition(grid, 4);
   await expect(review).toHaveAccessibleName(/^5 .*Revue de conception/);
   await expect(review.getByRole("gridcell").nth(at.timelines)).toHaveText("");
 
@@ -73,9 +76,7 @@ test("inscribes a task to a timeline from the menu of its cell, sees it in the c
   // Taken out: the same menu unchecks it, and the screen says the timelines were updated again.
   // The write is a server action, the one of the second click: the whole list, empty once the task is
   // taken out.
-  const removal = page.waitForRequest(
-    (request) => request.method() === "POST" && request.headers()["next-action"] !== undefined,
-  );
+  const removal = page.waitForRequest(isServerAction);
   await again.getByRole("menuitemcheckbox", { name: "Revue client" }).click();
   expect((await removal).postData()).toContain('"entries":[]');
   await expect(page.getByText(SAID)).toBeVisible({ timeout: WORKING });
@@ -93,7 +94,7 @@ test("offers the time/time tracking of a milestone beside its timelines, checked
   const at = await columnsOf(grid, { label: "Libellé" });
   // Row 6 of the example, « Réception des études », a milestone inscribed to both timelines and to
   // the tracking.
-  const milestone = await scrollToPosition(grid, 6);
+  const milestone = await scrollToPosition(grid, 5);
   await expect(milestone).toHaveAccessibleName(/^6 .*Réception des études/);
   const boxes = await openTimelines(page, milestone, at.label);
   await expect(boxes.getByRole("menuitemcheckbox")).toHaveText([
@@ -108,7 +109,7 @@ test("offers the time/time tracking of a milestone beside its timelines, checked
   await page.keyboard.press("Escape");
   await page.keyboard.press("Escape");
   // A task that is no milestone is offered the timelines alone.
-  const task = await scrollToPosition(grid, 5);
+  const task = await scrollToPosition(grid, 4);
   const others = await openTimelines(page, task, at.label);
   await expect(others.getByRole("menuitemcheckbox", { name: "Suivi temps/temps" })).toHaveCount(0);
 });
@@ -142,10 +143,7 @@ test("lays out the frieze of a timeline by the keyboard and the mouse, and recor
 
   // The keyboard: the last rectangle, a lane down — the lanes shown recorded after a pause.
   const recorded = page.waitForRequest(
-    (request) =>
-      request.method() === "POST" &&
-      request.headers()["next-action"] !== undefined &&
-      (request.postData() ?? "").includes("lanes"),
+    (request) => isServerAction(request) && (request.postData() ?? "").includes("lanes"),
   );
   await frieze.focus();
   await page.keyboard.press("End");

@@ -17,6 +17,7 @@ import { useTranslations } from "next-intl";
 
 import { ContextBanner } from "@/components/context/context-banner";
 import { FUNCTION_DENSITY, LEAF_ICONS } from "@/components/shell/function-display";
+import { MockupNotice } from "@/components/shell/mockup-notice";
 import { PageHeader, Screen } from "@/components/shell/page-header";
 import {
   depthHref,
@@ -103,6 +104,7 @@ function TaskTreeScreen({
         subtitle={t("taskTree.summary")}
         actions={<Depths levels={levels} depth={depth} href={href} />}
       />
+      <MockupNotice lists />
       <TaskTree name={t("taskTree.name")} project={project} nodes={nodes} />
       {levels === 0 ? (
         <p className="text-sm text-muted-foreground">{t("taskTree.noSummary")}</p>

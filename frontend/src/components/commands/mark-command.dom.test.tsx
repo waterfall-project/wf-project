@@ -19,6 +19,7 @@ import { example, type FakeAnswers, type FakeClient, fakeClient } from "@/test/f
 import { closeTasks, tasksRegion } from "@/test/task-panel";
 
 import { RevisionCommands } from "./object-commands";
+import type { ProjectContext } from "@/navigation/context";
 
 // The server of Next, as far as the marking needs it: the fake back behind serverClient.
 const server = vi.hoisted((): { client: ApiClient | undefined } => ({ client: undefined }));
@@ -37,6 +38,12 @@ vi.mock("next/navigation", async (original) => ({
 
 const PROJECT = "01926f3a-7c00-7000-8000-000000000001";
 const REVISION = "01926f3a-7c00-7000-8000-000000000102";
+const CONTEXT: ProjectContext = {
+  projectId: PROJECT,
+  revisionId: REVISION,
+  revisionInPath: true,
+  parameters: new URLSearchParams(),
+};
 const MARK = "POST /projects/{project_id}/revisions/{revision_id}/mark";
 const TASK = "GET /tasks/{task_id}";
 const PREFERENCES = "PATCH /me/preferences";
@@ -60,7 +67,7 @@ function open(name = "revision", beside?: ReactNode) {
         <TaskPanel />
         <main>
           {beside}
-          <RevisionCommands revision={example(name) as Revision} />
+          <RevisionCommands revision={example(name) as Revision} context={CONTEXT} />
         </main>
       </TaskTracker>
     </NextIntlClientProvider>,

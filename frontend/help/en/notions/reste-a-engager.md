@@ -22,5 +22,5 @@ The projection of the project manager is the sum of the actual cost and of the r
 
 ## See also
 
-- [The estimate to complete](../FBS-4.5.md) and [its indicators](../FBS-4.5.1.md);
+- [The remaining to commit](../FBS-4.5.md) and [its indicators](../FBS-4.5.1.md);
 - [the reference budget](budget-de-reference.md), [the revisions](revisions.md), [the provision and the reserve](provision-et-reserve.md).

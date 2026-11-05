@@ -74,7 +74,7 @@ describe("what the list of the backups reads of its address", () => {
 });
 
 describe("the way of the download of a backup", () => {
-  it("leaves from the screen it names, and comes back to it with the refusal, which reads again as it was", () => {
+  it("leaves from the screen it names, and comes back to it with the refusal, which reads again as it was, the page of the list it left from kept [WF-ADM-0150-A]", () => {
     expect(downloadHref(BACKUP, "/admin/backups?offset=50")).toBe(
       `/admin/backups/${BACKUP}/content?from=%2Fadmin%2Fbackups%3Foffset%3D50`,
     );

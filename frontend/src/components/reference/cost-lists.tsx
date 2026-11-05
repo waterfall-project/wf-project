@@ -65,11 +65,9 @@ interface ListProps<Row, Sort extends string> {
   /** The state the address filters the list on; none, every state. */
   readonly state: boolean | undefined;
   /**
-   * Whether the session may read the deactivated objects of the cost settings, which the filter of
-   * the state then offers.
+   * Whether the session may modify the cost settings (`platformOffer`): it creates and modifies,
+   * and reads the deactivated objects, which the filter of the state then offers.
    */
-  readonly readsInactive: boolean;
-  /** Whether the session may modify the cost settings (`platformOffer`): it creates and modifies. */
   readonly editable: boolean;
 }
 
@@ -101,7 +99,6 @@ export function CostTypeList({
   query,
   preferences,
   state,
-  readsInactive,
   editable,
   kinds,
 }: ListProps<CostType, CostTypeSort> & {
@@ -135,7 +132,7 @@ export function CostTypeList({
                 chosen={kinds}
                 page={offset}
               />
-              {readsInactive ? (
+              {editable ? (
                 <StateFilter
                   name={COST_TYPE_STATE}
                   label={t("stateFilter.of", { list: title })}
@@ -180,7 +177,6 @@ export function CostCategoryList({
   query,
   preferences,
   state,
-  readsInactive,
   editable,
   natures,
   every,
@@ -234,7 +230,7 @@ export function CostCategoryList({
                 chosen={nature}
                 page={offset}
               />
-              {readsInactive ? (
+              {editable ? (
                 <StateFilter
                   name={CATEGORY_STATE}
                   label={t("stateFilter.of", { list: title })}
@@ -287,13 +283,14 @@ export interface RateFilters {
 export function RateFilterBar({
   filters,
   years,
-  readsInactive,
+  editable,
   refused,
 }: {
   readonly filters: RateFilters;
   /** The years the rate may be bounded for, in their order. */
   readonly years: readonly number[];
-  readonly readsInactive: boolean;
+  /** Whether the session may modify the cost settings, and so reads the deactivated categories. */
+  readonly editable: boolean;
   /** The parameters of the bounds the API refused, by their names; none when it refused none. */
   readonly refused: RefusedBounds | undefined;
 }) {
@@ -303,7 +300,7 @@ export function RateFilterBar({
   const offset = CONTRACT_ADDRESS.offset;
   return (
     <div className="flex flex-wrap items-start gap-x-6 gap-y-2">
-      {readsInactive ? (
+      {editable ? (
         <StateFilter
           name={RATE_STATE}
           label={t("stateFilter.of", { list })}

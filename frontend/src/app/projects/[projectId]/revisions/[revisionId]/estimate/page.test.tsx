@@ -7,19 +7,24 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { estimateGrid } from "@/components/grid/estimate";
 import type { EstimateGridProps } from "@/components/grid/estimate-grid";
 import { CATALOGUES } from "@/i18n/catalogues";
-import { type FakeAnswers, type FakeClient, fakeClient } from "@/test/fixtures";
+import { type FakeAnswers, type FakeClient, fakeClient, held } from "@/test/fixtures";
 import { estimateReference } from "@/test/reference";
 
 import EstimatePage from "./page";
 
-const server = vi.hoisted((): { answers: FakeAnswers; clients: FakeClient[] } => ({
-  answers: {},
-  clients: [],
-}));
+const server = vi.hoisted(
+  (): {
+    answers: FakeAnswers;
+    clients: FakeClient[];
+    hold?: (route: string) => Promise<unknown> | undefined;
+  } => ({ answers: {}, clients: [] }),
+);
 
 vi.mock("@/api/server", () => ({
   serverClient: () => {
-    const client = fakeClient(server.answers);
+    const client = fakeClient(server.answers, {
+      hold: (route) => server.hold?.(route),
+    });
     server.clients.push(client);
     return client;
   },
@@ -32,6 +37,25 @@ vi.mock("@/components/grid/estimate-grid", () => ({
     return null;
   },
 }));
+// The session of the contract, some of its permissions withdrawn for a test.
+const withdrawn = vi.hoisted(() => ({ permissions: [] as string[] }));
+vi.mock("@/session/request", async (original) => {
+  const actual = await original<typeof import("@/session/request")>();
+  return {
+    ...actual,
+    requestSession: async () => {
+      const session = await actual.requestSession();
+      return session === undefined
+        ? undefined
+        : {
+            ...session,
+            permissions: session.permissions.filter(
+              (permission) => !withdrawn.permissions.includes(permission),
+            ),
+          };
+    },
+  };
+});
 // The filter by a lot or a post reads the address the browser shows.
 vi.mock("next/navigation", async (original) => ({
   ...(await original<typeof import("next/navigation")>()),
@@ -79,8 +103,10 @@ async function estimateFor(session: "me" | "me_estimator") {
 }
 
 beforeEach(() => {
+  withdrawn.permissions = [];
   grids.estimate = [];
   server.clients = [];
+  delete server.hold;
   server.answers = {
     "GET /reference/settings": "reference_settings",
     "GET /projects/{project_id}": "project",
@@ -94,6 +120,7 @@ beforeEach(() => {
     "GET /reference/resource-roles": "resource_roles",
     "GET /projects/{project_id}/subprojects": "subprojects",
     "GET /projects/{project_id}/work-breakdown": "work_breakdown",
+    "GET /projects/{project_id}/risks": "risks",
   };
 });
 
@@ -157,6 +184,16 @@ describe("the grid of the estimate, entered as the structure lists it", () => {
 });
 
 describe("the reference data the estimate is entered from", () => {
+  it("asks the active ones alone of a session that only reads the cost and resource settings, which the contract keeps for the permission to modify them [WF-REF-0150-A]", async () => {
+    // The consultation alone: the permissions to read kept, those to modify withdrawn. The fake back
+    // answers the deactivated ones whatever is asked, so the request of the page is what is proved.
+    withdrawn.permissions = ["cost_settings.write", "resource_settings.write"];
+    const grid = await estimateFor("me");
+    expect(queryOf("/cost-categories")?.has("include_inactive")).toBe(false);
+    expect(queryOf("/resource-roles")?.has("include_inactive")).toBe(false);
+    expect(grid?.reference.roles).toBeDefined();
+  });
+
   it("asks the deactivated categories and roles with the permissions of the reference that keep them", async () => {
     const grid = await estimateFor("me");
     expect(queryOf("/cost-categories")?.get("include_inactive")).toBe("true");
@@ -164,15 +201,15 @@ describe("the reference data the estimate is entered from", () => {
     expect(grid?.reference.roles?.some(({ active }) => !active)).toBe(true);
   });
 
-  it("asks only the active ones of a part of the reference the session may not read, and still enters the estimate on them (#351)", async () => {
-    // The estimator reads the cost settings, not the resource settings: the contract would refuse
-    // him the deactivated roles (403), and he enters on the active ones.
+  it("asks only the active ones of a part of the reference the session may not modify, and still enters the estimate on them (#351) [WF-REF-0150-A]", async () => {
+    // The estimator reads the cost settings without modifying them, and has no resource settings:
+    // the contract would refuse him the deactivated ones (403), and he enters on the active ones.
     server.answers = {
       ...server.answers,
       "GET /projects/{project_id}/revisions/{revision_id}/structures": "structures_estimator",
     };
     const grid = await estimateFor("me_estimator");
-    expect(queryOf("/cost-categories")?.get("include_inactive")).toBe("true");
+    expect(queryOf("/cost-categories")?.has("include_inactive")).toBe(false);
     expect(queryOf("/resource-roles")?.has("include_inactive")).toBe(false);
     expect(grid?.reference.roles).toBeDefined();
     // The lines, not the label of a task, which is the planning's.
@@ -307,5 +344,132 @@ describe("« Écarts seulement » on the grid of the estimate [WF-REV-0100-A]", 
       expect(queryOf("/nodes")?.has("difference")).toBe(false);
       expect(page).not.toContain("Differences only");
     }
+  });
+});
+
+describe("the note of the fake back on the estimate", () => {
+  it("says once, under the header, that the service does not apply filters, search, sort and pages (US-0760)", async () => {
+    const page = await estimatePage("me");
+    expect(page.match(/<p role="note"/g)).toHaveLength(1);
+    expect(page).toContain("Filters, search, sort and pages are ignored");
+  });
+});
+
+describe("the filter of the estimate on the rows a risk occurred merged", () => {
+  const OCCURRED = "01926f3a-7c00-7000-8000-000000000752";
+  const IDENTIFIED = "01926f3a-7c00-7000-8000-000000000751";
+  const RISKS = "GET /projects/{project_id}/risks";
+
+  it("offers « Coming from a risk » and the risks occurred of the project alone, never one identified [WF-RIS-0060-A]", async () => {
+    const page = await estimatePage("me");
+    expect(page).toMatch(/<label[^>]*>Origin<\/label>/);
+    expect(page).toContain(
+      `<option value="" selected="">All rows</option>` +
+        `<option value="true">Coming from a risk</option>` +
+        `<option value="${OCCURRED}">Retard de livraison des armoires</option>`,
+    );
+    expect(page).not.toContain(IDENTIFIED);
+    expect(queryOf("/risks")?.getAll("states")).toEqual(["occurred"]);
+    expect(queryOf("/nodes")?.has("is_from_risk")).toBe(false);
+    expect(queryOf("/nodes")?.has("origin_risk_ids")).toBe(false);
+  });
+
+  it("asks the server for the rows of any risk when the address says so, and shows it chosen [WF-RIS-0060-A]", async () => {
+    const page = await estimatePage("me", { is_from_risk: "true" });
+    expect(queryOf("/nodes")?.get("is_from_risk")).toBe("true");
+    expect(grids.estimate.at(-1)?.filters).toMatchObject({ is_from_risk: true });
+    expect(page).toContain(`<option value="true" selected="">Coming from a risk</option>`);
+  });
+
+  it("asks the server for the rows of the risk the address names, and hands the grid its label to name it by [WF-RIS-0060-A]", async () => {
+    const page = await estimatePage("me", { origin_risk_ids: OCCURRED });
+    expect(queryOf("/nodes")?.get("origin_risk_ids")).toBe(OCCURRED);
+    expect(queryOf("/nodes")?.has("is_from_risk")).toBe(false);
+    expect(grids.estimate.at(-1)?.origins).toEqual({
+      [OCCURRED]: "Retard de livraison des armoires",
+    });
+    expect(page).toContain(
+      `<option value="${OCCURRED}" selected="">Retard de livraison des armoires</option>`,
+    );
+  });
+
+  it("reads no value that is no identifier, as if the address named nothing [WF-RIS-0060-A]", async () => {
+    await estimatePage("me", { origin_risk_ids: "not-an-identifier" });
+    expect(queryOf("/nodes")?.has("origin_risk_ids")).toBe(false);
+  });
+
+  /** The nodes the page asked for, the filter on a risk or not. */
+  const NODE_ROUTE =
+    "GET /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes";
+
+  it("keeps the page, unfiltered and the filter lifted, when the session lists no risk and the server finds the one named unknown [WF-RIS-0060-A]", async () => {
+    server.answers = {
+      ...server.answers,
+      [RISKS]: { problem: { code: "NOT_FOUND", status: 404 } },
+      [NODE_ROUTE]: [
+        {
+          problem: {
+            code: "VALIDATION_FAILED",
+            status: 422,
+            fields: [{ pointer: "/query/origin_risk_ids/0", code: "UNKNOWN_RISK" }],
+          },
+        },
+        "nodes",
+      ],
+    };
+    const page = await estimatePage("me", { origin_risk_ids: OCCURRED });
+    const asked = server.clients
+      .flatMap((client) => client.calls)
+      .filter((call) => call.route === NODE_ROUTE);
+    expect(asked.map((call) => call.query.has("origin_risk_ids"))).toEqual([true, false]);
+    expect(grids.estimate.at(-1)?.filters).not.toHaveProperty("origin_risk_ids");
+    expect(page).toContain(`<option value="true">Coming from a risk</option>`);
+  });
+
+  it("falls into error, the nodes read once, when the server refuses the rows for another cause than an unknown risk [WF-RIS-0060-A]", async () => {
+    server.answers = {
+      ...server.answers,
+      [RISKS]: { problem: { code: "NOT_FOUND", status: 404 } },
+      [NODE_ROUTE]: {
+        problem: {
+          code: "VALIDATION_FAILED",
+          status: 422,
+          fields: [{ pointer: "/query/origin_risk_ids/0", code: "VALUE_OUT_OF_RANGE" }],
+        },
+      },
+    };
+    await expect(estimatePage("me", { origin_risk_ids: OCCURRED })).rejects.toThrow();
+    expect(
+      server.clients.flatMap((client) => client.calls).filter((call) => call.route === NODE_ROUTE),
+    ).toHaveLength(1);
+  });
+
+  it("reads the rows with the risks occurred, not after them, when the address names no risk [WF-RIS-0060-A]", async () => {
+    // #1955: the list of the risks is held; the rows are asked for all the same.
+    const NODES = "/nodes";
+    const answer = held();
+    server.hold = (route) => (route === RISKS ? answer.until : undefined);
+    const loaded = estimatePage("me");
+    try {
+      await vi.waitFor(() => {
+        expect(queryOf("/risks")).toBeDefined();
+      });
+      await vi.waitFor(() => {
+        expect(queryOf(NODES)).toBeDefined();
+      });
+    } finally {
+      answer.release();
+    }
+    await loaded;
+  });
+
+  it("opens with « Coming from a risk » alone when the project has no risks to read to it", async () => {
+    server.answers = {
+      ...server.answers,
+      [RISKS]: { problem: { code: "NOT_FOUND", status: 404 } },
+    };
+    const page = await estimatePage("me");
+    expect(page).toContain(`<option value="true">Coming from a risk</option>`);
+    expect(page).not.toContain("Retard de livraison");
   });
 });

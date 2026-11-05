@@ -172,15 +172,19 @@ export function RiskCommands({
   return (
     <div className="space-y-2">
       <div className="flex flex-wrap items-start gap-2">
-        <ModifyRiskShown
-          key={`modify-${id}`}
-          projectId={projectId}
-          risk={shown}
-          options={options}
-          writing={write?.writing ?? false}
-          onWriting={onWriting}
-          onAnswered={onAnswered}
-        />
+        {/* Kept by risk, in the detail and not in the instance shown: a refusal answered while the
+            detail shows another risk is told again when this one is shown (#1377). */}
+        <Reactivations reads={[]} scope={id}>
+          <ModifyRiskShown
+            key={`modify-${id}`}
+            projectId={projectId}
+            risk={shown}
+            options={options}
+            writing={write?.writing ?? false}
+            onWriting={onWriting}
+            onAnswered={onAnswered}
+          />
+        </Reactivations>
         <ReviewRisk
           key={`review-${id}`}
           projectId={projectId}
@@ -203,7 +207,10 @@ interface Write {
   readonly answered?: Risk | undefined;
 }
 
-/** « Modifier » of the risk shown: its dialog and its status are its own, and end with it. */
+/**
+ * « Modifier » of the risk shown: its dialog and its status are its own, and end with it; the refusal
+ * of a write answered once the dialog is gone is kept by the detail (`RiskCommands`), by risk.
+ */
 function ModifyRiskShown({
   projectId,
   risk,
@@ -227,7 +234,7 @@ function ModifyRiskShown({
   const { open, current } = dialog;
   const provision = findOffer(risk.available_commands, "update_provision");
   return (
-    <Reactivations reads={[]}>
+    <>
       <div className="flex flex-wrap items-start gap-2">
         <Status said={said} />
         <OpensForm
@@ -264,6 +271,6 @@ function ModifyRiskShown({
           onClosed={() => dialog.trigger.current?.focus()}
         />
       )}
-    </Reactivations>
+    </>
   );
 }

@@ -14,7 +14,7 @@ La grille ne prend pas de collage. Elle se saisit là où la structure liste «�
 
 ## Ses colonnes et ses valeurs calculées
 
-Le montant budgété est celui que la révision de référence a fixé ; le montant réestimé suit les revues du reste à engager. Les trois montants sont calculés : une cellule calculée dit de quoi elle dépend. La marque « Tâche démarrée dont la fin est dépassée » vient du serveur.
+Le montant budgété est celui que la révision de référence a fixé ; le montant réestimé suit les revues du reste à engager. Les trois montants sont calculés : une cellule calculée dit de quoi elle dépend. La marque « Tâche démarrée dont la fin est dépassée » vient du serveur. Il en va de même de **Lignes propres ouvertes**, icône et texte : elle marque une récapitulative démarrée dont toutes les subordonnées sont terminées, et ses lignes propres hors provision, seules lignes ouvertes de la phase ; une ligne de provision n’est jamais marquée. L’écran ne la déduit pas des subordonnées.
 
 ## Les gestes au clavier
 

@@ -12,6 +12,10 @@
  * update would apply to — the rate update the API proposes. The ergonomics gathers the leaves of
  * the function on one screen.
  *
+ * The report of the import the address names (`?import=`, which the screen of the project carries
+ * here when no revision is readable) stands above the history, as on the screen of the project
+ * (`readShownImport`, #1922); an address without it is read as before.
+ *
  * The screen reads once, on the server: the end of a marking is announced by the tracker of the
  * shell, which offers to reload the screen; the screen does not read itself again.
  */
@@ -25,6 +29,8 @@ import { findOffer } from "@/components/commands/offer";
 import { RevisionCommands } from "@/components/commands/object-commands";
 import { ContextBanner } from "@/components/context/context-banner";
 import type { Revision } from "@/components/context/read-only";
+import { ImportReport } from "@/components/exchanges/import-report";
+import { readShownImport } from "@/components/exchanges/shown-import";
 import { differenceQuery, readDifferenceFilter } from "@/components/grid/difference-filter";
 import { PendingAddress } from "@/components/grid/pending-address";
 import type { Project } from "@/components/context/reading";
@@ -36,8 +42,9 @@ import {
 import { ReferenceDesignation, RevisionHistory } from "@/components/revisions/revision-history";
 import { CostStructureList, RateUpdate } from "@/components/revisions/revision-parts";
 import { FUNCTION_DENSITY, FUNCTION_ICONS } from "@/components/shell/function-display";
+import { MockupNotice } from "@/components/shell/mockup-notice";
 import { PageHeader, Screen } from "@/components/shell/page-header";
-import { pageSearch } from "@/navigation/context";
+import { contextAddress, pageSearch, type ProjectContext } from "@/navigation/context";
 import { requestSession } from "@/session/request";
 
 import { screenMetadata } from "../../../title";
@@ -62,9 +69,11 @@ export async function generateMetadata({
 function RevisionsHeader({
   revision,
   project,
+  context,
 }: {
   readonly revision: Revision | undefined;
   readonly project: Project;
+  readonly context: ProjectContext;
 }) {
   const t = useTranslations();
   return (
@@ -72,7 +81,7 @@ function RevisionsHeader({
       title={t("functions.revisions")}
       icon={FUNCTION_ICONS.revisions}
       density={FUNCTION_DENSITY.revisions}
-      actions={<RevisionCommands revision={revision} project={project} />}
+      actions={<RevisionCommands revision={revision} project={project} context={context} />}
     />
   );
 }
@@ -105,7 +114,7 @@ export default async function RevisionsPage(props: ProjectPageProps) {
   const client = serverClient();
   const project = { project_id: address.projectId };
   const { revisionId } = address.context;
-  const [read, revisions, structures, comparison, preferences] = await Promise.all([
+  const [read, revisions, structures, comparison, preferences, shown] = await Promise.all([
     readProjectScreen(address),
     readEveryPage("listRevisions", (page) =>
       client.GET("/projects/{project_id}/revisions", { params: { path: project, query: page } }),
@@ -132,6 +141,7 @@ export default async function RevisionsPage(props: ProjectPageProps) {
           }),
         ),
     compared === undefined ? undefined : readComparisonPreferences(),
+    readShownImport(address.projectId, search),
   ]);
   // A marked revision is immutable (WF-REV-0020): a rate update applies to the current one.
   const current = read.revision?.status === "draft" ? read.revision : undefined;
@@ -147,7 +157,16 @@ export default async function RevisionsPage(props: ProjectPageProps) {
     <PendingAddress>
       <ContextBanner reading={read} difference={difference} />
       <Screen density={FUNCTION_DENSITY.revisions}>
-        <RevisionsHeader revision={read.revision} project={read.project} />
+        <RevisionsHeader revision={read.revision} project={read.project} context={read.context} />
+        <MockupNotice lists />
+        {shown === undefined ? null : (
+          <ImportReport
+            key={shown.import_id}
+            projectId={address.projectId}
+            entry={shown}
+            start={contextAddress(address.pathname, read.context)}
+          />
+        )}
         <RevisionHistory revisions={revisions} context={read.context} />
         <ReferenceDesignation
           revisions={revisions}

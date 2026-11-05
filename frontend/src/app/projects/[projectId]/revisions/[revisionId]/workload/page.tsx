@@ -26,6 +26,7 @@ import { serverClient } from "@/api/server";
 import { ContextBanner } from "@/components/context/context-banner";
 import { type ProjectReading, readProjectContext } from "@/components/context/reading";
 import { LEAF_ICONS } from "@/components/shell/function-display";
+import { MockupNotice } from "@/components/shell/mockup-notice";
 import { PageHeader, Screen } from "@/components/shell/page-header";
 import {
   BASIS_REFUSED,
@@ -147,6 +148,7 @@ function WorkloadScreen({
   return (
     <Screen density="airy">
       <PageHeader title={t("functions.workload")} icon={LEAF_ICONS["FBS-4.4.4"]} density="airy" />
+      <MockupNotice lists />
       <WorkloadSection
         workload={read.workload}
         asked={asked}

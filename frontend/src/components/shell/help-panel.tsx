@@ -19,8 +19,9 @@
  * catalogue's own. The body, which scrolls, is a region, named like the title, that Tab reaches.
  *
  * The panel is a sheet: a dialog of Radix, named by its title, which holds the focus, closes by
- * Escape and gives the focus back to where it was — the button, or the cell where F1 was pressed. A
- * page shown by a link gives its title the focus, so that a screen reader says where it is.
+ * Escape and gives the focus back to where it was — the button, or the cell where F1 was pressed;
+ * in the search field, a first Escape empties it when it holds a word, the second closes the panel.
+ * A page shown by a link gives its title the focus, so that a screen reader says where it is.
  */
 "use client";
 
@@ -303,6 +304,7 @@ function ScreenHelp({ code }: { readonly code: string }) {
   const toTitle = useRef(false);
   const title = useRef<HTMLHeadingElement>(null);
   const button = useRef<HTMLButtonElement>(null);
+  const search = useRef<HTMLInputElement>(null);
   // Where the focus was when the panel opened — the button, or the cell where F1 was pressed —,
   // which it goes back to on closing: the panel has no trigger of Radix to give it back to.
   const returnTo = useRef<HTMLElement | null>(null);
@@ -428,6 +430,7 @@ function ScreenHelp({ code }: { readonly code: string }) {
           size="icon"
           className="size-7"
           aria-haspopup="dialog"
+          data-shell=""
           aria-expanded={open}
           aria-controls={open ? panelId : undefined}
           onClick={openScreen}
@@ -442,6 +445,15 @@ function ScreenHelp({ code }: { readonly code: string }) {
           id={panelId}
           aria-describedby={undefined}
           className="w-full max-w-lg"
+          onEscapeKeyDown={(event) => {
+            // Radix takes Escape on the document, before any handler of the field: from the search
+            // field holding a word, Escape empties it and the panel stays; the next one closes it
+            // (#1481).
+            if (event.target === search.current && query !== "") {
+              event.preventDefault();
+              setQuery("");
+            }
+          }}
           onCloseAutoFocus={(event) => {
             event.preventDefault();
             const back = returnTo.current;
@@ -487,6 +499,7 @@ function ScreenHelp({ code }: { readonly code: string }) {
           </SheetHeader>
           <div className="border-b px-4 py-2">
             <Input
+              ref={search}
               type="search"
               aria-label={t("help.search")}
               value={query}

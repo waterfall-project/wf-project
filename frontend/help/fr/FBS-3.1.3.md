@@ -13,7 +13,7 @@ Un intitulé se compare à l’en-tête du fichier, et aux autres intitulés, sa
 À qui ne peut pas modifier les paramètres de coûts, l’écran montre les listes, sans commande. Aux autres, un formulaire :
 
 - **Ajouter un intitulé** à une colonne lue, et la corbeille d’un intitulé pour le retirer ;
-- **Déclarer une colonne conservée**, et la corbeille pour la retirer ; une colonne lue ne se déclare pas aussi conservée ;
+- **Déclarer une colonne conservée**, et la corbeille pour la retirer ; une colonne lue ne se déclare pas aussi conservée. Le contrat admet cinquante colonnes conservées au plus : à cinquante, la commande est indisponible et dit sa condition, et un refus du serveur pour une liste trop longue se dit sous la liste ;
 - **Enregistrer la correspondance** remplace la correspondance entière. Le serveur juge les intitulés : un intitulé refusé l’est à son champ, qui prend le focus, et un doublon nomme l’intitulé qu’il double. Si la correspondance a changé depuis sa lecture, le refus offre de relire la page.
 
 Les champs attendent la réponse du serveur pendant l’enregistrement.

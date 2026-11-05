@@ -19,6 +19,7 @@ import {
   type FakeClient,
   fakeClient,
   type FakeTiming,
+  held,
   type Problem,
 } from "@/test/fixtures";
 import { heldLink } from "@/test/held-link";
@@ -105,7 +106,6 @@ function natures(rows: readonly CostType[] = types.items, editable = true) {
       query={NO_QUERY}
       preferences={undefined}
       state={undefined}
-      readsInactive
       editable={editable}
       kinds={[]}
     />,
@@ -124,7 +124,6 @@ function categoryList(
       query={NO_QUERY}
       preferences={undefined}
       state={undefined}
-      readsInactive
       editable
       natures={offered}
       nature={undefined}
@@ -160,22 +159,6 @@ afterEach(() => {
   refresh.mockClear();
   router.refresh.mockClear();
 });
-
-/** A promise the test settles, which holds the answer of the server until then. */
-function held() {
-  const settles: (() => void)[] = [];
-  const until = new Promise<void>((settle) => {
-    settles.push(settle);
-  });
-  return {
-    until,
-    release: () => {
-      for (const settle of settles) {
-        settle();
-      }
-    },
-  };
-}
 
 describe("the creation of a nature or a category", () => {
   it.each([
@@ -473,7 +456,7 @@ describe("the modification of a nature or a category", () => {
 describe("a write whose dialog is closed, and the focus", () => {
   it("says the write under way on its button, and once the dialog is closed says what the server did in the list", async () => {
     const answer = held();
-    serve({}, { hold: () => answer.until });
+    serve({}, answer.timing);
     render(categoryList());
     await userEvent.click(
       screen.getByRole("button", { name: "Modifier «\u00a0Sous-traitance\u00a0»" }),
@@ -497,10 +480,7 @@ describe("a write whose dialog is closed, and the focus", () => {
 
   it("tells above the list a refusal answered once the dialog is closed", async () => {
     const answer = held();
-    serve(
-      { [CATEGORY]: { problem: { code: "PERMISSION_MISSING", status: 403 } } },
-      { hold: () => answer.until },
-    );
+    serve({ [CATEGORY]: { problem: { code: "PERMISSION_MISSING", status: 403 } } }, answer.timing);
     render(categoryList());
     await userEvent.click(
       screen.getByRole("button", { name: "Modifier «\u00a0Sous-traitance\u00a0»" }),
@@ -531,10 +511,7 @@ describe("a write whose dialog is closed, and the focus", () => {
 
   it("holds a link clicked once the dialog is closed while it sends, and does not follow it when the server refuses the write: the refusal is told above the list (#688)", async () => {
     const answer = held();
-    serve(
-      { [CATEGORY]: { problem: { code: "SESSION_REQUIRED", status: 401 } } },
-      { hold: () => answer.until },
-    );
+    serve({ [CATEGORY]: { problem: { code: "SESSION_REQUIRED", status: 401 } } }, answer.timing);
     render(categoryList());
     const link = heldLink();
     try {
@@ -561,10 +538,7 @@ describe("a write whose dialog is closed, and the focus", () => {
 
   it("follows a link clicked once the list is read otherwise, the refusal of a write sent from the reading before told on the list no more — the bar of the shell tells it (#688, #863)", async () => {
     const answer = held();
-    serve(
-      { [CATEGORY]: { problem: { code: "SESSION_REQUIRED", status: 401 } } },
-      { hold: () => answer.until },
-    );
+    serve({ [CATEGORY]: { problem: { code: "SESSION_REQUIRED", status: 401 } } }, answer.timing);
     const { rerender } = render(categoryList());
     const link = heldLink();
     try {
@@ -595,10 +569,7 @@ describe("a write whose dialog is closed, and the focus", () => {
 
   it("follows a link clicked once the list is back on the reading a write was sent from, its clicks released when it was left, and tells its refusal on the list no more (#688)", async () => {
     const answer = held();
-    serve(
-      { [CATEGORY]: { problem: { code: "SESSION_REQUIRED", status: 401 } } },
-      { hold: () => answer.until },
-    );
+    serve({ [CATEGORY]: { problem: { code: "SESSION_REQUIRED", status: 401 } } }, answer.timing);
     const { rerender } = render(categoryList());
     const link = heldLink();
     try {
@@ -721,7 +692,7 @@ describe("a write whose dialog is closed, and the focus", () => {
 
   it("gives the focus back to the list once its dialog is closed, the page read anew no longer holding the row", async () => {
     const answer = held();
-    serve({}, { hold: () => answer.until });
+    serve({}, answer.timing);
     const { rerender } = render(categoryList());
     await userEvent.click(
       screen.getByRole("button", { name: "Modifier «\u00a0Sous-traitance\u00a0»" }),

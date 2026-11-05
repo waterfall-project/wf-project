@@ -67,7 +67,14 @@ export function ImportList({ imports, total, current, start, children }: ImportL
                 </Link>
               </TableCell>
               <TableCell className={CELL}>{t(`enums.ExchangeKind.${entry.kind}`)}</TableCell>
-              <TableCell className={CELL}>{t(`enums.Import.status.${entry.status}`)}</TableCell>
+              <TableCell className={CELL}>
+                {t(`enums.Import.status.${entry.status}`)}
+                {entry.status === "refused" ? (
+                  <span className="block text-xs text-muted-foreground">
+                    {t("exchanges.refused")}
+                  </span>
+                ) : null}
+              </TableCell>
               <TableCell className={CELL}>
                 <LocalTime value={entry.created_at} />
               </TableCell>

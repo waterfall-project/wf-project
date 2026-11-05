@@ -3,27 +3,24 @@
 /**
  * The empty states of the shell: what a screen says when there is nothing to show, and where
  * it leads to fill it — no project, or none the user contributes to when the filter of the list
- * is what empties it, which the filter shown above the list lifts; a project without a
- * revision, which leads to its revisions when the session may read them; an installation whose
- * minimum reference data is
- * incomplete, which names each missing prerequisite (`getReferenceReadiness`, WF-CYC-0120)
- * and leads to the function of the reference that provides it, when the session may read it.
+ * is what empties it, which the filter shown above the list lifts; an installation whose
+ * minimum reference data is incomplete, which names each missing prerequisite
+ * (`getReferenceReadiness`, WF-CYC-0120) and leads to the function of the reference that provides
+ * it, when the session may read it.
  *
  * Each is shown on an example of the contract named after it (`fixtures/api/`): `empty` for
- * the projects and the revisions, `incomplete` for the reference.
+ * the projects, `incomplete` for the reference.
  */
-import { FolderSearch, GitBranch, Inbox, TriangleAlert } from "lucide-react";
+import { FolderSearch, TriangleAlert } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 
 import type { components } from "@/api/generated/schema";
-import { buttonVariants } from "@/components/ui/button";
 import { functionOf, type PlatformFunction } from "@/navigation/functions";
 
 const EMPTY = "flex flex-col items-start gap-2 py-6 text-sm text-muted-foreground";
 const SENTENCE = "flex items-center gap-2";
 const ICON = "size-4 shrink-0";
-const ACTION = buttonVariants({ variant: "outline", size: "sm", className: "text-foreground" });
 const LINK = "font-medium text-foreground underline";
 
 /** Whether the empty list of projects was filtered on those the user contributes to. */
@@ -43,34 +40,6 @@ export function NoProjects({ filtered }: NoProjectsProps) {
         <FolderSearch aria-hidden="true" className={ICON} />
         {t(filtered ? "noContributedProjects" : "noProjects")}
       </p>
-    </div>
-  );
-}
-
-/** Where a project without a revision leads: the function of its revisions. */
-export interface NoRevisionsProps {
-  /**
-   * The address of the function of the revisions of the project; none when the session may
-   * not read them.
-   */
-  readonly revisions: string | undefined;
-}
-
-/** Say a project has no revision yet, and lead to its revisions. */
-export function NoRevisions({ revisions }: NoRevisionsProps) {
-  const t = useTranslations("emptyStates");
-  return (
-    <div className={EMPTY}>
-      <p className={SENTENCE}>
-        <Inbox aria-hidden="true" className={ICON} />
-        {t("noRevisions")}
-      </p>
-      {revisions === undefined ? null : (
-        <Link href={revisions} className={ACTION}>
-          <GitBranch aria-hidden="true" />
-          {t("revisions")}
-        </Link>
-      )}
     </div>
   );
 }

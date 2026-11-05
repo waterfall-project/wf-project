@@ -522,7 +522,13 @@ export function useCellWrites<Row, Totals>(
     outcome,
     refused: (row, column) => refused === cellKey(row, column),
     clear: () => {
-      setState((before) => ({ ...before, outcome: undefined, refused: undefined }));
+      // Through the state kept at once: a refusal of the totals answered in the same tick sees the
+      // notice cleared, and is told by it rather than noted beside it (#1432).
+      current(latest.current.epoch, (before) => ({
+        ...before,
+        outcome: undefined,
+        refused: undefined,
+      }));
     },
     write,
     applied,

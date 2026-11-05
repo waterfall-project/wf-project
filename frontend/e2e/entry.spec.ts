@@ -5,6 +5,7 @@ import { expect, type Locator, type Page, test } from "@playwright/test";
 import { columnsOf } from "./columns";
 import { openHydrated } from "./hydration";
 import { rowAt } from "./scroll";
+import { isServerAction } from "./server-action";
 
 // The journeys that write read the amendment 2 (US-0500), a differential not merged of the current
 // revision, whose estimate is entered whatever the state of the project (WF-DEV-0050), on its
@@ -140,7 +141,7 @@ test("enters a whole line of the estimate without the mouse — label, role, qua
   // Each cell validated leaves by a server action of its own.
   const writes: string[] = [];
   page.on("request", (request) => {
-    if (request.method() === "POST" && request.headers()["next-action"] !== undefined) {
+    if (isServerAction(request)) {
       writes.push(request.url());
     }
   });

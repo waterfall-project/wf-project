@@ -192,3 +192,33 @@ describe("the history of the messages, of a paste", () => {
     ]);
   });
 });
+
+describe("the refusal of a row that puts a task under a milestone", () => {
+  it("is told by its sentence in the plan of a paste, in French and in English [WF-PLA-0050-A]", () => {
+    // A counterfactual variant of `paste_plan_unknown_category`: its refusal is the one of the
+    // contract for a task placed under a milestone (`node_create_under_milestone`).
+    const unknown = example("paste_plan_unknown_category") as PastePlan;
+    const [refusal] = unknown.rejected;
+    const plan: PastePlan = {
+      ...unknown,
+      rejected:
+        refusal === undefined ? [] : [{ ...refusal, row: 1, code: "MILESTONE_HAS_NO_SUBTASK" }],
+    };
+    for (const [locale, sentence] of [
+      ["fr", "Un jalon ne porte pas de sous-tâches."],
+      ["en", "A milestone bears no subtasks."],
+    ] as const) {
+      const shown = inLanguage(
+        <PasteDialog
+          pasting={{ block: UNKNOWN, width: 4, target: report.target, plan, applying: false }}
+          onApply={vi.fn()}
+          onAbandon={vi.fn()}
+          onClosed={vi.fn()}
+        />,
+        locale,
+      );
+      expect(within(screen.getByRole("dialog")).getByRole("listitem")).toHaveTextContent(sentence);
+      shown.unmount();
+    }
+  });
+});

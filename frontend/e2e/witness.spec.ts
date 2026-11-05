@@ -6,7 +6,8 @@ import { compile } from "./compile";
 import { WORKING } from "./hydration";
 
 const PROJECT = "/projects/01926f3a-7c00-7000-8000-000000000001";
-const REFERENCE = `${PROJECT}/revisions/01926f3a-7c00-7000-8000-000000000101`;
+// The revision in progress, which the screen of the project leads to (US-0720).
+const CURRENT = `${PROJECT}/revisions/01926f3a-7c00-7000-8000-000000000102`;
 
 test("opens the list of projects, a project, and reads its planning and its estimate [WF-QUA-0050-A]", async ({
   page,
@@ -17,18 +18,15 @@ test("opens the list of projects, a project, and reads its planning and its esti
   // Every screen after the first is reached by a click, and awaited five seconds: compiled
   // first. The revision itself is a route of its own, which sends on to its planning: the planning
   // is compiled too, as the redirect does not compile it in the browser's stead.
-  await compile(page.request, PROJECT, REFERENCE, `${REFERENCE}/planning`, `${REFERENCE}/estimate`);
+  await compile(page.request, PROJECT, CURRENT, `${CURRENT}/planning`, `${CURRENT}/estimate`);
   await page.goto("/");
+  // The screen of the project leads to its revision in progress, which opens on its planning, the
+  // first function of a revision. The fake back serves the structure of the witness at the sizes
+  // of §4.6.2, its core first: its first rows in view. The redirects, then the six thousand rows
+  // the server renders for the planning: more than the five seconds of an assertion on a loaded
+  // runner, the time this one is given (#315).
   await page.getByRole("link", { name: "Modernisation du poste de commande" }).click();
-  await expect(page.getByRole("heading", { level: 1 })).toHaveText(
-    "Modernisation du poste de commande",
-  );
-  // A revision opens on its planning, the first function of a revision. The fake back serves
-  // the structure of the witness at the sizes of §4.6.2, its core first: its first rows in view.
-  // The redirect, then the six thousand rows the server renders for the planning: more than the
-  // five seconds of an assertion on a loaded runner, the time this one is given (#315).
-  await page.getByRole("link", { name: "Référence" }).click();
-  await expect(page).toHaveURL(new RegExp(`${REFERENCE}/planning`), { timeout: WORKING });
+  await expect(page).toHaveURL(new RegExp(`${CURRENT}/planning`), { timeout: WORKING });
   const planning = page.getByRole("treegrid", { name: "Grille de planning" });
   await expect(planning.getByRole("gridcell", { name: /Études de détail$/ })).toBeVisible({
     timeout: WORKING,

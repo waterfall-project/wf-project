@@ -5,9 +5,9 @@
 Les risques des projets du périmètre et leur couverture. Sous le titre, le périmètre retenu et la date de calcul. De haut en bas :
 
 - **Provisions des risques** : le total des provisions des risques identifiés, puis, sur la période, les provisions des risques survenus et celles des risques écartés.
-- **Couverture des risques** : la réserve de référence, face aux provisions restantes et au coût des risques survenus, et l’écart de couverture. Elle ne porte que sur les projets en cours et terminés : un projet en chiffrage n’a pas de référence.
+- **Couverture des risques** : la réserve de référence, face aux provisions restantes et au coût des risques survenus, et l’écart de couverture. En regard du coût des risques survenus, le **réestimé** de ces risques — ce que coûtent aujourd’hui les lignes que leur survenance a fusionnées, somme du serveur — est une information : il montre la dérive des risques survenus et n’entre pas dans l’écart de couverture. Elle ne porte que sur les projets en cours et terminés : un projet en chiffrage n’a pas de référence.
 - **Risques les plus lourds** : les risques identifiés, tous projets confondus, classés par montant de provision, chacun avec son projet.
-- **Matrice des risques** : un nuage de bulles, la probabilité en abscisse et la gravité, en part du budget de référence, en ordonnée, chaque bulle aussi grande que la gravité en montant ; sous elle, le décompte des risques par case.
+- **Matrice des risques** : un nuage de bulles, la probabilité en abscisse et la gravité, en part de l’assiette du projet, en ordonnée, chaque bulle aussi grande que la gravité en montant, de la couleur et de la forme de sa zone (rond, losange, triangle), sur un fond blanc ; seuls les risques identifiés y figurent, et sous elle, le décompte des risques identifiés par case.
 
 Un projet en chiffrage, quand il est retenu, apporte ses risques identifiés et leurs provisions telles qu’elles sont, sans pondération.
 
@@ -25,7 +25,7 @@ Dans la vue :
 
 ## Ses colonnes et ses valeurs calculées
 
-Toutes les sommes sont calculées par le serveur et marquées Σ. La provision d’un risque est sa gravité pondérée par sa probabilité. Une valeur que le serveur ne peut pas calculer le dit, avec sa raison, et ne vaut jamais zéro. Un risque dont la gravité ne peut pas être rapportée au budget n’est pas tracé dans la matrice, et la matrice dit combien et pourquoi. La zone d’une case se lit par son signal, jamais par la seule couleur.
+Toutes les sommes sont calculées par le serveur et marquées Σ. La provision d’un risque est sa gravité pondérée par sa probabilité. Une valeur que le serveur ne peut pas calculer le dit, avec sa raison, et ne vaut jamais zéro. Un risque dont la gravité ne peut pas être rapportée à l’assiette du projet n’est pas tracé dans la matrice, et la matrice dit combien et pourquoi. La zone d’une case se lit par son signal, jamais par la seule couleur.
 
 ## Les gestes au clavier
 

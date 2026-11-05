@@ -49,6 +49,11 @@ export interface KanbanCard {
   /** The finish of the task, as a date of the planning; none when it has none. */
   readonly finish: string | undefined;
   readonly finish_overdue: boolean;
+  /**
+   * Whether the server says the task waits for its own lines alone (`TaskFacet.awaiting_own_lines`,
+   * WF-PLA-0040): read, never deduced from the subordinates of the task (WF-ARC-0020).
+   */
+  readonly awaiting_own_lines: boolean;
   /** The date the task was completed, for a task completed. */
   readonly completed_on: string | undefined;
   /** Whether every predecessor is completed, as the API says it of a task not started. */
@@ -93,6 +98,7 @@ export function cardOf(
     is_milestone: task?.is_milestone === true,
     finish: task?.finish?.date,
     finish_overdue: task?.finish_overdue === true,
+    awaiting_own_lines: task?.awaiting_own_lines === true,
     completed_on: task?.completed_on ?? undefined,
     predecessors_completed: predecessorsCompleted,
     commands: (node.available_commands ?? []).map(

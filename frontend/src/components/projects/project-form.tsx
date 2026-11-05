@@ -51,6 +51,7 @@ import { Command, useUnmet } from "@/components/commands/command";
 import { CommandTooltip } from "@/components/commands/command-tooltip";
 import { commandIcon, PROJECT_COMMAND_ICONS } from "@/components/commands/icons";
 import { type CommandOffer, findOffer, UNAVAILABLE } from "@/components/commands/offer";
+import { WritingNote } from "@/components/commands/writing-note";
 import type { Project } from "@/components/context/reading";
 import { noteMessage } from "@/components/notices/message-history";
 import { useSaid } from "@/components/notices/said";
@@ -62,7 +63,6 @@ import {
   type FormField,
   ReferenceForm,
   required,
-  WritingNote,
 } from "@/components/reference/reference-form";
 import { Button } from "@/components/ui/button";
 import { editablePercent, percentRatio } from "@/i18n/format";
@@ -118,6 +118,7 @@ export function CreateProject({ ready }: { readonly ready: boolean }) {
     <Reactivations reads={[]}>
       <Button
         ref={trigger}
+        aria-haspopup="dialog"
         type="button"
         variant="outline"
         size="sm"
@@ -328,6 +329,7 @@ export function ProjectIdentity({ project }: { readonly project: Project }) {
           >
             <Button
               ref={trigger}
+              aria-haspopup="dialog"
               type="button"
               variant="outline"
               size="sm"

@@ -359,8 +359,15 @@ l'écriture attendue dans `startTransition(async …)`. L'écran quitté reste d
 réponse, et une écriture refusée pendant qu'il est quitté vers un autre chemin — faite avant la
 traversée ou après — va à la barre, même quand ce qui l'a demandée dit le dire encore (`told`),
 puisqu'il s'en va avec l'écran (`away` de `holdNavigation`, `useHeldWrites`) ; ramené à son chemin
-avant le refus, l'écran le dit lui-même. Cela tient tant que le routeur garde cet ordre, peut-être un
-défaut amont. Une écriture encore en route quand
+avant le refus, l'écran le dit lui-même. Ramené après le refus, avant que le routeur n'ait montré
+l'entrée traversée — « Suivant » pressé pendant qu'il la lit —, l'écran, qui n'est jamais parti, le
+dit aussi, et la barre retire ce qu'elle en disait (`broughtBack`, #1476) : le refus est dit deux
+fois, l'un après l'autre, jamais en même temps, et noté une fois dans l'historique des messages, par
+l'identité de sa réponse — pour un refus porté par un `outcome` ; une réponse booléenne n'a pas
+d'identité, et l'historique la note à part de ce que l'écran en dit.
+Jusqu'à sa réponse, l'écriture attendue dans la transition retient encore
+les clics : l'écran quitté par « Précédent », toujours affiché, ne la libère qu'en partant. Cela
+tient tant que le routeur garde cet ordre, peut-être un défaut amont. Une écriture encore en route quand
 son écran s'en va, et refusée ensuite, n'est dite par aucun écran : la barre de la coquille, qui
 survit à chacun, le dit par un avis qu'on ferme (`LeftRefusals`, `refusedLeft` de
 `held-writes.ts`, #863), et l'inscrit dans l'historique des messages avec son refus et l'écran
@@ -540,8 +547,9 @@ risques active (`active_provision_category`) comprises, et mène aux paramètres
 refus `REFERENCE_INCOMPLETE` les nomme sous le formulaire ; le formulaire prend ce que
 `ProjectCreate` prend — le libellé, exigé (WF-PRJ-0080), le code, qui peut attendre la commande
 (WF-PRJ-0010), la description — et mène à l'écran du projet que le serveur a créé, que le faux back
-sert sous les traits du témoin, tant que l'accueil est encore montré : une réponse arrivée après
-qu'on l'a quitté ne remplace pas la navigation choisie. Une réponse arrivée après « Annuler », le
+sert à son adresse, avec ses propres exemples — le projet « created », sans révision —, tant que
+l'accueil est encore montré : une réponse arrivée après qu'on l'a quitté ne remplace pas la
+navigation choisie. Une réponse arrivée après « Annuler », le
 dialogue fermé mais l'accueil toujours montré, y mène quand même : c'est la seule façon de dire le
 succès, que la liste simulée ne montre pas, et fermé pendant l'attente, le dialogue ne fait rien
 taire. Les paramètres du projet présentent son identité et ses faits — le libellé, le code, la date
@@ -866,8 +874,8 @@ d'afficher le reste ; des réglages écrits avant cette liste n'en connaissent a
 masquée par défaut y est masquée (`docs/api/DECISIONS.md`). Une grille garde dans le compte son tri
 et ses colonnes — celles qu'elle masque, et leurs largeurs —, jamais sa page (règle validée par
 l'auteur le 2026-10-09). Ses filtres, une grille qui les déclare (`GridConfig.filters`) les garde en
-préférence, comme le veut le critère d'US-0380, qui fait foi (#836, confirmation de l'auteur à
-venir) : ils sont retrouvés à l'ouverture d'une adresse qui ne dit rien de la grille ; la page et
+préférence, comme le veut le critère d'US-0380, qui fait foi (#836, confirmée par l'auteur le
+2026-10-11) : ils sont retrouvés à l'ouverture d'une adresse qui ne dit rien de la grille ; la page et
 les filtres d'une adresse qui les dit vivent dans l'adresse. Une autre grille ne garde aucun filtre. Une colonne ou une largeur
 s'écrit après une pause, avec le tri gardé tel quel ; ce qui attend part quand la page est
 quittée ou cachée, avant une recherche et au démontage — au mieux : une action serveur ne
@@ -1050,7 +1058,7 @@ déplacé d'abord, dans la borne de 64 du contrat, pour qu'un déplacement ne d�
 ses dates et son couloir ; elles se créent par leur nom et la chronologie montrée se supprime après
 confirmation, comme le projet liste `manage_timelines` (`timeline-commands.tsx`, EP-14/L44c). Le serveur sélectionne ce que chacune dessine (#463) : l'arborescence
 demande les récapitulatives jusqu'au niveau de l'adresse (`summaries_only`, `max_level`), une
-chronologie les tâches qui y sont inscrites (`timeline_id`). Le faux back ignorant ces filtres,
+chronologie les tâches qui y sont inscrites (`timeline_id`). Le faux back ignorant ces filtres (« Ce que le faux back ne fait pas »),
 chacune applique encore le même critère à la réponse (`summaryTree`, `inscribedTo`) : un filtre
 idempotent, qui ne change rien contre un serveur qui les tient, écart temporaire d'EP-02 retiré
 avec le back d'EP-03. L'arborescence offre exactement les niveaux que la structure a, du premier à
@@ -1139,7 +1147,13 @@ Kanban du démarrage des tâches, FBS-4.5.3, est une feuille de la fonction,
 `…/revisions/[r]/kanban`, où l'en-tête de la grille mène : toutes les tâches non démarrées, les
 démarrées et les terminées avec leur date, telles que les rend
 `listStartableTasks`, chacune une carte, un jalon non démarré dont les prédécesseurs sont terminés
-signalé à terminer (`predecessors_completed`, un texte et une icône) ; aucun pourcentage. La page
+signalé à terminer (`predecessors_completed`, un texte et une icône), et toute tâche non démarrée
+dont ils sont terminés signalée « prête à démarrer » de même ; aucun pourcentage. Deux filtres,
+qui vivent dans l'adresse seule (`q`, le libellé, sans égard à la casse ni aux accents ; `ready`,
+`1`), la lisent par `remaining/address.ts` et l'écrivent par `router.replace` : `Kanban` en
+filtre ce que le serveur rend (`kanban-filter.ts`) — le libellé dans les trois colonnes, les tâches
+prêtes dans la colonne Non démarrée seule —, l'en-tête d'une colonne dont des cartes sont
+masquées dit « n sur N », et une carte choisie qu'un filtre masque perd le choix. La page
 découpe les cartes (`kanban-cards.ts` : ce que la carte montre et ses gestes, jamais le nœud entier
 d'un millier de tâches) et lit la structure principale de la révision (`listCostStructures`), où les
 gestes s'écrivent. Une carte se choisit au clic ou aux flèches (haut et bas dans la colonne, gauche
@@ -1301,7 +1315,7 @@ une case de la matrice des permissions), sinon à la cellule active de la grille
 les paramètres qu'elle lit (`listReads`), le tri d'une autre liste de l'écran n'y comptant pas. Dans
 une grille, la commande est hors de la tabulation, et Entrée sur sa cellule la presse
 (`CELL_COMMAND`, `grid-keyboard.ts`). Le faux back ignorant les filtres, les pages et
-`include_inactive`, et ne gardant rien, les tests éprouvent ce que l'écran demande ; le service le
+`include_inactive`, et ne gardant rien (« Ce que le faux back ne fait pas »), les tests éprouvent ce que l'écran demande ; le service le
 tiendra en EP-05.
 
 ### Les paramètres de coûts : natures et catégories
@@ -1394,10 +1408,12 @@ survit donc aux relectures — ; une création n'ajoute aucune ligne, la page re
 serveur la retient. Ce qu'une écriture a fait se dit dans la région de sa liste (« « Débours »
 désactivée. ») ; le refus d'une activation, au-dessus de la liste comme celui d'une réactivation
 (`useListReport`). Le faux back ne gardant rien, l'écran le dit
-sous son en-tête, pour qui écrit — une ligne écrite restant montrée telle que le serveur l'a rendue
-tant que l'écran reste ouvert — (`MockupNotice`, `components/shell/mockup-notice.tsx`, à reprendre
-par chaque écran de la maquette dont les commandes écrivent, retiré quand l'écran est branché sur le
-service de son EPIC). La saisie d'un taux reste celle de la grille.
+sous son en-tête, pour qui écrit — la note, avec celle des listes, tient en 150 signes au plus,
+pour que les totaux de grille restent dans la fenêtre, et ne dit pas qu'une ligne écrite reste
+montrée telle que le serveur l'a rendue tant que l'écran reste ouvert — (`MockupNotice`,
+`components/shell/mockup-notice.tsx`, à reprendre par chaque écran de la maquette dont les commandes
+écrivent, retiré quand l'écran est branché sur le service de son EPIC). La saisie d'un taux reste
+celle de la grille.
 
 La correspondance de l'extraction des coûts réels (US-0620/L2, WF-REF-0190, FBS-3.1.3) a sa page,
 `/reference/costs/actual-cost-mapping`, que l'en-tête des paramètres de coûts offre par
@@ -1749,14 +1765,16 @@ des inscriptions de `listAuditEvents` sur la grille dense, en lecture seule (`au
 préférences sous la clé `audit_log`) : la date, en heure locale, l'auteur, l'action et, sous elle,
 ce qu'elle a fait à son objet — composé par le front dans la langue du lecteur à partir des codes et
 des paramètres que l'inscription garde (`AuditEvent.params`, `useAuditDetails`), l'API ne rendant
-aucune phrase (WF-ARC-0110) ; une seconde ligne de la cellule de l'action, qui se trie par le code
-de l'action, jamais une colonne à elle, que le serveur ne trierait pas (WF-IHM-0060) —, la nature et
-le libellé de l'objet — une sauvegarde, qui n'en a pas, par sa nature, jamais par son
+aucune phrase (WF-ARC-0110) ; une seconde ligne dans la cellule de l'action, qui se trie par le code
+de l'action — jamais une colonne à elle, que le serveur ne trierait pas (WF-IHM-0060) —, la nature
+et le libellé de l'objet — une sauvegarde, qui n'en a pas, par sa nature, jamais par son
 identifiant —, le projet et la corrélation, chacun tel que l'inscription le garde, et un lien vers
 l'histoire de l'objet — le journal filtré sur sa nature et son identifiant, toute son histoire :
 les autres filtres et la recherche levés, le tri gardé —, la corrélation menant de même aux
-inscriptions de sa seule requête. Le serveur trie sur chaque colonne (#550), dans les deux sens.
-Les plus récentes d'abord quand l'adresse ne dit rien, et le tri ne se lève jamais
+inscriptions de sa seule requête. Le `title` de la cellule de l'action n'est posé que si le texte y
+est tronqué, et il porte alors l'instant de la sauvegarde restaurée ; la seconde ligne dit aussi une
+modification de rôle sans changement. Le serveur trie sur chaque colonne (#550), dans les deux
+sens. Les plus récentes d'abord quand l'adresse ne dit rien, et le tri ne se lève jamais
 (`GridConfig.lifts`) : l'en-tête de la date demande d'abord le décroissant
 (`GridColumn.descendingFirst`), et ramène ainsi, depuis un autre tri, à l'ordre par défaut. Un objet
 ne mène à son écran propre que si la session lit sa fonction — les risques, le planning dont les
@@ -1774,7 +1792,9 @@ l'auteur (`ValuesFilter`), l'auteur et le projet parmi ceux que nomme le journal
 par auteur) — sans auteur à choisir ni auteur choisi, le filtre d'auteur n'est pas offert —, les
 actions dans un menu, la nature de l'objet, l'objet dont l'adresse demande l'histoire, nommé et
 levé, et la corrélation, saisie (`TextFilter`) ; un auteur ou un projet que l'adresse nomme sans
-qu'aucun choix ne l'offre reste choisi sous le nom que les inscriptions lui donnent. Le projet et
+qu'aucun choix ne l'offre reste choisi sous le nom que les inscriptions lui donnent, et un auteur
+qu'aucune ligne lue ne nomme est lu par `getUser`, au plus une fois, et nommé comme partout
+(`naming.person`), jamais par son identifiant (#1010). Le projet et
 l'objet sont des liens là où la session peut les consulter — un projet qu'elle peut ouvrir
 (`listProjects`, tous états ; aucun quand l'API ne trouve pas la liste des projets, que le service
 ne sert qu'à partir d'EP-04, une tolérance du 404 que #962 retire alors) — : le projet, une révision d'un tel projet, et un objet qui vit dans
@@ -2622,6 +2642,18 @@ Le faux back sert des lectures. Il ne garde aucun état : un projet créé n'app
 la liste suivante. Il sert aux lots de front qui précèdent leur lot de back et aux tests du
 front qui ne font que lire, jamais à éprouver une écriture.
 
+### Ce que le faux back ne fait pas
+
+Prism rend le premier exemple de l'opération quelle que soit la requête : il ne lit aucun
+paramètre. Sur un écran de `make dev`, il n'applique donc ni filtre, ni recherche, ni tri, ni
+pagination (`limit` et `offset` partent bien, mais la barre se calcule sur le `meta` de
+l'exemple, qui conclut à une seule page), ni `kinds`, ni `fields`, ni `include_inactive` — et il
+ne garde rien. Un écran qui en dépend se juge mal en maquette (#1399) : juger ces gestes revient
+aux tests du front, qui éprouvent la requête que l'écran fait, et au service. Les écrans de listes
+et de grilles le disent par `MockupNotice` avec `lists` (`mockup.notFiltered`), en une seule note
+sous l'en-tête. Les écrans dont le service est livré (l'administration, EP-03) ne portent pas la note,
+même si `make dev` les sert par Prism et que les mêmes limites s'y appliquent.
+
 _Contrôles_ : `make lint-openapi` (exemples conformes aux schémas, volumes compris),
 `make mock-data-up-to-date` (les volumes versionnés sont ceux que l'outil écrit, dans la
 famille contract, que `fixtures/api/` réveille comme le contrat), `make lint-compose`.
@@ -2888,7 +2920,10 @@ La chaîne est faite de workflows GitHub Actions (`.github/workflows/`) :
   chacune, sur l'un (`SHARD=lint`, le projet `lint` de `frontend/vitest.config.ts`), les autres
   tests en deux moitiés sur les deux autres (`SHARD=1/2`, `SHARD=2/2`). Vitest répartit des
   fichiers entiers par l'empreinte de leur chemin, et les trois gardes tombaient dans le même
-  morceau. Vitest y prend un worker par processeur moins un, comme il le fait de lui-même hors
+  morceau. Les gardes ne sont jamais mesurées, à aucun palier : elles ne couvrent rien de
+  `src/`, et mesurées elles prenaient trois minutes au lieu d'une, le premier test d'une garde
+  épuisant sa minute pendant que les trois construisaient à la fois le programme du projet sous la
+  couverture ; chacune le construit désormais dans son `beforeAll`, sur un budget à elle (#2015). Vitest y prend un worker par processeur moins un, comme il le fait de lui-même hors
   du mode veille, quatre au plus (`workers`, `frontend/vitest.config.ts`, #1474) : le processeur
   laissé est celui du processus principal, qui rassemble les résultats et la couverture des
   workers ; un runner, quatre processeurs, en joue donc trois. Le poste, douze processeurs, ne
@@ -2898,7 +2933,7 @@ La chaîne est faite de workflows GitHub Actions (`.github/workflows/`) :
   mais 29 de ses tests dépassaient la seconde sur quatre, 11 sur trois. `structure-busy.dom.test.tsx`
   et `planning-entry.dom.test.tsx` cachent les colonnes qu'ils n'éprouvent pas, le Gantt d'abord :
   la grille entière, rendue deux ou trois fois à chaque geste, doublait leur durée. Au palier
-  complet, un dernier runner rassemble la couverture des trois morceaux et
+  complet, un dernier runner rassemble la couverture des deux moitiés et
   la tient à ses seuils (`make coverage-front-merge`). ESLint garde son cache, par le contenu
   de chaque fichier (`pnpm lint`, `actions/cache`) : sans lui, il prend une minute.
   `front-cache.yml` écrit ce cache et le magasin de pnpm après chaque fusion, sur la branche
@@ -3030,20 +3065,21 @@ Le palier complet vise moins de huit minutes dans la file pour son travail le pl
   `curl -sI -H 'Accept: application/vnd.oci.image.index.v1+json' https://mcr.microsoft.com/v2/playwright/manifests/v<X>-noble`.
   L'image n'a pas `make` : son paquet d'Ubuntu noble est téléchargé, épinglé et
   vérifié par son empreinte, comme pandoc ;
-- **répartis sur trois runners** (`make e2e SHARD=i/3`, soit `playwright test --shard=i/3`),
-  la mesure du §4.6.2 sur un quatrième, seule (`make e2e-measure`), par une matrice dont aucun
+- **répartis sur cinq runners** (`make e2e SHARD=i/5`, soit `playwright test --shard=i/5`),
+  la mesure du §4.6.2 sur un sixième, seule (`make e2e-measure`), par une matrice dont aucun
   morceau n'annule les autres ; le résultat d'`e2e` est un échec dès qu'un morceau échoue ou
-  est annulé, et la porte avec lui. Trois, parce que Playwright répartit des fichiers entiers
-  de parcours, à nombre de tests égal, et que les plus longs pèsent — sauf un fichier joué test
+  est annulé, et la porte avec lui. Playwright répartit des fichiers entiers
+  de parcours, à nombre de tests égal, et les plus longs pèsent — sauf un fichier joué test
   par test (`mode: "parallel"`), comme `accessibility.spec.ts`, dont les tests se répartissent un
   à un : avant ce fichier, en octobre 2026, le plus long de trois morceaux jouait environ 140 s
-  de parcours sur deux workers, celui de quatre 130 s, quand chaque morceau paie environ deux
-  minutes d'image, d'installation et de serveurs. Ce que le fichier ajoute se lit sur la chaîne de
-  la pull request d'US-0200, et le choix se revoit quand les parcours s'allongent : les durées
+  de parcours sur deux workers, celui de quatre 130 s, et trois suffisaient. En novembre 2026, ce
+  fichier grossi à 500 s de parcours, le plus long de trois morceaux en jouait 290 s, quand chaque
+  morceau paie environ 75 s d'image, d'installation et de serveurs : cinq morceaux en jouent
+  environ 170 s chacun (#2015). Le choix se revoit quand les parcours s'allongent : les durées
   par fichier se lisent dans le journal de chaque morceau ;
 - **sur un seul build du front par exécution** (US-0590) : le travail `front-build` de `ci.yml`,
   qui tourne dès qu'`e2e` ou `service` tourne, lance `make build-front` et téléverse
-  `frontend/.next` sans son cache (`.next/cache`, que seul un build suivant lirait). Les trois
+  `frontend/.next` sans son cache (`.next/cache`, que seul un build suivant lirait). Les cinq
   morceaux, la mesure et les parcours du service l'attendent, le téléchargent là où le build l'a
   écrit et jouent avec `E2E_BUILT=1`, sans rien reconstruire. Il vit dans `ci.yml` et non dans
   l'un des deux workflows : `e2e.yml` et `service.yml` sont deux workflows appelés, et un `needs`
@@ -3460,13 +3496,19 @@ leurs sources et le film de l'écran : le parcours dit lui-même, en annotation,
 attend (`test.info().annotations`). Le remède atténue, il ne solde rien : le reste tient à l'écran.
 Les risques et les coûts réels, relus, ont dépassé cinq secondes sous charge : les mesures sont
 consignées dans #500, qui reste à trancher. Tout autre écran garde les cinq secondes d'une
-assertion. Un parcours qui enchaîne trois de ces bornes, ouverture comprise, dépasse les trente
+assertion sur un poste, dix dans la chaîne, où deux workers et leurs fronts partagent les quatre
+processeurs d'un runner : un écran qui y répond en une seconde a dépassé les cinq sous charge, et
+fait échouer un passage de la file de fusion environ une fois par semaine sans défaut derrière
+(#2015, `expect.timeout` de `playwright.config.ts`). Un parcours qui enchaîne trois de ces bornes, ouverture comprise, dépasse les trente
 secondes d'un test, et prend `test.slow()`. Une ligne de grille vérifiée est dans la fenêtre :
 au-delà des lignes en vue à l'ouverture, le parcours défile jusqu'à elle (`scrollToPosition`,
 `frontend/e2e/scroll.ts`) plutôt que de compter sur la marge que la grille rend autour de la
 fenêtre.
 
-`make e2e` : Playwright démarre le faux back (`make mock`) et le front, joue les parcours
+`make e2e` : `make mock-tools` met d'abord en cache les Redocly et Prism épinglés (leur
+installation par `npx` comptait dans les 120 s que Playwright donne au faux back, #1901) — il en
+est de même de `make e2e-measure` et de `make e2e-service`, dont Playwright démarre aussi le faux
+back ; Playwright démarre le faux back (`make mock`) et le front, joue les parcours
 dans Chromium, puis arrête les deux — il signale leur groupe de processus entier, sans quoi
 les serveurs que `make` et `pnpm` lancent survivraient. Il démarre toujours ses propres
 serveurs, sur des ports à lui — ceux du créneau du worktree (« Commandes », « Les créneaux des
@@ -3731,6 +3773,17 @@ et qui exige `WATERFALL_API_ADDRESS` ; absente, le tout, sans les parcours contr
 elle, Playwright ne saurait pas répartir les parcours : la mesure, qui les attend tous, les
 entraînerait tous dans chaque morceau.
 
+Le projet `measure` mesure aussi ce que coûte au navigateur de quitter une grille de mille tâches
+(`frontend/e2e/departure.spec.ts`, US-0800) : le planning, ouvert hydraté et posé, quitté pour
+l'écran des révisions par le lien de la navigation, le processeur de la page ralenti quatre fois,
+le ralentissement sous lequel #1218 avait mesuré ce départ. Le travail est celui du fil principal
+de la page, que Chromium compte lui-même (`Performance.getMetrics`), du clic à l'écran atteint,
+moins celui de Playwright ; il se ventile en script, styles, mise en page et travail natif. Cinq
+départs sont mesurés après un qui ne l'est pas, et leur médiane doit tenir sous une seconde :
+celle-ci fait échouer le parcours, avec une marge de cinq contre un sur un poste, où l'ouverture
+mesure ce qu'elle mesure dans la chaîne. Les fichiers du projet se jouent l'un après l'autre
+(`workers: 1`) : chacun pèserait sur ce que l'autre mesure.
+
 Le parcours témoin — liste des projets, projet, grille — traverse trois pages minimales,
 sans texte propre, qu'EP-02 remplace en gardant le parcours. Elles lisent l'API côté
 serveur (`frontend/src/api/server.ts`) ; leurs tests unitaires reçoivent les exemples du
@@ -3745,10 +3798,12 @@ lui-même, les pages du compte, la connexion et le mot de passe oublié, l'écra
 le fait échouer, comme une page de `REDIRECTS` qui ne fait pas que rediriger, ou une route qui en
 intercepte une autre. Chaque écran s'ouvre par son adresse dans une fenêtre de 1366 × 768 points,
 hydraté (`untilHydrated`, qui attend les clés que React pose sur chaque élément qu'atteint le
-clavier), puis se rétrécit à 911 × 512 — ce qu'un agrandissement de 150 % laisse de 1366 points, la
+clavier — ceux que le parcours atteint, un seul sélecteur, `REACHABLE`, partagé avec la sonde du
+focus), puis se rétrécit à 911 × 512 — ce qu'un agrandissement de 150 % laisse de 1366 points, la
 page remise en page comme le navigateur la remet quand on agrandit ; un facteur d'échelle de
-l'appareil changerait les pixels, pas la mise en page. Trois tests par écran contrôlent chacun les
-deux largeurs :
+l'appareil changerait les pixels, pas la mise en page. Trois contrôles par écran, joués chacun
+en mode clair et en mode sombre (`colorScheme`) — six tests —, portent chacun sur les deux
+largeurs :
 
 - les règles d'axe pour WCAG A et AA (`axeAudit`, `frontend/e2e/axe.ts`) — axe n'est pas WCAG —,
   contraste compris, une fois en mode clair et une fois en mode sombre (`colorScheme`), chaque test
@@ -3758,13 +3813,18 @@ deux largeurs :
   écart, ses couleurs dites ; ce qu'axe laisse sans mesure (`unmeasured`), le test le note en
   annotation, raison par raison (`elmPartiallyObscured`, `bgOverlap`…), les figures de courbe à part — un caractère seul
   dont axe n'a pas mesuré les couleurs y compte sous sa brièveté, axe l'écrivant par-dessus la raison
-  qui l'a empêché de mesurer. En mode clair, les
+  qui l'a empêché de mesurer. Ce que les autres règles laissent « incomplet » — une cible trop
+  petite, un lien dans un texte qu'axe ne sait pas juger… — est noté de même, règle par règle, sans
+  verdict (`undecided`, #784). En mode clair, les
   règles des libellés des champs et des descriptions des images — `label`, `image-alt` et leurs
   parentes — sont dites à part ;
 - le parcours au clavier (`walkByTab`, `frontend/e2e/tab-walk.ts`, la mesure dans la page par
-  `frontend/e2e/focus-probe.ts`) : à 1366 points, Tab depuis le haut de la page, à 911 points depuis
+  `frontend/e2e/focus-probe.ts`), dans les deux modes, l'indicateur du focus peint dans chacun
+  (#784) : à 1366 points, Tab depuis le haut de la page, à 911 points depuis
   là où le premier parcours s'est arrêté, chaque fois jusqu'au retour au premier élément atteint.
-  Chaque élément atteint est vu — affiché, non transparent, et le milieu de ce qui en reste, coupé
+  Chaque élément atteint est vu — affiché, non transparent, et le milieu de ce qui en reste — de sa
+  première boîte, pour un lien replié sur deux lignes, dont la boîte englobante a son milieu entre
+  les deux (#784) —, coupé
   par la fenêtre et par la boîte de remplissage de chaque boîte qui le rogne le long de ses blocs
   conteneurs, est l'élément lui-même : rien qui peigne n'est dessiné par-dessus, une couche que le
   pointeur traverse comprise —, et rien d'autre n'y prend le pointeur, une couche transparente qui
@@ -3782,8 +3842,9 @@ deux largeurs :
   ne doit se trouver entier au-delà du bord d'une boîte qui cache ce qui la déborde, que le
   navigateur fait défiler au focus mais que le pointeur n'atteint pas — une boîte que l'utilisateur
   fait défiler n'est jamais un bord : ce qu'elle cache, elle le montre en défilant, et c'est elle qui
-  doit être dans les boîtes autour d'elle ; ce qu'elle montre reste jugé contre elles ; aucun lien ni bouton n'est sorti de
-  l'ordre du clavier hors d'un tel widget. Enfin, tout ce que Tab atteint à 1366 points, il
+  doit être dans les boîtes autour d'elle ; ce qu'elle montre reste jugé contre elles ; aucun lien ni bouton — ni rien
+  qui en dise le rôle, ou celui d'une case à cocher (`[role=button]`, `link`, `checkbox`) — n'est
+  sorti de l'ordre du clavier hors d'un tel widget. Enfin, tout ce que Tab atteint à 1366 points, il
   l'atteint encore à 911 (`lost`). Pour voir ce qui peint par-dessus un élément, le parcours fait
   prendre le pointeur, le temps de la mesure, aux seuls éléments qui ne le prennent pas et dont la
   boîte touche celle de l'élément ou de l'un de ses enfants — chaque point que la mesure demande au
@@ -3809,11 +3870,35 @@ deux largeurs :
   écouteurs posés par la page après la sonde ni le focus, si bien que le focus est revenu au
   premier élément quand le parcours suivant commence ; ce que la page a mesuré au-delà d'un
   piège n'est pas lu, ni compté dans ce que Tab n'a pas atteint. Le décompte des éléments atteints
-  et des pièges reste du côté du test. Le parcours, et lui seul, garde sa trace sans instantanés du
+  et des pièges reste du côté du test. Les tests qui parcourent au Tab — l'écran, et ce qu'un geste ouvre —, et eux seuls, gardent leur trace sans instantanés du
   DOM (`withoutSnapshots`) : un instantané par touche pesait plus que le parcours lui-même sous
   charge (#1540), et ses fautes se lisent dans ses relevés. `test.use({ trace })` ne vaut pas pour
   un seul test — un groupe refuse une option qui impose un nouveau worker : le test relance la trace
-  que le harnais a ouverte, avec les mêmes options, sans les instantanés.
+  que le harnais a ouverte, avec les mêmes options, sans les instantanés ;
+- ce qu'un geste ouvre (US-0710, `frontend/e2e/opened.ts`) : sur chaque écran, les déclencheurs
+  d'un dialogue ou d'un menu — `aria-haspopup="dialog"` ou `"menu"`, que pose chaque commande qui
+  ouvre un dialogue et chaque déclencheur d'un menu —, affichés et actifs, reçoivent le focus et
+  Entrée ; ceux de la coquille — projet, compte, tâches, aide : tout ce qui est hors de `main`, et
+  le bouton de l'aide, que `data-shell` marque — ne se jouent que sur l'écran de référence, la
+  liste des révisions d'un projet (US-1220, #1840) : ils sont les mêmes sur chaque écran, et les
+  rejouer coûtait 38 à 67 % du chemin critique de la chaîne ; la première cellule saisissable de
+  chaque grille — une cellule de `DenseGrid`, que `data-column` situe et que rien ne dit en lecture
+  seule (`aria-readonly`) — reçoit le focus et F2.
+  Un dialogue ouvert est parcouru au Tab borné à lui (`walkByTab(page, dialogue)`) : ce que Tab peut
+  atteindre, les widgets et les bords se jugent dans le dialogue seul, le retour à son premier
+  élément est le piège qu'il veut — un dialogue d'un seul élément le garde —, et tout élément
+  atteint hors de lui est une faute (`escaped`). Un menu déplace le focus aux flèches et un éditeur
+  valide au Tab : le test y vérifie que le focus est entré. Ce qui s'est ouvert est ensuite audité
+  par axe — la cellule, pour un éditeur —, et le reste de la page par la seule règle dont
+  l'ouverture change le verdict hors de lui (`aria-hidden-focus` : un menu ou un dialogue modal
+  cache la page au lecteur d'écran) ; la page entière, que son propre audit juge, n'est pas auditée
+  de nouveau à chaque ouverture, ce qui dépassait le délai d'un test sur le Kanban et le
+  référentiel, huit secondes l'audit. Puis Échap le ferme et le focus revient au déclencheur, ou à la
+  cellule — celle qui tient le déclencheur, pour une commande d'une ligne de grille. Les
+  déclencheurs se découvrent à chaque largeur et se jouent l'un après l'autre dans un seul test par
+  écran et par mode, chaque contrôle dit à part, nommé par le déclencheur et la largeur
+  (`expect.soft`) ; une commande qu'une grille répète de ligne en ligne n'est jouée que pour la
+  première ligne, et un contrôle en échec rouvre l'écran avant le déclencheur suivant.
 
 `frontend/e2e/tab-walk.spec.ts` et `frontend/e2e/axe.spec.ts` éprouvent le parcours et l'audit
 d'axe eux-mêmes, sur des pages écrites pour eux (`page.setContent`) : chaque défaut qu'ils doivent
@@ -3826,12 +3911,41 @@ sur un poste chargé ; la compilation à froid d'un écran n'ajoute à ce temps 
 `E2E_DEV_SERVER=1`, le front construit n'en ayant pas. Un écart relevé se corrige dans l'écran, jamais en écartant une
 règle.
 
-Le harnais ne contrôle que les écrans tels qu'ils s'ouvrent : ce qu'un geste ouvre — un dialogue,
-un menu, le refus d'une cellule, l'éditeur d'une cellule — n'est pas parcouru, ni ce qu'un
-`details` fermé contient, ni un état qu'un geste atteint (un refus, `?import=`) ; axe ne juge pas le
-contraste d'un texte posé sur le dessin d'une courbe, et le contraste de l'indicateur du focus
-(WCAG 1.4.11) n'est mesuré que par les jetons de `contrast.test.ts`. Ce qui les couvre ailleurs, et
-ce qui reste, est dit dans la note d'US-0200 (EP-14) et dans #782.
+Ce que le harnais ne prouve pas, et ce qui le couvre ailleurs (US-0200, US-0710 ; la note
+d'US-0200 dans le fichier d'EP-14 le dit aussi) :
+
+- ce qu'un geste ouvre sans déclencheur que le harnais joue : le Popover d'un refus — d'une cellule
+  calculée, ou d'une écriture refusée —, qui ne s'ouvre qu'une fois le serveur a refusé ; un menu
+  ou un dialogue ouvert depuis un menu — le menu d'une cellule (Maj+F10), et les dialogues qu'il
+  ouvre, l'insertion d'une tâche par exemple — ; le collage d'un bloc, ouvert par Ctrl+V ; les
+  dialogues qu'un geste ouvre sans bouton — `TimelineForm` et `GestureDialog` de
+  `structure-gestures.tsx` —, que le harnais ne trouve pas faute de commande qui dise
+  `aria-haspopup="dialog"` : le test `dialog-command-guard.test.ts` les exempte de la règle et les
+  nomme (chaque entrée avec sa raison), et fait échouer toute autre source qui rend plus de
+  dialogues pilotés par un état que de commandes qui le disent. Les tests de composants les
+  tiennent (`expectAccessible`, axe sous happy-dom, sans contraste ni mise en page ; le focus que
+  Radix rend) ;
+- la coquille sur chaque écran : ses menus et ses dialogues (projet, compte, tâches, aide) ne se
+  jouent que sur la liste des révisions d'un projet, en clair et en sombre, aux deux largeurs
+  (US-1220) ; un défaut propre à la coquille d'un autre écran — un en-tête que la page change — ne
+  se verrait qu'à son audit d'axe et à son parcours au Tab, qui, eux, se jouent sur chaque écran ;
+- la liste ou le popover qu'un éditeur de cellule rendrait dans un portail hors de la cellule :
+  l'audit d'un éditeur porte sur la cellule, et aucun éditeur d'aujourd'hui n'en rend un ;
+- le contenu d'un `details` fermé — le tableau des valeurs d'une courbe — et un état qu'un geste
+  atteint — un refus affiché, une adresse `?import=` — : le harnais ouvre chaque écran à son
+  adresse, et n'y joue que les déclencheurs ;
+- l'écran de panne (`error.tsx`, `global-error.tsx`), qu'aucune adresse n'ouvre : seuls ses tests
+  le rendent (`system-pages.test.tsx`, et `expectAccessible` dans `system.dom.test.tsx`) ;
+- dans un widget qui déplace lui-même le focus, l'entrée seule est vérifiée : atteindre chacun de
+  ses éléments aux flèches reste aux tests de composants (#784) ;
+- les textes qu'axe ne mesure pas : posés sur le dessin d'une courbe, du Gantt ou d'une chronologie
+  — des images pour axe —, en partie hors de la boîte qui les fait défiler, sous un autre ; le test
+  les compte en annotation, raison par raison, mais ce compte n'est comparé à rien : un texte qui
+  devient non mesurable ne change aucun verdict (#784). Les textes indicatifs des champs
+  (`placeholder`, la recherche de la barre du haut et celle d'une grille) ne sont pas jugés par
+  axe : seule la paire de jetons `muted-foreground`/`background` de `contrast.test.ts` les couvre ;
+- le contraste de l'indicateur du focus (WCAG 1.4.11), mesuré par les seuls jetons de
+  `contrast.test.ts`, pas sur les écrans.
 
 _Contrôle_ : `make e2e`, au palier complet de la chaîne ; l'échec d'un parcours la fait
 échouer, une ouverture de grille qui dépasse la seconde n'y est qu'un avertissement.
@@ -4239,8 +4353,8 @@ les couleurs d'un SVG, tout littéral ou gabarit sans expression autre que `curr
 qu'aucune feuille de style ne vit hors de `src/theme/`. `make test-front` —
 `contrast.test.ts` mesure chaque paire de jetons dans les deux modes, `brand.test.ts`
 compare les logos et l'icône à ceux de `docs/assets`. Le contraste des écrans rendus se
-contrôle dans le navigateur, sur chaque écran de la table, en clair et en sombre
-(`frontend/e2e/accessibility.spec.ts`, US-0200) ; le reste de l'accessibilité d'un composant, dans ses
+contrôle dans le navigateur, sur chaque écran de l'application et sur ce qu'un geste y ouvre, en
+clair et en sombre (`frontend/e2e/accessibility.spec.ts`, US-0200, US-0710) ; le reste de l'accessibilité d'un composant, dans ses
 tests, par `expectAccessible` (`frontend/src/test/axe.ts`, axe-core sous happy-dom, qui ne
 calcule pas les couleurs). Reste à la revue : une couleur bâtie par un gabarit à expressions
 ou par une fonction, et un `style` ou un attribut de SVG qui reçoit une variable plutôt qu'un

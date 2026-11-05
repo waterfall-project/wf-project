@@ -15,10 +15,19 @@ import { openHydrated, WORKING } from "./hydration";
 // the pages (`page.test.tsx`, `screens.test.tsx`).
 const PROJECT = "01926f3a-7c00-7000-8000-000000000001";
 
-test("shows no encart on a project whose main structure bears its tasks, the server saying so [WF-PRJ-0030-A]", async ({
+test("leads a project with a revision in progress to its planning, where no encart is offered [WF-PRJ-0030-A]", async ({
   page,
 }) => {
-  await openHydrated(page, `/projects/${PROJECT}`);
+  // `goto`, not `openHydrated`: the page leads elsewhere, and the probe of hydration would run on a
+  // document that is being left.
+  await page.goto(`/projects/${PROJECT}`);
+  // The project of the witness has a revision in progress: its page leads to the planning of it
+  // (US-0720), where the encart is not by construction. The proof is the address reached, that of
+  // the revision, then the planning shown without the encart; the encart that could be missing on
+  // the page of a project is reached, on the project with no revision, by the last test below.
+  await expect(page).toHaveURL(new RegExp(`/projects/${PROJECT}/revisions/[^/]+/planning$`), {
+    timeout: WORKING,
+  });
   await expect(page.getByRole("heading", { level: 1 })).toBeVisible({ timeout: WORKING });
   await expect(page.getByRole("region", { name: "Démarrer le projet" })).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Démarrer le projet" })).toHaveCount(0);

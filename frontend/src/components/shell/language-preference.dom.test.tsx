@@ -176,7 +176,7 @@ describe("the language in the menu of the account", () => {
     await choose("Français");
 
     const alert = await screen.findByRole("alert");
-    expect(alert.textContent).toBe("Votre session a expiré ; reconnectez-vous.Se connecter");
+    expect(alert.textContent).toBe("Votre session a expiré\u202F; reconnectez-vous.Se connecter");
     const signIn = within(alert).getByRole("link", { name: "Se connecter" });
     const next = new URL(signIn.getAttribute("href") ?? "", "http://front.invalid");
     expect(next.pathname).toBe("/login");
@@ -201,7 +201,7 @@ describe("the language in the menu of the account", () => {
     await choose("English");
 
     const alert = await screen.findByRole("alert");
-    expect(alert.textContent).toBe("Le service est injoignable ; réessayez dans un instant.");
+    expect(alert.textContent).toBe("Le service est injoignable\u202F; réessayez dans un instant.");
     expect(screen.getByRole("main")).toBeInTheDocument();
   });
 

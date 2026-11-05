@@ -12,13 +12,14 @@ import { estimateReference } from "@/test/reference";
 
 import { EstimateGrid } from "./estimate-grid";
 import type { NodeList, NodeSortColumn } from "./nodes";
+import { usePendingAddress } from "./pending-address";
 import type { GridQuery } from "./query";
 
 // The server of Next, as far as the grid needs it: the fake back behind serverClient, which the
 // server action recording the settings calls; the router, whose address a sort or a search
 // changes; and the address of the page.
 const server = vi.hoisted((): { client: ApiClient | undefined } => ({ client: undefined }));
-const router = vi.hoisted(() => ({ push: vi.fn(), refresh: vi.fn() }));
+const router = vi.hoisted(() => ({ push: vi.fn(), replace: vi.fn(), refresh: vi.fn() }));
 const page = vi.hoisted(() => ({ search: "" }));
 
 vi.mock("@/api/server", () => ({ serverClient: () => server.client }));
@@ -79,6 +80,7 @@ function lastAsked(): Record<string, string> {
 
 beforeEach(() => {
   router.push.mockReset();
+  router.replace.mockReset();
   server.client = fakeClient({ "PATCH /me/preferences": "preferences" });
   vi.spyOn(HTMLElement.prototype, "offsetHeight", "get").mockReturnValue(560);
   vi.spyOn(HTMLElement.prototype, "offsetWidth", "get").mockReturnValue(600);
@@ -86,6 +88,35 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.restoreAllMocks();
+});
+
+describe("the navigation a request makes", () => {
+  /** A button that asks the address `/k?x=1`, the way the history is written given. */
+  function Asker({ how }: { readonly how?: "replace" }) {
+    const { request } = usePendingAddress();
+    return (
+      <button
+        type="button"
+        onClick={() => {
+          request(() => "/k?x=1", how);
+        }}
+      >
+        ask
+      </button>
+    );
+  }
+
+  it("adds an entry to the history by default, and replaces the entry when asked to", async () => {
+    const { rerender } = render(<Asker />);
+    await userEvent.click(screen.getByRole("button", { name: "ask" }));
+    expect(router.push).toHaveBeenCalledWith("/k?x=1", { scroll: false });
+    expect(router.replace).not.toHaveBeenCalled();
+    router.push.mockReset();
+    rerender(<Asker how="replace" />);
+    await userEvent.click(screen.getByRole("button", { name: "ask" }));
+    expect(router.replace).toHaveBeenCalledWith("/k?x=1", { scroll: false });
+    expect(router.push).not.toHaveBeenCalled();
+  });
 });
 
 describe("the address a screen asked, once the history goes back over it (#557)", () => {

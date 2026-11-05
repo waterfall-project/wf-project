@@ -81,7 +81,12 @@ function serve(answers: FakeAnswers, hold?: Promise<unknown>): FakeClient {
 function board(columns: KanbanColumns = columnsOfExample("startable_tasks")) {
   const tree = (shown: KanbanColumns) => (
     <NextIntlClientProvider locale="fr" messages={CATALOGUES.fr}>
-      <Kanban columns={shown} structure={STRUCTURE} remaining={REMAINING} />
+      <Kanban
+        columns={shown}
+        structure={STRUCTURE}
+        remaining={REMAINING}
+        filters={{ text: "", ready: false }}
+      />
     </NextIntlClientProvider>
   );
   const rendered = render(tree(columns));
@@ -229,7 +234,7 @@ describe("the gestures of the cards of the Kanban", () => {
     // In the order of the API: start, complete, enter the remaining to commit; nothing it does not list.
     expect(entries.map((entry) => entry.textContent)).toEqual([
       "Démarrer",
-      "TerminerConditions non remplies : la tâche est un jalon et tâche sans ligne hors provision.",
+      "TerminerConditions non remplies\u00A0: la tâche est un jalon et tâche sans ligne hors provision.",
       "Saisir le reste à engager",
     ]);
     expect(entries[0]).not.toHaveAttribute("aria-disabled");
@@ -384,11 +389,9 @@ describe("the gestures of the cards of the Kanban", () => {
       await waitFor(() => {
         expect(screen.queryByRole("menu")).not.toBeInTheDocument();
       });
-      expect(card(label)).not.toHaveFocus();
-      // The menu being modal, the focus goes back to its button, not to the card.
-      expect(
-        within(card(label)).getByRole("button", { name: `Gestes de la tâche ${label}` }),
-      ).toHaveFocus();
+      // The menu is not modal (US-0710): the focus is where the click took it — the page, here,
+      // the click being on the body — and neither the card nor its button gets it back.
+      expect(document.body).toHaveFocus();
     });
 
     it("gives the stop of Tab back to the first card when the card chosen leaves the reading", async () => {
@@ -467,7 +470,7 @@ describe("the gestures of the cards of the Kanban", () => {
     const user = userEvent.setup();
     dragTo("Câblage des armoires", "Non démarrées");
     expect(within(card("Câblage des armoires")).getByRole("alert").textContent).toBe(
-      "Aucun geste ne mène cette tâche vers la colonne « Non démarrées ».",
+      "Aucun geste ne mène cette tâche vers la colonne «\u00A0Non démarrées\u00A0».",
     );
     // The same by the keys, Shift and the left arrow.
     await user.click(card("Câblage des armoires"));
@@ -483,7 +486,7 @@ describe("the gestures of the cards of the Kanban", () => {
     // The completion of a task not started lacks conditions: dropped on the completed ones, it says so.
     dragTo("Montage des armoires sur site", "Terminées");
     expect(within(card("Montage des armoires sur site")).getByRole("alert").textContent).toBe(
-      "« Terminer » est indisponible. Conditions non remplies : la tâche est un jalon et tâche sans ligne hors provision.",
+      "«\u00A0Terminer\u00A0» est indisponible. Conditions non remplies\u00A0: la tâche est un jalon et tâche sans ligne hors provision.",
     );
     expect(client.calls.filter((each) => each.route === PROGRESS)).toEqual([]);
     expect(

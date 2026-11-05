@@ -139,6 +139,7 @@ function ReviewForm({
       hint={t("reviewHint")}
       creating={false}
       submit={t("review")}
+      icon={<RefreshCw aria-hidden="true" />}
       fields={fields}
       initial={{
         probability: editablePercent(risk.probability, locale),

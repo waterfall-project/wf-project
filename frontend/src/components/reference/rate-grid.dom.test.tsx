@@ -16,6 +16,7 @@ import {
   type FakeAnswers,
   type FakeClient,
   fakeClient,
+  held,
   type Problem,
 } from "@/test/fixtures";
 
@@ -177,13 +178,8 @@ describe("the grid of the hourly rates", () => {
   });
 
   it("enters the first rate of a year without a version, shows the rate the server answered, and the cursor goes to the next row [WF-IHM-0040-A]", async () => {
-    let answer: (value?: unknown) => void = () => undefined;
-    const client = serve(
-      {},
-      new Promise((resolve) => {
-        answer = resolve;
-      }),
-    );
+    const answer = held();
+    const client = serve({}, answer.until);
     render(rates());
     cell(MECHANICAL, 2015).focus();
     // What is typed differs from what the server answers: shown under way, then the answer.
@@ -191,7 +187,7 @@ describe("the grid of the hourly rates", () => {
     expect(cell(MECHANICAL + 1, 2015)).toHaveFocus();
     expect(cell(MECHANICAL, 2015)).toHaveTextContent(/^85,00$/);
     expect(cell(MECHANICAL, 2015)).toHaveAttribute("aria-busy", "true");
-    answer();
+    answer.release();
     await answered(MECHANICAL, 2015);
     expect(cell(MECHANICAL, 2015)).toHaveTextContent(/^85,48$/);
     expect(screen.queryByRole("alert")).toBeNull();
@@ -516,13 +512,8 @@ describe("the grid of the hourly rates", () => {
   });
 
   it("offers no removal of the column of a year added while its first rate is being written", async () => {
-    let answer: (value?: unknown) => void = () => undefined;
-    serve(
-      { [RATE]: "hourly_rate_added_year" },
-      new Promise((resolve) => {
-        answer = resolve;
-      }),
-    );
+    const answer = held();
+    serve({ [RATE]: "hourly_rate_added_year" }, answer.until);
     render(rates());
     const form = screen.getByRole("form", { name: "Ajouter une année à la grille" });
     await userEvent.type(within(form).getByRole("textbox", { name: "Année" }), "2011");
@@ -532,7 +523,7 @@ describe("the grid of the hourly rates", () => {
     await userEvent.keyboard("57,5{Enter}");
     expect(cell(0, 2011)).toHaveAttribute("aria-busy", "true");
     expect(within(form).queryByRole("button", { name: /^Retirer/ })).toBeNull();
-    answer();
+    answer.release();
     await answered(0, 2011);
     expect(within(form).queryByRole("button", { name: /^Retirer/ })).toBeNull();
   });

@@ -8,7 +8,18 @@ Trois colonnes, dans l’ordre que donne le serveur : **Non démarrées**, **Dé
 
 Le Kanban lit la révision en cours d’élaboration, quelle que soit la révision du contexte : sur une révision marquée, qui n’a aucune tâche à démarrer, il le dit et ne montre rien.
 
+Une tâche non démarrée dont tous les prédécesseurs sont terminés porte **Prête à démarrer**, par une icône et un texte, qu’un filtre soit actif ou non ; sur un jalon, elle s’ajoute à « jalon à terminer ». Le serveur dit quelles tâches sont prêtes : l’écran ne le calcule pas.
+
+Une récapitulative démarrée dont toutes les subordonnées sont terminées, et dont une ligne propre hors provision garde un reste à engager, porte **Lignes propres ouvertes**, par une icône et un texte : elle n’attend plus que ses lignes propres. Le serveur le dit de la tâche ; l’écran ne le déduit pas de ses subordonnées, et une provision ne le fait jamais dire.
+
 ## Ses commandes
+
+**Retrouver une tâche.** Deux filtres, au-dessus des colonnes, écrivent l’adresse de l’écran — ils ne se gardent ni dans les préférences ni dans la session, et la page copiée les porte :
+
+- **Rechercher une tâche** : le libellé, sans égard à la casse ni aux accents, dans les trois colonnes à la fois ; `Entrée` l’applique, un champ vidé lève le filtre.
+- **Tâches prêtes** : dans la colonne Non démarrées seule, ne garde que les tâches prêtes à démarrer ; les colonnes Démarrées et Terminées ne changent pas.
+
+Quand un filtre masque des cartes, l’en-tête de la colonne dit combien sont montrées, « 4 sur 12 », ce que lisent aussi les lecteurs d’écran. Une carte choisie qu’un filtre masque n’est plus choisie : `Tab` revient à la première carte montrée de sa colonne.
 
 Chaque carte fait les gestes que sa tâche offre, et seulement ceux-là, par son menu, en la glissant vers une colonne, ou au clavier :
 

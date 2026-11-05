@@ -282,7 +282,7 @@ export function useRowCommand(
   // whose end would wait for every other write of the list under way (#1484).
   const [busy, setBusy] = useState(false);
   // The list, which tells the refusal, holds the navigations while the command answers: the row
-  // may be gone meanwhile (#688).
+  // may be gone meanwhile (#688). Always called, used or not: a hook is not called on a condition.
   const own = useHeldCommand();
   const held = list?.held ?? own;
   const run = (
@@ -332,6 +332,7 @@ export function CreateCommand({ label }: { readonly label: string }) {
       <WrittenRegion said={commands?.said} />
       <CommandTooltip label={label} help={said("create.help")}>
         <Button
+          aria-haspopup="dialog"
           type="button"
           variant="outline"
           size="sm"
@@ -355,6 +356,7 @@ export function ModifyCommand({ row }: { readonly row: ReferenceObject }) {
   return (
     <CellCommand
       label={t("modifyNamed", { name: row.label })}
+      aria-haspopup="dialog"
       help={said("modify.help")}
       onClick={(event: MouseEvent<HTMLElement>) => {
         commands?.open({ row, trigger: event.currentTarget });

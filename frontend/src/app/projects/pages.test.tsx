@@ -14,12 +14,14 @@ import { ESTIMATE_FIELDS } from "@/components/grid/estimate";
 import type { EstimateGridProps } from "@/components/grid/estimate-grid";
 import {
   type AnyNodeFields,
+  type NodeKind,
   COMMON_FIELDS,
   type NodeList,
   nodeFieldNames,
   SPARSE_LINE_FIELDS,
+  SPARSE_NODE_FIELDS,
 } from "@/components/grid/nodes";
-import { PLANNING_FIELDS } from "@/components/grid/planning";
+import { PLANNING_FIELDS, PLANNING_KINDS } from "@/components/grid/planning";
 import type { PlanningGridProps } from "@/components/grid/planning-grid";
 import { CATALOGUES } from "@/i18n/catalogues";
 import {
@@ -29,6 +31,7 @@ import {
   type FakeClient,
   fakeClient,
   type FakeTiming,
+  held,
 } from "@/test/fixtures";
 
 import ProjectPage, { generateMetadata as projectMetadata } from "./[projectId]/page";
@@ -167,6 +170,7 @@ const EXAMPLE_BY_END = {
   "/resource-roles": ["GET /reference/resource-roles", "resource_roles"],
   "/subprojects": ["GET /projects/{project_id}/subprojects", "subprojects"],
   "/work-breakdown": ["GET /projects/{project_id}/work-breakdown", "work_breakdown"],
+  "/risks": ["GET /projects/{project_id}/risks", "risks"],
 } as const satisfies Readonly<Record<string, CitedRead>>;
 const READ_REVISION = [
   "GET /projects/{project_id}/revisions/{revision_id}",
@@ -260,6 +264,7 @@ beforeEach(() => {
     "GET /reference/resource-roles": "resource_roles",
     "GET /projects/{project_id}/subprojects": "subprojects",
     "GET /projects/{project_id}/work-breakdown": "work_breakdown",
+    "GET /projects/{project_id}/risks": "risks",
     "GET /projects/{project_id}/timelines": "timelines",
     "GET /reference/duration-units": "duration_units",
   };
@@ -272,16 +277,14 @@ beforeEach(() => {
 const FILLED_SCREEN = `<main data-fill="" class="${SCREEN.dense} min-h-0">`;
 
 describe("the witness path", () => {
-  it("shows a project and links to its revisions", async () => {
-    const page = await ProjectPage({
+  it("leads a project to its revision in progress [WF-IHM-0010-A]", async () => {
+    const page = ProjectPage({
       params: Promise.resolve({ projectId: PROJECT }),
       searchParams: NO_SEARCH,
     });
-    const html = renderToStaticMarkup(inEnglish(page));
-    expect(html).toContain(`<main class="${SCREEN.dense}">`);
-    expect(html).toMatch(/<h1[^>]*><svg[^>]*>.*?<\/svg>Modernisation du poste de commande<\/h1>/);
-    expect(html).toContain(`href="/projects/${PROJECT}/revisions/${REVISION}"`);
-    expect(html).toContain(">Référence</a>");
+    await expect(page).rejects.toMatchObject({
+      digest: expect.stringContaining(`/projects/${PROJECT}/revisions/${REVISION};`) as string,
+    });
   });
 
   it("shows the grid of the estimate on the main structure, a row for each node, in the order of the answer", async () => {
@@ -370,11 +373,8 @@ describe("the witness path", () => {
   });
 
   it("reads the session, the structures and the reading context together, and waits for the session only to read the nodes", async () => {
-    let answer: () => void = () => undefined;
-    const held = new Promise<void>((resolve) => {
-      answer = resolve;
-    });
-    server.timing = { hold: (route) => (route === "GET /me" ? held : undefined) };
+    const answer = held();
+    server.timing = { hold: (route) => (route === "GET /me" ? answer.until : undefined) };
     const routes = () => server.clients.flatMap((client) => client.calls).map((call) => call.route);
     const params = Promise.resolve({ projectId: PROJECT, revisionId: REVISION });
     const page = EstimatePage({ params, searchParams: NO_SEARCH });
@@ -389,7 +389,7 @@ describe("the witness path", () => {
       );
     });
     expect(nodesCall()).toBeUndefined();
-    answer();
+    answer.release();
     await page;
     expect(nodesCall()).toBeDefined();
   });
@@ -710,7 +710,7 @@ describe("the indicators and the missing rates of the estimate", () => {
     );
     // « Help »: the button the address of the mock, a project's page, puts in each header (#1439).
     expect(text(html)).toMatch(
-      /Costing and estimate Help Structure principale · 6 tasks, 1 line Workload Imports and exports Estimate indicators Computed on Estimate total €68,923,691.06 .*No\. Label/,
+      /Costing and estimate Help Structure principale · 6 tasks, 1 line Workload Imports and exports Mock-up: .* Estimate indicators Computed on Estimate total €68,923,691.06 .*No\. Label/,
     );
     // Its head leads to the workload of the project, a leaf of the estimate, in the same context,
     // on the reference budget of a project in progress (#1069).
@@ -822,15 +822,20 @@ describe("the indicators and the missing rates of the estimate", () => {
 });
 
 describe("the banner of the reading context on the witness path", () => {
-  it("names the project on the page of a project [WF-IHM-0020-A]", async () => {
+  it("names the project on the page of a project without a revision [WF-IHM-0020-A]", async () => {
+    server.answers = {
+      ...server.answers,
+      "GET /projects/{project_id}": "project_pricing",
+      "GET /projects/{project_id}/revisions": "revisions_empty",
+    };
     const page = await ProjectPage({
-      params: Promise.resolve({ projectId: PROJECT }),
+      params: Promise.resolve({ projectId: PRICING }),
       searchParams: NO_SEARCH,
     });
     const html = renderToStaticMarkup(inEnglish(page));
     expect(html.startsWith(BANNER)).toBe(true);
     expect(text(html)).toMatch(
-      /^Project Modernisation du poste de commande Modernisation du poste de commande Help Code PRJ-001/,
+      /^Project Extension de la ligne d&#x27;essais Extension de la ligne d&#x27;essais Help Code PRJ-002/,
     );
   });
 
@@ -874,42 +879,6 @@ function links(markup: string): string[] {
 }
 
 describe("the empty states of the shell", () => {
-  it("says a project has no revision yet, on the example of an empty history, and leads to its revisions", async () => {
-    server.answers = {
-      ...server.answers,
-      "GET /projects/{project_id}": "project_pricing",
-      "GET /projects/{project_id}/revisions": "revisions_empty",
-    };
-    const page = await ProjectPage({
-      params: Promise.resolve({ projectId: PRICING }),
-      searchParams: NO_SEARCH,
-    });
-    const html = renderToStaticMarkup(inEnglish(page));
-    expect(text(html)).toContain(
-      "Revisions This project has no revision yet. Go to the revisions of the project",
-    );
-    expect(links(html)).toContain(`/projects/${PRICING}/revisions`);
-    // No revision is listed: the only links to a revision are none.
-    expect(links(html).filter((href) => href.includes("/revisions/"))).toEqual([]);
-  });
-
-  it("does not offer the way to the revisions to a session that may not read them", async () => {
-    server.answers = {
-      ...server.answers,
-      "GET /me": UNAUTHORIZED,
-      "GET /projects/{project_id}": "project_pricing",
-      "GET /projects/{project_id}/revisions": "revisions_empty",
-    };
-    const page = await ProjectPage({
-      params: Promise.resolve({ projectId: PRICING }),
-      searchParams: NO_SEARCH,
-    });
-    const html = renderToStaticMarkup(inEnglish(page));
-    expect(text(html)).toContain("This project has no revision yet.");
-    expect(text(html)).not.toContain("Go to the revisions of the project");
-    expect(links(html)).not.toContain(`/projects/${PRICING}/revisions`);
-  });
-
   it("is not found for a revision its address carries that the API does not find", async () => {
     server.answers = {
       ...server.answers,
@@ -956,14 +925,21 @@ describe("the rows a page hands its grid", () => {
    * Check that each row a grid was handed holds the fields of its list its node has, and those
    * alone, its facets alike; a field of a line that says nothing is left out (`SPARSE_LINE_FIELDS`).
    */
-  function projected(items: readonly object[], fields: AnyNodeFields) {
-    const answer = example(VOLUME) as NodeList;
+  function projected(items: readonly object[], fields: AnyNodeFields, kinds?: readonly NodeKind[]) {
+    const whole = example(VOLUME) as NodeList;
+    // The server may render more than the kinds asked, the fake back does: the grid has these alone.
+    const answer = {
+      ...whole,
+      items:
+        kinds === undefined ? whole.items : whole.items.filter(({ kind }) => kinds.includes(kind)),
+    };
     const listed = {
       node: [...COMMON_FIELDS.node, ...fields.node, "task", "estimate_line"],
       task: [...COMMON_FIELDS.task, ...fields.task],
       line: [...COMMON_FIELDS.line, ...fields.line],
     };
-    const sparse = new Set<string>(SPARSE_LINE_FIELDS); // a delay of nought says something
+    // A delay of nought says something; a node of no origin says nothing of it.
+    const sparse = new Set<string>([...SPARSE_LINE_FIELDS, ...SPARSE_NODE_FIELDS]);
     const silent = (value: unknown) => value === null || value === false;
     const kept = (source: Readonly<Record<string, unknown>>, keys: readonly string[]) =>
       keys.filter((key) => key in source && !(sparse.has(key) && silent(source[key]))).sort();
@@ -994,7 +970,7 @@ describe("the rows a page hands its grid", () => {
     renderToStaticMarkup(inEnglish(await PlanningPage({ params, searchParams: NO_SEARCH })));
     expect(nodesFields()).toEqual(nodeFieldNames(PLANNING_FIELDS));
     expect(grids.planning).toHaveLength(1);
-    projected(grids.planning[0]?.nodes.items ?? [], PLANNING_FIELDS);
+    projected(grids.planning[0]?.nodes.items ?? [], PLANNING_FIELDS, PLANNING_KINDS);
     expect(grids.planning[0]?.structure).toEqual(STRUCTURE);
   });
 });

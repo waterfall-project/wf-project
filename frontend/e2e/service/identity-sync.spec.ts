@@ -83,7 +83,7 @@ test("the reading of the accounts asked from the screen gives the hand back at o
     await expect(entries).toHaveCount(1);
     await expect(entries.getByText("Réussie")).toBeVisible({ timeout: 90_000 });
     await expect(page.getByRole("log")).toContainText(
-      "Tâche terminée : Lecture des comptes du fournisseur d’identité.",
+      "Tâche terminée\u00a0: Lecture des comptes du fournisseur d’identité.",
     );
     // A report to read on the screen, not a file to download.
     await expect(entries.getByRole("link", { name: /Télécharger/ })).toHaveCount(0);

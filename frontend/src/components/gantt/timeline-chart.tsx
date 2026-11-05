@@ -349,6 +349,8 @@ function Frieze({ name, timeline, tasks, kept, provenance, scheduledAt }: Timeli
   }, []);
 
   const labelOf = (id: string) => drawn.rectangles.find((each) => each.id === id)?.label ?? id;
+  // The status of the chart alone, read out beside it: a gesture of the display (a lane, the stacking
+  // of the rectangles) with no object to name, and nothing to note in the history of the messages.
   const say = (text: string) => {
     setMessage((last) => ({ text, count: (last?.count ?? 0) + 1 }));
   };

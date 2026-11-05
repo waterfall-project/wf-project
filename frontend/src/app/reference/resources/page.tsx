@@ -3,25 +3,27 @@
 /**
  * The settings of the resources (FBS-3.2, US-0250), outside any project: the organisation
  * (FBS-3.2.1), the resource roles (FBS-3.2.2), the calendars (FBS-3.2.3) — three dense grids, each
- * searched and filtered by the server and, for the roles, bounded on their figures, sorted and paged
- * by it, as the address asks under the names of each grid (#301, #511, #533, #545); the calendars
- * bound no hours of a day (WF-IHM-0130-A) — and the constants the units of duration convert by, under the same permission as the calendars (WF-PLA-0160). Each object
- * names those it is attached to as the server resolves them. Every figure as the API gives it: the
- * front sorts, filters and pages nothing.
+ * searched and filtered by the server and, for the roles, bounded on their figures, sorted and
+ * paged by it, as the address asks under the names of each grid (#301, #511, #533, #545); the
+ * calendars bound no hours of a day (WF-IHM-0130-A) — and the constants the units of duration
+ * convert by, under the same permission as the calendars (WF-PLA-0160). Each object names those it
+ * is attached to as the server resolves them. Every figure as the API gives it: the front sorts,
+ * filters and pages nothing.
  *
  * The lists hold the active objects alone, and the deactivated ones too when the address asks for
- * them and the session may read them (WF-REF-0150, `include_inactive`); each object carries the
- * command that reactivates it, as the server lists it. The roles are filtered by their code, by a
- * node of the organisation chosen among the whole tree — read whole a second time when a search or a
- * filter narrows the grid of the tree —, by a category of cost and by a calendar chosen among every
- * one the session reads, each read whole as a list of choices is (#303); the categories, which the
- * settings of the costs keep, are offered only when the API gives them. A session that may modify the
- * settings of the resources creates and modifies the nodes, the roles and the calendars, and
- * deactivates them as each lists it (EP-02/L43b): a role is attached to a category of labour alone
- * (WF-REF-0090), which each category says (`cost_type_kind`, EP-14/L43g); the screen then says that
- * the fake back keeps none of what is written (`MockupNotice`). Bounds the API refuses (422,
- * an upper bound below the lower one) leave their list unread, the bound said at its field; any other
- * read the API refuses, or cannot answer, is thrown for the pages of the shell to say.
+ * them and the session may modify the settings (`resource_settings.write`) (WF-REF-0150,
+ * `include_inactive`); each object carries the command that reactivates it, as the server lists it.
+ * The roles are filtered by their code, by a node of the organisation chosen among the whole tree —
+ * read whole a second time when a search or a filter narrows the grid of the tree —, by a category
+ * of cost and by a calendar chosen among every one the session reads, each read whole as a list of
+ * choices is (#303); the categories, which the settings of the costs keep, are offered only when
+ * the API gives them. A session that may modify the settings of the resources creates and modifies
+ * the nodes, the roles and the calendars, and deactivates them as each lists it (EP-02/L43b): a
+ * role is attached to a category of labour alone (WF-REF-0090), which each category says
+ * (`cost_type_kind`, EP-14/L43g); the screen then says that the fake back keeps none of what is
+ * written (`MockupNotice`). Bounds the API refuses (422, an upper bound below the lower one) leave
+ * their list unread, the bound said at its field; any other read the API refuses, or cannot
+ * answer, is thrown for the pages of the shell to say.
  */
 import type { Metadata } from "next";
 import { useTranslations } from "next-intl";
@@ -113,17 +115,11 @@ const PAGES = [RESOURCE_ROLE_ADDRESS.offset, CALENDAR_ADDRESS.offset] as const;
 const BOUNDS_REFUSED = [{ status: 422, code: "VALIDATION_FAILED" }] as const;
 
 /**
- * The title of the screen, and the switch of the deactivated objects for who may read them; under it,
- * for who may write, that the fake back keeps nothing of what is written.
+ * The title of the screen, and the switch of the deactivated objects for who may modify the
+ * settings; under it, the note of the fake back: it keeps nothing of what is written, and filters
+ * nothing.
  */
-function ResourcesHeader({
-  inactive,
-  writes,
-}: {
-  readonly inactive: boolean | undefined;
-  /** Whether the session may modify the settings of the resources, and its commands write. */
-  readonly writes: boolean;
-}) {
+function ResourcesHeader({ inactive }: { readonly inactive: boolean | undefined }) {
   const t = useTranslations("functions");
   return (
     <>
@@ -135,7 +131,7 @@ function ResourcesHeader({
           inactive === undefined ? undefined : <InactiveSwitch shown={inactive} pages={PAGES} />
         }
       />
-      {writes ? <MockupNotice /> : null}
+      <MockupNotice lists />
     </>
   );
 }
@@ -299,11 +295,11 @@ function readQueries(
   grids: KeptGrids | undefined,
   permissions: readonly Permission[],
 ): ResourceQueries {
-  const state = (name: string) => stateOf(search, name, permissions, "resource_settings.read");
+  const state = (name: string) => stateOf(search, name, permissions, "resource_settings.write");
   return {
     editable: platformOffer(permissions, "resource_settings") !== undefined,
-    inactive: inactiveQuery(asksInactive(search), permissions, "resource_settings.read"),
-    inactiveCategories: inactiveQuery(asksInactive(search), permissions, "cost_settings.read"),
+    inactive: inactiveQuery(asksInactive(search), permissions, "resource_settings.write"),
+    inactiveCategories: inactiveQuery(asksInactive(search), permissions, "cost_settings.write"),
     nodes: readGridQuery<never>(search, [], undefined, ORG_NODE_ADDRESS),
     nodeFilters: {
       code: textOf(search, ORG_CODE, ORG_CODE_LENGTH),
@@ -356,7 +352,6 @@ export default async function ResourceSettingsPage({
   const [narrowed, tree, roles, calendars, units, [categoryRead, calendarRead]] =
     await readLists(queries);
   const { editable } = queries;
-  const readsInactive = permissions.includes("resource_settings.read");
   const shown = queries.inactive.include_inactive === true;
   // The depths of the whole tree, from the first to the deepest the server gives.
   const deepest = Math.max(0, ...tree.map((node) => node.level));
@@ -370,12 +365,11 @@ export default async function ResourceSettingsPage({
   return (
     <Screen density={FUNCTION_DENSITY.resource_settings}>
       <PendingAddress>
-        <ResourcesHeader inactive={readsInactive ? shown : undefined} writes={editable} />
+        <ResourcesHeader inactive={editable ? shown : undefined} />
         <OrgNodeList
           {...narrowedTree(narrowed, tree)}
           query={queries.nodes}
           preferences={keptBy(grids, ORG_NODE_GRID_KEY)}
-          readsInactive={readsInactive}
           editable={editable}
           filters={queries.nodeFilters}
           levels={Array.from({ length: deepest }, (_, at) => at + 1)}
@@ -385,7 +379,6 @@ export default async function ResourceSettingsPage({
           {...shownPage(roles)}
           query={queries.roles}
           preferences={keptBy(grids, RESOURCE_ROLE_GRID_KEY)}
-          readsInactive={readsInactive}
           editable={editable}
           nodes={nodes}
           categories={categoryRead?.map(categoryChoice)}
@@ -402,7 +395,6 @@ export default async function ResourceSettingsPage({
           page={calendars.meta}
           query={queries.calendars}
           preferences={keptBy(grids, CALENDAR_GRID_KEY)}
-          readsInactive={readsInactive}
           editable={editable}
           state={queries.calendarState}
         />

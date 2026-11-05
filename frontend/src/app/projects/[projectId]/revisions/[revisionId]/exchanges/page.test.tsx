@@ -209,9 +209,9 @@ describe("the screen of the imports and exports", () => {
     expect(page.startsWith('<section aria-label="Reading context"')).toBe(true);
     expect(buttons(page)).toEqual([
       "Help",
-      "Import an MS Project schedule",
+      "Import an MS Project planning",
       "Import an estimate",
-      "Import an estimate to complete",
+      "Import a remaining to commit",
       "Import actual costs",
       "Request the export",
     ]);
@@ -223,7 +223,7 @@ describe("the screen of the imports and exports", () => {
       "Imports of the project File Kind Status Opened on devis-avenant-2-reprise-des-essais.xlsx Estimate Analysed couts-reels-2026-05.xlsx Actual costs Applied couts-reels-2026-04-correction.xlsx Actual costs Expired",
     );
     expect(links(page)).toContain(`${PATHNAME}?import=${IMPORT}`);
-    expect(text(page)).toContain("planning-poste-de-commande.xml MS Project schedule Abandoned");
+    expect(text(page)).toContain("planning-poste-de-commande.xml MS Project planning Abandoned");
   });
 
   it("reads no revision but the one of its route, whose exports it offers, the imports being the project's", async () => {
@@ -232,9 +232,9 @@ describe("the screen of the imports and exports", () => {
     expect(calls(GET_REVISION)).toEqual([`/projects/${PROJECT}/revisions/${MARKED}?`]);
     expect(buttons(page)).toEqual([
       "Help",
-      "Import an MS Project schedule",
+      "Import an MS Project planning",
       "Import an estimate",
-      "Import an estimate to complete",
+      "Import a remaining to commit",
       "Import actual costs",
       "Request the export",
     ]);
@@ -318,14 +318,17 @@ describe("the screen of the imports and exports", () => {
     expect(planning).toContain("Kept Task Études de détail");
   });
 
-  it("says the analysis under way, without a report, still abandonable but not applicable", async () => {
+  it("says the analysis under way, without a report, abandonable, and its application listed unavailable [WF-IHM-0090-A]", async () => {
     server.answers = {
       ...server.answers,
       [GET_IMPORT]: { example: "import_analysing", status: 200 },
     };
     const page = await exchangesAt({ import: IMPORT });
     expect(text(page)).toContain("The file is being analysed.");
-    expect(buttons(page).slice(0, 2)).toEqual(["Help", "Abandon the import"]);
+    expect(buttons(page).slice(0, 3)).toEqual(["Help", "Apply the import", "Abandon the import"]);
+    expect(page).toMatch(
+      /<button[^>]*aria-disabled="true"[^>]*>(?:(?!<\/button>).)*Apply the import/s,
+    );
   });
 
   it("asks the page of the imports the address names, and leads to the pages around it", async () => {
@@ -350,9 +353,9 @@ describe("the screen of the imports and exports", () => {
     const page = await exchangesAt();
     expect(buttons(page)).toEqual([
       "Help",
-      "Import an MS Project schedule",
+      "Import an MS Project planning",
       "Import an estimate",
-      "Import an estimate to complete",
+      "Import a remaining to commit",
       "Import actual costs",
       "Request the export",
     ]);
@@ -368,7 +371,7 @@ describe("the screen of the imports and exports", () => {
     const page = await exchangesAt();
     expect(buttons(page)).toEqual(["Help", "Import an estimate", "Request the export"]);
     expect(text(page)).toContain("holding the permission to create a revision");
-    expect(text(page)).toContain("Estimate Estimate to complete");
+    expect(text(page)).toContain("Estimate Remaining to commit");
   });
 
   it("is not found when the import the address names is not", async () => {
@@ -393,4 +396,12 @@ describe("the screen of the imports and exports", () => {
       expect(Object.fromEntries(call?.query ?? []).limit).toBe(limit);
     },
   );
+});
+
+describe("the note of the fake back on the imports and exports", () => {
+  it("says once, under the header, that the service does not apply filters, search, sort and pages (US-0760)", async () => {
+    const page = await exchangesAt();
+    expect(page.match(/<p role="note"/g)).toHaveLength(1);
+    expect(page).toContain("Filters, search, sort and pages are ignored");
+  });
 });
