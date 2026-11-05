@@ -69,7 +69,10 @@ beforeEach(() => {
  * since its 3.19 (`clientHeight`, `clientWidth`, where 3.17 read the box): an element that lays
  * nothing out has neither border nor scrollbar, and its inside is its box. A test that sizes the
  * inside itself — the drawing of a chart, a Gantt — still does so by a spy, which takes over this
- * one and gives it back when restored.
+ * one and gives it back when restored. The bridge holds for every reader of the inside, not for
+ * TanStack Virtual alone: `useFrameRoom` and the keyboard of the grid read `clientWidth` too, and
+ * under a simulated `offsetWidth` they now see that width, where they saw 0 — `useFrameRoom` gives
+ * the width of the holder where it gave none.
  */
 function measureInsideByBox(): void {
   const sides = [
