@@ -3544,18 +3544,25 @@ livre avec `unaccent` translittère aussi les ligatures et les lettres barrées 
 avec sa table livrée, puis met en minuscules : « oeuvre » trouve « Main-d'œuvre », « strasse »
 trouve « Straße », « soren » trouve « Søren », et la casse et les accents restent ignorés. EP-03
 réalisera la recherche par `lower(unaccent(…))` avec cette table. La table translittère aussi
-quelques signes — le tiret « — » s'y lit « - », le guillemet « « » « << », « ¼ » « 1/4 » — ; une
+quelques signes — le tiret « — » s'y lit « - », le guillemet « « » « << », « ¼ » « 1/4 » précédé d'une espace — ; une
 recherche les lit de même.
 Le faux back ne dépend pas du fichier du système : la table est versionnée dans
-`tools/src/wftools/unaccent.rules`, copie de celle de PostgreSQL 16 avec sa provenance et sa licence
+`tools/src/wftools/unaccent.rules`, copie de celle de PostgreSQL 18 (18.6) avec sa provenance et sa licence
 (PostgreSQL, `LICENSES/PostgreSQL.txt`) en tête, et `mocktext.folded` l'applique, la plus longue
 source d'abord comme `unaccent`, puis `lower()`. La décomposition NFD est abandonnée : un caractère
 que la table ne nomme pas reste lui-même, comme `unaccent` le laisse (« й », « Ǣ »), et elle
 différait de la table sur 675 des textes des exemples — tirets, guillemets, « œ ». Le faux back a
-été comparé à un PostgreSQL 16 : sa table au `unaccent` livré sur chaque point de code Unicode,
-`folded` à `lower(unaccent(…))` sur chaque texte des exemples, sans aucune différence. Aucun exemple engendré ne change, et
+été comparé à un PostgreSQL 18 : sa table au `unaccent` livré sur chaque point de code Unicode
+(1 112 063, substituts exclus), `folded` à `lower(unaccent(…))` sur chaque texte des exemples
+(34 843), sans aucune différence. Aucun exemple engendré ne change, et
 aucun ne cherche les natures de coût : `test_mocktext.py` éprouve la règle, la nature
-« Main-d'œuvre » du témoin comprise.
+« Main-d'œuvre » du témoin comprise. *Reformulé par EP-20/US-1250 : la table était d'abord une
+copie de celle de PostgreSQL 16.14, et le service tourne sur la 18.6 depuis la montée de version
+(#1960). La table de la 18 compte 2 661 règles contre 1 650 : 1 011 sources nouvelles, aucune
+retirée, 29 traductions changées — « ¼ » se lit désormais ` 1/4`, l'espace en tête comprise, là
+où la 16 donnait `1/4`, et ses traductions s'écrivent entre guillemets doubles, que le lecteur
+de `mocktext` lit comme `unaccent`. La comparaison a été refaite contre un PostgreSQL 18 ; aucun
+exemple engendré ne change.*
 
 **Les rôles d'habilitation se filtrent par nature et par nombre de porteurs** (#560 ;
 WF-IHM-0130). `is_predefined`, le nom de la colonne et du champ, plutôt que `predefined` : vrai,
