@@ -3544,11 +3544,11 @@ livre avec `unaccent` translittère aussi les ligatures et les lettres barrées 
 avec sa table livrée, puis met en minuscules : « oeuvre » trouve « Main-d'œuvre », « strasse »
 trouve « Straße », « soren » trouve « Søren », et la casse et les accents restent ignorés. EP-03
 réalisera la recherche par `lower(unaccent(…))` avec cette table. La table translittère aussi
-quelques signes — le tiret « — » s'y lit « - », le guillemet « « » « << », « ¼ » « 1/4 » précédé d'une espace — ; une
-recherche les lit de même.
+quelques signes — le tiret « — » s'y lit « - », le guillemet « « » « << », « ¼ » « 1/4 » précédé
+d'une espace — ; une recherche les lit de même.
 Le faux back ne dépend pas du fichier du système : la table est versionnée dans
-`tools/src/wftools/unaccent.rules`, copie de celle de PostgreSQL 18 (18.6) avec sa provenance et sa licence
-(PostgreSQL, `LICENSES/PostgreSQL.txt`) en tête, et `mocktext.folded` l'applique, la plus longue
+`tools/src/wftools/unaccent.rules`, copie de celle de PostgreSQL 18 (18.6) avec sa provenance et sa
+licence (PostgreSQL, `LICENSES/PostgreSQL.txt`) en tête, et `mocktext.folded` l'applique, la plus longue
 source d'abord comme `unaccent`, puis `lower()`. La décomposition NFD est abandonnée : un caractère
 que la table ne nomme pas reste lui-même, comme `unaccent` le laisse (« й », « Ǣ »), et elle
 différait de la table sur 675 des textes des exemples — tirets, guillemets, « œ ». Le faux back a

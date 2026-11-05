@@ -766,7 +766,7 @@ Toute modification du texte de la spécification.
 
 ## US-1250 — Le faux back cherche comme PostgreSQL 18
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : aucune — outil du dépôt
 - **opérations** : aucune
 - **issue** : #1981

@@ -116,12 +116,20 @@ def test_a_rule_of_more_than_two_strings_is_refused() -> None:
         ('"x\ty', '"x', "y"),
         ("  x \t y  ", "x", "y"),
         ("x", "x", ""),
+        ("a\u00a0b\tc", "a\u00a0b", "c"),
+        ('x\v"a\tb"', "x", "a\tb"),
+        ("x\fy", "x", "y"),
+        ("x\ty\r", "x", "y"),
     ],
 )
 def test_a_translation_in_double_quotes_keeps_its_blanks(
     line: str, source: str, translation: str
 ) -> None:
     assert mocktext.Unaccent.read(f"{line}\n").rules == {source: translation}
+
+
+def test_a_source_given_twice_keeps_its_first_rule() -> None:
+    assert mocktext.Unaccent.read("a\tX\na\tY\n").rules == {"a": "X"}
 
 
 @pytest.mark.parametrize("line", ['x\t"abc', 'x\t"abc""', 'x\t"'])

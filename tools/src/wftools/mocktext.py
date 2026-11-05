@@ -170,7 +170,8 @@ class Unaccent:
         character like another, a source's included. A line that starts with « # » is the header
         of the copy, which PostgreSQL does not read. A line with text after its translation, or
         whose quoted translation is never closed, is refused: ``unaccent`` would skip it, and a
-        copy that differs from the shipped table must not go unseen.
+        copy that differs from the shipped table must not go unseen. A source given twice keeps
+        its first rule, as ``unaccent`` does (it warns of the duplicate and uses the first).
         """
         rules: dict[str, str] = {}
         for line in text.split("\n"):
@@ -180,7 +181,7 @@ class Unaccent:
             if not fields:
                 continue
             source, *translation = fields
-            rules[source] = "".join(translation)
+            rules.setdefault(source, "".join(translation))
         return cls(rules, max(map(len, rules), default=0))
 
     @staticmethod
