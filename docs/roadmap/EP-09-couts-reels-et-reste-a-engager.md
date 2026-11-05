@@ -105,6 +105,9 @@ suit une fois figé.
 
 - #1775 — `awaiting_own_lines`, la récapitulative qui n'attend plus que ses lignes propres (F-05 ;
   contrat #1774).
+- #1851, reporté à EP-22 (US-1240) — `listStartableTasks` liste aussi la récapitulative démarrée qui
+  n'attend plus que ses lignes propres, avec ses gestes (décision de l'auteur du 2026-11-04) : le
+  service le sert tel que le contrat le dit.
 - #1794 — l'import du reste à engager rejette la ligne nouvelle sous une tâche terminée (I-05 ;
   contrat #1793).
 

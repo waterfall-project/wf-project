@@ -24,6 +24,9 @@
  * five seconds —, 4.4 s and 1.9 s. A runner of the chain, four processors, plays on three: on four
  * of the workstation's cores, the coverage of the half `2/2` took 121 s on four workers and 131 s
  * on three, but 29 of its tests passed the second on four, 11 on three.
+ *
+ * Where `make` admits several heavy runs at once, each has its share of the processors
+ * (`WATERFALL_PROCESSORS`, US-1090), and the workers follow it as they follow the processors.
  */
 import { availableParallelism } from "node:os";
 import { fileURLToPath } from "node:url";
@@ -47,12 +50,31 @@ export function workers(processors: number): number {
   return Math.min(4, Math.max(1, processors - 1));
 }
 
+/**
+ * The processors a run has: the share `make` gave it (`WATERFALL_PROCESSORS`, the processors of the
+ * workstation divided by the heavy runs it admits at once, US-1090), or all of them when none is
+ * given. A share that is not a whole number of 1 or more is refused, never left aside.
+ */
+export function processors(): number {
+  const named = process.env.WATERFALL_PROCESSORS;
+  if (named === undefined || named === "") {
+    return availableParallelism();
+  }
+  const chosen = Number(named);
+  if (!Number.isInteger(chosen) || chosen < 1) {
+    throw new Error(
+      `WATERFALL_PROCESSORS must be a whole number of processors, 1 or more: ${named}`,
+    );
+  }
+  return chosen;
+}
+
 export default defineConfig({
   resolve: {
     alias: { "@": fileURLToPath(new URL("./src", import.meta.url)) },
   },
   test: {
-    maxWorkers: workers(availableParallelism()),
+    maxWorkers: workers(processors()),
     projects: [
       {
         extends: true,

@@ -13,6 +13,7 @@ path = [
     "docs/assets/**",
     ".github/**",
     ".gitignore",
+    ".claude/settings.json",
     "**/.python-version",
     "**/uv.lock",
     "frontend/package.json",

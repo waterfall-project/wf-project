@@ -58,6 +58,10 @@ exigences de domaine dont une phrase de Vérif tient côté front (décision de 
 - le compte rendu d'import qui lit ses commandes et présente l'état refusé (#1791) — US-1040 ;
 - la lenteur du navigateur à quitter une grille de mille tâches (#1230), une lenteur du
   produit — US-0800 ;
+- la reprise de fin d'EPIC (#1952, #1954, #1956, #1950, #1944, #1945, #1923) — US-1230 ; le registre
+  qui trie le réestimé, le portefeuille et l'écran des révisions (#1947, #1953, #1922) — US-1210 ;
+  les déclencheurs de la coquille joués sur un seul écran (#1840) — US-1220 (décisions de l'auteur
+  du 2026-11-04) ;
 - le cosmétique, chaque constat marqué comme tel dans « Constats reçus », corrigé par le lot de
   son écran (décision de l'auteur du 2026-10-28).
 
@@ -95,6 +99,13 @@ exigences de domaine dont une phrase de Vérif tient côté front (décision de 
   `NodeChange.subproject` et `cost_category`, et le test de la comparaison) et #1784 (le détail du
   risque écrit son identité et sa provision par `updateRisk` et `updateRiskProvision`,
   `update_provision` gouvernant la seule provision) sont sans objet, fermés avec leur raison ;
+- #1851 : le Kanban qui liste les récapitulatives démarrées n'attendant plus que leurs lignes
+  propres demande le contrat (`listStartableTasks`, un exemple, `nodes_awaiting_own_lines`), que la
+  définition de fini ferme ici ; l'auteur a tranché l'option 1 le 2026-11-04 et la porte à EP-22
+  (US-1240), qui dépend d'EP-17 parce que la carte d'US-0730b n'existe que sur sa branche ;
+- #1943 et #1913, sans suite (décisions de l'auteur du 2026-11-04) : le plafond des colonnes
+  conservées est une borne du contrat sans Vérif propre, et le cas d'une restauration sans lecture du
+  journal reste rare ;
 - le comportement réel des écrans : l'EPIC de leur domaine.
 
 ## Exigences réalisées
@@ -117,7 +128,8 @@ demandent le service sont des écarts, qui nomment l'EPIC qui les clôt.
 | `WF-IHM-0140-A` | Aide en ligne | début — close en EP-11 | US-0790 |
 | `WF-REF-0150-A` | Affichage des objets désactivés | début — close en EP-05 | US-1010 |
 | `WF-RIS-0020-A` | États d’un risque | début — close en EP-08 | US-1020 |
-| `WF-RIS-0050-A` | Réserve pour risques et couverture | début — close en EP-08 | US-1020 |
+| `WF-RIS-0050-A` | Réserve pour risques et couverture | début — close en EP-08 | US-1020, US-1210 |
+| `WF-PTF-0090-A` | Risques du portefeuille | début — close en EP-11 | US-1210 |
 | `WF-RIS-0060-A` | Survenance d’un risque | début — close en EP-08 | US-1020 |
 
 Les exigences déjà closes par un EPIC livré que ces travaux touchent restent closes, et leurs tests
@@ -133,7 +145,7 @@ Vérif, parce que l'US porte un test qui en relève (décision de l'auteur du 20
 ## Opérations du contrat
 
 Aucune en propre : celles que les écrans touchés lisent déjà, sans en ajouter ni en modifier —
-`listNodes` et `compareRevisions` (la projection sur `kinds`, US-0750), `getProject` et
+`listNodes` (la projection sur `kinds`, US-0750), `getProject` et
 `listRevisions` (US-0720), `listStartableTasks` (US-0730), `getProjectRiskMatrix` et
 `getPortfolioRisks` (US-0740), `getUser` (US-0780), `deleteAccessRole` (le nettoyage d'un parcours
 du service, US-0780) ; et, pour les écrans de ce que la revue du contrat du 2026-10-31 a changé, que
@@ -373,6 +385,40 @@ son écran, sinon sous une US nouvelle ; deux sont sans objet.
   et la provision par `updateRiskProvision`, et `update_provision` gouverne la seule partie
   provision du formulaire (`risk-form.tsx`), depuis US-0704.
 
+**Décidés le 2026-11-04** (l'auteur, au tableau de #1547), rattachés à trois US nouvelles :
+
+**US-1210 — le registre, le portefeuille, l'écran des révisions.**
+
+- #1947 — front : le registre ne trie pas le réestimé des survenus, que le contrat trie
+  (`occurred_reestimated_amount`) ; option 1 : il devient triable, et la conception est corrigée ;
+- #1953 — front : la vue des risques du portefeuille ne présente pas le réestimé des survenus que la
+  couverture d'un projet présente ; option 1 : elle le présente ;
+- #1922 — front : l'écran des révisions ne lit pas le `?import=` que le renvoi de l'écran du projet
+  lui porte (relevé par US-0790b) ; US-1040 ne le couvre pas, vérifié.
+
+**US-1220 — la coquille du harnais.**
+
+- #1840 — outil : le harnais de ce qu'un geste ouvre coûte 38 à 67 % du chemin critique ; option 2 :
+  les déclencheurs de la coquille sur un écran de référence, la liste des révisions ; le critère
+  d'US-0710 est amendé, et la conception par le lot.
+
+**US-1230 — la reprise de fin d'EPIC.**
+
+- #1952 — front : le test du calendrier des sauvegardes attend le focus sans l'attendre, et tombe
+  dans la file (le plus urgent) ;
+- #1954 — front : les retouches du filtre d'origine et du lien du registre (revue 2 d'US-1020/L2) ;
+- #1956 — front : la barre des filtres vide du devis et du planning, la puce du réestimé dans sa
+  traduction (revue 3 d'US-1020/L2) ;
+- #1950 — front : la barre des filtres du registre suit l'adresse sans test (le repli au retrait du
+  dernier filtre est gardé) ;
+- #1944 — front : `readsInactive` double `editable` dans les listes du référentiel ;
+- #1945 et #1923 — front : des commentaires repliés au-delà de 100 colonnes, ou irrégulièrement.
+
+**Autres décisions du 2026-11-04.** #1859 (le critère d'US-0740 se lit comme #1395) et #1864 (la
+comparaison ne demande aucun `kinds`) sont reformulés dans les critères d'US-0740 et d'US-0750 ;
+#1955 (le planning et le devis lisent leurs nœuds après les risques) est un critère d'US-0800 ;
+#1804 reste à l'auteur, qui intègre la spécification avant la fusion dans `main`.
+
 ## Conception
 
 EP-17 est un EPIC du front et de son harnais : il ne crée **aucune table ni migration**, ne touche
@@ -495,7 +541,9 @@ l'auteur) :
   deux lots sont pleins, et qui couperait le constat entre deux US.
 - **Le front trie ce que le contrat trie** : le registre trie par `severity`, `provision_amount` et
   `occurrence_cost` (`sort_by`), et filtre toutes ses colonnes de nombres, réestimé des survenus
-  compris ; le réestimé n'est pas triable. Écarté : un tri du réestimé côté front sur la page lue,
+  compris ; le réestimé est triable aussi (`occurred_reestimated_amount`, que le contrat range dans
+  l'enum de `sort_by`, #1761 ; décision de l'auteur du 2026-11-04, #1947, qui corrige ici la phrase
+  « le réestimé n'est pas triable »). Écarté : un tri du réestimé côté front sur la page lue,
   faux dès la deuxième page (WF-ARC-0020).
 - **Les exigences citées** : WF-PLA-0040-A (US-0730), WF-PLA-0050-A (US-0750), WF-REF-0150-A
   (US-1010), WF-RIS-0020-A, WF-RIS-0050-A et WF-RIS-0060-A (US-1020), chacune « début — close » par
@@ -503,6 +551,38 @@ l'auteur) :
   WF-IHM-0090 et WF-IHM-0130, dont aucune phrase de Vérif ne porte sur ces écrans, sont nommées dans
   les critères sans être citées. Écarté : citer WF-IHM-0090 (close par EP-02) pour US-1040, qui
   demanderait d'y vérifier des phrases sans rapport avec le compte rendu.
+
+**Les décisions du 2026-11-04** (cadrage de la reprise, validées par l'auteur) :
+
+- **Le réestimé est triable** : `sort_by=occurred_reestimated_amount`, la place des valeurs nulles
+  étant celle que la description de `listRisks` règle (#1761). Écarté : le garder non triable par
+  choix, qui contredisait le principe « le front trie ce que le contrat trie ».
+- **Le portefeuille présente le réestimé** de `RiskCoverageTotals.occurred_reestimated` à côté du coût
+  des survenus, comme le panneau d'un projet (`risk-coverage.tsx`) : une information, hors de l'écart
+  agrégé, dont la somme est celle du serveur (WF-ARC-0020). Écarté : le laisser au seul projet, deux
+  écrans disant des montants différents de la même couverture. La `dd` du réestimé et le `dt`
+  restent comme US-1020/L2 les a faits (#1956, point 3 : remarque, sans action).
+- **L'écran des révisions lit `?import=`** par `readShownImport` (`exchanges/shown-import`) comme
+  l'écran du projet, et montre `ImportReport` au-dessus de la liste, quand le renvoi du projet le
+  porte. Écarté : le renvoi sans l'import, qui perd le compte rendu de l'import qui crée un projet
+  dont aucune révision n'est lisible.
+- **La coquille jouée une fois** (#1840) : `opened.ts` distingue les déclencheurs de la coquille
+  (projet, compte, tâches, aide — ceux que porte l'en-tête, hors du contenu de la page) de ceux de
+  l'écran. Les premiers ne se jouent que sur la liste des révisions d'un projet — un écran de projet,
+  parce que les menus du projet et des tâches n'existent qu'avec un projet, et l'un des plus légers —,
+  en clair et en sombre, aux deux largeurs ; les seconds se jouent sur chaque écran. Écartés :
+  garder la couverture entière (+38 à 67 % du chemin critique) ; la coquille à une seule largeur ou
+  un seul mode (même amendement, gain moindre). La note du guide dit que la coquille se joue une fois ;
+  la pull request donne la durée avant et après, en part du chemin critique. Le critère d'US-0710 est
+  amendé par ce cadrage, la conception du harnais par le lot, qui en récrit déjà les notes.
+- **La reprise est un lot unique, livré avant US-1210** : #1952 est une instabilité de la file, et la
+  reprise et US-1210 touchent les mêmes fichiers du registre. Elle ne change aucune règle : ses
+  tests citent les exigences de leurs voisins. Écarté : #1952 seul en lot détaché — le lot de
+  reprise est petit.
+- **#1955 revient à US-0800**, qui mesure le coût des grilles et touche `grid-screen.ts` ; la
+  reprise ne le touche pas. Écarté : le corriger dans la reprise, qui y touche pour #1954 (points 4
+  et 5), avec le risque d'un conflit avec le lot de la lenteur.
+- **#1851 sort d'EP-17** pour EP-22 (« Ce qui n'en fait pas partie »).
 
 ### Le harnais (US-0710)
 
@@ -732,7 +812,11 @@ ses mesures par lots ; rien n'y est réécrit.
 4. **Les écrans de la revue du contrat** : US-0730b après US-0730 ; US-1010, US-1030 dès le
    harnais ; US-1020/L1 après US-0740 (le même écran des risques), US-1020/L2 après US-1020/L1
    et US-0750/L1 (`grid-screen.ts`) ; US-1040 après US-0720 (le renvoi de `?import=`).
-5. **US-0800 en dernier**, quand les grilles ne bougent plus, pour mesurer sur ce qui sera livré.
+5. **La reprise de fin d'EPIC** : US-1230 d'abord (#1952 tombe dans la file), puis US-1210 (les mêmes
+   fichiers du registre) ; US-1220 en parallèle, qui ne touche que le harnais.
+6. **US-0800 en dernier**, quand les grilles ne bougent plus, pour mesurer sur ce qui sera livré. La reprise (US-1230),
+   décidée plus tard, touche `grid-screen.ts` et les pages du planning et du devis : son lot et celui-ci
+   ne se livrent pas ensemble (plan de lots).
 
 ---
 
@@ -752,8 +836,9 @@ commande se dérobe.
 **Critères d'acceptation.**
 
 - `WF-IHM-0100-A` — « Chaque écran se parcourt entièrement au clavier et le focus reste visible. » :
-  sur chaque écran du harnais, chaque déclencheur `aria-haspopup="dialog"` ou `aria-haspopup="menu"`
-  est ouvert par Entrée, et l'éditeur d'une cellule saisissable de chaque grille par F2 ; ce qui
+  sur chaque écran du harnais, chaque déclencheur de l'écran — ceux de la coquille (projet, compte,
+  tâches, aide) ne se jouant que sur l'écran de référence, US-1220 (#1840) — `aria-haspopup="dialog"`
+  ou `aria-haspopup="menu"` est ouvert par Entrée, et l'éditeur d'une cellule saisissable de chaque grille par F2 ; ce qui
   s'ouvre est parcouru au Tab — aucun piège hors de celui que veut un dialogue modal, chaque élément
   atteint visible et marqué —, audité par axe, fermé par Échap, et le focus revient au déclencheur
   ou à la cellule ; l'écart qu'EP-14 a écrit sous cette phrase (US-0200, #782) est levé, et la note
@@ -934,8 +1019,9 @@ la zone que le serveur lui rend, **afin de** voir d'un coup d'œil où sont les 
   et le nom de leur zone, et les axes restent linéaires (#1253) ;
 - `WF-RIS-0040-A` — « Les trois totaux — identifiés, survenus, écartés — sont distincts, et la
   réserve pour risques de la référence est affichée en regard. » : les totaux de provisions restent
-  sur les trois états, quand le graphique ne montre plus que les risques identifiés, pour un projet
-  comme pour le portefeuille, quel que soit le filtre d'état de la grille ; la légende des états
+  sur les trois états, pour un projet comme pour le portefeuille, et suivent le filtre d'état de la
+  grille, comme les totaux « des risques retenus » que `listRisks` rend ; le graphique, lui, ne montre
+  que les risques identifiés quel que soit ce filtre (#1859, décision de l'auteur du 2026-11-04) ; la légende des états
   disparaît ; le décompte par case (`cells`), compté par le serveur (US-0700, EP-16), est affiché
   tel quel ;
 - écart : `WF-RIS-0040-A` — « Les six colonnes sont présentes, ainsi que l’accès aux deux notes et à
@@ -971,7 +1057,7 @@ est partagé (`risk-bubble-chart.tsx`) entre les deux écrans. Cette US ne comme
 
 - **statut** : fini
 - **exigences** : `WF-PLA-0080-A`, `WF-PLA-0090-A`, `WF-PRJ-0020-A`, `WF-PLA-0050-A`
-- **opérations** : `listNodes`, `compareRevisions`
+- **opérations** : `listNodes`
 - **issue** : #1552
 
 **En tant que** chef de projet, **je veux** que la grille de planning ne montre que ses tâches,
@@ -983,7 +1069,7 @@ sur ce qu'elle montre et lire un Gantt exporté sans l'écran à côté (#1397, 
 
 - `WF-PLA-0080-A` — « Chacune des colonnes citées est présente. » : la projection de la page garde
   les seuls nœuds dont le type est demandé par `kinds`, sur la grille de planning, le planning d'un
-  différentiel et la comparaison de révisions ; une réponse qui mêle tâches et lignes ne fait
+  différentiel — la comparaison de révisions, qui ne demande aucun `kinds`, montre ses deux natures (#1864) ; une réponse qui mêle tâches et lignes ne fait
   atteindre à la grille aucune ligne, et la révision 102 de `make dev` ne montre aucune ligne de
   devis ; les grilles de devis et de reste à engager montrent toujours leurs lignes ;
 - écart : `WF-PLA-0080-A` — « L’indentation d’un groupe de tâches déplace le groupe entier sous la
@@ -1348,7 +1434,8 @@ la main (#1787, #1763).
   contrat le permet (WF-IHM-0130) — la zone par une liste, chaque colonne de nombres (probabilité,
   gravité, provision, coût à la survenance, réestimé des survenus) par ses deux bornes, la date du
   dernier réexamen par sa période — et se trie sur ce que le contrat trie (`severity`,
-  `provision_amount`, `occurrence_cost`) ; tests du registre (#1787) ;
+  `provision_amount`, `occurrence_cost`, et `occurred_reestimated_amount`, #1947 ; US-1210) ; tests du
+  registre (#1787) ;
 - propre à l'US : les aides de la planification, du devis, du registre et des provisions des risques
   sont retouchées.
 
@@ -1357,7 +1444,7 @@ des colonnes de nombres suivent `boundNames` et la période `period-filter.tsx`,
 grilles. L1 fait le registre ; L2 les grilles, le lien du registre vers elles et la couverture.
 
 **Hors périmètre.** Le calcul des montants, la trace à travers les révisions, le filtrage par le
-service (EP-08) ; un tri du réestimé des survenus, que le contrat ne propose pas.
+service (EP-08) ; le tri du réestimé des survenus est d'US-1210 (#1947).
 
 ---
 
@@ -1435,6 +1522,9 @@ travail (#1230).
 - propre à l'US : le correctif tombe où la cause est, et un test ou une mesure échoue sans lui et
   passe avec ; quitter la grille de mille tâches coûte au navigateur moins d'une seconde de travail
   natif, ou la pull request dit pourquoi la borne n'est pas atteinte ;
+- propre à l'US : le planning et le devis lisent leurs nœuds en parallèle des risques, et n'attendent
+  la lecture des risques que lorsque `readOriginFilter` rend un filtre sur un risque donné
+  (`grid-screen.ts`, #1955, décision de l'auteur du 2026-11-04) ;
 - propre à l'US : les attentes de `workload.spec.ts` et de `screens.spec.ts` alignées sur `WORKING`
   pour ce départ reviennent à la borne courte si la mesure le permet ; aucune attente allongée,
   aucun `retries`, aucun `fixme`, aucun seuil baissé.
@@ -1444,3 +1534,154 @@ ce délai sans cause, le lot passe `question` dans son issue, avec ce qui a ét�
 aucun correctif au hasard (décision de l'auteur du 2026-10-28).
 
 **Hors périmètre.** Le serveur, qui n'est pas la cause ; la stabilité des tests (EP-16).
+
+---
+
+## US-1210 — Le registre trie le réestimé, le portefeuille le présente, l'écran des révisions montre le compte rendu
+
+- **statut** : à faire
+- **exigences** : `WF-RIS-0050-A`, `WF-PTF-0090-A`
+- **opérations** : `listRisks`, `getPortfolioRisks`, `getImport`, `listRevisions`
+- **issue** : #1964
+
+**En tant que** chef de projet, **je veux** trier le registre des risques sur le réestimé des
+survenus, le lire aussi dans la vue des risques du portefeuille, et ne pas perdre le compte rendu
+d'un import qui m'a mené à la liste des révisions, **afin de** mesurer la dérive d'un risque survenu
+et de suivre mon import sans recompter à la main (#1947, #1953, #1922).
+
+**Critères d'acceptation.**
+
+- écart : `WF-RIS-0050-A` — « Sur un projet chiffré à 1 000 portant un risque de gravité 200 à 30 %,
+  le devis totalise 1 060, le budget de référence 1 000 et la réserve 60. » : du service ; EP-08 clôt.
+- écart : `WF-RIS-0050-A` — « Après survenance de ce risque, réévalué à 250, le budget de référence
+  vaut toujours 1 000, les provisions restantes 0, le coût des survenus 250, et l’écart de couverture
+  −190. » : idem ; EP-08 clôt.
+- écart : `WF-RIS-0050-A` — « Sur le même projet, un second risque de provision 40 présent dans la
+  référence porte la réserve à 100 ; l’écarter fait passer les provisions restantes de 40 à 0 sans
+  toucher le budget de référence, et l’écart de couverture de −190 à −150. » : idem ; EP-08 clôt.
+- écart : `WF-RIS-0050-A` — « Sur un projet dont la réserve est nulle et sans risque survenu, un
+  risque identifié après la référence, de provision 30, porte les provisions restantes à 30 et
+  l’écart de couverture à −30. » : idem ; EP-08 clôt.
+- écart : `WF-RIS-0050-A` — « La terminaison des tâches issues d’un risque survenu ne change ni le
+  coût des survenus ni l’écart de couverture. » : idem ; EP-08 clôt.
+- écart : `WF-RIS-0050-A` — « Sur le projet dont le risque est survenu à 250 : un avenant qui ne
+  touche pas aux risques laisse la réserve à 60 et l’écart de couverture à −190 ; un avenant qui
+  intègre au budget de référence les lignes de ce risque porte le budget de référence à 1 250 et
+  laisse la réserve à 60 et l’écart à −190 ; un avenant qui déclare un nouveau risque de provision
+  50 porte la réserve à 110 et les provisions restantes à 50, et laisse l’écart à −190. » : idem ;
+  EP-08 clôt.
+- `WF-RIS-0050-A` — « Sur le projet dont le risque est survenu à 250, la réestimation à 300 des
+  lignes qui en sont issues présente 300 en regard de 250, et laisse l’écart de couverture à
+  −190. » : le registre se trie sur le réestimé des survenus (`sort_by=occurred_reestimated_amount`,
+  la place des valeurs nulles étant celle que dit le contrat, #1761), et la vue des risques du
+  portefeuille présente le réestimé agrégé (`coverage.occurred_reestimated`) en regard du coût des
+  survenus, comme une information hors de l'écart de couverture ; les montants sont ceux que le
+  serveur rend, que le front ne calcule pas (WF-ARC-0020), et le calcul est d'EP-08, qui clôt
+  (#1947, #1953) ;
+- écart : `WF-PTF-0090-A` — « Le total des provisions identifiées égale la somme des provisions des
+  risques identifiés des projets du périmètre. » : du service ; EP-11 clôt.
+- écart : `WF-PTF-0090-A` — « La matrice compte chaque risque identifié une fois. » : idem ; EP-11
+  clôt.
+- `WF-PTF-0090-A` — « La réserve agrégée est la somme des réserves des projets en cours et terminés
+  du périmètre, et l’écart de couverture agrégé la différence des sommes. » : la couverture agrégée
+  présente aussi le réestimé des survenus, hors de l'écart agrégé ; les sommes sont celles du
+  serveur, et leur exactitude est d'EP-11, qui clôt (#1953) ;
+- écart : `WF-PTF-0090-A` — « Un projet terminé inclus dans le périmètre compte dans la réserve
+  agrégée et dans l’écart de couverture agrégé. » : du service ; EP-11 clôt.
+- propre à l'US : quand l'écran du projet renvoie à `/projects/P/revisions` en portant `?import=`
+  (aucune révision lisible), l'écran des révisions lit ce paramètre et montre le compte rendu de
+  l'import, comme l'écran du projet ; l'adresse sans `?import=` ne change pas (#1922) ;
+- propre à l'US : les tests du tri, de la vue du portefeuille et du compte rendu sur l'écran des
+  révisions citent `WF-RIS-0050-A` ou `WF-PTF-0090-A` ; les aides du registre (FBS-4.6.1), de la vue
+  des risques du portefeuille et des révisions (FBS-4.1) sont retouchées.
+
+**Notes de réalisation.** Le contrat est d'US-0704 (EP-16) : aucune opération n'est ajoutée. US-1020/L1
+a laissé la colonne du réestimé sans tri (`contract:` absent de `risk-grid.tsx`, un test et l'aide
+le figent) : le lot les corrige. Le panneau de la couverture d'un projet (`risk-coverage.tsx`) est le
+modèle de la présentation du portefeuille (`portfolio-views.tsx`). L'US se livre après US-1230.
+
+**Hors périmètre.** Le calcul des montants et la trace à travers les révisions (EP-08) ; le calcul
+agrégé du portefeuille (EP-11).
+
+---
+
+## US-1220 — Le harnais joue les déclencheurs de la coquille une seule fois
+
+- **statut** : à faire
+- **exigences** : `WF-IHM-0100-A`
+- **opérations** : aucune en propre
+- **issue** : #1965
+
+**En tant que** développeur, **je veux** que le harnais d'accessibilité n'ouvre les menus et les
+dialogues de la coquille (projet, compte, tâches, aide) que sur un écran de référence, **afin que**
+ce que le geste ouvre ne coûte pas 38 à 67 % du chemin critique de la chaîne (#1840).
+
+**Critères d'acceptation.**
+
+- `WF-IHM-0100-A` — « Chaque écran se parcourt entièrement au clavier et le focus reste visible. » :
+  les déclencheurs `aria-haspopup="dialog"` ou `aria-haspopup="menu"` de la coquille — l'en-tête
+  commun : projet, compte, tâches, aide — sont ouverts, parcourus, audités et fermés sur la liste des
+  révisions d'un projet seule, en clair et en sombre, aux deux largeurs ; ceux de l'écran, sur chaque
+  écran du harnais, comme US-0710 ; l'éditeur d'une cellule saisissable de chaque grille ne change pas ;
+- `WF-IHM-0100-A` — « Un contrôle automatisé de contraste ne relève aucun écart au niveau AA. » : il
+  porte toujours sur ce que le geste a ouvert, en clair et en sombre, la coquille comprise sur l'écran
+  de référence ;
+- `WF-IHM-0100-A` — « À 150 % d'agrandissement, aucune commande ne devient inatteignable. » :
+  inchangé, constaté par US-0710 (#1209) ;
+- propre à l'US : la pull request donne la durée du fichier du harnais avant et après, avec la part
+  du chemin critique qu'elle représente ; la chaîne ne reçoit ni attente allongée, ni `retries`, ni
+  `fixme`, ni seuil baissé ;
+- propre à l'US : la note du guide « Ce que les tests ne prouvent pas » et la conception du harnais
+  (« Le harnais (US-0710) », bullet « Ce qu'un geste ouvre ») disent que la coquille ne se joue que
+  sur l'écran de référence.
+
+**Notes de réalisation.** `frontend/e2e/opened.ts` ne distingue pas encore la coquille du contenu :
+c'est l'en-tête commun (`header`, hors de `main`) qui la porte. Le critère d'US-0710 est amendé par
+le cadrage du 2026-11-04 ; la conception par ce lot, qui la récrit. Écran de référence décidé par
+l'auteur : la liste des révisions.
+
+**Hors périmètre.** Un déclencheur d'écran que la coquille ne porte pas ; la largeur de 360 points
+(US-0290, EP-13).
+
+---
+
+## US-1230 — La reprise de fin d'EPIC
+
+- **statut** : à faire
+- **exigences** : aucune en propre
+- **opérations** : aucune
+- **issue** : #1961
+
+**En tant que** développeur, **je veux** solder les mineurs que les revues d'US-1020 et d'US-1010 ont
+laissés et une instabilité de la file de fusion, **afin que** l'EPIC se livre sans constat ouvert
+(#1952, #1954, #1956, #1950, #1944, #1945, #1923).
+
+**Critères d'acceptation.**
+
+- propre à l'US : le test du calendrier des sauvegardes attend le retour du focus (`waitFor` ou
+  `findBy…`, l'usage des autres tests de dialogue) et passe dans la file (#1952) ;
+- propre à l'US : #1954, en cinq points — la ligne de JSDoc de la page des risques n'est écrite
+  qu'une fois ; le test du repli du lien du registre sur le planning asserte l'adresse complète,
+  `origin_risk_ids=<uuid>` compris ; `estimate` et `ESTIMATE` sont renommés d'après ce qu'ils
+  désignent (le devis ou le planning) et le JSDoc de `RiskStateCell` suit ; la branche
+  `UNKNOWN_RISK` de `refusesRisk` est retirée ou testée, avec un test d'un 422 d'une autre cause (la
+  page tombe en erreur) ; le repli sans lecture des risques est testé sur le devis comme sur le
+  planning ;
+- propre à l'US : #1956 — la `div` des filtres (lot, écarts, origine) du devis et du planning n'est
+  rendue que si un filtre est offert, un test d'un rendu sans filtre le tient ; la puce « · » sort de
+  `risks.coverage.occurredReestimatedShort` (français et anglais), les motifs de `e2e/risks.spec.ts`,
+  `e2e/remaining.spec.ts` et des deux tests unitaires suivent ;
+- propre à l'US : la barre des filtres du registre suit l'adresse sous un test qui cite
+  `WF-IHM-0130-A` — repliée, un filtre posé l'ouvre ; ouverte, le retrait du dernier filtre la
+  referme —, et le repli au retrait du dernier filtre est gardé (#1950) ;
+- propre à l'US : `readsInactive` disparaît des listes du référentiel, qui lisent `editable` (#1944) ;
+- propre à l'US : les commentaires de `actual-cost-mapping.tsx` et de l'en-tête de
+  `reference/resources/page.tsx` tiennent à 100 colonnes (#1945), et celui du test de
+  `frontend/src/test/harness.test.ts` est replié régulièrement (#1923) ;
+- propre à l'US : aucune attente allongée, aucun `retries`, aucun `fixme`, aucun seuil baissé.
+
+**Notes de réalisation.** Décisions de l'auteur du 2026-11-04 : #1952 est le plus urgent du groupe,
+et la reprise se livre avant US-1210 (mêmes fichiers du registre). Le point 3 de #1956 (le nom
+complet du réestimé en `sr-only`) est une remarque, sans action si l'écran n'est pas retouché.
+
+**Hors périmètre.** #1955 (US-0800) ; le tri du réestimé et le portefeuille (US-1210).

@@ -66,6 +66,18 @@ body:
     validations:
       required: true
   - type: input
+    id: not_with
+    attributes:
+      label: Pas avec
+      description: >-
+        The lots of the epic that are not delivered at the same time as this one, even when
+        their dependencies allow it. Symmetric, and filled in by the framer for two lots that
+        no dependency separates and that touch the same file. The pilot never launches two
+        such lots together.
+      placeholder: "US-1070/L1, #1890 — or « — »"
+    validations:
+      required: true
+  - type: input
     id: size
     attributes:
       label: Estimated size

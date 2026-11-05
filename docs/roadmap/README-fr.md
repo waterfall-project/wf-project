@@ -150,7 +150,11 @@ les trois cents projets en EP-13, qui clôt. Quatre règles, que chaque tranche 
 | [EP-16](EP-16-maquette-durcissement.md) | Maquette et contrat : durcissement | livré | EP-15 |
 | [EP-17](EP-17-maquette-finitions-accessibilite.md) | Maquette : finitions et accessibilité | en cours | EP-16 |
 | [EP-18](EP-18-comptes-ecarts-revue-du-contrat.md) | Comptes : écarts de la revue du contrat | livré | EP-16 |
-| [EP-05](EP-05-referentiel.md) | Référentiel de l'entreprise | prêt | EP-16, EP-18 |
+| [EP-19](EP-19-livreurs-en-parallele.md) | Livreurs en parallèle | livré | rien |
+| [EP-20](EP-20-migration-des-dependances.md) | Migration des dépendances | en cours | EP-19 |
+| [EP-21](EP-21-livreurs-en-parallele-suivi.md) | Livreurs en parallèle : suivi | à planifier | EP-19 |
+| [EP-22](EP-22-kanban-recapitulatives-demarrees.md) | Le Kanban signale la récapitulative qui n'attend plus que ses lignes propres | en cours | EP-17 |
+| [EP-05](EP-05-referentiel.md) | Référentiel de l'entreprise | prêt | EP-16, EP-18, EP-19, EP-20 |
 | [EP-04](EP-04-projets-et-revisions.md) | Projets, révisions et cycle de vie | prêt | EP-05 |
 | [EP-06](EP-06-planification.md) | Planification | à planifier | EP-04 |
 | [EP-07](EP-07-chiffrage-et-devis.md) | Chiffrage et devis | à planifier | EP-06 |
@@ -193,7 +197,14 @@ concerne le durcissement ou le contrat — tout le reste, dont les ajustements d
 en bout, elle, est du durcissement et revient à EP-16 (US-0590b). EP-18 fait suivre au service des comptes et à son écran les
 quatre décisions de la revue du contrat du 2026-10-31 qui touchent EP-03, livré ; il passe avant
 EP-05, qui touche les mêmes fichiers, et se livre avant le lot des comptes d'EP-17 (US-0780/L1),
-sans suspendre le reste d'EP-17.
+sans suspendre le reste d'EP-17. EP-19 rend le dépôt et ses agents sûrs pour plusieurs livreurs
+à la fois ; il passe avant EP-05, qui en profitera et touche le Makefile et la plateforme de
+service qu'il réécrit (décision de l'auteur du 2026-11-03). EP-20 porte la plateforme, ses environnements
+d'exécution et ses dépendances à leurs dernières versions stables, et en rend la veille
+régulière ; il vient après EP-19, dont il monte les épinglages, et avant EP-05, premier EPIC de
+domaine, qui se construit sur les versions cibles (décision de l'auteur du 2026-11-03). EP-21
+reprend les constats d'outillage qu'EP-19 n'a pas pu corriger dans ses lots (décision de
+l'auteur du 2026-11-04) ; son rang se fixe à son cadrage.
 
 EP-13 ne dépend que d'EP-04 : il peut commencer tôt, mais il clôt des exigences transverses
 dont la dernière action arrive tard, et il finit en dernier.
@@ -279,13 +290,22 @@ sous-issues suit le découpage :
 
 **Le tableau de suivi** est dans le corps de l'issue de l'EPIC, jamais dans un commentaire,
 et il est tenu à jour à chaque changement d'état — lot commencé, en revue, fusionné, bloqué ;
-US passée `en cours` ou `fini` ; constat ouvert ou tranché. Il a deux parties :
+US passée `en cours` ou `fini` ; constat ouvert ou tranché. Les agents le changent par
+`make tracking` — `ISSUE=<n> LOT=<identifiant> [STATE=…] [PR=…] [MODEL=…]`, `US=<identifiant>
+STATUS=…` ou `FINDING=<n> ATTACHED=… DECISION=…` —, qui relit le corps sous un verrou du poste
+juste avant de l'écrire et ne change que la ligne demandée : aucun ne réécrit le corps lui-même,
+plusieurs livreurs s'y réécriraient l'un l'autre. Il a deux parties :
 
 - **Ordre de réalisation** : une ligne par US, dans l'ordre où elles se livrent, avec son
   issue et son statut, celui du fichier ; sous elle, une ligne par lot, dans l'ordre, avec ses
   dépendances, son état — `à faire`, `en cours`, `en revue`, `fusionné`, `bloqué : <issue>` —,
   sa pull request, et le modèle qui l'a développé, avec la raison de l'escalade s'il y en a
-  eu une ;
+  eu une ; et sa colonne **« Pas avec »** : les lots de l'EPIC avec lesquels il ne se livre
+  pas en même temps (`—` s'il n'y en a pas). Elle est symétrique — si L2 est « pas avec » L1,
+  L1 l'est aussi avec L2 —, et le cadreur la remplit, au plan de lots, pour deux lots qu'aucune
+  dépendance ne sépare et qui touchent un même fichier. Le pilote ne lance pas un lot dont un
+  lot « pas avec » est commencé et non fusionné (`en cours`, `en revue`, `question`, `bloqué`),
+  même quand leurs dépendances le permettent. Le gabarit d'un lot a le même champ ;
 - **Constats ouverts** : chaque constat qui n'est pas fermé, l'issue où il est rattaché, et
   sa décision.
 
