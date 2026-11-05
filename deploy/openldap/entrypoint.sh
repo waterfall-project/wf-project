@@ -12,23 +12,34 @@
 # which keeps the first, her account.
 #
 # The configuration is made aside and copied into its volume once the seed is loaded, its
-# cn=config.ldif last: a first start interrupted midway leaves no configuration, and a directory
-# without its configuration has never been served — Keycloak has read no entryUUID from it — so the
-# data left there are emptied and the seed is loaded again. The volumes the image of osixia made,
-# on a workstation of before, hold both: slapd starts on them as they are.
+# cn=config.ldif last. Before the seed is loaded, a marker is laid in the volume of the data, and
+# removed only once the configuration is copied: a first start interrupted midway leaves the marker
+# and no configuration, so the data left there were never served — Keycloak has read no entryUUID
+# from them — and are emptied, the seed loaded again. Without configuration and without marker, the
+# volume of the data is emptied only if it is empty already. Data without marker and without
+# configuration are a directory that has served — its volume of configuration is lost, and seeded
+# again it would give her people other entryUUIDs, and Keycloak other accounts —: the script
+# refuses, and says the remedy. The volumes the image of osixia made, on a workstation of before,
+# hold both: slapd starts on them as they are.
 set -eu
 
 CONFIG=/etc/ldap/slapd.d
 DATA=/var/lib/ldap
 SEED=${WATERFALL_DIRECTORY_SEED:-/seed/directory.ldif}
 SUFFIX=dc=waterfall,dc=test
+MARKER=$DATA/.seeding
 
 configure() {
-    if [ -e "$DATA/data.mdb" ]; then
-        # A first start interrupted after slapadd -n1: slapd never served these data.
-        echo "openldap: $DATA holds data but $CONFIG no configuration; emptying $DATA and seeding again" >&2
-        rm -rf "${DATA:?}"/* "${DATA:?}"/.[!.]* "${DATA:?}"/..?*
+    if [ -e "$MARKER" ]; then
+        # A first start interrupted before the copy of the configuration: slapd never served these data.
+        echo "openldap: the seeding of $DATA was interrupted; emptying $DATA and seeding again" >&2
+    elif [ -n "$(ls -A "$DATA")" ]; then
+        echo "openldap: $DATA holds data that served, and $CONFIG no configuration; refusing to seed again, which would give" >&2
+        echo "openldap: its people other entryUUIDs. Drop the data: make service-down WATERFALL_RESET_DATA=yes." >&2
+        exit 1
     fi
+    rm -rf "${DATA:?}"/* "${DATA:?}"/.[!.]* "${DATA:?}"/..?*
+    touch "$MARKER"
     password=${WATERFALL_DIRECTORY_ADMIN_PASSWORD:?export WATERFALL_DIRECTORY_ADMIN_PASSWORD}
     # The password goes to slappasswd by a pipe, never a command line.
     hash=$(printf '%s' "$password" | slappasswd -T /dev/stdin)
@@ -82,6 +93,7 @@ EOF
     rm -rf "$CONFIG/cn=config"
     cp -R "$staging/cn=config" "$CONFIG/"
     cp "$staging/cn=config.ldif" "$CONFIG/"
+    rm -f "$MARKER"
     rm -rf "$staging"
 }
 

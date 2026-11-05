@@ -2723,8 +2723,14 @@ client would take those of the realm with it. The directory is an image the repo
 creates its configuration and loads `deploy/keycloak/development/directory.ldif` into it, then never
 loads anything again. It keeps its data in a volume, like the databases: bootstrapped again, it
 would give its people other identifiers than those Keycloak keeps; `WATERFALL_RESET_DATA=yes`
-deletes it with them. A first start interrupted before the copy of the configuration never served:
-at the next start, the script empties the data left behind and loads the seed again. The volumes of
+deletes it with them. Before
+loading the seed, the script lays a marker, `.seeding`, in the data volume, and removes it only once
+the configuration is copied into its volume. A first start interrupted before that copy leaves the
+marker: the data never served, and at the next start the script empties them and loads the seed
+again, as it does on two empty volumes. Data with neither marker nor configuration are those of a
+directory that has served, whose configuration volume is gone: the script refuses (code 1) to seed
+them again, which would give its people other identifiers, and says the remedy, `make service-down
+WATERFALL_RESET_DATA=yes`. The volumes of
 the image of before, that of `osixia`, serve as they are: their people keep their identifiers.
 
 The ports given here are those of the main repository, at slot 0; a worktree of a lot has those of
