@@ -466,6 +466,15 @@ def test_a_body_that_is_not_an_object_is_a_malformed_request(app: FastAPI) -> No
     assert (response.status_code, problem_of(response).code.value) == (400, "MALFORMED_REQUEST")
 
 
+def test_a_body_sent_null_is_a_malformed_request_as_an_absent_one(app: FastAPI) -> None:
+    # Since FastAPI 0.151 a JSON null is no longer an absent body: Pydantic refuses it as a value
+    # that is not an object, which reads it no more than an absent one.
+    response = TestClient(app).post(
+        "/entries", content="null", headers={"content-type": "application/json"}
+    )
+    assert (response.status_code, problem_of(response).code.value) == (400, "MALFORMED_REQUEST")
+
+
 def test_any_other_fault_is_a_validation_failed_on_its_field(app: FastAPI) -> None:
     problem = problem_of(TestClient(app).get("/pattern", params={"code": "b"}))
     assert problem.fields is not None

@@ -436,7 +436,7 @@ client-up-to-date: generate-client ## The versioned client is the one the contra
 # rewrite in lower case; what an address in input must be is decided apart (#665).
 SERVER_MODELS := $(BACK)/src/waterfall/api/contract/models.py
 CODEGEN := cd $(BACK) && uv run --frozen datamodel-codegen --input ../$(BUNDLE) --input-file-type openapi \
-	--output-model-type pydantic_v2.BaseModel --target-python-version 3.13 --use-annotated \
+	--output-model-type pydantic_v2.BaseModel --target-python-version 3.14 --use-annotated \
 	--disable-timestamp --type-mappings email=string --formatters ruff-format ruff-check --output
 
 generate-server-models: build-openapi ## Regenerate the Pydantic models of the service from the contract
