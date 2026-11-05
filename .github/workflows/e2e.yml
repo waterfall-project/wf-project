@@ -84,13 +84,18 @@ jobs:
           enable-cache: true
           cache-dependency-glob: tools/uv.lock
       # The image is Ubuntu noble's, whose python3 is 3.12: the guard and slots.py (Makefile, SLOTS)
-      # run by the system's python3, 3.14 on the runners and the workstations, and ruff writes them
-      # for it (PEP 758). uv installs 3.14 and python3 of the PATH becomes it, ahead of /usr/bin.
-      - name: Install Python 3.14 as python3
+      # run by the system's python3, the version of tools/.python-version on the runners and the
+      # workstations, and ruff writes them for it (PEP 758). uv installs that major.minor, without
+      # fixing the patch, and python3 of the PATH becomes it, ahead of /usr/bin.
+      - name: Install the Python of tools/.python-version as python3
         run: |
-          uv python install 3.14
-          ln -sf "$(uv python find 3.14)" /usr/local/bin/python3
-          python3 --version | grep -q '^Python 3\.14\.'
+          version="$(cut -d. -f1,2 tools/.python-version)"
+          uv python install "$version"
+          ln -sf "$(uv python find "$version")" /usr/local/bin/python3
+          case "$(python3 --version)" in
+            "Python ${version}."*) ;;
+            *) echo "python3 is not the Python ${version}" >&2; exit 1 ;;
+          esac
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: front-build

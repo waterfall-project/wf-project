@@ -13,7 +13,7 @@ Pour installer une plateforme de démonstration à partir des images publiées, 
 | Outil | Pour quoi |
 |---|---|
 | [uv](https://docs.astral.sh/uv/) | Python 3.14 et les dépendances du back et des outils du dépôt |
-| Python 3.14 ou plus, sous le nom `python3` | la projection de la spécification |
+| Python 3.14, celui de `tools/.python-version`, sous le nom `python3` | la projection de la spécification |
 | Node 26 (par nvm, par exemple) | le front, et pnpm, que `npm install --global pnpm` installe une fois |
 | Docker et son greffon Compose | `make dev`, la plateforme de service, les images |
 | Le client PostgreSQL 18 (`postgresql-client-18`, celui d'Ubuntu 26.04) | `pg_dump` et `pg_restore` dans `/usr/bin`, que les tests des sauvegardes et des restaurations appellent : ceux de la majeure du serveur, ni plus récents ni plus anciens (#982) |
@@ -21,8 +21,9 @@ Pour installer une plateforme de démonstration à partir des images publiées, 
 | `pandoc` 3.13 | la projection de la spécification (une autre version écrit un autre Markdown) |
 | `mmdc`, installé par npm | facultatif : la validation des diagrammes (`make build-doc`, `make check-spec`) |
 
-`make check-tools` dit ce qui manque, et avertit quand pandoc n'est pas en 3.13 ou que
-`/usr/bin/pg_restore` n'est pas celui de PostgreSQL 18.
+`make check-tools` dit ce qui manque, et avertit quand `python3` n'est pas de la version de
+`tools/.python-version`, que pandoc n'est pas en 3.13 ou que `/usr/bin/pg_restore` n'est pas celui de
+PostgreSQL 18.
 
 ### pandoc 3.13
 
@@ -123,7 +124,7 @@ charge ne fait rien tant qu'il n'existe pas. Un nouveau terminal relit le `~/.ba
 
 ```bash
 npm install --global pnpm   # pnpm, une fois : il prend lui-même la version que le front épingle
-make check-tools          # tout doit être « ok »
+make check-tools            # tout doit être « ok »
 make install-front        # les dépendances du front, telles que pnpm-lock.yaml les fixe
 make e2e-browsers         # le navigateur des parcours de bout en bout (Chromium de Playwright)
 ```

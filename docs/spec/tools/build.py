@@ -74,6 +74,9 @@ RE_FIGURE = re.compile(
     re.DOTALL,
 )
 # The text of a reference may hold brackets, escaped (\[) or in a balanced pair (one level).
+# Its limit: on a line of many unclosed brackets followed by "(#a", it takes quadratic time
+# (3.3 s for 40,000 characters of \[). A paragraph of the specification is far from that size,
+# so no parser replaces it (#1977).
 RE_CROSS_REFERENCE = re.compile(r"\[((?:\\.|[^\[\]\\]|\[(?:\\.|[^\[\]\\])*\])*)\]\(#[^)\s]*\)")
 # The parts of the archive that hold text a reviewer may change: the body, the footnotes
 # and endnotes pandoc projects with it, and the headers and footers, which carry the
