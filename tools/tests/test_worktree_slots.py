@@ -171,6 +171,7 @@ def test_a_slot_has_the_ports_of_its_block(slot: int) -> None:
         "WATERFALL_SERVICE_PROJECT": f"waterfall-service-s{slot}",
         "WATERFALL_TEST_PROJECT": f"waterfall-test-s{slot}",
         "WATERFALL_KEYCLOAK_IMAGE": f"waterfall-keycloak-s{slot}",
+        "WATERFALL_OPENLDAP_IMAGE": f"waterfall-openldap-s{slot}",
         "WATERFALL_FRONT_CHECK_IMAGE": f"waterfall-front:check-s{slot}",
     }
 
@@ -194,6 +195,7 @@ def test_slot_0_keeps_the_ports_and_names_of_before() -> None:
         "WATERFALL_SERVICE_PROJECT": "waterfall-service",
         "WATERFALL_TEST_PROJECT": "waterfall-test",
         "WATERFALL_KEYCLOAK_IMAGE": "waterfall-keycloak",
+        "WATERFALL_OPENLDAP_IMAGE": "waterfall-openldap",
         "WATERFALL_FRONT_CHECK_IMAGE": "waterfall-front:check",
     }
 
@@ -583,6 +585,7 @@ def test_the_targets_of_a_slot_get_its_ports_and_names(workstation: Workstation)
         "WATERFALL_MAILPIT_PORT=20114",
         "WATERFALL_PROXY_PORT=20115",
         "WATERFALL_KEYCLOAK_IMAGE=waterfall-keycloak-s1",
+        "WATERFALL_OPENLDAP_IMAGE=waterfall-openldap-s1",
     ):
         assert line in said.splitlines()
     assert workstation.make(tree, "e2e", "TESTS=x", "E2E_DEV_SERVER=1").returncode == 0

@@ -436,7 +436,7 @@ services:
       keycloak:
         condition: service_healthy
       openldap:
-        condition: service_started
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "bash", "-c", "test -f /tmp/realm-applied"]
       interval: 2s
@@ -444,23 +444,27 @@ services:
       retries: 150
 
   # The directory of test that Keycloak federates (WF-ADM-0180), seeded with one person at its
-  # first start. Its password is a development value, as are those of deploy/keycloak/development.
-  # The image starts as root to prepare its files, then runs slapd as its own user, openldap. Its
-  # data outlive it, as the bases do: seeded again, it would give its person another entryUUID,
-  # and Keycloak, which keeps the first, another account.
+  # first start: Debian's slapd, in the image the repository builds (deploy/openldap, US-1150),
+  # under the name of the slot of the worktree. Its password is a development value, as are those
+  # of deploy/keycloak/development. The image starts as root to make its directory, then runs slapd
+  # as its own user, openldap. Its data outlive it, as the bases do: seeded again, it would give
+  # its person another entryUUID, and Keycloak, which keeps the first, another account.
   openldap:
-    image: osixia/openldap:1.5.0@sha256:18742e9c449c9c1afe129d3f2f3ee15fb34cc43e5f940a20f3399728f41d7c28
-    # Copies its assets before writing to them: the seed is mounted read-only.
-    command: ["--copy-service"]
+    build:
+      context: ../openldap
+    image: ${WATERFALL_OPENLDAP_IMAGE:-waterfall-openldap}
     environment:
-      LDAP_DOMAIN: waterfall.test
-      LDAP_ORGANISATION: Waterfall (development)
-      LDAP_ADMIN_PASSWORD: development-only-directory-admin
-      LDAP_TLS: "false"
+      WATERFALL_DIRECTORY_ADMIN_PASSWORD: development-only-directory-admin
     volumes:
-      - ../keycloak/development/directory.ldif:/container/service/slapd/assets/config/bootstrap/ldif/custom/50-directory.ldif:ro
+      - ../keycloak/development/directory.ldif:/seed/directory.ldif:ro
       - openldap-data:/var/lib/ldap
       - openldap-config:/etc/ldap/slapd.d
+    # An anonymous search on the root of the directory: slapd answers it once it serves.
+    healthcheck:
+      test: ["CMD", "ldapsearch", "-x", "-H", "ldap://127.0.0.1:389", "-b", "", "-s", "base", "namingContexts"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
 
   # Receives every mail Keycloak sends; read at http://127.0.0.1:8025.
   mailpit:

@@ -583,7 +583,7 @@ Mailpit v1.33, **afin de** suivre des versions maintenues, et un Redis sous la l
 
 ## US-1150 — Un annuaire de test maintenu
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : aucune — outil du dépôt
 - **opérations** : aucune
 - **issue** : #1929

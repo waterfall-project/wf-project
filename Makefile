@@ -125,9 +125,9 @@ WATERFALL_PROCESSORS ?= $(or $(shell $(if $(filter-out undefined,$(origin WATERF
 slot-variables = $(eval slot-variables := $(or $(shell $(SLOTS) which --variables),$(error no slot for this worktree: run make slot)))$(slot-variables)
 slot-value = $(patsubst $(1)=%,%,$(filter $(1)=%,$(slot-variables)))
 slot-export = $(foreach name,$(2),$(eval $(1): export $(name) ?= $$(call slot-value,$(name))))
-SLOT_SERVICE := WATERFALL_SERVICE_PROJECT WATERFALL_KEYCLOAK_IMAGE WATERFALL_POSTGRES_PORT \
-	WATERFALL_REDIS_PORT WATERFALL_API_PORT WATERFALL_KEYCLOAK_PORT WATERFALL_MAILPIT_PORT \
-	WATERFALL_PROXY_PORT
+SLOT_SERVICE := WATERFALL_SERVICE_PROJECT WATERFALL_KEYCLOAK_IMAGE WATERFALL_OPENLDAP_IMAGE \
+	WATERFALL_POSTGRES_PORT WATERFALL_REDIS_PORT WATERFALL_API_PORT WATERFALL_KEYCLOAK_PORT \
+	WATERFALL_MAILPIT_PORT WATERFALL_PROXY_PORT
 SLOT_PATHS := E2E_API_PORT E2E_FRONT_PORT
 $(call slot-export,service-up service-install keycloak-authority service-logs service-down \
 	test-keycloak e2e-service,$(SLOT_SERVICE))

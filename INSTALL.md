@@ -95,7 +95,9 @@ services :
 - l'API, le worker et son planificateur ;
 - le service de la restauration ;
 - Keycloak, servi en HTTPS ;
-- OpenLDAP et Mailpit.
+- l'annuaire de test, OpenLDAP, dans une image que le dépôt construit (`deploy/openldap`) sur
+  le `slapd` de Debian ;
+- Mailpit.
 
 **Elle ne contient pas le front** : on le lance sur le poste (étape 3 ci-dessous).
 
