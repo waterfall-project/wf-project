@@ -6,10 +6,10 @@
  * its background among them (WF-IHM-0100).
  *
  * axe-core is held at 4.14.0, without a range: 4.14 applies « Label in Name » (WCAG 2.5.3,
- * `label-content-name-mismatch`), which asks the name of a control to hold its visible text. The
- * button of the account has the avatar hidden from a reader of the screen (its initials are
- * decorative), and the button of the roles of an account names the roles it shows; the rule is
- * not turned off.
+ * `label-content-name-mismatch`), and its reason stands: a user of voice commands says what they
+ * see, so what a control shows must be in its name. The button of the account shows the initials of
+ * its avatar, and carries them in its name (« Account of Camille Martin, CM »); the button of the
+ * roles of an account names the roles it shows. The rule is not turned off.
  */
 import { createRequire } from "node:module";
 

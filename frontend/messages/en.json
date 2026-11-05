@@ -42,7 +42,7 @@
     "comingSoon": "Search is to come: it arrives with the screens that list the functions and the projects."
   },
   "accountMenu": {
-    "label": "Account of {name}",
+    "label": "Account of {name}, {initials}",
     "preferences": "Preferences",
     "account": "My account",
     "avatar": "Change avatar",

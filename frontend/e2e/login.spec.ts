@@ -42,7 +42,7 @@ test("`/login` leads to the screen aimed at, then signing out closes the session
   // The home page, where `/login` leads without a screen aimed at, compiled first
   // (`e2e/compile.ts`).
   await compile(page.request, "/");
-  await page.getByRole("button", { name: "Compte de Camille Martin" }).click();
+  await page.getByRole("button", { name: "Compte de Camille Martin, CM" }).click();
   await page.getByRole("menuitem", { name: "Se déconnecter" }).click();
 
   await expect(page).toHaveURL("/");

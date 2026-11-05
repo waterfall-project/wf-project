@@ -108,8 +108,8 @@ afterEach(() => {
 
 describe("the shell", () => {
   it.each([
-    ["fr", "Replier la barre latérale", "Rechercher", "Compte de Camille Martin"],
-    ["en", "Collapse the side bar", "Search", "Account of Camille Martin"],
+    ["fr", "Replier la barre latérale", "Rechercher", "Compte de Camille Martin, CM"],
+    ["en", "Collapse the side bar", "Search", "Account of Camille Martin, CM"],
   ] as const)(
     "sets the side bar beside the bar of the page, which folds it, shows where the page sits, searches, follows the tasks and opens the account, in %s",
     async (locale, fold, search, account) => {
@@ -132,11 +132,11 @@ describe("the shell", () => {
 
   it("keeps the initials of the avatar of the account out of the name of its button, which says the account alone [WF-IHM-0100-A]", () => {
     shell();
-    const account = bar().getByRole("button", { name: "Compte de Camille Martin" });
+    const account = bar().getByRole("button", { name: "Compte de Camille Martin, CM" });
     // The initials are the visible text of the button: decorative, the name stands for the account.
     const initials = within(account).getByText("CM");
     expect(initials.closest("[aria-hidden='true']")).not.toBeNull();
-    expect(account).toHaveAccessibleName("Compte de Camille Martin");
+    expect(account).toHaveAccessibleName("Compte de Camille Martin, CM");
   });
 
   it("gives every button of the bar an icon, hidden from a screen reader", () => {
@@ -217,7 +217,7 @@ describe("the shell", () => {
 
   it("opens the menu of the account on its name and address, its preferences, its pages, and the way out", async () => {
     shell();
-    await userEvent.click(bar().getByRole("button", { name: "Compte de Camille Martin" }));
+    await userEvent.click(bar().getByRole("button", { name: "Compte de Camille Martin, CM" }));
     const menu = screen.getByRole("menu");
     expect(menu).toHaveTextContent("Camille Martin");
     expect(menu).toHaveTextContent("camille.martin@example.com");
@@ -238,7 +238,7 @@ describe("the shell", () => {
 
   it("offers no preference in the menu of an account whose preferences it was not given", async () => {
     shell({ preference: undefined, theme: undefined });
-    await userEvent.click(bar().getByRole("button", { name: "Compte de Camille Martin" }));
+    await userEvent.click(bar().getByRole("button", { name: "Compte de Camille Martin, CM" }));
     const menu = screen.getByRole("menu");
     expect(menu).not.toHaveTextContent("Préférences");
     expect(within(menu).queryByRole("menuitem", { name: /^Langue/ })).toBeNull();
@@ -441,7 +441,7 @@ describe("the shell", () => {
 
   it("names the group of the preferences in the menu of the account", async () => {
     shell();
-    await userEvent.click(bar().getByRole("button", { name: "Compte de Camille Martin" }));
+    await userEvent.click(bar().getByRole("button", { name: "Compte de Camille Martin, CM" }));
     const group = screen.getByRole("group", { name: "Préférences" });
     expect(within(group).getByRole("menuitem", { name: /^Langue/ })).toBeInTheDocument();
     expect(within(group).getByRole("menuitem", { name: /^Mode d’affichage/ })).toBeInTheDocument();

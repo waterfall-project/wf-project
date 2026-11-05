@@ -42,7 +42,7 @@
     "comingSoon": "La recherche est à venir : elle arrive avec les écrans qui listent les fonctions et les projets."
   },
   "accountMenu": {
-    "label": "Compte de {name}",
+    "label": "Compte de {name}, {initials}",
     "preferences": "Préférences",
     "account": "Mon compte",
     "avatar": "Changer l’avatar",

@@ -213,7 +213,7 @@ export function AccountMenu({ account, language, theme }: AccountMenuProps) {
             type="button"
             variant="ghost"
             className="h-9 gap-1.5 px-1"
-            aria-label={t("accountMenu.label", { name })}
+            aria-label={t("accountMenu.label", { name, initials: mark })}
             aria-busy={pending}
           >
             <Avatar aria-hidden="true">
