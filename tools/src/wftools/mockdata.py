@@ -62,7 +62,8 @@ and its exit, its code refused and its readings by the quality of its reader, by
 ``wftools.mockproject`` (US-0701/L9); and the refusals of one form each, by
 ``wftools.mockrefusals`` (US-0702/L1); and the refusals the contract declared without a code,
 a condition nor an example, by ``wftools.mockdeclared`` (US-0702/L2); and the examples of the
-majors of the review of the 2026-10-31, by ``wftools.mockreview`` (US-0704).
+majors of the review of the 2026-10-31, by ``wftools.mockreview`` (US-0704), with the Kanban of
+the summary that awaits its own lines (US-1240).
 
 They live in the universe of the other examples: identifiers are kept, and what the
 witness project, the offer and the labels of the universe say is read from their fixtures,
@@ -575,9 +576,10 @@ def readings() -> dict[str, JsonObject]:
             f"termine sans démarrer ; le montage des armoires sur site démarre, et ne se termine "
             f"que par la saisie de son reste à engager, comme le câblage des armoires, démarré ; "
             f"les pupitres opérateurs, démarrés sans ligne, se terminent ; une tâche terminée se "
-            f"rouvre démarrée, la réception des études, jalon, non démarrée. Jamais une "
-            f"récapitulative, dont l'état dérive de ses subordonnées (WF-RAE-0030, WF-PLA-0040, "
-            f"WF-PLA-0050, WF-IHM-0090).",
+            f"rouvre démarrée, la réception des études, jalon, non démarrée. Aucune "
+            f"récapitulative : aucune n'attend plus que ses lignes propres, seul cas où le Kanban "
+            f"en liste une (startable_tasks_awaiting_own_lines), et l'état des autres dérive de "
+            f"leurs subordonnées (WF-RAE-0030, WF-PLA-0040, WF-PLA-0050, WF-IHM-0090).",
             today,
         ),
         "startable_tasks_milestone.json": _example(

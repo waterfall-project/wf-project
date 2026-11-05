@@ -714,18 +714,24 @@ def _with_lines(rows: list[Row], tasks: list[Row]) -> list[Row]:
 def startable(rows: list[Row]) -> JsonObject:
     """Return the answer of listStartableTasks: the tasks of the Kanban (WF-RAE-0030).
 
-    The tasks by their state, each column in the order of the plan, never a summary, whose
-    progress derives from its subordinates: every task not started, saying whether its
-    predecessors are all completed — the milestones the Kanban signals —, the tasks started, and
-    the tasks completed, which the Kanban reopens (#425).
+    The tasks by their state, each column in the order of the plan: every task not started,
+    saying whether its predecessors are all completed — the milestones the Kanban signals —, the
+    tasks started, and the tasks completed, which the Kanban reopens (#425). No summary, whose
+    progress derives from its subordinates, but the one its facet says awaits its own lines alone
+    (``mockdating.awaiting_own_lines``): started, it is listed among the tasks started, for its
+    card to signal it (WF-PLA-0040; #1851).
     """
     facets = {
         cast("str", row.node["node_id"]): cast("JsonObject", row.node["task"])
         for row in rows
         if row.kind == TASK
     }
-    leaves = [row.node for row in rows if row.kind == TASK]
-    leaves = [node for node in leaves if not facets[cast("str", node["node_id"])]["is_summary"]]
+
+    def listed(node: JsonObject) -> bool:
+        facet = facets[cast("str", node["node_id"])]
+        return not facet["is_summary"] or facet["awaiting_own_lines"] is True
+
+    cards = [row.node for row in rows if row.kind == TASK and listed(row.node)]
 
     def progress(node: JsonObject) -> str:
         return cast("str", facets[cast("str", node["node_id"])]["progress"])
@@ -740,11 +746,11 @@ def startable(rows: list[Row]) -> JsonObject:
     return {
         "not_started": [
             {**node, "predecessors_completed": ready(node)}
-            for node in leaves
+            for node in cards
             if progress(node) == "not_started"
         ],
-        "started": [node for node in leaves if progress(node) == "started"],
-        "completed": [node for node in leaves if progress(node) == "completed"],
+        "started": [node for node in cards if progress(node) == "started"],
+        "completed": [node for node in cards if progress(node) == "completed"],
     }
 
 

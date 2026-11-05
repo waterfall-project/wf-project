@@ -11,7 +11,7 @@ from typing import Any, cast
 
 import pytest
 
-from wftools import mockcore, mockdata, mockkanban, mockwitness
+from wftools import mockcore, mockdata, mockkanban, mockreview, mockwitness
 from wftools.mockcore import READ_ON
 from wftools.mockids import universe
 from wftools.mockstructure import described
@@ -102,6 +102,50 @@ def test_a_provision_line_holds_no_task_from_completing_from_the_kanban() -> Non
     started = cast("list[Node]", answer["started"])
     [card] = [each for each in started if each["node_id"] == universe(N.WIRING)]
     assert _gestures(card) == [("complete", True, [], "completed")]
+
+
+def test_the_summary_awaiting_its_own_lines_is_listed_started_with_its_gestures() -> None:
+    # #1851: in the variant of `nodes_awaiting_own_lines`, the studies, every subordinate
+    # completed, their line of 500 open, are listed among the tasks started, first in the order
+    # of the plan, by the facet the core computes; their card enters their remaining and does not
+    # complete them, by the catalogue of the gestures — no condition of a summary.
+    answer = mockkanban.kanban(mockcore.current(described(mockreview.awaiting_roots())))
+    started = cast("list[Node]", answer["started"])
+    assert started[0]["node_id"] == universe(N.STUDIES)
+    assert started[0]["task"]["awaiting_own_lines"] is True
+    assert _gestures(started[0]) == [
+        ("complete", False, ["task_without_lines"], "completed"),
+        ("enter_remaining", True, [], None),
+    ]
+    summaries = [
+        node["node_id"]
+        for column in ("not_started", "started", "completed")
+        for node in cast("list[Node]", answer[column])
+        if node["task"]["is_summary"]
+    ]
+    assert summaries == [universe(N.STUDIES)]
+
+
+def test_a_summary_whose_one_own_line_is_a_provision_is_completed_and_not_listed() -> None:
+    # WF-PLA-0040 : « une récapitulative dont toutes les subordonnées sont terminées et dont la
+    # seule ligne propre est une provision de 40 est terminée et n'est pas signalée » — the same
+    # variant, the line of 500 taken away: the provision holds nothing, and the Kanban, which
+    # lists no summary but one awaiting its own lines, does not list it (#1851).
+    def provision_only(line: mockwitness.Line) -> mockwitness.Line | None:
+        return None if line.number == mockreview.OWN_LINE.number else line
+
+    rows = mockcore.current(described(amended(mockreview.awaiting_roots(), line=provision_only)))
+    [studies] = [row for row in rows if row.number == N.STUDIES]
+    facet = cast("Node", studies.node["task"])
+    assert (facet["progress"], facet["awaiting_own_lines"]) == ("completed", False)
+    answer = mockkanban.kanban(rows)
+    listed = [
+        node["node_id"]
+        for column in ("not_started", "started", "completed")
+        for node in cast("list[Node]", answer[column])
+    ]
+    assert universe(N.STUDIES) not in listed
+    assert universe(N.DESKS) in listed
 
 
 def test_a_started_task_is_one_version_further_than_its_predecessors_left_it(

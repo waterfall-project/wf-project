@@ -41,6 +41,8 @@ def commands(facet: JsonObject, *, bears_lines: bool) -> list[JsonValue]:
     not completed completes from the Kanban if it is a milestone or started, and bears no line
     but provision lines — otherwise the remaining it is sent to completes it (WF-RAE-0030,
     WF-RAE-0040). A completed task reopens: a milestone to not started, any other to started.
+    The summary the Kanban lists, started and awaiting its own lines, follows the same rule, by
+    no condition of its own: it bears lines, and completes by its remaining alone (#1851).
     The witness is in progress and no background task runs: no condition of the entry of the
     remaining misses.
     """

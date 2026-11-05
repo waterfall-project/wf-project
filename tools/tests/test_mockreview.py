@@ -8,7 +8,9 @@ its issue « contrat » carries it to the contract, to its examples and to their
 and to the readings it derives from. They try the examples of the fake back, not the Vérif of a
 requirement: none cites one (WF-QUA-0010, « un test qui ne couvre aucune exigence »); the
 criterion they bear is the US's own, « chaque majeur de la revue du 2026-10-31 […] porté au
-contrat, à ses fixtures et à ses générateurs ».
+contrat, à ses fixtures et à ses générateurs ». But those of US-1240 (#1851): the Kanban lists the
+summary that awaits its own lines, and they hold two phrases of the Vérif of WF-PLA-0040-A on the
+contract and its examples, which they cite.
 """
 
 import json
@@ -17,6 +19,7 @@ from functools import cache
 from pathlib import Path
 from typing import Any, cast
 
+import pytest
 import yaml
 
 from wftools import REPOSITORY, mockreview, mockwitness
@@ -28,6 +31,7 @@ type Entry = dict[str, Any]
 
 API = REPOSITORY / "docs" / "api"
 STATE = (409, "STATE_FORBIDS_OPERATION")
+COLUMNS = ("not_started", "started", "completed")
 
 
 @cache
@@ -318,13 +322,14 @@ def test_a_summary_awaiting_its_own_lines_says_it_by_its_facet() -> None:
     assert facet["properties"]["awaiting_own_lines"]["type"] == "boolean"
     assert "nodes_awaiting_own_lines" in _cited("listNodes", "200")
     read = fixture("nodes_awaiting_own_lines")["items"]
-    summary, own = read[0], read[1]
+    summary, own, provision = read[0], read[1], read[2]
     assert (summary["task"]["progress"], summary["task"]["awaiting_own_lines"]) == (
         "started",
         True,
     )
     assert own["estimate_line"]["reestimated_amount"] == "500.00"
-    below = [node["task"] for node in read[2:] if node["kind"] == "task"]
+    assert provision["estimate_line"]["is_computed"] is True
+    below = [node["task"] for node in read[3:] if node["kind"] == "task"]
     assert below
     assert {(each["progress"], each["awaiting_own_lines"]) for each in below} == {
         ("completed", False)
@@ -334,6 +339,96 @@ def test_a_summary_awaiting_its_own_lines_says_it_by_its_facet() -> None:
         tasks = [each for each in _walk(fixture(name)) if "is_summary" in each]
         assert tasks, name
         assert {each["awaiting_own_lines"] for each in tasks} == {False}, name
+
+
+@pytest.mark.requirement("WF-PLA-0040-A")
+def test_the_kanban_lists_the_summary_awaiting_its_own_lines_with_the_gestures_of_its_card() -> (
+    None
+):
+    # « Une récapitulative dont toutes les subordonnées sont terminées et dont une ligne propre
+    # porte un reste à engager de 500 est démarrée et signalée » : listStartableTasks says it, and
+    # its example lists the studies among the tasks started, with their facet and the gestures
+    # of their card — their remaining entered, their completion refused by their lines, neither a
+    # start nor a reopening (#1851, the decision of the 2026-11-04).
+    description = _flat(_operations()["listStartableTasks"]["description"])
+    assert "jamais une récapitulative" not in description
+    assert "`TaskFacet.awaiting_own_lines`" in description
+    assert "#1851" in description
+    cited = _cited("listStartableTasks", "200")
+    assert cited[0] == "startable_tasks"
+    assert "startable_tasks_awaiting_own_lines" in cited
+    read = fixture("startable_tasks_awaiting_own_lines")
+    summaries = {
+        column: [node for node in read[column] if node["task"]["is_summary"]] for column in COLUMNS
+    }
+    assert (summaries["not_started"], summaries["completed"]) == ([], [])
+    [studies] = summaries["started"]
+    assert studies["node_id"] == universe(mockwitness.N.STUDIES)
+    assert (studies["task"]["progress"], studies["task"]["awaiting_own_lines"]) == (
+        "started",
+        True,
+    )
+    gestures = [
+        (each["command"], each["is_available"], each["missing_conditions"], each["progress"])
+        for each in studies["available_commands"]
+    ]
+    assert gestures == [
+        ("complete", False, ["task_without_lines"], "completed"),
+        ("enter_remaining", True, [], None),
+    ]
+    # The one card the variant signals; the witness, where none awaits, lists no summary.
+    flagged = [
+        node["node_id"]
+        for column in COLUMNS
+        for node in read[column]
+        if node["task"]["awaiting_own_lines"]
+    ]
+    assert flagged == [studies["node_id"]]
+    for name in ("startable_tasks", "startable_tasks_milestone"):
+        tasks = [node["task"] for column in COLUMNS for node in fixture(name)[column]]
+        assert tasks, name
+        assert {each["is_summary"] for each in tasks} == {False}, name
+
+
+@pytest.mark.requirement("WF-PLA-0040-A")
+def test_the_provision_line_of_the_summary_awaiting_its_own_lines_is_never_what_holds_it() -> None:
+    # « Une récapitulative dont toutes les subordonnées sont terminées et dont la seule ligne
+    # propre est une provision de 40 est terminée et n'est pas signalée » : the example bears,
+    # under the summary signalled, a provision line of 40, computed by the server, beside the line
+    # of 500 that alone keeps it started (#1851).
+    read = fixture("nodes_awaiting_own_lines")["items"]
+    summary = read[0]
+    own = [
+        node["estimate_line"]
+        for node in read
+        if node["parent_id"] == summary["node_id"] and node["kind"] == "estimate_line"
+    ]
+    assert [(each["label"], each["is_computed"], each["reestimated_amount"]) for each in own] == [
+        (mockreview.OWN_LINE.label, False, "500.00"),
+        (mockreview.OWN_PROVISION.label, True, "40.00"),
+    ]
+
+
+def test_the_decision_of_the_kanban_summary_is_written_and_the_version_kept() -> None:
+    # « La règle d'après le gel » : a change of the frozen contract cites its issue and its
+    # decision, with its examples; no form changes, and the version stays (#1851).
+    text = (API / "DECISIONS.md").read_text(encoding="utf-8")
+    [entry] = [
+        part.split("\n## ")[0]
+        for part in text.split("\n### ")
+        if part.startswith("Le Kanban liste la récapitulative qui n'attend plus")
+    ]
+    for said in (
+        "#1851",
+        "2026-11-04",
+        "`startable_tasks_awaiting_own_lines`",
+        "`nodes_awaiting_own_lines`",
+        "`enter_remaining`",
+        "`task_without_lines`",
+    ):
+        assert said in _flat(entry), said
+    contract = cast("Entry", yaml.safe_load((API / "openapi.yaml").read_text(encoding="utf-8")))
+    assert contract["info"]["version"] == "1.0.0"
 
 
 COMPLETED_REFUSED = {

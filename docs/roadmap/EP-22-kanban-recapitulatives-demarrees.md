@@ -160,7 +160,7 @@ règle n'est relâchée pour y parvenir (`docs/dev/agents.md`).
 
 ## US-1240 — Le Kanban liste la récapitulative qui n'attend plus que ses lignes propres
 
-- **statut** : à faire
+- **statut** : en cours
 - **exigences** : `WF-PLA-0040-A`
 - **opérations** : `listStartableTasks`
 - **issue** : #1967
