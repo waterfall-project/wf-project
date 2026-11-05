@@ -484,10 +484,14 @@ prerendered-front: ## The production build of the front prerendered no page that
 # With SHARD, one part of the tests measured alone, its report written for coverage-front-merge
 # (frontend/.vitest/blob/), the thresholds held on the parts gathered alone. Beside the blob, which
 # says nothing of a test that fails, the dot reporter names it and its error in the log of the part:
-# a part of the chain that failed silent cost a run to diagnose (US-0590b).
-coverage-front: install-front ## Code coverage of the front: 90 % of lines, 85 % of branches (US-0060); SHARD=lint or i/N measures one part of the tests, for coverage-front-merge
+# a part of the chain that failed silent cost a run to diagnose (US-0590b). The part lint, the
+# guards that run ESLint, is played and not measured: they cover nothing of src/, and measured they
+# took three times as long, the first test of a guard starving on its minute while three of them
+# built the program of the project at once (#2015); no report of theirs is written or gathered.
+FRONT_MEASURE = $(if $(filter lint,$(SHARD)),,--coverage --reporter=blob)
+coverage-front: install-front ## Code coverage of the front: 90 % of lines, 85 % of branches (US-0060); SHARD=i/N measures one part of the tests, for coverage-front-merge; SHARD=lint plays the guards, which cover nothing, unmeasured
 ifdef SHARD
-	@$(PNPM_TESTING) exec vitest run --coverage --silent $(FRONT_PART) --reporter=blob --reporter=dot
+	@$(PNPM_TESTING) exec vitest run --silent $(FRONT_PART) $(FRONT_MEASURE) --reporter=dot
 else
 	@$(PNPM_TESTING) exec vitest run --coverage --silent
 	@$(WFTOOLS).codecoverage istanbul $(FRONT)/coverage/coverage-summary.json

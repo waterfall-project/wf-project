@@ -122,10 +122,14 @@ const DARK_VARIANT: readonly string[] = [
 let eslint: ESLint;
 let actions: ESLint;
 
-beforeAll(() => {
+// The typed rules build the program of the whole project when the first file is linted: ten
+// seconds on a runner of the chain, several times that when the three guards build theirs at
+// once (#2015). Built here, on a budget of its own, so that no test carries it.
+beforeAll(async () => {
   eslint = new ESLint({ cwd: ROOT });
   actions = new ESLint({ cwd: ROOT, overrideConfig: tseslint.configs.disableTypeChecked });
-});
+  await eslint.lintText(component("<p>{VALUE}</p>"), { filePath: COMPONENT });
+}, 120_000);
 
 /** The rule, severity and message of each finding of the colour guard on a snippet. */
 async function findings(code: string, file = COMPONENT, linter = eslint) {

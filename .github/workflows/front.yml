@@ -6,9 +6,10 @@
 # production build with no API to reach and the routes it prerendered (make check-front-static).
 # The unit tests, which keep the cores of a runner busy, are spread over three others: the guards
 # that run ESLint, a minute each, on one, the other tests in two halves on two (make
-# check-front-tests SHARD=lint, SHARD=i/2); in the full tier each part is measured, and
-# the coverage of the parts gathered is held to its thresholds once all of them are done (make
-# coverage-front-merge). The paths run beside it, in e2e.yml, in the full tier only (#492).
+# check-front-tests SHARD=lint, SHARD=i/2); in the full tier each half is measured, and
+# the coverage of the halves gathered is held to its thresholds once both are done (make
+# coverage-front-merge); the guards, which cover nothing of src/, are not measured (#2015). The
+# paths run beside it, in e2e.yml, in the full tier only (#492).
 name: front
 
 on:
@@ -101,8 +102,8 @@ jobs:
           TIER: ${{ inputs.tier }}
           SHARD: ${{ matrix.part }}
           WATERFALL_TEST_REDIS_URL: redis://127.0.0.1:6379/0
-      # The report of the part, coverage included, which the job below gathers.
-      - if: inputs.tier == 'full'
+      # The report of a half, coverage included, which the job below gathers; the guards write none.
+      - if: inputs.tier == 'full' && matrix.part != 'lint'
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: front-coverage-${{ strategy.job-index }}
@@ -111,7 +112,7 @@ jobs:
           if-no-files-found: error
           retention-days: 1
 
-  # The coverage of the parts gathered, held to its thresholds (US-0060), in the full tier alone.
+  # The coverage of the two halves gathered, held to its thresholds (US-0060), in the full tier alone.
   coverage:
     needs: tests
     if: inputs.tier == 'full'

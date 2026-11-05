@@ -2920,7 +2920,10 @@ La chaîne est faite de workflows GitHub Actions (`.github/workflows/`) :
   chacune, sur l'un (`SHARD=lint`, le projet `lint` de `frontend/vitest.config.ts`), les autres
   tests en deux moitiés sur les deux autres (`SHARD=1/2`, `SHARD=2/2`). Vitest répartit des
   fichiers entiers par l'empreinte de leur chemin, et les trois gardes tombaient dans le même
-  morceau. Vitest y prend un worker par processeur moins un, comme il le fait de lui-même hors
+  morceau. Les gardes ne sont jamais mesurées, à aucun palier : elles ne couvrent rien de
+  `src/`, et mesurées elles prenaient trois minutes au lieu d'une, le premier test d'une garde
+  épuisant sa minute pendant que les trois construisaient à la fois le programme du projet sous la
+  couverture ; chacune le construit désormais dans son `beforeAll`, sur un budget à elle (#2015). Vitest y prend un worker par processeur moins un, comme il le fait de lui-même hors
   du mode veille, quatre au plus (`workers`, `frontend/vitest.config.ts`, #1474) : le processeur
   laissé est celui du processus principal, qui rassemble les résultats et la couverture des
   workers ; un runner, quatre processeurs, en joue donc trois. Le poste, douze processeurs, ne
@@ -2930,7 +2933,7 @@ La chaîne est faite de workflows GitHub Actions (`.github/workflows/`) :
   mais 29 de ses tests dépassaient la seconde sur quatre, 11 sur trois. `structure-busy.dom.test.tsx`
   et `planning-entry.dom.test.tsx` cachent les colonnes qu'ils n'éprouvent pas, le Gantt d'abord :
   la grille entière, rendue deux ou trois fois à chaque geste, doublait leur durée. Au palier
-  complet, un dernier runner rassemble la couverture des trois morceaux et
+  complet, un dernier runner rassemble la couverture des deux moitiés et
   la tient à ses seuils (`make coverage-front-merge`). ESLint garde son cache, par le contenu
   de chaque fichier (`pnpm lint`, `actions/cache`) : sans lui, il prend une minute.
   `front-cache.yml` écrit ce cache et le magasin de pnpm après chaque fusion, sur la branche
@@ -3062,20 +3065,21 @@ Le palier complet vise moins de huit minutes dans la file pour son travail le pl
   `curl -sI -H 'Accept: application/vnd.oci.image.index.v1+json' https://mcr.microsoft.com/v2/playwright/manifests/v<X>-noble`.
   L'image n'a pas `make` : son paquet d'Ubuntu noble est téléchargé, épinglé et
   vérifié par son empreinte, comme pandoc ;
-- **répartis sur trois runners** (`make e2e SHARD=i/3`, soit `playwright test --shard=i/3`),
-  la mesure du §4.6.2 sur un quatrième, seule (`make e2e-measure`), par une matrice dont aucun
+- **répartis sur cinq runners** (`make e2e SHARD=i/5`, soit `playwright test --shard=i/5`),
+  la mesure du §4.6.2 sur un sixième, seule (`make e2e-measure`), par une matrice dont aucun
   morceau n'annule les autres ; le résultat d'`e2e` est un échec dès qu'un morceau échoue ou
-  est annulé, et la porte avec lui. Trois, parce que Playwright répartit des fichiers entiers
-  de parcours, à nombre de tests égal, et que les plus longs pèsent — sauf un fichier joué test
+  est annulé, et la porte avec lui. Playwright répartit des fichiers entiers
+  de parcours, à nombre de tests égal, et les plus longs pèsent — sauf un fichier joué test
   par test (`mode: "parallel"`), comme `accessibility.spec.ts`, dont les tests se répartissent un
   à un : avant ce fichier, en octobre 2026, le plus long de trois morceaux jouait environ 140 s
-  de parcours sur deux workers, celui de quatre 130 s, quand chaque morceau paie environ deux
-  minutes d'image, d'installation et de serveurs. Ce que le fichier ajoute se lit sur la chaîne de
-  la pull request d'US-0200, et le choix se revoit quand les parcours s'allongent : les durées
+  de parcours sur deux workers, celui de quatre 130 s, et trois suffisaient. En novembre 2026, ce
+  fichier grossi à 500 s de parcours, le plus long de trois morceaux en jouait 290 s, quand chaque
+  morceau paie environ 75 s d'image, d'installation et de serveurs : cinq morceaux en jouent
+  environ 170 s chacun (#2015). Le choix se revoit quand les parcours s'allongent : les durées
   par fichier se lisent dans le journal de chaque morceau ;
 - **sur un seul build du front par exécution** (US-0590) : le travail `front-build` de `ci.yml`,
   qui tourne dès qu'`e2e` ou `service` tourne, lance `make build-front` et téléverse
-  `frontend/.next` sans son cache (`.next/cache`, que seul un build suivant lirait). Les trois
+  `frontend/.next` sans son cache (`.next/cache`, que seul un build suivant lirait). Les cinq
   morceaux, la mesure et les parcours du service l'attendent, le téléchargent là où le build l'a
   écrit et jouent avec `E2E_BUILT=1`, sans rien reconstruire. Il vit dans `ci.yml` et non dans
   l'un des deux workflows : `e2e.yml` et `service.yml` sont deux workflows appelés, et un `needs`
@@ -3492,7 +3496,10 @@ leurs sources et le film de l'écran : le parcours dit lui-même, en annotation,
 attend (`test.info().annotations`). Le remède atténue, il ne solde rien : le reste tient à l'écran.
 Les risques et les coûts réels, relus, ont dépassé cinq secondes sous charge : les mesures sont
 consignées dans #500, qui reste à trancher. Tout autre écran garde les cinq secondes d'une
-assertion. Un parcours qui enchaîne trois de ces bornes, ouverture comprise, dépasse les trente
+assertion sur un poste, dix dans la chaîne, où deux workers et leurs fronts partagent les quatre
+processeurs d'un runner : un écran qui y répond en une seconde a dépassé les cinq sous charge, et
+fait échouer un passage de la file de fusion environ une fois par semaine sans défaut derrière
+(#2015, `expect.timeout` de `playwright.config.ts`). Un parcours qui enchaîne trois de ces bornes, ouverture comprise, dépasse les trente
 secondes d'un test, et prend `test.slow()`. Une ligne de grille vérifiée est dans la fenêtre :
 au-delà des lignes en vue à l'ouverture, le parcours défile jusqu'à elle (`scrollToPosition`,
 `frontend/e2e/scroll.ts`) plutôt que de compter sur la marge que la grille rend autour de la

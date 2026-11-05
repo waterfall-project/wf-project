@@ -215,10 +215,14 @@ const NO_DIRECTIVE =
 let eslint: ESLint;
 let actions: ESLint;
 
-beforeAll(() => {
+// The typed rules build the program of the whole project when the first file is linted: ten
+// seconds on a runner of the chain, several times that when the three guards build theirs at
+// once (#2015). Built here, on a budget of its own, so that no test carries it.
+beforeAll(async () => {
   eslint = new ESLint({ cwd: ROOT });
   actions = new ESLint({ cwd: ROOT, overrideConfig: tseslint.configs.disableTypeChecked });
-});
+  await eslint.lintText("export const nothing = 1;\n", { filePath: PAGE });
+}, 120_000);
 
 /** The messages of the guard on a snippet written in a file, and the fatal ones. */
 async function lint(code: string, file: string): Promise<Linter.LintMessage[]> {

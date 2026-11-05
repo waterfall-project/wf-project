@@ -4,8 +4,8 @@
 # The end-to-end paths of the front (US-0080), in the full tier only: the other half of the
 # front family, side by side with front.yml (#492). Every part plays the front built for production
 # once in the run of the chain, by its job front-build, which the paths against the service play too
-# (ci.yml, US-0590): the paths spread over three runners, each playing one part of them (make e2e
-# SHARD=i/3), and the measure of the second of §4.6.2 (US-0110) on a fourth, alone (make
+# (ci.yml, US-0590): the paths spread over five runners, each playing one part of them (make e2e
+# SHARD=i/5), and the measure of the second of §4.6.2 (US-0110) on a sixth, alone (make
 # e2e-measure), which then holds the routes the build prerendered (make prerendered-front, US-0430).
 # Called by ci.yml alone, which uploads the build before: no part builds it. A part that fails
 # fails this workflow, and the gate with it.
@@ -30,7 +30,7 @@ env:
 
 jobs:
   paths:
-    # Shown as e2e / paths (i/3) and e2e / measure.
+    # Shown as e2e / paths (i/5) and e2e / measure.
     name: ${{ matrix.part == 'measure' && 'measure' || format('paths ({0})', matrix.part) }}
     runs-on: ubuntu-26.04
     container:
@@ -41,16 +41,18 @@ jobs:
       # Chromium shares memory through /dev/shm, which Docker bounds to 64 MB; Playwright's
       # documentation runs its image with the host's.
       options: --ipc=host
-    # Three parts, not four: Playwright spreads whole files, at equal numbers of tests, and the
-    # longest files weigh; by October 2026 the longest of three parts played about 140 s of
-    # tests on two workers, of four 130 s, where each part pays about two minutes of image,
-    # installation and servers. Every part runs to its end: one failing does not cancel the
-    # others, whose results say whether the code fails or one path.
+    # Five parts: Playwright spreads whole files, at equal numbers of tests, and the longest files
+    # weigh, except those played test by test (`mode: "parallel"`), spread one test at a time. By
+    # October 2026 the longest of three parts played about 140 s of tests on two workers; by
+    # November, accessibility.spec.ts grown, 290 s, where each part pays about 75 s of image,
+    # installation and servers (#2015): five parts play about 170 s each. Every part runs to its
+    # end: one failing does not cancel the others, whose results say whether the code fails or
+    # one path.
     strategy:
       fail-fast: false
       matrix:
-        part: ["1/3", "2/3", "3/3", measure]
-    # A part of the paths should take about 5 minutes, the measure as much: two tests of at most
+        part: ["1/5", "2/5", "3/5", "4/5", "5/5", measure]
+    # A part of the paths should take about 4 minutes, the measure as much: two tests of at most
     # 3 minutes each. 15 leaves room for a slow runner, not for a path stuck.
     timeout-minutes: 15
     env:

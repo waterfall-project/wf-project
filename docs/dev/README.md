@@ -2896,7 +2896,10 @@ The chain is made of GitHub Actions workflows (`.github/workflows/`):
   each, on one (`SHARD=lint`, the `lint` project of `frontend/vitest.config.ts`), the other
   tests in two halves on the other two (`SHARD=1/2`, `SHARD=2/2`). Vitest spreads whole
   files by the digest of their path, and the three guards fell into the same
-  shard. Vitest takes there one worker per processor minus one, as it does by itself outside
+  shard. The guards are never measured, at either tier: they cover nothing of `src/`, and
+  measured they took three minutes instead of one, the first test of a guard starving on its
+  minute while the three built the program of the project at once under the coverage; each
+  now builds it in its `beforeAll`, on a budget of its own (#2015). Vitest takes there one worker per processor minus one, as it does by itself outside
   watch mode, four at most (`workers`, `frontend/vitest.config.ts`, #1474): the processor
   left is that of the main process, which gathers the results and the coverage of the
   workers; a runner, four processors, therefore plays on three. The workstation, twelve processors,
@@ -2906,7 +2909,7 @@ The chain is made of GitHub Actions workflows (`.github/workflows/`):
   but 29 of its tests exceeded one second on four, 11 on three. `structure-busy.dom.test.tsx`
   and `planning-entry.dom.test.tsx` hide the columns they do not put to the proof, the Gantt first:
   the whole grid, rendered two or three times at each gesture, doubled their duration. At the
-  full tier, one last runner gathers the coverage of the three shards and
+  full tier, one last runner gathers the coverage of the two halves and
   holds it to its thresholds (`make coverage-front-merge`). ESLint keeps its cache, by the content
   of each file (`pnpm lint`, `actions/cache`): without it, it takes a minute.
   `front-cache.yml` writes that cache and the pnpm store after each merge, on the branch
@@ -3038,20 +3041,21 @@ The full tier aims at under eight minutes in the queue for its longest job
   `curl -sI -H 'Accept: application/vnd.oci.image.index.v1+json' https://mcr.microsoft.com/v2/playwright/manifests/v<X>-noble`.
   The image has no `make`: its Ubuntu noble package is downloaded, pinned and
   verified by its digest, like pandoc;
-- **spread over three runners** (`make e2e SHARD=i/3`, that is `playwright test --shard=i/3`),
-  the measure of §4.6.2 on a fourth, alone (`make e2e-measure`), through a matrix none of whose
+- **spread over five runners** (`make e2e SHARD=i/5`, that is `playwright test --shard=i/5`),
+  the measure of §4.6.2 on a sixth, alone (`make e2e-measure`), through a matrix none of whose
   shards cancels the others; the result of `e2e` is a failure as soon as a shard fails or
-  is cancelled, and the gate with it. Three, because Playwright spreads whole files
+  is cancelled, and the gate with it. Playwright spreads whole files
   of paths, at an equal number of tests, and the longest weigh — except a file played test
   by test (`mode: "parallel"`), like `accessibility.spec.ts`, whose tests are spread one
   by one: before that file, in October 2026, the longest of three shards played about 140 s
-  of paths on two workers, that of four 130 s, when each shard pays about two
-  minutes of image, installation and servers. What the file adds can be read on the chain of
-  the pull request of US-0200, and the choice is reconsidered when the paths lengthen: the durations
+  of paths on two workers, that of four 130 s, and three were enough. By November 2026, that
+  file grown to 500 s of paths, the longest of three shards played 290 s, when each shard pays
+  about 75 s of image, installation and servers: five shards play about 170 s each (#2015). The
+  choice is reconsidered when the paths lengthen: the durations
   per file can be read in the log of each shard;
 - **on one single build of the front per run** (US-0590): the `front-build` job of `ci.yml`,
   which runs as soon as `e2e` or `service` runs, launches `make build-front` and uploads
-  `frontend/.next` without its cache (`.next/cache`, which only a following build would read). The three
+  `frontend/.next` without its cache (`.next/cache`, which only a following build would read). The five
   shards, the measure and the paths of the service wait for it, download it where the build
   wrote it and play with `E2E_BUILT=1`, without rebuilding anything. It lives in `ci.yml` and not in
   one of the two workflows: `e2e.yml` and `service.yml` are two called workflows, and a `needs`
@@ -3468,7 +3472,10 @@ their sources and the film of the screen: the path itself says, in an annotation
 waits for (`test.info().annotations`). The remedy mitigates, it settles nothing: the rest lies with the screen.
 The risks and the actual costs, reloaded, have exceeded five seconds under load: the measurements are
 recorded in #500, which remains to be decided. Every other screen keeps the five seconds of an
-assertion. A path that chains three of these bounds, opening included, exceeds the thirty
+assertion on a workstation, ten in the chain, where two workers and their fronts share the four
+processors of a runner: a screen that answers in a second there took past five under load, and
+failed a run of the merge queue about once a week without a defect behind it (#2015,
+`expect.timeout` of `playwright.config.ts`). A path that chains three of these bounds, opening included, exceeds the thirty
 seconds of a test, and takes `test.slow()`. A grid line that is checked is in the viewport:
 beyond the lines in view at opening, the path scrolls to it (`scrollToPosition`,
 `frontend/e2e/scroll.ts`) rather than counting on the margin the grid renders around the
