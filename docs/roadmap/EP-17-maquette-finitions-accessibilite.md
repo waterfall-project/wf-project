@@ -595,7 +595,10 @@ ses mesures par lots ; rien n'y est réécrit.
   - les déclencheurs de dialogue et de menu — `[aria-haspopup="dialog"]`, `[aria-haspopup="menu"]`,
     ce que Radix pose sur chaque `DialogTrigger` et `DropdownMenuTrigger` —, affichés et actifs,
     chacun ouvert par Entrée depuis le focus ; ce qui s'ouvre est le `[role="dialog"]` ou le
-    `[role="menu"]` qui apparaît, attendu visible ;
+    `[role="menu"]` qui apparaît, attendu visible ; ceux de la coquille — projet, compte, tâches,
+    aide : tout ce qui est hors de `main`, et le bouton de l'aide, que `data-shell` marque, parce
+    que le titre de l'écran le porte — ne se jouent que sur l'écran de référence, la liste des
+    révisions d'un projet (US-1220, #1840) ; ceux de l'écran, sur chaque écran ;
   - les éditeurs de cellule : dans chaque `[role="grid"]` ou `[role="treegrid"]`, la première
     cellule saisissable — `[aria-readonly="false"]` ou ce que `DenseGrid` marque d'une cellule qui
     s'édite (`data-editable`, posé par le lot si rien ne la distingue encore) — reçoit le focus et
@@ -1607,7 +1610,7 @@ agrégé du portefeuille (EP-11).
 
 ## US-1220 — Le harnais joue les déclencheurs de la coquille une seule fois
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-IHM-0100-A`
 - **opérations** : aucune en propre
 - **issue** : #1965
