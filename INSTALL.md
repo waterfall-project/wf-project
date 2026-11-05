@@ -14,13 +14,61 @@ Pour installer une plateforme de démonstration à partir des images publiées, 
 |---|---|
 | [uv](https://docs.astral.sh/uv/) | Python 3.14 et les dépendances du back et des outils du dépôt |
 | Python 3.14 ou plus, sous le nom `python3` | la projection de la spécification |
-| Node 26 | le front, et pnpm, que `npm install --global pnpm` installe une fois |
+| Node 26 (par nvm, par exemple) | le front, et pnpm, que `npm install --global pnpm` installe une fois |
 | Docker et son greffon Compose | `make dev`, la plateforme de service, les images |
 | Le client PostgreSQL 18 (`postgresql-client-18`, celui d'Ubuntu 26.04) | `pg_dump` et `pg_restore` dans `/usr/bin`, que les tests des sauvegardes et des restaurations appellent : ceux de la majeure du serveur, ni plus récents ni plus anciens (#982) |
+| `openssl` | un secret au tirage, si l'on ne veut pas celui du workflow (« Les secrets », plus bas) |
 | `pandoc` 3.13 | la projection de la spécification (une autre version écrit un autre Markdown) |
-| `mmdc` (`npm i -g @mermaid-js/mermaid-cli`) | facultatif : la validation des diagrammes |
+| `mmdc`, installé par npm | facultatif : la validation des diagrammes (`make build-doc`, `make check-spec`) |
 
-`make check-tools` dit ce qui manque.
+`make check-tools` dit ce qui manque, et avertit quand pandoc n'est pas en 3.13 ou que
+`/usr/bin/pg_restore` n'est pas celui de PostgreSQL 18.
+
+### pandoc 3.13
+
+La projection de la spécification est engendrée avec pandoc 3.13, et `make check-tools` l'attend :
+avec une autre version, `make check-spec` échoue, sur un document que personne n'a changé. Le dépôt
+d'Ubuntu 26.04 offre une version plus ancienne (3.7), qu'il ne faut pas installer. On prend le
+paquet de la version 3.13 sur le site du projet, comme la chaîne, et on vérifie son empreinte, que
+`.github/workflows/spec.yml` écrit (`PANDOC_SHA256`), depuis la racine du clone (« Le dépôt », plus
+bas) :
+
+```bash
+curl -sSfL -o pandoc.deb https://github.com/jgm/pandoc/releases/download/3.13/pandoc-3.13-1-amd64.deb
+echo "$(sed -n 's/^  PANDOC_SHA256: //p' .github/workflows/spec.yml)  pandoc.deb" | sha256sum --check --strict
+sudo dpkg -i pandoc.deb && rm pandoc.deb
+```
+
+### mmdc, par npm, et AppArmor
+
+`mmdc` s'installe par npm, jamais par le snap : le snap a son propre `/tmp`, et `make build-doc` et
+`make check-spec` échouent alors.
+
+```bash
+npm install -g --allow-scripts=puppeteer @mermaid-js/mermaid-cli
+```
+
+Sur Ubuntu 23.10 et plus, si `sysctl kernel.apparmor_restrict_unprivileged_userns` vaut 1,
+AppArmor refuse les espaces de noms utilisateur au Chrome que puppeteer télécharge, et `mmdc` ne
+rend aucun diagramme. Le profil suivant les lui accorde ; on l'écrit dans
+`/etc/apparmor.d/puppeteer-chrome`, puis on le charge :
+
+```
+abi <abi/5.0>,
+include <tunables/global>
+profile puppeteer-chrome /home/*/.cache/puppeteer/chrome/*/chrome-linux64/chrome flags=(unconfined) {
+  userns,
+  @{exec_path} mr,
+}
+profile puppeteer-chrome-headless-shell /home/*/.cache/puppeteer/chrome-headless-shell/*/chrome-headless-shell-linux64/chrome-headless-shell flags=(unconfined) {
+  userns,
+  @{exec_path} mr,
+}
+```
+
+```bash
+sudo apparmor_parser -r /etc/apparmor.d/puppeteer-chrome
+```
 
 **Aucun environnement virtuel à créer.** Chaque commande Python du Makefile passe par
 `uv run --frozen`. uv crée alors l'environnement du projet concerné (`backend/.venv`,
@@ -37,6 +85,39 @@ Une branche d'EPIC (`epic/EP-nn`) porte le travail en cours ; `main` porte ce qu
 
 **Toutes les commandes `make` se lancent depuis la racine du clone.** Dans un sous-dossier,
 `frontend/` par exemple, `make` répond `No rule to make target`.
+
+## Le shell
+
+Les agents et `bash -c` lancent des shells **non interactifs**. Or le `~/.bashrc` d'Ubuntu s'ouvre
+sur une garde, `case $- in … *) return;;`, qui interrompt sa lecture dans un tel shell : tout ce
+qui s'écrit après elle leur échappe. **Tout ce que doit lire un shell non interactif précède la
+garde.** Sans cela, ces shells répondent `pnpm: not found`.
+
+Le `~/.bashrc`, de haut en bas :
+
+```bash
+# 1. Avant la garde : lu par tous les shells, interactifs ou non.
+export NVM_DIR="$HOME/.nvm"                       # Node, par nvm
+[ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"
+export PNPM_HOME="$HOME/.local/share/pnpm"        # pnpm, et ses binaires globaux
+case ":$PATH:" in *":$PNPM_HOME:"*) ;; *) export PATH="$PNPM_HOME:$PATH" ;; esac
+[ -f "$HOME/.config/waterfall/service.env" ] && . "$HOME/.config/waterfall/service.env"   # les secrets
+export WATERFALL_SLOTS=1                          # le nombre de créneaux du poste
+
+# 2. La garde d'Ubuntu, telle qu'elle est : ce qui la suit ne regarde que les shells interactifs.
+case $- in
+    *i*) ;;
+      *) return;;
+esac
+```
+
+`WATERFALL_SLOTS` est le nombre d'exécutions lourdes (tests entiers, couverture, construction du
+front, parcours de bout en bout) que le poste admet à la fois, un entier de 1 à 9 (1 par défaut).
+Il se pose avant la garde pour que les shells des agents le lisent. Ce qu'il borne se lit dans le
+[guide de développement](docs/dev/README-fr.md), « Commandes ».
+
+Le fichier des secrets se crée à l'étape 1 de la plateforme de service (plus bas) ; la ligne qui le
+charge ne fait rien tant qu'il n'existe pas. Un nouveau terminal relit le `~/.bashrc`.
 
 ## Une seule fois
 
@@ -116,24 +197,32 @@ prennent le port 3000.
 
 ### 1. Les secrets
 
-La plateforme refuse de démarrer sans ses secrets. Aucun fichier ne les porte : le tableau de la
-section « Commandes » du [guide de développement](docs/dev/README-fr.md) les liste. Sur un poste,
-des valeurs de poste suffisent, par exemple celles de `.github/workflows/keycloak.yml`. On les
-exporte dans le terminal d'où l'on lancera la plateforme et le front :
+La plateforme refuse de démarrer sans ses secrets, onze variables `WATERFALL_*` que le tableau de
+la section « Commandes » du [guide de développement](docs/dev/README-fr.md) décrit :
+`WATERFALL_POSTGRES_PASSWORD`, `WATERFALL_SERVICE_DATABASE_PASSWORD`,
+`WATERFALL_BACKUP_DATABASE_PASSWORD`, `WATERFALL_REDIS_PASSWORD`,
+`WATERFALL_KEYCLOAK_DATABASE_PASSWORD`, `WATERFALL_KEYCLOAK_ADMIN_PASSWORD`,
+`WATERFALL_FRONT_CLIENT_SECRET`, `WATERFALL_SERVICE_CLIENT_SECRET`,
+`WATERFALL_INSTALLATION_CLIENT_SECRET`, `WATERFALL_STORAGE_SECRET` et
+`WATERFALL_STORAGE_RPC_SECRET`.
+
+Sur un poste, des valeurs de poste suffisent : celles du bloc `env` du job de
+`.github/workflows/keycloak.yml`, seule source de ces valeurs, que cette notice ne recopie pas. On
+les range dans `~/.config/waterfall/service.env`, de mode 600, que le `~/.bashrc` charge avant la
+garde (« Le shell »). Depuis la racine du clone, une commande engendre ce fichier depuis le
+workflow :
 
 ```bash
-export WATERFALL_POSTGRES_PASSWORD=devpostgres
-export WATERFALL_SERVICE_DATABASE_PASSWORD=devservice
-export WATERFALL_BACKUP_DATABASE_PASSWORD=devbackup
-export WATERFALL_REDIS_PASSWORD=dev-redis
-export WATERFALL_KEYCLOAK_DATABASE_PASSWORD=dev-keycloak-database
-export WATERFALL_KEYCLOAK_ADMIN_PASSWORD=dev-keycloak-admin
-export WATERFALL_FRONT_CLIENT_SECRET=dev-front-client
-export WATERFALL_SERVICE_CLIENT_SECRET=dev-service-client
-export WATERFALL_INSTALLATION_CLIENT_SECRET=dev-installation-client
-export WATERFALL_STORAGE_SECRET=dev-storage-secret
-export WATERFALL_STORAGE_RPC_SECRET=$(openssl rand -hex 32)
+mkdir -p ~/.config/waterfall
+install -m 600 /dev/null ~/.config/waterfall/service.env
+sed -n 's/^      \(WATERFALL_[A-Z_]*\): \(.*\)$/export \1=\2/p' .github/workflows/keycloak.yml \
+  > ~/.config/waterfall/service.env
 ```
+
+Elle écrit onze lignes `export NOM=valeur`. Un terminal ouvert ensuite porte les secrets ; dans un
+terminal déjà ouvert, `. ~/.config/waterfall/service.env` les charge. Garage veut son secret
+`WATERFALL_STORAGE_RPC_SECRET` en 64 chiffres hexadécimaux : celui du workflow l'est, et
+`openssl rand -hex 32` en tire un autre si on le préfère.
 
 Les mots de passe de PostgreSQL ne doivent contenir que des lettres et des chiffres, parce qu'ils
 s'écrivent dans une URL.

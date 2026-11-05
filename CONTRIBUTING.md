@@ -23,9 +23,13 @@ make check BASE=origin/epic/EP-nn # only what your change touches, before you pu
 
 You need [uv](https://docs.astral.sh/uv/), which installs Python 3.14 for the back and the
 tools; a Python 3.14 or later on the `PATH` as `python3`, which builds the specification
-projection; Node 26 and pnpm (`npm install --global pnpm`, once); Docker, for `make dev`; `pandoc` 3.13 — the
-version the projection is generated with, since another one writes another Markdown; and
-`mmdc` (`npm i -g @mermaid-js/mermaid-cli`) if you want the diagrams validated.
+projection; Node 26 and pnpm (`npm install --global pnpm`, once); Docker, for `make dev`; `pandoc`
+3.13 — the version the projection is generated with, since another one writes another Markdown;
+`openssl`; and `mmdc`, installed through npm, if you want the diagrams validated.
+[`INSTALL.md`](INSTALL.md) says where to find pandoc 3.13 on Ubuntu 26.04, how to install `mmdc`
+and what to put in `~/.bashrc`. If you drive the work with agents, the permission that lets a
+deliverer put its pull request in the merge queue is in
+[`docs/dev/agents.md`](docs/dev/agents.md) (in French), « La mise en file ».
 
 ## Changing the specification
 
@@ -53,7 +57,8 @@ usefully. The workflow that replaces the diff is a **review**:
    finding from a forgotten one.
 
 The reviews in `docs/spec/revue/constats/` have all gone through this cycle; read one before
-writing your first, and read the existing findings before raising a new one — a finding already settled is not raised twice.
+writing your first, and read the existing findings before raising a new one — a finding already
+settled is not raised twice.
 
 ### Requirement conventions
 
@@ -103,7 +108,8 @@ in `docs/api/tools/inventory.py`.
 
 Read the [development guide](docs/dev/README.md) first: where each piece lives, how it is
 named, the shape of the pieces that repeat, and which check enforces each rule. It is written
-in French, like the specification, and grows with the codebase.
+in French, like the specification, and this is its English version
+([`README-fr.md`](docs/dev/README-fr.md) is the reference); it grows with the codebase.
 
 The specification already fixes what will be asked of the code, and it is worth knowing
 before writing the first line:

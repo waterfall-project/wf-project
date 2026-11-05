@@ -2799,9 +2799,9 @@ Le Makefile donne à chaque cible ce dont elle a besoin, sauf ce que l'environne
 la plateforme de service — `service-up`, `service-install`, `service-logs`, `service-down`,
 `keycloak-authority`, `test-keycloak`, `e2e-service` — reçoit son projet, les images de Keycloak et
 de l'annuaire et ses six ports ; `build-keycloak`, l'image de Keycloak ; `e2e`, `e2e-measure` et
-`e2e-service`, les ports du faux back et des fronts ; `check-front-image`, l'image du front. Dans un worktree lié qui ne
-tient pas de créneau, ces cibles échouent avant de rien lancer, en disant `make slot` ; les autres
-ne le demandent pas. `make production-trial`, hors des créneaux — ports 80 et 443, projet
+`e2e-service`, les ports du faux back et des fronts ; `check-front-image`, l'image du front. Dans un
+worktree lié qui ne tient pas de créneau, ces cibles échouent avant de rien lancer, en disant
+`make slot` ; les autres ne le demandent pas. `make production-trial`, hors des créneaux — ports 80 et 443, projet
 `waterfall-production-trial` —, ne tourne qu'au créneau 0 : depuis le worktree d'un lot, il
 échoue d'emblée, en le disant.
 
@@ -3053,12 +3053,12 @@ Le palier complet vise moins de huit minutes dans la file pour son travail le pl
   Node 26 : les morceaux le démarrent dans l'image de Playwright, en Node 24 (son
   `NODE_VERSION`, que le lot de Node 26 ne change pas ; `next start` y exécute les fichiers
   construits, et Next 16 accepte Node 24, tandis que pnpm 12 ne s'arrête pas sur `engines` sans
-  `engine-strict`, que le front ne pose pas), sur la même Ubuntu noble en amd64, et à un autre chemin de l'espace de travail
-  (`/__w/…` au lieu de `/home/runner/work/…`) ; `service.yml`, sur le runner. Le build ne dépend
-  pas de ce chemin : seul `required-server-files.json`, que lit la sortie autonome de l'image et
-  non `next start`, le nomme, et un build déplacé ailleurs, son dossier d'origine retiré, sert ses
-  pages (vérifié le 2026-10-25 sur le poste, en déplaçant le build ; la preuve dans la chaîne
-  viendra d'une exécution de `chain` sur la branche du lot).
+  `engine-strict`, que le front ne pose pas), sur la même Ubuntu noble en amd64, et à un autre
+  chemin de l'espace de travail (`/__w/…` au lieu de `/home/runner/work/…`) ; `service.yml`, sur le
+  runner. Le build ne dépend pas de ce chemin : seul `required-server-files.json`, que lit la
+  sortie autonome de l'image et non `next start`, le nomme, et un build déplacé ailleurs, son
+  dossier d'origine retiré, sert ses pages (vérifié le 2026-10-25 sur le poste, en déplaçant le
+  build ; la preuve dans la chaîne viendra d'une exécution de `chain` sur la branche du lot).
 
 Le back suit le même modèle (#492, levier 5) :
 

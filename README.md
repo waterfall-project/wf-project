@@ -14,11 +14,13 @@ is negotiated over months, the baseline moves only by contract, and the question
 still where we said we would be? » has to be answerable years after the people who
 answered it first have left.
 
-> **Status: the foundation and the mockup are in place, the product is not yet.** The
-> specification and the interface contract come first; the repository also carries the
-> tooling and the chain every line of product code passes through, and a front that shows
-> every screen against a simulated contract (EP-02). The back comes next, epic by epic, as
-> [`docs/roadmap`](docs/roadmap/README.md) plans it, starting with accounts and access (EP-03).
+> **Status: the foundation, the mockup and the accounts are in place, the product is not yet.**
+> The specification and the interface contract come first; the repository also carries the
+> tooling and the chain every line of product code passes through, a front that shows every
+> screen against a simulated contract (EP-02), and the back for accounts, authentication and
+> access (EP-03). The rest of the back comes next, epic by epic, as
+> [`docs/roadmap`](docs/roadmap/README.md) plans it, starting with the company reference
+> data (EP-05).
 
 ## What makes it different
 
@@ -53,16 +55,16 @@ fifty-thousand deal the same weight as a million-euro one, and measures nothing.
 
 | Path | Contents |
 |---|---|
-| `docs/spec` | the specification: **203 requirements**, its Word and draw.io sources, the generated Markdown projection, the tools that produce it, and the reviews that shaped it |
-| `docs/api` | the interface contract: **150 operations** over 116 paths and 147 schemas, hand-written OpenAPI, with the endpoint inventory and the design decisions |
-| `docs/roadmap` | the plan: fourteen epics in the order they are built, their stories, their design, and the rules that take an epic from its stories to delivered code |
+| `docs/spec` | the specification: its requirements, its Word and draw.io sources, the generated Markdown projection, the tools that produce it, and the reviews that shaped it |
+| `docs/api` | the interface contract, hand-written OpenAPI, with the endpoint inventory (which gives the count) and the design decisions |
+| `docs/roadmap` | the plan: the epics in the order they are built, their stories, their design, and the rules that take an epic from its stories to delivered code |
 | `docs/dev` | the development guide, the coding rules per language, and the rules the agents follow |
 | `docs/legal` | the contributor licence agreement and the project's commitments to its community edition, in French |
 | `backend/` | one Python package: the business core, the API service and the worker |
 | `frontend/` | the Next.js application, its client generated from the contract, its end-to-end paths |
 | `tools/` | the repository tools: requirement coverage, roadmap check, source rules, lot size |
 | `fixtures/` | the numeric examples of the specification, and the data the fake back serves |
-| `deploy/` | packaging: the development Compose today, the Helm chart later |
+| `deploy/` | packaging: the Compose files (development, service, demonstration, production), the Helm chart later |
 | `.github/workflows/` | the chain, run on every pull request |
 | `.claude/agents/` | the agents that frame an epic, deliver its lots, develop and review |
 
@@ -118,8 +120,10 @@ make generate-client      # regenerate the front's API client from the contract
 
 Prerequisites: [uv](https://docs.astral.sh/uv/), which brings Python 3.14 for the back and
 the tools; a Python 3.14 or later on the `PATH` as `python3`, which builds the projection;
-Node 26 and pnpm (`npm install --global pnpm`, once); Docker, for `make dev`; `pandoc` 3.13, the version the projection
-is generated with; and `mmdc` (`npm i -g @mermaid-js/mermaid-cli`) to validate the diagrams.
+Node 26 and pnpm (`npm install --global pnpm`, once); Docker, for `make dev`; `pandoc` 3.13, the
+version the projection is generated with; `openssl`; and, to validate the diagrams, `mmdc`,
+installed through npm. [`INSTALL.md`](INSTALL.md) (in French) says where to find pandoc 3.13 on
+Ubuntu 26.04, how to install `mmdc` and what to put in `~/.bashrc`.
 
 ## Stack
 

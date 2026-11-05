@@ -2683,8 +2683,8 @@ and their passwords, development values, are in `deploy/keycloak/development/`. 
 also adds `waterfall-test`, a public client that accepts a password outside the page of the
 realm, for the tokens the tests of the platform need: `admin-cli`, which Keycloak
 creates in each realm, no longer accepts one (#644), and its tokens are not for the API, for lack of
-the `waterfall-api` audience. These files are applied after the realm, under a remote state of their own
-(`--import.cache.key=development`, service `keycloak-realm`): keycloak-config-cli deletes the
+the `waterfall-api` audience. These files are applied after the realm, under a remote state of
+their own (`--import.cache.key=development`, service `keycloak-realm`): keycloak-config-cli deletes the
 clients its state names and that the files it applies do not declare, and without that the
 test client would take those of the realm with it.
 The directory is an image the repository builds, `deploy/openldap/Dockerfile`, on Debian's `slapd`
@@ -2777,9 +2777,9 @@ The Makefile gives each target what it needs, except what the environment gives 
 service platform — `service-up`, `service-install`, `service-logs`, `service-down`,
 `keycloak-authority`, `test-keycloak`, `e2e-service` — gets its project, the images of Keycloak and
 of the directory and its six ports; `build-keycloak`, the image of Keycloak; `e2e`, `e2e-measure`
-and `e2e-service`, the ports of the fake back and of the fronts; `check-front-image`, the image of the front. In a linked
-worktree that holds no slot, these targets fail before starting anything, saying `make slot`; the
-others do not ask for it. `make production-trial`, outside the slots — ports 80 and 443, project
+and `e2e-service`, the ports of the fake back and of the fronts; `check-front-image`, the image of
+the front. In a linked worktree that holds no slot, these targets fail before starting anything,
+saying `make slot`; the others do not ask for it. `make production-trial`, outside the slots — ports 80 and 443, project
 `waterfall-production-trial` —, runs at slot 0 alone: from the worktree of a lot, it fails at once,
 saying so.
 
@@ -3030,12 +3030,12 @@ The full tier aims at under eight minutes in the queue for its longest job
   Node 26: the shards start it in the Playwright image, in Node 24 (its
   `NODE_VERSION`, which the Node 26 lot does not change; `next start` runs the built files there,
   and Next 16 accepts Node 24, while pnpm 12 does not stop on `engines` without
-  `engine-strict`, which the front does not set), on the same Ubuntu noble in amd64, and at another path of the workspace
-  (`/__w/…` instead of `/home/runner/work/…`); `service.yml`, on the runner. The build does not depend
-  on that path: only `required-server-files.json`, which the standalone output of the image reads and
-  not `next start`, names it, and a build moved elsewhere, its original folder removed, serves its
-  pages (checked on 2026-10-25 on the workstation, by moving the build; the proof in the chain
-  will come from a run of `chain` on the branch of the lot).
+  `engine-strict`, which the front does not set), on the same Ubuntu noble in amd64, and at another
+  path of the workspace (`/__w/…` instead of `/home/runner/work/…`); `service.yml`, on the runner.
+  The build does not depend on that path: only `required-server-files.json`, which the standalone
+  output of the image reads and not `next start`, names it, and a build moved elsewhere, its
+  original folder removed, serves its pages (checked on 2026-10-25 on the workstation, by moving
+  the build; the proof in the chain will come from a run of `chain` on the branch of the lot).
 
 The back follows the same model (#492, lever 5):
 
