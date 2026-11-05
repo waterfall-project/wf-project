@@ -46,7 +46,12 @@ exploite.
 - l'image de construction de l'extension de Keycloak sur Maven 3.10 et un JDK 25, et ses
   bibliothèques de test et greffons ;
 - les quatre épinglages des Actions en retard d'un patch ;
-- la veille : Dependabot étendu à tous les écosystèmes du dépôt.
+- la veille : Dependabot étendu à tous les écosystèmes du dépôt ;
+- le faux back qui cherche comme le service : sa table d'`unaccent` est celle de PostgreSQL 18.6, que
+  la montée a changée sous lui (#1960, option 1 retenue par l'auteur le 2026-11-05) ;
+- la documentation d'installation d'un poste neuf : `INSTALL.md`, `README-fr.md`, `README.md` et
+  `CONTRIBUTING.md` relus en entier, et les six points que la mise au point du poste de l'auteur a
+  relevés (constat du 2026-11-05 sur #1925).
 
 ## Ce qui n'en fait pas partie
 
@@ -70,6 +75,9 @@ exploite.
   l'exigence ;
 - #1291 (`braces` tiré par `eslint-config-next`) et #1512 (Next 16.5) : ils restent à EP-13. La
   dernière `eslint-config-next` tire encore `braces` 3.0.3, et le bilan ne monte pas Next en 16.5 ;
+- l'essai de la documentation d'installation sur un poste neuf : la preuve d'US-1260 est la
+  relecture, contre le Makefile, les workflows et les Dockerfiles qui font foi (décision de l'auteur
+  du 2026-11-05) ;
 - les composants déjà à jour : Keycloak 26.8.1, keycloak-config-cli 6.5.1-26.5.5, Caddy 2.11.7,
   curl 8.23.0, Prism 5.16.0, l'image de Playwright v1.64.1.
 
@@ -103,7 +111,11 @@ Compose des services de test et du Makefile qu'EP-19 écrit.
   « Ce qui n'en fait pas partie » nomme ;
 - `.github/dependabot.yml` couvre les écosystèmes du dépôt ;
 - la chaîne tourne sur Ubuntu 26.04, et `make check-spec` passe sur le poste avec le pandoc que
-  la chaîne épingle.
+  la chaîne épingle ;
+- le faux back cherche comme le service : sa table d'`unaccent` est comparée à celle d'un
+  PostgreSQL 18 sur chaque point de code Unicode, sans différence (US-1250) ;
+- `INSTALL.md`, les README de la racine et `CONTRIBUTING.md` ne disent plus une étape, un ordre ou
+  une version que le Makefile, les workflows et les Dockerfiles démentent (US-1260).
 
 ## Constats reçus
 
@@ -362,6 +374,93 @@ ne subsiste.
   épinglages ; un travail qui suppose un outil du runner 24.04 absent du 26.04 l'installe, et la
   pull request le nomme.
 
+### Le faux back et la table d'`unaccent` de la 18 (US-1250)
+
+Aucune table, aucune migration, aucune opération du contrat. Trois pièces changent dans `tools/` :
+`wftools/unaccent.rules`, le lecteur `Unaccent.read` de `wftools/mocktext.py`, et
+`tests/test_mocktext.py` ; une seule du contrat : le texte de `docs/api/DECISIONS.md`. Le tableau de
+`docs/api/README-fr.md` et son pendant anglais disent « sa table livrée » sans version : ils ne
+changent pas.
+
+- **La table.** Le fichier `/usr/share/postgresql/18/tsearch_data/unaccent.rules` de l'image
+  `postgres` que la plateforme épingle au jour du lot (`compose.service.yaml`), tiré par
+  `docker run --rm --entrypoint cat <image> <chemin>`. Toutes les lignes après l'en-tête sont celles
+  de l'image, inchangées. L'en-tête garde les deux lignes SPDX, la licence PostgreSQL et le paragraphe
+  de permission de la copie 16 ; il dit la version (18.6 au cadrage), le chemin, et l'image par son
+  empreinte. La licence est déjà dans `LICENSES/PostgreSQL.txt`.
+- **Le lecteur.** Il lit le format de la 18 : champs séparés par des blancs, un champ pouvant être
+  entre guillemets doubles, qui gardent ses blancs, `""` y valant un guillemet (relevé sur l'image :
+  `" 1/4"` se lit ` 1/4`, `""""` se lit `"`). Une source seule reste une suppression, et une ligne qui
+  garde plus de deux champs une fois les guillemets lus reste refusée. Le lot lit la règle exacte dans
+  les sources de la 18 (`contrib/unaccent`) et la fait confirmer par la comparaison ci-dessous, non
+  par cette conception.
+- **La comparaison.** Une seule fois, par le lot : un PostgreSQL 18 des services de test
+  (`make test-services`), l'extension créée, `unaccent` demandé pour chaque point de code Unicode hors
+  substituts, puis `lower(unaccent(…))` pour chaque texte des exemples ; le faux back doit rendre les
+  mêmes chaînes. La pull request donne les nombres et `DECISIONS.md` le fait, comme pour la 16. Aucun
+  test permanent : les tests des outils n'ont pas de PostgreSQL, et en ajouter un pour une table
+  figée coûterait plus qu'il ne protège.
+- **Le contrat.** `DECISIONS.md`, « Une recherche translittère comme `unaccent`, puis met en
+  minuscules » : la copie est celle de la 18, la comparaison a été faite contre la 18, et la phrase
+  sur « ¼ » dit ` 1/4`. Elle prend la forme « Reformulé par EP-20/US-1250 » que le fichier emploie
+  déjà. Cette modification est faite sur la branche de l'EPIC, avec le code qui la fait vivre.
+
+### La documentation d'un poste neuf (US-1260)
+
+Aucune table, aucun code, aucune opération du contrat. Cinq fichiers : `INSTALL.md`, `README-fr.md`,
+`README.md` et `CONTRIBUTING.md`, plus `docs/dev/agents.md` ; le guide ne change pas. `make roadmap`
+lit `docs/dev/*.md` : toute commande `make` que le lot y cite existe au Makefile.
+
+- **L'ordre d'`INSTALL.md`.** Le poste se monte dans l'ordre où il le demande : les prérequis (avec
+  `openssl`, et la source de pandoc), puis un temps « Le shell », puis « Une seule fois ». Le temps
+  « Le shell » dit le `~/.bashrc` tel qu'il doit être, de haut en bas : le bloc du `PATH` (pnpm, Node
+  de nvm), la ligne qui charge le fichier des secrets, `WATERFALL_SLOTS`, puis la garde `case $- in`
+  d'Ubuntu. Tout ce qui doit se lire dans un shell non interactif précède la garde, et c'est la seule
+  règle que ce temps énonce, avec la panne qu'elle évite (`pnpm: not found`). Les étapes de la
+  plateforme de service gardent leur ordre.
+- **Les secrets.** Le fichier est `~/.config/waterfall/service.env`, en mode 600, de lignes
+  `export NOM=valeur`. `INSTALL.md` donne une commande qui l'engendre depuis le bloc `env` de
+  `.github/workflows/keycloak.yml` : les valeurs ne sont écrites que là. Le lot éprouve la commande
+  dans un répertoire temporaire et vérifie qu'elle rend les onze variables que lit le tableau de
+  « Commandes » du guide. L'auteur a éprouvé la disposition sur son poste : `make service-up`
+  démarre, `make check-keycloak` passe (133 tests).
+- **`mmdc` et AppArmor.** Installation par npm
+  (`npm install -g --allow-scripts=puppeteer @mermaid-js/mermaid-cli`). Sur Ubuntu 23.10 et plus, si
+  `kernel.apparmor_restrict_unprivileged_userns` vaut 1, le profil ci-dessous va dans
+  `/etc/apparmor.d/puppeteer-chrome`, puis `sudo apparmor_parser -r /etc/apparmor.d/puppeteer-chrome`.
+  Texte éprouvé par l'auteur (`mmdc` rend alors un diagramme), que `INSTALL.md` reprend tel quel :
+
+  ```
+  abi <abi/5.0>,
+  include <tunables/global>
+  profile puppeteer-chrome /home/*/.cache/puppeteer/chrome/*/chrome-linux64/chrome flags=(unconfined) {
+    userns,
+    @{exec_path} mr,
+  }
+  profile puppeteer-chrome-headless-shell /home/*/.cache/puppeteer/chrome-headless-shell/*/chrome-headless-shell-linux64/chrome-headless-shell flags=(unconfined) {
+    userns,
+    @{exec_path} mr,
+  }
+  ```
+- **La permission de la file de fusion.** Dans `docs/dev/agents.md`, une section « La mise en file »
+  après « Le pilote » : l'entrée de `permissions.allow` que l'auteur a posée dans
+  `~/.claude/settings.json`, qui n'autorise que cette mutation exacte pour n'importe quel
+  identifiant de pull request, éprouvée le 2026-11-05 (un livreur a mis #1978 en file avec elle) :
+
+  ```
+  "permissions": { "allow": [ "Bash(gh api graphql -f query='mutation($id:ID!){enqueuePullRequest(input:{pullRequestId:$id}){mergeQueueEntry{state}}}' -f id=*)" ] }
+  ```
+
+  Elle se pose dans `~/.claude/settings.json` pour tous les dépôts, ou dans `.claude/settings.json`
+  du clone pour un seul. La section dit aussi ce qu'elle n'autorise pas : aucune autre requête
+  GraphQL, et ni `gh pr merge` ni une fusion hors de la file. `CONTRIBUTING.md` y renvoie.
+- **La relecture.** Chaque fichier est lu en entier, une affirmation après l'autre, contre sa source :
+  une version contre son fichier de versions (`.python-version`, `package.json`, les Dockerfiles, le
+  Makefile, `spec.yml`), une commande contre le Makefile, un chiffre contre la commande qui l'établit
+  (`docs/api/INVENTORY.md`, `make requirements`). Un chiffre que rien n'engendre est remplacé par un
+  renvoi plutôt que recopié. `README-fr.md` fait foi, `README.md` le suit, `INSTALL.md` reste en
+  français, `CONTRIBUTING.md` en anglais.
+
 ### Ordre de construction
 
 1. US-1130, PostgreSQL 18 : la montée qui casse, d'abord, sur une branche où rien d'autre n'a bougé ;
@@ -374,12 +473,17 @@ ne subsiste.
 6. US-1170, Node et le front : indépendante des précédentes, sauf `compose.dev.yaml` et les
    workflows ; `@tanstack/virtual-core` en dernier (L3), une fois le reste du front monté ;
 7. US-1180, l'extension : `deploy/keycloak/Dockerfile`, après US-1150, qui éprouve la fédération ;
-8. US-1190, la veille : en dernier, sur les épinglages de leur forme finale.
+8. US-1250, le faux back : indépendante des autres, elle ne demande qu'US-1130, livrée, et ne touche
+   que `tools/` et `DECISIONS.md` ; elle se livre à tout moment ;
+9. US-1260, la documentation : après US-1200, US-1150, US-1160/L1 et US-1170/L1 et L2, pour relire
+   l'état final de ces quatre fichiers ;
+10. US-1190, la veille : en dernier, sur les épinglages de leur forme finale.
 
 Les fichiers qui reviennent : `compose.service.yaml` (US-1130, 1140, 1150),
 `compose.prod.yaml` (US-1130, 1140), `backend/Dockerfile` (US-1130, 1160), les workflows (US-1130,
 1140, 1170, 1190, 1200), le Makefile (US-1130, 1150, 1170, 1200), `INSTALL.md` et les README de la
-racine (US-1130, 1150, 1170, 1200). Le plan de lots en tire ses « Pas avec ».
+racine (US-1130, 1150, 1170, 1200). US-1250 ne partage aucun fichier avec les autres US ; US-1260 ne partage les siens qu'avec des US dont
+elle dépend. Le plan de lots en tire ses « Pas avec ».
 
 ### Décisions
 
@@ -400,6 +504,12 @@ racine (US-1130, 1150, 1170, 1200). Le plan de lots en tire ses « Pas avec ».
 | JDK 25 pour construire, `release 21` (auteur, 2026-11-03) | `release 25` : Keycloak 26.8.1 tourne sur OpenJDK 21 et ne chargerait pas l'extension ; tout garder en 21 : l'outil de construction prendrait du retard sans raison |
 | Les versions du bilan sont des planchers, le lot prend le dernier correctif de la série | les versions exactes du bilan : un lot livré une semaine plus tard reprendrait un retard, que Dependabot signalerait aussitôt |
 | Dependabot étendu, mensuel, mineures groupées et majeures seules (auteur, 2026-11-03) | Renovate : une application GitHub de plus ; une cible `make outdated` : elle n'ouvre aucune pull request, et le bilan resterait manuel |
+| Recopier la table d'`unaccent` de la 18.6 et adapter le lecteur, dans EP-20 (auteur, 2026-11-05, option 1 de #1960) | la reporter vers un EPIC suivant : EP-20 crée l'écart, et EP-05 s'appuie sur la recherche du faux back ; la laisser : l'écart est mesuré (« ¼ » donne ` 1/4` au service, `1/4` au faux back) |
+| La copie reste celle de l'image, le lecteur apprend les guillemets | réécrire la table pour qu'elle reste lisible par `split()` : une copie retouchée ne se compare plus au fichier de l'image, et c'est ce qui la prouve |
+| La comparaison à la 18 est faite une fois par le lot et consignée dans `DECISIONS.md` | un test permanent contre un PostgreSQL : les tests des outils n'en ont pas, et la table est figée jusqu'à la prochaine montée |
+| Les valeurs des secrets de poste ne s'écrivent que dans `keycloak.yml`, `INSTALL.md` donne la commande qui en tire le fichier (auteur, 2026-11-05) | copier les valeurs dans `INSTALL.md` : elles divergent déjà (`devpostgres`, `chainonlypostgres`) |
+| La permission d'`enqueuePullRequest` se documente dans `docs/dev/agents.md` et ne se versionne pas dans `.claude/settings.json` (auteur, 2026-11-05, pour l'endroit ; le choix de ne pas la versionner est du cadrage) | la poser dans le `.claude/settings.json` du dépôt : elle s'appliquerait à tous ceux qui clonent, et la porte d'une mutation de plus ne se donne pas par un fichier versionné |
+| La documentation d'installation se prouve par relecture contre ce qui fait foi (auteur, 2026-11-05) | un essai sur un poste neuf : il n'y en a pas de disponible |
 | Les minima de WF-CMP-0020 inchangés ; un constat de spécification les propose à 18 et 8 (auteur, 2026-11-03) | les changer dans EP-20 : aucun agent ne modifie la spécification |
 
 ---
@@ -651,3 +761,148 @@ qu'**un essai sur le poste dise ce que dira la chaîne.
 **Hors périmètre.**
 
 Toute modification du texte de la spécification.
+
+---
+
+## US-1250 — Le faux back cherche comme PostgreSQL 18
+
+- **statut** : à faire
+- **exigences** : aucune — outil du dépôt
+- **opérations** : aucune
+- **issue** : #1981
+
+**En tant que** développeur, **je veux** que le faux back translittère un texte cherché avec la table
+d'`unaccent` de PostgreSQL 18, celle de la version que sert la plateforme, **afin que** le faux back
+cherche comme le service, et que les parcours joués contre l'un se rejouent contre l'autre sans
+qu'une fraction ou un guillemet les départage.
+
+**Critères d'acceptation.**
+
+- propre à l'US : `tools/src/wftools/unaccent.rules` est la table que livre PostgreSQL 18.6, celui
+  de l'image que la plateforme épingle, telle que l'image la livre ; son en-tête dit la version, le
+  fichier d'où elle est copiée et l'image, par son empreinte, et garde la licence PostgreSQL ; la
+  pull request donne la commande qui compare la copie au fichier de l'image, et son résultat : aucune
+  différence hors l'en-tête ;
+- propre à l'US : `wftools.mocktext` lit la table de la 18 comme `unaccent` de la 18 la lit, ses
+  traductions entre guillemets comprises (`" 1/4"`, `""""`), et refuse toujours une ligne qu'il ne
+  sait pas lire : « ¼ » se lit ` 1/4`, l'espace en tête comprise, comme le service ;
+- propre à l'US : la table du faux back est comparée au `unaccent` que livre un PostgreSQL 18, sur
+  chaque point de code Unicode, et `folded` à `lower(unaccent(…))` sur chaque texte des exemples :
+  aucune différence ; la pull request donne les nombres comparés ;
+- propre à l'US : `tools/tests/test_mocktext.py` éprouve ce que la 18 change par rapport à la 16 —
+  les traductions entre guillemets, « ¼ » et les guillemets droits — ; un attendu des cas existants
+  ne change que là où la 18 diffère de la 16, et la pull request nomme chacun ;
+- propre à l'US : aucun exemple engendré ne change (`make mock-data` et `make check-fixtures`
+  donnent le même résultat) ; si un exemple change, le lot ouvre un constat que l'auteur tranche ;
+- propre à l'US : `docs/api/DECISIONS.md`, « Une recherche translittère comme `unaccent`, puis met
+  en minuscules », dit que la table est celle de PostgreSQL 18 et que la comparaison a été faite
+  contre un PostgreSQL 18, sous la mention « Reformulé par EP-20/US-1250 » avec ce que la 18
+  change ; aucun fichier du dépôt ne dit plus que la table vient de PostgreSQL 16 ; aucune autre
+  ligne du contrat ne change.
+
+**Notes de réalisation.**
+
+- **D'où vient le travail.** Constat #1960, relevé par US-1130 : depuis la montée, le service
+  tourne sur PostgreSQL 18.6, dont la table diffère de la copie 16.14 que lit le faux back. L'auteur
+  retient l'option 1 (2026-11-05) : recopier la table de la 18.6 et rejouer la comparaison de
+  `DECISIONS.md` contre un PostgreSQL 18, dans EP-20.
+- **L'écart est réel, il se voit sur « ¼ ».** Relevé au cadrage sur l'image `postgres:18-trixie`
+  (18.6) : `unaccent('¼')` y donne ` 1/4`, l'espace en tête comprise, là où la copie 16 donne `1/4`.
+  La table de la 18 compte 2 661 règles contre 1 650, soit 1 011 sources nouvelles et aucune retirée,
+  et 29 lignes dont la traduction change. Le fichier change de forme : 28 traductions y sont entre
+  guillemets, ce que la lecture actuelle (`split()`) refuserait comme « plus de deux chaînes ».
+- **Comment `make lot-size` compte la table.** `unaccent.rules` n'est ni engendré
+  (`tools/paths.toml`), ni un test, ni un fichier source : il tombe dans « autre », en entier. Le
+  diff de la table pèse environ 1 075 lignes (1 040 ajoutées, 29 retirées, l'en-tête), et le lot
+  environ 1 170 avec le lecteur, les tests et la décision, dont une trentaine de lignes de code de
+  production. Il reste sous la barre de 1 500 lignes et de 800 lignes de production ; la revue ne
+  lit pas la table ligne à ligne, mais la commande qui la compare au fichier de l'image, et le
+  lecteur. L'auteur accepte qu'une copie de données ne se découpe pas (2026-11-05) : si la mesure
+  dépassait, le lot ne se couperait pas pour autant.
+- **Rien de commun avec US-1160/L1.** Le changement de cible de ruff (`py314`) ne réécrit ni
+  `mocktext.py` ni `test_mocktext.py` (essai du 2026-11-05 : 58 constats dans les outils, aucun dans
+  ces fichiers).
+
+---
+
+## US-1260 — La documentation d'installation d'un poste neuf
+
+- **statut** : à faire
+- **exigences** : aucune — outil du dépôt
+- **opérations** : aucune
+- **issue** : #1982
+
+**En tant que** développeur, **je veux** que `INSTALL.md` et les README disent tout ce qu'un poste
+neuf demande, dans l'ordre où il le demande et aux versions que le dépôt épingle, **afin de** monter
+un poste en lisant ces seuls documents, sans retomber sur les pannes qu'a relevées la mise au point
+du poste de l'auteur.
+
+**Critères d'acceptation.**
+
+- propre à l'US : `INSTALL.md` dit que le bloc qui met `pnpm` et Node (celui de nvm) dans le `PATH`
+  — `PNPM_HOME` compris — précède la garde `case $- in` de `~/.bashrc`, et pourquoi : sans cela, un
+  shell non interactif, celui des agents ou de `bash -c`, répond `pnpm: not found` ;
+- propre à l'US : `INSTALL.md` dit d'installer `mmdc` par npm
+  (`npm install -g --allow-scripts=puppeteer @mermaid-js/mermaid-cli`) et non par le snap, dont le
+  `/tmp` propre fait échouer `make build-doc` et `make check-spec` ; et, sur Ubuntu 23.10 et plus,
+  où `kernel.apparmor_restrict_unprivileged_userns` vaut 1, le profil AppArmor qui accorde `userns`
+  au Chrome de puppeteer, avec le texte du profil (« Conception ») ;
+- propre à l'US : `INSTALL.md` nomme les onze variables `WATERFALL_*` de `make service-up` et renvoie,
+  pour leurs valeurs de poste, au bloc `env` de `.github/workflows/keycloak.yml`, sans les copier ;
+  il les range dans `~/.config/waterfall/service.env`, de mode 600, que le `~/.bashrc` charge avant la
+  garde `case $- in`,
+  et ne donne plus de valeurs qui diffèrent de celles du workflow alors qu'il dit s'y référer ;
+- propre à l'US : `INSTALL.md` dit la version de pandoc qu'attend `make check-tools` et comment
+  l'obtenir sur Ubuntu 26.04, et qu'une autre version fait échouer `make check-spec` ;
+- propre à l'US : `INSTALL.md` dit `WATERFALL_SLOTS`, le nombre de créneaux du poste, où le poser
+  — avant la garde, pour que les shells non interactifs le lisent — et renvoie au guide
+  (« Commandes ») pour ce qu'il borne ;
+- propre à l'US : `docs/dev/agents.md` dit la règle de permission qui laisse un livreur mettre sa
+  pull request en file de fusion par la mutation `enqueuePullRequest` (l'entrée de
+  `permissions.allow` de « Conception »), où elle se pose et ce qu'elle n'autorise pas ; `CONTRIBUTING.md` y renvoie ;
+- propre à l'US : `INSTALL.md`, `README-fr.md`, `README.md` et `CONTRIBUTING.md` sont relus en
+  entier, comme le ferait quelqu'un qui installe un poste neuf, et chaque étape manquante, chaque
+  ordre faux et chaque version périmée est corrigé contre ce qui fait foi (le Makefile, les
+  workflows, les Dockerfiles, les fichiers de versions) ; la pull request liste, fichier par
+  fichier, ce qu'elle a corrigé et ce qu'elle a vérifié sans rien changer ;
+- propre à l'US : ces quatre fichiers disent Python 3.14, uv et le `python3` du système tels que
+  l'EPIC les épingle, Node 26 et pnpm tel qu'US-1170 les installe, l'annuaire que le dépôt
+  construit, et la pandoc d'US-1200 — aucune version d'avant la migration ne subsiste ;
+- propre à l'US : `README-fr.md` et `README.md` restent la traduction l'un de l'autre, et
+  `INSTALL.md` comme `CONTRIBUTING.md` ne se contredisent pas sur un prérequis ;
+- propre à l'US : la pull request dit que la documentation n'a pas été rejouée sur un poste neuf, et
+  donne, pour chaque commande ou version qu'elle affirme, le fichier qui la fonde.
+
+**Notes de réalisation.**
+
+- **D'où vient le travail.** Constat du 2026-11-05 sur #1925, relevé en mettant le poste de l'auteur
+  au point pendant le pilotage d'EP-20 :
+  https://github.com/waterfall-project/wf-project/issues/1925#issuecomment-6650689459. Décisions
+  de l'auteur du même jour : la preuve est la relecture, sans essai sur un poste neuf ; la revue
+  porte sur les quatre fichiers en entier ; les valeurs des secrets renvoient au workflow ; la
+  règle de `enqueuePullRequest` va dans `docs/dev/agents.md`, avec un renvoi de `CONTRIBUTING.md` ;
+  le travail reste dans EP-20.
+- **Se livre après** US-1200 (pandoc, toutes les occurrences de ces fichiers), US-1150 (l'annuaire
+  que `INSTALL.md` nomme), US-1160/L1 (Python, que ces fichiers citent) et US-1170/L1 et L2 (Node,
+  pnpm sans corepack) : le lot relit l'état final de ces quatre fichiers, pas celui d'avant.
+- **Inexactitudes relevées au cadrage**, dans l'état de `epic/EP-20` et de la branche d'US-1200,
+  que la relecture confirmera ou complétera : Python 3.13 et « Python 3.11 ou plus » (les trois
+  fichiers) ; Node 24 et `corepack enable pnpm` (que l'US-1170 réécrit) ; `openssl`, qu'emploie
+  `INSTALL.md` pour `WATERFALL_STORAGE_RPC_SECRET` sans le dire parmi les prérequis ; la source de
+  pandoc, que le tableau des prérequis ne dit pas ; des valeurs de secrets que le texte attribue à
+  `keycloak.yml` et qui n'y sont pas (`devpostgres` contre `chainonlypostgres`) ; et, dans
+  `README-fr.md` et `README.md`, des chiffres et un état que le dépôt a dépassés — « 203 exigences »,
+  « 150 opérations sur 116 chemins et 147 schémas » (`docs/api/INVENTORY.md` dit 169 sur 131),
+  « quatorze EPIC » (vingt-deux fichiers), « le back vient ensuite, en commençant par EP-03 »
+  (livré), « le Compose de développement aujourd'hui ».
+- **Les valeurs des secrets ne se copient pas.** Le workflow `keycloak.yml` est la seule source des
+  valeurs de poste ; `INSTALL.md` en donne les noms, et la commande qui les range dans le fichier.
+- **Taille.** Documentation seulement, aucune ligne de code : environ 450 lignes, de 350 à 700 selon
+  ce que la relecture trouve. Si elle dépassait la barre, le lot se couperait en deux : les six
+  points du constat, puis la relecture des quatre fichiers.
+
+**Hors périmètre.**
+
+Un essai de la documentation sur un poste neuf. Le guide de développement, qui dit déjà où poser
+`WATERFALL_SLOTS`. Les messages de `make check-tools`. L'installation de Claude Code et ses autres
+réglages que la permission d'`enqueuePullRequest`.
