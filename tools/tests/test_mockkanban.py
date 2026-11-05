@@ -3,7 +3,8 @@
 """Tests of the Kanban of the witness: the gestures of its cards, and what they answer (US-0540).
 
 They try the simplifications of the fake back against the readings of the witness, not the Vérif
-of a requirement: none cites one (WF-QUA-0010, « un test qui ne couvre aucune exigence »).
+of a requirement: none cites one (WF-QUA-0010, « un test qui ne couvre aucune exigence »), but the
+two of US-1240 (#1851), which hold a phrase of the Vérif of WF-PLA-0040-A and cite it.
 """
 
 import json
@@ -104,6 +105,7 @@ def test_a_provision_line_holds_no_task_from_completing_from_the_kanban() -> Non
     assert _gestures(card) == [("complete", True, [], "completed")]
 
 
+@pytest.mark.requirement("WF-PLA-0040-A")
 def test_the_summary_awaiting_its_own_lines_is_listed_started_with_its_gestures() -> None:
     # #1851: in the variant of `nodes_awaiting_own_lines`, the studies, every subordinate
     # completed, their line of 500 open, are listed among the tasks started, first in the order
@@ -126,6 +128,7 @@ def test_the_summary_awaiting_its_own_lines_is_listed_started_with_its_gestures(
     assert summaries == [universe(N.STUDIES)]
 
 
+@pytest.mark.requirement("WF-PLA-0040-A")
 def test_a_summary_whose_one_own_line_is_a_provision_is_completed_and_not_listed() -> None:
     # WF-PLA-0040 : « une récapitulative dont toutes les subordonnées sont terminées et dont la
     # seule ligne propre est une provision de 40 est terminée et n'est pas signalée » — the same

@@ -8,9 +8,10 @@ its issue « contrat » carries it to the contract, to its examples and to their
 and to the readings it derives from. They try the examples of the fake back, not the Vérif of a
 requirement: none cites one (WF-QUA-0010, « un test qui ne couvre aucune exigence »); the
 criterion they bear is the US's own, « chaque majeur de la revue du 2026-10-31 […] porté au
-contrat, à ses fixtures et à ses générateurs ». But those of US-1240 (#1851): the Kanban lists the
-summary that awaits its own lines, and they hold two phrases of the Vérif of WF-PLA-0040-A on the
-contract and its examples, which they cite.
+contrat, à ses fixtures et à ses générateurs ». But two of those of US-1240 (#1851: the Kanban
+lists the summary that awaits its own lines) hold two phrases of the Vérif of WF-PLA-0040-A on the
+contract and its examples, and cite it; the third, which holds the written decision and the
+version kept, bears the criterion of the US alone and cites none.
 """
 
 import json
@@ -407,6 +408,15 @@ def test_the_provision_line_of_the_summary_awaiting_its_own_lines_is_never_what_
         (mockreview.OWN_LINE.label, False, "500.00"),
         (mockreview.OWN_PROVISION.label, True, "40.00"),
     ]
+    # What keeps the summary started is the line of 500, open to the entry of its remaining; the
+    # provision, which the server computes, refuses it, and holds nothing.
+    entries = {each["label"]: each["remaining_entry"] for each in own}
+    assert entries[mockreview.OWN_LINE.label] == {"is_available": True, "missing_conditions": []}
+    assert entries[mockreview.OWN_PROVISION.label] == {
+        "is_available": False,
+        "missing_conditions": ["line_not_provision"],
+    }
+    assert summary["task"]["awaiting_own_lines"] is True
 
 
 def test_the_decision_of_the_kanban_summary_is_written_and_the_version_kept() -> None:
