@@ -2,7 +2,7 @@
 
 ## Ce que montre l’écran
 
-La grille de l’écran de [planification](FBS-4.3.md) : une ligne par tâche de la structure lue, dans l’ordre du plan, chaque récapitulative au-dessus de ses subordonnées, la poignée et le numéro de ligne en tête, le Gantt en dernière colonne. Les totaux de la réponse sont en pied. Le planning ne montre aucune ligne de devis : elles se lisent au devis.
+La grille de l’écran de [planification](FBS-4.3.md) : une ligne par tâche de la structure lue, dans l’ordre du plan, chaque récapitulative au-dessus de ses subordonnées, la poignée et le numéro de ligne en tête, le Gantt en dernière colonne. Les totaux de la réponse sont en pied. Une recherche ou un filtre qui ne retient aucune tâche, sur une structure qui en a, laisse une grille vide qui le dit — « Aucune ligne ne répond à la demande », total « aucune tâche » — et n’offre pas le squelette, réservé à une structure sans tâche. Le planning ne montre aucune ligne de devis : elles se lisent au devis.
 
 Une tâche se saisit au clavier, cellule par cellule, là où la structure lue liste « Modifier le planning » disponible : son libellé, sa description, son mode de planification, sa durée, ses dates quand elles ne sont pas calculées, ses prédécesseurs, son rattachement au lotissement. Une saisie refusée est dite au-dessus de la grille, et sa cellule est marquée.
 
@@ -10,8 +10,8 @@ Une tâche se saisit au clavier, cellule par cellule, là où la structure lue l
 
 Les gestes de structure, dans le menu d’une cellule et à leurs touches :
 
-- **Insérer au-dessous** (`Inser`) crée une tâche au même niveau, sous la ligne active ; **Insérer une sous-tâche** (`Alt+Inser`) la crée sous la tâche de la ligne. Un jalon n’a pas de sous-tâche. La tâche se nomme dans un dialogue : elle est créée feuille, en mode automatique, d’un jour, sans prédécesseur.
-- **Indenter** (`Alt+Maj+→`), **Désindenter** (`Alt+Maj+←`), **Monter** (`Alt+Maj+↑`) et **Descendre** (`Alt+Maj+↓`) déplacent la ligne active, ou la sélection quand la ligne en fait partie ; une récapitulative emporte ses subordonnées. Un déplacement n’est offert que si les lignes déplacées sont des sœurs qui se suivent et que la voisine sur laquelle il repose est montrée : une recherche ou un filtre peuvent le retirer. On n’indente pas sous un jalon.
+- **Insérer au-dessous** (`Inser`) crée une tâche au même niveau, sous la ligne active ; **Insérer une sous-tâche** (`Alt+Inser`) la crée sous la tâche de la ligne. Un jalon n’a pas de sous-tâche : **Insérer une sous-tâche** reste affiché sur un jalon, indisponible, et dit pourquoi ; au clavier, `Alt+Inser` sur un jalon ne fait rien, pour la même raison. La tâche se nomme dans un dialogue : elle est créée feuille, en mode automatique, d’un jour, sans prédécesseur.
+- **Indenter** (`Alt+Maj+→`), **Désindenter** (`Alt+Maj+←`), **Monter** (`Alt+Maj+↑`) et **Descendre** (`Alt+Maj+↓`) déplacent la ligne active, ou la sélection quand la ligne en fait partie ; une récapitulative emporte ses subordonnées. Un déplacement n’est offert que si les lignes déplacées sont des sœurs qui se suivent et que la voisine sur laquelle il repose est montrée : une recherche ou un filtre peuvent le retirer. On n’indente pas sous un jalon : **Indenter** est alors affiché indisponible, avec sa condition ; au clavier, `Alt+Maj+→` sous un jalon ne fait rien, pour la même raison.
 - **Supprimer** (`Ctrl+Suppr`) supprime la ligne active ; une récapitulative, après confirmation, avec ses subordonnées, leurs lignes et leurs liaisons.
 - **Chronologies** coche les chronologies auxquelles la tâche est inscrite ; **Suivi temps/temps** inscrit un jalon au suivi des jalons contractuels. **Créer une chronologie…** en crée une, quand le projet n’en a pas.
 

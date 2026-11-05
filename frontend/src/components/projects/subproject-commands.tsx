@@ -279,6 +279,7 @@ export function SubprojectHead({ offer }: { readonly offer: CommandOffer | undef
             size="sm"
             aria-disabled={offer.is_available ? undefined : true}
             aria-describedby={unmet}
+            aria-haspopup="dialog"
             className={UNAVAILABLE}
             onClick={(event: MouseEvent<HTMLElement>) => {
               if (offer.is_available) {
@@ -368,6 +369,7 @@ export function ModifySubproject({ row }: { readonly row: Subproject }) {
         label={name}
         help={said("modify.help")}
         unavailable={writing ? form("writing") : undefined}
+        aria-haspopup="dialog"
         aria-busy={writing}
         className={UNAVAILABLE}
         onClick={(event: MouseEvent<HTMLElement>) => {
@@ -427,6 +429,7 @@ export function DeleteSubproject({ row }: { readonly row: Subproject }) {
     <CellCommand
       label={name}
       help={said("deleteSubproject.help")}
+      aria-haspopup="dialog"
       onClick={(event: MouseEvent<HTMLElement>) => {
         commands?.open({ row, trigger: event.currentTarget, deleting: true });
       }}

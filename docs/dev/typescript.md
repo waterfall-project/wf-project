@@ -111,7 +111,9 @@ Un composant serveur ne prend pas d'identifiant de `useId` : il nomme une sectio
 Un module serveur — une page de `src/app`, un module sans directive, une action `"use server"` —
 n'importe d'un module `"use client"` que des composants et des types : toute autre valeur, une
 constante, une fonction, y arrive en référence au client (défaut n° 12). Ce que les deux côtés
-lisent vit dans un module sans directive.
+lisent vit dans un module sans directive. La directive d'un utilitaire de test (`src/test/held-link.ts`)
+n'a d'effet que sur ces gardes d'import : Vitest ne sépare pas les deux mondes, et elle dit seulement
+que le module est celui du navigateur, que les tests du projet `dom` importent seuls.
 
 *Pourquoi* : moins de code envoyé au navigateur, et une seule source pour chaque donnée :
 la réponse de l'API. Et les identifiants que React donne aux composants serveur d'une page et aux
@@ -137,16 +139,21 @@ dont les cellules ne prennent pas le focus a la boîte où elle défile dans l'o
 groupe nommé comme elle, son focus un contour tracé à l'intérieur de son bord (`list` de `Table`,
 que `ListTable` et la lecture en table d'une chronologie (`TimelineChart`) posent ; `scrollingList` pour une autre boîte, les valeurs d'une
 courbe) : plus large que sa boîte, elle défile alors aux flèches dans tous les navigateurs — Safari
-ne rend pas focalisable de lui-même un conteneur qui défile.
+ne rend pas focalisable de lui-même un conteneur qui défile. Un bouton qui ouvre un dialogue le dit,
+`aria-haspopup="dialog"`, comme le déclencheur d'un dialogue de Radix (`DialogTrigger`), même quand
+le dialogue s'ouvre par un état : un lecteur d'écran l'annonce, et le harnais n'ouvre que ce qui le
+dit (US-0710). Un menu déroulant n'est pas modal (`DropdownMenu`) : modal, Radix cache le reste de la
+page au lecteur d'écran sans le sortir de l'ordre du clavier.
 
 *Pourquoi* : l'accessibilité minimale de la spécification (§3.6), et des parcours qui
 trouvent les éléments comme un utilisateur. *Contrôle* : les quelques règles `jsx-a11y`
 qu'active la configuration de Next.js ; les parcours de bout en bout, par `getByRole` ; sur
-chaque écran de l'application, tel qu'il s'ouvre, `e2e/accessibility.spec.ts` (`make e2e`) : les
-règles d'axe pour WCAG A et AA, en clair et en sombre, les libellés et les descriptions, et le parcours
-au clavier, à 1366 et à 911 points (guide, « Un parcours de bout en bout ») ; `expectAccessible`
-dans les tests des composants, pour une partie des dialogues, des menus et des formulaires que le
-harnais n'ouvre pas (#782 pour le reste) ; le reste, la revue.
+chaque écran de l'application, tel qu'il s'ouvre et avec ce qu'un geste y ouvre — un dialogue, un
+menu, l'éditeur d'une cellule —, `e2e/accessibility.spec.ts` (`make e2e`) : les règles d'axe pour
+WCAG A et AA, les libellés et les descriptions, et le parcours au clavier, en clair et en sombre, à
+1366 et à 911 points (guide, « Un parcours de bout en bout ») ; `expectAccessible` dans les tests
+des composants, pour ce que le harnais n'ouvre pas — un refus, ce qu'ouvre un menu — ; le reste, et
+qu'un bouton qui ouvre un dialogue le dise, la revue.
 
 ### Les tests
 
@@ -423,8 +430,10 @@ partage le même invariant. Un défaut trouvé en revue et qui peut revenir s'aj
     qu'elle soit (`settings-forms.tsx`, `project-form.tsx`, `backup-schedule.tsx` ; la modification
     d'un sous-projet tant que celle de ce sous-projet est en route, `subproject-commands.tsx`), ou
     son pareil pour un dialogue qui n'est pas un formulaire du référentiel (la liste des
-    contributeurs, `contributor-commands.tsx`, EP-14/L54, #734). La preuve, dans chacun de
-    `settings-forms.dom.test.tsx`, `project-form.dom.test.tsx` et `backup-schedule.dom.test.tsx` :
+    contributeurs, `contributor-commands.tsx`, EP-14/L54, #734). Les confirmations en ligne
+    (`ConfirmedCommand`) tiennent de même leur commande inactive par `writing` de `Command`, tant
+    que leur état `busy` est vrai (#1364, `revision-commands.dom.test.tsx`). La preuve, dans chacun
+    de `settings-forms.dom.test.tsx`, `project-form.dom.test.tsx` et `backup-schedule.dom.test.tsx` :
     l'écriture retenue, le dialogue fermé, la commande a le focus, inactive, et un clic n'ouvre
     rien ; libérée, la commande se lève et le formulaire rouvert écrit depuis la version de la
     réponse — après un succès ; après un refus arrivé le dialogue fermé (les seuils refusés, le code
@@ -469,9 +478,11 @@ partage le même invariant. Un défaut trouvé en revue et qui peut revenir s'aj
     retient pas non plus l'écran quitté par « Précédent » (vercel/next.js#99612, `held.ts`) :
     l'écran d'arrivée s'affiche aussitôt, l'écriture encore en route, et son refus est dit par la
     barre de la coquille (#863, `shell.spec.ts`, `preferences-form.tsx`) ; la retenue, et `away`,
-    valent pour une écriture attendue dans une transition (`startTransition(async …)` avec
-    `held(…)`) : celle d'un dialogue modal, ou d'un fichier classé « sans objet » par l'audit de
-    #1491. Le refus dit à un champ qui prend le
+    valent pour une écriture attendue dans une transition (`startTransition(async …)`, avec
+    `held(…)` quand la commande l'emploie) : celle d'un dialogue modal, ou d'une commande dont la
+    réponse ne laisse à l'écran rien de ce que `pending` garde — `pending` non lu, le dialogue qui le
+    porte fermé au commit même de la réponse, ou la réponse portée par un magasin externe (n° 18).
+    Le refus dit à un champ qui prend le
     focus se pose avec la réponse, et le focus passe dans un effet, après le commit qui pose le
     refus : donné dans la foulée, il arrive avant la description du champ, et un lecteur d'écran
     annonce le champ sans son refus (`reference-form.tsx`, `role-commands.tsx`,

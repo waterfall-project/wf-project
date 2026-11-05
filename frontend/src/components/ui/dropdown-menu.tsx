@@ -20,9 +20,14 @@ const SURFACE =
 const ENTRY =
   "relative flex cursor-default items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-hidden select-none focus:bg-accent focus:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 [&_svg:not([class*='text-'])]:text-muted-foreground";
 
-/** A menu: its trigger and its content. */
+/**
+ * A menu: its trigger and its content. Not modal, as the menu button of ARIA is not: a modal menu
+ * of Radix hides the rest of the page from a reader of the screen while it keeps it in the order of
+ * the keyboard, which axe refuses (`aria-hidden-focus`, US-0710). The menu keeps the focus all the
+ * same — Tab does not leave it —, and a click outside closes it.
+ */
 export function DropdownMenu(props: ComponentProps<typeof DropdownMenuPrimitive.Root>) {
-  return <DropdownMenuPrimitive.Root data-slot="dropdown-menu" {...props} />;
+  return <DropdownMenuPrimitive.Root data-slot="dropdown-menu" modal={false} {...props} />;
 }
 
 /** The control that opens a menu. */

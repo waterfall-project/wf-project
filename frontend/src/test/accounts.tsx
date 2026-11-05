@@ -21,7 +21,7 @@ import { PendingAddress } from "@/components/grid/pending-address";
 import type { GridPreferences } from "@/components/grid/settings";
 import { CATALOGUES } from "@/i18n/catalogues";
 
-import { example, type FakeClient, type FakeTiming } from "./fixtures";
+import { example, type FakeClient, type FakeTiming, held } from "./fixtures";
 
 type Schemas = components["schemas"];
 
@@ -84,23 +84,16 @@ export function told(): HTMLElement {
 }
 
 /** Hold the answers of a route until released: a write under way. */
-export function holdRoute(held: string): {
+export function holdRoute(route: string): {
   readonly timing: FakeTiming;
   readonly release: () => void;
 } {
-  const settles: (() => void)[] = [];
-  const until = new Promise<void>((settle) => {
-    settles.push(settle);
-  });
+  const { until, release } = held();
   return {
     timing: {
-      hold: (route) => (route === held ? until : undefined),
+      hold: (asked) => (asked === route ? until : undefined),
     },
-    release: () => {
-      for (const settle of settles) {
-        settle();
-      }
-    },
+    release,
   };
 }
 

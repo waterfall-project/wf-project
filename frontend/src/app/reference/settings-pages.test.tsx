@@ -56,7 +56,7 @@ function servedTo(session: "me" | "me_manager") {
 }
 
 /** The note that says the fake back keeps nothing. */
-const MOCKUP = /role="note"[^>]*>.*?le service simulé répond/;
+const MOCKUP = /role="note"[^>]*>.*?le service simulé ne conserve/;
 
 beforeEach(() => {
   servedTo("me");

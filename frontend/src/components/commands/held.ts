@@ -19,7 +19,12 @@ import { useCallback, useEffect, useRef } from "react";
 import type { Outcome } from "@/api/problem";
 import { shownScreen } from "@/components/notices/message-history";
 import { useShownProjectLabel } from "@/components/shell/shown-project";
-import { holdNavigation, wasApplied, type WriteAnswer } from "@/navigation/held-writes";
+import {
+  broughtBack,
+  holdNavigation,
+  wasApplied,
+  type WriteAnswer,
+} from "@/navigation/held-writes";
 
 import { rejected } from "./rejection";
 
@@ -45,8 +50,12 @@ import { rejected } from "./rejection";
  * in the page holds its gesture by a local state, no transition (#1484): its screen goes at once, and
  * its write, released still under way, is told by the bar once refused. Brought back
  * to its path by « Suivant » or « Précédent » before the refusal, the screen tells it itself, the bar
- * nothing. This holds as long as the router keeps that order, a behaviour of Next that may change —
- * possibly a defect of it, a traversal waiting for an action it does not depend on.
+ * nothing; brought back after it, before the router showed the entry traversed to, the screen,
+ * never gone, tells it, and the bar takes back what it told meanwhile (`broughtBack`, #1476).
+ * Until its write answers, the screen left that way, shown still, holds its clicks: its writes are
+ * released only as it goes. This holds as long as the router keeps that order, a behaviour of Next
+ * that may change — possibly a defect of it, a traversal waiting for an action it does not depend
+ * on.
  */
 export function useHeldWrites(
   scope?: string,
@@ -62,12 +71,16 @@ export function useHeldWrites(
     const shown = window.location.pathname;
     const traversed = () => {
       left.current = window.location.pathname !== shown;
+      if (!left.current) {
+        // Back on its path, never gone: the screen tells what the bar told while it was away.
+        broughtBack(away);
+      }
     };
     window.addEventListener("popstate", traversed);
     return () => {
       window.removeEventListener("popstate", traversed);
     };
-  }, []);
+  }, [away]);
   useEffect(() => {
     const held = releases.current;
     return () => {

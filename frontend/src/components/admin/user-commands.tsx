@@ -20,6 +20,8 @@
  * the table, named after it, as the condition an unavailable command lacks; a refusal of the switch,
  * of the roles, of the anonymisation or of the link, above it by the catalogue of the codes of error,
  * on the reading it was asked from alone (`Reactivations`, défaut n° 1), that of a name, at its cell.
+ * The navigations of the page wait for each write, and do not take place when it is refused: the
+ * list holds those whose refusal it tells (`held` of the list, #688), the cell those of a name.
  * Every prop is data, never a function (défaut n° 12).
  */
 "use client";
@@ -40,6 +42,7 @@ import { anonymizeUser, createPasswordSetupLink, resendInvitation } from "@/api/
 import type { components } from "@/api/generated/schema";
 import type { Outcome } from "@/api/problem";
 import { useAccountNaming } from "@/components/account/account-name";
+import { useHeldCommand } from "@/components/commands/held";
 import { rejected } from "@/components/commands/rejection";
 import { type Say, useSaid } from "@/components/notices/said";
 import { Reactivations, useListReport } from "@/components/reference/reactivation";
@@ -86,7 +89,10 @@ export interface UserWrites {
   readonly busy: ReadonlySet<string>;
   /** The account as it stands now: the one last answered, or the one read when it is as new. */
   readonly latest: (read: User) => User;
-  /** Write an account by its switch or its roles, unless a write of it is under way. */
+  /**
+   * Write an account by its switch, its roles or the confirmation of its anonymisation; when a
+   * write of it is under way, nothing is written and the region of the table says so (#941).
+   */
   readonly run: (shown: User, write: UserWrite) => void;
   /**
    * Write an account once the writes of its row under way are answered — a name entered —, its
@@ -176,6 +182,9 @@ function focusBack(trigger: HTMLElement, list: (() => void) | undefined) {
 function Writes({ children }: { readonly children: ReactNode }) {
   const t = useTranslations("admin.users");
   const list = useListReport();
+  // The list, which tells the refusals, holds the navigations while the writes answer (#688, #889).
+  const own = useHeldCommand();
+  const held = list?.held ?? own;
   const naming = useAccountNaming();
   // What the last write did, noted in the history of the messages as it is said.
   const [said, say] = useSaid();
@@ -251,31 +260,34 @@ function Writes({ children }: { readonly children: ReactNode }) {
     (shown: User, write: UserWrite) => {
       const id = shown.user_id;
       if (asking.current.has(id)) {
+        // A write of the row under way (a name entered, say, while the confirmation was open): the
+        // press writes nothing, and says it (#941).
+        say(t("rowBusy", { name: naming.person(shown) }), { noted: false });
         return;
       }
       setAsked((before) => new Map(before).set(id, write.asked));
       // The reading the row is written on: its refusal is told on it alone.
       const generation = list?.generation ?? 0;
-      void reserve(shown, { send: (user) => write.send(user).catch(rejected), said: write.said })
-        .catch(rejected)
-        .then((outcome) => {
-          setAsked((before) => {
-            const after = new Map(before);
-            after.delete(id);
-            return after;
-          });
-          if (outcome.kind !== "done") {
-            list?.report({
-              outcome,
-              generation,
-              names: {},
-              target: write.target,
-              back: write.back,
-            });
-          }
+      void held(
+        reserve(shown, { send: (user) => write.send(user).catch(rejected), said: write.said }),
+      ).then((outcome) => {
+        setAsked((before) => {
+          const after = new Map(before);
+          after.delete(id);
+          return after;
         });
+        if (outcome.kind !== "done") {
+          list?.report({
+            outcome,
+            generation,
+            names: {},
+            target: write.target,
+            back: write.back,
+          });
+        }
+      });
     },
-    [list, reserve],
+    [list, held, reserve, say, t, naming],
   );
   const releaseLink = useCallback(() => {
     linkHeld.current = false;
@@ -292,18 +304,16 @@ function Writes({ children }: { readonly children: ReactNode }) {
       const id = user.user_id;
       // The reading the link is asked from: its refusal is told on it alone.
       const generation = list?.generation ?? 0;
-      void createPasswordSetupLink(id)
-        .catch(rejected)
-        .then((outcome) => {
-          if (outcome.kind === "done") {
-            setGiven({ link: outcome.data, name, trigger });
-          } else {
-            releaseLink();
-            list?.report({ outcome, generation, names: {}, target: `link ${id}`, back: trigger });
-          }
-        });
+      void held(createPasswordSetupLink(id)).then((outcome) => {
+        if (outcome.kind === "done") {
+          setGiven({ link: outcome.data, name, trigger });
+        } else {
+          releaseLink();
+          list?.report({ outcome, generation, names: {}, target: `link ${id}`, back: trigger });
+        }
+      });
     },
-    [list, releaseLink],
+    [list, held, releaseLink],
   );
   const resend = useCallback(
     (user: User, name: string, trigger: HTMLElement) => {
@@ -314,29 +324,27 @@ function Writes({ children }: { readonly children: ReactNode }) {
       resendHeld.current.add(id);
       setResending(new Set(resendHeld.current));
       const generation = list?.generation ?? 0;
-      void resendInvitation(id)
-        .catch(rejected)
-        .then((outcome) => {
-          resendHeld.current.delete(id);
-          setResending(new Set(resendHeld.current));
-          if (outcome.kind === "done") {
-            say(t("resent", { name }), { object: name });
-          } else {
-            list?.report({
-              outcome,
-              generation,
-              names: {},
-              target: `invitation ${id}`,
-              back: trigger,
-            });
-            // No email left: the way out is the link, handed over by another channel.
-            if ("problem" in outcome && outcome.problem.status === 503) {
-              say(t("resendUnsent", { name }), { noted: false });
-            }
+      void held(resendInvitation(id)).then((outcome) => {
+        resendHeld.current.delete(id);
+        setResending(new Set(resendHeld.current));
+        if (outcome.kind === "done") {
+          say(t("resent", { name }), { object: name });
+        } else {
+          list?.report({
+            outcome,
+            generation,
+            names: {},
+            target: `invitation ${id}`,
+            back: trigger,
+          });
+          // No email left: the way out is the link, handed over by another channel.
+          if ("problem" in outcome && outcome.problem.status === 503) {
+            say(t("resendUnsent", { name }), { noted: false });
           }
-        });
+        }
+      });
     },
-    [list, say, t],
+    [list, held, say, t],
   );
   const create = useCallback((trigger: HTMLElement) => {
     setCreating({ trigger });
@@ -457,6 +465,7 @@ export function CreateUser() {
       variant="outline"
       size="sm"
       className="self-start"
+      aria-haspopup="dialog"
       onClick={(event) => {
         writes?.create(event.currentTarget);
       }}

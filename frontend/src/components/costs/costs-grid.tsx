@@ -47,6 +47,7 @@ export function CostsGrid({ costs, query, preferences, linked = false }: CostsGr
       totalsCaption={() => t("generalTotal")}
       query={query}
       preferences={preferences}
+      stacked
     />
   );
 }

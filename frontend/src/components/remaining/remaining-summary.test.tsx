@@ -56,7 +56,7 @@ describe("the summary of the remaining to commit", () => {
     const indicators = example("remaining_indicators") as RemainingIndicators;
     const html = text(renderSummary({ ...indicators, delta_to_previous_revision: null }));
     expect(html).toContain(
-      "Remaining to commit 67,470,132.98 Margin on the reference budget -641,535.13 By nature of cost",
+      "Remaining to commit 67,470,132.98 Margin on the reference budget -641,535.13 By cost type",
     );
     expect(html).not.toContain("previous review");
   });
@@ -115,12 +115,12 @@ describe("the summary of the remaining to commit", () => {
   it("leaves out a breakdown the API gives empty, as the estimate does, rather than an empty card [WF-RAE-0020-A]", () => {
     const indicators = example("remaining_indicators") as RemainingIndicators;
     const empty = text(renderSummary({ ...indicators, by_cost_type: [], by_subproject: [] }));
-    expect(empty).not.toContain("By nature of cost");
+    expect(empty).not.toContain("By cost type");
     expect(empty).not.toContain("by sub-project");
     expect(empty).toContain("Remaining to commit 67,470,132.98");
     expect(empty).toContain("Risk coverage");
     const some = text(renderSummary({ ...indicators, by_cost_type: [] }));
-    expect(some).not.toContain("By nature of cost");
+    expect(some).not.toContain("By cost type");
     expect(some).toContain("Poste de commande");
   });
 });

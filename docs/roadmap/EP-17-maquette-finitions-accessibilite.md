@@ -1,7 +1,7 @@
 ---
 id: EP-17
 titre: La maquette finie hors contrat — accessibilité des dialogues, mineurs des écrans, lenteur du navigateur, cosmétique
-statut: prêt
+statut: en cours
 depend_de: EP-16
 famille: front
 issue: 1547
@@ -567,14 +567,15 @@ l'auteur) :
   porte. Écarté : le renvoi sans l'import, qui perd le compte rendu de l'import qui crée un projet
   dont aucune révision n'est lisible.
 - **La coquille jouée une fois** (#1840) : `opened.ts` distingue les déclencheurs de la coquille
-  (projet, compte, tâches, aide — ceux que porte l'en-tête, hors du contenu de la page) de ceux de
-  l'écran. Les premiers ne se jouent que sur la liste des révisions d'un projet — un écran de projet,
-  parce que les menus du projet et des tâches n'existent qu'avec un projet, et l'un des plus légers —,
-  en clair et en sombre, aux deux largeurs ; les seconds se jouent sur chaque écran. Écartés :
-  garder la couverture entière (+38 à 67 % du chemin critique) ; la coquille à une seule largeur ou
-  un seul mode (même amendement, gain moindre). La note du guide dit que la coquille se joue une fois ;
-  la pull request donne la durée avant et après, en part du chemin critique. Le critère d'US-0710 est
-  amendé par ce cadrage, la conception du harnais par le lot, qui en récrit déjà les notes.
+  (projet, compte, tâches, aide — ceux que porte la coquille, hors du contenu de la page, et le
+  bouton de l'aide, que le titre de l'écran porte) de ceux de l'écran. Les premiers ne se jouent que
+  sur la liste des révisions d'un projet — un écran de projet, parce que les menus du projet et des
+  tâches n'existent qu'avec un projet, et l'un des plus légers —, en clair et en sombre, aux deux
+  largeurs ; les seconds se jouent sur chaque écran. Écartés : garder la couverture entière (+38 à
+  67 % du chemin critique) ; la coquille à une seule largeur ou un seul mode (même amendement, gain
+  moindre). La note du guide dit que la coquille se joue une fois ; la pull request donne la durée
+  avant et après, en part du chemin critique. Le critère d'US-0710 est amendé par ce cadrage, la
+  conception du harnais par le lot, qui en récrit déjà les notes.
 - **La reprise est un lot unique, livré avant US-1210** : #1952 est une instabilité de la file, et la
   reprise et US-1210 touchent les mêmes fichiers du registre. Elle ne change aucune règle : ses
   tests citent les exigences de leurs voisins. Écarté : #1952 seul en lot détaché — le lot de
@@ -595,7 +596,10 @@ ses mesures par lots ; rien n'y est réécrit.
   - les déclencheurs de dialogue et de menu — `[aria-haspopup="dialog"]`, `[aria-haspopup="menu"]`,
     ce que Radix pose sur chaque `DialogTrigger` et `DropdownMenuTrigger` —, affichés et actifs,
     chacun ouvert par Entrée depuis le focus ; ce qui s'ouvre est le `[role="dialog"]` ou le
-    `[role="menu"]` qui apparaît, attendu visible ;
+    `[role="menu"]` qui apparaît, attendu visible ; ceux de la coquille — projet, compte, tâches,
+    aide : tout ce qui est hors de `main`, et le bouton de l'aide, que `data-shell` marque, parce
+    que le titre de l'écran le porte — ne se jouent que sur l'écran de référence, la liste des
+    révisions d'un projet (US-1220, #1840) ; ceux de l'écran, sur chaque écran ;
   - les éditeurs de cellule : dans chaque `[role="grid"]` ou `[role="treegrid"]`, la première
     cellule saisissable — `[aria-readonly="false"]` ou ce que `DenseGrid` marque d'une cellule qui
     s'édite (`data-editable`, posé par le lot si rien ne la distingue encore) — reçoit le focus et
@@ -603,7 +607,11 @@ ses mesures par lots ; rien n'y est réécrit.
   - Chaque ouverture est un test à elle, nommé par l'écran et le déclencheur, en clair et en sombre,
     aux deux largeurs : un parcours au Tab borné à ce qui s'est ouvert (`walkByTab`, dont le piège
     voulu du modal est le retour au premier élément du dialogue, non de la page), un audit d'axe de
-    la page entière, puis Échap, et le focus attendu sur le déclencheur ou sur la cellule. Un menu
+    ce qui s'est ouvert — la cellule, pour un éditeur —, auquel s'ajoute, sur le reste de la page,
+    la seule règle dont l'ouverture change le verdict (`aria-hidden-focus` : un menu ou un dialogue
+    modal cache la page au lecteur d'écran) — l'écran, que son propre audit juge, n'est pas audité
+    de nouveau à chaque ouverture : la page entière coûtait huit secondes l'audit et dépassait le
+    délai d'un test —, puis Échap, et le focus attendu sur le déclencheur ou sur la cellule. Un menu
     se parcourt aux flèches, pas au Tab : le test y vérifie l'entrée du focus, l'audit, et le
     retour.
   - Les déclencheurs se découvrent à l'ouverture de l'écran, et le test les joue l'un après l'autre
@@ -611,7 +619,13 @@ ses mesures par lots ; rien n'y est réécrit.
     qu'elle a de déclencheurs —, chaque échec dit à part (`expect.soft`, nommé par le déclencheur).
 - **Ce qui reste hors du harnais**, écrit dans la note de l'US-0200 (EP-14, « Ce que les tests ne
   prouvent pas »), que le lot réécrit, et dans le guide (« L'accessibilité minimale de chaque
-  écran ») : les popovers de refus, le contenu d'un `details` fermé, les états qu'un geste atteint.
+  écran ») : les popovers de refus, le contenu d'un `details` fermé, les états qu'un geste atteint, les
+  dialogues qu'un geste ouvre sans bouton (`TimelineForm` et `GestureDialog` de
+  `structure-gestures.tsx`, le collage de `paste-dialog.tsx` par Ctrl+V) — un garde-fou
+  (`dialog-command-guard.test.ts`) fait échouer toute commande d'un dialogue qui ne dit pas
+  `aria-haspopup="dialog"` hors de cette liste —, et la liste ou le popover qu'un éditeur rendrait
+  dans un portail hors de la cellule (aucun éditeur d'aujourd'hui n'en rend un : l'audit d'un
+  éditeur porte sur la cellule).
 - **Le mode sombre** : le test du parcours au Tab reçoit `test.use({ colorScheme })` comme celui
   d'axe, un `describe` par mode ; la durée se relève par `--reporter=json` sur le fichier, avant et
   après, et s'écrit dans la pull request.
@@ -679,25 +693,26 @@ ses mesures par lots ; rien n'y est réécrit.
   rendus diffèrent.
 - **US-0750, les grilles du projet** : `projectNodes` (`grid/nodes.tsx`) reçoit `kinds` et écarte
   les nœuds d'un autre type avant `projectNode`, appelé par `grid-screen.ts` pour toute lecture qui
-  passe `kinds` — le planning, le planning d'un différentiel, la comparaison (`comparison-rows.ts`)
-  —, un test de page donnant une réponse mêlée. `gantt-image.ts` dessine une colonne des noms à
-  gauche (`ROW` par ligne, l'indentation par niveau, la largeur de la colonne mesurée au texte le
-  plus long, bornée), comptée dans `sizeOf` et donc dans `ganttOverflow`. `gantt.tsx` tient la
-  légende jusqu'au signal de mesure de l'axe (#1421), et le commentaire de `GanttRows` dit qu'elle
-  est rendue par le serveur et tenue jusque-là, hydratation comprise (#1539). `frame-width.ts` est
-  éprouvé par un `setViewportSize` dans `grid-frame.spec.ts` (#1144). Le lotissement (#806) :
-  `breakdown-edits.ts` n'envoie rien quand l'élément visé manque et le dit, attribue un refus pointé
-  sur l'élément même ; `settings-grid.tsx` dit « Aucun poste » ; les tests manquants s'écrivent.
-  #819 : la grille sous une recherche sans résultat (point 4), la lecture du lotissement dans le
-  `Promise.all` (13), le filtre de `waitForRequest` sur `next-action` (14). #1699 : `localRefusal`
-  (`paste.ts`) ne refuse « colonne absente » que si une cellule non vide du bloc tombe sur une
-  colonne que la grille ne configure pas, un test de la garde sur les colonnes de la grille de
-  planning (`is_critical` entre `total_float` et `started_on`). #1773 : `structure-rules.ts`, qui ne
-  place déjà rien sous un jalon (`byLevel`, `createdOn`), rend « Indenter » et « Ajouter une
-  sous-tâche » indisponibles avec leur condition au lieu de les taire, par la forme des gestes
-  indisponibles de la grille (WF-IHM-0090) ; le refus `MILESTONE_HAS_NO_SUBTASK`, déjà au
-  catalogue, est éprouvé sur un collage et dans un compte rendu d'import. Les aides FBS-4.3 et
-  FBS-4.3.1 disent l'export.
+  passe `kinds` — le planning, le planning d'un différentiel ; la comparaison
+  (`comparison-rows.ts`), qui ne demande aucun `kinds`, montre ses deux natures —, un test de page
+  donnant une réponse mêlée. `gantt-image.ts` dessine une colonne des noms à gauche (`ROW` par
+  ligne, l'indentation par niveau, la largeur de la colonne mesurée au texte le plus long, bornée),
+  comptée dans `sizeOf` et donc dans `ganttOverflow`. `gantt.tsx` tient la légende jusqu'au signal
+  de mesure de l'axe (#1421), et le commentaire de `GanttRows` dit qu'elle est rendue par le
+  serveur et tenue jusque-là, hydratation comprise (#1539). `frame-width.ts` est éprouvé par un
+  `setViewportSize` dans `grid-frame.spec.ts` (#1144). Le lotissement (#806) : `breakdown-edits.ts`
+  n'envoie rien quand l'élément visé manque et le dit, attribue un refus pointé sur l'élément même
+  ; `settings-grid.tsx` dit « Aucun poste » ; les tests manquants s'écrivent. #819 : la grille sous
+  une recherche sans résultat (point 4), la lecture du lotissement dans le `Promise.all` (13), le
+  filtre de `waitForRequest` sur `next-action` (14). #1699 : `localRefusal` (`paste.ts`) ne refuse
+  « colonne absente » que si une cellule non vide du bloc tombe sur une colonne que la grille ne
+  configure pas, un test de la garde sur les colonnes de la grille de planning (`is_critical` entre
+  `total_float` et `started_on`). #1773 : `structure-rules.ts`, qui ne place déjà rien sous un
+  jalon (`byLevel`, `createdOn`), rend « Indenter » et « Ajouter une sous-tâche » indisponibles
+  avec leur condition au lieu de les taire, par la forme des gestes indisponibles de la grille
+  (WF-IHM-0090) ; le refus `MILESTONE_HAS_NO_SUBTASK`, déjà au catalogue, est éprouvé sur un
+  collage et dans un compte rendu d'import. Les aides touchées, FBS-4.3.2 (gestes) et FBS-4.3.3
+  (export), le disent.
 - **US-0760, le faux back dit** : `docs/dev/README.md` reçoit « Ce que le faux back ne fait pas »
   sous « Le faux back », et les mentions des lignes 984 et 1228 y renvoient. `MockupNotice` reçoit
   une prop `lists?: boolean` : posée par les pages de listes et de grilles, elle ajoute la phrase
@@ -735,10 +750,11 @@ ses mesures par lots ; rien n'y est réécrit.
   touchées suivent.
 - **US-0790** : `commands/object-commands.tsx` rend `declare_risk` par un `Link` vers
   `functionHref(functionOf("risks"), context)` quand il est disponible, indisponible sinon avec sa
-  condition (#1438), et l'aide FBS-4.1 retire sa phrase ; `help-panel.tsx` prend Échap sur le champ
-  (`onKeyDown`, `event.preventDefault()` quand `query` n'est pas vide), avant que Radix ne le
-  prenne (#1481) ; `outcome-notice.dom.test.tsx` simule `next/navigation` (#902) ; la règle
-  `no-irregular-whitespace` avec `skipStrings: false` sur `**/*.test.ts?(x)` (#905) ; #846 et #888.
+  condition (#1438), et l'aide FBS-4.1 retire sa phrase ; `help-panel.tsx` prend Échap par
+  `onEscapeKeyDown` du `SheetContent`, filtré sur le champ de recherche et sur une requête
+  `query` non vide (`event.preventDefault()`), Radix écoutant Échap sur le document, en capture
+  (#1481) ; `outcome-notice.dom.test.tsx` simule `next/navigation` (#902) ; la règle
+  `no-irregular-whitespace` avec `skipStrings: false` sur `**/*.test.ts?(x)` et `**/*.spec.ts` (#905) ; #846 et #888.
   Les aides du devis, `FBS-4.4.md` et `FBS-4.4.3.md`, dans les deux langues, nomment la colonne
   « Montant réestimé » et ne disent plus que le devis ne le montre pas (#1821) ; `messages/en.json`
   rend chaque terme d'une seule façon et deux commandes distinctes par deux libellés, les pages de
@@ -810,7 +826,7 @@ ses mesures par lots ; rien n'y est réécrit.
 
 ## US-0710 — Le harnais d'accessibilité parcourt les dialogues, les menus et les éditeurs
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-IHM-0100-A`
 - **opérations** : aucune en propre
 - **issue** : #1548
@@ -851,6 +867,14 @@ mesures par lots avant que cette US ne commence. Les popovers de refus, les `<de
 les états atteints par un geste (`?import=`) restent aux tests de composants et s'écrivent dans la
 note du guide (décision de l'auteur du 2026-10-28). Le coût de chaîne se mesure contre la règle
 d'US-0590d : une étape qui dépasserait 10 % du chemin critique se dit dans la pull request.
+- L1 (#1558) : les dialogues du front s'ouvrent par un état, non par un `DialogTrigger` ; chaque
+  commande qui en ouvre un pose donc elle-même `aria-haspopup="dialog"`, que le harnais lit. Ce
+  qu'un geste ouvre est audité par axe en lui-même, et le reste de la page par `aria-hidden-focus`
+  seule : la page entière auditée à chaque ouverture dépassait le délai d'un test sur le Kanban et
+  le référentiel (huit secondes l'audit). Les écarts relevés et corrigés : les menus déroulants
+  modaux (`aria-hidden-focus`, rendus non modaux), le dialogue d'alerte qui ne se disait pas modal
+  (`aria-modal`), le premier champ d'un dialogue long atteint hors de la vue (WCAG 2.4.11, le
+  dialogue défile au focus), la cellule en saisie restée cible autour de son champ (`target-size`).
 
 **Hors périmètre.** Les navigateurs et 360 points (US-0290, EP-13) ; une conformité déclarée (§2.2).
 
@@ -858,7 +882,7 @@ d'US-0590d : une étape qui dépasserait 10 % du chemin critique se dit dans la 
 
 ## US-0720 — L'écran d'un projet mène à sa révision
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-IHM-0010-A`
 - **opérations** : `getProject`, `listRevisions`
 - **issue** : #1549
@@ -896,7 +920,7 @@ défaut) n'est pas ici : rendu à EP-16, parce que son point à trancher demande
 
 ## US-0730 — Le Kanban filtré, et sa carte annoncée
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-RAE-0030-A`, `WF-IHM-0070-A`, `WF-PLA-0040-A`
 - **opérations** : `listStartableTasks`, `listNodes` (la grille de reste à engager, US-0730b)
 - **issue** : #1550
@@ -981,7 +1005,7 @@ détachée, `[US-0730b]`, après le lot unique : celui-ci vise déjà 1 000 lign
 
 ## US-0740 — La matrice des risques sur fond blanc
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-RIS-0040-A`, `WF-IHM-0070-A`
 - **opérations** : `getProjectRiskMatrix`, `getPortfolioRisks`
 - **issue** : #1551
@@ -1035,7 +1059,7 @@ est partagé (`risk-bubble-chart.tsx`) entre les deux écrans. Cette US ne comme
 
 ## US-0750 — Les grilles du projet, le Gantt et les chronologies
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-PLA-0080-A`, `WF-PLA-0090-A`, `WF-PRJ-0020-A`, `WF-PLA-0050-A`
 - **opérations** : `listNodes`
 - **issue** : #1552
@@ -1115,7 +1139,7 @@ franchit.
 
 ## US-0760 — Ce que le faux back n'applique pas, dit
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : aucune en propre
 - **opérations** : aucune
 - **issue** : #1553
@@ -1144,7 +1168,7 @@ back ne change pas ; une couche devant Prism est écartée.
 
 ## US-0770 — Les commandes et les écritures retenues
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : aucune en propre
 - **opérations** : aucune en propre
 - **issue** : #1554
@@ -1193,7 +1217,7 @@ du guide se relit à sa lumière.
 
 ## US-0780 — L'administration, la session et le journal d'audit
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-ADM-0060-A`
 - **opérations** : `getUser`, `deleteAccessRole`
 - **issue** : #1555
@@ -1253,7 +1277,7 @@ suivi des tâches.
 
 ## US-0790 — L'écran des révisions, le panneau de l'aide et l'outillage des tests
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-IHM-0140-A`
 - **opérations** : aucune en propre
 - **issue** : #1556
@@ -1298,7 +1322,7 @@ commande muette ni perdre le panneau d'un geste (#1438, #1481).
 
 ## US-1010 — Les écrans du référentiel demandent ce que le contrat leur accorde
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-REF-0150-A`
 - **opérations** : `listResourceRoles`, `listCostCategories`, `getActualCostMapping`,
   `setActualCostMapping`
@@ -1335,7 +1359,7 @@ permission (US-0760) : les tests portent sur la requête que la page fait, non s
 
 ## US-1020 — Le registre des risques filtré, et les lignes issues d'un risque survenu
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-RIS-0020-A`, `WF-RIS-0050-A`, `WF-RIS-0060-A`
 - **opérations** : `listRisks`, `getProjectRiskCoverage`, `listNodes`
 - **issue** : #1834
@@ -1430,7 +1454,7 @@ service (EP-08) ; le tri du réestimé des survenus est d'US-1210 (#1947).
 
 ## US-1030 — L'accueil retient aussi les projets créés
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : aucune en propre
 - **opérations** : `listProjects`
 - **issue** : #1835
@@ -1456,7 +1480,7 @@ contrat de #1747 est d'US-0704.
 
 ## US-1040 — Le compte rendu d'import lit ses commandes
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : aucune en propre
 - **opérations** : `getImport`, `listImports`, `applyImport`, `abandonImport`
 - **issue** : #1836
@@ -1485,7 +1509,7 @@ devis, EP-09 pour le reste à engager).
 
 ## US-0800 — Quitter une grille de mille tâches
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : aucune en propre
 - **opérations** : aucune
 - **issue** : #1557
@@ -1519,7 +1543,7 @@ aucun correctif au hasard (décision de l'auteur du 2026-10-28).
 
 ## US-1210 — Le registre trie le réestimé, le portefeuille le présente, l'écran des révisions montre le compte rendu
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-RIS-0050-A`, `WF-PTF-0090-A`
 - **opérations** : `listRisks`, `getPortfolioRisks`, `getImport`, `listRevisions`
 - **issue** : #1964
@@ -1587,7 +1611,7 @@ agrégé du portefeuille (EP-11).
 
 ## US-1220 — Le harnais joue les déclencheurs de la coquille une seule fois
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-IHM-0100-A`
 - **opérations** : aucune en propre
 - **issue** : #1965
@@ -1615,10 +1639,11 @@ ce que le geste ouvre ne coûte pas 38 à 67 % du chemin critique de la chaîne 
   (« Le harnais (US-0710) », bullet « Ce qu'un geste ouvre ») disent que la coquille ne se joue que
   sur l'écran de référence.
 
-**Notes de réalisation.** `frontend/e2e/opened.ts` ne distingue pas encore la coquille du contenu :
-c'est l'en-tête commun (`header`, hors de `main`) qui la porte. Le critère d'US-0710 est amendé par
-le cadrage du 2026-11-04 ; la conception par ce lot, qui la récrit. Écran de référence décidé par
-l'auteur : la liste des révisions.
+**Notes de réalisation.** `frontend/e2e/opened.ts` ne distinguait pas la coquille du contenu : tout
+ce qui est hors de `main`, et le bouton de l'aide que le titre de l'écran porte et que `data-shell`
+marque, la forme désormais. Le critère d'US-0710 est amendé par le cadrage du 2026-11-04 ; la
+conception par ce lot, qui la récrit. Écran de référence décidé par l'auteur : la liste des
+révisions.
 
 **Hors périmètre.** Un déclencheur d'écran que la coquille ne porte pas ; la largeur de 360 points
 (US-0290, EP-13).
@@ -1627,7 +1652,7 @@ l'auteur : la liste des révisions.
 
 ## US-1230 — La reprise de fin d'EPIC
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : aucune en propre
 - **opérations** : aucune
 - **issue** : #1961

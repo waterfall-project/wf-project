@@ -67,6 +67,8 @@ const PACKAGE = "Lot 1";
 const ITEM = "Poste 1.1";
 const DELIVERABLE = "Procès-verbal de réception usine des armoires";
 const ADDED = "Poste 1.2";
+// The label of the lot and of the post of the default work breakdown.
+const START = "Rénovation du poste de livraison";
 
 /** An element of the witness, by the end of its identifier. */
 const id = (number: number) => `01926f3a-7c00-7000-8000-000000000${String(number)}`;
@@ -107,6 +109,7 @@ function list(
   offer: CommandOffer = AVAILABLE,
   shown: WorkBreakdown = WHOLE,
   kinds: readonly BreakdownKind[] = [],
+  whole: WorkBreakdown = WHOLE,
 ) {
   return (
     <NextIntlClientProvider locale="fr" messages={CATALOGUES.fr} timeZone="UTC">
@@ -115,7 +118,7 @@ function list(
           breakdown={shown}
           project={PROJECT}
           kinds={kinds}
-          editing={{ project: PROJECT, offer, counter: shown.lock_version, whole: WHOLE }}
+          editing={{ project: PROJECT, offer, counter: shown.lock_version, whole }}
         />
       </PendingAddress>
     </NextIntlClientProvider>
@@ -144,8 +147,8 @@ function written(client: FakeClient): unknown[] {
 }
 
 /** The cell of the label of a row, made the active one. */
-async function activate(label: string): Promise<HTMLElement> {
-  const cell = within(grid()).getByText(label).closest("td");
+async function activate(label: string, nth = 0): Promise<HTMLElement> {
+  const cell = within(grid()).getAllByText(label)[nth]?.closest("td") ?? null;
   if (cell === null) {
     throw new Error(`no cell holds ${label}`);
   }
@@ -154,8 +157,8 @@ async function activate(label: string): Promise<HTMLElement> {
 }
 
 /** Open the menu of the cell of a row from the keyboard, and press one of its commands. */
-async function fromMenu(label: string, command: string): Promise<void> {
-  await activate(label);
+async function fromMenu(label: string, command: string, nth = 0): Promise<void> {
+  await activate(label, nth);
   await userEvent.keyboard("{Shift>}{F10}{/Shift}");
   const menu = screen.getByRole("menu", { name: "Menu de la cellule" });
   await userEvent.click(within(menu).getByRole("menuitem", { name: command }));
@@ -182,18 +185,54 @@ afterEach(() => {
   failing.until = undefined;
   vi.restoreAllMocks();
   refresh.mockClear();
+  router.refresh.mockClear();
+  router.push.mockClear();
 });
 
 describe("the work breakdown edited in its grid", () => {
-  it("adds an order item without a deliverable from the menu of a cell, sends the work breakdown whole with it and no identifier, and shows the reading answered [WF-PRJ-0020-A]", async () => {
-    // Un poste peut être créé sans livrable.
+  it("adds an order item without a deliverable beside one that has none, and sends the work breakdown whole with both, the new one without an identifier [WF-PRJ-0020-A]", async () => {
+    // Un poste peut être créé sans livrable. The default work breakdown: a lot, and a post that
+    // holds no deliverable.
     const client = serve();
+    const start = example("work_breakdown_default") as WorkBreakdown;
+    render(list(AVAILABLE, start, [], start));
+    expect(shown()).toEqual([START, START, "1 lot et 1 poste"]);
+    await fromMenu(START, `Ajouter un poste au lot ${quoted(START)}`);
+    await enter(ADDED);
+    await vi.waitFor(() => {
+      expect(written(client)).toHaveLength(1);
+    });
+    expect(written(client)).toEqual([
+      {
+        work_packages: [
+          {
+            work_package_id: id(714),
+            label: START,
+            order_items: [
+              { order_item_id: id(715), label: START, deliverables: [] },
+              { label: ADDED, deliverables: [] },
+            ],
+          },
+        ],
+        lock_version: 0,
+      },
+    ]);
+  });
+
+  it("has no accessibility violation in the dialog that adds an element", async () => {
+    serve();
     render(list());
     await fromMenu(PACKAGE, `Ajouter un poste au lot ${quoted(PACKAGE)}`);
     expect(screen.getByRole("dialog")).toHaveAccessibleName(
       `Nouveau poste du lot ${quoted(PACKAGE)}`,
     );
     await expectAccessible(screen.getByRole("dialog"));
+  });
+
+  it("adds an order item from the menu of a cell, sends the work breakdown whole with it and no identifier, and shows the reading answered", async () => {
+    const client = serve();
+    render(list());
+    await fromMenu(PACKAGE, `Ajouter un poste au lot ${quoted(PACKAGE)}`);
     await enter(ADDED);
     await vi.waitFor(() => {
       expect(refresh).toHaveBeenCalledOnce();
@@ -330,13 +369,7 @@ describe("the work breakdown edited in its grid", () => {
     expect(client.calls).toEqual([]);
   });
 
-  it.each([
-    ["work_breakdown_label_required", "Une valeur est requise."],
-    [
-      "work_breakdown_unknown_item",
-      "Cet élément ne fait pas partie du lotissement lu\u00a0: inconnu, d’une autre nature ou supprimé.",
-    ],
-  ])(
+  it.each([["work_breakdown_label_required", "Une valeur est requise."]])(
     "says at the field of the dialog a refusal %s that points at the element it adds, the dialog kept",
     async (refusal, sentence) => {
       serve({ [SET]: { problem: example(refusal) as Problem & { status: 422 } } });
@@ -354,6 +387,26 @@ describe("the work breakdown edited in its grid", () => {
       expect(refresh).not.toHaveBeenCalled();
     },
   );
+
+  it("says outside the label a refusal that points at the identifier of the element it renames, not named as another element", async () => {
+    // « Poste 1.2 », the second post of the work breakdown saved, renamed; the server refuses its
+    // identifier, which the user cannot correct in the label.
+    const saved = example("work_breakdown_saved") as WorkBreakdown;
+    serve({
+      [SET]: { problem: example("work_breakdown_unknown_item") as Problem & { status: 422 } },
+    });
+    render(list(AVAILABLE, saved, [], saved));
+    await fromMenu(ADDED, `Renommer le poste ${quoted(ADDED)}`);
+    const dialog = await enter("Armoires de commande");
+    expect(await within(dialog).findByRole("alert")).toHaveTextContent(
+      "Les données saisies ne sont pas valides.",
+    );
+    expect(within(dialog).getByRole("textbox", { name: "Libellé" })).not.toHaveAttribute(
+      "aria-invalid",
+    );
+    expect(within(dialog).queryByText(/^Poste «/)).toBeNull();
+    expect(refresh).not.toHaveBeenCalled();
+  });
 
   it("notes once a refusal said at the field of the dialog, its rest told under it, the field described by its refusal as it takes the focus", async () => {
     serve({
@@ -391,6 +444,39 @@ describe("the work breakdown edited in its grid", () => {
         // The two fields refused for the same reason: the reason said once (#1181).
         detail: "Une valeur est requise.",
         object: ADDED,
+      }),
+    ]);
+  });
+
+  it("says at the field only the first refusal of the label of the element the dialog writes, the second kept in the history of the messages", async () => {
+    serve({
+      [SET]: {
+        problem: {
+          code: "VALIDATION_FAILED",
+          status: 422,
+          fields: [
+            { pointer: "/work_packages/0/order_items/1/label", code: "VALUE_REQUIRED" },
+            { pointer: "/work_packages/0/order_items/1/label", code: "VALUE_TOO_LONG" },
+          ],
+        },
+      },
+    });
+    render(list());
+    await fromMenu(PACKAGE, `Ajouter un poste au lot ${quoted(PACKAGE)}`);
+    const dialog = await enter(ADDED);
+    const field = within(dialog).getByRole("textbox", { name: "Libellé" });
+    expect(await within(dialog).findByRole("alert")).toHaveTextContent(
+      "Les données saisies ne sont pas valides.",
+    );
+    expect(field).toHaveAttribute("aria-invalid", "true");
+    expect(field).toHaveAccessibleDescription("Une valeur est requise.");
+    expect(within(dialog).queryByText(/^Poste «/)).toBeNull();
+    // The second refusal of the label is out of the field: the notice under the dialog says only
+    // the generic sentence, and both reasons are kept in the history of the messages.
+    expect(field).not.toHaveAccessibleDescription(/trop longue/);
+    expect(readMessages().messages).toEqual([
+      expect.objectContaining({
+        detail: "Une valeur est requise. La valeur est trop longue.",
       }),
     ]);
   });
@@ -460,6 +546,79 @@ describe("the work breakdown edited in its grid", () => {
     await userEvent.click(within(dialog).getByRole("button", { name: "Recharger" }));
     expect(router.refresh).toHaveBeenCalledOnce();
     expect(screen.queryByRole("dialog")).toBeNull();
+  });
+
+  it("sends nothing and says so when the element a gesture is about is not in the work breakdown read whole", async () => {
+    // The grid shows a reading filtered that holds « Poste 1.1 »; the work breakdown read whole,
+    // from which a gesture starts, no longer does (the default one).
+    const client = serve();
+    render(
+      list(
+        AVAILABLE,
+        example("work_breakdown_order_items") as WorkBreakdown,
+        ["order_item"],
+        example("work_breakdown_default") as WorkBreakdown,
+      ),
+    );
+    await activate(ITEM);
+    await userEvent.click(
+      screen.getByRole("button", { name: `Renommer le poste ${quoted(ITEM)}` }),
+    );
+    await enter("Armoires de commande");
+    await vi.waitFor(() => {
+      expect(screen.queryByRole("dialog")).toBeNull();
+    });
+    expect(client.calls).toEqual([]);
+    expect(screen.getByRole("status")).toHaveTextContent(
+      `Le poste ${read(ITEM)} n’est plus dans le lotissement lu : rien n’a été envoyé. Rechargez la page.`,
+    );
+  });
+
+  it.each([
+    ["stale", "work_breakdown_stale", "Quelqu’un a modifié cette donnée entre-temps", DELIVERABLE],
+    [
+      "refused for another element",
+      "work_breakdown_duplicate_item",
+      `Poste ${quoted(ADDED)}\u00a0: Cet élément figure déjà plus haut dans le lotissement saisi`,
+      "Procès-verbal de mise en service",
+    ],
+  ])(
+    "says above the grid a deletion the server refuses (%s), the confirmation closed, the work breakdown unchanged",
+    async (_case, refusal, said, label) => {
+      const saved = example("work_breakdown_saved") as WorkBreakdown;
+      const client = serve({ [SET]: { problem: example(refusal) as Problem & { status: 412 } } });
+      render(list(AVAILABLE, saved, [], saved));
+      await fromMenu(label, `Supprimer le livrable ${quoted(label)}`);
+      await userEvent.click(
+        within(screen.getByRole("dialog")).getByRole("button", { name: "Supprimer" }),
+      );
+      await vi.waitFor(() => {
+        expect(screen.queryByRole("dialog")).toBeNull();
+      });
+      expect(written(client)).toHaveLength(1);
+      expect(screen.getAllByRole("alert").map((alert) => alert.textContent)).toContainEqual(
+        expect.stringContaining(said),
+      );
+      expect(within(grid()).getByText(label)).toBeInTheDocument();
+    },
+  );
+
+  it("offers the bar of the grid its one command on the header row, and in an empty grid, which says it holds no order item", async () => {
+    serve();
+    const { unmount } = render(list());
+    await activate(PACKAGE);
+    expect(
+      screen.getByRole("button", { name: `Renommer le lot ${quoted(PACKAGE)}` }),
+    ).toBeVisible();
+    await userEvent.keyboard("{ArrowUp}");
+    expect(screen.getByRole("button", { name: "Nouveau lot" })).toBeVisible();
+    expect(screen.queryByRole("button", { name: /^(Renommer|Supprimer|Ajouter)/ })).toBeNull();
+    unmount();
+    // A work breakdown with no lot, read whole; the contract's example, its lots taken out.
+    render(list(AVAILABLE, { ...WHOLE, work_packages: [] }));
+    expect(screen.getByRole("button", { name: "Nouveau lot" })).toBeVisible();
+    expect(screen.queryByRole("button", { name: /^(Renommer|Supprimer|Ajouter)/ })).toBeNull();
+    expect(within(grid()).getByText("Aucun poste")).toBeInTheDocument();
   });
 
   it("writes from the work breakdown read whole while the grid shows a reading filtered, which keeps its rows and counts what it retains", async () => {

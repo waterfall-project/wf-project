@@ -14,8 +14,8 @@ En tête de l’écran :
 
 Au-dessus du registre :
 
-- **Filtrer par état** : **Tous les états**, **Identifié**, **Survenu**, **Écarté** ; les provisions, les bulles de la matrice et le registre suivent le filtre.
-- **Graphique** déplie ou replie la matrice des risques, un nuage de bulles — la probabilité en abscisse, la gravité en part du budget de référence en ordonnée, chaque bulle aussi grande que la gravité en montant —, avec sous elle le décompte des risques par case, tous états confondus. Une bulle cliquée ouvre le détail de son risque.
+- **Filtrer par état** : **Tous les états**, **Identifié**, **Survenu**, **Écarté** ; les provisions et le registre suivent le filtre ; la matrice, elle, ne montre que les risques identifiés, quel que soit le filtre.
+- **Graphique** déplie ou replie la matrice des risques, un nuage de bulles — la probabilité en abscisse, la gravité en part de l’assiette du projet en ordonnée, chaque bulle aussi grande que la gravité en montant, de la couleur et de la forme de sa zone (rond, losange, triangle), sur un fond blanc —, avec sous elle le décompte des risques identifiés par case. Une bulle cliquée ouvre le détail de son risque.
 - **Rechercher un libellé** et **Colonnes**.
 
 Dans le détail d’un risque :

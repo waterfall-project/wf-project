@@ -72,7 +72,11 @@ export function Shell({
     <NextIntlClientProvider locale={locale} messages={CATALOGUES[locale]} timeZone={TIME_ZONE}>
       {/* One provider for every tooltip of the application: from one to the next, no delay. */}
       <TooltipProvider>
-        <TaskTracker signedIn={account !== undefined} running={running}>
+        <TaskTracker
+          signedIn={account !== undefined}
+          accountId={account?.user_id}
+          running={running}
+        >
           <ShownProjectProvider>
             <SidebarProvider defaultOpen={sidebarOpen}>
               <ShellFrame

@@ -15,6 +15,7 @@ import { example, fakeClient } from "@/test/fixtures";
 
 import { listedProject } from "./project-list-grid";
 import { ProjectListGrid, ProjectStateFilter } from "./project-list-view";
+import { DefaultStatesFilter } from "./project-list";
 
 // The server of Next, as far as the screen needs it: the preferences it writes, the address it
 // reads.
@@ -163,6 +164,15 @@ describe("the grid of the list of projects", () => {
 });
 
 describe("the filter of the list by state", () => {
+  it("says the states by default, Créé, Chiffrage and En cours (WF-IHM-0130)", () => {
+    render(inFrench(<DefaultStatesFilter />));
+    const filter = screen.getByRole("region", { name: "Filtre par défaut de la liste par état" });
+    for (const state of ["Créé", "Chiffrage", "En cours"]) {
+      expect(within(filter).getByText(state)).toBeVisible();
+    }
+    expect(within(filter).queryByText("Perdu")).toBeNull();
+  });
+
   it("presses every state when the address names none, and retains a state chosen, back to the first page", async () => {
     const user = userEvent.setup();
     page.search = "offset=50&sort_by=code";
@@ -204,9 +214,11 @@ describe("the filter of the list by state", () => {
   it("goes on from the states retained when the address names none, and lifts them by « Tous les états » (WF-IHM-0130)", async () => {
     const user = userEvent.setup();
     page.search = "sort_by=code";
-    render(inFrench(<ProjectStateFilter states={["pricing", "in_progress"]} />));
+    render(inFrench(<ProjectStateFilter states={["created", "pricing", "in_progress"]} />));
     await user.click(screen.getByRole("button", { name: "Perdu" }));
-    expect(await lastAddress()).toBe("/?sort_by=code&states=pricing%2Cin_progress%2Clost");
+    expect(await lastAddress()).toBe(
+      "/?sort_by=code&states=created%2Cpricing%2Cin_progress%2Clost",
+    );
     await user.click(screen.getByRole("button", { name: "Tous les états" }));
     expect(await lastAddress()).toBe("/?sort_by=code&states=all");
   });

@@ -207,7 +207,7 @@ describe("the settings of the resources", () => {
       "GET /reference/resource-roles": "resource_roles_reader",
       "GET /reference/calendars": "calendars_reader",
     };
-    expect(await resourcesAt()).not.toMatch(/Nouveau|Modifier|Désactiver|Désigner|Maquette/);
+    expect(await resourcesAt()).not.toMatch(/Nouveau|Modifier|Désactiver|Désigner/);
     expect(queriesOf("GET /reference/cost-types")).toEqual([]);
   });
 
@@ -503,7 +503,7 @@ describe("the settings of the resources", () => {
       headcount: NO_BOUNDS,
     };
     // A list of roles a session that may only read them sees, nothing offered to choose.
-    const roles = { rows: [], page: none, preferences: undefined, readsInactive: true } as const;
+    const roles = { rows: [], page: none, preferences: undefined } as const;
     const offered = { editable: false, nodes: [], labour: [], calendars: [] } as const;
     const narrowed = rendered(
       <ResourceRoleList {...roles} {...offered} query={query} categories={[]} filters={filters} />,
@@ -528,7 +528,6 @@ describe("the settings of the resources", () => {
         page={none}
         query={NO_QUERY}
         preferences={undefined}
-        readsInactive={false}
         editable={false}
         state={undefined}
       />,
@@ -539,7 +538,6 @@ describe("the settings of the resources", () => {
         rows={[]}
         query={NO_QUERY}
         preferences={undefined}
-        readsInactive
         editable={false}
         filters={{ code: undefined, level: 4, state: undefined, levels: NO_BOUNDS }}
         levels={[]}
@@ -597,10 +595,28 @@ describe("the settings of the resources", () => {
     // The roles read without the right to modify them, as the server lists them: no command.
     expect(rows(page, "Rôles de ressources")).toHaveLength(5);
     expect(page).not.toContain("Réactiver");
-    // The categories, which it may read with the deactivated ones, are offered as it may read them.
-    expect(queriesOf("GET /reference/cost-categories")).toEqual([
-      { include_inactive: "true", ...WHOLE },
-    ]);
+    // The categories, whose settings it may not modify either, are asked active alone.
+    expect(queriesOf("GET /reference/cost-categories")).toEqual([WHOLE]);
+  });
+
+  it("never ask the deactivated objects of a session that only reads the settings of the resources and of the costs, which the contract keeps for the permission to modify them, nor offer to show them [WF-REF-0150-A]", async () => {
+    // The consultation alone: `resource_settings.read` and `cost_settings.read`, no `.write`. The
+    // fake back would answer the deactivated ones whatever the permission: the page's request is proved.
+    withdrawn.permissions = ["resource_settings.write", "cost_settings.write"];
+    const page = await resourcesAt({
+      include_inactive: "true",
+      role_is_active: "false",
+      calendar_is_active: "false",
+    });
+    for (const route of [...LISTS, "GET /reference/cost-categories"]) {
+      const queries = queriesOf(route);
+      expect(queries.length).toBeGreaterThan(0);
+      expect(
+        queries.every((query) => !("include_inactive" in query) && !("is_active" in query)),
+      ).toBe(true);
+    }
+    expect(text(page)).not.toContain("désactivés");
+    expect(page).not.toContain("État des objets");
   });
 });
 

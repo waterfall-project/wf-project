@@ -38,7 +38,6 @@ interface Language {
   readonly names: {
     readonly functions: string;
     readonly projects: string;
-    readonly currentRevision: string;
     readonly revisionTerm: string;
     readonly draft: string;
     readonly planningGrid: string;
@@ -79,7 +78,6 @@ const FRENCH: Language = {
   names: {
     functions: "Fonctions",
     projects: "Projets",
-    currentRevision: "Révision en cours",
     revisionTerm: "Révision",
     draft: "En cours d’élaboration",
     planningGrid: "Grille de planning",
@@ -120,13 +118,12 @@ const ENGLISH: Language = {
   names: {
     functions: "Functions",
     projects: "Projects",
-    currentRevision: "Current revision",
     revisionTerm: "Revision",
     draft: "Draft",
     planningGrid: "Planning grid",
     actualCosts: "Actual costs",
     subprojectFilter: "Subproject",
-    remaining: "Estimate to complete",
+    remaining: "Remaining to commit",
     remainingGrid: "Remaining to commit grid",
     risks: "Risk management",
     riskRegister: "Risk register",
@@ -231,7 +228,10 @@ for (const language of [FRENCH, ENGLISH]) {
       // The list may not be hydrated yet: the link then loads the project as a whole document,
       // given the time of a screen under load.
       await page.getByRole("main").getByRole("link", { name: PROJECT_LABEL }).click();
-      await expect(page.getByRole("heading", { level: 1 })).toHaveText(PROJECT_LABEL, {
+      // The screen of the project leads to its revision in progress, on its planning (US-0720): six
+      // thousand rows rendered by the server, given the time the witness path gives them (#315).
+      await expect(page).toHaveURL(`${IN_REVISION}/planning`, { timeout: WORKING });
+      await expect(page.getByRole("treegrid", { name: names.planningGrid })).toBeVisible({
         timeout: WORKING,
       });
       // The shell hydrated, which writes the context it shows in its cookie from an effect alone:
@@ -245,15 +245,7 @@ for (const language of [FRENCH, ENGLISH]) {
           },
           { timeout: WORKING },
         )
-        .toBe(`/projects/${PROJECT}`);
-
-      // Its current revision, which opens on its planning: six thousand rows rendered by the
-      // server, given the time the witness path gives them (#315).
-      await page.getByRole("main").getByRole("link", { name: names.currentRevision }).click();
-      await expect(page).toHaveURL(`${IN_REVISION}/planning`, { timeout: WORKING });
-      await expect(page.getByRole("treegrid", { name: names.planningGrid })).toBeVisible({
-        timeout: WORKING,
-      });
+        .toBe(`${IN_REVISION}/planning`);
 
       // The actual costs, where the user filters a sub-project: the address carries it.
       await follow(page, language, names.actualCosts);
@@ -436,10 +428,13 @@ test("two users of different languages opening the same project read the same la
     }
 
     // The project entered in French reads in English as it was entered — its labels, above, and
-    // its own page —, with no mark of a missing translation, on its texts or anywhere else.
+    // its own page, which leads to its revision (US-0720) —, with no mark of a missing translation,
+    // on its texts or anywhere else.
     await english.goto(`/projects/${PROJECT}`);
-    await expect(english.getByRole("heading", { level: 1 })).toHaveText(PROJECT_LABEL);
-    await expect(english.getByRole("main")).toContainText("PRJ-001");
+    await expect(english).toHaveURL(new RegExp(`/projects/${PROJECT}/revisions/[^/]+/planning$`));
+    await expect(english.getByRole("region", { name: ENGLISH.names.banner })).toContainText(
+      PROJECT_LABEL,
+    );
     await expectTranslated(english);
   } finally {
     await Promise.all([french.context().close(), english.context().close()]);

@@ -32,6 +32,8 @@ type Predecessor = components["schemas"]["Predecessor"];
 
 /** What the Gantt reads of a task: its dates, its nature, the critical path. */
 export interface GanttTask {
+  /** Its label, which the image of the Gantt writes beside its bar. */
+  readonly label?: string;
   readonly start?: WorkInstant | null;
   readonly finish?: WorkInstant | null;
   readonly is_summary: boolean;
@@ -48,6 +50,8 @@ export interface GanttRow {
   readonly node_id: string;
   /** Its row number, which names a link in conflict. */
   readonly row_number?: number;
+  /** Its level in the tree, which indents its name in the image of the Gantt. */
+  readonly level?: number;
   readonly task?: GanttTask | null;
   readonly predecessors?: readonly Predecessor[];
 }

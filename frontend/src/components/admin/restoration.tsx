@@ -45,7 +45,8 @@ function Followed({
       onFailed(phase.problem);
     }
   }, [phase, onFailed]);
-  return <RestorationNotice phase={phase} />;
+  // A refusal gives the page back, with its motive: no notice for a render in between (#1023).
+  return phase.kind === "failed" ? null : <RestorationNotice phase={phase} />;
 }
 
 /**

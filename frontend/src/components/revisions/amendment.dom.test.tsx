@@ -9,6 +9,7 @@ import { type ApiClient } from "@/api/client";
 import type { components } from "@/api/generated/schema";
 import { findOffer } from "@/components/commands/offer";
 import { RevisionCommands } from "@/components/commands/object-commands";
+import type { ProjectContext } from "@/navigation/context";
 import type { Revision } from "@/components/context/read-only";
 import { forgetMessages } from "@/components/notices/message-history";
 import { POLL_INTERVAL } from "@/components/tasks/task-entry";
@@ -39,6 +40,12 @@ type Problem = components["schemas"]["Problem"];
 
 const PROJECT = "01926f3a-7c00-7000-8000-000000000001";
 const REVISION = "01926f3a-7c00-7000-8000-000000000102";
+const CONTEXT: ProjectContext = {
+  projectId: PROJECT,
+  revisionId: REVISION,
+  revisionInPath: true,
+  parameters: new URLSearchParams(),
+};
 const AMENDMENT = "01926f3a-7c00-7000-8000-000000000213";
 const CREATE = "POST /projects/{project_id}/revisions/{revision_id}/structures";
 const REPORT = "GET /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/merge";
@@ -118,7 +125,7 @@ afterEach(() => {
 describe("the preparation of an amendment", () => {
   it("is offered as the revision lists it, asks a label, creates the differential and opens it in the grid of the planning", async () => {
     const client = serve({ [CREATE]: { example: "amendment_created", status: 201 } });
-    open(<RevisionCommands revision={example("revision") as Revision} />);
+    open(<RevisionCommands revision={example("revision") as Revision} context={CONTEXT} />);
     await userEvent.click(screen.getByRole("button", { name: "Préparer un avenant" }));
     const form = screen.getByRole("form", { name: "Préparer un avenant" });
     // The label is asked: nothing is sent without one.
@@ -138,7 +145,7 @@ describe("the preparation of an amendment", () => {
 
   it("is unavailable on a revision marked, naming its condition, and sends nothing", async () => {
     const client = serve({});
-    open(<RevisionCommands revision={example("revision_marked") as Revision} />);
+    open(<RevisionCommands revision={example("revision_marked") as Revision} context={CONTEXT} />);
     const command = screen.getByRole("button", { name: "Préparer un avenant" });
     expect(command).toHaveAttribute("aria-disabled", "true");
     await userEvent.click(command);
@@ -156,7 +163,7 @@ describe("the preparation of an amendment", () => {
         },
       },
     });
-    open(<RevisionCommands revision={example("revision") as Revision} />);
+    open(<RevisionCommands revision={example("revision") as Revision} context={CONTEXT} />);
     await userEvent.click(screen.getByRole("button", { name: "Préparer un avenant" }));
     const form = screen.getByRole("form", { name: "Préparer un avenant" });
     await userEvent.type(

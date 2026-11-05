@@ -18,6 +18,7 @@ En tête de l’écran :
 Au-dessus de la grille :
 
 - **Lot ou poste** filtre la grille sur un lot ou un poste du lotissement ; les indicateurs restent ceux du projet, ou du sous-projet filtré.
+- **Origine** retient les tâches et les lignes issues de la survenance d’un risque — **Issues d’un risque** — ou de celle d’un risque survenu que vous choisissez ; le serveur filtre, et l’adresse garde le choix. Une tâche ou une ligne issue d’un risque porte, après l’icône de sa nature, une marque discrète qui nomme ce risque. Le registre des risques mène à cette grille, filtrée sur un risque survenu.
 - **Rechercher un libellé**, **Colonnes**, **Arbre** ;
 - **Annuler** (`Ctrl+Z`) et **Rétablir** (`Ctrl+Maj+Z`), là où la structure se saisit. Elles restent indisponibles tant que le serveur ne conserve pas l’historique des saisies.
 - **Renseigner les taux horaires**, dans l’avis des taux manquants, mène au référentiel des coûts pour qui peut le modifier ; **Voir les taux horaires** pour qui le lit.
@@ -30,7 +31,7 @@ La grille ne se saisit, et ne prend un collage, que là où la structure lue lis
 
 Les montants sont calculés par le serveur, jamais saisis : une ligne de main-d’œuvre vaut sa quantité, sa charge et le taux horaire de sa catégorie pour l’année de référence ; une ligne hors main-d’œuvre, sa quantité et son débours unitaire ; une tâche, ses lignes et ses subordonnées. Une cellule calculée, grisée et marquée Σ, dit de quoi sa valeur dépend quand on tente de la saisir. Le sous-projet d’une ligne de provision vient de son risque : il est calculé.
 
-L’en-tête du montant corrigé de l’inflation nomme, dans son infobulle, l’année de référence de la révision et le taux d’inflation du projet. La colonne « Sous-projet » est masquée tant que vous ne l’affichez pas par **Colonnes**.
+L’en-tête de la colonne « Montant réestimé » nomme, dans son infobulle, l’année de référence de la révision et le taux d’inflation du projet. La colonne « Sous-projet » est masquée tant que vous ne l’affichez pas par **Colonnes**.
 
 ## Les gestes au clavier
 

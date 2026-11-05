@@ -43,8 +43,8 @@ import { type CommandOffer, findOffer } from "@/components/commands/offer";
 import type { ListedStructure } from "@/components/context/structure";
 import { ContextBanner } from "@/components/context/context-banner";
 import { breakdownChip } from "@/components/grid/breakdown-filter";
-import { BreakdownFilterChoice } from "@/components/grid/breakdown-filter-choice";
-import { DifferencesOnly } from "@/components/grid/differences-only";
+import { GridFilters } from "@/components/grid/grid-filters";
+import { originNames } from "@/components/grid/origin-filter";
 import type { NodeTotals } from "@/components/grid/nodes";
 import { PendingAddress } from "@/components/grid/pending-address";
 import {
@@ -225,6 +225,7 @@ export default async function PlanningPage({
       fields: PLANNING_FIELDS,
       byBreakdown: true,
       byDifference: true,
+      byOrigin: true,
       // The attachment of a task is chosen among the lots and the posts where it is entered.
       needsBreakdown: (reading) => reading.edits.has("edit_planning"),
       chooses: true,
@@ -254,11 +255,13 @@ export default async function PlanningPage({
           offer={findOffer(screen.reading.revision?.available_commands ?? [], "merge_structure")}
           revision={revision}
         />
-        {editable || skeleton?.is_available === true ? <MockupNotice /> : null}
-        {screen.breakdown === undefined ? null : (
-          <BreakdownFilterChoice choices={screen.breakdown} />
-        )}
-        <DifferencesOnly filter={screen.difference} offered={screen.kind === "amendment"} />
+        <MockupNotice lists />
+        <GridFilters
+          breakdown={screen.breakdown}
+          difference={screen.difference}
+          differential={screen.kind === "amendment"}
+          origin={screen.origin}
+        />
         <PlanningWithGantt
           key={screen.structure.structure_id}
           reading={screen.reading}
@@ -275,6 +278,7 @@ export default async function PlanningPage({
             undoable: editable,
             editable,
             differential: screen.kind === "amendment",
+            origins: originNames(screen.origin),
             // The attachment is chosen among the same items, where the planning may be entered.
             breakdown: editable ? screen.breakdown?.items : undefined,
             skeleton,

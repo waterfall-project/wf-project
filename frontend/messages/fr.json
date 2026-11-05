@@ -77,6 +77,10 @@
       "removed": "Votre avatar est retiré."
     }
   },
+  "originMark": {
+    "named": "Issue de la survenance du risque « {risk} »",
+    "unnamed": "Issue de la survenance d’un risque"
+  },
   "rowNature": {
     "summary": "Tâche récapitulative",
     "task": "Tâche",
@@ -139,6 +143,7 @@
       "severity": "Gravité",
       "provisionAmount": "Provision",
       "occurrenceCost": "Coût à la survenance",
+      "occurredReestimatedAmount": "Réestimé des survenus",
       "state": "État",
       "lastReview": "Dernier réexamen",
       "matrixCell": "Case de la matrice",
@@ -196,6 +201,7 @@
       "scheduleIndex": "Indice de délai",
       "lastMarkedAt": "Dernière révision marquée",
       "finishOverdue": "Fin dépassée",
+      "ownLinesOpen": "Lignes propres ouvertes",
       "budgetedAmount": "Montant budgété",
       "previousQuantity": "Qté à la revue précédente",
       "previousHours": "Charge (h) à la revue précédente",
@@ -256,6 +262,11 @@
       "every": "Tous les lots et postes",
       "choice": "{kind, select, work_package {Lot} other {Poste}} : {label}"
     },
+    "originFilter": {
+      "label": "Origine",
+      "every": "Toutes les lignes",
+      "any": "Issues d’un risque"
+    },
     "undo": {
       "undo": "Annuler",
       "redo": "Rétablir",
@@ -278,6 +289,8 @@
       "insertLine": "Insérer une ligne",
       "indent": "Indenter",
       "outdent": "Désindenter",
+      "milestoneChild": "Un jalon (tâche de durée nulle) ne porte pas de sous-tâches.",
+      "afterMilestone": "La tâche qui précède est un jalon, qui ne porte pas de sous-tâches.",
       "up": "Monter",
       "down": "Descendre",
       "moved": {
@@ -296,6 +309,7 @@
       "created": "« {label} » créée.",
       "createdUnnamed": "Ligne créée.",
       "refusedAt": "Refusé à la ligne {number}, « {label} » :",
+      "refusedAtRow": "Refusé à la ligne {number} :",
       "refusedCreating": "Création de « {label} » refusée :",
       "onRow": "Ligne {number}, « {label} »",
       "timelines": "Chronologies",
@@ -461,6 +475,7 @@
   },
   "remainingGrid": {
     "finishOverdue": "Tâche démarrée dont la fin est dépassée",
+    "ownLinesOpen": "Lignes propres ouvertes",
     "showNotStarted": "Montrer aussi les tâches non démarrées",
     "startedOnly": "Ne montrer que les tâches démarrées"
   },
@@ -475,6 +490,16 @@
     },
     "filter": "Filtrer par état",
     "everyState": "Tous les états",
+    "filters": {
+      "toggle": "Filtres des colonnes",
+      "zone": "Filtrer par zone",
+      "everyZone": "Toutes les zones",
+      "probabilityBounds": "Bornes de la probabilité, de 0 à 1",
+      "amountBounds": "Bornes des montants",
+      "review": "Période du dernier réexamen",
+      "unreviewed": "Non réexaminés depuis le dernier marquage",
+      "refused": "Les risques ne sont pas lus : le serveur refuse les filtres demandés."
+    },
     "provisions": {
       "title": "Provisions des risques retenus",
       "identified": "Risques identifiés",
@@ -487,18 +512,22 @@
       "reserve": "Réserve pour risques",
       "remainingProvisions": "Provisions restantes",
       "occurredCost": "Coût des risques survenus",
+      "occurredReestimated": "Réestimé des risques survenus (information)",
+      "occurredReestimatedShort": "réestimé",
+      "occurredLines": "Voir les lignes issues de « {risk} »",
+      "occurredStateLines": "{state}, voir les lignes issues de « {risk} »",
       "coverageVariance": "Écart de couverture"
     },
     "matrix": {
       "title": "Matrice des risques",
-      "description": "Nuage de bulles des risques : la probabilité en abscisse et la gravité, en part du budget de référence, en ordonnée ; chaque risque est une bulle à ses valeurs exactes, aussi grande que sa gravité en montant, sur les seize zones de la matrice.",
-      "axisSeverity": "Gravité (% du budget)",
-      "counts": "Décompte des risques par case de la matrice, tous états confondus",
-      "none": "Aucun risque à tracer pour ce filtre.",
-      "unplotted": "{count, plural, one {# risque n’est pas tracé : sa gravité ne peut pas être rapportée au budget — {reason}} other {# risques ne sont pas tracés : leur gravité ne peut pas être rapportée au budget — {reason}}}",
+      "description": "Nuage de bulles des risques : la probabilité en abscisse et la gravité, en part de l’assiette du projet, en ordonnée ; chaque risque identifié est une bulle à ses valeurs exactes, aussi grande que sa gravité en montant, de la couleur et de la forme de sa zone, sur les seize zones de la matrice.",
+      "axisSeverity": "Gravité (% de l’assiette du projet)",
+      "counts": "Décompte des risques identifiés par case de la matrice",
+      "none": "Aucun risque identifié à tracer.",
+      "unplotted": "{count, plural, one {# risque n’est pas tracé : sa gravité ne peut pas être rapportée à l’assiette du projet — {reason}} other {# risques ne sont pas tracés : leur gravité ne peut pas être rapportée à l’assiette du projet — {reason}}}",
       "file": "matrice-des-risques",
       "probability": "Probabilité",
-      "severity": "Gravité, en part du budget de référence",
+      "severity": "Gravité, en part de l’assiette du projet",
       "between": "{lower} à moins de {upper}",
       "from": "{lower} et plus",
       "tooltip": {
@@ -506,8 +535,6 @@
         "probability": "Probabilité",
         "severity": "Gravité",
         "provision": "Provision",
-        "referenceProvision": "Provision de la référence",
-        "state": "État",
         "zone": "Zone",
         "closed": "Projet non ouvrable"
       }
@@ -717,7 +744,6 @@
       "coverage": "Couverture des risques",
       "reserve": "Réserve de référence",
       "remainingProvisions": "Provisions restantes",
-      "occurredCost": "Coût des risques survenus",
       "coverageVariance": "Écart de couverture"
     },
     "workload": {
@@ -779,6 +805,7 @@
     "pending": "Lecture de ce dont elle dépend…"
   },
   "estimateSummary": {
+    "fold": "Chiffres clés",
     "title": "Indicateurs du devis",
     "total": "Total du devis",
     "provisions": "Provisions identifiées",
@@ -801,6 +828,7 @@
   },
   "remainingSummary": {
     "title": "Indicateurs du reste à engager",
+    "fold": "Chiffres clés",
     "unavailable": "Les indicateurs du reste à engager sont indisponibles.",
     "unnamed": "Sans nom",
     "total": "Reste à engager",
@@ -819,6 +847,15 @@
     "completed": "Terminées",
     "empty": "Aucune tâche.",
     "milestone": "Jalon",
+    "readyToStart": "Prête à démarrer",
+    "ownLinesOpen": "Lignes propres ouvertes",
+    "filters": {
+      "label": "Rechercher une tâche",
+      "placeholder": "Rechercher un libellé",
+      "ready": "Tâches prêtes"
+    },
+    "count": "{shown} sur {total}",
+    "noMatch": "Aucune tâche ne correspond.",
     "milestoneDue": "Ses prédécesseurs sont terminés : jalon à terminer.",
     "finish": "Fin le {date}",
     "finishOverdue": "Fin dépassée",
@@ -829,6 +866,8 @@
     "unplaced": "{label} : la réponse ne dit pas dans quelle colonne se trouve la tâche ; les tâches sont relues.",
     "updating": "Mise à jour…",
     "outdated": "Non à jour",
+    "updatingTold": "{label} : mise à jour.",
+    "outdatedTold": "{label} : non à jour.",
     "retry": "Réessayer",
     "eventDate": "Date de l’événement",
     "dateRequired": "Saisissez la date de l’événement.",
@@ -1251,7 +1290,7 @@
         "help": "Engendre le squelette du planning de la révision."
       },
       "declare_risk": {
-        "help": "Déclare un nouveau risque au projet."
+        "help": "Mène à l’écran des risques de la révision, où « Identifier un risque » s’offre."
       },
       "create_structure": {
         "help": "Prépare un avenant : une structure différentielle sur la révision."
@@ -1437,6 +1476,9 @@
       "finishOverdue": {
         "help": "Marque une tâche dont la fin prévue est dépassée sans qu’elle soit terminée."
       },
+      "ownLinesOpen": {
+        "help": "Marque une récapitulative dont toutes les subordonnées sont terminées et qui attend ses seules lignes propres, et ces lignes, hors provision, qui gardent un reste à engager."
+      },
       "budgetedAmount": {
         "help": "Montant budgété de la ligne, tel que le budget de référence l’a figé."
       },
@@ -1483,6 +1525,9 @@
       },
       "occurrenceCost": {
         "help": "Coût à la survenance d’un risque survenu : le total de son devis propre quand il a été déclaré survenu, que ni les réestimations ni la terminaison de ses tâches ne changent. Calculé par le serveur."
+      },
+      "occurredReestimatedAmount": {
+        "help": "Réestimé d’un risque survenu : la somme des montants réestimés courants des lignes qui en sont issues, en regard du coût à la survenance pour en montrer la dérive. Une information, calculée par le serveur, hors de l’écart de couverture."
       },
       "state": {
         "help": "État du risque : identifié, survenu ou écarté."
@@ -1855,7 +1900,8 @@
     "leftRefused": "{count, plural, one {Une modification qui n’est plus affichée a été refusée : elle n’est pas enregistrée.} other {# modifications qui ne sont plus affichées ont été refusées : elles ne sont pas enregistrées.}}"
   },
   "mockup": {
-    "notKept": "Maquette : le service simulé répond à chaque écriture sans rien conserver ; une ligne écrite reste montrée telle qu’il l’a rendue tant que l’écran reste ouvert, et une page rechargée ou rouverte montre ses données d’origine."
+    "notKept": "Maquette : le service simulé ne conserve aucune écriture ; une page rechargée montre ses données d’origine.",
+    "notFiltered": "Filtres, recherche, tri et pages ignorés."
   },
   "tasks": {
     "label": "Tâches de fond",
@@ -1988,8 +2034,7 @@
     "description": "Description",
     "missing": "Non renseigné",
     "inflationRate": "Taux d’inflation annuel",
-    "winProbability": "Probabilité de gain",
-    "revisions": "Révisions"
+    "winProbability": "Probabilité de gain"
   },
   "riskForm": {
     "identify": "Identifier un risque",
@@ -2100,6 +2145,7 @@
       "partialKinds": "Les lots et les postes ne montrent que ce que le filtre par nature retient.",
       "retained": "{kind, select, order_item {{count, plural, one {# poste} other {# postes}}} work_package {{count, plural, one {# lot} other {# lots}}} other {{count, plural, one {# livrable} other {# livrables}}}}",
       "noneRetained": "Aucun élément retenu",
+      "noOrderItem": "Aucun poste",
       "element": "{kind, select, order_item {le poste} work_package {le lot} other {le livrable}} « {label} »",
       "createWorkPackage": "Nouveau lot",
       "add": "{kind, select, work_package {Ajouter un poste} other {Ajouter un livrable}}",
@@ -2116,7 +2162,8 @@
       "added": "{kind, select, order_item {Poste} work_package {Lot} other {Livrable}} « {label} » ajouté.",
       "renamed": "{kind, select, order_item {Poste} work_package {Lot} other {Livrable}} renommé « {label} ».",
       "deleted": "{kind, select, order_item {Poste} work_package {Lot} other {Livrable}} « {label} » supprimé.",
-      "refusedFor": "{kind, select, order_item {Poste} work_package {Lot} other {Livrable}} « {label} » : {problem}"
+      "refusedFor": "{kind, select, order_item {Poste} work_package {Lot} other {Livrable}} « {label} » : {problem}",
+      "gone": "{kind, select, order_item {Le poste} work_package {Le lot} other {Le livrable}} « {label} » n’est plus dans le lotissement lu : rien n’a été envoyé. Rechargez la page."
     },
     "transitions": {
       "title": "Historique des états",
@@ -2244,9 +2291,7 @@
   },
   "emptyStates": {
     "noProjects": "Aucun projet.",
-    "noContributedProjects": "Vous n’êtes contributeur d’aucun projet.",
-    "noRevisions": "Ce projet n’a encore aucune révision.",
-    "revisions": "Aller aux révisions du projet"
+    "noContributedProjects": "Vous n’êtes contributeur d’aucun projet."
   },
   "referenceReadiness": {
     "title": "Référentiel incomplet",
@@ -2407,7 +2452,7 @@
       "second": "Deuxième borne",
       "third": "Troisième borne",
       "probability": "Probabilité",
-      "severity": "Gravité, en pourcentage du budget de référence"
+      "severity": "Gravité, en pourcentage de l’assiette du projet"
     },
     "riskZones": {
       "title": "Zones de la matrice de risques",
@@ -2431,7 +2476,7 @@
       "modify": "Modifier la matrice de risques",
       "hint": "Les trois bornes de chaque axe, strictement croissantes, et la zone de chacune des seize cases ; la matrice vaut pour tous les projets.",
       "probability": "Bornes de probabilité (%)",
-      "severity": "Bornes de gravité (% du budget de référence)",
+      "severity": "Bornes de gravité (% de l’assiette du projet)",
       "saved": "Matrice de risques enregistrée."
     },
     "durationUnitsForm": {
@@ -2458,6 +2503,8 @@
       "add": "Ajouter un intitulé à « {column} »",
       "addShort": "Ajouter un intitulé",
       "addKept": "Déclarer une colonne conservée",
+      "keptFull": "Condition non remplie : moins de {max} colonnes conservées. Le maximum est atteint.",
+      "keptTooMany": "La liste des colonnes conservées est trop longue : {max} colonnes au plus.",
       "doubles": "Il double l’intitulé « {label} » de la colonne « {column} ».",
       "doublesKept": "Il double l’intitulé « {label} » d’une colonne conservée.",
       "save": "Enregistrer la correspondance",
@@ -2538,8 +2585,9 @@
       "giveLink": "Remettre le lien",
       "anonymized": "Compte anonymisé.",
       "anonymizationTitle": "Anonymiser « {name} » ?",
-      "anonymizationFinal": "L’anonymisation de « {name} » est irréversible : son nom, son prénom et son adresse sont effacés, de la table comme du journal d’audit, et le compte ne se réactive plus.",
-      "keep": "Conserver"
+      "anonymizationFinal": "L’anonymisation de « {name} » est irréversible : son nom, son prénom et son adresse sont effacés, de la table comme du journal d’audit, son avatar est retiré, un compte local est retiré du fournisseur d’identité, et le compte ne se réactive plus.",
+      "keep": "Conserver",
+      "rowBusy": "Une écriture de « {name} » est en cours : rien n’a été écrit, renouvelez la demande une fois la réponse donnée."
     },
     "identitySync": {
       "title": "Lecture des comptes du fournisseur d’identité",
@@ -2567,7 +2615,7 @@
       "unnamed": "Sans nom chez le fournisseur",
       "address": "Adresse : {email}",
       "subject": "Identifiant chez le fournisseur : {subject}",
-      "carrier": "Adresse portée par le compte <name></name>"
+      "carrier": "Adresse portée par : <name></name>"
     },
     "accessRoles": {
       "title": "Rôles d’habilitation",
@@ -2780,6 +2828,7 @@
         "backupTakenAt": "Sauvegarde restaurée du <time></time>",
         "backupTakenAfter": "{first} ; Sauvegarde restaurée du <time></time>",
         "importKind": "Import : {kind}",
+        "roleUnchanged": "Ni le libellé ni les permissions n’ont changé",
         "then": "{first} ; {second}"
       },
       "filters": {
@@ -3893,6 +3942,7 @@
   },
   "exchanges": {
     "subtitle": "Importer un fichier en deux temps — l’analyse, puis l’application confirmée — ou demander un export.",
+    "refused": "Refusé à l’application, le fichier est supprimé : relancez l’import pour le reprendre.",
     "import": {
       "title": "Importer un fichier",
       "none": "Aucun import ne vous est offert sur ce projet.",
@@ -3992,7 +4042,7 @@
     "pending": "La restauration est en attente : la plateforme va passer en maintenance, et tous les utilisateurs seront alors déconnectés jusqu’à ce qu’elle soit terminée.",
     "maintenance": "La plateforme est en maintenance le temps de sa restauration : tous les utilisateurs ont été déconnectés, et pourront se reconnecter une fois la restauration terminée.",
     "signedOutTitle": "Session terminée",
-    "signedOut": "Votre session a pris fin avant que l’issue de la restauration soit connue. Reconnectez-vous pour la connaître.",
+    "signedOut": "Votre session a pris fin avant que l’issue de la restauration soit connue. Reconnectez-vous : le journal d’audit la dit.",
     "doneTitle": "Restauration terminée",
     "done": "La plateforme a été restaurée. Reconnectez-vous pour continuer."
   },

@@ -22,9 +22,9 @@ Ces commandes ne sont offertes qu’à qui peut modifier les comptes ; aux autre
 - **Rôles d’habilitation** : la liste des rôles de l’installation, à cocher ou décocher, aucun, un ou plusieurs. Le serveur refuse les rôles qui retireraient au dernier administrateur ses permissions.
 - **Lien** donne le lien de fixation du mot de passe d’un compte créé dans Waterfall, à remettre par un autre canal : il ne sert qu’une fois, ne sera plus montré, et en demander un autre rend le précédent caduc. Indisponible pour un compte désactivé (« compte actif »).
 - **Courriel** fait renvoyer par le fournisseur d’identité, à l’adresse d’un compte créé dans Waterfall, le courriel qui porte le lien de fixation du mot de passe : pour un titulaire qui ne l’a pas reçu, l’a perdu ou l’a laissé expirer. Un lien précédent cesse de valoir, et le renvoi est inscrit au journal d’audit. Indisponible pour un compte désactivé (« compte actif »). Quand le fournisseur ne peut pas l’envoyer — installation sans messagerie, serveur de courriel en échec —, l’écran dit le refus, jamais un courriel parti : **Lien** donne alors le lien à remettre par un autre canal.
-- **Anonymiser**, après confirmation, efface le nom, le prénom et l’adresse d’un compte désactivé, de la table comme du journal d’audit ; l’opération est définitive, et le compte ne se réactive plus. Offerte au seul compte désactivé, indisponible une fois le compte anonymisé.
+- **Anonymiser**, après confirmation qui dit tout ce qu’elle fait, efface le nom, le prénom et l’adresse d’un compte désactivé, de la table comme du journal d’audit, retire son avatar et, pour un compte créé dans Waterfall, le retire du fournisseur d’identité ; l’opération est définitive, et le compte ne se réactive plus. Offerte au seul compte désactivé, indisponible une fois le compte anonymisé.
 
-Tant qu’une écriture d’une ligne est en cours, les commandes de cette ligne attendent sa réponse.
+Tant qu’une écriture d’une ligne est en cours, les commandes de cette ligne attendent sa réponse ; une confirmation d’anonymisation qui arrive pendant ce temps n’écrit rien et le dit. Tant qu’un lien est demandé ou montré, l’interrupteur d’état des comptes attend aussi : aucun lien n’est donné pour un compte qu’on désactive, ni aucun compte désactivé pendant que son lien est en route.
 
 Au-dessus de la table, pour tous :
 

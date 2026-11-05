@@ -5,8 +5,8 @@
  * never without the confirmation the page asks first — then one operation, a background task the
  * tracker of the shell follows (WF-ARC-0090) —; or its abandonment, which leaves the project
  * unchanged and leads back to the screen as it was before the import. Each is offered as the
- * import of its kind is (WF-IHM-0090), and only while the status of the import allows it; a
- * refusal of the server is told under the command (`OutcomeNotice`).
+ * import lists it (`available_commands`, WF-IHM-0090) — unavailable, with the condition it lacks —;
+ * a refusal of the server is told under the command (`OutcomeNotice`).
  */
 "use client";
 
@@ -33,10 +33,10 @@ export interface ReportCommandsProps {
   readonly importId: string;
   /** The file of the import, which names the task of its application. */
   readonly filename: string;
-  /** The import of its kind, as the server offers it; `undefined` where it is not offered. */
-  readonly offer: CommandOffer | undefined;
-  /** What the status of the import still allows. */
-  readonly steps: { readonly apply: boolean; readonly abandon: boolean };
+  /** The application, as the import lists it; `undefined` where it is not listed. */
+  readonly apply: CommandOffer | undefined;
+  /** The abandonment, as the import lists it; `undefined` where it is not listed. */
+  readonly abandon: CommandOffer | undefined;
   /** The address of the screen, its context kept, before any import was shown. */
   readonly start: string;
   /**
@@ -139,8 +139,8 @@ export function ReportCommands({
   projectId,
   importId,
   filename,
-  offer,
-  steps,
+  apply,
+  abandon: abandonment,
   start,
   then,
 }: ReportCommandsProps) {
@@ -157,7 +157,7 @@ export function ReportCommands({
   };
   // The screen goes back to where it started only if it still shows this import: the user may
   // have opened another one, or left, while the abandonment was asked.
-  const abandon = async () => {
+  const abandonImport = async () => {
     const outcome = await abandonFileImport(projectId, importId);
     if (outcome.kind === "done" && shownImport() === importId) {
       router.push(start);
@@ -168,7 +168,7 @@ export function ReportCommands({
     <div className="space-y-2">
       <div className="flex flex-wrap items-start gap-2">
         <Command
-          offer={steps.apply ? offer : undefined}
+          offer={apply}
           label={t("apply")}
           help={helps("applyReport.help")}
           icon={commandIcon(FileCheck)}
@@ -182,17 +182,17 @@ export function ReportCommands({
           }}
         />
         <Command
-          offer={steps.abandon ? offer : undefined}
+          offer={abandonment}
           label={t("abandon")}
           help={helps("abandonReport.help")}
           icon={commandIcon(Ban)}
-          action={abandon}
+          action={abandonImport}
         />
       </div>
       {applying === undefined || then === undefined ? null : (
         <LeadOnWhenApplied taskId={applying} then={then} />
       )}
-      {open && steps.apply && offer?.is_available === true ? (
+      {open && apply?.is_available === true ? (
         <ConfirmForm
           id={form}
           projectId={projectId}

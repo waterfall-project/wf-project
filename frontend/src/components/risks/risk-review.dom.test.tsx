@@ -123,6 +123,10 @@ describe("« Réexaminer » a risk", () => {
     const before = screen.getByRole("table", { name: "Historique des réexamens" });
     expect(within(before).getAllByRole("row")).toHaveLength(REVIEWS.length + 1);
     const form = await open();
+    // The button that sends carries the icon of the review, not the one of a save (#1568).
+    const sender = within(form).getByRole("button", { name: "Réexaminer" });
+    expect(sender.querySelector(".lucide-refresh-cw")).not.toBeNull();
+    expect(sender.querySelector(".lucide-save")).toBeNull();
     // The form starts from what the risk holds: a confirmation is one press away.
     expect(within(form).getByRole("textbox", { name: "Probabilité (%)" })).toHaveValue("40");
     expect(within(form).getByRole("combobox", { name: "État retenu" })).toHaveValue("identified");

@@ -1,5 +1,8 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
 import { NextIntlClientProvider } from "next-intl";
@@ -19,7 +22,7 @@ import {
   type Problem,
 } from "@/test/fixtures";
 
-import { ActualCostMapping } from "./actual-cost-mapping";
+import { ActualCostMapping, KEPT_COLUMNS_LIMIT } from "./actual-cost-mapping";
 
 type Mapping = components["schemas"]["ActualCostMapping"];
 
@@ -35,6 +38,9 @@ vi.mock("next/navigation", async (original) => ({
   usePathname: () => "/reference/costs/actual-cost-mapping",
   useSearchParams: () => new URLSearchParams(),
 }));
+
+// The schemas of the contract the correspondence is written in.
+const SCHEMAS = join(import.meta.dirname, "../../../../docs/api/components/schemas/reference.yaml");
 
 const SET = "PUT /reference/actual-cost-mapping";
 const witness = example("actual_cost_mapping") as Mapping;
@@ -234,10 +240,7 @@ describe("the correspondence of the extraction of the actual costs, written", ()
     expect(refresh).not.toHaveBeenCalled();
   });
 
-  // The current behaviour, assumed: such a refusal is told by the sentence of its envelope alone,
-  // with no ceiling on the list it carries (the fifty columns of the contract); what the page
-  // should say beyond is followed by #1567.
-  it("tells under the form a refusal whose pointer designates no label shown, the list of the kept columns itself, and marks no label (#1514) [WF-REF-0190-A]", async () => {
+  it("tells, under the list of the kept columns, the refusal that designates the list itself, as well as the sentence of its envelope, and marks no label (#1514, #1567)", async () => {
     serve({
       [SET]: {
         problem: example("actual_cost_mapping_kept_columns_too_many") as Problem & {
@@ -250,9 +253,64 @@ describe("the correspondence of the extraction of the actual costs, written", ()
     await userEvent.click(save);
     const alert = await screen.findByRole("alert");
     expect(alert).toHaveTextContent(CATALOGUES.fr.errors.VALIDATION_FAILED);
+    const kept = screen.getByRole("group", { name: "Colonnes conservées" });
+    expect(kept).toHaveTextContent(
+      "La liste des colonnes conservées est trop longue : 50 colonnes au plus.",
+    );
+    // The list is described by the refusal, so that a screen reader says it with the list.
+    expect(within(kept).getByRole("list")).toHaveAccessibleDescription(
+      "La liste des colonnes conservées est trop longue\u00a0: 50 colonnes au plus.",
+    );
     expect(document.querySelector("[aria-invalid]")).toBeNull();
     expect(save).toHaveFocus();
     expect(refresh).not.toHaveBeenCalled();
+    // Removing a column of the list withdraws the refusal said under it.
+    await userEvent.click(screen.getByRole("button", { name: "Retirer la colonne conservée 1" }));
+    expect(kept).not.toHaveTextContent("trop longue");
+  });
+
+  it("leaves the declaration of a kept column available below the ceiling of the contract, and unavailable at it, with its condition said and nothing added by a press", async () => {
+    const ceiling = (count: number): Mapping => ({
+      ...witness,
+      kept_columns: Array.from({ length: count }, (_, rank) => `Colonne ${String(rank + 1)}`),
+    });
+    shown(ceiling(KEPT_COLUMNS_LIMIT - 1), true);
+    const open = screen.getByRole("button", { name: "Déclarer une colonne conservée" });
+    expect(open).not.toHaveAttribute("aria-disabled");
+    await userEvent.click(open);
+    const keptFields = () =>
+      screen.getAllByRole("textbox", { name: /^Intitulé de la colonne conservée/ });
+    expect(keptFields()).toHaveLength(KEPT_COLUMNS_LIMIT);
+    // At the ceiling now: unavailable, described by its condition, a press adding nothing.
+    const full = screen.getByRole("button", { name: "Déclarer une colonne conservée" });
+    expect(full).toHaveAttribute("aria-disabled", "true");
+    expect(full).toHaveAccessibleDescription(
+      "Condition non remplie\u00a0: moins de 50 colonnes conservées. Le maximum est atteint.",
+    );
+    await userEvent.click(full);
+    expect(keptFields()).toHaveLength(KEPT_COLUMNS_LIMIT);
+    // The other lists keep their commands.
+    expect(
+      screen.getByRole("button", { name: "Ajouter un intitulé à « Poste de la pièce »" }),
+    ).not.toHaveAttribute("aria-disabled");
+  });
+
+  it("reads the ceiling of the kept columns from the contract: the maxItems of kept_columns in ActualCostMappingWrite", () => {
+    const lines = readFileSync(SCHEMAS, "utf-8").split("\n");
+    const indentOf = (line: string) => line.length - line.trimStart().length;
+    // The lines nested under a key, whatever the line it stands on and the indentation of the file.
+    const under = (within: readonly string[], key: string): readonly string[] => {
+      const at = within.findIndex((line) => line.trim() === `${key}:`);
+      const rest = at === -1 ? [] : within.slice(at + 1);
+      const end = rest.findIndex(
+        (line) => line.trim() !== "" && indentOf(line) <= indentOf(within[at] ?? ""),
+      );
+      return end === -1 ? rest : rest.slice(0, end);
+    };
+    const kept = under(under(under(lines, "ActualCostMappingWrite"), "properties"), "kept_columns");
+    const max = kept.map((line) => /^\s*maxItems: (\d+)$/.exec(line)?.[1]).find(Boolean);
+    expect(kept.length).toBeGreaterThan(0);
+    expect(Number(max)).toBe(KEPT_COLUMNS_LIMIT);
   });
 
   it("tells the version stale under the form, and offers to read the page anew [WF-IHM-0110, WF-REF-0190-A]", async () => {

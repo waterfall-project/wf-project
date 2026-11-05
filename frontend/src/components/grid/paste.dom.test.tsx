@@ -13,6 +13,7 @@ import {
   type FakeAnswers,
   type FakeClient,
   fakeClient,
+  held,
   type Problem,
   unreachable,
 } from "@/test/fixtures";
@@ -287,16 +288,13 @@ describe("a block pasted from a spreadsheet", () => {
   });
 
   it("shows, after an abandon, the plan of the next paste, never the first's answered late", async () => {
-    let release: () => void = () => undefined;
-    const held = new Promise<void>((resolve) => {
-      release = resolve;
-    });
+    const answer = held();
     const client = fakeClient(
       {
         [PREVIEW]: ["paste_plan", "paste_plan_unknown_category"],
         [APPLY]: "paste_applied_partial",
       },
-      { hold: (route, index) => (route === PREVIEW && index === 0 ? held : undefined) },
+      { hold: (route, index) => (route === PREVIEW && index === 0 ? answer.until : undefined) },
     );
     server.client = client;
     renderGrid();
@@ -313,8 +311,8 @@ describe("a block pasted from a spreadsheet", () => {
     const second = await screen.findByRole("dialog", { name: "Coller depuis un tableur" });
     await within(second).findByText("1 ligne est refusée :");
     await act(async () => {
-      release();
-      await held;
+      answer.release();
+      await answer.until;
     });
     expect(within(second).getByText("1 ligne est refusée :")).toBeVisible();
     expect(within(second).getByText("2 lignes seront écrites.")).toBeVisible();
@@ -328,19 +326,16 @@ describe("a block pasted from a spreadsheet", () => {
   });
 
   it("tells nothing of a preview the server refused once it was abandoned", async () => {
-    let release: () => void = () => undefined;
-    const held = new Promise<void>((resolve) => {
-      release = resolve;
-    });
+    const answer = held();
     const tooWide = example("paste_too_wide") as Problem & { readonly status: 422 };
-    const client = serve({ [PREVIEW]: { problem: tooWide } }, held);
+    const client = serve({ [PREVIEW]: { problem: tooWide } }, answer.until);
     renderGrid();
     await pasteOn(cell(FIRST, "quantity"), copied([["2", "33"]]));
     await screen.findByRole("dialog", { name: "Coller depuis un tableur" });
     await userEvent.keyboard("{Escape}");
     await act(async () => {
-      release();
-      await held;
+      answer.release();
+      await answer.until;
     });
     expect(screen.queryByRole("alert")).toBeNull();
     expect(screen.queryByRole("dialog")).toBeNull();
@@ -348,20 +343,14 @@ describe("a block pasted from a spreadsheet", () => {
   });
 
   it("applies a paste once the cell written before it answered, with the version that write reached, and keeps what the later paste answered (#421, #1224)", async () => {
-    let releaseLine: () => void = () => undefined;
-    const heldLine = new Promise<void>((resolve) => {
-      releaseLine = resolve;
-    });
-    let releaseApply: () => void = () => undefined;
-    const heldApply = new Promise<void>((resolve) => {
-      releaseApply = resolve;
-    });
+    const line = held();
+    const apply = held();
     // The cell written answers the structure at its version 3, the paste that follows it at 4.
     const client = fakeClient(
       { [PREVIEW]: "paste_plan", [APPLY]: "paste_applied", [LINE]: "estimate_line_entered" },
       {
         hold: (route, index) =>
-          route === LINE ? heldLine : route === APPLY && index === 0 ? heldApply : undefined,
+          route === LINE ? line.until : route === APPLY && index === 0 ? apply.until : undefined,
       },
     );
     server.client = client;
@@ -381,16 +370,16 @@ describe("a block pasted from a spreadsheet", () => {
     expect(bodies(client, APPLY)).toEqual([]);
     // The write answers, version 3; the paste, confirmed then, answers after it, version 4.
     await act(async () => {
-      releaseLine();
-      await heldLine;
+      line.release();
+      await line.until;
     });
     await vi.waitFor(() => {
       expect(applying).not.toHaveAttribute("aria-disabled");
     });
     await userEvent.click(applying);
     await act(async () => {
-      releaseApply();
-      await heldApply;
+      apply.release();
+      await apply.until;
     });
     await vi.waitFor(() => {
       expect(screen.queryByRole("dialog")).toBeNull();
@@ -656,16 +645,13 @@ describe("a block pasted from a spreadsheet", () => {
   });
 
   it("holds a navigation clicked while it is applied, and drops it when the server refuses it: the refusal is told on the grid (#688)", async () => {
-    let answer: (value?: unknown) => void = () => undefined;
-    const answered = new Promise((resolve) => {
-      answer = resolve;
-    });
+    const answer = held();
     server.client = fakeClient(
       {
         [PREVIEW]: "paste_plan",
         [APPLY]: { problem: { code: "STATE_FORBIDS_OPERATION", status: 409 } },
       },
-      { hold: (route) => (route === APPLY ? answered : undefined) },
+      { hold: (route) => (route === APPLY ? answer.until : undefined) },
     );
     renderHook(() => {
       useNavigationHold();
@@ -686,8 +672,8 @@ describe("a block pasted from a spreadsheet", () => {
     fireEvent.pointerDown(link);
     link.click();
     await act(async () => {
-      answer();
-      await answered;
+      answer.release();
+      await answer.until;
     });
     expect(await screen.findByRole("alert")).toBeVisible();
     expect(followed).not.toHaveBeenCalled();

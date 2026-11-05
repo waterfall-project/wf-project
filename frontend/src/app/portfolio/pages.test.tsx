@@ -257,8 +257,8 @@ describe("the screens of the portfolio", () => {
   it("presents the structure of the costs by nature and the labour by node, and no breakdown of the actual cost, over the period of the projects completed [WF-PTF-0010-A]", async () => {
     const page = text(await render(CostStructurePage, { from: "2025-01-01" }));
     expect(queryOf("GET /portfolio/cost-structure")).toEqual({ from: "2025-01-01" });
-    expect(page).toContain("The actual cost is not broken down by nature");
-    expect(page).toMatch(/Reference budget by nature .*Main-d'œuvre .*1,465,987,087\.43 55%/);
+    expect(page).toContain("The actual cost is not broken down by cost type");
+    expect(page).toMatch(/Reference budget by cost type .*Main-d'œuvre .*1,465,987,087\.43 55%/);
     expect(page).toMatch(/Labour by organisation node .*Bureau d'études électricité .*100%/);
   });
 
@@ -444,8 +444,20 @@ describe("the screens of the portfolio", () => {
   it("presents the coverage of the risks of the portfolio, each sum as the server made it, the variance signed [WF-PTF-0090-A]", async () => {
     const page = text(await render(RisksPage));
     expect(page).toContain(
-      "Risk coverage Reference reserve 103,703,525.80 Remaining provisions 104,325,697.03 Cost of the occurred risks 4,605,324.00 Coverage variance -5,227,495.23",
+      "Risk coverage Reference reserve 103,703,525.80 Remaining provisions 104,325,697.03 Cost of the occurred risks 4,605,324.00 reestimated Reestimated cost of the occurred risks (information) 4,605,324.00 Coverage variance -5,227,495.23",
     );
+  });
+
+  it("presents the reestimated cost of the occurred risks in regard of their cost, the server's sum, as an information the variance does not count [WF-PTF-0090-A] [WF-RIS-0050-A]", async () => {
+    const markup = await render(RisksPage);
+    const entry = /<dt[^>]*>Cost of the occurred risks<\/dt><dd[^>]*>(.*?)<\/dd>/.exec(markup)?.[1];
+    expect(entry).toMatch(/<span aria-hidden="true">reestimated<\/span>/);
+    expect(entry).toMatch(
+      /<span class="sr-only">Reestimated cost of the occurred risks \(information\)<\/span>/,
+    );
+    // Four terms in the card of the coverage, the reestimated being no fifth.
+    const card = markup.slice(markup.indexOf("Risk coverage"));
+    expect(card.slice(0, card.indexOf("</dl>")).match(/<dt[\s>]/g)).toHaveLength(4);
   });
 
   it("opens the project of each signal of the health of the steering, by its zone [WF-PTF-0030-A] [WF-IHM-0070-A]", async () => {
@@ -634,5 +646,21 @@ describe("the portfolio, the size of the pages of the list of projects", () => {
       .flatMap((client) => client.calls)
       .find((each) => each.route === "GET /portfolio/projects");
     expect(Object.fromEntries(call?.query ?? []).limit).toBe("25");
+  });
+});
+
+describe("the note of the fake back on the portfolio projects", () => {
+  it("says once, under the header, that the service does not apply filters, search, sort and pages (US-0760)", async () => {
+    const page = await render(ProjectsPage);
+    expect(page.match(/<p role="note"/g)).toHaveLength(1);
+    expect(page).toContain("Filters, search, sort and pages are ignored");
+  });
+});
+
+describe("the note of the fake back on the workload of the portfolio", () => {
+  it("says once, under the header, that the service does not apply filters, search, sort and pages (US-0760)", async () => {
+    const page = await render(WorkloadPage);
+    expect(page.match(/<p role="note"/g)).toHaveLength(1);
+    expect(page).toContain("Filters, search, sort and pages are ignored");
   });
 });

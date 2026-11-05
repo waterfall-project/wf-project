@@ -10,7 +10,7 @@
  * contract (`states`, `from`, `to`, `sort_by`, `sort_order`, `search`), the server filtering,
  * sorting and searching; the page after the first asked by its `offset`, and a page beyond the end
  * of the list leading back into it. An address that names no state asks the states by default,
- * Chiffrage and En cours, said as the filter of the contributor is, or those the account kept; it
+ * Créé, Chiffrage and En cours, said as the filter of the contributor is, or those the account kept; it
  * asks every state by `states=all`, and the filter by state shows pressed the states retained.
  * A period the server refuses (422) — an end before the start — is said at its field, the list
  * unread, the filters kept to be changed. The projects show in the dense grid, its columns,
@@ -207,7 +207,7 @@ export default async function HomePage({
             <ContributorFilter filtered={filtered} mayLift={mayLift} query={searchQuery(raw)} />
           }
         />
-        {creates ? <MockupNotice /> : null}
+        <MockupNotice lists />
         <ReferenceIncomplete readiness={readiness} permissions={permissions} />
         <ProjectsShown projects={projects} asked={asked} preferences={kept} />
       </Screen>

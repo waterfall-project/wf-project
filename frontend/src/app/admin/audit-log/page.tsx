@@ -26,8 +26,15 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { useLocale, useMessages, useTranslations } from "next-intl";
 
-import { type Problem, readOrFail, readOrRefused } from "@/api/problem";
+import {
+  OPTIONAL_READ_REFUSALS,
+  type Problem,
+  readOrFail,
+  readOrRefused,
+  readUnlessRefused,
+} from "@/api/problem";
 import { serverClient } from "@/api/server";
+import type { NamedAccount } from "@/components/account/initials";
 import {
   AUDIT_LIST,
   type AuditFilters,
@@ -121,6 +128,29 @@ function namedBy(events: readonly AuditEvent[], filters: AuditFilters) {
     project: project ?? undefined,
     object: object === undefined ? undefined : { label: object.label, kind: object.kind },
   };
+}
+
+/**
+ * The account chosen as author that neither the authors of the whole journal nor a line read name,
+ * read by its names (`getUser`), at most once, and in that case only: the filter names it as
+ * everywhere an account is cited, never by its identifier (#1010). An account the API does not
+ * find, or the session may not read, stays chosen by its identifier.
+ */
+async function readChosenAuthor(
+  filters: AuditFilters,
+  authors: readonly AuthorChoice[],
+  named: ReturnType<typeof namedBy>,
+): Promise<NamedAccount | undefined> {
+  const userId = filters.user;
+  if (userId === undefined || named.user !== undefined || authors.some((a) => a.id === userId)) {
+    return undefined;
+  }
+  const user = await readUnlessRefused("getUser", OPTIONAL_READ_REFUSALS, () =>
+    serverClient().GET("/users/{user_id}", { params: { path: { user_id: userId } } }),
+  );
+  return user === undefined
+    ? undefined
+    : { first_name: user.first_name, last_name: user.last_name };
 }
 
 /** A page of the journal, as the contract gives it. */
@@ -246,6 +276,8 @@ export default async function AuditLogPage({
     readFacets(),
   ]);
   const journal = "journal" in read ? read.journal : undefined;
+  const named = namedBy(journal?.items ?? [], filters);
+  const account = await readChosenAuthor(filters, facets.authors, named);
   return (
     <Screen density={FUNCTION_DENSITY.audit_log} fill>
       {/* The filters, the grid and the pages compose the changes they make to the address. */}
@@ -255,7 +287,7 @@ export default async function AuditLogPage({
           filters={filters}
           users={facets.authors}
           projects={facets.projects}
-          named={namedBy(journal?.items ?? [], filters)}
+          named={{ ...named, account }}
           refused={"refused" in read ? refusedPeriod(read.refused.fields ?? []) : undefined}
         />
         {"refused" in read ? (

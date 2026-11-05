@@ -60,6 +60,8 @@ export type SettingsGridProps =
       readonly kind: "workBreakdown";
       /** The project whose work breakdown it is: its folds are kept for it. */
       readonly project: string;
+      /** Whether the reading is filtered: an empty one then says nothing of the work breakdown. */
+      readonly filtered?: boolean;
     } & GridProps<BreakdownRow, never>)
   | ({
       readonly kind: "subprojects";
@@ -102,6 +104,7 @@ function SubprojectGrid({
 function BreakdownGrid({
   rows,
   project,
+  filtered = false,
   query,
   preferences,
 }: Omit<Extract<SettingsGridProps, { kind: "workBreakdown" }>, "kind">) {
@@ -122,7 +125,7 @@ function BreakdownGrid({
       totals={null}
       totalsCaption={() =>
         retained.length === 0
-          ? t("noneRetained")
+          ? t(shown.length === 0 && !filtered ? "noOrderItem" : "noneRetained")
           : new Intl.ListFormat(formatLocale(locale), { type: "conjunction" }).format(retained)
       }
       query={query}

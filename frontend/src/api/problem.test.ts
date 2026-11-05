@@ -15,6 +15,7 @@ import {
 } from "@/components/system/failure";
 
 import { createApiClient, Unreachable } from "./client";
+import { ACCOUNT_REFUSALS, accountRefusalOf, isAccountRefusal, kindOf } from "./problem-kind";
 import {
   AccountRefused,
   type BackgroundTask,
@@ -25,6 +26,7 @@ import {
   readOrFail,
   readOrRefused,
   readUnlessRefused,
+  refusalOf,
   type Problem,
   SignedOut,
   UnexpectedAnswer,
@@ -487,5 +489,25 @@ describe("a read a screen can do without, and says why when it is refused", () =
     await expect(
       workload({ problem: { code: "ALREADY_EXISTS", status: 409 } }),
     ).rejects.toBeInstanceOf(UnexpectedAnswer);
+  });
+});
+
+describe("the refusals of the account itself (#1005) [WF-ADM-0060-A]", () => {
+  it.each(Object.keys(ACCOUNT_REFUSALS))(
+    "tells %s a 401 that refuses the account, led nowhere, and no other status",
+    (code) => {
+      expect(accountRefusalOf(401, code)).toBe(code);
+      expect(isAccountRefusal(401, code)).toBe(true);
+      expect(kindOf(401, code)).toBe("refused");
+      expect(accountRefusalOf(403, code)).toBeUndefined();
+      expect(refusalOf("getMe", 401, { code, status: 401 })).toBeInstanceOf(AccountRefused);
+    },
+  );
+
+  it("tells any other 401 a session lost, and a code of no refusal of the account none", () => {
+    expect(accountRefusalOf(401, "SESSION_EXPIRED")).toBeUndefined();
+    expect(accountRefusalOf(401, undefined)).toBeUndefined();
+    expect(accountRefusalOf(401, "toString")).toBeUndefined();
+    expect(kindOf(401, "SESSION_EXPIRED")).toBe("signed_out");
   });
 });

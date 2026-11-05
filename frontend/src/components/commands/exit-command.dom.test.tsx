@@ -21,6 +21,7 @@ import {
   type FakeClient,
   fakeClient,
   type FakeTiming,
+  held,
 } from "@/test/fixtures";
 import { closeTasks, tasksRegion } from "@/test/task-panel";
 
@@ -210,7 +211,7 @@ describe("the exits of the lifecycle of a project", () => {
 
     const form = screen.getByRole("form", { name: "Terminer le projet" });
     // What the user reads, the no-break spaces of French typography aside.
-    expect(form.textContent.replaceAll(" ", " ")).toContain(
+    expect(form.textContent.replaceAll("\u00A0", " ")).toContain(
       "Cette sortie est définitive : le projet passera à l’état « Terminé », et lui comme toutes ses données",
     );
     // A screen reader hears it too, on the field of the motive and on the button that confirms.
@@ -396,7 +397,7 @@ describe("the exits of the lifecycle of a project", () => {
     });
     closeTasks();
     await waitFor(() => {
-      expect(said()).toEqual(["Le projet est passé à l’état « Terminé »."]);
+      expect(said()).toEqual(["Le projet est passé à l’état «\u00A0Terminé\u00A0»."]);
     });
     await tick();
     expect(router.refresh).toHaveBeenCalledOnce();
@@ -597,11 +598,8 @@ describe("the exits of the lifecycle of a project", () => {
   });
 
   it("keeps the confirmation while the API is asked, and says its refusal once it answers", async () => {
-    let answer: () => void = () => undefined;
-    const held = new Promise<void>((resolve) => {
-      answer = resolve;
-    });
-    serve({ [EXIT]: CONFLICT }, { hold: () => held });
+    const answer = held();
+    serve({ [EXIT]: CONFLICT }, answer.timing);
     open();
     await confirm("Terminer le projet");
     const cancel = screen.getByRole("button", { name: "Annuler" });
@@ -617,7 +615,7 @@ describe("the exits of the lifecycle of a project", () => {
       () => screen.getByRole("button", { name: "Annuler" }).getAttribute("aria-disabled"),
     );
     // Let go outside `act`, which would render both commits at once: as the browser gets the answer.
-    answer();
+    answer.release();
     expect(await screen.findByRole("alert")).toHaveTextContent(
       "Modernisation du poste de commande",
     );

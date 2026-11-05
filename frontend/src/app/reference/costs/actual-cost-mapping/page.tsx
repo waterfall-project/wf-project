@@ -50,7 +50,7 @@ export default async function ActualCostMappingPage() {
   return (
     <Screen density={FUNCTION_DENSITY.cost_settings}>
       <MappingHeader />
-      {writes ? <MockupNotice /> : null}
+      <MockupNotice lists />
       <ActualCostMapping mapping={mapping} writes={writes} />
     </Screen>
   );

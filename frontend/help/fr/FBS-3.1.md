@@ -15,7 +15,7 @@ Chaque table est triée, cherchée, filtrée et paginée par le serveur, et tien
 
 En tête de l’écran :
 
-- **Afficher aussi les désactivés** ajoute aux trois tables les objets désactivés, et leur ajoute un filtre d’état ; **Masquer les désactivés** y revient. Offerte à qui peut lire les paramètres de coûts.
+- **Afficher aussi les désactivés** ajoute aux trois tables les objets désactivés, et leur ajoute un filtre d’état ; **Masquer les désactivés** y revient. Offerte à qui peut modifier les paramètres de coûts : le contrat réserve les objets désactivés à cette permission, et l’écran ne les demande pas à qui peut seulement les lire.
 - **Correspondance des coûts réels** mène à la [correspondance de l’extraction des coûts réels](FBS-3.1.3.md).
 - **Modifier le nom de l’entreprise** ouvre son formulaire : le nom est obligatoire, de 200 caractères au plus.
 

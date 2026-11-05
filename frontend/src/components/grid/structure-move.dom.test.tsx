@@ -253,9 +253,13 @@ describe("the indentation of a task", () => {
     const item = within(menu).getByRole("menuitem", { name: "Indenter" });
     expect(item).toHaveAttribute("aria-keyshortcuts", "Alt+Shift+ArrowRight");
     await userEvent.keyboard("{Escape}");
-    // The risk occurred follows the factory acceptance, a milestone, which bears nothing.
+    // The risk occurred follows the factory acceptance, a milestone, which bears nothing: the
+    // indentation is shown, unavailable (WF-IHM-0090-A, WF-PLA-0050-A).
     const risk = await openMenu(RISK);
-    expect(within(risk).queryByRole("menuitem", { name: "Indenter" })).not.toBeInTheDocument();
+    expect(within(risk).getByRole("menuitem", { name: "Indenter" })).toHaveAttribute(
+      "aria-disabled",
+      "true",
+    );
     await userEvent.keyboard("{Escape}");
     // The first of its siblings has no task to go under.
     const first = await openMenu(LEAF);

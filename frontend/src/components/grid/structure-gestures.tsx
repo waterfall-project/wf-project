@@ -98,9 +98,12 @@ import {
   gestureOfKey,
   gesturesOn,
   labelOf,
+  type MilestoneRefusal,
   moveOf,
   type Moving,
   moves,
+  refusalsOn,
+  shownOn,
   type StructureGestures,
   topsOf,
 } from "./structure-rules";
@@ -190,7 +193,8 @@ function followed<Row extends GridNode>(
 interface Refusal<Row extends GridNode> {
   readonly outcome: Outcome<unknown>;
   readonly row: Row | undefined;
-  readonly subject: string;
+  /** The name of what was written; none for a line created without one, the server naming it. */
+  readonly subject: string | undefined;
 }
 
 /** Give the focus back to what opened a dialog, or to the active cell of the grid. */
@@ -291,8 +295,14 @@ function GestureNotice<Row extends GridNode>({
     if (refusal === undefined) {
       return undefined;
     }
-    return refusal.row === undefined
-      ? t("refusedCreating", { label: refusal.subject })
+    if (refusal.row === undefined) {
+      // A creation beside no row is always named (`create`): the `?? ""` only satisfies the type.
+      return t("refusedCreating", { label: refusal.subject ?? "" });
+    }
+    // A line created without a label has no subject: the row is only the place the line was asked
+    // at, told by its number and never by its label, which is not the line's (#1701).
+    return refusal.subject === undefined
+      ? t("refusedAtRow", { number: refusal.row.row_number })
       : t("refusedAt", { number: refusal.row.row_number, label: labelOf(refusal.row) });
   };
   return (
@@ -385,12 +395,15 @@ export function useStructureGestures<Row extends GridNode>(
     down: t("down"),
     delete: t("delete"),
   };
+  /** The condition a gesture lacks, said where it is shown unavailable. */
+  const refusal = (why: MilestoneRefusal | undefined) => (why === undefined ? undefined : t(why));
   /** Send a write, and take its answer: the grid read anew when done, the refusal told otherwise. */
   const send = (
     call: () => Promise<Outcome<NodesWritten>>,
     row: () => Row | undefined,
     node: {
-      readonly label: string;
+      /** What the write is about, by name; none for a line created without one. */
+      readonly label: string | undefined;
       readonly done: string;
       readonly moves?: Row;
       /** The answers were told to `onWritten` one by one, as they came. */
@@ -426,7 +439,7 @@ export function useStructureGestures<Row extends GridNode>(
           account.reach(outcome.data.structure_lock_version);
         }
         setTold(undefined);
-        say(node.done, { object: node.label });
+        say(node.done, node.label === undefined ? undefined : { object: node.label });
         // The row followed is one of the structure shown: an answer of a structure left since would
         // keep its row, which the grid would follow anew on coming back to that structure.
         const { moves: bore } = node;
@@ -510,13 +523,17 @@ export function useStructureGestures<Row extends GridNode>(
   };
   const create = (current: Opened<Row>, entered: Entered) => {
     // A line created without a label is named by the server, after a task or a role the front does
-    // not compose: told without a name, the label it bears being the one the grid then reads.
+    // not compose: told without a name, and sent with none — the history of the messages and the
+    // subject of a refusal never name the line it was created beside (#1701).
     const unnamed = entered.label === "" && current.row !== undefined;
-    const named = unnamed ? labelOf(current.row) : entered.label;
+    const named = unnamed ? undefined : entered.label;
     send(
       () => createNode(scope.structure, bodyOf(current.gesture, current.row, entered)),
       () => current.row,
-      { label: named, done: unnamed ? t("createdUnnamed") : t("created", { label: named }) },
+      {
+        label: named,
+        done: unnamed ? t("createdUnnamed") : t("created", { label: entered.label }),
+      },
       current.opening,
     );
   };
@@ -606,7 +623,8 @@ export function useStructureGestures<Row extends GridNode>(
         </CommandTooltip>
       ),
     menu: (row, { cell, took, rows, applied }) => {
-      const gestures = gesturesOn(row, scope, rows);
+      const gestures = shownOn(row, scope, rows);
+      const refused = refusalsOn(row, scope, rows);
       return (
         <>
           {gestures.map((gesture) => (
@@ -616,13 +634,13 @@ export function useStructureGestures<Row extends GridNode>(
               label={names[gesture]}
               help={helps(`${HELPS[gesture]}.help`)}
               keys={GESTURE_KEYS[gesture]}
-              unavailable={busy ? t("busy") : undefined}
+              unavailable={refusal(refused[gesture]) ?? (busy ? t("busy") : undefined)}
               icon={ICONS[gesture]}
               className={UNAVAILABLE}
               onSelect={(event) => {
-                // Pressed while a write or its reading is under way, it does nothing, and the
-                // menu stays open.
-                if (busy) {
+                // Pressed while a write or its reading is under way, or unavailable by its
+                // condition, it does nothing, and the menu stays open.
+                if (busy || refused[gesture] !== undefined) {
                   event.preventDefault();
                   return;
                 }
@@ -662,7 +680,8 @@ export function useStructureGestures<Row extends GridNode>(
       // A move not offered on a row — the first of its siblings asked up — is taken, and does
       // nothing: Alt, Shift and an arrow would otherwise move the active cell as the arrow alone does.
       if (!gesturesOn(row, scope, rows).includes(gesture)) {
-        return row !== undefined && moves(gesture);
+        // A gesture a milestone makes unavailable is taken likewise, as the menu shows it so.
+        return row !== undefined && (moves(gesture) || gesture in refusalsOn(row, scope, rows));
       }
       open(gesture, row, rows, event.target instanceof HTMLElement ? event.target : undefined);
       return true;

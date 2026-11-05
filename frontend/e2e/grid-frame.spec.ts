@@ -59,7 +59,15 @@ interface Measure {
   readonly frame: number;
   readonly bar: number;
   readonly barHeight: number;
-  readonly narrowBar: { readonly width: number; readonly height: number };
+  readonly narrowBar: {
+    readonly width: number;
+    readonly height: number;
+    /** The widths of the children of the bar, and the gap between them, as laid out when narrowed. */
+    readonly children: readonly number[];
+    readonly gap: number;
+    /** The width of the search, a child with the role of one, when the bar is narrowed. */
+    readonly search: number | undefined;
+  };
 }
 
 /** Measure every grid of the screen, in the page. */
@@ -99,7 +107,17 @@ function measureGrids(page: Page): Promise<Measure[]> {
       };
       // A table narrower than the bar: the bar keeps what it needs for one line.
       bar.style.width = "100px";
-      const narrowBar = { width: bar.offsetWidth, height: bar.offsetHeight };
+      const children = Array.from(bar.children).filter(
+        (child): child is HTMLElement => child instanceof HTMLElement,
+      );
+      const searching = bar.querySelector("[role='search']");
+      const narrowBar = {
+        width: bar.offsetWidth,
+        height: bar.offsetHeight,
+        children: children.map((child) => child.offsetWidth),
+        gap: Number.parseFloat(getComputedStyle(bar).columnGap) || 0,
+        search: searching instanceof HTMLElement ? searching.offsetWidth : undefined,
+      };
       bar.style.width = "";
       return { ...measure, narrowBar };
     });
@@ -125,11 +143,47 @@ for (const address of SCREENS) {
           grid.narrowBar.height,
           `the narrowed bar of ${where} on one line`,
         ).toBeLessThanOrEqual(ONE_LINE);
+        // The bar narrowed is the sum of the least its children take, gaps included (`min-w-min`):
+        // none is squeezed under its own minimum, the search keeping its `min-w-24` (96 points).
+        const { children, gap, width } = grid.narrowBar;
+        const least = children.reduce((sum, each) => sum + each, 0) + gap * (children.length - 1);
         expect(
-          grid.narrowBar.width,
-          `the narrowed bar of ${where} keeps its search`,
-        ).toBeGreaterThan(100);
+          width,
+          `the narrowed bar of ${where} holds its children at their least`,
+        ).toBeGreaterThanOrEqual(least - 1);
+        if (grid.narrowBar.search !== undefined) {
+          expect(
+            grid.narrowBar.search,
+            `the narrowed search of ${where} keeps its minimal width`,
+          ).toBeGreaterThanOrEqual(95);
+        }
       }
+    }
+  });
+}
+
+/** The screens whose frame is measured again after the window is resized, with no new load. */
+const RESIZED = ["/admin/users", path(`${REVISION}/planning`)] as const;
+
+for (const address of RESIZED) {
+  test(`${address}: the bar follows the frame when the window is resized, with no new load (#1144)`, async ({
+    page,
+  }) => {
+    await compile(page.request, address);
+    const [wide, narrow] = WINDOWS;
+    await open(page, address, wide);
+    for (const size of [narrow, wide]) {
+      // The observer of the frame measures it again: only the window changes, the page stays.
+      await page.setViewportSize(size);
+      await expect
+        .poll(
+          async () => {
+            const grids = await measureGrids(page);
+            return grids.every((grid) => Math.abs(grid.bar - grid.frame) <= 1);
+          },
+          { message: `the bar of ${address} is as wide as its frame at ${String(size.width)}` },
+        )
+        .toBe(true);
     }
   });
 }
@@ -152,33 +206,40 @@ test("a grid of a few rows is no taller than its content, in a window that would
 });
 
 /**
- * The screens whose key figures lie in cards above their grid (US-0550), with the widths at which
- * the totals of the grid stay in a window 768 high, measured — the cards take, at 1366 then at 911:
- * estimate 170 and 305 points, remaining to commit 189 and 476, actual costs 53 and 99, risks 103
- * and 145. At 911 the remaining to commit is left out: its four blocks need two rows of cards, 476
- * points, and the header and the bar of the screen leave 519 under them for the cards, the filter,
- * the bar of the grid and the 160 of its floor. So is the actual costs, whose cards are no cause:
- * below 1024 its grid and the journal of imports lie one under the other, and the grid takes the
- * height of the window (`max-h-svh`) from where it starts. The risks hold at both widths, their
- * cards 103 and 145 points high, with the chart of their matrix folded between the cards and the
- * grid (US-0550/L4b, #1252): unfolded, it takes its 288 points and the page scrolls.
+ * The screens whose key figures lie in cards above their grid (US-0550), at the two widths of the
+ * harness, in a window 768 high: the totals of the grid stay in the window at both. Two ways hold
+ * the criterion at 911 (US-0710, #1209): on the estimate and the remaining to commit, `folded`, the cards are
+ * folded into a summary that unfolds (`FoldingFigures`, below 1024 points) and are hidden; on the
+ * others they stay visible, the actual costs, whose grid and journal of imports lie one under the
+ * other below 1024, bounding the grid to the height of the window less where it starts
+ * (`useRoomBelow`, `max-h-svh` alone not being enough). The risks hold with the chart of their
+ * matrix folded between the cards and the grid (US-0550/L4b, #1252): unfolded, it takes its 288
+ * points and the page scrolls.
  */
 const CARD_SCREENS = [
-  { address: path(`${REVISION}/estimate`), widths: [1366, 911], height: 768 },
-  { address: path(`${REVISION}/remaining`), widths: [1366], height: 768 },
-  { address: path(`${REVISION}/actual-costs`), widths: [1366], height: 768 },
-  { address: path(`${REVISION}/risks`), widths: [1366, 911], height: 768 },
+  { address: path(`${REVISION}/estimate`), widths: [1366, 911], height: 768, folded: true },
+  { address: path(`${REVISION}/remaining`), widths: [1366, 911], height: 768, folded: true },
+  { address: path(`${REVISION}/actual-costs`), widths: [1366, 911], height: 768, folded: false },
+  { address: path(`${REVISION}/risks`), widths: [1366, 911], height: 768, folded: false },
 ] as const;
 
-for (const { address, widths, height } of CARD_SCREENS) {
-  test(`${address}: the cards of figures leave the totals of the grid in the window`, async ({
+for (const { address, widths, height, folded } of CARD_SCREENS) {
+  test(`${address}: the cards of figures leave the totals of the grid in the window at 911 points as at 1366 [WF-IHM-0100-A]`, async ({
     page,
   }) => {
     await compile(page.request, address);
     for (const width of widths) {
       await open(page, address, { width, height });
-      const cards = await page.locator("main [data-slot='card'][role='region']").count();
-      expect(cards, `the cards of ${address}`).toBeGreaterThan(0);
+      const cards = page.locator("main [data-slot='card'][role='region']");
+      expect(await cards.count(), `the cards of ${address}`).toBeGreaterThan(0);
+      if (folded && width < 1024) {
+        await expect(
+          cards.first(),
+          `the folded cards of ${address} at ${String(width)}`,
+        ).toBeHidden();
+      } else {
+        await expect(cards.first(), `the cards of ${address} at ${String(width)}`).toBeVisible();
+      }
       const grid = page.locator("main [role='grid'], main [role='treegrid']").first();
       // The totals stick to the foot of the grid: the cell that holds them tells where they are.
       await expect(

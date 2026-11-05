@@ -9,6 +9,8 @@
  */
 import { type Locator, type Page, type Route, expect } from "@playwright/test";
 
+import { REACHABLE } from "./focus-probe";
+
 /**
  * The bound of a screen of grid, in milliseconds: a dense grid — of the estimate, the planning,
  * the remaining, the risks, the actual costs, the portfolio, the reference data — or a screen that
@@ -31,16 +33,15 @@ const WITNESS = "wf_last_project";
 /**
  * Whether React has hydrated every element of the page the keyboard can reach, read in the page:
  * React marks each element it hydrates with its props (`__reactProps$…`), a detail of its own, read
- * by the paths alone. The tools of the development server of Next live in a shadow root of their
- * own, out of reach of the search; the guards of the focus that Radix puts at the edges of the
- * document while a modal is open — the panel of the tasks, opened on a refused result — are
+ * by the paths alone. The elements are those the walk by the keyboard may reach (`REACHABLE`,
+ * #784): the walk needs them hydrated. The tools of the development server of Next live in a shadow root
+ * of their own, out of reach of the search; the guards of the focus that Radix puts at the edges of
+ * the document while a modal is open — the panel of the tasks, opened on a refused result — are
  * written by Radix itself, never by React, and left aside.
  */
-function reachableHydrated(): boolean {
+function reachableHydrated(selector: string): boolean {
   const reachable = [
-    ...document.querySelectorAll(
-      ":is(a[href], button, input, select, textarea, [tabindex]):not([data-radix-focus-guard])",
-    ),
+    ...document.querySelectorAll(`:is(${selector}):not([data-radix-focus-guard])`),
   ];
   return (
     reachable.length > 0 &&
@@ -72,7 +73,7 @@ export async function openHydrated(page: Page, address: string): Promise<void> {
         const witness = cookies.find(({ name }) => name === WITNESS)?.value;
         const context =
           witness === undefined ? undefined : decodeURIComponent(witness).split("?")[0];
-        return { context, screen: await page.evaluate(reachableHydrated) };
+        return { context, screen: await page.evaluate(reachableHydrated, REACHABLE) };
       },
       { message: `the shell and the screen hydrated on ${shown}`, timeout: WORKING },
     )
@@ -86,7 +87,7 @@ export async function openHydrated(page: Page, address: string): Promise<void> {
  */
 export async function untilHydrated(page: Page): Promise<void> {
   await expect
-    .poll(() => page.evaluate(reachableHydrated), {
+    .poll(() => page.evaluate(reachableHydrated, REACHABLE), {
       message: `React hydrated ${new URL(page.url()).pathname}`,
       timeout: WORKING,
     })
@@ -176,6 +177,19 @@ export interface HeldScripts {
  */
 export function handledAlready(error: unknown): boolean {
   return error instanceof Error && error.message.includes("Route is already handled");
+}
+
+/**
+ * Whether an error is that of a page closed as its test ended, under a call still in flight: the
+ * message Playwright gives it is the reason it closed the page with — « Test ended. », or « Test
+ * timeout of …ms exceeded. » when the test ran out of its time (Playwright 1.64.1, `lib/index.js`,
+ * the close of the contexts of a test). No type of error tells it; to check again at each rise of
+ * the version of Playwright (#1720, #1808).
+ */
+export function closedByTheTest(error: unknown): boolean {
+  return (
+    error instanceof Error && /Test ended\.|Test timeout of \d+ms exceeded\./.test(error.message)
+  );
 }
 
 /** The route of `holdRoute`, posed: `release` lets the requests it holds go and takes it away. */

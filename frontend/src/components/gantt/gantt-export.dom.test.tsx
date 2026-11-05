@@ -17,7 +17,7 @@ import { formatTimestamp } from "@/i18n/format";
 import { example, type FakeClient, fakeClient } from "@/test/fixtures";
 
 import { dayOffBands } from "./days-off";
-import { exportGanttPng, type GanttColours, ganttOverflow } from "./gantt-image";
+import { exportGanttPng, type GanttColours, ganttOverflow, namesWidth } from "./gantt-image";
 import { ganttLayout } from "./layout";
 
 vi.mock("./days-off", async (original) => {
@@ -46,6 +46,8 @@ const STRUCTURE = {
 const planning = example("nodes_planning") as NodeList;
 const SCHEDULED_AT = planning.meta.scheduled_at;
 const TASKS = planning.items.filter((item) => item.task !== null && item.task !== undefined);
+// The column of the names the image bears to the left of the bars.
+const NAMES = namesWidth(TASKS);
 const PROJECT = "Modernisation du poste de commande";
 
 /** What a canvas was asked to draw: its calls and the properties set, and its size when taken. */
@@ -226,7 +228,10 @@ describe("the export of the Gantt", () => {
     // Twice as dense as the screen: the drawing and its margins, the head of two lines, the axis,
     // a row for each task, the legend.
     const drawn = image();
-    expect(drawn.taken).toEqual([2 * (1464 + 32), 2 * (72 + 36 + TASKS.length * 28 + 24 + 16)]);
+    expect(drawn.taken).toEqual([
+      2 * (NAMES + 1464 + 32),
+      2 * (72 + 36 + TASKS.length * 28 + 24 + 16),
+    ]);
     const written = texts(drawn);
     expect(written.slice(0, 2)).toEqual([
       `Diagramme de Gantt — ${PROJECT}`,
@@ -235,8 +240,33 @@ describe("the export of the Gantt", () => {
     // The axis as the header writes it, the weeks over their days.
     const axis = [...ganttHeader().querySelectorAll("text")].map((text) => text.textContent);
     expect(axis).toContain("9 mars 2026");
-    expect(written.slice(2, -1)).toEqual(axis);
+    // The names of the tasks, indented by their level, one a row, after the axis.
+    const labels = TASKS.map((item) => item.task?.label);
+    expect(labels.length).toBeGreaterThan(0);
+    expect(written.filter((text) => labels.includes(text))).toEqual(labels);
+    expect(written.slice(2, -1)).toEqual([...axis, ...labels]);
     expect(written.at(-1)).toBe("Jour chômé : aucune heure de travail au calendrier de la tâche");
+  });
+
+  it("draws the names of the tasks to the left of the bars, indented by level, counted in the width [WF-PLA-0090-A]", async () => {
+    renderPlanning();
+    await userEvent.click(within(ganttHeader()).getByRole("button", { name: "Exporter en PNG" }));
+    const calls = image().calls;
+    const places = TASKS.map((item) => {
+      const label = item.task?.label ?? "";
+      const call = calls.find(([name, args]) => name === "fillText" && args[0] === label);
+      return [(call?.[1][1] as number | undefined) ?? -1, item.level] as const;
+    });
+    // The first level at the margin, each next one further, by the indent of a level.
+    for (const [left, level] of places) {
+      expect(left).toBe(16 + (level - 1) * 12);
+    }
+    expect(new Set(places.map(([, level]) => level)).size).toBeGreaterThan(1);
+    expect(NAMES).toBeGreaterThan(96 - 1);
+    // The drawing begins after the column: the width of the image counts it.
+    expect(ganttOverflow(1000, 10, false, 0)).toBeUndefined();
+    expect(ganttOverflow(32_767 - 32, 10, false, 0)).toBeUndefined();
+    expect(ganttOverflow(32_767 - 32, 10, false, 150)).toBe("width");
   });
 
   it("hatches the days off as the screen does, in the tokens of the charter", async () => {
@@ -267,14 +297,14 @@ describe("the export of the Gantt", () => {
     expect(lower).toEqual(expect.arrayContaining(["1", "3", "5", "7"]));
     expect(lower).not.toContain("2");
     await userEvent.click(within(ganttHeader()).getByRole("button", { name: "Exporter en PNG" }));
-    expect(image().taken?.[0]).toBe(2 * (61 * 8 * 20 + 32));
+    expect(image().taken?.[0]).toBe(2 * (NAMES + 61 * 8 * 20 + 32));
   });
 
   it("draws a day of twenty-four hours as dense as the screen, a canvas twice as dense being too wide", async () => {
     renderPlanning(24);
     await zoomIn(2);
     await userEvent.click(within(ganttHeader()).getByRole("button", { name: "Exporter en PNG" }));
-    expect(image().taken?.[0]).toBe(61 * 24 * 20 + 32);
+    expect(image().taken?.[0]).toBe(NAMES + 61 * 24 * 20 + 32);
   });
 
   it("is exported from the menu of a cell too, which the keyboard reaches", async () => {

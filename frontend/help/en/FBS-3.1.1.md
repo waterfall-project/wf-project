@@ -15,7 +15,7 @@ An empty list says so; a search or a filter that keeps nothing keeps the table, 
 
 These commands are offered only to whoever may modify the cost settings:
 
-- **New nature** opens the form of the cost type: code, unique, label and kind, all required.
+- **New cost type** opens the form of the cost type: code, unique, label and kind, all required.
 - **New category** opens that of the category: code and accounting code, both unique, label and cost type, all required.
 - **Modify**, on a row, opens the same form on the object. The kind of a cost type is no longer modified once one of its categories is used by a line of estimate or of remaining to commit, bears an hourly rate or is attached to a resource role; the form says which of these conditions is lacking. A category is then attached only to a cost type of the same kind.
 - **Deactivate** and **Reactivate**, in the column **State**, change the state of the object, without confirmation. The reactivation of a category whose cost type is deactivated is unavailable (“cost type active”): the command stays shown and says the condition it lacks.

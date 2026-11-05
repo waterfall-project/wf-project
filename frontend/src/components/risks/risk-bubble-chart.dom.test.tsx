@@ -14,7 +14,6 @@ import { expectAccessible } from "@/test/axe";
 import { roomForCharts } from "@/test/chart-room";
 import { example } from "@/test/fixtures";
 
-import type { RiskState } from "./address";
 import { PortfolioRiskMatrix, ProjectRiskMatrix } from "./risk-bubble-chart";
 import type { RiskMatrix } from "./risk-matrix";
 
@@ -99,20 +98,36 @@ const RISKS = example("volume/portfolio_risks") as Schemas["PortfolioRisks"];
 const CABLING = "01926f3a-7c00-7000-8000-000000000751";
 const DELIVERY = "01926f3a-7c00-7000-8000-000000000752";
 const AUTOMATON = "01926f3a-7c00-7000-8000-000000000753";
+
+/** Three risks identified, one in each zone, of three severities in amount: all are drawn. */
+const IDENTIFIED: RiskMatrix = {
+  ...MATRIX,
+  points: MATRIX.points.map((point, rank) => ({
+    ...point,
+    risk_id: `risk-${String(rank)}`,
+    state: "identified" as const,
+    zone: (["alert", "nominal", "watch"] as const)[rank] ?? "watch",
+    severity_amount: String((rank + 1) * 1000),
+  })),
+};
+/** The matrix of the example with its three risks identified, the heaviest ratio among them. */
+const THREE: RiskMatrix = {
+  ...MATRIX,
+  points: MATRIX.points.map((point) => ({ ...point, state: "identified" as const })),
+};
 const PROVENANCE = {
   project: "Modernisation du poste de commande",
   code: "PRJ-001",
   revision: "V1",
 };
 
-/** The matrix of a project in English, the states asked drawn. */
-function project(states: readonly RiskState[] = [], matrix: RiskMatrix = MATRIX, folded = true) {
+/** The matrix of a project in English. */
+function project(matrix: RiskMatrix = MATRIX, folded = true) {
   charts.props = [];
   return render(
     <NextIntlClientProvider locale="en" messages={CATALOGUES.en} timeZone="UTC">
       <ProjectRiskMatrix
         matrix={matrix}
-        states={states}
         provenance={PROVENANCE}
         computedAt="2026-06-03T14:05:00Z"
         folded={folded}
@@ -151,39 +166,61 @@ afterEach(() => {
 });
 
 describe("the risk matrix as a bubble chart", () => {
-  it("is a figure named « Risk matrix » that lays each risk at its exact probability and severity ratio, one series for each state", () => {
+  it("is a figure named « Risk matrix » that lays each risk identified at its exact probability and severity ratio, one series for each zone [WF-RIS-0040-A]", () => {
     project();
     expect(screen.getByRole("figure", { name: "Risk matrix" })).toBeInTheDocument();
     const { option, bubbles } = drawn();
-    expect(bubbles.map((each) => [each.type, each.name, each.symbol])).toEqual([
-      ["scatter", "Identified", "circle"],
-      ["scatter", "Occurred", "diamond"],
-      ["scatter", "Dismissed", "triangle"],
+    // The one risk identified of the example is in the watch zone: the occurred and the dismissed
+    // ones are not drawn, and the colour is the one of the zone the server rendered (WF-ARC-0020).
+    expect(bubbles.map((each) => [each.type, each.name, each.symbol, each.color])).toEqual([
+      ["scatter", "Watch", "diamond", "zone-watch"],
     ]);
     // Placed at the values of the point, the strings of the API as they are, never rounded to a
-    // cell nor read as floats: 0.000003 stays 0.000003.
+    // cell nor read as floats.
     expect(placed(bubbles[0])).toEqual({ [CABLING]: ["0.4", "0.0183"] });
-    expect(placed(bubbles[1])).toEqual({ [DELIVERY]: ["0.3", "0.000003"] });
-    expect(placed(bubbles[2])).toEqual({ [AUTOMATON]: ["0.05", "0.1758"] });
-    // The states are told apart by the shape of the bubble, and the legend names them.
-    expect(option?.legend).toMatchObject({ data: ["Identified", "Occurred", "Dismissed"] });
+    // No legend of the states: a zone is told by its shape, its stroke and its name.
+    expect(option?.legend).toBeUndefined();
   });
 
-  it("sizes a bubble by the severity in amount, within bounds, the heaviest risk the largest bubble", () => {
-    project();
+  it("gives the bubbles of each zone the colour of the zone the server rendered and a shape of its own, so that a zone is told without its colour [WF-RIS-0040-A, WF-IHM-0070-A]", () => {
+    project(IDENTIFIED);
     const { bubbles } = drawn();
-    const [cabling, delivery, automaton] = bubbles.map(
-      (each) => (each.data as { symbolSize: number }[])[0]?.symbolSize ?? Number.NaN,
-    );
-    // The heaviest of the three (12,000,000.00) is the largest, the lightest (200.00) the smallest.
-    expect(automaton).toBe(40);
-    expect(delivery).toBeGreaterThanOrEqual(12);
-    expect(delivery).toBeLessThan(cabling ?? 0);
-    expect(cabling).toBeLessThan(automaton ?? 0);
+    expect(bubbles.map((each) => [each.name, each.symbol, each.color])).toEqual([
+      ["Nominal", "circle", "zone-nominal"],
+      ["Watch", "diamond", "zone-watch"],
+      ["Alert", "triangle", "zone-alert"],
+    ]);
   });
 
-  it("draws the sixteen zones as areas under the bubbles, from the bounds of the levels the server gives, the last level up to the end of the axis", () => {
+  it("draws only the risks identified, the occurred and the dismissed ones leaving the chart [WF-RIS-0040-A]", () => {
     project();
+    const ids = drawn().bubbles.flatMap((each) =>
+      (each.data as { id: string }[]).map(({ id }) => id),
+    );
+    expect(ids).toEqual([CABLING]);
+    // No bubble to click for a risk occurred or dismissed, and no tooltip for it.
+    router.push.mockClear();
+    act(() => {
+      charts.props.at(-1)?.onPoint?.(DELIVERY);
+    });
+    expect(router.push).not.toHaveBeenCalled();
+    const tooltip = drawn().option?.tooltip as { formatter: (params: unknown) => string };
+    expect(tooltip.formatter({ data: { id: AUTOMATON } })).toBe("");
+  });
+
+  it("sizes a bubble by the severity in amount, within bounds, the heaviest risk the largest bubble [WF-RIS-0040-A]", () => {
+    project(IDENTIFIED);
+    const sizes = drawn().bubbles.flatMap((each) =>
+      (each.data as { symbolSize: number }[]).map(({ symbolSize }) => symbolSize),
+    );
+    expect(sizes).toHaveLength(3);
+    expect(Math.max(...sizes)).toBe(40);
+    expect(Math.min(...sizes)).toBeGreaterThanOrEqual(12);
+    expect(new Set(sizes).size).toBe(3);
+  });
+
+  it("draws the sixteen zones as areas under the bubbles, from the bounds of the levels the server gives, the last level up to the end of the axis [WF-RIS-0040-A]", () => {
+    project(THREE);
     const { option, zones } = drawn();
     const areas = zones?.markArea?.data as unknown as [
       { name: string; xAxis: number; yAxis: number },
@@ -245,60 +282,52 @@ describe("the risk matrix as a bubble chart", () => {
     expect(new Set(looks.filter(([, shown]) => shown === true).map(([name]) => name))).toEqual(
       new Set(["Nominal", "Watch", "Alert"]),
     );
-    // The colour of a zone is the token of its zone, read from the document.
-    expect(areas.map(([area]) => area.itemStyle.color)).toContain("zone-alert");
+    // The areas are on the ground of the chart, not coloured by their zone (#1395): the strokes
+    // alone carry the colour of the zone.
+    expect(areas.map(([area]) => area.itemStyle.color)).toEqual(
+      Array.from({ length: 16 }, () => PALETTE.background),
+    );
+    expect(edges.map(([edge]) => edge.name)).toContain("Alert");
     // The cells of the server stay in words under the chart, each with its signal and its count.
     const counts = screen.getByRole("table", {
-      name: "Count of the risks by cell of the matrix, all states together",
+      name: "Count of the risks identified by cell of the matrix",
       hidden: true,
     });
     expect(within(counts).getAllByRole("img", { hidden: true, name: "Alert" })).toHaveLength(3);
   });
 
-  it("draws the risks in the states the address filters on, every one without a filter", () => {
-    project(["occurred", "dismissed"]);
-    const filtered = drawn();
-    expect(filtered.bubbles.map((each) => each.name)).toEqual(["Occurred", "Dismissed"]);
-    expect(Object.keys(placed(filtered.bubbles[0]))).toEqual([DELIVERY]);
-    project([]);
-    expect(drawn().bubbles).toHaveLength(3);
+  it("counts the cells as the server gave them, the risks identified alone, and says so in the name of the table [WF-RIS-0040-A]", () => {
+    project();
+    const counts = screen.getByRole("table", {
+      name: "Count of the risks identified by cell of the matrix",
+      hidden: true,
+    });
+    // One risk identified in the example, in the cell of the server's count: the front adds none.
+    const total = within(counts)
+      .getAllByRole("cell")
+      .reduce((sum, cell) => sum + Number(cell.textContent), 0);
+    expect(total).toBe(MATRIX.cells.reduce((sum, cell) => sum + cell.count, 0));
+    expect(total).toBe(1);
   });
 
-  it("keeps the axis and the zones where they are whatever the states asked: the top of the axis is the matrix's, not the bubbles drawn's", () => {
-    const zonesOf = () => {
-      const { option, zones } = drawn();
-      const areas = zones?.markArea?.data as unknown as [{ label: { show: boolean } }, unknown][];
-      return {
-        max: (option?.yAxis as { max: number }).max,
-        shown: areas.map(([area]) => area.label.show),
-      };
+  it("does not let a risk dismissed, of a ratio above the identified one, raise the top of the axis [WF-RIS-0040-A]", () => {
+    const identifiedOnly = {
+      ...MATRIX,
+      points: MATRIX.points.filter((point) => point.state === "identified"),
     };
-    project([]);
-    const every = zonesOf();
-    project(["identified"]);
-    expect(zonesOf()).toEqual(every);
-    project(["occurred"]);
-    expect(zonesOf()).toEqual(every);
-  });
-
-  it("counts the cells of every risk under the chart, whatever the states asked, and says so in the name of the table", () => {
-    const counts = () =>
-      screen.getByRole("table", {
-        name: "Count of the risks by cell of the matrix, all states together",
-        hidden: true,
-      }).textContent;
-    const { unmount } = project([]);
-    const every = counts();
-    unmount();
-    project(["identified"]);
-    expect(counts()).toBe(every);
-    expect(drawn().bubbles).toHaveLength(1);
+    project(identifiedOnly);
+    const alone = (drawn().option?.yAxis as { max: number }).max;
+    // The dismissed risk of the example would set the top higher, were it counted (0.1758 × 1.15).
+    const dismissed = MATRIX.points.find((point) => point.state === "dismissed");
+    expect(Number(dismissed === undefined ? 0 : ratioOf(dismissed)) * 1.15).toBeGreaterThan(alone);
+    project();
+    expect((drawn().option?.yAxis as { max: number }).max).toBe(alone);
   });
 
   it("leaves a ratio it cannot read out of the top of the axis, which stays a number", () => {
-    project([]);
+    project();
     const reference = (drawn().option?.yAxis as { max: number }).max;
-    project([], {
+    project({
       ...MATRIX,
       points: MATRIX.points.map((point, rank) =>
         rank === 0
@@ -321,13 +350,13 @@ describe("the risk matrix as a bubble chart", () => {
     return (first?.textContent ?? "").trim();
   }
 
-  it("draws no bubble for a risk whose ratio the server could not compute, its cell counting it only if identified", () => {
+  it("draws no bubble for a risk whose ratio the server could not compute, its cell counting it only if identified [WF-RIS-0040-A]", () => {
     // #1240: on a base of nought, the ratio is not computable and the risk is at the lowest level
     // of severity; the chart has no ordinate for it, and computes none.
     const noBasis = example("risk_matrix_no_basis") as RiskMatrix;
-    project([], noBasis);
+    project(noBasis);
     const { bubbles, option, zones } = drawn();
-    expect(bubbles.map((each) => each.data)).toEqual([[], [], []]);
+    expect(bubbles.map((each) => each.data)).toEqual([[]]);
     expect(zones?.markArea?.data).toHaveLength(16);
     // The lowest level of severity holds the risks at probabilities 0.4 and 0.3 (level 3), and 0.05 (level 1);
     // a cell counts only the identified ones (#1395): one at level 3, none at level 1.
@@ -337,11 +366,11 @@ describe("the risk matrix as a bubble chart", () => {
     expect((option?.yAxis as { max: number }).max).toBeCloseTo(0.15);
   });
 
-  it("says how many risks have no bubble, and why, and no more once every risk has a share", () => {
-    project([], example("risk_matrix_no_basis") as RiskMatrix);
+  it("says how many risks have no bubble, and why, and no more once every risk has a share [WF-RIS-0040-A]", () => {
+    project(example("risk_matrix_no_basis") as RiskMatrix);
     expect(
       screen.getByText(
-        "3 risks are not drawn: their severity cannot be set as a share of the budget — No reference budget.",
+        "1 risk is not drawn: its severity cannot be set as a share of the base of the project — No reference budget.",
       ),
     ).toBeInTheDocument();
     cleanup();
@@ -349,16 +378,16 @@ describe("the risk matrix as a bubble chart", () => {
     expect(screen.queryByText(/are not drawn|is not drawn/)).not.toBeInTheDocument();
   });
 
-  it("keeps the bubble of a risk with a share beside a risk without one, which it counts apart", () => {
-    const top = MATRIX.points.reduce((a, b) => (Number(ratioOf(b)) > Number(ratioOf(a)) ? b : a));
+  it("keeps the bubble of a risk with a share beside a risk without one, which it counts apart [WF-RIS-0040-A]", () => {
+    const top = THREE.points.reduce((a, b) => (Number(ratioOf(b)) > Number(ratioOf(a)) ? b : a));
     // Before it loses its share, the risk of the highest ratio sets the top of the axis, above the
     // last level's: the fall back below is the removal's, not the matrix's.
-    project([]);
+    project(THREE);
     expect((drawn().option?.yAxis as { max: number }).max).toBeGreaterThan(0.15);
     cleanup();
-    project([], {
-      ...MATRIX,
-      points: MATRIX.points.map((point) =>
+    project({
+      ...THREE,
+      points: THREE.points.map((point) =>
         point === top
           ? {
               ...point,
@@ -375,14 +404,14 @@ describe("the risk matrix as a bubble chart", () => {
       (each.data as { id: string }[]).map(({ id }) => id),
     );
     expect(ids.sort()).toEqual(
-      MATRIX.points
+      THREE.points
         .filter((point) => point !== top)
         .map((point) => point.risk_id)
         .sort(),
     );
     expect(
       screen.getByText(
-        "1 risk is not drawn: its severity cannot be set as a share of the budget — No reference budget.",
+        "1 risk is not drawn: its severity cannot be set as a share of the base of the project — No reference budget.",
       ),
     ).toBeInTheDocument();
     // The highest ratio is gone from the axis, which falls back on the last level and stays a number.
@@ -393,12 +422,12 @@ describe("the risk matrix as a bubble chart", () => {
     expect(tooltip.formatter({ data: { id: top.risk_id } })).toBe("");
   });
 
-  it("says so when the filter leaves nothing to draw, and still draws the zones", () => {
-    project(["identified"], {
+  it("says so when no risk is identified, and still draws the zones [WF-RIS-0040-A]", () => {
+    project({
       ...MATRIX,
       points: MATRIX.points.filter((p) => p.state !== "identified"),
     });
-    expect(screen.getByText("No risk to draw for this filter.")).toBeInTheDocument();
+    expect(screen.getByText("No risk identified to draw.")).toBeInTheDocument();
     const { zones, bubbles } = drawn();
     expect(bubbles).toEqual([]);
     expect(zones?.markArea?.data).toHaveLength(16);
@@ -411,7 +440,7 @@ describe("the risk matrix as a bubble chart", () => {
         rank === 0 ? { ...point, label: "Câblage <b>& co</b>" } : point,
       ),
     };
-    project([], tricky);
+    project(tricky);
     const { option } = drawn();
     const tooltip = option?.tooltip as { formatter: (params: unknown) => string };
     expect(tooltip.formatter({ data: { id: CABLING } })).toBe(
@@ -420,7 +449,6 @@ describe("the risk matrix as a bubble chart", () => {
         "Probability : 40%",
         "Severity : 1,250,000.00 (1.83%)",
         "Provision : 500,000.00",
-        "State : Identified",
         "Zone : Watch",
       ].join("<br/>"),
     );
@@ -428,19 +456,7 @@ describe("the risk matrix as a bubble chart", () => {
     expect(tooltip.formatter({ data: { id: "other" } })).toBe("");
   });
 
-  it("names the provision of a risk occurred or dismissed that of the reference, in its tooltip", () => {
-    project();
-    const { option } = drawn();
-    const tooltip = option?.tooltip as { formatter: (params: unknown) => string };
-    for (const [id, amount] of [
-      [DELIVERY, "60.00"],
-      [AUTOMATON, "600,000.00"],
-    ] as const) {
-      expect(tooltip.formatter({ data: { id } })).toContain(`Reference provision : ${amount}`);
-    }
-  });
-
-  it("leads a click on a bubble to the detail of its risk, from the address asked", () => {
+  it("leads a click on a bubble to the detail of its risk, from the address asked [WF-RIS-0040-A]", () => {
     project();
     const { onPoint } = charts.props.at(-1) ?? {};
     act(() => {
@@ -450,13 +466,6 @@ describe("the risk matrix as a bubble chart", () => {
       `${PATHNAME}?sort_by=provision_amount&sort_order=asc&risk=${CABLING}`,
       { scroll: false },
     );
-    // A bubble filtered out cannot be clicked: no point of its own, nothing opens.
-    router.push.mockClear();
-    project(["occurred"]);
-    act(() => {
-      charts.props.at(-1)?.onPoint?.(CABLING);
-    });
-    expect(router.push).not.toHaveBeenCalled();
   });
 
   it("exports a PNG image that names the project, the revision and the date of calculation [WF-IHM-0130-A]", () => {
@@ -491,8 +500,8 @@ describe("the risk matrix as a bubble chart", () => {
     expect(instances.disposed).toBe(1);
   });
 
-  it("starts unfolded when the account kept it so, and folded when it kept nothing: the state read is the one drawn", () => {
-    project([], MATRIX, false);
+  it("starts unfolded when the account kept it so, and folded when it kept nothing: the state read is the one drawn [WF-RIS-0040-A]", () => {
+    project(MATRIX, false);
     expect(screen.getByRole("button", { name: "Chart" })).toHaveAttribute("aria-expanded", "true");
     expect(screen.getByRole("img", { name: /^Bubble chart of the risks/ })).toBeInTheDocument();
     cleanup();
@@ -517,13 +526,13 @@ describe("the risk matrix as a bubble chart", () => {
     expect(command).toHaveFocus();
   });
 
-  it("tells a refusal of the service, which can be dismissed, the chart staying as the user left it", async () => {
+  it("tells a refusal of the service, which can be dismissed, the chart staying as the user left it [WF-RIS-0040-A]", async () => {
     vi.mocked(updateChartPreferences).mockResolvedValue({ kind: "unreachable" });
     project();
     fireEvent.click(screen.getByRole("button", { name: "Chart" }));
     expect(await screen.findByRole("alert")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Chart" })).toHaveAttribute("aria-expanded", "true");
-    fireEvent.click(screen.getByRole("button", { name: /dismiss|close/i }));
+    fireEvent.click(screen.getByRole("button", { name: CATALOGUES.en.outcome.dismiss }));
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });
 
@@ -564,6 +573,29 @@ describe("the risk matrix as a bubble chart", () => {
   });
 });
 
+describe("the labels of the severity of a risk", () => {
+  it("say the base of the project, not the reference budget, in both languages: the severity is a share of the base the server sets (WF-REF-0160) [WF-REF-0160-A]", () => {
+    for (const [language, base, budget] of [
+      ["en", /base of the project/, /reference budget/i],
+      ["fr", /assiette du projet/, /budget de référence/i],
+    ] as const) {
+      const catalogue = CATALOGUES[language];
+      const labels = [
+        catalogue.reference.riskMatrix.severity,
+        catalogue.reference.riskForm.severity,
+        catalogue.risks.matrix.axisSeverity,
+        catalogue.risks.matrix.severity,
+        catalogue.risks.matrix.description,
+        catalogue.risks.matrix.unplotted,
+      ];
+      for (const label of labels) {
+        expect(label).toMatch(base);
+        expect(label).not.toMatch(budget);
+      }
+    }
+  });
+});
+
 describe("the risk matrix of the portfolio", () => {
   /** The matrix of the portfolio, in English. */
   function portfolio() {
@@ -578,8 +610,11 @@ describe("the risk matrix of the portfolio", () => {
   it("draws every risk of the points the server rendered, and counts the cells as it gave them", () => {
     portfolio();
     const { bubbles } = drawn();
-    expect(bubbles.map((each) => each.name)).toEqual(["Identified"]);
-    expect(bubbles[0]?.data).toHaveLength(RISKS.matrix.points.length);
+    expect(bubbles.map((each) => each.name)).toEqual(["Nominal", "Watch", "Alert"]);
+    const drawnCount = bubbles.reduce((sum, each) => sum + (each.data as unknown[]).length, 0);
+    expect(drawnCount).toBe(
+      RISKS.matrix.points.filter(({ state }) => state === "identified").length,
+    );
     expect(screen.getByRole("figure", { name: "Risk matrix" })).toBeInTheDocument();
   });
 

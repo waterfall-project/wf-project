@@ -4,6 +4,9 @@
  * The screen of the timelines as a document renders the tree its page composes: what the page
  * hands the frieze for its exported image — the timeline, the project, the revision, and the date
  * the dates were calculated at, which the answer carries (`meta.scheduled_at`, #1404).
+ *
+ * It is the non-regression of the state the pieces of the page share (defect n° 20 of
+ * `docs/dev/typescript.md`, #819.3), what a document alone shows; it cites no requirement.
  */
 import { render, screen } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
@@ -92,11 +95,11 @@ describe("the exported image of the timeline shown", () => {
     await userEvent.click(screen.getByRole("button", { name: "Exporter en PNG" }));
     expect(canvas.options).toHaveLength(1);
     const { title } = canvas.options[0] as ChartOption;
-    // The revision as its version name, or as the current one, the example giving it none.
-    const named = revision.version_name ?? "Révision en cours";
+    // The example is the current revision, which has no version name: the screen says so.
+    expect(revision.version_name ?? null).toBeNull();
     expect(title).toMatchObject({
       text: `${timelines[0]?.label ?? ""} — ${project.label}`,
-      subtext: `Révision : ${named} · Calculé le ${formatTimestamp(meta.scheduled_at, "fr")}`,
+      subtext: `Révision : Révision en cours · Calculé le ${formatTimestamp(meta.scheduled_at, "fr")}`,
     });
   });
 });

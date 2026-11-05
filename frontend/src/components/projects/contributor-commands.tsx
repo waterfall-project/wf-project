@@ -60,8 +60,8 @@ import { CommandTooltip } from "@/components/commands/command-tooltip";
 import { type CommandOffer, UNAVAILABLE, unmetId } from "@/components/commands/offer";
 import { OutcomeNotice, useNoteRefusal } from "@/components/commands/outcome-notice";
 import { rejected } from "@/components/commands/rejection";
+import { WritingNote } from "@/components/commands/writing-note";
 import { type Said, type Say, useSaid } from "@/components/notices/said";
-import { WritingNote } from "@/components/reference/reference-form";
 import { ActiveState } from "@/components/reference/section";
 import { Button } from "@/components/ui/button";
 import {
@@ -257,6 +257,7 @@ function ModifyContributors({
           size="sm"
           aria-disabled={offer.is_available && !writing ? undefined : true}
           aria-busy={writing}
+          aria-haspopup="dialog"
           className={UNAVAILABLE}
           onClick={(event: MouseEvent<HTMLElement>) => {
             if (offer.is_available && !writing && reading !== undefined) {

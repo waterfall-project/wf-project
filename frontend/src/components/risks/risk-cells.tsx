@@ -14,12 +14,13 @@ import { X } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
+import { createContext, type ReactNode, useContext } from "react";
 
 import { usePendingLink } from "@/components/grid/pending-address";
 import { Signal } from "@/components/signal/signal";
 import { buttonVariants } from "@/components/ui/button";
 
-import { readRisk, riskHref, type RiskState } from "./address";
+import { originHref, readRisk, riskHref } from "./address";
 import type { RiskRow } from "./risk-grid";
 
 /**
@@ -43,6 +44,7 @@ export function RiskLabelCell({ risk }: { readonly risk: RiskRow }) {
       onClick={onClick}
       tabIndex={-1}
       aria-current={shown ? "true" : undefined}
+      title={risk.label}
       className="block truncate underline-offset-2 hover:underline aria-[current]:font-semibold"
       scroll={false}
     >
@@ -51,10 +53,54 @@ export function RiskLabelCell({ risk }: { readonly risk: RiskRow }) {
   );
 }
 
-/** Render the state of a risk, in the language of the interface. */
-export function RiskStateCell({ state }: { readonly state: RiskState }) {
+const ORIGIN_GRID = createContext<string | undefined>(undefined);
+
+/**
+ * Give the cells of the states the address of the grid of the revision, in its context, which the
+ * state of a risk occurred leads to, filtered on it — the estimate, the planning when the session
+ * does not read the estimate; none, and they lead nowhere (it reads neither).
+ */
+export function OccurredLines({
+  originGrid,
+  children,
+}: {
+  readonly originGrid: string | undefined;
+  readonly children: ReactNode;
+}) {
+  return <ORIGIN_GRID.Provider value={originGrid}>{children}</ORIGIN_GRID.Provider>;
+}
+
+/**
+ * Render the state of a risk, in the language of the interface. A risk occurred leads to the grid
+ * of the revision filtered on the lines that came of it (`origin_risk_ids`, WF-RIS-0060) — the
+ * estimate, or the planning for a session that does not read it: the estimate prices them, and the
+ * reestimated amount of the register is their sum. The link is the cell's, which Enter follows;
+ * its name keeps the state, as the cell shows it.
+ */
+export function RiskStateCell({ risk }: { readonly risk: RiskRow }) {
   const t = useTranslations("enums.RiskState");
-  return <span className="truncate">{t(state)}</span>;
+  const lines = useTranslations("risks.coverage");
+  const originGrid = useContext(ORIGIN_GRID);
+  const state = t(risk.state);
+  if (risk.state !== "occurred" || originGrid === undefined) {
+    return (
+      <span className="truncate" title={state}>
+        {state}
+      </span>
+    );
+  }
+  const named = lines("occurredLines", { risk: risk.label });
+  return (
+    <Link
+      href={originHref(originGrid, risk.risk_id)}
+      tabIndex={-1}
+      aria-label={lines("occurredStateLines", { state, risk: risk.label })}
+      title={named}
+      className="block truncate underline underline-offset-2"
+    >
+      {state}
+    </Link>
+  );
 }
 
 /** Render the cell of the matrix a risk falls in, by its signal. */

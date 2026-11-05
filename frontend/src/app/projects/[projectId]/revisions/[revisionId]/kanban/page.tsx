@@ -3,8 +3,10 @@
 /**
  * The Kanban of the start of the tasks (FBS-4.5.3, WF-RAE-0030, US-0230), a leaf of the remaining
  * to commit with a screen of its own, whose head leads here in the same context: the banner of its
- * reading context (WF-IHM-0020), which shows no filter — the Kanban takes none —, and the tasks not
- * started, started and completed, as the API gives them (`listStartableTasks`). The API reads them in the
+ * reading context (WF-IHM-0020), which shows no filter — the API takes none, and the Kanban narrows
+ * the cards it is given by the label (`q`) and the tasks ready (`ready`) of the address alone,
+ * US-0730 —, and the tasks not started, started and completed, as the API gives them
+ * (`listStartableTasks`). The API reads them in the
  * revision in progress of the project, whatever revision the address names: a marked revision,
  * whose tasks it would not show, says so and asks nothing, rather than showing the tasks of another
  * revision under its banner. No percentage is entered; a card makes the gestures it lists
@@ -18,6 +20,7 @@ import { readOrFail } from "@/api/problem";
 import { serverClient } from "@/api/server";
 import { ContextBanner } from "@/components/context/context-banner";
 import { readProjectContext } from "@/components/context/reading";
+import { type KanbanFilters, readKanbanFilters } from "@/components/remaining/address";
 import { Kanban } from "@/components/remaining/kanban";
 import {
   columnsOf,
@@ -50,7 +53,13 @@ interface Board {
 }
 
 /** The head of the screen, and the Kanban — or why a marked revision shows none. */
-function KanbanScreen({ board }: { readonly board: Board | undefined }) {
+function KanbanScreen({
+  board,
+  filters,
+}: {
+  readonly board: Board | undefined;
+  readonly filters: KanbanFilters;
+}) {
   const t = useTranslations();
   return (
     <Screen density={FUNCTION_DENSITY.remaining}>
@@ -69,6 +78,7 @@ function KanbanScreen({ board }: { readonly board: Board | undefined }) {
           columns={board.columns}
           structure={board.structure}
           remaining={board.remaining}
+          filters={filters}
         />
       )}
     </Screen>
@@ -124,7 +134,7 @@ export default async function KanbanPage({
   return (
     <>
       <ContextBanner reading={reading} />
-      <KanbanScreen board={board} />
+      <KanbanScreen board={board} filters={readKanbanFilters(at.address)} />
     </>
   );
 }

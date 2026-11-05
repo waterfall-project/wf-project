@@ -8,7 +8,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ApiClient } from "@/api/client";
 import type { BackgroundTask } from "@/api/problem";
 import { CATALOGUES } from "@/i18n/catalogues";
-import { example, type FakeAnswers, type FakeClient, fakeClient } from "@/test/fixtures";
+import { example, type FakeAnswers, type FakeClient, fakeClient, held } from "@/test/fixtures";
 import { tasksRegion } from "@/test/task-panel";
 
 import { TaskPanel, TasksButton, TaskTracker, useTrackTask } from "./task-tracker";
@@ -154,19 +154,16 @@ describe("the result of a task", () => {
   });
 
   it("downloads nothing when the entry is dismissed while the task is read anew", async () => {
-    let release!: () => void;
-    const held = new Promise<void>((resolve) => {
-      release = resolve;
-    });
+    const answer = held();
     server.client = fakeClient(
       { [TASK]: "task_export_succeeded" },
-      { hold: (route) => (route === TASK ? held : undefined) },
+      { hold: (route) => (route === TASK ? answer.until : undefined) },
     );
     await exported();
     await userEvent.click(downloadLink());
     await userEvent.click(screen.getByRole("button", { name: /^Retirer du suivi/ }));
-    release();
-    await act(() => held);
+    answer.release();
+    await act(() => answer.until);
     await act(() => Promise.resolve());
     // No click replayed: the entry gone, the download does not leave.
     expect(followed).toEqual([false]);

@@ -34,6 +34,7 @@ import { PerimeterBar } from "@/components/portfolio/perimeter";
 import { PortfolioHeader, portfolioLabel } from "@/components/portfolio/portfolio-header";
 import { WorkloadView } from "@/components/portfolio/portfolio-views";
 import { FUNCTION_DENSITY } from "@/components/shell/function-display";
+import { MockupNotice } from "@/components/shell/mockup-notice";
 import { Screen } from "@/components/shell/page-header";
 import { type PageSearchParams, pageSearch } from "@/navigation/context";
 import { requestSession } from "@/session/request";
@@ -87,6 +88,7 @@ export default async function PortfolioWorkloadPage({
       <KeptWorkload preferences={preferences} />
       <Screen density={FUNCTION_DENSITY.portfolio_workload}>
         <PortfolioHeader fn="portfolio_workload" scope={answer.scope} />
+        <MockupNotice lists />
         <PerimeterBar
           perimeter={perimeter}
           retained={answer.scope.states}

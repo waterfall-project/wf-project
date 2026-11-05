@@ -424,10 +424,12 @@ describe("the fronts of the harness, one for each worker of the paths (#1477)", 
   ])(
     "is told the workers by make e2e WORKERS=%j, which passes none to Playwright itself",
     (named, told) => {
-      // The recipe of make e2e run, its installation and its Playwright replaced: what Playwright
-      // would be started under, and with which arguments. Run apart from the make that runs the
-      // tests: in the chain, `make coverage-front SHARD=2/2` hands its part to make e2e through
-      // the environment and MAKEFLAGS, which then plays `--shard=2/2` of the paths (US-0590b).
+      // The recipe of make e2e run, its installation, its Playwright and the tools of the fake back
+      // (REDOCLY and PRISM, which mock-tools would otherwise fetch through two real npx, from the
+      // network and its cache: #1901) replaced: what Playwright would be started under, and with
+      // which arguments. Run apart from the make that runs the tests: in the chain,
+      // `make coverage-front SHARD=2/2` hands its part to make e2e through the environment and
+      // MAKEFLAGS, which then plays `--shard=2/2` of the paths (US-0590b).
       const environment = { ...process.env };
       delete environment.MAKEFLAGS;
       delete environment.MAKELEVEL;
@@ -446,6 +448,8 @@ describe("the fronts of the harness, one for each worker of the paths (#1477)", 
           "E2E_BUILT=1",
           "TESTS=e2e/accessibility.spec.ts",
           "PNPM=true",
+          "REDOCLY=true",
+          "PRISM=true",
           "PNPM_HEAVY=printenv E2E_WORKERS; echo",
         ],
         { cwd: REPOSITORY, encoding: "utf-8", env: environment },

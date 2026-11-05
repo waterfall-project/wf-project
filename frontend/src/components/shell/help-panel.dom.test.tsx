@@ -323,6 +323,25 @@ describe("the panel of the help", () => {
     await panel("La valeur acquise");
   });
 
+  it("empties the search field at a first Escape, and closes the panel at the second [WF-IHM-0140-A]", async () => {
+    const user = userEvent.setup();
+    renderHeader();
+    await user.click(helpButton());
+    const dialog = await panel("Planification");
+    const box = within(dialog).getByRole("searchbox", { name: "Chercher dans l’aide" });
+    await user.type(box, "acquise");
+    expect(box).toHaveValue("acquise");
+    await user.keyboard("{Escape}");
+    expect(box).toHaveValue("");
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+    expect(box).toHaveFocus();
+    await user.keyboard("{Escape}");
+    await waitFor(() => {
+      expect(screen.queryByRole("dialog")).toBeNull();
+    });
+    expect(helpButton()).toHaveFocus();
+  });
+
   it.each([
     [
       "fr",

@@ -10,6 +10,7 @@ import type { ApiClient } from "@/api/client";
 import { CATALOGUES } from "@/i18n/catalogues";
 import { example, type FakeAnswers, type FakeClient, fakeClient, held } from "@/test/fixtures";
 
+import type { KanbanFilters } from "./address";
 import { Kanban } from "./kanban";
 import { columnsOf, type KanbanColumns, type StartableTasks } from "./kanban-cards";
 
@@ -82,10 +83,13 @@ function holdReadings() {
 }
 
 /** Render the Kanban in French, as the shell hands its texts to a screen. */
-function board(columns: KanbanColumns = columnsOfExample("startable_tasks")) {
+function board(
+  columns: KanbanColumns = columnsOfExample("startable_tasks"),
+  filters: KanbanFilters = { text: "", ready: false },
+) {
   const tree = (shown: KanbanColumns) => (
     <NextIntlClientProvider locale="fr" messages={CATALOGUES.fr}>
-      <Kanban columns={shown} structure={STRUCTURE} remaining={REMAINING} />
+      <Kanban columns={shown} structure={STRUCTURE} remaining={REMAINING} filters={filters} />
       <Reader />
     </NextIntlClientProvider>
   );
@@ -220,6 +224,41 @@ describe("the Kanban once a gesture is answered", () => {
     expect(status).toHaveTextContent("Réception usine : colonne « Terminées ».");
   });
 
+  it("keeps shown under the tasks ready the milestone just reopened, until the reading of the tasks brings its predecessors [WF-RAE-0030-A]", async () => {
+    // The answer of a gesture does not carry the predecessors of the task: the card stays shown
+    // under « Tâches prêtes », rather than vanish under the hand that moved it (US-0730).
+    serve({ [PROGRESS]: "milestone_reopened" });
+    const waits = holdReadings();
+    const { again } = board(columnsOfExample("startable_tasks"), { text: "", ready: true });
+    const label = "Réception des études";
+    expect(labels("Non démarrées")).not.toContain(label);
+    await choose(label, "Rouvrir");
+    await waitFor(() => {
+      expect(labels("Non démarrées")).toContain(label);
+    });
+    // The tasks read anew: the milestone is not ready, and the filter hides it at last.
+    const read = columnsOfExample("startable_tasks");
+    const [reopened] = read.completed.filter((each) => each.label === label);
+    if (reopened === undefined) {
+      throw new Error("no milestone completed in the example");
+    }
+    await act(async () => {
+      again({
+        ...read,
+        not_started: [
+          ...read.not_started,
+          { ...reopened, state: "not_started", predecessors_completed: false, lock_version: 99 },
+        ],
+        completed: read.completed.filter((each) => each !== reopened),
+      });
+      waits[0]?.release();
+      await Promise.resolve();
+    });
+    await waitFor(() => {
+      expect(labels("Non démarrées")).not.toContain(label);
+    });
+  });
+
   it("marks the card moved as updating, then as not up to date with a way to read again [WF-IHM-0090-A]", async () => {
     serve({ [PROGRESS]: "task_started" });
     const waits = holdReadings();
@@ -228,15 +267,29 @@ describe("the Kanban once a gesture is answered", () => {
     await start(label);
     const moved = () => within(card(label));
     expect(await moved().findByText("Mise à jour…")).toBeInTheDocument();
-    // The mark is told to assistive technology.
-    expect(moved().getByRole("status")).toHaveTextContent("Mise à jour…");
+    // The card holds no live region of its own, and no button inside a text a region would read
+    // again: the one permanent region of the board is the only one [WF-IHM-0070-A] (#1356).
+    expect(moved().queryByRole("status")).toBeNull();
+    expect(screen.getAllByRole("status")).toHaveLength(1);
+    // The mark is told to assistive technology by that region, as the one not up to date is.
+    expect(announcements()).toHaveTextContent(`${label} : mise à jour.`);
+    const told = within(announcements()).getByText(`${label} : mise à jour.`, { exact: false });
     expect(moved().queryByRole("button", { name: "Réessayer" })).toBeNull();
     // No other card is marked.
     expect(screen.getAllByText("Mise à jour…")).toHaveLength(1);
     // The reading is over, and the tasks it brought do not hold the answer.
     waits[0]?.release();
     const retry = await moved().findByRole("button", { name: "Réessayer" });
-    expect(moved().getByRole("status")).toHaveTextContent(/Non à jour/);
+    expect(moved().getByText("Non à jour")).toBeVisible();
+    // Told in the permanent region, which the button of the retry is outside of, and the dash that
+    // separated the text from the button is a spacing, which no screen reader reads.
+    expect(announcements()).toHaveTextContent(`${label} : non à jour.`);
+    // The sentence is a new node of the region, not the old one re-texted: that is what a screen
+    // reader announces again (#1849).
+    expect(told.isConnected).toBe(false);
+    expect(announcements()).not.toHaveTextContent(`${label} : mise à jour.`);
+    expect(announcements()).not.toContainElement(retry);
+    expect(moved().getByText("Non à jour").textContent).not.toContain("—");
     expect(moved().queryByText("Mise à jour…")).toBeNull();
     expect(router.refresh).toHaveBeenCalledTimes(1);
     // Read again, the card is being updated anew, and the focus is on it, not lost with the button.
@@ -261,7 +314,9 @@ describe("the Kanban once a gesture is answered", () => {
   });
 
   it("never says a card is not up to date when the columns arrive with the end of the reading [WF-IHM-0090-A]", async () => {
-    // The model of the suspended reading is tried against this test only, with no e2e journey.
+    // No end-to-end journey suspends a reading half-way, so this test alone holds the nominal path:
+    // the columns arrive in the same render as the end of the reading, and the card, which the
+    // columns now hold at its version, is never told "not up to date" on the way.
     serve({ [PROGRESS]: "task_started" });
     const waits = holdReadings();
     const { again } = board();
@@ -281,6 +336,7 @@ describe("the Kanban once a gesture is answered", () => {
       expect(labels("Démarrées")).toContain(label);
     });
     expect(screen.queryByText(/Non à jour/)).toBeNull();
+    expect(announcements()).not.toHaveTextContent(/non à jour/i);
     expect(screen.queryByRole("button", { name: "Réessayer" })).toBeNull();
   });
 

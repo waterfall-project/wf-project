@@ -4,6 +4,8 @@
 
 Les révisions du projet : chacune est un instantané complet — ses structures de coûts et les valeurs du référentiel qu’elles emploient. Une révision est d’abord en cours d’élaboration, puis figée quand elle est marquée ; l’une des révisions marquées est la référence, qui fixe le budget, la réserve pour risques et la valeur planifiée. Ce cycle est celui de la [revue périodique](notions/revisions.md) : ouvrir une révision en cours, mettre à jour le planning et le reste à engager, réexaminer les risques, puis marquer.
 
+Ouvrir un projet ne passe pas par cet écran : la page du projet mène à sa révision en cours, sinon à sa référence, sinon à sa dernière révision marquée ; elle ne mène ici que si cette révision n’est pas lisible par votre session. Quand l’import qui vient de créer le projet a mené jusqu’ici, son **compte rendu** s’affiche au-dessus de l’historique, comme sur la page du projet. On y vient aussi par la fonction **Révisions**, pour en lire une autre.
+
 De haut en bas :
 
 - l’**Historique des révisions** : pour chacune, sa version, son état, sa date de marquage, sa description, le lien qui l’ouvre, et la marque de la référence ;
@@ -20,7 +22,7 @@ En tête de l’écran, les commandes de la révision lue, chacune disponible ou
 - **Marquer la révision** demande un nom de version, obligatoire, et une description ; le marquage, confié au traitement de fond, fige la révision et conserve ses indicateurs. Indisponible sur une révision déjà marquée (« révision en cours d’élaboration ») ou pendant un traitement de fond.
 - **Préparer un avenant** crée, sous le libellé donné, un différentiel de la structure principale, qui s’ouvre dans la grille de planning ; rien n’est fusionné avant sa contractualisation, depuis la grille de son différentiel.
 - **Abandonner la révision en cours**, après confirmation : le projet revient à sa dernière révision marquée, et les lignes de la révision en cours sont supprimées. L’abandon est irréversible.
-- **Déclarer un risque** dit si l’identification d’un risque aboutirait, mais n’ouvre rien sur cet écran : le risque s’identifie sur l’écran des [risques](FBS-4.6.md).
+- **Déclarer un risque** mène, quand elle est disponible, à l’écran des [risques](FBS-4.6.md) de la révision, où « Identifier un risque » s’offre ; indisponible, elle dit ce qui lui manque.
 
 Dans les sections :
 

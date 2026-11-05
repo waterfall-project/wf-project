@@ -11,7 +11,8 @@
  * but the follow-up when the storage is refused (a private window, a quota). A task that
  * ended is not kept: its end was announced. The command that started a task does not survive
  * a reload — a function is no data —: a task followed again after one cannot be relaunched
- * from the tracker, and the user starts it again from its screen. Signing out forgets them.
+ * from the tracker, and the user starts it again from its screen. Signing out, and a session found
+ * ended, forget them.
  */
 import { RUNNING, type TaskKind, type TaskStatus, type TrackedTask } from "./tracking";
 
@@ -101,8 +102,8 @@ export function restoreTasks(): TrackedTask[] {
 
 /**
  * Whether a task is worth following again after a reload: it still runs, and the API has not
- * said it does not know it (404). One interrupted for want of a session (401) is kept: once
- * signed in again, a reload follows it on, and announces its end.
+ * said it does not know it (404). One interrupted for want of a session (401) is not kept for
+ * the next session either: a session found ended wipes the tasks (`wipeStores`, #1180).
  */
 function isResumable({ task, interrupted }: TrackedTask): boolean {
   return RUNNING[task.status] && interrupted?.problem.status !== 404;

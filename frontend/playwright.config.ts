@@ -28,7 +28,10 @@
  * API, which closes an idle one (#1145).
  *
  * The measure never fails the run on the second itself: it writes what it measured, and warns
- * when an opening overran it (`opening.spec.ts`).
+ * when an opening overran it (`opening.spec.ts`). It measures too the work of the browser to leave
+ * a grid of a thousand tasks, the processor slowed, which fails past a second (`departure.spec.ts`,
+ * US-0800): a fifth of it on a workstation, and the opening measured as fast on the runner of the
+ * chain as there.
  *
  * `E2E_PART` plays half of the harness, as the chain does on separate runners (#492): `paths`,
  * every path but the measure, which Playwright can then spread over runners (`--shard`) — the
@@ -205,7 +208,7 @@ const frontAt = (index: number) => `http://127.0.0.1:${String(FRONT_PORT + index
 const FRONT = frontAt(Number(process.env.TEST_PARALLEL_INDEX ?? "0") % FRONTS);
 // From the root of the repository, where `make -C ..` runs; ignored by git.
 const MOCK_SPEC = "frontend/.e2e/waterfall.mock.json";
-const MEASURES = /opening\.spec\.ts$/;
+const MEASURES = /(opening|departure)\.spec\.ts$/;
 // The paths against the real service, which need its platform: `make e2e-service` alone plays them.
 const SERVICE_PATHS = /e2e\/service\/.+\.spec\.ts$/;
 // The paths that change a setting of the realm for the time they run — a lifetime —, which every
@@ -316,8 +319,11 @@ function measureProjects(): Project[] {
       name: "measure",
       testMatch: MEASURES,
       // After all the other paths, so that the measure has the machine to itself; played
-      // alone, it has a runner to itself.
+      // alone, it has a runner to itself. Its files one after the other: the opening of a grid
+      // (`opening.spec.ts`) and the departure from one (`departure.spec.ts`) would otherwise
+      // share the machine, and each weigh on what the other measures.
       dependencies: PLAYS_PATHS ? ["chromium"] : [],
+      workers: 1,
       // No trace: recording one would weigh on what is measured.
       use: { ...devices["Desktop Chrome"], locale: "fr-FR", trace: "off" },
     },

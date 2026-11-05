@@ -6,6 +6,7 @@ import { axeViolations } from "./axe";
 import { columnsOf } from "./columns";
 import { openHydrated } from "./hydration";
 import { rowAt, scrollToPosition } from "./scroll";
+import { isServerAction } from "./server-action";
 
 // The block is pasted on the amendment 2 (US-0500), a differential not merged of the current
 // revision, whose estimate is entered whatever the state of the project (WF-DEV-0050): the fake
@@ -137,7 +138,7 @@ async function paste(page: Page, block: readonly (readonly string[])[]): Promise
 function actions(page: Page): Request[] {
   const posted: Request[] = [];
   page.on("request", (request) => {
-    if (request.method() === "POST" && request.headers()["next-action"] !== undefined) {
+    if (isServerAction(request)) {
       posted.push(request);
     }
   });

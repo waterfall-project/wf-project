@@ -480,7 +480,9 @@ describe("the keyboard of a grid of a thousand rows", () => {
     const field = within(cell(999, "hours")).getByRole("textbox", { name: "Charge (h)" });
     expect(field).toHaveValue("15");
     expect(field).toHaveFocus();
-    expect(stops()).toEqual([cell(999, "hours")]);
+    // The entry open, its field is the one stop of the grid: the cell around it is none (US-0710).
+    expect(stops()).toEqual([]);
+    expect(cell(999, "hours")).toHaveAttribute("tabindex", "-1");
   });
 
   it("closes a refusal whose row is scrolled out of view, and never opens it again by itself", async () => {

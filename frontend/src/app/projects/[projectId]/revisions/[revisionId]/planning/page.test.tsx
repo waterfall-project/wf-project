@@ -8,7 +8,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { PlanningGridProps } from "@/components/grid/planning-grid";
 import type { StructureChoiceProps } from "@/components/context/structure-choice";
 import { CATALOGUES } from "@/i18n/catalogues";
-import { example, type FakeAnswers, type FakeClient, fakeClient } from "@/test/fixtures";
+import { example, type FakeAnswers, type FakeClient, fakeClient, held } from "@/test/fixtures";
 
 import PlanningPage from "./page";
 
@@ -67,7 +67,7 @@ const BREAKDOWN = "GET /projects/{project_id}/work-breakdown";
 const LOT = "01926f3a-7c00-7000-8000-000000000711";
 const ITEM = "01926f3a-7c00-7000-8000-000000000712";
 // The button of the skeleton, from its tag to its name.
-const SKELETON = /<button(?:(?!<button).)*?Generate the schedule skeleton<\/button>/;
+const SKELETON = /<button(?:(?!<button).)*?Generate the planning skeleton<\/button>/;
 
 /** Render in English, as the shell hands its texts to a screen. */
 function html(page: ReactNode): string {
@@ -107,6 +107,7 @@ beforeEach(() => {
     [BREAKDOWN]: "work_breakdown",
     "GET /projects/{project_id}/timelines": "timelines",
     "GET /reference/duration-units": "duration_units",
+    "GET /projects/{project_id}/risks": "risks",
   };
 });
 
@@ -124,7 +125,7 @@ describe("the screen of the planning", () => {
     const command = SKELETON.exec(page)?.[0] ?? "";
     expect(command).not.toBe("");
     expect(command).not.toContain(" aria-disabled=");
-    expect(page).toContain("Mock-up: the simulated service answers each write");
+    expect(page).toContain("Mock-up: the simulated service keeps no write");
   });
 
   it("enters the attachment from the work breakdown read whole, and offers no skeleton beside the tasks", async () => {
@@ -163,6 +164,24 @@ describe("the screen of the planning", () => {
     });
   });
 
+  it("hands the grid the tasks alone of an answer that mixes tasks and lines, the server rendering more than the kinds it was asked [WF-PLA-0080-A]", async () => {
+    // The fake back renders its example whole whatever `kinds` asks (#1397): the witness mixes.
+    server.answers = { ...server.answers, [NODES]: "nodes" };
+    await planning();
+    expect(callsOf(NODES).at(-1)?.query.getAll("kinds")).toEqual(["task"]);
+    const rows = grid.given.at(-1)?.nodes.items ?? [];
+    expect(rows.length).toBeGreaterThan(0);
+    expect(rows.map((row) => row.kind)).toEqual(rows.map(() => "task"));
+  });
+
+  it("hands the grid of a differential the tasks alone of an answer that mixes them with lines [WF-PLA-0080-A]", async () => {
+    server.answers = { ...server.answers, [NODES]: "nodes_amendment" };
+    await planning({ structure: "01926f3a-7c00-7000-8000-000000000203" });
+    const rows = grid.given.at(-1)?.nodes.items ?? [];
+    expect(rows.length).toBeGreaterThan(0);
+    expect(rows.every((row) => row.kind === "task")).toBe(true);
+  });
+
   it("gives the grid the planning start date of the structure it reads, which it presents above the tasks [WF-PLA-0020-A]", async () => {
     const page = await planning();
     // The 2 March 2026 of the witness, as the server gives it.
@@ -195,7 +214,7 @@ describe("the screen of the planning", () => {
     expect(page).toMatch(/<th(?:(?!<\/th>).)*>Attached to</);
   });
 
-  it("reads the work breakdown whole for its filter alone on a revision that may not be planned, and says nothing of the fake back", async () => {
+  it("reads the work breakdown whole for its filter alone on a revision that may not be planned, and says the fake back applies no filter", async () => {
     server.answers = {
       ...server.answers,
       "GET /projects/{project_id}/revisions/{revision_id}": "revision_marked",
@@ -205,7 +224,7 @@ describe("the screen of the planning", () => {
     const [read] = callsOf(BREAKDOWN);
     expect(read?.query.toString()).toBe("");
     expect(page).toContain(`<option value="${ITEM}">Order item: Poste 1.1</option>`);
-    expect(page).not.toContain("Mock-up:");
+    expect(page.match(/<p role="note"/g)).toHaveLength(1);
   });
 });
 
@@ -454,9 +473,12 @@ describe("« Écarts seulement » on the grid of the planning [WF-REV-0100-A] [W
     expect(BUTTON.exec(page)?.[1]).toBe("true");
     expect(chips(page)).toContain("Differences only");
     expect(chips(page)).toContain(`aria-label="Remove the filter “Differences only”"`);
-    // The rows are those of the answer: the front retains none of its own.
-    const answered = example("nodes_amendment_differences") as { items: unknown[] };
-    expect(grid.given.at(-1)?.nodes.items).toHaveLength(answered.items.length);
+    // The rows are the tasks of the answer: the front retains none of its own, but the lines the
+    // server rendered besides the tasks it was asked (`kinds`, #1397).
+    const answered = example("nodes_amendment_differences") as { items: { kind: string }[] };
+    expect(grid.given.at(-1)?.nodes.items).toHaveLength(
+      answered.items.filter((node) => node.kind === "task").length,
+    );
     expect(grid.given.at(-1)?.filters.difference).toEqual(["added", "removed", "modified"]);
   });
 
@@ -475,5 +497,170 @@ describe("« Écarts seulement » on the grid of the planning [WF-REV-0100-A] [W
       expect(page).not.toContain("Differences only");
       expect(page).not.toContain("Active filters");
     }
+  });
+});
+
+/** The query the page asked a route with, by the end of its route. */
+function queryOf(end: string): URLSearchParams | undefined {
+  return server.clients.flatMap((client) => client.calls).find((call) => call.route.endsWith(end))
+    ?.query;
+}
+
+describe("the filter of the planning on the rows a risk occurred merged", () => {
+  const OCCURRED = "01926f3a-7c00-7000-8000-000000000752";
+  const IDENTIFIED = "01926f3a-7c00-7000-8000-000000000751";
+  const RISKS = "GET /projects/{project_id}/risks";
+
+  it("offers « Coming from a risk » and the risks occurred of the project alone, never one identified [WF-RIS-0060-A]", async () => {
+    const page = await planning();
+    expect(page).toMatch(/<label[^>]*>Origin<\/label>/);
+    expect(page).toContain(
+      `<option value="" selected="">All rows</option>` +
+        `<option value="true">Coming from a risk</option>` +
+        `<option value="${OCCURRED}">Retard de livraison des armoires</option>`,
+    );
+    expect(page).not.toContain(IDENTIFIED);
+    expect(queryOf("/risks")?.getAll("states")).toEqual(["occurred"]);
+    expect(queryOf("/nodes")?.has("is_from_risk")).toBe(false);
+    expect(queryOf("/nodes")?.has("origin_risk_ids")).toBe(false);
+  });
+
+  it("asks the server for the rows of any risk when the address says so, and shows it chosen [WF-RIS-0060-A]", async () => {
+    const page = await planning({ is_from_risk: "true" });
+    expect(queryOf("/nodes")?.get("is_from_risk")).toBe("true");
+    expect(grid.given.at(-1)?.filters).toMatchObject({ is_from_risk: true });
+    expect(page).toContain(`<option value="true" selected="">Coming from a risk</option>`);
+  });
+
+  it("asks the server for the rows of the risk the address names, and hands the grid its label to name it by [WF-RIS-0060-A]", async () => {
+    const page = await planning({ origin_risk_ids: OCCURRED });
+    expect(queryOf("/nodes")?.get("origin_risk_ids")).toBe(OCCURRED);
+    expect(queryOf("/nodes")?.has("is_from_risk")).toBe(false);
+    expect(grid.given.at(-1)?.origins).toEqual({ [OCCURRED]: "Retard de livraison des armoires" });
+    expect(page).toContain(
+      `<option value="${OCCURRED}" selected="">Retard de livraison des armoires</option>`,
+    );
+  });
+
+  it("reads no value that is no identifier, as if the address named nothing [WF-RIS-0060-A]", async () => {
+    await planning({ origin_risk_ids: "not-an-identifier" });
+    expect(queryOf("/nodes")?.has("origin_risk_ids")).toBe(false);
+  });
+
+  it("asks for no risk that the project does not list as occurred — one since back to identified, or of another revision — and keeps the page [WF-RIS-0060-A]", async () => {
+    const page = await planning({ origin_risk_ids: IDENTIFIED });
+    expect(queryOf("/nodes")?.has("origin_risk_ids")).toBe(false);
+    expect(page).toContain(`<option value="" selected="">All rows</option>`);
+  });
+
+  it("keeps the page, unfiltered and the filter lifted, when the session lists no risk and the server finds the one named unknown [WF-RIS-0060-A]", async () => {
+    server.answers = {
+      ...server.answers,
+      [RISKS]: { problem: { code: "NOT_FOUND", status: 404 } },
+      [NODES]: [
+        {
+          problem: {
+            code: "VALIDATION_FAILED",
+            status: 422,
+            fields: [{ pointer: "/query/origin_risk_ids/0", code: "UNKNOWN_RISK" }],
+          },
+        },
+        "nodes",
+      ],
+    };
+    const page = await planning({ origin_risk_ids: OCCURRED });
+    expect(callsOf(NODES).map((call) => call.query.has("origin_risk_ids"))).toEqual([true, false]);
+    expect(grid.given.at(-1)?.filters).not.toHaveProperty("origin_risk_ids");
+    expect(page).toContain(`<option value="true">Coming from a risk</option>`);
+    expect(page).not.toContain('selected="">Retard');
+  });
+
+  it("falls into error, the nodes read once, when the server refuses the rows for another cause than an unknown risk [WF-RIS-0060-A]", async () => {
+    server.answers = {
+      ...server.answers,
+      [RISKS]: { problem: { code: "NOT_FOUND", status: 404 } },
+      [NODES]: {
+        problem: {
+          code: "VALIDATION_FAILED",
+          status: 422,
+          fields: [{ pointer: "/query/origin_risk_ids/0", code: "VALUE_OUT_OF_RANGE" }],
+        },
+      },
+    };
+    await expect(planning({ origin_risk_ids: OCCURRED })).rejects.toThrow();
+    expect(callsOf(NODES)).toHaveLength(1);
+  });
+
+  /** A client whose list of the risks is held until `release`, which the page is then given. */
+  function withHeldRisks() {
+    const answer = held();
+    server.clients.push(
+      fakeClient(server.answers, { hold: (route) => (route === RISKS ? answer.until : undefined) }),
+    );
+    return answer.release;
+  }
+
+  /** Wait until the page has made a call of the route, and let the calls it would make next go. */
+  async function called(route: string) {
+    await vi.waitFor(() => {
+      expect(callsOf(route)).not.toHaveLength(0);
+    });
+    await new Promise((settle) => setTimeout(settle, 20));
+  }
+
+  it("reads the rows with the risks occurred, not after them, when the address names no risk [WF-RIS-0060-A]", async () => {
+    // #1955: the list of the risks is held; the rows are asked for all the same.
+    const release = withHeldRisks();
+    const loaded = planning();
+    try {
+      await vi.waitFor(() => {
+        expect(callsOf(RISKS)).not.toHaveLength(0);
+      });
+      await vi.waitFor(() => {
+        expect(callsOf(NODES)).not.toHaveLength(0);
+      });
+    } finally {
+      release();
+    }
+    await loaded;
+    expect(callsOf(NODES)).toHaveLength(1);
+  });
+
+  it("reads the rows with the risks occurred when the address asks for the rows of any risk [WF-RIS-0060-A]", async () => {
+    const release = withHeldRisks();
+    const loaded = planning({ is_from_risk: "true" });
+    try {
+      await vi.waitFor(() => {
+        expect(callsOf(NODES)).not.toHaveLength(0);
+      });
+    } finally {
+      release();
+    }
+    await loaded;
+    expect(callsOf(NODES)[0]?.query.get("is_from_risk")).toBe("true");
+  });
+
+  it("asks for the rows of a risk the address names after the list of the risks occurred, which judges it [WF-RIS-0060-A]", async () => {
+    const release = withHeldRisks();
+    const loaded = planning({ origin_risk_ids: OCCURRED });
+    try {
+      await called(RISKS);
+      await called("GET /projects/{project_id}/revisions/{revision_id}/structures");
+      expect(callsOf(NODES)).toHaveLength(0);
+    } finally {
+      release();
+    }
+    await loaded;
+    expect(callsOf(NODES)[0]?.query.get("origin_risk_ids")).toBe(OCCURRED);
+  });
+
+  it("opens with « Coming from a risk » alone when the project has no risks to read to it", async () => {
+    server.answers = {
+      ...server.answers,
+      [RISKS]: { problem: { code: "NOT_FOUND", status: 404 } },
+    };
+    const page = await planning();
+    expect(page).toContain(`<option value="true">Coming from a risk</option>`);
+    expect(page).not.toContain("Retard de livraison");
   });
 });

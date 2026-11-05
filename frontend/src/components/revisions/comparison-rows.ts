@@ -60,7 +60,11 @@ export function comparisonRow(node: ComparedNode): ComparisonRow {
   };
 }
 
-/** The nodes of a comparison as the grid reads them, in the order of the server. */
+/**
+ * The nodes of a comparison as the grid reads them, in the order of the server. The comparison
+ * asks no `kinds` — it shows tasks and lines, each with its icon of nature (US-0500) — so the
+ * projection on `kinds` has nothing to keep here.
+ */
 export function comparisonRows(nodes: readonly ComparedNode[]): ComparisonRow[] {
   return nodes.map(comparisonRow);
 }

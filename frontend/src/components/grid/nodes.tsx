@@ -10,6 +10,7 @@
 import type { components, operations } from "@/api/generated/schema";
 
 import type { GridColumn, GridConfig, GridTree, RowPart, RowsWritten } from "./columns";
+import { OriginMark } from "./origin-mark";
 import { rowNature, RowNatureIcon } from "./row-nature";
 
 /** A node of a structure, as the API reads it. */
@@ -165,15 +166,28 @@ type SparseLine<F extends keyof EstimateLineFacet> = Omit<
   Partial<Pick<EstimateLineFacet, F & SparseLineField>>;
 
 /**
+ * The fields of a node a projection leaves out when they say nothing — null, as on almost every
+ * node of a structure: the risk a node came of. The grid reads an absent field as the null it was.
+ */
+export const SPARSE_NODE_FIELDS = ["origin_risk_id"] as const;
+
+/** A field of a node a projection leaves out when it says nothing. */
+type SparseNodeField = (typeof SPARSE_NODE_FIELDS)[number];
+
+/** Some fields of a node, those that may say nothing made optional, as `SparseLine` does for a line. */
+type SparseNode<F extends keyof Node> = Omit<Pick<Node, F>, SparseNodeField> &
+  Partial<Pick<Node, F & SparseNodeField>>;
+
+/**
  * A node as a grid reads it: the fields every grid reads, and those `N` of the node, `T` of its
  * task and `L` of its line that its own columns read — a field of a line that says nothing may be
- * left out (`SPARSE_LINE_FIELDS`).
+ * left out (`SPARSE_LINE_FIELDS`), as is the risk of a node (`SPARSE_NODE_FIELDS`).
  */
 export type NodeRow<
   N extends NodeField = never,
   T extends keyof TaskFacet = never,
   L extends keyof EstimateLineFacet = never,
-> = Pick<Node, (typeof COMMON_FIELDS.node)[number] | N> & {
+> = SparseNode<(typeof COMMON_FIELDS.node)[number] | N> & {
   readonly task?: Pick<TaskFacet, (typeof COMMON_FIELDS.task)[number] | T> | null;
   readonly estimate_line?: SparseLine<(typeof COMMON_FIELDS.line)[number] | L> | null;
 };
@@ -246,8 +260,14 @@ export function projectNode<
   L extends keyof EstimateLineFacet,
 >(node: Node, fields: NodeFields<N, T, L>): NodeRow<N, T, L> {
   const { task, estimate_line: line } = node;
+  const sparse = new Set<string>(SPARSE_NODE_FIELDS);
   return {
-    ...pick(node, [...COMMON_FIELDS.node, ...fields.node]),
+    ...pick(
+      node,
+      [...COMMON_FIELDS.node, ...fields.node].filter(
+        (key) => !sparse.has(key) || node[key] !== null,
+      ),
+    ),
     ...(task === undefined
       ? {}
       : { task: task === null ? null : pick(task, [...COMMON_FIELDS.task, ...fields.task]) }),
@@ -262,14 +282,29 @@ export function projectNode<
 
 /**
  * The rows of an answer of `listNodes` as a grid reads them, in the order of the answer, with its
- * totals: what a page hands its grid.
+ * totals: what a page hands its grid. A reading that asked for some kinds (`kinds`) keeps the
+ * nodes of these alone, the server being free to render more than asked as it is of the fields —
+ * the fake back renders its example whole, lines of an estimate under the tasks of a planning
+ * (#1397). Nothing is computed: a node is kept or left out, the totals are the server's. A node
+ * that does not say its kind is kept, being none the grid can tell from the ones it asked.
  */
 export function projectNodes<
   N extends NodeField,
   T extends keyof TaskFacet,
   L extends keyof EstimateLineFacet,
->(list: NodeList, fields: NodeFields<N, T, L>): NodeRows<NodeRow<N, T, L>> {
-  return { items: list.items.map((node) => projectNode(node, fields)), totals: list.totals };
+>(
+  list: NodeList,
+  fields: NodeFields<N, T, L>,
+  kinds?: readonly NodeKind[],
+): NodeRows<NodeRow<N, T, L>> {
+  const asked =
+    kinds === undefined ? list.items : list.items.filter((node) => isOfKind(node, kinds));
+  return { items: asked.map((node) => projectNode(node, fields)), totals: list.totals };
+}
+
+/** Whether a node is of one of the kinds a reading asked for, or says no kind. */
+export function isOfKind(node: { readonly kind?: NodeKind }, kinds: readonly NodeKind[]): boolean {
+  return node.kind === undefined || kinds.includes(node.kind);
 }
 
 /**
@@ -461,6 +496,21 @@ export const NODE_TREE: GridTree<GridNode> = {
   nature: (node) => <RowNatureIcon node={node} />,
   emphasis,
   parent: (node) => node.parent_id,
+};
+
+/**
+ * The tree of a structure whose grid reads the risk a node came of (`origin_risk_id`, US-1020): the
+ * planning and the estimate, which mark the tasks and the lines a risk occurred merged after the
+ * icon of their nature.
+ */
+export const ORIGIN_TREE: GridTree<GridNode> = {
+  ...NODE_TREE,
+  nature: (node) => (
+    <>
+      <RowNatureIcon node={node} />
+      <OriginMark node={node} />
+    </>
+  ),
 };
 
 /** The difference a node bears with the structure it is read against (`GridConfig.difference`). */

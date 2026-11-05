@@ -33,6 +33,7 @@ import { PROJECT_GRID, PROJECT_SORT_COLUMNS } from "@/components/portfolio/portf
 import { PortfolioValueView } from "@/components/portfolio/portfolio-value";
 import { ProjectsGrid } from "@/components/portfolio/projects-grid";
 import { ZoneFilter } from "@/components/portfolio/zone-filter";
+import { MockupNotice } from "@/components/shell/mockup-notice";
 import { Screen } from "@/components/shell/page-header";
 import { type PageSearchParams, pageSearch } from "@/navigation/context";
 import { requestSession } from "@/session/request";
@@ -100,6 +101,7 @@ export default async function PortfolioProjectsPage({
     <PendingAddress>
       <Screen density="dense" fill>
         <PortfolioHeader fn="portfolio_projects" scope={projects.data.scope} />
+        <MockupNotice lists />
         <PerimeterBar perimeter={perimeter} retained={projects.data.scope.states} nodes={nodes} />
         <PortfolioValueView value={value.data} />
         <div className="flex min-h-0 flex-1 flex-col gap-2">
