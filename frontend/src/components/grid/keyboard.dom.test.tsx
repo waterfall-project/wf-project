@@ -247,6 +247,40 @@ describe("the keyboard of a grid", () => {
     expect(header(/réestimé/)).toHaveFocus();
   });
 
+  // The cell, 200 wide, by where it starts against the padding of the scroller that keeps the
+  // pinned columns clear (`start`) and the end of the view (1000); the scroll before, and after.
+  it.each([
+    ["past its end", (): number => 900, 0, 100],
+    ["under the pinned columns", (start: number): number => start - 50, 200, 150],
+    ["within it", (start: number): number => start + 100, 200, 200],
+  ] as const)(
+    "scrolls the grid sideways as little as it takes to bring a header %s into view, by the width of the inside of its scroller [WF-IHM-0100-A]",
+    async (_where, startOf, from, to) => {
+      serve();
+      renderGrid();
+      // The bench makes the inside of the scroller its simulated box (`clientWidth` follows
+      // `offsetWidth`, 1000 here): had it none, the end of the view would be 0 and the scroll 900.
+      const scroller = screen.getByRole("treegrid").parentElement;
+      expect(scroller).not.toBeNull();
+      if (scroller === null) {
+        return;
+      }
+      expect(scroller.clientWidth).toBe(1000);
+      const start = Number.parseFloat(getComputedStyle(scroller).scrollPaddingInlineStart) || 0;
+      const left = startOf(start);
+      const rectOf = (at: number, width: number) =>
+        ({ left: at, right: at + width, top: 0, bottom: 0, width, height: 0 }) as DOMRect;
+      const target = header(/réestimé/);
+      vi.spyOn(scroller, "getBoundingClientRect").mockReturnValue(rectOf(0, 1000));
+      vi.spyOn(target, "getBoundingClientRect").mockReturnValue(rectOf(left, 200));
+      cell(0, "label").focus();
+      scroller.scrollLeft = from;
+      await userEvent.keyboard("{ArrowUp}{End}");
+      expect(target).toHaveFocus();
+      expect(scroller.scrollLeft).toBe(to);
+    },
+  );
+
   it("sorts a column from the header by Enter or Space [WF-IHM-0100-A]", async () => {
     serve();
     renderGrid();

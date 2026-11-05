@@ -2561,6 +2561,7 @@
       "reactivated": "« {name} » réactivé.",
       "activeUser": "Compte de « {name} » actif",
       "rolesOf": "Rôles de « {name} »",
+      "rolesHeld": "Rôles de « {name} » : {roles}",
       "rolesAttributed": "Rôles de « {name} » attribués.",
       "link": "Lien",
       "resend": "Courriel",

@@ -5,10 +5,11 @@
  * browser paints, which the document of a unit test does not compute — the contrast of a text on
  * its background among them (WF-IHM-0100).
  *
- * axe-core is held at 4.13.0, without a range: 4.14 judges the button of the account against
- * « Label in Name » (WCAG 2.5.3, `label-content-name-mismatch`) — its visible initials are not in
- * its name, « Compte de … » — on every screen. Adopting 4.14 is a change of that name, and of the
- * tests that look the button up by it, not of a dependency.
+ * axe-core is held at 4.14.0, without a range: 4.14 applies « Label in Name » (WCAG 2.5.3,
+ * `label-content-name-mismatch`), which asks the name of a control to hold its visible text. The
+ * button of the account has the avatar hidden from a reader of the screen (its initials are
+ * decorative), and the button of the roles of an account names the roles it shows; the rule is
+ * not turned off.
  */
 import { createRequire } from "node:module";
 

@@ -130,6 +130,15 @@ describe("the shell", () => {
     },
   );
 
+  it("keeps the initials of the avatar of the account out of the name of its button, which says the account alone [WF-IHM-0100-A]", () => {
+    shell();
+    const account = bar().getByRole("button", { name: "Compte de Camille Martin" });
+    // The initials are the visible text of the button: decorative, the name stands for the account.
+    const initials = within(account).getByText("CM");
+    expect(initials.closest("[aria-hidden='true']")).not.toBeNull();
+    expect(account).toHaveAccessibleName("Compte de Camille Martin");
+  });
+
   it("gives every button of the bar an icon, hidden from a screen reader", () => {
     shell();
     for (const button of bar().getAllByRole("button")) {

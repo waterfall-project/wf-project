@@ -2561,6 +2561,7 @@
       "reactivated": "“{name}” reactivated.",
       "activeUser": "Account of “{name}” active",
       "rolesOf": "Roles of “{name}”",
+      "rolesHeld": "Roles of “{name}”: {roles}",
       "rolesAttributed": "Roles of “{name}” attributed.",
       "link": "Link",
       "resend": "Email",

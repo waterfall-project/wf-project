@@ -216,7 +216,7 @@ export function AccountMenu({ account, language, theme }: AccountMenuProps) {
             aria-label={t("accountMenu.label", { name })}
             aria-busy={pending}
           >
-            <Avatar>
+            <Avatar aria-hidden="true">
               <AvatarFallback>{mark}</AvatarFallback>
             </Avatar>
             <ChevronDown aria-hidden="true" className="text-muted-foreground" />
