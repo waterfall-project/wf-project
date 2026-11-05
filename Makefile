@@ -22,8 +22,12 @@ PROXY_SPEC := $(API)/waterfall.proxy.json
 # The same bundle in JSON, which the repository tools read without a YAML parser.
 JSON_BUNDLE := $(API)/waterfall.bundle.json
 COMPOSE_DEV := docker compose -f deploy/compose/compose.dev.yaml
-# Prism is named at the version pinned below: the proxy of `make e2e-service` runs it too.
-COMPOSE_SERVICE = PRISM_VERSION=$(PRISM_VERSION) docker compose -f deploy/compose/compose.service.yaml
+# Prism is named at the version pinned below: the proxy of `make e2e-service` runs it too. The
+# platform runs under the project of the slot of the worktree (WATERFALL_SERVICE_PROJECT, below).
+COMPOSE_SERVICE_FILE = PRISM_VERSION=$(PRISM_VERSION) docker compose -f deploy/compose/compose.service.yaml
+COMPOSE_SERVICE = $(COMPOSE_SERVICE_FILE) -p $(WATERFALL_SERVICE_PROJECT)
+# The services of the tests (US-1110), under the project of the slot of the worktree.
+COMPOSE_TEST = docker compose -f deploy/compose/compose.test.yaml -p $(WATERFALL_TEST_PROJECT)
 # The production platform (US-0430), under a local name: Caddy's own authority makes its certificate.
 COMPOSE_PRODUCTION := docker compose -f deploy/compose/compose.prod.yaml -f deploy/compose/compose.prod.local.yaml
 # The root of the authority of Keycloak's front end on the service platform (#680), copied out of
@@ -33,8 +37,6 @@ KEYCLOAK_AUTHORITY := $(abspath deploy/compose/.authority/root.crt)
 # Where the browser reaches Keycloak on the service platform, as compose.service.yaml says it: its
 # port alone moves, its front end serving localhost and 127.0.0.1 only (#735).
 KEYCLOAK_ADDRESS = https://localhost:$${WATERFALL_KEYCLOAK_PORT:-8443}/auth
-# The image of Keycloak, under the name the service platform runs it by (compose.service.yaml).
-KEYCLOAK_IMAGE := waterfall-keycloak
 TOOLS   := tools
 # The tools of the specification and of the contract, held to the same rules as the others.
 DOC_TOOLS := ../docs/api/tools ../docs/spec/tools
@@ -44,8 +46,11 @@ FRONT   := frontend
 NOWHERE := http://127.0.0.1:9
 PNPM_ENV := COREPACK_ENABLE_DOWNLOAD_PROMPT=0 NEXT_TELEMETRY_DISABLED=1
 PNPM    := cd $(FRONT) && $(PNPM_ENV) pnpm
-# pnpm for a heavy run, which waits for its turn (HEAVY_LOCK).
-PNPM_HEAVY = cd $(FRONT) && $(heavy) $(PNPM_ENV) pnpm
+# pnpm for a heavy run, which waits for its turn (tools/src/wftools/slots.py).
+# The front takes the same share as the back (WATERFALL_PROCESSORS), a run of one file (TESTS) too.
+PNPM_HEAVY = cd $(FRONT) && $(heavy) $(PNPM_ENV) WATERFALL_PROCESSORS=$(WATERFALL_PROCESSORS) pnpm
+# pnpm for the unit tests of the front, which have the Redis of the slot of the worktree (TESTING_FRONT).
+PNPM_TESTING = cd $(FRONT) && $(TESTING_FRONT) $(PNPM_ENV) WATERFALL_PROCESSORS=$(WATERFALL_PROCESSORS) pnpm
 # Pinned so that a check passes or fails on what this repository contains, never on
 # what a tool released overnight. Raise a version here and nowhere else.
 REDOCLY_VERSION := 2.54.3
@@ -60,12 +65,12 @@ PRISM   := npx --yes @stoplight/prism-cli@$(PRISM_VERSION)
 	production-trial check-production \
 	test-tools lint-tools typecheck-tools sources fixtures check-fixtures requirements \
 	requirements-release screens readmes reuse lint-workflows \
-	lint-shell check \
+	lint-shell check slot slot-release slots test-services test-services-down \
 	check-all check-repo check-spec \
 	check-contract check-back lint-back typecheck-back imports-back test-back check-front \
 	check-front-code check-front-e2e check-front-image \
 	install-front lint-front typecheck-front test-front build-front prerendered-front generate-client client-up-to-date generate-server-models server-models-up-to-date catalogs \
-	coverage-back coverage-front roadmap check-roadmap e2e e2e-measure e2e-browsers lot-size \
+	coverage-back coverage-front roadmap check-roadmap e2e e2e-measure e2e-browsers lot-size tracking \
 	lint-docker changes gate \
 	check-tools clean
 
@@ -85,14 +90,53 @@ TESTS ?=
 SHARD ?=
 # How many workers `make e2e` plays the paths on (E2E_WORKERS, frontend/playwright.config.ts), each
 # against a front of its own: fewer than Playwright takes by itself on a loaded workstation, where
-# paths fail by a timeout (#736). Empty, its own: half the processors.
+# paths fail by a timeout (#736). From 1 to 40: a front per worker, forty ports per slot. Empty, its
+# own: half the processors, at most 40.
 WORKERS ?=
-# One heavy run at a time on the workstation: the whole tests of a side, their coverage, the
-# production build of the front, the end-to-end paths. Several agents running them side by side ran out of memory (2026-10). A run of
-# one file (TESTS) does not wait; on a runner of the chain, alone, the lock is always free. `env`
-# keeps the variables set before the command a command of their own once behind flock.
-HEAVY_LOCK ?= $(or $(XDG_RUNTIME_DIR),/tmp)/waterfall-heavy.lock
-heavy = $(if $(TESTS),,flock $(HEAVY_LOCK) env)
+# N heavy runs at a time on the workstation (WATERFALL_SLOTS, 1 by default): the whole tests of a
+# side, their coverage, the production build of the front, the end-to-end paths. Several agents
+# running them side by side ran out of memory (2026-10). tools/src/wftools/slots.py admits them
+# (a free slot among N lock files of XDG_RUNTIME_DIR, the first the one of before N existed),
+# keeps the slot until the run ends and sets WATERFALL_PROCESSORS, the share of the processors of
+# one run. A run of one file (TESTS) does not wait; on a runner of the chain, alone, a slot is
+# always free. `env` keeps the variables set before the command a command of their own.
+SLOTS = python3 $(CURDIR)/tools/src/wftools/slots.py
+heavy = $(if $(TESTS),,$(SLOTS) run --heavy -- env)
+# The same for tests that need services (US-1110: db, redis, storage, as `slots.py run --services`
+# names them): once the slot is taken, if any, it starts those whose WATERFALL_TEST_*_URL the
+# environment does not give (make test-services), sets the variables on them, and runs the command.
+# They start with TESTS too, which does not wait for a slot but needs its services as much.
+testing = $(SLOTS) run $(if $(TESTS),,--heavy )--services
+TESTING_BACK = $(testing) db,redis,storage -- env
+TESTING_FRONT = $(testing) redis -- env
+# The workers of pytest: the share a heavy run was given, or the one it would be given, for a run
+# of one file that does not wait.
+# An invalid WATERFALL_SLOTS stops make here, saying so, only where the share is used. It is handed
+# to the shell by hand: GNU make 4.3 does not export a variable of the command line to $(shell).
+WATERFALL_PROCESSORS ?= $(or $(shell $(if $(filter-out undefined,$(origin WATERFALL_SLOTS)),WATERFALL_SLOTS='$(subst ','\'',$(WATERFALL_SLOTS))') $(SLOTS) processors 2>/dev/null),$(error WATERFALL_SLOTS must be an integer from 1 to 9, not '$(WATERFALL_SLOTS)'))
+
+# The slot of the worktree (US-1100): its ports, its projects of Compose and the tags of its images,
+# so that two worktrees play the paths, try Keycloak or run the service platform side by side. The
+# main repository — a runner of the chain too — is at slot 0, on the ports and under the names of
+# before; a worktree of a lot takes a slot of 1 to N (make slot), the block of ports 20000 + 100·i.
+# A target that needs them is given each of its variables by slot-export, unless the environment
+# gives it; they are asked once, of the register (slots.py which --variables). In a linked worktree
+# without a slot, such a target stops, saying make slot; the others never ask.
+slot-variables = $(eval slot-variables := $(or $(shell $(SLOTS) which --variables),$(error no slot for this worktree: run make slot)))$(slot-variables)
+slot-value = $(patsubst $(1)=%,%,$(filter $(1)=%,$(slot-variables)))
+slot-export = $(foreach name,$(2),$(eval $(1): export $(name) ?= $$(call slot-value,$(name))))
+SLOT_SERVICE := WATERFALL_SERVICE_PROJECT WATERFALL_KEYCLOAK_IMAGE WATERFALL_POSTGRES_PORT \
+	WATERFALL_REDIS_PORT WATERFALL_API_PORT WATERFALL_KEYCLOAK_PORT WATERFALL_MAILPIT_PORT \
+	WATERFALL_PROXY_PORT
+SLOT_PATHS := E2E_API_PORT E2E_FRONT_PORT
+$(call slot-export,service-up service-install keycloak-authority service-logs service-down \
+	test-keycloak e2e-service,$(SLOT_SERVICE))
+$(call slot-export,build-keycloak,WATERFALL_KEYCLOAK_IMAGE)
+$(call slot-export,test-services test-services-down,WATERFALL_TEST_PROJECT \
+	WATERFALL_TEST_POSTGRES_PORT WATERFALL_TEST_REDIS_PORT WATERFALL_TEST_STORAGE_PORT)
+$(call slot-export,e2e e2e-measure e2e-service,$(SLOT_PATHS))
+$(call slot-export,check-front-image,WATERFALL_FRONT_CHECK_IMAGE)
+
 full-only = $(if $(filter full,$(TIER)),$(1))
 # The coverage run executes the same tests: in the full tier it replaces the plain run.
 full-else = $(if $(filter full,$(TIER)),$(1),$(2))
@@ -149,10 +193,10 @@ dev-down: ## Stop the development platform
 
 # The tests of the tools compute more than they wait: one process per core (pytest-xdist). Work
 # stealing, as a few tests of the witness take minutes each and would otherwise wait behind a
-# worker's queue: on four cores, eleven minutes become under five. A heavy run always, behind the
-# lock (HEAVY_LOCK): it takes every core, and selects no single file (TESTS).
-test-tools: ## Run the tests of the repository tools
-	@cd $(TOOLS) && flock $(HEAVY_LOCK) uv run --frozen pytest -n auto --dist worksteal
+# worker's queue: on four cores, eleven minutes become under five. A heavy run, which takes its
+# share of the processors, unless it selects a single file (TESTS).
+test-tools: ## Run the tests of the repository tools (TESTS=<file> runs one file)
+	@cd $(TOOLS) && $(heavy) uv run --frozen pytest -n $(WATERFALL_PROCESSORS) --dist worksteal $(TESTS)
 
 lint-tools: ## Lint and format check of the repository tools
 	@cd $(TOOLS) && uv run --frozen ruff check . $(DOC_TOOLS) \
@@ -236,7 +280,7 @@ lint-compose: ## Validate the Compose files
 		WATERFALL_FRONT_CLIENT_SECRET=stand-in WATERFALL_SERVICE_CLIENT_SECRET=stand-in \
 		WATERFALL_INSTALLATION_CLIENT_SECRET=stand-in \
 		WATERFALL_STORAGE_SECRET=stand-in WATERFALL_STORAGE_RPC_SECRET=stand-in \
-		$(COMPOSE_SERVICE) --profile e2e --profile install config --quiet
+		$(COMPOSE_SERVICE_FILE) --profile e2e --profile install config --quiet
 	@WATERFALL_DOMAIN=waterfall.localhost WATERFALL_ACME_EMAIL=stand-in WATERFALL_IMAGE_TAG=stand-in \
 		WATERFALL_ADMIN_EMAIL=stand-in WATERFALL_SERVER_ACTIONS_KEY=stand-in \
 		WATERFALL_POSTGRES_ADMIN_PASSWORD=stand-in WATERFALL_POSTGRES_PASSWORD=stand-in WATERFALL_SERVICE_DATABASE_PASSWORD=stand-in \
@@ -250,9 +294,10 @@ lint-compose: ## Validate the Compose files
 		WATERFALL_DEMO_USER=stand-in WATERFALL_DEMO_PASSWORD_HASH=stand-in \
 		WATERFALL_SERVER_ACTIONS_KEY=stand-in PRISM_VERSION=$(PRISM_VERSION) \
 		docker compose -f deploy/compose/compose.demo.yaml config --quiet
+	@docker compose -f deploy/compose/compose.test.yaml config --quiet
 
 build-keycloak: ## Build the image of Keycloak: the extension compiled and tested, the themes, the realm (deploy/keycloak)
-	@docker build $(call build-cache-from,keycloak) --tag $(KEYCLOAK_IMAGE) deploy/keycloak
+	@docker build $(call build-cache-from,keycloak) --tag $(WATERFALL_KEYCLOAK_IMAGE) deploy/keycloak
 
 # The cache of the builds of the images on GitHub Actions (type=gha, .github/actions/build-cache):
 # every build of an image reads it, under the name of the image (wftools.images); after a merge,
@@ -283,8 +328,10 @@ images: ## Build the images front, waterfall and keycloak, tagged by commit, by 
 # WATERFALL_HTTPS_PORT): started, bootstrapped, its API's liveness and the sign-in of its first
 # administrator held, then removed with its volumes (wftools.production). Its secrets come from the
 # environment, as production.env.example names them; the project of Compose is
-# WATERFALL_PRODUCTION_PROJECT (waterfall-production-trial).
-production-trial: ## Start the production platform on the images of WATERFALL_IMAGE_TAG (the commit by default) under a local name, bootstrap it, hold its liveness and the sign-in of its first administrator, back it up and restore it by the API with WATERFALL_TRIAL_RESTORATION=1, then remove it (needs its secrets)
+# WATERFALL_PRODUCTION_PROJECT (waterfall-production-trial). Outside the slots, at slot 0 alone: from
+# the worktree of a lot, it would take the ports 80 and 443 of the workstation (US-1100).
+production-trial: ## Start the production platform on the images of WATERFALL_IMAGE_TAG (the commit by default) under a local name, bootstrap it, hold its liveness and the sign-in of its first administrator, back it up and restore it by the API with WATERFALL_TRIAL_RESTORATION=1, then remove it (needs its secrets); at slot 0 alone, the main repository
+	@[ "$$($(SLOTS) which 2>/dev/null)" = 0 ] || { echo "make production-trial runs at slot 0 alone, from the main repository, never from the worktree of a lot" >&2; exit 1; }
 	@$(WFTOOLS).production
 
 # The tests marked keycloak, which the other tests of the back deselect, against the Keycloak of the
@@ -346,13 +393,13 @@ imports-back: ## The boundaries of the core (WF-ARC-0010)
 # The tests of the back wait on PostgreSQL, Redis and the storage more than they compute: they run on
 # one process per core (pytest-xdist), eight at most — each takes a database of Redis of its own,
 # which has sixteen. The tests of Keycloak (test-keycloak) stay on one: one of them restarts it.
-PYTEST_WORKERS := -n auto --maxprocesses 8
+PYTEST_WORKERS = -n $(WATERFALL_PROCESSORS) --maxprocesses 8
 
 test-back: ## Tests of the back (TESTS=<file> runs one file)
-	@cd $(BACK) && $(heavy) uv run --frozen pytest -q $(PYTEST_WORKERS) $(TESTS)
+	@cd $(BACK) && $(TESTING_BACK) uv run --frozen pytest -q $(PYTEST_WORKERS) $(TESTS)
 
 coverage-back: ## Code coverage of the back: 90 % of lines, 85 % of branches (US-0060)
-	@cd $(BACK) && $(heavy) uv run --frozen pytest $(PYTEST_WORKERS) --quiet --cov --cov-report=json:coverage.json
+	@cd $(BACK) && $(TESTING_BACK) uv run --frozen pytest $(PYTEST_WORKERS) --quiet --cov --cov-report=json:coverage.json
 	@$(WFTOOLS).codecoverage coverage.py $(BACK)/coverage.json
 
 # The front in two halves, which the chain runs side by side (front.yml, e2e.yml); on a
@@ -419,7 +466,7 @@ catalogs: ## The catalogues of the front are twins, with a key for each value th
 	@$(WFTOOLS).catalogs $(JSON_BUNDLE) $(FRONT)/messages/fr.json $(FRONT)/messages/en.json
 
 test-front: install-front ## Unit tests of the front (TESTS=<file> runs one file; SHARD=lint or i/N one part of them, as the chain spreads them)
-	@$(PNPM_HEAVY) test $(FRONT_PART) $(TESTS)
+	@$(PNPM_TESTING) test $(FRONT_PART) $(TESTS)
 
 build-front: export WATERFALL_API_ADDRESS = $(NOWHERE)
 build-front: install-front ## Build the front for production with no API to reach, no page reading it while built (#131); in the fast tier, the full one builds it for the end-to-end paths
@@ -437,9 +484,9 @@ prerendered-front: ## The production build of the front prerendered no page that
 # a part of the chain that failed silent cost a run to diagnose (US-0590b).
 coverage-front: install-front ## Code coverage of the front: 90 % of lines, 85 % of branches (US-0060); SHARD=lint or i/N measures one part of the tests, for coverage-front-merge
 ifdef SHARD
-	@$(PNPM_HEAVY) exec vitest run --coverage --silent $(FRONT_PART) --reporter=blob --reporter=dot
+	@$(PNPM_TESTING) exec vitest run --coverage --silent $(FRONT_PART) --reporter=blob --reporter=dot
 else
-	@$(PNPM_HEAVY) exec vitest run --coverage --silent
+	@$(PNPM_TESTING) exec vitest run --coverage --silent
 	@$(WFTOOLS).codecoverage istanbul $(FRONT)/coverage/coverage-summary.json
 endif
 
@@ -482,7 +529,7 @@ e2e-build = $(if $(filter 1,$(E2E_BUILT) $(1)),,build-front)
 e2e: export E2E_PART = $(if $(SHARD),paths)
 e2e: export E2E_BUILT = 1
 e2e: export E2E_WORKERS = $(WORKERS)
-e2e: install-front mock-tools $(call e2e-build,$(E2E_DEV_SERVER)) ## End-to-end paths, against the fake back that Playwright starts (US-0080), on the front built for production; SHARD=i/N plays the i-th of N parts of them, without the measure; WORKERS=n plays them on n workers; TESTS=<file> plays one file; E2E_DEV_SERVER=1 plays them against next dev, on a workstation
+e2e: install-front mock-tools $(call e2e-build,$(E2E_DEV_SERVER)) ## End-to-end paths, against the fake back that Playwright starts (US-0080), on the front built for production; SHARD=i/N plays the i-th of N parts of them, without the measure; WORKERS=n (1 to 40, by default half the processors, at most 40) plays them on n workers; TESTS=<file> plays one file; E2E_DEV_SERVER=1 plays them against next dev, on a workstation
 	@$(PNPM_HEAVY) exec playwright test $(if $(SHARD),--shard=$(SHARD)) $(TESTS)
 
 e2e-measure: export E2E_PART = measure
@@ -507,13 +554,9 @@ e2e-measure: install-front mock-tools $(call e2e-build) ## The measure of the se
 # paths. Through it, each path signs in as an account of its own, on several workers. The address
 # must be the one the platform was first bootstrapped with: a bootstrap run again ignores another
 # one (the guide, « Un parcours de bout en bout »).
-E2E_FRONT_PORT ?= 3100
-WATERFALL_PROXY_PORT ?= 4210
 E2E_ADMIN_EMAIL ?= administrateur@waterfall.test
-e2e-service: export WATERFALL_FRONT_ADDRESS := http://127.0.0.1:$(E2E_FRONT_PORT)
-e2e-service: export WATERFALL_FRONT_BACKCHANNEL := http://host.docker.internal:$(E2E_FRONT_PORT)
-e2e-service: export E2E_FRONT_PORT := $(E2E_FRONT_PORT)
-e2e-service: export WATERFALL_PROXY_PORT := $(WATERFALL_PROXY_PORT)
+e2e-service: export WATERFALL_FRONT_ADDRESS = http://127.0.0.1:$(E2E_FRONT_PORT)
+e2e-service: export WATERFALL_FRONT_BACKCHANNEL = http://host.docker.internal:$(E2E_FRONT_PORT)
 e2e-service: export E2E_PART = service
 e2e-service: export WATERFALL_ADMIN_EMAIL := $(E2E_ADMIN_EMAIL)
 e2e-service: export E2E_ADMIN_EMAIL := $(E2E_ADMIN_EMAIL)
@@ -533,8 +576,40 @@ e2e-service: install-front mock-tools $(call e2e-build,$(E2E_DEV_SERVER)) ## End
 		export E2E_INSTALLATION_LINK E2E_CONTRACT_PROXY E2E_SERVICE_DATABASE WATERFALL_API_ADDRESS WATERFALL_KEYCLOAK_ADDRESS WATERFALL_REDIS_URL NODE_EXTRA_CA_CERTS && \
 		$(PNPM) exec playwright test
 
+# The slot of the worktree, among the N of WATERFALL_SLOTS, in the register of the workstation
+# ($XDG_RUNTIME_DIR/waterfall-slots, /tmp/waterfall-slots without it), whatever the repository.
+slot: ## Take a slot of 1 to N for this worktree of a lot — its ports and its names —, or say the one it holds; fails, naming the holders, when all are taken
+	@$(SLOTS) claim
+
+slot-release: ## Remove the containers and volumes of the slot of this worktree — the service platform, the services of the tests —, then free it
+	@$(SLOTS) release
+
+slots: ## Print N, then the slots taken on the workstation and their worktrees
+	@$(SLOTS) list
+
+# PostgreSQL 16, Redis and Garage of the platform, in memory, on the ports of the slot of the worktree
+# (WATERFALL_TEST_POSTGRES_PORT, _REDIS_PORT, _STORAGE_PORT): what the tests of the back and of the
+# front are given by make test-back and the others, unless their WATERFALL_TEST_*_URL says otherwise.
+test-services: ## Start, for the slot of this worktree, the services the tests run against — PostgreSQL, Redis, Garage — and wait for them; running, they stay as they are (SERVICES=<some of them>)
+	@$(COMPOSE_TEST) up --detach --wait $(SERVICES)
+
+test-services-down: ## Remove the services of the tests of the slot of this worktree, their volumes included
+	@$(COMPOSE_TEST) down --volumes
+
 lot-size: ## The real size of a lot, against its epic (BASE=origin/epic/EP-nn); never fails
 	@$(WFTOOLS).lotsize "$(BASE)" $(HEAD)
+
+# A variable of the table is taken only when it comes from the command line of make: one exported
+# on the workstation (PR, STATE, MODEL…) must not overwrite a cell of the shared table. Make
+# exports the command-line variables to the recipe; an empty value is ignored.
+tracking_option = $(if $(filter command line,$(origin $(1))),$${$(1):+$(2) "$$$(1)"})
+
+tracking: ## Change one line of the tracking table of an epic's issue, under a lock: ISSUE=<n> with LOT=<id> [STATE PR MODEL], US=<id> STATUS=…, or FINDING=<n> ATTACHED=… DECISION=…
+	@$(WFTOOLS).tracking $(call tracking_option,ISSUE,--issue) $(call tracking_option,LOT,--lot) \
+		$(call tracking_option,US,--us) $(call tracking_option,FINDING,--finding) \
+		$(call tracking_option,STATE,--state) $(call tracking_option,PR,--pr) \
+		$(call tracking_option,MODEL,--model) $(call tracking_option,STATUS,--status) \
+		$(call tracking_option,ATTACHED,--attached) $(call tracking_option,DECISION,--decision)
 
 changes: ## Print which families of checks the change touches (BASE; HEAD, or the working tree)
 	@$(WFTOOLS).changes "$(BASE)" $(HEAD)

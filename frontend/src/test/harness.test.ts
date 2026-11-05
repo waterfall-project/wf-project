@@ -31,6 +31,7 @@ const VARIABLES = [
   "E2E_BUILT",
   "E2E_DEV_SERVER",
   "E2E_WORKERS",
+  "WATERFALL_PROCESSORS",
   "TEST_PARALLEL_INDEX",
   "CI",
   "NEXT_SERVER_ACTIONS_ENCRYPTION_KEY",
@@ -357,6 +358,61 @@ describe("the fronts of the harness, one for each worker of the paths (#1477)", 
     expect(config.use?.baseURL).toBe("http://127.0.0.1:3100");
   });
 
+  it.each([
+    ["12", 6],
+    ["6", 3],
+    ["3", 1],
+    ["1", 1],
+  ])(
+    "plays on the share %s of the processors that make gave it with %i workers, half of it (US-1090)",
+    async (share, expected) => {
+      vi.stubEnv("WATERFALL_PROCESSORS", share);
+      vi.stubEnv("E2E_WORKERS", undefined);
+      vi.stubEnv("E2E_BUILT", "1");
+      expect((await harness()).workers).toBe(expected);
+    },
+  );
+
+  it("plays on the workers the environment names, whatever the share of the processors (US-1090)", async () => {
+    vi.stubEnv("WATERFALL_PROCESSORS", "12");
+    vi.stubEnv("E2E_WORKERS", "2");
+    expect((await harness()).workers).toBe(2);
+  });
+
+  it.each(["0", "-1", "2.5", "half"])(
+    "refuses %j as a share of the processors (US-1090)",
+    async (named) => {
+      vi.stubEnv("WATERFALL_PROCESSORS", named);
+      vi.stubEnv("E2E_WORKERS", undefined);
+      await expect(harness()).rejects.toThrow(
+        "WATERFALL_PROCESSORS must be a whole number of processors",
+      );
+    },
+  );
+
+  it("plays on forty workers, the fronts a slot's block of ports holds (#1902)", async () => {
+    vi.stubEnv("E2E_WORKERS", "40");
+    vi.stubEnv("E2E_FRONT_PORT", "20040");
+    const config = await harness();
+    expect(config.workers).toBe(40);
+    const fronts = frontsOf(config);
+    expect(fronts).toHaveLength(40);
+    expect(fronts.at(-1)?.url).toBe("http://127.0.0.1:20079");
+  });
+
+  it("refuses more than forty workers, which would take the ports of the next slot (#1902)", async () => {
+    vi.stubEnv("E2E_WORKERS", "41");
+    await expect(harness()).rejects.toThrow(
+      "E2E_WORKERS must be 40 at most: a front is started for each worker, and the block of ports of a slot holds 40 of them",
+    );
+  });
+
+  it("holds Playwright's own share to forty workers, on a machine of more than eighty processors (#1902)", async () => {
+    vi.stubEnv("WATERFALL_PROCESSORS", "200");
+    vi.stubEnv("E2E_WORKERS", undefined);
+    expect((await harness()).workers).toBe(40);
+  });
+
   it.each(["0", "-1", "2.5", "two"])("refuses %j as a number of workers", async (named) => {
     vi.stubEnv("E2E_WORKERS", named);
     await expect(harness()).rejects.toThrow("E2E_WORKERS must be a whole number of workers");
@@ -377,6 +433,10 @@ describe("the fronts of the harness, one for each worker of the paths (#1477)", 
       const environment = { ...process.env };
       delete environment.MAKEFLAGS;
       delete environment.MAKELEVEL;
+      // The ports of slot 0, which a worktree with no slot of its own would otherwise lack: the
+      // Makefile takes them from the environment before it asks the registry of slots (US-1100).
+      environment.E2E_API_PORT = "4110";
+      environment.E2E_FRONT_PORT = "3100";
       const run = execFileSync(
         "make",
         [

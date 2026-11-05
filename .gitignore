@@ -35,3 +35,5 @@ deploy/compose/waterfall.mock.json
 deploy/keycloak/extension/target/
 # La racine de l'autorité du frontal de Keycloak, copiée de la plateforme de service (make service-up)
 deploy/compose/.authority/
+# Ce qu'un agent écrit dans son worktree, le journal de `make check` (US-1100)
+.waterfall/

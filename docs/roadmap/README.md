@@ -151,7 +151,11 @@ EP-08, the three hundred projects in EP-13, which closes. Four rules, which each
 | [EP-16](EP-16-maquette-durcissement.md) | Mockup and contract: hardening | livré | EP-15 |
 | [EP-17](EP-17-maquette-finitions-accessibilite.md) | Mockup: finishing touches and accessibility | en cours | EP-16 |
 | [EP-18](EP-18-comptes-ecarts-revue-du-contrat.md) | Accounts: findings of the contract review | livré | EP-16 |
-| [EP-05](EP-05-referentiel.md) | Reference data of the company | prêt | EP-16, EP-18 |
+| [EP-19](EP-19-livreurs-en-parallele.md) | Deliverers in parallel | livré | rien |
+| [EP-20](EP-20-migration-des-dependances.md) | Migration of the dependencies | en cours | EP-19 |
+| [EP-21](EP-21-livreurs-en-parallele-suivi.md) | Deliverers in parallel: follow-up | à planifier | EP-19 |
+| [EP-22](EP-22-kanban-recapitulatives-demarrees.md) | The Kanban lists the summary awaiting only its own lines | en cours | EP-17 |
+| [EP-05](EP-05-referentiel.md) | Reference data of the company | prêt | EP-16, EP-18, EP-19, EP-20 |
 | [EP-04](EP-04-projets-et-revisions.md) | Projects, revisions and life cycle | prêt | EP-05 |
 | [EP-06](EP-06-planification.md) | Planning | à planifier | EP-04 |
 | [EP-07](EP-07-chiffrage-et-devis.md) | Costing and estimate | à planifier | EP-06 |
@@ -194,7 +198,14 @@ concerns the hardening or the contract stays there — everything else, includin
 paths, for its part, is hardening and comes back to EP-16 (US-0590b). EP-18 brings the accounts service and its screen in
 line with the four decisions of the 2026-10-31 contract review that touch EP-03, delivered; it comes
 before EP-05, which touches the same files, and is delivered before the accounts lot of EP-17
-(US-0780/L1), without suspending the rest of EP-17.
+(US-0780/L1), without suspending the rest of EP-17. EP-19 makes the repository and its agents safe
+for several deliverers at once; it comes before EP-05, which will benefit from it and touches the
+Makefile and the service platform it rewrites (decision of the author, 2026-11-03). EP-20 brings the
+platform, its runtimes and its dependencies to their latest stable versions, and makes watching
+them regular; it comes after EP-19, whose pins it raises, and before EP-05, the first domain
+epic, which is built on the target versions (decision of the author, 2026-11-03). EP-21 takes
+up the tooling findings that EP-19 could not fix in its lots (decision of the author,
+2026-11-04); its rank is set when it is framed.
 
 EP-13 depends only on EP-04: it can start early, but it closes cross-cutting requirements
 whose last action comes late, and it finishes last.
@@ -280,13 +291,22 @@ sub-issues follows the cutting:
 
 **The tracking table** is in the body of the epic's issue, never in a comment,
 and it is kept up to date at each change of state — lot started, in review, merged, blocked;
-story gone `en cours` or `fini`; finding opened or settled. It has two parts:
+story gone `en cours` or `fini`; finding opened or settled. The agents change it with
+`make tracking` — `ISSUE=<n> LOT=<identifier> [STATE=…] [PR=…] [MODEL=…]`, `US=<identifier>
+STATUS=…` or `FINDING=<n> ATTACHED=… DECISION=…` —, which reads the body again under a lock of
+the workstation just before writing it and changes only the line asked for: none rewrites the
+body itself, several deliverers would overwrite one another there. It has two parts:
 
 - **Order of realisation**: one line per story, in the order they are delivered, with its
   issue and its status, the one of the file; under it, one line per lot, in order, with its
   dependencies, its state — `à faire`, `en cours`, `en revue`, `fusionné`, `bloqué : <issue>` —,
   its pull request, and the model that developed it, with the reason for the escalation if there
-  was one;
+  was one; and its **« Pas avec »** column: the lots of the epic with which it is not delivered
+  at the same time (`—` if there are none). It is symmetric — if L2 is « pas avec » L1, L1 is
+  also « pas avec » L2 —, and the framer fills it in, at the lot plan, for two lots that no
+  dependency separates and that touch the same file. The pilot does not launch a lot whose
+  « pas avec » lot is started and not merged (`en cours`, `en revue`, `question`, `bloqué`),
+  even when their dependencies allow it. The template of a lot has the same field;
 - **Open findings**: each finding that is not closed, the issue it is attached to, and
   its decision.
 

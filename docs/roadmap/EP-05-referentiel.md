@@ -2,7 +2,7 @@
 id: EP-05
 titre: Décrire l'entreprise que les projets emploient : organisation, ressources, calendriers, coûts
 statut: prêt
-depend_de: EP-16, EP-18
+depend_de: EP-16, EP-18, EP-19, EP-20
 famille: front, back
 issue:
 ---
@@ -208,7 +208,11 @@ US-0640/L6 (#1457, les constats de contrat relevés par les lots d'EP-15) et US-
 gel) touchent encore le contrat, sans qu'aucune issue ouverte ne porte sur le référentiel. À
 leur fusion, la liste des opérations, les refus que les US nomment et les exemples que les tests
 lisent se relisent ; un écart devient une « Interface contract issue » que l'auteur tranche, le
-contrat figé ne se modifiant plus qu'ainsi.
+contrat figé ne se modifiant plus qu'ainsi. EP-19 livré : ses lots se livrent à plusieurs, chacun
+sur son créneau et ses services de test, et EP-19 réécrit le Makefile et la plateforme de service
+que cet EPIC touche (décision de l'auteur du 2026-11-03). EP-20 livré : le référentiel se construit sur
+PostgreSQL 18, Python 3.14 et Node 26, et sur les bibliothèques que la migration des
+dépendances monte (décision de l'auteur du 2026-11-03).
 
 ## Définition de fini
 
