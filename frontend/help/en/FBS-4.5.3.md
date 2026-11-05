@@ -10,7 +10,7 @@ The Kanban reads the draft revision, whatever the revision of the context: on a 
 
 A task not started all of whose predecessors are completed bears **Ready to start**, by an icon and a text, whether a filter is active or not; on a milestone, it comes beside “milestone to complete”. The server says which tasks are ready: the screen does not compute it.
 
-A started summary task whose subordinates are all completed, and one of whose own lines outside provisions still holds a remaining to commit, bears **Own lines open**, by an icon and a text: it waits only for its own lines. The server says it of the task; the screen does not deduce it from its subordinates, and a provision never makes it say so.
+A started summary task whose subordinates are all completed, and one of whose own lines outside provisions still holds a remaining to commit, bears **Own lines open**, by an icon and a text: it waits only for its own lines. The server says it of the task; the screen does not deduce it from its subordinates, and a provision never makes it say so. This card is in the **Started** column, and its only gesture is **Enter the remaining to commit**: **Complete** is unavailable on it, the task bearing lines apart from provision, and neither **Start** nor **Reopen** is offered. Dragging the card to **Completed** therefore does not complete it, and the screen says so on the card. It is completed when the server finds a zero remaining to commit on its own lines, after the entry in the grid: the screen does not complete it itself.
 
 ## Its commands
 
