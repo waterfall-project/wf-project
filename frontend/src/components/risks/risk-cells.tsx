@@ -53,7 +53,7 @@ export function RiskLabelCell({ risk }: { readonly risk: RiskRow }) {
   );
 }
 
-const ESTIMATE = createContext<string | undefined>(undefined);
+const ORIGIN_GRID = createContext<string | undefined>(undefined);
 
 /**
  * Give the cells of the states the address of the grid of the revision, in its context, which the
@@ -61,27 +61,28 @@ const ESTIMATE = createContext<string | undefined>(undefined);
  * does not read the estimate; none, and they lead nowhere (it reads neither).
  */
 export function OccurredLines({
-  estimate,
+  originGrid,
   children,
 }: {
-  readonly estimate: string | undefined;
+  readonly originGrid: string | undefined;
   readonly children: ReactNode;
 }) {
-  return <ESTIMATE.Provider value={estimate}>{children}</ESTIMATE.Provider>;
+  return <ORIGIN_GRID.Provider value={originGrid}>{children}</ORIGIN_GRID.Provider>;
 }
 
 /**
  * Render the state of a risk, in the language of the interface. A risk occurred leads to the grid
- * of the estimate filtered on the lines that came of it (`origin_risk_ids`, WF-RIS-0060): the
- * estimate prices them, and the reestimated amount of the register is their sum. The link is the
- * cell's, which Enter follows; its name keeps the state, as the cell shows it.
+ * of the revision filtered on the lines that came of it (`origin_risk_ids`, WF-RIS-0060) — the
+ * estimate, or the planning for a session that does not read it: the estimate prices them, and the
+ * reestimated amount of the register is their sum. The link is the cell's, which Enter follows;
+ * its name keeps the state, as the cell shows it.
  */
 export function RiskStateCell({ risk }: { readonly risk: RiskRow }) {
   const t = useTranslations("enums.RiskState");
   const lines = useTranslations("risks.coverage");
-  const estimate = useContext(ESTIMATE);
+  const originGrid = useContext(ORIGIN_GRID);
   const state = t(risk.state);
-  if (risk.state !== "occurred" || estimate === undefined) {
+  if (risk.state !== "occurred" || originGrid === undefined) {
     return (
       <span className="truncate" title={state}>
         {state}
@@ -91,7 +92,7 @@ export function RiskStateCell({ risk }: { readonly risk: RiskRow }) {
   const named = lines("occurredLines", { risk: risk.label });
   return (
     <Link
-      href={originHref(estimate, risk.risk_id)}
+      href={originHref(originGrid, risk.risk_id)}
       tabIndex={-1}
       aria-label={lines("occurredStateLines", { state, risk: risk.label })}
       title={named}

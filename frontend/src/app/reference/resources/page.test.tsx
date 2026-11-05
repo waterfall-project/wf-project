@@ -503,7 +503,7 @@ describe("the settings of the resources", () => {
       headcount: NO_BOUNDS,
     };
     // A list of roles a session that may only read them sees, nothing offered to choose.
-    const roles = { rows: [], page: none, preferences: undefined, readsInactive: true } as const;
+    const roles = { rows: [], page: none, preferences: undefined } as const;
     const offered = { editable: false, nodes: [], labour: [], calendars: [] } as const;
     const narrowed = rendered(
       <ResourceRoleList {...roles} {...offered} query={query} categories={[]} filters={filters} />,
@@ -528,7 +528,6 @@ describe("the settings of the resources", () => {
         page={none}
         query={NO_QUERY}
         preferences={undefined}
-        readsInactive={false}
         editable={false}
         state={undefined}
       />,
@@ -539,7 +538,6 @@ describe("the settings of the resources", () => {
         rows={[]}
         query={NO_QUERY}
         preferences={undefined}
-        readsInactive
         editable={false}
         filters={{ code: undefined, level: 4, state: undefined, levels: NO_BOUNDS }}
         levels={[]}

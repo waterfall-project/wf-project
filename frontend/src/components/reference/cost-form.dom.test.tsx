@@ -84,7 +84,6 @@ function natures(rows: readonly CostType[] = types.items) {
       query={NO_QUERY}
       preferences={undefined}
       state={undefined}
-      readsInactive
       editable
       kinds={[]}
     />,
@@ -105,7 +104,6 @@ function categoryList(
       query={NO_QUERY}
       preferences={undefined}
       state={undefined}
-      readsInactive
       editable
       natures={offered}
       every={every}

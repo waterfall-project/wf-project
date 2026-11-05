@@ -392,7 +392,6 @@ export default async function CostSettingsPage({
           query={queries.types}
           preferences={grids?.[COST_TYPE_GRID_KEY] ?? undefined}
           state={queries.typeState}
-          readsInactive={editable}
           editable={editable}
           kinds={queries.kinds}
         />
@@ -402,7 +401,6 @@ export default async function CostSettingsPage({
           query={queries.categories}
           preferences={grids?.[COST_CATEGORY_GRID_KEY] ?? undefined}
           state={queries.categoryState}
-          readsInactive={editable}
           editable={editable}
           natures={natures.map(natureChoice)}
           every={typesOf(editable, typed, natures)}
@@ -411,7 +409,7 @@ export default async function CostSettingsPage({
         <RatesSection>
           <RateFilterBar
             filters={queries.rateFilters}
-            readsInactive={editable}
+            editable={editable}
             {...rateFiltered(rates, queries.rateFilters)}
           />
           {rates.kind === "read" ? (

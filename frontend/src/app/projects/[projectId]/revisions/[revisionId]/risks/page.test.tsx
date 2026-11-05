@@ -425,7 +425,7 @@ describe("the screen of the risks", () => {
     // Dated like every card, the region reading alone [WF-IHM-0020-A].
     expect(regionOf(page, "Risk coverage")).toMatch(/<time dateTime="2026-06-03T14:05:00Z"/);
     expect(text(page)).toContain(
-      "Risk reserve 850,060.00 Remaining provisions 500,000.00 Cost of the occurred risks 200.00 · reestimated Reestimated cost of the occurred risks (information) 200.00 Coverage variance 349,860.00",
+      "Risk reserve 850,060.00 Remaining provisions 500,000.00 Cost of the occurred risks 200.00 reestimated Reestimated cost of the occurred risks (information) 200.00 Coverage variance 349,860.00",
     );
     // The reestimated stands in regard of the cost, in its entry, not as a term of the variance: four
     // terms, and the entry of the cost holds both amounts, the reestimated named in full to a reader.
@@ -437,7 +437,9 @@ describe("the screen of the risks", () => {
     );
     const entry = cost.slice(0, cost.indexOf("</dd></div>"));
     expect(entry.match(/aria-label="Computed"/g)).toHaveLength(2);
-    expect(entry).toMatch(/<span aria-hidden="true">· reestimated<\/span>/);
+    // The bullet is a hidden element of its own, drawn by the style, not a part of the translated word.
+    expect(entry).toMatch(/<span[^>]*aria-hidden="true"[^>]*before:content-\[[^>]*><\/span>/);
+    expect(entry).toMatch(/<span aria-hidden="true">reestimated<\/span>/);
     expect(entry).toMatch(
       /<span class="sr-only">Reestimated cost of the occurred risks \(information\)<\/span>/,
     );
@@ -611,17 +613,22 @@ describe("the commands of the risks", () => {
     expect(Object.fromEntries(callsTo(NODES)[0]?.query ?? [])).toMatchObject({ kinds: "task" });
   });
 
-  it("leads the state of a risk occurred to the estimate, and to the planning for a session that does not read it [WF-RIS-0060-A]", async () => {
-    await risksAt();
-    expect(grids.risks.at(-1)?.estimate).toContain("/estimate");
+  it("leads the state of a risk occurred to the estimate, and to the planning for a session that does not read it, the risk filtered on [WF-RIS-0060-A]", async () => {
+    const grid = `/projects/${PROJECT}/revisions/${REVISION}`;
+    const page = await risksAt();
+    expect(grids.risks.at(-1)?.originGrid).toBe(`${grid}/estimate`);
+    expect(page).toContain(`href="${grid}/estimate?origin_risk_ids=${DELIVERY}"`);
     grids.risks = [];
     kept.permissions = ["planning.read"];
-    await risksAt();
-    expect(grids.risks.at(-1)?.estimate).toContain("/planning");
+    const planning = await risksAt();
+    expect(grids.risks.at(-1)?.originGrid).toBe(`${grid}/planning`);
+    expect(planning).toContain(`href="${grid}/planning?origin_risk_ids=${DELIVERY}"`);
+    expect(planning).not.toContain(`${grid}/estimate?origin_risk_ids=`);
     grids.risks = [];
     kept.permissions = [];
-    await risksAt();
-    expect(grids.risks.at(-1)?.estimate).toBeUndefined();
+    const none = await risksAt();
+    expect(grids.risks.at(-1)?.originGrid).toBeUndefined();
+    expect(none).not.toContain("origin_risk_ids=");
   });
 
   it.each([

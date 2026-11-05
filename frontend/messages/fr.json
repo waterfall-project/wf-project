@@ -513,7 +513,7 @@
       "remainingProvisions": "Provisions restantes",
       "occurredCost": "Coût des risques survenus",
       "occurredReestimated": "Réestimé des risques survenus (information)",
-      "occurredReestimatedShort": "· réestimé",
+      "occurredReestimatedShort": "réestimé",
       "occurredLines": "Voir les lignes issues de « {risk} »",
       "occurredStateLines": "{state}, voir les lignes issues de « {risk} »",
       "coverageVariance": "Écart de couverture"

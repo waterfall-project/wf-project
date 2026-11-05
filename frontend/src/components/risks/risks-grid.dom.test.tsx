@@ -52,11 +52,11 @@ function risksGrid(
   risks: RiskRows,
   locale: Locale,
   query: GridQuery<RiskSortColumn> = NO_QUERY,
-  estimate?: string,
+  originGrid?: string,
 ) {
   return (
     <NextIntlClientProvider locale={locale} messages={CATALOGUES[locale]} timeZone="UTC">
-      <RisksGrid risks={risks} query={query} preferences={undefined} estimate={estimate} />
+      <RisksGrid risks={risks} query={query} preferences={undefined} originGrid={originGrid} />
     </NextIntlClientProvider>
   );
 }

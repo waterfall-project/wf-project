@@ -426,10 +426,10 @@ describe("the fronts of the harness, one for each worker of the paths (#1477)", 
     (named, told) => {
       // The recipe of make e2e run, its installation, its Playwright and the tools of the fake back
       // (REDOCLY and PRISM, which mock-tools would otherwise fetch through two real npx, from the
-      // network and its cache: #1901) replaced: what Playwright
-      // would be started under, and with which arguments. Run apart from the make that runs the
-      // tests: in the chain, `make coverage-front SHARD=2/2` hands its part to make e2e through
-      // the environment and MAKEFLAGS, which then plays `--shard=2/2` of the paths (US-0590b).
+      // network and its cache: #1901) replaced: what Playwright would be started under, and with
+      // which arguments. Run apart from the make that runs the tests: in the chain,
+      // `make coverage-front SHARD=2/2` hands its part to make e2e through the environment and
+      // MAKEFLAGS, which then plays `--shard=2/2` of the paths (US-0590b).
       const environment = { ...process.env };
       delete environment.MAKEFLAGS;
       delete environment.MAKELEVEL;

@@ -125,7 +125,6 @@ function organisation(
       rows={rows}
       query={NO_QUERY}
       preferences={undefined}
-      readsInactive
       editable
       filters={{ code: undefined, level: undefined, state: undefined, levels: NO_BOUNDS }}
       levels={[1, 2, 3]}
@@ -146,7 +145,6 @@ function roleList(editable = true, categoriesRead = true, read?: readonly CostCa
       page={roles.meta}
       query={NO_QUERY}
       preferences={undefined}
-      readsInactive
       editable={editable}
       nodes={NODE_CHOICES}
       categories={read === undefined ? labour : read.map(categoryChoice)}
@@ -179,7 +177,6 @@ function calendarList(
       page={calendars.meta}
       query={NO_QUERY}
       preferences={undefined}
-      readsInactive
       editable={editable}
       state={undefined}
     />,

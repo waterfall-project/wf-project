@@ -396,7 +396,6 @@ describe("the settings of the costs", () => {
             query={NO_QUERY}
             preferences={undefined}
             state={undefined}
-            readsInactive
             editable={false}
             kinds={[]}
           />
@@ -406,7 +405,6 @@ describe("the settings of the costs", () => {
             query={NO_QUERY}
             preferences={undefined}
             state={undefined}
-            readsInactive
             editable={false}
             natures={[]}
             nature={undefined}
@@ -433,7 +431,6 @@ describe("the settings of the costs", () => {
           query={NO_QUERY}
           preferences={undefined}
           state={undefined}
-          readsInactive={false}
           editable={false}
           kinds={[]}
         />
@@ -443,7 +440,6 @@ describe("the settings of the costs", () => {
           query={NO_QUERY}
           preferences={undefined}
           state={undefined}
-          readsInactive={false}
           editable={false}
           natures={[]}
           nature={undefined}

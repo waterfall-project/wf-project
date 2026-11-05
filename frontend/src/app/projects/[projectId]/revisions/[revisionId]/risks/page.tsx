@@ -225,7 +225,6 @@ function gridsOf(
 }
 
 /** What stands for the grid when the server refused a filter of a column (422), the risks unread. */
-/** What stands for the grid when the server refused a filter of a column (422), the risks unread. */
 function FiltersRefused() {
   const t = useTranslations("risks.filters");
   return <p className="text-sm text-destructive">{t("refused")}</p>;
@@ -241,19 +240,19 @@ function RisksBlock({
   risks,
   query,
   preferences,
-  estimate,
+  originGrid,
 }: {
   readonly risks: RisksRead;
   readonly query: GridQuery<RiskSortColumn>;
   readonly preferences: GridPreferences | undefined;
-  readonly estimate: string | undefined;
+  readonly originGrid: string | undefined;
 }) {
   if (risks.kind === "refused") {
     return <FiltersRefused />;
   }
   return (
     <>
-      <RisksGrid risks={risks} query={query} preferences={preferences} estimate={estimate} />
+      <RisksGrid risks={risks} query={query} preferences={preferences} originGrid={originGrid} />
       <ListPages
         list={RISKS_LIST}
         texts="risks.pages"
@@ -416,7 +415,7 @@ export default async function RisksPage({
                 risks={risks}
                 query={query}
                 preferences={preferences}
-                estimate={occurredGrid}
+                originGrid={occurredGrid}
               />
             </div>
             {detail === undefined ? null : (

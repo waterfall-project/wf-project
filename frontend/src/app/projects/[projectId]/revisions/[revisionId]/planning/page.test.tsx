@@ -575,6 +575,22 @@ describe("the filter of the planning on the rows a risk occurred merged", () => 
     expect(page).not.toContain('selected="">Retard');
   });
 
+  it("falls into error, the nodes read once, when the server refuses the rows for another cause than an unknown risk [WF-RIS-0060-A]", async () => {
+    server.answers = {
+      ...server.answers,
+      [RISKS]: { problem: { code: "NOT_FOUND", status: 404 } },
+      [NODES]: {
+        problem: {
+          code: "VALIDATION_FAILED",
+          status: 422,
+          fields: [{ pointer: "/query/origin_risk_ids/0", code: "VALUE_OUT_OF_RANGE" }],
+        },
+      },
+    };
+    await expect(planning({ origin_risk_ids: OCCURRED })).rejects.toThrow();
+    expect(callsOf(NODES)).toHaveLength(1);
+  });
+
   /** A client whose list of the risks is held until `release`, which the page is then given. */
   function withHeldRisks() {
     const answer = held();

@@ -398,6 +398,52 @@ describe("the filter of the estimate on the rows a risk occurred merged", () => 
     expect(queryOf("/nodes")?.has("origin_risk_ids")).toBe(false);
   });
 
+  /** The nodes the page asked for, the filter on a risk or not. */
+  const NODE_ROUTE =
+    "GET /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes";
+
+  it("keeps the page, unfiltered and the filter lifted, when the session lists no risk and the server finds the one named unknown [WF-RIS-0060-A]", async () => {
+    server.answers = {
+      ...server.answers,
+      [RISKS]: { problem: { code: "NOT_FOUND", status: 404 } },
+      [NODE_ROUTE]: [
+        {
+          problem: {
+            code: "VALIDATION_FAILED",
+            status: 422,
+            fields: [{ pointer: "/query/origin_risk_ids/0", code: "UNKNOWN_RISK" }],
+          },
+        },
+        "nodes",
+      ],
+    };
+    const page = await estimatePage("me", { origin_risk_ids: OCCURRED });
+    const asked = server.clients
+      .flatMap((client) => client.calls)
+      .filter((call) => call.route === NODE_ROUTE);
+    expect(asked.map((call) => call.query.has("origin_risk_ids"))).toEqual([true, false]);
+    expect(grids.estimate.at(-1)?.filters).not.toHaveProperty("origin_risk_ids");
+    expect(page).toContain(`<option value="true">Coming from a risk</option>`);
+  });
+
+  it("falls into error, the nodes read once, when the server refuses the rows for another cause than an unknown risk [WF-RIS-0060-A]", async () => {
+    server.answers = {
+      ...server.answers,
+      [RISKS]: { problem: { code: "NOT_FOUND", status: 404 } },
+      [NODE_ROUTE]: {
+        problem: {
+          code: "VALIDATION_FAILED",
+          status: 422,
+          fields: [{ pointer: "/query/origin_risk_ids/0", code: "VALUE_OUT_OF_RANGE" }],
+        },
+      },
+    };
+    await expect(estimatePage("me", { origin_risk_ids: OCCURRED })).rejects.toThrow();
+    expect(
+      server.clients.flatMap((client) => client.calls).filter((call) => call.route === NODE_ROUTE),
+    ).toHaveLength(1);
+  });
+
   it("reads the rows with the risks occurred, not after them, when the address names no risk [WF-RIS-0060-A]", async () => {
     // #1955: the list of the risks is held; the rows are asked for all the same.
     const NODES = "/nodes";

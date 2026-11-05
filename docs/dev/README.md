@@ -3819,24 +3819,23 @@ mode and in dark mode (`colorScheme`) — six tests —, each bear on the two wi
   its faults are read in its findings. `test.use({ trace })` does not apply to a single test — a
   group refuses an option that forces a new worker: the test restarts the trace the harness opened,
   with the same options, without the snapshots;
-- what a gesture opens (US-0710, `frontend/e2e/opened.ts`): on each screen, the triggers of a
-  dialog or of a menu — `aria-haspopup="dialog"` or `"menu"`, which each command that opens a
-  dialog and each trigger of a menu sets —, displayed and enabled, receive the focus and Enter;
-  those of the shell — project, account, tasks, help: everything outside `main`, and the button of
-  the help, which `data-shell` marks — are played on the screen of reference alone, the list of the
-  revisions of a project (US-1220, #1840): they are the same on each screen, and replaying them
-  cost 38 to 67% of the critical path of the chain; the first enterable cell of each grid — a
-  cell of `DenseGrid`, which `data-column` places and nothing states read only (`aria-readonly`) —
-  receives the focus and F2. An open dialog is walked by Tab
-  bounded to it (`walkByTab(page, dialog)`): what Tab can reach, the widgets and the edges are judged
-  in the dialog alone, the return to its first element is the trap it wants — a dialog of a single
-  element keeps it —, and any element reached outside it is a fault (`escaped`). A menu moves the
-  focus with the arrows and an editor validates on Tab: the test checks there that the focus
-  entered. What opened is then audited by axe — the cell, for an editor —, and the rest of the
-  page by the one rule whose verdict outside it the opening changes (`aria-hidden-focus`: a menu
-  or a modal dialog hides the page from a screen reader); the whole page, which its own audit
-  judges, is not audited again at each opening, which exceeded the timeout of a test on the
-  Kanban and the reference data, eight seconds an audit. Then Escape closes it and
+- what a gesture opens (US-0710, `frontend/e2e/opened.ts`): on each screen, the triggers of a dialog
+  or of a menu — `aria-haspopup="dialog"` or `"menu"`, which each command that opens a dialog and
+  each trigger of a menu sets —, displayed and enabled, receive the focus and Enter; those of the
+  shell — project, account, tasks, help: everything outside `main`, and the button of the help,
+  which `data-shell` marks — are played on the screen of reference alone, the list of the revisions
+  of a project (US-1220, #1840): they are the same on each screen, and replaying them cost 38 to 67%
+  of the critical path of the chain; the first enterable cell of each grid — a cell of `DenseGrid`,
+  which `data-column` places and nothing states read only (`aria-readonly`) — receives the focus and
+  F2. An open dialog is walked by Tab bounded to it (`walkByTab(page, dialog)`): what Tab can reach,
+  the widgets and the edges are judged in the dialog alone, the return to its first element is the
+  trap it wants — a dialog of a single element keeps it —, and any element reached outside it is a
+  fault (`escaped`). A menu moves the focus with the arrows and an editor validates on Tab: the test
+  checks there that the focus entered. What opened is then audited by axe — the cell, for an editor
+  —, and the rest of the page by the one rule whose verdict outside it the opening changes
+  (`aria-hidden-focus`: a menu or a modal dialog hides the page from a screen reader); the whole
+  page, which its own audit judges, is not audited again at each opening, which exceeded the timeout
+  of a test on the Kanban and the reference data, eight seconds an audit. Then Escape closes it and
   the focus comes back to the trigger, or to the cell — the one holding the trigger, for a command
   of a grid row. The triggers are discovered at each width and played one after the other in a
   single test per screen and per mode, each check stated apart, named by the trigger and the width

@@ -84,11 +84,9 @@ interface ListProps<Row, Sort extends string> {
   readonly query: GridQuery<Sort>;
   readonly preferences: GridPreferences | undefined;
   /**
-   * Whether the session may read the deactivated objects of the settings of the resources, which
-   * the filter of the state then offers.
+   * Whether the session may modify the settings of the resources (`platformOffer`), and so reads
+   * their deactivated objects, which the filter of the state then offers.
    */
-  readonly readsInactive: boolean;
-  /** Whether the session may modify the settings of the resources (`platformOffer`). */
   readonly editable: boolean;
 }
 
@@ -131,7 +129,6 @@ export function OrgNodeList({
   rows,
   query,
   preferences,
-  readsInactive,
   editable,
   filters,
   levels,
@@ -183,7 +180,7 @@ export function OrgNodeList({
                   }))}
                   chosen={filters.level?.toString()}
                 />
-                {readsInactive ? (
+                {editable ? (
                   <StateFilter
                     name={ORG_STATE}
                     label={t("stateFilter.of", { list: t("orgNodes.title") })}
@@ -262,7 +259,6 @@ export function ResourceRoleList({
   page,
   query,
   preferences,
-  readsInactive,
   editable,
   nodes,
   categories,
@@ -371,7 +367,7 @@ export function ResourceRoleList({
                   chosen={filters.calendar}
                   page={offset}
                 />
-                {readsInactive ? (
+                {editable ? (
                   <StateFilter
                     name={ROLE_STATE}
                     label={t("stateFilter.of", { list: title })}
@@ -437,7 +433,6 @@ export function CalendarList({
   page,
   query,
   preferences,
-  readsInactive,
   editable,
   state,
 }: ListProps<Calendar, CalendarSort> & {
@@ -464,7 +459,7 @@ export function CalendarList({
             />
           }
           filters={
-            readsInactive ? (
+            editable ? (
               <StateFilter
                 name={CALENDAR_STATE}
                 label={t("stateFilter.of", { list: title })}
