@@ -223,17 +223,6 @@ export function CostStructureView({
 }
 
 /**
- * The four amounts of the coverage of the risks, as the contract names them, in its order; the
- * cost of the occurred risks is shown with their reestimated cost beside it (`OccurredCost`).
- */
-const COVERAGE = [
-  ["reserve", "reserve"],
-  ["remaining_provisions", "remainingProvisions"],
-  ["occurred_cost", "occurredCost"],
-  ["coverage_variance", "coverageVariance"],
-] as const satisfies readonly (readonly [keyof Schemas["RiskCoverageTotals"], string])[];
-
-/**
  * Render the risks: their total, the heaviest with their project, the coverage of the risks over
  * the perimeter — the reference reserves against the remaining provisions and the cost of the
  * risks occurred, and the signed variance, each a sum the server made (WF-PTF-0090) —, the
@@ -257,13 +246,13 @@ export function PortfolioRisksView({ risks }: { readonly risks: Schemas["Portfol
         </FiguresCard>
         <FiguresCard title={t("coverage")}>
           <FiguresList>
-            {COVERAGE.map(([field, name]) =>
-              field === "occurred_cost" ? (
-                <OccurredCost key={field} coverage={risks.coverage} />
-              ) : (
-                <ComputedTotal key={field} name={t(name)} amount={risks.coverage[field]} />
-              ),
-            )}
+            <ComputedTotal name={t("reserve")} amount={risks.coverage.reserve} />
+            <ComputedTotal
+              name={t("remainingProvisions")}
+              amount={risks.coverage.remaining_provisions}
+            />
+            <OccurredCost coverage={risks.coverage} />
+            <ComputedTotal name={t("coverageVariance")} amount={risks.coverage.coverage_variance} />
           </FiguresList>
         </FiguresCard>
       </FiguresGrid>

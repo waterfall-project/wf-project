@@ -140,7 +140,7 @@ beforeEach(() => {
 });
 
 describe("the screen of the revisions of a project", () => {
-  it("shows the report of the import its address names above the history, as the screen of the project does [WF-IHM-0010-A]", async () => {
+  it("shows the report of the import its address names above the history, as the screen of the project does [WF-RIS-0050-A] [WF-IHM-0010-A]", async () => {
     server.answers = { ...server.answers, [GET_IMPORT]: "import_analysed" };
     const page = html(await RevisionsPage(at({ import: IMPORT })));
     expect(callTo(GET_IMPORT)?.path).toBe(`/projects/${PROJECT}/imports/${IMPORT}`);
@@ -150,7 +150,7 @@ describe("the screen of the revisions of a project", () => {
     );
   });
 
-  it("reads no import and shows no report when its address names none, or one no identifier can stand for [WF-IHM-0010-A]", async () => {
+  it("reads no import and shows no report when its address names none, or one no identifier can stand for [WF-RIS-0050-A] [WF-IHM-0010-A]", async () => {
     server.answers = { ...server.answers, [GET_IMPORT]: "import_analysed" };
     const plain = html(await RevisionsPage(at()));
     html(await RevisionsPage(at({ import: ".." })));

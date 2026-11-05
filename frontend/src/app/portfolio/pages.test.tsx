@@ -455,10 +455,9 @@ describe("the screens of the portfolio", () => {
     expect(entry).toMatch(
       /<span class="sr-only">Reestimated cost of the occurred risks \(information\)<\/span>/,
     );
-    // Four terms of the coverage, the reestimated being no fifth.
-    expect(markup.match(/Reference reserve|Remaining provisions|Coverage variance/g)).toHaveLength(
-      3,
-    );
+    // Four terms in the card of the coverage, the reestimated being no fifth.
+    const card = markup.slice(markup.indexOf("Risk coverage"));
+    expect(card.slice(0, card.indexOf("</dl>")).match(/<dt[\s>]/g)).toHaveLength(4);
   });
 
   it("opens the project of each signal of the health of the steering, by its zone [WF-PTF-0030-A] [WF-IHM-0070-A]", async () => {
