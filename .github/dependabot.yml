@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 
 # Actions are pinned by commit; without updates, a pinned action keeps its flaws.
+# Each ecosystem: minor and patch updates in one pull request a month, each major on its own.
 version: 2
 updates:
   - package-ecosystem: github-actions
@@ -10,3 +11,73 @@ updates:
       interval: monthly
     commit-message:
       prefix: "Chaîne :"
+    groups:
+      github-actions-minor-patch:
+        update-types:
+          - minor
+          - patch
+  - package-ecosystem: uv
+    directories:
+      - /backend
+      - /tools
+    schedule:
+      interval: monthly
+    commit-message:
+      prefix: "Chaîne :"
+    groups:
+      uv-minor-patch:
+        update-types:
+          - minor
+          - patch
+  - package-ecosystem: npm
+    directory: /frontend
+    schedule:
+      interval: monthly
+    commit-message:
+      prefix: "Chaîne :"
+    groups:
+      npm-minor-patch:
+        update-types:
+          - minor
+          - patch
+  - package-ecosystem: maven
+    directory: /deploy/keycloak/extension
+    schedule:
+      interval: monthly
+    commit-message:
+      prefix: "Chaîne :"
+    ignore:
+      - dependency-name: "org.keycloak:*"
+      - dependency-name: "jakarta.ws.rs:jakarta.ws.rs-api"
+    groups:
+      maven-minor-patch:
+        update-types:
+          - minor
+          - patch
+  - package-ecosystem: docker
+    directories:
+      - /backend
+      - /frontend
+      - /deploy/keycloak
+      - /deploy/openldap
+      - /deploy/compose
+    schedule:
+      interval: monthly
+    commit-message:
+      prefix: "Chaîne :"
+    groups:
+      docker-minor-patch:
+        update-types:
+          - minor
+          - patch
+  - package-ecosystem: docker-compose
+    directory: /deploy/compose
+    schedule:
+      interval: monthly
+    commit-message:
+      prefix: "Chaîne :"
+    groups:
+      docker-compose-minor-patch:
+        update-types:
+          - minor
+          - patch
