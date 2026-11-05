@@ -21,8 +21,9 @@ Pour installer une plateforme de démonstration à partir des images publiées, 
 | `pandoc` 3.13 | la projection de la spécification (une autre version écrit un autre Markdown) |
 | `mmdc`, installé par npm | facultatif : la validation des diagrammes (`make build-doc`, `make check-spec`) |
 
-`make check-tools` dit ce qui manque, et avertit quand pandoc n'est pas en 3.13 ou que
-`/usr/bin/pg_restore` n'est pas celui de PostgreSQL 18.
+`make check-tools` dit ce qui manque, et avertit quand `python3` n'est pas de la version de
+`tools/.python-version`, que pandoc n'est pas en 3.13 ou que `/usr/bin/pg_restore` n'est pas celui de
+PostgreSQL 18.
 
 ### pandoc 3.13
 

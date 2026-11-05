@@ -163,7 +163,7 @@ class Unaccent:
 
         A line is a source, then its translation, apart by blanks (space, tab and the other ASCII
         blanks of C ``isspace``); blanks at the start or the end of a line are ignored, and a
-        source alone is dropped, as ``unaccent`` drops it. A translation that starts with a double
+        source alone is a rule with an empty translation. A translation that starts with a double
         quote is quoted: it keeps its blanks and runs to the next double quote that is not
         doubled, a doubled one being one quote of the translation (« ¼ » is shipped as a quoted
         space, then 1/4; a quoted pair of quotes reads one quote). A quote anywhere else is a

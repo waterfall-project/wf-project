@@ -80,7 +80,7 @@ def test_the_shipped_table_is_read_as_unaccent_reads_it() -> None:
     assert (rules["ß"], rules["ẞ"]) == ("ss", "SS")
     assert (rules["ø"], rules["ł"], rules["đ"]) == ("o", "l", "d")
     # A quoted translation keeps its leading blank, as PostgreSQL 18 ships the fractions, and
-    # a source alone is dropped.
+    # a source alone is a rule with an empty translation.
     assert rules["¼"] == " 1/4"
     assert rules["\u0301"] == ""
     assert not any(source.startswith("#") for source in rules)
@@ -116,6 +116,7 @@ def test_a_rule_of_more_than_two_strings_is_refused() -> None:
         ('"x\ty', '"x', "y"),
         ("  x \t y  ", "x", "y"),
         ("x", "x", ""),
+        ('"x"', '"x"', ""),
         ("a\u00a0b\tc", "a\u00a0b", "c"),
         ('x\v"a\tb"', "x", "a\tb"),
         ("x\fy", "x", "y"),
@@ -132,7 +133,7 @@ def test_a_source_given_twice_keeps_its_first_rule() -> None:
     assert mocktext.Unaccent.read("a\tX\na\tY\n").rules == {"a": "X"}
 
 
-@pytest.mark.parametrize("line", ['x\t"abc', 'x\t"abc""', 'x\t"'])
+@pytest.mark.parametrize("line", ['x\t"abc', 'x\t"abc""', 'x\t"', 'x "'])
 def test_a_quoted_translation_never_closed_is_refused(line: str) -> None:
     with pytest.raises(ValueError, match="never closed"):
         mocktext.Unaccent.read(f"{line}\n")

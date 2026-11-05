@@ -628,6 +628,8 @@ check-tools: ## Report which prerequisites are missing
 	@for t in python3 pandoc node npx pnpm uv docker; do \
 		command -v $$t >/dev/null && echo "  ok       $$t" || echo "  missing  $$t"; \
 	done
+	@python3 --version 2>/dev/null | grep -q "^Python $$(cat $(TOOLS)/.python-version)\." \
+		|| echo "  warning  python3 is not $$(cat $(TOOLS)/.python-version), the version of $(TOOLS)/.python-version: the guard and the slots would run by another"
 	@command -v pandoc >/dev/null && pandoc --version | head -1 | grep -q " 3.13$$" \
 		|| echo "  warning  pandoc is not 3.13: the projection would differ from the chain's"
 	@/usr/bin/pg_restore --version 2>/dev/null | grep -q " 18\." \

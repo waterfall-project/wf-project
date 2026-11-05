@@ -106,7 +106,7 @@ To set up a workstation, read [`INSTALL.md`](INSTALL.md) (in French).
 
 ```bash
 make                      # list the commands
-npm install --global pnpm   # pnpm, once
+npm install --global pnpm # pnpm, once
 make check-tools          # tell me what is missing
 make check BASE=origin/epic/EP-nn  # the checks of what my change touches
 make check-all            # run every family of checks

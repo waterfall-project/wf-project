@@ -111,7 +111,7 @@ Pour installer un poste, lire [`INSTALL.md`](INSTALL.md).
 
 ```bash
 make                      # liste les commandes
-npm install --global pnpm   # pnpm, une fois
+npm install --global pnpm # pnpm, une fois
 make check-tools          # dit ce qui manque
 make check BASE=origin/epic/EP-nn  # les contrôles de ce que ma modification touche
 make check-all            # toutes les familles de contrôles
