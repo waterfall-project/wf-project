@@ -53,7 +53,7 @@ PNPM_HEAVY = cd $(FRONT) && $(heavy) $(PNPM_ENV) WATERFALL_PROCESSORS=$(WATERFAL
 PNPM_TESTING = cd $(FRONT) && $(TESTING_FRONT) $(PNPM_ENV) WATERFALL_PROCESSORS=$(WATERFALL_PROCESSORS) pnpm
 # Pinned so that a check passes or fails on what this repository contains, never on
 # what a tool released overnight. Raise a version here and nowhere else.
-REDOCLY_VERSION := 2.54.3
+REDOCLY_VERSION := 2.73.0
 PRISM_VERSION   := 5.16.0
 REDOCLY := npx --yes @redocly/cli@$(REDOCLY_VERSION)
 PRISM   := npx --yes @stoplight/prism-cli@$(PRISM_VERSION)
