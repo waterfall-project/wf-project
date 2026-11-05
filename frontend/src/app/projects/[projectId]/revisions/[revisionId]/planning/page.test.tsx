@@ -8,7 +8,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { PlanningGridProps } from "@/components/grid/planning-grid";
 import type { StructureChoiceProps } from "@/components/context/structure-choice";
 import { CATALOGUES } from "@/i18n/catalogues";
-import { example, type FakeAnswers, type FakeClient, fakeClient } from "@/test/fixtures";
+import { example, type FakeAnswers, type FakeClient, fakeClient, held } from "@/test/fixtures";
 
 import PlanningPage from "./page";
 
@@ -573,6 +573,69 @@ describe("the filter of the planning on the rows a risk occurred merged", () => 
     expect(grid.given.at(-1)?.filters).not.toHaveProperty("origin_risk_ids");
     expect(page).toContain(`<option value="true">Coming from a risk</option>`);
     expect(page).not.toContain('selected="">Retard');
+  });
+
+  /** A client whose list of the risks is held until `release`, which the page is then given. */
+  function withHeldRisks() {
+    const answer = held();
+    server.clients.push(
+      fakeClient(server.answers, { hold: (route) => (route === RISKS ? answer.until : undefined) }),
+    );
+    return answer.release;
+  }
+
+  /** Wait until the page has made a call of the route, and let the calls it would make next go. */
+  async function called(route: string) {
+    await vi.waitFor(() => {
+      expect(callsOf(route)).not.toHaveLength(0);
+    });
+    await new Promise((settle) => setTimeout(settle, 20));
+  }
+
+  it("reads the rows with the risks occurred, not after them, when the address names no risk [WF-RIS-0060-A]", async () => {
+    // #1955: the list of the risks is held; the rows are asked for all the same.
+    const release = withHeldRisks();
+    const loaded = planning();
+    try {
+      await vi.waitFor(() => {
+        expect(callsOf(RISKS)).not.toHaveLength(0);
+      });
+      await vi.waitFor(() => {
+        expect(callsOf(NODES)).not.toHaveLength(0);
+      });
+    } finally {
+      release();
+    }
+    await loaded;
+    expect(callsOf(NODES)).toHaveLength(1);
+  });
+
+  it("reads the rows with the risks occurred when the address asks for the rows of any risk [WF-RIS-0060-A]", async () => {
+    const release = withHeldRisks();
+    const loaded = planning({ is_from_risk: "true" });
+    try {
+      await vi.waitFor(() => {
+        expect(callsOf(NODES)).not.toHaveLength(0);
+      });
+    } finally {
+      release();
+    }
+    await loaded;
+    expect(callsOf(NODES)[0]?.query.get("is_from_risk")).toBe("true");
+  });
+
+  it("asks for the rows of a risk the address names after the list of the risks occurred, which judges it [WF-RIS-0060-A]", async () => {
+    const release = withHeldRisks();
+    const loaded = planning({ origin_risk_ids: OCCURRED });
+    try {
+      await called(RISKS);
+      await called("GET /projects/{project_id}/revisions/{revision_id}/structures");
+      expect(callsOf(NODES)).toHaveLength(0);
+    } finally {
+      release();
+    }
+    await loaded;
+    expect(callsOf(NODES)[0]?.query.get("origin_risk_ids")).toBe(OCCURRED);
   });
 
   it("opens with « Coming from a risk » alone when the project has no risks to read to it", async () => {

@@ -7,19 +7,24 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { estimateGrid } from "@/components/grid/estimate";
 import type { EstimateGridProps } from "@/components/grid/estimate-grid";
 import { CATALOGUES } from "@/i18n/catalogues";
-import { type FakeAnswers, type FakeClient, fakeClient } from "@/test/fixtures";
+import { type FakeAnswers, type FakeClient, fakeClient, held } from "@/test/fixtures";
 import { estimateReference } from "@/test/reference";
 
 import EstimatePage from "./page";
 
-const server = vi.hoisted((): { answers: FakeAnswers; clients: FakeClient[] } => ({
-  answers: {},
-  clients: [],
-}));
+const server = vi.hoisted(
+  (): {
+    answers: FakeAnswers;
+    clients: FakeClient[];
+    hold?: (route: string) => Promise<unknown> | undefined;
+  } => ({ answers: {}, clients: [] }),
+);
 
 vi.mock("@/api/server", () => ({
   serverClient: () => {
-    const client = fakeClient(server.answers);
+    const client = fakeClient(server.answers, {
+      hold: (route) => server.hold?.(route),
+    });
     server.clients.push(client);
     return client;
   },
@@ -101,6 +106,7 @@ beforeEach(() => {
   withdrawn.permissions = [];
   grids.estimate = [];
   server.clients = [];
+  delete server.hold;
   server.answers = {
     "GET /reference/settings": "reference_settings",
     "GET /projects/{project_id}": "project",
@@ -390,6 +396,25 @@ describe("the filter of the estimate on the rows a risk occurred merged", () => 
   it("reads no value that is no identifier, as if the address named nothing [WF-RIS-0060-A]", async () => {
     await estimatePage("me", { origin_risk_ids: "not-an-identifier" });
     expect(queryOf("/nodes")?.has("origin_risk_ids")).toBe(false);
+  });
+
+  it("reads the rows with the risks occurred, not after them, when the address names no risk [WF-RIS-0060-A]", async () => {
+    // #1955: the list of the risks is held; the rows are asked for all the same.
+    const NODES = "/nodes";
+    const answer = held();
+    server.hold = (route) => (route === RISKS ? answer.until : undefined);
+    const loaded = estimatePage("me");
+    try {
+      await vi.waitFor(() => {
+        expect(queryOf("/risks")).toBeDefined();
+      });
+      await vi.waitFor(() => {
+        expect(queryOf(NODES)).toBeDefined();
+      });
+    } finally {
+      answer.release();
+    }
+    await loaded;
   });
 
   it("opens with « Coming from a risk » alone when the project has no risks to read to it", async () => {
