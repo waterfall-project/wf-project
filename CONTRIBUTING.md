@@ -22,7 +22,7 @@ make check BASE=origin/epic/EP-nn # only what your change touches, before you pu
 ```
 
 You need [uv](https://docs.astral.sh/uv/), which installs Python 3.14 for the back and the
-tools; a Python 3.11 or later on the `PATH` as `python3`, which builds the specification
+tools; a Python 3.14 or later on the `PATH` as `python3`, which builds the specification
 projection; Node 24, whose corepack provides pnpm; Docker, for `make dev`; `pandoc` 3.13 — the
 version the projection is generated with, since another one writes another Markdown; and
 `mmdc` (`npm i -g @mermaid-js/mermaid-cli`) if you want the diagrams validated.
