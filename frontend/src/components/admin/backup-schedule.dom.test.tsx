@@ -178,7 +178,10 @@ describe("the schedule of the backups", () => {
     expect(screen.getByLabelText("Planification")).toHaveTextContent(
       "Rétention14 sauvegardes conservées",
     );
-    expect(screen.getByRole("button", { name: "Modifier la planification" })).toHaveFocus();
+    // The focus comes back to the command once the dialog has closed, not in the same instant.
+    await vi.waitFor(() => {
+      expect(screen.getByRole("button", { name: "Modifier la planification" })).toHaveFocus();
+    });
   });
 
   it("enters the time in universal time, the local time it stands for said beside it, for a daily schedule the time alone", async () => {
@@ -538,7 +541,9 @@ describe("the schedule of the backups", () => {
     });
     // The focus back on the command, which says why it waits.
     const command = screen.getByRole("button", { name: "Modifier la planification" });
-    expect(command).toHaveFocus();
+    await vi.waitFor(() => {
+      expect(command).toHaveFocus();
+    });
     expect(command).toHaveAttribute("aria-disabled", "true");
     expect(command).toHaveAttribute("aria-busy", "true");
     expect(command).toHaveAccessibleDescription("Enregistrement en cours…");

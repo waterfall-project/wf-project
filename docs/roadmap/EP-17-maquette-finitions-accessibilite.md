@@ -1647,7 +1647,7 @@ l'auteur : la liste des révisions.
 
 ## US-1230 — La reprise de fin d'EPIC
 
-- **statut** : à faire
+- **statut** : en cours
 - **exigences** : aucune en propre
 - **opérations** : aucune
 - **issue** : #1961
