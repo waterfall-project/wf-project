@@ -181,9 +181,13 @@
     summary: Tâches du Kanban, par état
     description: >-
       Les tâches de la structure principale de la révision courante, réparties selon leur
-      état — non démarrée, démarrée, terminée —, chaque colonne dans l'ordre du plan, jamais
-      une récapitulative, dont l'état dérive de ses subordonnées (WF-RAE-0030,
-      WF-PLA-0040). Toutes les tâches non démarrées, chacune disant si ses prédécesseurs
+      état — non démarrée, démarrée, terminée —, chaque colonne dans l'ordre du plan
+      (WF-RAE-0030). Une récapitulative n'y paraît que démarrée, toutes ses subordonnées
+      terminées, quand une de ses lignes propres hors provision garde un reste à engager : elle
+      n'attend plus que ses lignes propres (`TaskFacet.awaiting_own_lines`), et la colonne des
+      démarrées la rend, avec les gestes de sa carte ; toute autre récapitulative est exclue,
+      son état dérivant de ses subordonnées (WF-PLA-0040 ; #1851). Toutes les tâches non
+      démarrées, chacune disant si ses prédécesseurs
       sont tous terminés (`predecessors_completed`) : le Kanban signale par lui les jalons à
       terminer, et ne déduit rien des liaisons ; les tâches démarrées, dont le reste à
       engager est à réestimer ; les tâches terminées, avec leur date de terminaison
@@ -215,6 +219,7 @@
             examples:
               witness: { $ref: ../../../fixtures/api/startable_tasks.json }
               milestone: { $ref: ../../../fixtures/api/startable_tasks_milestone.json }
+              awaiting_own_lines: { $ref: ../../../fixtures/api/startable_tasks_awaiting_own_lines.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '500': { $ref: ../components/responses.yaml#/InternalError }

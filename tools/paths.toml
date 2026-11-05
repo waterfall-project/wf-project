@@ -581,6 +581,7 @@ paths = [
     "fixtures/api/node_create_under_milestone.json",
     "fixtures/api/nodes_move_under_milestone.json",
     "fixtures/api/nodes_awaiting_own_lines.json",
+    "fixtures/api/startable_tasks_awaiting_own_lines.json",
     "fixtures/api/nodes_risk_estimate_occurred.json",
     "fixtures/api/nodes_from_risk.json",
     "fixtures/api/nodes_origin_risk_unknown.json",
