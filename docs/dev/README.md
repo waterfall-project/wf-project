@@ -2691,8 +2691,8 @@ and the Next server both reach, and which also serves it on `https://127.0.0.1:8
 address for the tests of the platform (#680); its address, `WATERFALL_KEYCLOAK_ADDRESS`, is
 `https://localhost:<port>/auth`: the front end serves only the hosts `localhost` and `127.0.0.1`,
 and only the port moves, through `WATERFALL_KEYCLOAK_PORT`: the Makefile and Compose deduce it from
-it, and read no exported address (#735). The certificates come from Caddy's own authority (`tls
-internal`): its root, kept in the volume of the front end, is copied at each start into
+it, and read no exported address (#735). The certificates come from Caddy's own authority
+(`tls internal`): its root, kept in the volume of the front end, is copied at each start into
 `deploy/compose/.authority/root.crt`; the front trusts it through `NODE_EXTRA_CA_CERTS`, which adds
 it to the authorities it knows, the tests of `make test-keycloak` through `SSL_CERT_FILE`, which
 makes it their only authority, a browser by importing it, or by accepting the warning. uv also reads
