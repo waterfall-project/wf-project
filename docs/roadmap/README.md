@@ -155,7 +155,7 @@ EP-08, the three hundred projects in EP-13, which closes. Four rules, which each
 | [EP-20](EP-20-migration-des-dependances.md) | Migration of the dependencies | en cours | EP-19 |
 | [EP-21](EP-21-livreurs-en-parallele-suivi.md) | Deliverers in parallel: follow-up | à planifier | EP-19 |
 | [EP-22](EP-22-kanban-recapitulatives-demarrees.md) | The Kanban lists the summary awaiting only its own lines | en cours | EP-17 |
-| [EP-05](EP-05-referentiel.md) | Reference data of the company | prêt | EP-16, EP-18, EP-19, EP-20 |
+| [EP-05](EP-05-referentiel.md) | Reference data of the company | en cours | EP-16, EP-18, EP-19, EP-20 |
 | [EP-04](EP-04-projets-et-revisions.md) | Projects, revisions and life cycle | prêt | EP-05 |
 | [EP-06](EP-06-planification.md) | Planning | à planifier | EP-04 |
 | [EP-07](EP-07-chiffrage-et-devis.md) | Costing and estimate | à planifier | EP-06 |
