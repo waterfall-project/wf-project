@@ -123,7 +123,11 @@ test ou du code, pas un bruit à lire en passant. Un test qui prouve qu'une erre
 console la fait taire lui-même par un espion (`vi.spyOn(console, "error")`), et vérifie ce qui fut
 dit. happy-dom ne mesure rien : un test qui monte une courbe donne à son dessin la place qu'une
 page lui donne (`roomForCharts`, `frontend/src/test/chart-room.ts`), faute de quoi ECharts avertit
-qu'il n'a ni largeur ni hauteur (EP-02/L37).
+qu'il n'a ni largeur ni hauteur (EP-02/L37). Un test de grille donne à l'élément qui défile sa
+boîte (`offsetHeight`, `offsetWidth`), et `setup-dom.ts` mesure l'intérieur de tout élément
+(`clientHeight`, `clientWidth`) par sa boîte : TanStack Virtual mesure la fenêtre des lignes par
+l'intérieur depuis sa 3.19, et un élément que happy-dom ne met pas en page n'a ni bord ni barre de
+défilement (US-1170/L3).
 
 ### La navigation : la table des fonctions et ses routes
 

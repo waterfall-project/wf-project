@@ -16,6 +16,9 @@
  * is, where a browser says it of AltGr alone — which Windows reports as Ctrl and Alt together —,
  * and Alt with a key would read as a character typed, never as a shortcut (`triesEntry`,
  * `foldShortcut`). Set before each test, as a test file restores its spies after each.
+ *
+ * The inside of an element measures its box (`measureInsideByBox`): a test sizes the element that
+ * scrolls by its box, and the window of the rows of a grid is measured by its inside.
  */
 import "@testing-library/jest-dom/vitest";
 
@@ -58,3 +61,29 @@ beforeEach(() => {
     return held[key] ?? false;
   });
 });
+
+/**
+ * Measure the inside of every element by its box, as a test gives it. happy-dom lays nothing out:
+ * both measure nothing, and a test sizes the element that scrolls by its box (`offsetHeight`,
+ * `offsetWidth`). TanStack Virtual measures the window of the rows by the inside of that element
+ * since its 3.19 (`clientHeight`, `clientWidth`, where 3.17 read the box): an element that lays
+ * nothing out has neither border nor scrollbar, and its inside is its box. A test that sizes the
+ * inside itself — the drawing of a chart, a Gantt — still does so by a spy, which takes over this
+ * one and gives it back when restored.
+ */
+function measureInsideByBox(): void {
+  const sides = [
+    ["clientWidth", "offsetWidth"],
+    ["clientHeight", "offsetHeight"],
+  ] as const;
+  for (const [inside, box] of sides) {
+    Object.defineProperty(HTMLElement.prototype, inside, {
+      configurable: true,
+      get(this: HTMLElement): number {
+        return this[box];
+      },
+    });
+  }
+}
+
+measureInsideByBox();

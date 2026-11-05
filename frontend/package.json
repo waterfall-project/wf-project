@@ -22,7 +22,7 @@
   "dependencies": {
     "@redis/client": "^6.3.1",
     "@tanstack/react-table": "^9.3.1",
-    "@tanstack/virtual-core": "3.17.11",
+    "@tanstack/virtual-core": "3.19.11",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "echarts": "^6.1.0",
