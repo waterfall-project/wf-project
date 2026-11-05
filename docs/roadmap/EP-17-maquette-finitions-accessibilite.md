@@ -1,7 +1,7 @@
 ---
 id: EP-17
 titre: La maquette finie hors contrat — accessibilité des dialogues, mineurs des écrans, lenteur du navigateur, cosmétique
-statut: en cours
+statut: livré
 depend_de: EP-16
 famille: front
 issue: 1547
