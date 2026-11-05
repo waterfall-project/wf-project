@@ -398,8 +398,8 @@ réponse `UnexpectedAnswer`. Une lecture dont l'écran se passe passe par `readU
 statut ne dit pas lequel —, et suit la même règle pour le reste. L'écran de panne (`error.tsx` dans
 la coquille, `global-error.tsx` quand le layout racine échoue) ne reçoit en production que le
 `digest` de l'erreur levée côté serveur : `Unreachable` porte `UNREACHABLE_DIGEST`, qu'il annonce
-comme tel, `SessionLost` `SESSION_LOST_DIGEST`, qui mène à la connexion sans clic, `SignedOut` (un
-401) `SESSION_REQUIRED_DIGEST`, qui y mène par un lien (`loginHref`), `UnexpectedAnswer`
+comme tel, `SessionLost` `SESSION_LOST_DIGEST`, qui mène à la connexion sans clic, `SignedOut`
+(un 401) `SESSION_REQUIRED_DIGEST`, qui y mène par un lien (`loginHref`), `UnexpectedAnswer`
 l'identifiant de corrélation de l'enveloppe, préfixé de `WATERFALL_CORRELATION;` pour qu'aucune
 valeur de l'API ne prenne un sens pour Next (`NEXT_REDIRECT;…`), et qu'il affiche en référence sans
 le préfixe (`failure.ts`). Sans enveloppe, ou sans `correlation_id`, la référence affichée est le
@@ -2328,8 +2328,8 @@ journal parlant pour les fins ; son bouton la ferme, au clavier comme à la sour
 au bouton de la barre, la tâche restant suivie (décision de l'auteur, #1179). Fermé, le panneau suit
 encore ses tâches — la coquille les relit (`TaskPolling`), hors des entrées — et son journal parle
 toujours, hors du panneau, ou dedans tant qu'il est ouvert, où le focus est gardé. Une relance
-refusée comme périmée (412) perd sa commande, qui le serait encore, et une relecture refusée (404,
-401) interrompt le suivi, qui le dit. Aucun écran ne suit ses tâches lui-même. Une réponse ne
+refusée comme périmée (412) perd sa commande, qui le serait encore, et une relecture refusée
+(404, 401) interrompt le suivi, qui le dit. Aucun écran ne suit ses tâches lui-même. Une réponse ne
 s'applique qu'à la tâche pour laquelle elle a été demandée, jamais à celle qu'une relance a mise à
 sa place. Les actions serveur de Next partent une à une, dans une seule file : suivre k tâches
 ajoute k actions toutes les deux secondes, dans la file même des écritures de l'écran, qu'une
@@ -2764,16 +2764,17 @@ Le poste n'admet que `WATERFALL_SLOTS` exécutions lourdes à la fois — les te
 couverture du back et du front, `make test-tools`, la construction du front pour la production,
 les parcours de bout en bout —, tous dépôts et worktrees confondus. Cette variable de
 l'environnement, celle du profil de l'utilisateur, est un entier de 1 à 9 ; absente, elle vaut 1 ;
-toute autre valeur est refusée, en le disant. L'admission est `tools/src/wftools/slots.py run
---heavy -- <commande>` (bibliothèque standard seule, lancée par `python3` sans `uv`), que le
-Makefile place devant chaque exécution lourde : elle prend le premier de N fichiers de verrou de
-`$XDG_RUNTIME_DIR` (`/tmp` à défaut) — `waterfall-heavy.lock`, puis `waterfall-heavy.2.lock` à
-`waterfall-heavy.<N>.lock` —, dit une fois que tous sont pris et réessaie chaque seconde, garde le
-verrou jusqu'à la fin de la commande, sans le transmettre à ses enfants (un serveur resté derrière
-ne garde pas le créneau), relaie les signaux et rend le code de la commande. Une exécution d'un
-seul fichier (`TESTS`) n'attend pas. Elle pose aussi `WATERFALL_PROCESSORS`, les processeurs
-divisés par N, au moins 1 : les workers de pytest (`-n`, huit au plus pour le back), de Vitest et
-de Playwright s'y règlent, sauf `WORKERS`. À N = 1, la part est le poste entier : rien ne change.
+toute autre valeur est refusée, en le disant. L'admission est
+`tools/src/wftools/slots.py run --heavy -- <commande>` (bibliothèque standard seule, lancée par
+`python3` sans `uv`), que le Makefile place devant chaque exécution lourde : elle prend le premier
+de N fichiers de verrou de `$XDG_RUNTIME_DIR` (`/tmp` à défaut) — `waterfall-heavy.lock`, puis
+`waterfall-heavy.2.lock` à `waterfall-heavy.<N>.lock` —, dit une fois que tous sont pris et réessaie
+chaque seconde, garde le verrou jusqu'à la fin de la commande, sans le transmettre à ses enfants (un
+serveur resté derrière ne garde pas le créneau), relaie les signaux et rend le code de la commande.
+Une exécution d'un seul fichier (`TESTS`) n'attend pas. Elle pose aussi `WATERFALL_PROCESSORS`, les
+processeurs divisés par N, au moins 1 : les workers de pytest (`-n`, huit au plus pour le back), de
+Vitest et de Playwright s'y règlent, sauf `WORKERS`. À N = 1, la part est le poste entier : rien ne
+change.
 
 **Les créneaux des worktrees** (US-1100). Chaque worktree d'un lot prend un créneau de 1 à N — le
 même `WATERFALL_SLOTS` —, qui lui donne ses ports, ses projets Compose et les étiquettes de ses
@@ -2961,9 +2962,9 @@ Hors des pull requests, `images.yml` publie les images (US-0430) : à chaque pou
 sur une branche `epic/**` — à chaque fusion, que la file a déjà éprouvée —, il construit `front`,
 `waterfall` (l'API, le worker, sa planification et les migrations, commandes d'une même
 distribution) et `keycloak` (l'extension, les thèmes et le royaume, sans rien de
-`deploy/keycloak/development/`), et les pousse sur `ghcr.io/waterfall-project/…` (`make images
-PUSH=yes`). Son seul travail demande `packages: write` ; le jeton ne va qu'à la connexion au
-registre, et aucune construction ne reçoit d'argument ni de secret (WF-SEC-0010) :
+`deploy/keycloak/development/`), et les pousse sur `ghcr.io/waterfall-project/…`
+(`make images PUSH=yes`). Son seul travail demande `packages: write` ; le jeton ne va qu'à la
+connexion au registre, et aucune construction ne reçoit d'argument ni de secret (WF-SEC-0010) :
 `tools/tests/test_images.py` le garde, avec les déclencheurs et les étiquettes.
 
 - **Les trois d'abord.** Les trois images sont construites avant toute poussée, et rien n'est
@@ -3382,9 +3383,9 @@ test défait.
   après l'attente d'un créneau lourd, `TESTS` compris —, et la posent sur lui. `make test-services`
   le démarre seul (`deploy/compose/compose.test.yaml` : PostgreSQL 18, à l'image de la plateforme,
   en mémoire, sur `127.0.0.1:<port du créneau>`, `20000` dans le dépôt principal), sans rien faire
-  de plus s'il tourne, et `make test-services-down` le retire avec ses volumes ; `make
-  slot-release` le retire aussi. Aucun `docker run` à la main. Une variable que l'environnement
-  pose déjà l'emporte, et son service n'est pas démarré : la chaîne n'est pas changée.
+  de plus s'il tourne, et `make test-services-down` le retire avec ses volumes ; `make slot-release`
+  le retire aussi. Aucun `docker run` à la main. Une variable que l'environnement pose déjà
+  l'emporte, et son service n'est pas démarré : la chaîne n'est pas changée.
 - **Le client PostgreSQL du poste** est celui de la majeure du serveur, 18 : `pg_dump` et
   `pg_restore` dans `/usr/bin` (`postgresql-client-18`, celui d'Ubuntu 26.04), que les tests des
   sauvegardes et des restaurations appellent ; `make check-tools` avertit d'un autre. Un client
