@@ -149,3 +149,10 @@ suit une fois figé.
 #624 et #729, la comparaison de révisions en table simple et son e2e, reportés ici le
 2026-10-18, sont ramenés en EP-15 le même jour (décision de l'auteur) : la comparaison passe dans la
 grille dense, marquée comme un diff (#1060, US-0500).
+
+Reportés d'EP-17 à sa livraison (rangement du 2026-11-05) :
+
+- #1973 — front : `NODES` désigne un suffixe de chemin dans le test de la page du devis
+  (`estimate/page.test.tsx`), une route complète dans celui du planning ; à nommer d'après ce que
+  la constante est, quand les tests du devis se rejouent contre le service. Relevé par la revue
+  d'US-0800 (EP-17).

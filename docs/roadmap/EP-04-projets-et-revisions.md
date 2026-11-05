@@ -280,6 +280,13 @@ Rendus ou renvoyés au cadrage du 2026-10-28 (décisions de l'auteur) :
   listée (titres `[EP-15]`, label EP-04) : le service des structures différentielles et des devis
   propres est d'EP-08, qui les reçoit — titre `[EP-08]`, label EP-08, listés dans son fichier.
 
+Reportés d'EP-17 à sa livraison (rangement du 2026-11-05) :
+
+- #1658 — back : le refus d'un code projet blanc et porteur d'une barre oblique
+  (`PROJECT_CODE_INVALID` d'abord) n'est tenu que par une recherche de phrases dans le contrat ; le
+  service de `createProject` et d'`updateProject`, servi ici, l'éprouve par un test d'API. Relevé par
+  US-0701/L9 (EP-16), rangé ici le 2026-11-05.
+
 ## Conception
 
 EP-04 est le second EPIC de domaine du back, et le premier qui écrit le révisionné : il crée les

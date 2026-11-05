@@ -132,3 +132,21 @@ suit une fois figé.
 2026-10-18 (décision de l'auteur) : le parcours du risque est montré dans la maquette pour
 validation (#1062, US-0520) ; le comportement réel — provision, réserve, fusion à la survenance —
 reste ici.
+
+Reportés d'EP-17 à sa livraison (rangement du 2026-11-05) :
+
+- #1972 — front : dans `readGridScreen`, la promesse qui retient l'origine d'un filtre sur un
+  risque nommé peut rester sans gestionnaire quand la lecture des risques survenus rejette avant
+  qu'elle soit attendue ; la lecture des risques et de leur filtre d'origine est servie ici.
+  Relevé par la revue d'US-0800 (EP-17).
+
+- #2002 — contrat : aucun exemple ne porte un réestimé des survenus (`occurred_reestimated`)
+  différent de leur coût (`occurred_cost`) — `portfolio_risks`, `risk_coverage` servent le même
+  montant des deux côtés —, et le test de la vue des risques du portefeuille ne les sépare pas ;
+  l'exemple se décide avec le service de la survenance. Relevé par la revue d'US-1210 (EP-17).
+
+- #1626 — contrat : après une saisie du devis propre d'un risque, qui fait avancer
+  `Risk.lock_version` (décision Q1 (b) du 2026-10-28, #1453), `NodesWritten` ne rend que
+  `structure_lock_version` : un écran du risque ouvert en parallèle est refusé par 412 sans
+  moyen de reprendre le compteur. Relevé par la revue d'US-0680/L1 (EP-16), rangé ici le
+  2026-11-05.

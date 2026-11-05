@@ -61,3 +61,10 @@ Reportés d'EP-19 (décision de l'auteur du 2026-11-04) :
 - #1909 — outil : deux démarrages concurrents des services de test d'un même créneau.
 - #1915 — outil : rien n'éprouve que le tableau du gabarit d'un EPIC se modifie par
   `make tracking`.
+
+Reportés d'EP-17 à sa livraison (rangement du 2026-11-05) :
+
+- #1979 — outil : `make tracking` ne reconnaît une US à lot unique que si la cellule « Lot » vaut
+  exactement `lot unique`, alors que le tableau d'EP-17 et le gabarit du cadreur la suivent des
+  constats que le lot ferme (`lot unique (#1840)`) ; aucune US à lot unique d'EP-17 ne pouvait
+  changer d'état par l'outil. Relevé à la livraison d'US-1220.
