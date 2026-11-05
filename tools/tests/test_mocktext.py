@@ -5,8 +5,9 @@
 A searched text is found whatever its case and its accents: the rule of every search of the
 contract (docs/api/README.md, « A search… »), decided by the author on 2026-10-09. A search
 transliterates as PostgreSQL's ``unaccent`` does with the table it ships, then lowers, as the
-service will by ``lower(unaccent(…))`` (EP-03). The summary of a Kanban is read from its answer
-(EP-14/L45b). Not the Vérif of a requirement: none is cited (WF-QUA-0010).
+service will by ``lower(unaccent(…))`` (EP-03), PostgreSQL 18's table and its way of reading it
+(EP-20/US-1250). The summary of a Kanban is read from its answer (EP-14/L45b). Not the Vérif of
+a requirement: none is cited (WF-QUA-0010).
 """
 
 import json
@@ -78,8 +79,9 @@ def test_the_shipped_table_is_read_as_unaccent_reads_it() -> None:
     assert (rules["œ"], rules["Œ"], rules["æ"]) == ("oe", "OE", "ae")
     assert (rules["ß"], rules["ẞ"]) == ("ss", "SS")
     assert (rules["ø"], rules["ł"], rules["đ"]) == ("o", "l", "d")
-    # A translation after blanks, as the vulgar fractions have it, and a source alone, dropped.
-    assert rules["¼"] == "1/4"
+    # A quoted translation keeps its leading blank, as PostgreSQL 18 ships the fractions, and
+    # a source alone is dropped.
+    assert rules["¼"] == " 1/4"
     assert rules["\u0301"] == ""
     assert not any(source.startswith("#") for source in rules)
 
@@ -94,6 +96,57 @@ def test_the_longest_source_of_a_table_is_replaced_first() -> None:
 def test_a_rule_of_more_than_two_strings_is_refused() -> None:
     with pytest.raises(ValueError, match="more than two strings"):
         mocktext.Unaccent.read("¼\t1 / 4\n")
+    with pytest.raises(ValueError, match="more than two strings"):
+        mocktext.Unaccent.read('¼\t" 1/4" 2\n')
+    with pytest.raises(ValueError, match="more than two strings"):
+        mocktext.Unaccent.read('¼\t" 1/4"x\n')
+
+
+@pytest.mark.parametrize(
+    ("line", "source", "translation"),
+    [
+        ('¼\t" 1/4"', "¼", " 1/4"),
+        ('½ " 1/2"', "½", " 1/2"),
+        ('“\t""""', "“", '"'),
+        ('"\t""""', '"', '"'),
+        ('x\t"a ""b"" c"', "x", 'a "b" c'),
+        ('x\t""', "x", ""),
+        ('x\t"  "  ', "x", "  "),
+        ('x\ta"b', "x", 'a"b'),
+        ('"x\ty', '"x', "y"),
+        ("  x \t y  ", "x", "y"),
+        ("x", "x", ""),
+        ("a\u00a0b\tc", "a\u00a0b", "c"),
+        ('x\v"a\tb"', "x", "a\tb"),
+        ("x\fy", "x", "y"),
+        ("x\ty\r", "x", "y"),
+    ],
+)
+def test_a_translation_in_double_quotes_keeps_its_blanks(
+    line: str, source: str, translation: str
+) -> None:
+    assert mocktext.Unaccent.read(f"{line}\n").rules == {source: translation}
+
+
+def test_a_source_given_twice_keeps_its_first_rule() -> None:
+    assert mocktext.Unaccent.read("a\tX\na\tY\n").rules == {"a": "X"}
+
+
+@pytest.mark.parametrize("line", ['x\t"abc', 'x\t"abc""', 'x\t"'])
+def test_a_quoted_translation_never_closed_is_refused(line: str) -> None:
+    with pytest.raises(ValueError, match="never closed"):
+        mocktext.Unaccent.read(f"{line}\n")
+
+
+def test_a_fraction_and_a_curly_quote_are_transliterated_as_postgresql_18_does() -> None:
+    assert mocktext.UNACCENT("¼") == " 1/4"
+    assert mocktext.UNACCENT("1¼ m") == "1 1/4 m"
+    assert mocktext.folded("¾ TEMPS") == " 3/4 temps"
+    # The curly double quotes become the straight one, the quoted pair of quotes of the table.
+    assert mocktext.UNACCENT("“mur” ″ \uff02") == '"mur" " "'
+    assert mocktext.UNACCENT.rules["ʺ"] == '"'
+    assert mocktext.holds("Dalle ¼ de tour", "dalle  1/4 de")
+    assert not mocktext.holds("Dalle ¼ de tour", "dalle 1/4")
 
 
 def test_the_summary_of_a_kanban_says_milestones_ready_and_a_column_without_the_core() -> None:
