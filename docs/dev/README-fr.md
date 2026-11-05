@@ -3105,6 +3105,19 @@ Règles des workflows :
 - `actions/checkout` ne garde pas le jeton (`persist-credentials: false`) ;
 - un outil téléchargé hors d'une action est épinglé par sa version et vérifié par son
   empreinte, comme pandoc dans `spec.yml`.
+- Dependabot propose chaque mois, par une pull request par écosystème, les mises à jour de
+  ce qu'il suit : les Actions, uv (`/backend`, `/tools`), npm (`/frontend`), Maven (l'extension de
+  Keycloak) et les images des Dockerfiles et des fichiers Compose ; les mineures et les
+  correctifs d'un écosystème arrivent groupés, chaque majeure dans la sienne, sous le préfixe
+  `Chaîne :`. Les dépendances `org.keycloak` et `jakarta.ws.rs-api` de l'extension sont
+  ignorées : elles suivent l'image de Keycloak. La majeure de TypeScript n'a pas de règle
+  d'ignorance : l'auteur ferme sa pull request tant que `typescript-eslint` ne la tient pas.
+- Dependabot ne suit pas, et l'auteur relève à la main, à la pull request mensuelle de
+  Dependabot : `REDOCLY_VERSION` et `PRISM_VERSION` du `Makefile`, `packageManager` du front,
+  l'uv et le client PostgreSQL de l'image `waterfall`, les runners et le pandoc de la chaîne,
+  et `maven.compiler.release` du `pom.xml` de l'extension, qui reste à 21 exprès (le Java de
+  l'image de Keycloak, pas le JDK de construction) : il se relève quand cette image change de
+  Java.
 
 _Contrôle_ : `make lint-workflows` (actionlint) ; l'épinglage et les permissions, la revue.
 

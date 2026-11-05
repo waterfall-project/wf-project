@@ -715,7 +715,7 @@ l'image de Keycloak la charge toujours.
 
 ## US-1190 — La veille des versions
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : aucune — outil du dépôt
 - **opérations** : aucune
 - **issue** : #1938
