@@ -2654,38 +2654,36 @@ The service platform refuses to start without its secrets, which no file carries
 On a workstation, workstation values are enough — those of `.github/workflows/keycloak.yml` for
 example. Keycloak answers in HTTPS on `https://localhost:8443/auth`, its administration console
 under `/auth/admin`, through a Caddy front end (`deploy/compose/Caddyfile.service`) that the browser
-and the Next server both reach, and which also serves it on `https://127.0.0.1:8443/auth`,
-a second address for the tests of the platform (#680); its address,
-`WATERFALL_KEYCLOAK_ADDRESS`, is `https://localhost:<port>/auth`: the front end serves only the
-hosts `localhost` and `127.0.0.1`, and only the port moves, through `WATERFALL_KEYCLOAK_PORT`:
-the Makefile and Compose deduce it from it, and read no exported address (#735).
-The certificates come from Caddy's own authority (`tls internal`): its root, kept
-in the volume of the front end, is copied at each start into
-`deploy/compose/.authority/root.crt`; the front trusts it through `NODE_EXTRA_CA_CERTS`, which adds it
-to the authorities it knows, the tests of `make test-keycloak` through `SSL_CERT_FILE`, which makes it
-their only authority, a browser by importing it, or by accepting the warning. uv also reads
+and the Next server both reach, and which also serves it on `https://127.0.0.1:8443/auth`, a second
+address for the tests of the platform (#680); its address, `WATERFALL_KEYCLOAK_ADDRESS`, is
+`https://localhost:<port>/auth`: the front end serves only the hosts `localhost` and `127.0.0.1`,
+and only the port moves, through `WATERFALL_KEYCLOAK_PORT`: the Makefile and Compose deduce it from
+it, and read no exported address (#735). The certificates come from Caddy's own authority (`tls
+internal`): its root, kept in the volume of the front end, is copied at each start into
+`deploy/compose/.authority/root.crt`; the front trusts it through `NODE_EXTRA_CA_CERTS`, which adds
+it to the authorities it knows, the tests of `make test-keycloak` through `SSL_CERT_FILE`, which
+makes it their only authority, a browser by importing it, or by accepting the warning. uv also reads
 `SSL_CERT_FILE`: `make test-keycloak` synchronises the environment of the back without it, then runs
-the tests without resynchronising it (`uv run --no-sync`) — otherwise, on a workstation or a runner without
-a cache, uv would no longer trust GitHub to download Python or the packages (#737). The API, inside
-the network of the platform, reaches Keycloak in HTTP on `keycloak:8080`; the encryption of that
-link belongs to EP-13 (WF-SEC-0010).
-Redis is published on `127.0.0.1:6379` (`WATERFALL_REDIS_PORT`), for a front launched on the workstation
-(#681), which reaches it through `redis://:<mot de passe>@127.0.0.1:6379/0`. Keycloak notifies the
-closing of the sessions to that front through the back channel, at the address
-`WATERFALL_FRONT_BACKCHANNEL` (`http://host.docker.internal:3000` by default, the host as seen from its
-container), distinct from `WATERFALL_FRONT_ADDRESS`, that of the browser: the front then listens
-on every interface of the workstation, not on the loopback alone. Both addresses are written
-into the realm when it is applied, and `make e2e-service` replaces them with those of the front of its
-paths, until the next `service-up`. Mailpit
-shows the emails on `http://127.0.0.1:8025`. The development realm adds a test OpenLDAP
-directory and a second realm, `external`, which plays the external provider: their accounts
-and their passwords, development values, are in `deploy/keycloak/development/`. It
-also adds `waterfall-test`, a public client that accepts a password outside the page of the
-realm, for the tokens the tests of the platform need: `admin-cli`, which Keycloak
-creates in each realm, no longer accepts one (#644), and its tokens are not for the API, for lack of
-the `waterfall-api` audience. These files are applied after the realm, under a remote state of
-their own (`--import.cache.key=development`, service `keycloak-realm`): keycloak-config-cli deletes
-the clients its state names and that the files it applies do not declare, and without that the test
+the tests without resynchronising it (`uv run --no-sync`) — otherwise, on a workstation or a runner
+without a cache, uv would no longer trust GitHub to download Python or the packages (#737). The API,
+inside the network of the platform, reaches Keycloak in HTTP on `keycloak:8080`; the encryption of
+that link belongs to EP-13 (WF-SEC-0010). Redis is published on `127.0.0.1:6379`
+(`WATERFALL_REDIS_PORT`), for a front launched on the workstation (#681), which reaches it through
+`redis://:<mot de passe>@127.0.0.1:6379/0`. Keycloak notifies the closing of the sessions to that
+front through the back channel, at the address `WATERFALL_FRONT_BACKCHANNEL`
+(`http://host.docker.internal:3000` by default, the host as seen from its container), distinct from
+`WATERFALL_FRONT_ADDRESS`, that of the browser: the front then listens on every interface of the
+workstation, not on the loopback alone. Both addresses are written into the realm when it is
+applied, and `make e2e-service` replaces them with those of the front of its paths, until the next
+`service-up`. Mailpit shows the emails on `http://127.0.0.1:8025`. The development realm adds a test
+OpenLDAP directory and a second realm, `external`, which plays the external provider: their accounts
+and their passwords, development values, are in `deploy/keycloak/development/`. It also adds
+`waterfall-test`, a public client that accepts a password outside the page of the realm, for the
+tokens the tests of the platform need: `admin-cli`, which Keycloak creates in each realm, no longer
+accepts one (#644), and its tokens are not for the API, for lack of the `waterfall-api` audience.
+These files are applied after the realm, under a remote state of their own
+(`--import.cache.key=development`, service `keycloak-realm`): keycloak-config-cli deletes the
+clients its state names and that the files it applies do not declare, and without that the test
 client would take those of the realm with it. The directory is an image the repository builds,
 `deploy/openldap/Dockerfile`, on Debian's `slapd` (US-1150): at its first start, its entrypoint
 creates its configuration and loads `deploy/keycloak/development/directory.ldif` into it, then never
