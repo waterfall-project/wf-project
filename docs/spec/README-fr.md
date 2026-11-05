@@ -37,7 +37,7 @@ précédente. Options utiles :
 - `--strict` : code de retour non nul si un avertissement est émis, pour une
   intégration continue.
 
-Prérequis : `pandoc`, Python 3.11+, et `mmdc`
+Prérequis : `pandoc` 3.13 (voir INSTALL.md), Python 3.11+, et `mmdc`
 (`npm i -g @mermaid-js/mermaid-cli`) — ce dernier est optionnel, il sert à
 vérifier que les diagrammes produits compilent réellement.
 

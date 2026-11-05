@@ -37,7 +37,7 @@ generation. Useful options:
 - `--strict`: non-zero return code if a warning is emitted, for continuous
   integration.
 
-Prerequisites: `pandoc`, Python 3.11+, and `mmdc`
+Prerequisites: `pandoc` 3.13 (see INSTALL.md), Python 3.11+, and `mmdc`
 (`npm i -g @mermaid-js/mermaid-cli`) — the latter is optional, it serves to
 check that the diagrams produced really compile.
 

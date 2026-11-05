@@ -348,3 +348,12 @@ def test_a_cross_reference_keeps_its_text_and_the_table_of_contents_its_links(
     assert "](#" not in projection
     assert "# Annexe" in projection
     assert "# 2. Annexe" not in projection
+
+
+def test_a_cross_reference_whose_text_holds_brackets_is_unlinked_whole() -> None:
+    lines = [
+        r"Voir [§3.2 [bis]](#h-bis) et [l’\[ANNEXE\] B](#annexe-b), mais pas [un lien](https://x.org).",
+    ]
+    assert build.unlink_cross_references(lines) == [
+        r"Voir §3.2 [bis] et l’\[ANNEXE\] B, mais pas [un lien](https://x.org).",
+    ]
