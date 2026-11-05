@@ -25,6 +25,11 @@
  * one stop. Every check is said apart, named by what it opened (`expect.soft`): a test plays every
  * trigger of a screen, one after the other.
  *
+ * The triggers of the shell — the project, the account, the tasks, the help: everything outside
+ * `main`, and the button of the help, which the title of a screen holds and marks `data-shell` — are
+ * the same on every screen: they are played on the screen of reference alone (`shell`, #1840), the
+ * triggers of the screen on each.
+ *
  * Left out: the cells whose own refusal is a dialog (`aria-haspopup` on a cell), which opens only
  * once the server refused; the triggers a grid holds row by row, but on the first row of their
  * column — the same dialog or the same menu, for another row; and what an item of a menu opens,
@@ -45,6 +50,8 @@ export interface Opener {
   readonly said: string;
   /** The trigger, or the cell. */
   readonly at: Locator;
+  /** Whether the shell holds it, the same on every screen. */
+  readonly shell: boolean;
 }
 
 /** The triggers of a dialog or of a menu, enabled, but a cell of a grid. */
@@ -68,6 +75,8 @@ interface Seen {
   readonly shown: boolean;
   readonly opens: string;
   readonly name: string;
+  /** Whether the shell holds it: outside `main`, or marked `data-shell`. */
+  readonly shell: boolean;
   /** The column of the grid whose cell holds it, if a cell does, and the name of the grid. */
   readonly column: string | undefined;
 }
@@ -75,9 +84,10 @@ interface Seen {
 /**
  * What opens something on the page as it is now, in the order of the page, the triggers before the
  * cells: each trigger shown, one per kind and name — one per column for those a grid holds row by
- * row, which open the same for each row —; the first cell of each grid that takes an entry.
+ * row, which open the same for each row —; the first cell of each grid that takes an entry. The
+ * triggers of the shell only where `shell` says so: the screen of reference.
  */
-export async function openers(page: Page): Promise<Opener[]> {
+export async function openers(page: Page, shell: boolean): Promise<Opener[]> {
   const triggers = page.locator(TRIGGERS);
   const seen = await triggers.evaluateAll(
     (elements, grids) =>
@@ -97,6 +107,7 @@ export async function openers(page: Page): Promise<Opener[]> {
             element.closest("[inert]") === null,
           opens: element.getAttribute("aria-haspopup") ?? "",
           name: (name ?? "").replace(/\s+/g, " ").trim(),
+          shell: element.closest("main") === null || element.closest("[data-shell]") !== null,
           column:
             cell === null ? undefined : `${cell.getAttribute("data-column") ?? ""} of « ${grid} »`,
         };
@@ -105,15 +116,16 @@ export async function openers(page: Page): Promise<Opener[]> {
   );
   const found: Opener[] = [];
   const said = new Set<string>();
-  for (const [index, { shown, opens, name, column }] of seen.entries()) {
+  for (const [index, { shown, opens, name, column, shell: inShell }] of seen.entries()) {
     const role = `${opens === "menu" ? "menu" : "dialog"} « ${name} »`;
     const key = column === undefined ? role : `${opens} of the column ${column}`;
-    if (shown && !said.has(key)) {
+    if (shown && (shell || !inShell) && !said.has(key)) {
       said.add(key);
       found.push({
         opens: opens === "menu" ? "menu" : "dialog",
         said: `the trigger of the ${role}`,
         at: triggers.nth(index),
+        shell: inShell,
       });
     }
   }
@@ -128,6 +140,7 @@ export async function openers(page: Page): Promise<Opener[]> {
         opens: "editor",
         said: `the editor of the cell ${column} of the grid « ${name ?? ""} »`,
         at: cell,
+        shell: false,
       });
     }
   }

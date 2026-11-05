@@ -20,7 +20,8 @@
  *   (`walkByTab`), and reaches at 911 points every element it reached at 1366 (`lost`), in both
  *   modes, the indicator of the focus painted in each (#784);
  * - what a gesture opens, in both modes (US-0710, `opened.ts`): each dialog and each menu opened by
- *   Enter on its trigger, the editor of the first cell of each grid that takes an entry opened by
+ *   Enter on its trigger — those of the shell (project, account, tasks, help) on the list of the
+ *   revisions of a project alone, those of a screen on each (US-1220) —, the editor of the first cell of each grid that takes an entry opened by
  *   F2; a dialog walked by Tab within itself, the focus seen entering a menu or an editor; the page
  *   audited by axe with it open; Escape closing it, the focus back on the trigger or the cell.
  *
@@ -78,6 +79,13 @@ const LABELS = [
   "area-alt",
   "object-alt",
 ];
+
+/**
+ * The screen of reference, where the triggers of the shell — project, account, tasks, help — are
+ * played: the list of the revisions of a project, a project screen and one of the lightest (#1840).
+ * The other screens play the triggers of the screen alone.
+ */
+const SHELL_SCREEN = "FBS-4.1";
 
 /** The background of the page in each mode, as the charter paints it (`theme.spec.ts`). */
 const BACKGROUNDS = { light: "rgb(255, 255, 255)", dark: "rgb(10, 10, 10)" } as const;
@@ -390,7 +398,7 @@ for (const screen of [...tableScreens(), ...OTHER_SCREENS, ...DIFFERENTIAL_SCREE
             await resize(page, size);
           };
           await resize(page, size);
-          const found = await openers(page);
+          const found = await openers(page, screen.code === SHELL_SCREEN);
           test.info().annotations.push({
             type: "opened by a gesture",
             description: `${width}: ${found.length === 0 ? "nothing" : found.map(({ said }) => said).join("; ")}`,
