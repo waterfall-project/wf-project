@@ -146,8 +146,13 @@ tâche de marquage, US-0970).
 
 ## Préalables
 
-EP-05 livré : la création d'un projet exige un référentiel complet, le chargeur du témoin et la
-fixture des parcours à deux modes existent. EP-16 livré, le contrat figé en 1.0.0 ; le cadrage
+`US-0810/L1` d'EP-05 fusionnée dans `epic/EP-05` : les tables du référentiel, les interfaces de
+ses quatre modules, le chargeur du témoin, la fixture des parcours à deux modes et le projet
+`shared` existent ; `epic/EP-04` se tire d'`epic/EP-05` à ce moment, non de `main` à la livraison
+d'EP-05, la reprend à chaque lot d'EP-05 fusionné, et se fusionne dans `main` après elle
+(décision de l'auteur du 2026-11-05, l'exception écrite au README, « Branches »). `US-0810/L2`
+d'EP-05 fusionnée avant US-0920 : la création d'un projet exige le référentiel minimal qu'elle
+sert. EP-16 livré, le contrat figé en 1.0.0 ; le cadrage
 du 2026-10-28 s'est fait sur le contrat d'`epic/EP-16` avant le gel, et #870, une modification
 du contrat, y est rendu (« Constats reçus ») : la liste des opérations et des refus se relit au
 gel, et un écart devient une « Interface contract issue » que l'auteur tranche.
@@ -356,6 +361,43 @@ Décisions de l'auteur du 2026-10-28, chacune avec l'option écartée :
 - **Le cadrage s'est fait sur le contrat d'`epic/EP-16` avant le gel** ; la liste des opérations et
   des refus se relit au gel (« Préalables »).
 
+Décisions de l'auteur du 2026-11-05, à la revue des conceptions pour quatre livreurs à la fois
+(`WATERFALL_SLOTS=4`) : le plan de construction tenait huit vagues pour dix US, sept US en chaîne ;
+les décisions qui suivent le ramènent à cinq, et font recouvrir EP-04 et EP-05.
+
+- **`epic/EP-04` se tire d'`epic/EP-05` dès `US-0810/L1` fusionnée** (« Préalables »). Écarté :
+  attendre la livraison d'EP-05, qui mettait les deux EPIC en série pour trois choses — la tête de
+  la chaîne des migrations, l'interface du référentiel minimal, la commande `load-witness` — que
+  le socle d'EP-05 donne dès son premier lot.
+- **US-0910 se livre en deux lots.** `L1`, le socle : les deux migrations, la partition et sa
+  fonction, les deux modules à vide avec leur interface en paquet, un routeur vide par US
+  enregistré dans `app.py`, les fichiers de tests. `L2`, l'évaluation à deux termes
+  (`RequiresProject`, la propriété `consultation`). Écarté : un seul lot.
+- **Un fichier par US.** Un routeur par US — `api/projects.py` (US-0920), `api/contributors.py`
+  (US-0930), `api/subprojects.py` (US-0940), `api/work_breakdown.py` (US-0950),
+  `api/revisions.py` (US-0960, US-0970), `api/lifecycle.py` (US-0980) — ; l'interface du module
+  `projects` est un paquet, un fichier par sujet (`projects`, `contributors`, `subprojects`,
+  `work_breakdown`, `lifecycle`) réexporté, celle de `revisions` de même ; la table de
+  `test_access_evaluation.py` se déclare par routeur. Écarté : `api/project_settings.py` et une
+  interface d'un seul fichier pour contributeurs, sous-projets et lotissement — les trois US de la
+  seule vague large auraient écrit les mêmes fichiers, et le plan de lots aurait dû les marquer
+  « Pas avec ».
+- **US-0960 en parallèle d'US-0930, US-0940 et US-0950** : la révision ne dépend d'aucune des
+  trois, toutes quatre ne dépendent que d'US-0920. Écarté : la révision après le lotissement, un
+  ordre de lecture pris pour une dépendance.
+- **US-0980 se livre en deux lots.** `L1`, le cycle sans la référence : `next_state` pure,
+  `getProjectNextState`, `exitProject`, `listProjectStateTransitions`, le passage Créé →
+  Chiffrage et le fait du code saisi — dès US-0920 et US-0960. `L2`, la désignation de la
+  référence et le passage En cours, après US-0970. Écarté : l'US entière après le marquage, qui
+  mettait le cycle, pur et testable sans base, derrière le worker.
+- **La chronologie du témoin exportée par `wftools` est un lot d'outil, `US-0990/L1`**, lançable
+  dès la première vague : `make mock-data` écrit le fichier de la tranche, ses tests le tiennent,
+  le back ne le lit qu'en `L2`. Écarté : un seul lot en queue, outil et back ensemble.
+- **Les écrans se branchent par l'US qui les sert**, comme en EP-05 : l'accueil et le journal par
+  US-0920 (#1004, #962), les révisions par US-0960, le marquage par US-0970 ; les paramètres du
+  projet, que trois US servent, et le parcours des deux utilisateurs restent à US-1000. Écarté :
+  tout le front en dernier.
+
 ### Tables et migrations
 
 Régime « projet » (§4.4.1) pour `project`, `project_state_transition`, `contributor`,
@@ -420,9 +462,10 @@ textes triés en collation `C`, cherchés par `contains` ; règles SQL du guide 
 
 ### Le service d'API
 
-- Trois routeurs — `api/projects.py`, `api/project_settings.py` (contributeurs, sous-projets,
-  lotissement, cycle), `api/revisions.py` — enregistrés dans `app.py` ; les modèles du contrat
-  existent (`api/contract/models.py`).
+- Un routeur par US — `api/projects.py`, `api/contributors.py`, `api/subprojects.py`,
+  `api/work_breakdown.py`, `api/revisions.py`, `api/lifecycle.py` —, créés vides et enregistrés
+  dans `app.py` par US-0910/L1, chacun rempli par son US (décision du 2026-11-05) ; les modèles du
+  contrat existent (`api/contract/models.py`).
 - Chaque route d'un projet déclare la consultation par `RequiresProject(...)`, une dépendance
   qui lit `project_id` du chemin et évalue avant la validation du corps, comme `Requires` ; la
   création d'un projet par `Requires("projects.write")` et le référentiel minimal lu par
@@ -456,7 +499,9 @@ textes triés en collation `C`, cherchés par `contains` ; règles SQL du guide 
 - `waterfall-api load-witness` (EP-05) reçoit la tranche des projets, après celle du
   référentiel : `make mock-data` écrit, à côté des exemples, `fixtures/witness/projects.json` (nom
   à fixer au lot), la chronologie du témoin exportée de `wftools.mockwitness` — chaque événement
-  avec son instant et ce qu'il écrit —, pour que le back n'importe jamais `wftools`. La commande
+  avec son instant et ce qu'il écrit —, pour que le back n'importe jamais `wftools` ; cette
+  exportation est le lot `US-0990/L1`, d'outil seul, dès la première vague (décision du
+  2026-11-05). La commande
   lit les exemples du contrat pour les objets (`projects.json`, `project.json`, `revisions.json`,
   `contributors.json`, `subprojects.json`, `work_breakdown.json`), validés par ses modèles, et
   la chronologie pour l'ordre et les instants, et écrit par les interfaces : les comptes locaux
@@ -472,11 +517,12 @@ textes triés en collation `C`, cherchés par `contains` ; règles SQL du guide 
 
 ### Le front
 
-- `MockupNotice` est retiré de l'accueil (`app/(home)/page.tsx`) et des paramètres du projet
-  (`app/projects/[projectId]/settings/page.tsx`) ; les commentaires d'en-tête des pages et des
-  composants qui le nomment sont réécrits.
+- `MockupNotice` est retiré de l'accueil (`app/(home)/page.tsx`) par US-0920 et des paramètres
+  du projet (`app/projects/[projectId]/settings/page.tsx`) par US-1000, trois US servant cette
+  page (décision du 2026-11-05) ; les commentaires d'en-tête des pages et des composants qui le
+  nomment sont réécrits.
 - `app/admin/audit-log/page.tsx` ne tolère plus le 404 de `listProjects` (#962) ; l'accueil
-  connecté lit `listProjects` et `getReferenceReadiness` servis (#1004).
+  connecté lit `listProjects` et `getReferenceReadiness` servis (#1004) — par US-0920.
 - Les contributeurs anonymisés sont nommés par `useAccountNaming` selon ce que le contrat figé
   rend (#870, EP-16).
 - Les aides `frontend/help/fr/FBS-4.md`, `FBS-4.1.md`, `FBS-4.2*.md` retirent ce qu'elles
@@ -488,7 +534,8 @@ textes triés en collation `C`, cherchés par `contains` ; règles SQL du guide 
 
 - La fixture `frontend/e2e/mode.ts` et le projet `shared` d'EP-05 s'étendent : `SHARED_PATHS`
   reçoit `project-start.spec.ts`, `projects.spec.ts`, `revisions.spec.ts`,
-  `revision-cycle.spec.ts`, `context.spec.ts` ; le compte de la course en mode service porte
+  `revision-cycle.spec.ts`, `context.spec.ts`, chaque fichier par l'US dont l'écran est le
+  dernier qu'il lit (décision du 2026-11-05) ; le compte de la course en mode service porte
   « chef de projet » et « manager » et est inscrit chef de projet des projets du témoin par
   `setContributors` au début de la course.
 - Ce qui ne se rejoue pas avant EP-07 — PRJ-001 En cours, sa référence, ses structures au-delà de
@@ -515,15 +562,24 @@ textes triés en collation `C`, cherchés par `contains` ; règles SQL du guide 
 
 ### L'ordre de construction
 
-1. **US-0910** : les tables, la partition et sa fonction, les modules à vide, l'évaluation à deux
-   termes ; les parcours du service existants passent toujours.
-2. **US-0920** : le projet, la liste, l'accueil, le journal.
-3. **US-0930, US-0940, US-0950** en parallèle sous US-0920 : contributeurs, sous-projets,
-   lotissement.
-4. **US-0960** : la révision en cours, la copie, l'abandon, l'historique.
-5. **US-0970** : le marquage par le worker et l'immuabilité.
-6. **US-0980** : la référence et le cycle de vie, qui demandent le marquage.
-7. **US-0990** : la tranche du témoin et les parcours rejoués ; **US-1000** en dernier.
+Cinq vagues pour quatre créneaux (décision du 2026-11-05), la première dès `US-0810/L1` d'EP-05 ;
+le plan de lots marque « Pas avec » les lots d'une même vague qui écrivent un même fichier —
+`SHARED_PATHS`, le guide, `app.py` si un routeur manquait.
+
+1. **US-0910/L1** : les tables, la partition et sa fonction, les modules à vide et leurs
+   interfaces en paquet, les routeurs vides, les fichiers de tests ; les parcours du service
+   existants passent toujours. **US-0990/L1** en parallèle : la chronologie exportée par
+   `wftools`.
+2. **US-0910/L2** : l'évaluation à deux termes. Puis **US-0920**, après elle et après
+   `US-0810/L2` d'EP-05 : le projet, la liste, l'accueil, le journal.
+3. **US-0930, US-0940, US-0950, US-0960** en parallèle sous US-0920 : contributeurs,
+   sous-projets, lotissement, la révision en cours avec sa copie, son abandon et son historique.
+4. **US-0970** (le marquage par le worker et l'immuabilité, après US-0960) et **US-0980/L1** (le
+   cycle sans la référence, après US-0920 et US-0960) en parallèle, avec ce qui reste de la
+   vague 3.
+5. **US-0980/L2** (la référence et le passage En cours, après US-0970), **US-0990/L2** (la tranche
+   du témoin chargée et les parcours rejoués, après tout le back et US-0890 d'EP-05) et
+   **US-1000** (les paramètres du projet, les deux utilisateurs) en parallèle.
 
 ---
 
@@ -586,12 +642,17 @@ projet qu'on ne peut pas consulter n'existe pas pour l'appelant (#754).
   migrations écrites à la main, leurs contraintes déclarées et éprouvées, les droits du rôle du
   service accordés ; les deux modules `projects` (FBS-4.2 et le cycle de vie, §3.3.2) et
   `revisions` (FBS-4.1) existent avec leur interface, et `make imports-back` les tient ;
-- propre à l'US : l'évaluation d'une action (`waterfall.core.access_roles`) reçoit la qualité de
-  contributeur, lue par le module des projets, et la règle 404/403 se décide par une propriété
-  déclarée de chaque permission, non par son suffixe (#754) ; `all_projects_read` ouvre la
-  consultation sans qualité de contributeur ; `test_access_evaluation.py` l'éprouve.
+- propre à l'US (`L2`) : l'évaluation d'une action (`waterfall.core.access_roles`) reçoit la
+  qualité de contributeur, lue par le module des projets, et la règle 404/403 se décide par une
+  propriété déclarée de chaque permission, non par son suffixe (#754) ; `all_projects_read` ouvre
+  la consultation sans qualité de contributeur ; `test_access_evaluation.py` l'éprouve ;
+- propre à l'US (`L1`) : un routeur vide par US est enregistré dans `app.py`, l'interface de
+  chaque module est un paquet d'un fichier par sujet, et `make check` passe sur ce socle, tiré
+  d'`epic/EP-05` après `US-0810/L1`.
 
-**Notes de réalisation.** La consultation d'un projet est une règle à deux termes (WF-PRJ-0060,
+**Notes de réalisation.** L'US se livre en deux lots (décision de l'auteur du 2026-11-05) : `L1`,
+le socle, premier lot d'`epic/EP-04` tirée d'`epic/EP-05` ; `L2`, l'évaluation, qu'US-0920
+attend. La consultation d'un projet est une règle à deux termes (WF-PRJ-0060,
 WF-ADM-0110) : la permission de la fonction et la qualité de contributeur, ou `all_projects_read`.
 Elle s'écrit une fois, dans une dépendance que chaque route d'un projet déclare, avant la
 validation des paramètres, comme `Requires` ; une écriture structurante demande en plus la
@@ -696,7 +757,11 @@ attendre l'administrateur.
   jour, et un projet renommé est nommé sous son libellé du jour (#927) ; l'écran du journal ne
   tolère plus le 404 de `listProjects` (#962) ;
 - propre à l'US : chaque réponse est validée contre le contrat dans les tests du service, et la
-  route de chaque opération déclare ses permissions.
+  route de chaque opération déclare ses permissions ;
+- propre à l'US : l'accueil connecté se rend contre le service (#1004) et ne porte plus
+  `MockupNotice` ; l'écran du journal ne tolère plus le 404 de `listProjects` et mène aux projets
+  (#962) ; `load-witness` charge les comptes locaux des contributeurs, PRJ-001 et PRJ-002 avec leur
+  client (décision du 2026-11-05).
 
 **Notes de réalisation.** Les écrans sont ceux d'EP-02/L44a (#583) et d'EP-16/US-0610 (le
 client) ; cette US sert ce que #513 et #524 laissaient à EP-04. La liste des projets filtrée par
@@ -765,7 +830,9 @@ saisisse ce qu'il doit, et qu'un projet garde toujours un chef.
 - propre à l'US : `listContributorSuggestions` rend les comptes actifs rattachés aux nœuds des
   rôles qu'emploient les lignes du projet, que la liste ne compte pas encore — vide tant
   qu'aucune ligne n'existe (WF-PRJ-0070, EP-07) —, et l'écran les inscrit sur confirmation ;
-- propre à l'US : chaque réponse est validée contre le contrat dans les tests du service.
+- propre à l'US : chaque réponse est validée contre le contrat dans les tests du service ;
+- propre à l'US : `load-witness` inscrit les contributeurs du témoin, dans `api/contributors.py`
+  et le fichier `contributors` de l'interface (décision du 2026-11-05).
 
 **Notes de réalisation.** La qualité de contributeur est lue par l'évaluation d'US-0910 à chaque
 requête : une liste réécrite vaut à la requête suivante, sans reconnexion (WF-ADM-0090). Un
@@ -831,7 +898,9 @@ devis se rejoignent à la maille du sous-projet (#1337).
   projet, projet non terminal) ; `listSubprojects` cherche, filtre `has_actual_costs` et trie
   comme l'opération le dit, sans page ;
 - propre à l'US : chaque réponse est validée contre le contrat dans les tests du service, et le
-  parcours des sous-projets joue contre le service.
+  parcours des sous-projets joue contre le service ;
+- propre à l'US : `load-witness` charge les sous-projets du témoin, dans `api/subprojects.py` et
+  le fichier `subprojects` de l'interface (décision du 2026-11-05).
 
 **Notes de réalisation.** `subproject` porte `project_id`, `code`, `label`, audit et compteur,
 l'unicité sur (`project_id`, `code`) ; `has_actual_costs` et les trois conditions sont des
@@ -871,7 +940,9 @@ lot.
   conteneurs des éléments retenus avec `is_match`, et un compteur nul à une lecture filtrée ;
 - propre à l'US : chaque réponse est validée contre le contrat dans les tests du service, et le
   parcours du lotissement (`project-start.spec.ts`, ses étapes sans squelette) joue contre le
-  service.
+  service ;
+- propre à l'US : `load-witness` charge le lotissement du témoin, dans `api/work_breakdown.py`
+  et le fichier `work_breakdown` de l'interface (décision du 2026-11-05).
 
 **Notes de réalisation.** Trois tables, `work_package`, `order_item`, `deliverable`, en refus,
 chacune avec `position` et `deleted_at` (le marquage supprimé, nul ici) ; `attached_task` est
@@ -956,7 +1027,10 @@ version du projet soit une révision, et une seule à la fois.
   `listCostStructures` rend la principale avec ses commandes ;
 - propre à l'US : chaque réponse est validée contre le contrat dans les tests du service, et les
   parcours de l'historique et de l'abandon (`revisions.spec.ts`, `revision-cycle.spec.ts` pour sa
-  part) jouent contre le service.
+  part) jouent contre le service ;
+- propre à l'US : `load-witness` ouvre les révisions du témoin à leur instant et les abandons de
+  sa chronologie ; les écrans des révisions ne portent plus `MockupNotice`, et `revisions.spec.ts`
+  rejoint `SHARED_PATHS` (décision du 2026-11-05).
 
 **Notes de réalisation.** `revision` porte `project_id` (clé de partition), `status`,
 `version_name`, `description`, `marked_at`, `reference_year`, `is_reference`, `lineage_id`,
@@ -1067,7 +1141,10 @@ quel que soit le chemin, **afin que** l'histoire du projet soit sûre.
   laisse la base inchangée ; les commandes qui écriraient dans la révision nomment
   `no_background_task_running` pendant le marquage ;
 - propre à l'US : chaque réponse est validée contre le contrat dans les tests du service, et le
-  parcours du marquage (`revision-cycle.spec.ts`, sa part) joue contre le service.
+  parcours du marquage (`revision-cycle.spec.ts`, sa part) joue contre le service ;
+- propre à l'US : `load-witness` marque « v1.0 » et « Référence » aux instants du témoin, par la
+  même transaction que le worker ; `revision-cycle.spec.ts` rejoint `SHARED_PATHS` pour ce qu'il
+  lit sans référence (décision du 2026-11-05).
 
 **Notes de réalisation.** Le marquage est le premier traitement du métier confié au worker
 (EP-03, « Worker, file et planification ») : un gestionnaire `revision_mark` enregistré dans
@@ -1175,7 +1252,11 @@ case à cocher.
   parcours du cycle (`projects.spec.ts`, sa sortie ; `revision-cycle.spec.ts`) joue contre le
   service pour ce qu'un projet en chiffrage permet.
 
-**Notes de réalisation.** L'état est une colonne de `project` sous contrainte ; chaque transition
+**Notes de réalisation.** L'US se livre en deux lots (décision de l'auteur du 2026-11-05) : `L1`,
+le cycle sans la référence — `next_state` pure, `getProjectNextState`, `exitProject`,
+`listProjectStateTransitions`, Créé → Chiffrage, le fait du code saisi —, dès US-0920 et
+US-0960 ; `L2`, la désignation et le passage En cours, après US-0970. L'état est une colonne de
+`project` sous contrainte ; chaque transition
 est une ligne de `project_state_transition` (`from_state`, `to_state`, `occurred_at`, `actor`,
 `reason`), jamais modifiée. Les conditions des commandes et du prochain état viennent des mêmes
 fonctions : `project_code_set`, `reference_designated`, `revision_has_tasks_and_lines` (une
@@ -1239,7 +1320,10 @@ back, **afin que** les tests déjà écrits prouvent le service (#1402, #1350).
   abandonner, rouvrir, saisir le code, sortir — et constater que la désignation est refusée faute
   de tâches, ce que EP-07 renversera.
 
-**Notes de réalisation.** La chronologie du témoin vit dans `wftools.mockwitness` (`CHRONOLOGY`) :
+**Notes de réalisation.** L'US se livre en deux lots (décision de l'auteur du 2026-11-05) : `L1`,
+d'outil, l'exportation de la chronologie par `make mock-data` et ses tests, dès la première
+vague ; `L2`, la commande qui la lit, dont chaque US a écrit la tranche, et les parcours rejoués.
+La chronologie du témoin vit dans `wftools.mockwitness` (`CHRONOLOGY`) :
 `make mock-data` l'écrit dans un fichier de la tranche que la commande lit, sans que le back
 importe `wftools`. Le chargeur écrit chaque événement à son instant par `Act.at` ; l'auteur est
 la plateforme. La révision 101 du témoin naît d'une saisie de risque (EP-08) : ici, elle s'ouvre
@@ -1270,10 +1354,11 @@ chacun avec mes réglages, **afin de** mener un projet sans faux back.
   projet et ses révisions ;
 - écart : `WF-ADM-0040-A` — « Un utilisateur modifie ses préférences et ne peut pas modifier celles
   d'un autre. » : constaté par EP-03 (US-0400) ;
-- propre à l'US : l'accueil, les paramètres du projet et l'écran du projet ne portent plus
-  `MockupNotice`, et leurs commentaires le disent ; un succès est ce que le service a gardé, relu ;
-- propre à l'US : l'accueil connecté se rend contre le service (#1004), l'écran du journal ne
-  tolère plus le 404 de `listProjects` et mène aux projets (#962) ;
+- propre à l'US : les paramètres du projet ne portent plus `MockupNotice`, l'accueil et les
+  révisions l'ayant perdu par US-0920, US-0960 et US-0970 (décision du 2026-11-05), et aucun
+  composant du projet ne le nomme plus ; un succès est ce que le service a gardé, relu ;
+- propre à l'US : `project-start.spec.ts`, `projects.spec.ts` et `context.spec.ts` sont dans
+  `SHARED_PATHS`, et le projet `shared` joue tous les parcours du projet ;
 - propre à l'US : les aides des écrans du projet (`frontend/help/fr/FBS-4*.md`, le projet et les
   révisions) disent ce que le service fait, là où elles disaient ce que le faux back
   n'appliquait pas.

@@ -336,7 +336,7 @@ delivery.
 | Branch | Receives | Created from |
 |---|---|---|
 | `main` | the merge of an epic's branch at its delivery, and the changes to the specification, the contract or the roadmap that serve no epic in progress | — |
-| `epic/EP-nn` | the pull requests of the lots of that epic, and the changes to the contract that its design provides for | `main`, at the first lot, once the epics it depends on are delivered |
+| `epic/EP-nn` | the pull requests of the lots of that epic, and the changes to the contract that its design provides for | `main`, at the first lot, once the epics it depends on are delivered; by exception, the branch of the epic it depends on (below) |
 | `lot/<identifiant du lot>` | the work of one lot, and it alone | the branch of its epic |
 
 An epic in progress has its integration branch from its first lot — between the opening of its
@@ -346,6 +346,13 @@ the delivery of one carrying the half-done lots of another. So `main` receives o
 delivered epics and reviewed documents: it is never in an intermediate state. After
 each merge into `main`, the branches of the epics still in progress take it back in, and that is
 when their conflicts are settled, not at delivery.
+
+By exception, decided by the author at the framing and written in the epic's « Préalables », the
+branch of an epic is created from the branch of the epic it depends on, as soon as the lot of that
+one which gives it its tables and interfaces is merged, when waiting for the delivery would put two
+epics in series for little. It takes that branch back in at every lot the other merges, and is
+merged into `main` after it, never before. First exception: `epic/EP-04` created from
+`epic/EP-05` after `US-0810/L1` (decision of 2026-11-05).
 
 The chain runs on every pull request, towards an epic's branch as towards `main`, and
 none is merged if it fails.
