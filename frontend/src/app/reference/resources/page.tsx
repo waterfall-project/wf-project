@@ -370,7 +370,6 @@ export default async function ResourceSettingsPage({
           {...narrowedTree(narrowed, tree)}
           query={queries.nodes}
           preferences={keptBy(grids, ORG_NODE_GRID_KEY)}
-          readsInactive={editable}
           editable={editable}
           filters={queries.nodeFilters}
           levels={Array.from({ length: deepest }, (_, at) => at + 1)}
@@ -380,7 +379,6 @@ export default async function ResourceSettingsPage({
           {...shownPage(roles)}
           query={queries.roles}
           preferences={keptBy(grids, RESOURCE_ROLE_GRID_KEY)}
-          readsInactive={editable}
           editable={editable}
           nodes={nodes}
           categories={categoryRead?.map(categoryChoice)}
@@ -397,7 +395,6 @@ export default async function ResourceSettingsPage({
           page={calendars.meta}
           query={queries.calendars}
           preferences={keptBy(grids, CALENDAR_GRID_KEY)}
-          readsInactive={editable}
           editable={editable}
           state={queries.calendarState}
         />

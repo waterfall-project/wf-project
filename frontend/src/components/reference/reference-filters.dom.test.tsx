@@ -196,7 +196,6 @@ describe("the filters of a list of the reference data", () => {
           page={roles.meta}
           query={{ sort: undefined, search: undefined, size: undefined }}
           preferences={undefined}
-          readsInactive
           editable={false}
           nodes={[]}
           categories={undefined}

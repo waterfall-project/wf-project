@@ -61,7 +61,6 @@ function screenWithBar() {
           query={{ sort: undefined, search: undefined, size: undefined }}
           preferences={undefined}
           state={undefined}
-          readsInactive
           editable
           natures={types.items.map((nature) => natureChoice(nature))}
           nature={undefined}

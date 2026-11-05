@@ -70,7 +70,6 @@ function calendarList(
           page={calendars.meta}
           query={NO_QUERY}
           preferences={undefined}
-          readsInactive
           editable
           state={undefined}
         />
