@@ -583,7 +583,7 @@ Mailpit v1.33, **afin de** suivre des versions maintenues, et un Redis sous la l
 
 ## US-1150 — Un annuaire de test maintenu
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : aucune — outil du dépôt
 - **opérations** : aucune
 - **issue** : #1929
@@ -640,7 +640,7 @@ ne pas écrire le référentiel sur un interpréteur et des bibliothèques en re
 
 ## US-1170 — Le front sur Node 26, pnpm 12 et ESLint 10
 
-- **statut** : à faire
+- **statut** : en cours
 - **exigences** : aucune — outil du dépôt
 - **opérations** : aucune
 - **issue** : #1933
@@ -682,7 +682,7 @@ les écrans du référentiel sur une chaîne en retard.
 
 ## US-1180 — L'extension de Keycloak construite sur un JDK 25
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : aucune — outil du dépôt
 - **opérations** : aucune
 - **issue** : #1937
@@ -766,7 +766,7 @@ Toute modification du texte de la spécification.
 
 ## US-1250 — Le faux back cherche comme PostgreSQL 18
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : aucune — outil du dépôt
 - **opérations** : aucune
 - **issue** : #1981

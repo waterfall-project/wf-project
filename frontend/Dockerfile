@@ -24,7 +24,7 @@
 #   set at start by `NEXT_SERVER_ACTIONS_ENCRYPTION_KEY`, which Next reads before the one of the
 #   build, and without which the server does not start (#825).
 # The base image is pinned by digest: a tag can be moved, a digest cannot.
-FROM node:24-alpine@sha256:44fce696f38ba8c987c4db89954051000bbd05ffd8d8659ba15ed4a8602e937f AS node
+FROM node:26-alpine@sha256:c6ad9e9c1d80f6eb607c26b4b0a132ff7a2344fad1c78ea3baa2a7d4c8de6d94 AS node
 
 ENV NEXT_TELEMETRY_DISABLED=1
 WORKDIR /app
@@ -32,8 +32,12 @@ WORKDIR /app
 # The tools and every dependency of the front, owned by the unprivileged user of the node image.
 FROM node AS development
 
-ENV COREPACK_ENABLE_DOWNLOAD_PROMPT=0
-RUN corepack enable pnpm && chown 1000:1000 /app
+# pnpm, at the version package.json names (`packageManager`), the only place that version is
+# written: package.json comes first, so that the layer holds until package.json changes (any
+# change, not that line alone: the copy is the layer's input).
+COPY package.json /app/package.json
+RUN npm install --global "pnpm@$(node -p "require('/app/package.json').packageManager.split('@')[1].split('+')[0]")" \
+    && chown 1000:1000 /app
 USER 1000:1000
 
 COPY --chown=1000:1000 package.json pnpm-lock.yaml pnpm-workspace.yaml ./

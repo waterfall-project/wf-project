@@ -103,8 +103,8 @@ to it.
 
 The front is a Next.js application in strict TypeScript (`frontend/tsconfig.json`, with
 `noUncheckedIndexedAccess` and `exactOptionalPropertyTypes`). pnpm manages its dependencies,
-at the version `packageManager` names in `package.json`, launched by corepack
-(`corepack enable pnpm`); the lock, `pnpm-lock.yaml`, is authoritative and the chain installs
+at the version `packageManager` names in `package.json`, installed once by
+`npm install --global pnpm`; the lock, `pnpm-lock.yaml`, is authoritative and the chain installs
 with `--frozen-lockfile`. The unit tests are `*.test.ts` or `*.test.tsx` files next to the code
 they exercise, run by Vitest in two projects (`vitest.config.ts`), which the file name decides
 between: `node` for the `*.test.ts` and `*.test.tsx` — the logic, and the server components of
@@ -2684,10 +2684,17 @@ the `waterfall-api` audience. These files are applied after the realm, under a r
 (`--import.cache.key=development`, service `keycloak-realm`): keycloak-config-cli deletes the
 clients its state names and that the files it applies do not declare, and without that the
 test client would take those of the realm with it.
-The directory keeps its data in a volume, like the databases: bootstrapped again, it would give its
-people other identifiers than those Keycloak keeps; `WATERFALL_RESET_DATA=yes` deletes it
-with them. The ports given here are those of the main repository, at slot 0; a worktree of a lot
-has those of the block of its slot (« The slots of the worktrees », below).
+The directory is an image the repository builds, `deploy/openldap/Dockerfile`, on Debian's `slapd`
+(US-1150): at its first start, its entrypoint creates its configuration and loads
+`deploy/keycloak/development/directory.ldif` into it, then never loads anything again. It keeps its
+data in a volume, like the databases: bootstrapped again, it would give its people other
+identifiers than those Keycloak keeps; `WATERFALL_RESET_DATA=yes` deletes it with them. A first
+start interrupted before the copy of the configuration never served: at the next start, the script
+empties the data left behind and loads the seed again. The volumes of the image of before, that of
+`osixia`, serve as they are: their people keep their identifiers.
+
+The ports given here are those of the main repository, at slot 0; a worktree of a lot has those of
+the block of its slot (« The slots of the worktrees », below).
 
 `BASE` is `origin/main` by default; a lot is compared with the branch of its epic.
 
@@ -2759,14 +2766,15 @@ ephemeral ports of Linux; at slot 0, those of before:
 
 The names carry the number of the slot: at slot i, the Compose projects `waterfall-service-s<i>`
 (`WATERFALL_SERVICE_PROJECT`) and `waterfall-test-s<i>` (`WATERFALL_TEST_PROJECT`), the images
-`waterfall-keycloak-s<i>` (`WATERFALL_KEYCLOAK_IMAGE`, which `compose.service.yaml` reads) and
-`waterfall-front:check-s<i>` (`WATERFALL_FRONT_CHECK_IMAGE`, which `wftools.frontimage` reads); at
-slot 0, `waterfall-service`, `waterfall-test`, `waterfall-keycloak` and `waterfall-front:check`.
+`waterfall-keycloak-s<i>` (`WATERFALL_KEYCLOAK_IMAGE`) and `waterfall-openldap-s<i>`
+(`WATERFALL_OPENLDAP_IMAGE`), which `compose.service.yaml` reads, and `waterfall-front:check-s<i>`
+(`WATERFALL_FRONT_CHECK_IMAGE`, which `wftools.frontimage` reads); at slot 0, `waterfall-service`,
+`waterfall-test`, `waterfall-keycloak`, `waterfall-openldap` and `waterfall-front:check`.
 The Makefile gives each target what it needs, except what the environment gives already: the
 service platform — `service-up`, `service-install`, `service-logs`, `service-down`,
-`keycloak-authority`, `test-keycloak`, `e2e-service` — gets its project, the image of Keycloak and
-its six ports; `build-keycloak`, the image of Keycloak; `e2e`, `e2e-measure` and `e2e-service`, the
-ports of the fake back and of the fronts; `check-front-image`, the image of the front. In a linked
+`keycloak-authority`, `test-keycloak`, `e2e-service` — gets its project, the images of Keycloak and
+of the directory and its six ports; `build-keycloak`, the image of Keycloak; `e2e`, `e2e-measure`
+and `e2e-service`, the ports of the fake back and of the fronts; `check-front-image`, the image of the front. In a linked
 worktree that holds no slot, these targets fail before starting anything, saying `make slot`; the
 others do not ask for it. `make production-trial`, outside the slots — ports 80 and 443, project
 `waterfall-production-trial` —, runs at slot 0 alone: from the worktree of a lot, it fails at once,
@@ -3016,8 +3024,10 @@ The full tier aims at under eight minutes in the queue for its longest job
   does not join the jobs of one to those of the other; neither has any other
   trigger than that call, so that none builds the front. A failed build skips the
   two, and the gate, which waits for it too, fails. It builds on the runner, like `front.yml`, in
-  Node 24: the shards start it in the Playwright image, in Node 24 too (its
-  `NODE_VERSION`), on the same Ubuntu noble in amd64, and at another path of the workspace
+  Node 26: the shards start it in the Playwright image, in Node 24 (its
+  `NODE_VERSION`, which the Node 26 lot does not change; `next start` runs the built files there,
+  and Next 16 accepts Node 24, while pnpm 12 does not stop on `engines` without
+  `engine-strict`, which the front does not set), on the same Ubuntu noble in amd64, and at another path of the workspace
   (`/__w/…` instead of `/home/runner/work/…`); `service.yml`, on the runner. The build does not depend
   on that path: only `required-server-files.json`, which the standalone output of the image reads and
   not `next start`, names it, and a build moved elsewhere, its original folder removed, serves its

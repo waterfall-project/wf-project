@@ -4,7 +4,7 @@
 #
 # The specification lives in docs/spec, the interface contract in docs/api.
 # Requirements: python3 3.14+ (the projection), uv (Python 3.14 for the back and the tools),
-# node with npx and corepack (the front, the contract), pandoc 3.13 (the projection),
+# node with npx and pnpm (the front, the contract), pandoc 3.13 (the projection),
 # docker (make dev), and mmdc to validate the diagrams.
 
 SPEC    := docs/spec
@@ -44,7 +44,7 @@ BACK    := backend
 FRONT   := frontend
 # An address where no API answers: the front builds without reaching one (#131).
 NOWHERE := http://127.0.0.1:9
-PNPM_ENV := COREPACK_ENABLE_DOWNLOAD_PROMPT=0 NEXT_TELEMETRY_DISABLED=1
+PNPM_ENV := NEXT_TELEMETRY_DISABLED=1
 PNPM    := cd $(FRONT) && $(PNPM_ENV) pnpm
 # pnpm for a heavy run, which waits for its turn (tools/src/wftools/slots.py).
 # The front takes the same share as the back (WATERFALL_PROCESSORS), a run of one file (TESTS) too.
@@ -125,9 +125,9 @@ WATERFALL_PROCESSORS ?= $(or $(shell $(if $(filter-out undefined,$(origin WATERF
 slot-variables = $(eval slot-variables := $(or $(shell $(SLOTS) which --variables),$(error no slot for this worktree: run make slot)))$(slot-variables)
 slot-value = $(patsubst $(1)=%,%,$(filter $(1)=%,$(slot-variables)))
 slot-export = $(foreach name,$(2),$(eval $(1): export $(name) ?= $$(call slot-value,$(name))))
-SLOT_SERVICE := WATERFALL_SERVICE_PROJECT WATERFALL_KEYCLOAK_IMAGE WATERFALL_POSTGRES_PORT \
-	WATERFALL_REDIS_PORT WATERFALL_API_PORT WATERFALL_KEYCLOAK_PORT WATERFALL_MAILPIT_PORT \
-	WATERFALL_PROXY_PORT
+SLOT_SERVICE := WATERFALL_SERVICE_PROJECT WATERFALL_KEYCLOAK_IMAGE WATERFALL_OPENLDAP_IMAGE \
+	WATERFALL_POSTGRES_PORT WATERFALL_REDIS_PORT WATERFALL_API_PORT WATERFALL_KEYCLOAK_PORT \
+	WATERFALL_MAILPIT_PORT WATERFALL_PROXY_PORT
 SLOT_PATHS := E2E_API_PORT E2E_FRONT_PORT
 $(call slot-export,service-up service-install keycloak-authority service-logs service-down \
 	test-keycloak e2e-service,$(SLOT_SERVICE))
@@ -614,7 +614,7 @@ gate: ## Decide the outcome of the chain from its jobs (NEEDS, from GitHub Actio
 	@$(WFTOOLS).gate
 
 check-tools: ## Report which prerequisites are missing
-	@for t in python3 pandoc node npx corepack uv docker; do \
+	@for t in python3 pandoc node npx pnpm uv docker; do \
 		command -v $$t >/dev/null && echo "  ok       $$t" || echo "  missing  $$t"; \
 	done
 	@command -v pandoc >/dev/null && pandoc --version | head -1 | grep -q " 3.13$$" \

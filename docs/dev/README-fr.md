@@ -103,8 +103,8 @@ nouvelle s'y ajoute.
 
 Le front est une application Next.js en TypeScript strict (`frontend/tsconfig.json`, avec
 `noUncheckedIndexedAccess` et `exactOptionalPropertyTypes`). pnpm en gère les dépendances,
-à la version que nomme `packageManager` dans `package.json`, lancée par corepack
-(`corepack enable pnpm`) ; le verrou, `pnpm-lock.yaml`, fait foi et la chaîne installe
+à la version que nomme `packageManager` dans `package.json`, installé une fois par
+`npm install --global pnpm` ; le verrou, `pnpm-lock.yaml`, fait foi et la chaîne installe
 avec `--frozen-lockfile`. Les tests unitaires sont des fichiers `*.test.ts` ou `*.test.tsx`
 à côté du code qu'ils éprouvent, lancés par Vitest en deux projets (`vitest.config.ts`),
 que le nom du fichier départage : `node` pour les `*.test.ts` et `*.test.tsx` — la logique,
@@ -2704,10 +2704,17 @@ l'audience `waterfall-api`. Ces fichiers s'appliquent après le royaume, sous un
 (`--import.cache.key=development`, service `keycloak-realm`) : keycloak-config-cli supprime les
 clients que son état nomme et que les fichiers qu'il applique ne déclarent pas, et sans cela le
 client de test emporterait ceux du royaume.
-L'annuaire garde ses données dans un volume, comme les bases : réamorcé, il donnerait à ses
-personnes d'autres identifiants que ceux que Keycloak garde ; `WATERFALL_RESET_DATA=yes` le
-supprime avec elles. Les ports cités ici sont ceux du dépôt principal, au créneau 0 ; un worktree
-de lot a ceux du bloc de son créneau (« Les créneaux des worktrees », ci-dessous).
+L'annuaire est une image que le dépôt construit, `deploy/openldap/Dockerfile`, sur le `slapd` de
+Debian (US-1150) : à son premier démarrage, son script d'entrée crée sa configuration et y charge
+`deploy/keycloak/development/directory.ldif`, puis ne recharge plus rien. Il garde ses données dans
+un volume, comme les bases : réamorcé, il donnerait à ses personnes d'autres identifiants que ceux
+que Keycloak garde ; `WATERFALL_RESET_DATA=yes` le supprime avec elles. Un premier démarrage
+interrompu avant la copie de la configuration n'a jamais servi : au démarrage suivant, le script
+vide les données restées et recharge l'amorce. Les volumes de l'image d'avant, celle d'`osixia`,
+servent tels quels : leurs personnes gardent leurs identifiants.
+
+Les ports cités ici sont ceux du dépôt principal, au créneau 0 ; un worktree de lot a ceux du
+bloc de son créneau (« Les créneaux des worktrees », ci-dessous).
 
 `BASE` vaut `origin/main` par défaut ; un lot se compare à la branche de son EPIC.
 
@@ -2780,14 +2787,15 @@ Au créneau i de 1 à 9, les ports sont ceux du bloc `20000 + 100·i`, sous la p
 
 Les noms portent le numéro du créneau : au créneau i, les projets Compose `waterfall-service-s<i>`
 (`WATERFALL_SERVICE_PROJECT`) et `waterfall-test-s<i>` (`WATERFALL_TEST_PROJECT`), les images
-`waterfall-keycloak-s<i>` (`WATERFALL_KEYCLOAK_IMAGE`, que `compose.service.yaml` lit) et
-`waterfall-front:check-s<i>` (`WATERFALL_FRONT_CHECK_IMAGE`, que lit `wftools.frontimage`) ; au
-créneau 0, `waterfall-service`, `waterfall-test`, `waterfall-keycloak` et `waterfall-front:check`.
+`waterfall-keycloak-s<i>` (`WATERFALL_KEYCLOAK_IMAGE`) et `waterfall-openldap-s<i>`
+(`WATERFALL_OPENLDAP_IMAGE`), que `compose.service.yaml` lit, et `waterfall-front:check-s<i>`
+(`WATERFALL_FRONT_CHECK_IMAGE`, que lit `wftools.frontimage`) ; au créneau 0, `waterfall-service`,
+`waterfall-test`, `waterfall-keycloak`, `waterfall-openldap` et `waterfall-front:check`.
 Le Makefile donne à chaque cible ce dont elle a besoin, sauf ce que l'environnement donne déjà :
 la plateforme de service — `service-up`, `service-install`, `service-logs`, `service-down`,
-`keycloak-authority`, `test-keycloak`, `e2e-service` — reçoit son projet, l'image de Keycloak et ses
-six ports ; `build-keycloak`, l'image de Keycloak ; `e2e`, `e2e-measure` et `e2e-service`, les ports
-du faux back et des fronts ; `check-front-image`, l'image du front. Dans un worktree lié qui ne
+`keycloak-authority`, `test-keycloak`, `e2e-service` — reçoit son projet, les images de Keycloak et
+de l'annuaire et ses six ports ; `build-keycloak`, l'image de Keycloak ; `e2e`, `e2e-measure` et
+`e2e-service`, les ports du faux back et des fronts ; `check-front-image`, l'image du front. Dans un worktree lié qui ne
 tient pas de créneau, ces cibles échouent avant de rien lancer, en disant `make slot` ; les autres
 ne le demandent pas. `make production-trial`, hors des créneaux — ports 80 et 443, projet
 `waterfall-production-trial` —, ne tourne qu'au créneau 0 : depuis le worktree d'un lot, il
@@ -3038,8 +3046,10 @@ Le palier complet vise moins de huit minutes dans la file pour son travail le pl
   ne joint pas les travaux de l'un à ceux de l'autre ; ni l'un ni l'autre n'a d'autre
   déclencheur que cet appel, si bien qu'aucun ne construit le front. Un build en échec saute les
   deux, et la porte, qui l'attend aussi, échoue. Il construit sur le runner, comme `front.yml`, en
-  Node 24 : les morceaux le démarrent dans l'image de Playwright, en Node 24 elle aussi (son
-  `NODE_VERSION`), sur la même Ubuntu noble en amd64, et à un autre chemin de l'espace de travail
+  Node 26 : les morceaux le démarrent dans l'image de Playwright, en Node 24 (son
+  `NODE_VERSION`, que le lot de Node 26 ne change pas ; `next start` y exécute les fichiers
+  construits, et Next 16 accepte Node 24, tandis que pnpm 12 ne s'arrête pas sur `engines` sans
+  `engine-strict`, que le front ne pose pas), sur la même Ubuntu noble en amd64, et à un autre chemin de l'espace de travail
   (`/__w/…` au lieu de `/home/runner/work/…`) ; `service.yml`, sur le runner. Le build ne dépend
   pas de ce chemin : seul `required-server-files.json`, que lit la sortie autonome de l'image et
   non `next start`, le nomme, et un build déplacé ailleurs, son dossier d'origine retiré, sert ses

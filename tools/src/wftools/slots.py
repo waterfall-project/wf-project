@@ -335,6 +335,7 @@ def names(slot: int) -> dict[str, str]:
         "WATERFALL_SERVICE_PROJECT": f"waterfall-service{suffix}",
         "WATERFALL_TEST_PROJECT": f"waterfall-test{suffix}",
         "WATERFALL_KEYCLOAK_IMAGE": f"waterfall-keycloak{suffix}",
+        "WATERFALL_OPENLDAP_IMAGE": f"waterfall-openldap{suffix}",
         "WATERFALL_FRONT_CHECK_IMAGE": f"waterfall-front:check{suffix}",
     }
 
