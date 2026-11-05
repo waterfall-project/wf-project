@@ -61,7 +61,7 @@ export async function GET(request: Request): Promise<Response> {
   const reauthenticate = searchParams.has(REAUTHENTICATE_PARAMETER);
   const session = sessionIdOf(request);
   const { state, nonce, verifier, challenge } = await signInChecks();
-  let signOut = false;
+  let signOut: boolean;
   try {
     signOut = ticket !== null && session !== undefined && (await takeSignOut(ticket, session));
     await rememberSignIn(state, { verifier, nonce, target, signOut });
