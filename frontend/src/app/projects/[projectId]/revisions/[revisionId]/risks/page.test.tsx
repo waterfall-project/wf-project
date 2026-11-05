@@ -425,7 +425,7 @@ describe("the screen of the risks", () => {
     // Dated like every card, the region reading alone [WF-IHM-0020-A].
     expect(regionOf(page, "Risk coverage")).toMatch(/<time dateTime="2026-06-03T14:05:00Z"/);
     expect(text(page)).toContain(
-      "Risk reserve 850,060.00 Remaining provisions 500,000.00 Cost of the occurred risks 200.00 · reestimated Reestimated cost of the occurred risks (information) 200.00 Coverage variance 349,860.00",
+      "Risk reserve 850,060.00 Remaining provisions 500,000.00 Cost of the occurred risks 200.00 reestimated Reestimated cost of the occurred risks (information) 200.00 Coverage variance 349,860.00",
     );
     // The reestimated stands in regard of the cost, in its entry, not as a term of the variance: four
     // terms, and the entry of the cost holds both amounts, the reestimated named in full to a reader.
@@ -437,8 +437,8 @@ describe("the screen of the risks", () => {
     );
     const entry = cost.slice(0, cost.indexOf("</dd></div>"));
     expect(entry.match(/aria-label="Computed"/g)).toHaveLength(2);
-    // The bullet is its own hidden element, not a part of the translated word.
-    expect(entry).toMatch(/<span[^>]*aria-hidden="true"[^>]*>·<\/span>/);
+    // The bullet is a hidden element of its own, drawn by the style, not a part of the translated word.
+    expect(entry).toMatch(/<span[^>]*aria-hidden="true"[^>]*before:content-\[[^>]*><\/span>/);
     expect(entry).toMatch(/<span aria-hidden="true">reestimated<\/span>/);
     expect(entry).toMatch(
       /<span class="sr-only">Reestimated cost of the occurred risks \(information\)<\/span>/,
