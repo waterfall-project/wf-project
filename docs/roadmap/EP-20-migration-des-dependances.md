@@ -987,7 +987,7 @@ réglages que la permission d'`enqueuePullRequest`.
 - **statut** : à faire
 - **exigences** : aucune — outil du dépôt
 - **opérations** : aucune
-- **issue** : <rempli à l'ouverture>
+- **issue** : #2016
 
 **En tant que** développeur, **je veux** que les constats d'outil et de documentation relevés pendant
 EP-20 soient corrigés, **afin que** l'EPIC se livre sans dette ouverte sur ce qu'il a touché.

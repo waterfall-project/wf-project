@@ -224,7 +224,7 @@ il ne le corrige pas en silence.
 - **statut** : à faire
 - **exigences** : aucune — outil du dépôt
 - **opérations** : aucune
-- **issue** : <rempli à l'ouverture>
+- **issue** : #2023
 
 **En tant que** développeur, **je veux** que les règles de ruff et l'écriture des annotations soient
 revues pour Python 3.14, **afin que** le code n'emporte ni exception inutile ni import évalué à tort
