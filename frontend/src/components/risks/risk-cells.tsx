@@ -74,8 +74,8 @@ export function OccurredLines({
  * Render the state of a risk, in the language of the interface. A risk occurred leads to the grid
  * of the revision filtered on the lines that came of it (`origin_risk_ids`, WF-RIS-0060) — the
  * estimate, or the planning for a session that does not read it: the estimate prices them, and the
- * reestimated amount of the register is their sum. The link is the
- * cell's, which Enter follows; its name keeps the state, as the cell shows it.
+ * reestimated amount of the register is their sum. The link is the cell's, which Enter follows;
+ * its name keeps the state, as the cell shows it.
  */
 export function RiskStateCell({ risk }: { readonly risk: RiskRow }) {
   const t = useTranslations("enums.RiskState");

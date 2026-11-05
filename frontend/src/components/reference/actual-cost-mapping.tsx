@@ -3,9 +3,10 @@
 /**
  * The correspondence of the extraction of the actual costs (FBS-3.1.3, WF-REF-0190, US-0620): for
  * each of the five columns Waterfall reads, the labels under which the ERP names it, and the labels
- * of the columns it keeps for information, declared one by one. A bar says the columns required that
- * have no label, as the server computes them (`is_complete`, `missing_columns`): the front computes
- * nothing of it, and takes it from the answer of a write as it takes it from the reading.
+ * of the columns it keeps for information, declared one by one. A bar says the columns required
+ * that have no label, as the server computes them (`is_complete`, `missing_columns`): the front
+ * computes nothing of it, and takes it from the answer of a write as it takes it from the
+ * reading.
  *
  * A session that holds `cost_settings.write` adds, modifies and removes a label, and declares and
  * removes a kept column, in one form that replaces the correspondence whole with the version read
@@ -54,7 +55,10 @@ export const KEPT_COLUMNS_LIMIT = 50;
 /** The pointer the contract refuses the list of the kept columns itself at (`VALUE_TOO_LONG`). */
 const KEPT_LIST = "/kept_columns";
 
-/** A label being typed, with a key of its own that keeps it through the removal of the ones before. */
+/**
+ * A label being typed, with a key of its own that keeps it through the removal of the ones
+ * before.
+ */
 interface Row {
   readonly key: number;
   readonly text: string;
@@ -63,7 +67,10 @@ interface Row {
 /** A list of labels: the rank of a column read, or the kept columns. */
 type Scope = number | "kept";
 
-/** What the form holds: the labels of each column read, in the order of the contract, and the kept ones. */
+/**
+ * What the form holds: the labels of each column read, in the order of the contract, and the kept
+ * ones.
+ */
 interface Draft {
   readonly next: number;
   readonly columns: readonly {
@@ -135,7 +142,10 @@ function written(
   };
 }
 
-/** The list of labels of a pointer of a write: the label it designates, and the column it belongs to. */
+/**
+ * The list of labels of a pointer of a write: the label it designates, and the column it belongs
+ * to.
+ */
 function labelAt(
   sent: components["schemas"]["ActualCostMappingWrite"],
   at: unknown,
@@ -413,8 +423,8 @@ function pointers(draft: Draft): readonly (readonly [string, number])[] {
 
 /**
  * The refusals of the server by field the form says at a label, by the key of its row — a pointer
- * names a rank of the form sent, which a removal moves —, and the outcome to tell under the form: the
- * refusal without the fields said already, none when every one is. The draft is the one sent.
+ * names a rank of the form sent, which a removal moves —, and the outcome to tell under the form:
+ * the refusal without the fields said already, none when every one is. The draft is the one sent.
  */
 function placed(
   outcome: Outcome<unknown>,
@@ -523,7 +533,8 @@ function MappingForm({
     if (busy) {
       return;
     }
-    // The control that holds the focus, which the fields held lose: it takes it back with the answer.
+    // The control that holds the focus, which the fields held lose: it takes it back with the
+    // answer.
     const active = activeControl(controls.current);
     setBusy(true);
     setOutcome(undefined);
@@ -644,7 +655,8 @@ export function ActualCostMapping({
             setAnswered((before) =>
               before === undefined || before.lock_version < answer.lock_version ? answer : before,
             );
-            // No object named: the mapping of the costs is one of the project, not an object of a list.
+            // No object named: the mapping of the costs is one of the project, not an object of a
+            // list.
             say(t("saved"));
           }}
         />

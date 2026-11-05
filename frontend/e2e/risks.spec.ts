@@ -56,6 +56,11 @@ test("reads the risks of a revision: the register and its totals, the detail of 
   await expect(page.getByRole("region", { name: "Couverture des risques" })).toHaveText(
     /Réserve pour risques\s*850\s060,00\s€\s*Provisions restantes\s*500\s000,00\s€\s*Coût des risques survenus\s*200,00\s€\s*réestimé\s*Réestimé des risques survenus \(information\)\s*200,00\s€\s*Écart de couverture\s*349\s860,00\s€/,
   );
+  // The bullet that closes the line of the cost is drawn by the style (jsdom does not draw it).
+  const bullet = page
+    .getByRole("region", { name: "Couverture des risques" })
+    .locator("span[aria-hidden='true'][class*='before:content']");
+  expect(await bullet.evaluate((el) => getComputedStyle(el, "::before").content)).toContain("·");
 
   // The detail of a risk, from its label: its notes, its provision line, its reviews.
   await grid.getByRole("link", { name: "Risque de reprise du câblage" }).click();

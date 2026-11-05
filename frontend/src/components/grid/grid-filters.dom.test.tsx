@@ -31,7 +31,7 @@ function filters(offer: Partial<GridFiltersProps> = {}) {
 }
 
 describe("the row of the filters of the estimate and of the planning", () => {
-  it("renders no row when the grid offers no filter, which would take the space of an empty one [WF-IHM-0070-A]", () => {
+  it("renders no row when the grid offers no filter, which would take the space of an empty one [WF-IHM-0130-A]", () => {
     const { container } = filters();
     expect(container).toBeEmptyDOMElement();
   });
