@@ -21,6 +21,7 @@ import { ComputedAmount, ComputedTotal } from "@/components/computed-amount";
 import { FiguresCard, FiguresGrid, FiguresList } from "@/components/figures-card";
 import { CELL, ListTable } from "@/components/projects/project-tables";
 import { PortfolioRiskMatrix } from "@/components/risks/risk-bubble-chart";
+import { OccurredCost } from "@/components/risks/risk-coverage";
 import { Signal } from "@/components/signal/signal";
 import { TableCell, TableRow } from "@/components/ui/table";
 import { formatDecimal, formatMonth, formatPlanningDate, formatShare } from "@/i18n/format";
@@ -221,7 +222,10 @@ export function CostStructureView({
   );
 }
 
-/** The four amounts of the coverage of the risks, as the contract names them, in its order. */
+/**
+ * The four amounts of the coverage of the risks, as the contract names them, in its order; the
+ * cost of the occurred risks is shown with their reestimated cost beside it (`OccurredCost`).
+ */
 const COVERAGE = [
   ["reserve", "reserve"],
   ["remaining_provisions", "remainingProvisions"],
@@ -232,8 +236,9 @@ const COVERAGE = [
 /**
  * Render the risks: their total, the heaviest with their project, the coverage of the risks over
  * the perimeter — the reference reserves against the remaining provisions and the cost of the
- * risks occurred, and the signed variance, each a sum the server made (WF-PTF-0090) —, the matrix,
- * the period.
+ * risks occurred, and the signed variance, each a sum the server made (WF-PTF-0090) —, the
+ * reestimated cost of the occurred risks in regard of their cost, an information the variance does
+ * not count (WF-RIS-0050, #1953), the matrix, the period.
  */
 export function PortfolioRisksView({ risks }: { readonly risks: Schemas["PortfolioRisks"] }) {
   const t = useTranslations("portfolio.risks");
@@ -252,9 +257,13 @@ export function PortfolioRisksView({ risks }: { readonly risks: Schemas["Portfol
         </FiguresCard>
         <FiguresCard title={t("coverage")}>
           <FiguresList>
-            {COVERAGE.map(([field, name]) => (
-              <ComputedTotal key={field} name={t(name)} amount={risks.coverage[field]} />
-            ))}
+            {COVERAGE.map(([field, name]) =>
+              field === "occurred_cost" ? (
+                <OccurredCost key={field} coverage={risks.coverage} />
+              ) : (
+                <ComputedTotal key={field} name={t(name)} amount={risks.coverage[field]} />
+              ),
+            )}
           </FiguresList>
         </FiguresCard>
       </FiguresGrid>

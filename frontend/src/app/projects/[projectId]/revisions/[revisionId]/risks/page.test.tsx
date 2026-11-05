@@ -385,6 +385,16 @@ describe("the screen of the risks", () => {
     expect(queryOf(LIST)).toEqual({ revision_id: REVISION, limit: "50" });
   });
 
+  it("asks the server to sort the risks by the reestimated amount of the occurred risks, and leaves the place of its null values to it [WF-RIS-0050-A]", async () => {
+    await risksAt({ sort_by: "occurred_reestimated_amount", sort_order: "desc" });
+    expect(queryOf(LIST)).toEqual({
+      revision_id: REVISION,
+      limit: "50",
+      sort_by: "occurred_reestimated_amount",
+      sort_order: "desc",
+    });
+  });
+
   it("presses the states the address filters on", async () => {
     const page = await risksAt({ states: "identified" });
     expect(page).toMatch(/aria-pressed="true"[^>]*>.*?Identified<\/button>/);

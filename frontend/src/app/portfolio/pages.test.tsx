@@ -444,7 +444,20 @@ describe("the screens of the portfolio", () => {
   it("presents the coverage of the risks of the portfolio, each sum as the server made it, the variance signed [WF-PTF-0090-A]", async () => {
     const page = text(await render(RisksPage));
     expect(page).toContain(
-      "Risk coverage Reference reserve 103,703,525.80 Remaining provisions 104,325,697.03 Cost of the occurred risks 4,605,324.00 Coverage variance -5,227,495.23",
+      "Risk coverage Reference reserve 103,703,525.80 Remaining provisions 104,325,697.03 Cost of the occurred risks 4,605,324.00 reestimated Reestimated cost of the occurred risks (information) 4,605,324.00 Coverage variance -5,227,495.23",
+    );
+  });
+
+  it("presents the reestimated cost of the occurred risks in regard of their cost, the server's sum, as an information the variance does not count [WF-PTF-0090-A] [WF-RIS-0050-A]", async () => {
+    const markup = await render(RisksPage);
+    const entry = /<dt[^>]*>Cost of the occurred risks<\/dt><dd[^>]*>(.*?)<\/dd>/.exec(markup)?.[1];
+    expect(entry).toMatch(/<span aria-hidden="true">reestimated<\/span>/);
+    expect(entry).toMatch(
+      /<span class="sr-only">Reestimated cost of the occurred risks \(information\)<\/span>/,
+    );
+    // Four terms of the coverage, the reestimated being no fifth.
+    expect(markup.match(/Reference reserve|Remaining provisions|Coverage variance/g)).toHaveLength(
+      3,
     );
   });
 

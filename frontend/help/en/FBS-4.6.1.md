@@ -15,7 +15,7 @@ The label of a risk is a link to its detail, which opens beside the register. Th
 - **Period of the last review** keeps the risks whose last review falls between two days, the end included.
 - **Not reviewed since the last marking** sets the end of that period to the day of the last marking of the project: the periodic review shows the risks whose probability has not been reviewed since. The server filters, and the totals follow.
 - **Columns** chooses the columns shown.
-- A header sorts the register by its column; the reestimated of occurred and the cell of the matrix are not sorted.
+- A header sorts the register by its column, the reestimated of occurred included; the cell of the matrix is not sorted. When sorting by the reestimated, the place of the risks that bear none — identified or dismissed — is the one the server sets.
 
 ## Its columns and computed values
 
