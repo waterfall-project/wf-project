@@ -51,7 +51,10 @@ exploite.
   la montée a changée sous lui (#1960, option 1 retenue par l'auteur le 2026-11-05) ;
 - la documentation d'installation d'un poste neuf : `INSTALL.md`, `README-fr.md`, `README.md` et
   `CONTRIBUTING.md` relus en entier, et les six points que la mise au point du poste de l'auteur a
-  relevés (constat du 2026-11-05 sur #1925).
+  relevés (constat du 2026-11-05 sur #1925) ;
+- les constats que les lots ont relevés et que l'auteur a tranchés le 2026-11-05 : les noms accessibles
+  de deux boutons et la montée d'`axe-core` (#2004), le test de `revealSideways` (#2009), l'amorce de
+  l'annuaire de test (#1994), et les finitions d'outil (US-1270).
 
 ## Ce qui n'en fait pas partie
 
@@ -78,6 +81,10 @@ exploite.
 - l'essai de la documentation d'installation sur un poste neuf : la preuve d'US-1260 est la
   relecture, contre le Makefile, les workflows et les Dockerfiles qui font foi (décision de l'auteur
   du 2026-11-05) ;
+- la revue des règles ruff et des annotations sous Python 3.14 (#1987) : reportée vers EP-22
+  (décision de l'auteur du 2026-11-05) ;
+- la modification de la spécification pour #1939 (WF-CMP-0020), que l'auteur fait lui-même ; le constat
+  sur `MALFORMED_REQUEST`, que l'auteur n'a pas tranché ;
 - les composants déjà à jour : Keycloak 26.8.1, keycloak-config-cli 6.5.1-26.5.5, Caddy 2.11.7,
   curl 8.23.0, Prism 5.16.0, l'image de Playwright v1.64.1.
 
@@ -115,7 +122,11 @@ Compose des services de test et du Makefile qu'EP-19 écrit.
 - le faux back cherche comme le service : sa table d'`unaccent` est comparée à celle d'un
   PostgreSQL 18 sur chaque point de code Unicode, sans différence (US-1250) ;
 - `INSTALL.md`, les README de la racine et `CONTRIBUTING.md` ne disent plus une étape, un ordre ou
-  une version que le Makefile, les workflows et les Dockerfiles démentent (US-1260).
+  une version que le Makefile, les workflows et les Dockerfiles démentent (US-1260) ;
+- les deux boutons du compte et des rôles ont un nom accessible qui contient leur texte visible, et les
+  parcours d'accessibilité passent sous `axe-core` 4.14.0, aucune règle désactivée (US-1170/L4) ;
+- aucun constat d'EP-20 ne reste ouvert sans décision, et ceux que l'auteur a tranchés le 2026-11-05 sont
+  corrigés par US-1170/L4 ou US-1270.
 
 ## Constats reçus
 
@@ -322,6 +333,19 @@ ne subsiste.
   peut pas le prouver, la version reste en 3.17.11 : le lot ouvre le constat, et l'US se ferme
   sur ce critère. TypeScript
   reste `~6.0`, au dernier patch.
+- **Les noms accessibles et `axe-core` (US-1170/L4)** : `axe-core` 4.14.0 applique la règle
+  `label-content-name-mismatch` (WCAG 2.5.3, « Label in Name »), qui exige que le nom accessible d'un
+  contrôle contienne son texte visible. 85 parcours d'accessibilité sur 387 échouent sur deux boutons
+  (#2004), des défauts qui existaient déjà. Décision de l'auteur du 2026-11-05 :
+  - **le bouton du compte** (`components/shell/account-menu.tsx`) : l'avatar, dont le texte visible est
+    les initiales, devient décoratif (`aria-hidden`) ; le nom « Compte de {name} » est conservé ;
+  - **le bouton des rôles** (`components/admin/user-cells.tsx`) : son nom devient « Rôles de « {name} » :
+    {liste des rôles} », la liste étant son texte visible, dans les catalogues français et anglais ;
+  - les tests unitaires qui lisent ces noms suivent, ainsi que la note de `e2e/axe.ts` ; `axe-core` passe
+    de 4.13.0 à 4.14.0, épinglé exactement ; la règle n'est pas désactivée ;
+  - `revealSideways` (`components/grid/grid-keyboard.ts`) reçoit un test sous `offsetWidth` simulé, qui
+    fixe le défilement latéral attendu, là où le banc fait suivre `clientWidth` à `offsetWidth` (#2009).
+  Le lot ne touche ni le contrat ni le métier.
 - **Redocly** : `REDOCLY_VERSION := 2.72.x` dans le Makefile ; le contrat ne change pas.
 
 ### L'extension de Keycloak (US-1180)
@@ -461,6 +485,40 @@ lit `docs/dev/*.md` : toute commande `make` que le lot y cite existe au Makefile
   renvoi plutôt que recopié. `README-fr.md` fait foi, `README.md` le suit, `INSTALL.md` reste en
   français, `CONTRIBUTING.md` en anglais.
 
+### Les constats d'outil (US-1270)
+
+Aucune table, aucune migration, aucune opération du contrat. Trois lots, qui reprennent les constats
+tranchés le 2026-11-05.
+
+- **L'amorce de l'annuaire (L1, #1994).** Sans `cn=config.ldif`, `deploy/openldap/entrypoint.sh` vide le
+  volume de données et réamorce. C'est juste pour un premier démarrage interrompu, faux quand seul le
+  volume `openldap-config` a disparu : les personnes reçoivent de nouveaux `entryUUID` et Keycloak crée des
+  comptes en double. Option 2 : le script pose un **repère d'amorce** dans le volume de données avant
+  `slapadd -n1`, et ne le retire qu'une fois la configuration copiée dans son volume. Il ne vide et ne
+  réamorce que si le repère est là (une amorce interrompue) ou si les deux volumes sont vides ; des
+  données sans repère et sans configuration, c'est un annuaire qui a servi : le script **refuse** (code 1)
+  et dit son remède, `make service-down WATERFALL_RESET_DATA=yes`. Les volumes de l'image d'`osixia`,
+  qui portent données et configuration, démarrent comme aujourd'hui. Le lot éprouve les trois cas sur
+  des volumes jetables, et met le guide (« l'annuaire est une image que le dépôt construit ») à jour.
+- **Le recadrage du guide (L2, #2012).** Les paragraphes de prose de `docs/dev/README.md` et
+  `README-fr.md` de plus de 100 colonnes (hors tableaux et blocs de code ; 163 et 312 lignes au cadrage)
+  sont recadrés à 100 colonnes, sans changer un mot. Aucun contrôle ne le refuse : le lot compte avec
+  `awk 'length>100'` avant et après. Documentation seulement, dans les deux langues, comme le veut
+  `make readmes`.
+- **Le reste (L3).** #1990 : le docstring d'`Unaccent.read` dit qu'une source seule est une règle à
+  traduction vide. #1991 : deux tests (une ligne d'un seul champ entre guillemets, une ligne `x "`) dans
+  les tests de lecture et de refus. #1977, option 1 : `RE_CROSS_REFERENCE` de `docs/spec/tools/build.py`
+  reçoit un commentaire qui dit sa limite (quadratique sur une ligne de `[` non refermés), rien n'est
+  réécrit ; `docs/spec/README.md` et `README-fr.md` (l. 40) disent « INSTALL.md à la racine ». Le
+  commentaire périmé sur `uuid.uuid7` (`backend/src/waterfall/platform/identifiers.py`) est corrigé : 3.14
+  l'a. Les points de style (conception d'EP-20 sur `epic/EP-20`, alignement du commentaire de pnpm dans
+  les deux README, `INSTALL.md` l. 24) sont jugés par le lot, qui les écrit dans sa pull request. Enfin
+  deux constats d'outil jamais ouverts : (a) `make check-tools` compare `python3` à `tools/.python-version`
+  (majeure et mineure) et avertit sinon, et `e2e.yml` lit ce fichier au lieu d'écrire 3.14 en dur, sans
+  fixer le patch ; (b) la ligne 40 de `docs/spec/README.md` et `README-fr.md` dit « Python 3.14 (celui de
+  `tools/.python-version`) » et non « Python 3.11+ ». La modification de `docs/spec` repose sur l'accord
+  de l'auteur du 2026-11-05, que le lot cite.
+
 ### Ordre de construction
 
 1. US-1130, PostgreSQL 18 : la montée qui casse, d'abord, sur une branche où rien d'autre n'a bougé ;
@@ -477,7 +535,10 @@ lit `docs/dev/*.md` : toute commande `make` que le lot y cite existe au Makefile
    que `tools/` et `DECISIONS.md` ; elle se livre à tout moment ;
 9. US-1260, la documentation : après US-1200, US-1150, US-1160/L1 et US-1170/L1 et L2, pour relire
    l'état final de ces quatre fichiers ;
-10. US-1190, la veille : en dernier, sur les épinglages de leur forme finale.
+10. US-1190, la veille : en dernier, sur les épinglages de leur forme finale ;
+11. US-1170/L4, après L3 : `axe-core` et les deux noms accessibles ;
+12. US-1270, les constats d'outil, qu'aucune dépendance ne retient : L1 et L2 touchent le guide et ne se
+    livrent pas ensemble ; L3 est indépendant.
 
 Les fichiers qui reviennent : `compose.service.yaml` (US-1130, 1140, 1150),
 `compose.prod.yaml` (US-1130, 1140), `backend/Dockerfile` (US-1130, 1160), les workflows (US-1130,
@@ -510,6 +571,12 @@ elle dépend. Le plan de lots en tire ses « Pas avec ».
 | Les valeurs des secrets de poste ne s'écrivent que dans `keycloak.yml`, `INSTALL.md` donne la commande qui en tire le fichier (auteur, 2026-11-05) | copier les valeurs dans `INSTALL.md` : elles divergent déjà (`devpostgres`, `chainonlypostgres`) |
 | La permission d'`enqueuePullRequest` se documente dans `docs/dev/agents.md` et ne se versionne pas dans `.claude/settings.json` (auteur, 2026-11-05, pour l'endroit ; le choix de ne pas la versionner est du cadrage) | la poser dans le `.claude/settings.json` du dépôt : elle s'appliquerait à tous ceux qui clonent, et la porte d'une mutation de plus ne se donne pas par un fichier versionné |
 | La documentation d'installation se prouve par relecture contre ce qui fait foi (auteur, 2026-11-05) | un essai sur un poste neuf : il n'y en a pas de disponible |
+| Les noms accessibles et `axe-core` 4.14.0 par un lot d'US-1170, L4 ; avatar décoratif, rôles nommés par leur liste (auteur, 2026-11-05, #2004) | un autre EPIC d'accessibilité : le critère d'`axe-core` 4.14.0 d'US-1170 resterait ouvert ; désactiver `label-content-name-mismatch` : un contournement d'outil |
+| Le test de `revealSideways` dans le même lot (#2009) | un EPIC du front : même banc, même lot, un trou de couverture sans défaut |
+| L'amorce de l'annuaire par un repère, qui refuse sinon (auteur, 2026-11-05, option 2 de #1994) | l'option 1, garder le réamorçage comme compromis et le nommer : un `docker volume rm` d'un seul volume efface en silence des données que Keycloak a lues |
+| La limite de la regex de `build.py` en commentaire, rien de réécrit (auteur, 2026-11-05, option 1 de #1977) | un petit analyseur avec un test de 20 000 `\[` : le risque ne le justifie pas, aucun paragraphe de la spécification n'approche cette taille |
+| #1987, la revue de ruff sous 3.14, vers EP-22 par une US (auteur, 2026-11-05) | un lot d'EP-20 : EP-20 est livré par ses lots, et cette revue peut changer des règles et le code du back |
+| Les finitions en US-1270 à trois lots, le recadrage du guide à part (auteur, 2026-11-05) | un lot de finitions unique : le recadrage réécrit près de 950 lignes et noierait le reste ; rouvrir US-1150 pour l'annuaire : elle est `fini` |
 | Les minima de WF-CMP-0020 inchangés ; un constat de spécification les propose à 18 et 8 (auteur, 2026-11-03) | les changer dans EP-20 : aucun agent ne modifie la spécification |
 
 ---
@@ -676,7 +743,13 @@ les écrans du référentiel sur une chaîne en retard.
 - propre à l'US : Redocly CLI est à la version 2.72.1 au moins, et `make lint-openapi` passe sur
   le contrat sans le changer ;
 - propre à l'US : les tests du front, son lint, son contrôle de types, sa construction pour la
-  production et les parcours de bout en bout passent.
+  production et les parcours de bout en bout passent ;
+- propre à l'US : le bouton du compte et le bouton des rôles ont un nom accessible qui contient leur
+  texte visible (WCAG 2.5.3, « Label in Name ») : l'avatar du compte est décoratif, le bouton des rôles
+  se nomme « Rôles de « {name} » : {liste des rôles} » ; les parcours d'accessibilité passent sous
+  `axe-core` 4.14.0, aucune règle désactivée (#2004) ;
+- propre à l'US : un test fixe le défilement latéral de `revealSideways` sous `offsetWidth` simulé
+  (#2009).
 
 ---
 
@@ -906,3 +979,37 @@ du poste de l'auteur.
 Un essai de la documentation sur un poste neuf. Le guide de développement, qui dit déjà où poser
 `WATERFALL_SLOTS`. Les messages de `make check-tools`. L'installation de Claude Code et ses autres
 réglages que la permission d'`enqueuePullRequest`.
+
+---
+
+## US-1270 — Les constats d'outil de l'EPIC sont corrigés
+
+- **statut** : à faire
+- **exigences** : aucune — outil du dépôt
+- **opérations** : aucune
+- **issue** : <rempli à l'ouverture>
+
+**En tant que** développeur, **je veux** que les constats d'outil et de documentation relevés pendant
+EP-20 soient corrigés, **afin que** l'EPIC se livre sans dette ouverte sur ce qu'il a touché.
+
+**Critères d'acceptation.**
+
+- propre à l'US : l'amorce de l'annuaire de test ne réamorce que sur un repère d'amorce posé par elle, ou
+  sur deux volumes vides ; sur des données servies dont la configuration a disparu, elle refuse et dit
+  `make service-down WATERFALL_RESET_DATA=yes` ; le lot l'éprouve sur trois cas de volumes (#1994) ;
+- propre à l'US : les paragraphes de prose de `docs/dev/README.md` et `README-fr.md` tiennent en 100
+  colonnes, hors tableaux et blocs de code, sans qu'un mot change (#2012) ;
+- propre à l'US : le docstring d'`Unaccent.read` dit qu'une source seule est une règle à traduction vide,
+  et deux tests couvrent une ligne d'un seul champ entre guillemets et une ligne `x "` (#1990, #1991) ;
+- propre à l'US : la limite de `RE_CROSS_REFERENCE` est dite en commentaire dans `docs/spec/tools/build.py`,
+  et `docs/spec/README.md` comme `README-fr.md` disent « INSTALL.md à la racine » (#1977) ;
+- propre à l'US : `make check-tools` avertit quand `python3` n'est pas de la version de
+  `tools/.python-version`, `e2e.yml` lit ce fichier sans fixer le patch, et `docs/spec/README.md` comme
+  `README-fr.md` disent « Python 3.14 (celui de `tools/.python-version`) » ;
+- propre à l'US : le commentaire sur `uuid.uuid7` et les points de style que le lot relève sont corrigés,
+  et la pull request les liste.
+
+**Notes de réalisation.** Décisions de l'auteur du 2026-11-05 (« Conception », « Les constats d'outil »).
+La modification de `docs/spec` repose sur son accord du même jour.
+
+**Hors périmètre.** #1987 (EP-22), #1939 et le constat sur `MALFORMED_REQUEST`.

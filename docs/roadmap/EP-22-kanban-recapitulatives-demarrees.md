@@ -3,7 +3,7 @@ id: EP-22
 titre: Le Kanban signale la récapitulative qui n'attend plus que ses lignes propres — le contrat, le faux back et la carte
 statut: en cours
 depend_de: EP-17
-famille: front
+famille: front, plateforme
 issue: 1966
 ---
 
@@ -24,6 +24,10 @@ des EPIC de domaine ; et il dépend d'EP-17, dont la carte d'US-0730b n'existe q
 n'empêche pas EP-05 : il touche au contrat figé par une entrée de `docs/api/DECISIONS.md`, comme le
 veut « La règle d'après le gel ».
 
+Par décision de l'auteur du 2026-11-05, il reçoit aussi la revue des règles ruff et des annotations
+sous Python 3.14 (#1987, relevée par EP-20) : une US d'outil du dépôt, sans lien avec le Kanban, d'où
+la famille `plateforme` en plus de `front`.
+
 ## Ce qui en fait partie
 
 - le contrat de `listStartableTasks` : sa description, un exemple `startable_tasks_awaiting_own_lines`,
@@ -31,12 +35,14 @@ veut « La règle d'après le gel ».
 - le faux back et le témoin qui servent ces exemples (`mockcore.startable`, `mockkanban`,
   `mockreview`, `mockdata`) et leurs tests — US-1240 ;
 - la carte d'US-0730b lue sur ce nouvel exemple, et l'aide FBS-4.5.3 — US-1240.
+- la revue des règles ruff et des annotations sous Python 3.14 du back et des outils — US-1280.
 
 ## Ce qui n'en fait pas partie
 
 - le service réel de `listStartableTasks` : EP-09, qui clôt WF-RAE-0030, le sert tel que le contrat le
   dit ; EP-06 clôt WF-PLA-0040 ;
-- tout autre changement de contrat ;
+- tout autre changement de contrat, et toute réécriture du code du back que la revue de #1987 ne
+  décide pas ;
 - la version du contrat : `info.version` reste 1.0.0 (décision de l'auteur du 2026-11-04).
 
 ## Exigences réalisées
@@ -61,6 +67,7 @@ EP-17 livré (la carte d'US-0730b et son aide sont sur sa branche). Décisions d
   démarrée qui n'attend plus que ses lignes propres, et la carte la signale ;
 - `make build-openapi`, `make inventory`, `make mock-data-up-to-date`, `make client-up-to-date` et
   `make server-models-up-to-date` passent ; `docs/api/DECISIONS.md` a son entrée ;
+- la revue de #1987 est rendue (US-1280) : ses décisions sont appliquées ou écrites, et le constat fermé ;
 - `make roadmap` passe.
 
 ## Constats reçus
@@ -68,6 +75,8 @@ EP-17 livré (la carte d'US-0730b et son aide sont sur sa branche). Décisions d
 - #1851 — contrat : le Kanban ne liste jamais une récapitulative, que `KanbanTask` dit signaler
   (`awaiting_own_lines`) ; reporté d'EP-17 (décision de l'auteur du 2026-11-04), à rattacher à l'issue
   de l'EPIC à son ouverture ; titre et label passent à `EP-22`.
+- #1987 — outil : revue des règles ruff et des annotations sous Python 3.14 ; reportée d'EP-20
+  (décision de l'auteur du 2026-11-05) à US-1280 ; titre et label passent à `EP-22`.
 
 ## Conception
 
@@ -113,10 +122,23 @@ tranchée, et s'inscrit dans `docs/api/DECISIONS.md` (« La règle d'après le g
 - **EP-09** reçoit une ligne dans ses « Constats reçus » : son service sert `listStartableTasks` tel que
   ce contrat le dit.
 
+### La revue de ruff sous Python 3.14 (US-1280)
+
+Aucune table, aucun contrat. Python 3.14 (PEP 649 et 749) n'évalue plus les annotations à la
+définition. Ruff, en `py314`, range sous `TYPE_CHECKING` les imports qu'une annotation seule emploie
+(TC001 à TC003), alors que FastAPI, pydantic et SQLAlchemy les lisent à l'exécution : US-1160/L1 d'EP-20
+a déclaré `runtime-evaluated-base-classes` et une exception TC001–TC003 sur `backend/src/waterfall/api/**`.
+La revue répond, par une décision écrite dans la pull request et reportée au guide de Python : les
+`from __future__ import annotations` (43 fichiers au 2026-11-05) sont-ils à retirer ; que changent `UP` et
+`FA` sous `py314` ; une écriture des routes permet-elle de se passer de l'exception sur `api/**` ; quelles
+nouveautés de 3.14 (PEP 758, chaînes de gabarit) valent d'être employées, sans réécriture gratuite. Aucune
+règle n'est relâchée pour y parvenir (`docs/dev/agents.md`).
+
 ### L'ordre de construction
 
 1. Le contrat, le faux back, les exemples et l'entrée de DECISIONS.md, avec leurs cibles engendrées.
 2. Puis le front : le test de la carte, le glisser-déposer, l'aide.
+3. US-1280, indépendante : elle ne touche que le back, les outils et le guide de Python.
 
 ### Décisions
 
@@ -129,6 +151,8 @@ tranchée, et s'inscrit dans `docs/api/DECISIONS.md` (« La règle d'après le g
   `task_is_summary`, qui dirait ce que `task_without_lines` dit déjà et ajouterait une valeur à l'énumération
   figée.
 - **`info.version` reste 1.0.0**. Écarté : 1.0.1, pour un contenu rendu qui ne change aucune forme.
+- **#1987 est une US d'EP-22, famille élargie à `plateforme`** (auteur, 2026-11-05). Écartés : un lot
+  d'EP-20, livré ; un simple « Constat reçu » : sans US ni lot, personne ne l'aurait travaillé.
 - **Un EPIC à part, après EP-17.** Écartés : EP-17, dont la définition de fini ferme `docs/api` ; le
   contrat seul sur `main`, qui sert pourtant le Kanban d'EP-17.
 
@@ -192,3 +216,28 @@ il ne le corrige pas en silence.
 
 **Hors périmètre.** Le service réel de `listStartableTasks` (EP-09) et l'état des récapitulatives
 (EP-06).
+
+---
+
+## US-1280 — La revue des règles ruff et des annotations sous Python 3.14
+
+- **statut** : à faire
+- **exigences** : aucune — outil du dépôt
+- **opérations** : aucune
+- **issue** : <rempli à l'ouverture>
+
+**En tant que** développeur, **je veux** que les règles de ruff et l'écriture des annotations soient
+revues pour Python 3.14, **afin que** le code n'emporte ni exception inutile ni import évalué à tort
+(#1987).
+
+**Critères d'acceptation.**
+
+- propre à l'US : la pull request tranche, pour chacun des quatre points de #1987 (`from __future__ import
+  annotations`, jeux `UP` et `FA`, exception TC001–TC003 sur `api/**`, nouveautés de 3.14), ce qui est
+  retiré, gardé ou employé, avec sa raison ;
+- propre à l'US : ce qui est décidé est appliqué, `make check` passe, et aucune règle n'est relâchée ni
+  contournée par un commentaire d'exemption ;
+- propre à l'US : le guide de Python (`docs/dev/python.md`) dit la règle d'écriture des annotations
+  sous 3.14.
+
+**Hors périmètre.** Toute réécriture que la revue ne décide pas.
