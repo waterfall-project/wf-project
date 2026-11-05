@@ -417,9 +417,10 @@ for (const screen of WALKED_SCREENS) {
                 "renamed, or none classed as such",
             ).toBe(true);
           }
+          const opened = found.length === 0 ? "nothing" : found.map(({ said }) => said).join("; ");
           test.info().annotations.push({
             type: "opened by a gesture",
-            description: `${width}: ${found.length === 0 ? "nothing" : found.map(({ said }) => said).join("; ")}`,
+            description: `${width}: ${opened}`,
           });
           for (const opener of found) {
             await checkOpened(page, opener, width, reopen);
