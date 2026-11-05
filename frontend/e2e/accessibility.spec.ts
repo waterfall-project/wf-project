@@ -181,6 +181,7 @@ function noteUndecided(
 
 const WALKED_SCREENS = [...tableScreens(), ...OTHER_SCREENS, ...DIFFERENTIAL_SCREENS];
 
+// Guard of the harness, not a Verif: the shell must be played somewhere.
 test("walks the screen of reference, where the triggers of the shell are played", () => {
   expect(
     WALKED_SCREENS.some(({ code }) => code === SHELL_SCREEN),
@@ -412,7 +413,8 @@ for (const screen of WALKED_SCREENS) {
           if (screen.code === SHELL_SCREEN) {
             expect(
               found.some(({ shell }) => shell),
-              `the screen of reference ${SHELL_SCREEN} plays no trigger of the shell: renamed, or none classed as such`,
+              `the screen of reference ${SHELL_SCREEN} plays no trigger of the shell: ` +
+                "renamed, or none classed as such",
             ).toBe(true);
           }
           test.info().annotations.push({
