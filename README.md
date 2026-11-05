@@ -106,8 +106,9 @@ To set up a workstation, read [`INSTALL.md`](INSTALL.md) (in French).
 
 ```bash
 make                      # list the commands
+npm install --global pnpm   # pnpm, once
 make check-tools          # tell me what is missing
-make check BASE=origin/epic/EP-01  # the checks of what my change touches
+make check BASE=origin/epic/EP-nn  # the checks of what my change touches
 make check-all            # run every family of checks
 make dev                  # the front against the fake back, on http://localhost:3000
 make mock                 # the fake back alone, served from the contract's examples
@@ -120,8 +121,9 @@ make generate-client      # regenerate the front's API client from the contract
 
 Prerequisites: [uv](https://docs.astral.sh/uv/), which brings Python 3.14 for the back and
 the tools; a Python 3.14 or later on the `PATH` as `python3`, which builds the projection;
-Node 26 and pnpm (`npm install --global pnpm`, once); Docker, for `make dev`; `pandoc` 3.13, the
-version the projection is generated with; `openssl`; and, to validate the diagrams, `mmdc`,
+Node 26 and pnpm (`npm install --global pnpm`, once); Docker, for `make dev`; the PostgreSQL 18
+client, for the backup tests; `pandoc` 3.13, the version the projection is generated with;
+`openssl`, to draw another Garage secret than the workflow's; and, to validate the diagrams, `mmdc`,
 installed through npm. [`INSTALL.md`](INSTALL.md) (in French) says where to find pandoc 3.13 on
 Ubuntu 26.04, how to install `mmdc` and what to put in `~/.bashrc`.
 
@@ -150,7 +152,8 @@ The code is under the [GNU Affero General Public License v3.0](LICENSE) only.
 
 The specification — `docs/spec/stb-waterfall.docx`, its sources `waterfall.visuels.drawio` and
 `figures/`, and the projection `waterfall-spec.md` — is published under the
-[Creative Commons Attribution-ShareAlike 4.0 International](https://creativecommons.org/licenses/by-sa/4.0/deed.fr)
+[Creative Commons Attribution-ShareAlike
+4.0 International](https://creativecommons.org/licenses/by-sa/4.0/deed.fr)
 licence (CC BY-SA 4.0), © 2026 Projet Waterfall. Attribution: « Projet Waterfall,
 https://www.waterfall-project.pro ». The name and the logo « Waterfall » are not covered by this
 licence.

@@ -111,8 +111,9 @@ Pour installer un poste, lire [`INSTALL.md`](INSTALL.md).
 
 ```bash
 make                      # liste les commandes
+npm install --global pnpm   # pnpm, une fois
 make check-tools          # dit ce qui manque
-make check BASE=origin/epic/EP-01  # les contrôles de ce que ma modification touche
+make check BASE=origin/epic/EP-nn  # les contrôles de ce que ma modification touche
 make check-all            # toutes les familles de contrôles
 make dev                  # le front contre le faux back, sur http://localhost:3000
 make mock                 # le faux back seul, servi depuis les exemples du contrat
@@ -123,12 +124,13 @@ make build-doc            # régénère la projection Markdown depuis Word et dr
 make generate-client      # régénère le client d'API du front depuis le contrat
 ```
 
-Prérequis : [uv](https://docs.astral.sh/uv/), qui apporte Python 3.14 pour le back et les
-outils ; un Python 3.14 ou plus sur le `PATH`, sous le nom `python3`, qui construit la
-projection ; Node 26 et pnpm (`npm install --global pnpm`, une fois) ; Docker, pour `make dev` ;
-`pandoc` 3.13, la version avec laquelle la projection est engendrée ; `openssl` ; et, pour valider
-les diagrammes, `mmdc`, installé par npm. [`INSTALL.md`](INSTALL.md) dit où trouver pandoc 3.13
-sur Ubuntu 26.04, comment installer `mmdc` et quoi poser dans le `~/.bashrc`.
+Prérequis : [uv](https://docs.astral.sh/uv/), qui apporte Python 3.14 pour le back et les outils ;
+un Python 3.14 ou plus sur le `PATH`, sous le nom `python3`, qui construit la projection ; Node 26
+et pnpm (`npm install --global pnpm`, une fois) ; Docker, pour `make dev` ; le client PostgreSQL 18,
+pour les tests des sauvegardes ; `pandoc` 3.13, la version avec laquelle la projection est
+engendrée ; `openssl`, pour tirer un autre secret de Garage que celui du workflow ; et, pour valider
+les diagrammes, `mmdc`, installé par npm. [`INSTALL.md`](INSTALL.md) dit où trouver pandoc 3.13 sur
+Ubuntu 26.04, comment installer `mmdc` et quoi poser dans le `~/.bashrc`.
 
 ## Pile technique
 
@@ -154,7 +156,8 @@ Le code est sous [GNU Affero General Public License v3.0](LICENSE) uniquement.
 
 La spécification — `docs/spec/stb-waterfall.docx`, ses sources `waterfall.visuels.drawio` et
 `figures/`, et la projection `waterfall-spec.md` — est publiée sous licence
-[Creative Commons Attribution – Partage dans les mêmes conditions 4.0 International](https://creativecommons.org/licenses/by-sa/4.0/deed.fr)
+[Creative Commons Attribution – Partage dans les mêmes conditions
+4.0 International](https://creativecommons.org/licenses/by-sa/4.0/deed.fr)
 (CC BY-SA 4.0), © 2026 Projet Waterfall. Attribution : « Projet Waterfall,
 https://www.waterfall-project.pro ». Le nom et le logo « Waterfall » ne sont pas couverts par
 cette licence.

@@ -17,7 +17,7 @@ Pour installer une plateforme de démonstration à partir des images publiées, 
 | Node 26 (par nvm, par exemple) | le front, et pnpm, que `npm install --global pnpm` installe une fois |
 | Docker et son greffon Compose | `make dev`, la plateforme de service, les images |
 | Le client PostgreSQL 18 (`postgresql-client-18`, celui d'Ubuntu 26.04) | `pg_dump` et `pg_restore` dans `/usr/bin`, que les tests des sauvegardes et des restaurations appellent : ceux de la majeure du serveur, ni plus récents ni plus anciens (#982) |
-| `openssl` | un secret au tirage, si l'on ne veut pas celui du workflow (« Les secrets », plus bas) |
+| `openssl` | tirer un autre secret que celui du workflow, pour Garage (« Les secrets », plus bas) |
 | `pandoc` 3.13 | la projection de la spécification (une autre version écrit un autre Markdown) |
 | `mmdc`, installé par npm | facultatif : la validation des diagrammes (`make build-doc`, `make check-spec`) |
 
@@ -27,9 +27,9 @@ Pour installer une plateforme de démonstration à partir des images publiées, 
 ### pandoc 3.13
 
 La projection de la spécification est engendrée avec pandoc 3.13, et `make check-tools` l'attend :
-avec une autre version, `make check-spec` échoue, sur un document que personne n'a changé. Le dépôt
-d'Ubuntu 26.04 offre une version plus ancienne (3.7), qu'il ne faut pas installer. On prend le
-paquet de la version 3.13 sur le site du projet, comme la chaîne, et on vérifie son empreinte, que
+avec une autre version, `make check-spec` échoue, sur un document que personne n'a changé. La pandoc
+de l'archive d'Ubuntu n'est pas la 3.13 : on ne l'installe pas. On prend le paquet de la version
+3.13 sur le site du projet, comme la chaîne, et on vérifie son empreinte, que
 `.github/workflows/spec.yml` écrit (`PANDOC_SHA256`), depuis la racine du clone (« Le dépôt », plus
 bas) :
 
@@ -122,8 +122,8 @@ charge ne fait rien tant qu'il n'existe pas. Un nouveau terminal relit le `~/.ba
 ## Une seule fois
 
 ```bash
-make check-tools          # tout doit être « ok »
 npm install --global pnpm   # pnpm, une fois : il prend lui-même la version que le front épingle
+make check-tools          # tout doit être « ok »
 make install-front        # les dépendances du front, telles que pnpm-lock.yaml les fixe
 make e2e-browsers         # le navigateur des parcours de bout en bout (Chromium de Playwright)
 ```
@@ -277,9 +277,10 @@ l'amorçage, Keycloak renvoie au front, sur `http://localhost:3000`.
 - **L'écoute sur toutes les interfaces.** Keycloak notifie la fermeture des sessions au front par
   `http://host.docker.internal:3000`. Le front doit donc écouter sur toutes les interfaces du
   poste.
-- **L'adresse du front.** Le royaume l'apprend à chaque `make service-up` (`WATERFALL_FRONT_ADDRESS`,
-  `http://localhost:3000` par défaut), et `make e2e-service` la remplace par celle de ses
-  parcours jusqu'au démarrage suivant. Après un `make e2e-service`, relancer `make service-up`.
+- **L'adresse du front.** Le royaume l'apprend à chaque `make service-up`
+  (`WATERFALL_FRONT_ADDRESS`, `http://localhost:3000` par défaut), et `make e2e-service` la
+  remplace par celle de ses parcours jusqu'au démarrage suivant. Après un `make e2e-service`,
+  relancer `make service-up`.
 - **Ce que la chaîne éprouve.** Ce lancement a été vérifié sur un poste. La chaîne, elle,
   n'éprouve que `make e2e-service`, qui donne les mêmes réglages au front, mais à travers le
   mandataire Prism.
@@ -308,6 +309,6 @@ make service-down         # arrête la plateforme ; WATERFALL_RESET_DATA=yes sup
 ## Pour aller plus loin
 
 - [`CONTRIBUTING.md`](CONTRIBUTING.md) : comment changer la spécification, le contrat ou le code.
-- [`docs/dev/README-fr.md`](docs/dev/README-fr.md) : le guide de développement, avec toutes les commandes
-  (« Commandes »), la chaîne (« Chaîne ») et les tests (« Tests »).
+- [`docs/dev/README-fr.md`](docs/dev/README-fr.md) : le guide de développement, avec toutes les
+  commandes (« Commandes »), la chaîne (« Chaîne ») et les tests (« Tests »).
 - `make help` : la liste des commandes.

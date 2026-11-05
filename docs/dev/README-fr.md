@@ -2801,9 +2801,9 @@ la plateforme de service — `service-up`, `service-install`, `service-logs`, `s
 de l'annuaire et ses six ports ; `build-keycloak`, l'image de Keycloak ; `e2e`, `e2e-measure` et
 `e2e-service`, les ports du faux back et des fronts ; `check-front-image`, l'image du front. Dans un
 worktree lié qui ne tient pas de créneau, ces cibles échouent avant de rien lancer, en disant
-`make slot` ; les autres ne le demandent pas. `make production-trial`, hors des créneaux — ports 80 et 443, projet
-`waterfall-production-trial` —, ne tourne qu'au créneau 0 : depuis le worktree d'un lot, il
-échoue d'emblée, en le disant.
+`make slot` ; les autres ne le demandent pas. `make production-trial`, hors des créneaux — ports 80
+et 443, projet `waterfall-production-trial` —, ne tourne qu'au créneau 0 : depuis le worktree d'un
+lot, il échoue d'emblée, en le disant.
 
 **Les services des tests** (US-1110). Les tests du back ont besoin de PostgreSQL, de Redis et du
 stockage objet, ceux du front de Redis (« Tests »). `make test-services` démarre les trois pour le

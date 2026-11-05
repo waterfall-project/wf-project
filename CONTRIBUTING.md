@@ -15,20 +15,21 @@ for renegotiation file by file. Taking part means holding to the
 service platform. In short:
 
 ```bash
+npm install --global pnpm         # once: it then runs the version the front pins
 make check-tools                  # tells you what is missing
-npm install --global pnpm        # once: it then runs the version the front pins
 make check-all                    # every family of checks, as the chain runs them
 make check BASE=origin/epic/EP-nn # only what your change touches, before you push
 ```
 
-You need [uv](https://docs.astral.sh/uv/), which installs Python 3.14 for the back and the
-tools; a Python 3.14 or later on the `PATH` as `python3`, which builds the specification
-projection; Node 26 and pnpm (`npm install --global pnpm`, once); Docker, for `make dev`; `pandoc`
-3.13 — the version the projection is generated with, since another one writes another Markdown;
-`openssl`; and `mmdc`, installed through npm, if you want the diagrams validated.
-[`INSTALL.md`](INSTALL.md) says where to find pandoc 3.13 on Ubuntu 26.04, how to install `mmdc`
-and what to put in `~/.bashrc`. If you drive the work with agents, the permission that lets a
-deliverer put its pull request in the merge queue is in
+You need [uv](https://docs.astral.sh/uv/), which installs Python 3.14 for the back and the tools; a
+Python 3.14 or later on the `PATH` as `python3`, which builds the specification projection; Node 26
+and pnpm (`npm install --global pnpm`, once); Docker, for `make dev`; the PostgreSQL 18 client
+(`postgresql-client-18`), whose `pg_dump` and `pg_restore` the backup tests call; `pandoc` 3.13 —
+the version the projection is generated with, since another one writes another Markdown; `openssl`,
+to draw another Garage secret than the workflow's; and `mmdc`, installed through npm, if you want
+the diagrams validated. [`INSTALL.md`](INSTALL.md) says where to find pandoc 3.13 on Ubuntu 26.04,
+how to install `mmdc` and what to put in `~/.bashrc`. If you drive the work with agents, the
+permission that lets a deliverer put its pull request in the merge queue is in
 [`docs/dev/agents.md`](docs/dev/agents.md) (in French), « La mise en file ».
 
 ## Changing the specification
@@ -156,7 +157,8 @@ written again.
 
 Waterfall's code is published under the [GNU Affero General Public License v3.0](LICENSE)
 only; its specification — the Word document, its draw.io and Mermaid sources, and the
-projection generated from them — under [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/deed.fr);
+projection generated from them —
+under [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/deed.fr);
 its interface contract — the OpenAPI files of `docs/api` — under the
 [Apache License 2.0](LICENSES/Apache-2.0.txt). [REUSE.toml](REUSE.toml) states the licence of
 every file.

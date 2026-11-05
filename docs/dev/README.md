@@ -2684,17 +2684,16 @@ also adds `waterfall-test`, a public client that accepts a password outside the 
 realm, for the tokens the tests of the platform need: `admin-cli`, which Keycloak
 creates in each realm, no longer accepts one (#644), and its tokens are not for the API, for lack of
 the `waterfall-api` audience. These files are applied after the realm, under a remote state of
-their own (`--import.cache.key=development`, service `keycloak-realm`): keycloak-config-cli deletes the
-clients its state names and that the files it applies do not declare, and without that the
-test client would take those of the realm with it.
-The directory is an image the repository builds, `deploy/openldap/Dockerfile`, on Debian's `slapd`
-(US-1150): at its first start, its entrypoint creates its configuration and loads
-`deploy/keycloak/development/directory.ldif` into it, then never loads anything again. It keeps its
-data in a volume, like the databases: bootstrapped again, it would give its people other
-identifiers than those Keycloak keeps; `WATERFALL_RESET_DATA=yes` deletes it with them. A first
-start interrupted before the copy of the configuration never served: at the next start, the script
-empties the data left behind and loads the seed again. The volumes of the image of before, that of
-`osixia`, serve as they are: their people keep their identifiers.
+their own (`--import.cache.key=development`, service `keycloak-realm`): keycloak-config-cli deletes
+the clients its state names and that the files it applies do not declare, and without that the test
+client would take those of the realm with it. The directory is an image the repository builds,
+`deploy/openldap/Dockerfile`, on Debian's `slapd` (US-1150): at its first start, its entrypoint
+creates its configuration and loads `deploy/keycloak/development/directory.ldif` into it, then never
+loads anything again. It keeps its data in a volume, like the databases: bootstrapped again, it
+would give its people other identifiers than those Keycloak keeps; `WATERFALL_RESET_DATA=yes`
+deletes it with them. A first start interrupted before the copy of the configuration never served:
+at the next start, the script empties the data left behind and loads the seed again. The volumes of
+the image of before, that of `osixia`, serve as they are: their people keep their identifiers.
 
 The ports given here are those of the main repository, at slot 0; a worktree of a lot has those of
 the block of its slot (« The slots of the worktrees », below).
@@ -2779,9 +2778,9 @@ service platform — `service-up`, `service-install`, `service-logs`, `service-d
 of the directory and its six ports; `build-keycloak`, the image of Keycloak; `e2e`, `e2e-measure`
 and `e2e-service`, the ports of the fake back and of the fronts; `check-front-image`, the image of
 the front. In a linked worktree that holds no slot, these targets fail before starting anything,
-saying `make slot`; the others do not ask for it. `make production-trial`, outside the slots — ports 80 and 443, project
-`waterfall-production-trial` —, runs at slot 0 alone: from the worktree of a lot, it fails at once,
-saying so.
+saying `make slot`; the others do not ask for it. `make production-trial`, outside the slots — ports
+80 and 443, project `waterfall-production-trial` —, runs at slot 0 alone: from the worktree of a
+lot, it fails at once, saying so.
 
 **The services of the tests** (US-1110). The tests of the back need PostgreSQL, Redis and the
 object storage, those of the front Redis (« Tests »). `make test-services` starts the three for the
