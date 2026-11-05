@@ -14,7 +14,7 @@ import io
 import json
 import tarfile
 from datetime import timedelta
-from pathlib import Path
+from typing import TYPE_CHECKING
 from uuid import UUID, uuid4
 
 import pytest
@@ -33,7 +33,6 @@ from installations import (
     sha256,
     written_task,
 )
-from openapi_core import OpenAPI
 from realm import KEY, TestRealm
 from sqlalchemy import func, select, text
 from support import ContractClient, bearer, captured_logs
@@ -55,17 +54,23 @@ from waterfall.migrations.runner import alembic_config, downgrade, upgrade
 from waterfall.platform.audit import Act, AuditEntry, AuditObject, Inscription, record
 from waterfall.platform.database import create_database_engine, engine_url, utc_now
 from waterfall.platform.errors import UnavailableError, UnprocessableError
-from waterfall.platform.keycloak import Keycloak
 from waterfall.platform.keycloak_admin import KeycloakAdmin
 from waterfall.platform.logs import logging_context
-from waterfall.platform.queue import TaskQueue
 from waterfall.platform.restoration import begin_keeping, keep
-from waterfall.platform.settings import ServiceSettings
 from waterfall.platform.tasks import BackgroundTask
 from waterfall.worker import backup
 from waterfall.worker.backup import DATABASES, MANIFEST, BackupTask, dump
 from waterfall.worker.restore import RestoreError, errors_of, extracted, replace
 from waterfall.worker.runner import Timing, Worker
+
+if TYPE_CHECKING:
+    from pathlib import Path
+
+    from openapi_core import OpenAPI
+
+    from waterfall.platform.keycloak import Keycloak
+    from waterfall.platform.queue import TaskQueue
+    from waterfall.platform.settings import ServiceSettings
 
 BACKUPS = "/api/v1/backups"
 # The revision of the schema of the installation, to which a restoration migrates.

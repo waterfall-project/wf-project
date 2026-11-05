@@ -12,8 +12,8 @@ Pour installer une plateforme de démonstration à partir des images publiées, 
 
 | Outil | Pour quoi |
 |---|---|
-| [uv](https://docs.astral.sh/uv/) | Python 3.13 et les dépendances du back et des outils du dépôt |
-| Python 3.11 ou plus, sous le nom `python3` | la projection de la spécification |
+| [uv](https://docs.astral.sh/uv/) | Python 3.14 et les dépendances du back et des outils du dépôt |
+| Python 3.14 ou plus, sous le nom `python3` | la projection de la spécification |
 | Node 24 | le front ; son corepack apporte pnpm |
 | Docker et son greffon Compose | `make dev`, la plateforme de service, les images |
 | Le client PostgreSQL 18 (`postgresql-client-18`, celui d'Ubuntu 26.04) | `pg_dump` et `pg_restore` dans `/usr/bin`, que les tests des sauvegardes et des restaurations appellent : ceux de la majeure du serveur, ni plus récents ni plus anciens (#982) |
@@ -24,7 +24,7 @@ Pour installer une plateforme de démonstration à partir des images publiées, 
 
 **Aucun environnement virtuel à créer.** Chaque commande Python du Makefile passe par
 `uv run --frozen`. uv crée alors l'environnement du projet concerné (`backend/.venv`,
-`tools/.venv`), installe Python 3.13 au besoin, puis les paquets tels que `uv.lock` les fixe.
+`tools/.venv`), installe Python 3.14 au besoin, puis les paquets tels que `uv.lock` les fixe.
 
 ## Le dépôt
 

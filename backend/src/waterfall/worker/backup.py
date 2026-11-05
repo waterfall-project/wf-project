@@ -20,15 +20,11 @@ import shutil
 import subprocess
 import tarfile
 import tempfile
-from collections.abc import Mapping
 from dataclasses import dataclass
-from datetime import datetime
 from pathlib import Path
-from typing import IO, Any
+from typing import IO, TYPE_CHECKING, Any
 
 import psycopg
-from psycopg.rows import TupleRow
-from sqlalchemy.orm import Session
 
 from waterfall import __version__
 from waterfall.core.backups.interface import MANIFEST, TakenBackup, add_backup
@@ -36,9 +32,17 @@ from waterfall.platform.audit import Act
 from waterfall.platform.database import engine_url, utc_now
 from waterfall.platform.errors import UnavailableError
 from waterfall.platform.logs import get_logger
-from waterfall.platform.settings import WorkerSettings
 from waterfall.platform.storage import Bucket
-from waterfall.platform.tasks import Task
+
+if TYPE_CHECKING:
+    from collections.abc import Mapping
+    from datetime import datetime
+
+    from psycopg.rows import TupleRow
+    from sqlalchemy.orm import Session
+
+    from waterfall.platform.settings import WorkerSettings
+    from waterfall.platform.tasks import Task
 
 # The form of the archive, which a restoration reads (US-0440/L2).
 ARCHIVE_FORMAT = 1
@@ -194,7 +198,7 @@ def verified(path: Path, folder: Path) -> bool:
                     shutil.copyfileobj(_member(tar, database["file"]), written, CHUNK)
                 if digest(copy) != database["sha256"] or not listed(copy):
                     return False
-    except (tarfile.TarError, OSError, KeyError, TypeError, ValueError):
+    except tarfile.TarError, OSError, KeyError, TypeError, ValueError:
         return False
     return names == list(DATABASES)
 
@@ -223,7 +227,7 @@ class BackupTask:
         self.bucket = bucket
 
     @classmethod
-    def of(cls, settings: WorkerSettings) -> "BackupTask":
+    def of(cls, settings: WorkerSettings) -> BackupTask:
         """Dump the databases the settings name, as the role of the backup, into its bucket."""
         reached_as = (settings.backup_database_url, settings.keycloak_database_url)
         addresses = (address.get_secret_value() for address in reached_as)

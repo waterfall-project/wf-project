@@ -10,11 +10,13 @@ module that owns a table gives its columns (``AuditColumns``): no table is named
 """
 
 from dataclasses import dataclass
-from datetime import datetime
-from typing import Literal
-from uuid import UUID
+from typing import TYPE_CHECKING, Literal
 
-from sqlalchemy import ColumnElement, SQLColumnExpression
+if TYPE_CHECKING:
+    from datetime import datetime
+    from uuid import UUID
+
+    from sqlalchemy import ColumnElement, SQLColumnExpression
 
 type AuthorKind = Literal["user", "platform"]
 

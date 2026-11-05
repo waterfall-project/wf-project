@@ -10,12 +10,10 @@ write that takes it. An attribution is inscribed in the journal of audit, with t
 and withdrawn, each by its identifier and its label at that moment (WF-SEC-0030).
 """
 
-from collections.abc import Sequence
 from dataclasses import dataclass
-from uuid import UUID
+from typing import TYPE_CHECKING
 
 from sqlalchemy import delete, insert, select
-from sqlalchemy.orm import Session
 
 from waterfall.core.access_roles.administrators import guard_last_administrator
 from waterfall.core.access_roles.roles import HeldRole, roles_held
@@ -28,6 +26,12 @@ from waterfall.core.users.interface import (
 )
 from waterfall.platform.audit import Act, AuditObject, AuditValue, Inscription, record
 from waterfall.platform.errors import FieldError, UnprocessableError
+
+if TYPE_CHECKING:
+    from collections.abc import Sequence
+    from uuid import UUID
+
+    from sqlalchemy.orm import Session
 
 UNKNOWN_ACCESS_ROLE = "UNKNOWN_ACCESS_ROLE"
 VALIDATION_FAILED = "VALIDATION_FAILED"

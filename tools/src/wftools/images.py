@@ -36,10 +36,13 @@ import re
 import subprocess
 import sys
 import tomllib
-from collections.abc import Callable, Iterable, Iterator, Mapping, Sequence
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
 from wftools import REPOSITORY
+
+if TYPE_CHECKING:
+    from collections.abc import Callable, Iterable, Iterator, Mapping, Sequence
 
 REGISTRY = "ghcr.io/waterfall-project"
 """Where the images are published: the packages of the organisation on GitHub."""

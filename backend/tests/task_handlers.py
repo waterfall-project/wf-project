@@ -6,19 +6,24 @@ The handler does what the reading of the accounts will do (US-0370/L2): it write
 as the platform, and inscribes it in the journal, under the correlation of its task.
 """
 
-from collections.abc import Generator
 from contextlib import contextmanager
+from typing import TYPE_CHECKING
 from uuid import UUID
 
 from sqlalchemy import select
-from sqlalchemy.orm import Session
 
 from waterfall.platform.audit import AuditEntry, AuditObject, Inscription, record
 from waterfall.platform.database import Database, utc_now
 from waterfall.platform.logs import logging_context
-from waterfall.platform.queue import TaskQueue
 from waterfall.platform.tasks import BackgroundTask, Task, TaskKind, submit
 from waterfall.worker.runner import lock_run
+
+if TYPE_CHECKING:
+    from collections.abc import Generator
+
+    from sqlalchemy.orm import Session
+
+    from waterfall.platform.queue import TaskQueue
 
 # The account the handler says it updated: an inscription names it without a foreign key.
 UPDATED = UUID("01926f3a-7c00-7000-8000-0000000003a7")

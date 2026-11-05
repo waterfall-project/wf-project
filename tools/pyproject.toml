@@ -5,7 +5,7 @@
 name = "wftools"
 version = "0.1.0"
 description = "Repository tools of Waterfall: they read the specification projection and check the repository against it."
-requires-python = ">=3.13"
+requires-python = ">=3.14"
 dependencies = []
 
 [dependency-groups]
@@ -23,12 +23,12 @@ dev = [
 ]
 
 [build-system]
-requires = ["uv_build>=0.12.19,<0.13.0"]
+requires = ["uv_build>=0.13.7,<0.14.0"]
 build-backend = "uv_build"
 
 [tool.pyright]
 typeCheckingMode = "strict"
-pythonVersion = "3.13"
+pythonVersion = "3.14"
 include = [
     "src",
     "tests",

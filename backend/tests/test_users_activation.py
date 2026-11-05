@@ -11,14 +11,12 @@ itself is tried against the platform (``test_keycloak_authentication.py``).
 
 import time
 from concurrent.futures import ThreadPoolExecutor
-from datetime import datetime
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from uuid import UUID, uuid4
 
 import pytest
 from access_rows import ADMINISTRATION, account, role
 from fastapi.testclient import TestClient
-from openapi_core import OpenAPI
 from realm import KEY, TestRealm
 from sqlalchemy import select, update
 from sqlalchemy.orm import Session
@@ -31,8 +29,14 @@ from waterfall.core.access_roles.tables import AccessRole
 from waterfall.core.users.tables import UserAccount
 from waterfall.platform.audit import AuditEntry
 from waterfall.platform.database import Database, utc_now
-from waterfall.platform.keycloak import Keycloak
-from waterfall.platform.settings import ServiceSettings
+
+if TYPE_CHECKING:
+    from datetime import datetime
+
+    from openapi_core import OpenAPI
+
+    from waterfall.platform.keycloak import Keycloak
+    from waterfall.platform.settings import ServiceSettings
 
 USERS = "/api/v1/users"
 ME = "/api/v1/me"

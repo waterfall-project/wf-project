@@ -9,13 +9,10 @@ deactivated — runs under one advisory lock of transaction, always the same, an
 administrators under it: two such writes never decide each on what the other is changing.
 """
 
-from collections.abc import Generator, Mapping
 from contextlib import AbstractContextManager, contextmanager
-from typing import Any
-from uuid import UUID
+from typing import TYPE_CHECKING, Any
 
 from sqlalchemy import distinct, func, select
-from sqlalchemy.orm import Session
 
 from waterfall.core.access_roles.tables import (
     AccessRole,
@@ -25,6 +22,12 @@ from waterfall.core.access_roles.tables import (
 )
 from waterfall.core.users.interface import LAST_ADMINISTRATOR_CONDITION, active_accounts
 from waterfall.platform.errors import ConflictError
+
+if TYPE_CHECKING:
+    from collections.abc import Generator, Mapping
+    from uuid import UUID
+
+    from sqlalchemy.orm import Session
 
 LAST_ADMINISTRATOR = "LAST_ADMINISTRATOR"
 STATE_FORBIDS_OPERATION = "STATE_FORBIDS_OPERATION"

@@ -9,11 +9,14 @@ table included. The identifiers of the author, the object and the project are no
 an inscription outlives what it names (WF-DAT-0090).
 """
 
-from collections.abc import Sequence
+from typing import TYPE_CHECKING
 
 import sqlalchemy as sa
 from alembic import op
 from sqlalchemy.dialects import postgresql
+
+if TYPE_CHECKING:
+    from collections.abc import Sequence
 
 revision: str = "0003"
 down_revision: str | None = "0002"

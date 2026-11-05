@@ -18,12 +18,15 @@ import re
 import subprocess
 import sys
 import time
-from pathlib import Path
+from typing import TYPE_CHECKING
 
 import pytest
 from test_worktree_slots import MAKEFILE, SLOTS, Workstation, docker_asked
 
 from wftools import REPOSITORY, slots
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 COMPOSE_TEST = REPOSITORY / "deploy" / "compose" / "compose.test.yaml"
 COMPOSE_SERVICE = REPOSITORY / "deploy" / "compose" / "compose.service.yaml"

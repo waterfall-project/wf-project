@@ -13,14 +13,16 @@ import json
 import re
 import subprocess
 import tomllib
-from collections.abc import Iterable, Mapping
-from pathlib import Path
-from typing import Any, cast
+from typing import TYPE_CHECKING, Any, cast
 
 import pytest
 import yaml
 
 from wftools import REPOSITORY, images
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable, Mapping
+    from pathlib import Path
 
 WORKFLOW = REPOSITORY / ".github" / "workflows" / "images.yml"
 COMMIT = "0123456789abcdef0123456789abcdef01234567"

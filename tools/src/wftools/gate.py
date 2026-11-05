@@ -12,7 +12,10 @@ while each family runs only when a pull request touches it.
 import json
 import os
 import sys
-from collections.abc import Mapping
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from collections.abc import Mapping
 
 FAILED = frozenset({"failure", "cancelled"})
 

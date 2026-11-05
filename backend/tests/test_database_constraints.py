@@ -7,13 +7,13 @@ refusal is the database's (WF-DAT-0090).
 """
 
 from datetime import UTC, datetime
+from typing import TYPE_CHECKING
 from uuid import uuid4
 
 import psycopg
 import pytest
 from sqlalchemy import Engine, delete, insert, text
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.sql import Executable
 from support import raw_account
 
 from waterfall.core.access_roles.tables import (
@@ -29,6 +29,9 @@ from waterfall.platform.database import Database
 from waterfall.platform.installation import Installation
 from waterfall.platform.tasks import BackgroundTask
 from waterfall.platform.uploads import FileUpload
+
+if TYPE_CHECKING:
+    from sqlalchemy.sql import Executable
 
 ANONYMIZED = datetime(2026, 10, 8, 9, 30, tzinfo=UTC)
 # An anonymised account as the database holds it: deactivated, without its names nor its address.

@@ -17,10 +17,13 @@ specification it projects, so they cite none.
 import subprocess
 import sys
 import zipfile
-from pathlib import Path
+from typing import TYPE_CHECKING
 
 import build
 import pytest
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 PARAGRAPH = "<w:p><w:r><w:t>Texte</w:t></w:r></w:p>"
 NAMESPACE = 'xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"'

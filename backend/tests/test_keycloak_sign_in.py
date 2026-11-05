@@ -18,18 +18,15 @@ import secrets
 import subprocess
 import threading
 import time
-from collections.abc import Generator, Iterator
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import contextmanager
 from datetime import UTC, datetime
-from typing import Any, NamedTuple
+from typing import TYPE_CHECKING, Any, NamedTuple
 
 import httpx2
 import pytest
 from access_rows import role
-from openapi_core import OpenAPI
 from sqlalchemy import select
-from support import ContractClient, Logs
 from test_keycloak_authentication import (
     DIRECTORY_CREDENTIAL,
     EXTERNAL_CREDENTIAL,
@@ -83,6 +80,12 @@ from waterfall.platform.audit import AuditEntry
 from waterfall.platform.database import Database, utc_now
 from waterfall.platform.keycloak import IdentityProviderError, Keycloak
 from waterfall.platform.keycloak_admin import KeycloakAdmin
+
+if TYPE_CHECKING:
+    from collections.abc import Generator, Iterator
+
+    from openapi_core import OpenAPI
+    from support import ContractClient, Logs
 
 pytestmark = pytest.mark.keycloak
 

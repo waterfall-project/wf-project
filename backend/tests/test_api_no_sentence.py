@@ -12,8 +12,7 @@ property its schema does not declare, where openapi-core validates an object wit
 what the contract does not hold, no answer holds.
 """
 
-from pathlib import Path
-from typing import Any, cast
+from typing import TYPE_CHECKING, Any, cast
 
 import pytest
 from fastapi.routing import APIRoute
@@ -21,7 +20,11 @@ from support import CONTRACT
 from test_contract_declarations import Contract
 
 from waterfall.api.app import create_app
-from waterfall.api.authentication import Services
+
+if TYPE_CHECKING:
+    from pathlib import Path
+
+    from waterfall.api.authentication import Services
 
 # The forms that make a text a code, an identifier, an instant or an address.
 FORMS = {"uuid", "date", "date-time", "uri", "email", "binary", "byte"}

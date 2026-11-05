@@ -16,15 +16,12 @@ write is inscribed in the journal of audit, by the platform (WF-DAT-0070). The r
 account of Waterfall by its identifier alone, read as it is shown when consulted (#920).
 """
 
-from collections.abc import Collection
 from dataclasses import dataclass
-from datetime import datetime
 from enum import StrEnum
-from typing import Literal
+from typing import TYPE_CHECKING, Literal
 from uuid import UUID
 
 from sqlalchemy import desc, insert, select
-from sqlalchemy.orm import Session
 
 from waterfall.core.users.accounts import (
     NewAccount,
@@ -42,6 +39,12 @@ from waterfall.platform.audit import Act, AuditValue
 from waterfall.platform.errors import ConflictError
 from waterfall.platform.keycloak_admin import LocalIdentity, ProviderAccount
 from waterfall.platform.logs import get_logger
+
+if TYPE_CHECKING:
+    from collections.abc import Collection
+    from datetime import datetime
+
+    from sqlalchemy.orm import Session
 
 NAME_MAX_LENGTH = 100
 DIRECTORY = "directory"

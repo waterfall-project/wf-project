@@ -10,14 +10,16 @@ ne couvre aucune exigence »).
 
 import json
 import re
-from collections.abc import Iterator
-from typing import Any, cast
+from typing import TYPE_CHECKING, Any, cast
 
 import pytest
 
 from wftools import REPOSITORY, mockcategories, mockdata, mockhistory, mockreference, mockwitness
 from wftools.mockids import universe
 from wftools.mockwitness import fixture
+
+if TYPE_CHECKING:
+    from collections.abc import Iterator
 
 
 @pytest.fixture(autouse=True)

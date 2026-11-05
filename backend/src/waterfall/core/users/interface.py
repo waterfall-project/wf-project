@@ -21,14 +21,10 @@ administrator the bootstrap created (WF-EXP-0020). An anonymised account has no 
 what names it is ``None``, which the front shows as the neutral label of its catalogue.
 """
 
-from collections.abc import Collection, Iterable, Mapping
 from dataclasses import dataclass
-from datetime import datetime
-from typing import Any
-from uuid import UUID
+from typing import TYPE_CHECKING, Any
 
 from sqlalchemy import select
-from sqlalchemy.orm import Session
 
 from waterfall.core.users.accounts import (
     NOT_FOUND,
@@ -106,9 +102,17 @@ from waterfall.core.users.states import (
     set_state,
 )
 from waterfall.core.users.tables import UserAccount
-from waterfall.platform.audit import Act
 from waterfall.platform.errors import ConflictError, NotFoundError
-from waterfall.platform.keycloak_admin import ProviderAccount
+
+if TYPE_CHECKING:
+    from collections.abc import Collection, Iterable, Mapping
+    from datetime import datetime
+    from uuid import UUID
+
+    from sqlalchemy.orm import Session
+
+    from waterfall.platform.audit import Act
+    from waterfall.platform.keycloak_admin import ProviderAccount
 
 __all__ = [
     "LAST_ADMINISTRATOR_CONDITION",

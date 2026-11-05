@@ -12,8 +12,7 @@ import re
 from dataclasses import replace
 from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
-from pathlib import Path
-from typing import Any, cast
+from typing import TYPE_CHECKING, Any, cast
 
 import pytest
 
@@ -43,6 +42,9 @@ from wftools.mockwitness import (
     N,
 )
 from wftools.mockwitnessrisks import REGISTER
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 type Node = dict[str, Any]
 

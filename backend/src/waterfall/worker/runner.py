@@ -17,15 +17,12 @@ before the maintenance to end, by its lock (``await_run``), before it keeps anyt
 
 import socket
 import time
-from collections.abc import Mapping
 from dataclasses import dataclass
-from typing import Any
-from uuid import UUID
+from typing import TYPE_CHECKING, Any
 
 from pydantic_core import to_jsonable_python
 from redis.exceptions import RedisError, ResponseError
 from sqlalchemy import ColumnElement, Integer, cast, func, select, update
-from sqlalchemy.orm import Session
 
 from waterfall.platform.database import Database, utc_now
 from waterfall.platform.errors import FieldError, ServiceError
@@ -33,6 +30,12 @@ from waterfall.platform.logs import PLATFORM, get_logger, logging_context
 from waterfall.platform.maintenance import Maintenance, Restoring
 from waterfall.platform.queue import SWEEP_START, Entry, TaskQueue
 from waterfall.platform.tasks import FINISHED, PENDING, BackgroundTask, Task, TaskHandler
+
+if TYPE_CHECKING:
+    from collections.abc import Mapping
+    from uuid import UUID
+
+    from sqlalchemy.orm import Session
 
 INTERNAL_ERROR = "INTERNAL_ERROR"
 # A task fails once that many attempts have been started and none ended it.

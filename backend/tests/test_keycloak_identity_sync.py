@@ -20,17 +20,14 @@ another identity.
 """
 
 import time
-from collections.abc import Callable, Generator, Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from uuid import UUID, uuid4
 
-import httpx2
 import pytest
 from access_rows import ADMINISTRATION, role
 from fastapi.testclient import TestClient
-from openapi_core import OpenAPI
 from sqlalchemy import Engine, delete, insert, select
 from support import ContractClient, Logs, Watching, captured_logs, nowhere, raw_account
 from test_keycloak_authentication import (
@@ -79,6 +76,12 @@ from waterfall.platform.tasks import BackgroundTask, submit
 from waterfall.worker import identity_sync
 from waterfall.worker.identity_sync import IdentitySync
 from waterfall.worker.runner import Worker
+
+if TYPE_CHECKING:
+    from collections.abc import Callable, Generator, Iterator
+
+    import httpx2
+    from openapi_core import OpenAPI
 
 pytestmark = pytest.mark.keycloak
 

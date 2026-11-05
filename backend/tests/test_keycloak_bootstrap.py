@@ -18,13 +18,10 @@ import os
 import subprocess
 import sys
 import time
-from collections.abc import Iterator
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from uuid import uuid4
 
-import httpx2
 import pytest
-from openapi_core import OpenAPI
 from pydantic import SecretStr
 from sqlalchemy import Engine, func, insert, select, text, update
 from support import CONTRACT, TO_SEED_BY_EP04, ContractClient, Logs, captured_logs
@@ -57,10 +54,17 @@ from waterfall import bootstrap
 from waterfall.core.access_roles.tables import AccessRole, Permission
 from waterfall.core.users.tables import UserAccount
 from waterfall.platform.audit import AuditEntry
-from waterfall.platform.database import Database
 from waterfall.platform.installation import Installation
 from waterfall.platform.keycloak import Keycloak
 from waterfall.platform.settings import InstallationSettings
+
+if TYPE_CHECKING:
+    from collections.abc import Iterator
+
+    import httpx2
+    from openapi_core import OpenAPI
+
+    from waterfall.platform.database import Database
 
 pytestmark = pytest.mark.keycloak
 

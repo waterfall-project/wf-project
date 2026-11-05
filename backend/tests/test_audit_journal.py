@@ -8,19 +8,17 @@ connect as — and as the owner of the tables, whom only the trigger stops (WF-S
 
 from dataclasses import replace
 from datetime import UTC, datetime
-from typing import Any, cast
+from typing import TYPE_CHECKING, Any, cast
 from uuid import UUID, uuid4
 
 import psycopg
 import pytest
-from openapi_core import OpenAPI
 from sqlalchemy import Engine, insert, select, text
 from sqlalchemy.exc import IntegrityError, ProgrammingError
 from sqlalchemy.orm import Session
 from support import operations, raw_account, service_role
 
 from waterfall.api.app import create_app
-from waterfall.api.authentication import Services
 from waterfall.api.contract import models
 from waterfall.core.users.tables import UserAccount
 from waterfall.platform.audit import (
@@ -38,8 +36,13 @@ from waterfall.platform.audit import (
     forget_account,
     record,
 )
-from waterfall.platform.database import Database
 from waterfall.platform.logs import logging_context
+
+if TYPE_CHECKING:
+    from openapi_core import OpenAPI
+
+    from waterfall.api.authentication import Services
+    from waterfall.platform.database import Database
 
 NOON = datetime(2026, 10, 9, 12, 0, tzinfo=UTC)
 CORRELATION = "req-3f2a.9_b"

@@ -8,12 +8,14 @@ whether it is a test. They read it here, from one declaration.
 """
 
 import tomllib
-from collections.abc import Iterable
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
-from typing import Any, cast
+from typing import TYPE_CHECKING, Any, cast
 
 from wftools import REPOSITORY
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable
 
 DECLARATION = REPOSITORY / "tools" / "paths.toml"
 

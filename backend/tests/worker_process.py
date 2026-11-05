@@ -12,15 +12,19 @@ import os
 import sys
 import time
 from pathlib import Path
+from typing import TYPE_CHECKING
 
-from sqlalchemy.orm import Session
 from task_handlers import inscribe
 
 from waterfall.platform.database import Database, create_database_engine
 from waterfall.platform.queue import WORKER_TIMEOUT, TaskQueue
-from waterfall.platform.tasks import Task
 from waterfall.worker.main import serve
 from waterfall.worker.runner import Timing, Worker
+
+if TYPE_CHECKING:
+    from sqlalchemy.orm import Session
+
+    from waterfall.platform.tasks import Task
 
 # Longer than any test waits: the worker is stopped before.
 STALL = 120

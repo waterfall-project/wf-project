@@ -11,13 +11,15 @@ imports, never declared a second time.
 
 import ast
 import re
-from collections.abc import Iterator
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import yaml
 
 from wftools import REPOSITORY, paths
+
+if TYPE_CHECKING:
+    from collections.abc import Iterator
 
 WORKFLOWS = REPOSITORY / ".github" / "workflows"
 TOOLS = REPOSITORY / "tools" / "src" / "wftools"

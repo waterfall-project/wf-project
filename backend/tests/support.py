@@ -6,20 +6,15 @@ import io
 import json
 import logging
 import time
-from collections.abc import Generator, Iterable, Iterator
 from contextlib import contextmanager
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, cast
+from typing import TYPE_CHECKING, Any, cast
 from urllib.parse import parse_qs, urlsplit
 from uuid import uuid4
 
 import pytest
 import structlog
-from fastapi.testclient import TestClient
-from httpx2 import Response
-from jsonschema_path import SchemaPath
-from openapi_core import OpenAPI
 from openapi_core.templating.media_types.finders import MediaTypeFinder
 from openapi_core.templating.paths.finders import APICallPathFinder
 from openapi_core.templating.responses.finders import ResponseFinder
@@ -27,7 +22,6 @@ from openapi_core.testing import MockRequest, MockResponse
 from sqlalchemy import URL, QueuePool, text
 
 from waterfall.platform.database import Database, engine_url
-from waterfall.platform.keycloak import Keycloak
 from waterfall.platform.keycloak_admin import (
     InvitationFailure,
     KeycloakAdmin,
@@ -37,8 +31,18 @@ from waterfall.platform.keycloak_admin import (
 )
 from waterfall.platform.logs import configure_logging
 from waterfall.platform.queue import DEPOSIT_TIMEOUT, TaskQueue
-from waterfall.platform.settings import ServiceSettings
 from waterfall.platform.storage import Bucket
+
+if TYPE_CHECKING:
+    from collections.abc import Generator, Iterable, Iterator
+
+    from fastapi.testclient import TestClient
+    from httpx2 import Response
+    from jsonschema_path import SchemaPath
+    from openapi_core import OpenAPI
+
+    from waterfall.platform.keycloak import Keycloak
+    from waterfall.platform.settings import ServiceSettings
 
 CONTRACT = Path(__file__).resolve().parents[2] / "docs" / "api" / "openapi.yaml"
 

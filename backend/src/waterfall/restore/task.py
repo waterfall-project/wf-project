@@ -31,9 +31,8 @@ which applies the realm of the installation at its start — and the attempt goe
 
 import dataclasses
 import tempfile
-from collections.abc import Callable, Mapping
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from uuid import UUID
 
 from sqlalchemy import Engine, inspect, select
@@ -59,6 +58,9 @@ from waterfall.restore.provider import IdentityProvider, RealmNotAppliedError
 from waterfall.worker.backup import DATABASES
 from waterfall.worker.restore import extracted, replace
 from waterfall.worker.runner import await_run
+
+if TYPE_CHECKING:
+    from collections.abc import Callable, Mapping
 
 # What the operator does when the realm of the installation cannot be applied again.
 GIVE_THE_REALM_BACK = "restart keycloak, then keycloak-realm"

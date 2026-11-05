@@ -3,11 +3,14 @@
 """Tests of the table of the fixtures the contract cites, by operation and status."""
 
 import json
-from pathlib import Path
+from typing import TYPE_CHECKING
 
 import pytest
 
 from wftools import exampleroutes
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 PROJECTS: dict[str, object] = {"items": [{"project_id": "p"}], "meta": {"total": 1}}
 EMPTY: dict[str, object] = {"items": [], "meta": {"total": 0}}
