@@ -131,7 +131,7 @@ describe("RootLayout", () => {
     const html = await page();
     expect(html).toMatch(/^<html lang="en" class="font-geist-sans"><head><\/head><body>/);
     expect(html).toContain('aria-label="Functions"');
-    expect(html).toContain('aria-label="Account of Camille Martin"');
+    expect(html).toContain('aria-label="Account of Camille Martin, CM"');
     expect(html).toContain('placeholder="Search for a function, a project…"');
     expect(html).toContain("<p>page</p>");
   });
@@ -141,7 +141,7 @@ describe("RootLayout", () => {
     const html = await page();
     expect(html).toMatch(/^<html lang="fr"/);
     expect(html).toContain('aria-label="Fonctions"');
-    expect(html).toContain('aria-label="Compte de Camille Martin"');
+    expect(html).toContain('aria-label="Compte de Camille Martin, CM"');
   });
 
   it("lets the workstation decide the mode of an account that follows it", async () => {
@@ -252,7 +252,7 @@ describe("RootLayout", () => {
     const { until } = held();
     request("fr", {}, { hold: (route) => (route === "GET /tasks" ? until : undefined) });
     const html = await page();
-    expect(html).toContain('aria-label="Compte de Camille Martin"');
+    expect(html).toContain('aria-label="Compte de Camille Martin, CM"');
     expect(html).toContain("<p>page</p>");
     expect(server.client?.calls.map((call) => call.route)).toContain("GET /tasks");
     const settled = await Promise.race([
@@ -270,7 +270,7 @@ describe("RootLayout", () => {
     server.cached.clear();
     request("fr", { "GET /tasks": UNAUTHORIZED });
     const html = await page();
-    expect(html).toContain('aria-label="Compte de Camille Martin"');
+    expect(html).toContain('aria-label="Compte de Camille Martin, CM"');
     expect(await server.running).toEqual([]);
   });
 

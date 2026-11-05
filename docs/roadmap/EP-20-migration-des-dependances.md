@@ -344,8 +344,14 @@ ne subsiste.
   `label-content-name-mismatch` (WCAG 2.5.3, « Label in Name »), qui exige que le nom accessible d'un
   contrôle contienne son texte visible. 85 parcours d'accessibilité sur 387 échouent sur deux boutons
   (#2004), des défauts qui existaient déjà. Décision de l'auteur du 2026-11-05 :
-  - **le bouton du compte** (`components/shell/account-menu.tsx`) : l'avatar, dont le texte visible est
-    les initiales, devient décoratif (`aria-hidden`) ; le nom « Compte de {name} » est conservé ;
+  - **le bouton du compte** (`components/shell/account-menu.tsx`) : son nom devient « Compte de {name},
+    {initiales} », p. ex. « Compte de Camille Martin, CM », les initiales en fin et celles que
+    l'avatar affiche, dans les catalogues français et anglais (« Account of {name}, {initials} »). Les
+    initiales ne sont pas entre parenthèses, comme l'option B le disait : `axe-core` 4.14.0 retire d'un
+    nom ses parenthèses avant de le comparer au texte visible, et « (CM) » y échouait encore (82 échecs).
+    Décision de l'auteur du 2026-11-05, option B de #2020. Raison : WCAG 2.5.3, un utilisateur de commande
+    vocale prononce ce qu'il voit, ici « CM » ; `aria-hidden` sur l'avatar réglait le lecteur d'écran, pas
+    la commande vocale. L'avatar garde `aria-hidden` (décoratif : le nom porte déjà les initiales) ;
   - **le bouton des rôles** (`components/admin/user-cells.tsx`) : son nom devient « Rôles de « {name} » :
     {liste des rôles} », la liste étant son texte visible, dans les catalogues français et anglais ;
   - les tests unitaires qui lisent ces noms suivent, ainsi que la note de `e2e/axe.ts` ; `axe-core` passe
@@ -579,7 +585,7 @@ elle dépend. Le plan de lots en tire ses « Pas avec ».
 | Les valeurs des secrets de poste ne s'écrivent que dans `keycloak.yml`, `INSTALL.md` donne la commande qui en tire le fichier (auteur, 2026-11-05) | copier les valeurs dans `INSTALL.md` : elles divergent déjà (`devpostgres`, `chainonlypostgres`) |
 | La permission d'`enqueuePullRequest` se documente dans `docs/dev/agents.md` et ne se versionne pas dans `.claude/settings.json` (auteur, 2026-11-05, pour l'endroit ; le choix de ne pas la versionner est du cadrage) | la poser dans le `.claude/settings.json` du dépôt : elle s'appliquerait à tous ceux qui clonent, et la porte d'une mutation de plus ne se donne pas par un fichier versionné |
 | La documentation d'installation se prouve par relecture contre ce qui fait foi (auteur, 2026-11-05) | un essai sur un poste neuf : il n'y en a pas de disponible |
-| Les noms accessibles et `axe-core` 4.14.0 par un lot d'US-1170, L4 ; avatar décoratif, rôles nommés par leur liste (auteur, 2026-11-05, #2004) | un autre EPIC d'accessibilité : le critère d'`axe-core` 4.14.0 d'US-1170 resterait ouvert ; désactiver `label-content-name-mismatch` : un contournement d'outil |
+| Les noms accessibles et `axe-core` 4.14.0 par un lot d'US-1170, L4 ; bouton du compte nommé avec ses initiales, après une virgule (axe-core ignore une parenthèse), rôles nommés par leur liste (auteur, 2026-11-05, #2004 ; option B de #2020 pour les initiales) | un autre EPIC d'accessibilité : le critère d'`axe-core` 4.14.0 d'US-1170 resterait ouvert ; désactiver `label-content-name-mismatch` : un contournement d'outil ; l'avatar seulement `aria-hidden`, cacher les initiales à l'outil (CSS) ou sortir l'avatar du bouton : la commande vocale prononce « CM » sans le trouver dans le nom |
 | Le test de `revealSideways` dans le même lot (#2009) | un EPIC du front : même banc, même lot, un trou de couverture sans défaut |
 | L'amorce de l'annuaire par un repère, qui refuse sinon (auteur, 2026-11-05, option 2 de #1994) | l'option 1, garder le réamorçage comme compromis et le nommer : un `docker volume rm` d'un seul volume efface en silence des données que Keycloak a lues |
 | La limite de la regex de `build.py` en commentaire, rien de réécrit (auteur, 2026-11-05, option 1 de #1977) | un petit analyseur avec un test de 20 000 `\[` : le risque ne le justifie pas, aucun paragraphe de la spécification n'approche cette taille |
@@ -715,7 +721,7 @@ ne pas écrire le référentiel sur un interpréteur et des bibliothèques en re
 
 ## US-1170 — Le front sur Node 26, pnpm 12 et ESLint 10
 
-- **statut** : en cours
+- **statut** : fini
 - **exigences** : aucune — outil du dépôt
 - **opérations** : aucune
 - **issue** : #1933

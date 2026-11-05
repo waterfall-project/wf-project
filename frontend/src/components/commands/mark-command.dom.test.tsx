@@ -145,7 +145,7 @@ describe("the marking of a revision", () => {
     // the interface and applying it, which the server records while the revision is marked.
     closeTasks();
     expect(document.querySelector("[aria-modal], [inert], :disabled")).toBeNull();
-    const account = screen.getByRole("button", { name: "Compte de Camille Martin" });
+    const account = screen.getByRole("button", { name: "Compte de Camille Martin, CM" });
     await userEvent.click(account);
     await userEvent.click(screen.getByRole("menuitem", { name: /^Langue/ }));
     await userEvent.click(await screen.findByRole("menuitemradio", { name: "English" }));

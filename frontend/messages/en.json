@@ -42,7 +42,8 @@
     "comingSoon": "Search is to come: it arrives with the screens that list the functions and the projects."
   },
   "accountMenu": {
-    "label": "Account of {name}",
+    "label": "Account of {name}, {initials}",
+    "labelWithoutInitials": "Account of {name}",
     "preferences": "Preferences",
     "account": "My account",
     "avatar": "Change avatar",
@@ -2561,6 +2562,7 @@
       "reactivated": "“{name}” reactivated.",
       "activeUser": "Account of “{name}” active",
       "rolesOf": "Roles of “{name}”",
+      "rolesHeld": "Roles of “{name}”: {roles}",
       "rolesAttributed": "Roles of “{name}” attributed.",
       "link": "Link",
       "resend": "Email",
