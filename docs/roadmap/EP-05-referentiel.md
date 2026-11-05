@@ -296,6 +296,40 @@ Décisions de l'auteur du 2026-10-28, sur les questions du cadrage, chacune avec
   gel, qui aurait retardé EP-05 de plusieurs jours pour un contrat que nulle issue ouverte ne
   touche dans le référentiel.
 
+Décisions de l'auteur du 2026-11-05, à la revue des conceptions pour quatre livreurs à la fois
+(`WATERFALL_SLOTS=4`) : le plan de construction ci-dessous tenait six vagues pour dix US, une
+seule large ; les décisions qui suivent le ramènent à quatre.
+
+- **US-0810 se livre en deux lots.** `L1`, le socle : les deux migrations, les quatre modules à
+  vide avec leur interface déclarée, un routeur vide par US d'objet enregistré dans `app.py`, le
+  fichier de tests de chaque module, la commande `load-witness` qui ne charge rien encore, la
+  fixture `mode.ts` et le projet `shared` sans parcours. `L2`, les paramètres communs, le
+  référentiel minimal et l'amorçage, en parallèle des US d'objets. Écarté : un seul lot, qui
+  tenait trois créneaux inoccupés pendant toute sa durée.
+- **Un fichier par US, là où la conception en mettait plusieurs dans un.** Un routeur par US
+  d'objet — `api/reference_settings.py` et `api/reference.py` (US-0810), `api/cost_types.py`
+  (US-0820), `api/hourly_rates.py` (US-0830), `api/org_nodes.py` (US-0840),
+  `api/resource_roles.py` (US-0850), `api/calendars.py` (US-0860),
+  `api/actual_cost_mapping.py` (US-0870) —, créés vides par `L1` ; l'interface de chaque module
+  est un paquet, un fichier par objet réexporté par `interface/__init__.py`, que `L1` crée vides ;
+  la table des opérations et de leurs permissions qu'éprouve `test_access_evaluation.py` se
+  déclare par routeur, dans un fichier par US que le test rassemble. Écartés : un routeur par
+  module et une interface d'un seul fichier, que trois US auraient écrits en même temps, et que
+  le plan de lots aurait dû marquer « Pas avec » — la seule vague large disparaissait.
+- **Le témoin et les écrans se livrent en tranches, par US d'objet.** Chaque US d'objet ajoute à
+  `load-witness` la lecture de son fichier, l'appel à son interface et la désactivation de ses
+  objets, dans l'ordre des dépendances ; retire `MockupNotice` de l'écran qu'elle sert le dernier
+  — `/reference/risks` et `/reference/indicators` par US-0810/L2, `/reference/costs` par US-0830,
+  `/reference/resources` par US-0850, `/reference/costs/actual-cost-mapping` par US-0870 — et
+  réécrit l'aide de son bloc ; un parcours rejoint `SHARED_PATHS` dès que son fichier ne lit plus
+  que des écrans servis, `reference.spec.ts`, qui traverse les cinq, avec la dernière US d'objet.
+  US-0890 devient la vérification d'ensemble du témoin, US-0900 le parcours du manager et le rôle
+  sur mesure. Écarté : le témoin et les écrans en queue, trois US seules à la suite ; la « tranche
+  verticale » du README ne se tenait pas.
+- **`epic/EP-04` se tire d'`epic/EP-05` dès que `US-0810/L1` est fusionnée**, et non de `main`
+  à la livraison d'EP-05 (EP-04, « Préalables » ; README, « Branches »). Écarté : les deux EPIC
+  en série, qui laissaient trois créneaux dormir deux semaines.
+
 ### Tables et migrations
 
 Toutes du régime « référentiel » (§4.4.1) : jamais supprimées, désactivées par `is_active` ;
@@ -366,10 +400,12 @@ codes et les libellés sont bornés comme le contrat les borne (20 et 200), jama
 
 ### Le service d'API
 
-- Un routeur par module — `api/cost_settings.py`, `api/resource_settings.py`,
-  `api/risk_settings.py`, `api/indicator_settings.py` — et `api/reference.py` pour le référentiel
-  minimal, enregistrés dans `app.py` ; les modèles Pydantic du contrat existent déjà
-  (`api/contract/models.py`, engendrés).
+- Un routeur par US d'objet — `api/reference_settings.py`, `api/cost_types.py`,
+  `api/hourly_rates.py`, `api/org_nodes.py`, `api/resource_roles.py`, `api/calendars.py`,
+  `api/actual_cost_mapping.py` — et `api/reference.py` pour le référentiel minimal, créés vides
+  et enregistrés dans `app.py` par US-0810/L1, chacun rempli par son US (décision du
+  2026-11-05) ; les modèles Pydantic du contrat existent déjà (`api/contract/models.py`,
+  engendrés).
 - Chaque route déclare ses permissions par `Requires(...)` comme le contrat les dit ; une lecture
   qui demande `include_inactive` ou `is_active` faux ajoute la permission de lecture de la partie
   par une dépendance qui lit la requête ; une écriture des paramètres communs juge la permission
@@ -414,7 +450,9 @@ fixent au lot, dans les deux langues, à côté des libellés des rôles prédé
 - **La commande** : `waterfall-api load-witness`, troisième verbe du point d'entrée après
   `install`, dans un module `waterfall.witness` au sommet des couches, importé par aucun ; elle
   lit `WATERFALL_DATABASE_URL` du rôle du service (elle n'écrit que par les interfaces) et
-  `WATERFALL_WITNESS_PATH`, le répertoire de la description du témoin.
+  `WATERFALL_WITNESS_PATH`, le répertoire de la description du témoin. Elle naît avec US-0810/L1,
+  sans tranche ; US-0810/L2 lui donne les réglages et les unités, et chaque US d'objet la sienne,
+  dans un fichier du module par objet (décision du 2026-11-05) ; US-0890 l'éprouve entière.
 - **Ce qu'elle lit** : les fichiers de `fixtures/api/` que `make mock-data` tient —
   `reference_settings.json`, `duration_units.json`, `cost_types.json`,
   `volume/cost_categories.json`, `volume/hourly_rate_grid.json`, `calendars.json`,
@@ -444,9 +482,12 @@ fixent au lot, dans les deux langues, à côté des libellés des rôles prédé
 
 ### Le front
 
-- **L'avis de la maquette** (`MockupNotice`) est retiré des cinq pages de `app/reference/` ; les
-  commentaires d'en-tête de ces pages et des composants de `components/reference/` qui le
-  nomment sont réécrits : un succès est ce que le service a gardé, relu.
+- **L'avis de la maquette** (`MockupNotice`) est retiré des cinq pages de `app/reference/`, par
+  l'US qui sert la page en dernier (décision du 2026-11-05 : US-0810/L2 pour les risques et les
+  indicateurs, US-0830 pour les coûts, US-0850 pour les ressources, US-0870 pour la
+  correspondance) ; les commentaires d'en-tête de ces pages et des composants de
+  `components/reference/` qui le nomment sont réécrits : un succès est ce que le service a gardé,
+  relu.
 - **Le rattachement d'un compte** : `admin/user-cells.tsx` rend la colonne « Rattachement » en
   cellule saisissable, une liste déroulante des nœuds actifs lus par `listOrgNodes` (sous
   `resource_settings.read` ; sans elle, la colonne reste en lecture), écrite par `updateUser`
@@ -454,12 +495,14 @@ fixent au lot, dans les deux langues, à côté des libellés des rôles prédé
   désactivé auquel un compte reste rattaché se montre par `org_node_label` et n'est pas proposé.
   La table se filtre sur le rattachement (`org_node_id`, que le contrat prévoit). Le catalogue
   reçoit l'infobulle de la commande.
-- **Les aides** `frontend/help/fr/FBS-3*.md` retirent ce qu'elles disaient du faux back.
+- **Les aides** `frontend/help/fr/FBS-3*.md` retirent ce qu'elles disaient du faux back, chacune
+  par l'US de son bloc.
 - Rien d'autre : les écrans sont ceux d'EP-02/L43, d'EP-14 et d'EP-15.
 
 ### Le harnais
 
-- **Une fixture commune**, `frontend/e2e/mode.ts`, exporte `test` (le `test` de Playwright
+- **Une fixture commune**, `frontend/e2e/mode.ts`, née avec US-0810/L1 et le projet `shared`
+  vide (décision du 2026-11-05), exporte `test` (le `test` de Playwright
   étendu) et `inService` : hors du service, rien ne change — le faux back accorde la session — ;
   avec `WATERFALL_API_ADDRESS`, un `beforeEach` connecte, par `signIn` de `service/realm.ts`, un
   compte de la course qui porte « manager », créé par l'administrateur de l'installation
@@ -468,7 +511,7 @@ fixent au lot, dans les deux langues, à côté des libellés des rôles prédé
 - **Un projet Playwright `shared`** en mode service, après `installation` : `testMatch` sur la
   liste des parcours partagés (`SHARED_PATHS` : `reference.spec.ts`, `admin.spec.ts`,
   `navigation.spec.ts`), que le projet `chromium` continue de jouer contre le faux back ; la
-  liste grandit avec chaque EPIC qui branche un écran.
+  liste grandit avec chaque US qui branche un écran, puis avec chaque EPIC.
 - **Les assertions d'écriture** : le taux saisi est affirmé par `inService` ; contre le faux
   back, la cellule répondue, non occupée et le focus passé. Les lectures sont inchangées : le
   témoin chargé rend les mêmes libellés, codes, comptes et ordres que les exemples.
@@ -493,20 +536,24 @@ fixent au lot, dans les deux langues, à côté des libellés des rôles prédé
 
 ### L'ordre de construction
 
-1. **US-0810** : les tables et les migrations, les quatre modules à vide, les paramètres communs
-   et le référentiel minimal, l'amorçage complété ; les parcours du service existants passent
-   toujours.
-2. **US-0820, US-0860, US-0840**, dans cet ordre : les natures et catégories, les calendriers et
-   unités, l'arbre — ce dont un rôle a besoin — ; US-0830 (les taux) après US-0820, en parallèle
-   des deux autres.
-3. **US-0850** : les rôles et la cascade, qui demandent les trois.
-4. **US-0870** : la correspondance, indépendante, à tout moment après US-0810.
-5. **US-0890** : la commande du témoin, le service `witness`, puis la fixture, le projet
-   `shared` et les parcours rejoués — dès qu'US-0830, US-0850 et US-0870 sont fusionnées.
-6. **US-0880** : la désactivation transverse, après US-0890 (décision de l'auteur du 2026-10-28,
-   au plan de lots) : son dernier critère joue les désactivés contre le service, par la fixture
-   qu'US-0890 écrit.
-7. **US-0900** en dernier : l'avis retiré, le parcours du manager, le rôle sur mesure.
+Quatre vagues pour quatre créneaux (décision du 2026-11-05) ; le plan de lots marque « Pas avec »
+les lots d'une même vague qui écrivent un même fichier — `SHARED_PATHS`, le guide, le Compose de
+service.
+
+1. **US-0810/L1**, seule : les tables et les migrations, les quatre modules à vide et leurs
+   interfaces en paquet, les routeurs vides, les fichiers de tests, `load-witness` sans tranche,
+   `mode.ts` et le projet `shared` vides ; les parcours du service existants passent toujours.
+   `epic/EP-04` se tire d'ici.
+2. **US-0810/L2, US-0820, US-0860, US-0840** en parallèle : les paramètres communs, le
+   référentiel minimal et l'amorçage ; les natures et catégories ; les calendriers et unités ;
+   l'arbre — ce dont un rôle a besoin. **US-0870**, la correspondance, prend le premier créneau
+   libéré : elle ne dépend que de `L1`.
+3. **US-0830** (les taux, après US-0820) et **US-0850** (les rôles et la cascade, après US-0820,
+   US-0840 et US-0860) en parallèle, avec ce qui reste de la vague 2.
+4. **US-0890, US-0880, US-0900** en parallèle, chacune après les US d'objets qu'elle vérifie :
+   le témoin entier, chargé par le service `witness` et comparé aux exemples ; la désactivation
+   transverse, jouée contre le service par la fixture de `L1` (décision de l'auteur du
+   2026-10-28, maintenue : après US-0850) ; le parcours du manager et le rôle sur mesure.
 
 ---
 
@@ -611,9 +658,20 @@ référentiel existe avant tout projet et dise ce qui lui manque encore.
   de l'entreprise vide ou blanc par 422 (`VALUE_REQUIRED`, `VALIDATION_FAILED`), trop long par
   `VALUE_TOO_LONG` ;
 - propre à l'US : chaque réponse des trois opérations est validée contre le contrat dans les
-  tests du service, et la route de chacune déclare ses permissions (`test_access_evaluation.py`).
+  tests du service, et la route de chacune déclare ses permissions (`test_access_evaluation.py`) ;
+- propre à l'US (`L1`) : un routeur vide par US d'objet est enregistré dans `app.py`, l'interface
+  de chaque module est un paquet d'un fichier par objet, `waterfall-api load-witness` existe et ne
+  charge rien, `frontend/e2e/mode.ts` exporte `test` et `inService` et le projet `shared` existe
+  sans parcours ; `make check` passe sur ce socle ;
+- propre à l'US (`L2`) : `load-witness` charge les réglages et les unités du témoin
+  (`reference_settings.json`, `duration_units.json`) ; `/reference/risks` et
+  `/reference/indicators` ne portent plus `MockupNotice`, et les aides FBS-3.3 et FBS-3.4 disent
+  ce que le service fait.
 
-**Notes de réalisation.** L'amorçage ajoute à l'étape 3 de `waterfall-api install` (EP-03,
+**Notes de réalisation.** L'US se livre en deux lots (décision de l'auteur du 2026-11-05) : `L1`,
+le socle que toutes les autres US attendent et dont `epic/EP-04` se tire ; `L2`, les paramètres
+communs, le référentiel minimal et l'amorçage, en parallèle des US d'objets. L'amorçage ajoute à
+l'étape 3 de `waterfall-api install` (EP-03,
 « Amorçage ») ce que WF-EXP-0020 lui demande du référentiel ; `WATERFALL_CURRENCY` (trois lettres
 majuscules) et `WATERFALL_COMPANY_NAME` (1 à 200 caractères, jamais blanc) sont exigées à
 l'amorçage comme `WATERFALL_ADMIN_EMAIL`, et le Compose de service, `make service-install` et le
@@ -690,7 +748,10 @@ codes, et changer le type d'une nature ou la nature d'une catégorie tant que ri
   désactivée est refusée par 409, `cost_type_active` manquante, `conflicting_object_id` la nature ;
 - propre à l'US : chaque réponse — les listes, les 201, les refus 403, 409, 412 et 422 — est
   validée contre le contrat dans les tests du service, sur les exemples que le contrat donne
-  (`cost_type_code_taken`, `cost_category_kind_refused`, `cost_category_reactivation_refused`…).
+  (`cost_type_code_taken`, `cost_category_kind_refused`, `cost_category_reactivation_refused`…) ;
+- propre à l'US : `load-witness` charge les natures et les catégories du témoin
+  (`cost_types.json`, `volume/cost_categories.json`), dans `api/cost_types.py` et le fichier
+  `cost_types` de l'interface (décision du 2026-11-05).
 
 **Notes de réalisation.** Les refus que le contrat nomme viennent des « Interface contract issue »
 d'EP-02/L43a (#512) : le service les rend tels quels. Une catégorie « employée » ne l'est jamais
@@ -740,7 +801,11 @@ tout chiffrage parte d'un taux constaté.
   catégorie (`cost_category_unrated`) et `change_kind` de sa nature (`cost_type_unrated`), relus
   dans leurs listes ;
 - propre à l'US : chaque réponse est validée contre le contrat dans les tests du service, et le
-  parcours `reference.spec.ts` saisit un taux contre le service, qui répond ce qui a été saisi.
+  parcours `reference.spec.ts` saisit un taux contre le service, qui répond ce qui a été saisi ;
+- propre à l'US : `load-witness` charge la grille des taux du témoin
+  (`volume/hourly_rate_grid.json`) ; `/reference/costs` ne porte plus `MockupNotice`, l'aide
+  FBS-3.1 dit ce que le service fait, et son parcours rejoint `SHARED_PATHS` (décision du
+  2026-11-05).
 
 **Notes de réalisation.** `hourly_rate` est à la catégorie et à l'année, unique sur les deux
 (`numeric` pour le montant, jamais un flottant — règles SQL). La grille du témoin, cent cinquante
@@ -797,7 +862,10 @@ donne un droit.
   `level_min`, `level_max` et `is_active`, et rend les nœuds retenus avec leurs ancêtres ; les
   désactivés ne sont rendus qu'avec `include_inactive`, sous `resource_settings.read`, refusé par
   403 sans elle ;
-- propre à l'US : chaque réponse est validée contre le contrat dans les tests du service.
+- propre à l'US : chaque réponse est validée contre le contrat dans les tests du service ;
+- propre à l'US : `load-witness` charge les nœuds du témoin, puis désactive ceux qu'il dit
+  désactivés (`org_nodes_with_inactive.json`) ; la colonne « Rattachement » de l'administration
+  des comptes se saisit contre le service (décision du 2026-11-05).
 
 **Notes de réalisation.** `org_node.parent_id` est une clé étrangère vers `org_node`, nulle pour
 une racine ; la profondeur se résout à la lecture (une requête récursive, ou le chemin calculé
@@ -858,7 +926,11 @@ de charge confronte la charge des projets à ce que l'entreprise peut fournir.
 - propre à l'US : la création ou le changement de catégorie d'un rôle rend indisponibles
   `change_cost_type` de la catégorie (`cost_category_without_role`) et `change_kind` de sa nature
   (`cost_type_without_role`), relus dans leurs listes ;
-- propre à l'US : chaque réponse est validée contre le contrat dans les tests du service.
+- propre à l'US : chaque réponse est validée contre le contrat dans les tests du service ;
+- propre à l'US : `load-witness` charge les rôles du témoin, puis désactive ceux qu'il dit
+  désactivés (`resource_roles.json`) ; `/reference/resources` ne porte plus `MockupNotice`, l'aide
+  FBS-3.2 dit ce que le service fait, et son parcours rejoint `SHARED_PATHS` (décision du
+  2026-11-05).
 
 **Notes de réalisation.** Le refus `TASK_WITHOUT_WORKING_HOURS` d'`updateResourceRole` — un
 calendrier qui laisserait une tâche sans heure (WF-PLA-0010) — est d'EP-06, qui a les tâches :
@@ -925,7 +997,9 @@ travaille.
   heures de chaque jour et leur somme comprises, le calendrier par défaut en tête par
   `is_default`, et ne filtre pas les heures (C-352) ; les désactivés avec `include_inactive`,
   sous `resource_settings.read` ;
-- propre à l'US : chaque réponse est validée contre le contrat dans les tests du service.
+- propre à l'US : chaque réponse est validée contre le contrat dans les tests du service ;
+- propre à l'US : `load-witness` charge les calendriers du témoin et désigne son calendrier par
+  défaut (`calendars.json`) (décision du 2026-11-05).
 
 **Notes de réalisation.** Les refus `TASK_WITHOUT_WORKING_HOURS` d'`updateCalendar` et de
 `setDefaultCalendar` — un calendrier qui laisserait une tâche sans heure (WF-PLA-0010) — sont
@@ -977,7 +1051,11 @@ l'import lise l'extraction telle qu'elle sort, sans qu'on renomme ses colonnes �
 - propre à l'US : la lecture relève de `cost_settings.read` (404 sans elle), l'écriture de
   `cost_settings.write` (403), un compteur périmé de 412 ;
 - propre à l'US : chaque réponse est validée contre le contrat dans les tests du service, et la
-  page `/reference/costs/actual-cost-mapping` (EP-16/US-0620) joue contre le service.
+  page `/reference/costs/actual-cost-mapping` (EP-16/US-0620) joue contre le service ;
+- propre à l'US : `load-witness` charge la correspondance du témoin
+  (`actual_cost_mapping.json`) ; `/reference/costs/actual-cost-mapping` ne porte plus
+  `MockupNotice`, son aide dit ce que le service fait, et son parcours rejoint `SHARED_PATHS`
+  (décision du 2026-11-05).
 
 **Notes de réalisation.** La comparaison des intitulés se fait sur une forme repliée — minuscules,
 accents retirés (`unaccent`, que les règles SQL emploient déjà pour la recherche), espaces en bout
@@ -1081,19 +1159,21 @@ prouvent le service sans réécriture de leurs attendus (#1402).
 - `WF-QUA-0040-A` — « Aucune adresse électronique ni aucun libellé de projet réel n'y figure. » :
   la tranche ne porte aucune adresse ; ses libellés sont ceux du témoin, fictifs
   (`test_mockuniverse.py` les tient) ;
-- propre à l'US : la commande lit la description du témoin que `make mock-data` tient —
-  `fixtures/api/org_nodes_with_inactive.json`, `resource_roles` (avec les désactivés),
-  `calendars`, `cost_types`, `volume/cost_categories.json`, `volume/hourly_rate_grid.json`,
-  `duration_units`, `reference_settings`, `actual_cost_mapping` — et échoue, en le disant, sur un
-  témoin que les règles du référentiel refusent ; le code de calcul du faux back n'est pas
-  réemployé ;
+- propre à l'US : la commande, dont chaque US a écrit la tranche, lit la description du témoin
+  que `make mock-data` tient — `fixtures/api/org_nodes_with_inactive.json`, `resource_roles`
+  (avec les désactivés), `calendars`, `cost_types`, `volume/cost_categories.json`,
+  `volume/hourly_rate_grid.json`, `duration_units`, `reference_settings`, `actual_cost_mapping` —
+  dans l'ordre des dépendances, en une transaction, et échoue, en le disant, sur un témoin que les
+  règles du référentiel refusent ; le code de calcul du faux back n'est pas réemployé ; les listes
+  du service, le témoin chargé, rendent ce que les fixtures servent, aux colonnes d'audit près ;
 - propre à l'US : les dates et les auteurs des objets chargés sont ceux du chargement — la
   plateforme (WF-DAT-0070) —, non ceux du témoin (décision de l'auteur du 2026-10-28) ;
 - propre à l'US : `make e2e-service` charge le témoin après l'amorçage, par un service du Compose
   de service (`witness`, modèle d'`install`), et un `make service-witness` le fait à la main ;
 - propre à l'US : les parcours du référentiel — `reference.spec.ts`, et les lectures du
-  référentiel d'`admin.spec.ts` et de `navigation.spec.ts` — se jouent dans le projet `service`
-  de Playwright sans réécriture de leurs attendus de lecture, par une fixture commune qui accorde
+  référentiel d'`admin.spec.ts` et de `navigation.spec.ts`, que les US d'objets ont mis dans
+  `SHARED_PATHS` — se jouent dans le projet `shared` de Playwright, le témoin chargé, sans
+  réécriture de leurs attendus de lecture, par la fixture commune d'US-0810/L1 qui accorde
   la session sur le faux back et se connecte sur le service ; les assertions qui affirmaient la
   réponse du faux back à une écriture affirment ce qui a été écrit (décision de l'auteur du
   2026-10-28) ; ce qui dépend de l'horloge ou d'un calcul que le service ne fait pas encore se
@@ -1104,8 +1184,10 @@ prouvent le service sans réécriture de leurs attendus (#1402).
   commande, ce qu'elle charge et ce que deviennent `fixtures/api/` et Prism pour les écrans non
   branchés.
 
-**Notes de réalisation.** Décisions de l'auteur du 2026-10-28 sur #1402 : WF-QUA-0040 démarre ici
-avec la tranche du référentiel ; le chargeur est une commande du back, au sommet des couches comme
+**Notes de réalisation.** L'US vérifie d'ensemble ce que chaque US d'objet a construit par
+tranche — la commande, le service `witness`, les parcours partagés — et écrit le principe au
+README et au guide (décision de l'auteur du 2026-11-05). Décisions de l'auteur du 2026-10-28 sur
+#1402 : WF-QUA-0040 démarre ici avec la tranche du référentiel ; le chargeur est une commande du back, au sommet des couches comme
 l'amorçage, avec un paramètre d'identifiant imposé que seule cette voie emploie et que l'API
 n'offre jamais ; les mêmes fichiers de parcours jouent dans les deux modes. La grille des taux
 du témoin compte cent cinquante lignes sur quinze ans, deux mille deux cent cinquante taux au
@@ -1150,15 +1232,17 @@ composer un rôle sur mesure qui cumule ce que deux acteurs font.
   leur création par 403, `PERMISSION_MISSING` nommant la permission ;
 - propre à l'US : les cinq écrans du référentiel — `/reference/costs`,
   `/reference/costs/actual-cost-mapping`, `/reference/resources`, `/reference/risks`,
-  `/reference/indicators` — ne portent plus `MockupNotice` : un succès y est ce que le service a
-  gardé, relu ;
-- propre à l'US : les aides de ces écrans (`frontend/help/fr/FBS-3*.md`) disent ce que le service
-  fait, là où elles disaient ce que le faux back n'appliquait pas.
+  `/reference/indicators` — ne portent plus `MockupNotice`, chacun retiré par l'US qui l'a servi
+  (décision du 2026-11-05), et aucun composant de `components/reference/` ne le nomme plus : un
+  succès y est ce que le service a gardé, relu ;
+- propre à l'US : les aides de ces écrans (`frontend/help/fr/FBS-3*.md`), réécrites par leurs US,
+  ne disent plus rien du faux back.
 
 **Notes de réalisation.** Les écrans sont ceux d'EP-02/L43 (#512), d'EP-14 et d'EP-15, déjà
-branchés au contrat : cette US ne les réécrit pas ; elle retire l'avis de la maquette, joue le
-parcours du manager contre le service, et solde ce que #512 laissait à EP-05 — le retrait de
-l'avis, l'écran branché sur le service. Un manque que le branchement révèle — un refus que
+branchés au contrat : cette US ne les réécrit pas ; chaque US d'objet a retiré l'avis de la
+maquette de son écran (décision de l'auteur du 2026-11-05) ; celle-ci joue le parcours du manager
+contre le service et constate que #512 est soldé — l'avis retiré partout, les écrans branchés sur
+le service. Un manque que le branchement révèle — un refus que
 l'écran ne dit pas, un exemple qui ne vaut pas contre le service — devient une issue, tranchée
 selon le README ; un manque du contrat, une « Interface contract issue », le contrat étant figé.
 

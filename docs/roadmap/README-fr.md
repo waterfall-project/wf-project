@@ -335,7 +335,7 @@ livraison.
 | Branche | Reçoit | Tirée de |
 |---|---|---|
 | `main` | la fusion d'une branche d'EPIC à sa livraison, et les modifications de la spécification, du contrat ou de la roadmap qui ne servent aucun EPIC en cours | — |
-| `epic/EP-nn` | les pull requests des lots de cet EPIC, et les modifications du contrat que sa conception prévoit | `main`, au premier lot, une fois livrés les EPIC dont il dépend |
+| `epic/EP-nn` | les pull requests des lots de cet EPIC, et les modifications du contrat que sa conception prévoit | `main`, au premier lot, une fois livrés les EPIC dont il dépend ; par exception, la branche de l'EPIC dont il dépend (ci-dessous) |
 | `lot/<identifiant du lot>` | le travail d'un lot, et lui seul | la branche de son EPIC |
 
 Un EPIC en cours a sa branche d'intégration dès son premier lot — entre l'ouverture de ses
@@ -345,6 +345,13 @@ la livraison de l'un emporte les lots à moitié faits d'un autre. `main` ne re�
 des EPIC livrés et des documents relus : elle n'est jamais dans un état intermédiaire. Après
 chaque fusion dans `main`, les branches des EPIC encore en cours la reprennent, et c'est à
 ce moment que se règlent leurs conflits, non à la livraison.
+
+Par exception, décidée par l'auteur au cadrage et écrite dans les « Préalables » de l'EPIC, la
+branche d'un EPIC se tire de la branche de l'EPIC dont il dépend, dès le lot de celui-ci qui lui
+donne ses tables et ses interfaces, quand attendre la livraison mettrait deux EPIC en série pour
+peu de choses. Elle reprend cette branche à chaque lot que l'autre fusionne, et se fusionne dans
+`main` après lui, jamais avant. Première exception : `epic/EP-04` tirée d'`epic/EP-05` après
+`US-0810/L1` (décision du 2026-11-05).
 
 La chaîne s'exécute sur toute pull request, vers une branche d'EPIC comme vers `main`, et
 aucune n'est fusionnée si elle échoue.
