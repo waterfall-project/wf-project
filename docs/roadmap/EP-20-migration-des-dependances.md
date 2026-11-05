@@ -682,7 +682,7 @@ les écrans du référentiel sur une chaîne en retard.
 
 ## US-1180 — L'extension de Keycloak construite sur un JDK 25
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : aucune — outil du dépôt
 - **opérations** : aucune
 - **issue** : #1937
