@@ -7,16 +7,13 @@ write is the identifier of an account, or ``None`` for the platform itself (WF-D
 moment is an argument, never read here.
 """
 
-from collections.abc import Collection, Generator, Mapping
 from contextlib import contextmanager
 from dataclasses import dataclass
-from datetime import datetime
-from uuid import UUID
+from typing import TYPE_CHECKING
 
 from sqlalchemy import Text, func, literal, select, update
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import Session
 
 from waterfall.core.users.tables import ADDRESS_INDEX, UserAccount
 from waterfall.platform.database import EVERY_LETTER, unique_violated
@@ -27,6 +24,13 @@ from waterfall.platform.errors import (
     PreconditionFailedError,
 )
 from waterfall.platform.identifiers import new_id
+
+if TYPE_CHECKING:
+    from collections.abc import Collection, Generator, Mapping
+    from datetime import datetime
+    from uuid import UUID
+
+    from sqlalchemy.orm import Session
 
 NOT_FOUND = "NOT_FOUND"
 STALE_LOCK_VERSION = "STALE_LOCK_VERSION"

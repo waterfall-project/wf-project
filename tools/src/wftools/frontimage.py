@@ -200,7 +200,7 @@ def _fetch(host: str, port: int) -> int | None:
     try:
         connection.request("GET", "/")
         return connection.getresponse().status
-    except (OSError, http.client.HTTPException):
+    except OSError, http.client.HTTPException:
         return None
     finally:
         connection.close()

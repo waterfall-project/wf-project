@@ -14,14 +14,16 @@ and its log printed when ``make service-up`` fails.
 
 import re
 import subprocess
-from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import pytest
 import yaml
 from test_worktree_slots import Workstation, docker_asked
 
 from wftools import REPOSITORY
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 COMPOSE = REPOSITORY / "deploy" / "compose"
 SCRIPT = COMPOSE / "postgres-volume.sh"

@@ -5,11 +5,14 @@
 The role of the service records a report and reads it, but neither changes nor deletes one.
 """
 
-from collections.abc import Sequence
+from typing import TYPE_CHECKING
 
 import sqlalchemy as sa
 from alembic import op
 from sqlalchemy.dialects import postgresql
+
+if TYPE_CHECKING:
+    from collections.abc import Sequence
 
 revision: str = "0013"
 down_revision: str | None = "0012"

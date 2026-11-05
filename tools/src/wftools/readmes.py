@@ -18,11 +18,14 @@ Headings are the ATX headings of Markdown, ``#`` to ``######``, outside fenced c
 
 import re
 import sys
-from collections.abc import Iterator
 from dataclasses import dataclass
-from pathlib import Path
+from typing import TYPE_CHECKING
 
 from wftools import REPOSITORY
+
+if TYPE_CHECKING:
+    from collections.abc import Iterator
+    from pathlib import Path
 
 DOCS = REPOSITORY / "docs"
 """The directories whose READMEs are held in pairs, one level below it."""

@@ -4,7 +4,7 @@
 
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from uuid import UUID, uuid4
 
 from sqlalchemy import insert, select
@@ -17,7 +17,9 @@ from waterfall.core.access_roles.tables import (
     UserAccessRole,
 )
 from waterfall.core.users.tables import UserAccount
-from waterfall.platform.database import Database
+
+if TYPE_CHECKING:
+    from waterfall.platform.database import Database
 
 DAY = datetime(2026, 10, 1, 9, 0, tzinfo=UTC)
 # The two permissions an administrator holds, which an active account always keeps (WF-ADM-0120).

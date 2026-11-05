@@ -427,7 +427,7 @@ def holders(directory: Path) -> dict[int, Holder]:
             lines = entry.read_text(encoding="utf-8").splitlines()
         except FileNotFoundError:
             continue
-        except (OSError, UnicodeDecodeError):
+        except OSError, UnicodeDecodeError:
             lines = []  # unreadable: no worktree, so abandoned, and taken again as such
         worktree, taken_at = ([*lines, "", ""])[:2]
         taken[int(entry.name)] = Holder(worktree, taken_at)

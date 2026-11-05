@@ -9,13 +9,12 @@ of the administration API: a change of the language, which Keycloak is told of, 
 """
 
 import threading
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from uuid import UUID, uuid4
 
 import pytest
 from access_rows import account, role
 from fastapi.testclient import TestClient
-from openapi_core import OpenAPI
 from realm import KEY, TestRealm
 from sqlalchemy import Engine, insert, select, update
 from support import ContractClient, bearer, nowhere, wait_for_a_lock
@@ -28,9 +27,13 @@ from waterfall.core.users.tables import UserAccount
 from waterfall.platform.database import Database, utc_now
 from waterfall.platform.errors import UnprocessableError
 from waterfall.platform.installation import THE_ROW, Installation
-from waterfall.platform.keycloak import Keycloak
 from waterfall.platform.keycloak_admin import KeycloakAdmin
-from waterfall.platform.settings import ServiceSettings
+
+if TYPE_CHECKING:
+    from openapi_core import OpenAPI
+
+    from waterfall.platform.keycloak import Keycloak
+    from waterfall.platform.settings import ServiceSettings
 
 ME = "/api/v1/me"
 PREFERENCES = "/api/v1/me/preferences"

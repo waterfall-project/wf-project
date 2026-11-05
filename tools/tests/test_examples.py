@@ -3,12 +3,15 @@
 """Tests of the listing of numeric examples and of the fixtures that cite them."""
 
 import json
-from pathlib import Path
+from typing import TYPE_CHECKING
 
 import pytest
 
 from wftools import examples, projection
 from wftools.examples import Example
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 pytestmark = pytest.mark.requirement("WF-QUA-0020-A")
 

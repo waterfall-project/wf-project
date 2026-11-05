@@ -14,9 +14,12 @@ the right to sign in when the server does not have it yet — the deployment giv
 password —, and no descent drops it, so that a descent then an ascent keep that password.
 """
 
-from collections.abc import Sequence
+from typing import TYPE_CHECKING
 
 from alembic import op
+
+if TYPE_CHECKING:
+    from collections.abc import Sequence
 
 revision: str = "0002"
 down_revision: str | None = "0001"

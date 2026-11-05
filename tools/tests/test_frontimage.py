@@ -12,13 +12,15 @@ import json
 import os
 import re
 import subprocess
-from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import pytest
 import yaml
 
 from wftools import REPOSITORY, frontimage, paths, slots
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 MANIFEST = json.dumps({"routes": {"/_global-error": {}, "/icon.svg": {}}, "dynamicRoutes": {}})
 ADDRESS = "127.0.0.1:32768"

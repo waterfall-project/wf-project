@@ -11,7 +11,7 @@ line-length = 100
 # The models of the service are engendered from the contract (`make generate-server-models`):
 # the tool formats them, and a rule is not applied to what no one writes.
 extend-exclude = ["backend/src/waterfall/api/contract/models.py"]
-target-version = "py313"
+target-version = "py314"
 # Where the first-party packages live, so that imports sort the same way from anywhere.
 src = ["backend/src", "tools/src"]
 
@@ -39,6 +39,17 @@ allowed-confusables = ["’", "‘", "ʼ", " ", " ", " ", "–"]
 # CPY001 checks the SPDX header every source file opens with (US-0050).
 notice-rgx = "SPDX-FileCopyrightText: \\d{4} waterfall-project"
 
+[lint.flake8-type-checking]
+# Python 3.14 evaluates annotations lazily, so Ruff asks for the imports only an annotation uses to
+# move under `TYPE_CHECKING`. What reads its annotations at run time keeps them: the models of
+# Pydantic, the settings, and the tables of SQLAlchemy (the type of a `Mapped[...]`).
+runtime-evaluated-base-classes = [
+    "pydantic.BaseModel",
+    "pydantic_settings.BaseSettings",
+    "sqlalchemy.orm.DeclarativeBase",
+    "waterfall.platform.database.Base",
+]
+
 [lint.mccabe]
 # Cyclomatic complexity under 15 (US-0050): Ruff reports a value above the maximum.
 max-complexity = 14
@@ -60,6 +71,13 @@ convention = "pep257"
     "INP001",  # pytest collects test files as modules of their own, not as a package
     "S603",    # tests run the repository's own commands
     "S607",
+]
+"backend/src/waterfall/api/**" = [
+    # FastAPI reads the annotations of a handler at run time (the parameters, the body, the
+    # response): their imports stay real imports.
+    "TC001",
+    "TC002",
+    "TC003",
 ]
 "tools/src/**" = [
     "T201", # the repository tools speak on the console

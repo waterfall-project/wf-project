@@ -5,7 +5,7 @@
 name = "waterfall"
 version = "0.1.0"
 description = "Waterfall: the business core, the API service and the worker, in one package."
-requires-python = ">=3.13"
+requires-python = ">=3.14"
 dependencies = [
     "alembic>=1.18",
     "boto3>=1.40",
@@ -31,7 +31,7 @@ waterfall-migrate = "waterfall.migrations.runner:main"
 waterfall-restore = "waterfall.restore.main:main"
 
 [build-system]
-requires = ["uv_build>=0.12.19,<0.13.0"]
+requires = ["uv_build>=0.13.7,<0.14.0"]
 build-backend = "uv_build"
 
 [dependency-groups]
@@ -85,7 +85,7 @@ exclude_also = ["if __name__ == .__main__.:"]
 
 [tool.pyright]
 typeCheckingMode = "strict"
-pythonVersion = "3.13"
+pythonVersion = "3.14"
 include = ["src", "tests"]
 # The tests share what ``tests/conftest.py`` holds.
 extraPaths = ["src", "tests"]

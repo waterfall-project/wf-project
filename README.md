@@ -116,7 +116,7 @@ make build-doc            # regenerate the Markdown projection from Word and dra
 make generate-client      # regenerate the front's API client from the contract
 ```
 
-Prerequisites: [uv](https://docs.astral.sh/uv/), which brings Python 3.13 for the back and
+Prerequisites: [uv](https://docs.astral.sh/uv/), which brings Python 3.14 for the back and
 the tools; a Python 3.11 or later on the `PATH` as `python3`, which builds the projection;
 Node 24, whose corepack brings pnpm; Docker, for `make dev`; `pandoc` 3.13, the version the projection
 is generated with; and `mmdc` (`npm i -g @mermaid-js/mermaid-cli`) to validate the diagrams.

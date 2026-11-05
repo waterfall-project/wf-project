@@ -13,14 +13,12 @@ role, whatever the body sends (US-1050, #1732).
 """
 
 import threading
-from collections.abc import Iterator
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from uuid import UUID, uuid4
 
 import pytest
 from access_rows import account, role
 from fastapi.testclient import TestClient
-from openapi_core import OpenAPI
 from realm import KEY, TestRealm
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -37,10 +35,16 @@ from waterfall.core.users.tables import UserAccount
 from waterfall.platform.audit import Act, AuditEntry
 from waterfall.platform.database import Database, utc_now
 from waterfall.platform.errors import ConflictError
-from waterfall.platform.keycloak import Keycloak
 from waterfall.platform.keycloak_admin import InvitationFailure, KeycloakAdmin, LocalIdentity
 from waterfall.platform.logs import logging_context
-from waterfall.platform.settings import ServiceSettings
+
+if TYPE_CHECKING:
+    from collections.abc import Iterator
+
+    from openapi_core import OpenAPI
+
+    from waterfall.platform.keycloak import Keycloak
+    from waterfall.platform.settings import ServiceSettings
 
 USERS = "/api/v1/users"
 ME = "/api/v1/me"

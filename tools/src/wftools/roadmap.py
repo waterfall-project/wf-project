@@ -31,9 +31,12 @@ import subprocess
 import sys
 from collections import defaultdict
 from dataclasses import dataclass
-from pathlib import Path
+from typing import TYPE_CHECKING
 
 from wftools import REPOSITORY, projection
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 ROADMAP = REPOSITORY / "docs" / "roadmap"
 MAKEFILE = REPOSITORY / "Makefile"

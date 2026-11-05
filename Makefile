@@ -3,7 +3,7 @@
 # Waterfall — repository commands.
 #
 # The specification lives in docs/spec, the interface contract in docs/api.
-# Requirements: python3 3.11+ (the projection), uv (Python 3.13 for the back and the tools),
+# Requirements: python3 3.11+ (the projection), uv (Python 3.14 for the back and the tools),
 # node with npx and corepack (the front, the contract), pandoc 3.13 (the projection),
 # docker (make dev), and mmdc to validate the diagrams.
 

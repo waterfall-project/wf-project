@@ -4,7 +4,7 @@
 
 import json
 import os
-from collections.abc import Iterator
+from typing import TYPE_CHECKING
 from urllib.parse import urlsplit, urlunsplit
 from uuid import uuid4
 
@@ -37,6 +37,9 @@ from waterfall.platform.maintenance import SUFFIX, Maintenance
 from waterfall.platform.queue import RESTORES, WORKER_TIMEOUT, TaskQueue
 from waterfall.platform.settings import ServiceSettings, load_service_settings
 from waterfall.platform.storage import Bucket
+
+if TYPE_CHECKING:
+    from collections.abc import Iterator
 
 
 @pytest.fixture

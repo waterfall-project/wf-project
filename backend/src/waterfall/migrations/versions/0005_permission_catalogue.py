@@ -10,12 +10,15 @@ the journal of audit, which is never changed (WF-SEC-0030) —, then the irrever
 order WF-ADM-0100 names them, then the two structuring permissions.
 """
 
-from collections.abc import Sequence
+from typing import TYPE_CHECKING
 
 import sqlalchemy as sa
 from alembic import op
 
 from waterfall.platform.identifiers import new_id
+
+if TYPE_CHECKING:
+    from collections.abc import Sequence
 
 revision: str = "0005"
 down_revision: str | None = "0004"

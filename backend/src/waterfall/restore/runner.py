@@ -21,16 +21,13 @@ and nothing has changed.
 """
 
 import dataclasses
-from uuid import UUID
+from typing import TYPE_CHECKING
 
 from sqlalchemy import ColumnElement, inspect, select
-from sqlalchemy.orm import Session
 
-from waterfall.platform.database import Database
 from waterfall.platform.errors import ServiceError
 from waterfall.platform.logs import get_logger, logging_context
 from waterfall.platform.maintenance import Maintenance, Restoring
-from waterfall.platform.queue import Entry, TaskQueue
 from waterfall.platform.tasks import BackgroundTask, Task, TaskHandler
 from waterfall.worker.runner import (
     INTERNAL_ERROR,
@@ -42,6 +39,14 @@ from waterfall.worker.runner import (
     failure,
     lock_run,
 )
+
+if TYPE_CHECKING:
+    from uuid import UUID
+
+    from sqlalchemy.orm import Session
+
+    from waterfall.platform.database import Database
+    from waterfall.platform.queue import Entry, TaskQueue
 
 KIND = "restore"
 

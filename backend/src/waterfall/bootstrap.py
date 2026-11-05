@@ -23,9 +23,8 @@ above them both, and nothing imports it.
 """
 
 import sys
-from collections.abc import Generator, Sequence
 from contextlib import contextmanager
-from typing import IO, Any
+from typing import IO, TYPE_CHECKING, Any
 
 from sqlalchemy import Engine, func, select
 
@@ -64,6 +63,9 @@ from waterfall.platform.settings import (
     SettingsError,
     load_installation_settings,
 )
+
+if TYPE_CHECKING:
+    from collections.abc import Generator, Sequence
 
 # The key of the advisory lock under which a bootstrap reads what is installed, then installs.
 INSTALL_LOCK = 4_200_420

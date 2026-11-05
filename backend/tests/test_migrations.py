@@ -4,10 +4,9 @@
 
 import subprocess
 import sys
-from collections.abc import Generator, Iterator
 from contextlib import contextmanager
 from datetime import UTC, datetime
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from uuid import UUID, uuid4
 
 import pytest
@@ -15,7 +14,6 @@ from alembic.autogenerate import compare_metadata
 from alembic.migration import MigrationContext
 from alembic.script import ScriptDirectory
 from sqlalchemy import Engine, insert, select, text
-from sqlalchemy.engine import Connection
 from sqlalchemy.exc import DBAPIError
 from support import raw_account, service_role
 
@@ -33,6 +31,11 @@ from waterfall.platform.database import Base, Database, create_database_engine, 
 from waterfall.platform.installation import Installation
 from waterfall.platform.tasks import BackgroundTask
 from waterfall.platform.uploads import FileUpload
+
+if TYPE_CHECKING:
+    from collections.abc import Generator, Iterator
+
+    from sqlalchemy.engine import Connection
 
 # The last revision of the chain, which a migrated database says it has applied.
 HEAD = ScriptDirectory.from_config(alembic_config()).get_current_head()

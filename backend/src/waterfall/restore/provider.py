@@ -15,13 +15,16 @@ again are removed from the realm that holds them again (#988).
 """
 
 import time
-from collections.abc import Callable, Iterable
 from dataclasses import dataclass, field
-from pathlib import Path
-from typing import Protocol
+from typing import TYPE_CHECKING, Protocol
 
-from waterfall.platform.keycloak_admin import KeycloakAdmin
 from waterfall.platform.logs import get_logger
+
+if TYPE_CHECKING:
+    from collections.abc import Callable, Iterable
+    from pathlib import Path
+
+    from waterfall.platform.keycloak_admin import KeycloakAdmin
 
 # How long, in seconds, a realm applied again may take, and the pause between two looks.
 PATIENCE = 600.0

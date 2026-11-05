@@ -13,6 +13,7 @@ writer to come is tried as these are.
 import ast
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import TYPE_CHECKING
 from uuid import UUID, uuid4
 
 import pytest
@@ -50,7 +51,9 @@ from waterfall.platform.audit import Act, AuditActor, AuditEntry, AuditObject
 from waterfall.platform.database import Database, utc_now
 from waterfall.platform.keycloak_admin import ProviderAccount
 from waterfall.platform.logs import logging_context
-from waterfall.platform.queue import TaskQueue
+
+if TYPE_CHECKING:
+    from waterfall.platform.queue import TaskQueue
 
 CORRELATION = "req-params"
 # The moment the backups are taken, which their inscriptions bear.

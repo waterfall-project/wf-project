@@ -13,10 +13,9 @@ import signal
 import subprocess
 import sys
 import time
-from collections.abc import Callable, Generator
 from contextlib import contextmanager
 from pathlib import Path
-from typing import cast
+from typing import TYPE_CHECKING, cast
 from uuid import UUID
 
 import pytest
@@ -27,10 +26,14 @@ from task_handlers import REQUEST, Runs, deposit, inscriptions, task
 
 from waterfall.core.users.tables import UserAccount
 from waterfall.platform.correlation import FORM
-from waterfall.platform.database import Database
-from waterfall.platform.queue import TaskQueue
 from waterfall.platform.tasks import BackgroundTask
 from waterfall.worker.runner import Timing, Worker
+
+if TYPE_CHECKING:
+    from collections.abc import Callable, Generator
+
+    from waterfall.platform.database import Database
+    from waterfall.platform.queue import TaskQueue
 
 TESTS = Path(__file__).resolve().parent
 COMPOSE = TESTS.parents[1] / "deploy" / "compose" / "compose.service.yaml"

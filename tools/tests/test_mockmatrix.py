@@ -10,9 +10,8 @@ exigence »).
 import dataclasses
 import json
 from collections import Counter
-from collections.abc import Iterator
 from decimal import Decimal
-from typing import Any, cast
+from typing import TYPE_CHECKING, Any, cast
 
 import pytest
 
@@ -25,6 +24,9 @@ from wftools import (
     mockwitnessrisks,
 )
 from wftools.mockids import universe
+
+if TYPE_CHECKING:
+    from collections.abc import Iterator
 
 type Node = dict[str, Any]
 

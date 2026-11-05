@@ -27,10 +27,9 @@ short transaction of its own that locks nothing: a change of the account committ
 the provider gets, and an account anonymised since is left alone (WF-ADM-0060).
 """
 
-from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from sqlalchemy import Connection, Engine, event
 from sqlalchemy.exc import SQLAlchemyError
@@ -59,8 +58,12 @@ from waterfall.platform.errors import ConflictError, UnavailableError, Unprocess
 from waterfall.platform.keycloak import IdentityProviderError, Keycloak
 from waterfall.platform.keycloak_admin import KeycloakAdmin, ProviderAccount, RealmAccount
 from waterfall.platform.logs import get_logger, logging_context
-from waterfall.platform.settings import ServiceSettings
-from waterfall.platform.tasks import Task
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
+
+    from waterfall.platform.settings import ServiceSettings
+    from waterfall.platform.tasks import Task
 
 # How old a local account of the provider unknown to Waterfall is before it is removed: a creation
 # under way has written it in the provider, and not yet in Waterfall.
@@ -84,7 +87,7 @@ class IdentitySync:
         self.grace = grace
 
     @classmethod
-    def of(cls, settings: ServiceSettings) -> "IdentitySync":
+    def of(cls, settings: ServiceSettings) -> IdentitySync:
         """Reach the provider the settings name, as the service account of its realm."""
         return cls(KeycloakAdmin(Keycloak(settings), settings))
 
@@ -175,7 +178,7 @@ class IdentitySync:
         for account in orphans:
             try:
                 self.admin.remove_account(account.subject)
-            except (UnavailableError, IdentityProviderError):
+            except UnavailableError, IdentityProviderError:
                 logger.exception("identity_sync.orphan_not_removed", subject=account.subject)
             else:
                 logger.info("identity_sync.orphan_removed", subject=account.subject)
@@ -194,7 +197,7 @@ class IdentitySync:
                 if identity is None:
                     continue
                 restored = self.admin.change_identity(subject, identity)
-            except (SQLAlchemyError, UnavailableError, IdentityProviderError, UnprocessableError):
+            except SQLAlchemyError, UnavailableError, IdentityProviderError, UnprocessableError:
                 logger.exception("identity_sync.identity_not_restored", subject=subject)
             else:
                 if restored:

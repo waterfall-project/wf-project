@@ -10,7 +10,7 @@ without its settings (WF-SEC-0010).
 
 import signal
 import sys
-from collections.abc import Callable, Sequence
+from typing import TYPE_CHECKING
 
 from sqlalchemy import func, select
 
@@ -30,6 +30,9 @@ from waterfall.platform.tasks import TaskHandler, TaskKind, pending_task, submit
 from waterfall.worker.backup import BackupTask
 from waterfall.worker.identity_sync import IdentitySync
 from waterfall.worker.runner import Worker
+
+if TYPE_CHECKING:
+    from collections.abc import Callable, Sequence
 
 NAME = "waterfall-worker"
 USAGE = f"usage: {NAME} [--version | enqueue <kind>]\n"

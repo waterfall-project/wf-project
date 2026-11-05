@@ -9,7 +9,7 @@ the permissions a test asks for (``caller_permissions``) — to consult the acco
 otherwise.
 """
 
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from uuid import UUID, uuid4
 
 import pytest
@@ -18,7 +18,9 @@ from realm import KEY, TestRealm
 from support import ContractClient, bearer
 
 from waterfall.platform.correlation import HEADER
-from waterfall.platform.database import Database
+
+if TYPE_CHECKING:
+    from waterfall.platform.database import Database
 
 USERS = "/api/v1/users"
 # An identifier no row holds, fixed: the identifiers of the tests are the same in each process

@@ -11,8 +11,7 @@ a restoration that finds what another kept and never wrote back takes it over (#
 keeps and writes back its own table through these functions, by its table: no text here names one.
 """
 
-from collections.abc import Collection
-from uuid import UUID
+from typing import TYPE_CHECKING
 
 from sqlalchemy import (
     Column,
@@ -32,9 +31,14 @@ from sqlalchemy import (
     update,
 )
 from sqlalchemy.schema import CreateSchema, DropSchema
-from sqlalchemy.sql import FromClause
 
 from waterfall.platform.database import Base
+
+if TYPE_CHECKING:
+    from collections.abc import Collection
+    from uuid import UUID
+
+    from sqlalchemy.sql import FromClause
 
 SCHEMA = "restoring"
 # The rights of the role of the service of the database on the tables of ``public``, as statements:

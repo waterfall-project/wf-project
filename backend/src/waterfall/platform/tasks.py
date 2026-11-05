@@ -11,7 +11,7 @@ requester is an account (the module of the accounts declares the key), or the pl
 from collections.abc import Callable, Collection, Mapping
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Any, Literal, get_args
+from typing import TYPE_CHECKING, Any, Literal, get_args
 from uuid import UUID
 
 from pydantic_core import to_jsonable_python
@@ -34,8 +34,10 @@ from structlog.contextvars import get_contextvars
 from waterfall.platform.database import Base, UtcDateTime, utc_now
 from waterfall.platform.identifiers import new_id
 from waterfall.platform.logs import get_logger
-from waterfall.platform.queue import TaskQueue
 from waterfall.platform.restoration import keep, keep_more, overwrite, write_back
+
+if TYPE_CHECKING:
+    from waterfall.platform.queue import TaskQueue
 
 # The kinds and the states of the contract (``BackgroundTaskRef.kind``, ``BackgroundTaskStatus``),
 # in its order; a new one is a change of the contract, then a migration of the constraint.

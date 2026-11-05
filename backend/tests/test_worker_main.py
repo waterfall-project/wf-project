@@ -5,21 +5,25 @@
 import json
 import os
 import signal
+from typing import TYPE_CHECKING
 
 import pytest
 import redis
 from sqlalchemy import update
-from support import Logs
 from task_handlers import task
 
 import waterfall
 from waterfall.platform.correlation import FORM
 from waterfall.platform.database import Database, utc_now
 from waterfall.platform.queue import WORKER_TIMEOUT, TaskQueue
-from waterfall.platform.settings import ServiceSettings
 from waterfall.platform.tasks import BackgroundTask
 from waterfall.worker import main as worker_main
 from waterfall.worker.runner import Worker
+
+if TYPE_CHECKING:
+    from support import Logs
+
+    from waterfall.platform.settings import ServiceSettings
 
 SCHEDULE = ["enqueue", "identity_sync"]
 
