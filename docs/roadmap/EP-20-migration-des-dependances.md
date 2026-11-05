@@ -998,7 +998,7 @@ réglages que la permission d'`enqueuePullRequest`.
 
 ## US-1270 — Les constats d'outil de l'EPIC sont corrigés
 
-- **statut** : en cours
+- **statut** : fini
 - **exigences** : aucune — outil du dépôt
 - **opérations** : aucune
 - **issue** : #2016
