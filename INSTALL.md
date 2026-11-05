@@ -14,7 +14,7 @@ Pour installer une plateforme de démonstration à partir des images publiées, 
 |---|---|
 | [uv](https://docs.astral.sh/uv/) | Python 3.14 et les dépendances du back et des outils du dépôt |
 | Python 3.14 ou plus, sous le nom `python3` | la projection de la spécification |
-| Node 24 | le front ; son corepack apporte pnpm |
+| Node 26 | le front, et pnpm, que `npm install --global pnpm` installe une fois |
 | Docker et son greffon Compose | `make dev`, la plateforme de service, les images |
 | Le client PostgreSQL 18 (`postgresql-client-18`, celui d'Ubuntu 26.04) | `pg_dump` et `pg_restore` dans `/usr/bin`, que les tests des sauvegardes et des restaurations appellent : ceux de la majeure du serveur, ni plus récents ni plus anciens (#982) |
 | `pandoc` 3.13 | la projection de la spécification (une autre version écrit un autre Markdown) |
@@ -42,7 +42,7 @@ Une branche d'EPIC (`epic/EP-nn`) porte le travail en cours ; `main` porte ce qu
 
 ```bash
 make check-tools          # tout doit être « ok »
-corepack enable pnpm      # pnpm à la version que le front épingle
+npm install --global pnpm   # pnpm, une fois : il prend lui-même la version que le front épingle
 make install-front        # les dépendances du front, telles que pnpm-lock.yaml les fixe
 make e2e-browsers         # le navigateur des parcours de bout en bout (Chromium de Playwright)
 ```

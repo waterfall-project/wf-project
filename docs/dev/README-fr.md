@@ -103,8 +103,8 @@ nouvelle s'y ajoute.
 
 Le front est une application Next.js en TypeScript strict (`frontend/tsconfig.json`, avec
 `noUncheckedIndexedAccess` et `exactOptionalPropertyTypes`). pnpm en gère les dépendances,
-à la version que nomme `packageManager` dans `package.json`, lancée par corepack
-(`corepack enable pnpm`) ; le verrou, `pnpm-lock.yaml`, fait foi et la chaîne installe
+à la version que nomme `packageManager` dans `package.json`, installé une fois par
+`npm install --global pnpm` ; le verrou, `pnpm-lock.yaml`, fait foi et la chaîne installe
 avec `--frozen-lockfile`. Les tests unitaires sont des fichiers `*.test.ts` ou `*.test.tsx`
 à côté du code qu'ils éprouvent, lancés par Vitest en deux projets (`vitest.config.ts`),
 que le nom du fichier départage : `node` pour les `*.test.ts` et `*.test.tsx` — la logique,
@@ -3046,8 +3046,10 @@ Le palier complet vise moins de huit minutes dans la file pour son travail le pl
   ne joint pas les travaux de l'un à ceux de l'autre ; ni l'un ni l'autre n'a d'autre
   déclencheur que cet appel, si bien qu'aucun ne construit le front. Un build en échec saute les
   deux, et la porte, qui l'attend aussi, échoue. Il construit sur le runner, comme `front.yml`, en
-  Node 24 : les morceaux le démarrent dans l'image de Playwright, en Node 24 elle aussi (son
-  `NODE_VERSION`), sur la même Ubuntu noble en amd64, et à un autre chemin de l'espace de travail
+  Node 26 : les morceaux le démarrent dans l'image de Playwright, en Node 24 (son
+  `NODE_VERSION`, que le lot de Node 26 ne change pas ; `next start` y exécute les fichiers
+  construits, et Next 16 accepte Node 24, tandis que pnpm 12 ne s'arrête pas sur `engines` sans
+  `engine-strict`, que le front ne pose pas), sur la même Ubuntu noble en amd64, et à un autre chemin de l'espace de travail
   (`/__w/…` au lieu de `/home/runner/work/…`) ; `service.yml`, sur le runner. Le build ne dépend
   pas de ce chemin : seul `required-server-files.json`, que lit la sortie autonome de l'image et
   non `next start`, le nomme, et un build déplacé ailleurs, son dossier d'origine retiré, sert ses

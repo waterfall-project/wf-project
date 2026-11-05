@@ -103,8 +103,8 @@ to it.
 
 The front is a Next.js application in strict TypeScript (`frontend/tsconfig.json`, with
 `noUncheckedIndexedAccess` and `exactOptionalPropertyTypes`). pnpm manages its dependencies,
-at the version `packageManager` names in `package.json`, launched by corepack
-(`corepack enable pnpm`); the lock, `pnpm-lock.yaml`, is authoritative and the chain installs
+at the version `packageManager` names in `package.json`, installed once by
+`npm install --global pnpm`; the lock, `pnpm-lock.yaml`, is authoritative and the chain installs
 with `--frozen-lockfile`. The unit tests are `*.test.ts` or `*.test.tsx` files next to the code
 they exercise, run by Vitest in two projects (`vitest.config.ts`), which the file name decides
 between: `node` for the `*.test.ts` and `*.test.tsx` — the logic, and the server components of
@@ -3024,8 +3024,10 @@ The full tier aims at under eight minutes in the queue for its longest job
   does not join the jobs of one to those of the other; neither has any other
   trigger than that call, so that none builds the front. A failed build skips the
   two, and the gate, which waits for it too, fails. It builds on the runner, like `front.yml`, in
-  Node 24: the shards start it in the Playwright image, in Node 24 too (its
-  `NODE_VERSION`), on the same Ubuntu noble in amd64, and at another path of the workspace
+  Node 26: the shards start it in the Playwright image, in Node 24 (its
+  `NODE_VERSION`, which the Node 26 lot does not change; `next start` runs the built files there,
+  and Next 16 accepts Node 24, while pnpm 12 does not stop on `engines` without
+  `engine-strict`, which the front does not set), on the same Ubuntu noble in amd64, and at another path of the workspace
   (`/__w/…` instead of `/home/runner/work/…`); `service.yml`, on the runner. The build does not depend
   on that path: only `required-server-files.json`, which the standalone output of the image reads and
   not `next start`, names it, and a build moved elsewhere, its original folder removed, serves its
