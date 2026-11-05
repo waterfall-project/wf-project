@@ -744,7 +744,6 @@
       "coverage": "Couverture des risques",
       "reserve": "Réserve de référence",
       "remainingProvisions": "Provisions restantes",
-      "occurredCost": "Coût des risques survenus",
       "coverageVariance": "Écart de couverture"
     },
     "workload": {

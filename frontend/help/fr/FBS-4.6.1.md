@@ -15,7 +15,7 @@ Le libellé d’un risque est un lien vers son détail, qui s’ouvre à côté 
 - **Période du dernier réexamen** retient les risques dont le dernier réexamen tombe entre deux jours, fin incluse.
 - **Non réexaminés depuis le dernier marquage** fixe la fin de cette période au jour du dernier marquage du projet : la revue périodique présente les risques dont la probabilité n’a pas été réexaminée depuis. Le serveur filtre, et les totaux suivent.
 - **Colonnes** choisit les colonnes montrées.
-- Un en-tête trie le registre par sa colonne ; le réestimé des survenus et la case de la matrice ne se trient pas.
+- Un en-tête trie le registre par sa colonne, le réestimé des survenus compris ; la case de la matrice ne se trie pas. Au tri du réestimé, la place des risques qui n’en portent pas — identifiés ou écartés — est celle que le serveur fixe.
 
 ## Ses colonnes et ses valeurs calculées
 

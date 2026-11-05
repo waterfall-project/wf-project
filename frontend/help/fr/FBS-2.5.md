@@ -5,7 +5,7 @@
 Les risques des projets du périmètre et leur couverture. Sous le titre, le périmètre retenu et la date de calcul. De haut en bas :
 
 - **Provisions des risques** : le total des provisions des risques identifiés, puis, sur la période, les provisions des risques survenus et celles des risques écartés.
-- **Couverture des risques** : la réserve de référence, face aux provisions restantes et au coût des risques survenus, et l’écart de couverture. Elle ne porte que sur les projets en cours et terminés : un projet en chiffrage n’a pas de référence.
+- **Couverture des risques** : la réserve de référence, face aux provisions restantes et au coût des risques survenus, et l’écart de couverture. En regard du coût des risques survenus, le **réestimé** de ces risques — ce que coûtent aujourd’hui les lignes que leur survenance a fusionnées, somme du serveur — est une information : il montre la dérive des risques survenus et n’entre pas dans l’écart de couverture. Elle ne porte que sur les projets en cours et terminés : un projet en chiffrage n’a pas de référence.
 - **Risques les plus lourds** : les risques identifiés, tous projets confondus, classés par montant de provision, chacun avec son projet.
 - **Matrice des risques** : un nuage de bulles, la probabilité en abscisse et la gravité, en part de l’assiette du projet, en ordonnée, chaque bulle aussi grande que la gravité en montant, de la couleur et de la forme de sa zone (rond, losange, triangle), sur un fond blanc ; seuls les risques identifiés y figurent, et sous elle, le décompte des risques identifiés par case.
 

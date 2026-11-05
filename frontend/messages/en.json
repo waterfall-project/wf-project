@@ -744,7 +744,6 @@
       "coverage": "Risk coverage",
       "reserve": "Reference reserve",
       "remainingProvisions": "Remaining provisions",
-      "occurredCost": "Cost of the occurred risks",
       "coverageVariance": "Coverage variance"
     },
     "workload": {

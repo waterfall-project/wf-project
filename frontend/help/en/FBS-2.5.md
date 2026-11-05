@@ -5,7 +5,7 @@
 The risks of the projects of the perimeter and their coverage. Under the title, the perimeter retained and the date of calculation. From top to bottom:
 
 - **Risk provisions**: the total of the provisions of the identified risks, then, over the period, the provisions of the risks occurred and those of the risks dismissed.
-- **Risk coverage**: the reference reserve, against the remaining provisions and the cost of the risks occurred, and the coverage variance. It bears only on the projects in progress and completed: a project in pricing has no reference.
+- **Risk coverage**: the reference reserve, against the remaining provisions and the cost of the risks occurred, and the coverage variance. In regard of the cost of the risks occurred, the **reestimated** of these risks — what the lines their occurrence merged cost today, a sum the server makes — is an information: it shows the drift of the occurred risks and does not enter the coverage variance. It bears only on the projects in progress and completed: a project in pricing has no reference.
 - **Heaviest risks**: the identified risks, all projects together, ranked by provision amount, each with its project.
 - **Risk matrix**: a cloud of bubbles, the probability on the horizontal axis and the severity, as a share of the base of the project, on the vertical axis, each bubble as large as the severity in amount, in the colour and the shape of its zone (circle, diamond, triangle), on a white ground; only the identified risks appear in it, and under it, the count of the identified risks by cell.
 

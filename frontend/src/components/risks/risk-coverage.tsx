@@ -45,8 +45,9 @@ const AMOUNTS = [
 /**
  * The cost of the occurred risks, and in regard of it their reestimated cost, an information: a
  * short word on the screen, its full name and its mention of an information for a reader of it.
+ * The portfolio presents them the same way (`PortfolioRisksView`, #1953).
  */
-function OccurredCost({ coverage }: { readonly coverage: RiskCoverageTotals }) {
+export function OccurredCost({ coverage }: { readonly coverage: RiskCoverageTotals }) {
   const t = useTranslations("risks.coverage");
   return (
     <FigureTerm name={t("occurredCost")}>

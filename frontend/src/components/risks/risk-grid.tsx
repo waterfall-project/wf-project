@@ -10,8 +10,9 @@
  * dense grid as the planning and the estimate: another configuration, read only — a risk is
  * entered by the epic of the risks (EP-08).
  *
- * Each column but the reestimated amount and the cell of the matrix sorts by the column of the
- * contract of the same name, the server sorting (WF-IHM-0130); it sorts by neither of the two. Each
+ * Each column but the cell of the matrix sorts by the column of the contract of the same name, the
+ * server sorting (WF-IHM-0130) — the reestimated amount too (`occurred_reestimated_amount`, whose
+ * null values the contract places, #1761) —; the cell of the matrix does not. Each
  * column is filtered beside the grid, by the address (`address.ts`, `risk-filters.tsx`).
  * The severity, the provision and the cost at the occurrence are computed (WF-RIS-0010,
  * WF-IHM-0030): columns computed whole, Σ in their header and in each cell that bears a value,
@@ -177,7 +178,8 @@ export const RISK_GRID: GridConfig<RiskRow, RiskSortColumn, ProvisionTotals> = {
       width: 120,
       // What the lines that came of an occurred risk cost now, the server's sum, beside the cost at
       // the occurrence it drifts from (WF-RIS-0050, #1763): an information, no computed field the
-      // risk names, and a column the register does not sort by.
+      // risk names; the server sorts by it, and places its null values (#1947).
+      contract: "occurred_reestimated_amount",
       value: (risk) => risk.occurred_reestimated_amount,
     },
     {

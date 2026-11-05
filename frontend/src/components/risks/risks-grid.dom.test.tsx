@@ -294,11 +294,18 @@ describe("the grid of the risks", () => {
     expect(RISK_GRID.columns.reduce((width, column) => width + column.width, 0)).toBe(980);
   });
 
-  it("sorts by the cost at the occurrence, as the contract does, and offers no sort on the reestimated amount [WF-RIS-0040-A]", () => {
+  it("sorts by the cost at the occurrence and by the reestimated amount of the occurred risks, as the contract does, and offers no sort on the cell of the matrix [WF-RIS-0050-A]", async () => {
     renderRisks();
     const header = (name: RegExp) => within(grid()).getByRole("columnheader", { name });
     expect(within(header(/Coût à la survenance/)).getByRole("button")).toBeVisible();
-    expect(within(header(/Réestimé des survenus/)).queryByRole("button")).toBeNull();
+    expect(within(header(/Case de la matrice/)).queryByRole("button")).toBeNull();
+    await userEvent.click(within(header(/Réestimé des survenus/)).getByRole("button"));
+    await waitFor(() => {
+      expect(router.push).toHaveBeenLastCalledWith(
+        `${PATHNAME}?sort_by=occurred_reestimated_amount&sort_order=asc`,
+        { scroll: false },
+      );
+    });
   });
 
   it("presents no cell of the grid for entry: a risk is entered by the epic of the risks", async () => {

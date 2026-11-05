@@ -1543,7 +1543,7 @@ aucun correctif au hasard (décision de l'auteur du 2026-10-28).
 
 ## US-1210 — Le registre trie le réestimé, le portefeuille le présente, l'écran des révisions montre le compte rendu
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-RIS-0050-A`, `WF-PTF-0090-A`
 - **opérations** : `listRisks`, `getPortfolioRisks`, `getImport`, `listRevisions`
 - **issue** : #1964

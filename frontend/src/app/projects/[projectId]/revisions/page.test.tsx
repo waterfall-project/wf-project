@@ -48,6 +48,8 @@ const SUBPROJECT = "01926f3a-7c00-7000-8000-000000000801";
 const NOT_FOUND = { problem: { code: "NOT_FOUND", status: 404 } } as const;
 const BANNER = '<section aria-label="Contexte de lecture"';
 const REVISIONS = `/projects/${PROJECT}/revisions`;
+const IMPORT = "01926f3a-7c00-7000-8000-000000000a11";
+const GET_IMPORT = "GET /projects/{project_id}/imports/{import_id}";
 
 const COMPARISON = example("comparison") as RevisionComparison;
 // The axes of the deviations, as the French catalogue names them.
@@ -138,6 +140,24 @@ beforeEach(() => {
 });
 
 describe("the screen of the revisions of a project", () => {
+  it("shows the report of the import its address names above the history, as the screen of the project does [WF-RIS-0050-A] [WF-IHM-0010-A]", async () => {
+    server.answers = { ...server.answers, [GET_IMPORT]: "import_analysed" };
+    const page = html(await RevisionsPage(at({ import: IMPORT })));
+    expect(callTo(GET_IMPORT)?.path).toBe(`/projects/${PROJECT}/imports/${IMPORT}`);
+    expect(text(page)).toContain("Compte rendu de l’import");
+    expect(page.indexOf("Compte rendu de l’import")).toBeLessThan(
+      page.indexOf("Historique des révisions"),
+    );
+  });
+
+  it("reads no import and shows no report when its address names none, or one no identifier can stand for [WF-RIS-0050-A] [WF-IHM-0010-A]", async () => {
+    server.answers = { ...server.answers, [GET_IMPORT]: "import_analysed" };
+    const plain = html(await RevisionsPage(at()));
+    html(await RevisionsPage(at({ import: ".." })));
+    expect(callTo(GET_IMPORT)).toBeUndefined();
+    expect(text(plain)).not.toContain("Compte rendu de l’import");
+  });
+
   it("names the project, and the revision the address carries [WF-IHM-0020-A]", async () => {
     // Chaque écran de données de projet nomme le projet et la révision affichée.
     const page = html(await RevisionsPage(at({ revision_id: DRAFT })));
