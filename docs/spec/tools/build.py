@@ -63,6 +63,17 @@ RE_TRACKED_CHANGE = re.compile(
     r"<w:(?:ins|del|moveFrom|moveTo|cellIns|cellDel|cellMerge|\w+Change)\b"
 )
 RE_COMMENT_THREAD = re.compile(r"<w15:commentEx\b[^>]*>")
+# What pandoc 3.13 adds to the Markdown of the document, and the projection does without:
+# the index entries (XE fields), which the projection has no index for and which land
+# inside the cells, identifiers included; the figure wrapping an image and its caption;
+# and the link a cross-reference (REF field) now carries to the heading it names.
+RE_INDEX_ENTRY = re.compile(r'<span class="indexref"[^>]*></span>')
+RE_FIGURE = re.compile(
+    r"<figure>\s*(?P<image><img\b[^>]*>)\s*"
+    r"(?:<figcaption>\s*(?:<p>)?(?P<caption>.*?)(?:</p>)?\s*</figcaption>\s*)?</figure>",
+    re.DOTALL,
+)
+RE_CROSS_REFERENCE = re.compile(r"\[([^\[\]]*)\]\(#[^)\s]*\)")
 # The parts of the archive that hold text a reviewer may change: the body, the footnotes
 # and endnotes pandoc projects with it, and the headers and footers, which carry the
 # version and the date of the document.
@@ -188,6 +199,37 @@ def extract_docx(docx: Path, media_folder: Path) -> str:
         check=True,
     )
     return result.stdout
+
+
+def drop_reader_additions(markdown: str) -> str:
+    """Return pandoc's Markdown without the index entries, and its figures unwrapped.
+
+    Pandoc 3.13, unlike 3.1.11.1, renders every index entry of Word as an empty
+    ``span.indexref`` where it stands — beside an identifier, in a requirement table —,
+    and wraps an image and its caption in an HTML figure. The projection has no index,
+    and reads an image followed by its caption paragraph: both are brought back to the
+    shape pandoc 3.1.11.1 produced, so that the identifiers and the figures do not depend on
+    the version of pandoc.
+    """
+    markdown = RE_INDEX_ENTRY.sub("", markdown)
+
+    def unwrap(figure: re.Match[str]) -> str:
+        caption = figure.group("caption")
+        return figure.group("image") + (f"\n\n{caption.strip()}" if caption else "")
+
+    return RE_FIGURE.sub(unwrap, markdown)
+
+
+def unlink_cross_references(lines: list[str]) -> list[str]:
+    """Return the lines with every link to a heading of the document turned to its text.
+
+    Pandoc 3.13 links a Word cross-reference — "§3.2.4", "ANNEXE B" — to the heading it
+    names, under an identifier of its own making; 3.1.11.1 kept the text alone. The
+    projection keeps the text: a requirement cell must not change with the version of
+    pandoc. Run once the table of contents is gone, which matches its entries by their
+    links.
+    """
+    return [RE_CROSS_REFERENCE.sub(r"\1", line) for line in lines]
 
 
 # --------------------------------------------------------------------------- #
@@ -483,7 +525,8 @@ def html_tables_to_pipe(lines: list[str]) -> list[str]:
 
     Pandoc produces an HTML table as soon as a cell holds several paragraphs (a
     Motif in two paragraphs, say). Without this step the requirement would escape
-    the conversion, the index and the duplicate check.
+    the conversion, the index and the duplicate check. Pandoc 3.13 gives the table a
+    width and every cell its paragraphs, which the text of a cell does without.
     """
     text = "\n".join(lines)
 
@@ -506,7 +549,7 @@ def html_tables_to_pipe(lines: list[str]) -> list[str]:
         pipe += [f"| {key} | {value.replace('|', '/')} |" for key, value in pairs[1:]]
         return "\n".join(pipe)
 
-    text = re.sub(r"<table>.*?</table>", rewrite, text, flags=re.DOTALL)
+    text = re.sub(r"<table\b[^>]*>.*?</table>", rewrite, text, flags=re.DOTALL)
     return text.split("\n")
 
 
@@ -709,11 +752,11 @@ def project(
                 "their result — caption numbers, mostly",
                 "info",
             )
-        raw = extract_docx(readable, Path(temporary) / "media")
+        raw = drop_reader_additions(extract_docx(readable, Path(temporary) / "media"))
         lines = raw.replace("\r\n", "\n").split("\n")
 
         word_numbers, unnumbered = read_table_of_contents(lines)
-        lines = drop_table_of_contents(lines)
+        lines = unlink_cross_references(drop_table_of_contents(lines))
         lines = [RE_ANCHOR.sub("", line) for line in lines]
         lines = number_headings(lines, word_numbers, unnumbered, notes)
         lines = convert_figures(lines, drawio, config, images, notes)
