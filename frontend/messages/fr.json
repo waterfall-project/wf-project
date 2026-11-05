@@ -43,6 +43,7 @@
   },
   "accountMenu": {
     "label": "Compte de {name}, {initials}",
+    "labelWithoutInitials": "Compte de {name}",
     "preferences": "Préférences",
     "account": "Mon compte",
     "avatar": "Changer l’avatar",

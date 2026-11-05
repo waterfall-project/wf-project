@@ -130,13 +130,31 @@ describe("the shell", () => {
     },
   );
 
-  it("keeps the initials of the avatar of the account out of the name of its button, which says the account alone [WF-IHM-0100-A]", () => {
-    shell();
-    const account = bar().getByRole("button", { name: "Compte de Camille Martin, CM" });
-    // The initials are the visible text of the button: decorative, the name stands for the account.
-    const initials = within(account).getByText("CM");
-    expect(initials.closest("[aria-hidden='true']")).not.toBeNull();
-    expect(account).toHaveAccessibleName("Compte de Camille Martin, CM");
+  it.each([
+    ["fr", "Compte de Camille Martin, "],
+    ["en", "Account of Camille Martin, "],
+  ] as const)(
+    "names the button of the account with the initials its avatar shows [WF-IHM-0100-A], in %s",
+    (locale, start) => {
+      shell({ locale });
+      const account = bar().getByRole("button", { name: new RegExp(`^${start}`) });
+      // The initials are the visible text of the button, and decorative: the name carries them.
+      const shown = account.querySelector("[aria-hidden='true']")?.textContent ?? "";
+      expect(shown).toBe("CM");
+      expect(account).toHaveAccessibleName(`${start}${shown}`);
+    },
+  );
+
+  it("passes the accented initials of the avatar to the name of the button [WF-IHM-0100-A]", () => {
+    shell({ account: { ...account, first_name: "Éric", last_name: "Moreau" } });
+    const button = bar().getByRole("button", { name: "Compte de Éric Moreau, ÉM" });
+    expect(button.querySelector("[aria-hidden='true']")?.textContent).toBe("ÉM");
+  });
+
+  it("names the button of an account without initials by the account alone, with no comma left hanging [WF-IHM-0100-A]", () => {
+    shell({ account: { ...account, first_name: "", last_name: "" } });
+    const button = bar().getByRole("button", { name: "Compte de" });
+    expect(button.getAttribute("aria-label")).not.toContain(",");
   });
 
   it("gives every button of the bar an icon, hidden from a screen reader", () => {

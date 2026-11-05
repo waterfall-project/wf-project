@@ -344,7 +344,9 @@ test("enters the table of the accounts — a state on its switch, the roles of a
   );
 
   // A role of the installation given to an account that held none, in its cell.
-  await accounts.getByRole("button", { name: "Rôles de «\u00a0Sacha Lefèvre\u00a0»" }).click();
+  await accounts
+    .getByRole("button", { name: "Rôles de «\u00a0Sacha Lefèvre\u00a0» : Aucun rôle", exact: true })
+    .click();
   const roles = page.getByRole("group", { name: "Rôles de «\u00a0Sacha Lefèvre\u00a0»" });
   await roles.getByRole("checkbox", { name: "Chiffreur" }).click();
   await expect(told).toHaveText("Rôles de «\u00a0Sacha Lefèvre\u00a0» attribués.");

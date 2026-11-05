@@ -247,15 +247,19 @@ describe("the keyboard of a grid", () => {
     expect(header(/réestimé/)).toHaveFocus();
   });
 
-  // The cell, 200 wide, by where it starts against the padding of the scroller that keeps the
-  // pinned columns clear (`start`) and the end of the view (1000); the scroll before, and after.
+  // The scroller of a view 1000 wide, kept clear by 120 at its start (the pinned columns) and 60 at
+  // its end: the cell is seen from 120 to 940. By the cell (its left, its width) and the scroll
+  // before, the scroll after: a cell whose end is past 940 comes in by the end it overruns (160),
+  // without passing its start under 120 (the least of the two: 80 for the wide cell); one whose
+  // start is under 120 goes back by what it lacks (50); one within the view leaves it alone.
   it.each([
-    ["past its end", (): number => 900, 0, 100],
-    ["under the pinned columns", (start: number): number => start - 50, 200, 150],
-    ["within it", (start: number): number => start + 100, 200, 200],
+    ["past its end", 900, 200, 0, 160],
+    ["wider than the view left to it, past its end", 200, 900, 0, 80],
+    ["under the pinned columns", 70, 200, 200, 150],
+    ["within it", 220, 200, 200, 200],
   ] as const)(
-    "scrolls the grid sideways as little as it takes to bring a header %s into view, by the width of the inside of its scroller [WF-IHM-0100-A]",
-    async (_where, startOf, from, to) => {
+    "scrolls the grid sideways as little as it takes to bring a header %s into view, by the padding and the width of the inside of its scroller [WF-IHM-0100-A]",
+    async (_where, left, width, from, to) => {
       serve();
       renderGrid();
       // The bench makes the inside of the scroller its simulated box (`clientWidth` follows
@@ -265,14 +269,17 @@ describe("the keyboard of a grid", () => {
       if (scroller === null) {
         return;
       }
+      scroller.style.setProperty("scroll-padding-inline-start", "120px");
+      scroller.style.setProperty("scroll-padding-inline-end", "60px");
+      const style = getComputedStyle(scroller);
+      expect(style.scrollPaddingInlineStart).toBe("120px");
+      expect(style.scrollPaddingInlineEnd).toBe("60px");
       expect(scroller.clientWidth).toBe(1000);
-      const start = Number.parseFloat(getComputedStyle(scroller).scrollPaddingInlineStart) || 0;
-      const left = startOf(start);
-      const rectOf = (at: number, width: number) =>
-        ({ left: at, right: at + width, top: 0, bottom: 0, width, height: 0 }) as DOMRect;
+      const rectOf = (at: number, size: number) =>
+        ({ left: at, right: at + size, top: 0, bottom: 0, width: size, height: 0 }) as DOMRect;
       const target = header(/réestimé/);
       vi.spyOn(scroller, "getBoundingClientRect").mockReturnValue(rectOf(0, 1000));
-      vi.spyOn(target, "getBoundingClientRect").mockReturnValue(rectOf(left, 200));
+      vi.spyOn(target, "getBoundingClientRect").mockReturnValue(rectOf(left, width));
       cell(0, "label").focus();
       scroller.scrollLeft = from;
       await userEvent.keyboard("{ArrowUp}{End}");

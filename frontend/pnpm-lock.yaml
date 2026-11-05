@@ -6122,7 +6122,6 @@ snapshots:
     dependencies:
       possible-typed-array-names: 1.1.0
 
-
   axe-core@4.14.0: {}
 
   axobject-query@4.1.0: {}
