@@ -2654,47 +2654,44 @@ The service platform refuses to start without its secrets, which no file carries
 On a workstation, workstation values are enough — those of `.github/workflows/keycloak.yml` for
 example. Keycloak answers in HTTPS on `https://localhost:8443/auth`, its administration console
 under `/auth/admin`, through a Caddy front end (`deploy/compose/Caddyfile.service`) that the browser
-and the Next server both reach, and which also serves it on `https://127.0.0.1:8443/auth`,
-a second address for the tests of the platform (#680); its address,
-`WATERFALL_KEYCLOAK_ADDRESS`, is `https://localhost:<port>/auth`: the front end serves only the
-hosts `localhost` and `127.0.0.1`, and only the port moves, through `WATERFALL_KEYCLOAK_PORT`:
-the Makefile and Compose deduce it from it, and read no exported address (#735).
-The certificates come from Caddy's own authority (`tls internal`): its root, kept
-in the volume of the front end, is copied at each start into
-`deploy/compose/.authority/root.crt`; the front trusts it through `NODE_EXTRA_CA_CERTS`, which adds it
-to the authorities it knows, the tests of `make test-keycloak` through `SSL_CERT_FILE`, which makes it
-their only authority, a browser by importing it, or by accepting the warning. uv also reads
+and the Next server both reach, and which also serves it on `https://127.0.0.1:8443/auth`, a second
+address for the tests of the platform (#680); its address, `WATERFALL_KEYCLOAK_ADDRESS`, is
+`https://localhost:<port>/auth`: the front end serves only the hosts `localhost` and `127.0.0.1`,
+and only the port moves, through `WATERFALL_KEYCLOAK_PORT`: the Makefile and Compose deduce it from
+it, and read no exported address (#735). The certificates come from Caddy's own authority (`tls
+internal`): its root, kept in the volume of the front end, is copied at each start into
+`deploy/compose/.authority/root.crt`; the front trusts it through `NODE_EXTRA_CA_CERTS`, which adds
+it to the authorities it knows, the tests of `make test-keycloak` through `SSL_CERT_FILE`, which
+makes it their only authority, a browser by importing it, or by accepting the warning. uv also reads
 `SSL_CERT_FILE`: `make test-keycloak` synchronises the environment of the back without it, then runs
-the tests without resynchronising it (`uv run --no-sync`) — otherwise, on a workstation or a runner without
-a cache, uv would no longer trust GitHub to download Python or the packages (#737). The API, inside
-the network of the platform, reaches Keycloak in HTTP on `keycloak:8080`; the encryption of that
-link belongs to EP-13 (WF-SEC-0010).
-Redis is published on `127.0.0.1:6379` (`WATERFALL_REDIS_PORT`), for a front launched on the workstation
-(#681), which reaches it through `redis://:<mot de passe>@127.0.0.1:6379/0`. Keycloak notifies the
-closing of the sessions to that front through the back channel, at the address
-`WATERFALL_FRONT_BACKCHANNEL` (`http://host.docker.internal:3000` by default, the host as seen from its
-container), distinct from `WATERFALL_FRONT_ADDRESS`, that of the browser: the front then listens
-on every interface of the workstation, not on the loopback alone. Both addresses are written
-into the realm when it is applied, and `make e2e-service` replaces them with those of the front of its
-paths, until the next `service-up`. Mailpit
-shows the emails on `http://127.0.0.1:8025`. The development realm adds a test OpenLDAP
-directory and a second realm, `external`, which plays the external provider: their accounts
-and their passwords, development values, are in `deploy/keycloak/development/`. It
-also adds `waterfall-test`, a public client that accepts a password outside the page of the
-realm, for the tokens the tests of the platform need: `admin-cli`, which Keycloak
-creates in each realm, no longer accepts one (#644), and its tokens are not for the API, for lack of
-the `waterfall-api` audience. These files are applied after the realm, under a remote state of their own
+the tests without resynchronising it (`uv run --no-sync`) — otherwise, on a workstation or a runner
+without a cache, uv would no longer trust GitHub to download Python or the packages (#737). The API,
+inside the network of the platform, reaches Keycloak in HTTP on `keycloak:8080`; the encryption of
+that link belongs to EP-13 (WF-SEC-0010). Redis is published on `127.0.0.1:6379`
+(`WATERFALL_REDIS_PORT`), for a front launched on the workstation (#681), which reaches it through
+`redis://:<mot de passe>@127.0.0.1:6379/0`. Keycloak notifies the closing of the sessions to that
+front through the back channel, at the address `WATERFALL_FRONT_BACKCHANNEL`
+(`http://host.docker.internal:3000` by default, the host as seen from its container), distinct from
+`WATERFALL_FRONT_ADDRESS`, that of the browser: the front then listens on every interface of the
+workstation, not on the loopback alone. Both addresses are written into the realm when it is
+applied, and `make e2e-service` replaces them with those of the front of its paths, until the next
+`service-up`. Mailpit shows the emails on `http://127.0.0.1:8025`. The development realm adds a test
+OpenLDAP directory and a second realm, `external`, which plays the external provider: their accounts
+and their passwords, development values, are in `deploy/keycloak/development/`. It also adds
+`waterfall-test`, a public client that accepts a password outside the page of the realm, for the
+tokens the tests of the platform need: `admin-cli`, which Keycloak creates in each realm, no longer
+accepts one (#644), and its tokens are not for the API, for lack of the `waterfall-api` audience.
+These files are applied after the realm, under a remote state of their own
 (`--import.cache.key=development`, service `keycloak-realm`): keycloak-config-cli deletes the
-clients its state names and that the files it applies do not declare, and without that the
-test client would take those of the realm with it.
-The directory is an image the repository builds, `deploy/openldap/Dockerfile`, on Debian's `slapd`
-(US-1150): at its first start, its entrypoint creates its configuration and loads
-`deploy/keycloak/development/directory.ldif` into it, then never loads anything again. It keeps its
-data in a volume, like the databases: bootstrapped again, it would give its people other
-identifiers than those Keycloak keeps; `WATERFALL_RESET_DATA=yes` deletes it with them. A first
-start interrupted before the copy of the configuration never served: at the next start, the script
-empties the data left behind and loads the seed again. The volumes of the image of before, that of
-`osixia`, serve as they are: their people keep their identifiers.
+clients its state names and that the files it applies do not declare, and without that the test
+client would take those of the realm with it. The directory is an image the repository builds,
+`deploy/openldap/Dockerfile`, on Debian's `slapd` (US-1150): at its first start, its entrypoint
+creates its configuration and loads `deploy/keycloak/development/directory.ldif` into it, then never
+loads anything again. It keeps its data in a volume, like the databases: bootstrapped again, it
+would give its people other identifiers than those Keycloak keeps; `WATERFALL_RESET_DATA=yes`
+deletes it with them. A first start interrupted before the copy of the configuration never served:
+at the next start, the script empties the data left behind and loads the seed again. The volumes of
+the image of before, that of `osixia`, serve as they are: their people keep their identifiers.
 
 The ports given here are those of the main repository, at slot 0; a worktree of a lot has those of
 the block of its slot (« The slots of the worktrees », below).
@@ -2777,11 +2774,11 @@ The Makefile gives each target what it needs, except what the environment gives 
 service platform — `service-up`, `service-install`, `service-logs`, `service-down`,
 `keycloak-authority`, `test-keycloak`, `e2e-service` — gets its project, the images of Keycloak and
 of the directory and its six ports; `build-keycloak`, the image of Keycloak; `e2e`, `e2e-measure`
-and `e2e-service`, the ports of the fake back and of the fronts; `check-front-image`, the image of the front. In a linked
-worktree that holds no slot, these targets fail before starting anything, saying `make slot`; the
-others do not ask for it. `make production-trial`, outside the slots — ports 80 and 443, project
-`waterfall-production-trial` —, runs at slot 0 alone: from the worktree of a lot, it fails at once,
-saying so.
+and `e2e-service`, the ports of the fake back and of the fronts; `check-front-image`, the image of
+the front. In a linked worktree that holds no slot, these targets fail before starting anything,
+saying `make slot`; the others do not ask for it. `make production-trial`, outside the slots — ports
+80 and 443, project `waterfall-production-trial` —, runs at slot 0 alone: from the worktree of a
+lot, it fails at once, saying so.
 
 **The services of the tests** (US-1110). The tests of the back need PostgreSQL, Redis and the
 object storage, those of the front Redis (« Tests »). `make test-services` starts the three for the
@@ -3030,12 +3027,12 @@ The full tier aims at under eight minutes in the queue for its longest job
   Node 26: the shards start it in the Playwright image, in Node 24 (its
   `NODE_VERSION`, which the Node 26 lot does not change; `next start` runs the built files there,
   and Next 16 accepts Node 24, while pnpm 12 does not stop on `engines` without
-  `engine-strict`, which the front does not set), on the same Ubuntu noble in amd64, and at another path of the workspace
-  (`/__w/…` instead of `/home/runner/work/…`); `service.yml`, on the runner. The build does not depend
-  on that path: only `required-server-files.json`, which the standalone output of the image reads and
-  not `next start`, names it, and a build moved elsewhere, its original folder removed, serves its
-  pages (checked on 2026-10-25 on the workstation, by moving the build; the proof in the chain
-  will come from a run of `chain` on the branch of the lot).
+  `engine-strict`, which the front does not set), on the same Ubuntu noble in amd64, and at another
+  path of the workspace (`/__w/…` instead of `/home/runner/work/…`); `service.yml`, on the runner.
+  The build does not depend on that path: only `required-server-files.json`, which the standalone
+  output of the image reads and not `next start`, names it, and a build moved elsewhere, its
+  original folder removed, serves its pages (checked on 2026-10-25 on the workstation, by moving
+  the build; the proof in the chain will come from a run of `chain` on the branch of the lot).
 
 The back follows the same model (#492, lever 5):
 

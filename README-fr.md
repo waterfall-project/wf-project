@@ -15,11 +15,13 @@ pendant des mois, où le budget de référence ne se déplace que par un acte co
 la question « en sommes-nous encore où nous l'avions dit ? » doit trouver sa réponse des
 années après le départ de ceux qui y ont répondu la première fois.
 
-> **État : le socle et la maquette sont en place, le produit pas encore.** La spécification
-> et le contrat d'interface viennent d'abord ; le dépôt porte aussi l'outillage et la chaîne
-> par lesquels passe chaque ligne du produit, et un front qui montre chaque écran contre un
-> contrat simulé (EP-02). Le back vient ensuite, EPIC par EPIC, comme le planifie
-> [`docs/roadmap`](docs/roadmap/README-fr.md), en commençant par les comptes et les habilitations (EP-03).
+> **État : le socle, la maquette et les comptes sont en place, le produit pas encore.** La
+> spécification et le contrat d'interface viennent d'abord ; le dépôt porte aussi l'outillage et
+> la chaîne par lesquels passe chaque ligne du produit, un front qui montre chaque écran contre
+> un contrat simulé (EP-02), et le back des comptes, de l'authentification et des habilitations
+> (EP-03). Le reste du back vient ensuite, EPIC par EPIC, comme le planifie
+> [`docs/roadmap`](docs/roadmap/README-fr.md), en commençant par le référentiel de l'entreprise
+> (EP-05).
 
 ## Ce qui le distingue
 
@@ -57,16 +59,16 @@ elle ne mesure rien.
 
 | Chemin | Contenu |
 |---|---|
-| `docs/spec` | la spécification : **203 exigences**, ses sources Word et draw.io, la projection Markdown engendrée, les outils qui la produisent et les revues qui l'ont établie |
-| `docs/api` | le contrat d'interface : **150 opérations** sur 116 chemins et 147 schémas, en OpenAPI écrit à la main, avec l'inventaire des endpoints et les décisions de conception |
-| `docs/roadmap` | le plan : quatorze EPIC dans l'ordre où ils se construisent, leurs US, leur conception, et les règles qui mènent un EPIC de ses US au code livré |
+| `docs/spec` | la spécification : ses exigences, ses sources Word et draw.io, la projection Markdown engendrée, les outils qui la produisent et les revues qui l'ont établie |
+| `docs/api` | le contrat d'interface, en OpenAPI écrit à la main, avec l'inventaire de ses endpoints (qui en donne le décompte) et les décisions de conception |
+| `docs/roadmap` | le plan : les EPIC dans l'ordre où ils se construisent, leurs US, leur conception, et les règles qui mènent un EPIC de ses US au code livré |
 | `docs/dev` | le guide de développement, les règles de codage par langage, et les règles que suivent les agents |
 | `docs/legal` | l'accord de licence de contribution et les engagements du projet envers son édition communautaire |
 | `backend/` | un seul paquet Python : le noyau métier, le service d'API et le worker |
 | `frontend/` | l'application Next.js, son client engendré du contrat, ses parcours de bout en bout |
 | `tools/` | les outils du dépôt : couverture des exigences, contrôle de la roadmap, règles des sources, taille des lots |
 | `fixtures/` | les exemples chiffrés de la spécification, et les données que sert le faux back |
-| `deploy/` | l'empaquetage : le Compose de développement aujourd'hui, le chart Helm plus tard |
+| `deploy/` | l'empaquetage : les Compose (développement, service, démonstration, production), le chart Helm plus tard |
 | `.github/workflows/` | la chaîne, exécutée sur chaque pull request |
 | `.claude/agents/` | les agents qui cadrent un EPIC, en livrent les lots, développent et relisent |
 
@@ -109,8 +111,9 @@ Pour installer un poste, lire [`INSTALL.md`](INSTALL.md).
 
 ```bash
 make                      # liste les commandes
+npm install --global pnpm   # pnpm, une fois
 make check-tools          # dit ce qui manque
-make check BASE=origin/epic/EP-01  # les contrôles de ce que ma modification touche
+make check BASE=origin/epic/EP-nn  # les contrôles de ce que ma modification touche
 make check-all            # toutes les familles de contrôles
 make dev                  # le front contre le faux back, sur http://localhost:3000
 make mock                 # le faux back seul, servi depuis les exemples du contrat
@@ -121,11 +124,13 @@ make build-doc            # régénère la projection Markdown depuis Word et dr
 make generate-client      # régénère le client d'API du front depuis le contrat
 ```
 
-Prérequis : [uv](https://docs.astral.sh/uv/), qui apporte Python 3.14 pour le back et les
-outils ; un Python 3.14 ou plus sur le `PATH`, sous le nom `python3`, qui construit la
-projection ; Node 26 et pnpm (`npm install --global pnpm`, une fois) ; Docker, pour `make dev` ; `pandoc` 3.13, la version avec laquelle
-la projection est engendrée ; et `mmdc` (`npm i -g @mermaid-js/mermaid-cli`) pour valider les
-diagrammes.
+Prérequis : [uv](https://docs.astral.sh/uv/), qui apporte Python 3.14 pour le back et les outils ;
+un Python 3.14 ou plus sur le `PATH`, sous le nom `python3`, qui construit la projection ; Node 26
+et pnpm (`npm install --global pnpm`, une fois) ; Docker, pour `make dev` ; le client PostgreSQL 18,
+pour les tests des sauvegardes ; `pandoc` 3.13, la version avec laquelle la projection est
+engendrée ; `openssl`, pour tirer un autre secret de Garage que celui du workflow ; et, pour valider
+les diagrammes, `mmdc`, installé par npm. [`INSTALL.md`](INSTALL.md) dit où trouver pandoc 3.13 sur
+Ubuntu 26.04, comment installer `mmdc` et quoi poser dans le `~/.bashrc`.
 
 ## Pile technique
 
@@ -151,7 +156,8 @@ Le code est sous [GNU Affero General Public License v3.0](LICENSE) uniquement.
 
 La spécification — `docs/spec/stb-waterfall.docx`, ses sources `waterfall.visuels.drawio` et
 `figures/`, et la projection `waterfall-spec.md` — est publiée sous licence
-[Creative Commons Attribution – Partage dans les mêmes conditions 4.0 International](https://creativecommons.org/licenses/by-sa/4.0/deed.fr)
+[Creative Commons Attribution – Partage dans les mêmes conditions
+4.0 International](https://creativecommons.org/licenses/by-sa/4.0/deed.fr)
 (CC BY-SA 4.0), © 2026 Projet Waterfall. Attribution : « Projet Waterfall,
 https://www.waterfall-project.pro ». Le nom et le logo « Waterfall » ne sont pas couverts par
 cette licence.

@@ -827,7 +827,7 @@ qu'une fraction ou un guillemet les départage.
 
 ## US-1260 — La documentation d'installation d'un poste neuf
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : aucune — outil du dépôt
 - **opérations** : aucune
 - **issue** : #1982
