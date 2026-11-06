@@ -16,8 +16,6 @@ Every node the gestures write is one no other write renders at the same version 
 nodes they create are numbered 581 to 584, after the nodes of the skeleton.
 """
 
-from __future__ import annotations
-
 from dataclasses import replace
 from datetime import date, timedelta
 from decimal import Decimal

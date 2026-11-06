@@ -8,8 +8,6 @@ revision the current one is compared with: the core of ``wftools.mockwitness`` a
 (WF-RIS-0010, WF-RIS-0050, WF-RAE-0040).
 """
 
-from __future__ import annotations
-
 from dataclasses import dataclass, replace
 from datetime import UTC, date, datetime, time
 from decimal import Decimal

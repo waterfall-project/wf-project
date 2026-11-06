@@ -16,8 +16,6 @@ made on it: a duration lengthened, a label entered, a block pasted. And the plan
 and its refusal are read from the block and from the reference data, as the server reads them.
 """
 
-from __future__ import annotations
-
 import copy
 from dataclasses import replace
 from datetime import date

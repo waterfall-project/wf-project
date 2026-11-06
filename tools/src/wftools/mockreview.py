@@ -19,8 +19,12 @@ The author decided each major point by point (`docs/api/DECISIONS.md`, the secti
   under the reception of the studies and one moved under the factory acceptance, two milestones,
   which bear no subtask: refused on ``/parent_id``, the milestone named (F-04, #1771);
 - ``nodes_awaiting_own_lines.json``, the studies read in a counterfactual variant where they bear
-  a line of their own, 500,00 to commit, and the operator desks, their last open subordinate,
-  are completed: the summary stays started, and awaits its own lines (F-05, #1774);
+  a line of their own, 500,00 to commit, and a provision line of 40,00, and the operator desks,
+  their last open subordinate, are completed: the summary stays started, and awaits its own
+  lines, the provision line never signalled (F-05, #1774; #1851);
+  ``startable_tasks_awaiting_own_lines.json``, the Kanban of the whole structure in the same
+  variant: the studies listed among the tasks started, their card offering the entry of their
+  remaining and refusing their completion (#1851, the decision of the 2026-11-04);
 - ``estimate_line_completed_refused.json``, ``estimate_line_completed_update_refused.json``,
   ``node_delete_line_completed_refused.json`` and ``nodes_move_completed_refused.json``, on the
   main structure of the project in progress, a line created under the detailed studies, completed,
@@ -47,14 +51,12 @@ The author decided each major point by point (`docs/api/DECISIONS.md`, the secti
 Nothing here reads the clock or draws at random, nor a file the same command writes.
 """
 
-from __future__ import annotations
-
 from dataclasses import replace
 from datetime import date
 from decimal import Decimal
 from typing import TYPE_CHECKING, cast
 
-from wftools import mockcore, mockhistory, mocktext
+from wftools import mockcore, mockhistory, mockkanban, mocktext
 from wftools.mockamendment import MAIN_ONLY
 from wftools.mockexchanges import FIRST_ROW, import_commands, main_structure, opened_on
 from wftools.mockids import hex_identifier, universe
@@ -66,6 +68,8 @@ from wftools.mockwitness import (
     CONTROL_STATION,
     CORE,
     DELIVERY_DELAY_RISK,
+    GENERATED,
+    PROVISIONS,
     SUBCONTRACTING,
     Line,
     N,
@@ -111,12 +115,20 @@ OWN_LINE = Line(595, "Reprographie des dossiers d'études", SUBCONTRACTING, unit
 """The line of their own the studies bear in ``nodes_awaiting_own_lines``: 500,00 to commit, as
 the Vérif of WF-PLA-0040 says (« dont une ligne propre porte un reste à engager de 500 »)."""
 
+OWN_PROVISION = Line(
+    596, "Provision — aléas de reprographie", PROVISIONS, unit=Decimal(40), is_provision=True
+)
+"""The provision line the studies bear beside OWN_LINE in ``nodes_awaiting_own_lines``: 40,00, as
+the Vérif of WF-PLA-0040 says (« dont la seule ligne propre est une provision de 40 »). It holds
+the summary neither started nor signalled, and is never marked itself (#1851)."""
+
 
 def awaiting_roots() -> tuple[Task, ...]:
-    """Return the core where the studies bear OWN_LINE and the operator desks are completed."""
+    """Return the core where the studies bear OWN_LINE and OWN_PROVISION, the desks completed."""
 
     def own(each: Task) -> Task:
-        return replace(each, lines=(*each.lines, OWN_LINE)) if each.number == N.STUDIES else each
+        lines = (*each.lines, OWN_LINE, OWN_PROVISION)
+        return replace(each, lines=lines) if each.number == N.STUDIES else each
 
     return amended(amended(CORE, own), on_task(N.DESKS, progress="completed"))
 
@@ -332,7 +344,13 @@ def _completed_examples() -> dict[str, JsonObject]:
     }
 
 
-def _awaiting_own_lines() -> JsonObject:
+def _awaiting_own_lines() -> dict[str, JsonObject]:
+    """Return the studies awaiting their own lines, read by listNodes and by the Kanban.
+
+    One variant, read twice: the subtree of the studies, their own line and their provision line
+    under them, and the Kanban of the whole structure, which lists them among the tasks started
+    with the gestures of their card (WF-PLA-0040, F-05, #1774; #1851).
+    """
     rows = mockcore.current(described(awaiting_roots()))
     read = mockcore.subtree(rows, N.STUDIES)
     [studies] = [
@@ -344,17 +362,49 @@ def _awaiting_own_lines() -> JsonObject:
     if not facet["awaiting_own_lines"] or facet["progress"] != "started":
         message = "the studies do not await their own lines"
         raise ValueError(message)
+    kanban = mockkanban.kanban(rows)
+    [card] = [
+        node
+        for node in cast("list[JsonObject]", kanban["started"])
+        if node["node_id"] == universe(N.STUDIES)
+    ]
+    gestures = {
+        cast("str", each["command"]): cast("bool", each["is_available"])
+        for each in cast("list[JsonObject]", card["available_commands"])
+    }
+    if gestures != {"complete": False, "enter_remaining": True}:
+        message = f"the card of the studies offers {gestures}"
+        raise ValueError(message)
     named = {row.number: row.label for row in rows}
-    return mocktext.example(
-        f"Variante contrefactuelle déclarée : les « {named[N.STUDIES]} » lues seules (subtree_of), "
-        f"comme si elles portaient une ligne propre, « {OWN_LINE.label} », 500,00 à engager, et "
-        f"que les « {named[N.DESKS]} », leur dernière subordonnée ouverte, avaient été "
-        f"terminés : toutes leurs subordonnées terminées, la récapitulative reste démarrée tant "
-        f"que sa ligne propre garde un reste à engager, et le dit (awaiting_own_lines) ; la "
-        f"grille de reste à engager et le Kanban la signalent avec sa ligne, seule ligne ouverte "
-        f"de la phase (WF-PLA-0040, WF-IHM-0070, #1774).",
-        read,
+    variant = (
+        f"Variante contrefactuelle déclarée : les « {named[N.STUDIES]} », comme si elles "
+        f"portaient une ligne propre, « {OWN_LINE.label} », 500,00 à engager, et une ligne de "
+        f"provision, « {OWN_PROVISION.label} », de 40,00, et que les « {named[N.DESKS]} », leur "
+        f"dernière subordonnée ouverte, avaient été terminés"
     )
+    core = {universe(row.number) for row in rows if row.number < GENERATED}
+    return {
+        "nodes_awaiting_own_lines.json": mocktext.example(
+            f"{variant}, lues seules (subtree_of) : toutes leurs subordonnées terminées, la "
+            f"récapitulative reste démarrée tant que sa ligne propre garde un reste à engager, "
+            f"et le dit (awaiting_own_lines) ; la grille de reste à engager et le Kanban la "
+            f"signalent avec sa ligne, seule ligne ouverte de la phase, jamais sa ligne de "
+            f"provision, qui ne la tiendrait pas démarrée (WF-PLA-0040, WF-IHM-0070, #1774, "
+            f"#1851).",
+            read,
+        ),
+        "startable_tasks_awaiting_own_lines.json": mocktext.example(
+            f"{variant} : le Kanban de toute la structure ce jour-là, "
+            f"{mocktext.kanban(kanban, core)}. Parmi les démarrées, la seule récapitulative "
+            f"qu'il liste : les « {named[N.STUDIES]} », qui n'attendent plus que leur ligne "
+            f"propre (awaiting_own_lines), que leur carte signale ; elle offre la saisie de leur "
+            f"reste à engager (enter_remaining) et refuse leur terminaison, leur ligne la "
+            f"tenant (task_without_lines), sans démarrage ni réouverture. Toute autre "
+            f"récapitulative reste hors du Kanban, son état dérivant de ses subordonnées "
+            f"(WF-PLA-0040, WF-RAE-0030, WF-IHM-0090, #1851).",
+            kanban,
+        ),
+    }
 
 
 def _with_created() -> JsonObject:
@@ -773,7 +823,7 @@ def examples() -> dict[str, JsonObject]:
         "subproject_code_too_long.json": _code_too_long(),
         "rate_update_category_not_proposed.json": _category_not_proposed(),
         **_under_milestone(),
-        "nodes_awaiting_own_lines.json": _awaiting_own_lines(),
+        **_awaiting_own_lines(),
         **_completed_examples(),
         **_from_risk_examples(),
         "risks_filtered.json": _risks_filtered(),

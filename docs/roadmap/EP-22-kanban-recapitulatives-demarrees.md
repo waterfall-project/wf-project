@@ -1,7 +1,7 @@
 ---
 id: EP-22
 titre: Le Kanban signale la récapitulative qui n'attend plus que ses lignes propres — le contrat, le faux back et la carte
-statut: en cours
+statut: livré
 depend_de: EP-17
 famille: front, plateforme
 issue: 1966
@@ -59,6 +59,11 @@ aucun schéma modifié ; `KanbanTask` et `TaskFacet.awaiting_own_lines` le disen
 ## Préalables
 
 EP-17 livré (la carte d'US-0730b et son aide sont sur sa branche). Décisions de l'auteur du 2026-11-04.
+
+EP-20 livré, pour US-1280 seulement : la revue de ruff porte sur la configuration `py314` qu'US-1160/L1
+d'EP-20 a posée, absente de `main` avant sa fusion, et `epic/EP-22` doit avoir repris `main` après
+elle (décision de l'auteur du 2026-11-06, option A de la question de #2023). Les autres US d'EP-22 n'en
+dépendent pas.
 
 ## Définition de fini
 
@@ -160,7 +165,7 @@ règle n'est relâchée pour y parvenir (`docs/dev/agents.md`).
 
 ## US-1240 — Le Kanban liste la récapitulative qui n'attend plus que ses lignes propres
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-PLA-0040-A`
 - **opérations** : `listStartableTasks`
 - **issue** : #1967
@@ -221,7 +226,7 @@ il ne le corrige pas en silence.
 
 ## US-1280 — La revue des règles ruff et des annotations sous Python 3.14
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : aucune — outil du dépôt
 - **opérations** : aucune
 - **issue** : #2023
