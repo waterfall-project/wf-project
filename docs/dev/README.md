@@ -3747,17 +3747,17 @@ does not keep — reads `inService`.
 The paths that depend on what the service does not do yet, or does not serve, are not replayed
 against it, being untagged; each is still played against the fake back, by `chromium`. What
 depends on the clock: nothing in the reference, whose dates are those of the loading (WF-DAT-0070)
-and which the paths do not wait for. On a calculation the service does not do yet: the change of
-the units of duration, whose path says its effect on the schedules (`reference-resources.spec.ts`,
-US-0570). On a screen the service does not serve: the openings of `/` and of the portfolio in
-`navigation.spec.ts`, guarded by `inService` in the path of the reference (the service opens it at
-the address of the reference), as are those of the administration and of the status screen, which
-the role "Manager" is not offered, and all its other paths, those of a project; those of `admin.spec.ts`
-that read the accounts, the matrix of the permissions, the state of the platform and the backups,
-which expect the accounts and the numbers of the fake back, and which the role "Manager" of
-`mode.ts`, without the `users.*` permissions, could not read; the reading of the settings outside
-any project (`reference-costs.spec.ts`, US-0250) and the filter of the roles by calendar and by
-monthly hours, which count the rows of the fake back. The `inService` guards of the tagged paths
+and which the paths do not wait for. On a screen the service does not serve: the openings of
+`/`, of the portfolio, of the administration and of the status screen in `navigation.spec.ts` (the
+role "Manager" is offered neither the administration nor the status), as well as all its other
+paths, those of a project and that of the icon on `/`; almost all of those of `admin.spec.ts`
+(`:40` to `:455`, only `:479` is `@shared`), administration screens outside the permissions of the
+role "Manager" of `mode.ts`, without the `users.*` permissions. On what their US does not tag yet:
+the reading of the settings outside any project (`reference-costs.spec.ts`, US-0250); the filter
+of the roles by calendar (`reference-costs.spec.ts:251`), whose comment says it of a screen not yet
+served, which is outdated, and the change of the units of duration
+(`reference-resources.spec.ts:271`), which asserts the echo of the fake back to a write ("7 and
+35"): tagging them is tracked by #2178. The `inService` guards of the tagged paths
 are not paths that are not replayed: the path is played on both sides, and only the assertion of a
 write differs (what was entered, read anew after a reload; a code and a label of the run's own,
 which the service keeps; a state left as it was found) — `reference-costs.spec.ts`,

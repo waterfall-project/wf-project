@@ -3777,17 +3777,16 @@ parcours dont l'assertion diffère entre les deux — une écriture que le faux 
 Ne se rejouent pas contre le service, faute d'être étiquetés, les parcours qui dépendent de ce
 qu'il ne fait pas encore ou ne sert pas ; chacun reste joué contre le faux back, par `chromium`.
 Ce qui dépend de l'horloge : rien dans le référentiel, dont les dates sont celles du chargement
-(WF-DAT-0070) et que les parcours n'attendent pas. D'un calcul que le service ne fait pas encore :
-la modification des unités de durée, dont le parcours dit l'effet sur les plannings
-(`reference-resources.spec.ts`, US-0570). D'un écran que le service ne sert pas : les ouvertures de
-`/` et du portefeuille de `navigation.spec.ts`, gardées par `inService` dans le parcours du
-référentiel (le service l'ouvre à l'adresse du référentiel), ainsi que celles de l'administration et
-de l'écran d'état, que le rôle « Manager » ne se voit pas offrir, et tous ses autres parcours, ceux d'un
-projet ; ceux de `admin.spec.ts` qui lisent les comptes, la matrice des permissions, l'état de la
-plateforme et les sauvegardes, qui attendent les comptes et les nombres du faux back, et que
-le rôle « Manager » de `mode.ts`, sans les permissions `users.*`, ne lirait pas ; la lecture des
-réglages hors projet (`reference-costs.spec.ts`, US-0250) et le filtre des rôles par calendrier
-et par heures mensuelles, qui comptent les lignes du faux back. Les gardes `inService` des
+(WF-DAT-0070) et que les parcours n'attendent pas. D'un écran que le service ne sert pas : les ouvertures de
+`/`, du portefeuille, de l'administration et de l'écran d'état de `navigation.spec.ts` (le rôle
+« Manager » ne se voit offrir ni l'administration ni l'état), ainsi que tous ses autres
+parcours, ceux d'un projet et celui de l'icône sur `/` ; presque tous ceux de `admin.spec.ts`
+(`:40` à `:455`, seul `:479` est `@shared`), des écrans d'administration hors des permissions du
+rôle « Manager » de `mode.ts`, sans les permissions `users.*`. De ce que leur US n'étiquette pas
+encore : la lecture des réglages hors projet (`reference-costs.spec.ts`, US-0250) ; le filtre des
+rôles par calendrier (`reference-costs.spec.ts:251`), dont le commentaire le dit d'un écran pas encore
+servi, ce qui est périmé, et la modification des unités de durée (`reference-resources.spec.ts:271`),
+qui affirme l'écho du faux back à une écriture (« 7 et 35 ») : les étiqueter est suivi par #2178. Les gardes `inService` des
 parcours étiquetés ne sont pas des parcours non rejoués : le parcours se joue des deux côtés, et
 seule l'assertion d'une écriture diffère (ce qui a été saisi, relu après un rechargement ; un
 code et un libellé propres à la course, que le service garde ; un état laissé comme on l'a trouvé)
