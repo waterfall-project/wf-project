@@ -8,6 +8,7 @@ but for the name of the root package, to a sample package built for each test.
 
 import ast
 import importlib
+import inspect
 import os
 import pkgutil
 import subprocess
@@ -294,6 +295,50 @@ def test_the_projects_and_the_revisions_offer_their_interface_as_a_package_by_su
         declared = getattr(interface, name)
         source = getattr(declared, "__module__", f"{interface.__name__}.?")
         assert source.rsplit(".", 1)[0] == interface.__name__, name
+
+
+# What the design leaves silent: it has a documented result without effect, which the stories that
+# call it before its own fill rely on. `create_project_partitions` is filled from US-0910/L1.
+SILENT = {
+    "no_background_task_running",
+    "revision_has_tasks_and_lines",
+    "compute_indicators",
+    "advance",
+}
+FILLED = {"create_project_partitions"}
+
+
+def stubs() -> list[tuple[str, str]]:
+    """List (module, name) of each function the two interfaces offer, filled ones aside."""
+    found: list[tuple[str, str]] = []
+    for module in PROJECT_INTERFACES:
+        interface = importlib.import_module(f"waterfall.core.{module}.interface")
+        found.extend(
+            (module, name)
+            for name in sorted(interface.__all__)
+            if inspect.isfunction(getattr(interface, name)) and name not in FILLED
+        )
+    return found
+
+
+@pytest.mark.requirement("WF-ARC-0010-A")
+@pytest.mark.parametrize(("module", "name"), stubs())
+def test_a_stub_of_the_projects_and_the_revisions_refuses_unless_the_design_leaves_it_silent(
+    module: str, name: str
+) -> None:
+    # A caller that reaches a function before its story fills it must fail, not read or write
+    # nothing: a green test would hide a refusal (`revision_draft`) that does not exist yet.
+    interface = importlib.import_module(f"waterfall.core.{module}.interface")
+    function = getattr(interface, name)
+    # The names of the parameters, read from the code: the annotations name types imported for the
+    # checker alone.
+    code = function.__code__
+    arguments = dict.fromkeys(code.co_varnames[: code.co_argcount + code.co_kwonlyargcount])
+    if name in SILENT:
+        function(**arguments)
+        return
+    with pytest.raises(NotImplementedError, match=rf"{name} is filled by US-\d{{4}}"):
+        function(**arguments)
 
 
 def imported(statement: str) -> str:

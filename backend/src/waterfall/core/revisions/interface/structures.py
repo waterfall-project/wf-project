@@ -21,11 +21,17 @@ if TYPE_CHECKING:
 
 def list_cost_structures(session: Session, project_id: UUID, revision_id: UUID) -> None:
     """List the structures of a revision, with their commands (``listCostStructures``)."""
+    msg = "list_cost_structures is filled by US-0960"
+    raise NotImplementedError(msg)
 
 
 def structure_commands(session: Session, project_id: UUID, revision_id: UUID) -> None:
     """Give the commands of the structures of a revision and the conditions each lacks."""
+    msg = "structure_commands is filled by US-0960"
+    raise NotImplementedError(msg)
 
 
 def load_cost_structures(session: Session, project_id: UUID, revision_id: UUID, act: Act) -> None:
     """Write the structures of a revision of the witness, as it imposes them."""
+    msg = "load_cost_structures is filled by US-0960"
+    raise NotImplementedError(msg)

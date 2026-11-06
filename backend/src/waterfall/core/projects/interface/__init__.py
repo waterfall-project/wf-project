@@ -3,9 +3,10 @@
 """What the projects (FBS-4.2, §3.3.2) offer to the API, the other modules and the witness.
 
 One file per subject, each filled by the story that serves it and re-exported here. Every function
-the design names (EP-04, "Modules") is declared from US-0910/L1 on, without effect, so that no story
-reopens this file to fill its own; a name a story adds besides is imported in a statement of its
-own, below the comment that names its file. Another module imports them from here, never from the
+the design names (EP-04, "Modules") is declared from US-0910/L1 on, so that no story reopens this
+file to fill its own: it raises ``NotImplementedError`` naming the story that fills it, but for the
+few the design leaves silent. A name a story adds besides is imported in a statement of its own,
+below the comment that names its file. Another module imports them from here, never from the
 file.
 """
 

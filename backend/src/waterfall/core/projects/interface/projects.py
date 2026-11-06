@@ -9,9 +9,9 @@ any designation, exit or write of the contributors (EP-04, "Modules"); its code 
 day for the journal (#927); whether a background task that writes in its current revision is queued
 or running, a condition of the commands that would write in it or freeze it.
 
-Declared by US-0910/L1, without effect: US-0920/L1 fills the project, US-0920/L2 its names for the
-journal, US-0970 the background task; ``load_project`` writes with the identifier and the instant
-the witness imposes.
+Declared by US-0910/L1, raising until filled but for ``no_background_task_running``: US-0920/L1
+fills the project, US-0920/L2 its names for the journal, US-0970 the background task;
+``load_project`` writes with the identifier and the instant the witness imposes.
 """
 
 from typing import TYPE_CHECKING, Literal
@@ -29,34 +29,50 @@ type ProjectState = Literal["created", "pricing", "in_progress", "completed", "l
 
 def read_project(session: Session, project_id: UUID) -> None:
     """Read a project, with its commands (``getProject``)."""
+    msg = "read_project is filled by US-0920/L1"
+    raise NotImplementedError(msg)
 
 
 def list_projects(session: Session) -> None:
     """List the projects, filtered, sorted and read by pages (``listProjects``)."""
+    msg = "list_projects is filled by US-0920/L1"
+    raise NotImplementedError(msg)
 
 
 def create_project(session: Session, act: Act) -> None:
     """Create a project, and what is born with it (``createProject``)."""
+    msg = "create_project is filled by US-0920/L1"
+    raise NotImplementedError(msg)
 
 
 def update_project(session: Session, project_id: UUID, lock_version: int, act: Act) -> None:
     """Change the attributes of a project at the version read (``updateProject``)."""
+    msg = "update_project is filled by US-0920/L1"
+    raise NotImplementedError(msg)
 
 
 def lock_project(session: Session, project_id: UUID) -> None:
     """Lock the row of a project for the transaction, before it is read (``FOR UPDATE``)."""
+    msg = "lock_project is filled by US-0920/L1"
+    raise NotImplementedError(msg)
 
 
 def project_commands(session: Session, project_id: UUID) -> None:
     """Give the commands of a project and the conditions each lacks (WF-IHM-0090)."""
+    msg = "project_commands is filled by US-0920/L1"
+    raise NotImplementedError(msg)
 
 
 def project_label(session: Session, project_id: UUID) -> str | None:
     """Give the label of the day of a project, ``None`` if there is none (#927)."""
+    msg = "project_label is filled by US-0920/L2"
+    raise NotImplementedError(msg)
 
 
 def project_code(session: Session, project_id: UUID) -> str | None:
     """Give the code of the day of a project, ``None`` if it has none (#927)."""
+    msg = "project_code is filled by US-0920/L2"
+    raise NotImplementedError(msg)
 
 
 def no_background_task_running(session: Session, project_id: UUID) -> bool:
@@ -70,3 +86,5 @@ def no_background_task_running(session: Session, project_id: UUID) -> bool:
 
 def load_project(session: Session, project_id: UUID, act: Act) -> None:
     """Write a project of the witness, with the identifier and the instant it imposes."""
+    msg = "load_project is filled by US-0920/L1"
+    raise NotImplementedError(msg)

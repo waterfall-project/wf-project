@@ -9,9 +9,9 @@ of the last marked one, ``copy_revision(session, source, target)``, which each e
 table (EP-06 the tasks, EP-07 the lines, EP-08 the structures); abandoned, with its rows deleted. A
 write in a revision is refused once it is marked (``revision_draft``, 409).
 
-Declared by US-0910/L1, which fills the partitions; the rest without effect, until US-0960 fills
-it; ``load_revision`` writes a revision of the witness with the identifier and the instant it
-imposes.
+Declared by US-0910/L1, which fills the partitions; the rest raising,
+until US-0960 fills it; ``load_revision`` writes a revision of the witness with the identifier and
+the instant it imposes.
 """
 
 from typing import TYPE_CHECKING, Literal
@@ -39,31 +39,47 @@ def create_project_partitions(session: Session, project_id: UUID) -> None:
 
 def current_revision(session: Session, project_id: UUID) -> UUID | None:
     """Give the current revision of a project, ``None`` if it has none (WF-REV-0010)."""
+    msg = "current_revision is filled by US-0960"
+    raise NotImplementedError(msg)
 
 
 def list_revisions(session: Session, project_id: UUID) -> None:
     """List the revisions of a project, its history (``listRevisions``, WF-REV-0070)."""
+    msg = "list_revisions is filled by US-0960"
+    raise NotImplementedError(msg)
 
 
 def read_revision(session: Session, project_id: UUID, revision_id: UUID) -> None:
     """Read a revision, with its commands (``getRevision``)."""
+    msg = "read_revision is filled by US-0960"
+    raise NotImplementedError(msg)
 
 
 def create_revision(session: Session, project_id: UUID, act: Act) -> None:
     """Open the current revision of a project, a copy of its last marked (``createRevision``)."""
+    msg = "create_revision is filled by US-0960"
+    raise NotImplementedError(msg)
 
 
 def copy_revision(session: Session, source: UUID, target: UUID) -> None:
     """Copy what a marked revision holds into a new one: its structures, here."""
+    msg = "copy_revision is filled by US-0960"
+    raise NotImplementedError(msg)
 
 
 def abandon_revision(session: Session, project_id: UUID, revision_id: UUID, act: Act) -> None:
     """Abandon the current revision of a project, its rows deleted (``abandonRevision``)."""
+    msg = "abandon_revision is filled by US-0960"
+    raise NotImplementedError(msg)
 
 
 def revision_draft(session: Session, revision_id: UUID) -> None:
     """Refuse a write in a revision that is not the current one (409, ``revision_draft``)."""
+    msg = "revision_draft is filled by US-0960"
+    raise NotImplementedError(msg)
 
 
 def load_revision(session: Session, project_id: UUID, revision_id: UUID, act: Act) -> None:
     """Open a revision of the witness, with the identifier and the instant it imposes."""
+    msg = "load_revision is filled by US-0960"
+    raise NotImplementedError(msg)

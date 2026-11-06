@@ -26,19 +26,29 @@ type ContributorKind = Literal["project_manager", "contributor"]
 
 def contributor_kind(session: Session, project_id: UUID, user_id: UUID) -> ContributorKind | None:
     """Give the kind of an account on a project, ``None`` if it is no contributor."""
+    msg = "contributor_kind is filled by US-0910/L2"
+    raise NotImplementedError(msg)
 
 
 def list_contributors(session: Session, project_id: UUID) -> None:
     """List the contributors of a project, with the counter of the list (``listContributors``)."""
+    msg = "list_contributors is filled by US-0930"
+    raise NotImplementedError(msg)
 
 
 def set_contributors(session: Session, project_id: UUID, lock_version: int, act: Act) -> None:
     """Write the whole list of the contributors at the version read (``setContributors``)."""
+    msg = "set_contributors is filled by US-0930"
+    raise NotImplementedError(msg)
 
 
 def list_contributor_suggestions(session: Session, project_id: UUID) -> None:
     """Suggest the accounts the lines of the project employ (``listContributorSuggestions``)."""
+    msg = "list_contributor_suggestions is filled by US-0930"
+    raise NotImplementedError(msg)
 
 
 def load_contributors(session: Session, project_id: UUID, act: Act) -> None:
     """Write the contributors of a project of the witness, as it imposes them."""
+    msg = "load_contributors is filled by US-0930"
+    raise NotImplementedError(msg)

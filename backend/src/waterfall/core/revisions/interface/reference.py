@@ -22,6 +22,8 @@ if TYPE_CHECKING:
 
 def designate_reference(session: Session, project_id: UUID, revision_id: UUID, act: Act) -> None:
     """Designate a marked revision reference of its project (``designateReferenceRevision``)."""
+    msg = "designate_reference is filled by US-0980/L2"
+    raise NotImplementedError(msg)
 
 
 def revision_has_tasks_and_lines(session: Session, revision_id: UUID) -> bool:

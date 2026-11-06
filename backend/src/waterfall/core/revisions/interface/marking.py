@@ -25,6 +25,8 @@ def mark_revision(
     session: Session, revision_id: UUID, version_name: str, description: str | None, act: Act
 ) -> None:
     """Mark the current revision of a project, in the transaction of the task."""
+    msg = "mark_revision is filled by US-0970"
+    raise NotImplementedError(msg)
 
 
 def compute_indicators(session: Session, revision_id: UUID) -> None:
@@ -33,3 +35,5 @@ def compute_indicators(session: Session, revision_id: UUID) -> None:
 
 def load_marking(session: Session, revision_id: UUID, version_name: str, act: Act) -> None:
     """Mark a revision of the witness, at the instant it imposes."""
+    msg = "load_marking is filled by US-0970"
+    raise NotImplementedError(msg)

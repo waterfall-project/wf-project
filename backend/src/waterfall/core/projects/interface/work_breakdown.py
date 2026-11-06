@@ -21,11 +21,17 @@ if TYPE_CHECKING:
 
 def read_work_breakdown(session: Session, project_id: UUID) -> None:
     """Read the work breakdown of a project, whole or filtered (``getWorkBreakdown``)."""
+    msg = "read_work_breakdown is filled by US-0950"
+    raise NotImplementedError(msg)
 
 
 def set_work_breakdown(session: Session, project_id: UUID, lock_version: int, act: Act) -> None:
     """Write the whole work breakdown of a project at the version read (``setWorkBreakdown``)."""
+    msg = "set_work_breakdown is filled by US-0950"
+    raise NotImplementedError(msg)
 
 
 def load_work_breakdown(session: Session, project_id: UUID, act: Act) -> None:
     """Write the work breakdown of a project of the witness, as it imposes it."""
+    msg = "load_work_breakdown is filled by US-0950"
+    raise NotImplementedError(msg)

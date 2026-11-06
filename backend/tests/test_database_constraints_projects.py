@@ -545,6 +545,34 @@ def test_a_structure_of_a_marked_revision_is_neither_written_changed_nor_deleted
 
 
 @pytest.mark.requirement("WF-REV-0020-A")
+@pytest.mark.parametrize("direction", ["into_a_marked_revision", "out_of_a_marked_revision"])
+def test_a_structure_does_not_change_revision_into_or_out_of_a_marked_one(
+    owner: Engine, parents: Parents, marked: UUID, direction: str
+) -> None:
+    # Both revisions belong to the first project, so the structure stays in its partition and the
+    # foreign key (project, revision) holds: only the guard, on the NEW row for the way in and on
+    # the OLD row for the way out, is left to refuse. The first revision is marked, which frees
+    # the single current revision of the project for a second one.
+    draft = uuid4()
+    with owner.begin() as connection:
+        connection.execute(insert_revision(parents.project, id=draft))
+        connection.execute(insert_structure(parents.project, draft))
+    if direction == "into_a_marked_revision":
+        moved = update(CostStructure).where(CostStructure.revision_id == draft)
+        guard_refusal(owner, moved.values(revision_id=marked))
+        kept = draft
+    else:
+        moved = update(CostStructure).where(CostStructure.revision_id == marked)
+        guard_refusal(owner, moved.values(revision_id=draft))
+        kept = marked
+    with owner.connect() as connection:
+        left = connection.execute(
+            select(CostStructure.revision_id).where(CostStructure.revision_id == kept)
+        ).all()
+    assert len(left) == 1
+
+
+@pytest.mark.requirement("WF-REV-0020-A")
 def test_a_current_revision_and_its_structures_are_changed_and_abandoned_freely(
     owner: Engine, parents: Parents
 ) -> None:

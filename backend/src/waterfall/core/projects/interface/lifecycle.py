@@ -11,9 +11,10 @@ author the account that realised the fact (Created → Pricing, Pricing → In p
 An exit writes likewise, with its reason, and refuses a project that bears a current revision
 (WF-CYC-0090). The transitions are listed in their order (WF-CYC-0130).
 
-Declared by US-0910/L1, without effect — ``advance`` among them, which US-0920/L1, US-0950 and
-US-0960 call before it moves anything: US-0980/L1 fills it, without the reference, and US-0980/L2
-the passage to In progress; ``load_transitions`` writes those of the witness at its instants.
+Declared by US-0910/L1, raising until filled — but ``advance``, without effect, which US-0920/L1,
+US-0950 and US-0960 call before it moves anything: US-0980/L1 fills it, without the reference, and
+US-0980/L2 the passage to In progress; ``load_transitions`` writes those of the witness at its
+instants.
 """
 
 from typing import TYPE_CHECKING, Literal
@@ -34,6 +35,8 @@ def next_state(
     state: ProjectState, *, has_revision: bool, has_reference: bool, has_code: bool
 ) -> None:
     """Give the next state of a project, its trigger and the conditions that remain."""
+    msg = "next_state is filled by US-0980/L1"
+    raise NotImplementedError(msg)
 
 
 def advance(session: Session, project_id: UUID, trigger: LifecycleTrigger, act: Act) -> None:
@@ -44,11 +47,17 @@ def exit_project(
     session: Session, project_id: UUID, to_state: ProjectState, reason: str | None, act: Act
 ) -> None:
     """Take a project out of its cycle, to a terminal state, with its reason (``exitProject``)."""
+    msg = "exit_project is filled by US-0980/L1"
+    raise NotImplementedError(msg)
 
 
 def list_state_transitions(session: Session, project_id: UUID) -> None:
     """List the transitions of a project, in their order (``listProjectStateTransitions``)."""
+    msg = "list_state_transitions is filled by US-0980/L1"
+    raise NotImplementedError(msg)
 
 
 def load_transitions(session: Session, project_id: UUID, act: Act) -> None:
     """Write the transitions of a project of the witness, at the instants it imposes."""
+    msg = "load_transitions is filled by US-0980/L1"
+    raise NotImplementedError(msg)

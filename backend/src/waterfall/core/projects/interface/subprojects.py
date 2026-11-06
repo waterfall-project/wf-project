@@ -21,23 +21,33 @@ if TYPE_CHECKING:
 
 def list_subprojects(session: Session, project_id: UUID) -> None:
     """List the subprojects of a project, with their commands (``listSubprojects``)."""
+    msg = "list_subprojects is filled by US-0940"
+    raise NotImplementedError(msg)
 
 
 def create_subproject(session: Session, project_id: UUID, act: Act) -> None:
     """Create a subproject (``createSubproject``)."""
+    msg = "create_subproject is filled by US-0940"
+    raise NotImplementedError(msg)
 
 
 def update_subproject(
     session: Session, project_id: UUID, subproject_id: UUID, lock_version: int, act: Act
 ) -> None:
     """Change a subproject at the version read (``updateSubproject``)."""
+    msg = "update_subproject is filled by US-0940"
+    raise NotImplementedError(msg)
 
 
 def delete_subproject(
     session: Session, project_id: UUID, subproject_id: UUID, lock_version: int, act: Act
 ) -> None:
     """Delete a subproject that nothing cites (``deleteSubproject``)."""
+    msg = "delete_subproject is filled by US-0940"
+    raise NotImplementedError(msg)
 
 
 def load_subprojects(session: Session, project_id: UUID, act: Act) -> None:
     """Write the subprojects of a project of the witness, as it imposes them."""
+    msg = "load_subprojects is filled by US-0940"
+    raise NotImplementedError(msg)
