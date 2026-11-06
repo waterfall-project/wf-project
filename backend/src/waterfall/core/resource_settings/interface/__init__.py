@@ -74,6 +74,9 @@ from waterfall.core.resource_settings.interface.org_nodes import (
     ACTIVE_ONLY as ACTIVE_ONLY,
 )
 from waterfall.core.resource_settings.interface.org_nodes import (
+    NodeActivation as NodeActivation,
+)
+from waterfall.core.resource_settings.interface.org_nodes import (
     NodeCommand as NodeCommand,
 )
 from waterfall.core.resource_settings.interface.org_nodes import (
@@ -115,13 +118,79 @@ from waterfall.core.resource_settings.interface.org_nodes import (
 
 # ``resource_roles`` (US-0850): the roles of resources and their capacity.
 from waterfall.core.resource_settings.interface.resource_roles import (
+    Capacity as Capacity,
+)
+from waterfall.core.resource_settings.interface.resource_roles import (
+    CategoryAdmission as CategoryAdmission,
+)
+from waterfall.core.resource_settings.interface.resource_roles import (
+    LabelOf as LabelOf,
+)
+from waterfall.core.resource_settings.interface.resource_roles import (
+    RoleChange as RoleChange,
+)
+from waterfall.core.resource_settings.interface.resource_roles import (
+    RoleColumn as RoleColumn,
+)
+from waterfall.core.resource_settings.interface.resource_roles import (
+    RoleCommand as RoleCommand,
+)
+from waterfall.core.resource_settings.interface.resource_roles import (
+    RoleDraft as RoleDraft,
+)
+from waterfall.core.resource_settings.interface.resource_roles import (
+    RoleFilters as RoleFilters,
+)
+from waterfall.core.resource_settings.interface.resource_roles import (
     RoleOfCategory as RoleOfCategory,
+)
+from waterfall.core.resource_settings.interface.resource_roles import (
+    RolePage as RolePage,
+)
+from waterfall.core.resource_settings.interface.resource_roles import (
+    RoleSort as RoleSort,
+)
+from waterfall.core.resource_settings.interface.resource_roles import (
+    RoleView as RoleView,
+)
+from waterfall.core.resource_settings.interface.resource_roles import (
+    RoleWindow as RoleWindow,
+)
+from waterfall.core.resource_settings.interface.resource_roles import (
+    active_role_exists as active_role_exists,
 )
 from waterfall.core.resource_settings.interface.resource_roles import (
     category_has_roles as category_has_roles,
 )
 from waterfall.core.resource_settings.interface.resource_roles import (
+    create_role as create_role,
+)
+from waterfall.core.resource_settings.interface.resource_roles import (
+    list_roles as list_roles,
+)
+from waterfall.core.resource_settings.interface.resource_roles import (
+    read_role as read_role,
+)
+from waterfall.core.resource_settings.interface.resource_roles import (
+    read_roles as read_roles,
+)
+from waterfall.core.resource_settings.interface.resource_roles import (
+    role_calendar_change_is_admissible as role_calendar_change_is_admissible,
+)
+from waterfall.core.resource_settings.interface.resource_roles import (
+    role_calendars as role_calendars,
+)
+from waterfall.core.resource_settings.interface.resource_roles import (
     roles_of_categories as roles_of_categories,
+)
+from waterfall.core.resource_settings.interface.resource_roles import (
+    roles_present as roles_present,
+)
+from waterfall.core.resource_settings.interface.resource_roles import (
+    set_role_activation as set_role_activation,
+)
+from waterfall.core.resource_settings.interface.resource_roles import (
+    update_role as update_role,
 )
 
 # ``duration_units`` (US-0860): the units of duration.

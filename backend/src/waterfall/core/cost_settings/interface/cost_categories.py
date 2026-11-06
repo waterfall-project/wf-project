@@ -261,23 +261,40 @@ def present_cost_categories(session: Session, category_ids: Collection[UUID]) ->
     return frozenset(found)
 
 
-def category_labels(session: Session, category_ids: Collection[UUID]) -> dict[UUID, CategoryLabel]:
+def category_labels(
+    session: Session, category_ids: Collection[UUID], *, locked: bool = False
+) -> dict[UUID, CategoryLabel]:
     """Give the label and the kind of the nature of each category given, deactivated ones too.
 
     A role of resources names its category, and is admitted only a category of labour, active
-    (WF-REF-0090). An identifier no category bears is left out.
+    (WF-REF-0090). An identifier no category bears is left out. ``locked`` holds a share lock of
+    the rows of the categories and of their natures until the transaction ends: a role attached to
+    one meanwhile is, when a change of the category, of its kind or of its state — which lock them
+    — reads the roles that bind it (``category_has_roles``).
     """
-    rows = session.execute(
+    query = (
         select(CostCategory, CostType)
         .join(CostType, CostType.id == CostCategory.cost_type_id)
         .where(CostCategory.id.in_(category_ids))
+        .execution_options(populate_existing=True)
     )
+    rows = session.execute(query.with_for_update(read=True) if locked else query)
     return {
         category.id: CategoryLabel(
             category.id, category.label, nature.kind, category.is_active, nature.is_active
         )
         for category, nature in rows
     }
+
+
+def category_label_of(
+    held: SQLColumnExpression[UUID],
+) -> SQLColumnExpression[str | None]:
+    """Give, of a column of categories, the label of the category held: a sort by the code points.
+
+    For the table of the roles of resources, which holds the column and does not name this table.
+    """
+    return select(CostCategory.label).where(CostCategory.id == held).scalar_subquery()
 
 
 def _nature_fault(

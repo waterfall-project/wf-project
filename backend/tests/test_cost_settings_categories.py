@@ -123,8 +123,11 @@ def test_the_commands_of_a_category_are_those_of_a_caller_who_changes_the_cost_s
         ("deactivate", True, []),
         ("change_cost_type", True, []),
     ]
+    # The roles of the witness bind the two categories they are attached to (US-0850).
+    bound = [available[0], ("change_cost_type", False, ["cost_category_without_role"])]
     assert len(managed) == 200
-    assert all(commands(item) == available for item in managed)
+    for item in managed:
+        assert commands(item) == (bound if item["code"] in {"MO-001", "MO-002"} else available)
 
 
 @pytest.mark.requirement("WF-REF-0040-A")

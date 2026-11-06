@@ -1493,6 +1493,23 @@ nomme lui-même par leur code et leur libellé, partout où il se dit, le planni
 n'en lisant aucun ; une liste vide désigne le calendrier par défaut, vidé ou désigné, quand seules
 des tâches sans ligne de main-d'œuvre perdent leurs heures.
 
+Le service sert les rôles depuis US-0850 (`api/resource_roles.py`, le fichier `resource_roles` de
+l'interface de `resource_settings`) : les actifs se lisent par toute session ouverte, les désactivés
+(`include_inactive`, `is_active` faux) et toute écriture sous `resource_settings.write` (décision
+de l'auteur, #2084). Un rôle naît actif, sous un nœud actif, et ne se réactive que sous un nœud
+actif ; la création, l'activation d'un rôle et celle d'un nœud se font sous le verrou consultatif de
+l'arbre, que la cascade tient aussi : la désactivation d'un nœud désactive, dans la même
+transaction, ses descendants et les rôles rattachés à lui ou à l'un d'eux, chacun son compteur
+avancé et son auteur, et la réponse les porte. `resource_settings` ne lit pas `cost_settings`, qui
+le lit (`category_has_roles`, `roles_of_categories`, #2114) : la route demande aux paramètres de
+coûts ce qu'un rôle sait de sa catégorie — main-d'œuvre, active —, sous un verrou partagé de ses
+lignes, et le libellé de chaque catégorie nommée ou triée (`category_labels`,
+`category_label_of`). La tranche du témoin (`witness/resource_roles.py`) crée les rôles de
+`resource_roles.json` par la même interface, puis désactive ceux qu'il dit désactivés ; le
+calendrier désactivé qu'un rôle nomme et que `calendars.json` ne donne pas, elle le lit de
+`calendars_with_inactive.json`, et le rôle d'un nœud désactivé se crée sous son nœud rouvert le
+temps de l'écrire, puis refermé en cascade.
+
 ### Les paramètres des risques et des indicateurs
 
 Les paramètres des risques et des indicateurs se modifient chacun dans un formulaire (EP-14/L43e,

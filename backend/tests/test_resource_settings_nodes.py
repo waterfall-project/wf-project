@@ -604,20 +604,23 @@ def test_every_write_of_the_tree_asks_for_the_permission_to_change_the_settings(
 
 
 @pytest.mark.requirement("WF-REF-0080-A")
-def test_the_deactivation_reaches_the_node_and_the_reactivation_asks_for_an_active_parent(
+def test_the_deactivation_reaches_the_descendants_and_the_reactivation_the_node_alone(
     api: ContractClient, sessions: PartSessions
 ) -> None:
+    # The cascade over the roles is tried with them (``test_resource_settings_roles.py``).
     nodes = organisation(api, sessions.changing)
     off = deactivate(api, sessions.changing, nodes["BE-ELEC"])
     assert off.status_code == 200, off.text
     assert [(each["code"], each["is_active"]) for each in off.json()["org_nodes"]] == [
-        ("BE-ELEC", False)
+        ("BE-ELEC", False),
+        ("AT-CABL", False),
     ]
     assert off.json()["resource_roles"] == []
-    command = off.json()["org_nodes"][0]["available_commands"]
-    assert command == [{"command": "reactivate", "is_available": True, "missing_conditions": []}]
-    # The workshop is deactivated in its turn, then cannot come back before its parent does.
-    workshop = deactivate(api, sessions.changing, nodes["AT-CABL"]).json()["org_nodes"][0]
+    parent, workshop = off.json()["org_nodes"]
+    assert parent["available_commands"] == [
+        {"command": "reactivate", "is_available": True, "missing_conditions": []}
+    ]
+    # The workshop, deactivated with its parent, cannot come back before its parent does.
     refused = deactivate(api, sessions.changing, workshop, is_active=True)
     assert refusal(refused) == (409, "STATE_FORBIDS_OPERATION", [])
     assert refused.json()["params"] == {
@@ -638,10 +641,14 @@ def test_the_deactivation_reaches_the_node_and_the_reactivation_asks_for_an_acti
         "BE-ELEC": ("reactivate", []),
         "AT-CABL": ("reactivate", ["org_node_parent_active"]),
     }
-    parent = off.json()["org_nodes"][0]
+    # The reactivation makes the node alone active: the workshop stays deactivated.
     back = deactivate(api, sessions.changing, parent, is_active=True)
     assert back.status_code == 200
-    assert back.json()["org_nodes"][0]["is_active"] is True
+    assert [(each["code"], each["is_active"]) for each in back.json()["org_nodes"]] == [
+        ("BE-ELEC", True)
+    ]
+    assert back.json()["resource_roles"] == []
+    assert "AT-CABL" not in codes(tree(api, sessions.changing))
 
 
 @pytest.mark.requirement("WF-REF-0080-A")

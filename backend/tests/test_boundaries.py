@@ -256,11 +256,10 @@ def test_importing_a_module_of_the_core_declares_the_tables_of_no_other() -> Non
         "print(sorted(m for m in sys.modules if m.endswith('.tables')))"
     )
     # An account is attached to a node of the resource settings: it asks that module, by its
-    # interface, which brings its own tables. That one module is tolerated, no other.
-    own, tolerated = "waterfall.core.users.tables", "waterfall.core.resource_settings.tables"
-    declared = set(ast.literal_eval(imported(statement)))
-    assert own in declared
-    assert declared - {own} <= {tolerated}
+    # interface, which brings its own tables — and theirs alone, the resource settings reading no
+    # other module (#2109, #2114). Exactly the tables of the two modules, no fewer, no more.
+    users, resources = "waterfall.core.users.tables", "waterfall.core.resource_settings.tables"
+    assert set(ast.literal_eval(imported(statement))) == {users, resources}
     # The package of the core, alone, holds the tables of none.
     statement = "import sys, waterfall.core; print(any(m.endswith('.tables') for m in sys.modules))"
     assert imported(statement) == "False"

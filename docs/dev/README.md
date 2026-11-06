@@ -1498,6 +1498,23 @@ by their code and their label, wherever it is told, the planning included, the p
 empty list designates the default calendar, emptied or designated, when only tasks without a labour
 line lose their hours.
 
+The service serves the roles since US-0850 (`api/resource_roles.py`, the file `resource_roles` of
+the interface of `resource_settings`): the active ones are read by any open session, the
+deactivated ones (`include_inactive`, `is_active` false) and every write under
+`resource_settings.write` (decision of the author, #2084). A role is born active, under an active
+node, and is reactivated only under an active node; the creation, the activation of a role and that
+of a node run under the advisory lock of the tree, which the cascade holds too: the deactivation of
+a node deactivates, in the same transaction, its descendants and the roles attached to it or to one
+of them, each its counter advanced and its author, and the answer carries them.
+`resource_settings` does not read `cost_settings`, which reads it (`category_has_roles`,
+`roles_of_categories`, #2114): the route asks the cost settings what a role knows of its category
+— labour, active —, under a share lock of its rows, and the label of each category named or sorted
+(`category_labels`, `category_label_of`). The slice of the witness (`witness/resource_roles.py`)
+creates the roles of `resource_roles.json` through the same interface, then deactivates those it
+says deactivated; the deactivated calendar a role names and that `calendars.json` does not give, it
+reads from `calendars_with_inactive.json`, and the role of a deactivated node is created under its
+node reopened the time of writing it, then closed again in cascade.
+
 ### Risk and indicator settings
 
 The risk settings and the indicator settings are each modified in a form (EP-14/L43e, #512;
