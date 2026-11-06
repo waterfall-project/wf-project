@@ -300,7 +300,7 @@ def test_the_projects_and_the_revisions_offer_their_interface_as_a_package_by_su
 STUB_STATEMENTS = 2
 
 
-def is_stub(function: ast.FunctionDef) -> bool:
+def is_stub(function: ast.FunctionDef | ast.AsyncFunctionDef) -> bool:
     """Tell whether a body is a stub: a docstring at most, ``msg = "..."``, then the raise."""
     body = list(function.body)
     if (
@@ -329,6 +329,44 @@ def is_stub(function: ast.FunctionDef) -> bool:
     )
 
 
+def functions(tree: ast.AST) -> list[ast.FunctionDef | ast.AsyncFunctionDef]:
+    """List every function of a tree, nested ones and ``async`` ones included."""
+    return [n for n in ast.walk(tree) if isinstance(n, ast.FunctionDef | ast.AsyncFunctionDef)]
+
+
+def refuses(function: ast.FunctionDef | ast.AsyncFunctionDef) -> bool:
+    """Tell whether a function's own body (not a nested one's) raises NotImplementedError."""
+    pending: list[ast.AST] = list(function.body)
+    while pending:
+        node = pending.pop()
+        if isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef | ast.Lambda):
+            continue
+        if isinstance(node, ast.Raise):
+            target = node.exc.func if isinstance(node.exc, ast.Call) else node.exc
+            if isinstance(target, ast.Name) and target.id == "NotImplementedError":
+                return True
+        pending.extend(ast.iter_child_nodes(node))
+    return False
+
+
+def malformed_stubs(source: str) -> list[str]:
+    """Name the functions of a source that raise NotImplementedError without being a stub."""
+    return [f.name for f in functions(ast.parse(source)) if refuses(f) and not is_stub(f)]
+
+
+def interface_sources() -> list[tuple[str, str]]:
+    """List (file, source) of each file of the two interfaces, subpackages included."""
+    found: list[tuple[str, str]] = []
+    for module in PROJECT_INTERFACES:
+        interface = importlib.import_module(f"waterfall.core.{module}.interface")
+        for directory in interface.__path__:
+            found.extend(
+                (f"{module}/{path.name}", path.read_text(encoding="utf-8"))
+                for path in sorted(Path(directory).rglob("*.py"))
+            )
+    return found
+
+
 def stubs() -> list[tuple[str, str, str]]:
     """List (file, function, message) of each stub the files of the two interfaces declare.
 
@@ -336,22 +374,53 @@ def stubs() -> list[tuple[str, str, str]]:
     (the design gives them a documented result without effect) are not stubs, and need no list.
     """
     found: list[tuple[str, str, str]] = []
-    for module in PROJECT_INTERFACES:
-        interface = importlib.import_module(f"waterfall.core.{module}.interface")
-        for directory in interface.__path__:
-            for path in sorted(Path(directory).glob("*.py")):
-                for node in ast.parse(path.read_text(encoding="utf-8")).body:
-                    if isinstance(node, ast.FunctionDef) and is_stub(node):
-                        assign = node.body[-2]
-                        assert isinstance(assign, ast.Assign)
-                        assert isinstance(assign.value, ast.Constant)
-                        found.append((f"{module}/{path.name}", node.name, str(assign.value.value)))
+    for file, source in interface_sources():
+        for node in functions(ast.parse(source)):
+            if is_stub(node):
+                assign = node.body[-2]
+                assert isinstance(assign, ast.Assign)
+                assert isinstance(assign.value, ast.Constant)
+                found.append((file, node.name, str(assign.value.value)))
     return found
 
 
-def test_the_interfaces_of_the_projects_and_the_revisions_still_hold_stubs() -> None:
-    # A guard against emptiness: without it, the test below would be green by checking nothing.
-    assert stubs()
+@pytest.mark.requirement("WF-ARC-0010-A")
+def test_no_function_of_the_interfaces_raises_not_implemented_without_being_a_stub() -> None:
+    # True whatever the number of stubs left, none included: the sweep and `is_stub` agree.
+    assert [(f, m) for f, s in interface_sources() for m in malformed_stubs(s)] == []
+
+
+@pytest.mark.requirement("WF-ARC-0010-A")
+@pytest.mark.parametrize(
+    "source",
+    [
+        "def f():\n    raise NotImplementedError('f is filled by US-0001')\n",
+        "async def f():\n    msg = 1\n    raise NotImplementedError(msg)\n",
+        "async def f():\n    raise NotImplementedError\n",
+        "def g():\n    def f():\n        raise NotImplementedError('x')\n    return f\n",
+        (
+            "class C:\n    def f(self):\n        msg = 'x'\n        print(msg)\n"
+            "        raise NotImplementedError(msg)\n"
+        ),
+    ],
+)
+def test_the_sweep_of_the_stubs_rejects_a_malformed_or_async_or_nested_stub(source: str) -> None:
+    assert malformed_stubs(source) == ["f"]
+
+
+@pytest.mark.requirement("WF-ARC-0010-A")
+@pytest.mark.parametrize(
+    "source",
+    [
+        "async def f():\n    msg = 'f is filled by US-0001'\n    raise NotImplementedError(msg)\n",
+        (
+            "def g():\n    def f():\n        msg = 'f is filled by US-0001'\n"
+            "        raise NotImplementedError(msg)\n"
+        ),
+    ],
+)
+def test_the_sweep_of_the_stubs_accepts_a_well_formed_stub_async_or_nested(source: str) -> None:
+    assert malformed_stubs(source) == []
 
 
 @pytest.mark.requirement("WF-ARC-0010-A")
