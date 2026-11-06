@@ -21,9 +21,9 @@
  * the nodes, the roles and the calendars, and deactivates them as each lists it (EP-02/L43b): a
  * role is attached to a category of labour alone (WF-REF-0090), which each category says
  * (`cost_type_kind`, EP-14/L43g). The service keeps what is written and filters what is asked: the
- * screen shows no mock-up notice (US-0850). Bounds the API refuses (422, an upper bound below the lower one) leave
- * their list unread, the bound said at its field; any other read the API refuses, or cannot
- * answer, is thrown for the pages of the shell to say.
+ * screen shows no mock-up notice (US-0850). Bounds the API refuses (422, an upper bound below the
+ * lower one) leave their list unread, the bound said at its field; any other read the API
+ * refuses, or cannot answer, is thrown for the pages of the shell to say.
  */
 import type { Metadata } from "next";
 import { useTranslations } from "next-intl";

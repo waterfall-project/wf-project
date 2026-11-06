@@ -55,23 +55,35 @@ test("sorts and searches each list of the settings of the resources by the serve
   await page.getByRole("link", { name: "Afficher aussi les désactivés" }).click();
   await expect(page).toHaveURL(/include_inactive=true/, { timeout: WORKING });
   await expect(page.getByRole("link", { name: "Masquer les désactivés" })).toBeVisible();
-  // The reactivation is a server action: its answer awaited, from before the click.
-  const reactivated = page.waitForResponse((response) => isServerAction(response.request()));
-  await roles.getByRole("button", { name: "Réactiver «\u00a0Automaticien\u00a0»" }).click();
-  expect((await reactivated).status()).toBe(200);
-  // The row shows what the server answers: active again, offering its deactivation (EP-02/L43b).
-  await expect(
-    roles.getByRole("button", { name: "Désactiver «\u00a0Automaticien\u00a0»" }),
-  ).toBeVisible({ timeout: WORKING });
-  await expect(page.getByRole("main").getByRole("alert")).toHaveCount(0);
-  if (inService) {
-    // The service kept it: the role is left deactivated, as the witness has it.
-    const deactivated = page.waitForResponse((response) => isServerAction(response.request()));
-    await roles.getByRole("button", { name: "Désactiver «\u00a0Automaticien\u00a0»" }).click();
-    expect((await deactivated).status()).toBe(200);
+  try {
+    // The reactivation is a server action: its answer awaited, from before the click. The payload of
+    // an action is opaque (Next serialises its arguments), so no identifier or code can tell this one
+    // from another; but the page is idle here — the only steps before were links, awaited by their
+    // address — and the row below shows the reactivation itself, so no other action can pass for it.
+    const reactivated = page.waitForResponse((response) => isServerAction(response.request()));
+    await roles.getByRole("button", { name: "Réactiver «\u00a0Automaticien\u00a0»" }).click();
+    expect((await reactivated).status()).toBe(200);
+    // The row shows what the server answers: active again, offering its deactivation (EP-02/L43b).
     await expect(
-      roles.getByRole("button", { name: "Réactiver «\u00a0Automaticien\u00a0»" }),
+      roles.getByRole("button", { name: "Désactiver «\u00a0Automaticien\u00a0»" }),
     ).toBeVisible({ timeout: WORKING });
+    await expect(page.getByRole("main").getByRole("alert")).toHaveCount(0);
+  } finally {
+    if (inService) {
+      // The service kept it: the role is left deactivated, as the witness has it, even on a failure.
+      const deactivate = roles.getByRole("button", {
+        name: "Désactiver «\u00a0Automaticien\u00a0»",
+      });
+      // Nothing to undo when the reactivation itself failed.
+      if (await deactivate.isVisible()) {
+        const deactivated = page.waitForResponse((response) => isServerAction(response.request()));
+        await deactivate.click();
+        expect((await deactivated).status()).toBe(200);
+        await expect(
+          roles.getByRole("button", { name: "Réactiver «\u00a0Automaticien\u00a0»" }),
+        ).toBeVisible({ timeout: WORKING });
+      }
+    }
   }
 
   // The programmer of automata, under a node deactivated: its reactivation is unavailable, named
@@ -140,74 +152,88 @@ test("creates a role in its form, moves a node under an active one, and designat
   await expect(roles.getByRole("status").filter({ hasText: "créé" })).toHaveText(
     `«\u00a0${label}\u00a0» créé.`,
   );
-  if (inService) {
-    // The service kept it: the list read anew shows the role, which is left deactivated.
-    await page.goto("/reference/resources?include_inactive=true");
-    const created = page.getByRole("grid", { name: "Rôles de ressources" });
-    await expect(created.getByRole("row", { name: new RegExp(code) })).toBeVisible({
-      timeout: WORKING,
-    });
-    await created.getByRole("button", { name: `Désactiver «\u00a0${label}\u00a0»` }).click();
-    await expect(
-      created.getByRole("button", { name: `Réactiver «\u00a0${label}\u00a0»` }),
-    ).toBeVisible({ timeout: WORKING });
-    await page.goto("/reference/resources");
-  }
-
-  // The workshop moved under the direction in its form: the active nodes alone are offered as its
-  // parent, never the workshop itself; the parent is sent, and the list says what the server wrote.
-  const organisation = page.getByRole("region", { name: "Arbre d’organisation" });
   const nodeForm = page.getByRole("dialog", { name: "Modifier «\u00a0Atelier de câblage\u00a0»" });
-  await page
-    .getByRole("treegrid", { name: "Arbre d’organisation" })
-    .getByRole("button", { name: "Modifier «\u00a0Atelier de câblage\u00a0»" })
-    .click();
-  const parent = nodeForm.getByRole("combobox", { name: "Parent" });
-  await expect(parent.getByRole("option")).toHaveText([
-    "Aucun — racine",
-    "DT · Direction technique",
-    "\u2003BE-ELEC · Bureau d'études électricité",
-    "\u2003ACHATS · Service des achats",
-  ]);
-  await parent.selectOption({ label: "DT · Direction technique" });
-  await nodeForm.getByRole("button", { name: "Enregistrer" }).click();
-  await expect(nodeForm).toBeHidden({ timeout: WORKING });
-  await expect(organisation.getByRole("status").filter({ hasText: "enregistré" })).toHaveText(
-    "«\u00a0Atelier de câblage\u00a0» enregistré.",
-  );
-
-  // The four-day week designated by default from its row, as it lists the command: the row shows
-  // what the server answers.
   const calendars = page.getByRole("grid", { name: "Calendriers" });
-  await calendars
-    .getByRole("button", { name: "Désigner «\u00a0Semaine de quatre jours\u00a0» par défaut" })
-    .click();
-  await expect(rowAt(calendars, 1)).toContainText("Calendrier par défaut", { timeout: WORKING });
-  await expect(
-    page
-      .getByRole("region", { name: "Calendriers" })
-      .getByRole("status")
-      .filter({ hasText: "désigné" }),
-  ).toHaveText("«\u00a0Semaine de quatre jours\u00a0» désigné calendrier par défaut.");
-  await expect(page.getByRole("main").getByRole("alert")).toHaveCount(0);
+  let moved = false;
+  let designated = false;
+  try {
+    if (inService) {
+      // The service kept it: the list read anew shows the role.
+      await page.goto("/reference/resources?include_inactive=true");
+      await expect(
+        page.getByRole("grid", { name: "Rôles de ressources" }).getByRole("row", {
+          name: new RegExp(code),
+        }),
+      ).toBeVisible({ timeout: WORKING });
+      await page.goto("/reference/resources");
+    }
 
-  if (inService) {
-    // Leave what was found: the workshop under the electrical design office, the standard week by
-    // default, each by the command of its row.
+    // The workshop moved under the direction in its form: the active nodes alone are offered as its
+    // parent, never the workshop itself; the parent is sent, and the list says what the server wrote.
+    const organisation = page.getByRole("region", { name: "Arbre d’organisation" });
     await page
       .getByRole("treegrid", { name: "Arbre d’organisation" })
       .getByRole("button", { name: "Modifier «\u00a0Atelier de câblage\u00a0»" })
       .click();
-    await nodeForm
-      .getByRole("combobox", { name: "Parent" })
-      .selectOption({ label: "\u2003BE-ELEC · Bureau d'études électricité" });
+    const parent = nodeForm.getByRole("combobox", { name: "Parent" });
+    await expect(parent.getByRole("option")).toHaveText([
+      "Aucun — racine",
+      "DT · Direction technique",
+      "\u2003BE-ELEC · Bureau d'études électricité",
+      "\u2003ACHATS · Service des achats",
+    ]);
+    await parent.selectOption({ label: "DT · Direction technique" });
+    moved = true;
     await nodeForm.getByRole("button", { name: "Enregistrer" }).click();
     await expect(nodeForm).toBeHidden({ timeout: WORKING });
+    await expect(organisation.getByRole("status").filter({ hasText: "enregistré" })).toHaveText(
+      "«\u00a0Atelier de câblage\u00a0» enregistré.",
+    );
+
+    // The four-day week designated by default from its row, as it lists the command: the row shows
+    // what the server answers.
+    designated = true;
     await calendars
-      .getByRole("button", { name: "Désigner «\u00a0Semaine standard\u00a0» par défaut" })
+      .getByRole("button", { name: "Désigner «\u00a0Semaine de quatre jours\u00a0» par défaut" })
       .click();
-    await expect(rowAt(calendars, 1)).toContainText("Semaine standard", { timeout: WORKING });
+    await expect(rowAt(calendars, 1)).toContainText("Calendrier par défaut", { timeout: WORKING });
+    await expect(
+      page
+        .getByRole("region", { name: "Calendriers" })
+        .getByRole("status")
+        .filter({ hasText: "désigné" }),
+    ).toHaveText("«\u00a0Semaine de quatre jours\u00a0» désigné calendrier par défaut.");
     await expect(page.getByRole("main").getByRole("alert")).toHaveCount(0);
+  } finally {
+    if (inService) {
+      // Leave what was found, even on a failure: the role created deactivated, the workshop under
+      // the electrical design office, the standard week by default, each by the command of its row.
+      await page.goto("/reference/resources");
+      const deactivate = page
+        .getByRole("grid", { name: "Rôles de ressources" })
+        .getByRole("button", { name: `Désactiver «\u00a0${label}\u00a0»` });
+      if (await deactivate.isVisible()) {
+        await deactivate.click();
+        await expect(deactivate).toBeHidden({ timeout: WORKING });
+      }
+      if (moved) {
+        await page
+          .getByRole("treegrid", { name: "Arbre d’organisation" })
+          .getByRole("button", { name: "Modifier «\u00a0Atelier de câblage\u00a0»" })
+          .click();
+        await nodeForm
+          .getByRole("combobox", { name: "Parent" })
+          .selectOption({ label: "\u2003BE-ELEC · Bureau d'études électricité" });
+        await nodeForm.getByRole("button", { name: "Enregistrer" }).click();
+        await expect(nodeForm).toBeHidden({ timeout: WORKING });
+      }
+      if (designated) {
+        await calendars
+          .getByRole("button", { name: "Désigner «\u00a0Semaine standard\u00a0» par défaut" })
+          .click();
+        await expect(rowAt(calendars, 1)).toContainText("Semaine standard", { timeout: WORKING });
+      }
+    }
   }
 });
 
