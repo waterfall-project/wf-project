@@ -152,7 +152,7 @@ EP-08, the three hundred projects in EP-13, which closes. Four rules, which each
 | [EP-17](EP-17-maquette-finitions-accessibilite.md) | Mockup: finishing touches and accessibility | livré | EP-16 |
 | [EP-18](EP-18-comptes-ecarts-revue-du-contrat.md) | Accounts: findings of the contract review | livré | EP-16 |
 | [EP-19](EP-19-livreurs-en-parallele.md) | Deliverers in parallel | livré | rien |
-| [EP-20](EP-20-migration-des-dependances.md) | Migration of the dependencies | en cours | EP-19 |
+| [EP-20](EP-20-migration-des-dependances.md) | Migration of the dependencies | livré | EP-19 |
 | [EP-21](EP-21-livreurs-en-parallele-suivi.md) | Deliverers in parallel: follow-up | à planifier | EP-19 |
 | [EP-22](EP-22-kanban-recapitulatives-demarrees.md) | The Kanban lists the summary awaiting only its own lines | en cours | EP-17 |
 | [EP-05](EP-05-referentiel.md) | Reference data of the company | en cours | EP-16, EP-18, EP-19, EP-20 |

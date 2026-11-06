@@ -1,7 +1,7 @@
 ---
 id: EP-20
 titre: Porter la plateforme, ses environnements d'exécution et ses dépendances à leurs dernières versions stables, et en tenir la veille
-statut: en cours
+statut: livré
 depend_de: EP-19
 famille: plateforme
 issue: 1925
@@ -759,9 +759,10 @@ les écrans du référentiel sur une chaîne en retard.
 - propre à l'US : les tests du front, son lint, son contrôle de types, sa construction pour la
   production et les parcours de bout en bout passent ;
 - propre à l'US : le bouton du compte et le bouton des rôles ont un nom accessible qui contient leur
-  texte visible (WCAG 2.5.3, « Label in Name ») : l'avatar du compte est décoratif, le bouton des rôles
-  se nomme « Rôles de « {name} » : {liste des rôles} » ; les parcours d'accessibilité passent sous
-  `axe-core` 4.14.0, aucune règle désactivée (#2004) ;
+  texte visible (WCAG 2.5.3, « Label in Name ») : le bouton du compte se nomme « Compte de {name},
+  {initiales} », les initiales que montre son avatar, qui reste décoratif (#2049, auteur,
+  2026-11-06), le bouton des rôles se nomme « Rôles de « {name} » : {liste des rôles} » ; les
+  parcours d'accessibilité passent sous `axe-core` 4.14.0, aucune règle désactivée (#2004) ;
 - propre à l'US : un test fixe le défilement latéral de `revealSideways` sous `offsetWidth` simulé
   (#2009).
 

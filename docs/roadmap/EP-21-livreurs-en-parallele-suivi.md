@@ -68,3 +68,14 @@ Reportés d'EP-17 à sa livraison (rangement du 2026-11-05) :
   exactement `lot unique`, alors que le tableau d'EP-17 et le gabarit du cadreur la suivent des
   constats que le lot ferme (`lot unique (#1840)`) ; aucune US à lot unique d'EP-17 ne pouvait
   changer d'état par l'outil. Relevé à la livraison d'US-1220.
+
+Reportés d'EP-20 à sa livraison (décisions de l'auteur du 2026-11-06) :
+
+- #2028 — outil : finitions du test et du guide de l'amorce de l'annuaire de test — un test de
+  `tools/tests/test_openldap_entrypoint.py` qui pose ses volumes par l'entrypoint du lot et recoupe un
+  autre, un test et un module sans docstring, deux formulations datées du guide. Relevé par la revue
+  d'US-1270/L1 (#2017) ; aucun lot d'EP-20 ne touche plus ces fichiers.
+- #2074 — doc : `INSTALL.md` écrit « 3.14 » à côté de son renvoi à `tools/.python-version`, qui en
+  fait foi. Remarque de la revue d'US-1270/L3 (#2019).
+- #2075 — outil : `make check-tools` affiche un avertissement vide quand `tools/.python-version`
+  manque, au lieu de dire que le fichier manque. Remarque de la revue d'US-1270/L3 (#2019).
