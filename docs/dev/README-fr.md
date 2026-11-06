@@ -1482,7 +1482,7 @@ ou un rattachement désactivé entre-temps (`INACTIVE_REFERENCE_OBJECT`), des he
 une capacité négative, avec la borne franchie (`VALUE_OUT_OF_RANGE`) ; le libellé déjà porté d'un
 calendrier, désactivés compris, nomme son porteur d'après la page, par son identifiant, de façon
 générique sinon ; le reste comme pour les coûts, la version périmée sous le formulaire avec l'offre
-de relire ; l'écran dit que le faux back ne garde rien (`MockupNotice`). Une écriture qui laisserait
+de relire ; l'écran ne porte plus `MockupNotice` depuis US-0850 : le service garde ce qui s'écrit, et ses parcours sont étiquetés `@shared` (les unités de durée, que le service ne sert pas encore, attendent US-0860b). Une écriture qui laisserait
 une tâche sans heure travaillée — un calendrier modifié ou désigné par défaut, un rôle modifié — est
 refusée (`TASK_WITHOUT_WORKING_HOURS`, « Une tâche n'aurait plus aucune heure travaillée dans la
 semaine. ») en disant pourquoi et en nommant chaque projet en cause par son libellé et son code, par

@@ -2,16 +2,20 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /*
  * The screen of the settings of the resources (`/reference/resources`): the roles, the tree of the
- * organisation, the calendars and the units of duration, against the fake back.
+ * organisation, the calendars and the units of duration, against the fake back and, for the paths
+ * tagged `@shared`, against the service (US-0850). The service keeps what is written: the paths
+ * that write leave what they found, and the screen shows no mock-up notice. The units of duration
+ * are not served yet (US-0860b): their path is not tagged.
  */
-import { expect, test } from "@playwright/test";
+import { expect } from "@playwright/test";
 
 import { sortUntilAddress, WORKING } from "./hydration";
+import { inService, test } from "./mode";
 import { rowAt } from "./scroll";
 import { isServerAction } from "./server-action";
 
-/** The automation engineer, the deactivated role of the witness. */
-const AUTOMATION = "01926f3a-7c00-7000-8000-000000000453";
+/** A suffix no other run of the service has used, for the code and the label of a role created. */
+const STAMP = Date.now().toString(36);
 
 // The fake back serves the first example of each read of the reference data — the grid of the
 // volumes, a hundred and fifty categories of labour over fifteen years, the natures, the
@@ -20,7 +24,7 @@ const AUTOMATION = "01926f3a-7c00-7000-8000-000000000453";
 // level 1, the third row of the grid, which has none before 2016. What the screens ask of each is
 // proven by the tests of the pages and of the grid.
 
-test("sorts and searches each list of the settings of the resources by the server, folds the tree, and shows and reactivates the deactivated objects [WF-IHM-0060-A] [WF-REF-0150-A]", async ({
+test("sorts and searches each list of the settings of the resources by the server, folds the tree, and shows and reactivates the deactivated objects @shared [WF-IHM-0060-A] [WF-REF-0150-A]", async ({
   page,
 }) => {
   test.slow();
@@ -51,13 +55,8 @@ test("sorts and searches each list of the settings of the resources by the serve
   await page.getByRole("link", { name: "Afficher aussi les désactivés" }).click();
   await expect(page).toHaveURL(/include_inactive=true/, { timeout: WORKING });
   await expect(page.getByRole("link", { name: "Masquer les désactivés" })).toBeVisible();
-  // The reactivation is a server action, which carries the role: its answer awaited, from before
-  // the click.
-  const reactivated = page.waitForResponse(
-    (response) =>
-      isServerAction(response.request()) &&
-      (response.request().postData() ?? "").includes(AUTOMATION),
-  );
+  // The reactivation is a server action: its answer awaited, from before the click.
+  const reactivated = page.waitForResponse((response) => isServerAction(response.request()));
   await roles.getByRole("button", { name: "Réactiver «\u00a0Automaticien\u00a0»" }).click();
   expect((await reactivated).status()).toBe(200);
   // The row shows what the server answers: active again, offering its deactivation (EP-02/L43b).
@@ -65,6 +64,15 @@ test("sorts and searches each list of the settings of the resources by the serve
     roles.getByRole("button", { name: "Désactiver «\u00a0Automaticien\u00a0»" }),
   ).toBeVisible({ timeout: WORKING });
   await expect(page.getByRole("main").getByRole("alert")).toHaveCount(0);
+  if (inService) {
+    // The service kept it: the role is left deactivated, as the witness has it.
+    const deactivated = page.waitForResponse((response) => isServerAction(response.request()));
+    await roles.getByRole("button", { name: "Désactiver «\u00a0Automaticien\u00a0»" }).click();
+    expect((await deactivated).status()).toBe(200);
+    await expect(
+      roles.getByRole("button", { name: "Réactiver «\u00a0Automaticien\u00a0»" }),
+    ).toBeVisible({ timeout: WORKING });
+  }
 
   // The programmer of automata, under a node deactivated: its reactivation is unavailable, named
   // by its condition, and a press says it without asking anything (WF-REF-0080, WF-IHM-0090).
@@ -87,12 +95,15 @@ test("sorts and searches each list of the settings of the resources by the serve
   );
 });
 
-test("creates a role in its form, moves a node under an active one, and designates the default calendar as its row lists it, the mock-up saying the fake back keeps nothing (EP-02/L43b, EP-14/L43g)", async ({
+test("creates a role in its form, moves a node under an active one, and designates the default calendar as its row lists it, with no mock-up notice @shared [WF-REF-0090-A] [WF-REF-0080-A] [WF-REF-0120-A]", async ({
   page,
 }) => {
   test.slow();
   await page.goto("/reference/resources");
-  await expect(page.getByRole("note")).toContainText("le service simulé ne conserve");
+  await expect(page.getByRole("note")).toHaveCount(0);
+  // The fake back answers its example whatever is written; the service, what was written.
+  const code = inService ? `DESS-${STAMP}` : "DESS-ELEC";
+  const label = inService ? `Dessinateur ${STAMP}` : "Dessinateur électricien";
 
   // A role created in its form. No project is opened here, nothing witnesses the hydration: the
   // creation is pressed again until React opens its form, and never once it is open.
@@ -104,8 +115,8 @@ test("creates a role in its form, moves a node under an active one, and designat
     }
     await expect(form).toBeVisible({ timeout: 1_000 });
   }).toPass({ timeout: WORKING });
-  await form.getByRole("textbox", { name: "Code" }).fill("DESS-ELEC");
-  await form.getByRole("textbox", { name: "Libellé" }).fill("Dessinateur électricien");
+  await form.getByRole("textbox", { name: "Code" }).fill(code);
+  await form.getByRole("textbox", { name: "Libellé" }).fill(label);
   // The active nodes alone, in the order of the tree; the categories of labour alone.
   await form
     .getByRole("combobox", { name: "Nœud d’organisation" })
@@ -127,8 +138,21 @@ test("creates a role in its form, moves a node under an active one, and designat
   await expect(form).toBeHidden({ timeout: WORKING });
   // The list says what the server created — its example —, and adds no row of its own.
   await expect(roles.getByRole("status").filter({ hasText: "créé" })).toHaveText(
-    "«\u00a0Dessinateur électricien\u00a0» créé.",
+    `«\u00a0${label}\u00a0» créé.`,
   );
+  if (inService) {
+    // The service kept it: the list read anew shows the role, which is left deactivated.
+    await page.goto("/reference/resources?include_inactive=true");
+    const created = page.getByRole("grid", { name: "Rôles de ressources" });
+    await expect(created.getByRole("row", { name: new RegExp(code) })).toBeVisible({
+      timeout: WORKING,
+    });
+    await created.getByRole("button", { name: `Désactiver «\u00a0${label}\u00a0»` }).click();
+    await expect(
+      created.getByRole("button", { name: `Réactiver «\u00a0${label}\u00a0»` }),
+    ).toBeVisible({ timeout: WORKING });
+    await page.goto("/reference/resources");
+  }
 
   // The workshop moved under the direction in its form: the active nodes alone are offered as its
   // parent, never the workshop itself; the parent is sent, and the list says what the server wrote.
@@ -166,6 +190,25 @@ test("creates a role in its form, moves a node under an active one, and designat
       .filter({ hasText: "désigné" }),
   ).toHaveText("«\u00a0Semaine de quatre jours\u00a0» désigné calendrier par défaut.");
   await expect(page.getByRole("main").getByRole("alert")).toHaveCount(0);
+
+  if (inService) {
+    // Leave what was found: the workshop under the electrical design office, the standard week by
+    // default, each by the command of its row.
+    await page
+      .getByRole("treegrid", { name: "Arbre d’organisation" })
+      .getByRole("button", { name: "Modifier «\u00a0Atelier de câblage\u00a0»" })
+      .click();
+    await nodeForm
+      .getByRole("combobox", { name: "Parent" })
+      .selectOption({ label: "\u2003BE-ELEC · Bureau d'études électricité" });
+    await nodeForm.getByRole("button", { name: "Enregistrer" }).click();
+    await expect(nodeForm).toBeHidden({ timeout: WORKING });
+    await calendars
+      .getByRole("button", { name: "Désigner «\u00a0Semaine standard\u00a0» par défaut" })
+      .click();
+    await expect(rowAt(calendars, 1)).toContainText("Semaine standard", { timeout: WORKING });
+    await expect(page.getByRole("main").getByRole("alert")).toHaveCount(0);
+  }
 });
 
 test("modifies the units of duration from the settings of the resources, and says what the change does to the schedules (US-0570)", async ({

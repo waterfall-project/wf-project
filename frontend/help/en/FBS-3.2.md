@@ -9,7 +9,7 @@ The resource settings of the installation, outside any project. Three settings t
 - the [calendars](FBS-3.2.3.md): the hours worked on each day of the week, one of them by default;
 - the **Units of duration**: the hours per day, the hours per week and the days per month, by which a duration entered in days, in weeks or in months is converted into hours.
 
-Each table is searched and filtered by the server, and keeps its own height; the roles and the calendars are also sorted and paged by it. The lists show only the active objects, unless the deactivated ones are asked for too: nothing is deleted in the reference data, an object is deactivated and can be reactivated. Each object names those it is attached to, active or not.
+Each table is searched and filtered by the server, and keeps its own height; the roles and the calendars are also sorted and paged by it. The lists show only the active objects, unless the deactivated ones are asked for too: nothing is deleted in the reference data, an object is deactivated and can be reactivated. Each object names those it is attached to, active or not. The service keeps what is written. Deactivating a node also deactivates its descendants and the roles attached to it or to one of them, which the list read again shows; reactivating a node or a role makes only that object active, and it is refused while its node, or the parent of the node, is deactivated.
 
 ## Its commands
 
