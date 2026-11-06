@@ -23,8 +23,6 @@ the line of the detailed studies, completed, whose unit disbursement the amendme
 main structure, the same writes are refused (``mockgestures``; F-01, #1766).
 """
 
-from __future__ import annotations
-
 import copy
 from dataclasses import replace
 from decimal import Decimal

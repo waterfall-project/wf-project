@@ -129,7 +129,7 @@ export interface Examples {
     200: "remaining_indicators" | "remaining_indicators_over_budget";
   };
   "GET /projects/{project_id}/remaining-indicators/startable-tasks": {
-    200: "startable_tasks" | "startable_tasks_milestone";
+    200: "startable_tasks" | "startable_tasks_awaiting_own_lines" | "startable_tasks_milestone";
   };
   "GET /projects/{project_id}/revisions": {
     200: "revisions" | "revisions_designation_open" | "revisions_empty" | "revisions_marked" | "revisions_project_created";

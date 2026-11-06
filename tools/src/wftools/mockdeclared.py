@@ -33,8 +33,6 @@ three, on the examples written by hand and the core of the witness:
 Nothing here reads the clock or draws at random, nor a file the same command writes.
 """
 
-from __future__ import annotations
-
 from dataclasses import replace
 from datetime import date
 from decimal import Decimal

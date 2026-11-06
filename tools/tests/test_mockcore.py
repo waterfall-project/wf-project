@@ -760,8 +760,8 @@ def _ready(answer: Any) -> list[int]:
 def test_the_kanban_holds_every_task_by_its_state_the_milestones_to_complete_flagged() -> None:
     # Today (#425): every task not started — the factory acceptance waits for the wiring, the
     # mounting and the commissioning for it, none flagged —, the operator desks and the wiring
-    # started, the tasks completed, which the Kanban reopens; never a summary, whose progress
-    # derives from its subordinates.
+    # started, the tasks completed, which the Kanban reopens; no summary, whose progress derives
+    # from its subordinates, none of the witness awaiting its own lines (#1851).
     answer = mockcore.startable(mockcore.core())
     today = _numbers(answer)
     assert today == {

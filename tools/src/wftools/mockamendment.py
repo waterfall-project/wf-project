@@ -24,8 +24,6 @@ whose differences are those the amendment designates — the dates its edits mov
 computed, not designated.
 """
 
-from __future__ import annotations
-
 from dataclasses import replace
 from decimal import Decimal
 from typing import TYPE_CHECKING, cast

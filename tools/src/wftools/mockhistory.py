@@ -29,8 +29,6 @@ core's; the offer, of 2025, at the rates of 2025 of the volume of rates
 ``mockdiff``: the amount of a task is its lines', said by them and by the deltas.
 """
 
-from __future__ import annotations
-
 from dataclasses import replace
 from decimal import Decimal
 from typing import TYPE_CHECKING, cast

@@ -165,7 +165,7 @@ règle n'est relâchée pour y parvenir (`docs/dev/agents.md`).
 
 ## US-1240 — Le Kanban liste la récapitulative qui n'attend plus que ses lignes propres
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-PLA-0040-A`
 - **opérations** : `listStartableTasks`
 - **issue** : #1967
@@ -226,7 +226,7 @@ il ne le corrige pas en silence.
 
 ## US-1280 — La revue des règles ruff et des annotations sous Python 3.14
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : aucune — outil du dépôt
 - **opérations** : aucune
 - **issue** : #2023

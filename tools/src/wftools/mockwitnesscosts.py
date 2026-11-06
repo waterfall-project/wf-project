@@ -7,8 +7,6 @@ WF-CRE-0030, WF-CRE-0050); the events of the imports are those of the chronology
 ``wftools.mockwitness``.
 """
 
-from __future__ import annotations
-
 from dataclasses import dataclass
 from datetime import UTC, date, datetime
 from decimal import Decimal

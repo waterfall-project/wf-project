@@ -11,8 +11,6 @@ with itself (``comparison_identical``). Split from ``mockhistory`` to keep it un
 lines (``wftools.sources``).
 """
 
-from __future__ import annotations
-
 from decimal import Decimal
 from typing import TYPE_CHECKING, cast
 
