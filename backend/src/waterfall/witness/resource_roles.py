@@ -7,18 +7,17 @@ deactivated (WF-REF-0080, WF-REF-0090).
 
 A role is written by ``create_role`` of the resource settings, as the API writes one: created
 active, under an active node, attached to an active category of labour and an active calendar.
-The witness holds two roles the rules would not create as they are, and this slice writes them as
-an installation would have come to hold them, through the same interfaces:
+The witness holds roles the rules would not create as they are, and this slice writes them as an
+installation would have come to hold them, through the same interfaces:
 
-- a role attached to a calendar the calendars of the witness do not load — the deactivated one,
-  which ``calendars.json`` does not give, read from ``calendars_with_inactive.json`` —: the
-  calendar is created active, the role attached to it, then the calendar deactivated;
+- a role attached to a calendar the calendars of the witness say deactivated: the calendar is
+  reactivated, the role created, then the calendar deactivated again;
 - a role under a node the witness says deactivated: the node is reactivated with its deactivated
   ancestors, from the highest down, the role created under it, then the highest deactivated again,
   in cascade, the role with it.
 
-What the platform held before is left as it was: only the nodes reactivated here are deactivated
-again, only the calendars created here deactivated.
+What the platform held before is left as it was: only the nodes and the calendars reopened here
+are deactivated again.
 """
 
 from decimal import Decimal
@@ -29,13 +28,8 @@ from pydantic import BaseModel
 from waterfall.api.contract.models import ResourceRole
 from waterfall.api.resource_roles import category_admission
 from waterfall.core.resource_settings.interface import (
-    DAYS,
-    CalendarContent,
     Capacity,
     RoleDraft,
-    WeeklyHours,
-    calendars_present,
-    create_calendar,
     create_role,
     read_calendar,
     read_node,
@@ -45,11 +39,9 @@ from waterfall.core.resource_settings.interface import (
     set_calendar_activation,
     set_role_activation,
 )
-from waterfall.witness.calendars import Calendars
 from waterfall.witness.description import is_loaded
 
 if TYPE_CHECKING:
-    from collections.abc import Collection
     from uuid import UUID
 
     from sqlalchemy.orm import Session
@@ -57,8 +49,6 @@ if TYPE_CHECKING:
     from waterfall.witness.description import Witness
 
 FILE = "resource_roles.json"
-# Every calendar of the witness, the deactivated ones included, which ``calendars.json`` lacks.
-CALENDARS = "calendars_with_inactive.json"
 
 
 class ResourceRoles(BaseModel):
@@ -67,23 +57,13 @@ class ResourceRoles(BaseModel):
     items: list[ResourceRole]
 
 
-def _missing_calendars(session: Session, witness: Witness, named: Collection[UUID]) -> list[UUID]:
-    """Create, active, the calendars the roles name that the platform lacks; give those to close.
-
-    Read from every calendar of the witness; those it says deactivated are given, to deactivate
-    once their roles are attached.
-    """
-    lacking = set(named) - calendars_present(session, named)
-    to_close: list[UUID] = []
-    for each in witness.read(CALENDARS, Calendars).items:
-        if each.calendar_id.root not in lacking:
-            continue
-        hours = WeeklyHours(*(Decimal(getattr(each.weekly_hours, day).root.root) for day in DAYS))
-        content = CalendarContent(each.label, hours)
-        create_calendar(session, content, witness.act, identifier=each.calendar_id.root)
-        if not each.is_active:
-            to_close.append(each.calendar_id.root)
-    return to_close
+def _open_calendar(session: Session, witness: Witness, calendar_id: UUID) -> bool:
+    """Reactivate a deactivated calendar; tell whether it was reopened."""
+    current = read_calendar(session, calendar_id)
+    if current.is_active:
+        return False
+    set_calendar_activation(session, calendar_id, current.lock_version, witness.act, is_active=True)
+    return True
 
 
 def _open_node(session: Session, witness: Witness, node_id: UUID) -> UUID | None:
@@ -112,9 +92,12 @@ def load(session: Session, witness: Witness) -> bool:
     imposed = frozenset(role.resource_role_id.root for role in roles)
     if is_loaded(imposed, roles_present(session, imposed)):
         return False
-    to_close = _missing_calendars(session, witness, {role.calendar_id.root for role in roles})
     reopened: list[UUID] = []
+    calendars: list[UUID] = []
     for role in roles:
+        calendar_id = role.calendar_id.root
+        if calendar_id not in calendars and _open_calendar(session, witness, calendar_id):
+            calendars.append(calendar_id)
         opened = _open_node(session, witness, role.org_node_id.root)
         if opened is not None:
             reopened.append(opened)
@@ -147,7 +130,7 @@ def load(session: Session, witness: Witness) -> bool:
                 lock_version=current.lock_version,
                 act=witness.act,
             )
-    for calendar_id in to_close:
+    for calendar_id in calendars:
         current = read_calendar(session, calendar_id)
         set_calendar_activation(
             session, calendar_id, current.lock_version, witness.act, is_active=False

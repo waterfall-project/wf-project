@@ -12,6 +12,7 @@ import pytest
 from access_rows import role
 from fastapi.testclient import TestClient
 from installations import Installation, Take, installed, taker
+from installed_reference import install
 from openapi_core import Config, OpenAPI
 from pydantic import SecretStr
 from realm import KEY, TestRealm
@@ -400,11 +401,15 @@ def installation_api(
 
 
 @pytest.fixture
-def witness(database: Database, service_database_url: str) -> Database:
-    """Load the witness on the database of the test by the command, as the service; give it.
+def witness(database: Database, owner: Engine, service_database_url: str) -> Database:
+    """Install the database as the bootstrap does, load the witness by the command; give it.
 
+    The row of the installation and the reference the bootstrap writes — the settings, the units,
+    the mapping, the default calendar, the provision —, as the owner of the tables, then the
+    witness as the service (#2143): the slices that set what the bootstrap wrote have it to set.
     Emptied with the database after the test, as any row.
     """
+    install(owner)
     settings = WitnessSettings(
         database_url=SecretStr(service_database_url), witness_path=str(WITNESS)
     )
