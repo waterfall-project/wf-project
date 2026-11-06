@@ -113,6 +113,10 @@ DATA = {
     "ResourceRoleImage.calendar_label": "a label",
     # The name of the company that uses the installation, as it was given (WF-EXP-0020).
     "ReferenceSettings.company_name": "a name",
+    # The label, the description and the client of a project, as its creator gave them.
+    "Project.label": "a label",
+    "Project.description": "a text",
+    "Project.client": "a name",
 }
 # The objects the answers hold whose properties the contract does not close: the parameters of a
 # refusal, and of each field it refuses, which name its condition by codes and values, the ones

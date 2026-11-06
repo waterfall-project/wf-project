@@ -14,7 +14,8 @@ import pytest
 import uvicorn
 from fastapi import FastAPI, Header, Path, Query
 from fastapi.testclient import TestClient
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
+from pydantic_core import PydanticCustomError
 from support import PLATFORM_SECRETS, Logs, found_in
 
 from waterfall.api.app import create_app
@@ -36,6 +37,7 @@ if TYPE_CHECKING:
     from waterfall.api.authentication import Services
 
 PREFIX = "/api/v1"
+INVALID = "PROJECT_CODE_INVALID"
 
 
 class Entry(BaseModel):
@@ -73,6 +75,24 @@ class Span(BaseModel):
             message = "last before first"
             raise ValueError(message)
         return self
+
+
+class Coded(BaseModel):
+    """A body whose rule names a code of the contract as the kind of its refusal."""
+
+    code: str
+
+    @field_validator("code")
+    @classmethod
+    def without_slash(cls, code: str) -> str:
+        if "/" in code:
+            message = "a slash"
+            raise PydanticCustomError(INVALID, message, {"forbidden_characters": ["/"]})
+        return code
+
+
+def coded(coded: Coded) -> None:
+    del coded
 
 
 CABLE_FITTER = {"resource_role_id": str(UUID(int=454)), "code": "MONT-CAB", "label": "Monteur"}
@@ -126,6 +146,8 @@ def build_app(services: Services) -> FastAPI:
     @app.post("/spans")
     def span(span: Span) -> Span:
         return span
+
+    app.post("/coded")(coded)
 
     @app.post("/counted")
     def counted(counted: Counted) -> None:
@@ -481,6 +503,15 @@ def test_any_other_fault_is_a_validation_failed_on_its_field(app: FastAPI) -> No
     assert [(f.pointer, f.code.value) for f in problem.fields] == [
         ("/query/code", "VALIDATION_FAILED")
     ]
+
+
+def test_a_rule_that_names_a_code_of_the_contract_is_refused_under_that_code(app: FastAPI) -> None:
+    problem = problem_of(TestClient(app).post("/coded", json={"code": "A/B"}))
+    assert problem.fields is not None
+    assert [(f.pointer, f.code.value, params_of(f)) for f in problem.fields] == [
+        ("/code", "PROJECT_CODE_INVALID", {"forbidden_characters": ["/"]})
+    ]
+    assert TestClient(app).post("/coded", json={"code": "A-B"}).status_code == 200
 
 
 def test_a_nul_in_an_item_of_a_list_is_pointed_at_the_item(app: FastAPI) -> None:

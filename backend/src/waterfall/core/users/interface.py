@@ -319,12 +319,19 @@ def add_account_of_provider(
     return admitted if isinstance(admitted, NotAdmitted) else _account(session, admitted[0])
 
 
-def create_local_account(session: Session, identity: Identity, subject: str, act: Act) -> Account:
+def create_local_account(
+    session: Session,
+    identity: Identity,
+    subject: str,
+    act: Act,
+    account_id: UUID | None = None,
+) -> Account:
     """Create the local account the provider holds under ``subject``, and inscribe it.
 
     Refused if a field is in fault (422), or if another account holds the address (409).
+    ``account_id`` is the identifier the witness imposes, for an account no provider holds.
     """
-    return _account(session, create_local(session, identity, subject, act))
+    return _account(session, create_local(session, identity, subject, act, account_id))
 
 
 def change_account(

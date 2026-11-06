@@ -24,6 +24,7 @@ from waterfall.core.cost_settings.tables import CostType
 from waterfall.platform.audit import Act
 from waterfall.platform.database import utc_now
 from waterfall.platform.errors import ConflictError
+from waterfall.platform.logs import logging_context
 from waterfall.platform.settings import WitnessSettings
 from waterfall.witness import chronology, loader
 from waterfall.witness.description import Witness, is_loaded
@@ -109,7 +110,11 @@ def test_the_slices_of_the_projects_are_loaded_in_their_order_after_the_referenc
     order = ["projects", "contributors", "subprojects", "work_breakdown", "revisions"]
     assert [name for name, _ in chronology.SLICES] == order
     witness = Witness(WITNESS, Act(None, utc_now()))
-    assert chronology.load(session, witness) is False
+    # The slice of the projects is filled (US-0920/L1): on a platform that holds none it writes
+    # its accounts and its projects, and the entry tells so; the others write nothing yet.
+    with logging_context(correlation_id="witness-slices"):
+        assert chronology.load(session, witness) is True
+        assert chronology.load(session, witness) is False
     nothing: set[str] = set()
     for writing in (nothing, {"subprojects"}):
         slices = tuple((name, slice_of(name, writes=name in writing)) for name in order)
