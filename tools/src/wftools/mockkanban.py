@@ -10,8 +10,6 @@ readings of the whole structure, never written by hand (#287); a gesture on a no
 renders follows that write, one version further (#421).
 """
 
-from __future__ import annotations
-
 from datetime import date
 from typing import TYPE_CHECKING, cast
 

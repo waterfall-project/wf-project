@@ -32,8 +32,6 @@ automation, alone, its child left deactivated (WF-REF-0080).
 Nothing here reads the clock or draws at random, nor a file the same command writes.
 """
 
-from __future__ import annotations
-
 from decimal import Decimal
 from typing import TYPE_CHECKING, cast
 

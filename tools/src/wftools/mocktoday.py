@@ -17,8 +17,6 @@ to, read on the core alone, ``alone``). The portfolio sums the indicators of the
 (``project_today``), never read back from the file the same command writes.
 """
 
-from __future__ import annotations
-
 from dataclasses import dataclass, replace
 from datetime import date, timedelta
 from decimal import Decimal

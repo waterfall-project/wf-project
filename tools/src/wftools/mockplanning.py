@@ -13,8 +13,6 @@ date moved, they would change state. The write is so read in a declared variant,
 ``fixtures/api/volume/``, the whole structure of a thousand tasks being redated.
 """
 
-from __future__ import annotations
-
 from datetime import date, timedelta
 from typing import TYPE_CHECKING, cast
 

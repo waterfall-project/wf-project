@@ -51,8 +51,6 @@ The author decided each major point by point (`docs/api/DECISIONS.md`, the secti
 Nothing here reads the clock or draws at random, nor a file the same command writes.
 """
 
-from __future__ import annotations
-
 from dataclasses import replace
 from datetime import date
 from decimal import Decimal
