@@ -98,12 +98,14 @@ class RequiresByField:
     """The permission each field of a writing asks for, judged on the fields its body carries.
 
     The settings the installation shares are written field by field, each under the permission of
-    its function (WF-ADM-0100): a field carried — present, and not null, which leaves it as it is —
-    whose permission the caller does not hold is refused by 403 ``PERMISSION_MISSING``, naming the
-    permission of the first such field in the order the route declares them, even if the body
-    carries another one the caller may write; nothing is written. Like ``Requires``, it runs before
-    the validation of the body, on the body as JSON reads it: a body that is no object carries no
-    field, and its validation refuses it afterwards. Declared on the route after its ``Requires``.
+    its function (WF-ADM-0100): a field carried — present, whatever its value, a null too, which
+    its validation refuses afterwards — whose permission the caller does not hold is refused by 403
+    ``PERMISSION_MISSING``, naming the permission of the first such field in the order the route
+    declares them, even if the body carries another one the caller may write; nothing is written.
+    Like ``Requires``, it runs before the validation of the body, on the body as JSON reads it: a
+    body that is no object carries no field, and its validation refuses it afterwards. A body that
+    carries no field asks for no permission: its route writes nothing then. Declared on the route
+    after its ``Requires``.
     """
 
     __slots__ = ("permissions",)
@@ -121,5 +123,5 @@ class RequiresByField:
             return
         carried = cast("dict[str, object]", body)
         for name, permission in self.permissions.items():
-            if carried.get(name) is not None and permission not in actor.permissions:
+            if name in carried and permission not in actor.permissions:
                 raise ForbiddenError(PERMISSION_MISSING, {"missing_permission": permission})

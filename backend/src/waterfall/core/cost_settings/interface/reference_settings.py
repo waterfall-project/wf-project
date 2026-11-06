@@ -240,10 +240,20 @@ def write_reference_settings(
     The values are judged before, each by the module that holds its rule — the name here
     (``company_name_faults``), the matrix by ``risk_settings``, the thresholds and the delay by
     ``indicator_settings`` —; the permission of each field by whoever calls. 412 when the counter
-    is stale, said by the write itself, which takes the row: a writing that carries no field still
-    moves the counter, as any writing of the settings. The settings are read back in the same
-    transaction.
+    is stale, said by the write itself, which takes the row. A change that carries no field writes
+    nothing — neither the counter nor the audit —: it asks for no permission, and would otherwise
+    let a session that may write nothing make stale the counter every other one read (WF-ADM-0100);
+    the settings are given as they are, unless the counter is stale (412) all the same. The
+    settings are read back in the same transaction.
     """
+    values = _values(change)
+    if not values:
+        held = read_reference_settings(session)
+        if held.lock_version != expected_lock_version:
+            raise PreconditionFailedError(
+                STALE_LOCK_VERSION, {"expected_lock_version": held.lock_version}
+            )
+        return held
     taken = session.execute(
         update(ReferenceSetting)
         .where(
@@ -251,7 +261,7 @@ def write_reference_settings(
             ReferenceSetting.lock_version == expected_lock_version,
         )
         .values(
-            **_values(change),
+            **values,
             lock_version=ReferenceSetting.lock_version + 1,
             updated_at=act.at,
             updated_by=act.author,

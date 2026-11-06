@@ -144,6 +144,7 @@ def test_settings_written_since_the_bootstrap_are_held_and_the_witness_does_not_
     assert body["lock_version"] == 2
 
 
+@pytest.mark.requirement("WF-QUA-0040-A")
 def test_the_witness_finds_no_settings_on_a_database_the_bootstrap_has_not_installed(
     database: Database,
 ) -> None:
@@ -218,6 +219,8 @@ THRESHOLDS = example("reference_settings")["index_thresholds"]
         # The permission is judged before the body: a malformed field is refused 403 all the same.
         ((COSTS,), {"risk_matrix": {"zones": []}}, RISKS),
         ((COSTS,), {"company_name": "", "max_weeks_between_reviews": 0}, INDICATORS),
+        # A field sent null is carried: it asks for its permission, its validation comes after.
+        ((COSTS, INDICATORS), {"company_name": "Autre", "risk_matrix": None}, RISKS),
     ],
 )
 def test_a_field_whose_permission_the_session_lacks_is_refused_and_nothing_is_written(
@@ -233,18 +236,83 @@ def test_a_field_whose_permission_the_session_lacks_is_refused_and_nothing_is_wr
     assert api.get(SETTINGS, headers=session_of()).json() == before
 
 
+NULL_FAULT = "VALIDATION_FAILED"
+
+
 @pytest.mark.requirement("WF-ADM-0100-A")
-def test_a_field_sent_null_is_left_as_it_is_and_asks_for_no_permission(
-    api: ContractClient, session_of: Any
+@pytest.mark.parametrize(
+    ("sent", "fields"),
+    [
+        (
+            {
+                "company_name": None,
+                "risk_matrix": None,
+                "index_thresholds": None,
+                "max_weeks_between_reviews": None,
+            },
+            [
+                {"pointer": f"/{name}", "code": NULL_FAULT}
+                for name in (
+                    "company_name",
+                    "risk_matrix",
+                    "index_thresholds",
+                    "max_weeks_between_reviews",
+                )
+            ],
+        ),
+        # Judged with the other values, in the order of the contract.
+        (
+            {"max_weeks_between_reviews": 0, "risk_matrix": None, "company_name": ""},
+            [
+                {"pointer": "/company_name", "code": "VALUE_REQUIRED"},
+                {"pointer": "/risk_matrix", "code": NULL_FAULT},
+                {
+                    "pointer": "/max_weeks_between_reviews",
+                    "code": "VALUE_OUT_OF_RANGE",
+                    "params": {"minimum": 1},
+                },
+            ],
+        ),
+        (
+            {"index_thresholds": {**THRESHOLDS, "cost_watch": None}},
+            [{"pointer": "/index_thresholds/cost_watch", "code": NULL_FAULT}],
+        ),
+    ],
+)
+def test_a_field_sent_null_is_refused_as_the_contract_types_none_nullable(
+    api: ContractClient,
+    installed: Database,
+    session_of: Any,
+    sent: dict[str, Any],
+    fields: list[dict[str, Any]],
 ) -> None:
-    sent = {"company_name": None, "risk_matrix": None, "max_weeks_between_reviews": 7}
-    written = api.patch(SETTINGS, headers=session_of(INDICATORS), json={**sent, "lock_version": 1})
+    # Only a field absent stays as it is (``ReferenceSettingsWrite``): a null is a value in default.
+    everything = session_of(COSTS, RISKS, INDICATORS)
+    refused = api.patch(SETTINGS, headers=everything, json={**sent, "lock_version": 1})
+    assert refusal(refused) == (422, "VALIDATION_FAILED", {}, fields)
+    assert version(installed) == 1
+
+
+@pytest.mark.requirement("WF-ADM-0100-A")
+@pytest.mark.parametrize("held", [(), (INDICATORS,)])
+def test_a_writing_that_carries_no_field_writes_nothing(
+    api: ContractClient, installed: Database, session_of: Any, held: tuple[str, ...]
+) -> None:
+    # It asks for no permission: were it written, a session that may write nothing would make
+    # stale the counter every other one read. The settings are given as they are.
+    before = api.get(SETTINGS, headers=session_of()).json()
+    written = api.patch(SETTINGS, headers=session_of(*held), json={"lock_version": 1})
     assert written.status_code == 200
-    body = written.json()
-    assert (body["company_name"], body["max_weeks_between_reviews"]) == ("Delmas Automatismes", 7)
-    assert body["risk_matrix"]["probability_bounds"] == ["0.25", "0.5", "0.75"]
+    assert written.json() == before
+    assert api.get(SETTINGS, headers=session_of()).json() == before
+    assert version(installed) == 1
+    # A stale counter is refused all the same.
+    stale = api.patch(SETTINGS, headers=session_of(*held), json={"lock_version": 9})
+    assert refusal(stale)[:3] == (412, "STALE_LOCK_VERSION", {"expected_lock_version": 1})
+    assert version(installed) == 1
 
 
+@pytest.mark.requirement("WF-ADM-0100-A")
 def test_a_body_that_is_no_object_is_refused_as_unreadable(
     api: ContractClient, session_of: Any
 ) -> None:
@@ -290,6 +358,7 @@ def test_a_name_empty_too_long_or_blank_is_refused_and_nothing_is_written(
     assert version(installed) == 1
 
 
+@pytest.mark.requirement("WF-EXP-0020-A")
 def test_a_name_of_two_hundred_characters_is_written(api: ContractClient, session_of: Any) -> None:
     sent = {"company_name": "x" * 200, "lock_version": 1}
     assert api.patch(SETTINGS, headers=session_of(COSTS), json=sent).status_code == 200
@@ -421,13 +490,16 @@ def test_thresholds_out_of_order_or_range_and_a_delay_out_of_range_are_refused_a
 
 @pytest.mark.requirement("WF-REF-0170-A")
 def test_values_in_default_are_refused_before_a_stale_counter(
-    api: ContractClient, session_of: Any
+    api: ContractClient, installed: Database, session_of: Any
 ) -> None:
+    # The values are judged before the counter, an order the contract does not fix.
     sent = {"index_thresholds": {**THRESHOLDS, "cost_alert": "0.95"}, "lock_version": 9}
     refused = api.patch(SETTINGS, headers=session_of(INDICATORS), json=sent)
     assert refusal(refused)[:2] == (422, "VALIDATION_FAILED")
+    assert version(installed) == 1
 
 
+@pytest.mark.requirement("WF-EXP-0020-A")
 def test_settings_the_bootstrap_has_not_written_are_unavailable(
     api: ContractClient, owner: Engine, database: Database, realm: TestRealm
 ) -> None:
@@ -468,6 +540,7 @@ def test_the_witness_sets_its_units_of_duration_once(installed: Database) -> Non
     assert units.lock_version == 2
 
 
+@pytest.mark.requirement("WF-QUA-0040-A")
 def test_the_witness_finds_no_units_on_a_database_the_bootstrap_has_not_installed(
     database: Database,
 ) -> None:

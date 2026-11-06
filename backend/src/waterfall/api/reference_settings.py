@@ -7,7 +7,11 @@ the currency goes with every amount, the bounds, the thresholds and the delay qu
 reader of a project sees (WF-REF-0140 to WF-REF-0180). They are written field by field, each under
 the permission of its function (WF-ADM-0100), judged on the fields the body carries before anything
 else (``RequiresByField``); then each value by the module that holds its rule, all at once (422);
-then the counter they share (412). The currency is never written (WF-REF-0140).
+then the counter they share (412) — the values before the counter, an order the contract does not
+fix: a writing in default is said so even when it is stale besides. A field sent null is refused as
+a value in default, as the contract types none of them nullable: only a field absent stays as it
+is. A writing that carries no field writes nothing, the counter included. The currency is never
+written (WF-REF-0140).
 """
 
 from decimal import Decimal
@@ -37,7 +41,7 @@ from waterfall.core.indicator_settings.interface import (
 from waterfall.core.risk_settings.interface import matrix_faults
 from waterfall.platform.audit import Act
 from waterfall.platform.database import utc_now
-from waterfall.platform.errors import FieldError, UnprocessableError
+from waterfall.platform.errors import FieldError, UnprocessableError, json_pointer
 from waterfall.platform.installation import read_settings
 
 router = APIRouter(tags=["reference"])
@@ -67,7 +71,9 @@ class SettingsWrite(ContractModel):
 
     The shape is the validation's — the matrix as the contract has it, the thresholds texts, the
     delay a whole number —; the name, the order of the bounds, the thresholds and the range of the
-    delay are judged together, so that one answer names every field in default (422).
+    delay are judged together, so that one answer names every field in default (422). ``None`` is
+    a field absent, or sent null: ``change_of`` tells them apart, and refuses the second
+    (``sent_null``).
     """
 
     company_name: str | None = None
@@ -113,11 +119,23 @@ def reference_settings(view: ReferenceSettingsView, language: str) -> ReferenceS
     )
 
 
+def sent_null(body: SettingsWrite, name: str) -> list[FieldError]:
+    """Refuse a field sent null (``VALIDATION_FAILED`` at its pointer): the contract types none so.
+
+    As in the other writings of the service, a null is no absence: only a field absent stays as it
+    is.
+    """
+    if name in body.model_fields_set and getattr(body, name) is None:
+        return [FieldError(json_pointer(name), VALIDATION_FAILED)]
+    return []
+
+
 def change_of(body: SettingsWrite) -> SettingsChange:
     """Read the change a body carries, or refuse (422) every field in default, in their order."""
-    faults: list[FieldError] = []
+    faults = sent_null(body, "company_name")
     if body.company_name is not None:
         faults.extend(company_name_faults(body.company_name))
+    faults.extend(sent_null(body, "risk_matrix"))
     matrix = None
     if (sent := body.risk_matrix) is not None:
         matrix = RiskMatrix(
@@ -126,10 +144,12 @@ def change_of(body: SettingsWrite) -> SettingsChange:
             tuple(zone.value for zone in sent.zones),
         )
         faults.extend(matrix_faults(matrix))
+    faults.extend(sent_null(body, "index_thresholds"))
     thresholds: IndexThresholds | None = None
     if (texts := body.index_thresholds) is not None:
         thresholds, refused = read_thresholds(ThresholdTexts(**texts.model_dump()))
         faults.extend(refused)
+    faults.extend(sent_null(body, "max_weeks_between_reviews"))
     if body.max_weeks_between_reviews is not None:
         faults.extend(delay_faults(body.max_weeks_between_reviews))
     if faults:
@@ -163,7 +183,10 @@ def get_reference_settings(session: Transaction) -> ReferenceSettings:
 def update_reference_settings(
     body: SettingsWrite, account: Caller, session: Transaction
 ) -> ReferenceSettings:
-    """Write the fields carried, judged all at once (422), unless the counter is stale (412)."""
+    """Write the fields carried, judged all at once (422), unless the counter is stale (412).
+
+    The values are judged before the counter: a writing in default and stale is refused 422.
+    """
     language = read_settings(session).default_language
     change = change_of(body)
     act = Act(account.user_id, utc_now())
