@@ -12,8 +12,18 @@ the file.
 
 # ``contributors`` (US-0930; the kind and the existence, US-0910/L2): a project's contributors.
 from waterfall.core.projects.interface.contributors import (
+    ContributorColumn,
+    ContributorEntry,
+    ContributorFilters,
     ContributorKind,
+    ContributorsLoad,
+    ContributorSort,
+    ContributorsRead,
+    ContributorSuggestion,
+    ContributorsWrite,
+    ContributorView,
     contributor_kind,
+    contributors_present,
     list_contributor_suggestions,
     list_contributors,
     load_contributors,
@@ -77,7 +87,16 @@ from waterfall.core.projects.interface.work_breakdown import (
 
 __all__ = [
     "CommandAvailability",
+    "ContributorColumn",
+    "ContributorEntry",
+    "ContributorFilters",
     "ContributorKind",
+    "ContributorSort",
+    "ContributorSuggestion",
+    "ContributorView",
+    "ContributorsLoad",
+    "ContributorsRead",
+    "ContributorsWrite",
     "LifecycleTrigger",
     "ProjectChange",
     "ProjectColumn",
@@ -92,6 +111,7 @@ __all__ = [
     "Viewer",
     "advance",
     "contributor_kind",
+    "contributors_present",
     "create_project",
     "create_subproject",
     "delete_subproject",
