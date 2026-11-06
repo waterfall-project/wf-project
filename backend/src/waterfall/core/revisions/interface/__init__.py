@@ -5,9 +5,9 @@
 One file per subject, each filled by the story that serves it and re-exported here. Every function
 the design names (EP-04, "Modules") is declared from US-0910/L1 on, so that no story reopens this
 file to fill its own: it raises ``NotImplementedError`` naming the story that fills it, but for the
-few the design leaves silent. A name a story adds besides is imported in a statement of its own,
-below the comment that names its file. Another module imports them from here, never from the
-file.
+few the design leaves silent. A name a story adds besides joins the import of its file, below the
+comment that names it, in the order Ruff keeps. Another module imports them from here, never from
+the file.
 """
 
 # ``marking`` (US-0970; the indicators, EP-10): the marking of a revision.
@@ -25,7 +25,11 @@ from waterfall.core.revisions.interface.reference import (
 
 # ``revisions`` (US-0960; the partitions, US-0910/L1): the revisions of a project.
 from waterfall.core.revisions.interface.revisions import (
+    RevisionFilters,
+    RevisionList,
+    RevisionPage,
     RevisionStatus,
+    RevisionView,
     abandon_revision,
     copy_revision,
     create_project_partitions,
@@ -35,17 +39,24 @@ from waterfall.core.revisions.interface.revisions import (
     load_revision,
     read_revision,
     revision_draft,
+    revisions_present,
 )
 
 # ``structures`` (US-0960): the cost structures of a revision.
 from waterfall.core.revisions.interface.structures import (
+    StructureView,
     list_cost_structures,
     load_cost_structures,
     structure_commands,
 )
 
 __all__ = [
+    "RevisionFilters",
+    "RevisionList",
+    "RevisionPage",
     "RevisionStatus",
+    "RevisionView",
+    "StructureView",
     "abandon_revision",
     "compute_indicators",
     "copy_revision",
@@ -62,5 +73,6 @@ __all__ = [
     "read_revision",
     "revision_draft",
     "revision_has_tasks_and_lines",
+    "revisions_present",
     "structure_commands",
 ]

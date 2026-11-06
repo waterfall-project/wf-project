@@ -117,6 +117,12 @@ DATA = {
     "Project.label": "a label",
     "Project.description": "a text",
     "Project.client": "a name",
+    # The name of version and the description a revision was marked with, and its source's; the
+    # label of a structure, as given — the main one's, as the examples of the contract name it.
+    "Revision.version_name": "a name",
+    "Revision.description": "a text",
+    "Revision.source_version_name": "a name",
+    "CostStructure.label": "a label",
 }
 # The objects the answers hold whose properties the contract does not close: the parameters of a
 # refusal, and of each field it refuses, which name its condition by codes and values, the ones

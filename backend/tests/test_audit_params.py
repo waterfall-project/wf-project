@@ -65,6 +65,8 @@ WRITERS = {
     "waterfall.core.backups.interface",
     # The creation of a project, tried in test_projects.py, which creates one through the service.
     "waterfall.core.projects.interface.projects",
+    # The abandonment of a revision, tried in test_revisions.py, which abandons one by the service.
+    "waterfall.core.revisions.interface.revisions",
     "waterfall.core.users.identity",
     "waterfall.core.users.password_link",
     "waterfall.core.users.provider",
