@@ -10,8 +10,6 @@ from here, never from the file.
 
 # ``readiness`` (US-0810/L2): the questions of the minimal reference this module answers.
 
-# ``resource_roles`` (US-0850): the roles of resources and their capacity.
-
 # ``calendars`` (US-0860): the calendars, one of them the default.
 from waterfall.core.resource_settings.interface.calendars import (
     DAYS as DAYS,
@@ -113,6 +111,17 @@ from waterfall.core.resource_settings.interface.org_nodes import (
 )
 from waterfall.core.resource_settings.interface.org_nodes import (
     within_node as within_node,
+)
+
+# ``resource_roles`` (US-0850): the roles of resources and their capacity.
+from waterfall.core.resource_settings.interface.resource_roles import (
+    RoleOfCategory as RoleOfCategory,
+)
+from waterfall.core.resource_settings.interface.resource_roles import (
+    category_has_roles as category_has_roles,
+)
+from waterfall.core.resource_settings.interface.resource_roles import (
+    roles_of_categories as roles_of_categories,
 )
 
 # ``duration_units`` (US-0860): the units of duration.
