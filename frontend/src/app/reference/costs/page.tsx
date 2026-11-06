@@ -23,8 +23,8 @@
  * categories, and deactivates them as each lists it (EP-02/L43a), the form of a category reading the
  * type of every nature, deactivated ones included (EP-02/L42g); the service keeps what is written,
  * and the screen shows no mock-up notice. Bounds of the rate the API refuses (422) leave the grid
- * unread, the bound said at its field; any other read the API refuses, or cannot answer, is thrown for the pages of the shell to
- * say.
+ * unread, the bound said at its field; any other read the API refuses, or cannot answer, is thrown
+ * for the pages of the shell to say.
  */
 import { Coins } from "lucide-react";
 import type { Metadata } from "next";

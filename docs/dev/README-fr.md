@@ -1414,12 +1414,13 @@ réponse est plus récente que la ligne lue (`lock_version`, `useAnswered`) — 
 ne garde rien, elle survit donc aux relectures — ; une création n'ajoute aucune ligne, la page relue
 la range où le serveur la retient. Ce qu'une écriture a fait se dit dans la région de sa liste (« «
 Débours » désactivée. ») ; le refus d'une activation, au-dessus de la liste comme celui d'une
-réactivation (`useListReport`). Le service garde ce qui s'écrit (EP-05, US-0820 à US-0830) : l'écran des coûts ne porte plus
-`MockupNotice`, et un succès est ce que le service a gardé, relu. Le faux back, qui ne garde rien,
-reste joué par les parcours, qui n'affirment contre lui que ce qu'il répond ; la relecture après
-rechargement ne s'affirme qu'en service (`inService` de `e2e/mode.ts`), et les tests de
-`reference-costs.spec.ts` portent l'étiquette `@shared`. La saisie d'un taux reste celle de la
-grille : le parcours en saisit un contre le service, qui répond ce qui a été saisi. Une année
+réactivation (`useListReport`). Le service garde ce qui s'écrit (EP-05, US-0820 à US-0830) : l'écran
+des coûts ne porte plus `MockupNotice`, et un succès est ce que le service a gardé, relu. Le faux
+back, qui ne garde rien, reste joué par les parcours, qui n'affirment contre lui que ce qu'il répond ;
+la relecture après rechargement ne s'affirme qu'en service (`inService` de `e2e/mode.ts`), et les
+tests de `reference-costs.spec.ts` portent l'étiquette `@shared`, sauf ceux qui jouent aussi des
+écrans pas encore servis (les rôles, US-0850). La saisie d'un taux reste celle de
+la grille : le parcours en saisit un contre le service, qui répond ce qui a été saisi. Une année
 ajoutée par la grille n'est qu'une colonne du front, vide, jusqu'au premier taux (aucune opération
 ne crée une colonne, #299) : celle d'une année que la grille a déjà est refusée par la grille
 elle-même (WF-REF-0060-A), contre le service comme contre le faux back.

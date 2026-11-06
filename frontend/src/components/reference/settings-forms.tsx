@@ -19,7 +19,8 @@
  * the rest, a refusal by field said at its field, any other under the form, the version stale (412)
  * with the offer to read the page anew. The answer takes the place of the settings read while it is
  * newer than them (`lock_version`) — against the fake back, which keeps nothing, for as long as the
- * screen stays; the page says so under its header (`MockupNotice`) —, and the page is read anew. A
+ * screen stays; the pages of the resources, the risks and the indicators, which the service does not
+ * serve yet, say so under their header (`MockupNotice`) —, and the page is read anew. A
  * form writes from the version it opened on: a reading that comes while it is open does not lend its
  * version to a draft entered on another; and the command that opens it waits while a write of a
  * dialog closed is under way, for the form to open on the version its answer brings (#661).
