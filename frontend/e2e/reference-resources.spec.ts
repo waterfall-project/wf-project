@@ -155,7 +155,6 @@ test("creates a role in its form, moves a node under an active one, and designat
   const nodeForm = page.getByRole("dialog", { name: "Modifier «\u00a0Atelier de câblage\u00a0»" });
   const calendars = page.getByRole("grid", { name: "Calendriers" });
   let moved = false;
-  let designated = false;
   try {
     if (inService) {
       // The service kept it: the list read anew shows the role.
@@ -183,16 +182,15 @@ test("creates a role in its form, moves a node under an active one, and designat
       "\u2003ACHATS · Service des achats",
     ]);
     await parent.selectOption({ label: "DT · Direction technique" });
-    moved = true;
     await nodeForm.getByRole("button", { name: "Enregistrer" }).click();
     await expect(nodeForm).toBeHidden({ timeout: WORKING });
+    moved = true;
     await expect(organisation.getByRole("status").filter({ hasText: "enregistré" })).toHaveText(
       "«\u00a0Atelier de câblage\u00a0» enregistré.",
     );
 
     // The four-day week designated by default from its row, as it lists the command: the row shows
     // what the server answers.
-    designated = true;
     await calendars
       .getByRole("button", { name: "Désigner «\u00a0Semaine de quatre jours\u00a0» par défaut" })
       .click();
@@ -208,31 +206,58 @@ test("creates a role in its form, moves a node under an active one, and designat
     if (inService) {
       // Leave what was found, even on a failure: the role created deactivated, the workshop under
       // the electrical design office, the standard week by default, each by the command of its row.
-      await page.goto("/reference/resources");
+      // Each restoration stands alone and never replaces the error that brought us here; its
+      // gestures follow a navigation, so they are pressed again until React answers.
+      const restore = async (step: () => Promise<void>) => {
+        try {
+          await page.goto("/reference/resources");
+          await step();
+        } catch (error) {
+          console.warn("restoration failed:", error);
+        }
+      };
       const deactivate = page
         .getByRole("grid", { name: "Rôles de ressources" })
         .getByRole("button", { name: `Désactiver «\u00a0${label}\u00a0»` });
-      if (await deactivate.isVisible()) {
-        await deactivate.click();
-        await expect(deactivate).toBeHidden({ timeout: WORKING });
-      }
+      await restore(async () => {
+        await expect(async () => {
+          if (await deactivate.isVisible()) {
+            await deactivate.click();
+          }
+          await expect(deactivate).toBeHidden({ timeout: 1_000 });
+        }).toPass({ timeout: WORKING });
+      });
       if (moved) {
-        await page
-          .getByRole("treegrid", { name: "Arbre d’organisation" })
-          .getByRole("button", { name: "Modifier «\u00a0Atelier de câblage\u00a0»" })
-          .click();
-        await nodeForm
-          .getByRole("combobox", { name: "Parent" })
-          .selectOption({ label: "\u2003BE-ELEC · Bureau d'études électricité" });
-        await nodeForm.getByRole("button", { name: "Enregistrer" }).click();
-        await expect(nodeForm).toBeHidden({ timeout: WORKING });
+        await restore(async () => {
+          await expect(async () => {
+            if (!(await nodeForm.isVisible())) {
+              await page
+                .getByRole("treegrid", { name: "Arbre d’organisation" })
+                .getByRole("button", { name: "Modifier «\u00a0Atelier de câblage\u00a0»" })
+                .click();
+            }
+            await expect(nodeForm).toBeVisible({ timeout: 1_000 });
+          }).toPass({ timeout: WORKING });
+          await nodeForm
+            .getByRole("combobox", { name: "Parent" })
+            .selectOption({ label: "\u2003BE-ELEC · Bureau d'études électricité" });
+          await nodeForm.getByRole("button", { name: "Enregistrer" }).click();
+          await expect(nodeForm).toBeHidden({ timeout: WORKING });
+        });
       }
-      if (designated) {
-        await calendars
-          .getByRole("button", { name: "Désigner «\u00a0Semaine standard\u00a0» par défaut" })
-          .click();
-        await expect(rowAt(calendars, 1)).toContainText("Semaine standard", { timeout: WORKING });
-      }
+      // The button exists only for a calendar that is not the default: seen, the command is
+      // pressed; absent, there is nothing to restore.
+      const standard = calendars.getByRole("button", {
+        name: "Désigner «\u00a0Semaine standard\u00a0» par défaut",
+      });
+      await restore(async () => {
+        await expect(async () => {
+          if (await standard.isVisible()) {
+            await standard.click();
+          }
+          await expect(rowAt(calendars, 1)).toContainText("Semaine standard", { timeout: 1_000 });
+        }).toPass({ timeout: WORKING });
+      });
     }
   }
 });
