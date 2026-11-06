@@ -2,11 +2,11 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * The settings of the indicators (FBS-3.4, US-0250), outside any project: the watch and alert
- * thresholds of the cost and schedule indices (WF-REF-0170), and the longest delay expected
- * between two marked revisions (WF-REF-0180), as the server gives them. A session that may modify the
- * indicator settings modifies the four thresholds and the delay in one form; what the screen then says
- * is what the service kept. A read the API
- * refuses, or cannot answer, is thrown for the pages of the shell to say.
+ * thresholds of the cost and schedule indices (WF-REF-0170), and the longest delay expected between
+ * two marked revisions (WF-REF-0180), as the server gives them. A session that may modify the
+ * indicator settings modifies the four thresholds and the delay in one form; what the screen then
+ * says is what the service kept. A read the API refuses, or cannot answer, is thrown for the pages
+ * of the shell to say.
  */
 import type { Metadata } from "next";
 import { useTranslations } from "next-intl";

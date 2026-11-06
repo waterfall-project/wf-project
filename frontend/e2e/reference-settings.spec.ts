@@ -42,6 +42,10 @@ test("modifies the risk matrix and the thresholds of the indices in their forms,
     "Les bornes doivent être strictement croissantes.",
   );
   await second.fill("55");
+  // The outer bounds are written too, so that the journey does not depend on the seeding.
+  const bounds = matrix.getByRole("group", { name: "Bornes de probabilité (%)" });
+  await bounds.getByRole("textbox", { name: "Première borne" }).fill("25");
+  await bounds.getByRole("textbox", { name: "Troisième borne" }).fill("75");
   await matrix
     .getByRole("group", { name: "Probabilité, niveau 1" })
     .getByRole("combobox", { name: "Gravité, niveau 4" })

@@ -56,7 +56,7 @@ function servedTo(session: "me" | "me_manager") {
 }
 
 /** The note of the mock-up, which the settings screens no longer carry (US-0810/L2). */
-const MOCKUP = /role="note"[^>]*>.*?le service simulé ne conserve/;
+const MOCKUP = /role="note"[^>]*>.*?le service simulé ne conserve/s;
 
 beforeEach(() => {
   servedTo("me");

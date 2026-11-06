@@ -1503,34 +1503,35 @@ line lose their hours.
 The risk settings and the indicator settings are each modified in a form (EP-14/L43e, #512;
 `settings-forms.tsx`), offered by « Modify the risk matrix » to a session that carries
 `risk_settings.write`, by « Modify the thresholds and the delay » to a session that carries
-`indicator_settings.write` (`platformOffer`); any other session reads the tables alone. Served by the service since US-0810/L2, they carry no mock-up notice: a
-success is what the service kept, read anew. The one enters the six bounds, as percentages (`editablePercent`,
-`percentRatio`), and the sixteen zones, one choice per cell; the other the four thresholds, as
-values of the index, and the delay, in whole weeks (`control: "whole"`, a whole number, sign
-included, its bounds left to the server, judged at the field with the others, said by the text of
-the field's own, `invalid`). Each screen follows its single permission: a session that carries
-one without the other reads the other screen without a command or a notice. Each sends through
-`updateReferenceSettings` the single sub-object of its screen and the version read
-(`RiskMatrixWrite`, `IndicatorWrite`), never a field of the other screen, which another permission
-guards; neither the currency (WF-REF-0140) nor the language of the installation, which belongs to
-EP-03, are offered there. The form of the reference data lays side by side, under a legend, the
-fields that go together (`group` of a `FormField`, a `fieldset` that folds onto two columns in a
-narrow window): the bounds of an axis, the zones of a probability level, the two thresholds of an
-index, each field named by the legend of its group then by its label (`aria-labelledby`), which
-the groups repeat; and it judges, in the same submission as the fields, on those that passed, the
-rules that bind fields to one another (`rules`), before any request — a refused field has no
-value, which a rule leaves unjudged, and its own refusal prevails; everything refused is said at
-once (EP-14/L52) —: each bound that is not strictly above the previous one, at its rank
-(`BOUNDS_NOT_ORDERED`), each alert threshold that is not below its watch threshold
+`indicator_settings.write` (`platformOffer`); any other session reads the tables alone. Served by
+the service since US-0810/L2, they carry no mock-up notice: a success is what the service kept, read
+anew. The one enters the six bounds, as percentages (`editablePercent`, `percentRatio`), and the
+sixteen zones, one choice per cell; the other the four thresholds, as values of the index, and the
+delay, in whole weeks (`control: "whole"`, a whole number, sign included, its bounds left to the
+server, judged at the field with the others, said by the text of the field's own, `invalid`). Each
+screen follows its single permission: a session that carries one without the other reads the other
+screen without a command or a notice. Each sends through `updateReferenceSettings` the single
+sub-object of its screen and the version read (`RiskMatrixWrite`, `IndicatorWrite`), never a field
+of the other screen, which another permission guards; neither the currency (WF-REF-0140) nor the
+language of the installation, which belongs to EP-03, are offered there. The form of the reference
+data lays side by side, under a legend, the fields that go together (`group` of a `FormField`, a
+`fieldset` that folds onto two columns in a narrow window): the bounds of an axis, the zones of a
+probability level, the two thresholds of an index, each field named by the legend of its group then
+by its label (`aria-labelledby`), which the groups repeat; and it judges, in the same submission as
+the fields, on those that passed, the rules that bind fields to one another (`rules`), before any
+request — a refused field has no value, which a rule leaves unjudged, and its own refusal prevails;
+everything refused is said at once (EP-14/L52) —: each bound that is not strictly above the previous
+one, at its rank (`BOUNDS_NOT_ORDERED`), each alert threshold that is not below its watch threshold
 (`THRESHOLD_NOT_BELOW_WATCH`), said at the field the server would designate, the decimals compared
 without a float (`compareDecimals`). The refusal of the server is said likewise: per field at the
-field, the missing permission (403) and the stale version (412, the two screens sharing the
-counter) under the form. The answer takes the place of the settings read as long as it is more
-recent than them, the page re-read, like the settings of the project, and closes only the dialog
-it started from, never a dialog reopened since; the command that opens it waits, inactive, for the
-answer of a write of a closed dialog (#661); against the fake back, which answers with the first example of the
+field, the missing permission (403) and the stale version (412, the two screens sharing the counter)
+under the form. The answer takes the place of the settings read as long as it is more recent than
+them, the page re-read, like the settings of the project, and closes only the dialog it started
+from, never a dialog reopened since; the command that opens it waits, inactive, for the answer of a
+write of a closed dialog (#661); against the fake back, which answers with the first example of the
 operation whatever is written, the matrix shown is the example's, and the journey
-(`e2e/reference-settings.spec.ts`, tagged `@shared`) asserts the re-reading only through `inService`.
+(`e2e/reference-settings.spec.ts`, tagged `@shared`) asserts the re-reading only through
+`inService`.
 
 ### The administration screens
 
