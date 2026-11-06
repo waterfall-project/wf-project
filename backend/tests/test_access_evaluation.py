@@ -545,6 +545,7 @@ def refused_without(permission: str) -> str:
     return str(refused.value.status)
 
 
+@pytest.mark.requirement("WF-ADM-0110-A")
 def test_every_served_operation_asks_for_the_permission_the_contract_refuses_it_without(
     contract: OpenAPI, services: Services
 ) -> None:
@@ -557,6 +558,11 @@ def test_every_served_operation_asks_for_the_permission_the_contract_refuses_it_
     assert {name: asked(route) for name, route in routes.items()} == ASKED
     held = {name: on_project(route) for name, route in routes.items()}
     assert {name: quality for name, quality in held.items() if quality} == ON_PROJECT
+    # A guard on a project reads ``project_id`` of the path: a route without it would answer 404
+    # to everyone, silently.
+    for name, route in routes.items():
+        if held[name]:
+            assert "project_id" in route.param_convertors, name
     declared = operations(contract)
     for name, permissions in ASKED.items():
         method, path = declared[name]
@@ -569,6 +575,22 @@ def test_every_served_operation_asks_for_the_permission_the_contract_refuses_it_
         if not permissions:
             refused = {"403"} if name in PATH_OBJECTS else {"403", "404"}
             assert not refused & responses, name
+
+
+@pytest.mark.requirement("WF-ADM-0110-A")
+def test_the_quality_a_route_asks_for_on_its_project_follows_its_guard() -> None:
+    # Consultation for a read, contributor for a write, project manager when asked for (#754).
+    def route(*guards: RequiresProject) -> APIRoute:
+        return APIRoute(
+            "/projects/{project_id}",
+            lambda: None,
+            dependencies=[Depends(guard) for guard in guards],
+        )
+
+    assert on_project(route()) is None
+    assert on_project(route(RequiresProject(READ))) == "consultation"
+    assert on_project(route(RequiresProject(READ, WRITE))) == "contributor"
+    assert on_project(route(RequiresProject(READ, manager=True))) == "project_manager"
 
 
 def test_the_roles_held_and_their_permissions_are_read_at_once_deleted_ones_apart(
@@ -611,6 +633,7 @@ def test_an_actor_passes_with_the_permission_and_is_refused_without_it() -> None
 STRUCTURING = ("project_create", "all_projects_read")
 
 
+@pytest.mark.requirement("WF-ADM-0110-A")
 def test_whether_each_permission_of_the_catalogue_consults_is_declared_in_its_order(
     database: Database,
 ) -> None:
