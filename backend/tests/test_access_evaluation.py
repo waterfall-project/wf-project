@@ -516,8 +516,10 @@ def test_every_served_operation_asks_for_the_permission_the_contract_refuses_it_
         if not permissions:
             # The 403 of a list that asks for nothing to read the active objects is its guard of
             # the deactivated ones (``INACTIVE``), tried below.
-            refused = {"403", "404"} - ({"404"} if name in PATH_OBJECTS else set())
-            refused -= {"403"} if name in INACTIVE else set()
+            refusals = {"403", "404"}
+            allowed_404: set[str] = {"404"} if name in PATH_OBJECTS else set()
+            allowed_403: set[str] = {"403"} if name in INACTIVE else set()
+            refused = refusals - allowed_404 - allowed_403
             assert not refused & responses, name
 
 

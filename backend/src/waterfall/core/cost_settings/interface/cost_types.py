@@ -145,7 +145,7 @@ def list_cost_types(
 ) -> CostTypePage:
     """Read a page of the natures the filters keep, in the order of the sort, and count them all.
 
-    Equals keep the order of the table unsorted, the code, then come by identifier, ascending
+    Equals are ordered as the table is unsorted — by the code — then by identifier, ascending
     whatever the direction (WF-IHM-0060). A page beyond the last one is empty, and counts the same.
     ``may_change``: the reader may change the cost settings, which gives the commands.
     """

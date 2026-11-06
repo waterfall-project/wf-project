@@ -30,9 +30,11 @@ from sqlalchemy import insert, select
 from sqlalchemy.orm import Session
 from support import wait_for_a_lock
 
+from waterfall.core.cost_settings.interface.cost_types import CostTypeDraft, create_cost_type
 from waterfall.core.cost_settings.tables import CostType
 from waterfall.platform.audit import Act
 from waterfall.platform.database import utc_now
+from waterfall.platform.errors import ConflictError
 from waterfall.platform.identifiers import new_id
 from waterfall.witness.cost_types import load as load_types
 from waterfall.witness.description import Witness
@@ -122,7 +124,7 @@ def test_the_natures_are_filtered_searched_sorted_and_paged_by_the_server(
 
 @pytest.mark.requirement("WF-REF-0030-A")
 @pytest.mark.requirement("WF-REF-0150-A")
-def test_the_deactivated_natures_are_read_by_the_permission_to_change_and_come_after_the_active(
+def test_the_deactivated_natures_are_read_by_the_permission_to_change_and_come_last_by_state(
     api: ContractClient, sessions: PartSessions
 ) -> None:
     changing = sessions.changing
@@ -196,6 +198,42 @@ def test_a_nature_whose_code_exists_is_refused_naming_the_nature_that_holds_it(
     again = api.post(TYPES, headers=sessions.changing, json=sent)
     assert pointers(again) == pointers(response)
     assert codes(api, sessions.changing, "include_inactive=true") == ["DEB", "MO", "PRV"]
+
+
+@pytest.mark.requirement("WF-REF-0030-A")
+@pytest.mark.parametrize(
+    ("query", "pointer"),
+    [
+        ("limit=0", "/query/limit"),
+        ("limit=501", "/query/limit"),
+        ("sort_by=state", "/query/sort_by"),
+        ("kinds=labor,other", "/query/kinds"),
+    ],
+)
+def test_a_parameter_of_the_list_outside_the_contract_is_a_value_refused(
+    api: ContractClient, sessions: PartSessions, query: str, pointer: str
+) -> None:
+    # Read through the contract, which declares that 422 (#799): code, status and pointer.
+    response = api.get(f"{TYPES}?{query}", headers=sessions.changing)
+    body = response.json()
+    assert (response.status_code, body["code"], [each["pointer"] for each in body["fields"]]) == (
+        422,
+        "VALIDATION_FAILED",
+        [pointer],
+    )
+
+
+@pytest.mark.requirement("WF-REF-0030-A")
+def test_a_nature_created_with_an_identifier_already_borne_is_refused_naming_it(
+    database: Database, witness: Database
+) -> None:
+    # The identifier the loader of the witness imposes: a nature already bears it (409).
+    del witness
+    draft = CostTypeDraft(code="NEW", label="Nouvelle", kind="labor")
+    with database.transaction() as session, pytest.raises(ConflictError) as refused:
+        create_cost_type(session, draft, Act(None, utc_now()), identifier=LABOUR)
+    assert refused.value.code == "ALREADY_EXISTS"
+    assert refused.value.params == {"conflicting_object_id": str(LABOUR)}
 
 
 @pytest.mark.requirement("WF-REF-0030-A")
