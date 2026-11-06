@@ -215,7 +215,7 @@ def _bootstrap(
     roles = predefined_roles(settings.default_language)
     label = next(role.label for role in roles if role.key == "administrator")
     identity = Identity(label, FIRST_NAME, settings.admin_email)
-    if identity_faults(identity.email, None):
+    if identity_faults(identity.email):
         raise InstallationRefusedError(NOT_AN_ADDRESS)
     subject = admin.create_account(LocalIdentity(label, FIRST_NAME, identity.email))
     if subject is None:

@@ -32,7 +32,7 @@ from dataclasses import dataclass, field
 from typing import Any, Literal
 from uuid import UUID
 
-from sqlalchemy import ColumnElement, SQLColumnExpression, case, false, func, or_, select
+from sqlalchemy import ColumnElement, SQLColumnExpression, case, func, or_, select
 from sqlalchemy.orm import Session, aliased
 
 from waterfall.core.users.tables import ORIGINS, UserAccount
@@ -42,6 +42,11 @@ from waterfall.platform.database import contains
 # What another module says of an account in a query of the accounts: an expression on its own
 # tables, given the column of the identifier of the account.
 type AccountExpression[T] = Callable[[SQLColumnExpression[UUID]], ColumnElement[T]]
+
+# What another module says of the node an account is attached to, in a query of the accounts: a
+# criterion and a key on its own tables, given the column of the node of the account.
+type NodeCriterion = Callable[[SQLColumnExpression[UUID | None]], ColumnElement[bool]]
+type NodeKey = Callable[[SQLColumnExpression[UUID | None]], SQLColumnExpression[str | None]]
 
 # The columns of the table the accounts hold themselves; the roles are another module's.
 type AccountColumn = Literal[
@@ -68,13 +73,15 @@ class AccountFilters:
     """What the table keeps; a filter absent keeps everything (WF-IHM-0130).
 
     ``states`` keeps the active accounts alone unless asked for more. ``held`` is the criterion of
-    another module, the roles an account holds. ``audit``, the filters of the columns of audit.
+    another module, the roles an account holds; ``attached``, that of the tree of the organisation,
+    the node an account is attached to, or one of its descendants (WF-REF-0070). ``audit``, the
+    filters of the columns of audit.
     """
 
     search: str | None = None
     origins: frozenset[str] | None = None
     states: frozenset[str] = frozenset({ACTIVE})
-    org_node_id: UUID | None = None
+    attached: NodeCriterion | None = None
     held: AccountExpression[bool] | None = None
     audit: AuditColumnFilters = field(default_factory=AuditColumnFilters)
 
@@ -84,11 +91,13 @@ class AccountSort:
     """The key of the sort and its direction (WF-IHM-0060).
 
     A column of the account, or the key another module computes of it — the labels of the roles
-    it holds; ``None``, the order of the table unsorted.
+    it holds; ``None``, the order of the table unsorted. ``node_label`` is how the tree gives the
+    label of the node an account is attached to, for the column of the nodes.
     """
 
     key: AccountColumn | AccountExpression[Any] | None = None
     descending: bool = False
+    node_label: NodeKey | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -108,9 +117,8 @@ def _criteria(filters: AccountFilters) -> list[ColumnElement[bool]]:
         criteria.append(or_(*(contains(text, filters.search) for text in texts)))
     if filters.origins is not None:
         criteria.append(UserAccount.origin.in_(filters.origins))
-    if filters.org_node_id is not None:
-        # No account is attached to a node before EP-05, which adds the column.
-        criteria.append(false())
+    if filters.attached is not None:
+        criteria.append(filters.attached(UserAccount.org_node_id))
     if filters.held is not None:
         criteria.append(filters.held(UserAccount.id))
     criteria += audit_criteria(AUDIT, filters.audit)
@@ -133,7 +141,9 @@ def author_order(author: SQLColumnExpression[UUID | None]) -> tuple[SQLColumnExp
     return (author.is_(None), name)
 
 
-def _keys(key: AccountColumn | AccountExpression[Any]) -> tuple[SQLColumnExpression[Any], ...]:
+def _keys(
+    key: AccountColumn | AccountExpression[Any], node_label: NodeKey | None
+) -> tuple[SQLColumnExpression[Any], ...]:
     """Give what a sort compares, in turn; nothing when every account is equal on it."""
     if callable(key):
         return (key(UserAccount.id),)
@@ -146,8 +156,13 @@ def _keys(key: AccountColumn | AccountExpression[Any]) -> tuple[SQLColumnExpress
         ),
         # False before true: the active accounts first in the ascending order.
         "is_active": (UserAccount.state != ACTIVE,),
-        # No account is attached to a node before EP-05: they are all equal.
-        "org_node": (),
+        # By the label of the node, in the order of the code points; an account without one after
+        # the others in the ascending order.
+        "org_node": (
+            ()
+            if node_label is None
+            else (UserAccount.org_node_id.is_(None), node_label(UserAccount.org_node_id))
+        ),
         "created_at": (UserAccount.created_at,),
         "created_by": author_order(UserAccount.created_by),
         "updated_at": (UserAccount.updated_at,),
@@ -165,7 +180,7 @@ def find_accounts(
     """
     criteria = _criteria(filters)
     total = session.scalars(select(func.count()).select_from(UserAccount).where(*criteria)).one()
-    keys = () if sort.key is None else _keys(sort.key)
+    keys = () if sort.key is None else _keys(sort.key, sort.node_label)
     order: list[SQLColumnExpression[Any]] = [key.desc() if sort.descending else key for key in keys]
     order += [UserAccount.last_name, UserAccount.first_name, UserAccount.id]
     rows = session.scalars(
