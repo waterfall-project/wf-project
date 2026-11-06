@@ -1,7 +1,7 @@
 ---
 id: EP-22
 titre: Le Kanban signale la récapitulative qui n'attend plus que ses lignes propres — le contrat, le faux back et la carte
-statut: en cours
+statut: livré
 depend_de: EP-17
 famille: front, plateforme
 issue: 1966

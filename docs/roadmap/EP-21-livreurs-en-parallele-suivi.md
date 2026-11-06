@@ -79,3 +79,10 @@ Reportés d'EP-20 à sa livraison (décisions de l'auteur du 2026-11-06) :
   fait foi. Remarque de la revue d'US-1270/L3 (#2019).
 - #2075 — outil : `make check-tools` affiche un avertissement vide quand `tools/.python-version`
   manque, au lieu de dire que le fichier manque. Remarque de la revue d'US-1270/L3 (#2019).
+
+Reporté d'EP-22 à sa livraison (décision de l'auteur du 2026-11-06) :
+
+- #2085 — doc : `docs/dev/python.md`, « Les annotations sous Python 3.14 », nomme `restoration.py` et
+  `tables.py` sans leur répertoire (`platform/restoration.py`, `core/users/tables.py`), alors que
+  chaque objet du référentiel aura le sien. Mineur de la revue d'US-1280 (#2023), à prendre avec
+  #2074 et #2075.
