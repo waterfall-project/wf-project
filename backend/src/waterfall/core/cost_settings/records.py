@@ -1,17 +1,16 @@
 # SPDX-FileCopyrightText: 2026 waterfall-project
 # SPDX-License-Identifier: AGPL-3.0-only
-"""What the natures and the categories of cost share to read and to write their rows (private).
+"""What the natures of cost share to read and to write their rows (private).
 
 Never a deletion: an object of the reference is deactivated (WF-DAT-0080). The author of a write
 is an account, or ``None`` for the platform (WF-DAT-0070); the moment is an argument, never read
-here. Every write takes ``NATURES_LOCK`` first when it depends on the state of a nature, then the
-rows it changes: always in that order, so that two writes never wait for each other.
+here.
 """
 
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
-from sqlalchemy import func, select, update
+from sqlalchemy import select, update
 
 from waterfall.core.cost_settings.tables import CostCategory, CostType
 from waterfall.core.users.interface import Author, read_authors
@@ -34,11 +33,6 @@ if TYPE_CHECKING:
 NOT_FOUND = "NOT_FOUND"
 STALE_LOCK_VERSION = "STALE_LOCK_VERSION"
 ALREADY_EXISTS = "ALREADY_EXISTS"
-STATE_FORBIDS_OPERATION = "STATE_FORBIDS_OPERATION"
-VALIDATION_FAILED = "VALIDATION_FAILED"
-# The key of the advisory lock of the rule that binds a nature and its categories: a category is
-# never active under a nature that is not. Distinct from the other ones of the service.
-NATURES_LOCK = 4_200_820
 
 
 @dataclass(frozen=True, slots=True)
@@ -76,15 +70,6 @@ def audits_of(session: Session, rows: Sequence[CostType | CostCategory]) -> list
         )
         for row in rows
     ]
-
-
-def lock_natures(session: Session) -> None:
-    """Take the lock of the rule between a nature and its categories, until the transaction ends.
-
-    By every write that reads the state of a nature to decide — a category created or moved under
-    it, a reactivation, the cascade of a deactivation — before it reads anything.
-    """
-    session.execute(select(func.pg_advisory_xact_lock(NATURES_LOCK)))
 
 
 def lock_row[Entity: (CostType, CostCategory)](

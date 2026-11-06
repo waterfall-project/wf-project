@@ -11,20 +11,16 @@ that changes them (``reference_sessions``). Every answer is checked against the 
 import json
 from concurrent.futures import ThreadPoolExecutor
 from typing import TYPE_CHECKING, Any
-from uuid import UUID
 
 import pytest
 from cost_settings_examples import (
     LABOUR,
     NON_LABOUR,
-    PROVISION,
     TYPES,
-    bind,
     caller_id,
     commands,
     deactivate,
     example,
-    new_category,
     new_type,
     pointers,
     refusal,
@@ -34,17 +30,16 @@ from sqlalchemy import insert, select
 from sqlalchemy.orm import Session
 from support import wait_for_a_lock
 
-from waterfall.core.cost_settings.tables import CostCategory, CostType
-from waterfall.core.resource_settings.interface import RoleOfCategory
+from waterfall.core.cost_settings.tables import CostType
 from waterfall.platform.audit import Act
 from waterfall.platform.database import utc_now
 from waterfall.platform.identifiers import new_id
-from waterfall.witness.cost_categories import load as load_categories
 from waterfall.witness.cost_types import load as load_types
 from waterfall.witness.description import Witness
 
 if TYPE_CHECKING:
     from pathlib import Path
+    from uuid import UUID
 
     from support import ContractClient, PartSessions, ReferenceSessions
 
@@ -96,8 +91,8 @@ def test_every_session_reads_the_active_natures_as_the_example_the_faux_back_ser
 def test_the_commands_of_a_nature_are_those_of_a_caller_who_changes_the_cost_settings(
     api: ContractClient, sessions: PartSessions
 ) -> None:
-    # Nothing binds a category before the lines, the rates and the roles exist: the change of kind
-    # is available, and the deactivation always is.
+    # No category exists yet to bind the kind (US-0820b): the change of kind is available, and
+    # the deactivation always is.
     for headers in (sessions.without, sessions.reading):
         assert all(item["available_commands"] == [] for item in listed(api, headers)["items"])
     managed = listed(api, sessions.changing)["items"]
@@ -236,7 +231,7 @@ def test_every_write_of_a_nature_asks_for_the_permission_to_change_the_cost_sett
 
 
 @pytest.mark.requirement("WF-REF-0030-A")
-def test_a_nature_changes_its_code_its_label_and_its_kind_while_nothing_binds_a_category(
+def test_a_nature_changes_its_code_its_label_and_its_kind_while_no_category_binds_it(
     api: ContractClient, sessions: PartSessions
 ) -> None:
     created = new_type(api, sessions.changing, "TMP")
@@ -272,125 +267,11 @@ def test_a_nature_changes_its_code_its_label_and_its_kind_while_nothing_binds_a_
 
 
 @pytest.mark.requirement("WF-REF-0030-A")
-def test_the_kind_of_a_nature_is_refused_while_a_category_of_it_is_rated_and_the_command_says_so(
-    api: ContractClient, sessions: PartSessions, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    headers = sessions.changing
-    nature = new_type(api, headers, "BND")
-    new_category(api, headers, "A", nature["cost_type_id"])
-    second = new_category(api, headers, "B", nature["cost_type_id"])
-    bind(monkeypatch, rated={UUID(second["cost_category_id"])})
-    sent = {"code": "BND", "label": "BND", "kind": "non_labor", "lock_version": 0}
-    response = api.patch(f"{TYPES}/{nature['cost_type_id']}", headers=headers, json=sent)
-    assert refusal(response) == (
-        409,
-        "STATE_FORBIDS_OPERATION",
-        {
-            "missing_condition": "cost_type_unrated",
-            "cost_categories": [
-                {"cost_category_id": second["cost_category_id"], "code": "B", "label": "B"}
-            ],
-        },
-    )
-    listed_nature = next(item for item in listed(api, headers)["items"] if item["code"] == "BND")
-    assert commands(listed_nature) == [
-        ("deactivate", True, []),
-        ("change_kind", False, ["cost_type_unrated"]),
-    ]
-    # The code and the label change all the same, and nothing was written by the refusal.
-    renamed = api.patch(
-        f"{TYPES}/{nature['cost_type_id']}", headers=headers, json={**sent, "kind": "labor"}
-    )
-    assert (renamed.status_code, renamed.json()["kind"]) == (200, "labor")
-
-
-@pytest.mark.requirement("WF-REF-0030-A")
-def test_the_kind_of_a_nature_is_refused_for_the_first_condition_its_command_lacks(
-    api: ContractClient, sessions: PartSessions, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    # In the order the contract refuses by: employed, then rated, then held by a role.
-    headers = sessions.changing
-    nature = new_type(api, headers, "ORD")
-    first = UUID(new_category(api, headers, "A", nature["cost_type_id"])["cost_category_id"])
-    second = UUID(new_category(api, headers, "B", nature["cost_type_id"])["cost_category_id"])
-    role = RoleOfCategory(UUID(UNKNOWN), "AUTOM", "Automaticien")
-    bind(monkeypatch, employed={second}, rated={first}, roles={first: role})
-    sent = {"code": "ORD", "label": "ORD", "kind": "provision", "lock_version": 0}
-    url = f"{TYPES}/{nature['cost_type_id']}"
-    employed = api.patch(url, headers=headers, json=sent)
-    status, code, params = refusal(employed)
-    assert (status, code, params["missing_condition"]) == (
-        409,
-        "STATE_FORBIDS_OPERATION",
-        "cost_type_unused",
-    )
-    assert [each["code"] for each in params["cost_categories"]] == ["B"]
-    read = next(item for item in listed(api, headers)["items"] if item["code"] == "ORD")
-    assert commands(read)[1] == (
-        "change_kind",
-        False,
-        ["cost_type_unused", "cost_type_unrated", "cost_type_without_role"],
-    )
-    bind(monkeypatch, roles={first: role})
-    held = api.patch(url, headers=headers, json=sent)
-    assert refusal(held) == (
-        409,
-        "STATE_FORBIDS_OPERATION",
-        {
-            "missing_condition": "cost_type_without_role",
-            "resource_roles": [
-                {"resource_role_id": UNKNOWN, "code": "AUTOM", "label": "Automaticien"}
-            ],
-        },
-    )
-    bind(monkeypatch)
-    assert api.patch(url, headers=headers, json=sent).status_code == 200
-
-
-@pytest.mark.requirement("WF-REF-0030-A")
-def test_a_nature_deactivated_deactivates_its_active_categories_with_their_counter_and_author(
-    api: ContractClient, database: Database, sessions: PartSessions
-) -> None:
-    headers = sessions.changing
-    author = UUID(caller_id(api, headers))
-    nature = new_type(api, headers, "CAS")
-    kept = new_category(api, headers, "K", nature["cost_type_id"])
-    closed = new_category(api, headers, "L", nature["cost_type_id"])
-    other = new_category(api, headers, "M", str(PROVISION))
-    deactivation = {"is_active": False, "lock_version": closed["lock_version"]}
-    assert (
-        api.put(
-            f"/api/v1/reference/cost-categories/{closed['cost_category_id']}/activation",
-            headers=headers,
-            json=deactivation,
-        ).status_code
-        == 200
-    )
-    response = deactivate(api, headers, nature)
-    assert response.status_code == 200
-    assert (response.json()["is_active"], response.json()["lock_version"]) == (False, 1)
-    with database.transaction() as session:
-        rows = {
-            row.code: (row.is_active, row.lock_version, row.updated_by)
-            for row in session.scalars(select(CostCategory))
-            if row.code in {"K", "L", "M"}
-        }
-    # Each active category follows its nature, its counter advances and its author is the caller's;
-    # the one deactivated already is not written again, nor that of another nature.
-    assert rows == {
-        "K": (False, kept["lock_version"] + 1, author),
-        "L": (False, closed["lock_version"] + 1, author),
-        "M": (True, other["lock_version"], author),
-    }
-
-
-@pytest.mark.requirement("WF-REF-0030-A")
-def test_a_nature_reactivated_makes_active_the_nature_alone(
-    api: ContractClient, database: Database, sessions: PartSessions
+def test_a_nature_reactivated_is_active_again_and_asking_for_its_state_writes_nothing(
+    api: ContractClient, sessions: PartSessions
 ) -> None:
     headers = sessions.changing
     nature = new_type(api, headers, "REA")
-    new_category(api, headers, "R1", nature["cost_type_id"])
     off = deactivate(api, headers, nature).json()
     on = api.put(
         f"{TYPES}/{nature['cost_type_id']}/activation",
@@ -398,9 +279,6 @@ def test_a_nature_reactivated_makes_active_the_nature_alone(
         json={"is_active": True, "lock_version": off["lock_version"]},
     )
     assert (on.status_code, on.json()["is_active"], on.json()["lock_version"]) == (200, True, 2)
-    with database.transaction() as session:
-        category = session.scalars(select(CostCategory).where(CostCategory.code == "R1")).one()
-        assert category.is_active is False
     # Asking for the state it is in writes nothing, whatever the version... read.
     again = api.put(
         f"{TYPES}/{nature['cost_type_id']}/activation",
@@ -427,17 +305,6 @@ def test_the_activation_of_a_nature_is_refused_stale_or_unknown(
     )
     assert unknown.status_code == 404
     assert codes(api, sessions.without) == ["DEB", "MO", "PRV"]
-
-
-@pytest.mark.requirement("WF-REF-0030-A")
-def test_the_last_nature_of_provision_is_deactivated_without_refusal(
-    api: ContractClient, sessions: PartSessions
-) -> None:
-    # « La désactivation de la dernière catégorie active de type provision pour risques est
-    # acceptée » : the nature, and so its categories; the projects and the risks refuse afterwards.
-    prv = next(item for item in listed(api, sessions.changing)["items"] if item["code"] == "PRV")
-    assert deactivate(api, sessions.changing, prv).status_code == 200
-    assert codes(api, sessions.without, "kinds=provision") == []
 
 
 def insert_type(code: str, type_id: UUID) -> Any:
@@ -503,42 +370,21 @@ def test_two_simultaneous_creations_of_one_code_leave_one_nature_and_one_refusal
 def test_the_witness_deactivates_the_objects_it_says_deactivated_and_is_loaded_once(
     database: Database, tmp_path: Path
 ) -> None:
-    # The slices of the natures and of the categories, on a description of their own: a nature and
-    # a category the witness says deactivated are written, then deactivated; run again, they find
-    # their objects there and write nothing.
-    (tmp_path / "volume").mkdir()
+    # The slice of the natures, on a description of its own: a nature the witness says deactivated
+    # is written, then deactivated; run again, it finds its objects there and writes nothing.
     open_type, shut_type = new_id(), new_id()
     nature = example("cost_types")["items"][0]
     types = [
         {**nature, "cost_type_id": str(open_type), "code": "OPEN"},
         {**nature, "cost_type_id": str(shut_type), "code": "SHUT", "is_active": False},
     ]
-    category = example("volume/cost_categories")["items"][0]
-    categories = [
-        {
-            **category,
-            "cost_category_id": str(new_id()),
-            "code": "OFF",
-            "accounting_code": "OFF",
-            "cost_type_id": str(open_type),
-            "is_active": False,
-        }
-    ]
     (tmp_path / "cost_types.json").write_text(json.dumps({"value": {"items": types}}))
-    (tmp_path / "volume" / "cost_categories.json").write_text(
-        json.dumps({"value": {"items": categories}})
-    )
     witness = Witness(tmp_path, Act(None, utc_now()))
     with database.transaction() as session:
-        assert (load_types(session, witness), load_categories(session, witness)) == (True, True)
+        assert load_types(session, witness) is True
     with database.transaction() as session:
-        assert (load_types(session, witness), load_categories(session, witness)) == (False, False)
+        assert load_types(session, witness) is False
         natures = {
             row.code: (row.is_active, row.lock_version) for row in session.scalars(select(CostType))
         }
-        shut = {
-            row.code: (row.is_active, row.lock_version)
-            for row in session.scalars(select(CostCategory))
-        }
     assert natures == {"OPEN": (True, 0), "SHUT": (False, 1)}
-    assert shut == {"OFF": (False, 1)}

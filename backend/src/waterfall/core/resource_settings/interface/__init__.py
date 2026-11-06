@@ -13,15 +13,6 @@ from here, never from the file.
 # ``org_nodes`` (US-0840): the tree of the organisation.
 
 # ``resource_roles`` (US-0850): the roles of resources and their capacity.
-from waterfall.core.resource_settings.interface.resource_roles import (
-    RoleOfCategory as RoleOfCategory,
-)
-from waterfall.core.resource_settings.interface.resource_roles import (
-    category_has_roles as category_has_roles,
-)
-from waterfall.core.resource_settings.interface.resource_roles import (
-    roles_of_categories as roles_of_categories,
-)
 
 # ``calendars`` (US-0860): the calendars, one of them the default.
 

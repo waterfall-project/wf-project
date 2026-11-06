@@ -741,7 +741,7 @@ indices (EP-10) ; la santé du pilotage (EP-11).
 
 ## US-0820 — Les natures et les catégories de coût
 
-- **statut** : fini
+- **statut** : en cours
 - **exigences** : `WF-REF-0030-A`, `WF-REF-0040-A`
 - **opérations** : `listCostTypes`, `createCostType`, `updateCostType`, `setCostTypeActivation`,
   `listCostCategories`, `createCostCategory`, `updateCostCategory`, `setCostCategoryActivation`

@@ -2,52 +2,36 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 """The natures of cost.
 
-Read, listed, created, changed, deactivated with their categories and reactivated
-(WF-REF-0030).
+Read, listed, created, changed, deactivated and reactivated (WF-REF-0030).
 
 A nature has one of three kinds, labour, non labour or provision for risks; its code is unique
-among the natures, deactivated ones included. Its kind is changed only if nothing binds a
-category of it — no line employs one, no rate is set on one, no role of resources is attached to
-one —, and its commands say so in advance, by the very function that refuses the call
-(``kind_change_missing``). Deactivating a nature deactivates its active categories with it, each
-author and counter written; reactivating it makes active the nature alone (WF-REF-0010).
+among the natures, deactivated ones included. No category exists yet to bind its kind: the change
+of its kind is offered and accepted (the categories come with US-0820b).
 """
 
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Literal
 
-from sqlalchemy import ColumnElement, func, insert, not_, or_, select, update
+from sqlalchemy import ColumnElement, func, insert, not_, or_, select
 from sqlalchemy.exc import IntegrityError
 
-from waterfall.core.cost_settings.commands import (
-    CommandAvailability,
-    Holdings,
-    cost_type_commands,
-    kind_change_missing,
-)
-from waterfall.core.cost_settings.interface.cost_categories import (
-    category_holdings,
-    role_refusal,
-)
+from waterfall.core.cost_settings.commands import CommandAvailability, cost_type_commands
 from waterfall.core.cost_settings.records import (
-    STATE_FORBIDS_OPERATION,
     Audit,
     Page,
     already_exists,
     audits_of,
     change_row,
     identifier_taken,
-    lock_natures,
     lock_row,
     value_taken,
 )
-from waterfall.core.cost_settings.tables import CostCategory, CostType
+from waterfall.core.cost_settings.tables import CostType
 from waterfall.platform.database import contains, unique_violated
-from waterfall.platform.errors import ConflictError
 from waterfall.platform.identifiers import new_id
 
 if TYPE_CHECKING:
-    from collections.abc import Collection, Iterable, Sequence
+    from collections.abc import Collection, Sequence
     from uuid import UUID
 
     from sqlalchemy import SQLColumnExpression
@@ -111,37 +95,10 @@ class CostTypeDraft:
     kind: str
 
 
-def _holdings(session: Session, type_ids: Collection[UUID]) -> dict[UUID, Holdings]:
-    """Say of each nature given what binds its categories, deactivated ones included."""
-    owned: dict[UUID, list[UUID]] = {type_id: [] for type_id in type_ids}
-    for type_id, category_id in session.execute(
-        select(CostCategory.cost_type_id, CostCategory.id).where(
-            CostCategory.cost_type_id.in_(type_ids)
-        )
-    ):
-        owned[type_id].append(category_id)
-    held = category_holdings(session, [each for owner in owned.values() for each in owner])
-    return {
-        type_id: _combined(held[each] for each in category_ids)
-        for type_id, category_ids in owned.items()
-    }
-
-
-def _combined(holdings: Iterable[Holdings]) -> Holdings:
-    """Say of a nature what binds it: what binds any of its categories."""
-    held = list(holdings)
-    return Holdings(
-        employed=any(each.employed for each in held),
-        rated=any(each.rated for each in held),
-        with_roles=any(each.with_roles for each in held),
-    )
-
-
 def _views(
     session: Session, natures: Sequence[CostType], *, may_change: bool
 ) -> list[CostTypeView]:
     audits = audits_of(session, natures)
-    held = _holdings(session, [nature.id for nature in natures]) if may_change else {}
     return [
         CostTypeView(
             cost_type_id=nature.id,
@@ -149,11 +106,7 @@ def _views(
             label=nature.label,
             kind=nature.kind,
             is_active=nature.is_active,
-            commands=cost_type_commands(
-                is_active=nature.is_active,
-                holdings=held.get(nature.id, Holdings()),
-                may_change=may_change,
-            ),
+            commands=cost_type_commands(is_active=nature.is_active, may_change=may_change),
             audit=audit,
         )
         for nature, audit in zip(natures, audits, strict=True)
@@ -274,52 +227,15 @@ def create_cost_type(
     return _read_view(session, type_id)
 
 
-def _refuse_kind_change(session: Session, nature: CostType) -> None:
-    """Refuse the change of the kind of a nature when something binds a category of it (409).
-
-    The first condition its command lacks is the refusal: it names the categories in cause, in the
-    order of their code, or the roles of resources attached to them.
-    """
-    categories = session.execute(
-        select(CostCategory.id, CostCategory.code, CostCategory.label)
-        .where(CostCategory.cost_type_id == nature.id)
-        .order_by(CostCategory.code)
-    ).all()
-    category_ids = [category_id for category_id, _, _ in categories]
-    held = category_holdings(session, category_ids)
-    missing = kind_change_missing("cost_type", _combined(held.values()))
-    if not missing:
-        return
-    if missing[0].endswith("_without_role"):
-        raise role_refusal(session, category_ids, missing[0])
-    named = [
-        {"cost_category_id": str(category_id), "code": code, "label": label}
-        for category_id, code, label in categories
-        if (
-            held[category_id].employed
-            if missing[0].endswith("_unused")
-            else held[category_id].rated
-        )
-    ]
-    raise ConflictError(
-        STATE_FORBIDS_OPERATION, {"missing_condition": missing[0], "cost_categories": named}
-    )
-
-
 def update_cost_type(
     session: Session, type_id: UUID, write: CostTypeDraft, lock_version: int, act: Act
 ) -> CostTypeView:
     """Change the code, the label and the kind of a nature whose version is the one read.
 
-    Refused if unknown (404) or stale (412); a code another nature holds (409); a kind other than
-    its own while a category of it is employed, rated or held by a role of resources (409). The
-    code and the label are changed whatever its categories hold.
+    Refused if unknown (404) or stale (412); a code another nature holds (409).
     """
-    lock_natures(session)
-    nature = lock_row(session, CostType, type_id, lock_version)
+    lock_row(session, CostType, type_id, lock_version)
     _refuse_taken(session, write.code, besides=type_id)
-    if write.kind != nature.kind:
-        _refuse_kind_change(session, nature)
     values: dict[str, object] = {"code": write.code, "label": write.label, "kind": write.kind}
     try:
         with session.begin_nested():
@@ -334,24 +250,10 @@ def set_cost_type_activation(
 ) -> CostTypeView:
     """Deactivate or reactivate a nature whose version is the one read.
 
-    Refused if unknown (404) or stale (412). Deactivated, it deactivates each of its active
-    categories, under the lock of the natures: their counters advance and their audit names the
-    author, in the same transaction. Reactivated, it alone becomes active. A nature already in the
-    state asked for is not written.
+    Refused if unknown (404) or stale (412). A nature already in the state asked for is not
+    written. Its categories follow it when they exist (US-0820b).
     """
-    lock_natures(session)
     nature = lock_row(session, CostType, type_id, lock_version)
     if nature.is_active != is_active:
         change_row(session, CostType, type_id, {"is_active": is_active}, (lock_version, act))
-        if not is_active:
-            session.execute(
-                update(CostCategory)
-                .where(CostCategory.cost_type_id == type_id, CostCategory.is_active)
-                .values(
-                    is_active=False,
-                    lock_version=CostCategory.lock_version + 1,
-                    updated_at=act.at,
-                    updated_by=act.author,
-                )
-            )
     return _read_view(session, type_id)
