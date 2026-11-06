@@ -18,7 +18,7 @@ En tête de l’écran, **Afficher aussi les désactivés** ajoute aux trois tab
 Les commandes qui écrivent ne sont offertes qu’à qui peut modifier les paramètres de ressources ; aux autres, l’écran se lit :
 
 - la création, la modification, la désactivation et la réactivation d’un nœud, d’un rôle ou d’un calendrier, et la désignation du calendrier par défaut, détaillées dans l’aide de chaque table ;
-- **Modifier les unités de durée** ouvre leur formulaire : chacune strictement positive. Le changement vaut pour tous les projets : les plannings des révisions en cours sont recalculés, une révision marquée garde les heures qu’elle a calculées.
+- **Modifier les unités de durée** ouvre leur formulaire : chacune strictement positive. Le changement vaut pour tous les projets : les plannings des révisions en cours sont recalculés, une révision marquée garde les heures qu’elle a calculées. Les unités de durée ont leur propre version : deux personnes qui les modifient en même temps ne s’écrasent pas, la seconde est invitée à relire.
 
 Une modification du référentiel ne touche aucune révision marquée, qui garde les valeurs employées à son marquage.
 

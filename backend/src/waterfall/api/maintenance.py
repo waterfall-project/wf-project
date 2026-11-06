@@ -8,14 +8,19 @@ and its end. A Redis out of reach says no maintenance: the operations that need 
 themselves, and the others are served.
 """
 
+from typing import TYPE_CHECKING
+
 from redis.exceptions import RedisError
 from starlette.concurrency import run_in_threadpool
 from starlette.requests import Request
-from starlette.types import ASGIApp, Receive, Scope, Send
 
 from waterfall.api.problems import problem_response
 from waterfall.platform.logs import get_logger
-from waterfall.platform.maintenance import Maintenance
+
+if TYPE_CHECKING:
+    from starlette.types import ASGIApp, Receive, Scope, Send
+
+    from waterfall.platform.maintenance import Maintenance
 
 COMPONENT_UNAVAILABLE = "COMPONENT_UNAVAILABLE"
 # The path of the probe of liveness (``getLiveness``), served in maintenance.

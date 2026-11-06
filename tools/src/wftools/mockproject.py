@@ -40,8 +40,6 @@ L-25, on examples drawn from those written by hand:
 Nothing here reads the clock or draws at random, nor a file the same command writes.
 """
 
-from __future__ import annotations
-
 from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING, cast
 

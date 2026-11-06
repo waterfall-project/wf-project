@@ -14,7 +14,7 @@
 
 # The extension, compiled and tested here: no JVM is asked of the workstation. The JDK is 25, but
 # the extension targets Java 21 (extension/pom.xml), the Java that runs Keycloak 26.8.1.
-FROM maven:3.10.0-eclipse-temurin-25@sha256:047a82fc82c613266cfb1b66fd920be9c8ba51fd67edc68245e4542768f45e36 AS extension
+FROM maven:3-eclipse-temurin-26@sha256:69a6c37f0a91fca2c9d0cdd684c9c0ea7b1bc00d4196749c24440b2e02ad163d AS extension
 WORKDIR /build
 COPY extension/pom.xml ./
 RUN --mount=type=cache,target=/root/.m2 mvn --batch-mode --quiet dependency:go-offline
@@ -27,7 +27,7 @@ FROM adorsys/keycloak-config-cli:6.5.1-26.5.5@sha256:0955d98c8a341898b7aa177477e
 
 # Keycloak runs as its own unprivileged user, 1000, that of its image, said again at the end of the
 # stage: the image never runs as root, whatever its base sets.
-FROM keycloak/keycloak:26.8.1@sha256:79c623a22abacf3fe6c00a5fb30f5b7843d717b234033b80995891c06116d244 AS production
+FROM keycloak/keycloak:26.8.1@sha256:3f3c5f8e03c614774b4bd9173b88391fefa4153bfc010d8012d59ad825377332 AS production
 COPY --from=extension /build/target/waterfall-keycloak-extension.jar /opt/keycloak/providers/
 COPY themes/ /opt/keycloak/themes/
 # The options Keycloak fixes at build time: started with --optimized, it does not rebuild. Under

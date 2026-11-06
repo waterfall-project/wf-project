@@ -69,6 +69,26 @@ from waterfall.core.resource_settings.interface.calendars import (
     update_calendar as update_calendar,
 )
 
+# ``duration_units`` (US-0860): the units of duration.
+from waterfall.core.resource_settings.interface.duration_units import (
+    DEFAULT_UNITS as DEFAULT_UNITS,
+)
+from waterfall.core.resource_settings.interface.duration_units import (
+    DurationUnitsView as DurationUnitsView,
+)
+from waterfall.core.resource_settings.interface.duration_units import (
+    Units as Units,
+)
+from waterfall.core.resource_settings.interface.duration_units import (
+    get_duration_units as get_duration_units,
+)
+from waterfall.core.resource_settings.interface.duration_units import (
+    install_duration_units as install_duration_units,
+)
+from waterfall.core.resource_settings.interface.duration_units import (
+    set_duration_units as set_duration_units,
+)
+
 # ``org_nodes`` (US-0840): the tree of the organisation.
 from waterfall.core.resource_settings.interface.org_nodes import (
     ACTIVE_ONLY as ACTIVE_ONLY,
@@ -192,5 +212,3 @@ from waterfall.core.resource_settings.interface.resource_roles import (
 from waterfall.core.resource_settings.interface.resource_roles import (
     update_role as update_role,
 )
-
-# ``duration_units`` (US-0860): the units of duration.
