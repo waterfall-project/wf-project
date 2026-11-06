@@ -32,14 +32,14 @@ FORMS = {"uuid", "date", "date-time", "uri", "email", "binary", "byte"}
 # The texts the answers hold that are data, not sentences, by the schema and the property that
 # hold them: a property of the same name elsewhere is not one of them.
 DATA = {
-    # The label a person gave an object, kept as it was: a role, a node, the object of an
-    # inscription of the journal and its revision, a role before it was renamed.
+    # The label a person gave an object, kept as it was: a role, a node, a calendar, the object
+    # of an inscription of the journal and its revision, a role before it was renamed.
     "AccessRole.label": "a label",
     "AuditAccessRole.label": "a label",
-    "CalendarImage.label": "a label",
     "AuditObject.label": "a label",
     "AuditProject.label": "a label",
     "AuditRevision.label": "a label",
+    "CalendarImage.label": "a label",
     "AuditParams.previous_label": "a label",
     # The reason a person gave when she took a project out of its lifecycle, kept as she wrote it.
     "AuditParams.reason": "a reason",

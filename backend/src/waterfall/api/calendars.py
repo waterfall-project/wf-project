@@ -32,6 +32,7 @@ from waterfall.api.contract.models import (
 )
 from waterfall.api.evaluation import Acting, Requires, RequiresForInactive
 from waterfall.core.resource_settings.interface import (
+    DAYS,
     CalendarColumn,
     CalendarContent,
     CalendarFilters,
@@ -46,7 +47,6 @@ from waterfall.core.resource_settings.interface import (
     set_default_calendar,
     update_calendar,
 )
-from waterfall.core.resource_settings.tables import DAYS
 from waterfall.platform.audit import Act
 from waterfall.platform.database import utc_now
 

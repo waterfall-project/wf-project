@@ -515,9 +515,12 @@ def test_every_served_operation_asks_for_the_permission_the_contract_refuses_it_
         assert needed <= responses, name
         if not permissions:
             # A list of the reference declares the 403 of its deactivated objects (INACTIVE).
-            refused = (
-                {"403"} if name in PATH_OBJECTS else {"404"} if name in INACTIVE else {"403", "404"}
-            )
+            if name in PATH_OBJECTS:
+                refused = {"403"}
+            elif name in INACTIVE:
+                refused = {"404"}
+            else:
+                refused = {"403", "404"}
             assert not refused & responses, name
 
 

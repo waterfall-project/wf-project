@@ -155,6 +155,12 @@ def test_a_calendar_asks_for_nothing_but_its_label_and_its_week(
     refused = api.post(CALENDARS, headers=sessions.changing, json=blank)
     assert refusal(refused)[:2] == (422, "VALIDATION_FAILED")
     assert listing(api, sessions.changing)["items"] == []
+    # The contract (CalendarWrite) does not close the body: a field beyond the two is ignored,
+    # the calendar is created active and not the default whatever was sent.
+    extra = {"label": "En trop", "weekly_hours": week(), "is_default": True, "is_active": False}
+    accepted = api.post(CALENDARS, headers=sessions.changing, json=extra)
+    assert accepted.status_code == 201
+    assert (accepted.json()["is_default"], accepted.json()["is_active"]) == (False, True)
 
 
 @pytest.mark.requirement("WF-REF-0110-A")

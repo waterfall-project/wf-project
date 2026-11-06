@@ -91,7 +91,8 @@ def test_the_slices_are_loaded_in_the_order_of_their_dependencies(
 def test_a_loading_that_writes_nothing_succeeds_and_says_the_witness_is_there(
     settings: WitnessSettings, logs: Logs
 ) -> None:
-    # Every slice empty, or every slice already held: nothing is written, and that is a success.
+    # The first loading writes; the second finds every slice already held, writes nothing and
+    # succeeds.
     assert load_witness(settings) == 0
     logs.clear()
     assert load_witness(settings) == 0

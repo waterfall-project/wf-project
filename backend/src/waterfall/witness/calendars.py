@@ -14,12 +14,12 @@ from pydantic import BaseModel
 
 from waterfall.api.contract.models import Calendar
 from waterfall.core.resource_settings.interface import (
+    DAYS,
     CalendarContent,
     WeeklyHours,
     calendars_present,
     create_calendar,
 )
-from waterfall.core.resource_settings.tables import DAYS
 from waterfall.witness.description import is_loaded
 
 if TYPE_CHECKING:

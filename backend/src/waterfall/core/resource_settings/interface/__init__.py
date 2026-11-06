@@ -16,6 +16,9 @@ from here, never from the file.
 
 # ``calendars`` (US-0860): the calendars, one of them the default.
 from waterfall.core.resource_settings.interface.calendars import (
+    DAYS as DAYS,
+)
+from waterfall.core.resource_settings.interface.calendars import (
     CalendarColumn as CalendarColumn,
 )
 from waterfall.core.resource_settings.interface.calendars import (
