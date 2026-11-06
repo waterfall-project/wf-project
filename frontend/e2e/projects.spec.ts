@@ -175,14 +175,13 @@ test("a project, its settings and its lifecycle show what the fake back serves, 
   await expect(exits.getByRole("button", { name: "Déclarer le projet perdu" })).toHaveCount(0);
 });
 
-test("creates a project from the home, then modifies the identity of a project on its settings, the mock-up saying the fake back keeps nothing (EP-02/L44a) [WF-PRJ-0080-A]", async ({
+test("creates a project from the home, then modifies the identity of a project on its settings, the settings keeping the mock-up note (EP-02/L44a) [WF-PRJ-0080-A]", async ({
   page,
 }) => {
   test.slow();
   await compile(page.request, CREATED);
   await page.goto("/");
   const main = page.getByRole("main");
-  await expect(main.getByRole("note")).toContainText("le service simulé ne conserve");
 
   // No project is opened here, nothing witnesses the hydration: the creation is pressed again
   // until React opens its form, and never once it is open.
@@ -208,6 +207,7 @@ test("creates a project from the home, then modifies the identity of a project o
 
   // The modification is played on the witness: the fake back keeps nothing of what is written.
   await openHydrated(page, `${PROJECT}/settings`);
+  await expect(main.getByRole("note")).toContainText("le service simulé ne conserve");
   await main.getByRole("button", { name: "Modifier le projet" }).click();
   const identity = page.getByRole("dialog", {
     name: "Modifier «\u00a0Modernisation du poste de commande\u00a0»",

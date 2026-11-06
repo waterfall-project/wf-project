@@ -118,8 +118,8 @@ test("without a session, the home asks for one — never « not found » — and
   // Back to the very address shown, its query included.
   await expect(page).toHaveURL(HOME_SHOWN);
   await expect(accountButton(page, person)).toBeVisible();
-  // Signed in, the home renders « not found » as long as the operations it reads are not served
-  // (listProjects, getReferenceReadiness: #1004, postponed to EP-04); it no longer asks for a
+  // Signed in, the home renders: the operations it reads are served (listProjects,
+  // getReferenceReadiness: #1004, EP-04), and it no longer asks for a
   // session.
   await expect(page.getByRole("heading", { level: 1 })).not.toHaveText("Session requise");
 });

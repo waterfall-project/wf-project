@@ -296,13 +296,21 @@ describe("the journal of audit", () => {
     expect(queriesOf(EVENTS)).toEqual([NEWEST]);
   });
 
-  it("offers the authors and the projects the whole journal names, and reads no list of projects for its links: the server says which it may open", async () => {
-    const page = text(await journal());
+  it("offers the authors and the projects the whole journal names, and reads no list of projects for its links, whatever it would answer (a 404 posed): the server says which it may open [WF-ADM-0110-A]", async () => {
+    server.answers = {
+      ...server.answers,
+      "GET /projects": { problem: { code: "NOT_FOUND", status: 404 } },
+    };
+    const markup = await journal();
+    const page = text(markup);
     expect(page).toContain("Auteur Tous les comptes Camille Martin Toutes les actions");
     expect(page).toContain("Projet Tous les projets PRJ-001 · Modernisation du poste de commande");
     expect(queriesOf(FACETS)).toEqual([{}]);
     expect(queriesOf("GET /users")).toEqual([]);
     expect(queriesOf("GET /projects")).toEqual([]);
+    expect(gridLinks(markup)).toContain(
+      `PRJ-001 · Modernisation du poste de commande → /projects/${PROJECT}`,
+    );
   });
 
   it("names the object and the project with a link where the session may open the project, its revision and the revision an object lives in too", async () => {
