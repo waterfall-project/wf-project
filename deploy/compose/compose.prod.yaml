@@ -69,7 +69,7 @@ services:
   # the domain under its own name too, inside the network: the front reaches Keycloak there, in
   # HTTPS, at the address the browser knows.
   caddy:
-    image: caddy:2.11.7-alpine@sha256:d8542f48d34a9cf4e4c11a478865229840e87e4c96ea3f439101f31a5d35f75f
+    image: caddy:2.11.7-alpine@sha256:e70b164da81ef698b3ad19af799ea6086ce6d9e48ed4079eb9fe26f6fbf14ee5
     command: ["caddy", "run", "--config", "/etc/caddy/Caddyfile.prod", "--adapter", "caddyfile"]
     environment:
       WATERFALL_DOMAIN: ${WATERFALL_DOMAIN:?set WATERFALL_DOMAIN in .env}
@@ -325,6 +325,8 @@ services:
       WATERFALL_INSTALLATION_CLIENT_SECRET: ${WATERFALL_INSTALLATION_CLIENT_SECRET:?set WATERFALL_INSTALLATION_CLIENT_SECRET in .env}
       WATERFALL_ADMIN_EMAIL: ${WATERFALL_ADMIN_EMAIL:?set WATERFALL_ADMIN_EMAIL in .env}
       WATERFALL_DEFAULT_LANGUAGE: ${WATERFALL_DEFAULT_LANGUAGE:-fr}
+      WATERFALL_CURRENCY: ${WATERFALL_CURRENCY:?set WATERFALL_CURRENCY in .env}
+      WATERFALL_COMPANY_NAME: "${WATERFALL_COMPANY_NAME:?set WATERFALL_COMPANY_NAME in .env}"
     command: ["waterfall-api", "install"]
     restart: "no"
     depends_on:
@@ -355,7 +357,7 @@ services:
 
   # Creates the buckets of the platform when missing, then stops: the backups, and the imports.
   storage-buckets:
-    image: curlimages/curl:8.23.0@sha256:a134550be58ab783810e613ae96fd253c38f7bdd16d9bf9be350700c7a29ac06
+    image: curlimages/curl:8.23.0@sha256:3fb7e13e5d179a845c97d78204f3f1064d1907037f26a3ebf91710571151fd93
     entrypoint: ["/bin/sh", "/storage-buckets.sh"]
     environment:
       STORAGE_ADDRESS: http://storage:3900

@@ -13,6 +13,10 @@
  *   account (`setUserAccessRoles`), none, one or more (WF-ADM-0050) — the server judges the roles
  *   sent, and refuses by `LAST_ADMINISTRATOR` those that would take its permissions from the last
  *   administrator (WF-ADM-0120);
+ * - the node of the organisation chart, a drop-down list of the active nodes in the cell of the
+ *   « Rattachement » column, or none (`updateUser`, `org_node_id`, from the version the screen holds):
+ *   the node a deactivated one the account stays attached to is shown by its label, as the server
+ *   resolves it, and not offered once left (WF-REF-0070, WF-ADM-0030); an attachment gives no right;
  * - the link by which the holder of a local account sets its password (`createPasswordSetupLink`),
  *   and the resending of the invitation, each as the account lists it: none for another account or an
  *   anonymised one, unavailable while it is deactivated (`is_active_account`);
@@ -34,7 +38,7 @@ import { ChevronDown, KeyRound, Mail, UserRoundX } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useId, useRef } from "react";
 
-import { setUserAccessRoles, setUserActivation } from "@/api/actions/users";
+import { setUserAccessRoles, setUserActivation, updateUser } from "@/api/actions/users";
 import { useAccountNaming } from "@/components/account/account-name";
 import { useUnmet } from "@/components/commands/command";
 import { CommandTooltip } from "@/components/commands/command-tooltip";
@@ -42,16 +46,25 @@ import { findOffer, UNAVAILABLE } from "@/components/commands/offer";
 import { CELL_COMMAND } from "@/components/grid/grid-keyboard";
 import { CellCommand } from "@/components/reference/cell-command";
 import { useListReport } from "@/components/reference/reactivation";
+import { type NodeChoice } from "@/components/reference/reference-filters";
+import { treeLabel } from "@/components/reference/org-tree";
 import { ActiveState } from "@/components/reference/section";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
+import { NativeSelect } from "@/components/ui/native-select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Switch } from "@/components/ui/switch";
 
 import type { RoleChoice, User } from "./admin-grids";
 import { useUserWrites } from "./user-commands";
+
+/** The node an account is attached to, as the server names it, or that it is attached to none. */
+export function Attachment({ user }: { readonly user: User }) {
+  const t = useTranslations("admin.users");
+  return user.org_node_label ?? <span className="text-muted-foreground">{t("noOrgNode")}</span>;
+}
 
 /** The roles of an account, as the server names them, or that it holds none. */
 export function HeldRoles({ labels }: { readonly labels: readonly string[] }) {
@@ -257,6 +270,85 @@ export function RolesCell({
         </div>
       </PopoverContent>
     </Popover>
+  );
+}
+
+/**
+ * The node an account is attached to, in a drop-down list of the active nodes of the organisation
+ * chart in the order of the tree, and « none » to remove the attachment — the node as asked shown
+ * until the server answers. A deactivated node the account stays attached to is shown by its label
+ * (`org_node_label`) as the one chosen and cannot be chosen again; the label alone when the
+ * session may not write the accounts, or the account is anonymised.
+ *
+ * Only the list shows « CODE · Label » set in by depth: the account lists the label of its node
+ * (`org_node_label`) and no code, so the deactivated node kept and the read-only cell show the label
+ * alone, as the server names it — a code would have to be looked up in a list that does not hold the
+ * deactivated nodes, and the contract is left as it is.
+ */
+export function AttachmentCell({
+  user,
+  nodes,
+}: {
+  readonly user: User;
+  /** The active nodes, in the order of the tree. */
+  readonly nodes: readonly NodeChoice[];
+}) {
+  const t = useTranslations("admin.users");
+  const said = useTranslations("commands");
+  const named = useTranslations("reference.orgNodes");
+  const writes = useUserWrites();
+  const naming = useAccountNaming();
+  const name = naming.person(user);
+  const control = useRef<HTMLSelectElement>(null);
+  const asked = writes?.asked.get(user.user_id);
+  const busy = writes?.busy.has(user.user_id) === true;
+  if (writes === undefined || user.anonymized_at !== null) {
+    return <Attachment user={user} />;
+  }
+  const chosen =
+    asked !== undefined && "org_node_id" in asked ? asked.org_node_id : user.org_node_id;
+  const kept = user.org_node_id !== null && !nodes.some((node) => node.id === user.org_node_id);
+  const command = t("attachUser", { name });
+  return (
+    <CommandTooltip label={command} help={said("attachUser.help")}>
+      <NativeSelect
+        ref={control}
+        tabIndex={-1}
+        {...{ [CELL_COMMAND]: "" }}
+        aria-label={command}
+        aria-busy={busy}
+        {...(busy ? { "aria-disabled": true } : {})}
+        className={`${UNAVAILABLE} h-6 rounded-sm text-xs`}
+        value={chosen ?? ""}
+        onChange={(event) => {
+          if (busy) {
+            // Marked busy and unavailable: the write of the row under way is answered first.
+            return;
+          }
+          const node = event.currentTarget.value === "" ? null : event.currentTarget.value;
+          writes.run(user, {
+            target: `attachment ${user.user_id}`,
+            asked: { org_node_id: node },
+            send: (shown) =>
+              updateUser(shown.user_id, { org_node_id: node, lock_version: shown.lock_version }),
+            said: (answered) => t("attached", { name: naming.person(answered) }),
+            back: control.current,
+          });
+        }}
+      >
+        <option value="">{t("noOrgNode")}</option>
+        {kept ? (
+          <option value={user.org_node_id ?? ""} disabled>
+            {user.org_node_label}
+          </option>
+        ) : null}
+        {nodes.map((node) => (
+          <option key={node.id} value={node.id}>
+            {treeLabel(node.level, named("choice", { code: node.code, label: node.label }))}
+          </option>
+        ))}
+      </NativeSelect>
+    </CommandTooltip>
   );
 }
 

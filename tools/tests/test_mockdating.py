@@ -6,8 +6,6 @@ They try the simplifications of the fake back against the figures of the witness
 of a requirement: none cites one (WF-QUA-0010, « un test qui ne couvre aucune exigence »).
 """
 
-from __future__ import annotations
-
 from datetime import date
 from decimal import Decimal
 from typing import Any, cast

@@ -143,7 +143,8 @@ suit une fois figé.
 - #1873 — outil : les bornes des paramètres de requête déclarés à la main (`ge`, `le`,
   `min_length`, `max_length`…) confrontées à celles du contrat, avec les autres contrôles de
   conformité ; EP-05 ajoute des listes et des suppressions à paramètres de requête, où il sert.
-  Relevé par la revue d'US-1060 (#1854), reporté d'EP-18 par décision de l'auteur du 2026-11-03.
+  Relevé par la revue d'US-1060 (#1854), reporté d'EP-18 par décision de l'auteur du 2026-11-03,
+  rattaché à US-0880 (#2042) le 2026-11-06.
 
 - #1338, pour #1304, points 1 et 3 — le service de la reprise de la spécification du 2026-10-22 (#1306, C-371 à C-375 ; #1304), dont EP-16 écrit le contrat, le faux back et les écrans (décision de l'auteur du 2026-10-22, au cadrage d'EP-16) :
   le nom de l'entreprise à l'amorçage et dans les paramètres communs, et la correspondance de
@@ -285,11 +286,14 @@ Décisions de l'auteur du 2026-10-28, sur les questions du cadrage, chacune avec
   ne les porte pas ; les colonnes d'audit de chaque table disent qui a touché la ligne en dernier.
   Écartée : une action nouvelle, qui serait une modification du contrat et irait au-delà de la
   spécification. (Le critère qu'US-0880 portait à ce sujet au premier jet est retiré.)
-- **`include_inactive` et `is_active` faux relèvent de la permission de lecture de la partie**
-  (`cost_settings.read`, `resource_settings.read`), les écritures de sa permission de
-  modification (DECISIONS.md, « Le référentiel » ; #300, #351). Écarté : la permission de
-  modification pour les désactivés, qui priverait un lecteur du référentiel de ce que WF-REF-0150
-  lui promet.
+- **`include_inactive` et `is_active` faux relèvent de la permission de modification de la
+  partie** (`cost_settings.write`, `resource_settings.write`), comme toute écriture : c'est ce que
+  le contrat figé dit, par les 403 de ses lectures et leurs exemples `*_inactive_forbidden`
+  (WF-REF-0150, WF-ADM-0100 ; #300, #351). Décision de l'auteur du 2026-11-06 (#2084, option A),
+  qui revient sur la conception validée, laquelle les mettait sous la permission de lecture et
+  contredisait le contrat. Écarté : suivre la conception par une entrée de `docs/api/DECISIONS.md`,
+  qui réécrirait des exemples que le faux back et les parcours jouent déjà, pour laisser à un
+  lecteur ce qui est un geste d'administration.
 - **US-0810 crée toutes les tables en une fois**, pour que chaque US d'objet n'ait que son module,
   ses routes et ses tests à écrire. Écarté : une migration par US, qui ferait six fois la revue
   des droits du rôle du service.
@@ -446,8 +450,8 @@ codes et les libellés sont bornés comme le contrat les borne (20 et 200), jama
   2026-11-05) ; les modèles Pydantic du contrat existent déjà (`api/contract/models.py`,
   engendrés).
 - Chaque route déclare ses permissions par `Requires(...)` comme le contrat les dit ; une lecture
-  qui demande `include_inactive` ou `is_active` faux ajoute la permission de lecture de la partie
-  par une dépendance qui lit la requête ; une écriture des paramètres communs juge la permission
+  qui demande `include_inactive` ou `is_active` faux ajoute la permission de modification de la
+  partie par une dépendance qui lit la requête (#2084) ; une écriture des paramètres communs juge la permission
   de chaque champ porté avant d'écrire quoi que ce soit (403 au premier champ refusé) ;
   `test_access_evaluation.py` reçoit chaque opération.
 - Les refus sont ceux que le contrat nomme, code par code (`ALREADY_EXISTS` avec
@@ -612,7 +616,7 @@ l'ordonnanceur du témoin hors de son propre fichier ; ce qu'il lui manque vit d
 
 ## US-0810 — Le socle du référentiel : tables, modules, amorçage et paramètres communs
 
-- **statut** : en cours
+- **statut** : fini
 - **exigences** : `WF-EXP-0020-A`, `WF-CYC-0120-A`, `WF-REF-0140-A`, `WF-REF-0160-A`,
   `WF-REF-0170-A`, `WF-REF-0180-A`
 - **opérations** : `getReferenceReadiness`, `getReferenceSettings`, `updateReferenceSettings`
@@ -795,7 +799,7 @@ codes, et changer le type d'une nature ou la nature d'une catégorie tant que ri
   comptable pour les catégories ; `kinds`, `cost_type_id`, `is_active` ; les désactivées après les
   actives —, et `meta.total` compte ce qui est retenu ; les catégories actives se lisent sans la
   permission du référentiel, `include_inactive` et `is_active` faux sont refusés par 403 sans
-  `cost_settings.read` ;
+  `cost_settings.write` ;
 - propre à l'US : « Désactiver une nature de coût désactive ses catégories » : chaque catégorie
   active de la nature est désactivée avec elle, son compteur avance, son audit nomme l'auteur ;
   la réactivation ne rend active que la nature, et celle d'une catégorie sous une nature
@@ -845,7 +849,7 @@ tout chiffrage parte d'un taux constaté.
   `getHourlyRateGrid`, à la relecture ; les autres cellules de l'année sont nulles, et les taux
   des autres années ceux d'avant ;
 - propre à l'US : la grille rend une ligne par catégorie de main-d'œuvre, active — désactivée
-  aussi avec `include_inactive`, sous `cost_settings.read`, refusé par 403 sans elle —, les
+  aussi avec `include_inactive`, sous `cost_settings.write`, refusé par 403 sans elle —, les
   années de toute la grille quels que soient la page, la recherche (`search` sur le code et le
   libellé), les bornes (`rate_year`, `rate_min`, `rate_max`) et le tri (`rate.<année>`, les
   catégories sans taux après les autres dans l'ordre croissant) ; `listHourlyRates` rend les taux
@@ -871,7 +875,7 @@ catégories sur quinze ans, est chargée par US-0890 : les tests de la grille se
 
 ## US-0840 — L'arbre d'organisation et le rattachement d'un compte
 
-- **statut** : en cours
+- **statut** : fini
 - **exigences** : `WF-REF-0070-A`, `WF-ADM-0030-A`
 - **opérations** : `listOrgNodes`, `createOrgNode`, `updateOrgNode`, `setOrgNodeActivation` ;
   `listUsers`, `getUser`, `updateUser`, `getMe` (le rattachement)
@@ -913,7 +917,7 @@ donne un droit.
   (#379) ; un nœud désactivé auquel un compte reste rattaché s'y affiche par son libellé ;
 - propre à l'US : `listOrgNodes` cherche sur le libellé et le code, se filtre par `code`, `level`,
   `level_min`, `level_max` et `is_active`, et rend les nœuds retenus avec leurs ancêtres ; les
-  désactivés ne sont rendus qu'avec `include_inactive`, sous `resource_settings.read`, refusé par
+  désactivés ne sont rendus qu'avec `include_inactive`, sous `resource_settings.write`, refusé par
   403 sans elle ;
 - propre à l'US : chaque réponse est validée contre le contrat dans les tests du service ;
 - propre à l'US : `load-witness` charge les nœuds du témoin, puis désactive ceux qu'il dit
@@ -996,7 +1000,7 @@ désactivations croisées ne laissent pas un rôle actif sous un nœud fermé.
 
 ## US-0860 — Les calendriers, le calendrier par défaut et les unités de durée
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-REF-0110-A`, `WF-REF-0120-A`, `WF-PLA-0160-A`
 - **opérations** : `listCalendars`, `createCalendar`, `updateCalendar`, `setDefaultCalendar`,
   `setCalendarActivation`, `getDurationUnits`, `setDurationUnits`

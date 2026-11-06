@@ -61,8 +61,6 @@ breakdown structure malformed and its task named by a label several tasks bear
 Nothing here reads the clock or draws at random, nor a file the same command writes.
 """
 
-from __future__ import annotations
-
 from typing import TYPE_CHECKING, TypedDict, cast
 
 from wftools import mockcore, mockexchanges, mockhistory, mocktext, mockwitness, mockwrites

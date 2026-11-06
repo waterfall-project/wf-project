@@ -1242,6 +1242,9 @@
     "anonymize": {
       "help": "Anonymises the deactivated account, after confirmation: the operation is final."
     },
+    "attachUser": {
+      "help": "Attaches the account to an active node of the organisation chart, or removes its attachment: an attachment gives no permission."
+    },
     "activeUser": {
       "help": "Activates or deactivates the account: a deactivated account can no longer sign in."
     },
@@ -2561,6 +2564,8 @@
       "deactivated": "“{name}” deactivated.",
       "reactivated": "“{name}” reactivated.",
       "activeUser": "Account of “{name}” active",
+      "attachUser": "Attachment of “{name}”",
+      "attached": "Attachment of “{name}” saved.",
       "rolesOf": "Roles of “{name}”",
       "rolesHeld": "Roles of “{name}”: {roles}",
       "rolesAttributed": "Roles of “{name}” attributed.",

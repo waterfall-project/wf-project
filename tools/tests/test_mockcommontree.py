@@ -10,8 +10,6 @@ milestone dated (WF-PLA-0130, F-13), the mode of a summary (WF-PLA-0040, F-14), 
 column (WF-IHM-0130, F-06).
 """
 
-from __future__ import annotations
-
 from datetime import date
 from decimal import Decimal
 from typing import TYPE_CHECKING, Any, cast

@@ -272,8 +272,9 @@ services:
   # `make service-install` and `make e2e-service`, once the realm is applied, never by service-up.
   # As the owner of the tables (#701), with the secret of the client of the bootstrap, which
   # restore and keycloak-realm hold too, and whose links are valid until they are used (#652). The
-  # address of the administrator and the language of the installation are development values
-  # unless the environment says others.
+  # address of the administrator, the language, the currency and the name of the company of the
+  # installation are development values unless the environment says others — the currency and the
+  # name those of the witness, which keeps them (EP-05).
   install:
     <<: *back
     profiles: [install]
@@ -283,6 +284,8 @@ services:
       WATERFALL_INSTALLATION_CLIENT_SECRET: ${WATERFALL_INSTALLATION_CLIENT_SECRET:?export WATERFALL_INSTALLATION_CLIENT_SECRET}
       WATERFALL_ADMIN_EMAIL: ${WATERFALL_ADMIN_EMAIL:-administrateur@waterfall.test}
       WATERFALL_DEFAULT_LANGUAGE: ${WATERFALL_DEFAULT_LANGUAGE:-fr}
+      WATERFALL_CURRENCY: ${WATERFALL_CURRENCY:-EUR}
+      WATERFALL_COMPANY_NAME: "${WATERFALL_COMPANY_NAME:-Delmas Automatismes}"
     command: ["waterfall-api", "install"]
     restart: "no"
     depends_on:
@@ -332,7 +335,7 @@ services:
   # Creates the buckets of the platform when missing, by the CreateBucket of S3 signed with its key,
   # then stops: the backups, and the imports to come (EP-06).
   storage-buckets:
-    image: curlimages/curl:8.23.0@sha256:a134550be58ab783810e613ae96fd253c38f7bdd16d9bf9be350700c7a29ac06
+    image: curlimages/curl:8.23.0@sha256:3fb7e13e5d179a845c97d78204f3f1064d1907037f26a3ebf91710571151fd93
     entrypoint: ["/bin/sh", "/storage-buckets.sh"]
     environment:
       STORAGE_ADDRESS: http://storage:3900
@@ -402,7 +405,7 @@ services:
   # Keycloak in HTTPS, by Caddy's own authority (Caddyfile.service): the only door to Keycloak from
   # the workstation, as the front end of the demonstration is.
   keycloak-front-end:
-    image: caddy:2.11.7-alpine@sha256:d8542f48d34a9cf4e4c11a478865229840e87e4c96ea3f439101f31a5d35f75f
+    image: caddy:2.11.7-alpine@sha256:e70b164da81ef698b3ad19af799ea6086ce6d9e48ed4079eb9fe26f6fbf14ee5
     command: ["caddy", "run", "--config", "/etc/caddy/Caddyfile.service", "--adapter", "caddyfile"]
     volumes:
       - ./Caddyfile.service:/etc/caddy/Caddyfile.service:ro

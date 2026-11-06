@@ -16,8 +16,6 @@ and the provision, which have none, come first. And one it filters, by the two b
 of a line (``<column>_min``, ``<column>_max``, US-0701/L3, F-06).
 """
 
-from __future__ import annotations
-
 from dataclasses import dataclass
 from datetime import date
 from decimal import Decimal

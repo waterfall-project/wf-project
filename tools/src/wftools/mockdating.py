@@ -14,8 +14,6 @@ its finish to that instant. The physical progress of a summary, the budget of it
 tasks over the budget of its subtree, is not found here: ``wftools.mockcore`` computes it.
 """
 
-from __future__ import annotations
-
 import functools
 import heapq
 from dataclasses import dataclass, field

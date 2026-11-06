@@ -32,14 +32,15 @@ FORMS = {"uuid", "date", "date-time", "uri", "email", "binary", "byte"}
 # The texts the answers hold that are data, not sentences, by the schema and the property that
 # hold them: a property of the same name elsewhere is not one of them.
 DATA = {
-    # The label a person gave an object, kept as it was: a role, a node, the object of an
-    # inscription of the journal and its revision, a role before it was renamed.
+    # The label a person gave an object, kept as it was: a role, a node, a calendar, the object
+    # of an inscription of the journal and its revision, a role before it was renamed.
     "AccessRole.label": "a label",
     "AuditAccessRole.label": "a label",
     "AuditObject.label": "a label",
+    "AuditParams.previous_label": "a label",
     "AuditProject.label": "a label",
     "AuditRevision.label": "a label",
-    "AuditParams.previous_label": "a label",
+    "CalendarImage.label": "a label",
     # The reason a person gave when she took a project out of its lifecycle, kept as she wrote it.
     "AuditParams.reason": "a reason",
     "UserAccount.access_role_labels": "labels",
@@ -114,6 +115,8 @@ DATA = {
     "ResourceRoleImage.org_node_label": "a label",
     "ResourceRoleImage.cost_category_label": "a label",
     "ResourceRoleImage.calendar_label": "a label",
+    # The name of the company that uses the installation, as it was given (WF-EXP-0020).
+    "ReferenceSettings.company_name": "a name",
 }
 # The objects the answers hold whose properties the contract does not close: the parameters of a
 # refusal, and of each field it refuses, which name its condition by codes and values, the ones
