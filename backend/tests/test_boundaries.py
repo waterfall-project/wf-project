@@ -255,7 +255,10 @@ def test_importing_a_module_of_the_core_declares_the_tables_of_no_other() -> Non
         "import sys, waterfall.core.users.interface;"
         "print(sorted(m for m in sys.modules if m.endswith('.tables')))"
     )
-    assert imported(statement) == "['waterfall.core.users.tables']"
+    # An account is attached to a node of the resource settings: it asks that module, by its
+    # interface, which brings its own tables and no other's.
+    expected = "['waterfall.core.resource_settings.tables', 'waterfall.core.users.tables']"
+    assert imported(statement) == expected
     # The package of the core, alone, holds the tables of none.
     statement = "import sys, waterfall.core; print(any(m.endswith('.tables') for m in sys.modules))"
     assert imported(statement) == "False"

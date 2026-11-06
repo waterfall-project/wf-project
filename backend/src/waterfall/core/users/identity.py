@@ -8,12 +8,15 @@ directory or of an external provider is the provider's: a value that differs fro
 refused, the field sent unchanged is not (WF-ADM-0050, WF-ADM-0070). An address is received as
 written, case included, and compared without regard to it: one ``@``, a local part and a domain
 not empty, no space, 254 characters at most, the special-use domains and those without a dot
-admitted (contract, README; #665). An account is attached to no node of the organisation before
-EP-05 creates the tree: any node is unknown.
+admitted (contract, README; #665). The node of the organisation an account is attached to is the
+tree's to say: it must exist, and be active unless the account is attached to it already
+(``attachment_faults``); it gives no right (WF-ADM-0030).
 
 Every creation and change is inscribed in the journal of audit, which names the account by its
 label and keeps neither its names nor its address in its data: the anonymisation of the account
-rewrites the label alone (WF-SEC-0030, WF-ADM-0060).
+rewrites the label alone (WF-SEC-0030, WF-ADM-0060). A change of the attachment — given, changed
+or withdrawn — is inscribed as a field, ``org_node_id``, after the identity, its value not kept;
+the node already held, sent again, writes and inscribes nothing (#1740).
 """
 
 from contextlib import nullcontext
@@ -22,6 +25,7 @@ from typing import TYPE_CHECKING, Literal
 
 from sqlalchemy import select
 
+from waterfall.core.resource_settings.interface import node_is_active
 from waterfall.core.users.accounts import (
     NewAccount,
     Stamp,
@@ -51,6 +55,7 @@ VALIDATION_FAILED = "VALIDATION_FAILED"
 VALUE_REQUIRED = "VALUE_REQUIRED"
 FIELD_READ_ONLY = "FIELD_READ_ONLY"
 UNKNOWN_ORG_NODE = "UNKNOWN_ORG_NODE"
+INACTIVE_REFERENCE_OBJECT = "INACTIVE_REFERENCE_OBJECT"
 ADDRESS_MAX_LENGTH = 254
 LOCAL = "local"
 
@@ -92,30 +97,47 @@ class Identity:
 class IdentityChange:
     """What a change of an account sends: a field left ``None`` is not sent, and keeps its value.
 
-    ``org_node_id`` is the attachment sent, ``None`` when it is not sent or sent empty: both leave
-    the account attached to nothing, the only attachment before EP-05.
+    ``org_node_id`` is the attachment sent; ``None`` sent empty (``detaches``) withdraws it, and
+    not sent keeps it: the two differ, though both are ``None`` here.
     """
 
     last_name: str | None = None
     first_name: str | None = None
     email: str | None = None
     org_node_id: UUID | None = None
+    detaches: bool = False
 
 
 type IdentityField = Literal["last_name", "first_name", "email"]
 IDENTITY_FIELDS: tuple[IdentityField, ...] = ("last_name", "first_name", "email")
 
 
-def identity_faults(email: str | None, org_node_id: UUID | None) -> tuple[FieldError, ...]:
-    """Point at an address the service does not receive, and at a node it does not have."""
-    faults: list[FieldError] = []
+def identity_faults(email: str | None) -> tuple[FieldError, ...]:
+    """Point at an address the service does not receive."""
     if email == "":
-        faults.append(FieldError("/email", VALUE_REQUIRED))
-    elif email is not None and not is_address(email):
-        faults.append(FieldError("/email", VALIDATION_FAILED))
-    if org_node_id is not None:
-        faults.append(FieldError("/org_node_id", UNKNOWN_ORG_NODE))
-    return tuple(faults)
+        return (FieldError("/email", VALUE_REQUIRED),)
+    if email is not None and not is_address(email):
+        return (FieldError("/email", VALIDATION_FAILED),)
+    return ()
+
+
+def attachment_faults(
+    session: Session, org_node_id: UUID | None, held: UUID | None = None
+) -> tuple[FieldError, ...]:
+    """Point at a node an account may not be attached to: unknown, or deactivated.
+
+    A deactivated node refuses a new attachment only: the account that holds it (``held``) keeps
+    it when a change sends it again (WF-REF-0150). The node is read under a share lock, so that its
+    deactivation waits for the write that attaches an account to it.
+    """
+    if org_node_id is None:
+        return ()
+    active = node_is_active(session, org_node_id)
+    if active is None:
+        return (FieldError("/org_node_id", UNKNOWN_ORG_NODE),)
+    if not active and org_node_id != held:
+        return (FieldError("/org_node_id", INACTIVE_REFERENCE_OBJECT),)
+    return ()
 
 
 def refuse(faults: tuple[FieldError, ...]) -> None:
@@ -175,8 +197,15 @@ def create_local(session: Session, identity: Identity, subject: str, act: Act) -
 
     Refused if a field is in fault (422), or if another account holds the address (409).
     """
-    refuse(identity_faults(identity.email, identity.org_node_id))
-    new = NewAccount(identity.last_name, identity.first_name, identity.email, subject, LOCAL)
+    refuse((*identity_faults(identity.email), *attachment_faults(session, identity.org_node_id)))
+    new = NewAccount(
+        identity.last_name,
+        identity.first_name,
+        identity.email,
+        subject,
+        LOCAL,
+        org_node_id=identity.org_node_id,
+    )
     with unique_address(session, identity.email):
         account = add_account(session, new, Stamp(act.author, act.at))
     inscribe(session, "user_create", account, act, {"origin": LOCAL})
@@ -191,7 +220,7 @@ def planned_change(
     The account is locked, then read under the lock: refused if unknown (404), if its version is
     not the one read (412), if the account is anonymised and a name or the address is sent — the
     anonymisation is irreversible (409, WF-ADM-0060) —, or if a field is in fault — the identity of
-    an account the provider holds changed included (422).
+    an account the provider holds changed included, the node unknown or deactivated (422).
     """
     account = lock_account_at(session, user_id, lock_version)
     changed = {
@@ -204,27 +233,42 @@ def planned_change(
     # An address sent unchanged is the one held, whatever form the provider gave it.
     # The address of an account the provider holds is refused as read-only, not as malformed.
     email = changed.get("email") if account.origin == LOCAL else None
-    faults = list(identity_faults(email, sent.org_node_id))
+    faults = [
+        *identity_faults(email),
+        *attachment_faults(session, sent.org_node_id, account.org_node_id),
+    ]
     if account.origin != LOCAL:
         faults.extend(FieldError(f"/{name}", FIELD_READ_ONLY) for name in changed)
     refuse(tuple(faults))
     return account, changed
 
 
+def attachment_changes(account: UserAccount, sent: IdentityChange) -> bool:
+    """Tell whether a change gives, changes or withdraws the attachment (the node held, no)."""
+    if sent.org_node_id is not None:
+        return sent.org_node_id != account.org_node_id
+    return sent.detaches and account.org_node_id is not None
+
+
 def change(
     session: Session, user_id: UUID, sent: IdentityChange, lock_version: int, act: Act
 ) -> UserAccount:
-    """Change the identity of an account whose version is the one read, and inscribe it.
+    """Change the identity and the attachment of an account at the version read, and inscribe it.
 
     Refused as ``planned_change`` refuses, or if another account holds the new address (409). A
-    change that changes nothing writes nothing.
+    change that changes nothing writes nothing. The fields inscribed are those that changed, in the
+    order of the account: the names, the address, the attachment (#1740).
     """
     account, changed = planned_change(session, user_id, sent, lock_version)
-    if not changed:
+    attaches = attachment_changes(account, sent)
+    if not changed and not attaches:
         return account
+    values: dict[str, object] = dict(changed)
+    if attaches:
+        values["org_node_id"] = sent.org_node_id
     # Only a new address may be held by another account.
     guard = unique_address(session, changed["email"]) if "email" in changed else nullcontext()
     with guard:
-        account = change_columns(session, user_id, changed, lock_version, Stamp(act.author, act.at))
-    inscribe(session, "user_update", account, act, {"fields": list(changed)})
+        account = change_columns(session, user_id, values, lock_version, Stamp(act.author, act.at))
+    inscribe(session, "user_update", account, act, {"fields": list(values)})
     return account

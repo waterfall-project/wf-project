@@ -23,6 +23,7 @@ answer, nothing is written (WF-ADM-0060).
 
 from collections.abc import Mapping, Sequence
 from dataclasses import replace
+from functools import partial
 from typing import Annotated, Literal
 from uuid import UUID
 
@@ -64,6 +65,7 @@ from waterfall.core.access_roles.interface import (
     set_access_roles,
     sole_administrator,
 )
+from waterfall.core.resource_settings.interface import label_of, within_node
 from waterfall.core.users.interface import (
     Account,
     AccountColumn,
@@ -77,6 +79,7 @@ from waterfall.core.users.interface import (
     address_holder,
     address_taken,
     anonymize_account,
+    attachment_faults,
     change_account,
     check_account_anonymization,
     check_account_change,
@@ -136,8 +139,8 @@ type UserColumn = Literal[
 def account_fields(account: Account, roles: Sequence[HeldRole]) -> dict[str, object]:
     """Describe an account as the contract does, without what only one reading adds to it.
 
-    The roles are named by the server, in the order the account holds them (WF-ARC-0020). The
-    attachment to the organisation arrives with EP-05.
+    The roles are named by the server, in the order the account holds them (WF-ARC-0020), the
+    node it is attached to by its label as it is today, deactivated or not (WF-REF-0150).
     """
     return {
         "user_id": account.user_id,
@@ -147,8 +150,8 @@ def account_fields(account: Account, roles: Sequence[HeldRole]) -> dict[str, obj
         "anonymized_at": account.anonymized_at,
         "is_active": account.is_active,
         "origin": account.origin,
-        "org_node_id": None,
-        "org_node_label": None,
+        "org_node_id": account.org_node_id,
+        "org_node_label": account.org_node_label,
         "access_role_ids": [held.access_role_id for held in roles],
         "access_role_labels": [held.label for held in roles],
         "has_avatar": account.has_avatar,
@@ -220,7 +223,7 @@ def account_filters(
         search=search,
         origins=None if kept_origins is None else frozenset(kept_origins),
         states=states,
-        org_node_id=org_node_id,
+        attached=None if org_node_id is None else partial(within_node, org_node_id),
         held=None if roles is None else holding_one_of(roles),
     )
     return FiltersRead(filters, (*origins_faults, *roles_faults))
@@ -245,6 +248,8 @@ def account_sort(
     descending = sort_order is SortOrder.desc
     if sort_by == "access_roles":
         return AccountSort(labels_held, descending=descending)
+    if sort_by == "org_node":
+        return AccountSort("org_node", descending=descending, node_label=label_of)
     column: AccountColumn | None = sort_by
     return AccountSort(column, descending=descending)
 
@@ -295,7 +300,7 @@ def check_new_account(session: Session, identity: Identity) -> None:
     Each field in fault is named (422); then an address another account holds is refused (409).
     The address is read again when the account is written.
     """
-    refuse(identity_faults(identity.email, identity.org_node_id))
+    refuse((*identity_faults(identity.email), *attachment_faults(session, identity.org_node_id)))
     holder = address_holder(session, identity.email)
     if holder is not None:
         raise address_taken(holder)
@@ -401,7 +406,8 @@ def identity_change(body: UserUpdate) -> IdentityChange:
         )
     )
     org_node_id = None if body.org_node_id is None else body.org_node_id.root
-    return IdentityChange(body.last_name, body.first_name, body.email, org_node_id)
+    detaches = "org_node_id" in sent and org_node_id is None
+    return IdentityChange(body.last_name, body.first_name, body.email, org_node_id, detaches)
 
 
 @router.patch(

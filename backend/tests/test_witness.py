@@ -89,9 +89,15 @@ def test_the_slices_are_loaded_in_the_order_of_their_dependencies(
 
 
 def test_a_loading_that_writes_nothing_succeeds_and_says_the_witness_is_there(
-    settings: WitnessSettings, logs: Logs
+    settings: WitnessSettings, logs: Logs, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    # Every slice empty, or every slice already held: nothing is written, and that is a success.
+    # Every slice already held: nothing is written, and that is a success. The slices that are
+    # filled write the witness; here each of them finds it there.
+    def held(session: Session, witness: Witness) -> bool:
+        del session, witness
+        return False
+
+    monkeypatch.setattr(loader, "SLICES", tuple((name, held) for name, _ in loader.SLICES))
     assert load_witness(settings) == 0
     assert events(logs) == ["witness.already_loaded"]
     assert {record["correlation_id"] for record in logs.records} != {None}
