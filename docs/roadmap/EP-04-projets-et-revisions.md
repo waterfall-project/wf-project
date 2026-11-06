@@ -1,10 +1,10 @@
 ---
 id: EP-04
 titre: Créer un projet, en figer des versions, et le mener d'un état à l'autre
-statut: prêt
+statut: en cours
 depend_de: EP-05
 famille: front, back
-issue:
+issue: 2051
 ---
 
 # EP-04 — Projets, révisions et cycle de vie
@@ -146,13 +146,14 @@ tâche de marquage, US-0970).
 
 ## Préalables
 
-`US-0810/L1` d'EP-05 fusionnée dans `epic/EP-05` : les tables du référentiel, les interfaces de
-ses quatre modules, le chargeur du témoin, la fixture des parcours à deux modes et le projet
-`shared` existent ; `epic/EP-04` se tire d'`epic/EP-05` à ce moment, non de `main` à la livraison
-d'EP-05, la reprend à chaque lot d'EP-05 fusionné, et se fusionne dans `main` après elle
+`US-0810/L1` d'EP-05 (#2045) fusionnée dans `epic/EP-05` : les tables du référentiel, les
+interfaces de ses quatre modules, le chargeur du témoin, la fixture des parcours à deux modes et le
+projet `shared` existent ; `epic/EP-04` se tire d'`epic/EP-05` à ce moment, non de `main` à la
+livraison d'EP-05, la reprend à chaque lot d'EP-05 fusionné, et se fusionne dans `main` après elle
 (décision de l'auteur du 2026-11-05, l'exception écrite au README, « Branches »). `US-0810/L2`
-d'EP-05 fusionnée avant US-0920 : la création d'un projet exige le référentiel minimal qu'elle
-sert. EP-16 livré, le contrat figé en 1.0.0 ; le cadrage
+d'EP-05 (#2046) fusionnée avant US-0920/L1 : la création d'un projet exige le référentiel minimal
+qu'elle sert. `US-0890` d'EP-05 (#2043) fusionnée avant US-0990/L2 : la tranche des projets se
+charge sur celle du référentiel, vérifiée entière. EP-16 livré, le contrat figé en 1.0.0 ; le cadrage
 du 2026-10-28 s'est fait sur le contrat d'`epic/EP-16` avant le gel, et #870, une modification
 du contrat, y est rendu (« Constats reçus ») : la liste des opérations et des refus se relit au
 gel, et un écart devient une « Interface contract issue » que l'auteur tranche.
@@ -291,6 +292,17 @@ Reportés d'EP-17 à sa livraison (rangement du 2026-11-05) :
   (`PROJECT_CODE_INVALID` d'abord) n'est tenu que par une recherche de phrases dans le contrat ; le
   service de `createProject` et d'`updateProject`, servi ici, l'éprouve par un test d'API. Relevé par
   US-0701/L9 (EP-16), rangé ici le 2026-11-05.
+- #1714 — contrat : aucun exemple de `getPortfolioWorkload` ni de `getPortfolioPilotHealth` ne
+  retient `completed`, l'avis de G-05 à vérifier sur le service réel. Reporté ici par l'auteur le
+  2026-10-31 ; mais EP-04 ne sert aucune des deux opérations, qui sont du portefeuille : à trancher à
+  l'ouverture des issues, proposé reporté → EP-11.
+
+À l'ouverture des issues (2026-11-05), chaque constat est rattaché selon sa décision, portée au
+tableau « Constats ouverts » de #2051 : #754 sous US-0910/L2 (#2054) ; #1658 et #1749 sous US-0920/L1
+(#2056) ; #927, #962 et #1004 sous US-0920/L2 (#2057) ; #1502 sous US-0940 (#2059) ; #1759 sous
+US-0960 (#2061), pour la copie des structures qui omet celles `is_merged` ; #1350 sous US-0990/L2
+(#2069) ; #1337 (US-0920/L1 et US-0940), #1797 (US-0960 et US-0980/L2) et #1714 (à trancher) sous
+l'EPIC #2051.
 
 ## Conception
 
@@ -398,6 +410,46 @@ les décisions qui suivent le ramènent à cinq, et font recouvrir EP-04 et EP-0
   projet, que trois US servent, et le parcours des deux utilisateurs restent à US-1000. Écarté :
   tout le front en dernier.
 
+Décisions de l'auteur du 2026-11-05, au plan de lots (issues #2051 et suivantes ; le plan lui-même
+vit dans le tableau de suivi de #2051, non ici) :
+
+- **US-0920 se livre en deux lots.** `L1`, le projet servi par le back — création, lecture, liste,
+  modification, la tranche du témoin —, dont dépendent les quatre lots de la vague 3 ; `L2`,
+  l'accueil et le journal branchés sur le service (#927, #962, #1004), petit, en vague 3. Écarté : un
+  seul lot de ≈ 1 700 lignes sur le chemin critique.
+- **Le projet `shared` de Playwright sélectionne par une étiquette `@shared` dans le titre des
+  tests**, comme `@realm-wide`, et non par une liste `SHARED_PATHS` dans `mode.ts` (décision prise au
+  plan de lots d'EP-05, le même jour) : chaque US étiquette ses tests quand son écran est servi, le
+  reste gardé par `inService`, et aucun fichier de configuration n'est partagé entre lots. Écarté : la
+  liste, que les lots d'une même vague auraient écrite l'un après l'autre.
+- **`mode.ts` inscrit le compte de la course chef de projet des projets du témoin par
+  `setContributors`**, écrit par US-0970 — le premier parcours qui écrit sur un projet du témoin en
+  mode service —, qui dépend donc d'US-0930. Écarté : par US-0960, qui aurait attendu US-0930 et
+  perdu le parallélisme de la vague 3.
+- **US-0990/L2 est la vérification d'ensemble**, après US-0980/L2 — la désignation tentée et refusée
+  du témoin, l'étape du parcours — et après US-1000 — les trois parcours qu'il rejoue, le guide —,
+  comme US-0890 l'est en EP-05 ; la vague 5 est US-0980/L2 et US-1000, puis US-0990/L2 seul. Écarté :
+  les trois en parallèle, qui laissaient à US-0990/L2 des faits qu'aucun lot fusionné ne portait.
+- **`consultation` est une propriété de chaque permission dans `predefined.py`**, non une colonne
+  écrite par migration : une troisième migration contredisait « Deux migrations ».
+- **Le dépassement d'US-0910/L1 est accepté** (≈ 1 500 lignes, ≈ 950 de production) et se signale sur
+  sa pull request ; pas de L1b, qui aurait coûté une vague.
+- **`revisions.spec.ts` entre dans le projet partagé dès US-0960**, bien qu'il porte aujourd'hui la
+  comparaison (WF-REV-0080, EP-07) et soit presque entier non rejoué jusqu'à EP-07.
+- **Les migrations prennent les prochains numéros libres à la création d'`epic/EP-04`** : la
+  conception les nommait `0017` et `0018`, que `main` (`0017_file_upload`) et EP-05 ont pris depuis.
+- **US-0910/L1 déclare tout ce que les lots d'une même vague auraient sinon écrit dans un même
+  fichier** : chaque fonction de la table « Modules » dans l'interface en paquet, sans effet — dont
+  `advance` et `no_background_task_running`, qu'US-0920/L1, US-0950 et US-0960 appellent et
+  qu'US-0980/L1 et US-0970 remplissent —, les fichiers de tranche du chargeur, un par objet, créés
+  vides et enchaînés une fois dans un fichier d'entrée de la tranche, comme EP-05 ; les fixtures de
+  test du projet sont d'US-0920/L1, dans un fichier propre. Aucun lot n'écrit `conftest.py`,
+  `support.py`, `api/queries.py` ni l'enchaînement du chargeur hors de son fichier. Résultat : aucun
+  « Pas avec ».
+- **Modèles** : `opus` pour US-0910/L1 (sécurité, interface partagée), US-0910/L2 (sécurité),
+  US-0960 (interface partagée) et US-0970 (sécurité) ; `sonnet` pour les dix autres, l'escalade
+  restant au livreur.
+
 ### Tables et migrations
 
 Régime « projet » (§4.4.1) pour `project`, `project_state_transition`, `contributor`,
@@ -416,11 +468,13 @@ textes triés en collation `C`, cherchés par `contains` ; règles SQL du guide 
 | `revision` | `project_id`, `status`, `version_name`, `description`, `marked_at`, `reference_year`, `is_reference`, `lineage_id`, audit, `lock_version` | `status` dans `draft`, `marked` ; un seul `draft` par projet (index unique partiel) ; `version_name` unique parmi les révisions marquées d'un projet, non nul si marquée ; `marked_at` non nul si et seulement si marquée ; un seul `is_reference` par projet ; un déclencheur refuse le retour de `marked` à `draft` et toute modification d'une révision marquée hors `is_reference`, `lock_version` et ses colonnes d'audit |
 | `cost_structure` | `project_id` (clé de partition), `revision_id`, `kind` (`main` ici), `label`, `is_merged`, `lineage_id`, audit, `lock_version` | `PARTITION BY LIST (project_id)` ; clé primaire (`project_id`, `id`) ; une seule `main` par révision ; clé vers `revision` en refus ; un déclencheur refuse toute mise à jour et toute suppression d'une ligne dont la révision est marquée — sauf la suppression en cascade d'une révision abandonnée, jamais marquée |
 
-- **Deux migrations** : `0017_project_tables` (les huit tables du projet, la table révisionnée
-  partitionnée, la fonction `create_project_partitions(project_id)` du propriétaire avec `EXECUTE`
-  au rôle du service, les déclencheurs, les droits et `SERVICE_RIGHTS`) ; `0018_audit_actions`,
-  si le contrat porte `project_create` et `revision_abandon` au gel, qui étend la contrainte
-  `action_known` du journal, comme `0011` l'a fait. Aucune autre migration de données.
+- **Deux migrations**, aux prochains numéros libres à la création d'`epic/EP-04` (décision du
+  2026-11-05 ; la conception les nommait `0017` et `0018`, pris depuis) : les tables du projet (les
+  huit tables du projet, la table révisionnée partitionnée, la fonction
+  `create_project_partitions(project_id)` du propriétaire avec `EXECUTE` au rôle du service, les
+  déclencheurs, les droits et `SERVICE_RIGHTS`) ; les actions d'audit, qui étend la contrainte
+  `action_known` du journal à `project_create` et `revision_abandon`, comme `0011` l'a fait — le
+  contrat figé 1.0.0 les porte (#1577 pris). Aucune autre migration de données.
 - **La partition** : `create_project_partitions` crée `cost_structure_p_<uuid sans tirets>`
   `FOR VALUES IN (project_id)` ; chaque EPIC qui ajoute une table révisionnée la remplace
   (`CREATE OR REPLACE`) pour y ajouter la sienne, et sa migration crée les partitions des projets
@@ -532,12 +586,15 @@ textes triés en collation `C`, cherchés par `contains` ; règles SQL du guide 
 
 ### Le harnais
 
-- La fixture `frontend/e2e/mode.ts` et le projet `shared` d'EP-05 s'étendent : `SHARED_PATHS`
-  reçoit `project-start.spec.ts`, `projects.spec.ts`, `revisions.spec.ts`,
-  `revision-cycle.spec.ts`, `context.spec.ts`, chaque fichier par l'US dont l'écran est le
-  dernier qu'il lit (décision du 2026-11-05) ; le compte de la course en mode service porte
-  « chef de projet » et « manager » et est inscrit chef de projet des projets du témoin par
-  `setContributors` au début de la course.
+- La fixture `frontend/e2e/mode.ts` et le projet `shared` d'EP-05 s'étendent : le projet `shared`
+  sélectionne les tests dont le titre porte l'étiquette `@shared`, sans liste de fichiers (décision
+  de l'auteur du 2026-11-05, au plan de lots d'EP-05, qui remplace la liste `SHARED_PATHS` d'abord
+  prévue) ; chaque US étiquette ses tests quand son écran est servi — US-0960 ceux de
+  `revisions.spec.ts`, US-0970 ceux de `revision-cycle.spec.ts`, US-1000 ceux de
+  `project-start.spec.ts`, `projects.spec.ts` et `context.spec.ts`, US-0920/L2 l'accueil connecté,
+  US-0990/L2 le cycle complet —, le reste gardé par `inService` ; le compte de la course en mode
+  service porte « chef de projet » et « manager » et est inscrit chef de projet des projets du
+  témoin par `setContributors` au début de la course, ce qu'US-0970 écrit (décision du 2026-11-05).
 - Ce qui ne se rejoue pas avant EP-07 — PRJ-001 En cours, sa référence, ses structures au-delà de
   la principale, ses tâches et ses lignes — est marqué dans les parcours par `inService` et
   listé dans le guide, chaque entrée nommant l'EPIC qui la lève ; EP-06 et EP-07 retirent leurs
@@ -562,24 +619,30 @@ textes triés en collation `C`, cherchés par `contains` ; règles SQL du guide 
 
 ### L'ordre de construction
 
-Cinq vagues pour quatre créneaux (décision du 2026-11-05), la première dès `US-0810/L1` d'EP-05 ;
-le plan de lots marque « Pas avec » les lots d'une même vague qui écrivent un même fichier —
-`SHARED_PATHS`, le guide, `app.py` si un routeur manquait.
+Cinq vagues pour quatre créneaux (décision du 2026-11-05), la première dès `US-0810/L1` d'EP-05
+(#2045) ; quatorze lots, aucun « Pas avec » (plan de lots du 2026-11-05, ci-dessus : le projet
+`shared` sélectionne par l'étiquette `@shared`, les lots qui écrivent le guide sont chaînés, et le
+socle déclare ce que les lots d'une même vague auraient écrit en commun).
 
 1. **US-0910/L1** : les tables, la partition et sa fonction, les modules à vide et leurs
-   interfaces en paquet, les routeurs vides, les fichiers de tests ; les parcours du service
-   existants passent toujours. **US-0990/L1** en parallèle : la chronologie exportée par
-   `wftools`.
-2. **US-0910/L2** : l'évaluation à deux termes. Puis **US-0920**, après elle et après
-   `US-0810/L2` d'EP-05 : le projet, la liste, l'accueil, le journal.
-3. **US-0930, US-0940, US-0950, US-0960** en parallèle sous US-0920 : contributeurs,
-   sous-projets, lotissement, la révision en cours avec sa copie, son abandon et son historique.
-4. **US-0970** (le marquage par le worker et l'immuabilité, après US-0960) et **US-0980/L1** (le
-   cycle sans la référence, après US-0920 et US-0960) en parallèle, avec ce qui reste de la
-   vague 3.
-5. **US-0980/L2** (la référence et le passage En cours, après US-0970), **US-0990/L2** (la tranche
-   du témoin chargée et les parcours rejoués, après tout le back et US-0890 d'EP-05) et
-   **US-1000** (les paramètres du projet, les deux utilisateurs) en parallèle.
+   interfaces en paquet, les routeurs vides, les fichiers de tranche du chargeur, les fichiers de
+   tests ; les parcours du service existants passent toujours. **US-0990/L1** en parallèle : la
+   chronologie exportée par `wftools`. Largeur 2.
+2. **US-0910/L2** : l'évaluation à deux termes. Puis **US-0920/L1**, après elle et après
+   `US-0810/L2` d'EP-05 (#2046) : le projet servi par le back — création, lecture, liste,
+   modification, la tranche du témoin. Largeur 1, deux pas.
+3. **US-0960, US-0930, US-0940, US-0950, US-0920/L2** en parallèle sous US-0920/L1 : la révision
+   en cours avec sa copie, son abandon et son historique — en premier, sur le chemin critique — ;
+   contributeurs ; sous-projets ; lotissement ; l'accueil et le journal. Cinq lots, largeur 4, le
+   cinquième au premier créneau libéré.
+4. **US-0970** (le marquage par le worker et l'immuabilité, après US-0960 et US-0930) et
+   **US-0980/L1** (le cycle sans la référence, après US-0920/L1 et US-0960) en parallèle, avec ce
+   qui reste de la vague 3. Largeur 2.
+5. **US-0980/L2** (la référence et le passage En cours, après US-0970 et US-0980/L1) et **US-1000**
+   (les paramètres du projet, les trois parcours, les deux utilisateurs, après toutes les US qui
+   servent un écran) en parallèle, largeur 2 ; puis **US-0990/L2** seul (la tranche du témoin
+   chargée aux instants de sa chronologie et les parcours rejoués, après US-0980/L2, US-1000 et
+   US-0890 d'EP-05, #2043), la vérification d'ensemble.
 
 ---
 
@@ -589,7 +652,7 @@ le plan de lots marque « Pas avec » les lots d'une même vague qui écrivent u
 - **exigences** : `WF-ADM-0110-A`, `WF-DAT-0060-A`, `WF-DAT-0050-A`, `WF-ARC-0070-A`
 - **opérations** : aucune en propre ; l'évaluation que toutes les opérations du projet
   partagent
-- **issue** :
+- **issue** : 2052
 
 **En tant que** développeur, **je veux** que les tables du projet et du révisionné existent,
 partitionnées par projet, dans deux modules du noyau, et que la consultation d'un projet se
@@ -670,7 +733,7 @@ migrations »).
   `WF-PRJ-0090-A`, `WF-IHM-0120-A`, `WF-CYC-0010-A`
 - **opérations** : `listProjects`, `createProject`, `getProject`, `updateProject`,
   `getReferenceReadiness` ; `listAuditFacets` (#927)
-- **issue** :
+- **issue** : 2055
 
 **En tant que** chef de projet, **je veux** créer un projet dès que le référentiel le permet, le
 nommer, lui donner son client, son code, sa commande, sa probabilité de gain et son taux
@@ -763,7 +826,10 @@ attendre l'administrateur.
   (#962) ; `load-witness` charge les comptes locaux des contributeurs, PRJ-001 et PRJ-002 avec leur
   client (décision du 2026-11-05).
 
-**Notes de réalisation.** Les écrans sont ceux d'EP-02/L44a (#583) et d'EP-16/US-0610 (le
+**Notes de réalisation.** L'US se livre en deux lots (décision de l'auteur du 2026-11-05, au plan
+de lots) : `L1`, le projet servi par le back — création, lecture, liste, modification, la tranche du
+témoin —, dont dépendent les lots de la vague 3 ; `L2`, l'accueil et le journal branchés sur le
+service (#927, #962, #1004). Les écrans sont ceux d'EP-02/L44a (#583) et d'EP-16/US-0610 (le
 client) ; cette US sert ce que #513 et #524 laissaient à EP-04. La liste des projets filtrée par
 défaut (#1401) est d'EP-16. Le refus `REFERENCE_INCOMPLETE` lit les quatre questions de l'interface
 d'EP-05 dans la transaction de la création, sous le verrou du référentiel minimal, pour qu'une
@@ -779,7 +845,7 @@ désactivation concurrente ne laisse pas naître un projet sans rôle.
 - **statut** : à faire
 - **exigences** : `WF-PRJ-0060-A`, `WF-ADM-0070-A`
 - **opérations** : `listContributors`, `setContributors`, `listContributorSuggestions`
-- **issue** :
+- **issue** : 2058
 
 **En tant que** chef de projet, **je veux** inscrire les contributeurs de mon projet, en faire
 des chefs de projet ou de simples participants, et les retirer, **afin que** chacun consulte et
@@ -848,7 +914,7 @@ la liste ne le retire pas, elle le signale. L'écran est celui d'EP-02/L44b (#58
 - **statut** : à faire
 - **exigences** : `WF-PRJ-0050-A`, `WF-DAT-0080-A`
 - **opérations** : `listSubprojects`, `createSubproject`, `updateSubproject`, `deleteSubproject`
-- **issue** :
+- **issue** : 2059
 
 **En tant que** chef de projet, **je veux** déclarer les sous-projets de mon projet sous le code
 que l'ERP leur donne, et supprimer ceux que rien ne retient, **afin que** les coûts réels et le
@@ -916,7 +982,7 @@ questions de l'interface qu'EP-07 et EP-09 rempliront, toujours vraies ici. La s
 - **statut** : à faire
 - **exigences** : `WF-PRJ-0020-A`
 - **opérations** : `getWorkBreakdown`, `setWorkBreakdown`
-- **issue** :
+- **issue** : 2060
 
 **En tant que** chef de projet, **je veux** décrire le lotissement de mon projet — lots, postes,
 livrables — et le corriger, **afin que** le planning s'y rattache et que le devis se lise par
@@ -959,7 +1025,7 @@ d'EP-06, rendu nul. L'écran est celui d'EP-02/L44c (#585) et d'EP-14/L44c.
   `WF-DAT-0010-A`, `WF-REV-0030-A`
 - **opérations** : `listRevisions`, `createRevision`, `getRevision`, `abandonRevision`,
   `listCostStructures`
-- **issue** :
+- **issue** : 2061
 
 **En tant que** chef de projet, **je veux** ouvrir la révision en cours de mon projet, l'abandonner
 si elle ne vaut rien, et relire l'historique de ses révisions marquées, **afin que** chaque
@@ -1029,8 +1095,9 @@ version du projet soit une révision, et une seule à la fois.
   parcours de l'historique et de l'abandon (`revisions.spec.ts`, `revision-cycle.spec.ts` pour sa
   part) jouent contre le service ;
 - propre à l'US : `load-witness` ouvre les révisions du témoin à leur instant et les abandons de
-  sa chronologie ; les écrans des révisions ne portent plus `MockupNotice`, et `revisions.spec.ts`
-  rejoint `SHARED_PATHS` (décision du 2026-11-05).
+  sa chronologie ; les écrans des révisions ne portent plus `MockupNotice`, et les tests de
+  `revisions.spec.ts` portent l'étiquette `@shared` pour ce qu'ils lisent contre le service, le
+  reste gardé par `inService` (décisions de l'auteur du 2026-11-05).
 
 **Notes de réalisation.** `revision` porte `project_id` (clé de partition), `status`,
 `version_name`, `description`, `marked_at`, `reference_year`, `is_reference`, `lineage_id`,
@@ -1050,7 +1117,7 @@ transaction de la création, qu'EP-06 (tâches, liaisons), EP-07 (lignes, images
 - **exigences** : `WF-REV-0020-A`, `WF-DAT-0020-A`, `WF-DAT-0040-A`, `WF-DAT-0030-A`,
   `WF-IHM-0080-A`, `WF-ADM-0060-A`, `WF-ADM-0160-A`
 - **opérations** : `markRevision` ; `getBackgroundTask`, `listBackgroundTasks`
-- **issue** :
+- **issue** : 2062
 
 **En tant que** chef de projet, **je veux** marquer la révision en cours sous un nom de version,
 dans une tâche de fond qui me laisse l'écran, et savoir qu'une révision marquée ne changera plus,
@@ -1143,8 +1210,10 @@ quel que soit le chemin, **afin que** l'histoire du projet soit sûre.
 - propre à l'US : chaque réponse est validée contre le contrat dans les tests du service, et le
   parcours du marquage (`revision-cycle.spec.ts`, sa part) joue contre le service ;
 - propre à l'US : `load-witness` marque « v1.0 » et « Référence » aux instants du témoin, par la
-  même transaction que le worker ; `revision-cycle.spec.ts` rejoint `SHARED_PATHS` pour ce qu'il
-  lit sans référence (décision du 2026-11-05).
+  même transaction que le worker ; les tests de `revision-cycle.spec.ts` portent l'étiquette
+  `@shared` pour ce qu'ils lisent sans référence, et `mode.ts` inscrit le compte de la course chef
+  de projet des projets du témoin par `setContributors` au début de la course en mode service, d'où
+  la dépendance à US-0930 (décisions de l'auteur du 2026-11-05).
 
 **Notes de réalisation.** Le marquage est le premier traitement du métier confié au worker
 (EP-03, « Worker, file et planification ») : un gestionnaire `revision_mark` enregistré dans
@@ -1164,7 +1233,7 @@ révision par sa clé, dans le même module.
   `WF-REV-0040-A`
 - **opérations** : `designateReferenceRevision`, `getProjectNextState`, `exitProject`,
   `listProjectStateTransitions`
-- **issue** :
+- **issue** : 2063
 
 **En tant que** chef de projet, **je veux** que mon projet avance de lui-même de Créé à Chiffrage
 puis à En cours quand ses faits sont là, savoir ce qui lui manque, le sortir du cycle en le
@@ -1274,7 +1343,7 @@ réels (EP-09).
 - **statut** : à faire
 - **exigences** : `WF-QUA-0040-A`
 - **opérations** : aucune en propre ; le chargement passe par les interfaces du noyau
-- **issue** :
+- **issue** : 2067
 
 **En tant que** développeur, **je veux** charger sur une plateforme qui porte le référentiel du
 témoin ses projets, leurs révisions, leurs contributeurs, leurs sous-projets et leur lotissement,
@@ -1322,7 +1391,9 @@ back, **afin que** les tests déjà écrits prouvent le service (#1402, #1350).
 
 **Notes de réalisation.** L'US se livre en deux lots (décision de l'auteur du 2026-11-05) : `L1`,
 d'outil, l'exportation de la chronologie par `make mock-data` et ses tests, dès la première
-vague ; `L2`, la commande qui la lit, dont chaque US a écrit la tranche, et les parcours rejoués.
+vague ; `L2`, la commande qui la lit, dont chaque US a écrit la tranche, et les parcours rejoués —
+dernier lot de l'EPIC, après US-0980/L2, US-1000 et US-0890 d'EP-05 (#2043), la vérification
+d'ensemble (plan de lots du 2026-11-05).
 La chronologie du témoin vit dans `wftools.mockwitness` (`CHRONOLOGY`) :
 `make mock-data` l'écrit dans un fichier de la tranche que la commande lit, sans que le back
 importe `wftools`. Le chargeur écrit chaque événement à son instant par `Act.at` ; l'auteur est
@@ -1340,7 +1411,7 @@ les trois cents projets (EP-13).
 - **statut** : à faire
 - **exigences** : `WF-ADM-0040-A`
 - **opérations** : toutes celles de l'EPIC, lues par les écrans du projet
-- **issue** :
+- **issue** : 2066
 
 **En tant que** chef de projet, **je veux** que l'accueil, l'écran du projet, ses paramètres, son
 cycle de vie, ses révisions, ses contributeurs et ses sous-projets travaillent contre le service,
@@ -1357,8 +1428,10 @@ chacun avec mes réglages, **afin de** mener un projet sans faux back.
 - propre à l'US : les paramètres du projet ne portent plus `MockupNotice`, l'accueil et les
   révisions l'ayant perdu par US-0920, US-0960 et US-0970 (décision du 2026-11-05), et aucun
   composant du projet ne le nomme plus ; un succès est ce que le service a gardé, relu ;
-- propre à l'US : `project-start.spec.ts`, `projects.spec.ts` et `context.spec.ts` sont dans
-  `SHARED_PATHS`, et le projet `shared` joue tous les parcours du projet ;
+- propre à l'US : les tests de `project-start.spec.ts`, `projects.spec.ts` et `context.spec.ts`
+  portent l'étiquette `@shared` pour ce qu'un projet en chiffrage et des révisions vides laissent
+  lire (décision de l'auteur du 2026-11-05), et le projet `shared` joue tous les parcours du
+  projet ;
 - propre à l'US : les aides des écrans du projet (`frontend/help/fr/FBS-4*.md`, le projet et les
   révisions) disent ce que le service fait, là où elles disaient ce que le faux back
   n'appliquait pas.

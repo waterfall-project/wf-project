@@ -1,10 +1,10 @@
 ---
 id: EP-05
 titre: Décrire l'entreprise que les projets emploient : organisation, ressources, calendriers, coûts
-statut: prêt
+statut: en cours
 depend_de: EP-16, EP-18, EP-19, EP-20
 famille: front, back
-issue:
+issue: 2032
 ---
 
 # EP-05 — Référentiel de l'entreprise
@@ -228,9 +228,10 @@ dépendances monte (décision de l'auteur du 2026-11-03).
 - les exemples chiffrés des Vérif du §3.4.4 sont des tests qui passent (WF-QUA-0020) ;
 - la tranche du référentiel de l'univers témoin se charge sur une plateforme neuve par la commande
   du back, avec les identifiants du témoin, et deux chargements donnent les mêmes identifiants ;
-- les parcours du référentiel (`frontend/e2e/reference.spec.ts` et les lectures du référentiel des
-  autres fichiers) passent sans réécriture de leurs attendus de lecture contre le service, le
-  témoin chargé, dans `make e2e-service`, comme contre le faux back dans `make e2e` ;
+- les parcours du référentiel (`frontend/e2e/reference-*.spec.ts`, scindés par écran, et les
+  lectures du référentiel des autres fichiers, leurs tests étiquetés `@shared`) passent sans
+  réécriture de leurs attendus de lecture contre le service, le témoin chargé, dans
+  `make e2e-service`, comme contre le faux back dans `make e2e` ;
 - les cinq écrans du référentiel ne portent plus l'avis de la maquette ;
 - `make check` passe sur la branche de l'EPIC, les tests du back citent leurs exigences, et aucun
   fichier de `docs/api` ne change hors d'une « Interface contract issue » tranchée.
@@ -242,7 +243,8 @@ EP-05 est le premier EPIC de domaine du back : il crée les tables du régime «
 l'amorçage, écrit la commande qui charge le témoin, et branche sur le service des écrans déjà
 écrits. Il **ne modifie pas le contrat**, figé en 1.0.0 : un manque que le service ou le
 branchement révèle devient une « Interface contract issue » que l'auteur tranche. Ce qui suit fixe
-ce que chaque lot devrait sinon décider seul. Validée par l'auteur le 2026-10-28.
+ce que chaque lot devrait sinon décider seul. Validée par l'auteur le 2026-10-28 ; le plan de lots,
+le 2026-11-05 (#2032).
 
 ### Ce que le cadrage décide
 
@@ -321,14 +323,49 @@ seule large ; les décisions qui suivent le ramènent à quatre.
   objets, dans l'ordre des dépendances ; retire `MockupNotice` de l'écran qu'elle sert le dernier
   — `/reference/risks` et `/reference/indicators` par US-0810/L2, `/reference/costs` par US-0830,
   `/reference/resources` par US-0850, `/reference/costs/actual-cost-mapping` par US-0870 — et
-  réécrit l'aide de son bloc ; un parcours rejoint `SHARED_PATHS` dès que son fichier ne lit plus
-  que des écrans servis, `reference.spec.ts`, qui traverse les cinq, avec la dernière US d'objet.
-  US-0890 devient la vérification d'ensemble du témoin, US-0900 le parcours du manager et le rôle
-  sur mesure. Écarté : le témoin et les écrans en queue, trois US seules à la suite ; la « tranche
-  verticale » du README ne se tenait pas.
+  réécrit l'aide de son bloc ; un test porte l'étiquette `@shared` dès que son écran est servi (le
+  plan de lots, ci-dessous, a remplacé par cette étiquette la liste `SHARED_PATHS` d'abord prévue,
+  que le dernier des lots d'une vague aurait dû tenir). US-0890 devient la vérification d'ensemble
+  du témoin, US-0900 le parcours du manager et le rôle sur mesure. Écarté : le témoin et les écrans
+  en queue, trois US seules à la suite ; la « tranche verticale » du README ne se tenait pas.
 - **`epic/EP-04` se tire d'`epic/EP-05` dès que `US-0810/L1` est fusionnée**, et non de `main`
   à la livraison d'EP-05 (EP-04, « Préalables » ; README, « Branches »). Écarté : les deux EPIC
   en série, qui laissaient trois créneaux dormir deux semaines.
+
+Décisions de l'auteur du 2026-11-05, au plan de lots (#2032), sur les questions que le plan a
+levées :
+
+- **US-0810/L2 vient après US-0820 et US-0860**, en vague 3 avec US-0830 et US-0850, et US-0870
+  monte en vague 2 : l'amorçage de L2 crée un calendrier, une nature, une catégorie et les unités
+  par les interfaces que ces deux US écrivent, et sa tranche du témoin charge `duration_units.json`
+  par `set_duration_units` d'US-0860. EP-04/US-0920 attend L2 une vague de plus. Écartés : des
+  fonctions d'amorçage propres à chaque module, qui écriraient sur les tables sans passer par
+  `create_*` — un second chemin d'écriture — ; un troisième lot d'US-0810 pour la seule part de
+  l'amorçage qui en dépend.
+- **Le service `witness` du Compose de service, `make service-witness`, son appel dans
+  `make e2e-service` et `fixtures/**` dans `tools/paths.toml` sont d'US-0810/L1**, non d'US-0890 :
+  sans eux dès le socle, aucune US d'objet ne peut jouer sa tranche contre le service, ce que les
+  critères d'US-0830 et d'US-0850 demandent. US-0890 constate l'ensemble.
+- **`reference.spec.ts` est scindé par écran par US-0810/L1**, en un déplacement pur —
+  `reference-costs.spec.ts`, `reference-resources.spec.ts`, `reference-settings.spec.ts` (risques et
+  indicateurs) —, et **le projet `shared` sélectionne par une étiquette `@shared` dans le titre des
+  tests**, comme `@realm-wide`, et non par une liste `SHARED_PATHS` : chaque US étiquette ses tests
+  quand son écran est servi, aucun fichier de configuration n'est partagé, et les trois lots de la
+  vague 3 n'écrivent plus un même fichier de parcours. Écarté : la liste et le fichier unique, qui
+  mettaient L2, US-0830 et US-0850 « pas avec » deux à deux — la vague 3 se livrait en série.
+- **Les trois lots de la vague 3 écrivent des sections distinctes du guide** (« Commandes » et les
+  paramètres des risques et des indicateurs ; les paramètres de coûts ; les paramètres de
+  ressources), qui fusionnent sans conflit : pas de « Pas avec » pour le guide.
+- **US-0870 écrit le parcours de sa page**, `reference-actual-cost-mapping.spec.ts` : aucun
+  n'existait, seul un test DOM.
+- **Le dépassement d'US-0810/L1 est accepté** (≈ 1 600 lignes, ≈ 1 000 de production) et se
+  signale sur sa pull request ; pas de L1b, qui aurait coûté une vague à EP-04 pour rien.
+- **Les migrations prennent les prochains numéros libres à la création d'`epic/EP-05`** :
+  la conception les nommait `0015` et `0016`, que `main` a pris depuis (`0017_file_upload`).
+- **`navigation.spec.ts` est d'US-0890**, ses ouvertures de `/` et du portefeuille, que le service
+  ne sert pas, gardées par `inService` et notées non rejouées dans le guide.
+- **Modèles** : `opus` pour US-0810/L1 (interface partagée), US-0810/L2 (sécurité) et US-0850
+  (interface partagée) ; `sonnet` pour les huit autres, l'escalade restant au livreur.
 
 ### Tables et migrations
 
@@ -354,10 +391,12 @@ codes et les libellés sont bornés comme le contrat les borne (20 et 200), jama
 | `actual_cost_mapping_label` | un intitulé de la correspondance : `kind` (`read`, `kept`), `column` (une valeur d'`ActualCostSourceColumn`, nulle pour une colonne conservée), `position`, `label`, `folded` (l'intitulé sans casse, sans accents, sans espaces en bout) | `folded` unique sur toute la table — la règle des doublons de WF-REF-0190 — ; `column` non nul si `kind = read` et nul sinon ; `label` de 1 à 200, non blanc ; au plus 20 par colonne lue et 50 conservées, tenus par le service |
 | `user_account` | `org_node_id` ajouté | clé vers `org_node` en refus, nulle sans rattachement (WF-DAT-0090 ; EP-03, « Tables et migrations ») |
 
-- **Deux migrations** : `0015_reference_tables`, les dix tables et les droits du rôle du service
-  (`SELECT`, `INSERT`, `UPDATE` ; jamais `DELETE`, sauf sur `actual_cost_mapping_label`, que
-  l'écriture entière de la correspondance remplace ligne à ligne — une table qui ne porte qu'un
-  intitulé, comme une association) ; `0016_user_account_org_node`, la colonne et sa clé.
+- **Deux migrations**, aux prochains numéros libres à la création d'`epic/EP-05` — `main` en est
+  à `0017_file_upload` (décision de l'auteur du 2026-11-05) — : la première, les dix tables et les
+  droits du rôle du service (`SELECT`, `INSERT`, `UPDATE` ; jamais `DELETE`, sauf sur
+  `actual_cost_mapping_label`, que l'écriture entière de la correspondance remplace ligne à ligne —
+  une table qui ne porte qu'un intitulé, comme une association) ; la seconde, la colonne
+  `user_account.org_node_id` et sa clé.
   Aucune migration de données : les permissions du référentiel sont au catalogue depuis EP-03,
   et les lignes uniques sont écrites par l'amorçage, jamais par une migration (guide,
   « Migrations »).
@@ -474,8 +513,11 @@ fixent au lot, dans les deux langues, à côté des libellés des rôles prédé
 - **Dans le Compose de service**, un service `witness` sur le modèle d'`install` (profil
   `witness`, le répertoire `../../fixtures/api` monté en lecture seule), `make service-witness`
   pour la main, et `make e2e-service` le lance après `install` ; le Compose de production ne
-  l'offre pas : une installation réelle ne porte pas le témoin.
-- **Dans la chaîne**, la famille `service` lit `fixtures/**` en plus (`tools/paths.toml`).
+  l'offre pas : une installation réelle ne porte pas le témoin. Tout cela naît avec US-0810/L1,
+  pour que chaque US d'objet joue sa tranche contre le service (décision de l'auteur du
+  2026-11-05).
+- **Dans la chaîne**, les familles `service` et `back` lisent `fixtures/**` en plus
+  (`tools/paths.toml`, US-0810/L1).
 - Ce que le guide écrit : la commande, ses variables, ce qu'elle charge et dans quel ordre, et
   que `fixtures/api/` et Prism restent les exemples du contrat et le faux back des écrans que le
   service ne sert pas.
@@ -508,10 +550,15 @@ fixent au lot, dans les deux langues, à côté des libellés des rôles prédé
   compte de la course qui porte « manager », créé par l'administrateur de l'installation
   (`accountAdministrator`), un par worker, et `heldToTheContract()` s'applique. Les parcours
   partagés importent `test` de `./mode` et non de `@playwright/test`.
-- **Un projet Playwright `shared`** en mode service, après `installation` : `testMatch` sur la
-  liste des parcours partagés (`SHARED_PATHS` : `reference.spec.ts`, `admin.spec.ts`,
-  `navigation.spec.ts`), que le projet `chromium` continue de jouer contre le faux back ; la
-  liste grandit avec chaque US qui branche un écran, puis avec chaque EPIC.
+- **Un projet Playwright `shared`** en mode service, après `installation` : il sélectionne, dans
+  tous les fichiers d'`e2e/`, les tests dont le titre porte l'étiquette `@shared` (`grep`, comme
+  `@realm-wide`), que le projet `chromium` continue de jouer contre le faux back ; aucune liste de
+  fichiers (décision de l'auteur du 2026-11-05, qui remplace `SHARED_PATHS`). Chaque US étiquette
+  ses tests quand son écran est servi — US-0810/L2 ceux de `reference-settings.spec.ts`, US-0830
+  ceux de `reference-costs.spec.ts`, US-0850 ceux de `reference-resources.spec.ts`, US-0870 ceux de
+  `reference-actual-cost-mapping.spec.ts`, qu'elle écrit, US-0840 les lectures du référentiel
+  d'`admin.spec.ts`, US-0890 celles de `navigation.spec.ts` —, puis chaque EPIC les siens.
+  US-0810/L1 scinde `reference.spec.ts` en ces trois fichiers par écran, en un déplacement pur.
 - **Les assertions d'écriture** : le taux saisi est affirmé par `inService` ; contre le faux
   back, la cellule répondue, non occupée et le focus passé. Les lectures sont inchangées : le
   témoin chargé rend les mêmes libellés, codes, comptes et ordres que les exemples.
@@ -536,24 +583,30 @@ fixent au lot, dans les deux langues, à côté des libellés des rôles prédé
 
 ### L'ordre de construction
 
-Quatre vagues pour quatre créneaux (décision du 2026-11-05) ; le plan de lots marque « Pas avec »
-les lots d'une même vague qui écrivent un même fichier — `SHARED_PATHS`, le guide, le Compose de
-service.
+Quatre vagues pour quatre créneaux (décision du 2026-11-05, revue au plan de lots le même jour) ;
+le plan de lots marque « Pas avec » les lots d'une même vague qui écrivent un même fichier — il
+n'en reste aucun : la vague 2 n'a aucun fichier partagé, la vague 3 n'a plus ni liste de parcours
+ni fichier de parcours commun, et ses trois lots écrivent des sections distinctes du guide.
+Chaque lot n'écrit que ses fichiers : ni `conftest.py`, ni `support.py`, ni `api/queries.py`, ni
+l'ordonnanceur du témoin hors de son propre fichier ; ce qu'il lui manque vit dans son fichier.
 
 1. **US-0810/L1**, seule : les tables et les migrations, les quatre modules à vide et leurs
-   interfaces en paquet, les routeurs vides, les fichiers de tests, `load-witness` sans tranche,
-   `mode.ts` et le projet `shared` vides ; les parcours du service existants passent toujours.
-   `epic/EP-04` se tire d'ici.
-2. **US-0810/L2, US-0820, US-0860, US-0840** en parallèle : les paramètres communs, le
-   référentiel minimal et l'amorçage ; les natures et catégories ; les calendriers et unités ;
-   l'arbre — ce dont un rôle a besoin. **US-0870**, la correspondance, prend le premier créneau
-   libéré : elle ne dépend que de `L1`.
-3. **US-0830** (les taux, après US-0820) et **US-0850** (les rôles et la cascade, après US-0820,
-   US-0840 et US-0860) en parallèle, avec ce qui reste de la vague 2.
-4. **US-0890, US-0880, US-0900** en parallèle, chacune après les US d'objets qu'elle vérifie :
-   le témoin entier, chargé par le service `witness` et comparé aux exemples ; la désactivation
-   transverse, jouée contre le service par la fixture de `L1` (décision de l'auteur du
-   2026-10-28, maintenue : après US-0850) ; le parcours du manager et le rôle sur mesure.
+   interfaces en paquet, les routeurs vides, la dépendance commune d'`include_inactive`, les
+   fichiers de tests et les fixtures communes, `load-witness` sans tranche avec son ordonnanceur
+   et un fichier par objet à vide, le service `witness` du Compose, `mode.ts`, le projet `shared`
+   et les parcours du référentiel scindés par écran ; les parcours du service existants passent
+   toujours. `epic/EP-04` se tire d'ici.
+2. **US-0820, US-0860, US-0840, US-0870** en parallèle : les natures et catégories ; les
+   calendriers et unités ; l'arbre et le rattachement d'un compte ; la correspondance — tout ce
+   qui ne dépend que de `L1`.
+3. **US-0810/L2** (les paramètres communs, le référentiel minimal et l'amorçage, après US-0820
+   et US-0860), **US-0830** (les taux, après US-0820) et **US-0850** (les rôles et la cascade,
+   après US-0820, US-0840 et US-0860) en parallèle.
+4. **US-0880, US-0890, US-0900** en parallèle, chacune après `L2`, US-0830, US-0850 et US-0870,
+   les cinq écrans servis : la désactivation transverse, jouée contre le service par la fixture
+   de `L1` (décision de l'auteur du 2026-10-28, maintenue : après US-0850) ; le témoin entier,
+   chargé par le service `witness` et comparé aux exemples ; le parcours du manager et le rôle
+   sur mesure.
 
 ---
 
@@ -563,8 +616,7 @@ service.
 - **exigences** : `WF-EXP-0020-A`, `WF-CYC-0120-A`, `WF-REF-0140-A`, `WF-REF-0160-A`,
   `WF-REF-0170-A`, `WF-REF-0180-A`
 - **opérations** : `getReferenceReadiness`, `getReferenceSettings`, `updateReferenceSettings`
-- **issue** :
-
+- **issue** : 2035
 **En tant que** manager, **je veux** qu'une installation neuve porte dès son amorçage le
 calendrier par défaut, la nature et la catégorie de provision, la devise, le nom de l'entreprise
 et les réglages livrés, et régler ensuite la matrice de risques, les seuils d'alerte, le délai
@@ -661,8 +713,9 @@ référentiel existe avant tout projet et dise ce qui lui manque encore.
   tests du service, et la route de chacune déclare ses permissions (`test_access_evaluation.py`) ;
 - propre à l'US (`L1`) : un routeur vide par US d'objet est enregistré dans `app.py`, l'interface
   de chaque module est un paquet d'un fichier par objet, `waterfall-api load-witness` existe et ne
-  charge rien, `frontend/e2e/mode.ts` exporte `test` et `inService` et le projet `shared` existe
-  sans parcours ; `make check` passe sur ce socle ;
+  charge rien, `frontend/e2e/mode.ts` exporte `test` et `inService`, le projet `shared` existe
+  sans test étiqueté `@shared`, et les parcours du référentiel sont scindés par écran ;
+  `make check` passe sur ce socle ;
 - propre à l'US (`L2`) : `load-witness` charge les réglages et les unités du témoin
   (`reference_settings.json`, `duration_units.json`) ; `/reference/risks` et
   `/reference/indicators` ne portent plus `MockupNotice`, et les aides FBS-3.3 et FBS-3.4 disent
@@ -670,7 +723,9 @@ référentiel existe avant tout projet et dise ce qui lui manque encore.
 
 **Notes de réalisation.** L'US se livre en deux lots (décision de l'auteur du 2026-11-05) : `L1`,
 le socle que toutes les autres US attendent et dont `epic/EP-04` se tire ; `L2`, les paramètres
-communs, le référentiel minimal et l'amorçage, en parallèle des US d'objets. L'amorçage ajoute à
+communs, le référentiel minimal et l'amorçage, après US-0820 et US-0860, dont son amorçage et sa
+tranche du témoin emploient les interfaces, en parallèle d'US-0830 et d'US-0850 (décision de
+l'auteur du 2026-11-05, au plan de lots). L'amorçage ajoute à
 l'étape 3 de `waterfall-api install` (EP-03,
 « Amorçage ») ce que WF-EXP-0020 lui demande du référentiel ; `WATERFALL_CURRENCY` (trois lettres
 majuscules) et `WATERFALL_COMPANY_NAME` (1 à 200 caractères, jamais blanc) sont exigées à
@@ -690,8 +745,7 @@ indices (EP-10) ; la santé du pilotage (EP-11).
 - **exigences** : `WF-REF-0030-A`, `WF-REF-0040-A`
 - **opérations** : `listCostTypes`, `createCostType`, `updateCostType`, `setCostTypeActivation`,
   `listCostCategories`, `createCostCategory`, `updateCostCategory`, `setCostCategoryActivation`
-- **issue** :
-
+- **issue** : 2036
 **En tant que** manager, **je veux** décrire les natures de coût et leurs catégories, avec leurs
 codes, et changer le type d'une nature ou la nature d'une catégorie tant que rien ne s'y oppose,
 **afin que** chaque dépense d'un devis se ventile et se nomme comme la comptabilité la reconnaît.
@@ -769,8 +823,7 @@ employée, toujours fausse ici, qu'EP-07 remplit) et ne manquent jamais.
 - **statut** : à faire
 - **exigences** : `WF-REF-0050-A`, `WF-REF-0060-A`
 - **opérations** : `getHourlyRateGrid`, `listHourlyRates`, `setHourlyRate`
-- **issue** :
-
+- **issue** : 2040
 **En tant que** manager, **je veux** saisir, année par année, le taux horaire de chaque catégorie
 de main-d'œuvre, et ouvrir la colonne d'une année nouvelle quand je connais ses taux, **afin que**
 tout chiffrage parte d'un taux constaté.
@@ -801,11 +854,12 @@ tout chiffrage parte d'un taux constaté.
   catégorie (`cost_category_unrated`) et `change_kind` de sa nature (`cost_type_unrated`), relus
   dans leurs listes ;
 - propre à l'US : chaque réponse est validée contre le contrat dans les tests du service, et le
-  parcours `reference.spec.ts` saisit un taux contre le service, qui répond ce qui a été saisi ;
+  parcours `reference-costs.spec.ts` saisit un taux contre le service, qui répond ce qui a été
+  saisi ;
 - propre à l'US : `load-witness` charge la grille des taux du témoin
   (`volume/hourly_rate_grid.json`) ; `/reference/costs` ne porte plus `MockupNotice`, l'aide
-  FBS-3.1 dit ce que le service fait, et son parcours rejoint `SHARED_PATHS` (décision du
-  2026-11-05).
+  FBS-3.1 dit ce que le service fait, et les tests de `reference-costs.spec.ts` portent
+  l'étiquette `@shared` (décisions du 2026-11-05).
 
 **Notes de réalisation.** `hourly_rate` est à la catégorie et à l'année, unique sur les deux
 (`numeric` pour le montant, jamais un flottant — règles SQL). La grille du témoin, cent cinquante
@@ -821,8 +875,7 @@ catégories sur quinze ans, est chargée par US-0890 : les tests de la grille se
 - **exigences** : `WF-REF-0070-A`, `WF-ADM-0030-A`
 - **opérations** : `listOrgNodes`, `createOrgNode`, `updateOrgNode`, `setOrgNodeActivation` ;
   `listUsers`, `getUser`, `updateUser`, `getMe` (le rattachement)
-- **issue** :
-
+- **issue** : 2038
 **En tant que** manager, **je veux** dessiner l'organigramme de l'entreprise sans limite de
 profondeur, déplacer un nœud avec tout ce qu'il porte, et, administrateur, rattacher un compte à un
 nœud, **afin de** classer les rôles par service et situer chaque personne, sans qu'un rattachement
@@ -884,8 +937,7 @@ agrégé (EP-11).
 - **exigences** : `WF-REF-0090-A`, `WF-REF-0100-A`, `WF-REF-0080-A`
 - **opérations** : `listResourceRoles`, `createResourceRole`, `updateResourceRole`,
   `setResourceRoleActivation` ; `setOrgNodeActivation` (la cascade)
-- **issue** :
-
+- **issue** : 2041
 **En tant que** manager, **je veux** décrire chaque poste par un rôle — son nœud, sa catégorie de
 main-d'œuvre, son calendrier, sa capacité — et fermer un service d'un geste, **afin que** le plan
 de charge confronte la charge des projets à ce que l'entreprise peut fournir.
@@ -929,8 +981,8 @@ de charge confronte la charge des projets à ce que l'entreprise peut fournir.
 - propre à l'US : chaque réponse est validée contre le contrat dans les tests du service ;
 - propre à l'US : `load-witness` charge les rôles du témoin, puis désactive ceux qu'il dit
   désactivés (`resource_roles.json`) ; `/reference/resources` ne porte plus `MockupNotice`, l'aide
-  FBS-3.2 dit ce que le service fait, et son parcours rejoint `SHARED_PATHS` (décision du
-  2026-11-05).
+  FBS-3.2 dit ce que le service fait, et les tests de `reference-resources.spec.ts` portent
+  l'étiquette `@shared` (décisions du 2026-11-05).
 
 **Notes de réalisation.** Le refus `TASK_WITHOUT_WORKING_HOURS` d'`updateResourceRole` — un
 calendrier qui laisserait une tâche sans heure (WF-PLA-0010) — est d'EP-06, qui a les tâches :
@@ -948,8 +1000,7 @@ désactivations croisées ne laissent pas un rôle actif sous un nœud fermé.
 - **exigences** : `WF-REF-0110-A`, `WF-REF-0120-A`, `WF-PLA-0160-A`
 - **opérations** : `listCalendars`, `createCalendar`, `updateCalendar`, `setDefaultCalendar`,
   `setCalendarActivation`, `getDurationUnits`, `setDurationUnits`
-- **issue** :
-
+- **issue** : 2037
 **En tant que** manager, **je veux** décrire le rythme de travail de chaque poste par sept
 nombres d'heures, désigner le calendrier qui vaut par défaut, et régler les constantes qui
 convertissent jours, semaines et mois en heures, **afin que** le planning sache quand on
@@ -1017,8 +1068,7 @@ choix de la conception, avec leur propre compteur (`DurationUnits.lock_version`)
 - **statut** : à faire
 - **exigences** : `WF-REF-0190-A`
 - **opérations** : `getActualCostMapping`, `setActualCostMapping`
-- **issue** :
-
+- **issue** : 2039
 **En tant que** manager, **je veux** déclarer sous quels intitulés l'extraction de l'ERP nomme
 les colonnes que l'import des coûts réels lit, et quelles colonnes il conserve, **afin que**
 l'import lise l'extraction telle qu'elle sort, sans qu'on renomme ses colonnes à chaque revue
@@ -1054,8 +1104,9 @@ l'import lise l'extraction telle qu'elle sort, sans qu'on renomme ses colonnes �
   page `/reference/costs/actual-cost-mapping` (EP-16/US-0620) joue contre le service ;
 - propre à l'US : `load-witness` charge la correspondance du témoin
   (`actual_cost_mapping.json`) ; `/reference/costs/actual-cost-mapping` ne porte plus
-  `MockupNotice`, son aide dit ce que le service fait, et son parcours rejoint `SHARED_PATHS`
-  (décision du 2026-11-05).
+  `MockupNotice`, son aide dit ce que le service fait, et son parcours,
+  `reference-actual-cost-mapping.spec.ts`, que l'US écrit — aucun n'existait, seul un test DOM —,
+  porte l'étiquette `@shared` (décisions du 2026-11-05).
 
 **Notes de réalisation.** La comparaison des intitulés se fait sur une forme repliée — minuscules,
 accents retirés (`unaccent`, que les règles SQL emploient déjà pour la recherche), espaces en bout
@@ -1072,8 +1123,7 @@ contrainte de la base et non un parcours. EP-09 lit l'extraction selon cette for
 - **exigences** : `WF-REF-0010-A`, `WF-REF-0150-A`, `WF-REF-0020-A`, `WF-REF-0130-A`
 - **opérations** : les opérations d'activation et les listes du référentiel, servies par
   US-0820 à US-0860
-- **issue** :
-
+- **issue** : 2042
 **En tant que** manager, **je veux** qu'aucun objet du référentiel ne se supprime, qu'un objet
 désactivé disparaisse des choix sans disparaître de ce qui l'emploie, et le retrouver pour le
 réactiver, **afin que** l'histoire des projets reste lisible et qu'une erreur se répare.
@@ -1119,7 +1169,8 @@ réactiver, **afin que** l'histoire des projets reste lisible et qu'une erreur s
   moment (WF-DAT-0070) ; aucune inscription au journal d'audit, que WF-SEC-0030 n'énumère pas pour
   le référentiel (« Conception ») ;
 - propre à l'US : les parcours de chaque écran du référentiel montrent, contre le service, les
-  désactivés par le filtre de l'écran et les réactivent (`reference.spec.ts`, en mode service).
+  désactivés par le filtre de l'écran et les réactivent (les parcours scindés par écran, étiquetés
+  `@shared`, en mode service).
 
 **Notes de réalisation.** L'US ferme ce que chaque US d'objet a amorcé : elle ne crée aucune
 opération, et ses tests parcourent les cinq listes avec les trois sessions — sans permission du
@@ -1135,8 +1186,7 @@ dans les grilles (EP-07).
 - **statut** : à faire
 - **exigences** : `WF-QUA-0040-A`
 - **opérations** : aucune en propre ; le chargement passe par les interfaces du noyau
-- **issue** :
-
+- **issue** : 2043
 **En tant que** développeur, **je veux** charger sur une plateforme neuve la tranche du
 référentiel de l'univers témoin, avec ses identifiants, par une commande du back, et rejouer
 contre le service les parcours écrits sur le faux back, **afin que** les tests déjà écrits
@@ -1170,9 +1220,11 @@ prouvent le service sans réécriture de leurs attendus (#1402).
   plateforme (WF-DAT-0070) —, non ceux du témoin (décision de l'auteur du 2026-10-28) ;
 - propre à l'US : `make e2e-service` charge le témoin après l'amorçage, par un service du Compose
   de service (`witness`, modèle d'`install`), et un `make service-witness` le fait à la main ;
-- propre à l'US : les parcours du référentiel — `reference.spec.ts`, et les lectures du
-  référentiel d'`admin.spec.ts` et de `navigation.spec.ts`, que les US d'objets ont mis dans
-  `SHARED_PATHS` — se jouent dans le projet `shared` de Playwright, le témoin chargé, sans
+- propre à l'US : les parcours du référentiel — les parcours scindés par écran, et les lectures du
+  référentiel d'`admin.spec.ts` (US-0840) et de `navigation.spec.ts` (cette US, ses ouvertures de
+  `/` et du portefeuille, que le service ne sert pas, gardées par `inService` et notées non
+  rejouées), que leurs US ont étiquetés `@shared` — se jouent dans le projet `shared` de
+  Playwright, le témoin chargé, sans
   réécriture de leurs attendus de lecture, par la fixture commune d'US-0810/L1 qui accorde
   la session sur le faux back et se connecte sur le service ; les assertions qui affirmaient la
   réponse du faux back à une écriture affirment ce qui a été écrit (décision de l'auteur du
@@ -1204,8 +1256,7 @@ et `fixtures/api/` restent les exemples du contrat.
 - **statut** : à faire
 - **exigences** : `WF-INTF-0020-A`, `WF-ADM-0020-A`
 - **opérations** : toutes celles de `reference`, lues par les cinq écrans
-- **issue** :
-
+- **issue** : 2044
 **En tant que** manager, **je veux** mener à leur terme, depuis les écrans du référentiel, le
 paramétrage de chacune de ses fonctions avec le seul rôle prédéfini « manager », **afin de**
 tenir le référentiel de l'entreprise sans l'administrateur ; et, **en tant qu'**administrateur,
