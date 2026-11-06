@@ -88,6 +88,20 @@ PREREQUISITES = (
     ("active_resource_role", active_role_exists),
 )
 RATIOS = ("win_probability", "inflation_rate")
+# The decimals the columns of the rates keep (``Numeric(5, 4)``): a value that has more would be
+# rounded by the base, which WF-DAT-0100 forbids, so it is refused.
+RATIO_DECIMALS = 4
+# The columns a change may write: the attributes the creator or a manager enters, and no other
+# (neither the state nor the counter, which only the module itself moves).
+MODIFIABLE = (
+    "label",
+    "description",
+    "client",
+    "code",
+    "inflation_rate",
+    "win_probability",
+    "order_received_on",
+)
 
 
 # The permission that opens to consultation the projects its holder does not contribute to.
@@ -207,11 +221,19 @@ class ProjectChange:
     """The columns a change carries by name, at the version read; a column absent keeps its value.
 
     ``client``, ``description``, ``code`` and ``order_received_on`` carried as ``None`` are
-    emptied; the others are never null.
+    emptied; the others are never null. A name outside ``MODIFIABLE`` is a programming error
+    (``ValueError``): a change cannot write the state, the counter or a column that does not exist.
     """
 
     values: Mapping[str, object]
     lock_version: int
+
+    def __post_init__(self) -> None:
+        """Refuse a column no change may write."""
+        unknown = sorted(set(self.values) - set(MODIFIABLE))
+        if unknown:
+            message = f"a change cannot write {', '.join(unknown)}"
+            raise ValueError(message)
 
 
 @dataclass(frozen=True, slots=True)
@@ -507,6 +529,10 @@ def create_project(session: Session, draft: ProjectDraft, act: Act, viewer: View
     ``ALREADY_EXISTS``). The creator is inscribed project manager; the default work package and
     order item bear the label of the project; the project is born ``created``, its transition
     written from no state; the creation is inscribed in the journal (WF-SEC-0030).
+
+    The minimal reference is read without the lock the design asks for, the module of the
+    revisions giving no interface to take it: a reference emptied between the reading and the
+    commit is not caught (#2154).
     """
     return _views(session, [_create(session, draft, act, None, ready=False)], viewer)[0]
 
@@ -518,7 +544,7 @@ def load_project(session: Session, load: ProjectLoad, act: Act) -> None:
     describes roles of resources (``resource_roles.json``) that no slice loads before US-0850, so
     that the reference it loads stays short of an active role; the slice of the roles, once
     filled, lets the loader ask for it as the creation does (#1402). Until then, the projects
-    would refuse the whole witness.
+    would refuse the whole witness. The exemption goes with US-0990/L2 (#2155).
     """
     _create(session, load.draft, act, load.project_id, ready=True)
 
@@ -530,14 +556,28 @@ def _written_code(changed: Mapping[str, object]) -> str | None:
 
 
 def _ratio_faults(values: Mapping[str, object]) -> list[FieldError]:
-    """Point at a rate or a probability out of the range 0 to 1, naming the bound crossed."""
+    """Point at a rate or a probability out of the range 0 to 1, naming the bound crossed.
+
+    A value in range that has more decimals than the column keeps is refused too (the base would
+    round it), as a plain validation failure of its field.
+    """
     faults: list[FieldError] = []
     for name in RATIOS:
         value = values.get(name)
-        if isinstance(value, Decimal) and not Decimal(0) <= value <= Decimal(1):
+        if not isinstance(value, Decimal):
+            continue
+        if not Decimal(0) <= value <= Decimal(1):
             bound = {"minimum": "0"} if value < 0 else {"maximum": "1"}
             faults.append(FieldError(f"/{name}", VALUE_OUT_OF_RANGE, bound))
+        elif _decimals(value) > RATIO_DECIMALS:
+            faults.append(FieldError(f"/{name}", VALIDATION_FAILED))
     return faults
+
+
+def _decimals(value: Decimal) -> int:
+    """Count the decimals a value needs, a useless zero not counted: ``0.0350`` needs three."""
+    exponent = value.normalize().as_tuple().exponent
+    return max(0, -exponent) if isinstance(exponent, int) else 0
 
 
 def update_project(
@@ -545,13 +585,16 @@ def update_project(
 ) -> ProjectView:
     """Change the attributes of a project at the version read (``updateProject``).
 
-    The values are judged first: a rate or a probability out of 0 to 1 is refused field by field
-    (422). Then the project is locked and read under the lock: refused if unknown (404), at
-    another version (412), if the probability is sent to a project that has reached In progress
-    (409, ``project_before_in_progress``, which its command says first), if it is terminal (409,
-    ``project_not_terminal``), or if its new code is borne by another project (409). A change that
-    changes nothing writes nothing. A code entered calls ``advance`` under the lock, which has no
-    effect before US-0980 (WF-PRJ-0010, WF-CYC-0030).
+    The values are judged first: a rate or a probability out of 0 to 1, or that has more than four
+    decimals, is refused field by field (422). Then the project is locked and read under the
+    lock: refused if unknown (404), at another version (412), if the probability is sent to a
+    project that has reached In progress (409, ``project_before_in_progress``, which its command
+    says first), if it is terminal (409, ``project_not_terminal``), or if its new code is borne by
+    another project (409). A change that changes nothing writes nothing. On a terminal project the
+    probability is refused for ``project_before_in_progress``, not ``project_not_terminal``: a
+    terminal project has reached In progress, and the condition of the probability is the one its
+    own command names, where a terminal project lists no command at all. A code entered calls
+    ``advance`` under the lock, which has no effect before US-0980 (WF-PRJ-0010, WF-CYC-0030).
     """
     values = change.values
     faults = _ratio_faults(values)

@@ -29,9 +29,13 @@ from sqlalchemy import func, select, text, update
 from sqlalchemy.orm import Session
 from support import wait_for_a_lock
 
+from waterfall.api.contract.models import MissingEnum, ProjectCreate, ProjectUpdate
+from waterfall.api.projects import ProjectCreateBody, ProjectUpdateBody
+from waterfall.api.reference import QUESTIONS
 from waterfall.core.access_roles.predefined import PROJECT_MANAGER
 from waterfall.core.cost_settings.tables import CostCategory, CostType
-from waterfall.core.projects.interface import project_code, project_label
+from waterfall.core.projects.interface import ProjectChange, project_code, project_label
+from waterfall.core.projects.interface.projects import MODIFIABLE, PREREQUISITES
 from waterfall.core.projects.tables import (
     Contributor,
     OrderItem,
@@ -154,6 +158,7 @@ def test_a_creation_writes_what_is_born_with_the_project_in_one_transaction(
     assert journal.object_label == stage.project["label"]
 
 
+@pytest.mark.requirement("WF-PRJ-0080-A")
 def test_a_project_is_created_with_the_attributes_the_creator_gives(
     api: ContractClient, stage: Scene
 ) -> None:
@@ -451,6 +456,7 @@ def test_a_manager_changes_the_attributes_and_each_change_counts_once(
     assert api.get(path, headers=headers).json() == body
 
 
+@pytest.mark.requirement("WF-DAT-0070-A")
 def test_a_change_that_changes_nothing_writes_nothing(api: ContractClient, stage: Scene) -> None:
     path = f"{PROJECTS}/{stage.project['project_id']}"
     same = api.patch(
@@ -561,7 +567,8 @@ def test_a_terminal_project_is_read_without_commands_and_refuses_every_change(
         "STATE_FORBIDS_OPERATION",
         {"missing_condition": "project_not_terminal"},
     )
-    # The probability's own condition comes first, as the commands list their conditions.
+    # The probability's own condition comes first (a terminal project has reached In progress),
+    # although its commands, none being listed, do not say it beforehand.
     both = api.patch(
         path, headers=stage.manager.headers, json={"win_probability": "0.2", "lock_version": 0}
     )
@@ -679,3 +686,64 @@ def test_the_rates_are_exact_decimals_written_without_a_useless_zero(
     with stage.database.transaction() as session:
         rate: Decimal = one(session, stage.project["project_id"]).inflation_rate
     assert str(rate) == "0.0350"
+
+
+@pytest.mark.requirement("WF-DAT-0100-A")
+def test_a_rate_with_more_decimals_than_the_base_keeps_is_refused_and_one_that_fits_is_exact(
+    api: ContractClient, stage: Scene
+) -> None:
+    # The base keeps four decimals: a fifth would be rounded, which « non arrondi » forbids.
+    path = f"{PROJECTS}/{stage.project['project_id']}"
+    headers = stage.manager.headers
+    for name in ("inflation_rate", "win_probability"):
+        refused = api.patch(path, headers=headers, json={name: "0.03125", "lock_version": 0})
+        assert (refused.status_code, refused.json()["code"]) == (422, "VALIDATION_FAILED")
+        assert faults(refused) == [(f"/{name}", "VALIDATION_FAILED", {})]
+    assert api.get(path, headers=headers).json() == stage.project
+    sent = {"inflation_rate": "0.0313", "win_probability": "0.12340", "lock_version": 0}
+    changed = api.patch(path, headers=headers, json=sent)
+    assert changed.status_code == 200
+    assert changed.json() == api.get(path, headers=headers).json()
+    assert (changed.json()["inflation_rate"], changed.json()["win_probability"]) == (
+        "0.0313",
+        "0.1234",
+    )
+    again = api.patch(path, headers=headers, json={**sent, "lock_version": 1})
+    assert (again.status_code, again.json()["lock_version"]) == (200, 1)
+
+
+def test_the_prerequisites_the_creation_asks_for_are_those_the_readiness_route_names() -> None:
+    assert [name for name, _ in PREREQUISITES] == [each.value for each in MissingEnum]
+    assert [held for _, held in PREREQUISITES] == [QUESTIONS[each] for each in MissingEnum]
+
+
+def test_a_change_writes_the_attributes_of_a_project_and_no_other_column() -> None:
+    assert ProjectChange(dict.fromkeys(MODIFIABLE), 0).lock_version == 0
+    for name in ("state", "lock_version", "id", "no_such_column"):
+        with pytest.raises(ValueError, match=name):
+            ProjectChange({name: "x"}, 0)
+
+
+def _bounds(model: type[Any]) -> dict[str, tuple[Any, ...]]:
+    """Read, by field, whether it is required, its default and the bounds the model declares."""
+    read: dict[str, tuple[Any, ...]] = {}
+    for name, field in model.model_fields.items():
+        constraints = sorted(
+            (key, value)
+            for each in field.metadata
+            for key in ("min_length", "max_length", "pattern")
+            if (value := getattr(each, key, None)) is not None
+        )
+        read[name] = (field.is_required(), field.default, tuple(constraints))
+    return read
+
+
+@pytest.mark.parametrize(
+    ("body", "generated"),
+    [(ProjectCreateBody, ProjectCreate), (ProjectUpdateBody, ProjectUpdate)],
+)
+def test_the_bodies_of_the_routes_redeclare_the_fields_and_bounds_of_the_contract(
+    body: type[Any], generated: type[Any]
+) -> None:
+    assert _bounds(body) == _bounds(generated)
+    assert _bounds(body)["label"][2], "the label carries its bounds"
