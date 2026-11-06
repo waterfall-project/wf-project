@@ -648,7 +648,7 @@ socle déclare ce que les lots d'une même vague auraient écrit en commun).
 
 ## US-0910 — Le socle du projet : tables, partition, modules et consultation d'un projet
 
-- **statut** : à faire
+- **statut** : en cours
 - **exigences** : `WF-ADM-0110-A`, `WF-DAT-0060-A`, `WF-DAT-0050-A`, `WF-ARC-0070-A`
 - **opérations** : aucune en propre ; l'évaluation que toutes les opérations du projet
   partagent

@@ -64,6 +64,45 @@ REFERENCE_INTERFACES: dict[str, set[str]] = {
     "risk_settings": set(),
     "indicator_settings": set(),
 }
+# The modules of the projects and of the revisions (EP-04), one file per subject.
+PROJECT_INTERFACES: dict[str, set[str]] = {
+    "projects": {"projects", "contributors", "subprojects", "work_breakdown", "lifecycle"},
+    "revisions": {"revisions", "structures", "marking", "reference"},
+}
+# What the design names of each (EP-04, "Modules"), declared from US-0910/L1 on, which the other
+# stories call before theirs fill them.
+DESIGNED: dict[str, set[str]] = {
+    "projects": {
+        "read_project",
+        "list_projects",
+        "create_project",
+        "update_project",
+        "contributor_kind",
+        "next_state",
+        "advance",
+        "exit_project",
+        "list_state_transitions",
+        "no_background_task_running",
+        "project_label",
+        "project_code",
+        "load_project",
+    },
+    "revisions": {
+        "list_revisions",
+        "read_revision",
+        "create_revision",
+        "copy_revision",
+        "abandon_revision",
+        "mark_revision",
+        "designate_reference",
+        "revision_has_tasks_and_lines",
+        "compute_indicators",
+        "current_revision",
+        "revision_draft",
+        "create_project_partitions",
+        "load_revision",
+    },
+}
 
 
 def contracts_for(package: str) -> str:
@@ -237,6 +276,24 @@ def test_each_module_of_the_reference_offers_its_interface_as_a_package_of_one_f
     interface = importlib.import_module(f"waterfall.core.{module}.interface")
     held = {info.name for info in pkgutil.iter_modules(interface.__path__)}
     assert held == files
+
+
+@pytest.mark.requirement("WF-ARC-0010-A")
+@pytest.mark.parametrize(("module", "files"), PROJECT_INTERFACES.items())
+def test_the_projects_and_the_revisions_offer_their_interface_as_a_package_by_subject(
+    module: str, files: set[str]
+) -> None:
+    interface = importlib.import_module(f"waterfall.core.{module}.interface")
+    held = {info.name for info in pkgutil.iter_modules(interface.__path__)}
+    assert held == files
+    offered = set(interface.__all__)
+    assert DESIGNED[module] <= offered
+    # Each name is the one its file declares, re-exported: a function of a file alone, or of the
+    # package alone, would be another.
+    for name in offered:
+        declared = getattr(interface, name)
+        source = getattr(declared, "__module__", f"{interface.__name__}.?")
+        assert source.rsplit(".", 1)[0] == interface.__name__, name
 
 
 def imported(statement: str) -> str:

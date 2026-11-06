@@ -13,7 +13,8 @@ import pytest
 from alembic.autogenerate import compare_metadata
 from alembic.migration import MigrationContext
 from alembic.script import ScriptDirectory
-from sqlalchemy import Engine, insert, select, text
+from project_rows import partition_of, projects_with_partitions
+from sqlalchemy import Engine, func, insert, select, text
 from sqlalchemy.exc import DBAPIError
 from support import raw_account, service_role
 
@@ -32,7 +33,17 @@ from waterfall.core.cost_settings.tables import (
     HourlyRate,
     ReferenceSetting,
 )
+from waterfall.core.projects.tables import (
+    Contributor,
+    Deliverable,
+    OrderItem,
+    Project,
+    ProjectStateTransition,
+    Subproject,
+    WorkPackage,
+)
 from waterfall.core.resource_settings.tables import Calendar, DurationUnit, OrgNode, ResourceRole
+from waterfall.core.revisions.tables import CostStructure, Revision
 from waterfall.core.users.tables import IdentitySyncReport, UserAccount
 from waterfall.migrations.runner import alembic_config, downgrade, main, upgrade
 from waterfall.platform.audit import AuditEntry
@@ -240,6 +251,15 @@ def test_the_migrations_build_the_schema_the_tables_of_the_code_declare(
         ResourceRole.__tablename__,
         ActualCostMapping.__tablename__,
         ActualCostMappingLabel.__tablename__,
+        Project.__tablename__,
+        ProjectStateTransition.__tablename__,
+        Contributor.__tablename__,
+        Subproject.__tablename__,
+        WorkPackage.__tablename__,
+        OrderItem.__tablename__,
+        Deliverable.__tablename__,
+        Revision.__tablename__,
+        CostStructure.__tablename__,
     }
     upgrade(empty_engine)
     with empty_engine.connect() as connection:
@@ -336,6 +356,22 @@ SERVICE_RIGHTS: dict[str, set[str]] = {
     "actual_cost_mapping": {"SELECT", "INSERT", "UPDATE"},
     # A label of the mapping, which its whole writing replaces row by row, as an association.
     "actual_cost_mapping_label": {"SELECT", "INSERT", "UPDATE", "DELETE"},
+    # The projects (EP-04): created, read and changed, never deleted — a project leaves its cycle
+    # by a terminal state (WF-CYC-0080) —; a transition inscribed and read, never changed nor
+    # deleted (WF-CYC-0130).
+    "project": {"SELECT", "INSERT", "UPDATE"},
+    "project_state_transition": {"SELECT", "INSERT"},
+    # The list of the contributors and the work breakdown, written whole: a row is added, changed
+    # or removed; a subproject deleted for good while nothing cites it (WF-PRJ-0050).
+    "contributor": {"SELECT", "INSERT", "UPDATE", "DELETE"},
+    "subproject": {"SELECT", "INSERT", "UPDATE", "DELETE"},
+    "work_package": {"SELECT", "INSERT", "UPDATE", "DELETE"},
+    "order_item": {"SELECT", "INSERT", "UPDATE", "DELETE"},
+    "deliverable": {"SELECT", "INSERT", "UPDATE", "DELETE"},
+    # A revision abandoned is deleted with its rows (WF-REV-0010); a marked one, the database
+    # refuses to change or delete, its rows too (migration 0020, test_revision_immutability.py).
+    "revision": {"SELECT", "INSERT", "UPDATE", "DELETE"},
+    "cost_structure": {"SELECT", "INSERT", "UPDATE", "DELETE"},
 }
 
 
@@ -356,6 +392,63 @@ def test_the_role_of_the_service_holds_what_each_table_declares(database: Databa
     undeclared = tables - SERVICE_RIGHTS.keys()
     assert not undeclared, f"declare in SERVICE_RIGHTS what the service needs on {undeclared}"
     assert held == {name: SERVICE_RIGHTS[name] for name in tables}
+
+
+@pytest.mark.requirement("WF-DAT-0050-A")
+def test_the_partitions_of_a_project_are_the_owners_function_the_service_alone_may_execute(
+    database: Database, owner: Engine
+) -> None:
+    # The function runs as the owner of the tables, its search path its own; the role of the
+    # service may execute it, and nothing else may: not PUBLIC, which a function grants by default.
+    # The service holds no right of DDL besides (#701).
+    service = service_role(database.engine.url)
+    with owner.connect() as connection:
+        function = connection.execute(
+            text(
+                "SELECT pg_get_userbyid(proowner), prosecdef, proconfig, ARRAY(SELECT "
+                "CASE WHEN acl.grantee = 0 THEN 'PUBLIC' ELSE pg_get_userbyid(acl.grantee) END "
+                "|| ':' || acl.privilege_type FROM aclexplode(proacl) AS acl ORDER BY 1) "
+                "FROM pg_proc WHERE oid = 'create_project_partitions(uuid)'::regprocedure"
+            )
+        ).one()
+        tables_owner = connection.execute(
+            text("SELECT pg_get_userbyid(relowner) FROM pg_class WHERE relname = 'cost_structure'")
+        ).scalar_one()
+        create = connection.execute(
+            text("SELECT has_schema_privilege(:role, 'public', 'CREATE')"), {"role": service}
+        ).scalar_one()
+    proowner, definer, config, grants = function
+    assert (proowner, definer, config) == (tables_owner, True, ["search_path=pg_catalog, pg_temp"])
+    assert sorted(grants) == sorted([f"{proowner}:EXECUTE", f"{service}:EXECUTE"])
+    assert create is False
+
+
+@pytest.mark.requirement("WF-DAT-0050-A")
+def test_the_function_called_by_the_owner_creates_the_partition_of_the_project_and_no_other(
+    database: Database, owner: Engine
+) -> None:
+    # One partition per project, by list on its identifier, owned by the owner of the tables; a
+    # second call is refused, the project having its partitions already, and a null one too.
+    del database
+    with projects_with_partitions(owner) as (project_id,), owner.connect() as connection:
+        partitions = connection.execute(
+            text(
+                "SELECT child.relname, pg_get_userbyid(child.relowner), "
+                "pg_get_expr(child.relpartbound, child.oid), pg_get_userbyid(parent.relowner) "
+                "FROM pg_inherits JOIN pg_class AS child ON child.oid = inhrelid "
+                "JOIN pg_class AS parent ON parent.oid = inhparent "
+                "WHERE parent.relname = 'cost_structure' AND child.relname = :name"
+            ),
+            {"name": partition_of(project_id)},
+        ).all()
+        assert [(name, bound) for name, _, bound, _ in partitions] == [
+            (partition_of(project_id), f"FOR VALUES IN ('{project_id}')")
+        ]
+        assert partitions[0][1] == partitions[0][3]
+        for refused, code in ((project_id, "42P07"), (None, "22004")):
+            with pytest.raises(DBAPIError) as raised, owner.begin() as attempt:
+                attempt.execute(select(func.create_project_partitions(refused)))
+            assert getattr(raised.value.orig, "sqlstate", None) == code
 
 
 def privileges(engine: Engine, role: str) -> set[tuple[str, str]]:
