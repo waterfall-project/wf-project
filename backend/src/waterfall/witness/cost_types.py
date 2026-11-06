@@ -4,8 +4,8 @@
 
 ``cost_types.json``; the nature of provision of the bootstrap stays, those of the witness are
 added. Written by ``create_cost_type`` with the identifiers the witness imposes, then those it
-says deactivated are, once written: a nature deactivated holds no category of the witness, the
-categories being written after it.
+says deactivated are, which deactivates their categories: a nature deactivated holds no category
+of the witness, the categories being written after it.
 """
 
 from typing import TYPE_CHECKING
