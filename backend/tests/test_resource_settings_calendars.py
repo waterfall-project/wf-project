@@ -16,6 +16,7 @@ from uuid import UUID, uuid4
 
 import pytest
 from pydantic import SecretStr
+from sqlalchemy import select
 from support import WITNESS
 
 from waterfall.core.resource_settings import interface
@@ -369,8 +370,9 @@ def test_the_database_keeps_a_single_default_under_concurrent_designations(
             for outcome in [pool.submit(designate, first), pool.submit(designate, second)]:
                 outcome.result(timeout=30)
         with database.transaction() as session:
-            page = list_calendars(session, CalendarFilters(), CalendarSort(), CalendarWindow(10, 0))
-        assert [each.is_default for each in page.calendars].count(True) == 1
+            held = select(Calendar.id).where(Calendar.is_default.is_(True))
+            defaults = session.scalars(held).all()
+        assert len(defaults) == 1
 
 
 @pytest.mark.requirement("WF-REF-0120-A")
