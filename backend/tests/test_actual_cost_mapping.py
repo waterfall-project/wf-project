@@ -261,6 +261,39 @@ def test_a_stale_counter_is_refused_with_the_current_one_and_nothing_is_written(
 
 
 @pytest.mark.requirement("WF-QUA-0040-A")
+def test_the_witness_mapping_is_loaded_over_the_empty_mapping_of_the_installation(
+    api: ContractClient, mapping: Database, reference_sessions: ReferenceSessions
+) -> None:
+    witness = Witness(WITNESS, Act(None, utc_now()))
+    with mapping.transaction() as session:
+        assert witness_slice.load(session, witness) is True
+    read = api.get(PATH, headers=reference_sessions("cost_settings").reading).json()
+    assert (read["is_complete"], read["lock_version"]) == (True, 2)
+
+
+@pytest.mark.requirement("WF-QUA-0040-A")
+def test_a_mapping_a_manager_emptied_is_held_and_the_witness_does_not_overwrite_it(
+    api: ContractClient, sessions: PartSessions, mapping: Database
+) -> None:
+    api.put(PATH, json=body(DECLARED), headers=sessions.changing)
+    emptied = api.put(PATH, json=body(lock_version=2), headers=sessions.changing)
+    assert emptied.json()["lock_version"] == 3
+    witness = Witness(WITNESS, Act(None, utc_now()))
+    with mapping.transaction() as session:
+        assert witness_slice.load(session, witness) is False
+    read = api.get(PATH, headers=sessions.reading).json()
+    assert (read["is_complete"], read["lock_version"]) == (False, 3)
+
+
+def test_a_malformed_body_is_refused_422_before_its_stale_counter_is_refused_412(
+    api: ContractClient, sessions: PartSessions
+) -> None:
+    sent = body({"amount": ["a"] * 21}, lock_version=9)
+    refused = api.put(PATH, json=sent, headers=sessions.changing)
+    assert (refused.status_code, refused.json()["code"]) == (422, "VALIDATION_FAILED")
+
+
+@pytest.mark.requirement("WF-QUA-0040-A")
 def test_the_witness_mapping_is_loaded_in_the_form_of_the_contract_and_not_loaded_twice(
     api: ContractClient, database: Database, reference_sessions: ReferenceSessions
 ) -> None:

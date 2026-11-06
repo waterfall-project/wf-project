@@ -259,6 +259,11 @@ def replace_actual_cost_mapping(
     admits, and for a label that doubles another once folded; 412 when the counter is stale, said
     by the write itself, which takes the row: the labels are replaced under it. The mapping is
     read back in the same transaction.
+
+    The refusals come in turn, and a turn names every field in default of its kind: the shape of
+    the columns first (the pointers of the others rest on it), then the sizes, then the doubles
+    (folded by the database). A body in default of two kinds hears of the first; it is sent again.
+    A malformed body is refused (422) before its counter is looked at (412).
     """
     _refuse_if_malformed(write)
     rows = _label_rows(write, _fold_without_doubles(session, write))

@@ -3,8 +3,9 @@
 """The mapping of the extraction of the actual costs of the witness.
 
 ``actual_cost_mapping.json``: the labels of the five columns read and the columns kept, written
-whole by the interface of the cost settings. The mapping is held when it names any label: the
-platform is not completed, corrected nor overwritten.
+whole by the interface of the cost settings. The mapping is held when it names any label or has
+been written since its birth (a manager may have emptied it): the platform is not completed,
+corrected nor overwritten.
 """
 
 from typing import TYPE_CHECKING
@@ -32,7 +33,8 @@ def load(session: Session, witness: Witness) -> bool:
     """
     create_actual_cost_mapping(session, witness.act)
     current = read_actual_cost_mapping(session)
-    if current.kept_columns or any(column.labels for column in current.columns):
+    held = current.lock_version > 1 or current.kept_columns
+    if held or any(column.labels for column in current.columns):
         return False
     declared = witness.read("actual_cost_mapping.json", ActualCostMapping)
     write = ActualCostMappingWrite(
