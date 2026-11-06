@@ -5,7 +5,17 @@
 ``test_access_evaluation.py`` gathers them; US-0820 declares each operation it serves.
 """
 
-# The permissions each operation asks for, in the order they are evaluated.
-ASKED: dict[str, tuple[str, ...]] = {}
-# The permission a list asks for besides when it asks for deactivated objects.
-INACTIVE: dict[str, str] = {}
+CHANGE = "cost_settings.write"
+
+# The permissions each operation asks for, in the order they are evaluated. The active natures
+# are read by any open session (WF-DEV-0020): the lists ask for none; every write asks
+# for the permission to change the cost settings.
+ASKED: dict[str, tuple[str, ...]] = {
+    "listCostTypes": (),
+    "createCostType": (CHANGE,),
+    "updateCostType": (CHANGE,),
+    "setCostTypeActivation": (CHANGE,),
+}
+# The permission a list asks for besides when it asks for deactivated objects (decision of the
+# author of 2026-11-06, #2084): the permission to change, not to read, as the contract refuses.
+INACTIVE: dict[str, str] = {"listCostTypes": CHANGE}
