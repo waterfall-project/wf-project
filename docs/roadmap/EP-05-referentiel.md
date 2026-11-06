@@ -741,7 +741,7 @@ indices (EP-10) ; la santé du pilotage (EP-11).
 
 ## US-0820 — Les natures et les catégories de coût
 
-- **statut** : à faire
+- **statut** : en cours
 - **exigences** : `WF-REF-0030-A`, `WF-REF-0040-A`
 - **opérations** : `listCostTypes`, `createCostType`, `updateCostType`, `setCostTypeActivation`,
   `listCostCategories`, `createCostCategory`, `updateCostCategory`, `setCostCategoryActivation`
@@ -1065,7 +1065,7 @@ choix de la conception, avec leur propre compteur (`DurationUnits.lock_version`)
 
 ## US-0870 — La correspondance de l'extraction des coûts réels
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-REF-0190-A`
 - **opérations** : `getActualCostMapping`, `setActualCostMapping`
 - **issue** : 2039
