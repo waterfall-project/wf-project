@@ -13,7 +13,7 @@ from uuid import uuid4
 
 import psycopg
 import pytest
-from sqlalchemy import Engine, delete, insert, text
+from sqlalchemy import Engine, delete, insert, select, text
 from sqlalchemy.exc import IntegrityError
 from support import raw_account
 
@@ -291,6 +291,11 @@ def write_inscription(**overrides: object) -> Executable:
         ({"project_id": uuid4(), "project_code": "PRJ-001"}, "ck_audit_entry_project_named"),
         ({"project_code": "PRJ-001", "project_label": "Poste"}, "ck_audit_entry_project_named"),
         ({"object_label": None}, "ck_audit_entry_object_labeled"),
+        # A revision keeps its label in every inscription but its abandonment's.
+        (
+            {"action": "revision_mark", "object_kind": "revision", "object_label": None},
+            "ck_audit_entry_object_labeled",
+        ),
         ({"object_revision_label": "Référence"}, "ck_audit_entry_object_revision_named"),
         ({"params": ["user_id"]}, "ck_audit_entry_params_object"),
         ({"correlation_id": "two words"}, "ck_audit_entry_correlation_id_form"),
@@ -319,6 +324,18 @@ def test_an_anonymized_account_is_named_by_no_label_as_author_or_as_object(
     assert refusal(database, write_inscription(object_label=None)) == (
         "ck_audit_entry_object_labeled"
     )
+
+
+@pytest.mark.requirement("WF-SEC-0030-A")
+def test_the_abandonment_of_a_revision_is_inscribed_without_its_label(database: Database) -> None:
+    # The abandoned revision is deleted: its inscription names it by its identifier alone (#2161).
+    statement = write_inscription(
+        action="revision_abandon", object_kind="revision", object_label=None
+    )
+    with database.engine.begin() as connection:
+        connection.execute(statement)
+        labels = connection.execute(select(AuditEntry.object_label)).scalars().all()
+    assert labels == [None]
 
 
 @pytest.mark.requirement("WF-DAT-0090-A")

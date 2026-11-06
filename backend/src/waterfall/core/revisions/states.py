@@ -32,13 +32,19 @@ def revision_state(session: Session, project_id: UUID, revision_id: UUID) -> Rev
     )
     if status is None:
         raise NotFoundError(NOT_FOUND)
-    return state_of(session, project_id, revision_id, status)
+    idle = no_background_task_running(session, project_id)
+    return state_of(session, revision_id, status, no_task_running=idle)
 
 
-def state_of(session: Session, project_id: UUID, revision_id: UUID, status: str) -> RevisionState:
-    """Give the state of a revision whose status is read already."""
+def state_of(
+    session: Session, revision_id: UUID, status: str, *, no_task_running: bool
+) -> RevisionState:
+    """Give the state of a revision whose status, and its project's background tasks, are read.
+
+    Whether a task writes in the project is the project's, read once for all its revisions.
+    """
     return RevisionState(
         marked=status == "marked",
-        no_task_running=no_background_task_running(session, project_id),
+        no_task_running=no_task_running,
         has_tasks_and_lines=revision_has_tasks_and_lines(session, revision_id),
     )

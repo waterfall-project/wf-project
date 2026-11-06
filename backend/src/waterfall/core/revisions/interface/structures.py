@@ -11,7 +11,8 @@ and the risks' own come with EP-08, which adds their kinds.
 The date a structure's planning starts on is the day of the first creation of its lineage, which
 a copy keeps (``CostStructure.planning_start_on``): no column holds it until a story lets it be
 entered (``updateCostStructure``), and the structure that started the lineage is always there —
-the revision it was created in was marked, since a copy takes up only a marked revision's.
+the revision it was created in was marked, since a copy takes up only a marked revision's. Were it
+missing, the structure would start on the day of its own creation rather than vanish from its list.
 
 Filled by US-0960; ``load_cost_structures``, the structures the witness imposes, by US-0990/L2.
 """
@@ -19,7 +20,7 @@ Filled by US-0960; ``load_cost_structures``, the structures the witness imposes,
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import aliased
 
 from waterfall.core.projects.interface import CommandAvailability, contributor_kind, project_facts
@@ -36,6 +37,7 @@ if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
     from waterfall.core.projects.interface import Viewer
+    from waterfall.core.revisions.interface.revisions import RevisionCopy
     from waterfall.platform.audit import Act
 
 NOT_FOUND = "NOT_FOUND"
@@ -56,24 +58,6 @@ class StructureView:
     is_merged: bool
     commands: tuple[CommandAvailability, ...]
     lock_version: int
-
-
-@dataclass(frozen=True, slots=True)
-class RevisionCopy:
-    """A copy of a marked revision into the new current one, in the transaction of its creation.
-
-    ``identifiers`` maps the identifier of each row copied to that of its copy, table after
-    table: a table copied later finds there the copy of the row it names (a task, its structure).
-    The copies bear the stamp of the creation of the revision, its author and its instant.
-    """
-
-    session: Session
-    project_id: UUID
-    source: UUID
-    target: UUID
-    at: datetime
-    author: UUID | None
-    identifiers: dict[UUID, UUID]
 
 
 def create_main_structure(session: Session, project_id: UUID, revision_id: UUID, act: Act) -> UUID:
@@ -144,11 +128,14 @@ def delete_structures(session: Session, project_id: UUID, revision_id: UUID) -> 
 def _structures(
     session: Session, project_id: UUID, revision_id: UUID
 ) -> list[tuple[CostStructure, datetime]]:
-    """Read the structures of a revision, the main one first, with the birth of their lineage."""
+    """Read the structures of a revision, the main one first, with the birth of their lineage.
+
+    A structure whose lineage lost its origin is born with itself: it is listed all the same.
+    """
     origin = aliased(CostStructure)
     rows = session.execute(
-        select(CostStructure, origin.created_at)
-        .join(
+        select(CostStructure, func.coalesce(origin.created_at, CostStructure.created_at))
+        .outerjoin(
             origin,
             (origin.project_id == CostStructure.project_id)
             & (origin.id == CostStructure.lineage_id),

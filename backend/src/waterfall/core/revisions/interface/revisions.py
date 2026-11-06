@@ -7,15 +7,17 @@ project, refused while another is current (409 ``no_current_revision``, #1797) �
 partial index on ``draft`` is the second rampart, which decides between two openings the lock
 would not have kept apart —, and on a terminal project (``project_not_terminal``). It retains the
 current year for its reference year, and is the copy of the last marked revision of the project
-(``copy_revision(session, source, target)``), which each epic extends table by table (``COPIES``:
-EP-06 the tasks, EP-07 the lines and the images, EP-08 the structures it adds); the first revision
-of a project copies nothing, and is born with its main structure alone (WF-REV-0100). Its
-opening is the fact that moves the project from Created to Pricing (``advance``, US-0980/L1).
+(``copy_revision(session, source, target)``), which each epic extends table by table by
+``register_copy``: the structures here, EP-06 the tasks, EP-07 the lines and the images, EP-08 the
+structures it adds; the first revision of a project copies nothing, and is born with its main
+structure alone (WF-REV-0100). Its opening is the fact that moves the project from Created to
+Pricing (``advance``, US-0980/L1).
 
 A current revision is abandoned under its own lock, at the counter read (412), refused once marked
 (409 ``revision_draft``): the project names no current revision any more, the revision and its
 rows are deleted (WF-DAT-0010), and ``revision_abandon`` is inscribed in the journal
-(WF-SEC-0030). A write in a revision is refused once it is marked (``revision_draft``).
+(WF-SEC-0030). A write in a revision is refused once it is marked (``revision_draft``). The locks
+are taken in one order: the revision, then its project — never the project before the revision.
 
 The partitions of the revised tables are created in the transaction of the creation of the
 project, by the function of the owner of the tables (``create_project_partitions``, WF-DAT-0050):
@@ -52,11 +54,11 @@ from waterfall.core.revisions.commands import (
     revision_commands,
 )
 from waterfall.core.revisions.interface.structures import (
-    RevisionCopy,
     copy_structures,
     create_main_structure,
     delete_structures,
 )
+from waterfall.core.revisions.registry import Registry
 from waterfall.core.revisions.states import state_of
 from waterfall.core.revisions.tables import Revision
 from waterfall.core.users.interface import inscribed_actor
@@ -84,11 +86,6 @@ STATE_FORBIDS_OPERATION = "STATE_FORBIDS_OPERATION"
 STALE_LOCK_VERSION = "STALE_LOCK_VERSION"
 # The unique partial index of the current revision of a project (migration of its tables).
 DRAFT_INDEX = "uq_revision_draft"
-
-# The copies a revision opened from a marked one makes, table after table, in the order a table
-# names the rows of another (EP-04, "Modules"): each epic that adds a revised table adds its copy
-# here, after the tables its rows name, and finds their copies in ``RevisionCopy.identifiers``.
-COPIES: tuple[Callable[[RevisionCopy], None], ...] = (copy_structures,)
 
 
 @dataclass(frozen=True, slots=True)
@@ -144,6 +141,42 @@ class RevisionList:
     total: int
 
 
+@dataclass(frozen=True, slots=True)
+class RevisionCopy:
+    """A copy of a marked revision into the new current one, in the transaction of its creation.
+
+    ``identifiers`` maps the identifier of each row copied to that of its copy, table after
+    table: a table copied later finds there the copy of the row it names (a task, its structure).
+    The copies bear the stamp of the creation of the revision, its author and its instant.
+    """
+
+    session: Session
+    project_id: UUID
+    source: UUID
+    target: UUID
+    at: datetime
+    author: UUID | None
+    identifiers: dict[UUID, UUID]
+
+
+# The copies a revision opened from a marked one makes, table after table, in the order of their
+# registration: a module registers its copy after those of the tables its rows name, whose copies it
+# finds in ``RevisionCopy.identifiers`` (EP-04, "Modules").
+_COPIES: Registry[Callable[[RevisionCopy], None]] = Registry()
+
+
+def register_copy(copier: Callable[[RevisionCopy], None]) -> Callable[[], None]:
+    """Add the copy of a table after those registered, and give its withdrawal; refused if held.
+
+    A module registers its copy at the import of its interface, which imports this one first: it
+    comes after the structures', and after the copies of the modules it imports.
+    """
+    return _COPIES.register(copier)
+
+
+register_copy(copy_structures)
+
+
 def create_project_partitions(session: Session, project_id: UUID) -> None:
     """Create the partitions of a project in each revised table, in the transaction of ``session``.
 
@@ -183,8 +216,12 @@ def _criteria(project_id: UUID, filters: RevisionFilters) -> list[ColumnElement[
 def _views(
     session: Session, rows: list[Revision], project_id: UUID, viewer: Viewer
 ) -> list[RevisionView]:
-    """Describe revisions of a project, with their source's name and their commands."""
+    """Describe revisions of a project, with their source's name and their commands.
+
+    Whether a background task writes in the project is the project's: read once for them all.
+    """
     project = project_facts(session, project_id)
+    idle = no_background_task_running(session, project_id)
     kind = contributor_kind(session, project_id, viewer.user_id)
     sources = {row.source_revision_id for row in rows if row.source_revision_id is not None}
     names: dict[UUID, str | None] = {
@@ -215,7 +252,7 @@ def _views(
                     viewer.permissions,
                     kind,
                     project.state,
-                    state_of(session, project_id, row.id, row.status),
+                    state_of(session, row.id, row.status, no_task_running=idle),
                 )
             ),
             created_at=row.created_at,
@@ -351,7 +388,7 @@ def copy_revision(session: Session, source: UUID, target: UUID) -> None:
 
     The structures here, but the merged ones, each under an identifier of its own and the lineage
     of the one it copies (#1759); the copies bear the stamp of the creation of ``target``, which is
-    written already. Each epic adds its tables to ``COPIES``.
+    written already. Each epic adds its tables by ``register_copy``.
     """
     revision = session.get_one(Revision, target)
     copy = RevisionCopy(
@@ -363,7 +400,7 @@ def copy_revision(session: Session, source: UUID, target: UUID) -> None:
         author=revision.created_by,
         identifiers={},
     )
-    for copier in COPIES:
+    for copier in _COPIES.entries():
         copier(copy)
 
 
@@ -411,7 +448,10 @@ def revision_draft(session: Session, revision_id: UUID) -> None:
     """Refuse a write in a revision that is marked (409, ``revision_draft``); or 404.
 
     The revision is read under ``FOR SHARE``: its marking and its abandonment, which lock it,
-    wait for the write that judged it current.
+    wait for the write that judged it current. The locks are taken in one order, the revision then
+    its project, never the project before the revision: the marking and the abandonment lock the
+    revision, then the project they write (``set_current_revision``), and a write that locks the
+    project as well calls this first. The opening, which locks the project, locks no revision.
     """
     status = session.scalar(
         select(Revision.status).where(Revision.id == revision_id).with_for_update(read=True)
