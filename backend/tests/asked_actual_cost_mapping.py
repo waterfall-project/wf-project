@@ -6,6 +6,9 @@
 """
 
 # The permissions each operation asks for, in the order they are evaluated.
-ASKED: dict[str, tuple[str, ...]] = {}
+ASKED: dict[str, tuple[str, ...]] = {
+    "getActualCostMapping": ("cost_settings.read",),
+    "setActualCostMapping": ("cost_settings.write",),
+}
 # The permission a list asks for besides when it asks for deactivated objects.
 INACTIVE: dict[str, str] = {}

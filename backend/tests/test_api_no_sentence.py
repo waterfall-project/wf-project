@@ -89,6 +89,9 @@ DATA = {
     # The code and the label a person gave a nature of cost (US-0820).
     "CostType.code": "a code",
     "CostType.label": "a label",
+    # The labels the mapping itself declares, and the columns it keeps (US-0870, WF-REF-0190).
+    "ActualCostMappingColumn.labels": "labels of the extraction",
+    "ActualCostMapping.kept_columns": "labels of the extraction",
     # A category of labour without an hourly rate, by its label, as the reference names it
     # (``ProblemParams.missing_rates``, ``MissingRate``, HOURLY_RATE_MISSING; US-0702/L1).
     "MissingRate.label": "a label",
