@@ -21,7 +21,8 @@ permissions:
 jobs:
   check:
     runs-on: ubuntu-26.04
-    timeout-minutes: 10
+    # The EP-05 back suite takes close to 10 minutes; #2157 tracks lightening the tests.
+    timeout-minutes: 15
     services:
       postgres:
         # The version the platform targets (deploy/compose/compose.service.yaml), by its digest.
