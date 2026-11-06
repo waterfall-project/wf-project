@@ -3693,7 +3693,7 @@ A path whose screen the service serves is played against both: against the fake 
 `chromium`, as before, and against the service by the project `shared` (EP-05). It imports `test`
 from `frontend/e2e/mode.ts` rather than from `@playwright/test`, and carries the tag `@shared` —
 in its title, or by `tag`, as `@realm-wide`: the `grep` of the project reads both —, in whatever
-file of `frontend/e2e/` it lives, the measure's left out; no list of files names it. Each US tags
+file of `frontend/e2e/` it lives, the measure's left out, and those of `frontend/e2e/service/`, which the project `service` already plays (the tag is not set there: the path would play twice); no list of files names it. Each US tags
 its paths once the service serves its screen. Against the fake back, `test` changes nothing: the
 fake back grants the session. With `WATERFALL_API_ADDRESS` set, `inService` is true, and two
 fixtures of `mode.ts` do what a file of `frontend/e2e/service/` asks for by its hooks: each worker

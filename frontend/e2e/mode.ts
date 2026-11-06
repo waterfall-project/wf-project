@@ -33,18 +33,18 @@ const SIGNED_IN_AT = "/account";
 /** How long a worker is given to make its manager: a token, an account, its link, its role. */
 const MAKING_THE_MANAGER = 60_000;
 
-interface Worker {
+interface WorkerFixtures {
   /** The manager of the worker, against the service; none against the fake back. */
   manager: LocalPerson | undefined;
 }
 
-interface Each {
+interface TestFixtures {
   /** The path signed in as the manager of the worker and held to the contract, in the service. */
   served: undefined;
 }
 
 /** The `test` of Playwright, the path signed in and held to the contract when in the service. */
-export const test = base.extend<Each, Worker>({
+export const test = base.extend<TestFixtures, WorkerFixtures>({
   manager: [
     async ({ browser, playwright }, use) => {
       if (!inService) {
