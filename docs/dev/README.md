@@ -1503,8 +1503,8 @@ line lose their hours.
 The risk settings and the indicator settings are each modified in a form (EP-14/L43e, #512;
 `settings-forms.tsx`), offered by « Modify the risk matrix » to a session that carries
 `risk_settings.write`, by « Modify the thresholds and the delay » to a session that carries
-`indicator_settings.write` (`platformOffer`); any other session reads the tables alone, without a
-notice of the mockup. The one enters the six bounds, as percentages (`editablePercent`,
+`indicator_settings.write` (`platformOffer`); any other session reads the tables alone. Served by the service since US-0810/L2, they carry no mock-up notice: a
+success is what the service kept, read anew. The one enters the six bounds, as percentages (`editablePercent`,
 `percentRatio`), and the sixteen zones, one choice per cell; the other the four thresholds, as
 values of the index, and the delay, in whole weeks (`control: "whole"`, a whole number, sign
 included, its bounds left to the server, judged at the field with the others, said by the text of
@@ -1528,9 +1528,9 @@ field, the missing permission (403) and the stale version (412, the two screens 
 counter) under the form. The answer takes the place of the settings read as long as it is more
 recent than them, the page re-read, like the settings of the project, and closes only the dialog
 it started from, never a dialog reopened since; the command that opens it waits, inactive, for the
-answer of a write of a closed dialog (#661); against the fake back, which answers with the first
-example of the operation — the thresholds written —, the matrix shown remains the one from
-before.
+answer of a write of a closed dialog (#661); against the fake back, which answers with the first example of the
+operation whatever is written, the matrix shown is the example's, and the journey
+(`e2e/reference-settings.spec.ts`, tagged `@shared`) asserts the re-reading only through `inService`.
 
 ### The administration screens
 

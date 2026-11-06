@@ -1498,8 +1498,8 @@ des tâches sans ligne de main-d'œuvre perdent leurs heures.
 Les paramètres des risques et des indicateurs se modifient chacun dans un formulaire (EP-14/L43e,
 #512 ; `settings-forms.tsx`), offert par « Modifier la matrice de risques » à une session qui porte
 `risk_settings.write`, par « Modifier les seuils et le délai » à une session qui porte
-`indicator_settings.write` (`platformOffer`) ; une autre session lit les tables seules, sans avis de
-la maquette. L'un saisit les six bornes, en pourcentages (`editablePercent`, `percentRatio`), et les
+`indicator_settings.write` (`platformOffer`) ; une autre session lit les tables seules. Servis par le service depuis US-0810/L2, ils ne portent aucun avis de la
+maquette : un succès est ce que le service a gardé, relu. L'un saisit les six bornes, en pourcentages (`editablePercent`, `percentRatio`), et les
 seize zones, un choix par case ; l'autre les quatre seuils, en valeurs de l'indice, et le délai, en
 semaines entières (`control: "whole"`, un nombre entier, signe compris, ses bornes au serveur, jugé
 au champ avec les autres, dit par le texte propre au champ, `invalid`). Chaque écran suit sa seule
@@ -1522,8 +1522,9 @@ manquante (403) et la version périmée (412, les deux écrans partageant le com
 formulaire. La réponse prend la place des paramètres lus tant qu'elle est plus récente qu'eux, la
 page relue, comme les paramètres du projet, et ne ferme que le dialogue d'où elle est partie, jamais
 un dialogue rouvert depuis ; la commande qui l'ouvre attend, inactive, la réponse d'une écriture
-d'un dialogue fermé (#661) ; face au faux back, qui répond par le premier exemple de l'opération —
-les seuils écrits —, la matrice montrée reste celle d'avant.
+d'un dialogue fermé (#661) ; face au faux back, qui répond par le premier exemple de l'opération
+quoi qu'on écrive, la matrice montrée est celle de l'exemple, et le parcours
+(`e2e/reference-settings.spec.ts`, étiqueté `@shared`) n'affirme la relecture que par `inService`.
 
 ### Les écrans de l'administration
 

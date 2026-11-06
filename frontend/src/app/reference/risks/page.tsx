@@ -4,8 +4,7 @@
  * The settings of the risks (FBS-3.3, US-0250), outside any project: the bounds of the risk
  * matrix, common to every project (WF-REF-0160), and the zone of each of its cells, as the server
  * gives them. A session that may modify the risk settings modifies the bounds and the zones in one
- * form (EP-14/L43e); the screen then says that the fake back keeps none of what is written
- * (`MockupNotice`). A read the API refuses, or cannot answer, is thrown for the pages of the shell to
+ * form; what the screen then says is what the service kept. A read the API refuses, or cannot answer, is thrown for the pages of the shell to
  * say.
  */
 import type { Metadata } from "next";
@@ -15,7 +14,6 @@ import { platformOffer } from "@/components/commands/offer";
 import { RiskBoundsTable, RiskZonesTable } from "@/components/reference/setting-tables";
 import { RiskSettings } from "@/components/reference/settings-forms";
 import { FUNCTION_DENSITY, FUNCTION_ICONS } from "@/components/shell/function-display";
-import { MockupNotice } from "@/components/shell/mockup-notice";
 import { PageHeader, Screen } from "@/components/shell/page-header";
 import { requestSession } from "@/session/request";
 
@@ -47,10 +45,7 @@ export default async function RiskSettingsPage() {
     <Screen density={FUNCTION_DENSITY.risk_settings}>
       <RisksHeader />
       {writes ? (
-        <>
-          <MockupNotice />
-          <RiskSettings settings={settings} />
-        </>
+        <RiskSettings settings={settings} />
       ) : (
         <>
           <RiskBoundsTable matrix={settings.risk_matrix} />

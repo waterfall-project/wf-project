@@ -11,7 +11,7 @@ A revision does not keep these settings: a marked revision is always read with t
 
 ## Its commands
 
-**Modify the thresholds and the delay**, offered to whoever may modify the indicator settings, opens the form: each threshold between 0 and 1, excluded, the alert threshold under the watch threshold of its index, and the delay in whole weeks. An alert threshold that is not under the watch threshold is signalled at its field before the sending; the server judges the rest. If the settings have changed since their reading, the refusal offers to read the page again. To the others, the screen is read only.
+**Modify the thresholds and the delay**, offered to whoever may modify the indicator settings, opens the form: each threshold between 0 and 1, excluded, the alert threshold under the watch threshold of its index, and the delay in whole weeks. An alert threshold that is not under the watch threshold is signalled at its field before the sending; the server judges the rest. If the settings have changed since their reading, the refusal offers to read the page again. To the others, the screen is read only. A successful save is what the server kept: the screen reads it again. A missing permission, or a stale version, is said under the form.
 
 ## Its columns and computed values
 
