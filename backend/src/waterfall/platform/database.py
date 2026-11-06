@@ -14,6 +14,7 @@ from typing import TYPE_CHECKING, Any
 
 from psycopg.errors import UniqueViolation
 from sqlalchemy import (
+    CheckConstraint,
     ColumnElement,
     DateTime,
     Engine,
@@ -69,6 +70,19 @@ def unique_violated(error: IntegrityError) -> str | None:
     """Name the unique constraint or index a write broke, ``None`` if it broke another rule."""
     cause = error.orig
     return cause.diag.constraint_name if isinstance(cause, UniqueViolation) else None
+
+
+def bounded(column: str, longest: int) -> tuple[CheckConstraint, CheckConstraint]:
+    """Bound a text from 1 to ``longest`` characters, and refuse it blank: a code, a label."""
+    return (
+        CheckConstraint(f"char_length({column}) BETWEEN 1 AND {longest}", name=f"{column}_length"),
+        CheckConstraint(f"{column} ~ '\\S'", name=f"{column}_not_blank"),
+    )
+
+
+def counted() -> CheckConstraint:
+    """Refuse a negative counter of the writes: a constraint of each table that has one."""
+    return CheckConstraint("lock_version >= 0", name="lock_version_not_negative")
 
 
 class Base(DeclarativeBase):

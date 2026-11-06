@@ -24,6 +24,15 @@ from waterfall.core.access_roles.tables import (
     UserAccessRole,
 )
 from waterfall.core.backups.tables import Backup
+from waterfall.core.cost_settings.tables import (
+    ActualCostMapping,
+    ActualCostMappingLabel,
+    CostCategory,
+    CostType,
+    HourlyRate,
+    ReferenceSetting,
+)
+from waterfall.core.resource_settings.tables import Calendar, DurationUnit, OrgNode, ResourceRole
 from waterfall.core.users.tables import IdentitySyncReport, UserAccount
 from waterfall.migrations.runner import alembic_config, downgrade, main, upgrade
 from waterfall.platform.audit import AuditEntry
@@ -221,6 +230,16 @@ def test_the_migrations_build_the_schema_the_tables_of_the_code_declare(
         Backup.__tablename__,
         IdentitySyncReport.__tablename__,
         FileUpload.__tablename__,
+        ReferenceSetting.__tablename__,
+        DurationUnit.__tablename__,
+        CostType.__tablename__,
+        CostCategory.__tablename__,
+        HourlyRate.__tablename__,
+        OrgNode.__tablename__,
+        Calendar.__tablename__,
+        ResourceRole.__tablename__,
+        ActualCostMapping.__tablename__,
+        ActualCostMappingLabel.__tablename__,
     }
     upgrade(empty_engine)
     with empty_engine.connect() as connection:
@@ -302,6 +321,21 @@ SERVICE_RIGHTS: dict[str, set[str]] = {
     # A deposit opened, read and completed; deleted by none until the purge of the files in
     # transit (WF-DAT-0120, EP-06).
     "file_upload": {"SELECT", "INSERT", "UPDATE"},
+    # The reference (§4.4.1, regime "reference"; EP-05): read, created, changed and deactivated,
+    # never deleted. The single rows — the settings shared, the units, the mapping — are the
+    # bootstrap's to insert, as the owner; the service writes them through the same rights, but
+    # for the settings shared, "written by the bootstrap, changed by the service".
+    "reference_setting": {"SELECT", "UPDATE"},
+    "duration_unit": {"SELECT", "INSERT", "UPDATE"},
+    "cost_type": {"SELECT", "INSERT", "UPDATE"},
+    "cost_category": {"SELECT", "INSERT", "UPDATE"},
+    "hourly_rate": {"SELECT", "INSERT", "UPDATE"},
+    "org_node": {"SELECT", "INSERT", "UPDATE"},
+    "calendar": {"SELECT", "INSERT", "UPDATE"},
+    "resource_role": {"SELECT", "INSERT", "UPDATE"},
+    "actual_cost_mapping": {"SELECT", "INSERT", "UPDATE"},
+    # A label of the mapping, which its whole writing replaces row by row, as an association.
+    "actual_cost_mapping_label": {"SELECT", "INSERT", "UPDATE", "DELETE"},
 }
 
 

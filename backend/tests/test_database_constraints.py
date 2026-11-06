@@ -7,6 +7,7 @@ refusal is the database's (WF-DAT-0090).
 """
 
 from datetime import UTC, datetime
+from decimal import Decimal
 from typing import TYPE_CHECKING
 from uuid import uuid4
 
@@ -23,9 +24,30 @@ from waterfall.core.access_roles.tables import (
     UserAccessRole,
 )
 from waterfall.core.backups.tables import Backup
+from waterfall.core.cost_settings.tables import (
+    ActualCostMapping,
+    ActualCostMappingLabel,
+    CostCategory,
+    CostType,
+    HourlyRate,
+    ReferenceSetting,
+)
+from waterfall.core.cost_settings.tables import (
+    Audited as CostAudited,
+)
+from waterfall.core.resource_settings.tables import (
+    DAYS,
+    Calendar,
+    DurationUnit,
+    OrgNode,
+    ResourceRole,
+)
+from waterfall.core.resource_settings.tables import (
+    Audited as ResourceAudited,
+)
 from waterfall.core.users.tables import IdentitySyncReport, UserAccount
 from waterfall.platform.audit import AuditEntry
-from waterfall.platform.database import Database
+from waterfall.platform.database import Base, Database
 from waterfall.platform.installation import Installation
 from waterfall.platform.tasks import BackgroundTask
 from waterfall.platform.uploads import FileUpload
@@ -596,3 +618,341 @@ def test_the_database_refuses_a_deposit_that_breaks_a_rule(
         connection.execute(insert(UserAccount).values(**account))
         connection.execute(write_upload(account["id"], object_key="uploads/taken"))
     assert refusal(database, write_upload(account["id"], **overrides)) == constraint
+
+
+# The reference (§4.4.1, regime "reference"; EP-05): rows written around the service, each valid
+# unless a test changes it, after the parents they name.
+AT = datetime(2026, 11, 6, 9, 0, tzinfo=UTC)
+NODE, NATURE, CATEGORY, CALENDAR, SELF = (uuid4() for _ in range(5))
+WEEK = {**dict.fromkeys(DAYS[:5], Decimal(8)), **dict.fromkeys(DAYS[5:], Decimal(0))}
+PARENTS: dict[type[Base], dict[str, object]] = {
+    OrgNode: {"id": NODE, "code": "DT"},
+    CostType: {"id": NATURE, "code": "MO", "kind": "labor"},
+    CostCategory: {"id": CATEGORY, "code": "ING", "accounting_code": "641", "cost_type_id": NATURE},
+    Calendar: {"id": CALENDAR, "label": "Standard", **WEEK, "is_default": True},
+}
+BOUNDS = {
+    f"{axis}_bound_{rank}": Decimal(bound)
+    for axis, bounds in (("probability", (".25", ".5", ".75")), ("severity", (".01", ".05", ".1")))
+    for rank, bound in enumerate(bounds, 1)
+}
+VALID: dict[type[Base], dict[str, object]] = {
+    ReferenceSetting: {
+        "id": 1,
+        "currency_code": "EUR",
+        "company_name": "Delmas Automatismes",
+        **BOUNDS,
+        "risk_zones": ["nominal"] * 16,
+        **dict.fromkeys(("cost_watch", "schedule_watch"), Decimal("0.9")),
+        **dict.fromkeys(("cost_alert", "schedule_alert"), Decimal("0.8")),
+        "max_weeks_between_reviews": 6,
+    },
+    DurationUnit: {
+        "id": 1,
+        "hours_per_day": Decimal(8),
+        "hours_per_week": Decimal(40),
+        "days_per_month": Decimal(20),
+    },
+    CostType: {"kind": "non_labor"},
+    CostCategory: {"accounting_code": "604", "cost_type_id": NATURE},
+    HourlyRate: {"cost_category_id": CATEGORY, "year": 2026, "amount": Decimal("85.00")},
+    OrgNode: {"parent_id": NODE},
+    Calendar: {**WEEK, "is_default": False},
+    ResourceRole: {
+        "org_node_id": NODE,
+        "cost_category_id": CATEGORY,
+        "calendar_id": CALENDAR,
+        "monthly_hours": Decimal(140),
+        "headcount": Decimal(2),
+    },
+    ActualCostMapping: {"id": 1},
+    ActualCostMappingLabel: {"kind": "read", "column": "amount", "position": 0, "label": "Montant"},
+}
+# What a row already held — deactivated, which leaves it its code — takes from the one tried.
+HELD: dict[type[Base], dict[str, object]] = {
+    CostType: {"code": "TAKEN", "is_active": False},
+    CostCategory: {"code": "TAKEN", "accounting_code": "TAKEN", "is_active": False},
+    HourlyRate: {"year": 2025},
+    OrgNode: {"code": "TAKEN", "is_active": False},
+    Calendar: {"label": "Pris", "is_active": False},
+    ResourceRole: {"code": "TAKEN", "is_active": False},
+    ActualCostMappingLabel: {"label": "Pris", "folded": "pris", "column": "wbs_element"},
+}
+
+
+def reference_row(table: type[Base], **columns: object) -> Executable:
+    """Give the insertion of a row of the reference: its own identifier, code and label, audited.
+
+    Active unless said otherwise; a label of the mapping folded as its label is, lowered.
+    """
+    held = set(table.__table__.columns.keys())
+    given: dict[str, object] = {"id": uuid4()}
+    if "created_at" in held:
+        given |= {"created_at": AT, "updated_at": AT}
+    own = {"code": uuid4().hex[:20], "label": f"L {uuid4().hex}", "is_active": True}
+    given |= {name: value for name, value in own.items() if name in held}
+    given |= columns
+    if "folded" in held:
+        given.setdefault("folded", str(given["label"]).lower())
+    return insert(table).values(**given)
+
+
+# The tables of the reference that keep the audit columns; the labels of the mapping do not.
+AUDITED = (
+    ReferenceSetting,
+    DurationUnit,
+    CostType,
+    CostCategory,
+    HourlyRate,
+    OrgNode,
+    Calendar,
+    ResourceRole,
+    ActualCostMapping,
+)
+# What every audited table refuses besides its own rules: a negative counter, an author that is no
+# account.
+
+
+def audit_refusals() -> list[tuple[type[Base], dict[str, object], str]]:
+    """Give, for each audited table, the three refusals the audit columns bring."""
+    refused: list[tuple[type[Base], dict[str, object], str]] = []
+    for table in AUDITED:
+        name = table.__tablename__
+        refused.append((table, {"lock_version": -1}, f"ck_{name}_lock_version_not_negative"))
+        refused.append((table, {"created_by": uuid4()}, f"fk_{name}_created_by_user_account"))
+        refused.append((table, {"updated_by": uuid4()}, f"fk_{name}_updated_by_user_account"))
+    return refused
+
+
+AUDIT_REFUSALS = audit_refusals()
+
+REFUSALS: list[tuple[type[Base], dict[str, object], str]] = [
+    (ReferenceSetting, {"id": 2}, "ck_reference_setting_single_row"),
+    (ReferenceSetting, {"currency_code": "eur"}, "ck_reference_setting_currency_code_form"),
+    (ReferenceSetting, {"currency_code": "EURO"}, "ck_reference_setting_currency_code_form"),
+    (ReferenceSetting, {"company_name": ""}, "ck_reference_setting_company_name_length"),
+    (ReferenceSetting, {"company_name": "x" * 201}, "ck_reference_setting_company_name_length"),
+    (ReferenceSetting, {"company_name": " \t"}, "ck_reference_setting_company_name_not_blank"),
+    (
+        ReferenceSetting,
+        {"probability_bound_2": Decimal(".25")},
+        "ck_reference_setting_probability_bounds_increasing",
+    ),
+    (
+        ReferenceSetting,
+        {"severity_bound_3": Decimal(".05")},
+        "ck_reference_setting_severity_bounds_increasing",
+    ),
+    (
+        ReferenceSetting,
+        {"risk_zones": ["watch"] * 15},
+        "ck_reference_setting_risk_zones_sixteen",
+    ),
+    (
+        ReferenceSetting,
+        {"risk_zones": [["watch"] * 4] * 4},
+        "ck_reference_setting_risk_zones_sixteen",
+    ),
+    (
+        ReferenceSetting,
+        {"risk_zones": ["watch"] * 15 + ["red"]},
+        "ck_reference_setting_risk_zones_known",
+    ),
+    (
+        ReferenceSetting,
+        {"cost_watch": Decimal(1)},
+        "ck_reference_setting_thresholds_between_zero_and_one",
+    ),
+    (
+        ReferenceSetting,
+        {"schedule_alert": Decimal(0)},
+        "ck_reference_setting_thresholds_between_zero_and_one",
+    ),
+    (
+        ReferenceSetting,
+        {"cost_alert": Decimal("0.9")},
+        "ck_reference_setting_alert_below_watch",
+    ),
+    (
+        ReferenceSetting,
+        {"max_weeks_between_reviews": 0},
+        "ck_reference_setting_max_weeks_between_reviews_bound",
+    ),
+    (
+        ReferenceSetting,
+        {"max_weeks_between_reviews": 105},
+        "ck_reference_setting_max_weeks_between_reviews_bound",
+    ),
+    (DurationUnit, {"id": 2}, "ck_duration_unit_single_row"),
+    (DurationUnit, {"hours_per_day": Decimal(0)}, "ck_duration_unit_constants_positive"),
+    (DurationUnit, {"days_per_month": Decimal(-20)}, "ck_duration_unit_constants_positive"),
+    (CostType, {"code": "TAKEN"}, "uq_cost_type_code"),
+    (CostType, {"code": ""}, "ck_cost_type_code_length"),
+    (CostType, {"code": "x" * 21}, "ck_cost_type_code_length"),
+    (CostType, {"code": "  "}, "ck_cost_type_code_not_blank"),
+    (CostType, {"label": "x" * 201}, "ck_cost_type_label_length"),
+    (CostType, {"label": " "}, "ck_cost_type_label_not_blank"),
+    (CostType, {"kind": "subcontracting"}, "ck_cost_type_kind_known"),
+    (CostCategory, {"code": "TAKEN"}, "uq_cost_category_code"),
+    (CostCategory, {"accounting_code": "TAKEN"}, "uq_cost_category_accounting_code"),
+    (CostCategory, {"code": ""}, "ck_cost_category_code_length"),
+    (CostCategory, {"code": "x" * 21}, "ck_cost_category_code_length"),
+    (CostCategory, {"code": "  "}, "ck_cost_category_code_not_blank"),
+    (CostCategory, {"label": "x" * 201}, "ck_cost_category_label_length"),
+    (CostCategory, {"label": " "}, "ck_cost_category_label_not_blank"),
+    (CostCategory, {"accounting_code": ""}, "ck_cost_category_accounting_code_length"),
+    (CostCategory, {"accounting_code": " "}, "ck_cost_category_accounting_code_not_blank"),
+    (CostCategory, {"cost_type_id": uuid4()}, "fk_cost_category_cost_type_id_cost_type"),
+    (HourlyRate, {"year": 2025}, "uq_hourly_rate_cost_category_id"),
+    (HourlyRate, {"year": 1999}, "ck_hourly_rate_year_bound"),
+    (HourlyRate, {"year": 2101}, "ck_hourly_rate_year_bound"),
+    (HourlyRate, {"amount": Decimal("0.00")}, "ck_hourly_rate_amount_minimum"),
+    (
+        HourlyRate,
+        {"cost_category_id": uuid4()},
+        "fk_hourly_rate_cost_category_id_cost_category",
+    ),
+    (OrgNode, {"code": "TAKEN"}, "uq_org_node_code"),
+    (OrgNode, {"label": ""}, "ck_org_node_label_length"),
+    (OrgNode, {"code": ""}, "ck_org_node_code_length"),
+    (OrgNode, {"code": "x" * 21}, "ck_org_node_code_length"),
+    (OrgNode, {"code": "  "}, "ck_org_node_code_not_blank"),
+    (OrgNode, {"label": " "}, "ck_org_node_label_not_blank"),
+    (OrgNode, {"parent_id": uuid4()}, "fk_org_node_parent_id_org_node"),
+    (OrgNode, {"id": SELF, "parent_id": SELF}, "ck_org_node_not_its_own_parent"),
+    (Calendar, {"label": "Pris"}, "uq_calendar_label"),
+    (Calendar, {"label": ""}, "ck_calendar_label_length"),
+    (Calendar, {"label": "x" * 201}, "ck_calendar_label_length"),
+    (Calendar, {"label": " "}, "ck_calendar_label_not_blank"),
+    (Calendar, {"monday": Decimal("24.5")}, "ck_calendar_hours_of_a_day"),
+    (Calendar, {"sunday": Decimal(-1)}, "ck_calendar_hours_of_a_day"),
+    (Calendar, {"is_default": True, "is_active": False}, "ck_calendar_default_active"),
+    (Calendar, {"is_default": True}, "uq_calendar_default"),
+    (ResourceRole, {"code": "TAKEN"}, "uq_resource_role_code"),
+    (ResourceRole, {"code": ""}, "ck_resource_role_code_length"),
+    (ResourceRole, {"code": "x" * 21}, "ck_resource_role_code_length"),
+    (ResourceRole, {"code": "  "}, "ck_resource_role_code_not_blank"),
+    (ResourceRole, {"label": "x" * 201}, "ck_resource_role_label_length"),
+    (ResourceRole, {"label": " "}, "ck_resource_role_label_not_blank"),
+    (ResourceRole, {"org_node_id": uuid4()}, "fk_resource_role_org_node_id_org_node"),
+    (
+        ResourceRole,
+        {"cost_category_id": uuid4()},
+        "fk_resource_role_cost_category_id_cost_category",
+    ),
+    (ResourceRole, {"calendar_id": uuid4()}, "fk_resource_role_calendar_id_calendar"),
+    (
+        ResourceRole,
+        {"monthly_hours": Decimal(-1)},
+        "ck_resource_role_monthly_hours_not_negative",
+    ),
+    (ResourceRole, {"headcount": Decimal("-0.5")}, "ck_resource_role_headcount_not_negative"),
+    (ActualCostMapping, {"id": 2}, "ck_actual_cost_mapping_single_row"),
+    (ActualCostMappingLabel, {"folded": "pris"}, "uq_actual_cost_mapping_label_folded"),
+    (
+        ActualCostMappingLabel,
+        {"kind": "ignored", "column": None},
+        "ck_actual_cost_mapping_label_kind_known",
+    ),
+    (ActualCostMappingLabel, {"column": "vendor"}, "ck_actual_cost_mapping_label_column_known"),
+    (
+        ActualCostMappingLabel,
+        {"column": None},
+        "ck_actual_cost_mapping_label_column_of_a_label_read",
+    ),
+    (
+        ActualCostMappingLabel,
+        {"kind": "kept"},
+        "ck_actual_cost_mapping_label_column_of_a_label_read",
+    ),
+    (
+        ActualCostMappingLabel,
+        {"label": "", "folded": "x"},
+        "ck_actual_cost_mapping_label_label_length",
+    ),
+    (
+        ActualCostMappingLabel,
+        {"label": "  ", "folded": "y"},
+        "ck_actual_cost_mapping_label_label_not_blank",
+    ),
+]
+
+
+@pytest.mark.requirement("WF-DAT-0090-A")
+@pytest.mark.parametrize(
+    ("table", "overrides", "constraint"),
+    [*REFUSALS, *AUDIT_REFUSALS],
+    ids=lambda value: value if isinstance(value, str) else "",
+)
+def test_the_database_refuses_an_object_of_the_reference_that_breaks_a_rule(
+    database: Database,
+    owner: Engine,
+    table: type[Base],
+    overrides: dict[str, object],
+    constraint: str,
+) -> None:
+    # A code, a label, a folded label already held by a deactivated object is held all the same.
+    # The row of the settings shared is inserted by the bootstrap, as the owner: the service has no
+    # right to insert it.
+    with database.engine.begin() as connection:
+        for parent, columns in PARENTS.items():
+            connection.execute(reference_row(parent, **columns))
+        if table in HELD:
+            connection.execute(reference_row(table, **{**VALID[table], **HELD[table]}))
+    statement = reference_row(table, **{**VALID[table], **overrides})
+    if table is ReferenceSetting:
+        assert owner_refusal(owner, statement) == constraint
+    else:
+        assert refusal(database, statement) == constraint
+
+
+@pytest.mark.requirement("WF-DAT-0090-A")
+def test_an_account_is_attached_to_a_node_that_exists_or_to_none(database: Database) -> None:
+    with database.engine.begin() as connection:
+        connection.execute(reference_row(OrgNode, id=NODE, code="DT"))
+        connection.execute(write_account(org_node_id=NODE))
+    statement = write_account(email="other@example.org", org_node_id=uuid4())
+    assert refusal(database, statement) == "fk_user_account_org_node_id_org_node"
+
+
+@pytest.mark.requirement("WF-DAT-0090-A")
+def test_every_named_constraint_of_the_reference_has_its_refusal_tried() -> None:
+    # A constraint added to a table of the reference with no case above would stay untried.
+    tables = [table.__tablename__ for table in (*AUDITED, ActualCostMappingLabel)]
+    # The unique index that keeps one default calendar counts, as the constraints do.
+    named = {
+        str(constraint.name)
+        for name in tables
+        for constraint in Base.metadata.tables[name].constraints
+        if constraint.name is not None and not str(constraint.name).startswith("pk_")
+    } | {
+        str(index.name)
+        for name in tables
+        for index in Base.metadata.tables[name].indexes
+        if index.unique
+    }
+    tried = {constraint for _, _, constraint in (*REFUSALS, *AUDIT_REFUSALS)}
+    assert named == tried
+
+
+def audit_columns(table: type[Base]) -> dict[str, tuple[object, ...]]:
+    """Give the audit columns of a table: type, nullability, default, and the key each names."""
+    columns = table.__table__.columns
+    return {
+        name: (
+            repr(columns[name].type),
+            columns[name].nullable,
+            str(columns[name].server_default),
+            sorted((key.target_fullname, key.ondelete) for key in columns[name].foreign_keys),
+        )
+        for name in ("lock_version", "created_at", "created_by", "updated_at", "updated_by")
+    }
+
+
+@pytest.mark.requirement("WF-DAT-0090-A")
+def test_the_audit_columns_of_the_two_modules_of_the_reference_do_not_drift() -> None:
+    # Each module declares its own ``Audited`` (a module imports no table of another, WF-ARC-0010):
+    # the two copies stay the same columns, whatever a lot changes in one of them.
+    assert audit_columns(CostType) == audit_columns(OrgNode)
+    own = {CostType: CostAudited, OrgNode: ResourceAudited}
+    assert all(issubclass(table, audited) for table, audited in own.items())

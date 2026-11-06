@@ -42,11 +42,14 @@
  * against the real service, through the proxy of the contract that `WATERFALL_API_ADDRESS` names
  * (`make e2e-service`), with the real authentication — no fixed token —, and the front listening
  * on every interface, so that Keycloak reaches its back channel from its container (#681). They
- * play in five projects: the installation first, whose administrator the bootstrap made, and whose
+ * play in six projects: the installation first, whose administrator the bootstrap made, and whose
  * link serves once (US-0420); the paths, on several workers; those that change a setting of the
  * realm, which every account reads, one at a time once the others are done; the restoration of the
  * platform, which closes every session, after them, alone (US-0440); and last the guard of the run,
- * which reads the log of the proxy of the contract from the start of the run.
+ * which reads the log of the proxy of the contract from the start of the run. The sixth, `shared`,
+ * beside the paths, after the installation and before the realm, plays against the service the
+ * paths of any file of `e2e/` tagged `@shared`, which `chromium` plays against the fake back: they
+ * import `test` from `e2e/mode.ts` (EP-05, US-0810/L1).
  */
 import { randomBytes } from "node:crypto";
 import { availableParallelism } from "node:os";
@@ -214,6 +217,9 @@ const SERVICE_PATHS = /e2e\/service\/.+\.spec\.ts$/;
 // The paths that change a setting of the realm for the time they run — a lifetime —, which every
 // account of the realm reads: tagged, played alone.
 const REALM_WIDE = /@realm-wide/;
+// The paths shared by the fake back and the service, in any file of `e2e/`: tagged, played against
+// both (`e2e/mode.ts`).
+const SHARED = /@shared/;
 // The paths that replace the whole platform — a restoration —, which closes every session: tagged,
 // played alone, after all the others.
 const PLATFORM_WIDE = /@platform-wide/;
@@ -283,12 +289,22 @@ function serviceProjects(): Project[] {
       use,
     },
     {
+      // The paths the fake back plays too, each signed in as the manager of its worker
+      // (`e2e/mode.ts`): chosen by their tag in any file, the measure's and `e2e/service/`'s
+      // left out (`service` plays those), beside the paths.
+      name: "shared",
+      testIgnore: [MEASURES, SERVICE_PATHS],
+      grep: SHARED,
+      dependencies: ["installation"],
+      use,
+    },
+    {
       // A setting of the realm changed would reach the paths beside: these play once the others are
       // done, one at a time.
       name: "realm",
       testMatch: SERVICE_PATHS,
       grep: REALM_WIDE,
-      dependencies: ["installation", "service"],
+      dependencies: ["installation", "service", "shared"],
       workers: 1,
       use,
     },
@@ -297,7 +313,7 @@ function serviceProjects(): Project[] {
       name: "restoration",
       testMatch: SERVICE_PATHS,
       grep: PLATFORM_WIDE,
-      dependencies: ["installation", "service", "realm"],
+      dependencies: ["installation", "service", "shared", "realm"],
       workers: 1,
       use,
     },

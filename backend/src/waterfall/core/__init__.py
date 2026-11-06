@@ -5,4 +5,7 @@
 A module exposes what others may use in its ``interface`` module, and nothing else: its
 tables and its data access are private to it. ``make check-back`` rejects an import from
 one module into another that does not go through the interface.
+
+The tables of every module are declared together by ``waterfall.schema``, which the entry points
+import: a module imports none of another (WF-ARC-0010).
 """

@@ -57,7 +57,7 @@ def test_any_argument_but_version_is_refused_with_a_usage(
     assert api_main.main(arguments) == 2
     captured = capsys.readouterr()
     assert captured.out == ""
-    assert captured.err.startswith("usage: waterfall-api [--version | install]\n")
+    assert captured.err.startswith("usage: waterfall-api [--version | install | load-witness]\n")
     assert arguments[0] in captured.err
 
 

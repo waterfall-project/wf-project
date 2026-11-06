@@ -28,6 +28,7 @@ from typing import IO, TYPE_CHECKING, Any
 
 from sqlalchemy import Engine, func, select
 
+from waterfall import schema
 from waterfall.api import main as api
 from waterfall.core.access_roles.interface import (
     RoleWrite,
@@ -123,6 +124,7 @@ def install(settings: InstallationSettings, out: IO[str]) -> int:
     Under a correlation of its own, which its inscriptions carry (#701). A refusal, or a failure of
     the database or of Keycloak, ends it (1), said in the structured logs.
     """
+    schema.declared()
     engine = create_database_engine(settings.database_url.get_secret_value())
     keycloak = Keycloak(settings)
     try:

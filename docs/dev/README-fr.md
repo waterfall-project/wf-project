@@ -45,9 +45,32 @@ lecteur du flux des restaurations, seul à tenir les propriétaires des deux bas
 migrations comme l'amorçage, et son module, `waterfall.restore`, est comme lui au sommet des
 couches, importé par aucun.
 
+Un verbe de `waterfall-api`, `load-witness` (EP-05), charge le témoin : l'univers que décrivent les
+exemples du contrat, `fixtures/api/`, que `make mock-data` tient et que le faux back sert. Il lit
+`WATERFALL_DATABASE_URL`, le rôle du service — il écrit par les interfaces des modules, avec les
+identifiants du témoin, la plateforme pour auteur et l'instant du chargement pour date —, et
+`WATERFALL_WITNESS_PATH`, le répertoire de la description ; un réglage absent, ou un chemin qui
+n'est pas un répertoire, l'arrête au départ en le nommant (2). Chaque fichier se lit dans la forme
+du contrat, par ses modèles (`api/contract/models.py`) : un fichier qui s'en écarte l'arrête. Il
+écrit en une transaction, sous un verrou consultatif qui lui est propre, une tranche par objet,
+dans l'ordre de leurs dépendances (`waterfall.witness.loader`) : les paramètres communs, les unités
+de durée, les natures, les catégories, les taux, les calendriers et le calendrier par défaut, les
+nœuds puis la désactivation de ceux que le témoin dit désactivés, les rôles puis la leur, la
+correspondance de l'extraction des coûts réels. Une tranche n'écrit rien de ce que la plateforme
+tient déjà : relancé, il n'écrit rien et réussit, en disant le témoin là
+(`witness.already_loaded`) ; un refus ou une erreur n'écrit rien et l'arrête en échec (1). Chaque US
+du référentiel remplit sa tranche, dans son fichier de `waterfall.witness`, sans toucher l'ordre. Son module,
+`waterfall.witness`, est au sommet des couches, importé par aucun : `waterfall-api` commence par
+lui, qui passe à l'amorçage tout autre argument. Le Compose de service l'offre (service `witness`,
+`make service-witness`), celui de production non : une installation réelle ne porte pas le témoin.
+`fixtures/api/` et Prism restent les exemples du contrat et le faux back des écrans que le service
+ne sert pas.
+
 Le noyau, `waterfall.core`, a un sous-paquet par module, nommé d'après son bloc FBS de
 second niveau, en anglais. Un module expose ce que les autres peuvent utiliser dans son
-module `interface`, et rien d'autre : ses tables et son accès aux données lui sont privés.
+module `interface` — un paquet d'un fichier par objet, que `interface/__init__.py`
+réexporte, pour les modules du référentiel (EP-05) —, et rien d'autre : ses tables et son accès
+aux données lui sont privés.
 Un module en importe un autre par `waterfall.core.<module>.interface`, jamais par ses
 tables. Le noyau n'importe ni l'API ni le worker, qui ne s'importent pas l'un l'autre.
 
@@ -2653,9 +2676,10 @@ commande.
 | `make changes BASE=…`                                                   | les familles qu'une modification touche                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
 | `make test-back TESTS=…`, `make test-front TESTS=…`, `make e2e TESTS=…` | un seul fichier de tests, pendant le développement ; sans `TESTS`, tous, comme dans la chaîne                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
 | `make service-install`                                                  | amorce la plateforme de service démarrée, son royaume appliqué (`waterfall-api install`, US-0420) : applique les migrations sous le propriétaire des tables, crée l'installation, ses trois rôles prédéfinis et son administrateur local, `WATERFALL_ADMIN_EMAIL` (`administrateur@waterfall.test` par défaut), dans la langue `WATERFALL_DEFAULT_LANGUAGE` (`fr` par défaut), et écrit seul sur sa sortie le lien qui fixe son mot de passe, valable jusqu'à son emploi ; relancée, elle ne crée rien, et écrit un nouveau lien, qui remplace le précédent, tant que l'administrateur n'a pas de mot de passe, aucun ensuite                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| `make service-witness`                                                  | charge le témoin sur la plateforme de service démarrée et amorcée (`waterfall-api load-witness`, service `witness`, EP-05) : les exemples du contrat, `fixtures/api/`, montés en lecture seule, écrits par le rôle du service ; relancée, elle n'écrit rien                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
 | `make service-up`, `make service-down`                                  | démarre, arrête la plateforme de service (`deploy/compose/compose.service.yaml` : PostgreSQL, Redis, le stockage objet Garage et ses compartiments, les migrations, l'API, le worker et le planificateur de ses tâches, le service de la restauration, Keycloak derrière son frontal HTTPS et son royaume, appliqué de nouveau à chaque démarrage par `keycloak-realm`, qui reste démarré pour le réappliquer après une restauration, OpenLDAP, Mailpit) ; elle exige ses secrets dans l'environnement (ci-dessous), et `service-down WATERFALL_RESET_DATA=yes` supprime aussi ses bases, son stockage, son annuaire et l'autorité de son frontal ; `service-up` refuse un volume PostgreSQL d'une autre majeure que 18, en affichant le refus de `postgres-volume`, qui dit ce remède (US-1130)                                                                                                                                                                                                                                                                                                                                                                                                                                                |
 | `make keycloak-authority`                                               | copie hors de la plateforme la racine de l'autorité du frontal de Keycloak, dans `deploy/compose/.authority/root.crt`, que git ignore ; `service-up` et `test-keycloak` le font à chaque démarrage                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
-| `make e2e-service`                                                      | les parcours du projet Playwright `service` (`frontend/e2e/service/`) contre le vrai service, par Prism en mandataire (« Un parcours de bout en bout ») ; mêmes secrets que `service-up`, et le navigateur de `make e2e-browsers`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| `make e2e-service`                                                      | les parcours du projet Playwright `service` (`frontend/e2e/service/`), et ceux de `shared` (l'étiquette `@shared`), contre le vrai service, par Prism en mandataire (« Un parcours de bout en bout ») ; mêmes secrets que `service-up`, et le navigateur de `make e2e-browsers` ; il charge le témoin après l'amorçage, comme `make service-witness`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
 | `make service-logs`                                                     | les journaux des services de la plateforme, ceux de `SERVICES` (`SERVICES="keycloak openldap"`), tous par défaut                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
 | `make test-services`, `make test-services-down`                         | démarre, retire les services des tests (`deploy/compose/compose.test.yaml` : PostgreSQL 18, Redis, Garage, en mémoire) pour le créneau du worktree, sur ses ports (`SERVICES=redis` n'en démarre que certains) ; `test-services` attend qu'ils répondent et ne fait rien de plus s'ils tournent, `test-services-down` les retire avec leurs volumes ; `make test-back` et les autres tests qui en ont besoin les démarrent d'eux-mêmes                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
 | `make migrate`                                                          | applique les migrations à la base que désigne `WATERFALL_DATABASE_URL`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
@@ -3605,8 +3629,11 @@ journaux) : sur une plateforme amorcée avec une autre, par `make service-instal
 `WATERFALL_ADMIN_EMAIL`, les parcours chercheraient un administrateur qui n'existe pas. Il faut
 alors donner la première adresse à `E2E_ADMIN_EMAIL`, ou repartir d'une plateforme vide
 (`make service-down WATERFALL_RESET_DATA=yes`).
+L'amorçage fait, il charge le témoin (service `witness`, comme `make service-witness`, EP-05) : les
+écrans du référentiel que le service sert y lisent ce que disent les exemples du contrat ; une
+plateforme qui le porte déjà n'en reçoit rien de plus.
 
-Les parcours se jouent en cinq projets Playwright. `installation` d'abord
+Les parcours se jouent en six projets Playwright. `installation` d'abord
 (`installation.setup.ts`, WF-EXP-0020) : le lien ne sert qu'une fois, et ce parcours fixe le mot de
 passe de l'administrateur, se connecte, et constate son rôle, les trois rôles prédéfinis et le
 catalogue. `service` ensuite, sur plusieurs workers (#730) : chaque parcours se connecte avec un
@@ -3622,7 +3649,8 @@ que seul `sign-in.spec.ts` emploie, reçoivent le leur par une écriture dans la
 deux permissions d'administration — `give` le refuse —, et aucun ne renomme ni ne change un rôle
 prédéfini : les refus `LAST_ADMINISTRATOR` de l'écran des rôles et de celui des comptes en dépendent
 (`roles.spec.ts`). Le jeton de l'administrateur, qui vit cinq minutes, se redemande quand il en a
-plus de quatre.
+plus de quatre. `shared` à côté de `service`, après `installation` : les parcours partagés avec
+le faux back (ci-dessous).
 
 Tous les workers connectent l'administrateur, et le royaume refuse les identifiants d'un compte
 qu'il est déjà en train de vérifier, comme s'il était verrouillé (`user_temporarily_disabled`, sans
@@ -3632,11 +3660,11 @@ jusqu'à la réponse du royaume, attendue quinze secondes au plus, bien en deç�
 autres workers attendent le verrou. Un écran de table de l'administration s'ouvre par une adresse
 qui dit sa recherche, vide au besoin (`?search=`) : une adresse muette rétablirait la recherche ou
 les filtres que l'administrateur a gardés sur un autre parcours, puisqu'il est le même sur tous.
-`realm` ensuite, sur un seul worker, une fois les autres finis : les parcours marqués `@realm-wide`,
-qui raccourcissent une durée du royaume, que lit chaque compte. `restoration` après eux, seul : les
-parcours marqués `@platform-wide`, qui restaurent la plateforme entière et en ferment toutes les
-sessions (US-0440, `backups.spec.ts`). `contract` enfin, le démontage de `installation` : la garde
-du contrat de toute la course.
+`realm` ensuite, sur un seul worker, une fois `service` et `shared` finis : les parcours marqués
+`@realm-wide`, qui raccourcissent une durée du royaume, que lit chaque compte. `restoration` après
+eux, seul : les parcours marqués `@platform-wide`, qui restaurent la plateforme entière et en
+ferment toutes les sessions (US-0440, `backups.spec.ts`). `contract` enfin, le démontage
+de `installation` : la garde du contrat de toute la course.
 
 Le projet `service` ne joue que `frontend/e2e/service/`, que les autres projets laissent : contre
 le front construit, comme les autres, sans `WATERFALL_AUTH=mock` — la vraie connexion, par le
@@ -3687,6 +3715,25 @@ dans sa langue (`audit.spec.ts`) ; l'amorçage (`installation.setup.ts`), l'écr
 d'administration, en administrateur du royaume `master` (`WATERFALL_KEYCLOAK_ADMIN_PASSWORD`) — une
 durée raccourcie le temps d'un parcours, que `service-up` rend de toute façon au royaume suivant —,
 et demandent un jeton pour l'API par le flux du client du front (`WATERFALL_FRONT_CLIENT_SECRET`).
+
+Un parcours dont le service sert l'écran se joue des deux côtés : contre le faux back par
+`chromium`, comme avant, et contre le service par le projet `shared` (EP-05). Il importe `test` de
+`frontend/e2e/mode.ts` et non de `@playwright/test`, et porte l'étiquette `@shared` — dans son
+titre, ou par `tag`, comme `@realm-wide` : le `grep` du projet lit les deux —, dans quelque fichier
+de `frontend/e2e/` qu'il soit, ceux de la mesure exceptés, et ceux de `frontend/e2e/service/`, que
+le projet `service` joue déjà (l'étiquette ne s'y pose pas : le parcours serait joué deux fois) ;
+aucune liste de fichiers ne le nomme.
+Chaque US étiquette ses parcours quand le service sert son écran. Contre le faux back, `test` ne
+change rien : le faux back accorde la session. Avec `WATERFALL_API_ADDRESS`, `inService` est vrai,
+et deux fixtures de `mode.ts` font ce qu'un fichier de `frontend/e2e/service/` demande par ses
+crochets : chaque worker obtient une fois un compte local de la course qui porte le rôle prédéfini
+« Manager », que crée l'administrateur de l'installation (`accountAdministrator`, `localAccount`),
+et chaque parcours se connecte d'abord avec lui (`signIn`, sur `/account`), puis se tient au
+contrat, comme `heldToTheContract()` y tient un fichier (`startReading`, `expectNothingRefused`,
+`contract.ts`). Des fixtures plutôt que des crochets : un crochet déclaré dans un module que les
+fichiers importent ne se déclare qu'une fois par worker, pour le premier de ses fichiers seul. Un
+parcours dont l'assertion diffère entre les deux — une écriture que le faux back ne garde pas — lit
+`inService`.
 
 Une limite des parcours contre le service : Prism, en mandataire du contrat, lit tout corps comme
 du texte et altère les corps binaires — chaque octet au-delà de `0x7f` d'une requête ou d'une
