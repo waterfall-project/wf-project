@@ -37,6 +37,7 @@ from waterfall.core.cost_settings.records import (
     identifier_taken,
     lock_natures,
     lock_row,
+    share_natures,
     value_taken,
 )
 from waterfall.core.cost_settings.tables import CostCategory, CostType
@@ -261,16 +262,26 @@ def present_cost_categories(session: Session, category_ids: Collection[UUID]) ->
     return frozenset(found)
 
 
-def category_labels(session: Session, category_ids: Collection[UUID]) -> dict[UUID, CategoryLabel]:
+def category_labels(
+    session: Session, category_ids: Collection[UUID], *, locked: bool = False
+) -> dict[UUID, CategoryLabel]:
     """Give the label and the kind of the nature of each category given, deactivated ones too.
 
     A role of resources names its category, and is admitted only a category of labour, active
-    (WF-REF-0090). An identifier no category bears is left out.
+    (WF-REF-0090). An identifier no category bears is left out. ``locked`` shares, before anything
+    is read, the lock of the natures until the transaction ends (``share_natures``): every change of
+    the kind or of the state of a category or of its nature takes it first, then reads the roles
+    that bind the category (``category_has_roles``), so that it waits for the role attached to it
+    meanwhile, or is waited for. No row is locked here: that lock, which both take before any row,
+    orders them, and neither waits for a row the other holds.
     """
+    if locked:
+        share_natures(session)
     rows = session.execute(
         select(CostCategory, CostType)
         .join(CostType, CostType.id == CostCategory.cost_type_id)
         .where(CostCategory.id.in_(category_ids))
+        .execution_options(populate_existing=True)
     )
     return {
         category.id: CategoryLabel(
@@ -278,6 +289,16 @@ def category_labels(session: Session, category_ids: Collection[UUID]) -> dict[UU
         )
         for category, nature in rows
     }
+
+
+def category_label_of(
+    held: SQLColumnExpression[UUID],
+) -> SQLColumnExpression[str | None]:
+    """Give, of a column of categories, the label of the category held: a sort by the code points.
+
+    For the table of the roles of resources, which holds the column and does not name this table.
+    """
+    return select(CostCategory.label).where(CostCategory.id == held).scalar_subquery()
 
 
 def _nature_fault(

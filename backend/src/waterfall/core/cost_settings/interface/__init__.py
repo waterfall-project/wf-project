@@ -67,6 +67,9 @@ from waterfall.core.cost_settings.interface.cost_categories import (
     category_is_employed as category_is_employed,
 )
 from waterfall.core.cost_settings.interface.cost_categories import (
+    category_label_of as category_label_of,
+)
+from waterfall.core.cost_settings.interface.cost_categories import (
     category_labels as category_labels,
 )
 from waterfall.core.cost_settings.interface.cost_categories import (

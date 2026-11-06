@@ -7,8 +7,9 @@ Read whole, created, changed, moved, deactivated in cascade and reactivated (WF-
 
 The nodes are read whole, depth first, their depth resolved at the reading and never stored; a
 write of the tree runs under its lock, and its refusals are those the contract names. The
-deactivation here reaches the node itself: its descendants and its roles follow with the roles
-of resources (US-0850).
+deactivation of a node reaches its descendants and the roles of resources attached to it or to one
+of them, in the transaction and under the lock of the tree, which the creation and the activation
+of a role take too (``resource_roles``); its reactivation reaches the node alone.
 """
 
 from dataclasses import dataclass
@@ -23,7 +24,7 @@ from waterfall.core.resource_settings.org_tree import (
     levels_of,
     with_ancestors,
 )
-from waterfall.core.resource_settings.tables import OrgNode
+from waterfall.core.resource_settings.tables import OrgNode, ResourceRole
 from waterfall.platform.database import contains
 from waterfall.platform.errors import (
     ConflictError,
@@ -103,6 +104,14 @@ class NodeWrite:
     code: str
     label: str
     parent_id: UUID | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class NodeActivation:
+    """What an activation of a node changed: the nodes in the order of the tree, and the roles."""
+
+    nodes: list[NodeView]
+    resource_role_ids: list[UUID]
 
 
 @dataclass(frozen=True, slots=True)
@@ -322,19 +331,51 @@ def update_node(
     return read_node(session, node_id, may_change=True)
 
 
+def _deactivate_within(
+    session: Session, nodes: Mapping[UUID, OrgNode], node: OrgNode, act: Act
+) -> tuple[list[UUID], list[UUID]]:
+    """Deactivate the active descendants of a node and the active roles of its subtree.
+
+    Each its counter advanced and its author the actor (WF-REF-0080); give the nodes and the roles
+    written. The node itself is written by its caller, at the version read.
+    """
+    parents = {each.id: each.parent_id for each in nodes.values()}
+    subtree = [each for each in nodes if is_within(parents, each, node.id)]
+    stamp = {"updated_at": act.at, "updated_by": act.author}
+    descendants = list(
+        session.scalars(
+            update(OrgNode)
+            .where(OrgNode.id.in_(subtree), OrgNode.id != node.id, OrgNode.is_active)
+            .values(is_active=False, lock_version=OrgNode.lock_version + 1, **stamp)
+            .returning(OrgNode.id)
+        )
+    )
+    roles = list(
+        session.scalars(
+            update(ResourceRole)
+            .where(ResourceRole.org_node_id.in_(subtree), ResourceRole.is_active)
+            .values(is_active=False, lock_version=ResourceRole.lock_version + 1, **stamp)
+            .returning(ResourceRole.id)
+        )
+    )
+    return descendants, roles
+
+
 def set_activation(
     session: Session, node_id: UUID, *, is_active: bool, lock_version: int, act: Act
-) -> list[NodeView]:
-    """Deactivate or reactivate the node itself; give the nodes whose state changed.
+) -> NodeActivation:
+    """Deactivate a node with its subtree and its roles, or reactivate it alone.
 
-    Refused if unknown (404), at another version (412), or — to reactivate — while the parent is
-    deactivated (409, ``org_node_parent_active``). A node already in the state asked for is
-    unchanged and none is given. The descendants and the roles of a deactivation follow with the
-    roles of resources (US-0850).
+    Under the lock of the tree, in the transaction of the caller. Refused if unknown (404), at
+    another version (412), or — to reactivate — while the parent is deactivated (409,
+    ``org_node_parent_active``). The deactivation reaches the active descendants and the active
+    roles attached to the node or to one of them; the reactivation the node alone, its descendants
+    and their roles reactivated one by one. A node already in the state asked for is unchanged, and
+    nothing is given.
     """
     nodes, node = _locked(session, node_id, lock_version)
     if node.is_active == is_active:
-        return []
+        return NodeActivation([], [])
     parent = None if node.parent_id is None else nodes[node.parent_id]
     if is_active and parent is not None and not parent.is_active:
         raise ConflictError(
@@ -342,7 +383,13 @@ def set_activation(
             {"missing_condition": PARENT_ACTIVE_CONDITION, "conflicting_object_id": str(parent.id)},
         )
     _write_node(session, node, {"is_active": is_active}, lock_version, act)
-    return [read_node(session, node_id, may_change=True)]
+    descendants, roles = ([], []) if is_active else _deactivate_within(session, nodes, node, act)
+    changed = {node_id, *descendants}
+    fresh = _every_node(session)
+    levels = levels_of(_branches(fresh))
+    ordered = in_tree_order(branch for branch in _branches(fresh) if branch.node_id in changed)
+    views = [_view(fresh[each.node_id], fresh, levels, may_change=True) for each in ordered]
+    return NodeActivation(views, roles)
 
 
 def node_labels(session: Session, node_ids: Collection[UUID]) -> dict[UUID, str]:

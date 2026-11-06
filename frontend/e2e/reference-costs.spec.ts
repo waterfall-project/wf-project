@@ -426,11 +426,11 @@ test("presents fixed the type of a nature whose category is employed, with its c
   const type = form.getByRole("textbox", { name: "Type" });
   await expect(type).toHaveAttribute("readonly", "");
   await expect(type).toHaveValue("Main-d’œuvre");
-  // The conditions the service lacks are those of its data: the witness holds rates, and neither an
-  // estimate employing a category of the nature nor a role of resource attached to one.
+  // The conditions the service lacks are those of its data: the witness holds rates and roles of
+  // resource attached to its categories (US-0850), and no estimate employing a category of the nature.
   await expect(type).toHaveAccessibleDescription(
     inService
-      ? /^Le type ne se modifie pas\. Condition non remplie\s:\saucune catégorie de la nature portant un taux horaire\.$/
+      ? /^Le type ne se modifie pas\. Conditions non remplies\s:\saucune catégorie de la nature portant un taux horaire et aucune catégorie de la nature rattachée à un rôle de ressource\.$/
       : /^Le type ne se modifie pas\. Conditions non remplies\s:\saucune catégorie de la nature employée, aucune catégorie de la nature portant un taux horaire et aucune catégorie de la nature rattachée à un rôle de ressource\.$/,
   );
   await expect(form.getByRole("combobox", { name: "Type" })).toHaveCount(0);

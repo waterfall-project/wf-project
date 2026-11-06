@@ -20,10 +20,10 @@
  * the API gives them. A session that may modify the settings of the resources creates and modifies
  * the nodes, the roles and the calendars, and deactivates them as each lists it (EP-02/L43b): a
  * role is attached to a category of labour alone (WF-REF-0090), which each category says
- * (`cost_type_kind`, EP-14/L43g); the screen then says that the fake back keeps none of what is
- * written (`MockupNotice`). Bounds the API refuses (422, an upper bound below the lower one) leave
- * their list unread, the bound said at its field; any other read the API refuses, or cannot
- * answer, is thrown for the pages of the shell to say.
+ * (`cost_type_kind`, EP-14/L43g). The service keeps what is written and filters what is asked: the
+ * screen shows no mock-up notice (US-0850). Bounds the API refuses (422, an upper bound below the
+ * lower one) leave their list unread, the bound said at its field; any other read the API
+ * refuses, or cannot answer, is thrown for the pages of the shell to say.
  */
 import type { Metadata } from "next";
 import { useTranslations } from "next-intl";
@@ -95,7 +95,6 @@ import {
   type RoleFilters,
 } from "@/components/reference/resource-lists";
 import { FUNCTION_DENSITY, FUNCTION_ICONS } from "@/components/shell/function-display";
-import { MockupNotice } from "@/components/shell/mockup-notice";
 import { PageHeader, Screen } from "@/components/shell/page-header";
 import { type PageSearchParams, pageSearch, type SearchParameters } from "@/navigation/context";
 import { offsetOf } from "@/navigation/pages";
@@ -116,23 +115,19 @@ const BOUNDS_REFUSED = [{ status: 422, code: "VALIDATION_FAILED" }] as const;
 
 /**
  * The title of the screen, and the switch of the deactivated objects for who may modify the
- * settings; under it, the note of the fake back: it keeps nothing of what is written, and filters
- * nothing.
+ * settings.
  */
 function ResourcesHeader({ inactive }: { readonly inactive: boolean | undefined }) {
   const t = useTranslations("functions");
   return (
-    <>
-      <PageHeader
-        title={t("resourceSettings")}
-        icon={FUNCTION_ICONS.resource_settings}
-        density={FUNCTION_DENSITY.resource_settings}
-        actions={
-          inactive === undefined ? undefined : <InactiveSwitch shown={inactive} pages={PAGES} />
-        }
-      />
-      <MockupNotice lists />
-    </>
+    <PageHeader
+      title={t("resourceSettings")}
+      icon={FUNCTION_ICONS.resource_settings}
+      density={FUNCTION_DENSITY.resource_settings}
+      actions={
+        inactive === undefined ? undefined : <InactiveSwitch shown={inactive} pages={PAGES} />
+      }
+    />
   );
 }
 

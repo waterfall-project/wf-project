@@ -1490,16 +1490,36 @@ a parent, a node or an attachment deactivated in the meantime (`INACTIVE_REFEREN
 outside 0 to 24 or a negative capacity, with the bound crossed (`VALUE_OUT_OF_RANGE`); the label
 already carried by a calendar, deactivated ones included, names its carrier from the page, by its
 identifier, generically otherwise; the rest as for the costs, the stale version under the form
-with the offer to re-read; the screen says that the fake back keeps nothing (`MockupNotice`). A
-write that would leave a task without a working hour — a calendar modified or designated as default,
-a role modified — is refused (`TASK_WITHOUT_WORKING_HOURS`, « A task would have no working hour left
-in the week. ») by saying why and by naming each project involved by its label and its code, by its
-label alone without a code (`params.projects`, WF-PLA-0010), up to five in the sentence, as a list
-outside the alert beyond, like the lines of a subproject. The cause is that of
-`params.resource_roles`: the roles whose calendars overlap on no day, which the refusal names itself
-by their code and their label, wherever it is told, the planning included, the page reading none; an
-empty list designates the default calendar, emptied or designated, when only tasks without a labour
-line lose their hours.
+with the offer to re-read; the screen no longer carries `MockupNotice` since US-0850: the service
+keeps what is written, and its paths are tagged `@shared` (the units of duration, which the service
+does not serve yet, wait for US-0860b). A write that would leave a task without a working hour — a
+calendar modified or designated as default, a role modified — is refused
+(`TASK_WITHOUT_WORKING_HOURS`, « A task would have no working hour left in the week. ») by saying
+why and by naming each project involved by its label and its code, by its label alone without a code
+(`params.projects`, WF-PLA-0010), up to five in the sentence, as a list outside the alert beyond,
+like the lines of a subproject. The cause is that of `params.resource_roles`: the roles whose
+calendars overlap on no day, which the refusal names itself by their code and their label, wherever
+it is told, the planning included, the page reading none; an empty list designates the default
+calendar, emptied or designated, when only tasks without a labour line lose their hours.
+
+The service serves the roles since US-0850 (`api/resource_roles.py`, the file `resource_roles` of
+the interface of `resource_settings`): the active ones are read by any open session, the
+deactivated ones (`include_inactive`, `is_active` false) and every write under
+`resource_settings.write` (decision of the author, #2084). A role is born active, under an active
+node, and is reactivated only under an active node; the creation, the activation of a role and that
+of a node run under the advisory lock of the tree, which the cascade holds too: the deactivation of
+a node deactivates, in the same transaction, its descendants and the roles attached to it or to one
+of them, each its counter advanced and its author, and the answer carries them.
+`resource_settings` does not read `cost_settings`, which reads it (`category_has_roles`,
+`roles_of_categories`, #2114): the route asks the cost settings what a role knows of its category
+— labour, active —, under the advisory lock of the natures, shared and taken before any other — the
+tree's, the row of the role —, as the writes of the cost settings take it before their rows, and the
+label of each category named or sorted (`category_labels`, `category_label_of`). The slice of the
+witness (`witness/resource_roles.py`) creates the roles of `resource_roles.json` through the same
+interface, then deactivates those it says deactivated; the deactivated calendar a role names and
+that `calendars.json` does not give, it reads from `calendars_with_inactive.json`, and the role of a
+deactivated node is created under its node reopened the time of writing it, then closed again in
+cascade.
 
 ### Risk and indicator settings
 

@@ -937,7 +937,7 @@ agrégé (EP-11).
 
 ## US-0850 — Les rôles de ressources, leur capacité et la désactivation en cascade
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-REF-0090-A`, `WF-REF-0100-A`, `WF-REF-0080-A`
 - **opérations** : `listResourceRoles`, `createResourceRole`, `updateResourceRole`,
   `setResourceRoleActivation` ; `setOrgNodeActivation` (la cascade)
