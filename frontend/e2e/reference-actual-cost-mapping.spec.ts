@@ -4,6 +4,11 @@
  * The screen of the correspondence of the extraction of the actual costs
  * (`/reference/costs/actual-cost-mapping`, US-0870): a label entered for a column and saved whole,
  * against the fake back and, tagged `@shared`, against the service.
+ *
+ * The fake back keeps nothing: against it, the journey asserts the saving only (the status). The
+ * reading anew after a reload is asserted in service only (`inService`). The service keeps its
+ * state, so the journey removes its label at the end and saves again: it can be replayed on the
+ * same installation without reaching the limit of labels per column.
  */
 import { expect } from "@playwright/test";
 
@@ -12,7 +17,7 @@ import { inService, test } from "./mode";
 
 const COLUMN = "Poste de la pièce";
 
-test("enters a label for the optional column of the extraction and saves the correspondence whole, the service keeping it, with no mock-up notice (US-0870) @shared [WF-REF-0190-A]", async ({
+test("enters a label for the optional column of the extraction and saves the correspondence whole, the service alone proving it kept it, with no mock-up notice (US-0870) @shared [WF-REF-0190-A]", async ({
   page,
 }) => {
   test.slow();
@@ -53,5 +58,16 @@ test("enters a label for the optional column of the extraction and saves the cor
         { timeout: WORKING },
       )
       .toContain(label);
+    // Leave the correspondence as found: the label removed, the correspondence saved again.
+    const own = page.getByRole("group", { name: new RegExp(`^${COLUMN}`) });
+    await own
+      .getByRole("button", { name: /^Retirer l’intitulé/ })
+      .last()
+      .click();
+    await page.getByRole("button", { name: "Enregistrer la correspondance" }).click();
+    await expect(page.getByRole("status").filter({ hasText: "enregistrée" })).toHaveText(
+      "Correspondance enregistrée.",
+    );
+    await expect(labels).toHaveCount(before);
   }
 });
