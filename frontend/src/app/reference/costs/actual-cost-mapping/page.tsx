@@ -6,8 +6,9 @@
  * under which the ERP names it, and the columns it keeps, declared one by one (WF-REF-0190). A bar
  * says the columns required that have no label, as the server computes them. A session that may
  * modify the cost settings edits the lists and saves them whole; another reads them, with no
- * command. The screen then says that the fake back keeps none of what is written (`MockupNotice`).
- * A read the API refuses, or cannot answer, is thrown for the pages of the shell to say.
+ * command. The service keeps what is written, whole, under the counter of the correspondence: the
+ * screen shows no mock-up notice. A read the API refuses, or cannot answer, is thrown for the
+ * pages of the shell to say.
  */
 import type { Metadata } from "next";
 import { useTranslations } from "next-intl";
@@ -17,7 +18,6 @@ import { serverClient } from "@/api/server";
 import { platformOffer } from "@/components/commands/offer";
 import { ActualCostMapping } from "@/components/reference/actual-cost-mapping";
 import { FUNCTION_DENSITY, LEAF_ICONS } from "@/components/shell/function-display";
-import { MockupNotice } from "@/components/shell/mockup-notice";
 import { PageHeader, Screen } from "@/components/shell/page-header";
 import { requestSession } from "@/session/request";
 
@@ -50,7 +50,6 @@ export default async function ActualCostMappingPage() {
   return (
     <Screen density={FUNCTION_DENSITY.cost_settings}>
       <MappingHeader />
-      <MockupNotice lists />
       <ActualCostMapping mapping={mapping} writes={writes} />
     </Screen>
   );
