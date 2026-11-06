@@ -14,7 +14,7 @@
 
 # The extension, compiled and tested here: no JVM is asked of the workstation. The JDK is 25, but
 # the extension targets Java 21 (extension/pom.xml), the Java that runs Keycloak 26.8.1.
-FROM maven:3.10.0-eclipse-temurin-25@sha256:047a82fc82c613266cfb1b66fd920be9c8ba51fd67edc68245e4542768f45e36 AS extension
+FROM maven:3-eclipse-temurin-26@sha256:69a6c37f0a91fca2c9d0cdd684c9c0ea7b1bc00d4196749c24440b2e02ad163d AS extension
 WORKDIR /build
 COPY extension/pom.xml ./
 RUN --mount=type=cache,target=/root/.m2 mvn --batch-mode --quiet dependency:go-offline
