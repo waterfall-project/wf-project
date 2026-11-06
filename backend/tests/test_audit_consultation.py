@@ -481,6 +481,23 @@ def test_the_facets_name_a_project_that_exists_by_its_code_and_label_of_today(
     ]
 
 
+@pytest.mark.requirement("WF-ADM-0190-A")
+def test_the_facets_keep_the_code_of_the_last_inscription_for_a_project_that_has_none_today(
+    api: ContractClient, database: Database, reader: dict[str, str]
+) -> None:
+    # The contract sorts the projects by a code: an existing project whose code is null today is
+    # named by the code of its latest inscription, and by its label of today.
+    write(database)
+    with database.transaction() as session:
+        session.execute(insert_project(id=FIRST.project_id, code=None, label="Poste rénové"))
+    response = api.get(FACETS, headers=reader)
+    assert response.status_code == 200, response.text
+    assert [(p["project_id"], p["code"], p["label"]) for p in response.json()["projects"]] == [
+        (str(FIRST.project_id), "PRJ-001", "Poste rénové"),
+        (str(SECOND.project_id), "PRJ-002", SECOND.label),
+    ]
+
+
 def test_a_journal_without_any_inscription_has_no_facet(
     api: ContractClient, reader: dict[str, str]
 ) -> None:

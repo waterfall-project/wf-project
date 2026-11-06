@@ -106,8 +106,9 @@ def audit_sort(
 PROJECT_OPENS = False
 """Whether an inscription leads to its project (`AuditProject.can_open`, WF-ADM-0190): never yet.
 
-The service holds no project before EP-04, and a project it does not hold is one no caller may
-consult; EP-04 evaluates it per caller, from the permissions and the contributors (US-0701/L8)."""
+The evaluation of `can_open` per caller, from the permissions and the contributors, does not
+exist yet (US-0701/L8): until it does, no caller is known to consult a project, and the value
+stays `False`."""
 
 
 def audit_event(entry: AuditEntry) -> AuditEvent:
@@ -176,7 +177,13 @@ def get_audit_events(
 
 
 def _projects_today(session: Session) -> list[AuditProject]:
-    """Name each project of the journal as it is today, as it was inscribed if it is gone (#927)."""
+    """Name each project of the journal as it is today, as it was inscribed if it is gone (#927).
+
+    A project that exists but bears no code today keeps the code of its latest inscription: the
+    contract requires a code to sort on, and the inscription of a project without code is refused
+    (`platform/audit.py`), so the inscription always holds one. The label, never null in the
+    project, has the same fallback only because its reading is typed as optional.
+    """
     named = journal_projects(session)
     present = projects_present(session, [project.project_id for project in named])
     today: list[AuditProject] = []
