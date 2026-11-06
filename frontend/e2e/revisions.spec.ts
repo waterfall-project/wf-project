@@ -23,8 +23,9 @@ const PROJECT = "01926f3a-7c00-7000-8000-000000000001";
 const REVISION = "01926f3a-7c00-7000-8000-000000000102";
 
 // The current revision is the first of the history: the fake back's, opened in 2026; the service's,
-// the revision 100 of PRJ-001, opened by the loading of the witness in the year of its loading.
-const CURRENT_YEAR = inService ? new Date().getFullYear().toString() : "2026";
+// the revision 100 of PRJ-001, whose reference year is that of the loading of the witness, not of
+// the run of the test: a four-digit year only is asserted there.
+const CURRENT_YEAR: string | RegExp = inService ? /\b\d{4}\b/ : "2026";
 
 // What the service does not replay before EP-07, which serves the comparison and the rate update
 // the screen of a current revision reads — not found there until then —, the marked revisions
@@ -34,7 +35,6 @@ const BEFORE_EP07 = "EP-07 serves the comparison and the rate update; US-0970 ma
 test("the history of the revisions of a project, each attribute of a revision in it, no note of the mock-up (US-0960) @shared [WF-REV-0070-A] [WF-REV-0090-A]", async ({
   page,
 }) => {
-  // La liste des révisions marquées est accessible depuis le projet.
   await openHydrated(page, `/projects/${PROJECT}/revisions`);
   const main = page.getByRole("main");
   await expect(main.getByRole("heading", { level: 1 })).toHaveText("Gestion des révisions");
