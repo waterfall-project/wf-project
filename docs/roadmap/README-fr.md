@@ -255,6 +255,7 @@ lot technique, se range sous la première US qu'il prépare, et nomme les autres
 | un lot se fusionne seul, la chaîne au vert | la branche de l'EPIC n'est jamais à moitié construite |
 | un constat de revue hors du périmètre du lot devient une issue, rattachée et tranchée selon « Suivi sur GitHub », et ne se corrige pas dans le lot | c'est ce qui fait grossir un lot pendant sa revue, et tourner la revue en boucle |
 | la pull request donne la taille réelle du lot, mesurée par `make lot-size`, à côté de l'estimation de son issue ; un dépassement ne fait rien échouer | l'estimation se trompe, et une règle d'arrêt bloquerait un EPIC livré la nuit ; l'écart se lit au relevé de livraison, et le plan de lots suivant s'en corrige |
+| un lot ne se coupe pas à sa mesure : il se livre tel quel, et l'écart recale le plan suivant ; seul le relecteur qui ne peut pas le relire d'un seul tenant demande une coupe, au premier tour, et le plafond de six tours de revue borne la boucle | la coupe à la mesure (2026-11-05 et 06) n'a pas changé le nombre de tours, deux à trois pour 180 comme pour 4 300 lignes ; elle coûtait une issue, une ligne de tableau, un rebase et un conflit avec les lots voisins |
 | la revue locale corrige tous les constats de son premier tour ; aux tours suivants, seuls les majeurs et ceux qu'une correction a introduits, les mineurs devenant des issues | c'est ce qui fait tourner la revue en boucle, six tours pour un lot pendant la livraison d'EP-03, quand chaque correction fait naître un nouveau mineur |
 | l'issue d'un lot dit le modèle de son développement, `sonnet` ou `opus`, et pourquoi — authentification, sécurité, migration de données, contrat, interface partagée, ou conception qui laisse une part à interpréter ; sans ce champ, l'agent de livraison applique la même liste, et il escalade une fois par lot | le cadreur sait quelle part de la conception reste à interpréter, le livreur ne la découvre qu'en lisant le lot ; un lot marqué `sonnet` qui escalade dit que la règle a sous-estimé, et c'est ce qui la calibre |
 
@@ -262,7 +263,7 @@ Ce tableau est la seule définition de la taille visée : le gabarit de pull req
 des lots et les agents y renvoient, et aucun ne la recopie.
 
 Un lot porte le titre `[US-nnnn/Ln] …` ; `Ln` numérote les lots d'une même US, dans l'ordre
-où ils se livrent, sans réemploi. La part détachée d'un lot coupé en deux prend le numéro du
+où ils se livrent, sans réemploi. La part détachée d'un lot coupé en deux, à la demande du relecteur, prend le numéro du
 lot suivi de `b` : `[US-nnnn/Lnb]`, branche `lot/US-nnnn/Lnb`, ou `[US-nnnnb]` pour une US
 d'un seul lot. Une US réalisée par un seul lot n'a qu'une issue, `[US-nnnn]`,
 qui est aussi celle du lot, et sa branche `lot/US-nnnn`. Les lots vivent sur GitHub et nulle
