@@ -392,7 +392,9 @@ def test_the_list_is_searched_filtered_and_sorted_by_the_server(
     ines = account(stage.database, "Inès", "Roux")
     lucas = account(stage.database, "Lucas", "Petit")
     ghost = account(stage.database, "", "", active=False, anonymized=True)
-    for user_id in (ines, lucas, ghost):
+    soren = account(stage.database, "Søren", "Åberg")
+    ligature = account(stage.database, "Œdipe", "Łukasz")
+    for user_id in (ines, lucas, ghost, soren, ligature):
         inscribe(stage.database, stage, user_id, CONTRIBUTOR)
     # By default, the project managers first, then the names; an anonymised account after the
     # names of its kind, which no name ever finds.
@@ -401,21 +403,32 @@ def test_the_list_is_searched_filtered_and_sorted_by_the_server(
         "Inès Martin",
         "Lucas Petit",
         "Inès Roux",
+        "Søren Åberg",
+        "Œdipe Łukasz",
         None,
     ]
     # A search ignores the case and the accents of the displayed name.
     assert names(read(api, stage, stage.manager, "search=INES")) == ["Inès Martin", "Inès Roux"]
     assert names(read(api, stage, stage.manager, "search=roux")) == ["Inès Roux"]
+    # As the contract says: the transliteration of ``unaccent``, ligatures and barred letters.
+    assert names(read(api, stage, stage.manager, "search=soren")) == ["Søren Åberg"]
+    assert names(read(api, stage, stage.manager, "search=aberg")) == ["Søren Åberg"]
+    assert names(read(api, stage, stage.manager, "search=oedipe")) == ["Œdipe Łukasz"]
+    assert names(read(api, stage, stage.manager, "search=lukasz")) == ["Œdipe Łukasz"]
     assert names(read(api, stage, stage.manager, "kinds=project_manager")) == ["Camille Martin"]
     assert names(read(api, stage, stage.manager, "sort_by=display_name")) == [
         "Camille Martin",
         "Inès Martin",
         "Inès Roux",
         "Lucas Petit",
+        "Søren Åberg",
+        "Œdipe Łukasz",
         None,
     ]
     assert names(read(api, stage, stage.manager, "sort_by=display_name&sort_order=desc")) == [
         None,
+        "Œdipe Łukasz",
+        "Søren Åberg",
         "Lucas Petit",
         "Inès Roux",
         "Inès Martin",
@@ -425,7 +438,7 @@ def test_the_list_is_searched_filtered_and_sorted_by_the_server(
     assert [item["kind"] for item in by_kind["items"]][-1] == MANAGER
     deactivate(owner, lucas)
     by_state = read(api, stage, stage.manager, "sort_by=is_active")
-    assert [item["is_active"] for item in by_state["items"]] == [True, True, True, False, False]
+    assert [item["is_active"] for item in by_state["items"]] == [True] * 5 + [False] * 2
     anonymized = [item for item in by_state["items"] if item["display_name"] is None]
     assert [item["is_active"] for item in anonymized] == [False]
     bad = api.get(f"{path(stage)}?kinds=boss", headers=stage.manager.headers)
@@ -469,6 +482,36 @@ def test_a_project_whose_project_managers_are_all_deactivated_is_rescued_by_a_ho
         {"missing_condition": "is_contributor"},
     )
     assert api.get(path(stage), headers=rescuer.headers).status_code == 200
+
+
+@pytest.mark.requirement("WF-PRJ-0060-A")
+def test_the_rescue_inscribes_a_new_project_manager_absent_from_the_list(
+    api: ContractClient, owner: Engine, database: Database, realm: TestRealm, stage: Scene
+) -> None:
+    rescuer = person(database, realm, *RESCUE, name="Dominique")
+    deactivate(owner, stage.manager.user_id)
+    newcomer = account(database, "Nora", "Blanc")
+    lines = [(stage.manager.user_id, MANAGER), (newcomer, MANAGER)]
+    answer = write(api, stage, rescuer, lines, 0)
+    assert answer.status_code == 200, answer.text
+    assert kinds_of(stage) == {stage.manager.user_id: MANAGER, newcomer: MANAGER}
+    assert answer.json()["lock_version"] == 1
+
+
+@pytest.mark.requirement("WF-PRJ-0060-A")
+def test_the_rescue_is_refused_on_a_terminal_project(
+    api: ContractClient, owner: Engine, database: Database, realm: TestRealm, stage: Scene
+) -> None:
+    rescuer = person(database, realm, *RESCUE, name="Dominique")
+    deactivate(owner, stage.manager.user_id)
+    put_in_state(owner, stage.project["project_id"], "completed")
+    lines = [(stage.manager.user_id, MANAGER), (stage.participant.user_id, MANAGER)]
+    assert refusal(write(api, stage, rescuer, lines, 0)) == (
+        409,
+        "STATE_FORBIDS_OPERATION",
+        {"missing_condition": "project_not_terminal"},
+    )
+    assert read(api, stage, rescuer)["lock_version"] == 0
 
 
 @pytest.mark.requirement("WF-PRJ-0060-A")

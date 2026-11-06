@@ -21,11 +21,10 @@ Declared by US-0910/L1, without effect: US-0910/L2 filled ``contributor_kind`` a
 ``project_exists``, US-0930 fills the rest; ``load_contributors`` writes those of the witness.
 """
 
-import unicodedata
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Literal, cast
 
-from sqlalchemy import exists, select
+from sqlalchemy import Text, Uuid, column, exists, select, values
 
 from waterfall.core.projects.commands import (
     IS_CONTRIBUTOR,
@@ -35,7 +34,15 @@ from waterfall.core.projects.commands import (
 )
 from waterfall.core.projects.interface.projects import ALL_PROJECTS_READ, Viewer
 from waterfall.core.projects.tables import Contributor, Project
-from waterfall.core.users.interface import active_accounts, read_account_label
+from waterfall.core.users.interface import (
+    Account,
+    AccountFilters,
+    AccountSort,
+    Page,
+    active_accounts,
+    list_accounts,
+)
+from waterfall.platform.database import contains
 from waterfall.platform.errors import (
     ConflictError,
     FieldError,
@@ -120,7 +127,7 @@ class ContributorEntry:
 
 
 @dataclass(frozen=True, slots=True)
-class ContributorsWrite:
+class ContributorsToWrite:
     """The whole list written, at the counter of the list read."""
 
     entries: tuple[ContributorEntry, ...]
@@ -177,16 +184,6 @@ def project_exists(session: Session, project_id: UUID) -> bool:
     return bool(session.scalar(select(exists().where(Project.id == project_id))))
 
 
-def _folded(text: str) -> str:
-    """Give a text as a search compares it: without accents, whatever its case."""
-    plain = "".join(
-        letter
-        for letter in unicodedata.normalize("NFKD", text)
-        if not unicodedata.combining(letter)
-    )
-    return plain.casefold()
-
-
 def _stored(session: Session, project_id: UUID) -> tuple[int, dict[UUID, ContributorKind]]:
     """Read the counter of the list and its lines in one statement; or refuse (404)."""
     rows = session.execute(
@@ -205,11 +202,31 @@ def _stored(session: Session, project_id: UUID) -> tuple[int, dict[UUID, Contrib
     return lines[0][0], kinds
 
 
-def _rows(session: Session, kinds: Mapping[UUID, ContributorKind]) -> list[_Row]:
-    """Read the accounts of the lines, each named as it is shown today."""
+def _accounts_of(session: Session, user_ids: Collection[UUID]) -> dict[UUID, Account]:
+    """Read the accounts given in one request, deactivated and anonymised ones included.
+
+    An identifier no account bears is left out.
+    """
+    wanted = list(set(user_ids))
+    if not wanted:
+        return {}
+    filters = AccountFilters(
+        states=frozenset({"active", "deactivated"}), held=lambda id_: id_.in_(wanted)
+    )
+    page = list_accounts(
+        session,
+        filters,
+        AccountSort(),
+        Page(limit=len(wanted), offset=0),
+    )
+    return {account.user_id: account for account in page.accounts}
+
+
+def _rows(accounts: Mapping[UUID, Account], kinds: Mapping[UUID, ContributorKind]) -> list[_Row]:
+    """Name the accounts of the lines, each as it is shown today."""
     rows: list[_Row] = []
     for user_id, kind in kinds.items():
-        label = read_account_label(session, user_id)
+        label = accounts.get(user_id)
         # An account is never deleted (``RESTRICT``): a line always has its account.
         if label is None:
             continue
@@ -223,6 +240,19 @@ def _rows(session: Session, kinds: Mapping[UUID, ContributorKind]) -> list[_Row]
     return rows
 
 
+def _found(session: Session, rows: Iterable[_Row], search: str) -> frozenset[UUID]:
+    """Name the contributors whose displayed name holds the text searched, by the database.
+
+    Compared as the contract says — transliterated by ``unaccent``, whatever the case — in one
+    request on the names of the lines.
+    """
+    named = [(row.view.user_id, row.view.display_name) for row in rows if row.view.display_name]
+    if not named:
+        return frozenset()
+    names = values(column("id", Uuid), column("name", Text), name="names").data(named)
+    return frozenset(session.scalars(select(names.c.id).where(contains(names.c.name, search))))
+
+
 def _by_name(row: _Row) -> tuple[int, bool, str, str, str]:
     """Sort a line as the accounts are: its kind, its name, its first name; anonymised last."""
     return (
@@ -234,11 +264,9 @@ def _by_name(row: _Row) -> tuple[int, bool, str, str, str]:
     )
 
 
-def _kept(row: _Row, filters: ContributorFilters) -> bool:
+def _kept(row: _Row, filters: ContributorFilters, found: frozenset[UUID] | None) -> bool:
     view = row.view
-    if filters.search is not None and (
-        view.display_name is None or _folded(filters.search) not in _folded(view.display_name)
-    ):
+    if found is not None and view.user_id not in found:
         return False
     if filters.kinds is not None and view.kind not in filters.kinds:
         return False
@@ -263,12 +291,14 @@ def _read(
     sort: ContributorSort,
 ) -> tuple[ContributorView, ...]:
     """Filter and sort the lines; equals keep the order of the list unsorted (WF-IHM-0060)."""
-    ordered = sorted(_rows(session, kinds), key=_by_name)
+    rows = _rows(_accounts_of(session, kinds), kinds)
+    found = None if filters.search is None else _found(session, rows, filters.search)
+    ordered = sorted(rows, key=_by_name)
     if sort.column is not None:
         column = sort.column
         # Stable, also reversed: equals keep the order of the list unsorted, ascending.
         ordered.sort(key=lambda row: _column(column, row), reverse=sort.descending)
-    return tuple(row.view for row in ordered if _kept(row, filters))
+    return tuple(row.view for row in ordered if _kept(row, filters, found))
 
 
 def list_contributors(
@@ -324,7 +354,9 @@ def _check_writer(session: Session, kinds: Mapping[UUID, ContributorKind], viewe
 
 
 def _faults(
-    session: Session, entries: Iterable[ContributorEntry], kinds: Mapping[UUID, ContributorKind]
+    accounts: Mapping[UUID, Account],
+    entries: Iterable[ContributorEntry],
+    kinds: Mapping[UUID, ContributorKind],
 ) -> list[FieldError]:
     """Point at each line whose account the list may not hold: unknown, deactivated, or doubled.
 
@@ -335,7 +367,7 @@ def _faults(
     seen: set[UUID] = set()
     for position, entry in enumerate(entries):
         pointer = f"/contributors/{position}/user_id"
-        label = read_account_label(session, entry.user_id)
+        label = accounts.get(entry.user_id)
         if entry.user_id in seen:
             faults.append(FieldError(pointer, VALIDATION_FAILED))
         elif label is None:
@@ -367,7 +399,7 @@ def _replace(session: Session, project: Project, entries: Iterable[ContributorEn
 
 
 def set_contributors(
-    session: Session, project_id: UUID, write: ContributorsWrite, viewer: Viewer
+    session: Session, project_id: UUID, write: ContributorsToWrite, viewer: Viewer
 ) -> ContributorsRead:
     """Write the whole list of the contributors at the counter read (``setContributors``).
 
@@ -378,6 +410,8 @@ def set_contributors(
     ``LAST_PROJECT_MANAGER``) — an active one when the writer rescues the project. Nothing is
     written then. The list is answered whole with its next counter, built before the commit.
     """
+    # The accounts of the lines, read in one request before the lock is taken.
+    accounts = _accounts_of(session, [entry.user_id for entry in write.entries])
     project = _locked(session, project_id)
     _, kinds = _stored(session, project_id)
     rescuing = _check_writer(session, kinds, viewer)
@@ -387,7 +421,7 @@ def set_contributors(
         raise PreconditionFailedError(
             STALE_LOCK_VERSION, {"expected_lock_version": project.contributors_lock_version}
         )
-    faults = _faults(session, write.entries, kinds)
+    faults = _faults(accounts, write.entries, kinds)
     if faults:
         raise UnprocessableError(VALIDATION_FAILED, fields=tuple(faults))
     managers = [entry.user_id for entry in write.entries if entry.kind == MANAGER]
@@ -433,11 +467,12 @@ def load_contributors(session: Session, load: ContributorsLoad) -> None:
     By the rules of the list but those of a writer: the accounts are known and the list keeps a
     project manager; the account deactivated since its inscription is listed all the same.
     """
+    accounts = _accounts_of(session, [entry.user_id for entry in load.entries])
     project = _locked(session, load.project_id)
     faults = [
         FieldError(f"/contributors/{position}/user_id", UNKNOWN_USER)
         for position, entry in enumerate(load.entries)
-        if read_account_label(session, entry.user_id) is None
+        if entry.user_id not in accounts
     ]
     if faults:
         raise UnprocessableError(VALIDATION_FAILED, fields=tuple(faults))

@@ -38,11 +38,11 @@ from waterfall.core.projects.interface import (
     ContributorFilters,
     ContributorSort,
     ContributorsRead,
+    ContributorsToWrite,
     list_contributor_suggestions,
     list_contributors,
     set_contributors,
 )
-from waterfall.core.projects.interface import ContributorsWrite as Writing
 from waterfall.platform.errors import ForbiddenError
 
 router = APIRouter(tags=["projects"])
@@ -155,7 +155,7 @@ def put_contributors(
     project_id: UUID, body: WriteBody, actor: Acting, session: Transaction
 ) -> ContributorList:
     """Write the whole list of the contributors at the counter read; only a manager may."""
-    write = Writing(
+    write = ContributorsToWrite(
         tuple(ContributorEntry(line.user_id.root, line.kind.value) for line in body.contributors),
         body.lock_version.root,
     )
