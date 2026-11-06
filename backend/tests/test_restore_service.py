@@ -12,10 +12,8 @@ import json
 import tarfile
 import threading
 import time
-from collections.abc import Iterator
 from dataclasses import dataclass
-from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from uuid import UUID, uuid4
 
 import pytest
@@ -28,8 +26,6 @@ from installations import (
     restorer_headers,
     written_task,
 )
-from openapi_core import OpenAPI
-from realm import TestRealm
 from redis.exceptions import RedisError
 from sqlalchemy import Engine, insert, select
 from support import ContractClient, Logs, nowhere
@@ -41,7 +37,6 @@ from waterfall.migrations.runner import upgrade
 from waterfall.platform.audit import AuditEntry
 from waterfall.platform.database import Database, create_database_engine, utc_now
 from waterfall.platform.maintenance import Maintenance, Restoring
-from waterfall.platform.queue import TaskQueue
 from waterfall.platform.tasks import BackgroundTask
 from waterfall.restore import task as restoration
 from waterfall.restore.provider import RealmNotAppliedError, RealmRequests
@@ -49,6 +44,15 @@ from waterfall.restore.runner import Restorer
 from waterfall.restore.task import GIVE_THE_REALM_BACK, RestoreTask, await_runs
 from waterfall.worker.backup import MANIFEST
 from waterfall.worker.runner import Timing, Worker
+
+if TYPE_CHECKING:
+    from collections.abc import Iterator
+    from pathlib import Path
+
+    from openapi_core import OpenAPI
+    from realm import TestRealm
+
+    from waterfall.platform.queue import TaskQueue
 
 RESTORES = "/api/v1/restores"
 

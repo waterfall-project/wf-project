@@ -3,7 +3,7 @@
 import { render, screen } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
 import { useState } from "react";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { CHART_ROOM, roomForCharts } from "./chart-room";
 import { takeStderr, watchStderr } from "./stderr";
@@ -93,6 +93,10 @@ describe("a line written on the error output after its test", () => {
 describe("the room of a chart", () => {
   roomForCharts();
 
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
   it("sizes the drawing of a chart alone, and leaves every other element as the document measures it", () => {
     render(
       <figure>
@@ -106,5 +110,44 @@ describe("the room of a chart", () => {
       CHART_ROOM.height,
     ]);
     expect(screen.getByTestId("beside").clientWidth).toBe(0);
+  });
+
+  it("leaves a grid beside the chart the window its test gives it", () => {
+    vi.spyOn(HTMLElement.prototype, "offsetHeight", "get").mockReturnValue(560);
+    vi.spyOn(HTMLElement.prototype, "offsetWidth", "get").mockReturnValue(1400);
+    render(
+      <figure>
+        <div role="img" aria-label="Une courbe" />
+        <div data-testid="beside" />
+      </figure>,
+    );
+    const beside = screen.getByTestId("beside");
+    expect([beside.clientWidth, beside.clientHeight]).toEqual([1400, 560]);
+    expect(screen.getByRole("img", { name: "Une courbe" }).clientWidth).toBe(CHART_ROOM.width);
+  });
+});
+
+describe("the inside of an element", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("measures its box, as a test sizes it: nothing, as happy-dom lays nothing out, until then", () => {
+    render(<div data-testid="scroller" />);
+    const scroller = screen.getByTestId("scroller");
+    expect([scroller.clientWidth, scroller.clientHeight]).toEqual([0, 0]);
+    vi.spyOn(HTMLElement.prototype, "offsetHeight", "get").mockReturnValue(560);
+    vi.spyOn(HTMLElement.prototype, "offsetWidth", "get").mockReturnValue(1600);
+    expect([scroller.clientWidth, scroller.clientHeight]).toEqual([1600, 560]);
+  });
+
+  it("measures what a test gives it by a spy of its own, and its box again once the spy is restored", () => {
+    vi.spyOn(HTMLElement.prototype, "offsetWidth", "get").mockReturnValue(1600);
+    const inside = vi.spyOn(HTMLElement.prototype, "clientWidth", "get").mockReturnValue(1400);
+    render(<div data-testid="gantt" />);
+    const gantt = screen.getByTestId("gantt");
+    expect(gantt.clientWidth).toBe(1400);
+    inside.mockRestore();
+    expect(gantt.clientWidth).toBe(1600);
   });
 });

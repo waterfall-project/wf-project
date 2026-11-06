@@ -10,12 +10,14 @@ requirement: they hold the contract, not the Vérif of one (WF-QUA-0010).
 
 import json
 import re
-from collections.abc import Iterator
-from typing import Any, cast
+from typing import TYPE_CHECKING, Any, cast
 
 import yaml
 
 from wftools import REPOSITORY
+
+if TYPE_CHECKING:
+    from collections.abc import Iterator
 
 API = REPOSITORY / "docs" / "api"
 COMPONENTS = API / "components"

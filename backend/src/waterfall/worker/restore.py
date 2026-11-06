@@ -19,8 +19,7 @@ import shutil
 import subprocess
 import tarfile
 from datetime import datetime
-from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from waterfall import __version__
 from waterfall.platform.errors import UnprocessableError
@@ -35,6 +34,9 @@ from waterfall.worker.backup import (
     listed,
     reached,
 )
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 BACKUP_FROM_NEWER_VERSION = "BACKUP_FROM_NEWER_VERSION"
 FILE_FORMAT_UNREADABLE = "FILE_FORMAT_UNREADABLE"

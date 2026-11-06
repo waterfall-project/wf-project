@@ -10,12 +10,14 @@ passes here needs none of them.
 """
 
 import json
-from collections.abc import Callable, Iterator
 from pathlib import Path
-from typing import cast
+from typing import TYPE_CHECKING, cast
 
 import pytest
 from pytest_socket import disable_socket, enable_socket
+
+if TYPE_CHECKING:
+    from collections.abc import Callable, Iterator
 
 FIXTURES = Path(__file__).resolve().parents[3] / "fixtures"
 

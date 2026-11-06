@@ -6,7 +6,7 @@ import threading
 import time
 from datetime import date
 from enum import IntEnum, StrEnum
-from typing import Annotated, Any
+from typing import TYPE_CHECKING, Annotated, Any
 from uuid import UUID
 
 import httpx2
@@ -18,7 +18,6 @@ from pydantic import BaseModel, Field, model_validator
 from support import PLATFORM_SECRETS, Logs, found_in
 
 from waterfall.api.app import create_app
-from waterfall.api.authentication import Services
 from waterfall.api.contract.models import DisplayPreferences, FieldProblem, Problem
 from waterfall.platform.errors import (
     BadRequestError,
@@ -32,6 +31,9 @@ from waterfall.platform.errors import (
     UnavailableError,
     UnprocessableError,
 )
+
+if TYPE_CHECKING:
+    from waterfall.api.authentication import Services
 
 PREFIX = "/api/v1"
 
@@ -66,7 +68,7 @@ class Span(BaseModel):
     last: int
 
     @model_validator(mode="after")
-    def ordered(self) -> "Span":
+    def ordered(self) -> Span:
         if self.last < self.first:
             message = "last before first"
             raise ValueError(message)
@@ -461,6 +463,15 @@ def test_a_query_parameter_of_the_wrong_type_is_a_422(app: FastAPI) -> None:
 
 def test_a_body_that_is_not_an_object_is_a_malformed_request(app: FastAPI) -> None:
     response = TestClient(app).post("/entries", json=["not", "an", "object"])
+    assert (response.status_code, problem_of(response).code.value) == (400, "MALFORMED_REQUEST")
+
+
+def test_a_body_sent_null_is_a_malformed_request_as_an_absent_one(app: FastAPI) -> None:
+    # Since FastAPI 0.151 a JSON null is no longer an absent body: Pydantic refuses it as a value
+    # that is not an object, which reads it no more than an absent one.
+    response = TestClient(app).post(
+        "/entries", content="null", headers={"content-type": "application/json"}
+    )
     assert (response.status_code, problem_of(response).code.value) == (400, "MALFORMED_REQUEST")
 
 

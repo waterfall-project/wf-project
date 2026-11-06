@@ -6,9 +6,10 @@
 # production build with no API to reach and the routes it prerendered (make check-front-static).
 # The unit tests, which keep the cores of a runner busy, are spread over three others: the guards
 # that run ESLint, a minute each, on one, the other tests in two halves on two (make
-# check-front-tests SHARD=lint, SHARD=i/2); in the full tier each part is measured, and
-# the coverage of the parts gathered is held to its thresholds once all of them are done (make
-# coverage-front-merge). The paths run beside it, in e2e.yml, in the full tier only (#492).
+# check-front-tests SHARD=lint, SHARD=i/2); in the full tier each half is measured, and
+# the coverage of the halves gathered is held to its thresholds once both are done (make
+# coverage-front-merge); the guards, which cover nothing of src/, are not measured (#2015). The
+# paths run beside it, in e2e.yml, in the full tier only (#492).
 name: front
 
 on:
@@ -24,7 +25,7 @@ permissions:
 
 jobs:
   check:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     # ESLint about a minute without its cache, the client, the types and the catalogues, and in
     # the fast tier the production build: 12 leaves room to a slow runner.
     timeout-minutes: 12
@@ -33,10 +34,12 @@ jobs:
         with:
           persist-credentials: false
       # pnpm, at the version `packageManager` names, must exist before setup-node caches it.
-      - run: corepack enable pnpm
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+        with:
+          package_json_file: frontend/package.json
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
-          node-version: 24
+          node-version: 26
           cache: pnpm
           cache-dependency-path: frontend/pnpm-lock.yaml
       # The check of the catalogues is held by the repository tools, in Python.
@@ -58,7 +61,7 @@ jobs:
   tests:
     # Shown as front / tests (lint) and front / tests (i/2).
     name: tests (${{ matrix.part }})
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     # Vitest spreads whole files over the parts, by the hash of their path: the three guards, which
     # are the longest by far and fell in the same part, have one of their own (the project lint of
     # frontend/vitest.config.ts). Every part runs to its end: one failing does not cancel the
@@ -74,7 +77,7 @@ jobs:
     # against Redis"), the image of the service platform, which lives for the job.
     services:
       redis:
-        image: redis:7-alpine@sha256:858f009f9709ce576febc734aa78b8f6d624b82571f9ddb6bda4377c833b3499
+        image: redis:8-alpine@sha256:21090af93f8324db2f0f0f4f38a7c60369d47d917e000c3423d89d2ae2883537
         ports:
           - 6379:6379
         options: >-
@@ -86,10 +89,12 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - run: corepack enable pnpm
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+        with:
+          package_json_file: frontend/package.json
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
-          node-version: 24
+          node-version: 26
           cache: pnpm
           cache-dependency-path: frontend/pnpm-lock.yaml
       - run: make check-front-tests
@@ -97,8 +102,8 @@ jobs:
           TIER: ${{ inputs.tier }}
           SHARD: ${{ matrix.part }}
           WATERFALL_TEST_REDIS_URL: redis://127.0.0.1:6379/0
-      # The report of the part, coverage included, which the job below gathers.
-      - if: inputs.tier == 'full'
+      # The report of a half, coverage included, which the job below gathers; the guards write none.
+      - if: inputs.tier == 'full' && matrix.part != 'lint'
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: front-coverage-${{ strategy.job-index }}
@@ -107,20 +112,22 @@ jobs:
           if-no-files-found: error
           retention-days: 1
 
-  # The coverage of the parts gathered, held to its thresholds (US-0060), in the full tier alone.
+  # The coverage of the two halves gathered, held to its thresholds (US-0060), in the full tier alone.
   coverage:
     needs: tests
     if: inputs.tier == 'full'
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - run: corepack enable pnpm
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+        with:
+          package_json_file: frontend/package.json
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
-          node-version: 24
+          node-version: 26
           cache: pnpm
           cache-dependency-path: frontend/pnpm-lock.yaml
       # The thresholds are held by the repository tools, in Python.

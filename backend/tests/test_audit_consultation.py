@@ -9,7 +9,7 @@ consult it and no other (FBS-1.5). Every answer is checked against the contract.
 
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from urllib.parse import urlencode
 from uuid import UUID, uuid4
 
@@ -39,8 +39,10 @@ from waterfall.platform.audit_consultation import (
     AuditSort,
     journal_query,
 )
-from waterfall.platform.database import Database
 from waterfall.platform.logs import logging_context
+
+if TYPE_CHECKING:
+    from waterfall.platform.database import Database
 
 EVENTS = "/api/v1/audit-events"
 FACETS = "/api/v1/audit-events/facets"

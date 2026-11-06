@@ -77,7 +77,7 @@ function sent(client: FakeClient, route: string): unknown[] {
 }
 
 /** The button of the avatar, in the language of the page. */
-function avatar(name = /^(Compte de|Account of) Camille Martin$/) {
+function avatar(name = /^(Compte de|Account of) Camille Martin, CM$/) {
   return screen.getByRole("button", { name });
 }
 
@@ -127,7 +127,7 @@ describe("the language in the menu of the account", () => {
     await choose("English");
 
     await waitFor(() => {
-      expect(avatar(/^Account of Camille Martin$/)).toBeInTheDocument();
+      expect(avatar(/^Account of Camille Martin, CM$/)).toBeInTheDocument();
     });
     await languages(/^Language/);
     expect(screen.getByRole("menuitemradio", { name: "English" })).toHaveAttribute(
@@ -160,9 +160,9 @@ describe("the language in the menu of the account", () => {
     await userEvent.keyboard("{Enter}");
 
     await waitFor(() => {
-      expect(avatar(/^Account of Camille Martin$/)).toHaveFocus();
+      expect(avatar(/^Account of Camille Martin, CM$/)).toHaveFocus();
     });
-    expect(avatar(/^Account of Camille Martin$/)).toHaveAttribute("aria-busy", "false");
+    expect(avatar(/^Account of Camille Martin, CM$/)).toHaveAttribute("aria-busy", "false");
     expect(screen.queryByRole("menu")).toBeNull();
     expect(sent(client, PREFERENCES)).toEqual([{ language: "en" }]);
   });

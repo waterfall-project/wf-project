@@ -210,7 +210,10 @@ export function RolesCell({
           size="sm"
           tabIndex={-1}
           {...{ [CELL_COMMAND]: "" }}
-          aria-label={t("rolesOf", { name })}
+          aria-label={t("rolesHeld", {
+            name,
+            roles: labels.length === 0 ? t("noRole") : labels.join(", "),
+          })}
           aria-busy={busy}
           className="h-5 max-w-full justify-start px-0.5 font-normal"
         >

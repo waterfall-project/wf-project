@@ -254,7 +254,7 @@ async function abandon(page: Page, cut: unknown): Promise<never> {
     if (!closedByTheTest(failure)) {
       throw new Error(
         `the probe could not end a walk cut short by « ${said(cut)} »: ${said(failure)}`,
-        { cause: cut },
+        { cause: failure },
       );
     }
   }

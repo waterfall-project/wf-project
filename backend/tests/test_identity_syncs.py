@@ -15,15 +15,14 @@ import json
 from collections.abc import Callable
 from contextlib import suppress
 from datetime import UTC, datetime, timedelta
+from typing import TYPE_CHECKING
 from uuid import UUID, uuid4
 
 import pytest
 from access_rows import account, role
 from fastapi.testclient import TestClient
-from openapi_core import OpenAPI
 from realm import KEY, TestRealm
 from sqlalchemy import select, update
-from sqlalchemy.orm import Session
 from support import ContractClient, Logs, Watching, bearer, nowhere
 from task_handlers import deposit, task
 
@@ -41,11 +40,16 @@ from waterfall.core.users.tables import IdentitySyncReport, UserAccount
 from waterfall.platform.database import Database, utc_now
 from waterfall.platform.keycloak import Keycloak, unavailable
 from waterfall.platform.keycloak_admin import KeycloakAdmin, LocalIdentity, ProviderAccount
-from waterfall.platform.queue import TaskQueue
-from waterfall.platform.settings import ServiceSettings
 from waterfall.platform.tasks import BackgroundTask, Task
 from waterfall.worker.identity_sync import IdentitySync, after_commit, write_accounts
 from waterfall.worker.runner import Worker
+
+if TYPE_CHECKING:
+    from openapi_core import OpenAPI
+    from sqlalchemy.orm import Session
+
+    from waterfall.platform.queue import TaskQueue
+    from waterfall.platform.settings import ServiceSettings
 
 SYNCS = "/api/v1/identity-syncs"
 LATEST = f"{SYNCS}/latest"

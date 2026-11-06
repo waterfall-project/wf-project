@@ -7,13 +7,11 @@ of a requirement: none cites one (WF-QUA-0010, « un test qui ne couvre aucune e
 """
 
 import json
-from collections.abc import Iterator, Sequence
 from dataclasses import replace
 from datetime import date, timedelta
 from decimal import Decimal
 from itertools import pairwise
-from pathlib import Path
-from typing import Any, cast
+from typing import TYPE_CHECKING, Any, cast
 
 import pytest
 
@@ -36,6 +34,10 @@ from wftools.mockcalendar import Calendar, Instant
 from wftools.mockids import universe
 from wftools.mockindicators import Flow
 from wftools.mockwitness import COMMISSIONING, CORE, ELECTRICAL_ENGINEERING, GENERATED
+
+if TYPE_CHECKING:
+    from collections.abc import Iterator, Sequence
+    from pathlib import Path
 
 type Node = dict[str, Any]
 

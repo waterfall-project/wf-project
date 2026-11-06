@@ -14,9 +14,12 @@ document, which the requirements cite and the screens address.
 
 import re
 from dataclasses import dataclass
-from pathlib import Path
+from typing import TYPE_CHECKING
 
 from wftools import REPOSITORY
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 PROJECTION = REPOSITORY / "docs" / "spec" / "waterfall-spec.md"
 
@@ -126,7 +129,7 @@ class Function:
     code: str
     label: str
 
-    def is_under(self, other: "Function") -> bool:
+    def is_under(self, other: Function) -> bool:
         """Whether this function is below another in the tree: FBS-4.3.1 under FBS-4.3."""
         return self.code.startswith(f"{other.code}.")
 

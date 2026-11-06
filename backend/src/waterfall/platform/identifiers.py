@@ -4,7 +4,8 @@
 
 A version 7 identifier starts with the time it was drawn at, so the rows sort in the order they
 were created; it is random for the rest, so two instances of the service drawing at the same
-instant do not produce the same one (WF-DAT-0060). Python 3.13 has no ``uuid.uuid7`` yet.
+instant do not produce the same one (WF-DAT-0060). Python 3.14 has ``uuid.uuid7``, but the
+service draws with ``uuid_utils``.
 """
 
 from uuid import UUID

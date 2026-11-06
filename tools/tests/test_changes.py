@@ -3,11 +3,14 @@
 """Tests of the selection of families from a change."""
 
 import subprocess
-from pathlib import Path
+from typing import TYPE_CHECKING
 
 import pytest
 
 from wftools import changes, paths
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 DECLARATION = """
 shared = ["Makefile"]

@@ -14,7 +14,8 @@
  *   multipart body never finishes streaming, whatever the version of jsdom;
  * - `lint`, for the guards that run ESLint on code, typed, which take a minute or more each: a
  *   project of their own, which the chain plays on a runner of its own while the two others are
- *   spread over two more (`make check-front-tests`, `.github/workflows/front.yml`).
+ *   spread over two more (`make check-front-tests`, `.github/workflows/front.yml`), and never
+ *   measures: the guards cover nothing of `src/` (`make coverage-front`, #2015).
  *
  * A worker for each processor but one, as Vitest takes by itself outside watch mode, four at most
  * (`workers`, #1474). The one left is the main process's, which gathers the results, and under

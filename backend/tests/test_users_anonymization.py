@@ -12,13 +12,12 @@ provider's, and is not asked for. A local account removed indeed is tried agains
 """
 
 import threading
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from uuid import UUID, uuid4
 
 import pytest
 from access_rows import ADMINISTRATION, account, role
 from fastapi.testclient import TestClient
-from openapi_core import OpenAPI
 from realm import KEY, TestRealm
 from sqlalchemy import text
 from sqlalchemy.exc import DBAPIError
@@ -34,9 +33,13 @@ from waterfall.core.users.interface import (
 )
 from waterfall.platform.audit import Act, AuditActor, AuditObject, Inscription, record
 from waterfall.platform.database import Database, utc_now
-from waterfall.platform.keycloak import Keycloak
 from waterfall.platform.logs import logging_context
-from waterfall.platform.settings import ServiceSettings
+
+if TYPE_CHECKING:
+    from openapi_core import OpenAPI
+
+    from waterfall.platform.keycloak import Keycloak
+    from waterfall.platform.settings import ServiceSettings
 
 USERS = "/api/v1/users"
 CAMILLE = "6c2d4e1f-3a5b-4c7d-8e9f-0a1b2c3d4e5f"

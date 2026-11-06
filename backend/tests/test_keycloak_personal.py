@@ -9,13 +9,10 @@ when the account follows its browser again. Run by ``make test-keycloak``, with 
 the tests, on a database of their own.
 """
 
-from collections.abc import Iterator
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-import httpx2
 import pytest
 from fastapi.testclient import TestClient
-from openapi_core import OpenAPI
 from support import ContractClient, Watching, nowhere
 from test_keycloak_authentication import (
     DIRECTORY_CREDENTIAL,
@@ -42,9 +39,16 @@ from test_keycloak_sign_in import locked_out
 
 from waterfall.api.app import create_app
 from waterfall.api.authentication import Services
-from waterfall.platform.database import Database
 from waterfall.platform.keycloak import Keycloak
 from waterfall.platform.keycloak_admin import KeycloakAdmin
+
+if TYPE_CHECKING:
+    from collections.abc import Iterator
+
+    import httpx2
+    from openapi_core import OpenAPI
+
+    from waterfall.platform.database import Database
 
 pytestmark = pytest.mark.keycloak
 

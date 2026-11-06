@@ -24,10 +24,12 @@ import json
 import re
 import sys
 from dataclasses import dataclass
-from pathlib import Path
-from typing import cast
+from typing import TYPE_CHECKING, cast
 
 from wftools import REPOSITORY, projection
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 FIXTURES = REPOSITORY / "fixtures"
 LISTING = FIXTURES / "examples.json"

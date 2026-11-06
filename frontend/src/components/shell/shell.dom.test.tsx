@@ -108,8 +108,8 @@ afterEach(() => {
 
 describe("the shell", () => {
   it.each([
-    ["fr", "Replier la barre latérale", "Rechercher", "Compte de Camille Martin"],
-    ["en", "Collapse the side bar", "Search", "Account of Camille Martin"],
+    ["fr", "Replier la barre latérale", "Rechercher", "Compte de Camille Martin, CM"],
+    ["en", "Collapse the side bar", "Search", "Account of Camille Martin, CM"],
   ] as const)(
     "sets the side bar beside the bar of the page, which folds it, shows where the page sits, searches, follows the tasks and opens the account, in %s",
     async (locale, fold, search, account) => {
@@ -129,6 +129,33 @@ describe("the shell", () => {
       await expectAccessible(container);
     },
   );
+
+  it.each([
+    ["fr", "Compte de Camille Martin, "],
+    ["en", "Account of Camille Martin, "],
+  ] as const)(
+    "names the button of the account with the initials its avatar shows [WF-IHM-0100-A], in %s",
+    (locale, start) => {
+      shell({ locale });
+      const account = bar().getByRole("button", { name: new RegExp(`^${start}`) });
+      // The initials are the visible text of the button, and decorative: the name carries them.
+      const shown = account.querySelector("[aria-hidden='true']")?.textContent ?? "";
+      expect(shown).toBe("CM");
+      expect(account).toHaveAccessibleName(`${start}${shown}`);
+    },
+  );
+
+  it("passes the accented initials of the avatar to the name of the button [WF-IHM-0100-A]", () => {
+    shell({ account: { ...account, first_name: "Éric", last_name: "Moreau" } });
+    const button = bar().getByRole("button", { name: "Compte de Éric Moreau, ÉM" });
+    expect(button.querySelector("[aria-hidden='true']")?.textContent).toBe("ÉM");
+  });
+
+  it("names the button of an account without initials by the account alone, with no comma left hanging [WF-IHM-0100-A]", () => {
+    shell({ account: { ...account, first_name: "", last_name: "" } });
+    const button = bar().getByRole("button", { name: "Compte de" });
+    expect(button.getAttribute("aria-label")).not.toContain(",");
+  });
 
   it("gives every button of the bar an icon, hidden from a screen reader", () => {
     shell();
@@ -208,7 +235,7 @@ describe("the shell", () => {
 
   it("opens the menu of the account on its name and address, its preferences, its pages, and the way out", async () => {
     shell();
-    await userEvent.click(bar().getByRole("button", { name: "Compte de Camille Martin" }));
+    await userEvent.click(bar().getByRole("button", { name: "Compte de Camille Martin, CM" }));
     const menu = screen.getByRole("menu");
     expect(menu).toHaveTextContent("Camille Martin");
     expect(menu).toHaveTextContent("camille.martin@example.com");
@@ -229,7 +256,7 @@ describe("the shell", () => {
 
   it("offers no preference in the menu of an account whose preferences it was not given", async () => {
     shell({ preference: undefined, theme: undefined });
-    await userEvent.click(bar().getByRole("button", { name: "Compte de Camille Martin" }));
+    await userEvent.click(bar().getByRole("button", { name: "Compte de Camille Martin, CM" }));
     const menu = screen.getByRole("menu");
     expect(menu).not.toHaveTextContent("Préférences");
     expect(within(menu).queryByRole("menuitem", { name: /^Langue/ })).toBeNull();
@@ -432,7 +459,7 @@ describe("the shell", () => {
 
   it("names the group of the preferences in the menu of the account", async () => {
     shell();
-    await userEvent.click(bar().getByRole("button", { name: "Compte de Camille Martin" }));
+    await userEvent.click(bar().getByRole("button", { name: "Compte de Camille Martin, CM" }));
     const group = screen.getByRole("group", { name: "Préférences" });
     expect(within(group).getByRole("menuitem", { name: /^Langue/ })).toBeInTheDocument();
     expect(within(group).getByRole("menuitem", { name: /^Mode d’affichage/ })).toBeInTheDocument();

@@ -13,7 +13,7 @@ fixtures ``installation`` and ``take``.
 import hashlib
 from collections.abc import Callable, Iterable, Iterator
 from dataclasses import dataclass, field
-from pathlib import Path
+from typing import TYPE_CHECKING
 from uuid import UUID, uuid4
 
 from access_rows import account, role
@@ -27,13 +27,17 @@ from waterfall.migrations.runner import upgrade
 from waterfall.platform.audit import AuditEntry, AuditObject, Inscription, record
 from waterfall.platform.database import Database, create_database_engine, engine_url, utc_now
 from waterfall.platform.logs import logging_context
-from waterfall.platform.queue import TaskQueue
-from waterfall.platform.storage import Bucket
 from waterfall.platform.tasks import BackgroundTask
 from waterfall.restore.provider import RealmNotAppliedError
 from waterfall.worker.backup import DATABASES, BackupTask
 from waterfall.worker.restore import extracted, replace
 from waterfall.worker.runner import Timing, Worker
+
+if TYPE_CHECKING:
+    from pathlib import Path
+
+    from waterfall.platform.queue import TaskQueue
+    from waterfall.platform.storage import Bucket
 
 # An account the inscriptions of these tests name, without a foreign key.
 NAMED = UUID("01926f3a-7c00-7000-8000-0000000004c1")

@@ -15,10 +15,9 @@ deposited from elsewhere says is read from the head of its archive (#350).
 import io
 import json
 import tarfile
-from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from uuid import UUID
 
 from sqlalchemy import Connection, func, insert, select
@@ -48,6 +47,9 @@ from waterfall.platform.restoration import (
 )
 from waterfall.platform.tasks import keep_more_tasks, keep_tasks, write_back_tasks
 from waterfall.platform.uploads import FileUpload
+
+if TYPE_CHECKING:
+    from collections.abc import Mapping
 
 NOT_FOUND = "NOT_FOUND"
 # The member an archive of a backup holds first: what it holds, and when it was taken.
@@ -153,7 +155,7 @@ def archive_taken_at(head: bytes) -> datetime | None:
             if member is None:
                 return None
             taken_at = datetime.fromisoformat(str(json.loads(member.read())["taken_at"]))
-    except (tarfile.TarError, OSError, KeyError, TypeError, ValueError, RecursionError):
+    except tarfile.TarError, OSError, KeyError, TypeError, ValueError, RecursionError:
         return None
     return taken_at if taken_at.tzinfo is not None else None
 

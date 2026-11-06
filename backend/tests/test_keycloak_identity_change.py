@@ -10,19 +10,15 @@ of ``test_keycloak_authentication.py``. Moved out of ``test_keycloak_identity_sy
 reading gives the realm back the identity it holds otherwise (#919).
 """
 
-from collections.abc import Callable, Generator, Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from uuid import UUID, uuid4
 
-import httpx2
 import pytest
 from fastapi.testclient import TestClient
-from openapi_core import OpenAPI
 from sqlalchemy import select, update
 from sqlalchemy.exc import OperationalError
-from sqlalchemy.orm import Session
 from support import ContractClient, Logs, Watching, captured_logs, nowhere
 from test_keycloak_authentication import (
     ME,
@@ -50,6 +46,13 @@ from waterfall.platform.correlation import HEADER
 from waterfall.platform.database import Database
 from waterfall.platform.keycloak import Keycloak
 from waterfall.platform.keycloak_admin import KeycloakAdmin, LocalIdentity
+
+if TYPE_CHECKING:
+    from collections.abc import Callable, Generator, Iterator
+
+    import httpx2
+    from openapi_core import OpenAPI
+    from sqlalchemy.orm import Session
 
 pytestmark = pytest.mark.keycloak
 

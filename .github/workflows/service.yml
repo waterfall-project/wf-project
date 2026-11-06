@@ -20,7 +20,7 @@ permissions:
 
 jobs:
   paths:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     # The images of the platform, Keycloak's built with its extension, then the paths: about as
     # long as keycloak.yml with the browser and the front on top.
     timeout-minutes: 25
@@ -46,10 +46,12 @@ jobs:
       # The cache of the builds of images, written after a merge (images.yml).
       - uses: ./.github/actions/build-cache
       # pnpm, at the version `packageManager` names, must exist before setup-node caches it.
-      - run: corepack enable pnpm
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+        with:
+          package_json_file: frontend/package.json
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
-          node-version: 24
+          node-version: 26
           cache: pnpm
           cache-dependency-path: frontend/pnpm-lock.yaml
       # Prism serves the variant of the contract the repository tools derive, in Python.
@@ -63,7 +65,7 @@ jobs:
       # Keycloak's image built from the cache first: the build of the platform by Compose, on the same
       # builder, finds it there, where it would otherwise compile its extension again.
       - run: make build-keycloak
-      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: front-build
           path: frontend/.next/

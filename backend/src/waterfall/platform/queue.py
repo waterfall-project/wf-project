@@ -72,7 +72,7 @@ class TaskQueue:
         )
         return cls(client, stream)
 
-    def restores(self) -> "TaskQueue":
+    def restores(self) -> TaskQueue:
         """Give the stream of the restorations of this queue, in its Redis (#953)."""
         return TaskQueue(self.client, self.stream + RESTORES)
 

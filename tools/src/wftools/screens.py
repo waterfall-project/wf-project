@@ -29,13 +29,16 @@ indeed reached by a link is proven in a browser, by ``frontend/e2e/screens.spec.
 import json
 import re
 import sys
-from collections.abc import Iterator
 from dataclasses import dataclass
-from pathlib import Path
-from typing import cast
+from typing import TYPE_CHECKING, cast
 
 from wftools import REPOSITORY, projection
-from wftools.projection import Function
+
+if TYPE_CHECKING:
+    from collections.abc import Iterator
+    from pathlib import Path
+
+    from wftools.projection import Function
 
 TABLE = REPOSITORY / "frontend" / "src" / "navigation" / "functions.json"
 """The table of the functions of the front, which the navigation is drawn from."""

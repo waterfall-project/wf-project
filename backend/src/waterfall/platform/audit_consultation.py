@@ -15,14 +15,10 @@ the journal is read only.
 """
 
 from dataclasses import dataclass
-from datetime import datetime
-from typing import Any, Literal
-from uuid import UUID
+from typing import TYPE_CHECKING, Any, Literal
 
 from sqlalchemy import ColumnElement, Select, SQLColumnExpression, func, literal_column, select
 from sqlalchemy.dialects.postgresql import distinct_on
-from sqlalchemy.orm import InstrumentedAttribute, Session
-from sqlalchemy.sql.elements import UnaryExpression
 
 from waterfall.platform.audit import (
     ACTION_RANK,
@@ -32,6 +28,13 @@ from waterfall.platform.audit import (
     AuditProject,
 )
 from waterfall.platform.database import contains
+
+if TYPE_CHECKING:
+    from datetime import datetime
+    from uuid import UUID
+
+    from sqlalchemy.orm import InstrumentedAttribute, Session
+    from sqlalchemy.sql.elements import UnaryExpression
 
 type AuditColumn = Literal[
     "occurred_at", "actor", "action", "object_kind", "object_label", "project", "correlation_id"

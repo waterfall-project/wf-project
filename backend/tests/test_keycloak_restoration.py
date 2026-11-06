@@ -10,10 +10,8 @@ restoration, the realm applied again by ``keycloak-realm`` included, is held by
 ``make production-trial`` (#948).
 """
 
-from collections.abc import Collection, Iterator
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-import httpx2
 import pytest
 from pydantic import SecretStr
 from test_keycloak_authentication import (
@@ -27,6 +25,11 @@ from test_keycloak_platform import PASSWORD, Account, required
 
 from waterfall.platform.keycloak import Keycloak
 from waterfall.platform.keycloak_admin import INSTALLATION_CLIENT, KeycloakAdmin
+
+if TYPE_CHECKING:
+    from collections.abc import Collection, Iterator
+
+    import httpx2
 
 pytestmark = pytest.mark.keycloak
 

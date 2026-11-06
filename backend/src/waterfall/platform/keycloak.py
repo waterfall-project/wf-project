@@ -21,12 +21,11 @@ breaks what the realm promises is a defect of the platform, raised as such.
 import math
 import threading
 import time
-from collections.abc import Callable, Collection, Mapping
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from functools import partial
 from http import HTTPStatus
-from typing import Any, TypeIs, cast
+from typing import TYPE_CHECKING, Any, TypeIs, cast
 from urllib.parse import quote
 
 import httpx2
@@ -35,7 +34,11 @@ from jwt import PyJWK, PyJWKSet
 
 from waterfall.platform.errors import UnauthenticatedError, UnavailableError
 from waterfall.platform.logs import get_logger
-from waterfall.platform.settings import KeycloakSettings
+
+if TYPE_CHECKING:
+    from collections.abc import Callable, Collection, Mapping
+
+    from waterfall.platform.settings import KeycloakSettings
 
 # The audience of the tokens the API accepts: a token lent to another client is not for it.
 AUDIENCE = "waterfall-api"
@@ -174,7 +177,7 @@ class Keycloak:
             raise UnauthenticatedError(SESSION_REQUIRED)
         try:
             moment = datetime.fromtimestamp(signed_in_at, UTC)
-        except (OverflowError, OSError, ValueError):
+        except OverflowError, OSError, ValueError:
             # Signed, but beyond any date: ``1e20``, an infinity, not a number.
             raise UnauthenticatedError(SESSION_REQUIRED) from None
         return Bearer(subject, moment)

@@ -18,12 +18,15 @@ import re
 import subprocess
 import sys
 import time
-from pathlib import Path
+from typing import TYPE_CHECKING
 
 import pytest
 from test_worktree_slots import MAKEFILE, SLOTS, Workstation, docker_asked
 
 from wftools import REPOSITORY, slots
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 COMPOSE_TEST = REPOSITORY / "deploy" / "compose" / "compose.test.yaml"
 COMPOSE_SERVICE = REPOSITORY / "deploy" / "compose" / "compose.service.yaml"
@@ -283,12 +286,12 @@ def test_run_refuses_an_unknown_service_and_a_run_that_asks_for_nothing(tmp_path
 
 
 def test_the_compose_file_has_the_images_the_platform_has_and_the_ports_of_slot_0() -> None:
-    """US-1110: the same pinned images as the platform, PostgreSQL 16 included, on localhost."""
+    """US-1110: the same pinned images as the platform, PostgreSQL 18 included, on localhost."""
     text = COMPOSE_TEST.read_text()
     platform = COMPOSE_SERVICE.read_text()
     images = re.findall(r"^\s+image: (\S+)$", text, flags=re.MULTILINE)
     assert len(images) == 3
-    assert images[0].startswith("postgres:16-")
+    assert images[0].startswith("postgres:18-")
     for image in images:
         assert "@sha256:" in image
         assert image in platform
@@ -299,7 +302,7 @@ def test_the_compose_file_has_the_images_the_platform_has_and_the_ports_of_slot_
     ]
     assert text.count("healthcheck:") == 3
     assert "POSTGRES_HOST_AUTH_METHOD: trust" in text
-    assert "/var/lib/postgresql/data" in text.split("tmpfs:")[1]
+    assert "- /var/lib/postgresql\n" in text.split("tmpfs:")[1]
 
 
 def test_the_storage_key_of_the_compose_file_is_the_one_of_the_url() -> None:

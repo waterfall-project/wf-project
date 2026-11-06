@@ -27,12 +27,14 @@ import os
 import re
 import subprocess
 import sys
-from collections.abc import Generator, Mapping
 from contextlib import contextmanager
-from pathlib import Path
-from typing import NoReturn, cast
+from typing import TYPE_CHECKING, NoReturn, cast
 
 from wftools.slots import runtime_directory
+
+if TYPE_CHECKING:
+    from collections.abc import Generator, Mapping
+    from pathlib import Path
 
 ORDER_TITLE = "## Ordre de réalisation"
 FINDINGS_TITLE = "## Constats ouverts"

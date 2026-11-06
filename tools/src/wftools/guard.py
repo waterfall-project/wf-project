@@ -26,8 +26,10 @@ import json
 import re
 import shlex
 import sys
-from collections.abc import Callable
-from typing import NamedTuple, cast
+from typing import TYPE_CHECKING, NamedTuple, cast
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 RULE = (
     "An agent stops only what it started, by its PID or by a name of its own lot; never by "

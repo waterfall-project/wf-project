@@ -363,6 +363,11 @@ export default defineConfig({
   retries: 0,
   workers: WORKERS,
   reporter: [["list"]],
+  // An assertion waits five seconds on a workstation, ten in the chain, where two workers and their
+  // fronts share the four processors of a runner: a screen that answers in a second there took
+  // past five under load, and failed a run in the merge queue once a week without a defect behind
+  // it (#2015). The measure keeps its own bounds (`opening.spec.ts`, `departure.spec.ts`).
+  expect: { timeout: onWorkstation ? 5_000 : 10_000 },
   use: { baseURL: FRONT, trace: "retain-on-failure" },
   // A French browser by default, the language of the reference catalogue: a path that needs
   // another language sets its own (`test.use({ locale })`).

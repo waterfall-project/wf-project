@@ -32,11 +32,12 @@ from support import (
 )
 
 from waterfall.api.app import create_app
-from waterfall.api.authentication import Services
 from waterfall.platform.correlation import FORM
 
 if TYPE_CHECKING:
     from starlette.routing import BaseRoute
+
+    from waterfall.api.authentication import Services
 
 
 def test_the_liveness_probe_answers_ok_as_the_contract_says(client: ContractClient) -> None:

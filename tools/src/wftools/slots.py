@@ -335,6 +335,7 @@ def names(slot: int) -> dict[str, str]:
         "WATERFALL_SERVICE_PROJECT": f"waterfall-service{suffix}",
         "WATERFALL_TEST_PROJECT": f"waterfall-test{suffix}",
         "WATERFALL_KEYCLOAK_IMAGE": f"waterfall-keycloak{suffix}",
+        "WATERFALL_OPENLDAP_IMAGE": f"waterfall-openldap{suffix}",
         "WATERFALL_FRONT_CHECK_IMAGE": f"waterfall-front:check{suffix}",
     }
 
@@ -427,7 +428,7 @@ def holders(directory: Path) -> dict[int, Holder]:
             lines = entry.read_text(encoding="utf-8").splitlines()
         except FileNotFoundError:
             continue
-        except (OSError, UnicodeDecodeError):
+        except OSError, UnicodeDecodeError:
             lines = []  # unreadable: no worktree, so abandoned, and taken again as such
         worktree, taken_at = ([*lines, "", ""])[:2]
         taken[int(entry.name)] = Holder(worktree, taken_at)

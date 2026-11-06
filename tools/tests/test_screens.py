@@ -3,13 +3,15 @@
 """Tests of the check of the screens of the front against the FBS."""
 
 import json
-from pathlib import Path
-from typing import cast
+from typing import TYPE_CHECKING, cast
 
 import pytest
 
 from wftools import projection, screens
 from wftools.projection import Function
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 TREE = (
     Function("FBS-3", "Paramètres applicatifs"),

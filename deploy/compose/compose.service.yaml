@@ -69,27 +69,46 @@ x-keycloak: &keycloak
   image: ${WATERFALL_KEYCLOAK_IMAGE:-waterfall-keycloak}
 
 services:
+  # Refuses, then stops, a volume of PostgreSQL that holds the data of another major version: the
+  # platform does not take them over (US-1130), and the refusal names the versions and the remedy.
+  # Read-only, as root, who reads the data whatever their owner. `make service-up` prints its log
+  # when the platform does not start.
+  postgres-volume:
+    image: postgres:18-trixie@sha256:3a4264520e121176619f54ff867d12774bc81e95e7b84db58d63bccdb6144b81
+    entrypoint: ["/bin/sh", "/postgres-volume.sh"]
+    command: ["Drop the data of the service platform: make service-down WATERFALL_RESET_DATA=yes."]
+    volumes:
+      - postgres-data:/var/lib/postgresql:ro
+      - ./postgres-volume.sh:/postgres-volume.sh:ro
+    restart: "no"
+
   postgres:
-    # The version the platform targets, pinned by the digest of its index.
-    image: postgres:16-bookworm@sha256:0ea6700a3b4f0ae6ce746519073558aed4d88a79d8d07622a9a644946c7319c4
+    # The version the platform targets, pinned by the digest of its index. Its data live in
+    # <major>/docker of the volume, the layout of the images since 18. The health check asks by
+    # TCP: the server of the first initialisation, which stops before the real one starts, listens
+    # on the socket alone (US-1130).
+    image: postgres:18-trixie@sha256:3a4264520e121176619f54ff867d12774bc81e95e7b84db58d63bccdb6144b81
     environment:
       POSTGRES_USER: waterfall
       POSTGRES_DB: waterfall
       POSTGRES_PASSWORD: ${WATERFALL_POSTGRES_PASSWORD:?export WATERFALL_POSTGRES_PASSWORD}
     volumes:
-      - postgres-data:/var/lib/postgresql/data
+      - postgres-data:/var/lib/postgresql
     # On the workstation only: the tests of the back reach the server there
     # (WATERFALL_TEST_DATABASE_URL).
     ports:
       - "127.0.0.1:${WATERFALL_POSTGRES_PORT:-5432}:5432"
+    depends_on:
+      postgres-volume:
+        condition: service_completed_successfully
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready --username waterfall --dbname waterfall"]
+      test: ["CMD-SHELL", "pg_isready --host 127.0.0.1 --username waterfall --dbname waterfall"]
       interval: 2s
       timeout: 3s
       retries: 30
 
   redis:
-    image: redis:7-alpine@sha256:858f009f9709ce576febc734aa78b8f6d624b82571f9ddb6bda4377c833b3499
+    image: redis:8-alpine@sha256:21090af93f8324db2f0f0f4f38a7c60369d47d917e000c3423d89d2ae2883537
     # Nothing durable is kept in Redis: the queue and the sessions are lost with it, not the data.
     # The shell of the container reads the password from the environment (`$$` keeps Compose from
     # expanding it): the command line `docker inspect` shows names the variable, not its value.
@@ -123,7 +142,7 @@ services:
   # Lets the role of the service, which the migrations create, sign in with its password, at
   # each start of the platform, then stops: the API and the worker connect as it.
   service-database-role:
-    image: postgres:16-bookworm@sha256:0ea6700a3b4f0ae6ce746519073558aed4d88a79d8d07622a9a644946c7319c4
+    image: postgres:18-trixie@sha256:3a4264520e121176619f54ff867d12774bc81e95e7b84db58d63bccdb6144b81
     user: postgres
     command: ["psql", "--no-psqlrc", "--set=ON_ERROR_STOP=1", "--file=/service-database-role.sql"]
     environment:
@@ -142,7 +161,7 @@ services:
   # The role of the backup, created when missing, and its password, at each start of the platform,
   # then stops (#895): the worker dumps the databases as it.
   backup-database-role:
-    image: postgres:16-bookworm@sha256:0ea6700a3b4f0ae6ce746519073558aed4d88a79d8d07622a9a644946c7319c4
+    image: postgres:18-trixie@sha256:3a4264520e121176619f54ff867d12774bc81e95e7b84db58d63bccdb6144b81
     user: postgres
     command: ["psql", "--no-psqlrc", "--set=ON_ERROR_STOP=1", "--file=/backup-database-role.sql"]
     environment:
@@ -274,7 +293,7 @@ services:
   # the platform taken from the environment (garage.toml). It keeps its data in a volume, as the
   # databases do; its memory is bounded, for the machine of a demonstration (WF-CMP-0020).
   storage:
-    image: dxflrs/garage:v2.4.1@sha256:9c96caa2612d3411acc5b0e6701fb238dbfba33e533a6d7d3d811a4b12d0d020
+    image: dxflrs/garage:v2.5.0@sha256:677e5b758e4425a325b811c425c026bf35a4bf42f7ddbaa773de3f4fd779a5a5
     command: ["/garage", "server", "--single-node", "--default-access-key"]
     environment:
       GARAGE_RPC_SECRET: ${WATERFALL_STORAGE_RPC_SECRET:?export WATERFALL_STORAGE_RPC_SECRET}
@@ -310,7 +329,7 @@ services:
 
   # The database of Keycloak, on the same server, created with its role when missing (#215).
   keycloak-database:
-    image: postgres:16-bookworm@sha256:0ea6700a3b4f0ae6ce746519073558aed4d88a79d8d07622a9a644946c7319c4
+    image: postgres:18-trixie@sha256:3a4264520e121176619f54ff867d12774bc81e95e7b84db58d63bccdb6144b81
     user: postgres
     command: ["psql", "--no-psqlrc", "--set=ON_ERROR_STOP=1", "--file=/keycloak-database.sql"]
     environment:
@@ -417,7 +436,7 @@ services:
       keycloak:
         condition: service_healthy
       openldap:
-        condition: service_started
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "bash", "-c", "test -f /tmp/realm-applied"]
       interval: 2s
@@ -425,27 +444,31 @@ services:
       retries: 150
 
   # The directory of test that Keycloak federates (WF-ADM-0180), seeded with one person at its
-  # first start. Its password is a development value, as are those of deploy/keycloak/development.
-  # The image starts as root to prepare its files, then runs slapd as its own user, openldap. Its
-  # data outlive it, as the bases do: seeded again, it would give its person another entryUUID,
-  # and Keycloak, which keeps the first, another account.
+  # first start: Debian's slapd, in the image the repository builds (deploy/openldap, US-1150),
+  # under the name of the slot of the worktree. Its password is a development value, as are those
+  # of deploy/keycloak/development. The image starts as root to make its directory, then runs slapd
+  # as its own user, openldap. Its data outlive it, as the bases do: seeded again, it would give
+  # its person another entryUUID, and Keycloak, which keeps the first, another account.
   openldap:
-    image: osixia/openldap:1.5.0@sha256:18742e9c449c9c1afe129d3f2f3ee15fb34cc43e5f940a20f3399728f41d7c28
-    # Copies its assets before writing to them: the seed is mounted read-only.
-    command: ["--copy-service"]
+    build:
+      context: ../openldap
+    image: ${WATERFALL_OPENLDAP_IMAGE:-waterfall-openldap}
     environment:
-      LDAP_DOMAIN: waterfall.test
-      LDAP_ORGANISATION: Waterfall (development)
-      LDAP_ADMIN_PASSWORD: development-only-directory-admin
-      LDAP_TLS: "false"
+      WATERFALL_DIRECTORY_ADMIN_PASSWORD: development-only-directory-admin
     volumes:
-      - ../keycloak/development/directory.ldif:/container/service/slapd/assets/config/bootstrap/ldif/custom/50-directory.ldif:ro
+      - ../keycloak/development/directory.ldif:/seed/directory.ldif:ro
       - openldap-data:/var/lib/ldap
       - openldap-config:/etc/ldap/slapd.d
+    # An anonymous search on the root of the directory: slapd answers it once it serves.
+    healthcheck:
+      test: ["CMD", "ldapsearch", "-x", "-H", "ldap://127.0.0.1:389", "-b", "", "-s", "base", "namingContexts"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
 
   # Receives every mail Keycloak sends; read at http://127.0.0.1:8025.
   mailpit:
-    image: axllent/mailpit:v1.31.6@sha256:23fe39e81bde596a918000b3135c0f85dc8bb4c9ea6be274b051143f3e300387
+    image: axllent/mailpit:v1.33.0@sha256:9b3a463be15354c0f0eba91697d80e3e0d8a5623ef0e627cacc836bc17fd5231
     user: "1000:1000"
     ports:
       - "127.0.0.1:${WATERFALL_MAILPIT_PORT:-8025}:8025"
@@ -458,7 +481,7 @@ services:
   # pins, in the node image of the development platform; started by `make e2e-service` alone.
   contract-proxy:
     profiles: [e2e]
-    image: node:24-alpine@sha256:44fce696f38ba8c987c4db89954051000bbd05ffd8d8659ba15ed4a8602e937f
+    image: node:26-alpine@sha256:c6ad9e9c1d80f6eb607c26b4b0a132ff7a2344fad1c78ea3baa2a7d4c8de6d94
     command:
       - npx
       - --yes

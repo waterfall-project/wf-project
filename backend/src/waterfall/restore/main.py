@@ -7,8 +7,8 @@ variable that lacks, rather than starting without its settings (WF-SEC-0010).
 """
 
 import sys
-from collections.abc import Sequence
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from waterfall import __version__
 from waterfall.migrations.runner import upgrade
@@ -25,6 +25,9 @@ from waterfall.restore.runner import Restorer
 from waterfall.restore.task import RestoreTask
 from waterfall.worker.backup import DATABASES
 from waterfall.worker.main import serve
+
+if TYPE_CHECKING:
+    from collections.abc import Sequence
 
 NAME = "waterfall-restore"
 USAGE = f"usage: {NAME} [--version]\n"

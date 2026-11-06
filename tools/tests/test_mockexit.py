@@ -9,15 +9,17 @@ Vérif of WF-CYC-0090, WF-CYC-0060, WF-PRJ-0060 and WF-IHM-0090, and against the
 
 import json
 import re
-from datetime import timedelta
 from pathlib import Path
-from typing import Any, cast
+from typing import TYPE_CHECKING, Any, cast
 
 import pytest
 import yaml
 
 from wftools import REPOSITORY, mockproject
 from wftools.mockwitness import FIXTURES, fixture
+
+if TYPE_CHECKING:
+    from datetime import timedelta
 
 type Entry = dict[str, Any]
 

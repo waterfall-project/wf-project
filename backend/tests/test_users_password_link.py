@@ -10,28 +10,31 @@ the journal, against the platform (``test_keycloak_sign_in.py``).
 
 from collections.abc import Callable
 from datetime import UTC, datetime
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from uuid import UUID, uuid4
 
 import pytest
 from access_rows import account, anonymized_account, role
 from fastapi.testclient import TestClient
-from openapi_core import OpenAPI
 from realm import KEY, TestRealm
 from sqlalchemy import func, select
-from sqlalchemy.orm import Session
 from support import ContractClient, Watching, bearer, nowhere
 
 from waterfall.api.app import create_app
 from waterfall.api.authentication import Services
 from waterfall.core.users.interface import inscribe_password_link
 from waterfall.platform.audit import Act, AuditEntry
-from waterfall.platform.database import Database
 from waterfall.platform.errors import ConflictError
-from waterfall.platform.keycloak import Keycloak
-from waterfall.platform.keycloak_admin import InvitationFailure
 from waterfall.platform.logs import logging_context
-from waterfall.platform.settings import ServiceSettings
+
+if TYPE_CHECKING:
+    from openapi_core import OpenAPI
+    from sqlalchemy.orm import Session
+
+    from waterfall.platform.database import Database
+    from waterfall.platform.keycloak import Keycloak
+    from waterfall.platform.keycloak_admin import InvitationFailure
+    from waterfall.platform.settings import ServiceSettings
 
 USERS = "/api/v1/users"
 CAMILLE = "6c2d4e1f-3a5b-4c7d-8e9f-0a1b2c3d4e5f"

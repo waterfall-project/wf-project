@@ -2,7 +2,15 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 
 # The directory of test of the development platform (WF-ADM-0180): one person, whom Keycloak
-# federates (development/waterfall.yaml). Her password is a development value, visible.
+# federates (development/waterfall.yaml). Her password is a development value, visible. Loaded once,
+# by slapadd, at the first start of the directory (deploy/openldap/entrypoint.sh): its first entry
+# is that of the suffix of the base.
+
+dn: dc=waterfall,dc=test
+objectClass: dcObject
+objectClass: organization
+dc: waterfall
+o: Waterfall (development)
 
 dn: ou=people,dc=waterfall,dc=test
 objectClass: organizationalUnit

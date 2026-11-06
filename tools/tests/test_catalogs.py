@@ -4,11 +4,14 @@
 
 import json
 import re
-from pathlib import Path
+from typing import TYPE_CHECKING
 
 import pytest
 
 from wftools import REPOSITORY, catalogs
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 SCHEMAS: dict[str, object] = {
     "ErrorCode": {"type": "string", "enum": ["NOT_FOUND"]},

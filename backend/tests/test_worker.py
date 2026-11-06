@@ -12,14 +12,13 @@ import socket
 import time
 from collections.abc import Callable, Iterator, Mapping
 from itertools import count
+from typing import TYPE_CHECKING
 from uuid import uuid4
 
 import grimp
 import pytest
 from redis.exceptions import ResponseError
 from sqlalchemy import select, update
-from sqlalchemy.orm import Session
-from support import Logs
 from task_handlers import REQUEST, Runs, deposit, held_run, inscribe, inscriptions, task
 
 from waterfall.platform.database import Database, utc_now
@@ -30,6 +29,10 @@ from waterfall.platform.settings import load_worker_settings
 from waterfall.platform.tasks import BackgroundTask, Task, TaskError, TaskHandler, submit
 from waterfall.worker.main import handlers
 from waterfall.worker.runner import MAX_ATTEMPTS, Timing, Worker
+
+if TYPE_CHECKING:
+    from sqlalchemy.orm import Session
+    from support import Logs
 
 # Every entry pending is taken over at once: the tests stand for a worker started again.
 AT_ONCE = Timing(claim_after=0, block=0.01, redeposit_every=0)

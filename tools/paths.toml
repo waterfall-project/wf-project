@@ -103,8 +103,10 @@ target = "check-roadmap"
 # of the back is the price of it.
 paths = [
     "deploy/keycloak/**",
+    "deploy/openldap/**",
     "deploy/compose/compose.service.yaml",
     "deploy/compose/Caddyfile.service",
+    "deploy/compose/postgres-volume.sh",
     "deploy/compose/keycloak-database.sql",
     "deploy/compose/service-database-role.sql",
     "deploy/compose/backup-database-role.sql",
@@ -135,10 +137,12 @@ paths = [
     "docs/api/**",
     "deploy/compose/compose.service.yaml",
     "deploy/compose/Caddyfile.service",
+    "deploy/compose/postgres-volume.sh",
     "deploy/compose/keycloak-database.sql",
     "deploy/compose/service-database-role.sql",
     "deploy/compose/backup-database-role.sql",
     "deploy/keycloak/**",
+    "deploy/openldap/**",
     ".github/workflows/service.yml",
     ".github/actions/**",
     # The variant of the contract Prism serves as a proxy (make mock-spec).
@@ -159,6 +163,7 @@ paths = [
     "deploy/compose/production.env.example",
     "deploy/compose/garage.toml",
     "deploy/compose/storage-buckets.sh",
+    "deploy/compose/postgres-volume.sh",
     "deploy/compose/keycloak-database.sql",
     "deploy/compose/service-database-role.sql",
     "deploy/compose/backup-database-role.sql",

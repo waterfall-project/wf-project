@@ -8,13 +8,12 @@ import sys
 import time
 from datetime import UTC, datetime, timedelta, timezone
 from pathlib import Path
+from typing import TYPE_CHECKING
 from uuid import UUID, uuid4
 
 import pytest
-from openapi_core import OpenAPI
 from sqlalchemy import Engine, text
 from sqlalchemy.exc import IntegrityError, StatementError
-from sqlalchemy.orm import Session
 from support import PLATFORM_SECRETS
 
 from waterfall.core.users import accounts, interface
@@ -24,6 +23,10 @@ from waterfall.core.users.tables import UserAccount
 from waterfall.platform.database import Database, utc_now
 from waterfall.platform.errors import NotFoundError, PreconditionFailedError
 from waterfall.platform.identifiers import new_id
+
+if TYPE_CHECKING:
+    from openapi_core import OpenAPI
+    from sqlalchemy.orm import Session
 
 NOON = datetime(2026, 10, 9, 12, 0, tzinfo=UTC)
 USERS = Path(accounts.__file__).parent

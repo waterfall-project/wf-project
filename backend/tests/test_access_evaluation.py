@@ -14,13 +14,11 @@ from uuid import UUID, uuid4
 import pytest
 from access_rows import ADMINISTRATION, role
 from fastapi.routing import APIRoute
-from openapi_core import OpenAPI
 from realm import KEY, TestRealm
 from sqlalchemy import insert, select
 from support import ContractClient, bearer, operations, raw_account
 
 from waterfall.api.app import create_app
-from waterfall.api.authentication import Services
 from waterfall.api.evaluation import Requires
 from waterfall.core.access_roles.interface import (
     PERMISSION_MISSING,
@@ -33,11 +31,14 @@ from waterfall.core.access_roles.tables import AccessRole, UserAccessRole
 from waterfall.core.users.tables import UserAccount
 from waterfall.platform.audit import AuditEntry
 from waterfall.platform.correlation import HEADER
-from waterfall.platform.database import Database
 from waterfall.platform.errors import ForbiddenError, NotFoundError
 
 if TYPE_CHECKING:
+    from openapi_core import OpenAPI
     from starlette.routing import BaseRoute
+
+    from waterfall.api.authentication import Services
+    from waterfall.platform.database import Database
 
 ME = "/api/v1/me"
 ROLES = "/api/v1/access-roles"

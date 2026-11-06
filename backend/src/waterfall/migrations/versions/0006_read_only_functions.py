@@ -8,13 +8,15 @@ catalogue, and the roles that granted them. The other permissions keep their pos
 order stays that of the contract; the descent puts the eight back at the positions they held.
 """
 
-from collections.abc import Sequence
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import sqlalchemy as sa
 from alembic import op
 
 from waterfall.platform.identifiers import new_id
+
+if TYPE_CHECKING:
+    from collections.abc import Sequence
 
 revision: str = "0006"
 down_revision: str | None = "0005"

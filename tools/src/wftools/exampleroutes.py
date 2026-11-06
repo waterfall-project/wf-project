@@ -25,12 +25,14 @@ import argparse
 import json
 import re
 import sys
-from collections.abc import Iterator
 from decimal import Decimal
 from pathlib import Path
-from typing import cast
+from typing import TYPE_CHECKING, cast
 
 from wftools import REPOSITORY
+
+if TYPE_CHECKING:
+    from collections.abc import Iterator
 
 FIXTURES = REPOSITORY / "fixtures" / "api"
 

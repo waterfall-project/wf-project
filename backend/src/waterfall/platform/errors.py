@@ -9,9 +9,11 @@ is writing or the quality of contributor, 409 for a conflict of state, 412 for a
 one that is not.
 """
 
-from collections.abc import Mapping
 from dataclasses import dataclass, field
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from collections.abc import Mapping
 
 
 def json_pointer(*parts: str | int) -> str:

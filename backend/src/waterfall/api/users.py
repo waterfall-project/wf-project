@@ -323,7 +323,7 @@ def withdraw(admin: KeycloakAdmin, subject: str) -> None:
     """
     try:
         admin.remove_account(subject)
-    except (UnavailableError, IdentityProviderError):
+    except UnavailableError, IdentityProviderError:
         logger.exception("account.withdrawal_failed", subject=subject)
 
 
@@ -477,7 +477,7 @@ def restore_identity(services: Services, held: Account) -> None:
         read = held
     try:
         restored = services.keycloak_admin.change_identity(held.subject, local_identity(read, {}))
-    except (UnavailableError, IdentityProviderError, UnprocessableError):
+    except UnavailableError, IdentityProviderError, UnprocessableError:
         logger.exception("account.identity_not_restored", user_id=user_id)
         return
     if not restored:
@@ -493,7 +493,7 @@ def close_sessions(admin: KeycloakAdmin, account: Account) -> None:
     """
     try:
         admin.close_sessions(account.subject)
-    except (UnavailableError, IdentityProviderError):
+    except UnavailableError, IdentityProviderError:
         logger.exception("account.sessions_not_closed", user_id=str(account.user_id))
         return
     logger.info("account.sessions_closed", user_id=str(account.user_id))

@@ -8,10 +8,9 @@ a table sorts is compared code point by code point, and a search ignores case an
 (contract, README; sql.md, "Trier et chercher un texte"): both are said here once.
 """
 
-from collections.abc import Generator
 from contextlib import contextmanager
 from datetime import UTC, datetime
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from psycopg.errors import UniqueViolation
 from sqlalchemy import (
@@ -26,9 +25,13 @@ from sqlalchemy import (
     literal,
 )
 from sqlalchemy.engine import URL, make_url
-from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
 from sqlalchemy.types import TypeDecorator
+
+if TYPE_CHECKING:
+    from collections.abc import Generator
+
+    from sqlalchemy.exc import IntegrityError
 
 # The name of every constraint and index, declared once: a migration that writes none gets
 # these, and the tables the code declares get them too, so the two cannot drift apart.

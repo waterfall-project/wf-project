@@ -9,7 +9,7 @@ the bootstrap creates, and a text that holds a NUL anywhere in a model of the co
 
 import json
 import threading
-from uuid import UUID
+from typing import TYPE_CHECKING
 
 import pytest
 from access_rows import ADMINISTRATION, DAY, holder, role
@@ -31,9 +31,13 @@ from waterfall.core.access_roles.interface import (
 )
 from waterfall.core.users.tables import UserAccount
 from waterfall.platform.audit import AuditEntry
-from waterfall.platform.database import Database
 from waterfall.platform.errors import ConflictError, UnprocessableError
 from waterfall.platform.logs import logging_context
+
+if TYPE_CHECKING:
+    from uuid import UUID
+
+    from waterfall.platform.database import Database
 
 CORRELATION = "test-access-roles-guard"
 # The example of the contract that gives the roles of an installation, the three predefined ones.

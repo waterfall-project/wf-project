@@ -16,22 +16,22 @@ services:
   postgres:
     # The version the platform targets, pinned by the digest of its index. Trusting the connections
     # of the workstation, as the service of the chain does: the role is a superuser who may create
-    # the database of each run.
-    image: postgres:16-bookworm@sha256:0ea6700a3b4f0ae6ce746519073558aed4d88a79d8d07622a9a644946c7319c4
+    # the database of each run. The health check asks by TCP, as the platform's (US-1130).
+    image: postgres:18-trixie@sha256:3a4264520e121176619f54ff867d12774bc81e95e7b84db58d63bccdb6144b81
     environment:
       POSTGRES_HOST_AUTH_METHOD: trust
     tmpfs:
-      - /var/lib/postgresql/data
+      - /var/lib/postgresql
     ports:
       - "127.0.0.1:${WATERFALL_TEST_POSTGRES_PORT:-20000}:5432"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready --username postgres"]
+      test: ["CMD-SHELL", "pg_isready --host 127.0.0.1 --username postgres"]
       interval: 2s
       timeout: 3s
       retries: 30
 
   redis:
-    image: redis:7-alpine@sha256:858f009f9709ce576febc734aa78b8f6d624b82571f9ddb6bda4377c833b3499
+    image: redis:8-alpine@sha256:21090af93f8324db2f0f0f4f38a7c60369d47d917e000c3423d89d2ae2883537
     # Nothing is kept: no snapshot, and nothing on disk.
     command: ["redis-server", "--save", "", "--appendonly", "no"]
     ports:
@@ -43,7 +43,7 @@ services:
       retries: 30
 
   storage:
-    image: dxflrs/garage:v2.4.1@sha256:9c96caa2612d3411acc5b0e6701fb238dbfba33e533a6d7d3d811a4b12d0d020
+    image: dxflrs/garage:v2.5.0@sha256:677e5b758e4425a325b811c425c026bf35a4bf42f7ddbaa773de3f4fd779a5a5
     command: ["/garage", "server", "--single-node", "--default-access-key"]
     environment:
       GARAGE_RPC_SECRET: c0ffeec0ffeec0ffeec0ffeec0ffeec0ffeec0ffeec0ffeec0ffeec0ffeec0ff
