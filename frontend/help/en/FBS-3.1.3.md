@@ -4,9 +4,9 @@
 
 How Waterfall reads the extraction of the actual costs of the ERP, for the whole installation. The ERP names its columns its own way: for each of the five columns the import reads — **Subproject** (the WBS element), **Document no.**, **Item**, **Document date**, **Amount** —, the list of the labels that designate it in the extraction; then the **Kept columns**, those of the extraction that Waterfall keeps for information and gives back on consulting the lines imported.
 
-The item is optional, the four other columns are required. Above the lists, a bar says the required columns that have no label, or that the mapping is complete. It is empty at installation, and the import of the actual costs is refused as long as it is incomplete.
+The item is optional, the four other columns are required. Above the lists, a bar says the required columns that have no label, or that the mapping is complete. It is empty at installation, and is set before the import of the actual costs, which is not offered yet: it will read this mapping.
 
-A label is compared to the header of the file, and to the other labels, regardless of case, of accents and of spaces at the ends. A column of the extraction neither read nor kept is ignored, and the report of the import names it. A modification holds for the following imports, and changes no line already imported.
+A label is compared to the header of the file, and to the other labels, regardless of case, of accents and of spaces at the ends. The mapping is saved whole, even incomplete, and read back as saved. A label that duplicates another, in the same column, in another column read or among the kept columns, is refused: nothing is saved.
 
 ## Its commands
 
@@ -31,4 +31,4 @@ No table: the bar of the required columns without a label is the one the server 
 ## See also
 
 - [The cost settings](FBS-3.1.md);
-- [the actual costs of a project](FBS-4.7.md), where the extraction is imported.
+- [the actual costs of a project](FBS-4.7.md).
