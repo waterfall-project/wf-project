@@ -57,7 +57,7 @@ READ_GRID = [Depends(Requires(CONSULTATION)), Depends(RequiresForInactive(CHANGE
 READ = [Depends(Requires(CONSULTATION))]
 WRITE = [Depends(Requires(CHANGE))]
 # A money as the contract writes it (``Money``): at most two decimals; no more digits than a rate.
-MONEY = re.compile(r"-?\d{1,20}(\.\d{1,2})?")
+MONEY = re.compile(r"-?[0-9]+(\.[0-9]{1,2})?")
 
 type SortBy = Annotated[str, Query(pattern=r"^(code|label|is_active|rate\.(20[0-9]{2}|2100))$")]
 

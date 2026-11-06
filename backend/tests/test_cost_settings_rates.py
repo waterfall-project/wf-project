@@ -296,6 +296,12 @@ def test_a_bound_malformed_inverted_or_without_its_year_and_a_sort_unknown_are_r
         ("/query/rate_min", "NUMBER_INVALID", {}),
         ("/query/rate_max", "NUMBER_INVALID", {}),
     ]
+    # A digit that is no ASCII one is no money; a valid money of any length is no malformation.
+    arabic = api.get(f"{GRID}?rate_year=2026&rate_min=\u0663", headers=headers)
+    assert pointers(arabic) == [("/query/rate_min", "NUMBER_INVALID", {})]
+    huge = api.get(f"{GRID}?rate_year=2026&rate_min={'9' * 21}", headers=headers)
+    assert huge.status_code == 200
+    assert huge.json()["meta"]["total"] == 0
     for query in ("sort_by=rate.1999", "sort_by=accounting_code", "rate_year=2101"):
         assert api.get(f"{GRID}?{query}", headers=headers).status_code == 422
 
