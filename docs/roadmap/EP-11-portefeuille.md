@@ -92,6 +92,9 @@ Déjà servies, et reprises ici pour ce que cet EPIC y ajoute (4) :
 - #313 — la liste du portefeuille n'offre pas le filtre par zone (WF-IHM-0130), reportée
   d'EP-02 (2026-10-07), puis rangée dans EP-02/L41 (2026-10-08) : fait par EP-02/L41, qui offre
   le filtre par zone au-dessus de la grille des projets, porté par l'adresse (`zones`).
+- #1714 — contrat : aucun exemple de `getPortfolioWorkload` ni de `getPortfolioPilotHealth` ne
+  retient `completed`, l'avis de G-05 à vérifier sur le service réel, qui sert ici ces deux
+  opérations. Reporté d'EP-04 par l'auteur le 2026-11-06 : EP-04 ne sert aucune des deux.
 
 ## Préalables
 

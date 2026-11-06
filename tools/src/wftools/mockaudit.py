@@ -34,8 +34,6 @@ The answer of ``listAuditFacets`` is read from the same journal: its authors and
 (#550). Nothing here reads the clock.
 """
 
-from __future__ import annotations
-
 from dataclasses import dataclass, field, replace
 from typing import TYPE_CHECKING, cast
 

@@ -14,8 +14,6 @@ What the reference data says — the roles, the calendars — is read from its f
 hand (``resource_roles``, ``calendars``): this module names what the witness employs, never copies.
 """
 
-from __future__ import annotations
-
 import json
 from dataclasses import dataclass, replace
 from datetime import UTC, date, datetime, time

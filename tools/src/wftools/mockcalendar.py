@@ -14,8 +14,6 @@ A simplification of the scheduling of EP-06, to be replaced by its kernel: no ho
 part time, as WF-REF-0110 says of a calendar, and nothing but whole weeks of calendar.
 """
 
-from __future__ import annotations
-
 from dataclasses import dataclass
 from datetime import date, timedelta
 from decimal import ROUND_FLOOR, Decimal

@@ -3,14 +3,17 @@
 """The correlation of a request: its identifier, bound to its logs, handed back in a header."""
 
 import time
+from typing import TYPE_CHECKING
 
 from starlette.datastructures import Headers, MutableHeaders
 from starlette.requests import Request
-from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 from waterfall.api.problems import internal_error_response
 from waterfall.platform.correlation import HEADER, SCOPE_KEY, correlation_id_from
 from waterfall.platform.logs import ANONYMOUS, get_logger, logging_context
+
+if TYPE_CHECKING:
+    from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 logger = get_logger(__name__)
 

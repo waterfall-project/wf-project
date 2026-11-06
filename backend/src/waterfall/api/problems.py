@@ -8,11 +8,9 @@ parameters, never a sentence, and the correlation identifier that finds the erro
 """
 
 import re
-from collections.abc import Mapping
 from http import HTTPStatus
-from typing import Any, cast
+from typing import TYPE_CHECKING, Any, cast
 
-from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException
@@ -22,6 +20,11 @@ from waterfall.api.contract.models import ErrorCode, FieldProblem, Problem, Prob
 from waterfall.platform.correlation import HEADER, SCOPE_KEY
 from waterfall.platform.errors import FieldError, ServiceError, json_pointer
 from waterfall.platform.logs import get_logger
+
+if TYPE_CHECKING:
+    from collections.abc import Mapping
+
+    from fastapi import FastAPI, Request
 
 MEDIA_TYPE = "application/problem+json"
 

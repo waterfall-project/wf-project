@@ -14,8 +14,6 @@ object of the reference changed since the installation, so that the image of eac
 read today, its commands left out.
 """
 
-from __future__ import annotations
-
 from decimal import Decimal
 from typing import TYPE_CHECKING, cast
 
