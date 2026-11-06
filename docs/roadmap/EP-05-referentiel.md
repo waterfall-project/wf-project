@@ -871,7 +871,7 @@ catégories sur quinze ans, est chargée par US-0890 : les tests de la grille se
 
 ## US-0840 — L'arbre d'organisation et le rattachement d'un compte
 
-- **statut** : en cours
+- **statut** : fini
 - **exigences** : `WF-REF-0070-A`, `WF-ADM-0030-A`
 - **opérations** : `listOrgNodes`, `createOrgNode`, `updateOrgNode`, `setOrgNodeActivation` ;
   `listUsers`, `getUser`, `updateUser`, `getMe` (le rattachement)

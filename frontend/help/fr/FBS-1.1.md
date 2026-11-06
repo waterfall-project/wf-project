@@ -19,6 +19,7 @@ Ces commandes ne sont offertes qu’à qui peut modifier les comptes ; aux autre
 - **Modifier la périodicité** ouvre le formulaire de la périodicité de la lecture : actif ou suspendu, quotidienne ou hebdomadaire, le jour pour une lecture hebdomadaire seulement, et l’heure en temps universel (UTC), avec l’heure locale de ce poste qu’elle représente. La périodicité s’enregistre entière ; une lecture en cours n’est pas interrompue, le réglage vaut dès la suivante.
 - Dans la table, le nom et le prénom d’un compte créé dans Waterfall se saisissent dans leur cellule ; ceux d’un compte de l’annuaire ou du fournisseur d’identité sont les leurs, et ne se saisissent pas.
 - **État** : l’interrupteur active ou désactive le compte. La désactivation est indisponible pour le dernier compte actif qui porte les permissions d’administration (« un autre compte actif portant les permissions d’administration »), et la réactivation d’un compte anonymisé l’est toujours.
+- **Rattachement** : la liste des nœuds actifs de l’[arbre d’organisation](FBS-3.2.1.md), dans l’ordre de l’arbre, ou **Aucun** pour retirer le rattachement. Un nœud désactivé auquel le compte reste rattaché se montre par son libellé, sans être proposé. Un rattachement ne donne aucun droit : les permissions viennent des rôles seuls, que le rattachement soit donné, changé ou retiré.
 - **Rôles d’habilitation** : la liste des rôles de l’installation, à cocher ou décocher, aucun, un ou plusieurs. Le serveur refuse les rôles qui retireraient au dernier administrateur ses permissions.
 - **Lien** donne le lien de fixation du mot de passe d’un compte créé dans Waterfall, à remettre par un autre canal : il ne sert qu’une fois, ne sera plus montré, et en demander un autre rend le précédent caduc. Indisponible pour un compte désactivé (« compte actif »).
 - **Courriel** fait renvoyer par le fournisseur d’identité, à l’adresse d’un compte créé dans Waterfall, le courriel qui porte le lien de fixation du mot de passe : pour un titulaire qui ne l’a pas reçu, l’a perdu ou l’a laissé expirer. Un lien précédent cesse de valoir, et le renvoi est inscrit au journal d’audit. Indisponible pour un compte désactivé (« compte actif »). Quand le fournisseur ne peut pas l’envoyer — installation sans messagerie, serveur de courriel en échec —, l’écran dit le refus, jamais un courriel parti : **Lien** donne alors le lien à remettre par un autre canal.
@@ -41,7 +42,7 @@ Aucune valeur ne s’y calcule : chaque colonne montre le compte tel que le serv
 ## Les gestes au clavier
 
 - La table est un seul arrêt de tabulation : les flèches déplacent la cellule active, `Origine` et `Fin` le long de la ligne, `Ctrl+Origine` et `Ctrl+Fin` à la première et à la dernière ligne, `Page préc.` et `Page suiv.` d’un écran.
-- `Entrée` ou `F2` saisit un nom, `Échap` abandonne la saisie ; `Entrée` sur l’interrupteur, les rôles, le lien, le courriel ou l’anonymisation presse la commande.
+- `Entrée` ou `F2` saisit un nom, `Échap` abandonne la saisie ; `Entrée` sur l’interrupteur, le rattachement, les rôles, le lien, le courriel ou l’anonymisation presse la commande.
 - Sur un en-tête, `Entrée` ou `Espace` trie la table par la colonne ; `Maj` et les flèches élargissent ou rétrécissent la colonne.
 - Sur un Mac, `⌘` tient lieu de `Ctrl`, `⌥` de `Alt` et `⇧` de `Maj`.
 - `F1` ouvre cette aide.

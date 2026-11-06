@@ -1242,6 +1242,9 @@
     "anonymize": {
       "help": "Anonymise le compte désactivé, après confirmation : l’opération est définitive."
     },
+    "attachUser": {
+      "help": "Rattache le compte à un nœud actif de l’organigramme, ou retire son rattachement : le rattachement ne donne aucun droit."
+    },
     "activeUser": {
       "help": "Active ou désactive le compte : un compte désactivé ne peut plus se connecter."
     },
@@ -2561,6 +2564,8 @@
       "deactivated": "« {name} » désactivé.",
       "reactivated": "« {name} » réactivé.",
       "activeUser": "Compte de « {name} » actif",
+      "attachUser": "Rattachement de « {name} »",
+      "attached": "Rattachement de « {name} » enregistré.",
       "rolesOf": "Rôles de « {name} »",
       "rolesHeld": "Rôles de « {name} » : {roles}",
       "rolesAttributed": "Rôles de « {name} » attribués.",
