@@ -10,7 +10,7 @@ import { expect } from "@playwright/test";
 
 import { test } from "./mode";
 
-test("the home of a signed-in session renders against the service: its title, the filter of its list, no note of the mock-up and neither « not found » nor a request for a session (US-0920/L2, #1004) @shared [WF-IHM-0120-A]", async ({
+test("the home of a signed-in session renders against the service: its title, the filter of its list, no note of the mock-up and neither « not found » nor a request for a session; it only renders, the filter being carried by the back and projects.spec.ts (US-0920/L2, #1004) @shared [WF-IHM-0120-A]", async ({
   page,
 }) => {
   await page.goto("/");

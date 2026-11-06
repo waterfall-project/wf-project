@@ -1,6 +1,6 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { cleanup, render, screen, waitFor, within } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
 import { NextIntlClientProvider } from "next-intl";
 import type { ReactNode } from "react";
@@ -43,6 +43,25 @@ const LIST = example("projects") as {
 function inFrench(children: ReactNode) {
   return (
     <NextIntlClientProvider locale="fr" messages={CATALOGUES.fr} timeZone="UTC">
+      <PendingAddress>{children}</PendingAddress>
+    </NextIntlClientProvider>
+  );
+}
+
+/** The six states of the table of the specification (3.3.2): code, then label in each language. */
+const SPEC_STATES = [
+  ["created", "Créé", "Created"],
+  ["pricing", "Chiffrage", "Pricing"],
+  ["in_progress", "En cours", "In progress"],
+  ["completed", "Terminé", "Completed"],
+  ["lost", "Perdu", "Lost"],
+  ["abandoned", "Abandonné", "Abandoned"],
+] as const;
+
+/** A part of the home, in a language, under the address of the screen. */
+function inLocale(locale: "fr" | "en", children: ReactNode) {
+  return (
+    <NextIntlClientProvider locale={locale} messages={CATALOGUES[locale]} timeZone="UTC">
       <PendingAddress>{children}</PendingAddress>
     </NextIntlClientProvider>
   );
@@ -161,6 +180,64 @@ describe("the grid of the list of projects", () => {
       "/?is_contributor=false&offset=50",
     );
   });
+});
+
+describe("the states of the list, those of the table of the specification", () => {
+  it.each(["fr", "en"] as const)(
+    "the state column of the list writes the six labels of the table and no other in %s [WF-CYC-0010-A]",
+    (locale) => {
+      const projects = SPEC_STATES.map(([state], index) =>
+        listedProject({
+          ...(example("project") as Schemas["Project"]),
+          project_id: `id-${String(index)}`,
+          label: `P${String(index)}`,
+          state,
+        }),
+      );
+      render(
+        inLocale(
+          locale,
+          <ProjectListGrid
+            projects={projects}
+            page={{ limit: 50, offset: 0, total: 6 }}
+            query={{ sort: undefined, search: undefined, size: undefined }}
+            preferences={undefined}
+          />,
+        ),
+      );
+      const rows = within(screen.getByRole("grid")).getAllByRole("row");
+      const shown = SPEC_STATES.map((_, index) => {
+        const row = rows.find((each) => within(each).queryByText(`P${String(index)}`) !== null);
+        return row?.querySelector("[class*='bg-state-']")?.textContent;
+      });
+      expect(shown).toEqual(SPEC_STATES.map(([, fr, en]) => (locale === "fr" ? fr : en)));
+    },
+  );
+
+  it.each(["fr", "en"] as const)(
+    "the filter of the home offers the six states and no other, each writing its code in the address, in %s [WF-CYC-0010-A]",
+    async (locale) => {
+      const user = userEvent.setup();
+      render(inLocale(locale, <ProjectStateFilter states={[]} />));
+      const filter = screen.getByRole("group", {
+        name: locale === "fr" ? "Filtre par état" : "Filter by state",
+      });
+      let buttons = within(filter).getAllByRole("button");
+      expect(buttons.map((button) => button.textContent)).toEqual([
+        locale === "fr" ? "Tous les états" : "Every state",
+        ...SPEC_STATES.map(([, fr, en]) => (locale === "fr" ? fr : en)),
+      ]);
+      for (const [index, [code]] of SPEC_STATES.entries()) {
+        // Pressed from the default, where every state is pressed, a button retains its state alone.
+        await user.click(buttons.at(index + 1) ?? document.body);
+        expect(await lastAddress()).toBe(`/?states=${code}`);
+        page.search = "";
+        cleanup();
+        render(inLocale(locale, <ProjectStateFilter states={[]} />));
+        buttons = within(screen.getByRole("group")).getAllByRole("button");
+      }
+    },
+  );
 });
 
 describe("the filter of the list by state", () => {

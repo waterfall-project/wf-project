@@ -486,7 +486,7 @@ describe("the empty states of the home", () => {
       ["/reference/costs"],
     ],
   ] as const)(
-    "names each prerequisite an incomplete reference lacks, and leads to where it is provided (%s) [WF-IHM-0120-A]",
+    "names each prerequisite an incomplete reference lacks, and leads to where it is provided (%s) [WF-IHM-0120-A] [WF-CYC-0120-A]",
     async (readiness, missing, provided) => {
       // Sur une installation au référentiel incomplet, l'accueil nomme les prérequis manquants et
       // mène au référentiel.
