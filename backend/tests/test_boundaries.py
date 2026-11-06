@@ -265,6 +265,35 @@ def test_importing_a_module_of_the_core_declares_the_tables_of_no_other() -> Non
     assert imported(statement) == "False"
 
 
+def interfaces() -> list[str]:
+    """Name the interface of every module of the core, as a package or as a file."""
+    core = Path(importlib.import_module("waterfall.core").__file__ or "").parent
+    return sorted(
+        f"waterfall.core.{module.name}.interface"
+        for module in pkgutil.iter_modules([str(core)])
+        if (core / module.name / "interface.py").exists()
+        or (core / module.name / "interface" / "__init__.py").exists()
+    )
+
+
+@pytest.mark.requirement("WF-ARC-0010-A")
+def test_the_resource_settings_import_nothing_of_the_cost_settings_which_read_them() -> None:
+    # The cost settings ask the resource settings what binds a category (``category_has_roles``);
+    # the roles are told of their category by their caller: no cycle between the two.
+    statement = (
+        "import sys, waterfall.core.resource_settings.interface;"
+        "print(sorted(m for m in sys.modules if m.startswith('waterfall.core.cost_settings')))"
+    )
+    assert ast.literal_eval(imported(statement)) == []
+
+
+@pytest.mark.requirement("WF-ARC-0010-A")
+@pytest.mark.parametrize("interface", interfaces())
+def test_the_interface_of_each_module_of_the_core_is_imported_alone(interface: str) -> None:
+    # In a fresh interpreter, first: a cycle between two interfaces fails the import of one.
+    assert imported(f"import {interface}; print('imported')") == "imported"
+
+
 @pytest.mark.requirement("WF-ARC-0010-A")
 def test_the_schema_declares_the_tables_of_every_module_and_the_entry_points_import_it() -> None:
     statement = (

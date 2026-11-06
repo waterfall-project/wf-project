@@ -37,6 +37,7 @@ from waterfall.core.cost_settings.records import (
     identifier_taken,
     lock_natures,
     lock_row,
+    share_natures,
     value_taken,
 )
 from waterfall.core.cost_settings.tables import CostCategory, CostType
@@ -267,18 +268,21 @@ def category_labels(
     """Give the label and the kind of the nature of each category given, deactivated ones too.
 
     A role of resources names its category, and is admitted only a category of labour, active
-    (WF-REF-0090). An identifier no category bears is left out. ``locked`` holds a share lock of
-    the rows of the categories and of their natures until the transaction ends: a role attached to
-    one meanwhile is, when a change of the category, of its kind or of its state — which lock them
-    — reads the roles that bind it (``category_has_roles``).
+    (WF-REF-0090). An identifier no category bears is left out. ``locked`` shares, before anything
+    is read, the lock of the natures until the transaction ends (``share_natures``): every change of
+    the kind or of the state of a category or of its nature takes it first, then reads the roles
+    that bind the category (``category_has_roles``), so that it waits for the role attached to it
+    meanwhile, or is waited for. No row is locked here: that lock, which both take before any row,
+    orders them, and neither waits for a row the other holds.
     """
-    query = (
+    if locked:
+        share_natures(session)
+    rows = session.execute(
         select(CostCategory, CostType)
         .join(CostType, CostType.id == CostCategory.cost_type_id)
         .where(CostCategory.id.in_(category_ids))
         .execution_options(populate_existing=True)
     )
-    rows = session.execute(query.with_for_update(read=True) if locked else query)
     return {
         category.id: CategoryLabel(
             category.id, category.label, nature.kind, category.is_active, nature.is_active

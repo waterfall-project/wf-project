@@ -1482,16 +1482,18 @@ ou un rattachement désactivé entre-temps (`INACTIVE_REFERENCE_OBJECT`), des he
 une capacité négative, avec la borne franchie (`VALUE_OUT_OF_RANGE`) ; le libellé déjà porté d'un
 calendrier, désactivés compris, nomme son porteur d'après la page, par son identifiant, de façon
 générique sinon ; le reste comme pour les coûts, la version périmée sous le formulaire avec l'offre
-de relire ; l'écran ne porte plus `MockupNotice` depuis US-0850 : le service garde ce qui s'écrit, et ses parcours sont étiquetés `@shared` (les unités de durée, que le service ne sert pas encore, attendent US-0860b). Une écriture qui laisserait
-une tâche sans heure travaillée — un calendrier modifié ou désigné par défaut, un rôle modifié — est
-refusée (`TASK_WITHOUT_WORKING_HOURS`, « Une tâche n'aurait plus aucune heure travaillée dans la
-semaine. ») en disant pourquoi et en nommant chaque projet en cause par son libellé et son code, par
-son seul libellé sans code (`params.projects`, WF-PLA-0010), jusqu'à cinq dans la phrase, en liste
-hors de l'alerte au-delà, comme les lignes d'un sous-projet. La cause est celle de
-`params.resource_roles` : les rôles dont les calendriers ne se recoupent aucun jour, que le refus
-nomme lui-même par leur code et leur libellé, partout où il se dit, le planning compris, la page
-n'en lisant aucun ; une liste vide désigne le calendrier par défaut, vidé ou désigné, quand seules
-des tâches sans ligne de main-d'œuvre perdent leurs heures.
+de relire ; l'écran ne porte plus `MockupNotice` depuis US-0850 : le service garde ce qui s'écrit,
+et ses parcours sont étiquetés `@shared` (les unités de durée, que le service ne sert pas encore,
+attendent US-0860b). Une écriture qui laisserait une tâche sans heure travaillée — un calendrier
+modifié ou désigné par défaut, un rôle modifié — est refusée (`TASK_WITHOUT_WORKING_HOURS`, « Une
+tâche n'aurait plus aucune heure travaillée dans la semaine. ») en disant pourquoi et en nommant
+chaque projet en cause par son libellé et son code, par son seul libellé sans code
+(`params.projects`, WF-PLA-0010), jusqu'à cinq dans la phrase, en liste hors de l'alerte au-delà,
+comme les lignes d'un sous-projet. La cause est celle de `params.resource_roles` : les rôles dont
+les calendriers ne se recoupent aucun jour, que le refus nomme lui-même par leur code et leur
+libellé, partout où il se dit, le planning compris, la page n'en lisant aucun ; une liste vide
+désigne le calendrier par défaut, vidé ou désigné, quand seules des tâches sans ligne de
+main-d'œuvre perdent leurs heures.
 
 Le service sert les rôles depuis US-0850 (`api/resource_roles.py`, le fichier `resource_roles` de
 l'interface de `resource_settings`) : les actifs se lisent par toute session ouverte, les désactivés
@@ -1502,13 +1504,14 @@ l'arbre, que la cascade tient aussi : la désactivation d'un nœud désactive, d
 transaction, ses descendants et les rôles rattachés à lui ou à l'un d'eux, chacun son compteur
 avancé et son auteur, et la réponse les porte. `resource_settings` ne lit pas `cost_settings`, qui
 le lit (`category_has_roles`, `roles_of_categories`, #2114) : la route demande aux paramètres de
-coûts ce qu'un rôle sait de sa catégorie — main-d'œuvre, active —, sous un verrou partagé de ses
-lignes, et le libellé de chaque catégorie nommée ou triée (`category_labels`,
-`category_label_of`). La tranche du témoin (`witness/resource_roles.py`) crée les rôles de
-`resource_roles.json` par la même interface, puis désactive ceux qu'il dit désactivés ; le
-calendrier désactivé qu'un rôle nomme et que `calendars.json` ne donne pas, elle le lit de
-`calendars_with_inactive.json`, et le rôle d'un nœud désactivé se crée sous son nœud rouvert le
-temps de l'écrire, puis refermé en cascade.
+coûts ce qu'un rôle sait de sa catégorie — main-d'œuvre, active —, sous le verrou consultatif des
+natures, partagé et pris avant tout autre — celui de l'arbre, la ligne du rôle —, comme les
+écritures des paramètres de coûts le prennent avant leurs lignes, et le libellé de chaque catégorie
+nommée ou triée (`category_labels`, `category_label_of`). La tranche du témoin
+(`witness/resource_roles.py`) crée les rôles de `resource_roles.json` par la même interface, puis
+désactive ceux qu'il dit désactivés ; le calendrier désactivé qu'un rôle nomme et que
+`calendars.json` ne donne pas, elle le lit de `calendars_with_inactive.json`, et le rôle d'un nœud
+désactivé se crée sous son nœud rouvert le temps de l'écrire, puis refermé en cascade.
 
 ### Les paramètres des risques et des indicateurs
 

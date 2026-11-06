@@ -5,12 +5,11 @@
 The service is loaded with the witness by its command; the roles are created, read, changed,
 deactivated and reactivated by the API, every answer checked against the contract
 (``ContractClient``), and the refusals compared with the examples the contract gives. The cascade
-of a node over its descendants and its roles is tried here, with the roles, and under two writes
-that cross, under the lock of the tree.
+of a node over its descendants and its roles is tried here, with the roles; two writes that cross
+are tried in ``test_resource_settings_role_locks.py``.
 """
 
 import json
-import threading
 from typing import TYPE_CHECKING, Any
 from uuid import UUID
 
@@ -32,26 +31,20 @@ from waterfall.core.resource_settings.interface import (
     active_role_exists,
     category_has_roles,
     read_node,
-    read_role,
     role_calendars,
     roles_of_categories,
     set_activation,
-    set_role_activation,
 )
 from waterfall.core.resource_settings.interface import resource_roles as roles_module
-from waterfall.core.resource_settings.interface.org_nodes import TREE_LOCK
 from waterfall.core.resource_settings.tables import Calendar, OrgNode, ResourceRole
 from waterfall.platform.audit import Act
 from waterfall.platform.database import utc_now
-from waterfall.platform.errors import ServiceError
 from waterfall.platform.settings import WitnessSettings
 from waterfall.witness.main import load_witness
 
 if TYPE_CHECKING:
-    from sqlalchemy.orm import Session
     from support import PartSessions, ReferenceSessions
 
-    from waterfall.core.resource_settings.interface import NodeActivation, RoleView
     from waterfall.platform.database import Database
 
 ROLES = "/api/v1/reference/resource-roles"
@@ -156,6 +149,12 @@ def activation(
     """Deactivate or reactivate a role at the version read."""
     sent = {"is_active": is_active, "lock_version": read["lock_version"]}
     return api.put(f"{ROLES}/{read['resource_role_id']}/activation", headers=headers, json=sent)
+
+
+def nodes_by_code(api: ContractClient, headers: dict[str, str]) -> dict[str, dict[str, Any]]:
+    """Read every node of the tree, deactivated ones too, by its code."""
+    tree = api.get(f"{NODES}?include_inactive=true", headers=headers).json()
+    return {each["code"]: each for each in tree}
 
 
 def node_activation(
@@ -390,7 +389,7 @@ def test_an_attachment_unknown_out_of_labour_or_deactivated_is_refused_one_reaso
 
 
 @pytest.mark.requirement("WF-REF-0100-A")
-def test_a_negative_capacity_is_refused_at_its_value_and_a_null_one_is_accepted(
+def test_a_negative_capacity_is_refused_at_its_value_and_a_zero_one_is_accepted(
     api: ContractClient, sessions: PartSessions
 ) -> None:
     negative = {"monthly_hours": "-0.01", "headcount": "-1"}
@@ -440,6 +439,16 @@ def test_the_node_of_a_role_is_never_changed_and_its_category_is_towards_one_of_
         f"{ROLES}/{TECH_MES}", headers=headers, json=change_of(read, org_node_id=AT_CABL)
     )
     assert refusal(moved) == (422, "VALIDATION_FAILED", [("/org_node_id", "FIELD_READ_ONLY")])
+    # Optional, the node is never null: sent so, it is a value refused, not a node lacking; the
+    # calendar sent null is lacking, as at the creation.
+    nulled = api.patch(
+        f"{ROLES}/{TECH_MES}", headers=headers, json=change_of(read, org_node_id=None)
+    )
+    assert refusal(nulled) == (422, "VALIDATION_FAILED", [("/org_node_id", "VALIDATION_FAILED")])
+    lacking = api.patch(
+        f"{ROLES}/{TECH_MES}", headers=headers, json=change_of(read, calendar_id=None)
+    )
+    assert refusal(lacking) == (422, "VALIDATION_FAILED", [("/calendar_id", "VALUE_REQUIRED")])
     out_of_labour = api.patch(
         f"{ROLES}/{TECH_MES}",
         headers=headers,
@@ -601,6 +610,7 @@ def test_the_deactivation_of_a_node_of_two_levels_of_descendants_deactivates_the
 ) -> None:
     headers = sessions.changing
     before = {each["code"]: each for each in listed(api, headers, "include_inactive=true")["items"]}
+    nodes_before = nodes_by_code(api, headers)
     off = node_activation(api, headers, DT, is_active=False)
     assert off.status_code == 200, off.text
     answer = off.json()
@@ -614,6 +624,24 @@ def test_the_deactivation_of_a_node_of_two_levels_of_descendants_deactivates_the
         "TECH-MES",
     ]
     author = api.get("/api/v1/me", headers=headers).json()["user_id"]
+    # Each node written, its descendants as itself, at a version further, by the author.
+    for each in answer["org_nodes"]:
+        assert each["lock_version"] == nodes_before[each["code"]]["lock_version"] + 1
+        assert each["audit"]["updated_by"]["user_id"] == author
+    nodes_after = nodes_by_code(api, headers)
+    assert set(nodes_after) == set(nodes_before)
+    written = {each["code"] for each in answer["org_nodes"]}
+    assert set(nodes_after) - written == {"BE-AUTO", "CEL-ROBOT"}
+    for code, node in nodes_after.items():
+        if code in written:
+            assert node["lock_version"] == nodes_before[code]["lock_version"] + 1
+            assert node["audit"]["updated_by"]["user_id"] == author
+        else:
+            # Deactivated already, the office of automation and its cell are not written again.
+            assert (node["lock_version"], node["audit"]) == (
+                nodes_before[code]["lock_version"],
+                nodes_before[code]["audit"],
+            )
     for each in answer["resource_roles"]:
         assert each["is_active"] is False
         assert each["lock_version"] == before[each["code"]]["lock_version"] + 1
@@ -681,108 +709,33 @@ def test_an_activation_stale_unknown_or_without_change_writes_nothing(
     )
 
 
-# Two writes that cross, under the lock of the tree.
+# A node moved carries its roles (WF-REF-0070).
 
 
-def hold_the_lock(database: Database) -> tuple[Any, Any]:
-    """Take the lock of the tree in a transaction of its own; give the connection and the lock."""
-    connection = database.engine.connect()
-    transaction = connection.begin()
-    connection.execute(select(func.pg_advisory_xact_lock(TREE_LOCK)))
-    return connection, transaction
-
-
-def crossed(database: Database, *jobs: Any) -> list[Any]:
-    """Run the jobs at once while the lock of the tree is held, then release it; give the results.
-
-    Each job waits for the lock, then runs in a transaction of its own; a refusal is its result.
-    """
-    results: list[Any] = []
-
-    def run(job: Any) -> None:
-        try:
-            with database.transaction() as session:
-                results.append(job(session))
-        except ServiceError as refused:
-            results.append(refused)
-
-    connection, transaction = hold_the_lock(database)
-    threads = [threading.Thread(target=run, args=(job,)) for job in jobs]
-    for thread in threads:
-        thread.start()
-    for thread in threads:
-        thread.join(timeout=1)
-    assert all(thread.is_alive() for thread in threads)
-    transaction.commit()
-    connection.close()
-    for thread in threads:
-        thread.join(timeout=10)
-    assert len(results) == len(jobs)
-    return results
-
-
-def no_active_role_under_a_closed_node(database: Database) -> None:
-    """Check that no active role hangs under a deactivated node."""
-    with database.transaction() as session:
-        left = session.scalars(
-            select(ResourceRole.code)
-            .join(OrgNode, OrgNode.id == ResourceRole.org_node_id)
-            .where(ResourceRole.is_active, ~OrgNode.is_active)
-        ).all()
-    assert left == []
-
-
-def node_off(node_id: str, lock_version: int) -> Any:
-    """Give a job that deactivates a node at the version given."""
-    act = Act(None, utc_now())
-
-    def job(session: Session) -> NodeActivation:
-        return set_activation(
-            session, UUID(node_id), is_active=False, lock_version=lock_version, act=act
-        )
-
-    return job
-
-
-@pytest.mark.requirement("WF-REF-0080-A")
-def test_two_crossed_deactivations_of_a_node_and_of_its_parent_leave_no_role_active(
-    witness: Database,
+@pytest.mark.requirement("WF-REF-0070-A")
+def test_a_node_moved_brings_its_roles_and_those_of_its_descendants_under_its_arrival(
+    api: ContractClient, sessions: PartSessions
 ) -> None:
-    with witness.transaction() as session:
-        parent = read_node(session, UUID(DT), may_change=False).lock_version
-        child = read_node(session, UUID(BE_ELEC), may_change=False).lock_version
-        versions = {
-            code: read_role(session, UUID(each), may_change=False).lock_version
-            for code, each in (("ING-ELEC", ING_ELEC), ("TECH-MES", TECH_MES))
-        }
-    results = crossed(witness, node_off(DT, parent), node_off(BE_ELEC, child))
-    # Whichever comes first, the other finds the tree it wrote: the child deactivated with the
-    # parent is a version behind (412), or the parent deactivates what the child left.
-    assert any(not isinstance(each, ServiceError) for each in results)
-    no_active_role_under_a_closed_node(witness)
-    with witness.transaction() as session:
-        assert session.scalar(select(func.count()).where(ResourceRole.is_active)) == 0
-        for code, each in (("ING-ELEC", ING_ELEC), ("TECH-MES", TECH_MES)):
-            written = read_role(session, UUID(each), may_change=False).lock_version
-            assert written == versions[code] + 1
-
-
-@pytest.mark.requirement("WF-REF-0080-A")
-def test_a_role_reactivated_while_its_node_is_deactivated_does_not_stay_active(
-    witness: Database,
-) -> None:
-    act = Act(None, utc_now())
-    with witness.transaction() as session:
-        node = read_node(session, UUID(BE_ELEC), may_change=False).lock_version
-        automation = read_role(session, UUID(AUTOM), may_change=False).lock_version
-
-    def role_on(session: Session) -> RoleView:
-        return set_role_activation(
-            session, UUID(AUTOM), is_active=True, lock_version=automation, act=act
-        )
-
-    crossed(witness, role_on, node_off(BE_ELEC, node))
-    no_active_role_under_a_closed_node(witness)
-    with witness.transaction() as session:
-        assert read_node(session, UUID(BE_ELEC), may_change=False).is_active is False
-        assert read_role(session, UUID(AUTOM), may_change=False).is_active is False
+    # The electrical office, with its workshop, moves under the purchases: a role names its node by
+    # its identifier, which the move does not write, so the arrival now holds them.
+    headers = sessions.changing
+    nodes = nodes_by_code(api, headers)
+    arrival = nodes["ACHATS"]["org_node_id"]
+    everything = "include_inactive=true&sort_by=code"
+    carried = listed(api, headers, f"{everything}&org_node_id={BE_ELEC}")["items"]
+    assert {each["org_node_id"] for each in carried} == {BE_ELEC, AT_CABL}
+    already = listed(api, headers, f"{everything}&org_node_id={arrival}")["items"]
+    office = nodes["BE-ELEC"]
+    sent = {
+        "code": office["code"],
+        "label": office["label"],
+        "parent_id": arrival,
+        "lock_version": office["lock_version"],
+    }
+    moved = api.patch(f"{NODES}/{BE_ELEC}", headers=headers, json=sent)
+    assert moved.status_code == 200, moved.text
+    held = listed(api, headers, f"{everything}&org_node_id={arrival}")["items"]
+    expected = sorted([*already, *carried], key=lambda each: each["code"])
+    assert [(each["code"], each["org_node_id"], each["lock_version"]) for each in held] == [
+        (each["code"], each["org_node_id"], each["lock_version"]) for each in expected
+    ]

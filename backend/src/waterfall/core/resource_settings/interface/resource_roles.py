@@ -395,11 +395,13 @@ def _category_fault(category: CategoryAdmission | None) -> FieldError | None:
 def _calendar_fault(session: Session, calendar_id: UUID) -> FieldError | None:
     """Name the fault of a calendar given a role: unknown, or deactivated (422).
 
-    Read under a share lock of the row: a deactivation of the calendar, which writes it, waits for
-    the write that attaches the role to it, or is waited for.
+    Read without a lock, which would hold nothing: a role attached to a calendar deactivated
+    afterwards stays valid — it keeps it, and only a calendar given is judged —, so a deactivation
+    that comes just after the role is attached leaves the state a deactivation that comes later
+    would. The calendar is never deleted (WF-DAT-0080), and the key of the role holds it anyway.
     """
     is_active = session.scalars(
-        select(Calendar.is_active).where(Calendar.id == calendar_id).with_for_update(read=True)
+        select(Calendar.is_active).where(Calendar.id == calendar_id)
     ).first()
     if is_active is None:
         return FieldError("/calendar_id", UNKNOWN_CALENDAR)
@@ -514,8 +516,10 @@ def _write(session: Session, role: ResourceRole, act: Act, **values: object) -> 
 def role_calendar_change_is_admissible(session: Session, role_id: UUID, calendar_id: UUID) -> bool:
     """Tell whether the role may take this calendar without a task left without an hour.
 
-    Always so for now: no task depends on a role before EP-06, which answers here
-    (``TASK_WITHOUT_WORKING_HOURS``, WF-PLA-0010).
+    Provisional: the template the design of EP-05 lays for EP-06, whose form — the signature, the
+    question asked, the parameters of the refusal ``TASK_WITHOUT_WORKING_HOURS`` that
+    ``update_role`` raises when it answers no — EP-06 fixes (WF-PLA-0010). Always so for now: no
+    task depends on a role before EP-06.
     """
     del session, role_id, calendar_id
     return True
@@ -547,6 +551,7 @@ def update_role(
             *_capacity_faults(change.capacity),
         ]
     )
+    # Provisional, as its question: the form of this refusal is EP-06's to fix.
     if recalendared and not role_calendar_change_is_admissible(
         session, role_id, change.calendar_id
     ):
@@ -631,8 +636,8 @@ def category_has_roles(session: Session, category_ids: Collection[UUID]) -> froz
     """Give, of the categories given, those a role of resources is attached to, deactivated or not.
 
     What binds a category to labour, and its nature with it (WF-REF-0030, WF-REF-0040). A role
-    created or moved to a category meanwhile holds a share lock of its row, which a change of the
-    category or of its nature, that locks it, waits for.
+    created or moved to a category meanwhile shares the lock of the natures, which a change of the
+    category or of its nature takes first, and waits for (``category_labels``).
     """
     if not category_ids:
         return frozenset()

@@ -609,12 +609,27 @@ def test_the_deactivation_reaches_the_descendants_and_the_reactivation_the_node_
 ) -> None:
     # The cascade over the roles is tried with them (``test_resource_settings_roles.py``).
     nodes = organisation(api, sessions.changing)
+    before = {each["code"]: each for each in tree(api, sessions.changing, "?include_inactive=true")}
     off = deactivate(api, sessions.changing, nodes["BE-ELEC"])
     assert off.status_code == 200, off.text
     assert [(each["code"], each["is_active"]) for each in off.json()["org_nodes"]] == [
         ("BE-ELEC", False),
         ("AT-CABL", False),
     ]
+    # The node and its descendant are written, a version further, by the author; the nodes out of
+    # its subtree are not written.
+    author = api.get("/api/v1/me", headers=sessions.changing).json()["user_id"]
+    after = {each["code"]: each for each in tree(api, sessions.changing, "?include_inactive=true")}
+    for code, node in after.items():
+        if code in {"BE-ELEC", "AT-CABL"}:
+            assert node["lock_version"] == before[code]["lock_version"] + 1
+            assert node["audit"]["updated_by"]["user_id"] == author
+        else:
+            assert (node["lock_version"], node["audit"]) == (
+                before[code]["lock_version"],
+                before[code]["audit"],
+            )
+    assert sorted(after) == sorted(before) == ["ACHATS", "AT-CABL", "BE-AUTO", "BE-ELEC", "DT"]
     assert off.json()["resource_roles"] == []
     parent, workshop = off.json()["org_nodes"]
     assert parent["available_commands"] == [
@@ -745,9 +760,8 @@ def test_the_subtree_of_the_arrival_holds_what_the_moved_node_holds_by_its_ident
 ) -> None:
     # The subtree query (``within_node``), tried on a role table written by hand: a role names its
     # node by its identifier and a move does not write it, so the arrival now holds it through
-    # its descendants. This does not close « emporte … ses rôles »: asking the API for the roles
-    # of a node (``listResourceRoles?org_node_id=``) is the story of the roles (US-0850), which
-    # carries that assertion.
+    # its descendants. Asking the API for the roles of the arrival (``listResourceRoles``) is tried
+    # with the roles (``test_resource_settings_roles.py``).
     nodes = organisation(api, sessions.changing)
     role = write_role(database, UUID(nodes["AT-CABL"]["org_node_id"]))
     arrival = UUID(nodes["BE-AUTO"]["org_node_id"])

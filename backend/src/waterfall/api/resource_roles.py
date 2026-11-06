@@ -57,10 +57,10 @@ from waterfall.core.resource_settings.interface import (
 from waterfall.core.users.interface import read_authors
 from waterfall.platform.audit import Act
 from waterfall.platform.database import utc_now
-from waterfall.platform.errors import FieldError
+from waterfall.platform.errors import FieldError, UnprocessableError
 
 if TYPE_CHECKING:
-    from collections.abc import Sequence
+    from collections.abc import Callable, Sequence
 
     from sqlalchemy.orm import Session
 
@@ -68,6 +68,7 @@ router = APIRouter(tags=["reference"])
 
 CHANGE = "resource_settings.write"
 NUMBER_INVALID = "NUMBER_INVALID"
+VALIDATION_FAILED = "VALIDATION_FAILED"
 VALUE_OUT_OF_RANGE = "VALUE_OUT_OF_RANGE"
 # Any open session reads the active roles; ``Requires()`` asks nothing but the session, and comes
 # before the guard of the deactivated ones, which a caller who may not read would otherwise be told.
@@ -79,7 +80,9 @@ GREATEST_LIMIT = 500
 # A decimal as the contract writes it (``Decimal``): a bound of the capacity.
 DECIMAL = re.compile(r"-?\d+(\.\d+)?")
 # The attachments a body may send null, read as absent: lacking (``VALUE_REQUIRED``, WF-REF-0090).
-ATTACHMENTS = frozenset({"org_node_id", "cost_category_id", "calendar_id"})
+# A change has no node to lack: its ``org_node_id`` is optional, never null (``node_sent_null``).
+CREATION_ATTACHMENTS = frozenset({"org_node_id", "cost_category_id", "calendar_id"})
+CHANGE_ATTACHMENTS = CREATION_ATTACHMENTS - {"org_node_id"}
 
 
 class ActivationBody(ContractModel):
@@ -89,26 +92,45 @@ class ActivationBody(ContractModel):
     lock_version: LockVersion
 
 
-def _lacking_attachments(body: object) -> object:
-    """Read an attachment sent null as absent: the role lacks it (``VALUE_REQUIRED``)."""
-    if not isinstance(body, dict):
-        return body
-    sent = cast("dict[str, object]", body)
-    return {
-        name: value for name, value in sent.items() if name not in ATTACHMENTS or value is not None
-    }
+def _lacking(attachments: frozenset[str]) -> Callable[[object], object]:
+    """Give the reading of a body that takes those attachments sent null as absent."""
+
+    def read(body: object) -> object:
+        if not isinstance(body, dict):
+            return body
+        sent = cast("dict[str, object]", body)
+        return {
+            name: value
+            for name, value in sent.items()
+            if name not in attachments or value is not None
+        }
+
+    return read
 
 
-type CreationBody = Annotated[ResourceRoleWrite, BeforeValidator(_lacking_attachments), Body()]
-type ChangeBody = Annotated[ResourceRoleUpdate, BeforeValidator(_lacking_attachments), Body()]
+type CreationBody = Annotated[
+    ResourceRoleWrite, BeforeValidator(_lacking(CREATION_ATTACHMENTS)), Body()
+]
+type ChangeBody = Annotated[
+    ResourceRoleUpdate, BeforeValidator(_lacking(CHANGE_ATTACHMENTS)), Body()
+]
+
+
+def node_sent_null(body: ResourceRoleUpdate) -> None:
+    """Refuse a change that sends the node null (422): optional, it is never null (contract)."""
+    if "org_node_id" in body.model_fields_set and body.org_node_id is None:
+        raise UnprocessableError(
+            VALIDATION_FAILED, fields=(FieldError("/org_node_id", VALIDATION_FAILED),)
+        )
 
 
 def category_admission(session: Session, category_id: UUID) -> CategoryAdmission | None:
-    """Ask the cost settings what a role is told of a category, its rows share-locked.
+    """Ask the cost settings what a role is told of a category, sharing the lock of the natures.
 
     Whether its nature is of labour and whether it is active; ``None`` for a category the
-    reference does not have. The lock holds until the transaction ends: a change of the kind or of
-    the state of the category waits for the role attached to it, or is waited for.
+    reference does not have. Asked first, before the write locks anything of the resource settings
+    — the tree, the role —: the lock holds until the transaction ends, and a change of the kind or
+    of the state of the category waits for the role attached to it, or is waited for.
     """
     found = category_labels(session, [category_id], locked=True).get(category_id)
     if found is None:
@@ -334,6 +356,7 @@ def patch_resource_role(
     resource_role_id: UUID, body: ChangeBody, account: Caller, session: Transaction
 ) -> ResourceRole:
     """Change a role, never its node: its category and its calendar towards active ones."""
+    node_sent_null(body)
     category_id = body.cost_category_id.root
     change = RoleChange(
         body.code,
