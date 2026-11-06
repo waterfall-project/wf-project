@@ -126,6 +126,11 @@ class Revision(Audited):
     reference_year: Mapped[int] = mapped_column(SmallInteger)
     is_reference: Mapped[bool] = mapped_column(Boolean)
     lineage_id: Mapped[UUID]
+    # The marked revision this one is the copy of; null for the first revision of a project, kept
+    # after the marking (``Revision.source_revision_id`` of the contract).
+    source_revision_id: Mapped[UUID | None] = mapped_column(
+        ForeignKey("revision.id", ondelete="RESTRICT")
+    )
 
 
 class CostStructure(Audited):

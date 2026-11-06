@@ -273,6 +273,7 @@ REFUSALS: list[Refusal] = [
     (Revision, {"version_name": TAKEN}, "uq_revision_version_name"),
     (Revision, {"is_reference": True}, "uq_revision_reference"),
     (Revision, {"project_id": uuid4()}, "fk_revision_project_id_project"),
+    (Revision, {"source_revision_id": uuid4()}, "fk_revision_source_revision_id_revision"),
     (CostStructure, {"kind": "amendment"}, "ck_cost_structure_kind_known"),
     *bounds(CostStructure, "label", 300),
     (CostStructure, {"revision_id": uuid4()}, "fk_cost_structure_project_id_revision"),
@@ -492,6 +493,7 @@ def marked(database: Database, owner: Engine, parents: Parents) -> UUID:
         {"description": "Corrigée"},
         {"reference_year": 2027},
         {"lineage_id": uuid4()},
+        {"source_revision_id": uuid4()},
     ],
     ids="-".join,
 )
@@ -499,6 +501,22 @@ def test_a_marked_revision_is_neither_taken_back_nor_changed_by_anyone(
     owner: Engine, marked: UUID, change: dict[str, object]
 ) -> None:
     guard_refusal(owner, update(Revision).where(Revision.id == marked).values(**change))
+
+
+@pytest.mark.requirement("WF-REV-0020-A")
+def test_a_marked_revision_keeps_the_source_it_was_copied_from_and_cannot_be_deleted_while_copied(
+    owner: Engine, parents: Parents, marked: UUID
+) -> None:
+    # The source is a marked revision; the copy names it and keeps it after its own marking.
+    copy = revision_row(parents.project, source_revision_id=marked)
+    with owner.begin() as connection:
+        connection.execute(insert(Revision).values(**copy))
+    guard_refusal(owner, delete(Revision).where(Revision.id == marked))
+    with owner.connect() as connection:
+        kept = connection.scalar(
+            select(Revision.source_revision_id).where(Revision.id == copy["id"])
+        )
+    assert kept == marked
 
 
 @pytest.mark.requirement("WF-REV-0020-A")
