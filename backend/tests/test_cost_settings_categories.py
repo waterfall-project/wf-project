@@ -104,14 +104,16 @@ def test_the_witness_categories_are_listed_as_the_example_the_faux_back_serves(
     expected = [shown(item) for item in example("volume/cost_categories")["items"]]
     for headers in (sessions.without, sessions.reading):
         read = listed(api, headers, "limit=500")
-        assert [shown(item) for item in read["items"]] == expected
+        # The category of provision the bootstrap wrote (#2143) is read beside the witness's.
+        kept = [item for item in read["items"] if item["code"] != "PROV-001"]
+        assert [shown(item) for item in kept] == expected
         assert all(item["available_commands"] == [] for item in read["items"])
-        assert read["meta"] == {"limit": 500, "offset": 0, "total": 200}
+        assert read["meta"] == {"limit": 500, "offset": 0, "total": 201}
     # A page of fifty, the second, as the example of the page.
     page = example("volume/cost_categories_page")
     second = listed(api, sessions.without, "limit=50&offset=50")
     assert [shown(item) for item in second["items"]] == [shown(item) for item in page["items"]]
-    assert second["meta"] == page["meta"]
+    assert second["meta"] == {**page["meta"], "total": 201}
 
 
 @pytest.mark.requirement("WF-REF-0040-A")
@@ -131,7 +133,7 @@ def test_the_commands_of_a_category_are_those_of_a_caller_who_changes_the_cost_s
         available[0],
         ("change_cost_type", False, ["cost_category_unrated", "cost_category_without_role"]),
     ]
-    assert len(managed) == 200
+    assert len(managed) == 201
     for item in managed:
         if item["code"] in {"MO-001", "MO-002"}:
             assert commands(item) == bound
@@ -155,15 +157,16 @@ def test_the_categories_are_filtered_searched_sorted_and_paged_by_the_server(
     assert codes(api, headers, "search=sous-traitance&limit=500")[0] == "ACH-001"
     # Sorted by the label of the nature, then the code; descending, the last nature first.
     by_type = listed(api, headers, "sort_by=cost_type&sort_order=desc&limit=3")
-    assert [item["cost_type_label"] for item in by_type["items"]] == ["Provision"] * 1 + [
-        "Main-d'œuvre"
-    ] * 2
-    assert codes(api, headers, "sort_by=accounting_code&limit=2") == sorted(
-        codes(api, headers, "sort_by=accounting_code&limit=2")
-    )
-    assert codes(api, headers, "sort_by=code&sort_order=desc&limit=2") == ["PRV-001", "MO-150"]
+    assert [item["cost_type_label"] for item in by_type["items"]] == [
+        "Provision pour risques",
+        "Provision",
+        "Main-d'œuvre",
+    ]
+    # The provision of the bootstrap bears the lowest accounting code (#2143).
+    assert codes(api, headers, "sort_by=accounting_code&limit=2") == ["PROV-001", "ACH-001"]
+    assert codes(api, headers, "sort_by=code&sort_order=desc&limit=2") == ["PRV-001", "PROV-001"]
     page = listed(api, headers, "limit=10&offset=195&search=-")
-    assert (len(page["items"]), page["meta"]["total"]) == (5, 200)
+    assert (len(page["items"]), page["meta"]["total"]) == (6, 201)
 
 
 @pytest.mark.requirement("WF-REF-0040-A")
@@ -177,7 +180,7 @@ def test_the_deactivated_categories_are_read_by_the_permission_to_change_and_com
     assert "ACH-001" not in codes(api, sessions.without, "limit=500")
     assert codes(api, changing, "is_active=false") == ["ACH-001"]
     ordered = codes(api, changing, "include_inactive=true&sort_by=is_active&limit=500")
-    assert (ordered[0], ordered[-1], len(ordered)) == ("ACH-002", "ACH-001", 200)
+    assert (ordered[0], ordered[-1], len(ordered)) == ("ACH-002", "ACH-001", 201)
     for headers in (sessions.without, sessions.reading):
         for query in ("include_inactive=true", "is_active=false"):
             response = api.get(f"{CATEGORIES}?{query}", headers=headers)
