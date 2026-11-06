@@ -221,8 +221,9 @@ export interface UserEntry {
  * state; then its audit columns, the creation and the last modification, each its instant and its
  * author (`auditColumns`, #936). For a session that may modify the accounts, it is its own entry
  * (`entry`): the names of a local account in their cells, the node in a drop-down list of the active
- * nodes, the state on a switch, the roles in a list of several choices, and the link of a local account and the anonymisation of a deactivated one on
- * their commands — none deletes an account (WF-ADM-0060).
+ * nodes, the state on a switch, the roles in a list of several choices, and the link of a local
+ * account and the anonymisation of a deactivated one on their commands — none deletes an account
+ * (WF-ADM-0060).
  */
 export function userGrid(entry?: UserEntry): GridConfig<User, UserSort, UserPage> {
   return {

@@ -279,6 +279,11 @@ export function RolesCell({
  * until the server answers. A deactivated node the account stays attached to is shown by its label
  * (`org_node_label`) as the one chosen and cannot be chosen again; the label alone when the
  * session may not write the accounts, or the account is anonymised.
+ *
+ * Only the list shows « CODE · Label » set in by depth: the account lists the label of its node
+ * (`org_node_label`) and no code, so the deactivated node kept and the read-only cell show the label
+ * alone, as the server names it — a code would have to be looked up in a list that does not hold the
+ * deactivated nodes, and the contract is left as it is.
  */
 export function AttachmentCell({
   user,

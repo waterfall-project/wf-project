@@ -9,7 +9,7 @@ import type { components } from "@/api/generated/schema";
 import { forgetMessages } from "@/components/notices/message-history";
 import { account, accounts, grid, told, users, writes } from "@/test/accounts";
 import { expectAccessible } from "@/test/axe";
-import { example, type FakeAnswers, fakeClient } from "@/test/fixtures";
+import { example, type FakeAnswers, fakeClient, type Problem } from "@/test/fixtures";
 
 import type { User } from "./admin-grids";
 
@@ -134,6 +134,51 @@ describe("the attachment of an account, in its cell", () => {
     expect(list).toHaveValue(inactive.org_node_id);
     expect(within(list).getByRole("option", { name: inactive.label })).toBeDisabled();
     expect(within(listOf("Alix Moreau")).queryByText(inactive.label)).toBeNull();
+  });
+
+  it.each([
+    [
+      "the node deactivated between the reading and the choice",
+      {
+        code: "VALIDATION_FAILED",
+        status: 422,
+        fields: [{ pointer: "/org_node_id", code: "INACTIVE_REFERENCE_OBJECT" }],
+      } satisfies Problem & { status: 422 },
+      "Les données saisies ne sont pas valides.",
+    ],
+    [
+      "the account changed since it was read",
+      { code: "STALE_LOCK_VERSION", status: 412 } satisfies Problem & { status: 412 },
+      "rechargez-la pour voir sa dernière version.",
+    ],
+  ])(
+    "tells in the region of the accounts the attachment the server refuses — %s —, the list back at the node read and the focus on its cell [WF-ADM-0050-A]",
+    async (_, problem, said) => {
+      const client = serve({ "PATCH /users/{user_id}": { problem } });
+      render(accounts(true, users.items, undefined, active));
+      const list = listOf("Lucas Petit");
+      await userEvent.selectOptions(list, ACHATS);
+      const alert = await screen.findByRole("alert");
+      expect(alert.textContent).toContain(said);
+      expect(writes(client)).toHaveLength(1);
+      expect(list).toHaveValue("");
+      expect(list).not.toHaveAttribute("aria-busy", "true");
+      expect(told().textContent).toBe("");
+      const cell = list.closest("td");
+      await waitFor(() => {
+        expect(cell?.contains(document.activeElement)).toBe(true);
+      });
+    },
+  );
+
+  it("shows an anonymised account attached to a node by its label alone, read only, for a session that may modify the accounts [WF-ADM-0060-A]", () => {
+    const [anonymised] = (example("users_anonymized") as { items: User[] }).items;
+    if (anonymised?.org_node_label == null) {
+      throw new Error("the example holds an anonymised account attached to a node");
+    }
+    render(accounts(true, [anonymised], undefined, active));
+    expect(screen.queryByRole("combobox", { name: /^Rattachement de/ })).toBeNull();
+    expect(within(grid()).getByText(anonymised.org_node_label)).toBeInTheDocument();
   });
 
   it("reads the attachment only for a session that may not modify the accounts", () => {
