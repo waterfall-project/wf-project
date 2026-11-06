@@ -42,7 +42,8 @@
     "comingSoon": "La recherche est à venir : elle arrive avec les écrans qui listent les fonctions et les projets."
   },
   "accountMenu": {
-    "label": "Compte de {name}",
+    "label": "Compte de {name}, {initials}",
+    "labelWithoutInitials": "Compte de {name}",
     "preferences": "Préférences",
     "account": "Mon compte",
     "avatar": "Changer l’avatar",
@@ -2561,6 +2562,7 @@
       "reactivated": "« {name} » réactivé.",
       "activeUser": "Compte de « {name} » actif",
       "rolesOf": "Rôles de « {name} »",
+      "rolesHeld": "Rôles de « {name} » : {roles}",
       "rolesAttributed": "Rôles de « {name} » attribués.",
       "link": "Lien",
       "resend": "Courriel",

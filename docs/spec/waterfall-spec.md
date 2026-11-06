@@ -27,11 +27,11 @@ Le nom et le logo « Waterfall » ne sont pas couverts par cette licence.
 
 Historique des modifications
 
-| Révision | Date       | Objet                                                                                                                                                                                            | Auteur  |
-|----------|------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|---------|
-| 1.0.0    | 17/09/2026 | Document initial                                                                                                                                                                                 | bengeek |
-| 1.0.1    | 30/10/2026 | Corrections relevées pendant EP-16 : WF-IHM-0110, WF-PLA-0130, WF-RAE-0020, WF-REV-0080, WF-SEC-0020                                                                                             | bengeek |
-| 1.0.2    | 01/11/2026 | Corrections relevées pendant EP-16 : WF-ADM-0070, WF-ADM-0090, WF-ADM-0160, WF-DAT-0010, WF-DEV-0050, WF-IHM-0090, WF-INTF-0100, WF-REV-0010, WF-REV-0100, WF-RIS-0040, WF-RIS-0050, WF-RIS-0060 | bengeek |
+| Révision | Date | Objet | Auteur |
+|:--:|:--:|----|:--:|
+| 1.0.0 | 17/09/2026 | Document initial | bengeek |
+| 1.0.1 | 30/10/2026 | Corrections relevées pendant EP-16 : WF-IHM-0110, WF-PLA-0130, WF-RAE-0020, WF-REV-0080, WF-SEC-0020 | bengeek |
+| 1.0.2 | 01/11/2026 | Corrections relevées pendant EP-16 : WF-ADM-0070, WF-ADM-0090, WF-ADM-0160, WF-DAT-0010, WF-DEV-0050, WF-IHM-0090, WF-INTF-0100, WF-REV-0010, WF-REV-0100, WF-RIS-0040, WF-RIS-0050, WF-RIS-0060 | bengeek |
 
 # 1. Généralités
 
@@ -43,50 +43,50 @@ Le périmètre décrit par ce document est celui de la première version publié
 
 ## 1.2. Sigles et terminologie
 
-| Abréviation | Signification                                                                              |
-|-------------|--------------------------------------------------------------------------------------------|
-| AC          | Coût réel (Actual Cost)                                                                    |
-| API         | Interface de programmation (Application Programming Interface)                             |
-| BAC         | Budget de référence (Budget At Completion)                                                 |
-| CI/CD       | Intégration et livraison continues (Continuous Integration / Continuous Delivery)          |
-| CPI         | Indice de coût (Cost Performance Index)                                                    |
-| DD          | Début à début                                                                              |
-| DDL         | Langage de définition de données (Data Definition Language)                                |
-| DF          | Début à Fin                                                                                |
-| DSI         | Direction des systèmes d’information                                                       |
-| EAC         | Projection à terminaison (Estimate At Completion)                                          |
-| ERP         | Enterprise Resource Planning                                                               |
-| EV          | Valeur acquise (Earned Value)                                                              |
-| EVM         | Gestion de la valeur acquise (Earned Value Management)                                     |
-| FBS         | Arborescence fonctionnelle (Functional Breakdown Structure)                                |
-| FD          | Fin à Début                                                                                |
-| FF          | Fin à Fin                                                                                  |
-| HTTP        | Protocole de transfert hypertexte (HyperText Transfer Protocol)                            |
-| HTTPS       | Protocole HTTP chiffré par TLS                                                             |
-| IHM         | Interface homme-machine                                                                    |
-| JSON        | Format d'échange de données (JavaScript Object Notation)                                   |
-| LDAP        | Protocole d'accès à un annuaire (Lightweight Directory Access Protocol)                    |
-| LDAPS       | LDAP chiffré par TLS                                                                       |
-| MCP         | Model Context Protocol, protocole d’accès d’un agent à des outils ; hors de la version 1.0 |
-| MVP         | Produit minimum viable (Minimum Viable Product)                                            |
-| OIDC        | Protocole d'authentification déléguée (OpenID Connect)                                     |
-| OTP         | Organigramme technique de projet, structure d’imputation de l’ERP                          |
-| PBS         | Arborescence produit (Product Breakdown Structure)                                         |
-| PNG         | Format d’image sans perte (Portable Network Graphics)                                      |
-| PV          | Valeur planifiée (Planned Value)                                                           |
-| RAE         | Reste à engager                                                                            |
-| RBAC        | Role-Based Access Control                                                                  |
-| REST        | Style d'interface fondé sur HTTP (Representational State Transfer)                         |
-| RGAA        | Référentiel général d’amélioration de l’accessibilité                                      |
-| S3          | Interface de stockage objet, devenue un standard de fait                                   |
-| SPI         | Indice de délai (Schedule Performance Index)                                               |
-| TLS         | Protocole de chiffrement des échanges (Transport Layer Security)                           |
-| UML         | Langage de modélisation unifié (Unified Modeling Language)                                 |
-| URL         | Adresse d’une ressource Web (Uniform Resource Locator)                                     |
-| UUID        | Identifiant unique universel (Universally Unique Identifier)                               |
-| WBS         | Arborescence de tâches (Work Breakdown Structure)                                          |
-| WCAG        | Recommandations d’accessibilité du Web (Web Content Accessibility Guidelines)              |
-| XML         | Format de données structurées (eXtensible Markup Language)                                 |
+| Abréviation | Signification |
+|----|----|
+| AC | Coût réel (Actual Cost) |
+| API | Interface de programmation (Application Programming Interface) |
+| BAC | Budget de référence (Budget At Completion) |
+| CI/CD | Intégration et livraison continues (Continuous Integration / Continuous Delivery) |
+| CPI | Indice de coût (Cost Performance Index) |
+| DD | Début à début |
+| DDL | Langage de définition de données (Data Definition Language) |
+| DF | Début à Fin |
+| DSI | Direction des systèmes d’information |
+| EAC | Projection à terminaison (Estimate At Completion) |
+| ERP | Enterprise Resource Planning |
+| EV | Valeur acquise (Earned Value) |
+| EVM | Gestion de la valeur acquise (Earned Value Management) |
+| FBS | Arborescence fonctionnelle (Functional Breakdown Structure) |
+| FD | Fin à Début |
+| FF | Fin à Fin |
+| HTTP | Protocole de transfert hypertexte (HyperText Transfer Protocol) |
+| HTTPS | Protocole HTTP chiffré par TLS |
+| IHM | Interface homme-machine |
+| JSON | Format d'échange de données (JavaScript Object Notation) |
+| LDAP | Protocole d'accès à un annuaire (Lightweight Directory Access Protocol) |
+| LDAPS | LDAP chiffré par TLS |
+| MCP | Model Context Protocol, protocole d’accès d’un agent à des outils ; hors de la version 1.0 |
+| MVP | Produit minimum viable (Minimum Viable Product) |
+| OIDC | Protocole d'authentification déléguée (OpenID Connect) |
+| OTP | Organigramme technique de projet, structure d’imputation de l’ERP |
+| PBS | Arborescence produit (Product Breakdown Structure) |
+| PNG | Format d’image sans perte (Portable Network Graphics) |
+| PV | Valeur planifiée (Planned Value) |
+| RAE | Reste à engager |
+| RBAC | Role-Based Access Control |
+| REST | Style d'interface fondé sur HTTP (Representational State Transfer) |
+| RGAA | Référentiel général d’amélioration de l’accessibilité |
+| S3 | Interface de stockage objet, devenue un standard de fait |
+| SPI | Indice de délai (Schedule Performance Index) |
+| TLS | Protocole de chiffrement des échanges (Transport Layer Security) |
+| UML | Langage de modélisation unifié (Unified Modeling Language) |
+| URL | Adresse d’une ressource Web (Uniform Resource Locator) |
+| UUID | Identifiant unique universel (Universally Unique Identifier) |
+| WBS | Arborescence de tâches (Work Breakdown Structure) |
+| WCAG | Recommandations d’accessibilité du Web (Web Content Accessibility Guidelines) |
+| XML | Format de données structurées (eXtensible Markup Language) |
 
 Tableau 1 Abréviations
 
@@ -330,36 +330,36 @@ Un flux échappe à cette lecture : FLX-08 relie l’ERP à Excel sans passer p
 
 La table suivante définit les flux entre Waterfall et les systèmes externes. Tous les échanges par fichier, imports comme exports, sont déclenchés depuis Waterfall par un utilisateur habilité ; dans la configuration livrée, c’est le chef de projet.
 
-| Flux                   | Source            | Destination       | Sens           | Mode d’échange                        | Fréquence                           |
-|------------------------|-------------------|-------------------|----------------|---------------------------------------|-------------------------------------|
-| FLX-01 Planning        | Microsoft Project | Waterfall         | Entrant        | Fichier XML MS Project (WF-INTF-0040) | À la demande                        |
-| FLX-02 Planning        | Waterfall         | Microsoft Project | Sortant        | Fichier XML MS Project (WF-INTF-0050) | À la demande                        |
-| FLX-03 Devis           | Excel             | Waterfall         | Entrant        | Fichier Excel (WF-INTF-0100)          | À la demande, en phase de chiffrage |
-| FLX-04 Devis           | Waterfall         | Excel             | Sortant        | Fichier Excel (WF-INTF-0110)          | À la demande                        |
-| FLX-05 Reste à engager | Excel             | Waterfall         | Entrant        | Fichier Excel (WF-INTF-0120)          | À chaque revue périodique           |
-| FLX-06 Reste à engager | Waterfall         | Excel             | Sortant        | Fichier Excel (WF-INTF-0130)          | À chaque revue périodique           |
-| FLX-07 Coûts réels     | Excel             | Waterfall         | Entrant        | Fichier Excel (WF-INTF-0140)          | À chaque revue périodique           |
-| FLX-08 Coûts réels     | SAP               | Excel             | Hors périmètre | Extraction ERP, hors Waterfall        | À chaque revue périodique           |
+| Flux | Source | Destination | Sens | Mode d’échange | Fréquence |
+|----|----|----|----|----|----|
+| FLX-01 Planning | Microsoft Project | Waterfall | Entrant | Fichier XML MS Project (WF-INTF-0040) | À la demande |
+| FLX-02 Planning | Waterfall | Microsoft Project | Sortant | Fichier XML MS Project (WF-INTF-0050) | À la demande |
+| FLX-03 Devis | Excel | Waterfall | Entrant | Fichier Excel (WF-INTF-0100) | À la demande, en phase de chiffrage |
+| FLX-04 Devis | Waterfall | Excel | Sortant | Fichier Excel (WF-INTF-0110) | À la demande |
+| FLX-05 Reste à engager | Excel | Waterfall | Entrant | Fichier Excel (WF-INTF-0120) | À chaque revue périodique |
+| FLX-06 Reste à engager | Waterfall | Excel | Sortant | Fichier Excel (WF-INTF-0130) | À chaque revue périodique |
+| FLX-07 Coûts réels | Excel | Waterfall | Entrant | Fichier Excel (WF-INTF-0140) | À chaque revue périodique |
+| FLX-08 Coûts réels | SAP | Excel | Hors périmètre | Extraction ERP, hors Waterfall | À chaque revue périodique |
 
 Tableau 3 Flux avec les systèmes externes
 
 Les acteurs de cette table sont les trois usages types de Waterfall, décrits au paragraphe suivant : le chef de projet, qui construit et pilote un projet ; le manager, qui tient le référentiel et lit le portefeuille ; l’administrateur, qui exploite la plateforme.
 
-| Flux                             | Source         | Destination    | Sens    | Mode d’échange | Fréquence                                |
-|----------------------------------|----------------|----------------|---------|----------------|------------------------------------------|
-| FLX-09 Planning                  | Chef de projet | Waterfall      | Entrant | IHM            | En continu                               |
-| FLX-10 Devis                     | Chef de projet | Waterfall      | Entrant | IHM            | En continu, en phase de chiffrage        |
-| FLX-11 Reste à engager           | Chef de projet | Waterfall      | Entrant | IHM            | À chaque revue périodique                |
-| FLX-12 Risques                   | Chef de projet | Waterfall      | Entrant | IHM            | En continu, et à chaque revue périodique |
-| FLX-13 Indicateurs projet        | Waterfall      | Chef de projet | Sortant | IHM            | À la demande, recalculés à chaque revue  |
-| FLX-14 Paramètres application    | Manager        | Waterfall      | Entrant | IHM            | À la demande                             |
-| FLX-15 Indicateurs agrégés       | Waterfall      | Manager        | Sortant | IHM            | À la demande                             |
-| FLX-16 Gestion des utilisateurs  | Administrateur | Waterfall      | Entrant | IHM            | À la demande                             |
-| FLX-17 Gestion des habilitations | Administrateur | Waterfall      | Entrant | IHM            | À la demande                             |
-| FLX-18 États du système          | Waterfall      | Administrateur | Sortant | IHM            | À la demande                             |
-| FLX-19 Journal d’audit           | Waterfall      | Administrateur | Sortant | IHM            | À la demande                             |
-| FLX-20 Paramètres projet         | Chef de projet | Waterfall      | Entrant | IHM            | À la demande                             |
-| FLX-21 Sauvegardes               | Administrateur | Waterfall      | Entrant | IHM            | À la demande                             |
+| Flux | Source | Destination | Sens | Mode d’échange | Fréquence |
+|----|----|----|----|----|----|
+| FLX-09 Planning | Chef de projet | Waterfall | Entrant | IHM | En continu |
+| FLX-10 Devis | Chef de projet | Waterfall | Entrant | IHM | En continu, en phase de chiffrage |
+| FLX-11 Reste à engager | Chef de projet | Waterfall | Entrant | IHM | À chaque revue périodique |
+| FLX-12 Risques | Chef de projet | Waterfall | Entrant | IHM | En continu, et à chaque revue périodique |
+| FLX-13 Indicateurs projet | Waterfall | Chef de projet | Sortant | IHM | À la demande, recalculés à chaque revue |
+| FLX-14 Paramètres application | Manager | Waterfall | Entrant | IHM | À la demande |
+| FLX-15 Indicateurs agrégés | Waterfall | Manager | Sortant | IHM | À la demande |
+| FLX-16 Gestion des utilisateurs | Administrateur | Waterfall | Entrant | IHM | À la demande |
+| FLX-17 Gestion des habilitations | Administrateur | Waterfall | Entrant | IHM | À la demande |
+| FLX-18 États du système | Waterfall | Administrateur | Sortant | IHM | À la demande |
+| FLX-19 Journal d’audit | Waterfall | Administrateur | Sortant | IHM | À la demande |
+| FLX-20 Paramètres projet | Chef de projet | Waterfall | Entrant | IHM | À la demande |
+| FLX-21 Sauvegardes | Administrateur | Waterfall | Entrant | IHM | À la demande |
 
 Tableau 4 Flux avec les acteurs
 
@@ -627,11 +627,11 @@ Les diagrammes suivent la notation des diagrammes de classes UML, réduite à ce
 
 Les relations se lisent ainsi :
 
-| Représentation                           | Signification                                                                                                                                                           |
-|------------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| Trait plein terminé par une flèche       | Association. Elle se lit dans le sens de la flèche, avec le libellé du trait : « un rôle de ressource *est rattaché à* un nœud d’organisation ».                        |
-| Trait plein partant d’un losange         | Contenance. L’objet placé du côté du losange contient les autres, par exemple un nœud et ses sous-nœuds.                                                                |
-| Trait pointillé                          | Dépendance. L’objet source emploie l’objet cible sans le contenir ni lui appartenir : « une révision emploie des valeurs du référentiel ».                              |
+| Représentation | Signification |
+|----|----|
+| Trait plein terminé par une flèche | Association. Elle se lit dans le sens de la flèche, avec le libellé du trait : « un rôle de ressource *est rattaché à* un nœud d’organisation ». |
+| Trait plein partant d’un losange | Contenance. L’objet placé du côté du losange contient les autres, par exemple un nœud et ses sous-nœuds. |
+| Trait pointillé | Dépendance. L’objet source emploie l’objet cible sans le contenir ni lui appartenir : « une révision emploie des valeurs du référentiel ». |
 | Trait plein terminé par un triangle vide | Spécialisation. L’objet du côté du triangle est le cas général, l’autre un cas particulier qui en a toutes les propriétés : « un jalon est une tâche, de durée nulle ». |
 
 Tableau 5 Relations du modèle conceptuel
@@ -3547,36 +3547,36 @@ Les services (Python, FastAPI).
 
 La matrice donne, pour chaque fonction de l’arborescence fonctionnelle, les composants qui la réalisent. Toute fonction est réalisée au moins par PBS-1.1, PBS-2.1, PBS-2.3 et PBS-3.1 : la colonne ne cite que ce qui s’y ajoute. Une fonction absente de la matrice est réalisée par le socle seul ; une exigence qui cite un code parent hérite de la ligne la plus large qui le couvre. Le champ PBS d’une exigence du §3 reprend le socle et, parmi les composants de la ligne de sa fonction, ceux qu’elle engage ; la ligne de la matrice est l’union des composants de ses exigences. Les invariants d’interface du §3.6 s’ajoutent à toutes les fonctions ; ceux qui portent sur des composants partagés — grilles, signalements, accessibilité, export des graphiques, aide — engagent PBS-1.3, quelle que soit la fonction affichée.
 
-| Fonction                                                                     | Composants                                                                                                   |
-|------------------------------------------------------------------------------|--------------------------------------------------------------------------------------------------------------|
-| FBS-1.1 Gestion des utilisateurs                                             | PBS-2.5, PBS-5.4, PBS-2.2 (lecture des comptes), PBS-5.3                                                     |
-| FBS-1.2 Gestion des rôles d’habilitation                                     | — (permissions lues en base à chaque requête, §4.4.5)                                                        |
-| FBS-1.3 Surveillance de l’état du système                                    | PBS-4.1, PBS-4.2, PBS-4.3                                                                                    |
-| FBS-1.4 Sauvegarde et restauration                                           | PBS-2.2, PBS-3.3, PBS-5.1 (copie hors plateforme et test de restauration, WF-EXP-0050, WF-EXP-0060), PBS-5.3 |
-| FBS-1.5 Journal d’audit                                                      | — (lecture de la table du journal, WF-SEC-0030)                                                              |
-| FBS-2.1 à FBS-2.7 Portefeuille                                               | PBS-3.2 (indicateurs au jour courant ; lit les indicateurs conservés aux dates passées, WF-DAT-0040)         |
-| FBS-3.1 à FBS-3.4 Paramètres applicatifs                                     | —                                                                                                            |
-| FBS-4.1 Gestion des révisions                                                | PBS-2.2 (marquage), PBS-3.2 (indicateurs au jour courant)                                                    |
-| FBS-4.2 Paramètres de projets                                                | —                                                                                                            |
-| FBS-4.3.1 Chronologie                                                        | PBS-1.3                                                                                                      |
-| FBS-4.3.2 Grille de planning                                                 | PBS-1.3                                                                                                      |
-| FBS-4.3.3 Diagramme de Gantt                                                 | PBS-1.3                                                                                                      |
-| FBS-4.3.4 Imports / Exports                                                  | PBS-2.2, PBS-3.3                                                                                             |
-| FBS-4.3.5 Arborescence de tâches                                             | PBS-1.3                                                                                                      |
-| FBS-4.4 et FBS-4.5 (imports et exports Excel du devis et du reste à engager) | PBS-2.2, PBS-3.3                                                                                             |
-| FBS-4.4.1 Indicateurs de devis                                               | PBS-3.2                                                                                                      |
-| FBS-4.4.2 Grille de devis                                                    | PBS-1.3                                                                                                      |
-| FBS-4.4.3 Gestion des coûts                                                  | —                                                                                                            |
-| FBS-4.4.4 Plan de charge du projet                                           | PBS-1.3                                                                                                      |
-| FBS-4.5.1 Indicateurs de reste à engager                                     | PBS-3.2                                                                                                      |
-| FBS-4.5.2 Grille de reste à engager                                          | PBS-1.3                                                                                                      |
-| FBS-4.5.3 Kanban – Démarrage des tâches                                      | PBS-1.3                                                                                                      |
-| FBS-4.6.1 Grille de suivi des risques                                        | PBS-1.3                                                                                                      |
-| FBS-4.6.2 Gestion des provisions pour risques                                | —                                                                                                            |
-| FBS-4.7 Coûts réels                                                          | PBS-2.2 (import), PBS-3.3                                                                                    |
-| FBS-4.8.1 à FBS-4.8.5 Indicateurs projets                                    | PBS-3.2 (indicateurs au jour courant), PBS-1.3 (évolution des indices, WF-IND-0130)                          |
-| FBS-4.8.6 à FBS-4.8.8 Diagrammes et courbes                                  | PBS-1.3, PBS-3.2                                                                                             |
-| FBS-4.9 Cycle de vie du projet                                               | —                                                                                                            |
+| Fonction | Composants |
+|----|----|
+| FBS-1.1 Gestion des utilisateurs | PBS-2.5, PBS-5.4, PBS-2.2 (lecture des comptes), PBS-5.3 |
+| FBS-1.2 Gestion des rôles d’habilitation | — (permissions lues en base à chaque requête, §4.4.5) |
+| FBS-1.3 Surveillance de l’état du système | PBS-4.1, PBS-4.2, PBS-4.3 |
+| FBS-1.4 Sauvegarde et restauration | PBS-2.2, PBS-3.3, PBS-5.1 (copie hors plateforme et test de restauration, WF-EXP-0050, WF-EXP-0060), PBS-5.3 |
+| FBS-1.5 Journal d’audit | — (lecture de la table du journal, WF-SEC-0030) |
+| FBS-2.1 à FBS-2.7 Portefeuille | PBS-3.2 (indicateurs au jour courant ; lit les indicateurs conservés aux dates passées, WF-DAT-0040) |
+| FBS-3.1 à FBS-3.4 Paramètres applicatifs | — |
+| FBS-4.1 Gestion des révisions | PBS-2.2 (marquage), PBS-3.2 (indicateurs au jour courant) |
+| FBS-4.2 Paramètres de projets | — |
+| FBS-4.3.1 Chronologie | PBS-1.3 |
+| FBS-4.3.2 Grille de planning | PBS-1.3 |
+| FBS-4.3.3 Diagramme de Gantt | PBS-1.3 |
+| FBS-4.3.4 Imports / Exports | PBS-2.2, PBS-3.3 |
+| FBS-4.3.5 Arborescence de tâches | PBS-1.3 |
+| FBS-4.4 et FBS-4.5 (imports et exports Excel du devis et du reste à engager) | PBS-2.2, PBS-3.3 |
+| FBS-4.4.1 Indicateurs de devis | PBS-3.2 |
+| FBS-4.4.2 Grille de devis | PBS-1.3 |
+| FBS-4.4.3 Gestion des coûts | — |
+| FBS-4.4.4 Plan de charge du projet | PBS-1.3 |
+| FBS-4.5.1 Indicateurs de reste à engager | PBS-3.2 |
+| FBS-4.5.2 Grille de reste à engager | PBS-1.3 |
+| FBS-4.5.3 Kanban – Démarrage des tâches | PBS-1.3 |
+| FBS-4.6.1 Grille de suivi des risques | PBS-1.3 |
+| FBS-4.6.2 Gestion des provisions pour risques | — |
+| FBS-4.7 Coûts réels | PBS-2.2 (import), PBS-3.3 |
+| FBS-4.8.1 à FBS-4.8.5 Indicateurs projets | PBS-3.2 (indicateurs au jour courant), PBS-1.3 (évolution des indices, WF-IND-0130) |
+| FBS-4.8.6 à FBS-4.8.8 Diagrammes et courbes | PBS-1.3, PBS-3.2 |
+| FBS-4.9 Cycle de vie du projet | — |
 
 Tableau 7 Correspondances FBS – PBS
 
@@ -3698,24 +3698,24 @@ flowchart LR
 
 Chaque flux technique porte un identifiant de la forme TFX-nn, stable, sur le modèle des flux fonctionnels du §3.1.2. Le sens est donné du demandeur vers le fournisseur.
 
-| Flux   | Source                       | Destination                          | Protocole                                                                                        | Authentification                              |
-|--------|------------------------------|--------------------------------------|--------------------------------------------------------------------------------------------------|-----------------------------------------------|
-| TFX-01 | Navigateur                   | Front                                | HTTPS                                                                                            | Témoin de session du front                    |
-| TFX-02 | Front                        | Service d’API                        | HTTPS, REST/JSON selon le contrat (WF-ARC-0060)                                                  | Jeton d’accès (WF-ARC-0030)                   |
-| TFX-03 | Service d’API, worker        | PostgreSQL                           | Connexion chiffrée                                                                               | Secret de la plateforme                       |
-| TFX-04 | Front, service d’API, worker | Redis                                | Connexion chiffrée                                                                               | Secret de la plateforme                       |
-| TFX-05 | Service d’API, worker        | Stockage objet                       | S3 sur HTTPS                                                                                     | Clés d’accès                                  |
-| TFX-06 | Fournisseur d’identité       | Annuaire LDAP                        | LDAPS                                                                                            | Compte de service                             |
-| TFX-07 | Navigateur                   | Fournisseur d’identité               | HTTPS, redirections OIDC                                                                         | —                                             |
-| TFX-08 | Front, service d’API, worker | Fournisseur d’identité               | HTTPS : échange du code (front), clés publiques (API), API d’administration (API et worker)      | Secret client ; compte de service             |
-| TFX-09 | Prometheus                   | Front, API, worker                   | HTTP, point /metrics                                                                             | Réseau interne au cluster                     |
-| TFX-10 | Tâches planifiées (PBS-5.3)  | PostgreSQL, Redis                    | Connexion chiffrée : inscription et mise en file d’une tâche planifiée par la commande du worker | Secret de la plateforme                       |
-| TFX-11 | Fournisseur d’identité       | Fournisseur d’identité externe       | HTTPS, OIDC                                                                                      | Secret client                                 |
-| TFX-12 | Fournisseur d’identité       | PostgreSQL                           | Connexion chiffrée                                                                               | Secret de la plateforme                       |
-| TFX-13 | Fournisseur d’identité       | Serveur de messagerie                | SMTP sur TLS                                                                                     | Compte de service                             |
-| TFX-14 | Service d’API                | Prometheus                           | HTTPS, API de requête : métriques et alertes en cours                                            | Réseau interne au cluster ; compte de service |
-| TFX-15 | Navigateur de l’exploitant   | Tableau de bord et alertes (PBS-4.3) | HTTPS                                                                                            | Compte de l’exploitant                        |
-| TFX-16 | Worker                       | Emplacement externe des sauvegardes  | S3 sur HTTPS, ou le protocole de l’emplacement paramétré                                         | Clés d’accès de l’emplacement                 |
+| Flux | Source | Destination | Protocole | Authentification |
+|----|----|----|----|----|
+| TFX-01 | Navigateur | Front | HTTPS | Témoin de session du front |
+| TFX-02 | Front | Service d’API | HTTPS, REST/JSON selon le contrat (WF-ARC-0060) | Jeton d’accès (WF-ARC-0030) |
+| TFX-03 | Service d’API, worker | PostgreSQL | Connexion chiffrée | Secret de la plateforme |
+| TFX-04 | Front, service d’API, worker | Redis | Connexion chiffrée | Secret de la plateforme |
+| TFX-05 | Service d’API, worker | Stockage objet | S3 sur HTTPS | Clés d’accès |
+| TFX-06 | Fournisseur d’identité | Annuaire LDAP | LDAPS | Compte de service |
+| TFX-07 | Navigateur | Fournisseur d’identité | HTTPS, redirections OIDC | — |
+| TFX-08 | Front, service d’API, worker | Fournisseur d’identité | HTTPS : échange du code (front), clés publiques (API), API d’administration (API et worker) | Secret client ; compte de service |
+| TFX-09 | Prometheus | Front, API, worker | HTTP, point /metrics | Réseau interne au cluster |
+| TFX-10 | Tâches planifiées (PBS-5.3) | PostgreSQL, Redis | Connexion chiffrée : inscription et mise en file d’une tâche planifiée par la commande du worker | Secret de la plateforme |
+| TFX-11 | Fournisseur d’identité | Fournisseur d’identité externe | HTTPS, OIDC | Secret client |
+| TFX-12 | Fournisseur d’identité | PostgreSQL | Connexion chiffrée | Secret de la plateforme |
+| TFX-13 | Fournisseur d’identité | Serveur de messagerie | SMTP sur TLS | Compte de service |
+| TFX-14 | Service d’API | Prometheus | HTTPS, API de requête : métriques et alertes en cours | Réseau interne au cluster ; compte de service |
+| TFX-15 | Navigateur de l’exploitant | Tableau de bord et alertes (PBS-4.3) | HTTPS | Compte de l’exploitant |
+| TFX-16 | Worker | Emplacement externe des sauvegardes | S3 sur HTTPS, ou le protocole de l’emplacement paramétré | Clés d’accès de l’emplacement |
 
 Tableau 8 Tableau des flux techniques
 
@@ -3723,15 +3723,15 @@ Tableau 8 Tableau des flux techniques
 
 Les flux fonctionnels avec les acteurs (FLX-09 à FLX-21) empruntent tous le même chemin : TFX-01 puis TFX-02 ; l’écran d’état (FLX-18) lit en outre les métriques et les alertes par TFX-14. Les flux par fichier, eux, se déroulent en deux temps et passent par le worker.
 
-| Flux fonctionnel               | Chemin technique                                                                                                                                                                                                                                                                                        |
-|--------------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| FLX-01 Planning entrant        | Dépôt par TFX-02, fichier écrit sur le stockage objet (TFX-05), tâche inscrite dans la table des tâches de fond (TFX-03) puis mise en file (TFX-04), analyse par le worker, compte rendu (WF-INTF-0080), confirmation de l’utilisateur, application en une transaction (TFX-03), suppression du fichier |
-| FLX-02 Planning sortant        | Demande par TFX-02, tâche inscrite dans la table des tâches de fond (TFX-03) puis mise en file (TFX-04), engendrement du fichier par le worker à partir de la révision, dépôt sur le stockage objet (TFX-05), téléchargement par l’utilisateur, suppression du fichier (WF-DAT-0120)                    |
-| FLX-03 Devis entrant           | Comme FLX-01                                                                                                                                                                                                                                                                                            |
-| FLX-04 Devis sortant           | Comme FLX-02                                                                                                                                                                                                                                                                                            |
-| FLX-05 Reste à engager entrant | Comme FLX-01                                                                                                                                                                                                                                                                                            |
-| FLX-06 Reste à engager sortant | Comme FLX-02                                                                                                                                                                                                                                                                                            |
-| FLX-07 Coûts réels entrants    | Comme FLX-01, l’application se faisant par insertion ou mise à jour sur le numéro de pièce (WF-DAT-0110)                                                                                                                                                                                                |
+| Flux fonctionnel | Chemin technique |
+|:---|:---|
+| FLX-01 Planning entrant | Dépôt par TFX-02, fichier écrit sur le stockage objet (TFX-05), tâche inscrite dans la table des tâches de fond (TFX-03) puis mise en file (TFX-04), analyse par le worker, compte rendu (WF-INTF-0080), confirmation de l’utilisateur, application en une transaction (TFX-03), suppression du fichier |
+| FLX-02 Planning sortant | Demande par TFX-02, tâche inscrite dans la table des tâches de fond (TFX-03) puis mise en file (TFX-04), engendrement du fichier par le worker à partir de la révision, dépôt sur le stockage objet (TFX-05), téléchargement par l’utilisateur, suppression du fichier (WF-DAT-0120) |
+| FLX-03 Devis entrant | Comme FLX-01 |
+| FLX-04 Devis sortant | Comme FLX-02 |
+| FLX-05 Reste à engager entrant | Comme FLX-01 |
+| FLX-06 Reste à engager sortant | Comme FLX-02 |
+| FLX-07 Coûts réels entrants | Comme FLX-01, l’application se faisant par insertion ou mise à jour sur le numéro de pièce (WF-DAT-0110) |
 
 Tableau 9 Réalisation des flux fonctionnels
 
@@ -3863,42 +3863,42 @@ Le modèle conceptuel du §3.2 dit ce que sont les objets ; ce paragraphe dit c
 
 **Correspondance entre objets et tables.** Le code est écrit en anglais — tables, colonnes, variables, contrat d’API — et le document en français : le tableau ci-dessous est ce qui relie les deux, et c’est la traduction de référence de chaque objet du glossaire. Les tables portent le nom anglais de l’objet, au singulier. Un jalon est une tâche de durée nulle (WF-PLA-0050) : il n’a pas de table. Les valeurs du référentiel employées par une révision sont conservées dans quatre tables images des tables du référentiel — rôle, calendrier, catégorie, taux — rattachées à la révision. L’avatar d’un compte est conservé en base avec lui, et non sur le stockage objet : c’est ce qui le fait entrer dans la sauvegarde. La session du front, elle, vit dans Redis (WF-ARC-0040) et n’est pas sauvegardée : sa perte ne coûte qu’une reconnexion. La taille d'un avatar est bornée par un paramètre d'exploitation, livré à 512 Ko.
 
-| Objet (§3.2, glossaire)                                                      | Table                                                              | Régime      |
-|------------------------------------------------------------------------------|--------------------------------------------------------------------|-------------|
-| Nœud d’organisation                                                          | org_node                                                           | référentiel |
-| Rôle de ressource                                                            | resource_role                                                      | référentiel |
-| Calendrier                                                                   | calendar                                                           | référentiel |
-| Nature de coût                                                               | cost_type                                                          | référentiel |
-| Catégorie de coût                                                            | cost_category                                                      | référentiel |
-| Taux horaire                                                                 | hourly_rate                                                        | référentiel |
-| Bornes de la matrice de risques, seuils d’alerte, délai maximal entre revues | reference_setting                                                  | référentiel |
-| Utilisateur                                                                  | user_account                                                       | plateforme  |
-| Préférences d’affichage (WF-ADM-0040)                                        | display_preference                                                 | plateforme  |
-| Rôle d’habilitation                                                          | access_role                                                        | plateforme  |
-| Permission                                                                   | permission                                                         | plateforme  |
-| Sauvegarde                                                                   | backup                                                             | plateforme  |
-| Tâche de fond et son résultat (WF-ARC-0090)                                  | background_task                                                    | plateforme  |
-| Inscription au journal d’audit (WF-SEC-0030)                                 | audit_entry                                                        | plateforme  |
-| Avatar                                                                       | attribut de user_account                                           | plateforme  |
-| Session du front                                                             | — (Redis, WF-ARC-0040)                                             | plateforme  |
-| Projet                                                                       | project                                                            | projet      |
-| Transition d’état d’un projet (WF-CYC-0130)                                  | project_state_transition                                           | projet      |
-| Contributeur                                                                 | contributor                                                        | projet      |
-| Lot, Poste, Livrable                                                         | work_package, order_item, deliverable                              | projet      |
-| Sous-projet                                                                  | subproject                                                         | projet      |
-| Risque                                                                       | risk                                                               | projet      |
-| Réexamen d’un risque (WF-RIS-0010)                                           | risk_review                                                        | révisionné  |
-| Ligne de coût                                                                | cost_line                                                          | projet      |
-| Import de coûts réels (WF-CRE-0050)                                          | cost_import                                                        | projet      |
-| Compte rendu d’import (WF-INTF-0080, WF-ARC-0100)                            | import_report                                                      | projet      |
-| Chronologie, inscription à une chronologie ou au suivi temps/temps           | timeline, tracking_entry                                           | projet      |
-| Révision                                                                     | revision                                                           | projet      |
-| Structure de coûts                                                           | cost_structure                                                     | révisionné  |
-| Tâche (et jalon)                                                             | task                                                               | révisionné  |
-| Liaison                                                                      | task_link                                                          | révisionné  |
-| Ligne de devis                                                               | estimate_line                                                      | révisionné  |
-| Valeurs du référentiel employées                                             | revision_role, revision_calendar, revision_category, revision_rate | révisionné  |
-| Indicateurs d’une révision (WF-DAT-0040)                                     | revision_indicator                                                 | révisionné  |
+| Objet (§3.2, glossaire) | Table | Régime |
+|:---|:---|:---|
+| Nœud d’organisation | org_node | référentiel |
+| Rôle de ressource | resource_role | référentiel |
+| Calendrier | calendar | référentiel |
+| Nature de coût | cost_type | référentiel |
+| Catégorie de coût | cost_category | référentiel |
+| Taux horaire | hourly_rate | référentiel |
+| Bornes de la matrice de risques, seuils d’alerte, délai maximal entre revues | reference_setting | référentiel |
+| Utilisateur | user_account | plateforme |
+| Préférences d’affichage (WF-ADM-0040) | display_preference | plateforme |
+| Rôle d’habilitation | access_role | plateforme |
+| Permission | permission | plateforme |
+| Sauvegarde | backup | plateforme |
+| Tâche de fond et son résultat (WF-ARC-0090) | background_task | plateforme |
+| Inscription au journal d’audit (WF-SEC-0030) | audit_entry | plateforme |
+| Avatar | attribut de user_account | plateforme |
+| Session du front | — (Redis, WF-ARC-0040) | plateforme |
+| Projet | project | projet |
+| Transition d’état d’un projet (WF-CYC-0130) | project_state_transition | projet |
+| Contributeur | contributor | projet |
+| Lot, Poste, Livrable | work_package, order_item, deliverable | projet |
+| Sous-projet | subproject | projet |
+| Risque | risk | projet |
+| Réexamen d’un risque (WF-RIS-0010) | risk_review | révisionné |
+| Ligne de coût | cost_line | projet |
+| Import de coûts réels (WF-CRE-0050) | cost_import | projet |
+| Compte rendu d’import (WF-INTF-0080, WF-ARC-0100) | import_report | projet |
+| Chronologie, inscription à une chronologie ou au suivi temps/temps | timeline, tracking_entry | projet |
+| Révision | revision | projet |
+| Structure de coûts | cost_structure | révisionné |
+| Tâche (et jalon) | task | révisionné |
+| Liaison | task_link | révisionné |
+| Ligne de devis | estimate_line | révisionné |
+| Valeurs du référentiel employées | revision_role, revision_calendar, revision_category, revision_rate | révisionné |
+| Indicateurs d’une révision (WF-DAT-0040) | revision_indicator | révisionné |
 
 Tableau 10 Correspondance entre objets et tables
 
@@ -4124,12 +4124,12 @@ verification: "Une installation en version N passe en version N+1 sans perte de 
 
 Quatre environnements, et deux empaquetages pour les servir (WF-ARC-0050). Ce qui change de l'un à l'autre n'est ni le code ni le schéma — ce sont les mêmes images et les mêmes migrations partout — mais l'empaquetage, le dimensionnement, le fournisseur d'authentification et l'origine des données. S'y ajoutent les paramètres d'exploitation : des valeurs fixées par l'exploitant au déploiement, dans les valeurs du chart ou du fichier Compose (WF-ARC-0050), chacune livrée avec une valeur par défaut que le document donne là où il la cite ; ils ne font pas partie du référentiel, ne sont pas modifiables depuis l'interface, et l'écran d'état en présente les valeurs en vigueur (WF-ADM-0130).
 
-| Environnement | Empaquetage                                  | Authentification                                           | Données                                                                   |
-|---------------|----------------------------------------------|------------------------------------------------------------|---------------------------------------------------------------------------|
-| Développement | Compose, poste du développeur                | Fournisseur d'identité, comptes locaux                     | Jeu de données fictif, engendré                                           |
-| Intégration   | Compose, créé et détruit par la chaîne CI/CD | Fournisseur d'identité, comptes locaux                     | Jeu de données fictif, engendré à chaque exécution                        |
+| Environnement | Empaquetage | Authentification | Données |
+|----|----|----|----|
+| Développement | Compose, poste du développeur | Fournisseur d'identité, comptes locaux | Jeu de données fictif, engendré |
+| Intégration | Compose, créé et détruit par la chaîne CI/CD | Fournisseur d'identité, comptes locaux | Jeu de données fictif, engendré à chaque exécution |
 | Préproduction | Chart Helm, dimensionnement de la production | Fournisseur d'identité fédérant l'annuaire de l'entreprise | Jeu de référence, ou copie de production dont les comptes sont anonymisés |
-| Production    | Chart Helm                                   | Fournisseur d'identité fédérant l'annuaire de l'entreprise | Données réelles                                                           |
+| Production | Chart Helm | Fournisseur d'identité fédérant l'annuaire de l'entreprise | Données réelles |
 
 Tableau 11 Environnements gérés
 
@@ -4187,15 +4187,15 @@ verification: "Une mise à jour de la version N à la version N+1 s'exécute san
 
 La perte d'un composant ne doit pas devenir la perte de la plateforme. Le tableau ci-dessous dit ce qui reste possible, et c'est lui qui justifie deux choix faits ailleurs : que PostgreSQL soit la seule source de vérité (WF-ARC-0040), et que le fournisseur d'identité soit livré avec la plateforme et non confié à un tiers (WF-ARC-0030).
 
-| Composant indisponible | Ce qui continue                                                                                                                                                              | Ce qui s'arrête                                                                                                                                                      |
-|------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| PostgreSQL             | Rien                                                                                                                                                                         | Tout ; le service annonce l'indisponibilité au lieu de répondre partiellement                                                                                        |
-| Redis                  | Les traitements que le worker a déjà pris ; les appels directs à l'API porteurs d'un jeton d'accès valide, les indicateurs au jour courant étant recalculés à chaque requête | Toute requête du front, dont la session ne peut être ni lue ni recréée ; la prise de nouvelles tâches, reprises depuis la table des tâches de fond au rétablissement |
-| Stockage objet         | Tout le reste                                                                                                                                                                | Les imports, les exports et les sauvegardes                                                                                                                          |
-| Worker                 | La consultation et la saisie ; les tâches s'accumulent en file sans perte                                                                                                    | L'aboutissement des imports, des marquages, des exports et des sauvegardes                                                                                           |
-| Fournisseur d'identité | Les connexions en cours, jusqu'à l'expiration de leur jeton d'accès                                                                                                          | Toute connexion et tout renouvellement de jeton, pour tous les comptes ; la lecture des comptes                                                                      |
-| Annuaire d'entreprise  | Tout, pour les comptes locaux et les connexions en cours                                                                                                                     | La connexion des comptes de l'annuaire ; la mise à jour de leurs attributs par la lecture des comptes (WF-ADM-0070)                                                  |
-| Prometheus             | Tout                                                                                                                                                                         | Les métriques de l'écran d'état et les alertes                                                                                                                       |
+| Composant indisponible | Ce qui continue | Ce qui s'arrête |
+|:---|:---|:---|
+| PostgreSQL | Rien | Tout ; le service annonce l'indisponibilité au lieu de répondre partiellement |
+| Redis | Les traitements que le worker a déjà pris ; les appels directs à l'API porteurs d'un jeton d'accès valide, les indicateurs au jour courant étant recalculés à chaque requête | Toute requête du front, dont la session ne peut être ni lue ni recréée ; la prise de nouvelles tâches, reprises depuis la table des tâches de fond au rétablissement |
+| Stockage objet | Tout le reste | Les imports, les exports et les sauvegardes |
+| Worker | La consultation et la saisie ; les tâches s'accumulent en file sans perte | L'aboutissement des imports, des marquages, des exports et des sauvegardes |
+| Fournisseur d'identité | Les connexions en cours, jusqu'à l'expiration de leur jeton d'accès | Toute connexion et tout renouvellement de jeton, pour tous les comptes ; la lecture des comptes |
+| Annuaire d'entreprise | Tout, pour les comptes locaux et les connexions en cours | La connexion des comptes de l'annuaire ; la mise à jour de leurs attributs par la lecture des comptes (WF-ADM-0070) |
+| Prometheus | Tout | Les métriques de l'écran d'état et les alertes |
 
 Tableau 12 Modes dégradés
 
@@ -4263,28 +4263,28 @@ Ce paragraphe fixe les hypothèses de dimensionnement de la plateforme. Ce ne so
 
 **Hypothèses d’entreprise**
 
-| Grandeur                                           | Hypothèse                                                                                                |
-|----------------------------------------------------|----------------------------------------------------------------------------------------------------------|
-| Projets en portefeuille (en cours et en chiffrage) | 300                                                                                                      |
-| Projets créés par an                               | 30                                                                                                       |
-| Durée d’un chiffrage                               | 1 an                                                                                                     |
-| Durée d’exécution d’un projet                      | 10 ans, 15 au plus (WF-PLA-0150)                                                                         |
-| Tâches par projet, toutes structures               | 1 000 dans la structure principale ; 30 risques portant chacun un devis propre d’une vingtaine de tâches |
-| Lignes de devis par tâche                          | 5                                                                                                        |
-| Sous-projets par projet                            | 10                                                                                                       |
-| Rythme des revues                                  | mensuel, pendant toute l’exécution                                                                       |
-| Lignes de coût réel par projet et par mois         | 100                                                                                                      |
-| Nœuds d’organisation                               | 40                                                                                                       |
-| Rôles de ressources                                | 150                                                                                                      |
-| Catégories de coût                                 | 200                                                                                                      |
-| Années de taux horaires conservées                 | 15                                                                                                       |
-| Comptes utilisateurs                               | 500                                                                                                      |
-| Utilisateurs connectés simultanément               | 50                                                                                                       |
-| Contributeurs par projet                           | 50                                                                                                       |
-| Taille d’un fichier MS Project importé             | 10 Mo                                                                                                    |
-| Conservation des fichiers importés                 | le temps de l’import, puis suppression                                                                   |
-| Conservation des fichiers exportés                 | vingt-quatre heures au plus, ou jusqu’au téléchargement                                                  |
-| Rétention des projets terminés                     | 20 ans, sans purge                                                                                       |
+| Grandeur | Hypothèse |
+|:---|:---|
+| Projets en portefeuille (en cours et en chiffrage) | 300 |
+| Projets créés par an | 30 |
+| Durée d’un chiffrage | 1 an |
+| Durée d’exécution d’un projet | 10 ans, 15 au plus (WF-PLA-0150) |
+| Tâches par projet, toutes structures | 1 000 dans la structure principale ; 30 risques portant chacun un devis propre d’une vingtaine de tâches |
+| Lignes de devis par tâche | 5 |
+| Sous-projets par projet | 10 |
+| Rythme des revues | mensuel, pendant toute l’exécution |
+| Lignes de coût réel par projet et par mois | 100 |
+| Nœuds d’organisation | 40 |
+| Rôles de ressources | 150 |
+| Catégories de coût | 200 |
+| Années de taux horaires conservées | 15 |
+| Comptes utilisateurs | 500 |
+| Utilisateurs connectés simultanément | 50 |
+| Contributeurs par projet | 50 |
+| Taille d’un fichier MS Project importé | 10 Mo |
+| Conservation des fichiers importés | le temps de l’import, puis suppression |
+| Conservation des fichiers exportés | vingt-quatre heures au plus, ou jusqu’au téléchargement |
+| Rétention des projets terminés | 20 ans, sans purge |
 
 Tableau 13 Hypothèses de volumétrie
 
@@ -4292,18 +4292,18 @@ Tableau 13 Hypothèses de volumétrie
 
 Les ordres de grandeur ci-dessous sont arrondis vers le haut.
 
-| Volume                                                      | Par projet                                            | Sur la plateforme                                                                                                           |
-|-------------------------------------------------------------|-------------------------------------------------------|-----------------------------------------------------------------------------------------------------------------------------|
-| Objets d’une révision (tâches et lignes, toutes structures) | 10 000                                                | —                                                                                                                           |
-| Révisions marquées                                          | 130 typiquement, 180 au plus                          | 36 millions d’objets-versions créés par an ; de l’ordre du milliard sur vingt ans si chaque révision est une copie complète |
-| Espace des révisions                                        | —                                                     | 150 à 200 Go sur vingt ans                                                                                                  |
-| Lignes de coût réel                                         | 18 000 au plus                                        | 360 000 par an ; 7 millions sur vingt ans, 11 millions au plus si chaque projet atteint quinze ans d’exécution              |
-| Projets conservés                                           | —                                                     | 600 sur vingt ans                                                                                                           |
-| Inscriptions de contributeurs                               | 50                                                    | 15 000 en portefeuille ; 30 000 sur vingt ans                                                                               |
-| Valeurs de référentiel conservées par révision              | 350 rôles et catégories, et leurs calendriers et taux | négligeable                                                                                                                 |
-| Fichiers en transit (imports en cours)                      | 1                                                     | quelques dizaines, quelques centaines de Mo au plus                                                                         |
-| Fichiers exportés en attente                                | quelques-uns                                          | quelques centaines, quelques Go au plus                                                                                     |
-| Marquages de révisions                                      | 1 par mois                                            | 300 par mois, concentrés sur la semaine de revue : une dizaine par heure ouvrée au pic                                      |
+| Volume | Par projet | Sur la plateforme |
+|:---|:---|:---|
+| Objets d’une révision (tâches et lignes, toutes structures) | 10 000 | — |
+| Révisions marquées | 130 typiquement, 180 au plus | 36 millions d’objets-versions créés par an ; de l’ordre du milliard sur vingt ans si chaque révision est une copie complète |
+| Espace des révisions | — | 150 à 200 Go sur vingt ans |
+| Lignes de coût réel | 18 000 au plus | 360 000 par an ; 7 millions sur vingt ans, 11 millions au plus si chaque projet atteint quinze ans d’exécution |
+| Projets conservés | — | 600 sur vingt ans |
+| Inscriptions de contributeurs | 50 | 15 000 en portefeuille ; 30 000 sur vingt ans |
+| Valeurs de référentiel conservées par révision | 350 rôles et catégories, et leurs calendriers et taux | négligeable |
+| Fichiers en transit (imports en cours) | 1 | quelques dizaines, quelques centaines de Mo au plus |
+| Fichiers exportés en attente | quelques-uns | quelques centaines, quelques Go au plus |
+| Marquages de révisions | 1 par mois | 300 par mois, concentrés sur la semaine de revue : une dizaine par heure ouvrée au pic |
 
 Tableau 14 Volume de données
 
@@ -4313,15 +4313,15 @@ Le volume qui commande l’architecture est celui des révisions : un projet de
 
 Mesurés sur le jeu de données de référence (WF-QUA-0040), aux volumes ci-dessus, avec cinquante utilisateurs actifs simultanément.
 
-| Opération                                                                     | Objectif |
-|-------------------------------------------------------------------------------|----------|
-| Ouvrir une grille de planning, de devis ou de reste à engager de mille tâches | 1 s      |
-| Recalculer dates, chemin critique et totaux après une saisie dans une grille  | 1 s      |
-| Afficher les indicateurs de la révision en cours d'un projet                  | 1 s      |
-| Afficher une vue de portefeuille sur trois cents projets                      | 2 s      |
-| Marquer une révision de dix mille objets                                      | 1 min    |
-| Analyser puis appliquer un import de dix-huit mille lignes de coût            | 5 min    |
-| Engendrer l'export d'un planning de mille tâches                              | 30 s     |
+| Opération | Objectif |
+|:---|:---|
+| Ouvrir une grille de planning, de devis ou de reste à engager de mille tâches | 1 s |
+| Recalculer dates, chemin critique et totaux après une saisie dans une grille | 1 s |
+| Afficher les indicateurs de la révision en cours d'un projet | 1 s |
+| Afficher une vue de portefeuille sur trois cents projets | 2 s |
+| Marquer une révision de dix mille objets | 1 min |
+| Analyser puis appliquer un import de dix-huit mille lignes de coût | 5 min |
+| Engendrer l'export d'un planning de mille tâches | 30 s |
 
 Tableau 15 Objectifs de temps de réponse
 
@@ -4756,115 +4756,115 @@ verification: "L'ajout d'une clé dans un seul catalogue fait échouer la chaîn
 
 # ANNEXE A: Glossaire
 
-| Terme                               | Définition                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
-|-------------------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| Acteur                              | Désigne un utilisateur type de Waterfall, caractérisé par les usages qu'il fait de la plateforme. Un acteur ne porte pas de permissions : celles-ci sont portées par les rôles d'habilitation.                                                                                                                                                                                                                                                                                                                                       |
-| Année de consommation               | Désigne l'année au cours de laquelle une charge sera consommée, d'après le planning.                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
-| Année de référence                  | Désigne l’année dont les taux horaires chiffrent une révision. Elle est retenue à la création de la révision — l’année courante — et conservée par elle (WF-REV-0060) ; les années suivantes sont projetées par le taux d’inflation du projet.                                                                                                                                                                                                                                                                                       |
-| Annuaire d'entreprise               | Désigne le système de l'entreprise qui fait foi pour l'identité des personnes. Le fournisseur d'identité livré avec Waterfall le fédère : Waterfall en lit les comptes et lui délègue leur authentification, sans y écrire.                                                                                                                                                                                                                                                                                                          |
-| Assiette du projet                  | Désigne le montant auquel la gravité d’un risque est rapportée pour le classer dans la matrice de risques : le budget de référence du projet ou, tant qu’il n’en a pas, le total hors provisions du devis de sa révision courante (WF-REF-0160).                                                                                                                                                                                                                                                                                     |
-| Avancement financier                | Désigne la part de la dépense finale déjà engagée : le coût réel rapporté au projection du chef de projet (WF-IND-0040).                                                                                                                                                                                                                                                                                                                                                                                                             |
-| Avancement physique                 | Désigne la part du travail promis qui est faite : la valeur acquise rapportée au budget de référence (WF-IND-0060).                                                                                                                                                                                                                                                                                                                                                                                                                  |
-| Avenant                             | Désigne une modification contractuelle du projet en cours d'exécution. Il est préparé comme une structure différentielle, puis fusionné à sa contractualisation, ce qui produit une nouvelle révision de référence.                                                                                                                                                                                                                                                                                                                  |
-| Budget de référence                 | Désigne la somme des montants budgétés des lignes de la révision de référence, hors lignes de provision, inflation comprise, à l'année de consommation des lignes. Seul un avenant le déplace (WF-RIS-0050).                                                                                                                                                                                                                                                                                                                         |
-| Calendrier                          | Désigne le nombre d'heures travaillées par un rôle de ressource pour chaque jour de la semaine, du lundi au dimanche. Il permet de convertir une durée en dates. Les jours fériés ne sont pas gérés.                                                                                                                                                                                                                                                                                                                                 |
-| Calendrier par défaut               | Désigne le calendrier appliqué aux tâches auxquelles aucun rôle de ressource n'est affecté.                                                                                                                                                                                                                                                                                                                                                                                                                                          |
-| Capacité                            | Désigne le nombre d'heures disponibles par mois pour un rôle de ressource, et l'effectif auquel elles correspondent.                                                                                                                                                                                                                                                                                                                                                                                                                 |
-| Carnet                              | Désigne la somme des budgets de référence des projets en cours du périmètre : ce que l'entreprise a signé et n'a pas encore livré.                                                                                                                                                                                                                                                                                                                                                                                                   |
-| Catégorie de coût                   | Désigne une classe de coût à laquelle se rattachent les dépenses ; elle est rattachée à une nature de coût et porte un code comptable unique et un libellé. Dans le cas de la main d’œuvre ce sont des taux horaires annuels. Chaque rôle de ressource relève d'une catégorie de coût. Dans les autres cas ce ne sont que des catégories comptables.                                                                                                                                                                                 |
-| Charge                              | Désigne le nombre d'heures de travail d'une ligne de devis ou de reste à engager de main-d'œuvre. Sa répartition dans le temps est déduite du planning.                                                                                                                                                                                                                                                                                                                                                                              |
-| Chemin critique                     | Désigne l'ensemble des tâches en mode automatique dont la marge totale est nulle ou négative : tout retard sur l'une d'elles retarde la fin du projet, ou une date imposée par une tâche en mode manuel (WF-PLA-0100).                                                                                                                                                                                                                                                                                                               |
-| Chronologie                         | Désigne une vue synthétique du planning, nommée et conservée, qui ne présente que les tâches et les jalons qui y ont été inscrits. Un projet peut en porter plusieurs.                                                                                                                                                                                                                                                                                                                                                               |
-| Consommation du budget              | Désigne la part du budget de référence déjà dépensée (WF-IND-0040).                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
-| Consommé                            | Désigne le montant des dépenses réalisées à une date donnée.                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
-| Contributeur                        | Désigne un utilisateur inscrit sur la liste des contributeurs d’un projet. Cette liste est propre au projet et distincte des rôles d’habilitation. Chaque inscription porte une qualité, chef de projet ou participant : les premiers décident de ce qui engage l’affaire, les seconds y saisissent.                                                                                                                                                                                                                                 |
-| Coût à la survenance                | Désigne, pour un risque survenu, le total de son devis propre au moment où il a été déclaré survenu (WF-RIS-0010). Il ne change plus, quelles que soient les réestimations et la terminaison des tâches fusionnées ; c'est lui que la couverture des risques compare à la réserve.                                                                                                                                                                                                                                                   |
-| Coût réel                           | Désigne le montant total des dépenses effectivement payées pour réaliser les travaux à une date donnée.                                                                                                                                                                                                                                                                                                                                                                                                                              |
-| Couverture des risques              | Désigne la mise en regard, pour un projet ou pour le portefeuille, de la réserve pour risques de la référence avec la somme des provisions des risques identifiés et du coût à la survenance des risques survenus ; leur différence est l'écart de couverture (WF-RIS-0050).                                                                                                                                                                                                                                                         |
-| Date de calcul                      | Désigne la date à laquelle un indicateur est établi : le jour courant pour les indicateurs au jour courant, qu'ils se lisent dans la révision en cours ou, à défaut, dans la dernière révision marquée ; la date de marquage pour les indicateurs conservés d'une révision marquée (WF-IND-0010).                                                                                                                                                                                                                                    |
-| Date de début de planning           | Désigne la date, portée par chaque structure de coûts, à laquelle commence une tâche en mode automatique sans prédécesseur (WF-PLA-0020). Elle correspond à la date de début du projet de MS Project.                                                                                                                                                                                                                                                                                                                                |
-| Débours                             | Désigne le coût unitaire d'une ligne de devis hors main-d'œuvre.                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
-| Début à début                       | Désigne une liaison selon laquelle la tâche successeur ne peut commencer qu’après le début de la tâche prédécesseur.                                                                                                                                                                                                                                                                                                                                                                                                                 |
-| Début à Fin                         | Désigne une liaison selon laquelle la tâche successeur ne peut se terminer qu’après le début de la tâche prédécesseur.                                                                                                                                                                                                                                                                                                                                                                                                               |
-| Devis                               | Désigne l'ensemble des lignes de devis d'une structure de coûts. C'est la vue de cette structure du côté de l'argent, comme le planning en est la vue du côté du temps.                                                                                                                                                                                                                                                                                                                                                              |
-| Devis courant                       | Désigne le devis de la structure principale de la révision courante d'un projet, lignes de provision comprises sauf lorsque le texte précise « hors provisions » (WF-REF-0160). C'est lui que le pipeline somme pour les projets en chiffrage (WF-PTF-0050).                                                                                                                                                                                                                                                                         |
-| Différentiel                        | Désigne une structure de coûts qui décrit un écart par rapport à la structure principale : des tâches et des lignes ajoutées, modifiées ou retirées. Un avenant se prépare comme un différentiel, puis se fusionne.                                                                                                                                                                                                                                                                                                                  |
-| Écart de coût                       | Désigne la différence entre la valeur acquise et le coût réel à une date donnée. Négatif, le travail fait a coûté plus que promis.                                                                                                                                                                                                                                                                                                                                                                                                   |
-| Écart de couverture                 | Désigne la différence, signée, entre la réserve pour risques de la référence et la somme des provisions des risques identifiés et du coût à la survenance des risques survenus (WF-RIS-0050). Négatif, les risques coûtent plus que ce qui avait été réservé.                                                                                                                                                                                                                                                                        |
-| Écart de délai                      | Désigne la différence entre la valeur acquise et la valeur planifiée à une date donnée. Négatif, moins de travail a été fait que prévu.                                                                                                                                                                                                                                                                                                                                                                                              |
-| Élément d'OTP                       | Désigne le code d'imputation que l'ERP attache à chaque ligne de coût. Il porte le code du projet et, facultativement, celui du sous-projet, dont Waterfall déduit l'imputation (WF-CRE-0020).                                                                                                                                                                                                                                                                                                                                       |
-| Engagé                              | Désigne le montant des dépenses futures déjà engagées contractuellement à une date donnée.                                                                                                                                                                                                                                                                                                                                                                                                                                           |
-| État d'avancement                   | Désigne l'état d'une tâche : non démarrée, démarrée, ou terminée. Le passage à l'état démarré est commandé par l'utilisateur ; l'état terminé résulte de la saisie d'un reste à engager nul sur les lignes de la tâche ou, pour un jalon ou une tâche sans ligne, d'un geste du Kanban (WF-RAE-0030).                                                                                                                                                                                                                                |
-| Fin à Début                         | Désigne une liaison selon laquelle la tâche successeur ne peut commencer qu’après la fin de la tâche prédécesseur.                                                                                                                                                                                                                                                                                                                                                                                                                   |
-| Fin à Fin                           | Désigne une liaison selon laquelle la tâche successeur ne peut se terminer qu’après la fin de la tâche prédécesseur.                                                                                                                                                                                                                                                                                                                                                                                                                 |
-| Fournisseur d'identité              | Désigne le composant livré avec la plateforme (Keycloak) qui authentifie les utilisateurs et émet les jetons que l'API valide. Il porte les comptes locaux, fédère l'annuaire d'entreprise et relaie vers un fournisseur externe.                                                                                                                                                                                                                                                                                                    |
-| Gravité                             | Désigne le coût qu'un risque entraînerait s'il survenait. Elle est le total du devis propre au risque.                                                                                                                                                                                                                                                                                                                                                                                                                               |
-| Hors sous-projet                    | Désigne l'ensemble qui reçoit les lignes de devis sans sous-projet et les lignes de coût imputées au seul projet. Il figure comme un sous-projet de plus dans toutes les ventilations.                                                                                                                                                                                                                                                                                                                                               |
-| Indice de coût                      | Désigne l'indicateur qui rapporte la valeur acquise au coût réel : inférieur à 1, le travail fait a coûté plus que promis (WF-IND-0070).                                                                                                                                                                                                                                                                                                                                                                                             |
-| Indice de délai                     | Désigne l'indicateur qui rapporte la valeur acquise à la valeur planifiée : inférieur à 1, moins de travail a été fait que prévu à cette date (WF-IND-0080).                                                                                                                                                                                                                                                                                                                                                                         |
-| Jalon                               | Désigne un événement important ou un point de contrôle du projet. Il possède une durée nulle et peut correspondre, par exemple, à une validation, une livraison ou une décision. Il peut porter des lignes de devis, ce qui permet de chiffrer un acompte de sous-traitance ou une réception de fourniture.                                                                                                                                                                                                                          |
-| Journal d'audit                     | Désigne le registre, tenu dans une table de la base de Waterfall, qui inscrit chaque action irréversible ou structurante avec l'action, sa date, son auteur, son objet et, s'il y en a un, son projet (WF-SEC-0030). Il se consulte et se filtre (WF-ADM-0190), ne se modifie ni ne se supprime, et survit à une restauration (WF-ADM-0160).                                                                                                                                                                                         |
-| Langue de l'interface               | Désigne la langue dans laquelle Waterfall affiche ses libellés, ses messages et les valeurs qu'il fixe lui-même. Elle est propre à chaque utilisateur (WF-INTF-0160) et n'affecte ni les données saisies, ni les formats d'échange (WF-INTF-0180).                                                                                                                                                                                                                                                                                   |
-| Langue par défaut de l'installation | Désigne la langue employée lorsque celle que demande le navigateur d'un utilisateur n'est pas offerte. Elle est choisie à l'installation, comme la devise.                                                                                                                                                                                                                                                                                                                                                                           |
-| Liaison                             | Désigne la relation entre une tâche prédécesseur et une tâche successeur. Elle porte un type — fin à début, début à début, fin à fin, début à fin — et un décalage.                                                                                                                                                                                                                                                                                                                                                                  |
-| Ligne de coût                       | Désigne une écriture comptable importée depuis l'ERP. Dans Waterfall, elle constitue un coût réel. Elle peut être exclue du périmètre suivi, auquel cas elle reste consultable sans entrer dans aucun indicateur.                                                                                                                                                                                                                                                                                                                    |
-| Ligne de devis                      | Désigne une ligne portée par une tâche et rattachée à une catégorie de coût. Elle porte un montant budgété, fixé par la révision de référence, et un montant réestimé, mis à jour par les revues périodiques. Lorsque la catégorie relève d'une nature de main-d'œuvre, la ligne porte en outre un rôle de ressource, qui détermine cette catégorie, ainsi qu'une charge en heures. Sinon, elle porte une quantité et un débours.                                                                                                    |
-| Ligne non anticipée                 | Désigne une ligne de devis, ou une tâche et ses lignes, ajoutée à la structure principale après la révision de référence pour du travail qui n'avait pas été chiffré (WF-RAE-0050). Elle porte un montant budgété nul et pèse sur le reste à engager, jamais sur le budget de référence.                                                                                                                                                                                                                                             |
-| Lignée                              | Désigne l'identité qu'une structure de coûts, une tâche ou une ligne de devis conserve d'une révision à l'autre, distincte de l'identifiant propre à chaque révision (WF-DAT-0030). C'est elle que les imports rapprochent, qu'un différentiel désigne, et qui permet de comparer deux révisions.                                                                                                                                                                                                                                    |
-| Livrable                            | Désigne un élément livrable au client, au sein d'un poste.                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
-| Lot                                 | Désigne le premier niveau du lotissement. Un lot contient des postes.                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
-| Lotissement                         | Désigne le découpage contractuel de la commande en lots, postes et livrables. En l'absence de saisie, le lotissement se réduit à un lot comprenant un poste et aucun livrable.                                                                                                                                                                                                                                                                                                                                                       |
-| Marge totale                        | Désigne, pour une tâche en mode automatique, l'écart entre sa date au plus tard et sa date au plus tôt : le retard qu'elle peut prendre sans retarder la fin du projet ni une date imposée par une tâche en mode manuel. Elle est négative lorsque la tâche ne peut pas satisfaire une liaison qui la relie à une tâche manuelle.                                                                                                                                                                                                    |
-| Matrice de risques                  | Désigne la grille à quatre niveaux de probabilité et quatre niveaux de gravité qui classe les risques d'un projet, selon des bornes définies dans le référentiel.                                                                                                                                                                                                                                                                                                                                                                    |
-| Mode automatique                    | Désigne le mode dans lequel Waterfall calcule les dates d'une tâche à partir de sa durée, de ses liaisons et de son calendrier applicable, et les recalcule à chaque modification de l'un d'eux (WF-PLA-0020).                                                                                                                                                                                                                                                                                                                       |
-| Mode manuel                         | Désigne le mode dans lequel l'utilisateur saisit les dates d'une tâche et Waterfall ne les recalcule jamais, y compris lorsque ses prédécesseurs se déplacent (WF-PLA-0020).                                                                                                                                                                                                                                                                                                                                                         |
-| Montant budgété                     | Désigne le montant d'une ligne de devis tel que la révision de référence l'a fixé, inflation comprise, à l'année de consommation de la ligne. Il ne change qu'avec une nouvelle référence, et il est nul pour une ligne ajoutée après elle.                                                                                                                                                                                                                                                                                          |
-| Montant réestimé                    | Désigne le montant d'une ligne de devis tel que la dernière revue périodique l'a estimé. C'est sur lui que se calcule le reste à engager.                                                                                                                                                                                                                                                                                                                                                                                            |
-| Nature de coût                      | Désigne la classe de coût que le devis ventile et affiche. Elle porte un code, un nom, et un type — main-d’œuvre, hors main-d’œuvre ou provision pour risques — qui détermine le traitement des lignes de devis qui l’emploient (WF-REF-0030).                                                                                                                                                                                                                                                                                       |
-| Nœud d’organisation                 | Désigne une unité de la structure organisationnelle de l'entreprise, un service ou un département. Les nœuds forment un arbre qui classe les rôles de ressources et, facultativement, les utilisateurs. Ils ne portent aucune habilitation.                                                                                                                                                                                                                                                                                          |
-| Objet du référentiel                | Désigne l'un des objets du référentiel commun : nœud d'organisation, rôle de ressource, calendrier, nature de coût, catégorie de coût ou taux horaire. Une révision conserve la valeur de ceux que ses structures emploient — rôles, calendriers, catégories et taux (WF-REV-0030) ; c'est à ce titre que l'objet figure dans la figure 4.                                                                                                                                                                                           |
-| Paramètre d'exploitation            | Désigne une valeur de réglage fixée par l'exploitant au déploiement, livrée avec une valeur par défaut, hors du référentiel et hors de l'interface (§4.5.1).                                                                                                                                                                                                                                                                                                                                                                         |
-| Périmètre suivi                     | Désigne l'ensemble des lignes de coût qui entrent dans les indicateurs. Une ligne en est exclue lorsqu'elle correspond à une dépense non budgétée.                                                                                                                                                                                                                                                                                                                                                                                   |
-| Permission                          | Désigne le droit d'accomplir une action de Waterfall. Les permissions sont regroupées en rôles d'habilitation.                                                                                                                                                                                                                                                                                                                                                                                                                       |
-| Pipeline                            | Désigne la somme des devis courants des projets en chiffrage du périmètre, présentée brute et pondérée par les probabilités de gain : ce que l'entreprise pourrait signer.                                                                                                                                                                                                                                                                                                                                                           |
-| Plan de charge                      | Désigne la répartition mensuelle des charges d'un projet ou d'un ensemble de projets, par rôle de ressource. Comparé à la capacité, il permet d'anticiper les besoins en ressources : embauche, sous-traitance.                                                                                                                                                                                                                                                                                                                      |
-| Planning                            | Désigne l'arbre de tâches d'une structure de coûts, avec leurs durées, leurs dates et leurs liaisons.                                                                                                                                                                                                                                                                                                                                                                                                                                |
-| Portefeuille                        | Désigne l'ensemble des projets retenus par le périmètre d'une vue multi-projets : les projets en cours, éventuellement les projets en chiffrage, et les projets terminés d'une période (WF-PTF-0010)                                                                                                                                                                                                                                                                                                                                 |
-| Poste                               | Désigne un ensemble de livrables au sein d'un lot du lotissement. À distinguer du poste qu'un rôle de ressource représente.                                                                                                                                                                                                                                                                                                                                                                                                          |
-| Prédécesseur                        | Désigne la tâche dont l'exécution conditionne le début ou la fin d'une autre tâche, appelée successeur, au travers d'une liaison.                                                                                                                                                                                                                                                                                                                                                                                                    |
-| Probabilité de gain                 | Désigne l'estimation, en pourcentage, des chances qu'une offre en chiffrage soit remportée. Elle pondère le devis et la charge du projet dans les vues du portefeuille, et n'intervient dans aucun calcul propre au projet.                                                                                                                                                                                                                                                                                                          |
-| Projection à terminaison            | Désigne l'estimation du coût total du projet à son terme. Waterfall en présente trois, selon l'hypothèse faite sur le travail restant (WF-IND-0050).                                                                                                                                                                                                                                                                                                                                                                                 |
-| Projet                              | Désigne l'affaire suivie dans Waterfall, de la construction de l'offre jusqu'à son terme. Un projet porte ses paramètres, son lotissement, ses sous-projets et ses révisions, et suit le cycle de vie défini par les exigences WF-CYC.                                                                                                                                                                                                                                                                                               |
-| Provision                           | Désigne le montant réservé pour couvrir les conséquences d’un risque identifié, égal à sa gravité pondérée par sa probabilité. Elle compte au devis et au reste à engager, jamais au budget de référence ; un risque survenu ou écarté n’en porte plus. Elle relève d'une nature de type provision pour risques ; une provision saisie, pour aléas par exemple, est une ligne hors main-d'œuvre ordinaire.                                                                                                                           |
-| Rattachement (au lotissement)       | Désigne le lien facultatif d'une tâche de la structure principale vers un lot ou un poste du lotissement, posé par le squelette ou à la main, qui permet de filtrer le planning et le devis par lot ou par poste et de totaliser le devis par lot (WF-PLA-0170). Un lot ou un poste n'est porté que par une tâche à la fois. À distinguer du rattachement d'un rôle de ressource à un nœud d'organisation.                                                                                                                           |
-| Réalisé                             | Désigne la somme des coûts réels du périmètre suivi des projets terminés sur la période choisie : ce que l'entreprise a livré (WF-PTF-0050).                                                                                                                                                                                                                                                                                                                                                                                         |
-| Référentiel commun                  | Désigne l’ensemble des paramètres partagés par tous les projets : organisation, rôles de ressources, calendriers, natures de coût, catégories de coût et taux horaires, ainsi que les bornes de la matrice de risques, les seuils d’alerte des indices et le délai maximal entre deux revues. Il est géré par les utilisateurs habilités à le paramétrer.                                                                                                                                                                            |
-| Réserve pour risques                | Désigne la somme des lignes de provision de la révision de référence. Elle ne fait pas partie du budget de référence et ne bouge qu’avec lui ; c’est à elle que se comparent les provisions restantes et le coût des risques survenus (WF-RIS-0050).                                                                                                                                                                                                                                                                                 |
-| Reste à engager                     | Désigne le montant des dépenses restant à engager pour terminer le projet.                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
-| Révision                            | Désigne un instantané complet d'un projet à un moment donné : ses structures de coûts et les valeurs du référentiel qu'elles emploient. Une révision porte un nom de version et une description. Elle est d'abord en cours d'élaboration, puis figée lorsqu'un utilisateur habilité la marque.                                                                                                                                                                                                                                       |
-| Révision courante                   | Désigne la révision dans laquelle une grandeur est lue ou calculée : pour les indicateurs d'une révision marquée, cette révision ; au jour courant, la révision en cours d'élaboration lorsqu'il en existe une, sinon la dernière révision marquée (WF-IND-0010). C'est elle que lisent le reste à engager (WF-RAE-0010), le devis courant, l'assiette du projet (WF-REF-0160) et le portefeuille au jour courant (WF-PTF-0010).                                                                                                     |
-| Révision de référence               | Désigne la révision marquée qui fait foi pour le budget de référence, la réserve pour risques, les dates contractuelles et la valeur planifiée. Ce caractère est un attribut de la révision : il passe à une nouvelle révision à chaque avenant contractualisé.                                                                                                                                                                                                                                                                      |
-| Révision marquée                    | Désigne une révision figée par un utilisateur habilité. Elle n'est plus modifiable, par aucun moyen.                                                                                                                                                                                                                                                                                                                                                                                                                                 |
-| Revue périodique                    | Désigne l'opération au cours de laquelle un utilisateur habilité met à jour le planning et le reste à engager de la révision en cours, réexamine les risques, importe les nouveaux coûts réels, puis marque la révision. Ces données permettent de mettre à jour les indicateurs du projet.                                                                                                                                                                                                                                          |
-| Risque                              | Désigne un événement incertain susceptible d’affecter le coût ou les délais du projet. Il est caractérisé par sa probabilité d’occurrence et par sa gravité, et se trouve dans l’un de trois états : identifié, survenu ou écarté. Ses impacts prévisionnels sont décrits dans une structure de coûts qui lui est propre, reportée dans la structure principale, tant qu’il est identifié, par une ligne de provision pondérée par sa probabilité. Survenu, il n’est plus un risque mais un fait : ses tâches sont celles du projet. |
-| Rôle d’habilitation                 | Désigne un ensemble de permissions attribué à un utilisateur. Il définit les actions qui lui sont autorisées.                                                                                                                                                                                                                                                                                                                                                                                                                        |
-| Rôle de ressource                   | Désigne un poste ou une fonction de l'entreprise, rattaché à un nœud d'organisation. Il relève d'une catégorie de coût, qui fixe son taux horaire, et travaille selon un calendrier, qui donne ses jours travaillés aux tâches qui l'emploient. Il est affecté aux lignes de devis de main-d'œuvre.                                                                                                                                                                                                                                  |
-| Sauvegarde                          | Désigne une copie datée et vérifiée des deux bases de données de la plateforme, Waterfall et fournisseur d'identité, chacune dans un état cohérent, à partir de laquelle la plateforme peut être restaurée (WF-ADM-0150).                                                                                                                                                                                                                                                                                                            |
-| Seuils d'alerte                     | Désignent les deux valeurs, vigilance et alerte, en dessous desquelles un indice de coût ou de délai change de zone. Ils sont définis dans le référentiel.                                                                                                                                                                                                                                                                                                                                                                           |
-| Sous-projet                         | Désigne un ensemble de lignes de devis, identifié par un code défini dans l'ERP, qui permet de rapprocher les coûts réels du budget. C'est la granularité minimale de l'avancement financier.                                                                                                                                                                                                                                                                                                                                        |
-| Squelette de planning               | Désigne le planning engendré une fois à partir du lotissement : une récapitulative par lot et par poste, une feuille par livrable, un jalon de fin par poste et par lot (WF-PRJ-0030).                                                                                                                                                                                                                                                                                                                                               |
-| Structure de coûts                  | Désigne un arbre de tâches portant des lignes de devis. Sa nature indique ce qu'elle décrit : la structure principale du projet, le différentiel d'un avenant, ou le devis propre à un risque. Une révision porte une structure principale, et le cas échéant des différentiels et des devis de risques.                                                                                                                                                                                                                             |
-| Suivi temps/temps                   | Désigne la sélection des jalons dont le diagramme temps/temps suit le glissement d'une revue à l'autre. Un jalon inscrit à ce suivi est un jalon contractuel.                                                                                                                                                                                                                                                                                                                                                                        |
-| Tâche                               | Désigne une activité à réaliser dans le cadre du projet. Elle porte une durée, des dates, un mode de planification et un état d'avancement, et elle est reliée à d'autres tâches par des liaisons. Elle porte les lignes de devis qui la chiffrent.                                                                                                                                                                                                                                                                                  |
-| Tâche feuille                       | Désigne une tâche qui ne comporte aucune sous-tâche.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
-| Tâche récapitulative                | Désigne une tâche qui porte des sous-tâches. Ses dates, sa durée et son état d'avancement découlent de ses subordonnées (WF-PLA-0040). Elle peut porter ses propres lignes de devis, et son coût est alors la somme de celles-ci et de celles de ses subordonnées.                                                                                                                                                                                                                                                                   |
-| Taux d’inflation                    | Désigne le taux annuel, exprimé en pourcentage et propre à chaque projet, qui projette les montants de l'année de référence sur les années suivantes, dont les coûts ne sont pas encore connus.                                                                                                                                                                                                                                                                                                                                      |
-| Taux de charge                      | Désigne, pour un rôle de ressource et un mois, le rapport à la capacité de la charge du plan de charge agrégé : le reste à engager des projets en cours et, lorsqu’ils sont inclus, le devis pondéré des projets en chiffrage (WF-PTF-0060). Au-dessus de 100 %, le rôle est en surcharge.                                                                                                                                                                                                                                           |
-| Taux de transformation              | Désigne, sur une période, la part des offres sorties de l'état Chiffrage qui sont passées à En cours plutôt qu'à Perdu (WF-PTF-0050).                                                                                                                                                                                                                                                                                                                                                                                                |
-| Taux horaire                        | Désigne le coût d'une heure de travail pour une catégorie de coût et une année données.                                                                                                                                                                                                                                                                                                                                                                                                                                              |
-| Utilisateur                         | Désigne une personne disposant d'un compte dans Waterfall. Un utilisateur porte des rôles d'habilitation, et peut être contributeur de projets. Il peut être rattaché à un nœud d'organisation, sans que ce rattachement lui donne aucun droit (WF-ADM-0030).                                                                                                                                                                                                                                                                        |
-| Valeur acquise                      | Désigne la valeur, au prix budgété, du travail terminé à une date donnée (WF-IND-0030).                                                                                                                                                                                                                                                                                                                                                                                                                                              |
-| Valeur planifiée                    | Désigne la part du budget de référence qui aurait dû être acquise à une date donnée, d'après les dates de la révision de référence (WF-DEV-0080).                                                                                                                                                                                                                                                                                                                                                                                    |
+| Terme | Définition |
+|----|----|
+| Acteur | Désigne un utilisateur type de Waterfall, caractérisé par les usages qu'il fait de la plateforme. Un acteur ne porte pas de permissions : celles-ci sont portées par les rôles d'habilitation. |
+| Année de consommation | Désigne l'année au cours de laquelle une charge sera consommée, d'après le planning. |
+| Année de référence | Désigne l’année dont les taux horaires chiffrent une révision. Elle est retenue à la création de la révision — l’année courante — et conservée par elle (WF-REV-0060) ; les années suivantes sont projetées par le taux d’inflation du projet. |
+| Annuaire d'entreprise | Désigne le système de l'entreprise qui fait foi pour l'identité des personnes. Le fournisseur d'identité livré avec Waterfall le fédère : Waterfall en lit les comptes et lui délègue leur authentification, sans y écrire. |
+| Assiette du projet | Désigne le montant auquel la gravité d’un risque est rapportée pour le classer dans la matrice de risques : le budget de référence du projet ou, tant qu’il n’en a pas, le total hors provisions du devis de sa révision courante (WF-REF-0160). |
+| Avancement financier | Désigne la part de la dépense finale déjà engagée : le coût réel rapporté au projection du chef de projet (WF-IND-0040). |
+| Avancement physique | Désigne la part du travail promis qui est faite : la valeur acquise rapportée au budget de référence (WF-IND-0060). |
+| Avenant | Désigne une modification contractuelle du projet en cours d'exécution. Il est préparé comme une structure différentielle, puis fusionné à sa contractualisation, ce qui produit une nouvelle révision de référence. |
+| Budget de référence | Désigne la somme des montants budgétés des lignes de la révision de référence, hors lignes de provision, inflation comprise, à l'année de consommation des lignes. Seul un avenant le déplace (WF-RIS-0050). |
+| Calendrier | Désigne le nombre d'heures travaillées par un rôle de ressource pour chaque jour de la semaine, du lundi au dimanche. Il permet de convertir une durée en dates. Les jours fériés ne sont pas gérés. |
+| Calendrier par défaut | Désigne le calendrier appliqué aux tâches auxquelles aucun rôle de ressource n'est affecté. |
+| Capacité | Désigne le nombre d'heures disponibles par mois pour un rôle de ressource, et l'effectif auquel elles correspondent. |
+| Carnet | Désigne la somme des budgets de référence des projets en cours du périmètre : ce que l'entreprise a signé et n'a pas encore livré. |
+| Catégorie de coût | Désigne une classe de coût à laquelle se rattachent les dépenses ; elle est rattachée à une nature de coût et porte un code comptable unique et un libellé. Dans le cas de la main d’œuvre ce sont des taux horaires annuels. Chaque rôle de ressource relève d'une catégorie de coût. Dans les autres cas ce ne sont que des catégories comptables. |
+| Charge | Désigne le nombre d'heures de travail d'une ligne de devis ou de reste à engager de main-d'œuvre. Sa répartition dans le temps est déduite du planning. |
+| Chemin critique | Désigne l'ensemble des tâches en mode automatique dont la marge totale est nulle ou négative : tout retard sur l'une d'elles retarde la fin du projet, ou une date imposée par une tâche en mode manuel (WF-PLA-0100). |
+| Chronologie | Désigne une vue synthétique du planning, nommée et conservée, qui ne présente que les tâches et les jalons qui y ont été inscrits. Un projet peut en porter plusieurs. |
+| Consommation du budget | Désigne la part du budget de référence déjà dépensée (WF-IND-0040). |
+| Consommé | Désigne le montant des dépenses réalisées à une date donnée. |
+| Contributeur | Désigne un utilisateur inscrit sur la liste des contributeurs d’un projet. Cette liste est propre au projet et distincte des rôles d’habilitation. Chaque inscription porte une qualité, chef de projet ou participant : les premiers décident de ce qui engage l’affaire, les seconds y saisissent. |
+| Coût à la survenance | Désigne, pour un risque survenu, le total de son devis propre au moment où il a été déclaré survenu (WF-RIS-0010). Il ne change plus, quelles que soient les réestimations et la terminaison des tâches fusionnées ; c'est lui que la couverture des risques compare à la réserve. |
+| Coût réel | Désigne le montant total des dépenses effectivement payées pour réaliser les travaux à une date donnée. |
+| Couverture des risques | Désigne la mise en regard, pour un projet ou pour le portefeuille, de la réserve pour risques de la référence avec la somme des provisions des risques identifiés et du coût à la survenance des risques survenus ; leur différence est l'écart de couverture (WF-RIS-0050). |
+| Date de calcul | Désigne la date à laquelle un indicateur est établi : le jour courant pour les indicateurs au jour courant, qu'ils se lisent dans la révision en cours ou, à défaut, dans la dernière révision marquée ; la date de marquage pour les indicateurs conservés d'une révision marquée (WF-IND-0010). |
+| Date de début de planning | Désigne la date, portée par chaque structure de coûts, à laquelle commence une tâche en mode automatique sans prédécesseur (WF-PLA-0020). Elle correspond à la date de début du projet de MS Project. |
+| Débours | Désigne le coût unitaire d'une ligne de devis hors main-d'œuvre. |
+| Début à début | Désigne une liaison selon laquelle la tâche successeur ne peut commencer qu’après le début de la tâche prédécesseur. |
+| Début à Fin | Désigne une liaison selon laquelle la tâche successeur ne peut se terminer qu’après le début de la tâche prédécesseur. |
+| Devis | Désigne l'ensemble des lignes de devis d'une structure de coûts. C'est la vue de cette structure du côté de l'argent, comme le planning en est la vue du côté du temps. |
+| Devis courant | Désigne le devis de la structure principale de la révision courante d'un projet, lignes de provision comprises sauf lorsque le texte précise « hors provisions » (WF-REF-0160). C'est lui que le pipeline somme pour les projets en chiffrage (WF-PTF-0050). |
+| Différentiel | Désigne une structure de coûts qui décrit un écart par rapport à la structure principale : des tâches et des lignes ajoutées, modifiées ou retirées. Un avenant se prépare comme un différentiel, puis se fusionne. |
+| Écart de coût | Désigne la différence entre la valeur acquise et le coût réel à une date donnée. Négatif, le travail fait a coûté plus que promis. |
+| Écart de couverture | Désigne la différence, signée, entre la réserve pour risques de la référence et la somme des provisions des risques identifiés et du coût à la survenance des risques survenus (WF-RIS-0050). Négatif, les risques coûtent plus que ce qui avait été réservé. |
+| Écart de délai | Désigne la différence entre la valeur acquise et la valeur planifiée à une date donnée. Négatif, moins de travail a été fait que prévu. |
+| Élément d'OTP | Désigne le code d'imputation que l'ERP attache à chaque ligne de coût. Il porte le code du projet et, facultativement, celui du sous-projet, dont Waterfall déduit l'imputation (WF-CRE-0020). |
+| Engagé | Désigne le montant des dépenses futures déjà engagées contractuellement à une date donnée. |
+| État d'avancement | Désigne l'état d'une tâche : non démarrée, démarrée, ou terminée. Le passage à l'état démarré est commandé par l'utilisateur ; l'état terminé résulte de la saisie d'un reste à engager nul sur les lignes de la tâche ou, pour un jalon ou une tâche sans ligne, d'un geste du Kanban (WF-RAE-0030). |
+| Fin à Début | Désigne une liaison selon laquelle la tâche successeur ne peut commencer qu’après la fin de la tâche prédécesseur. |
+| Fin à Fin | Désigne une liaison selon laquelle la tâche successeur ne peut se terminer qu’après la fin de la tâche prédécesseur. |
+| Fournisseur d'identité | Désigne le composant livré avec la plateforme (Keycloak) qui authentifie les utilisateurs et émet les jetons que l'API valide. Il porte les comptes locaux, fédère l'annuaire d'entreprise et relaie vers un fournisseur externe. |
+| Gravité | Désigne le coût qu'un risque entraînerait s'il survenait. Elle est le total du devis propre au risque. |
+| Hors sous-projet | Désigne l'ensemble qui reçoit les lignes de devis sans sous-projet et les lignes de coût imputées au seul projet. Il figure comme un sous-projet de plus dans toutes les ventilations. |
+| Indice de coût | Désigne l'indicateur qui rapporte la valeur acquise au coût réel : inférieur à 1, le travail fait a coûté plus que promis (WF-IND-0070). |
+| Indice de délai | Désigne l'indicateur qui rapporte la valeur acquise à la valeur planifiée : inférieur à 1, moins de travail a été fait que prévu à cette date (WF-IND-0080). |
+| Jalon | Désigne un événement important ou un point de contrôle du projet. Il possède une durée nulle et peut correspondre, par exemple, à une validation, une livraison ou une décision. Il peut porter des lignes de devis, ce qui permet de chiffrer un acompte de sous-traitance ou une réception de fourniture. |
+| Journal d'audit | Désigne le registre, tenu dans une table de la base de Waterfall, qui inscrit chaque action irréversible ou structurante avec l'action, sa date, son auteur, son objet et, s'il y en a un, son projet (WF-SEC-0030). Il se consulte et se filtre (WF-ADM-0190), ne se modifie ni ne se supprime, et survit à une restauration (WF-ADM-0160). |
+| Langue de l'interface | Désigne la langue dans laquelle Waterfall affiche ses libellés, ses messages et les valeurs qu'il fixe lui-même. Elle est propre à chaque utilisateur (WF-INTF-0160) et n'affecte ni les données saisies, ni les formats d'échange (WF-INTF-0180). |
+| Langue par défaut de l'installation | Désigne la langue employée lorsque celle que demande le navigateur d'un utilisateur n'est pas offerte. Elle est choisie à l'installation, comme la devise. |
+| Liaison | Désigne la relation entre une tâche prédécesseur et une tâche successeur. Elle porte un type — fin à début, début à début, fin à fin, début à fin — et un décalage. |
+| Ligne de coût | Désigne une écriture comptable importée depuis l'ERP. Dans Waterfall, elle constitue un coût réel. Elle peut être exclue du périmètre suivi, auquel cas elle reste consultable sans entrer dans aucun indicateur. |
+| Ligne de devis | Désigne une ligne portée par une tâche et rattachée à une catégorie de coût. Elle porte un montant budgété, fixé par la révision de référence, et un montant réestimé, mis à jour par les revues périodiques. Lorsque la catégorie relève d'une nature de main-d'œuvre, la ligne porte en outre un rôle de ressource, qui détermine cette catégorie, ainsi qu'une charge en heures. Sinon, elle porte une quantité et un débours. |
+| Ligne non anticipée | Désigne une ligne de devis, ou une tâche et ses lignes, ajoutée à la structure principale après la révision de référence pour du travail qui n'avait pas été chiffré (WF-RAE-0050). Elle porte un montant budgété nul et pèse sur le reste à engager, jamais sur le budget de référence. |
+| Lignée | Désigne l'identité qu'une structure de coûts, une tâche ou une ligne de devis conserve d'une révision à l'autre, distincte de l'identifiant propre à chaque révision (WF-DAT-0030). C'est elle que les imports rapprochent, qu'un différentiel désigne, et qui permet de comparer deux révisions. |
+| Livrable | Désigne un élément livrable au client, au sein d'un poste. |
+| Lot | Désigne le premier niveau du lotissement. Un lot contient des postes. |
+| Lotissement | Désigne le découpage contractuel de la commande en lots, postes et livrables. En l'absence de saisie, le lotissement se réduit à un lot comprenant un poste et aucun livrable. |
+| Marge totale | Désigne, pour une tâche en mode automatique, l'écart entre sa date au plus tard et sa date au plus tôt : le retard qu'elle peut prendre sans retarder la fin du projet ni une date imposée par une tâche en mode manuel. Elle est négative lorsque la tâche ne peut pas satisfaire une liaison qui la relie à une tâche manuelle. |
+| Matrice de risques | Désigne la grille à quatre niveaux de probabilité et quatre niveaux de gravité qui classe les risques d'un projet, selon des bornes définies dans le référentiel. |
+| Mode automatique | Désigne le mode dans lequel Waterfall calcule les dates d'une tâche à partir de sa durée, de ses liaisons et de son calendrier applicable, et les recalcule à chaque modification de l'un d'eux (WF-PLA-0020). |
+| Mode manuel | Désigne le mode dans lequel l'utilisateur saisit les dates d'une tâche et Waterfall ne les recalcule jamais, y compris lorsque ses prédécesseurs se déplacent (WF-PLA-0020). |
+| Montant budgété | Désigne le montant d'une ligne de devis tel que la révision de référence l'a fixé, inflation comprise, à l'année de consommation de la ligne. Il ne change qu'avec une nouvelle référence, et il est nul pour une ligne ajoutée après elle. |
+| Montant réestimé | Désigne le montant d'une ligne de devis tel que la dernière revue périodique l'a estimé. C'est sur lui que se calcule le reste à engager. |
+| Nature de coût | Désigne la classe de coût que le devis ventile et affiche. Elle porte un code, un nom, et un type — main-d’œuvre, hors main-d’œuvre ou provision pour risques — qui détermine le traitement des lignes de devis qui l’emploient (WF-REF-0030). |
+| Nœud d’organisation | Désigne une unité de la structure organisationnelle de l'entreprise, un service ou un département. Les nœuds forment un arbre qui classe les rôles de ressources et, facultativement, les utilisateurs. Ils ne portent aucune habilitation. |
+| Objet du référentiel | Désigne l'un des objets du référentiel commun : nœud d'organisation, rôle de ressource, calendrier, nature de coût, catégorie de coût ou taux horaire. Une révision conserve la valeur de ceux que ses structures emploient — rôles, calendriers, catégories et taux (WF-REV-0030) ; c'est à ce titre que l'objet figure dans la figure 4. |
+| Paramètre d'exploitation | Désigne une valeur de réglage fixée par l'exploitant au déploiement, livrée avec une valeur par défaut, hors du référentiel et hors de l'interface (§4.5.1). |
+| Périmètre suivi | Désigne l'ensemble des lignes de coût qui entrent dans les indicateurs. Une ligne en est exclue lorsqu'elle correspond à une dépense non budgétée. |
+| Permission | Désigne le droit d'accomplir une action de Waterfall. Les permissions sont regroupées en rôles d'habilitation. |
+| Pipeline | Désigne la somme des devis courants des projets en chiffrage du périmètre, présentée brute et pondérée par les probabilités de gain : ce que l'entreprise pourrait signer. |
+| Plan de charge | Désigne la répartition mensuelle des charges d'un projet ou d'un ensemble de projets, par rôle de ressource. Comparé à la capacité, il permet d'anticiper les besoins en ressources : embauche, sous-traitance. |
+| Planning | Désigne l'arbre de tâches d'une structure de coûts, avec leurs durées, leurs dates et leurs liaisons. |
+| Portefeuille | Désigne l'ensemble des projets retenus par le périmètre d'une vue multi-projets : les projets en cours, éventuellement les projets en chiffrage, et les projets terminés d'une période (WF-PTF-0010) |
+| Poste | Désigne un ensemble de livrables au sein d'un lot du lotissement. À distinguer du poste qu'un rôle de ressource représente. |
+| Prédécesseur | Désigne la tâche dont l'exécution conditionne le début ou la fin d'une autre tâche, appelée successeur, au travers d'une liaison. |
+| Probabilité de gain | Désigne l'estimation, en pourcentage, des chances qu'une offre en chiffrage soit remportée. Elle pondère le devis et la charge du projet dans les vues du portefeuille, et n'intervient dans aucun calcul propre au projet. |
+| Projection à terminaison | Désigne l'estimation du coût total du projet à son terme. Waterfall en présente trois, selon l'hypothèse faite sur le travail restant (WF-IND-0050). |
+| Projet | Désigne l'affaire suivie dans Waterfall, de la construction de l'offre jusqu'à son terme. Un projet porte ses paramètres, son lotissement, ses sous-projets et ses révisions, et suit le cycle de vie défini par les exigences WF-CYC. |
+| Provision | Désigne le montant réservé pour couvrir les conséquences d’un risque identifié, égal à sa gravité pondérée par sa probabilité. Elle compte au devis et au reste à engager, jamais au budget de référence ; un risque survenu ou écarté n’en porte plus. Elle relève d'une nature de type provision pour risques ; une provision saisie, pour aléas par exemple, est une ligne hors main-d'œuvre ordinaire. |
+| Rattachement (au lotissement) | Désigne le lien facultatif d'une tâche de la structure principale vers un lot ou un poste du lotissement, posé par le squelette ou à la main, qui permet de filtrer le planning et le devis par lot ou par poste et de totaliser le devis par lot (WF-PLA-0170). Un lot ou un poste n'est porté que par une tâche à la fois. À distinguer du rattachement d'un rôle de ressource à un nœud d'organisation. |
+| Réalisé | Désigne la somme des coûts réels du périmètre suivi des projets terminés sur la période choisie : ce que l'entreprise a livré (WF-PTF-0050). |
+| Référentiel commun | Désigne l’ensemble des paramètres partagés par tous les projets : organisation, rôles de ressources, calendriers, natures de coût, catégories de coût et taux horaires, ainsi que les bornes de la matrice de risques, les seuils d’alerte des indices et le délai maximal entre deux revues. Il est géré par les utilisateurs habilités à le paramétrer. |
+| Réserve pour risques | Désigne la somme des lignes de provision de la révision de référence. Elle ne fait pas partie du budget de référence et ne bouge qu’avec lui ; c’est à elle que se comparent les provisions restantes et le coût des risques survenus (WF-RIS-0050). |
+| Reste à engager | Désigne le montant des dépenses restant à engager pour terminer le projet. |
+| Révision | Désigne un instantané complet d'un projet à un moment donné : ses structures de coûts et les valeurs du référentiel qu'elles emploient. Une révision porte un nom de version et une description. Elle est d'abord en cours d'élaboration, puis figée lorsqu'un utilisateur habilité la marque. |
+| Révision courante | Désigne la révision dans laquelle une grandeur est lue ou calculée : pour les indicateurs d'une révision marquée, cette révision ; au jour courant, la révision en cours d'élaboration lorsqu'il en existe une, sinon la dernière révision marquée (WF-IND-0010). C'est elle que lisent le reste à engager (WF-RAE-0010), le devis courant, l'assiette du projet (WF-REF-0160) et le portefeuille au jour courant (WF-PTF-0010). |
+| Révision de référence | Désigne la révision marquée qui fait foi pour le budget de référence, la réserve pour risques, les dates contractuelles et la valeur planifiée. Ce caractère est un attribut de la révision : il passe à une nouvelle révision à chaque avenant contractualisé. |
+| Révision marquée | Désigne une révision figée par un utilisateur habilité. Elle n'est plus modifiable, par aucun moyen. |
+| Revue périodique | Désigne l'opération au cours de laquelle un utilisateur habilité met à jour le planning et le reste à engager de la révision en cours, réexamine les risques, importe les nouveaux coûts réels, puis marque la révision. Ces données permettent de mettre à jour les indicateurs du projet. |
+| Risque | Désigne un événement incertain susceptible d’affecter le coût ou les délais du projet. Il est caractérisé par sa probabilité d’occurrence et par sa gravité, et se trouve dans l’un de trois états : identifié, survenu ou écarté. Ses impacts prévisionnels sont décrits dans une structure de coûts qui lui est propre, reportée dans la structure principale, tant qu’il est identifié, par une ligne de provision pondérée par sa probabilité. Survenu, il n’est plus un risque mais un fait : ses tâches sont celles du projet. |
+| Rôle d’habilitation | Désigne un ensemble de permissions attribué à un utilisateur. Il définit les actions qui lui sont autorisées. |
+| Rôle de ressource | Désigne un poste ou une fonction de l'entreprise, rattaché à un nœud d'organisation. Il relève d'une catégorie de coût, qui fixe son taux horaire, et travaille selon un calendrier, qui donne ses jours travaillés aux tâches qui l'emploient. Il est affecté aux lignes de devis de main-d'œuvre. |
+| Sauvegarde | Désigne une copie datée et vérifiée des deux bases de données de la plateforme, Waterfall et fournisseur d'identité, chacune dans un état cohérent, à partir de laquelle la plateforme peut être restaurée (WF-ADM-0150). |
+| Seuils d'alerte | Désignent les deux valeurs, vigilance et alerte, en dessous desquelles un indice de coût ou de délai change de zone. Ils sont définis dans le référentiel. |
+| Sous-projet | Désigne un ensemble de lignes de devis, identifié par un code défini dans l'ERP, qui permet de rapprocher les coûts réels du budget. C'est la granularité minimale de l'avancement financier. |
+| Squelette de planning | Désigne le planning engendré une fois à partir du lotissement : une récapitulative par lot et par poste, une feuille par livrable, un jalon de fin par poste et par lot (WF-PRJ-0030). |
+| Structure de coûts | Désigne un arbre de tâches portant des lignes de devis. Sa nature indique ce qu'elle décrit : la structure principale du projet, le différentiel d'un avenant, ou le devis propre à un risque. Une révision porte une structure principale, et le cas échéant des différentiels et des devis de risques. |
+| Suivi temps/temps | Désigne la sélection des jalons dont le diagramme temps/temps suit le glissement d'une revue à l'autre. Un jalon inscrit à ce suivi est un jalon contractuel. |
+| Tâche | Désigne une activité à réaliser dans le cadre du projet. Elle porte une durée, des dates, un mode de planification et un état d'avancement, et elle est reliée à d'autres tâches par des liaisons. Elle porte les lignes de devis qui la chiffrent. |
+| Tâche feuille | Désigne une tâche qui ne comporte aucune sous-tâche. |
+| Tâche récapitulative | Désigne une tâche qui porte des sous-tâches. Ses dates, sa durée et son état d'avancement découlent de ses subordonnées (WF-PLA-0040). Elle peut porter ses propres lignes de devis, et son coût est alors la somme de celles-ci et de celles de ses subordonnées. |
+| Taux d’inflation | Désigne le taux annuel, exprimé en pourcentage et propre à chaque projet, qui projette les montants de l'année de référence sur les années suivantes, dont les coûts ne sont pas encore connus. |
+| Taux de charge | Désigne, pour un rôle de ressource et un mois, le rapport à la capacité de la charge du plan de charge agrégé : le reste à engager des projets en cours et, lorsqu’ils sont inclus, le devis pondéré des projets en chiffrage (WF-PTF-0060). Au-dessus de 100 %, le rôle est en surcharge. |
+| Taux de transformation | Désigne, sur une période, la part des offres sorties de l'état Chiffrage qui sont passées à En cours plutôt qu'à Perdu (WF-PTF-0050). |
+| Taux horaire | Désigne le coût d'une heure de travail pour une catégorie de coût et une année données. |
+| Utilisateur | Désigne une personne disposant d'un compte dans Waterfall. Un utilisateur porte des rôles d'habilitation, et peut être contributeur de projets. Il peut être rattaché à un nœud d'organisation, sans que ce rattachement lui donne aucun droit (WF-ADM-0030). |
+| Valeur acquise | Désigne la valeur, au prix budgété, du travail terminé à une date donnée (WF-IND-0030). |
+| Valeur planifiée | Désigne la part du budget de référence qui aurait dû être acquise à une date donnée, d'après les dates de la révision de référence (WF-DEV-0080). |
 
 Tableau 16 Définitions
 
@@ -4920,35 +4920,35 @@ Le fichier porte les lignes des tâches non terminées, une ligne du fichier par
 
 Cette annexe est informative. Elle dit avec quoi les propriétés du §4.7 sont obtenues aujourd'hui ; un outil peut être remplacé sans qu'aucune exigence change, pourvu que la propriété reste garantie. Les versions ne sont pas fixées ici : elles vivent dans les fichiers de dépendances du dépôt.
 
-| Rôle                                | Outil                                              | Propriété servie                                |
-|-------------------------------------|----------------------------------------------------|-------------------------------------------------|
-| Langage et cadre des services       | Python, FastAPI                                    | PBS-2.1, PBS-2.2                                |
-| Modèle et accès aux données         | SQLAlchemy                                         | §4.4.1                                          |
-| Migrations du schéma                | Alembic                                            | WF-DAT-0140                                     |
-| Validation des entrées et sorties   | Pydantic                                           | WF-ARC-0060                                     |
-| Contrat d'interface                 | OpenAPI écrit à la main, le code validé contre lui | WF-ARC-0060                                     |
-| Format et analyse statique du back  | Ruff                                               | WF-QUA-0030                                     |
-| Contrôle de typage du back          | Pyright, en mode strict                            | WF-QUA-0030                                     |
-| Tests du back                       | Pytest                                             | WF-QUA-0010, WF-QUA-0020                        |
-| Langage et cadre du front           | TypeScript, Next.js                                | PBS-1.1                                         |
-| Client d'API                        | Engendré depuis le contrat OpenAPI                 | WF-ARC-0020, PBS-1.2                            |
-| Composants et styles                | Tailwind CSS, shadcn/ui                            | PBS-1.3                                         |
-| Icônes                              | Lucide                                             | PBS-1.3                                         |
-| Grilles denses                      | Composants propres fondés sur TanStack Table       | PBS-1.3, WF-IHM-0040 à WF-IHM-0060, WF-IHM-0110 |
-| Courbes et diagrammes d'indicateurs | Apache ECharts                                     | PBS-1.3, FBS-4.8.6 à FBS-4.8.8                  |
-| Gantt et arborescence de tâches     | Rendu propre, en lecture seule                     | PBS-1.3                                         |
-| Format et analyse statique du front | ESLint, Prettier                                   | WF-QUA-0030                                     |
-| Tests de bout en bout               | Playwright                                         | WF-QUA-0050                                     |
-| Tests de charge                     | k6                                                 | WF-QUA-0060                                     |
-| Journaux structurés                 | Structlog                                          | WF-OBS-0020                                     |
-| Métriques                           | Bibliothèque cliente Prometheus                    | WF-OBS-0010                                     |
-| Conteneurs et empaquetage           | Docker, Compose v2, Helm                           | WF-ARC-0050                                     |
-| Fournisseur d'identité              | Keycloak                                           | WF-ARC-0030, PBS-5.4                            |
-| Chaîne d'intégration                | GitHub Actions                                     | PBS-5.2                                         |
+| Rôle | Outil | Propriété servie |
+|----|----|----|
+| Langage et cadre des services | Python, FastAPI | PBS-2.1, PBS-2.2 |
+| Modèle et accès aux données | SQLAlchemy | §4.4.1 |
+| Migrations du schéma | Alembic | WF-DAT-0140 |
+| Validation des entrées et sorties | Pydantic | WF-ARC-0060 |
+| Contrat d'interface | OpenAPI écrit à la main, le code validé contre lui | WF-ARC-0060 |
+| Format et analyse statique du back | Ruff | WF-QUA-0030 |
+| Contrôle de typage du back | Pyright, en mode strict | WF-QUA-0030 |
+| Tests du back | Pytest | WF-QUA-0010, WF-QUA-0020 |
+| Langage et cadre du front | TypeScript, Next.js | PBS-1.1 |
+| Client d'API | Engendré depuis le contrat OpenAPI | WF-ARC-0020, PBS-1.2 |
+| Composants et styles | Tailwind CSS, shadcn/ui | PBS-1.3 |
+| Icônes | Lucide | PBS-1.3 |
+| Grilles denses | Composants propres fondés sur TanStack Table | PBS-1.3, WF-IHM-0040 à WF-IHM-0060, WF-IHM-0110 |
+| Courbes et diagrammes d'indicateurs | Apache ECharts | PBS-1.3, FBS-4.8.6 à FBS-4.8.8 |
+| Gantt et arborescence de tâches | Rendu propre, en lecture seule | PBS-1.3 |
+| Format et analyse statique du front | ESLint, Prettier | WF-QUA-0030 |
+| Tests de bout en bout | Playwright | WF-QUA-0050 |
+| Tests de charge | k6 | WF-QUA-0060 |
+| Journaux structurés | Structlog | WF-OBS-0020 |
+| Métriques | Bibliothèque cliente Prometheus | WF-OBS-0010 |
+| Conteneurs et empaquetage | Docker, Compose v2, Helm | WF-ARC-0050 |
+| Fournisseur d'identité | Keycloak | WF-ARC-0030, PBS-5.4 |
+| Chaîne d'intégration | GitHub Actions | PBS-5.2 |
 
 # ANNEXE D: Points ouverts
 
-| ID    | Sujet                                                                                                                                                                                                                                                                                                                                                      |
-|-------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| ID | Sujet |
+|----|----|
 | PO-01 | **Extractions complémentaires de l'ERP. **Le coût réel n'arrive qu'au paiement, et l'extraction ne porte aucun volume horaire. Vérifier si l'ERP sait extraire les commandes engagées, ce qui réglerait la question de l'engagement, et les heures consommées, ce qui permettrait de comparer le consommé au chiffré en volume et non seulement en valeur. |
 

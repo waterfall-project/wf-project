@@ -11,14 +11,16 @@ Keycloak itself — its administration API, its sessions — is tried against th
 import json
 import threading
 import time
-from collections.abc import Mapping
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import jwt
 from cryptography.hazmat.primitives.asymmetric import rsa
 from jwt.algorithms import RSAAlgorithm
+
+if TYPE_CHECKING:
+    from collections.abc import Mapping
 
 REALM = "waterfall"
 KEYS_PATH = f"/auth/realms/{REALM}/protocol/openid-connect/certs"

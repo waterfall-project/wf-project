@@ -28,16 +28,18 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from enum import Enum
 from http import HTTPStatus
-from typing import Any, Literal, cast
+from typing import TYPE_CHECKING, Any, Literal, cast
 from urllib.parse import quote
-
-import httpx2
-from pydantic import SecretStr
 
 from waterfall.platform.errors import FieldError, UnavailableError, UnprocessableError
 from waterfall.platform.keycloak import IdentityProviderError, Keycloak, expect
 from waterfall.platform.logs import get_logger
-from waterfall.platform.settings import KeycloakSettings
+
+if TYPE_CHECKING:
+    import httpx2
+    from pydantic import SecretStr
+
+    from waterfall.platform.settings import KeycloakSettings
 
 SERVICE_CLIENT = "waterfall-service"
 # The client of the bootstrap: the only one whose links are valid until they are used (#652).

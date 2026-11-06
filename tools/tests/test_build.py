@@ -6,7 +6,9 @@ Pandoc accepts every tracked change silently: a strict build must count every ki
 revision mark Word writes, in every part of the archive a reviewer may change, and must
 leave the previous projection untouched when it finds one, so that the chain never
 publishes as adopted what the author has not accepted yet. Nor does a strict build write a
-projection its conversion warns about.
+projection its conversion warns about. And the projection does not change with the version
+of pandoc: what pandoc 3.13 adds to the Markdown of 3.1.11.1 — index entries, figures, a
+table width, links on cross-references — does not reach it.
 
 These tests cover no requirement of the document: they test the tool of the chain, not the
 specification it projects, so they cite none.
@@ -15,10 +17,13 @@ specification it projects, so they cite none.
 import subprocess
 import sys
 import zipfile
-from pathlib import Path
+from typing import TYPE_CHECKING
 
 import build
 import pytest
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 PARAGRAPH = "<w:p><w:r><w:t>Texte</w:t></w:r></w:p>"
 NAMESPACE = 'xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"'
@@ -262,3 +267,96 @@ def test_the_mermaid_summary_counts_the_diagrams_that_failed(
     assert len(calls) == 2
     assert notes.warnings == ["Mermaid diagram no. 1 does not compile: Parse error"]
     assert notes.traces == ["1 of 2 Mermaid diagram(s) validated by mmdc, 1 failed"]
+
+
+def project_markdown(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, markdown: str) -> str:
+    """Return the projection a lenient build makes of ``markdown``, standing for pandoc."""
+    docx = write_docx(tmp_path / "spec.docx", PARAGRAPH)
+    output = tmp_path / "spec.md"
+    monkeypatch.setattr(build, "ROOT", tmp_path)
+
+    def extract(_docx: Path, _media_folder: Path) -> str:
+        return markdown
+
+    monkeypatch.setattr(build, "extract_docx", extract)
+    monkeypatch.setattr(sys, "argv", build_arguments(tmp_path, docx, output, strict=False))
+    assert build.main() == 0
+    return output.read_text(encoding="utf-8")
+
+
+INDEX_ENTRY = '<span class="indexref" data-entry="«"></span>'
+
+
+def test_an_index_entry_does_not_reach_the_identifier(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    table = requirement_table(f"WF-QUA-0010-A {INDEX_ENTRY}")
+    markdown = f"# Introduction\n\n# Exigences\n\n{table}\n"
+    projection = project_markdown(tmp_path, monkeypatch, markdown)
+    assert 'id: "WF-QUA-0010-A"' in projection
+    assert "indexref" not in projection
+
+
+def html_requirement_table(identifier: str) -> str:
+    """Return a requirement table as pandoc 3.13 renders it when a cell holds two paragraphs."""
+    rows = [f"<tr>\n<th><p>ID</p></th>\n<th><p>{identifier}{INDEX_ENTRY}</p></th>\n</tr>"]
+    rows += [
+        f"<tr>\n<td><p>{label}</p></td>\n"
+        '<td style="text-align: left;"><p>un</p>\n<p>deux</p></td>\n</tr>'
+        for label in list(build.REQUIREMENT_FIELDS)[1:]
+    ]
+    return '<table style="width:99%;">\n<colgroup>\n<col style="width: 13%" />\n</colgroup>\n' + (
+        "\n".join(rows) + "\n</table>"
+    )
+
+
+def test_a_requirement_table_in_html_with_a_width_is_a_requirement(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    table = html_requirement_table("WF-QUA-0010-A")
+    markdown = f"# Introduction\n\n# Exigences\n\n{table}\n"
+    projection = project_markdown(tmp_path, monkeypatch, markdown)
+    assert "nombre_exigences: 1" in projection
+    assert 'id: "WF-QUA-0010-A"' in projection
+    assert 'verification: "un deux"' in projection
+    assert "<table" not in projection
+    assert "<tr>" not in projection
+
+
+def test_a_figure_wrapped_by_pandoc_keeps_its_caption(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    image = tmp_path / "source" / "figure.png"
+    image.parent.mkdir()
+    image.write_bytes(b"png")
+    figure = (
+        f'# Introduction\n\n<figure>\n<img src="{image}" />\n<figcaption><p>'
+        '<span id="_Toc1" class="anchor"></span>Figure 1 — Une figure sans source'
+        "</p></figcaption>\n</figure>\n"
+    )
+    projection = project_markdown(tmp_path, monkeypatch, figure)
+    assert "![Figure 1 — Une figure sans source](images/figure.png)" in projection
+    assert "figure>" not in projection
+
+
+def test_a_cross_reference_keeps_its_text_and_the_table_of_contents_its_links(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    markdown = (
+        "[Annexe [12](#annexe)](#annexe)\n\n# Introduction\n\n"
+        "Voir le §[1](#introduction) et l’[ANNEXE B: Formats](#annexe-b-formats).\n\n# Annexe\n"
+    )
+    projection = project_markdown(tmp_path, monkeypatch, markdown)
+    assert "Voir le §1 et l’ANNEXE B: Formats." in projection
+    assert "](#" not in projection
+    assert "# Annexe" in projection
+    assert "# 2. Annexe" not in projection
+
+
+def test_a_cross_reference_whose_text_holds_brackets_is_unlinked_whole() -> None:
+    lines = [
+        r"Voir [§3.2 [bis]](#h-bis) et [l’\[ANNEXE\] B](#annexe-b), mais pas [un lien](https://x.org).",
+    ]
+    assert build.unlink_cross_references(lines) == [
+        r"Voir §3.2 [bis] et l’\[ANNEXE\] B, mais pas [un lien](https://x.org).",
+    ]

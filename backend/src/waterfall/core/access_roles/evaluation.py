@@ -12,11 +12,9 @@ second term of the evaluation, arrives with EP-04.
 """
 
 from dataclasses import dataclass
-from typing import cast
-from uuid import UUID
+from typing import TYPE_CHECKING, cast
 
 from sqlalchemy import ColumnElement, select
-from sqlalchemy.orm import Session
 
 from waterfall.core.access_roles.roles import NOT_FOUND, HeldRole
 from waterfall.core.access_roles.tables import (
@@ -26,6 +24,11 @@ from waterfall.core.access_roles.tables import (
     UserAccessRole,
 )
 from waterfall.platform.errors import ForbiddenError, NotFoundError
+
+if TYPE_CHECKING:
+    from uuid import UUID
+
+    from sqlalchemy.orm import Session
 
 PERMISSION_MISSING = "PERMISSION_MISSING"
 # The permission to consult a function ends so; that to change it, ``.write`` (``PermissionCode``).

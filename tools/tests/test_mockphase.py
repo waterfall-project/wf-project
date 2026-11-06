@@ -9,13 +9,15 @@ the contract, not the Vérif of a requirement: none cites one (WF-QUA-0010, « u
 aucune exigence »).
 """
 
-from pathlib import Path
-from typing import Any, cast
+from typing import TYPE_CHECKING, Any, cast
 
 import pytest
 
 from wftools import REPOSITORY, mockcore, mockwitness
 from wftools.mockwitness import fixture
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 type Entry = dict[str, Any]
 

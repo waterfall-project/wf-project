@@ -21,7 +21,8 @@ function isDrawing(element: HTMLElement): boolean {
 
 /**
  * Give the drawing of each chart the tests of a file or of a block mount the size of `CHART_ROOM`,
- * from before each test to after it; every other element measures nothing, as the document has it.
+ * from before each test to after it; every other element measures what it measured before — its
+ * box, as the setup has it (`src/test/setup-dom.ts`), which a test sizes or leaves at nothing.
  */
 export function roomForCharts(): void {
   let spies: MockInstance[] = [];
@@ -32,10 +33,14 @@ export function roomForCharts(): void {
         ["clientHeight", CHART_ROOM.height],
       ] as const
     ).map(([name, size]) => {
+      const measured = Object.getOwnPropertyDescriptor(HTMLElement.prototype, name);
       return vi.spyOn(HTMLElement.prototype, name, "get").mockImplementation(function (
         this: HTMLElement,
       ) {
-        return isDrawing(this) ? size : NO_LAYOUT;
+        if (isDrawing(this)) {
+          return size;
+        }
+        return Number(measured?.get?.call(this) ?? NO_LAYOUT);
       });
     });
   });

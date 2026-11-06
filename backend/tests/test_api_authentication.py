@@ -10,25 +10,21 @@ unknown to Waterfall, and closing sessions, need Keycloak itself:
 
 import math
 import time
-from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, datetime
 from http import HTTPStatus
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import pytest
 from fastapi.testclient import TestClient
-from openapi_core import OpenAPI
 from realm import KEY, TestRealm, new_key
 from sqlalchemy import insert
-from sqlalchemy.orm import Session
 from support import ContractClient, Logs, Watching, bearer, nowhere, raw_account
 
 from waterfall.api.app import create_app
 from waterfall.api.authentication import Services, admit, signed_in_before_sessions_closed
 from waterfall.core.users.interface import NotAdmitted
 from waterfall.core.users.tables import UserAccount
-from waterfall.platform.database import Database
 from waterfall.platform.errors import UnauthenticatedError, UnavailableError
 from waterfall.platform.keycloak import (
     KEYS_MAX_AGE_SECONDS,
@@ -39,7 +35,15 @@ from waterfall.platform.keycloak import (
 )
 from waterfall.platform.keycloak_admin import ProviderAccount
 from waterfall.platform.logs import logging_context
-from waterfall.platform.settings import ServiceSettings
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
+
+    from openapi_core import OpenAPI
+    from sqlalchemy.orm import Session
+
+    from waterfall.platform.database import Database
+    from waterfall.platform.settings import ServiceSettings
 
 ME = "/api/v1/me"
 SESSIONS = "/api/v1/me/sessions"

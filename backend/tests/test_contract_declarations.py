@@ -12,11 +12,13 @@ The rules of ``redocly.yaml`` cannot read a parameter's place or a body's proper
 their references: the contract is read here, its references followed.
 """
 
-from pathlib import Path
-from typing import Any, cast
+from typing import TYPE_CHECKING, Any, cast
 
 import yaml
 from support import CONTRACT
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 METHODS = ("get", "put", "post", "patch", "delete")
 

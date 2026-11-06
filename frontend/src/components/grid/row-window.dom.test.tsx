@@ -101,7 +101,6 @@ describe("the window of the rows in view", () => {
     }
     // The box of the element, and what it scrolls over: the header, the rows, the totals.
     vi.spyOn(HTMLElement.prototype, "offsetHeight", "get").mockReturnValue(280);
-    vi.spyOn(HTMLElement.prototype, "clientHeight", "get").mockReturnValue(280);
     vi.spyOn(HTMLElement.prototype, "scrollHeight", "get").mockReturnValue(32 + 100 * 28 + 32);
     const { container } = render(<Grid />);
     const element = container.firstElementChild as HTMLElement;

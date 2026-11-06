@@ -10,11 +10,13 @@ the two associations, which hold nothing but their keys. The extension ``unaccen
 search of a label, which ignores the accents (contract, README).
 """
 
-from collections.abc import Sequence
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import sqlalchemy as sa
 from alembic import op
+
+if TYPE_CHECKING:
+    from collections.abc import Sequence
 
 revision: str = "0004"
 down_revision: str | None = "0003"

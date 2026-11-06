@@ -6,10 +6,13 @@ The role of the service records a backup and reads it, but neither changes nor d
 mark that keeps a backup and the rotation that deletes the others are EP-13's (WF-ADM-0170).
 """
 
-from collections.abc import Sequence
+from typing import TYPE_CHECKING
 
 import sqlalchemy as sa
 from alembic import op
+
+if TYPE_CHECKING:
+    from collections.abc import Sequence
 
 revision: str = "0010"
 down_revision: str | None = "0009"

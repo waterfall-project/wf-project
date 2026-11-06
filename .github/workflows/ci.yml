@@ -39,7 +39,7 @@ concurrency:
 
 jobs:
   changes:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     timeout-minutes: 5
     outputs:
       # The tier, decided once: full in the merge queue, the one chosen when run by hand.
@@ -100,16 +100,17 @@ jobs:
   # paths, the measure and the paths against the service download this build and play it, and
   # build nothing again (E2E_BUILT). Here, whenever either of them runs: e2e.yml and service.yml
   # are two called workflows, whose jobs no `needs` joins. On the runner, as front.yml builds: the
-  # parts of e2e.yml start it in Playwright's image, on its Node 24 and its Ubuntu noble, amd64, at
-  # another path of the workspace, which the build should not depend on (checked by moving the
-  # build on a workstation; the proof in the chain is a run of `chain` on the branch); service.yml
-  # on the runner.
+  # parts of e2e.yml start it in Playwright's image, on its Node 24 (built here on Node 26: pnpm 12
+  # does not stop on `engines` without engine-strict, and `next start` runs the built files on the
+  # image's Node, which Next supports) and its Ubuntu noble, amd64, at another path of the
+  # workspace, which the build should not depend on (checked by moving the build on a workstation;
+  # the proof in the chain is a run of `chain` on the branch); service.yml on the runner.
   front-build:
     needs: changes
     if: >-
       needs.changes.outputs.tier == 'full'
       && (needs.changes.outputs.front == 'true' || needs.changes.outputs.service == 'true')
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     # The installation and the build of the front, about four minutes on a hosted runner.
     timeout-minutes: 12
     steps:
@@ -117,16 +118,18 @@ jobs:
         with:
           persist-credentials: false
       # pnpm, at the version `packageManager` names, must exist before setup-node caches it.
-      - run: corepack enable pnpm
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
         with:
-          node-version: 24
+          package_json_file: frontend/package.json
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 26
           cache: pnpm
           cache-dependency-path: frontend/pnpm-lock.yaml
       - run: make build-front
       # The build without Next's cache, which only a later build reads, for one day: each job that
       # plays it downloads it where the build wrote it.
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: front-build
           path: |
@@ -192,7 +195,7 @@ jobs:
       - service
       - production
     if: always()
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1

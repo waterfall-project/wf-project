@@ -3,11 +3,14 @@
 """Tests of the gate that decides the outcome of the chain."""
 
 import json
-from collections.abc import Mapping
+from typing import TYPE_CHECKING
 
 import pytest
 
 from wftools import gate
+
+if TYPE_CHECKING:
+    from collections.abc import Mapping
 
 
 def run(monkeypatch: pytest.MonkeyPatch, needs: Mapping[str, Mapping[str, object]]) -> int:

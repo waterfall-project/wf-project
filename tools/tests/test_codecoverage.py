@@ -4,12 +4,15 @@
 
 import json
 from collections.abc import Callable
-from pathlib import Path
+from typing import TYPE_CHECKING
 
 import pytest
 
 from wftools import codecoverage
 from wftools.codecoverage import Measure
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 
 def coveragepy(lines: int, covered: int, branches: int, taken: int) -> dict[str, object]:

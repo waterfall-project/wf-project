@@ -16,7 +16,7 @@ test.describe("a browser asking for English", () => {
     await page.goto("/");
     await expect(page.locator("html")).toHaveAttribute("lang", "en");
     await openMenu(
-      page.getByRole("button", { name: "Account of Camille Martin" }),
+      page.getByRole("button", { name: "Account of Camille Martin, CM" }),
       page.getByRole("menu"),
     );
     const language = page.getByRole("menuitem", { name: /^Language/ });
@@ -37,7 +37,7 @@ test.describe("a browser asking for French", () => {
     await page.goto("/");
     await expect(page.locator("html")).toHaveAttribute("lang", "fr");
     await openMenu(
-      page.getByRole("button", { name: "Compte de Camille Martin" }),
+      page.getByRole("button", { name: "Compte de Camille Martin, CM" }),
       page.getByRole("menu"),
     );
     await expect(page.getByRole("menuitem", { name: /^Langue/ })).toContainText(
@@ -53,7 +53,7 @@ test.describe("a browser asking for a language not offered", () => {
     await page.goto("/");
     await expect(page.locator("html")).toHaveAttribute("lang", "fr");
     await openMenu(
-      page.getByRole("button", { name: "Compte de Camille Martin" }),
+      page.getByRole("button", { name: "Compte de Camille Martin, CM" }),
       page.getByRole("menu"),
     );
     await expect(page.getByRole("menuitem", { name: /^Langue/ })).toBeVisible();

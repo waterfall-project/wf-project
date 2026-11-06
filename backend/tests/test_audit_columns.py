@@ -12,7 +12,7 @@ authors are no rows of the table of the accounts read here, which keeps the acti
 """
 
 from datetime import UTC, datetime
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from uuid import UUID, uuid4
 
 import pytest
@@ -23,7 +23,9 @@ from support import ContractClient, bearer, raw_account
 
 from waterfall.core.access_roles.tables import AccessRole
 from waterfall.core.users.tables import UserAccount
-from waterfall.platform.database import Database
+
+if TYPE_CHECKING:
+    from waterfall.platform.database import Database
 
 USERS = "/api/v1/users"
 ROLES = "/api/v1/access-roles"

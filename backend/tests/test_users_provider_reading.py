@@ -11,16 +11,14 @@ correlation of a task, with a change of roles at once.
 """
 
 import threading
-from collections.abc import Iterator
 from datetime import UTC, datetime, timedelta
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from uuid import uuid4
 
 import pytest
 from access_rows import ADMINISTRATION, role
 from sqlalchemy import insert, select, text
 from sqlalchemy.exc import DBAPIError
-from sqlalchemy.orm import Session
 from support import Logs, raw_account, wait_for_a_lock
 
 from waterfall.core.access_roles.interface import Act, roles_held_by, set_access_roles
@@ -42,12 +40,18 @@ from waterfall.core.users.interface import (
 )
 from waterfall.core.users.tables import UserAccount
 from waterfall.platform.audit import AuditEntry
-from waterfall.platform.database import Database
 from waterfall.platform.keycloak_admin import LocalIdentity, ProviderAccount
 from waterfall.platform.logs import logging_context
 from waterfall.platform.tasks import BackgroundTask
 from waterfall.worker import identity_sync
 from waterfall.worker.identity_sync import Written, write_accounts
+
+if TYPE_CHECKING:
+    from collections.abc import Iterator
+
+    from sqlalchemy.orm import Session
+
+    from waterfall.platform.database import Database
 
 NOON = datetime(2026, 10, 12, 12, 0, tzinfo=UTC)
 CORRELATION = "reading-of-the-accounts"

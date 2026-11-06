@@ -9,17 +9,21 @@ provider, and never reaches the base nor the journal: the journal keeps that one
 by whom and for which account, without its token (WF-SEC-0030).
 """
 
-from uuid import UUID
-
-from sqlalchemy.orm import Session
+from typing import TYPE_CHECKING
 
 from waterfall.core.users.accounts import lock_account
 from waterfall.core.users.commands import IS_ACTIVE_ACCOUNT, anonymized
 from waterfall.core.users.identity import LOCAL, inscribe
 from waterfall.core.users.states import ACTIVE
-from waterfall.core.users.tables import UserAccount
-from waterfall.platform.audit import Act
 from waterfall.platform.errors import ConflictError
+
+if TYPE_CHECKING:
+    from uuid import UUID
+
+    from sqlalchemy.orm import Session
+
+    from waterfall.core.users.tables import UserAccount
+    from waterfall.platform.audit import Act
 
 STATE_FORBIDS_OPERATION = "STATE_FORBIDS_OPERATION"
 # The conditions a link lacks, named by the 409 of ``createPasswordSetupLink`` (CommandCondition).

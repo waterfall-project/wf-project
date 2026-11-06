@@ -14,12 +14,13 @@ which Redis keeps under keys of its own, are closed by deleting them.
 
 import json
 from dataclasses import dataclass
-from typing import Any, Self, cast
+from typing import TYPE_CHECKING, Any, Self, cast
 from uuid import UUID
 
-from redis import Redis
+if TYPE_CHECKING:
+    from redis import Redis
 
-from waterfall.platform.queue import TaskQueue
+    from waterfall.platform.queue import TaskQueue
 
 # What follows the name of the stream of the tasks in the key of the maintenance.
 SUFFIX = ":maintenance"

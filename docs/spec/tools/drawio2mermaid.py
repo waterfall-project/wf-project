@@ -19,8 +19,10 @@ import xml.etree.ElementTree as ET
 import zlib
 from collections import defaultdict
 from dataclasses import dataclass
-from pathlib import Path
-from typing import Protocol
+from typing import TYPE_CHECKING, Protocol
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 # Beyond this many pixels, we refuse to infer the end of an edge.
 INFERENCE_THRESHOLD_PX = 20.0

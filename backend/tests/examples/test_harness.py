@@ -3,10 +3,13 @@
 """The harness of the numeric examples runs without a database or a browser (WF-QUA-0020)."""
 
 import socket
-from collections.abc import Callable
+from typing import TYPE_CHECKING
 
 import pytest
 from pytest_socket import SocketBlockedError
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 pytestmark = pytest.mark.requirement("WF-QUA-0020-A")
 

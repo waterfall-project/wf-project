@@ -3,11 +3,14 @@
 """Tests of the measure of a lot."""
 
 import subprocess
-from pathlib import Path
+from typing import TYPE_CHECKING
 
 import pytest
 
 from wftools import lotsize, paths
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 DECLARATION = paths.parse(
     """

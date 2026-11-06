@@ -27,7 +27,7 @@ concurrency:
 
 jobs:
   publish:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     timeout-minutes: 30
     # Writing packages is what publishing is: this job alone asks for it.
     permissions:
@@ -56,7 +56,7 @@ jobs:
   # first administrator held (US-0430, WF-ARC-0050).
   trial:
     needs: publish
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     timeout-minutes: 20
     # Reading packages is what pulling them is, when the registry keeps them private.
     permissions:
@@ -102,7 +102,7 @@ jobs:
   # of it reads the caches of. Built into the cache alone, neither loaded nor published: beside the
   # publication, which it neither waits for nor changes (make build-cache).
   cache:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1

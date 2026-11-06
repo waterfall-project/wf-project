@@ -10,16 +10,12 @@ administrator who signs in to it, then read through ``listAuditEvents``. Run by
 ``make test-keycloak``, with the variables of ``test_keycloak_authentication.py``.
 """
 
-from collections.abc import Iterator
 from datetime import UTC, datetime
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from urllib.parse import urlencode
 
-import httpx2
 import pytest
 from access_rows import role
-from openapi_core import OpenAPI
-from support import ContractClient
 from test_keycloak_authentication import (
     DIRECTORY_CREDENTIAL,
     ME,
@@ -37,8 +33,16 @@ from test_keycloak_authentication import (
 )
 from test_keycloak_platform import DIRECTORY_EMAIL, PASSWORD, Account
 
-from waterfall.platform.database import Database
 from waterfall.platform.keycloak import Keycloak
+
+if TYPE_CHECKING:
+    from collections.abc import Iterator
+
+    import httpx2
+    from openapi_core import OpenAPI
+    from support import ContractClient
+
+    from waterfall.platform.database import Database
 
 pytestmark = pytest.mark.keycloak
 

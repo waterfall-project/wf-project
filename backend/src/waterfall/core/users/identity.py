@@ -18,11 +18,9 @@ rewrites the label alone (WF-SEC-0030, WF-ADM-0060).
 
 from contextlib import nullcontext
 from dataclasses import dataclass
-from typing import Literal
-from uuid import UUID
+from typing import TYPE_CHECKING, Literal
 
 from sqlalchemy import select
-from sqlalchemy.orm import Session
 
 from waterfall.core.users.accounts import (
     NewAccount,
@@ -43,6 +41,11 @@ from waterfall.platform.audit import (
     record,
 )
 from waterfall.platform.errors import FieldError, UnprocessableError
+
+if TYPE_CHECKING:
+    from uuid import UUID
+
+    from sqlalchemy.orm import Session
 
 VALIDATION_FAILED = "VALIDATION_FAILED"
 VALUE_REQUIRED = "VALUE_REQUIRED"

@@ -1,0 +1,9 @@
+# Configuration d'actionlint.
+#
+# actionlint 1.7.12 ne connaît pas encore l'étiquette de runner `ubuntu-26.04`
+# (erreur `runner-label`), alors que GitHub la fournit. On la déclare ici pour
+# que le lint des workflows passe, sans relâcher aucun autre contrôle.
+# À retirer dès qu'une version d'actionlint connaîtra cette étiquette.
+self-hosted-runner:
+  labels:
+    - ubuntu-26.04

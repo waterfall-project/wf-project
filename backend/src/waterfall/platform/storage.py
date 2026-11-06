@@ -9,9 +9,7 @@ that cannot be reached refuses as a component that is unavailable (503), never a
 service; an object that is missing is said apart.
 """
 
-from collections.abc import Generator, Iterator
 from contextlib import contextmanager
-from pathlib import Path
 from typing import TYPE_CHECKING
 
 import boto3
@@ -19,11 +17,15 @@ from botocore.config import Config
 from botocore.exceptions import BotoCoreError, ClientError
 
 from waterfall.platform.errors import UnavailableError
-from waterfall.platform.settings import ServiceSettings
 
 if TYPE_CHECKING:
+    from collections.abc import Generator, Iterator
+    from pathlib import Path
+
     from mypy_boto3_s3.client import S3Client
     from mypy_boto3_s3.type_defs import CompletedPartTypeDef
+
+    from waterfall.platform.settings import ServiceSettings
 
 COMPONENT_UNAVAILABLE = "COMPONENT_UNAVAILABLE"
 OBJECT_STORAGE = "object_storage"
@@ -60,14 +62,14 @@ def reached() -> Generator[None]:
 class Bucket:
     """A bucket of the object storage, and what Waterfall does with its objects."""
 
-    def __init__(self, client: "S3Client", name: str) -> None:
+    def __init__(self, client: S3Client, name: str) -> None:
         self.client = client
         self.name = name
 
     @classmethod
     def connect(
         cls, name: str, address: str, region: str, access_key: str, secret_key: str
-    ) -> "Bucket":
+    ) -> Bucket:
         """Open a bucket of the storage at an address, signing with a key and its secret.
 
         The addresses are by path, which every storage serves; a checksum is sent and checked only
@@ -92,7 +94,7 @@ class Bucket:
         return cls(client, name)
 
     @classmethod
-    def of_backups(cls, settings: ServiceSettings) -> "Bucket":
+    def of_backups(cls, settings: ServiceSettings) -> Bucket:
         """Open the bucket of the backups the settings name."""
         return cls.connect(
             settings.backups_bucket,

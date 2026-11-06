@@ -3,15 +3,19 @@
 """Apply the migrations: the command ``waterfall-migrate`` and what tests call."""
 
 import sys
-from collections.abc import Sequence
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from alembic import command
 from alembic.config import Config
-from sqlalchemy.engine import Engine
 
 from waterfall import __version__
 from waterfall.platform.settings import SettingsError, load_settings
+
+if TYPE_CHECKING:
+    from collections.abc import Sequence
+
+    from sqlalchemy.engine import Engine
 
 NAME = "waterfall-migrate"
 

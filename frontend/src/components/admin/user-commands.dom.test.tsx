@@ -201,7 +201,7 @@ describe("the table of the accounts, its own entry", () => {
       name: "Compte de «\u00A0Noé Vidal\u00A0» actif",
     });
     const trigger = within(grid()).getByRole("button", {
-      name: "Rôles de «\u00A0Noé Vidal\u00A0»",
+      name: /^Rôles de «\sNoé Vidal\s» :/,
     });
     expect(vidal).not.toHaveAttribute("aria-disabled");
     await userEvent.click(vidal);
@@ -390,7 +390,7 @@ describe("the anonymisation of an account", () => {
     expect(screen.queryByRole("alertdialog")).toBeNull();
     // Its roles may still be attributed, as the account lists it.
     expect(
-      within(grid()).getByRole("button", { name: "Rôles de «\u00a0Compte anonymisé\u00a0»" }),
+      within(grid()).getByRole("button", { name: /^Rôles de «\sCompte anonymisé\s» :/ }),
     ).not.toHaveAttribute("aria-disabled");
     expect(writes(client)).toEqual([]);
   });
@@ -507,7 +507,7 @@ describe("the access roles of an account, cell by cell", () => {
     const client = serve({ "PUT /users/{user_id}/access-roles": "user_access_roles_set" });
     render(accounts());
     await userEvent.click(
-      within(grid()).getByRole("button", { name: "Rôles de «\u00A0Sacha Lefèvre\u00A0»" }),
+      within(grid()).getByRole("button", { name: /^Rôles de «\sSacha Lefèvre\s» :/ }),
     );
     const list = await screen.findByRole("group", { name: "Rôles de «\u00A0Sacha Lefèvre\u00A0»" });
     // Every role of the installation, whatever the node of the account (WF-ADM-0030).
@@ -532,7 +532,7 @@ describe("the access roles of an account, cell by cell", () => {
     const client = serve({ "PUT /users/{user_id}/access-roles": "user_access_roles_cleared" });
     render(accounts());
     const trigger = within(grid()).getByRole("button", {
-      name: "Rôles de «\u00A0Inès Roux\u00A0»",
+      name: /^Rôles de «\sInès Roux\s» :/,
     });
     await userEvent.click(trigger);
     const list = await screen.findByRole("group", { name: "Rôles de «\u00A0Inès Roux\u00A0»" });
@@ -556,7 +556,7 @@ describe("the access roles of an account, cell by cell", () => {
     const client = serve({ "PUT /users/{user_id}/access-roles": "user_access_roles_two" });
     render(accounts());
     const trigger = within(grid()).getByRole("button", {
-      name: "Rôles de «\u00A0Noé Vidal\u00A0»",
+      name: /^Rôles de «\sNoé Vidal\s» :/,
     });
     await userEvent.click(trigger);
     const list = await screen.findByRole("group", { name: "Rôles de «\u00A0Noé Vidal\u00A0»" });
@@ -585,7 +585,7 @@ describe("the access roles of an account, cell by cell", () => {
     });
     render(accounts());
     await userEvent.click(
-      within(grid()).getByRole("button", { name: "Rôles de «\u00A0Camille Martin\u00A0»" }),
+      within(grid()).getByRole("button", { name: /^Rôles de «\sCamille Martin\s» :/ }),
     );
     const list = await screen.findByRole("group", {
       name: "Rôles de «\u00A0Camille Martin\u00A0»",
@@ -613,7 +613,7 @@ describe("the access roles of an account, cell by cell", () => {
       expect(told().textContent).toBe("«\u00A0Noé Vidal\u00A0» désactivé.");
     });
     await userEvent.click(
-      within(grid()).getByRole("button", { name: "Rôles de «\u00A0Noé Vidal\u00A0»" }),
+      within(grid()).getByRole("button", { name: /^Rôles de «\sNoé Vidal\s» :/ }),
     );
     const list = await screen.findByRole("group", { name: "Rôles de «\u00A0Noé Vidal\u00A0»" });
     await userEvent.click(within(list).getByRole("checkbox", { name: "Chiffreur" }));
@@ -630,7 +630,7 @@ describe("the access roles of an account, cell by cell", () => {
   it("opens the roles of the active cell on Enter, the grid one stop of the tabulation, and gives the focus back to the cell on Escape", async () => {
     render(accounts());
     const trigger = within(grid()).getByRole("button", {
-      name: "Rôles de «\u00A0Lucas Petit\u00A0»",
+      name: /^Rôles de «\sLucas Petit\s» :/,
     });
     expect(trigger).toHaveAttribute("tabindex", "-1");
     const cell = trigger.closest("td") as HTMLElement;

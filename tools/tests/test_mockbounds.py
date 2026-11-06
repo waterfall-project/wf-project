@@ -11,16 +11,18 @@ Vérif of a requirement: none cites one (WF-QUA-0010, « un test qui ne couvre a
 
 import json
 import re
-from collections.abc import Iterator
 from decimal import Decimal
-from pathlib import Path
-from typing import Any, cast
+from typing import TYPE_CHECKING, Any, cast
 
 import pytest
 
 from wftools import REPOSITORY, mockwitness
 from wftools.mockids import universe
 from wftools.mockwitness import fixture
+
+if TYPE_CHECKING:
+    from collections.abc import Iterator
+    from pathlib import Path
 
 API = REPOSITORY / "docs" / "api"
 

@@ -12,13 +12,15 @@ import json
 import os
 import re
 import subprocess
-from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import pytest
 import yaml
 
 from wftools import REPOSITORY, frontimage, paths, slots
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 MANIFEST = json.dumps({"routes": {"/_global-error": {}, "/icon.svg": {}}, "dynamicRoutes": {}})
 ADDRESS = "127.0.0.1:32768"
@@ -314,7 +316,7 @@ def test_the_paths_build_the_front_then_play_against_it(target: str) -> None:
 
 @pytest.mark.parametrize("target", ["e2e", "e2e-measure", "e2e-service"])
 def test_a_front_built_already_is_not_built_again(target: str) -> None:
-    shard = ["SHARD=1/3"] if target == "e2e" else []
+    shard = ["SHARD=1/5"] if target == "e2e" else []
     commands = dry_run(target, "full", "E2E_BUILT=1", *shard)
     assert not [command for command in commands if builds_the_front(command)]
     assert [command for command in commands if "playwright test" in command]
@@ -396,7 +398,7 @@ def test_the_chain_builds_the_front_once_and_every_part_plays_that_build() -> No
     assert set(jobs) == {"paths"}
     paths_job = jobs["paths"]
     assert paths_job["env"] == {"E2E_BUILT": "1"}
-    assert paths_job["strategy"]["matrix"]["part"] == ["1/3", "2/3", "3/3", "measure"]
+    assert paths_job["strategy"]["matrix"]["part"] == ["1/5", "2/5", "3/5", "4/5", "5/5", "measure"]
     assert downloaded(paths_job["steps"]) == [played]
     assert not [s for s in paths_job["steps"] if "build" in s.get("run", "")]
 
