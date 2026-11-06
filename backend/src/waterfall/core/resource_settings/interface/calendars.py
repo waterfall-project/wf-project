@@ -20,7 +20,6 @@ from sqlalchemy import ColumnElement, SQLColumnExpression, func, insert, select,
 from sqlalchemy.exc import IntegrityError
 
 from waterfall.core.resource_settings.tables import DAYS, Calendar
-from waterfall.core.users.interface import Author, read_authors
 from waterfall.platform.database import contains, unique_violated
 from waterfall.platform.errors import (
     ConflictError,
@@ -114,9 +113,9 @@ class CalendarView:
     is_default: bool
     is_active: bool
     created_at: datetime
-    created_by: Author | None
+    created_by: UUID | None
     updated_at: datetime
-    updated_by: Author | None
+    updated_by: UUID | None
     lock_version: int
 
 
@@ -259,17 +258,8 @@ def _hours_of(calendar: Calendar) -> WeeklyHours:
     )
 
 
-def _views(session: Session, calendars: Sequence[Calendar]) -> list[CalendarView]:
-    """Describe the calendars, their authors named as they are shown today."""
-    authors = read_authors(
-        session,
-        {
-            author
-            for calendar in calendars
-            for author in (calendar.created_by, calendar.updated_by)
-            if author is not None
-        },
-    )
+def _views(calendars: Sequence[Calendar]) -> list[CalendarView]:
+    """Describe the calendars; the authors stay identifiers, the API names them."""
     return [
         CalendarView(
             calendar_id=calendar.id,
@@ -278,9 +268,9 @@ def _views(session: Session, calendars: Sequence[Calendar]) -> list[CalendarView
             is_default=calendar.is_default,
             is_active=calendar.is_active,
             created_at=calendar.created_at,
-            created_by=authors.get(calendar.created_by) if calendar.created_by else None,
+            created_by=calendar.created_by,
             updated_at=calendar.updated_at,
-            updated_by=authors.get(calendar.updated_by) if calendar.updated_by else None,
+            updated_by=calendar.updated_by,
             lock_version=calendar.lock_version,
         )
         for calendar in calendars
@@ -294,7 +284,7 @@ def read_calendar(session: Session, calendar_id: UUID) -> CalendarView:
     ).first()
     if calendar is None:
         raise NotFoundError(NOT_FOUND)
-    return _views(session, [calendar])[0]
+    return _views([calendar])[0]
 
 
 def _lock_calendar(session: Session, calendar_id: UUID) -> Calendar:
@@ -523,4 +513,4 @@ def list_calendars(
         .offset(window.offset)
         .execution_options(populate_existing=True)
     ).all()
-    return CalendarPage(_views(session, rows), total)
+    return CalendarPage(_views(rows), total)

@@ -13,7 +13,7 @@ commands its caller may exercise, each available or not (WF-IHM-0090).
 
 from dataclasses import dataclass
 from decimal import Decimal
-from typing import Annotated
+from typing import TYPE_CHECKING, Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query
@@ -47,8 +47,14 @@ from waterfall.core.resource_settings.interface import (
     set_default_calendar,
     update_calendar,
 )
+from waterfall.core.users.interface import Author, read_authors
 from waterfall.platform.audit import Act
 from waterfall.platform.database import utc_now
+
+if TYPE_CHECKING:
+    from collections.abc import Mapping, Sequence
+
+    from sqlalchemy.orm import Session
 
 router = APIRouter(tags=["reference"])
 
@@ -90,7 +96,20 @@ def _plain(value: Decimal) -> str:
     return format(value.normalize(), "f")
 
 
-def calendar(view: CalendarView, *, may_change: bool) -> Calendar:
+def authors_of(session: Session, views: Sequence[CalendarView]) -> dict[UUID, Author]:
+    """Name the authors of calendars as they are today."""
+    return read_authors(
+        session,
+        {
+            author
+            for view in views
+            for author in (view.created_by, view.updated_by)
+            if author is not None
+        },
+    )
+
+
+def calendar(view: CalendarView, authors: Mapping[UUID, Author], *, may_change: bool) -> Calendar:
     """Describe a calendar as the contract does, its commands those its caller may exercise."""
     return Calendar.model_validate(
         {
@@ -109,9 +128,13 @@ def calendar(view: CalendarView, *, may_change: bool) -> Calendar:
             ],
             "audit": {
                 "created_at": view.created_at,
-                "created_by": actor_ref(view.created_by),
+                "created_by": actor_ref(
+                    None if view.created_by is None else authors.get(view.created_by)
+                ),
                 "updated_at": view.updated_at,
-                "updated_by": actor_ref(view.updated_by),
+                "updated_by": actor_ref(
+                    None if view.updated_by is None else authors.get(view.updated_by)
+                ),
             },
             "lock_version": view.lock_version,
         }
@@ -158,10 +181,13 @@ def get_calendars(
     """Give a page of the calendars, filtered and sorted by the server (WF-REF-0110, 0120)."""
     page = list_calendars(session, asked.filters, asked.sort, asked.window)
     may_change = CHANGE in actor.permissions
+    authors = authors_of(session, page.calendars)
     meta = PaginationMeta(limit=asked.window.limit, offset=asked.window.offset, total=page.total)
     return {
         "items": [
-            calendar(each, may_change=may_change).model_dump(mode="json", exclude_unset=True)
+            calendar(each, authors, may_change=may_change).model_dump(
+                mode="json", exclude_unset=True
+            )
             for each in page.calendars
         ],
         "meta": meta.model_dump(),
@@ -178,7 +204,7 @@ def get_calendars(
 def post_calendar(body: CalendarWrite, account: Caller, session: Transaction) -> Calendar:
     """Create an active calendar, not the default, of a label and seven days (WF-REF-0110)."""
     created = create_calendar(session, content(body), Act(account.user_id, utc_now()))
-    return calendar(created, may_change=True)
+    return calendar(created, authors_of(session, [created]), may_change=True)
 
 
 @router.patch(
@@ -193,7 +219,7 @@ def patch_calendar(
     """Change the label and the hours of a calendar, unless stale (412) (WF-REF-0110)."""
     act = Act(account.user_id, utc_now())
     changed = update_calendar(session, calendar_id, content(body), body.lock_version.root, act)
-    return calendar(changed, may_change=True)
+    return calendar(changed, authors_of(session, [changed]), may_change=True)
 
 
 @router.put(
@@ -208,7 +234,7 @@ def put_default_calendar(
     """Designate a calendar the default, the previous one losing it (WF-REF-0120)."""
     act = Act(account.user_id, utc_now())
     designated = set_default_calendar(session, calendar_id, body.lock_version.root, act)
-    return calendar(designated, may_change=True)
+    return calendar(designated, authors_of(session, [designated]), may_change=True)
 
 
 @router.put(
@@ -225,4 +251,4 @@ def put_calendar_activation(
     changed = set_calendar_activation(
         session, calendar_id, body.lock_version.root, act, is_active=body.is_active
     )
-    return calendar(changed, may_change=True)
+    return calendar(changed, authors_of(session, [changed]), may_change=True)
