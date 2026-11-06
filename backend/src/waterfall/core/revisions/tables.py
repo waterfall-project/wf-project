@@ -94,6 +94,13 @@ class Revision(Audited):
         ),
         # What a row of a revised table names: the revision with its project (its partition).
         UniqueConstraint("project_id", "id"),
+        # The source is a revision of the same project, and never the revision itself.
+        ForeignKeyConstraint(
+            ["project_id", "source_revision_id"],
+            ["revision.project_id", "revision.id"],
+            ondelete="RESTRICT",
+        ),
+        CheckConstraint("source_revision_id <> id", name="source_not_self"),
         Index(
             "uq_revision_draft",
             "project_id",
@@ -128,9 +135,7 @@ class Revision(Audited):
     lineage_id: Mapped[UUID]
     # The marked revision this one is the copy of; null for the first revision of a project, kept
     # after the marking (``Revision.source_revision_id`` of the contract).
-    source_revision_id: Mapped[UUID | None] = mapped_column(
-        ForeignKey("revision.id", ondelete="RESTRICT")
-    )
+    source_revision_id: Mapped[UUID | None]
 
 
 class CostStructure(Audited):

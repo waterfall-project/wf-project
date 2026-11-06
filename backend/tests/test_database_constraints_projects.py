@@ -192,6 +192,8 @@ def bounds(table: type[Base], column: str, longest: int) -> list[Refusal]:
 
 # A held value: what a row already written takes from the one tried (``held``, below).
 TAKEN = "TAKEN"
+# A revision that names itself as its source.
+SELF = uuid4()
 RATIO_ABOVE, RATIO_BELOW = Decimal("1.0001"), Decimal("-0.0001")
 
 REFUSALS: list[Refusal] = [
@@ -273,7 +275,8 @@ REFUSALS: list[Refusal] = [
     (Revision, {"version_name": TAKEN}, "uq_revision_version_name"),
     (Revision, {"is_reference": True}, "uq_revision_reference"),
     (Revision, {"project_id": uuid4()}, "fk_revision_project_id_project"),
-    (Revision, {"source_revision_id": uuid4()}, "fk_revision_source_revision_id_revision"),
+    (Revision, {"source_revision_id": uuid4()}, "fk_revision_project_id_revision"),
+    (Revision, {"id": SELF, "source_revision_id": SELF}, "ck_revision_source_not_self"),
     (CostStructure, {"kind": "amendment"}, "ck_cost_structure_kind_known"),
     *bounds(CostStructure, "label", 300),
     (CostStructure, {"revision_id": uuid4()}, "fk_cost_structure_project_id_revision"),
@@ -316,6 +319,15 @@ def test_the_database_refuses_a_row_of_a_project_or_of_a_revision_that_breaks_a_
         with database.engine.begin() as connection:
             connection.execute(first)
     assert refusal(database.engine, row(table, parents, **overrides)) == constraint
+
+
+@pytest.mark.requirement("WF-DAT-0090-A")
+def test_the_database_refuses_a_revision_copied_from_a_revision_of_another_project(
+    database: Database, parents: Parents
+) -> None:
+    # The source exists, but in the second project: the key is the pair (project, revision).
+    copy = row(Revision, parents, source_revision_id=parents.other_revision)
+    assert refusal(database.engine, copy) == "fk_revision_project_id_revision"
 
 
 @pytest.mark.requirement("WF-DAT-0090-A")
