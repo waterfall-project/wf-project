@@ -190,11 +190,12 @@ def test_an_object_without_a_label_but_a_backup_or_an_account_is_a_defect_said_f
         record(Session(), role_created(audited=audited))
 
 
-# The back lags behind the contract until EP-04, without a migration in EP-16 (decision of the
-# author of 2026-10-28 on #1577, option b): the actions the contract names that the back does not
-# serve yet — the creation of a project and the abandonment of a revision (#1577), the merge of a
-# differential under its new name (K-04) — and the one it still serves that the contract renamed.
-TO_SERVE_BY_EP04 = ("project_create", "revision_abandon", "structure_merge")
+# The back lags behind the contract, without a migration in EP-16 (decision of the author of
+# 2026-10-28 on #1577, option b): the action the contract names that the back does not serve yet —
+# the merge of a differential under its new name (K-04) — and the one it still serves that the
+# contract renamed. The creation of a project and the abandonment of a revision, EP-04 admits
+# (#1577, migration 0021).
+TO_SERVE_BY_EP04 = ("structure_merge",)
 SERVED_UNDER_AN_OLD_NAME = ("amendment_merge",)
 
 

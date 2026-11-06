@@ -13,12 +13,18 @@ from uuid import UUID, uuid4
 
 import asked_actual_cost_mapping
 import asked_calendars
+import asked_contributors
 import asked_cost_types
 import asked_hourly_rates
+import asked_lifecycle
 import asked_org_nodes
+import asked_projects
 import asked_reference
 import asked_reference_settings
 import asked_resource_roles
+import asked_revisions
+import asked_subprojects
+import asked_work_breakdown
 import pytest
 from access_rows import ADMINISTRATION, role
 from fastapi.routing import APIRoute
@@ -398,6 +404,15 @@ REFERENCE = (
     asked_calendars,
     asked_actual_cost_mapping,
 )
+# The operations of the projects and of their revisions, declared router by router (EP-04).
+PROJECTS = (
+    asked_projects,
+    asked_contributors,
+    asked_subprojects,
+    asked_work_breakdown,
+    asked_revisions,
+    asked_lifecycle,
+)
 # The permissions each served operation asks for, in the order they are evaluated.
 ASKED: dict[str, tuple[str, ...]] = {
     "getLiveness": (),
@@ -438,9 +453,10 @@ ASKED: dict[str, tuple[str, ...]] = {
     "uploadChunk": ("platform_restore",),
     "completeChunkedUpload": ("platform_restore",),
     **{name: asked for router in REFERENCE for name, asked in router.ASKED.items()},
+    **{name: asked for router in PROJECTS for name, asked in router.ASKED.items()},
 }
 # Two files that declare the same operation would overwrite each other in the table above.
-DECLARED = [name for router in REFERENCE for name in router.ASKED]
+DECLARED = [name for router in (*REFERENCE, *PROJECTS) for name in router.ASKED]
 assert len(DECLARED) == len(set(DECLARED)), sorted(
     name for name in set(DECLARED) if DECLARED.count(name) > 1
 )

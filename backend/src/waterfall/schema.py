@@ -3,7 +3,8 @@
 """The tables of the core, all declared: what a process that writes rows imports once.
 
 A key of one table may name the table of another module by its name — the author of a row, an
-account; the node an account is attached to (WF-DAT-0090) —, which SQLAlchemy finds among the
+account; the node an account is attached to (WF-DAT-0090); a revision, its project, and the project
+its revisions in return —, which SQLAlchemy finds among the
 tables declared when it writes a row. A module does not import the tables of another (WF-ARC-0010):
 the entry points do — the API, the worker, the migrations, the bootstrap and the loader of the
 witness, where the metadata must be whole — by importing this module, which nothing else does.
@@ -15,7 +16,9 @@ from typing import TYPE_CHECKING
 from waterfall.core.access_roles import tables as access_roles_tables
 from waterfall.core.backups import tables as backups_tables
 from waterfall.core.cost_settings import tables as cost_settings_tables
+from waterfall.core.projects import tables as projects_tables
 from waterfall.core.resource_settings import tables as resource_settings_tables
+from waterfall.core.revisions import tables as revisions_tables
 from waterfall.core.users import tables as users_tables
 from waterfall.platform.database import Base
 
@@ -27,7 +30,9 @@ __all__ = [
     "backups_tables",
     "cost_settings_tables",
     "declared",
+    "projects_tables",
     "resource_settings_tables",
+    "revisions_tables",
     "users_tables",
 ]
 

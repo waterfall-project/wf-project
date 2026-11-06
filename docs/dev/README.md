@@ -56,10 +56,13 @@ in one transaction, under an advisory lock of its own, one slice per object, in 
 dependencies (`waterfall.witness.loader`): the common settings, the units of duration, the natures,
 the categories, the rates, the calendars and the default calendar, the nodes then the deactivation
 of those the witness says deactivated, the roles then theirs, the mapping of the extraction of the
-actual costs. A slice writes nothing the platform already holds: run again, it writes nothing and
+actual costs; then, through a single entry (`waterfall.witness.chronology`), the slice of the
+projects (EP-04): the projects and the local accounts of their contributors, the contributors, the
+subprojects, the work breakdown, the revisions and the events of the chronology of the witness, at
+the instants it imposes. A slice writes nothing the platform already holds: run again, it writes nothing and
 succeeds, saying the witness is there (`witness.already_loaded`); a refusal or an error writes
-nothing and stops it in failure (1). Each story of the reference fills its slice, in its file of
-`waterfall.witness`, without touching the order. Its module, `waterfall.witness`, is at the top of
+nothing and stops it in failure (1). Each story of the reference and of the projects fills its
+slice, in its file of `waterfall.witness`, without touching the order. Its module, `waterfall.witness`, is at the top of
 the layers, imported by none: `waterfall-api` starts in it, which passes any other argument to the
 bootstrap. The service Compose offers it (service `witness`, `make service-witness`), the
 production one does not: a real installation holds no witness. `fixtures/api/` and Prism remain the
@@ -69,6 +72,19 @@ The core, `waterfall.core`, has one sub-package per module, named after its seco
 block, in English. A module exposes what the others may use in its `interface` module — a
 package of one file per object, which `interface/__init__.py` re-exports, for the modules of
 the reference (EP-05) —, and nothing else: its tables and its data access are private to it.
+The projects and their revisions (EP-04) are two modules: `waterfall.core.projects` (FBS-4.2, and
+the life cycle of §3.3.2, which has no FBS block) — the project, the history of its states, its
+contributors, its subprojects, its work breakdown — and `waterfall.core.revisions` (FBS-4.1) — the
+revisions and their cost structures. Their interface is a package of one file per subject
+(`projects`, `contributors`, `subprojects`, `work_breakdown`, `lifecycle`; `revisions`,
+`structures`, `marking`, `reference`), where each function of the design is declared from the
+foundation on, without effect, so that no story reopens `interface/__init__.py` to fill its own. A
+revised table is partitioned by list on `project_id`, one partition per project (WF-DAT-0050),
+which the function `create_project_partitions` of the owner of the tables (`SECURITY DEFINER`)
+creates in the transaction of the creation of the project; the role of the service alone may
+execute it, with no other right of DDL; each epic that adds a revised table replaces it. Two
+triggers of the module of the revisions refuse, owner included, what a marked revision forbids
+(migration `0020`).
 A module imports another through `waterfall.core.<module>.interface`, never through its
 tables. The core imports neither the API nor the worker, which do not import each other.
 

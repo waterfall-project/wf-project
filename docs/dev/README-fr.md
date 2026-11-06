@@ -56,10 +56,14 @@ du contrat, par ses modèles (`api/contract/models.py`) : un fichier qui s'en é
 dans l'ordre de leurs dépendances (`waterfall.witness.loader`) : les paramètres communs, les unités
 de durée, les natures, les catégories, les taux, les calendriers et le calendrier par défaut, les
 nœuds puis la désactivation de ceux que le témoin dit désactivés, les rôles puis la leur, la
-correspondance de l'extraction des coûts réels. Une tranche n'écrit rien de ce que la plateforme
+correspondance de l'extraction des coûts réels ; puis, par une seule entrée
+(`waterfall.witness.chronology`), la tranche des projets (EP-04) : les projets et les comptes locaux
+de leurs contributeurs, les contributeurs, les sous-projets, le lotissement, les révisions et les
+événements de la chronologie du témoin, aux instants qu'elle impose. Une tranche n'écrit rien de ce que la plateforme
 tient déjà : relancé, il n'écrit rien et réussit, en disant le témoin là
 (`witness.already_loaded`) ; un refus ou une erreur n'écrit rien et l'arrête en échec (1). Chaque US
-du référentiel remplit sa tranche, dans son fichier de `waterfall.witness`, sans toucher l'ordre. Son module,
+du référentiel et des projets remplit sa tranche, dans son fichier de `waterfall.witness`, sans
+toucher l'ordre. Son module,
 `waterfall.witness`, est au sommet des couches, importé par aucun : `waterfall-api` commence par
 lui, qui passe à l'amorçage tout autre argument. Le Compose de service l'offre (service `witness`,
 `make service-witness`), celui de production non : une installation réelle ne porte pas le témoin.
@@ -70,7 +74,19 @@ Le noyau, `waterfall.core`, a un sous-paquet par module, nommé d'après son blo
 second niveau, en anglais. Un module expose ce que les autres peuvent utiliser dans son
 module `interface` — un paquet d'un fichier par objet, que `interface/__init__.py`
 réexporte, pour les modules du référentiel (EP-05) —, et rien d'autre : ses tables et son accès
-aux données lui sont privés.
+aux données lui sont privés. Les projets et leurs révisions (EP-04) sont deux modules :
+`waterfall.core.projects` (FBS-4.2, et le cycle de vie du §3.3.2, qui n'a pas de bloc FBS) — le
+projet, l'historique de ses états, ses contributeurs, ses sous-projets, son lotissement — et
+`waterfall.core.revisions` (FBS-4.1) — les révisions et leurs structures de coûts. Leur interface est
+un paquet d'un fichier par sujet (`projects`, `contributors`, `subprojects`, `work_breakdown`,
+`lifecycle` ; `revisions`, `structures`, `marking`, `reference`), où chaque fonction de la
+conception est déclarée dès le socle, sans effet, pour qu'aucune US ne rouvre `interface/__init__.py`
+pour remplir la sienne. Une table révisionnée est partitionnée par liste sur `project_id`, une
+partition par projet (WF-DAT-0050), que crée dans la transaction de la création du projet la
+fonction `create_project_partitions` du propriétaire des tables (`SECURITY DEFINER`), que le rôle du
+service seul peut exécuter, sans autre droit de DDL ; chaque EPIC qui ajoute une table révisionnée la
+remplace. Deux déclencheurs du module des révisions refusent, propriétaire compris, ce qu'une
+révision marquée interdit (migration `0020`).
 Un module en importe un autre par `waterfall.core.<module>.interface`, jamais par ses
 tables. Le noyau n'importe ni l'API ni le worker, qui ne s'importent pas l'un l'autre.
 
