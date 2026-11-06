@@ -30,7 +30,7 @@ from cost_settings_examples import (
     refusal,
     shown,
 )
-from sqlalchemy import func, select, update
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 from support import wait_for_a_lock
 
@@ -191,7 +191,7 @@ def test_a_category_is_created_under_a_nature_with_its_commands_its_nature_and_i
 
 
 @pytest.mark.requirement("WF-REF-0040-A")
-@pytest.mark.parametrize("lacking", ["absent", "null", "empty"])
+@pytest.mark.parametrize("lacking", ["absent", "null"])
 def test_a_category_without_a_nature_is_refused_as_lacking_it(
     api: ContractClient, sessions: PartSessions, lacking: str
 ) -> None:
@@ -199,7 +199,7 @@ def test_a_category_without_a_nature_is_refused_as_lacking_it(
     if lacking == "absent":
         del body["cost_type_id"]
     else:
-        body["cost_type_id"] = None if lacking == "null" else ""
+        body["cost_type_id"] = None
     response = api.post(CATEGORIES, headers=sessions.changing, json=body)
     assert response.status_code == 422
     assert pointers(response) == [("/cost_type_id", "VALUE_REQUIRED", {})]
@@ -460,31 +460,71 @@ def test_the_activation_of_a_category_is_refused_stale_unknown_or_without_the_pe
 def test_a_category_created_while_its_nature_is_being_deactivated_is_refused_not_left_active(
     api: ContractClient, database: Database, sessions: PartSessions
 ) -> None:
-    # The cascade holds the lock of the natures while it deactivates the nature and its categories;
-    # the creation takes it before it reads the nature, so waits, then finds it deactivated.
-    # Read before the lock, the nature would be active, and a category be written active under a
-    # nature deactivated.
-    with ThreadPoolExecutor(1) as other, Session(database.engine) as cascading:
-        cascading.execute(select(func.pg_advisory_xact_lock(NATURES_LOCK)))
+    # The real deactivation of the nature and a creation under it both ask for the lock of the
+    # natures, which another transaction holds: both wait, then one takes it. Created first, the
+    # category is deactivated by the cascade; after, it is refused. Read before the lock, the
+    # nature would be active, and a category be written active under a nature deactivated.
+    nature = new_type(api, sessions.changing, "RACE")
+    off = {"is_active": False, "lock_version": nature["lock_version"]}
+    url = f"{TYPES}/{nature['cost_type_id']}/activation"
+    with ThreadPoolExecutor(2) as other, Session(database.engine) as holding:
+        holding.execute(select(func.pg_advisory_xact_lock(NATURES_LOCK)))
         creating = other.submit(
-            api.post, CATEGORIES, headers=sessions.changing, json=sent("LATE", LABOUR)
+            api.post,
+            CATEGORIES,
+            headers=sessions.changing,
+            json=sent("LATE", nature["cost_type_id"]),
         )
         wait_for_a_lock(database)
-        cascading.execute(update(CostType).where(CostType.id == LABOUR).values(is_active=False))
-        cascading.execute(
-            update(CostCategory).where(CostCategory.cost_type_id == LABOUR).values(is_active=False)
-        )
-        cascading.commit()
+        deactivating = other.submit(api.put, url, headers=sessions.changing, json=off)
+        holding.commit()
         answer = creating.result(timeout=10)
-    assert answer.status_code == 422
-    assert pointers(answer) == [("/cost_type_id", "INACTIVE_REFERENCE_OBJECT", {})]
+        assert deactivating.result(timeout=10).status_code == 200
+    assert answer.status_code in {201, 422}
+    if answer.status_code == 422:
+        assert pointers(answer) == [("/cost_type_id", "INACTIVE_REFERENCE_OBJECT", {})]
     with database.transaction() as session:
         active = session.scalars(
             select(CostCategory.code).where(
-                CostCategory.cost_type_id == LABOUR, CostCategory.is_active
+                CostCategory.cost_type_id == UUID(nature["cost_type_id"]), CostCategory.is_active
             )
         ).all()
-    assert active == []
+        shut = session.scalars(
+            select(CostType.is_active).where(CostType.id == UUID(nature["cost_type_id"]))
+        ).one()
+    assert (shut, active) == (False, [])
+
+
+@pytest.mark.requirement("WF-REF-0030-A")
+def test_the_last_category_of_provision_is_deactivated_alone_without_refusal(
+    api: ContractClient, sessions: PartSessions
+) -> None:
+    # « La désactivation de la dernière catégorie active de type provision pour risques est
+    # acceptée » : the category alone, its nature staying active.
+    before = category(api, sessions.changing, "PRV-001")
+    assert before["is_active"] is True
+    done = activation(api, sessions.changing, before, on=False)
+    assert done.status_code == 200
+    assert (done.json()["is_active"], done.json()["lock_version"]) == (
+        False,
+        before["lock_version"] + 1,
+    )
+    after = category(api, sessions.changing, "PRV-001")
+    assert (after["is_active"], after["cost_type_is_active"]) == (False, True)
+    assert codes(api, sessions.without, "search=PRV-001") == []
+
+
+@pytest.mark.requirement("WF-REF-0030-A")
+def test_the_deactivation_of_the_nature_of_provision_deactivates_its_last_category_without_refusal(
+    api: ContractClient, sessions: PartSessions
+) -> None:
+    # The same acceptance by the nature: its category follows, the version one further.
+    before = category(api, sessions.changing, "PRV-001")
+    prv = next(item for item in listed_types(api, sessions.changing) if item["code"] == "PRV")
+    assert deactivate(api, sessions.changing, prv).status_code == 200
+    after = category(api, sessions.changing, "PRV-001")
+    assert (after["is_active"], after["lock_version"]) == (False, before["lock_version"] + 1)
+    assert codes(api, sessions.without, "search=PRV-001") == []
 
 
 @pytest.mark.requirement("WF-REF-0040-A")

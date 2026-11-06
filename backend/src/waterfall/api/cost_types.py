@@ -78,11 +78,13 @@ class ActivationBody(ContractModel):
 
 
 def _lacking_type(body: object) -> object:
-    """Read a nature sent null as a nature absent: the category lacks it (``VALUE_REQUIRED``)."""
+    """Read a nature sent null (only) as absent: the category lacks it (``VALUE_REQUIRED``)."""
     if not isinstance(body, dict):
         return body
     sent = cast("dict[str, object]", body)
-    return {name: value for name, value in sent.items() if name != "cost_type_id" or value}
+    return {
+        name: value for name, value in sent.items() if name != "cost_type_id" or value is not None
+    }
 
 
 # The body of a category: a nature null is a nature lacking, refused as one absent (WF-REF-0040).

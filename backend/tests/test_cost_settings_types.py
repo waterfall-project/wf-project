@@ -467,17 +467,6 @@ def test_the_activation_of_a_nature_is_refused_stale_or_unknown(
     assert codes(api, sessions.without) == ["DEB", "MO", "PRV"]
 
 
-@pytest.mark.requirement("WF-REF-0030-A")
-def test_the_last_nature_of_provision_is_deactivated_without_refusal(
-    api: ContractClient, sessions: PartSessions
-) -> None:
-    # « La désactivation de la dernière catégorie active de type provision pour risques est
-    # acceptée » : the nature, and so its categories; the projects and the risks refuse afterwards.
-    prv = next(item for item in listed(api, sessions.changing)["items"] if item["code"] == "PRV")
-    assert deactivate(api, sessions.changing, prv).status_code == 200
-    assert codes(api, sessions.without, "kinds=provision") == []
-
-
 def insert_type(code: str, type_id: UUID) -> Any:
     """Write a nature as another transaction does, to be committed or not by the test."""
     now = utc_now()
