@@ -1747,7 +1747,7 @@ requires-dist = [
     { name = "httpx2", specifier = ">=2.16.0" },
     { name = "psycopg", extras = ["binary"], specifier = ">=3.3.8" },
     { name = "pydantic-settings", specifier = ">=2.16.2" },
-    { name = "pyjwt", extras = ["crypto"], specifier = ">=2.10" },
+    { name = "pyjwt", extras = ["crypto"], specifier = ">=2.15.1" },
     { name = "redis", specifier = ">=8.1" },
     { name = "sqlalchemy", specifier = ">=2.1.8" },
     { name = "structlog", specifier = ">=26.1.0" },
