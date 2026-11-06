@@ -50,6 +50,11 @@ DATA = {
     "UserAccount.first_name": "a name",
     "ActorRef.display_name": "a name",
     "AuditActorFacet.display_name": "a name",
+    # The name of a contributor, as its account holds it, and what names its node and its roles.
+    "Contributor.display_name": "a name",
+    "ContributorSuggestion.display_name": "a name",
+    "ContributorSuggestion.org_node_label": "a label",
+    "ContributorSuggestion.resource_role_labels": "labels",
     # The code a person gave a project, and the code of a function of the FBS.
     "AuditProject.code": "a code",
     "Permission.fbs_code": "a code",
