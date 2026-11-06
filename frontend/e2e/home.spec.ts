@@ -1,0 +1,24 @@
+// SPDX-FileCopyrightText: 2026 waterfall-project
+// SPDX-License-Identifier: AGPL-3.0-only
+/*
+ * The home of a signed-in session (`/`), against the fake back and, tagged `@shared`, against the
+ * service: it reads the projects (`listProjects`) and the readiness of the reference data
+ * (`getReferenceReadiness`) the service serves since EP-04, and no longer renders « Introuvable »
+ * for want of them (#1004).
+ */
+import { expect } from "@playwright/test";
+
+import { test } from "./mode";
+
+test("the home of a signed-in session renders against the service: its title, the filter of its list, no note of the mock-up and neither « not found » nor a request for a session (US-0920/L2, #1004) @shared [WF-IHM-0120-A]", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Projets");
+  await expect(
+    page.getByRole("main").getByRole("region", { name: "Filtre de la liste" }),
+  ).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Introuvable" })).toHaveCount(0);
+  await expect(page.getByRole("heading", { name: "Session requise" })).toHaveCount(0);
+  await expect(page.getByRole("note")).toHaveCount(0);
+});

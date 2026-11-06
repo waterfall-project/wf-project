@@ -735,7 +735,7 @@ migrations »).
 
 ## US-0920 — Le projet : sa création, ses attributs, la liste des projets et l'accueil
 
-- **statut** : en cours
+- **statut** : fini
 - **exigences** : `WF-CYC-0120-A`, `WF-EXP-0020-A`, `WF-PRJ-0080-A`, `WF-PRJ-0010-A`,
   `WF-PRJ-0090-A`, `WF-IHM-0120-A`, `WF-CYC-0010-A`
 - **opérations** : `listProjects`, `createProject`, `getProject`, `updateProject`,

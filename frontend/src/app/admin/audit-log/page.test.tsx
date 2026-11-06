@@ -305,6 +305,16 @@ describe("the journal of audit", () => {
     expect(queriesOf("GET /projects")).toEqual([]);
   });
 
+  it("leads to the projects by what the journal says of them, whatever the list of projects answers: the 404 of `listProjects` is no longer tolerated nor read (#962)", async () => {
+    server.answers = {
+      ...server.answers,
+      "GET /projects": { problem: { code: "NOT_FOUND", status: 404 } },
+    };
+    const links = gridLinks(await journal());
+    expect(links).toContain(`PRJ-001 · Modernisation du poste de commande → /projects/${PROJECT}`);
+    expect(queriesOf("GET /projects")).toEqual([]);
+  });
+
   it("names the object and the project with a link where the session may open the project, its revision and the revision an object lives in too", async () => {
     const links = gridLinks(await journal());
     expect(links).toContain(`PRJ-001 · Modernisation du poste de commande → /projects/${PROJECT}`);
