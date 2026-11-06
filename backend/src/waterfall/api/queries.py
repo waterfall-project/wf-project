@@ -2,10 +2,9 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 """The parameters of a query that several operations of the API share, typed once."""
 
-from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from datetime import UTC, datetime
-from typing import Annotated
+from typing import TYPE_CHECKING, Annotated
 from uuid import UUID
 
 from fastapi import Query
@@ -15,6 +14,9 @@ from waterfall.api.contract.base import Text
 from waterfall.api.contract.models import AuditActorKind
 from waterfall.platform.audit_columns import AuditColumnFilters, AuthorFilter, Period
 from waterfall.platform.errors import FieldError, UnprocessableError
+
+if TYPE_CHECKING:
+    from collections.abc import Callable, Iterable
 
 VALIDATION_FAILED = "VALIDATION_FAILED"
 VALUE_OUT_OF_RANGE = "VALUE_OUT_OF_RANGE"

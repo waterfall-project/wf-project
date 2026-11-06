@@ -7,8 +7,6 @@ decimal digits or for a few in hexadecimal ones, and those the generators draw. 
 one kind of object (``tests/test_mockwitness.py``).
 """
 
-from __future__ import annotations
-
 from dataclasses import dataclass
 
 PREFIX = "01926f3a-7c00-7000-8000-"

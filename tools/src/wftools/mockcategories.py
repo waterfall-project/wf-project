@@ -9,8 +9,6 @@ mock-data`` writes: a run reads nothing the previous run left, and two runs in a
 examples.
 """
 
-from __future__ import annotations
-
 from functools import cache
 
 from wftools.mockids import CATEGORIES, identifier

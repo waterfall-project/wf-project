@@ -36,8 +36,6 @@ Nothing here reads the clock or draws at random: every value comes from the seed
 describes.
 """
 
-from __future__ import annotations
-
 from dataclasses import dataclass
 from datetime import date, timedelta
 from decimal import Decimal

@@ -10747,6 +10747,40 @@ chacun selon la décision écrite dans son issue.
   réemploie. Les lignes trop longues et les retours irréguliers que les relectures ont relevés sont
   refluées (`costs.yaml`, `revisions.yaml`, `risks.yaml`, `projects.yaml`, et ce fichier).
 
+### Le Kanban liste la récapitulative qui n'attend plus que ses lignes propres (US-1240/L1, #1851)
+
+Décision de l'auteur du 2026-11-04 (option 1 de #1851), par « La règle d'après le gel ». Le contrat
+se contredisait : `listStartableTasks` ne rendait « jamais une récapitulative », quand `KanbanTask`
+dit que la carte signale celle qui n'attend plus que ses lignes propres (F-05, #1774) et que
+WF-PLA-0040 veut ce signal « dans la grille de reste à engager et dans le Kanban ». La description
+de `listStartableTasks` dit désormais que la colonne des démarrées rend aussi la récapitulative
+démarrée dont toutes les subordonnées sont terminées et dont une ligne propre hors provision garde
+un reste à engager — celle dont `TaskFacet.awaiting_own_lines` est vrai —, à sa place dans l'ordre
+du plan ; toute autre récapitulative reste exclue, son état dérivant de ses subordonnées. La phrase
+de `KanbanTask` devient vraie ; ni la forme de la réponse, ni `KanbanTask`, ni `TaskFacet` ne
+changent, et `info.version` reste `1.0.0` : aucune forme ne change.
+
+- **Les gestes de sa carte, par le catalogue existant** : `enter_remaining`, disponible ;
+  `complete`, indisponible, `missing_conditions: [task_without_lines]` — elle porte une ligne hors
+  provision, que seule la saisie de son reste à engager termine ; ni `start`, ni `reopen`. Le front
+  n'offre que ceux-là, et ne déduit rien de ses subordonnées (WF-IHM-0090, WF-ARC-0020).
+- **Les exemples**, engendrés par `wftools.mockreview` sur une seule variante contrefactuelle
+  déclarée, où les études portent une ligne propre de 500,00 à engager et les pupitres opérateurs
+  sont terminés : `startable_tasks_awaiting_own_lines`, nouvel exemple de `listStartableTasks`, le
+  Kanban de toute la structure, les études parmi les démarrées avec leurs gestes ; et
+  `nodes_awaiting_own_lines`, qui porte désormais sous elles une ligne de provision de 40,00, que
+  rien ne signale et qui ne les tient pas démarrées (WF-PLA-0040, « dont la seule ligne propre est
+  une provision de 40 »). Le témoin, où nulle récapitulative n'attend, ne change pas :
+  `startable_tasks` et `startable_tasks_milestone` gardent leurs tâches.
+
+Écartées : l'option 2, ne lister aucune récapitulative, retirer la phrase de `KanbanTask` et la
+marque de la carte, contre WF-PLA-0040 ; lister toute récapitulative démarrée, dont l'état dérive de
+ses subordonnées et qui n'offrirait aucun geste ; une condition `task_is_summary`, qui dirait ce que
+`task_without_lines` dit déjà et ajouterait une valeur à l'énumération figée ; la version `1.0.1`,
+pour un contenu rendu qui ne change aucune forme. Le service le suit en EP-09, qui sert
+`listStartableTasks` (WF-RAE-0030), l'état des récapitulatives en EP-06 (WF-PLA-0040) ; la carte du
+Kanban le lit sur le nouvel exemple par US-1240/L2.
+
 ## Collage et annulation
 
 **Le collage depuis un tableur suit exactement la forme d'un import** : `paste-preview`

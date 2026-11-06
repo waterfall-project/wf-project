@@ -2,8 +2,12 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 """The authors of the rows as the contract names them."""
 
+from typing import TYPE_CHECKING
+
 from waterfall.api.contract.models import ActorRef
-from waterfall.core.users.interface import Author
+
+if TYPE_CHECKING:
+    from waterfall.core.users.interface import Author
 
 
 def actor_ref(author: Author | None) -> ActorRef:
