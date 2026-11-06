@@ -100,6 +100,10 @@ DATA = {
     # A category of labour without an hourly rate, by its label, as the reference names it
     # (``ProblemParams.missing_rates``, ``MissingRate``, HOURLY_RATE_MISSING; US-0702/L1).
     "MissingRate.label": "a label",
+    # The category of a row of the grid of the hourly rates, by the code and the label a person
+    # gave it (``getHourlyRateGrid``, US-0830).
+    "HourlyRateRow.code": "a code",
+    "HourlyRateRow.label": "a label",
     # The objects of the reference, by the code and the label a person gave them: a node of the
     # organisation and its parent, and the role a deactivation names (``setOrgNodeActivation``).
     "OrgNode.code": "a code",

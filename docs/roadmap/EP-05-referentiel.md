@@ -820,7 +820,7 @@ employée, toujours fausse ici, qu'EP-07 remplit) et ne manquent jamais.
 
 ## US-0830 — Les taux horaires annuels
 
-- **statut** : à faire
+- **statut** : en cours
 - **exigences** : `WF-REF-0050-A`, `WF-REF-0060-A`
 - **opérations** : `getHourlyRateGrid`, `listHourlyRates`, `setHourlyRate`
 - **issue** : 2040

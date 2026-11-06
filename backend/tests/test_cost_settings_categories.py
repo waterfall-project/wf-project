@@ -123,8 +123,12 @@ def test_the_commands_of_a_category_are_those_of_a_caller_who_changes_the_cost_s
         ("deactivate", True, []),
         ("change_cost_type", True, []),
     ]
+    # The witness rates every category of labour: they keep their kind, the others can leave it.
+    rated = [available[0], ("change_cost_type", False, ["cost_category_unrated"])]
     assert len(managed) == 200
-    assert all(commands(item) == available for item in managed)
+    for item in managed:
+        assert commands(item) == (rated if item["cost_type_kind"] == "labor" else available)
+    assert sum(item["cost_type_kind"] == "labor" for item in managed) == 150
 
 
 @pytest.mark.requirement("WF-REF-0040-A")
