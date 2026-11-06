@@ -612,7 +612,7 @@ l'ordonnanceur du témoin hors de son propre fichier ; ce qu'il lui manque vit d
 
 ## US-0810 — Le socle du référentiel : tables, modules, amorçage et paramètres communs
 
-- **statut** : à faire
+- **statut** : en cours
 - **exigences** : `WF-EXP-0020-A`, `WF-CYC-0120-A`, `WF-REF-0140-A`, `WF-REF-0160-A`,
   `WF-REF-0170-A`, `WF-REF-0180-A`
 - **opérations** : `getReferenceReadiness`, `getReferenceSettings`, `updateReferenceSettings`

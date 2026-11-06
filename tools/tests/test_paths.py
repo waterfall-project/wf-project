@@ -222,6 +222,8 @@ def test_a_change_of_the_contract_alone_wakes_the_tests_that_hold_the_service_to
     [
         "frontend/src/session/provider.ts",
         "backend/src/waterfall/api/me.py",
+        # The witness the platform of the paths is loaded with (EP-05).
+        "fixtures/api/cost_types.json",
         "deploy/compose/compose.service.yaml",
         "deploy/compose/Caddyfile.service",
         "deploy/keycloak/realm/waterfall.yaml",

@@ -146,21 +146,28 @@ export function takeOutside(): string[] {
 }
 
 /**
+ * Start the reading of the worker, once: from the last line written, or from the start of the run
+ * when there is none yet.
+ */
+export function startReading(): void {
+  cursor ??= proxyLog().at(-1)?.at ?? startOfTheRun();
+}
+
+/** Fail the path on an error Prism wrote since the previous path of the worker ended. */
+export function expectNothingRefused(): void {
+  expect(takeErrors(), "what the proxy of the contract refused up to the end of the path").toEqual(
+    [],
+  );
+}
+
+/**
  * Hold each path of the file to the contract: it fails on an error Prism wrote since the previous
  * path of the worker ended — an answer outside its schema, an address or a request outside the
- * contract.
+ * contract. The paths shared with the fake back are held so by their fixture (`../mode.ts`).
  */
 export function heldToTheContract(): void {
-  test.beforeAll(() => {
-    // From the last line written, or from the start of the run when there is none yet.
-    cursor ??= proxyLog().at(-1)?.at ?? startOfTheRun();
-  });
-  test.afterEach(() => {
-    expect(
-      takeErrors(),
-      "what the proxy of the contract refused up to the end of the path",
-    ).toEqual([]);
-  });
+  test.beforeAll(startReading);
+  test.afterEach(expectNothingRefused);
 }
 
 /**
