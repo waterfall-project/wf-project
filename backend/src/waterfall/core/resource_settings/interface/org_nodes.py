@@ -345,11 +345,6 @@ def set_activation(
     return [read_node(session, node_id, may_change=True)]
 
 
-def node_label(session: Session, node_id: UUID) -> str | None:
-    """Give the label of a node, active or not; ``None`` if there is none."""
-    return session.scalars(select(OrgNode.label).where(OrgNode.id == node_id)).first()
-
-
 def node_labels(session: Session, node_ids: Collection[UUID]) -> dict[UUID, str]:
     """Give the labels of the nodes, at once; an identifier no node bears is left out."""
     if not node_ids:

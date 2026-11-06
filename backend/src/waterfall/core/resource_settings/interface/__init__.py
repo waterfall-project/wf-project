@@ -39,9 +39,6 @@ from waterfall.core.resource_settings.interface.org_nodes import (
     node_is_active as node_is_active,
 )
 from waterfall.core.resource_settings.interface.org_nodes import (
-    node_label as node_label,
-)
-from waterfall.core.resource_settings.interface.org_nodes import (
     node_labels as node_labels,
 )
 from waterfall.core.resource_settings.interface.org_nodes import (

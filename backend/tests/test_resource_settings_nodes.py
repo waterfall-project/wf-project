@@ -733,13 +733,14 @@ def write_role(database: Database, node: UUID) -> UUID:
 
 
 @pytest.mark.requirement("WF-REF-0070-A")
-def test_a_role_follows_its_node_when_the_node_is_moved_it_is_the_arrival_that_holds_it(
+def test_the_subtree_of_the_arrival_holds_what_the_moved_node_holds_by_its_identifier(
     api: ContractClient, sessions: PartSessions, database: Database
 ) -> None:
-    # « emporte ses descendants et ses rôles » : a role names its node by its identifier and is
-    # not written by a move, so that the arrival now holds it, itself or through a descendant.
-    # Reading the roles of a node (``listResourceRoles?org_node_id=``) is the story of the roles
-    # (US-0850); the subtree of a node, which that reading will use, is tried here on the table.
+    # The subtree query (``within_node``), tried on a role table written by hand: a role names its
+    # node by its identifier and a move does not write it, so the arrival now holds it through
+    # its descendants. This does not close « emporte … ses rôles »: asking the API for the roles
+    # of a node (``listResourceRoles?org_node_id=``) is the story of the roles (US-0850), which
+    # carries that assertion.
     nodes = organisation(api, sessions.changing)
     role = write_role(database, UUID(nodes["AT-CABL"]["org_node_id"]))
     arrival = UUID(nodes["BE-AUTO"]["org_node_id"])
