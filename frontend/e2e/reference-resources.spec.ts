@@ -11,7 +11,6 @@ import { expect } from "@playwright/test";
 
 import { sortUntilAddress, WORKING } from "./hydration";
 import { inService, test } from "./mode";
-import { rowAt } from "./scroll";
 import { isServerAction } from "./server-action";
 
 /** A suffix no other run of the service has used, for the code and the label of a role created. */
@@ -154,6 +153,7 @@ test("creates a role in its form, moves a node under an active one, and designat
   );
   const nodeForm = page.getByRole("dialog", { name: "Modifier «\u00a0Atelier de câblage\u00a0»" });
   const calendars = page.getByRole("grid", { name: "Calendriers" });
+  const calendarRow = (label: string) => calendars.getByRole("row").filter({ hasText: label });
   let moved = false;
   try {
     if (inService) {
@@ -194,7 +194,11 @@ test("creates a role in its form, moves a node under an active one, and designat
     await calendars
       .getByRole("button", { name: "Désigner «\u00a0Semaine de quatre jours\u00a0» par défaut" })
       .click();
-    await expect(rowAt(calendars, 1)).toContainText("Calendrier par défaut", { timeout: WORKING });
+    // Found by its label, not by its position: the bootstrap writes a calendar of its own, which
+    // sorts before this one by label.
+    await expect(calendarRow("Semaine de quatre jours")).toContainText("Calendrier par défaut", {
+      timeout: WORKING,
+    });
     await expect(
       page
         .getByRole("region", { name: "Calendriers" })
@@ -255,7 +259,9 @@ test("creates a role in its form, moves a node under an active one, and designat
           if (await standard.isVisible()) {
             await standard.click();
           }
-          await expect(rowAt(calendars, 1)).toContainText("Semaine standard", { timeout: 1_000 });
+          await expect(calendarRow("Semaine standard")).toContainText("Calendrier par défaut", {
+            timeout: 1_000,
+          });
         }).toPass({ timeout: WORKING });
       });
     }
