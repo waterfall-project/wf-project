@@ -55,8 +55,8 @@ function servedTo(session: "me" | "me_manager") {
   server.answers = { "GET /me": session, "GET /reference/settings": "reference_settings" };
 }
 
-/** The note that says the fake back keeps nothing. */
-const MOCKUP = /role="note"[^>]*>.*?le service simulé ne conserve/;
+/** The note of the mock-up, which the settings screens no longer carry (US-0810/L2). */
+const MOCKUP = /role="note"[^>]*>.*?le service simulé ne conserve/s;
 
 beforeEach(() => {
   servedTo("me");
@@ -64,20 +64,20 @@ beforeEach(() => {
 });
 
 describe("the forms of the settings of the risks and of the indicators", () => {
-  it("offer the modification of the risk matrix to a session that may modify the risk settings, saying the fake back keeps nothing, beside the matrix it shows [WF-IHM-0090-A]", async () => {
+  it("offer the modification of the risk matrix to a session that may modify the risk settings, with no notice of the mock-up, beside the matrix it shows [WF-IHM-0090-A]", async () => {
     const page = rendered(await RiskSettingsPage());
     expect(page).toContain("Modifier la matrice de risques");
-    expect(page).toMatch(MOCKUP);
+    expect(page).not.toMatch(MOCKUP);
     expect(page).toContain('aria-label="Bornes de la matrice de risques"');
     expect(page).toContain('aria-label="Zones de la matrice de risques"');
     // The form of the other screen is not offered here.
     expect(page).not.toContain("Modifier les seuils et le délai");
   });
 
-  it("offer the modification of the thresholds and the delay to a session that may modify the indicator settings, saying the fake back keeps nothing [WF-IHM-0090-A]", async () => {
+  it("offer the modification of the thresholds and the delay to a session that may modify the indicator settings, with no notice of the mock-up [WF-IHM-0090-A]", async () => {
     const page = rendered(await IndicatorSettingsPage());
     expect(page).toContain("Modifier les seuils et le délai");
-    expect(page).toMatch(MOCKUP);
+    expect(page).not.toMatch(MOCKUP);
     expect(page).toContain('aria-label="Seuils d’alerte des indices"');
     expect(page).not.toContain("Modifier la matrice de risques");
   });
@@ -87,7 +87,7 @@ describe("the forms of the settings of the risks and of the indicators", () => {
     const risks = rendered(await RiskSettingsPage());
     const indicators = rendered(await IndicatorSettingsPage());
     expect(risks).toContain("Modifier la matrice de risques");
-    expect(risks).toMatch(MOCKUP);
+    expect(risks).not.toMatch(MOCKUP);
     expect(indicators).not.toContain("Modifier les seuils et le délai");
     expect(indicators).not.toMatch(MOCKUP);
     expect(indicators).toContain("8 semaines");
@@ -98,13 +98,13 @@ describe("the forms of the settings of the risks and of the indicators", () => {
     const risks = rendered(await RiskSettingsPage());
     const indicators = rendered(await IndicatorSettingsPage());
     expect(indicators).toContain("Modifier les seuils et le délai");
-    expect(indicators).toMatch(MOCKUP);
+    expect(indicators).not.toMatch(MOCKUP);
     expect(risks).not.toContain("Modifier la matrice de risques");
     expect(risks).not.toMatch(MOCKUP);
     expect(risks).toContain('aria-label="Zones de la matrice de risques"');
   });
 
-  it("offer neither form to a session that may only read the settings, nor say anything of the fake back [WF-IHM-0090-A]", async () => {
+  it("offer neither form to a session that may only read the settings, nor say anything of the mock-up [WF-IHM-0090-A]", async () => {
     // The predefined Manager role writes both since the review of the contract (A-01,
     // docs/api/2026-10-28-contrat-avant-gel.md, WF-INTF-0020): withdraw them.
     servedTo("me_manager");

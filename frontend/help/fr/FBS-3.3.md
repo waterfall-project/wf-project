@@ -11,7 +11,7 @@ Une révision ne conserve pas ces paramètres : une révision marquée se lit to
 
 ## Ses commandes
 
-**Modifier la matrice de risques**, offerte à qui peut modifier les paramètres de risques, ouvre le formulaire : les trois bornes de chaque axe, en pourcentage, strictement croissantes, et la zone de chacune des seize cases. Une borne qui n’est pas au-dessus de la précédente est signalée à son champ avant l’envoi ; le serveur juge le reste. Si les paramètres ont changé depuis leur lecture, le refus offre de relire la page. Aux autres, l’écran se lit.
+**Modifier la matrice de risques**, offerte à qui peut modifier les paramètres de risques, ouvre le formulaire : les trois bornes de chaque axe, en pourcentage, strictement croissantes, et la zone de chacune des seize cases. Une borne qui n’est pas au-dessus de la précédente est signalée à son champ avant l’envoi ; le serveur juge le reste. Si les paramètres ont changé depuis leur lecture, le refus offre de relire la page. Aux autres, l’écran se lit. Un enregistrement réussi est ce que le serveur a gardé : l’écran le relit. Le refus d’une permission manquante, ou d’une version périmée, se dit sous le formulaire.
 
 ## Ses colonnes et ses valeurs calculées
 

@@ -66,6 +66,10 @@ FILES = (COMPOSE / "compose.prod.yaml", COMPOSE / "compose.prod.local.yaml")
 DOMAIN = "waterfall.localhost"
 PROJECT = "waterfall-production-trial"
 ADMIN = "administrateur@waterfall.test"
+# The currency and the name of the company a local trial installs, unless the environment says
+# others: those of the witness (EP-05).
+CURRENCY = "EUR"
+COMPANY_NAME = "Delmas Automatismes"
 AUTHORITY = "caddy:/data/caddy/pki/authorities/local/root.crt"
 LIVENESS = (
     "import urllib.request; "
@@ -458,6 +462,8 @@ def environment_of(environment: Mapping[str, str], tag: str, platform: Platform)
         "WATERFALL_DOMAIN": platform.domain,
         "WATERFALL_ADMIN_EMAIL": email,
         "WATERFALL_ACME_EMAIL": environment.get("WATERFALL_ACME_EMAIL") or email,
+        "WATERFALL_CURRENCY": environment.get("WATERFALL_CURRENCY") or CURRENCY,
+        "WATERFALL_COMPANY_NAME": environment.get("WATERFALL_COMPANY_NAME") or COMPANY_NAME,
     }
 
 

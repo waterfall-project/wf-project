@@ -1,0 +1,17 @@
+{
+  "summary": "Ce qu'une installation neuve porte : les bornes de probabilité à 25, 50 et 75 %, celles de gravité à 1, 5 et 10 %, les seuils 0,9 et 0,8 de chaque indice, six semaines entre deux revues, et le calendrier par défaut à huit heures du lundi au vendredi, aucune le week-end (WF-EXP-0020).",
+  "examples": ["WF-EXP-0020-A#5f2bce6a634e"],
+  "probability_bounds": ["0.25", "0.5", "0.75"],
+  "severity_bounds": ["0.01", "0.05", "0.1"],
+  "thresholds": {"watch": "0.9", "alert": "0.8"},
+  "max_weeks_between_reviews": 6,
+  "weekly_hours": {
+    "monday": "8",
+    "tuesday": "8",
+    "wednesday": "8",
+    "thursday": "8",
+    "friday": "8",
+    "saturday": "0",
+    "sunday": "0"
+  }
+}
