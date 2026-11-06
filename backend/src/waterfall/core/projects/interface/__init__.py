@@ -5,18 +5,19 @@
 One file per subject, each filled by the story that serves it and re-exported here. Every function
 the design names (EP-04, "Modules") is declared from US-0910/L1 on, so that no story reopens this
 file to fill its own: it raises ``NotImplementedError`` naming the story that fills it, but for the
-few the design leaves silent. A name a story adds besides is imported in a statement of its own,
-below the comment that names its file. Another module imports them from here, never from the
-file.
+few the design leaves silent. A name a story adds besides joins the import of its file, below the
+comment that names it, in the order Ruff keeps. Another module imports them from here, never from
+the file.
 """
 
-# ``contributors`` (US-0930; the kind, US-0910/L2): the contributors of a project.
+# ``contributors`` (US-0930; the kind and the existence, US-0910/L2): a project's contributors.
 from waterfall.core.projects.interface.contributors import (
     ContributorKind,
     contributor_kind,
     list_contributor_suggestions,
     list_contributors,
     load_contributors,
+    project_exists,
     set_contributors,
 )
 
@@ -86,6 +87,7 @@ __all__ = [
     "no_background_task_running",
     "project_code",
     "project_commands",
+    "project_exists",
     "project_label",
     "read_project",
     "read_work_breakdown",

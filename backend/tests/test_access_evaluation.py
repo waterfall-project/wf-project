@@ -4,7 +4,9 @@
 
 Each person is an account written around the service, with the roles a test gives it
 (``access_rows``), and calls the API with a token of the realm of test. Every answer is checked
-against the contract (``ContractClient``).
+against the contract (``ContractClient``). The second term of the evaluation of an action on a
+project, the quality of the caller there, is tried on projects and contributors the owner writes,
+before any story serves them, and on a route of trial no operation of the contract is.
 """
 
 from collections.abc import Callable
@@ -27,29 +29,42 @@ import asked_subprojects
 import asked_work_breakdown
 import pytest
 from access_rows import ADMINISTRATION, role
+from fastapi import Depends, FastAPI
 from fastapi.routing import APIRoute
+from project_rows import insert_project
+from pydantic import BaseModel, Field
 from realm import KEY, TestRealm
 from sqlalchemy import insert, select
 from starlette.requests import Request
 from support import REFERENCE_PARTS, ContractClient, bearer, operations, raw_account
 
 from waterfall.api.app import create_app
-from waterfall.api.evaluation import Requires, RequiresForInactive
+from waterfall.api.contract.models import PermissionCode
+from waterfall.api.evaluation import Requires, RequiresForInactive, RequiresProject
 from waterfall.core.access_roles.interface import (
+    NOT_CONTRIBUTOR,
+    NOT_PROJECT_MANAGER,
     PERMISSION_MISSING,
     Actor,
+    Standing,
     holding,
+    judge_project,
     require,
+    require_project,
 )
-from waterfall.core.access_roles.predefined import ADMINISTRATOR, PROJECT_MANAGER
-from waterfall.core.access_roles.tables import AccessRole, UserAccessRole
+from waterfall.core.access_roles.predefined import ADMINISTRATOR, CONSULTATION, PROJECT_MANAGER
+from waterfall.core.access_roles.tables import AccessRole, Permission, UserAccessRole
+from waterfall.core.projects.tables import Contributor
 from waterfall.core.users.tables import UserAccount
 from waterfall.platform.audit import AuditEntry
 from waterfall.platform.correlation import HEADER
 from waterfall.platform.errors import ForbiddenError, NotFoundError
 
 if TYPE_CHECKING:
+    from fastapi.testclient import TestClient
     from openapi_core import OpenAPI
+    from sqlalchemy import Engine
+    from sqlalchemy.orm import Session
     from starlette.routing import BaseRoute
     from support import ReferenceSessions
 
@@ -460,6 +475,10 @@ DECLARED = [name for router in (*REFERENCE, *PROJECTS) for name in router.ASKED]
 assert len(DECLARED) == len(set(DECLARED)), sorted(
     name for name in set(DECLARED) if DECLARED.count(name) > 1
 )
+# The quality on its project each operation of a project asks for, by ``RequiresProject``.
+ON_PROJECT: dict[str, str] = {
+    name: quality for router in PROJECTS for name, quality in router.ON_PROJECT.items()
+}
 # The permission each list of the reference asks for besides when it asks for deactivated objects.
 INACTIVE: dict[str, str] = {
     name: permission for router in REFERENCE for name, permission in router.INACTIVE.items()
@@ -473,13 +492,25 @@ PATH_OBJECTS = {"getBackgroundTask", "getUserAvatar"}
 
 
 def asked(route: APIRoute) -> tuple[str, ...]:
-    """Give the permissions a route asks for, by its dependencies."""
+    """Give the permissions a route asks for, by its dependencies, on a project or not."""
     return tuple(
         permission
         for depends in route.dependencies
-        if isinstance(depends.dependency, Requires)
+        if isinstance(depends.dependency, Requires | RequiresProject)
         for permission in depends.dependency.permissions
     )
+
+
+def on_project(route: APIRoute) -> str | None:
+    """Give the quality on its project a route asks for, if it evaluates one."""
+    for depends in route.dependencies:
+        guard = depends.dependency
+        if isinstance(guard, RequiresProject):
+            if guard.manager:
+                return "project_manager"
+            writes = any(not CONSULTATION[permission] for permission in guard.permissions)
+            return "contributor" if writes else "consultation"
+    return None
 
 
 def inactive(route: APIRoute) -> str | None:
@@ -520,14 +551,20 @@ def test_every_served_operation_asks_for_the_permission_the_contract_refuses_it_
     # A permission to consult missing is a 404, any other a 403: the operation declares the
     # refusal it may give; one that declares neither asks for nothing. An operation that asks for
     # nothing refuses nothing by a 403, nor by a 404 unless it reads an object of its caller's own.
+    # An operation on a project refuses by a 404 the project its caller may not consult, and by a
+    # 403 the quality a write asks for.
     routes = served_routes(services)
     assert {name: asked(route) for name, route in routes.items()} == ASKED
+    held = {name: on_project(route) for name, route in routes.items()}
+    assert {name: quality for name, quality in held.items() if quality} == ON_PROJECT
     declared = operations(contract)
     for name, permissions in ASKED.items():
         method, path = declared[name]
         relative = path.removeprefix((contract.spec / "servers" / 0 / "url").read_value())
         responses = set((contract.spec / "paths" / relative / method.lower() / "responses").keys())
         needed = {refused_without(code) for code in permissions}
+        if name in ON_PROJECT:
+            needed |= {"404"} if ON_PROJECT[name] == "consultation" else {"403", "404"}
         assert needed <= responses, name
         if not permissions:
             refused = {"403"} if name in PATH_OBJECTS else {"403", "404"}
@@ -568,6 +605,252 @@ def test_an_actor_passes_with_the_permission_and_is_refused_without_it() -> None
         PERMISSION_MISSING,
         {"missing_permission": "users.write"},
     )
+
+
+# The two permissions of the catalogue that are neither a function nor irreversible.
+STRUCTURING = ("project_create", "all_projects_read")
+
+
+def test_whether_each_permission_of_the_catalogue_consults_is_declared_in_its_order(
+    database: Database,
+) -> None:
+    # The declaration follows the catalogue the migrations write, and the contract's: a function
+    # read consults, a function written or an irreversible action does not; of the two structuring
+    # ones, ``all_projects_read`` consults, ``project_create`` does not (#754).
+    with database.transaction() as session:
+        rows = session.execute(
+            select(Permission.code, Permission.kind).order_by(Permission.position)
+        )
+        catalogue = [(code, kind) for code, kind in rows]
+    assert list(CONSULTATION) == [code for code, _ in catalogue] == list(PermissionCode)
+    by_kind = {"function_read": True, "function_write": False, "irreversible": False}
+    assert {code: by_kind[kind] for code, kind in catalogue if kind in by_kind} == {
+        code: consults for code, consults in CONSULTATION.items() if code not in STRUCTURING
+    }
+    assert {code: CONSULTATION[code] for code in STRUCTURING} == {
+        "project_create": False,
+        "all_projects_read": True,
+    }
+
+
+@pytest.mark.requirement("WF-ADM-0110-A")
+def test_reading_all_the_projects_missing_is_refused_as_an_unknown_object() -> None:
+    # Its code does not end as a reading does: the rule of the suffix refused it by a 403, naming
+    # a permission that makes a project exist for the caller (#754).
+    with pytest.raises(NotFoundError) as hidden:
+        require(Actor(uuid4(), ("project_settings.read",)), "all_projects_read")
+    assert (hidden.value.code, dict(hidden.value.params)) == ("NOT_FOUND", {})
+
+
+READ = "project_settings.read"
+WRITE = "project_settings.write"
+ALL = "all_projects_read"
+HIDDEN: tuple[object, ...] = (404, "NOT_FOUND", {})
+NOT_A_CONTRIBUTOR = (403, NOT_CONTRIBUTOR, {"missing_condition": "is_contributor"})
+NOT_A_MANAGER = (403, NOT_PROJECT_MANAGER, {"missing_condition": "is_project_manager"})
+WRITE_MISSING = (403, PERMISSION_MISSING, {"missing_permission": WRITE})
+# What the actor may be on a project: of a project that does not exist, none.
+ABSENT = Standing(exists=False, kind=None)
+OUTSIDE = Standing(exists=True, kind=None)
+CONTRIBUTING = Standing(exists=True, kind="contributor")
+MANAGING = Standing(exists=True, kind="project_manager")
+BOTH = (READ, WRITE)
+# What the actor holds, what it is on the project, what is asked for, and the refusal, if any.
+type Judged = tuple[tuple[str, ...], Standing, tuple[str, ...], bool, tuple[object, ...] | None]
+JUDGED: dict[str, Judged] = {
+    # « Un utilisateur sans la permission de consultation ne voit pas le projet, même
+    # contributeur » : 404, whatever its kind, ``all_projects_read`` held or not.
+    "no reading, a contributor": ((), CONTRIBUTING, (READ,), False, HIDDEN),
+    "no reading, a manager": ((WRITE,), MANAGING, (READ,), False, HIDDEN),
+    "no reading, reading all": ((ALL,), OUTSIDE, (READ,), False, HIDDEN),
+    # « … un contributeur sans « consulter tous les projets » ne voit que ses projets. »
+    "reading, no contributor": ((READ,), OUTSIDE, (READ,), False, HIDDEN),
+    "reading, a contributor": ((READ,), CONTRIBUTING, (READ,), False, None),
+    "reading all": ((READ, ALL), OUTSIDE, (READ,), False, None),
+    # A write is refused alike to whom the project does not exist for, the permission held.
+    "writing, no contributor": (BOTH, OUTSIDE, BOTH, False, HIDDEN),
+    # To whom may consult it, the permission is named first, then the quality.
+    "reading all, no writing": ((READ, ALL), OUTSIDE, BOTH, False, WRITE_MISSING),
+    "reading all, writing": ((*BOTH, ALL), OUTSIDE, BOTH, False, NOT_A_CONTRIBUTOR),
+    "writing, a contributor": (BOTH, CONTRIBUTING, BOTH, False, None),
+    # An action reserved to the project managers: the quality of contributor named before.
+    "managing, reading all": ((*BOTH, ALL), OUTSIDE, BOTH, True, NOT_A_CONTRIBUTOR),
+    "managing, a contributor": (BOTH, CONTRIBUTING, BOTH, True, NOT_A_MANAGER),
+    "managing, a manager": (BOTH, MANAGING, BOTH, True, None),
+    # « Une adresse d'objet inexistant et une adresse d'objet non consultable mènent au même
+    # écran. » : a project that does not exist, to whom could read it if it did.
+    "absent, reading all": ((READ, ALL), ABSENT, (READ,), False, HIDDEN),
+    "absent, writing": ((*BOTH, ALL), ABSENT, BOTH, True, HIDDEN),
+}
+
+
+@pytest.mark.requirement("WF-ADM-0110-A")
+@pytest.mark.parametrize(
+    ("held", "standing", "permissions", "manager", "refused"),
+    list(JUDGED.values()),
+    ids=list(JUDGED),
+)
+def test_an_action_on_a_project_is_judged_on_the_permissions_and_the_quality_of_the_actor(
+    held: tuple[str, ...],
+    standing: Standing,
+    permissions: tuple[str, ...],
+    manager: bool,
+    refused: tuple[object, ...] | None,
+) -> None:
+    actor = Actor(uuid4(), held)
+    if refused is None:
+        judge_project(actor, standing, permissions, manager=manager)
+        return
+    with pytest.raises((NotFoundError, ForbiddenError)) as caught:
+        judge_project(actor, standing, permissions, manager=manager)
+    assert (caught.value.status, caught.value.code, dict(caught.value.params)) == refused
+
+
+def a_project(owner: Engine, *contributors: tuple[UUID, str]) -> UUID:
+    """Write a project and its contributors as the owner, before any story serves them."""
+    project_id = uuid4()
+    with owner.begin() as connection:
+        connection.execute(insert_project(id=project_id))
+        for user_id, kind in contributors:
+            row = {"project_id": project_id, "user_account_id": user_id, "kind": kind}
+            connection.execute(insert(Contributor).values(**row))
+    return project_id
+
+
+def account_id(api: ContractClient, headers: dict[str, str]) -> UUID:
+    """Give the identifier of the account of a caller."""
+    return UUID(me(api, headers)["user_id"])
+
+
+def refused_on(
+    session: Session, actor: Actor, project_id: UUID, **manager: bool
+) -> tuple[int, str]:
+    """Give the status and the code a write of a project is refused by."""
+    with pytest.raises((NotFoundError, ForbiddenError)) as caught:
+        require_project(session, actor, project_id, READ, WRITE, **manager)
+    return caught.value.status, caught.value.code
+
+
+@pytest.mark.requirement("WF-ADM-0110-A")
+def test_the_quality_of_each_account_is_read_on_the_project_asked_for_alone(
+    api: ContractClient, database: Database, owner: Engine, person: Person
+) -> None:
+    # The evaluation reads the row of the account on the project asked for, by the module of the
+    # projects: a contributor of another project, or of this one in another kind, is not taken
+    # for one. « … un contributeur sans « consulter tous les projets » ne voit que ses projets. »
+    camille, ines = (account_id(api, person()) for _ in range(2))
+    ours = a_project(owner, (camille, "project_manager"), (ines, "contributor"))
+    theirs = a_project(owner, (ines, "project_manager"))
+    with database.transaction() as session:
+        for user_id in (camille, ines):
+            require_project(session, Actor(user_id, (READ, WRITE)), ours, READ, WRITE)
+        require_project(session, Actor(ines, (READ, WRITE)), theirs, READ, WRITE, manager=True)
+        refusals = [
+            refused_on(session, Actor(camille, (READ, WRITE)), theirs, manager=True),
+            refused_on(session, Actor(ines, (READ, WRITE)), ours, manager=True),
+        ]
+    assert refusals == [(404, "NOT_FOUND"), (403, NOT_PROJECT_MANAGER)]
+
+
+@pytest.mark.requirement("WF-ADM-0110-A")
+def test_reading_all_the_projects_opens_those_that_exist_and_no_other(
+    api: ContractClient, database: Database, owner: Engine, person: Person
+) -> None:
+    # A project that does not exist is refused as one that may not be consulted, even to whom
+    # reads them all: by a 404, a write too, and not by a 403 that would say it exists.
+    actor = Actor(account_id(api, person()), (READ, WRITE, ALL))
+    project_id = a_project(owner)
+    with database.transaction() as session:
+        require_project(session, actor, project_id, READ)
+        refusals = [refused_on(session, actor, asked_for) for asked_for in (project_id, uuid4())]
+    assert refusals == [(403, NOT_CONTRIBUTOR), (404, "NOT_FOUND")]
+
+
+# The routes of trial of the second term, on a project: a reading, and an action reserved to the
+# project managers whose body has a rule of its own. No operation of the contract uses it yet.
+PROBE = "/api/v1/projects/{project}/probe"
+
+
+class Probed(BaseModel):
+    """The body of the action of trial: a label, not empty."""
+
+    label: str = Field(min_length=1)
+
+
+def probing(api: ContractClient) -> TestClient:
+    """Give a client of the application, with the routes of trial added to it."""
+    app = cast("FastAPI", api.client.app)
+
+    def read() -> dict[str, bool]:
+        return {"read": True}
+
+    def change(body: Probed) -> dict[str, str]:
+        return {"changed": body.label}
+
+    path = PROBE.format(project="{project_id}")
+    reading = RequiresProject(READ)
+    app.add_api_route(path, read, methods=["GET"], dependencies=[Depends(reading)])
+    managing = RequiresProject(READ, WRITE, manager=True)
+    app.add_api_route(path, change, methods=["POST"], dependencies=[Depends(managing)])
+    return api.client
+
+
+@pytest.mark.requirement("WF-ADM-0110-A")
+def test_an_unknown_project_and_a_project_not_consultable_get_the_same_answer(
+    api: ContractClient, database: Database, owner: Engine, person: Person
+) -> None:
+    # « Une adresse d'objet inexistant et une adresse d'objet non consultable mènent au même
+    # écran. » : the same 404, ``NOT_FOUND``, without a parameter that tells them apart — to whom
+    # holds the permission and is no contributor, to a contributor without it, for a project that
+    # does not exist, or an identifier that cannot name one.
+    client = probing(api)
+    reading = person(role(database, "Lecture", permissions=(READ,)))
+    contributing = person()
+    project_id = a_project(owner, (account_id(api, contributing), "contributor"))
+    answers = [
+        client.get(PROBE.format(project=project_id), headers=reading),
+        client.get(PROBE.format(project=project_id), headers=contributing),
+        client.get(PROBE.format(project=uuid4()), headers=reading),
+        client.get(PROBE.format(project="PRJ-001"), headers=reading),
+    ]
+    assert {(answer.status_code, answer.headers["content-type"]) for answer in answers} == {
+        (404, "application/problem+json")
+    }
+    bodies = [answer.json() for answer in answers]
+    assert [body.pop("correlation_id") for body in bodies] == [a.headers[HEADER] for a in answers]
+    assert bodies == [{"code": "NOT_FOUND", "status": 404}] * len(answers)
+
+
+@pytest.mark.requirement("WF-ADM-0110-A")
+@pytest.mark.requirement("WF-ARC-0070-A")
+def test_a_write_on_a_project_is_refused_its_quality_before_its_body_is_validated(
+    api: ContractClient, database: Database, owner: Engine, person: Person
+) -> None:
+    # « Un appel direct à l'API qui tente de modifier […] un projet dont l'utilisateur n'est pas
+    # contributeur est refusé, alors même que le front n'en propose pas l'action. » : whom reads
+    # all the projects sees it, and is refused its write by 403 ``NOT_CONTRIBUTOR``; a contributor,
+    # by 403 ``NOT_PROJECT_MANAGER``; a body that breaks its rule changes neither, and a manager
+    # alone reaches the validation, then the action.
+    client = probing(api)
+    granted = role(database, "Direction", permissions=(READ, WRITE, ALL))
+    reader, participant, manager = person(granted), person(granted), person(granted)
+    project_id = a_project(
+        owner,
+        (account_id(api, participant), "contributor"),
+        (account_id(api, manager), "project_manager"),
+    )
+    path = PROBE.format(project=project_id)
+    assert client.get(path, headers=reader).json() == {"read": True}
+    answers = [
+        refusal(client.post(path, headers=headers, json=sent))
+        for headers in (reader, participant)
+        for sent in ({"label": "Pilote"}, {"label": ""})
+    ]
+    assert answers == [NOT_A_CONTRIBUTOR] * 2 + [NOT_A_MANAGER] * 2
+    invalid = refusal(client.post(path, headers=manager, json={"label": ""}))
+    assert invalid[:2] == (422, "VALIDATION_FAILED")
+    changed = client.post(path, headers=manager, json={"label": "Pilote"})
+    assert changed.json() == {"changed": "Pilote"}
 
 
 @pytest.mark.requirement("WF-REF-0150-A")

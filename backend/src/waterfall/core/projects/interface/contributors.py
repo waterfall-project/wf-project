@@ -5,13 +5,19 @@
 The kind of an account on a project, which the evaluation of an action reads (``contributor_kind``,
 WF-ADM-0110); the list read, written whole under its own counter — a project keeps a project
 manager —, and the suggestions of the screen, empty while no line of estimate employs a role
-(WF-PRJ-0070, EP-07).
+(WF-PRJ-0070, EP-07). Whether a project exists, which the evaluation reads of a caller that is no
+contributor of it (``project_exists``): a project it may consult and one that does not exist are
+refused alike, but for ``all_projects_read``, which opens every project that exists.
 
-Declared by US-0910/L1, without effect: US-0910/L2 fills ``contributor_kind``, US-0930 the rest;
-``load_contributors`` writes those of the witness.
+Declared by US-0910/L1, without effect: US-0910/L2 fills ``contributor_kind`` and adds
+``project_exists``, US-0930 the rest; ``load_contributors`` writes those of the witness.
 """
 
-from typing import TYPE_CHECKING, Literal
+from typing import TYPE_CHECKING, Literal, cast
+
+from sqlalchemy import exists, select
+
+from waterfall.core.projects.tables import Contributor, Project
 
 if TYPE_CHECKING:
     from uuid import UUID
@@ -25,9 +31,23 @@ type ContributorKind = Literal["project_manager", "contributor"]
 
 
 def contributor_kind(session: Session, project_id: UUID, user_id: UUID) -> ContributorKind | None:
-    """Give the kind of an account on a project, ``None`` if it is no contributor."""
-    msg = "contributor_kind is filled by US-0910/L2"
-    raise NotImplementedError(msg)
+    """Give the kind of an account on a project, ``None`` if it is no contributor.
+
+    Read as committed when the request asks: a list of contributors written meanwhile applies at
+    the next request, as a role changed does (WF-ADM-0090).
+    """
+    kind = session.scalar(
+        select(Contributor.kind).where(
+            Contributor.project_id == project_id, Contributor.user_account_id == user_id
+        )
+    )
+    # The table holds the two kinds alone (``kind_known``).
+    return cast("ContributorKind | None", kind)
+
+
+def project_exists(session: Session, project_id: UUID) -> bool:
+    """Tell whether a project exists, whatever its state: a project is never deleted."""
+    return bool(session.scalar(select(exists().where(Project.id == project_id))))
 
 
 def list_contributors(session: Session, project_id: UUID) -> None:
