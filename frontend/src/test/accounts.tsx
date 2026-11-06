@@ -19,6 +19,7 @@ import { readAuditFilters } from "@/components/admin/audit-address";
 import { USER_KEPT } from "@/components/admin/user-address";
 import { PendingAddress } from "@/components/grid/pending-address";
 import type { GridPreferences } from "@/components/grid/settings";
+import type { NodeChoice } from "@/components/reference/reference-filters";
 import { CATALOGUES } from "@/i18n/catalogues";
 
 import { example, type FakeClient, type FakeTiming, held } from "./fixtures";
@@ -49,6 +50,7 @@ export function accounts(
   editable = true,
   shown: readonly User[] = users.items,
   kept?: GridPreferences,
+  nodes: readonly NodeChoice[] = [],
 ): ReactNode {
   return (
     <NextIntlClientProvider locale="fr" messages={CATALOGUES.fr} timeZone="UTC">
@@ -59,7 +61,7 @@ export function accounts(
           query={{ sort: undefined, search: undefined, size: undefined }}
           preferences={kept}
           origins={[]}
-          nodes={[]}
+          nodes={nodes}
           orgNode={undefined}
           roles={roles}
           accessRoles={[]}
