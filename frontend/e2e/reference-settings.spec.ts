@@ -3,18 +3,24 @@
 /*
  * The screens of the settings of the risks and of the indicators (`/reference/risks`,
  * `/reference/indicators`): the risk matrix, the thresholds of the indices and the delay between two
- * reviews, against the fake back.
+ * reviews, against the fake back and, tagged `@shared`, against the service.
+ *
+ * The fake back keeps nothing and answers the first example of the operation whatever was written:
+ * against it, the journey asserts the answer it shows. In service (`inService`) the journey asserts
+ * what the service kept, read anew after a reload; it writes values valid on every run, so it can be
+ * replayed on the same installation.
  */
-import { expect, test } from "@playwright/test";
+import { expect } from "@playwright/test";
 
 import { WORKING } from "./hydration";
+import { inService, test } from "./mode";
 
-test("modifies the risk matrix and the thresholds of the indices in their forms, a bound out of order refused before asking, the mock-up saying the fake back keeps nothing (EP-14/L43e) [WF-REF-0160-A] [WF-REF-0170-A] [WF-REF-0180-A]", async ({
+test("modifies the risk matrix and the thresholds of the indices in their forms, a bound out of order refused before asking, no mock-up notice, the service alone proving it kept them (US-0810/L2) @shared [WF-REF-0160-A] [WF-REF-0170-A] [WF-REF-0180-A]", async ({
   page,
 }) => {
   test.slow();
   await page.goto("/reference/risks");
-  await expect(page.getByRole("note")).toContainText("le service simulé ne conserve");
+  await expect(page.getByRole("note")).toHaveCount(0);
 
   // No project is opened here, nothing witnesses the hydration: the command is pressed again until
   // React opens its form, and never once it is open.
@@ -35,23 +41,30 @@ test("modifies the risk matrix and the thresholds of the indices in their forms,
   await expect(second).toHaveAccessibleDescription(
     "Les bornes doivent être strictement croissantes.",
   );
-  await second.fill("25");
+  await second.fill("55");
+  // The outer bounds are written too, so that the journey does not depend on the seeding.
+  const bounds = matrix.getByRole("group", { name: "Bornes de probabilité (%)" });
+  await bounds.getByRole("textbox", { name: "Première borne" }).fill("25");
+  await bounds.getByRole("textbox", { name: "Troisième borne" }).fill("75");
   await matrix
     .getByRole("group", { name: "Probabilité, niveau 1" })
     .getByRole("combobox", { name: "Gravité, niveau 4" })
     .selectOption({ label: "Alerte" });
   await matrix.getByRole("button", { name: "Enregistrer" }).click();
   await expect(matrix).toBeHidden({ timeout: WORKING });
-  // The fake back answers the first example of the operation whatever was written — the thresholds
-  // written by the other screen, the matrix as it was —, and the screen shows what it answered.
   await expect(page.getByRole("status").filter({ hasText: "enregistrée" })).toHaveText(
     "Matrice de risques enregistrée.",
   );
+  // The fake back answers the first example of the operation whatever was written; the service
+  // answers the bounds it kept, the second one as written, read anew after a reload.
+  if (inService) {
+    await page.reload();
+  }
   await expect(
-    page
-      .getByRole("table", { name: "Bornes de la matrice de risques" })
-      .getByRole("row", { name: "Probabilité 10 % 30 % 60 %" }),
-  ).toHaveCount(1);
+    page.getByRole("table", { name: "Bornes de la matrice de risques" }).getByRole("row", {
+      name: inService ? "Probabilité 25 % 55 % 75 %" : "Probabilité 10 % 30 % 60 %",
+    }),
+  ).toHaveCount(1, { timeout: WORKING });
   await expect(page.getByRole("main").getByRole("alert")).toHaveCount(0);
 
   await page.goto("/reference/indicators");
@@ -76,6 +89,9 @@ test("modifies the risk matrix and the thresholds of the indices in their forms,
   await expect(page.getByRole("status").filter({ hasText: "enregistrés" })).toHaveText(
     "Seuils et délai enregistrés.",
   );
+  if (inService) {
+    await page.reload();
+  }
   await expect(
     page
       .getByRole("table", { name: "Seuils d’alerte des indices" })

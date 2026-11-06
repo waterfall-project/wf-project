@@ -616,7 +616,7 @@ l'ordonnanceur du témoin hors de son propre fichier ; ce qu'il lui manque vit d
 
 ## US-0810 — Le socle du référentiel : tables, modules, amorçage et paramètres communs
 
-- **statut** : en cours
+- **statut** : fini
 - **exigences** : `WF-EXP-0020-A`, `WF-CYC-0120-A`, `WF-REF-0140-A`, `WF-REF-0160-A`,
   `WF-REF-0170-A`, `WF-REF-0180-A`
 - **opérations** : `getReferenceReadiness`, `getReferenceSettings`, `updateReferenceSettings`
@@ -745,7 +745,7 @@ indices (EP-10) ; la santé du pilotage (EP-11).
 
 ## US-0820 — Les natures et les catégories de coût
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-REF-0030-A`, `WF-REF-0040-A`
 - **opérations** : `listCostTypes`, `createCostType`, `updateCostType`, `setCostTypeActivation`,
   `listCostCategories`, `createCostCategory`, `updateCostCategory`, `setCostCategoryActivation`
@@ -875,7 +875,7 @@ catégories sur quinze ans, est chargée par US-0890 : les tests de la grille se
 
 ## US-0840 — L'arbre d'organisation et le rattachement d'un compte
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-REF-0070-A`, `WF-ADM-0030-A`
 - **opérations** : `listOrgNodes`, `createOrgNode`, `updateOrgNode`, `setOrgNodeActivation` ;
   `listUsers`, `getUser`, `updateUser`, `getMe` (le rattachement)
@@ -1000,7 +1000,7 @@ désactivations croisées ne laissent pas un rôle actif sous un nœud fermé.
 
 ## US-0860 — Les calendriers, le calendrier par défaut et les unités de durée
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-REF-0110-A`, `WF-REF-0120-A`, `WF-PLA-0160-A`
 - **opérations** : `listCalendars`, `createCalendar`, `updateCalendar`, `setDefaultCalendar`,
   `setCalendarActivation`, `getDurationUnits`, `setDurationUnits`
@@ -1069,7 +1069,7 @@ choix de la conception, avec leur propre compteur (`DurationUnits.lock_version`)
 
 ## US-0870 — La correspondance de l'extraction des coûts réels
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-REF-0190-A`
 - **opérations** : `getActualCostMapping`, `setActualCostMapping`
 - **issue** : 2039

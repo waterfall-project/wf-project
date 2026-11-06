@@ -26,6 +26,7 @@ from typing import TYPE_CHECKING, Any
 
 from sqlalchemy import select
 
+from waterfall.core.resource_settings.interface import node_labels
 from waterfall.core.users.accounts import (
     NOT_FOUND,
     Stamp,
@@ -48,6 +49,7 @@ from waterfall.core.users.commands import (
 from waterfall.core.users.identity import (
     Identity,
     IdentityChange,
+    attachment_faults,
     change,
     create_local,
     display_name,
@@ -62,6 +64,8 @@ from waterfall.core.users.listing import (
     AccountExpression,
     AccountFilters,
     AccountSort,
+    NodeCriterion,
+    NodeKey,
     Page,
     author_order,
     find_accounts,
@@ -131,6 +135,8 @@ __all__ = [
     "HeldAccount",
     "Identity",
     "IdentityChange",
+    "NodeCriterion",
+    "NodeKey",
     "NotAdmitted",
     "NotFollowed",
     "Page",
@@ -146,6 +152,7 @@ __all__ = [
     "address_taken",
     "anonymize_account",
     "anonymize_again",
+    "attachment_faults",
     "author_order",
     "change_account",
     "change_preferences",
@@ -232,6 +239,10 @@ class Account:
     lock_version: int
     # When its sessions were last closed, ``None`` until they first are (#668, #835).
     sessions_closed_at: datetime | None
+    # The node of the organisation it is attached to, and its label, active or deactivated
+    # (WF-ADM-0030, WF-REF-0150); the attachment gives no right.
+    org_node_id: UUID | None = None
+    org_node_label: str | None = None
 
 
 def read_account_label(session: Session, user_id: UUID) -> AccountLabel | None:
@@ -432,6 +443,9 @@ def _accounts(session: Session, accounts: list[UserAccount]) -> list[Account]:
     authors = _authors(
         session, [user_id for each in accounts for user_id in (each.created_by, each.updated_by)]
     )
+    labels = node_labels(
+        session, {each.org_node_id for each in accounts if each.org_node_id is not None}
+    )
     return [
         Account(
             user_id=account.id,
@@ -452,6 +466,8 @@ def _accounts(session: Session, accounts: list[UserAccount]) -> list[Account]:
             updated_by=None if account.updated_by is None else authors[account.updated_by],
             lock_version=account.lock_version,
             sessions_closed_at=account.sessions_closed_at,
+            org_node_id=account.org_node_id,
+            org_node_label=None if account.org_node_id is None else labels[account.org_node_id],
         )
         for account in accounts
     ]

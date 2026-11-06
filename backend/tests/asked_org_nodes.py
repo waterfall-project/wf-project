@@ -5,7 +5,15 @@
 ``test_access_evaluation.py`` gathers them; US-0840 declares each operation it serves.
 """
 
-# The permissions each operation asks for, in the order they are evaluated.
-ASKED: dict[str, tuple[str, ...]] = {}
+CHANGE = "resource_settings.write"
+
+# The permissions each operation asks for, in the order they are evaluated: the active nodes are
+# read by any open session (#1745), every write asks for the permission to change the settings.
+ASKED: dict[str, tuple[str, ...]] = {
+    "listOrgNodes": (),
+    "createOrgNode": (CHANGE,),
+    "updateOrgNode": (CHANGE,),
+    "setOrgNodeActivation": (CHANGE,),
+}
 # The permission a list asks for besides when it asks for deactivated objects.
-INACTIVE: dict[str, str] = {}
+INACTIVE: dict[str, str] = {"listOrgNodes": CHANGE}

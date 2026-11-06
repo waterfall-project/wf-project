@@ -11,7 +11,7 @@ A revision does not keep these settings: a marked revision is always read with t
 
 ## Its commands
 
-**Modify the risk matrix**, offered to whoever may modify the risk settings, opens the form: the three bounds of each axis, in percent, strictly increasing, and the zone of each of the sixteen cells. A bound that is not above the previous one is signalled at its field before the sending; the server judges the rest. If the settings have changed since their reading, the refusal offers to read the page again. To the others, the screen is read only.
+**Modify the risk matrix**, offered to whoever may modify the risk settings, opens the form: the three bounds of each axis, in percent, strictly increasing, and the zone of each of the sixteen cells. A bound that is not above the previous one is signalled at its field before the sending; the server judges the rest. If the settings have changed since their reading, the refusal offers to read the page again. To the others, the screen is read only. A successful save is what the server kept: the screen reads it again. A missing permission, or a stale version, is said under the form.
 
 ## Its columns and computed values
 

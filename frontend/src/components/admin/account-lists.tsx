@@ -191,6 +191,7 @@ export function UserList({
           query={query}
           preferences={preferences}
           roles={roles}
+          nodes={nodes}
           editable={editable}
         />
         <ListPages list={USERS_LIST} texts="admin.pages" page={page} shown={users.length} />

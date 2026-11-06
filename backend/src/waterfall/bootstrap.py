@@ -6,15 +6,21 @@ It applies the migrations — the catalogue of permissions with them — as the 
 who creates the role of the service too (#701). Then, under an advisory lock that keeps two
 bootstraps apart, on an installation that has none yet: the local account of the administrator in
 the identity provider first, then, in one transaction, the row of the installation with its default
-language and its bounds, the three predefined roles labelled in that language, and the account in
+language and its bounds, the three predefined roles labelled in that language, the account in
 Waterfall, holding the administrator — the platform their author, each inscribed in the journal
-under the correlation of the command. The realm is then given the language of the installation, at
+under the correlation of the command —, and the reference a project needs first (WF-EXP-0020,
+EP-05): the settings the installation shares, with its currency and the name of its company, the
+units of duration, the empty mapping of the actual costs, the default calendar, and the nature and
+the category of provision for risks, labelled in that language, each by the interface of its
+module. The realm is then given the language of the installation, at
 each run: an account that chose none reads its pages and its mails in it (#873). Last, the link
 that sets the password of that account, valid until it is used, written alone on the standard
 output, its making inscribed without its token.
 
 Run again, it creates nothing: it makes a new link, which replaces the one before, while the
-administrator has no password, and none afterwards. Keycloak is never asked inside a transaction
+administrator has no password, and none afterwards; another currency or another name of the company
+are said ignored. An installation made before the reference existed is given it then, in a
+transaction of its own: no migration writes data. Keycloak is never asked inside a transaction
 (#669); a run broken once the provider created the account finds it by its address at the next.
 
 The command ``waterfall-api`` starts here: ``install`` bootstraps, anything else is the API's. The
@@ -24,6 +30,8 @@ above them both, and nothing imports it.
 
 import sys
 from contextlib import contextmanager
+from dataclasses import dataclass
+from decimal import Decimal
 from typing import IO, TYPE_CHECKING, Any
 
 from sqlalchemy import Engine, func, select
@@ -35,6 +43,21 @@ from waterfall.core.access_roles.interface import (
     create_role,
     give_first_roles,
     predefined_roles,
+)
+from waterfall.core.cost_settings.interface import (
+    CostCategoryDraft,
+    CostTypeDraft,
+    create_actual_cost_mapping,
+    create_cost_category,
+    create_cost_type,
+    install_reference_settings,
+    read_reference_settings,
+)
+from waterfall.core.resource_settings.interface import (
+    CalendarContent,
+    WeeklyHours,
+    create_calendar,
+    install_duration_units,
 )
 from waterfall.core.users.interface import (
     Account,
@@ -68,6 +91,8 @@ from waterfall.platform.settings import (
 if TYPE_CHECKING:
     from collections.abc import Generator, Sequence
 
+    from sqlalchemy.orm import Session
+
 # The key of the advisory lock under which a bootstrap reads what is installed, then installs.
 INSTALL_LOCK = 4_200_420
 # The bounds of a new installation, those of the example ``installation`` of the contract: an
@@ -86,6 +111,48 @@ ADMINISTRATOR_NOT_LOCAL = "administrator_not_local"
 # The administrator is named after its role, in the language of the installation; it may rename
 # itself afterwards, as any local account.
 FIRST_NAME = "Waterfall"
+# The nature and the category of provision for risks the installation is delivered with: their
+# codes, and the accounting code of the category, the same in every language, none of them a code
+# of the witness, whose own are added beside them (EP-05, "Le chargeur du témoin").
+PROVISION = "provision"
+PROVISION_TYPE_CODE = "PROV"
+PROVISION_CATEGORY_CODE = "PROV-001"
+PROVISION_ACCOUNTING_CODE = "151000"
+# The default calendar: eight hours from Monday to Friday, none at the weekend (WF-EXP-0020).
+WORKING_DAY = Decimal(8)
+RESTING_DAY = Decimal(0)
+EIGHT_HOURS = WeeklyHours(
+    WORKING_DAY, WORKING_DAY, WORKING_DAY, WORKING_DAY, WORKING_DAY, RESTING_DAY, RESTING_DAY
+)
+
+
+@dataclass(frozen=True, slots=True)
+class Chosen:
+    """What the installer chooses of the reference, and the language of its labels."""
+
+    currency: str
+    company_name: str
+    language: str
+
+
+@dataclass(frozen=True, slots=True)
+class DeliveredLabels:
+    """The labels of the objects of the reference the installation is delivered with."""
+
+    calendar: str
+    nature: str
+    category: str
+
+
+# In each language of an installation, beside those of the predefined roles
+# (``access_roles.predefined``); modifiable afterwards, as any label (WF-EXP-0020). The label of
+# the calendar is none of the witness's, which are unique.
+DELIVERED_LABELS: dict[str, DeliveredLabels] = {
+    "fr": DeliveredLabels(
+        "Calendrier standard", "Provision pour risques", "Provision pour risques"
+    ),
+    "en": DeliveredLabels("Standard calendar", "Risk provision", "Risk provision"),
+}
 
 logger = get_logger(__name__)
 
@@ -211,11 +278,13 @@ def _bootstrap(
             or administrator.email.lower() != settings.admin_email.lower()
         ):
             logger.warning("installation.admin_email_ignored", user_id=str(administrator.user_id))
+        with database.transaction() as session:
+            _reference_again(session, settings, language)
         return administrator, language
     roles = predefined_roles(settings.default_language)
     label = next(role.label for role in roles if role.key == "administrator")
     identity = Identity(label, FIRST_NAME, settings.admin_email)
-    if identity_faults(identity.email, None):
+    if identity_faults(identity.email):
         raise InstallationRefusedError(NOT_AN_ADDRESS)
     subject = admin.create_account(LocalIdentity(label, FIRST_NAME, identity.email))
     if subject is None:
@@ -240,8 +309,55 @@ def _bootstrap(
         account = create_local_account(session, identity, subject, act)
         named = (account.user_id, display_name(account.first_name, account.last_name))
         give_first_roles(session, named, [created["administrator"].access_role_id], act)
+        install_reference(session, chosen(settings, settings.default_language), act)
     logger.info("installation.installed", user_id=str(account.user_id))
     return account, settings.default_language
+
+
+def chosen(settings: InstallationSettings, language: str) -> Chosen:
+    """Give what the settings of the bootstrap choose of the reference, labelled in ``language``."""
+    return Chosen(settings.currency, settings.company_name, language)
+
+
+def install_reference(session: Session, choice: Chosen, act: Act) -> bool:
+    """Write the reference a project needs first, unless it is there; tell whether it wrote.
+
+    The settings the installation shares first, with the currency and the name of the company
+    chosen: written in the same transaction as the rest, they say the whole is there. Then
+    the units of duration at 8, 40 and 20, the mapping of the actual costs empty, the default
+    calendar of eight hours from Monday to Friday, the nature of provision for risks and its
+    category, labelled in the language chosen — each by the interface of its module (WF-EXP-0020).
+    """
+    if not install_reference_settings(session, choice.currency, choice.company_name, act):
+        return False
+    labels = DELIVERED_LABELS[choice.language]
+    install_duration_units(session, act)
+    create_actual_cost_mapping(session, act)
+    create_calendar(session, CalendarContent(labels.calendar, EIGHT_HOURS), act, default=True)
+    nature = create_cost_type(
+        session, CostTypeDraft(PROVISION_TYPE_CODE, labels.nature, PROVISION), act
+    )
+    category = CostCategoryDraft(
+        PROVISION_CATEGORY_CODE, labels.category, PROVISION_ACCOUNTING_CODE, nature.cost_type_id
+    )
+    create_cost_category(session, category, act)
+    return True
+
+
+def _reference_again(session: Session, settings: InstallationSettings, language: str) -> None:
+    """Give an installation made before the reference existed its reference; else, keep it.
+
+    Its currency and the name of its company are those of its first run: others are said ignored,
+    without their values, as the address of the administrator is.
+    """
+    if install_reference(session, chosen(settings, language), Act(None, utc_now())):
+        logger.info("installation.reference_installed")
+        return
+    held = read_reference_settings(session)
+    if held.currency_code != settings.currency:
+        logger.warning("installation.currency_ignored")
+    if held.company_name != settings.company_name:
+        logger.warning("installation.company_name_ignored")
 
 
 def _left_by_a_broken_run(admin: KeycloakAdmin, email: str) -> str:
