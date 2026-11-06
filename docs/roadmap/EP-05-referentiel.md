@@ -1065,7 +1065,7 @@ choix de la conception, avec leur propre compteur (`DurationUnits.lock_version`)
 
 ## US-0870 — La correspondance de l'extraction des coûts réels
 
-- **statut** : en cours
+- **statut** : fini
 - **exigences** : `WF-REF-0190-A`
 - **opérations** : `getActualCostMapping`, `setActualCostMapping`
 - **issue** : 2039
