@@ -86,6 +86,14 @@ DATA = {
     "ProblemSubproject.label": "a label",
     "ProblemRisk.label": "a label",
     "ProblemMissingColumn.labels": "labels of the extraction",
+    # The codes and the labels a person gave a nature and a category of cost, and the label of the
+    # nature a category is read under (US-0820).
+    "CostType.code": "a code",
+    "CostType.label": "a label",
+    "CostCategoryImage.code": "a code",
+    "CostCategoryImage.label": "a label",
+    "CostCategoryImage.accounting_code": "a code",
+    "CostCategoryImage.cost_type_label": "a label",
     # A category of labour without an hourly rate, by its label, as the reference names it
     # (``ProblemParams.missing_rates``, ``MissingRate``, HOURLY_RATE_MISSING; US-0702/L1).
     "MissingRate.label": "a label",

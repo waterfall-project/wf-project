@@ -13,6 +13,7 @@ from typing import TYPE_CHECKING
 from uuid import uuid4
 
 import pytest
+from cost_settings_examples import LABOUR, NON_LABOUR, PROVISION
 from pydantic import SecretStr, ValidationError
 from sqlalchemy import insert, select, text
 from support import WITNESS
@@ -92,6 +93,9 @@ def test_a_loading_that_writes_nothing_succeeds_and_says_the_witness_is_there(
     settings: WitnessSettings, logs: Logs
 ) -> None:
     # Every slice empty, or every slice already held: nothing is written, and that is a success.
+    assert load_witness(settings) == 0
+    assert events(logs) == ["witness.loaded"]
+    logs.clear()
     assert load_witness(settings) == 0
     assert events(logs) == ["witness.already_loaded"]
     assert {record["correlation_id"] for record in logs.records} != {None}
@@ -224,9 +228,10 @@ def test_the_command_passes_anything_else_to_the_bootstrap_and_the_api(
 def test_the_witness_of_the_tests_is_loaded_by_the_command_as_the_service(
     witness: Database,
 ) -> None:
-    # Nothing to load yet: each slice fills it as its story comes (EP-05, "Les tests du back").
+    # Each slice fills it as its story comes (EP-05, "Les tests du back"): the natures first.
     with witness.transaction() as session:
-        assert session.scalars(select(CostType)).all() == []
+        natures = set(session.scalars(select(CostType.id)))
+    assert natures == {LABOUR, NON_LABOUR, PROVISION}
 
 
 def test_a_slice_finds_its_objects_all_there_none_there_or_a_platform_half_loaded() -> None:
