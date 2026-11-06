@@ -8,6 +8,7 @@ changes them. Every answer is checked against the contract (``ContractClient``);
 examples the faux back serves.
 """
 
+import time
 from concurrent.futures import ThreadPoolExecutor
 from typing import TYPE_CHECKING, Any
 from uuid import UUID
@@ -32,7 +33,7 @@ from cost_settings_examples import (
 )
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
-from support import wait_for_a_lock
+from support import WAITING
 
 from waterfall.core.cost_settings.records import NATURES_LOCK
 from waterfall.core.cost_settings.tables import CostCategory, CostType
@@ -456,6 +457,18 @@ def test_the_activation_of_a_category_is_refused_stale_unknown_or_without_the_pe
     assert category(api, sessions.changing, "ACH-001")["is_active"] is True
 
 
+def wait_for_locks(database: Database, waiting: int) -> None:
+    """Wait until ``waiting`` transactions at least wait for a lock, in 10 seconds at most."""
+    deadline = time.monotonic() + 10
+    with database.engine.connect() as watching:
+        while time.monotonic() < deadline:
+            if (watching.scalar(WAITING) or 0) >= waiting:
+                return
+            watching.rollback()
+            time.sleep(0.05)
+    pytest.fail(f"fewer than {waiting} transactions wait for a lock")
+
+
 @pytest.mark.requirement("WF-REF-0040-A")
 def test_a_category_created_while_its_nature_is_being_deactivated_is_refused_not_left_active(
     api: ContractClient, database: Database, sessions: PartSessions
@@ -475,8 +488,12 @@ def test_a_category_created_while_its_nature_is_being_deactivated_is_refused_not
             headers=sessions.changing,
             json=sent("LATE", nature["cost_type_id"]),
         )
-        wait_for_a_lock(database)
         deactivating = other.submit(api.put, url, headers=sessions.changing, json=off)
+        # Both wait for the lock: without it, the deactivation would end at once and the
+        # interleaving (nature read active, nature deactivated, category written active) be missed.
+        wait_for_locks(database, 2)
+        assert not deactivating.done()
+        assert not creating.done()
         holding.commit()
         answer = creating.result(timeout=10)
         assert deactivating.result(timeout=10).status_code == 200
@@ -493,6 +510,23 @@ def test_a_category_created_while_its_nature_is_being_deactivated_is_refused_not
             select(CostType.is_active).where(CostType.id == UUID(nature["cost_type_id"]))
         ).one()
     assert (shut, active) == (False, [])
+
+
+@pytest.mark.requirement("WF-REF-0040-A")
+def test_a_category_created_after_the_deactivation_of_its_nature_is_refused_at_its_nature(
+    api: ContractClient, sessions: PartSessions
+) -> None:
+    nature = new_type(api, sessions.changing, "AFTER")
+    off = {"is_active": False, "lock_version": nature["lock_version"]}
+    shut = api.put(
+        f"{TYPES}/{nature['cost_type_id']}/activation", headers=sessions.changing, json=off
+    )
+    assert shut.status_code == 200
+    late = api.post(
+        CATEGORIES, headers=sessions.changing, json=sent("LATE", nature["cost_type_id"])
+    )
+    assert late.status_code == 422
+    assert pointers(late) == [("/cost_type_id", "INACTIVE_REFERENCE_OBJECT", {})]
 
 
 @pytest.mark.requirement("WF-REF-0030-A")
