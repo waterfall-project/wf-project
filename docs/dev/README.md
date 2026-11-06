@@ -3744,6 +3744,26 @@ hooks: a hook declared in a module that the files import is declared once in a w
 first of its files alone. A path whose assertion differs between the two — a write the fake back
 does not keep — reads `inService`.
 
+The paths that depend on what the service does not do yet, or does not serve, are not replayed
+against it, being untagged; each is still played against the fake back, by `chromium`. What
+depends on the clock: nothing in the reference, whose dates are those of the loading (WF-DAT-0070)
+and which the paths do not wait for. On a calculation the service does not do yet: the change of
+the units of duration, whose path says its effect on the schedules (`reference-resources.spec.ts`,
+US-0570). On a screen the service does not serve: the openings of `/` and of the portfolio in
+`navigation.spec.ts`, guarded by `inService` in the path of the reference (the service opens it at
+the address of the reference), as are those of the administration and of the status screen, which
+the role "Manager" is not offered, and all its other paths, those of a project; those of `admin.spec.ts`
+that read the accounts, the matrix of the permissions, the state of the platform and the backups,
+which expect the accounts and the numbers of the fake back, and which the role "Manager" of
+`mode.ts`, without the `users.*` permissions, could not read; the reading of the settings outside
+any project (`reference-costs.spec.ts`, US-0250) and the filter of the roles by calendar and by
+monthly hours, which count the rows of the fake back. The `inService` guards of the tagged paths
+are not paths that are not replayed: the path is played on both sides, and only the assertion of a
+write differs (what was entered, read anew after a reload; a code and a label of the run's own,
+which the service keeps; a state left as it was found) — `reference-costs.spec.ts`,
+`reference-resources.spec.ts`, `reference-settings.spec.ts`,
+`reference-actual-cost-mapping.spec.ts`.
+
 A limit of the paths against the service: Prism, as a proxy of the contract, reads every body as
 text and alters binary bodies — every byte beyond `0x7f` of an `application/octet-stream` request or
 response becomes U+FFFD (#973, #1025). The paths therefore exercise neither

@@ -1,9 +1,10 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
-import { expect, type Page, test } from "@playwright/test";
+import { expect, type Page } from "@playwright/test";
 
 import { compile } from "./compile";
 import { setExpanded } from "./hydration";
+import { inService, test } from "./mode";
 
 // The session of the fake back grants the whole catalogue of permissions: every function
 // of the navigation is offered.
@@ -27,19 +28,33 @@ async function open(page: Page, name: string, block?: string) {
   await expect(page.getByRole("heading", { level: 1 })).toHaveText(name);
 }
 
-test("a user who opened no project reaches the portfolio, the reference, the administration and the status screen [WF-IHM-0010-A]", async ({
+// Played in service too (`@shared`, EP-05): the reference is served. The opening of `/` and of the
+// portfolio is not — the service serves neither screen — and is played against the fake back only
+// (`inService`; listed as not replayed in the guide).
+test("a user who opened no project reaches the portfolio, the reference, the administration and the status screen [WF-IHM-0010-A] @shared", async ({
   page,
 }) => {
   // The screens of their own reached by a click, compiled first (`e2e/compile.ts`).
   await compile(page.request, "/portfolio/projects", "/reference/costs", "/admin/users", "/system");
-  await page.goto("/");
-  await open(page, "Portefeuille de projets", "Portefeuille");
-  await expect(page).toHaveURL("/portfolio/projects");
-  await open(page, "Paramètres de coûts", "Paramètres applicatifs");
-  await open(page, "Gestion des utilisateurs", "Administration");
-  await open(page, "Surveillance de l’état du système", "Administration");
-  await expect(page).toHaveURL("/system");
-  await expect(page).toHaveTitle("Surveillance de l’état du système — Waterfall");
+  if (inService) {
+    await page.goto("/reference/costs");
+  } else {
+    await page.goto("/");
+    await open(page, "Portefeuille de projets", "Portefeuille");
+    await expect(page).toHaveURL("/portfolio/projects");
+    await open(page, "Paramètres de coûts", "Paramètres applicatifs");
+  }
+  if (inService) {
+    // The role « Manager » of `mode.ts` holds no permission of the administration: its block is not
+    // offered, and the reference is read from one setting to the next.
+    await open(page, "Paramètres de ressources");
+    await expect(page).toHaveURL("/reference/resources");
+  } else {
+    await open(page, "Gestion des utilisateurs", "Administration");
+    await open(page, "Surveillance de l’état du système", "Administration");
+    await expect(page).toHaveURL("/system");
+    await expect(page).toHaveTitle("Surveillance de l’état du système — Waterfall");
+  }
   // No project was opened: there is none to go back to.
   await expect(page.getByRole("link", { name: "Retour au projet" })).toHaveCount(0);
 });

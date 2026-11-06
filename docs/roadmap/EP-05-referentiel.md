@@ -1188,7 +1188,7 @@ dans les grilles (EP-07).
 
 ## US-0890 — Le témoin chargé, et les parcours rejoués contre le service
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-QUA-0040-A`
 - **opérations** : aucune en propre ; le chargement passe par les interfaces du noyau
 - **issue** : 2043
