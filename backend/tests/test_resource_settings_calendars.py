@@ -726,11 +726,10 @@ def identifier(calendar: dict[str, Any]) -> str:
 def without_audit(items: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """Give calendars without their audit, which a loading dates and signs as itself.
 
-    The commands are those of the caller, and the counter of writes counts those of the roles
-    that reopen a calendar the time of being attached to it (#2131): as the other lists, both are
-    left out.
+    The counter of writes counts those of the roles that reopen a calendar the time of being
+    attached to it (#2131): as the other lists, it is left out.
     """
-    unshared = {"audit", "available_commands", "lock_version"}
+    unshared = {"audit", "lock_version"}
     return [{name: each[name] for name in each if name not in unshared} for each in items]
 
 
