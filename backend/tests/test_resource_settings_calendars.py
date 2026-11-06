@@ -585,6 +585,11 @@ def test_setting_the_hours_per_day_to_seven_writes_the_three_constants_under_the
     assert body["lock_version"] == 2
     assert body["audit"]["updated_by"]["kind"] == "user"
     assert body["audit"]["created_by"] == {"kind": "platform"}
+    # The session exposes no account id: the author is an existing account, not the platform.
+    with database.transaction() as session:
+        author = session.get(UserAccount, UUID(body["audit"]["updated_by"]["user_id"]))
+        assert author is not None
+    assert body["audit"]["updated_at"] >= body["audit"]["created_at"]
     stale = api.put(UNITS, headers=sessions.changing, json=sent)
     assert refusal(stale)[:3] == (412, "STALE_LOCK_VERSION", {"expected_lock_version": 2})
     assert api.get(UNITS, headers=sessions.without).json()["hours_per_day"] == "7"
@@ -608,14 +613,25 @@ def test_a_constant_that_is_not_strictly_positive_is_refused_and_nothing_is_writ
         {"pointer": "/hours_per_day", "code": "DURATION_UNIT_NOT_POSITIVE"},
         {"pointer": "/days_per_month", "code": "DURATION_UNIT_NOT_POSITIVE"},
     ]
+    # The 422 is judged before the version is read: the stale counter below never shows as 412.
+    stale = {**zero, "hours_per_day": "-8", "days_per_month": "20", "lock_version": 9}
     negative = {**zero, "hours_per_day": "-8", "days_per_month": "20"}
-    refused = api.put(UNITS, headers=sessions.changing, json=negative)
-    assert refusal(refused)[3] == [{"pointer": "/hours_per_day", "code": "VALIDATION_FAILED"}]
+    for sent, pointer in (
+        (negative, "/hours_per_day"),
+        ({**negative, "hours_per_day": "-0"}, "/hours_per_day"),
+        ({**negative, "hours_per_day": "-0.0"}, "/hours_per_day"),
+        ({**negative, "hours_per_day": "abc"}, "/hours_per_day"),
+        (stale, "/hours_per_day"),
+    ):
+        refused = api.put(UNITS, headers=sessions.changing, json=sent)
+        assert refusal(refused)[:2] == (422, "VALIDATION_FAILED")
+        assert refusal(refused)[3] == [{"pointer": pointer, "code": "VALIDATION_FAILED"}]
     with database.transaction() as session:
         read = get_duration_units(session)
     assert (read.units.hours_per_day, read.lock_version) == (Decimal(8), 1)
 
 
+@pytest.mark.requirement("WF-REF-0110-A")
 @pytest.mark.requirement("WF-PLA-0160-A")
 def test_the_calendars_and_the_constants_are_written_by_who_may_change_the_resource_settings(
     api: ContractClient, database: Database, sessions: PartSessions

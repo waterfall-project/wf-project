@@ -65,8 +65,8 @@ class DurationUnitsView:
 def _refuse_units(units: Units) -> None:
     """Refuse each constant that is not strictly positive, all named at once (422).
 
-    A zero is ``DURATION_UNIT_NOT_POSITIVE``, as the contract has it; a negative
-    one is a value the field refuses.
+    A zero is ``DURATION_UNIT_NOT_POSITIVE``, as the contract has it; a signed
+    one (``-8``, ``-0``) is a value the field refuses.
     """
     faults: list[FieldError] = []
     for name, value in (
@@ -74,7 +74,7 @@ def _refuse_units(units: Units) -> None:
         ("hours_per_week", units.hours_per_week),
         ("days_per_month", units.days_per_month),
     ):
-        if value < 0:
+        if value.is_signed():
             faults.append(FieldError(f"/{name}", VALIDATION_FAILED))
         elif value == 0:
             faults.append(FieldError(f"/{name}", DURATION_UNIT_NOT_POSITIVE))
