@@ -22,6 +22,7 @@ import { useAccountNaming } from "@/components/account/account-name";
 import { DenseGrid } from "@/components/grid/dense-grid";
 import type { GridQuery } from "@/components/grid/query";
 import type { GridPreferences } from "@/components/grid/settings";
+import type { NodeChoice } from "@/components/reference/reference-filters";
 
 import { useRoleAnswers } from "./role-answers";
 import {
@@ -47,6 +48,7 @@ export function UserGrid({
   query,
   preferences,
   roles,
+  nodes,
   editable,
 }: {
   readonly users: readonly User[];
@@ -55,6 +57,8 @@ export function UserGrid({
   readonly preferences: GridPreferences | undefined;
   /** The roles of the installation an account may be given; none when the session reads none. */
   readonly roles: readonly RoleChoice[];
+  /** The active nodes an account may be attached to, in the order of the tree. */
+  readonly nodes: readonly NodeChoice[];
   /** Whether the session may modify the accounts (`platformOffer`). */
   readonly editable: boolean;
 }) {
@@ -69,6 +73,7 @@ export function UserGrid({
         editable
           ? {
               roles: () => roles,
+              nodes,
               // A name entered waits for the writes of its row, and is said once answered.
               rename:
                 queue === undefined
@@ -81,7 +86,7 @@ export function UserGrid({
             }
           : undefined,
       ),
-    [editable, roles, queue, t, naming],
+    [editable, roles, nodes, queue, t, naming],
   );
   const shown = useMemo(
     () =>

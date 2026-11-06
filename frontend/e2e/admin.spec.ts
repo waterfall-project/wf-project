@@ -1,9 +1,11 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
-import { expect, type Page, test } from "@playwright/test";
+import { expect, type Page } from "@playwright/test";
 
 import { compile } from "./compile";
 import { setExpanded, sortUntilAddress, WORKING } from "./hydration";
+import { inService, test } from "./mode";
+import { grantRole } from "./service/realm";
 
 // The fake back serves the first example of each read: the session, whose role grants the whole
 // catalogue, so that every function is offered; the accounts, the roles, the catalogue of the
@@ -56,10 +58,10 @@ test("reads the accounts, the matrix of the permissions, the state of the platfo
   const accounts = page.getByRole("grid", { name: "Comptes utilisateurs" });
   // The header, the seven accounts, the totals: how many the server retained.
   await expect(accounts.getByRole("row")).toHaveCount(9);
-  // The node before the roles (#379), which the session may attribute: the cell names its list.
+  // The node before the roles (#379), each a list the session may choose from: the cell names it.
   await expect(
     accounts.getByRole("row", {
-      name: /^Moreau Alix alix\.moreau@example\.com Créé dans Waterfall Bureau d'études électricité Rôles de/,
+      name: /^Moreau Alix alix\.moreau@example\.com Créé dans Waterfall BE-ELEC · Bureau d'études électricité Rôles de/,
     }),
   ).toHaveCount(1);
   await expect(accounts.getByRole("row").last()).toHaveText("7 comptes");
@@ -469,4 +471,43 @@ test("sorts the access roles by the author of their last modification, names eac
     "/admin/access-roles?sort_by=updated_by&sort_order=asc&created_by_kind=platform",
     { timeout: WORKING },
   );
+});
+
+/** The role that lets the manager of a worker read and modify the accounts, made once. */
+const ACCOUNT_ADMINISTRATION = "Gestion des comptes (parcours)";
+
+test("enters the node an account is attached to in its cell, among the active nodes of the chart, and removes it @shared", async ({
+  page,
+  manager,
+}) => {
+  // Against the service the account written is the manager's own, one for each worker: no path
+  // depends on another, and the attachment is removed once asserted. The fake back answers its
+  // example whatever is written, and keeps nothing.
+  const email = manager?.email ?? "lucas.petit@example.com";
+  if (manager !== undefined) {
+    grantRole(manager.email, ACCOUNT_ADMINISTRATION, ["users.read", "users.write"]);
+  }
+  await page.goto(`/admin/users?search=${encodeURIComponent(email)}`);
+  const accounts = page.getByRole("grid", { name: "Comptes utilisateurs" });
+  const row = accounts.getByRole("row").filter({ hasText: email });
+  const list = row.getByRole("combobox", { name: /^Rattachement de/ });
+  await expect(list).toBeVisible();
+  // The active nodes of the chart, and none: a deactivated node is not offered.
+  await expect(list.getByRole("option", { name: "Aucun" })).toHaveCount(1);
+  const achats = list.getByRole("option", { name: /Service des achats/ });
+  await expect(achats).toHaveCount(1);
+  await expect(list.getByRole("option", { name: /Cellule robotique/ })).toHaveCount(0);
+  const told = page.getByRole("status", { name: "Commandes des comptes" });
+  // No project is opened here, nothing witnesses the hydration: the list is chosen again until
+  // React answers.
+  await expect(async () => {
+    await list.selectOption({ label: (await achats.textContent()) ?? "" });
+    await expect(told).toContainText("Rattachement de", { timeout: 1_000 });
+  }).toPass({ timeout: WORKING });
+  await expect(list).not.toHaveAttribute("aria-busy", "true");
+  if (inService) {
+    await expect(list.locator("option:checked")).toContainText("Service des achats");
+    await list.selectOption({ label: "Aucun" });
+    await expect(list.locator("option:checked")).toHaveText("Aucun");
+  }
 });
