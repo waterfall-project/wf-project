@@ -26,20 +26,30 @@ import { rowAt, scroller, withinBox } from "./scroll";
 /** The rate typed in a cell, and what the cell then shows: the service answers what was typed. */
 const TYPED = "85";
 const ENTERED = inService ? "85,00 €" : "85,48 €";
+/**
+ * The categories of labour the grid of the rates holds in the answer it reads: the fake back
+ * serves the hundred and fifty at once, whatever the size asked, and the service pages them by
+ * fifty (the totals row, which counts all of them, says a hundred and fifty in both).
+ */
+const ROWS_READ = inService ? 50 : 150;
+/** The rows of the grid then: those read, its header and its totals row. */
+const ROW_COUNT = String(ROWS_READ + 2);
+/** The address that reads the grid of the rates by code, as the fake back serves it: the service has no other order. */
+const BY_CODE = "/reference/costs?sort_by=code&sort_order=asc";
 
 test("reads the settings of the costs outside any project with no mock-up notice, and enters a rate on the dense grid of the hourly rates, the service keeping it (US-0250) @shared [WF-REF-0050-A]", async ({
   page,
 }) => {
-  await page.goto("/reference/costs");
+  await page.goto(BY_CODE);
   await expect(page).toHaveTitle("Paramètres de coûts — Waterfall");
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("Paramètres de coûts");
   await expect(page.getByText("Montants exprimés en EUR")).toBeVisible();
   // The service keeps what is written: the screen no longer says the opposite.
   await expect(page.getByRole("note")).toHaveCount(0);
 
-  // The grid of the rates: a hundred and fifty rows over fifteen years, its totals row at the foot.
+  // The grid of the rates: a row for each category of labour over fifteen years, its totals row at the foot.
   const grid = page.getByRole("grid", { name: "Grille des taux horaires" });
-  await expect(grid).toHaveAttribute("aria-rowcount", "152");
+  await expect(grid).toHaveAttribute("aria-rowcount", ROW_COUNT);
   await expect(grid.getByRole("columnheader", { name: "2012", exact: true })).toBeVisible();
   await expect(grid.getByRole("columnheader", { name: "2026", exact: true })).toHaveCount(1);
   const totals = grid.getByRole("gridcell", { name: "150 catégories, taux horaires en EUR" });
@@ -139,7 +149,7 @@ for (const { width, height } of WINDOWS) {
     const natures = page.getByRole("grid", { name: "Natures de coût" });
     const categories = page.getByRole("grid", { name: "Catégories de coût" });
     const rates = page.getByRole("grid", { name: "Grille des taux horaires" });
-    await expect(rates).toHaveAttribute("aria-rowcount", "152");
+    await expect(rates).toHaveAttribute("aria-rowcount", ROW_COUNT);
     // Where each grid's box starts and how tall it is, in the page, whatever the scroll.
     const placed = async (grid: typeof rates) =>
       scroller(grid).evaluate((element) => ({
@@ -287,7 +297,7 @@ test("creates a category and enters a rate beside it, the page read anew droppin
   page,
 }) => {
   test.slow();
-  await page.goto("/reference/costs");
+  await page.goto(BY_CODE);
   await expect(page.getByRole("note")).toHaveCount(0);
   // A code, an accounting code and a label no run before holds (the service holds the accounting
   // code once, 20 signs at most): it keeps the category, the fake back answers its example.
@@ -416,8 +426,12 @@ test("presents fixed the type of a nature whose category is employed, with its c
   const type = form.getByRole("textbox", { name: "Type" });
   await expect(type).toHaveAttribute("readonly", "");
   await expect(type).toHaveValue("Main-d’œuvre");
+  // The conditions the service lacks are those of its data: the witness holds rates, and neither an
+  // estimate employing a category of the nature nor a role of resource attached to one.
   await expect(type).toHaveAccessibleDescription(
-    /^Le type ne se modifie pas\. Conditions non remplies\s:\saucune catégorie de la nature employée, aucune catégorie de la nature portant un taux horaire et aucune catégorie de la nature rattachée à un rôle de ressource\.$/,
+    inService
+      ? /^Le type ne se modifie pas\. Condition non remplie\s:\saucune catégorie de la nature portant un taux horaire\.$/
+      : /^Le type ne se modifie pas\. Conditions non remplies\s:\saucune catégorie de la nature employée, aucune catégorie de la nature portant un taux horaire et aucune catégorie de la nature rattachée à un rôle de ressource\.$/,
   );
   await expect(form.getByRole("combobox", { name: "Type" })).toHaveCount(0);
   await page.keyboard.press("Escape");
