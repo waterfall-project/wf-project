@@ -171,20 +171,21 @@ describe("the screen of the revisions of a project", () => {
   });
 
   // Carries the first sentence of the Vérif of WF-REV-0070-A, the list of the revisions marked,
-  // accessible from the project, its table and its links to open one; the year of reference, the
-  // rate of inflation and the probability of winning kept at the marking (WF-REV-0090) are not read
-  // in this table, and no test of the screen carries them.
-  it("lists the revisions in the order of the server, each with the attributes the API gives [WF-REV-0070-A]", async () => {
+  // accessible from the project, its table and its links to open one; and the first of WF-REV-0090-A,
+  // each attribute of a revision present in the history — version name, description, status, date
+  // of marking, reference year, reference character.
+  it("lists the revisions in the order of the server, each with the attributes the API gives [WF-REV-0070-A] [WF-REV-0090-A]", async () => {
     const page = html(await RevisionsPage(at()));
     // The history is read whole, by the largest page the contract takes (#303).
     expect(Object.fromEntries(callTo("GET /projects/{project_id}/revisions")?.query ?? [])).toEqual(
       { limit: "500", offset: "0" },
     );
     expect(table(page, "Historique des révisions")).toBe(
-      "Version État Marquée le Copie de Taux d’inflation Probabilité de gain Description Consultation " +
-        "Révision en cours En cours d’élaboration Non marquée Référence 3 % 100 % Ouvrir " +
-        "Référence Référence Marquée Offre v1.0 3 % 100 % Ouvrir " +
-        "Offre v1.0 Marquée Aucune 3 % 100 % Offre remise au client avant la commande. Ouvrir",
+      "Version État Marquée le Année de référence Copie de Taux d’inflation Probabilité de gain " +
+        "Description Consultation " +
+        "Révision en cours En cours d’élaboration Non marquée 2026 Référence 3 % 100 % Ouvrir " +
+        "Référence Référence Marquée 2026 Offre v1.0 3 % 100 % Ouvrir " +
+        "Offre v1.0 Marquée 2025 Aucune 3 % 100 % Offre remise au client avant la commande. Ouvrir",
     );
     // Each instant of marking, in the local time of the workstation, which the browser writes.
     expect([...page.matchAll(/<time dateTime="([^"]+)"/g)].map((match) => match[1])).toEqual([
@@ -646,10 +647,10 @@ describe("« Écarts seulement » on the comparison of two revisions [WF-REV-008
   });
 });
 
-describe("the note of the fake back on the revisions", () => {
-  it("says once, under the header, that the service does not apply filters, search, sort and pages (US-0760)", async () => {
-    const page = html(await RevisionsPage(at()));
-    expect(page.match(/<p role="note"/g)).toHaveLength(1);
-    expect(page).toContain("Filtres, recherche, tri et pages ignorés");
+describe("the screen of the revisions served by the service", () => {
+  it("shows no note of the mock-up, the history, the revision and its structures being served (US-0960)", async () => {
+    const page = html(await RevisionsPage(at({ revision_id: DRAFT })));
+    expect(page).not.toContain('role="note"');
+    expect(text(page)).not.toContain("Filtres, recherche, tri et pages ignorés");
   });
 });

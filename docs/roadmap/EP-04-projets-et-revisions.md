@@ -1028,7 +1028,7 @@ d'EP-06, rendu nul. L'écran est celui d'EP-02/L44c (#585) et d'EP-14/L44c.
 
 ## US-0960 — La révision en cours, son abandon, l'historique et les structures
 
-- **statut** : en cours
+- **statut** : fini
 - **exigences** : `WF-REV-0010-A`, `WF-REV-0070-A`, `WF-REV-0090-A`, `WF-REV-0100-A`,
   `WF-DAT-0010-A`, `WF-REV-0030-A`
 - **opérations** : `listRevisions`, `createRevision`, `getRevision`, `abandonRevision`,
