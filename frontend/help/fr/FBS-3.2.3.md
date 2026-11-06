@@ -23,7 +23,7 @@ Au-dessus de la table, pour tous : un filtre d’état quand les désactivés so
 
 Rien ne se calcule : chaque calendrier est celui que tient le serveur. Chaque colonne se trie, les heures de chaque jour comprises, ainsi que leur somme sur la semaine. Le pied dit combien de calendriers la table retient.
 
-Le serveur garde ce qui est saisi : le libellé reste unique parmi tous les calendriers, désactivés compris, les heures de chaque jour restent comprises entre 0 et 24, et un seul calendrier est par défaut, la désignation d’un autre la retirant au précédent. Les calendriers désactivés ne se lisent qu’avec la permission de modifier les paramètres de ressources.
+Le serveur garde ce qui est saisi : le libellé reste unique parmi tous les calendriers, désactivés compris, les heures de chaque jour restent comprises entre 0 et 24, et un seul calendrier est par défaut, la désignation d’un autre la retirant au précédent. Les calendriers désactivés ne se lisent qu’avec la permission de modifier les paramètres de ressources. Les unités de durée ont leur propre version : deux personnes qui les modifient en même temps ne s’écrasent pas, la seconde est invitée à relire.
 
 ## Les gestes au clavier
 

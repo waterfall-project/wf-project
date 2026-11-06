@@ -23,7 +23,7 @@ Above the table, for all: a filter of state when the deactivated ones are shown;
 
 Nothing is computed: each calendar is the one the server holds. Each column is sorted, the hours of each day included, and so is their sum over the week. The footer says how many calendars the table keeps.
 
-The server keeps what is entered: the label stays unique among all the calendars, deactivated ones included, the hours of each day stay between 0 and 24, and a single calendar is the default, designating another one taking it away from the previous one. Deactivated calendars are read only with the permission to modify the resource settings.
+The server keeps what is entered: the label stays unique among all the calendars, deactivated ones included, the hours of each day stay between 0 and 24, and a single calendar is the default, designating another one taking it away from the previous one. Deactivated calendars are read only with the permission to modify the resource settings. The units of duration have a version of their own: two people changing them at the same time do not overwrite each other, the second is invited to read them again.
 
 ## Keyboard gestures
 

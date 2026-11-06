@@ -996,7 +996,7 @@ désactivations croisées ne laissent pas un rôle actif sous un nœud fermé.
 
 ## US-0860 — Les calendriers, le calendrier par défaut et les unités de durée
 
-- **statut** : en cours
+- **statut** : fini
 - **exigences** : `WF-REF-0110-A`, `WF-REF-0120-A`, `WF-PLA-0160-A`
 - **opérations** : `listCalendars`, `createCalendar`, `updateCalendar`, `setDefaultCalendar`,
   `setCalendarActivation`, `getDurationUnits`, `setDurationUnits`
