@@ -8,9 +8,9 @@ but for the name of the root package, to a sample package built for each test.
 
 import ast
 import importlib
-import inspect
 import os
 import pkgutil
+import re
 import subprocess
 import sys
 import tomllib
@@ -297,48 +297,71 @@ def test_the_projects_and_the_revisions_offer_their_interface_as_a_package_by_su
         assert source.rsplit(".", 1)[0] == interface.__name__, name
 
 
-# What the design leaves silent: it has a documented result without effect, which the stories that
-# call it before its own fill rely on. `create_project_partitions` is filled from US-0910/L1.
-SILENT = {
-    "no_background_task_running",
-    "revision_has_tasks_and_lines",
-    "compute_indicators",
-    "advance",
-}
-FILLED = {"create_project_partitions"}
+STUB_STATEMENTS = 2
 
 
-def stubs() -> list[tuple[str, str]]:
-    """List (module, name) of each function the two interfaces offer, filled ones aside."""
-    found: list[tuple[str, str]] = []
+def is_stub(function: ast.FunctionDef) -> bool:
+    """Tell whether a body is a stub: a docstring at most, ``msg = "..."``, then the raise."""
+    body = list(function.body)
+    if (
+        body
+        and isinstance(body[0], ast.Expr)
+        and isinstance(body[0].value, ast.Constant)
+        and isinstance(body[0].value.value, str)
+    ):
+        body.pop(0)
+    if len(body) != STUB_STATEMENTS:
+        return False
+    assign, raised = body
+    return (
+        isinstance(assign, ast.Assign)
+        and len(assign.targets) == 1
+        and isinstance(assign.targets[0], ast.Name)
+        and assign.targets[0].id == "msg"
+        and isinstance(assign.value, ast.Constant)
+        and isinstance(assign.value.value, str)
+        and isinstance(raised, ast.Raise)
+        and isinstance(raised.exc, ast.Call)
+        and isinstance(raised.exc.func, ast.Name)
+        and raised.exc.func.id == "NotImplementedError"
+        and [a.id for a in raised.exc.args if isinstance(a, ast.Name)] == ["msg"]
+        and len(raised.exc.args) == 1
+    )
+
+
+def stubs() -> list[tuple[str, str, str]]:
+    """List (file, function, message) of each stub the files of the two interfaces declare.
+
+    Read from the code, not from a list: a function a story fills leaves it alone. The silent ones
+    (the design gives them a documented result without effect) are not stubs, and need no list.
+    """
+    found: list[tuple[str, str, str]] = []
     for module in PROJECT_INTERFACES:
         interface = importlib.import_module(f"waterfall.core.{module}.interface")
-        found.extend(
-            (module, name)
-            for name in sorted(interface.__all__)
-            if inspect.isfunction(getattr(interface, name)) and name not in FILLED
-        )
+        for directory in interface.__path__:
+            for path in sorted(Path(directory).glob("*.py")):
+                for node in ast.parse(path.read_text(encoding="utf-8")).body:
+                    if isinstance(node, ast.FunctionDef) and is_stub(node):
+                        assign = node.body[-2]
+                        assert isinstance(assign, ast.Assign)
+                        assert isinstance(assign.value, ast.Constant)
+                        found.append((f"{module}/{path.name}", node.name, str(assign.value.value)))
     return found
 
 
+def test_the_interfaces_of_the_projects_and_the_revisions_still_hold_stubs() -> None:
+    # A guard against emptiness: without it, the test below would be green by checking nothing.
+    assert stubs()
+
+
 @pytest.mark.requirement("WF-ARC-0010-A")
-@pytest.mark.parametrize(("module", "name"), stubs())
-def test_a_stub_of_the_projects_and_the_revisions_refuses_unless_the_design_leaves_it_silent(
-    module: str, name: str
+@pytest.mark.parametrize(("file", "name", "message"), stubs())
+def test_a_stub_of_the_projects_and_the_revisions_refuses_naming_the_story_that_fills_it(
+    file: str, name: str, message: str
 ) -> None:
     # A caller that reaches a function before its story fills it must fail, not read or write
     # nothing: a green test would hide a refusal (`revision_draft`) that does not exist yet.
-    interface = importlib.import_module(f"waterfall.core.{module}.interface")
-    function = getattr(interface, name)
-    # The names of the parameters, read from the code: the annotations name types imported for the
-    # checker alone.
-    code = function.__code__
-    arguments = dict.fromkeys(code.co_varnames[: code.co_argcount + code.co_kwonlyargcount])
-    if name in SILENT:
-        function(**arguments)
-        return
-    with pytest.raises(NotImplementedError, match=rf"{name} is filled by US-\d{{4}}"):
-        function(**arguments)
+    assert re.fullmatch(rf"{name} is filled by US-\d{{4}}(/L\d+)?", message), (file, message)
 
 
 def imported(statement: str) -> str:
