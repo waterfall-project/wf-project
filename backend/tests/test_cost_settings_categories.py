@@ -123,11 +123,21 @@ def test_the_commands_of_a_category_are_those_of_a_caller_who_changes_the_cost_s
         ("deactivate", True, []),
         ("change_cost_type", True, []),
     ]
-    # The roles of the witness bind the two categories they are attached to (US-0850).
-    bound = [available[0], ("change_cost_type", False, ["cost_category_without_role"])]
+    # The witness rates every category of labour and attaches roles to two of them (US-0850): the
+    # labour categories keep their kind for their rates, MO-001 and MO-002 for their roles too, the
+    # others can leave it.
+    rated = [available[0], ("change_cost_type", False, ["cost_category_unrated"])]
+    bound = [
+        available[0],
+        ("change_cost_type", False, ["cost_category_unrated", "cost_category_without_role"]),
+    ]
     assert len(managed) == 200
     for item in managed:
-        assert commands(item) == (bound if item["code"] in {"MO-001", "MO-002"} else available)
+        if item["code"] in {"MO-001", "MO-002"}:
+            assert commands(item) == bound
+        else:
+            assert commands(item) == (rated if item["cost_type_kind"] == "labor" else available)
+    assert sum(item["cost_type_kind"] == "labor" for item in managed) == 150
 
 
 @pytest.mark.requirement("WF-REF-0040-A")

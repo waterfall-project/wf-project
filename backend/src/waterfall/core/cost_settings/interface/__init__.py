@@ -120,10 +120,37 @@ from waterfall.core.cost_settings.interface.cost_types import (
 from waterfall.core.cost_settings.interface.cost_types import (
     update_cost_type as update_cost_type,
 )
+from waterfall.core.cost_settings.interface.hourly_rates import (
+    GridColumn as GridColumn,
+)
+from waterfall.core.cost_settings.interface.hourly_rates import (
+    HourlyRateFilters as HourlyRateFilters,
+)
+from waterfall.core.cost_settings.interface.hourly_rates import (
+    HourlyRateGridPage as HourlyRateGridPage,
+)
+from waterfall.core.cost_settings.interface.hourly_rates import (
+    HourlyRateRow as HourlyRateRow,
+)
+from waterfall.core.cost_settings.interface.hourly_rates import (
+    HourlyRateSort as HourlyRateSort,
+)
+from waterfall.core.cost_settings.interface.hourly_rates import (
+    HourlyRateView as HourlyRateView,
+)
 
 # ``hourly_rates`` (US-0830): the hourly rates of the categories of labour, by year.
 from waterfall.core.cost_settings.interface.hourly_rates import (
     category_is_rated as category_is_rated,
+)
+from waterfall.core.cost_settings.interface.hourly_rates import (
+    list_hourly_rates as list_hourly_rates,
+)
+from waterfall.core.cost_settings.interface.hourly_rates import (
+    read_hourly_rate_grid as read_hourly_rate_grid,
+)
+from waterfall.core.cost_settings.interface.hourly_rates import (
+    set_hourly_rate as set_hourly_rate,
 )
 
 # ``readiness`` (US-0810/L2): the questions of the minimal reference this module answers.

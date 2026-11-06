@@ -98,14 +98,17 @@ def test_every_session_reads_the_active_natures_as_the_example_the_faux_back_ser
 def test_the_commands_of_a_nature_are_those_of_a_caller_who_changes_the_cost_settings(
     api: ContractClient, sessions: PartSessions
 ) -> None:
-    # Nothing binds a category before the lines and the rates exist, but the roles: those of the
-    # witness bind the nature of labour (US-0850), the others can change kind. The deactivation
-    # always is available.
+    # Nothing binds a category before the lines exist, but the rates and the roles: the witness
+    # rates every category of labour and attaches roles to them (US-0850), so the nature of labour
+    # cannot change kind, the others can. The deactivation always is available.
     for headers in (sessions.without, sessions.reading):
         assert all(item["available_commands"] == [] for item in listed(api, headers)["items"])
     managed = {item["code"]: commands(item) for item in listed(api, sessions.changing)["items"]}
     assert managed == {
-        "MO": [AVAILABLE[0], ("change_kind", False, ["cost_type_without_role"])],
+        "MO": [
+            AVAILABLE[0],
+            ("change_kind", False, ["cost_type_unrated", "cost_type_without_role"]),
+        ],
         "DEB": AVAILABLE,
         "PRV": AVAILABLE,
     }
