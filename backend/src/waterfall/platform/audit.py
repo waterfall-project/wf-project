@@ -86,6 +86,9 @@ ACTIONS: tuple[str, ...] = get_args(AuditAction.__value__)
 # The natures of objects an inscription may name without a label: a backup, which has none, and an
 # account, whose name an anonymisation forgets (WF-ADM-0060).
 UNLABELED_KINDS = ("backup", "user")
+# The one action whose object may lack its label whatever its nature: an abandoned revision is
+# deleted, and the contract carries its inscription with a null label (#2161).
+UNLABELED_ACTIONS = ("revision_abandon",)
 OBJECT_KINDS: tuple[str, ...] = get_args(AuditObjectKind.__value__)
 
 # What the data of an inscription may hold: codes, identifiers in text, numbers, never a float.
@@ -129,7 +132,8 @@ class AuditEntry(Base):
             name="project_named",
         ),
         CheckConstraint(
-            f"object_label IS NOT NULL OR {_in('object_kind', UNLABELED_KINDS)}",
+            f"object_label IS NOT NULL OR {_in('object_kind', UNLABELED_KINDS)} "
+            f"OR {_in('action', UNLABELED_ACTIONS)}",
             name="object_labeled",
         ),
         CheckConstraint(
@@ -262,7 +266,11 @@ def record(session: Session, inscription: Inscription) -> UUID:
         message = f"an inscription does not carry a secret: field {secret!r}"
         raise AuditError(message)
     actor, audited, project = inscription.actor, inscription.audited, inscription.project
-    if audited.label is None and audited.kind not in UNLABELED_KINDS:
+    if (
+        audited.label is None
+        and audited.kind not in UNLABELED_KINDS
+        and inscription.action not in UNLABELED_ACTIONS
+    ):
         message = f"an object of kind {audited.kind!r} is inscribed without its label"
         raise AuditError(message)
     identifier = new_id()

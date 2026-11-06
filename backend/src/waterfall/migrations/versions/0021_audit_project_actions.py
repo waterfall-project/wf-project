@@ -8,6 +8,11 @@ rank of the action, by which ``listAuditEvents`` sorts, follows the order of the
 out here, as a migration does not read the code that follows it. The merge of a differential keeps
 its former name (K-04).
 
+The constraint ``object_labeled`` admits as well a null label for the action ``revision_abandon``
+alone: the contract inscribes the abandonment of a revision, which is deleted, without its label
+(``audit_events_revision_abandoned``, #2161). The condition names the action, not every object of
+the nature ``revision``, so that no other inscription of a revision loses its label.
+
 Created in the transaction of the migration, not ``CONCURRENTLY``: the journal holds at most the
 inscriptions of the platform and of its accounts when it runs.
 """
@@ -53,6 +58,13 @@ ACTIONS = (
     "restore",
 )
 ACTIONS_BEFORE = tuple(action for action in ACTIONS if action not in NEW)
+LABELED = (
+    "object_label IS NOT NULL OR object_kind IN ('backup', 'user')",
+    (
+        "object_label IS NOT NULL OR object_kind IN ('backup', 'user') "
+        "OR action IN ('revision_abandon')"
+    ),
+)
 
 
 def _in(values: tuple[str, ...]) -> str:
@@ -64,19 +76,22 @@ def _rank(values: tuple[str, ...]) -> str:
     return f"array_position(ARRAY[{array}], action)"
 
 
-def _replace(actions: tuple[str, ...]) -> None:
+def _replace(actions: tuple[str, ...], labeled: str) -> None:
     constraint = op.f(f"ck_{TABLE}_action_known")
     op.drop_constraint(constraint, TABLE, type_="check")
     op.create_check_constraint(constraint, TABLE, _in(actions))
     op.drop_index(RANK_INDEX, table_name=TABLE)
     op.create_index(RANK_INDEX, TABLE, [sa.text(_rank(actions))])
+    labeled_name = op.f(f"ck_{TABLE}_object_labeled")
+    op.drop_constraint(labeled_name, TABLE, type_="check")
+    op.create_check_constraint(labeled_name, TABLE, labeled)
 
 
 def upgrade() -> None:
-    """Admit the two actions, and rank every action in the order of the contract."""
-    _replace(ACTIONS)
+    """Admit the two actions, rank them in the order of the contract, label-free abandonment."""
+    _replace(ACTIONS, LABELED[1])
 
 
 def downgrade() -> None:
-    """Refuse the two actions again; fails while the journal holds one, which it never loses."""
-    _replace(ACTIONS_BEFORE)
+    """Refuse the two actions and the null label again; fails while the journal holds one."""
+    _replace(ACTIONS_BEFORE, LABELED[0])
