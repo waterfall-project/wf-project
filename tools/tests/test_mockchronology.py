@@ -10,14 +10,6 @@ from typing import Any
 from wftools import REPOSITORY, mockchronology, mockdata, mockwitness, paths
 
 FILE = REPOSITORY / "fixtures" / "api" / mockchronology.NAME
-KINDS = {
-    "project_created",
-    "revision_opened",
-    "revision_marked",
-    "designation_attempted",
-    "code_entered",
-    "state_transition",
-}
 
 
 def _events() -> list[dict[str, Any]]:
@@ -49,7 +41,7 @@ def test_the_instants_are_those_of_the_chronology() -> None:
     # WF-QUA-0040-A: each event carries the instant of the witness's chronology (WF-CYC-0130).
     instants = [datetime.fromisoformat(event["occurred_at"]) for event in _events()]
     assert instants == [event.instant for event in mockwitness.CHRONOLOGY]
-    assert all(text["occurred_at"].endswith("Z") for text in _events())
+    assert all(event["occurred_at"].endswith("Z") for event in _events())
 
 
 def test_the_order_is_that_of_the_events() -> None:
@@ -60,12 +52,18 @@ def test_the_order_is_that_of_the_events() -> None:
     assert all(a["occurred_at"] < b["occurred_at"] for a, b in pairwise(events))
 
 
-def test_what_an_event_writes_is_a_known_kind_of_the_witness_story() -> None:
-    # WF-QUA-0040-A: the offer opened, marked, the reference opened and marked, the current one
-    # opened, the designation refused, the code entered, the transition to costing.
-    writes = [write for event in _events() for write in event["writes"]]
-    assert {write["kind"] for write in writes} <= KINDS
-    assert [(w["kind"], w.get("revision")) for w in writes] == [
+def _writes() -> list[dict[str, Any]]:
+    return [write for event in _events() for write in event["writes"]]
+
+
+def _written(*kinds: str) -> list[dict[str, Any]]:
+    return [write for write in _writes() if write["kind"] in kinds]
+
+
+def test_the_writes_are_those_of_the_design_in_that_order() -> None:
+    # WF-QUA-0040-A: the design of EP-04 lists them: 100 opened (Created to Costing), marked, 101
+    # opened, 100 designated and refused, the code entered, 101 marked, 102 opened; no abandon.
+    assert [(w["kind"], w.get("revision")) for w in _writes()] == [
         ("project_created", None),
         ("revision_opened", 100),
         ("state_transition", None),
@@ -78,6 +76,54 @@ def test_what_an_event_writes_is_a_known_kind_of_the_witness_story() -> None:
     ]
 
 
-def test_the_file_holds_no_import_of_wftools_to_read() -> None:
+def test_each_write_has_the_fields_of_its_kind() -> None:
+    # WF-QUA-0040-A: the full shape of each write, by kind, and no field beyond it.
+    fields = {
+        "project_created": {"kind", "project"},
+        "revision_opened": {"kind", "project", "revision"},
+        "revision_marked": {"kind", "project", "revision", "version_name"},
+        "designation_attempted": {"kind", "project", "revision", "refused"},
+        "code_entered": {"kind", "project", "code"},
+        "state_transition": {"kind", "project", "from", "to"},
+    }
+    assert all(set(write) == fields[write["kind"]] for write in _writes())
+    assert [(w["revision"], w["version_name"]) for w in _written("revision_marked")] == [
+        (100, "v1.0"),
+        (101, "Référence"),
+    ]
+    assert [(w["revision"], w["refused"]) for w in _written("designation_attempted")] == [
+        (100, "no_task")
+    ]
+    assert [(w["from"], w["to"]) for w in _written("state_transition")] == [("created", "costing")]
+    assert [w["revision"] for w in _written("revision_opened")] == [100, 101, 102]
+
+
+def test_an_event_writes_the_opening_of_the_offer_before_its_transition() -> None:
+    # WF-QUA-0040-A: at the opening of the offer, 100 is opened, then Created to Costing.
+    opening = next(
+        event
+        for event in _events()
+        if event["writes"] and event["writes"][0]["kind"] == "revision_opened"
+    )
+    assert [(w["kind"], w.get("revision")) for w in opening["writes"]] == [
+        ("revision_opened", 100),
+        ("state_transition", None),
+    ]
+
+
+def test_every_write_names_a_project_of_the_example_of_the_projects() -> None:
+    # WF-QUA-0040-A: each write carries its project, a code of projects.json; the code entered is
+    # that of the witness project.
+    codes = {
+        item["code"]
+        for item in json.loads((FILE.parent / "projects.json").read_text(encoding="utf-8"))[
+            "value"
+        ]["items"]
+    }
+    assert all(write["project"] in codes for write in _writes())
+    assert [w["code"] for w in _written("code_entered")] == ["PRJ-001"]
+
+
+def test_the_file_is_an_example_of_a_summary_a_description_and_a_value() -> None:
     # WF-QUA-0040-A: the file stands alone, a summary, a description and a value, as an example.
     assert set(json.loads(FILE.read_text(encoding="utf-8"))) == {"summary", "description", "value"}
