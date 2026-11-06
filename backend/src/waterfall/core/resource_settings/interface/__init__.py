@@ -136,9 +136,6 @@ from waterfall.core.resource_settings.interface.org_nodes import (
 
 # ``readiness`` (US-0810/L2): the questions of the minimal reference this module answers.
 from waterfall.core.resource_settings.interface.readiness import (
-    active_role_exists as active_role_exists,
-)
-from waterfall.core.resource_settings.interface.readiness import (
     default_calendar_has_hours as default_calendar_has_hours,
 )
 
