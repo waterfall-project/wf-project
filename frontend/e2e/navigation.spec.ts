@@ -51,10 +51,11 @@ test("a user who opened no project reaches the portfolio, the administration and
   page,
 }) => {
   // The screens of their own reached by a click, compiled first (`e2e/compile.ts`).
-  await compile(page.request, "/portfolio/projects", "/admin/users", "/system");
+  await compile(page.request, "/portfolio/projects", "/reference/costs", "/admin/users", "/system");
   await page.goto("/");
   await open(page, "Portefeuille de projets", "Portefeuille");
   await expect(page).toHaveURL("/portfolio/projects");
+  await open(page, "Paramètres de coûts", "Paramètres applicatifs");
   await open(page, "Gestion des utilisateurs", "Administration");
   await open(page, "Surveillance de l’état du système", "Administration");
   await expect(page).toHaveURL("/system");
