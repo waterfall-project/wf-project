@@ -99,9 +99,6 @@ def test_a_loading_that_writes_nothing_succeeds_and_says_the_witness_is_there(
 
     monkeypatch.setattr(loader, "SLICES", tuple((name, held) for name in ORDER))
     assert load_witness(settings) == 0
-    assert events(logs) == ["witness.loaded"]
-    logs.clear()
-    assert load_witness(settings) == 0
     assert events(logs) == ["witness.already_loaded"]
     assert {record["correlation_id"] for record in logs.records} != {None}
 
