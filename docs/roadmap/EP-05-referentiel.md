@@ -498,8 +498,9 @@ fixent au lot, dans les deux langues, à côté des libellés des rôles prédé
   dans un fichier du module par objet (décision du 2026-11-05) ; US-0890 l'éprouve entière.
 - **Ce qu'elle lit** : les fichiers de `fixtures/api/` que `make mock-data` tient —
   `reference_settings.json`, `duration_units.json`, `cost_types.json`,
-  `volume/cost_categories.json`, `volume/hourly_rate_grid.json`, `calendars.json`,
-  `org_nodes_with_inactive.json`, `resource_roles.json` (désactivés compris),
+  `volume/cost_categories.json`, `volume/hourly_rate_grid.json`, `calendars_with_inactive.json`
+  (créés, puis les désactivés désactivés, pour que les rôles qui les citent naissent ; #2131,
+  auteur, 2026-11-06), `org_nodes_with_inactive.json`, `resource_roles.json` (désactivés compris),
   `actual_cost_mapping.json` —, validés par les modèles du contrat (`api/contract/models.py`) : le
   témoin est lu dans la forme du contrat, et un fichier qui s'en écarte arrête la commande. Elle ne
   recopie rien dans le paquet.
@@ -969,7 +970,8 @@ de charge confronte la charge des projets à ce que l'entreprise peut fournir.
 - `WF-REF-0080-A` — « La désactivation d'un nœud portant deux niveaux de descendants et des rôles
   les désactive tous. » : `setOrgNodeActivation` désactive les descendants et les rôles rattachés
   à lui ou à l'un d'eux, chacun son compteur avancé et son audit nommant l'auteur, dans la même
-  transaction ; la réponse ne les porte pas, les listes relues les montrent ;
+  transaction ; la réponse porte les nœuds et les rôles changés, comme le contrat le dit (#2139,
+  auteur, 2026-11-06), et les listes relues les montrent ;
 - `WF-REF-0080-A` — « La réactivation d'un rôle dont le nœud est désactivé est refusée. » : 409,
   `STATE_FORBIDS_OPERATION`, `org_node_active` manquante, `conflicting_object_id` le nœud, la
   commande `reactivate` du rôle le disant d'avance ; de même la réactivation d'un nœud dont le

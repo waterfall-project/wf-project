@@ -86,3 +86,10 @@ Reporté d'EP-22 à sa livraison (décision de l'auteur du 2026-11-06) :
   `tables.py` sans leur répertoire (`platform/restoration.py`, `core/users/tables.py`), alors que
   chaque objet du référentiel aura le sien. Mineur de la revue d'US-1280 (#2023), à prendre avec
   #2074 et #2075.
+
+Reporté d'EP-05 (décision de l'auteur du 2026-11-06) :
+
+- #2124 — outil : un cycle d'imports entre deux interfaces en paquet du noyau
+  (`users.interface` ↔ `resource_settings.interface`) a échappé à import-linter et n'a été révélé
+  que par la file de fusion ; un contrat import-linter interdira les cycles entre interfaces du
+  noyau. Relevé par la revue d'US-0860.
