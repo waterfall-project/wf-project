@@ -6,6 +6,7 @@ The core has no module yet, so the contracts of ``pyproject.toml`` are applied, 
 but for the name of the root package, to a sample package built for each test.
 """
 
+import ast
 import importlib
 import os
 import pkgutil
@@ -26,6 +27,7 @@ LAYOUT = {
     "api/__init__.py": "",
     "worker/__init__.py": "",
     "migrations/__init__.py": "",
+    "schema.py": "",
     "core/__init__.py": "",
     "platform/__init__.py": "",
     "core/accounts/__init__.py": "",
@@ -147,6 +149,19 @@ def test_the_platform_may_not_import_the_core_the_api_or_the_worker(
     assert f"sample.platform -> sample.{imported}" in result.stdout
 
 
+@pytest.mark.requirement("WF-ARC-0010-A")
+def test_the_core_may_not_import_the_schema(sample: Path) -> None:
+    result = lint(sample, "core.projects.tables", "from sample import schema\n")
+    assert result.returncode == 1
+    assert "sample.core.projects.tables -> sample.schema" in result.stdout
+
+
+def test_the_entry_points_may_import_the_schema_which_may_import_the_core(sample: Path) -> None:
+    (sample / "sample" / "schema.py").write_text("from sample.core.projects import tables\n")
+    result = lint(sample, "api.__init__", "from sample import schema\n")
+    assert result.returncode == 0, result.stdout
+
+
 def test_the_core_may_not_import_the_migrations(sample: Path) -> None:
     result = lint(sample, "core.projects.tables", "from sample import migrations\n")
     assert result.returncode == 1
@@ -262,7 +277,16 @@ def test_the_schema_declares_the_tables_of_every_module_and_the_entry_points_imp
         assert imported(entry.format(module)) == "True", module
     # The environment of the migrations runs on import, against a database: its source is read.
     env = Path(__file__).resolve().parents[1] / "src/waterfall/migrations/env.py"
-    assert "schema.declared()" in env.read_text(encoding="utf-8")
+    calls = [
+        node
+        for node in ast.walk(ast.parse(env.read_text(encoding="utf-8")))
+        if isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Attribute)
+        and node.func.attr == "declared"
+        and isinstance(node.func.value, ast.Name)
+        and node.func.value.id == "schema"
+    ]
+    assert calls
 
 
 def test_the_package_itself_keeps_its_contracts() -> None:

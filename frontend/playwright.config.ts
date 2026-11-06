@@ -290,7 +290,8 @@ function serviceProjects(): Project[] {
     },
     {
       // The paths the fake back plays too, each signed in as the manager of its worker
-      // (`e2e/mode.ts`): chosen by their tag in any file, the measure's and `e2e/service/`'s left out (`service` plays those), beside the paths.
+      // (`e2e/mode.ts`): chosen by their tag in any file, the measure's and `e2e/service/`'s
+      // left out (`service` plays those), beside the paths.
       name: "shared",
       testIgnore: [MEASURES, SERVICE_PATHS],
       grep: SHARED,

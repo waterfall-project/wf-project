@@ -3720,7 +3720,9 @@ Un parcours dont le service sert l'écran se joue des deux côtés : contre le f
 `chromium`, comme avant, et contre le service par le projet `shared` (EP-05). Il importe `test` de
 `frontend/e2e/mode.ts` et non de `@playwright/test`, et porte l'étiquette `@shared` — dans son
 titre, ou par `tag`, comme `@realm-wide` : le `grep` du projet lit les deux —, dans quelque fichier
-de `frontend/e2e/` qu'il soit, ceux de la mesure exceptés, et ceux de `frontend/e2e/service/`, que le projet `service` joue déjà (l'étiquette ne s'y pose pas : le parcours serait joué deux fois) ; aucune liste de fichiers ne le nomme.
+de `frontend/e2e/` qu'il soit, ceux de la mesure exceptés, et ceux de `frontend/e2e/service/`, que
+le projet `service` joue déjà (l'étiquette ne s'y pose pas : le parcours serait joué deux fois) ;
+aucune liste de fichiers ne le nomme.
 Chaque US étiquette ses parcours quand le service sert son écran. Contre le faux back, `test` ne
 change rien : le faux back accorde la session. Avec `WATERFALL_API_ADDRESS`, `inService` est vrai,
 et deux fixtures de `mode.ts` font ce qu'un fichier de `frontend/e2e/service/` demande par ses

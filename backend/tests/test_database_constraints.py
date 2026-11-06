@@ -949,6 +949,7 @@ def audit_columns(table: type[Base]) -> dict[str, tuple[object, ...]]:
     }
 
 
+@pytest.mark.requirement("WF-DAT-0090-A")
 def test_the_audit_columns_of_the_two_modules_of_the_reference_do_not_drift() -> None:
     # Each module declares its own ``Audited`` (a module imports no table of another, WF-ARC-0010):
     # the two copies stay the same columns, whatever a lot changes in one of them.
