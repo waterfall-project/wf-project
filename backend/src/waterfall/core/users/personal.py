@@ -8,17 +8,20 @@ neither its version nor its audit columns move, and a form opened on the account
 when its sessions are closed.
 """
 
-from collections.abc import Mapping
 from dataclasses import dataclass
-from typing import Any
-from uuid import UUID
+from typing import TYPE_CHECKING, Any
 
 from sqlalchemy import select, update
-from sqlalchemy.orm import Session
 
 from waterfall.core.users.accounts import lock_account
 from waterfall.core.users.tables import UserAccount
 from waterfall.platform.errors import FieldError, UnprocessableError
+
+if TYPE_CHECKING:
+    from collections.abc import Mapping
+    from uuid import UUID
+
+    from sqlalchemy.orm import Session
 
 # The settings of each grid, by the name of the grid (WF-IHM-0060), the layout of each timeline,
 # by its identifier (WF-PLA-0140), and the state of each chart, folded or not, by the name of the

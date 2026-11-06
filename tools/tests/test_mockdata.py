@@ -7,8 +7,7 @@ import re
 import shutil
 from collections import Counter
 from decimal import Decimal
-from pathlib import Path
-from typing import Any, cast
+from typing import TYPE_CHECKING, Any, cast
 
 import pytest
 
@@ -21,7 +20,11 @@ from wftools import (
     mockwitness,
     paths,
 )
-from wftools.mockstructure import JsonObject
+
+if TYPE_CHECKING:
+    from pathlib import Path
+
+    from wftools.mockstructure import JsonObject
 
 MONEY = re.compile(r"^\d+\.\d{2}$")
 CONTRACT = REPOSITORY / "docs" / "api" / "paths"

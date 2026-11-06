@@ -10,8 +10,7 @@ import json
 import re
 from datetime import date
 from decimal import Decimal
-from pathlib import Path
-from typing import Any, cast
+from typing import TYPE_CHECKING, Any, cast
 
 import pytest
 from witnessreadings import (
@@ -56,6 +55,9 @@ from wftools import (
 from wftools.mockids import universe
 from wftools.mockstructure import described
 from wftools.mockwitness import TODAY, Line, N, Task
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 
 @pytest.fixture(scope="module")

@@ -12,13 +12,16 @@ record — message, trace, ``repr``. A secret the settings do not know cannot be
 import json
 import logging
 import sys
-from collections.abc import Callable, Generator, Iterable
 from contextlib import contextmanager
-from typing import IO, Any, cast
+from typing import IO, TYPE_CHECKING, Any, cast
 
 import structlog
 from structlog.contextvars import bound_contextvars
-from structlog.typing import EventDict, Processor, WrappedLogger
+
+if TYPE_CHECKING:
+    from collections.abc import Callable, Generator, Iterable
+
+    from structlog.typing import EventDict, Processor, WrappedLogger
 
 PLATFORM = "platform"
 ANONYMOUS = "anonymous"

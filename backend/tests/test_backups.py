@@ -15,14 +15,12 @@ import subprocess
 import tarfile
 from collections.abc import Callable, Iterator
 from datetime import UTC, datetime
-from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from uuid import UUID, uuid4
 
 import pytest
 from access_rows import account, role
 from fastapi.testclient import TestClient
-from openapi_core import OpenAPI
 from realm import KEY, TestRealm
 from sqlalchemy import Engine, select, text
 from sqlalchemy.exc import ProgrammingError
@@ -36,14 +34,20 @@ from waterfall.core.backups.interface import TakenBackup, add_backup
 from waterfall.platform.audit import Act, AuditEntry
 from waterfall.platform.database import Database, create_database_engine, engine_url, utc_now
 from waterfall.platform.errors import UnavailableError
-from waterfall.platform.keycloak import Keycloak
 from waterfall.platform.keycloak_admin import KeycloakAdmin
 from waterfall.platform.logs import logging_context
-from waterfall.platform.queue import TaskQueue
 from waterfall.platform.settings import ServiceSettings, load_worker_settings
 from waterfall.platform.storage import Bucket
 from waterfall.worker.backup import MANIFEST, BackupTask, DumpError, connection, dump, verified
 from waterfall.worker.runner import Timing, Worker
+
+if TYPE_CHECKING:
+    from pathlib import Path
+
+    from openapi_core import OpenAPI
+
+    from waterfall.platform.keycloak import Keycloak
+    from waterfall.platform.queue import TaskQueue
 
 BACKUPS = "/api/v1/backups"
 READ = "backups.read"

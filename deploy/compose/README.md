@@ -9,13 +9,17 @@ Cette notice installe Waterfall sur une machine seule, à partir des images que 
 sur `ghcr.io/waterfall-project`, derrière un frontal HTTPS (US-0430, WF-ARC-0050). Le fichier
 Compose est `compose.prod.yaml` ; les autres fichiers de ce répertoire servent la plateforme de
 développement et la plateforme de service, sauf ceux qu'il monte : `Caddyfile.prod`,
-`garage.toml`, `storage-buckets.sh` et les scripts SQL des rôles et des bases.
+`garage.toml`, `storage-buckets.sh`, `postgres-volume.sh` et les scripts SQL des rôles et des
+bases.
 
 La plateforme compte un frontal Caddy, seul port ouvert, qui obtient ses certificats de Let's
 Encrypt et sert le front à la racine et Keycloak sous `/auth`, hors sa console ; le front, l'API, le worker et le
 planificateur de ses tâches ; PostgreSQL, qui porte deux bases, celle de Waterfall et celle de
 Keycloak ; Redis ; Garage, le stockage objet, et ses compartiments `backups` et `imports` ;
 Keycloak et l'application de son royaume. Les données vivent dans des volumes nommés.
+
+Redis est employé sous la licence AGPLv3, comme Waterfall lui-même, depuis sa version 8 ; le dépôt
+ne redistribue pas Redis : la plateforme tire son image du registre public.
 
 Une démonstration n'a pas de messagerie : les liens par lesquels un compte fixe son mot de passe
 se remettent depuis l'écran des comptes (WF-CMP-0030). Le chiffrement entre les services, plusieurs
@@ -145,6 +149,24 @@ Le service `migrate` applique les migrations sous le rôle propriétaire avant q
 tient que le rôle du service, ne démarre (#701, WF-DAT-0140) ; `keycloak-realm` applique de
 nouveau le royaume de l'image, et un réglage changé à la main dans la console y revient.
 L'interruption dure le temps du redémarrage.
+
+**Le passage à PostgreSQL 18 ne garde pas les données.** La première version publiée après
+`0.1.0` — et les images de `main` depuis l'EPIC qui monte les dépendances, EP-20 — passe de
+PostgreSQL 16 à PostgreSQL 18, et de Redis 7 à Redis 8. Elle ne reprend pas les données d'une
+plateforme 16 : ni `pg_upgrade`, ni sauvegarde prise sur la 16 dont la restauration sur la 18 soit
+garantie. On retire la plateforme avec ses volumes, puis on la réinstalle et on l'amorce
+(« Installer », « Amorcer ») :
+
+```sh
+docker compose -f compose.prod.yaml down --volumes
+```
+
+Toutes les données de l'installation sont perdues, comme le dit « Arrêter » ; celles de Redis et de
+Garage ne se reprennent pas non plus. Si on l'oublie, la plateforme refuse de démarrer : le service
+`postgres-volume`, qui lit le volume de PostgreSQL avant que le serveur ne démarre, nomme la version
+des données trouvées et celle attendue, 18, et renvoie ici
+(`docker compose -f compose.prod.yaml logs postgres-volume`). Il refuse de même les données de
+toute autre majeure que celle de la plateforme.
 
 ## Sauvegarder
 

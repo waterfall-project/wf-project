@@ -100,7 +100,7 @@ function shell() {
 
 /** Sign out from the menu of the account. */
 async function signOut() {
-  await userEvent.click(screen.getByRole("button", { name: "Compte de Camille Martin" }));
+  await userEvent.click(screen.getByRole("button", { name: "Compte de Camille Martin, CM" }));
   await userEvent.click(screen.getByRole("menuitem", { name: "Se déconnecter" }));
 }
 

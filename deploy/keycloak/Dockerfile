@@ -12,8 +12,9 @@
 # (.dockerignore). Every image is pinned by the digest of its index; raise the version of Keycloak
 # here and in extension/pom.xml together, and keycloak-config-cli with it.
 
-# The extension, compiled and tested here: no JVM is asked of the workstation.
-FROM maven:3.9.16-eclipse-temurin-21@sha256:99e61abcff91a9b1333463bd8451fb18495d6eba9250ac66a338b518f8278320 AS extension
+# The extension, compiled and tested here: no JVM is asked of the workstation. The JDK is 25, but
+# the extension targets Java 21 (extension/pom.xml), the Java that runs Keycloak 26.8.1.
+FROM maven:3.10.0-eclipse-temurin-25@sha256:047a82fc82c613266cfb1b66fd920be9c8ba51fd67edc68245e4542768f45e36 AS extension
 WORKDIR /build
 COPY extension/pom.xml ./
 RUN --mount=type=cache,target=/root/.m2 mvn --batch-mode --quiet dependency:go-offline

@@ -6,9 +6,12 @@ A check of the repository, which covers no requirement of the product: its tests
 (docs/dev/README-fr.md, « Un test qui cite son exigence »).
 """
 
-from pathlib import Path
+from typing import TYPE_CHECKING
 
 from wftools import readmes
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 ORIGINAL = """# Contrat
 

@@ -15,7 +15,7 @@ permissions:
 
 jobs:
   trial:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     # The three images — Keycloak's with its extension compiled and tested —, then the platform:
     # Keycloak and the application of its realm are the longest of it.
     timeout-minutes: 30

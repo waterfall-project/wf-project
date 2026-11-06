@@ -12,9 +12,8 @@ import base64
 import hashlib
 import json
 import re
-from collections.abc import Iterator, Mapping
 from dataclasses import dataclass, field
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from urllib.parse import parse_qs, urlsplit
 
 import pytest
@@ -35,6 +34,9 @@ from wftools.restoration_trial import (
     probe_of,
     wanted,
 )
+
+if TYPE_CHECKING:
+    from collections.abc import Iterator, Mapping
 
 ADDRESS = "https://waterfall.localhost"
 CALLBACK = f"{ADDRESS}/auth/callback"

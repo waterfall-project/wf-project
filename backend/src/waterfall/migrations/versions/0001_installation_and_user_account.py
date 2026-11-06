@@ -8,11 +8,14 @@ row is the installer's (US-0420). ``org_node_id`` is not here: EP-05 adds it wit
 key, once ``org_node`` exists.
 """
 
-from collections.abc import Sequence
+from typing import TYPE_CHECKING
 
 import sqlalchemy as sa
 from alembic import op
 from sqlalchemy.dialects import postgresql
+
+if TYPE_CHECKING:
+    from collections.abc import Sequence
 
 revision: str = "0001"
 down_revision: str | None = None

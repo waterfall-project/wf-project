@@ -83,7 +83,7 @@ function SkippedEntry({ entry }: { readonly entry: Skipped }) {
   const t = useTranslations();
   const held = entry.kind === "person" && entry.code === "ALREADY_EXISTS";
   let who: ReactNode = null;
-  let address: ReactNode = null;
+  let address: ReactNode;
   if (held) {
     address =
       entry.user_id === null

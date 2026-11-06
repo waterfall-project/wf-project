@@ -13,9 +13,8 @@ import base64
 import hashlib
 import secrets
 import time
-from collections.abc import Generator, Iterator
 from contextlib import contextmanager
-from typing import Any, cast
+from typing import TYPE_CHECKING, Any, cast
 from urllib.parse import parse_qs, urlencode, urlsplit
 from uuid import UUID
 
@@ -23,7 +22,6 @@ import httpx2
 import pytest
 from access_rows import role
 from fastapi.testclient import TestClient
-from openapi_core import OpenAPI
 from pydantic import SecretStr
 from sqlalchemy import func, insert, select
 from support import ContractClient, Logs, Watching, nowhere, raw_account
@@ -54,11 +52,17 @@ from waterfall.core.users import interface
 from waterfall.core.users.tables import UserAccount
 from waterfall.platform.audit import AuditEntry
 from waterfall.platform.correlation import HEADER
-from waterfall.platform.database import Database
 from waterfall.platform.errors import UnprocessableError
 from waterfall.platform.keycloak import IdentityProviderError, Keycloak
 from waterfall.platform.keycloak_admin import KeycloakAdmin, LocalIdentity, refused_identity
 from waterfall.platform.settings import ServiceSettings
+
+if TYPE_CHECKING:
+    from collections.abc import Generator, Iterator
+
+    from openapi_core import OpenAPI
+
+    from waterfall.platform.database import Database
 
 pytestmark = pytest.mark.keycloak
 
@@ -605,12 +609,8 @@ def test_a_local_account_created_from_waterfall_exists_in_the_identity_provider(
     # Waterfall keeps the address as written; the realm, which identifies by it, in small letters.
     assert (body["email"], body["origin"], body["access_role_ids"]) == (email, "local", [])
     held = admin.get(f"/users/{subject}").json()
-    assert (held["email"], held["username"], held["firstName"], held["lastName"]) == (
-        email.lower(),
-        email.lower(),
-        "Jeanne",
-        "Montgolfier",
-    )
+    assert held["email"] == held["username"] == email.lower()
+    assert (held["firstName"], held["lastName"]) == ("Jeanne", "Montgolfier")
     # A local account of the realm: neither read from a directory nor relayed, enabled, and
     # without a password until its holder sets one.
     assert (held.get("federationLink"), held["enabled"]) == (None, True)
@@ -942,8 +942,7 @@ def test_the_deactivation_of_an_account_signed_in_on_two_devices_interrupts_both
     user_id, devices = signed_in_twice(database, colleague, "planning.read")
     assert [api.get(ME, headers=bearer(device)).status_code for device in devices] == [200, 200]
     body = {"is_active": False, "lock_version": 0}
-    path = f"{USERS}/{user_id}/activation"
-    response = api.request("PUT", path, headers=administrator, json=body)
+    response = api.request("PUT", f"{USERS}/{user_id}/activation", headers=administrator, json=body)
     assert response.status_code == 200, response.text
     for device in devices:
         answer = api.get(ME, headers=bearer(device))

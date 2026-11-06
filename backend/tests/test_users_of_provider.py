@@ -7,9 +7,8 @@ request that admits her (#703): the tests run under one.
 """
 
 import threading
-from collections.abc import Iterator
 from datetime import UTC, datetime
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import pytest
 from sqlalchemy import func, insert, select
@@ -26,9 +25,13 @@ from waterfall.core.users.interface import (
 )
 from waterfall.core.users.tables import UserAccount
 from waterfall.platform.audit import AuditEntry
-from waterfall.platform.database import Database
 from waterfall.platform.keycloak_admin import ProviderAccount
 from waterfall.platform.logs import logging_context
+
+if TYPE_CHECKING:
+    from collections.abc import Iterator
+
+    from waterfall.platform.database import Database
 
 NOON = datetime(2026, 10, 9, 12, 0, tzinfo=UTC)
 SUBJECT = "0f6a3b2c-1d4e-4f5a-8b9c-7d6e5f4a3b2c"

@@ -12,13 +12,15 @@ estimate, which EP-07 tries.
 import json
 import re
 from decimal import Decimal
-from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import pytest
 
 from wftools import REPOSITORY, mockwitness
 from wftools.mockwitness import fixture
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 type Entry = dict[str, Any]
 

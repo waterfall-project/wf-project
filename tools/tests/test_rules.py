@@ -10,11 +10,14 @@ fault's and not the scratch file's.
 
 import json
 import subprocess
-from pathlib import Path
+from typing import TYPE_CHECKING
 
 import pytest
 
 from wftools import REPOSITORY
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 pytestmark = pytest.mark.requirement("WF-QUA-0030-A")
 

@@ -143,6 +143,13 @@ def kanban(answer: JsonObject, core: Collection[str]) -> str:
     return f"{' ; '.join(parts)} ; {flagged}"
 
 
+_STRINGS = 2
+"""The strings of a rule: its source, then its translation."""
+
+_BLANKS = frozenset(" \t\n\v\f\r")
+"""The blanks that ``unaccent`` separates a rule's strings by: C ``isspace``, ASCII only."""
+
+
 @dataclass(frozen=True, slots=True)
 class Unaccent:
     """A table of PostgreSQL's ``unaccent``: what each source becomes, and the longest source."""
@@ -152,23 +159,69 @@ class Unaccent:
 
     @classmethod
     def read(cls, text: str) -> Unaccent:
-        """Read a table as ``unaccent`` reads its rules file.
+        """Read a table as ``unaccent`` of PostgreSQL 18 reads its rules file.
 
-        A line is a source, then its translation, apart by blanks; a source alone is dropped,
-        as ``unaccent`` drops it. A line that starts with « # » is the header of the copy,
-        which PostgreSQL does not read. A line of more than two strings is refused: ``unaccent``
-        would skip it, and a copy that differs from the shipped table must not go unseen.
+        A line is a source, then its translation, apart by blanks (space, tab and the other ASCII
+        blanks of C ``isspace``); blanks at the start or the end of a line are ignored, and a
+        source alone is a rule with an empty translation. A translation that starts with a double
+        quote is quoted: it keeps its blanks and runs to the next double quote that is not
+        doubled, a doubled one being one quote of the translation (« ¼ » is shipped as a quoted
+        space, then 1/4; a quoted pair of quotes reads one quote). A quote anywhere else is a
+        character like another, a source's included. A line that starts with « # » is the header
+        of the copy, which PostgreSQL does not read. A line with text after its translation, or
+        whose quoted translation is never closed, is refused: ``unaccent`` would skip it, and a
+        copy that differs from the shipped table must not go unseen. A source given twice keeps
+        its first rule, as ``unaccent`` does (it warns of the duplicate and uses the first).
         """
         rules: dict[str, str] = {}
-        for line in text.splitlines():
-            if line.startswith("#") or not line.strip():
+        for line in text.split("\n"):
+            if line.startswith("#"):
                 continue
-            source, *translation = line.split()
-            if len(translation) > 1:
+            fields = cls._fields(line)
+            if not fields:
+                continue
+            source, *translation = fields
+            rules.setdefault(source, "".join(translation))
+        return cls(rules, max(map(len, rules), default=0))
+
+    @staticmethod
+    def _fields(line: str) -> list[str]:
+        """Return the strings of a line, as ``initTrie`` of unaccent.c cuts it."""
+        fields: list[str] = []
+        position = 0
+        while position < len(line):
+            if line[position] in _BLANKS:
+                position += 1
+            elif len(fields) == 1 and line[position] == '"':
+                translation, position = Unaccent._quoted(line, position + 1)
+                fields.append(translation)
+            else:
+                end = position
+                while end < len(line) and line[end] not in _BLANKS:
+                    end += 1
+                fields.append(line[position:end])
+                position = end
+            if len(fields) > _STRINGS:
                 message = f"an unaccent rule has more than two strings: {line!r}"
                 raise ValueError(message)
-            rules[source] = "".join(translation)
-        return cls(rules, max(map(len, rules), default=0))
+        return fields
+
+    @staticmethod
+    def _quoted(line: str, position: int) -> tuple[str, int]:
+        """Read a quoted translation from after its opening quote; return it and where it ends."""
+        written: list[str] = []
+        while position < len(line):
+            character = line[position]
+            position += 1
+            if character != '"':
+                written.append(character)
+            elif line[position : position + 1] == '"':
+                written.append(character)
+                position += 1
+            else:
+                return "".join(written), position
+        message = f"an unaccent rule has a quoted string never closed: {line!r}"
+        raise ValueError(message)
 
     def __call__(self, text: str) -> str:
         """Return a text as ``unaccent`` returns it with this table.

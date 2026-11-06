@@ -14,10 +14,9 @@ knows it by with it: its acts stay attributed to it. A restoration that brings b
 the backup held it, before its anonymisation, anonymises it again (#988).
 """
 
-from uuid import UUID
+from typing import TYPE_CHECKING
 
 from sqlalchemy import func, select
-from sqlalchemy.orm import Session
 
 from waterfall.core.users.accounts import Stamp, change_columns, lock_account_at
 from waterfall.core.users.commands import (
@@ -36,6 +35,11 @@ from waterfall.platform.audit import (
     record,
 )
 from waterfall.platform.errors import ConflictError
+
+if TYPE_CHECKING:
+    from uuid import UUID
+
+    from sqlalchemy.orm import Session
 
 ACTIVE = "active"
 DEACTIVATED = "deactivated"

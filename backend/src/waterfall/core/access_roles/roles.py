@@ -11,11 +11,8 @@ of audit of the table of the roles are filtered and sorted as its other columns 
 by its name, which the module of the accounts gives (``author_order``).
 """
 
-from collections.abc import Collection, Sequence
 from dataclasses import dataclass, field
-from datetime import datetime
-from typing import Any, Literal, cast
-from uuid import UUID
+from typing import TYPE_CHECKING, Any, Literal, cast
 
 from sqlalchemy import (
     ARRAY,
@@ -32,7 +29,6 @@ from sqlalchemy import (
     select,
     update,
 )
-from sqlalchemy.orm import Session
 
 from waterfall.core.access_roles.administrators import guard_last_administrator
 from waterfall.core.access_roles.tables import (
@@ -59,6 +55,13 @@ from waterfall.platform.errors import (
     UnprocessableError,
 )
 from waterfall.platform.identifiers import new_id
+
+if TYPE_CHECKING:
+    from collections.abc import Collection, Sequence
+    from datetime import datetime
+    from uuid import UUID
+
+    from sqlalchemy.orm import Session
 
 NOT_FOUND = "NOT_FOUND"
 STALE_LOCK_VERSION = "STALE_LOCK_VERSION"

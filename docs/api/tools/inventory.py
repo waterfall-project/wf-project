@@ -20,11 +20,14 @@ this program and its console output are in English.
 import re
 import sys
 from collections import defaultdict
-from collections.abc import Iterator
 from dataclasses import dataclass
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from wftools import projection
+
+if TYPE_CHECKING:
+    from collections.abc import Iterator
 
 ROOT = Path(__file__).resolve().parent.parent
 

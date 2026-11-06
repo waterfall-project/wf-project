@@ -8,9 +8,12 @@ would write its row as the service. It writes it as the owner, who applies the m
 and never insert one. The code before this migration does not insert it either.
 """
 
-from collections.abc import Sequence
+from typing import TYPE_CHECKING
 
 from alembic import op
+
+if TYPE_CHECKING:
+    from collections.abc import Sequence
 
 revision: str = "0012"
 down_revision: str | None = "0011"

@@ -103,8 +103,8 @@ to it.
 
 The front is a Next.js application in strict TypeScript (`frontend/tsconfig.json`, with
 `noUncheckedIndexedAccess` and `exactOptionalPropertyTypes`). pnpm manages its dependencies,
-at the version `packageManager` names in `package.json`, launched by corepack
-(`corepack enable pnpm`); the lock, `pnpm-lock.yaml`, is authoritative and the chain installs
+at the version `packageManager` names in `package.json`, installed once by
+`npm install --global pnpm`; the lock, `pnpm-lock.yaml`, is authoritative and the chain installs
 with `--frozen-lockfile`. The unit tests are `*.test.ts` or `*.test.tsx` files next to the code
 they exercise, run by Vitest in two projects (`vitest.config.ts`), which the file name decides
 between: `node` for the `*.test.ts` and `*.test.tsx` — the logic, and the server components of
@@ -123,7 +123,10 @@ passing. A test that proves an error is said on the console silences it itself w
 (`vi.spyOn(console, "error")`), and checks what was said. happy-dom measures nothing: a test that
 mounts a curve gives its drawing the room a page gives it (`roomForCharts`,
 `frontend/src/test/chart-room.ts`), failing which ECharts warns that it has neither width nor
-height (EP-02/L37).
+height (EP-02/L37). A test of a grid gives the element that scrolls its box (`offsetHeight`,
+`offsetWidth`), and `setup-dom.ts` measures the inside of every element (`clientHeight`,
+`clientWidth`) by its box: TanStack Virtual measures the window of the rows by the inside since its
+3.19, and an element happy-dom does not lay out has neither border nor scrollbar (US-1170/L3).
 
 ### Navigation: the table of functions and its routes
 
@@ -217,39 +220,38 @@ carries only text, takes `kept(null)`.
 
 The shell is composed thus (`shell.tsx`, layout of the visual identity): on the left the sidebar
 (`navigation.tsx`), the logo and the choice of the project at the head, the functions in three
-groups — the platform, by foldable FBS block; the project, with the list of projects and the
-« Back to the project »; the revision read —, the button that folds it at the foot; above the
-page, the bar (`top-bar.tsx`): the button that folds the sidebar, the breadcrumb
+groups — the platform, by foldable FBS block; the project, with the list of projects and the « Back
+to the project »; the revision read —, the button that folds it at the foot; above the page, the bar
+(`top-bar.tsx`): the button that folds the sidebar, the breadcrumb
 (`frontend/src/navigation/breadcrumbs.ts`), the search — in place, without a function yet —, the
-button of the panel of tasks and messages and the account menu. The folded sidebar keeps its state in
-a cookie of the front, `wf_sidebar_state`, which the root layout reads to render it so
+button of the panel of tasks and messages and the account menu. The folded sidebar keeps its state
+in a cookie of the front, `wf_sidebar_state`, which the root layout reads to render it so
 server-side. The layout, rendered once, does not know the address: the label of the project comes
 from the screen, which has already read it for its banner — `ContextBanner` hands it back to the
 shell through `ShowProject` (`shown-project.tsx`), which names it only as long as the address shows
-that same project. The account menu (`account-menu.tsx`) carries the display preferences —
-language and mode, each a choice in a sub-menu, written to the account on selection, the keyboard
-traversal sending nothing —, the account pages and the sign-out. The sign-out
-(`closeMySessions`, which closes every session of the account; a 401 counting as a session already
-closed, the deactivated or not admitted account included) forgets what the browser kept of the
-session — the `wf_last_project` cookie, the tasks of the `wf_background_tasks` storage and of the
-tracking, the message history (`wf_messages`) — then loads as a
-whole document the address the action renders: `/login`, usually. `/login?next=…` is a route
-handler (`src/app/login/route.ts`), not a page: Waterfall has neither a sign-in form, nor a list
-of providers, nor a forgotten password, the identity provider holding its screens. On the fake
-back (`WATERFALL_AUTH=mock`), which grants the session, it leads straight to the target screen
-(`returnTarget(next)`, `frontend/src/navigation/login.ts`) — without one, or outside the front,
-the home page —: the layout re-reads the session, and the tracking takes up the tasks a lost
-session had interrupted. Outside this mode, it starts the authorisation code flow of the
-`waterfall` realm (US-0350) — see « The session of the front » below. The session is `getMe`
+that same project. The account menu (`account-menu.tsx`) carries the display preferences — language
+and mode, each a choice in a sub-menu, written to the account on selection, the keyboard traversal
+sending nothing —, the account pages and the sign-out. The sign-out (`closeMySessions`, which closes
+every session of the account; a 401 counting as a session already closed, the deactivated or not
+admitted account included) forgets what the browser kept of the session — the `wf_last_project`
+cookie, the tasks of the `wf_background_tasks` storage and of the tracking, the message history
+(`wf_messages`) — then loads as a whole document the address the action renders: `/login`, usually.
+`/login?next=…` is a route handler (`src/app/login/route.ts`), not a page: Waterfall has neither a
+sign-in form, nor a list of providers, nor a forgotten password, the identity provider holding its
+screens. On the fake back (`WATERFALL_AUTH=mock`), which grants the session, it leads straight to
+the target screen (`returnTarget(next)`, `frontend/src/navigation/login.ts`) — without one, or
+outside the front, the home page —: the layout re-reads the session, and the tracking takes up the
+tasks a lost session had interrupted. Outside this mode, it starts the authorisation code flow of
+the `waterfall` realm (US-0350) — see « The session of the front » below. The session is `getMe`
 (`src/session/request.ts`): the account flattened, its display preferences and its permissions. A
 401 `ACCOUNT_DEACTIVATED` or `ACCOUNT_NOT_ADMITTED` is not an absent session: the screen says so
-(the failure `failure.deactivated` or `failure.notAdmitted`, the refusal of an action), and does
-not send back to the sign-in, which would loop (#664). Without an account (401), there is neither
+(the failure `failure.deactivated` or `failure.notAdmitted`, the refusal of an action), and does not
+send back to the sign-in, which would loop (#664). Without an account (401), there is neither
 account menu nor sidebar; when the session is unreadable, the sidebar is rendered with the status
 screen alone, its block open, and without an account menu. The sidebar is a landmark (a named
 `<aside>`); on a narrow screen, it is a modal sheet that closes as soon as the address changes;
-Ctrl+B folds it only if it is rendered, and folding it gives the focus of what the rail hides to
-the button of the block or to the trigger.
+Ctrl+B folds it only if it is rendered, and folding it gives the focus of what the rail hides to the
+button of the block or to the trigger.
 
 ### The session of the front
 
@@ -395,31 +397,30 @@ HTTPS by a front end with a local authority, which the front trusts through `NOD
 
 ### The system pages: loading, failure and « not found »
 
-The system pages are pieces of the shell (`frontend/src/app/`,
-`frontend/src/components/system/`). A read a screen cannot do without goes through
-`readOrFail` of `frontend/src/api/problem.ts`, which renders its data or throws: a 404 leads to
-the single « not found » screen (`not-found.tsx`), which a non-existent address and a refused
-read reach without distinction (WF-ADM-0110); the API unreachable throws `Unreachable`, and
-any other response `UnexpectedAnswer`. A read a screen can do without goes through
-`readUnlessRefused`, next to it: it renders nothing on the refusals it expects — a status, and
-the `code` of the envelope when the status does not say which —, and follows the same rule for
-the rest. The failure screen (`error.tsx` in the shell, `global-error.tsx` when the root layout
-fails) receives in production only the `digest` of the error thrown server-side:
+The system pages are pieces of the shell (`frontend/src/app/`, `frontend/src/components/system/`). A
+read a screen cannot do without goes through `readOrFail` of `frontend/src/api/problem.ts`, which
+renders its data or throws: a 404 leads to the single « not found » screen (`not-found.tsx`), which
+a non-existent address and a refused read reach without distinction (WF-ADM-0110); the API
+unreachable throws `Unreachable`, and any other response `UnexpectedAnswer`. A read a screen can do
+without goes through `readUnlessRefused`, next to it: it renders nothing on the refusals it expects
+— a status, and the `code` of the envelope when the status does not say which —, and follows the
+same rule for the rest. The failure screen (`error.tsx` in the shell, `global-error.tsx` when the
+root layout fails) receives in production only the `digest` of the error thrown server-side:
 `Unreachable` carries `UNREACHABLE_DIGEST`, which it announces as such, `SessionLost`
 `SESSION_LOST_DIGEST`, which leads to the sign-in without a click, `SignedOut` (a 401)
-`SESSION_REQUIRED_DIGEST`, which leads there by a link (`loginHref`), `UnexpectedAnswer`
-the correlation identifier of the envelope, prefixed with `WATERFALL_CORRELATION;` so
-that no value from the API takes on a meaning for Next (`NEXT_REDIRECT;…`), and which it
-displays as a reference without the prefix (`failure.ts`). Without an envelope, or without a
-`correlation_id`, the reference displayed is the digest Next computes, that of its own logs. A
-screen never says « empty » on a response it has not read. When the session is unreadable, the
-navigation keeps the status screen (WF-ADM-0130).
-Each segment that reads the API has its `loading.tsx`, the `ScreenSkeleton` skeleton, which
-carries a named `role="status"` — a screen reader does not always announce it; the response is then streamed, and « not found » answers
-200 and not 404 — a soft 404, which Next marks `noindex`: the status leaves with the skeleton,
-before the page knows the object is not found. It is the same for every address not found,
-which is what counts here. Each empty state — no project, project without a revision, incomplete
-reference data — is shown on a named example of the contract (`empty`, `incomplete`).
+`SESSION_REQUIRED_DIGEST`, which leads there by a link (`loginHref`), `UnexpectedAnswer` the
+correlation identifier of the envelope, prefixed with `WATERFALL_CORRELATION;` so that no value from
+the API takes on a meaning for Next (`NEXT_REDIRECT;…`), and which it displays as a reference
+without the prefix (`failure.ts`). Without an envelope, or without a `correlation_id`, the reference
+displayed is the digest Next computes, that of its own logs. A screen never says « empty » on a
+response it has not read. When the session is unreadable, the navigation keeps the status screen
+(WF-ADM-0130). Each segment that reads the API has its `loading.tsx`, the `ScreenSkeleton` skeleton,
+which carries a named `role="status"` — a screen reader does not always announce it; the response is
+then streamed, and « not found » answers 200 and not 404 — a soft 404, which Next marks `noindex`:
+the status leaves with the skeleton, before the page knows the object is not found. It is the same
+for every address not found, which is what counts here. Each empty state — no project, project
+without a revision, incomplete reference data — is shown on a named example of the contract
+(`empty`, `incomplete`).
 
 ### The home page: the list of projects
 
@@ -722,25 +723,27 @@ it, and, shifted, keeps the command that removes the shift.
 ### Key figures as cards
 
 The key figures of a screen are presented through `FiguresCard` (`src/components/figures-card.tsx`),
-never inline in a `<dl className="flex …">` laid on the page: a card is a region named by its
-title (`role="region"`, `aria-label` of the title), which carries the calculation date when the
-response has a context (`context`, `CalculationDate`, WF-IHM-0020) and its figures in a list of
-terms (`FiguresList`, a `dl`) — the name, then the value, for a screen reader. The cards of a
-screen are arranged in `FiguresGrid`, which wraps according to the width; the cards share the
-width there, and a card alone stretches over the whole row. The calculation date is repeated on each
-card of a response that has one: each region is read alone, with its title and its date, without
-having to go back up to another. It is placed under the title, never after it on the
-same line: written after hydration (`LocalTime`), it would make the card jump by a line. A card carries a block of figures that is read together — the
-totals, a breakdown as a list, the risk coverage —, never the whole page. The values, their
-format and their signals (`Signal`, WF-IHM-0070) are those the screen had: the card adds only the
-frame. `IndicatorCard` (indicators screen) reuses it while keeping its former look (`spacious`), the curves and the tables it carries needing the room; the other cards are compact, so that the grid keeps its totals in the window. The six screens that
-follow it are the risks, the estimate, the remaining to commit, the actual costs and the two views
-of the portfolio, performance and risks on one hand, value on the other; the banner of the reading
-context, an information band, is not one. On a filled screen (`Screen fill`), the totals row of
-the grid stays in the window under the cards, at 1366 and at 911 wide by 768 high:
-`e2e/grid-frame.spec.ts` checks it, risks included: the chart of their matrix, between the cards
-and the grid, starts folded (`folded` of `Chart`), a button shows it and folds it, because unfolded
-its height (288 points, `h-72`) does not leave the totals in the window at 768 high (#1252). _Check_: review;
+never inline in a `<dl className="flex …">` laid on the page: a card is a region named by its title
+(`role="region"`, `aria-label` of the title), which carries the calculation date when the response
+has a context (`context`, `CalculationDate`, WF-IHM-0020) and its figures in a list of terms
+(`FiguresList`, a `dl`) — the name, then the value, for a screen reader. The cards of a screen are
+arranged in `FiguresGrid`, which wraps according to the width; the cards share the width there, and
+a card alone stretches over the whole row. The calculation date is repeated on each card of a
+response that has one: each region is read alone, with its title and its date, without having to go
+back up to another. It is placed under the title, never after it on the same line: written after
+hydration (`LocalTime`), it would make the card jump by a line. A card carries a block of figures
+that is read together — the totals, a breakdown as a list, the risk coverage —, never the whole
+page. The values, their format and their signals (`Signal`, WF-IHM-0070) are those the screen had:
+the card adds only the frame. `IndicatorCard` (indicators screen) reuses it while keeping its former
+look (`spacious`), the curves and the tables it carries needing the room; the other cards are
+compact, so that the grid keeps its totals in the window. The six screens that follow it are the
+risks, the estimate, the remaining to commit, the actual costs and the two views of the portfolio,
+performance and risks on one hand, value on the other; the banner of the reading context, an
+information band, is not one. On a filled screen (`Screen fill`), the totals row of the grid stays
+in the window under the cards, at 1366 and at 911 wide by 768 high: `e2e/grid-frame.spec.ts` checks
+it, risks included: the chart of their matrix, between the cards and the grid, starts folded
+(`folded` of `Chart`), a button shows it and folds it, because unfolded its height (288 points,
+`h-72`) does not leave the totals in the window at 768 high (#1252). _Check_: review;
 `src/components/figures-card.dom.test.tsx`, `e2e/accessibility.spec.ts`.
 
 ### Grids
@@ -933,65 +936,64 @@ answered date shown as long as the page read is older; a day without a working h
 `NON_WORKING_DAY`, said under the field with the next working day. The write counts among those of
 the grid (`StructureAccount.writing`). The grid presents the start and completion dates
 (`started_on`, `completed_on`), read-only, after the float, and names the conflicting link
-(`link_conflicts`) by an icon in the predecessors column — on the manual task as on its
-predecessor — and in the name of the Gantt bar: the row of the predecessor, the type of the link,
-the row of the task when the grid reads it (`link-conflicts.tsx`). The planning grid also presents
-the description of a task and the physical progress of a summary task, a percentage computed or
-not computable, its reason as title; then the Gantt (FBS-4.3.3, `frontend/src/components/gantt/`),
-its last column, read-only, pinned to the right (`GridColumn.pinned: "end"`, `pinning.ts`,
-US-0530): it slides over the columns that precede it when it widens, and the grid scrolls them out
-from under it (`scroll-padding-inline-end`). Its handle, on its left edge — the mouse, or Shift and
-the arrows, the left arrow widening it —, sets its width, that of `gantt` in `column_widths`, and
-modifies no task, from a minimum up to the room of the frame at its greatest width
-(`useFrameRoom`), minus the columns pinned at the head and the widest of the others, where the
-active cell shows (`endMaxOf`). Each cell draws in SVG the row of its task — its bar, the pieces of
-the links that leave it, run along it or reach it, the months of the axis —: the drawing is aligned
-row by row on the grid, rendered with its visible rows only, and follows the width of its column,
-as a share of that width. The layout (`ganttLayout`, `layout.ts`) is computed once for the rows the
-grid shows, writes included, which `DenseGrid` hands to what a screen puts around it (`around`,
-`GanttRows`) — never as a prop of each row; the header draws the axis (`GridColumn.axis`), its
-label naming the column only to screen readers any more. Nothing is planned there: a task runs
-from the start of its first day to the end of the last, a finish at hour 0 being the start of its
-day, a milestone stands at its finish, and the axis runs from the first of the month of the
-earliest to the first of the month that follows the latest (`monthTicks`, `chart/ticks.ts`, without
-ECharts). A link joins the place its type names on the predecessor to the one it names on the
-task; a predecessor outside the response draws none. A summary task is a bracket, a milestone a
-diamond, a task a bar, solid on the critical path and hollow elsewhere, and each bar is an image
-named by its dates and « critical »: nothing is read by the colour alone. No cell of the Gantt
-takes an entry, and only the button that precedes the bracket of a summary task takes the pointer
-there, to fold or unfold it. Its finest level divides each day into working hours, numbered within
-their day, which the page reads from `getDurationUnits`: `hoursOfDay` (`scale.ts`) rounds
-`hours_per_day` to the nearest whole hour, the half-hour upwards, from 1 to 24, on the digits of
-the string, never through a float (#1393). « Export as PNG », after the zoom in the corner of the
-header and in the menu of a cell, draws on a canvas (`gantt-image.ts`) the whole extent at the
-level shown — the width of the zoomed drawing, that of the column once fitted to the project —,
-one row per task the grid shows, folded like it, the days off with the same hatching as the screen
-(`DAY_OFF_HATCH`, read from the classes of its tokens) and their legend, the provenance at the
-head as for every curve (`useProvenance`, `provenanceOf` of `grid-screen.ts`); twice as dense as
-the screen as long as a canvas holds it, as dense otherwise, and unavailable, its reason said,
-beyond the bounds of the browsers (32,767 points a side, 268 million in all). Its « Attached to »
-column presents the work package or the order item a task carries, by the label the server
-resolves (`work_breakdown_label`); where the structure read lists `edit_planning`, the cell chooses
-it among the work packages and the order items of the whole work breakdown read, or nothing,
-written by `updateTaskFacet` — the chosen field, and the other set to `null` in the same write when
-the task carries it (`planning-attachment.ts`) —, its refusal said by the reason of its field,
-naming the task that already carries the element or those that would leave the subtree of their
-work package (WF-PLA-0170); like every refusal of the write of a cell, it is said above the grid,
-and its cell, marked, is described by it (`aria-invalid`, `aria-describedby`). There too, the task
-is entered on the keyboard, cell by cell, through `updateTaskFacet` (US-0470, `planning.tsx`): the
-label, the description — emptied, it is null —, the mode (a list), the duration with the suffix of
-its unit and the dates, each where the node carries its task, names its field among those it
-accepts (`editable_fields`) and does not compute it (`computed_fields`): the dates of an automatic
-task, the duration of a summary task are passed over without entering entry mode (WF-PLA-0020).
-The duration is read in the language of the interface (`parseDuration`, `cell-values.ts`),
-regardless of case, a bare number in days: the suffixes WF-PLA-0160 names are read in every
-language — « m » a month, « min » a minute, « h », « j », « sem », and their elapsed counterparts
-prefixed with an « e » —, plus those the catalogue writes in the current language
-(`enums.DurationUnit`), and no other: in English « d », « wk », « mo » are read, in French they are
-not. It leaves in its unit, which the server keeps. A date is typed in the short form of the
-language, or in its ISO form (`parsePlanningDate`), and leaves alone, without hours: the front does
-not know the calendar, the server completes the hours — the start at the start of the working
-day, the finish at the end of its hours —, and the cell shows what it renders (#1244). The
+(`link_conflicts`) by an icon in the predecessors column — on the manual task as on its predecessor
+— and in the name of the Gantt bar: the row of the predecessor, the type of the link, the row of the
+task when the grid reads it (`link-conflicts.tsx`). The planning grid also presents the description
+of a task and the physical progress of a summary task, a percentage computed or not computable, its
+reason as title; then the Gantt (FBS-4.3.3, `frontend/src/components/gantt/`), its last column,
+read-only, pinned to the right (`GridColumn.pinned: "end"`, `pinning.ts`, US-0530): it slides over
+the columns that precede it when it widens, and the grid scrolls them out from under it
+(`scroll-padding-inline-end`). Its handle, on its left edge — the mouse, or Shift and the arrows,
+the left arrow widening it —, sets its width, that of `gantt` in `column_widths`, and modifies no
+task, from a minimum up to the room of the frame at its greatest width (`useFrameRoom`), minus the
+columns pinned at the head and the widest of the others, where the active cell shows (`endMaxOf`).
+Each cell draws in SVG the row of its task — its bar, the pieces of the links that leave it, run
+along it or reach it, the months of the axis —: the drawing is aligned row by row on the grid,
+rendered with its visible rows only, and follows the width of its column, as a share of that width.
+The layout (`ganttLayout`, `layout.ts`) is computed once for the rows the grid shows, writes
+included, which `DenseGrid` hands to what a screen puts around it (`around`, `GanttRows`) — never as
+a prop of each row; the header draws the axis (`GridColumn.axis`), its label naming the column only
+to screen readers any more. Nothing is planned there: a task runs from the start of its first day to
+the end of the last, a finish at hour 0 being the start of its day, a milestone stands at its
+finish, and the axis runs from the first of the month of the earliest to the first of the month that
+follows the latest (`monthTicks`, `chart/ticks.ts`, without ECharts). A link joins the place its
+type names on the predecessor to the one it names on the task; a predecessor outside the response
+draws none. A summary task is a bracket, a milestone a diamond, a task a bar, solid on the critical
+path and hollow elsewhere, and each bar is an image named by its dates and « critical »: nothing is
+read by the colour alone. No cell of the Gantt takes an entry, and only the button that precedes the
+bracket of a summary task takes the pointer there, to fold or unfold it. Its finest level divides
+each day into working hours, numbered within their day, which the page reads from
+`getDurationUnits`: `hoursOfDay` (`scale.ts`) rounds `hours_per_day` to the nearest whole hour, the
+half-hour upwards, from 1 to 24, on the digits of the string, never through a float (#1393). «
+Export as PNG », after the zoom in the corner of the header and in the menu of a cell, draws on a
+canvas (`gantt-image.ts`) the whole extent at the level shown — the width of the zoomed drawing,
+that of the column once fitted to the project —, one row per task the grid shows, folded like it,
+the days off with the same hatching as the screen (`DAY_OFF_HATCH`, read from the classes of its
+tokens) and their legend, the provenance at the head as for every curve (`useProvenance`,
+`provenanceOf` of `grid-screen.ts`); twice as dense as the screen as long as a canvas holds it, as
+dense otherwise, and unavailable, its reason said, beyond the bounds of the browsers (32,767 points
+a side, 268 million in all). Its « Attached to » column presents the work package or the order item
+a task carries, by the label the server resolves (`work_breakdown_label`); where the structure read
+lists `edit_planning`, the cell chooses it among the work packages and the order items of the whole
+work breakdown read, or nothing, written by `updateTaskFacet` — the chosen field, and the other set
+to `null` in the same write when the task carries it (`planning-attachment.ts`) —, its refusal said
+by the reason of its field, naming the task that already carries the element or those that would
+leave the subtree of their work package (WF-PLA-0170); like every refusal of the write of a cell, it
+is said above the grid, and its cell, marked, is described by it (`aria-invalid`,
+`aria-describedby`). There too, the task is entered on the keyboard, cell by cell, through
+`updateTaskFacet` (US-0470, `planning.tsx`): the label, the description — emptied, it is null —, the
+mode (a list), the duration with the suffix of its unit and the dates, each where the node carries
+its task, names its field among those it accepts (`editable_fields`) and does not compute it
+(`computed_fields`): the dates of an automatic task, the duration of a summary task are passed over
+without entering entry mode (WF-PLA-0020). The duration is read in the language of the interface
+(`parseDuration`, `cell-values.ts`), regardless of case, a bare number in days: the suffixes
+WF-PLA-0160 names are read in every language — « m » a month, « min » a minute, « h », « j », « sem
+», and their elapsed counterparts prefixed with an « e » —, plus those the catalogue writes in the
+current language (`enums.DurationUnit`), and no other: in English « d », « wk », « mo » are read, in
+French they are not. It leaves in its unit, which the server keeps. A date is typed in the short
+form of the language, or in its ISO form (`parsePlanningDate`), and leaves alone, without hours: the
+front does not know the calendar, the server completes the hours — the start at the start of the
+working day, the finish at the end of its hours —, and the cell shows what it renders (#1244). The
 predecessors of a task are entered as in MS Project, « 3FD+2 j ; 5DD » (`predecessors-entry.ts`):
 the row number, the code of the type of the link in the language of the interface — FD, DD, FF, DF
 in French, FS, SS, FF, SF in English, nothing for a finish-to-start —, then the lag, positive or
@@ -1001,31 +1003,31 @@ duration of the predecessor; the whole list leaves in place of the task's, throu
 read (those of a predecessor a search has set aside are found again through the links of a row
 read); a number they do not know is asked of the server, in the numbering of the whole structure
 (`resolveRowNumber`, US-0650), the entry read-only and `aria-busy` as long as it has not answered
-(`EntryKind.ask`, `useRowNames`), then validated again. A number no task carries — an estimate
-line, or no node (404) — leaves the entry open, which says so, without sending anything; a server
-that could not answer too, saying to validate again. Left by a click elsewhere during the request,
-the entry validates at the answer, or is abandoned. A refusal of the server is said at the cell by
-its code — a loop of links, with the tasks it crosses (`cycle`, `problemDetails`), a link between a
-summary task and its subordinate, a project that would exceed fifteen years —, and the rows
-written, with the tasks the server re-dates, take the place of the rows read, the Gantt following;
-the front dates nothing. Validating the last enterable cell of a row places the cursor on the next
-row, at the cell from which the row was started. Every cell write, of every grid, says a refusal
-per field by the reason of its field (`byField` of `cell-writes.ts`, #817.1); only a refusal of the
-value (422) marks the cell, the API out of reach, a stale version or a lost session saying nothing
-of what was entered (#819.2); a value the answered row already carries writes nothing, failing
-which the body would carry only the version (#819.8), and lifts the refusal of its cell, with the
-notice that says it. Above the planning grid and the estimate grid, a filter chooses a work
-package or an order item from the same whole work breakdown read (`BreakdownFilterChoice`,
-`readGridScreen` with `byBreakdown`), written in the address under the name of the contract —
-`work_package_id` or `order_item_id`, the one lifting the other, a malformed identifier ignored —
-and sent to `listNodes`, which retains the subtree of the attached task; the banner shows it active
-and lifts it (`breakdownChip`), in the estimate on the grid only, its indicators remaining those of
-the project. A work breakdown the API refuses (404, 422, 503) removes only the filter, except where
-the attachment is entered, which cannot do without it (`needsBreakdown`). In the empty grid, the
+(`EntryKind.ask`, `useRowNames`), then validated again. A number no task carries — an estimate line,
+or no node (404) — leaves the entry open, which says so, without sending anything; a server that
+could not answer too, saying to validate again. Left by a click elsewhere during the request, the
+entry validates at the answer, or is abandoned. A refusal of the server is said at the cell by its
+code — a loop of links, with the tasks it crosses (`cycle`, `problemDetails`), a link between a
+summary task and its subordinate, a project that would exceed fifteen years —, and the rows written,
+with the tasks the server re-dates, take the place of the rows read, the Gantt following; the front
+dates nothing. Validating the last enterable cell of a row places the cursor on the next row, at the
+cell from which the row was started. Every cell write, of every grid, says a refusal per field by
+the reason of its field (`byField` of `cell-writes.ts`, #817.1); only a refusal of the value (422)
+marks the cell, the API out of reach, a stale version or a lost session saying nothing of what was
+entered (#819.2); a value the answered row already carries writes nothing, failing which the body
+would carry only the version (#819.8), and lifts the refusal of its cell, with the notice that says
+it. Above the planning grid and the estimate grid, a filter chooses a work package or an order item
+from the same whole work breakdown read (`BreakdownFilterChoice`, `readGridScreen` with
+`byBreakdown`), written in the address under the name of the contract — `work_package_id` or
+`order_item_id`, the one lifting the other, a malformed identifier ignored — and sent to
+`listNodes`, which retains the subtree of the attached task; the banner shows it active and lifts it
+(`breakdownChip`), in the estimate on the grid only, its indicators remaining those of the project.
+A work breakdown the API refuses (404, 422, 503) removes only the filter, except where the
+attachment is entered, which cannot do without it (`needsBreakdown`). In the empty grid, the
 skeleton is offered as the revision lists `generate_skeleton`, unavailable with its condition as
 soon as the structure has a task (WF-PRJ-0030); generated, its tasks fill the grid as long as the
-counter of the structure it renders is more recent than that of the reading (EP-14/L44d). The
-other leaves of the planning have their screen, where its header leads: the task tree (FBS-4.3.5,
+counter of the structure it renders is more recent than that of the reading (EP-14/L44d). The other
+leaves of the planning have their screen, where its header leads: the task tree (FBS-4.3.5,
 `…/task-tree`, `frontend/src/components/tree/`), an ARIA `tree` under the root of the project, the
 first level side by side, the next ones under their parent, a single tab stop the arrows walk
 through, the depth in the address (`depth`); and the timelines (FBS-4.3.1, `…/timelines`), one per
@@ -1033,30 +1035,29 @@ link (`timeline`), each a strip with lanes, distinct from the Gantt (`gantt/time
 US-0530, #1068): on the axis of the Gantt, at its levels and its zoom (`GanttRows`, `GanttAxis`), a
 task is a rectangle from its start to its finish, its name truncated and whole in the tooltip and
 the accessible name — the task, its dates, its lane —, a milestone a vertical line over the whole
-height, its name and its date at the foot. The rectangles stack in lanes (`lanes.ts`, a
-presentation computation): each in the one where the user placed it as long as it fits there, the
-others, in the order of the plan, in the first lane where they overlap none, the empty lanes closed
-up. A rectangle is dragged with the mouse from one lane to another, or moved by Alt and the up and
-down arrows on the one the keyboard designates — the strip is a single tab stop, the left and
-right arrows passing from one rectangle to the other (`aria-activedescendant`). A lane where it
-would overlap another is refused, the refusal said, and nothing moves; under the last lane an
-empty one is always offered, never above another, and the keyboard targets the nearest lane where
-the rectangle fits, skipping those where it would overlap, to reach everything the mouse reaches.
-The layout is a display preference per timeline (`DisplayPreferences.timelines`, WF-ADM-0040),
-written after a pause like the settings of a grid (`useKeptWriter`,
-`updateTimelinePreferences`): the lanes of all the rectangles shown, the moved one first, within
-the bound of 64 of the contract, so that a move moves nothing else; « Automatic layout » forgets
-it (`null`). The table reading, under the strip, says each task, its dates and its lane; they are
-created by their name and the timeline shown is deleted after confirmation, as the project lists
-`manage_timelines` (`timeline-commands.tsx`, EP-14/L44c). The server selects what each one draws
-(#463): the tree asks for the summary tasks down to the level of the address (`summaries_only`,
-`max_level`), a timeline the tasks inscribed in it (`timeline_id`). The fake back ignoring these
-filters ("What the fake back does not do"), each one applies the same criterion again to the response (`summaryTree`,
-`inscribedTo`): an idempotent filter, which changes nothing against a server that honours them, a
-temporary gap of EP-02 removed with the back of EP-03. The tree offers exactly the levels the
-structure has, from the first to that of its deepest summary task, which the server says whatever
-the filters (`meta.summary_depth`, #494), and shows the level asked for, or the deepest when asked
-for one beyond it (`depthShown`).
+height, its name and its date at the foot. The rectangles stack in lanes (`lanes.ts`, a presentation
+computation): each in the one where the user placed it as long as it fits there, the others, in the
+order of the plan, in the first lane where they overlap none, the empty lanes closed up. A rectangle
+is dragged with the mouse from one lane to another, or moved by Alt and the up and down arrows on
+the one the keyboard designates — the strip is a single tab stop, the left and right arrows passing
+from one rectangle to the other (`aria-activedescendant`). A lane where it would overlap another is
+refused, the refusal said, and nothing moves; under the last lane an empty one is always offered,
+never above another, and the keyboard targets the nearest lane where the rectangle fits, skipping
+those where it would overlap, to reach everything the mouse reaches. The layout is a display
+preference per timeline (`DisplayPreferences.timelines`, WF-ADM-0040), written after a pause like
+the settings of a grid (`useKeptWriter`, `updateTimelinePreferences`): the lanes of all the
+rectangles shown, the moved one first, within the bound of 64 of the contract, so that a move moves
+nothing else; « Automatic layout » forgets it (`null`). The table reading, under the strip, says
+each task, its dates and its lane; they are created by their name and the timeline shown is deleted
+after confirmation, as the project lists `manage_timelines` (`timeline-commands.tsx`, EP-14/L44c).
+The server selects what each one draws (#463): the tree asks for the summary tasks down to the level
+of the address (`summaries_only`, `max_level`), a timeline the tasks inscribed in it
+(`timeline_id`). The fake back ignoring these filters ("What the fake back does not do"), each one
+applies the same criterion again to the response (`summaryTree`, `inscribedTo`): an idempotent
+filter, which changes nothing against a server that honours them, a temporary gap of EP-02 removed
+with the back of EP-03. The tree offers exactly the levels the structure has, from the first to that
+of its deepest summary task, which the server says whatever the filters (`meta.summary_depth`,
+#494), and shows the level asked for, or the deepest when asked for one beyond it (`depthShown`).
 
 ### The risks screen
 
@@ -1279,35 +1280,35 @@ simple tables, without sort or filter (decision of the author of 2026-10-08, #50
 object is named by the label the server resolves at reading time, active or deactivated — never
 by matching lists in the front; a section is named by `aria-label` (#251).
 
-The lists of the reference data read only the active objects, and the deactivated ones too when
-the address asks for it (`include_inactive`, WF-REF-0150, #300), under the name of the contract,
-which the header of the screen writes or lifts by a link (`InactiveSwitch`), which brings each
-paginated list back to its first page — only for a session that carries the read permission of
-their part of the reference data, without which the contract refuses it (403, `inactiveQuery` of
-`address.ts`), like the lists of the estimate (#351). The filter by state (`is_active`,
-`StateFilter`) prevails over it: all states, the active only, or the deactivated only, offered to
-the same session only (`stateOf`). A deactivated object is said there by a mark and a word, and is
-reactivated there as the server lists its command (`available_commands`, #532, WF-IHM-0090) — the
-server lists it only for whoever can modify that part, and the front deduces nothing from it:
-available, through the activation command of its nature (`setActivation`, a server action, from
-the version read), then the page re-reads its lists; unavailable — a node under a deactivated
-parent, a role under a deactivated node (WF-REF-0080) —, presented `aria-disabled`, described by
-its conditions, and a press says them in the region of the list without asking anything, like the
-deletion of a role in use (#515); absent, nothing. An object carries only the command that changes
-its state, `deactivate` on an active object, `reactivate` on a deactivated one, both through the
-same cell (`StateCell` of `commands.tsx`, EP-02/L43, below); the deactivation of the default
-calendar is unavailable (WF-REF-0120). The refusal of the server — the conflict (409), which names
-the node to reactivate first from the row that knows it, or the stale version (412), with the
-offer to re-read — is said above the list (`Reactivations`), which a grid cell has no room to
-say, until its notice is closed — a refusal arriving while another is said is added to it,
-without replacing it, except that of the same command on the same object, which takes its place; a
-success after it does not erase it, and the focus returns to the control that wrote when the
-refusal names one (`back`, a cell of the permissions matrix), otherwise to the active cell of the
-grid, or to the list —, and only as long as the list reads as at the moment of the command: the
-parameters it reads (`listReads`), the sort of another list of the screen not counting there. In a
-grid, the command is out of the tabbing, and Enter on its cell presses it (`CELL_COMMAND`,
-`grid-keyboard.ts`). The fake back ignoring the filters, the pages and `include_inactive`, and
-keeping nothing ("What the fake back does not do"), the tests test what the screen asks for; the service will honour it in EP-05.
+The lists of the reference data read only the active objects, and the deactivated ones too when the
+address asks for it (`include_inactive`, WF-REF-0150, #300), under the name of the contract, which
+the header of the screen writes or lifts by a link (`InactiveSwitch`), which brings each paginated
+list back to its first page — only for a session that carries the read permission of their part of
+the reference data, without which the contract refuses it (403, `inactiveQuery` of `address.ts`),
+like the lists of the estimate (#351). The filter by state (`is_active`, `StateFilter`) prevails
+over it: all states, the active only, or the deactivated only, offered to the same session only
+(`stateOf`). A deactivated object is said there by a mark and a word, and is reactivated there as
+the server lists its command (`available_commands`, #532, WF-IHM-0090) — the server lists it only
+for whoever can modify that part, and the front deduces nothing from it: available, through the
+activation command of its nature (`setActivation`, a server action, from the version read), then the
+page re-reads its lists; unavailable — a node under a deactivated parent, a role under a deactivated
+node (WF-REF-0080) —, presented `aria-disabled`, described by its conditions, and a press says them
+in the region of the list without asking anything, like the deletion of a role in use (#515);
+absent, nothing. An object carries only the command that changes its state, `deactivate` on an
+active object, `reactivate` on a deactivated one, both through the same cell (`StateCell` of
+`commands.tsx`, EP-02/L43, below); the deactivation of the default calendar is unavailable
+(WF-REF-0120). The refusal of the server — the conflict (409), which names the node to reactivate
+first from the row that knows it, or the stale version (412), with the offer to re-read — is said
+above the list (`Reactivations`), which a grid cell has no room to say, until its notice is closed —
+a refusal arriving while another is said is added to it, without replacing it, except that of the
+same command on the same object, which takes its place; a success after it does not erase it, and
+the focus returns to the control that wrote when the refusal names one (`back`, a cell of the
+permissions matrix), otherwise to the active cell of the grid, or to the list —, and only as long as
+the list reads as at the moment of the command: the parameters it reads (`listReads`), the sort of
+another list of the screen not counting there. In a grid, the command is out of the tabbing, and
+Enter on its cell presses it (`CELL_COMMAND`, `grid-keyboard.ts`). The fake back ignoring the
+filters, the pages and `include_inactive`, and keeping nothing ("What the fake back does not do"),
+the tests test what the screen asks for; the service will honour it in EP-05.
 
 ### Cost settings: types and categories
 
@@ -1746,27 +1747,27 @@ said at the field, any other under the form, the stale version (412) with the of
 
 ### The audit log
 
-The audit log (FBS-1.5, WF-SEC-0030, `/admin/audit-log`, `frontend/src/components/audit/`,
-#517) is an administration screen of its own; the « Last operations » table of the state of the
-system, three facts of the platform (WF-ADM-0130), stays as it is. It is a read-only function,
-which only has its permission to consult (WF-ADM-0100): `FunctionPermission` names every function
-by its permission to consult, and `WritableFunction` those that also have the permission to
-change, the only ones `platformOffer` accepts. The screen is guarded by `audit_log.read`, not found
-without it like an address that leads nowhere (WF-ADM-0110). It presents a page of the entries of
-`listAuditEvents` on the dense grid, read-only (`audit-columns.tsx`, preferences under the
-`audit_log` key): the date, in local time, the author, the action and, under it, what it did to its
-object — composed by the front in the language of the reader from the codes and the parameters the
-entry keeps (`AuditEvent.params`, `useAuditDetails`), the API returning no sentence (WF-ARC-0110);
-a second line in the action cell, which sorts by the code of the action — never a column of its
-own, which the server would not sort (WF-IHM-0060) —, the nature and the label of the object — a
-backup, which has none, by its nature, never by its identifier —, the project and the correlation,
-each as the entry keeps it, and a link to the history of the object — the log filtered on its
-nature and its identifier, its whole history: the other filters and the search lifted, the sort
-kept —, the correlation leading likewise to the entries of its request alone. The `title` of the
-action cell is posed only if the text is cut short there, and it then carries the instant of the
-backup restored; the second line also says a role change with no change. The server sorts on every
-column (#550), in both directions. The most recent first when the address says nothing, and the sort is
-never lifted (`GridConfig.lifts`): the header of the date asks for descending first
+The audit log (FBS-1.5, WF-SEC-0030, `/admin/audit-log`, `frontend/src/components/audit/`, #517) is
+an administration screen of its own; the « Last operations » table of the state of the system, three
+facts of the platform (WF-ADM-0130), stays as it is. It is a read-only function, which only has its
+permission to consult (WF-ADM-0100): `FunctionPermission` names every function by its permission to
+consult, and `WritableFunction` those that also have the permission to change, the only ones
+`platformOffer` accepts. The screen is guarded by `audit_log.read`, not found without it like an
+address that leads nowhere (WF-ADM-0110). It presents a page of the entries of `listAuditEvents` on
+the dense grid, read-only (`audit-columns.tsx`, preferences under the `audit_log` key): the date, in
+local time, the author, the action and, under it, what it did to its object — composed by the front
+in the language of the reader from the codes and the parameters the entry keeps
+(`AuditEvent.params`, `useAuditDetails`), the API returning no sentence (WF-ARC-0110); a second line
+in the action cell, which sorts by the code of the action — never a column of its own, which the
+server would not sort (WF-IHM-0060) —, the nature and the label of the object — a backup, which has
+none, by its nature, never by its identifier —, the project and the correlation, each as the entry
+keeps it, and a link to the history of the object — the log filtered on its nature and its
+identifier, its whole history: the other filters and the search lifted, the sort kept —, the
+correlation leading likewise to the entries of its request alone. The `title` of the action cell is
+posed only if the text is cut short there, and it then carries the instant of the backup restored;
+the second line also says a role change with no change. The server sorts on every column (#550), in
+both directions. The most recent first when the address says nothing, and the sort is never lifted
+(`GridConfig.lifts`): the header of the date asks for descending first
 (`GridColumn.descendingFirst`), and thus brings back, from another sort, to the default order. An
 object only leads to its own screen if the session reads its function — the risks, the planning
 whose exchanges are a sheet, the revisions —, otherwise to its revision, which leads to the first
@@ -1782,21 +1783,21 @@ those the whole log names (`listAuditFacets`, which the mere consultation of the
 auditor without `users.read` filters by author) — without an author to choose nor an author chosen,
 the author filter is not offered —, the actions in a menu, the nature of the object, the object
 whose history the address asks for, named and lifted, and the correlation, entered (`TextFilter`);
-an author or a project the address names without any choice offering it stays chosen under the
-name the entries give it, and an author that no line read names is read by `getUser`, at most once,
-and named as everywhere (`naming.person`), never by its identifier (#1010). The project and the
-object are links where the session can consult
-them — a project it can open (`listProjects`, all states; none when the API does not find the list
-of projects, which the service only serves from EP-04 on, a tolerance of the 404 that #962 then
-removes) —: the project, a revision of such a project, and an object that lives in a revision,
-towards its own screen in the one the entry names (`AuditObject.revision`) — a risk towards the
-risks of the revision, its detail open (`risk`), the import of a planning, of an estimate or of a
-remaining to commit towards its exchanges, its report shown (`import`), the differential of an
-amendment towards the cost structures of the revisions screen read in it (`revision_id`); an actual
-cost line and the import of the actual costs live in no revision, and an account, a role or a
-backup have no screen of their own: their name stays alone. A period the API refuses (422, the end
-designated out of its bounds) is said in place of the entries, the filters kept, and any other
-refusal of the filters by its envelope (`problemMessage`); no command is offered.
+an author or a project the address names without any choice offering it stays chosen under the name
+the entries give it, and an author that no line read names is read by `getUser`, at most once, and
+named as everywhere (`naming.person`), never by its identifier (#1010). The project and the object
+are links where the session can consult them — a project it can open (`listProjects`, all states;
+none when the API does not find the list of projects, which the service only serves from EP-04 on, a
+tolerance of the 404 that #962 then removes) —: the project, a revision of such a project, and an
+object that lives in a revision, towards its own screen in the one the entry names
+(`AuditObject.revision`) — a risk towards the risks of the revision, its detail open (`risk`), the
+import of a planning, of an estimate or of a remaining to commit towards its exchanges, its report
+shown (`import`), the differential of an amendment towards the cost structures of the revisions
+screen read in it (`revision_id`); an actual cost line and the import of the actual costs live in no
+revision, and an account, a role or a backup have no screen of their own: their name stays alone. A
+period the API refuses (422, the end designated out of its bounds) is said in place of the entries,
+the filters kept, and any other refusal of the filters by its envelope (`problemMessage`); no
+command is offered.
 
 ### The imports and exports screen
 
@@ -1880,44 +1881,43 @@ components, against the examples of the contract (`project-start.dom.test.tsx`, 
 
 ### The portfolio screens
 
-The portfolio screens, `/portfolio/…` (`frontend/src/components/portfolio/`, FBS-2), are outside
-the project: each reads its view on the perimeter of the address, under the names of the
-contract — the states kept (`states`), the period (`from`, `to`), the calculation date (`as_of`)
-and the organisation node (`org_node_id`), which also keeps its descendants, offered in the order
-of the tree that `listOrgNodes` returns, each node indented by its depth (`treeLabel`, like the
-filter of the workload plan of a project) —, of that perimeter what the operation takes
-(`perimeterQuery`, `Takes`). A state shows pressed as the address asks, or, when it names none, as
-the server kept them (`scope.states`): the front assumes no default. Under the title, the perimeter
-the server kept and the calculation date of the view, `scope.as_of` (`PortfolioHeader`), which all
-its figures carry, and the node kept, named by the server (`scope.org_node_label`). A period the
-server refuses — an end that precedes the start, `PortfolioPeriodRefused`, EP-02/L42f — is said at
-the field of the end, the start named, as the actual costs say it (`usePeriodProblem`) — a single
-bound completing itself with the default period, a start later than the completed end is said at
-the field of the start, the end named (`params.maximum`) —; the view is not loaded, its title stays
-without a kept perimeter and a sentence takes its place (`RefusedView` of
-`frontend/src/app/portfolio/refused.tsx`); its states are pressed as the address names them, and,
-without a named state, the filter of the states is not offered, nothing saying what the server
-would keep. The aggregated workload plan and the project control health, on which a completed
-project has no effect (G-05), say so by a note of the perimeter (`completedWithoutEffect` of
-`PerimeterBar`) as soon as the server keeps `completed`, read from `scope.states` and never from
-the address (US-0703/L9). The list of projects (FBS-2.1) is one more configuration of the dense grid, sorted,
-searched and paginated by the server, its totals row the number of projects kept (`meta.total`),
-under the value of the portfolio. The six other views (FBS-2.2 to FBS-2.7) show what the server
-computes: the aggregated workload plan and the disbursements take in addition the horizon
-(`horizon_months`) and, for the first, the under-load threshold (`under_load_threshold`),
-parameters of the view and not preferences (WF-PTF-0060): the menu proposes a few values, but any
-value of the address that the contract takes — a horizon from 1 to 240 months, a threshold in
-`Percent` — is sent and shows as chosen; without a threshold in the address, the menu shows the one
-the server kept (`under_load_threshold` of the answer), like the states; the columns of the
-workload plan are the months of the answer (`months`), which each role carries in the same order.
-A health signal says what it names (`params`: the weeks without a review, the milestone overrun and
-its reference date), like an alert of the state of the system the unavailable component. Each
-named project — label of the list, heaviest risk, health signal — opens the project (WF-PTF-0030).
-The zones of index, of load and of health are those of the server, by `Signal`; the quarterly
-evolution of the indices, the S-curve and the disbursements are figures of `Chart`, exported as PNG
-with the provenance of their view (`usePortfolioExport`): the perimeter the server kept — states,
-number of projects, period, organisation node — and its calculation date, `scope.as_of`, the very
-sentence of the header (#312).
+The portfolio screens, `/portfolio/…` (`frontend/src/components/portfolio/`, FBS-2), are outside the
+project: each reads its view on the perimeter of the address, under the names of the contract — the
+states kept (`states`), the period (`from`, `to`), the calculation date (`as_of`) and the
+organisation node (`org_node_id`), which also keeps its descendants, offered in the order of the
+tree that `listOrgNodes` returns, each node indented by its depth (`treeLabel`, like the filter of
+the workload plan of a project) —, of that perimeter what the operation takes (`perimeterQuery`,
+`Takes`). A state shows pressed as the address asks, or, when it names none, as the server kept them
+(`scope.states`): the front assumes no default. Under the title, the perimeter the server kept and
+the calculation date of the view, `scope.as_of` (`PortfolioHeader`), which all its figures carry,
+and the node kept, named by the server (`scope.org_node_label`). A period the server refuses — an
+end that precedes the start, `PortfolioPeriodRefused`, EP-02/L42f — is said at the field of the end,
+the start named, as the actual costs say it (`usePeriodProblem`) — a single bound completing itself
+with the default period, a start later than the completed end is said at the field of the start, the
+end named (`params.maximum`) —; the view is not loaded, its title stays without a kept perimeter and
+a sentence takes its place (`RefusedView` of `frontend/src/app/portfolio/refused.tsx`); its states
+are pressed as the address names them, and, without a named state, the filter of the states is not
+offered, nothing saying what the server would keep. The aggregated workload plan and the project
+control health, on which a completed project has no effect (G-05), say so by a note of the perimeter
+(`completedWithoutEffect` of `PerimeterBar`) as soon as the server keeps `completed`, read from
+`scope.states` and never from the address (US-0703/L9). The list of projects (FBS-2.1) is one more
+configuration of the dense grid, sorted, searched and paginated by the server, its totals row the
+number of projects kept (`meta.total`), under the value of the portfolio. The six other views
+(FBS-2.2 to FBS-2.7) show what the server computes: the aggregated workload plan and the
+disbursements take in addition the horizon (`horizon_months`) and, for the first, the under-load
+threshold (`under_load_threshold`), parameters of the view and not preferences (WF-PTF-0060): the
+menu proposes a few values, but any value of the address that the contract takes — a horizon from 1
+to 240 months, a threshold in `Percent` — is sent and shows as chosen; without a threshold in the
+address, the menu shows the one the server kept (`under_load_threshold` of the answer), like the
+states; the columns of the workload plan are the months of the answer (`months`), which each role
+carries in the same order. A health signal says what it names (`params`: the weeks without a review,
+the milestone overrun and its reference date), like an alert of the state of the system the
+unavailable component. Each named project — label of the list, heaviest risk, health signal — opens
+the project (WF-PTF-0030). The zones of index, of load and of health are those of the server, by
+`Signal`; the quarterly evolution of the indices, the S-curve and the disbursements are figures of
+`Chart`, exported as PNG with the provenance of their view (`usePortfolioExport`): the perimeter the
+server kept — states, number of projects, period, organisation node — and its calculation date,
+`scope.as_of`, the very sentence of the header (#312).
 
 ### Grids: pasting a block from a spreadsheet
 
@@ -2183,14 +2183,14 @@ and never on keyboard focus. A link drawn as a button and a menu item carry it l
 tooltip says:
 
 - **the name** of the command, the one the control already carries;
-- **a help sentence**, the `help` prop, already translated: for a command, `commands.<commande>.help`,
-  in both languages, held by `make catalogs` and read by `t("commands.<commande>.help")`, which the
-  typing of the catalogue refuses for a command that has none (`CommandHelp` names those that have
-  one, for a table of commands); for the header of a column, its definition
-  (`columns.<grille>.<colonne>.help`); or a sentence with parameters (`helpValues`). `help` and
-  `unavailable` never take a literal (`make lint-front`);
-- **its keys**, in `<kbd>`, written according to the workstation — ⌘ on a Mac, Ctrl elsewhere —, each
-  key by its name from the catalogue (`commands.keys`, `commands.macKeys`). They have only one
+- **a help sentence**, the `help` prop, already translated: for a command,
+  `commands.<commande>.help`, in both languages, held by `make catalogs` and read by
+  `t("commands.<commande>.help")`, which the typing of the catalogue refuses for a command that has
+  none (`CommandHelp` names those that have one, for a table of commands); for the header of a
+  column, its definition (`columns.<grille>.<colonne>.help`); or a sentence with parameters
+  (`helpValues`). `help` and `unavailable` never take a literal (`make lint-front`);
+- **its keys**, in `<kbd>`, written according to the workstation — ⌘ on a Mac, Ctrl elsewhere —,
+  each key by its name from the catalogue (`commands.keys`, `commands.macKeys`). They have only one
   source: the `keys` prop, written as `aria-keyshortcuts` names it (`"Control+Z Meta+Z"`), which
   `CommandTooltip` sets on the control and shows at the same time (`shortcut.ts`);
 - **the missing condition**, for an unavailable command (WF-IHM-0090): `unavailable`, which marks
@@ -2278,26 +2278,27 @@ is ignored.
 The page of a screen follows the structure of #1075, its second-level headings in this order, said
 in its language (`SCREEN_HEADINGS`): « Ce que montre l'écran », « Ses commandes », « Ses colonnes et
 ses valeurs calculées », « Les gestes au clavier », « Voir aussi »; « What the screen shows », « Its
-commands », « Its columns and computed values », « Keyboard gestures », « See also » in English. The definitions of the columns are not
-written there: the panel renders them after the third section, from the configuration of the grid
-of the screen and the keys of its headers (`columns.<grille>.<colonne>.help`, `COLUMNS` of
-`read.ts`), a single source with their tooltips. A notion quotes the glossary of appendix A word
-for word, without the requirement identifiers between parentheses (« (WF-RIS-0050) »), which mean
-nothing to whoever reads the help, and which `help.test.ts` ignores in its comparison (#1440), one
-quotation per term (`> **Terme** — définition`), under « Ce que dit le glossaire », then « Dans
-Waterfall » and « Voir aussi » (`NOTION_HEADINGS`). The specification existing in French alone, an
-English notion translates its quotations, in the same form and as many, under « What the glossary
-says », « In Waterfall » and « See also ». The English page is the faithful translation of the
-French one: its input examples are those of the English interface (« 2 d », « 1 wk », « 3FS+2 d;
-5SS », #1441), and the labels it cites, those of the `en` catalogue. The panel says the language the
-page was read in (`lang`) on the rendered page (`WrittenPage`), the title of the panel and the titles
-the search finds: the messages of the interface of the body (loading, failure, number of results)
-bear none (#1442).
+commands », « Its columns and computed values », « Keyboard gestures », « See also » in English. The
+definitions of the columns are not written there: the panel renders them after the third section,
+from the configuration of the grid of the screen and the keys of its headers
+(`columns.<grille>.<colonne>.help`, `COLUMNS` of `read.ts`), a single source with their tooltips. A
+notion quotes the glossary of appendix A word for word, without the requirement identifiers between
+parentheses (« (WF-RIS-0050) »), which mean nothing to whoever reads the help, and which
+`help.test.ts` ignores in its comparison (#1440), one quotation per term
+(`> **Terme** — définition`), under « Ce que dit le glossaire », then « Dans Waterfall » and « Voir
+aussi » (`NOTION_HEADINGS`). The specification existing in French alone, an English notion
+translates its quotations, in the same form and as many, under « What the glossary says », « In
+Waterfall » and « See also ». The English page is the faithful translation of the French one: its
+input examples are those of the English interface (« 2 d », « 1 wk », « 3FS+2 d; 5SS », #1441), and
+the labels it cites, those of the `en` catalogue. The panel says the language the page was read in
+(`lang`) on the rendered page (`WrittenPage`), the title of the panel and the titles the search
+finds: the messages of the interface of the body (loading, failure, number of results) bear none
+(#1442).
 
 _Check_: `src/help/help.test.ts` (`make test-front`) requires, in each language, a page per code of
 the table that has a screen, or its place in the list of the pages to come with the lot that writes
-it (`SCREENS_TO_COME`, `NOTIONS_TO_COME`) — a list that fails as soon as a code it names receives its
-file —, and the same files in English as in French; it holds the structure of the pages in each
+it (`SCREENS_TO_COME`, `NOTIONS_TO_COME`) — a list that fails as soon as a code it names receives
+its file —, and the same files in English as in French; it holds the structure of the pages in each
 language, the quotations of the glossary — word for word in French, as many in English —, the links,
 which lead to a written page or one to come, the same in English as in French, the labels cited in
 bold, taken from the `en` catalogue where the French page cites the `fr` one, and the absence of raw
@@ -2372,12 +2373,13 @@ An entry (`Message`) keeps:
 - **the tone** — `success` or `refusal`, said in words, never by colour alone; the unreachable
   service, a failed or interrupted task, refused rows of a paste are refusals;
 - **the sentence of the notice**, as it was said, in the language of the moment: the history
-  repeats, it does not rewrite; and, for a failed task, **the reason** as a second sentence (`detail`);
-- **the object**, when the notice names one: the one the screen gives — `subject` of `OutcomeNotice`,
-  of `Command`, of `DoneNotice` and of `ReferenceForm` (the object changed: a line of the reference
-  data, a project, a subproject; the project of an exit of the life cycle, the revision of a revision
-  command), `object` of `useSaid` —, otherwise the object in conflict, the task — its kind and the
-  name the user gave it —, the external copy tested;
+  repeats, it does not rewrite; and, for a failed task, **the reason** as a second sentence
+  (`detail`);
+- **the object**, when the notice names one: the one the screen gives — `subject` of
+  `OutcomeNotice`, of `Command`, of `DoneNotice` and of `ReferenceForm` (the object changed: a line
+  of the reference data, a project, a subproject; the project of an exit of the life cycle, the
+  revision of a revision command), `object` of `useSaid` —, otherwise the object in conflict, the
+  task — its kind and the name the user gave it —, the external copy tested;
 - **the correlation reference** of an unexpected error (`INTERNAL_ERROR`, WF-OBS-0020);
 - **the screen**: its address, to which a link brings back, and the project it showed
   (`useShownProjectLabel`); the link is named like the end of the breadcrumb (`crumbsOf`), followed
@@ -2391,9 +2393,9 @@ What feeds it — the outcome of each command, success as well as refusal:
   which go through it —, `UnshownNotice` of the grid; a refusal said outside a notice, through
   `useNoteRefusal`, in the very sentence a notice would give it: a refusal said at the fields of a
   form (`ReferenceForm`, the creation of an account, of a role, the list of the contributors, the
-  breakdown), the refused date of a restoration, the refusal of a write that left from a screen since
-  left, which the bar says (`LeftRefusals`) with the screen it had left from, and the one of the
-  tracking of a task, entered by `TaskPolling`, mounted with the shell, panel closed;
+  breakdown), the refused date of a restoration, the refusal of a write that left from a screen
+  since left, which the bar says (`LeftRefusals`) with the screen it had left from, and the one of
+  the tracking of a task, entered by `TaskPolling`, mounted with the shell, panel closed;
 - **the successes**: each status of a screen that says what a write did, through `useSaid`
   (`components/notices/said.ts`), the only entry point of these statuses, which says it and enters
   it; `DoneNotice` (its `of`: the outcome it says, one per save); the generated skeleton, the upload
@@ -2503,104 +2505,105 @@ of what it describes, and two generations write the same bytes:
   also by the rate of one year (`wftools.mockreference`);
 - under `fixtures/api/`, by their name, the examples of the witness, declared generated in
   `tools/paths.toml`: the readings of its core (`wftools.mockcore`, described once in
-  `wftools.mockwitness`, its hours of work in `wftools.mockcalendar`, its lines sorted under
-  each task, or filtered by the bounds of a column, by `wftools.mocksort`); the responses of the
-  grid writes, difference of two readings (`wftools.mockwrites`), among them those of the gestures
-  of structure and of the entry of tasks, with their refusals (`wftools.mockgestures`, the place of
-  a node and the loops a gesture would close in `wftools.mocktree`, the gestures of the estimate
-  made on amendment 2, and the entry and the paste the end-to-end paths make there, in
-  `wftools.mockamendmentwrites`), the gestures of the cards of the Kanban and their
-  responses (`wftools.mockkanban`), and the refusals
-  of a paste and of an import that a subproject or the phase of the project command
-  (`wftools.mockexchanges`), and a manual date on a non-working day, refused at entry and
-  flagged at import (`wftools.mocknonworking`, #1271); its
-  history (`wftools.mockhistory`), its revisions read before the designation of the offer, while it
-  is still proposed (`wftools.mockcycle`), its marked revisions read with their snapshot
-  (`wftools.mocksnapshot`), its compared revisions (`wftools.mockcomparisons`) and its risks, and the responses of the
-  entries of a risk, with the own estimate of risk 751 and the preliminary report of its
-  occurrence (`wftools.mockriskwrites`); its indicators, its curves and
-  its workload today, over the whole structure of a thousand tasks (`wftools.mocktoday`,
-  `wftools.mockindicators`, `wftools.mockcurves`); its actual costs — those the witness describes and
-  the invoices of its drawn tasks that are completed — and the log of their imports (`wftools.mockcosts`);
-  and the views of the portfolio over time — aggregated workload, S-curve and its variant
-  at 31 December 2025, project control health —, which sum the witness at its own readings and the other projects by
-  simple formulas (`wftools.mockportfoliotime`); and the audit log of the installation, drawn from
-  the chronology of the witness and from the examples that date its accounts, its roles and its backups
-  (`wftools.mockaudit`, held by `tools/tests/test_mockaudit.py`); and the readings of the lists
-  written by hand — the projects of the home page, the subprojects and the contributors of the witness, the
-  accounts and the access roles, the backups — and of the work breakdown of the witness, sorted,
-  searched and filtered as their screens ask for them, with the entry of the work breakdown, its response
-  and its refusals (`wftools.mocklists`, held by `tools/tests/test_mocklists.py`); and the
-  contributors of the witness once an account is anonymised (`wftools.mockanonymized`, held by
+  `wftools.mockwitness`, its hours of work in `wftools.mockcalendar`, its lines sorted under each
+  task, or filtered by the bounds of a column, by `wftools.mocksort`); the responses of the grid
+  writes, difference of two readings (`wftools.mockwrites`), among them those of the gestures of
+  structure and of the entry of tasks, with their refusals (`wftools.mockgestures`, the place of a
+  node and the loops a gesture would close in `wftools.mocktree`, the gestures of the estimate made
+  on amendment 2, and the entry and the paste the end-to-end paths make there, in
+  `wftools.mockamendmentwrites`), the gestures of the cards of the Kanban and their responses
+  (`wftools.mockkanban`), and the refusals of a paste and of an import that a subproject or the
+  phase of the project command (`wftools.mockexchanges`), and a manual date on a non-working day,
+  refused at entry and flagged at import (`wftools.mocknonworking`, #1271); its history
+  (`wftools.mockhistory`), its revisions read before the designation of the offer, while it is still
+  proposed (`wftools.mockcycle`), its marked revisions read with their snapshot
+  (`wftools.mocksnapshot`), its compared revisions (`wftools.mockcomparisons`) and its risks, and
+  the responses of the entries of a risk, with the own estimate of risk 751 and the preliminary
+  report of its occurrence (`wftools.mockriskwrites`); its indicators, its curves and its workload
+  today, over the whole structure of a thousand tasks (`wftools.mocktoday`,
+  `wftools.mockindicators`, `wftools.mockcurves`); its actual costs — those the witness describes
+  and the invoices of its drawn tasks that are completed — and the log of their imports
+  (`wftools.mockcosts`); and the views of the portfolio over time — aggregated workload, S-curve and
+  its variant at 31 December 2025, project control health —, which sum the witness at its own
+  readings and the other projects by simple formulas (`wftools.mockportfoliotime`); and the audit
+  log of the installation, drawn from the chronology of the witness and from the examples that date
+  its accounts, its roles and its backups (`wftools.mockaudit`, held by
+  `tools/tests/test_mockaudit.py`); and the readings of the lists written by hand — the projects of
+  the home page, the subprojects and the contributors of the witness, the accounts and the access
+  roles, the backups — and of the work breakdown of the witness, sorted, searched and filtered as
+  their screens ask for them, with the entry of the work breakdown, its response and its refusals
+  (`wftools.mocklists`, held by `tools/tests/test_mocklists.py`); and the contributors of the
+  witness once an account is anonymised (`wftools.mockanonymized`, held by
   `tools/tests/test_mockfindings.py`); and the exit of the witness, which marks or abandons its
   revision in progress, its refused code, and its readings according to the quality of the reader —
-  participant, or non-contributor who registers a project manager when none has an active account — or during the
-  marking of its revision in progress (`wftools.mockproject`, held by `tools/tests/test_mockexit.py`); and the refusals of one
-  form each (`wftools.mockrefusals`, held by `tools/tests/test_mockrefusals.py`), with those the
-  contract declared without a code, a condition or an example (`wftools.mockdeclared`, held by
-  `tools/tests/test_mockdeclared.py`); and the examples of the majors of the review of the
-  contract of 2026-10-31 — the list of the projects with the project created, the code of a
-  subproject too long, the rate update of a category not proposed, a task refused under a
-  milestone, the summary that awaits its own lines alone, the writes of a line of a completed
-  task refused on the main structure, the own estimate of the occurred risk as the reference 101
-  froze it and the nodes its occurrence merged, the register filtered on its columns, the life of
-  an import and its refusals — (`wftools.mockreview`, held by `tools/tests/test_mockreview.py`).
+  participant, or non-contributor who registers a project manager when none has an active account —
+  or during the marking of its revision in progress (`wftools.mockproject`, held by
+  `tools/tests/test_mockexit.py`); and the refusals of one form each (`wftools.mockrefusals`, held
+  by `tools/tests/test_mockrefusals.py`), with those the contract declared without a code, a
+  condition or an example (`wftools.mockdeclared`, held by `tools/tests/test_mockdeclared.py`); and
+  the examples of the majors of the review of the contract of 2026-10-31 — the list of the projects
+  with the project created, the code of a subproject too long, the rate update of a category not
+  proposed, a task refused under a milestone, the summary that awaits its own lines alone, the
+  writes of a line of a completed task refused on the main structure, the own estimate of the
+  occurred risk as the reference 101 froze it and the nodes its occurrence merged, the register
+  filtered on its columns, the life of an import and its refusals — (`wftools.mockreview`, held by
+  `tools/tests/test_mockreview.py`).
 
-What the same command generates is never re-read from the disk: the indicators, the risks
-and the curves of the witness, which the portfolio sums, are passed to it in memory, so that one single
-run of `make mock-data` reaches its fixed point.
+What the same command generates is never re-read from the disk: the indicators, the risks and the
+curves of the witness, which the portfolio sums, are passed to it in memory, so that one single run
+of `make mock-data` reaches its fixed point.
 
 **What stays written by hand** — sessions, accounts and roles, reference data (resource roles and
 their headcounts, calendars, organisation nodes), the project, its revisions and its transitions,
 imports and their reports, background tasks, state of the system and backups, counterfactual
 variants — is read by the generators, never copied, and confronted with what is generated:
 `tools/tests/test_mockhistory.py` for the chronology, `tools/tests/test_mockuniverse.py` for the
-rest (the monthly hours of a role, its whole headcount included, are its headcount times the
-weekly hours of its calendar × 52 / 12, the row of the witness in the portfolio is that of
-its indicators, every view of the portfolio is computed today…). A volume example is written one line per element, so that a change can be read
-in the diff. The marks the end-to-end paths read — line numbers, labels,
-totals — are fixed by `test_the_marks_the_journeys_read` (`tools/tests/test_mockstructure.py`)
-for the structure, `test_the_marks_the_portfolio_journey_reads` (`tools/tests/test_mockdata.py`)
-for the portfolio and `test_the_marks_the_review_journey_reads` (`tools/tests/test_mocktoday.py`)
-for the monthly review: a change of the generator that moves them fails there, before the
-paths. The grid tests check only lines that stay within the window the virtualised grid
-renders. The tests of the front read the address of a node of the witness in the example — its
-identifier, its index or its number found by its label —, never a hard-coded number,
-except where the number is what the test puts to the proof (#400).
+rest (the monthly hours of a role, its whole headcount included, are its headcount times the weekly
+hours of its calendar × 52 / 12, the row of the witness in the portfolio is that of its indicators,
+every view of the portfolio is computed today…). A volume example is written one line per element,
+so that a change can be read in the diff. The marks the end-to-end paths read — line numbers,
+labels, totals — are fixed by `test_the_marks_the_journeys_read`
+(`tools/tests/test_mockstructure.py`) for the structure,
+`test_the_marks_the_portfolio_journey_reads` (`tools/tests/test_mockdata.py`) for the portfolio and
+`test_the_marks_the_review_journey_reads` (`tools/tests/test_mocktoday.py`) for the monthly review:
+a change of the generator that moves them fails there, before the paths. The grid tests check only
+lines that stay within the window the virtualised grid renders. The tests of the front read the
+address of a node of the witness in the example — its identifier, its index or its number found by
+its label —, never a hard-coded number, except where the number is what the test puts to the proof
+(#400).
 
 `make mock-spec` derives from the contract the variant prism serves: paths under the prefix of the
-server, `/api/v1`, which prism would ignore, and no security required (`security`
-removed) — the fake back grants the session the mockup starts from (EP-02), and Prism therefore does not require the
-token. A third difference: Prism serves the first example of an operation whatever its
-path, so that `listNodes` of the amendment would have rendered the main structure. The variant
-therefore repeats the paths of `listNodes`, `updateEstimateLine`, `previewPaste` and `applyPaste` for
-each structure of kind `amendment` that the first example of `listCostStructures` lists, its
-identifier written in the path, and places the `amendment` example of each operation at their head
+server, `/api/v1`, which prism would ignore, and no security required (`security` removed) — the
+fake back grants the session the mockup starts from (EP-02), and Prism therefore does not require
+the token. A third difference: Prism serves the first example of an operation whatever its path, so
+that `listNodes` of the amendment would have rendered the main structure. The variant therefore
+repeats the paths of `listNodes`, `updateEstimateLine`, `previewPaste` and `applyPaste` for each
+structure of kind `amendment` that the first example of `listCostStructures` lists, its identifier
+written in the path, and places the `amendment` example of each operation at their head
 (`wftools.mock`, #1219, #1277): the reading of the installation on the amendment, the hours of its
 added line entered, and a block pasted on its lines 7 to 9, previewed then applied
 (`wftools.mockamendmentwrites`). Prism ranks a path by its written segments, ahead of the one that
 leaves them as templates. No response is written by hand: the choice follows the identifier of the
-path. The other paths of the amendment — its gestures, its planning — answer like those of the
-main structure; amendments 212 and 213 and the risk structures are not routed (EP-16).
-**Where the writing paths play.** The main structure of the project in progress lists the estimate
-read-only (#1176): a path that writes the estimate therefore does not read it there. The one of the entry
-of a line (`entry.spec.ts`) and the one of the paste (`paste.spec.ts`) play on amendment 2, structure
+path. The other paths of the amendment — its gestures, its planning — answer like those of the main
+structure; amendments 212 and 213 and the risk structures are not routed (EP-16). **Where the
+writing paths play.** The main structure of the project in progress lists the estimate read-only
+(#1176): a path that writes the estimate therefore does not read it there. The one of the entry of a
+line (`entry.spec.ts`) and the one of the paste (`paste.spec.ts`) play on amendment 2, structure
 203, whose three `amendment` examples the fake back serves; the paste finds there `[WF-IHM-0050-A]`,
 the three lines of the block of `paste_applied_amendment` written after the confirmation. The paths
-that have no example of their own on the amendment stay on the structure that serves them, the own estimate
-of the rewiring risk (structure 204, which receives the first example of each operation): the
-paste of an unknown category, the paste of a block too wide, and the provision line, which
-the amendment does not carry. A path that writes on another differential awaits its examples, at
-EP-16.
+that have no example of their own on the amendment stay on the structure that serves them, the own
+estimate of the rewiring risk (structure 204, which receives the first example of each operation):
+the paste of an unknown category, the paste of a block too wide, and the provision line, which the
+amendment does not carry. A path that writes on another differential awaits its examples, at EP-16.
 Nothing else changes. The contract keeps the `bearer` scheme, and the front sends it all the same:
 in `WATERFALL_AUTH=mock` mode, `serverClient()` sets `Authorization: Bearer` with a fixed token
 (`MOCK_TOKEN`, `src/api/server.ts`, with no secret value), which only the Next server holds — the
-browser holds none. This mode is refused when `NODE_ENV` is `production`, unless
-`WATERFALL_E2E=1`: the Playwright harness plays its paths against the production front, and
-sets both variables on its front (`playwright.config.ts`); `make dev` sets
-`WATERFALL_AUTH=mock` on the front (`compose.dev.yaml`), `make build-front` does not need it. Against
-an API the environment names (`WATERFALL_API_ADDRESS`), the harness sets only
-`WATERFALL_E2E=1`, which admits no fixed token there (#1265).
+browser holds none. This mode is refused when `NODE_ENV` is `production`, unless `WATERFALL_E2E=1`:
+the Playwright harness plays its paths against the production front, and sets both variables on its
+front (`playwright.config.ts`); `make dev` sets `WATERFALL_AUTH=mock` on the front
+(`compose.dev.yaml`), `make build-front` does not need it. Against an API the environment names
+(`WATERFALL_API_ADDRESS`), the harness sets only `WATERFALL_E2E=1`, which admits no fixed token
+there (#1265).
 
 - `make mock`: the fake back alone, on `http://localhost:4010`.
 - `make dev`: the front (`http://localhost:3000`) against the fake back, through
@@ -2638,10 +2641,9 @@ contract family, which `fixtures/api/` wakes like the contract), `make lint-comp
 
 ## Commands
 
-Everything is launched through the Makefile, on a workstation as in the chain: `make help` lists them.
-A command the chain executes exists in the Makefile, and a workflow writes no control
-logic on its side; a failure of the chain is therefore reproduced by the same
-command.
+Everything is launched through the Makefile, on a workstation as in the chain: `make help` lists
+them. A command the chain executes exists in the Makefile, and a workflow writes no control logic on
+its side; a failure of the chain is therefore reproduced by the same command.
 
 | Command                                                                 | What it does                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
 | ----------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -2651,11 +2653,11 @@ command.
 | `make changes BASE=…`                                                 | the families a change touches                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
 | `make test-back TESTS=…`, `make test-front TESTS=…`, `make e2e TESTS=…` | one single test file, during development; without `TESTS`, all of them, as in the chain                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
 | `make service-install`                                                  | bootstraps the started service platform, its realm applied (`waterfall-api install`, US-0420): applies the migrations under the owner of the tables, creates the installation, its three predefined roles and its local administrator, `WATERFALL_ADMIN_EMAIL` (`administrateur@waterfall.test` by default), in the language `WATERFALL_DEFAULT_LANGUAGE` (`fr` by default), and writes on its output only the link that sets its password, valid until it is used; run again, it creates nothing, and writes a new link, which replaces the previous one, as long as the administrator has no password, none afterwards                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
-| `make service-up`, `make service-down`                                  | starts, stops the service platform (`deploy/compose/compose.service.yaml`: PostgreSQL, Redis, the Garage object storage and its buckets, the migrations, the API, the worker and the scheduler of its tasks, the restoration service, Keycloak behind its HTTPS front end and its realm, applied again at each start by `keycloak-realm`, which stays started to reapply it after a restoration, OpenLDAP, Mailpit); it requires its secrets in the environment (below), and `service-down WATERFALL_RESET_DATA=yes` also deletes its databases, its storage, its directory and the authority of its front end                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| `make service-up`, `make service-down`                                  | starts, stops the service platform (`deploy/compose/compose.service.yaml`: PostgreSQL, Redis, the Garage object storage and its buckets, the migrations, the API, the worker and the scheduler of its tasks, the restoration service, Keycloak behind its HTTPS front end and its realm, applied again at each start by `keycloak-realm`, which stays started to reapply it after a restoration, OpenLDAP, Mailpit); it requires its secrets in the environment (below), and `service-down WATERFALL_RESET_DATA=yes` also deletes its databases, its storage, its directory and the authority of its front end; `service-up` refuses a PostgreSQL volume of another major than 18, printing the refusal of `postgres-volume`, which says this remedy (US-1130)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
 | `make keycloak-authority`                                               | copies out of the platform the root of the authority of Keycloak's front end, into `deploy/compose/.authority/root.crt`, which git ignores; `service-up` and `test-keycloak` do it at each start                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
 | `make e2e-service`                                                      | the paths of the Playwright project `service` (`frontend/e2e/service/`) against the real service, through Prism as a proxy (« An end-to-end path »); same secrets as `service-up`, and the browser of `make e2e-browsers`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
 | `make service-logs`                                                     | the logs of the services of the platform, those of `SERVICES` (`SERVICES="keycloak openldap"`), all by default                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
-| `make test-services`, `make test-services-down`                         | start, remove the services of the tests (`deploy/compose/compose.test.yaml`: PostgreSQL 16, Redis, Garage, in memory) for the slot of the worktree, on its ports (`SERVICES=redis` starts only some); `test-services` waits for them to answer and does nothing more if they run, `test-services-down` removes them with their volumes; `make test-back` and the other tests that need them start them by themselves                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| `make test-services`, `make test-services-down`                         | start, remove the services of the tests (`deploy/compose/compose.test.yaml`: PostgreSQL 18, Redis, Garage, in memory) for the slot of the worktree, on its ports (`SERVICES=redis` starts only some); `test-services` waits for them to answer and does nothing more if they run, `test-services-down` removes them with their volumes; `make test-back` and the other tests that need them start them by themselves                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
 | `make migrate`                                                          | applies the migrations to the database `WATERFALL_DATABASE_URL` designates                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
 | `make build-keycloak`                                                   | builds the image of Keycloak (`deploy/keycloak/`): the extension compiled and its JUnit tests passed, the themes, the realm; no JVM is asked of the workstation                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
 | `make test-keycloak`                                                    | starts Keycloak on the platform — and Mailpit, where it sends its emails and where its tests read them —, applies its realm and runs the tests of the `keycloak` marker (`backend/tests/test_keycloak_*.py`), which the other tests of the back leave aside: the realm and the extension, and the API that validates its tokens, served in the process of the tests on a database they create on the PostgreSQL of the platform, unless `WATERFALL_TEST_DATABASE_URL` names another one; it measures the coverage of the client of Keycloak's administration API and of the bootstrap, `waterfall-api install` (« Code coverage »); same secrets as `service-up`. Its tests change the realm for the time of a test — the duration of an idle session, that of the links, the lockout, the directory and the provider disabled, the directory not synchronised (`UNSYNCED`) —, and one of them restarts Keycloak (#852): it is never run at the same time as another use of the platform, `make e2e-service` or the tests of another agent, no more than `make check-keycloak` or `make check` when it puts the `keycloak` or `service` family to the proof                                                                           |
@@ -2685,43 +2687,55 @@ The service platform refuses to start without its secrets, which no file carries
 On a workstation, workstation values are enough — those of `.github/workflows/keycloak.yml` for
 example. Keycloak answers in HTTPS on `https://localhost:8443/auth`, its administration console
 under `/auth/admin`, through a Caddy front end (`deploy/compose/Caddyfile.service`) that the browser
-and the Next server both reach, and which also serves it on `https://127.0.0.1:8443/auth`,
-a second address for the tests of the platform (#680); its address,
-`WATERFALL_KEYCLOAK_ADDRESS`, is `https://localhost:<port>/auth`: the front end serves only the
-hosts `localhost` and `127.0.0.1`, and only the port moves, through `WATERFALL_KEYCLOAK_PORT`:
-the Makefile and Compose deduce it from it, and read no exported address (#735).
-The certificates come from Caddy's own authority (`tls internal`): its root, kept
-in the volume of the front end, is copied at each start into
-`deploy/compose/.authority/root.crt`; the front trusts it through `NODE_EXTRA_CA_CERTS`, which adds it
-to the authorities it knows, the tests of `make test-keycloak` through `SSL_CERT_FILE`, which makes it
-their only authority, a browser by importing it, or by accepting the warning. uv also reads
+and the Next server both reach, and which also serves it on `https://127.0.0.1:8443/auth`, a second
+address for the tests of the platform (#680); its address, `WATERFALL_KEYCLOAK_ADDRESS`, is
+`https://localhost:<port>/auth`: the front end serves only the hosts `localhost` and `127.0.0.1`,
+and only the port moves, through `WATERFALL_KEYCLOAK_PORT`: the Makefile and Compose deduce it from
+it, and read no exported address (#735). The certificates come from Caddy's own authority
+(`tls internal`): its root, kept in the volume of the front end, is copied at each start into
+`deploy/compose/.authority/root.crt`; the front trusts it through `NODE_EXTRA_CA_CERTS`, which adds
+it to the authorities it knows, the tests of `make test-keycloak` through `SSL_CERT_FILE`, which
+makes it their only authority, a browser by importing it, or by accepting the warning. uv also reads
 `SSL_CERT_FILE`: `make test-keycloak` synchronises the environment of the back without it, then runs
-the tests without resynchronising it (`uv run --no-sync`) — otherwise, on a workstation or a runner without
-a cache, uv would no longer trust GitHub to download Python or the packages (#737). The API, inside
-the network of the platform, reaches Keycloak in HTTP on `keycloak:8080`; the encryption of that
-link belongs to EP-13 (WF-SEC-0010).
-Redis is published on `127.0.0.1:6379` (`WATERFALL_REDIS_PORT`), for a front launched on the workstation
-(#681), which reaches it through `redis://:<mot de passe>@127.0.0.1:6379/0`. Keycloak notifies the
-closing of the sessions to that front through the back channel, at the address
-`WATERFALL_FRONT_BACKCHANNEL` (`http://host.docker.internal:3000` by default, the host as seen from its
-container), distinct from `WATERFALL_FRONT_ADDRESS`, that of the browser: the front then listens
-on every interface of the workstation, not on the loopback alone. Both addresses are written
-into the realm when it is applied, and `make e2e-service` replaces them with those of the front of its
-paths, until the next `service-up`. Mailpit
-shows the emails on `http://127.0.0.1:8025`. The development realm adds a test OpenLDAP
-directory and a second realm, `external`, which plays the external provider: their accounts
-and their passwords, development values, are in `deploy/keycloak/development/`. It
-also adds `waterfall-test`, a public client that accepts a password outside the page of the
-realm, for the tokens the tests of the platform need: `admin-cli`, which Keycloak
-creates in each realm, no longer accepts one (#644), and its tokens are not for the API, for lack of
-the `waterfall-api` audience. These files are applied after the realm, under a remote state of their own
+the tests without resynchronising it (`uv run --no-sync`) — otherwise, on a workstation or a runner
+without a cache, uv would no longer trust GitHub to download Python or the packages (#737). The API,
+inside the network of the platform, reaches Keycloak in HTTP on `keycloak:8080`; the encryption of
+that link belongs to EP-13 (WF-SEC-0010). Redis is published on `127.0.0.1:6379`
+(`WATERFALL_REDIS_PORT`), for a front launched on the workstation (#681), which reaches it through
+`redis://:<mot de passe>@127.0.0.1:6379/0`. Keycloak notifies the closing of the sessions to that
+front through the back channel, at the address `WATERFALL_FRONT_BACKCHANNEL`
+(`http://host.docker.internal:3000` by default, the host as seen from its container), distinct from
+`WATERFALL_FRONT_ADDRESS`, that of the browser: the front then listens on every interface of the
+workstation, not on the loopback alone. Both addresses are written into the realm when it is
+applied, and `make e2e-service` replaces them with those of the front of its paths, until the next
+`service-up`. Mailpit shows the emails on `http://127.0.0.1:8025`. The development realm adds a test
+OpenLDAP directory and a second realm, `external`, which plays the external provider: their accounts
+and their passwords, development values, are in `deploy/keycloak/development/`. It also adds
+`waterfall-test`, a public client that accepts a password outside the page of the realm, for the
+tokens the tests of the platform need: `admin-cli`, which Keycloak creates in each realm, no longer
+accepts one (#644), and its tokens are not for the API, for lack of the `waterfall-api` audience.
+These files are applied after the realm, under a remote state of their own
 (`--import.cache.key=development`, service `keycloak-realm`): keycloak-config-cli deletes the
-clients its state names and that the files it applies do not declare, and without that the
-test client would take those of the realm with it.
-The directory keeps its data in a volume, like the databases: bootstrapped again, it would give its
-people other identifiers than those Keycloak keeps; `WATERFALL_RESET_DATA=yes` deletes it
-with them. The ports given here are those of the main repository, at slot 0; a worktree of a lot
-has those of the block of its slot (« The slots of the worktrees », below).
+clients its state names and that the files it applies do not declare, and without that the test
+client would take those of the realm with it. The directory is an image the repository builds,
+`deploy/openldap/Dockerfile`, on Debian's `slapd` (US-1150): at its first start, its entrypoint
+creates its configuration and loads `deploy/keycloak/development/directory.ldif` into it, then never
+loads anything again. It keeps its data in a volume, like the databases: bootstrapped again, it
+would give its people other identifiers than those Keycloak keeps; `WATERFALL_RESET_DATA=yes`
+deletes it with them. Before loading the seed, the script lays a marker, `.seeding`, in the data
+volume, and removes it only once the configuration is copied into its volume; a marker left beside
+the configuration (a stop between the copy and the removal) is removed at the next start. A first
+start interrupted before that copy leaves the marker: the data never served, and at the next start
+the script empties them and loads the seed again, as it does on two empty volumes. Data with neither
+marker nor configuration are those of a directory that has served, whose configuration volume is
+gone: the script refuses (code 1) to seed them again, which would give its people other identifiers,
+and says the remedy, `make service-down WATERFALL_RESET_DATA=yes`. That holds too for the volume an
+interrupted seeding left before this lot, without a marker: it is now refused, and the remedy
+deletes it. The volumes of the image of before, that of `osixia`, serve as they are: their people
+keep their identifiers.
+
+The ports given here are those of the main repository, at slot 0; a worktree of a lot has those of
+the block of its slot (« The slots of the worktrees », below).
 
 `BASE` is `origin/main` by default; a lot is compared with the branch of its epic.
 
@@ -2793,23 +2807,24 @@ ephemeral ports of Linux; at slot 0, those of before:
 
 The names carry the number of the slot: at slot i, the Compose projects `waterfall-service-s<i>`
 (`WATERFALL_SERVICE_PROJECT`) and `waterfall-test-s<i>` (`WATERFALL_TEST_PROJECT`), the images
-`waterfall-keycloak-s<i>` (`WATERFALL_KEYCLOAK_IMAGE`, which `compose.service.yaml` reads) and
-`waterfall-front:check-s<i>` (`WATERFALL_FRONT_CHECK_IMAGE`, which `wftools.frontimage` reads); at
-slot 0, `waterfall-service`, `waterfall-test`, `waterfall-keycloak` and `waterfall-front:check`.
+`waterfall-keycloak-s<i>` (`WATERFALL_KEYCLOAK_IMAGE`) and `waterfall-openldap-s<i>`
+(`WATERFALL_OPENLDAP_IMAGE`), which `compose.service.yaml` reads, and `waterfall-front:check-s<i>`
+(`WATERFALL_FRONT_CHECK_IMAGE`, which `wftools.frontimage` reads); at slot 0, `waterfall-service`,
+`waterfall-test`, `waterfall-keycloak`, `waterfall-openldap` and `waterfall-front:check`.
 The Makefile gives each target what it needs, except what the environment gives already: the
 service platform — `service-up`, `service-install`, `service-logs`, `service-down`,
-`keycloak-authority`, `test-keycloak`, `e2e-service` — gets its project, the image of Keycloak and
-its six ports; `build-keycloak`, the image of Keycloak; `e2e`, `e2e-measure` and `e2e-service`, the
-ports of the fake back and of the fronts; `check-front-image`, the image of the front. In a linked
-worktree that holds no slot, these targets fail before starting anything, saying `make slot`; the
-others do not ask for it. `make production-trial`, outside the slots — ports 80 and 443, project
-`waterfall-production-trial` —, runs at slot 0 alone: from the worktree of a lot, it fails at once,
-saying so.
+`keycloak-authority`, `test-keycloak`, `e2e-service` — gets its project, the images of Keycloak and
+of the directory and its six ports; `build-keycloak`, the image of Keycloak; `e2e`, `e2e-measure`
+and `e2e-service`, the ports of the fake back and of the fronts; `check-front-image`, the image of
+the front. In a linked worktree that holds no slot, these targets fail before starting anything,
+saying `make slot`; the others do not ask for it. `make production-trial`, outside the slots — ports
+80 and 443, project `waterfall-production-trial` —, runs at slot 0 alone: from the worktree of a
+lot, it fails at once, saying so.
 
 **The services of the tests** (US-1110). The tests of the back need PostgreSQL, Redis and the
 object storage, those of the front Redis (« Tests »). `make test-services` starts the three for the
 slot of the worktree — `deploy/compose/compose.test.yaml`, under the project `waterfall-test-s<i>`,
-at the pinned images of the platform (PostgreSQL 16 included), their data in memory, published on
+at the pinned images of the platform (PostgreSQL 18 included), their data in memory, published on
 `127.0.0.1` at ports 0, 1 and 2 of the block of the slot — and waits for their health checks; run
 again, it does nothing more. `make test-services-down` removes them with their volumes. They are
 not started by hand: `make test-back`, `make coverage-back`, `make test-front` and
@@ -2873,99 +2888,95 @@ The chain is made of GitHub Actions workflows (`.github/workflows/`):
   because its family is not touched is not a failure. The gate is the only check
   that the branch protection requires: a required check that does not run for lack of a
   touched file would stay « pending » and would block the merge.
-- one workflow per family — `repo.yml`, `spec.yml`, `contract.yml`… —, which installs its
-  tools and calls `make check-<famille>`. `repo` runs on every change. The
-  front has two, which run side by side (#492): `front.yml`, everything except the end-to-end
-  paths (`make check-front-code`), and `e2e.yml`, the paths and the measure of §4.6.2,
-  at the full tier only (`make e2e`, `make e2e-measure` and `make prerendered-front`, on
-  the build the `front-build` job of `ci.yml` made, « on one single build of the front »); on
-  a workstation, `make check-front` chains the two
-  halves, `check-front-code` then `check-front-e2e`.
-  `front.yml` spreads its work over several runners. One holds the client, the lint, the
-  types, the catalogues and, at the fast tier, the production build
-  (`make check-front-static`). Three play the unit tests, which occupy every core
-  of a runner (`make check-front-tests`): the guards that run ESLint, a minute or more
-  each, on one (`SHARD=lint`, the `lint` project of `frontend/vitest.config.ts`), the other
-  tests in two halves on the other two (`SHARD=1/2`, `SHARD=2/2`). Vitest spreads whole
-  files by the digest of their path, and the three guards fell into the same
-  shard. Vitest takes there one worker per processor minus one, as it does by itself outside
-  watch mode, four at most (`workers`, `frontend/vitest.config.ts`, #1474): the processor
-  left is that of the main process, which gathers the results and the coverage of the
-  workers; a runner, four processors, therefore plays on three. The workstation, twelve processors,
-  gained nothing beyond four, and every test ran slower there, a test of the grid,
-  under one second alone, beyond its five seconds under coverage. On four cores of the
-  workstation, the coverage of the `2/2` half took 121 s on four workers and 131 s on three,
-  but 29 of its tests exceeded one second on four, 11 on three. `structure-busy.dom.test.tsx`
-  and `planning-entry.dom.test.tsx` hide the columns they do not put to the proof, the Gantt first:
-  the whole grid, rendered two or three times at each gesture, doubled their duration. At the
-  full tier, one last runner gathers the coverage of the three shards and
-  holds it to its thresholds (`make coverage-front-merge`). ESLint keeps its cache, by the content
-  of each file (`pnpm lint`, `actions/cache`): without it, it takes a minute.
-  `front-cache.yml` writes that cache and the pnpm store after each merge, on the branch
-  whose caches the pull requests and the merge queue read: without it, they would
-  find nothing.
+- one workflow per family — `repo.yml`, `spec.yml`, `contract.yml`… —, which installs its tools and
+  calls `make check-<famille>`. `repo` runs on every change. The front has two, which run side by
+  side (#492): `front.yml`, everything except the end-to-end paths (`make check-front-code`), and
+  `e2e.yml`, the paths and the measure of §4.6.2, at the full tier only (`make e2e`,
+  `make e2e-measure` and `make prerendered-front`, on the build the `front-build` job of `ci.yml`
+  made, « on one single build of the front »); on a workstation, `make check-front` chains the two
+  halves, `check-front-code` then `check-front-e2e`. `front.yml` spreads its work over several
+  runners. One holds the client, the lint, the types, the catalogues and, at the fast tier, the
+  production build (`make check-front-static`). Three play the unit tests, which occupy every core
+  of a runner (`make check-front-tests`): the guards that run ESLint, a minute or more each, on one
+  (`SHARD=lint`, the `lint` project of `frontend/vitest.config.ts`), the other tests in two halves
+  on the other two (`SHARD=1/2`, `SHARD=2/2`). Vitest spreads whole files by the digest of their
+  path, and the three guards fell into the same shard. The guards are never measured, at either
+  tier: they cover nothing of `src/`, and measured they took three minutes instead of one, the first
+  test of a guard starving on its minute while the three built the program of the project at once
+  under the coverage; each now builds it in its `beforeAll`, on a budget of its own (#2015). Vitest
+  takes there one worker per processor minus one, as it does by itself outside watch mode, four at
+  most (`workers`, `frontend/vitest.config.ts`, #1474): the processor left is that of the main
+  process, which gathers the results and the coverage of the workers; a runner, four processors,
+  therefore plays on three. The workstation, twelve processors, gained nothing beyond four, and
+  every test ran slower there, a test of the grid, under one second alone, beyond its five seconds
+  under coverage. On four cores of the workstation, the coverage of the `2/2` half took 121 s on
+  four workers and 131 s on three, but 29 of its tests exceeded one second on four, 11 on three.
+  `structure-busy.dom.test.tsx` and `planning-entry.dom.test.tsx` hide the columns they do not put
+  to the proof, the Gantt first: the whole grid, rendered two or three times at each gesture,
+  doubled their duration. At the full tier, one last runner gathers the coverage of the two halves
+  and holds it to its thresholds (`make coverage-front-merge`). ESLint keeps its cache, by the
+  content of each file (`pnpm lint`, `actions/cache`): without it, it takes a minute.
+  `front-cache.yml` writes that cache and the pnpm store after each merge, on the branch whose
+  caches the pull requests and the merge queue read: without it, they would find nothing.
   `keycloak.yml` builds the image of Keycloak and puts it to the proof on the service platform, its
-  realm applied (`make check-keycloak`), at both tiers: the `keycloak` family wakes
-  on `deploy/keycloak/`, on the files of the platform that start it, on
-  its tests, on all the code of the back, of which its tests serve the API, and on the contract, against which
-  they confront its responses (#671); on failure, the job prints the logs of Keycloak
-  (`make service-logs`). `service.yml` plays the paths against the real service, at the full
-  tier only (`make check-service`, that is `make e2e-service`, on the build of the front that
-  the paths of `e2e.yml` share): the `service` family wakes
-  on the front, the back, the contract and the files of the platform. It runs on the
-  runner itself, not in the Playwright image: the paths reach the platform on the ports
-  that Docker publishes on the runner, which a job container does not see; the browser is
-  installed there with its system packages (`make e2e-browsers PLAYWRIGHT_INSTALL=--with-deps`).
-  `front-image.yml` builds and starts the production image of the front, which `images.yml`
-  publishes only after the merge, at both tiers (`make check-front-image`): the
-  `front-image` family wakes on what makes it — `frontend/Dockerfile` and its `.dockerignore`,
-  `next.config.ts`, `package.json`, `pnpm-lock.yaml`, `pnpm-workspace.yaml`, and what its server
-  checks at start, `src/instrumentation.ts`, `src/startup.ts`, `src/session/settings.ts`,
-  `src/api/server.ts` —, and not on the
-  code of the front, which the `front` family already builds; it costs a build of about
-  a minute and a half. What is prerendered, the code of the pages decides it — a
-  `layout.tsx` that would stop reading the cookies, a page that would read no value of the
-  request —: the `front` family therefore asserts it itself, without Docker, on the manifest of its
-  own build (`make prerendered-front`), after `make build-front` at the fast tier and
-  after the build of the measure at the full tier; that build prerenders like that
-  of the image, whose standalone output (`WATERFALL_STANDALONE=1`) changes only the packaging.
-  The `front-image` family asserts that `/` answers with the settings of the `front` service of
-  `compose.prod.yaml`, placeholder values for its secrets; that the front, started without
-  one of the variables it cannot do without, stops naming it in its logs (#825);
+  realm applied (`make check-keycloak`), at both tiers: the `keycloak` family wakes on
+  `deploy/keycloak/`, on the files of the platform that start it, on its tests, on all the code of
+  the back, of which its tests serve the API, and on the contract, against which they confront its
+  responses (#671); on failure, the job prints the logs of Keycloak (`make service-logs`).
+  `service.yml` plays the paths against the real service, at the full tier only
+  (`make check-service`, that is `make e2e-service`, on the build of the front that the paths of
+  `e2e.yml` share): the `service` family wakes on the front, the back, the contract and the files of
+  the platform. It runs on the runner itself, not in the Playwright image: the paths reach the
+  platform on the ports that Docker publishes on the runner, which a job container does not see; the
+  browser is installed there with its system packages
+  (`make e2e-browsers PLAYWRIGHT_INSTALL=--with-deps`). `front-image.yml` builds and starts the
+  production image of the front, which `images.yml` publishes only after the merge, at both tiers
+  (`make check-front-image`): the `front-image` family wakes on what makes it —
+  `frontend/Dockerfile` and its `.dockerignore`, `next.config.ts`, `package.json`, `pnpm-lock.yaml`,
+  `pnpm-workspace.yaml`, and what its server checks at start, `src/instrumentation.ts`,
+  `src/startup.ts`, `src/session/settings.ts`, `src/api/server.ts` —, and not on the code of the
+  front, which the `front` family already builds; it costs a build of about a minute and a half.
+  What is prerendered, the code of the pages decides it — a `layout.tsx` that would stop reading the
+  cookies, a page that would read no value of the request —: the `front` family therefore asserts it
+  itself, without Docker, on the manifest of its own build (`make prerendered-front`), after
+  `make build-front` at the fast tier and after the build of the measure at the full tier; that
+  build prerenders like that of the image, whose standalone output (`WATERFALL_STANDALONE=1`)
+  changes only the packaging. The `front-image` family asserts that `/` answers with the settings of
+  the `front` service of `compose.prod.yaml`, placeholder values for its secrets; that the front,
+  started without one of the variables it cannot do without, stops naming it in its logs (#825);
   that the fake back of the mockup (`WATERFALL_AUTH=mock`) is refused without `WATERFALL_E2E` — the
   server stops at start, and says why —, and that `next build` prerendered
   (`.next/prerender-manifest.json`) only `/_global-error` and `/icon.svg`: no page that would read
   the environment is frozen at build.
 
-Outside the pull requests, `images.yml` publishes the images (US-0430): at each push on `main` or
-on an `epic/**` branch — at each merge, which the queue has already put to the proof —, it builds `front`,
-`waterfall` (the API, the worker, its scheduling and the migrations, commands of one same
+Outside the pull requests, `images.yml` publishes the images (US-0430): at each push on `main` or on
+an `epic/**` branch — at each merge, which the queue has already put to the proof —, it builds
+`front`, `waterfall` (the API, the worker, its scheduling and the migrations, commands of one same
 distribution) and `keycloak` (the extension, the themes and the realm, with nothing of
-`deploy/keycloak/development/`), and pushes them to `ghcr.io/waterfall-project/…` (`make images
-PUSH=yes`). Its only job asks for `packages: write`; the token goes only to the login to the
-registry, and no build receives an argument or a secret (WF-SEC-0010):
+`deploy/keycloak/development/`), and pushes them to `ghcr.io/waterfall-project/…`
+(`make images PUSH=yes`). Its only job asks for `packages: write`; the token goes only to the login
+to the registry, and no build receives an argument or a secret (WF-SEC-0010):
 `tools/tests/test_images.py` guards it, with the triggers and the tags.
 
 - **The three first.** The three images are built before any push, and nothing is
   pushed if one fails; then every tag of the commit, and only afterwards those that
   move — the branch, the version —, so that a moving tag never designates images
   of two commits.
-- **The version tag is immutable.** It is set only from `main`, once only, and
-  for the three images together, which then come from one same commit: before setting it,
-  the tool asks the registry, image by image, whether it already has `<image>:<version>`
-  (`docker buildx imagetools inspect`). If it has it for none, the three take it; if it
-  has it for the three, none takes it again, and the tags of the commit and of the branch are
-  published alone: a merge into `main` that does not raise the version therefore does not republish it,
-  and it is by raising `version` of `backend/pyproject.toml` (and of the front) that a publication
-  sets a new one. Any other case — the registry has it for some only, after an
-  interrupted publication, or does not answer clearly that it does not have it, like the `403` of ghcr
-  for an absent or unreadable package — sets it on none: the tool publishes the tags of the
-  commit and of the branch, then fails naming each image and what the registry said of it;
-  the version is then settled by hand, or by raising it. An epic branch, which carries the same
-  version, never sets it; the label `org.opencontainers.image.version` of an image that does not
-  take the version tag says so (`0.1.0+epic-EP-03` outside `main`, `0.1.0+main` on
-  `main` once the version is published). Each image also carries its own `title` and its `url`,
-  which replace those of its base image.
+- **The version tag is immutable.** It is set only from `main`, once only, and for the three images
+  together, which then come from one same commit: before setting it, the tool asks the registry,
+  image by image, whether it already has `<image>:<version>` (`docker buildx imagetools inspect`).
+  If it has it for none, the three take it; if it has it for the three, none takes it again, and the
+  tags of the commit and of the branch are published alone: a merge into `main` that does not raise
+  the version therefore does not republish it, and it is by raising `version` of
+  `backend/pyproject.toml` (and of the front) that a publication sets a new one. Any other case —
+  the registry has it for some only, after an interrupted publication, or does not answer clearly
+  that it does not have it, like the `403` of ghcr for an absent or unreadable package — sets it on
+  none: the tool publishes the tags of the commit and of the branch, then fails naming each image
+  and what the registry said of it; the version is then settled by hand, or by raising it. An epic
+  branch, which carries the same version, never sets it; the label
+  `org.opencontainers.image.version` of an image that does not take the version tag says so
+  (`0.1.0+epic-EP-03` outside `main`, `0.1.0+main` on `main` once the version is published). Each
+  image also carries its own `title` and its `url`, which replace those of its base image.
 - **What refuses a push.** A branch other than `main` or `epic/…`; a repository whose
   commit is not the one `IMAGE_COMMIT` names, or which is not clean in the contexts of the
   images (`git status --porcelain -- frontend backend deploy/keycloak`); a built image
@@ -2985,14 +2996,13 @@ registry, and no build receives an argument or a secret (WF-SEC-0010):
   published image does not make a platform; it does not undo the publication.
 
 The `production` family (`production.yml`) makes the same trial before the merge, at the full tier
-only, in the queue: `make check-production` builds the three images like `images.yml`,
-without pushing them, then starts the platform on them. It wakes on the files of the
-production platform — `compose.prod.yaml`, `compose.prod.local.yaml`, `Caddyfile.prod`,
-`production.env.example` —, on those it mounts from `deploy/compose/`, and on the trial itself,
-`tools/src/wftools/production.py`; a change of what
-the images are made of is put to the proof that way only after the merge, by `images.yml`. It costs the
-build of the three images, that of Keycloak and of its extension above all, then the start of
-Keycloak and the application of its realm.
+only, in the queue: `make check-production` builds the three images like `images.yml`, without
+pushing them, then starts the platform on them. It wakes on the files of the production platform —
+`compose.prod.yaml`, `compose.prod.local.yaml`, `Caddyfile.prod`, `production.env.example` —, on
+those it mounts from `deploy/compose/`, and on the trial itself, `tools/src/wftools/production.py`;
+a change of what the images are made of is put to the proof that way only after the merge, by
+`images.yml`. It costs the build of the three images, that of Keycloak and of its extension above
+all, then the start of Keycloak and the application of its realm.
 
 The families, the paths that wake them, the generated paths and those of the tests are
 declared in `tools/paths.toml`, and nowhere else. A path of `shared` — the
@@ -3016,47 +3026,48 @@ branch of a lot, before merging it: `gh workflow run chain --ref <branche>`.
 The full tier aims at under eight minutes in the queue for its longest job
 (#492). The end-to-end paths, the longest half, go about it this way:
 
-- **in the Playwright image** (`mcr.microsoft.com/playwright`), at the version of
-  `@playwright/test` that `frontend/pnpm-lock.yaml` resolves, pinned by its digest
-  (`container:` of `e2e.yml`): Chromium and its system packages are there, nothing comes from the
-  Ubuntu mirror, whose throughput is not ours (#472). The job calls `make e2e`, which finds
-  the browser of the image (`PLAYWRIGHT_BROWSERS_PATH=/ms-playwright`), and not
-  `make check-front-e2e`, which would install one. Raising `@playwright/test` raises the image with
-  it, tag and digest: otherwise the paths stop at once on a browser
-  not found, and `tools/tests/test_playwrightimage.py` fails before them, in `make check-repo`.
-  The digest is that of the multi-architecture index of the tag, which the line
+- **in the Playwright image** (`mcr.microsoft.com/playwright`), at the version of `@playwright/test`
+  that `frontend/pnpm-lock.yaml` resolves, pinned by its digest (`container:` of `e2e.yml`):
+  Chromium and its system packages are there, nothing comes from the Ubuntu mirror, whose throughput
+  is not ours (#472). The job calls `make e2e`, which finds the browser of the image
+  (`PLAYWRIGHT_BROWSERS_PATH=/ms-playwright`), and not `make check-front-e2e`, which would install
+  one. Raising `@playwright/test` raises the image with it, tag and digest: otherwise the paths stop
+  at once on a browser not found, and `tools/tests/test_playwrightimage.py` fails before them, in
+  `make check-repo`. The digest is that of the multi-architecture index of the tag, which the line
   `Digest:` of `docker buildx imagetools inspect mcr.microsoft.com/playwright:v<X>-noble` gives, or
   the `docker-content-digest` header of
   `curl -sI -H 'Accept: application/vnd.oci.image.index.v1+json' https://mcr.microsoft.com/v2/playwright/manifests/v<X>-noble`.
-  The image has no `make`: its Ubuntu noble package is downloaded, pinned and
-  verified by its digest, like pandoc;
-- **spread over three runners** (`make e2e SHARD=i/3`, that is `playwright test --shard=i/3`),
-  the measure of §4.6.2 on a fourth, alone (`make e2e-measure`), through a matrix none of whose
+  The image has no `make`: its Ubuntu noble package is downloaded, pinned and verified by its
+  digest, like pandoc;
+- **spread over five runners** (`make e2e SHARD=i/5`, that is `playwright test --shard=i/5`),
+  the measure of §4.6.2 on a sixth, alone (`make e2e-measure`), through a matrix none of whose
   shards cancels the others; the result of `e2e` is a failure as soon as a shard fails or
-  is cancelled, and the gate with it. Three, because Playwright spreads whole files
+  is cancelled, and the gate with it. Playwright spreads whole files
   of paths, at an equal number of tests, and the longest weigh — except a file played test
   by test (`mode: "parallel"`), like `accessibility.spec.ts`, whose tests are spread one
   by one: before that file, in October 2026, the longest of three shards played about 140 s
-  of paths on two workers, that of four 130 s, when each shard pays about two
-  minutes of image, installation and servers. What the file adds can be read on the chain of
-  the pull request of US-0200, and the choice is reconsidered when the paths lengthen: the durations
+  of paths on two workers, that of four 130 s, and three were enough. By November 2026, that
+  file grown to 500 s of paths, the longest of three shards played 290 s, when each shard pays
+  about 75 s of image, installation and servers: five shards play about 170 s each (#2015). The
+  choice is reconsidered when the paths lengthen: the durations
   per file can be read in the log of each shard;
-- **on one single build of the front per run** (US-0590): the `front-build` job of `ci.yml`,
-  which runs as soon as `e2e` or `service` runs, launches `make build-front` and uploads
-  `frontend/.next` without its cache (`.next/cache`, which only a following build would read). The three
-  shards, the measure and the paths of the service wait for it, download it where the build
-  wrote it and play with `E2E_BUILT=1`, without rebuilding anything. It lives in `ci.yml` and not in
-  one of the two workflows: `e2e.yml` and `service.yml` are two called workflows, and a `needs`
-  does not join the jobs of one to those of the other; neither has any other
-  trigger than that call, so that none builds the front. A failed build skips the
-  two, and the gate, which waits for it too, fails. It builds on the runner, like `front.yml`, in
-  Node 24: the shards start it in the Playwright image, in Node 24 too (its
-  `NODE_VERSION`), on the same Ubuntu noble in amd64, and at another path of the workspace
-  (`/__w/…` instead of `/home/runner/work/…`); `service.yml`, on the runner. The build does not depend
-  on that path: only `required-server-files.json`, which the standalone output of the image reads and
-  not `next start`, names it, and a build moved elsewhere, its original folder removed, serves its
-  pages (checked on 2026-10-25 on the workstation, by moving the build; the proof in the chain
-  will come from a run of `chain` on the branch of the lot).
+- **on one single build of the front per run** (US-0590): the `front-build` job of `ci.yml`, which
+  runs as soon as `e2e` or `service` runs, launches `make build-front` and uploads `frontend/.next`
+  without its cache (`.next/cache`, which only a following build would read). The five shards, the
+  measure and the paths of the service wait for it, download it where the build wrote it and play
+  with `E2E_BUILT=1`, without rebuilding anything. It lives in `ci.yml` and not in one of the two
+  workflows: `e2e.yml` and `service.yml` are two called workflows, and a `needs` does not join the
+  jobs of one to those of the other; neither has any other trigger than that call, so that none
+  builds the front. A failed build skips the two, and the gate, which waits for it too, fails. It
+  builds on the runner, like `front.yml`, in Node 26: the shards start it in the Playwright image,
+  in Node 24 (its `NODE_VERSION`, which the Node 26 lot does not change; `next start` runs the built
+  files there, and Next 16 accepts Node 24, while pnpm 12 does not stop on `engines` without
+  `engine-strict`, which the front does not set), on the same Ubuntu noble in amd64, and at another
+  path of the workspace (`/__w/…` instead of `/home/runner/work/…`); `service.yml`, on the runner.
+  The build does not depend on that path: only `required-server-files.json`, which the standalone
+  output of the image reads and not `next start`, names it, and a build moved elsewhere, its
+  original folder removed, serves its pages (checked on 2026-10-25 on the workstation, by moving the
+  build; the proof in the chain will come from a run of `chain` on the branch of the lot).
 
 The back follows the same model (#492, lever 5):
 
@@ -3077,22 +3088,21 @@ The back follows the same model (#492, lever 5):
 
 Still to write, when the duration demands it:
 
-- the paths against the real service (`service.yml`), which one single runner plays as long as they are
-  short, are spread like those of `e2e.yml`, the platform started in each shard.
+- the paths against the real service (`service.yml`), which one single runner plays as long as they
+  are short, are spread like those of `e2e.yml`, the platform started in each shard.
 
-The images are built from a GitHub Actions cache (`type=gha`): the extension of
-Keycloak compiled by Maven, the dependencies of the front and of the back are not redone at each
-job. The `cache` job of `images.yml` writes it after each merge (`make build-cache`), on the
-branch whose caches the pull requests read; `keycloak.yml`, `service.yml`,
-`production.yml` and `front-image.yml` read it (`build-keycloak`, `wftools.images`,
-`wftools.frontimage`). The local action `.github/actions/build-cache` opens it to them: it enables
-the containerd image store, without which Docker's builder neither imports nor exports such a
-cache, and restarts Docker — never in a job that has `services:`
-(`tools/tests/test_images.py`); then it passes to the following steps the address and the token of the
-cache, which the runner gives only to an action (`.github/actions/actions-runtime`, without displaying
-anything). On a workstation, Docker ignores a `type=gha` cache. The publication (`publish`) reads
-none: on the containerd store, an image would be pushed with its attestations, in another
-format than the one published today.
+The images are built from a GitHub Actions cache (`type=gha`): the extension of Keycloak compiled by
+Maven, the dependencies of the front and of the back are not redone at each job. The `cache` job of
+`images.yml` writes it after each merge (`make build-cache`), on the branch whose caches the pull
+requests read; `keycloak.yml`, `service.yml`, `production.yml` and `front-image.yml` read it
+(`build-keycloak`, `wftools.images`, `wftools.frontimage`). The local action
+`.github/actions/build-cache` opens it to them: it enables the containerd image store, without which
+Docker's builder neither imports nor exports such a cache, and restarts Docker — never in a job that
+has `services:` (`tools/tests/test_images.py`); then it passes to the following steps the address
+and the token of the cache, which the runner gives only to an action
+(`.github/actions/actions-runtime`, without displaying anything). On a workstation, Docker ignores a
+`type=gha` cache. The publication (`publish`) reads none: on the containerd store, an image would be
+pushed with its attestations, in another format than the one published today.
 
 Rules of the workflows:
 
@@ -3103,6 +3113,19 @@ Rules of the workflows:
 - `actions/checkout` does not keep the token (`persist-credentials: false`);
 - a tool downloaded outside an action is pinned by its version and verified by its
   digest, like pandoc in `spec.yml`.
+- Dependabot proposes every month, one pull request per ecosystem, the updates of what it
+  follows: the Actions, uv (`/backend`, `/tools`), npm (`/frontend`), Maven (the Keycloak
+  extension) and the images of the Dockerfiles and Compose files; the minor and patch updates
+  of an ecosystem come grouped, each major in its own, under the prefix `Chaîne :`. The
+  `org.keycloak` and `jakarta.ws.rs-api` dependencies of the extension are ignored: they
+  follow the Keycloak image. The TypeScript major has no ignore rule: the author closes its
+  pull request as long as `typescript-eslint` does not support it.
+- Dependabot does not follow, and the author bumps by hand, at Dependabot's monthly pull
+  request: `REDOCLY_VERSION` and `PRISM_VERSION` of the `Makefile`, the front's
+  `packageManager`, the uv and the PostgreSQL client of the `waterfall` image, the runners
+  and the pandoc of the chain, and `maven.compiler.release` of the extension's `pom.xml`,
+  which stays at 21 on purpose (the Java of the Keycloak image, not the build JDK): it is
+  bumped when that image changes Java.
 
 _Check_: `make lint-workflows` (actionlint); the pinning and the permissions, the review.
 
@@ -3169,9 +3192,8 @@ are the test cases to come. `make roadmap` confronts the roadmap with the docume
 
 - on an unknown identifier, or one with a revision index the document has gone past, in an
   epic table as in a story;
-- on a sentence of the Vérif of a cited requirement, absent from the story or truncated — a sentence is
-  cited whole, full stop included; apostrophes and typographic spaces do not
-  count;
+- on a sentence of the Vérif of a cited requirement, absent from the story or truncated — a sentence
+  is cited whole, full stop included; apostrophes and typographic spaces do not count;
 - on a requirement of the table of an epic that none of its stories cites, unless the epic is
   `à planifier`;
 - on a requirement that no epic closes, or that several close.
@@ -3276,19 +3298,20 @@ the migrations and the locks.
 - **A test against the object storage** — see below.
 
 The responses of the fake back are the examples of the contract, as they are. Two exceptions, and
-only those. A test may remove a permission from an example session to exercise a combination
-that no account of the witness carries (author's decision, 2026-10-09); it adds and rewrites
-nothing else. It removes it from the session the page reads (`requestSession` doubled, as L43c does
-for the backups, `app/reference/costs/page.test.tsx`), never by rewriting a response of the
-client. And a test may render a component on a counterfactual variant of an example line
-— one value changed, the rest of the line kept —, when no example of the contract carries the case
-it exercises: the variant is passed to the component as a prop, never served as a response of the
-client, and the test says which example it comes from and what it changes (EP-14/L45a). Precedents: « SP-REC », the
-created sub-project, which no marked revision cites, relieved of its actual costs, its deletion
-listed as available as the server would list it then, for the deletion of a sub-project, the two
-of the witness being cited and loaded (EP-14/L42l); the sub-project commands removed from a line
+only those. A test may remove a permission from an example session to exercise a combination that no
+account of the witness carries (author's decision, 2026-10-09); it adds and rewrites nothing else.
+It removes it from the session the page reads (`requestSession` doubled, as L43c does for the
+backups, `app/reference/costs/page.test.tsx`), never by rewriting a response of the client. And a
+test may render a component on a counterfactual variant of an example line — one value changed, the
+rest of the line kept —, when no example of the contract carries the case it exercises: the variant
+is passed to the component as a prop, never served as a response of the client, and the test says
+which example it comes from and what it changes (EP-14/L45a). Precedents: « SP-REC », the created
+sub-project, which no marked revision cites, relieved of its actual costs, its deletion listed as
+available as the server would list it then, for the deletion of a sub-project, the two of the
+witness being cited and loaded (EP-14/L42l); the sub-project commands removed from a line
 (EP-14/L44e, `subproject-commands.dom.test.tsx`) — those of a closed project, none since US-0702/L3,
-have their example since L42o (`subprojects_completed`), which replaces the variant (EP-14/L52) —; and the gap to the previous review absent from the remaining to commit
+have their example since L42o (`subprojects_completed`), which replaces the variant (EP-14/L52) —;
+and the gap to the previous review absent from the remaining to commit
 (`remaining-summary.test.tsx`).
 
 ### A test that cites its requirement
@@ -3306,52 +3329,52 @@ revision index included (WF-QUA-0010).
 A test cites the requirement whose Vérif it exercises, not the one it talks about. A test that
 covers no requirement — a tool, an implementation detail — cites none.
 
-_Checks_: `make requirements` reads the citations in the test files, without running
-them, and publishes the report — each F0 requirement with the tests that cover it and their
-family, the one `tools/paths.toml` declares for their path in its `[tests]` table:
-end to end against the service (`frontend/e2e/service/**`, which takes precedence over the other paths),
-end to end (`frontend/e2e/**`, which takes precedence over the rest of `frontend/`), front, back,
-keycloak (the JUnit tests of the extension, which cite no requirement), tools — in the summary
-of the chain's job; a citation of an unknown identifier, or
-of a revision index the document has moved past, makes it fail. The tests of the front
-cite requirements that other epics close, by the sentence of the Vérif they exercise;
-a requirement that only the front and the end-to-end tests cite, and that an epic closes without having
-`front` as its only family — according to the « Exigences réalisées » table of the roadmap and the
-`famille` field of its front matter —, is counted apart, « covered by the front alone »,
-and does not count as covered. A path played against the service, for its part, goes through the back: it
-proves what the back closes, like the back's own tests (US-0340). `make requirements-release` fails in addition on any F0 requirement
-not covered, or covered by the front alone, naming it: it is the command of the
-release of a version. A requirement whose Vérif opens with « Vérifiée en recette »
-expects an acceptance report, whose form is not yet defined: the report says so.
+_Checks_: `make requirements` reads the citations in the test files, without running them, and
+publishes the report — each F0 requirement with the tests that cover it and their family, the one
+`tools/paths.toml` declares for their path in its `[tests]` table: end to end against the service
+(`frontend/e2e/service/**`, which takes precedence over the other paths), end to end
+(`frontend/e2e/**`, which takes precedence over the rest of `frontend/`), front, back, keycloak (the
+JUnit tests of the extension, which cite no requirement), tools — in the summary of the chain's job;
+a citation of an unknown identifier, or of a revision index the document has moved past, makes it
+fail. The tests of the front cite requirements that other epics close, by the sentence of the Vérif
+they exercise; a requirement that only the front and the end-to-end tests cite, and that an epic
+closes without having `front` as its only family — according to the « Exigences réalisées » table of
+the roadmap and the `famille` field of its front matter —, is counted apart, « covered by the front
+alone », and does not count as covered. A path played against the service, for its part, goes
+through the back: it proves what the back closes, like the back's own tests (US-0340).
+`make requirements-release` fails in addition on any F0 requirement not covered, or covered by the
+front alone, naming it: it is the command of the release of a version. A requirement whose Vérif
+opens with « Vérifiée en recette » expects an acceptance report, whose form is not yet defined: the
+report says so.
 
 ### A test against PostgreSQL
 
 An integration test of the back joins the real database, PostgreSQL, never another in its place
-(`python.md`, « Les tests »). The variable `WATERFALL_TEST_DATABASE_URL` names a server and a
-role that can create databases and roles, a superuser
-(`postgresql://rôle@hôte:5432/postgres`): at each test session, the `database_url` fixture
-(`backend/tests/conftest.py`) creates there a database with a unique name, applies the migrations to it, and
-drops it at the end, with the service role the migrations created for it. The `database`
-fixture returns this database as the service sees it — through a login role that is a member of the
-service role of this database, created for the session (sql.md, « Le rôle du service ») —, and
-deletes after each test the rows of every table the `Base` declares, as
-owner, audit log included, which its trigger does not protect from a superuser
-who disables the triggers — except those a migration writes, the catalogue of permissions,
-which its table marks (`WRITTEN_BY_MIGRATION` in its `info`); `session` returns a session the
-test rolls back.
+(`python.md`, « Les tests »). The variable `WATERFALL_TEST_DATABASE_URL` names a server and a role
+that can create databases and roles, a superuser (`postgresql://rôle@hôte:5432/postgres`): at each
+test session, the `database_url` fixture (`backend/tests/conftest.py`) creates there a database with
+a unique name, applies the migrations to it, and drops it at the end, with the service role the
+migrations created for it. The `database` fixture returns this database as the service sees it —
+through a login role that is a member of the service role of this database, created for the session
+(sql.md, « Le rôle du service ») —, and deletes after each test the rows of every table the `Base`
+declares, as owner, audit log included, which its trigger does not protect from a superuser who
+disables the triggers — except those a migration writes, the catalogue of permissions, which its
+table marks (`WRITTEN_BY_MIGRATION` in its `info`); `session` returns a session the test rolls back.
 
 - **In the chain**, `back.yml` starts PostgreSQL as a service of the job and sets the variable.
 - **On a workstation**, the Makefile does it: `make test-back` and `make coverage-back` start
   PostgreSQL, for the slot of the worktree (« Commands »), when the variable is not already set —
   after the wait for a heavy slot, `TESTS` included —, and set it on it. `make test-services`
-  starts it alone (`deploy/compose/compose.test.yaml`: PostgreSQL 16, the image of the platform,
+  starts it alone (`deploy/compose/compose.test.yaml`: PostgreSQL 18, the image of the platform,
   in memory, on `127.0.0.1:<port of the slot>`, `20000` in the main repository), doing nothing more
   if it runs, and `make test-services-down` removes it with its volumes; `make slot-release`
   removes it too. No `docker run` by hand. A variable the environment already sets wins, and its
   service is not started: the chain is not changed.
-- **On a workstation whose `pg_restore` is newer than the server of the platform** — the current
-  one, client 17, server 16 —, the tests of the restorations fail (#982), until the EPIC that
-  raises the versions of the dependencies; neither a server 17 nor any other workaround.
+- **The PostgreSQL client of the workstation** is the one of the major of the server, 18:
+  `pg_dump` and `pg_restore` in `/usr/bin` (`postgresql-client-18`, Ubuntu 26.04's), which the
+  tests of the backups and the restorations call; `make check-tools` warns of another. A client
+  newer than the server sets settings it does not know, and no restoration ends (#982); an older
+  client refuses to dump the database.
 - **Without the variable**, a test that needs the database **fails** saying so, and does not pass
   silently. The tests of `examples/`, sockets closed, do not need it.
 - A test that needs two instances of the service starts two processes (`subprocess`), each
@@ -3365,8 +3388,8 @@ A backup is tested against a real object storage, Garage, the image of the servi
 bucket, `http://<clé>:<secret>@127.0.0.1:3900`. The `backups_bucket` fixture
 (`backend/tests/conftest.py`) creates a bucket there for the test session, and empties then
 deletes it at the end. The backups call `pg_dump` and `pg_restore` in `/usr/bin`, those of
-Debian and Ubuntu, of a version at least equal to the server's. They dump the databases like
-the worker of the platform, through a backup role that the `backup_role` fixture
+Debian and Ubuntu, of the major of the server, 18 (« A test against PostgreSQL »). They dump the
+databases like the worker of the platform, through a backup role that the `backup_role` fixture
 (`backend/tests/conftest.py`) creates for the session, a member of `pg_read_all_data` (#895).
 
 - **In the chain**, `back.yml` starts Garage by `docker run` — a service of the job does not
@@ -3375,9 +3398,7 @@ the worker of the platform, through a backup role that the `backup_role` fixture
   PostgreSQL »): `make test-back` or `make test-services`, which give it the image and the
   `garage.toml` of the platform, a key and a secret of their own for the tests, and the variable
   `http://<key>:<secret>@127.0.0.1:<port of the slot>` (`20002` in the main repository);
-  `make test-services-down` removes it. No `docker run` by hand. The tests of the restorations
-  fail there as long as the `pg_restore` of the workstation is newer than the server of the
-  platform (#982).
+  `make test-services-down` removes it. No `docker run` by hand.
 - **Without the variable**, a test that needs the storage **fails** saying so.
 
 ### A test against Redis
@@ -3385,14 +3406,14 @@ the worker of the platform, through a backup role that the `backup_role` fixture
 The session of the front and the task queue of the back are tested against a real Redis, never a
 double: the variable `WATERFALL_TEST_REDIS_URL` names it (`redis://127.0.0.1:6379/0`), a database
 that the tests alone use. On the front side, `withTestRedis()` (`frontend/src/test/session.ts`)
-points the session store at it for the duration of a test file; each key is drawn at
-random: the files that run together do not meet, and the keys expire
-by themselves. On the back side, the `queue` fixture (`backend/tests/conftest.py`) opens the queue on a stream
-of its own, deleted after the test, and `platform_queue` on the one of the whole installation, which the
-commands of the platform use, emptied before and after. The tests of the back running on
-several processes, each takes the database that follows the variable's according to its rank (`gw0` its
-own, `gw7` the seventh after): the stream of the whole installation is never emptied from under
-another's feet. No test flushes the server.
+points the session store at it for the duration of a test file; each key is drawn at random: the
+files that run together do not meet, and the keys expire by themselves. On the back side, the
+`queue` fixture (`backend/tests/conftest.py`) opens the queue on a stream of its own, deleted after
+the test, and `platform_queue` on the one of the whole installation, which the commands of the
+platform use, emptied before and after. The tests of the back running on several processes, each
+takes the database that follows the variable's according to its rank (`gw0` its own, `gw7` the
+seventh after): the stream of the whole installation is never emptied from under another's feet. No
+test flushes the server.
 
 - **In the chain**, `front.yml` and `back.yml` start Redis as a service of the job and set the
   variable.
@@ -3403,15 +3424,15 @@ another's feet. No test flushes the server.
 - **Without the variable**, a test that needs Redis **fails** saying so, and does not pass
   silently.
 
-Keycloak, for its part, is not in the tests of the front: `frontend/src/test/identity-provider.ts` answers
-Next's server like the `waterfall` realm — single-use code for its verifier, refresh token
+Keycloak, for its part, is not in the tests of the front: `frontend/src/test/identity-provider.ts`
+answers Next's server like the `waterfall` realm — single-use code for its verifier, refresh token
 rotated at each use and refused at the second, tokens signed with a key of its own.
 `make test-keycloak` proves against the real realm the exchange of the code with its verifier, the
-refusal of a refresh token already used and the closing of an account's sessions; the
-logout token that Keycloak posts to the front, the path against the service of US-0340
+refusal of a refresh token already used and the closing of an account's sessions; the logout token
+that Keycloak posts to the front, the path against the service of US-0340
 (`frontend/e2e/service/session.spec.ts`); `refresh_expires_in`, the two hours of an inactive
-session, and whatever else US-0350 asks of the realm — each kind of account, the password,
-the lockout, the link —, `backend/tests/test_keycloak_sign_in.py`; the return to the intended screen,
+session, and whatever else US-0350 asks of the realm — each kind of account, the password, the
+lockout, the link —, `backend/tests/test_keycloak_sign_in.py`; the return to the intended screen,
 the paths against the service of US-0350/L5b (#849).
 
 ### An end-to-end path
@@ -3420,235 +3441,227 @@ A path is written under `frontend/e2e/`, in Playwright, and cites in its title t
 it covers: `test("… [WF-QUA-0050-A]", …)`. It finds the elements by their role and their
 accessible name (`getByRole`), as a user sees them, never by a CSS class.
 
-A page opened by its address is displayed before React has hydrated it: a link followed then
-loads its screen as a whole document, but a click on a button, a key in a cell, get
-lost (#471). A path therefore opens a project screen with `openHydrated`
-(`frontend/e2e/hydration.ts`), which waits for the witness of hydration: the cookie `wf_last_project`,
-which the shell writes only in an effect. Outside a project, nothing witnesses it: the gesture is repeated
-until React answers it, without undoing the one it has already received (`setExpanded`, `openMenu`, and
-`sortUntilAddress` for a sort, which never hurries blindly). A grid screen is waited for up to
-the bound of grid screens, fifteen seconds (`WORKING`, #315, #419), whether a click reaches it or
-reloads it (a sort, a filter, a search, the detail of a line). A grid screen is a dense
-grid — estimate, planning, remaining to commit, risks, actual costs, portfolio —, or a screen that reads
-the structure of a thousand tasks (`listNodes`): the Kanban, the tree, the timelines. The
-comparison of two revisions joins them, for the time of a decision: it renders its 2,770
-modifications in a plain table, rendered on the server, which exceeds five seconds in development
-(finding #624 of EP-14/L45a, to be decided — accepted, or moved onto the dense grid): from the click to
-the address, for five megabytes of response, about four seconds on the server, up to ten when another
-path loads it, and three or four in the browser, the fake back answering in a few
-tens of milliseconds (#729). A path that renders thousands of lines this way outside a
-virtualised grid may keep its trace without DOM snapshots (`snapshots: false`), and only
-after a measurement that shows what they cost within the bound — for the comparison, about two
-seconds, which took it up to eleven seconds out of fifteen on an idle workstation. The trace loses the
-DOM, the network, the accessibility tree and the screenshot of each action, and keeps only the actions,
-their sources and the film of the screen: the path itself says, in an annotation, the duration of what it
-waits for (`test.info().annotations`). The remedy mitigates, it settles nothing: the rest lies with the screen.
-The risks and the actual costs, reloaded, have exceeded five seconds under load: the measurements are
-recorded in #500, which remains to be decided. Every other screen keeps the five seconds of an
-assertion. A path that chains three of these bounds, opening included, exceeds the thirty
-seconds of a test, and takes `test.slow()`. A grid line that is checked is in the viewport:
-beyond the lines in view at opening, the path scrolls to it (`scrollToPosition`,
-`frontend/e2e/scroll.ts`) rather than counting on the margin the grid renders around the
-viewport.
+A page opened by its address is displayed before React has hydrated it: a link followed then loads
+its screen as a whole document, but a click on a button, a key in a cell, get lost (#471). A path
+therefore opens a project screen with `openHydrated` (`frontend/e2e/hydration.ts`), which waits for
+the witness of hydration: the cookie `wf_last_project`, which the shell writes only in an effect.
+Outside a project, nothing witnesses it: the gesture is repeated until React answers it, without
+undoing the one it has already received (`setExpanded`, `openMenu`, and `sortUntilAddress` for a
+sort, which never hurries blindly). A grid screen is waited for up to the bound of grid screens,
+fifteen seconds (`WORKING`, #315, #419), whether a click reaches it or reloads it (a sort, a filter,
+a search, the detail of a line). A grid screen is a dense grid — estimate, planning, remaining to
+commit, risks, actual costs, portfolio —, or a screen that reads the structure of a thousand tasks
+(`listNodes`): the Kanban, the tree, the timelines. The comparison of two revisions joins them, for
+the time of a decision: it renders its 2,770 modifications in a plain table, rendered on the server,
+which exceeds five seconds in development (finding #624 of EP-14/L45a, to be decided — accepted, or
+moved onto the dense grid): from the click to the address, for five megabytes of response, about
+four seconds on the server, up to ten when another path loads it, and three or four in the browser,
+the fake back answering in a few tens of milliseconds (#729). A path that renders thousands of lines
+this way outside a virtualised grid may keep its trace without DOM snapshots (`snapshots: false`),
+and only after a measurement that shows what they cost within the bound — for the comparison, about
+two seconds, which took it up to eleven seconds out of fifteen on an idle workstation. The trace
+loses the DOM, the network, the accessibility tree and the screenshot of each action, and keeps only
+the actions, their sources and the film of the screen: the path itself says, in an annotation, the
+duration of what it waits for (`test.info().annotations`). The remedy mitigates, it settles nothing:
+the rest lies with the screen. The risks and the actual costs, reloaded, have exceeded five seconds
+under load: the measurements are recorded in #500, which remains to be decided. Every other screen
+keeps the five seconds of an assertion on a workstation, ten in the chain, where two workers and
+their fronts share the four processors of a runner: a screen that answers in a second there took
+past five under load, and failed a run of the merge queue about once a week without a defect behind
+it (#2015, `expect.timeout` of `playwright.config.ts`). A path that chains three of these bounds,
+opening included, exceeds the thirty seconds of a test, and takes `test.slow()`. A grid line that is
+checked is in the viewport: beyond the lines in view at opening, the path scrolls to it
+(`scrollToPosition`, `frontend/e2e/scroll.ts`) rather than counting on the margin the grid renders
+around the viewport.
 
-`make e2e`: `make mock-tools` first caches the pinned Redocly and Prism (their installation by
-`npx` counted in the 120 s Playwright gives the fake back, #1901) — so do `make e2e-measure` and
+`make e2e`: `make mock-tools` first caches the pinned Redocly and Prism (their installation by `npx`
+counted in the 120 s Playwright gives the fake back, #1901) — so do `make e2e-measure` and
 `make e2e-service`, for which Playwright also starts the fake back; Playwright starts the fake back
-(`make mock`) and the front, plays the paths
-in Chromium, then stops both — it signals their whole process group, without which
-the servers that `make` and `pnpm` start would survive. It always starts its own
-servers, on ports of its own — those of the slot of the worktree (« Commands », « The slots of
-the worktrees »): 4110 for the fake back and 3100 for the front in the main repository, at slot 0,
-`20000 + 100·i + 20` and `+ 40` at slot i of a worktree of a lot, which runs `make slot` first —,
-never those of `make dev`, and its fake back serves a variant of the contract written under
-`frontend/.e2e/`, which `make dev` does not read: a port already taken makes the launch fail
-saying so. Two worktrees at two slots thus play their paths at the same time, with
-`WATERFALL_SLOTS` of at least 2, without which the second waits for the first to end.
-`E2E_API_PORT` and `E2E_FRONT_PORT`, set in the environment, prevail over those of the slot — the
-front of the paths takes as many as it has workers, starting from it (below), forty at most in a
-block; a port that is not an integer from 1 to 65535 is refused. `make e2e-browsers` installs the
-browser. `make e2e SHARD=i/N` plays only the i-th of N shards of the paths, like
-each of the chain's runners (« The chain »), and `make e2e WORKERS=<n>` plays them on `n` workers
-(`E2E_WORKERS`, which `playwright.config.ts` reads; an integer from 1 to 40, nothing else: one front per
-worker, and a slot's block holds only forty), fewer than Playwright takes on its own — half the
-processors, capped at forty — on a loaded workstation, where
-paths fail by timeout (#736). With `WATERFALL_API_ADDRESS`, the harness plays
+(`make mock`) and the front, plays the paths in Chromium, then stops both — it signals their whole
+process group, without which the servers that `make` and `pnpm` start would survive. It always
+starts its own servers, on ports of its own — those of the slot of the worktree (« Commands », « The
+slots of the worktrees »): 4110 for the fake back and 3100 for the front in the main repository, at
+slot 0, `20000 + 100·i + 20` and `+ 40` at slot i of a worktree of a lot, which runs `make slot`
+first —, never those of `make dev`, and its fake back serves a variant of the contract written under
+`frontend/.e2e/`, which `make dev` does not read: a port already taken makes the launch fail saying
+so. Two worktrees at two slots thus play their paths at the same time, with `WATERFALL_SLOTS` of at
+least 2, without which the second waits for the first to end. `E2E_API_PORT` and `E2E_FRONT_PORT`,
+set in the environment, prevail over those of the slot — the front of the paths takes as many as it
+has workers, starting from it (below), forty at most in a block; a port that is not an integer from
+1 to 65535 is refused. `make e2e-browsers` installs the browser. `make e2e SHARD=i/N` plays only the
+i-th of N shards of the paths, like each of the chain's runners (« The chain »), and
+`make e2e WORKERS=<n>` plays them on `n` workers (`E2E_WORKERS`, which `playwright.config.ts` reads;
+an integer from 1 to 40, nothing else: one front per worker, and a slot's block holds only forty),
+fewer than Playwright takes on its own — half the processors, capped at forty — on a loaded
+workstation, where paths fail by timeout (#736). With `WATERFALL_API_ADDRESS`, the harness plays
 against the API it names and starts no fake back.
 
-**The paths are played against the front built for production** (US-0590), the one
-users open: one `next start` server per worker of the paths, on `E2E_FRONT_PORT`
-and the ports that follow it, each worker playing against the one of its place among the workers
-(`TEST_PARALLEL_INDEX`); a single one for the measurement of the second, played on one worker, for the
-paths of the service, whose realm knows the address of only one front, and for the development
-server. The development server rendered the pages of the four workers in series, beyond
-the five seconds of an assertion (#1262), and rose above 9 GB after compiling every
-route (#1309). A single built front, one process, rendered them in series too, faster:
-busy three quarters of the time under six workers, it left the risks screen loading
-five seconds after the click, three times out of sixty (#1477); one front per worker, none out of
-sixty. Playwright starts the fronts one after the other, and the first builds the front when
-it is not built. It starts as many as there are workers even for a single file
-(`make e2e TESTS=…`) or a shard: each answers in about a second on the workstation, so
-that a replay under four workers waits three or four seconds longer for its first path. The
-harness does not know, when reading its configuration, how many workers the replay will occupy: a cap
-at the number of files would give a single front to the four workers of a file played test by test
-(`mode: "parallel"`, `accessibility.spec.ts`), the congestion of #1477; `WORKERS=1` starts a
-single one. `make e2e`, `make e2e-measure` and
-`make e2e-service` first build the front like `make build-front`, with no reachable API
-(#131) — the same build therefore serves the fake back and the real service —, then launch Playwright, which
-starts it; locally, Next's cache (`frontend/.next/cache`) shortens the following builds.
-`E2E_BUILT=1` says the front is already built: neither the target nor the harness rebuild it, which is what
-the chain does, building it once per run for all its parts — the shards of the
-paths, the measurement and the paths of the service (`front-build`, « The chain »). Without it, the
-harness launched outside the Makefile (`pnpm exec playwright test`) builds the front itself before
-starting it.
+**The paths are played against the front built for production** (US-0590), the one users open: one
+`next start` server per worker of the paths, on `E2E_FRONT_PORT` and the ports that follow it, each
+worker playing against the one of its place among the workers (`TEST_PARALLEL_INDEX`); a single one
+for the measurement of the second, played on one worker, for the paths of the service, whose realm
+knows the address of only one front, and for the development server. The development server rendered
+the pages of the four workers in series, beyond the five seconds of an assertion (#1262), and rose
+above 9 GB after compiling every route (#1309). A single built front, one process, rendered them in
+series too, faster: busy three quarters of the time under six workers, it left the risks screen
+loading five seconds after the click, three times out of sixty (#1477); one front per worker, none
+out of sixty. Playwright starts the fronts one after the other, and the first builds the front when
+it is not built. It starts as many as there are workers even for a single file (`make e2e TESTS=…`)
+or a shard: each answers in about a second on the workstation, so that a replay under four workers
+waits three or four seconds longer for its first path. The harness does not know, when reading its
+configuration, how many workers the replay will occupy: a cap at the number of files would give a
+single front to the four workers of a file played test by test (`mode: "parallel"`,
+`accessibility.spec.ts`), the congestion of #1477; `WORKERS=1` starts a single one. `make e2e`,
+`make e2e-measure` and `make e2e-service` first build the front like `make build-front`, with no
+reachable API (#131) — the same build therefore serves the fake back and the real service —, then
+launch Playwright, which starts it; locally, Next's cache (`frontend/.next/cache`) shortens the
+following builds. `E2E_BUILT=1` says the front is already built: neither the target nor the harness
+rebuild it, which is what the chain does, building it once per run for all its parts — the shards of
+the paths, the measurement and the paths of the service (`front-build`, « The chain »). Without it,
+the harness launched outside the Makefile (`pnpm exec playwright test`) builds the front itself
+before starting it.
 
-`E2E_DEV_SERVER=1` replays locally the paths against the development server (`next dev`),
-without rebuilding the front at each replay: `make e2e E2E_DEV_SERVER=1 TESTS=e2e/<fichier>`, or
-`make e2e-service E2E_DEV_SERVER=1`. The measurement never follows it: it is always played against the
-built front, so that `make e2e E2E_DEV_SERVER=1` leaves it aside, and that
-`make e2e-measure` builds the front anyway. Set in the chain (`CI` defined), it makes
-the launch fail, with a message that says so. Nothing warms up the routes for it: a
-local replay is played on few files, and the development server compiles a route at its
-first request, which the first assertion that waits for it may exceed. `compile`
-(`frontend/e2e/compile.ts`) remains for a path that first compiles what it reaches.
+`E2E_DEV_SERVER=1` replays locally the paths against the development server (`next dev`), without
+rebuilding the front at each replay: `make e2e E2E_DEV_SERVER=1 TESTS=e2e/<fichier>`, or
+`make e2e-service E2E_DEV_SERVER=1`. The measurement never follows it: it is always played against
+the built front, so that `make e2e E2E_DEV_SERVER=1` leaves it aside, and that `make e2e-measure`
+builds the front anyway. Set in the chain (`CI` defined), it makes the launch fail, with a message
+that says so. Nothing warms up the routes for it: a local replay is played on few files, and the
+development server compiles a route at its first request, which the first assertion that waits for
+it may exceed. `compile` (`frontend/e2e/compile.ts`) remains for a path that first compiles what it
+reaches.
 
 The warm-up of the routes (`e2e/warm-up.ts`, #1145), which requested each route from the development
-server before the first path, is removed with its tests: the built front compiles
-nothing on demand. A failure of the API, of the realm or of Redis is therefore read at the first path that
-reaches it, and no longer before it (#1265).
+server before the first path, is removed with its tests: the built front compiles nothing on demand.
+A failure of the API, of the realm or of Redis is therefore read at the first path that reaches it,
+and no longer before it (#1265).
 
-**No failure is tolerated** (US-0590b, #1460): at the local full tier as in the chain, the
-failure of a path is a failure, even if it passes replayed alone. The provisional rule of #1145, which
-let a lot merge whose paths of #1145 and #1263 fell at the local tier then
-passed replayed alone, disappeared with US-0590b, which fixed these failures at their cause: the built
-front, one per worker (above), and the lightened keyboard walk (below). A path
-that falls is fixed at its cause, never by a longer wait, a `retries`, a `fixme` or a
-`skip`.
+**No failure is tolerated** (US-0590b, #1460): at the local full tier as in the chain, the failure
+of a path is a failure, even if it passes replayed alone. The provisional rule of #1145, which let a
+lot merge whose paths of #1145 and #1263 fell at the local tier then passed replayed alone,
+disappeared with US-0590b, which fixed these failures at their cause: the built front, one per
+worker (above), and the lightened keyboard walk (below). A path that falls is fixed at its cause,
+never by a longer wait, a `retries`, a `fixme` or a `skip`.
 
 The front of the harness opens a connection of its own for each request to the API
-(`WATERFALL_API_CONNECTIONS=closed`, « The API client »): the API there is always Prism, fake
-back or proxy of the contract, which closes a connection idle for five seconds, and the loaded
+(`WATERFALL_API_CONNECTIONS=closed`, « The API client »): the API there is always Prism, fake back
+or proxy of the contract, which closes a connection idle for five seconds, and the loaded
 development server sent a request on a connection Prism had just closed
 (`UND_ERR_SOCKET: other side closed`, then `Unreachable` in `readOrFail`, #1145). The harness also
 sets `WATERFALL_E2E=1` on the front, against the fake back as against the service: the built front
-admits the fixed token of the fake back only on that condition, and does not report the `closed` connections
-(#1265).
+admits the fixed token of the fake back only on that condition, and does not report the `closed`
+connections (#1265).
 
 `make e2e-service` plays against the real service the paths of the Playwright project `service`
 (`frontend/e2e/service/`, US-0340), alongside those of the fake back, which remain. It starts the
-service platform (`make service-up`), under the project and on the ports of the slot of the
-worktree (« Commands »), its realm applied with the address of the front of the
-paths, `http://127.0.0.1:3100` at slot 0 (`WATERFALL_FRONT_ADDRESS`, which follows `E2E_FRONT_PORT`), and
+service platform (`make service-up`), under the project and on the ports of the slot of the worktree
+(« Commands »), its realm applied with the address of the front of the paths,
+`http://127.0.0.1:3100` at slot 0 (`WATERFALL_FRONT_ADDRESS`, which follows `E2E_FRONT_PORT`), and
 the one through which Keycloak reaches it from its container, `http://host.docker.internal:3100`
-(`WATERFALL_FRONT_BACKCHANNEL`), whatever the ones the environment exports; then
-Prism as a proxy between the front and the API
-(`prism proxy --errors`, service `contract-proxy`, on `127.0.0.1:4210` at slot 0, which
-`WATERFALL_PROXY_PORT` moves), which serves the variant of the fake back written in
-`docs/api/waterfall.proxy.json`: a response outside its schema becomes a 500 error
-(`VIOLATIONS`), an address outside the contract a 404 (`NO_PATH_MATCHED_ERROR`), a request outside
-the contract a 422, and Prism writes each one to its log under its request. Prism requires no
-token there: the service authenticates, and its refusal passes as it is, checked against the contract. It finally launches
-Playwright with, in its environment — never on the command line, where the password of
-Redis could be read —, `E2E_PART=service`, `WATERFALL_API_ADDRESS` (the proxy),
-`E2E_CONTRACT_PROXY` (its container), `E2E_SERVICE_DATABASE` (PostgreSQL's),
-`WATERFALL_KEYCLOAK_ADDRESS`, `WATERFALL_FRONT_ADDRESS`,
-`WATERFALL_REDIS_URL` (the Redis of the platform) and `NODE_EXTRA_CA_CERTS` (the root of the
-authority of Keycloak's front end); the secret of the front's client, and that of Keycloak's
-administrator, come from the environment. The platform stays up: `make service-down`
-stops it. Before Playwright, it bootstraps the platform (`waterfall-api install`, service `install`,
-US-0420): the first administrator, `administrateur@waterfall.test` (`E2E_ADMIN_EMAIL`), carries the
-role « Administrateur », and the link that sets their password, valid until it is used, is
-in `E2E_INSTALLATION_LINK` — empty as soon as a path has used it, the administrator
-signing in afterwards with the constant password of the paths (`LOCAL_PASSWORD`,
-`frontend/e2e/service/realm.ts`). A precondition:
-`E2E_ADMIN_EMAIL` must be the address with which the platform was bootstrapped the first time.
-A relaunch installs nothing new and ignores another address (`installation.admin_email_ignored`
-in its logs): on a platform bootstrapped with another one, by `make service-install` and another
-`WATERFALL_ADMIN_EMAIL`, the paths would look for an administrator who does not exist. One must then
-give the first address to `E2E_ADMIN_EMAIL`, or start again from an empty platform
+(`WATERFALL_FRONT_BACKCHANNEL`), whatever the ones the environment exports; then Prism as a proxy
+between the front and the API (`prism proxy --errors`, service `contract-proxy`, on `127.0.0.1:4210`
+at slot 0, which `WATERFALL_PROXY_PORT` moves), which serves the variant of the fake back written in
+`docs/api/waterfall.proxy.json`: a response outside its schema becomes a 500 error (`VIOLATIONS`),
+an address outside the contract a 404 (`NO_PATH_MATCHED_ERROR`), a request outside the contract a
+422, and Prism writes each one to its log under its request. Prism requires no token there: the
+service authenticates, and its refusal passes as it is, checked against the contract. It finally
+launches Playwright with, in its environment — never on the command line, where the password of
+Redis could be read —, `E2E_PART=service`, `WATERFALL_API_ADDRESS` (the proxy), `E2E_CONTRACT_PROXY`
+(its container), `E2E_SERVICE_DATABASE` (PostgreSQL's), `WATERFALL_KEYCLOAK_ADDRESS`,
+`WATERFALL_FRONT_ADDRESS`, `WATERFALL_REDIS_URL` (the Redis of the platform) and
+`NODE_EXTRA_CA_CERTS` (the root of the authority of Keycloak's front end); the secret of the front's
+client, and that of Keycloak's administrator, come from the environment. The platform stays up:
+`make service-down` stops it. Before Playwright, it bootstraps the platform
+(`waterfall-api install`, service `install`, US-0420): the first administrator,
+`administrateur@waterfall.test` (`E2E_ADMIN_EMAIL`), carries the role « Administrateur », and the
+link that sets their password, valid until it is used, is in `E2E_INSTALLATION_LINK` — empty as soon
+as a path has used it, the administrator signing in afterwards with the constant password of the
+paths (`LOCAL_PASSWORD`, `frontend/e2e/service/realm.ts`). A precondition: `E2E_ADMIN_EMAIL` must be
+the address with which the platform was bootstrapped the first time. A relaunch installs nothing new
+and ignores another address (`installation.admin_email_ignored` in its logs): on a platform
+bootstrapped with another one, by `make service-install` and another `WATERFALL_ADMIN_EMAIL`, the
+paths would look for an administrator who does not exist. One must then give the first address to
+`E2E_ADMIN_EMAIL`, or start again from an empty platform
 (`make service-down WATERFALL_RESET_DATA=yes`).
 
-The paths are played in five Playwright projects. `installation` first
-(`installation.setup.ts`, WF-EXP-0020): the link serves only once, and this path sets the
-administrator's password, signs in, and observes their role, the three predefined roles and the
-catalogue. `service` next, on several workers (#730): each path signs in with a
-local account of its own, which the administrator creates through the API (`createUser`, `createPasswordSetupLink`) and
-whose password it sets through the returned link, or with an account whose sessions no other path
-closes — the administrator themselves, for the accounts and roles screens and for the
-audit log (`accounts.spec.ts`, `roles.spec.ts`, `audit.spec.ts`). The administrator gives the local accounts their
-roles through the API; the person of the test directory,
-`dominique.annuaire@waterfall.test`, and the one of the external provider, `camille.externe`
-(`deploy/keycloak/development/`), whom the API admits without a role at their first request (WF-ADM-0180) and
-whom only `sign-in.spec.ts` uses, receive theirs by a write into the platform's database
-(`grantRole`), once admitted. No path gives any account other than the administrator the
-two administration permissions — `give` refuses it —, and none renames or changes a predefined
-role: the `LAST_ADMINISTRATOR` refusals of the roles screen and of the accounts screen depend on it
-(`roles.spec.ts`). The administrator's token, which lives five minutes, is requested again when it is
-more than four minutes old.
+The paths are played in five Playwright projects. `installation` first (`installation.setup.ts`,
+WF-EXP-0020): the link serves only once, and this path sets the administrator's password, signs in,
+and observes their role, the three predefined roles and the catalogue. `service` next, on several
+workers (#730): each path signs in with a local account of its own, which the administrator creates
+through the API (`createUser`, `createPasswordSetupLink`) and whose password it sets through the
+returned link, or with an account whose sessions no other path closes — the administrator
+themselves, for the accounts and roles screens and for the audit log (`accounts.spec.ts`,
+`roles.spec.ts`, `audit.spec.ts`). The administrator gives the local accounts their roles through
+the API; the person of the test directory, `dominique.annuaire@waterfall.test`, and the one of the
+external provider, `camille.externe` (`deploy/keycloak/development/`), whom the API admits without a
+role at their first request (WF-ADM-0180) and whom only `sign-in.spec.ts` uses, receive theirs by a
+write into the platform's database (`grantRole`), once admitted. No path gives any account other
+than the administrator the two administration permissions — `give` refuses it —, and none renames or
+changes a predefined role: the `LAST_ADMINISTRATOR` refusals of the roles screen and of the accounts
+screen depend on it (`roles.spec.ts`). The administrator's token, which lives five minutes, is
+requested again when it is more than four minutes old.
 
-All the workers sign the administrator in, and the realm refuses the credentials of an account
-it is already verifying, as if it were locked (`user_temporarily_disabled`, with no
-failure counted): a sign-in waits its turn (`oneAtATime`, `realm.ts`), under a lock — a
-directory of the system's temporary folder, named after the run and the account —, which it holds
-until the realm's answer, awaited for fifteen seconds at most, well below the thirty that the
-other workers wait for the lock. A table screen of the administration is opened by an address
-that states its search, empty if need be (`?search=`): a silent address would restore the search or
-the filters the administrator kept on another path, since they are the same on all of them.
-`realm` next, on a single worker, once the others are finished: the paths marked `@realm-wide`,
-which shorten a duration of the realm, which every account reads. `restoration` after them, alone: the
-paths marked `@platform-wide`, which restore the whole platform and close all its
-sessions (US-0440, `backups.spec.ts`). `contract` last, the teardown of `installation`: the guard
-of the contract of the whole run.
+All the workers sign the administrator in, and the realm refuses the credentials of an account it is
+already verifying, as if it were locked (`user_temporarily_disabled`, with no failure counted): a
+sign-in waits its turn (`oneAtATime`, `realm.ts`), under a lock — a directory of the system's
+temporary folder, named after the run and the account —, which it holds until the realm's answer,
+awaited for fifteen seconds at most, well below the thirty that the other workers wait for the lock.
+A table screen of the administration is opened by an address that states its search, empty if need
+be (`?search=`): a silent address would restore the search or the filters the administrator kept on
+another path, since they are the same on all of them. `realm` next, on a single worker, once the
+others are finished: the paths marked `@realm-wide`, which shorten a duration of the realm, which
+every account reads. `restoration` after them, alone: the paths marked `@platform-wide`, which
+restore the whole platform and close all its sessions (US-0440, `backups.spec.ts`). `contract` last,
+the teardown of `installation`: the guard of the contract of the whole run.
 
-The project `service` plays only `frontend/e2e/service/`, which the other projects leave alone: against
-the built front, like the others, without `WATERFALL_AUTH=mock` — the real sign-in, through the
-realm —, listening on every interface of the workstation, from where Keycloak reaches its back
-channel (#681), and with the server actions key without which the built front does not start
-outside the fake back (`NEXT_SERVER_ACTIONS_ENCRYPTION_KEY`, drawn for the run if the environment
-does not give one); the browser accepts the certificate of Keycloak's front end
-(`ignoreHTTPSErrors`), which Next's server gets from `NODE_EXTRA_CA_CERTS`. These requests to
-the API, Next's server makes them, out of the browser's sight, and a screen can survive
-one of them: a file of these paths is held to the contract by `heldToTheContract()`
-(`frontend/e2e/service/contract.ts`), which reads the proxy's log through Docker and fails on
-every line where Prism writes `Request terminated with error:` — its own errors as well as those of the
-proxy, unreadable body or unreachable API (WF-ARC-0060). Prism writes its line once the
-response is returned, and Next's server still reads the API after the last assertion: each worker
-reads each line once — by `docker logs --since`, from the moment where it had stopped, and
-from the start of its first file —; a path fails on the errors written up to its end, a
-later error makes the worker's next one fail. The log does not say which worker requested
-what: an error makes the path of every worker that reads it fail, the one that caused it among
-them. The project `contract` (`contract.teardown.ts`) finally re-reads the whole log of the run, from
-its start (`E2E_SERVICE_STARTED`, which `playwright.config.ts` sets), once the proxy has gone quiet —
-nothing but the health check for two seconds, the last line of a response, which
-does not name its request, being one only if it follows that of a health check's response (#735) —:
-the errors after a worker's last path make it fail, and those a path has
-already reported, again. This start is the last line the proxy wrote before the run
-(`docker logs --timestamps --tail 1`, `frontend/e2e/service/proxy-log.ts`), and every moment the
-paths compare is the one Docker gave to a line, never the workstation's clock, which a
-virtual machine lets drift from its own; the guard proves its window: at least one line read
-— the health check writes one every two seconds —, and the refusal of the address outside the
-contract when its path has played. A path shows it (`contract.spec.ts`): an address outside the
-contract (`OUTSIDE`), which the guard alone reads, refused; every other reader leaves it to the guard. A status
-the operation does not declare is not one for Prism: the response passes, with the header
-`sl-violations` of severity `Warning`, which its log does not tie to its request — today these are
-the 404s of the operations the shell reads and the service does not serve yet. The
-tests of the service hold its statuses to the contract (`ContractClient`), the paths its bodies
-(#726). The sign-in paths are played there (US-0350): signing in, signing out on all
-one's workstations, the lost session of the front included, no token in the browser, the closing of the
-sessions by the realm (`session.spec.ts`); each kind of account acting according to its roles, the
-inactive session that brings back to the sign-in then to the intended screen, the account not admitted
-(`sign-in.spec.ts`); the local account created, its setup link, the password rules and the
-lockout (`password.spec.ts`); the language decided by the browser until the account
-chooses one, then found again from one workstation to another, applied without signing in again, the avatar uploaded,
-replaced and removed, the hidden columns, the widths and the filters of the tables found again on
-reopening, each account seeing its own (`account.spec.ts`, US-0400) — these settings read in the
-database (`gridPreferences`), where the front writes them after a pause; a role assignment made by
-the service, which the audit log, filtered on its author and its action, presents to each reader
-in their language (`audit.spec.ts`); the bootstrap (`installation.setup.ts`), the accounts screen
-(`accounts.spec.ts`) and the roles screen (`roles.spec.ts`). They set the realm through its
-administration API, as administrator of the `master` realm (`WATERFALL_KEYCLOAK_ADMIN_PASSWORD`) — a
-duration shortened for the time of a path, which `service-up` gives back to the realm anyway next time —,
-and request a token for the API through the flow of the front's client (`WATERFALL_FRONT_CLIENT_SECRET`).
+The project `service` plays only `frontend/e2e/service/`, which the other projects leave alone:
+against the built front, like the others, without `WATERFALL_AUTH=mock` — the real sign-in, through
+the realm —, listening on every interface of the workstation, from where Keycloak reaches its back
+channel (#681), and with the server actions key without which the built front does not start outside
+the fake back (`NEXT_SERVER_ACTIONS_ENCRYPTION_KEY`, drawn for the run if the environment does not
+give one); the browser accepts the certificate of Keycloak's front end (`ignoreHTTPSErrors`), which
+Next's server gets from `NODE_EXTRA_CA_CERTS`. These requests to the API, Next's server makes them,
+out of the browser's sight, and a screen can survive one of them: a file of these paths is held to
+the contract by `heldToTheContract()` (`frontend/e2e/service/contract.ts`), which reads the proxy's
+log through Docker and fails on every line where Prism writes `Request terminated with error:` — its
+own errors as well as those of the proxy, unreadable body or unreachable API (WF-ARC-0060). Prism
+writes its line once the response is returned, and Next's server still reads the API after the last
+assertion: each worker reads each line once — by `docker logs --since`, from the moment where it had
+stopped, and from the start of its first file —; a path fails on the errors written up to its end, a
+later error makes the worker's next one fail. The log does not say which worker requested what: an
+error makes the path of every worker that reads it fail, the one that caused it among them. The
+project `contract` (`contract.teardown.ts`) finally re-reads the whole log of the run, from its
+start (`E2E_SERVICE_STARTED`, which `playwright.config.ts` sets), once the proxy has gone quiet —
+nothing but the health check for two seconds, the last line of a response, which does not name its
+request, being one only if it follows that of a health check's response (#735) —: the errors after a
+worker's last path make it fail, and those a path has already reported, again. This start is the
+last line the proxy wrote before the run (`docker logs --timestamps --tail 1`,
+`frontend/e2e/service/proxy-log.ts`), and every moment the paths compare is the one Docker gave to a
+line, never the workstation's clock, which a virtual machine lets drift from its own; the guard
+proves its window: at least one line read — the health check writes one every two seconds —, and the
+refusal of the address outside the contract when its path has played. A path shows it
+(`contract.spec.ts`): an address outside the contract (`OUTSIDE`), which the guard alone reads,
+refused; every other reader leaves it to the guard. A status the operation does not declare is not
+one for Prism: the response passes, with the header `sl-violations` of severity `Warning`, which its
+log does not tie to its request — today these are the 404s of the operations the shell reads and the
+service does not serve yet. The tests of the service hold its statuses to the contract
+(`ContractClient`), the paths its bodies (#726). The sign-in paths are played there (US-0350):
+signing in, signing out on all one's workstations, the lost session of the front included, no token
+in the browser, the closing of the sessions by the realm (`session.spec.ts`); each kind of account
+acting according to its roles, the inactive session that brings back to the sign-in then to the
+intended screen, the account not admitted (`sign-in.spec.ts`); the local account created, its setup
+link, the password rules and the lockout (`password.spec.ts`); the language decided by the browser
+until the account chooses one, then found again from one workstation to another, applied without
+signing in again, the avatar uploaded, replaced and removed, the hidden columns, the widths and the
+filters of the tables found again on reopening, each account seeing its own (`account.spec.ts`,
+US-0400) — these settings read in the database (`gridPreferences`), where the front writes them
+after a pause; a role assignment made by the service, which the audit log, filtered on its author
+and its action, presents to each reader in their language (`audit.spec.ts`); the bootstrap
+(`installation.setup.ts`), the accounts screen (`accounts.spec.ts`) and the roles screen
+(`roles.spec.ts`). They set the realm through its administration API, as administrator of the
+`master` realm (`WATERFALL_KEYCLOAK_ADMIN_PASSWORD`) — a duration shortened for the time of a path,
+which `service-up` gives back to the realm anyway next time —, and request a token for the API
+through the flow of the front's client (`WATERFALL_FRONT_CLIENT_SECRET`).
 
 A limit of the paths against the service: Prism, as a proxy of the contract, reads every body as
 text and alters binary bodies — every byte beyond `0x7f` of an `application/octet-stream` request or
@@ -3660,64 +3673,59 @@ not an upload. The restoration of an upload is proven by the tests of the servic
 EP-13.
 
 The second of §4.6.2 — opening a grid of a thousand tasks — is measured in
-`frontend/e2e/opening.spec.ts` (US-0110, US-0220), on the volume structure the fake
-back serves, for the estimate grid and for the planning grid; the fake back serves the planning without
-taking `kinds=task` into account, and its measurement is pessimistic: it bears on six thousand lines, and
-not on the thousand tasks the service will return. An opening goes from its start — the start of
-the navigation for a grid opened by its address, the click for a grid opened from
-the sidebar — to the usable grid, that is, drawn and hydrated: drawn,
-the first frame where the header of its columns, the legend of its totals and the first line
-of the response are entirely within the viewport; hydrated, the first frame where the whole
-grid is rendered by React — the server renders its first screen, which may be displayed before
-a click does anything there —, which the path recognises by the keys React sets, while hydrating it,
-on the last element of the grid, the last cell of its totals (`__reactProps$…`): an
-internal detail of React, read by the test alone. The later of the two
+`frontend/e2e/opening.spec.ts` (US-0110, US-0220), on the volume structure the fake back serves, for
+the estimate grid and for the planning grid; the fake back serves the planning without taking
+`kinds=task` into account, and its measurement is pessimistic: it bears on six thousand lines, and
+not on the thousand tasks the service will return. An opening goes from its start — the start of the
+navigation for a grid opened by its address, the click for a grid opened from the sidebar — to the
+usable grid, that is, drawn and hydrated: drawn, the first frame where the header of its columns,
+the legend of its totals and the first line of the response are entirely within the viewport;
+hydrated, the first frame where the whole grid is rendered by React — the server renders its first
+screen, which may be displayed before a click does anything there —, which the path recognises by
+the keys React sets, while hydrating it, on the last element of the grid, the last cell of its
+totals (`__reactProps$…`): an internal detail of React, read by the test alone. The later of the two
 instants is compared to the second. A script handed to each document watches each frame and notes
 the instants on the system clock (`performance.timeOrigin`), which a replaced document does not
-lose: neither Playwright's round trips nor its waiting count there. It is played against
-the front built for production, the one of the paths, and never against the development
-server, even under `E2E_DEV_SERVER=1`: the latter compiles a route at its first request and
-renders with React's development checks — it would tell the speed of the developer's
-workstation. Before each series of five
-openings — five by the address, five from the sidebar, for each grid —, one
-opening is not measured: the first loading of the server's modules does not count, and
-the browser's cache is warm, as for a user who has already opened the application.
-Each opening starts only once the previous one is entirely served, prefetches
-included — the grid hydrated, its sidebar links still request from the server the
-screens they lead to, and a navigation started before their response would cut them off while the
-server renders them, within the time of the next opening —: the path follows the requests of the
-page, whether they leave from a new document or from a navigation within the same page, and waits,
-outside the measurement, until none has been in flight for half a second, within fifteen seconds at
-most; the log writes how many were in flight at the start of each measured opening, and there
-must be none.
-Each opening is compared to the second, without rounding; the log of the path, and the summary
-of the job in the chain, under the title « The second of §4.6.2 », write the median and the
-worst, usable, drawn and hydrated, and, for the opening by the address, where the time goes:
-the median instants where the server finished sending the document and where the browser read it. **The measurement fails nothing on the
-second**: an opening that exceeds it is a warning — of the test, and of the chain —,
-never a failure, neither of `make e2e`, nor of the chain, nor of the merge queue. Against the fake
-back, for a single user, on a shared machine of the chain, it does not tell what
-the service will hold: its figures varied from one run to the next by a factor of two on the
-same revision. It is a declared deviation of US-0110 and US-0220; the second is held, blocking,
-in EP-13, on the reference data set, with fifty users, against the real service. The
-path keeps only operating bounds, far from the second, which measure
-nothing: fifteen seconds for a grid to become usable and for a page to settle
-(`WORKING`), Playwright's five seconds for each assertion: the address after a click,
-then what the grid shows; three minutes for each test. Past one of them, the path no longer works — a grid never
-usable, a page that never settles — and it fails, whatever the second. The
-path finally checks that the document carries no field of a node that the grid
-does not read (`lineage_id`). Its Playwright project, `measure`, depends on the `chromium` project:
-it runs after all the other paths, alone on the machine — and does not run when one
-of them fails —, and without a trace. In the chain, at the full tier, it runs alone on a
-runner of its own, alongside the shards of the paths (« The chain »): `make e2e-measure`, which
-starts only the fake back and the built front — the harness reuses none of them —, and which
-the failure of a path no longer prevents. On a workstation, `make e2e` plays it after the paths, and
-`make e2e-measure` alone. `E2E_PART` tells the harness what it plays: `paths`, the paths without
-the measurement, which `make e2e SHARD=i/N` sets; `measure`, the measurement alone, which
-`make e2e-measure` sets; `service`, the paths against the service alone, which `make e2e-service` sets
-and which requires `WATERFALL_API_ADDRESS`; absent, everything, without the paths against the service. Without
-it, Playwright would not know how to distribute the paths: the measurement, which waits for all of them, would
-drag them all into each shard.
+lose: neither Playwright's round trips nor its waiting count there. It is played against the front
+built for production, the one of the paths, and never against the development server, even under
+`E2E_DEV_SERVER=1`: the latter compiles a route at its first request and renders with React's
+development checks — it would tell the speed of the developer's workstation. Before each series of
+five openings — five by the address, five from the sidebar, for each grid —, one opening is not
+measured: the first loading of the server's modules does not count, and the browser's cache is warm,
+as for a user who has already opened the application. Each opening starts only once the previous one
+is entirely served, prefetches included — the grid hydrated, its sidebar links still request from
+the server the screens they lead to, and a navigation started before their response would cut them
+off while the server renders them, within the time of the next opening —: the path follows the
+requests of the page, whether they leave from a new document or from a navigation within the same
+page, and waits, outside the measurement, until none has been in flight for half a second, within
+fifteen seconds at most; the log writes how many were in flight at the start of each measured
+opening, and there must be none. Each opening is compared to the second, without rounding; the log
+of the path, and the summary of the job in the chain, under the title « The second of §4.6.2 »,
+write the median and the worst, usable, drawn and hydrated, and, for the opening by the address,
+where the time goes: the median instants where the server finished sending the document and where
+the browser read it. **The measurement fails nothing on the second**: an opening that exceeds it is
+a warning — of the test, and of the chain —, never a failure, neither of `make e2e`, nor of the
+chain, nor of the merge queue. Against the fake back, for a single user, on a shared machine of the
+chain, it does not tell what the service will hold: its figures varied from one run to the next by a
+factor of two on the same revision. It is a declared deviation of US-0110 and US-0220; the second is
+held, blocking, in EP-13, on the reference data set, with fifty users, against the real service. The
+path keeps only operating bounds, far from the second, which measure nothing: fifteen seconds for a
+grid to become usable and for a page to settle (`WORKING`), Playwright's five seconds for each
+assertion: the address after a click, then what the grid shows; three minutes for each test. Past
+one of them, the path no longer works — a grid never usable, a page that never settles — and it
+fails, whatever the second. The path finally checks that the document carries no field of a node
+that the grid does not read (`lineage_id`). Its Playwright project, `measure`, depends on the
+`chromium` project: it runs after all the other paths, alone on the machine — and does not run when
+one of them fails —, and without a trace. In the chain, at the full tier, it runs alone on a runner
+of its own, alongside the shards of the paths (« The chain »): `make e2e-measure`, which starts only
+the fake back and the built front — the harness reuses none of them —, and which the failure of a
+path no longer prevents. On a workstation, `make e2e` plays it after the paths, and
+`make e2e-measure` alone. `E2E_PART` tells the harness what it plays: `paths`, the paths without the
+measurement, which `make e2e SHARD=i/N` sets; `measure`, the measurement alone, which
+`make e2e-measure` sets; `service`, the paths against the service alone, which `make e2e-service`
+sets and which requires `WATERFALL_API_ADDRESS`; absent, everything, without the paths against the
+service. Without it, Playwright would not know how to distribute the paths: the measurement, which
+waits for all of them, would drag them all into each shard.
 
 The `measure` project also measures what leaving a grid of a thousand tasks costs the browser
 (`frontend/e2e/departure.spec.ts`, US-0800): the planning, opened hydrated and settled, left for
@@ -3740,85 +3748,81 @@ The minimal accessibility of each screen (US-0200, WF-IHM-0100) is checked in
 of `functions.json`, which `screens.spec.ts` also reads, and those no table names — the project
 itself, the account pages, the sign-in and the forgotten password, the « not found » screen.
 `frontend/src/app/screens.test.ts` (`make test-front`) confronts each page of `frontend/src/app`
-with these screens and with the pages that only redirect (`REDIRECTS`): a page added without its screen
-makes it fail, as does a page of `REDIRECTS` that does not only redirect, or a route that
-intercepts another. Each screen is opened by its address in a 1366 × 768 point window,
-hydrated (`untilHydrated`, which waits for the keys React sets on each element the
-keyboard reaches — those the walk reaches, one selector, `REACHABLE`, shared with the probe of the
-focus), then shrinks to 911 × 512 — what a 150 % zoom leaves of 1366 points, the
-page laid out again as the browser lays it out again when zooming; a device scale
-factor would change the pixels, not the layout. Three checks per screen, each played in light
-mode and in dark mode (`colorScheme`) — six tests —, each bear on the two widths:
+with these screens and with the pages that only redirect (`REDIRECTS`): a page added without its
+screen makes it fail, as does a page of `REDIRECTS` that does not only redirect, or a route that
+intercepts another. Each screen is opened by its address in a 1366 × 768 point window, hydrated
+(`untilHydrated`, which waits for the keys React sets on each element the keyboard reaches — those
+the walk reaches, one selector, `REACHABLE`, shared with the probe of the focus), then shrinks to
+911 × 512 — what a 150 % zoom leaves of 1366 points, the page laid out again as the browser lays it
+out again when zooming; a device scale factor would change the pixels, not the layout. Three checks
+per screen, each played in light mode and in dark mode (`colorScheme`) — six tests —, each bear on
+the two widths:
 
-- the axe rules for WCAG A and AA (`axeAudit`, `frontend/e2e/axe.ts`) — axe is not WCAG —,
-  contrast included, once in light mode and once in dark mode (`colorScheme`), each test
-  first observing the painted mode — no `data-theme`, the background of the visual identity. A text that axe leaves
-  « incomplete » with its two colours measured and a measurement that fails — a single character under the
-  expected ratio, which it does not want to call a text, or a text of the colour of its background — is a
-  deviation, its colours stated; what axe leaves unmeasured (`unmeasured`), the test notes in an
-  annotation, reason by reason (`elmPartiallyObscured`, `bgOverlap`…), the curve figures apart — a lone character
-  whose colours axe did not measure counts there under its brevity, axe writing it over the reason
-  that prevented it from measuring. What the other rules leave « incomplete » — a target too
-  small, a link in a text axe cannot judge… — is noted likewise, rule by rule, without a verdict
-  (`undecided`, #784). In light mode, the
-  rules of field labels and image descriptions — `label`, `image-alt` and their
-  relatives — are stated apart;
+- the axe rules for WCAG A and AA (`axeAudit`, `frontend/e2e/axe.ts`) — axe is not WCAG —, contrast
+  included, once in light mode and once in dark mode (`colorScheme`), each test first observing the
+  painted mode — no `data-theme`, the background of the visual identity. A text that axe leaves «
+  incomplete » with its two colours measured and a measurement that fails — a single character under
+  the expected ratio, which it does not want to call a text, or a text of the colour of its
+  background — is a deviation, its colours stated; what axe leaves unmeasured (`unmeasured`), the
+  test notes in an annotation, reason by reason (`elmPartiallyObscured`, `bgOverlap`…), the curve
+  figures apart — a lone character whose colours axe did not measure counts there under its brevity,
+  axe writing it over the reason that prevented it from measuring. What the other rules leave «
+  incomplete » — a target too small, a link in a text axe cannot judge… — is noted likewise, rule by
+  rule, without a verdict (`undecided`, #784). In light mode, the rules of field labels and image
+  descriptions — `label`, `image-alt` and their relatives — are stated apart;
 - the keyboard walk (`walkByTab`, `frontend/e2e/tab-walk.ts`, the in-page measurement by
-  `frontend/e2e/focus-probe.ts`), in both modes, the focus indicator painted in each (#784): at
-  1366 points, Tab from the top of the page, at 911 points from
-  where the first walk stopped, each time until the return to the first element reached.
-  Each element reached is seen — displayed, not transparent, and the middle of what remains of it —
-  of its first box, for a link wrapped over two lines, whose bounding box has its middle between
-  the two (#784) —, clipped
-  by the viewport and by the padding box of each box that clips it along its containing
-  blocks, is the element itself: nothing that paints is drawn over it, a layer the
-  pointer passes through included —, and nothing else takes the pointer there, a transparent layer that
-  captures clicks included (`covered`). It carries a focus indicator: an outline or a shadow
-  it did not carry before the walk, when nothing had the focus — or, for an element born
-  since, that it no longer carries once left; an element born since and gone once left is
-  not judged, and is reported (`unjudged`) —, not transparent, at least one side outside what the boxes that
-  clip it cut off and, inside, not under what covers it: what the element contains for an inner shadow, a
-  positioned element for an outline. An element reached twice before the return to the first is
-  a trap, like an element that keeps the focus from one Tab to the next longer than a field made
-  of fields — the day, the month and the year of a date. Each element Tab can reach —
-  displayed, enabled, of non-negative keyboard order — must be reached itself, or, for a widget that
-  moves the focus itself (grid, tree, menu, list, radio group, tabs, toolbar),
-  the focus must enter it; each of these widgets must be entered (`stopless`); no element
-  may lie entirely beyond the edge of a box that hides what overflows it, which the
-  browser scrolls on focus but the pointer does not reach — a box the user
-  scrolls is never an edge: what it hides, it shows by scrolling, and it is the box that
-  must be within the boxes around it; what it shows is still judged against them; no link or button — nor anything
-  that states its role, or that of a checkbox (`[role=button]`, `link`, `checkbox`) — is taken out
-  of the keyboard order outside such a widget. Finally, everything Tab reaches at 1366 points, it
-  still reaches at 911 (`lost`). To see what paints over an element, the walk makes
-  only the elements that do not take the pointer, and whose box touches that of the element or of one of its
-  children, take it for the time of the measurement — each point the measurement asks the
-  browser for is in one of them —, then puts them back as they were; it reads all the elements
-  first, then writes the ones it found, never one after the other, `pointer-events` being
-  inherited. A sheet laid on all (`* { pointer-events: auto }`) and removed at each Tab
-  made the style of the whole page be recomputed twice — three fifths of the time of a
-  Tab on a page of two thousand elements, and the walk of the access roles, more than 350
+  `frontend/e2e/focus-probe.ts`), in both modes, the focus indicator painted in each (#784): at 1366
+  points, Tab from the top of the page, at 911 points from where the first walk stopped, each time
+  until the return to the first element reached. Each element reached is seen — displayed, not
+  transparent, and the middle of what remains of it — of its first box, for a link wrapped over two
+  lines, whose bounding box has its middle between the two (#784) —, clipped by the viewport and by
+  the padding box of each box that clips it along its containing blocks, is the element itself:
+  nothing that paints is drawn over it, a layer the pointer passes through included —, and nothing
+  else takes the pointer there, a transparent layer that captures clicks included (`covered`). It
+  carries a focus indicator: an outline or a shadow it did not carry before the walk, when nothing
+  had the focus — or, for an element born since, that it no longer carries once left; an element
+  born since and gone once left is not judged, and is reported (`unjudged`) —, not transparent, at
+  least one side outside what the boxes that clip it cut off and, inside, not under what covers it:
+  what the element contains for an inner shadow, a positioned element for an outline. An element
+  reached twice before the return to the first is a trap, like an element that keeps the focus from
+  one Tab to the next longer than a field made of fields — the day, the month and the year of a
+  date. Each element Tab can reach — displayed, enabled, of non-negative keyboard order — must be
+  reached itself, or, for a widget that moves the focus itself (grid, tree, menu, list, radio group,
+  tabs, toolbar), the focus must enter it; each of these widgets must be entered (`stopless`); no
+  element may lie entirely beyond the edge of a box that hides what overflows it, which the browser
+  scrolls on focus but the pointer does not reach — a box the user scrolls is never an edge: what it
+  hides, it shows by scrolling, and it is the box that must be within the boxes around it; what it
+  shows is still judged against them; no link or button — nor anything that states its role, or that
+  of a checkbox (`[role=button]`, `link`, `checkbox`) — is taken out of the keyboard order outside
+  such a widget. Finally, everything Tab reaches at 1366 points, it still reaches at 911 (`lost`).
+  To see what paints over an element, the walk makes only the elements that do not take the pointer,
+  and whose box touches that of the element or of one of its children, take it for the time of the
+  measurement — each point the measurement asks the browser for is in one of them —, then puts them
+  back as they were; it reads all the elements first, then writes the ones it found, never one after
+  the other, `pointer-events` being inherited. A sheet laid on all (`* { pointer-events: auto }`)
+  and removed at each Tab made the style of the whole page be recomputed twice — three fifths of the
+  time of a Tab on a page of two thousand elements, and the walk of the access roles, more than 350
   Tabs at each width, at 84 of the 90 seconds of its timeout under four workers, 69 once only the
-  elements without pointer were changed, all of them, at each Tab, 54 once those that touch
-  the element were changed (#1263). The rest is that of the page and of the round trips: alone,
-  each width of the walk occupies the browser 12 of its 16 seconds, 10 without any pointer
-  measurement. The walk presses Tab in batches (`BATCH`, sixteen keys) and reads in a single
-  `evaluate`, after each batch, what the page measured for each key: only one round trip per element
-  remains, that of the key, which the keyboard imposes; a read after each key made a second one, and
-  the loaded workstation pushed the walk of the roles past its 90 seconds with it (#1540). The probe
-  hears each Tab at its `keyup` — the focus moved, or it stayed, the trap the walk must see — and
-  takes the measurement, by the same code, at the moment the walk used to take it: when the page
-  hears the walk again, the next key before any listener the page set after the probe sees it, or
-  the read of the batch. `focusin` is not enough: it fires neither when the focus stays, nor when it
-  leaves the document. Back at the first element, the page stops measuring, and the keys left in the
-  batch reach neither the listeners the page set after the probe nor the focus, so that the focus is
-  back on the first element when the next walk starts; what the page measured beyond a trap is not
-  read, nor counted in what Tab did not reach. The count of reached elements and of traps stays on
-  the test's side. The tests that walk by Tab — the screen, and what a gesture opens —, and they alone, keep their trace without DOM snapshots
-  (`withoutSnapshots`): a snapshot per key weighed more than the walk itself under load (#1540), and
-  its faults are read in its findings. `test.use({ trace })` does not apply to a single test — a
-  group refuses an option that forces a new worker: the test restarts the trace the harness opened,
-  with the same options, without the snapshots;
+  elements without pointer were changed, all of them, at each Tab, 54 once those that touch the
+  element were changed (#1263). The rest is that of the page and of the round trips: alone, each
+  width of the walk occupies the browser 12 of its 16 seconds, 10 without any pointer measurement.
+  The walk presses Tab in batches (`BATCH`, sixteen keys) and reads in a single `evaluate`, after
+  each batch, what the page measured for each key: only one round trip per element remains, that of
+  the key, which the keyboard imposes; a read after each key made a second one, and the loaded
+  workstation pushed the walk of the roles past its 90 seconds with it (#1540). The probe hears each
+  Tab at its `keyup` — the focus moved, or it stayed, the trap the walk must see — and takes the
+  measurement, by the same code, at the moment the walk used to take it: when the page hears the
+  walk again, the next key before any listener the page set after the probe sees it, or the read of
+  the batch. `focusin` is not enough: it fires neither when the focus stays, nor when it leaves the
+  document. Back at the first element, the page stops measuring, and the keys left in the batch
+  reach neither the listeners the page set after the probe nor the focus, so that the focus is back
+  on the first element when the next walk starts; what the page measured beyond a trap is not read,
+  nor counted in what Tab did not reach. The count of reached elements and of traps stays on the
+  test's side. The tests that walk by Tab — the screen, and what a gesture opens —, and they alone,
+  keep their trace without DOM snapshots (`withoutSnapshots`): a snapshot per key weighed more than
+  the walk itself under load (#1540), and its faults are read in its findings. `test.use({ trace })`
+  does not apply to a single test — a group refuses an option that forces a new worker: the test
+  restarts the trace the harness opened, with the same options, without the snapshots;
 - what a gesture opens (US-0710, `frontend/e2e/opened.ts`): on each screen, the triggers of a dialog
   or of a menu — `aria-haspopup="dialog"` or `"menu"`, which each command that opens a dialog and
   each trigger of a menu sets —, displayed and enabled, receive the focus and Enter; those of the
@@ -3843,15 +3847,14 @@ mode and in dark mode (`colorScheme`) — six tests —, each bear on the two wi
   failing check reopens the screen before the next trigger.
 
 `frontend/e2e/tab-walk.spec.ts` and `frontend/e2e/axe.spec.ts` exercise the walk and the axe audit
-themselves, on pages written for them (`page.setContent`): each defect they must
-name is named there, and what they must let pass passes. The tools of Next's development
-server (`nextjs-portal`), which the built front does not have, are set aside from axe and from the
-walk. The file is played test by test (`mode: "parallel"`): Playwright distributes its tests one by
-one among the workers and the shards of the chain, and not the file as a block; each takes
-`test.slow()`, because it opens a screen then checks it twice, which exceeds the default timeout
-on a loaded workstation; the cold compilation of a screen adds to this time only under
-`E2E_DEV_SERVER=1`, the built front having none. A reported deviation is fixed in the screen, never by setting aside a
-rule.
+themselves, on pages written for them (`page.setContent`): each defect they must name is named
+there, and what they must let pass passes. The tools of Next's development server (`nextjs-portal`),
+which the built front does not have, are set aside from axe and from the walk. The file is played
+test by test (`mode: "parallel"`): Playwright distributes its tests one by one among the workers and
+the shards of the chain, and not the file as a block; each takes `test.slow()`, because it opens a
+screen then checks it twice, which exceeds the default timeout on a loaded workstation; the cold
+compilation of a screen adds to this time only under `E2E_DEV_SERVER=1`, the built front having
+none. A reported deviation is fixed in the screen, never by setting aside a rule.
 
 What the harness does not prove, and what covers it elsewhere (US-0200, US-0710; the note of
 US-0200 in the file of EP-14 says it too):
@@ -3893,20 +3896,20 @@ fail, a grid opening that exceeds the second is only a warning there.
 
 ### Code coverage
 
-The specification asks only for the coverage of the requirements; code coverage is a
-rule of the repository, which finds what the former does not see — an error path never
-executed, dead code. The back and the front must each cover **90 % of the lines and 85 %
-of the branches**: the branches count, because an `if` without its `else` covers all its
-lines and half of the cases. Generated code is excluded from it. The client of Keycloak's administration
-API (`waterfall.platform.keycloak_admin`), which only Keycloak serves, the reading of the
-accounts by the worker (`waterfall.worker.identity_sync`), which requests it at each step, and the bootstrap
+The specification asks only for the coverage of the requirements; code coverage is a rule of the
+repository, which finds what the former does not see — an error path never executed, dead code. The
+back and the front must each cover **90 % of the lines and 85 % of the branches**: the branches
+count, because an `if` without its `else` covers all its lines and half of the cases. Generated code
+is excluded from it. The client of Keycloak's administration API
+(`waterfall.platform.keycloak_admin`), which only Keycloak serves, the reading of the accounts by
+the worker (`waterfall.worker.identity_sync`), which requests it at each step, and the bootstrap
 (`waterfall.bootstrap`), which creates the first administrator in it, are measured by
-`make test-keycloak`, at the same thresholds (`backend/coverage-keycloak.toml`), and set aside by their path
-from the measurement of the back, `make coverage-back`, which measures all the rest of the back. No line excludes itself from the
-measurement by a comment; an exclusion is written in the configuration, with its reason
-(`[tool.coverage.report]` of `backend/pyproject.toml`, `coverage` of
-`frontend/vitest.config.ts`). A test that passes over lines without checking anything is a
-defect, which the review reports.
+`make test-keycloak`, at the same thresholds (`backend/coverage-keycloak.toml`), and set aside by
+their path from the measurement of the back, `make coverage-back`, which measures all the rest of
+the back. No line excludes itself from the measurement by a comment; an exclusion is written in the
+configuration, with its reason (`[tool.coverage.report]` of `backend/pyproject.toml`, `coverage` of
+`frontend/vitest.config.ts`). A test that passes over lines without checking anything is a defect,
+which the review reports.
 
 _Checks_: `make coverage-back`, `make coverage-front`, at the full tier: they name
 the least covered files when a threshold is not reached.
@@ -3952,145 +3955,140 @@ its parameters, never a sentence.
   French catalogue, which `problem.ts` reads by `errors.${code}`; `make catalogs`, on a
   code without a key in one of the two, or on an `errors.` key the contract no longer has.
 
-- **Reacting to a refusal on the front side** — a server action never returns the raw response
-  of the API: it calls the client through `decode` of `frontend/src/api/problem.ts`, the only
-  decoder, and returns its `Outcome` — `done`; `refused`, a `Problem` to say as it is;
-  `stale` (412); `conflict` (409); `signed_out` (401); `unreachable`, the API that did not
-  answer at all, distinct from any `Problem` — the rejection of `fetch` itself, which
-  `client.ts` marks `Unreachable` (another `TypeError` is a defect and propagates), or a
-  502, 503 or 504 without a `Problem` envelope, which a gateway returns when the service is
-  down. An error response without an envelope, or whose `code` is missing from the catalogue — a
-  service more recent than the front —, counts as `INTERNAL_ERROR`, « unexpected error », at
-  the status received: the screen never displays a raw key. The component says it through
-  `OutcomeNotice` (`frontend/src/components/commands/`), as an alert: the sentence of
-  `problemMessage`, which also names the objects the refusal gives only by their identifiers when
-  the screen has read them (`names`); the lines or the projects named beyond the sentence, outside
-  the alert and described by its sentence (#765); on 412, the offer to reload the screen; the
-  conflicting object (`params.conflicting_object_id`, or failing that the one of the first refusal
-  by field that names one, `fields[].params.conflicting_object_id` of a 409 `ALREADY_EXISTS` —
-  `conflictingOf` of `frontend/src/api/problem.ts`) named when the screen knows it, through `names`,
-  or failing that by the label the refusal gives it (`conflicting_object_label`) — a project, a
-  sub-project the screen does not show, whose taken code comes back once the dialog is closed
-  (#714); on 401, the link to the login; the unreachable API announced, never a blank screen; the
-  unexpected error with its reference (`correlation_id`), like the failure screen. A server action
-  whose promise is rejected has returned no `Outcome`: the component holds it through `rejected`
-  (`frontend/src/components/commands/rejection.ts`), one rule for every screen (#330) —
-  a `TypeError` is the unreachable API: that is what the browser's rejected `fetch` throws, and
-  the browser does not distinguish it from a `TypeError` thrown elsewhere, which therefore also passes for
-  « unreachable »; any other rejection is classified by its `digest`, as the failure screen classifies it
-  (`failureOf`) — the unreachable API, the lost session with the link to the login, or
-  the unexpected error with its reference, the latter kept only if it has the form of a
-  `correlation_id` of the contract. The login
-  is `/login?next=<chemin et requête de l'écran visé>` (`loginHref`,
+- **Reacting to a refusal on the front side** — a server action never returns the raw response of
+  the API: it calls the client through `decode` of `frontend/src/api/problem.ts`, the only decoder,
+  and returns its `Outcome` — `done`; `refused`, a `Problem` to say as it is; `stale` (412);
+  `conflict` (409); `signed_out` (401); `unreachable`, the API that did not answer at all, distinct
+  from any `Problem` — the rejection of `fetch` itself, which `client.ts` marks `Unreachable`
+  (another `TypeError` is a defect and propagates), or a 502, 503 or 504 without a `Problem`
+  envelope, which a gateway returns when the service is down. An error response without an envelope,
+  or whose `code` is missing from the catalogue — a service more recent than the front —, counts as
+  `INTERNAL_ERROR`, « unexpected error », at the status received: the screen never displays a raw
+  key. The component says it through `OutcomeNotice` (`frontend/src/components/commands/`), as an
+  alert: the sentence of `problemMessage`, which also names the objects the refusal gives only by
+  their identifiers when the screen has read them (`names`); the lines or the projects named beyond
+  the sentence, outside the alert and described by its sentence (#765); on 412, the offer to reload
+  the screen; the conflicting object (`params.conflicting_object_id`, or failing that the one of the
+  first refusal by field that names one, `fields[].params.conflicting_object_id` of a 409
+  `ALREADY_EXISTS` — `conflictingOf` of `frontend/src/api/problem.ts`) named when the screen knows
+  it, through `names`, or failing that by the label the refusal gives it
+  (`conflicting_object_label`) — a project, a sub-project the screen does not show, whose taken code
+  comes back once the dialog is closed (#714); on 401, the link to the login; the unreachable API
+  announced, never a blank screen; the unexpected error with its reference (`correlation_id`), like
+  the failure screen. A server action whose promise is rejected has returned no `Outcome`: the
+  component holds it through `rejected` (`frontend/src/components/commands/rejection.ts`), one rule
+  for every screen (#330) — a `TypeError` is the unreachable API: that is what the browser's
+  rejected `fetch` throws, and the browser does not distinguish it from a `TypeError` thrown
+  elsewhere, which therefore also passes for « unreachable »; any other rejection is classified by
+  its `digest`, as the failure screen classifies it (`failureOf`) — the unreachable API, the lost
+  session with the link to the login, or the unexpected error with its reference, the latter kept
+  only if it has the form of a `correlation_id` of the contract. The login is
+  `/login?next=<chemin et requête de l'écran visé>` (`loginHref`,
   `frontend/src/navigation/login.ts`): the login route (US-0320), once the session is reopened,
   leads to `returnTarget(next)`, which follows only a path of the front — neither `//hôte`, nor an
-  address of another site — and otherwise brings back to the home page. A 401 `ACCOUNT_DEACTIVATED` does not lead
-  there, it would loop: `kindOf` files it under `refused`, and a read throws `AccountDeactivated`.
+  address of another site — and otherwise brings back to the home page. A 401 `ACCOUNT_DEACTIVATED`
+  does not lead there, it would loop: `kindOf` files it under `refused`, and a read throws
+  `AccountDeactivated`.
 
-  _Checks_: `make test-front` (`problem.test.ts`, `login.test.ts`, `rejection.test.ts`);
-  that a server action goes through `decode`, and that a rejection goes through `rejected`, the review.
+  _Checks_: `make test-front` (`problem.test.ts`, `login.test.ts`, `rejection.test.ts`); that a
+  server action goes through `decode`, and that a rejection goes through `rejected`, the review.
 
-- **Adding a code on the service side** — the code exists first in the contract (`ErrorCode`), then in
-  the models of the service that `make generate-server-models` generates from it
-  (`backend/src/waterfall/api/contract/models.py`, versioned; `make server-models-up-to-date`,
-  in `make check-contract`, fails if they are no longer those of the contract). An address there is a
-  plain text (`--type-mappings email=string`): the service returns it as it holds it, and the
-  models do not validate addresses; the core validates them by the rule of the contract (#665,
-  `is_address` of `waterfall.core.users.identity`). The core then raises
-  the exception of `waterfall.platform.errors` that carries the status of the contract — `NotFoundError`
-  404, `ForbiddenError` 403, `ConflictError` 409, `PreconditionFailedError` 412,
-  `UnprocessableError` 422, `UnavailableError` 503… — with the code, as a string, and its parameters;
-  a refusal by field is said by `FieldError(pointer, code, params)`, the pointer being that
-  of the contract (`/label` in the body, `/query/from` in the query); a key sent by the
-  client is escaped there as RFC 6901 wants it, `~` as `~0` and `/` as `~1` (`json_pointer` of
-  `waterfall.platform.errors`, #750). It never builds
-  a `Problem` nor a response: a single handler (`waterfall.api.problems`) renders every
-  error in the envelope, with the correlation identifier of the request, in the body and
-  in the `X-Correlation-ID` header. The handler likewise files, without the route thinking about it:
-  an unreadable request (body absent, `null`, not JSON or not an object, unreadable header
-  or cookie) as 400 `MALFORMED_REQUEST`; a refused value as 422
-  `VALIDATION_FAILED`, one field per fault — a `model_validator` on a readable body is
-  one, at the pointer `""` — (`VALUE_REQUIRED` for an empty value when at least one is
-  required, `VALUE_TOO_LONG`, `VALUE_OUT_OF_RANGE` with `minimum` or `maximum` for an
-  inclusive bound, `NUMBER_INVALID`, `DATE_INVALID`, otherwise `VALIDATION_FAILED`: an exclusive bound,
-  a minimum length not met by a non-empty value); a path identifier that is not
-  a UUID as 404 `NOT_FOUND`, like a non-existent or invisible object, whereas another
-  refused path parameter is a 422 by field, at the pointer `/path/<nom>`
-  (`docs/api/DECISIONS.md`, « Session et erreurs »); an unknown route, or a method the
-  route does not serve, as 404, without redirecting a trailing slash; any unexpected exception
-  as 500 `INTERNAL_ERROR`, caught by `CorrelationMiddleware`: logged once with its
-  trace, its correlation and the author of the request, without returning any of it.
-  A code the contract does not know is a defect: the handler renders it as 500.
-  A received text that contains the NUL character, which PostgreSQL refuses in a column as in
-  a `jsonb`, is a refused value — 422 `VALIDATION_FAILED` at the pointer of the field —, never a
-  500 from the database (#743): every generated model inherits from `ContractModel`
-  (`waterfall.api.contract.base`, which `[tool.datamodel-codegen]` of `backend/pyproject.toml`
-  gives to the generator), which looks for the NUL in each of its fields, an element of a list, a key or
-  value of an object included; a query or path parameter in text is typed `Text`, from the
-  same module.
+- **Adding a code on the service side** — the code exists first in the contract (`ErrorCode`), then
+  in the models of the service that `make generate-server-models` generates from it
+  (`backend/src/waterfall/api/contract/models.py`, versioned; `make server-models-up-to-date`, in
+  `make check-contract`, fails if they are no longer those of the contract). An address there is a
+  plain text (`--type-mappings email=string`): the service returns it as it holds it, and the models
+  do not validate addresses; the core validates them by the rule of the contract (#665, `is_address`
+  of `waterfall.core.users.identity`). The core then raises the exception of
+  `waterfall.platform.errors` that carries the status of the contract — `NotFoundError` 404,
+  `ForbiddenError` 403, `ConflictError` 409, `PreconditionFailedError` 412, `UnprocessableError`
+  422, `UnavailableError` 503… — with the code, as a string, and its parameters; a refusal by field
+  is said by `FieldError(pointer, code, params)`, the pointer being that of the contract (`/label`
+  in the body, `/query/from` in the query); a key sent by the client is escaped there as RFC 6901
+  wants it, `~` as `~0` and `/` as `~1` (`json_pointer` of `waterfall.platform.errors`, #750). It
+  never builds a `Problem` nor a response: a single handler (`waterfall.api.problems`) renders every
+  error in the envelope, with the correlation identifier of the request, in the body and in the
+  `X-Correlation-ID` header. The handler likewise files, without the route thinking about it: an
+  unreadable request (body absent, `null`, not JSON or not an object, unreadable header or cookie)
+  as 400 `MALFORMED_REQUEST`; a refused value as 422 `VALIDATION_FAILED`, one field per fault — a
+  `model_validator` on a readable body is one, at the pointer `""` — (`VALUE_REQUIRED` for an empty
+  value when at least one is required, `VALUE_TOO_LONG`, `VALUE_OUT_OF_RANGE` with `minimum` or
+  `maximum` for an inclusive bound, `NUMBER_INVALID`, `DATE_INVALID`, otherwise `VALIDATION_FAILED`:
+  an exclusive bound, a minimum length not met by a non-empty value); a path identifier that is not
+  a UUID as 404 `NOT_FOUND`, like a non-existent or invisible object, whereas another refused path
+  parameter is a 422 by field, at the pointer `/path/<nom>` (`docs/api/DECISIONS.md`, « Session et
+  erreurs »); an unknown route, or a method the route does not serve, as 404, without redirecting a
+  trailing slash; any unexpected exception as 500 `INTERNAL_ERROR`, caught by
+  `CorrelationMiddleware`: logged once with its trace, its correlation and the author of the
+  request, without returning any of it. A code the contract does not know is a defect: the handler
+  renders it as 500. A received text that contains the NUL character, which PostgreSQL refuses in a
+  column as in a `jsonb`, is a refused value — 422 `VALIDATION_FAILED` at the pointer of the field
+  —, never a 500 from the database (#743): every generated model inherits from `ContractModel`
+  (`waterfall.api.contract.base`, which `[tool.datamodel-codegen]` of `backend/pyproject.toml` gives
+  to the generator), which looks for the NUL in each of its fields, an element of a list, a key or
+  value of an object included; a query or path parameter in text is typed `Text`, from the same
+  module.
 
   _Checks_: `make server-models-up-to-date`; `make test-back` (`test_api_problems.py`,
-  `test_access_roles_guard.py` for the NUL); that every text parameter is a `Text`, that the
-  code and the status are those of the contract for the operation, the review, then the validation of the
+  `test_access_roles_guard.py` for the NUL); that every text parameter is a `Text`, that the code
+  and the status are those of the contract for the operation, the review, then the validation of the
   responses of the API tests against the contract.
 
 - **Logs and responses of the API tests** — an API test goes through `ContractClient`
-  (`backend/tests/support.py`), which validates every response against the contract with openapi-core:
-  a response outside the schema fails the test. The logs are those of structlog in JSON
-  (`waterfall.platform.logs`): a record carries `level`, `timestamp`, `actor` and, within
-  a request, `correlation_id`; any field whose name contains `password`, `token`,
-  `secret`, `authorization` or `cookie` is removed from it. The value of every secret of the
-  settings (`Settings.secret_values()`, the password of a URL included) is moreover replaced by
-  `***` in the whole rendered text of a record — message, trace, `repr` —, including those
-  of the libraries. The limit: a secret the settings do not know (a session
-  token, a password received in a request) is neither removed under another name nor masked
-  by its value: it is not logged, nor put in the message of an exception. A
-  decoded form of the password of a URL is kept only if it is at least four
-  characters long, failing which it would mask any text that contains it; the whole URL and the
+  (`backend/tests/support.py`), which validates every response against the contract with
+  openapi-core: a response outside the schema fails the test. The logs are those of structlog in
+  JSON (`waterfall.platform.logs`): a record carries `level`, `timestamp`, `actor` and, within a
+  request, `correlation_id`; any field whose name contains `password`, `token`, `secret`,
+  `authorization` or `cookie` is removed from it. The value of every secret of the settings
+  (`Settings.secret_values()`, the password of a URL included) is moreover replaced by `***` in the
+  whole rendered text of a record — message, trace, `repr` —, including those of the libraries. The
+  limit: a secret the settings do not know (a session token, a password received in a request) is
+  neither removed under another name nor masked by its value: it is not logged, nor put in the
+  message of an exception. A decoded form of the password of a URL is kept only if it is at least
+  four characters long, failing which it would mask any text that contains it; the whole URL and the
   encoded form remain masked in every case.
 
 - **Accessing the data of a module** — the tables of a module are classes on the `Base` of
-  `waterfall.platform.database`, in its `tables.py`, private; its data access, functions
-  of its module that take a `Session`, private too; the `interface` offers the
-  others only what it declares, as plain objects and not as rows of the table. A write
-  receives as an argument who writes and at what moment (`Stamp(author, at)`, the author being `None` for
-  the platform): the core does not read the clock. An identifier is drawn from `new_id()`
-  (`waterfall.platform.identifiers`), an instant from `UtcDateTime`, which refuses an instant without
-  a time zone. One request, one transaction: `Database.transaction()` commits it at the end of the block and
-  rolls it back if an exception passes through, the response being built before. A change that
-  carries a `lock_version` tests it in the write itself and raises `PreconditionFailedError` if the
-  version is no longer the right one.
+  `waterfall.platform.database`, in its `tables.py`, private; its data access, functions of its
+  module that take a `Session`, private too; the `interface` offers the others only what it
+  declares, as plain objects and not as rows of the table. A write receives as an argument who
+  writes and at what moment (`Stamp(author, at)`, the author being `None` for the platform): the
+  core does not read the clock. An identifier is drawn from `new_id()`
+  (`waterfall.platform.identifiers`), an instant from `UtcDateTime`, which refuses an instant
+  without a time zone. One request, one transaction: `Database.transaction()` commits it at the end
+  of the block and rolls it back if an exception passes through, the response being built before. A
+  change that carries a `lock_version` tests it in the write itself and raises
+  `PreconditionFailedError` if the version is no longer the right one.
 
   _Checks_: `make test-back` (`tests/test_users_data_access.py`); `make imports-back` for
   the boundaries; that the write tests its `lock_version` in the query, the review.
 
 - **Knowing the caller** — a guarded route takes `Caller` and, if it reads or writes the database,
-  `Transaction` (`waterfall.api.authentication`): the first validates the access token by the
-  keys of the realm (`waterfall.platform.keycloak`) and reads the account by `idp_subject` at every
+  `Transaction` (`waterfall.api.authentication`): the first validates the access token by the keys
+  of the realm (`waterfall.platform.keycloak`) and reads the account by `idp_subject` at every
   request, the second opens the transaction of the request, committed when the route has built its
-  response and before it leaves. No call to Keycloak is made inside a transaction (#669):
-  the caller is read, then admitted if need be, and its permissions read (`Acting`), each in a
-  short transaction of its own, and a route that calls Keycloak — `closeMySessions`, `createUser`,
-  `setUserActivation` and `setUserAccessRoles`, which close the sessions of an account deactivated or
-  stripped of all its roles once the write is committed, `createPasswordSetupLink`, which has the
+  response and before it leaves. No call to Keycloak is made inside a transaction (#669): the caller
+  is read, then admitted if need be, and its permissions read (`Acting`), each in a short
+  transaction of its own, and a route that calls Keycloak — `closeMySessions`, `createUser`,
+  `setUserActivation` and `setUserAccessRoles`, which close the sessions of an account deactivated
+  or stripped of all its roles once the write is committed, `createPasswordSetupLink`, which has the
   link made by the extension and records it in the log, without its token, only once done,
-  `updateMyPreferences`, which gives the chosen language to the account at Keycloak before writing it and
-  writes nothing as long as it does not answer — does not take `Transaction`, but opens its own before
-  and after the call. An absent or invalid token is
-  a 401 `SESSION_REQUIRED`, an expired token a 401 `SESSION_EXPIRED`, a token whose
-  login (`auth_time`, failing that `iat`) precedes the last closing of the sessions of the account, or
-  falls within its second, a 401 `SESSION_REVOKED` — `closeMySessions`, the deactivation and the
-  removal of all the roles note its time, `sessions_closed_at`, before calling Keycloak
-  (#668, #835, #855) —, a deactivated account a 401
+  `updateMyPreferences`, which gives the chosen language to the account at Keycloak before writing
+  it and writes nothing as long as it does not answer — does not take `Transaction`, but opens its
+  own before and after the call. An absent or invalid token is a 401 `SESSION_REQUIRED`, an expired
+  token a 401 `SESSION_EXPIRED`, a token whose login (`auth_time`, failing that `iat`) precedes the
+  last closing of the sessions of the account, or falls within its second, a 401 `SESSION_REVOKED` —
+  `closeMySessions`, the deactivation and the removal of all the roles note its time,
+  `sessions_closed_at`, before calling Keycloak (#668, #835, #855) —, a deactivated account a 401
   `ACCOUNT_DEACTIVATED`; an account Waterfall does not know yet is created without a role if it
   comes from the directory or from an external provider, refused otherwise by a 401
   `ACCOUNT_NOT_ADMITTED` (#664), its cause written to the log alone. The caller becomes the author
-  (`actor`) of every log of the request. The API reads `WATERFALL_KEYCLOAK_ADDRESS`, the address
-  of the browser, which names the issuer of the tokens, `WATERFALL_KEYCLOAK_BACKCHANNEL`, the one where it
-  reaches Keycloak if it has another, and the secret `WATERFALL_SERVICE_CLIENT_SECRET`. A test
-  signs its tokens with keys it generates and serves as the realm serves its own
-  (`tests/realm.py`); what requires the administration API of Keycloak
-  (`waterfall.platform.keycloak_admin`) is tested against the platform (`make test-keycloak`).
+  (`actor`) of every log of the request. The API reads `WATERFALL_KEYCLOAK_ADDRESS`, the address of
+  the browser, which names the issuer of the tokens, `WATERFALL_KEYCLOAK_BACKCHANNEL`, the one where
+  it reaches Keycloak if it has another, and the secret `WATERFALL_SERVICE_CLIENT_SECRET`. A test
+  signs its tokens with keys it generates and serves as the realm serves its own (`tests/realm.py`);
+  what requires the administration API of Keycloak (`waterfall.platform.keycloak_admin`) is tested
+  against the platform (`make test-keycloak`).
 
   _Checks_: `make test-back` (`tests/test_api_authentication.py`, which also counts the
   connections taken during the call to Keycloak, `Watching` of `tests/support.py`),
@@ -4135,33 +4133,32 @@ language is chosen.
     gives (`confirmed: true`), which is not displayed;
   - a value that carries a dot reads as a level, next-intl reserving the dot for the
     path: `permissions.users.write`, `enums.ComputedField.task.start`.
-- **A value is an ICU message** — `{max_columns, plural, one {…} other {…}}` —, with the
-  same arguments in both catalogues, which `make catalogs` checks; the label of an enumeration value or of a
-  permission is text without an argument. French follows its typography: a non-breaking space
-  before the colon, a thin non-breaking space before the semicolon and the exclamation and
-  question marks, a typographic apostrophe; English follows British spelling.
+- **A value is an ICU message** — `{max_columns, plural, one {…} other {…}}` —, with the same
+  arguments in both catalogues, which `make catalogs` checks; the label of an enumeration value or
+  of a permission is text without an argument. French follows its typography: a non-breaking space
+  before the colon, a thin non-breaking space before the semicolon and the exclamation and question
+  marks, a typographic apostrophe; English follows British spelling.
 - **Adding a key** means writing it in both catalogues, at the same place, and reading it through
-  `useTranslations` — client component, or server component without `await` — or through `createTranslator`
-  and `requestLanguage()` in an asynchronous server component. A value added to an
-  enumeration of the contract adds its key in the same change.
+  `useTranslations` — client component, or server component without `await` — or through
+  `createTranslator` and `requestLanguage()` in an asynchronous server component. A value added to
+  an enumeration of the contract adds its key in the same change.
 - **What the user has typed is not translated**: a task label, a project name
   are displayed as they are (WF-INTF-0170).
-- **The formats** are those of `frontend/src/i18n/format.ts`, by language: an amount, a
-  decimal, hours from the exact string of the contract (`formatMoney`, `formatDecimal`),
-  never from a float; a planning date as it is, without a time zone
-  (`formatPlanningDate`); a timestamp in the local time of the workstation, written in the browser
-  (`LocalTime`); a ratio typed or set — a rate, a probability, a bound — as a
-  percentage, from its exact string, every digit kept (`formatPercent`); a share the
-  server computes — the share of a cost type or of a position, a progress, a load rate — to the
-  hundredth of a percent (`formatShare`): a non-zero share that rounding would call zero is said
-  « < 0.01 % », or « > -0.01 % », through the catalogue (`share`); a zero share, whatever the
-  number of its zeros, reads « 0 % »; near 100 %, ordinary rounding (EP-14/L51). A share
-  the contract gives as zero is zero: a non-zero share is never given as zero, but to its
-  first significant digit (EP-14/L42o, #694), and the bridge of L51, which judged a share zero
-  by its amount, is removed (EP-14/L52). In French, `Intl` separates thousands with a thin
-  non-breaking space (U+202F): « 1 234,56 » does not break at the end of a line. English is formatted in British
-  English (`en-GB`), as its catalogues are written: « 31 May 2026, 16:30 », the
-  numbers remaining « 1,234.56 ».
+- **The formats** are those of `frontend/src/i18n/format.ts`, by language: an amount, a decimal,
+  hours from the exact string of the contract (`formatMoney`, `formatDecimal`), never from a float;
+  a planning date as it is, without a time zone (`formatPlanningDate`); a timestamp in the local
+  time of the workstation, written in the browser (`LocalTime`); a ratio typed or set — a rate, a
+  probability, a bound — as a percentage, from its exact string, every digit kept (`formatPercent`);
+  a share the server computes — the share of a cost type or of a position, a progress, a load rate —
+  to the hundredth of a percent (`formatShare`): a non-zero share that rounding would call zero is
+  said « < 0.01 % », or « > -0.01 % », through the catalogue (`share`); a zero share, whatever the
+  number of its zeros, reads « 0 % »; near 100 %, ordinary rounding (EP-14/L51). A share the
+  contract gives as zero is zero: a non-zero share is never given as zero, but to its first
+  significant digit (EP-14/L42o, #694), and the bridge of L51, which judged a share zero by its
+  amount, is removed (EP-14/L52). In French, `Intl` separates thousands with a thin non-breaking
+  space (U+202F): « 1 234,56 » does not break at the end of a line. English is formatted in British
+  English (`en-GB`), as its catalogues are written: « 31 May 2026, 16:30 », the numbers remaining «
+  1,234.56 ».
 
 _Checks_: `make typecheck-front` — next-intl is typed by the French catalogue, and a
 key the code uses without it having it breaks the typing, as does a key missing from the
@@ -4193,84 +4190,81 @@ Tailwind and the shadcn/ui components read through the theme (`bg-primary`,
 neutrals from shadcn/ui; the typeface is Geist, that of the logo.
 
 - **Light and dark through the same tokens.** Each colour token carries its two values,
-  `light-dark(claire, sombre)`. The document follows the workstation (`color-scheme: light dark`); when
-  the account forces a mode (`DisplayPreferences.theme`), the root layout sets
+  `light-dark(claire, sombre)`. The document follows the workstation (`color-scheme: light dark`);
+  when the account forces a mode (`DisplayPreferences.theme`), the root layout sets
   `data-theme="light"` or `data-theme="dark"` on `<html>`, resolved on the server side like the
-  language. No component asks itself which mode is displayed: Tailwind's `dark:`
-  variant, which would follow only the workstation and ignore the forced mode, is refused. A state
-  that changes colour — hover, current page — has its own token (`--primary-hover`),
-  measured like the others.
-- **Adding a colour means adding a token**: its light value and its dark value in
-  `:root`, its name in `@theme inline` (`--color-<nom>: var(--<nom>)`), and each pair of
-  text and background it forms in `frontend/src/theme/contrast.test.ts`; a component then uses
-  its class (`bg-<nom>`). Never a colour in a component: neither a class of Tailwind's
-  palette, removed from the theme — `bg-blue-500` produces nothing —, nor an arbitrary
-  value of a colour utility (`bg-[#027dc6]`, `bg-[red]`) — a length or a
-  number pass, `ring-[3px]` —, nor a variable in parentheses (`bg-(--x)`,
-  `font-(family-name:--x)`), which nobody has measured, nor an arbitrary property that paints or a variable
-  (`[color:…]`, `[--primary:…]`), nor `color-mix(`, nor a colour written in a string,
-  in a `style` or in the attribute of an SVG. A typeface is added the same way, through a
+  language. No component asks itself which mode is displayed: Tailwind's `dark:` variant, which
+  would follow only the workstation and ignore the forced mode, is refused. A state that changes
+  colour — hover, current page — has its own token (`--primary-hover`), measured like the others.
+- **Adding a colour means adding a token**: its light value and its dark value in `:root`, its name
+  in `@theme inline` (`--color-<nom>: var(--<nom>)`), and each pair of text and background it forms
+  in `frontend/src/theme/contrast.test.ts`; a component then uses its class (`bg-<nom>`). Never a
+  colour in a component: neither a class of Tailwind's palette, removed from the theme —
+  `bg-blue-500` produces nothing —, nor an arbitrary value of a colour utility (`bg-[#027dc6]`,
+  `bg-[red]`) — a length or a number pass, `ring-[3px]` —, nor a variable in parentheses
+  (`bg-(--x)`, `font-(family-name:--x)`), which nobody has measured, nor an arbitrary property that
+  paints or a variable (`[color:…]`, `[--primary:…]`), nor `color-mix(`, nor a colour written in a
+  string, in a `style` or in the attribute of an SVG. A typeface is added the same way, through a
   `--font-<nom>` token.
 - **The mark of a differential** (US-0500) has three line tokens and three mark tokens,
-  `--diff-added`, `--diff-removed`, `--diff-modified` and their `-mark` — a green, a red, a yellow —,
-  which `DiffMark` sets (`frontend/src/components/grid/diff-mark.tsx`); the colour doubles the character
-  `+`, `-` or `M` and the word, it never replaces them. The text of the page and the mark reach
-  4.5:1 on each tint in both modes (`contrast.test.ts`).
+  `--diff-added`, `--diff-removed`, `--diff-modified` and their `-mark` — a green, a red, a yellow
+  —, which `DiffMark` sets (`frontend/src/components/grid/diff-mark.tsx`); the colour doubles the
+  character `+`, `-` or `M` and the word, it never replaces them. The text of the page and the mark
+  reach 4.5:1 on each tint in both modes (`contrast.test.ts`).
 - **The contrast** of a text on its background reaches 4.5:1, that of what shows a control —
   border of a field, focus ring — 3:1, in both modes (WCAG AA, §3.6).
-- **A signal goes through `Signal`** (`frontend/src/components/signal/`), and only
-  through it (WF-IHM-0070): it receives an `AlertZone` of the contract and renders it by a
-  Lucide shape, its label from the catalogue (`enums.AlertZone.<zone>`) and its token,
-  `--signal-<zone>`, in a single table typed on `AlertZone`. **A zone comes from the
-  server**, which classifies by the thresholds of the reference data: the front never derives one
-  from a value (WF-ARC-0020). A null or absent zone renders no `Signal`; the value
-  says that it is missing (`ComputedIndicator`); never `?? "nominal"`. The signal tokens
-  are measured like the others, and moreover in greyscale and as seen by a protanope and a
-  deuteranope (`contrast.test.ts`); the alert stands out the most from the page there in both modes —
-  the darkest in light, the brightest in dark —, the nominal the least. Outside `src/components/signal/`, a colour utility that names
-  a zone token (`bg-signal-alert`, `text-signal-watch`) is refused: `SIGNAL_SYNTAX` of
-  `frontend/eslint.config.mjs`, `make lint-front`, tested by `colour-guard.test.ts`.
-  That no screen distinguishes two states by colour alone — a dot, a tinted
-  line without shape or text —, it is otherwise the review that holds it; the tests of
-  `Signal` prove it for the component.
+- **A signal goes through `Signal`** (`frontend/src/components/signal/`), and only through it
+  (WF-IHM-0070): it receives an `AlertZone` of the contract and renders it by a Lucide shape, its
+  label from the catalogue (`enums.AlertZone.<zone>`) and its token, `--signal-<zone>`, in a single
+  table typed on `AlertZone`. **A zone comes from the server**, which classifies by the thresholds
+  of the reference data: the front never derives one from a value (WF-ARC-0020). A null or absent
+  zone renders no `Signal`; the value says that it is missing (`ComputedIndicator`); never
+  `?? "nominal"`. The signal tokens are measured like the others, and moreover in greyscale and as
+  seen by a protanope and a deuteranope (`contrast.test.ts`); the alert stands out the most from the
+  page there in both modes — the darkest in light, the brightest in dark —, the nominal the least.
+  Outside `src/components/signal/`, a colour utility that names a zone token (`bg-signal-alert`,
+  `text-signal-watch`) is refused: `SIGNAL_SYNTAX` of `frontend/eslint.config.mjs`,
+  `make lint-front`, tested by `colour-guard.test.ts`. That no screen distinguishes two states by
+  colour alone — a dot, a tinted line without shape or text —, it is otherwise the review that holds
+  it; the tests of `Signal` prove it for the component.
 - **The state of a project goes through `ProjectStateBadge`** (`frontend/src/components/projects/`,
   #523), everywhere a screen shows it — the home page, the list of the portfolio, the page, the
   settings and the life cycle of a project: a dot filled with the token of its state,
   `--state-<état>`, its text from the token `--state-<état>-foreground`, in the palette the author
   has validated — light grey for Created, blue for Pricing, green for In progress, dark grey for
   Completed, orange for Lost, muted red for Abandoned —, and always the word of the state and its
-  icon, specific to each and distinct from the shapes of `Signal`. `contrast.test.ts` measures the text
-  of each state on its dot, and keeps each state token away from the zone tokens:
-  a state does not read as an alert.
-- **shadcn/ui everywhere a component exists**: a component is added by copying its source
-  into `frontend/src/components/ui/` (`frontend/components.json` gives the paths), and
-  only when a screen uses it; what it offers and no screen uses — a
-  variant, a part — is not copied. Once copied, it is code of the repository, subject to all its
-  rules: header, lint, JSDoc, coverage, texts through the catalogue, colours through the tokens
-  — its classes are rewritten on the tokens of the visual identity (`bg-popover`, `bg-sidebar-accent`),
-  and a token it expects and the visual identity does not have is added there, measured. A CSS variable is not
-  set in a `style`: the visual identity declares it (`--sidebar-width`). Radix, its foundation, comes
-  from the `radix-ui` package, a single one, examined for the network guard. A component that passes another
-  to a client component from a server component passes it an element, never a
-  function — an icon is handed over drawn (`commandIcon`).
-- **The layout** follows the mockup validated by the user (EP-02, « Charte
-  graphique »): the sidebar is the Sidebar of shadcn/ui, collapsible into a rail of icons where
-  each entry keeps its name and shows it in a tooltip; the top bar carries the
-  breadcrumb, the search, the button of the tasks and messages panel and, on the right, the
-  avatar button that drops down the account menu (DropdownMenu). A screen is built on the template of
-  `frontend/src/components/shell/page-header.tsx`: `Screen`, its `<main>`, and `PageHeader`,
-  the title and the icon of its function, a line below, its commands on the right.
+  icon, specific to each and distinct from the shapes of `Signal`. `contrast.test.ts` measures the
+  text of each state on its dot, and keeps each state token away from the zone tokens: a state does
+  not read as an alert.
+- **shadcn/ui everywhere a component exists**: a component is added by copying its source into
+  `frontend/src/components/ui/` (`frontend/components.json` gives the paths), and only when a screen
+  uses it; what it offers and no screen uses — a variant, a part — is not copied. Once copied, it is
+  code of the repository, subject to all its rules: header, lint, JSDoc, coverage, texts through the
+  catalogue, colours through the tokens — its classes are rewritten on the tokens of the visual
+  identity (`bg-popover`, `bg-sidebar-accent`), and a token it expects and the visual identity does
+  not have is added there, measured. A CSS variable is not set in a `style`: the visual identity
+  declares it (`--sidebar-width`). Radix, its foundation, comes from the `radix-ui` package, a
+  single one, examined for the network guard. A component that passes another to a client component
+  from a server component passes it an element, never a function — an icon is handed over drawn
+  (`commandIcon`).
+- **The layout** follows the mockup validated by the user (EP-02, « Charte graphique »): the sidebar
+  is the Sidebar of shadcn/ui, collapsible into a rail of icons where each entry keeps its name and
+  shows it in a tooltip; the top bar carries the breadcrumb, the search, the button of the tasks and
+  messages panel and, on the right, the avatar button that drops down the account menu
+  (DropdownMenu). A screen is built on the template of
+  `frontend/src/components/shell/page-header.tsx`: `Screen`, its `<main>`, and `PageHeader`, the
+  title and the icon of its function, a line below, its commands on the right.
 - **Density**: the grids and the lists are dense — the most information before the
   eyes —, the indicator screens airy; each function has its own, in a typed table
   (`FUNCTION_DENSITY`, `function-display.ts`), which `Screen` and `PageHeader` receive.
-- **A Lucide icon on every navigation entry, every button and every line
-  nature.** For the functions, the blocks, the commands, the account pages, the line natures,
-  the scheduling modes and the progress states, it is drawn from a table typed on what it represents — `FUNCTION_ICONS`,
+- **A Lucide icon on every navigation entry, every button and every line nature.** For the
+  functions, the blocks, the commands, the account pages, the line natures, the scheduling modes and
+  the progress states, it is drawn from a table typed on what it represents — `FUNCTION_ICONS`,
   `GROUP_ICONS`, `PROJECT_COMMAND_ICONS` and `REVISION_COMMAND_ICONS`, `ACCOUNT_ICONS`,
-  `ROW_NATURE_ICONS`, `SCHEDULING_MODE_ICONS` and `PROGRESS_ICONS` —, so that a value added without an icon breaks the typing; elsewhere — a
-  button of the shell, a notice, a system page —, it is set inline. An icon next to its text is `aria-hidden`; a
-  lone icon carries a name — the button that carries it, or the icon itself (`role="img"`), the
-  nature of a line in its cell.
+  `ROW_NATURE_ICONS`, `SCHEDULING_MODE_ICONS` and `PROGRESS_ICONS` —, so that a value added without
+  an icon breaks the typing; elsewhere — a button of the shell, a notice, a system page —, it is set
+  inline. An icon next to its text is `aria-hidden`; a lone icon carries a name — the button that
+  carries it, or the icon itself (`role="img"`), the nature of a line in its cell.
 - **Sobriety**: no ornament beyond the icons — neither gradient, nor decorative shadow, nor
   transition, nor animation, apart from the pulse of the loading skeleton, which says a state and
   stops when the workstation asks for less motion; a single shadow, `shadow-md`, on what
@@ -4282,25 +4276,24 @@ neutrals from shadcn/ui; the typeface is Geist, that of the logo.
   the dark mode applies.
 
 _Checks_: `make lint-front` — `no-restricted-syntax` (`COLOUR_SYNTAX` of
-`frontend/eslint.config.mjs`) refuses, in any string of the code, a colour class of the
-palette, an arbitrary value of a colour utility that is neither a length nor a
-number, a variable passed to a colour or typeface utility, an arbitrary typeface, an arbitrary property that paints, sets a typeface or a
-variable, `color-mix(`, a colour written as a whole string and the `dark:` variant; in a
-`style`, whatever its value, a property that paints, borders, shadows or sets a typeface,
-and a variable, whether the key is a name or a string; and, for `fill`, `stroke`, `color` and
-the colours of an SVG, any literal or template without an expression other than `currentColor`,
-`none` or `url(…)`, wherever it is in the value, a branch included.
-`frontend/src/theme/colour-guard.test.ts` tests it on trapped extracts, and checks
-that no stylesheet lives outside `src/theme/`. `make test-front` —
-`contrast.test.ts` measures each pair of tokens in both modes, `brand.test.ts`
+`frontend/eslint.config.mjs`) refuses, in any string of the code, a colour class of the palette, an
+arbitrary value of a colour utility that is neither a length nor a number, a variable passed to a
+colour or typeface utility, an arbitrary typeface, an arbitrary property that paints, sets a
+typeface or a variable, `color-mix(`, a colour written as a whole string and the `dark:` variant; in
+a `style`, whatever its value, a property that paints, borders, shadows or sets a typeface, and a
+variable, whether the key is a name or a string; and, for `fill`, `stroke`, `color` and the colours
+of an SVG, any literal or template without an expression other than `currentColor`, `none` or
+`url(…)`, wherever it is in the value, a branch included. `frontend/src/theme/colour-guard.test.ts`
+tests it on trapped extracts, and checks that no stylesheet lives outside `src/theme/`.
+`make test-front` — `contrast.test.ts` measures each pair of tokens in both modes, `brand.test.ts`
 compares the logos and the icon with those of `docs/assets`. The contrast of the rendered screens is
 checked in the browser, on each screen of the application and on what a gesture opens there, in
-light and in dark (`frontend/e2e/accessibility.spec.ts`, US-0200, US-0710); the rest of the accessibility of a component, in its
-tests, through `expectAccessible` (`frontend/src/test/axe.ts`, axe-core under happy-dom, which does not
-compute colours). Left to the review: a colour built by a template with expressions
-or by a function, and a `style` or an SVG attribute that receives a variable rather than an
-object or a literal written in place; and, for the layout, that a button or an entry
-carries its icon outside the typed tables — a hand-written button —, that no shadow, no
+light and in dark (`frontend/e2e/accessibility.spec.ts`, US-0200, US-0710); the rest of the
+accessibility of a component, in its tests, through `expectAccessible` (`frontend/src/test/axe.ts`,
+axe-core under happy-dom, which does not compute colours). Left to the review: a colour built by a
+template with expressions or by a function, and a `style` or an SVG attribute that receives a
+variable rather than an object or a literal written in place; and, for the layout, that a button or
+an entry carries its icon outside the typed tables — a hand-written button —, that no shadow, no
 gradient and no animation adorns a copied component, that a screen takes the template and the
 density of its function, and that a copied component enters only with the screen that uses it.
 
@@ -4323,19 +4316,20 @@ is written.
    environment (`waterfall/migrations/env.py`) reads `WATERFALL_DATABASE_URL`, like the service;
    no database is needed to create the empty file.
 3. Write `upgrade()` and `downgrade()` by hand with `op.create_table`, `op.add_column`…: the
-   constraints are declared **without a name**, except the `<nom>` part of a check constraint
-   and an expression index (sql.md, « Nommage »). An autogenerated draft is reviewed line by
-   line; it is never committed as it is. The created file is a template: `ruff check --fix` and
-   `ruff format` (in `backend/`) bring it to the rules of the repository. A new table grants its
-   rights to the role of the service in the same migration, the role named by the database where it applies
+   constraints are declared **without a name**, except the `<nom>` part of a check constraint and an
+   expression index (sql.md, « Nommage »). An autogenerated draft is reviewed line by line; it is
+   never committed as it is. The created file is a template: `ruff check --fix` and `ruff format`
+   (in `backend/`) bring it to the rules of the repository. A new table grants its rights to the
+   role of the service in the same migration, the role named by the database where it applies
    (`format('GRANT … ON <table> TO %I', current_database() || '_service')`, in a `DO` block; a
    database name of 55 bytes at most), and declares them, with their reason, in `SERVICE_RIGHTS`
-   (`tests/test_migrations.py`) (sql.md, « Le rôle du service »): without them, the API does not read it,
-   and neither do the tests of the service; without their declaration, the test of the rights fails.
+   (`tests/test_migrations.py`) (sql.md, « Le rôle du service »): without them, the API does not
+   read it, and neither do the tests of the service; without their declaration, the test of the
+   rights fails.
 4. Add or adjust the test: the test of `tests/test_migrations.py` that compares a migrated database
-   with a database created by the tables of the code (constraints, indexes, columns and defaults, read from the
-   catalogue of PostgreSQL) fails as long as the two do not say the same thing, and
-   a test of `tests/test_database_constraints.py` tests each new constraint.
+   with a database created by the tables of the code (constraints, indexes, columns and defaults,
+   read from the catalogue of PostgreSQL) fails as long as the two do not say the same thing, and a
+   test of `tests/test_database_constraints.py` tests each new constraint.
 5. Apply: `make migrate` on the database of `WATERFALL_DATABASE_URL`, or
    `make service-up`, whose `migrate` service applies the migrations before the API.
 
@@ -4416,10 +4410,10 @@ that GitHub does not know: their commits are not « Verified » and must not rea
 `main` as they are.
 
 **Merges.** `main` receives the epic branches by merge commit, which carries their commits: they
-must therefore all be verified. So as not to block a merge, commit on
-`epic/EP-nn` and `lot/*` only with a registered key, and update a branch from `main`
-through the « Update branch » button of the pull request or through a signed local merge. Avoid « Rebase and merge »: GitHub
-then rewrites the commits without signing them.
+must therefore all be verified. So as not to block a merge, commit on `epic/EP-nn` and `lot/*` only
+with a registered key, and update a branch from `main` through the « Update branch » button of the
+pull request or through a signed local merge. Avoid « Rebase and merge »: GitHub then rewrites the
+commits without signing them.
 
 **Setting it up on `main`.** The rule is activated only once the epic in progress, EP-15,
 is merged, because it contains unsigned commits and the rule does not re-check the history

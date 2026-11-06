@@ -8,10 +8,13 @@ included, without waiting for its expiry (WF-SEC-0020). Null, the column asks no
 before it, which neither reads nor writes it; the service already updates the table.
 """
 
-from collections.abc import Sequence
+from typing import TYPE_CHECKING
 
 import sqlalchemy as sa
 from alembic import op
+
+if TYPE_CHECKING:
+    from collections.abc import Sequence
 
 revision: str = "0009"
 down_revision: str | None = "0008"

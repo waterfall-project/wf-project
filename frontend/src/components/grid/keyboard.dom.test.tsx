@@ -247,6 +247,47 @@ describe("the keyboard of a grid", () => {
     expect(header(/réestimé/)).toHaveFocus();
   });
 
+  // The scroller of a view 1000 wide, kept clear by 120 at its start (the pinned columns) and 60 at
+  // its end: the cell is seen from 120 to 940. By the cell (its left, its width) and the scroll
+  // before, the scroll after: a cell whose end is past 940 comes in by the end it overruns (160),
+  // without passing its start under 120 (the least of the two: 80 for the wide cell); one whose
+  // start is under 120 goes back by what it lacks (50); one within the view leaves it alone.
+  it.each([
+    ["past its end", 900, 200, 0, 160],
+    ["wider than the view left to it, past its end", 200, 900, 0, 80],
+    ["under the pinned columns", 70, 200, 200, 150],
+    ["within it", 220, 200, 200, 200],
+  ] as const)(
+    "scrolls the grid sideways as little as it takes to bring a header %s into view, by the padding and the width of the inside of its scroller [WF-IHM-0100-A]",
+    async (_where, left, width, from, to) => {
+      serve();
+      renderGrid();
+      // The bench makes the inside of the scroller its simulated box (`clientWidth` follows
+      // `offsetWidth`, 1000 here): had it none, the end of the view would be 0 and the scroll 900.
+      const scroller = screen.getByRole("treegrid").parentElement;
+      expect(scroller).not.toBeNull();
+      if (scroller === null) {
+        return;
+      }
+      scroller.style.setProperty("scroll-padding-inline-start", "120px");
+      scroller.style.setProperty("scroll-padding-inline-end", "60px");
+      const style = getComputedStyle(scroller);
+      expect(style.scrollPaddingInlineStart).toBe("120px");
+      expect(style.scrollPaddingInlineEnd).toBe("60px");
+      expect(scroller.clientWidth).toBe(1000);
+      const rectOf = (at: number, size: number) =>
+        ({ left: at, right: at + size, top: 0, bottom: 0, width: size, height: 0 }) as DOMRect;
+      const target = header(/réestimé/);
+      vi.spyOn(scroller, "getBoundingClientRect").mockReturnValue(rectOf(0, 1000));
+      vi.spyOn(target, "getBoundingClientRect").mockReturnValue(rectOf(left, width));
+      cell(0, "label").focus();
+      scroller.scrollLeft = from;
+      await userEvent.keyboard("{ArrowUp}{End}");
+      expect(target).toHaveFocus();
+      expect(scroller.scrollLeft).toBe(to);
+    },
+  );
+
   it("sorts a column from the header by Enter or Space [WF-IHM-0100-A]", async () => {
     serve();
     renderGrid();

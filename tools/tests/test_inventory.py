@@ -2,10 +2,14 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 """Tests of the inventory of the contract."""
 
-from pathlib import Path
+from typing import TYPE_CHECKING
 
 import inventory
-import pytest
+
+if TYPE_CHECKING:
+    from pathlib import Path
+
+    import pytest
 
 
 def test_the_inventory_reads_the_contract_and_neither_its_bundle_nor_its_lint_rules(

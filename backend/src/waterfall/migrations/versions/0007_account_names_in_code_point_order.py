@@ -10,10 +10,13 @@ the address in the collation of its column; in ``C`` it would lower the ASCII le
 every letter, the one a search lowers in.
 """
 
-from collections.abc import Sequence
+from typing import TYPE_CHECKING
 
 import sqlalchemy as sa
 from alembic import op
+
+if TYPE_CHECKING:
+    from collections.abc import Sequence
 
 revision: str = "0007"
 down_revision: str | None = "0006"

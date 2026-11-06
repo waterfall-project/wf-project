@@ -11,17 +11,15 @@ import hashlib
 import io
 import json
 import tarfile
-from collections.abc import Iterator
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
+from typing import TYPE_CHECKING
 from uuid import UUID, uuid4
 
 import pytest
 from access_rows import account, role
 from fastapi.testclient import TestClient
-from httpx2 import Response
 from installations import Installation, Provider, Take, installed, restorer_headers
-from openapi_core import OpenAPI
 from realm import KEY, TestRealm
 from sqlalchemy import insert, select
 from support import ContractClient, bearer
@@ -38,18 +36,25 @@ from waterfall.platform.audit import AuditEntry
 from waterfall.platform.database import Database, create_database_engine, utc_now
 from waterfall.platform.installation import THE_ROW
 from waterfall.platform.installation import Installation as InstallationRow
-from waterfall.platform.keycloak import Keycloak
 from waterfall.platform.keycloak_admin import KeycloakAdmin
 from waterfall.platform.maintenance import SUFFIX, Maintenance
 from waterfall.platform.queue import RESTORES as RESTORES_SUFFIX
 from waterfall.platform.queue import TaskQueue
-from waterfall.platform.settings import ServiceSettings
 from waterfall.platform.storage import Bucket, unavailable
 from waterfall.platform.tasks import BackgroundTask
 from waterfall.platform.uploads import LARGEST_PART, MOST_PARTS, SMALLEST_PART, FileUpload, cut
 from waterfall.restore.runner import Restorer
 from waterfall.restore.task import RestoreTask
 from waterfall.worker.runner import Timing
+
+if TYPE_CHECKING:
+    from collections.abc import Iterator
+
+    from httpx2 import Response
+    from openapi_core import OpenAPI
+
+    from waterfall.platform.keycloak import Keycloak
+    from waterfall.platform.settings import ServiceSettings
 
 DEPOSITS = "/api/v1/chunked-uploads"
 RESTORES = "/api/v1/restores"

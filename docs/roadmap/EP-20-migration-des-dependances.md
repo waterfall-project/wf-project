@@ -274,16 +274,23 @@ ne subsiste.
   datamodel-code-generator, `openapi-schema-validator` 0.8 par openapi-core. Le lot ne les force
   pas.
 - **Le code engendré** : `make generate-client`, puis la régénération des modèles par
-  datamodel-code-generator 0.88. Un écart de pure forme passe : ordre, mise en page, commentaires.
+  datamodel-code-generator 0.89. Un écart de pure forme passe : ordre, mise en page, commentaires.
   Un écart qui change la forme d'un modèle — son type Python, sa structure, le moteur qui valide
   ses motifs — est un constat que l'auteur tranche, même s'il ne vient que du générateur. L'essai
-  du 2026-11-03 en a trouvé un : la 0.88 met à plat l'`allOf` de `Money` et d'`IndexThreshold`.
-  Ces deux modèles passent d'une enveloppe de la classe engendrée `Decimal` à une chaîne qui
-  cumule les deux motifs, validée par le moteur de Python (`regex_engine="python-re"`) et non
-  plus par celui de pydantic. Rien ne change sur le fil, et aucun code du back ne les emploie
-  encore, mais EP-05 les emploiera (taux, seuils), et des lectures en masse paieraient le moteur
-  plus lent. Le lot ouvre le constat avec une mesure sur le volume des 6 000 nœuds, et ne
-  régénère pas les modèles avant la décision.
+  du 2026-11-03 en a trouvé un : le générateur met à plat l'`allOf` de `Money` et
+  d'`IndexThreshold`. L'auteur a tranché le 2026-11-05 (#1932) : le lot régénère les modèles par la
+  0.89, avec la cible `--target-python-version 3.14` (d'où le retrait de
+  `from __future__ import annotations`). `Money` et `IndexThreshold` passent d'une enveloppe de la
+  classe engendrée `Decimal` à une `RootModel[str]` qui cumule les deux motifs, validée par le
+  moteur de Python (`regex_engine="python-re"`) et non plus par celui de pydantic. Rien ne change
+  sur le fil, et aucun code du back ne les emploie encore.
+  - La mesure, sur 6 000 nœuds : 8,8 ms avec `python-re`, 6,1 ms pour l'ancienne enveloppe, 4,7 ms
+    pour la chaîne validée par le moteur Rust. Le surcoût est faible.
+  - L'ancienne forme avait un défaut latent : le motif s'appliquait à un `Decimal`, et la validation
+    de toute valeur valide levait `TypeError`.
+  - À savoir pour EP-05, qui emploiera ces modèles (taux, seuils) : sous `python-re`, `$` admet un
+    saut de ligne final. `Money.model_validate("1.5\n")` passe, ce que le moteur de pydantic
+    refusait.
 - **Les roues** : toutes les bibliothèques compilées du back et des outils, pyyaml compris, en ont
   une pour 3.14.
 
@@ -337,8 +344,14 @@ ne subsiste.
   `label-content-name-mismatch` (WCAG 2.5.3, « Label in Name »), qui exige que le nom accessible d'un
   contrôle contienne son texte visible. 85 parcours d'accessibilité sur 387 échouent sur deux boutons
   (#2004), des défauts qui existaient déjà. Décision de l'auteur du 2026-11-05 :
-  - **le bouton du compte** (`components/shell/account-menu.tsx`) : l'avatar, dont le texte visible est
-    les initiales, devient décoratif (`aria-hidden`) ; le nom « Compte de {name} » est conservé ;
+  - **le bouton du compte** (`components/shell/account-menu.tsx`) : son nom devient « Compte de {name},
+    {initiales} », p. ex. « Compte de Camille Martin, CM », les initiales en fin et celles que
+    l'avatar affiche, dans les catalogues français et anglais (« Account of {name}, {initials} »). Les
+    initiales ne sont pas entre parenthèses, comme l'option B le disait : `axe-core` 4.14.0 retire d'un
+    nom ses parenthèses avant de le comparer au texte visible, et « (CM) » y échouait encore (82 échecs).
+    Décision de l'auteur du 2026-11-05, option B de #2020. Raison : WCAG 2.5.3, un utilisateur de commande
+    vocale prononce ce qu'il voit, ici « CM » ; `aria-hidden` sur l'avatar réglait le lecteur d'écran, pas
+    la commande vocale. L'avatar garde `aria-hidden` (décoratif : le nom porte déjà les initiales) ;
   - **le bouton des rôles** (`components/admin/user-cells.tsx`) : son nom devient « Rôles de « {name} » :
     {liste des rôles} », la liste étant son texte visible, dans les catalogues français et anglais ;
   - les tests unitaires qui lisent ces noms suivent, ainsi que la note de `e2e/axe.ts` ; `axe-core` passe
@@ -563,6 +576,7 @@ elle dépend. Le plan de lots en tire ses « Pas avec ».
 | TypeScript reste en 6.0 (auteur, 2026-11-03) | TS 7 : `typescript-eslint` déclare `<6.1.0`, et le contournement d'une dépendance paire est un contournement d'outil |
 | corepack retiré ; un pnpm de départ, qui prend lui-même la version de `packageManager` (auteur, 2026-11-03, qui revient sur « corepack épinglé » décidé le même jour) | corepack épinglé, installé par npm : un outil de plus, que Node ne livre plus et que Dependabot ne suit pas, une version en trois copies à accorder par un test, et des pannes à lui (ses clés de signature de npm, en 2025) ; il ne servait qu'à ce que pnpm fait désormais seul |
 | JDK 25 pour construire, `release 21` (auteur, 2026-11-03) | `release 25` : Keycloak 26.8.1 tourne sur OpenJDK 21 et ne chargerait pas l'extension ; tout garder en 21 : l'outil de construction prendrait du retard sans raison |
+| Régénérer les modèles par datamodel-code-generator 0.89, cible 3.14, `Money` et `IndexThreshold` en chaîne validée par `python-re` (auteur, 2026-11-05, option 1 de #1932) | garder l'ancienne forme, une enveloppe de `Decimal` : son motif levait `TypeError` à la validation de toute valeur valide. Le surcoût de `python-re` est mesuré (8,8 ms contre 4,7 ms sur 6 000 nœuds), et `$` y admet un saut de ligne final |
 | Les versions du bilan sont des planchers, le lot prend le dernier correctif de la série | les versions exactes du bilan : un lot livré une semaine plus tard reprendrait un retard, que Dependabot signalerait aussitôt |
 | Dependabot étendu, mensuel, mineures groupées et majeures seules (auteur, 2026-11-03) | Renovate : une application GitHub de plus ; une cible `make outdated` : elle n'ouvre aucune pull request, et le bilan resterait manuel |
 | Recopier la table d'`unaccent` de la 18.6 et adapter le lecteur, dans EP-20 (auteur, 2026-11-05, option 1 de #1960) | la reporter vers un EPIC suivant : EP-20 crée l'écart, et EP-05 s'appuie sur la recherche du faux back ; la laisser : l'écart est mesuré (« ¼ » donne ` 1/4` au service, `1/4` au faux back) |
@@ -571,7 +585,7 @@ elle dépend. Le plan de lots en tire ses « Pas avec ».
 | Les valeurs des secrets de poste ne s'écrivent que dans `keycloak.yml`, `INSTALL.md` donne la commande qui en tire le fichier (auteur, 2026-11-05) | copier les valeurs dans `INSTALL.md` : elles divergent déjà (`devpostgres`, `chainonlypostgres`) |
 | La permission d'`enqueuePullRequest` se documente dans `docs/dev/agents.md` et ne se versionne pas dans `.claude/settings.json` (auteur, 2026-11-05, pour l'endroit ; le choix de ne pas la versionner est du cadrage) | la poser dans le `.claude/settings.json` du dépôt : elle s'appliquerait à tous ceux qui clonent, et la porte d'une mutation de plus ne se donne pas par un fichier versionné |
 | La documentation d'installation se prouve par relecture contre ce qui fait foi (auteur, 2026-11-05) | un essai sur un poste neuf : il n'y en a pas de disponible |
-| Les noms accessibles et `axe-core` 4.14.0 par un lot d'US-1170, L4 ; avatar décoratif, rôles nommés par leur liste (auteur, 2026-11-05, #2004) | un autre EPIC d'accessibilité : le critère d'`axe-core` 4.14.0 d'US-1170 resterait ouvert ; désactiver `label-content-name-mismatch` : un contournement d'outil |
+| Les noms accessibles et `axe-core` 4.14.0 par un lot d'US-1170, L4 ; bouton du compte nommé avec ses initiales, après une virgule (axe-core ignore une parenthèse), rôles nommés par leur liste (auteur, 2026-11-05, #2004 ; option B de #2020 pour les initiales) | un autre EPIC d'accessibilité : le critère d'`axe-core` 4.14.0 d'US-1170 resterait ouvert ; désactiver `label-content-name-mismatch` : un contournement d'outil ; l'avatar seulement `aria-hidden`, cacher les initiales à l'outil (CSS) ou sortir l'avatar du bouton : la commande vocale prononce « CM » sans le trouver dans le nom |
 | Le test de `revealSideways` dans le même lot (#2009) | un EPIC du front : même banc, même lot, un trou de couverture sans défaut |
 | L'amorce de l'annuaire par un repère, qui refuse sinon (auteur, 2026-11-05, option 2 de #1994) | l'option 1, garder le réamorçage comme compromis et le nommer : un `docker volume rm` d'un seul volume efface en silence des données que Keycloak a lues |
 | La limite de la regex de `build.py` en commentaire, rien de réécrit (auteur, 2026-11-05, option 1 de #1977) | un petit analyseur avec un test de 20 000 `\[` : le risque ne le justifie pas, aucun paragraphe de la spécification n'approche cette taille |
@@ -583,7 +597,7 @@ elle dépend. Le plan de lots en tire ses « Pas avec ».
 
 ## US-1130 — La plateforme sur PostgreSQL 18
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : aucune — plateforme
 - **opérations** : aucune
 - **issue** : #1926
@@ -625,7 +639,7 @@ La reprise des données d'une plateforme 16, et la restauration d'une sauvegarde
 
 ## US-1140 — Redis 8, Garage v2.5, Mailpit v1.33
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : aucune — plateforme
 - **opérations** : aucune
 - **issue** : #1927
@@ -650,7 +664,7 @@ Mailpit v1.33, **afin de** suivre des versions maintenues, et un Redis sous la l
 
 ## US-1150 — Un annuaire de test maintenu
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : aucune — outil du dépôt
 - **opérations** : aucune
 - **issue** : #1929
@@ -675,7 +689,7 @@ ne reposent plus sur une image figée depuis 2021.
 
 ## US-1160 — Le back et les outils sur Python 3.14
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : aucune — outil du dépôt
 - **opérations** : aucune
 - **issue** : #1930
@@ -707,7 +721,7 @@ ne pas écrire le référentiel sur un interpréteur et des bibliothèques en re
 
 ## US-1170 — Le front sur Node 26, pnpm 12 et ESLint 10
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : aucune — outil du dépôt
 - **opérations** : aucune
 - **issue** : #1933
@@ -755,7 +769,7 @@ les écrans du référentiel sur une chaîne en retard.
 
 ## US-1180 — L'extension de Keycloak construite sur un JDK 25
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : aucune — outil du dépôt
 - **opérations** : aucune
 - **issue** : #1937
@@ -780,7 +794,7 @@ l'image de Keycloak la charge toujours.
 
 ## US-1190 — La veille des versions
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : aucune — outil du dépôt
 - **opérations** : aucune
 - **issue** : #1938
@@ -808,7 +822,7 @@ par un bilan fait à la main.
 
 ## US-1200 — La chaîne sur Ubuntu 26.04, et pandoc à jour
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : aucune — outil du dépôt
 - **opérations** : aucune
 - **issue** : #1928
@@ -839,7 +853,7 @@ Toute modification du texte de la spécification.
 
 ## US-1250 — Le faux back cherche comme PostgreSQL 18
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : aucune — outil du dépôt
 - **opérations** : aucune
 - **issue** : #1981
@@ -900,7 +914,7 @@ qu'une fraction ou un guillemet les départage.
 
 ## US-1260 — La documentation d'installation d'un poste neuf
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : aucune — outil du dépôt
 - **opérations** : aucune
 - **issue** : #1982
@@ -984,7 +998,7 @@ réglages que la permission d'`enqueuePullRequest`.
 
 ## US-1270 — Les constats d'outil de l'EPIC sont corrigés
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : aucune — outil du dépôt
 - **opérations** : aucune
 - **issue** : #2016

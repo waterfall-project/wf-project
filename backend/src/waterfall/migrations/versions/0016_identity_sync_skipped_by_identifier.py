@@ -19,9 +19,12 @@ of this version reads the entries in the form this migration writes alone, with 
 another: no older code reads them, and no installation keeps an entry of the former form.
 """
 
-from collections.abc import Sequence
+from typing import TYPE_CHECKING
 
 from alembic import op
+
+if TYPE_CHECKING:
+    from collections.abc import Sequence
 
 revision: str = "0016"
 down_revision: str | None = "0015"

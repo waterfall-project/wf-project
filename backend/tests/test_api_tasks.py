@@ -8,24 +8,27 @@ answer is checked against the contract (``ContractClient``).
 
 from collections.abc import Callable
 from datetime import UTC, datetime
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from urllib.parse import quote
 from uuid import UUID, uuid4
 
 import pytest
 from realm import KEY, TestRealm
 from sqlalchemy import insert, update
-from sqlalchemy.orm import Session
 from support import ContractClient, bearer, raw_account
 from task_handlers import REQUEST, deposit
 
 from waterfall.api.contract.models import BackgroundTaskStatus, Kind
 from waterfall.core.users.tables import UserAccount
-from waterfall.platform.database import Database
 from waterfall.platform.errors import ConflictError, FieldError, UnprocessableError
-from waterfall.platform.queue import TaskQueue
 from waterfall.platform.tasks import KINDS, STATUSES, BackgroundTask, Task
 from waterfall.worker.runner import Timing, Worker
+
+if TYPE_CHECKING:
+    from sqlalchemy.orm import Session
+
+    from waterfall.platform.database import Database
+    from waterfall.platform.queue import TaskQueue
 
 TASKS = "/api/v1/tasks"
 

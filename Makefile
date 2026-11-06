@@ -3,8 +3,8 @@
 # Waterfall — repository commands.
 #
 # The specification lives in docs/spec, the interface contract in docs/api.
-# Requirements: python3 3.11+ (the projection), uv (Python 3.13 for the back and the tools),
-# node with npx and corepack (the front, the contract), pandoc 3.1.11.1 (the projection),
+# Requirements: python3 3.14+ (the projection), uv (Python 3.14 for the back and the tools),
+# node with npx and pnpm (the front, the contract), pandoc 3.13 (the projection),
 # docker (make dev), and mmdc to validate the diagrams.
 
 SPEC    := docs/spec
@@ -44,7 +44,7 @@ BACK    := backend
 FRONT   := frontend
 # An address where no API answers: the front builds without reaching one (#131).
 NOWHERE := http://127.0.0.1:9
-PNPM_ENV := COREPACK_ENABLE_DOWNLOAD_PROMPT=0 NEXT_TELEMETRY_DISABLED=1
+PNPM_ENV := NEXT_TELEMETRY_DISABLED=1
 PNPM    := cd $(FRONT) && $(PNPM_ENV) pnpm
 # pnpm for a heavy run, which waits for its turn (tools/src/wftools/slots.py).
 # The front takes the same share as the back (WATERFALL_PROCESSORS), a run of one file (TESTS) too.
@@ -53,7 +53,7 @@ PNPM_HEAVY = cd $(FRONT) && $(heavy) $(PNPM_ENV) WATERFALL_PROCESSORS=$(WATERFAL
 PNPM_TESTING = cd $(FRONT) && $(TESTING_FRONT) $(PNPM_ENV) WATERFALL_PROCESSORS=$(WATERFALL_PROCESSORS) pnpm
 # Pinned so that a check passes or fails on what this repository contains, never on
 # what a tool released overnight. Raise a version here and nowhere else.
-REDOCLY_VERSION := 2.54.3
+REDOCLY_VERSION := 2.73.0
 PRISM_VERSION   := 5.16.0
 REDOCLY := npx --yes @redocly/cli@$(REDOCLY_VERSION)
 PRISM   := npx --yes @stoplight/prism-cli@$(PRISM_VERSION)
@@ -125,9 +125,9 @@ WATERFALL_PROCESSORS ?= $(or $(shell $(if $(filter-out undefined,$(origin WATERF
 slot-variables = $(eval slot-variables := $(or $(shell $(SLOTS) which --variables),$(error no slot for this worktree: run make slot)))$(slot-variables)
 slot-value = $(patsubst $(1)=%,%,$(filter $(1)=%,$(slot-variables)))
 slot-export = $(foreach name,$(2),$(eval $(1): export $(name) ?= $$(call slot-value,$(name))))
-SLOT_SERVICE := WATERFALL_SERVICE_PROJECT WATERFALL_KEYCLOAK_IMAGE WATERFALL_POSTGRES_PORT \
-	WATERFALL_REDIS_PORT WATERFALL_API_PORT WATERFALL_KEYCLOAK_PORT WATERFALL_MAILPIT_PORT \
-	WATERFALL_PROXY_PORT
+SLOT_SERVICE := WATERFALL_SERVICE_PROJECT WATERFALL_KEYCLOAK_IMAGE WATERFALL_OPENLDAP_IMAGE \
+	WATERFALL_POSTGRES_PORT WATERFALL_REDIS_PORT WATERFALL_API_PORT WATERFALL_KEYCLOAK_PORT \
+	WATERFALL_MAILPIT_PORT WATERFALL_PROXY_PORT
 SLOT_PATHS := E2E_API_PORT E2E_FRONT_PORT
 $(call slot-export,service-up service-install keycloak-authority service-logs service-down \
 	test-keycloak e2e-service,$(SLOT_SERVICE))
@@ -243,8 +243,11 @@ lint-docker: ## Lint the Dockerfiles
 # front end is copied out first: a new volume makes a new one. The service of the restoration waits
 # for the application, which it would start with the platform: it starts last, so that the realm is
 # applied once, and Keycloak, which the application waits for, is never started again (--no-deps).
+# A start that fails prints the log of the control of the volume of PostgreSQL, which says nothing
+# unless it refuses the data of another major version (US-1130): `up --detach` shows no log.
 service-up: ## Start the service platform: PostgreSQL, Redis, the migrations, the API, the worker and its schedule, the service of the restoration, Keycloak in HTTPS and its realm, OpenLDAP, Mailpit (needs the secrets of the guide, "Commandes")
-	@$(COMPOSE_SERVICE) up --build --detach --wait postgres redis api worker scheduler keycloak keycloak-front-end openldap mailpit
+	@$(COMPOSE_SERVICE) up --build --detach --wait postgres redis api worker scheduler keycloak keycloak-front-end openldap mailpit \
+		|| { rc=$$?; $(COMPOSE_SERVICE) logs --no-color --no-log-prefix postgres-volume >&2; exit $$rc; }
 	@$(MAKE) --no-print-directory keycloak-authority
 	@$(COMPOSE_SERVICE) up --detach --wait --force-recreate --no-deps keycloak-realm
 	@$(COMPOSE_SERVICE) up --detach --wait restore
@@ -440,7 +443,7 @@ client-up-to-date: generate-client ## The versioned client is the one the contra
 # rewrite in lower case; what an address in input must be is decided apart (#665).
 SERVER_MODELS := $(BACK)/src/waterfall/api/contract/models.py
 CODEGEN := cd $(BACK) && uv run --frozen datamodel-codegen --input ../$(BUNDLE) --input-file-type openapi \
-	--output-model-type pydantic_v2.BaseModel --target-python-version 3.13 --use-annotated \
+	--output-model-type pydantic_v2.BaseModel --target-python-version 3.14 --use-annotated \
 	--disable-timestamp --type-mappings email=string --formatters ruff-format ruff-check --output
 
 generate-server-models: build-openapi ## Regenerate the Pydantic models of the service from the contract
@@ -481,10 +484,14 @@ prerendered-front: ## The production build of the front prerendered no page that
 # With SHARD, one part of the tests measured alone, its report written for coverage-front-merge
 # (frontend/.vitest/blob/), the thresholds held on the parts gathered alone. Beside the blob, which
 # says nothing of a test that fails, the dot reporter names it and its error in the log of the part:
-# a part of the chain that failed silent cost a run to diagnose (US-0590b).
-coverage-front: install-front ## Code coverage of the front: 90 % of lines, 85 % of branches (US-0060); SHARD=lint or i/N measures one part of the tests, for coverage-front-merge
+# a part of the chain that failed silent cost a run to diagnose (US-0590b). The part lint, the
+# guards that run ESLint, is played and not measured: they cover nothing of src/, and measured they
+# took three times as long, the first test of a guard starving on its minute while three of them
+# built the program of the project at once (#2015); no report of theirs is written or gathered.
+FRONT_MEASURE = $(if $(filter lint,$(SHARD)),,--coverage --reporter=blob)
+coverage-front: install-front ## Code coverage of the front: 90 % of lines, 85 % of branches (US-0060); SHARD=i/N measures one part of the tests, for coverage-front-merge; SHARD=lint plays the guards, which cover nothing, unmeasured
 ifdef SHARD
-	@$(PNPM_TESTING) exec vitest run --coverage --silent $(FRONT_PART) --reporter=blob --reporter=dot
+	@$(PNPM_TESTING) exec vitest run --silent $(FRONT_PART) $(FRONT_MEASURE) --reporter=dot
 else
 	@$(PNPM_TESTING) exec vitest run --coverage --silent
 	@$(WFTOOLS).codecoverage istanbul $(FRONT)/coverage/coverage-summary.json
@@ -587,7 +594,7 @@ slot-release: ## Remove the containers and volumes of the slot of this worktree 
 slots: ## Print N, then the slots taken on the workstation and their worktrees
 	@$(SLOTS) list
 
-# PostgreSQL 16, Redis and Garage of the platform, in memory, on the ports of the slot of the worktree
+# PostgreSQL 18, Redis and Garage of the platform, in memory, on the ports of the slot of the worktree
 # (WATERFALL_TEST_POSTGRES_PORT, _REDIS_PORT, _STORAGE_PORT): what the tests of the back and of the
 # front are given by make test-back and the others, unless their WATERFALL_TEST_*_URL says otherwise.
 test-services: ## Start, for the slot of this worktree, the services the tests run against — PostgreSQL, Redis, Garage — and wait for them; running, they stay as they are (SERVICES=<some of them>)
@@ -618,11 +625,16 @@ gate: ## Decide the outcome of the chain from its jobs (NEEDS, from GitHub Actio
 	@$(WFTOOLS).gate
 
 check-tools: ## Report which prerequisites are missing
-	@for t in python3 pandoc node npx corepack uv docker; do \
+	@for t in python3 pandoc node npx pnpm uv docker; do \
 		command -v $$t >/dev/null && echo "  ok       $$t" || echo "  missing  $$t"; \
 	done
-	@command -v pandoc >/dev/null && pandoc --version | head -1 | grep -q " 3.1.11.1$$" \
-		|| echo "  warning  pandoc is not 3.1.11.1: the projection would differ from the chain's"
+	@v=$$(cut -d. -f1,2 $(TOOLS)/.python-version); \
+		python3 --version 2>/dev/null | grep -q "^Python $$(echo "$$v" | sed 's/\./\\./g')\." \
+		|| echo "  warning  python3 is not $$v, the version of $(TOOLS)/.python-version: the guard and the slots would run by another"
+	@command -v pandoc >/dev/null && pandoc --version | head -1 | grep -q " 3.13$$" \
+		|| echo "  warning  pandoc is not 3.13: the projection would differ from the chain's"
+	@/usr/bin/pg_restore --version 2>/dev/null | grep -q " 18\." \
+		|| echo "  warning  /usr/bin/pg_restore is not PostgreSQL 18, the server's: the tests of the backups and restorations would fail (#982)"
 	@command -v mmdc >/dev/null && echo "  ok       mmdc" || echo "  absent   mmdc (diagrams will not be validated)"
 
 clean: ## Remove everything the commands generate

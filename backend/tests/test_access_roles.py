@@ -14,13 +14,12 @@ import json
 import re
 from datetime import datetime
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from uuid import UUID, uuid4
 
 import psycopg
 import pytest
 from access_rows import ADMINISTRATION, holder, role
-from openapi_core import OpenAPI
 from realm import KEY, TestRealm
 from sqlalchemy import insert, select, text
 from sqlalchemy.exc import ProgrammingError
@@ -28,14 +27,18 @@ from support import CONTRACT, ContractClient, bearer, operations, raw_account
 
 import waterfall
 from waterfall.api.app import create_app
-from waterfall.api.authentication import Services
 from waterfall.core.access_roles import roles
 from waterfall.core.access_roles.predefined import ADMINISTRATOR
 from waterfall.core.access_roles.tables import AccessRole
 from waterfall.core.users.tables import UserAccount
 from waterfall.platform.audit import AuditEntry
 from waterfall.platform.correlation import HEADER
-from waterfall.platform.database import Database
+
+if TYPE_CHECKING:
+    from openapi_core import OpenAPI
+
+    from waterfall.api.authentication import Services
+    from waterfall.platform.database import Database
 
 PERMISSIONS = "/api/v1/permissions"
 ROLES = "/api/v1/access-roles"

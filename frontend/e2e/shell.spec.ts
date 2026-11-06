@@ -97,7 +97,9 @@ test("the bar keeps the search, the tasks and the account at its right where the
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("Introuvable");
   const bar = page.getByRole("banner");
   await expect(bar.getByRole("navigation", { name: "Fil d’Ariane" })).toHaveCount(0);
-  const account = await bar.getByRole("button", { name: "Compte de Camille Martin" }).boundingBox();
+  const account = await bar
+    .getByRole("button", { name: "Compte de Camille Martin, CM" })
+    .boundingBox();
   const width = page.viewportSize()?.width ?? 0;
   expect((account?.x ?? 0) + (account?.width ?? 0)).toBeGreaterThan(width - 40);
 });
@@ -122,7 +124,7 @@ test("the menu of the account leads to the pages of the account", async ({ page 
   await compile(page.request, "/account/avatar");
   await page.goto("/");
   await openMenu(
-    page.getByRole("button", { name: "Compte de Camille Martin" }),
+    page.getByRole("button", { name: "Compte de Camille Martin, CM" }),
     page.getByRole("menu"),
   );
   await expect(page.getByRole("menuitem", { name: "Se déconnecter" })).not.toHaveAttribute(
@@ -162,7 +164,7 @@ test("a page of the account clicked in the menu while its prefetch is on its way
   });
   await page.goto("/");
   await openMenu(
-    page.getByRole("button", { name: "Compte de Camille Martin" }),
+    page.getByRole("button", { name: "Compte de Camille Martin, CM" }),
     page.getByRole("menu"),
   );
   // Hovered first, as a pointer does. Next prefetches a link when it enters the viewport, and
@@ -190,7 +192,7 @@ test("the bar tells the refusal of a write whose screen was left by « Précéde
   // without loading another.
   await page.goto("/");
   await openMenu(
-    page.getByRole("button", { name: "Compte de Camille Martin" }),
+    page.getByRole("button", { name: "Compte de Camille Martin, CM" }),
     page.getByRole("menu"),
   );
   await page.getByRole("menuitem", { name: "Mon compte" }).click();

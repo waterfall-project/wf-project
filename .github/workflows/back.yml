@@ -20,25 +20,25 @@ permissions:
 
 jobs:
   check:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     timeout-minutes: 10
     services:
       postgres:
         # The version the platform targets (deploy/compose/compose.service.yaml), by its digest.
-        image: postgres:16-bookworm@sha256:0ea6700a3b4f0ae6ce746519073558aed4d88a79d8d07622a9a644946c7319c4
+        image: postgres:18-trixie@sha256:3a4264520e121176619f54ff867d12774bc81e95e7b84db58d63bccdb6144b81
         env:
           # A server that lives for the job and is reachable from the runner alone.
           POSTGRES_HOST_AUTH_METHOD: trust
         ports:
           - 5432:5432
         options: >-
-          --health-cmd "pg_isready --username postgres"
+          --health-cmd "pg_isready --host 127.0.0.1 --username postgres"
           --health-interval 2s
           --health-timeout 3s
           --health-retries 30
       redis:
         # The image of the service platform, by its digest, which lives for the job.
-        image: redis:7-alpine@sha256:858f009f9709ce576febc734aa78b8f6d624b82571f9ddb6bda4377c833b3499
+        image: redis:8-alpine@sha256:21090af93f8324db2f0f0f4f38a7c60369d47d917e000c3423d89d2ae2883537
         ports:
           - 6379:6379
         options: >-
@@ -50,6 +50,20 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+      # The client of the server's major (the Dockerfile of the back, #982): pg_dump refuses to run
+      # against a server newer than itself, and the tests of the back back up and restore on a 18.
+      # Ubuntu 26.04 carries the client 18 in its own archive, so no repository is added (the
+      # PGDG one of the 24.04 runners, noble-pgdg, is not the distribution of this runner).
+      # /usr/bin/pg_dump and pg_restore, which the backups call, are the wrapper of Debian, which
+      # keeps the major of the cluster the image holds: they are pointed at the 18, which the last
+      # lines check.
+      - run: |
+          sudo apt-get update
+          sudo apt-get install --yes --no-install-recommends postgresql-client-18
+          sudo ln --symbolic --force /usr/lib/postgresql/18/bin/pg_dump /usr/bin/pg_dump
+          sudo ln --symbolic --force /usr/lib/postgresql/18/bin/pg_restore /usr/bin/pg_restore
+          /usr/bin/pg_dump --version | grep --fixed-strings "(PostgreSQL) 18."
+          /usr/bin/pg_restore --version | grep --fixed-strings "(PostgreSQL) 18."
       # The image and the settings of the service platform (deploy/compose/compose.service.yaml),
       # its key a value of the job; ready long before the tests, which run last.
       - run: >-
@@ -58,7 +72,7 @@ jobs:
           --env GARAGE_RPC_SECRET=c0ffeec0ffeec0ffeec0ffeec0ffeec0ffeec0ffeec0ffeec0ffeec0ffeec0ff
           --env GARAGE_DEFAULT_ACCESS_KEY=GK000000000000000000000001
           --env GARAGE_DEFAULT_SECRET_KEY=chain-only-storage-secret
-          dxflrs/garage:v2.4.1@sha256:9c96caa2612d3411acc5b0e6701fb238dbfba33e533a6d7d3d811a4b12d0d020
+          dxflrs/garage:v2.5.0@sha256:677e5b758e4425a325b811c425c026bf35a4bf42f7ddbaa773de3f4fd779a5a5
           /garage server --single-node --default-access-key
       - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
         with:

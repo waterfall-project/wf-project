@@ -44,10 +44,12 @@ are the front's own, and only their twin presence is checked.
 import argparse
 import json
 import sys
-from collections.abc import Iterator
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import cast
+from typing import TYPE_CHECKING, cast
+
+if TYPE_CHECKING:
+    from collections.abc import Iterator
 
 type Key = tuple[str, ...]
 """A key of a catalogue: the names of its levels, from the root to the leaf."""

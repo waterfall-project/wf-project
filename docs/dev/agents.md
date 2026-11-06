@@ -68,6 +68,28 @@ Ses règles sont dans le skill `pilote` (`.claude/skills/pilote/SKILL.md`). En b
   c'est lui qui reprend après une limite d'usage, un livreur planté ou une réponse donnée,
   sans personne.
 
+## La mise en file
+
+Un livreur met la pull request de son lot en file de fusion par la mutation GraphQL
+`enqueuePullRequest` (`.claude/agents/epic-deliverer.md`). Cette commande, `gh api graphql`,
+demande une permission que les règles de l'outil `Bash` ne donnent pas d'office ; c'est une
+personne qui l'accorde, une fois, avec l'entrée suivante de `permissions.allow`, éprouvée le
+2026-11-05 (un livreur a mis #1978 en file avec elle) :
+
+```json
+"permissions": { "allow": [ "Bash(gh api graphql -f query='mutation($id:ID!){enqueuePullRequest(input:{pullRequestId:$id}){mergeQueueEntry{state}}}' -f id=*)" ] }
+```
+
+- **Où elle se pose.** Dans `~/.claude/settings.json`, pour tous les dépôts du poste ; ou dans
+  `.claude/settings.json` du clone, pour ce dépôt seul. L'entrée s'ajoute à la liste
+  `permissions.allow` qui existe déjà, elle ne la remplace pas.
+- **Ce qu'elle autorise.** Cette mutation exacte, pour n'importe quel identifiant de pull request :
+  l'identifiant est le `*` final, et tout le texte de la requête doit être celui-là.
+- **Ce qu'elle n'autorise pas.** Aucune autre requête GraphQL, et ni `gh pr merge` ni une fusion
+  hors de la file : la fusion reste celle de la file, après la chaîne.
+
+[`CONTRIBUTING.md`](../../CONTRIBUTING.md) y renvoie.
+
 ## Ce qui fait foi
 
 - **Le fichier de l'EPIC** (`docs/roadmap/EP-nn-….md`) fait foi pour l'intention : périmètre,

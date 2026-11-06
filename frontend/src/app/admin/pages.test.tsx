@@ -433,7 +433,7 @@ describe("the accounts", () => {
     );
     expect(page).toContain('aria-label="Anonymiser «\u00a0Alix Moreau\u00a0»"');
     expect(page).toContain('aria-label="Compte de «\u00a0Alix Moreau\u00a0» actif"');
-    expect(page).toContain('aria-label="Rôles de «\u00a0Inès Roux\u00a0»"');
+    expect(page).toContain('aria-label="Rôles de «\u00a0Inès Roux\u00a0» : Pilotage de projet"');
     expect(page).toContain(
       'aria-label="Lien de fixation du mot de passe de «\u00a0Camille Martin\u00a0»"',
     );

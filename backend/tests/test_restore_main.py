@@ -3,7 +3,7 @@
 """The command of the service of the restoration: it refuses to start without its secrets, runs."""
 
 import os
-from pathlib import Path
+from typing import TYPE_CHECKING
 
 import pytest
 
@@ -11,9 +11,13 @@ import waterfall
 from waterfall.platform.queue import RESTORES, STREAM
 from waterfall.restore import main as restore_main
 from waterfall.restore.provider import Keycloak
-from waterfall.restore.runner import Restorer
 from waterfall.restore.task import RestoreTask
 from waterfall.worker.backup import DATABASES
+
+if TYPE_CHECKING:
+    from pathlib import Path
+
+    from waterfall.restore.runner import Restorer
 
 
 def test_the_version_is_stated_without_starting_anything(

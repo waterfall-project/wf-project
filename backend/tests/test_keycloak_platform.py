@@ -24,16 +24,18 @@ import os
 import re
 import secrets
 import time
-from collections.abc import Generator, Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import UTC, datetime
-from typing import Any, cast
+from typing import TYPE_CHECKING, Any, cast
 from urllib.parse import parse_qs, urlencode, urljoin, urlsplit
 from uuid import uuid4
 
 import httpx2
 import pytest
+
+if TYPE_CHECKING:
+    from collections.abc import Generator, Iterator
 
 pytestmark = pytest.mark.keycloak
 

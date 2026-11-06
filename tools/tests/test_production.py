@@ -111,7 +111,7 @@ def test_the_platform_is_complete_on_one_machine_its_data_in_named_volumes() -> 
         "realm-requests",
     }
     for name, kept in {
-        "postgres": "/var/lib/postgresql/data",
+        "postgres": "/var/lib/postgresql",
         "storage": "/var/lib/garage",
         "caddy": "/data",
     }.items():
