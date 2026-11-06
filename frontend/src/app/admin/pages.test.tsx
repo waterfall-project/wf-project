@@ -245,12 +245,12 @@ describe("the accounts", () => {
     expect(queriesOf("GET /users")).toEqual([{ include_inactive: "true" }]);
   });
 
-  it("stand without a node to choose where the service does not serve the tree of the organisation yet (404, EP-05)", async () => {
-    // The contract declares no 404 for the active nodes (C-01); the service, behind it, answers one.
+  it("is not found, not a list without a node, where the service answers an unexpected 404 to the read of the nodes (#2119)", async () => {
+    // The contract declares no 404 for the active nodes (C-01): one is not the tree, and comes up.
     server.behind = { route: "GET /reference/org-nodes", problem: NOT_FOUND.problem };
-    const page = text(rendered(await UsersPage(searched())));
-    expect(page).toContain("Nœud d’organisation Tous les nœuds Tous les rôles Administrateur");
-    expect(page).toContain("Comptes actifs Comptes désactivés Du Au Filtrer Créé par");
+    await expect(UsersPage(searched())).rejects.toMatchObject({
+      digest: "NEXT_HTTP_ERROR_FALLBACK;404",
+    });
   });
 
   it("ask the server for the access roles the address names among those it gives, an identifier of none not asked [WF-IHM-0130-A]", async () => {

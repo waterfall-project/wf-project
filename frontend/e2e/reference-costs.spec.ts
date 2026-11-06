@@ -17,7 +17,7 @@
  * `@shared`; the one that plays the screens of the resources, the risks and the indicators too is
  * not, those being served later (US-0850).
  */
-import { expect } from "@playwright/test";
+import { expect, type Locator } from "@playwright/test";
 
 import { sortUntilAddress, WORKING } from "./hydration";
 import { inService, test } from "./mode";
@@ -436,4 +436,147 @@ test("presents fixed the type of a nature whose category is employed, with its c
   await expect(form.getByRole("combobox", { name: "Type" })).toHaveCount(0);
   await page.keyboard.press("Escape");
   await expect(form).toBeHidden();
+});
+
+/** What a command to delete is called: the settings of the costs offer none (WF-REF-0010-A). */
+const DELETION = /supprim|effac|delete/i;
+
+test("shows the deactivated natures and categories asked for and reactivates them, offers no deletion, proposes only the active natures to a category and the nature again once reactivated (US-0880) @shared [WF-REF-0010-A] [WF-REF-0150-A]", async ({
+  page,
+}) => {
+  test.slow();
+  const suffix = String(Date.now() % 1_000_000);
+  const natureCode = `ND-${suffix}`;
+  const categoryCode = `CD-${suffix}`;
+  // The service keeps what is written: the path makes a nature and a category of its own, whose
+  // codes no run before holds. The fake back keeps nothing and ignores `include_inactive`: it
+  // answers its example whatever the address says, so what a read leaves out is asserted in
+  // service alone, and the commands against the fake back are answered by its examples.
+  const natureLabel = inService ? `Nature désactivable ${suffix}` : "Débours";
+  const categoryLabel = `Catégorie désactivable ${suffix}`;
+  const choice = inService ? `${natureCode} · ${natureLabel}` : "DEB · Débours";
+  const natures = page.getByRole("grid", { name: "Natures de coût" });
+  const categories = page.getByRole("grid", { name: "Catégories de coût" });
+  const category = categories.getByRole("row", { name: new RegExp(categoryCode) });
+  const nature = natures.getByRole("row", { name: new RegExp(natureLabel) });
+  const form = page.getByRole("dialog", { name: "Nouvelle catégorie de coût" });
+  const reactivation = natures.getByRole("button", {
+    name: `Réactiver «\u00a0${natureLabel}\u00a0»`,
+  });
+  const deactivation = natures.getByRole("button", {
+    name: `Désactiver «\u00a0${natureLabel}\u00a0»`,
+  });
+  const natureChoice = form
+    .getByRole("combobox", { name: "Nature" })
+    .getByRole("option", { name: choice });
+  /** A dialog opened by its command, pressed again until React opens it, and never once it is open. */
+  const open = async (dialog: Locator, region: string, command: string) => {
+    await expect(async () => {
+      if (!(await dialog.isVisible())) {
+        await page
+          .getByRole("region", { name: region })
+          .getByRole("button", { name: command })
+          .click();
+      }
+      await expect(dialog).toBeVisible({ timeout: 1_000 });
+    }).toPass({ timeout: WORKING });
+  };
+  /** A command of a row of the natures, pressed again until React answers it. */
+  const press = async (command: Locator, answered: Locator) => {
+    await expect(async () => {
+      if (!(await answered.isVisible())) {
+        await command.click();
+      }
+      await expect(answered).toBeVisible({ timeout: 1_000 });
+    }).toPass({ timeout: WORKING });
+  };
+
+  await page.goto(`/reference/costs?category_search=${categoryCode}`);
+  await expect(natures).toBeVisible({ timeout: WORKING });
+  await expect(categories).toBeVisible();
+  if (inService) {
+    const creation = page.getByRole("dialog", { name: "Nouvelle nature de coût" });
+    await open(creation, "Natures de coût", "Nouvelle nature");
+    await creation.getByRole("textbox", { name: "Code", exact: true }).fill(natureCode);
+    await creation.getByRole("textbox", { name: "Libellé" }).fill(natureLabel);
+    await creation
+      .getByRole("combobox", { name: "Type" })
+      .selectOption({ label: "Hors main-d’œuvre" });
+    await creation.getByRole("button", { name: "Créer" }).click();
+    await expect(creation).toBeHidden({ timeout: WORKING });
+    await expect(nature).toHaveCount(1, { timeout: WORKING });
+
+    await open(form, "Catégories de coût", "Nouvelle catégorie");
+    await form.getByRole("textbox", { name: "Code", exact: true }).fill(categoryCode);
+    await form.getByRole("textbox", { name: "Libellé" }).fill(categoryLabel);
+    await form.getByRole("combobox", { name: "Nature" }).selectOption({ label: choice });
+    await form.getByRole("textbox", { name: "Code comptable" }).fill(`607${suffix}`);
+    await form.getByRole("button", { name: "Créer" }).click();
+    await expect(form).toBeHidden({ timeout: WORKING });
+    await expect(category).toHaveCount(1, { timeout: WORKING });
+  }
+
+  try {
+    // The nature deactivated from its row: its categories go with it (WF-REF-0010-A).
+    await press(deactivation, reactivation);
+    if (inService) {
+      // A page read anew, without the deactivated, leaves both out.
+      await page.goto(`/reference/costs?category_search=${categoryCode}`);
+      await expect(natures).toBeVisible({ timeout: WORKING });
+      await expect(categories).toBeVisible();
+      await expect(nature).toHaveCount(0);
+      await expect(category).toHaveCount(0);
+    }
+
+    // The deactivated asked of the server by the switch of the header: they are there, named
+    // deactivated, the category naming the nature it is employed under, deactivated too.
+    await page.getByRole("link", { name: "Afficher aussi les désactivés" }).click();
+    await expect(page).toHaveURL(/include_inactive=true/, { timeout: WORKING });
+    await expect(page.getByRole("link", { name: "Masquer les désactivés" })).toBeVisible();
+    if (inService) {
+      await expect(reactivation).toBeVisible({ timeout: WORKING });
+      await expect(nature).toContainText("Désactivé");
+      await expect(category).toContainText(natureLabel);
+      await expect(category).toContainText("Désactivé");
+      await expect(
+        categories.getByRole("button", { name: `Réactiver «\u00a0${categoryLabel}\u00a0»` }),
+      ).toBeVisible();
+    }
+    // No screen offers to delete an object: neither a button nor a link of the page says it.
+    await expect(page.getByRole("main").getByRole("button", { name: DELETION })).toHaveCount(0);
+    await expect(page.getByRole("main").getByRole("link", { name: DELETION })).toHaveCount(0);
+
+    if (inService) {
+      // A deactivated nature is not among the choices of a category.
+      await open(form, "Catégories de coût", "Nouvelle catégorie");
+      await expect(natureChoice).toHaveCount(0);
+      await page.keyboard.press("Escape");
+      await expect(form).toBeHidden();
+    }
+
+    // Reactivated by its row: the row shows what the server answers, active again. The fake back
+    // has no example of a reactivation, and ignores the deactivated asked: the service alone.
+    if (inService) {
+      await press(reactivation, deactivation);
+      await expect(page.getByRole("main").getByRole("alert")).toHaveCount(0);
+      // Proposed again: the page read anew, the nature is among the choices.
+      await page.goto(`/reference/costs?category_search=${categoryCode}`);
+      await expect(natures).toBeVisible({ timeout: WORKING });
+      await expect(categories).toBeVisible();
+      await open(form, "Catégories de coût", "Nouvelle catégorie");
+      await expect(natureChoice).toHaveCount(1);
+      await page.keyboard.press("Escape");
+      await expect(form).toBeHidden();
+    }
+  } finally {
+    if (inService) {
+      // The nature is left deactivated, as the other paths leave theirs, even on a failure.
+      await page.goto(`/reference/costs?category_search=${categoryCode}`);
+      await expect(natures).toBeVisible({ timeout: WORKING });
+      await expect(categories).toBeVisible();
+      if (await deactivation.isVisible()) {
+        await press(deactivation, reactivation);
+      }
+    }
+  }
 });

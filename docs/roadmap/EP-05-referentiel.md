@@ -1123,7 +1123,7 @@ contrainte de la base et non un parcours. EP-09 lit l'extraction selon cette for
 
 ## US-0880 — La désactivation à la place de la suppression, et les objets désactivés
 
-- **statut** : en cours
+- **statut** : fini
 - **exigences** : `WF-REF-0010-A`, `WF-REF-0150-A`, `WF-REF-0020-A`, `WF-REF-0130-A`
 - **opérations** : les opérations d'activation et les listes du référentiel, servies par
   US-0820 à US-0860
