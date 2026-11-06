@@ -2,27 +2,37 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /*
  * The screen of the settings of the costs (`/reference/costs`): the natures, the categories and the
- * grid of the hourly rates, against the fake back.
+ * grid of the hourly rates, against the fake back and, for the paths tagged `@shared`, against the
+ * service (US-0830).
+ *
+ * The fake back serves the first example of each read of the reference data — the grid of the
+ * volumes, a hundred and fifty categories of labour over fifteen years, the natures, the
+ * organisation, the roles and the calendars of the witness —, and the first example of
+ * `setHourlyRate` whatever was written: the first rate of 2015 of the mechanical engineering of
+ * level 1, the third row of the grid, which has none before 2016. What the screens ask of each is
+ * proven by the tests of the pages and of the grid. The service keeps what is entered and answers
+ * it: the rate shown after an entry is the one typed (`inService`), and the paths that write choose
+ * their own cells and their own codes, for the installation to be played again.
  */
-import { expect, test } from "@playwright/test";
+import { expect } from "@playwright/test";
 
 import { sortUntilAddress, WORKING } from "./hydration";
+import { inService, test } from "./mode";
 import { rowAt, scroller, withinBox } from "./scroll";
 
-// The fake back serves the first example of each read of the reference data — the grid of the
-// volumes, a hundred and fifty categories of labour over fifteen years, the natures, the
-// organisation, the roles and the calendars of the witness —, and the first example of
-// `setHourlyRate` whatever was written: the first rate of 2015 of the mechanical engineering of
-// level 1, the third row of the grid, which has none before 2016. What the screens ask of each is
-// proven by the tests of the pages and of the grid.
+/** The rate typed in a cell, and what the cell then shows: the service answers what was typed. */
+const TYPED = "85";
+const ENTERED = inService ? "85,00 €" : "85,48 €";
 
-test("reads the settings of the reference data outside any project, and enters a rate on the dense grid of the hourly rates (US-0250)", async ({
+test("reads the settings of the costs outside any project with no mock-up notice, and enters a rate on the dense grid of the hourly rates, the service keeping it (US-0250) @shared [WF-REF-0050-A]", async ({
   page,
 }) => {
   await page.goto("/reference/costs");
   await expect(page).toHaveTitle("Paramètres de coûts — Waterfall");
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("Paramètres de coûts");
   await expect(page.getByText("Montants exprimés en EUR")).toBeVisible();
+  // The service keeps what is written: the screen no longer says the opposite.
+  await expect(page.getByRole("note")).toHaveCount(0);
 
   // The grid of the rates: a hundred and fifty rows over fifteen years, its totals row at the foot.
   const grid = page.getByRole("grid", { name: "Grille des taux horaires" });
@@ -46,24 +56,46 @@ test("reads the settings of the reference data outside any project, and enters a
     }
     await expect(rate).toBeFocused({ timeout: 1_000 });
   }).toPass({ timeout: WORKING });
-  await expect(rate).toHaveText("");
-  // What is typed differs from what the fake back answers: the cell shows the answer.
-  await page.keyboard.type("85");
+  if (!inService) {
+    // The fake back keeps nothing: the cell is empty. The service may hold the rate of a run before.
+    await expect(rate).toHaveText("");
+  }
+  // What is typed differs from what the fake back answers: the cell shows the answer, which the
+  // service makes the rate typed.
+  await page.keyboard.type(TYPED);
   await page.keyboard.press("Enter");
   await expect(rate).not.toHaveAttribute("aria-busy", "true");
-  await expect(rate).toHaveText("85,48 €");
+  await expect(rate).toHaveText(ENTERED);
   await expect(page.getByRole("main").getByRole("alert")).toHaveCount(0);
   await expect(rowAt(grid, 4).getByRole("gridcell").nth(6)).toBeFocused();
 
-  // Beside it, the natures and the categories of cost, on the dense grid: the header, the three
-  // natures, the totals; the categories, of which the server retains two hundred.
-  await expect(page.getByRole("grid", { name: "Natures de coût" }).getByRole("row")).toHaveCount(5);
+  // Beside it, the natures and the categories of cost, on the dense grid.
+  await expect(page.getByRole("grid", { name: "Natures de coût" })).toBeVisible();
   const categories = page.getByRole("grid", { name: "Catégories de coût" });
-  await expect(categories).toHaveAttribute("aria-rowcount", "202");
-  // By code, as the list without sort gives them: the subcontracting first.
-  await expect(rowAt(categories, 1)).toContainText("ACH-001Sous-traitance");
+  await expect(categories).toBeVisible();
+  if (!inService) {
+    // The fake back: the header, the three natures, the totals; the categories, of which the server
+    // retains two hundred, by code as the list without sort gives them: the subcontracting first.
+    await expect(page.getByRole("grid", { name: "Natures de coût" }).getByRole("row")).toHaveCount(
+      5,
+    );
+    await expect(categories).toHaveAttribute("aria-rowcount", "202");
+    await expect(rowAt(categories, 1)).toContainText("ACH-001Sous-traitance");
+  } else {
+    // The service kept the rate: the grid read anew shows it.
+    await page.reload();
+    await expect(
+      rowAt(page.getByRole("grid", { name: "Grille des taux horaires" }), 3)
+        .getByRole("gridcell")
+        .nth(6),
+    ).toHaveText(ENTERED, { timeout: WORKING });
+  }
+});
 
-  // The deactivated objects asked too: the automation engineer, deactivated, is among the roles
+test("reads the settings of the resources, the risks and the indicators outside any project, the deactivated objects asked too (US-0250)", async ({
+  page,
+}) => {
+  // The deactivated objects asked: the automation engineer, deactivated, is among the roles
   // only then (WF-REF-0150), whatever the fake back answers without the parameter.
   await page.goto("/reference/resources?include_inactive=true");
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("Paramètres de ressources");
@@ -139,7 +171,7 @@ for (const { width, height } of WINDOWS) {
   });
 }
 
-test("adds the column of a year to the grid of the hourly rates, empty, and refuses a year the grid has [WF-REF-0060-A]", async ({
+test("adds the column of a year to the grid of the hourly rates, empty, and refuses a year the grid has, the grid alone judging it, against the service as against the fake back (#299) @shared [WF-REF-0060-A]", async ({
   page,
 }) => {
   await page.goto("/reference/costs");
@@ -241,12 +273,17 @@ test("sorts the grid of the hourly rates by the rate of a year, filters the cate
   });
 });
 
-test("creates a category, enters a rate and deactivates a nature, the mock-up saying the fake back keeps nothing (EP-02/L43a)", async ({
+test("creates a category and enters a rate beside it, the page read anew dropping neither, with no mock-up notice (EP-02/L43a, US-0830) @shared [WF-REF-0050-A]", async ({
   page,
 }) => {
   test.slow();
   await page.goto("/reference/costs");
-  await expect(page.getByRole("note")).toContainText("le service simulé ne conserve");
+  await expect(page.getByRole("note")).toHaveCount(0);
+  // A code and a label no run before holds: the service keeps the category, the fake back answers
+  // its own example whatever was typed.
+  const suffix = String(Date.now() % 1_000_000);
+  const code = `FRN-${suffix}`;
+  const label = inService ? `Petites fournitures ${suffix}` : "Petites fournitures";
 
   // A category created in its form. No project is opened here, nothing witnesses the hydration:
   // the creation is pressed again until React opens its form, and never once it is open.
@@ -258,42 +295,53 @@ test("creates a category, enters a rate and deactivates a nature, the mock-up sa
     }
     await expect(form).toBeVisible({ timeout: 1_000 });
   }).toPass({ timeout: WORKING });
-  await form.getByRole("textbox", { name: "Code", exact: true }).fill("FRN-001");
-  await form.getByRole("textbox", { name: "Libellé" }).fill("Petites fournitures");
+  await form.getByRole("textbox", { name: "Code", exact: true }).fill(code);
+  await form.getByRole("textbox", { name: "Libellé" }).fill(label);
   await form.getByRole("combobox", { name: "Nature" }).selectOption({ label: "DEB · Débours" });
   await form.getByRole("textbox", { name: "Code comptable" }).fill("606001");
   await form.getByRole("button", { name: "Créer" }).click();
   await expect(form).toBeHidden({ timeout: WORKING });
   // The list says what the server created — its example —, and adds no row of its own.
   await expect(categories.getByRole("status").filter({ hasText: "créée" })).toHaveText(
-    "«\u00a0Petites fournitures\u00a0» créée.",
+    `«\u00a0${label}\u00a0» créée.`,
   );
 
-  // A rate entered on the grid, answered by the first example of `setHourlyRate`. The page the
+  // A rate entered on the grid, in a cell no other path writes, answered by the service — by the
+  // first example of `setHourlyRate` at the fake back. The page the
   // creation read anew may arrive before the rate leaves, between its leaving and its answer, or
   // after it: the same address read anew drops neither the cell pending nor its answer (défaut
   // n° 22 de `typescript.md`), and the path does not depend on the order.
   const grid = page.getByRole("grid", { name: "Grille des taux horaires" });
-  const mechanical = rowAt(grid, 3);
+  const mechanical = rowAt(grid, 5);
   const rate = mechanical.getByRole("gridcell").nth(6);
-  await mechanical.getByRole("gridcell", { name: "MO-003" }).click();
+  await mechanical.getByRole("gridcell", { name: "MO-005" }).click();
   for (let step = 0; step < 6; step += 1) {
     await page.keyboard.press("ArrowRight");
   }
   await expect(rate).toBeFocused();
-  await page.keyboard.type("85");
+  await page.keyboard.type(TYPED);
   await page.keyboard.press("Enter");
-  await expect(rate).toHaveText("85,48 €", { timeout: WORKING });
+  await expect(rate).toHaveText(ENTERED, { timeout: WORKING });
+  await expect(page.getByRole("main").getByRole("alert")).toHaveCount(0);
+});
 
+test("deactivates a nature from its row, the row showing what the fake back answers, deactivated and offering its reactivation (EP-02/L43a)", async ({
+  page,
+}) => {
+  test.slow();
+  await page.goto("/reference/costs");
   // A nature deactivated from its row: the row shows what the server answers, deactivated and
   // offering its reactivation.
   const natures = page.getByRole("grid", { name: "Natures de coût" });
-  await natures.getByRole("button", { name: "Désactiver «\u00a0Débours\u00a0»" }).click();
-  await expect(
-    natures.getByRole("button", { name: "Réactiver «\u00a0Débours\u00a0»" }),
-  ).toBeVisible({
-    timeout: WORKING,
-  });
+  // No project is opened here, nothing witnesses the hydration: the deactivation is pressed again
+  // until React answers it, and never once the row offers the reactivation.
+  const reactivation = natures.getByRole("button", { name: "Réactiver «\u00a0Débours\u00a0»" });
+  await expect(async () => {
+    if (!(await reactivation.isVisible())) {
+      await natures.getByRole("button", { name: "Désactiver «\u00a0Débours\u00a0»" }).click();
+    }
+    await expect(reactivation).toBeVisible({ timeout: 1_000 });
+  }).toPass({ timeout: WORKING });
   await expect(rowAt(natures, 1)).toContainText("Désactivé");
   await expect(
     page

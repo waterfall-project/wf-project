@@ -21,9 +21,9 @@
  * filtered by a nature chosen among every one the session reads, read whole as a list of choices is
  * (#303). A session that may modify the cost settings creates and modifies the natures and the
  * categories, and deactivates them as each lists it (EP-02/L43a), the form of a category reading the
- * type of every nature, deactivated ones included (EP-02/L42g); the screen then says that the fake
- * back keeps none of what is written (`MockupNotice`). Bounds of the rate the API refuses (422) leave the grid unread, the bound said at its
- * field; any other read the API refuses, or cannot answer, is thrown for the pages of the shell to
+ * type of every nature, deactivated ones included (EP-02/L42g); the service keeps what is written,
+ * and the screen shows no mock-up notice. Bounds of the rate the API refuses (422) leave the grid
+ * unread, the bound said at its field; any other read the API refuses, or cannot answer, is thrown for the pages of the shell to
  * say.
  */
 import { Coins } from "lucide-react";
@@ -92,7 +92,6 @@ import { InactiveSwitch } from "@/components/reference/reference-filters";
 import { CompanyName, CompanySettings } from "@/components/reference/settings-forms";
 import { BoundsRefused, ReferenceSection } from "@/components/reference/section";
 import { FUNCTION_DENSITY, FUNCTION_ICONS, LEAF_ICONS } from "@/components/shell/function-display";
-import { MockupNotice } from "@/components/shell/mockup-notice";
 import { PageHeader, Screen } from "@/components/shell/page-header";
 import { buttonVariants } from "@/components/ui/button";
 import { leafOf } from "@/navigation/functions";
@@ -271,8 +270,7 @@ async function readCosts(queries: CostQueries, session: { readonly editable: boo
 
 /**
  * The title of the screen, the currency every amount of it is expressed in, and the switch of the
- * deactivated objects for who may modify the settings; under it, for who may write, that the fake
- * back keeps nothing of what is written.
+ * deactivated objects for who may modify the settings.
  */
 function CostsHeader({
   settings,
@@ -315,7 +313,6 @@ function CostsHeader({
       ) : (
         <CompanyName name={settings.company_name} />
       )}
-      <MockupNotice lists />
     </>
   );
 }

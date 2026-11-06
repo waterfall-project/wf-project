@@ -1414,12 +1414,15 @@ réponse est plus récente que la ligne lue (`lock_version`, `useAnswered`) — 
 ne garde rien, elle survit donc aux relectures — ; une création n'ajoute aucune ligne, la page relue
 la range où le serveur la retient. Ce qu'une écriture a fait se dit dans la région de sa liste (« «
 Débours » désactivée. ») ; le refus d'une activation, au-dessus de la liste comme celui d'une
-réactivation (`useListReport`). Le faux back ne gardant rien, l'écran le dit sous son en-tête, pour
-qui écrit — la note, avec celle des listes, tient en 150 signes au plus, pour que les totaux de
-grille restent dans la fenêtre, et ne dit pas qu'une ligne écrite reste montrée telle que le serveur
-l'a rendue tant que l'écran reste ouvert — (`MockupNotice`, `components/shell/mockup-notice.tsx`, à
-reprendre par chaque écran de la maquette dont les commandes écrivent, retiré quand l'écran est
-branché sur le service de son EPIC). La saisie d'un taux reste celle de la grille.
+réactivation (`useListReport`). Le service garde ce qui s'écrit (EP-05, US-0820 à US-0830) : l'écran des coûts ne porte plus
+`MockupNotice`, et un succès est ce que le service a gardé, relu. Le faux back, qui ne garde rien,
+reste joué par les parcours, qui n'affirment contre lui que ce qu'il répond ; la relecture après
+rechargement ne s'affirme qu'en service (`inService` de `e2e/mode.ts`), et les tests de
+`reference-costs.spec.ts` portent l'étiquette `@shared`. La saisie d'un taux reste celle de la
+grille : le parcours en saisit un contre le service, qui répond ce qui a été saisi. Une année
+ajoutée par la grille n'est qu'une colonne du front, vide, jusqu'au premier taux (aucune opération
+ne crée une colonne, #299) : celle d'une année que la grille a déjà est refusée par la grille
+elle-même (WF-REF-0060-A), contre le service comme contre le faux back.
 
 La correspondance de l'extraction des coûts réels (US-0620/L2, WF-REF-0190, FBS-3.1.3) a sa page,
 `/reference/costs/actual-cost-mapping`, que l'en-tête des paramètres de coûts offre par
