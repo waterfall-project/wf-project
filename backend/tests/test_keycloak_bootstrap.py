@@ -291,20 +291,18 @@ def test_an_administrator_given_a_password_another_way_is_given_no_link_and_its_
     assert (spent.status_code, SPENT in html.unescape(spent.text)) == (400, True)
 
 
-def test_two_installations_run_at_once_make_one(
-    admin: httpx2.Client, database: Database, owner: Engine, database_url: str, address: str
-) -> None:
-    # The advisory lock keeps two bootstraps apart, run at once in two processes: the second waits
-    # for the first, finds the installation made, and replaces its link. Without it, both would
-    # find none and install, and the second would fail on the row of the first. The test holds
-    # the lock itself until both wait on it, so that they do run at once: without a lock in the
-    # code, none ever waits, and the test fails at the end of its delay.
+def run_at_once(owner: Engine, settings: InstallationSettings) -> list[tuple[str, str]]:
+    """Run two bootstraps at once, in two processes; give what each wrote, once both ended.
+
+    The test holds the lock itself until both wait on it, so that they do run at once: without a
+    lock in the code, none ever waits, and the test fails at the end of its delay.
+    """
     command = [
         sys.executable,
         "-c",
         "import sys; from waterfall.bootstrap import main; sys.exit(main(['install']))",
     ]
-    environment = os.environ | variables_of(settings_of(database_url, address))
+    environment = os.environ | variables_of(settings)
     # A key of 64 bits is held as two halves of 32: the high one is 0 for this one.
     waiting = text(
         "SELECT count(*) FROM pg_locks WHERE locktype = 'advisory' AND NOT granted "
@@ -339,6 +337,16 @@ def test_two_installations_run_at_once_make_one(
             holder.commit()
     written = [run.communicate(timeout=180) for run in runs]
     assert [run.returncode for run in runs] == [0, 0], [err for _, err in written]
+    return written
+
+
+def test_two_installations_run_at_once_make_one(
+    admin: httpx2.Client, database: Database, owner: Engine, database_url: str, address: str
+) -> None:
+    # The advisory lock keeps two bootstraps apart, run at once in two processes: the second waits
+    # for the first, finds the installation made, and replaces its link. Without it, both would
+    # find none and install, and the second would fail on the row of the first.
+    written = run_at_once(owner, settings_of(database_url, address))
     links = [out.removesuffix("\n") for out, _ in written]
     assert all(link and "\n" not in link for link in links), links
     assert counts(admin, database, address) == (1, 3, 1, 1, 1, 1, 1)
@@ -347,6 +355,28 @@ def test_two_installations_run_at_once_make_one(
     opened = [Browser().get(link) for link in links]
     assert sorted(REPLACED in html.unescape(page.text) for page in opened) == [False, True]
     assert sorted(page.status_code for page in opened) == [200, 400]
+
+
+@pytest.mark.requirement("WF-EXP-0020-A")
+def test_two_runs_at_once_give_an_installation_made_before_the_reference_one_reference(
+    admin: httpx2.Client, database: Database, owner: Engine, database_url: str, address: str
+) -> None:
+    # The reference given again to an old installation is written under the lock as well, in its
+    # own transaction: the second run finds it written by the first, says nothing installed, and
+    # ends well — the single row of the settings, the unique default calendar and the unique code
+    # of the nature would refuse a second, but as a failure of the run.
+    settings = settings_of(database_url, address)
+    link_of(settings)
+    with owner.begin() as connection:
+        for table in REFERENCE_TABLES:
+            connection.execute(delete(table))
+    written = run_at_once(owner, settings)
+    given = [err.count("installation.reference_installed") for _, err in written]
+    assert sorted(given) == [0, 1], [err for _, err in written]
+    assert counts(admin, database, address) == (1, 3, 1, 1, 1, 1, 1)
+    with database.transaction() as session:
+        assert read_reference_settings(session).lock_version == 1
+        assert session.scalar(select(func.count()).select_from(DurationUnit)) == 1
 
 
 @pytest.mark.requirement("WF-EXP-0020-A")
