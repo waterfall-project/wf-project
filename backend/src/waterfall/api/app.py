@@ -7,6 +7,8 @@ It serves the operations of the contract and nothing else: no documentation page
 interface (WF-ARC-0060). A path with a slash the contract does not write is not redirected.
 """
 
+from typing import TYPE_CHECKING
+
 from fastapi import FastAPI
 
 from waterfall import __version__, schema
@@ -37,10 +39,12 @@ from waterfall.api import (
     users,
     work_breakdown,
 )
-from waterfall.api.authentication import Services
 from waterfall.api.maintenance import MaintenanceMiddleware
 from waterfall.api.middleware import CorrelationMiddleware
 from waterfall.api.problems import install_problem_handlers
+
+if TYPE_CHECKING:
+    from waterfall.api.authentication import Services
 
 # The single prefix of version the contract declares in its ``servers``.
 PREFIX = "/api/v1"

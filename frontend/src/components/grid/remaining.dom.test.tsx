@@ -358,16 +358,24 @@ describe("the grid of the remaining to commit", () => {
     // un reste à engager de 500 est démarrée et signalée : la tâche et sa ligne propre portent la
     // marque, par une icône et un texte, et la tâche voisine et sa ligne ne la portent pas.
     serve();
-    render(grid(example("nodes_awaiting_own_lines") as NodeList));
-    const studies = 0;
-    const own = 1;
-    const detail = 2;
-    const detailLine = 3;
+    const read = example("nodes_awaiting_own_lines") as NodeList;
+    render(grid(read));
+    // The rows are found by what they say, not by their index: the answer carries the own lines of
+    // the studies, a provision among them, before the detailed studies.
+    const rowOf = (label: string) =>
+      read.items.findIndex(
+        (node) => node.task?.label === label || node.estimate_line?.label === label,
+      );
+    const studies = rowOf("Études");
+    const own = rowOf("Reprographie des dossiers d'études");
+    const detail = rowOf("Études de détail");
+    const detailLine = rowOf("Ingénierie de détail");
     for (const row of [studies, own]) {
       const mark = cell(row, "own_lines_open");
       expect(mark).toHaveTextContent("Lignes propres ouvertes");
       expect(mark.querySelector("svg")).not.toBeNull();
     }
+    expect(detail).toBeGreaterThan(own);
     expect(cell(detail, "own_lines_open")).toBeEmptyDOMElement();
     expect(cell(detailLine, "own_lines_open")).toBeEmptyDOMElement();
   });
@@ -384,30 +392,23 @@ describe("the grid of the remaining to commit", () => {
     }
   });
 
-  it("never marks the line of provision of a task that awaits its own lines, the lines beside it marked [WF-PLA-0040-A]", () => {
-    // Une ligne propre de provision sous une tâche qui attend ses lignes propres n'est jamais
-    // marquée, les lignes voisines le sont. Aucune récapitulative de l'exemple de l'estimation ne
-    // porte de ligne propre (« Poste de commande » n'a que des tâches) : la seule provision est
-    // sous « Câblage des armoires », une feuille, que le service ne dirait jamais en attente (le
-    // drapeau n'est vrai que d'une récapitulative démarrée). On la pose tout de même en attente
-    // pour éprouver la ligne de provision, faute d'exemple du contrat qui en porte une sous une
-    // récapitulative (#1851) : la tâche retouchée est la plus proche, pas une réponse du service.
+  it("never marks the line of provision under the task that awaits its own lines, the line beside it marked [WF-PLA-0040-A]", () => {
+    // Une récapitulative dont toutes les subordonnées sont terminées et dont la seule ligne propre
+    // est une provision de 40 est terminée et n'est pas signalée : l'exemple porte la provision de
+    // 40 sous la récapitulative signalée, lue telle quelle. La tâche et sa ligne propre de 500 sont
+    // marquées, la provision ne l'est jamais.
     serve();
-    const read = example("nodes_estimate") as NodeList;
-    render(
-      grid({
-        ...read,
-        items: read.items.map((node, index) =>
-          index === WIRING && node.task !== undefined && node.task !== null
-            ? { ...node, task: { ...node.task, awaiting_own_lines: true } }
-            : node,
-        ),
-      }),
+    const read = example("nodes_awaiting_own_lines") as NodeList;
+    render(grid(read));
+    const provision = read.items.findIndex(
+      (node) => node.estimate_line?.label === "Provision — aléas de reprographie",
     );
-    expect(cell(WIRING, "own_lines_open")).toHaveTextContent("Lignes propres ouvertes");
-    expect(cell(LABOUR, "own_lines_open")).toHaveTextContent("Lignes propres ouvertes");
-    expect(cell(DISBURSEMENT, "own_lines_open")).toHaveTextContent("Lignes propres ouvertes");
-    expect(cell(PROVISION, "own_lines_open")).toBeEmptyDOMElement();
+    const own = read.items.findIndex(
+      (node) => node.estimate_line?.label === "Reprographie des dossiers d'études",
+    );
+    expect(read.items[provision]?.estimate_line?.unit_disbursement).toBe("40.00");
+    expect(cell(own, "own_lines_open")).toHaveTextContent("Lignes propres ouvertes");
+    expect(cell(provision, "own_lines_open")).toBeEmptyDOMElement();
   });
 
   it("places undo and redo where the remaining to commit may be entered, and enters nothing elsewhere", () => {

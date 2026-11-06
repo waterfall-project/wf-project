@@ -9,8 +9,6 @@ re-estimate of a line re-estimated by nobody, of a task not started, is what the
 counts (WF-RAE-0010, M-08).
 """
 
-from __future__ import annotations
-
 from datetime import date
 from decimal import Decimal
 from typing import Any, cast

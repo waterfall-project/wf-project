@@ -11,8 +11,6 @@ row without value after the others in the ascending order (``mocklists.ordered``
 changes: the anonymisation writes the account, not the list, whose counter stays.
 """
 
-from __future__ import annotations
-
 from typing import TYPE_CHECKING, cast
 
 from wftools import mocktext

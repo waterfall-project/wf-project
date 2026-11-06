@@ -152,9 +152,9 @@ EP-08, the three hundred projects in EP-13, which closes. Four rules, which each
 | [EP-17](EP-17-maquette-finitions-accessibilite.md) | Mockup: finishing touches and accessibility | livré | EP-16 |
 | [EP-18](EP-18-comptes-ecarts-revue-du-contrat.md) | Accounts: findings of the contract review | livré | EP-16 |
 | [EP-19](EP-19-livreurs-en-parallele.md) | Deliverers in parallel | livré | rien |
-| [EP-20](EP-20-migration-des-dependances.md) | Migration of the dependencies | en cours | EP-19 |
+| [EP-20](EP-20-migration-des-dependances.md) | Migration of the dependencies | livré | EP-19 |
 | [EP-21](EP-21-livreurs-en-parallele-suivi.md) | Deliverers in parallel: follow-up | à planifier | EP-19 |
-| [EP-22](EP-22-kanban-recapitulatives-demarrees.md) | The Kanban lists the summary awaiting only its own lines | en cours | EP-17 |
+| [EP-22](EP-22-kanban-recapitulatives-demarrees.md) | The Kanban lists the summary awaiting only its own lines | livré | EP-17 |
 | [EP-05](EP-05-referentiel.md) | Reference data of the company | en cours | EP-16, EP-18, EP-19, EP-20 |
 | [EP-04](EP-04-projets-et-revisions.md) | Projects, revisions and life cycle | en cours | EP-05 |
 | [EP-06](EP-06-planification.md) | Planning | à planifier | EP-04 |
@@ -256,6 +256,7 @@ a technical lot, is placed under the first story it prepares, and names the othe
 | a lot is merged on its own, with the chain green | the epic's branch is never half-built |
 | a review finding outside the scope of the lot becomes an issue, attached and settled according to « Tracking on GitHub », and is not fixed in the lot | that is what makes a lot grow during its review, and makes the review go round in circles |
 | the pull request gives the real size of the lot, measured by `make lot-size`, next to the estimate of its issue; an overrun makes nothing fail | the estimate gets it wrong, and a stop rule would block an epic delivered overnight; the gap is read in the delivery report, and the next lot plan corrects itself from it |
+| a lot is not cut at its measure: it is delivered as it is, and the gap recalibrates the next plan; only the reviewer who cannot read it in one piece asks for a cut, at the first round, and the cap of six review rounds bounds the loop | cutting at the measure (2026-11-05 and 06) did not change the number of rounds, two to three for 180 as for 4,300 lines; it cost an issue, a table row, a rebase and a conflict with the neighbouring lots |
 | the local review fixes every finding of its first round; in the following rounds, only the major ones and those a fix introduced, the minor ones becoming issues | that is what makes the review go round in circles, six rounds for one lot during the delivery of EP-03, when each fix gives birth to a new minor one |
 | the issue of a lot says the model of its development, `sonnet` or `opus`, and why — authentication, security, data migration, contract, shared interface, or a design that leaves a part open to interpretation; without this field, the delivery agent applies the same list, and it escalates once per lot | the framer knows which part of the design remains to be interpreted, the deliverer discovers it only when reading the lot; a lot marked `sonnet` that escalates says that the rule underestimated, and that is what calibrates it |
 
@@ -263,7 +264,7 @@ This table is the only definition of the target size: the pull request template,
 of the lots and the agents point to it, and none copies it.
 
 A lot carries the title `[US-nnnn/Ln] …`; `Ln` numbers the lots of the same story, in the order
-they are delivered, without reuse. The detached part of a lot cut in two takes the number of the
+they are delivered, without reuse. The detached part of a lot cut in two, at the reviewer's request, takes the number of the
 lot followed by `b`: `[US-nnnn/Lnb]`, branch `lot/US-nnnn/Lnb`, or `[US-nnnnb]` for a story
 of a single lot. A story realised by a single lot has only one issue, `[US-nnnn]`,
 which is also that of the lot, and its branch `lot/US-nnnn`. The lots live on GitHub and nowhere
