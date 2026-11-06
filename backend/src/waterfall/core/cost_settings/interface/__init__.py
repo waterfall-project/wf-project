@@ -8,10 +8,6 @@ that two stories filling two files write two places of this one. Another module 
 from here, never from the file.
 """
 
-# ``reference_settings`` (US-0810/L2): the settings the installation shares.
-
-# ``readiness`` (US-0810/L2): the questions of the minimal reference this module answers.
-
 # ``actual_cost_mapping`` (US-0870): the mapping of the extraction of the actual costs.
 from waterfall.core.cost_settings.interface.actual_cost_mapping import (
     DUPLICATE_COLUMN_LABEL as DUPLICATE_COLUMN_LABEL,
@@ -128,4 +124,53 @@ from waterfall.core.cost_settings.interface.cost_types import (
 # ``hourly_rates`` (US-0830): the hourly rates of the categories of labour, by year.
 from waterfall.core.cost_settings.interface.hourly_rates import (
     category_is_rated as category_is_rated,
+)
+
+# ``readiness`` (US-0810/L2): the questions of the minimal reference this module answers.
+from waterfall.core.cost_settings.interface.readiness import (
+    labour_categories_exist as labour_categories_exist,
+)
+from waterfall.core.cost_settings.interface.readiness import (
+    provision_category_active as provision_category_active,
+)
+
+# ``reference_settings`` (US-0810/L2): the settings the installation shares.
+from waterfall.core.cost_settings.interface.reference_settings import (
+    DELIVERED_MATRIX as DELIVERED_MATRIX,
+)
+from waterfall.core.cost_settings.interface.reference_settings import (
+    DELIVERED_THRESHOLDS as DELIVERED_THRESHOLDS,
+)
+from waterfall.core.cost_settings.interface.reference_settings import (
+    DELIVERED_WEEKS as DELIVERED_WEEKS,
+)
+from waterfall.core.cost_settings.interface.reference_settings import (
+    FIELD_PERMISSIONS as FIELD_PERMISSIONS,
+)
+from waterfall.core.cost_settings.interface.reference_settings import (
+    IndexThresholds as IndexThresholds,
+)
+from waterfall.core.cost_settings.interface.reference_settings import (
+    ReferenceSettingsView as ReferenceSettingsView,
+)
+from waterfall.core.cost_settings.interface.reference_settings import (
+    RiskMatrix as RiskMatrix,
+)
+from waterfall.core.cost_settings.interface.reference_settings import (
+    SettingsChange as SettingsChange,
+)
+from waterfall.core.cost_settings.interface.reference_settings import (
+    company_name_faults as company_name_faults,
+)
+from waterfall.core.cost_settings.interface.reference_settings import (
+    install_reference_settings as install_reference_settings,
+)
+from waterfall.core.cost_settings.interface.reference_settings import (
+    read_reference_settings as read_reference_settings,
+)
+from waterfall.core.cost_settings.interface.reference_settings import (
+    reference_settings_installed as reference_settings_installed,
+)
+from waterfall.core.cost_settings.interface.reference_settings import (
+    write_reference_settings as write_reference_settings,
 )

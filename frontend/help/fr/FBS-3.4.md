@@ -11,7 +11,7 @@ Une révision ne conserve pas ces paramètres : une révision marquée se lit to
 
 ## Ses commandes
 
-**Modifier les seuils et le délai**, offerte à qui peut modifier les paramètres d’indicateurs, ouvre le formulaire : chaque seuil entre 0 et 1, exclus, le seuil d’alerte sous le seuil de vigilance de son indice, et le délai en semaines entières. Un seuil d’alerte qui n’est pas sous le seuil de vigilance est signalé à son champ avant l’envoi ; le serveur juge le reste. Si les paramètres ont changé depuis leur lecture, le refus offre de relire la page. Aux autres, l’écran se lit.
+**Modifier les seuils et le délai**, offerte à qui peut modifier les paramètres d’indicateurs, ouvre le formulaire : chaque seuil entre 0 et 1, exclus, le seuil d’alerte sous le seuil de vigilance de son indice, et le délai en semaines entières. Un seuil d’alerte qui n’est pas sous le seuil de vigilance est signalé à son champ avant l’envoi ; le serveur juge le reste. Si les paramètres ont changé depuis leur lecture, le refus offre de relire la page. Aux autres, l’écran se lit. Un enregistrement réussi est ce que le serveur a gardé : l’écran le relit. Le refus d’une permission manquante, ou d’une version périmée, se dit sous le formulaire.
 
 ## Ses colonnes et ses valeurs calculées
 

@@ -95,6 +95,8 @@ def test_the_bootstrap_reads_its_settings_without_redis(monkeypatch: pytest.Monk
     monkeypatch.setenv("WATERFALL_INSTALLATION_CLIENT_SECRET", "installation-secret")
     monkeypatch.setenv("WATERFALL_ADMIN_EMAIL", "administrateur@waterfall.test")
     monkeypatch.setenv("WATERFALL_DEFAULT_LANGUAGE", "en")
+    monkeypatch.setenv("WATERFALL_CURRENCY", "EUR")
+    monkeypatch.setenv("WATERFALL_COMPANY_NAME", "Delmas Automatismes")
     settings = load_installation_settings()
     assert (settings.admin_email, settings.default_language) == (
         "administrateur@waterfall.test",

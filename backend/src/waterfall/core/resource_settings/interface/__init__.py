@@ -8,8 +8,6 @@ that two stories filling two files write two places of this one. Another module 
 from here, never from the file.
 """
 
-# ``readiness`` (US-0810/L2): the questions of the minimal reference this module answers.
-
 # ``calendars`` (US-0860): the calendars, one of them the default.
 from waterfall.core.resource_settings.interface.calendars import (
     DAYS as DAYS,
@@ -134,6 +132,14 @@ from waterfall.core.resource_settings.interface.org_nodes import (
 )
 from waterfall.core.resource_settings.interface.org_nodes import (
     within_node as within_node,
+)
+
+# ``readiness`` (US-0810/L2): the questions of the minimal reference this module answers.
+from waterfall.core.resource_settings.interface.readiness import (
+    active_role_exists as active_role_exists,
+)
+from waterfall.core.resource_settings.interface.readiness import (
+    default_calendar_has_hours as default_calendar_has_hours,
 )
 
 # ``resource_roles`` (US-0850): the roles of resources and their capacity.

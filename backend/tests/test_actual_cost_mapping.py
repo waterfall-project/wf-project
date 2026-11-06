@@ -10,6 +10,8 @@ import json
 from typing import TYPE_CHECKING, Any
 
 import pytest
+from installed_reference import install
+from sqlalchemy import func, select
 from support import WITNESS
 
 from waterfall.core.cost_settings.interface import (
@@ -21,6 +23,7 @@ from waterfall.core.cost_settings.interface import (
     read_folded_labels,
     replace_actual_cost_mapping,
 )
+from waterfall.core.cost_settings.tables import ActualCostMapping
 from waterfall.platform.audit import Act
 from waterfall.platform.database import utc_now
 from waterfall.platform.errors import PreconditionFailedError, UnprocessableError
@@ -28,6 +31,7 @@ from waterfall.witness import actual_cost_mapping as witness_slice
 from waterfall.witness.description import Witness
 
 if TYPE_CHECKING:
+    from sqlalchemy import Engine
     from support import ContractClient, PartSessions, ReferenceSessions
 
     from waterfall.platform.database import Database
@@ -48,6 +52,13 @@ def mapping(database: Database) -> Database:
     """Give the database with the mapping the installation makes: empty, at its version 1."""
     with database.transaction() as session:
         create_actual_cost_mapping(session, Act(None, utc_now()))
+    return database
+
+
+@pytest.fixture
+def installed(owner: Engine, database: Database) -> Database:
+    """Give the database of an installation as its bootstrap leaves it: the mapping empty in it."""
+    install(owner)
     return database
 
 
@@ -262,27 +273,50 @@ def test_a_stale_counter_is_refused_with_the_current_one_and_nothing_is_written(
 
 @pytest.mark.requirement("WF-QUA-0040-A")
 def test_the_witness_mapping_is_loaded_over_the_empty_mapping_of_the_installation(
-    api: ContractClient, mapping: Database, reference_sessions: ReferenceSessions
+    api: ContractClient, installed: Database, reference_sessions: ReferenceSessions
 ) -> None:
     witness = Witness(WITNESS, Act(None, utc_now()))
-    with mapping.transaction() as session:
+    with installed.transaction() as session:
         assert witness_slice.load(session, witness) is True
     read = api.get(PATH, headers=reference_sessions("cost_settings").reading).json()
     assert (read["is_complete"], read["lock_version"]) == (True, 2)
 
 
 @pytest.mark.requirement("WF-QUA-0040-A")
+@pytest.mark.parametrize(
+    "writings",
+    [
+        # Emptied once, the mapping of the bootstrap written empty: its version 2 (#2096).
+        [{}],
+        # Declared, then emptied: its version 3.
+        [DECLARED, {}],
+    ],
+)
 def test_a_mapping_a_manager_emptied_is_held_and_the_witness_does_not_overwrite_it(
-    api: ContractClient, sessions: PartSessions, mapping: Database
+    api: ContractClient,
+    installed: Database,
+    sessions: PartSessions,
+    writings: list[dict[str, list[str]]],
 ) -> None:
-    api.put(PATH, json=body(DECLARED), headers=sessions.changing)
-    emptied = api.put(PATH, json=body(lock_version=2), headers=sessions.changing)
-    assert emptied.json()["lock_version"] == 3
+    for rank, labels in enumerate(writings, start=1):
+        written = api.put(PATH, json=body(labels, lock_version=rank), headers=sessions.changing)
+        assert written.json()["lock_version"] == rank + 1
     witness = Witness(WITNESS, Act(None, utc_now()))
-    with mapping.transaction() as session:
+    with installed.transaction() as session:
         assert witness_slice.load(session, witness) is False
     read = api.get(PATH, headers=sessions.reading).json()
-    assert (read["is_complete"], read["lock_version"]) == (False, 3)
+    assert (read["is_complete"], read["lock_version"]) == (False, len(writings) + 1)
+    assert all(not column["labels"] for column in read["columns"])
+
+
+def test_the_witness_finds_no_mapping_on_a_database_the_bootstrap_has_not_installed(
+    database: Database,
+) -> None:
+    # The bootstrap makes the mapping (#2092): the loader of the witness no longer does.
+    witness = Witness(WITNESS, Act(None, utc_now()))
+    with database.transaction() as session:
+        assert witness_slice.load(session, witness) is False
+        assert session.scalar(select(func.count()).select_from(ActualCostMapping)) == 0
 
 
 def test_a_malformed_body_is_refused_422_before_its_stale_counter_is_refused_412(
@@ -295,10 +329,10 @@ def test_a_malformed_body_is_refused_422_before_its_stale_counter_is_refused_412
 
 @pytest.mark.requirement("WF-QUA-0040-A")
 def test_the_witness_mapping_is_loaded_in_the_form_of_the_contract_and_not_loaded_twice(
-    api: ContractClient, database: Database, reference_sessions: ReferenceSessions
+    api: ContractClient, installed: Database, reference_sessions: ReferenceSessions
 ) -> None:
     witness = Witness(WITNESS, Act(None, utc_now()))
-    with database.transaction() as session:
+    with installed.transaction() as session:
         assert witness_slice.load(session, witness) is True
         assert witness_slice.load(session, witness) is False
     read = api.get(PATH, headers=reference_sessions("cost_settings").reading).json()
