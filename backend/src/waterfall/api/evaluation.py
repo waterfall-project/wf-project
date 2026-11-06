@@ -9,7 +9,8 @@ that cannot be read is refused first (400); past it, a refusal never depends on 
 carries, and nothing the front presented or hid lets a caller past it.
 """
 
-from typing import Annotated
+from collections.abc import Mapping
+from typing import Annotated, cast
 
 from fastapi import Depends, Request
 from pydantic import TypeAdapter, ValidationError
@@ -91,3 +92,34 @@ class RequiresForInactive:
         )
         if asked and self.permission not in actor.permissions:
             raise ForbiddenError(PERMISSION_MISSING, {"missing_permission": self.permission})
+
+
+class RequiresByField:
+    """The permission each field of a writing asks for, judged on the fields its body carries.
+
+    The settings the installation shares are written field by field, each under the permission of
+    its function (WF-ADM-0100): a field carried — present, and not null, which leaves it as it is —
+    whose permission the caller does not hold is refused by 403 ``PERMISSION_MISSING``, naming the
+    permission of the first such field in the order the route declares them, even if the body
+    carries another one the caller may write; nothing is written. Like ``Requires``, it runs before
+    the validation of the body, on the body as JSON reads it: a body that is no object carries no
+    field, and its validation refuses it afterwards. Declared on the route after its ``Requires``.
+    """
+
+    __slots__ = ("permissions",)
+
+    def __init__(self, permissions: Mapping[str, str]) -> None:
+        self.permissions = dict(permissions)
+
+    async def __call__(self, request: Request, actor: Acting) -> None:
+        """Refuse the writing for the first field carried whose permission the caller lacks."""
+        try:
+            body: object = await request.json()
+        except ValueError:
+            return
+        if not isinstance(body, dict):
+            return
+        carried = cast("dict[str, object]", body)
+        for name, permission in self.permissions.items():
+            if carried.get(name) is not None and permission not in actor.permissions:
+                raise ForbiddenError(PERMISSION_MISSING, {"missing_permission": permission})

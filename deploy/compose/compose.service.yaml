@@ -272,8 +272,9 @@ services:
   # `make service-install` and `make e2e-service`, once the realm is applied, never by service-up.
   # As the owner of the tables (#701), with the secret of the client of the bootstrap, which
   # restore and keycloak-realm hold too, and whose links are valid until they are used (#652). The
-  # address of the administrator and the language of the installation are development values
-  # unless the environment says others.
+  # address of the administrator, the language, the currency and the name of the company of the
+  # installation are development values unless the environment says others — the currency and the
+  # name those of the witness, which keeps them (EP-05).
   install:
     <<: *back
     profiles: [install]
@@ -283,6 +284,8 @@ services:
       WATERFALL_INSTALLATION_CLIENT_SECRET: ${WATERFALL_INSTALLATION_CLIENT_SECRET:?export WATERFALL_INSTALLATION_CLIENT_SECRET}
       WATERFALL_ADMIN_EMAIL: ${WATERFALL_ADMIN_EMAIL:-administrateur@waterfall.test}
       WATERFALL_DEFAULT_LANGUAGE: ${WATERFALL_DEFAULT_LANGUAGE:-fr}
+      WATERFALL_CURRENCY: ${WATERFALL_CURRENCY:-EUR}
+      WATERFALL_COMPANY_NAME: "${WATERFALL_COMPANY_NAME:-Delmas Automatismes}"
     command: ["waterfall-api", "install"]
     restart: "no"
     depends_on:

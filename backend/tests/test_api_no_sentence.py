@@ -111,6 +111,8 @@ DATA = {
     "ResourceRoleImage.org_node_label": "a label",
     "ResourceRoleImage.cost_category_label": "a label",
     "ResourceRoleImage.calendar_label": "a label",
+    # The name of the company that uses the installation, as it was given (WF-EXP-0020).
+    "ReferenceSettings.company_name": "a name",
 }
 # The objects the answers hold whose properties the contract does not close: the parameters of a
 # refusal, and of each field it refuses, which name its condition by codes and values, the ones

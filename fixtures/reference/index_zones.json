@@ -1,0 +1,14 @@
+{
+  "summary": "La zone d'un indice avec des seuils de vigilance et d'alerte à 0,9 et 0,8 : décroissant de 1 à 0,5, il traverse les trois zones ; à 0,9 il est nominal, à 0,8 en vigilance (WF-REF-0170).",
+  "examples": ["WF-REF-0170-A#828c34614a3f", "WF-REF-0170-A#8fb208c05af6"],
+  "watch": "0.9",
+  "alert": "0.8",
+  "decreasing": [
+    {"index": "1", "zone": "nominal"},
+    {"index": "0.9", "zone": "nominal"},
+    {"index": "0.85", "zone": "watch"},
+    {"index": "0.8", "zone": "watch"},
+    {"index": "0.75", "zone": "alert"},
+    {"index": "0.5", "zone": "alert"}
+  ]
+}

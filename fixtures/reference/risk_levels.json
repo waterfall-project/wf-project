@@ -1,0 +1,10 @@
+{
+  "summary": "Le niveau de gravité d'un risque, sa gravité rapportée au budget du projet, avec des bornes de gravité à 1, 5 et 10 % : 60 sur 1 000 (6 %) au troisième niveau, 60 sur 2 000 (3 %) au deuxième, 50 sur 1 000 (5 %) au troisième (WF-REF-0160).",
+  "examples": ["WF-REF-0160-A#0fa3e0540e72", "WF-REF-0160-A#1470bfdbb110"],
+  "severity_bounds": ["0.01", "0.05", "0.1"],
+  "cases": [
+    {"severity": "60", "budget": "1000", "level": 3},
+    {"severity": "60", "budget": "2000", "level": 2},
+    {"severity": "50", "budget": "1000", "level": 3}
+  ]
+}

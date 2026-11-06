@@ -51,7 +51,9 @@ Puis :
 
 3. Remplir `.env` : le nom de la machine (`WATERFALL_DOMAIN`), l'adresse que Let's Encrypt
    prévient (`WATERFALL_ACME_EMAIL`), l'étiquette (`WATERFALL_IMAGE_TAG`), l'adresse du premier
-   administrateur (`WATERFALL_ADMIN_EMAIL`), la langue de l'installation, et chaque secret, tiré
+   administrateur (`WATERFALL_ADMIN_EMAIL`), la langue de l'installation, sa devise
+   (`WATERFALL_CURRENCY`, trois lettres majuscules, qui ne change plus ensuite) et le nom de
+   l'entreprise (`WATERFALL_COMPANY_NAME`, que portent les fichiers exportés), et chaque secret, tiré
    au hasard comme le modèle l'indique. Git ignore `.env` ; en garder une copie à part.
 4. Démarrer :
 

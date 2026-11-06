@@ -23,7 +23,7 @@ from uuid import uuid4
 
 import pytest
 from pydantic import SecretStr
-from sqlalchemy import Engine, func, insert, select, text, update
+from sqlalchemy import Engine, delete, func, insert, select, text, update
 from support import CONTRACT, TO_SEED_BY_EP04, ContractClient, Logs, captured_logs
 from test_keycloak_authentication import (
     ME,
@@ -52,6 +52,14 @@ from test_migrations import HEAD, scratch_database
 
 from waterfall import bootstrap
 from waterfall.core.access_roles.tables import AccessRole, Permission
+from waterfall.core.cost_settings.interface import read_reference_settings
+from waterfall.core.cost_settings.tables import (
+    ActualCostMapping,
+    CostCategory,
+    CostType,
+    ReferenceSetting,
+)
+from waterfall.core.resource_settings.tables import Calendar, DurationUnit
 from waterfall.core.users.tables import UserAccount
 from waterfall.platform.audit import AuditEntry
 from waterfall.platform.installation import Installation
@@ -73,6 +81,15 @@ ACCESS_ROLES = "/api/v1/access-roles"
 PERMISSIONS = "/api/v1/permissions"
 # The example of the contract that gives the roles of an installation, the three predefined ones.
 WITNESS = CONTRACT.parents[2] / "fixtures" / "api" / "access_roles.json"
+# What the bootstrap writes of the reference, its referred rows after those they refer to.
+REFERENCE_TABLES = (
+    ReferenceSetting,
+    DurationUnit,
+    ActualCostMapping,
+    CostCategory,
+    CostType,
+    Calendar,
+)
 # The expiry of a link valid until it is used: the last moment a token of Keycloak can say.
 UNTIL_USED = 2**31 - 1
 
@@ -88,6 +105,8 @@ def settings_of(database_url: str, email: str, language: str = "fr") -> Installa
             "installation_client_secret": required(INSTALLATION_CREDENTIAL_VARIABLE),
             "admin_email": email,
             "default_language": language,
+            "currency": "EUR",
+            "company_name": "Delmas Automatismes",
         }
     )
 
@@ -228,12 +247,12 @@ def test_a_second_installation_creates_nothing_and_replaces_the_link_until_a_pas
 ) -> None:
     # « Une seconde exécution de l'installation ne crée ni compte, ni calendrier, ni nature
     # supplémentaire ; elle produit un nouveau lien, qui remplace le précédent, tant que
-    # l'administrateur n'a pas fixé son mot de passe, et aucun lien ensuite. » The calendar and
-    # the nature arrive with EP-05.
+    # l'administrateur n'a pas fixé son mot de passe, et aucun lien ensuite. » The calendar, the
+    # nature of provision for risks and its category arrive with EP-05.
     settings = settings_of(database_url, address)
     first = link_of(settings)
     created = counts(admin, database, address)
-    assert created == (1, 3, 1, 1)
+    assert created == (1, 3, 1, 1, 1, 1, 1)
     second = link_of(settings)
     assert second != first
     assert counts(admin, database, address) == created
@@ -406,6 +425,54 @@ def test_a_second_installation_for_another_address_says_it_ignores_it(
     assert len(logs.named("installation.admin_email_ignored")) == 1
 
 
+@pytest.mark.requirement("WF-EXP-0020-A")
+@pytest.mark.requirement("WF-REF-0140-A")
+def test_a_second_installation_for_another_currency_and_name_says_it_ignores_them(
+    database: Database, database_url: str, address: str, logs: Logs
+) -> None:
+    # The currency and the name of the company are those of the installation made: given others
+    # since, it keeps them, and the logs say them ignored — without them.
+    settings = settings_of(database_url, address)
+    link_of(settings)
+    link_of(settings)
+    assert not logs.named("installation.currency_ignored")
+    assert not logs.named("installation.company_name_ignored")
+    link_of(settings.model_copy(update={"currency": "USD", "company_name": "Autre Société"}))
+    for event in ("installation.currency_ignored", "installation.company_name_ignored"):
+        (ignored,) = logs.named(event)
+        assert ignored["level"] == "warning"
+    assert "USD" not in logs.text
+    assert "Autre Société" not in logs.text
+    with database.transaction() as session:
+        kept = read_reference_settings(session)
+    assert (kept.currency_code, kept.company_name) == ("EUR", "Delmas Automatismes")
+
+
+@pytest.mark.requirement("WF-EXP-0020-A")
+def test_an_installation_made_before_the_reference_is_given_it_when_run_again(
+    owner: Engine, database: Database, database_url: str, address: str, logs: Logs
+) -> None:
+    # No migration writes data: an installation bootstrapped before the reference existed is
+    # given it by its bootstrap run again, in the language of the installation, with the currency
+    # and the name the run is given (#2092).
+    link_of(settings_of(database_url, address, language="en"))
+    with owner.begin() as connection:
+        for table in REFERENCE_TABLES:
+            connection.execute(delete(table))
+    link_of(settings_of(database_url, address).model_copy(update={"currency": "CHF"}))
+    assert len(logs.named("installation.reference_installed")) == 1
+    with database.transaction() as session:
+        kept = read_reference_settings(session)
+        calendar = session.scalars(select(Calendar.label)).one()
+        mapping = session.scalar(select(func.count()).select_from(ActualCostMapping))
+    assert (kept.currency_code, kept.lock_version, calendar, mapping) == (
+        "CHF",
+        1,
+        "Standard calendar",
+        1,
+    )
+
+
 def test_the_installation_gives_the_realm_its_language_at_each_run(
     database_url: str, address: str
 ) -> None:
@@ -423,14 +490,22 @@ def test_the_installation_gives_the_realm_its_language_at_each_run(
     assert realm_language() == "en"
 
 
-def counts(admin: httpx2.Client, database: Database, email: str) -> tuple[int, int, int, int]:
-    """Count the accounts, the roles and the installations made, and the accounts of the realm."""
+def counts(admin: httpx2.Client, database: Database, email: str) -> tuple[int, ...]:
+    """Count what an installation makes, and the accounts of the realm.
+
+    The accounts, the roles and the installations, the accounts of the realm, and the calendars,
+    the natures and the categories of the reference.
+    """
     with database.transaction() as session:
         return (
             session.scalar(select(func.count()).select_from(UserAccount)) or 0,
             session.scalar(select(func.count()).select_from(AccessRole)) or 0,
             session.scalar(select(func.count()).select_from(Installation)) or 0,
             len(realm_accounts(admin, email)),
+            *(
+                session.scalar(select(func.count()).select_from(table)) or 0
+                for table in (Calendar, CostType, CostCategory)
+            ),
         )
 
 

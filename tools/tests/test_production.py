@@ -889,6 +889,8 @@ def test_the_environment_of_compose_takes_the_defaults_of_a_local_trial() -> Non
         "WATERFALL_DOMAIN": "waterfall.localhost",
         "WATERFALL_ADMIN_EMAIL": EMAIL,
         "WATERFALL_ACME_EMAIL": EMAIL,
+        "WATERFALL_CURRENCY": "EUR",
+        "WATERFALL_COMPANY_NAME": "Delmas Automatismes",
     }
     command = production.compose_command("p")
     assert command[-4:] == ["--file", str(PRODUCTION), "--file", str(LOCAL)]

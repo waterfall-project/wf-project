@@ -28,7 +28,7 @@ from starlette.requests import Request
 from support import REFERENCE_PARTS, ContractClient, bearer, operations, raw_account
 
 from waterfall.api.app import create_app
-from waterfall.api.evaluation import Requires, RequiresForInactive
+from waterfall.api.evaluation import Requires, RequiresByField, RequiresForInactive
 from waterfall.core.access_roles.interface import (
     PERMISSION_MISSING,
     Actor,
@@ -448,6 +448,8 @@ assert len(DECLARED) == len(set(DECLARED)), sorted(
 INACTIVE: dict[str, str] = {
     name: permission for router in REFERENCE for name, permission in router.INACTIVE.items()
 }
+# The permission each field of a writing asks for, for the writings judged field by field.
+BY_FIELD = asked_reference_settings.BY_FIELD
 
 
 # The operations that ask for no permission and still refuse by a 404 the object their path names:
@@ -473,6 +475,18 @@ def inactive(route: APIRoute) -> str | None:
             depends.dependency.permission
             for depends in route.dependencies
             if isinstance(depends.dependency, RequiresForInactive)
+        ),
+        None,
+    )
+
+
+def by_field(route: APIRoute) -> dict[str, str] | None:
+    """Give the permission each field of a writing asks for, if its route judges them so."""
+    return next(
+        (
+            dict(depends.dependency.permissions)
+            for depends in route.dependencies
+            if isinstance(depends.dependency, RequiresByField)
         ),
         None,
     )
@@ -515,12 +529,35 @@ def test_every_served_operation_asks_for_the_permission_the_contract_refuses_it_
         assert needed <= responses, name
         if not permissions:
             # The 403 of a list that asks for nothing to read the active objects is its guard of
-            # the deactivated ones (``INACTIVE``), tried below.
+            # the deactivated ones (``INACTIVE``), tried below; that of a writing judged field by
+            # field, its guard of each field (``BY_FIELD``).
             refusals = {"403", "404"}
             allowed_404: set[str] = {"404"} if name in PATH_OBJECTS else set()
-            allowed_403: set[str] = {"403"} if name in INACTIVE else set()
+            guarded = name in INACTIVE or name in BY_FIELD
+            allowed_403: set[str] = {"403"} if guarded else set()
             refused = refusals - allowed_404 - allowed_403
             assert not refused & responses, name
+
+
+@pytest.mark.requirement("WF-ADM-0100-A")
+def test_every_writing_judged_field_by_field_declares_the_permission_of_each_field(
+    contract: OpenAPI, services: Services
+) -> None:
+    # Its route judges each field it carries after its ``Requires``, and the contract declares the
+    # 403 that refuses a field.
+    routes = served_routes(services)
+    held = {name: by_field(route) for name, route in routes.items()}
+    assert {name: fields for name, fields in held.items() if fields is not None} == BY_FIELD
+    declared = operations(contract)
+    for name in BY_FIELD:
+        dependencies = [depends.dependency for depends in routes[name].dependencies]
+        reading = [i for i, each in enumerate(dependencies) if isinstance(each, Requires)]
+        guard = [i for i, each in enumerate(dependencies) if isinstance(each, RequiresByField)]
+        assert reading, name
+        assert max(reading) < guard[0], name
+        method, path = declared[name]
+        relative = path.removeprefix((contract.spec / "servers" / 0 / "url").read_value())
+        assert "403" in (contract.spec / "paths" / relative / method.lower() / "responses"), name
 
 
 def test_the_roles_held_and_their_permissions_are_read_at_once_deleted_ones_apart(
