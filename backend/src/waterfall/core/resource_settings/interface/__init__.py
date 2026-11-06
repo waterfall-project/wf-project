@@ -15,5 +15,77 @@ from here, never from the file.
 # ``resource_roles`` (US-0850): the roles of resources and their capacity.
 
 # ``calendars`` (US-0860): the calendars, one of them the default.
+from waterfall.core.resource_settings.interface.calendars import (
+    CalendarColumn as CalendarColumn,
+)
+from waterfall.core.resource_settings.interface.calendars import (
+    CalendarCommand as CalendarCommand,
+)
+from waterfall.core.resource_settings.interface.calendars import (
+    CalendarContent as CalendarContent,
+)
+from waterfall.core.resource_settings.interface.calendars import (
+    CalendarFilters as CalendarFilters,
+)
+from waterfall.core.resource_settings.interface.calendars import (
+    CalendarPage as CalendarPage,
+)
+from waterfall.core.resource_settings.interface.calendars import (
+    CalendarSort as CalendarSort,
+)
+from waterfall.core.resource_settings.interface.calendars import (
+    CalendarView as CalendarView,
+)
+from waterfall.core.resource_settings.interface.calendars import (
+    CalendarWindow as CalendarWindow,
+)
+from waterfall.core.resource_settings.interface.calendars import (
+    WeeklyHours as WeeklyHours,
+)
+from waterfall.core.resource_settings.interface.calendars import (
+    calendar_change_is_admissible as calendar_change_is_admissible,
+)
+from waterfall.core.resource_settings.interface.calendars import (
+    calendar_commands as calendar_commands,
+)
+from waterfall.core.resource_settings.interface.calendars import (
+    calendars_present as calendars_present,
+)
+from waterfall.core.resource_settings.interface.calendars import (
+    create_calendar as create_calendar,
+)
+from waterfall.core.resource_settings.interface.calendars import (
+    list_calendars as list_calendars,
+)
+from waterfall.core.resource_settings.interface.calendars import (
+    read_calendar as read_calendar,
+)
+from waterfall.core.resource_settings.interface.calendars import (
+    set_calendar_activation as set_calendar_activation,
+)
+from waterfall.core.resource_settings.interface.calendars import (
+    set_default_calendar as set_default_calendar,
+)
+from waterfall.core.resource_settings.interface.calendars import (
+    update_calendar as update_calendar,
+)
 
 # ``duration_units`` (US-0860): the units of duration.
+from waterfall.core.resource_settings.interface.duration_units import (
+    DEFAULT_UNITS as DEFAULT_UNITS,
+)
+from waterfall.core.resource_settings.interface.duration_units import (
+    DurationUnitsView as DurationUnitsView,
+)
+from waterfall.core.resource_settings.interface.duration_units import (
+    Units as Units,
+)
+from waterfall.core.resource_settings.interface.duration_units import (
+    get_duration_units as get_duration_units,
+)
+from waterfall.core.resource_settings.interface.duration_units import (
+    install_duration_units as install_duration_units,
+)
+from waterfall.core.resource_settings.interface.duration_units import (
+    set_duration_units as set_duration_units,
+)

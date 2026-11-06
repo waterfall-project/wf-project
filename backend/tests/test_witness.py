@@ -93,6 +93,8 @@ def test_a_loading_that_writes_nothing_succeeds_and_says_the_witness_is_there(
 ) -> None:
     # Every slice empty, or every slice already held: nothing is written, and that is a success.
     assert load_witness(settings) == 0
+    logs.clear()
+    assert load_witness(settings) == 0
     assert events(logs) == ["witness.already_loaded"]
     assert {record["correlation_id"] for record in logs.records} != {None}
 

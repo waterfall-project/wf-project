@@ -36,6 +36,7 @@ DATA = {
     # inscription of the journal and its revision, a role before it was renamed.
     "AccessRole.label": "a label",
     "AuditAccessRole.label": "a label",
+    "CalendarImage.label": "a label",
     "AuditObject.label": "a label",
     "AuditProject.label": "a label",
     "AuditRevision.label": "a label",
