@@ -37,10 +37,10 @@ DATA = {
     "AccessRole.label": "a label",
     "AuditAccessRole.label": "a label",
     "AuditObject.label": "a label",
+    "AuditParams.previous_label": "a label",
     "AuditProject.label": "a label",
     "AuditRevision.label": "a label",
     "CalendarImage.label": "a label",
-    "AuditParams.previous_label": "a label",
     # The reason a person gave when she took a project out of its lifecycle, kept as she wrote it.
     "AuditParams.reason": "a reason",
     "UserAccount.access_role_labels": "labels",
