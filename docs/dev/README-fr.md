@@ -129,11 +129,20 @@ Toute opération servie que le contrat garde déclare, sur sa route, les permiss
 des paramètres et du corps, après sa lecture : un corps illisible est refusé d'abord (400). La
 permission de consulter vient la première — sans elle, l'objet n'existe pas pour l'appelant, 404
 `NOT_FOUND` ; sans une autre, 403 `PERMISSION_MISSING`, `params.missing_permission` la nommant
-(WF-ADM-0110). L'évaluation elle-même, `require(actor, permission)`, est celle du module
-`waterfall.core.access_roles`, que les EPIC suivants complètent (la qualité de contributeur en
-EP-04). _Contrôle_ : `backend/tests/test_access_evaluation.py` liste les permissions de chaque
-opération servie et vérifie que le contrat déclare le refus qu'elles peuvent donner — une route
-nouvelle s'y ajoute.
+(WF-ADM-0110). Qu'une permission soit une consultation, le catalogue le déclare
+(`CONSULTATION`, `waterfall.core.access_roles.predefined`), non son suffixe : `all_projects_read`
+en est une (#754). L'évaluation elle-même, `require(actor, permission)`, est celle du module
+`waterfall.core.access_roles`. Une opération d'un projet déclare à la place
+`RequiresProject(...)`, qui lit `project_id` du chemin et évalue de même un second terme, la
+qualité de l'appelant sur le projet, lue par l'interface des projets (`contributor_kind`) :
+`require_project`. Le projet n'existe pour l'appelant que s'il porte la permission de consulter et
+en est contributeur, ou porte `all_projects_read` ; sinon, ou s'il n'existe pas, le même 404
+`NOT_FOUND`. Une écriture demande en plus la qualité de contributeur (403 `NOT_CONTRIBUTOR`), une
+action réservée aux chefs de projet (`manager=True`) la leur (403 `NOT_PROJECT_MANAGER`),
+`params.missing_condition` la nommant (WF-PRJ-0060). _Contrôle_ :
+`backend/tests/test_access_evaluation.py` liste les permissions de chaque opération servie, et la
+qualité sur son projet de chaque opération d'un projet (`ON_PROJECT` des fichiers `asked_*.py`), et
+vérifie que le contrat déclare le refus qu'elles peuvent donner — une route nouvelle s'y ajoute.
 
 ## Le front
 

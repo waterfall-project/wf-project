@@ -308,8 +308,14 @@ def _revisions() -> None:
         *audited(),
         sa.PrimaryKeyConstraint("id"),
         sa.ForeignKeyConstraint(["project_id"], ["project.id"], ondelete="RESTRICT"),
-        sa.ForeignKeyConstraint(["source_revision_id"], ["revision.id"], ondelete="RESTRICT"),
         sa.UniqueConstraint("project_id", "id"),
+        # The source is a revision of the same project, and never the revision itself.
+        sa.ForeignKeyConstraint(
+            ["project_id", "source_revision_id"],
+            ["revision.project_id", "revision.id"],
+            ondelete="RESTRICT",
+        ),
+        sa.CheckConstraint("source_revision_id <> id", name="source_not_self"),
         sa.CheckConstraint("status IN ('draft', 'marked')", name="status_known"),
         *bounded("version_name", 100),
         sa.CheckConstraint(

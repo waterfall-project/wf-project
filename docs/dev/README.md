@@ -128,11 +128,20 @@ Every served operation the contract keeps declares, on its route, the permission
 validation of the parameters and of the body, after it is read: an unreadable body is refused
 first (400). The permission to view comes first — without it, the object does not exist for the
 caller, 404 `NOT_FOUND`; without another, 403 `PERMISSION_MISSING`, `params.missing_permission`
-naming it (WF-ADM-0110). The evaluation itself, `require(actor, permission)`, is that of the module
-`waterfall.core.access_roles`, which the following epics complete (the status of contributor in
-EP-04). _Check_: `backend/tests/test_access_evaluation.py` lists the permissions of every served
-operation and checks that the contract declares the refusal they can give — a new route is added
-to it.
+naming it (WF-ADM-0110). Whether a permission is one to view is declared by the catalogue
+(`CONSULTATION`, `waterfall.core.access_roles.predefined`), not by its suffix: `all_projects_read`
+is one (#754). The evaluation itself, `require(actor, permission)`, is that of the module
+`waterfall.core.access_roles`. An operation on a project declares `RequiresProject(...)` instead,
+which reads `project_id` from the path and evaluates likewise a second term, the status of the
+caller on the project, read through the interface of the projects (`contributor_kind`):
+`require_project`. The project exists for the caller only if they hold the permission to view and
+are its contributor, or hold `all_projects_read`; otherwise, or if it does not exist, the same 404
+`NOT_FOUND`. A write requires the status of contributor besides (403 `NOT_CONTRIBUTOR`), an action
+reserved to the project managers (`manager=True`) theirs (403 `NOT_PROJECT_MANAGER`),
+`params.missing_condition` naming it (WF-PRJ-0060). _Check_:
+`backend/tests/test_access_evaluation.py` lists the permissions of every served operation, and the
+status on its project of every operation on a project (`ON_PROJECT` of the `asked_*.py` files), and
+checks that the contract declares the refusal they can give — a new route is added to it.
 
 ## The front
 
