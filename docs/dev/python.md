@@ -145,13 +145,20 @@ la revue.
   (`runtime-evaluated-base-classes`), et celles des routes et des dépendances de FastAPI.
 - Ces dernières sont les modules de `backend/src/waterfall/api/` que `ruff.toml` nomme sous
   `per-file-ignores`, avec leur raison : Ruff ne reconnaît pas les routes d'un
-  `router = APIRouter()` local. Un module de `api/` qui ne porte ni route ni dépendance
-  (intergiciel, gestion des erreurs, requêtes) n'y figure pas, et range ses imports. Un module qui
-  gagne une route ou une dépendance s'y ajoute.
-- Les nouveautés de 3.14 ne s'emploient pas pour elles-mêmes : `except A, B:` sans parenthèses
-  (PEP 758) n'est permis que sans `as`, et le dépôt n'a aucun `except` sans `as` à écrire
-  ainsi ; une chaîne de gabarit (PEP 750) ne s'emploie que là où une fonction la consomme
-  (aucune aujourd'hui, `text()` de SQLAlchemy attend une chaîne).
+  `router = APIRouter()` local, et aucun contrôle ne vérifie la liste. Un nouveau module de
+  routes ou de dépendances s'y ajoute, au lieu de ranger ses imports sous `TYPE_CHECKING`.
+  Un module de `api/` sans route ni dépendance (intergiciel, gestion des erreurs) n'y
+  figure pas. `queries` porte pourtant `audit_column_filters`, une dépendance FastAPI
+  (`Annotated[AuditColumnsQuery, Query()]`) : il n'est sûr que parce que ses annotations
+  n'emploient que des types locaux ou des imports réels. Un paramètre ajouté à cette
+  dépendance et typé par un import ramène `queries` dans l'exception de `ruff.toml`.
+- Les nouveautés de 3.14 ne s'emploient pas pour elles-mêmes. `except A, B:` sans
+  parenthèses (PEP 758) n'est permis que sans `as` : le dépôt l'emploie là où il n'y a pas
+  d'`as` (10 `except` de `backend/src` et `tools/src`), et garde les parenthèses là où
+  l'`as` lie l'exception (13, tous avec `as`). Une chaîne de gabarit (PEP 750) ne s'emploie
+  que là où une fonction la consomme (aucune aujourd'hui : `text()` de SQLAlchemy attend une
+  chaîne, et les deux `text(f"…")` du dépôt, dans `restoration.py` et `tables.py`, n'y
+  changent rien).
 
 *Pourquoi* : une évaluation tardive rend le futur import inutile, et un import évalué à tort
 coûte au démarrage et aux cycles. *Contrôle* : Ruff (`TC`, `UP`, `FA`) ; `make test-back` pour
