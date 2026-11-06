@@ -423,6 +423,28 @@ def test_the_partitions_of_a_project_are_the_owners_function_the_service_alone_m
     assert create is False
 
 
+@pytest.mark.requirement("WF-REV-0020-A")
+def test_the_guards_of_a_marked_revision_run_under_their_own_search_path(
+    database: Database, owner: Engine
+) -> None:
+    # A guard runs with the rights of its caller: its search path is its own, so that a temporary
+    # table of the caller's session never stands for a table the guard reads.
+    del database
+    with owner.connect() as connection:
+        guards = connection.execute(
+            text(
+                "SELECT proname, prosecdef, proconfig FROM pg_proc WHERE proname IN "
+                "('revision_refuse_marked_change', 'cost_structure_refuse_marked_change') "
+                "ORDER BY proname"
+            )
+        ).all()
+    own = ["search_path=pg_catalog, pg_temp"]
+    assert [tuple(guard) for guard in guards] == [
+        ("cost_structure_refuse_marked_change", False, own),
+        ("revision_refuse_marked_change", False, own),
+    ]
+
+
 @pytest.mark.requirement("WF-DAT-0050-A")
 def test_the_function_called_by_the_owner_creates_the_partition_of_the_project_and_no_other(
     database: Database, owner: Engine

@@ -15,8 +15,10 @@ Two triggers of the module of the revisions refuse, owner included, what a marke
 (WF-REV-0020): on ``revision``, going back from ``marked``, any change of a marked revision but its
 designation as reference, its counter and its audit, and its deletion; on ``cost_structure``, any
 write of a row whose revision is marked — the revision read under ``FOR KEY SHARE``, which the lock
-of a marking waits for. A project is never deleted, nor a transition (``INSERT`` and ``SELECT``
-alone); the rest is deleted by the service, row by row. Every key refuses (``RESTRICT``).
+of a marking waits for. Their search path is their own and the table they read is named in
+``public``: a temporary table of the session never shadows it. A project is never deleted, nor a
+transition (``INSERT`` and ``SELECT`` alone); the rest is deleted by the service, row by row. Every
+key refuses (``RESTRICT``).
 """
 
 from typing import TYPE_CHECKING
@@ -79,7 +81,8 @@ REVOKE ALL ON FUNCTION create_project_partitions(uuid) FROM PUBLIC;
 # What a marked revision may still change: its designation as reference, which the same transaction
 # writes on its project, its counter and its audit.
 REVISION_GUARD = """
-CREATE FUNCTION revision_refuse_marked_change() RETURNS trigger LANGUAGE plpgsql AS $$
+CREATE FUNCTION revision_refuse_marked_change() RETURNS trigger
+LANGUAGE plpgsql SET search_path = pg_catalog, pg_temp AS $$
 DECLARE
     kept text[] := ARRAY['is_reference', 'lock_version', 'updated_at', 'updated_by'];
 BEGIN
@@ -100,12 +103,13 @@ FOR EACH ROW EXECUTE FUNCTION revision_refuse_marked_change();
 """
 
 STRUCTURE_GUARD = """
-CREATE FUNCTION cost_structure_refuse_marked_change() RETURNS trigger LANGUAGE plpgsql AS $$
+CREATE FUNCTION cost_structure_refuse_marked_change() RETURNS trigger
+LANGUAGE plpgsql SET search_path = pg_catalog, pg_temp AS $$
 BEGIN
     IF TG_OP <> 'INSERT' AND EXISTS (
-        SELECT FROM revision WHERE id = OLD.revision_id AND status = 'marked' FOR KEY SHARE
+        SELECT FROM public.revision WHERE id = OLD.revision_id AND status = 'marked' FOR KEY SHARE
     ) OR TG_OP <> 'DELETE' AND EXISTS (
-        SELECT FROM revision WHERE id = NEW.revision_id AND status = 'marked' FOR KEY SHARE
+        SELECT FROM public.revision WHERE id = NEW.revision_id AND status = 'marked' FOR KEY SHARE
     ) THEN
         RAISE EXCEPTION 'a row of a marked revision is never written: % refused', TG_OP
             USING ERRCODE = 'restrict_violation';

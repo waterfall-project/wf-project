@@ -562,3 +562,24 @@ def test_a_current_revision_and_its_structures_are_changed_and_abandoned_freely(
         left = select(Revision.status).where(Revision.project_id == parents.other)
         statuses = connection.execute(left).scalars().all()
     assert statuses == ["marked"]
+
+
+@pytest.mark.requirement("WF-REV-0020-A")
+def test_a_temporary_table_named_revision_does_not_open_a_structure_of_a_marked_revision(
+    database: Database, marked: UUID
+) -> None:
+    # An unqualified name is looked for in pg_temp first: the guard reads public.revision under its
+    # own search path, so a table of the service's session that shadows it leaves the refusal whole.
+    with database.engine.connect() as connection:
+        temporary = connection.scalar(
+            text("SELECT has_database_privilege(current_database(), 'TEMPORARY')")
+        )
+    assert temporary is True, "the role of the service has no TEMPORARY: the scenario is not tried"
+    changed = update(CostStructure).where(CostStructure.revision_id == marked).values(label="Autre")
+    with database.engine.connect() as connection:
+        # Created in the transaction, the table goes with its rollback.
+        connection.execute(text("CREATE TEMP TABLE revision (id uuid, status text)"))
+        with pytest.raises(IntegrityError) as raised:
+            connection.execute(changed)
+        connection.rollback()
+    assert isinstance(raised.value.orig, psycopg.errors.RestrictViolation)
