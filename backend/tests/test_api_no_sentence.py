@@ -86,6 +86,9 @@ DATA = {
     "ProblemSubproject.label": "a label",
     "ProblemRisk.label": "a label",
     "ProblemMissingColumn.labels": "labels of the extraction",
+    # The code and the label a person gave a nature of cost (US-0820).
+    "CostType.code": "a code",
+    "CostType.label": "a label",
     # The labels the mapping itself declares, and the columns it keeps (US-0870, WF-REF-0190).
     "ActualCostMappingColumn.labels": "labels of the extraction",
     "ActualCostMapping.kept_columns": "labels of the extraction",
