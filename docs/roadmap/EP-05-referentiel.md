@@ -286,11 +286,14 @@ Décisions de l'auteur du 2026-10-28, sur les questions du cadrage, chacune avec
   ne les porte pas ; les colonnes d'audit de chaque table disent qui a touché la ligne en dernier.
   Écartée : une action nouvelle, qui serait une modification du contrat et irait au-delà de la
   spécification. (Le critère qu'US-0880 portait à ce sujet au premier jet est retiré.)
-- **`include_inactive` et `is_active` faux relèvent de la permission de lecture de la partie**
-  (`cost_settings.read`, `resource_settings.read`), les écritures de sa permission de
-  modification (DECISIONS.md, « Le référentiel » ; #300, #351). Écarté : la permission de
-  modification pour les désactivés, qui priverait un lecteur du référentiel de ce que WF-REF-0150
-  lui promet.
+- **`include_inactive` et `is_active` faux relèvent de la permission de modification de la
+  partie** (`cost_settings.write`, `resource_settings.write`), comme toute écriture : c'est ce que
+  le contrat figé dit, par les 403 de ses lectures et leurs exemples `*_inactive_forbidden`
+  (WF-REF-0150, WF-ADM-0100 ; #300, #351). Décision de l'auteur du 2026-11-06 (#2084, option A),
+  qui revient sur la conception validée, laquelle les mettait sous la permission de lecture et
+  contredisait le contrat. Écarté : suivre la conception par une entrée de `docs/api/DECISIONS.md`,
+  qui réécrirait des exemples que le faux back et les parcours jouent déjà, pour laisser à un
+  lecteur ce qui est un geste d'administration.
 - **US-0810 crée toutes les tables en une fois**, pour que chaque US d'objet n'ait que son module,
   ses routes et ses tests à écrire. Écarté : une migration par US, qui ferait six fois la revue
   des droits du rôle du service.
@@ -447,8 +450,8 @@ codes et les libellés sont bornés comme le contrat les borne (20 et 200), jama
   2026-11-05) ; les modèles Pydantic du contrat existent déjà (`api/contract/models.py`,
   engendrés).
 - Chaque route déclare ses permissions par `Requires(...)` comme le contrat les dit ; une lecture
-  qui demande `include_inactive` ou `is_active` faux ajoute la permission de lecture de la partie
-  par une dépendance qui lit la requête ; une écriture des paramètres communs juge la permission
+  qui demande `include_inactive` ou `is_active` faux ajoute la permission de modification de la
+  partie par une dépendance qui lit la requête (#2084) ; une écriture des paramètres communs juge la permission
   de chaque champ porté avant d'écrire quoi que ce soit (403 au premier champ refusé) ;
   `test_access_evaluation.py` reçoit chaque opération.
 - Les refus sont ceux que le contrat nomme, code par code (`ALREADY_EXISTS` avec
@@ -796,7 +799,7 @@ codes, et changer le type d'une nature ou la nature d'une catégorie tant que ri
   comptable pour les catégories ; `kinds`, `cost_type_id`, `is_active` ; les désactivées après les
   actives —, et `meta.total` compte ce qui est retenu ; les catégories actives se lisent sans la
   permission du référentiel, `include_inactive` et `is_active` faux sont refusés par 403 sans
-  `cost_settings.read` ;
+  `cost_settings.write` ;
 - propre à l'US : « Désactiver une nature de coût désactive ses catégories » : chaque catégorie
   active de la nature est désactivée avec elle, son compteur avance, son audit nomme l'auteur ;
   la réactivation ne rend active que la nature, et celle d'une catégorie sous une nature
@@ -846,7 +849,7 @@ tout chiffrage parte d'un taux constaté.
   `getHourlyRateGrid`, à la relecture ; les autres cellules de l'année sont nulles, et les taux
   des autres années ceux d'avant ;
 - propre à l'US : la grille rend une ligne par catégorie de main-d'œuvre, active — désactivée
-  aussi avec `include_inactive`, sous `cost_settings.read`, refusé par 403 sans elle —, les
+  aussi avec `include_inactive`, sous `cost_settings.write`, refusé par 403 sans elle —, les
   années de toute la grille quels que soient la page, la recherche (`search` sur le code et le
   libellé), les bornes (`rate_year`, `rate_min`, `rate_max`) et le tri (`rate.<année>`, les
   catégories sans taux après les autres dans l'ordre croissant) ; `listHourlyRates` rend les taux
@@ -914,7 +917,7 @@ donne un droit.
   (#379) ; un nœud désactivé auquel un compte reste rattaché s'y affiche par son libellé ;
 - propre à l'US : `listOrgNodes` cherche sur le libellé et le code, se filtre par `code`, `level`,
   `level_min`, `level_max` et `is_active`, et rend les nœuds retenus avec leurs ancêtres ; les
-  désactivés ne sont rendus qu'avec `include_inactive`, sous `resource_settings.read`, refusé par
+  désactivés ne sont rendus qu'avec `include_inactive`, sous `resource_settings.write`, refusé par
   403 sans elle ;
 - propre à l'US : chaque réponse est validée contre le contrat dans les tests du service ;
 - propre à l'US : `load-witness` charge les nœuds du témoin, puis désactive ceux qu'il dit
