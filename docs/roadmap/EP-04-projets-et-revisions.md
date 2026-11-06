@@ -849,7 +849,7 @@ désactivation concurrente ne laisse pas naître un projet sans rôle.
 
 ## US-0930 — Les contributeurs et les chefs de projet
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-PRJ-0060-A`, `WF-ADM-0070-A`
 - **opérations** : `listContributors`, `setContributors`, `listContributorSuggestions`
 - **issue** : 2058
