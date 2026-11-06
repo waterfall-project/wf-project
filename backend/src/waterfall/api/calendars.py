@@ -3,12 +3,12 @@
 """The calendars and the units of duration (FBS-3.2).
 
 ``listCalendars``, ``createCalendar``, ``updateCalendar``, ``setDefaultCalendar``,
-``setCalendarActivation``, ``getDurationUnits`` and ``setDurationUnits``.
+``setCalendarActivation``; ``getDurationUnits`` and ``setDurationUnits`` follow with US-0860b.
 
-The active calendars and the constants are read by any session: they are the vocabulary of the
-projects (FBS-4). The deactivated calendars (``include_inactive``, ``is_active`` false) and every
-write ask for the permission to change the resource settings (WF-ADM-0100). A calendar is
-described with the commands its caller may exercise, each available or not (WF-IHM-0090).
+The active calendars are read by any session: they are the vocabulary of the projects (FBS-4).
+The deactivated calendars (``include_inactive``, ``is_active`` false) and every write ask for the
+permission to change the resource settings (WF-ADM-0100). A calendar is described with the
+commands its caller may exercise, each available or not (WF-IHM-0090).
 """
 
 from dataclasses import dataclass
@@ -26,8 +26,6 @@ from waterfall.api.contract.models import (
     Calendar,
     CalendarUpdate,
     CalendarWrite,
-    DurationUnits,
-    DurationUnitsWrite,
     LockVersion,
     PaginationMeta,
     SortOrder,
@@ -40,16 +38,12 @@ from waterfall.core.resource_settings.interface import (
     CalendarSort,
     CalendarView,
     CalendarWindow,
-    DurationUnitsView,
-    Units,
     WeeklyHours,
     calendar_commands,
     create_calendar,
-    get_duration_units,
     list_calendars,
     set_calendar_activation,
     set_default_calendar,
-    set_duration_units,
     update_calendar,
 )
 from waterfall.core.resource_settings.tables import DAYS
@@ -62,7 +56,7 @@ CHANGE = "resource_settings.write"
 # The size of a page the contract gives when none is asked for, and the largest it allows.
 DEFAULT_LIMIT = 50
 GREATEST_LIMIT = 500
-# Read by any session: the active calendars and the constants ask for no permission.
+# Read by any session: the active calendars ask for no permission.
 OPEN = [Depends(Requires())]
 # The deactivated calendars are read under the permission to change, after the evaluation above.
 LIST = [Depends(Requires()), Depends(RequiresForInactive(CHANGE))]
@@ -113,24 +107,6 @@ def calendar(view: CalendarView, *, may_change: bool) -> Calendar:
                 }
                 for each in calendar_commands(view, may_change=may_change)
             ],
-            "audit": {
-                "created_at": view.created_at,
-                "created_by": actor_ref(view.created_by),
-                "updated_at": view.updated_at,
-                "updated_by": actor_ref(view.updated_by),
-            },
-            "lock_version": view.lock_version,
-        }
-    )
-
-
-def duration_units(view: DurationUnitsView) -> DurationUnits:
-    """Describe the constants as the contract does."""
-    return DurationUnits.model_validate(
-        {
-            "hours_per_day": _plain(view.units.hours_per_day),
-            "hours_per_week": _plain(view.units.hours_per_week),
-            "days_per_month": _plain(view.units.days_per_month),
             "audit": {
                 "created_at": view.created_at,
                 "created_by": actor_ref(view.created_by),
@@ -250,31 +226,3 @@ def put_calendar_activation(
         session, calendar_id, body.lock_version.root, act, is_active=body.is_active
     )
     return calendar(changed, may_change=True)
-
-
-@router.get(
-    "/reference/duration-units",
-    operation_id="getDurationUnits",
-    dependencies=OPEN,
-    response_model_exclude_unset=True,
-)
-def get_units(session: Transaction) -> DurationUnits:
-    """Give the constants the days, weeks and months convert by (WF-PLA-0160)."""
-    return duration_units(get_duration_units(session))
-
-
-@router.put(
-    "/reference/duration-units",
-    operation_id="setDurationUnits",
-    dependencies=WRITE,
-    response_model_exclude_unset=True,
-)
-def put_units(body: DurationUnitsWrite, account: Caller, session: Transaction) -> DurationUnits:
-    """Write the three constants, strictly positive, unless stale (412) (WF-PLA-0160)."""
-    units = Units(
-        Decimal(body.hours_per_day.root),
-        Decimal(body.hours_per_week.root),
-        Decimal(body.days_per_month.root),
-    )
-    act = Act(account.user_id, utc_now())
-    return duration_units(set_duration_units(session, units, body.lock_version.root, act))

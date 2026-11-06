@@ -1,6 +1,6 @@
 # SPDX-FileCopyrightText: 2026 waterfall-project
 # SPDX-License-Identifier: AGPL-3.0-only
-"""The calendars and the units of duration (US-0860: WF-REF-0110, 0120, WF-PLA-0160).
+"""The calendars and the default one (US-0860: WF-REF-0110, 0120).
 
 Every answer passes through ``ContractClient``, which checks it against the contract. The
 calendars are read and written as a manager does (the permissions to read and to change the
@@ -26,8 +26,6 @@ from waterfall.core.resource_settings.interface import (
     CalendarWindow,
     WeeklyHours,
     create_calendar,
-    get_duration_units,
-    install_duration_units,
     list_calendars,
     read_calendar,
     set_default_calendar,
@@ -45,7 +43,6 @@ if TYPE_CHECKING:
     from waterfall.platform.database import Database
 
 CALENDARS = "/api/v1/reference/calendars"
-UNITS = "/api/v1/reference/duration-units"
 PLATFORM = Act(None, utc_now())
 STANDARD = ("8", "8", "8", "8", "8", "0", "0")
 DAYS = ("monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday")
@@ -122,11 +119,6 @@ def refusal(response: Any) -> tuple[int, str, dict[str, Any], list[dict[str, Any
 def put(api: ContractClient, headers: dict[str, str], path: str, **sent: Any) -> Any:
     """Send a PUT with the body given."""
     return api.put(f"{CALENDARS}/{path}", headers=headers, json=sent)
-
-
-def constants(body: dict[str, Any]) -> list[str]:
-    """Give the three constants of an answer."""
-    return [body[name] for name in ("hours_per_day", "hours_per_week", "days_per_month")]
 
 
 @pytest.mark.requirement("WF-REF-0110-A")
@@ -541,92 +533,17 @@ def test_the_sum_of_the_week_sorts_and_the_pages_cut_the_order(
     assert refusal(refused)[:2] == (422, "VALIDATION_FAILED")
 
 
-@pytest.mark.requirement("WF-PLA-0160-A")
-def test_the_constants_are_read_by_any_session_at_eight_forty_and_twenty(
+@pytest.mark.requirement("WF-REF-0110-A")
+def test_the_calendars_are_written_by_who_may_change_the_resource_settings(
     api: ContractClient, database: Database, sessions: PartSessions
 ) -> None:
-    # « …8, 40 et 20 à l'installation » : the bootstrap writes them; a second writing finds them.
-    with database.transaction() as session:
-        assert install_duration_units(session, PLATFORM)
-    with database.transaction() as session:
-        assert not install_duration_units(session, PLATFORM)
-        assert get_duration_units(session).lock_version == 1
-    for headers in (sessions.without, sessions.changing):
-        response = api.get(UNITS, headers=headers)
-        assert response.status_code == 200
-        assert constants(response.json()) == ["8", "40", "20"]
-        assert response.json()["lock_version"] == 1
-        assert response.json()["audit"]["created_by"] == {"kind": "platform"}
-
-
-@pytest.mark.requirement("WF-PLA-0160-A")
-def test_setting_the_hours_per_day_to_seven_writes_the_three_constants_under_their_own_counter(
-    api: ContractClient, database: Database, sessions: PartSessions
-) -> None:
-    # « Après passage des heures par jour de 8 à 7, une durée saisie « 2 j »… vaut quatorze
-    # heures » : the part of it the service keeps — the constant — is 7, its counter 2, its author
-    # the caller's. The recalculation of the plannings is EP-06's.
-    with database.transaction() as session:
-        install_duration_units(session, PLATFORM)
-    sent = {"hours_per_day": "7", "hours_per_week": "35", "days_per_month": "20", "lock_version": 1}
-    response = api.put(UNITS, headers=sessions.changing, json=sent)
-    assert response.status_code == 200
-    body = response.json()
-    assert constants(body) == ["7", "35", "20"]
-    assert body["lock_version"] == 2
-    assert body["audit"]["updated_by"]["kind"] == "user"
-    assert body["audit"]["created_by"] == {"kind": "platform"}
-    stale = api.put(UNITS, headers=sessions.changing, json=sent)
-    assert refusal(stale)[:3] == (412, "STALE_LOCK_VERSION", {"expected_lock_version": 2})
-    assert api.get(UNITS, headers=sessions.without).json()["hours_per_day"] == "7"
-
-
-@pytest.mark.requirement("WF-PLA-0160-A")
-def test_a_constant_that_is_not_strictly_positive_is_refused_and_nothing_is_written(
-    api: ContractClient, database: Database, sessions: PartSessions
-) -> None:
-    with database.transaction() as session:
-        install_duration_units(session, PLATFORM)
-    zero = {
-        "hours_per_day": "0",
-        "hours_per_week": "40",
-        "days_per_month": "0.0",
-        "lock_version": 1,
-    }
-    status, code, _, fields = refusal(api.put(UNITS, headers=sessions.changing, json=zero))
-    assert (status, code) == (422, "VALIDATION_FAILED")
-    assert fields == [
-        {"pointer": "/hours_per_day", "code": "DURATION_UNIT_NOT_POSITIVE"},
-        {"pointer": "/days_per_month", "code": "DURATION_UNIT_NOT_POSITIVE"},
-    ]
-    negative = {**zero, "hours_per_day": "-8", "days_per_month": "20"}
-    refused = api.put(UNITS, headers=sessions.changing, json=negative)
-    assert refusal(refused)[3] == [{"pointer": "/hours_per_day", "code": "VALIDATION_FAILED"}]
-    with database.transaction() as session:
-        read = get_duration_units(session)
-    assert (read.units.hours_per_day, read.lock_version) == (Decimal(8), 1)
-
-
-@pytest.mark.requirement("WF-PLA-0160-A")
-def test_the_constants_and_the_calendars_are_written_by_who_may_change_the_resource_settings(
-    api: ContractClient, database: Database, sessions: PartSessions
-) -> None:
-    with database.transaction() as session:
-        install_duration_units(session, PLATFORM)
     calendar_id = seed(database, "Semaine standard", default=True)
-    units = {
-        "hours_per_day": "7",
-        "hours_per_week": "35",
-        "days_per_month": "20",
-        "lock_version": 1,
-    }
     body = {"label": "X", "weekly_hours": week()}
     writes = [
         ("POST", CALENDARS, body),
         ("PATCH", f"{CALENDARS}/{calendar_id}", {**body, "lock_version": 1}),
         ("PUT", f"{CALENDARS}/{calendar_id}/default", {"lock_version": 1}),
         ("PUT", f"{CALENDARS}/{calendar_id}/activation", {"is_active": True, "lock_version": 1}),
-        ("PUT", UNITS, units),
     ]
     for headers in (sessions.without, sessions.reading):
         for method, path, sent in writes:
@@ -636,8 +553,6 @@ def test_the_constants_and_the_calendars_are_written_by_who_may_change_the_resou
                 "PERMISSION_MISSING",
                 {"missing_permission": "resource_settings.write"},
             )
-    with database.transaction() as session:
-        assert get_duration_units(session).lock_version == 1
 
 
 def load(service_database_url: str) -> int:
