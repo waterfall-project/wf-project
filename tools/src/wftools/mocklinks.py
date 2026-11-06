@@ -8,8 +8,6 @@ pass through a summary here, with the links that bind a summary to its subordina
 or an indentation makes under a task already linked to what it receives (#1164).
 """
 
-from __future__ import annotations
-
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:

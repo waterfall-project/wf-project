@@ -8,8 +8,6 @@ saying that the example is generated and is not edited by hand. A searched text 
 the service will compare it, through the table PostgreSQL ships with ``unaccent``, then lowered.
 """
 
-from __future__ import annotations
-
 import re
 from dataclasses import dataclass
 from datetime import date, datetime

@@ -123,14 +123,17 @@ un motif de branche, il faut un jeu de règles par branche d'EPIC.
    `git diff --stat origin/epic/EP-nn...lot/<identifiant>`, puis le diff des seuls fichiers
    qui surprennent — jamais le diff entier d'un lot, qui remplirait ton contexte, relu à
    chaque attente.
-3. **Taille, avant la revue** : mesure le lot (`make lot-size BASE=origin/epic/EP-nn`). S'il
-   dépasse nettement son estimation — plus de 800 lignes de code de production, ou plus
-   d'une fois et demie l'estimation de son issue —, coupe-le en deux avant toute revue : le
-   lot garde son issue, sa branche et la part qui tient d'un seul tenant ; la part détachée
-   devient un lot nouveau, sous-issue de la même US, numéroté comme le dit le README de la
-   roadmap (« Lots »), qui dépend du premier et prend sa place dans l'ordre de livraison,
-   juste après lui. Reporte la coupe dans le tableau et au relevé. Un lot ne se coupe qu'une
-   fois ; s'il reste trop gros, il se livre tel quel et l'écart se lit au relevé.
+3. **Taille, avant la revue** : mesure le lot (`make lot-size BASE=origin/epic/EP-nn`) et
+   écris sa taille réelle à côté de l'estimation de son issue, dans la pull request et au
+   relevé. Un dépassement ne coupe pas le lot : il se livre tel quel, et l'écart sert au plan
+   de lots suivant (décision de l'auteur du 2026-11-06 ; la coupe à la mesure n'a jamais
+   réduit les tours de revue, deux à trois quelle que soit la taille, et coûtait une issue,
+   un rebase et un conflit). Le lot ne se coupe que si l'agent de revue dit, à son premier
+   tour, qu'il ne peut pas le relire d'un seul tenant : la part détachée devient alors un lot
+   nouveau, sous-issue de la même US, numéroté comme le dit le README de la roadmap
+   (« Lots »), qui dépend du premier et prend sa place juste après lui ; reporte la coupe
+   dans le tableau et au relevé. Ce qui protège de la boucle de revue, c'est le plafond du
+   point 5.
 4. **Revue locale** : confie le diff à l'agent de revue de chaque langage touché.
    - **Premier tour** : renvoie à l'agent de développement tous les constats du périmètre
      du lot, majeurs et mineurs.

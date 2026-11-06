@@ -21,8 +21,6 @@ zero, which its report names completed on the date of the review the file bears 
 WF-INTF-0130; US-0703/L7).
 """
 
-from __future__ import annotations
-
 from datetime import date
 from typing import TYPE_CHECKING, Any, cast
 
