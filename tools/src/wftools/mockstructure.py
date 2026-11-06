@@ -25,8 +25,6 @@ the same structure, whatever the version of Python. ``wftools.mockdata`` writes 
 ``wftools.mockwrites`` the writes made in it.
 """
 
-from __future__ import annotations
-
 import hashlib
 from dataclasses import dataclass
 from decimal import ROUND_HALF_UP, Decimal

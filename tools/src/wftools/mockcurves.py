@@ -13,8 +13,6 @@ that stop or start there, and an amendment two at its day. Each value counts the
 to be replaced by the kernel of EP-08 to EP-11.
 """
 
-from __future__ import annotations
-
 from bisect import bisect_right
 from dataclasses import dataclass
 from datetime import date, timedelta

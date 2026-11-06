@@ -21,8 +21,6 @@ A marked tree is read by a window (``window``, ``subtree_of``), or by its differ
 (``differences``, the filter ``difference``, #1398).
 """
 
-from __future__ import annotations
-
 from typing import TYPE_CHECKING, cast
 
 from wftools import mockcore

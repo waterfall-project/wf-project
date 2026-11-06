@@ -16,8 +16,6 @@ today (``setActualCostTrackedScope``, WF-CRE-0030), and the consultation read an
 exclusion. Nothing here reads the clock, nor a file the same command writes.
 """
 
-from __future__ import annotations
-
 import functools
 from dataclasses import replace
 from datetime import date

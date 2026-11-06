@@ -75,8 +75,6 @@ generator writes, and a file missing, outdated or unreadable, or any entry left 
 named example missing or outdated fails too.
 """
 
-from __future__ import annotations
-
 import argparse
 import json
 import sys

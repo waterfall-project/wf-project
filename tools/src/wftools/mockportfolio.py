@@ -9,8 +9,6 @@ story. ``wftools.mockdata`` writes them in ``fixtures/api/volume/``. Nothing her
 or draws at random: every value drawn comes from the seed and from what it describes.
 """
 
-from __future__ import annotations
-
 from collections import Counter
 from dataclasses import dataclass
 from datetime import date, timedelta

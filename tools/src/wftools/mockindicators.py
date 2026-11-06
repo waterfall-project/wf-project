@@ -27,8 +27,6 @@ lines of the tracked scope the witness describes and those of its drawn tasks co
 file the same command writes.
 """
 
-from __future__ import annotations
-
 import functools
 from dataclasses import dataclass, replace
 from datetime import date, timedelta

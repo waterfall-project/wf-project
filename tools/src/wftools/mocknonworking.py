@@ -18,8 +18,6 @@ that follow, without their hours, it is created, the server completing the hours
 (``node_created_manual``; the decision of the author of 2026-11-01, F-03, #1769).
 """
 
-from __future__ import annotations
-
 from dataclasses import replace
 from datetime import date
 from typing import TYPE_CHECKING, Any, cast

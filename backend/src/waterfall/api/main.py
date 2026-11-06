@@ -3,7 +3,7 @@
 """Entry point of the API service."""
 
 import sys
-from collections.abc import Sequence
+from typing import TYPE_CHECKING
 
 import uvicorn
 
@@ -18,6 +18,9 @@ from waterfall.platform.maintenance import Maintenance
 from waterfall.platform.queue import DEPOSIT_TIMEOUT, TaskQueue
 from waterfall.platform.settings import SettingsError, load_service_settings
 from waterfall.platform.storage import Bucket
+
+if TYPE_CHECKING:
+    from collections.abc import Sequence
 
 NAME = "waterfall-api"
 

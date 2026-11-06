@@ -44,8 +44,6 @@ would render it at the version its confirmation renders, is a counterfactual (#4
 They would have carried ``mockhistory`` past the thousand lines (``wftools.sources``).
 """
 
-from __future__ import annotations
-
 from dataclasses import replace
 from datetime import timedelta
 from decimal import Decimal

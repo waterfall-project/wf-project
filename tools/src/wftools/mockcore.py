@@ -21,8 +21,6 @@ its previous review, the reference 101 as marked (``current``, WF-RAE-0040); the
 marked revision show none.
 """
 
-from __future__ import annotations
-
 import functools
 from dataclasses import dataclass, field, replace
 from decimal import Decimal

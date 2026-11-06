@@ -134,6 +134,29 @@ secrets de WF-OBS-0020.
 refuse. *Contrôle* : `make requirements`, `make coverage-back` ; la valeur d'une assertion,
 la revue.
 
+### Les annotations sous Python 3.14
+
+- Le projet est en Python 3.14 (PEP 649 et 749) : une annotation n'est pas évaluée à la
+  définition, et une référence en avant s'écrit nue. Pas de `from __future__ import
+  annotations`, pas de chaîne qui entoure un type (`"Foo"`).
+- Un import qu'une annotation seule emploie se range sous `if TYPE_CHECKING:` (TC001 à
+  TC003). Une exception : ce que le code lit à l'exécution garde un import réel, c'est-à-dire
+  les annotations des modèles de pydantic, des réglages, des tables de SQLAlchemy
+  (`runtime-evaluated-base-classes`), et celles des routes et des dépendances de FastAPI.
+- Ces dernières sont les modules de `backend/src/waterfall/api/` que `ruff.toml` nomme sous
+  `per-file-ignores`, avec leur raison : Ruff ne reconnaît pas les routes d'un
+  `router = APIRouter()` local. Un module de `api/` qui ne porte ni route ni dépendance
+  (intergiciel, gestion des erreurs, requêtes) n'y figure pas, et range ses imports. Un module qui
+  gagne une route ou une dépendance s'y ajoute.
+- Les nouveautés de 3.14 ne s'emploient pas pour elles-mêmes : `except A, B:` sans parenthèses
+  (PEP 758) n'est permis que sans `as`, et le dépôt n'a aucun `except` sans `as` à écrire
+  ainsi ; une chaîne de gabarit (PEP 750) ne s'emploie que là où une fonction la consomme
+  (aucune aujourd'hui, `text()` de SQLAlchemy attend une chaîne).
+
+*Pourquoi* : une évaluation tardive rend le futur import inutile, et un import évalué à tort
+coûte au démarrage et aux cycles. *Contrôle* : Ruff (`TC`, `UP`, `FA`) ; `make test-back` pour
+l'import qu'une route lit à l'exécution.
+
 ## Défauts déjà rencontrés
 
 Chacun a été trouvé dans du code réel, souvent par une revue automatique, et se

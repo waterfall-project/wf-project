@@ -221,7 +221,7 @@ il ne le corrige pas en silence.
 
 ## US-1280 — La revue des règles ruff et des annotations sous Python 3.14
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : aucune — outil du dépôt
 - **opérations** : aucune
 - **issue** : #2023

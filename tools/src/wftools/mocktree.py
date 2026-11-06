@@ -8,8 +8,6 @@ the hierarchy: the fake back says them as the server does, and ``wftools.mockges
 answers by them. ``mockdating.schedule`` refuses the structures a loop would leave.
 """
 
-from __future__ import annotations
-
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Literal
 
