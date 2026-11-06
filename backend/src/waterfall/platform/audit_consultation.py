@@ -184,10 +184,8 @@ def journal_projects(session: Session) -> list[AuditProject]:
     """Give each project of the journal once, by the code and the label of its latest inscription.
 
     In the order of the codes, compared code point by code point, then of the identifiers. The
-    contract names a project by its code and its label of today, those of its latest inscription
-    only for one that no longer exists: there are no projects yet, and the code and the label are
-    always those of the latest inscription, until the module of the projects reads them (#927,
-    EP-04).
+    journal knows nothing of the projects: the API names the ones that still exist by their code
+    and label of today, read through the module of the projects (#927).
     """
     latest = session.scalars(_latest_first(AuditEntry.project_id))
     projects = [

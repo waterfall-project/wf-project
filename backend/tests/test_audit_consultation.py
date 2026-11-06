@@ -15,6 +15,7 @@ from uuid import UUID, uuid4
 
 import pytest
 from access_rows import account, role
+from project_rows import insert_project
 from realm import KEY, TestRealm
 from sqlalchemy import text, update
 from sqlalchemy.dialects import postgresql
@@ -458,6 +459,26 @@ def replace_actor(written: Written, actors: dict[AuditActor, AuditActor]) -> Wri
         written.params,
         written.object_id,
     )
+
+
+@pytest.mark.requirement("WF-ADM-0190-A")
+def test_the_facets_name_a_project_that_exists_by_its_code_and_label_of_today(
+    api: ContractClient, database: Database, reader: dict[str, str]
+) -> None:
+    # « Le code et le libellé d'aujourd'hui de chaque projet, ceux de la dernière inscription
+    # seulement pour un projet qui n'existe plus » (#927): FIRST was renamed after its
+    # inscriptions and is named by the name of today, SECOND is gone and keeps its inscription's.
+    write(database)
+    with database.transaction() as session:
+        session.execute(
+            insert_project(id=FIRST.project_id, code="PRJ-009", label="Poste de commande rénové")
+        )
+    response = api.get(FACETS, headers=reader)
+    assert response.status_code == 200, response.text
+    assert [(p["project_id"], p["code"], p["label"]) for p in response.json()["projects"]] == [
+        (str(SECOND.project_id), "PRJ-002", SECOND.label),
+        (str(FIRST.project_id), "PRJ-009", "Poste de commande rénové"),
+    ]
 
 
 def test_a_journal_without_any_inscription_has_no_facet(

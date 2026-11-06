@@ -15,6 +15,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query
 from pydantic import AwareDatetime, BaseModel, Field
+from sqlalchemy.orm import Session
 
 from waterfall.api.authentication import Transaction
 from waterfall.api.contract.base import Text
@@ -29,8 +30,9 @@ from waterfall.api.contract.models import (
 )
 from waterfall.api.evaluation import Requires
 from waterfall.api.queries import listed
+from waterfall.core.projects.interface import project_code, project_label, projects_present
 from waterfall.core.users.interface import read_authors
-from waterfall.platform.audit import AuditEntry
+from waterfall.platform.audit import AuditEntry, AuditProject
 from waterfall.platform.audit_consultation import (
     AuditColumn,
     AuditFilters,
@@ -173,6 +175,21 @@ def get_audit_events(
     }
 
 
+def _projects_today(session: Session) -> list[AuditProject]:
+    """Name each project of the journal as it is today, as it was inscribed if it is gone (#927)."""
+    named = journal_projects(session)
+    present = projects_present(session, [project.project_id for project in named])
+    today: list[AuditProject] = []
+    for project in named:
+        if project.project_id in present:
+            code = project_code(session, project.project_id) or project.code
+            label = project_label(session, project.project_id) or project.label
+            today.append(AuditProject(project.project_id, code, label))
+        else:
+            today.append(project)
+    return sorted(today, key=lambda project: (project.code, project.project_id))
+
+
 @router.get("/audit-events/facets", operation_id="listAuditFacets", dependencies=READ)
 def get_audit_facets(session: Transaction) -> AuditFacets:
     """Give the accounts and the projects the whole journal names, to choose one in its filters.
@@ -180,7 +197,10 @@ def get_audit_facets(session: Transaction) -> AuditFacets:
     An account by the name it shows today, read from the accounts — by the name its latest
     inscription keeps if none bears it any longer —, in the order of the names compared code point
     by code point, then of the identifiers; an account anonymised, which has lost its name, after
-    the names, as the sort of the journal puts it.
+    the names, as the sort of the journal puts it. A project by the code and the label it bears
+    today, read through the module of the projects — by those of its latest inscription if it no
+    longer exists (#927) —, in the order of the codes compared code point by code point, then of
+    the identifiers.
     """
     named = journal_actors(session)
     today = read_authors(session, [actor.user_id for actor in named])
@@ -203,7 +223,7 @@ def get_audit_facets(session: Transaction) -> AuditFacets:
                     "label": project.label,
                     "can_open": PROJECT_OPENS,
                 }
-                for project in journal_projects(session)
+                for project in _projects_today(session)
             ],
         }
     )
