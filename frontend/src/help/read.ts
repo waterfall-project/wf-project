@@ -113,7 +113,7 @@ const CONTRIBUTORS = CONTRIBUTOR_GRID.columns;
  * may exercise them sees.
  */
 const COLUMNS: Readonly<Record<string, readonly HelpColumn[]>> = {
-  "FBS-1.1": defined(userGrid({ roles: () => [], rename: undefined }).columns),
+  "FBS-1.1": defined(userGrid({ roles: () => [], nodes: [], rename: undefined }).columns),
   "FBS-1.2": defined(accessRoleGrid(true).columns),
   "FBS-1.4": defined(backupGrid({ marks: true, downloads: true, restores: true }).columns),
   "FBS-1.5": defined(auditGrid({ functions: [], revision: false }).columns),

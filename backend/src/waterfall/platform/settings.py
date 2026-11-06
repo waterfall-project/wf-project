@@ -129,13 +129,17 @@ class InstallationSettings(KeycloakSettings):
     ``installation_client_secret`` is the secret of the client of the bootstrap, the only one that
     makes a link valid until it is used, which neither the API nor the worker holds (#652);
     ``admin_email`` the address of the first administrator, and ``default_language`` the language
-    of the installation (WF-EXP-0020, WF-INTF-0160). It deposits no task and serves nothing: it
-    reads neither Redis nor where the API listens.
+    of the installation (WF-EXP-0020, WF-INTF-0160); ``currency`` its single currency, three
+    capital letters (WF-REF-0140), and ``company_name`` the name of the company that uses it, from
+    1 to 200 characters and never blank (WF-EXP-0020), both written once, at the first run. It
+    deposits no task and serves nothing: it reads neither Redis nor where the API listens.
     """
 
     installation_client_secret: SecretStr = Field(min_length=1)
     admin_email: str = Field(min_length=1)
     default_language: Literal["fr", "en"]
+    currency: str = Field(pattern="^[A-Z]{3}$")
+    company_name: str = Field(min_length=1, max_length=200, pattern=r"\S")
 
 
 class RestoreSettings(ServiceSettings):

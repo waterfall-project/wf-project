@@ -126,6 +126,10 @@ suit une fois figé.
   les colonnes de la grille (relevé par US-0630/L2, EP-16 ; reporté ici avec #1340, le service du
   poste, par la décision de l'auteur du 2026-10-27, confirmée au cadrage d'EP-17 le 2026-10-28) :
   la citation se corrige quand EP-09 réalise le poste.
+- #2093 — front : l'aide FBS-3.1.3 (fr, en) et les messages `reference.actualCostMapping.complete`
+  et `.missing` de `/reference/costs/actual-cost-mapping` à reprendre quand l'import lit la
+  correspondance (relevé par US-0870, EP-05) : l'aide dit l'import « pas encore offert », les
+  messages disent le refus que l'import tiendra.
 
 Le rattachement de WF-REF-0190 est réécrit au cadrage d'EP-16 (décision de l'auteur du
 2026-10-22). C-374 la rattachait entière ici ; EP-05 la commence en stockant la correspondance,

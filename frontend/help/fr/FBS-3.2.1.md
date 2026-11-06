@@ -6,6 +6,8 @@ La première table des [paramètres de ressources](FBS-3.2.md) : les nœuds d’
 
 Les rôles de ressources se rattachent aux nœuds, et le plan de charge agrégé se filtre par nœud, ses descendants compris. Désactiver un nœud désactive ses descendants et les rôles qui y sont rattachés.
 
+Un compte se rattache à un nœud actif dans [la gestion des utilisateurs](FBS-1.1.md), et le rattachement ne donne aucun droit : il situe la personne, sans rien ajouter à ses permissions.
+
 Une recherche ou un filtre retient des nœuds, et l’arbre les montre avec leurs ancêtres.
 
 ## Ses commandes

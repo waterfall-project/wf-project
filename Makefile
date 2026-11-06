@@ -256,7 +256,7 @@ service-up: ## Start the service platform: PostgreSQL, Redis, the migrations, th
 # administrator on the standard output, alone — its image built quietly first, and no terminal,
 # which would mix the logs in —, and nothing on an installation whose administrator has set a
 # password.
-service-install: ## Bootstrap the installation of the service platform, started, and print the link of its first administrator (WATERFALL_ADMIN_EMAIL, WATERFALL_DEFAULT_LANGUAGE)
+service-install: ## Bootstrap the installation of the service platform, started, and print the link of its first administrator (WATERFALL_ADMIN_EMAIL, WATERFALL_DEFAULT_LANGUAGE, WATERFALL_CURRENCY, WATERFALL_COMPANY_NAME)
 	@$(COMPOSE_SERVICE) build --quiet install
 	@$(COMPOSE_SERVICE) run --rm --no-TTY install
 
@@ -292,6 +292,7 @@ lint-compose: ## Validate the Compose files
 		$(COMPOSE_SERVICE_FILE) --profile e2e --profile install --profile witness config --quiet
 	@WATERFALL_DOMAIN=waterfall.localhost WATERFALL_ACME_EMAIL=stand-in WATERFALL_IMAGE_TAG=stand-in \
 		WATERFALL_ADMIN_EMAIL=stand-in WATERFALL_SERVER_ACTIONS_KEY=stand-in \
+		WATERFALL_CURRENCY=EUR WATERFALL_COMPANY_NAME=stand-in \
 		WATERFALL_POSTGRES_ADMIN_PASSWORD=stand-in WATERFALL_POSTGRES_PASSWORD=stand-in WATERFALL_SERVICE_DATABASE_PASSWORD=stand-in \
 		WATERFALL_BACKUP_DATABASE_PASSWORD=stand-in \
 		WATERFALL_REDIS_PASSWORD=stand-in WATERFALL_KEYCLOAK_DATABASE_PASSWORD=stand-in WATERFALL_KEYCLOAK_ADMIN_PASSWORD=stand-in \
