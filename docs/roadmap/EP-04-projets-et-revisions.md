@@ -294,14 +294,14 @@ Reportés d'EP-17 à sa livraison (rangement du 2026-11-05) :
   US-0701/L9 (EP-16), rangé ici le 2026-11-05.
 - #1714 — contrat : aucun exemple de `getPortfolioWorkload` ni de `getPortfolioPilotHealth` ne
   retient `completed`, l'avis de G-05 à vérifier sur le service réel. Reporté ici par l'auteur le
-  2026-10-31 ; mais EP-04 ne sert aucune des deux opérations, qui sont du portefeuille : à trancher à
-  l'ouverture des issues, proposé reporté → EP-11.
+  2026-10-31 ; mais EP-04 ne sert aucune des deux opérations, qui sont du portefeuille : reporté →
+  EP-11 par l'auteur le 2026-11-06.
 
 À l'ouverture des issues (2026-11-05), chaque constat est rattaché selon sa décision, portée au
 tableau « Constats ouverts » de #2051 : #754 sous US-0910/L2 (#2054) ; #1658 et #1749 sous US-0920/L1
 (#2056) ; #927, #962 et #1004 sous US-0920/L2 (#2057) ; #1502 sous US-0940 (#2059) ; #1759 sous
 US-0960 (#2061), pour la copie des structures qui omet celles `is_merged` ; #1350 sous US-0990/L2
-(#2069) ; #1337 (US-0920/L1 et US-0940), #1797 (US-0960 et US-0980/L2) et #1714 (à trancher) sous
+(#2069) ; #1337 (US-0920/L1 et US-0940), #1797 (US-0960 et US-0980/L2) et #1714 (reporté → EP-11 le 2026-11-06) sous
 l'EPIC #2051.
 
 ## Conception

@@ -60,6 +60,11 @@ aucun schéma modifié ; `KanbanTask` et `TaskFacet.awaiting_own_lines` le disen
 
 EP-17 livré (la carte d'US-0730b et son aide sont sur sa branche). Décisions de l'auteur du 2026-11-04.
 
+EP-20 livré, pour US-1280 seulement : la revue de ruff porte sur la configuration `py314` qu'US-1160/L1
+d'EP-20 a posée, absente de `main` avant sa fusion, et `epic/EP-22` doit avoir repris `main` après
+elle (décision de l'auteur du 2026-11-06, option A de la question de #2023). Les autres US d'EP-22 n'en
+dépendent pas.
+
 ## Définition de fini
 
 - `make check` passe sur la branche de l'EPIC, la file de fusion est verte ;
