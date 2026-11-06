@@ -72,7 +72,10 @@ class RequiresForInactive:
     the request, not on what it would give: ``include_inactive`` is refused without it even when
     ``is_active`` true makes it vain (contract, ``IsActive``). A value that is no boolean asks for
     nothing here: the validation of the parameters refuses it afterwards (400). Declared on the
-    route after its ``Requires``, which comes first.
+    route after its ``Requires``: the dependencies of a route run in their order, and a caller who
+    may not read the part of the reference at all must be refused by the ``Requires`` (404), not by
+    this (403), which would tell him the list exists. ``test_access_evaluation.py`` checks the
+    order of every route that declares it.
     """
 
     __slots__ = ("permission",)

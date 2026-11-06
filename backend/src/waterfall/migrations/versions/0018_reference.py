@@ -8,7 +8,9 @@ of resources; the mapping of the extraction of the actual costs, a single row, a
 single rows are the bootstrap's to write, never a migration's. Nothing here is deleted by the
 service — an object is deactivated —, but a label of the mapping, which its whole writing replaces
 row by row: the role of the service selects, inserts and updates each table, and deletes those
-labels alone. Every key refuses (``RESTRICT``): the reference cascades nothing.
+labels alone — but the settings the installation shares, which it selects and updates: their row is
+inserted by the bootstrap, as the owner. Every key refuses (``RESTRICT``): the reference cascades
+nothing.
 """
 
 from typing import TYPE_CHECKING
@@ -46,8 +48,11 @@ GRANT = f"""
 DO $$
 BEGIN
     EXECUTE format(
-        'GRANT SELECT, INSERT, UPDATE ON {", ".join(TABLES)} TO %I',
+        'GRANT SELECT, INSERT, UPDATE ON {", ".join(TABLES[1:])} TO %I',
         current_database() || '_service'
+    );
+    EXECUTE format(
+        'GRANT SELECT, UPDATE ON {TABLES[0]} TO %I', current_database() || '_service'
     );
     EXECUTE format(
         'GRANT DELETE ON actual_cost_mapping_label TO %I', current_database() || '_service'

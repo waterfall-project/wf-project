@@ -11,7 +11,8 @@ from alembic import context
 from sqlalchemy.engine import Connection, Engine
 from sqlalchemy.sql import text
 
-from waterfall.platform.database import Base, create_database_engine
+from waterfall import schema
+from waterfall.platform.database import create_database_engine
 from waterfall.platform.settings import load_settings
 
 # One number for the whole history: the key of the advisory lock of a migration run.
@@ -25,7 +26,7 @@ def run_migrations(connection: Connection) -> None:
     connection.execute(text("SELECT pg_advisory_lock(:key)"), {"key": MIGRATION_LOCK})
     connection.commit()
     try:
-        context.configure(connection=connection, target_metadata=Base.metadata)
+        context.configure(connection=connection, target_metadata=schema.declared())
         with context.begin_transaction():
             context.run_migrations()
         connection.commit()

@@ -10,6 +10,7 @@ import importlib
 import os
 import pkgutil
 import subprocess
+import sys
 import tomllib
 from pathlib import Path
 from typing import cast
@@ -195,6 +196,7 @@ def test_a_module_may_use_an_interface_in_a_package_but_none_of_its_files(sample
     assert "sample.core.projects.tables -> sample.core.settings.interface.rates" in result.stdout
 
 
+@pytest.mark.requirement("WF-QUA-0040-A")
 @pytest.mark.parametrize("module", ["bootstrap", "api.__init__", "core.projects.tables"])
 def test_nothing_imports_the_loader_of_the_witness(sample: Path, module: str) -> None:
     result = lint(sample, module, "import sample.witness\n")
@@ -202,6 +204,7 @@ def test_nothing_imports_the_loader_of_the_witness(sample: Path, module: str) ->
     assert f"sample.{module.removesuffix('.__init__')} -> sample.witness" in result.stdout
 
 
+@pytest.mark.requirement("WF-QUA-0040-A")
 def test_the_loader_of_the_witness_may_run_the_bootstrap_and_write_through_the_interfaces(
     sample: Path,
 ) -> None:
@@ -219,6 +222,47 @@ def test_each_module_of_the_reference_offers_its_interface_as_a_package_of_one_f
     interface = importlib.import_module(f"waterfall.core.{module}.interface")
     held = {info.name for info in pkgutil.iter_modules(interface.__path__)}
     assert held == files
+
+
+def imported(statement: str) -> str:
+    """Run a statement in a fresh interpreter, and give what it prints."""
+    done = subprocess.run(
+        [sys.executable, "-c", statement], capture_output=True, text=True, check=True
+    )
+    return done.stdout.strip()
+
+
+@pytest.mark.requirement("WF-ARC-0010-A")
+def test_importing_a_module_of_the_core_declares_the_tables_of_no_other() -> None:
+    # The tables of every module are declared together by ``waterfall.schema``, which the entry
+    # points import: the core itself imports no module's tables by way of another.
+    statement = (
+        "import sys, waterfall.core.users.interface;"
+        "print(sorted(m for m in sys.modules if m.endswith('.tables')))"
+    )
+    assert imported(statement) == "['waterfall.core.users.tables']"
+    # The package of the core, alone, holds the tables of none.
+    statement = "import sys, waterfall.core; print(any(m.endswith('.tables') for m in sys.modules))"
+    assert imported(statement) == "False"
+
+
+@pytest.mark.requirement("WF-ARC-0010-A")
+def test_the_schema_declares_the_tables_of_every_module_and_the_entry_points_import_it() -> None:
+    statement = (
+        "import waterfall.schema; from waterfall.platform.database import Base;"
+        "print(len(Base.metadata.tables))"
+    )
+    # An entry point alone declares what a foreign key of the reference names (``user_account``).
+    entry = (
+        "import waterfall.{}, waterfall.platform.database as d;"
+        "print('user_account' in d.Base.metadata.tables and 'cost_type' in d.Base.metadata.tables)"
+    )
+    assert int(imported(statement)) >= 10
+    for module in ("api.app", "worker.main", "bootstrap", "witness.main"):
+        assert imported(entry.format(module)) == "True", module
+    # The environment of the migrations runs on import, against a database: its source is read.
+    env = Path(__file__).resolve().parents[1] / "src/waterfall/migrations/env.py"
+    assert "schema.declared()" in env.read_text(encoding="utf-8")
 
 
 def test_the_package_itself_keeps_its_contracts() -> None:

@@ -19,7 +19,7 @@ from typing import TYPE_CHECKING
 
 from sqlalchemy import func, select
 
-from waterfall import bootstrap
+from waterfall import bootstrap, schema
 from waterfall.api import main as api
 from waterfall.platform.audit import Act
 from waterfall.platform.correlation import correlation_id_from
@@ -62,6 +62,7 @@ def load_witness(settings: WitnessSettings) -> int:
 
     Under a correlation of its own, as the platform.
     """
+    schema.declared()
     database = Database(create_database_engine(settings.database_url.get_secret_value()))
     try:
         with logging_context(correlation_id=correlation_id_from(None), actor=PLATFORM):

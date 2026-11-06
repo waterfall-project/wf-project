@@ -14,7 +14,7 @@ from typing import TYPE_CHECKING
 
 from sqlalchemy import func, select
 
-from waterfall import __version__
+from waterfall import __version__, schema
 from waterfall.platform.correlation import correlation_id_from
 from waterfall.platform.database import Database, create_database_engine
 from waterfall.platform.logs import PLATFORM, configure_logging, get_logger, logging_context
@@ -53,6 +53,7 @@ logger = get_logger(__name__)
 
 def main(argv: Sequence[str] | None = None) -> int:
     """Run the worker, or schedule a task, or say why not; a wrong argument returns 2."""
+    schema.declared()
     arguments = list(sys.argv[1:] if argv is None else argv)
     if arguments == ["--version"]:
         sys.stdout.write(f"{NAME} {__version__}\n")

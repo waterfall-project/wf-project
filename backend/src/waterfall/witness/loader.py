@@ -3,9 +3,24 @@
 """The order the witness is loaded in: one slice per object, after the slices it names.
 
 A slice is the function ``load`` of its file: it writes its objects through the interfaces of the
-modules unless the platform already holds them, and tells whether it wrote. An empty slice writes
-nothing — its objects, none, are held. The story of an object fills its file and never touches
-this order, which EP-05 fixes ("Le chargeur du témoin").
+modules, with the identifiers the witness imposes, unless the platform already holds them, and
+tells whether it wrote. An empty slice writes nothing — its objects, none, are held. The story of
+an object fills its file and never touches this order, which EP-05 fixes ("Le chargeur du témoin").
+
+What "the platform holds them" means, for every slice (EP-05, "Le chargeur du témoin"):
+
+- all the objects of the slice, found by the identifier the witness imposes, are there: the slice
+  writes nothing and returns ``False`` — a second execution on a loaded platform succeeds, saying
+  the witness is there;
+- none is there: the slice writes them all and returns ``True``; any object that bears the code or
+  the label of one of them without its identifier is refused by the rule of its module (a
+  ``ServiceError``), which stops the command;
+- some are there and not all, a platform half loaded: the slice writes nothing of the missing
+  ones. It raises the collision (409 ``ALREADY_EXISTS``) that stops the command, nothing written
+  by any slice, one transaction. ``description.is_loaded`` makes the three cases one call.
+
+A slice never completes, corrects or overwrites what the platform holds, and looks for it by the
+identifier, not by the code or the label.
 """
 
 from typing import TYPE_CHECKING

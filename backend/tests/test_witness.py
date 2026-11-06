@@ -25,7 +25,7 @@ from waterfall.platform.database import utc_now
 from waterfall.platform.errors import ConflictError
 from waterfall.platform.settings import WitnessSettings
 from waterfall.witness import loader
-from waterfall.witness.description import Witness
+from waterfall.witness.description import Witness, is_loaded
 from waterfall.witness.main import WITNESS_LOCK, load_witness, main
 
 if TYPE_CHECKING:
@@ -35,6 +35,8 @@ if TYPE_CHECKING:
     from support import Logs
 
     from waterfall.platform.database import Database
+
+pytestmark = pytest.mark.requirement("WF-QUA-0040-A")
 
 ALREADY_EXISTS = "ALREADY_EXISTS"
 # The order EP-05 fixes ("Le chargeur du témoin"): each slice after those it names.
@@ -225,3 +227,17 @@ def test_the_witness_of_the_tests_is_loaded_by_the_command_as_the_service(
     # Nothing to load yet: each slice fills it as its story comes (EP-05, "Les tests du back").
     with witness.transaction() as session:
         assert session.scalars(select(CostType)).all() == []
+
+
+def test_a_slice_finds_its_objects_all_there_none_there_or_a_platform_half_loaded() -> None:
+    first, second = sorted((uuid4(), uuid4()))
+    assert is_loaded({first, second}, {first, second, uuid4()}) is True
+    assert is_loaded({first, second}, {uuid4()}) is False
+    # An empty slice has nothing to write, and nothing that the platform could hold.
+    assert is_loaded(set(), {first}) is False
+    with pytest.raises(ConflictError) as refused:
+        is_loaded({first, second}, {second})
+    assert (refused.value.code, dict(refused.value.params)) == (
+        ALREADY_EXISTS,
+        {"conflicting_object_id": str(second)},
+    )

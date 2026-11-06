@@ -439,6 +439,11 @@ ASKED: dict[str, tuple[str, ...]] = {
     "completeChunkedUpload": ("platform_restore",),
     **{name: asked for router in REFERENCE for name, asked in router.ASKED.items()},
 }
+# Two files that declare the same operation would overwrite each other in the table above.
+DECLARED = [name for router in REFERENCE for name in router.ASKED]
+assert len(DECLARED) == len(set(DECLARED)), sorted(
+    name for name in set(DECLARED) if DECLARED.count(name) > 1
+)
 # The permission each list of the reference asks for besides when it asks for deactivated objects.
 INACTIVE: dict[str, str] = {
     name: permission for router in REFERENCE for name, permission in router.INACTIVE.items()
@@ -549,6 +554,7 @@ def test_an_actor_passes_with_the_permission_and_is_refused_without_it() -> None
     )
 
 
+@pytest.mark.requirement("WF-REF-0150-A")
 def test_every_list_of_the_reference_asks_for_its_permission_to_read_the_deactivated(
     contract: OpenAPI, services: Services
 ) -> None:
@@ -563,11 +569,29 @@ def test_every_list_of_the_reference_asks_for_its_permission_to_read_the_deactiv
         assert "403" in (contract.spec / "paths" / relative / method.lower() / "responses"), name
 
 
+@pytest.mark.requirement("WF-REF-0150-A")
+def test_every_list_that_asks_for_deactivated_objects_checks_its_reading_first(
+    services: Services,
+) -> None:
+    # Placed before ``Requires``, the guard would refuse with a 403 a caller who may not read the
+    # part of the reference at all, who must be told 404 by ``Requires``.
+    for name, route in served_routes(services).items():
+        if name not in INACTIVE:
+            continue
+        dependencies = [depends.dependency for depends in route.dependencies]
+        reading = [i for i, each in enumerate(dependencies) if isinstance(each, Requires)]
+        guard = [i for i, each in enumerate(dependencies) if isinstance(each, RequiresForInactive)]
+        assert reading, name
+        assert len(guard) == 1, name
+        assert max(reading) < guard[0], name
+
+
 def listing(query: str) -> Request:
     """Give a request of a list, with its query."""
     return Request({"type": "http", "method": "GET", "path": "/", "query_string": query.encode()})
 
 
+@pytest.mark.requirement("WF-REF-0150-A")
 @pytest.mark.parametrize(
     "query",
     [
@@ -592,6 +616,7 @@ def test_a_list_that_asks_for_deactivated_objects_is_refused_without_the_permiss
     guard(listing(query), Actor(uuid4(), ("cost_settings.read",)))
 
 
+@pytest.mark.requirement("WF-REF-0150-A")
 @pytest.mark.parametrize(
     "query", ["", "include_inactive=false", "is_active=true", "include_inactive=maybe", "search=x"]
 )

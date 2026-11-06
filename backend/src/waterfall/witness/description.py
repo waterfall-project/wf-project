@@ -13,10 +13,36 @@ from typing import TYPE_CHECKING
 
 from pydantic import BaseModel
 
+from waterfall.platform.errors import ConflictError
+
 if TYPE_CHECKING:
+    from collections.abc import Set as AbstractSet
     from pathlib import Path
+    from uuid import UUID
 
     from waterfall.platform.audit import Act
+
+
+ALREADY_EXISTS = "ALREADY_EXISTS"
+
+
+def is_loaded(imposed: AbstractSet[UUID], present: AbstractSet[UUID]) -> bool:
+    """Tell whether a slice finds its objects already on the platform; refuse a half-loaded one.
+
+    ``imposed`` are the identifiers the witness gives its objects, ``present`` those of them that
+    the platform holds, read through the interface of the module. All of them: the slice writes
+    nothing (``True``). None: it has everything to write (``False``; an empty slice has nothing).
+    Some: the platform holds an object that bears an identifier of the witness without being all of
+    it — a collision, which stops the command (409 ``ALREADY_EXISTS``, ``conflicting_object_id``
+    the first in the order of the identifiers) before the slice writes anything. No rule of the
+    reference is in it.
+    """
+    held = imposed & present
+    if held == imposed:
+        return bool(imposed)
+    if not held:
+        return False
+    raise ConflictError(ALREADY_EXISTS, {"conflicting_object_id": str(min(held))})
 
 
 @dataclass(frozen=True, slots=True)

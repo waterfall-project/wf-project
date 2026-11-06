@@ -323,8 +323,9 @@ SERVICE_RIGHTS: dict[str, set[str]] = {
     "file_upload": {"SELECT", "INSERT", "UPDATE"},
     # The reference (§4.4.1, regime "reference"; EP-05): read, created, changed and deactivated,
     # never deleted. The single rows — the settings shared, the units, the mapping — are the
-    # bootstrap's to insert, as the owner; the service writes them through the same rights.
-    "reference_setting": {"SELECT", "INSERT", "UPDATE"},
+    # bootstrap's to insert, as the owner; the service writes them through the same rights, but
+    # for the settings shared, "written by the bootstrap, changed by the service".
+    "reference_setting": {"SELECT", "UPDATE"},
     "duration_unit": {"SELECT", "INSERT", "UPDATE"},
     "cost_type": {"SELECT", "INSERT", "UPDATE"},
     "cost_category": {"SELECT", "INSERT", "UPDATE"},

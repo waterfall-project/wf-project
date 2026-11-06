@@ -9,7 +9,7 @@ interface (WF-ARC-0060). A path with a slash the contract does not write is not 
 
 from fastapi import FastAPI
 
-from waterfall import __version__
+from waterfall import __version__, schema
 from waterfall.api import (
     access_roles,
     actual_cost_mapping,
@@ -46,6 +46,7 @@ def create_app(services: Services) -> FastAPI:
     Nothing is reached before a request needs it: a probe answers without the database or
     Keycloak.
     """
+    schema.declared()
     app = FastAPI(
         title="Waterfall API",
         version=__version__,
