@@ -11,15 +11,24 @@ from collections.abc import Callable
 from typing import TYPE_CHECKING, Any, cast
 from uuid import UUID, uuid4
 
+import asked_actual_cost_mapping
+import asked_calendars
+import asked_cost_types
+import asked_hourly_rates
+import asked_org_nodes
+import asked_reference
+import asked_reference_settings
+import asked_resource_roles
 import pytest
 from access_rows import ADMINISTRATION, role
 from fastapi.routing import APIRoute
 from realm import KEY, TestRealm
 from sqlalchemy import insert, select
-from support import ContractClient, bearer, operations, raw_account
+from starlette.requests import Request
+from support import REFERENCE_PARTS, ContractClient, bearer, operations, raw_account
 
 from waterfall.api.app import create_app
-from waterfall.api.evaluation import Requires
+from waterfall.api.evaluation import Requires, RequiresForInactive
 from waterfall.core.access_roles.interface import (
     PERMISSION_MISSING,
     Actor,
@@ -36,6 +45,7 @@ from waterfall.platform.errors import ForbiddenError, NotFoundError
 if TYPE_CHECKING:
     from openapi_core import OpenAPI
     from starlette.routing import BaseRoute
+    from support import ReferenceSessions
 
     from waterfall.api.authentication import Services
     from waterfall.platform.database import Database
@@ -377,6 +387,17 @@ def test_an_account_without_any_role_reads_its_own_account_and_the_catalogue(
     assert api.get(ROLES, headers=headers).status_code == 404
 
 
+# The operations of the reference, declared router by router, each in its own file (EP-05).
+REFERENCE = (
+    asked_reference,
+    asked_reference_settings,
+    asked_cost_types,
+    asked_hourly_rates,
+    asked_org_nodes,
+    asked_resource_roles,
+    asked_calendars,
+    asked_actual_cost_mapping,
+)
 # The permissions each served operation asks for, in the order they are evaluated.
 ASKED: dict[str, tuple[str, ...]] = {
     "getLiveness": (),
@@ -416,6 +437,11 @@ ASKED: dict[str, tuple[str, ...]] = {
     "openChunkedUpload": ("platform_restore",),
     "uploadChunk": ("platform_restore",),
     "completeChunkedUpload": ("platform_restore",),
+    **{name: asked for router in REFERENCE for name, asked in router.ASKED.items()},
+}
+# The permission each list of the reference asks for besides when it asks for deactivated objects.
+INACTIVE: dict[str, str] = {
+    name: permission for router in REFERENCE for name, permission in router.INACTIVE.items()
 }
 
 
@@ -435,6 +461,31 @@ def asked(route: APIRoute) -> tuple[str, ...]:
     )
 
 
+def inactive(route: APIRoute) -> str | None:
+    """Give the permission a route asks for besides to read deactivated objects, if any."""
+    return next(
+        (
+            depends.dependency.permission
+            for depends in route.dependencies
+            if isinstance(depends.dependency, RequiresForInactive)
+        ),
+        None,
+    )
+
+
+def served_routes(services: Services) -> dict[str, APIRoute]:
+    """Give the routes of the application, by the operation each serves."""
+    served: list[BaseRoute] = []
+    for included in create_app(services).routes:
+        router = getattr(included, "original_router", None)
+        served.extend(cast("list[BaseRoute]", router.routes) if router else [included])
+    return {
+        route.operation_id: route
+        for route in served
+        if isinstance(route, APIRoute) and route.operation_id
+    }
+
+
 def refused_without(permission: str) -> str:
     """Give the status the evaluation refuses an actor without ``permission`` by."""
     with pytest.raises((NotFoundError, ForbiddenError)) as refused:
@@ -448,15 +499,7 @@ def test_every_served_operation_asks_for_the_permission_the_contract_refuses_it_
     # A permission to consult missing is a 404, any other a 403: the operation declares the
     # refusal it may give; one that declares neither asks for nothing. An operation that asks for
     # nothing refuses nothing by a 403, nor by a 404 unless it reads an object of its caller's own.
-    served: list[BaseRoute] = []
-    for included in create_app(services).routes:
-        router = getattr(included, "original_router", None)
-        served.extend(cast("list[BaseRoute]", router.routes) if router else [included])
-    routes = {
-        route.operation_id: route
-        for route in served
-        if isinstance(route, APIRoute) and route.operation_id
-    }
+    routes = served_routes(services)
     assert {name: asked(route) for name, route in routes.items()} == ASKED
     declared = operations(contract)
     for name, permissions in ASKED.items():
@@ -504,3 +547,64 @@ def test_an_actor_passes_with_the_permission_and_is_refused_without_it() -> None
         PERMISSION_MISSING,
         {"missing_permission": "users.write"},
     )
+
+
+def test_every_list_of_the_reference_asks_for_its_permission_to_read_the_deactivated(
+    contract: OpenAPI, services: Services
+) -> None:
+    # A list that reads deactivated objects declares the 403 that refuses them.
+    routes = served_routes(services)
+    held = {name: inactive(route) for name, route in routes.items()}
+    assert {name: permission for name, permission in held.items() if permission} == INACTIVE
+    declared = operations(contract)
+    for name in INACTIVE:
+        method, path = declared[name]
+        relative = path.removeprefix((contract.spec / "servers" / 0 / "url").read_value())
+        assert "403" in (contract.spec / "paths" / relative / method.lower() / "responses"), name
+
+
+def listing(query: str) -> Request:
+    """Give a request of a list, with its query."""
+    return Request({"type": "http", "method": "GET", "path": "/", "query_string": query.encode()})
+
+
+@pytest.mark.parametrize(
+    "query",
+    [
+        "include_inactive=true",
+        "include_inactive=1",
+        "is_active=false",
+        # Judged on the request, not on what it would give: ``is_active`` true makes it vain.
+        "is_active=true&include_inactive=true",
+    ],
+)
+def test_a_list_that_asks_for_deactivated_objects_is_refused_without_the_permission_naming_it(
+    query: str,
+) -> None:
+    guard = RequiresForInactive("cost_settings.read")
+    with pytest.raises(ForbiddenError) as refused:
+        guard(listing(query), Actor(uuid4(), ("users.read",)))
+    assert (refused.value.status, refused.value.code, dict(refused.value.params)) == (
+        403,
+        PERMISSION_MISSING,
+        {"missing_permission": "cost_settings.read"},
+    )
+    guard(listing(query), Actor(uuid4(), ("cost_settings.read",)))
+
+
+@pytest.mark.parametrize(
+    "query", ["", "include_inactive=false", "is_active=true", "include_inactive=maybe", "search=x"]
+)
+def test_a_list_of_the_active_objects_asks_for_no_permission_besides(query: str) -> None:
+    # A value that is no boolean is the validation's to refuse, after the evaluation.
+    RequiresForInactive("resource_settings.write")(listing(query), Actor(uuid4(), ()))
+
+
+@pytest.mark.parametrize("part", REFERENCE_PARTS)
+def test_the_three_sessions_of_a_part_of_the_reference_hold_none_of_it_its_reading_and_its_change(
+    api: ContractClient, reference_sessions: ReferenceSessions, part: str
+) -> None:
+    sessions = reference_sessions(part)
+    every = (sessions.without, sessions.reading, sessions.changing)
+    held = [me(api, headers)["permissions"] for headers in every]
+    assert held == [[], [f"{part}.read"], [f"{part}.read", f"{part}.write"]]

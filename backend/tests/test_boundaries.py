@@ -6,7 +6,9 @@ The core has no module yet, so the contracts of ``pyproject.toml`` are applied, 
 but for the name of the root package, to a sample package built for each test.
 """
 
+import importlib
 import os
+import pkgutil
 import subprocess
 import tomllib
 from pathlib import Path
@@ -17,6 +19,7 @@ import pytest
 PROJECT = Path(__file__).resolve().parents[1] / "pyproject.toml"
 
 LAYOUT = {
+    "witness/__init__.py": "",
     "bootstrap.py": "",
     "restore/__init__.py": "",
     "api/__init__.py": "",
@@ -30,6 +33,33 @@ LAYOUT = {
     "core/projects/__init__.py": "",
     "core/projects/interface.py": "",
     "core/projects/tables.py": "",
+    # An interface in a package: one file per object, re-exported by the package.
+    "core/settings/__init__.py": "",
+    "core/settings/interface/__init__.py": (
+        "from sample.core.settings.interface.rates import RATE\n"
+    ),
+    "core/settings/interface/rates.py": "from sample.core.settings import tables\nRATE = 1\n",
+    "core/settings/tables.py": "",
+}
+# The modules of the reference (EP-05), and the files of the interface of each, one per object.
+REFERENCE_INTERFACES: dict[str, set[str]] = {
+    "cost_settings": {
+        "reference_settings",
+        "readiness",
+        "cost_types",
+        "cost_categories",
+        "hourly_rates",
+        "actual_cost_mapping",
+    },
+    "resource_settings": {
+        "readiness",
+        "org_nodes",
+        "resource_roles",
+        "calendars",
+        "duration_units",
+    },
+    "risk_settings": set(),
+    "indicator_settings": set(),
 }
 
 
@@ -151,6 +181,44 @@ def test_nothing_imports_the_service_of_the_restoration(sample: Path, module: st
     result = lint(sample, module, "import sample.restore\n")
     assert result.returncode == 1
     assert f"sample.{module.removesuffix('.__init__')} -> sample.restore" in result.stdout
+
+
+@pytest.mark.requirement("WF-ARC-0010-A")
+def test_a_module_may_use_an_interface_in_a_package_but_none_of_its_files(sample: Path) -> None:
+    through = lint(
+        sample, "core.projects.tables", "from sample.core.settings.interface import RATE\n"
+    )
+    assert through.returncode == 0, through.stdout
+    beside = "from sample.core.settings.interface.rates import RATE\n"
+    result = lint(sample, "core.projects.tables", beside)
+    assert result.returncode == 1
+    assert "sample.core.projects.tables -> sample.core.settings.interface.rates" in result.stdout
+
+
+@pytest.mark.parametrize("module", ["bootstrap", "api.__init__", "core.projects.tables"])
+def test_nothing_imports_the_loader_of_the_witness(sample: Path, module: str) -> None:
+    result = lint(sample, module, "import sample.witness\n")
+    assert result.returncode == 1
+    assert f"sample.{module.removesuffix('.__init__')} -> sample.witness" in result.stdout
+
+
+def test_the_loader_of_the_witness_may_run_the_bootstrap_and_write_through_the_interfaces(
+    sample: Path,
+) -> None:
+    # It passes on what is not its own to the bootstrap, and reads the models of the contract.
+    imports = "import sample.bootstrap\nimport sample.api\nimport sample.core.accounts.interface\n"
+    result = lint(sample, "witness.__init__", imports)
+    assert result.returncode == 0, result.stdout
+
+
+@pytest.mark.requirement("WF-ARC-0010-A")
+@pytest.mark.parametrize(("module", "files"), REFERENCE_INTERFACES.items())
+def test_each_module_of_the_reference_offers_its_interface_as_a_package_of_one_file_per_object(
+    module: str, files: set[str]
+) -> None:
+    interface = importlib.import_module(f"waterfall.core.{module}.interface")
+    held = {info.name for info in pkgutil.iter_modules(interface.__path__)}
+    assert held == files
 
 
 def test_the_package_itself_keeps_its_contracts() -> None:

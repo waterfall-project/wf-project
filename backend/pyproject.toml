@@ -23,9 +23,11 @@ dependencies = [
 ]
 
 # One package, two processes: the API and the worker start from the same distribution, and
-# so carry the same version by construction (WF-ARC-0010).
+# so carry the same version by construction (WF-ARC-0010). ``waterfall-api`` starts in the loader of
+# the witness, which takes ``load-witness`` and passes anything else to the bootstrap, which takes
+# ``install`` and passes anything else to the API.
 [project.scripts]
-waterfall-api = "waterfall.bootstrap:main"
+waterfall-api = "waterfall.witness.main:main"
 waterfall-worker = "waterfall.worker.main:main"
 waterfall-migrate = "waterfall.migrations.runner:main"
 waterfall-restore = "waterfall.restore.main:main"
@@ -100,9 +102,9 @@ reportUnnecessaryTypeIgnoreComment = "error"
 root_package = "waterfall"
 
 [[tool.importlinter.contracts]]
-name = "The core imports neither the API, the worker nor the migrations, which do not import each other; the platform imports none of them; the bootstrap and the service of the restoration, which apply the migrations, are imported by none"
+name = "The core imports neither the API, the worker nor the migrations, which do not import each other; the platform imports none of them; the bootstrap and the service of the restoration, which apply the migrations, are imported by none but the loader of the witness, which nothing imports"
 type = "layers"
-layers = ["waterfall.bootstrap | waterfall.restore", "waterfall.api | waterfall.worker | waterfall.migrations", "waterfall.core", "waterfall.platform"]
+layers = ["waterfall.witness", "waterfall.bootstrap | waterfall.restore", "waterfall.api | waterfall.worker | waterfall.migrations", "waterfall.core", "waterfall.platform"]
 
 [[tool.importlinter.contracts]]
 name = "A module of the core reaches another only through its public interface"

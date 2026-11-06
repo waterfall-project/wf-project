@@ -156,6 +156,18 @@ class RestoreSettings(ServiceSettings):
     realm_requests: str = Field(min_length=1)
 
 
+class WitnessSettings(PlatformSettings):
+    """What the loader of the witness reads, ``waterfall-api load-witness`` (WF-QUA-0040, EP-05).
+
+    ``database_url`` designates the role of the service: the loader writes through the interfaces
+    of the modules, as the service does, never as the owner of the tables. ``witness_path`` is the
+    directory of the description of the witness, the examples of the contract (``fixtures/api``).
+    It reaches neither Redis nor Keycloak.
+    """
+
+    witness_path: str = Field(min_length=1)
+
+
 def load_settings() -> Settings:
     """Read the settings from the environment, or raise a ``SettingsError`` that names each fault.
 
@@ -182,6 +194,11 @@ def load_restore_settings() -> RestoreSettings:
 def load_installation_settings() -> InstallationSettings:
     """Read the settings of the bootstrap, as ``load_settings`` does."""
     return _load(InstallationSettings)
+
+
+def load_witness_settings() -> WitnessSettings:
+    """Read the settings of the loader of the witness, as ``load_settings`` does."""
+    return _load(WitnessSettings)
 
 
 def _load[Kind: PlatformSettings](kind: type[Kind]) -> Kind:

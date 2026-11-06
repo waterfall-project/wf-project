@@ -12,11 +12,19 @@ from fastapi import FastAPI
 from waterfall import __version__
 from waterfall.api import (
     access_roles,
+    actual_cost_mapping,
     audit,
     avatars,
     backups,
+    calendars,
+    cost_types,
+    hourly_rates,
     identity_syncs,
     me,
+    org_nodes,
+    reference,
+    reference_settings,
+    resource_roles,
     restores,
     system,
     tasks,
@@ -62,4 +70,16 @@ def create_app(services: Services) -> FastAPI:
     app.include_router(backups.router, prefix=PREFIX)
     app.include_router(restores.router, prefix=PREFIX)
     app.include_router(uploads.router, prefix=PREFIX)
+    # The reference (EP-05): a router per story, each registered here from the start.
+    for reference_router in (
+        reference.router,
+        reference_settings.router,
+        cost_types.router,
+        hourly_rates.router,
+        org_nodes.router,
+        resource_roles.router,
+        calendars.router,
+        actual_cost_mapping.router,
+    ):
+        app.include_router(reference_router, prefix=PREFIX)
     return app
