@@ -27,7 +27,7 @@ FROM adorsys/keycloak-config-cli:6.5.1-26.5.5@sha256:0955d98c8a341898b7aa177477e
 
 # Keycloak runs as its own unprivileged user, 1000, that of its image, said again at the end of the
 # stage: the image never runs as root, whatever its base sets.
-FROM keycloak/keycloak:26.8.1@sha256:79c623a22abacf3fe6c00a5fb30f5b7843d717b234033b80995891c06116d244 AS production
+FROM keycloak/keycloak:26.8.1@sha256:3f3c5f8e03c614774b4bd9173b88391fefa4153bfc010d8012d59ad825377332 AS production
 COPY --from=extension /build/target/waterfall-keycloak-extension.jar /opt/keycloak/providers/
 COPY themes/ /opt/keycloak/themes/
 # The options Keycloak fixes at build time: started with --optimized, it does not rebuild. Under
