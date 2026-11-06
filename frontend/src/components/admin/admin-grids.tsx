@@ -50,7 +50,6 @@ import {
   sortColumns,
 } from "@/components/grid/columns";
 import { CONTRACT_ADDRESS } from "@/components/grid/query";
-import type { NodeChoice } from "@/components/reference/reference-filters";
 import { ActiveState } from "@/components/reference/section";
 
 import { auditColumns } from "./audit-columns";
@@ -58,8 +57,6 @@ import { DeleteRole } from "./role-commands";
 import { LABEL_LENGTH, ROLE_FILTERS } from "./role-address";
 import {
   AnonymizeCommand,
-  Attachment,
-  AttachmentCell,
   HeldRoles,
   RolesCell,
   ResendInvitationCommand,
@@ -127,6 +124,12 @@ export type Renaming = (
 function Origin({ user }: { readonly user: User }) {
   const t = useTranslations("enums.UserOrigin");
   return t(user.origin);
+}
+
+/** The node an account is attached to, as the server names it, or that it is attached to none. */
+function Attachment({ user }: { readonly user: User }) {
+  const t = useTranslations("admin.users");
+  return user.org_node_label ?? <span className="text-muted-foreground">{t("noOrgNode")}</span>;
 }
 
 /** The width of a column of a command, its button. */
@@ -208,8 +211,6 @@ function anonymizeColumn(): GridColumn<User, UserSort, UserPage> {
 export interface UserEntry {
   /** The roles of the installation an account may be given, read by the cell alone (défaut n° 14). */
   readonly roles: () => readonly RoleChoice[];
-  /** The active nodes of the organisation chart an account may be attached to, in the order of the tree. */
-  readonly nodes: readonly NodeChoice[];
   /** The writing of a name entered within the writes of its row (`UserWrites.queue`). */
   readonly rename: Renaming | undefined;
 }
@@ -220,8 +221,8 @@ export interface UserEntry {
  * label —, in the order of #379: the names, the address, the origin, the node, the roles and the
  * state; then its audit columns, the creation and the last modification, each its instant and its
  * author (`auditColumns`, #936). For a session that may modify the accounts, it is its own entry
- * (`entry`): the names of a local account in their cells, the node in a drop-down list of the active
- * nodes, the state on a switch, the roles in a list of several choices, and the link of a local account and the anonymisation of a deactivated one on
+ * (`entry`): the names of a local account in their cells, the state on a switch, the roles in a list
+ * of several choices, and the link of a local account and the anonymisation of a deactivated one on
  * their commands — none deletes an account (WF-ADM-0060).
  */
 export function userGrid(entry?: UserEntry): GridConfig<User, UserSort, UserPage> {
@@ -288,12 +289,7 @@ export function userGrid(entry?: UserEntry): GridConfig<User, UserSort, UserPage
         width: 220,
         contract: "org_node",
         value: (user) => user.org_node_label,
-        render: (user) =>
-          entry === undefined ? (
-            <Attachment user={user} />
-          ) : (
-            <AttachmentCell user={user} nodes={entry.nodes} />
-          ),
+        render: (user) => <Attachment user={user} />,
       },
       {
         key: "access_roles",

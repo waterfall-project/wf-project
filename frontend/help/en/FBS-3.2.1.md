@@ -6,8 +6,6 @@ The first table of the [resource settings](FBS-3.2.md): the organisation nodes â
 
 The resource roles are attached to the nodes, and the aggregated workload is filtered by node, its descendants included. Deactivating a node deactivates its descendants and the roles attached to them.
 
-An account is attached to an active node in [user management](FBS-1.1.md), and the attachment gives no right: it places the person, and adds nothing to her permissions.
-
 A search or a filter keeps nodes, and the tree shows them with their ancestors.
 
 ## Its commands

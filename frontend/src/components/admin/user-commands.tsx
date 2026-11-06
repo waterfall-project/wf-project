@@ -55,14 +55,10 @@ import { USER_READS } from "./user-address";
 /** A link to set a password, as the contract gives it. */
 type SetupLink = components["schemas"]["PasswordSetupLink"];
 
-/**
- * What a write of an account asked, shown until the server answers: its state, its roles, or its
- * attachment.
- */
+/** What a write of an account asked, shown until the server answers: its state, or its roles. */
 export interface Asked {
   readonly is_active?: boolean;
   readonly access_role_ids?: readonly string[];
-  readonly org_node_id?: string | null;
 }
 
 /** A write of an account from the version the screen holds, and what is said once it is answered. */

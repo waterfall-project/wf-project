@@ -19,7 +19,6 @@ These commands are offered only to whoever may modify the accounts; to the other
 - **Modify the periodicity** opens the form of the reading periodicity: active or suspended, daily or weekly, the day for a weekly reading only, and the hour in universal time (UTC), with the local hour of this workstation it stands for. The periodicity is saved whole; a reading in progress is not interrupted, the setting holds from the next one.
 - In the table, the last name and the first name of an account created in Waterfall are entered in their cell; those of an account of the directory or of the identity provider are their own, and are not entered.
 - **State**: the switch activates or deactivates the account. Deactivation is unavailable for the last active account that holds the administration permissions (“another active account holding the administration permissions”), and the reactivation of an anonymised account always is.
-- **Attached to**: the list of the active nodes of the [organisation tree](FBS-3.2.1.md), in the order of the tree, or **None** to remove the attachment. A deactivated node the account stays attached to is shown by its label, without being offered. An attachment gives no right: the permissions come from the roles alone, whether the attachment is given, changed or removed.
 - **Access roles**: the list of the roles of the installation, to check or uncheck, none, one or several. The server refuses the roles that would take from the last administrator their permissions.
 - **Link** gives the link to set the password of an account created in Waterfall, to hand over by another channel: it serves only once, will not be shown again, and asking for another one voids the previous one. Unavailable for a deactivated account (“active account”).
 - **Email** has the identity provider send again, to the address of an account created in Waterfall, the email that bears the link to set the password: for a holder who did not receive it, lost it or let it expire. A previous link ceases to hold, and the sending is written in the audit log. Unavailable for a deactivated account (“active account”). When the provider cannot send it — an installation without mail, a mail server failing —, the screen says the refusal, never an email sent: **Link** then gives the link to hand over by another channel.
@@ -42,7 +41,7 @@ No value is computed there: each column shows the account as the server holds it
 ## Keyboard gestures
 
 - The table is a single tab stop: the arrows move the active cell, `Home` and `End` along the row, `Ctrl+Home` and `Ctrl+End` to the first and the last row, `Page Up` and `Page Down` by a screen.
-- `Enter` or `F2` enters a name, `Esc` abandons the entry; `Enter` on the switch, the attachment, the roles, the link, the email or the anonymisation presses the command.
+- `Enter` or `F2` enters a name, `Esc` abandons the entry; `Enter` on the switch, the roles, the link, the email or the anonymisation presses the command.
 - On a header, `Enter` or `Space` sorts the table by the column; `Shift` and the arrows widen or narrow the column.
 - On a Mac, `⌘` stands for `Ctrl`, `⌥` for `Alt` and `⇧` for `Shift`.
 - `F1` opens this help.

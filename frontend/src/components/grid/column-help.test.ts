@@ -73,7 +73,7 @@ describe("the definitions of the columns", () => {
   });
 
   it.each([
-    ["accounts", userGrid({ roles: () => [], nodes: [], rename: undefined }).columns],
+    ["accounts", userGrid({ roles: () => [], rename: undefined }).columns],
     ["accounts, read only", userGrid().columns],
     ["access roles", accessRoleGrid(true).columns],
     ["backups", backupGrid({ marks: true, downloads: true, restores: true }).columns],
