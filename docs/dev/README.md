@@ -1418,13 +1418,16 @@ renders, as long as the answer is more recent than the row read (`lock_version`,
 against the fake back, which keeps nothing, it therefore survives the re-reads —; a creation adds
 no row, the re-read page files it where the server retains it. What a write did is said in the
 region of its list (« “Disbursement” deactivated. »); the refusal of an activation, above the list
-like that of a reactivation (`useListReport`). The fake back keeping nothing, the screen says so
-under its header, for whoever writes — the note, with that of the lists, fits in 150 characters at
-most, so that the totals of a grid stay in the window, and does not say that a written row remains
-shown as the server rendered it as long as the screen stays open — (`MockupNotice`,
-`components/shell/mockup-notice.tsx`, to be taken up by each screen of the mockup whose commands
-write, removed when the screen is plugged into the service of its epic). The entry of a rate remains
-that of the grid.
+like that of a reactivation (`useListReport`). The service keeps what is written (EP-05, US-0820 to
+US-0830): the cost screen no longer bears `MockupNotice`, and a success is what the service kept,
+read back. The fake back, which keeps nothing, is still played by the paths, which assert against it
+only what it answers; the reading anew after a reload is asserted in service only (`inService` of
+`e2e/mode.ts`), and the tests of `reference-costs.spec.ts` bear the `@shared` tag, except those that also play
+screens not yet served (the roles, US-0850). The entry of a
+rate remains that of the grid: the path enters one against the service, which answers what was
+entered. A year added by the grid is only a column of the front, empty, until the first rate (no
+operation creates a column, #299): that of a year the grid already has is refused by the grid itself
+(WF-REF-0060-A), against the service as against the fake back.
 
 The mapping of the actual costs extraction (US-0620/L2, WF-REF-0190, FBS-3.1.3) has its page,
 `/reference/costs/actual-cost-mapping`, which the header of the cost settings offers through
