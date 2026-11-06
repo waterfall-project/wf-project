@@ -341,7 +341,7 @@ def test_two_installations_run_at_once_make_one(
     assert [run.returncode for run in runs] == [0, 0], [err for _, err in written]
     links = [out.removesuffix("\n") for out, _ in written]
     assert all(link and "\n" not in link for link in links), links
-    assert counts(admin, database, address) == (1, 3, 1, 1)
+    assert counts(admin, database, address) == (1, 3, 1, 1, 1, 1, 1)
     # The link of the first is replaced by that of the second, whichever came first.
     # The other opens, at the page that asks to confirm it.
     opened = [Browser().get(link) for link in links]
