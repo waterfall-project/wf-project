@@ -449,6 +449,11 @@ vit dans le tableau de suivi de #2051, non ici) :
 - **Modèles** : `opus` pour US-0910/L1 (sécurité, interface partagée), US-0910/L2 (sécurité),
   US-0960 (interface partagée) et US-0970 (sécurité) ; `sonnet` pour les dix autres, l'escalade
   restant au livreur.
+- **`source_revision_id` dans `revision`, par la migration `0020`** (auteur, 2026-11-06, option a
+  de #2053) : le contrat figé exige `Revision.source_revision_id`, la révision marquée dont une
+  révision est la copie, conservée après le marquage, et aucune colonne ne la déduisait. Écarté :
+  la laisser à US-0960 par une troisième migration, contre « Deux migrations » ; une autre
+  représentation, à concevoir.
 
 ### Tables et migrations
 
@@ -465,7 +470,7 @@ textes triés en collation `C`, cherchés par `contains` ; règles SQL du guide 
 | `contributor` | `project_id`, `user_account_id`, `kind` | clé primaire sur la paire ; `kind` dans `project_manager`, `contributor` ; clés en refus ; la liste porte son compteur dans `project.contributors_lock_version`, propre à elle |
 | `subproject` | `project_id`, `code`, `label`, audit, `lock_version` | `code` unique par projet ; `code` de 1 à 31 sans `: \ / ? * [ ]`, ni « Synthèse » ni « Hors sous-projet » — la forme par contrainte, les noms réservés par le service après normalisation (#1502) — ; supprimée physiquement tant que rien ne la cite |
 | `work_package`, `order_item`, `deliverable` | `project_id`, le parent, `label`, `position`, `deleted_at` (lot et poste : le marquage supprimé, nul ici), audit | clés en refus ; `position` unique sous son parent ; le lotissement porte son compteur dans `project.work_breakdown_lock_version` |
-| `revision` | `project_id`, `status`, `version_name`, `description`, `marked_at`, `reference_year`, `is_reference`, `lineage_id`, audit, `lock_version` | `status` dans `draft`, `marked` ; un seul `draft` par projet (index unique partiel) ; `version_name` unique parmi les révisions marquées d'un projet, non nul si marquée ; `marked_at` non nul si et seulement si marquée ; un seul `is_reference` par projet ; un déclencheur refuse le retour de `marked` à `draft` et toute modification d'une révision marquée hors `is_reference`, `lock_version` et ses colonnes d'audit |
+| `revision` | `project_id`, `status`, `version_name`, `description`, `marked_at`, `reference_year`, `is_reference`, `source_revision_id` (nul, ou la révision marquée dont elle est la copie, clé vers `revision` en refus, conservée après le marquage — `Revision.source_revision_id` du contrat ; #2053, auteur, 2026-11-06), `lineage_id`, audit, `lock_version` | `status` dans `draft`, `marked` ; un seul `draft` par projet (index unique partiel) ; `version_name` unique parmi les révisions marquées d'un projet, non nul si marquée ; `marked_at` non nul si et seulement si marquée ; un seul `is_reference` par projet ; un déclencheur refuse le retour de `marked` à `draft` et toute modification d'une révision marquée hors `is_reference`, `lock_version` et ses colonnes d'audit |
 | `cost_structure` | `project_id` (clé de partition), `revision_id`, `kind` (`main` ici), `label`, `is_merged`, `lineage_id`, audit, `lock_version` | `PARTITION BY LIST (project_id)` ; clé primaire (`project_id`, `id`) ; une seule `main` par révision ; clé vers `revision` en refus ; un déclencheur refuse toute mise à jour et toute suppression d'une ligne dont la révision est marquée — sauf la suppression en cascade d'une révision abandonnée, jamais marquée |
 
 - **Deux migrations**, aux prochains numéros libres à la création d'`epic/EP-04` (décision du
@@ -1100,8 +1105,8 @@ version du projet soit une révision, et une seule à la fois.
   reste gardé par `inService` (décisions de l'auteur du 2026-11-05).
 
 **Notes de réalisation.** `revision` porte `project_id` (clé de partition), `status`,
-`version_name`, `description`, `marked_at`, `reference_year`, `is_reference`, `lineage_id`,
-audit et compteur ; `cost_structure` est la première table révisionnée partitionnée. La copie
+`version_name`, `description`, `marked_at`, `reference_year`, `is_reference`,
+`source_revision_id`, `lineage_id`, audit et compteur ; `cost_structure` est la première table révisionnée partitionnée. La copie
 est une fonction `copy_revision(session, source, target)` de l'interface, appelée dans la
 transaction de la création, qu'EP-06 (tâches, liaisons), EP-07 (lignes, images) et EP-08
 (structures) étendent.
