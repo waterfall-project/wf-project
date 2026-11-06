@@ -55,12 +55,14 @@ class NewAccount:
     idp_subject: str
     origin: str
     org_node_id: UUID | None = None
+    # The identifier the witness imposes; the service draws its own otherwise (WF-DAT-0060).
+    account_id: UUID | None = None
 
 
 def add_account(session: Session, new: NewAccount, stamp: Stamp) -> UserAccount:
-    """Insert an active account, with a new identifier, and return it."""
+    """Insert an active account, with a new identifier unless one is imposed, and return it."""
     account = UserAccount(
-        id=new_id(),
+        id=new_id() if new.account_id is None else new.account_id,
         last_name=new.last_name,
         first_name=new.first_name,
         email=new.email,

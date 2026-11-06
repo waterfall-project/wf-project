@@ -192,10 +192,17 @@ def inscribe(
     record(session, Inscription(action, actor, audited, act.at, params=params))
 
 
-def create_local(session: Session, identity: Identity, subject: str, act: Act) -> UserAccount:
+def create_local(
+    session: Session,
+    identity: Identity,
+    subject: str,
+    act: Act,
+    account_id: UUID | None = None,
+) -> UserAccount:
     """Create the local account the identity provider holds under ``subject``, and inscribe it.
 
     Refused if a field is in fault (422), or if another account holds the address (409).
+    ``account_id`` is the identifier the witness imposes, for an account without a provider.
     """
     refuse((*identity_faults(identity.email), *attachment_faults(session, identity.org_node_id)))
     new = NewAccount(
@@ -205,6 +212,7 @@ def create_local(session: Session, identity: Identity, subject: str, act: Act) -
         subject,
         LOCAL,
         org_node_id=identity.org_node_id,
+        account_id=account_id,
     )
     with unique_address(session, identity.email):
         account = add_account(session, new, Stamp(act.author, act.at))
