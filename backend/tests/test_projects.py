@@ -31,11 +31,11 @@ from support import wait_for_a_lock
 
 from waterfall.api.contract.models import MissingEnum, ProjectCreate, ProjectUpdate
 from waterfall.api.projects import ProjectCreateBody, ProjectUpdateBody
-from waterfall.api.reference import QUESTIONS
 from waterfall.core.access_roles.predefined import PROJECT_MANAGER
+from waterfall.core.cost_settings.interface import PREREQUISITES
 from waterfall.core.cost_settings.tables import CostCategory, CostType
 from waterfall.core.projects.interface import ProjectChange, project_code, project_label
-from waterfall.core.projects.interface.projects import MODIFIABLE, PREREQUISITES
+from waterfall.core.projects.interface.projects import MODIFIABLE
 from waterfall.core.projects.tables import (
     Contributor,
     OrderItem,
@@ -719,9 +719,17 @@ def test_a_rate_with_more_decimals_than_the_base_keeps_is_refused_and_one_that_f
     assert (again.status_code, again.json()["lock_version"]) == (200, 1)
 
 
-def test_the_prerequisites_the_creation_asks_for_are_those_the_readiness_route_names() -> None:
+@pytest.mark.requirement("WF-CYC-0120-A")
+def test_the_prerequisites_the_creation_asks_for_are_those_the_readiness_route_names(
+    api: ContractClient, owner: Engine, database: Database, realm: TestRealm
+) -> None:
+    # Both ask ``missing_prerequisites``, whose names are the enumeration of the contract, in its
+    # order: a name the contract does not enumerate would fail the route.
     assert [name for name, _ in PREREQUISITES] == [each.value for each in MissingEnum]
-    assert [held for _, held in PREREQUISITES] == [QUESTIONS[each] for each in MissingEnum]
+    manager = incomplete(owner, database, realm)
+    route = api.get("/api/v1/reference/readiness", headers=manager.headers)
+    assert route.json()["missing"] == PRIMED
+    assert refused_creation(api, manager.headers) == PRIMED
 
 
 def test_a_change_writes_the_attributes_of_a_project_and_no_other_column() -> None:

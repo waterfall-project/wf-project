@@ -731,7 +731,7 @@ export async function accountAdministrator(browser: Browser, request: APIRequest
     },
     /**
      * Give a local account several roles at once, each as `give` makes it, in place of those it
-     * holds: a predefined role the installation delivers, and a role of the path beside it.
+     * holds: the predefined roles the installation delivers, « Manager » and « Chef de projet ».
      */
     giveAlso: async (
       id: string,

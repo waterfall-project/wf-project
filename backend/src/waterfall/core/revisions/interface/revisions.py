@@ -41,6 +41,7 @@ from waterfall.core.projects.interface import (
     lock_project,
     no_background_task_running,
     project_facts,
+    require_project_manager,
     set_current_revision,
 )
 from waterfall.core.revisions.commands import (
@@ -140,6 +141,14 @@ class RevisionList:
 
     revisions: list[RevisionView]
     total: int
+
+
+@dataclass(frozen=True, slots=True)
+class RevisionToAbandon:
+    """The revision an abandonment names, and the counter its caller read."""
+
+    revision_id: UUID
+    lock_version: int
 
 
 @dataclass(frozen=True, slots=True)
@@ -400,17 +409,23 @@ def copy_revision(session: Session, source: UUID, target: UUID) -> None:
 
 
 def abandon_revision(
-    session: Session, project_id: UUID, revision_id: UUID, lock_version: int, act: Act
+    session: Session, project_id: UUID, abandoned: RevisionToAbandon, act: Act, viewer: Viewer
 ) -> None:
     """Abandon the current revision of a project, its rows deleted (``abandonRevision``).
 
-    Under the lock of the revision, read under it: refused if unknown (404), at another version
-    (412), once marked (409 ``revision_draft``), or while a background task writes in it (409
-    ``no_background_task_running``). The project names no current revision any more, then the
-    structures and the revision are deleted, and the abandonment is inscribed in the journal. A
+    Under the lock of the revision, read under it, then the lock of the project: refused if
+    unknown (404), if the writer is no project manager of the project any more (403, 404), at
+    another version (412), once marked (409 ``revision_draft``), or while a background task writes
+    in it (409 ``no_background_task_running``). The project names no current revision any more, then
+    the structures and the revision are deleted, and the abandonment is inscribed in the journal. A
     terminal project's revisions are all marked: ``revision_draft`` refuses there too.
     """
+    revision_id, lock_version = abandoned.revision_id, abandoned.lock_version
     revision = found_revision(session, revision_id, project_id, lock=True)
+    # The revision is locked first, the project next, as everywhere; the writer is judged under the
+    # lock of the project, before any other refusal: he may be no project manager any more.
+    lock_project(session, project_id)
+    require_project_manager(session, project_id, viewer)
     if revision.lock_version != lock_version:
         raise PreconditionFailedError(
             STALE_LOCK_VERSION, {"expected_lock_version": revision.lock_version}

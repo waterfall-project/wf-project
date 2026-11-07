@@ -20,11 +20,9 @@
  * have (`UNKNOWN_USER`) or deactivated (`USER_INACTIVE`, WF-ADM-0060) —; any other refusal — no
  * project manager left (409), the version stale (412) with the offer to read the page anew — under
  * the form, or, the dialog gone, under the head of the list. The list answered takes the place of
- * the rows of a reading whole while its counter is newer — against the fake back, which keeps
- * nothing, for as long as the screen stays (`MockupNotice`) —, and the page is read anew. Under a
+ * the rows of a reading whole while its counter is newer, and the page is read anew. Under a
  * grid sorted, the list answered comes in the order of the server, not that of the sort —
- * transitory against the real back, which the page read anew replaces; permanent against the fake
- * back.
+ * transitory, the page read anew replacing it.
  *
  * The dialog starts from the reading it was opened on — its rows and its counter —, captured at the
  * opening, as `Opened.row` of the sub-projects: a reading newer that arrives while it is open changes

@@ -30,7 +30,7 @@ from waterfall.api.contract.models import (
 )
 from waterfall.api.evaluation import Requires
 from waterfall.api.queries import listed
-from waterfall.core.projects.interface import project_code, project_label, projects_present
+from waterfall.core.projects.interface import projects_named
 from waterfall.core.users.interface import read_authors
 from waterfall.platform.audit import AuditEntry, AuditProject
 from waterfall.platform.audit_consultation import (
@@ -182,17 +182,16 @@ def _projects_today(session: Session) -> list[AuditProject]:
 
     A project that exists but bears no code today keeps the code of its latest inscription, if
     that one held a code; a project that never bore one is named without code, after the codes
-    (#2166). The label, never null in the project, has the same fallback only because its reading
-    is typed as optional.
+    (#2166). The label, never null in the project, is read as it is. The projects are read
+    together, in one grouped query, not one by one.
     """
     named = journal_projects(session)
-    present = projects_present(session, [project.project_id for project in named])
+    present = projects_named(session, [project.project_id for project in named])
     today: list[AuditProject] = []
     for project in named:
         if project.project_id in present:
-            code = project_code(session, project.project_id) or project.code
-            label = project_label(session, project.project_id) or project.label
-            today.append(AuditProject(project.project_id, code, label))
+            code, label = present[project.project_id]
+            today.append(AuditProject(project.project_id, code or project.code, label))
         else:
             today.append(project)
     return sorted(today, key=by_code)

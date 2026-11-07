@@ -37,6 +37,7 @@ from waterfall.api.tasks import task_ref
 from waterfall.core.access_roles.interface import require
 from waterfall.core.projects.interface import (
     ExitRequest,
+    Viewer,
     exit_project,
     judge_exit_unlocked,
     list_state_transitions,
@@ -49,6 +50,8 @@ from waterfall.core.projects.interface import (
 from waterfall.core.revisions.interface import (
     KEPT,
     MarkingRequest,
+    ReferenceToDesignate,
+    RevisionToAbandon,
     abandon_revision,
     designate_reference,
     read_revision,
@@ -141,14 +144,14 @@ def _stale_if_moved(session: Session, project_id: UUID, read: int) -> None:
 
 
 def _marking_exit(
-    session: Session, queue: TaskQueue, request: MarkingRequest, act: Act
+    session: Session, queue: TaskQueue, request: MarkingRequest, act: Act, viewer: Viewer
 ) -> JSONResponse:
     """Ask the marking of the current revision for an exit, and say where the task stands (202).
 
     The name of version taken is told at the place of the body that holds it.
     """
     try:
-        task_id = submit_marking(session, queue, request, act)
+        task_id = submit_marking(session, queue, request, act, viewer)
     except ConflictError as error:
         if error.code != ALREADY_EXISTS:
             raise
@@ -221,14 +224,15 @@ def post_exit(
                 exit_reason=request.reason,
                 exit_lock_version=read,
             )
-            return _marking_exit(session, services.queue, marking, act)
+            return _marking_exit(session, services.queue, marking, act, viewer)
         except NotFoundError:
             _stale_if_moved(session, project_id, read)
             raise
     if action == ABANDON and revision_id is not None:
         try:
             revision = read_revision(session, project_id, revision_id, viewer)
-            abandon_revision(session, project_id, revision_id, revision.lock_version, act)
+            abandoned = RevisionToAbandon(revision_id, revision.lock_version)
+            abandon_revision(session, project_id, abandoned, act, viewer)
         except NotFoundError:
             # Another exit abandoned the revision first (the revision is locked before the
             # project, so we waited for it): the counter this one read is stale (412).
@@ -237,7 +241,7 @@ def post_exit(
         request = replace(
             request, moved=1, no_task_running=no_background_task_running(session, project_id)
         )
-    exit_project(session, project_id, request, act)
+    exit_project(session, project_id, request, act, viewer)
     project = described(session, [read_project(session, project_id, viewer)])[0]
     return project.model_dump(mode="json", exclude_unset=True)
 
@@ -264,5 +268,7 @@ def put_reference_revision(
     if not body.confirmed:
         raise BadRequestError(CONFIRMATION_REQUIRED)
     act = Act(account.user_id, utc_now())
-    designate_reference(session, project_id, body.revision_id.root, body.lock_version.root, act)
-    return described(session, [read_project(session, project_id, viewer_of(actor))])[0]
+    viewer = viewer_of(actor)
+    designated = ReferenceToDesignate(body.revision_id.root, body.lock_version.root)
+    designate_reference(session, project_id, designated, act, viewer)
+    return described(session, [read_project(session, project_id, viewer)])[0]

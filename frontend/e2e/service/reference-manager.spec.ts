@@ -16,15 +16,12 @@
  *   manager but `resource_settings.write` reads the roles of resources and is refused their creation
  *   (403 `PERMISSION_MISSING`, the permission named).
  *
- * The predefined role does not hold `risk_settings.write` nor `indicator_settings.write` before the
- * back seeds them (`TO_SEED_BY_EP04`, #1457): as every path shared with the fake back does
- * (`e2e/mode.ts`), the account of the path holds beside « Manager » the role that composes them, found
- * by its label. The accounts are the paths' own; what a path writes is deactivated at its end (the
- * correspondence and the rate are written the same on each run), for the lists to stay short on an
- * installation that is played again.
- * The account of the first path holds that role of the risks and the indicators until the bootstrap
- * gives the two permissions to « Manager » (#2187); the role made to measure, which holds the reads
- * too, is the matter of #2188. The first path reads and rewrites singletons the `@shared` paths write
+ * The predefined role holds `risk_settings.write` and `indicator_settings.write` (the back seeds
+ * them, #2187): the account of the path holds « Manager » alone, which suffices for the nine objects
+ * (WF-INTF-0020-A). The accounts are the paths' own; what a path writes is deactivated at its end
+ * (the correspondence and the rate are written the same on each run), for the lists to stay short on
+ * an installation that is played again. The role made to measure, which holds the reads too, is the
+ * matter of #2188. The first path reads and rewrites singletons the `@shared` paths write
  * too: it is tagged `@realm-wide`, to play alone once they are done.
  */
 import { randomBytes } from "node:crypto";
@@ -33,7 +30,6 @@ import { expect, type Locator, type Page, test } from "@playwright/test";
 
 import { compileAnswered } from "../compile";
 import { openMenu, WORKING } from "../hydration";
-import { SETTINGS_WRITER } from "../mode";
 import type { components } from "../../src/api/generated/schema";
 import { heldToTheContract } from "./contract";
 import {
@@ -169,10 +165,7 @@ test(
     const manager = await localAccount(browser, administrator);
     const made: string[] = [];
     try {
-      await administrator.giveAlso(manager.id, [
-        ["Manager", []],
-        [SETTINGS_WRITER, ["risk_settings.write", "indicator_settings.write"]],
-      ]);
+      await administrator.give(manager.id, "Manager", []);
       await signIn(page, manager, ACCOUNT);
 
       // The costs: a nature, a category of that nature, and a rate on the grid.

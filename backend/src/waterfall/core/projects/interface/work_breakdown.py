@@ -25,6 +25,7 @@ from waterfall.core.projects.commands import (
     PROJECT_NOT_TERMINAL,
     TERMINAL,
 )
+from waterfall.core.projects.interface.contributors import require_project_manager
 from waterfall.core.projects.interface.lifecycle import no_background_task_running
 from waterfall.core.projects.tables import Deliverable, OrderItem, Project, WorkPackage
 from waterfall.platform.database import contains
@@ -45,6 +46,7 @@ if TYPE_CHECKING:
 
     from sqlalchemy.orm import Session
 
+    from waterfall.core.projects.interface.projects import Viewer
     from waterfall.platform.audit import Act
 
 NOT_FOUND = "NOT_FOUND"
@@ -476,11 +478,12 @@ def _replace(
 
 
 def set_work_breakdown(
-    session: Session, project_id: UUID, write: WorkBreakdownToWrite, act: Act
+    session: Session, project_id: UUID, write: WorkBreakdownToWrite, act: Act, viewer: Viewer
 ) -> WorkBreakdownRead:
     """Write the whole work breakdown of a project at the counter read (``setWorkBreakdown``).
 
-    Under the lock of the project, a terminal project is refused (409, ``project_not_terminal``),
+    Under the lock of the project, a writer who is no project manager any more is refused (403,
+    404; ``require_project_manager``), then a terminal project (409, ``project_not_terminal``),
     then one that a task of the background is writing in (409, ``no_background_task_running``), a
     counter that is not the project's (412), and each identifier that names no element of its
     nature, or that is sent twice (422, at its field). Nothing is written then. An element sent
@@ -488,6 +491,7 @@ def set_work_breakdown(
     is answered whole with its next counter, built before the commit.
     """
     project = _locked(session, project_id)
+    require_project_manager(session, project_id, viewer)
     if project.state in TERMINAL:
         raise ConflictError(STATE_FORBIDS_OPERATION, {"missing_condition": PROJECT_NOT_TERMINAL})
     if not no_background_task_running(session, project_id):

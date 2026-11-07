@@ -212,8 +212,9 @@ def remove_subproject(
     project_id: UUID,
     subproject_id: UUID,
     lock_version: Annotated[int, Query(ge=0)],
+    actor: Acting,
     session: Transaction,
 ) -> Response:
     """Delete for good a subproject that nothing cites, at the version read; only managers may."""
-    delete_subproject(session, project_id, subproject_id, lock_version)
+    delete_subproject(session, project_id, subproject_id, lock_version, viewer_of(actor))
     return Response(status_code=204)
