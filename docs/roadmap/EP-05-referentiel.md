@@ -1055,8 +1055,9 @@ travaille.
   `is_default`, et ne filtre pas les heures (C-352) ; les désactivés avec `include_inactive`,
   sous `resource_settings.read` ;
 - propre à l'US : chaque réponse est validée contre le contrat dans les tests du service ;
-- propre à l'US : `load-witness` charge les calendriers du témoin et désigne son calendrier par
-  défaut (`calendars.json`) (décision du 2026-11-05).
+- propre à l'US : `load-witness` charge les calendriers du témoin, les désactivés compris
+  (`calendars_with_inactive.json`, #2131), et désigne son calendrier par défaut (décisions des
+  2026-11-05 et 2026-11-06).
 
 **Notes de réalisation.** Les refus `TASK_WITHOUT_WORKING_HOURS` d'`updateCalendar` et de
 `setDefaultCalendar` — un calendrier qui laisserait une tâche sans heure (WF-PLA-0010) — sont
@@ -1202,7 +1203,7 @@ prouvent le service sans réécriture de leurs attendus (#1402).
 
 - `WF-QUA-0040-A` — « L'engendrement du jeu aboutit sur une plateforme neuve et produit les volumes
   annoncés. » : pour la tranche du référentiel — les nœuds du témoin, deux désactivés compris,
-  ses cinq rôles dont deux désactivés, ses deux calendriers, ses trois natures, ses deux cents
+  ses cinq rôles dont deux désactivés, ses trois calendriers dont un désactivé, ses trois natures, ses deux cents
   catégories, la grille de cent cinquante catégories de main-d'œuvre sur quinze ans, ses unités de
   durée, ses réglages et sa correspondance —, chargée par `waterfall-api load-witness` (nom à fixer
   à la conception) sur une plateforme amorcée, par les interfaces des modules, jamais par un
@@ -1217,7 +1218,7 @@ prouvent le service sans réécriture de leurs attendus (#1402).
   (`test_mockuniverse.py` les tient) ;
 - propre à l'US : la commande, dont chaque US a écrit la tranche, lit la description du témoin
   que `make mock-data` tient — `fixtures/api/org_nodes_with_inactive.json`, `resource_roles`
-  (avec les désactivés), `calendars`, `cost_types`, `volume/cost_categories.json`,
+  (avec les désactivés), `calendars_with_inactive` (avec les désactivés, #2131), `cost_types`, `volume/cost_categories.json`,
   `volume/hourly_rate_grid.json`, `duration_units`, `reference_settings`, `actual_cost_mapping` —
   dans l'ordre des dépendances, en une transaction, et échoue, en le disant, sur un témoin que les
   règles du référentiel refusent ; le code de calcul du faux back n'est pas réemployé ; les listes

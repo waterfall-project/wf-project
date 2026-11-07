@@ -529,7 +529,7 @@ textes triés en collation `C`, cherchés par `contains` ; règles SQL du guide 
   contrat existent (`api/contract/models.py`).
 - Chaque route d'un projet déclare la consultation par `RequiresProject(...)`, une dépendance
   qui lit `project_id` du chemin et évalue avant la validation du corps, comme `Requires` ; la
-  création d'un projet par `Requires("projects.write")` et le référentiel minimal lu par
+  création d'un projet par `Requires("project_create")` (#2153) et le référentiel minimal lu par
   l'interface d'EP-05 sous son verrou.
 - Les refus sont ceux du contrat, code par code ; chaque réponse d'un test passe par
   `ContractClient` ; `test_access_evaluation.py` reçoit chaque opération avec ses deux termes.
@@ -671,7 +671,7 @@ projet qu'on ne peut pas consulter n'existe pas pour l'appelant (#754).
 
 - `WF-ADM-0110-A` — « Un utilisateur sans la permission de consultation ne voit pas le projet,
   même contributeur ; un contributeur sans « consulter tous les projets » ne voit que ses
-  projets. » : `getProject` répond 404 à qui ne porte pas `projects.read`, contributeur ou non,
+  projets. » : `getProject` répond 404 à qui ne porte pas `project_settings.read` (#2153), contributeur ou non,
   et à qui la porte sans être contributeur ni porter `all_projects_read` ; `listProjects` ne rend
   que les projets ouvrables ;
 - `WF-ADM-0110-A` — « Une adresse d'objet inexistant et une adresse d'objet non consultable mènent
