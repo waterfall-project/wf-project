@@ -140,18 +140,21 @@ ImportRequest:
         revision, or of the last marked revision when the import will create the current
         revision; the main structure by default; not applicable to an actual cost extraction. An
         unknown structure, or one of another revision, is refused with 404.
+        Null or absent, the main structure.
     period_from:
       anyOf: [{ $ref: ../common.yaml#/PlanningDate }, { type: 'null' }]
       description: >-
         For an actual cost extraction only (`actual_costs`), the start of the period extracted from
         the ERP, which the log keeps (WF-CRE-0050); optional, like the end, each bound possibly
         missing; not applicable to another kind.
+        Null or absent when the extraction does not state its start.
     period_to:
       anyOf: [{ $ref: ../common.yaml#/PlanningDate }, { type: 'null' }]
       description: >-
         The end of the extracted period, inclusive, optional (WF-CRE-0050). An end that precedes the
         start is refused with 422, `VALIDATION_FAILED`, `/period_to` with `VALUE_OUT_OF_RANGE`,
         `params.minimum` the start, like any period of the contract.
+        Null or absent when the extraction does not state its end.
 
 Import:
   type: object
@@ -809,6 +812,7 @@ ExportRequest:
       description: >-
         The exported structure, of the named revision; the main structure by default
         (WF-INTF-0050, WF-INTF-0110, WF-INTF-0130, WF-PLA-0120).
+        Null or absent, the main structure.
     depth:
       anyOf: [{ type: integer, minimum: 1 }, { type: 'null' }]
       description: Level kept for the tree image (WF-PLA-0120).
@@ -819,3 +823,4 @@ ExportRequest:
         "Synthèse", and that its import will use to complete a task all of whose lines
         carry a zero remainder (WF-INTF-0130, WF-INTF-0120, `ImportCompletedTask.completed_on`);
         the day of the request by default. Not applicable to another kind, which ignores it.
+        Null or absent, the day of the request.

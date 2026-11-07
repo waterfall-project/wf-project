@@ -436,7 +436,9 @@ CostStructure:
         the export writes it there (WF-INTF-0040, WF-INTF-0050).
     risk_id:
       anyOf: [{ $ref: ../common.yaml#/Uuid }, { type: 'null' }]
-      description: Set for a structure of kind `risk` (WF-RIS-0030).
+      description: >-
+        Set for a structure of kind `risk` (WF-RIS-0030). Null for the main structure and a
+        differential.
     is_merged:
       type: boolean
       description: >-
@@ -577,6 +579,7 @@ StructureMerge:
       description: >-
         The description attached to the marked revision, as at marking
         (`RevisionMark.description`, WF-REV-0020, WF-REV-0090).
+        Null or absent, the marked revision has none.
     main_structure_lock_version:
       allOf: [{ $ref: ../common.yaml#/LockVersion }]
       description: >-
@@ -678,6 +681,7 @@ Node:
     kind: { $ref: '#/NodeKind' }
     parent_id:
       anyOf: [{ $ref: ../common.yaml#/Uuid }, { type: 'null' }]
+      description: Null for a node of the first level of the structure.
     position:
       type: integer
       minimum: 1
@@ -713,8 +717,10 @@ Node:
         occurrence (`Risk.occurred_reestimated_amount`; #1761).
     task:
       anyOf: [{ $ref: '#/TaskFacet' }, { type: 'null' }]
+      description: Null for an estimate line.
     estimate_line:
       anyOf: [{ $ref: '#/EstimateLineFacet' }, { type: 'null' }]
+      description: Null for a task.
     predecessors:
       type: array
       items: { $ref: '#/Predecessor' }
@@ -1479,6 +1485,7 @@ TaskFacet:
     label: { type: string, minLength: 1, pattern: '\S', maxLength: 300 }
     description:
       anyOf: [{ type: string }, { type: 'null' }]
+      description: Null when none is entered.
     scheduling_mode: { $ref: '#/SchedulingMode' }
     duration: { $ref: '#/Duration' }
     start:
@@ -1614,6 +1621,7 @@ TaskFacet:
         work package of an order item is attached, the task of that order item lies in the
         subtree of the task of that work package" (WF-PLA-0170). The grids filter by order item
         on this attachment (WF-DEV-0050, WF-RAE-0040).
+        Null when the task carries no order item.
     work_package_id:
       anyOf: [{ $ref: ../common.yaml#/Uuid }, { type: 'null' }]
       description: >-
@@ -1696,9 +1704,14 @@ EstimateLineFacet:
         line without a role.
     hours:
       anyOf: [{ $ref: ../common.yaml#/Hours }, { type: 'null' }]
+      description: >-
+        The effort of a labour line; null for a line without a role, which carries none
+        (WF-DEV-0020).
     unit_disbursement:
       anyOf: [{ $ref: ../common.yaml#/Money }, { type: 'null' }]
-      description: Unit disbursement of a non-labour line (WF-DEV-0020).
+      description: >-
+        Unit disbursement of a non-labour line (WF-DEV-0020). Null for a labour line, which carries
+        none.
     payment_delay_days:
       anyOf: [{ type: integer, minimum: 0 }, { type: 'null' }]
       description: >-
@@ -1708,7 +1721,9 @@ EstimateLineFacet:
         WF-IND-0100; EP-14/L42s).
     subproject_id:
       anyOf: [{ $ref: ../common.yaml#/Uuid }, { type: 'null' }]
-      description: Optional subproject; without it, the line falls under "Hors sous-projet" (WF-IND-0020).
+      description: >-
+        Optional subproject; without it, the line falls under "Hors sous-projet" (WF-IND-0020). Null
+        for a line under no subproject.
     subproject_label:
       anyOf: [{ type: string }, { type: 'null' }]
       description: Label of the subproject, resolved on read; null for a line outside any subproject.
@@ -1916,8 +1931,12 @@ NodeCreate:
     kind: { $ref: '#/NodeKind' }
     parent_id:
       anyOf: [{ $ref: ../common.yaml#/Uuid }, { type: 'null' }]
+      description: Null for a node of the first level of the structure.
     after_node_id:
       anyOf: [{ $ref: ../common.yaml#/Uuid }, { type: 'null' }]
+      description: >-
+        The sibling after which the node is placed: null, at the head of the lines or of the
+        subtasks; absent, after the last of them.
     task: { $ref: '#/TaskFacetWrite' }
     estimate_line: { $ref: '#/EstimateLineWrite' }
 
@@ -1942,6 +1961,7 @@ TaskFacetWrite:
     label: { type: string, minLength: 1, pattern: '\S', maxLength: 300 }
     description:
       anyOf: [{ type: string }, { type: 'null' }]
+      description: Null or absent, the task has none.
     scheduling_mode: { $ref: '#/SchedulingMode' }
     duration: { $ref: '#/Duration' }
     start:
@@ -1950,8 +1970,10 @@ TaskFacetWrite:
       anyOf: [{ $ref: ../common.yaml#/WorkInstantWrite }, { type: 'null' }]
     order_item_id:
       anyOf: [{ $ref: ../common.yaml#/Uuid }, { type: 'null' }]
+      description: Null or absent, the task carries no order item.
     work_package_id:
       anyOf: [{ $ref: ../common.yaml#/Uuid }, { type: 'null' }]
+      description: Null or absent, the task carries no work package.
 
 TaskFacetUpdate:
   type: object
@@ -2005,6 +2027,7 @@ TaskFacetUpdate:
     label: { type: string, minLength: 1, pattern: '\S', maxLength: 300 }
     description:
       anyOf: [{ type: string }, { type: 'null' }]
+      description: Null clears it.
     scheduling_mode: { $ref: '#/SchedulingMode' }
     duration: { $ref: '#/Duration' }
     start:
@@ -2053,14 +2076,22 @@ EstimateLineWrite:
     quantity: { $ref: ../common.yaml#/Decimal }
     resource_role_id:
       anyOf: [{ $ref: ../common.yaml#/Uuid }, { type: 'null' }]
+      description: >-
+        Null or absent for a line of another category than labour, whose category is then required.
     hours:
       anyOf: [{ $ref: ../common.yaml#/Hours }, { type: 'null' }]
+      description: Null or absent for a line without a role, which carries no effort.
     unit_disbursement:
       anyOf: [{ $ref: ../common.yaml#/Money }, { type: 'null' }]
+      description: Null or absent for a labour line, which carries no disbursement.
     payment_delay_days:
       anyOf: [{ type: integer, minimum: 0 }, { type: 'null' }]
+      description: >-
+        Null or absent, the default delay: zero for a labour line (WF-DEV-0020).
     subproject_id:
       anyOf: [{ $ref: ../common.yaml#/Uuid }, { type: 'null' }]
+      description: >-
+        Null or absent, the line falls under no subproject ("Hors sous-projet", WF-IND-0020).
 
 EstimateLineUpdate:
   type: object
@@ -2159,8 +2190,12 @@ NodeMove:
       items: { $ref: ../common.yaml#/Uuid }
     parent_id:
       anyOf: [{ $ref: ../common.yaml#/Uuid }, { type: 'null' }]
+      description: Null for the first level of the structure.
     after_node_id:
       anyOf: [{ $ref: ../common.yaml#/Uuid }, { type: 'null' }]
+      description: >-
+        The sibling after which the node is placed: null, at the head of the lines or of the
+        subtasks; absent, after the last of them.
     lock_version: { $ref: ../common.yaml#/LockVersion }
 
 ProgressUpdate:
@@ -2207,6 +2242,7 @@ RemainingUpdate:
           anyOf: [{ $ref: ../common.yaml#/Money }, { type: 'null' }]
     reason:
       anyOf: [{ type: string }, { type: 'null' }]
+      description: The reason for the re-estimate, as the user enters it; null or absent, none.
     completed_on:
       anyOf: [{ $ref: ../common.yaml#/PlanningDate }, { type: 'null' }]
       description: >-
@@ -2219,6 +2255,7 @@ RemainingUpdate:
         date is also that of its start (`started_on`, WF-PLA-0130); a task that is not
         a milestone goes through the started state (WF-RAE-0030). Ignored when the entry does
         not complete the task.
+        Null or absent when the entry does not complete the task.
     lock_version: { $ref: ../common.yaml#/LockVersion }
 
 UndoResult:
@@ -2594,8 +2631,10 @@ ComparedNodeRead:
     <<: *node_properties
     task:
       anyOf: [{ $ref: '#/ComparedTaskFacet' }, { type: 'null' }]
+      description: Null for an estimate line.
     estimate_line:
       anyOf: [{ $ref: '#/ComparedEstimateLineFacet' }, { type: 'null' }]
+      description: Null for a task.
     difference:
       allOf: [{ $ref: '#/NodeDifference' }]
       description: >-

@@ -128,7 +128,9 @@ ComponentHealth:
     checked_at: { $ref: ../common.yaml#/Timestamp }
     version:
       anyOf: [{ type: string }, { type: 'null' }]
-      description: Version of the component in use, announced by WF-CMP-0020.
+      description: >-
+        Version of the component in use, announced by WF-CMP-0020. Null for a component that does
+        not announce its version, such as the object storage.
 
 PlatformComponent:
   type: string

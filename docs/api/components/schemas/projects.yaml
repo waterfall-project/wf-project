@@ -30,6 +30,7 @@ Project:
     label: { type: string, minLength: 1, pattern: '\S', maxLength: 300 }
     description:
       anyOf: [{ type: string }, { type: 'null' }]
+      description: Null when none is entered.
     client:
       anyOf: [{ $ref: '#/ProjectClient' }, { type: 'null' }]
       description: >-
@@ -58,12 +59,18 @@ Project:
         `params.missing_condition` at `project_before_in_progress`.
     order_received_on:
       anyOf: [{ $ref: ../common.yaml#/PlanningDate }, { type: 'null' }]
+      description: Null as long as it is not entered.
     reference_revision_id:
       anyOf: [{ $ref: ../common.yaml#/Uuid }, { type: 'null' }]
-      description: Reference revision, designated once at contractualisation (WF-REV-0040).
+      description: >-
+        Reference revision, designated once at contractualisation (WF-REV-0040). Null as long as no
+        reference is designated.
     current_revision_id:
       anyOf: [{ $ref: ../common.yaml#/Uuid }, { type: 'null' }]
-      description: Revision being drawn up, if one exists (WF-REV-0010).
+      description: >-
+        Revision being drawn up, if one exists (WF-REV-0010). Null when the project holds none:
+        before its first revision, between a marking and the next revision, and in a terminal state
+        (WF-CYC-0090).
     available_commands:
       type: array
       description: >-
@@ -556,6 +563,7 @@ ProjectSummary:
     label: { type: string }
     code:
       anyOf: [{ $ref: '#/ProjectCode' }, { type: 'null' }]
+      description: Null as long as it is not entered (WF-PRJ-0010).
     state: { $ref: '#/ProjectState' }
 
 ProjectCode:
@@ -596,12 +604,16 @@ ProjectCreate:
     label: { type: string, minLength: 1, pattern: '\S', maxLength: 300 }
     description:
       anyOf: [{ type: string }, { type: 'null' }]
+      description: Null or absent, the project has none.
     client:
       anyOf: [{ $ref: '#/ProjectClient' }, { type: 'null' }]
       description: >-
         The name of the client (WF-PRJ-0080), optional: null, or absent, the project has none.
     code:
       anyOf: [{ $ref: '#/ProjectCode' }, { type: 'null' }]
+      description: >-
+        Null or absent, the project is created without a code, which the passage to In progress
+        requires (WF-PRJ-0010, WF-CYC-0030).
 
 ProjectUpdate:
   type: object
@@ -610,6 +622,7 @@ ProjectUpdate:
     label: { type: string, minLength: 1, pattern: '\S', maxLength: 300 }
     description:
       anyOf: [{ type: string }, { type: 'null' }]
+      description: Null clears it; absent, it does not change.
     client:
       anyOf: [{ $ref: '#/ProjectClient' }, { type: 'null' }]
       description: >-
@@ -628,6 +641,7 @@ ProjectUpdate:
         (WF-PRJ-0090). Absent, the value does not change.
     order_received_on:
       anyOf: [{ $ref: ../common.yaml#/PlanningDate }, { type: 'null' }]
+      description: Null clears it; absent, it does not change.
     lock_version: { $ref: ../common.yaml#/LockVersion }
 
 StateTransition:
@@ -639,6 +653,7 @@ StateTransition:
   properties:
     from_state:
       anyOf: [{ $ref: '#/ProjectState' }, { type: 'null' }]
+      description: Null for the first transition, the creation of the project in the Created state.
     to_state: { $ref: '#/ProjectState' }
     occurred_at: { $ref: ../common.yaml#/Timestamp }
     actor: { $ref: ../common.yaml#/ActorRef }
@@ -671,6 +686,8 @@ NextState:
     current_state: { $ref: '#/ProjectState' }
     next_state:
       anyOf: [{ $ref: '#/ProjectState' }, { type: 'null' }]
+      description: >-
+        Null for a project in progress or in a terminal state, which no event takes any further.
     trigger:
       anyOf: [{ $ref: '#/LifecycleTrigger' }, { type: 'null' }]
       description: >-
@@ -704,7 +721,9 @@ ProjectExit:
         and not the validation of the body with 422 (US-0702/L3).
     reason:
       anyOf: [{ type: string }, { type: 'null' }]
-      description: Optional reason, which the transition keeps (WF-CYC-0090, WF-CYC-0130).
+      description: >-
+        Optional reason, which the transition keeps (WF-CYC-0090, WF-CYC-0130). Null or absent, the
+        transition carries none (`StateTransition.reason`).
     current_revision:
       anyOf: [{ $ref: '#/CurrentRevisionFate' }, { type: 'null' }]
       description: >-
@@ -894,6 +913,9 @@ OrderItemReading:
     is_match: { type: boolean }
     attached_task:
       anyOf: [{ $ref: '#/AttachedTask' }, { type: 'null' }]
+      description: >-
+        Null when no task holds the order item, or when the project has no current revision, as for
+        a work package.
     deliverables:
       type: array
       items: { $ref: '#/DeliverableReading' }

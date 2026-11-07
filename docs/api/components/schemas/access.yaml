@@ -183,7 +183,9 @@ UserAccount:
     origin: { $ref: '#/UserOrigin' }
     org_node_id:
       anyOf: [{ $ref: ../common.yaml#/Uuid }, { type: 'null' }]
-      description: Optional attachment, which grants no permission (WF-ADM-0030).
+      description: >-
+        Optional attachment, which grants no permission (WF-ADM-0030). Null for an account attached
+        to no node.
     org_node_label:
       anyOf: [{ type: string }, { type: 'null' }]
       description: >-
@@ -239,6 +241,7 @@ UserCreate:
     email: { type: string, format: email, maxLength: 254 }
     org_node_id:
       anyOf: [{ $ref: ../common.yaml#/Uuid }, { type: 'null' }]
+      description: Null or absent, the account is attached to no node.
 
 UserUpdate:
   type: object
@@ -253,6 +256,7 @@ UserUpdate:
     email: { type: string, format: email, maxLength: 254 }
     org_node_id:
       anyOf: [{ $ref: ../common.yaml#/Uuid }, { type: 'null' }]
+      description: Null detaches the account from its node; absent, the attachment does not change.
     lock_version: { $ref: ../common.yaml#/LockVersion }
 
 UserActivationWrite:
@@ -434,6 +438,9 @@ GridPreferences:
             column: { type: string, maxLength: 64 }
             order: { $ref: ../common.yaml#/SortOrder }
         - type: 'null'
+      description: >-
+        Null, or absent, when the user has chosen no sort: the grid is read in the default order of
+        its operation.
     filters:
       type: object
       description: >-
@@ -548,7 +555,9 @@ Permission:
         permission — create a project, view all projects (WF-ADM-0100).
     fbs_code:
       anyOf: [{ type: string }, { type: 'null' }]
-      description: Second-level function covered, for the first two kinds.
+      description: >-
+        Second-level function covered, for the first two kinds. Null for an irreversible or a
+        structuring permission, which covers no single function.
 
 AccessRole:
   type: object
