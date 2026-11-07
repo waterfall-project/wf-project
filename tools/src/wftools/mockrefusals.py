@@ -540,7 +540,7 @@ def _terminal_examples() -> dict[str, JsonObject]:
 
 def _project_field_examples() -> dict[str, JsonObject]:
     """Return a project created under a blank code, and one with its texts too long (D-02)."""
-    too_long = {"max_length": LABEL_BOUND}
+    too_long: JsonObject = {"max_length": LABEL_BOUND}
     return {
         "project_code_blank.json": mocktext.example(
             "Un projet créé sous un code fait de trois espaces : refusé, le code désigné, un code "
