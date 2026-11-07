@@ -3801,6 +3801,10 @@ déroulement, change sous les yeux de ceux qui le lisent ou le comparent à ses 
 — les réglages, les unités de durée, la correspondance des coûts réels — se jouent en série, seuls,
 et non en parallèle des autres. Un parcours qui doit en réactiver un du témoin le fait dans un
 `finally` qui le remet comme il l'a trouvé, et c'est une exception qu'il dit, non la règle.
+Trois parcours s'écartent aujourd'hui de cette règle, en attendant #2211 : la modification des unités de
+durée (`reference-resources.spec.ts`, sans étiquette), celle des réglages (`reference-settings.spec.ts`)
+et celle de la correspondance des coûts réels (`reference-actual-cost-mapping.spec.ts`), étiquetés
+`@shared` et qui écrivent pourtant ces objets uniques.
 
 Une limite des parcours contre le service : Prism, en mandataire du contrat, lit tout corps comme
 du texte et altère les corps binaires — chaque octet au-delà de `0x7f` d'une requête ou d'une

@@ -3771,6 +3771,10 @@ dates — #2087). The paths that change a single object of the installation — 
 of duration, the correspondence of the actual costs — are played in series, alone, not in parallel
 with the others. A path that must reactivate one of the witness does so in a `finally` that puts it
 back as it found it, and it is an exception it states, not the rule.
+Three paths depart from this rule today, pending #2211: the change of the units of duration
+(`reference-resources.spec.ts`, untagged), that of the settings (`reference-settings.spec.ts`) and
+that of the correspondence of the actual costs (`reference-actual-cost-mapping.spec.ts`), tagged
+`@shared` and yet writing these single objects.
 
 A limit of the paths against the service: Prism, as a proxy of the contract, reads every body as
 text and alters binary bodies — every byte beyond `0x7f` of an `application/octet-stream` request or
