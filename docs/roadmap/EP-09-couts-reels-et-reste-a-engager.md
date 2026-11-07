@@ -629,8 +629,10 @@ worker qu'à partir de ce lot — l'API et le chargeur les attendent dès le soc
 - Les écrans sont ceux d'EP-02, d'EP-14, d'EP-15, d'EP-16, d'EP-17 et d'EP-22 ; chaque US branche
   le sien et retire `MockupNotice` de la page qu'elle sert en dernier : les coûts réels par
   US-1620, le reste à engager par US-1640 ; le Kanban n'en a pas, les échanges l'ont perdu par EP-06.
-  Les aides `frontend/help/fr/FBS-4.5*.md` par US-1640, `FBS-4.7.md` et `FBS-3.1.3.md` (#2093) par
-  US-1620, l'aide du Kanban (`FBS-4.5.3`) par US-1590.
+  Les aides `frontend/help/fr/FBS-4.5*.md`, celle du Kanban comprise, par US-1640, `FBS-4.7.md` et
+  `FBS-3.1.3.md` (#2093) par US-1620 ; le renvoi d'une suppression refusée vers la mise à zéro du
+  reste, dans les grilles de planning et de devis qu'EP-06 (#2326) et EP-07 (#2383) possèdent, par
+  US-1640.
 - Le front ne calcule rien : les restes, les totaux, les écarts, les gestes des cartes et les
   conditions viennent du service. Un manque que le branchement révèle devient une issue ; un manque
   du contrat, une « Interface contract issue ».
@@ -728,14 +730,18 @@ en largeur quatre ; les lectures et les formats après les écritures ; les écr
 leur objet ; la vérification d'ensemble en dernier ; le plan de lots (étape 3) le détaille en vagues.
 
 1. **US-1580/L1**, le socle — dès la fusion d'US-1490/L4 #2373 : la migration `0025`, le sous-paquet
-   `remaining/` de `core/estimate` à vide et ses fichiers d'interface réexportés, le module
+   `remaining/` de `core/estimate` à vide — hors le sous-paquet `remaining/excel/`, qu'US-1630/L1
+   possède entier et dont les lots suivants d'US-1630 complètent les fichiers — et ses fichiers
+   d'interface réexportés, le module
    `core/costs` à vide avec son interface en paquet, `register_coverage` déclaré, l'enregistrement à
    vide dans `register_format`, `register_exporter` et `register_copy`, le contrat de couches, les
    cinq routeurs vides et leurs `asked_*`, `tests/remaining_support.py`, `tests/costs_support.py`, les
    fichiers de tests, `witness/costs.py` à vide, le test des points d'entrée étendu. **Lot pivot
    d'EP-10.** Ni `core/planning`, ni `core/projects`, ni `core/exchanges`, ni le worker. En parallèle,
    dès la branche : **le lot d'outil** d'US-1650 (la chronologie, `witness_costs.json`, après #2384)
-   et **l'écriture du classeur** du reste à engager (US-1630, pure, après #2378).
+   et **l'écriture du classeur** du reste à engager (US-1630, pure, après #2378 et sans attendre le
+   socle : le lot crée `core/estimate/remaining/__init__.py` vide s'il n'existe pas, identique à
+   celui du socle, comme `pricing/` et `spreading/` en EP-07).
 2. **La réestimation** (US-1580 : `setLineRemaining`, `remaining_entry` et `previous_*` lus, la copie,
    la mise à zéro qui termine, après #2372 et #2324), **les lignes propres et le Kanban** (US-1590 :
    `register_open_lines`, `progress_commands`, `listStartableTasks`, après #2324, #2338, #2339 ; la
@@ -1000,8 +1006,9 @@ déclarer ce qui a commencé et clore mes phases depuis la vue qui les répartit
   lignes, et le devis diminue d’autant. » : constaté par EP-06 et EP-07 ;
 - `WF-PLA-0070-A` — « La suppression d’une tâche démarrée est refusée, et l’utilisateur est
   renvoyé vers la mise à zéro de son reste à engager. » : le refus `task_not_started` d'EP-06 ;
-  ici, les grilles de planning, de devis et de reste à engager le disent à la tâche et mènent à
-  sa ligne dans la grille de reste à engager, sur la révision en cours ;
+  les grilles de planning, de devis et de reste à engager le disent à la tâche et mènent à sa ligne
+  dans la grille de reste à engager, sur la révision en cours — par US-1640, qui branche les
+  grilles ;
 - propre à l'US : `listStartableTasks` rend les tâches de la structure principale de la révision
   courante — la révision en cours, ou la dernière marquée sans elle — en trois colonnes dans
   l'ordre du plan, jamais une récapitulative hors celle qui n'attend plus que ses lignes propres,
@@ -1016,8 +1023,8 @@ déclarer ce qui a commencé et clore mes phases depuis la vue qui les répartit
   `listStartableTasks`, non `listNodes` — ; au-delà, l'optimisation devient une issue, rien n'est
   fenêtré sans mesure ;
 - propre à l'US : la page du Kanban (`…/kanban`) travaille contre le service, `setTaskProgress`
-  répond à chaque geste et la carte prend la réponse ; l'aide FBS-4.5.3 dit ce que le service fait ;
-  le parcours du Kanban est étiqueté `@shared` par US-1640, qui branche la grille et le fichier de
+  répond à chaque geste et la carte prend la réponse ; l'aide FBS-4.5.3 et le parcours du Kanban,
+  étiqueté `@shared`, sont d'US-1640, qui branche la grille, les aides FBS-4.5* et le fichier de
   parcours qu'ils partagent.
 
 **Notes de réalisation.** `setTaskProgress` et l'état des récapitulatives sont servis par EP-06
@@ -1523,7 +1530,7 @@ leurs gestes —, **afin de** mener ma revue sans faux back.
   grandeur par `setLineRemaining`, crée, déplace et supprime tâches et lignes sur un projet En
   cours, porte une ligne à un sous-projet, et lit les indicateurs (US-1600) et le lien vers le plan
   de charge sur `current_remaining` ; le renvoi d'une suppression refusée vers la mise à zéro
-  (US-1590) se joue ici ; `MockupNotice` est retiré de l'écran du reste à engager ; les aides
+  (WF-PLA-0070, US-1590) s'écrit ici, dans les grilles de planning, de devis et de reste à engager ; `MockupNotice` est retiré de l'écran du reste à engager ; les aides
   `frontend/help/fr/FBS-4.5*.md` disent ce que le service fait ; `remaining.spec.ts` porte
   `@shared`, les écritures sur un projet que la course crée ; chaque réponse lue est celle du
   service.
