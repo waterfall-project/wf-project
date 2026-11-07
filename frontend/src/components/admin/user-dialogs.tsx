@@ -5,9 +5,10 @@
  * by which the holder of a local account sets its password, given once (WF-ADM-0140).
  *
  * The creation asks the last name, the first name and the address — what the contract requires
- * (`UserCreate`): its roles are attributed in the table afterwards, its node is EP-05's. A field left
- * blank is refused at the field before anything is asked, as the server would (WF-ADM-0050), the first
- * one refused taking the focus; the rest is the server's to judge: a refusal by field (422, or 409
+ * (`UserCreate`): its roles and its node are attributed in the table afterwards (the cell of the
+ * attachment, `user-cells.tsx`, US-0840). A field left blank is refused at the field before
+ * anything is asked, as the server would (WF-ADM-0050), the first one refused taking the focus; the
+ * rest is the server's to judge: a refusal by field (422, or 409
  * `ALREADY_EXISTS` on the address already held) at each field it points at, by the catalogue of the
  * codes of error; any other, under the form, which stays open to be corrected. The dialog may be
  * closed meanwhile: a creation answered is said all the same — the creation opened since, its entry

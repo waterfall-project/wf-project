@@ -7,10 +7,10 @@
  * `installation`, while `chromium` keeps playing it against the fake back (`playwright.config.ts`).
  *
  * Against the fake back, nothing changes: it grants the session itself. With `WATERFALL_API_ADDRESS`
- * set (`inService`), each path first signs in a local account of the run that holds the role
- * « Manager », made by the administrator of the installation (`accountAdministrator`), one for each
- * worker; and the paths are held to the contract, as `heldToTheContract()` holds a file of
- * `e2e/service/` — by fixtures rather than hooks: a hook declared in a module the files import is
+ * set (`inService`), each path first signs in a local account of the run that holds the roles
+ * « Manager » and « Chef de projet », made by the administrator of the installation
+ * (`accountAdministrator`), one for each worker; and the paths are held to the contract, as
+ * `heldToTheContract()` holds a file of `e2e/service/` — by fixtures rather than hooks: a hook declared in a module the files import is
  * declared once in a worker, for the first of its files alone.
  */
 import { test as base } from "@playwright/test";
@@ -23,9 +23,19 @@ export const inService = process.env.WATERFALL_API_ADDRESS !== undefined;
 
 /**
  * The predefined role a shared path acts with, which every installation holds (WF-EXP-0020,
- * `installation.setup.ts`): its permissions are the installation's, none given here.
+ * `installation.setup.ts`): its permissions are the installation's, none given here. It carries
+ * the settings of the risks and of the indicators too (`risk_settings.write`,
+ * `indicator_settings.write`, WF-INTF-0020), which is why no role composed by the paths comes
+ * beside it.
  */
 const MANAGER = "Manager";
+
+/**
+ * The predefined role beside it that creates a project and writes, marks and abandons its revisions
+ * (WF-EXP-0020, EP-04): the account of the run is the project manager of the projects it creates
+ * (`revision-cycle.spec.ts`).
+ */
+const PROJECT_MANAGER = "Chef de projet";
 
 /** The screen a shared path signs in at, before it opens its own: any account reaches it. */
 const SIGNED_IN_AT = "/account";
@@ -58,7 +68,10 @@ export const test = base.extend<TestFixtures, WorkerFixtures>({
       try {
         const administrator = await accountAdministrator(browser, calls);
         manager = await localAccount(browser, administrator);
-        await administrator.give(manager.id, MANAGER, []);
+        await administrator.giveAlso(manager.id, [
+          [MANAGER, []],
+          [PROJECT_MANAGER, []],
+        ]);
       } finally {
         await calls.dispose();
       }

@@ -3,13 +3,14 @@
 """The revisions of a project and their structures (FBS-4.1).
 
 ``listRevisions``, ``createRevision``, ``getRevision``, ``abandonRevision`` and
-``listCostStructures`` (US-0960); ``markRevision``, which submits its task (US-0970).
+``listCostStructures`` (US-0960); ``markRevision``, which submits its task to the worker and
+answers 202 with it, which ``getBackgroundTask`` follows (US-0970, WF-ARC-0090).
 
 Each names the project and is judged by ``RequiresProject``: the permission of the function of
 the revisions and the quality of the caller on the project (WF-ADM-0110, WF-PRJ-0060). The
 history and the structures are read by whoever consults the revisions; a revision is opened by
-a contributor holding the permission to manage them, and abandoned by a project manager holding
-the permission to abandon one, a structuring action of its own (WF-ADM-0100).
+a contributor holding the permission to manage them, and marked or abandoned by a project manager
+holding the permission of that action, a structuring action of its own (WF-ADM-0100).
 """
 
 from decimal import Decimal
@@ -20,18 +21,22 @@ from fastapi import APIRouter, Depends, Query, Response
 from sqlalchemy.orm import Session
 
 from waterfall.api.actors import actor_ref
-from waterfall.api.authentication import Caller, Transaction
+from waterfall.api.authentication import Caller, ServicesOf, Transaction
 from waterfall.api.contract.models import (
+    BackgroundTaskRef,
     CostStructure,
     PaginationMeta,
     Revision,
     RevisionCreate,
+    RevisionMark,
     RevisionStatus,
 )
 from waterfall.api.evaluation import Acting, RequiresProject
 from waterfall.api.queries import Search, listed
+from waterfall.api.tasks import task_ref
 from waterfall.core.projects.interface import CommandAvailability, Viewer
 from waterfall.core.revisions.interface import (
+    MarkingRequest,
     RevisionFilters,
     RevisionPage,
     RevisionToAbandon,
@@ -41,16 +46,19 @@ from waterfall.core.revisions.interface import (
     list_cost_structures,
     list_revisions,
     read_revision,
+    submit_marking,
 )
 from waterfall.core.users.interface import read_authors
 from waterfall.platform.audit import Act
 from waterfall.platform.database import utc_now
+from waterfall.platform.tasks import BackgroundTask
 
 router = APIRouter(tags=["revisions"])
 
 CONSULT = "revisions.read"
 MANAGE = "revisions.write"
 ABANDON = "revision_abandon"
+MARK = "revision_mark"
 DEFAULT_LIMIT = 50
 GREATEST_LIMIT = 500
 REVISIONS = "/projects/{project_id}/revisions"
@@ -217,6 +225,36 @@ def delete_revision(
     abandoned = RevisionToAbandon(revision_id, lock_version)
     abandon_revision(session, project_id, abandoned, act, viewer_of(actor))
     return Response(status_code=204)
+
+
+def marking_request(project_id: UUID, revision_id: UUID, body: RevisionMark) -> MarkingRequest:
+    """Read the marking asked for: the revision of the path, the name, the counter read."""
+    return MarkingRequest(
+        project_id, revision_id, body.version_name, body.description, body.lock_version.root
+    )
+
+
+@router.post(
+    f"{REVISION}/mark",
+    operation_id="markRevision",
+    dependencies=[Depends(RequiresProject(CONSULT, MARK, manager=True))],
+    status_code=202,
+    response_model_exclude_unset=True,
+)
+def post_marking(
+    request: Annotated[MarkingRequest, Depends(marking_request)],
+    account: Caller,
+    session: Transaction,
+    services: ServicesOf,
+) -> BackgroundTaskRef:
+    """Deposit the marking of the current revision for the worker, and say where it stands.
+
+    Judged under the lock of the revision at the counter read, nothing deposited if refused; the
+    task is written in the transaction of the request, and deposited once it is committed.
+    """
+    act = Act(account.user_id, utc_now())
+    task_id = submit_marking(session, services.queue, request, act)
+    return task_ref(session.get_one(BackgroundTask, task_id))
 
 
 @router.get(

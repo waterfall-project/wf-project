@@ -122,6 +122,28 @@ def _is_empty(value: object) -> bool:
     return isinstance(value, str | list | tuple | dict) and not value
 
 
+# The pattern that asks one character that is not a blank at least (``pattern="\\S"``).
+_NOT_BLANK = "\\S"
+
+
+# The fields whose value of blanks alone is a value that is lacking, not a value malformed: the
+# name of the version a revision is marked under (WF-REV-0020). The other texts under the pattern
+# keep ``VALIDATION_FAILED`` for it.
+_BLANK_IS_LACKING = frozenset({"version_name"})
+
+
+def _is_blank(fault: Mapping[str, Any]) -> bool:
+    """Tell a text of blanks alone, where the pattern asks for a character that is not one."""
+    value = fault.get("input")
+    return (
+        fault["type"] == "string_pattern_mismatch"
+        and fault["loc"][-1] in _BLANK_IS_LACKING
+        and fault.get("ctx", {}).get("pattern") == _NOT_BLANK
+        and isinstance(value, str)
+        and not value.strip()
+    )
+
+
 def _is_integer_not_admitted(fault: Mapping[str, Any]) -> bool:
     """Tell an integer that is none of the values an enumeration of integers admits.
 
@@ -160,6 +182,9 @@ def _field_of(fault: Mapping[str, Any]) -> FieldError:
         # Only an empty value, where one value at least is asked, is a value that is lacking.
         lacking = fault.get("ctx", {}).get("min_length") == 1 and _is_empty(fault.get("input"))
         code = ErrorCode.VALUE_REQUIRED if lacking else ErrorCode.VALIDATION_FAILED
+    elif _is_blank(fault):
+        # A value of blanks alone says nothing, as an empty one does.
+        code = ErrorCode.VALUE_REQUIRED
     elif kind in _INCLUSIVE_BOUNDS:
         code = ErrorCode.VALUE_OUT_OF_RANGE
         params[_INCLUSIVE_BOUNDS[kind]] = next(iter(fault["ctx"].values()))

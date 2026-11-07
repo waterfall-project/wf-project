@@ -10311,6 +10311,21 @@ de consultation ne gardaient plus rien de nommé.
 
 Le service, qui réalisera le référentiel avec EP-05, le suit par #1746.
 
+### La borne haute du taux horaire est déclarée (EP-05, lot de finitions #2126, #2132)
+
+Décision de l'auteur du 2026-11-06, option A. `setHourlyRate` refusait déjà un montant au-delà de
+`9999999999.99` par 422 `VALIDATION_FAILED`, `/amount` par `VALUE_OUT_OF_RANGE`,
+`fields[].params.maximum` — sans quoi la colonne `numeric(12,2)` aurait fait répondre 500 —, et le
+contrat ne disait que le minimum.
+
+- **La borne est dite là où le minimum l'est** : la description de `HourlyRateWrite.amount` et
+  celle du 422 de `setHourlyRate`. `Money`, une chaîne, n'a pas de borne haute : `maximum` n'a de
+  sens que sur un nombre, le contrat la dit en texte, comme il dit le minimum de `0.01`.
+- **Le refus du service reste tel quel** ; `9999999999.99` est la valeur qu'il applique déjà
+  (`GREATEST_RATE`).
+- **Écarté : consigner seulement l'écart** (option B). Le client n'aurait pas su qu'un montant
+  est borné avant d'essuyer le refus.
+
 ### La liste des projets a son propre filtre d'états ; l'accueil retient aussi les projets créés (US-0704, #1735, D-01, #1747)
 
 Décisions de l'auteur du 2026-11-01. `listProjects` empruntait `PortfolioStates`, dont la règle

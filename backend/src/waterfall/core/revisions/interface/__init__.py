@@ -24,10 +24,13 @@ such module, by what they serve or explicitly. ``RevisionCopy`` is what a copy r
 
 # ``marking`` (US-0970; the indicators, EP-10): the marking of a revision.
 from waterfall.core.revisions.interface.marking import (
+    MarkingRequest,
     compute_indicators,
     load_marking,
     mark_revision,
     register_indicators,
+    run_marking,
+    submit_marking,
 )
 
 # ``reference`` (US-0980/L2): the reference revision of a project.
@@ -68,6 +71,7 @@ from waterfall.core.revisions.interface.structures import (
 )
 
 __all__ = [
+    "MarkingRequest",
     "RevisionCopy",
     "RevisionFilters",
     "RevisionList",
@@ -96,5 +100,7 @@ __all__ = [
     "revision_draft",
     "revision_has_tasks_and_lines",
     "revisions_present",
+    "run_marking",
     "structure_commands",
+    "submit_marking",
 ]

@@ -6,7 +6,7 @@
       {"sequence":1,"occurred_at":"2025-09-01T09:00:00Z","what":"Installation, référentiel et comptes","writes":[]},
       {"sequence":2,"occurred_at":"2025-10-06T09:00:00Z","what":"PRJ-001 créé, à l'état Créé","writes":[{"kind":"project_created","project":"PRJ-001"}]},
       {"sequence":3,"occurred_at":"2025-11-03T08:30:00Z","what":"Ouverture de l'offre 100, passage en Chiffrage","writes":[{"kind":"revision_opened","project":"PRJ-001","revision":100},{"kind":"state_transition","project":"PRJ-001","from":"created","to":"costing"}]},
-      {"sequence":4,"occurred_at":"2025-12-15T16:00:00Z","what":"Offre v1.0 marquée","writes":[{"kind":"revision_marked","project":"PRJ-001","revision":100,"version_name":"v1.0"}]},
+      {"sequence":4,"occurred_at":"2025-12-15T16:00:00Z","what":"Offre v1.0 marquée","writes":[{"kind":"revision_marked","project":"PRJ-001","revision":100,"version_name":"Offre v1.0"}]},
       {"sequence":5,"occurred_at":"2026-01-12T10:00:00Z","what":"Risques 751, 752 et 753 identifiés ; la première saisie ouvre la révision 101","writes":[{"kind":"revision_opened","project":"PRJ-001","revision":101}]},
       {"sequence":6,"occurred_at":"2026-01-12T10:15:00Z","what":"Mise à jour des taux de 2026 acceptée depuis la révision 101 en cours","writes":[]},
       {"sequence":7,"occurred_at":"2026-01-15T11:00:00Z","what":"Commande reçue ; l'offre 100 désignée référence, passage En cours","writes":[{"kind":"designation_attempted","project":"PRJ-001","revision":100,"refused":"no_task"},{"kind":"code_entered","project":"PRJ-001","code":"PRJ-001"}]},

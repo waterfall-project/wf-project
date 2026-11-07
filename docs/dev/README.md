@@ -60,7 +60,9 @@ of those the witness says deactivated, the roles then theirs, the mapping of the
 actual costs; then, through a single entry (`waterfall.witness.chronology`), the slice of the
 projects (EP-04): the projects and the local accounts of their contributors, the contributors, the
 subprojects, the work breakdown, the revisions and the events of the chronology of the witness, at
-the instants it imposes. A slice writes nothing the platform already holds: run again, it writes nothing and
+the instants it imposes — each revision opened by the rules of the opening, marked by the very
+transaction of the worker (`load_marking`), under the name of version and the description of
+`revisions.json`, which the chronology only orders. A slice writes nothing the platform already holds: run again, it writes nothing and
 succeeds, saying the witness is there (`witness.already_loaded`); a refusal or an error writes
 nothing and stops it in failure (1). Each story of the reference and of the projects fills its
 slice, in its file of `waterfall.witness`, without touching the order. Its module, `waterfall.witness`, is at the top of
@@ -97,7 +99,12 @@ which the function `create_project_partitions` of the owner of the tables (`SECU
 creates in the transaction of the creation of the project; the role of the service alone may
 execute it, with no other right of DDL; each epic that adds a revised table replaces it. Two
 triggers of the module of the revisions refuse, owner included, what a marked revision forbids
-(migration `0020`).
+(migration `0020`). The one of a revised table locks the revision of the row `FOR KEY SHARE`
+whatever its status, then reads it, and the marking locks the revision `FOR UPDATE` before marking
+it: a writer that comes during the marking waits for it, then is refused, and the marking waits
+for the writer that began before it (#2104). Each epic that adds a revised table gives it a trigger
+of that form. The locks are taken in a single order: the revision, then its project, never the
+project before the revision.
 A module imports another through `waterfall.core.<module>.interface`, never through its
 tables. The core imports neither the API nor the worker, which do not import each other.
 
@@ -135,6 +142,19 @@ Whoever opens the queue says how long it waits for Redis: a request or the sched
 hold back the response; the worker `WORKER_TIMEOUT`, longer than each of its reads. An error the
 worker does not expect — Redis or PostgreSQL out of reach — stops it in failure (1), said in its
 logs by `worker.failed`, secrets masked.
+
+**The marking, the first task of the trade** (US-0970). A task that aims at a project names it in
+its payload, under `project_id` (`PROJECT` of `waterfall.platform.tasks`): while it is queued or
+running, `no_background_task_running` of the interface of the projects is false, and the commands
+that would write in the project name that condition. `markRevision` judges the marking under the
+lock of the revision — 404, 412, `revision_draft`, `no_background_task_running`, then
+`ALREADY_EXISTS` on `/version_name` —, and deposits its task `revision_mark` in the transaction of
+the request (`submit_marking`), 202; the front follows it by `getBackgroundTask`. The worker
+(`waterfall.worker.marking`) judges again in the transaction of the task (`mark_revision`),
+computes the indicators (`compute_indicators`, which EP-10 fills), marks the revision, takes it
+from the project and inscribes `revision_mark` in the journal, its author the requester; a
+refusal, or a computation that raises, fails the task with its code (`BackgroundTask.problem`),
+nothing written, and a new `markRevision` asks for it again.
 
 Every served operation the contract keeps declares, on its route, the permissions it requires:
 `dependencies=[Depends(Requires(...))]` (`waterfall.api.evaluation`), evaluated before the
@@ -3761,7 +3781,8 @@ list of files names it. Each US tags
 its paths once the service serves its screen. Against the fake back, `test` changes nothing: the
 fake back grants the session. With `WATERFALL_API_ADDRESS` set, `inService` is true, and two
 fixtures of `mode.ts` do what a file of `frontend/e2e/service/` asks for by its hooks: each worker
-obtains once a local account of the run that holds the predefined role « Manager », created by the
+obtains once a local account of the run that holds the predefined roles « Manager » and « Chef de
+projet » (US-0970), created by the
 administrator of the installation (`accountAdministrator`, `localAccount`), and each path is first
 signed in with it (`signIn`, at `/account`), then held to the contract, as `heldToTheContract()`
 holds a file (`startReading`, `expectNothingRefused`, `contract.ts`). Fixtures rather than
@@ -3775,9 +3796,23 @@ removes the guard and its entry:
 
 - `revisions.spec.ts` — the current revision and its parts, and the comparison, the volume's
   included, and « Écarts seulement » (`BEFORE_EP07`): lifted by **EP-07**, which serves the
-  comparison (`compareRevisions`) and the rate update (`getRateUpdateProposal`), which the screen of
-  a current revision reads and without which it is not found; the marked revisions compared come
-  with US-0970 (EP-04). The history itself plays against the service from US-0960.
+  comparison (`compareRevisions`) and the rate update (`getRateUpdateProposal`). The screen of a
+  current revision reads the proposal by `readUnlessRefused` and renders without it on the 404 of
+  the service (#2173), its commands playable. The history plays against the service from US-0960,
+  with the revisions 100 and 101 of the witness marked from US-0970.
+- `revision-cycle.spec.ts` — the commands of the revision 102 of PRJ-001, the opening unavailable
+  and the designation beyond the correction (`NOT_REPLAYED_IN_SERVICE`): the account of the
+  run is not enrolled as project manager of the projects of the witness, by decision (#2193, option A): the
+  paths that write create their own project, and the reference of the witness is designated by
+  **US-0980/L2**. The abandon of the 102 (`WITNESS_KEPT`) never plays against the service, which
+  would take it from every other path: the cycle — a project created by the account of the run, its
+  project manager as its creator, a revision opened, marked by the worker, another opened then
+  abandoned (US-0970) — plays there on a project of its own, and against the service alone
+  (`SERVICE_ONLY`); its sequel — reopened, the code entered, the exit, the designation refused — is
+  **US-0990/L2**'s. The cycle plays since **US-0850** (EP-05) serves the roles of resources: the
+  minimal reference is complete, and the service creates a project (#2194). The path of the
+  restoration (`service/backups.spec.ts`) creates one before the backup, marks its revision and
+  creates a second after it, and does not find them once restored (WF-ADM-0160-A).
 
 The paths that depend on what the service does not do yet, or does not serve, are not replayed
 against it, being untagged; each is still played against the fake back, by `chromium`. What
@@ -3788,16 +3823,28 @@ role "Manager" is offered neither the administration nor the status), as well as
 paths, those of a project and that of the icon on `/`; almost all of those of `admin.spec.ts`
 (`:40` to `:455`, only `:479` is `@shared`), administration screens outside the permissions of the
 role "Manager" of `mode.ts`, without the `users.*` permissions. On what their US does not tag yet:
-the reading of the settings outside any project (`reference-costs.spec.ts`, US-0250); the filter
-of the roles by calendar (`reference-costs.spec.ts:251`), whose comment says it of a screen not yet
-served, which is outdated, and the change of the units of duration
-(`reference-resources.spec.ts:271`), which asserts the echo of the fake back to a write ("7 and
-35"): tagging them is tracked by #2178. The `inService` guards of the tagged paths
-are not paths that are not replayed: the path is played on both sides, and only the assertion of a
+the reading of the settings outside any project (`reference-costs.spec.ts`, US-0250); the
+change of the units of duration (`reference-resources.spec.ts`), which writes the single object of
+the installation and asserts the echo of the fake back ("7 and 35"): it would be played in series
+(rule below), which the `realm` project does today only for `frontend/e2e/service/` (#2178).
+The `inService` guards of the tagged paths are not paths that are not replayed: the path is played on both sides, and only the assertion of a
 write differs (what was entered, read anew after a reload; a code and a label of the run's own,
 which the service keeps; a state left as it was found) — `reference-costs.spec.ts`,
 `reference-resources.spec.ts`, `reference-settings.spec.ts`,
 `reference-actual-cost-mapping.spec.ts`.
+
+A `@shared` path writes only objects it creates itself, under a code and a label of the run's own,
+and leaves them deactivated or removed at its end: the `shared` workers play in parallel against one
+installation, and an object of the witness that a path changes, even for the time it runs, changes
+under the eyes of those who read it or compare it with its examples (state, `lock_version`, audit
+dates — #2087). The paths that change a single object of the installation — the settings, the units
+of duration, the correspondence of the actual costs — are played in series, alone, not in parallel
+with the others. A path that must reactivate one of the witness does so in a `finally` that puts it
+back as it found it, and it is an exception it states, not the rule.
+Three paths depart from this rule today, pending #2211: the change of the units of duration
+(`reference-resources.spec.ts`, untagged), that of the settings (`reference-settings.spec.ts`) and
+that of the correspondence of the actual costs (`reference-actual-cost-mapping.spec.ts`), tagged
+`@shared` and yet writing these single objects.
 
 A limit of the paths against the service: Prism, as a proxy of the contract, reads every body as
 text and alters binary bodies — every byte beyond `0x7f` of an `application/octet-stream` request or

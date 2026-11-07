@@ -40,9 +40,7 @@ from waterfall.core.projects.interface import (
     contributor_kind,
     lock_project,
     no_background_task_running,
-    project_code,
     project_facts,
-    project_label,
     require_project_manager,
     set_current_revision,
 )
@@ -54,6 +52,13 @@ from waterfall.core.revisions.commands import (
     TERMINAL,
     revision_commands,
 )
+from waterfall.core.revisions.interface.shared import (
+    NOT_FOUND,
+    STALE_LOCK_VERSION,
+    found_revision,
+    inscribe_revision,
+    refuse,
+)
 from waterfall.core.revisions.interface.structures import (
     copy_structures,
     create_main_structure,
@@ -62,10 +67,8 @@ from waterfall.core.revisions.interface.structures import (
 from waterfall.core.revisions.registry import Registry
 from waterfall.core.revisions.states import state_of
 from waterfall.core.revisions.tables import Revision
-from waterfall.core.users.interface import inscribed_actor
-from waterfall.platform.audit import AuditObject, AuditProject, Inscription, record
 from waterfall.platform.database import contains, unique_violated
-from waterfall.platform.errors import ConflictError, NotFoundError, PreconditionFailedError
+from waterfall.platform.errors import NotFoundError, PreconditionFailedError
 from waterfall.platform.identifiers import new_id
 
 if TYPE_CHECKING:
@@ -82,9 +85,6 @@ if TYPE_CHECKING:
 # The two statuses of a revision, as the contract says them (``RevisionStatus``).
 type RevisionStatus = Literal["draft", "marked"]
 
-NOT_FOUND = "NOT_FOUND"
-STATE_FORBIDS_OPERATION = "STATE_FORBIDS_OPERATION"
-STALE_LOCK_VERSION = "STALE_LOCK_VERSION"
 # The unique partial index of the current revision of a project (migration of its tables).
 DRAFT_INDEX = "uq_revision_draft"
 
@@ -297,27 +297,12 @@ def list_revisions(
     return RevisionList(_views(session, list(rows), project_id, viewer), total)
 
 
-def _found(session: Session, project_id: UUID, revision_id: UUID, *, lock: bool) -> Revision:
-    """Read a revision of a project, locked under ``FOR UPDATE`` if asked; or refuse (404)."""
-    query = select(Revision).where(Revision.project_id == project_id, Revision.id == revision_id)
-    if lock:
-        query = query.with_for_update().execution_options(populate_existing=True)
-    revision = session.scalars(query).first()
-    if revision is None:
-        raise NotFoundError(NOT_FOUND)
-    return revision
-
-
 def read_revision(
     session: Session, project_id: UUID, revision_id: UUID, viewer: Viewer
 ) -> RevisionView:
     """Read a revision of a project, with its commands for the reader (``getRevision``); or 404."""
-    revision = _found(session, project_id, revision_id, lock=False)
+    revision = found_revision(session, revision_id, project_id, lock=False)
     return _views(session, [revision], project_id, viewer)[0]
-
-
-def _refuse(condition: str) -> ConflictError:
-    return ConflictError(STATE_FORBIDS_OPERATION, {"missing_condition": condition})
 
 
 def _judge_opening(session: Session, project_id: UUID, project: ProjectFacts) -> None:
@@ -327,11 +312,11 @@ def _judge_opening(session: Session, project_id: UUID, project: ProjectFacts) ->
     task that would create the current revision itself.
     """
     if project.state in TERMINAL:
-        raise _refuse(PROJECT_NOT_TERMINAL)
+        raise refuse(PROJECT_NOT_TERMINAL)
     if project.current_revision_id is not None:
-        raise _refuse(NO_CURRENT_REVISION)
+        raise refuse(NO_CURRENT_REVISION)
     if not no_background_task_running(session, project_id):
-        raise _refuse(NO_BACKGROUND_TASK_RUNNING)
+        raise refuse(NO_BACKGROUND_TASK_RUNNING)
 
 
 def _last_marked(session: Session, project_id: UUID) -> UUID | None:
@@ -371,7 +356,7 @@ def _open(session: Session, project_id: UUID, revision_id: UUID, act: Act) -> Re
     except IntegrityError as error:
         if unique_violated(error) != DRAFT_INDEX:
             raise
-        raise _refuse(NO_CURRENT_REVISION) from None
+        raise refuse(NO_CURRENT_REVISION) from None
     if source is None:
         create_main_structure(session, project_id, revision_id, act)
     else:
@@ -386,7 +371,7 @@ def create_revision(session: Session, project_id: UUID, act: Act, viewer: Viewer
 
     Refused, nothing written, on a terminal project (409 ``project_not_terminal``), while a
     current revision exists (409 ``no_current_revision``), and while a background task would
-    create it itself (409 ``no_background_task_running``, never until US-0970).
+    create it itself (409 ``no_background_task_running``).
     """
     revision = _open(session, project_id, new_id(), act)
     return _views(session, [revision], project_id, viewer)[0]
@@ -413,19 +398,6 @@ def copy_revision(session: Session, source: UUID, target: UUID) -> None:
         copier(copy)
 
 
-def _inscribe_abandonment(session: Session, revision: Revision, act: Act) -> None:
-    """Inscribe the abandonment in the journal: the revision, nameless, and its project."""
-    code = project_code(session, revision.project_id)
-    label = project_label(session, revision.project_id)
-    # The journal names a project by both its code and its label, or not at all (#927).
-    named = (
-        None if code is None or label is None else AuditProject(revision.project_id, code, label)
-    )
-    audited = AuditObject("revision", revision.id, None)
-    actor = inscribed_actor(session, act.author)
-    record(session, Inscription("revision_abandon", actor, audited, act.at, project=named))
-
-
 def abandon_revision(
     session: Session, project_id: UUID, abandoned: RevisionToAbandon, act: Act, viewer: Viewer
 ) -> None:
@@ -439,7 +411,7 @@ def abandon_revision(
     terminal project's revisions are all marked: ``revision_draft`` refuses there too.
     """
     revision_id, lock_version = abandoned.revision_id, abandoned.lock_version
-    revision = _found(session, project_id, revision_id, lock=True)
+    revision = found_revision(session, revision_id, project_id, lock=True)
     # The revision is locked first, the project next, as everywhere; the writer is judged under the
     # lock of the project, before any other refusal: he may be no project manager any more.
     lock_project(session, project_id)
@@ -449,12 +421,12 @@ def abandon_revision(
             STALE_LOCK_VERSION, {"expected_lock_version": revision.lock_version}
         )
     if revision.status != "draft":
-        raise _refuse(REVISION_DRAFT)
+        raise refuse(REVISION_DRAFT)
     if not no_background_task_running(session, project_id):
-        raise _refuse(NO_BACKGROUND_TASK_RUNNING)
+        raise refuse(NO_BACKGROUND_TASK_RUNNING)
     set_current_revision(session, project_id, None, act)
     delete_structures(session, project_id, revision_id)
-    _inscribe_abandonment(session, revision, act)
+    inscribe_revision(session, revision, "revision_abandon", None, act)
     session.delete(revision)
     session.flush()
 
@@ -474,7 +446,7 @@ def revision_draft(session: Session, revision_id: UUID) -> None:
     if status is None:
         raise NotFoundError(NOT_FOUND)
     if status != "draft":
-        raise _refuse(REVISION_DRAFT)
+        raise refuse(REVISION_DRAFT)
 
 
 def load_revision(session: Session, project_id: UUID, revision_id: UUID, act: Act) -> None:

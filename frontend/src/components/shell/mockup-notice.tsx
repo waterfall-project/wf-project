@@ -5,21 +5,26 @@
  * write by an example of the contract and keeps nothing, so that a reading anew shows what it served
  * before, save the rows the screen shows as the server answered their writes while it stays open
  * (`useAnswered`) — the screen says it once, discreetly, under its header, rather than simulating a
- * list that keeps what was written. It goes with the fake back: a screen wired to the service of its epic no
- * longer shows it (EP-05 for the reference data).
+ * list that keeps what was written. It goes with the fake back: a screen wired to the service of its
+ * epic no longer shows it. The reference data (EP-05) and the administration (EP-03) are served and
+ * show none; the screens of the portfolio and of the projects, which the service does not serve
+ * yet, still do.
  *
  * `lists` is posed by the screens of lists and grids (US-0760, #1399): the fake back serves the first
  * example of each read whatever the request, so it applies no filter, search, sort, page or `kinds`,
  * and the note adds `mockup.notFiltered` to the one it already shows — one note per screen, never a
  * second one. The screen of a list shows it whether its commands write or not.
- * A screen whose epic's service is delivered (administration, EP-03) shows no note, `lists` or not.
+ * A screen whose epic's service is delivered shows no note, `lists` or not.
  *
  * Neither server nor client: it renders on either side.
  */
 import { FlaskConical } from "lucide-react";
 import { useTranslations } from "next-intl";
 
-/** Say that what the commands of the screen write is not kept, and with `lists`, that its reads are not filtered. */
+/**
+ * Say that what the commands of the screen write is not kept, and with `lists`, that its reads are
+ * not filtered.
+ */
 export function MockupNotice({ lists = false }: { lists?: boolean }) {
   const t = useTranslations("mockup");
   return (

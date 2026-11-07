@@ -970,7 +970,8 @@ de charge confronte la charge des projets à ce que l'entreprise peut fournir.
 - `WF-REF-0080-A` — « La désactivation d'un nœud portant deux niveaux de descendants et des rôles
   les désactive tous. » : `setOrgNodeActivation` désactive les descendants et les rôles rattachés
   à lui ou à l'un d'eux, chacun son compteur avancé et son audit nommant l'auteur, dans la même
-  transaction ; la réponse ne les porte pas, les listes relues les montrent ;
+  transaction ; la réponse porte les nœuds et les rôles changés, comme le contrat le dit (#2139,
+  auteur, 2026-11-06), et les listes relues les montrent ;
 - `WF-REF-0080-A` — « La réactivation d'un rôle dont le nœud est désactivé est refusée. » : 409,
   `STATE_FORBIDS_OPERATION`, `org_node_active` manquante, `conflicting_object_id` le nœud, la
   commande `reactivate` du rôle le disant d'avance ; de même la réactivation d'un nœud dont le
@@ -1054,8 +1055,9 @@ travaille.
   `is_default`, et ne filtre pas les heures (C-352) ; les désactivés avec `include_inactive`,
   sous `resource_settings.read` ;
 - propre à l'US : chaque réponse est validée contre le contrat dans les tests du service ;
-- propre à l'US : `load-witness` charge les calendriers du témoin et désigne son calendrier par
-  défaut (`calendars.json`) (décision du 2026-11-05).
+- propre à l'US : `load-witness` charge les calendriers du témoin, les désactivés compris
+  (`calendars_with_inactive.json`, #2131), et désigne son calendrier par défaut (décisions des
+  2026-11-05 et 2026-11-06).
 
 **Notes de réalisation.** Les refus `TASK_WITHOUT_WORKING_HOURS` d'`updateCalendar` et de
 `setDefaultCalendar` — un calendrier qui laisserait une tâche sans heure (WF-PLA-0010) — sont
@@ -1124,7 +1126,7 @@ contrainte de la base et non un parcours. EP-09 lit l'extraction selon cette for
 
 ## US-0880 — La désactivation à la place de la suppression, et les objets désactivés
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-REF-0010-A`, `WF-REF-0150-A`, `WF-REF-0020-A`, `WF-REF-0130-A`
 - **opérations** : les opérations d'activation et les listes du référentiel, servies par
   US-0820 à US-0860
@@ -1155,8 +1157,8 @@ réactiver, **afin que** l'histoire des projets reste lisible et qu'une erreur s
   l'affichage des objets désactivés est demandé, et peut y être réactivé. » : contre le service,
   pour chacune des cinq listes — nœuds, rôles, calendriers, natures, catégories — et la grille des
   taux : sans `include_inactive`, les actifs seuls ; avec, les désactivés aussi, à une session
-  qui porte la permission de lecture de la partie (`cost_settings.read`,
-  `resource_settings.read`), refusé par 403 sans elle (#300, #351) ; `is_active` faux de même ; un
+  qui porte la permission de modification de la partie (`cost_settings.write`,
+  `resource_settings.write` ; #2084), refusé par 403 sans elle (#300, #351) ; `is_active` faux de même ; un
   objet désactivé s'y réactive par sa commande, pour qui porte la permission de modification ;
 - écart : `WF-REF-0020-A` — « On désactive un rôle de ressource et une catégorie de coût employés
   par une révision en cours. » : la révision est d'EP-07, qui clôt ; ici, la désactivation n'écrit
@@ -1201,7 +1203,7 @@ prouvent le service sans réécriture de leurs attendus (#1402).
 
 - `WF-QUA-0040-A` — « L'engendrement du jeu aboutit sur une plateforme neuve et produit les volumes
   annoncés. » : pour la tranche du référentiel — les nœuds du témoin, deux désactivés compris,
-  ses cinq rôles dont deux désactivés, ses deux calendriers, ses trois natures, ses deux cents
+  ses cinq rôles dont deux désactivés, ses trois calendriers dont un désactivé, ses trois natures, ses deux cents
   catégories, la grille de cent cinquante catégories de main-d'œuvre sur quinze ans, ses unités de
   durée, ses réglages et sa correspondance —, chargée par `waterfall-api load-witness` (nom à fixer
   à la conception) sur une plateforme amorcée, par les interfaces des modules, jamais par un
@@ -1216,7 +1218,7 @@ prouvent le service sans réécriture de leurs attendus (#1402).
   (`test_mockuniverse.py` les tient) ;
 - propre à l'US : la commande, dont chaque US a écrit la tranche, lit la description du témoin
   que `make mock-data` tient — `fixtures/api/org_nodes_with_inactive.json`, `resource_roles`
-  (avec les désactivés), `calendars`, `cost_types`, `volume/cost_categories.json`,
+  (avec les désactivés), `calendars_with_inactive` (avec les désactivés, #2131), `cost_types`, `volume/cost_categories.json`,
   `volume/hourly_rate_grid.json`, `duration_units`, `reference_settings`, `actual_cost_mapping` —
   dans l'ordre des dépendances, en une transaction, et échoue, en le disant, sur un témoin que les
   règles du référentiel refusent ; le code de calcul du faux back n'est pas réemployé ; les listes
@@ -1258,7 +1260,7 @@ et `fixtures/api/` restent les exemples du contrat.
 
 ## US-0900 — Les écrans du référentiel branchés sur le service, et les usages du manager
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-INTF-0020-A`, `WF-ADM-0020-A`
 - **opérations** : toutes celles de `reference`, lues par les cinq écrans
 - **issue** : 2044
@@ -1280,8 +1282,9 @@ composer un rôle sur mesure qui cumule ce que deux acteurs font.
   clôt ;
 - `WF-ADM-0020-A` — « Un rôle d'habilitation composé sur mesure permet à un utilisateur de cumuler
   des permissions relevant de deux acteurs différents. » : un rôle composé de
-  `cost_settings.write` et d'`users.write` permet au même compte de créer une nature et un compte
-  local, contre le service ;
+  `cost_settings.write` et d'`users.write`, avec les lectures que les écrans demandent
+  (`cost_settings.read`, `users.read` ; #2188), permet au même compte de créer une nature et un
+  compte local, contre le service ;
 - `WF-ADM-0020-A` — « Réciproquement, un rôle privé d'une permission empêche l'action
   correspondante, quel que soit l'acteur auquel l'utilisateur ressemble. » : un rôle qui porte
   tout « manager » sauf `resource_settings.write` lit les rôles de ressources et se voit refuser
@@ -1301,6 +1304,9 @@ contre le service et constate que #512 est soldé — l'avis retiré partout, le
 le service. Un manque que le branchement révèle — un refus que
 l'écran ne dit pas, un exemple qui ne vaut pas contre le service — devient une issue, tranchée
 selon le README ; un manque du contrat, une « Interface contract issue », le contrat étant figé.
+Tant que l'amorçage ne donne pas `risk_settings.write` et `indicator_settings.write` au « Manager »,
+le compte du premier parcours porte aussi un rôle de parcours des risques et indicateurs (#2187) ;
+le Vérif et les critères ne changent pas.
 
 **Hors périmètre.** Les vues du portefeuille et le projet non contributeur (EP-11) ; les écrans
 hors du référentiel.
