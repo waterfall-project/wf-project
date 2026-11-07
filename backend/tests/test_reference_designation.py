@@ -84,7 +84,7 @@ def stage(api: ContractClient, owner: Engine, database: Database, realm: TestRea
 @pytest.fixture
 def lines() -> Iterator[None]:
     """Make every revision bear lines, as EP-07 will answer; its tasks are given at its marking."""
-    withdraw = register_tasks_and_lines(lambda _session, _revision: True)
+    withdraw = register_tasks_and_lines("lines", lambda _session, _revision: True)
     yield
     withdraw()
 
@@ -206,13 +206,15 @@ def entered(api: ContractClient, stage: Scene, code: str) -> Any:
 
 
 @pytest.mark.requirement("WF-CYC-0030-A")
+@pytest.mark.parametrize("tasks", [False, True], ids=["nothing", "tasks_without_lines"])
 def test_a_designation_without_tasks_and_lines_is_refused_naming_the_condition(
-    api: ContractClient, stage: Scene
+    api: ContractClient, stage: Scene, tasks: bool
 ) -> None:
     # « La désignation d'une révision marquée sans tâche, ou sans ligne de devis, est refusée et la
     # condition manquante est nommée ; le projet n'a pas de référence. » The revision bears no
-    # task, and none registers its lines.
-    revision = marked(api, stage, "v1.0", tasks=False)
+    # task, or tasks without a line: none registers the lines before EP-07, and the tasks alone
+    # never make the designation pass.
+    revision = marked(api, stage, "v1.0", tasks=tasks)
     before = project_row(stage)
     answer = designate(api, stage, revision["revision_id"])
     assert refusal(answer) == (

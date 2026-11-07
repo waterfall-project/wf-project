@@ -61,7 +61,7 @@ from waterfall.core.revisions.interface import register_copy, register_tasks_and
 # The registrations, once, at the import: the copy of the nodes after the structures', whose
 # module this one imports first.
 register_copy(copy_nodes)
-register_tasks_and_lines(revision_has_tasks)
+register_tasks_and_lines("tasks", revision_has_tasks)
 register_idle_task_guard(tasks_left_idle)
 register_recalculation(reschedule_current_structures)
 register_attachments(Attachments(work_breakdown_item_cited, detach_work_breakdown_item))

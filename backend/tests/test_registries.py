@@ -137,7 +137,7 @@ REGISTERED = {
         "waterfall.core.revisions.interface.structures.copy_structures",
         f"{PLANNING}.nodes.copy_nodes",
     ],
-    "revisions.tasks_and_lines": [f"{PLANNING}.nodes.revision_has_tasks"],
+    "revisions.tasks_and_lines": [f"tasks:{PLANNING}.nodes.revision_has_tasks"],
     "resource_settings.idle_task_guard": [f"{PLANNING}.reference.tasks_left_idle"],
     "resource_settings.recalculation": [f"{PLANNING}.reference.reschedule_current_structures"],
     "projects.attachments": [

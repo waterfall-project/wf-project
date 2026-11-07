@@ -735,7 +735,8 @@ def test_a_revision_bears_tasks_and_lines_when_every_question_registered_says_so
 ) -> None:
     # How EP-06 and EP-07 answer ``revision_has_tasks_and_lines`` (``register_tasks_and_lines``),
     # a detail of the realization which reprises no Vérif: the planning answers whether the revision
-    # bears a task (``revision_has_tasks``, US-1380/L1), every other question registered too.
+    # bears a task (``revision_has_tasks``, US-1380/L1), EP-07 whether it bears a line; each part
+    # needs its question, and every question registered must say yes.
     offer = open_revision(api, stage)
     path = f"{revisions_of(stage.project['project_id'])}/{offer['revision_id']}"
 
@@ -743,17 +744,20 @@ def test_a_revision_bears_tasks_and_lines_when_every_question_registered_says_so
         return missing(api.get(path, headers=stage.manager.headers).json())["designate_reference"]
 
     with ExitStack() as registered:
-        registered.callback(register_tasks_and_lines(lambda _session, _revision: True))
+        registered.callback(register_tasks_and_lines("lines", lambda _session, _revision: True))
         mark_as_the_worker(stage.owner, offer, "v1.0")
         assert designation() == ["revision_has_tasks_and_lines"]
+    offer = open_revision(api, stage)
+    path = f"{revisions_of(stage.project['project_id'])}/{offer['revision_id']}"
+    with stage.owner.begin() as connection:
+        give_a_task(connection, UUID(offer["revision_id"]))
+    mark_as_the_worker(stage.owner, offer, "v2.0")
+    # Its tasks alone: no question of the lines, no designation.
+    assert designation() == ["revision_has_tasks_and_lines"]
     with ExitStack() as registered:
-        offer = open_revision(api, stage)
-        path = f"{revisions_of(stage.project['project_id'])}/{offer['revision_id']}"
-        with stage.owner.begin() as connection:
-            give_a_task(connection, UUID(offer["revision_id"]))
-        mark_as_the_worker(stage.owner, offer, "v2.0")
+        registered.callback(register_tasks_and_lines("lines", lambda _session, _revision: True))
         assert designation() == []
-        lines = register_tasks_and_lines(lambda _session, _revision: False)
+        lines = register_tasks_and_lines("lines", lambda _session, _revision: False)
         registered.callback(lines)
         assert designation() == ["revision_has_tasks_and_lines"]
 
