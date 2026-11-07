@@ -6,6 +6,9 @@ Each test writes a deliberate fault in a scratch file and runs the tool of the c
 with the repository's own configuration: a type error, a rule violation, a format drift, a
 complexity of 15. The same file without the fault passes, so that the failure is the
 fault's and not the scratch file's.
+
+The tests of the TC exemption list of `ruff.toml` (US-1360, a tool of the repository) read that
+file: each module of `api/` that declares routes has its line, with the three rules, in order.
 """
 
 import itertools
@@ -100,23 +103,34 @@ API = REPOSITORY / "backend" / "src" / "waterfall" / "api"
 API_ENTRY_PREFIX = "backend/src/waterfall/api/"
 
 
-def api_exemptions() -> list[str]:
-    """Return the modules of `api/` that `ruff.toml` exempts from TC001 to TC003, in order."""
+def api_entries() -> dict[str, list[str]]:
+    """Return the rules `ruff.toml` ignores per module of `api/`, in file order."""
     config = tomllib.loads((REPOSITORY / "ruff.toml").read_text(encoding="utf-8"))
     patterns = config["lint"]["per-file-ignores"]
-    return [
-        pattern.removeprefix(API_ENTRY_PREFIX).removesuffix(".py")
-        for pattern in patterns
+    return {
+        pattern.removeprefix(API_ENTRY_PREFIX).removesuffix(".py"): rules
+        for pattern, rules in patterns.items()
         if pattern.startswith(API_ENTRY_PREFIX)
-    ]
+    }
+
+
+def api_exemptions() -> list[str]:
+    """Return the modules of `api/` that `ruff.toml` exempts from TC001 to TC003, in order."""
+    return list(api_entries())
 
 
 def test_every_module_of_routes_has_its_exemption() -> None:
     """A module that declares an `APIRouter(` has its line in `ruff.toml`."""
     exempt = set(api_exemptions())
     routed = {path.stem for path in API.glob("*.py") if "APIRouter(" in path.read_text("utf-8")}
-    for module in sorted(routed - exempt):
-        pytest.fail(f"{module}: declares an APIRouter( but has no line in ruff.toml")
+    missing = routed - exempt
+    assert not missing, f"declare an APIRouter( but have no line in ruff.toml: {sorted(missing)}"
+
+
+def test_every_exemption_ignores_exactly_the_three_rules() -> None:
+    """A line of `ruff.toml` for `api/<module>.py` ignores TC001, TC002 and TC003, no more."""
+    for module, rules in api_entries().items():
+        assert rules == ["TC001", "TC002", "TC003"], f"{module}: ruff.toml ignores {rules}"
 
 
 def test_every_exemption_names_an_existing_module() -> None:
