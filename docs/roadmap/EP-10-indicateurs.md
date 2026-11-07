@@ -214,8 +214,10 @@ Décisions de l'auteur du 2026-11-07, sur les questions du cadrage, chacune avec
   d'EP-04 (`register_indicators`) et par un crochet de `planning` (`register_physical_progress`).
   Les lectures qui lui manquent — les lignes d'une révision avec leur calendrier, les tâches d'une
   révision avec leurs états, les dates d'une lignée dans les révisions marquées, les empreintes du
-  cache — sont des fichiers nouveaux de l'interface d'`estimate` et de `planning`, qu'EP-10 écrit
-  après le dernier lot qui possède leur `__init__`, sur le modèle d'`open_lines.py` d'EP-09.
+  cache — sont des fichiers nouveaux de l'interface d'`estimate` et de `planning`, sur le modèle
+  d'`open_lines.py` d'EP-09 : le lot du calcul du jour (US-1660/L3), premier lot d'EP-10 à pouvoir
+  écrire ces deux `__init__` après le dernier lot qui les possède, les crée tous à vide et les
+  réexporte, et chaque lot suivant ne remplit que son fichier.
   Écartés : la valeur acquise et l'avancement physique dans `core/estimate`, qui aurait mêlé le
   pilotage au devis ; une requête SQL sur les tables d'un autre module, que le guide interdit.
 - **Le calcul reçoit l'instant du marquage** : `compute_indicators(session, revision_id, act)` et
@@ -322,15 +324,16 @@ rien à emporter.
     le nombre et le dernier `updated_at` de ses lignes ; `remaining_of_revision` (EP-09, US-1580/L2
     #2399), `estimate_indicators` (EP-07, US-1510 #2363) et `remaining_indicators` (EP-09, US-1600
     #2392) servent tels quels ;
-  - `core/planning/interface/indicator_tasks.py` (après US-1390/L2 #2339 et US-1590/L1 #2401, les
-    deux derniers à écrire `__init__`) : `tasks_for_indicators(revision_id)` — par tâche de la
-    structure principale : le nœud, la lignée, le parent, récapitulative ou jalon, `progress`,
-    `started_on`, `completed_on`, le début et la fin calculés, les heures hebdomadaires de son
-    calendrier applicable — ; `milestone_forecasts(project_id, lineage_ids, revision_ids)`, la date de
-    fin de chaque lignée dans chaque révision nommée ; `tracked_milestones(project_id)`, les lignées
-    inscrites au suivi temps/temps (US-1400/L2 #2340) ; `revision_content_stamp(revision_id)`, le
-    nombre et le dernier `updated_at` de ses nœuds, tâches et liaisons ; `register_physical_progress`,
-    le crochet (« Les points d'extension ») ;
+  - dans `core/planning/interface/`, quatre fichiers (après US-1390/L2 #2339 et US-1590/L1 #2401,
+    les deux derniers à écrire `__init__`) : `indicator_tasks.py`, `tasks_for_indicators(revision_id)`
+    — par tâche de la structure principale : le nœud, la lignée, le parent, récapitulative ou jalon,
+    `progress`, `started_on`, `completed_on`, le début et la fin calculés, les heures hebdomadaires de
+    son calendrier applicable — ; `milestone_dates.py`, `milestone_forecasts(project_id, lineage_ids,
+    revision_ids)`, la date de fin de chaque lignée dans chaque révision nommée, et
+    `tracked_milestones(project_id)`, les lignées inscrites au suivi temps/temps (US-1400/L2 #2340) ;
+    `indicator_stamps.py`, `revision_content_stamp(revision_id)`, le nombre et le dernier `updated_at`
+    de ses nœuds, tâches et liaisons ; `physical_progress.py`, `register_physical_progress`, le
+    crochet (« Les points d'extension ») ;
   - `core/costs/interface/indicator_costs.py` (après US-1610/L2 #2404 et US-1610/L3 #2405) :
     `costs_stamp(project_id)`, le dernier `imported_at` de `cost_import` et le dernier
     `updated_at` de `cost_line` ; `actual_costs_until` et `actual_cost_by_subproject` (EP-09)
