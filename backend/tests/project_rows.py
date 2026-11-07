@@ -107,14 +107,26 @@ PARTITIONS_OF = text(
 )
 
 
+# The role under which the triggers and the keys of a transaction are off, a superuser's alone.
+REPLICA = text("SET LOCAL session_replication_role = replica")
+
+
+def unguarded(connection: Connection) -> None:
+    """Turn the triggers and the keys off for the rest of the transaction of ``connection``."""
+    connection.execute(REPLICA)
+
+
 def drop_partitions(connection: Connection, project_id: UUID | None = None) -> None:
     """Drop the partitions of a project, or of every project, with their rows, as a superuser.
 
     A partition a key of a partitioned table names — the cost structures, the nodes — is neither
     dropped nor detached while it is attached or a row names it: each is emptied, guards and keys
-    off for the transaction, detached, then dropped, the tables that name it first.
+    off, detached, then dropped, the tables that name it first. The guards and the keys stay off for
+    the rest of the transaction (``REPLICA``, set by ``unguarded``): a caller that empties other
+    tables after it — the journal, whose triggers refuse a deletion — sets it itself, so as not to
+    depend on this.
     """
-    connection.execute(text("SET LOCAL session_replication_role = replica"))
+    unguarded(connection)
     for parent in REVISED:
         for name in connection.scalars(PARTITIONS_OF, {"parent": parent}).all():
             if project_id is None or name.endswith(project_id.hex):

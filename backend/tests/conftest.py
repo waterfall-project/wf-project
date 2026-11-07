@@ -14,7 +14,7 @@ from fastapi.testclient import TestClient
 from installations import Installation, Take, installed, taker
 from installed_reference import install
 from openapi_core import Config, OpenAPI
-from project_rows import drop_partitions
+from project_rows import drop_partitions, unguarded
 from pydantic import SecretStr
 from realm import KEY, TestRealm
 from sqlalchemy import Engine, delete, insert, text
@@ -282,8 +282,10 @@ def database(database_url: str, service_database_url: str) -> Iterator[Database]
     db.dispose()
     owner = create_database_engine(database_url)
     with owner.begin() as connection:
-        # The partitions a project brings with it (WF-DAT-0050) outlive its rows: the witness
-        # imposes its identifiers, and a creation refuses a project that has its partitions.
+        # The guards of the journal and of the revised tables off for this transaction alone. The
+        # partitions a project brings with it (WF-DAT-0050) outlive its rows: the witness imposes
+        # its identifiers, and a creation refuses a project that has its partitions.
+        unguarded(connection)
         drop_partitions(connection)
         for table in reversed(Base.metadata.sorted_tables):
             if not table.info.get(WRITTEN_BY_MIGRATION):

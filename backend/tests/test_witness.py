@@ -16,7 +16,7 @@ from uuid import UUID, uuid4
 import pytest
 from cost_settings_examples import LABOUR, NON_LABOUR, PROVISION, UNSHARED
 from installed_reference import install
-from project_rows import drop_partitions
+from project_rows import drop_partitions, unguarded
 from pydantic import SecretStr, ValidationError
 from sqlalchemy import delete, insert, select, text
 from support import WITNESS
@@ -410,6 +410,7 @@ def wipe(owner: Engine) -> None:
     The partitions of the projects go with their rows: a project loaded again creates them again.
     """
     with owner.begin() as connection:
+        unguarded(connection)
         drop_partitions(connection)
         for table in reversed(Base.metadata.sorted_tables):
             if not table.info.get(WRITTEN_BY_MIGRATION):
