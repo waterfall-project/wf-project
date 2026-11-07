@@ -21,8 +21,8 @@ permissions:
 jobs:
   check:
     runs-on: ubuntu-26.04
-    # The EP-05 back suite takes close to 10 minutes; #2157 tracks lightening the tests.
-    timeout-minutes: 15
+    # The back suite takes 10 to 14 minutes in CI (855 s of pytest on the US-0990/L2 PR); #2157 tracks lightening the tests.
+    timeout-minutes: 20
     services:
       postgres:
         # The version the platform targets (deploy/compose/compose.service.yaml), by its digest.
