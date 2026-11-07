@@ -152,6 +152,11 @@ OperationOutcome:
     succeeded: { type: boolean }
     problem:
       anyOf: [{ $ref: ../common.yaml#/Problem }, { type: 'null' }]
+      description: >-
+        Reason for the failure, null when the operation succeeded, and for an external copy,
+        whose reason is in its alert (`SystemStatus.last_backup_copy`). The failure of a backup
+        is that of its background task, with the task's `correlation_id`
+        (`BackgroundTaskRef.problem`, WF-OBS-0020).
 
 Alert:
   type: object

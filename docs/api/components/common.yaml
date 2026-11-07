@@ -1003,7 +1003,12 @@ BackgroundTaskRef:
       anyOf:
         - $ref: '#/Problem'
         - type: 'null'
-      description: Reason for the failure, null as long as the task has not failed (WF-IHM-0080).
+      description: >-
+        Reason for the failure, null as long as the task has not failed (WF-IHM-0080). Its
+        `correlation_id` is always present: that of the task, which is the correlation of the
+        request that queued it — the one its audit entry carries —, or, for a task the platform
+        queues itself (a scheduled backup), the one drawn for it, so that the failure is traced
+        in the logs like a refused request (WF-OBS-0020).
     result_url:
       anyOf:
         - type: string

@@ -434,3 +434,27 @@ def test_every_identifier_of_the_examples_carries_the_prefix_of_the_universe() -
         if key not in _FOREIGN and not value.startswith(PREFIX)
     ]
     assert strays == []
+
+
+def _problems(value: Any) -> list[dict[str, Any]]:
+    """Return each `problem` a value read from JSON nests: the failure of a task, of a backup."""
+    if isinstance(value, list):
+        items = cast("list[Any]", value)
+        return [found for item in items for found in _problems(item)]
+    if not isinstance(value, dict):
+        return []
+    fields = cast("dict[str, Any]", value)
+    nested = fields.get("problem")
+    own = [cast("dict[str, Any]", nested)] if isinstance(nested, dict) else []
+    return own + [found for item in fields.values() for found in _problems(item)]
+
+
+def test_the_failure_of_a_task_carries_the_correlation_of_the_task() -> None:
+    # `BackgroundTaskRef.problem`, `OperationOutcome.problem` (WF-OBS-0020).
+    found = {
+        path.name: problem
+        for path in sorted(mockwitness.FIXTURES.rglob("*.json"))
+        for problem in _problems(json.loads(path.read_text(encoding="utf-8"))["value"])
+    }
+    assert "task_failed.json" in found
+    assert [name for name, problem in found.items() if "correlation_id" not in problem] == []

@@ -9,7 +9,8 @@
     "finished_at": "2026-06-03T08:41:00Z",
     "problem": {
       "code": "INTERNAL_ERROR",
-      "status": 500
+      "status": 500,
+      "correlation_id": "01926f3a-7c00-7000-8000-000000001991"
     },
     "result_url": null
   }
