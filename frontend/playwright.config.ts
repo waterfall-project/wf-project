@@ -42,14 +42,15 @@
  * against the real service, through the proxy of the contract that `WATERFALL_API_ADDRESS` names
  * (`make e2e-service`), with the real authentication — no fixed token —, and the front listening
  * on every interface, so that Keycloak reaches its back channel from its container (#681). They
- * play in six projects: the installation first, whose administrator the bootstrap made, and whose
+ * play in seven projects: the installation first, whose administrator the bootstrap made, and whose
  * link serves once (US-0420); the paths, on several workers; those that change a setting of the
  * realm, which every account reads, one at a time once the others are done; the restoration of the
  * platform, which closes every session, after them, alone (US-0440); and last the guard of the run,
  * which reads the log of the proxy of the contract from the start of the run. The sixth, `shared`,
  * beside the paths, after the installation and before the realm, plays against the service the
  * paths of any file of `e2e/` tagged `@shared`, which `chromium` plays against the fake back: they
- * import `test` from `e2e/mode.ts` (EP-05, US-0810/L1).
+ * import `test` from `e2e/mode.ts` (EP-05, US-0810/L1). The seventh, `shared-serial`, plays those of
+ * them that also carry `@serial`, one worker, after `shared` and before the realm (US-1330).
  */
 import { randomBytes } from "node:crypto";
 import { availableParallelism } from "node:os";
@@ -220,6 +221,10 @@ const REALM_WIDE = /@realm-wide/;
 // The paths shared by the fake back and the service, in any file of `e2e/`: tagged, played against
 // both (`e2e/mode.ts`).
 const SHARED = /@shared/;
+// Those among them that write an object of which the installation holds one — the units of duration,
+// the settings, the correspondence of the actual costs —: tagged too, played alone, after the others
+// (US-1330).
+const SERIAL = /@serial/;
 // The paths that replace the whole platform — a restoration —, which closes every session: tagged,
 // played alone, after all the others.
 const PLATFORM_WIDE = /@platform-wide/;
@@ -295,7 +300,18 @@ function serviceProjects(): Project[] {
       name: "shared",
       testIgnore: [MEASURES, SERVICE_PATHS],
       grep: SHARED,
+      grepInvert: [SERIAL],
       dependencies: ["installation"],
+      use,
+    },
+    {
+      // The shared paths that write an object unique to the installation: one at a time, once the
+      // others are done, so that no worker reads it as it changes (US-1330).
+      name: "shared-serial",
+      testIgnore: [MEASURES, SERVICE_PATHS],
+      grep: SERIAL,
+      dependencies: ["installation", "shared"],
+      workers: 1,
       use,
     },
     {
@@ -304,7 +320,7 @@ function serviceProjects(): Project[] {
       name: "realm",
       testMatch: SERVICE_PATHS,
       grep: REALM_WIDE,
-      dependencies: ["installation", "service", "shared"],
+      dependencies: ["installation", "service", "shared", "shared-serial"],
       workers: 1,
       use,
     },
@@ -313,7 +329,7 @@ function serviceProjects(): Project[] {
       name: "restoration",
       testMatch: SERVICE_PATHS,
       grep: PLATFORM_WIDE,
-      dependencies: ["installation", "service", "shared", "realm"],
+      dependencies: ["installation", "service", "shared", "shared-serial", "realm"],
       workers: 1,
       use,
     },

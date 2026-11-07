@@ -4,7 +4,7 @@ import { expect, type Page } from "@playwright/test";
 
 import { compile } from "./compile";
 import { setExpanded } from "./hydration";
-import { test } from "./mode";
+import { inService, test } from "./mode";
 
 // The session of the fake back grants the whole catalogue of permissions: every function
 // of the navigation is offered.
@@ -30,7 +30,7 @@ async function open(page: Page, name: string, block?: string) {
 
 // Played in service too (`@shared`, EP-05): the reference is served. The role « Manager » of
 // `mode.ts` holds no permission of the administration: the reference is read from one setting to
-// the next.
+// the next (the administration has its own path, below).
 test("a user who opened no project reads the cost settings, then the resource settings of the reference [WF-IHM-0010-A] @shared", async ({
   page,
 }) => {
@@ -44,19 +44,41 @@ test("a user who opened no project reads the cost settings, then the resource se
   await expect(page.getByRole("link", { name: "Retour au projet" })).toHaveCount(0);
 });
 
-// Against the fake back only: the service serves neither `/` nor the portfolio, and the role
-// « Manager » holds no permission of the administration or of the status (listed as not replayed in
-// the guide).
-test("a user who opened no project reaches the portfolio, the administration and the status screen from `/` [WF-IHM-0010-A]", async ({
+// Against the fake back only: the service serves neither `/` nor the portfolio (listed as not
+// replayed in the guide).
+test("a user who opened no project reaches the portfolio and the cost settings from `/` [WF-IHM-0010-A]", async ({
   page,
 }) => {
   // The screens of their own reached by a click, compiled first (`e2e/compile.ts`).
-  await compile(page.request, "/portfolio/projects", "/reference/costs", "/admin/users", "/system");
+  await compile(page.request, "/portfolio/projects", "/reference/costs");
   await page.goto("/");
   await open(page, "Portefeuille de projets", "Portefeuille");
   await expect(page).toHaveURL("/portfolio/projects");
   await open(page, "Paramètres de coûts", "Paramètres applicatifs");
+  // No project was opened: there is none to go back to.
+  await expect(page.getByRole("link", { name: "Retour au projet" })).toHaveCount(0);
+});
+
+// Played in service too (`@shared @administration`, US-1330): the account that reads the administration
+// and the state, opened from the screen it signed in at.
+test("a user who opened no project reaches the administration and the status screen from the navigation [WF-IHM-0010-A] @shared @administration", async ({
+  page,
+}) => {
+  // The screens of their own reached by a click, compiled first (`e2e/compile.ts`).
+  await compile(page.request, "/admin/users", ...(inService ? [] : ["/system"]));
+  await page.goto("/account");
   await open(page, "Gestion des utilisateurs", "Administration");
+  await expect(page).toHaveURL("/admin/users");
+  if (inService) {
+    // The service does not serve the state of the system before EP-13 (`getSystemStatus`): its link
+    // is offered, and the screen is read against the fake back alone.
+    await expect(
+      page.getByRole("navigation", { name: "Fonctions" }).getByRole("link", {
+        name: "Surveillance de l’état du système",
+      }),
+    ).toBeVisible();
+    return;
+  }
   await open(page, "Surveillance de l’état du système", "Administration");
   await expect(page).toHaveURL("/system");
   await expect(page).toHaveTitle("Surveillance de l’état du système — Waterfall");

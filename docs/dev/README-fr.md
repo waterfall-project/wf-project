@@ -1499,8 +1499,8 @@ une capacité négative, avec la borne franchie (`VALUE_OUT_OF_RANGE`) ; le libe
 calendrier, désactivés compris, nomme son porteur d'après la page, par son identifiant, de façon
 générique sinon ; le reste comme pour les coûts, la version périmée sous le formulaire avec l'offre
 de relire ; l'écran ne porte plus `MockupNotice` depuis US-0850 : le service garde ce qui s'écrit,
-et ses parcours sont étiquetés `@shared` (les unités de durée, que le service ne sert pas encore,
-attendent US-0860b). Une écriture qui laisserait une tâche sans heure travaillée — un calendrier
+et ses parcours sont étiquetés `@shared` (les unités de durée aussi, avec `@serial`).
+Une écriture qui laisserait une tâche sans heure travaillée — un calendrier
 modifié ou désigné par défaut, un rôle modifié — est refusée (`TASK_WITHOUT_WORKING_HOURS`, « Une
 tâche n'aurait plus aucune heure travaillée dans la semaine. ») en disant pourquoi et en nommant
 chaque projet en cause par son libellé et son code, par son seul libellé sans code
@@ -3793,37 +3793,51 @@ fichiers importent ne se déclare qu'une fois par worker, pour le premier de ses
 parcours dont l'assertion diffère entre les deux — une écriture que le faux back ne garde pas — lit
 `inService`.
 
+Un parcours de l'administration ou de l'état porte `@administration` à côté de `@shared`, dans son
+titre comme `@shared` : la fixture `administration` de `mode.ts` le connecte alors avec un compte de
+la course, un par worker, qui porte le rôle « Administrateur (parcours) » — `users.read`,
+`access_roles.read`, `system_status.read`, `audit_log.read`, `backups.read`, et ni `users.write` ni
+`access_roles.write` —, que `installation.setup.ts` crée seul et en premier. Le « Manager » ne
+reçoit ni `users.*` ni `system_status.read` ; et `give` refuse toujours les deux permissions
+d'administration à un autre compte que l'administrateur de l'installation, dont les refus
+`LAST_ADMINISTRATOR` de `roles.spec.ts` dépendent : le rôle ne porte que des lectures. Chaque
+parcours `@shared` remet aussi à zéro les préférences de grille du compte qui s'y connecte
+(`resetGridPreferences`, `updateMyPreferences`), qu'un tri ou un filtre d'un parcours précédent
+aurait laissées (#2282), ce que `service/grid-reset.spec.ts` éprouve.
+
 Ne se rejouent pas contre le service, faute d'être étiquetés, les parcours qui dépendent de ce
 qu'il ne fait pas encore ou ne sert pas ; chacun reste joué contre le faux back, par `chromium`.
 Ce qui dépend de l'horloge : rien dans le référentiel, dont les dates sont celles du chargement
-(WF-DAT-0070) et que les parcours n'attendent pas. D'un écran que le service ne sert pas : les ouvertures de
-`/`, du portefeuille, de l'administration et de l'écran d'état de `navigation.spec.ts` (le rôle
-« Manager » ne se voit offrir ni l'administration ni l'état), ainsi que tous ses autres
-parcours, ceux d'un projet et celui de l'icône sur `/` ; presque tous ceux de `admin.spec.ts`
-(`:40` à `:455`, seul `:479` est `@shared`), des écrans d'administration hors des permissions du
-rôle « Manager » de `mode.ts`, sans les permissions `users.*`. De ce que leur US n'étiquette pas
-encore : la lecture des réglages hors projet (`reference-costs.spec.ts`, US-0250) ; la
-modification des unités de durée (`reference-resources.spec.ts`), qui écrit l'objet unique de
-l'installation et affirme l'écho du faux back (« 7 et 35 ») : elle se jouerait en série (règle
-ci-dessous), ce que le projet `realm` ne fait aujourd'hui que pour `frontend/e2e/service/` (#2178).
-Les gardes `inService` des parcours étiquetés ne sont pas des parcours non rejoués : le parcours se joue des deux côtés, et
-seule l'assertion d'une écriture diffère (ce qui a été saisi, relu après un rechargement ; un
-code et un libellé propres à la course, que le service garde ; un état laissé comme on l'a trouvé)
-— `reference-costs.spec.ts`, `reference-resources.spec.ts`, `reference-settings.spec.ts`,
-`reference-actual-cost-mapping.spec.ts`.
+(WF-DAT-0070) et que les parcours n'attendent pas. D'un écran que le service ne sert pas : les
+ouvertures de `/` et du portefeuille de `navigation.spec.ts`, ainsi que tous ses autres parcours,
+ceux d'un projet et celui de l'icône sur `/`. De ce que le service ne rend pas comme le faux back :
+ceux d'`admin.spec.ts` qui lisent les sept comptes, les huit sauvegardes ou les rôles de l'exemple
+du contrat, et ceux qui écrivent — les sauvegardes (lancer, garder, restaurer), l'horaire des
+sauvegardes, les comptes et les rôles : chacun écrit un objet unique de l'installation, ou demande
+`users.write` ou `access_roles.write`, que le compte de `@administration` n'a pas, et que les
+parcours de `frontend/e2e/service/` (`backups.spec.ts`, `accounts.spec.ts`, `roles.spec.ts`)
+éprouvent sous l'administrateur de l'installation. De ce que leur US n'étiquette pas encore : la
+lecture des réglages hors projet (`reference-costs.spec.ts`, US-0250).
+Les gardes `inService` des parcours étiquetés ne sont pas des parcours non rejoués : le parcours se
+joue des deux côtés, et seule l'assertion d'une écriture diffère (ce qui a été saisi, relu après un
+rechargement ; un code et un libellé propres à la course, que le service garde ; un état laissé
+comme on l'a trouvé) — `reference-costs.spec.ts`, `reference-resources.spec.ts`,
+`reference-settings.spec.ts`, `reference-actual-cost-mapping.spec.ts`.
 
 Un parcours `@shared` n'écrit que des objets qu'il crée lui-même, sous un code et un libellé propres
 à la course, et les laisse désactivés ou retirés à sa fin : les workers `shared` jouent en parallèle
 contre une même installation, et un objet du témoin qu'un parcours modifie, même le temps de son
 déroulement, change sous les yeux de ceux qui le lisent ou le comparent à ses exemples (état,
 `lock_version`, dates d'audit — #2087). Les parcours qui modifient un objet unique de l'installation
-— les réglages, les unités de durée, la correspondance des coûts réels — se jouent en série, seuls,
-et non en parallèle des autres. Un parcours qui doit en réactiver un du témoin le fait dans un
-`finally` qui le remet comme il l'a trouvé, et c'est une exception qu'il dit, non la règle.
-Trois parcours s'écartent aujourd'hui de cette règle, en attendant #2211 : la modification des unités de
-durée (`reference-resources.spec.ts`, sans étiquette), celle des réglages (`reference-settings.spec.ts`)
-et celle de la correspondance des coûts réels (`reference-actual-cost-mapping.spec.ts`), étiquetés
-`@shared` et qui écrivent pourtant ces objets uniques.
+— les réglages, les unités de durée, la correspondance des coûts réels — portent l'étiquette
+`@serial` à côté de `@shared` : le projet `shared-serial` les joue seuls, sur un worker, après
+`shared` et avant `realm` et `restoration`, et `shared` les laisse (`grepInvert`) ; ils affirment
+leur relecture par `inService` comme les autres (#2211). Un parcours qui doit en réactiver un du
+témoin le fait dans un `finally` qui le remet comme il l'a trouvé, et c'est une exception qu'il dit,
+non la règle.
+
+L'attente du verrou des rôles composés (`giveRoles`, `ROLES_WAIT`) est de 25 s, sous les 30 s d'un
+test : son message dit le verrou et le nombre de workers qui font la queue derrière lui (#2214).
 
 Une limite des parcours contre le service : Prism, en mandataire du contrat, lit tout corps comme
 du texte et altère les corps binaires — chaque octet au-delà de `0x7f` d'une requête ou d'une
