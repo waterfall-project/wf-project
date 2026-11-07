@@ -12,6 +12,7 @@ import os
 import signal
 import subprocess
 import sys
+import threading
 import time
 from pathlib import Path
 from typing import Any
@@ -384,6 +385,12 @@ def reap(*children: subprocess.Popen[Any]) -> None:
             child.stdout.close()
 
 
+def collect(*children: subprocess.Popen[Any]) -> None:
+    """Wait for the children in threads, as a parent does: a child killed is not left a zombie."""
+    for child in children:
+        threading.Thread(target=child.wait, daemon=True).start()
+
+
 def test_stop_servers_stops_what_listens_on_the_ports_and_nothing_else(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
@@ -466,6 +473,7 @@ def test_release_stops_the_servers_of_the_slot_then_frees_it(tmp_path: Path) -> 
     (tree / "tools").symlink_to(REPOSITORY / "tools")
     assert workstation.tool(tree, "claim").returncode == 0
     server = subprocess.Popen(["sleep", "120"])
+    collect(server)
     table = fake_table(tmp_path, {server.pid: {20120: 4242, 20140: 4243}})
     try:
         workstation.logged()
@@ -475,6 +483,7 @@ def test_release_stops_the_servers_of_the_slot_then_frees_it(tmp_path: Path) -> 
         assert server.wait(timeout=30) == -signal.SIGTERM
         said = f"stopping process {server.pid}, which listens on port 20120, 20140"
         assert said in released.stdout
+        assert "SIGKILL" not in released.stdout
         assert docker_asked(workstation.logged()), "the projects of Compose are removed too"
         assert not (workstation.register / "1").exists()
     finally:
@@ -487,6 +496,7 @@ def test_claim_of_an_abandoned_slot_stops_its_servers(tmp_path: Path) -> None:
     workstation.register.mkdir(parents=True)
     (workstation.register / "1").write_text(f"{tmp_path / 'gone'}\n2026-11-07T00:00:00+00:00\n")
     server = subprocess.Popen(["sleep", "120"])
+    collect(server)
     table = fake_table(tmp_path, {server.pid: {20160: 4244}})
     try:
         claimed = workstation.tool(
@@ -495,6 +505,7 @@ def test_claim_of_an_abandoned_slot_stops_its_servers(tmp_path: Path) -> None:
         assert claimed.returncode == 0, claimed.stderr
         assert server.wait(timeout=30) == -signal.SIGTERM
         assert f"stopping process {server.pid}, which listens on port 20160" in claimed.stdout
+        assert "SIGKILL" not in claimed.stdout
     finally:
         reap(server)
 
@@ -510,6 +521,7 @@ def test_make_e2e_down_stops_the_servers_of_the_current_slot_and_only_them(
     assert workstation.tool(tree, "claim").returncode == 0
     ours = subprocess.Popen(["sleep", "120"])
     theirs = subprocess.Popen(["sleep", "120"])
+    collect(ours)
     # 20140 is the first front of slot 1; 20240, the first of slot 2, is outside its block.
     table = fake_table(tmp_path, {ours.pid: {20140: 4245}, theirs.pid: {20240: 4246}})
     try:
@@ -518,6 +530,7 @@ def test_make_e2e_down_stops_the_servers_of_the_current_slot_and_only_them(
         assert ours.wait(timeout=30) == -signal.SIGTERM
         assert theirs.poll() is None
         assert str(theirs.pid) not in done.stdout
+        assert "SIGKILL" not in done.stdout
     finally:
         reap(ours, theirs)
 
@@ -531,3 +544,75 @@ def test_make_e2e_down_in_a_worktree_without_a_slot_says_make_slot(tmp_path: Pat
     done = workstation.make(tree, "e2e-down")
     assert done.returncode != 0
     assert "make slot" in done.stderr
+
+
+def test_a_zombie_does_not_listen_and_a_dead_process_is_not_found(tmp_path: Path) -> None:
+    """US-1300: only a living process is at the listening; a zombie, or one gone, is not."""
+    zombie = subprocess.Popen(["true"])
+    deadline = time.monotonic() + 30
+    stat = Path(f"/proc/{zombie.pid}/stat")
+    while stat.read_text().rpartition(")")[2].split()[0] != "Z":  # ended, not yet waited for
+        assert time.monotonic() < deadline
+        time.sleep(0.01)
+    try:
+        assert not slots.alive(zombie.pid, PROC)
+    finally:
+        zombie.wait(timeout=30)
+    assert not slots.alive(zombie.pid, PROC), "gone"
+    assert slots.alive(os.getpid(), PROC)
+    table = fake_table(tmp_path, {zombie.pid: {20120: 4250}})
+    assert slots.listening_pids({20120}, table) == {}
+
+
+def test_stop_servers_fails_naming_the_process_that_survives_sigkill(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """US-1300: a server still at the listening after SIGKILL fails the stop, naming its PID."""
+    holder = subprocess.Popen(["sleep", "120"])
+    table = fake_table(tmp_path, {holder.pid: {20120: 4251}})
+    sent: list[int] = []
+
+    def record(_pid: int, number: int) -> None:
+        sent.append(number)
+
+    monkeypatch.setattr(slots, "send", record)
+    try:
+        with pytest.raises(slots.SlotsError, match=f"Process {holder.pid} still listens"):
+            slots.stop_servers({20120}, table, grace=0.2)
+        assert sent == [signal.SIGTERM, signal.SIGKILL]
+    finally:
+        reap(holder)
+
+
+def test_send_says_a_process_that_is_not_ours_is_left(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """US-1300: a process another user owns is left running, in one line, with no trace."""
+
+    def refuse(*_: int) -> None:
+        raise PermissionError
+
+    monkeypatch.setattr(os, "kill", refuse)
+    slots.send(4242, signal.SIGTERM)
+    assert capsys.readouterr().out == "process 4242 is not ours to signal: left running\n"
+
+
+def test_an_empty_process_table_variable_is_refused_and_an_absent_one_is_proc() -> None:
+    """US-1300: WATERFALL_SLOTS_PROC empty is an error, not /proc; absent is /proc."""
+    assert slots.process_table({}) == PROC
+    assert slots.process_table({"WATERFALL_SLOTS_PROC": "/somewhere"}) == Path("/somewhere")
+    with pytest.raises(slots.SlotsError, match="WATERFALL_SLOTS_PROC"):
+        slots.process_table({"WATERFALL_SLOTS_PROC": ""})
+
+
+def test_a_missing_process_table_is_said_not_traced(tmp_path: Path) -> None:
+    """US-1300: a root of the process table that does not exist is a clear error."""
+    with pytest.raises(slots.SlotsError, match="is not a directory"):
+        slots.listening_pids({20120}, tmp_path / "absent")
+
+
+def test_the_tests_run_with_an_empty_process_table() -> None:
+    """US-1300: the session points the process table at an empty directory, never at /proc."""
+    root = Path(os.environ["WATERFALL_SLOTS_PROC"])
+    assert root.is_dir()
+    assert not any(root.iterdir())

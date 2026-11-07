@@ -349,19 +349,44 @@ def listening_inodes(ports_asked: Collection[int], proc: Path) -> dict[int, int]
     return found
 
 
+def alive(pid: int, proc: Path) -> bool:
+    """Tell whether the process runs: it answers signal 0 and is no zombie awaiting its parent."""
+    try:
+        os.kill(pid, 0)
+    except ProcessLookupError:
+        return False
+    except PermissionError:
+        pass  # it exists, and is another user's
+    try:
+        stat = (proc / str(pid) / "stat").read_text()
+    except OSError, UnicodeDecodeError:
+        return True
+    return stat.rpartition(")")[2].split()[:1] != ["Z"]
+
+
 def listening_pids(ports_asked: Collection[int], proc: Path) -> dict[int, set[int]]:
     """Return the PIDs of the processes of the user that listen on the ports, with their ports.
 
     The sockets are found in the tables, then looked for in ``<pid>/fd`` of the processes this
     user may read; another user's are not readable, and not touched. This process is left out.
     """
+    if not proc.is_dir():
+        message = f"The process table {proc} is not a directory: nothing can be found on a port."
+        raise SlotsError(message)
     inodes = listening_inodes(ports_asked, proc)
     found: dict[int, set[int]] = {}
     if not inodes:
         return found
     socket = re.compile(r"socket:\[(\d+)\]")
-    for entry in proc.iterdir():
+    try:
+        entries = list(proc.iterdir())
+    except OSError as error:
+        message = f"The process table {proc} cannot be read: {error}."
+        raise SlotsError(message) from error
+    for entry in entries:
         if not entry.name.isdigit() or int(entry.name) == os.getpid():
+            continue
+        if not alive(int(entry.name), proc):
             continue
         try:
             for descriptor in (entry / "fd").iterdir():
@@ -395,6 +420,12 @@ def stop_servers(
     for pid in sorted(set(listening_pids(ports_asked, proc)) & set(targets)):
         print(f"process {pid} still listens after {grace:g} s: killing it (SIGKILL)")
         send(pid, signal.SIGKILL)
+    time.sleep(0.1)
+    left = sorted(set(listening_pids(ports_asked, proc)) & set(targets))
+    if left:
+        named = ", ".join(str(pid) for pid in left)
+        message = f"Process {named} still listens after SIGKILL: the servers are not stopped."
+        raise SlotsError(message)
     return sorted(targets)
 
 
@@ -404,11 +435,19 @@ def send(pid: int, number: int) -> None:
         os.kill(pid, number)
     except ProcessLookupError:
         return
+    except PermissionError:
+        print(f"process {pid} is not ours to signal: left running")
 
 
 def process_table(environment: Mapping[str, str]) -> Path:
     """Return the root of the process table: ``/proc``, or ``WATERFALL_SLOTS_PROC`` (tests)."""
-    return Path(environment.get("WATERFALL_SLOTS_PROC") or "/proc")
+    root = environment.get("WATERFALL_SLOTS_PROC")
+    if root is None:
+        return Path("/proc")
+    if not root:
+        message = "WATERFALL_SLOTS_PROC must be a directory, not empty: unset it to use /proc."
+        raise SlotsError(message)
+    return Path(root)
 
 
 def end_to_end_ports(slot: int) -> set[int]:
