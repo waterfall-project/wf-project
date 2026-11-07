@@ -501,7 +501,7 @@ ImportDateMismatch:
   type: object
   required: [lineage_id, label, fields]
   description: >-
-    A task that the file dates or sizes differently from how Waterfall recalculates it
+    A task whose dates or duration in the file differ from those Waterfall recalculates
     (WF-INTF-0040): the task, and the columns that differ.
   properties:
     lineage_id:
