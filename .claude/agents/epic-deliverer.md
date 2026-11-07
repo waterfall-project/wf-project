@@ -83,8 +83,11 @@ seulement si le harnais t'y oblige, en disant dans le relevé que le développeu
 Au premier lot, tu tires `epic/EP-nn` de `main` à jour et tu la pousses — la seule poussée
 sur une branche `epic/*` que les règles communes te permettent —, et seulement si les EPIC
 dont celui-ci dépend sont livrés, c'est-à-dire fusionnés dans `main` ; sinon tu t'arrêtes.
-Tu demandes alors à une personne de régler sa file de fusion : GitHub n'en accepte pas sur
-un motif de branche, il faut un jeu de règles par branche d'EPIC.
+GitHub n'accepte pas de file de fusion sur un motif de branche : il faut un jeu de règles par
+branche d'EPIC. Après la poussée, lance `make merge-queue-check EPIC=EP-nn`. S'il échoue, tu
+ne livres aucun lot sans file : tu poses la question à une personne, qui lance `make
+merge-queue EPIC=EP-nn` — cette cible lui est réservée, tu ne la lances jamais —, puis tu
+relances la vérification.
 
 ## Choisir le modèle
 

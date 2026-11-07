@@ -70,7 +70,7 @@ PRISM   := npx --yes @stoplight/prism-cli@$(PRISM_VERSION)
 	check-contract check-back lint-back typecheck-back imports-back test-back check-front \
 	check-front-code check-front-e2e check-front-image \
 	install-front lint-front typecheck-front test-front build-front prerendered-front generate-client client-up-to-date generate-server-models server-models-up-to-date catalogs \
-	coverage-back coverage-front roadmap check-roadmap e2e e2e-measure e2e-browsers lot-size tracking \
+	coverage-back coverage-front roadmap check-roadmap e2e e2e-measure e2e-browsers lot-size tracking merge-queue merge-queue-check \
 	lint-docker changes gate \
 	check-tools clean
 
@@ -629,6 +629,12 @@ tracking: ## Change a line of the tracking table of an epic's issue, under a loc
 		$(call tracking_option,ADD_LOT,--add-lot) $(call tracking_option,AFTER,--after) \
 		$(call tracking_option,DEPENDS,--depends) $(call tracking_option,LOT_ISSUE,--issue-number) \
 		$(call tracking_option,REPLACE_DEPENDENCY,--replace-dependency)
+
+merge-queue: ## Create the merge queue ruleset of an epic's branch from .github/rulesets/merge-queue.json (EPIC=EP-nn); for a person, never a deliverer
+	@$(WFTOOLS).mergequeue create "$(EPIC)"
+
+merge-queue-check: ## Check that an active ruleset with a merge queue targets an epic's branch (EPIC=EP-nn)
+	@$(WFTOOLS).mergequeue check "$(EPIC)"
 
 changes: ## Print which families of checks the change touches (BASE; HEAD, or the working tree)
 	@$(WFTOOLS).changes "$(BASE)" $(HEAD)

@@ -2833,6 +2833,15 @@ poste ne change rien), et ignore une valeur vide (`STATE=`). Elle relit le corps
 poste propre à l'issue, `$XDG_RUNTIME_DIR/waterfall-tracking-<issue>.lock`
 (`/tmp` à défaut), juste avant de l'écrire : deux appels simultanés gardent chacun leur changement.
 
+`make merge-queue-check EPIC=EP-nn` vérifie qu'un jeu de règles actif vise `refs/heads/epic/EP-nn`
+avec une règle `merge_queue` (`wftools.mergequeue`, par `gh api`), et échoue en disant ce qui
+manque : aucun jeu, pas de règle de file, jeu inactif. Elle passe dès qu'un des jeux visant la
+branche est actif avec une règle `merge_queue` ; un jeu qui exclut la branche ne la vise pas. `make merge-queue EPIC=EP-nn` crée ce jeu,
+« merge queue epic/EP-nn », depuis le modèle `.github/rulesets/merge-queue.json` (la copie du jeu
+d'EP-05, sans identifiants ni dates), et refuse quand un jeu vise déjà la branche ou quand `EPIC`
+manque ou n'a pas la forme `EP-nn`. Elle est réservée à une personne : un livreur ne la lance
+jamais, il lance la vérification et, en échec, pose la question.
+
 Le poste n'admet que `WATERFALL_SLOTS` exécutions lourdes à la fois — les tests entiers et la
 couverture du back et du front, `make test-tools`, la construction du front pour la production,
 les parcours de bout en bout —, tous dépôts et worktrees confondus. Cette variable de
@@ -4540,6 +4549,12 @@ suivent ce guide comme une personne, et leurs règles propres sont dans
 Les règles sont dans le [README de la roadmap](../roadmap/README-fr.md), sections « Lots » et
 « Branches », et dans [CONTRIBUTING](../../CONTRIBUTING.md) : un lot, une issue, une branche
 `lot/<identifiant>` tirée de `epic/EP-nn`, une pull request qui y revient.
+
+Chaque branche `epic/EP-nn` a sa file de fusion, un jeu de règles par branche (GitHub n'en accepte
+pas sur un motif). Le livreur du premier lot lance `make merge-queue-check EPIC=EP-nn` après avoir
+poussé la branche ; si elle échoue, une personne lance `make merge-queue EPIC=EP-nn`, qui crée le
+jeu depuis le modèle `.github/rulesets/merge-queue.json` (voir « Commandes »). Cette cible lui est
+réservée.
 
 Chaque répertoire de `docs/` a son README en anglais, `README.md`, à côté de son original
 français, `README-fr.md`, qui fait foi. Un lot qui modifie un `README-fr.md` porte la même
