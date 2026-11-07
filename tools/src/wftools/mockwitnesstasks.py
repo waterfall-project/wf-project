@@ -35,6 +35,12 @@ a predecessor may come later. A task is:
 - ``inscriptions``: ``{"kind": "timeline" | "milestone_tracking", "timeline_id"}``, ``timeline_id``
   being ``null`` for the time/time tracking.
 
+The dates of the revision in progress are those of the rows of the witness, which the planning
+example (``nodes_planning.json``) holds; those of the offer and of the reference come from the rows
+of ``wftools.mockhistory``, not from a computation of the engine. That they agree with the engine
+is not established here: it is observed at the loading (US-1480/L2), where the engine computes
+them and the loader compares.
+
 No address and no label of a real project is here: the labels are the witness's, fictitious.
 """
 

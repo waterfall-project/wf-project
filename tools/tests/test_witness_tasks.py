@@ -5,6 +5,7 @@
 import json
 import re
 from collections import Counter
+from datetime import date
 from typing import TYPE_CHECKING, Any
 
 from wftools import (
@@ -45,6 +46,10 @@ KEYS = {
     "completed_on",
     "inscriptions",
 }
+
+LINK_TYPES = {"finish_to_start", "start_to_start", "finish_to_finish", "start_to_finish"}
+UNITS = {"min", "h", "d", "w", "mo", "emin", "eh", "ed", "ew", "emo"}
+REVISIONS = (mockchronology.OFFER, mockchronology.REFERENCE, mockchronology.CURRENT)
 
 
 def _value() -> dict[str, Any]:
@@ -103,7 +108,25 @@ def test_the_revision_in_progress_holds_the_thousand_tasks() -> None:
 
 def test_a_task_has_exactly_the_keys_the_loader_reads() -> None:
     # WF-QUA-0040-A: a strict model of the back reads the file without importing wftools.
-    assert all(set(task) == KEYS for task in _value()["tasks"])
+    for task in _value()["tasks"]:
+        assert set(task) == KEYS
+        assert task["scheduling_mode"] in {"automatic", "manual"}
+        assert task["progress"] in {"not_started", "started", "completed"}
+        for amount in (task["duration"], *(link["lag"] for link in task["predecessors"])):
+            assert set(amount) == {"value", "unit"}
+            assert amount["unit"] in UNITS
+        for moment in (task["start"], task["finish"]):
+            assert set(moment) == {"date", "hours"}
+            assert isinstance(moment["hours"], str)
+            assert isinstance(date.fromisoformat(moment["date"]), date)
+        for link in task["predecessors"]:
+            assert set(link) == {"predecessor_lineage_id", "link_type", "lag"}
+            assert link["link_type"] in LINK_TYPES
+        for entry in task["inscriptions"]:
+            assert set(entry) == {"kind", "timeline_id"}
+            assert entry["kind"] in {"timeline", "milestone_tracking"}
+        for key in ("started_on", "completed_on"):
+            assert task[key] is None or isinstance(date.fromisoformat(task[key]), date)
 
 
 def test_the_lineages_are_unique_by_revision_and_shared_by_the_revisions() -> None:
@@ -146,24 +169,38 @@ def test_the_links_name_a_predecessor_of_the_same_revision() -> None:
 
 def test_the_states_and_their_dates_agree() -> None:
     # WF-QUA-0040-A: a completed task says when it completed, a task not started, neither.
+    read_on = {entry["revision"]: entry["read_on"] for entry in _value()["revisions"]}
     for task in _value()["tasks"]:
         assert task["progress"] in {"not_started", "started", "completed"}
         assert (task["completed_on"] is not None) == (task["progress"] == "completed")
         if task["progress"] == "not_started" and not task["is_milestone"]:
             assert task["started_on"] is None
+        if task["progress"] in {"started", "completed"}:
+            assert task["started_on"] is not None
+        if task["completed_on"] is not None:
+            assert task["started_on"] <= task["completed_on"]
+        for key in ("started_on", "completed_on"):
+            # ISO dates compare as text; none is after the day its revision is read at.
+            assert task[key] is None or task[key] <= read_on[task["revision"]]
     states = Counter(task["progress"] for task in _tasks(mockchronology.CURRENT))
     assert set(states) == {"not_started", "started", "completed"}
 
 
 def test_the_inscriptions_name_the_timelines_of_the_witness() -> None:
-    # WF-QUA-0040-A: the inscriptions of the current revision are those of the witness.
-    timelines = {identifier for identifier, _ in mockwitness.TIMELINES}
-    inscribed = [entry for task in _tasks(mockchronology.CURRENT) for entry in task["inscriptions"]]
-    assert {entry["timeline_id"] for entry in inscribed if entry["kind"] == "timeline"} == (
-        timelines
-    )
-    assert [entry for entry in inscribed if entry["kind"] == "milestone_tracking"]
-    assert {entry["timeline_id"] for entry in inscribed if entry["kind"] != "timeline"} == {None}
+    # WF-QUA-0040-A: the inscriptions of every revision name the timelines the loader will read.
+    file = json.loads((FILE.parent / "timelines.json").read_text(encoding="utf-8"))
+    timelines = {entry["timeline_id"] for entry in file["value"]}
+    assert timelines == {identifier for identifier, _ in mockwitness.TIMELINES}
+    for revision in REVISIONS:
+        inscribed = [entry for task in _tasks(revision) for entry in task["inscriptions"]]
+        named = {entry["timeline_id"] for entry in inscribed if entry["kind"] == "timeline"}
+        assert named <= timelines
+        assert [entry for entry in inscribed if entry["kind"] == "milestone_tracking"]
+        assert {entry["timeline_id"] for entry in inscribed if entry["kind"] != "timeline"} == {
+            None
+        }
+    current = [e for t in _tasks(mockchronology.CURRENT) for e in t["inscriptions"]]
+    assert {e["timeline_id"] for e in current if e["kind"] == "timeline"} == timelines
 
 
 def test_the_dates_are_those_of_the_planning_example() -> None:
@@ -177,6 +214,29 @@ def test_the_dates_are_those_of_the_planning_example() -> None:
         assert current[lineage]["start"] == facet["start"]
         assert current[lineage]["finish"] == facet["finish"]
         assert current[lineage]["progress"] == facet["progress"]
+
+
+def test_the_dates_of_the_offer_and_of_the_reference_are_those_of_the_current() -> None:
+    # WF-QUA-0040-A: the dates of 100 and 101 come from the history rows, not from the engine;
+    # they are held to the revision in progress, which the planning example holds to the engine.
+    current = {task["lineage_id"]: task for task in _tasks(mockchronology.CURRENT)}
+    for revision in (mockchronology.OFFER, mockchronology.REFERENCE):
+        differing = {
+            task["lineage_id"]: task
+            for task in _tasks(revision)
+            if task["lineage_id"] in current
+            and (task["start"], task["finish"])
+            != (current[task["lineage_id"]]["start"], current[task["lineage_id"]]["finish"])
+        }
+        if revision == mockchronology.REFERENCE:
+            assert not differing
+            continue
+        # The offer lengthened by the amendment 1: the detailed design file finished on the 13th.
+        assert {task["label"] for task in differing.values()} == {"Dossier de conception"}
+        for lineage, task in differing.items():
+            assert task["start"] == current[lineage]["start"]
+            assert task["finish"] == {"date": "2026-04-13", "hours": "8"}
+            assert current[lineage]["finish"] == {"date": "2026-04-15", "hours": "8"}
 
 
 def test_no_address_and_no_real_label_figure_in_the_file() -> None:
