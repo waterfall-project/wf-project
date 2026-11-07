@@ -59,7 +59,7 @@ from waterfall.platform.errors import (
     UnprocessableError,
 )
 from waterfall.platform.identifiers import new_id
-from waterfall.platform.tasks import project_task_pending
+from waterfall.platform.tasks import project_task_pending, projects_with_task_pending
 
 if TYPE_CHECKING:
     from collections.abc import Collection, Generator, Iterable, Mapping
@@ -341,6 +341,7 @@ def _kinds(session: Session, user_id: UUID, project_ids: Collection[UUID]) -> di
 def _views(session: Session, projects: Iterable[Project], viewer: Viewer) -> list[ProjectView]:
     rows = list(projects)
     kinds = _kinds(session, viewer.user_id, [row.id for row in rows])
+    busy = projects_with_task_pending(session, [row.id for row in rows])
     return [
         ProjectView(
             project_id=row.id,
@@ -361,7 +362,7 @@ def _views(session: Session, projects: Iterable[Project], viewer: Viewer) -> lis
                     kinds.get(row.id),
                     row.state,
                     row.current_revision_id,
-                    no_task_running=no_background_task_running(session, row.id),
+                    no_task_running=row.id not in busy,
                 )
             ),
             created_at=row.created_at,

@@ -183,6 +183,18 @@ def project_task_pending(session: Session, project_id: UUID) -> bool:
     return session.scalar(pending.limit(1)) is not None
 
 
+def projects_with_task_pending(session: Session, project_ids: Collection[UUID]) -> frozenset[UUID]:
+    """Give, among ``project_ids``, those a task that is queued or running aims at, in one query."""
+    if not project_ids:
+        return frozenset()
+    named = BackgroundTask.payload[PROJECT].astext
+    wanted = [str(project_id) for project_id in project_ids]
+    rows = session.scalars(
+        select(named).where(BackgroundTask.status.in_(PENDING), named.in_(wanted)).distinct()
+    )
+    return frozenset(UUID(value) for value in rows)
+
+
 def read_task(session: Session, task_id: UUID, requested_by: UUID) -> BackgroundTask | None:
     """Give a task its requester asked for; ``None`` if there is none, or another asked for it."""
     row = session.get(BackgroundTask, task_id)

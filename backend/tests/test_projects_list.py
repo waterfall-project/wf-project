@@ -12,6 +12,7 @@ from typing import TYPE_CHECKING, Any
 from uuid import UUID
 
 import pytest
+from sqlalchemy import event
 from projects_support import (
     PROJECTS,
     Person,
@@ -295,3 +296,31 @@ def test_each_project_of_the_list_carries_the_commands_its_reader_holds(
     assert conditions["create_revision"] == []
     reading = listed(api, stage.reader, EVERY_STATE)["items"][0]
     assert reading["available_commands"] == []
+
+
+def _statements(stage: Scene, api: ContractClient) -> int:
+    """Count the statements the service sends to the database to answer one list."""
+    sent: list[str] = []
+
+    def count(*arguments: Any) -> None:
+        sent.append(str(arguments[2]))
+
+    event.listen(stage.database.engine, "before_cursor_execute", count)
+    try:
+        listed(api, stage.manager, EVERY_STATE)
+    finally:
+        event.remove(stage.database.engine, "before_cursor_execute", count)
+    return len(sent)
+
+
+@pytest.mark.requirement("WF-CYC-0010-A")
+def test_the_list_sends_as_many_statements_to_the_database_for_n_projects_as_for_twice_as_many(
+    api: ContractClient, stage: Scene
+) -> None:
+    for number in range(2):
+        create(api, stage.manager, label=f"Projet {number}")
+    small = _statements(stage, api)
+    for number in range(2, 6):
+        create(api, stage.manager, label=f"Projet {number}")
+    assert len(listed(api, stage.manager, EVERY_STATE)["items"]) == 7
+    assert _statements(stage, api) == small
