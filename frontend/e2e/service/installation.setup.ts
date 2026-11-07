@@ -16,6 +16,9 @@ import { openMenu, WORKING } from "../hydration";
 import { heldToTheContract } from "./contract";
 import type { components } from "../../src/api/generated/schema";
 import {
+  accountAdministrator,
+  ADMINISTRATION_READER,
+  ADMINISTRATION_READS,
   ADMINISTRATOR,
   expectPasswordSet,
   frontToken,
@@ -97,5 +100,22 @@ test("the administrator of a new installation sets its password by the link of t
       // A pattern is matched against the name as Playwright reads it, its spaces made plain.
       matrix.getByRole("checkbox", { name: new RegExp(` pour «\\s${label}\\s»$`) }),
     ).toHaveCount(catalogue.length);
+  }
+});
+
+test("the installation holds the role « Administrateur (parcours) », made by the administrator with the reads of the administration alone, found again on a replay with its permissions checked [WF-ADM-0020]", async ({
+  browser,
+  playwright,
+}) => {
+  const calls = await playwright.request.newContext({ ignoreHTTPSErrors: true });
+  try {
+    const administrator = await accountAdministrator(browser, calls);
+    // Made first, and alone, before any worker composes a role beside it (`giveRoles`): a role
+    // found by its label has its permissions checked, as for any role of the paths.
+    await administrator.compose([[ADMINISTRATION_READER, ADMINISTRATION_READS]]);
+    expect(ADMINISTRATION_READS).not.toContain("users.write");
+    expect(ADMINISTRATION_READS).not.toContain("access_roles.write");
+  } finally {
+    await calls.dispose();
   }
 });

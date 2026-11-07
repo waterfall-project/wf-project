@@ -598,7 +598,7 @@ pris (miroir des images, cache, `installation.setup`), s'ils ne sont pas retenus
 
 ## US-1330 — Les parcours d'administration et les parcours en série contre le service
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : aucune — outil du dépôt
 - **opérations** : aucune
 - **issue** : #2253

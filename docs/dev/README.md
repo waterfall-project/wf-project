@@ -1504,8 +1504,7 @@ outside 0 to 24 or a negative capacity, with the bound crossed (`VALUE_OUT_OF_RA
 already carried by a calendar, deactivated ones included, names its carrier from the page, by its
 identifier, generically otherwise; the rest as for the costs, the stale version under the form
 with the offer to re-read; the screen no longer carries `MockupNotice` since US-0850: the service
-keeps what is written, and its paths are tagged `@shared` (the units of duration, which the service
-does not serve yet, wait for US-0860b). A write that would leave a task without a working hour — a
+keeps what is written, and its paths are tagged `@shared` (the units of duration too, with `@serial`). A write that would leave a task without a working hour — a
 calendar modified or designated as default, a role modified — is refused
 (`TASK_WITHOUT_WORKING_HOURS`, « A task would have no working hour left in the week. ») by saying
 why and by naming each project involved by its label and its code, by its label alone without a code
@@ -3764,20 +3763,31 @@ hooks: a hook declared in a module that the files import is declared once in a w
 first of its files alone. A path whose assertion differs between the two — a write the fake back
 does not keep — reads `inService`.
 
+A path of the administration or of the state carries `@administration` beside `@shared`, in its
+title as `@shared`: the `administration` fixture of `mode.ts` then signs it in with an account of
+the run, one for each worker, that holds the role « Administrateur (parcours) » — `users.read`,
+`access_roles.read`, `system_status.read`, `audit_log.read`, `backups.read`, and neither
+`users.write` nor `access_roles.write` —, which `installation.setup.ts` creates, alone and first.
+The "Manager" is given neither `users.*` nor `system_status.read`; and `give` still refuses the two
+permissions of the administration to an account other than the administrator of the installation, on
+which the `LAST_ADMINISTRATOR` refusals of `roles.spec.ts` depend: the role holds reads alone. Each
+`@shared` path also resets the grid preferences of the account it signs in (`resetGridPreferences`,
+`updateMyPreferences`), which a sort or a filter of an earlier path would have left (#2282).
+
 The paths that depend on what the service does not do yet, or does not serve, are not replayed
-against it, being untagged; each is still played against the fake back, by `chromium`. What
-depends on the clock: nothing in the reference, whose dates are those of the loading (WF-DAT-0070)
-and which the paths do not wait for. On a screen the service does not serve: the openings of
-`/`, of the portfolio, of the administration and of the status screen in `navigation.spec.ts` (the
-role "Manager" is offered neither the administration nor the status), as well as all its other
-paths, those of a project and that of the icon on `/`; almost all of those of `admin.spec.ts`
-(`:40` to `:455`, only `:479` is `@shared`), administration screens outside the permissions of the
-role "Manager" of `mode.ts`, without the `users.*` permissions. On what their US does not tag yet:
-the reading of the settings outside any project (`reference-costs.spec.ts`, US-0250); the
-change of the units of duration (`reference-resources.spec.ts`), which writes the single object of
-the installation and asserts the echo of the fake back ("7 and 35"): it would be played in series
-(rule below), which the `realm` project does today only for `frontend/e2e/service/` (#2178).
-The `inService` guards of the tagged paths are not paths that are not replayed: the path is played on both sides, and only the assertion of a
+against it, being untagged; each is still played against the fake back, by `chromium`. What depends
+on the clock: nothing in the reference, whose dates are those of the loading (WF-DAT-0070) and which
+the paths do not wait for. On a screen the service does not serve: the openings of `/` and of the
+portfolio in `navigation.spec.ts`, as well as all its other paths, those of a project and that of
+the icon on `/`. On what the service does not render as the fake back does: those of `admin.spec.ts`
+that read the seven accounts, the eight backups or the roles of the example of the contract, and
+those that write — the backups (start, keep, restore), the schedule of the backups, the accounts and
+the roles: each writes a single object of the installation, or asks for `users.write` or
+`access_roles.write`, which the account of `@administration` lacks, and which the paths of
+`frontend/e2e/service/` (`backups.spec.ts`, `accounts.spec.ts`, `roles.spec.ts`) prove as the
+administrator of the installation. On what their US does not tag yet: the reading of the settings
+outside any project (`reference-costs.spec.ts`, US-0250). The `inService` guards of the tagged paths
+are not paths that are not replayed: the path is played on both sides, and only the assertion of a
 write differs (what was entered, read anew after a reload; a code and a label of the run's own,
 which the service keeps; a state left as it was found) — `reference-costs.spec.ts`,
 `reference-resources.spec.ts`, `reference-settings.spec.ts`,
@@ -3788,13 +3798,14 @@ and leaves them deactivated or removed at its end: the `shared` workers play in 
 installation, and an object of the witness that a path changes, even for the time it runs, changes
 under the eyes of those who read it or compare it with its examples (state, `lock_version`, audit
 dates — #2087). The paths that change a single object of the installation — the settings, the units
-of duration, the correspondence of the actual costs — are played in series, alone, not in parallel
-with the others. A path that must reactivate one of the witness does so in a `finally` that puts it
-back as it found it, and it is an exception it states, not the rule.
-Three paths depart from this rule today, pending #2211: the change of the units of duration
-(`reference-resources.spec.ts`, untagged), that of the settings (`reference-settings.spec.ts`) and
-that of the correspondence of the actual costs (`reference-actual-cost-mapping.spec.ts`), tagged
-`@shared` and yet writing these single objects.
+of duration, the correspondence of the actual costs — carry the `@serial` tag beside `@shared`: the
+`shared-serial` project plays them alone, on one worker, after `shared` and before `realm` and
+`restoration`, and `shared` leaves them out (`grepInvert`); they assert their re-reading through
+`inService` like the others (#2211). A path that must reactivate one of the witness does so in a
+`finally` that puts it back as it found it, and it is an exception it states, not the rule.
+
+The wait for the lock of the composed roles (`giveRoles`, `ROLES_WAIT`) is 25 s, under the 30 s of a
+test: its message says the lock and the number of workers queued behind it (#2214).
 
 A limit of the paths against the service: Prism, as a proxy of the contract, reads every body as
 text and alters binary bodies — every byte beyond `0x7f` of an `application/octet-stream` request or

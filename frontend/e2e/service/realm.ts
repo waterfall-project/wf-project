@@ -19,7 +19,7 @@ import { mkdirSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import { type APIRequestContext, type Browser, expect, type Page } from "@playwright/test";
+import { type APIRequestContext, type Browser, expect, type Page, test } from "@playwright/test";
 
 import type { components } from "../../src/api/generated/schema";
 
@@ -180,7 +180,7 @@ async function oneAtATime<T>(login: string, run: () => Promise<T>, wait = 30_000
         }
       },
       {
-        message: `the lock of ${login}, held by another worker for more than ${String(wait / 1000)} s`,
+        message: `the lock of ${login}, held by another worker for more than ${String(wait / 1000)} s, with up to ${String(test.info().config.workers - 1)} others of the run queued behind it`,
         intervals: [100],
         timeout: wait,
       },
@@ -593,17 +593,76 @@ async function read<T>(request: APIRequestContext, token: string, path: string):
  */
 const ADMINISTRATION: readonly Schemas["PermissionCode"][] = ["users.write", "access_roles.write"];
 
+/**
+ * The role of test of the paths of the administration and of the state (US-1330): the reads of the
+ * administration and none of its writes, so that `give` need not lift the refusal of the two
+ * permissions of the administration, nor the paths of the roles lose their `LAST_ADMINISTRATOR`.
+ * `installation.setup.ts` makes it, first and alone; `e2e/mode.ts` gives it.
+ */
+export const ADMINISTRATION_READER = "Administrateur (parcours)";
+
+/** The permissions of `ADMINISTRATION_READER`. */
+export const ADMINISTRATION_READS: readonly Schemas["PermissionCode"][] = [
+  "users.read",
+  "access_roles.read",
+  "system_status.read",
+  "audit_log.read",
+  "backups.read",
+];
+
 /** The lock (`oneAtATime`) of the search and the creation of the roles the paths compose. */
 const ROLES_MADE = "the roles composed by the paths";
 
-/** Workers queue behind the lock of the roles, each with a series of requests: well beyond 30 s. */
-const ROLES_WAIT = 120_000;
+/**
+ * How long a path waits for the lock of the roles: under the 30 s of a test, so that its message,
+ * not "Test timeout", is what fails the path (#2214). The lock is held by one worker at a time for
+ * a series of requests each, and every other worker of the run queues behind it.
+ */
+const ROLES_WAIT = 25_000;
 
 /**
  * How old a token of the administrator may grow before it is asked again: the realm gives it five
  * minutes, and a file of paths lasts longer.
  */
 const TOKEN_RENEWED_AFTER = 4 * 60_000;
+
+/** The tokens asked for an account, by login, to reset its grids: the realm gives five minutes. */
+const GRID_TOKENS = new Map<string, { token: string; obtained: number }>();
+
+/**
+ * Give the grids of an account back their default settings (`updateMyPreferences`, a grid at `null`
+ * finds its defaults again): a sort or a filter a path set is kept in the preferences of the
+ * account, and the next path of the run finds it (#2282). Read (`getMe`) first, so that nothing is
+ * written when no grid keeps settings; the language, the theme and the rest stay as they are.
+ */
+export async function resetGridPreferences(
+  browser: Browser,
+  request: APIRequestContext,
+  person: Person,
+): Promise<void> {
+  let kept = GRID_TOKENS.get(person.login);
+  if (kept === undefined || Date.now() - kept.obtained > TOKEN_RENEWED_AFTER) {
+    kept = { token: await frontToken(browser, person), obtained: Date.now() };
+    GRID_TOKENS.set(person.login, kept);
+  }
+  const { display_preferences: preferences } = await read<Schemas["UserSelf"]>(
+    request,
+    kept.token,
+    "/me",
+  );
+  const grids = Object.keys(preferences?.grids ?? {});
+  if (grids.length === 0) {
+    return;
+  }
+  const reset: Schemas["DisplayPreferences"] = {
+    grids: Object.fromEntries(grids.map((grid) => [grid, null])),
+  };
+  const answer = await request.patch(`${API}/me/preferences`, {
+    headers: { Authorization: `Bearer ${kept.token}` },
+    data: reset,
+  });
+  expect(answer.status(), "PATCH /me/preferences").toBe(200);
+}
 
 /**
  * The administrator of the installation at the API (#730): it creates the local accounts of the
@@ -623,13 +682,12 @@ export async function accountAdministrator(browser: Browser, request: APIRequest
     }
     return token;
   };
-  const giveRoles = async (
-    id: string,
+  const composeRoles = async (
     wanted: readonly (readonly [string, readonly Schemas["PermissionCode"][]])[],
-  ): Promise<void> => {
+  ): Promise<string[]> =>
     // The search of a role by its label, then its creation, are one step: the label is not unique
     // at the back, and workers on a fresh installation would each make theirs.
-    const ids = await oneAtATime(
+    oneAtATime(
       ROLES_MADE,
       async () => {
         const found: (Schemas["AccessRole"] | undefined)[] = [];
@@ -681,6 +739,11 @@ export async function accountAdministrator(browser: Browser, request: APIRequest
       },
       ROLES_WAIT,
     );
+  const giveRoles = async (
+    id: string,
+    wanted: readonly (readonly [string, readonly Schemas["PermissionCode"][]])[],
+  ): Promise<void> => {
+    const ids = await composeRoles(wanted);
     const { lock_version: version } = await read<Schemas["User"]>(
       request,
       await current(),
@@ -695,6 +758,15 @@ export async function accountAdministrator(browser: Browser, request: APIRequest
   };
   return {
     self,
+    /**
+     * Make the roles of the labels given, each as `give` makes it — found by its label and its
+     * permissions checked, or created by `createAccessRole` — and give them to none.
+     */
+    compose: async (
+      wanted: readonly (readonly [string, readonly Schemas["PermissionCode"][]])[],
+    ): Promise<void> => {
+      await composeRoles(wanted);
+    },
     /** Create a local account, Jeanne Montgolfier's, at an address of its own. */
     create: async (): Promise<{ id: string; email: string }> => {
       const email = `jeanne.${randomBytes(6).toString("hex")}@waterfall.test`;

@@ -4,8 +4,9 @@
  * The screen of the settings of the resources (`/reference/resources`): the roles, the tree of the
  * organisation, the calendars and the units of duration, against the fake back and, for the paths
  * tagged `@shared`, against the service (US-0850). The service keeps what is written: the paths
- * that write leave what they found, and the screen shows no mock-up notice. The units of duration
- * are not served yet (US-0860b): their path is not tagged.
+ * that write leave what they found, and the screen shows no mock-up notice. The units of duration,
+ * one object of the installation, are written by a path tagged `@serial` too: the project
+ * `shared-serial` plays it alone, after the others (US-1330).
  */
 import { expect, type Locator } from "@playwright/test";
 
@@ -276,7 +277,7 @@ test("creates a role in its form, moves a node under an active one, and designat
   expect(notRestored, "the restorations that failed").toEqual([]);
 });
 
-test("modifies the units of duration from the settings of the resources, and says what the change does to the schedules (US-0570)", async ({
+test("modifies the units of duration from the settings of the resources, and says what the change does to the schedules (US-0570) @shared @serial", async ({
   page,
 }) => {
   test.slow();
@@ -284,7 +285,14 @@ test("modifies the units of duration from the settings of the resources, and say
   const section = page.getByRole("region", { name: "Unités de durée" });
   const value = (name: string) =>
     section.getByText(name, { exact: true }).locator("xpath=following-sibling::dd");
-  await expect(value("Heures par jour")).toHaveText("8");
+  // The fake back starts from 8 hours; the service from what the installation keeps, which a
+  // replay found changed: the path writes the other of 7 and 8, valid on every run.
+  await expect(value("Heures par jour")).toHaveText(/^\d+$/, { timeout: WORKING });
+  const before = (await value("Heures par jour").textContent()) ?? "";
+  if (!inService) {
+    expect(before).toBe("8");
+  }
+  const written = before === "7" ? "8" : "7";
   const form = page.getByRole("dialog", { name: "Modifier les unités de durée" });
   // No project is opened here, nothing witnesses the hydration: the command is pressed again until
   // React opens its form, and never once it is open.
@@ -297,16 +305,23 @@ test("modifies the units of duration from the settings of the resources, and say
   await expect(form).toContainText(
     "les plannings des révisions en cours sont recalculés ; une révision marquée garde les heures qu’elle a calculées.",
   );
-  await form.getByRole("textbox", { name: "Heures par jour" }).fill("7");
+  await form.getByRole("textbox", { name: "Heures par jour" }).fill(written);
   await form.getByRole("button", { name: "Enregistrer" }).click();
   await expect(form).toBeHidden({ timeout: WORKING });
-  // The fake back answers the first example of the operation whatever was written: 7 and 35.
-  await expect(value("Heures par semaine")).toHaveText("35");
+  if (!inService) {
+    // The fake back answers the first example of the operation whatever was written: 7 and 35.
+    await expect(value("Heures par semaine")).toHaveText("35");
+  }
   await expect(page.getByRole("status").filter({ hasText: "enregistrées" })).toHaveText(
     "Unités de durée enregistrées.",
   );
   await expect(section.getByRole("button", { name: "Modifier les unités de durée" })).toBeFocused();
   await expect(page.getByRole("main").getByRole("alert")).toHaveCount(0);
+  if (inService) {
+    // What the service kept, read anew after a reload.
+    await page.reload();
+    await expect(value("Heures par jour")).toHaveText(written, { timeout: WORKING });
+  }
 });
 
 /** What a command to delete is called: the settings of the resources offer none (WF-REF-0010-A). */

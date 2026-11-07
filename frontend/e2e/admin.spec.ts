@@ -51,20 +51,31 @@ test("reaches every screen of the reference data and of the administration with 
   }
 });
 
-test("reads the accounts, the matrix of the permissions, the state of the platform and the backups (US-0250)", async ({
+// Played in service too (`@shared @administration`, US-1330): under the account that reads the
+// administration and the state, the one the service serves; what the fake back says of its seven
+// accounts and eight backups is asserted against it alone.
+test("reads the accounts, the matrix of the permissions, the state of the platform and the backups (US-0250) @shared @administration", async ({
   page,
 }) => {
   await page.goto("/admin/users");
   const accounts = page.getByRole("grid", { name: "Comptes utilisateurs" });
-  // The header, the seven accounts, the totals: how many the server retained.
-  await expect(accounts.getByRole("row")).toHaveCount(9);
-  // The node before the roles (#379), each a list the session may choose from: the cell names it.
-  await expect(
-    accounts.getByRole("row", {
-      name: /^Moreau Alix alix\.moreau@example\.com Créé dans Waterfall BE-ELEC · Bureau d'études électricité Rôles de/,
-    }),
-  ).toHaveCount(1);
-  await expect(accounts.getByRole("row").last()).toHaveText("7 comptes");
+  if (inService) {
+    // The accounts of the run, as many as it made: the header, one or more, the totals.
+    await expect(accounts.getByRole("row").last()).toHaveText(/^\d+ comptes?$/, {
+      timeout: WORKING,
+    });
+    await expect(accounts.getByRole("row")).not.toHaveCount(2);
+  } else {
+    // The header, the seven accounts, the totals: how many the server retained.
+    await expect(accounts.getByRole("row")).toHaveCount(9);
+    // The node before the roles (#379), each a list the session may choose from: the cell names it.
+    await expect(
+      accounts.getByRole("row", {
+        name: /^Moreau Alix alix\.moreau@example\.com Créé dans Waterfall BE-ELEC · Bureau d'études électricité Rôles de/,
+      }),
+    ).toHaveCount(1);
+    await expect(accounts.getByRole("row").last()).toHaveText("7 comptes");
+  }
 
   await page.goto("/admin/access-roles");
   const matrix = page.getByRole("table", { name: "Permissions par fonction" });
@@ -80,16 +91,25 @@ test("reads the accounts, the matrix of the permissions, the state of the platfo
   const restore = matrix.getByRole("row").filter({
     has: page.getByRole("rowheader", { name: "Restaurer la plateforme", exact: true }),
   });
-  await expect(restore.getByRole("checkbox")).toHaveCount(7);
-  for (const [role, held] of [
-    ["Administrateur", true],
-    ["Auditeur", false],
-    ["Chef de projet", false],
-    ["Chiffreur", false],
-    ["Direction de projet", true],
-    ["Manager", false],
-    ["Pilotage de projet", false],
-  ] as const) {
+  if (!inService) {
+    await expect(restore.getByRole("checkbox")).toHaveCount(7);
+  }
+  const ROLES = inService
+    ? ([
+        ["Administrateur", true],
+        ["Chef de projet", false],
+        ["Manager", false],
+      ] as const)
+    : ([
+        ["Administrateur", true],
+        ["Auditeur", false],
+        ["Chef de projet", false],
+        ["Chiffreur", false],
+        ["Direction de projet", true],
+        ["Manager", false],
+        ["Pilotage de projet", false],
+      ] as const);
+  for (const [role, held] of ROLES) {
     await expect(
       matrix.getByRole("checkbox", {
         name: `«\u00a0Restaurer la plateforme\u00a0» pour «\u00a0${role}\u00a0»`,
@@ -102,28 +122,39 @@ test("reads the accounts, the matrix of the permissions, the state of the platfo
   ).toBeVisible();
 
   await page.goto("/system");
-  await expect(page.getByText(/^Version installée\s: 1\.0\.0$/)).toBeVisible();
-  const operations = page.getByRole("table", { name: "Dernières opérations" });
-  // Each instant in the local time of the workstation, once the browser has written it.
-  await expect(
-    operations.getByRole("row", { name: /^Test de restauration/ }).locator("time"),
-  ).not.toBeEmpty();
-  // The copy of the last backup outside the platform, verified (WF-EXP-0050, #488).
-  await expect(
-    operations.getByRole("row", { name: /^Copie externe de la sauvegarde/ }),
-  ).toContainText("Réussie");
-  await expect(page.getByText("Aucune alerte en cours.")).toBeVisible();
+  if (inService) {
+    await expect(page.getByText(/^Version installée\s: \S+$/)).toBeVisible();
+    await expect(page.getByRole("table", { name: "Dernières opérations" })).toBeVisible();
+  } else {
+    await expect(page.getByText(/^Version installée\s: 1\.0\.0$/)).toBeVisible();
+    const operations = page.getByRole("table", { name: "Dernières opérations" });
+    // Each instant in the local time of the workstation, once the browser has written it.
+    await expect(
+      operations.getByRole("row", { name: /^Test de restauration/ }).locator("time"),
+    ).not.toBeEmpty();
+    // The copy of the last backup outside the platform, verified (WF-EXP-0050, #488).
+    await expect(
+      operations.getByRole("row", { name: /^Copie externe de la sauvegarde/ }),
+    ).toContainText("Réussie");
+    await expect(page.getByText("Aucune alerte en cours.")).toBeVisible();
+  }
 
   await page.goto("/admin/backups");
-  // The header, the eight backups, the totals: how many the server retained.
   const backups = page.getByRole("grid", { name: "Sauvegardes" });
-  await expect(backups.getByRole("row")).toHaveCount(10);
-  await expect(backups.getByRole("row").last()).toHaveText("8 sauvegardes");
-  await expect(page.getByText("7 sauvegardes conservées")).toBeVisible();
-  // Each scheduled backup copied to the location the installation declares, read only (#488).
-  await expect(
-    page.getByText("Vers secours-lyon, dossier waterfall/sauvegardes — 30 copies gardées"),
-  ).toBeVisible();
+  if (inService) {
+    await expect(backups.getByRole("row").last()).toHaveText(/^\d+ sauvegardes?$/, {
+      timeout: WORKING,
+    });
+  } else {
+    // The header, the eight backups, the totals: how many the server retained.
+    await expect(backups.getByRole("row")).toHaveCount(10);
+    await expect(backups.getByRole("row").last()).toHaveText("8 sauvegardes");
+    await expect(page.getByText("7 sauvegardes conservées")).toBeVisible();
+    // Each scheduled backup copied to the location the installation declares, read only (#488).
+    await expect(
+      page.getByText("Vers secours-lyon, dossier waterfall/sauvegardes — 30 copies gardées"),
+    ).toBeVisible();
+  }
 });
 
 test("starts a backup, marks one to be kept, downloads one and restores the platform from one, confirmed by its identifier typed [WF-ADM-0160-A]", async ({
