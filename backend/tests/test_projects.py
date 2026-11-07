@@ -4,7 +4,7 @@
 
 ``createProject``, ``getProject`` and ``updateProject`` on a platform whose reference is complete
 (``projects_support``) or not, every answer checked against the contract. The list is tried in
-``test_projects_list.py``, the witness in ``test_projects_witness.py``.
+``test_projects_list.py``, the witness in ``test_witness_projects.py``.
 """
 
 from concurrent.futures import ThreadPoolExecutor
@@ -746,7 +746,7 @@ def _bounds(model: type[Any]) -> dict[str, tuple[Any, ...]]:
         constraints = sorted(
             (key, value)
             for each in field.metadata
-            for key in ("min_length", "max_length", "pattern")
+            for key in ("min_length", "max_length", "pattern", "ge", "le", "gt", "lt")
             if (value := getattr(each, key, None)) is not None
         )
         read[name] = (field.is_required(), field.default, tuple(constraints))

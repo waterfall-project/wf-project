@@ -238,10 +238,9 @@ def post_exit(
             # project, so we waited for it): the counter this one read is stale (412).
             _stale_if_moved(session, project_id, read)
             raise
-        request = replace(
-            request, moved=1, no_task_running=no_background_task_running(session, project_id)
-        )
-    exit_project(session, project_id, request, act, viewer)
+        request = replace(request, moved=1)
+    # The tasks are read again under the lock of the project, by the exit itself (#2220).
+    exit_project(session, project_id, replace(request, tasks_under_lock=True), act, viewer)
     project = described(session, [read_project(session, project_id, viewer)])[0]
     return project.model_dump(mode="json", exclude_unset=True)
 

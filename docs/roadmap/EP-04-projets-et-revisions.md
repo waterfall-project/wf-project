@@ -564,9 +564,9 @@ textes triés en collation `C`, cherchés par `contains` ; règles SQL du guide 
 
 - L'amorçage ne change pas : aucun projet à l'installation.
 - `waterfall-api load-witness` (EP-05) reçoit la tranche des projets, après celle du
-  référentiel : `make mock-data` écrit, à côté des exemples, `fixtures/witness/projects.json` (nom
-  à fixer au lot), la chronologie du témoin exportée de `wftools.mockwitness` — chaque événement
-  avec son instant et ce qu'il écrit —, pour que le back n'importe jamais `wftools` ; cette
+  référentiel : `make mock-data` écrit, à côté des exemples,
+  `fixtures/api/project_state_transitions.json`, la chronologie du témoin exportée de
+  `wftools.mockwitness` — chaque événement avec son instant et ce qu'il écrit —, pour que le back n'importe jamais `wftools` ; cette
   exportation est le lot `US-0990/L1`, d'outil seul, dès la première vague (décision du
   2026-11-05). La commande
   lit les exemples du contrat pour les objets (`projects.json`, `project.json`, `revisions.json`,
@@ -1357,7 +1357,7 @@ réels (EP-09).
 
 ## US-0990 — Le témoin : la tranche des projets, et les parcours rejoués
 
-- **statut** : en cours
+- **statut** : fini
 - **exigences** : `WF-QUA-0040-A`
 - **opérations** : aucune en propre ; le chargement passe par les interfaces du noyau
 - **issue** : 2067

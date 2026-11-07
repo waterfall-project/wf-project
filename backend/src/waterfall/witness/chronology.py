@@ -9,13 +9,23 @@ contributors, the contributors, the subprojects, the work breakdown, then the re
 events of the chronology at the instants it imposes (``Act.at``; WF-CYC-0130). Each tells whether
 it wrote, as a slice of the loader does; this entry, whether one of them did.
 
-The chronology of the witness, ``make mock-data`` writes it beside the examples (US-0990/L1), and
-US-0990/L2 reads it here: until then each slice writes nothing.
+The chronology of the witness, ``make mock-data`` writes it beside the examples
+(``project_state_transitions.json``, US-0990/L1): this entry reads it first (``timeline``), so that
+a file that strays from its model stops the command before any slice writes, and the slices
+that write at an instant of it read it again. The platform is the author of all; the instant of each
+write is the event's (``Act.at``), but for the reference, which the loader sets at the loading.
 """
 
 from typing import TYPE_CHECKING
 
-from waterfall.witness import contributors, projects, revisions, subprojects, work_breakdown
+from waterfall.witness import (
+    contributors,
+    projects,
+    revisions,
+    subprojects,
+    timeline,
+    work_breakdown,
+)
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
@@ -36,5 +46,6 @@ SLICES: tuple[tuple[str, Slice], ...] = (
 
 def load(session: Session, witness: Witness) -> bool:
     """Load each slice of the projects in its order; tell whether one of them wrote."""
+    timeline.read(witness)
     written = [write(session, witness) for _, write in SLICES]
     return any(written)

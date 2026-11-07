@@ -3,7 +3,8 @@
 """The subprojects of the project of the witness.
 
 ``subprojects.json``: the subprojects of the project of ``project.json``, each under the
-identifier the witness imposes, with its code and its label. Written through the interface of the
+identifier the witness imposes, with its code and its label, at the instant the chronology
+creates the project. Written through the interface of the
 projects, by the very rules of the creation: the code is judged and unique in the project. The
 costs and the commands the example says are what the later EPICs derive, not what is loaded.
 """
@@ -19,6 +20,7 @@ from waterfall.core.projects.interface import (
     load_subprojects,
     subprojects_present,
 )
+from waterfall.witness import timeline
 from waterfall.witness.description import is_loaded
 
 if TYPE_CHECKING:
@@ -36,7 +38,8 @@ class Subprojects(RootModel[list[Subproject]]):
 
 def load(session: Session, witness: Witness) -> bool:
     """Write this slice of the witness unless the platform holds it; tell whether it wrote."""
-    project_id = witness.read(PROJECT_FILE, Project).project_id.root
+    project = witness.read(PROJECT_FILE, Project)
+    project_id = project.project_id.root
     described = witness.read(SUBPROJECTS_FILE, Subprojects).root
     loads = tuple(
         SubprojectLoad(item.subproject_id.root, SubprojectWrite(item.code.root, item.label))
@@ -45,5 +48,5 @@ def load(session: Session, witness: Witness) -> bool:
     imposed = {load.subproject_id for load in loads}
     if is_loaded(imposed, subprojects_present(session, imposed)):
         return False
-    load_subprojects(session, project_id, loads, witness.act)
+    load_subprojects(session, project_id, loads, timeline.created(witness, project))
     return True

@@ -2,47 +2,77 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 """The revisions of the projects of the witness, and the events of their chronology.
 
-``revisions.json`` for the revisions, ``project_state_transitions.json`` for their order: the
-revision 100 opened (Created to Pricing), its marking, the 101 opened, the designation of 100
-tried and refused, the code entered, the 101 marked, the 102 opened. The witness abandons none.
+``revisions.json`` for the revisions, ``project_state_transitions.json`` for their order and their
+instants (``timeline``): the revision 100 opened (Created to Pricing), its marking, the 101 opened,
+the designation of 100 tried and refused, the code entered, the 101 marked, the 102 opened. The
+witness abandons none.
 
-A write of the chronology names its project by its code (``projects.json``) and its revision by
-the number the identifiers of the witness end with (``01926f3a-…-000000000100``). The revisions
-are opened by the rules of the opening (#1402) and marked by the very transaction of the worker
-(``load_marking``), in the order of the chronology, at the instant of the loading until US-0990/L2
-imposes the chronology's. A marked revision bears the name of version and the description of
-``revisions.json``, the object the contract answers, which the chronology only orders: its
-``version_name`` is the name of the event, « Offre v1.0 ». A write this slice
-does not know — the designation and the code, US-0980's — changes nothing of what the openings and
-the markings judge, and is passed over.
-
-Filled by US-0960 and US-0970; US-0980 adds the designation and the code.
+Each write is made through the interface of its module, by the rules of the API, at the instant of
+its event (``Act.at``; WF-CYC-0130), its author the platform. The revisions are opened by the rules
+of the opening (#1402) and marked by the very transaction of the worker (``load_marking``). A marked
+revision bears the name of version and the description of ``revisions.json``, the object the
+contract answers, which the chronology only orders: its ``version_name`` must be the one of the
+event, « Offre v1.0 ». The designation is tried by the project manager of the witness and is
+refused for the lack of tasks, which the loader notes (``witness.designation_refused``) — a
+designation that succeeds, or any other refusal, is a defect that stops the command. The code is
+entered by the same project manager, through the change of a project. The state a transition
+write names is checked against the transitions the writes before it left.
 """
 
-from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 from pydantic import BaseModel
 
-from waterfall.api.contract.models import Project, Revision
-from waterfall.core.revisions.interface import load_marking, load_revision, revisions_present
-from waterfall.platform.errors import FieldError, UnprocessableError
+from waterfall.api.contract.models import ContributorList, Project, Revision
+from waterfall.core.projects.interface import (
+    ProjectChange,
+    Viewer,
+    list_state_transitions,
+    stored_lock_version,
+    update_project,
+)
+from waterfall.core.revisions.interface import (
+    ReferenceToDesignate,
+    designate_reference,
+    load_marking,
+    load_revision,
+    revisions_present,
+)
+from waterfall.platform.errors import (
+    ConflictError,
+    FieldError,
+    UnprocessableError,
+)
+from waterfall.platform.logs import get_logger
+from waterfall.witness import timeline
 from waterfall.witness.description import is_loaded
+from waterfall.witness.timeline import (
+    CodeEntered,
+    DesignationAttempted,
+    RevisionMarked,
+    RevisionOpened,
+    StateTransition,
+)
 
 if TYPE_CHECKING:
     from uuid import UUID
 
     from sqlalchemy.orm import Session
 
+    from waterfall.platform.audit import Act
     from waterfall.witness.description import Witness
+    from waterfall.witness.timeline import Event, Write
 
 REVISIONS_FILE = "revisions.json"
 PROJECTS_FILE = "projects.json"
-CHRONOLOGY_FILE = "project_state_transitions.json"
-OPENED = "revision_opened"
-MARKED = "revision_marked"
+CONTRIBUTORS_FILE = "contributors.json"
+MANAGER = "project_manager"
 VALIDATION_FAILED = "VALIDATION_FAILED"
 VALUE_REQUIRED = "VALUE_REQUIRED"
+STATE_FORBIDS_OPERATION = "STATE_FORBIDS_OPERATION"
+NO_TASKS_AND_LINES = "revision_has_tasks_and_lines"
+
+logger = get_logger(__name__)
 
 
 class Revisions(BaseModel):
@@ -57,94 +87,150 @@ class Projects(BaseModel):
     items: list[Project]
 
 
-class Write(BaseModel):
-    """A write of an event of the chronology: what, in which project, of which revision."""
-
-    kind: str
-    project: str
-    revision: int | None = None
-
-
-class Event(BaseModel):
-    """An event of the chronology, and what the slice of the projects writes at it."""
-
-    sequence: int
-    writes: list[Write]
-
-
-class Chronology(BaseModel):
-    """The events of the witness, in their order (``wftools.mockchronology``)."""
-
-    events: list[Event]
-
-
 def _numbered(revision: UUID) -> int | None:
     """Give the number an identifier of the witness ends with, ``None`` if it is not a number."""
     last = str(revision).rsplit("-", 1)[1]
     return int(last) if last.isdecimal() else None
 
 
-@dataclass(frozen=True, slots=True)
-class Marking:
-    """The name of version and the description a revision of the witness is marked under."""
+class _Walk:
+    """What the walk of the chronology reads of the description, and writes event by event."""
 
-    version_name: str
-    description: str | None
+    def __init__(self, session: Session, witness: Witness) -> None:
+        self.session = session
+        self.witness = witness
+        self.codes = {
+            project.code.root: project.project_id.root
+            for project in witness.read(PROJECTS_FILE, Projects).items
+            if project.code is not None
+        }
+        self.numbered = {
+            (revision.project_id.root, _numbered(revision.revision_id.root)): revision
+            for revision in witness.read(REVISIONS_FILE, Revisions).items
+        }
+        self.manager = self._manager(witness)
 
+    @staticmethod
+    def _manager(witness: Witness) -> Viewer:
+        """Give the project manager of the witness: he tries the designation and enters the code."""
+        for item in witness.read(CONTRIBUTORS_FILE, ContributorList).items:
+            if item.kind.value == MANAGER and item.is_active:
+                return Viewer(item.user_id.root, ())
+        message = f"{CONTRIBUTORS_FILE} names no active project manager"
+        raise ValueError(message)
 
-@dataclass(frozen=True, slots=True)
-class Step:
-    """A write of the chronology this slice makes: a revision opened, or marked (``marking``)."""
+    def project(self, code: str) -> UUID:
+        """Give the identifier of a project of the chronology by its code; or refuse the file."""
+        if code not in self.codes:
+            message = f"the chronology names a project {code} that {PROJECTS_FILE} does not"
+            raise ValueError(message)
+        return self.codes[code]
 
-    project_id: UUID
-    revision_id: UUID
-    marking: Marking | None = None
+    def revision(self, write: RevisionOpened | RevisionMarked | DesignationAttempted) -> Revision:
+        """Give the revision of a write, as ``revisions.json`` describes it; or refuse the file."""
+        found = self.numbered.get((self.project(write.project), write.revision))
+        if found is None:
+            message = (
+                f"the chronology names a revision {write.revision} that {REVISIONS_FILE} does not"
+            )
+            raise ValueError(message)
+        return found
 
+    def opened(self) -> set[UUID]:
+        """Give the identifiers of the revisions the chronology opens."""
+        chronology = timeline.read(self.witness)
+        return {
+            self.revision(write).revision_id.root
+            for _, write in chronology.writes()
+            if isinstance(write, RevisionOpened)
+        }
 
-def _marking(revision: Revision) -> Marking:
-    """Give what ``revisions.json`` says a revision is marked under; refuse it without a name."""
-    if revision.version_name is None:
-        raise UnprocessableError(
-            VALIDATION_FAILED, fields=(FieldError("/version_name", VALUE_REQUIRED),)
+    def write(self, event: Event, write: Write) -> None:
+        """Make a write of the chronology at its event's instant; the others are passed over."""
+        act = timeline.at(self.witness, event.occurred_at)
+        match write:
+            case RevisionOpened():
+                revision = self.revision(write)
+                load_revision(
+                    self.session, revision.project_id.root, revision.revision_id.root, act
+                )
+            case RevisionMarked():
+                self._mark(write, act)
+            case DesignationAttempted():
+                self._designate(write, act)
+            case CodeEntered():
+                self._enter(write, act)
+            case StateTransition():
+                self._check(write, event)
+            case _:
+                pass
+
+    def _mark(self, write: RevisionMarked, act: Act) -> None:
+        revision = self.revision(write)
+        if revision.version_name is None:
+            raise UnprocessableError(
+                VALIDATION_FAILED, fields=(FieldError("/version_name", VALUE_REQUIRED),)
+            )
+        name = revision.version_name.root
+        if name != write.version_name:
+            message = f"revision {write.revision} is marked {write.version_name}, not {name}"
+            raise ValueError(message)
+        load_marking(self.session, revision.revision_id.root, name, revision.description, act)
+
+    def _designate(self, write: DesignationAttempted, act: Act) -> None:
+        """Try the designation of a revision: refused for the lack of tasks, which is noted."""
+        revision = self.revision(write)
+        project_id = revision.project_id.root
+        designated = ReferenceToDesignate(
+            revision.revision_id.root, stored_lock_version(self.session, project_id)
         )
-    return Marking(revision.version_name.root, revision.description)
+        try:
+            designate_reference(
+                self.session,
+                project_id,
+                designated,
+                act,
+                self.manager,
+            )
+        except ConflictError as refused:
+            condition = refused.params.get("missing_condition")
+            if refused.code != STATE_FORBIDS_OPERATION or condition != NO_TASKS_AND_LINES:
+                raise
+            logger.info(
+                "witness.designation_refused",
+                project=write.project,
+                revision=write.revision,
+                missing_condition=condition,
+            )
+            return
+        message = f"the designation of revision {write.revision} was not refused"
+        raise ValueError(message)
 
+    def _enter(self, write: CodeEntered, act: Act) -> None:
+        """Enter the code of a project, through the change of a project by its manager."""
+        project_id = self.project(write.project)
+        if write.code != write.project:
+            message = f"the code {write.code} entered is not the one of {write.project}"
+            raise ValueError(message)
+        change = ProjectChange({"code": write.code}, stored_lock_version(self.session, project_id))
+        update_project(self.session, project_id, change, act, self.manager)
 
-def steps(witness: Witness) -> list[Step]:
-    """Give the openings and the markings of the chronology, in its order."""
-    codes = {
-        project.code.root: project.project_id.root
-        for project in witness.read(PROJECTS_FILE, Projects).items
-        if project.code is not None
-    }
-    numbered = {
-        (revision.project_id.root, _numbered(revision.revision_id.root)): revision
-        for revision in witness.read(REVISIONS_FILE, Revisions).items
-    }
-    walked: list[Step] = []
-    for event in witness.read(CHRONOLOGY_FILE, Chronology).events:
-        for write in event.writes:
-            if write.kind not in {OPENED, MARKED}:
-                continue
-            project_id = codes[write.project]
-            revision = numbered[project_id, write.revision]
-            marking = _marking(revision) if write.kind == MARKED else None
-            walked.append(Step(project_id, revision.revision_id.root, marking))
-    return walked
+    def _check(self, write: StateTransition, event: Event) -> None:
+        """Check that the writes before it moved the project as the transition says."""
+        last = list_state_transitions(self.session, self.project(write.project))[-1]
+        moved = (last.from_state, last.to_state, last.occurred_at)
+        if moved != (write.from_state, write.to_state, event.occurred_at):
+            moved_to = f"{write.from_state} to {write.to_state}"
+            message = f"event {event.sequence}: the project did not move {moved_to}"
+            raise ValueError(message)
 
 
 def load(session: Session, witness: Witness) -> bool:
     """Write this slice of the witness unless the platform holds it; tell whether it wrote."""
-    walked = steps(witness)
-    imposed = {step.revision_id for step in walked if step.marking is None}
+    walk = _Walk(session, witness)
+    imposed = walk.opened()
     if is_loaded(imposed, revisions_present(session, imposed)):
         return False
-    for step in walked:
-        if step.marking is None:
-            load_revision(session, step.project_id, step.revision_id, witness.act)
-        else:
-            marking = step.marking
-            load_marking(
-                session, step.revision_id, marking.version_name, marking.description, witness.act
-            )
-    return bool(walked)
+    for event, write in timeline.read(witness).writes():
+        walk.write(event, write)
+    return bool(imposed)

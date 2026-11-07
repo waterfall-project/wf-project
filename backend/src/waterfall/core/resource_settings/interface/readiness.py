@@ -49,6 +49,11 @@ def lock_reference(session: Session) -> None:
     It waits for the creations of a project in progress, and they wait for it. The update of a
     cost type, a cost category or a calendar takes it even for a change of label alone: the effect
     of a write is only known under the lock, and these writes are rare — accepted.
+
+    The activation of a calendar (``set_calendar_activation``) is the one writer of ``is_active``
+    that does not take it: the default calendar, which the minimal reference reads, is never
+    deactivated (``calendar_not_default``), so that no deactivation can empty it. Were that refusal
+    lifted, the activation would take the lock; a test pins the refusal (``test_reference_lock``).
     """
     session.execute(select(func.pg_advisory_xact_lock(REFERENCE_LOCK)))
 

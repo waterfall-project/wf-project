@@ -19,6 +19,7 @@ import { heldToTheContract } from "./contract";
 import {
   type Administrator,
   accountAdministrator,
+  API,
   giveIdentifiers,
   gridPreferences,
   localAccount,
@@ -30,7 +31,6 @@ import {
 
 heldToTheContract();
 
-const API = `${process.env.WATERFALL_API_ADDRESS ?? ""}/api/v1`;
 const ACCOUNT = "/account";
 const AVATAR = "/account/avatar";
 const USERS = "/admin/users";

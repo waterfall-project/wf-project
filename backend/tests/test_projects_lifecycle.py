@@ -22,12 +22,19 @@ from sqlalchemy import insert, select, update
 from sqlalchemy.orm import Session
 from support import wait_for_a_lock
 
-from waterfall.api import lifecycle as lifecycle_api
-from waterfall.core.projects.interface import NextState, advance, next_state
+from waterfall.core.projects.interface import (
+    ExitRequest,
+    NextState,
+    Viewer,
+    advance,
+    exit_project,
+    next_state,
+)
 from waterfall.core.projects.tables import Project, ProjectStateTransition
-from waterfall.core.revisions.interface import revisions as revisions_core
 from waterfall.core.revisions.tables import Revision
 from waterfall.platform.audit import Act, AuditEntry
+from waterfall.platform.database import utc_now
+from waterfall.platform.errors import ConflictError
 from waterfall.platform.identifiers import new_id
 
 if TYPE_CHECKING:
@@ -109,6 +116,17 @@ def open_revision(api: ContractClient, stage: Scene) -> dict[str, Any]:
     response = api.post(path_of(stage, "revisions"), headers=stage.manager.headers, json={})
     assert response.status_code == 201, response.text
     return response.json()
+
+
+def pend_marking(api: ContractClient, stage: Scene) -> None:
+    """Open the current revision and ask for its marking: a real task of the queue, pending."""
+    revision = open_revision(api, stage)
+    asked = api.post(
+        path_of(stage, f"revisions/{revision['revision_id']}/mark"),
+        headers=stage.manager.headers,
+        json={"version_name": "v1.0", "lock_version": revision["lock_version"]},
+    )
+    assert asked.status_code == 202, asked.text
 
 
 def state_in_the_base(stage: Scene) -> tuple[str, int]:
@@ -594,19 +612,13 @@ def test_two_exits_abandoning_the_same_revision_at_once_exit_the_project_once(
 
 @pytest.mark.requirement("WF-CYC-0060-A")
 def test_the_first_condition_of_the_contract_is_told_before_the_revision_is_abandoned(
-    api: ContractClient, stage: Scene, monkeypatch: pytest.MonkeyPatch
+    api: ContractClient, stage: Scene
 ) -> None:
-    # A Pricing project with a current revision and a task of the background running (no task
-    # aims at a project before US-0970: both readings are put to false): the state
-    # (``project_in_progress``) is told, not the task of the revision, and nothing is abandoned.
-    open_revision(api, stage)
+    # A Pricing project with a current revision and a marking of it pending, a real task of the
+    # queue: the state (``project_in_progress``) is told, not the task of the revision, and
+    # nothing is abandoned.
+    pend_marking(api, stage)
     before = state_in_the_base(stage)
-
-    def running(_session: Session, _project_id: UUID) -> bool:
-        return False
-
-    for module in (lifecycle_api, revisions_core):
-        monkeypatch.setattr(module, "no_background_task_running", running)
     answer = leave(api, stage, "completed", current_revision=ABANDONING)
     assert refusal(answer) == (
         409,
@@ -615,6 +627,46 @@ def test_the_first_condition_of_the_contract_is_told_before_the_revision_is_aban
     )
     assert state_in_the_base(stage) == before
     assert project_of(api, stage)["current_revision_id"] is not None
+
+
+@pytest.mark.requirement("WF-CYC-0060-A")
+def test_a_marking_pending_in_the_queue_refuses_the_exit_that_would_abandon_the_revision(
+    api: ContractClient, stage: Scene
+) -> None:
+    pend_marking(api, stage)
+    before = state_in_the_base(stage)
+    answer = leave(api, stage, "abandoned", current_revision=ABANDONING)
+    assert refusal(answer) == (
+        409,
+        "STATE_FORBIDS_OPERATION",
+        {"missing_condition": "no_background_task_running"},
+    )
+    assert state_in_the_base(stage) == before
+
+
+@pytest.mark.requirement("WF-CYC-0060-A")
+def test_the_exit_reads_the_tasks_under_the_lock_not_as_its_caller_read_them(
+    api: ContractClient, stage: Scene
+) -> None:
+    # The caller read no task running, and a marking was deposited before the lock was taken: the
+    # exit judges the task it finds under the lock (#2220).
+    pend_marking(api, stage)
+    request = ExitRequest(
+        "abandoned", None, project_of(api, stage)["lock_version"], tasks_under_lock=True
+    )
+    assert request.no_task_running
+    with pytest.raises(ConflictError) as refused, stage.database.transaction() as session:
+        exit_project(
+            session,
+            UUID(stage.project["project_id"]),
+            request,
+            Act(stage.manager.user_id, utc_now()),
+            Viewer(stage.manager.user_id, ()),
+        )
+    assert (refused.value.code, dict(refused.value.params)) == (
+        "STATE_FORBIDS_OPERATION",
+        {"missing_condition": "no_background_task_running"},
+    )
 
 
 @pytest.mark.requirement("WF-ADM-0100-A")

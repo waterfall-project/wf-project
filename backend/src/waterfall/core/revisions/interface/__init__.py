@@ -69,7 +69,6 @@ from waterfall.core.revisions.interface.revisions import (
 from waterfall.core.revisions.interface.structures import (
     StructureView,
     list_cost_structures,
-    load_cost_structures,
     structure_commands,
 )
 
@@ -94,7 +93,6 @@ __all__ = [
     "designate_reference",
     "list_cost_structures",
     "list_revisions",
-    "load_cost_structures",
     "load_marking",
     "load_revision",
     "mark_revision",

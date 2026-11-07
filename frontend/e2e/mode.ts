@@ -6,12 +6,13 @@
  * service serves its screen — the project `shared` plays it then against the service, after
  * `installation`, while `chromium` keeps playing it against the fake back (`playwright.config.ts`).
  *
- * Against the fake back, nothing changes: it grants the session itself. With `WATERFALL_API_ADDRESS`
- * set (`inService`), each path first signs in a local account of the run that holds the roles
- * « Manager » and « Chef de projet », made by the administrator of the installation
- * (`accountAdministrator`), one for each worker; and the paths are held to the contract, as
- * `heldToTheContract()` holds a file of `e2e/service/` — by fixtures rather than hooks: a hook declared in a module the files import is
- * declared once in a worker, for the first of its files alone.
+ * Against the fake back, nothing changes: it grants the session itself. With
+ * `WATERFALL_API_ADDRESS` set (`inService`), each path first signs in a local account of the run
+ * that holds the roles « Manager » and « Chef de projet », made by the administrator of the
+ * installation (`accountAdministrator`), one for each worker; and the paths are held to the contract, as
+ * `heldToTheContract()` holds a file of `e2e/service/` — by fixtures rather than hooks: a hook
+ * declared in a module the files import is declared once in a worker, for the first of its files
+ * alone.
  */
 import { test as base } from "@playwright/test";
 

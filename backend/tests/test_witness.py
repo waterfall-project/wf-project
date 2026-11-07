@@ -130,9 +130,12 @@ def test_the_slices_of_the_projects_are_loaded_in_their_order_after_the_referenc
     order = ["projects", "contributors", "subprojects", "work_breakdown", "revisions"]
     assert [name for name, _ in chronology.SLICES] == order
     witness = Witness(WITNESS, Act(None, utc_now()))
-    # The slice of the projects is filled (US-0920/L1): on a platform that holds none it writes
-    # its accounts and its projects, and the entry tells so; the others write nothing yet.
+    # The slices of the projects are filled: on a platform that holds none they write, and the
+    # entry tells so; on a platform that holds them it writes nothing.
     with logging_context(correlation_id="witness-slices"):
+        # The projects ask the reference of the witness, which the slices before them load (#2155).
+        for _, load in loader.SLICES[:-1]:
+            load(session, witness)
         assert chronology.load(session, witness) is True
         assert chronology.load(session, witness) is False
     nothing: set[str] = set()

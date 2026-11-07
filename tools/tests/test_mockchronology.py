@@ -61,7 +61,7 @@ def _written(*kinds: str) -> list[dict[str, Any]]:
 
 
 def test_the_writes_are_those_of_the_design_in_that_order() -> None:
-    # WF-QUA-0040-A: the design of EP-04 lists them: 100 opened (Created to Costing), marked, 101
+    # WF-QUA-0040-A: the design of EP-04 lists them: 100 opened (Created to Pricing), marked, 101
     # opened, 100 designated and refused, the code entered, 101 marked, 102 opened; no abandon.
     assert [(w["kind"], w.get("revision")) for w in _writes()] == [
         ("project_created", None),
@@ -94,12 +94,12 @@ def test_each_write_has_the_fields_of_its_kind() -> None:
     assert [(w["revision"], w["refused"]) for w in _written("designation_attempted")] == [
         (100, "no_task")
     ]
-    assert [(w["from"], w["to"]) for w in _written("state_transition")] == [("created", "costing")]
+    assert [(w["from"], w["to"]) for w in _written("state_transition")] == [("created", "pricing")]
     assert [w["revision"] for w in _written("revision_opened")] == [100, 101, 102]
 
 
 def test_an_event_writes_the_opening_of_the_offer_before_its_transition() -> None:
-    # WF-QUA-0040-A: at the opening of the offer, 100 is opened, then Created to Costing.
+    # WF-QUA-0040-A: at the opening of the offer, 100 is opened, then Created to Pricing.
     opening = next(
         event
         for event in _events()
@@ -121,6 +121,8 @@ def test_every_write_names_a_project_of_the_example_of_the_projects() -> None:
         ]["items"]
     }
     assert all(write["project"] in codes for write in _writes())
+    # Every write goes to the project of the witness, PRJ-001: the other has no instant (#2134).
+    assert {write["project"] for write in _writes()} == {"PRJ-001"}
     assert [w["code"] for w in _written("code_entered")] == ["PRJ-001"]
 
 

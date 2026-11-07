@@ -8,10 +8,13 @@ in, then PRJ-002 and PRJ-001 with their client, each under the identifier the wi
 The accounts are those the contributors of the witness name (``contributors.json``), described as
 ``users.json`` describes them; each is created by the interface of the accounts without any
 identity provider, its subject drawn from its identifier, and the one the witness says
-deactivated is deactivated after. The projects are created by the rules of the creation, in the
-state ``created``, but for the minimal reference, which the roles of resources of the witness will
-complete with US-0850 (``load_project``): their code, their states and their revisions are written
-by the events of the chronology (US-0990).
+deactivated is deactivated after, each under an address of the domain ``waterfall.test``, all at
+the instant of the first event of the chronology, the installation. The projects are created by
+the very rules of the creation (``load_project``), the minimal reference included, in the state
+``created``, at the instant the chronology creates them: PRJ-001 at its ``project_created``,
+PRJ-002, which the chronology does not date, at the same one. A project bears its code from its
+creation unless the chronology enters it (PRJ-001: the order received); its states and its
+revisions are written by the events of the chronology (``revisions``).
 """
 
 from typing import TYPE_CHECKING
@@ -26,16 +29,29 @@ from waterfall.core.projects.interface import (
     projects_present,
 )
 from waterfall.core.users.interface import Identity, create_local_account, set_account_activation
+from waterfall.witness import timeline
 from waterfall.witness.description import is_loaded
+from waterfall.witness.timeline import CodeEntered
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
+    from waterfall.platform.audit import Act
     from waterfall.witness.description import Witness
 
 PROJECTS_FILE = "projects.json"
 CONTRIBUTORS_FILE = "contributors.json"
 USERS_FILE = "users.json"
+WITNESS_DOMAIN = "waterfall.test"
+
+
+def _address(email: str | None) -> str:
+    """Give the address a local account of the witness bears: its name, in ``waterfall.test``.
+
+    The addresses of ``users.json`` are those of the fake back; an account of the platform bears
+    none that is not in the domain reserved to the tests (WF-QUA-0040).
+    """
+    return "" if not email else f"{email.partition('@')[0]}@{WITNESS_DOMAIN}"
 
 
 class Projects(BaseModel):
@@ -56,15 +72,20 @@ def load(session: Session, witness: Witness) -> bool:
     imposed = {project.project_id.root for project in projects}
     if is_loaded(imposed, projects_present(session, imposed)):
         return False
-    _load_accounts(session, witness)
+    chronology = timeline.read(witness)
+    entered = {write.project for _, write in chronology.writes() if isinstance(write, CodeEntered)}
+    _load_accounts(session, witness, timeline.at(witness, chronology.events[0].occurred_at))
     for project in projects:
         client = None if project.client is None else project.client.root
-        draft = ProjectDraft(project.label, project.description, client)
-        load_project(session, ProjectLoad(project.project_id.root, draft), witness.act)
+        code = None if project.code is None or project.code.root in entered else project.code.root
+        draft = ProjectDraft(project.label, project.description, client, code)
+        load_project(
+            session, ProjectLoad(project.project_id.root, draft), timeline.created(witness, project)
+        )
     return True
 
 
-def _load_accounts(session: Session, witness: Witness) -> None:
+def _load_accounts(session: Session, witness: Witness, act: Act) -> None:
     """Create the local accounts of the contributors, the deactivated one deactivated after."""
     contributors = witness.read(CONTRIBUTORS_FILE, ContributorList).items
     described = {user.user_id.root: user for user in witness.read(USERS_FILE, Users).items}
@@ -74,10 +95,10 @@ def _load_accounts(session: Session, witness: Witness) -> None:
         identity = Identity(
             "" if last_name is None else last_name.root,
             "" if first_name is None else first_name.root,
-            user.email or "",
+            _address(user.email),
         )
         account = create_local_account(
-            session, identity, f"witness-{user.user_id.root}", witness.act, user.user_id.root
+            session, identity, f"witness-{user.user_id.root}", act, user.user_id.root
         )
         if not contributor.is_active:
             set_account_activation(
@@ -85,5 +106,5 @@ def _load_accounts(session: Session, witness: Witness) -> None:
                 account.user_id,
                 is_active=False,
                 lock_version=account.lock_version,
-                act=witness.act,
+                act=act,
             )

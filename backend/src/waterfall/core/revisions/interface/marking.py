@@ -56,6 +56,8 @@ from waterfall.core.revisions.interface.shared import (
 )
 from waterfall.core.revisions.registry import Registry
 from waterfall.core.revisions.tables import Revision
+from waterfall.platform.audit import Act
+from waterfall.platform.database import utc_now
 from waterfall.platform.errors import ConflictError, FieldError, PreconditionFailedError
 from waterfall.platform.tasks import PROJECT, submit
 
@@ -65,7 +67,6 @@ if TYPE_CHECKING:
 
     from sqlalchemy.orm import Session
 
-    from waterfall.platform.audit import Act
     from waterfall.platform.queue import TaskQueue
 
 ALREADY_EXISTS = "ALREADY_EXISTS"
@@ -187,6 +188,10 @@ def submit_marking(
 def run_marking(session: Session, payload: Mapping[str, Any], act: Act) -> None:
     """Mark the revision a task of marking names, in the transaction of the task (the worker's).
 
+    The instant of the marking is taken once the revision and the project are locked, not when the
+    task began: a designation validated while the task waited for the project is older than the
+    marking it is judged against (``reference_correctable``, WF-REV-0040).
+
     The exit of the project the task carries, if it does, follows the marking: refused (409), it
     fails the task and undoes the marking with it. The counter of the project the chief read is
     judged again before anything is written, under the lock of the project taken after the one of
@@ -194,9 +199,13 @@ def run_marking(session: Session, payload: Mapping[str, Any], act: Act) -> None:
     confirm (412, the task fails). The marking then moves the counter: the exit is judged on the
     state, as the project stands under its lock, and on no background task but this one.
     """
+    # The revision is locked, then the project, and the instant of the marking is taken under the
+    # two: a designation validated meanwhile is older than the marking (WF-REV-0040, #2274).
+    revision = found_revision(session, UUID(payload[REVISION]), lock=True)
+    lock_project(session, revision.project_id)
+    act = Act(act.author, utc_now())
     exit_state = payload.get(EXIT_STATE)
     if exit_state is not None:
-        found_revision(session, UUID(payload[REVISION]), lock=True)
         _judge_project_counter(session, UUID(payload[PROJECT]), payload[EXIT_LOCK_VERSION])
     description = payload.get(DESCRIPTION, KEPT)
     mark_revision(session, UUID(payload[REVISION]), payload[NAME], description, act)
@@ -204,7 +213,8 @@ def run_marking(session: Session, payload: Mapping[str, Any], act: Act) -> None:
         project_id = UUID(payload[PROJECT])
         counter = stored_lock_version(session, project_id)
         request = ExitRequest(exit_state, payload.get(EXIT_REASON), counter)
-        # The requester was judged a project manager in the request; judged again under the lock.
+        # The requester was judged a project manager in the request. The worker judges the quality
+        # again, under the lock, for an exit alone: a marking alone writes no project.
         exit_project(session, project_id, request, act, Viewer(UUID(str(act.author)), ()))
 
 

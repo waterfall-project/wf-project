@@ -6,13 +6,13 @@
  * backs the platform up and the tracker follows the task to its end (WF-ADM-0150); the screen read
  * anew lists the backup, which the administrator downloads, then deposits as the archive of another
  * installation would be (#350), and the deposit says the date its manifest says. The backup of the
- * list is then restored, its identifier typed, the confirmation naming its date (WF-ADM-0160). The screen gives way to that of the
- * maintenance, every user signed out, until the restoration is done; the administrator signs in
- * again, with the password of the backup, and finds the screen. What was written after the backup is
- * not found any more (US-0970): a project manager of the path, whose account the backup holds,
- * marks by the worker the revision of a project it had opened before the backup, and creates
- * another project, after it; once restored, the revision is current again, the version name gone,
- * and the other project is not found.
+ * list is then restored, its identifier typed, the confirmation naming its date (WF-ADM-0160). The
+ * screen gives way to that of the maintenance, every user signed out, until the restoration is
+ * done; the administrator signs in again, with the password of the backup, and finds the screen.
+ * What was written after the backup is not found any more (US-0970): a project manager of the
+ * path, whose account the backup holds, marks by the worker the revision of a project it had opened
+ * before the backup, and creates another project, after it; once restored, the revision is current
+ * again, the version name gone, and the other project is not found.
  *
  * The proxy of the contract between the front and the API, Prism, reads every body as text: the
  * bytes of the archive past 0x7f reach the browser, and the deposit the API, each replaced by
@@ -37,9 +37,11 @@ import { heldToTheContract } from "./contract";
 import {
   accountAdministrator,
   ADMINISTRATOR,
+  API,
   frontToken,
   giveIdentifiers,
   localAccount,
+  type LocalPerson,
   signIn,
 } from "./realm";
 
@@ -47,7 +49,6 @@ type Schemas = components["schemas"];
 
 heldToTheContract();
 
-const API = `${process.env.WATERFALL_API_ADDRESS ?? ""}/api/v1`;
 // The predefined role that creates a project, opens and marks its revisions (WF-EXP-0020).
 const PROJECT_MANAGER = "Chef de projet";
 // How long the worker is given to mark a revision: a task taken from the queue, one transaction.
@@ -77,7 +78,7 @@ function projectManagerAt(request: APIRequestContext, token: string) {
         ? await request.get(`${API}${path}`, options)
         : await request.post(`${API}${path}`, options);
     expect(answer.status(), `${method} ${path}`).toBe(status);
-    return (status === 404 ? undefined : await answer.json()) as T;
+    return (await answer.json()) as T;
   };
   return {
     /** Create a project, its creator its project manager, and open its current revision. */
@@ -105,17 +106,28 @@ function projectManagerAt(request: APIRequestContext, token: string) {
         202,
         marking,
       );
-      const status = async (): Promise<Schemas["BackgroundTaskStatus"]> =>
-        (await asked<Schemas["BackgroundTaskRef"]>("GET", `/tasks/${task}`, 200)).status;
-      await expect.poll(status, { timeout: MARKING }).toBe("succeeded");
+      // The wait ends with the task, whatever its end: a task that failed ends it at once, and its
+      // problem is what the path fails on, not the whole delay given to the worker.
+      let ended: Schemas["BackgroundTaskRef"] | undefined;
+      const finished = async (): Promise<boolean> => {
+        const read = await asked<Schemas["BackgroundTaskRef"]>("GET", `/tasks/${task}`, 200);
+        const over = read.status === "succeeded" || read.status === "failed";
+        ended = over ? read : undefined;
+        return over;
+      };
+      await expect.poll(finished, { timeout: MARKING }).toBe(true);
+      expect(ended?.status, JSON.stringify(ended?.problem)).toBe("succeeded");
     },
     /** The revisions of a project, as its history lists them. */
     revisions: async (project: string) =>
       (await asked<{ items: Schemas["Revision"][] }>("GET", `/projects/${project}/revisions`, 200))
         .items,
-    /** Assert a project is not found. */
+    /** Assert a project is not found: the answer has no body to read as a project. */
     notFound: async (project: string) => {
-      await asked("GET", `/projects/${project}`, 404);
+      const answer = await request.get(`${API}/projects/${project}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      expect(answer.status(), `GET /projects/${project}`).toBe(404);
     },
   };
 }
@@ -149,12 +161,18 @@ test(
     test.setTimeout(600_000);
 
     // Before the backup, a project manager of the path, and a project of hers with its current
-    // revision: the backup holds them.
+    // revision: the backup holds them, and the restoration keeps them. A path played again on the
+    // same installation adds one account and one project to the platform, no more: what it writes
+    // after the backup, the restoration takes back, and the installation of a run is new (#2221).
     const calls = await playwright.request.newContext({ ignoreHTTPSErrors: true });
-    const administrator = await accountAdministrator(browser, calls);
-    const manager = await localAccount(browser, administrator);
-    await administrator.give(manager.id, PROJECT_MANAGER, []);
-    await calls.dispose();
+    let manager: LocalPerson;
+    try {
+      const administrator = await accountAdministrator(browser, calls);
+      manager = await localAccount(browser, administrator);
+      await administrator.give(manager.id, PROJECT_MANAGER, []);
+    } finally {
+      await calls.dispose();
+    }
     const suffix = randomBytes(4).toString("hex");
     const before = projectManagerAt(request, await frontToken(browser, manager));
     const kept = await before.projectWithRevision(`Avant la sauvegarde ${suffix}`);
@@ -235,7 +253,9 @@ test(
     // screen then sees the session closed and nothing more, and says that alone, without
     // affirming the restoration done: the journal of audit says it, after the sign-in.
     const signedOut = page.getByRole("status", { name: "Session terminée" });
-    const ended = maintenance.getByText("Restauration terminée").or(signedOut);
+    // Its title is the whole text of its element: the paragraph of the maintenance names the
+    // restoration « terminée » too, as what the users wait for (#2219).
+    const ended = maintenance.getByText("Restauration terminée", { exact: true }).or(signedOut);
     // A restoration refused before the maintenance gives the page back with its motive: said at
     // once, rather than waited for until the end of the path.
     const refused = page.getByRole("main").getByRole("alert");
