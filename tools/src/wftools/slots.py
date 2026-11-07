@@ -36,7 +36,13 @@ ports and under the names of before. The register of the workstation, whatever t
 its worktree and the moment it was taken, written under an exclusive lock of the register. A slot
 whose worktree no longer exists is free; whoever takes a slot first removes the projects of
 Compose an earlier holder left in it, volumes included, as ``release`` does before it frees it,
-the lock held until they are removed.
+the lock held until they are removed; both first stop the servers of the end-to-end paths the slot
+left running (US-1300).
+``stop-servers`` (``make e2e-down``) stops the processes of the user that listen on the ports of
+the end-to-end paths of the slot of the current worktree — the fake back and the fronts —, each
+found by its port in ``/proc`` and stopped by its PID: ``SIGTERM``, then ``SIGKILL`` for those that
+still listen after ``GRACE_SECONDS``. Never by name or pattern. ``WATERFALL_SLOTS_PROC`` moves the
+root of the process table (``/proc``), for the tests.
 ``which`` prints the slot of the current worktree, ``which --variables`` its ports and names for the
 Makefile, and ``list`` the slots taken on the workstation.
 """
@@ -44,11 +50,12 @@ Makefile, and ``list`` the slots taken on the workstation.
 import argparse
 import fcntl
 import os
+import re
 import signal
 import subprocess
 import sys
 import time
-from collections.abc import Callable, Generator, Mapping, Sequence
+from collections.abc import Callable, Collection, Generator, Mapping, Sequence
 from contextlib import contextmanager
 from datetime import UTC, datetime
 from pathlib import Path
@@ -59,6 +66,16 @@ MAX_SLOTS = 9
 RETRY_SECONDS = 1.0
 REMOVE_SECONDS = 300
 """How long ``docker compose down`` may take, the lock of the register held, before it fails."""
+GRACE_SECONDS = 5.0
+"""How long a server may take to end on ``SIGTERM`` before it receives ``SIGKILL``."""
+SETTLE_SECONDS = 2.0
+"""How long to wait, at most, for a server to be gone after ``SIGKILL``."""
+POLL_SECONDS = 0.1
+"""The step, in seconds, between two polls of the listening table."""
+ADDRESS_COLUMN, STATE_COLUMN, INODE_COLUMN = 1, 3, 9
+"""The columns of ``/proc/net/tcp`` that matter: the local address, the state, the inode."""
+LISTEN = "0A"
+"""The state of a socket in ``/proc/net/tcp``: listening."""
 RELAYED = (signal.SIGINT, signal.SIGTERM, signal.SIGHUP, signal.SIGQUIT)
 
 REGISTER_NAME = "waterfall-slots"
@@ -250,7 +267,8 @@ def start_test_services(services: Sequence[str], environment: Mapping[str, str])
         return {}
     worktree = current_worktree()
     here = worktree.path if worktree else Path.cwd()
-    default = ports(slot_here(environment, worktree))
+    slot = slot_here(environment, worktree)
+    default = ports(slot)
     command = [
         "make",
         "--no-print-directory",
@@ -260,7 +278,8 @@ def start_test_services(services: Sequence[str], environment: Mapping[str, str])
         f"SERVICES={' '.join(service for service, _, _ in missing)}",
     ]
     try:
-        done = subprocess.run(command, env=dict(environment), stdout=sys.stderr, check=False)
+        with services_locked(environment, slot):
+            done = subprocess.run(command, env=dict(environment), stdout=sys.stderr, check=False)
     except FileNotFoundError as error:
         message = f"cannot start the services of the tests: {error.strerror}"
         raise RegisterError(message) from error
@@ -273,6 +292,32 @@ def start_test_services(services: Sequence[str], environment: Mapping[str, str])
     }
 
 
+@contextmanager
+def services_locked(environment: Mapping[str, str], slot: int) -> Generator[None]:
+    """Hold the lock of the test services of a slot; say once when it waits (US-1300, #1909).
+
+    Two runs of one worktree started together make one ``make test-services`` at a time: the
+    second waits, then finds the services started. The descriptor is not inherited by the command.
+    """
+    directory = runtime_directory(environment)
+    directory.mkdir(mode=0o700, parents=True, exist_ok=True)
+    path = directory / f"waterfall-test-services.{slot}.lock"
+    descriptor = os.open(path, os.O_RDWR | os.O_CREAT | os.O_CLOEXEC, 0o600)
+    try:
+        try:
+            fcntl.flock(descriptor, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError:
+            print(
+                f"The test services of slot {slot} are being started by another run; waiting.",
+                file=sys.stderr,
+                flush=True,
+            )
+            fcntl.flock(descriptor, fcntl.LOCK_EX)
+        yield
+    finally:
+        os.close(descriptor)
+
+
 def service_url(variable: str, port: str) -> str:
     """Return the URL a test service answers at, on the port given: the form the tests read."""
     address = f"127.0.0.1:{port}"
@@ -281,6 +326,157 @@ def service_url(variable: str, port: str) -> str:
     if variable == "WATERFALL_TEST_REDIS_URL":
         return f"redis://{address}/0"
     return f"http://{TEST_STORAGE_CREDENTIALS}@{address}"
+
+
+# --- The servers of a slot (US-1300) --------------------------------------------------------------
+
+
+def listening_inodes(ports_asked: Collection[int], proc: Path) -> dict[int, int]:
+    """Return the inode of each socket listening on one of the ports, with its port.
+
+    ``net/tcp`` and ``net/tcp6`` of the process table: a line is ``sl local rem state … inode``,
+    the local address ``<hex address>:<hex port>``, the state ``0A`` for a socket that listens.
+    """
+    found: dict[int, int] = {}
+    for name in ("tcp", "tcp6"):
+        try:
+            lines = (proc / "net" / name).read_text(encoding="ascii").splitlines()[1:]
+        except OSError, UnicodeDecodeError:
+            continue
+        for line in lines:
+            fields = line.split()
+            if len(fields) <= INODE_COLUMN or fields[STATE_COLUMN] != LISTEN:
+                continue
+            port = int(fields[ADDRESS_COLUMN].rpartition(":")[2], 16)
+            if port in ports_asked and fields[INODE_COLUMN].isdigit():
+                found[int(fields[INODE_COLUMN])] = port
+    return found
+
+
+def alive(pid: int, proc: Path) -> bool:
+    """Tell whether the process runs: it answers signal 0 and is no zombie awaiting its parent."""
+    try:
+        os.kill(pid, 0)
+    except ProcessLookupError:
+        return False
+    except PermissionError:
+        pass  # it exists, and is another user's
+    try:
+        stat = (proc / str(pid) / "stat").read_text()
+    except OSError, UnicodeDecodeError:
+        return True
+    return stat.rpartition(")")[2].split()[:1] != ["Z"]
+
+
+def listening_pids(ports_asked: Collection[int], proc: Path) -> dict[int, set[int]]:
+    """Return the PIDs of the processes of the user that listen on the ports, with their ports.
+
+    The sockets are found in the tables, then looked for in ``<pid>/fd`` of the processes this
+    user may read; another user's are not readable, and not touched. This process is left out.
+    """
+    if not proc.is_dir():
+        message = f"The process table {proc} is not a directory: nothing can be found on a port."
+        raise SlotsError(message)
+    inodes = listening_inodes(ports_asked, proc)
+    found: dict[int, set[int]] = {}
+    if not inodes:
+        return found
+    socket = re.compile(r"socket:\[(\d+)\]")
+    try:
+        entries = list(proc.iterdir())
+    except OSError as error:
+        message = f"The process table {proc} cannot be read: {error}."
+        raise SlotsError(message) from error
+    for entry in entries:
+        if not entry.name.isdigit() or int(entry.name) == os.getpid():
+            continue
+        if not alive(int(entry.name), proc):
+            continue
+        try:
+            for descriptor in (entry / "fd").iterdir():
+                matched = socket.fullmatch(str(descriptor.readlink()))
+                if matched and int(matched.group(1)) in inodes:
+                    found.setdefault(int(entry.name), set()).add(inodes[int(matched.group(1))])
+        except OSError:
+            continue  # gone, or not ours
+    return found
+
+
+def stop_servers(
+    ports_asked: Collection[int],
+    proc: Path,
+    grace: float = GRACE_SECONDS,
+    settle: float = SETTLE_SECONDS,
+) -> list[int]:
+    """Stop what listens on the ports: ``SIGTERM`` by PID, ``SIGKILL`` after ``grace`` seconds.
+
+    Say what is stopped, and nothing when nothing listens. Return the PIDs signalled.
+    """
+    targets = listening_pids(ports_asked, proc)
+    for pid, listened in sorted(targets.items()):
+        listed = ", ".join(str(port) for port in sorted(listened))
+        print(f"stopping process {pid}, which listens on port {listed}")
+        send(pid, signal.SIGTERM)
+    if not targets:
+        return []
+    deadline = time.monotonic() + grace
+    while time.monotonic() < deadline:
+        if not set(listening_pids(ports_asked, proc)) & set(targets):
+            return sorted(targets)
+        time.sleep(POLL_SECONDS)
+    survivors = sorted(set(listening_pids(ports_asked, proc)) & set(targets))
+    if not survivors:
+        return sorted(targets)
+    for pid in survivors:
+        print(f"process {pid} still listens after {grace:g} s: killing it (SIGKILL)")
+        send(pid, signal.SIGKILL)
+    # The kernel closes the descriptors after freeing the memory: a heavy process takes a moment.
+    deadline = time.monotonic() + settle
+    while True:
+        left = sorted(set(listening_pids(ports_asked, proc)) & set(targets))
+        if not left:
+            return sorted(targets)
+        if time.monotonic() >= deadline:
+            break
+        time.sleep(POLL_SECONDS)
+    named = ", ".join(str(pid) for pid in left)
+    message = f"Process {named} still listens after SIGKILL: the servers are not stopped."
+    raise SlotsError(message)
+
+
+def send(pid: int, number: int) -> None:
+    """Send the signal to the PID; a process already gone is not an error."""
+    try:
+        os.kill(pid, number)
+    except ProcessLookupError:
+        return
+    except PermissionError:
+        print(f"process {pid} is not ours to signal: left running")
+
+
+def process_table(environment: Mapping[str, str]) -> Path:
+    """Return the root of the process table: ``/proc``, or ``WATERFALL_SLOTS_PROC`` (tests)."""
+    root = environment.get("WATERFALL_SLOTS_PROC")
+    if root is None:
+        return Path("/proc")
+    if not root:
+        message = "WATERFALL_SLOTS_PROC must be a directory, not empty: unset it to use /proc."
+        raise SlotsError(message)
+    return Path(root)
+
+
+def end_to_end_ports(slot: int) -> set[int]:
+    """Return the ports of the end-to-end paths of a slot: the fake back and the fronts."""
+    return {ports(slot)["E2E_API_PORT"], *front_ports(slot)}
+
+
+def stopper(environment: Mapping[str, str]) -> Callable[[int], None]:
+    """Return what stops the servers of a slot, for ``compose_remover``."""
+
+    def stop(slot: int) -> None:
+        stop_servers(end_to_end_ports(slot), process_table(environment))
+
+    return stop
 
 
 # --- The slots of the worktrees (US-1100) ---------------------------------------------------------
@@ -511,17 +707,21 @@ def slot_here(environment: Mapping[str, str], worktree: Worktree | None) -> int:
     return slot
 
 
-def compose_remover(environment: Mapping[str, str], directory: Path) -> Remove:
+def compose_remover(
+    environment: Mapping[str, str], directory: Path, stop: Callable[[int], None] | None = None
+) -> Remove:
     """Return what removes the projects of a slot by ``docker compose -p <project> down``.
 
     By the name of the project alone, from the register, where no Compose file lies: what is
     removed is what Docker labels with the project, whatever worktree started it. Without Docker,
     nothing was started. A ``down`` that has not ended after ``REMOVE_SECONDS`` fails: the lock of
-    the register is held while it runs.
+    the register is held while it runs. ``stop``, if given, first stops the servers of the slot.
     """
     clean = {name: value for name, value in environment.items() if name not in COMPOSE_SETTINGS}
 
     def remove(slot: int) -> None:
+        if stop is not None:
+            stop(slot)
         for project in (
             names(slot)["WATERFALL_SERVICE_PROJECT"],
             names(slot)["WATERFALL_TEST_PROJECT"],
@@ -556,7 +756,12 @@ def take(environment: Mapping[str, str]) -> int:
         return 0
     count = slot_count(environment)
     directory = register(environment)
-    slot, new = claim(directory, worktree.path, count, compose_remover(environment, directory))
+    slot, new = claim(
+        directory,
+        worktree.path,
+        count,
+        compose_remover(environment, directory, stopper(environment)),
+    )
     first = block(slot)
     held = "taken" if new else "already held"
     print(f"slot {slot} {held}: {worktree.path} (ports {first} to {first + BLOCK_SIZE - 1})")
@@ -570,11 +775,20 @@ def give_back(environment: Mapping[str, str]) -> int:
         print("slot 0: the main repository keeps slot 0, which is never released")
         return 0
     directory = register(environment)
-    slot = release(directory, worktree.path, compose_remover(environment, directory))
+    slot = release(
+        directory, worktree.path, compose_remover(environment, directory, stopper(environment))
+    )
     if slot is None:
         print(f"this worktree holds no slot: {worktree.path}")
     else:
         print(f"slot {slot} released: {worktree.path}")
+    return 0
+
+
+def stop_here(environment: Mapping[str, str]) -> int:
+    """``stop-servers``: stop the servers of the end-to-end paths of the current slot."""
+    slot = slot_here(environment, current_worktree())
+    stop_servers(end_to_end_ports(slot), process_table(environment))
     return 0
 
 
@@ -622,6 +836,7 @@ def parser() -> argparse.ArgumentParser:
     commands.add_parser("processors", help="print the share of the processors of one heavy run")
     commands.add_parser("claim", help="take a slot for this worktree, or say the one it holds")
     commands.add_parser("release", help="remove what the slot of this worktree holds, free it")
+    commands.add_parser("stop-servers", help="stop what listens on the e2e ports of this slot")
     commands.add_parser("list", help="print N and the slots taken on the workstation")
     current = commands.add_parser("which", help="print the slot of this worktree, 0 for the main")
     current.add_argument(
@@ -636,6 +851,7 @@ def run_action(options: argparse.Namespace, environment: Mapping[str, str]) -> i
         "claim": take,
         "release": give_back,
         "list": list_slots,
+        "stop-servers": stop_here,
     }
     if options.action in actions:
         return actions[options.action](environment)

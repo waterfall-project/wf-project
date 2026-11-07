@@ -65,7 +65,7 @@ PRISM   := npx --yes @stoplight/prism-cli@$(PRISM_VERSION)
 	production-trial check-production \
 	test-tools lint-tools typecheck-tools sources fixtures check-fixtures requirements \
 	requirements-release screens readmes reuse lint-workflows \
-	lint-shell check slot slot-release slots test-services test-services-down \
+	lint-shell check slot slot-release e2e-down slots test-services test-services-down \
 	check-all check-repo check-spec \
 	check-contract check-back lint-back typecheck-back imports-back test-back check-front \
 	check-front-code check-front-e2e check-front-image \
@@ -597,8 +597,11 @@ e2e-service: install-front mock-tools $(call e2e-build,$(E2E_DEV_SERVER)) ## End
 slot: ## Take a slot of 1 to N for this worktree of a lot — its ports and its names —, or say the one it holds; fails, naming the holders, when all are taken
 	@$(SLOTS) claim
 
-slot-release: ## Remove the containers and volumes of the slot of this worktree — the service platform, the services of the tests —, then free it
+slot-release: ## Stop the servers of the e2e paths, remove the containers and volumes of the slot of this worktree — the service platform, the services of the tests —, then free it
 	@$(SLOTS) release
+
+e2e-down: ## Stop the servers of the end-to-end paths of the slot of this worktree — the fake back, the fronts —, found by their ports and stopped by PID; after an interrupted e2e, e2e-service or check-front (US-1300)
+	@$(SLOTS) stop-servers
 
 slots: ## Print N, then the slots taken on the workstation and their worktrees
 	@$(SLOTS) list

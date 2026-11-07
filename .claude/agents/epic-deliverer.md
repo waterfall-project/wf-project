@@ -187,7 +187,9 @@ relances la vérification.
     - supprime la branche locale du lot, et toute branche de travail tirée pour lui
       (`git branch -d lot/<identifiant>`, de même pour chacune) ; `git branch -d` refuse une
       branche non fusionnée : un refus se lit, il ne se force pas, et il va au relevé ;
-    - retire les services de test et la plateforme de service de ton lot, et rends le créneau
+    - arrête les serveurs de l'e2e de ton créneau (`make e2e-down`, dès qu'un `make e2e`,
+      `make e2e-service` ou `make check-front` s'est interrompu, et avant `make slot-release`),
+      retire les services de test et la plateforme de service de ton lot, et rends le créneau
       pris au départ : `make slot-release`, lancé dans le worktree du lot, avant de le retirer ;
     - retire les worktrees du lot : le tien, qui détient le créneau, ceux des agents que tu as
       lancés, et tout autre qu'un harnais aurait quand même créé pour le lot

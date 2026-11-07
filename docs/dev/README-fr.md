@@ -2864,11 +2864,12 @@ images : deux livreurs jouent ensemble les parcours de bout en bout, les tests d
 parcours contre le service sans se heurter. Le dépôt principal, comme chaque runner de la chaîne,
 est au créneau 0 : ses ports et ses noms sont ceux d'avant les créneaux.
 
-| Commande            | Ce qu'elle fait                                                                                                                                                                                                                                |
-| ------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `make slot`         | prend pour le worktree où elle est lancée le premier créneau libre de 1 à N, ou dit le sien ; si N sont pris, elle échoue, porteurs nommés ; dans le dépôt principal (son `.git` est un répertoire), elle dit le créneau 0, sans en prendre    |
-| `make slot-release` | retire les conteneurs et les volumes du créneau du worktree — la plateforme de service, les services de test —, puis le libère ; si Docker ne peut les retirer, le créneau reste pris, et elle le dit                                          |
-| `make slots`        | écrit N, puis chaque créneau pris sur le poste, tous dépôts confondus, avec son worktree et l'instant de sa prise                                                                                                                              |
+| Commande            | Ce qu'elle fait                                                                                                                                                                                                                                                                                                                           |
+| ------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `make slot`         | prend pour le worktree où elle est lancée le premier créneau libre de 1 à N, ou dit le sien ; si N sont pris, elle échoue, porteurs nommés ; dans le dépôt principal (son `.git` est un répertoire), elle dit le créneau 0, sans en prendre                                                                                               |
+| `make slot-release` | arrête les serveurs de l'e2e du créneau, retire ses conteneurs et ses volumes — la plateforme de service, les services de test —, puis le libère ; si Docker ne peut les retirer, le créneau reste pris, et elle le dit                                                                                                                   |
+| `make e2e-down`     | arrête les processus de l'utilisateur qui écoutent sur les ports de l'e2e du créneau — le faux back, les fronts des parcours (au créneau 0, 4110 et 3100 à 3139) —, chacun trouvé par son port dans `/proc`, arrêté par son PID : `SIGTERM`, puis `SIGKILL` après cinq secondes ; elle dit ce qu'elle arrête, et rien quand rien n'écoute |
+| `make slots`        | écrit N, puis chaque créneau pris sur le poste, tous dépôts confondus, avec son worktree et l'instant de sa prise                                                                                                                                                                                                                         |
 
 Le registre du poste est `$XDG_RUNTIME_DIR/waterfall-slots/` — `/tmp/waterfall-slots/` sans
 `XDG_RUNTIME_DIR`, comme les verrous des exécutions lourdes : un fichier `<i>` par créneau pris,
@@ -2878,7 +2879,8 @@ créneau dont le worktree n'existe plus est libre ; celui qui prend un créneau 
 ce qu'un porteur y a laissé (`docker compose -p <projet> down --volumes`, pour chacun de ses deux
 projets), le verrou du registre tenu jusqu'à ce que ce retrait ait réussi, comme le tient
 `make slot-release` : un `make slot` lancé entre-temps attend, en le disant, et si Docker échoue,
-le créneau n'est pas pris, et le `make slot` suivant refait le retrait. `slots.py which` dit le
+le créneau n'est pas pris, et le `make slot` suivant refait le retrait. Avant ce retrait, l'un et
+l'autre arrêtent les serveurs de l'e2e que le créneau a laissés (`make e2e-down`). `slots.py which` dit le
 créneau du worktree courant.
 
 Au créneau i de 1 à 9, les ports sont ceux du bloc `20000 + 100·i`, sous la plage des ports
@@ -2921,8 +2923,19 @@ retiré entre-temps est redémarré —, l'outil lance `make test-services` pour
 variable `WATERFALL_TEST_DATABASE_URL`, `WATERFALL_TEST_REDIS_URL` ou `WATERFALL_TEST_STORAGE_URL`
 n'est pas posée, et la pose sur leur port ; une variable que l'environnement donne déjà l'emporte,
 son service n'est pas démarré, et le travail de la chaîne, qui pose les trois, n'en est pas changé.
-`make slot-release` les retire avec la plateforme de service. Dans un worktree lié sans créneau,
-les deux cibles échouent en disant `make slot`.
+`make slot-release` les retire avec la plateforme de service. Deux exécutions lancées ensemble
+dans un worktree ne font qu'un `make test-services` à la fois, sous un verrou du créneau
+(`$XDG_RUNTIME_DIR/waterfall-test-services.<créneau>.lock`) : la seconde attend, en le disant, puis
+trouve les services démarrés. Dans un worktree lié sans créneau, ces cibles et `make e2e-down`
+échouent en disant `make slot`.
+
+**Les serveurs de l'e2e.** `make e2e`, `make e2e-service` et `make check-front` lancent un faux back
+et des fronts (`next-server`) qu'un arrêt brutal peut laisser à l'écoute, un cœur occupé, des
+heures durant. `make e2e-down` les arrête pour le créneau du worktree, par leur port et par leur
+PID, jamais par leur nom : à lancer dès qu'une de ces cibles s'interrompt, et avant
+`make slot-release` (qui l'appelle de toute façon). Elle ne touche pas aux conteneurs, que
+`make service-down` et `make slot-release` retirent, ni aux serveurs de `make dev` et de
+`make mock` lancés à la main.
 
 **L'essai à N = 4** (EP-19, hors de l'EPIC). La preuve d'EP-19 se joue à N = 2, sur le poste actuel.
 Quatre livreurs ensemble ne s'essaient qu'à l'arrivée de la nouvelle machine, et c'est l'auteur qui
