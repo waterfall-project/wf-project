@@ -1300,6 +1300,9 @@ contre le service et constate que #512 est soldé — l'avis retiré partout, le
 le service. Un manque que le branchement révèle — un refus que
 l'écran ne dit pas, un exemple qui ne vaut pas contre le service — devient une issue, tranchée
 selon le README ; un manque du contrat, une « Interface contract issue », le contrat étant figé.
+Tant que l'amorçage ne donne pas `risk_settings.write` et `indicator_settings.write` au « Manager »,
+le compte du premier parcours porte aussi un rôle de parcours des risques et indicateurs (#2187) ;
+le Vérif et les critères ne changent pas.
 
 **Hors périmètre.** Les vues du portefeuille et le projet non contributeur (EP-11) ; les écrans
 hors du référentiel.
