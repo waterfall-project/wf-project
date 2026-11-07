@@ -114,7 +114,17 @@ describe("what an action did, under the action, in the language of its reader", 
   });
 
   it("names the roles an attribution withdrew, by the labels they bore then", () => {
-    const withdrawn = inscription("user_access_roles_set", "Inès Roux");
+    // Inès Roux is given her role by the journal of the installation, and has it withdrawn by that
+    // of the administration: the inscription read is the one that withdraws.
+    const withdrawn = events.find(
+      (event) =>
+        event.action === "user_access_roles_set" &&
+        event.object.label === "Inès Roux" &&
+        event.params.access_roles_withdrawn?.length,
+    );
+    if (withdrawn === undefined) {
+      throw new Error("the witness journals keep no withdrawal of a role of Inès Roux");
+    }
     expect(read(withdrawn, "fr")[1]).toBe("Rôle retiré : Pilotage de projet");
     expect(read(withdrawn, "en")[1]).toBe("Role withdrawn: Pilotage de projet");
   });

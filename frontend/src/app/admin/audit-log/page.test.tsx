@@ -203,8 +203,11 @@ describe("the journal of audit", () => {
     const page = await journal({ sort_by: "object_label", sort_order: "asc" });
     expect(sorted(page)).toContain("Objet ascending");
     expect(queriesOf(EVENTS)).toEqual([{ sort_by: "object_label", sort_order: "asc" }]);
-    // The rows as the server ordered them: the backups, which have no label, last.
-    const labels = rows(page).slice(1, -1);
+    // The rows as the server ordered them: the backups, which have no label, last; the empty row
+    // that holds the place of the rows the window does not render is not one of them.
+    const labels = rows(page)
+      .slice(1, -1)
+      .filter((row) => row !== "");
     expect(labels.at(-1)).toContain("Sauvegarde Sauvegarde Sauvegarde");
     expect(
       labels.findIndex((row) => row.includes("Retard de livraison des armoires")),
