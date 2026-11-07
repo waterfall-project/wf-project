@@ -19,6 +19,12 @@ inscribes ``revision_mark`` in the journal, its author the requester. A refusal 
 that raises fails the task with nothing written; a worker stopped during it leaves the database as
 it was (WF-DAT-0040, WF-ARC-0090). The locks are taken in one order: the revision, then its project.
 
+An exit of the project that marks its current revision (``exitProject``, WF-CYC-0090, #2204) asks
+the same marking, its task carrying the state aimed at and the reason (``exit_state``,
+``exit_reason`` of the request): the worker, once it has marked, exits the project in the one
+transaction of the task, the project having no current revision any more. A task that fails
+applies neither, and the project keeps its state and its revision.
+
 ``load_marking`` marks a revision of the witness at the instant it imposes, by the same
 transaction as the worker.
 """
@@ -31,8 +37,12 @@ from uuid import UUID
 from sqlalchemy import select
 
 from waterfall.core.projects.interface import (
+    ExitRequest,
+    exit_project,
+    lock_counter,
     no_background_task_running,
     set_current_revision,
+    stored_lock_version,
 )
 from waterfall.core.revisions.commands import NO_BACKGROUND_TASK_RUNNING, REVISION_DRAFT
 from waterfall.core.revisions.interface.shared import (
@@ -61,6 +71,10 @@ VERSION_NAME = "/version_name"
 REVISION = "revision_id"
 NAME = "version_name"
 DESCRIPTION = "description"
+# What it carries besides when the marking is the one of an exit of the project.
+EXIT_STATE = "exit_state"
+EXIT_REASON = "exit_reason"
+EXIT_LOCK_VERSION = "exit_lock_version"
 
 # What computes and keeps the indicators of a revision being marked, in their order: EP-10's.
 _INDICATORS: Registry[Callable[[Session, UUID], None]] = Registry()
@@ -77,13 +91,20 @@ KEPT = Kept.DESCRIPTION
 
 @dataclass(frozen=True, slots=True)
 class MarkingRequest:
-    """A marking asked for: which revision, under which name, at the counter read."""
+    """A marking asked for: which revision, under which name, at the counter read.
+
+    ``exit_state``, ``exit_reason`` and ``exit_lock_version`` (the counter of the project the chief
+    read) are those of the exit of the project that asks it, if any.
+    """
 
     project_id: UUID
     revision_id: UUID
     version_name: str
     description: str | Kept | None
     lock_version: int
+    exit_state: str | None = None
+    exit_reason: str | None = None
+    exit_lock_version: int | None = None
 
 
 def _name_taken(revision_id: UUID) -> ConflictError:
@@ -106,13 +127,25 @@ def _judge_name(session: Session, revision: Revision, version_name: str) -> None
         raise _name_taken(holder)
 
 
+def _judge_project_counter(session: Session, project_id: UUID, read: int) -> None:
+    """Refuse (412) an exit whose project was written since the chief read it (WF-IHM-0110).
+
+    The project is locked after the revision, the order of the marking; the counter is read under
+    its lock.
+    """
+    stored = lock_counter(session, project_id)
+    if stored != read:
+        raise PreconditionFailedError(STALE_LOCK_VERSION, {"expected_lock_version": stored})
+
+
 def submit_marking(session: Session, queue: TaskQueue, request: MarkingRequest, act: Act) -> UUID:
     """Judge a marking asked for, then submit its task, in the transaction of the request.
 
     Under the lock of the revision, read under it, in the order of the contract: unknown (404), a
     stale counter (412), a marked revision (409 ``revision_draft``), a background task that writes
     in the project — another marking among them — (409 ``no_background_task_running``), a name of
-    version taken (409 ``ALREADY_EXISTS``). Nothing is written then.
+    version taken (409 ``ALREADY_EXISTS``). For an exit, the counter of the project the chief read
+    is judged last, under the lock of the project (412). Nothing is written then.
     """
     project_id = request.project_id
     revision = found_revision(session, request.revision_id, project_id, lock=True)
@@ -125,7 +158,9 @@ def submit_marking(session: Session, queue: TaskQueue, request: MarkingRequest, 
     if not no_background_task_running(session, project_id):
         raise refuse(NO_BACKGROUND_TASK_RUNNING)
     _judge_name(session, revision, request.version_name)
-    payload: dict[str, str | None] = {
+    if request.exit_lock_version is not None:
+        _judge_project_counter(session, project_id, request.exit_lock_version)
+    payload: dict[str, Any] = {
         PROJECT: str(project_id),
         REVISION: str(revision.id),
         NAME: request.version_name,
@@ -133,13 +168,34 @@ def submit_marking(session: Session, queue: TaskQueue, request: MarkingRequest, 
     # An absent description stays absent from the payload, down to the write; a null one is kept.
     if not isinstance(request.description, Kept):
         payload[DESCRIPTION] = request.description
+    if request.exit_state is not None:
+        payload[EXIT_STATE] = request.exit_state
+        payload[EXIT_REASON] = request.exit_reason
+        payload[EXIT_LOCK_VERSION] = request.exit_lock_version
     return submit(session, queue, "revision_mark", act.author, payload)
 
 
 def run_marking(session: Session, payload: Mapping[str, Any], act: Act) -> None:
-    """Mark the revision a task of marking names, in the transaction of the task (the worker's)."""
+    """Mark the revision a task of marking names, in the transaction of the task (the worker's).
+
+    The exit of the project the task carries, if it does, follows the marking: refused (409), it
+    fails the task and undoes the marking with it. The counter of the project the chief read is
+    judged again before anything is written, under the lock of the project taken after the one of
+    the revision: a project written since the request is not exited on a state the chief did not
+    confirm (412, the task fails). The marking then moves the counter: the exit is judged on the
+    state, as the project stands under its lock, and on no background task but this one.
+    """
+    exit_state = payload.get(EXIT_STATE)
+    if exit_state is not None:
+        found_revision(session, UUID(payload[REVISION]), lock=True)
+        _judge_project_counter(session, UUID(payload[PROJECT]), payload[EXIT_LOCK_VERSION])
     description = payload.get(DESCRIPTION, KEPT)
     mark_revision(session, UUID(payload[REVISION]), payload[NAME], description, act)
+    if exit_state is not None:
+        project_id = UUID(payload[PROJECT])
+        counter = stored_lock_version(session, project_id)
+        request = ExitRequest(exit_state, payload.get(EXIT_REASON), counter)
+        exit_project(session, project_id, request, act)
 
 
 def mark_revision(

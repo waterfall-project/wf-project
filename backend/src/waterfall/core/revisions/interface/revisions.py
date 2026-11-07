@@ -51,6 +51,7 @@ from waterfall.core.revisions.commands import (
     TERMINAL,
     revision_commands,
 )
+from waterfall.core.revisions.interface.reference import reference_correctable
 from waterfall.core.revisions.interface.shared import (
     NOT_FOUND,
     STALE_LOCK_VERSION,
@@ -222,6 +223,7 @@ def _views(
     """
     project = project_facts(session, project_id)
     idle = no_background_task_running(session, project_id)
+    correctable = reference_correctable(session, project_id)
     kind = contributor_kind(session, project_id, viewer.user_id)
     sources = {row.source_revision_id for row in rows if row.source_revision_id is not None}
     names: dict[UUID, str | None] = {
@@ -252,7 +254,9 @@ def _views(
                     viewer.permissions,
                     kind,
                     project.state,
-                    state_of(session, row.id, row.status, no_task_running=idle),
+                    state_of(
+                        session, row.id, row.status, no_task_running=idle, correctable=correctable
+                    ),
                 )
             ),
             created_at=row.created_at,

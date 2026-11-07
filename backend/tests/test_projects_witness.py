@@ -28,7 +28,6 @@ if TYPE_CHECKING:
 
     from waterfall.platform.database import Database
 
-pytestmark = pytest.mark.requirement("WF-QUA-0040-A")
 
 PRJ_001 = UUID("01926f3a-7c00-7000-8000-000000000001")
 PRJ_002 = UUID("01926f3a-7c00-7000-8000-000000000002")
@@ -47,6 +46,7 @@ def example(name: str) -> dict[str, Any]:
     return json.loads((WITNESS / f"{name}.json").read_text(encoding="utf-8"))["value"]
 
 
+@pytest.mark.requirement("WF-QUA-0040-A")
 def test_the_witness_loads_the_local_accounts_of_its_contributors_under_its_identifiers(
     witness: Database,
 ) -> None:
@@ -68,6 +68,7 @@ def test_the_witness_loads_the_local_accounts_of_its_contributors_under_its_iden
         assert account.idp_subject == f"witness-{account.id}"
 
 
+@pytest.mark.requirement("WF-QUA-0040-A")
 def test_the_witness_loads_the_two_projects_with_their_client_the_first_moved_by_its_revision(
     witness: Database,
 ) -> None:
@@ -99,6 +100,7 @@ def test_the_witness_loads_the_two_projects_with_their_client_the_first_moved_by
     ]
 
 
+@pytest.mark.requirement("WF-QUA-0040-A")
 def test_the_projects_of_the_witness_are_read_through_the_service(
     api: ContractClient, witness: Database, realm: TestRealm
 ) -> None:
@@ -113,6 +115,7 @@ def test_the_projects_of_the_witness_are_read_through_the_service(
     assert body["meta"]["total"] == 2
 
 
+@pytest.mark.requirement("WF-CYC-0130-A")
 def test_the_transitions_of_the_witness_project_are_read_in_their_order_at_one_instant(
     api: ContractClient, witness: Database, realm: TestRealm
 ) -> None:
@@ -129,6 +132,7 @@ def test_the_transitions_of_the_witness_project_are_read_in_their_order_at_one_i
     assert body[0]["occurred_at"] == body[1]["occurred_at"]
 
 
+@pytest.mark.requirement("WF-QUA-0040-A")
 def test_a_second_loading_finds_the_projects_there_and_writes_nothing(
     witness: Database, service_database_url: str, logs: Logs
 ) -> None:

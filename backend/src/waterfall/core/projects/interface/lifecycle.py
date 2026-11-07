@@ -9,12 +9,14 @@ reference, a code — that gives the next state, its trigger and the conditions 
 of the project, which writes the state and the transition, at the instant of the transaction, its
 author the account that realised the fact (Created → Pricing, Pricing → In progress, WF-CYC-0030).
 An exit writes likewise, with its reason, and refuses a project that bears a current revision
-(WF-CYC-0090). The transitions are listed in their order (WF-CYC-0130).
+(WF-CYC-0090): one that marks it is asked of the worker, which marks then exits in the one
+transaction of its task (``revision_mark``, #2204). The transitions are listed in their order
+(WF-CYC-0130).
 
-Declared by US-0910/L1; US-0980/L1 fills it but for the designation of the reference, which
-US-0980/L2 brings (``advance`` writes the passage to In progress all the same, once the reference
-and the code are there). ``load_transitions`` stays as declared, for US-0990/L2, which imposes the
-instants of the chronology: ``load_project`` writes the first transition of each project already.
+Declared by US-0910/L1; US-0980/L1 fills it, and US-0980/L2 brings the designation of the reference
+(``lock_for_designation``, ``set_reference_revision``: the revisions judge it, the project writes
+it). ``load_transitions`` stays as declared, for US-0990/L2, which imposes the instants of the
+chronology: ``load_project`` writes the first transition of each project already.
 """
 
 from dataclasses import dataclass
@@ -92,6 +94,14 @@ class ExitRequest:
     fate: RevisionFate | None = None
     moved: int = 0
     no_task_running: bool = True
+
+
+@dataclass(frozen=True, slots=True)
+class DesignationFacts:
+    """What the designation of the reference reads of a project, under its lock."""
+
+    state: str
+    lock_version: int
 
 
 @dataclass(frozen=True, slots=True)
@@ -186,6 +196,42 @@ def _lock(session: Session, project_id: UUID) -> Project:
     return project
 
 
+def lock_for_designation(session: Session, project_id: UUID) -> DesignationFacts:
+    """Lock the row of a project for the designation of its reference, then read it; or 404.
+
+    The project is locked before its revisions are read: the designation writes both, and the
+    marking and the abandonment, which lock a current revision then the project, never lock a
+    marked one.
+    """
+    project = _lock(session, project_id)
+    return DesignationFacts(project.state, project.lock_version)
+
+
+def lock_counter(session: Session, project_id: UUID) -> int:
+    """Lock the row of a project, then give its counter as the base keeps it under the lock; or 404.
+
+    For a caller that already holds the lock of a revision of the project: the revisions lock
+    theirs first, the project after.
+    """
+    return _lock(session, project_id).lock_version
+
+
+def set_reference_revision(session: Session, project_id: UUID, revision_id: UUID, act: Act) -> None:
+    """Name the reference revision of a project locked by the caller, which may move it on.
+
+    The counter and the audit columns of the project are written; the journal is the caller's,
+    which inscribes the designation as the act on the revision. Then ``advance`` moves a Pricing
+    project to In progress if its code is entered (WF-CYC-0030), in this transaction.
+    """
+    project = session.get_one(Project, project_id)
+    project.reference_revision_id = revision_id
+    project.updated_at = act.at
+    project.updated_by = act.author
+    project.lock_version += 1
+    session.flush()
+    advance(session, project_id, "reference_designated_and_code_set", act)
+
+
 def _judge_state(project: Project, request: ExitRequest) -> None:
     """Refuse an exit for the counter, then the conditions of its command: the first two checks."""
     stored = project.lock_version - request.moved
@@ -231,9 +277,9 @@ def _judge_exit(project: Project, request: ExitRequest) -> None:
     if request.fate is None:
         required = FieldError("/current_revision", VALUE_REQUIRED)
         raise UnprocessableError(VALIDATION_FAILED, fields=(required,))
-    # A fate is given and the project still bears the revision: the caller did not abandon it.
-    # The marking is the worker's (US-0970, US-0980/L2, #2204): until it serves the exit, a
-    # project that bears a current revision cannot leave by marking it.
+    # A fate is given and the project still bears the revision: the caller did not dispose of it
+    # (the abandonment is the route's, before the exit; the marking is the worker's, which exits
+    # once it has marked), so that a project that still bears one cannot leave.
     raise ConflictError(STATE_FORBIDS_OPERATION, {"missing_condition": NO_CURRENT_REVISION})
 
 
@@ -270,12 +316,11 @@ def list_state_transitions(session: Session, project_id: UUID) -> list[Transitio
     if session.get(Project, project_id) is None:
         raise NotFoundError(NOT_FOUND)
     rows = session.scalars(
-        select(ProjectStateTransition)
-        .where(ProjectStateTransition.project_id == project_id)
-        .order_by(ProjectStateTransition.occurred_at)
+        select(ProjectStateTransition).where(ProjectStateTransition.project_id == project_id)
     )
-    # Two transitions can share an instant (the creation and the first revision of a project of the
-    # witness): the cycle only goes forward, so the state reached ranks them, never the identifier.
+    # In their order: two transitions can share an instant (the creation and the first revision of a
+    # project of the witness), and the cycle only goes forward, so the instant orders them and the
+    # state reached ranks those that share one, never the identifier.
     ranked = sorted(rows, key=lambda row: (row.occurred_at, _rank(row.to_state)))
     return [
         TransitionView(row.from_state, row.to_state, row.occurred_at, row.actor_user_id, row.reason)
