@@ -17,7 +17,7 @@ import pytest
 from access_rows import account, role
 from project_rows import insert_project
 from realm import KEY, TestRealm
-from sqlalchemy import text, update
+from sqlalchemy import event, text, update
 from sqlalchemy.dialects import postgresql
 from support import ContractClient, bearer
 
@@ -492,7 +492,19 @@ def test_the_projects_are_named_in_one_read_with_the_code_none_for_a_project_wit
     with database.transaction() as session:
         session.execute(insert_project(id=coded, code="PRJ-1", label="Un"))
         session.execute(insert_project(id=uncoded, code=None, label="Deux"))
-        assert projects_named(session, [coded, uncoded, absent]) == {
+        connection = session.connection()
+        statements: list[str] = []
+
+        def count(_conn: Any, _cursor: Any, statement: str, *_rest: Any) -> None:
+            statements.append(statement)
+
+        event.listen(connection, "before_cursor_execute", count)
+        try:
+            named = projects_named(session, [coded, uncoded, absent])
+        finally:
+            event.remove(connection, "before_cursor_execute", count)
+        assert len(statements) == 1
+        assert named == {
             coded: ("PRJ-1", "Un"),
             uncoded: (None, "Deux"),
         }

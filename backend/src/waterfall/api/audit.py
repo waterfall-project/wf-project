@@ -182,7 +182,7 @@ def _projects_today(session: Session) -> list[AuditProject]:
     A project that exists but bears no code today keeps the code of its latest inscription: the
     contract requires a code to sort on, and the inscription of a project without code is refused
     (`platform/audit.py`), so the inscription always holds one. The label, never null in the
-    project, is read as it is. All are read in one query (#2165, #2174).
+    project, is read as it is. The projects are read together, in one grouped query, not one by one.
     """
     named = journal_projects(session)
     present = projects_named(session, [project.project_id for project in named])
