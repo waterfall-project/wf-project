@@ -578,10 +578,51 @@ def test_stop_servers_fails_naming_the_process_that_survives_sigkill(
     monkeypatch.setattr(slots, "send", record)
     try:
         with pytest.raises(slots.SlotsError, match=f"Process {holder.pid} still listens"):
-            slots.stop_servers({20120}, table, grace=0.2)
+            slots.stop_servers({20120}, table, grace=0.2, settle=0.3)
         assert sent == [signal.SIGTERM, signal.SIGKILL]
     finally:
         reap(holder)
+
+
+def test_stop_servers_waits_for_a_killed_process_to_stop_listening(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """US-1300: a process that stops listening a few polls after SIGKILL does not fail the stop."""
+    sent: list[int] = []
+    polls = {"after_kill": 0}
+
+    def record(_pid: int, number: int) -> None:
+        sent.append(number)
+
+    def table(_ports: object, _proc: Path) -> dict[int, set[int]]:
+        if signal.SIGKILL not in sent:
+            return {4242: {20120}}
+        polls["after_kill"] += 1
+        return {4242: {20120}} if polls["after_kill"] <= 4 else {}
+
+    monkeypatch.setattr(slots, "send", record)
+    monkeypatch.setattr(slots, "listening_pids", table)
+    monkeypatch.setattr(slots, "POLL_SECONDS", 0.01)
+    assert slots.stop_servers({20120}, PROC, grace=0.05, settle=2.0) == [4242]
+    assert sent == [signal.SIGTERM, signal.SIGKILL]
+    assert polls["after_kill"] == 5
+
+
+def test_stop_servers_returns_at_once_when_nothing_listens(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """US-1300: with no target, no wait and a single read of the table."""
+    reads: list[int] = []
+
+    def table(_ports: object, _proc: Path) -> dict[int, set[int]]:
+        reads.append(1)
+        return {}
+
+    monkeypatch.setattr(slots, "listening_pids", table)
+    started = time.monotonic()
+    assert slots.stop_servers({20120}, PROC) == []
+    assert time.monotonic() - started < 0.05
+    assert len(reads) == 1
 
 
 def test_send_says_a_process_that_is_not_ours_is_left(

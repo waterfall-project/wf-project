@@ -67,6 +67,8 @@ RETRY_SECONDS = 1.0
 REMOVE_SECONDS = 300
 """How long ``docker compose down`` may take, the lock of the register held, before it fails."""
 GRACE_SECONDS = 5.0
+SETTLE_SECONDS = 2.0
+POLL_SECONDS = 0.1
 """How long a server may take to end on ``SIGTERM`` before it receives ``SIGKILL``."""
 ADDRESS_COLUMN, STATE_COLUMN, INODE_COLUMN = 1, 3, 9
 """The columns of ``/proc/net/tcp`` that matter: the local address, the state, the inode."""
@@ -402,6 +404,7 @@ def stop_servers(
     ports_asked: Collection[int],
     proc: Path,
     grace: float = GRACE_SECONDS,
+    settle: float = SETTLE_SECONDS,
 ) -> list[int]:
     """Stop what listens on the ports: ``SIGTERM`` by PID, ``SIGKILL`` after ``grace`` seconds.
 
@@ -412,21 +415,31 @@ def stop_servers(
         listed = ", ".join(str(port) for port in sorted(listened))
         print(f"stopping process {pid}, which listens on port {listed}")
         send(pid, signal.SIGTERM)
+    if not targets:
+        return []
     deadline = time.monotonic() + grace
-    while targets and time.monotonic() < deadline:
+    while time.monotonic() < deadline:
         if not set(listening_pids(ports_asked, proc)) & set(targets):
             return sorted(targets)
-        time.sleep(0.1)
-    for pid in sorted(set(listening_pids(ports_asked, proc)) & set(targets)):
+        time.sleep(POLL_SECONDS)
+    survivors = sorted(set(listening_pids(ports_asked, proc)) & set(targets))
+    if not survivors:
+        return sorted(targets)
+    for pid in survivors:
         print(f"process {pid} still listens after {grace:g} s: killing it (SIGKILL)")
         send(pid, signal.SIGKILL)
-    time.sleep(0.1)
-    left = sorted(set(listening_pids(ports_asked, proc)) & set(targets))
-    if left:
-        named = ", ".join(str(pid) for pid in left)
-        message = f"Process {named} still listens after SIGKILL: the servers are not stopped."
-        raise SlotsError(message)
-    return sorted(targets)
+    # The kernel closes the descriptors after freeing the memory: a heavy process takes a moment.
+    deadline = time.monotonic() + settle
+    while True:
+        left = sorted(set(listening_pids(ports_asked, proc)) & set(targets))
+        if not left:
+            return sorted(targets)
+        if time.monotonic() >= deadline:
+            break
+        time.sleep(POLL_SECONDS)
+    named = ", ".join(str(pid) for pid in left)
+    message = f"Process {named} still listens after SIGKILL: the servers are not stopped."
+    raise SlotsError(message)
 
 
 def send(pid: int, number: int) -> None:
