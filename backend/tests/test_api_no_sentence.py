@@ -85,9 +85,11 @@ DATA = {
     # What the parameters of a refusal name, by the label and the code a person gave it: a role, a
     # project, a task, a line and its structure, a subproject, a risk, and the labels of a column of
     # the extraction of actual costs, as the mapping declares them (``ProblemParams``, #768; the
-    # risk, US-0702/L2).
+    # risk, US-0702/L2; the cost category, review of 2026-10-31, C-04).
     "ProblemResourceRole.code": "a code",
     "ProblemResourceRole.label": "a label",
+    "ProblemCostCategory.code": "a code",
+    "ProblemCostCategory.label": "a label",
     "ProblemProject.project_label": "a label",
     "ProblemProject.project_code": "a code",
     "ProblemTask.label": "a label",
