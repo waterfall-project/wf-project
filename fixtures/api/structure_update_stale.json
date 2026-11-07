@@ -1,0 +1,10 @@
+{
+  "summary": "Le libellé du différentiel « Avenant 2 — reprise des essais » envoyé avec le compteur 1, quand la structure porte 2 — une saisie l'a écrite depuis la lecture de l'écran — : refusé, le compteur courant rendu, et rien n'est écrit ; l'écran propose de relire (WF-IHM-0110).",
+  "description": "Exemple engendré par `make mock-data` (`wftools.mockdata`) : il ne se retouche pas.",
+  "value": {
+    "code": "STALE_LOCK_VERSION",
+    "status": 412,
+    "params": {"expected_lock_version":2},
+    "correlation_id": "01926f3a-7c00-7000-8000-000000001954"
+  }
+}

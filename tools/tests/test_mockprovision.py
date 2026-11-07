@@ -581,8 +581,8 @@ def test_the_undo_that_would_restore_a_deleted_subproject_is_refused_by_its_cond
     for operation, verb in (("undoLastChange", "undoes"), ("redoLastUndo", "redoes")):
         said = _flat(_block(operation, "409"))
         assert "`restored_subproject_exists`" in said, operation
-        assert f"whose creation, modification or deletion it {verb}" in said
-        assert "modification or deletion" in said, operation
+        assert f"whose creation, change of provision or deletion it {verb}" in said
+        assert "change of provision or deletion" in said, operation
         assert "the deletion of a line or of a task" in said, operation
 
 

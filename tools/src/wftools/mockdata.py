@@ -111,6 +111,7 @@ from wftools import (
     mockreference,
     mockrefusals,
     mockreview,
+    mockrevisionminors,
     mockriskwrites,
     mocksnapshot,
     mocksort,
@@ -341,6 +342,7 @@ def named() -> dict[str, JsonObject]:
         **mockrefusals.examples(),
         **mockdeclared.examples(),
         **mockreview.examples(),
+        **mockrevisionminors.examples(),
         **mockchronology.examples(),
     }
 
@@ -555,7 +557,7 @@ def readings() -> dict[str, JsonObject]:
             f"commande n'est pas saisie : le lotissement par défaut, un lot comprenant un poste "
             f"sans livrable, qui portent le libellé du projet (WF-PRJ-0020), que rien n'a encore "
             f"écrit, et qu'aucune tâche ne porte : sa révision n'en a pas.",
-            mocklists.breakdown_reading(DEFAULT_BREAKDOWN, 0),
+            mocklists.breakdown_reading(DEFAULT_BREAKDOWN, 1),
         ),
         "timelines_empty.json": _example(
             f"Un projet qui n'a encore aucune chronologie nommée, le {day} : la liste est vide, "
