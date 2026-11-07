@@ -34,7 +34,9 @@ test("gives the grids of an account their defaults back, whatever a path set, an
       headers: { Authorization: `Bearer ${await frontToken(browser, holder)}` },
     });
     const start = (await before.json()) as components["schemas"]["UserSelf"];
-    expect(start.display_preferences?.language, "a new account is not yet in English").not.toBe("en");
+    expect(start.display_preferences?.language, "a new account is not yet in English").not.toBe(
+      "en",
+    );
     const written: components["schemas"]["DisplayPreferences"] = {
       language: "en",
       grids: {
