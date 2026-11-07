@@ -1258,7 +1258,7 @@ et `fixtures/api/` restent les exemples du contrat.
 
 ## US-0900 — Les écrans du référentiel branchés sur le service, et les usages du manager
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-INTF-0020-A`, `WF-ADM-0020-A`
 - **opérations** : toutes celles de `reference`, lues par les cinq écrans
 - **issue** : 2044
@@ -1301,6 +1301,9 @@ contre le service et constate que #512 est soldé — l'avis retiré partout, le
 le service. Un manque que le branchement révèle — un refus que
 l'écran ne dit pas, un exemple qui ne vaut pas contre le service — devient une issue, tranchée
 selon le README ; un manque du contrat, une « Interface contract issue », le contrat étant figé.
+Tant que l'amorçage ne donne pas `risk_settings.write` et `indicator_settings.write` au « Manager »,
+le compte du premier parcours porte aussi un rôle de parcours des risques et indicateurs (#2187) ;
+le Vérif et les critères ne changent pas.
 
 **Hors périmètre.** Les vues du portefeuille et le projet non contributeur (EP-11) ; les écrans
 hors du référentiel.
