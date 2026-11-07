@@ -191,6 +191,35 @@ def test_an_exit_whose_marking_fails_applies_nothing_and_can_be_asked_again(
     assert written(database, stage)[0] == "abandoned"
 
 
+@pytest.mark.requirement("WF-IHM-0110-A")
+@pytest.mark.requirement("WF-CYC-0090-A")
+def test_a_project_written_between_the_request_and_the_worker_does_not_exit(
+    api: ContractClient, stage: Scene, worker: Worker, database: Database
+) -> None:
+    # « le projet a été écrit depuis sa lecture, il ne sort pas » (412): the counter the chief read
+    # is judged again by the worker, under the lock of the project; the task fails, nothing is
+    # written, the revision stays current and unmarked.
+    open_revision(api, stage)
+    asked = leave(api, stage)
+    assert asked.status_code == 202, asked.text
+    renamed = api.patch(
+        f"{PROJECTS}/{stage.project['project_id']}",
+        headers=stage.manager.headers,
+        json={
+            "label": "Renommé entre-temps",
+            "lock_version": project_of(api, stage)["lock_version"],
+        },
+    )
+    assert renamed.status_code == 200, renamed.text
+    before = written(database, stage)
+    assert worker.step()
+    task = api.get(f"/api/v1/tasks/{asked.json()['task_id']}", headers=stage.manager.headers).json()
+    assert (task["status"], task["problem"]["code"]) == ("failed", "STALE_LOCK_VERSION")
+    assert written(database, stage) == before
+    state, current, _, statuses = before
+    assert (state, current is not None, statuses) == ("pricing", True, ["draft"])
+
+
 @pytest.mark.requirement("WF-REV-0020-A")
 def test_an_exit_naming_a_version_a_marked_revision_bears_is_refused_where_it_is_named(
     api: ContractClient, stage: Scene, worker: Worker, database: Database
@@ -239,3 +268,26 @@ def test_an_exit_marking_the_revision_asks_for_the_permission_to_mark_one(
     answer = api.post(f"{path}/exit", headers=chief.headers, json=body)
     assert (answer.status_code, answer.json()["code"]) == (403, "PERMISSION_MISSING")
     assert api.get(path, headers=chief.headers).json()["state"] == "pricing"
+
+
+@pytest.mark.requirement("WF-CYC-0090-A")
+@pytest.mark.requirement("WF-ADM-0100-A")
+def test_an_exit_marking_asks_for_the_permission_even_without_a_current_revision(
+    api: ContractClient, stage: Scene, realm: TestRealm
+) -> None:
+    # The mirror of the abandonment: the fate ``mark`` is judged on the permission to mark a
+    # revision whether the project bears one or not.
+    chief = person(
+        stage.database, realm, *(each for each in MANAGING if each != "revision_mark"), name="Zoé"
+    )
+    project = create(api, chief, label="Sans révision")
+    path = f"{PROJECTS}/{project['project_id']}"
+    body = {
+        "to_state": "abandoned",
+        "confirmed": True,
+        "lock_version": api.get(path, headers=chief.headers).json()["lock_version"],
+        "current_revision": MARKING,
+    }
+    answer = api.post(f"{path}/exit", headers=chief.headers, json=body)
+    assert (answer.status_code, answer.json()["code"]) == (403, "PERMISSION_MISSING")
+    assert api.get(path, headers=chief.headers).json()["state"] == "created"

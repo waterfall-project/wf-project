@@ -215,6 +215,7 @@ def post_exit(
                 revision.lock_version,
                 exit_state=request.to_state,
                 exit_reason=request.reason,
+                exit_lock_version=read,
             )
             return _marking_exit(session, services.queue, marking, act)
         except NotFoundError:

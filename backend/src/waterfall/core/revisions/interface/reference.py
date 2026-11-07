@@ -8,9 +8,8 @@ bear tasks and lines (``revision_has_tasks_and_lines``, WF-CYC-0030), a question
 of those of the planning and of the estimate, which EP-06 and EP-07 register
 (``register_tasks_and_lines``): always false until then.
 
-The moment of the last designation is the moment the reference revision was last written: a marked
-revision is written by its designation alone (the trigger of the base admits that, and its
-counter and audit).
+The moment of the last designation is the one of its last inscription in the journal, taken under
+the lock of the project, so that a marking validated meanwhile is judged against it.
 
 The designation locks the project, then reads and writes the revisions it names, all marked: the
 marking and the abandonment lock a current revision, then the project, and never a marked
@@ -22,9 +21,10 @@ the new one, the project, and ``reference_designate`` in the journal; the projec
 progress if its code is entered (``set_reference_revision``).
 """
 
+from dataclasses import replace
 from typing import TYPE_CHECKING
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 
 from waterfall.core.projects.interface import (
     lock_for_designation,
@@ -45,6 +45,8 @@ from waterfall.core.revisions.interface.shared import (
 )
 from waterfall.core.revisions.registry import Registry
 from waterfall.core.revisions.tables import Revision
+from waterfall.platform.audit import Act, AuditEntry
+from waterfall.platform.database import utc_now
 from waterfall.platform.errors import PreconditionFailedError
 
 if TYPE_CHECKING:
@@ -53,8 +55,6 @@ if TYPE_CHECKING:
 
     from sqlalchemy.orm import Session
 
-    from waterfall.platform.audit import Act
-
 # The questions a revision answers to bear tasks and lines: EP-06 its tasks, EP-07 its lines.
 _TASKS_AND_LINES: Registry[Callable[[Session, UUID], bool]] = Registry()
 
@@ -62,12 +62,15 @@ _TASKS_AND_LINES: Registry[Callable[[Session, UUID], bool]] = Registry()
 def reference_correctable(session: Session, project_id: UUID) -> bool:
     """Tell whether the reference of a project is still correctable (WF-REV-0040).
 
-    It is while the project has none, or while no revision was marked since the last designation.
-    The actual costs, which also close it, are EP-09's.
+    It is while the project has none, or while no revision was marked since the last designation,
+    the moment of which is the last inscription ``reference_designate`` of the journal for the
+    project (the revision it names is one of the project's; a project without a code is not named
+    by the journal). The actual costs, which also close it, are EP-09's.
     """
     designated_at = session.scalar(
-        select(Revision.updated_at).where(
-            Revision.project_id == project_id, Revision.is_reference.is_(True)
+        select(func.max(AuditEntry.occurred_at)).where(
+            AuditEntry.action == "reference_designate",
+            AuditEntry.object_id.in_(select(Revision.id).where(Revision.project_id == project_id)),
         )
     )
     if designated_at is None:
@@ -96,9 +99,12 @@ def designate_reference(
 ) -> None:
     """Designate a marked revision reference of its project (``designateReferenceRevision``).
 
-    Judged under the lock of the project, at the counter read; nothing is written if refused.
+    Judged under the lock of the project, at the counter read; nothing is written if refused. The
+    revision that is the reference already is designated again without a write: no counter, no
+    inscription, no transition. The moment of the designation is taken under the lock.
     """
     project = lock_for_designation(session, project_id)
+    act = replace(act, at=utc_now())
     target = found_revision(session, revision_id, project_id, lock=False)
     if project.lock_version != lock_version:
         raise PreconditionFailedError(
@@ -115,6 +121,8 @@ def designate_reference(
     lacking = revision_conditions("designate_reference", state)
     if lacking:
         raise refuse(lacking[0])
+    if target.is_reference:
+        return
     # Marked, both: nothing but their designation writes them, and no marking locks them.
     previous = session.scalars(
         select(Revision)

@@ -207,11 +207,21 @@ def lock_for_designation(session: Session, project_id: UUID) -> DesignationFacts
     return DesignationFacts(project.state, project.lock_version)
 
 
+def lock_counter(session: Session, project_id: UUID) -> int:
+    """Lock the row of a project, then give its counter as the base keeps it under the lock; or 404.
+
+    For a caller that already holds the lock of a revision of the project: the revisions lock
+    theirs first, the project after.
+    """
+    return _lock(session, project_id).lock_version
+
+
 def set_reference_revision(session: Session, project_id: UUID, revision_id: UUID, act: Act) -> None:
     """Name the reference revision of a project locked by the caller, which may move it on.
 
-    The counter and the audit of the project are written; then ``advance`` moves a Pricing project
-    to In progress if its code is entered (WF-CYC-0030), in this transaction.
+    The counter and the audit columns of the project are written; the journal is the caller's,
+    which inscribes the designation as the act on the revision. Then ``advance`` moves a Pricing
+    project to In progress if its code is entered (WF-CYC-0030), in this transaction.
     """
     project = session.get_one(Project, project_id)
     project.reference_revision_id = revision_id

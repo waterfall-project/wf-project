@@ -14,32 +14,63 @@ from typing import TYPE_CHECKING, Any
 from uuid import UUID, uuid4
 
 import pytest
+from fastapi.testclient import TestClient
 from projects_support import MANAGING, PROJECTS, Scene, create, person, put_in_state
 from projects_support import scene as make_scene
 from sqlalchemy import select
 from sqlalchemy.orm import Session
-from support import wait_for_a_lock
+from support import ContractClient, nowhere, wait_for_a_lock
 
+from waterfall.api.app import create_app
+from waterfall.api.authentication import Services
 from waterfall.core.projects.tables import Project, ProjectStateTransition
 from waterfall.core.revisions.interface import mark_revision, register_tasks_and_lines
 from waterfall.core.revisions.tables import Revision
 from waterfall.platform.audit import Act, AuditEntry
 from waterfall.platform.database import utc_now
+from waterfall.platform.keycloak_admin import KeycloakAdmin
 from waterfall.platform.logs import logging_context
 from waterfall.platform.tasks import PROJECT, submit
+from waterfall.worker.marking import mark as run_mark
+from waterfall.worker.runner import Timing, Worker
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
 
+    from openapi_core import OpenAPI
     from realm import TestRealm
     from sqlalchemy import Engine
-    from support import ContractClient
 
     from waterfall.platform.database import Database
+    from waterfall.platform.keycloak import Keycloak
     from waterfall.platform.queue import TaskQueue
+    from waterfall.platform.settings import ServiceSettings
 
 EARLY = datetime(2026, 2, 1, 9, 0, tzinfo=UTC)
 STATE_FORBIDS = "STATE_FORBIDS_OPERATION"
+AT_ONCE = Timing(claim_after=0, block=0.01, redeposit_every=0)
+
+
+@pytest.fixture
+def api(
+    contract: OpenAPI,
+    database: Database,
+    keycloak: Keycloak,
+    realm_settings: ServiceSettings,
+    queue: TaskQueue,
+) -> ContractClient:
+    """Give a client of the application that deposits its tasks in the queue of the test."""
+    administration = KeycloakAdmin(keycloak, realm_settings)
+    _, bucket = nowhere()
+    app = create_app(Services(database, keycloak, administration, queue, bucket))
+    return ContractClient(TestClient(app, raise_server_exceptions=False), contract)
+
+
+@pytest.fixture
+def worker(database: Database, queue: TaskQueue) -> Worker:
+    """Give a worker on the queue of the test that runs the markings, by the platform's handler."""
+    queue.prepare()
+    return Worker(database, queue, {"revision_mark": run_mark}, "worker", AT_ONCE)
 
 
 @pytest.fixture
@@ -308,6 +339,52 @@ def test_a_revision_marked_since_the_designation_closes_the_correction(
 
 @pytest.mark.requirement("WF-REV-0040-A")
 @pytest.mark.usefixtures("lines")
+def test_a_revision_marked_by_the_worker_after_the_designation_closes_the_correction(
+    api: ContractClient, stage: Scene, worker: Worker
+) -> None:
+    # The same, by the real path and the real clock: designate, open a revision, have the worker
+    # mark it (``markRevision``), and the designation of the first one is refused.
+    first = marked(api, stage, "v1.0")
+    assert designate(api, stage, first["revision_id"]).status_code == 200
+    opened = open_revision(api, stage)
+    asked = api.post(
+        f"{project_path(stage)}/revisions/{opened['revision_id']}/mark",
+        headers=stage.manager.headers,
+        json={"version_name": "v2.0", "lock_version": opened["lock_version"]},
+    )
+    assert asked.status_code == 202, asked.text
+    assert worker.step()
+    second = read(api, stage, opened["revision_id"])
+    assert second["status"] == "marked"
+    assert missing(second)["designate_reference"] == ["reference_correctable"]
+    answer = designate(api, stage, second["revision_id"])
+    assert refusal(answer) == (409, STATE_FORBIDS, {"missing_condition": "reference_correctable"})
+    assert references(stage) == ["v1.0"]
+
+
+@pytest.mark.requirement("WF-REV-0040-A")
+@pytest.mark.usefixtures("lines")
+def test_designating_the_reference_again_answers_without_writing(
+    api: ContractClient, stage: Scene
+) -> None:
+    # Choice of the service, the contract being silent: the revision that is the reference already
+    # is designated again as 200 and the project, and nothing is written (counter, journal,
+    # revision, transition).
+    revision = marked(api, stage, "v1.0")
+    assert designate(api, stage, revision["revision_id"]).status_code == 200
+    project_before = project_row(stage)
+    entries = len(journal(stage))
+    revision_before = read(api, stage, revision["revision_id"])
+    again = designate(api, stage, revision["revision_id"])
+    assert again.status_code == 200, again.text
+    assert again.json()["reference_revision_id"] == revision["revision_id"]
+    assert project_row(stage) == project_before
+    assert len(journal(stage)) == entries
+    assert read(api, stage, revision["revision_id"]) == revision_before
+
+
+@pytest.mark.requirement("WF-REV-0040-A")
+@pytest.mark.usefixtures("lines")
 def test_a_reference_designated_by_mistake_is_corrected_and_stays_alone(
     api: ContractClient, stage: Scene
 ) -> None:
@@ -345,6 +422,9 @@ def test_the_designation_is_refused_unconfirmed_unknown_or_at_a_stale_counter(
     assert unknown.status_code == 404
     stale = designate(api, stage, revision["revision_id"], lock_version=before[2] + 1)
     assert refusal(stale) == (412, "STALE_LOCK_VERSION", {"expected_lock_version": before[2]})
+    # The revision unknown is told before the counter read (404, then 412).
+    both = designate(api, stage, str(uuid4()), lock_version=before[2] + 1)
+    assert both.status_code == 404
     assert project_row(stage) == before
     assert references(stage) == []
 

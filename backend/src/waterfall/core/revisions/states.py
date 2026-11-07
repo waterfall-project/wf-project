@@ -47,7 +47,7 @@ def state_of(
     status: str,
     *,
     no_task_running: bool,
-    correctable: bool = True,
+    correctable: bool,
 ) -> RevisionState:
     """Give the state of a revision whose status, and its project's facts, are read.
 

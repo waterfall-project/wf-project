@@ -706,8 +706,8 @@ projet qu'on ne peut pas consulter n'existe pas pour l'appelant (#754).
 - `WF-ARC-0070-A` — « Un appel direct à l'API qui tente de modifier une révision marquée, un
   projet terminal, ou un projet dont l'utilisateur n'est pas contributeur est refusé, alors même
   que le front n'en propose pas l'action. » : par le service, sur chaque écriture du projet et de
-  ses révisions que cet EPIC sert — 403 `NOT_CONTRIBUTOR`, 403 `PROJECT_TERMINAL`, 409
-  `STATE_FORBIDS_OPERATION` sur une révision marquée — ; les grilles sont d'EP-06 et d'EP-07 ;
+  ses révisions que cet EPIC sert — 403 `NOT_CONTRIBUTOR`, 409 `STATE_FORBIDS_OPERATION` sur un projet terminal
+  (`project_not_terminal`) et sur une révision marquée — ; les grilles sont d'EP-06 et d'EP-07 ;
 - écart : `WF-ARC-0070-A` — « Un indicateur affiché est identique à celui que l'API renvoie pour
   la même date et le même périmètre. » : les indicateurs sont d'EP-10, qui clôt ;
 - propre à l'US : les tables `project`, `project_state_transition`, `contributor`, `subproject`,
@@ -1320,8 +1320,8 @@ case à cocher.
   révision marquée depuis la dernière désignation, et refusée au-delà. » : la commande
   `designate_reference` d'une révision marquée, `reference_correctable` manquante dès qu'une
   révision a été marquée depuis la dernière désignation, et le refus 409
-  `STATE_FORBIDS_OPERATION`, `reference_correctable` manquante (J-01, #1797) ; les coûts réels sont d'EP-09 ; la désignation elle-même se constate autour du service
-  (EP-08 clôt) ;
+  `STATE_FORBIDS_OPERATION`, `reference_correctable` manquante (J-01, #1797) ; les coûts réels
+  sont d'EP-09 ; la désignation elle-même se constate autour du service (EP-08 clôt) ;
 - écart : `WF-REV-0040-A` — « Un projet dont les offres v2 puis v3 sont marquées, et dont v2 a été
   désignée par erreur, accepte la désignation de v3 tant qu'il n'a reçu aucun coût réel. » :
   EP-09 et EP-08 ;

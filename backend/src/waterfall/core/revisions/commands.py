@@ -75,7 +75,7 @@ class RevisionState:
     marked: bool
     no_task_running: bool
     has_tasks_and_lines: bool
-    reference_correctable: bool = True
+    reference_correctable: bool
 
 
 def quality_conditions(kind: str | None, *, manager: bool) -> list[str]:

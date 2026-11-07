@@ -28,7 +28,6 @@ from waterfall.core.projects.tables import Project, ProjectStateTransition
 from waterfall.core.revisions.interface import revisions as revisions_core
 from waterfall.core.revisions.tables import Revision
 from waterfall.platform.audit import Act, AuditEntry
-from waterfall.platform.errors import NotFoundError
 from waterfall.platform.identifiers import new_id
 
 if TYPE_CHECKING:
@@ -644,17 +643,22 @@ def test_an_exit_abandoning_the_revision_asks_for_the_permission_to_abandon_one(
 
 @pytest.mark.requirement("WF-CYC-0090-A")
 def test_an_exit_whose_revision_is_not_found_without_the_counter_moving_stays_a_404(
-    api: ContractClient, stage: Scene, monkeypatch: pytest.MonkeyPatch
+    api: ContractClient, stage: Scene
 ) -> None:
-    # A revision out of the reach of the reader is a 404, not the 412 of an exit that lost the
-    # race: the counter of the project is the one read, nothing moved it.
-    open_revision(api, stage)
+    # A current revision that is no revision of the project (the base only demands that it exist)
+    # is a 404, not the 412 of an exit that lost the race: the counter of the project is the one
+    # read, nothing moved it.
+    other = create(api, stage.manager, label="Autre projet")
+    foreign = api.post(
+        f"{PROJECTS}/{other['project_id']}/revisions", headers=stage.manager.headers, json={}
+    ).json()
+    put_in_state(
+        stage.owner,
+        stage.project["project_id"],
+        PRICING,
+        current_revision_id=UUID(foreign["revision_id"]),
+    )
     before = state_in_the_base(stage)
-
-    def unknown(*_arguments: object) -> None:
-        raise NotFoundError(NOT_FOUND)
-
-    monkeypatch.setattr(lifecycle_api, "read_revision", unknown)
     for fate in (ABANDONING, MARKING):
         answer = leave(api, stage, "abandoned", current_revision=fate)
         assert refusal(answer)[:2] == (404, "NOT_FOUND")
