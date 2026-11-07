@@ -3762,6 +3762,16 @@ fichiers importent ne se déclare qu'une fois par worker, pour le premier de ses
 parcours dont l'assertion diffère entre les deux — une écriture que le faux back ne garde pas — lit
 `inService`.
 
+Ce qu'un parcours étiqueté ne rejoue pas encore contre le service se saute par `inService`
+(`test.skip(inService, …)`), et s'inscrit ici, chaque entrée nommant l'EPIC qui la lève ; cet EPIC
+retire la garde et son entrée :
+
+- `revisions.spec.ts` — la révision en cours et ses parties, et la comparaison, de la volumétrie
+  comprise, et « Écarts seulement » (`BEFORE_EP07`) : levée par **EP-07**, qui sert la comparaison
+  (`compareRevisions`) et la mise à jour des taux (`getRateUpdateProposal`), que l'écran d'une
+  révision en cours lit et sans laquelle il est introuvable ; les révisions marquées comparées
+  viennent d'US-0970 (EP-04). L'historique, lui, se joue contre le service dès US-0960.
+
 Une limite des parcours contre le service : Prism, en mandataire du contrat, lit tout corps comme
 du texte et altère les corps binaires — chaque octet au-delà de `0x7f` d'une requête ou d'une
 réponse `application/octet-stream` devient U+FFFD (#973, #1025). Les parcours n'éprouvent donc ni
