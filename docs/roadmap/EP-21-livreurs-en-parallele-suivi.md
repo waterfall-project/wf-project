@@ -544,7 +544,7 @@ variable en position de mot de commande — reste une limite connue, et n'entre 
 
 ## US-1320 — La chaîne attrape ce que la file a attrapé tard
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : aucune — outil du dépôt
 - **opérations** : aucune
 - **issue** : #2252

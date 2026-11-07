@@ -250,7 +250,7 @@ service-up: ## Start the service platform: PostgreSQL, Redis, the migrations, th
 		|| { rc=$$?; $(COMPOSE_SERVICE) logs --no-color --no-log-prefix postgres-volume >&2; exit $$rc; }
 	@$(MAKE) --no-print-directory keycloak-authority
 	@$(COMPOSE_SERVICE) up --detach --wait --force-recreate --no-deps keycloak-realm
-	@$(COMPOSE_SERVICE) up --detach --wait restore
+	@$(COMPOSE_SERVICE) up --build --detach --wait restore
 
 # The bootstrap of the platform (US-0420), once its realm is applied: the link of the first
 # administrator on the standard output, alone — its image built quietly first, and no terminal,
