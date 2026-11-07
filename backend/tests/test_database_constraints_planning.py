@@ -302,6 +302,8 @@ REFUSALS: list[Refusal] = [
     (ImportReport, {"status": "analysed"}, "ck_import_report_expires_at_when_analysed"),
     (ImportReport, {"expires_at": AT}, "ck_import_report_expires_at_when_analysed"),
     (ImportReport, {"report": []}, "ck_import_report_report_object"),
+    (ImportReport, {"filename": ""}, "ck_import_report_filename_length"),
+    (ImportReport, {"filename": "x" * 256}, "ck_import_report_filename_length"),
     (ImportReport, {"upload_id": TAKEN}, "uq_import_report_upload_id"),
     (ImportReport, {"project_id": uuid4()}, "fk_import_report_project_id_project"),
     (ImportReport, {"requested_by": uuid4()}, "fk_import_report_requested_by_user_account"),

@@ -45,6 +45,8 @@ class ImportReport(Base):
     __table_args__ = (
         CheckConstraint(_in("kind", EXCHANGE_KINDS), name="kind_known"),
         CheckConstraint(_in("status", IMPORT_STATUSES), name="status_known"),
+        # The name of the file deposited, bounded as the deposit bounds it (``file_upload``).
+        CheckConstraint("char_length(filename) BETWEEN 1 AND 255", name="filename_length"),
         CheckConstraint(
             f"(expires_at IS NOT NULL) = ({_in('status', EXPIRING)})",
             name="expires_at_when_analysed",

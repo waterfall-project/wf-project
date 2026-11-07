@@ -601,6 +601,7 @@ def _imports() -> None:
         sa.CheckConstraint(
             "report IS NULL OR jsonb_typeof(report) = 'object'", name="report_object"
         ),
+        sa.CheckConstraint("char_length(filename) BETWEEN 1 AND 255", name="filename_length"),
         sa.UniqueConstraint("upload_id"),
     )
     op.create_index(None, "import_report", ["project_id"])
