@@ -1,7 +1,7 @@
 ---
 id: EP-04
 titre: Créer un projet, en figer des versions, et le mener d'un état à l'autre
-statut: en cours
+statut: livré
 depend_de: EP-05
 famille: front, back
 issue: 2051
