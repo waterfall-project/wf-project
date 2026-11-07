@@ -25,6 +25,8 @@ from projects_support import scene as make_scene
 from sqlalchemy import event
 
 from waterfall.core.access_roles.predefined import PROJECT_MANAGER
+from waterfall.platform.logs import logging_context
+from waterfall.platform.tasks import submit
 
 if TYPE_CHECKING:
     from realm import TestRealm
@@ -32,6 +34,7 @@ if TYPE_CHECKING:
     from support import ContractClient
 
     from waterfall.platform.database import Database
+    from waterfall.platform.queue import TaskQueue
 
 STATES = ["created", "pricing", "in_progress", "completed", "lost", "abandoned"]
 EVERY_STATE = f"states={','.join(STATES)}"
@@ -313,10 +316,11 @@ def _statements(stage: Scene, api: ContractClient) -> int:
     return len(sent)
 
 
-@pytest.mark.requirement("WF-CYC-0010-A")
 def test_the_list_sends_as_many_statements_to_the_database_for_n_projects_as_for_twice_as_many(
     api: ContractClient, stage: Scene
 ) -> None:
+    # A criterion of the story's own, which reprises no Vérif (the lists have no requirement of
+    # performance): the pending tasks are read in one statement, not one per project.
     for number in range(2):
         create(api, stage.manager, label=f"Projet {number}")
     small = _statements(stage, api)
@@ -324,3 +328,32 @@ def test_the_list_sends_as_many_statements_to_the_database_for_n_projects_as_for
         create(api, stage.manager, label=f"Projet {number}")
     assert len(listed(api, stage.manager, EVERY_STATE)["items"]) == 7
     assert _statements(stage, api) == small
+
+
+def test_a_project_with_a_marking_queued_lacks_the_condition_of_no_task_and_another_does_not(
+    api: ContractClient, stage: Scene, database: Database, queue: TaskQueue
+) -> None:
+    # A criterion of the story's own, which reprises no Vérif: the list names, for the project a
+    # marking aims at, the missing ``no_background_task_running`` on ``abandon`` (which it guards;
+    # ``create_revision`` does not), and for another project, nothing.
+    other = create(api, stage.manager, label="Autre projet")
+    payload = {
+        "project_id": stage.project["project_id"],
+        "revision_id": str(UUID(int=1)),
+        "version_name": "v1.0",
+        "description": None,
+    }
+    with logging_context(correlation_id="queued-around"), database.transaction() as session:
+        submit(session, queue, "revision_mark", stage.manager.user_id, payload)
+    items = {item["project_id"]: item for item in listed(api, stage.manager, EVERY_STATE)["items"]}
+
+    def missing(project: dict[str, Any]) -> list[str]:
+        [command] = [
+            each
+            for each in items[project["project_id"]]["available_commands"]
+            if each["command"] == "abandon"
+        ]
+        return command["missing_conditions"]
+
+    assert "no_background_task_running" in missing(stage.project)
+    assert "no_background_task_running" not in missing(other)
