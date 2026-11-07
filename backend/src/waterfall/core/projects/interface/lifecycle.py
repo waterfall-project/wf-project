@@ -15,8 +15,8 @@ transaction of its task (``revision_mark``, #2204). The transitions are listed i
 
 Declared by US-0910/L1; US-0980/L1 fills it, and US-0980/L2 brings the designation of the reference
 (``lock_for_designation``, ``set_reference_revision``: the revisions judge it, the project writes
-it). ``load_transitions`` stays as declared, for US-0990/L2, which imposes the instants of the
-chronology: ``load_project`` writes the first transition of each project already.
+it). The witness has no function of its own for the transitions: the creation, the opening of a
+revision and the code entered write them, at the instant of the chronology their ``Act`` imposes.
 """
 
 from dataclasses import dataclass, replace
@@ -338,12 +338,6 @@ def list_state_transitions(session: Session, project_id: UUID) -> list[Transitio
         TransitionView(row.from_state, row.to_state, row.occurred_at, row.actor_user_id, row.reason)
         for row in ranked
     ]
-
-
-def load_transitions(session: Session, project_id: UUID, act: Act) -> None:
-    """Write the transitions of a project of the witness, at the instants it imposes."""
-    msg = "load_transitions is filled by US-0990/L2"
-    raise NotImplementedError(msg)
 
 
 def no_background_task_running(session: Session, project_id: UUID) -> bool:

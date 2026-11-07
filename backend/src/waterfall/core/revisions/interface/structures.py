@@ -14,7 +14,8 @@ entered (``updateCostStructure``), and the structure that started the lineage is
 the revision it was created in was marked, since a copy takes up only a marked revision's. Were it
 missing, the structure would start on the day of its own creation rather than vanish from its list.
 
-Filled by US-0960; ``load_cost_structures``, the structures the witness imposes, by US-0990/L2.
+Filled by US-0960. The witness loads no structure of its own: the main one is born with its
+revision, the others are EP-06's and EP-07's.
 """
 
 from dataclasses import dataclass
@@ -181,9 +182,3 @@ def structure_commands(
         if view.structure_id == structure_id:
             return view.commands
     raise NotFoundError(NOT_FOUND)
-
-
-def load_cost_structures(session: Session, project_id: UUID, revision_id: UUID, act: Act) -> None:
-    """Write the structures of a revision of the witness, as it imposes them."""
-    msg = "load_cost_structures is filled by US-0990/L2"
-    raise NotImplementedError(msg)
