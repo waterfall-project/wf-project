@@ -3773,8 +3773,8 @@ aucune liste de fichiers ne le nomme.
 Chaque US étiquette ses parcours quand le service sert son écran. Contre le faux back, `test` ne
 change rien : le faux back accorde la session. Avec `WATERFALL_API_ADDRESS`, `inService` est vrai,
 et deux fixtures de `mode.ts` font ce qu'un fichier de `frontend/e2e/service/` demande par ses
-crochets : chaque worker obtient une fois un compte local de la course qui porte le rôle prédéfini
-« Manager », que crée l'administrateur de l'installation (`accountAdministrator`, `localAccount`),
+crochets : chaque worker obtient une fois un compte local de la course qui porte les rôles prédéfinis
+« Manager » et « Chef de projet » (US-0970), que crée l'administrateur de l'installation (`accountAdministrator`, `localAccount`),
 et chaque parcours se connecte d'abord avec lui (`signIn`, sur `/account`), puis se tient au
 contrat, comme `heldToTheContract()` y tient un fichier (`startReading`, `expectNothingRefused`,
 `contract.ts`). Des fixtures plutôt que des crochets : un crochet déclaré dans un module que les
@@ -3788,9 +3788,21 @@ retire la garde et son entrée :
 
 - `revisions.spec.ts` — la révision en cours et ses parties, et la comparaison, de la volumétrie
   comprise, et « Écarts seulement » (`BEFORE_EP07`) : levée par **EP-07**, qui sert la comparaison
-  (`compareRevisions`) et la mise à jour des taux (`getRateUpdateProposal`), que l'écran d'une
-  révision en cours lit et sans laquelle il est introuvable ; les révisions marquées comparées
-  viennent d'US-0970 (EP-04). L'historique, lui, se joue contre le service dès US-0960.
+  (`compareRevisions`) et la mise à jour des taux (`getRateUpdateProposal`). L'écran d'une révision
+  en cours lit la proposition par `readUnlessRefused` et se rend sans elle sur le 404 du service
+  (#2173), ses commandes jouables. L'historique se joue contre le service dès US-0960, avec les
+  révisions 100 et 101 du témoin marquées dès US-0970.
+- `revision-cycle.spec.ts` — les commandes de la révision 102 de PRJ-001, l'ouverture
+  indisponible et la désignation au-delà de la correction (`NOT_YET_IN_SERVICE`) : le compte de la
+  course n'est pas chef de projet de PRJ-001, ce que la conception d'EP-04 prévoyait par
+  `setContributors` et que le contrat ne permet pas (#2193, à trancher), et la référence du témoin
+  est désignée par **US-0980/L2**. L'abandon de la 102 (`WITNESS_KEPT`) ne se joue jamais contre le
+  service, qui l'ôterait à tous les autres parcours : le cycle — un projet créé par le compte de la
+  course, chef de projet comme créateur, une révision ouverte, marquée par le worker, une autre
+  ouverte puis abandonnée (US-0970) — s'y joue sur un projet à lui, et contre le service seul
+  (`SERVICE_ONLY`) ; sa suite — rouvrir, saisir le code, sortir, la désignation refusée — est
+  d'**US-0990/L2**. Le cycle lui-même attend **US-0850** (EP-05, `BEFORE_US0850`) : sans rôle de
+  ressource actif, le référentiel minimal est incomplet et le service ne crée aucun projet (#2194).
 
 Une limite des parcours contre le service : Prism, en mandataire du contrat, lit tout corps comme
 du texte et altère les corps binaires — chaque octet au-delà de `0x7f` d'une requête ou d'une

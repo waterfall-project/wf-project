@@ -14,8 +14,9 @@
  *
  * The service serves the history, the revision, its structures, its opening and its abandonment
  * (`listRevisions`, `getRevision`, `listCostStructures`, `createRevision`, `abandonRevision`,
- * US-0960): the screen shows no note of the mock-up. The comparison and the rate update are served
- * by EP-07.
+ * US-0960) and its marking (`markRevision`, US-0970): the screen shows no note of the mock-up. The
+ * comparison and the rate update are served by EP-07; until then the rate update the service does
+ * not find is left out (#2173).
  *
  * The report of the import the address names (`?import=`, which the screen of the project carries
  * here when no revision is readable) stands above the history, as on the screen of the project
@@ -28,7 +29,7 @@ import type { Metadata } from "next";
 import { useTranslations } from "next-intl";
 
 import { readEveryPage } from "@/api/every-page";
-import { readOrFail } from "@/api/problem";
+import { readOrFail, readUnlessRefused } from "@/api/problem";
 import { serverClient } from "@/api/server";
 import { findOffer } from "@/components/commands/offer";
 import { RevisionCommands } from "@/components/commands/object-commands";
@@ -147,12 +148,14 @@ export default async function RevisionsPage(props: ProjectPageProps) {
     compared === undefined ? undefined : readComparisonPreferences(),
     readShownImport(address.projectId, search),
   ]);
-  // A marked revision is immutable (WF-REV-0020): a rate update applies to the current one.
+  // A marked revision is immutable (WF-REV-0020): a rate update applies to the current one. The
+  // service serves no proposal before EP-07 and answers 404: the screen of the current revision is
+  // rendered without one rather than not found, its commands playable (#2173).
   const current = read.revision?.status === "draft" ? read.revision : undefined;
   const rates =
     current === undefined
       ? undefined
-      : await readOrFail("getRateUpdateProposal", () =>
+      : await readUnlessRefused("getRateUpdateProposal", [{ status: 404 }], () =>
           client.GET("/projects/{project_id}/revisions/{revision_id}/rate-update", {
             params: { path: { ...project, revision_id: current.revision_id } },
           }),

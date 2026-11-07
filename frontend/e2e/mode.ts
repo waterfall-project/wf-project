@@ -7,9 +7,9 @@
  * `installation`, while `chromium` keeps playing it against the fake back (`playwright.config.ts`).
  *
  * Against the fake back, nothing changes: it grants the session itself. With `WATERFALL_API_ADDRESS`
- * set (`inService`), each path first signs in a local account of the run that holds the role
- * « Manager », made by the administrator of the installation (`accountAdministrator`), one for each
- * worker; and the paths are held to the contract, as `heldToTheContract()` holds a file of
+ * set (`inService`), each path first signs in a local account of the run that holds the roles
+ * « Manager » and « Chef de projet », made by the administrator of the installation
+ * (`accountAdministrator`), one for each worker; and the paths are held to the contract, as `heldToTheContract()` holds a file of
  * `e2e/service/` — by fixtures rather than hooks: a hook declared in a module the files import is
  * declared once in a worker, for the first of its files alone.
  */
@@ -26,6 +26,13 @@ export const inService = process.env.WATERFALL_API_ADDRESS !== undefined;
  * `installation.setup.ts`): its permissions are the installation's, none given here.
  */
 const MANAGER = "Manager";
+
+/**
+ * The predefined role beside it that creates a project and writes, marks and abandons its revisions
+ * (WF-EXP-0020, EP-04): the account of the run is the project manager of the projects it creates
+ * (`revision-cycle.spec.ts`).
+ */
+const PROJECT_MANAGER = "Chef de projet";
 
 /**
  * The role beside it that writes the settings of the risks and of the indicators: the contract gives
@@ -68,6 +75,7 @@ export const test = base.extend<TestFixtures, WorkerFixtures>({
         manager = await localAccount(browser, administrator);
         await administrator.giveAlso(manager.id, [
           [MANAGER, []],
+          [PROJECT_MANAGER, []],
           [SETTINGS_WRITER, ["risk_settings.write", "indicator_settings.write"]],
         ]);
       } finally {

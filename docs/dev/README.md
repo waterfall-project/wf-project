@@ -3745,7 +3745,8 @@ list of files names it. Each US tags
 its paths once the service serves its screen. Against the fake back, `test` changes nothing: the
 fake back grants the session. With `WATERFALL_API_ADDRESS` set, `inService` is true, and two
 fixtures of `mode.ts` do what a file of `frontend/e2e/service/` asks for by its hooks: each worker
-obtains once a local account of the run that holds the predefined role « Manager », created by the
+obtains once a local account of the run that holds the predefined roles « Manager » and « Chef de
+projet » (US-0970), created by the
 administrator of the installation (`accountAdministrator`, `localAccount`), and each path is first
 signed in with it (`signIn`, at `/account`), then held to the contract, as `heldToTheContract()`
 holds a file (`startReading`, `expectNothingRefused`, `contract.ts`). Fixtures rather than
@@ -3759,9 +3760,22 @@ removes the guard and its entry:
 
 - `revisions.spec.ts` — the current revision and its parts, and the comparison, the volume's
   included, and « Écarts seulement » (`BEFORE_EP07`): lifted by **EP-07**, which serves the
-  comparison (`compareRevisions`) and the rate update (`getRateUpdateProposal`), which the screen of
-  a current revision reads and without which it is not found; the marked revisions compared come
-  with US-0970 (EP-04). The history itself plays against the service from US-0960.
+  comparison (`compareRevisions`) and the rate update (`getRateUpdateProposal`). The screen of a
+  current revision reads the proposal by `readUnlessRefused` and renders without it on the 404 of
+  the service (#2173), its commands playable. The history plays against the service from US-0960,
+  with the revisions 100 and 101 of the witness marked from US-0970.
+- `revision-cycle.spec.ts` — the commands of the revision 102 of PRJ-001, the opening unavailable
+  and the designation beyond the correction (`NOT_YET_IN_SERVICE`): the account of the run is no
+  project manager of PRJ-001, which the design of EP-04 planned by `setContributors` and which the
+  contract does not allow (#2193, to be decided), and the reference of the witness is designated by
+  **US-0980/L2**. The abandon of the 102 (`WITNESS_KEPT`) never plays against the service, which
+  would take it from every other path: the cycle — a project created by the account of the run, its
+  project manager as its creator, a revision opened, marked by the worker, another opened then
+  abandoned (US-0970) — plays there on a project of its own, and against the service alone
+  (`SERVICE_ONLY`); its sequel — reopened, the code entered, the exit, the designation refused — is
+  **US-0990/L2**'s. The cycle itself waits for **US-0850** (EP-05, `BEFORE_US0850`): without an
+  active role of resources, the minimal reference is incomplete and the service creates no project
+  (#2194).
 
 A limit of the paths against the service: Prism, as a proxy of the contract, reads every body as
 text and alters binary bodies — every byte beyond `0x7f` of an `application/octet-stream` request or

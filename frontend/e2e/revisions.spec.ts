@@ -10,7 +10,8 @@
  * structures, no rate update proposed for it, and the comparison of the offer to the reference;
  * the comparison proves the fake back serves `compareRevisions` — its path,
  * `/revisions/comparison`, could be mistaken for a revision named `comparison`. The service serves
- * the witness, of which PRJ-001 holds its revision 100 alone, current, until US-0970 marks it.
+ * the witness, of which PRJ-001 holds the same three revisions, its 100 and 101 marked by the loader
+ * as the worker marks (US-0970).
  */
 import { readFileSync } from "node:fs";
 
@@ -23,14 +24,13 @@ const PROJECT = "01926f3a-7c00-7000-8000-000000000001";
 const REVISION = "01926f3a-7c00-7000-8000-000000000102";
 
 // The current revision is the first of the history: the fake back's, opened in 2026; the service's,
-// the revision 100 of PRJ-001, whose reference year is that of the loading of the witness, not of
+// the revision 102 of PRJ-001, whose reference year is that of the loading of the witness, not of
 // the run of the test: a four-digit year only is asserted there.
 const CURRENT_YEAR: string | RegExp = inService ? /^\d{4}$/ : "2026";
 
-// What the service does not replay before EP-07, which serves the comparison and the rate update
-// the screen of a current revision reads — not found there until then —, the marked revisions
-// compared coming with US-0970: skipped in it, as the guide lists (« Un parcours de bout en bout »).
-const BEFORE_EP07 = "EP-07 serves the comparison and the rate update; US-0970 marks the revisions";
+// What the service does not replay before EP-07, which serves the comparison and the rate update:
+// skipped in it, as the guide lists (« Un parcours de bout en bout »).
+const BEFORE_EP07 = "EP-07 serves the comparison and the rate update";
 
 test("the history of the revisions of a project, each attribute of a revision in it, no note of the mock-up (US-0960) @shared [WF-REV-0070-A] [WF-REV-0090-A]", async ({
   page,
@@ -55,8 +55,8 @@ test("the history of the revisions of a project, each attribute of a revision in
     "Année de référence",
   );
   await expect(current.getByRole("cell").nth(yearColumn)).toHaveText(CURRENT_YEAR);
-  // The service holds the current revision alone, until US-0970 marks it; the fake back, three.
-  await expect(history.getByRole("row")).toHaveCount(inService ? 2 : 4);
+  // Three revisions, the current one and the two marked, on both sides.
+  await expect(history.getByRole("row")).toHaveCount(4);
   await expect(
     current.getByRole("link", { name: "Ouvrir la révision «\u00a0Révision en cours\u00a0»" }),
   ).toBeVisible();
