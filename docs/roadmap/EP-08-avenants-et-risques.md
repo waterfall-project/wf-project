@@ -49,7 +49,9 @@ fonction (WF-INTF-0010).
 
 La portée dit si l'exigence est entière ici, commencée ici et close par un EPIC ultérieur, ou
 close ici après avoir été commencée plus tôt. Chaque exigence n'est close que par un seul EPIC.
-La colonne US se remplit quand l'EPIC passe `prêt`.
+La colonne US se remplit quand l'EPIC passe `prêt`. WF-IHM-0110 est construite par EP-06 et close
+ici : son Vérif demande le réexamen d'un risque et la déclaration d'une survenance (cadrage
+d'EP-06, décision de l'auteur du 2026-11-07).
 
 | Exigence | Titre | Portée | US |
 |---|---|---|---|
@@ -58,6 +60,7 @@ La colonne US se remplit quand l'EPIC passe `prêt`.
 | `WF-PLA-0170-A` | Rattachement au lotissement | fin — amorcée en EP-06 | — |
 | `WF-REV-0100-A` | Structures de coûts d'une révision | fin — amorcée en EP-04, EP-15 | — |
 | `WF-IHM-0020-A` | Contexte de lecture affiché | fin — amorcée en EP-02, EP-15 | — |
+| `WF-IHM-0110-A` | Annulation et rétablissement des saisies | fin — amorcée en EP-02, EP-06 | — |
 | `WF-DEV-0080-A` | Valeur planifiée | fin — amorcée en EP-07 | — |
 | `WF-RIS-0010-A` | Attributs d’un risque | fin — amorcée en EP-15 | — |
 | `WF-RIS-0020-A` | États d’un risque | fin — amorcée en EP-15 | — |

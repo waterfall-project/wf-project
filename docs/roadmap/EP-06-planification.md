@@ -19,7 +19,7 @@ réversibilité, avec la mécanique d'import en deux temps qu'ils sont les premi
 
 Les lignes de devis sont portées par les tâches — l'arbre est commun —, si bien que le planning
 précède le chiffrage. C'est aussi la première grille dont les saisies sont conservées :
-l'annulation multi-niveaux (WF-IHM-0110) s'y clôt, conflits entre contributeurs compris.
+l'annulation multi-niveaux (WF-IHM-0110) s'y construit, conflits entre contributeurs compris.
 L'aller-retour avec MS Project se valide ici, dans son bloc fonctionnel, et non dans un EPIC
 d'échanges séparé (revue de la ventilation, 2026-10-09 : EP-12 abandonné) : le premier
 planning d'un projet vient souvent de MS Project (motif de WF-INTF-0040).
@@ -28,109 +28,160 @@ planning d'un projet vient souvent de MS Project (motif de WF-INTF-0040).
 
 - l'arbre des tâches de la structure principale : création, modification, déplacement,
   indentation, suppression ;
-- les attributs d'une tâche, son état et sa date, les jalons, les liaisons, le calendrier
-  applicable, le mode de planification et l'horizon de quinze ans ;
-- le calcul des dates, des marges et du chemin critique ;
+- les attributs d'une tâche, son état et ses dates de démarrage et de terminaison, les jalons,
+  les liaisons, le calendrier applicable, le mode de planification et l'horizon de quinze ans ;
+- le calcul des dates, des marges et du chemin critique, et son recalcul quand les unités de
+  durée ou le calendrier par défaut changent ;
+- la date de début de planning d'une structure, sa colonne et sa saisie (`updateCostStructure`,
+  #2170) ;
 - la grille de planning, avec la saisie au clavier, le collage depuis un tableur et l'annulation
   servis par le serveur, le menu contextuel de ses cellules et le branchement de ses commandes —
   l'arbre pliable et le pliage commun avec le Gantt sont déjà faits par EP-02/L40, qu'EP-06
   reprend sur le service ;
-- le diagramme de Gantt et l'arborescence de tâches, en lecture seule, et l'export de
-  l'arborescence ;
-- les chronologies nommées, l'inscription des tâches et des jalons, et l'export PNG ;
+- le diagramme de Gantt et l'arborescence de tâches, en lecture seule, et l'export PNG de
+  l'arborescence par le worker ;
+- les chronologies nommées, l'inscription des tâches et des jalons ;
 - le squelette de planning engendré du lotissement ;
 - l'import et l'export MS Project (FLX-01, FLX-02) et leur réversibilité, la description d'une
-  tâche passant par ses notes dans les deux sens (C-375) ;
-- la mécanique d'import en deux temps — analyse, compte rendu, confirmation, application en une
-  transaction, expiration, fichier en transit sur le stockage objet qu'EP-03 a posé —, que les
-  imports du devis (EP-07), du reste à engager et des coûts réels (EP-09) reprennent ;
+  tâche passant par ses notes dans les deux sens (C-375), et le corpus de plannings de référence
+  (WF-QUA-0080) ;
+- la mécanique d'import en deux temps — dépôt du fichier (`uploadFile`), analyse par le worker,
+  compte rendu conservé en codes, confirmation, application en une transaction par le worker,
+  revérification à l'exécution, expiration et purge, fichier en transit sur le stockage objet
+  qu'EP-03 a posé, `available_commands` —, avec une interface où un format s'ajoute sans rouvrir
+  le module, que les imports du devis (EP-07), du reste à engager et des coûts réels (EP-09)
+  reprennent ;
 - l'application d'un import à la révision en cours, créée au besoin ;
-- les écrans du planning et de l'import de la maquette, branchés sur le service.
+- la purge planifiée des fichiers en transit expirés et des exports non téléchargés
+  (WF-DAT-0120) ;
+- sa tranche du jeu de données de référence (WF-QUA-0040) — les mille tâches de la structure
+  principale de PRJ-001, leurs liaisons, leurs états, leurs inscriptions, les chronologies et la
+  date de début de planning —, chargée par le chargeur après celle des projets ;
+- les écrans du planning, du Gantt, de l'arborescence, des chronologies et de l'import de la
+  maquette, branchés sur le service, et les parcours écrits sur le faux back rejoués contre lui.
 
 ## Ce qui n'en fait pas partie
 
 - les lignes de devis — EP-07 ; l'avancement physique que la grille affiche, calculé sur
-  elles — EP-10 ;
+  elles — EP-10 ; la facette ligne de la table des nœuds, qu'EP-07 ajoute par sa migration ;
 - la suppression d'une tâche démarrée, renvoyée vers la mise à zéro de son reste à engager, et
-  le démarrage par le Kanban — EP-09 ;
+  le démarrage par le Kanban — EP-09 ; `setTaskProgress` est servie ici par l'API, sans écran
+  (décision de l'auteur du 2026-11-07) ;
 - le diagramme temps/temps, qui lit l'inscription des jalons faite ici — EP-10 ;
-- les imports et exports Excel : le devis — EP-07, le reste à engager et les coûts réels — EP-09.
+- les imports et exports Excel : le devis — EP-07, le reste à engager et les coûts réels — EP-09 ;
+- l'export PNG d'une chronologie et du Gantt, faits par le front (EP-15, US-0530) : ici, ils se
+  rejouent contre le service.
 
 ## Exigences réalisées
 
 La portée dit si l'exigence est entière ici, commencée ici et close par un EPIC ultérieur, ou
 close ici après avoir été commencée plus tôt. Chaque exigence n'est close que par un seul EPIC.
-La colonne US se remplit quand l'EPIC passe `prêt`.
+Sept exigences que le fichier disait entières ou closes ici ont une phrase de Vérif qui demande
+des lignes de devis, un import de devis, le reste à engager, le Kanban ou le réexamen d'un
+risque : elles se commencent ici et se closent en EP-07, EP-08 ou EP-09 (décision de l'auteur du
+2026-11-07, au cadrage). Chaque US cite les exigences dont une phrase de Vérif tient avec des
+tâches, des liaisons et des structures sans ligne ; les phrases qui demandent plus sont des
+écarts, qui nomment l'EPIC qui les clôt.
 
 | Exigence | Titre | Portée | US |
 |---|---|---|---|
-| `WF-INTF-0010-A` | Usages du chef de projet | début — close en EP-08 | — |
-| `WF-PRJ-0030-A` | Squelette de planning | fin — amorcée en EP-15 | — |
-| `WF-PLA-0010-A` | Calendrier applicable à une tâche | entière | — |
-| `WF-PLA-0020-A` | Mode de planification | fin — amorcée en EP-15 | — |
-| `WF-PLA-0030-A` | Liaisons entre tâches | fin — amorcée en EP-15 | — |
-| `WF-PLA-0040-A` | Hiérarchie des tâches | entière | — |
-| `WF-PLA-0050-A` | Jalons | entière | — |
-| `WF-PLA-0070-A` | Suppression d’une tâche | début — close en EP-09 | — |
-| `WF-PLA-0130-A` | Attributs d’une tâche | début — close en EP-10 | — |
-| `WF-PLA-0170-A` | Rattachement au lotissement | début — close en EP-08 | — |
-| `WF-PLA-0150-A` | Horizon d’un projet | entière | — |
-| `WF-PLA-0060-A` | Inscription aux suivis | début — close en EP-10, amorcée aussi en EP-15 | — |
-| `WF-PLA-0140-A` | Chronologies nommées | fin — amorcée en EP-15 | — |
-| `WF-PLA-0080-A` | Grille de planning | fin — amorcée en EP-15 | — |
-| `WF-PLA-0090-A` | Diagramme de Gantt | fin — amorcée en EP-15 | — |
-| `WF-PLA-0100-A` | Chemin critique | entière | — |
-| `WF-PLA-0110-A` | Vue en arborescence de tâches | entière | — |
-| `WF-PLA-0120-A` | Export de l’arborescence de tâches | entière | — |
-| `WF-IHM-0110-A` | Annulation et rétablissement des saisies | fin — amorcée en EP-02 | — |
-| `WF-PLA-0160-A` | Unités de durée | fin — amorcée en EP-15, EP-05 | — |
-| `WF-QUA-0080-A` | Corpus de plannings de référence et schéma d’échange | entière | — |
-| `WF-INTF-0040-A` | Imports MS Project | entière | — |
-| `WF-INTF-0050-A` | Exports MS Project | entière | — |
-| `WF-INTF-0060-A` | Réversibilité de l’échange MS Project | entière | — |
-| `WF-INTF-0080-A` | Contrôle et confirmation des imports Excel | début — close en EP-07 | — |
-| `WF-INTF-0090-A` | Imports et révisions marquées | début — close en EP-07 | — |
-| `WF-ARC-0100-A` | Import en deux temps | entière | — |
-| `WF-ARC-0110-A` | Le texte est rendu au plus près du lecteur | fin — amorcée en EP-03 | — |
-| `WF-DAT-0120-A` | Contenu et purge du stockage objet | fin — amorcée en EP-03 | — |
-| `WF-ADM-0110-A` | Évaluation d’une action | fin — amorcée en EP-03, EP-04 | — |
+| `WF-PLA-0040-A` | Hiérarchie des tâches | début — close en EP-09 | US-1380 |
+| `WF-PLA-0050-A` | Jalons | début — close en EP-09 | US-1380 |
+| `WF-PLA-0070-A` | Suppression d’une tâche | début — close en EP-09 | US-1380 |
+| `WF-PLA-0170-A` | Rattachement au lotissement | début — close en EP-08 | US-1380, US-1460 |
+| `WF-PLA-0150-A` | Horizon d’un projet | entière | US-1380, US-1430 |
+| `WF-PLA-0010-A` | Calendrier applicable à une tâche | début — close en EP-07 | US-1390 |
+| `WF-PLA-0020-A` | Mode de planification | fin — amorcée en EP-15 | US-1390 |
+| `WF-PLA-0030-A` | Liaisons entre tâches | fin — amorcée en EP-15 | US-1390 |
+| `WF-PLA-0100-A` | Chemin critique | entière | US-1390 |
+| `WF-PLA-0160-A` | Unités de durée | fin — amorcée en EP-15, EP-05 | US-1390 |
+| `WF-PLA-0060-A` | Inscription aux suivis | début — close en EP-10, amorcée aussi en EP-15 | US-1400 |
+| `WF-PLA-0140-A` | Chronologies nommées | fin — amorcée en EP-15 | US-1400 |
+| `WF-PLA-0130-A` | Attributs d’une tâche | début — close en EP-10 | US-1410 |
+| `WF-ARC-0100-A` | Import en deux temps | entière | US-1420 |
+| `WF-INTF-0080-A` | Contrôle et confirmation des imports Excel | début — close en EP-07 | US-1420 |
+| `WF-INTF-0090-A` | Imports et révisions marquées | début — close en EP-07 | US-1420 |
+| `WF-ARC-0110-A` | Le texte est rendu au plus près du lecteur | fin — amorcée en EP-03 | US-1420 |
+| `WF-DAT-0120-A` | Contenu et purge du stockage objet | fin — amorcée en EP-03 | US-1420, US-1430 |
+| `WF-INTF-0040-A` | Imports MS Project | début — close en EP-07 | US-1430 |
+| `WF-INTF-0050-A` | Exports MS Project | début — close en EP-07 | US-1430 |
+| `WF-INTF-0060-A` | Réversibilité de l’échange MS Project | début — close en EP-07 | US-1430 |
+| `WF-QUA-0080-A` | Corpus de plannings de référence et schéma d’échange | entière | US-1430 |
+| `WF-PLA-0110-A` | Vue en arborescence de tâches | entière | US-1440 |
+| `WF-PLA-0120-A` | Export de l’arborescence de tâches | entière | US-1440 |
+| `WF-IHM-0110-A` | Annulation et rétablissement des saisies | début — close en EP-08, amorcée aussi en EP-02 | US-1450 |
+| `WF-PRJ-0030-A` | Squelette de planning | fin — amorcée en EP-15 | US-1460 |
+| `WF-PLA-0080-A` | Grille de planning | fin — amorcée en EP-15 | US-1470 |
+| `WF-PLA-0090-A` | Diagramme de Gantt | fin — amorcée en EP-15 | US-1470 |
+| `WF-ADM-0110-A` | Évaluation d’une action | fin — amorcée en EP-03, EP-04 | US-1470 |
+| `WF-INTF-0010-A` | Usages du chef de projet | début — close en EP-08 | US-1470 |
+| `WF-QUA-0040-A` | Jeu de données de référence | début — close en EP-13, amorcée aussi en EP-05, EP-04 | US-1480 |
 
 WF-PLA-0080 et WF-PLA-0090 sont partiels avant cet EPIC : l'arbre pliable des grilles et le pliage
 commun de la grille et du Gantt sont faits par EP-02/L40, dans la maquette, sans qu'aucune US
-d'EP-02 les cite. Ils restent « entière » ici : EP-06 les vérifie en entier, sur le service, et
+d'EP-02 les cite. Ils se closent ici : EP-06 les vérifie en entier, sur le service, et
 garde la saisie, le menu contextuel des cellules et le branchement des commandes.
 
 ## Opérations du contrat
 
-Rattachement établi d'après les exigences que chaque opération cite, à revoir au détail des
-US. Une opération qui manque au contrat se note ici : c'est une modification du contrat, donc
-un travail qui précède.
+Servies ici pour la première fois (27) :
 
-Servies ici pour la première fois (24) :
+- `system` : `getBackgroundTaskResult` (US-1430) ;
+- `projects` : `listTimelines`, `createTimeline`, `deleteTimeline` (US-1400) ;
+- `revisions` : `listNodes`, `createNode`, `deleteNode`, `moveNodes`, `updateTaskFacet`,
+  `resolveRowNumber`, `getComputedValueDependencies` (US-1380) ; `setPredecessors`,
+  `updateCostStructure` (US-1390) ; `setNodeTracking` (US-1400) ; `setTaskProgress` (US-1410) ;
+  `previewPaste`, `applyPaste`, `undoLastChange`, `redoLastUndo` (US-1450) ;
+  `generatePlanningSkeleton` (US-1460) ;
+- `exchanges` : `uploadFile`, `listImports`, `openImport`, `getImport`, `abandonImport`,
+  `applyImport` (US-1420) ; `requestExport` (US-1430, US-1440).
 
-- `system` : `getBackgroundTaskResult` ;
-- `projects` : `listTimelines`, `createTimeline`, `deleteTimeline` ;
-- `revisions` : `listNodes`, `createNode`, `deleteNode`, `updateTaskFacet`, `setPredecessors`, `setTaskProgress`, `setNodeTracking`, `moveNodes`, `previewPaste`, `applyPaste`, `undoLastChange`, `redoLastUndo`, `generatePlanningSkeleton`, `getComputedValueDependencies` ;
-- `exchanges` : `listImports`, `openImport`, `getImport`, `abandonImport`, `applyImport`, `requestExport`.
-
-Déjà servies, et reprises ici pour ce que cet EPIC y ajoute (1) :
-
-- `exchanges` : `uploadFile` — le dépôt d'un fichier d'import, après celui d'une sauvegarde (EP-03).
+`uploadFile` n'est pas servie par EP-03, qui ne sert que le dépôt par morceaux d'une sauvegarde
+(`openChunkedUpload`, `uploadChunk`, `completeChunkedUpload`, qui restent d'EP-03) : le dépôt
+d'un fichier d'import commence ici. `updateCostStructure` et `resolveRowNumber` n'étaient
+rattachées à aucun EPIC du back ; elles sont d'EP-06 (cadrage du 2026-11-07). Les opérations
+servies par EP-04 et EP-05 que les écrans de cet EPIC lisent — `getRevision`,
+`listCostStructures`, `getWorkBreakdown`, `getDurationUnits`, `getBackgroundTask` — ne changent
+pas.
 
 ## Préalables
 
-EP-04 livré : les tâches vivent dans la structure principale d'une révision en cours.
+`epic/EP-06` se tire d'`epic/EP-04` dès l'ouverture des issues, sans attendre la livraison
+d'EP-04, dont il ne reste qu'US-0990/L2 à fusionner (décision de l'auteur du 2026-11-07, pour
+toute la série EP-06 → EP-07 → EP-09 → EP-10 → EP-08 ; l'exception du README, « Branches ») :
+elle reprend `epic/EP-04` à chaque lot que celui-ci fusionne et se fusionne dans `main` après
+elle. Ce qu'EP-06 suppose d'EP-04 est déjà fusionné : les tables `revision` et `cost_structure`,
+le registre `core/revisions` et ses points d'extension (`register_copy`,
+`register_tasks_and_lines`), l'évaluation à deux termes (`RequiresProject`), le chargeur par
+tranches et sa chronologie, le projet `shared` et la fixture `mode.ts`.
+
+EP-16 livré, le contrat figé en 1.0.0 : un écart devient une « Interface contract issue » que
+l'auteur tranche.
+
+Le corpus de plannings de référence (WF-QUA-0080) est fourni par l'auteur, avant le lot du
+format MS Project : des fichiers XML enregistrés par MS Project 2013 ou plus, avec les dates que
+MS Project a calculées, couvrant les cas du corps de WF-QUA-0080 et la contrainte « Pas avant
+le » de WF-INTF-0040, déposés dans le répertoire que la conception nomme ; le schéma XSD de
+Microsoft n'est pas versionné, un réglage le désigne et le test qui l'emploie se déclare non
+exécuté sans lui (décision de l'auteur du 2026-11-07).
 
 ## Définition de fini
 
 - les exemples chiffrés des Vérif du §3.4.5.3 sont des tests qui passent (WF-QUA-0020) ;
+- chaque planning du corpus de WF-QUA-0080 est daté comme MS Project l'a daté, sans MS Project,
+  base ni navigateur ;
 - le planning du plus gros projet du jeu de données de référence s'affiche en grille, en Gantt
   et en arborescence ;
 - cinquante saisies de la grille s'annulent puis se rétablissent, et l'annulation d'une
   modification qu'un autre contributeur a reprise est refusée en nommant l'objet ;
 - un collage depuis un tableur est prévisualisé, puis crée les tâches collées ;
+- un fichier MS Project s'importe en deux temps dans la révision en cours, créée au besoin, un
+  abandon laisse le projet inchangé, et un planning exporté puis réimporté ne présente aucun
+  écart ;
 - l'export de l'arborescence et celui d'une chronologie produisent leurs fichiers ;
-- le parcours de bout en bout construit un planning contre le service réel.
+- le parcours de bout en bout construit un planning contre le service réel ;
+- `make check` passe sur la branche de l'EPIC, les tests du back citent leurs exigences, et aucun
+  fichier de `docs/api` ne change hors d'une « Interface contract issue » tranchée.
 
 ## Constats reçus
 
@@ -139,35 +190,952 @@ et tranchés par l'auteur le 2026-11-01 : EP-16 en écrit le contrat (US-0704 #1
 suit une fois figé.
 
 - #1770 — `createNode` complète les heures d'une tâche datée, comme la modification (F-03 ;
-  contrat #1769).
+  contrat #1769). US-1380.
 - #1772 — une tâche refusée sous un jalon, à la création, au déplacement, à l'import et au collage
-  (F-04 ; contrat #1771).
+  (F-04 ; contrat #1771). US-1380 (création, déplacement), US-1430 (import), US-1450 (collage).
 - #1790 — le cycle de vie d'un import : l'état `refused`, les conditions de l'application et de
   l'abandon, le dépôt consommé, et les conditions de l'ouverture (I-01 à I-04 ; contrat #1789,
-  #1792). EP-12 ayant été abandonné, EP-06 construit le premier ce cycle.
+  #1792). EP-12 ayant été abandonné, EP-06 construit le premier ce cycle. US-1420.
 
 - #1339, pour #1304, point 7 — le service de la reprise de la spécification du 2026-10-22 (#1306, C-371 à C-375 ; #1304), dont EP-16 écrit le contrat, le faux back et les écrans (décision de l'auteur du 2026-10-22, au cadrage d'EP-16) :
   - l'import MS Project lit la description d'une tâche dans ses notes, et l'export l'y écrit
     (WF-INTF-0040, WF-INTF-0050) ;
   - l'aller-retour la restitue (WF-INTF-0060) ;
-  - le contrat la porte déjà (`description` de la facette de la tâche).
+  - le contrat la porte déjà (`description` de la facette de la tâche). US-1430.
 - #196 [EP-06] US-0120 : le recalcul qui suit une saisie tient la seconde du §4.6.2 — écart
   déclaré par US-0120 d'EP-02 : il n'y a pas de recalcul sur le faux back ; la mesure, contre le
   vrai service, du temps entre la validation d'une cellule de la grille (`updateEstimateLine`,
   `updateTaskFacet`) et l'application de la ligne rendue revient à EP-06, et s'écrit au relevé
-  de livraison.
+  de livraison. US-1470 ; aucune optimisation sans mesure.
 - #496 [EP-02] retirer les replis de `listNodes` du front — décidé pendant EP-02/L36 (#475) :
   le faux back ignore les filtres `summaries_only`, `max_level`, `timeline_id` et `kinds` de
   `listNodes`, et le front les applique aussi à la réponse. Quand le back d'EP-06, premier à
   servir `listNodes`, tiendra ces filtres et que les parcours tourneront contre lui : retirer
   ces replis, vérifier que les parcours de l'arborescence et des chronologies restent verts, et
   retirer l'écart du fichier d'EP-02. Reporté d'EP-03, qui ne sert pas `listNodes`
-  (2026-10-10).
+  (2026-10-10). US-1440 (l'arborescence), US-1400 (les chronologies).
 - #620 [EP-06] `DenseGrid` ne mémorise ni ses lignes ni ses cellules — relevé par EP-02/L46 :
   chaque déplacement de la cellule active les rend toutes ; aucun défaut n'est démontré en
   production. EP-06, qui construit la grille de planning réelle, mesure contre le service avant
-  toute optimisation. Reporté d'EP-14 au cadrage, retitré le 2026-10-18.
-- #646 [EP-06] le Kanban rend ses 960 cartes en listes simples, sans fenêtre — relevé par
-  EP-14/L45a : EP-06, qui construit le Kanban contre le service, mesure sur mille tâches réelles ;
-  EP-14 garde les listes simples sous le délai `WORKING`. Reporté d'EP-14 sur décision de l'auteur
-  (2026-10-10), retitré le 2026-10-18.
+  toute optimisation. Reporté d'EP-14 au cadrage, retitré le 2026-10-18. US-1470 ; la mesure
+  s'écrit au relevé de livraison, aucune optimisation sans elle.
+- #1057 [EP-06] e2e : un geste de structure dans une grille se reporte dans l'autre, contre le
+  service — relevé par l'auteur à la validation de la maquette (2026-10-18) : le report d'un
+  geste de la grille de devis vers la grille de planning (Vérif de WF-DEV-0050, que EP-07 clôt),
+  et Annuler et Rétablir branchés. US-1450 (Annuler et Rétablir), US-1470 (le parcours du
+  report, joué sur des tâches, les lignes étant d'EP-07).
+
+Reportés d'EP-04 le 2026-11-06 (relevés par la revue d'US-0960, #2061) :
+
+- #2170 — `CostStructure.planning_start_on` n'a pas de colonne : US-0960 la dérive de la date de
+  création de la structure d'origine de la lignée. EP-06 ajoute la colonne à `cost_structure`,
+  la remplit par la valeur dérivée pour les lignes existantes, la reprend dans `copy_revision`,
+  et sert `updateCostStructure`. US-1380 (la colonne, par le socle), US-1390 (sa saisie).
+- #2180 — point 1 : les points d'extension de `core/revisions` (`register_copy`,
+  `register_tasks_and_lines`, `register_indicators`) sont remplis à l'import de l'interface du
+  module qui enregistre ; un processus qui ne l'importe pas a un registre incomplet sans erreur.
+  EP-06, premier à enregistrer, ajoute un test qui, pour chaque point d'entrée — l'API, le
+  worker, le chargeur du témoin —, vérifie que les registres portent les extensions attendues.
+  Le point 2, la politique d'erreur de `compute_indicators`, est d'EP-10. US-1380.
+
+#646 (le Kanban rend ses 960 cartes en listes simples) passe à EP-09, qui construit le Kanban
+(décision de l'auteur du 2026-11-07) : il est noté dans ses « Constats reçus », et son issue est
+retitrée et relabellisée à l'ouverture des issues d'EP-06.
+
+## Conception
+
+À écrire après la validation des US.
+
+---
+
+## US-1380 — L'arbre des tâches de la structure principale
+
+- **statut** : à faire
+- **exigences** : `WF-PLA-0040-A`, `WF-PLA-0050-A`, `WF-PLA-0070-A`, `WF-PLA-0170-A`,
+  `WF-PLA-0150-A`
+- **opérations** : `listNodes`, `createNode`, `updateTaskFacet`, `deleteNode`, `moveNodes`,
+  `resolveRowNumber`, `getComputedValueDependencies`
+- **issue** :
+
+**En tant que** chef de projet, **je veux** créer les tâches et les jalons de la structure
+principale, les nommer, les décrire, les rattacher à un lot ou à un poste, les déplacer et les
+indenter, les supprimer, et relire l'arbre tel que le serveur le calcule, **afin de** construire le
+planning dont le devis portera les lignes.
+
+**Critères d'acceptation.**
+
+- `WF-PLA-0040-A` — « Après déplacement d’une récapitulative portant deux niveaux de subordonnées,
+  les tâches et les lignes déplacées sont inchangées, et le devis totalise le même montant. » :
+  `moveNodes` d'une récapitulative emporte son sous-arbre, chaque tâche inchangée hors son parent
+  et sa place ; les lignes et le devis sont d'EP-07, EP-09 clôt ;
+- `WF-PLA-0040-A` — « Les dates et l’état d’une récapitulative ne sont pas saisissables. » :
+  `updateTaskFacet` refuse une date par 422 `SUMMARY_TASK_DERIVED`, `subordinate_node_ids` les
+  nommant, et le mode par `COMPUTED_VALUE` ; `computed_fields` les nomme ; l'état, par
+  `setTaskProgress` (US-1410) ;
+- `WF-PLA-0040-A` — « Une récapitulative dont une subordonnée est démarrée est démarrée ; elle
+  n’est terminée qu’après la dernière. » : l'état dérivé, lu par `listNodes`, constaté par
+  US-1410 qui pose les états ;
+- écart : `WF-PLA-0040-A` — « Une récapitulative dont toutes les subordonnées sont terminées et
+  dont une ligne propre porte un reste à engager de 500 est démarrée et signalée ; la saisie d’un
+  reste nul sur cette ligne la termine. » : les lignes et le reste à engager sont d'EP-07 et
+  d'EP-09, qui clôt ; `awaiting_own_lines` est toujours faux ici ;
+- `WF-PLA-0040-A` — « La suppression de la seule subordonnée d’une récapitulative de dix jours
+  laisse une tâche feuille de dix jours, à laquelle une sous-tâche peut de nouveau être
+  ajoutée. » : `deleteNode` rend la récapitulative dans `ancestors` devenue feuille automatique de
+  dix jours, et `createNode` sous elle aboutit ;
+- écart : `WF-PLA-0040-A` — « Une récapitulative dont toutes les subordonnées sont terminées et
+  dont la seule ligne propre est une provision de 40 est terminée et n’est pas signalée. » : les
+  lignes de provision sont d'EP-08, EP-09 clôt ;
+- écart : `WF-PLA-0040-A` — « Une récapitulative dont la seule subordonnée est un jalon terminé et
+  dont une ligne propre garde un reste à engager, privée de ce jalon, est une feuille démarrée
+  d’un jour, non un jalon. » : la règle « démarrée, une durée d'un jour » est écrite ici et
+  éprouvée sur une récapitulative démarrée sans ligne ; la ligne propre est d'EP-07, EP-09 clôt ;
+- `WF-PLA-0040-A` — « Une récapitulative terminée dont la seule subordonnée, un jalon, est
+  déplacée devient un jalon terminé. » : `moveNodes` rend l'ancienne récapitulative dans
+  `ancestors`, jalon terminé, états posés par US-1410 ;
+- `WF-PLA-0050-A` — « Une tâche feuille de durée nulle ne peut recevoir de sous-tâche. » :
+  `createNode` et `moveNodes` refusent par 422 `MILESTONE_HAS_NO_SUBTASK` sur `/parent_id`,
+  `node_id` et `label` du jalon (#1772) ; une ligne de devis sous un jalon reste permise (EP-07) ;
+- `WF-PLA-0050-A` — « Une récapitulative dont la seule subordonnée est un jalon a une durée
+  nulle et reste une récapitulative. » : `is_summary` vrai, `is_milestone` faux, durée `0` ;
+- écart : `WF-PLA-0050-A` — « Un jalon portant une ligne de devis passe de non démarré à terminé
+  par la saisie d’un reste à engager nul ; un jalon sans ligne est terminé depuis le Kanban. » :
+  le passage direct d'un jalon à terminé est servi par US-1410 (`setTaskProgress`) ; la ligne, le
+  reste à engager et le Kanban sont d'EP-07 et d'EP-09, qui clôt ;
+- écart : `WF-PLA-0050-A` — « La terminaison depuis le Kanban d’un jalon portant une ligne est
+  refusée en renvoyant à la saisie de son reste à engager. » : `task_without_lines` est écrite par
+  US-1410, jamais manquante sans ligne ; EP-09 clôt ;
+- écart : `WF-PLA-0050-A` — « Un jalon qui ne porte qu’une ligne de provision est terminé depuis
+  le Kanban. » : EP-08 et EP-09 ;
+- `WF-PLA-0070-A` — « La suppression d’une récapitulative supprime ses subordonnées et leurs
+  lignes, et le devis diminue d’autant. » : `deleteNode` supprime physiquement le sous-arbre et
+  ses liaisons, rend ses ancêtres et les totaux recalculés ; les lignes et le devis sont d'EP-07,
+  EP-09 clôt ;
+- `WF-PLA-0070-A` — « La suppression d’une tâche démarrée est refusée, et l’utilisateur est
+  renvoyé vers la mise à zéro de son reste à engager. » : 409 `STATE_FORBIDS_OPERATION`,
+  `task_not_started`, pour une tâche démarrée ou terminée ou une récapitulative dont une
+  subordonnée l'est (états posés par US-1410) ; le renvoi de l'écran vers le reste à engager est
+  d'EP-09, qui clôt ;
+- `WF-PLA-0170-A` — « Une feuille peut être rattachée à un poste ; une récapitulative rattachée
+  dont on supprime la dernière subordonnée garde son rattachement. »
+- `WF-PLA-0170-A` — « Le rattachement d’une tâche à un poste déjà porté par une autre est refusé,
+  comme celui d’une même tâche à un lot et à un poste. » : 422 `WORK_BREAKDOWN_ITEM_ALREADY_ATTACHED`
+  avec `conflicting_object_id` et `conflicting_object_label`, `WORK_BREAKDOWN_ITEMS_EXCLUSIVE`,
+  rendus ensemble quand les deux s'appliquent ; `UNKNOWN_WORK_BREAKDOWN_ITEM` pour un élément que
+  le lotissement n'a pas ou marqué supprimé ;
+- `WF-PLA-0170-A` — « Le déplacement de la tâche d’un poste hors du sous-arbre de la tâche de son
+  lot est refusé. » : `moveNodes` et `updateTaskFacet` par 422 `ORDER_ITEM_OUTSIDE_WORK_PACKAGE`,
+  `work_package_task` et `order_item_tasks` nommés ;
+- `WF-PLA-0170-A` — « La suppression d’un poste porté par une tâche de la révision en cours
+  aboutit ; la tâche reste et ne porte plus de rattachement ; une révision marquée qui la citait
+  l’affiche toujours rattachée. » : `setWorkBreakdown` (EP-04) marque le poste supprimé dès qu'une
+  tâche d'une révision marquée le porte, le supprime sinon, et retire le rattachement des tâches
+  de la révision en cours par l'interface du planning ; la révision marquée garde sa ligne, et
+  `work_breakdown_label` y résout le libellé de l'élément marqué supprimé ;
+- `WF-PLA-0170-A` — « Après suppression d’un poste sur un projet sans révision en cours, la
+  révision créée ensuite ne porte plus ce rattachement ; la révision marquée l’affiche
+  toujours. » : la copie des tâches (`register_copy`) laisse nul le rattachement à un élément
+  marqué supprimé ;
+- `WF-PLA-0170-A` — « La génération du squelette n’est pas proposée sur le devis propre d’un
+  risque. » : constaté par US-1460 ;
+- écart : `WF-PLA-0170-A` — « La fusion d’un différentiel qui déplacerait la tâche d’un poste hors
+  du sous-arbre de la tâche de son lot est refusée en nommant la tâche. » : la fusion est
+  d'EP-08, qui clôt ;
+- écart : `WF-PLA-0170-A` — « Une tâche rattachée au poste 2 dont un différentiel allonge la
+  durée porte toujours ce rattachement après la fusion. » : EP-08 ;
+- `WF-PLA-0150-A` — « Le déplacement d’une tâche qui porterait la fin du projet à quinze ans et
+  un jour de son début est refusé, et la tâche est nommée. » : `updateTaskFacet`, `createNode` et
+  `moveNodes` par 422 `PROJECT_HORIZON_EXCEEDED`, `params.task` la tâche saisie, créée ou déplacée ;
+  `setPredecessors`, par US-1390 ;
+- `WF-PLA-0150-A` — « Un import MS Project dont le planning s’étend sur seize ans est rejeté au
+  compte rendu. » : constaté par US-1430 (`ImportReport.refusals`) ;
+- propre à l'US : `listNodes` rend la structure entière, en profondeur d'abord, `row_number` et
+  `level` calculés, `summary_depth` et `scheduled_at` dans `meta`, les totaux ; tient `kinds`,
+  `fields`, `search`, `subtree_of`, `summaries_only`, `max_level`, `timeline_id`,
+  `work_package_id`, `order_item_id`, `progress`, `is_critical`, les filtres de colonne de la
+  tâche (description, mode, durée, début, fin, marge, démarrage, terminaison, jalon, fin dépassée)
+  et leurs refus (`NUMBER_INVALID`, `DATE_INVALID`, `VALUE_OUT_OF_RANGE`, `FIELD_NOT_ACCEPTED`) ;
+  les filtres de la ligne sont déclarés et sans effet jusqu'à EP-07 ; une révision marquée se lit
+  comme la révision en cours ;
+- propre à l'US : `createNode` crée une tâche — feuille automatique d'un jour sans mode ni durée,
+  manuelle aux dates saisies par leur seule date, les heures complétées sur le calendrier par
+  défaut (#1770), `NON_WORKING_DAY` nommant le jour travaillé suivant, `after_node_id` et
+  `NODE_NOT_SIBLING`, une feuille manuelle qui reçoit une sous-tâche devenue récapitulative
+  automatique — et rend `NodesWritten` ; `updateTaskFacet` écrit le libellé, la description, le
+  mode, la durée avec son unité, les dates d'une tâche manuelle et le rattachement, seul ce qui
+  est envoyé, au compteur lu (412), `FIELD_NOT_ACCEPTED` pour la durée d'un jalon ;
+  `getComputedValueDependencies` nomme les subordonnées d'une récapitulative (`subordinates`) et
+  refuse un champ saisissable ; `resolveRowNumber` rend le nœud d'un numéro de toute la structure,
+  404 au-delà de la dernière ligne, 422 sur `/path/row_number` ;
+- propre à l'US : chaque écriture est refusée sur une révision marquée (409 `revision_draft`), sur
+  un projet terminal (`project_not_terminal`), pendant un traitement de fond
+  (`no_background_task_running`), par un non-contributeur (403 `NOT_CONTRIBUTOR`) et sans
+  `planning.write` (403) ; chaque réponse est validée contre le contrat dans les tests du
+  service, et la route de chaque opération déclare ses permissions ;
+- propre à l'US (lot technique) : les tables `node`, `task_link`, `timeline`, `tracking_entry`,
+  `import_report`, `undo_entry` et `paste_plan`, la colonne `cost_structure.planning_start_on`
+  remplie (#2170), `create_project_partitions` remplacée, les déclencheurs d'immuabilité, les
+  droits du rôle du service ; les modules `core/planning` et `core/exchanges` avec leur interface
+  en paquet, enregistrés dans les registres de `core/revisions` (la copie des tâches, des
+  liaisons et des inscriptions ; `revision_has_tasks_and_lines` pour les tâches) et dans ceux de
+  `resource_settings` ; un routeur vide par US enregistré dans `app.py`, les fichiers de tests et
+  de tranche du témoin, la déclaration des opérations et des permissions par routeur ; un test
+  par point d'entrée — l'API, le worker, le chargeur — vérifie que les registres portent les
+  extensions attendues (#2180) ; `make check` passe sur ce socle, tiré d'`epic/EP-04`.
+
+**Notes de réalisation.** La table des nœuds est unique, `node`, à deux facettes selon `kind`
+(`task` ici, `estimate_line` par la migration d'EP-07 ; décision de l'auteur du 2026-11-07,
+contre le Tableau 10 du §4.4.1, qui nomme `task` et `estimate_line` — une issue de spécification
+le dit). La tâche porteuse d'une ligne est son parent. L'ordre d'un nœud parmi ses frères est
+une clé d'ordre, les lignes d'une tâche précédant ses sous-tâches, et `position` comme
+`row_number` se calculent à la lecture. Les dates et les marges viennent du moteur d'US-1390 à
+chaque écriture ; les états sont posés par US-1410. Le socle de l'EPIC est le premier lot de cette
+US, et le lot pivot d'EP-07.
+
+**Hors périmètre.** Les lignes de devis et leur facette (EP-07) ; les liaisons (US-1390) ; les
+inscriptions (US-1400) ; l'état (US-1410) ; le collage et l'annulation (US-1450) ; les écrans
+(US-1470).
+
+---
+
+## US-1390 — Le calcul des dates, des marges et du chemin critique, et les liaisons
+
+- **statut** : à faire
+- **exigences** : `WF-PLA-0010-A`, `WF-PLA-0020-A`, `WF-PLA-0030-A`, `WF-PLA-0100-A`,
+  `WF-PLA-0160-A`
+- **opérations** : `setPredecessors`, `updateCostStructure` ; `listNodes`, `createNode`,
+  `updateTaskFacet`, `moveNodes`, `deleteNode` pour ce qu'elles rendent de redaté
+- **issue** :
+
+**En tant que** chef de projet, **je veux** que les dates de mes tâches automatiques, leurs marges
+et le chemin critique se calculent sur leur calendrier, à partir de leurs durées, de leurs
+liaisons et de la date de début de planning de la structure, et que mes liaisons se saisissent
+comme dans MS Project, **afin de** lire un planning juste sans le dater à la main.
+
+**Critères d'acceptation.**
+
+- `WF-PLA-0010-A` — « Une tâche de seize heures en mode automatique, commencée un lundi matin sur
+  un calendrier de huit heures du lundi au vendredi, finit le mardi ; sur un calendrier de quatre
+  heures, elle finit le jeudi. » : un test sans base du moteur ;
+- `WF-PLA-0010-A` — « Une tâche dont les deux rôles travaillent huit et six heures le lundi est
+  planifiée sur six heures ce jour-là. » : l'intersection des calendriers est une fonction du
+  moteur, éprouvée sans base sur deux calendriers donnés ; les rôles d'une tâche viennent de ses
+  lignes, d'EP-07, qui clôt ;
+- `WF-PLA-0010-A` — « Une tâche sans ligne de main-d’œuvre est planifiée sur le calendrier par
+  défaut. » : toute tâche d'EP-06 ; `calendar_hours` le rend ;
+- écart : `WF-PLA-0010-A` — « L’ajout, à une tâche dont un rôle travaille du lundi au vendredi,
+  d’une ligne d’un rôle qui ne travaille que le week-end est refusé en nommant les deux rôles, et
+  la tâche reste inchangée. » : les lignes sont d'EP-07, qui clôt ; le moteur refuse déjà une
+  tâche sans aucune heure dans la semaine ;
+- écart : `WF-PLA-0010-A` — « La répartition mensuelle de la charge d’une ligne suit les heures du
+  calendrier de son rôle. » : EP-07 ;
+- écart : `WF-PLA-0010-A` — « L’import d’un fichier de devis dont une ligne donnerait ce résultat
+  rejette cette ligne au compte rendu et applique les autres. » : EP-07 ;
+- `WF-PLA-0010-A` — « La modification d’un calendrier qui laisserait une tâche sans heure dans un
+  projet que le manager ne peut pas consulter est refusée en nommant ce projet par son libellé et
+  son code ; un projet en chiffrage sans code est nommé par son seul libellé. » : la garde
+  `calendar_change_is_admissible` d'EP-05 est remplie par un registre de `resource_settings`
+  qu'EP-06 alimente ; ici elle juge le calendrier par défaut, dont relèvent toutes les tâches sans
+  ligne, et refuse par `TASK_WITHOUT_WORKING_HOURS`, `params.projects` nommant chaque projet par
+  son libellé et son code, nul sans code ; les calendriers des rôles sont d'EP-07, qui clôt ;
+- `WF-PLA-0020-A` — « Le déplacement d’une tâche prédécesseur déplace ses successeurs en mode
+  automatique et laisse inchangés ceux en mode manuel. » : `rescheduled` les rend ;
+- `WF-PLA-0020-A` — « Les dates d’une tâche en mode automatique ne sont pas saisissables. » :
+  422 `COMPUTED_VALUE` sur `/start` ou `/finish`, `computed_fields` les nomme (US-1380) ;
+- `WF-PLA-0020-A` — « Une tâche en mode automatique sans prédécesseur commence à la date de début
+  de planning ; avancer cette date d’une semaine l’avance d’autant, ainsi que ses successeurs
+  automatiques. » : `updateCostStructure` écrit `planning_start_on` et rend les tâches redatées
+  (`rescheduled`), les manuelles inchangées ; un jour chômé au calendrier par défaut est refusé
+  par `NON_WORKING_DAY` ; une structure reprise d'une révision marquée conserve la sienne
+  (#2170) ;
+- `WF-PLA-0020-A` — « Une tâche manuelle datée avant la fin calculée de son prédécesseur est
+  signalée dans la grille et dans le Gantt, avec ce prédécesseur ; la retarder au-delà de cette
+  fin, ou raccourcir le prédécesseur, fait disparaître le signalement. » : `link_conflicts` sur
+  les deux tâches, le prédécesseur de marge négative et critique, rendus par `rescheduled` à
+  l'écriture qui crée ou lève le conflit ; la grille et le Gantt, par US-1470 ;
+- `WF-PLA-0020-A` — « Sur un calendrier du lundi au vendredi, la date de début d’une tâche
+  manuelle saisie un samedi est refusée, et le refus nomme le lundi suivant ; la même date
+  importée d’un fichier MS Project est gardée et signalée au compte rendu. » : la saisie, par
+  US-1380 (`NON_WORKING_DAY`, `next_working_day`) ; l'import, par US-1430 (`ImportReport.signals`) ;
+- `WF-PLA-0030-A` — « Les quatre types et un décalage négatif sont importés, saisis et exportés
+  sans perte. » : saisis par `setPredecessors`, conservés avec leur type, leur valeur et leur
+  unité ; importés et exportés, par US-1430 ;
+- `WF-PLA-0030-A` — « La création d’une liaison fermant un cycle, ou reliant une récapitulative à
+  l’une de ses subordonnées, est refusée, et la raison en est nommée à l’utilisateur. » :
+  422 `LINK_CYCLE` avec `params.cycle` dans l'ordre des liaisons, la plus courte, et
+  `LINK_FORBIDDEN` ; `moveNodes` refuse de même une boucle ou une liaison à travers la hiérarchie
+  (US-1380) ; un prédécesseur envoyé deux fois, `DUPLICATE_PREDECESSOR` ;
+- `WF-PLA-0030-A` — « Un décalage saisi en semaines ou en mois est conservé dans son unité,
+  importé et exporté sans conversion. » : conservé ; importé et exporté, par US-1430 ;
+- `WF-PLA-0030-A` — « Un décalage de 50 % sur un prédécesseur de dix jours vaut cinq jours de
+  travail. » : un test sans base du moteur ;
+- `WF-PLA-0100-A` — « Sur un planning à deux branches parallèles de durées différentes, la
+  branche la plus longue est critique et l’autre porte une marge égale à leur écart. »
+- `WF-PLA-0100-A` — « Allonger une tâche de la branche courte au-delà de sa marge la rend critique
+  à son tour. »
+- `WF-PLA-0100-A` — « Une tâche en mode manuel n’affiche aucune marge et n’apparaît jamais sur le
+  chemin critique, alors que ses successeurs automatiques voient leurs marges calculées à partir
+  de ses dates. »
+- `WF-PLA-0100-A` — « Un prédécesseur automatique qui ne peut pas finir avant le début d’une
+  tâche manuelle porte une marge négative, apparaît sur le chemin critique et est signalé. »
+- `WF-PLA-0100-A` — « Une récapitulative dont une subordonnée est critique est critique et
+  affiche la marge de cette subordonnée, nulle ou négative. »
+- `WF-PLA-0100-A` — « Un prédécesseur lié début à début à une tâche manuelle, et qui ne peut pas
+  commencer avant elle, porte une marge négative et est signalé. » : les six, des tests sans base
+  du moteur, et `total_float`, `is_critical`, `link_conflicts` lus par `listNodes` ;
+- `WF-PLA-0160-A` — « Avec les valeurs par défaut, une durée saisie « 2 j » vaut seize heures,
+  « 1 sem » quarante heures et « 1 m » cent soixante heures. » : la conversion par les constantes
+  de `getDurationUnits` (EP-05), un test sans base ;
+- `WF-PLA-0160-A` — « Un décalage saisi « 1 sem » est exporté puis réimporté sans changer
+  d’unité. » : constaté par US-1430 ;
+- `WF-PLA-0160-A` — « Un décalage de 2 ej sur une liaison fin à début dont le prédécesseur finit à
+  la dernière heure travaillée d’un vendredi s’achève le dimanche ; le successeur, sur un
+  calendrier du lundi au vendredi, commence le lundi à la première heure travaillée, de même
+  qu’avec un décalage de 2 eh. »
+- `WF-PLA-0160-A` — « Un décalage de 2 j sur la même liaison le fait commencer le mercredi. » :
+  les deux, des tests sans base du moteur ;
+- `WF-PLA-0160-A` — « Un fichier MS Project dont les constantes diffèrent de celles de
+  l’installation est importé avec les mêmes durées en heures, et le compte rendu signale la
+  différence. » : constaté par US-1430 ;
+- `WF-PLA-0160-A` — « « 1 m » est lu comme un mois et « 1 min » comme une minute, dans chacune des
+  langues de l’interface. » : constaté par EP-15 (US-0470), le serveur recevant l'unité du
+  contrat ;
+- `WF-PLA-0160-A` — « En anglais, « 1 j » et « 1 d » valent chacun un jour ; « 3 », saisi sans
+  suffixe, vaut trois jours. » : constaté par EP-15 (US-0470) ;
+- `WF-PLA-0160-A` — « Après passage des heures par jour de 8 à 7, une durée saisie « 2 j » dans
+  une révision en cours vaut quatorze heures, et ses dates sont recalculées ; dans une révision
+  marquée, elle vaut toujours seize heures. » : `set_duration_units` (EP-05) appelle, par un
+  registre de `resource_settings`, le recalcul de toutes les structures des révisions en cours
+  dans sa transaction, `scheduled_at` avançant ; une révision marquée n'est pas redatée et garde
+  ses dates ;
+- propre à l'US : le moteur est un module pur de `core/planning` — tâches, liaisons, calendrier
+  par tâche et constantes en entrée ; dates au plus tôt et au plus tard, marges, criticité,
+  conflits et horizon en sortie —, sans base ni session, que les tests des Vérif et le corpus de
+  WF-QUA-0080 (US-1430) éprouvent ; chaque écriture de nœud de l'EPIC l'appelle sur la structure
+  entière et rend `rescheduled` et `ancestors` ;
+- propre à l'US : `setPredecessors` remplace les liaisons de la tâche, `predecessor_row_number`
+  calculé à la lecture, `PROJECT_HORIZON_EXCEEDED` nommant la tâche saisie ; `updateCostStructure`
+  écrit aussi le libellé, exige un champ avec le compteur, est gardée par `edit_planning` ;
+  chaque réponse est validée contre le contrat dans les tests du service.
+
+**Notes de réalisation.** Le calcul est en heures de travail sur le calendrier de la tâche
+(WF-PLA-0010) : un `WorkInstant` est une date et les heures écoulées ce jour-là. Les contraintes
+de date de MS Project ne sont pas gérées : une tâche à contrainte est importée en mode manuel
+(WF-INTF-0040). Le moteur et son branchement se livrent en deux lots, le moteur pur d'abord.
+
+**Hors périmètre.** Les calendriers des rôles d'une tâche, portés par ses lignes (EP-07) ; la
+répartition de la charge (EP-07).
+
+---
+
+## US-1400 — Les chronologies nommées et les inscriptions aux suivis
+
+- **statut** : à faire
+- **exigences** : `WF-PLA-0140-A`, `WF-PLA-0060-A`
+- **opérations** : `listTimelines`, `createTimeline`, `deleteTimeline`, `setNodeTracking` ;
+  `listNodes` avec `timeline_id`
+- **issue** :
+
+**En tant que** chef de projet, **je veux** nommer des chronologies, y inscrire des tâches et des
+jalons ou les en retirer, inscrire un jalon au suivi temps/temps, et lire chaque chronologie en
+frise, **afin de** présenter à chaque public les jalons qui le concernent.
+
+**Critères d'acceptation.**
+
+- `WF-PLA-0140-A` — « Deux chronologies d’un même projet portent des sélections distinctes et se
+  retrouvent d’une session à l’autre. » : les inscriptions sont des lignes de `tracking_entry`,
+  par lignée de la tâche et par chronologie, lues par `listNodes` avec `timeline_id`, que la
+  révision suivante retrouve (WF-DAT-0030) ;
+- `WF-PLA-0140-A` — « L’export produit un fichier PNG de la chronologie affichée. » : la frise
+  d'EP-15 (US-0530/L3b) exporte son PNG contre le service, le parcours étiqueté `@shared` ;
+- `WF-PLA-0060-A` — « Une tâche inscrite apparaît dans la chronologie et disparaît lorsqu’elle
+  est retirée. » : `setNodeTracking` remplace les inscriptions de la tâche, et `listNodes` avec
+  `timeline_id` la rend puis ne la rend plus ;
+- écart : `WF-PLA-0060-A` — « Le diagramme temps/temps ne suit que les jalons inscrits. » :
+  l'entrée `milestone_tracking` est écrite ici, refusée sur une tâche qui n'est pas un jalon par
+  `MILESTONE_REQUIRED` ; le diagramme est d'EP-10, qui clôt ;
+- propre à l'US : `createTimeline` et `deleteTimeline` suivent `ProjectCommand.manage_timelines`
+  (`planning.write`, projet non terminal, 409 `project_not_terminal`), le nom n'est pas unique,
+  la suppression est physique et emporte les inscriptions, sans compteur (#1733) ; `listTimelines`
+  rend les chronologies du projet ; `setNodeTracking` refuse `timeline_id` absent (`VALUE_REQUIRED`),
+  d'un autre projet (`UNKNOWN_TIMELINE`), sur `milestone_tracking` (`FIELD_NOT_ACCEPTED`), sous
+  `edit_planning` ;
+- propre à l'US : l'écran des chronologies (`…/timelines`) travaille contre le service, le front
+  n'applique plus le critère `timeline_id` à la réponse (#496) et le parcours
+  `timelines.spec.ts` porte `@shared` ; `load-witness` charge les chronologies du témoin et les
+  inscriptions de ses tâches dans le fichier `timelines` de la tranche ;
+- propre à l'US : chaque réponse est validée contre le contrat dans les tests du service.
+
+**Notes de réalisation.** `timeline` et `tracking_entry` sont du régime « projet » (§4.4.1) : une
+inscription nomme une lignée, non un nœud, et survit aux révisions ; la lecture d'une révision la
+résout par la lignée de chaque tâche. La colonne « Chronologies » de la grille (US-0480) se lit
+par `task.tracking`.
+
+**Hors périmètre.** Le diagramme temps/temps (EP-10) ; la disposition des couloirs, une
+préférence d'affichage (EP-03, EP-15).
+
+---
+
+## US-1410 — L'état des tâches
+
+- **statut** : à faire
+- **exigences** : `WF-PLA-0130-A`
+- **opérations** : `setTaskProgress`
+- **issue** :
+
+**En tant que** chef de projet, **je veux** qu'une tâche porte son état et ses dates de démarrage
+et de terminaison, qu'une récapitulative les tire de ses subordonnées, et qu'un jalon passe de non
+démarré à terminé, **afin que** le planning dise où en est chaque tâche avant que le Kanban
+(EP-09) n'en fasse un écran.
+
+**Critères d'acceptation.**
+
+- `WF-PLA-0130-A` — « Chacun de ces attributs est affiché dans la grille de planning, et ceux que
+  MS Project connaît sont transportés par l’export. » : la grille, par US-1470 ; l'export, par
+  US-1430 ; ici, `listNodes` rend chacun — libellé, description, durée, début, fin, mode,
+  rattachement, état, `started_on`, `completed_on`, `total_float`, `is_critical` — ;
+  `physical_progress` est d'EP-10, qui clôt, nul ici ;
+- `WF-PLA-0130-A` — « Le passage à l’état démarré ou terminé demande une date, proposée au jour
+  courant et modifiable. » : `setTaskProgress` écrit `occurred_on`, le jour du geste par défaut ;
+  l'écran qui la propose est le Kanban d'EP-09 ;
+- écart : `WF-PLA-0130-A` — « Un import de reste à engager qui met une tâche à zéro la date de la
+  revue que porte le fichier ; une récapitulative porte la date de terminaison de sa dernière
+  subordonnée. » : la récapitulative, ici ; l'import de reste à engager est d'EP-09, EP-10 clôt ;
+- `WF-PLA-0130-A` — « La durée d’un jalon est nulle et n’est pas modifiable ; les dates d’une
+  récapitulative ne sont pas saisissables. » : constaté par US-1380 ;
+- `WF-PLA-0130-A` — « La marge totale, la criticité et l’avancement physique s’affichent et ne
+  sont pas saisissables. » : la marge et la criticité, par US-1390 et US-1470 ; l'avancement
+  physique est d'EP-10, qui clôt ;
+- propre à l'US : `setTaskProgress` démarre, termine ou rouvre une tâche feuille, au compteur lu,
+  et refuse par 409 — `task_is_milestone`, `task_without_lines` (jamais manquante sans ligne),
+  `task_not_milestone`, `completed_milestone`, puis `project_in_progress` et
+  `no_background_task_running` de `edit_remaining` — et par 422 `SUMMARY_TASK_DERIVED` sur une
+  récapitulative ; un jalon terminé porte `started_on` égal à `completed_on`, rouvert il perd les
+  deux ; une récapitulative est démarrée dès qu'une subordonnée l'est, terminée après la dernière,
+  et porte la date de la première démarrée et de la dernière terminée ; `finish_overdue` est vrai
+  pour une tâche démarrée dont la fin précède la date de calcul ;
+- propre à l'US : `load-witness` pose les états des tâches du témoin par l'interface, et chaque
+  réponse est validée contre le contrat dans les tests du service.
+
+**Notes de réalisation.** `setTaskProgress` est servie ici par l'API, sans écran (décision de
+l'auteur du 2026-11-07) ; le Kanban d'EP-09 branche l'écran. La condition `project_in_progress`
+se pose autour du service dans les tests, comme EP-04 l'a fait.
+
+**Hors périmètre.** Le Kanban, la réestimation, la suppression renvoyée vers le reste à engager
+(EP-09) ; l'avancement physique (EP-10).
+
+---
+
+## US-1420 — L'import en deux temps
+
+- **statut** : à faire
+- **exigences** : `WF-ARC-0100-A`, `WF-INTF-0080-A`, `WF-INTF-0090-A`, `WF-ARC-0110-A`,
+  `WF-DAT-0120-A`
+- **opérations** : `uploadFile`, `listImports`, `openImport`, `getImport`, `abandonImport`,
+  `applyImport`
+- **issue** :
+
+**En tant que** chef de projet, **je veux** déposer un fichier, lire le compte rendu de son
+analyse, puis l'appliquer ou l'abandonner, **afin que** rien ne change dans mon projet sans que
+je l'aie vu et confirmé — et que le devis (EP-07), le reste à engager et les coûts réels (EP-09)
+s'importent de la même façon.
+
+**Critères d'acceptation.**
+
+- `WF-ARC-0100-A` — « Entre l’analyse et la confirmation, aucune donnée du projet n’a changé. » :
+  la tâche `import_analysis` ne lit que le fichier et la structure, et n'écrit que le compte
+  rendu ;
+- `WF-ARC-0100-A` — « L’interruption de l’application laisse le projet dans son état
+  antérieur. » : la tâche `import_apply` écrit en une transaction, un worker arrêté pendant elle
+  laisse la base inchangée ;
+- `WF-ARC-0100-A` — « Un compte rendu expiré ne peut plus être appliqué, et son fichier n’est
+  plus sur le stockage objet. » : `applyImport` refuse par 409 `import_awaiting_decision` un
+  import dont `expires_at` est passé, qu'il se lise `expired` ; la purge l'a passé `expired` et
+  a supprimé son fichier ;
+- `WF-ARC-0100-A` — « Un import confirmé par un utilisateur dont la permission est retirée avant
+  l'exécution n'est pas appliqué, le refus nomme la condition manquante et son fichier n'est plus
+  sur le stockage objet. » : `applyImport` et la tâche revérifient la permission, la qualité de
+  contributeur et l'état ; refusé, l'import passe `refused`, son fichier supprimé (#1790) ;
+- `WF-ARC-0100-A` — « Il en va de même si le projet est passé dans un état terminal
+  entre-temps. » : `project_not_terminal` ;
+- `WF-INTF-0080-A` — « Pour un fichier qui contient des lignes invalides, le compte rendu les
+  liste avec leur motif avant la confirmation. » : `ImportReport.rejected`, par le format
+  (US-1430 pour MS Project) ; les lignes d'un devis sont d'EP-07, qui clôt ;
+- `WF-INTF-0080-A` — « Si l’utilisateur abandonne à cette étape, le projet reste inchangé. » :
+  `abandonImport`, 204, le fichier supprimé, idempotent sur un import terminé sans écrire, refusé
+  par `import_not_applied` sur `applying` et `applied` ;
+- `WF-INTF-0080-A` — « Si l’import est interrompu pendant son application, le projet revient à
+  son état antérieur. »
+- `WF-INTF-0090-A` — « On importe un planning MS Project, puis un devis, dans un projet qui
+  comporte une révision marquée. » : le planning, par US-1430 ; le devis est d'EP-07, qui clôt ;
+- `WF-INTF-0090-A` — « Seule la révision en cours est modifiée : les tâches, les dates et les
+  montants de la révision marquée sont identiques avant et après chaque import. » : les tâches et
+  les dates, ici ; les montants, EP-07 ;
+- `WF-INTF-0090-A` — « Un import sur un projet dont toutes les révisions sont marquées crée une
+  révision en cours d’élaboration et s’y applique ; les révisions marquées sont inchangées. » :
+  l'application crée la révision par `create_revision` (EP-04), `may_create_revision` jugée à
+  l'ouverture, `Import.revision_id` nul jusque-là ;
+- écart : `WF-INTF-0090-A` — « L’import d’un planning sur la structure principale d’une révision
+  qui porte un devis propre de risque laisse ce devis propre inchangé, tâches comprises ; l’import
+  du même fichier sur ce devis propre laisse la structure principale inchangée. » : la structure
+  visée (`structure_id`) est seule écrite, et l'écriture sur une autre structure de la révision
+  est éprouvée ici sur deux structures posées autour du service ; les devis propres sont d'EP-08,
+  EP-07 clôt ;
+- `WF-ARC-0110-A` — « Aucune réponse de l'API ne contient de phrase destinée à l'utilisateur. »
+- `WF-ARC-0110-A` — « Un import fait par un utilisateur en français, relu par un utilisateur en
+  anglais, présente son compte rendu en anglais. » : le compte rendu est conservé en codes et
+  paramètres (`import_report`), et l'écran le rend par son catalogue ;
+- `WF-ARC-0110-A` — « Le journal d'audit d'une même action se lit dans la langue de chaque
+  lecteur. » : constaté par EP-03 ;
+- `WF-ARC-0110-A` — « Un courriel de réinitialisation part du fournisseur d'identité, dans la
+  langue du compte. » : constaté par EP-03 ;
+- `WF-DAT-0120-A` — « Après application ou abandon d’un import, le fichier correspondant n’est
+  plus sur le stockage objet. »
+- `WF-DAT-0120-A` — « Un fichier déposé et jamais confirmé disparaît au terme du délai
+  d’expiration. » : `waterfall-worker purge`, lancé par le planificateur du Compose, passe
+  `expired` les imports `analysed` échus et supprime leur fichier, et supprime les dépôts
+  (`file_upload`) expirés, ceux d'EP-03 compris ;
+- `WF-DAT-0120-A` — « Un export téléchargé jusqu’au bout n’est plus sur le stockage objet ; un
+  téléchargement interrompu le laisse disponible ; un export jamais téléchargé en disparaît au
+  terme de vingt-quatre heures. » : la purge supprime les exports échus ; le téléchargement et
+  son export sont d'US-1430 ;
+- propre à l'US : `uploadFile` dépose un fichier d'import en une fois (`purpose: import`), refuse
+  au-delà de 10 Mio (413), refuse `external_backup` (422 `UPLOAD_PURPOSE_MISMATCH`) ; `openImport`
+  lit l'en-tête par le format de `kind`, refuse par 422 `FILE_FORMAT_UNREADABLE` avec
+  `expected_format`, 404 un dépôt inconnu, expiré ou consommé, 409 `project_not_terminal`,
+  `no_background_task_running`, `may_create_revision`, résout la structure principale par défaut,
+  et dépose `import_analysis` (202) ; `getImport` rend le compte rendu, la tâche et les commandes
+  `apply` (`import_awaiting_decision`, `import_file_accepted`) et `abandon` (`import_not_applied`) ;
+  `listImports` pagine du plus récent au plus ancien ; `applyImport` dépose `import_apply` (202),
+  409 dans l'ordre d'I-01 ; les statuts `analysing`, `analysed`, `applying`, `applied`,
+  `abandoned`, `expired`, `failed`, `refused` ; le fichier en transit vit sous un préfixe du
+  compartiment du stockage objet ;
+- propre à l'US : un format s'enregistre auprès du module par une interface — lire l'en-tête,
+  analyser en un compte rendu, appliquer un compte rendu — sans que le module le nomme ; la
+  mécanique est éprouvée par un format d'essai des tests, avant tout format réel ; chaque réponse
+  est validée contre le contrat dans les tests du service.
+
+**Notes de réalisation.** Le module `core/exchanges` porte la table `import_report` (régime
+« projet », §4.4.1) : l'import, son état, sa période, et son compte rendu en JSONB de codes. Les
+genres de tâche `import_analysis` et `import_apply` existent au contrat et dans `background_task`.
+Le verbe `purge` est une commande du worker comme `enqueue`, sous un verrou consultatif, planifiée
+par le service `scheduler` du Compose (décision de l'auteur du 2026-11-07). Le contrat dit que
+l'ouverture refuse le format et que l'analyse ne refuse plus (I-10).
+
+**Hors périmètre.** Le format MS Project (US-1430) ; les formats Excel (EP-07, EP-09) ; l'écran
+des échanges, branché par US-1430.
+
+---
+
+## US-1430 — Le format MS Project : import, export et aller-retour
+
+- **statut** : à faire
+- **exigences** : `WF-INTF-0040-A`, `WF-INTF-0050-A`, `WF-INTF-0060-A`, `WF-QUA-0080-A`,
+  `WF-DAT-0120-A`
+- **opérations** : `requestExport` (`ms_project_schedule`), `getBackgroundTaskResult` ;
+  `openImport`, `getImport`, `applyImport` pour `ms_project_schedule`
+- **issue** :
+
+**En tant que** chef de projet, **je veux** importer un planning MS Project dans ma révision en
+cours, le retravailler dans MS Project et le réimporter sans perdre mes tâches, et exporter mon
+planning pour qu'il s'ouvre dans MS Project aux mêmes dates, **afin de** démarrer et de partager
+un planning avec l'outil que mes interlocuteurs connaissent.
+
+**Critères d'acceptation.**
+
+- `WF-INTF-0040-A` — « Un fichier XML produit par MS Project 2013 est importé sans erreur. » : un
+  fichier du corpus, importé contre le service ;
+- `WF-INTF-0040-A` — « Après import, les tâches et leurs liaisons de prédécesseur — type FD, DD,
+  FF ou DF, et décalage — sont identiques à celles du fichier source ; une tâche en mode manuel
+  du fichier est en mode manuel aux mêmes dates ; une tâche portant une contrainte « Pas avant
+  le » est en mode manuel et signalée ; une tâche à 50 % d’avancement est importée non démarrée ;
+  aucune ressource et aucun calendrier présents dans le fichier n’a été créé dans Waterfall, et
+  l’utilisateur est informé que ces éléments ont été ignorés. » : `ImportReport.ignored` nomme
+  les ressources, les calendriers, l'avancement, les coûts, les champs personnalisés et les
+  contraintes de date ;
+- écart : `WF-INTF-0040-A` — « Un planning exporté, retravaillé dans MS Project puis réimporté
+  conserve les lignes de devis et les lignées de ses tâches, et ses tâches démarrées. » : les
+  lignées, par l'identifiant unique que l'export écrit, et les tâches démarrées, conservées et
+  signalées (`kept`), ici ; les lignes de devis sont d'EP-07, qui clôt ;
+- `WF-INTF-0040-A` — « Un fichier qui place la tâche d’un poste hors du sous-arbre de la tâche de
+  son lot est rejeté et le compte rendu nomme les deux tâches ; un fichier dont une tâche rattachée
+  a disparu est appliqué et le compte rendu nomme le poste qu’elle portait ; une tâche rattachée
+  réimportée conserve son rattachement. » : `refusals` par `ORDER_ITEM_OUTSIDE_WORK_PACKAGE`,
+  `ImportDifference.work_breakdown_label`, le rattachement intouché ;
+- `WF-INTF-0050-A` — « Vérifiée en recette pour l’ouverture dans MS Project ; l’égalité des dates
+  est couverte par le corpus de WF-QUA-0080. » : une phrase de méthode — l'ouverture dans MS
+  Project est constatée en recette par l'auteur, aucun test à écrire ; l'égalité des dates, par le
+  corpus ;
+- `WF-INTF-0050-A` — « Un planning Waterfall exporté au format XML s’ouvre sans erreur dans les
+  versions de MS Project visées par WF-INTF-0040. » : constaté en recette par l'auteur ; ici, le
+  fichier est valide contre le schéma quand il est présent ;
+- écart : `WF-INTF-0050-A` — « Les calendriers Waterfall y figurent et sont affectés aux tâches,
+  et chaque tâche porte son identifiant Waterfall et, dans ses notes, sa description. » : le
+  calendrier par défaut, la lignée et la description (#1339), ici ; les calendriers des rôles
+  sont d'EP-07, qui clôt ;
+- `WF-INTF-0050-A` — « En mode automatique, MS Project recalcule pour chaque tâche des dates de
+  début et de fin identiques à celles affichées par Waterfall. » : par le corpus ;
+- `WF-INTF-0060-A` — « Vérifiée en recette pour l’ouverture dans MS Project ; l’absence d’écart
+  de dates est couverte par le corpus de WF-QUA-0080. » : une phrase de méthode — constatée en
+  recette par l'auteur, aucun test à écrire ; l'absence d'écart, par le corpus ;
+- écart : `WF-INTF-0060-A` — « Un planning comportant au moins une tâche récapitulative, un
+  jalon, les quatre types de liaison, et des tâches portant des rôles de ressources aux
+  calendriers différents, est exporté, ouvert dans MS Project sans y être modifié, puis
+  réimporté. » : l'aller-retour sans ouverture dans MS Project, sur un planning à récapitulative,
+  jalon et quatre types de liaison, ici ; les rôles sont d'EP-07, qui clôt ;
+- `WF-INTF-0060-A` — « Le compte rendu ne présente aucun écart de dates ni de durées, et le
+  planning obtenu est identique à celui relevé avant l’export. » : `differences` et
+  `date_mismatches` vides ;
+- `WF-INTF-0060-A` — « La date de début de planning est identique avant et après
+  l’aller-retour. »
+- `WF-INTF-0060-A` — « La description de chaque tâche est identique avant et après
+  l’aller-retour. » (#1339) ;
+- `WF-QUA-0080-A` — « Chaque cas cité par le corps figure dans au moins un planning du corpus. » :
+  un test lit le corpus et nomme le cas qui manque ;
+- `WF-QUA-0080-A` — « La modification de la règle de calcul des dates fait échouer au moins un
+  test du corpus. »
+- `WF-QUA-0080-A` — « Leur exécution ne demande ni MS Project, ni base de données, ni
+  navigateur. » : le lecteur et le moteur d'US-1390 sont purs ;
+- `WF-QUA-0080-A` — « Chaque planning du corpus réimporté puis exporté par Waterfall est valide
+  contre le schéma ; un élément exporté hors de l’ordre du schéma fait échouer ce test, et
+  l’absence du schéma le marque non exécuté. » : le schéma est désigné par un réglage, le test
+  `skip` sans lui ;
+- `WF-DAT-0120-A` — « Après application ou abandon d’un import, le fichier correspondant n’est
+  plus sur le stockage objet. » : constaté par US-1420 ;
+- `WF-DAT-0120-A` — « Un fichier déposé et jamais confirmé disparaît au terme du délai
+  d’expiration. » : constaté par US-1420 ;
+- `WF-DAT-0120-A` — « Un export téléchargé jusqu’au bout n’est plus sur le stockage objet ; un
+  téléchargement interrompu le laisse disponible ; un export jamais téléchargé en disparaît au
+  terme de vingt-quatre heures. » : `getBackgroundTaskResult` transmet le fichier en flux et le
+  supprime à la fin du premier téléchargement complet, `result_url` devenant nul ; un
+  téléchargement interrompu le laisse ; la purge d'US-1420 supprime l'export échu ;
+- propre à l'US : l'analyse rapproche les tâches par la lignée que l'export écrit, puis par
+  `external_id`, crée les tâches sans identifiant, supprime celles absentes du fichier selon
+  WF-PLA-0070 (démarrées et terminées conservées et signalées), remplace les liaisons et présente
+  leurs écarts, lit la date de début du projet dans `planning_start_on` et la présente quand elle
+  diffère (`cost_structure`, `planning_start_on`), signale une date manuelle chômée
+  (`NON_WORKING_DAY`) et une récapitulative manuelle importée en automatique
+  (`SUMMARY_TASK_DERIVED`), présente `date_mismatches`, rejette une tâche sous un jalon
+  (`MILESTONE_HAS_NO_SUBTASK`, #1772), refuse le fichier entier par `PROJECT_HORIZON_EXCEEDED`
+  (WF-PLA-0150) ou `ORDER_ITEM_OUTSIDE_WORK_PACKAGE`, signale des constantes d'unités autres que
+  celles de l'installation, et compte `read_count` et `unchanged_count` ; `openImport` refuse un
+  fichier qui n'est pas un XML MS Project par `FILE_FORMAT_UNREADABLE`, `expected_format` à
+  `ms_project_schedule` ;
+- propre à l'US : `requestExport` dépose une tâche `export` (202) pour la révision nommée, en
+  cours ou marquée, la structure principale par défaut, sous `export_planning` ; le worker écrit
+  le fichier XML — la date de début du projet, les constantes d'unités, chaque tâche avec son
+  identifiant de lignée, ses notes, son mode, sa durée, ses dates, son calendrier de tâche, les
+  liaisons avec leur type et leur décalage dans son unité — sur le stockage objet, et
+  `BackgroundTaskRef.result_url` le désigne ; `getBackgroundTaskResult` répond 409
+  `task_succeeded` avant, 404 après ;
+- propre à l'US : l'écran des échanges (`…/exchanges`) et l'encart « Démarrer le projet »
+  (import d'un fichier MS Project) travaillent contre le service, `MockupNotice` retiré de
+  l'écran des échanges, les parcours `exchanges.spec.ts` et `tasks.spec.ts` étiquetés `@shared`
+  pour ce que le service sert ; chaque réponse est validée contre le contrat dans les tests du
+  service.
+
+**Notes de réalisation.** Le corpus de WF-QUA-0080 est un préalable fourni par l'auteur
+(« Préalables ») ; la bibliothèque XML et la place du corpus se fixent à la conception. L'export
+est le premier résultat de tâche à télécharger : `result_url` des tâches `export` est la route de
+`getBackgroundTaskResult`. Les constantes d'unités du fichier (`MinutesPerDay`, `MinutesPerWeek`,
+`DaysPerMonth`) sont lues pour convertir les durées en heures et signalées quand elles diffèrent
+(WF-PLA-0160).
+
+**Hors périmètre.** Les formats Excel (EP-07, EP-09) ; l'image de l'arborescence (US-1440) ; les
+lignes d'une tâche réimportée (EP-07).
+
+---
+
+## US-1440 — L'arborescence de tâches et son export PNG
+
+- **statut** : à faire
+- **exigences** : `WF-PLA-0110-A`, `WF-PLA-0120-A`
+- **opérations** : `listNodes` (`summaries_only`, `max_level`) ; `requestExport`
+  (`task_tree_image`), `getBackgroundTaskResult`
+- **issue** :
+
+**En tant que** chef de projet, **je veux** lire les récapitulatives de mon planning en
+arborescence jusqu'au niveau que je choisis, et en exporter une image à imprimer, **afin de**
+présenter la structure du projet sans ses détails.
+
+**Critères d'acceptation.**
+
+- `WF-PLA-0110-A` — « Sur un planning de quatre niveaux, l’affichage demandé au niveau 2 ne
+  représente que les récapitulatives des deux premiers niveaux, sous le nœud du projet. » :
+  `listNodes` avec `kinds=task`, `summaries_only` et `max_level=2`, le front n'appliquant plus le
+  critère à la réponse (#496), et `summary_depth` à 4 quel que soit `max_level` ;
+- `WF-PLA-0110-A` — « Aucun jalon ni aucune tâche feuille n’apparaît, quel que soit le niveau
+  demandé. »
+- `WF-PLA-0110-A` — « Un planning composé uniquement de tâches feuilles produit une arborescence
+  réduite au nœud du projet. » : `summary_depth` à 0, aucun nœud rendu ;
+- `WF-PLA-0120-A` — « L’export d’un planning de trois niveaux produit un fichier PNG dont le
+  premier niveau est disposé horizontalement et les suivants verticalement. » : la tâche `export`
+  de genre `task_tree_image`, dessinée par le worker, téléchargée par `getBackgroundTaskResult`
+  (`image/png`) ;
+- `WF-PLA-0120-A` — « Le contenu ne dépend que du niveau demandé. » : `ExportRequest.depth`, 422
+  `VALUE_OUT_OF_RANGE` sous 1 ;
+- `WF-PLA-0120-A` — « L’export d’une arborescence trop large pour une page produit une image plus
+  large que la page, sans réduction. »
+- propre à l'US : l'image porte le libellé du projet, de la révision et la date de calcul, dans
+  la langue du compte demandeur (WF-ARC-0110) ; l'écran de l'arborescence (`…/task-tree`)
+  travaille contre le service, offre l'export sous `export_task_tree_image`, et son parcours
+  (`planning.spec.ts`, l'arborescence) porte `@shared` ; chaque réponse est validée contre le
+  contrat dans les tests du service.
+
+**Notes de réalisation.** La bibliothèque d'image du worker se fixe à la conception. Le témoin
+offre `nodes_nested`, une variante à quatre niveaux ; contre le service, l'arborescence de
+PRJ-001 a la profondeur que `summary_depth` dit.
+
+**Hors périmètre.** Les exports PNG du Gantt et d'une chronologie, faits par le front (EP-15).
+
+---
+
+## US-1450 — Le collage et l'annulation servis par le serveur
+
+- **statut** : à faire
+- **exigences** : `WF-IHM-0110-A`
+- **opérations** : `previewPaste`, `applyPaste`, `undoLastChange`, `redoLastUndo`
+- **issue** :
+
+**En tant que** chef de projet, **je veux** coller dans la grille de planning un bloc venu d'un
+tableur après en avoir vu le compte rendu, annuler mes saisies une par une et les rétablir, et
+être prévenu quand un autre contributeur a repris ce que je voudrais annuler, **afin de** saisir
+vite sans craindre une fausse manœuvre.
+
+**Critères d'acceptation.**
+
+- `WF-IHM-0110-A` — « La suppression d’une tâche puis son annulation restituent la tâche, ses
+  lignes et ses liaisons. » : la tâche et ses liaisons, ici, avec ses inscriptions ; les lignes
+  sont d'EP-07, EP-08 clôt ;
+- écart : `WF-IHM-0110-A` — « Le réexamen d’un risque puis son annulation lui rendent sa
+  probabilité et son état précédents. » : les risques sont d'EP-08, qui clôt ;
+- `WF-IHM-0110-A` — « Cinquante modifications successives s’annulent une par une, puis se
+  rétablissent dans l’ordre. » : contre le service, par l'API et par la grille (US-1470) ;
+- `WF-IHM-0110-A` — « L’annulation d’une modification qu’un autre contributeur a depuis reprise
+  est refusée en nommant l’objet en conflit. » : 409 `UNDO_CONFLICT`, `conflicting_object_id` et
+  `conflicting_object_label`, jugé sur le compteur des nœuds que l'entrée a écrits ;
+- `WF-IHM-0110-A` — « Aucune commande n’annule un marquage, un import appliqué, une déclaration
+  de survenance ou une exclusion de ligne de coût. » : le marquage et l'abandon vident
+  l'historique de la révision, un import appliqué n'y entre pas ; la survenance et l'exclusion
+  sont d'EP-08 et d'EP-09, EP-08 clôt ;
+- propre à l'US : chaque écriture de nœud de l'EPIC — cellule, création, suppression,
+  déplacement, collage, liaison, avancement, inscription, structure — inscrit dans la transaction
+  une entrée d'`undo_entry` (révision, compte, session de connexion, nature `UndoneKind`, instantanés
+  avant et après) ; `undoLastChange` et `redoLastUndo` défont et refont la dernière, rendent
+  `UndoResult` avec `NodesWritten` et `remaining_depth`, refusent par `undo_history_not_empty` et
+  `redo_history_not_empty`, et une annulation subit les règles de la saisie ; l'historique garde
+  au moins cinquante entrées par révision et par utilisateur, et ne survit ni au marquage, ni à
+  l'abandon, ni à la session ;
+- propre à l'US : `previewPaste` juge un bloc collé sur la facette tâche dans l'ordre de
+  `NodeColumn` — `COMPUTED_VALUE`, `FIELD_NOT_ACCEPTED`, `NON_WORKING_DAY`,
+  `MILESTONE_HAS_NO_SUBTASK` (#1772), les règles du rattachement —, refuse un bloc trop large
+  (422 `PASTE_TOO_WIDE`, `max_columns`), et garde le plan (`paste_plan`) avec le compteur de la
+  structure ; `applyPaste` écrit les lignes acceptées en une opération, rejuge, 412 si la
+  structure a changé, et rend `PasteApplied` ; un plan abandonné n'écrit rien ;
+- propre à l'US : Annuler et Rétablir de la grille de planning sont branchées (`undo-commands.tsx`,
+  #1057), leur refus dit par le catalogue, le collage de la grille de planning joue contre le
+  service, et les parcours `undo.spec.ts` et `paste.spec.ts` portent `@shared` pour ce qu'ils
+  jouent sur le planning ; chaque réponse est validée contre le contrat dans les tests du service.
+
+**Notes de réalisation.** L'historique et le plan de collage vivent dans PostgreSQL
+(`undo_entry`, `paste_plan` ; décision de l'auteur du 2026-11-07), hors du Tableau 10 du §4.4.1,
+que l'issue de spécification de l'EPIC demande de compléter. La session est la session de
+connexion de Keycloak, dont la revendication `sid` du jeton survit à ses rafraîchissements — lier la
+pile au jeton d'accès lui-même la viderait à chaque rafraîchissement, toutes les cinq minutes ;
+la conception dit où l'API lit `sid`. La purge d'US-1420 retire les entrées d'une session finie et
+les plans échus.
+
+**Hors périmètre.** Les colonnes de la ligne de devis dans un collage (EP-07) ; l'annulation des
+saisies de risque (EP-08).
+
+---
+
+## US-1460 — Le squelette de planning engendré du lotissement
+
+- **statut** : à faire
+- **exigences** : `WF-PRJ-0030-A`, `WF-PLA-0170-A`
+- **opérations** : `generatePlanningSkeleton` ; `getWorkBreakdown`, `createRevision`
+- **issue** :
+
+**En tant que** chef de projet, **je veux** engendrer d'un coup, depuis mon lotissement, les
+récapitulatives, les livrables et les jalons de fin de mon planning, **afin de** ne pas ressaisir
+une structure que le bon de commande donne déjà.
+
+**Critères d'acceptation.**
+
+- `WF-PRJ-0030-A` — « La génération sur un lotissement de deux lots et trois postes produit les
+  récapitulatives, rattachées à leur lot ou à leur poste, les feuilles et les jalons attendus,
+  avec leurs liaisons. »
+- `WF-PRJ-0030-A` — « Elle n’est plus proposée dès que la structure principale comporte une tâche,
+  et ne l’est jamais sur un différentiel ni sur le devis propre d’un risque. » :
+  `RevisionCommand.generate_skeleton` et `ProjectCommand.generate_skeleton`,
+  `main_structure_without_tasks` puis `no_background_task_running`, `revision_draft` sur une
+  révision marquée ; l'opération ne nomme aucune structure ;
+- `WF-PRJ-0030-A` — « Renommer un poste ensuite ne change aucune tâche ; le supprimer ne déplace
+  ni ne supprime aucune tâche, et retire le seul rattachement de celle qui le portait
+  (WF-PLA-0170). »
+- `WF-PRJ-0030-A` — « Sur le lotissement par défaut, la génération produit une récapitulative de
+  lot, une récapitulative de poste sans feuille, et leurs deux jalons de fin. » : l'exemple
+  `skeleton_generated`, rejoué contre le service ;
+- `WF-PLA-0170-A` — « Une feuille peut être rattachée à un poste ; une récapitulative rattachée
+  dont on supprime la dernière subordonnée garde son rattachement. » : constaté par US-1380 ;
+- `WF-PLA-0170-A` — « Le rattachement d’une tâche à un poste déjà porté par une autre est refusé,
+  comme celui d’une même tâche à un lot et à un poste. » : constaté par US-1380 ;
+- `WF-PLA-0170-A` — « Le déplacement de la tâche d’un poste hors du sous-arbre de la tâche de son
+  lot est refusé. » : constaté par US-1380 ;
+- `WF-PLA-0170-A` — « La suppression d’un poste porté par une tâche de la révision en cours
+  aboutit ; la tâche reste et ne porte plus de rattachement ; une révision marquée qui la citait
+  l’affiche toujours rattachée. » : constaté par US-1380 ;
+- `WF-PLA-0170-A` — « Après suppression d’un poste sur un projet sans révision en cours, la
+  révision créée ensuite ne porte plus ce rattachement ; la révision marquée l’affiche
+  toujours. » : constaté par US-1380 ;
+- `WF-PLA-0170-A` — « La génération du squelette n’est pas proposée sur le devis propre d’un
+  risque. » : la commande est de la révision et engendre sur la principale ; les devis propres
+  sont d'EP-08 ;
+- écart : `WF-PLA-0170-A` — « La fusion d’un différentiel qui déplacerait la tâche d’un poste hors
+  du sous-arbre de la tâche de son lot est refusée en nommant la tâche. » : EP-08, qui clôt ;
+- écart : `WF-PLA-0170-A` — « Une tâche rattachée au poste 2 dont un différentiel allonge la
+  durée porte toujours ce rattachement après la fusion. » : EP-08 ;
+- propre à l'US : les jalons de fin de poste ont pour prédécesseurs les livrables du poste, le
+  jalon de fin de lot ceux de ses postes, les feuilles sont automatiques d'un jour, la réponse est
+  `NodesWritten` dans l'ordre du plan ; l'encart « Démarrer le projet » et « Engendrer le
+  planning » du lotissement travaillent contre le service, et `project-start.spec.ts` perd son
+  garde `BEFORE_EP06` ; chaque réponse est validée contre le contrat dans les tests du service.
+
+**Notes de réalisation.** L'écran est celui d'EP-14/L44d et d'EP-15/US-0490. Sur un projet sans
+révision en cours, l'écran ouvre la révision d'abord (`createRevision`, EP-04), puis engendre.
+
+**Hors périmètre.** Les devis propres et les différentiels (EP-08).
+
+---
+
+## US-1470 — La grille de planning et le Gantt branchés sur le service
+
+- **statut** : à faire
+- **exigences** : `WF-PLA-0080-A`, `WF-PLA-0090-A`, `WF-ADM-0110-A`, `WF-INTF-0010-A`
+- **opérations** : toutes celles de l'EPIC que la grille de planning et le Gantt lisent et
+  écrivent
+- **issue** :
+
+**En tant que** chef de projet, **je veux** que la grille de planning et le Gantt travaillent
+contre le service — saisie, prédécesseurs, rattachement, date de début de planning, menu
+contextuel, commandes, chemin critique et conflits — **afin de** construire un planning sans faux
+back.
+
+**Critères d'acceptation.**
+
+- `WF-PLA-0080-A` — « Chacune des colonnes citées est présente. » : contre le service, chaque
+  colonne lue de `listNodes` ;
+- `WF-PLA-0080-A` — « L’indentation d’un groupe de tâches déplace le groupe entier sous la tâche
+  précédente. » : `moveNodes` contre le service, le report lu dans la grille de devis
+  (#1057, sur des tâches) ;
+- `WF-PLA-0080-A` — « La recherche sur un libellé ne laisse voir que les tâches correspondantes
+  et leurs parents. » : `search` tenu par le serveur ;
+- `WF-PLA-0080-A` — « Les trois sortes de tâches se distinguent sans lire leur durée. » :
+  `is_summary` et `is_milestone` du serveur ;
+- `WF-PLA-0080-A` — « Une tâche terminée se distingue d’une tâche démarrée sans lire de colonne ;
+  une feuille ne porte pas d’avancement physique. » : `progress` et `physical_progress` nul du
+  serveur, sur les tâches du témoin ;
+- `WF-PLA-0080-A` — « Le filtre sur un poste ne laisse voir que la tâche qui le porte, son
+  sous-arbre et ses parents. » : `order_item_id` tenu par le serveur ;
+- `WF-PLA-0090-A` — « Les liaisons et la hiérarchie sont visibles, ainsi que le chemin
+  critique. » : `is_critical` du serveur ;
+- `WF-PLA-0090-A` — « Aucune action de la souris ou du clavier ne modifie une tâche depuis le
+  Gantt. »
+- `WF-PLA-0090-A` — « Une récapitulative pliée dans la grille l’est dans le Gantt, et
+  réciproquement. » : constaté par EP-02/L40, rejoué contre le service ;
+- `WF-ADM-0110-A` — « Un utilisateur habilité à modifier le planning et porteur de « consulter
+  tous les projets », mais non contributeur d’un projet, voit ce planning et ne peut pas le
+  modifier, ni par la grille ni par import. » : 200 sur `listNodes`, 403 `NOT_CONTRIBUTOR` sur
+  chaque écriture et sur `openImport` (US-1420) ;
+- `WF-ADM-0110-A` — « Inscrit comme contributeur, il le modifie. »
+- `WF-ADM-0110-A` — « Un utilisateur sans la permission de consultation ne voit pas le projet,
+  même contributeur ; un contributeur sans « consulter tous les projets » ne voit que ses
+  projets. » : constaté par EP-04 ;
+- `WF-ADM-0110-A` — « Une adresse d’objet inexistant et une adresse d’objet non consultable mènent
+  au même écran. » : constaté par EP-04 ; ici, le même 404 sur une structure, un nœud, un numéro
+  de ligne ;
+- `WF-ADM-0110-A` — « Un utilisateur connaît la liste de ses permissions effectives, et elle
+  change immédiatement lorsqu'un de ses rôles est modifié. » : constaté par EP-03 ;
+- `WF-INTF-0010-A` — « Un utilisateur porteur du rôle prédéfini « chef de projet » crée un projet
+  et atteint, sur un projet où il est habilité, les fonctions de gestion des révisions (FBS-4.1),
+  de paramétrage du projet, contributeurs compris (FBS-4.2), de planification (FBS-4.3), de
+  chiffrage (FBS-4.4), de gestion des risques (FBS-4.6), d’estimation du reste à engager
+  (FBS-4.5), de gestion des coûts réels (FBS-4.7), de lecture des indicateurs (FBS-4.8), de
+  sortie du cycle de vie (FBS-4.9) et d’échange des fichiers du tableau des flux (FLX-01 à
+  FLX-07), et les mène jusqu’à leur terme, marquage d’une révision, exclusion d’une ligne de coût
+  et déclaration d’une sortie compris. » : la planification (FBS-4.3) et les flux FLX-01 et
+  FLX-02, ici, par le compte « chef de projet » de la course ; les révisions, le paramétrage et la
+  sortie, constatés par EP-04 ; le chiffrage, les risques, le reste à engager, les coûts réels,
+  les indicateurs et les autres flux sont d'EP-07 à EP-10, EP-08 clôt ;
+- propre à l'US : la grille de planning lit `listNodes` servi, écrit chaque cellule par
+  `updateTaskFacet`, les prédécesseurs par `setPredecessors` et `resolveRowNumber`, la date de
+  début par `updateCostStructure`, le rattachement, les commandes de structure, et montre les
+  tâches redatées, les conflits et le chemin critique que le serveur rend ; `MockupNotice` est
+  retiré de l'écran du planning et les aides `frontend/help/fr/FBS-4.3*.md` disent ce que le
+  service fait ; les parcours `planning.spec.ts`, `structure.spec.ts`, `computed.spec.ts`,
+  `keyboard.spec.ts` et la part du planning de `grid.spec.ts` et de `context.spec.ts` portent
+  `@shared` pour ce qu'ils jouent contre le service ; le parcours du report d'une grille à l'autre
+  (#1057) crée une tâche depuis la grille de devis et la lit dans le planning ;
+- propre à l'US : la mesure, contre le service, du temps entre la validation d'une cellule et
+  l'application de la ligne rendue (#196) et du coût d'un déplacement de la cellule active sur
+  les mille tâches de PRJ-001 (#620) s'écrit au relevé de livraison ; aucune optimisation sans
+  elle.
+
+**Notes de réalisation.** Les écrans sont ceux d'EP-02/L40, d'EP-14 et d'EP-15 (US-0460 à
+US-0530) ; cette US ne les réécrit pas. Un manque que le branchement révèle devient une issue ;
+un manque du contrat, une « Interface contract issue ».
+
+**Hors périmètre.** La grille de devis et celle du reste à engager (EP-07, EP-09) ; l'avancement
+physique (EP-10).
+
+---
+
+## US-1480 — Le témoin : la tranche des tâches, et les parcours rejoués
+
+- **statut** : à faire
+- **exigences** : `WF-QUA-0040-A`
+- **opérations** : aucune en propre ; le chargement passe par les interfaces du noyau
+- **issue** :
+
+**En tant que** développeur, **je veux** charger sur une plateforme qui porte les projets du
+témoin les mille tâches de PRJ-001, leurs liaisons, leurs états, leurs inscriptions et ses
+chronologies, et rejouer contre le service tous les parcours du planning écrits sur le faux back,
+**afin que** les tests déjà écrits prouvent le service et que le planning du plus gros projet
+s'affiche.
+
+**Critères d'acceptation.**
+
+- `WF-QUA-0040-A` — « L'engendrement du jeu aboutit sur une plateforme neuve et produit les
+  volumes annoncés. » : pour la tranche des tâches — les mille tâches de la structure principale
+  de la révision en cours de PRJ-001 et des révisions marquées 100 et 101, leurs liaisons, leurs
+  modes et leurs durées, leurs états et leurs dates de démarrage et de terminaison, les
+  inscriptions, les deux chronologies, la date de début de planning —, chargée par
+  `waterfall-api load-witness` après celle des projets, par les interfaces, avec les identifiants
+  et les instants du témoin, les tâches des révisions marquées chargées avant leur marquage ; les
+  lignes sont d'EP-07, les volumes entiers d'EP-13, qui clôt ;
+- `WF-QUA-0040-A` — « Deux engendrements successifs donnent des données identifiantes
+  identiques. » : deux plateformes chargées portent les mêmes identifiants, lignées et dates ;
+- `WF-QUA-0040-A` — « Aucune adresse électronique ni aucun libellé de projet réel n'y figure. » :
+  les libellés sont ceux du témoin, fictifs ;
+- propre à l'US : `make mock-data` écrit, à côté des exemples, le fichier de la tranche des
+  tâches que la commande lit, sans que le back importe `wftools` ; la commande lit ce fichier,
+  `timelines.json` et les exemples de `listNodes`, validés par les modèles du contrat ; les
+  lectures du témoin chargé — `nodes_planning`, `nodes_summaries`, `nodes_timeline`,
+  `nodes_milestone`, `volume/nodes_thousand` — sont comparées aux exemples, aux colonnes d'audit
+  et aux montants près, listés dans le test ;
+- propre à l'US : tous les parcours du planning, du Gantt, de l'arborescence, des chronologies
+  et des échanges étiquetés `@shared` passent contre le service, le témoin chargé ; la définition
+  de fini est constatée — cinquante saisies annulées puis rétablies, un collage prévisualisé puis
+  appliqué, un import MS Project appliqué, un aller-retour sans écart, les exports produits — ;
+  les entrées du guide que `BEFORE_EP06` et `BEFORE_THE_DATA` (le planning) gardaient sont
+  levées, et le guide dit ce que la tranche charge et ce qu'EP-07 y ajoute.
+
+**Notes de réalisation.** La tranche suit les règles du chargeur d'EP-05 et la chronologie d'EP-04
+(`Act.at`) : les tâches des révisions 100 et 101 s'écrivent avant leur marquage, dans l'ordre des
+événements, et les dates sont celles que le moteur calcule — le calculé devient l'attendu, et un
+désaccord avec une fixture se tranche par la spécification. Le fichier de la tranche est un lot
+d'outil, lançable tôt, comme US-0990/L1.
+
+**Hors périmètre.** Les lignes, les risques et les coûts du témoin (EP-07 à EP-09) ; les trois
+cents projets (EP-13).

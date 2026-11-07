@@ -51,13 +51,17 @@ démarrées.
 
 La portée dit si l'exigence est entière ici, commencée ici et close par un EPIC ultérieur, ou
 close ici après avoir été commencée plus tôt. Chaque exigence n'est close que par un seul EPIC.
-La colonne US se remplit quand l'EPIC passe `prêt`.
+La colonne US se remplit quand l'EPIC passe `prêt`. WF-PLA-0040 et WF-PLA-0050 sont commencées
+par EP-06 et closes ici : leur Vérif demande le reste à engager d'une ligne et le Kanban (cadrage
+d'EP-06, décision de l'auteur du 2026-11-07).
 
 | Exigence | Titre | Portée | US |
 |---|---|---|---|
 | `WF-INTF-0070-A` | Formats d’échange Excel | fin — amorcée en EP-07 | — |
 | `WF-INTF-0140-A` | Import des coûts réels (FLX-07) | entière | — |
 | `WF-REF-0190-A` | Correspondance de l’extraction des coûts réels | fin — amorcée en EP-05, EP-16 | — |
+| `WF-PLA-0040-A` | Hiérarchie des tâches | fin — amorcée en EP-06 | — |
+| `WF-PLA-0050-A` | Jalons | fin — amorcée en EP-06 | — |
 | `WF-PLA-0070-A` | Suppression d’une tâche | fin — amorcée en EP-06 | — |
 | `WF-DEV-0070-A` | Plan de charge du projet | fin — amorcée en EP-07, EP-15 | — |
 | `WF-RAE-0010-A` | Composition du reste à engager | entière | — |
@@ -130,6 +134,12 @@ suit une fois figé.
   et `.missing` de `/reference/costs/actual-cost-mapping` à reprendre quand l'import lit la
   correspondance (relevé par US-0870, EP-05) : l'aide dit l'import « pas encore offert », les
   messages disent le refus que l'import tiendra.
+
+- #646 [EP-09] front : le Kanban rend ses 960 cartes en listes simples, sans fenêtre — relevé par
+  EP-14/L45b : EP-09, qui construit le Kanban contre le service, mesure sur mille tâches réelles
+  avant toute optimisation ; EP-14 garde les listes simples sous le délai `WORKING`. Reporté
+  d'EP-14 (2026-10-10), puis d'EP-06 à EP-09 au cadrage d'EP-06 (décision de l'auteur du
+  2026-11-07) ; l'issue est retitrée et relabellisée à l'ouverture des issues d'EP-06.
 
 Le rattachement de WF-REF-0190 est réécrit au cadrage d'EP-16 (décision de l'auteur du
 2026-10-22). C-374 la rattachait entière ici ; EP-05 la commence en stockant la correspondance,

@@ -354,7 +354,10 @@ branche d'un EPIC se tire de la branche de l'EPIC dont il dépend, dès le lot d
 donne ses tables et ses interfaces, quand attendre la livraison mettrait deux EPIC en série pour
 peu de choses. Elle reprend cette branche à chaque lot que l'autre fusionne, et se fusionne dans
 `main` après lui, jamais avant. Première exception : `epic/EP-04` tirée d'`epic/EP-05` après
-`US-0810/L1` (décision du 2026-11-05).
+`US-0810/L1` (décision du 2026-11-05). Seconde : `epic/EP-06` tirée d'`epic/EP-04` dès
+l'ouverture des issues d'EP-06, EP-04 n'ayant plus qu'US-0990/L2 à fusionner, et de même pour
+toute la série EP-06 → EP-07 → EP-09 → EP-10 → EP-08, chaque branche tirée de la précédente dès
+le lot pivot que le cadrage de celle-ci désigne (décision du 2026-11-07).
 
 La chaîne s'exécute sur toute pull request, vers une branche d'EPIC comme vers `main`, et
 aucune n'est fusionnée si elle échoue.
