@@ -55,6 +55,11 @@ DATA = {
     "ContributorSuggestion.display_name": "a name",
     "ContributorSuggestion.org_node_label": "a label",
     "ContributorSuggestion.resource_role_labels": "labels",
+    # The label a person gave an element of the work breakdown, and that of the task that bears it.
+    "WorkPackageReading.label": "a label",
+    "OrderItemReading.label": "a label",
+    "DeliverableReading.label": "a label",
+    "AttachedTask.label": "a label",
     # The code a person gave a project, and the code of a function of the FBS.
     "AuditProject.code": "a code",
     "Permission.fbs_code": "a code",
@@ -130,6 +135,8 @@ DATA = {
     "Revision.description": "a text",
     "Revision.source_version_name": "a name",
     "CostStructure.label": "a label",
+    # The reason a person gave when she took a project out of its cycle, as she wrote it.
+    "StateTransition.reason": "a reason",
 }
 # The objects the answers hold whose properties the contract does not close: the parameters of a
 # refusal, and of each field it refuses, which name its condition by codes and values, the ones

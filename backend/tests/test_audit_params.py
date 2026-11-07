@@ -69,6 +69,8 @@ WRITERS = {
     # test_revision_mark.py, which marks one by the worker, and test_revisions.py, which abandons
     # one by the service.
     "waterfall.core.revisions.interface.shared",
+    # The exit of a project, tried in test_projects_lifecycle.py, which exits one by the service.
+    "waterfall.core.projects.interface.lifecycle",
     "waterfall.core.users.identity",
     "waterfall.core.users.password_link",
     "waterfall.core.users.provider",

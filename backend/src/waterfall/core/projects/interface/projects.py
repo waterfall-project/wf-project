@@ -36,6 +36,7 @@ from waterfall.core.projects.commands import (
     state_conditions,
 )
 from waterfall.core.projects.interface.lifecycle import advance
+from waterfall.core.projects.interface.work_breakdown import follow_project_label
 from waterfall.core.projects.tables import (
     STATES,
     Contributor,
@@ -59,7 +60,7 @@ from waterfall.platform.errors import (
     UnprocessableError,
 )
 from waterfall.platform.identifiers import new_id
-from waterfall.platform.tasks import project_task_pending, projects_with_task_pending
+from waterfall.platform.tasks import projects_with_task_pending
 
 if TYPE_CHECKING:
     from collections.abc import Collection, Generator, Iterable, Mapping
@@ -463,15 +464,6 @@ def projects_present(session: Session, project_ids: Collection[UUID]) -> frozens
     return frozenset(session.scalars(select(Project.id).where(Project.id.in_(project_ids))))
 
 
-def no_background_task_running(session: Session, project_id: UUID) -> bool:
-    """Tell whether no background task that writes in the project is queued or running.
-
-    The tasks that aim at a project — its marking (US-0970), and the merges, occurrences and
-    imports of later epics — are read in ``waterfall.platform.tasks``.
-    """
-    return not project_task_pending(session, project_id)
-
-
 def _code_taken(session: Session, code: str, own: UUID) -> ConflictError:
     """Refuse a code another project bears, naming that project (409, WF-PRJ-0010)."""
     holder = session.execute(
@@ -651,7 +643,8 @@ def update_project(
     probability is refused for ``project_before_in_progress``, not ``project_not_terminal``: a
     terminal project has reached In progress, and the condition of the probability is the one its
     own command names, where a terminal project lists no command at all. A code entered calls
-    ``advance`` under the lock, which has no effect before US-0980 (WF-PRJ-0010, WF-CYC-0030).
+    ``advance`` under the lock, which moves a Pricing project to In progress when the reference is
+    designated already (WF-PRJ-0010, WF-CYC-0030).
     """
     values = change.values
     faults = _ratio_faults(values)
@@ -681,6 +674,8 @@ def update_project(
             project.updated_at = act.at
             project.updated_by = act.author
             project.lock_version += 1
+        if "label" in changed:
+            follow_project_label(session, project, project.label, act)
         if changed.get("code") is not None:
             advance(session, project.id, "reference_designated_and_code_set", act)
     return _views(session, [project], viewer)[0]
