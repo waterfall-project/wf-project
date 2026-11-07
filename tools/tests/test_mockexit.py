@@ -147,8 +147,11 @@ _IDENTITY = ("task_id", "submitted_at", "finished_at")
 
 
 def _without_identity(read: dict[str, Any]) -> dict[str, Any]:
-    """Return a read of a task without what is the task's own: its identifier, its instants, and
-    the correlation of its failure, which is that of the request that queued it (WF-OBS-0020)."""
+    """Return a read of a task without what is the task's own.
+
+    Its identifier, its instants, and the correlation of its failure, which is that of the request
+    that queued it (WF-OBS-0020).
+    """
     kept = {k: v for k, v in read.items() if k not in _IDENTITY}
     if isinstance(kept.get("problem"), dict):
         kept["problem"] = {k: v for k, v in kept["problem"].items() if k != "correlation_id"}
