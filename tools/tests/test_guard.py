@@ -142,6 +142,7 @@ def test_a_docker_prune_is_refused_whatever_its_object(objects: str) -> None:
         "docker compose rm -f api",
         "docker-compose down",
         "docker-compose -p waterfall stop",
+        "docker-compose --project-n waterfall down",
         "docker --context default compose down",
     ],
 )
@@ -479,6 +480,9 @@ def test_a_docker_removal_of_a_literal_image_or_volume_passes(command: str) -> N
         "su -lc 'pkill make'",
         "runuser -u bob -- pkill make",
         "runuser -u bob kill $pid",
+        "runuser -u bob kill -1",
+        "runuser -u bob kill 0",
+        "runuser --user bob kill -1",
         "runuser -l bob -c 'pkill make'",
         "busybox pkill make",
         "busybox kill $(pidof make)",
@@ -503,6 +507,7 @@ def test_the_command_a_new_prefix_runs_is_judged(command: str) -> None:
         "flock -w 10 /tmp/x -c 'kill 12345'",
         "su -c 'make check' bob",
         "runuser -u bob -- make check",
+        "runuser -u bob kill -9 12345",
         "busybox ls -l",
         "chroot /srv/root ls",
         "watch -n 5 'docker ps'",
@@ -621,3 +626,33 @@ def test_the_refusal_of_a_new_form_says_what_to_do_instead(
     assert form in said
     assert "`docker rmi` or `docker volume rm` of a literal name" in said
     assert "for a lock of git, the git command run again" in said
+
+
+def test_docker_compose_v1_takes_unique_prefixes_and_the_go_compose_does_not() -> None:
+    """US-1310: `docker-compose` (argparse) abbreviates an option, `docker compose` (Go) not."""
+    assert refused("docker-compose --project-n waterfall down")
+    assert not refused("docker compose --project-n waterfall down")
+    assert not refused("docker-compose --project waterfall make")
+
+
+def test_a_find_delete_that_names_a_lock_says_why_it_is_refused() -> None:
+    """US-1310: `-delete` with a `.lock` in the expression is refused, outside git too, for it."""
+    # `package-lock*` does not contain the word `.lock`: it passes.
+    form = guard.refusal("find node_modules -name 'package-lock*' -delete")
+    assert form is None  # no `.lock` word: `package-lock*` does not name it
+    form = guard.refusal("find node_modules -name 'yarn.lock' -delete")
+    assert form is not None
+    assert "the expression names a .lock" in form
+    in_git = guard.refusal("find .git -name 'x' -delete")
+    assert in_git is not None
+    assert "it is in git" in in_git
+
+
+def test_popd_is_not_followed_so_a_lock_after_it_stays_refused() -> None:
+    """US-1310: `popd` keeps the state of `cd .git`: refused to be on the safe side."""
+    assert refused("cd .git; popd; rm foo.lock")
+
+
+def test_a_cd_up_resets_the_state_even_from_below_git() -> None:
+    """US-1310: known limit, `cd ..` resets the state: `cd .git/refs/heads; cd ..` passes."""
+    assert not refused("cd .git/refs/heads; cd ..; rm main.lock")

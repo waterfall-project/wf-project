@@ -23,7 +23,14 @@ which the shell runs. ``shlex`` cuts the words alone: its operators do not tell 
 from one that ends a command, and ``kill 1 ';' $pid`` would hide its last target.
 
 A ``cd`` into a directory of git is followed along the line, into the scripts it runs: the
-relative paths that come after it are read from there.
+relative paths that come after it are read from there. A ``cd`` to a literal path outside
+``.git``, ``cd ..`` and ``cd -`` reset it. ``popd`` is not followed: after ``cd .git; popd`` the
+state is kept, and ``rm foo.lock`` is refused although the shell may have left ``.git`` (the safe
+side).
+
+Out of scope, known limits: the ``cd`` is followed in the order of writing, whatever the ``&&``
+and ``||`` between the commands (``cd .git && true || cd ..; rm x.lock`` passes); and a ``cd ..``
+resets the state even from ``.git/refs/heads``, where the shell is still under ``.git``.
 """
 
 import itertools
@@ -274,6 +281,8 @@ _COMPOSE = _Options(
     | _names("project-name"),
     abbreviates=False,
 )
+# `docker-compose` (v1) is Python's argparse, which takes a unique prefix; `docker compose` is Go.
+_COMPOSE_V1 = _COMPOSE._replace(abbreviates=True)
 
 
 class _Scanner:
@@ -560,6 +569,9 @@ def _moved(path: str, *, moved: bool) -> bool:
 
     A path computed by a substitution or a variable is taken for ``git rev-parse --git-dir``; a
     relative path that does not climb keeps the state it starts from.
+
+    Limit: any ``..`` first component resets the state, as the criterion asks, even when the
+    shell is still under ``.git``: ``cd .git/refs/heads; cd ..; rm main.lock`` passes.
     """
     if "$" in path or ".git" in path.split("/"):
         return True
@@ -652,7 +664,7 @@ def _container_stop(verb: str, arguments: list[str], *, piped: bool) -> str | No
 
 def _compose(command: _Command) -> str | None:
     arguments = command.arguments
-    index = _COMPOSE.skip(arguments, 0)
+    index = (_COMPOSE_V1 if command.name == "docker-compose" else _COMPOSE).skip(arguments, 0)
     if index < len(arguments) and arguments[index] in _COMPOSE_STOPS:
         return (
             f"`{command.name} {arguments[index]}` outside the Makefile: the Makefile alone stops "
@@ -698,9 +710,11 @@ def _find(command: _Command) -> str | None:
         for word, following in itertools.pairwise(expression)
     )
     in_git = command.moved or any(".git" in path.split("/") for path in paths)
-    if removes and (in_git or any(".lock" in word for word in expression)):
+    names_lock = any(".lock" in word for word in expression)
+    if removes and (in_git or names_lock):
+        reason = "the expression names a .lock" if names_lock and not in_git else "it is in git"
         return (
-            "`find … -delete` or `-exec rm` in a directory of git: a lock of git is held by a git "
+            f"`find … -delete` or `-exec rm` ({reason}): a lock of git is held by a git "
             "command that runs, maybe in another worktree"
         )
     return None
@@ -766,14 +780,18 @@ def _su(command: _Command) -> str | None:
     table = _RUNUSER if command.name == "runuser" else _SU
     arguments = command.arguments
     options, operands = table.permuted(arguments)
+    if command.name == "runuser":
+        # After `-u <user>` nothing is permuted: all that follows is the command, `kill -1` too.
+        first, index = table.parse(arguments, 0)
+        if any(option in {"-u", "--user"} for option, _ in first):
+            options, operands = first, arguments[index:]
     for option, script in options:
         if option in table.scripts and (
             form := _line(script, command.depth + 1, moved=command.moved)
         ):
             return form
     if any(option in {"-u", "--user"} for option, _ in options):
-        run = arguments[arguments.index("--") + 1 :] if "--" in arguments else operands
-        return _simple(run, command.depth + 1, piped=command.piped, moved=command.moved)[0]
+        return _simple(operands, command.depth + 1, piped=command.piped, moved=command.moved)[0]
     return None
 
 
