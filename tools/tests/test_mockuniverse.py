@@ -736,8 +736,8 @@ def test_a_deposit_that_fails_its_verification_fails_its_restore_before_any_disc
     assert "fixtures/api/task_restore_verification_failed.json" in tasks
     # The verification confirms the instant the deposit read; the deposit lasts the task.
     told = " ".join(_block_of("startRestore", "platform.yaml").split())
-    assert "confirme aussi l'instant que le dépôt a lu (`backup_taken_at`)" in told
-    assert "gardé jusqu'à la fin de sa tâche" in told
+    assert "also confirms the instant the upload read (`backup_taken_at`)" in told
+    assert "kept until the end of its task" in told
 
 
 def test_the_costs_on_disk_are_the_actual_cost_the_indicators_on_disk_count() -> None:

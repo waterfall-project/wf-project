@@ -129,8 +129,8 @@ def test_the_deletion_of_a_started_task_is_refused_by_naming_its_condition() -> 
     refused = fixture("node_delete_started_refused")
     assert refused["params"] == {"missing_condition": "task_not_started"}
     description = _operations()["deleteNode"]["description"]
-    assert "coût réel" not in description
-    assert "démarrée ou terminée" in description
+    assert "actual cost" not in description
+    assert "A started or completed task cannot be deleted" in description
 
 
 @pytest.mark.requirement("WF-RIS-0010-A")
@@ -212,7 +212,7 @@ def test_a_tracking_entry_says_its_rule() -> None:
     assert "VALUE_REQUIRED" in said
     assert "UNKNOWN_TIMELINE" in said
     assert "FIELD_NOT_ACCEPTED" in said
-    assert "répétée" in entry["description"]
+    assert "an entry repeated identically counts as only one" in entry["description"]
 
 
 # --- The reference, the lists and the operations without a cause (C-01, D-10, I-17) -----------
@@ -234,7 +234,7 @@ def test_the_deactivated_objects_of_a_list_are_refused_without_their_permission(
     assert (refused["status"], refused["code"]) == (403, "PERMISSION_MISSING")
     assert refused["params"] == {"missing_permission": permission}
     assert _cited(operation, "403") == [name]
-    assert "refusés par 403" in _operations()[operation]["description"]
+    assert "refused with 403" in _operations()[operation]["description"]
 
 
 def test_a_subproject_created_declares_the_404_and_an_export_no_409() -> None:
@@ -274,7 +274,7 @@ def test_the_five_writes_require_their_counter_and_declare_the_412() -> None:
 def test_the_tracked_scope_stays_idempotent_without_a_counter_and_says_it() -> None:
     operation = _operations()["setActualCostTrackedScope"]
     assert "412" not in operation["responses"]
-    assert "Une écriture sans compteur" in operation["description"]
+    assert "A write without a lock version" in operation["description"]
     schema = _schemas("costs")["ScopeExclusion"]
     assert "lock_version" not in schema.get("properties", {})
 
@@ -333,7 +333,7 @@ def test_a_task_left_without_a_predecessor_keeps_its_progress() -> None:
     assert installation["task"]["progress"] == "not_started"
     assert "started_on" not in installation["task"]
     said = " ".join(_operations()["deleteNode"]["description"].split())
-    assert "sans changer d'état" in said
+    assert "without changing state" in said
 
 
 def test_no_write_generated_changes_the_progress_of_a_task() -> None:

@@ -189,8 +189,8 @@ def test_the_indicators_of_a_project_before_in_progress_are_refused_by_every_rea
     for operation in ("getIndexHistory", "getMilestoneTracking"):
         assert _cited(operation, "409") == ["project_indicators_not_in_progress"], operation
     said = _flat(_operations()["getIndexHistory"]["description"])
-    assert "elle ne donne aucun point" in said
-    assert "marquée avant l'état En cours — est un point non calculable" not in said
+    assert "it gives no point" in said
+    assert "marked before the In progress state — is a non-computable point" not in said
 
 
 def test_a_refusal_of_a_state_names_the_condition_the_command_says() -> None:
@@ -230,12 +230,10 @@ def test_the_reestimate_after_a_merge_follows_the_reference_year() -> None:
     deltas = _schemas("revisions.yaml")["RevisionComparison"]["properties"]["amount_deltas"]
     properties = deltas["items"]["properties"]
     reestimated = _flat(properties["reestimated_delta"]["description"])
-    assert "Entre deux révisions de même année de référence" in reestimated
-    assert "Entre deux révisions d'années de référence différentes" in reestimated
+    assert "Between two revisions of the same reference year" in reestimated
+    assert "Between two revisions of different reference years" in reestimated
     assert "(`comparison`, #1754)" in reestimated
-    assert "quelle que soit l'année de référence" in _flat(
-        properties["budgeted_delta"]["description"]
-    )
+    assert "whatever the reference year" in _flat(properties["budgeted_delta"]["description"])
 
 
 def test_the_rate_update_carries_its_counter_and_categories_the_proposal_presents() -> None:
@@ -260,12 +258,15 @@ def test_a_merged_structure_is_not_taken_up_by_the_next_revision() -> None:
     # E-04, #1758: the creation of a revision says it, and a revision in progress never reads a
     # structure merged.
     said = _flat(_operations()["createRevision"]["description"])
-    assert "Elle ne reprend pas les structures fusionnées" in said
-    assert "Le devis propre d'un risque écarté, qui peut redevenir identifié, est repris" in said
+    assert "It does not carry over the merged structures" in said
+    assert (
+        "The own estimate of a dismissed risk, which can become identified again, is carried over"
+        in said
+    )
     merged = _flat(
         _schemas("revisions.yaml")["CostStructure"]["properties"]["is_merged"]["description"]
     )
-    assert "Une révision en cours ne porte donc jamais une structure fusionnée" in merged
+    assert "A current revision therefore never carries a merged structure" in merged
     # The current revision bears no amendment merged; the one merged structure it reads is the
     # estimate of the risk that occurred since it was opened.
     current = [each for each in fixture("structures") if each["is_merged"]]
@@ -282,9 +283,9 @@ def test_the_rates_of_a_new_revision_are_projected_by_default() -> None:
             "description"
         ]
     )
-    assert "projetés par le taux d'inflation du projet" in said
-    assert "les autres gardent leur taux projeté" in said
-    assert "projetés par le taux d'inflation du projet" in _flat(
+    assert "projected by the project's inflation rate" in said
+    assert "the others keep their projected rate" in said
+    assert "projected by the inflation rate of the project" in _flat(
         _operations()["createRevision"]["description"]
     )
 
@@ -467,7 +468,7 @@ def test_a_line_of_a_completed_task_of_the_main_structure_is_refused_by_its_task
         said = _flat(_operations()[operation]["responses"]["409"]["description"])
         assert "`task_not_completed`" in said, operation
         assert "`project_before_in_progress`" not in said, operation
-        assert "différentiel" in said, operation
+        assert "In a differential" in said, operation
     assert len(correlations) == len(COMPLETED_REFUSED)
     moved = nodes[universe(mockreview.COMPLETED_MOVED)]
     assert nodes[moved["parent_id"]]["task"]["progress"] != "completed"
@@ -556,7 +557,7 @@ def test_the_identity_of_a_risk_and_its_provision_are_written_apart_on_one_count
         "lock_version",
     }
     said = _flat(_operations()["updateRisk"]["description"])
-    assert "ne crée aucune révision" in said
+    assert "the change creates no revision" in said
     assert "`edit_risks`" in said
     assert "risk_provision_frozen" in _cited("updateRiskProvision", "409")
     assert "risk_provision_moved" in _cited("updateRiskProvision", "200")
