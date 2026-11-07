@@ -2,9 +2,9 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 """How the examples the generators write say their figures, and the envelope they carry them in.
 
-The summary of an example is French, as the contract is: a day, a count and an amount are
-written as French writes them. The envelope is the Example object of OpenAPI, its description
-saying that the example is generated and is not edited by hand. A searched text is compared as
+The summary of an example is French, though the contract itself is written in English: a day, a
+count and an amount are written as French writes them. The envelope is the Example object of
+OpenAPI, its description saying that the example is generated and is not edited by hand. A searched text is compared as
 the service will compare it, through the table PostgreSQL ships with ``unaccent``, then lowered.
 """
 
