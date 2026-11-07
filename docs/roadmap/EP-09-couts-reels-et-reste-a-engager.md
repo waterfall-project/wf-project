@@ -158,8 +158,8 @@ ses fonctions : il attend **US-1490/L4 #2373**, dernier lot d'EP-07 à écrire `
 et les questions du référentiel de ce module (décision de l'auteur du 2026-11-07, au cadrage d'EP-09) ; c'est
 donc à la fusion de #2373 que la branche se tire, en pratique. Les lots d'EP-09 qui réestiment des lignes
 attendent aussi US-1490/L3 #2372 (la ligne lue, créée, modifiée, chiffrée), ceux du Kanban US-1410 #2324
-d'EP-06, US-1380/L2 #2335 et L3 #2338 ; chaque lot nomme ceux qu'il attend par leur numéro. Le reste à engager
-part des montants budgétés.
+d'EP-06, US-1380/L2 #2335, L3 #2338 et US-1390/L2 #2339 ; chaque lot nomme ceux qu'il attend par leur numéro.
+Le reste à engager part des montants budgétés.
 
 Le point ouvert PO-01 (extraction des engagements et des heures par l'ERP) a été relu au cadrage :
 EP-09 réalise FLX-07 tel que l'annexe B le décrit, et PO-01 reste ouvert (« Ce qui n'en fait pas
@@ -298,7 +298,8 @@ Décisions de l'auteur du 2026-11-07, sur les questions du cadrage, chacune avec
   cadrage une modification du contrat figé.
 - **La question des lignes propres ouvertes est un registre de `core/planning`**,
   `register_open_lines`, déclaré par EP-09 dans un fichier nouveau de l'interface de `planning`
-  (`open_lines.py`) et rempli par `estimate` : « parmi ces tâches, lesquelles portent une ligne
+  (`open_lines.py`), réexporté par `core/planning/interface/__init__.py` — qu'EP-06 écrit encore
+  jusqu'à US-1390/L2 #2339, qui y importe le moteur — et rempli par `estimate` : « parmi ces tâches, lesquelles portent une ligne
   propre hors provision dont le reste n'est pas nul ». `planning` l'appelle pour terminer une
   récapitulative dont la dernière subordonnée se termine, pour `awaiting_own_lines`, et pour la
   feuille qu'une récapitulative devient ; il n'écrit pas `FacetHooks` (`facets.py`), que #2335,
@@ -335,9 +336,14 @@ Décisions de l'auteur du 2026-11-07, sur les questions du cadrage, chacune avec
   par jour à l'export, et l'import écrit la charge, jours × heures par jour ÷ quantité, la quantité
   conservée (portée à 1 si elle est nulle) ; pour une ligne hors main-d'œuvre, « Débours restant »
   est le réestimé inflation comprise, et l'import écrit le débours unitaire, montant ÷ (quantité ×
-  coefficient d'inflation de la tâche), arrondi au centime, la quantité conservée de même. Écartés :
-  une quantité ramenée à 1 à chaque import, qui perdrait une grandeur saisie ; un montant écrit tel
-  quel dans le débours unitaire, qui ferait réestimer quantité fois trop.
+  coefficient d'inflation de la tâche), arrondi au centime, la quantité conservée de même. Une
+  division suivie d'un arrondi ne redonne pas la grandeur de départ : pour chaque ligne connue,
+  l'analyse recalcule la valeur que l'export aurait écrite et ne touche la ligne que si la cellule en
+  diffère — un classeur réimporté sans modification ne produit aucun écart, par construction
+  (WF-INTF-0130), sans colonne de plus que l'annexe B. Écartés : une quantité ramenée à 1 à chaque
+  import, qui perdrait une grandeur saisie ; un montant écrit tel quel dans le débours unitaire, qui
+  ferait réestimer quantité fois trop ; les grandeurs brutes masquées dans le classeur à côté de la
+  lignée, relues quand la cellule visible n'a pas changé, qui changeait le format.
 - **Le recodage d'un sous-projet ne change l'imputation d'aucune ligne** (D-10 de la revue) : les
   lignes imputées le restent par leur identifiant (WF-DAT-0060), celles qui attendaient l'ancien ou
   le nouveau code ne bougent qu'à leur réimport ; la création d'un sous-projet impute aussitôt les
@@ -415,7 +421,7 @@ worker, le chargeur — s'étend à chacun.
 
 | Module | Registre | Qui le déclare | Qui le remplit | Ce qu'il fait |
 |---|---|---|---|---|
-| `core/planning` | `register_open_lines` (nouveau) | US-1590, après #2324 et #2338 | `estimate` (`open_lines`) | la dernière subordonnée terminée ne termine la récapitulative que si aucune ligne propre hors provision ne garde un reste ; `awaiting_own_lines` est vrai pour une récapitulative démarrée dont toutes les subordonnées sont terminées et qu'une ligne propre retient ; la feuille qu'une récapitulative devient reste démarrée si une ligne propre retient (WF-PLA-0040) |
+| `core/planning` | `register_open_lines` (nouveau) | US-1590, après #2324, #2338 et #2339 | `estimate` (`open_lines`) | la dernière subordonnée terminée ne termine la récapitulative que si aucune ligne propre hors provision ne garde un reste ; `awaiting_own_lines` est vrai pour une récapitulative démarrée dont toutes les subordonnées sont terminées et qu'une ligne propre retient ; la feuille qu'une récapitulative devient reste démarrée si une ligne propre retient (WF-PLA-0040) |
 | `core/planning` | `progress_commands(task, bears_lines)` (fonction nouvelle, pas un registre) | US-1590, après #2324 | — | les gestes d'une carte du Kanban et l'état que chacun envoie, par la fonction qui juge le 409 de `setTaskProgress` (US-1410), pour que la carte et le refus nomment la même condition |
 | `core/revisions` | `register_copy` (EP-04) | EP-04 | `estimate`, second enregistrement (`copy_previous`), après la copie des lignes | `previous_*` des lignes copiées depuis une révision marquée En cours |
 | `core/projects` | `register_cost_facts` (nouveau) | US-1610, après #2373 | `costs` | `subproject_has_actual_costs` (la suppression refusée, `has_actual_costs` de la liste et son filtre), `impute_waiting_lines` dans la transaction de `createSubproject` ; `updateSubproject` ne l'appelle pas |
@@ -542,8 +548,11 @@ worker, le chargeur — s'étend à chacun.
   la désignation, les jours restants, le débours restant, la lignée ; une ligne vide ou de total
   ignorée, une colonne inconnue ignorée, un nombre en texte rejeté, chaque rejet par son onglet et
   son rang.
-- **L'analyse** rapproche par la lignée : une ligne connue reçoit ses grandeurs (« Ce que le
-  cadrage décide »), un écart `updated` sur la colonne changée, le budgété et la lignée intacts ;
+- **L'analyse** rapproche par la lignée : pour une ligne connue, elle recalcule la valeur que
+  l'export aurait écrite — les jours restants, le débours restant — et ne la juge changée que si la
+  cellule en diffère ; changée, la ligne reçoit ses grandeurs (« Ce que le cadrage décide »), un
+  écart `updated` sur la colonne changée, le budgété et la lignée intacts ; inchangée, elle compte
+  dans `unchanged_count`, sans écriture ni marque de réestimation ;
   une ligne d'une tâche terminée, inchangée, est rejetée (`task_not_completed`) ; une ligne sans
   lignée crée une ligne à budgété nul sous la tâche désignée par « Tâches » ou par son libellé
   (`AMBIGUOUS_TASK_LABEL`, `UNKNOWN_TASK`), rejetée sous une tâche terminée (I-05, #1794) ; le
@@ -682,9 +691,10 @@ ce lot, ou en dépendent par son numéro :
 | Fichier | Lot d'EP-06 qui le possède | Lots d'EP-09 qui l'attendent |
 |---|---|---|
 | `core/planning` : la lecture et la création des nœuds (`interface/nodes.py`, `facets.py`) | US-1380/L2 #2335 | US-1590 (`register_open_lines`, `progress_commands`) |
+| `core/planning/interface/__init__.py` (le moteur `scheduling/` importé, les noms des liaisons) | US-1390/L1 #2329, US-1390/L2 #2339 | US-1590 (le réexport de `register_open_lines` et de `progress_commands`) |
 | `core/planning` : la suppression et le déplacement, `core/projects` (`register_attachments`) | US-1380/L3 #2338 | US-1590 (la feuille qu'une récapitulative devient, `deleteNode`) |
 | `core/planning` : l'état des tâches (`setTaskProgress`, `started_on`, `completed_on`, `finish_overdue`, les récapitulatives) | US-1410 #2324 | US-1590 (`register_open_lines`, `progress_commands`), US-1580 (la terminaison par mise à zéro) |
-| `core/planning` : `setPredecessors`, les registres de `resource_settings` | US-1390/L2 #2339 | aucun |
+| `core/planning` : `setPredecessors`, les registres de `resource_settings` | US-1390/L2 #2339 | US-1590, par le réexport ci-dessus |
 | `core/planning` : le collage, `api/history.py` | US-1450/L2 #2344 | aucun |
 | `core/exchanges` : la mécanique d'import, les formats | US-1420/L1 #2332 | US-1610 (le format `actual_costs`), US-1630 (le format `remaining`) |
 | `core/exchanges` : la purge ; `worker/main.py`, les Compose, `production.env.example`, le Makefile | US-1420/L2 #2341 | US-1650 (`load_import`), US-1610 (l'import dans le worker, après #2375 aussi) |
@@ -728,7 +738,8 @@ leur objet ; la vérification d'ensemble en dernier ; le plan de lots (étape 3)
    et **l'écriture du classeur** du reste à engager (US-1630, pure, après #2378).
 2. **La réestimation** (US-1580 : `setLineRemaining`, `remaining_entry` et `previous_*` lus, la copie,
    la mise à zéro qui termine, après #2372 et #2324), **les lignes propres et le Kanban** (US-1590 :
-   `register_open_lines`, `progress_commands`, `listStartableTasks`, après #2324, #2338 ; la mesure),
+   `register_open_lines`, `progress_commands`, `listStartableTasks`, après #2324, #2338, #2339 ; la
+   mesure),
    **l'en-tête et l'analyse d'une extraction** (US-1610, après #2332), **la lecture du classeur**
    (US-1630, après #2379).
 3. **L'application d'une extraction et le journal** (US-1610, après #2375 pour le worker, #2380
@@ -1015,7 +1026,9 @@ déclarer ce qui a commencé et clore mes phases depuis la vue qui les répartit
 lignes — le reste des lignes propres hors provision d'une tâche —, que la conception place dans le
 crochet de la facette d'EP-07, et qui change deux choses : la récapitulative ne se termine qu'à ce
 reste nul, et `awaiting_own_lines` (#1775) est calculé. Les lots attendent US-1410 #2324,
-US-1380/L2 #2335 et L3 #2338 d'EP-06, et US-1490/L4 #2373 d'EP-07, qui écrit encore les crochets.
+US-1380/L2 #2335, L3 #2338 et US-1390/L2 #2339 d'EP-06 — le dernier à écrire
+`core/planning/interface/__init__.py`, qui réexporte le registre —, et US-1490/L4 #2373 d'EP-07,
+qui écrit encore les crochets.
 
 **Hors périmètre.** La réestimation elle-même (US-1580) ; la grille (US-1640) ; les lignes de
 provision (EP-08) ; la valeur acquise (EP-10).
