@@ -3774,7 +3774,8 @@ Chaque US étiquette ses parcours quand le service sert son écran. Contre le fa
 change rien : le faux back accorde la session. Avec `WATERFALL_API_ADDRESS`, `inService` est vrai,
 et deux fixtures de `mode.ts` font ce qu'un fichier de `frontend/e2e/service/` demande par ses
 crochets : chaque worker obtient une fois un compte local de la course qui porte les rôles prédéfinis
-« Manager » et « Chef de projet » (US-0970), que crée l'administrateur de l'installation (`accountAdministrator`, `localAccount`),
+« Manager » et « Chef de projet » (US-0970), que crée l'administrateur de l'installation
+(`accountAdministrator`, `localAccount`),
 et chaque parcours se connecte d'abord avec lui (`signIn`, sur `/account`), puis se tient au
 contrat, comme `heldToTheContract()` y tient un fichier (`startReading`, `expectNothingRefused`,
 `contract.ts`). Des fixtures plutôt que des crochets : un crochet déclaré dans un module que les
@@ -3793,9 +3794,9 @@ retire la garde et son entrée :
   (#2173), ses commandes jouables. L'historique se joue contre le service dès US-0960, avec les
   révisions 100 et 101 du témoin marquées dès US-0970.
 - `revision-cycle.spec.ts` — les commandes de la révision 102 de PRJ-001, l'ouverture
-  indisponible et la désignation au-delà de la correction (`NOT_YET_IN_SERVICE`) : le compte de la
-  course n'est pas chef de projet de PRJ-001, ce que la conception d'EP-04 prévoyait par
-  `setContributors` et que le contrat ne permet pas (#2193, à trancher), et la référence du témoin
+  indisponible et la désignation au-delà de la correction (`NOT_REPLAYED_IN_SERVICE`) : le compte
+  de la course n'est pas inscrit chef de projet des projets du témoin, par décision (#2193,
+  option A) : les parcours qui écrivent créent leur propre projet, et la référence du témoin
   est désignée par **US-0980/L2**. L'abandon de la 102 (`WITNESS_KEPT`) ne se joue jamais contre le
   service, qui l'ôterait à tous les autres parcours : le cycle — un projet créé par le compte de la
   course, chef de projet comme créateur, une révision ouverte, marquée par le worker, une autre

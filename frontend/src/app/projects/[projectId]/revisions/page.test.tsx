@@ -453,7 +453,7 @@ describe("the parts of the revision the screen reads in", () => {
     expect(text(page)).not.toContain("Taux de l’année");
   });
 
-  it("renders without a rate update when getRateUpdateProposal answers 404, the service serving none before EP-07, its commands and structures shown (#2173)", async () => {
+  it("renders without a rate update when getRateUpdateProposal answers 404, the service serving none before EP-07, its commands and structures shown, the abandon included (WF-REV-0010-A, #2173)", async () => {
     server.answers = {
       ...server.answers,
       "GET /projects/{project_id}/revisions/{revision_id}/rate-update": NOT_FOUND,

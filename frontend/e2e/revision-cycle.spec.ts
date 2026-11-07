@@ -28,8 +28,8 @@ const REVISION = "01926f3a-7c00-7000-8000-000000000102";
 // What the service does not replay of the witness yet, as the guide lists it (« Un parcours de bout
 // en bout »): the commands of PRJ-001 are listed to its project managers alone, and its reference is
 // designated by US-0980/L2.
-const NOT_YET_IN_SERVICE =
-  "the account of the run is not a project manager of PRJ-001 (#2193), and US-0980/L2 designates its reference";
+const NOT_REPLAYED_IN_SERVICE =
+  "by decision the account of the run is not a project manager of PRJ-001 (#2193, option A), and US-0980/L2 designates its reference";
 
 // The abandon of the witness's current revision would take it from every other path: the service
 // plays the abandon on the project the cycle creates.
@@ -49,7 +49,7 @@ const MARKING = 60_000;
 test("the opening of a second current revision and the designation beyond the correction are unavailable, naming their condition @shared [WF-REV-0010-A] [WF-REV-0040-A]", async ({
   page,
 }) => {
-  test.skip(inService, NOT_YET_IN_SERVICE);
+  test.skip(inService, NOT_REPLAYED_IN_SERVICE);
   await openHydrated(page, `/projects/${PROJECT}/revisions?revision_id=${REVISION}`);
   const main = page.getByRole("main");
   const commands = main.getByRole("region", { name: "Commandes" });
@@ -115,7 +115,7 @@ test("a project created, a revision opened then marked by the worker, which keep
   }).toPass({ timeout: WORKING });
   const label = `Cycle des révisions ${randomBytes(4).toString("hex")}`;
   await creation.getByRole("textbox", { name: "Libellé" }).fill(label);
-  await creation.getByRole("button", { name: "Créer" }).click();
+  await creation.getByRole("button", { name: "Créer", exact: true }).click();
   await expect(page).toHaveURL(/\/projects\/[0-9a-f-]{36}$/, { timeout: WORKING });
   const project = new URL(page.url()).pathname;
 

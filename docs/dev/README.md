@@ -3765,9 +3765,9 @@ removes the guard and its entry:
   the service (#2173), its commands playable. The history plays against the service from US-0960,
   with the revisions 100 and 101 of the witness marked from US-0970.
 - `revision-cycle.spec.ts` — the commands of the revision 102 of PRJ-001, the opening unavailable
-  and the designation beyond the correction (`NOT_YET_IN_SERVICE`): the account of the run is no
-  project manager of PRJ-001, which the design of EP-04 planned by `setContributors` and which the
-  contract does not allow (#2193, to be decided), and the reference of the witness is designated by
+  and the designation beyond the correction (`NOT_REPLAYED_IN_SERVICE`): the account of the
+  run is not enrolled as project manager of the projects of the witness, by decision (#2193, option A): the
+  paths that write create their own project, and the reference of the witness is designated by
   **US-0980/L2**. The abandon of the 102 (`WITNESS_KEPT`) never plays against the service, which
   would take it from every other path: the cycle — a project created by the account of the run, its
   project manager as its creator, a revision opened, marked by the worker, another opened then

@@ -150,7 +150,8 @@ export default async function RevisionsPage(props: ProjectPageProps) {
   ]);
   // A marked revision is immutable (WF-REV-0020): a rate update applies to the current one. The
   // service serves no proposal before EP-07 and answers 404: the screen of the current revision is
-  // rendered without one rather than not found, its commands playable (#2173).
+  // rendered without one rather than not found, its commands playable (#2173). This tolerance is
+  // removed when EP-07 serves the proposal.
   const current = read.revision?.status === "draft" ? read.revision : undefined;
   const rates =
     current === undefined
