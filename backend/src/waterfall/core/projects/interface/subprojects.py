@@ -173,8 +173,8 @@ def code_faults(code: str) -> list[FieldError]:
     return []
 
 
-def _checked(write: SubprojectWrite) -> None:
-    """Refuse a code that cannot name a tab (422): the witness's, which no body has judged."""
+def _refuse_code(write: SubprojectWrite) -> None:
+    """Refuse a code that cannot name a tab (422), judged again for the witness, no body's."""
     faults = code_faults(write.code)
     if faults:
         raise UnprocessableError(VALIDATION_FAILED, fields=tuple(faults))
@@ -362,7 +362,7 @@ def create_subproject(
     ``project_not_terminal``), or if the code is borne by another subproject of the project (409
     ``ALREADY_EXISTS`` on ``/code``).
     """
-    _checked(write)
+    _refuse_code(write)
     project = _writable(session, project_id, viewer)
     row = _insert(session, project.id, write, act, new_id())
     return _views(session, project, [row], viewer)[0]
@@ -418,7 +418,7 @@ def update_subproject(
     nothing.
     """
     write = change.write
-    _checked(write)
+    _refuse_code(write)
     project, row = _locked(session, project_id, change.subproject_id, change.lock_version, viewer)
     if (row.code, row.label) != (write.code, write.label):
         with _unique_code(session, project_id, write.code, row.id):
@@ -440,7 +440,9 @@ def delete_subproject(
     risks that designate it for their provision is kept: EP-08 nulls the designation.
     """
     _, row = _locked(session, project_id, subproject_id, lock_version, viewer)
-    lacking = _deletion_lacks(session, row.id)  # the project is writable: not terminal
+    # ``_locked`` has judged the project writable (``_writable``): the manager under the lock, and
+    # not terminal.
+    lacking = _deletion_lacks(session, row.id)
     if lacking:
         raise ConflictError(STATE_FORBIDS_OPERATION, {"missing_condition": lacking[0]})
     session.delete(row)
@@ -465,5 +467,5 @@ def load_subprojects(
     """
     project = _unterminated(session, project_id)
     for load in loads:
-        _checked(load.write)
+        _refuse_code(load.write)
         _insert(session, project.id, load.write, act, load.subproject_id)

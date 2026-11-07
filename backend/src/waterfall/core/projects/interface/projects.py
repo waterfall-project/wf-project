@@ -501,19 +501,14 @@ def _inscribe_creation(session: Session, project: Project, act: Act) -> None:
     record(session, Inscription("project_create", actor, audited, act.at, project=named))
 
 
-def _create(
-    session: Session, draft: ProjectDraft, act: Act, project_id: UUID | None, *, ready: bool
-) -> Project:
+def _create(session: Session, draft: ProjectDraft, act: Act, project_id: UUID | None) -> Project:
     """Create a project and what is born with it, once the minimal reference holds.
 
-    ``ready`` says the reference was judged to hold: the witness alone says so (``load_project``).
-    Otherwise the lock of the reference is shared before the four questions are asked, and held
-    until the commit: a write that could empty the reference waits for the project, or is waited
-    for (#2154).
+    The lock of the reference is shared before the four questions are asked, and held until the
+    commit: a write that could empty the reference waits for the project, or is waited for (#2154).
     """
-    if not ready:
-        share_reference(session)
-    missing = () if ready else missing_prerequisites(session)
+    share_reference(session)
+    missing = missing_prerequisites(session)
     if missing:
         raise ConflictError(REFERENCE_INCOMPLETE, {"missing_prerequisites": list(missing)})
     stamp = {
@@ -585,19 +580,16 @@ def create_project(session: Session, draft: ProjectDraft, act: Act, viewer: View
     The minimal reference is read under the shared lock of the reference, held to the commit: no
     deactivation can empty it between the reading and the commit (#2154).
     """
-    return _views(session, [_create(session, draft, act, None, ready=False)], viewer)[0]
+    return _views(session, [_create(session, draft, act, None)], viewer)[0]
 
 
 def load_project(session: Session, load: ProjectLoad, act: Act) -> None:
     """Write a project of the witness, with the identifier and the instant it imposes.
 
-    By the rules of the creation but one: the minimal reference is not asked for. The witness
-    describes roles of resources (``resource_roles.json``) that no slice loads before US-0850, so
-    that the reference it loads stays short of an active role; the slice of the roles, once
-    filled, lets the loader ask for it as the creation does (#1402). Until then, the projects
-    would refuse the whole witness. The exemption goes with US-0990/L2 (#2155).
+    By the very rules of the creation, the minimal reference included (#1402, #2155): a platform
+    whose reference lacks a prerequisite refuses the witness, and the command stops.
     """
-    _create(session, load.draft, act, load.project_id, ready=True)
+    _create(session, load.draft, act, load.project_id)
 
 
 def _written_code(changed: Mapping[str, object]) -> str | None:

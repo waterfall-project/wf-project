@@ -25,7 +25,6 @@ if TYPE_CHECKING:
     from httpx2 import Response
     from realm import TestRealm
     from sqlalchemy import Engine
-    from sqlalchemy.orm import Session
     from support import ContractClient
 
     from waterfall.platform.database import Database
@@ -431,20 +430,25 @@ def test_a_terminal_project_refuses_the_writing(api: ContractClient, stage: Scen
     assert read(api, stage, stage.manager)["lock_version"] == 0
 
 
-def busy(session: Session, project_id: UUID) -> bool:
-    """Say a task of the background writes in the project."""
-    del session, project_id
-    return False
+def pend_marking(api: ContractClient, stage: Scene) -> None:
+    """Open the current revision and ask for its marking: a real task of the queue, pending."""
+    base = f"{PROJECTS}/{stage.project['project_id']}/revisions"
+    opened = api.post(base, headers=stage.manager.headers, json={})
+    assert opened.status_code == 201, opened.text
+    revision = opened.json()
+    asked = api.post(
+        f"{base}/{revision['revision_id']}/mark",
+        headers=stage.manager.headers,
+        json={"version_name": "v1.0", "lock_version": revision["lock_version"]},
+    )
+    assert asked.status_code == 202, asked.text
 
 
 @pytest.mark.requirement("WF-PRJ-0020-A")
 def test_a_background_task_that_writes_in_the_project_refuses_the_writing(
-    api: ContractClient, stage: Scene, monkeypatch: pytest.MonkeyPatch
+    api: ContractClient, stage: Scene
 ) -> None:
-    monkeypatch.setattr(
-        "waterfall.core.projects.interface.work_breakdown.no_background_task_running",
-        busy,
-    )
+    pend_marking(api, stage)
     refused = write(api, stage, stage.manager, [package("Lot", item("Poste"))], 0)
     assert refusal(refused) == (
         409,
@@ -457,13 +461,9 @@ def test_a_background_task_that_writes_in_the_project_refuses_the_writing(
 
 @pytest.mark.requirement("WF-PRJ-0020-A")
 def test_a_terminal_project_is_refused_before_the_background_task(
-    api: ContractClient, stage: Scene, monkeypatch: pytest.MonkeyPatch
+    api: ContractClient, stage: Scene
 ) -> None:
-    # The substitution of ``no_background_task_running`` gives way to a real task with US-0970.
-    monkeypatch.setattr(
-        "waterfall.core.projects.interface.work_breakdown.no_background_task_running",
-        busy,
-    )
+    pend_marking(api, stage)
     put_in_state(stage.owner, stage.project["project_id"], "lost")
     refused = write(api, stage, stage.manager, [package("Lot", item("Poste"))], 0)
     assert refusal(refused) == (

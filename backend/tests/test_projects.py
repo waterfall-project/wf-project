@@ -739,7 +739,7 @@ def _bounds(model: type[Any]) -> dict[str, tuple[Any, ...]]:
         constraints = sorted(
             (key, value)
             for each in field.metadata
-            for key in ("min_length", "max_length", "pattern")
+            for key in ("min_length", "max_length", "pattern", "ge", "le", "gt", "lt")
             if (value := getattr(each, key, None)) is not None
         )
         read[name] = (field.is_required(), field.default, tuple(constraints))

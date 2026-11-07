@@ -19,7 +19,7 @@ it). ``load_transitions`` stays as declared, for US-0990/L2, which imposes the i
 chronology: ``load_project`` writes the first transition of each project already.
 """
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import TYPE_CHECKING, Literal
 
 from sqlalchemy import select
@@ -87,7 +87,9 @@ class ExitRequest:
     ``fate`` is what the caller says of the current revision. ``moved`` is the number of times the
     transaction has advanced the counter of the project already (the abandonment of the current
     revision does, once). ``no_task_running`` is what the module of the projects reads of the
-    background tasks.
+    background tasks; ``tasks_under_lock`` has the exit read them again once it holds the lock of
+    the project, so that a task deposited since the caller read them is not missed (#2220). The
+    exit that follows a marking leaves it off: the task that marks is itself one.
     """
 
     to_state: ExitState
@@ -96,6 +98,7 @@ class ExitRequest:
     fate: RevisionFate | None = None
     moved: int = 0
     no_task_running: bool = True
+    tasks_under_lock: bool = False
 
 
 @dataclass(frozen=True, slots=True)
@@ -300,6 +303,8 @@ def exit_project(
     """
     project = _lock(session, project_id)
     require_project_manager(session, project_id, viewer)
+    if request.tasks_under_lock:
+        request = replace(request, no_task_running=no_background_task_running(session, project_id))
     _judge_exit(project, request)
     _move(session, project, request.to_state, request.reason, act)
     project.updated_at = act.at

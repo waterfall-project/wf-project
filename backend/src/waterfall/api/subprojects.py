@@ -57,7 +57,11 @@ def _checked(code: str) -> str:
     add to those of the label, as the contract's ``fields`` names each field.
     """
     for fault in code_faults(code):
-        message = "a subproject code cannot name a tab"
+        message = (
+            "a subproject code cannot be blank"
+            if fault.code == "VALUE_REQUIRED"
+            else "a subproject code cannot name a tab"
+        )
         raise PydanticCustomError(cast("LiteralString", fault.code), message, dict(fault.params))
     return code
 

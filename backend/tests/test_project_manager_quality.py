@@ -51,6 +51,9 @@ if TYPE_CHECKING:
 # A write of the manager of the project of the scene, ready to be sent; and what it would change.
 type Send = Callable[[], Any]
 
+# The writes that try a branch of an operation already listed: the exit that marks the revision,
+# which the worker finishes (#2276).
+BRANCHES = {"exitProjectMarking"}
 MANAGER_ONLY = {
     name
     for router in (
@@ -143,6 +146,16 @@ def sent_by_the_manager(api: ContractClient, stage: Scene) -> dict[str, Send]:
                 "current_revision": {"action": "abandon"},
             },
         ),
+        "exitProjectMarking": lambda: api.post(
+            f"{path}/exit",
+            headers=headers,
+            json={
+                "to_state": "abandoned",
+                "confirmed": True,
+                "lock_version": version,
+                "current_revision": {"action": "mark", "version_name": "V2"},
+            },
+        ),
     }
 
 
@@ -204,6 +217,7 @@ def demote_the_manager(stage: Scene, api: ContractClient, during: Send) -> Any:
         "markRevision",
         "designateReferenceRevision",
         "exitProject",
+        "exitProjectMarking",
     ],
 )
 def test_a_write_reserved_to_the_project_managers_finds_its_caller_demoted_under_the_lock(
@@ -250,5 +264,5 @@ def test_every_operation_reserved_to_the_project_managers_is_tried_against_a_dem
     # A route reserved to the project managers that is added joins the list above, with the other
     # one that judges its caller under the lock, ``setContributors`` (``test_contributors.py``).
     tried = set(sent_by_the_manager(api, stage))
-    assert tried == MANAGER_ONLY
+    assert tried - BRANCHES == MANAGER_ONLY
     assert asked_contributors.ON_PROJECT["setContributors"] == "project_manager"

@@ -28,12 +28,12 @@ imports; EP-06 to EP-09) has no write, and keeps its place: the order and the in
 chronology's.
 
 The writes are exactly those the design of EP-04 lists for the loader (« L'amorçage et le
-chargeur »), in that order: the revision 100 opened (Created to Costing), its marking « v1.0 », the
+chargeur »), in that order: the revision 100 opened (Created to Pricing), its marking « v1.0 », the
 101 opened, the designation of 100 attempted and refused, the code entered, the 101 marked
 « Référence », the 102 opened. The witness abandons no revision, and the form has no kind of
 abandon: the abandon of a revision is in the journey of the cycle, played by L2. The code entered
-sits at the order received, the event of the witness between the refused designation and the
-marking of the 101, where that order puts it.
+is written in the event of the order received, after the designation refused and before the event
+of the marking of the 101.
 
 The chronology dates PRJ-001 alone (``project_created``). PRJ-002 has no instant here: L2 creates
 PRJ-002 and PRJ-001 from ``projects.json`` before the events, and the events write into PRJ-001.
@@ -70,7 +70,7 @@ def _writes() -> dict[Event, list[JsonObject]]:
         mockwitness.CREATED: [{"kind": "project_created", **into}],
         mockwitness.OFFER_OPENED: [
             {"kind": "revision_opened", **into, "revision": OFFER},
-            {"kind": "state_transition", **into, "from": "created", "to": "costing"},
+            {"kind": "state_transition", **into, "from": "created", "to": "pricing"},
         ],
         mockwitness.OFFER_MARKED: [
             {

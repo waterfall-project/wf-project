@@ -40,6 +40,7 @@ from waterfall.core.resource_settings.interface import (
     WeeklyHours,
     create_calendar,
     set_activation,
+    set_calendar_activation,
     set_default_calendar,
     set_role_activation,
     share_reference,
@@ -218,3 +219,21 @@ def test_the_key_of_the_lock_of_the_reference_is_distinct_from_the_other_advisor
         FORGETTING_LOCK,
     ]
     assert REFERENCE_LOCK not in others
+
+
+@pytest.mark.requirement("WF-CYC-0120-A")
+def test_the_activation_of_a_calendar_takes_no_lock_because_the_default_calendar_never_leaves(
+    reference: Database,
+) -> None:
+    # ``set_calendar_activation`` is the one writer of ``is_active`` of the reference that does not
+    # take ``REFERENCE_LOCK``: it is right while the default calendar, the only one the question of
+    # the minimal reference reads, cannot be deactivated. This pins that refusal as the invariant
+    # of the lock: were it lifted, the activation would have to take the lock (#2276).
+    with reference.transaction() as session:
+        default = session.execute(
+            select(Calendar.id, Calendar.lock_version).where(Calendar.is_default)
+        ).one()
+        with pytest.raises(ConflictError) as refused:
+            set_calendar_activation(session, default.id, default.lock_version, ACT, is_active=False)
+    assert refused.value.code == "STATE_FORBIDS_OPERATION"
+    assert refused.value.params == {"missing_condition": "calendar_not_default"}
