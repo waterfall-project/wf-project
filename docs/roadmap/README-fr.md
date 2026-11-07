@@ -154,7 +154,7 @@ les trois cents projets en EP-13, qui clôt. Quatre règles, que chaque tranche 
 | [EP-20](EP-20-migration-des-dependances.md) | Migration des dépendances | livré | EP-19 |
 | [EP-21](EP-21-livreurs-en-parallele-suivi.md) | Livreurs en parallèle : suivi | à planifier | EP-19 |
 | [EP-22](EP-22-kanban-recapitulatives-demarrees.md) | Le Kanban signale la récapitulative qui n'attend plus que ses lignes propres | livré | EP-17 |
-| [EP-05](EP-05-referentiel.md) | Référentiel de l'entreprise | en cours | EP-16, EP-18, EP-19, EP-20 |
+| [EP-05](EP-05-referentiel.md) | Référentiel de l'entreprise | livré | EP-16, EP-18, EP-19, EP-20 |
 | [EP-04](EP-04-projets-et-revisions.md) | Projets, révisions et cycle de vie | en cours | EP-05 |
 | [EP-06](EP-06-planification.md) | Planification | à planifier | EP-04 |
 | [EP-07](EP-07-chiffrage-et-devis.md) | Chiffrage et devis | à planifier | EP-06 |
