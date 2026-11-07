@@ -1546,7 +1546,7 @@ physique (EP-10).
 
 ## US-1480 — Le témoin : la tranche des tâches, et les parcours rejoués
 
-- **statut** : à faire
+- **statut** : en cours
 - **exigences** : `WF-QUA-0040-A`
 - **opérations** : aucune en propre ; le chargement passe par les interfaces du noyau
 - **issue** : 2327
