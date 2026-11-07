@@ -196,6 +196,14 @@ Reporté d'EP-04 (décision de l'auteur du 2026-11-07) :
   ligne `up --build --detach --wait restore` est ajoutée par US-0990/L2 d'EP-04, qui sera dans `main`
   avant EP-21 ; EP-21 garde le test des outils qui confronte les services à `build` du Compose aux
   recettes du Makefile, et pose la ligne si elle manquait encore à sa livraison.
+- #2282 — front : contre le service, un tri ou un filtre posé par un parcours sur la grille de
+  l'accueil est gardé dans les préférences du compte de la course, et le parcours suivant le
+  retrouve ; US-1000 fait remettre tri et filtre en fin de test. Décision : la fixture de `mode.ts`
+  remet à zéro les préférences de grille du compte au début de chaque parcours en mode service,
+  par US-1330, qui réécrit ces fixtures. Relevé par US-1000 (#2066).
+- #2287 — front : `restoreHome`, appelée dans un `finally` par les deux parcours de l'accueil, masque
+  l'échec d'origine quand la restauration échoue à son tour. Disparaît avec #2282 : US-1330. Relevé
+  par la revue d'US-1000 (#2066).
 
 ## Conception
 
