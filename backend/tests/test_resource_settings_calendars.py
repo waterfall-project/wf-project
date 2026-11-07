@@ -714,36 +714,46 @@ def load(service_database_url: str) -> int:
 
 def example_items() -> list[dict[str, Any]]:
     """Read the calendars of the example of the contract the witness is made of."""
-    document = json.loads((WITNESS / "calendars.json").read_text(encoding="utf-8"))
+    document = json.loads((WITNESS / "calendars_with_inactive.json").read_text(encoding="utf-8"))
     return document["value"]["items"]
 
 
+def identifier(calendar: dict[str, Any]) -> str:
+    """Give the identifier of a calendar read, the key of the order two lists are compared in."""
+    return str(calendar["calendar_id"])
+
+
 def without_audit(items: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    """Give calendars without their audit, which a loading dates and signs as itself."""
-    return [{name: each[name] for name in each if name != "audit"} for each in items]
+    """Give calendars without their audit, which a loading dates and signs as itself.
+
+    The counter of writes counts those of the roles that reopen a calendar the time of being
+    attached to it (#2131): as the other lists, it is left out.
+    """
+    unshared = {"audit", "lock_version"}
+    return [{name: each[name] for name in each if name not in unshared} for each in items]
 
 
 @pytest.mark.requirement("WF-QUA-0040-A")
 def test_the_witness_loads_the_calendars_and_designates_its_default_one(
     api: ContractClient, database: Database, sessions: PartSessions, service_database_url: str
 ) -> None:
-    # `load-witness` writes `calendars.json` with its identifiers and its default calendar, the one
-    # the platform held losing the designation; the list reads back the example of the contract,
-    # the audit columns apart. A second loading writes nothing.
+    # `load-witness` writes `calendars_with_inactive.json` with its identifiers and its default
+    # calendar, the one the platform held losing the designation, then deactivates the one it says
+    # deactivated (#2131); the list reads back the example of the contract, the audit columns
+    # apart. A second loading writes nothing.
     held = seed(database, "Installé", default=True)
     assert load(service_database_url) == 0
     example = example_items()
     wanted = {each["calendar_id"] for each in example}
-    read = listing(api, sessions.changing)["items"]
-    assert without_audit([each for each in read if each["calendar_id"] in wanted]) == (
-        without_audit(example)
-    )
+    read = listing(api, sessions.changing, "include_inactive=true")["items"]
+    ours = sorted((each for each in read if each["calendar_id"] in wanted), key=identifier)
+    assert without_audit(ours) == without_audit(sorted(example, key=identifier))
     assert [each["label"] for each in read if each["is_default"]] == ["Semaine standard"]
     with database.transaction() as session:
         retired = read_calendar(session, held)
     assert (retired.is_default, retired.lock_version) == (False, 2)
     assert load(service_database_url) == 0
-    assert listing(api, sessions.changing)["items"] == read
+    assert listing(api, sessions.changing, "include_inactive=true")["items"] == read
 
 
 @pytest.mark.requirement("WF-QUA-0040-A")
