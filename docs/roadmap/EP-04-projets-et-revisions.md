@@ -920,7 +920,7 @@ la liste ne le retire pas, elle le signale. L'écran est celui d'EP-02/L44b (#58
 
 ## US-0940 — Les sous-projets
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-PRJ-0050-A`, `WF-DAT-0080-A`
 - **opérations** : `listSubprojects`, `createSubproject`, `updateSubproject`, `deleteSubproject`
 - **issue** : 2059
