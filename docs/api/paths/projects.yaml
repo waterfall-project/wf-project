@@ -819,7 +819,7 @@
         description: >-
           The lock version of the deleted subproject, as the screen read it
           (`Subproject.lock_version`): stale, the deletion is refused with 412 and nothing is
-          deleted (WF-IHM-0110; decision of the author of 2026-10-28, US-0702/L2).
+          deleted (WF-IHM-0110; the author's decision of 2026-10-28, US-0702/L2).
         schema: { $ref: ../components/common.yaml#/LockVersion }
     responses:
       '204':
@@ -841,7 +841,7 @@
           lifted, a marked revision being immutable (WF-DAT-0020) —, then
           `subproject_without_estimate_lines`, which moving these lines outside any subproject
           or to another one lifts, then `project_not_terminal`. Naming
-          `subproject_without_estimate_lines`, the refusal also names these lines (Check of
+          `subproject_without_estimate_lines`, the refusal also names these lines (Vérif of
           WF-DAT-0080): `params.estimate_lines`, all of them, each by its structure, the label of
           that structure, its node, its line number in its entire structure and its label
           (`structure_id`, `structure_label`, `node_id`, `row_number`, `label`) — two lines of
@@ -1149,7 +1149,7 @@
       version, by an exception written in the README: a timeline has none, no operation modifies
       it — it is created and deleted — and its registrations are entries of the tasks, which
       have their own; there is nothing to compare, and a timeline already deleted is a 404
-      (decision of the author of 2026-11-01, #1733).
+      (the author's decision of 2026-11-01, #1733).
     tags: [planning]
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId

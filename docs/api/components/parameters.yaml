@@ -929,7 +929,7 @@ ProjectStates:
     home page that lists all the projects that can be opened names the six. Absent, the projects
     in progress only. `meta.states` always says the states retained, named or by default.
     Specific to the list: the rule of the portfolio views, which do not count certain states
-    (`PortfolioStates`, WF-PTF-0010), does not apply here (decision of the author of 2026-11-01,
+    (`PortfolioStates`, WF-PTF-0010), does not apply here (the author's decision of 2026-11-01,
     #1747).
   schema:
     type: array

@@ -316,7 +316,7 @@ CommandCondition:
     command lists them (`SubprojectCommand`). `main_structure_without_tasks` is missing for the
     generation of the planning skeleton (`RevisionCommand.generate_skeleton`) as soon as the
     main structure of the revision contains a task: "It is no longer offered as soon as the main
-    structure contains a task" (Check of WF-PRJ-0030); `generatePlanningSkeleton` names in its
+    structure contains a task" (Vérif of WF-PRJ-0030); `generatePlanningSkeleton` names in its
     409 the first one missing, in the order in which the command lists them (EP-14/L42k). On a
     project without a current revision (`ProjectCommand.generate_skeleton`), it is judged on the
     revision that its opening would create: it is missing when the main structure of the last
@@ -482,7 +482,7 @@ ProjectCommand:
     (WF-CYC-0100) —; open a revision; the three exits from the lifecycle (`exitProject`,
     WF-CYC-0060), each listed as long as it can become available and absent as soon as it never
     will — "an exit that will never become available — Declare lost from In progress — does not
-    appear" (Check of WF-CYC-0060): `complete` listed in every non-terminal state, unavailable
+    appear" (Vérif of WF-CYC-0060): `complete` listed in every non-terminal state, unavailable
     before In progress, `project_in_progress` missing; `lose` listed in the Created state,
     unavailable, `project_in_pricing` missing, and in Pricing, absent from In progress onwards,
     from where no return leads to Pricing (WF-CYC-0080); `abandon` listed in every non-terminal
@@ -935,7 +935,7 @@ Subproject:
   description: >-
     Subproject, identified by the code under which the ERP knows it, unique within the project.
     Not deletable as soon as an actual cost is charged to it (WF-PRJ-0050), nor as soon as a
-    marked revision cites it (§4.4.1, decision of the author of 2026-10-10, #634), nor as long
+    marked revision cites it (§4.4.1, the author's decision of 2026-10-10, #634), nor as long
     as estimate lines of the current revision carry it (WF-DAT-0080, WF-PRJ-0050): its commands
     state it in advance.
   properties:
@@ -969,7 +969,7 @@ DeclaredSubprojectCode:
   pattern: '^(?![Ss][Yy][Nn][Tt][Hh][Èè][Ss][Ee]$|[Hh][Oo][Rr][Ss] [Ss][Oo][Uu][Ss]-[Pp][Rr][Oo][Jj][Ee][Tt]$)[^:\\/?*\[\]]*[^:\\/?*\[\]\s][^:\\/?*\[\]]*$'
   description: >-
     The code of a declared subproject, under which the ERP knows it, which names its tab in the
-    remaining to commit file (ANNEXE B, WF-PRJ-0050): from 1 to 31 characters, never blank,
+    remaining to commit file (annex B, WF-PRJ-0050): from 1 to 31 characters, never blank,
     without any of the characters `:`, `\`, `/`, `?`, `*`, `[` or `]`, and neither "Synthèse"
     nor "Hors sous-projet", the two tabs that Waterfall names, compared regardless of case —
     which is what the pattern states (D-7, EP-16/US-0610). A write that does not respect it is

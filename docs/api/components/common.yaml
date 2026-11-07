@@ -354,7 +354,7 @@ Problem:
         commit that cites an unknown task, role or subproject (`UNKNOWN_TASK`,
         `UNKNOWN_RESOURCE_ROLE`, `UNKNOWN_SUBPROJECT`, `ImportRejection.params`, WF-INTF-0100);
         `label`, the label of a task that several tasks carry, with `tasks` those that carry it
-        (`AMBIGUOUS_TASK_LABEL`, `ImportRejection.params`, ANNEXE B); `start` and `finish`, the
+        (`AMBIGUOUS_TASK_LABEL`, `ImportRejection.params`, annex B); `start` and `finish`, the
         dates that an MS Project planning gives to a summary task in manual mode, imported in
         automatic mode (`SUMMARY_TASK_DERIVED`, `ImportSignal.params`, WF-INTF-0040).
     fields:
@@ -674,7 +674,7 @@ ErrorCode:
     - WBS_ELEMENT_INVALID
     - WBS_ELEMENT_OUTSIDE_PROJECT
     # A line of an estimate or of a remaining to commit that designates its task by a label that
-    # several tasks carry (`ImportRejection`, ANNEXE B, WF-INTF-0080): `params.label` the
+    # several tasks carry (`ImportRejection`, annex B, WF-INTF-0080): `params.label` the
     # label, `params.tasks` the tasks that carry it, by their lineage and their label.
     - AMBIGUOUS_TASK_LABEL
     # A line whose task is started or completed, moved out of a subproject that has received
@@ -794,7 +794,7 @@ ProblemParams:
         (`ImportDifference`) and may concern a project without a current revision, of which no node
         exists yet (WF-INTF-0090; #768, point 2). Likewise, by their lineage and their label,
         the tasks that carry the ambiguous label an imported line cites
-        (`AMBIGUOUS_TASK_LABEL`, ANNEXE B).
+        (`AMBIGUOUS_TASK_LABEL`, annex B).
       items:
         anyOf:
           - $ref: '#/ProblemTask'

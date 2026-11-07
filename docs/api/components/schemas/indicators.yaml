@@ -168,7 +168,7 @@ EstimateIndicators:
         by an attached task […], it presents the total of the subtree of that task; a work
         package without an attached task is presented without a total" (WF-DEV-0060): its amount
         and its share are not computed, reason `work_package_without_task` — absent rather than
-        zero, as the Vérif requires. Never empty: a project without an entered work breakdown
+        zero, as its Vérif requires. Never empty: a project without an entered work breakdown
         has one by default, of one work package (EP-14/L42s). The stored indicators of a marked
         revision return the work packages of its marking, as it froze them (WF-DAT-0040),
         including a marked work package deleted since (WF-DAT-0080).
@@ -576,7 +576,7 @@ CurveSeries:
     after (`steps`). The changes of the reference budget appear in them as dated steps. The
     curves of a marked revision are stored with its indicators and presented at the same step
     (WF-DAT-0040). Requested with the payment delays, the cumulative cost curve carries the
-    disbursements: its series are shifted, and `cash_out_by_month` details them by month. A
+    cash-out: its series are shifted, and `cash_out_by_month` details them by month. A
     series without points has nothing to plot for the scope (WF-IND-0020): the reference budget,
     when no reference budgets a line in it; all the series, when the scope has neither a line
     nor an actual cost, as `getCostCurve` states. The actual cost of a scope that has lines
@@ -587,7 +587,7 @@ CurveSeries:
     payment_delays:
       type: boolean
       description: >-
-        True when the series are those of the disbursements: the reference budget and the
+        True when the series are those of the cash-out: the reference budget and the
         projection shifted, each amount by the payment delay of its line, the provisions of the
         identified risks, which carry none, at the date of the task that carries them; the actual
         cost is not shifted (WF-IND-0100). False otherwise.
@@ -640,7 +640,7 @@ CurveSeries:
           items: { $ref: '#/CashOutMonth' }
         - type: 'null'
       description: >-
-        The disbursements by month, returned when `payment_delays` is true: the past by month of
+        The cash-out by month, returned when `payment_delays` is true: the past by month of
         document date — the actual cost is not shifted —; the future by spreading the remaining
         to commit of each line, in proportion to the working hours, over the part of the
         duration of its task after the computation date, carried whole to the computation date
@@ -652,10 +652,10 @@ CashOutMonth:
   type: object
   required: [month, past, forecast]
   description: >-
-    A month of disbursements: what has been disbursed, and what will be. A month that
+    A month of cash-out: what has been paid out, and what will be. A month that
     precedes that of the computation date carries only the past, a month that follows it only
     the future, the other amount zero; the month of the computation date carries both — the
-    amount disbursed up to it, the remainder to disburse after (WF-IND-0100, WF-PTF-0100).
+    amount paid out up to it, the remainder to be paid out after (WF-IND-0100, WF-PTF-0100).
   properties:
     month: { type: string, pattern: '^\d{4}-(0[1-9]|1[0-2])$' }
     past: { $ref: ../common.yaml#/Money }

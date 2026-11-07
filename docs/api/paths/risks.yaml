@@ -13,7 +13,7 @@
       columns can be filtered, following the convention of the contract's README: the state and
       the zone by a list, the label by the search, each number column — probability, severity,
       provision, cost at occurrence and reestimated of occurred — by its two inclusive bounds,
-      `<colonne>_min` and `<colonne>_max`, and the date of the last review by its period,
+      `<column>_min` and `<column>_max`, and the date of the last review by its period,
       `last_review_on_from` and `last_review_on_to`, end included; `last_review_on_to` presents
       to the periodic review the risks not reviewed since a date (WF-RIS-0020,
       `risks_filtered`; H-01, #1785). A risk with neither a cost at occurrence nor a
@@ -96,7 +96,7 @@
           A column filter refused, following the convention of the README, `fields` on the
           parameter: a malformed bound with `NUMBER_INVALID`, a date with `DATE_INVALID`, an
           upper bound lower than the lower one with `VALUE_OUT_OF_RANGE` on
-          `/query/<colonne>_max`, `params.minimum` the lower bound given, an end of period
+          `/query/<column>_max`, `params.minimum` the lower bound given, an end of period
           earlier than its start with `VALUE_OUT_OF_RANGE` on `/query/last_review_on_to`,
           `params.minimum` the start given (WF-IHM-0130; H-01, #1785).
         content:
@@ -728,7 +728,7 @@
       (`revision_id`, WF-RIS-0030); each level states its bounds, those of severity as a
       percentage of the base of the project — its reference budget or, before it, the total
       excluding provisions of the estimate of its current revision (WF-REF-0160). Each cell
-      carries its zone, doubled by an uncoloured index on display (WF-IHM-0070), and the
+      carries its zone, doubled by a non-colour cue on display (WF-IHM-0070), and the
       number of its identified risks only, like the bubbles (`cells`, #1395); each risk read is
       a point at its exact values, with its state (`points`, #1053), and the provision totals
       cover the three states (WF-RIS-0040).

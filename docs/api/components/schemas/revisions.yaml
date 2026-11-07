@@ -341,7 +341,7 @@ ReferenceDesignation:
       description: >-
         The counter of the project read (`Project.lock_version`), whose reference and state the
         designation writes: stale, it is refused with 412 and nothing is written (WF-IHM-0110;
-        decision of the author of 2026-10-28, E-24, US-0702/L2).
+        the author's decision of 2026-10-28, E-24, US-0702/L2).
 
 RateUpdateProposal:
   type: object
@@ -735,7 +735,7 @@ Node:
       description: >-
         Fields of the facet that this very node accepts for writing, symmetrical to
         `computed_fields`: a labour line carries the role and the effort, never its
-        category, which is that of its role (Verification of WF-DEV-0020), a non-labour line
+        category, which is that of its role (Vérif of WF-DEV-0020), a non-labour line
         its category and the unit disbursement, both the payment delay — null by
         default for labour, and "enterable on any line other than a provision
         line" (WF-DEV-0020, WF-IND-0100; #785) —, a provision line neither the ones nor the
@@ -810,7 +810,7 @@ NodeChange:
     duration, its progress state and its parent — "A task moved under another
     summary task is presented as modified" —; for an estimate line, its budgeted and
     re-estimated amounts, which express its figures, its payment delay, which shifts its
-    disbursements without changing any amount (WF-DEV-0020, WF-IND-0100; #1566), its
+    cash-out without changing any amount (WF-DEV-0020, WF-IND-0100; #1566), its
     subproject (`subproject`) and its cost category (`cost_category`), which change the key
     under which it counts its differences even with an unchanged amount — a category that
     changes can change its kind (`RevisionComparison.amount_deltas`, #1751) —, and its parent,
@@ -1680,7 +1680,7 @@ EstimateLineFacet:
       allOf: [{ $ref: ../common.yaml#/Uuid }]
       description: >-
         Cost category; that of a labour line is that of its role, computed and
-        not enterable (`computed_fields`, Verification of WF-DEV-0020).
+        not enterable (`computed_fields`, Vérif of WF-DEV-0020).
     cost_category_label:
       type: string
       description: Label of the cost category, resolved on read, active or deactivated.
@@ -1702,7 +1702,7 @@ EstimateLineFacet:
       anyOf: [{ type: integer, minimum: 0 }, { type: 'null' }]
       description: >-
         Payment delay, by which the cumulative cost curve shifts the line's amount
-        when it presents the disbursements (WF-IND-0100). Null for a provision line, which
+        when it presents the cash-out (WF-IND-0100). Null for a provision line, which
         carries none and stays at the date of the task that carries it (WF-DEV-0020,
         WF-IND-0100; EP-14/L42s).
     subproject_id:
@@ -1999,7 +1999,7 @@ TaskFacetUpdate:
     one of its order items —,
     `fields[].params.work_package_task` naming the task of the work package and
     `order_item_tasks` those of the order items concerned, each by its node and its label, like
-    the failure of a merge (Verification of WF-PLA-0170; WF-IHM-0080; EP-14/L42s).
+    the failure of a merge (Vérif of WF-PLA-0170; WF-IHM-0080; EP-14/L42s).
   properties:
     label: { type: string, minLength: 1, pattern: '\S', maxLength: 300 }
     description:
@@ -2027,7 +2027,7 @@ EstimateLineWrite:
     a field that the line does not accept — the disbursement of a labour line, the role or the
     effort of another — is refused with 422, reason `FIELD_NOT_ACCEPTED` on its field
     (EP-14/L42s). A role sent makes the line a labour line, whose category
-    is that of the role, computed (Verification of WF-DEV-0020): the category is not required;
+    is that of the role, computed (Vérif of WF-DEV-0020): the category is not required;
     sent, the role's is accepted, another refused with 422 `VALIDATION_FAILED`, `fields` on
     `/estimate_line/cost_category_id`, reason `COMPUTED_VALUE`, the grid naming what it
     depends on (`resource_role`, `getComputedValueDependencies`, WF-IHM-0030). Without a role,
@@ -2319,7 +2319,7 @@ PastePreview:
     do not count: the paste skips them, without refusal, and the block row that would have fallen
     on one of them writes the next node that is not removed, the following block rows the nodes
     after it — a two-row block pasted on the row that precedes a removed row writes that
-    row, then the node that follows the removed row (decision of the author of 2026-10-22,
+    row, then the node that follows the removed row (the author's decision of 2026-10-22,
     #1278). `PastePlan.accepted` and `PasteRejection.row` count the rows of the block, never the
     skipped nodes. A block whose targeted cell is itself on a removed node, which accepts no
     field (`editable_fields` empty), is refused whole: `PastePlan.accepted` at `0`, and a single

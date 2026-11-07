@@ -38,7 +38,7 @@
           Sort column; when absent, the most recent documents first. Every column of the grid
           can be sorted (WF-IHM-0060). `in_tracked_scope` puts the excluded lines before the
           tracked lines in ascending order. `document_item` sorts by item number,
-          `excluded_reason` by reason, and `passthrough.<colonne>` by the value of a kept column
+          `excluded_reason` by reason, and `passthrough.<column>` by the value of a kept column
           of the file, named as `passthrough` names it: each compared as text, character by
           character in Unicode code point order, without reading a number or a date it might
           write; a line without a value — without an item, tracked and so without a reason, or

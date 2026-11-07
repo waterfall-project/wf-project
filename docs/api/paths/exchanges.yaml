@@ -367,7 +367,7 @@
       to commit, the lines rejected because they would leave a subproject that has received
       actual costs, the subproject named (WF-INTF-0100, WF-INTF-0120), those that cite an
       unknown task, role or subproject, the value read named, or a task by a label that several
-      carry (`AMBIGUOUS_TASK_LABEL`, ANNEXE B), the provision lines ignored or kept
+      carry (`AMBIGUOUS_TASK_LABEL`, annex B), the provision lines ignored or kept
       (`provision_lines`, `kept`, WF-INTF-0100), and the tasks that a remaining to commit
       completes on the review date the file carries (WF-INTF-0120); for an MS Project schedule,
       the planning start date of the structure that it changes (`cost_structure`), the dates of

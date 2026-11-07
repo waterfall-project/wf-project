@@ -183,7 +183,7 @@
         description: >-
           The counter of the abandoned revision, as the screen read it (`Revision.lock_version`):
           when stale, the abandonment is refused with 412 and nothing is deleted (WF-IHM-0110;
-          decision of the author of 2026-10-28, E-13, US-0702/L2).
+          the author's decision of 2026-10-28, E-13, US-0702/L2).
         schema: { $ref: ../components/common.yaml#/LockVersion }
     responses:
       '204':
@@ -1356,10 +1356,10 @@
     description: >-
       The deletion of a task takes its lines and its links with it (WF-PLA-0070, WF-DAT-0090);
       that of a summary task also takes its subordinates, their lines and their links, and the
-      estimate decreases by as much (Verification of WF-PLA-0070). "A started or completed task
+      estimate decreases by as much (Vérif of WF-PLA-0070). "A started or completed task
       cannot be deleted" (WF-PLA-0070), nor can a summary task one of whose subordinates is:
       the refusal names the condition, `task_not_started`, and the screen refers to bringing its
-      remaining to commit to zero (Verification of WF-PLA-0070). The provision lines that the
+      remaining to commit to zero (Vérif of WF-PLA-0070). The provision lines that the
       deleted task and its subordinates carry are not taken with it: they move to the parent
       task of the deleted task or, for a first-level task, to the first remaining first-level
       task, the total of the estimate unchanged (WF-PLA-0070, WF-RIS-0010); `nodes` returns
@@ -1583,7 +1583,7 @@
           it depends on (`getComputedValueDependencies`); a date of a summary task, which derives
           it from its subordinates, with `SUMMARY_TASK_DERIVED`,
           `fields[].params.subordinate_node_ids` naming them (`summary_date_refused`,
-          Verification of WF-IHM-0030) —, or the mode of a summary task, always automatic
+          Vérif of WF-IHM-0030) —, or the mode of a summary task, always automatic
           (`/scheduling_mode`, WF-PLA-0040) (`COMPUTED_VALUE`, WF-PLA-0020,
           WF-IHM-0030), or an attachment to the work breakdown refused —
           task outside the main structure, unknown work package or item, work package and item
@@ -2094,7 +2094,7 @@
           as the command of the structure says; then, on the main structure only, a
           line moved to a completed task, or from it, which is first reopened from the
           Kanban — "The creation of a line under a completed task, or the move of a
-          line to it, is refused" (Verification of WF-DEV-0050, WF-RAE-0030, WF-RAE-0040) —,
+          line to it, is refused" (Vérif of WF-DEV-0050, WF-RAE-0030, WF-RAE-0040) —,
           `task_not_completed` (`completed_refused`; #1214, #1766). In a differential, a
           line is moved to a completed task or from it as elsewhere, the amendment
           rebudgeting it (WF-REV-0050, #1765). The phase of the project refuses nothing (C-358).
@@ -2467,7 +2467,7 @@
           The generation is not offered: `STATE_FORBIDS_OPERATION`,
           `params.missing_condition` naming the first missing condition, in the order in which
           the command lists them (`generate_skeleton`) — `main_structure_without_tasks` as soon
-          as the main structure has a task (Verification of WF-PRJ-0030), then
+          as the main structure has a task (Vérif of WF-PRJ-0030), then
           `no_background_task_running` during a marking, an import, the processing of a risk
           occurrence or a merge (WF-IHM-0080). On a marked revision, the command
           lacks only `revision_draft` (`marked_refused`, WF-DAT-0020).

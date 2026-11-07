@@ -12,7 +12,7 @@
       risk provision type, without which no risk can be declared (WF-RIS-0010;
       EP-14/L42p, #579). A new installation carries the default calendar and the risk provision
       category from the bootstrap (WF-EXP-0020): it lacks the labour category and the resource
-      role (Verification of WF-CYC-0120, `incomplete`).
+      role (Vérif of WF-CYC-0120, `incomplete`).
     responses:
       '200':
         description: State of the minimum reference data.

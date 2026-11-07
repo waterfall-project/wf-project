@@ -338,9 +338,9 @@
       dated steps. On request (`payment_delays`), each amount of the budget and of the
       projection is shifted by the payment delay of its line, the provisions of the
       identified risks, which carry none, staying at the date of the task that carries them,
-      and the actual cost is not shifted: the curve then presents the disbursements, past and
-      to come, and also returns them by month (`cash_out_by_month`); the sum of the
-      disbursements to come equals the remaining to commit (WF-IND-0100). At a monthly step,
+      and the actual cost is not shifted: the curve then presents the cash-out, past and
+      to come, and also returns it by month (`cash_out_by_month`); the sum of the
+      cash-out to come equals the remaining to commit (WF-IND-0100). At a monthly step,
       each point carrying the cumulative total at the end of the month (`CurveSeries`,
       WF-IND-0100). For a named marked revision (`revision_id`), the curve that its marking
       kept with its indicators, on the actual cost lines known at its marking as they were
@@ -360,11 +360,11 @@
         in: query
         description: >-
           True, the series are shifted by the payment delays and carry the provisions of the
-          identified risks: they are the disbursements (WF-IND-0100).
+          identified risks: that is the cash-out (WF-IND-0100).
         schema: { type: boolean, default: false }
     responses:
       '200':
-        description: Cumulative series, disbursements by month included when `payment_delays` is true.
+        description: Cumulative series, cash-out by month included when `payment_delays` is true.
         content:
           application/json:
             schema: { $ref: ../components/schemas/indicators.yaml#/CurveSeries }

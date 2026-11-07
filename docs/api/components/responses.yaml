@@ -45,7 +45,7 @@ Forbidden:
 NotFound:
   description: >-
     Nonexistent object, or invisible for lack of the permission to consult it: the
-    refusal does not reveal its existence (Verification of WF-ADM-0110).
+    refusal does not reveal its existence (Vérif of WF-ADM-0110).
   content:
     application/problem+json:
       schema: { $ref: common.yaml#/Problem }

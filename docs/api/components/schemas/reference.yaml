@@ -1114,7 +1114,7 @@ ReferenceReadiness:
         be declared (EP-14/L42p, #579); an active resource role
         (`active_resource_role`). Empty when `is_complete` is true. A new installation,
         whose only category is the risk provision one, lacks the labour
-        category and the role (Check of WF-CYC-0120).
+        category and the role (Vérif of WF-CYC-0120).
       items:
         type: string
         enum:

@@ -326,7 +326,7 @@ ImportReport:
     format_version:
       anyOf: [{ type: string }, { type: 'null' }]
       description: >-
-        The format version carried by the header of an estimate or a remaining to commit (ANNEXE B);
+        The format version carried by the header of an estimate or a remaining to commit (annex B);
         null for an MS Project schedule and an actual cost extraction, which carry none
         (WF-INTF-0070).
     read_count:
@@ -605,7 +605,7 @@ ImportRejection:
     the cell as the file carries it, so that the user finds it without reading their file again
     (WF-INTF-0100); and a line that designates its task by a label that several tasks carry,
     when the "Tâches" sheet does not know it: `AMBIGUOUS_TASK_LABEL`, `params.label` this label
-    and `params.tasks` the tasks that carry it, by their lineage and their label (ANNEXE B,
+    and `params.tasks` the tasks that carry it, by their lineage and their label (annex B,
     WF-INTF-0080).
   properties:
     sheet:
@@ -613,7 +613,7 @@ ImportRejection:
       description: >-
         The sheet that carries the line, by its name as the file carries it: the work package of
         an estimate, the subproject of a remaining to commit, or a sheet that Waterfall names,
-        "Hors lot" or "Hors sous-projet", whose name does not depend on the language (ANNEXE B,
+        "Hors lot" or "Hors sous-projet", whose name does not depend on the language (annex B,
         WF-INTF-0180). Null for a single-sheet file — an MS Project schedule, an actual cost
         extraction (WF-INTF-0040, WF-INTF-0140) — (#1162).
     row: { type: integer, minimum: 1 }
@@ -715,7 +715,7 @@ ImportDifference:
         (WF-ARC-0110): a task, an estimate line or a link by `NodeColumn` — a
         link whose type or lag changed by `predecessors`, the column that
         presents it; an actual cost line by `ActualCostColumn`, a kept column of the
-        file by `passthrough.<colonne>`. A task or a line moved under another parent
+        file by `passthrough.<column>`. A task or a line moved under another parent
         — another summary task, another carrying task — names `parent`, which no column
         presents, like `NodeChange.parent`: "A task moved under another
         summary task is presented as modified" (WF-REV-0080, WF-REV-0050; #1194). Thus the provision
@@ -749,7 +749,7 @@ ActualCostColumn:
     element (`subproject_code`); a re-import that changes it recalculates the charging of the
     line, and the report states it with an `updated` difference on this column (WF-CRE-0020,
     WF-INTF-0140). A kept column of the file (`ActualCostLine.passthrough`, WF-CRE-0010) is
-    named `passthrough.<colonne>`, as the sort names it: a re-import that changes its value —
+    named `passthrough.<column>`, as the sort names it: a re-import that changes its value —
     the supplier of a document — is an `updated` difference on it, and not an unchanged line.
     The document number identifies the line together with the item of the document
     (`document_item`): both serve for sorting and are never a difference field
