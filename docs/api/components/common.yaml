@@ -183,7 +183,10 @@ Problem:
         without the other: only `ProjectState` falls under it today — the state of a project
         that has not reached the In progress state, whose indicators are requested
         (WF-IND-0010), or without a reference revision, whose workload is requested on a basis
-        it does not have (WF-DEV-0070); a new enumeration is a modification of the contract),
+        it does not have (WF-DEV-0070); a new enumeration is a modification of the contract;
+        the indicators and curves of a revision marked before the In progress state are refused
+        without them, and without any other parameter, the project being in progress: the only
+        `STATE_FORBIDS_OPERATION` without parameters, `getProjectIndicators`, #247),
         `max_columns` (paste too wide, WF-IHM-0050), `minimum` (the smallest allowed value of a
         value too small, `VALUE_OUT_OF_RANGE`; in `fields[].params` for a field, such as the
         retention of the external copy of backups, at least that of the platform, WF-EXP-0050,

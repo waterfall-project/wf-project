@@ -260,9 +260,10 @@
         description: >-
           `STATE_FORBIDS_OPERATION`: project before the In progress state, `params.state` being
           the state of the project and `params.state_enum` `ProjectState`; or a revision named
-          by `revision_id` marked before it, without `params.state`, the project being in
-          progress. In both cases, only the estimate indicators exist (WF-IND-0010,
-          WF-DAT-0040).
+          by `revision_id` marked before it, without `params` at all: `params.state` would name
+          the state of the project, and the project is in progress — the front tells this refusal
+          from the first by the absence of `params.state` (#247). In both cases, only the
+          estimate indicators exist (WF-IND-0010, WF-DAT-0040).
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
@@ -380,9 +381,10 @@
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '409':
         description: >-
-          `STATE_FORBIDS_OPERATION`: project before the In progress state, or a revision named
-          by `revision_id` marked before it — only the estimate indicators exist
-          (WF-IND-0010, WF-DAT-0040).
+          `STATE_FORBIDS_OPERATION`: project before the In progress state, `params.state` and
+          `params.state_enum` as for `getProjectIndicators`, or a revision named by
+          `revision_id` marked before it, without `params` (#247) — only the estimate indicators
+          exist (WF-IND-0010, WF-DAT-0040).
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
@@ -430,9 +432,10 @@
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '409':
         description: >-
-          `STATE_FORBIDS_OPERATION`: project before the In progress state, or a revision named
-          by `revision_id` marked before it — only the estimate indicators exist
-          (WF-IND-0010, WF-DAT-0040).
+          `STATE_FORBIDS_OPERATION`: project before the In progress state, `params.state` and
+          `params.state_enum` as for `getProjectIndicators`, or a revision named by
+          `revision_id` marked before it, without `params` (#247) — only the estimate indicators
+          exist (WF-IND-0010, WF-DAT-0040).
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
