@@ -2,21 +2,21 @@
   get:
     operationId: listRevisions
     tags: [revisions]
-    summary: Historique des révisions
+    summary: Revision history
     description: >-
-      Nom de version, description, état, date de marquage, année de référence, taux
-      d'inflation et probabilité de gain conservés, caractère de référence — les attributs d'une
-      révision (WF-REV-0090) —, et la révision marquée dont chacune est la copie, qu'un écran
-      nomme avec la révision en cours (WF-IHM-0020) ; chacune est consultable dans son
-      intégralité (WF-REV-0070), l'instantané du référentiel par `getRevision` (`snapshot`, omis
-      ici).
+      Version name, description, state, marking date, reference year, inflation rate and
+      probability of winning kept, reference status — the attributes of a revision
+      (WF-REV-0090) —, and the marked revision each one is a copy of, which a screen names
+      alongside the current revision (WF-IHM-0020); each one can be viewed in full
+      (WF-REV-0070), the snapshot of the reference data through `getRevision` (`snapshot`,
+      omitted here).
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
       - $ref: ../components/parameters.yaml#/Limit
       - $ref: ../components/parameters.yaml#/Offset
       - name: status
         in: query
-        description: Les états retenus, en cours ou marquée ; absents, toutes (WF-IHM-0130).
+        description: The states retained, current or marked; when absent, all (WF-IHM-0130).
         schema:
           type: array
           items: { $ref: ../components/schemas/revisions.yaml#/RevisionStatus }
@@ -24,12 +24,12 @@
       - name: search
         in: query
         description: >-
-          Recherche sur le nom de version et la description, comparés comme toute recherche du
-          contrat (README, « Une recherche… »).
+          Search on the version name and the description, compared like any search of the
+          contract (README, "A search…").
         schema: { type: string, minLength: 1, maxLength: 200 }
     responses:
       '200':
-        description: Révisions, de la plus récente à la plus ancienne.
+        description: Revisions, from the most recent to the oldest.
         content:
           application/json:
             schema:
@@ -54,27 +54,28 @@
   post:
     operationId: createRevision
     tags: [revisions]
-    summary: Ouvrir la révision en cours
+    summary: Open the current revision
     description: >-
-      Un projet comporte au plus une révision en cours ; sa création copie les structures de la
-      dernière révision marquée et les valeurs du référentiel qu'elles emploient (WF-REV-0010,
-      WF-DAT-0010), rattachements des tâches au lotissement compris, sauf à un lot ou à un poste
-      marqué supprimé, que la copie ne reprend pas (WF-PLA-0170). Elle ne reprend pas les
-      structures fusionnées (`CostStructure.is_merged`) : un différentiel fusionné, consommé par
-      sa fusion, dont le contenu est dans la structure principale (WF-REV-0050), et le devis
-      propre d'un risque survenu, consommé par sa survenance (WF-RIS-0060), dont le coût reste
-      dans `Risk.occurrence_cost` ; ce qu'ils contenaient se relit dans la révision où ils ont été
-      fusionnés (WF-DAT-0020). Le devis propre d'un risque écarté, qui peut redevenir identifié,
-      est repris (WF-REV-0100 ; #1758, #1757). La révision retient pour année de référence
-      l'année courante (`reference_year`) ; quand elle diffère de celle de la révision copiée,
-      elle est chiffrée aux taux de la révision copiée, projetés par le taux d'inflation du projet
-      jusqu'à son année de référence, sauf `apply_rate_update`, et la mise à jour des taux est
-      proposée, jamais imposée (WF-REV-0060, WF-REV-0010 ; #1764). La description reçue est
-      conservée sur la révision en cours, rendue avec elle, et reprise à son marquage
-      (`RevisionCreate.description`, WF-REV-0090 ; #2171).
-      C'est la première des deux écritures du squelette de planning sur un projet sans révision
-      en cours, que le projet dit d'avance (`ProjectCommand.generate_skeleton`) : la révision
-      rendue liste `generate_skeleton`, et `generatePlanningSkeleton` s'y applique
+      A project has at most one current revision; its creation copies the structures of the
+      last marked revision and the reference data values they use (WF-REV-0010,
+      WF-DAT-0010), including the attachments of tasks to the work breakdown, except to a work
+      package or an item marked deleted, which the copy does not carry over (WF-PLA-0170). It
+      does not carry over the merged structures (`CostStructure.is_merged`): a merged
+      differential, consumed by its merge, whose content is in the main structure
+      (WF-REV-0050), and the own estimate of an occurred risk, consumed by its occurrence
+      (WF-RIS-0060), whose cost remains in `Risk.occurrence_cost`; what they contained can be
+      read again in the revision where they were merged (WF-DAT-0020). The own estimate of a
+      dismissed risk, which can become identified again, is carried over (WF-REV-0100; #1758,
+      #1757). The revision takes the current year as its reference year (`reference_year`);
+      when it differs from that of the copied revision, it is priced at the rates of the
+      copied revision, projected by the inflation rate of the project up to its reference
+      year, unless `apply_rate_update`, and the rate update is offered, never imposed
+      (WF-REV-0060, WF-REV-0010; #1764). The description received is kept on the current
+      revision, returned with it, and carried over at its marking
+      (`RevisionCreate.description`, WF-REV-0090; #2171).
+      It is the first of the two writes of the planning skeleton on a project without a current
+      revision, which the project states in advance (`ProjectCommand.generate_skeleton`): the
+      revision returned lists `generate_skeleton`, and `generatePlanningSkeleton` applies to it
       (EP-15/US-0490/L4).
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
@@ -85,7 +86,7 @@
           schema: { $ref: ../components/schemas/revisions.yaml#/RevisionCreate }
     responses:
       '201':
-        description: Révision en cours créée.
+        description: Current revision created.
         content:
           application/json:
             schema: { $ref: ../components/schemas/revisions.yaml#/Revision }
@@ -97,17 +98,17 @@
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '409':
         description: >-
-          L'état du projet interdit l'ouverture, comme sa commande `create_revision` le dit, ou
-          son absence d'un projet terminal : `STATE_FORBIDS_OPERATION`,
-          `params.missing_condition` à `project_not_terminal` sur un projet terminal
-          (WF-CYC-0100) ; à `no_current_revision` quand une révision en cours existe déjà
-          (WF-REV-0010 ; J-01, #1795) — une ouverture demandée depuis un écran lu avant qu'une
-          autre ne l'ouvre, la première des deux écritures du squelette de planning sur un projet
-          qui n'en avait pas, reçoit ce refus, et l'écran relit le projet (EP-15/US-0490/L4) — ;
-          puis à `no_background_task_running` pendant
-          l'application d'un import, le traitement d'une survenance ou la fusion d'un différentiel
-          de la dernière révision marquée, qui créent eux-mêmes la révision en cours (WF-REV-0010,
-          WF-INTF-0090 ; E-13, US-0702/L2). Rien n'est écrit.
+          The state of the project forbids the opening, as its `create_revision` command says,
+          or its absence for a terminal project: `STATE_FORBIDS_OPERATION`,
+          `params.missing_condition` set to `project_not_terminal` on a terminal project
+          (WF-CYC-0100); to `no_current_revision` when a current revision already exists
+          (WF-REV-0010; J-01, #1795) — an opening requested from a screen read before another
+          one opened it, the first of the two writes of the planning skeleton on a project that
+          had none, receives this refusal, and the screen reads the project again
+          (EP-15/US-0490/L4) —; then to `no_background_task_running` while
+          an import is being applied, an occurrence processed or a differential of the last
+          marked revision merged, which themselves create the current revision (WF-REV-0010,
+          WF-INTF-0090; E-13, US-0702/L2). Nothing is written.
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
@@ -122,17 +123,17 @@
   get:
     operationId: getRevision
     tags: [revisions]
-    summary: Une révision et son instantané
+    summary: A revision and its snapshot
     description: >-
-      Attributs de la révision et contenu de son instantané (WF-REV-0090, WF-REV-0030) : les
-      valeurs du référentiel qu'une révision marquée a figées (`snapshot`), omis pour la révision
-      en cours.
+      Attributes of the revision and content of its snapshot (WF-REV-0090, WF-REV-0030): the
+      reference data values that a marked revision has frozen (`snapshot`), omitted for the
+      current revision.
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
       - $ref: ../components/parameters.yaml#/RevisionId
     responses:
       '200':
-        description: Révision, avec les valeurs de référentiel et les paramètres conservés (WF-REV-0030).
+        description: Revision, with the reference data values and the parameters kept (WF-REV-0030).
         content:
           application/json:
             schema: { $ref: ../components/schemas/revisions.yaml#/Revision }
@@ -154,25 +155,25 @@
   delete:
     operationId: abandonRevision
     tags: [revisions]
-    summary: Abandonner la révision en cours
+    summary: Abandon the current revision
     description: >-
-      Le projet revient à son état à la dernière révision marquée, et les lignes de la
-      révision abandonnée sont supprimées (WF-REV-0010, WF-DAT-0010). Les risques reviennent
-      à l'évaluation de la dernière révision marquée — probabilité, état, structure propre,
-      ligne de provision et coût à la survenance — : un risque créé dans la révision abandonnée
-      disparaît, un réexamen qu'elle portait est défait, et un risque qui y a été déclaré
-      survenu redevient identifié avec sa ligne de provision, sans coût à la survenance — seul
-      l'abandon défait la survenance (WF-RIS-0020, WF-RIS-0060) —, et la catégorie, le
-      sous-projet et la tâche de sa provision qu'elle avait changés reviennent
-      (`updateRiskProvision`). Le libellé, la description et les actions de mitigation d'un
-      risque qui reste sont des données du projet, que l'abandon ne change pas (`updateRisk`,
-      WF-RIS-0020 ; H-02, #1782) ; son compteur (`Risk.lock_version`) avance, son évaluation lue
-      changeant, et ne revient jamais en arrière. Refusé sur une révision marquée (WF-DAT-0020), et pendant un
-      traitement de fond qui court sur elle, comme sa commande `abandon` le dit. L'abandon est
-      irréversible, hors de l'annulation : il ne s'inscrit pas à l'historique que `undoLastChange`
-      défait, la révision et ses lignes n'étant plus (WF-IHM-0110, C-363) ; l'écran le dit dans sa
-      confirmation. Il porte le compteur lu de la révision : une révision écrite depuis sa lecture
-      n'est pas abandonnée.
+      The project returns to its state at the last marked revision, and the lines of the
+      abandoned revision are deleted (WF-REV-0010, WF-DAT-0010). The risks return to the
+      assessment of the last marked revision — probability, state, own structure, provision
+      line and cost at occurrence —: a risk created in the abandoned revision disappears, a
+      review it carried is undone, and a risk declared occurred in it becomes identified again
+      with its provision line, without a cost at occurrence — only the abandonment undoes the
+      occurrence (WF-RIS-0020, WF-RIS-0060) —, and the category, the subproject and the task
+      of its provision that it had changed are restored (`updateRiskProvision`). The label,
+      the description and the mitigation actions of a risk that remains are project data,
+      which the abandonment does not change (`updateRisk`, WF-RIS-0020; H-02, #1782); its
+      counter (`Risk.lock_version`) moves forward, its assessment as read changing, and never
+      goes back. Refused on a marked revision (WF-DAT-0020), and while a background task runs
+      on it, as its `abandon` command says. The abandonment is irreversible, outside of undo:
+      it is not recorded in the history that `undoLastChange` undoes, the revision and its
+      lines being gone (WF-IHM-0110, C-363); the screen says so in its confirmation. It
+      carries the counter of the revision as read: a revision written since it was read is
+      not abandoned.
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
       - $ref: ../components/parameters.yaml#/RevisionId
@@ -180,24 +181,24 @@
         in: query
         required: true
         description: >-
-          Le compteur de la révision abandonnée, tel que l'écran l'a lu (`Revision.lock_version`) :
-          périmé, l'abandon est refusé par 412 et rien n'est supprimé (WF-IHM-0110 ; décision de
-          l'auteur du 2026-10-28, E-13, US-0702/L2).
+          The counter of the abandoned revision, as the screen read it (`Revision.lock_version`):
+          when stale, the abandonment is refused with 412 and nothing is deleted (WF-IHM-0110;
+          decision of the author of 2026-10-28, E-13, US-0702/L2).
         schema: { $ref: ../components/common.yaml#/LockVersion }
     responses:
       '204':
-        description: Révision abandonnée.
+        description: Revision abandoned.
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '409':
         description: >-
-          La commande `abandon` de la révision est indisponible : `STATE_FORBIDS_OPERATION`,
-          `params.missing_condition` la première condition qui lui manque, dans l'ordre où elle
-          les nomme — `revision_draft` sur une révision marquée, qui ne se modifie plus
-          (WF-DAT-0020), puis `no_background_task_running` pendant un marquage, une fusion, le
-          traitement d'une survenance ou l'application d'un import, qui écrivent dans la révision
-          ou la figent (E-13, US-0702/L2). Rien n'est supprimé.
+          The `abandon` command of the revision is unavailable: `STATE_FORBIDS_OPERATION`,
+          `params.missing_condition` the first condition it lacks, in the order in which it
+          names them — `revision_draft` on a marked revision, which can no longer be modified
+          (WF-DAT-0020), then `no_background_task_running` during a marking, a merge, the
+          processing of an occurrence or the application of an import, which write to the
+          revision or freeze it (E-13, US-0702/L2). Nothing is deleted.
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
@@ -205,8 +206,9 @@
               revision_marked: { $ref: ../../../fixtures/api/revision_abandon_marked.json }
       '412':
         description: >-
-          `STALE_LOCK_VERSION` : la révision a été écrite depuis sa lecture, et rien n'est abandonné
-          ; `params.expected_lock_version` est son compteur courant (WF-IHM-0110, US-0702/L2).
+          `STALE_LOCK_VERSION`: the revision has been written since it was read, and nothing is
+          abandoned; `params.expected_lock_version` is its current counter (WF-IHM-0110,
+          US-0702/L2).
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
@@ -220,17 +222,17 @@
   post:
     operationId: markRevision
     tags: [revisions]
-    summary: Marquer la révision
+    summary: Mark the revision
     description: >-
-      Fige la révision et calcule ses indicateurs dans la même transaction
-      (WF-REV-0020, WF-DAT-0040) ; une révision marquée avant l'état En cours ne
-      conserve que les indicateurs de devis. Le nom de version est unique parmi les
-      révisions marquées du projet. Confié au worker (WF-ARC-0090), et inscrit au
-      journal d'audit (WF-SEC-0030). La révision suivante n'est créée qu'à la demande. Le calcul
-      est refusé tant qu'une catégorie de main-d'œuvre employée par le rôle d'une ligne n'a pas de
-      taux horaire pour l'année de référence de la révision : la tâche échoue sans rien figer, son
-      motif `HOURLY_RATE_MISSING`, `params.missing_rates` nommant les catégories une par une
-      (`BackgroundTaskRef.problem`, `task_failed` ; WF-DEV-0010, WF-IHM-0080).
+      Freezes the revision and computes its indicators in the same transaction
+      (WF-REV-0020, WF-DAT-0040); a revision marked before the In progress state keeps
+      only the estimate indicators. The version name is unique among the marked
+      revisions of the project. Handed to the worker (WF-ARC-0090), and recorded in the
+      audit log (WF-SEC-0030). The next revision is created only on request. The computation
+      is refused as long as a labour category used by the role of a line has no hourly rate
+      for the reference year of the revision: the task fails without freezing anything, its
+      reason `HOURLY_RATE_MISSING`, `params.missing_rates` naming the categories one by one
+      (`BackgroundTaskRef.problem`, `task_failed`; WF-DEV-0010, WF-IHM-0080).
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
       - $ref: ../components/parameters.yaml#/RevisionId
@@ -241,7 +243,7 @@
           schema: { $ref: ../components/schemas/revisions.yaml#/RevisionMark }
     responses:
       '202':
-        description: Marquage mis en file.
+        description: Marking queued.
         content:
           application/json:
             schema: { $ref: ../components/common.yaml#/BackgroundTaskRef }
@@ -254,14 +256,15 @@
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '409':
         description: >-
-          Nom de version déjà employé par une révision marquée du projet : `ALREADY_EXISTS`,
-          `fields` désignant `/version_name` par `ALREADY_EXISTS`,
-          `fields[].params.conflicting_object_id` la révision qui le porte. Ou la commande `mark`
-          de la révision est indisponible : `STATE_FORBIDS_OPERATION`, `params.missing_condition`
-          la première condition qui lui manque, dans l'ordre où elle les nomme — `revision_draft`
-          sur une révision déjà marquée (WF-REV-0020, WF-DAT-0020), puis
-          `no_background_task_running` pendant un marquage qui court, une fusion, le traitement
-          d'une survenance ou l'application d'un import (E-12, US-0702/L2). Rien n'est écrit.
+          Version name already used by a marked revision of the project: `ALREADY_EXISTS`,
+          `fields` designating `/version_name` with `ALREADY_EXISTS`,
+          `fields[].params.conflicting_object_id` the revision that carries it. Or the `mark`
+          command of the revision is unavailable: `STATE_FORBIDS_OPERATION`,
+          `params.missing_condition` the first condition it lacks, in the order in which it
+          names them — `revision_draft` on an already marked revision (WF-REV-0020,
+          WF-DAT-0020), then `no_background_task_running` during a running marking, a merge,
+          the processing of an occurrence or the application of an import (E-12, US-0702/L2).
+          Nothing is written.
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
@@ -277,16 +280,16 @@
   put:
     operationId: designateReferenceRevision
     tags: [revisions]
-    summary: Désigner la révision de référence
+    summary: Designate the reference revision
     description: >-
-      Désignation manuelle possible tant que le projet n'a reçu aucun coût réel et
-      qu'aucune révision n'a été marquée depuis la dernière désignation ; au-delà, la
-      référence ne se déplace plus qu'à la contractualisation d'un avenant (WF-REV-0040).
-      Inscrite au journal d'audit (WF-SEC-0030). La
-      désignation fait passer le projet à En cours si les conditions de WF-CYC-0030
-      sont réunies. Une écriture du projet, elle porte son compteur lu
-      (`ReferenceDesignation.lock_version`, WF-IHM-0110) : deux désignations concurrentes ne
-      passent pas l'une sur l'autre, même quand aucune révision n'a été marquée entre elles.
+      Manual designation is possible as long as the project has received no actual cost and
+      no revision has been marked since the last designation; beyond that, the reference
+      moves only when an amendment is contracted (WF-REV-0040).
+      Recorded in the audit log (WF-SEC-0030). The
+      designation moves the project to In progress if the conditions of WF-CYC-0030
+      are met. A write of the project, it carries the project's counter as read
+      (`ReferenceDesignation.lock_version`, WF-IHM-0110): two concurrent designations do not
+      override each other, even when no revision has been marked between them.
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
     requestBody:
@@ -297,8 +300,8 @@
     responses:
       '200':
         description: >-
-          Référence désignée : le projet, sa référence nouvelle et son état — En cours s'il porte
-          son code projet (WF-CYC-0030).
+          Reference designated: the project, its new reference and its state — In progress if
+          it carries its project code (WF-CYC-0030).
         content:
           application/json:
             schema: { $ref: ../components/schemas/projects.yaml#/Project }
@@ -306,10 +309,10 @@
               designated: { $ref: ../../../fixtures/api/reference_designated.json }
       '400':
         description: >-
-          Un corps illisible, `MALFORMED_REQUEST` ; ou une désignation sans sa confirmation,
-          `confirmed` absent ou faux : `CONFIRMATION_REQUIRED`, sans paramètre, comme la sortie
-          (`exitProject`, `project_exit_unconfirmed`) et la restauration (US-0702/L3). Rien n'est
-          écrit.
+          An unreadable body, `MALFORMED_REQUEST`; or a designation without its confirmation,
+          `confirmed` absent or false: `CONFIRMATION_REQUIRED`, without a parameter, like the
+          exit (`exitProject`, `project_exit_unconfirmed`) and the restore (US-0702/L3). Nothing
+          is written.
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
@@ -318,19 +321,19 @@
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '409':
         description: >-
-          `STATE_FORBIDS_OPERATION`, rien n'étant écrit. Sur un projet terminal, où la commande
-          n'est pas listée, `params.missing_condition` à `project_not_terminal`, avant toute autre
-          (WF-CYC-0100 ; `project_terminal`, #1674). Sinon, une condition que la commande
-          `designate_reference` de la révision dit manquante, la première dans l'ordre où elle les
-          liste : une révision en cours, `revision_marked` ; une révision dont la structure
-          principale ne porte aucune tâche ou aucune ligne de devis, de même à
-          `revision_has_tasks_and_lines` — « La désignation comme référence d'une révision qui ne
-          porte aucune tâche ou aucune ligne de devis est refusée, en nommant la condition
-          manquante » (WF-CYC-0030), le projet restant sans référence
-          (`reference_without_tasks`) ; une désignation qui ne se corrige plus, le projet ayant
-          reçu un coût réel ou une révision ayant été marquée depuis la dernière désignation, de
-          même à `reference_correctable` (WF-REV-0040 ; J-01, #1795 ;
-          `reference_not_correctable`) ; ou un traitement de fond qui court sur la révision,
+          `STATE_FORBIDS_OPERATION`, nothing being written. On a terminal project, where the
+          command is not listed, `params.missing_condition` set to `project_not_terminal`, before
+          any other (WF-CYC-0100; `project_terminal`, #1674). Otherwise, a condition that the
+          `designate_reference` command of the revision says is missing, the first in the order
+          in which it lists them: a current revision, `revision_marked`; a revision whose main
+          structure carries no task or no estimate line, likewise set to
+          `revision_has_tasks_and_lines` — "The designation as reference of a revision that
+          carries no task or no estimate line is refused, naming the missing condition"
+          (WF-CYC-0030), the project remaining without a reference
+          (`reference_without_tasks`); a designation that can no longer be corrected, the
+          project having received an actual cost or a revision having been marked since the last
+          designation, likewise set to `reference_correctable` (WF-REV-0040; J-01, #1795;
+          `reference_not_correctable`); or a background task running on the revision,
           `no_background_task_running` (EP-15/US-0490).
         content:
           application/problem+json:
@@ -341,8 +344,9 @@
               project_terminal: { $ref: ../../../fixtures/api/reference_designation_terminal.json }
       '412':
         description: >-
-          `STALE_LOCK_VERSION` : le projet a été écrit depuis sa lecture, et la référence ne change
-          pas ; `params.expected_lock_version` est son compteur courant (WF-IHM-0110, US-0702/L2).
+          `STALE_LOCK_VERSION`: the project has been written since it was read, and the
+          reference does not change; `params.expected_lock_version` is its current counter
+          (WF-IHM-0110, US-0702/L2).
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
@@ -356,18 +360,18 @@
   get:
     operationId: getRateUpdateProposal
     tags: [revisions]
-    summary: Écart de taux proposé, catégorie par catégorie
+    summary: Proposed rate difference, category by category
     description: >-
-      Présenté à la création d'une révision dont l'année de référence diffère de celle de la
-      révision précédente, que le référentiel ait changé ou non (WF-REV-0060). Une
-      catégorie sans taux pour l'année retenue conserve son taux précédent, projeté par
-      le taux d'inflation (WF-REV-0060).
+      Presented at the creation of a revision whose reference year differs from that of the
+      previous revision, whether the reference data has changed or not (WF-REV-0060). A
+      category without a rate for the year retained keeps its previous rate, projected by
+      the inflation rate (WF-REV-0060).
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
       - $ref: ../components/parameters.yaml#/RevisionId
     responses:
       '200':
-        description: Proposition de mise à jour.
+        description: Update proposal.
         content:
           application/json:
             schema: { $ref: ../components/schemas/revisions.yaml#/RateUpdateProposal }
@@ -381,15 +385,15 @@
   post:
     operationId: applyRateUpdate
     tags: [revisions]
-    summary: Appliquer la mise à jour des taux
+    summary: Apply the rate update
     description: >-
-      Reporte les taux de l'année sur les lignes de la révision en cours, pour les catégories
-      retenues (WF-REV-0060). Une mise à jour refusée à la création de la révision s'accepte
-      ensuite depuis la révision en cours, tant qu'elle n'est pas marquée, et la rechiffre au
-      taux de son année de référence pour chaque catégorie acceptée (C-362) ; une révision
-      marquée garde les taux et les montants qu'elle a calculés (WF-REF-0130, WF-DAT-0020).
-      Refusée en 403 à qui n'a pas la permission `revisions.write`, celle de la gestion des
-      révisions (voir `RevisionCommand`, commande `apply_rate_update`).
+      Carries the rates of the year over to the lines of the current revision, for the
+      categories retained (WF-REV-0060). An update declined at the creation of the revision
+      can be accepted later from the current revision, as long as it is not marked, and
+      reprices it at the rate of its reference year for each accepted category (C-362); a
+      marked revision keeps the rates and the amounts it has computed (WF-REF-0130,
+      WF-DAT-0020). Refused with 403 for whoever lacks the `revisions.write` permission, that
+      of revision management (see `RevisionCommand`, command `apply_rate_update`).
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
       - $ref: ../components/parameters.yaml#/RevisionId
@@ -401,7 +405,7 @@
     responses:
       '200':
         description: >-
-          Taux mis à jour sur les catégories retenues ; la révision, une version de plus.
+          Rates updated on the categories retained; the revision, one version higher.
         content:
           application/json:
             schema: { $ref: ../components/schemas/revisions.yaml#/Revision }
@@ -413,13 +417,13 @@
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '409':
         description: >-
-          La commande `apply_rate_update` de la révision ne le dit pas disponible :
-          `STATE_FORBIDS_OPERATION`, `params.missing_condition` la première condition qui manque,
-          dans l'ordre où la commande les liste, rien n'étant écrit — `revision_draft` pour une
-          révision marquée, qui ne se met plus à jour (WF-REV-0060, WF-DAT-0020) ;
-          `rate_update_available` quand la proposition ne présente aucune catégorie
-          (`getRateUpdateProposal`) ; `no_background_task_running` pendant un traitement de fond
-          qui court sur la révision (EP-15/US-0490 ; #1351).
+          The `apply_rate_update` command of the revision does not say it is available:
+          `STATE_FORBIDS_OPERATION`, `params.missing_condition` the first missing condition, in
+          the order in which the command lists them, nothing being written — `revision_draft`
+          for a marked revision, which can no longer be updated (WF-REV-0060, WF-DAT-0020);
+          `rate_update_available` when the proposal presents no category
+          (`getRateUpdateProposal`); `no_background_task_running` while a background task runs
+          on the revision (EP-15/US-0490; #1351).
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
@@ -429,11 +433,11 @@
       '412': { $ref: ../components/responses.yaml#/PreconditionFailed }
       '422':
         description: >-
-          Une catégorie que la proposition ne présente pas (`getRateUpdateProposal`) :
-          `VALIDATION_FAILED`, `fields` sur `/cost_category_ids/<n>`, son rang dans la liste
-          envoyée, par `UNKNOWN_COST_CATEGORY` (`category_not_proposed`) ; ou une liste vide, sur
-          `/cost_category_ids`. Rien
-          n'est écrit (`RateUpdateApply`, WF-REV-0060 ; #1755).
+          A category that the proposal does not present (`getRateUpdateProposal`):
+          `VALIDATION_FAILED`, `fields` on `/cost_category_ids/<n>`, its rank in the list
+          sent, with `UNKNOWN_COST_CATEGORY` (`category_not_proposed`); or an empty list, on
+          `/cost_category_ids`. Nothing
+          is written (`RateUpdateApply`, WF-REV-0060; #1755).
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
@@ -447,50 +451,50 @@
   get:
     operationId: compareRevisions
     tags: [revisions]
-    summary: Comparer deux révisions marquées
+    summary: Compare two marked revisions
     description: >-
-      L'arbre de la révision comparée, avec les marques d'un différentiel, et les écarts de
-      montants par nature et par sous-projet, rapprochés par l'identifiant de lignée
-      (WF-REV-0080, WF-DAT-0030, C-361). La comparaison se lit comme `listNodes` (#1193) : les
-      mêmes paramètres, partagés — `kinds`, la recherche, les filtres de chaque colonne, bornes,
-      périodes, marques et listes, le tri des lignes et `fields` (WF-IHM-0130) —, la même réponse —
-      `items`, `totals` et `meta` —, et la même mécanique : la
-      structure principale de la révision comparée (`to_revision_id`) est rendue entière, dans
-      l'ordre du plan, sans pagination, comme `listNodes` rend une structure, et une lecture
-      filtrée — un sous-arbre (`subtree_of`), les seules tâches (`kinds`), une recherche — en
-      est une fenêtre, retenue comme `listNodes` la retient ; `fields` choisit ce qu'elle rend
-      de chaque nœud. Chaque nœud porte son écart à la révision de base
-      (`from_revision_id`) — `difference` et `changes`, toujours rendus —, et ceux que la
-      révision de base portait et que la comparée n'a plus sont rendus à la place qu'ils
-      avaient, en lecture seule (`NodeDifference`) : une tâche ajoutée, retirée ou modifiée —
-      par ses dates, sa durée, son état ou son parent —, une ligne par ses montants ou son
-      parent, et une récapitulative dont le contenu change, marquée modifiée. Les filtres, la
-      recherche et le tri s'y appliquent comme à la lecture d'un différentiel : un nœud retiré
-      s'y juge sur ses valeurs de la révision de base, comme tout autre nœud sur les siennes, et
-      sans tri il reste à la place qu'il avait (#1205). `difference` retient les seuls écarts
-      nommés, leurs ancêtres compris, comme sur un différentiel (`NodeDifferenceFilter`,
-      `differences`, #1398). Un filtre de colonne porte sur la grandeur
-      que la comparaison affiche de la colonne, celle de la révision comparée (`to_revision_id`) —
-      la durée, la marge, une date, un montant du nœud tel que cette révision le porte, jamais
-      l'écart à la révision de base, que `difference` dit —, et sur celle de la base pour un nœud
-      retiré ; il se juge, se combine et se refuse comme celui de `listNodes`, qui en dit la
-      règle : une borne mal formée, une date mal formée, une borne haute inférieure à la basse ou
-      une fin antérieure au début sont refusées par 422.
-      `subtree_of` nomme une tâche de l'arbre rendu, une tâche retirée comprise : la fenêtre est
-      alors le sous-arbre qu'elle avait dans la révision de base, ses nœuds retirés à leur place,
-      des totaux nuls — la révision comparée n'en a plus aucune ligne — et les écarts de ses lignes
-      retirées. `totals` est celui de `listNodes` sur la révision comparée : les lignes retenues,
-      sans les nœuds retirés, qui n'en sont plus, `difference` ne le restreignant pas
-      (`NodeTotals`) ; `meta` dit la structure de la
-      révision comparée (`NodeListMeta`). `amount_deltas` vient dans chaque réponse, comme `totals`,
-      et se calcule sur les lignes retenues, retirées comprises, quel que soit `kinds`, celles que
-      `difference` retient seules sous ce filtre : une
-      lecture sans filtre rend les écarts de toute la structure, celle d'un sous-arbre les siens
-      (`comparison`) ; une ligne déplacée compte dans la fenêtre de son parent dans la révision
-      comparée, pour son écart entier (`amount_deltas`). La grille de la comparaison est celle des
-      structures, avec les mêmes marques que la lecture d'un différentiel. Une paire identique — la
-      même révision deux fois — rend chaque nœud inchangé et aucun écart de montant, jamais un
-      refus.
+      The tree of the compared revision, with the marks of a differential, and the amount
+      differences by cost type and by subproject, matched by the lineage identifier
+      (WF-REV-0080, WF-DAT-0030, C-361). The comparison is read like `listNodes` (#1193): the
+      same parameters, shared — `kinds`, the search, the filters of each column, bounds,
+      periods, marks and lists, the sorting of the lines and `fields` (WF-IHM-0130) —, the same
+      response — `items`, `totals` and `meta` —, and the same mechanics: the
+      main structure of the compared revision (`to_revision_id`) is returned whole, in
+      plan order, without pagination, as `listNodes` returns a structure, and a filtered
+      read — a subtree (`subtree_of`), the tasks only (`kinds`), a search — is a window onto
+      it, retained as `listNodes` retains it; `fields` chooses what it returns of each node.
+      Each node carries its difference from the base revision
+      (`from_revision_id`) — `difference` and `changes`, always returned —, and those that the
+      base revision carried and that the compared one no longer has are returned in the place
+      they had, read-only (`NodeDifference`): a task added, removed or modified — in its dates,
+      its duration, its state or its parent —, a line in its amounts or its parent, and a
+      summary task whose content changes, marked modified. The filters, the search and the
+      sorting apply to it as to the reading of a differential: a removed node is judged on its
+      values in the base revision, like any other node on its own, and without sorting it
+      stays in the place it had (#1205). `difference` retains only the differences named,
+      including their ancestors, as on a differential (`NodeDifferenceFilter`,
+      `differences`, #1398). A column filter applies to the quantity
+      that the comparison displays for the column, that of the compared revision
+      (`to_revision_id`) — the duration, the float, a date, an amount of the node as that
+      revision carries it, never the difference from the base revision, which `difference`
+      states —, and to that of the base for a removed node; it is judged, combined and refused
+      like that of `listNodes`, which states its rule: a malformed bound, a malformed date, an
+      upper bound lower than the lower one or an end before the start are refused with 422.
+      `subtree_of` names a task of the returned tree, a removed task included: the window is
+      then the subtree it had in the base revision, its removed nodes in their place, zero
+      totals — the compared revision no longer has any line of it — and the differences of its
+      removed lines. `totals` is that of `listNodes` on the compared revision: the lines
+      retained, without the removed nodes, which no longer belong to it, `difference` not
+      restricting it (`NodeTotals`); `meta` describes the structure of the
+      compared revision (`NodeListMeta`). `amount_deltas` comes in every response, like
+      `totals`, and is computed on the lines retained, removed ones included, whatever `kinds`
+      is, those that `difference` alone retains under that filter: a read
+      without a filter returns the differences of the whole structure, that of a subtree its own
+      (`comparison`); a moved line counts in the window of its parent in the compared
+      revision, for its whole difference (`amount_deltas`). The grid of the comparison is that
+      of the structures, with the same marks as the reading of a differential. An identical
+      pair — the same revision twice — returns every node unchanged and no amount difference,
+      never a refusal.
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
       - name: from_revision_id
@@ -566,7 +570,7 @@
       - $ref: ../components/parameters.yaml#/NodeFields
     responses:
       '200':
-        description: Comparaison.
+        description: Comparison.
         content:
           application/json:
             schema: { $ref: ../components/schemas/revisions.yaml#/RevisionComparison }
@@ -580,13 +584,13 @@
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '422':
         description: >-
-          Un filtre de colonne refusé, comme `listNodes` le refuse (README) : une borne mal
-          formée par `NUMBER_INVALID`, une date par `DATE_INVALID`, une borne haute inférieure à
-          la basse par `VALUE_OUT_OF_RANGE` sur `/query/<colonne>_max`, `params.minimum` la borne
-          inférieure donnée, une fin de période antérieure à son début par `VALUE_OUT_OF_RANGE`
-          sur `/query/<colonne>_to`, `params.minimum` le début donné (WF-IHM-0130) ; `fields`
-          sur le paramètre. Une propriété inconnue de `fields`, et un risque de `origin_risk_ids`
-          qui n'est pas un risque survenu du projet, comme `listNodes` les refuse (`NodeFields`,
+          A column filter refused, as `listNodes` refuses it (README): a malformed bound with
+          `NUMBER_INVALID`, a date with `DATE_INVALID`, an upper bound lower than the lower one
+          with `VALUE_OUT_OF_RANGE` on `/query/<column>_max`, `params.minimum` the lower bound
+          given, a period end before its start with `VALUE_OUT_OF_RANGE` on
+          `/query/<column>_to`, `params.minimum` the start given (WF-IHM-0130); `fields` on
+          the parameter. An unknown property of `fields`, and a risk of `origin_risk_ids` that
+          is not an occurred risk of the project, as `listNodes` refuses them (`NodeFields`,
           `fields_unknown`, `NodeOriginRiskFilter`).
         content:
           application/problem+json:
@@ -603,13 +607,13 @@
   get:
     operationId: listCostStructures
     tags: [revisions]
-    summary: Structures de coûts de la révision
+    summary: Cost structures of the revision
     description: >-
-      Une structure principale, et le cas échéant des différentiels et une structure
-      propre par risque (WF-REV-0100). Chacune dit ses commandes de saisie
-      (`available_commands`) : la grille de planning, de devis ou de reste à engager qui la lit
-      offre ou non la saisie selon la phase du projet, que le front ne déduit pas (WF-DEV-0050,
-      WF-RAE-0040, WF-IHM-0090).
+      A main structure, and where applicable differentials and one own structure per risk
+      (WF-REV-0100). Each one states its entry commands
+      (`available_commands`): the planning, estimate or remaining to commit grid that reads it
+      offers entry or not depending on the phase of the project, which the front end does not
+      infer (WF-DEV-0050, WF-RAE-0040, WF-IHM-0090).
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
       - $ref: ../components/parameters.yaml#/RevisionId
@@ -633,16 +637,16 @@
   post:
     operationId: createCostStructure
     tags: [revisions]
-    summary: Ouvrir un différentiel
+    summary: Open a differential
     description: >-
-      Plusieurs différentiels peuvent coexister, et chacun est fusionné ou abandonné
-      indépendamment (WF-REV-0100). Le différentiel naît copie de la structure principale de sa
-      révision, sa date de début de planning comprise (`CostStructure.planning_start_on`) : à
-      sa création, chacun de ses nœuds est celui de la principale, `unchanged`
-      (`NodeDifference`, C-361), et la fusion n'y lit que ce qui a changé depuis (WF-REV-0050).
-      Le devis propre d'un
-      risque naît avec lui (`createRisk`, WF-RIS-0030) et disparaît avec lui ; la structure
-      principale existe dès la révision : ni l'un ni l'autre ne se crée ici.
+      Several differentials can coexist, and each one is merged or abandoned
+      independently (WF-REV-0100). The differential is born as a copy of the main structure of
+      its revision, its planning start date included (`CostStructure.planning_start_on`): at
+      its creation, each of its nodes is that of the main structure, `unchanged`
+      (`NodeDifference`, C-361), and the merge reads in it only what has changed since
+      (WF-REV-0050). The own estimate of a
+      risk is born with it (`createRisk`, WF-RIS-0030) and disappears with it; the main
+      structure exists from the revision onwards: neither one nor the other is created here.
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
       - $ref: ../components/parameters.yaml#/RevisionId
@@ -653,7 +657,7 @@
           schema: { $ref: ../components/schemas/revisions.yaml#/StructureCreate }
     responses:
       '201':
-        description: Structure créée.
+        description: Structure created.
         content:
           application/json:
             schema: { $ref: ../components/schemas/revisions.yaml#/CostStructure }
@@ -665,13 +669,13 @@
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '409':
         description: >-
-          La commande `create_structure` de la révision est indisponible :
-          `STATE_FORBIDS_OPERATION`, `params.missing_condition` la première condition qui lui
-          manque — `revision_draft` sur une révision marquée, qui ne se modifie plus
-          (WF-DAT-0020), puis `no_background_task_running` pendant un marquage, une fusion, le
-          traitement d'une survenance ou l'application d'un import (WF-REV-0100 ; E-14,
-          US-0702/L2). Le libellé n'est pas unique : plusieurs différentiels coexistent, chacun
-          désigné par son identifiant. Rien n'est créé.
+          The `create_structure` command of the revision is unavailable:
+          `STATE_FORBIDS_OPERATION`, `params.missing_condition` the first condition it lacks —
+          `revision_draft` on a marked revision, which can no longer be modified
+          (WF-DAT-0020), then `no_background_task_running` during a marking, a merge, the
+          processing of an occurrence or the application of an import (WF-REV-0100; E-14,
+          US-0702/L2). The label is not unique: several differentials coexist, each one
+          designated by its identifier. Nothing is created.
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
@@ -685,21 +689,21 @@
   patch:
     operationId: updateCostStructure
     tags: [revisions]
-    summary: Modifier la date de début de planning et le libellé d'une structure
+    summary: Modify the planning start date and the label of a structure
     description: >-
-      Écrit la date de début de planning de la structure et son libellé (WF-PLA-0020,
-      WF-REV-0100), sous sa commande de planification (`StructureCommand.edit_planning`) : gardée
-      par `planning.write`, refusée comme elle sur une révision marquée ou pendant un traitement
-      de fond. Seul ce qui est envoyé change, le compteur lu exigé (`StructureUpdate`). Une tâche
-      en mode automatique sans prédécesseur commence à la date de début de planning, à la
-      première heure travaillée de son calendrier applicable : la changer redate ces tâches et
-      leurs successeurs automatiques — « avancer cette date d'une semaine l'avance d'autant, ainsi
-      que ses successeurs automatiques » (WF-PLA-0020) —, les tâches en mode manuel ne bougeant
-      pas. La réponse est celle d'une écriture de grille, sans nœud écrit (`NodesWritten`). La
-      date se juge sur le calendrier par défaut, la structure n'ayant pas de calendrier propre :
-      un jour sans aucune heure travaillée est refusé, et le refus nomme le jour travaillé
-      suivant ; rien n'est écrit (WF-PLA-0010, WF-PLA-0020). Une écriture de l'historique
-      annulable de l'appelant (`undoLastChange`, `UndoneKind.structure_update`).
+      Writes the planning start date of the structure and its label (WF-PLA-0020,
+      WF-REV-0100), under its planning command (`StructureCommand.edit_planning`): guarded
+      by `planning.write`, refused like it on a marked revision or while a background task
+      runs. Only what is sent changes, the counter as read being required (`StructureUpdate`).
+      A task in automatic mode without a predecessor starts at the planning start date, at the
+      first worked hour of its applicable calendar: changing it re-dates these tasks and
+      their automatic successors — "bringing this date forward by one week brings it forward
+      by as much, as well as its automatic successors" (WF-PLA-0020) —, tasks in manual mode
+      not moving. The response is that of a grid write, without a node written
+      (`NodesWritten`). The date is judged on the default calendar, the structure having no
+      calendar of its own: a day without any worked hour is refused, and the refusal names the
+      next working day; nothing is written (WF-PLA-0010, WF-PLA-0020). A write of the caller's
+      undoable history (`undoLastChange`, `UndoneKind.structure_update`).
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
       - $ref: ../components/parameters.yaml#/RevisionId
@@ -712,9 +716,9 @@
     responses:
       '200':
         description: >-
-          Structure modifiée : les tâches qu'elle redate, leurs montants, inflation comprise,
-          quand elles changent d'année, les récapitulatives recalculées, les totaux et le compteur
-          de la structure (`NodesWritten`, WF-PLA-0020, WF-DEV-0040).
+          Structure modified: the tasks it re-dates, their amounts, inflation included, when
+          they change year, the summary tasks recomputed, the totals and the counter of the
+          structure (`NodesWritten`, WF-PLA-0020, WF-DEV-0040).
         content:
           application/json:
             schema: { $ref: ../components/schemas/revisions.yaml#/NodesWritten }
@@ -728,12 +732,13 @@
       '412': { $ref: ../components/responses.yaml#/PreconditionFailed }
       '422':
         description: >-
-          Une date de début de planning sur un jour sans aucune heure travaillée au calendrier par
-          défaut : `fields` sur `/planning_start_on` par `NON_WORKING_DAY`, `fields[].params.date`
-          la date envoyée et `next_working_day` le jour travaillé suivant ; rien n'est écrit
-          (WF-PLA-0020, WF-PLA-0010). Ou, sans `fields`, une date qui porterait la durée du projet
-          au-delà de quinze ans : `PROJECT_HORIZON_EXCEEDED`, `params.task` nommant la tâche par
-          son nœud et son libellé (WF-PLA-0150). Ou un libellé vide (`VALIDATION_FAILED`).
+          A planning start date on a day without any worked hour in the default calendar:
+          `fields` on `/planning_start_on` with `NON_WORKING_DAY`, `fields[].params.date` the
+          date sent and `next_working_day` the next working day; nothing is written
+          (WF-PLA-0020, WF-PLA-0010). Or, without `fields`, a date that would take the duration
+          of the project beyond fifteen years: `PROJECT_HORIZON_EXCEEDED`, `params.task` naming
+          the task by its node and its label (WF-PLA-0150). Or an empty label
+          (`VALIDATION_FAILED`).
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
@@ -746,26 +751,27 @@
   get:
     operationId: getStructureMergeReport
     tags: [revisions]
-    summary: Compte rendu préalable de la fusion d'un différentiel
+    summary: Preliminary report of the merge of a differential
     description: >-
-      « Avant application, la fusion présente un compte rendu : tâches et lignes ajoutées,
-      modifiées et retirées, tâches démarrées qui seront terminées, et motifs de refus
-      (WF-PLA-0030, WF-PLA-0150, WF-PLA-0170) ; elle n'est appliquée qu'après confirmation »
-      (WF-REV-0050). Une lecture, qui n'écrit rien : abandonner à cette étape, c'est ne pas
-      confirmer, et la révision reste inchangée. Le compte rendu se lit comme celui d'un import
-      (`StructureMergeReport`) ; tant que `refusals` n'est pas vide, la fusion ne s'applique pas,
-      et l'écran n'en offre pas la confirmation. Il décrit la révision en cours à l'instant de la
-      lecture, et la fusion confirmée (`mergeCostStructure`) juge de nouveau : une saisie faite
-      entre-temps dans la structure principale ou dans le différentiel fait refuser la
-      confirmation par 412, les compteurs que le compte rendu a lus ayant avancé ; ce qui change
-      hors des deux arbres — un calendrier du référentiel, le lotissement — et la rendrait refusée
-      fait échouer la tâche de fond sur le motif du refus. Seul un
-      différentiel non fusionné de la révision en cours a un compte rendu — ou, tant que le
-      projet n'a pas de révision en cours, un différentiel non fusionné de la dernière révision
-      marquée, dont la fusion crée d'abord la révision en cours par copie (WF-REV-0050,
-      WF-REV-0010 ; `StructureMergeReport.creates_current_revision`, #790) ; ses écarts sont
-      alors ceux du différentiel avec la structure principale de cette révision marquée, que la
-      copie reprend telle quelle. Une autre structure est refusée par 409, comme sa fusion
+      "Before application, the merge presents a report: tasks and lines added, modified and
+      removed, started tasks that will be completed, and reasons for refusal (WF-PLA-0030,
+      WF-PLA-0150, WF-PLA-0170); it is applied only after confirmation" (WF-REV-0050). A
+      read, which writes nothing: abandoning at this stage means not confirming, and the
+      revision remains unchanged. The report is read like that of an import
+      (`StructureMergeReport`); as long as `refusals` is not empty, the merge does not apply,
+      and the screen does not offer its confirmation. It describes the current revision at the
+      moment of the read, and the confirmed merge (`mergeCostStructure`) judges again: an
+      entry made in the meantime in the main structure or in the differential causes the
+      confirmation to be refused with 412, the counters the report read having moved forward;
+      what changes outside the two trees — a calendar of the reference data, the work
+      breakdown — and would cause it to be refused makes the background task fail with the
+      reason for the refusal. Only an
+      unmerged differential of the current revision has a report — or, as long as the project
+      has no current revision, an unmerged differential of the last marked revision, whose
+      merge first creates the current revision by copy (WF-REV-0050, WF-REV-0010;
+      `StructureMergeReport.creates_current_revision`, #790); its differences are then those
+      of the differential with the main structure of that marked revision, which the copy
+      carries over as is. Another structure is refused with 409, like its merge
       (EP-14/L42s).
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
@@ -773,7 +779,7 @@
       - $ref: ../components/parameters.yaml#/StructureId
     responses:
       '200':
-        description: Ce que la fusion ferait, et ce qui la refuse.
+        description: What the merge would do, and what refuses it.
         content:
           application/json:
             schema: { $ref: ../components/schemas/revisions.yaml#/StructureMergeReport }
@@ -790,8 +796,8 @@
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '409':
         description: >-
-          Cette structure n'a pas de compte rendu de fusion : `STATE_FORBIDS_OPERATION`,
-          `params.missing_condition` la première condition qui manque, comme au 409 de sa fusion
+          This structure has no merge report: `STATE_FORBIDS_OPERATION`,
+          `params.missing_condition` the first missing condition, as in the 409 of its merge
           (`mergeCostStructure`).
         content:
           application/problem+json:
@@ -803,49 +809,51 @@
   post:
     operationId: mergeCostStructure
     tags: [revisions]
-    summary: Fusionner un différentiel dans la structure principale
+    summary: Merge a differential into the main structure
     description: >-
-      La fusion donne aux lignes que le différentiel désigne les grandeurs de référence qu'il porte,
-      d'où leur montant budgété est tiré ; une ligne désignée d'une tâche non démarrée, que personne
-      n'a réestimée depuis la référence, prend aussi ces grandeurs pour grandeurs courantes ; les
-      grandeurs courantes et le montant réestimé de toutes les autres lignes sont conservés
-      (WF-REV-0050, WF-DEV-0020). La révision marquée reçoit le nom de version et la description de
-      la confirmation, comme à tout marquage (WF-REV-0020). Une tâche déjà démarrée n'est jamais
-      retirée : son reste à engager est porté à zéro. La révision marquée qui en résulte devient la
-      référence (WF-REV-0050). Une tâche que la fusion ajoute ne porte aucun rattachement au
-      lotissement, le différentiel n'en portant pas, et une tâche existante que le différentiel
-      modifie conserve le sien (WF-PLA-0170). Confiée au worker et inscrite au journal d'audit
-      (WF-ARC-0090, WF-SEC-0030). Une fusion qui donnerait à une tâche de la structure principale
-      une ligne de main-d'œuvre dont le rôle la laisserait sans aucune heure travaillée dans la
-      semaine échoue sans rien fusionner : la tâche de fond finit en échec, `problem.code` à
-      `TASK_WITHOUT_WORKING_HOURS`, ses `params` nommant les rôles et les tâches en cause
-      (WF-PLA-0010). « Une fusion qui déplacerait la tâche d'un poste hors du sous-arbre de la tâche
-      de son lot est refusée en nommant la tâche » (WF-PLA-0170) : elle échoue de même sans rien
-      fusionner, `problem.code` à `ORDER_ITEM_OUTSIDE_WORK_PACKAGE`, `params.work_package_task`
-      nommant la tâche du lot et `order_item_tasks` celles des postes qui en sortiraient, chacune
-      par son nœud et son libellé (`Problem.params`), comme `TASK_WITHOUT_WORKING_HOURS`
-      (WF-IHM-0080 ; `task_merge_outside_work_package`). Une fusion qui fermerait une boucle de
-      liaisons dans la structure principale échoue de même, `problem.code` à `LINK_CYCLE`,
-      `params.cycle` nommant les tâches de la boucle (WF-PLA-0030 ; `task_merge_link_cycle`) ; une
-      fusion qui lierait une récapitulative à sa subordonnée, `problem.code` à `LINK_FORBIDDEN`,
-      `params.link` nommant les deux tâches, la récapitulative d'abord (WF-PLA-0030 ;
-      `task_merge_link_forbidden`, #1582) ; une fusion qui porterait la durée du projet au-delà de
-      quinze ans, `problem.code` à `PROJECT_HORIZON_EXCEEDED`, `params.task` nommant la tâche en
-      cause (WF-PLA-0150 ; `task_merge_horizon_exceeded`) — chacune par son nœud de la structure
-      principale et son libellé, le nœud nul pour une tâche que le différentiel ajoute
-      (`Problem.params` ; #788). Le compte rendu préalable (`getStructureMergeReport`, WF-REV-0050)
-      dit ces motifs avant la confirmation, qui porte les compteurs des deux structures qu'il a
-      lus : refusée par 412 si l'une a changé depuis, elle n'applique jamais un compte rendu que
-      personne n'a vu (EP-14/L42s). « Lorsque le projet ne comporte pas de révision en cours, elle
-      en crée une au préalable » (WF-REV-0050) : la fusion se demande alors sur le différentiel de
-      la dernière révision marquée, qui porte alors la commande `merge_structure`, et la même tâche
-      de fond crée la révision en cours par copie de celle-ci (WF-REV-0010), chiffrée aux taux
-      conservés, projetés (WF-REV-0060), y fusionne la copie du différentiel et la marque ; la
-      révision marquée n'est pas modifiée. La tâche est une seule opération : en échec, elle ne
-      laisse ni révision en cours ni fusion, et le projet reste sans révision en cours (#790). Pour
-      chiffrer la révision aux taux de la nouvelle année, on la crée d'abord (`createRevision`), et
-      la fusion se demande sur elle. Sur une révision marquée plus ancienne, ou sur la dernière une
-      fois qu'une révision est en cours, la fusion est refusée par 409, comme le compte rendu.
+      The merge gives the lines that the differential designates the reference quantities it
+      carries, from which their budgeted amount is derived; a designated line of a task not
+      started, which nobody has re-estimated since the reference, also takes these quantities as
+      its current quantities; the current quantities and the re-estimated amount of all other
+      lines are kept (WF-REV-0050, WF-DEV-0020). The marked revision receives the version name
+      and the description of the confirmation, as at any marking (WF-REV-0020). A task already
+      started is never removed: its remaining to commit is brought to zero. The resulting
+      marked revision becomes the reference (WF-REV-0050). A task that the merge adds carries
+      no attachment to the work breakdown, the differential carrying none, and an existing
+      task that the differential modifies keeps its own (WF-PLA-0170). Handed to the worker
+      and recorded in the audit log (WF-ARC-0090, WF-SEC-0030). A merge that would give a task
+      of the main structure a labour line whose role would leave it without any worked hour
+      in the week fails without merging anything: the background task ends in failure,
+      `problem.code` set to `TASK_WITHOUT_WORKING_HOURS`, its `params` naming the roles and
+      tasks concerned (WF-PLA-0010). "A merge that would move the task of an item out of the
+      subtree of the task of its work package is refused, naming the task" (WF-PLA-0170): it
+      likewise fails without merging anything, `problem.code` set to
+      `ORDER_ITEM_OUTSIDE_WORK_PACKAGE`, `params.work_package_task` naming the task of the
+      work package and `order_item_tasks` those of the items that would leave it, each one by
+      its node and its label (`Problem.params`), like `TASK_WITHOUT_WORKING_HOURS`
+      (WF-IHM-0080; `task_merge_outside_work_package`). A merge that would close a loop of
+      links in the main structure likewise fails, `problem.code` set to `LINK_CYCLE`,
+      `params.cycle` naming the tasks of the loop (WF-PLA-0030; `task_merge_link_cycle`); a
+      merge that would link a summary task to its subordinate, `problem.code` set to
+      `LINK_FORBIDDEN`, `params.link` naming the two tasks, the summary task first
+      (WF-PLA-0030; `task_merge_link_forbidden`, #1582); a merge that would take the duration
+      of the project beyond fifteen years, `problem.code` set to `PROJECT_HORIZON_EXCEEDED`,
+      `params.task` naming the task concerned (WF-PLA-0150; `task_merge_horizon_exceeded`) —
+      each one by its node in the main structure and its label, the node null for a task that
+      the differential adds (`Problem.params`; #788). The preliminary report
+      (`getStructureMergeReport`, WF-REV-0050) states these reasons before the confirmation,
+      which carries the counters of the two structures it read: refused with 412 if either
+      has changed since, it never applies a report that nobody has seen (EP-14/L42s). "When
+      the project has no current revision, it first creates one" (WF-REV-0050): the merge is
+      then requested on the differential of the last marked revision, which then carries the
+      `merge_structure` command, and the same background task creates the current revision by
+      copying it (WF-REV-0010), priced at the kept rates, projected (WF-REV-0060), merges the
+      copy of the differential into it and marks it; the marked revision is not modified. The
+      task is a single operation: on failure, it leaves neither a current revision nor a
+      merge, and the project remains without a current revision (#790). To price the revision
+      at the rates of the new year, it is created first (`createRevision`), and the merge is
+      requested on it. On an older marked revision, or on the last one once a revision is
+      current, the merge is refused with 409, like the report.
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
       - $ref: ../components/parameters.yaml#/RevisionId
@@ -857,7 +865,7 @@
           schema: { $ref: ../components/schemas/revisions.yaml#/StructureMerge }
     responses:
       '202':
-        description: Fusion mise en file.
+        description: Merge queued.
         content:
           application/json:
             schema: { $ref: ../components/common.yaml#/BackgroundTaskRef }
@@ -869,26 +877,26 @@
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '409':
         description: >-
-          L'état interdit la fusion de cette structure : `STATE_FORBIDS_OPERATION`,
-          `params.missing_condition` la première condition qui manque, dans l'ordre où la commande
-          `merge_structure` de la révision les nomme — `unmerged_amendment_exists` pour une
-          structure qui n'est pas un différentiel non fusionné, `revision_draft` pour un
-          différentiel d'une révision marquée qui
-          n'est pas la dernière, ou d'un projet qui a une révision en cours : ainsi quand, depuis
-          la lecture du compte rendu, une saisie ou un import a ouvert la révision en cours, ou
-          qu'une autre fusion a marqué une révision plus récente (WF-REV-0050 ; #790). Sur la
-          dernière révision marquée d'un projet sans révision en cours, la fusion créerait la
-          révision en cours : à qui n'a pas `revisions.write`, la commande nomme alors
-          `may_create_revision`, après `unmerged_amendment_exists`, et la fusion est refusée de
-          même, `params.missing_condition` à `may_create_revision` — un 409 et non un 403, comme
-          pour les imports et `declare_risk`, la permission n'étant refusée que là où elle
-          créerait la révision (WF-REV-0050, WF-REV-0010). Ou un nom de version déjà employé par
-          une révision marquée du projet, comme pour `markRevision` : `ALREADY_EXISTS`, `fields`
-          désignant `/version_name` par `ALREADY_EXISTS`, `fields[].params.conflicting_object_id`
-          la révision qui le porte (WF-REV-0020) ; jugé au dépôt, rien n'est mis en file, et
-          aucune révision en cours n'est créée pour échouer au marquage (E-05, US-0702/L2). Le
-          contrôle de l'état et le dépôt de la tâche se font sous le verrou du projet, qui tient
-          sa révision en cours.
+          The state forbids the merge of this structure: `STATE_FORBIDS_OPERATION`,
+          `params.missing_condition` the first missing condition, in the order in which the
+          `merge_structure` command of the revision names them — `unmerged_amendment_exists` for
+          a structure that is not an unmerged differential, `revision_draft` for a
+          differential of a marked revision that
+          is not the last one, or of a project that has a current revision: thus when, since
+          the report was read, an entry or an import has opened the current revision, or
+          another merge has marked a more recent revision (WF-REV-0050; #790). On the
+          last marked revision of a project without a current revision, the merge would create
+          the current revision: for whoever lacks `revisions.write`, the command then names
+          `may_create_revision`, after `unmerged_amendment_exists`, and the merge is refused
+          likewise, `params.missing_condition` set to `may_create_revision` — a 409 and not a
+          403, as for imports and `declare_risk`, the permission being refused only where it
+          would create the revision (WF-REV-0050, WF-REV-0010). Or a version name already used
+          by a marked revision of the project, as for `markRevision`: `ALREADY_EXISTS`, `fields`
+          designating `/version_name` with `ALREADY_EXISTS`,
+          `fields[].params.conflicting_object_id` the revision that carries it (WF-REV-0020);
+          judged at submission, nothing is queued, and no current revision is created only to
+          fail at the marking (E-05, US-0702/L2). The check of the state and the submission of
+          the task are done under the lock of the project, which holds its current revision.
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
@@ -898,14 +906,14 @@
               version_name_taken: { $ref: ../../../fixtures/api/merge_version_name_taken.json }
       '412':
         description: >-
-          La structure principale ou le différentiel ont changé depuis le compte rendu confirmé —
-          une tâche démarrée, une ligne réestimée, le différentiel modifié — : le compte rendu est
-          périmé, et rien n'est fusionné (WF-REV-0050, WF-IHM-0110 ; EP-14/L42s). Le contrôle des
-          deux compteurs et le dépôt de la tâche de fusion se font en une seule transaction, sous le
-          verrou des deux structures : aucune écriture ne se glisse entre eux. `STALE_LOCK_VERSION`,
-          `params.expected_lock_version` le compteur courant du différentiel, l'objet que le chemin
-          nomme, même quand seule la structure principale a changé, et rien d'autre, comme tout 412
-          (#296) ; le client relit le compte rendu, qui rend l'un et l'autre.
+          The main structure or the differential has changed since the confirmed report — a
+          task started, a line re-estimated, the differential modified —: the report is stale,
+          and nothing is merged (WF-REV-0050, WF-IHM-0110; EP-14/L42s). The check of the two
+          counters and the submission of the merge task are done in a single transaction, under
+          the lock of the two structures: no write slips in between them. `STALE_LOCK_VERSION`,
+          `params.expected_lock_version` the current counter of the differential, the object
+          that the path names, even when only the main structure has changed, and nothing else,
+          like any 412 (#296); the client reads the report again, which returns both.
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
@@ -919,101 +927,102 @@
   get:
     operationId: listNodes
     tags: [revisions]
-    summary: Arbre commun de la structure
+    summary: Common tree of the structure
     description: >-
-      Les mêmes tâches, vues du côté du temps ou du côté de l'argent : une tâche porte
-      ses lignes de devis (§3.5.1, WF-DEV-0020). `row_number` et `level` sont calculés
-      à la lecture ; les valeurs calculées ne sont pas saisissables (WF-IHM-0030). C'est
-      la source des quatre vues de l'arbre : grille de planning (WF-PLA-0080), diagramme
-      de Gantt en lecture seule (WF-PLA-0090), arborescence de tâches (WF-PLA-0110) et
-      grille de devis (WF-DEV-0050) — et des chronologies, qui n'en lisent que les tâches
-      inscrites (WF-PLA-0140).
+      The same tasks, seen from the side of time or from the side of money: a task carries
+      its estimate lines (§3.5.1, WF-DEV-0020). `row_number` and `level` are computed
+      on read; computed values cannot be entered (WF-IHM-0030). It is
+      the source of the four views of the tree: planning grid (WF-PLA-0080), read-only Gantt
+      chart (WF-PLA-0090), task tree (WF-PLA-0110) and
+      estimate grid (WF-DEV-0050) — and of the timelines, which read only the registered
+      tasks of it (WF-PLA-0140).
 
-      La structure est rendue entière, sans pagination : une révision porte au plus dix
-      mille objets (§4.6.2), et un arbre ne se lit pas par pages. Le tri, les filtres et
-      les totaux sont l'affaire du serveur, et le front n'ordonne ni ne somme rien. Une
-      grille arborescente ne se trie pas : les tâches gardent l'ordre de l'arbre, et le tri
-      n'y est qu'un tri des lignes de devis sous chaque tâche, chaque ligne restant sous la
-      sienne (WF-IHM-0060, `sort_by`) : trié par montant décroissant, le devis rend sous
-      chaque tâche ses lignes du plus grand montant au plus petit, et ses tâches à leur place
-      (`estimate_sorted`) ; une ligne sans heures vient après les autres dans l'ordre
-      croissant des heures, avant dans le décroissant (`estimate_hours`). Les grilles de devis
-      et de reste à engager trient ainsi, dans les deux sens, par chacune des colonnes qu'elles
-      présentent pour les lignes ; la grille de planning, qui ne rend pas les lignes, ne
-      propose aucun tri, ni le diagramme de Gantt, l'arborescence de tâches ou une
-      chronologie. Un filtre sur une
-      tâche — avancement, criticité, sous-arbre, récapitulative, niveau, chronologie —
-      retient les tâches qui le satisfont avec les lignes qu'elles portent ; un filtre sur
-      une ligne — nature, catégorie, rôle, sous-projet — retient les lignes qui le
-      satisfont ; la recherche porte sur les libellés des deux, et une tâche retenue par
-      elle garde ses lignes. Les filtres se combinent, et les ancêtres des nœuds retenus
-      sont rendus pour que l'arbre reste lisible — sauf avec `timeline_id` : une chronologie
-      n'est pas un arbre, et ne présente que les tâches qui y sont inscrites (WF-PLA-0140).
-      Les totaux sont ceux des lignes retenues, sauf sous `difference`, qui ne les restreint
-      pas. Chaque colonne des trois grilles se filtre
-      (WF-IHM-0060, WF-IHM-0130), selon la convention du README du contrat : une colonne de
-      nombres par ses deux bornes incluses, `<colonne>_min` et `<colonne>_max`, une colonne de
-      dates par sa période, `<colonne>_from` et `<colonne>_to`, fin incluse, une marque par un
-      booléen, le mode par une liste, la description par le texte qu'elle contient. Ceux de la
-      tâche — description, mode, durée et marge en jours, début, fin, avancement physique, dates
-      de démarrage et de terminaison, jalon, fin dépassée — retiennent des tâches, avec leurs
-      lignes ; ceux de la ligne — grandeurs, délai de paiement, année de consommation, montants
-      courants et précédents, objet désactivé — retiennent des lignes, la borne d'un montant
-      portant sur celui de la ligne, jamais sur celui d'une tâche (`nodes_estimate_filtered`).
-      Ceux de l'origine, `is_from_risk` et `origin_risk_ids`, retiennent les nœuds, tâches et
-      lignes, qu'a fusionnés la survenance d'un risque, chacun jugé sur le sien
-      (`Node.origin_risk_id`, `nodes_from_risk` ; WF-RIS-0060, #1761).
-      Une borne mal formée est refusée par 422 `NUMBER_INVALID`, une date par `DATE_INVALID`,
-      une borne haute inférieure à la basse ou une fin antérieure au début par
-      `VALUE_OUT_OF_RANGE`, `fields` sur le paramètre (README). Les prédécesseurs, une liste de
-      liaisons, ne se filtrent pas ; le libellé se cherche (`search`). Le filtre par lot ou par
-      poste (`work_package_id`, `order_item_id`) retient le sous-arbre de la tâche rattachée au
-      lot ou au poste : le lotissement sert de grille de lecture par ce seul rattachement, que
-      seule la structure principale porte (WF-PLA-0170). `kinds` n'est pas un filtre : il choisit ce
-      que la grille rend — le planning ne rend pas les lignes —, et les totaux ne changent
-      pas avec lui.
+      The structure is returned whole, without pagination: a revision carries at most ten
+      thousand objects (§4.6.2), and a tree is not read by pages. Sorting, filters and
+      totals are the server's business, and the front end neither orders nor sums anything. A
+      tree grid is not sorted: the tasks keep the order of the tree, and sorting
+      there is only a sorting of the estimate lines under each task, each line staying under
+      its own (WF-IHM-0060, `sort_by`): sorted by decreasing amount, the estimate returns under
+      each task its lines from the largest amount to the smallest, and its tasks in their place
+      (`estimate_sorted`); a line without hours comes after the others in ascending order of
+      hours, before them in descending order (`estimate_hours`). The estimate and remaining to
+      commit grids sort this way, in both directions, by each of the columns they
+      present for the lines; the planning grid, which does not return the lines, offers
+      no sorting, nor does the Gantt chart, the task tree or a
+      timeline. A filter on a
+      task — progress, criticality, subtree, summary task, level, timeline —
+      retains the tasks that satisfy it with the lines they carry; a filter on
+      a line — cost type, category, role, subproject — retains the lines that
+      satisfy it; the search applies to the labels of both, and a task retained by
+      it keeps its lines. The filters combine, and the ancestors of the retained nodes
+      are returned so that the tree remains readable — except with `timeline_id`: a timeline
+      is not a tree, and presents only the tasks registered in it (WF-PLA-0140).
+      The totals are those of the lines retained, except under `difference`, which does not
+      restrict them. Each column of the three grids can be filtered
+      (WF-IHM-0060, WF-IHM-0130), according to the convention of the README of the contract: a
+      column of numbers by its two bounds inclusive, `<column>_min` and `<column>_max`, a column
+      of dates by its period, `<column>_from` and `<column>_to`, end inclusive, a mark by a
+      boolean, the mode by a list, the description by the text it contains. Those of the
+      task — description, mode, duration and float in days, start, finish, physical progress,
+      start and completion dates, milestone, finish overdue — retain tasks, with their
+      lines; those of the line — quantities, payment delay, consumption year, current and
+      previous amounts, deactivated object — retain lines, the bound of an amount
+      applying to that of the line, never to that of a task (`nodes_estimate_filtered`).
+      Those of the origin, `is_from_risk` and `origin_risk_ids`, retain the nodes, tasks and
+      lines, that the occurrence of a risk has merged, each one judged on its own
+      (`Node.origin_risk_id`, `nodes_from_risk`; WF-RIS-0060, #1761).
+      A malformed bound is refused with 422 `NUMBER_INVALID`, a date with `DATE_INVALID`,
+      an upper bound lower than the lower one or an end before the start with
+      `VALUE_OUT_OF_RANGE`, `fields` on the parameter (README). The predecessors, a list of
+      links, are not filtered; the label is searched (`search`). The filter by work package or
+      by item (`work_package_id`, `order_item_id`) retains the subtree of the task attached to
+      the work package or the item: the work breakdown serves as a reading grid through this
+      attachment alone, which only the main structure carries (WF-PLA-0170). `kinds` is not a
+      filter: it chooses what the grid returns — the planning does not return the lines —, and
+      the totals do not change with it.
 
-      L'arborescence de tâches lit `kinds=task`, `summaries_only` et `max_level` : les seules
-      récapitulatives, jusqu'au niveau demandé, sous le nœud du projet que le front dessine
-      (WF-PLA-0110), et offre les niveaux que `meta.summary_depth` dit exister, celui de la
-      plus profonde récapitulative de la structure, quels que soient les filtres ; une
-      chronologie lit `kinds=task` et `timeline_id` (WF-PLA-0140). Le front ne trie ni ne
-      sélectionne rien de ce qu'il reçoit.
+      The task tree reads `kinds=task`, `summaries_only` and `max_level`: the summary tasks
+      only, down to the level requested, under the project node that the front end draws
+      (WF-PLA-0110), and offers the levels that `meta.summary_depth` says exist, that of the
+      deepest summary task of the structure, whatever the filters; a
+      timeline reads `kinds=task` and `timeline_id` (WF-PLA-0140). The front end neither sorts
+      nor selects anything of what it receives.
 
-      `row_number` numérote toute la structure, ses tâches et ses lignes dans l'ordre du
-      plan : un nœud garde son numéro quels que soient `kinds`, les filtres, la recherche
-      et le tri, et un prédécesseur est nommé par le sien même quand la lecture ne le
-      rend pas (`predecessor_row_number`, WF-PLA-0080).
+      `row_number` numbers the whole structure, its tasks and its lines in plan
+      order: a node keeps its number whatever `kinds`, the filters, the search
+      and the sorting, and a predecessor is named by its own even when the read does not
+      return it (`predecessor_row_number`, WF-PLA-0080).
 
-      `fields` choisit ce que la lecture rend de chaque nœud : une grille n'en demande que
-      ce qu'elle affiche, sans quoi six mille nœuds entiers pèsent plusieurs mégaoctets
-      (§4.6.2). Chaque nom est une propriété de `Node` — une facette nommée ainsi est
-      rendue entière — ou une propriété d'une facette, `task.<propriété>` ou
-      `estimate_line.<propriété>`, qui rend la facette avec ses seules propriétés nommées ;
-      `node_id`, `row_number`, `level` et `lock_version` sont toujours rendus. Une facette
-      dont rien n'est nommé est omise. Sans `fields`, chaque nœud est rendu entier. Les
-      propriétés que `Node` et ses facettes exigent le sont d'une lecture sans `fields` :
-      une lecture qui en nomme ne rend que ce qu'elle nomme.
+      `fields` chooses what the read returns of each node: a grid requests only
+      what it displays, otherwise six thousand whole nodes weigh several megabytes
+      (§4.6.2). Each name is a property of `Node` — a facet named this way is
+      returned whole — or a property of a facet, `task.<property>` or
+      `estimate_line.<property>`, which returns the facet with only its named properties;
+      `node_id`, `row_number`, `level` and `lock_version` are always returned. A facet
+      of which nothing is named is omitted. Without `fields`, each node is returned whole. The
+      properties that `Node` and its facets require are required of a read without `fields`:
+      a read that names some returns only what it names.
 
-      La lecture d'un différentiel est un diff avec la structure principale de sa révision, que
-      le serveur calcule et que le front ne recalcule pas (WF-REV-0100, C-361) : chaque nœud
-      porte son écart, `difference` — ajouté, retiré, modifié ou inchangé — et ce qui change de
-      lui, `changes`, rapprochés par la lignée, et les nœuds que le différentiel retire sont
-      rendus à la place qu'ils avaient, entre les nœuds qui les entouraient, en lecture seule
-      (`NodeDifference`) ; un nœud déplacé est rendu une fois, à sa place nouvelle, modifié par
-      son parent. `difference` et `changes` y sont toujours rendus, comme les quatre ; les
-      totaux ne comptent pas les nœuds retirés, qui ne sont plus de la structure (`nodes_amendment`).
-      Un filtre, la recherche et un tri jugent un nœud retiré sur ses valeurs de base — celles
-      de la structure principale, qu'il porte encore —, comme tout autre nœud sur les siennes :
-      un filtre sur une tâche le retient si ses valeurs de base le satisfont, un tri range une
-      ligne retirée parmi les lignes de sa tâche par sa valeur de base dans la colonne triée, et
-      sans tri il reste à la place qu'il avait (#1205). `difference` n'en retient que les
-      écarts nommés, ajoutés, retirés ou modifiés — « Écarts seulement » les nomme tous trois —,
-      leurs ancêtres compris, eux-mêmes modifiés par leur contenu : l'arbre filtré reste un
-      arbre, et les totaux restent ceux de la lecture sans lui (`NodeDifferenceFilter`,
-      `amendment_differences`, #1398).
-      Sur la structure principale et sur le devis propre d'un risque, `difference` est nul ou
-      omis, et le filtre `difference` y est sans effet : la lecture est celle sans lui.
+      The read of a differential is a diff with the main structure of its revision, which
+      the server computes and which the front end does not recompute (WF-REV-0100, C-361):
+      each node carries its difference, `difference` — added, removed, modified or unchanged —
+      and what changes about it, `changes`, matched by lineage, and the nodes that the
+      differential removes are returned in the place they had, between the nodes that
+      surrounded them, read-only (`NodeDifference`); a moved node is returned once, in its new
+      place, modified in its parent. `difference` and `changes` are always returned there,
+      like the four; the totals do not count the removed nodes, which are no longer part of
+      the structure (`nodes_amendment`).
+      A filter, the search and a sorting judge a removed node on its base values — those
+      of the main structure, which it still carries —, like any other node on its own:
+      a filter on a task retains it if its base values satisfy it, a sorting places a
+      removed line among the lines of its task by its base value in the sorted column, and
+      without sorting it stays in the place it had (#1205). `difference` retains only the
+      differences named, added, removed or modified — "Differences only" names all three —,
+      including their ancestors, themselves modified by their content: the filtered tree
+      remains a tree, and the totals remain those of the read without it
+      (`NodeDifferenceFilter`, `amendment_differences`, #1398).
+      On the main structure and on the own estimate of a risk, `difference` is null or
+      omitted, and the `difference` filter has no effect there: the read is the one without it.
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
       - $ref: ../components/parameters.yaml#/RevisionId
@@ -1084,8 +1093,8 @@
     responses:
       '200':
         description: >-
-          Nœuds, en parcours profondeur d'abord, leurs totaux, et ce que la lecture dit de la
-          structure elle-même.
+          Nodes, in depth-first traversal, their totals, and what the read says about the
+          structure itself.
         content:
           application/json:
             schema:
@@ -1125,16 +1134,16 @@
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '422':
         description: >-
-          Un filtre de colonne refusé, selon la convention du README, `fields` sur le paramètre :
-          une borne mal formée par `NUMBER_INVALID`, une date par `DATE_INVALID`, une borne
-          haute inférieure à la basse par `VALUE_OUT_OF_RANGE` sur `/query/<colonne>_max`,
-          `params.minimum` la borne inférieure donnée (`bounds_inverted`), une fin de période
-          antérieure à son début par `VALUE_OUT_OF_RANGE` sur `/query/<colonne>_to`,
-          `params.minimum` le début donné (`period_inverted`, WF-IHM-0130). Une propriété
-          inconnue de `fields`, `VALIDATION_FAILED`, `fields` désignant `/query/fields` par
-          `FIELD_NOT_ACCEPTED`, comme tout paramètre de requête refusé (`NodeFields`,
-          `fields_unknown`, WF-ARC-0110). Un risque de `origin_risk_ids` qui n'est pas un risque
-          survenu du projet, `/query/origin_risk_ids/<n>` par `UNKNOWN_RISK`
+          A column filter refused, according to the convention of the README, `fields` on the
+          parameter: a malformed bound with `NUMBER_INVALID`, a date with `DATE_INVALID`, an
+          upper bound lower than the lower one with `VALUE_OUT_OF_RANGE` on
+          `/query/<column>_max`, `params.minimum` the lower bound given (`bounds_inverted`), a
+          period end before its start with `VALUE_OUT_OF_RANGE` on `/query/<column>_to`,
+          `params.minimum` the start given (`period_inverted`, WF-IHM-0130). An unknown
+          property of `fields`, `VALIDATION_FAILED`, `fields` designating `/query/fields` with
+          `FIELD_NOT_ACCEPTED`, like any refused query parameter (`NodeFields`,
+          `fields_unknown`, WF-ARC-0110). A risk of `origin_risk_ids` that is not an occurred
+          risk of the project, `/query/origin_risk_ids/<n>` with `UNKNOWN_RISK`
           (`NodeOriginRiskFilter`, #1761).
         content:
           application/problem+json:
@@ -1149,45 +1158,46 @@
   post:
     operationId: createNode
     tags: [revisions]
-    summary: Créer une tâche ou une ligne de devis
+    summary: Create a task or an estimate line
     description: >-
-      Refusé sur une révision marquée (WF-DAT-0020) — toute révision d'un projet terminal l'est
-      (WF-CYC-0100) — par 409, comme toute écriture de la révision. La même écriture depuis les
-      trois grilles : la phase du projet ne refuse rien ici, c'est la
-      commande de la structure qui dit quelle grille la saisit (`CostStructure.available_commands`,
-      C-358). Sur la structure principale, une ligne ne se crée pas sous une tâche terminée, qui se
-      rouvre d'abord depuis le Kanban (`task_not_completed`, WF-DEV-0050, WF-RAE-0040) ; dans un
-      différentiel, elle s'y crée comme ailleurs, l'avenant rebudgétant la tâche (WF-REV-0050 ;
-      F-01, #1766).
-      Une tâche créée sans mode ni durée — depuis la grille de devis ou de reste à engager, qui ne
-      les présentent pas — est une feuille en mode automatique, d'une durée d'un jour, sans
-      prédécesseur (WF-DEV-0050, WF-RAE-0040). Une tâche créée sous une feuille en mode manuel
-      fait de celle-ci une récapitulative, toujours en mode automatique (WF-PLA-0040) ; sous un
-      jalon, qui ne porte pas de sous-tâches, elle est refusée par 422
-      `MILESTONE_HAS_NO_SUBTASK`, une ligne de devis restant permise (WF-PLA-0050 ; #1771). Une ligne
-      créée sans libellé reçoit celui que le serveur compose de celui de sa tâche et de celui de
-      son rôle, et une ligne de main-d'œuvre, la catégorie de son rôle (`EstimateLineWrite`,
-      `line_created_labelled`, WF-DEV-0020). Une ligne ajoutée après la référence porte un
-      montant budgété nul (WF-RAE-0050). Une ligne de main-d'œuvre dont le rôle laisserait sa
-      tâche sans aucune heure travaillée dans la semaine
-      — son calendrier ne recoupe jamais celui d'un autre rôle de la tâche, ou, sur une tâche
-      dont ce rôle est le seul, il n'a aucune heure dans la semaine (EP-14/L42s) — est refusée
-      par 422 `TASK_WITHOUT_WORKING_HOURS`, `params` nommant les rôles et la tâche (WF-PLA-0010) ;
-      une tâche créée rattachée à un lot ou à un poste suit les règles du rattachement
-      (`TaskFacetWrite`, WF-PLA-0170). Une ligne dont la catégorie relève d'une nature de type
-      provision n'est créée que par la déclaration d'un risque : sa création à la main est
-      refusée par 422 `VALIDATION_FAILED`, `fields` sur `/estimate_line/cost_category_id`, motif
-      `PROVISION_CATEGORY_RESERVED` (WF-DEV-0020, WF-RIS-0010). Une tâche créée dont la durée ou
-      les dates porteraient la durée du projet au-delà de quinze ans est refusée par 422
-      `PROJECT_HORIZON_EXCEEDED`, `params.task` la nommant par le libellé envoyé, son nœud nul
-      (WF-PLA-0150). Une tâche créée en mode manuel dont le début ou la fin tombe un jour sans
-      aucune heure travaillée à son calendrier — sans ligne de main-d'œuvre, le calendrier par
-      défaut (WF-PLA-0010) — est refusée comme à la modification (`updateTaskFacet`) : 422
-      `VALIDATION_FAILED`, `fields` sur `/task/start/date` ou `/task/finish/date` par
-      `NON_WORKING_DAY`, le jour travaillé suivant nommé ; rien n'est créé (WF-PLA-0020 ; #1345).
-      Ses début et fin se saisissent par leur seule date, comme à la modification : le serveur en
-      complète les heures sur le calendrier de la tâche, et la réponse les rend complétées
-      (`WorkInstantWrite`, `created_manual` ; #1769).
+      Refused on a marked revision (WF-DAT-0020) — every revision of a terminal project is one
+      (WF-CYC-0100) — with 409, like any write of the revision. The same write from the
+      three grids: the phase of the project refuses nothing here, it is the
+      command of the structure that says which grid enters it
+      (`CostStructure.available_commands`, C-358). On the main structure, a line is not
+      created under a completed task, which is first reopened from the Kanban
+      (`task_not_completed`, WF-DEV-0050, WF-RAE-0040); in a differential, it is created
+      there as elsewhere, the amendment rebudgeting the task (WF-REV-0050; F-01, #1766).
+      A task created without a mode or a duration — from the estimate or remaining to commit
+      grid, which do not present them — is a leaf in automatic mode, with a duration of one
+      day, without a predecessor (WF-DEV-0050, WF-RAE-0040). A task created under a leaf in
+      manual mode makes it a summary task, always in automatic mode (WF-PLA-0040); under a
+      milestone, which carries no subtasks, it is refused with 422
+      `MILESTONE_HAS_NO_SUBTASK`, an estimate line remaining allowed (WF-PLA-0050; #1771). A
+      line created without a label receives the one the server composes from that of its task
+      and that of its role, and a labour line, the category of its role (`EstimateLineWrite`,
+      `line_created_labelled`, WF-DEV-0020). A line added after the reference carries a
+      zero budgeted amount (WF-RAE-0050). A labour line whose role would leave its
+      task without any worked hour in the week
+      — its calendar never overlaps that of another role of the task, or, on a task
+      of which this role is the only one, it has no hour in the week (EP-14/L42s) — is refused
+      with 422 `TASK_WITHOUT_WORKING_HOURS`, `params` naming the roles and the task
+      (WF-PLA-0010); a task created attached to a work package or an item follows the rules of
+      the attachment (`TaskFacetWrite`, WF-PLA-0170). A line whose category belongs to a cost
+      type of the provision kind is created only by the declaration of a risk: its creation by
+      hand is refused with 422 `VALIDATION_FAILED`, `fields` on
+      `/estimate_line/cost_category_id`, reason `PROVISION_CATEGORY_RESERVED` (WF-DEV-0020,
+      WF-RIS-0010). A created task whose duration or dates would take the duration of the
+      project beyond fifteen years is refused with 422 `PROJECT_HORIZON_EXCEEDED`,
+      `params.task` naming it by the label sent, its node null (WF-PLA-0150). A task created
+      in manual mode whose start or finish falls on a day without any worked hour in its
+      calendar — without a labour line, the default calendar (WF-PLA-0010) — is refused as on
+      modification (`updateTaskFacet`): 422 `VALIDATION_FAILED`, `fields` on
+      `/task/start/date` or `/task/finish/date` with `NON_WORKING_DAY`, the next working day
+      named; nothing is created (WF-PLA-0020; #1345).
+      Its start and finish are entered by their date alone, as on modification: the server
+      completes their hours on the calendar of the task, and the response returns them
+      completed (`WorkInstantWrite`, `created_manual`; #1769).
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
       - $ref: ../components/parameters.yaml#/RevisionId
@@ -1200,7 +1210,7 @@
     responses:
       '201':
         description: >-
-          Nœud créé, avec ses ancêtres recalculés et les totaux de la structure
+          Node created, with its ancestors recomputed and the totals of the structure
           (`NodesWritten`).
         content:
           application/json:
@@ -1220,18 +1230,18 @@
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '409':
         description: >-
-          L'état interdit la création, rien n'étant créé : `STATE_FORBIDS_OPERATION`,
-          `params.missing_condition` nommant la première condition qui manque, dans cet ordre —
-          `project_not_terminal` sur un projet terminal (WF-CYC-0100) ; puis les conditions d'état
-          de la révision, `revision_draft` sur une révision marquée, comme la révision le dit
-          d'avance de ses saisies (`Revision.available_commands`, `marked_refused`, WF-DAT-0020),
-          et `no_background_task_running` pendant un traitement de fond qui court sur la révision,
-          comme la commande de la structure le dit ; puis, sur la structure principale seule, une
-          ligne créée sous une tâche terminée, qui se rouvre d'abord depuis le Kanban,
-          `task_not_completed` (`completed_refused` ; WF-DEV-0050, WF-RAE-0040, WF-RAE-0030 ;
-          #1184, #1766). Dans un différentiel, une ligne se crée sous une tâche terminée comme sous
-          une autre, l'avenant la rebudgétant (WF-REV-0050, #1765). La phase du projet ne refuse
-          rien (C-358).
+          The state forbids the creation, nothing being created: `STATE_FORBIDS_OPERATION`,
+          `params.missing_condition` naming the first missing condition, in this order —
+          `project_not_terminal` on a terminal project (WF-CYC-0100); then the state conditions
+          of the revision, `revision_draft` on a marked revision, as the revision states in
+          advance for its entries (`Revision.available_commands`, `marked_refused`,
+          WF-DAT-0020), and `no_background_task_running` while a background task runs on the
+          revision, as the command of the structure says; then, on the main structure only, a
+          line created under a completed task, which is first reopened from the Kanban,
+          `task_not_completed` (`completed_refused`; WF-DEV-0050, WF-RAE-0040, WF-RAE-0030;
+          #1184, #1766). In a differential, a line is created under a completed task as under
+          any other, the amendment rebudgeting it (WF-REV-0050, #1765). The phase of the
+          project refuses nothing (C-358).
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
@@ -1241,33 +1251,33 @@
               marked_refused: { $ref: ../../../fixtures/api/node_create_marked_refused.json }
       '422':
         description: >-
-          Entité refusée par une règle métier, `fields` localisant chaque refus : une ligne de
-          type provision pour risques créée à la main (`PROVISION_CATEGORY_RESERVED`, WF-DEV-0020), un
-          rattachement au lotissement refusé (`TaskFacetWrite`, WF-PLA-0170), un délai de
-          paiement négatif (`/estimate_line/payment_delay_days`, `VALUE_OUT_OF_RANGE`,
-          `params.minimum` à `0`), un nœud après lequel se placer qui n'est pas un frère sous le
-          parent visé (`/after_node_id`, `NODE_NOT_SIBLING`, `NodeCreate` ; #1183), une tâche
-          créée sous un jalon, qui ne porte pas de sous-tâches (`/parent_id`,
-          `MILESTONE_HAS_NO_SUBTASK`, `fields[].params` nommant le jalon, `node_id` et `label` ;
-          WF-PLA-0050, #1771), un champ que la
-          ligne n'accepte pas (`FIELD_NOT_ACCEPTED`, `EstimateLineWrite` ; EP-14/L42s), une
-          catégorie qui n'est pas
-          celle du rôle d'une ligne de main-d'œuvre (`/estimate_line/cost_category_id`,
-          `COMPUTED_VALUE`, `line_category_mismatch`, WF-DEV-0020), une catégorie absente d'une
-          ligne sans rôle (`VALUE_REQUIRED`), une catégorie de main-d'œuvre sans rôle
-          (`/estimate_line/resource_role_id`, `RESOURCE_ROLE_REQUIRED`, WF-DEV-0020) ; ou, sans
-          `fields`, une ligne dont la catégorie n'a pas de taux horaire pour l'année de référence
-          (`HOURLY_RATE_MISSING`, `params.missing_rates`, WF-DEV-0010) ; ou une ligne qui laisserait sa
-          tâche sans heure travaillée (`TASK_WITHOUT_WORKING_HOURS`, WF-PLA-0010) ; ou, sans
-          `fields`, une tâche qui porterait la durée du projet au-delà de quinze ans
-          (`PROJECT_HORIZON_EXCEEDED`, `params.task`, WF-PLA-0150). Ou une date d'une tâche en
-          mode manuel envoyée un jour sans aucune heure travaillée au calendrier de la tâche :
-          `fields` sur `/task/start/date` ou `/task/finish/date` par `NON_WORKING_DAY`,
-          `fields[].params.date` la date envoyée et `next_working_day` le jour travaillé suivant,
-          comme `updateTaskFacet` (WF-PLA-0020, WF-PLA-0010 ; #1345) ; ou, avec un jour travaillé,
-          des heures envoyées hors du jour, `/task/start/hours` ou `/task/finish/hours` par
-          `VALUE_OUT_OF_RANGE`, `fields[].params.minimum` à `0` ou `maximum` aux heures du jour,
-          comme à la modification (`WorkInstantWrite` ; #1769).
+          Entity refused by a business rule, `fields` locating each refusal: a line of the
+          risk provision kind created by hand (`PROVISION_CATEGORY_RESERVED`, WF-DEV-0020), an
+          attachment to the work breakdown refused (`TaskFacetWrite`, WF-PLA-0170), a negative
+          payment delay (`/estimate_line/payment_delay_days`, `VALUE_OUT_OF_RANGE`,
+          `params.minimum` set to `0`), a node to be placed after that is not a sibling under
+          the target parent (`/after_node_id`, `NODE_NOT_SIBLING`, `NodeCreate`; #1183), a task
+          created under a milestone, which carries no subtasks (`/parent_id`,
+          `MILESTONE_HAS_NO_SUBTASK`, `fields[].params` naming the milestone, `node_id` and
+          `label`; WF-PLA-0050, #1771), a field that the
+          line does not accept (`FIELD_NOT_ACCEPTED`, `EstimateLineWrite`; EP-14/L42s), a
+          category that is not
+          that of the role of a labour line (`/estimate_line/cost_category_id`,
+          `COMPUTED_VALUE`, `line_category_mismatch`, WF-DEV-0020), a category missing from a
+          line without a role (`VALUE_REQUIRED`), a labour category without a role
+          (`/estimate_line/resource_role_id`, `RESOURCE_ROLE_REQUIRED`, WF-DEV-0020); or, without
+          `fields`, a line whose category has no hourly rate for the reference year
+          (`HOURLY_RATE_MISSING`, `params.missing_rates`, WF-DEV-0010); or a line that would
+          leave its task without a worked hour (`TASK_WITHOUT_WORKING_HOURS`, WF-PLA-0010); or,
+          without `fields`, a task that would take the duration of the project beyond fifteen
+          years (`PROJECT_HORIZON_EXCEEDED`, `params.task`, WF-PLA-0150). Or a date of a task in
+          manual mode sent on a day without any worked hour in the calendar of the task:
+          `fields` on `/task/start/date` or `/task/finish/date` with `NON_WORKING_DAY`,
+          `fields[].params.date` the date sent and `next_working_day` the next working day,
+          like `updateTaskFacet` (WF-PLA-0020, WF-PLA-0010; #1345); or, with a working day,
+          hours sent outside the day, `/task/start/hours` or `/task/finish/hours` with
+          `VALUE_OUT_OF_RANGE`, `fields[].params.minimum` set to `0` or `maximum` to the hours
+          of the day, as on modification (`WorkInstantWrite`; #1769).
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
@@ -1289,27 +1299,27 @@
   get:
     operationId: resolveRowNumber
     tags: [revisions]
-    summary: Le nœud qui porte un numéro de ligne
+    summary: The node that carries a row number
     description: >-
-      Le nœud que désigne un numéro de ligne dans la numérotation de toute la structure — celle
-      de `Node.row_number`, ses tâches et ses lignes dans l'ordre du plan —, quels que soient la
-      recherche, les filtres et le tri de la grille qui le demande : une lecture qui n'écrit rien.
-      La colonne des prédécesseurs de la grille de planning nomme un prédécesseur par son numéro
-      (WF-PLA-0080) ; un numéro que les lignes lues ne portent pas — une tâche que la recherche ou
-      un filtre écarte — se résout ici en nœud, dont l'identifiant s'envoie à l'écriture
-      (`PredecessorWrite.predecessor_node_id`, `setPredecessors`), qui reste seule juge de la
-      liaison. La lecture rend la nature du nœud, si bien que le front refuse comme inconnu le
-      numéro d'une ligne de devis, qui n'est pas une tâche.
+      The node that a row number designates in the numbering of the whole structure — that
+      of `Node.row_number`, its tasks and its lines in plan order —, whatever the search, the
+      filters and the sorting of the grid that requests it: a read that writes nothing.
+      The predecessors column of the planning grid names a predecessor by its number
+      (WF-PLA-0080); a number that the lines read do not carry — a task that the search or a
+      filter excludes — is resolved here into a node, whose identifier is sent with the write
+      (`PredecessorWrite.predecessor_node_id`, `setPredecessors`), which remains the sole
+      judge of the link. The read returns the kind of the node, so that the front end refuses
+      as unknown the number of an estimate line, which is not a task.
 
-      Aucun nœud de la structure ne porte ce numéro — il dépasse sa dernière ligne — : 404
-      `NOT_FOUND`, sans paramètre, comme un objet inexistant. Sur la lecture d'un différentiel,
-      la numérotation est celle que `listNodes` rend, où les nœuds que le différentiel retire
-      comptent chacun pour sa ligne : le numéro d'un nœud retiré, qui n'est plus de la structure,
-      répond aussi 404. Les droits et les autres refus sont ceux de `listNodes` : un projet, une
-      révision ou une structure inexistants ou invisibles faute de la consultation du projet
-      répondent 404 de même, sans rien distinguer (WF-ADM-0110). Un numéro qui n'est pas un
-      entier d'au moins 1 est refusé par 422 `VALIDATION_FAILED`, au pointeur
-      `/path/row_number`.
+      No node of the structure carries this number — it is beyond its last line —: 404
+      `NOT_FOUND`, without a parameter, like a nonexistent object. On the read of a
+      differential, the numbering is the one that `listNodes` returns, where the nodes that the
+      differential removes each count for their line: the number of a removed node, which is
+      no longer part of the structure, also answers 404. The rights and the other refusals are
+      those of `listNodes`: a project, a revision or a structure that is nonexistent or
+      invisible for lack of the right to view the project likewise answers 404, without
+      distinguishing anything (WF-ADM-0110). A number that is not an integer of at least 1 is
+      refused with 422 `VALIDATION_FAILED`, at the pointer `/path/row_number`.
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
       - $ref: ../components/parameters.yaml#/RevisionId
@@ -1317,7 +1327,7 @@
       - $ref: ../components/parameters.yaml#/RowNumber
     responses:
       '200':
-        description: Le nœud qui porte le numéro.
+        description: The node that carries the number.
         content:
           application/json:
             schema: { $ref: ../components/schemas/revisions.yaml#/RowNumberResolution }
@@ -1327,8 +1337,8 @@
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404':
         description: >-
-          Aucun nœud de la structure ne porte ce numéro, ou la structure est inexistante ou
-          invisible : `NOT_FOUND`, sans paramètre (WF-ADM-0110).
+          No node of the structure carries this number, or the structure is nonexistent or
+          invisible: `NOT_FOUND`, without a parameter (WF-ADM-0110).
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
@@ -1342,43 +1352,44 @@
   delete:
     operationId: deleteNode
     tags: [revisions]
-    summary: Supprimer un nœud
+    summary: Delete a node
     description: >-
-      La suppression d'une tâche emporte ses lignes et ses liaisons (WF-PLA-0070, WF-DAT-0090) ;
-      celle d'une récapitulative emporte aussi ses subordonnées, leurs lignes et leurs liaisons,
-      et le devis diminue d'autant (Vérif de WF-PLA-0070). « Une tâche démarrée ou terminée ne
-      peut pas être supprimée » (WF-PLA-0070), ni une récapitulative dont une subordonnée l'est :
-      le refus nomme la condition, `task_not_started`, et l'écran renvoie à la mise à zéro de son
-      reste à engager (Vérif de WF-PLA-0070). Les lignes de provision que portent la tâche
-      supprimée et ses subordonnées ne sont pas emportées : elles passent sur la tâche parente de
-      la tâche supprimée ou, pour une tâche de premier niveau, sur la première tâche de premier
-      niveau restante, le total du devis inchangé (WF-PLA-0070, WF-RIS-0010) ; `nodes` les rend
-      écrites sous leur tâche nouvelle, `ancestors` cette tâche et ses ancêtres, et chaque risque
-      concerné voit sa tâche de provision (`Risk.provision_node_id`) et son compteur changer. La
-      réponse ne rend pas le risque : son nouveau compteur (`Risk.lock_version`) se relit par
-      `getRisk` avant d'enchaîner un `updateRiskProvision` ou un `updateRisk`, qui le portent
-      (WF-IHM-0110 ; `provision_moved`, #1665). La suppression qui laisserait sans tâche une
-      structure principale qui porte une ligne de provision est refusée en nommant les risques
-      (WF-RIS-0010). Une récapitulative qui perd sa dernière subordonnée devient une tâche feuille
-      en mode automatique : elle prend pour durée celle qu'elle calculait, conserve son état, ses
-      lignes propres et son rattachement au lotissement (WF-PLA-0170), et ses dates sont
-      recalculées ; si cette durée est nulle, elle devient un jalon, à l'état non démarré ou
-      terminé qu'elle avait ; démarrée, elle prend une durée d'un jour (WF-PLA-0040, WF-PLA-0160).
-      Elle est rendue telle qu'elle devient dans `ancestors`, ses `computed_fields` et
-      `editable_fields` changés avec elle. Une écriture de grille comme les autres : elle rend ses
-      ancêtres recalculés, les totaux et le compteur de la structure, qui a avancé
-      (`NodesWritten`), pour que la grille montre juste et que le collage suivant porte le bon
-      compteur (WF-IHM-0110). Les liaisons emportées peuvent redater les successeurs de la tâche
-      et déplacer le chemin critique : ces tâches sont rendues dans `rescheduled` (WF-PLA-0020,
-      WF-PLA-0100), et leurs montants, inflation comprise, dans `reinflated` (WF-DEV-0040). Une
-      tâche que la suppression laisse sans prédécesseur se replace selon son mode (WF-PLA-0020)
-      sans changer d'état : une date de début passée ne la démarre ni ne la termine (WF-RAE-0030 ;
-      `provision_moved`, #1768). Comme toute modification, elle porte le compteur lu du nœud
-      supprimé (`lock_version`, WF-IHM-0110) : un nœud écrit depuis sa lecture n'est pas supprimé
-      (#1210). Sur la structure principale, une ligne d'une tâche terminée ne se supprime pas, la
-      tâche se rouvrant d'abord depuis le Kanban (`task_not_completed`, WF-RAE-0040) ; dans un
-      différentiel, elle se supprime comme une autre, l'avenant la rebudgétant (WF-REV-0050 ;
-      F-01, #1766). La phase du projet ne refuse rien (C-358).
+      The deletion of a task takes its lines and its links with it (WF-PLA-0070, WF-DAT-0090);
+      that of a summary task also takes its subordinates, their lines and their links, and the
+      estimate decreases by as much (Verification of WF-PLA-0070). "A started or completed task
+      cannot be deleted" (WF-PLA-0070), nor can a summary task one of whose subordinates is:
+      the refusal names the condition, `task_not_started`, and the screen refers to bringing its
+      remaining to commit to zero (Verification of WF-PLA-0070). The provision lines that the
+      deleted task and its subordinates carry are not taken with it: they move to the parent
+      task of the deleted task or, for a first-level task, to the first remaining first-level
+      task, the total of the estimate unchanged (WF-PLA-0070, WF-RIS-0010); `nodes` returns
+      them written under their new task, `ancestors` that task and its ancestors, and each risk
+      concerned sees its provision task (`Risk.provision_node_id`) and its counter change. The
+      response does not return the risk: its new counter (`Risk.lock_version`) is read again
+      through `getRisk` before following up with an `updateRiskProvision` or an `updateRisk`,
+      which carry it (WF-IHM-0110; `provision_moved`, #1665). The deletion that would leave
+      without a task a main structure that carries a provision line is refused, naming the
+      risks (WF-RIS-0010). A summary task that loses its last subordinate becomes a leaf task
+      in automatic mode: it takes as its duration the one it computed, keeps its state, its
+      own lines and its attachment to the work breakdown (WF-PLA-0170), and its dates are
+      recomputed; if this duration is zero, it becomes a milestone, in the not started or
+      completed state it had; if started, it takes a duration of one day (WF-PLA-0040,
+      WF-PLA-0160). It is returned as it becomes in `ancestors`, its `computed_fields` and
+      `editable_fields` changed along with it. A grid write like the others: it returns its
+      recomputed ancestors, the totals and the counter of the structure, which has moved
+      forward (`NodesWritten`), so that the grid shows correctly and the next paste carries
+      the right counter (WF-IHM-0110). The links taken with it can re-date the successors of
+      the task and shift the critical path: these tasks are returned in `rescheduled`
+      (WF-PLA-0020, WF-PLA-0100), and their amounts, inflation included, in `reinflated`
+      (WF-DEV-0040). A task that the deletion leaves without a predecessor is repositioned
+      according to its mode (WF-PLA-0020) without changing state: a past start date neither
+      starts nor completes it (WF-RAE-0030; `provision_moved`, #1768). Like any modification,
+      it carries the counter of the deleted node as read (`lock_version`, WF-IHM-0110): a
+      node written since it was read is not deleted (#1210). On the main structure, a line of
+      a completed task is not deleted, the task being first reopened from the Kanban
+      (`task_not_completed`, WF-RAE-0040); in a differential, it is deleted like any other,
+      the amendment rebudgeting it (WF-REV-0050; F-01, #1766). The phase of the project
+      refuses nothing (C-358).
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
       - $ref: ../components/parameters.yaml#/RevisionId
@@ -1388,16 +1399,17 @@
         in: query
         required: true
         description: >-
-          Le compteur du nœud supprimé, tel que la grille l'a lu (`Node.lock_version`) : périmé,
-          la suppression est refusée par 412 et rien n'est supprimé (WF-IHM-0110, #1210). Seul
-          le compteur du nœud désigné se juge, pas ceux des subordonnées qu'il emporte.
+          The counter of the deleted node, as the grid read it (`Node.lock_version`): when
+          stale, the deletion is refused with 412 and nothing is deleted (WF-IHM-0110, #1210).
+          Only the counter of the designated node is judged, not those of the subordinates it
+          takes with it.
         schema: { $ref: ../components/common.yaml#/LockVersion }
     responses:
       '200':
         description: >-
-          Nœud supprimé ; `nodes` ne rend que les lignes de provision qu'il déplace, écrites sous
-          leur tâche nouvelle (`provision_moved`), vide quand il n'en portait pas (`deleted`) ;
-          les ancêtres et les totaux sont recalculés sans lui.
+          Node deleted; `nodes` returns only the provision lines it moves, written under their
+          new task (`provision_moved`), empty when it carried none (`deleted`); the ancestors
+          and the totals are recomputed without it.
         content:
           application/json:
             schema: { $ref: ../components/schemas/revisions.yaml#/NodesWritten }
@@ -1411,20 +1423,20 @@
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '409':
         description: >-
-          La suppression est refusée, rien n'étant supprimé : `STATE_FORBIDS_OPERATION`,
-          `params.missing_condition` la première condition qui manque — `project_not_terminal`
-          sur un projet terminal (WF-CYC-0100) ; puis celles de la commande de
-          saisie du planning de la structure (`StructureCommand.edit_planning` :
-          `revision_draft`, `no_background_task_running`) ; puis, pour une tâche,
-          `task_not_started` pour une
-          tâche démarrée ou terminée, ou une récapitulative dont une subordonnée l'est
-          (WF-PLA-0070), et `at_least_one_task` pour la suppression qui laisserait sans tâche
-          une structure principale qui porte une ligne de provision, la ligne n'ayant plus de
-          tâche où se ranger, `params.risks` nommant chacun des risques dont elle porterait la
-          provision (WF-RIS-0010 ; F-04, H-05, US-0702/L2) ; pour une ligne de la structure
-          principale, `task_not_completed` quand sa tâche est terminée, qui se rouvre d'abord
-          depuis le Kanban (`line_completed_refused` ; WF-RAE-0040, WF-DEV-0050 ; F-01, #1766).
-          Dans un différentiel, la ligne d'une tâche terminée se supprime (WF-REV-0050).
+          The deletion is refused, nothing being deleted: `STATE_FORBIDS_OPERATION`,
+          `params.missing_condition` the first missing condition — `project_not_terminal`
+          on a terminal project (WF-CYC-0100); then those of the planning entry
+          command of the structure (`StructureCommand.edit_planning`:
+          `revision_draft`, `no_background_task_running`); then, for a task,
+          `task_not_started` for a
+          started or completed task, or a summary task one of whose subordinates is
+          (WF-PLA-0070), and `at_least_one_task` for the deletion that would leave without a task
+          a main structure that carries a provision line, the line no longer having a
+          task to be placed under, `params.risks` naming each of the risks whose provision it
+          would carry (WF-RIS-0010; F-04, H-05, US-0702/L2); for a line of the main
+          structure, `task_not_completed` when its task is completed, which is first reopened
+          from the Kanban (`line_completed_refused`; WF-RAE-0040, WF-DEV-0050; F-01, #1766).
+          In a differential, the line of a completed task can be deleted (WF-REV-0050).
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
@@ -1435,8 +1447,8 @@
                 $ref: ../../../fixtures/api/node_delete_line_completed_refused.json
       '412':
         description: >-
-          `STALE_LOCK_VERSION` : le nœud a été écrit depuis sa lecture, et rien n'est supprimé ;
-          `params.expected_lock_version` est son compteur courant (WF-IHM-0110, #1210).
+          `STALE_LOCK_VERSION`: the node has been written since it was read, and nothing is
+          deleted; `params.expected_lock_version` is its current counter (WF-IHM-0110, #1210).
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
@@ -1450,16 +1462,16 @@
   get:
     operationId: getComputedValueDependencies
     tags: [revisions]
-    summary: Ce dont dépend une valeur calculée
+    summary: What a computed value depends on
     description: >-
-      Lue à la demande, quand l'utilisateur tente de saisir une valeur que le serveur
-      calcule — ainsi la catégorie d'une ligne de main-d'œuvre, tirée de son rôle
-      (`labour_category`) — : les règles qui la calculent, et les lignes dont elle est tirée,
-      nommées par leur numéro et leur libellé, que la recherche ou les filtres de la grille les
-      retiennent ou non. Une tentative de saisie sur une valeur calculée est refusée en
-      nommant ce dont elle dépend (WF-IHM-0030) ; les subordonnées d'une récapitulative
-      sont ses subordonnées directes (WF-PLA-0040). Un champ que le serveur ne calcule pas
-      pour ce nœud — il se saisit — est refusé (422, `VALIDATION_FAILED`, `params.field`).
+      Read on demand, when the user tries to enter a value that the server
+      computes — such as the category of a labour line, derived from its role
+      (`labour_category`) —: the rules that compute it, and the lines it is derived from,
+      named by their number and their label, whether or not the search or the filters of the
+      grid retain them. An attempt to enter a computed value is refused, naming
+      what it depends on (WF-IHM-0030); the subordinates of a summary task
+      are its direct subordinates (WF-PLA-0040). A field that the server does not compute
+      for this node — it is entered — is refused (422, `VALIDATION_FAILED`, `params.field`).
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
       - $ref: ../components/parameters.yaml#/RevisionId
@@ -1468,11 +1480,11 @@
       - name: field
         in: query
         required: true
-        description: Le champ calculé dont la saisie a été tentée.
+        description: The computed field whose entry was attempted.
         schema: { $ref: ../components/schemas/revisions.yaml#/ComputedValueField }
     responses:
       '200':
-        description: Ce dont dépend la valeur.
+        description: What the value depends on.
         content:
           application/json:
             schema: { $ref: ../components/schemas/revisions.yaml#/ComputedValueDependencies }
@@ -1490,12 +1502,12 @@
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '422':
         description: >-
-          Le serveur ne calcule pas ce champ pour ce nœud : il se saisit.
-          `VALIDATION_FAILED`, et `params.field` nomme le champ demandé. Une valeur de `field` hors
-          de `ComputedValueField`, ou absente, est refusée de même, par `VALIDATION_FAILED`,
-          `fields` sur `/query/field`, comme un numéro de ligne invalide l'est sur
-          `/path/row_number` (`resolveRowNumber`) : ces deux lectures n'ont pas de corps, et pas
-          de 400.
+          The server does not compute this field for this node: it is entered.
+          `VALIDATION_FAILED`, and `params.field` names the field requested. A value of `field`
+          outside `ComputedValueField`, or absent, is refused likewise, with
+          `VALIDATION_FAILED`, `fields` on `/query/field`, as an invalid row number is on
+          `/path/row_number` (`resolveRowNumber`): these two reads have no body, and no
+          400.
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
@@ -1508,22 +1520,24 @@
   patch:
     operationId: updateTaskFacet
     tags: [revisions]
-    summary: Modifier la facette temps d'une tâche
+    summary: Modify the time facet of a task
     description: >-
-      Les dates sont saisissables en mode manuel seulement (WF-PLA-0020) ; celles d'une
-      récapitulative sont calculées (WF-PLA-0040). Un jalon a une durée nulle
-      (WF-PLA-0050). La durée se saisit dans l'une des unités de travail ou de temps
-      écoulé, et se conserve avec elle (WF-PLA-0160). La durée du projet ne peut dépasser
-      quinze ans (WF-PLA-0150) : une durée, des dates ou un mode qui l'y porteraient sont refusés
-      par 422 `PROJECT_HORIZON_EXCEEDED`, `params.task` nommant la tâche. Le rattachement à un lot ou à un poste du lotissement se pose,
-      se change et se retire ici, sur une tâche récapitulative, feuille ou jalon, aux règles
-      de `TaskFacetUpdate` (WF-PLA-0170). Seul le compteur lu est exigé : seul ce qui est
-      envoyé change (WF-IHM-0040), et le nœud dit ce qu'il accepte (`editable_fields`). Le
-      début et la fin se saisissent par leur seule date : le serveur en complète les heures sur
-      le calendrier applicable de la tâche (WF-PLA-0010), le début au début de son jour, la fin
-      au bout des heures que le calendrier accorde ce jour-là (`WorkInstantWrite`, #1244). Une
-      date sur un jour sans aucune heure travaillée à ce calendrier est refusée, et le refus nomme
-      le jour travaillé suivant ; rien n'est écrit (WF-PLA-0020 ; #1271).
+      The dates can be entered in manual mode only (WF-PLA-0020); those of a
+      summary task are computed (WF-PLA-0040). A milestone has a zero duration
+      (WF-PLA-0050). The duration is entered in one of the units of work or of elapsed
+      time, and is kept with it (WF-PLA-0160). The duration of the project cannot exceed
+      fifteen years (WF-PLA-0150): a duration, dates or a mode that would take it there are
+      refused with 422 `PROJECT_HORIZON_EXCEEDED`, `params.task` naming the task. The
+      attachment to a work package or an item of the work breakdown is set,
+      changed and removed here, on a summary task, a leaf or a milestone, under the rules
+      of `TaskFacetUpdate` (WF-PLA-0170). Only the counter as read is required: only what is
+      sent changes (WF-IHM-0040), and the node says what it accepts (`editable_fields`). The
+      start and the finish are entered by their date alone: the server completes their hours
+      on the applicable calendar of the task (WF-PLA-0010), the start at the beginning of its
+      day, the finish at the end of the hours the calendar grants that day
+      (`WorkInstantWrite`, #1244). A date on a day without any worked hour in that calendar is
+      refused, and the refusal names the next working day; nothing is written (WF-PLA-0020;
+      #1271).
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
       - $ref: ../components/parameters.yaml#/RevisionId
@@ -1539,11 +1553,11 @@
     responses:
       '200':
         description: >-
-          Tâche modifiée, avec les dates et la criticité recalculées, ses ancêtres recalculés,
-          les tâches qu'une durée saisie redate — ses successeurs, et ce que le chemin critique
-          déplace —, les montants, inflation comprise, des lignes et des tâches qu'elle déplace
-          d'une année à l'autre et les totaux de la structure (`NodesWritten`, WF-PLA-0020,
-          WF-DEV-0040).
+          Task modified, with the dates and the criticality recomputed, its ancestors
+          recomputed, the tasks that an entered duration re-dates — its successors, and what the
+          critical path shifts —, the amounts, inflation included, of the lines and tasks it
+          moves from one year to another and the totals of the structure (`NodesWritten`,
+          WF-PLA-0020, WF-DEV-0040).
         content:
           application/json:
             schema: { $ref: ../components/schemas/revisions.yaml#/NodesWritten }
@@ -1564,29 +1578,31 @@
       '412': { $ref: ../components/responses.yaml#/PreconditionFailed }
       '422':
         description: >-
-          Entité refusée par une règle métier, `fields` localisant chaque refus : une valeur
-          calculée — une date d'une tâche en mode automatique, sans paramètre, la grille lisant ce
-          dont elle dépend (`getComputedValueDependencies`) ; une date d'une récapitulative, qui la
-          tire de ses subordonnées, par `SUMMARY_TASK_DERIVED`, `fields[].params.subordinate_node_ids`
-          les nommant (`summary_date_refused`, Vérif de WF-IHM-0030) —, ou le mode d'une récapitulative,
-          toujours automatique (`/scheduling_mode`, WF-PLA-0040) (`COMPUTED_VALUE`, WF-PLA-0020,
-          WF-IHM-0030), ou un rattachement au lotissement refusé —
-          tâche hors de la structure principale, lot ou poste inconnu, lot et poste ensemble,
-          lot ou poste déjà porté par une autre tâche, nommée par son nœud et son libellé, tâche
-          d'un poste sortie du sous-arbre de la tâche de son lot, les tâches du lot et des postes
-          nommées par leur nœud et leur libellé (WF-PLA-0170, `TaskFacetUpdate`). Ou, sans
-          `fields`, une saisie qui porterait la durée du projet au-delà de quinze ans :
-          `PROJECT_HORIZON_EXCEEDED`, `params.task` nommant la tâche par son nœud et son libellé
-          (WF-PLA-0150). Ou une date envoyée un jour sans aucune heure travaillée au calendrier
-          de la tâche : `fields` sur `/start/date` ou `/finish/date` par `NON_WORKING_DAY`,
-          `fields[].params.date` la date envoyée et `next_working_day` le jour travaillé suivant
-          — « le refus nomme le jour travaillé suivant ; rien n'est écrit » (WF-PLA-0020,
-          WF-PLA-0010 ; #1271). Ou des heures envoyées avec un jour travaillé hors de `0` aux
-          heures que le calendrier de la tâche accorde ce jour-là : `fields` sur `/start/hours`
-          ou `/finish/hours` par `VALUE_OUT_OF_RANGE`, `fields[].params.minimum` à `0` ou
-          `maximum` aux heures du jour, la seule borne franchie, jamais nulle — un jour chômé est
-          refusé par sa date, ses heures n'étant pas jugées (`WorkInstantWrite`, WF-PLA-0010,
-          WF-DAT-0100, #1244).
+          Entity refused by a business rule, `fields` locating each refusal: a computed
+          value — a date of a task in automatic mode, without a parameter, the grid reading what
+          it depends on (`getComputedValueDependencies`); a date of a summary task, which derives
+          it from its subordinates, with `SUMMARY_TASK_DERIVED`,
+          `fields[].params.subordinate_node_ids` naming them (`summary_date_refused`,
+          Verification of WF-IHM-0030) —, or the mode of a summary task, always automatic
+          (`/scheduling_mode`, WF-PLA-0040) (`COMPUTED_VALUE`, WF-PLA-0020,
+          WF-IHM-0030), or an attachment to the work breakdown refused —
+          task outside the main structure, unknown work package or item, work package and item
+          together, work package or item already carried by another task, named by its node and
+          its label, task of an item moved out of the subtree of the task of its work package,
+          the tasks of the work package and of the items named by their node and their label
+          (WF-PLA-0170, `TaskFacetUpdate`). Or, without
+          `fields`, an entry that would take the duration of the project beyond fifteen years:
+          `PROJECT_HORIZON_EXCEEDED`, `params.task` naming the task by its node and its label
+          (WF-PLA-0150). Or a date sent on a day without any worked hour in the calendar
+          of the task: `fields` on `/start/date` or `/finish/date` with `NON_WORKING_DAY`,
+          `fields[].params.date` the date sent and `next_working_day` the next working day
+          — "the refusal names the next working day; nothing is written" (WF-PLA-0020,
+          WF-PLA-0010; #1271). Or hours sent with a working day outside `0` to the
+          hours that the calendar of the task grants that day: `fields` on `/start/hours`
+          or `/finish/hours` with `VALUE_OUT_OF_RANGE`, `fields[].params.minimum` set to `0` or
+          `maximum` to the hours of the day, the only bound crossed, never null — a non-working
+          day is refused by its date, its hours not being judged (`WorkInstantWrite`,
+          WF-PLA-0010, WF-DAT-0100, #1244).
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
@@ -1611,27 +1627,28 @@
   patch:
     operationId: updateEstimateLine
     tags: [estimate]
-    summary: Modifier la facette argent d'une ligne de devis
+    summary: Modify the money facet of an estimate line
     description: >-
-      Les montants sont calculés et non saisissables : celui aux taux de l'année de référence,
-      avant inflation, par la ligne, le budgété par la référence, le réestimé par les revues,
-      ces deux-là inflation comprise, à l'année de consommation de la ligne (WF-DEV-0020,
-      WF-DEV-0030, WF-DEV-0040). Une ligne de provision est calculée depuis son risque, et n'est
-      pas projetée (WF-RIS-0010, WF-DEV-0030). Seul le compteur lu est
-      exigé : seul ce qui est envoyé change (WF-IHM-0040), et le nœud dit ce qu'il accepte
-      (`editable_fields`). Un rôle changé change le calendrier de la tâche, donc ses dates
-      (WF-PLA-0010) : ses successeurs redatés sont rendus dans `rescheduled`, et dans `reinflated`
-      chaque ligne ou tâche non récapitulative dont un montant change d'année — les autres lignes
-      qu'elle porte, celles des successeurs qui changent d'année, et leurs tâches. Une ligne
-      dont la tâche est démarrée ou terminée ne quitte pas un sous-projet qui a reçu des coûts
-      réels, et ne nomme pas son sous-projet dans `editable_fields` ; celle d'une tâche non
-      démarrée en change (WF-PRJ-0050). Sur la structure principale, une ligne d'une tâche
-      terminée ne se modifie pas, son libellé pas plus que le reste, et ne nomme aucun champ dans
-      `editable_fields` : la tâche se rouvre d'abord depuis le Kanban (`task_not_completed`,
-      WF-RAE-0040, WF-DEV-0050). Dans un différentiel, elle se modifie comme une autre, pour que
-      l'avenant la rebudgète (`rebudgeted_amendment`, WF-REV-0050 ; F-01, #1765, #1766). La phase
-      du projet ne refuse rien : le devis de la structure principale, en lecture seule dès En
-      cours, l'est par la commande de la structure, que la grille suit (`edit_estimate`, C-358).
+      The amounts are computed and cannot be entered: the one at the rates of the reference
+      year, before inflation, by the line, the budgeted one by the reference, the re-estimated
+      one by the reviews, these last two inflation included, at the consumption year of the
+      line (WF-DEV-0020, WF-DEV-0030, WF-DEV-0040). A provision line is computed from its
+      risk, and is not projected (WF-RIS-0010, WF-DEV-0030). Only the counter as read is
+      required: only what is sent changes (WF-IHM-0040), and the node says what it accepts
+      (`editable_fields`). A changed role changes the calendar of the task, hence its dates
+      (WF-PLA-0010): its re-dated successors are returned in `rescheduled`, and in
+      `reinflated` each line or non-summary task whose amount changes year — the other lines
+      it carries, those of the successors that change year, and their tasks. A line
+      whose task is started or completed does not leave a subproject that has received actual
+      costs, and does not name its subproject in `editable_fields`; that of a task not
+      started can change it (WF-PRJ-0050). On the main structure, a line of a completed task
+      is not modified, its label no more than the rest, and names no field in
+      `editable_fields`: the task is first reopened from the Kanban (`task_not_completed`,
+      WF-RAE-0040, WF-DEV-0050). In a differential, it is modified like any other, so that
+      the amendment rebudgets it (`rebudgeted_amendment`, WF-REV-0050; F-01, #1765, #1766).
+      The phase of the project refuses nothing: the estimate of the main structure, read-only
+      from In progress onwards, is so through the command of the structure, which the grid
+      follows (`edit_estimate`, C-358).
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
       - $ref: ../components/parameters.yaml#/RevisionId
@@ -1645,8 +1662,8 @@
     responses:
       '200':
         description: >-
-          Ligne modifiée, avec son montant recalculé, les montants de ses ancêtres et les
-          totaux de la structure (`NodesWritten`).
+          Line modified, with its amount recomputed, the amounts of its ancestors and the
+          totals of the structure (`NodesWritten`).
         content:
           application/json:
             schema: { $ref: ../components/schemas/revisions.yaml#/NodesWritten }
@@ -1664,16 +1681,16 @@
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '409':
         description: >-
-          La ligne n'accepte pas la modification, rien n'étant écrit : `STATE_FORBIDS_OPERATION`,
-          `params.missing_condition` nommant la première condition qui manque, dans cet ordre —
-          `project_not_terminal` sur un projet terminal (WF-CYC-0100) ; puis les conditions d'état
-          de la révision, `revision_draft` sur une révision marquée (WF-DAT-0020) et
-          `no_background_task_running` pendant un traitement de fond qui court sur la révision ;
-          puis, sur la structure principale seule, `task_not_completed` pour une ligne d'une tâche
-          terminée, qui se rouvre d'abord depuis le Kanban, la ligne ne nommant aucun champ dans
-          `editable_fields` (`completed_refused` ; WF-RAE-0040, WF-DEV-0050 ; F-01, #1766). Dans un
-          différentiel, la ligne d'une tâche terminée se modifie (WF-REV-0050). La phase du projet
-          ne refuse rien (C-358).
+          The line does not accept the modification, nothing being written:
+          `STATE_FORBIDS_OPERATION`, `params.missing_condition` naming the first missing
+          condition, in this order — `project_not_terminal` on a terminal project (WF-CYC-0100);
+          then the state conditions of the revision, `revision_draft` on a marked revision
+          (WF-DAT-0020) and `no_background_task_running` while a background task runs on the
+          revision; then, on the main structure only, `task_not_completed` for a line of a
+          completed task, which is first reopened from the Kanban, the line naming no field in
+          `editable_fields` (`completed_refused`; WF-RAE-0040, WF-DEV-0050; F-01, #1766). In a
+          differential, the line of a completed task can be modified (WF-REV-0050). The phase of
+          the project refuses nothing (C-358).
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
@@ -1683,28 +1700,28 @@
       '412': { $ref: ../components/responses.yaml#/PreconditionFailed }
       '422':
         description: >-
-          Un calcul que la ligne demanderait sans taux horaire : une catégorie de main-d'œuvre
-          employée par son rôle sans taux pour l'année de référence de la révision,
-          `HOURLY_RATE_MISSING`, sans `fields`, `params.missing_rates` nommant les catégories une par
-          une (`rate_missing`, WF-DEV-0010) ; ou le rôle retiré d'une ligne de main-d'œuvre,
-          `VALIDATION_FAILED`, `fields` sur `/resource_role_id`, motif `RESOURCE_ROLE_REQUIRED`
-          (`role_required`, WF-DEV-0020) ; ou un rôle changé qui laisserait la tâche
-          sans heure travaillée dans la semaine — son calendrier ne recoupe jamais celui d'un autre
-          rôle de la tâche, ou, sur une tâche dont ce rôle est le seul, il n'a aucune heure dans la
-          semaine (EP-14/L42s) — : `TASK_WITHOUT_WORKING_HOURS`, `params.resource_roles` et
-          `params.tasks` nommant les rôles et la tâche, inchangée (WF-PLA-0010) ; ou une
-          catégorie de type provision pour risques donnée à une ligne saisie : `VALIDATION_FAILED`,
-          `fields` sur `/cost_category_id`, motif `PROVISION_CATEGORY_RESERVED` (WF-DEV-0020) ;
-          ou une catégorie envoyée sur une ligne de main-d'œuvre qui n'est pas celle de son rôle,
-          calculée : `fields` sur `/cost_category_id`, motif `COMPUTED_VALUE`, la grille lisant ce
-          dont elle dépend (`resource_role`, WF-DEV-0020, WF-IHM-0030) ;
-          ou un délai de paiement négatif : `fields` sur `/payment_delay_days`,
-          `VALUE_OUT_OF_RANGE`, `params.minimum` à `0` (WF-IND-0100) ; ou un champ que la ligne
-          n'accepte pas — le délai de paiement d'une ligne de provision, qui n'en porte pas —,
-          motif `FIELD_NOT_ACCEPTED` sur son champ (`EstimateLineUpdate` ; EP-14/L42s) ; ou une
-          ligne d'une tâche démarrée ou terminée passée hors d'un sous-projet qui a reçu des coûts
-          réels : `fields` sur `/subproject_id`, motif `SUBPROJECT_HAS_ACTUAL_COSTS`,
-          `params.subproject` nommant ce sous-projet (WF-PRJ-0050).
+          A computation that the line would require without an hourly rate: a labour category
+          used by its role without a rate for the reference year of the revision,
+          `HOURLY_RATE_MISSING`, without `fields`, `params.missing_rates` naming the categories
+          one by one (`rate_missing`, WF-DEV-0010); or the role removed from a labour line,
+          `VALIDATION_FAILED`, `fields` on `/resource_role_id`, reason `RESOURCE_ROLE_REQUIRED`
+          (`role_required`, WF-DEV-0020); or a changed role that would leave the task
+          without a worked hour in the week — its calendar never overlaps that of another
+          role of the task, or, on a task of which this role is the only one, it has no hour in
+          the week (EP-14/L42s) —: `TASK_WITHOUT_WORKING_HOURS`, `params.resource_roles` and
+          `params.tasks` naming the roles and the task, unchanged (WF-PLA-0010); or a
+          category of the risk provision kind given to an entered line: `VALIDATION_FAILED`,
+          `fields` on `/cost_category_id`, reason `PROVISION_CATEGORY_RESERVED` (WF-DEV-0020);
+          or a category sent on a labour line that is not that of its role,
+          computed: `fields` on `/cost_category_id`, reason `COMPUTED_VALUE`, the grid reading
+          what it depends on (`resource_role`, WF-DEV-0020, WF-IHM-0030);
+          or a negative payment delay: `fields` on `/payment_delay_days`,
+          `VALUE_OUT_OF_RANGE`, `params.minimum` set to `0` (WF-IND-0100); or a field that the
+          line does not accept — the payment delay of a provision line, which carries none —,
+          reason `FIELD_NOT_ACCEPTED` on its field (`EstimateLineUpdate`; EP-14/L42s); or a
+          line of a started or completed task moved out of a subproject that has received actual
+          costs: `fields` on `/subproject_id`, reason `SUBPROJECT_HAS_ACTUAL_COSTS`,
+          `params.subproject` naming that subproject (WF-PRJ-0050).
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
