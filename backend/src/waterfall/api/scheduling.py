@@ -9,4 +9,6 @@ Registered by the application, empty until US-1390 serves them (US-1380/L1).
 
 from fastapi import APIRouter
 
-router = APIRouter(tags=["revisions"])
+# Each route its tag, as the contract has them: ``planning`` for ``setPredecessors``, ``revisions``
+# for ``updateCostStructure``.
+router = APIRouter()

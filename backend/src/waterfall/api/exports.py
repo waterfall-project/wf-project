@@ -10,4 +10,6 @@ Registered by the application, empty until US-1430 and US-1440 serve them (US-13
 
 from fastapi import APIRouter
 
-router = APIRouter(tags=["exchanges"])
+# Each route its tag, as the contract has them: ``exchanges`` for ``requestExport``, ``tasks`` for
+# ``getBackgroundTaskResult``.
+router = APIRouter()
