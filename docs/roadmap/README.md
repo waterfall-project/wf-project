@@ -157,7 +157,7 @@ EP-08, the three hundred projects in EP-13, which closes. Four rules, which each
 | [EP-22](EP-22-kanban-recapitulatives-demarrees.md) | The Kanban lists the summary awaiting only its own lines | livré | EP-17 |
 | [EP-05](EP-05-referentiel.md) | Reference data of the company | livré | EP-16, EP-18, EP-19, EP-20 |
 | [EP-04](EP-04-projets-et-revisions.md) | Projects, revisions and life cycle | en cours | EP-05 |
-| [EP-06](EP-06-planification.md) | Planning | à planifier | EP-04 |
+| [EP-06](EP-06-planification.md) | Planning | prêt | EP-04 |
 | [EP-07](EP-07-chiffrage-et-devis.md) | Costing and estimate | à planifier | EP-06 |
 | [EP-09](EP-09-couts-reels-et-reste-a-engager.md) | Actual costs, remaining to commit and cost import | à planifier | EP-07 |
 | [EP-10](EP-10-indicateurs.md) | Project indicators | à planifier | EP-09 |

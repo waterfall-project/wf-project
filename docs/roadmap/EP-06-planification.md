@@ -1,7 +1,7 @@
 ---
 id: EP-06
 titre: Construire le planning d'un projet, et le lire en grille, en Gantt et en arborescence
-statut: à planifier
+statut: prêt
 depend_de: EP-04
 famille: front, back
 issue:
@@ -244,7 +244,443 @@ retitrée et relabellisée à l'ouverture des issues d'EP-06.
 
 ## Conception
 
-À écrire après la validation des US.
+EP-06 est le troisième EPIC de domaine du back, et le premier qui écrit dans une révision : il
+crée la table des nœuds et sa facette tâche, les liaisons, les chronologies et les inscriptions,
+les comptes rendus d'import, l'historique annulable et le plan de collage ; trois modules du
+noyau ; les routes de ses vingt-sept opérations ; trois traitements du worker et un verbe de
+purge ; le moteur de dates ; la mécanique d'import en deux temps et son premier format ; la
+tranche des tâches du témoin ; et il branche sur le service les écrans du planning. Il **ne
+modifie pas le contrat**, figé en 1.0.0 : un manque devient une « Interface contract issue » que
+l'auteur tranche. Ce qui suit fixe ce que chaque lot devrait sinon décider seul.
+
+### Ce que le cadrage décide
+
+Décisions de l'auteur du 2026-11-07, sur les questions du cadrage, chacune avec l'option écartée :
+
+- **Une seule collection de nœuds, `node`, à deux facettes** (`kind` : `task` ici,
+  `estimate_line` par EP-07), comme le contrat la lit (« Arbre commun ») : l'ordre, la lignée,
+  `row_number`, `position`, `moveNodes` qui mêle lignes et tâches et `after_node_id` d'un autre
+  genre sont d'une seule table. La facette est une table à part, une ligne par nœud — `task`
+  ici, `estimate_line` par la migration d'EP-07 —, parce qu'un module ne possède que ses tables
+  (guide, « Le back et les frontières du noyau ») : `core/planning` possède `node` et `task`, le
+  module du devis d'EP-07 possédera `estimate_line`. Le Tableau 10 du §4.4.1 ne nomme pas
+  `node` : une issue « Specification finding », ouverte à l'ouverture des issues, demande de l'y
+  ajouter, avec `undo_entry` et `paste_plan` parmi les lignes techniques. Écarté : deux tables
+  `task` et `estimate_line` sans tronc commun, où `position` et `row_number` se calculent sur
+  l'union, et où une sélection déplacée écrit dans les deux ; des colonnes de la facette ligne
+  dans `node` même, qu'un autre module aurait écrites.
+- **Sept portées recalées** (voir « Exigences réalisées »). Écarté : les clore ici avec des
+  écarts, contre la règle du README.
+- **Onze US, le socle en lot technique de la première**, lot pivot d'EP-07. Écarté : un socle en
+  US propre sans exigence à lui.
+- **Le corpus de WF-QUA-0080 est fourni par l'auteur** (« Préalables »), dans
+  `fixtures/msproject/`, un fichier par cas, et le lot du format ne part pas sans lui ; le schéma
+  XSD de Microsoft est désigné par la variable `WATERFALL_MSPDI_SCHEMA_PATH`, lue par le seul
+  test qui l'emploie, qui se déclare non exécuté sans elle. Écartés : un corpus écrit à la main
+  d'après le schéma, daté par le moteur de Waterfall lui-même, qui ne confronterait rien ; le
+  report de WF-QUA-0080.
+- **La purge est un verbe du worker, `waterfall-worker purge`**, planifié par le service
+  `scheduler` du Compose comme `enqueue identity_sync`, à l'intervalle de
+  `WATERFALL_PURGE_INTERVAL` (dix minutes par défaut) ; aucun genre de tâche de fond, donc aucun
+  changement du contrat, et l'état d'un import se juge aussi à la lecture. Écartés : une
+  expiration paresseuse qui ne supprimerait aucun fichier sans passage ; la purge dans la boucle
+  du worker, qu'un worker arrêté ne ferait plus sans rien dire.
+- **L'historique annulable et le plan de collage vivent dans PostgreSQL**, `undo_entry` et
+  `paste_plan`, dans la transaction de la saisie qu'ils gardent. Écarté : Redis, que le §4.4.5
+  réserve au cache et à la session du front, et qui séparerait la saisie de son entrée.
+- **`setTaskProgress` est servie ici, sans écran** ; le Kanban d'EP-09 ne fait que brancher.
+  Écarté : la reporter à EP-09, et poser les états du témoin et des tests autour du service.
+- **WF-QUA-0040 entre au tableau** pour la tranche des tâches. Écarté : une US du témoin sans
+  exigence propre.
+- **La bibliothèque XML est `lxml`** : WF-QUA-0080 exige la validation contre le XSD, que la
+  bibliothèque standard ne sait pas faire, et `defusedxml.lxml` est déprécié. Un fichier déposé
+  par un utilisateur se lit par un analyseur durci — `resolve_entities=False`, `no_network=True`,
+  `huge_tree=False`, `load_dtd=False` —, écrit une fois dans `core/exchanges` et employé par tout
+  format XML ; le relecteur Python le cherche. Écarté : `xml.etree` et `defusedxml`, sans
+  validation.
+- **L'image de l'arborescence est dessinée par Pillow**, avec une police embarquée dans le
+  dépôt — DejaVu Sans, `backend/src/waterfall/core/exchanges/fonts/`, sa licence déclarée dans
+  `REUSE.toml` et `LICENSES/` — pour que l'image ne dépende pas des polices de l'image Docker du
+  worker. Écarté : une bibliothèque de rendu vectoriel (Cairo), qui demande des paquets système.
+- **Les fichiers en transit et les exports vivent dans le compartiment déjà réglé**
+  (`backups_bucket`), sous les préfixes `uploads/` — celui d'EP-03 — et `exports/` : les « trois
+  compartiments » de WF-DAT-0120 sont lus comme trois préfixes aux règles de disparition
+  distinctes, comme EP-03 l'a déjà fait pour `uploads/` ; la « Specification finding » de l'EPIC
+  fixe cette lecture d'une phrase, pour qu'aucun relecteur ne la rouvre. Rien ne change au script
+  qui crée les compartiments ; le Compose, lui, change pour la purge (ci-dessous). Écarté : trois
+  compartiments S3 et trois réglages.
+- **Le recalcul au changement des unités de durée ou du calendrier par défaut est fait dans la
+  transaction de l'écriture du référentiel**, pour toutes les structures des révisions en cours :
+  trois cents projets de mille tâches au plus (§4.6.2), un acte d'administration rare, sous la
+  permission d'écriture du référentiel, borné par le verrou de l'objet écrit ; `scheduled_at` de
+  chaque structure avance. L'ordre des verrous est fixé : le référentiel d'abord (l'objet écrit,
+  puis le verrou consultatif de sa règle), puis chaque `cost_structure` `FOR UPDATE` dans l'ordre
+  stable de (`project_id`, `id`) ; une saisie du planning ne verrouille jamais le référentiel,
+  qu'elle lit sans verrou, et prend sa structure seule — aucun interblocage possible, la saisie
+  attendant le recalcul ou l'inverse. Écarté : un recalcul paresseux à la lecture suivante, par comparaison
+  de `scheduled_at` à l'instant du changement, qui ferait écrire une lecture et dater une structure
+  sous `FOR UPDATE` dans un `GET`.
+- **Une seule chaîne de migrations pour EP-06, dans le socle**, `0022` le schéma et `0023` les
+  données (`planning_start_on` remplie), aux prochains numéros libres à la création
+  d'`epic/EP-06` — `epic/EP-04` est à `0021` ; aucun lot d'EP-06 n'écrit de migration après le
+  socle, et EP-07 chaîne la sienne sur `0023`, sans révision de fusion. Écarté : une migration par
+  US, qui donnerait deux têtes à la fusion d'EP-07.
+- **La tranche des tâches s'insère dans la chronologie d'EP-04 par un registre du chargeur** :
+  `witness/revisions.py` offre `register_revision_filler`, et appelle chaque remplisseur
+  enregistré après l'ouverture d'une révision et avant l'événement suivant ; la tranche des
+  tâches remplit ainsi les révisions 100, 101 et 102 avant leur marquage, par la réconciliation
+  de leur contenu décrit avec ce que la copie leur a donné. Écarté : une tranche après celle des
+  projets, qui ne pourrait plus écrire dans une révision marquée.
+
+### Tables et migrations
+
+Régime « révisionné » (§4.4.1), partitionnées par projet comme `cost_structure`, pour `node`,
+`task` et `task_link` ; régime « projet » pour `timeline`, `tracking_entry` et `import_report` ;
+lignes techniques pour `undo_entry` et `paste_plan`. UUID v7 engendrés par le service, ou
+imposés par le chargeur ; colonnes d'audit et `lock_version` sur chaque table dont les lignes se
+modifient ; textes triés en collation `C` ; règles SQL du guide pour le reste. Chaque clé refuse
+(`RESTRICT`), sauf à l'intérieur d'une révision en cours, où le §4.4.1 autorise la cascade et où
+elle évite un oubli à chaque chemin de suppression : la facette `task` suit son nœud, une liaison
+suit l'une ou l'autre de ses tâches, un nœud suit sa structure et son parent, une inscription suit
+sa chronologie ; une révision marquée ne supprime rien, ses déclencheurs d'immuabilité le
+refusant avant toute cascade. L'abandon d'une révision pleine (EP-04, `delete_structures`)
+supprime donc ses nœuds avec ses structures, et un test l'éprouve.
+
+| Table | Contenu | Contraintes |
+|---|---|---|
+| `node` | `project_id` (clé de partition), `id`, `revision_id`, `structure_id`, `lineage_id`, `kind`, `parent_id`, `rank`, `origin_risk_id` (nul ici, posé par EP-08), audit, `lock_version` | clé primaire (`project_id`, `id`) et unique (`project_id`, `id`, `kind`), que la facette cite ; `kind` dans `task`, `estimate_line` ; clé composite vers `cost_structure` et vers `node` (le parent, du même projet, nul pour une racine), toutes deux en cascade ; `rank` entier ≥ 1, unique sous (`structure_id`, `parent_id`, `kind`) par `UNIQUE NULLS NOT DISTINCT` — les racines, `parent_id` nul, comprises —, renuméroté parmi ses frères à chaque écriture — les lignes d'une tâche précèdent ses sous-tâches à la lecture, `position` et `row_number` calculés ; le parent d'une ligne est une tâche, celui d'une tâche jamais un jalon ni une ligne : tenu par le service, sous le verrou de la structure ; déclencheur d'immuabilité comme `cost_structure` |
+| `task` | `project_id`, `node_id` (clé primaire avec lui), `kind` (`CHECK (kind = 'task')`, clé composite (`project_id`, `node_id`, `kind`) vers `node` en cascade : un nœud `task` ne reçoit jamais une autre facette, sans que le service y veille ; « exactement une facette par nœud » reste au service, dans la transaction de la création), `label`, `description`, `scheduling_mode`, `duration_value` (`numeric`), `duration_unit`, `start_date`, `start_hours`, `finish_date`, `finish_hours`, `progress`, `started_on`, `completed_on`, `external_id`, `order_item_id`, `work_package_id`, `total_float_days` (`numeric`, nul en manuel), `is_critical` | `label` de 1 à 300 non blanc ; `scheduling_mode` dans `automatic`, `manual` ; `duration_unit` dans les dix unités de `DurationUnit` ; `duration_value` ≥ 0 ; `progress` dans les trois états ; `started_on` non nul si `progress` ≠ `not_started`, `completed_on` non nul si et seulement si `completed` ; `external_id` de 200 au plus ; `order_item_id` et `work_package_id` clés en refus, jamais tous deux non nuls ; un poste ou un lot porté par un seul nœud par structure (index unique partiel) ; les dates calculées sont conservées — une révision marquée garde les siennes —, l'instant du calcul étant celui de la structure (`cost_structure.scheduled_at`, que `NodeListMeta` lit) ; déclencheur d'immuabilité |
+| `task_link` | `project_id`, `id`, `revision_id`, `structure_id`, `predecessor_id`, `successor_id`, `link_type`, `lag_value`, `lag_unit`, `in_conflict` | clés composites vers `node` en cascade — la liaison suit l'une ou l'autre de ses tâches — ; `predecessor_id <> successor_id` ; unique (`structure_id`, `predecessor_id`, `successor_id`) — « deux tâches ne sont reliées que par une liaison au plus » — ; `link_type` dans les quatre types, `lag_unit` dans les onze unités de `LagUnit` ; l'absence de boucle et de liaison récapitulative–subordonnée est tenue par le service ; déclencheur d'immuabilité |
+| `cost_structure` | reçoit `planning_start_on` (`date`, nulle : le jour de la création de l'origine de la lignée, que le code calcule encore ; remplie par `0023` ; #2170) et `scheduled_at` (`timestamptz`, nul : l'instant de création) | aucune autre contrainte ; `copy_revision` reprend les deux |
+| `timeline` | `id`, `project_id`, `label`, audit | `label` de 1 à 200 non blanc, non unique ; clé vers `project` en refus ; supprimée physiquement |
+| `tracking_entry` | `id`, `project_id`, `lineage_id` (la lignée de la tâche), `kind` (`timeline`, `milestone_tracking`), `timeline_id` (nul pour `milestone_tracking`), audit | unique (`lineage_id`, `kind`, `timeline_id`) par `UNIQUE NULLS NOT DISTINCT` — une seule inscription au suivi temps/temps par lignée, `timeline_id` nul — ; clé vers `timeline` en cascade — une chronologie supprimée emporte ses inscriptions — ; `timeline_id` non nul si et seulement si `kind = timeline` |
+| `import_report` | `id`, `project_id`, `kind` (`ExchangeKind`), `filename`, `upload_id`, `object_key`, `structure_id`, `revision_id`, `period_from`, `period_to`, `status`, `report` (`jsonb`, codes et paramètres), `task_id` (la dernière tâche de fond), `requested_by`, `created_at`, `analysed_at`, `expires_at`, `applied_at` | `status` dans les huit valeurs d'`Import.status` ; `expires_at` non nul si et seulement si `analysed`, `applying`, `applied`, `abandoned` ou `expired` ; `report` objet ou nul ; clé vers `project` en refus ; `upload_id` unique — un dépôt ne sert qu'un import — |
+| `undo_entry` | `id`, `project_id`, `revision_id`, `user_account_id`, `session_id` (le `sid` du jeton), `rank`, `kind` (`UndoneKind`), `node_ids`, `before`, `after` (`jsonb` : les lignes de `node`, `task`, `task_link` et `tracking_entry` touchées, telles qu'elles étaient et telles qu'elles sont), `undone`, `created_at` | unique (`revision_id`, `user_account_id`, `session_id`, `rank`) ; clé vers `revision` en refus — le marquage et l'abandon suppriment les entrées d'abord — |
+| `paste_plan` | `id`, `project_id`, `revision_id`, `structure_id`, `user_account_id`, `target_node_id`, `target_column`, `rows` (`jsonb`), `structure_lock_version`, `created_at`, `expires_at` | une heure de vie ; clé vers `revision` en refus |
+
+- **Deux migrations, toutes deux dans le socle** (US-1380/L1), aux numéros `0022` et `0023` —
+  les prochains libres à la création d'`epic/EP-06`, à relire alors : `0022` crée les huit tables,
+  les deux colonnes de `cost_structure`, remplace `create_project_partitions` pour qu'elle crée
+  les partitions de `node`, `task` et `task_link` et crée celles des projets existants, pose les
+  déclencheurs d'immuabilité de ces trois tables sur le modèle de `cost_structure`, accorde les
+  droits du rôle du service — `SELECT`, `INSERT`, `UPDATE`, `DELETE` sur les huit tables : le
+  contenu d'une révision en cours, une chronologie, une inscription, un plan et une entrée
+  d'historique se suppriment physiquement, un compte rendu à son expiration ou à l'abandon
+  (§4.4.1) — et les déclare dans `SERVICE_RIGHTS` ; `0023` remplit `planning_start_on` de chaque structure par la date de
+  création de l'origine de sa lignée, et `scheduled_at` par la date de création de la structure,
+  comme le code les dérive aujourd'hui (règle 3 des migrations, « une donnée change dans sa propre
+  migration »). Les deux colonnes restent nullables (règle 1) : le code lit un nul comme la valeur
+  dérivée. **Aucune migration d'EP-06 après le socle** ; EP-07 chaîne la sienne sur `0023`.
+- **La partition** : `node_p_<uuid>`, `task_p_<uuid>`, `task_link_p_<uuid>`, par la fonction
+  remplacée (`CREATE OR REPLACE`), avec leur déclencheur de `TRUNCATE` ; la migration crée les
+  partitions des projets existants en lisant `project`.
+- **L'immuabilité** : une fonction de déclencheur par table révisionnée, dans le module
+  `planning`, qui lit l'état de la révision par `revision_id` sous `FOR KEY SHARE`, propriétaire
+  compris, comme `cost_structure_refuse_marked_change`.
+- Les tests : `test_migrations.py` (schéma, droits, partitions d'un projet créé),
+  `test_database_constraints.py` (une contrainte, un test), `test_revision_immutability.py`
+  étendu aux trois tables.
+
+### Modules
+
+| Module | Tables | Interface offerte |
+|---|---|---|
+| `waterfall.core.planning` (FBS-4.3) | `node`, `task`, `task_link`, `timeline`, `tracking_entry` | les nœuds lus (`listNodes` : filtres, `fields`, recherche, `row_number`, `summary_depth`, `scheduled_at`, totaux), une tâche créée, modifiée, supprimée, des nœuds déplacés, un numéro résolu, les dépendances d'une valeur calculée ; les prédécesseurs remplacés ; la date de début et le libellé d'une structure écrits ; l'état d'une tâche ; les chronologies et les inscriptions ; le squelette ; le moteur (`scheduling`, pur) et `reschedule(structure)` ; `revision_has_tasks(revision_id)` ; `copy_nodes(RevisionCopy)` ; `work_breakdown_item_cited(item_id)` et `detach_work_breakdown_item(project_id, item_id)` pour `core/projects` ; `tasks_left_idle(calendar…)` et `reschedule_current_structures()` pour `resource_settings` ; `lines_of(task)` et les règles de placement qu'EP-07 appelle pour une ligne ; `register_facet(kind, FacetHooks)`, par lequel EP-07 enregistre la lecture, la copie et la suppression de sa facette ; `load_*` avec identifiants et instants imposés |
+| `waterfall.core.history` (WF-IHM-0110, WF-IHM-0050) | `undo_entry`, `paste_plan` | `recording(session, change)` — un encadrement de l'écriture : `planning` lui donne, par son interface, l'instantané des nœuds touchés avant l'écriture puis après elle (`snapshot(node_ids)`), et `history` les garde sans lire aucune table d'un autre module — ; `undo(revision, actor)`, `redo(revision, actor)`, chacun rendant les nœuds à restituer que `planning` réécrit et redate ; `depth(revision, actor)` ; `close_history(revision_id)` pour le marquage et l'abandon ; `keep_plan`, `read_plan`, `drop_plan` ; `purge(before)` |
+| `waterfall.core.exchanges` (FBS-4.3.4, FLX-01 à FLX-07) | `import_report` | `register_format(ExchangeKind, Format)` et `register_exporter(ExportKind, Exporter)` ; le dépôt d'un fichier d'import (`deposit`), l'ouverture (`open_import` : l'en-tête par le format, les conditions, la tâche d'analyse), la lecture et la liste, l'abandon, l'application (`apply_import` : la revérification, la tâche) ; `run_analysis(task)`, `run_apply(task)`, `run_export(task)` pour le worker ; `result_of(task)` pour `getBackgroundTaskResult` et `consumed(task)` ; `purge(now)` : imports échus, dépôts expirés, exports échus ; l'analyseur XML durci, pour tout format XML |
+
+- **Le moteur** (`core/planning/scheduling/`) est pur : il reçoit une structure — les tâches
+  (identifiant, parent, mode, durée et unité, dates manuelles, heures hebdomadaires de leur
+  calendrier applicable), les liaisons, la date de début de planning, les constantes d'unités —
+  et rend pour chaque tâche son début et sa fin (`WorkInstant`), sa marge totale en jours, sa
+  criticité, les liaisons en conflit, et la tâche qui porterait la fin au-delà de quinze ans. Il
+  compte en heures de travail sur le calendrier de chaque tâche, les durées et décalages
+  convertis par les constantes, les décalages écoulés sur vingt-quatre heures dont les heures
+  travaillées occupent les premières positions (WF-PLA-0160) ; une tâche manuelle est une date
+  imposée qui borne ses voisines (WF-PLA-0100) ; une récapitulative couvre ses subordonnées, et
+  porte la plus petite marge de celles qui en portent. Il refuse une boucle et une liaison entre
+  une récapitulative et sa subordonnée en nommant la chaîne la plus courte, au plus près du
+  contrat. Les tests des Vérif et le corpus l'éprouvent sans base.
+- **Chaque écriture de nœud** se fait sous le verrou de la structure (`cost_structure` `FOR
+  UPDATE`, après celui de la révision quand elle juge `revision_draft`), appelle le moteur sur la
+  structure entière, écrit les dates et les marges qui changent, avance `scheduled_at`, inscrit
+  son entrée d'historique (`history.record`), et rend `NodesWritten` — `rescheduled` les tâches
+  dont le calendrier a changé, `ancestors` les récapitulatives recalculées, `reinflated` vide
+  jusqu'à EP-07.
+- **Le calendrier applicable** d'une tâche est, ici, le calendrier par défaut : `planning`
+  demande à `resource_settings` le calendrier par défaut et offre `register_facet` à EP-07, qui
+  lui donnera les calendriers des rôles de ses lignes et leur intersection, par la même fonction
+  `calendar_of(task)`.
+- **Les commandes** de la révision, des structures, du projet et de l'import se calculent par les
+  mêmes fonctions que les refus 409, dans l'ordre du contrat ; `generate_skeleton`,
+  `manage_timelines`, `export_planning`, `export_task_tree_image` et `edit_planning` sont ajoutées
+  par `planning` aux commandes qu'EP-04 rend, par les fonctions que `core/projects` et
+  `core/revisions` lui exposent déjà ou qu'il complète.
+
+### Les points d'extension
+
+EP-06 est le premier EPIC à remplir ceux d'EP-04 et à créer ceux qu'EP-05 a laissés en
+promesse ; chacun est un registre ordonné sur le modèle de `core/revisions/registry.py`, rempli à
+l'import de l'interface du module qui enregistre, et le test des points d'entrée de #2180 les
+couvre tous : pour chaque processus — l'API (`create_app`), le worker (`handlers`), le chargeur
+(`load_witness`) — et chaque registre, les extensions attendues sont présentes.
+
+| Module | Registre | Qui le remplit | Ce qu'il fait |
+|---|---|---|---|
+| `core/revisions` | `register_copy` (EP-04) | `planning` (les nœuds, leur facette tâche, les liaisons, après les structures) ; EP-07 (la facette ligne, les images) | `copy_revision` |
+| `core/revisions` | `register_tasks_and_lines` (EP-04) | `planning` (`revision_has_tasks`) ; EP-07 (les lignes) | la désignation de la référence |
+| `core/revisions` | `register_closing` (nouveau, créé par le socle) | `history` (`close_history`), puis `planning` (`delete_nodes`, à l'abandon seul) | le crochet commun du marquage et de l'abandon, appelé avant que la révision ne s'écrive, chaque module y faisant sa part dans l'ordre de l'enregistrement — l'historique et les plans d'abord, puis les nœuds, puis les structures d'EP-04 (`delete_structures`) : l'abandon d'une révision pleine ne laisse aucune ligne (WF-DAT-0010) ; la cascade des clés tient le même ordre si un chemin l'oublie |
+| `core/resource_settings` | `register_idle_task_guard` (nouveau ; remplace le `True` de `calendar_change_is_admissible`) | `planning` (`tasks_left_idle` : les projets dont une tâche d'une révision en cours n'aurait plus aucune heure dans la semaine) | `updateCalendar`, `setDefaultCalendar`, `updateResourceRole` refusent par `TASK_WITHOUT_WORKING_HOURS`, `params.projects` ; ici le calendrier par défaut, EP-07 les rôles |
+| `core/resource_settings` | `register_recalculation` (nouveau) | `planning` (`reschedule_current_structures`) | `set_duration_units` et l'écriture d'un calendrier redatent, dans leur transaction, les structures des révisions en cours |
+| `core/projects` | `register_attachments` (nouveau) | `planning` (`work_breakdown_item_cited`, `detach_work_breakdown_item`) | `set_work_breakdown` marque supprimé un lot ou un poste qu'une tâche d'une révision marquée porte (`deleted_at`), le supprime sinon, et retire le rattachement des tâches de la révision en cours ; `follow_project_label` ne change pas |
+| `core/planning` | `register_facet` (nouveau) | EP-07 (`estimate_line`) | `listNodes` rend la facette, la copie et la suppression d'un nœud l'emportent, `calendar_of` lit ses rôles |
+| `core/exchanges` | `register_format`, `register_exporter` (nouveaux) | `planning` (`ms_project_schedule`, `task_tree_image`) ; EP-07, EP-09 | l'ouverture, l'analyse, l'application et l'export d'une nature |
+| `witness/revisions` | `register_revision_filler` (nouveau) | `witness/tasks` ; EP-07 | le contenu d'une révision écrit entre son ouverture et l'événement suivant |
+
+### L'import en deux temps et les formats
+
+- **Un format** est un objet qui sait trois choses : lire l'en-tête d'un fichier déposé et dire
+  s'il le reconnaît (`FILE_FORMAT_UNREADABLE`, `expected_format`, `expected_version`) ;
+  analyser le fichier contre la structure visée et produire un `ImportReport` en codes, sans rien
+  écrire ; appliquer un compte rendu à la structure, dans la transaction de la tâche, en rejugeant
+  ce que l'analyse acceptait. `exchanges` ne connaît aucun format : il résout celui de `kind`
+  dans son registre, et ne lit du fichier que ce que le format lui demande.
+- **Le dépôt** (`uploadFile`) écrit l'objet sous `uploads/<upload_id>` et une ligne de
+  `file_upload` (EP-03, `purpose: import`, `completed_at` posé, sans morceaux — la table admet un
+  dépôt d'une seule pièce : `part_count` à 1, `part_size_bytes` à la borne), vingt-quatre heures
+  de vie ; 413 au-delà de 10 Mio, 422 pour `external_backup`.
+- **L'ouverture** juge, dans l'ordre du contrat, `project_not_terminal`, le dépôt (404 inconnu,
+  expiré ou déjà employé — `import_report.upload_id` unique), l'usage (422
+  `UPLOAD_PURPOSE_MISMATCH`), la structure (404), `no_background_task_running`,
+  `may_create_revision`, puis lit l'en-tête par le format, écrit la ligne `analysing` et dépose
+  `import_analysis` dans la transaction, sous le verrou du projet.
+- **L'analyse** (worker) lit le fichier du stockage en flux, appelle le format sur la structure
+  visée — celle de la révision en cours, ou de la dernière marquée quand l'application créera la
+  révision —, écrit le compte rendu et `expires_at` à vingt-quatre heures, passe `analysed` ; une
+  exception typée passe l'import `failed`, le fichier supprimé.
+- **L'application** (`applyImport`) revérifie la permission et la qualité de contributeur de
+  l'appelant, l'état de l'import (`import_awaiting_decision`, `import_file_accepted`), puis les
+  conditions de l'ouverture, et dépose `import_apply` ; refusée par l'une d'elles, elle passe
+  l'import `refused` et supprime le fichier (#1790). Le worker, dans la transaction de la tâche,
+  revérifie de nouveau, crée la révision en cours au besoin par `create_revision` (EP-04),
+  applique par le format sous le verrou de la structure, redate, passe `applied`, supprime le
+  fichier, et l'historique annulable ne reçoit rien (WF-IHM-0110). Une tâche en file ou en cours
+  qui vise le projet rend `no_background_task_running` manquante aux autres écritures (EP-04).
+- **L'expiration** se juge à la lecture (`analysed` dont `expires_at` est passé se lit
+  `expired`, et `apply` le refuse) et s'écrit par la purge.
+- **Le compte rendu** est conservé en codes et paramètres (`ImportReport` tel que le contrat le
+  lit) ; l'écran le rend par son catalogue (WF-ARC-0110).
+
+### Le format MS Project
+
+- **Lecture** : XML MSPDI (`Project`, `Tasks/Task`, `PredecessorLink`, `Calendars`,
+  `Resources`, `Assignments`, `ExtendedAttributes`), par l'analyseur durci de `exchanges`, en un
+  modèle en mémoire (`core/planning/msproject/model.py`) sans base : l'arbre par `OutlineLevel` et
+  l'ordre du fichier, le libellé, les notes (la description, C-375), `Manual`, `Duration` et son
+  format (unité et temps écoulé), `Start`/`Finish`, `Milestone`, `ConstraintType`, les liaisons
+  (`Type`, `LinkLag`, `LagFormat`), `StartDate` du projet, `MinutesPerDay`, `MinutesPerWeek`,
+  `DaysPerMonth`, et `GUID` ou un champ étendu `Waterfall.lineage` pour la lignée que l'export
+  écrit ; `UID` conservé comme `external_id`. Ce que le fichier porte en plus est compté dans
+  `ignored` par nature.
+- **Analyse** : rapprochement par la lignée, puis par `external_id` ; les tâches sans
+  identifiant créées, les absentes supprimées selon WF-PLA-0070 (démarrées et terminées `kept`) ;
+  les liaisons remplacées et leurs écarts présentés ; une récapitulative manuelle importée en
+  automatique (`SUMMARY_TASK_DERIVED` dans `signals`) ; une date manuelle chômée gardée et
+  signalée (`NON_WORKING_DAY`) ; une tâche sous un jalon rejetée (`MILESTONE_HAS_NO_SUBTASK`) ;
+  la date de début du projet comparée à `planning_start_on` (écart `cost_structure`) ; les
+  constantes d'unités du fichier converties en heures et leur différence signalée ; le moteur
+  rejoué sur la structure résultante pour `date_mismatches`, `PROJECT_HORIZON_EXCEEDED` et
+  `ORDER_ITEM_OUTSIDE_WORK_PACKAGE` (`refusals`) ; les ressources, calendriers, avancement, coûts,
+  champs personnalisés et contraintes ignorés et nommés.
+- **Export** : le worker écrit le XML — `StartDate` à `planning_start_on`, les constantes
+  d'unités, un calendrier de projet et un calendrier de tâche par calendrier applicable distinct
+  (`calendar_hours`), chaque tâche avec `UID`, `OutlineLevel`, `Name`, `Notes` (la description),
+  `Manual`, `Duration` dans son unité, `Start`, `Finish`, `Milestone`, `CalendarUID`, sa lignée
+  en `GUID`, les `PredecessorLink` avec `Type`, `LinkLag`, `LagFormat` —, dans l'ordre du schéma,
+  et le dépose sous `exports/<task_id>.xml`.
+- **Le corpus** : `fixtures/msproject/*.xml`, un test par fichier qui le lit, donne au moteur
+  les calendriers du fichier, et compare chaque début et chaque fin à ceux du fichier ; un test
+  qui liste les cas du corps et nomme ceux qu'aucun fichier ne porte ; un test de validation de
+  l'export contre le XSD, non exécuté sans `WATERFALL_MSPDI_SCHEMA_PATH`.
+
+### Les exports
+
+- `requestExport` dépose une tâche `export` (202), gardée par la commande `export_*` de la
+  révision — présente ou absente, sans condition — ; le worker appelle l'exporteur de `kind`,
+  qui rend le fichier, son type et son nom, déposés sous `exports/<task_id>.<ext>` ; la tâche
+  réussit avec un résultat `{object_key, filename, media_type}`, et `result_url` de la tâche est
+  la route de `getBackgroundTaskResult` : US-1430 étend `result_url` dans `api/tasks.py` pour les
+  tâches `export` réussies et consommées, et corrige le commentaire qui l'attendait d'EP-07 ; une
+  seule US de l'EPIC touche ce fichier.
+- `getBackgroundTaskResult` répond 409 `task_succeeded` avant l'aboutissement, transmet le
+  fichier en flux (`Content-Disposition`, `filename*` en UTF-8), et, une fois le dernier octet
+  envoyé, supprime l'objet et marque le résultat consommé (`result_url` nul, 404 ensuite) ; un
+  flux interrompu laisse l'objet. La purge supprime les exports de plus de vingt-quatre heures.
+- L'image de l'arborescence : Pillow, la police embarquée, le premier niveau à l'horizontale et
+  les suivants à la verticale sous leur parent, l'image à la taille de son contenu, un en-tête
+  — le projet, la révision, la date de calcul — dans la langue du compte demandeur, par un petit
+  catalogue du back à deux langues (WF-ARC-0110).
+
+### L'historique annulable et le collage
+
+- **Une entrée par saisie**, écrite dans la transaction de la saisie par `history.recording`, un
+  encadrement que chaque écriture de `planning` ouvre avant d'écrire et ferme après : des deux
+  côtés, `planning` prend lui-même l'instantané des nœuds qu'elle crée, modifie ou supprime — leurs
+  lignes de `node`, `task`, `task_link` et `tracking_entry`, par sa fonction `snapshot` — et le
+  donne à `history`, qui le garde en JSONB sans lire aucune table de `planning` (guide, « les
+  modules du noyau ne se lisent que par leur interface »). La pile est par révision, par
+  compte et par session de connexion : le `sid` du jeton d'accès, que `platform/keycloak.py`
+  ajoute à `Bearer` (il ne lit aujourd'hui que `sub` et `auth_time`) et que `Caller` porte — il
+  survit aux rafraîchissements du jeton, toutes les cinq minutes, qui videraient une pile liée au
+  jeton lui-même. Une saisie nouvelle supprime les entrées défaites de la pile.
+- **L'annulation** lit la dernière entrée non défaite, vérifie que chaque nœud d'`after` est
+  toujours à sa version — sinon 409 `UNDO_CONFLICT`, l'objet repris nommé —, restitue `before`
+  (lignes recréées, modifiées ou supprimées) sous les règles de la saisie, redate la structure,
+  marque l'entrée défaite et rend `UndoResult` avec `NodesWritten` ; le rétablissement fait de
+  même avec `after`. Au moins cinquante entrées par pile ; le marquage et l'abandon
+  (`register_closing`) les suppriment ; la purge retire celles d'une session de plus de
+  `WATERFALL_UNDO_RETENTION_HOURS`, douze par défaut — la durée maximale d'une session du royaume
+  (`ssoSessionMaxLifespan: 43200`, deux heures d'inactivité). Écart assumé : une pile survit à la
+  fin de sa session jusqu'au passage de la purge, le serveur n'apprenant pas la fin d'une session
+  de Keycloak ; aucune requête ne la lit plus, son `sid` étant mort, et aucun Vérif ne l'éprouve.
+- **Le collage** : `previewPaste` juge chaque cellule du bloc sur la facette tâche dans l'ordre
+  de `NodeColumn` par les mêmes fonctions que la saisie d'une cellule, garde le plan dans
+  `paste_plan` avec le compteur de la structure, et rend `PastePlan` ; `applyPaste` relit le plan,
+  refuse par 412 une structure qui a bougé, rejuge, écrit les lignes acceptées en une opération et
+  une seule entrée d'historique (`paste`), et rend `PasteApplied`.
+
+### La purge
+
+`waterfall-worker purge` : sous un verrou consultatif de transaction, il passe `expired` les
+imports `analysed` échus et supprime leur fichier, supprime les dépôts de `file_upload` échus et
+leur objet — ceux d'EP-03 compris, par morceaux inachevés —, supprime les objets des exports
+réussis de plus de vingt-quatre heures et marque leur résultat consommé, retire les plans de
+collage échus et les entrées d'historique des sessions anciennes ; chaque suppression du stockage
+hors transaction, après la validation, comme EP-03 fait ses dépôts. Le service `scheduler` du
+Compose de service et de celui de production reçoit une seconde boucle, qui l'appelle à
+l'intervalle de `WATERFALL_PURGE_INTERVAL` (600 s), la variable passée par les deux Compose et
+`production.env.example` ; `make service-purge` pour la main. C'est la seule modification du Compose
+de l'EPIC.
+
+### Le service d'API
+
+- Un routeur par US — `api/nodes.py` (US-1380), `api/scheduling.py` (US-1390 : `setPredecessors`,
+  `updateCostStructure`), `api/timelines.py` (US-1400), `api/progress.py` (US-1410),
+  `api/imports.py` (US-1420, `uploadFile` compris), `api/exports.py` (US-1430, US-1440 :
+  `requestExport`, `getBackgroundTaskResult`), `api/history.py` (US-1450), `api/skeleton.py`
+  (US-1460) —, créés vides et enregistrés dans `app.py` par le socle, chacun rempli par son US ;
+  chaque routeur a son fichier `asked_*.py` de la table des permissions et des qualités.
+- Chaque route d'un projet déclare `RequiresProject(...)` : la consultation (`planning.read`) pour
+  les lectures ; la qualité de contributeur et `planning.write` pour les écritures du planning,
+  `remaining.write` pour `setTaskProgress`, `planning.write` pour les imports de planning et les
+  chronologies, la permission de consulter la nature pour un export ; `getBackgroundTaskResult`
+  lit la tâche du seul appelant, comme `getBackgroundTask`.
+- Les refus sont ceux du contrat, code par code, dans l'ordre que chaque opération écrit ; chaque
+  réponse d'un test passe par `ContractClient` ; `test_access_evaluation.py` reçoit chaque
+  opération avec ses deux termes.
+
+### Le worker
+
+Trois gestionnaires enregistrés dans `handlers` par le socle — `import_analysis`,
+`import_apply`, `export` — dans `worker/exchanges.py`, qui appellent l'interface de `exchanges` ;
+une tâche échoue avec le code de son exception typée, rien n'étant écrit ; le verbe `purge` dans
+`worker/main.py`. Le worker importe l'interface de `planning` pour que les registres soient
+remplis (#2180).
+
+### Le chargeur du témoin
+
+- **Un lot d'outil**, `make mock-data` écrit `fixtures/api/witness_tasks.json`, à côté de la
+  chronologie : pour chaque révision de PRJ-001 (100, 101, 102), ses tâches par lignée — le
+  parent par sa lignée, le rang, la facette, les liaisons, l'état et ses dates, les inscriptions
+  — et la date de début de planning de la structure, depuis `wftools.mockwitness`,
+  `mockstructure` et `mockhistory` ; le back le lit par un modèle propre, strict, sans importer
+  `wftools`.
+- **La tranche** : `witness/tasks.py` s'enregistre par `register_revision_filler` et, après
+  l'ouverture d'une révision par la tranche des révisions, réconcilie par lignée les tâches que
+  la copie lui a données avec celles que le fichier décrit pour cette révision — création,
+  modification, suppression, liaisons, états, inscriptions — par l'interface de `planning`, aux
+  identifiants et à l'instant imposés, puis laisse le marquage venir ; `witness/timelines.py`
+  charge les deux chronologies de PRJ-001 dans la tranche des projets, après le lotissement et
+  avant les révisions, pour que les inscriptions des tâches les trouvent.
+  Les dates sont celles que le moteur calcule : le calculé devient l'attendu, et un désaccord
+  avec `nodes_planning` se tranche par la spécification, la fixture corrigée.
+- **Dans l'ordre d'EP-04** : la tranche des tâches ne touche ni `loader.py` ni l'ordre des
+  tranches des projets ; le socle attend la fusion d'US-0990/L2 (#2069), qui écrit encore
+  `witness/revisions.py`, avant d'y déclarer le registre.
+
+### Le front
+
+- Les écrans sont ceux d'EP-02, d'EP-14 et d'EP-15 ; chaque US branche le sien et retire
+  `MockupNotice` de la page qu'elle sert en dernier : les chronologies par US-1400, les échanges
+  et l'encart « Démarrer le projet » par US-1430, l'arborescence par US-1440, le planning par
+  US-1470. Les aides `frontend/help/fr/FBS-4.3*.md` disent ce que le service fait, par l'US de
+  leur écran.
+- Les replis de `listNodes` (#496) sont retirés par US-1400 (`inscribedTo`) et US-1440
+  (`summaryTree`), et l'écart d'EP-02 retiré avec le second.
+- Annuler et Rétablir sont branchées par US-1450 (`undo-commands.tsx`) sur `undoLastChange` et
+  `redoLastUndo` ; le collage du planning joue contre le service.
+- La route `/tasks/[taskId]/result` du front (EP-02/L38) transmet déjà le résultat ; US-1430 la
+  joue contre le service.
+
+### Le harnais
+
+Chaque US étiquette `@shared` les tests dont l'écran est servi : US-1400 `timelines.spec.ts` ;
+US-1430 `exchanges.spec.ts` et `tasks.spec.ts` ; US-1440 l'arborescence de `planning.spec.ts` ;
+US-1450 `undo.spec.ts` et `paste.spec.ts` pour le planning ; US-1460 les étapes du squelette de
+`project-start.spec.ts` (`BEFORE_EP06` levé) ; US-1470 `planning.spec.ts`, `structure.spec.ts`,
+`computed.spec.ts`, `keyboard.spec.ts`, la part du planning de `grid.spec.ts` et de
+`context.spec.ts` (`BEFORE_THE_DATA` levé pour le planning). Les parcours qui écrivent le font sur
+un projet que la course crée (#2193) ; les lectures du témoin se jouent des deux côtés. Ce qui ne
+se rejoue pas avant EP-07 — les lignes, les montants, le devis — reste gardé par `inService` et
+listé dans le guide, chaque entrée nommant l'EPIC qui la lève.
+
+### Les tests du back
+
+Un fichier par objet et par règle — `test_nodes.py`, `test_nodes_move.py`, `test_scheduling.py`
+(le moteur, sans base), `test_scheduling_links.py`, `test_planning_start.py`,
+`test_timelines.py`, `test_tracking.py`, `test_progress.py`, `test_imports.py` (la mécanique, avec
+un format d'essai des tests), `test_msproject.py`, `test_msproject_corpus.py`,
+`test_exports.py`, `test_task_tree_image.py`, `test_history.py`, `test_paste.py`,
+`test_skeleton.py`, `test_purge.py`, `test_registries.py` (#2180), `test_witness_tasks.py` —,
+chaque test citant son exigence, chaque réponse validée contre le contrat ; les exemples
+chiffrés des Vérif sont des tests sans base quand ils le peuvent (`tests/examples`). Les fixtures
+communes du planning — une structure avec ses tâches par l'interface, les sessions — vivent dans
+`tests/planning_support.py`, écrit par le socle. Un test de concurrence par règle d'ensemble :
+deux écritures d'une même structure, deux applications d'un même import, deux annulations.
+
+### L'ordre de construction
+
+Le socle d'abord, puis ce qui ne dépend que de lui en largeur quatre, l'arbre dès que le moteur
+est là, les écrans par l'US qui sert leur objet, la vérification d'ensemble en dernier ; le plan
+de lots (étape 3) le détaille en vagues.
+
+1. **US-1380/L1**, le socle — après la fusion d'US-0990/L2 d'EP-04 (#2069) : les deux
+   migrations, les trois modules à vide et leurs interfaces en paquet, les registres nouveaux
+   déclarés dans `core/revisions`, `core/projects`, `resource_settings` et `witness/revisions`,
+   les routeurs vides, les gestionnaires du worker et le verbe `purge` déclarés, les fichiers de
+   tranche, de tests et `planning_support.py`, le test des points d'entrée (#2180). **Lot pivot
+   d'EP-07** : `epic/EP-07` se tire d'`epic/EP-06` dès sa fusion. Il lui garantit la table `node`
+   avec `kind` à deux valeurs, la facette `task`, `task_link`, les registres `register_copy`,
+   `register_tasks_and_lines`, `register_closing` et `register_facet`, l'interface de
+   `core/exchanges` (`register_format`, `register_exporter`) et celle de `core/history`, la chaîne
+   des migrations arrêtée à `0023` ; EP-07 ajoute par sa migration la table `estimate_line`
+   (clé vers `node`), les tables images de la révision, et chaîne sur `0023`. En parallèle, le lot
+   d'outil d'US-1480 (`witness_tasks.json`).
+2. **Le moteur pur** (US-1390), **la mécanique d'import** (US-1420), **les chronologies**
+   (US-1400, la lecture et l'écriture des chronologies), **le lecteur et l'écrivain MS Project**
+   (US-1430, purs, avec le corpus) et **l'historique** (US-1450, `record`, `undo`, `redo` sur
+   des lignes posées) : tout ce qui ne dépend que du socle.
+3. **L'arbre des tâches** (US-1380 : lecture, création, modification, suppression, puis
+   déplacement, rattachement, numéro, dépendances), après le moteur et l'historique ; **les
+   exports** (US-1430 : la tâche `export`, le stockage, `getBackgroundTaskResult`, la purge des
+   exports) et **la purge** (US-1420).
+4. **Les liaisons et la date de début** (US-1390), **les inscriptions** (US-1400), **l'état**
+   (US-1410), après l'arbre.
+5. **L'analyse et l'application MS Project** (US-1430), **le collage** (US-1450), **le
+   squelette** (US-1460), **l'image de l'arborescence** (US-1440), après l'arbre et les liaisons.
+6. **La grille et le Gantt** (US-1470), **l'export et l'écran des échanges** (US-1430), **les
+   commandes Annuler et Rétablir** (US-1450), **la tranche des tâches** (US-1480), après tout ce
+   qui écrit ; puis **la vérification d'ensemble** (US-1480), seule.
 
 ---
 
