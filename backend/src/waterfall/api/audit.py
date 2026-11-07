@@ -37,6 +37,7 @@ from waterfall.platform.audit_consultation import (
     AuditColumn,
     AuditFilters,
     AuditSort,
+    by_code,
     journal_actors,
     journal_projects,
     list_entries,
@@ -179,10 +180,10 @@ def get_audit_events(
 def _projects_today(session: Session) -> list[AuditProject]:
     """Name each project of the journal as it is today, as it was inscribed if it is gone (#927).
 
-    A project that exists but bears no code today keeps the code of its latest inscription: the
-    contract requires a code to sort on, and the inscription of a project without code is refused
-    (`platform/audit.py`), so the inscription always holds one. The label, never null in the
-    project, is read as it is. The projects are read together, in one grouped query, not one by one.
+    A project that exists but bears no code today keeps the code of its latest inscription, if
+    that one held a code; a project that never bore one is named without code, after the codes
+    (#2166). The label, never null in the project, is read as it is. The projects are read
+    together, in one grouped query, not one by one.
     """
     named = journal_projects(session)
     present = projects_named(session, [project.project_id for project in named])
@@ -193,7 +194,7 @@ def _projects_today(session: Session) -> list[AuditProject]:
             today.append(AuditProject(project.project_id, code or project.code, label))
         else:
             today.append(project)
-    return sorted(today, key=lambda project: (project.code, project.project_id))
+    return sorted(today, key=by_code)
 
 
 @router.get("/audit-events/facets", operation_id="listAuditFacets", dependencies=READ)
@@ -206,7 +207,7 @@ def get_audit_facets(session: Transaction) -> AuditFacets:
     the names, as the sort of the journal puts it. A project by the code and the label it bears
     today, read through the module of the projects — by those of its latest inscription if it no
     longer exists (#927) —, in the order of the codes compared code point by code point, then of
-    the identifiers.
+    the identifiers; a project without code after the codes (#2166).
     """
     named = journal_actors(session)
     today = read_authors(session, [actor.user_id for actor in named])

@@ -494,9 +494,8 @@ def _unique_code(session: Session, project_id: UUID, code: str | None) -> Genera
 def _inscribe_creation(session: Session, project: Project, act: Act) -> None:
     """Inscribe the creation in the journal, the project named by its label and its code, if any."""
     audited = AuditObject("project", project.id, project.label)
-    # The journal names a project by both its code and its label, or not at all: a project
-    # without code is named by its object alone until it has one.
-    named = None if project.code is None else AuditProject(project.id, project.code, project.label)
+    # A project without code is named all the same, its code null (#2166).
+    named = AuditProject(project.id, project.code, project.label)
     actor = inscribed_actor(session, act.author)
     record(session, Inscription("project_create", actor, audited, act.at, project=named))
 

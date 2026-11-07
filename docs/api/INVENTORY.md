@@ -160,7 +160,7 @@ Le contrat cite **189 des 212 exigences** de la spécification.
 | Méthode | Chemin | Opération | Exigences citées |
 |---|---|---|---|
 | GET | `/projects/{project_id}/revisions` | Historique des révisions | WF-IHM-0020, WF-REV-0070, WF-REV-0090 |
-| POST | `/projects/{project_id}/revisions` | Ouvrir la révision en cours | WF-DAT-0010, WF-DAT-0020, WF-PLA-0170, WF-REV-0010, WF-REV-0050, WF-REV-0060, WF-REV-0100, WF-RIS-0060 |
+| POST | `/projects/{project_id}/revisions` | Ouvrir la révision en cours | WF-DAT-0010, WF-DAT-0020, WF-PLA-0170, WF-REV-0010, WF-REV-0050, WF-REV-0060, WF-REV-0090, WF-REV-0100, WF-RIS-0060 |
 | GET | `/projects/{project_id}/revisions/{revision_id}` | Une révision et son instantané | WF-REV-0030, WF-REV-0090 |
 | DELETE | `/projects/{project_id}/revisions/{revision_id}` | Abandonner la révision en cours | WF-DAT-0010, WF-DAT-0020, WF-IHM-0110, WF-REV-0010, WF-RIS-0020, WF-RIS-0060 |
 | POST | `/projects/{project_id}/revisions/{revision_id}/mark` | Marquer la révision | WF-ARC-0090, WF-DAT-0040, WF-DEV-0010, WF-IHM-0080, WF-REV-0020, WF-SEC-0030 |

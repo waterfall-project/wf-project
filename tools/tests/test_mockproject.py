@@ -14,6 +14,7 @@ from decimal import Decimal
 from typing import Any, cast
 
 import pytest
+import yaml
 
 from wftools import (
     REPOSITORY,
@@ -141,6 +142,13 @@ TOLD: dict[str, tuple[int, str, list[tuple[str, str]], dict[str, Any]]] = {
         [("/contributors/1/user_id", "USER_INACTIVE"), ("/contributors/4/user_id", "UNKNOWN_USER")],
         {},
     ),
+    "contributors_account_doubled": (
+        422,
+        "VALIDATION_FAILED",
+        [("/contributors/4/user_id", "VALIDATION_FAILED")],
+        {},
+    ),
+    "contributors_too_many": (422, "VALIDATION_FAILED", [("/contributors", "VALUE_TOO_LONG")], {}),
 }
 """What each refusal of the project, its subprojects and its contributors tells, as its summary
 says it: its status and code, the fields it names with their motive, in order, and its
@@ -163,6 +171,8 @@ SAID = {
     ],
     "contributors_without_manager_refused": ["sans aucun chef de projet"],
     "contributors_accounts_refused": ["Alix Moreau", "deuxième ligne", "cinquième"],
+    "contributors_account_doubled": ["Lucas Petit", "cinquième ligne", "troisième ligne"],
+    "contributors_too_many": ["cinq cent une lignes", "cinq cents lignes"],
 }
 """What the summary of each refusal says of the value sent, by the fields and motives it tells."""
 
@@ -750,6 +760,24 @@ def test_the_list_without_a_manager_is_refused_without_parameter() -> None:
     assert set(refused) == {"code", "status", "correlation_id"}
     managers = [c for c in fixture("contributors")["items"] if c["kind"] == "project_manager"]
     assert len(managers) == 1
+
+
+def test_the_doubled_account_and_the_bound_of_the_list_are_those_of_the_witness_and_contract(
+    examples: dict[str, Any],
+) -> None:
+    # The account written twice is Lucas Petit, third of the list of the witness; the second row
+    # alone is pointed at (#2163).
+    doubled = examples["contributors_account_doubled"]
+    contributors = fixture("contributors")["items"]
+    assert contributors[2]["display_name"] == "Lucas Petit"
+    assert len(contributors) == 4
+    assert doubled["value"]["fields"][0]["pointer"] == f"/contributors/{len(contributors)}/user_id"
+    # The bound the refusal names is the one the schema of the write declares (#2162).
+    schema = yaml.safe_load((SCHEMAS / "projects.yaml").read_text(encoding="utf-8"))
+    bound = schema["ContributorsWrite"]["properties"]["contributors"]["maxItems"]
+    [field] = examples["contributors_too_many"]["value"]["fields"]
+    assert field["params"] == {"max_length": bound}
+    assert bound == 500
 
 
 def test_each_suggestion_names_its_node_and_its_roles_as_the_reference_reads_them() -> None:

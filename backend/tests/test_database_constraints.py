@@ -290,6 +290,8 @@ def write_inscription(**overrides: object) -> Executable:
         ({"actor_display_name": "Claire Martin"}, "ck_audit_entry_actor_named"),
         ({"project_id": uuid4(), "project_code": "PRJ-001"}, "ck_audit_entry_project_named"),
         ({"project_code": "PRJ-001", "project_label": "Poste"}, "ck_audit_entry_project_named"),
+        # A code without a project (#2166).
+        ({"project_code": "PRJ-001"}, "ck_audit_entry_project_named"),
         ({"object_label": None}, "ck_audit_entry_object_labeled"),
         # A revision keeps its label in every inscription but its abandonment's.
         (
@@ -324,6 +326,28 @@ def test_an_anonymized_account_is_named_by_no_label_as_author_or_as_object(
     assert refusal(database, write_inscription(object_label=None)) == (
         "ck_audit_entry_object_labeled"
     )
+
+
+@pytest.mark.requirement("WF-SEC-0030-A")
+def test_a_project_without_code_is_inscribed_by_its_identifier_and_its_label(
+    database: Database,
+) -> None:
+    # A project is born without code (WF-PRJ-0010): its creation is inscribed all the same (#2166).
+    project_id = uuid4()
+    statement = write_inscription(
+        action="project_create",
+        object_kind="project",
+        object_id=project_id,
+        object_label="Poste",
+        project_id=project_id,
+        project_label="Poste",
+    )
+    with database.engine.begin() as connection:
+        connection.execute(statement)
+        named = connection.execute(
+            select(AuditEntry.project_id, AuditEntry.project_code, AuditEntry.project_label)
+        ).all()
+    assert [tuple(row) for row in named] == [(project_id, None, "Poste")]
 
 
 @pytest.mark.requirement("WF-SEC-0030-A")

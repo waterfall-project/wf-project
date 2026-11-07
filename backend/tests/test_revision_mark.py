@@ -97,9 +97,9 @@ def revisions_of(stage: Scene) -> str:
     return f"{PROJECTS}/{stage.project['project_id']}/revisions"
 
 
-def open_revision(api: ContractClient, stage: Scene) -> dict[str, Any]:
+def open_revision(api: ContractClient, stage: Scene, **body: Any) -> dict[str, Any]:
     """Open the current revision of the project of the stage, as its manager does."""
-    response = api.post(revisions_of(stage), headers=stage.manager.headers, json={})
+    response = api.post(revisions_of(stage), headers=stage.manager.headers, json=body)
     assert response.status_code == 201, response.text
     return response.json()
 
@@ -172,14 +172,22 @@ def markings(database: Database) -> list[AuditEntry]:
 
 
 def around(
-    database: Database, queue: TaskQueue, stage: Scene, revision: dict[str, Any], name: str
+    database: Database,
+    queue: TaskQueue,
+    stage: Scene,
+    revision: dict[str, Any],
+    name: str,
+    **described: str | None,
 ) -> UUID:
-    """Write a task of marking around the request, which judges nothing: the worker must."""
+    """Write a task of marking around the request, which judges nothing: the worker must.
+
+    The payload carries a ``description`` only if ``described`` gives one.
+    """
     payload = {
         "project_id": stage.project["project_id"],
         "revision_id": revision["revision_id"],
         "version_name": name,
-        "description": None,
+        **described,
     }
     with logging_context(correlation_id=AROUND), database.transaction() as session:
         return submit(session, queue, "revision_mark", stage.manager.user_id, payload)
@@ -236,6 +244,53 @@ def test_the_manager_marks_the_current_revision_in_a_task_the_worker_runs(
         "Offre v1.0",
     )
     assert inscribed.correlation_id == correlation
+
+
+@pytest.mark.requirement("WF-REV-0090-A")
+@pytest.mark.parametrize(
+    ("sent", "expected"),
+    [
+        pytest.param({}, "A", id="absent-is-kept"),
+        pytest.param({"description": "B"}, "B", id="present-replaces"),
+        pytest.param({"description": None}, None, id="null-clears"),
+    ],
+)
+def test_the_description_of_the_marking_follows_the_rule_of_the_update_of_a_project(
+    api: ContractClient,
+    stage: Scene,
+    worker: Worker,
+    sent: dict[str, Any],
+    expected: str | None,
+) -> None:
+    # « Le nom de version et la description sont ceux saisis au marquage » (#2171, option A): a
+    # description absent from the body keeps the one given at the opening, a given one replaces it,
+    # a null one clears it, as ``updateProject`` does for ``client``.
+    revision = open_revision(api, stage, description="A")
+    assert revision["description"] == "A"
+    asked = ask_marking(api, stage, revision, **sent)
+    assert asked.status_code == 202, asked.text
+    assert worker.step()
+    after = read(api, stage, revision["revision_id"], stage.manager.headers)
+    assert after["status"] == "marked"
+    assert after["description"] == expected
+
+
+@pytest.mark.requirement("WF-REV-0090-A")
+def test_a_task_of_marking_queued_without_a_description_keeps_the_one_of_the_opening(
+    api: ContractClient, stage: Scene, worker: Worker, database: Database, queue: TaskQueue
+) -> None:
+    # ``run_marking`` on a payload without the key ``description`` (a task already in the queue):
+    # the description given at the opening is kept; a payload with a null one clears it.
+    kept = open_revision(api, stage, description="A")
+    task_id = around(database, queue, stage, kept, "v1.0")
+    assert worker.step()
+    assert task_of(api, stage, str(task_id))["status"] == "succeeded"
+    assert read(api, stage, kept["revision_id"], stage.manager.headers)["description"] == "A"
+    cleared = open_revision(api, stage, description="C")
+    task_id = around(database, queue, stage, cleared, "v2.0", description=None)
+    assert worker.step()
+    assert task_of(api, stage, str(task_id))["status"] == "succeeded"
+    assert read(api, stage, cleared["revision_id"], stage.manager.headers)["description"] is None
 
 
 @pytest.mark.requirement("WF-PRJ-0060-A")
@@ -298,7 +353,7 @@ def test_a_name_of_version_a_marked_revision_bears_is_refused_by_the_request_and
             "params": {"conflicting_object_id": offer["revision_id"]},
         }
     ]
-    task_id = around(database, queue, stage, current, "v1.0")
+    task_id = around(database, queue, stage, current, "v1.0", description=None)
     assert worker.step()
     failed = task_of(api, stage, str(task_id))
     assert failed["status"] == "failed"

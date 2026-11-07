@@ -89,10 +89,10 @@ def project_of(api: ContractClient, stage: Scene) -> dict[str, Any]:
     return response.json()
 
 
-def open_revision(api: ContractClient, stage: Scene) -> dict[str, Any]:
+def open_revision(api: ContractClient, stage: Scene, **body: Any) -> dict[str, Any]:
     """Open the current revision of the project of the stage, as its manager does."""
     path = f"{PROJECTS}/{stage.project['project_id']}/revisions"
-    response = api.post(path, headers=stage.manager.headers, json={})
+    response = api.post(path, headers=stage.manager.headers, json=body)
     assert response.status_code == 201, response.text
     return response.json()
 
@@ -291,3 +291,34 @@ def test_an_exit_marking_asks_for_the_permission_even_without_a_current_revision
     answer = api.post(f"{path}/exit", headers=chief.headers, json=body)
     assert (answer.status_code, answer.json()["code"]) == (403, "PERMISSION_MISSING")
     assert api.get(path, headers=chief.headers).json()["state"] == "created"
+
+
+@pytest.mark.requirement("WF-REV-0090-A")
+@pytest.mark.parametrize(
+    ("sent", "expected"),
+    [
+        pytest.param({}, "A", id="absent-is-kept"),
+        pytest.param({"description": "B"}, "B", id="present-replaces"),
+        pytest.param({"description": None}, None, id="null-clears"),
+    ],
+)
+def test_the_description_of_the_exit_that_marks_follows_the_rule_of_the_update_of_a_project(
+    api: ContractClient,
+    stage: Scene,
+    worker: Worker,
+    sent: dict[str, Any],
+    expected: str | None,
+) -> None:
+    # « La description est celle saisie au marquage » (#2171, option A; #2278): the exit that marks
+    # takes the rule of ``markRevision``: a description absent keeps the one given at the opening,
+    # a given one replaces it, a null one clears it.
+    revision = open_revision(api, stage, description="A")
+    assert revision["description"] == "A"
+    marking = {"action": "mark", "version_name": "Clôture", **sent}
+    asked = leave(api, stage, current_revision=marking)
+    assert asked.status_code == 202, asked.text
+    assert worker.step()
+    path = f"{PROJECTS}/{stage.project['project_id']}/revisions/{revision['revision_id']}"
+    after = api.get(path, headers=stage.manager.headers).json()
+    assert after["status"] == "marked"
+    assert after["description"] == expected
