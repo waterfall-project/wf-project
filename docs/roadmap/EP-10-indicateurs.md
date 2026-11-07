@@ -49,7 +49,9 @@ survenu, une fusion ou un avenant se closent en EP-08, qui dispose alors des ind
 
 La portée dit si l'exigence est entière ici, commencée ici et close par un EPIC ultérieur, ou
 close ici après avoir été commencée plus tôt. Chaque exigence n'est close que par un seul EPIC.
-La colonne US se remplit quand l'EPIC passe `prêt`.
+La colonne US se remplit quand l'EPIC passe `prêt`. WF-REF-0130 est commencée par EP-05 et EP-07
+et close ici : son Vérif demande la zone de l'indice de coût d'une révision marquée (cadrage
+d'EP-07, décision de l'auteur du 2026-11-07).
 
 | Exigence | Titre | Portée | US |
 |---|---|---|---|
@@ -74,6 +76,7 @@ La colonne US se remplit quand l'EPIC passe `prêt`.
 | `WF-DAT-0040-A` | Conservation des indicateurs des révisions marquées | fin — amorcée en EP-04 | — |
 | `WF-DAT-0130-A` | Contenu et invalidation du cache | entière | — |
 | `WF-CYC-0090-A` | Confirmation des sorties | fin — amorcée en EP-04 | — |
+| `WF-REF-0130-A` | Modification sans effet rétroactif | fin — amorcée en EP-05, EP-07 | — |
 
 ## Opérations du contrat
 

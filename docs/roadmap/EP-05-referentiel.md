@@ -80,7 +80,7 @@ projet, une révision ou une vue sont des écarts, qui nomment l'EPIC qui les cl
 | `WF-REF-0160-A` | Matrice de risques | début — close en EP-08 | US-0810 |
 | `WF-REF-0170-A` | Seuils d'alerte des indices | début — close en EP-10 | US-0810 |
 | `WF-REF-0180-A` | Délai maximal entre deux revues | début — close en EP-11 | US-0810 |
-| `WF-REF-0030-A` | Natures de coût | début — close en EP-07 | US-0820 |
+| `WF-REF-0030-A` | Natures de coût | début — close en EP-08 | US-0820 |
 | `WF-REF-0040-A` | Catégories de coût | début — close en EP-07 | US-0820 |
 | `WF-REF-0050-A` | Taux horaires annuels | entière | US-0830 |
 | `WF-REF-0060-A` | Taux de l'année en cours | entière | US-0830 |
@@ -93,10 +93,10 @@ projet, une révision ou une vue sont des écarts, qui nomment l'EPIC qui les cl
 | `WF-REF-0120-A` | Calendrier par défaut | entière | US-0860 |
 | `WF-PLA-0160-A` | Unités de durée | début — close en EP-06 | US-0860 |
 | `WF-REF-0190-A` | Correspondance de l'extraction des coûts réels | début — close en EP-09 | US-0870 |
-| `WF-REF-0010-A` | Désactivation plutôt que suppression | début — close en EP-07 | US-0880 |
+| `WF-REF-0010-A` | Désactivation plutôt que suppression | début — close en EP-09 | US-0880 |
 | `WF-REF-0150-A` | Affichage des objets désactivés | entière | US-0880 |
 | `WF-REF-0020-A` | Désactivation sans effet sur les projets | début — close en EP-07 | US-0880 |
-| `WF-REF-0130-A` | Modification sans effet rétroactif | début — close en EP-07 | US-0880 |
+| `WF-REF-0130-A` | Modification sans effet rétroactif | début — close en EP-10 | US-0880 |
 | `WF-QUA-0040-A` | Jeu de données de référence | début — close en EP-13 | US-0890 |
 | `WF-INTF-0020-A` | Usages du manager | début — close en EP-11 | US-0900 |
 | `WF-ADM-0020-A` | Aucune action réservée à un acteur | fin — amorcée en EP-03 | US-0900 |

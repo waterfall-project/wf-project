@@ -53,7 +53,9 @@ La portée dit si l'exigence est entière ici, commencée ici et close par un EP
 close ici après avoir été commencée plus tôt. Chaque exigence n'est close que par un seul EPIC.
 La colonne US se remplit quand l'EPIC passe `prêt`. WF-PLA-0040 et WF-PLA-0050 sont commencées
 par EP-06 et closes ici : leur Vérif demande le reste à engager d'une ligne et le Kanban (cadrage
-d'EP-06, décision de l'auteur du 2026-11-07).
+d'EP-06, décision de l'auteur du 2026-11-07). WF-REV-0060 et WF-REF-0010 sont commencées par EP-07
+et closes ici : leur Vérif demande un import de reste à engager et la grille de reste à engager
+(cadrage d'EP-07, décision de l'auteur du 2026-11-07).
 
 | Exigence | Titre | Portée | US |
 |---|---|---|---|
@@ -82,6 +84,8 @@ d'EP-06, décision de l'auteur du 2026-11-07).
 | `WF-CYC-0100-A` | Lecture seule des projets terminaux | fin — amorcée en EP-04 | — |
 | `WF-CYC-0110-A` | Consultation des projets terminaux | fin — amorcée en EP-04 | — |
 | `WF-IHM-0080-A` | Traitements longs | fin — amorcée en EP-02, EP-15, EP-04 | — |
+| `WF-REV-0060-A` | Année de référence et mise à jour des taux à la création d’une révision | fin — amorcée en EP-15, EP-07 | — |
+| `WF-REF-0010-A` | Désactivation des objets du référentiel | fin — amorcée en EP-05, EP-07 | — |
 
 ## Opérations du contrat
 
