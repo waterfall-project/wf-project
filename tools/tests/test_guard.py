@@ -8,6 +8,10 @@ every process, a ``docker`` stop of computed targets, ``docker … prune``, ``do
 down`` outside the Makefile, the removal of a lock of git — wherever the command stands in the
 line. The hook that runs the guard is declared in ``.claude/settings.json``, and is tried as
 Claude Code runs it.
+
+US-1310 adds the forms an agent writes without malice (#1890, #1893): each of its criteria is
+named by the docstring of the tests that hold it. The guard is a tool of the repository: no test
+cites a requirement (WF-QUA-0010, « un test qui ne couvre aucune exigence »).
 """
 
 import ast
@@ -138,6 +142,7 @@ def test_a_docker_prune_is_refused_whatever_its_object(objects: str) -> None:
         "docker compose rm -f api",
         "docker-compose down",
         "docker-compose -p waterfall stop",
+        "docker-compose --project-n waterfall down",
         "docker --context default compose down",
     ],
 )
@@ -370,9 +375,284 @@ def test_the_hook_runs_the_guard_as_claude_code_does(command: str, code: int) ->
 
 
 def test_the_guard_imports_the_standard_library_alone() -> None:
-    nodes = list(ast.walk(ast.parse(GUARD.read_text(encoding="utf-8"))))
+    """US-1310: the guard stays a script of the standard library, under 1,000 lines."""
+    text = GUARD.read_text(encoding="utf-8")
+    nodes = list(ast.walk(ast.parse(text)))
     imports = [node for node in nodes if isinstance(node, ast.Import)]
     imported = {alias.name for node in imports for alias in node.names}
     imported |= {node.module or "" for node in nodes if isinstance(node, ast.ImportFrom)}
     assert imported
     assert {name.split(".")[0] for name in imported} <= sys.stdlib_module_names
+    assert len(text.splitlines()) <= 1000
+
+
+@pytest.mark.parametrize(
+    "command",
+    [
+        "find .git -name '*.lock' -delete",
+        "find .git -name '*.lock' -exec rm -f {} +",
+        "find -L .git/refs -name '*.lock' -execdir /bin/rm {} ';'",
+        "find .git/ -name index.lock -exec sh -c 'rm \"$1\"' _ {} ';'",
+        "find . -name '*.lock' -delete",
+        'find "$(git rev-parse --git-dir)" -name index.lock -delete',
+        "cd .git && find . -type f -newer HEAD -delete",
+        "mv .git/index.lock /tmp/index.lock.old",
+        "mv -f .git/refs/heads/main.lock /tmp",
+        'mv "$(git rev-parse --git-dir)/index.lock" /tmp',
+        "cd .git && mv index.lock index.lock.bak",
+        "rename .lock .old .git/index.lock",
+    ],
+)
+def test_a_lock_of_git_neither_found_and_removed_nor_moved(command: str) -> None:
+    """US-1310: `find` through `.git` with `-delete` or `-exec rm`, `mv` or `rename` of a lock."""
+    assert refused(command)
+
+
+@pytest.mark.parametrize(
+    "command",
+    [
+        "find .git -name '*.lock'",
+        "find .git -name '*.lock' -exec ls -l {} +",
+        "find frontend -name '*.tsbuildinfo' -delete",
+        "find . -name __pycache__ -exec rm -rf {} +",
+        "mv tools/uv.lock /tmp/uv.lock",
+        "mv build/a.txt build/b.txt",
+        "rename .txt .md notes/a.txt",
+        "cd .git; cd ..; mv foo.lock bar.lock",
+    ],
+)
+def test_a_find_or_a_move_outside_the_locks_of_git_passes(command: str) -> None:
+    """US-1310: the forms next to those refused, which touch no lock of git."""
+    assert not refused(command)
+
+
+@pytest.mark.parametrize(
+    "command",
+    [
+        "docker rmi $(docker images -q)",
+        "docker rmi -f wf-*",
+        "docker images -q | xargs docker rmi",
+        "docker image rm $(docker images -q)",
+        "docker image remove --filter dangling=true",
+        "docker volume rm $(docker volume ls -q)",
+        "docker volume remove wf-s?_pg",
+        "docker volume ls -q | xargs -r docker volume rm",
+        "docker volume rm --filter=label=wf",
+        'docker volume rm "wf-$SLOT_pg"',
+        "docker image prune -a",
+    ],
+)
+def test_a_docker_removal_of_images_or_volumes_computed_is_refused(command: str) -> None:
+    """US-1310: `docker rmi`, `docker image rm|remove`, `docker volume rm|remove` as `docker rm`."""
+    assert refused(command)
+
+
+@pytest.mark.parametrize(
+    "command",
+    [
+        "docker rmi waterfall-front:test",
+        "docker image rm 3f2a9c1b7d4e",
+        "docker image remove waterfall-back:lot",
+        "docker volume rm wf-s3_pgdata",
+        "docker volume remove wf-s3_pgdata wf-s3_redis",
+        "docker volume ls --filter name=wf",
+        "docker image ls",
+    ],
+)
+def test_a_docker_removal_of_a_literal_image_or_volume_passes(command: str) -> None:
+    """US-1310: a literal target of `docker rmi` or `docker volume rm` passes."""
+    assert not refused(command)
+
+
+@pytest.mark.parametrize(
+    "command",
+    [
+        "flock /tmp/x pkill make",
+        "flock -w 10 /tmp/x pkill make",
+        "flock --timeout 10 -n /tmp/x kill $pid",
+        "flock -E 3 /tmp/x -c 'pkill make'",
+        "flock /tmp/x --command 'pkill make'",
+        "su -c 'pkill make'",
+        "su - root -c 'pkill make'",
+        "su -s /bin/bash -c 'kill $pid' bob",
+        "su root -- -c 'pkill make'",
+        "su --command='pkill make'",
+        "su -lc 'pkill make'",
+        "runuser -u bob -- pkill make",
+        "runuser -u bob kill $pid",
+        "runuser -u bob kill -1",
+        "runuser -u bob kill 0",
+        "runuser --user bob kill -1",
+        "runuser -l bob -c 'pkill make'",
+        "busybox pkill make",
+        "busybox kill $(pidof make)",
+        "chroot / pkill make",
+        "chroot --userspec bob:bob / pkill make",
+        "watch 'pkill make'",
+        "watch -n 5 pkill make",
+        "watch --interval 5 'kill $pid'",
+        "watch -x kill $pid",
+        "sudo flock /tmp/x busybox pkill make",
+    ],
+)
+def test_the_command_a_new_prefix_runs_is_judged(command: str) -> None:
+    """US-1310: `busybox`, `su -c`, `runuser -c`, `flock`, `watch` and `chroot`, with options."""
+    assert refused(command)
+
+
+@pytest.mark.parametrize(
+    "command",
+    [
+        "flock /tmp/x make check",
+        "flock -w 10 /tmp/x -c 'kill 12345'",
+        "su -c 'make check' bob",
+        "runuser -u bob -- make check",
+        "runuser -u bob kill -9 12345",
+        "busybox ls -l",
+        "chroot /srv/root ls",
+        "watch -n 5 'docker ps'",
+        "watch -n 1 kill -0 12345",
+    ],
+)
+def test_a_permitted_command_behind_a_new_prefix_passes(command: str) -> None:
+    """US-1310: what `busybox`, `su`, `runuser`, `flock`, `watch` and `chroot` run may pass."""
+    assert not refused(command)
+
+
+@pytest.mark.parametrize(
+    "command",
+    [
+        "cd .git && bash -c 'rm index.lock'",
+        "cd .git && sh -c 'rm -f *.lock'",
+        "cd .git; eval 'rm index.lock'",
+        "eval 'cd .git'; rm index.lock",
+        "cd .git && trap 'rm index.lock' EXIT",
+        "cd .git && flock /tmp/x -c 'rm index.lock'",
+        "pushd .git && rm index.lock",
+        "pushd .git/refs/heads; rm main.lock",
+        "env -C .git rm index.lock",
+        "env --chdir=.git rm index.lock",
+        "env --ch .git rm index.lock",
+        "env -iC .git rm index.lock",
+        "sudo -D .git rm index.lock",
+        "chroot .git rm index.lock",
+        "command cd .git && rm index.lock",
+        "builtin cd .git; rm index.lock",
+        'cd "$(git rev-parse --git-dir)" && rm index.lock',
+        "cd $GIT_DIR && rm index.lock",
+        "cd `git rev-parse --git-dir` && rm index.lock",
+        "cd .git && cd refs/heads && rm main.lock",
+        "cd .git; pushd +1; rm index.lock",
+    ],
+)
+def test_a_cd_into_a_directory_of_git_is_followed(command: str) -> None:
+    """US-1310: a `cd` into `.git` is followed into the scripts and past the prefixes.
+
+    Under `bash -c` and `eval`, by `pushd`, `env -C` or `command`; a computed path counts as a
+    move into `.git`.
+    """
+    assert refused(command)
+
+
+@pytest.mark.parametrize(
+    "command",
+    [
+        "cd .git; cd ..; rm foo.lock",
+        "cd .git && cd - && rm foo.lock",
+        "cd .git; cd /tmp; rm foo.lock",
+        "cd .git; cd; rm foo.lock",
+        "cd .git; cd ~/scratch; rm foo.lock",
+        "cd .git && cd ../tools && rm uv.lock",
+        "bash -c 'cd .git' && rm foo.lock",
+        "env -C .git git status; rm foo.lock",
+        "env -C /tmp rm foo.lock",
+        "pushd /tmp && rm foo.lock",
+        "cd tools && rm uv.lock",
+    ],
+)
+def test_a_cd_to_a_literal_path_outside_git_resets_the_state(command: str) -> None:
+    """US-1310: a `cd` to a literal path outside `.git`, `cd ..` and `cd -` reset the state."""
+    assert not refused(command)
+
+
+@pytest.mark.parametrize(
+    "command",
+    [
+        "env --ch /tmp pkill x",
+        "env --chd=/tmp pkill x",
+        "env --un HOME pkill x",
+        "env --split 'pkill x'",
+        "timeout --sig KILL 5 pkill x",
+        "timeout --kill 3 5 pkill x",
+        "nice --adj 5 pkill x",
+        "sudo --us root pkill x",
+        "stdbuf --out L pkill x",
+        "flock --time 10 /tmp/x pkill x",
+        "su --comm 'pkill x'",
+        "watch --int 5 pkill x",
+        "chroot --user bob / pkill x",
+    ],
+)
+def test_a_long_option_of_a_prefix_takes_its_gnu_abbreviations(command: str) -> None:
+    """US-1310: each long option of each prefix admits its unique prefixes, as GNU does."""
+    assert refused(command)
+
+
+@pytest.mark.parametrize(
+    "command",
+    ["env --ch /tmp make check", "timeout --sig KILL 5 make check", "env --i make check"],
+)
+def test_a_permitted_command_past_an_abbreviated_option_passes(command: str) -> None:
+    """US-1310: an abbreviation takes its argument, and an ambiguous one takes none."""
+    assert not refused(command)
+
+
+@pytest.mark.parametrize(
+    ("command", "form"),
+    [
+        ("docker volume rm $(docker volume ls -q)", "`docker volume rm $(…)`"),
+        ("docker rmi -f wf-*", "`docker rmi wf-*`"),
+        ("find .git -name '*.lock' -delete", "`find … -delete`"),
+        ("mv .git/index.lock /tmp", "`mv .git/index.lock`"),
+    ],
+)
+def test_the_refusal_of_a_new_form_says_what_to_do_instead(
+    command: str, form: str, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """US-1310: the message names the form, and the literal name or the git command again."""
+    event = json.dumps({"tool_name": "Bash", "tool_input": {"command": command}})
+    assert run(event, monkeypatch) == 2
+    said = capsys.readouterr().err
+    assert form in said
+    assert "`docker rmi` or `docker volume rm` of a literal name" in said
+    assert "for a lock of git, the git command run again" in said
+
+
+def test_docker_compose_v1_takes_unique_prefixes_and_the_go_compose_does_not() -> None:
+    """US-1310: `docker-compose` (argparse) abbreviates an option, `docker compose` (Go) not."""
+    assert refused("docker-compose --project-n waterfall down")
+    assert not refused("docker compose --project-n waterfall down")
+    assert not refused("docker-compose --project waterfall make")
+
+
+def test_a_find_delete_that_names_a_lock_says_why_it_is_refused() -> None:
+    """US-1310: `-delete` with a `.lock` in the expression is refused, outside git too, for it."""
+    # `package-lock*` does not contain the word `.lock`: it passes.
+    form = guard.refusal("find node_modules -name 'package-lock*' -delete")
+    assert form is None  # no `.lock` word: `package-lock*` does not name it
+    form = guard.refusal("find node_modules -name 'yarn.lock' -delete")
+    assert form is not None
+    assert "the expression names a .lock" in form
+    in_git = guard.refusal("find .git -name 'x' -delete")
+    assert in_git is not None
+    assert "it is in git" in in_git
+
+
+def test_popd_is_not_followed_so_a_lock_after_it_stays_refused() -> None:
+    """US-1310: `popd` keeps the state of `cd .git`: refused to be on the safe side."""
+    assert refused("cd .git; popd; rm foo.lock")
+
+
+def test_a_cd_up_resets_the_state_even_from_below_git() -> None:
+    """US-1310: known limit, `cd ..` resets the state: `cd .git/refs/heads; cd ..` passes."""
+    assert not refused("cd .git/refs/heads; cd ..; rm main.lock")
