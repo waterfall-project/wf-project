@@ -22,7 +22,7 @@ shared = [
     # workflow, the local actions it takes and the modules of wftools its checks run, which
     # tools/tests/test_families.py holds against the Makefile, the workflows and the harness of
     # Playwright, so that no pull request can weaken a check without waking the family that relies
-    # on it. The repo family, which runs on any change, tests every tool.
+    # on it. The tools family tests every tool.
     "tools/paths.toml",
     "tools/pyproject.toml",
     "tools/uv.lock",
@@ -35,6 +35,41 @@ shared = [
 [families.repo]
 always = true
 target = "check-repo"
+
+[families.tools]
+# The lint, the types and the tests of the tools of the repository, and of those of the documents.
+# Their tests read, beside the tools, what the generated files are generated from and checked
+# against — the contract, the specification, the fixtures —, the files of the platforms and of the
+# chain they hold to their rules, and the few files of the back and of the front they confront:
+# what was found by tracing the files they open (#2157). A change of the roadmap or of a guide
+# alone does not run them; the checks of the repo and roadmap families read those.
+paths = [
+    "tools/**",
+    "docs/api/**",
+    "docs/spec/**",
+    "fixtures/**",
+    "deploy/**",
+    ".github/**",
+    "ruff.toml",
+    "REUSE.toml",
+    ".gitignore",
+    ".gitattributes",
+    ".claude/settings.json",
+    "backend/Dockerfile",
+    "backend/.dockerignore",
+    "backend/pyproject.toml",
+    # Each module of routes has its exemption in ruff.toml (tools/tests/test_rules.py).
+    "backend/src/waterfall/api/**",
+    "frontend/Dockerfile",
+    "frontend/.dockerignore",
+    "frontend/package.json",
+    "frontend/pnpm-lock.yaml",
+    "frontend/playwright.config.ts",
+    # What the check of the production image of the front removes one by one (test_frontimage.py).
+    "frontend/src/startup.ts",
+    "frontend/src/session/settings.ts",
+]
+target = "check-repo-tools"
 
 [families.spec]
 paths = ["docs/spec/**", ".github/workflows/spec.yml"]
@@ -89,7 +124,8 @@ paths = [
     "tools/src/wftools/projection.py",
     ".github/workflows/roadmap.yml",
     ".claude/agents/**",
-    "docs/dev/agents.md",
+    # Every guide the agents read (roadmap.AGENT_FILES), whose commands the check holds.
+    "docs/dev/*.md",
 ]
 target = "check-roadmap"
 

@@ -107,10 +107,6 @@ def test_generated_and_excepted_paths_are_left_out() -> None:
     assert "tools/uv.lock" not in checked
 
 
-def test_the_repository_keeps_the_rules(capsys: pytest.CaptureFixture[str]) -> None:
-    assert sources.main() == 0, capsys.readouterr().err
-
-
 TODO = "TO" + "DO"
 
 

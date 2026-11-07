@@ -3108,7 +3108,16 @@ La chaîne est faite de workflows GitHub Actions (`.github/workflows/`) :
   et la tient à ses seuils (`make coverage-front-merge`). ESLint garde son cache, par le contenu de
   chaque fichier (`pnpm lint`, `actions/cache`) : sans lui, il prend une minute. `front-cache.yml`
   écrit ce cache et le magasin de pnpm après chaque fusion, sur la branche dont les pull requests et
-  la file de fusion lisent les caches : sans lui, elles ne trouveraient rien. `keycloak.yml`
+  la file de fusion lisent les caches : sans lui, elles ne trouveraient rien.
+  `back.yml` répartit de même le back : un runner tient le lint, les types et les frontières du
+  cœur (`make check-back-static`), deux jouent chacun la moitié des tests, avec leurs services
+  (`make check-back-tests`, `SHARD=1/2` et `SHARD=2/2`), et au palier complet un dernier rassemble
+  leur couverture et la tient à ses seuils (`make coverage-back-merge`). Une moitié est un test sur
+  deux dans l'ordre de leur collecte (`--shard`, `backend/tests/conftest.py`), plutôt que des
+  fichiers entiers : les fichiers qui chargent le témoin, les plus longs, sont répartis sur les deux.
+  Le témoin n'est chargé par la commande qu'une fois par processus de pytest ; les tests suivants
+  retrouvent ses lignes recopiées (`backend/tests/witness_rows.py`, #2157). Sur un runner, chaque
+  test qui le demandait payait son chargement, plus de six minutes en tout. `keycloak.yml`
   construit l'image de Keycloak et l'éprouve sur la plateforme de service, son royaume appliqué
   (`make check-keycloak`), aux deux paliers : la famille `keycloak` se réveille sur
   `deploy/keycloak/`, sur les fichiers de la plateforme qui la démarrent, sur ses tests, sur tout le
@@ -3205,8 +3214,10 @@ familles. Le reste des outils réveille les familles qui s'en servent : chacune 
 chemins son workflow, les actions locales qu'il prend et les modules de `wftools` que ses
 contrôles lancent. `tools/tests/test_families.py` les tient contre le Makefile, les workflows
 et le harnais de Playwright, imports compris : un module lancé par une famille sans la
-réveiller fait échouer `make check-repo`. La famille `repo`, qui tourne à chaque modification,
-teste tous les outils.
+réveiller fait échouer `make check-repo-tools`. La famille `repo`, qui tourne à chaque modification,
+ne tient que les contrôles de quelques secondes (`make check-repo`) ; la famille `tools` teste tous
+les outils (`make check-repo-tools`), quand change ce dont ils sont faits ou ce que leurs tests
+lisent : une modification de la feuille de route ou d'un guide seule ne la réveille pas.
 
 Deux paliers : le rapide à chaque poussée sur une pull request (`pull_request`), le complet
 dans la file de fusion (`merge_group`), sur le résultat de la fusion, avant qu'elle soit
@@ -3227,7 +3238,7 @@ Le palier complet vise moins de huit minutes dans la file pour son travail le pl
   l'image (`PLAYWRIGHT_BROWSERS_PATH=/ms-playwright`), et non `make check-front-e2e`, qui en
   installerait un. Monter `@playwright/test` monte l'image avec lui, étiquette et empreinte : sinon
   les parcours s'arrêtent d'emblée sur un navigateur introuvable, et
-  `tools/tests/test_playwrightimage.py` échoue avant eux, dans `make check-repo`. L'empreinte est
+  `tools/tests/test_playwrightimage.py` échoue avant eux, dans `make check-repo-tools`. L'empreinte est
   celle de l'index multi-architecture de l'étiquette, que donne la ligne `Digest:` de
   `docker buildx imagetools inspect mcr.microsoft.com/playwright:v<X>-noble`, ou l'en-tête
   `docker-content-digest` de

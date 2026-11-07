@@ -3095,6 +3095,15 @@ The chain is made of GitHub Actions workflows (`.github/workflows/`):
   content of each file (`pnpm lint`, `actions/cache`): without it, it takes a minute.
   `front-cache.yml` writes that cache and the pnpm store after each merge, on the branch whose
   caches the pull requests and the merge queue read: without it, they would find nothing.
+  `back.yml` spreads the back likewise: one runner holds the lint, the types and the boundaries of
+  the core (`make check-back-static`), two each play half of the tests, with their services
+  (`make check-back-tests`, `SHARD=1/2` and `SHARD=2/2`), and in the full tier a last one gathers
+  their coverage and holds it to its thresholds (`make coverage-back-merge`). A half is one test in
+  two in the order of their collection (`--shard`, `backend/tests/conftest.py`), rather than whole
+  files: the files that load the witness, the longest, are spread over both. The witness is loaded
+  by the command once per pytest process; the tests after it find its rows copied back
+  (`backend/tests/witness_rows.py`, #2157). On a runner, each test that asked for it paid its
+  loading, over six minutes in all.
   `keycloak.yml` builds the image of Keycloak and puts it to the proof on the service platform, its
   realm applied (`make check-keycloak`), at both tiers: the `keycloak` family wakes on
   `deploy/keycloak/`, on the files of the platform that start it, on its tests, on all the code of
@@ -3188,8 +3197,10 @@ family. The rest of the tools wakes the families that use them: each names among
 paths its workflow, the local actions it takes and the modules of `wftools` its
 checks run. `tools/tests/test_families.py` holds them against the Makefile, the workflows
 and the Playwright harness, imports included: a module run by a family without
-waking it makes `make check-repo` fail. The `repo` family, which runs on every change,
-tests every tool.
+waking it makes `make check-repo-tools` fail. The `repo` family, which runs on every change,
+holds only the checks of a few seconds (`make check-repo`); the `tools` family tests every tool
+(`make check-repo-tools`), when what they are made of or what their tests read changes: a change
+of the roadmap or of a guide alone does not wake it.
 
 Two tiers: the fast one at each push on a pull request (`pull_request`), the full one
 in the merge queue (`merge_group`), on the result of the merge, before it is
@@ -3210,7 +3221,7 @@ The full tier aims at under eight minutes in the queue for its longest job
   (`PLAYWRIGHT_BROWSERS_PATH=/ms-playwright`), and not `make check-front-e2e`, which would install
   one. Raising `@playwright/test` raises the image with it, tag and digest: otherwise the paths stop
   at once on a browser not found, and `tools/tests/test_playwrightimage.py` fails before them, in
-  `make check-repo`. The digest is that of the multi-architecture index of the tag, which the line
+  `make check-repo-tools`. The digest is that of the multi-architecture index of the tag, which the line
   `Digest:` of `docker buildx imagetools inspect mcr.microsoft.com/playwright:v<X>-noble` gives, or
   the `docker-content-digest` header of
   `curl -sI -H 'Accept: application/vnd.oci.image.index.v1+json' https://mcr.microsoft.com/v2/playwright/manifests/v<X>-noble`.

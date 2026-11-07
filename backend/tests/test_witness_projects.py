@@ -360,14 +360,14 @@ def test_the_revisions_100_101_and_102_each_hold_their_main_cost_structure(
 
 @pytest.mark.requirement("WF-QUA-0040-A")
 def test_the_designation_of_the_offer_is_tried_refused_and_noted_in_the_output(
-    logs: Logs, witness: Database
+    logs: Logs, witness_loaded: Database
 ) -> None:
     noted = logs.named("witness.designation_refused")
     assert [(each["project"], each["revision"], each["missing_condition"]) for each in noted] == [
         ("PRJ-001", 100, "revision_has_tasks_and_lines")
     ]
     assert len(logs.named("witness.loaded")) == 1
-    with witness.transaction() as session:
+    with witness_loaded.transaction() as session:
         assert session.scalar(select(func.count()).where(Revision.is_reference)) == 0
 
 

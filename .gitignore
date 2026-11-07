@@ -22,6 +22,8 @@ docs/api/waterfall.proxy.json
 frontend/.e2e/
 backend/coverage.json
 backend/coverage-keycloak.json
+# The measures of the parts of the tests of the back (`make coverage-back SHARD=i/N`).
+backend/.coverage-parts/
 .coverage
 test-results/
 playwright-report/
