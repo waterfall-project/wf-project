@@ -786,7 +786,7 @@ def summary_dependencies(answer: JsonObject) -> JsonObject:
 def _risk_volume(rows: list[JsonObject]) -> str:
     """Say which volumes of §4.6.2 the risks of the portfolio hold, and which they do not."""
     risks = identified_risks(rows)
-    projects = len({risk.row["project_id"] for risk in risks})
+    projects = len({cast("str", risk.row["project_id"]) for risk in risks})
     return (
         f"{_count(len(risks))} risques identifiés sur {_count(projects)} projets — le registre du "
         f"témoin et jusqu'à trois par autre projet, une provision sans devis propre, et non les "
