@@ -103,7 +103,7 @@ les phrases qui demandent plus sont des écarts, qui nomment l'EPIC qui les clô
 | `WF-REV-0030-A` | Contenu de l’instantané | début — close en EP-07 | US-0960 |
 | `WF-REV-0020-A` | Marquage d’une révision | début — close en EP-07 | US-0970 |
 | `WF-DAT-0020-A` | Immuabilité garantie par la base | début — close en EP-07 | US-0970 |
-| `WF-DAT-0040-A` | Conservation des indicateurs des révisions marquées | début — close en EP-10 | US-0970 |
+| `WF-DAT-0040-A` | Conservation des indicateurs des révisions marquées | début — close en EP-11 | US-0970 |
 | `WF-DAT-0030-A` | Identité de lignée des objets d’une révision | début — close en EP-10 | US-0970 |
 | `WF-IHM-0080-A` | Traitements longs | début — close en EP-09, amorcée aussi en EP-02, EP-15 | US-0970 |
 | `WF-ADM-0060-A` | Cycle de vie d’un compte | fin — amorcée en EP-03 | US-0970 |
@@ -1165,12 +1165,12 @@ quel que soit le chemin, **afin que** l'histoire du projet soit sûre.
   qui lève fait échouer la tâche sans rien écrire, et la révision reste en cours ;
 - écart : `WF-DAT-0040-A` — « Aucune vue de portefeuille à une date passée, sur trois cents projets
   — plan de charge agrégé, structure des coûts et risques compris —, ne lit de ligne de tâche ni
-  de ligne de devis. » : EP-11, EP-10 clôt ;
+  de ligne de devis. » : EP-11, qui clôt (recalée au cadrage d'EP-10, 2026-11-07) ;
 - écart : `WF-DAT-0040-A` — « Les indicateurs conservés d'une révision marquée sont identiques
   avant et après un import de coûts réels postérieur. » : EP-10 ;
 - écart : `WF-DAT-0040-A` — « Le marquage d'une offre, sur un projet en chiffrage, aboutit et
   conserve le total du devis sans aucun indicateur projet. » : le marquage d'une offre aboutit
-  ici ; le total du devis est d'EP-07, EP-10 clôt ;
+  ici ; le total du devis est d'EP-07, sa conservation d'EP-10, EP-11 clôt ;
 - écart : `WF-DAT-0040-A` — « La courbe de coût réel d'une révision marquée est identique avant et
   après l'exclusion d'une ligne de coût connue à son marquage. » : EP-10 ;
 - écart : `WF-DAT-0030-A` — « Une tâche renommée et déplacée dans la révision en cours est

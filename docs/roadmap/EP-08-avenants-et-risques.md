@@ -77,7 +77,7 @@ d'EP-09, décision de l'auteur du 2026-11-07).
 | `WF-ADM-0100-A` | Catalogue des permissions | fin — amorcée en EP-03 | — |
 | `WF-IND-0030-A` | Valeur acquise | fin — amorcée en EP-10 | — |
 | `WF-IND-0100-A` | Courbe de coûts cumulés | fin — amorcée en EP-10 | — |
-| `WF-INTF-0010-A` | Usages du chef de projet | fin — amorcée en EP-06, EP-07, EP-09 | — |
+| `WF-INTF-0010-A` | Usages du chef de projet | fin — amorcée en EP-06, EP-07, EP-09, EP-10 | — |
 | `WF-RAE-0010-A` | Composition du reste à engager | fin — amorcée en EP-09 | — |
 | `WF-RAE-0020-A` | Indicateurs de reste à engager | fin — amorcée en EP-09 | — |
 | `WF-PLA-0040-A` | Hiérarchie des tâches | fin — amorcée en EP-06, EP-22, EP-09 | — |
@@ -113,9 +113,18 @@ Déjà servies, et reprises ici pour ce que cet EPIC y ajoute (9) :
 
 ## Préalables
 
-EP-10 livré, et EP-09 avant lui : la fusion conserve les montants réestimés et épargne les
-tâches démarrées, et les indicateurs se lisent devant un risque survenu, une fusion ou un
-avenant.
+`epic/EP-08` se tire d'`epic/EP-10` dès la fusion de son lot pivot, **US-1660/L1 #2437** — le socle
+d'EP-10, qui pose `revision_indicator`, la chaîne des migrations arrêtée à `0026`, le module
+`core/indicators` avec son interface déclarée et la signature du registre `register_indicators` avec
+l'`Act` —, et non de `main` à la livraison d'EP-10 (décision de l'auteur du 2026-11-07, pour toute la
+série EP-06 → EP-07 → EP-09 → EP-10 → EP-08 ; l'exception du README, « Branches ») : elle reprend
+`epic/EP-10` à chaque lot que celui-ci fusionne et se fusionne dans `main` après elle. Les lots
+d'EP-08 qui lisent les indicateurs devant un risque survenu, une fusion ou un avenant attendent aussi
+US-1660/L3 #2439 (le calcul du jour), US-1670/L1 #2440 et L2 #2441 (la conservation et la lecture
+conservée), US-1690/L2 #2443 et L3 #2444 (les courbes) ; chaque lot nomme ceux qu'il attend par leur
+numéro (EP-10, « Ce que le cadrage laisse à EP-08 »). EP-09 avant lui : la fusion conserve les
+montants réestimés et épargne les tâches démarrées, et les indicateurs se lisent devant un risque
+survenu, une fusion ou un avenant.
 
 ## Définition de fini
 
