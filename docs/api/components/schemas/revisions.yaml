@@ -2118,39 +2118,39 @@ NodeMove:
   type: object
   required: [node_ids, parent_id, lock_version]
   description: >-
-    Déplacement de nœuds sous un parent. Un déplacement qui sortirait la tâche d'un poste du
-    sous-arbre de la tâche de son lot rattaché — la tâche du poste, ou une tâche qui la
-    contient — est refusé (WF-PLA-0170) : 422 `VALIDATION_FAILED`, `fields[].pointer` sur le
-    nœud déplacé en cause (`/node_ids/0`), `fields[].code` à `ORDER_ITEM_OUTSIDE_WORK_PACKAGE`,
-    `fields[].params.work_package_task` et `order_item_tasks` nommant la tâche du lot et celles
-    des postes, chacune par son nœud et son libellé (`node_id`, `label`) : la grille, filtrée,
-    peut ne pas les lire (WF-PLA-0170, WF-IHM-0080 ; EP-14/L42s). Une sélection se juge sur la
-    structure que le déplacement laisserait, tous ses nœuds déplacés : un refus qui nomme un
-    nœud nomme le premier en cause dans l'ordre du plan de la structure lue, et `LINK_CYCLE` la
-    boucle que ferme le déplacement de celui-ci (#1169) : l'ordre du refus est celui du plan,
-    l'ordre de `node_ids` ne règle que le placement. Les nœuds déplacés prennent place sous
-    `parent_id`, dans l'ordre de `node_ids`, après le frère que nomme `after_node_id`, selon la
-    règle de `NodeCreate` : les lignes d'une tâche précèdent toujours ses sous-tâches ; nul, une
-    ligne se place en tête des lignes, une tâche en tête des sous-tâches ; absent, une ligne
-    après la dernière ligne, une tâche après la dernière sous-tâche, hors nœuds déplacés — un
-    nœud déplacé ne compte pas parmi les frères qu'il suivrait — ; un `after_node_id` d'un autre
-    genre se replie sur la frontière entre lignes et sous-tâches, une ligne après une sous-tâche
-    se plaçant après la dernière ligne, une tâche après une ligne en tête des sous-tâches. Une
-    sélection qui mêle lignes et tâches applique cette règle à chaque nœud, dans l'ordre de
-    `node_ids` : le premier nœud de chaque genre prend la place que la règle lui donne après
-    `after_node_id`, et chacun des suivants se place après le précédent de son genre — les
-    lignes déplacées restent ensemble parmi les lignes, les tâches parmi les sous-tâches (#1187 ;
-    `nodes_move_mixed`). Un `after_node_id` qui n'est pas un frère sous le parent visé — un nœud
-    d'un autre parent, l'un des nœuds déplacés, ou un nœud qui n'est pas de la structure — est
-    refusé par 422 `VALIDATION_FAILED`, `fields[].pointer` à `/after_node_id`, motif
-    `NODE_NOT_SIBLING`, rien ne bougeant (#1183). Une ligne de provision parmi `node_ids` est
-    refusée par 422 `VALIDATION_FAILED`, `fields[].pointer` sur elle, motif
-    `PROVISION_LINE_MOVED_BY_RISK`, `fields[].params.risk` nommant son risque : sa tâche se
-    désigne par le formulaire du risque (WF-RIS-0010 ; #1227). Une tâche déplacée sous un jalon,
-    qui ne porte pas de sous-tâches, est refusée par 422 `VALIDATION_FAILED`,
-    `fields[].pointer` à `/parent_id`, motif `MILESTONE_HAS_NO_SUBTASK`, `fields[].params`
-    nommant le jalon (`node_id`, `label`), rien ne bougeant ; une ligne de devis déplacée sous
-    un jalon est permise (WF-PLA-0050 ; F-04, #1771).
+    Move of nodes under a parent. A move that would take the task of an order item out of the
+    subtree of the task of its attached work package — the order item's task, or a task that
+    contains it — is refused (WF-PLA-0170): 422 `VALIDATION_FAILED`, `fields[].pointer` on the
+    moved node concerned (`/node_ids/0`), `fields[].code` at `ORDER_ITEM_OUTSIDE_WORK_PACKAGE`,
+    `fields[].params.work_package_task` and `order_item_tasks` naming the task of the work
+    package and those of the order items, each by its node and its label (`node_id`, `label`):
+    the grid, filtered, may not read them (WF-PLA-0170, WF-IHM-0080; EP-14/L42s). A selection is
+    judged on the structure that the move would leave, all its nodes moved: a refusal that names
+    a node names the first one concerned in outline order of the structure read, and
+    `LINK_CYCLE` the loop that the move of that one closes (#1169): the order of the refusal is
+    that of the outline, the order of `node_ids` governs only the placement. The moved nodes
+    take their place under `parent_id`, in the order of `node_ids`, after the sibling that
+    `after_node_id` names, according to the rule of `NodeCreate`: the lines of a task always
+    precede its subtasks; null, a line is placed at the head of the lines, a task at the head of
+    the subtasks; absent, a line after the last line, a task after the last subtask, moved nodes
+    excluded — a moved node does not count among the siblings it would follow —; an
+    `after_node_id` of a different kind falls back to the boundary between lines and subtasks, a
+    line after a subtask being placed after the last line, a task after a line at the head of
+    the subtasks. A selection that mixes lines and tasks applies this rule to each node, in the
+    order of `node_ids`: the first node of each kind takes the place that the rule gives it
+    after `after_node_id`, and each of the following ones is placed after the previous one of
+    its kind — the moved lines stay together among the lines, the tasks among the subtasks
+    (#1187; `nodes_move_mixed`). An `after_node_id` that is not a sibling under the targeted
+    parent — a node of another parent, one of the moved nodes, or a node not in the
+    structure — is refused with 422 `VALIDATION_FAILED`, `fields[].pointer` at `/after_node_id`,
+    reason `NODE_NOT_SIBLING`, nothing moving (#1183). A provision line among `node_ids` is
+    refused with 422 `VALIDATION_FAILED`, `fields[].pointer` on it, reason
+    `PROVISION_LINE_MOVED_BY_RISK`, `fields[].params.risk` naming its risk: its task is
+    designated through the risk's form (WF-RIS-0010; #1227). A task moved under a milestone,
+    which carries no subtasks, is refused with 422 `VALIDATION_FAILED`,
+    `fields[].pointer` at `/parent_id`, reason `MILESTONE_HAS_NO_SUBTASK`, `fields[].params`
+    naming the milestone (`node_id`, `label`), nothing moving; an estimate line moved under
+    a milestone is allowed (WF-PLA-0050; F-04, #1771).
   properties:
     node_ids:
       type: array
@@ -2166,20 +2166,20 @@ ProgressUpdate:
   type: object
   required: [progress, lock_version]
   description: >-
-    Démarre, termine ou rouvre une tâche, le geste d'une carte du Kanban
-    (`KanbanCommandAvailability.progress`). La date est celle du geste par défaut, et la
-    terminaison situe la valeur acquise (WF-RAE-0030, WF-IND-0030, WF-PLA-0130). Une tâche
-    terminée se rouvre : un jalon en le ramenant à « non démarrée », ses dates de démarrage et
-    de terminaison effacées — seul cas où une tâche revient à cet état —, toute autre tâche en
-    la repassant à « démarrée » (WF-RAE-0030). `not_started` envoyé pour une tâche qui n'est pas un
-    jalon
-    terminé est refusé par 409, `missing_condition` à `completed_milestone` : une tâche
-    démarrée par erreur se corrige en annulant la saisie (WF-IHM-0110). Le passage direct de
-    non démarrée à terminée n'est ouvert qu'à un jalon, qui ne passe jamais par l'état
-    démarré : `completed` sur un jalon non démarré écrit `completed_on` et `started_on` à
-    `occurred_on`, une tâche terminée sans avoir été démarrée prenant pour date de démarrage
-    celle de sa terminaison, sans exception (WF-PLA-0130). L'opération est refusée sur une
-    récapitulative, dont l'état est dérivé (WF-PLA-0040, WF-PLA-0050).
+    Starts, completes or reopens a task, the gesture of a Kanban card
+    (`KanbanCommandAvailability.progress`). The date is that of the gesture by default, and the
+    completion places the earned value (WF-RAE-0030, WF-IND-0030, WF-PLA-0130). A completed
+    task is reopened: a milestone by bringing it back to "not started", its start and
+    completion dates cleared — the only case where a task returns to that state —, any other
+    task by setting it back to "started" (WF-RAE-0030). `not_started` sent for a task that is
+    not a completed
+    milestone is refused with 409, `missing_condition` at `completed_milestone`: a task
+    started by mistake is corrected by undoing the entry (WF-IHM-0110). The direct move from
+    not started to completed is open only to a milestone, which never goes through the started
+    state: `completed` on a not-started milestone writes `completed_on` and `started_on` at
+    `occurred_on`, a task completed without having been started taking as its start date
+    that of its completion, without exception (WF-PLA-0130). The operation is refused on a
+    summary task, whose state is derived (WF-PLA-0040, WF-PLA-0050).
   properties:
     progress: { $ref: '#/TaskProgress' }
     occurred_on: { $ref: ../common.yaml#/PlanningDate }
@@ -2189,15 +2189,15 @@ RemainingUpdate:
   type: object
   required: [reestimated_amount_basis, lock_version]
   description: >-
-    Réestime une ligne dont la tâche n'est pas terminée ; un reste à engager nul pour
-    toutes les lignes d'une tâche la termine, à la date portée par `completed_on`
-    (WF-RAE-0040, WF-RAE-0010, WF-PLA-0130). Une tâche non démarrée qui n'est pas un jalon
-    passe alors par l'état démarré, démarrée et terminée à cette même date : seul un jalon
-    va directement de non démarré à terminé (WF-RAE-0030).
+    Re-estimates a line whose task is not completed; a zero remaining to commit for
+    all the lines of a task completes it, on the date carried by `completed_on`
+    (WF-RAE-0040, WF-RAE-0010, WF-PLA-0130). A not-started task that is not a milestone
+    then goes through the started state, started and completed on that same date: only a
+    milestone goes directly from not started to completed (WF-RAE-0030).
   properties:
     reestimated_amount_basis:
       type: object
-      description: Les grandeurs saisies dont le montant réestimé est recalculé.
+      description: The entered figures from which the re-estimated amount is recomputed.
       properties:
         quantity: { $ref: ../common.yaml#/Decimal }
         hours:
@@ -2209,38 +2209,38 @@ RemainingUpdate:
     completed_on:
       anyOf: [{ $ref: ../common.yaml#/PlanningDate }, { type: 'null' }]
       description: >-
-        Date de terminaison de la tâche, demandée à la validation quand la saisie la termine —
-        la dernière de ses lignes encore ouvertes mise à zéro —, proposée par l'écran au jour
-        courant et modifiable (WF-RAE-0040, WF-PLA-0130). Exigée dans ce cas : sans elle, la
-        saisie est refusée par un motif `COMPLETION_DATE_REQUIRED` sur `/completed_on`,
-        `fields[].params.task_node_id` nommant la tâche, et rien n'est écrit ; l'écran demande
-        la date et rejoue la saisie. Pour une tâche non démarrée, jalon compris, la même date
-        est aussi celle de son démarrage (`started_on`, WF-PLA-0130) ; une tâche qui n'est pas
-        un jalon passe par l'état démarré (WF-RAE-0030). Ignorée quand la saisie ne termine pas
-        la tâche.
+        Completion date of the task, asked for at validation when the entry completes it —
+        the last of its still-open lines set to zero —, proposed by the screen as the current
+        day and modifiable (WF-RAE-0040, WF-PLA-0130). Required in that case: without it, the
+        entry is refused with a reason `COMPLETION_DATE_REQUIRED` on `/completed_on`,
+        `fields[].params.task_node_id` naming the task, and nothing is written; the screen asks
+        for the date and replays the entry. For a not-started task, milestone included, the same
+        date is also that of its start (`started_on`, WF-PLA-0130); a task that is not
+        a milestone goes through the started state (WF-RAE-0030). Ignored when the entry does
+        not complete the task.
     lock_version: { $ref: ../common.yaml#/LockVersion }
 
 UndoResult:
   type: object
   required: [undone, written, remaining_depth]
   description: >-
-    Annule ou rétablit la dernière modification de l'historique de l'appelant sur la révision
-    (`undoLastChange`, qui dit cet historique). Une annulation est une modification comme une
-    autre : elle rend ce qu'une écriture rend (`written`), et elle est refusée par 409 si une
-    modification postérieure porte sur le même objet, `UNDO_CONFLICT` le nommant (WF-IHM-0110). Les saisies de risque —
-    création, changement de la provision, réexamen, suppression — sont dans le même historique que
-    celles des grilles (WF-RIS-0020) : leur annulation nomme le risque rendu à son état précédent.
-    La modification de l'identité d'un risque, donnée du projet, n'y entre pas (`updateRisk` ;
-    H-02, #1782). Toute
-    annulation et tout rétablissement qui rendraient un sous-projet supprimé depuis — à la provision
-    d'un risque créé ou supprimé, ou dont la provision a changé, ou à une ligne de devis par une écriture de la grille, la
-    suppression d'une ligne ou d'une tâche et de ses lignes comprise — sont refusés par 409
-    `STATE_FORBIDS_OPERATION`, `params.missing_condition` à `restored_subproject_exists`, et ne
-    défont ni ne rétablissent rien (décision de l'auteur, #732). De même, toute annulation et tout
-    rétablissement qui recréeraient la ligne de provision d'un risque sur une structure principale
-    sans tâche, ou avec une catégorie qui n'est plus active et de type provision pour risques, sont
-    refusés par `at_least_one_task` ou `active_provision_category` (`undoLastChange`,
-    `redoLastUndo` ; WF-RIS-0010, #795).
+    Undoes or redoes the last modification in the caller's history on the revision
+    (`undoLastChange`, which describes that history). An undo is a modification like any
+    other: it returns what a write returns (`written`), and it is refused with 409 if a later
+    modification bears on the same object, `UNDO_CONFLICT` naming it (WF-IHM-0110). Risk
+    entries — creation, change of the provision, review, deletion — are in the same history as
+    those of the grids (WF-RIS-0020): their undo names the risk returned to its previous state.
+    Modifying a risk's identity, project data, does not enter it (`updateRisk`;
+    H-02, #1782). Any
+    undo and any redo that would bring back a subproject deleted since — to the provision
+    of a risk created or deleted, or whose provision has changed, or to an estimate line by a
+    grid write, the deletion of a line or of a task and its lines included — are refused with
+    409 `STATE_FORBIDS_OPERATION`, `params.missing_condition` at `restored_subproject_exists`,
+    and neither undo nor redo anything (decision of the author, #732). Likewise, any undo and
+    any redo that would recreate a risk's provision line on a main structure
+    without tasks, or with a category that is no longer active and of type risk provision, are
+    refused with `at_least_one_task` or `active_provision_category` (`undoLastChange`,
+    `redoLastUndo`; WF-RIS-0010, #795).
   properties:
     undone:
       type: object
@@ -2250,30 +2250,30 @@ UndoResult:
         node_ids:
           type: array
           description: >-
-            Les nœuds que l'annulation, ou le rétablissement, rend à leur état précédent ; vide
-            pour une saisie de risque.
+            The nodes that the undo, or the redo, returns to their previous state; empty
+            for a risk entry.
           items: { $ref: ../common.yaml#/Uuid }
         risk_ids:
           type: array
           description: >-
-            Les risques que l'annulation, ou le rétablissement, rend à leur état précédent
-            (WF-IHM-0110, WF-RIS-0020) ; vide pour une saisie des grilles.
+            The risks that the undo, or the redo, returns to their previous state
+            (WF-IHM-0110, WF-RIS-0020); empty for a grid entry.
           items: { $ref: ../common.yaml#/Uuid }
     written:
       anyOf: [{ $ref: '#/NodesWritten' }, { type: 'null' }]
       description: >-
-        Ce que l'annulation, ou le rétablissement, a écrit dans une structure, comme toute
-        écriture de grille : nœuds rendus à leur état, ancêtres recalculés, tâches redatées,
-        totaux et compteur de la structure, pour que la grille montre juste sans relire la
-        structure et garde le compteur que sa saisie suivante portera (WF-IHM-0040,
-        WF-IHM-0110). Nul pour une saisie de risque, qui n'écrit dans une structure que par la
-        ligne de provision de son risque : la grille relit alors sa structure.
+        What the undo, or the redo, wrote into a structure, like any
+        grid write: nodes returned to their state, ancestors recomputed, tasks re-dated,
+        totals and counter of the structure, so that the grid shows correctly without rereading
+        the structure and keeps the counter that its next entry will carry (WF-IHM-0040,
+        WF-IHM-0110). Null for a risk entry, which writes into a structure only through the
+        provision line of its risk: the grid then rereads its structure.
     remaining_depth:
       type: integer
       minimum: 0
       description: >-
-        Les modifications qui restent à annuler dans l'historique de l'appelant sur la révision,
-        après celle-ci — pour le rétablissement, celles qui restent à rétablir.
+        The modifications that remain to be undone in the caller's history on the revision,
+        after this one — for the redo, those that remain to be redone.
 
 UndoneKind:
   type: string
@@ -2293,55 +2293,55 @@ UndoneKind:
     - risk_review
     - risk_delete
   description: >-
-    La nature de la modification annulée ou rétablie, que le front dit par son catalogue
-    (WF-ARC-0110) : une cellule (`updateTaskFacet`, `updateEstimateLine`), une création ou une
-    suppression de nœud, un déplacement, un collage, une liaison (`setPredecessors`), un
-    avancement, une réestimation (`setLineRemaining`), une inscription aux suivis, la date de
-    début de planning ou le libellé d'une structure (`updateCostStructure`) ; ou une saisie de
-    risque — création, modification, réexamen, suppression (WF-RIS-0020).
+    The kind of the modification undone or redone, which the front expresses through its
+    catalogue (WF-ARC-0110): a cell (`updateTaskFacet`, `updateEstimateLine`), a creation or a
+    deletion of a node, a move, a paste, a link (`setPredecessors`), a
+    progress change, a re-estimate (`setLineRemaining`), a tracking registration, the planning
+    start date or the label of a structure (`updateCostStructure`); or a risk
+    entry — creation, modification, review, deletion (WF-RIS-0020).
 
 PastePreview:
   type: object
   required: [target_node_id, target_column, rows]
   description: >-
-    Bloc collé depuis un tableur, sur la cellule visée : le nœud et sa colonne. L'aperçu dit
-    ce qui sera écrit et ce qui sera refusé, avec le motif de chaque refus ; rien n'est écrit
-    sans confirmation, et la confirmation écrit les lignes valides, jamais les lignes refusées
-    (WF-IHM-0050).
+    Block pasted from a spreadsheet, on the targeted cell: the node and its column. The preview
+    tells what will be written and what will be refused, with the reason for each refusal;
+    nothing is written without confirmation, and the confirmation writes the valid rows, never
+    the refused rows (WF-IHM-0050).
 
-    La première colonne du bloc remplit `target_column` ; chacune des suivantes remplit la
-    colonne suivante de la facette du nœud visé, dans l'ordre de `NodeColumn` — pour une
-    ligne de devis collée sur son libellé : la catégorie, le rôle, la quantité, la charge,
-    le débours unitaire, le sous-projet, le délai de paiement ; pour une tâche : la
-    description, le mode, la durée, le début, la fin. Chaque ligne du bloc écrit la ligne de la
-    grille à la même distance sous le nœud visé, dans l'ordre du plan. Sur un différentiel, les
-    nœuds qu'il retire, que sa lecture rend à leur place en lecture seule (`NodeDifference`), ne
-    comptent pas : le collage les saute, sans refus, et la ligne du bloc qui serait tombée sur l'un
-    d'eux écrit le nœud suivant qui n'est pas retiré, les lignes suivantes du bloc les nœuds
-    d'après — un bloc de deux lignes collé sur la ligne qui précède une ligne retirée écrit cette
-    ligne, puis le nœud qui suit la ligne retirée (décision de l'auteur du 2026-10-22, #1278).
-    `PastePlan.accepted` et `PasteRejection.row` comptent les lignes du bloc, jamais les nœuds
-    sautés. Un bloc dont la cellule visée est elle-même sur un nœud retiré, qui n'accepte aucun
-    champ (`editable_fields` vide), est refusé entier : `PastePlan.accepted` à `0`, et une seule
-    `PasteRejection`, `row` à `0`, `column` la colonne visée, `code` à `PASTE_TARGET_REMOVED`,
-    aucune autre ligne n'étant jugée ; l'ancre n'est pas reportée au nœud suivant, qui écrirait
-    ailleurs que là où l'utilisateur a cliqué (décision de l'auteur, recadrage d'EP-16, #1361).
-    Aucune cellule n'est décalée : une cellule qui tombe sur une colonne que sa ligne
-    n'accepte pas est refusée, la ligne et la colonne nommées (`PastePlan.rejected`), sauf si
-    elle est vide, qui n'écrit rien — un champ calculé pour ce nœud par `COMPUTED_VALUE`, un
-    champ que sa nature refuse ou une colonne qu'aucune écriture ne porte, comme les montants,
-    par `FIELD_NOT_ACCEPTED` (EP-14/L42s) ; le sous-projet d'une ligne qui ne peut pas le
-    quitter, par `SUBPROJECT_HAS_ACTUAL_COSTS` (`PasteRejection`) ; toute colonne d'une ligne de
-    la structure principale dont la tâche est terminée, qui n'en accepte aucune, par
-    `STATE_FORBIDS_OPERATION`, `params.missing_condition` à `task_not_completed`, la ligne n'étant
-    pas écrite (WF-RAE-0040 ; F-01, #1766). Un bloc plus large que les
-    colonnes de la facette à partir de la colonne visée est refusé par 422 (`PASTE_TOO_WIDE`,
+    The first column of the block fills `target_column`; each of the following ones fills the
+    next column of the targeted node's facet, in the order of `NodeColumn` — for an
+    estimate line pasted on its label: the category, the role, the quantity, the effort,
+    the unit disbursement, the subproject, the payment delay; for a task: the
+    description, the mode, the duration, the start, the finish. Each row of the block writes the
+    grid row at the same distance below the targeted node, in outline order. On a differential,
+    the nodes it removes, which its read returns in their place as read-only (`NodeDifference`),
+    do not count: the paste skips them, without refusal, and the block row that would have fallen
+    on one of them writes the next node that is not removed, the following block rows the nodes
+    after it — a two-row block pasted on the row that precedes a removed row writes that
+    row, then the node that follows the removed row (decision of the author of 2026-10-22,
+    #1278). `PastePlan.accepted` and `PasteRejection.row` count the rows of the block, never the
+    skipped nodes. A block whose targeted cell is itself on a removed node, which accepts no
+    field (`editable_fields` empty), is refused whole: `PastePlan.accepted` at `0`, and a single
+    `PasteRejection`, `row` at `0`, `column` the targeted column, `code` at `PASTE_TARGET_REMOVED`,
+    no other row being judged; the anchor is not carried over to the next node, which would write
+    elsewhere than where the user clicked (decision of the author, reframing of EP-16, #1361).
+    No cell is shifted: a cell that falls on a column that its row
+    does not accept is refused, the row and the column named (`PastePlan.rejected`), unless
+    it is empty, which writes nothing — a field computed for this node with `COMPUTED_VALUE`, a
+    field that its kind refuses or a column that no write carries, like the amounts,
+    with `FIELD_NOT_ACCEPTED` (EP-14/L42s); the subproject of a line that cannot leave it,
+    with `SUBPROJECT_HAS_ACTUAL_COSTS` (`PasteRejection`); any column of a line of
+    the main structure whose task is completed, which accepts none, with
+    `STATE_FORBIDS_OPERATION`, `params.missing_condition` at `task_not_completed`, the line not
+    being written (WF-RAE-0040; F-01, #1766). A block wider than the
+    columns of the facet from the targeted column onwards is refused with 422 (`PASTE_TOO_WIDE`,
     `params.max_columns`).
   properties:
     target_node_id: { $ref: ../common.yaml#/Uuid }
     target_column:
       allOf: [{ $ref: '#/NodeColumn' }]
-      description: La colonne de la cellule visée, que la première colonne du bloc remplit.
+      description: The column of the targeted cell, which the first column of the block fills.
     rows:
       type: array
       minItems: 1
@@ -2353,24 +2353,24 @@ PastePlan:
   type: object
   required: [paste_id, accepted, rejected]
   description: >-
-    Ce qu'un collage écrira et ce qu'il refusera, chaque refus avec son motif et, quand il
-    tient à une cellule, sa colonne (WF-IHM-0050). Une ligne du bloc dont une cellule est
-    refusée est refusée entière : confirmé, le collage écrit les autres lignes et non celle-ci
-    (`applyPaste`, `PasteApplied`) ; abandonné, il n'écrit rien.
+    What a paste will write and what it will refuse, each refusal with its reason and, when it
+    concerns a cell, its column (WF-IHM-0050). A block row one of whose cells is
+    refused is refused whole: confirmed, the paste writes the other rows and not this one
+    (`applyPaste`, `PasteApplied`); abandoned, it writes nothing.
   properties:
     paste_id: { $ref: ../common.yaml#/Uuid }
     accepted:
       type: integer
       minimum: 0
       description: >-
-        Le nombre de lignes du bloc que la confirmation écrira. Sur un différentiel, un nœud
-        retiré que le collage saute n'y est pas compté, et n'est pas refusé non plus : chaque
-        ligne du bloc écrit le nœud suivant qui n'est pas retiré (`PastePreview`, #1278).
+        The number of block rows that the confirmation will write. On a differential, a removed
+        node that the paste skips is not counted in it, and is not refused either: each
+        block row writes the next node that is not removed (`PastePreview`, #1278).
     rejected:
       type: array
       description: >-
-        Les refus, dans l'ordre des lignes du bloc puis des colonnes ; une ligne refusée par
-        plusieurs cellules y paraît pour chacune.
+        The refusals, in the order of the block rows then of the columns; a row refused by
+        several cells appears for each of them.
       items: { $ref: '#/PasteRejection' }
 
 PasteRejection:
