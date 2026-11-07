@@ -156,9 +156,10 @@ AuditEvent:
     An entry of the audit log: the date, the author, the action, the object concerned and the
     project if there is one (WF-SEC-0030), and the correlation identifier of the request or of
     the background task that produced it, that of the platform's logs (WF-OBS-0020). An entry
-    can be neither modified nor deleted: no operation allows it, and a restore does not touch
-    it — the log is outside the scope that a restore replaces, and its `restore` entry is
-    written once the restore is done (WF-ADM-0160, #539).
+    can be neither modified nor deleted: no operation allows it, and a restore does not lose
+    it — the entries absent from the restored log are read back before the databases are
+    replaced and rewritten after, and its `restore` entry is written once the restore is done
+    (WF-ADM-0160, #539).
     An action that produces others records them all, at the same instant and under the same
     correlation: the merge of a differential records `structure_merge` on its structure, then
     `revision_mark` and `reference_designate` on the resulting revision (WF-REV-0050).

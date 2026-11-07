@@ -204,7 +204,14 @@ UserAccount:
       type: boolean
       description: True when the account carries an avatar (WF-ADM-0080); false, the default image.
     audit: { $ref: ../common.yaml#/Audit }
-    lock_version: { $ref: ../common.yaml#/LockVersion }
+    lock_version:
+      allOf: [{ $ref: ../common.yaml#/LockVersion }]
+      description: >-
+        Advanced by the administration writes of the account (`updateUser`,
+        `setUserActivation`, `anonymizeUser`, `setUserAccessRoles`), which require it; not by
+        its holder's preferences or avatar (`updateMyPreferences`, `putMyAvatar`,
+        `deleteMyAvatar`), which belong to the holder alone (WF-ADM-0040, WF-ADM-0080) and do
+        not compete with the administration of the account.
 
 UserSelf:
   description: >-
@@ -234,11 +241,36 @@ UserCreate:
     (WF-ADM-0070): its roles are then assigned to it by `setUserAccessRoles`, under the
     permission to modify access roles (WF-ADM-0090, WF-ADM-0100).
   properties:
-    last_name: { type: string, minLength: 1, pattern: '\S', maxLength: 100 }
-    first_name: { type: string, minLength: 1, pattern: '\S', maxLength: 100 }
-    email: { type: string, format: email, maxLength: 254 }
+    last_name:
+      type: string
+      minLength: 1
+      pattern: '\S'
+      maxLength: 100
+      description: >-
+        The last name of the account (WF-ADM-0050); one the identity provider refuses,
+        `VALIDATION_FAILED`.
+    first_name:
+      type: string
+      minLength: 1
+      pattern: '\S'
+      maxLength: 100
+      description: >-
+        The first name of the account (WF-ADM-0050); one the identity provider refuses,
+        `VALIDATION_FAILED`.
+    email:
+      type: string
+      format: email
+      maxLength: 254
+      description: >-
+        The address to which the invitation is sent, unique among the accounts (WF-ADM-0050):
+        an address already held, 409 `ALREADY_EXISTS`; one the identity provider refuses,
+        `VALIDATION_FAILED`.
     org_node_id:
       anyOf: [{ $ref: ../common.yaml#/Uuid }, { type: 'null' }]
+      description: >-
+        The optional attachment of the account to an organisation node, which grants no
+        permission (WF-ADM-0030): a node the installation does not have, `UNKNOWN_ORG_NODE`; a
+        deactivated one, `INACTIVE_REFERENCE_OBJECT`.
 
 UserUpdate:
   type: object
@@ -258,8 +290,13 @@ UserUpdate:
 UserActivationWrite:
   type: object
   required: [is_active, lock_version]
+  description: >-
+    The deactivation or the reactivation of an account, at the version read
+    (`setUserActivation`, WF-ADM-0060).
   properties:
-    is_active: { type: boolean }
+    is_active:
+      type: boolean
+      description: False deactivates the account, true reactivates it.
     lock_version: { $ref: ../common.yaml#/LockVersion }
 
 UserAnonymizationWrite:
@@ -272,10 +309,20 @@ UserAnonymizationWrite:
 UserRolesWrite:
   type: object
   required: [access_role_ids, lock_version]
+  description: >-
+    The roles of an account, at the version read (`setUserAccessRoles`, WF-ADM-0090): under the
+    permission to modify accounts and the permission to modify access roles (`users.write`,
+    `access_roles.write`).
   properties:
     access_role_ids:
       type: array
       items: { $ref: ../common.yaml#/Uuid }
+      description: >-
+        The full list of the account's roles, which replaces the one it held; empty, the
+        account holds no role (WF-ADM-0180). A role the installation does not have, or a
+        deleted one, `UNKNOWN_ACCESS_ROLE`; roles that would remove the administration
+        permissions from the last active account holding them, 409 `LAST_ADMINISTRATOR`
+        (WF-ADM-0120).
     lock_version: { $ref: ../common.yaml#/LockVersion }
 
 DisplayPreferences:
@@ -538,6 +585,7 @@ PermissionCode:
 Permission:
   type: object
   required: [code, kind, fbs_code]
+  description: An entry of the delivered, non-modifiable permission catalogue (WF-ADM-0100).
   properties:
     code: { $ref: '#/PermissionCode' }
     kind:
@@ -571,6 +619,9 @@ AccessRole:
 AccessRoleWrite:
   type: object
   required: [label, permissions]
+  description: >-
+    A role composed of any set of catalogue permissions: no action is reserved for an actor
+    (WF-ADM-0020, WF-ADM-0090).
   properties:
     label: { type: string, minLength: 1, pattern: '\S', maxLength: 100 }
     permissions:

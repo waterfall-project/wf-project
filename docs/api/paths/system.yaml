@@ -56,7 +56,16 @@
               witness: { $ref: ../../../fixtures/api/installation.json }
               english: { $ref: ../../../fixtures/api/installation_english.json }
       '500': { $ref: ../components/responses.yaml#/InternalError }
-      '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
+      '503':
+        description: >-
+          An unavailable component prevents the operation, `COMPONENT_UNAVAILABLE`,
+          `params.component` naming it (WF-EXP-0040): the database before the bootstrap of the
+          installation (WF-EXP-0020), which creates the row of its settings.
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              not_bootstrapped: { $ref: ../../../fixtures/api/installation_not_bootstrapped.json }
 
 /health/ready:
   get:
@@ -136,6 +145,9 @@
               backup_failed: { $ref: ../../../fixtures/api/system_status_backup_failed.json }
               storage_full: { $ref: ../../../fixtures/api/system_status_storage_full.json }
               copy_failed: { $ref: ../../../fixtures/api/system_status_copy_failed.json }
+              identity_sync_failed: { $ref: ../../../fixtures/api/system_status_identity_sync_failed.json }
+              task_queue_stalled: { $ref: ../../../fixtures/api/system_status_task_queue_stalled.json }
+              error_rate_abnormal: { $ref: ../../../fixtures/api/system_status_error_rate_abnormal.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '500': { $ref: ../components/responses.yaml#/InternalError }
@@ -166,7 +178,9 @@
         in: query
         description: >-
           Retains, among finished tasks, only those that have succeeded or failed since this
-          date; those that are running are always retained.
+          date; those that are running are always retained. When absent, every finished task
+          still kept is retained, within the retention of the background tasks
+          (`OperatingParameters.background_task_retention_days`, thirty days as shipped).
         schema: { $ref: ../components/common.yaml#/Timestamp }
       - $ref: ../components/parameters.yaml#/Limit
       - $ref: ../components/parameters.yaml#/Offset
@@ -197,6 +211,7 @@
             schema: { $ref: ../components/common.yaml#/Problem }
             examples:
               status_invalid: { $ref: ../../../fixtures/api/tasks_status_invalid.json }
+              finished_since_invalid: { $ref: ../../../fixtures/api/tasks_finished_since_invalid.json }
       '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 

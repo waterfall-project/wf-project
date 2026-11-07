@@ -28,8 +28,9 @@ written from the one journal: the whole of it, the latest first; its second page
 journal of the witness; that journal after its exit, after the estimate imported this morning
 is applied, and after its revision in progress is abandoned; a filter that retains nothing; the
 journal sorted by author; the inscriptions of one correlation; a search on the label of the
-object; the journal of the witness as its auditor reads it, who may open no project; and, a
-variant of its own, the administration of the accounts and the roles of today (#961).
+object; and the journal of the witness as its auditor reads it, who may open no project. The
+variants of the administration of today and of a restore are numbered apart, by
+``mockauditadmin``.
 The answer of ``listAuditFacets`` is read from the same journal: its authors and its projects
 (#550). Nothing here reads the clock.
 """
@@ -246,10 +247,11 @@ def _accounts() -> list[Inscription]:
     Each when and by whom its audit says: what the platform created — at the installation, from
     the directory, at a first sign-in by the provider of identity — by the platform. The roles
     come first, before the accounts that hold them. An account inactive was deactivated at its
-    last update (WF-ADM-0060). And the roles given to an account after its creation: those
-    created after it (``_given``). An update of an account by its holder alone — the preferences
-    of its display, which ``updateMyPreferences`` writes — is no inscription: WF-SEC-0030 names
-    the accounts an administrator creates and modifies, not what a user chooses for himself.
+    last update (WF-ADM-0060). And the roles each account holds, given to it after its
+    creation, an account being born without one (``_given``, #1731). An update of an account by
+    its holder alone — the preferences of its display, which ``updateMyPreferences`` writes — is
+    no inscription: WF-SEC-0030 names the accounts an administrator creates and modifies, not what
+    a user chooses for himself.
     """
     found = [
         Inscription(
@@ -291,57 +293,87 @@ def _accounts() -> list[Inscription]:
     return [*found, *_given()]
 
 
-def _given() -> list[Inscription]:
-    """Return the roles given to an account that held them only once they were created.
-
-    An account created before one of its roles was given its roles once the last of them came
-    to be — at the earliest, which is when the examples let it be — by the one who created that
-    role: the first administrator composing the roles of the installation and taking one. The
-    attribution names the roles it gives, in the order the account holds them, and withdraws none.
-    """
-    roles = {role["access_role_id"]: role for role in fixture("access_roles")}
-    found: list[Inscription] = []
-    for user in fixture("users")["items"]:
-        held = [roles[role]["audit"] for role in user["access_role_ids"]]
-        last = max(held, key=lambda audit: audit["created_at"], default=None)
-        if last is not None and last["created_at"] > user["audit"]["created_at"]:
-            found.append(
-                Inscription(
-                    moment(last["created_at"]),
-                    last["created_by"],
-                    "user_access_roles_set",
-                    "user",
-                    user["user_id"],
-                    display_name(user),
-                    params={
-                        "access_roles_granted": [
-                            {"access_role_id": held, "label": roles[held]["label"]}
-                            for held in user["access_role_ids"]
-                        ],
-                        "access_roles_withdrawn": [],
-                    },
-                )
-            )
-    return found
-
-
-def _backuper() -> JsonObject:
-    """Return the one active account that may start a backup: its author (WF-ADM-0100)."""
+def _holder_of(permission: str) -> JsonObject:
+    """Return the one active account whose roles carry a permission, as an actor names it."""
     roles = {
         role["access_role_id"]
         for role in fixture("access_roles")
-        if "backups.write" in role["permissions"]
+        if permission in role["permissions"]
     }
     [user] = [
         each
         for each in fixture("users")["items"]
         if each["is_active"] and roles & set(each["access_role_ids"])
     ]
-    return {
-        "kind": "user",
-        "user_id": user["user_id"],
-        "display_name": display_name(user),
-    }
+    return {"kind": "user", "user_id": user["user_id"], "display_name": display_name(user)}
+
+
+def _given() -> list[Inscription]:
+    """Return the attributions of the roles the accounts hold, each a request of its own.
+
+    An account is born without a role (#1731): every role it holds was given to it by an
+    attribution of its own (WF-SEC-0030), after its creation and once the last of its roles came
+    to be — at the earliest, which is when the examples let it be. The installation gives its one
+    local account the predefined « Administrateur » at its creation, by the platform (WF-EXP-0020);
+    every other attribution is by the one account that may modify the roles
+    (``access_roles.write``, WF-ADM-0090), a directory account included, the read of the
+    directory giving no role (WF-ADM-0070). An attribution names the roles it gives, in the order
+    the account holds them, and those it withdraws: the installation's « Administrateur », which
+    its holder exchanged for the roles it composed, and which nobody holds since.
+    """
+    roles = {role["access_role_id"]: role for role in fixture("access_roles")}
+    [administrator] = [
+        role
+        for role in roles.values()
+        if role["is_predefined"] and role["label"] == "Administrateur"
+    ]
+    grantor = _holder_of("access_roles.write")
+    installed: list[Inscription] = []
+    found: list[Inscription] = []
+    for user in fixture("users")["items"]:
+        held = [roles[role] for role in user["access_role_ids"]]
+        if not held:
+            continue
+        audit = user["audit"]
+        withdrawn: list[JsonValue] = []
+        if user["origin"] == "local" and audit["created_by"] == PLATFORM:
+            installed.append(
+                Inscription(
+                    moment(audit["created_at"]),
+                    PLATFORM,
+                    "user_access_roles_set",
+                    "user",
+                    user["user_id"],
+                    display_name(user),
+                    params={
+                        "access_roles_granted": [role_named(administrator)],
+                        "access_roles_withdrawn": [],
+                    },
+                )
+            )
+            if administrator not in held:
+                withdrawn.append(role_named(administrator))
+        last = max([audit["created_at"], *(role["audit"]["created_at"] for role in held)])
+        found.append(
+            Inscription(
+                moment(last),
+                grantor,
+                "user_access_roles_set",
+                "user",
+                user["user_id"],
+                display_name(user),
+                params={
+                    "access_roles_granted": [role_named(role) for role in held],
+                    "access_roles_withdrawn": withdrawn,
+                },
+            )
+        )
+    return [*installed, *found]
+
+
+def _backuper() -> JsonObject:
+    """Return the one active account that may start a backup: its author (WF-ADM-0100)."""
+    return _holder_of("backups.write")
 
 
 def _backups() -> list[Inscription]:
@@ -401,7 +433,7 @@ def exit_abandon_today() -> Inscription:
     return replace(abandon_today(), at=exited.at, actor=exited.actor)
 
 
-def _event(number: int, request: int, inscription: Inscription) -> JsonObject:
+def numbered(number: int, request: int, inscription: Inscription) -> JsonObject:
     """Return an inscription as the journal reads it (`AuditEvent`), numbered in its order.
 
     Its correlation is that of the request that produced it, numbered in the order of the
@@ -520,190 +552,23 @@ def journal(*, sequel: int | None = None) -> list[JsonObject]:
     request = 0
     for number, each in enumerate(found, start=1):
         request += 0 if each.joined else 1
-        events.append(_event(number, request, each))
+        events.append(numbered(number, request, each))
     if sequel is not None:
         sequels = _sequels()
         *before, action = sequels[sequel]
         for rank, each in enumerate(before):
             number = len(found) + len(sequels) + WRITTEN_VARIANTS + 1 + rank
-            events.append(_event(number, request + 1 + sequel, each))
-        events.append(_event(len(found) + 1 + sequel, request + 1 + sequel, action))
+            events.append(numbered(number, request + 1 + sequel, each))
+        events.append(numbered(len(found) + 1 + sequel, request + 1 + sequel, action))
     return events[::-1]
 
 
-ADMINISTERED = 101
-"""The number of the first inscription of the administration of today, and of its first request.
-
-Past the journal, its sequels and the variants of the journal written by hand
-(``audit_events_anonymized_*``): the administration is a variant of its own, whose identifiers and
-correlations no other example gives (#961)."""
-
-ACCOUNT_FIELDS = ("last_name", "first_name", "email", "org_node_id")
-"""The fields of an account a modification names, in the order of the account (`AuditUserField`):
-its identity, and its attachment to a node of the organisation (#1739)."""
-
-ATTACHED_NODE = "Bureau d'études électricité"
-"""The node of the organisation the administration attaches the account of Léa Garnier to, once she
-holds her first role: a modification of her attachment alone no example of updateUser answers, a
-liberty of that variant (#1739)."""
-
-WITHDRAWN = ("cost_settings.write", "resource_settings.write")
-"""The permissions the modification of the administration withdraws from « Manager », in the order
-of the catalogue: those of the writing of the settings of costs and resources, which it holds."""
-
-
-DIRECTORY_LAST_NAME = "Vidal-Roux"
-"""The last name the directory gives the person whose address Noé Vidal holds, which the
-attachment of the administration gives his account: a liberty of that variant (#707, #961)."""
-
-
-def _updater(example: JsonObject) -> JsonObject:
-    """Return the one who last updated an example, the author of the write it answers."""
-    return cast("JsonObject", cast("JsonObject", example["audit"])["updated_by"])
-
-
-def _role_named(role: JsonObject) -> JsonObject:
+def role_named(role: JsonObject) -> JsonObject:
     """Return a role as an attribution names it (`AuditAccessRole`): its identifier, its label."""
     return {"access_role_id": role["access_role_id"], "label": role["label"]}
 
 
-def _account(user: JsonObject, action: str, actor: JsonObject, params: JsonObject) -> Inscription:
-    """Return an action of today on an account, under the name it displays once it is done."""
-    identifier = cast("str", user["user_id"])
-    return Inscription(TODAY, actor, action, "user", identifier, display_name(user), params=params)
-
-
-def _administered_roles() -> list[Inscription]:
-    """Return the roles the administration of today creates and modifies.
-
-    « Contrôle de gestion » composed from its label alone, without any permission
-    (`access_role_created`), then saved as it is, which changes nothing of it; « Manager » renamed
-    « Responsable d'équipe » (`access_role_renamed`) and given the modification of the planning
-    (`access_role_updated`) by the same modification, which withdraws from it the writing of the
-    settings of costs and resources (``WITHDRAWN``). That combined modification is a variant no
-    example of updateAccessRole answers: each of them renames or changes the permissions, never
-    both. Its state after is written here, and what it grants and withdraws is read from it as
-    the service reads it, in the order of the catalogue. Each by the one who last updated the
-    example it is read from.
-    """
-    created = fixture("access_role_created")
-    renamed = fixture("access_role_renamed")
-    updated = fixture("access_role_updated")
-    roles = {role["access_role_id"]: role for role in fixture("access_roles")}
-    before = cast("list[str]", roles[renamed["access_role_id"]]["permissions"])
-    after = [code for code in cast("list[str]", updated["permissions"]) if code not in WITHDRAWN]
-
-    def role(action: str, changed: JsonObject, params: JsonObject) -> Inscription:
-        return Inscription(
-            TODAY,
-            _updater(changed),
-            action,
-            "access_role",
-            cast("str", changed["access_role_id"]),
-            cast("str", changed["label"]),
-            params=params,
-        )
-
-    return [
-        role("access_role_create", created, {"permissions": created["permissions"]}),
-        role(
-            "access_role_update",
-            created,
-            {"permissions_granted": [], "permissions_withdrawn": []},
-        ),
-        role(
-            "access_role_update",
-            renamed,
-            {
-                "previous_label": roles[renamed["access_role_id"]]["label"],
-                "permissions_granted": [code for code in after if code not in before],
-                "permissions_withdrawn": [code for code in before if code not in after],
-            },
-        ),
-    ]
-
-
-def _administered_accounts() -> list[Inscription]:
-    """Return the accounts the administration of today creates, modifies and takes roles from.
-
-    Léa Garnier created a local account (`user_created`), born without a role (#1731), then
-    given her first role, « Chiffreur », by setUserAccessRoles, a request of its own after the
-    creation: a first attribution no example of setUserAccessRoles answers, a liberty of this
-    variant; then attached to a node of the organisation (``ATTACHED_NODE``), a modification of
-    her attachment alone no example of updateUser answers, a liberty of this variant (#1739);
-    the name of Lucas Petit corrected (`user_renamed`); Noé Vidal, as the list of the accounts has
-    him, attached by the platform to the person of the directory who holds his address, under the
-    name the directory gives him (``DIRECTORY_LAST_NAME``), from the directory from now on (#707):
-    an attachment no example answers, a liberty of this variant; Inès Roux deprived of her one role
-    (`user_access_roles_cleared`). Each write read from an example by the one who last updated it.
-    """
-    created = fixture("user_created")
-    renamed = fixture("user_renamed")
-    cleared = fixture("user_access_roles_cleared")
-    users = {user["user_id"]: user for user in fixture("users")["items"]}
-    roles = {role["access_role_id"]: role for role in fixture("access_roles")}
-    [first] = [role for role in roles.values() if role["label"] == "Chiffreur"]
-    [noe] = [user for user in users.values() if display_name(user) == "Noé Vidal"]
-    [node] = [each for each in fixture("org_nodes") if each["label"] == ATTACHED_NODE]
-    attached = {**noe, "last_name": DIRECTORY_LAST_NAME}
-    placed = {**created, "org_node_id": node["org_node_id"]}
-    actor = _updater(created)
-
-    def changed(after: JsonObject, before: JsonObject | None = None) -> list[JsonValue]:
-        earlier = users[after["user_id"]] if before is None else before
-        return [name for name in ACCOUNT_FIELDS if after[name] != earlier[name]]
-
-    held = cast("list[str]", users[cleared["user_id"]]["access_role_ids"])
-    return [
-        _account(created, "user_create", actor, {"origin": created["origin"]}),
-        _account(
-            created,
-            "user_access_roles_set",
-            actor,
-            {"access_roles_granted": [_role_named(first)], "access_roles_withdrawn": []},
-        ),
-        _account(placed, "user_update", actor, {"fields": changed(placed, created)}),
-        _account(
-            renamed,
-            "user_update",
-            _updater(renamed),
-            {"fields": changed(renamed)},
-        ),
-        _account(
-            attached, "user_update", PLATFORM, {"fields": changed(attached), "attached": True}
-        ),
-        _account(
-            cleared,
-            "user_access_roles_set",
-            _updater(cleared),
-            {
-                "access_roles_granted": [],
-                "access_roles_withdrawn": [
-                    _role_named(roles[role])
-                    for role in held
-                    if role not in cleared["access_role_ids"]
-                ],
-            },
-        ),
-    ]
-
-
-def administration() -> list[JsonObject]:
-    """Return the administration of the accounts and the roles of today, the latest first.
-
-    A variant of the journal, each write of today on an account or a role a request of its own,
-    at the instant of today. Numbered from ``ADMINISTERED``, its requests too.
-    """
-    events: list[JsonObject] = []
-    request = ADMINISTERED - 1
-    found = [*_administered_roles(), *_administered_accounts()]
-    for number, each in enumerate(found, start=ADMINISTERED):
-        request += 0 if each.joined else 1
-        events.append(_event(number, request, each))
-    return events[::-1]
-
-
-def _page(events: list[JsonObject], limit: int = PAGE, offset: int = 0) -> JsonObject:
+def page(events: list[JsonObject], limit: int = PAGE, offset: int = 0) -> JsonObject:
     """Return a page of the answer of listAuditEvents."""
     return {
         "items": cast("list[JsonValue]", events[offset : offset + limit]),
@@ -845,16 +710,19 @@ def examples() -> dict[str, JsonObject]:
             f"de l'avenant 1, qui marque la révision de référence et la désigne, la désignation de "
             f"l'offre comme référence et son marquage, la création du projet témoin, les "
             f"comptes créés ou désactivés, les rôles d'habilitation créés, ceux de "
-            f"l'installation par la plateforme, et les rôles que le premier administrateur "
-            f"s'est attribués. Chaque inscription a sa date, son auteur, son action, l'objet "
-            f"sous le libellé qu'il portait et le projet s'il y en a un (WF-SEC-0030).",
-            _page(events),
+            f"l'installation par la plateforme, et l'attribution des rôles de chaque compte, "
+            f"chacune par une requête à elle : « Administrateur » donné par la plateforme au "
+            f"compte local de l'installation, que son titulaire a échangé contre les rôles qu'il "
+            f"a composés, les autres par lui. Chaque inscription a sa date, son auteur, son "
+            f"action, l'objet sous le libellé qu'il portait et le projet s'il y en a un "
+            f"(WF-SEC-0030).",
+            page(events),
         ),
         "audit_events_page.json": mocktext.example(
             f"La deuxième page du journal d'audit du {day}, lu {SECOND_PAGE} par "
             f"{SECOND_PAGE} : les inscriptions {SECOND_PAGE + 1} à {2 * SECOND_PAGE} sur "
             f"{counted} (WF-SEC-0030).",
-            _page(events, SECOND_PAGE, SECOND_PAGE),
+            page(events, SECOND_PAGE, SECOND_PAGE),
         ),
         "audit_events_project.json": mocktext.example(
             f"Le journal d'audit du projet témoin le {day} (project_id), les inscriptions les "
@@ -864,7 +732,7 @@ def examples() -> dict[str, JsonObject]:
             f"révision de référence qu'elle produit, sous une seule corrélation, la désignation "
             f"de l'offre comme référence et son marquage, et sa création par Camille Martin le "
             f"6 octobre 2025 (WF-SEC-0030).",
-            _page(witness),
+            page(witness),
         ),
         "audit_events_exited.json": mocktext.example(
             f"Le journal d'audit du projet témoin juste après sa sortie du cycle de vie, "
@@ -873,7 +741,7 @@ def examples() -> dict[str, JsonObject]:
             f"corrélation (WF-CYC-0090), puis les mêmes inscriptions qu'avant elle. Le journal "
             f"d'un projet terminé se lit par le même filtre, aussi longtemps que les projets sont "
             f"conservés (WF-SEC-0030).",
-            _page(exited),
+            page(exited),
         ),
         "audit_events_import_applied.json": mocktext.example(
             f"Le journal d'audit du projet témoin juste après l'application de l'import du devis "
@@ -882,7 +750,7 @@ def examples() -> dict[str, JsonObject]:
             f"Camille Martin, avec la "
             f"révision en cours où elle s'écrit, qui n'a pas encore de nom de version "
             f"(WF-INTF-0090) ; puis les mêmes inscriptions qu'avant elle (WF-SEC-0030).",
-            _page(imported),
+            page(imported),
         ),
         "audit_events_revision_abandoned.json": mocktext.example(
             f"Le journal d'audit du projet témoin juste après l'abandon de sa révision en cours, "
@@ -890,40 +758,19 @@ def examples() -> dict[str, JsonObject]:
             f"Camille Martin, sur la révision désignée par son identifiant et par son projet, "
             f"qui n'a pas encore de nom de version (WF-REV-0010) ; puis les mêmes inscriptions "
             f"qu'avant lui (WF-SEC-0030, #1577).",
-            _page(abandoned),
+            page(abandoned),
         ),
         "audit_events_empty.json": mocktext.example(
             f"Les restaurations du journal d'audit le {day} (actions=restore) : la plateforme "
             f"n'a jamais été restaurée, et la liste est vide (WF-SEC-0030).",
-            _page([event for event in events if event["action"] == "restore"]),
+            page([event for event in events if event["action"] == "restore"]),
         ),
         "audit_events_auditor.json": mocktext.example(
             f"Le journal d'audit du projet témoin le {day} (project_id), lu par Noé Vidal, "
             f"auditeur (me_auditor), qui consulte le journal et rien d'autre : les mêmes "
             f"inscriptions, chacune nommant le projet par son code et son libellé sans mener à "
             f"lui, qu'il ne peut pas consulter (WF-ADM-0190, WF-ADM-0110).",
-            _page(unopenable(witness)),
-        ),
-        "audit_events_administration.json": mocktext.example(
-            "Variante : le journal d'audit depuis aujourd'hui à 14 h 05 (from), après "
-            "l'administration des comptes et des rôles d'habilitation qui s'y fait, chaque "
-            "écriture par une requête à elle, les plus récentes d'abord. Par Camille Martin, "
-            "« Contrôle de gestion » créé sans permission, puis enregistré sans rien changer ; "
-            "« Manager » renommé « Responsable d'équipe », doté de la modification de la "
-            "planification et privé de celle des paramètres de coûts et de ressources par une "
-            "même modification, qu'aucun exemple d'updateAccessRole ne répond ; le "
-            "compte local de Léa Garnier créé sans rôle, puis doté de son premier rôle, "
-            "« Chiffreur », par une attribution à elle : une première attribution qu'aucun "
-            "exemple de setUserAccessRoles ne répond, puis rattachée au nœud "
-            f"« {ATTACHED_NODE} », une modification du seul rattachement qu'aucun exemple "
-            "d'updateUser ne répond ; le nom de Lucas "
-            "Petit corrigé ; Inès Roux privée de son seul rôle. Par la plateforme, Noé Vidal "
-            "rattaché à la personne de l'annuaire qui porte son adresse, sous le nom qu'elle lui "
-            f"donne, « {DIRECTORY_LAST_NAME} », et venu de l'annuaire désormais : un "
-            "rattachement qu'aucun exemple ne répond. Chaque inscription dit ce "
-            "que l'action a fait, en codes, en identifiants et en libellés du moment, que le "
-            "lecteur lit dans sa langue (WF-SEC-0030, WF-ARC-0110).",
-            _page(administration()),
+            page(unopenable(witness)),
         ),
         **_readings(events, day),
     }
@@ -946,7 +793,7 @@ def _readings(events: list[JsonObject], day: str) -> dict[str, JsonObject]:
             f"points de code Unicode — ici {authors} —, puis la plateforme, qui n'a pas de nom, "
             f"après eux ; les inscriptions d'un même auteur dans l'ordre du journal sans tri, les "
             f"plus récentes d'abord (WF-SEC-0030, WF-IHM-0060).",
-            _page(by_actor_events),
+            page(by_actor_events),
         ),
         "audit_events_by_object_label.json": mocktext.example(
             f"Le journal d'audit du {day} trié par libellé de l'objet, croissant "
@@ -955,7 +802,7 @@ def _readings(events: list[JsonObject], day: str) -> dict[str, JsonObject]:
             f"« Référence » après « Retard de livraison des armoires », « é » (U+00E9) venant "
             f"après « e » (U+0065) et toute lettre non accentuée —, puis les sauvegardes, qui "
             f"n'en ont pas, dans l'ordre du journal sans tri (WF-SEC-0030, WF-IHM-0060).",
-            _page(by_label),
+            page(by_label),
         ),
         "audit_events_correlation.json": mocktext.example(
             f"Les inscriptions de la requête qui a fusionné l'avenant 1 (correlation_id) : la "
@@ -963,7 +810,7 @@ def _readings(events: list[JsonObject], day: str) -> dict[str, JsonObject]:
             f"{mocktext.count(len(merged))} inscriptions d'un même instant ; la fusion nomme la "
             f"révision où vit le différentiel, « Référence » (WF-SEC-0030, WF-OBS-0020, "
             f"WF-IHM-0130).",
-            _page(merged),
+            page(merged),
         ),
         "audit_events_search.json": mocktext.example(
             f"Les inscriptions dont l'objet porte « {SEARCHED} » dans son libellé (search) : "
@@ -971,7 +818,7 @@ def _readings(events: list[JsonObject], day: str) -> dict[str, JsonObject]:
             f"et les accents, "
             f"et qui ne vivent dans aucune révision (WF-SEC-0030, WF-IHM-0130, WF-INTF-0090, "
             f"WF-CRE-0010).",
-            _page(searched(events, SEARCHED)),
+            page(searched(events, SEARCHED)),
         ),
         "audit_facets.json": mocktext.example(
             f"Les auteurs et les projets du journal d'audit du {day} (listAuditFacets) : les "

@@ -150,14 +150,14 @@ describe("the journal of audit", () => {
     const shown = rows(page);
     expect(shown[0]).toBe("Date Auteur Action Nature de l’objet Objet Projet Corrélation");
     expect(shown[1]).toBe(
-      "Camille Martin Application d’un import Import : Coûts réels Import couts-reels-2026-05.xlsx PRJ-001 · Modernisation du poste de commande 01926f3a-7c00-7000-8000-000800000035",
+      "Camille Martin Application d’un import Import : Coûts réels Import couts-reels-2026-05.xlsx PRJ-001 · Modernisation du poste de commande 01926f3a-7c00-7000-8000-000800000041",
     );
     // A backup of the platform: no label, named by its nature, never by its identifier; no project.
     expect(shown[2]).toBe(
-      "La plateforme Sauvegarde Sauvegarde Sauvegarde Hors projet 01926f3a-7c00-7000-8000-000800000034",
+      "La plateforme Sauvegarde Sauvegarde Sauvegarde Hors projet 01926f3a-7c00-7000-8000-000800000040",
     );
-    expect(shown.at(-1)).toBe("37 inscriptions");
-    expect(text(page)).toContain("Journal d’audit Aide 37 inscriptions");
+    expect(shown.at(-1)).toBe("43 inscriptions");
+    expect(text(page)).toContain("Journal d’audit Aide 43 inscriptions");
     // Each date, an instant the browser writes in its local time; the history, an icon named.
     expect(page).toContain('<time dateTime="2026-06-03T08:30:00Z">');
     expect(page).toContain('aria-label="Histoire de l’objet"');
@@ -235,7 +235,7 @@ describe("the journal of audit", () => {
       "GET /me": "me_auditor",
     };
     const page = await journal();
-    expect(rows(page).at(-1)).toBe("37 inscriptions");
+    expect(rows(page).at(-1)).toBe("43 inscriptions");
     expect(queriesOf(FACETS)).toEqual([{}]);
     expect(queriesOf("GET /users")).toEqual([]);
     expect(text(page)).toContain("Auteur Tous les comptes Camille Martin");

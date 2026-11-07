@@ -69,7 +69,7 @@ const PROJECTS: AuditFilterBarProps["projects"] = facets.projects.map((project) 
   code: project.code,
   label: project.label,
 }));
-const MERGE = "01926f3a-7c00-7000-8000-000800000019";
+const MERGE = "01926f3a-7c00-7000-8000-000800000025";
 const NAMED: AuditFilterBarProps["named"] = {
   user: undefined,
   project: undefined,
@@ -169,9 +169,9 @@ describe("the grid of the journal", () => {
     render(journal());
     const row = within(grid()).getAllByRole("row")[1];
     expect(row?.textContent).toMatch(
-      /^.+Camille MartinApplication d’un importImport : Coûts réelsImportcouts-reels-2026-05\.xlsxPRJ-001 · Modernisation du poste de commande01926f3a-7c00-7000-8000-000800000035$/,
+      /^.+Camille MartinApplication d’un importImport : Coûts réelsImportcouts-reels-2026-05\.xlsxPRJ-001 · Modernisation du poste de commande01926f3a-7c00-7000-8000-000800000041$/,
     );
-    expect(grid().querySelector("tfoot tr")?.textContent).toBe("37 inscriptions");
+    expect(grid().querySelector("tfoot tr")?.textContent).toBe("43 inscriptions");
     // The header of every column is grey, as that of every table (#508).
     expect(grid().querySelector("thead th")?.className).toContain("bg-muted");
   });
@@ -275,7 +275,7 @@ describe("the grid of the journal", () => {
     render(journal());
     // The scheduled backup of 3 June, by the correlation of its inscription.
     const backup = within(grid()).getByRole("row", {
-      name: /01926f3a-7c00-7000-8000-000800000034$/,
+      name: /01926f3a-7c00-7000-8000-000800000040$/,
     });
     expect(backup).toHaveTextContent(/La plateformeSauvegardeSauvegardeSauvegardeHors projet/);
     expect(backup).not.toHaveTextContent("01926f3a-7c00-7000-8000-000000000907");
@@ -899,14 +899,15 @@ describe("an anonymised account in the journal", () => {
     );
     const rows = within(grid()).getAllByRole("row").slice(1, -1);
     expect(rows.map((row) => row.textContent)).toEqual([
-      "3 juin 2026, 16:05Camille MartinAnonymisation d’un compteCompteCompte anonymiséHors projet01926f3a-7c00-7000-8000-000800000041",
-      "2 mars 2026, 17:20Camille MartinDésactivation d’un compteCompteCompte anonymiséHors projet01926f3a-7c00-7000-8000-000800000021",
-      "12 janv. 2026, 11:00Camille MartinCréation d’un compteCréé dans WaterfallCompteCompte anonymiséHors projet01926f3a-7c00-7000-8000-000800000015",
+      "3 juin 2026, 16:05Camille MartinAnonymisation d’un compteCompteCompte anonymiséHors projet01926f3a-7c00-7000-8000-000800000047",
+      "2 mars 2026, 17:20Camille MartinDésactivation d’un compteCompteCompte anonymiséHors projet01926f3a-7c00-7000-8000-000800000027",
+      "12 janv. 2026, 11:00Camille MartinAttribution des rôles d’un compteRôle donné : Chef de projetCompteCompte anonymiséHors projet01926f3a-7c00-7000-8000-000800000020",
+      "12 janv. 2026, 11:00Camille MartinCréation d’un compteCréé dans WaterfallCompteCompte anonymiséHors projet01926f3a-7c00-7000-8000-000800000019",
     ]);
-    expect(grid().querySelector("tfoot tr")?.textContent).toBe("3 inscriptions");
+    expect(grid().querySelector("tfoot tr")?.textContent).toBe("4 inscriptions");
     expect(
       within(grid()).getAllByRole("link", { name: "Histoire de «\u00A0Compte anonymisé\u00A0»" }),
-    ).toHaveLength(3);
+    ).toHaveLength(4);
     expect(
       screen.getByRole("link", { name: "Lever le filtre sur «\u00A0Compte anonymisé\u00A0»" }),
     ).toBeInTheDocument();

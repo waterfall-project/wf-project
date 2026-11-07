@@ -10,8 +10,9 @@
       is kept as long as the projects: that of a project completed years ago reads like that
       of a project in progress, through the same filter. It is read only here: no operation
       writes, modifies or deletes an entry, which only the action itself produces, and a
-      restore does not replace it: it is outside the scope that a restore restores, and the
-      entry of the restore is written once the restore is done (WF-ADM-0160, #539). The
+      restore does not lose it: its entries absent from the restored log are read back before
+      the databases are replaced and rewritten after, and the entry of the restore is written
+      once the restore is done (WF-ADM-0160, #539). The
       filters combine (WF-IHM-0130), the search (`search`) bearing on the label of the object
       that the entry keeps, and the five filters of WF-ADM-0190 are the period (`from`,
       `to`), the author (`user_id`, `actor_kind`), the action (`actions`), the project
@@ -139,6 +140,7 @@
               anonymized_object: { $ref: ../../../fixtures/api/audit_events_anonymized_object.json }
               anonymized_actor: { $ref: ../../../fixtures/api/audit_events_anonymized_actor.json }
               administration: { $ref: ../../../fixtures/api/audit_events_administration.json }
+              restored: { $ref: ../../../fixtures/api/audit_events_restored.json }
               auditor: { $ref: ../../../fixtures/api/audit_events_auditor.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }

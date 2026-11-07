@@ -198,7 +198,10 @@
       A marked backup escapes the rotation (WF-ADM-0170). The backup carries whichever of the
       two commands changes its mark, `retain` or `release` (`BackupCommand`, WF-IHM-0090),
       unavailable while a restore is running. Under the permission to modify the backups
-      (`backups.write`, WF-ADM-0100).
+      (`backups.write`, WF-ADM-0100). Without a lock version nor 412, by decided exception: the
+      mark sets the intended state without depending on any other value, like the tracked scope
+      of an actual cost line (`setActualCostTrackedScope`); two concurrent requests can only
+      give the same state or the last one asked (WF-IHM-0110).
     parameters:
       - $ref: ../components/parameters.yaml#/BackupId
     requestBody:
@@ -370,8 +373,11 @@
       '412': { $ref: ../components/responses.yaml#/PreconditionFailed }
       '422':
         description: >-
-          A refused schedule, `VALIDATION_FAILED`, `fields` designating each faulty field: a
-          retention outside 1 to 365, on the platform (`/retained_count`) or on the location
+          A refused schedule, `VALIDATION_FAILED`, `fields` designating each faulty field by
+          its reason: a required field missing (`/is_enabled`, `/frequency`, `/at_time`,
+          `/retained_count`, `/external_copy/is_enabled`…), `VALUE_REQUIRED`; a time outside
+          `HH:MM` (`/at_time`) or a frequency outside `daily` and `weekly` (`/frequency`),
+          `VALIDATION_FAILED`; and, specific to the schedule, a retention outside 1 to 365, on the platform (`/retained_count`) or on the location
           (`/external_copy/retained_count`), or a day outside 1 to 7 (`/weekday`),
           `VALUE_OUT_OF_RANGE`, `params.minimum` or `maximum` the only bound crossed
           (WF-ADM-0170); a null day for a weekly schedule, `/weekday` by `VALUE_REQUIRED`, or
@@ -391,6 +397,7 @@
               retention_out_of_range: { $ref: ../../../fixtures/api/backup_schedule_retention_out_of_range.json }
               weekday_out_of_range: { $ref: ../../../fixtures/api/backup_schedule_weekday_out_of_range.json }
               weekday_missing: { $ref: ../../../fixtures/api/backup_schedule_weekday_missing.json }
+              time_invalid: { $ref: ../../../fixtures/api/backup_schedule_time_invalid.json }
       '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
@@ -481,8 +488,8 @@
     description: >-
       Replaces the whole of the platform's two databases, Waterfall and identity provider, with
       their backed-up content, and is applied only after confirmation (WF-ADM-0160,
-      WF-DAT-0130). Never applies to a single project. The audit log stays in place, and the
-      restore is recorded in it (WF-ADM-0160, WF-SEC-0030). Under the permission to restore
+      WF-DAT-0130). Never applies to a single project. The audit log is kept across the restore
+      (read back and rewritten), and the restore is recorded in it (WF-ADM-0160, WF-SEC-0030). Under the permission to restore
       the platform (`platform_restore`). A backup from the list is restored as its `restore`
       command says in advance (`BackupCommand`, WF-IHM-0090): verified, and no backup or
       restore in progress — otherwise 409. An archive from a version more recent than the
