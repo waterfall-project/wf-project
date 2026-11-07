@@ -57,7 +57,7 @@ REFERENCE = 101
 CURRENT = 102
 """The revisions of the witness: the offer, the reference, and the revision in progress."""
 
-OFFER_VERSION = "v1.0"
+OFFER_VERSION = "Offre v1.0"
 REFERENCE_VERSION = "Référence"
 """The names under which the offer and the reference are marked."""
 

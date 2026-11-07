@@ -25,6 +25,7 @@ from sqlalchemy.orm import aliased
 
 from waterfall.core.projects.interface import CommandAvailability, contributor_kind, project_facts
 from waterfall.core.revisions.commands import structure_commands_of
+from waterfall.core.revisions.interface.shared import NOT_FOUND
 from waterfall.core.revisions.states import revision_state
 from waterfall.core.revisions.tables import CostStructure
 from waterfall.platform.errors import NotFoundError
@@ -40,7 +41,6 @@ if TYPE_CHECKING:
     from waterfall.core.revisions.interface.revisions import RevisionCopy
     from waterfall.platform.audit import Act
 
-NOT_FOUND = "NOT_FOUND"
 MAIN = "main"
 # The label of the main structure at its creation, as the examples of the contract name it.
 MAIN_LABEL = "Structure principale"

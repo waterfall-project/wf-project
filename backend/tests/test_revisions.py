@@ -4,8 +4,8 @@
 
 ``createRevision``, ``getRevision``, ``listRevisions``, ``abandonRevision`` and
 ``listCostStructures`` on a project its manager created (``projects_support``), every answer
-checked against the contract. A revision is marked around the service, by the owner of the
-tables, until the worker marks it (US-0970); the witness opens its revisions by the same rules.
+checked against the contract. A revision is marked by the transaction of the worker
+(``mark_revision``, US-0970), without its task; the witness opens its revisions by the same rules.
 """
 
 from concurrent.futures import ThreadPoolExecutor
@@ -25,15 +25,18 @@ from waterfall.core.projects.tables import Project
 from waterfall.core.revisions.interface import (
     RevisionCopy,
     compute_indicators,
+    mark_revision,
     register_copy,
     register_indicators,
     register_tasks_and_lines,
     revision_draft,
 )
+from waterfall.core.revisions.registry import Registry
 from waterfall.core.revisions.tables import CostStructure, Revision
-from waterfall.platform.audit import AuditEntry
+from waterfall.platform.audit import Act, AuditEntry
 from waterfall.platform.database import utc_now
 from waterfall.platform.errors import ConflictError, NotFoundError
+from waterfall.platform.logs import logging_context
 
 if TYPE_CHECKING:
     from realm import TestRealm
@@ -45,6 +48,8 @@ if TYPE_CHECKING:
 PRJ_001 = UUID("01926f3a-7c00-7000-8000-000000000001")
 PRJ_002 = UUID("01926f3a-7c00-7000-8000-000000000002")
 OFFER = UUID("01926f3a-7c00-7000-8000-000000000100")
+REFERENCE = UUID("01926f3a-7c00-7000-8000-000000000101")
+CURRENT = UUID("01926f3a-7c00-7000-8000-000000000102")
 MARKED_AT = datetime(2026, 2, 1, 9, 0, tzinfo=UTC)
 EVENTS = "/api/v1/audit-events"
 
@@ -76,19 +81,24 @@ def abandon(api: ContractClient, stage: Scene, revision: dict[str, Any]) -> Any:
     )
 
 
-def mark_around(owner: Engine, revision: dict[str, Any], name: str, **columns: object) -> None:
-    """Mark a revision as the worker will (US-0970), by the owner: the project without a current."""
-    with owner.begin() as connection:
-        connection.execute(
-            update(Revision)
-            .where(Revision.id == UUID(revision["revision_id"]))
-            .values(status="marked", version_name=name, marked_at=MARKED_AT, **columns)
-        )
-        connection.execute(
-            update(Project)
-            .where(Project.id == UUID(revision["project_id"]))
-            .values(current_revision_id=None)
-        )
+def mark_as_the_worker(
+    owner: Engine,
+    revision: dict[str, Any],
+    name: str,
+    *,
+    description: str | None = None,
+    **columns: object,
+) -> None:
+    """Mark a revision by the transaction of the worker (US-0970), at ``MARKED_AT``.
+
+    ``columns`` are written on the current revision before, by the owner: what it was opened with.
+    """
+    revision_id = UUID(revision["revision_id"])
+    if columns:
+        with owner.begin() as connection:
+            connection.execute(update(Revision).where(Revision.id == revision_id).values(**columns))
+    with logging_context(correlation_id="marking"), Session(owner) as session, session.begin():
+        mark_revision(session, revision_id, name, description, Act(None, MARKED_AT))
 
 
 def structures(api: ContractClient, stage: Scene, revision_id: str) -> list[dict[str, Any]]:
@@ -315,7 +325,7 @@ def test_after_an_abandonment_the_last_marked_revision_stands_and_another_opens(
     # « Après abandon d'une révision en cours, le projet présente les données de la dernière
     # révision marquée, et une nouvelle révision peut être créée. »
     offer = open_revision(api, stage)
-    mark_around(stage.owner, offer, "v1.0")
+    mark_as_the_worker(stage.owner, offer, "v1.0")
     current = open_revision(api, stage)
     assert (current["source_revision_id"], current["source_version_name"]) == (
         offer["revision_id"],
@@ -335,6 +345,7 @@ def test_after_an_abandonment_the_last_marked_revision_stands_and_another_opens(
 
 
 @pytest.mark.requirement("WF-DAT-0010-A")
+@pytest.mark.requirement("WF-DAT-0030-A")
 @pytest.mark.requirement("WF-REV-0100-A")
 def test_a_revision_opened_from_a_marked_one_copies_its_structures_keeping_their_lineage(
     api: ContractClient, stage: Scene
@@ -345,7 +356,7 @@ def test_a_revision_opened_from_a_marked_one_copies_its_structures_keeping_their
     # holds one structure until EP-08: ``ck_cost_structure_kind_known`` admits the kind ``main``
     # alone, and ``uq_cost_structure_main`` one of it by revision; the owner writes no second one.
     offer = open_revision(api, stage)
-    mark_around(stage.owner, offer, "v1.0")
+    mark_as_the_worker(stage.owner, offer, "v1.0")
     current = open_revision(api, stage)
     marked, copied = (
         rows_of(stage.database, offer["revision_id"]),
@@ -373,7 +384,7 @@ def test_the_copy_does_not_take_up_a_merged_structure(api: ContractClient, stage
             .where(CostStructure.revision_id == UUID(offer["revision_id"]))
             .values(is_merged=True)
         )
-    mark_around(stage.owner, offer, "v1.0")
+    mark_as_the_worker(stage.owner, offer, "v1.0")
     current = open_revision(api, stage)
     assert len(rows_of(stage.database, offer["revision_id"])) == 1
     assert rows_of(stage.database, current["revision_id"]) == []
@@ -387,7 +398,7 @@ def test_a_change_in_the_current_revision_changes_no_row_of_a_marked_one(
     # d'une révision marquée. » : the copy is rows of its own, and its abandonment deletes them
     # alone.
     offer = open_revision(api, stage)
-    mark_around(stage.owner, offer, "v1.0")
+    mark_as_the_worker(stage.owner, offer, "v1.0")
     before = rows_of(stage.database, offer["revision_id"])
     current = open_revision(api, stage)
     with stage.database.transaction() as session:
@@ -410,7 +421,7 @@ def test_the_history_lists_the_marked_revisions_with_each_of_their_attributes(
     # attributs est présent dans l'historique des révisions. » : name of version, description,
     # status, moment of the marking, year of reference, reference.
     offer = open_revision(api, stage)
-    mark_around(stage.owner, offer, "Offre v1.0", description="Remise au client")
+    mark_as_the_worker(stage.owner, offer, "Offre v1.0", description="Remise au client")
     current = open_revision(api, stage)
     path = revisions_of(stage.project["project_id"])
     history = api.get(path, headers=stage.manager.headers).json()
@@ -459,7 +470,7 @@ def test_a_marked_revision_keeps_its_year_of_reference_and_the_next_takes_the_cu
     # A revision keeps what it was marked with: its year of reference, here; its rates are those
     # EP-07 keeps. The next one retains the current year.
     offer = open_revision(api, stage)
-    mark_around(stage.owner, offer, "v1.0", reference_year=2025)
+    mark_as_the_worker(stage.owner, offer, "v1.0", reference_year=2025)
     current = open_revision(api, stage)
     assert current["reference_year"] == utc_now().year
     path = f"{revisions_of(stage.project['project_id'])}/{offer['revision_id']}"
@@ -470,7 +481,7 @@ def test_a_marked_revision_is_not_abandoned(api: ContractClient, stage: Scene) -
     # « abandonRevision refuse une révision marquée (409, revision_draft) »; nothing is deleted. A
     # criterion of the story's own, which reprises no Vérif: it cites no requirement.
     offer = open_revision(api, stage)
-    mark_around(stage.owner, offer, "v1.0")
+    mark_as_the_worker(stage.owner, offer, "v1.0")
     path = f"{revisions_of(stage.project['project_id'])}/{offer['revision_id']}"
     read = api.get(path, headers=stage.manager.headers).json()
     assert refusal(abandon(api, stage, read)) == (
@@ -555,7 +566,7 @@ def test_a_write_in_a_marked_revision_is_refused(api: ContractClient, stage: Sce
     offer = open_revision(api, stage)
     with stage.database.transaction() as session:
         revision_draft(session, UUID(offer["revision_id"]))
-    mark_around(stage.owner, offer, "v1.0")
+    mark_as_the_worker(stage.owner, offer, "v1.0")
     with stage.database.transaction() as session:
         with pytest.raises(ConflictError) as refused:
             revision_draft(session, UUID(offer["revision_id"]))
@@ -667,6 +678,10 @@ def test_a_structure_whose_lineage_lost_its_origin_is_listed_starting_on_its_own
 ) -> None:
     # An invariant of the realization, which reprises no Vérif: the origin of a lineage is always
     # there; were it not, the structure would still be listed, its planning started on its birth.
+    # The case is written by giving the structure a lineage no row bears, which only holds because
+    # ``lineage_id`` bears no foreign key: a lineage is an identifier the copies share, not a
+    # reference (EP-04, "Tables et migrations"; #2179). A key added there makes the case impossible,
+    # this ``UPDATE`` refused, and the test is withdrawn with the fallback it proves.
     revision = open_revision(api, stage)
     with stage.owner.begin() as connection:
         connection.execute(
@@ -694,7 +709,7 @@ def test_a_copy_registered_by_a_later_module_comes_after_the_structures_and_read
             register_copy(copy_tasks)
         offer = open_revision(api, stage)
         assert received == []
-        mark_around(stage.owner, offer, "v1.0")
+        mark_as_the_worker(stage.owner, offer, "v1.0")
         current = open_revision(api, stage)
     [marked] = rows_of(stage.database, offer["revision_id"])
     [copied] = rows_of(stage.database, current["revision_id"])
@@ -713,7 +728,7 @@ def test_a_revision_bears_tasks_and_lines_when_every_question_registered_says_so
     # How EP-06 and EP-07 answer ``revision_has_tasks_and_lines`` (``register_tasks_and_lines``),
     # a detail of the realization which reprises no Vérif: none registered, a revision bears none.
     offer = open_revision(api, stage)
-    mark_around(stage.owner, offer, "v1.0")
+    mark_as_the_worker(stage.owner, offer, "v1.0")
     path = f"{revisions_of(stage.project['project_id'])}/{offer['revision_id']}"
 
     def designation() -> list[str]:
@@ -749,20 +764,49 @@ def test_the_indicators_of_a_marking_are_those_of_every_computation_registered(
 
 
 @pytest.mark.requirement("WF-QUA-0040-A")
-def test_the_witness_opens_its_first_revision_by_the_rules_of_the_opening(
+def test_the_witness_opens_and_marks_its_revisions_as_the_service_and_the_worker_do(
     api: ContractClient, witness: Database, realm: TestRealm
 ) -> None:
-    # The chronology opens the revision 100 of PRJ-001 first; the 101 waits for its marking
-    # (US-0970). PRJ-002 has none.
+    # The chronology opens the offer 100 of PRJ-001, marks it, opens the 101, marks it
+    # « Référence », opens the 102: the names and the description of ``revisions.json``, each copy
+    # of the last marked one. PRJ-002 has none.
     with witness.transaction() as session:
-        revisions = session.scalars(select(Revision)).all()
+        revisions = {
+            row.id: (row.status, row.version_name, row.description, row.source_revision_id)
+            for row in session.scalars(select(Revision).where(Revision.project_id == PRJ_001))
+        }
         projects = {row.id: row.current_revision_id for row in session.scalars(select(Project))}
-        [structure] = session.scalars(select(CostStructure)).all()
-    assert [(row.id, row.project_id, row.status) for row in revisions] == [
-        (OFFER, PRJ_001, "draft")
-    ]
-    assert projects == {PRJ_001: OFFER, PRJ_002: None}
-    assert (structure.revision_id, structure.kind) == (OFFER, "main")
+        structures_of = {
+            row.revision_id: row.lineage_id for row in session.scalars(select(CostStructure))
+        }
+    assert revisions == {
+        OFFER: ("marked", "Offre v1.0", "Offre remise au client avant la commande.", None),
+        REFERENCE: ("marked", "Référence", None, OFFER),
+        CURRENT: ("draft", None, None, REFERENCE),
+    }
+    assert projects == {PRJ_001: CURRENT, PRJ_002: None}
+    # One lineage, born with the main structure of the offer, kept by each copy (WF-DAT-0030).
+    assert set(structures_of) == {OFFER, REFERENCE, CURRENT}
+    assert len(set(structures_of.values())) == 1
     reader = person(witness, realm, *READING)
     listed = api.get(revisions_of(str(PRJ_001)), headers=reader.headers)
-    assert [item["revision_id"] for item in listed.json()["items"]] == [str(OFFER)]
+    assert [item["revision_id"] for item in listed.json()["items"]] == [
+        str(CURRENT),
+        str(REFERENCE),
+        str(OFFER),
+    ]
+
+
+def test_a_withdrawal_withdraws_its_registration_once() -> None:
+    # A detail of the realization which reprises no Vérif (#2179): called again, the withdrawal
+    # does nothing, and never withdraws the same entry registered anew since.
+    registry: Registry[str] = Registry()
+    withdraw = registry.register("tasks")
+    withdraw()
+    withdraw()
+    assert registry.entries() == ()
+    again = registry.register("tasks")
+    withdraw()
+    assert registry.entries() == ("tasks",)
+    again()
+    assert registry.entries() == ()
