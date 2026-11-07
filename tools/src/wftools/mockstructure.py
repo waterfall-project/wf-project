@@ -121,8 +121,12 @@ def draw(key: str, low: int, high: int) -> int:
 
 
 def money(value: Decimal) -> str:
-    """Return an amount as the contract carries it: two decimals, never a float."""
-    return str(value.quantize(CENT))
+    """Return an amount as the contract carries it: two decimals, never a float.
+
+    Rounded to the cent, to nearest, a half going away from zero, as every amount the server
+    computes (``Money``; F-06).
+    """
+    return str(value.quantize(CENT, rounding=ROUND_HALF_UP))
 
 
 @dataclass(frozen=True, slots=True)
@@ -141,8 +145,9 @@ class Projection:
     rate: Decimal = INFLATION_RATE
 
     def __call__(self, amount: Decimal, year: int) -> Decimal:
-        """Return an amount projected on a year."""
-        return (amount * (1 + self.rate) ** (year - self.reference_year)).quantize(CENT)
+        """Return an amount projected on a year, rounded to the cent, a half away from zero."""
+        projected = amount * (1 + self.rate) ** (year - self.reference_year)
+        return projected.quantize(CENT, rounding=ROUND_HALF_UP)
 
 
 WITNESS = Projection()

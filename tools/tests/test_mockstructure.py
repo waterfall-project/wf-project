@@ -417,8 +417,8 @@ def test_the_marks_the_journeys_read(answer: dict[str, Any], items: list[Node]) 
         "estimate_line_count": 5_000,
         "hours": "116270",
         "base_amount": "66105223.89",
-        "budgeted_amount": "68491568.05",
-        "reestimated_amount": "68923691.06",
+        "budgeted_amount": "68491569.21",
+        "reestimated_amount": "68923691.77",
     }
 
     def row(number: int) -> Node:

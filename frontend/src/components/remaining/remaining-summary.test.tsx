@@ -44,10 +44,10 @@ describe("the summary of the remaining to commit", () => {
   it("shows the currency of the installation with each amount, in each language [WF-REF-0140-A]", () => {
     const indicators = example("remaining_indicators") as RemainingIndicators;
     expect(text(renderSummary(indicators, "en", "EUR"))).toContain(
-      "Remaining to commit €67,470,132.98 Margin on the reference budget -€641,535.13",
+      "Remaining to commit €67,470,133.69 Margin on the reference budget -€641,534.68",
     );
     expect(text(renderSummary(indicators, "fr", "EUR"))).toMatch(
-      /Marge sur le budget de référence -641\s535,13\s€/,
+      /Marge sur le budget de référence -641\s534,68\s€/,
     );
   });
 
@@ -56,7 +56,7 @@ describe("the summary of the remaining to commit", () => {
     const indicators = example("remaining_indicators") as RemainingIndicators;
     const html = text(renderSummary({ ...indicators, delta_to_previous_revision: null }));
     expect(html).toContain(
-      "Remaining to commit 67,470,132.98 Margin on the reference budget -641,535.13 By cost type",
+      "Remaining to commit 67,470,133.69 Margin on the reference budget -641,534.68 By cost type",
     );
     expect(html).not.toContain("previous review");
   });
@@ -65,8 +65,8 @@ describe("the summary of the remaining to commit", () => {
     // Les écarts sont présents et signés : le reste à engager parle de marge (#466).
     const indicators = example("remaining_indicators") as RemainingIndicators;
     const html = text(renderSummary(indicators, "fr"));
-    expect(html).toMatch(/Marge sur le budget de référence -641\s535,13/);
-    expect(html).toMatch(/Poste de commande\s: 23\s314\s197,53, marge -64\s699,97/);
+    expect(html).toMatch(/Marge sur le budget de référence -641\s534,68/);
+    expect(html).toMatch(/Poste de commande\s: 23\s314\s197,74, marge -64\s699,75/);
     expect(html).not.toContain("Écart au budget");
   });
 
@@ -117,7 +117,7 @@ describe("the summary of the remaining to commit", () => {
     const empty = text(renderSummary({ ...indicators, by_cost_type: [], by_subproject: [] }));
     expect(empty).not.toContain("By cost type");
     expect(empty).not.toContain("by sub-project");
-    expect(empty).toContain("Remaining to commit 67,470,132.98");
+    expect(empty).toContain("Remaining to commit 67,470,133.69");
     expect(empty).toContain("Risk coverage");
     const some = text(renderSummary({ ...indicators, by_cost_type: [] }));
     expect(some).not.toContain("By cost type");

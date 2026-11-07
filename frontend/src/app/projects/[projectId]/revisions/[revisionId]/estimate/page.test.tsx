@@ -273,7 +273,7 @@ describe("the shares of the estimate (#626)", () => {
       .replace(/&lt;/g, "<")
       .replace(/\s+/g, " ");
     expect(page).toContain("By work package Computed on Lot 1 €2,019.56 (<0.01%)");
-    expect(page).toContain("Computed on No subproject €68,238,703.05 (100%)");
+    expect(page).toContain("Computed on No subproject €68,238,704.21 (100%)");
   });
 });
 
