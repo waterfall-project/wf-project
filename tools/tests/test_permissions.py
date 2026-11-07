@@ -63,10 +63,34 @@ def test_the_commands_of_the_deliverer_are_allowed(command: str) -> None:
     assert _covered(command, _allow())
 
 
-def test_the_allow_list_is_the_twenty_one_rules_without_a_local_one() -> None:
-    """Twenty-one rules, none of a workstation, no wider than ``Bash(<prefix>:*)``."""
+ALLOWED = [
+    "Bash(cd:*)",
+    "Bash(gh api graphql:*)",
+    "Bash(gh issue create:*)",
+    "Bash(gh issue close:*)",
+    "Bash(gh issue comment:*)",
+    "Bash(gh issue edit:*)",
+    "Bash(gh pr create:*)",
+    "Bash(gh pr view:*)",
+    "Bash(gh pr checks:*)",
+    "Bash(gh pr list:*)",
+    "Bash(gh pr merge:*)",
+    "Bash(gh run list:*)",
+    "Bash(gh run view:*)",
+    "Bash(gh run watch:*)",
+    "Bash(git push:*)",
+    "Bash(git branch -d:*)",
+    "Bash(git worktree unlock:*)",
+    "Bash(git worktree remove:*)",
+    "Bash(make tracking:*)",
+    "Bash(make slot:*)",
+    "Bash(make slot-release:*)",
+]
+
+
+def test_the_allow_list_is_the_twenty_one_rules_of_the_story() -> None:
+    """Exactly the twenty-one rules of the story, no duplicate, none of a workstation."""
     allow = _allow()
-    assert len(allow) == len(set(allow)) == 21
-    assert all(r.startswith("Bash(") and r.endswith(":*)") for r in allow)
-    assert not any("tmp" in r for r in allow)
+    assert len(allow) == len(set(allow))
+    assert set(allow) == set(ALLOWED)
     assert not _covered("gh api repos/x/y", allow)
