@@ -3809,9 +3809,10 @@ removes the guard and its entry:
   project manager as its creator, a revision opened, marked by the worker, another opened then
   abandoned (US-0970) — plays there on a project of its own, and against the service alone
   (`SERVICE_ONLY`); its sequel — reopened, the code entered, the exit, the designation refused — is
-  **US-0990/L2**'s. The cycle itself waits for **US-0850** (EP-05, `BEFORE_US0850`): without an
-  active role of resources, the minimal reference is incomplete and the service creates no project
-  (#2194).
+  **US-0990/L2**'s. The cycle plays since **US-0850** (EP-05) serves the roles of resources: the
+  minimal reference is complete, and the service creates a project (#2194). The path of the
+  restoration (`service/backups.spec.ts`) creates one before the backup, marks its revision and
+  creates a second after it, and does not find them once restored (WF-ADM-0160-A).
 
 The paths that depend on what the service does not do yet, or does not serve, are not replayed
 against it, being untagged; each is still played against the fake back, by `chromium`. What

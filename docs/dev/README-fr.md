@@ -3839,8 +3839,10 @@ retire la garde et son entrée :
   course, chef de projet comme créateur, une révision ouverte, marquée par le worker, une autre
   ouverte puis abandonnée (US-0970) — s'y joue sur un projet à lui, et contre le service seul
   (`SERVICE_ONLY`) ; sa suite — rouvrir, saisir le code, sortir, la désignation refusée — est
-  d'**US-0990/L2**. Le cycle lui-même attend **US-0850** (EP-05, `BEFORE_US0850`) : sans rôle de
-  ressource actif, le référentiel minimal est incomplet et le service ne crée aucun projet (#2194).
+  d'**US-0990/L2**. Le cycle se joue depuis qu'**US-0850** (EP-05) sert les rôles de ressources :
+  le référentiel minimal est complet, et le service crée un projet (#2194). Le parcours de
+  restauration (`service/backups.spec.ts`) en crée un avant la sauvegarde, marque sa révision et en
+  crée un second après, et ne les retrouve plus une fois la restauration faite (WF-ADM-0160-A).
 
 Ne se rejouent pas contre le service, faute d'être étiquetés, les parcours qui dépendent de ce
 qu'il ne fait pas encore ou ne sert pas ; chacun reste joué contre le faux back, par `chromium`.

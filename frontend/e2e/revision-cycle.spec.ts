@@ -38,11 +38,6 @@ const WITNESS_KEPT = "the service abandons the revision of the project the cycle
 // The cycle needs a service that remembers what it wrote.
 const SERVICE_ONLY = "the fake back keeps nothing of what is written";
 
-// A project is created once the minimal reference holds an active role of resources (WF-CYC-0120),
-// which US-0850 (EP-05) serves and loads with the witness: until it reaches this epic, the service
-// refuses the creation, and the cycle does not play (#2194).
-const BEFORE_US0850 = "the service creates no project before US-0850 serves the roles of resources";
-
 // How long the worker is given to mark: a task taken from the queue, one transaction.
 const MARKING = 60_000;
 
@@ -98,7 +93,6 @@ test("a project created, a revision opened then marked by the worker, which keep
   page,
 }) => {
   test.skip(!inService, SERVICE_ONLY);
-  test.skip(inService, BEFORE_US0850);
   test.slow();
   const main = page.getByRole("main");
 
@@ -145,14 +139,18 @@ test("a project created, a revision opened then marked by the worker, which keep
   await task.getByRole("button", { name: "Recharger l’écran" }).click();
 
   // Read anew, the revision is marked under its name, and the project has no current revision: the
-  // opening is available again, the marking is not offered any more (WF-REV-0090).
+  // opening is available again, the marking is refused, naming its condition (WF-REV-0090).
   const history = main.getByRole("table", { name: "Historique des révisions" });
   await expect(history.getByRole("row")).toHaveCount(2, { timeout: WORKING });
   const marked = history.getByRole("row").nth(1);
   await expect(marked).toContainText("v1.0");
   await expect(marked).toContainText("Marquée");
   await expect(page).toHaveURL(opened);
-  await expect(commands.getByRole("button", { name: "Marquer la révision" })).toHaveCount(0);
+  const marker = commands.getByRole("button", { name: "Marquer la révision" });
+  await expect(marker).toHaveAttribute("aria-disabled", "true");
+  await expect(marker).toHaveAccessibleDescription(
+    /^Condition non remplie\s: révision en cours d’élaboration\.$/,
+  );
   const open = commands.getByRole("button", { name: "Ouvrir une révision en cours" });
   await expect(open).not.toHaveAttribute("aria-disabled", "true");
 
