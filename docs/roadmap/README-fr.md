@@ -159,7 +159,7 @@ les trois cents projets en EP-13, qui clôt. Quatre règles, que chaque tranche 
 | [EP-06](EP-06-planification.md) | Planification | en cours | EP-04 |
 | [EP-07](EP-07-chiffrage-et-devis.md) | Chiffrage et devis | en cours | EP-06 |
 | [EP-09](EP-09-couts-reels-et-reste-a-engager.md) | Coûts réels, reste à engager et import des coûts | en cours | EP-07 |
-| [EP-10](EP-10-indicateurs.md) | Indicateurs de projet | prêt | EP-09 |
+| [EP-10](EP-10-indicateurs.md) | Indicateurs de projet | en cours | EP-09 |
 | [EP-08](EP-08-avenants-et-risques.md) | Avenants, risques et provisions | à planifier | EP-10 |
 | [EP-11](EP-11-portefeuille.md) | Portefeuille | à planifier | EP-08 |
 | [EP-12](EP-12-echanges-de-fichiers.md) | Échanges de fichiers (FLX-01 à FLX-06) | abandonné : chaque aller-retour se valide dans son bloc fonctionnel | — |
@@ -358,7 +358,8 @@ peu de choses. Elle reprend cette branche à chaque lot que l'autre fusionne, et
 l'ouverture des issues d'EP-06, EP-04 n'ayant plus qu'US-0990/L2 à fusionner, et de même pour
 toute la série EP-06 → EP-07 → EP-09 → EP-10 → EP-08, chaque branche tirée de la précédente dès
 le lot pivot que le cadrage de celle-ci désigne (décision du 2026-11-07) : US-1380/L1 (#2328)
-pour `epic/EP-07`, US-1490/L1 (#2370) pour `epic/EP-09`, US-1580/L1 (#2398) pour `epic/EP-10`.
+pour `epic/EP-07`, US-1490/L1 (#2370) pour `epic/EP-09`, US-1580/L1 (#2398) pour `epic/EP-10`, US-1660/L1 (#2437) pour
+`epic/EP-08`.
 
 La chaîne s'exécute sur toute pull request, vers une branche d'EPIC comme vers `main`, et
 aucune n'est fusionnée si elle échoue.

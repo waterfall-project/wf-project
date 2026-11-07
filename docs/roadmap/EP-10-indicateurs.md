@@ -1,10 +1,10 @@
 ---
 id: EP-10
 titre: Lire où en est un projet : avancement, indices, projections et courbes
-statut: prêt
+statut: en cours
 depend_de: EP-09
 famille: front, back
-issue:
+issue: 2427
 ---
 
 # EP-10 — Indicateurs de projet
@@ -114,7 +114,7 @@ Déjà servies, et reprises ici pour ce que cet EPIC y ajoute :
 
 Aucune opération ne manque au contrat, figé en 1.0.0 : un écart devient une « Interface contract
 issue » que l'auteur tranche. Le cadrage en relève un, « à trancher » : le refus de `as_of`
-antérieur à toute révision marquée à l'état En cours, que le contrat ne décrit pas (US-1670,
+antérieur à toute révision marquée à l'état En cours, que le contrat ne décrit pas (#2449 ; US-1670,
 « Notes de réalisation »).
 
 ## Constats reçus
@@ -134,8 +134,8 @@ Relevé par la revue locale d'US-0960 (EP-04, #2061) et reporté au cadrage d'EP
 
 - #2180, point 2 — `compute_indicators` n'écrit pas sa politique d'erreur : le point 1, le test
   des points d'entrée, est corrigé par US-1380/L1 #2328 d'EP-06, qui n'est pas fusionné à
-  l'ouverture des issues d'EP-10 ; le point 2 s'ouvre en constat propre d'EP-10, rattaché à
-  US-1670 — « le marquage échoue entièrement si le calcul de ses indicateurs échoue »
+  l'ouverture des issues d'EP-10 ; le point 2 s'ouvre en constat propre d'EP-10 (#2450), rattaché à
+  US-1670/L1 #2440 — « le marquage échoue entièrement si le calcul de ses indicateurs échoue »
   (WF-DAT-0040), une exception du calcul fait échouer la tâche avec son code, rien n'étant écrit,
   et le test des points d'entrée dit à partir de quel lot le worker porte l'extension.
 
@@ -635,7 +635,7 @@ lot des trois autres : EP-10 les écrit (US-1720).
 
 ### Ce que le cadrage laisse à EP-08
 
-Le socle (US-1660/L1) est le **lot pivot d'EP-08** : `epic/EP-08` se tire d'`epic/EP-10` dès sa
+Le socle (US-1660/L1 #2437) est le **lot pivot d'EP-08** : `epic/EP-08` se tire d'`epic/EP-10` dès sa
 fusion. Il lui garantit `revision_indicator` et sa partition, la chaîne des migrations arrêtée à
 `0026`, le module `core/indicators` avec son interface déclarée — `project_indicators`,
 `cost_curve`, `earned_value_curves`, `index_history`, `milestone_tracking`, `store_indicators`,
@@ -693,7 +693,7 @@ vérification d'ensemble en dernier ; le plan de lots (étape 3) le détaille en
 - **opérations** : `getProjectIndicators` ; `createNode`, `setTaskProgress`, `updateEstimateLine`,
   `setLineRemaining`, `applyImport`, `updateReferenceSettings` pour ce que chacune change au
   calcul
-- **issue** : <numéro, rempli au démarrage>
+- **issue** : 2428
 
 **En tant que** chef de projet, **je veux** lire, pour mon projet En cours et pour chacun de ses
 sous-projets, l'ensemble « hors sous-projet » compris, le budget de référence, la valeur planifiée,
@@ -857,7 +857,7 @@ survenu et le budget devant un avenant (EP-08) ; le portefeuille (EP-11).
   `getProjectIndicators` (`revision_id`, `as_of`), `getEstimateIndicators`,
   `getRemainingIndicators` (`is_stored`) ; `applyImport`, `setActualCostTrackedScope`,
   `updateReferenceSettings` pour ce qu'ils ne changent pas
-- **issue** : <numéro, rempli au démarrage>
+- **issue** : 2429
 
 **En tant que** chef de projet, **je veux** que le marquage d'une révision calcule ses indicateurs à
 sa date, pour le projet et pour chaque sous-projet, et les conserve avec elle, que je les relise
@@ -972,7 +972,7 @@ risques conservés pour le portefeuille (EP-11, EP-08).
 - **statut** : à faire
 - **exigences** : `WF-IND-0060-A`, `WF-PLA-0130-A`
 - **opérations** : `listNodes` (`TaskFacet.physical_progress`), `setTaskProgress`
-- **issue** : <numéro, rempli au démarrage>
+- **issue** : 2430
 
 **En tant que** chef de projet, **je veux** lire dans la grille de planning l'avancement physique de
 chaque récapitulative — la part des montants budgétés de son sous-arbre que ses tâches terminées
@@ -1034,7 +1034,7 @@ elle-même (EP-06) ; les lignes de provision et les tâches issues d'un risque s
 - **statut** : à faire
 - **exigences** : `WF-IND-0100-A`, `WF-IND-0110-A`
 - **opérations** : `getCostCurve`, `getEarnedValueCurves` ; `markRevision` (les courbes conservées)
-- **issue** : <numéro, rempli au démarrage>
+- **issue** : 2431
 
 **En tant que** chef de projet, **je veux** lire, au pas du mois, la courbe des coûts cumulés — le
 budget de référence, le coût réel jusqu'au jour du calcul, puis la projection du chef de projet —,
@@ -1117,7 +1117,7 @@ la conservation (US-1670). Le pas du mois et les points de la date de calcul sui
 - **statut** : à faire
 - **exigences** : `WF-IND-0130-A`
 - **opérations** : `getIndexHistory` ; `getReferenceSettings` (les seuils tracés)
-- **issue** : <numéro, rempli au démarrage>
+- **issue** : 2432
 
 **En tant que** chef de projet, **je veux** lire, pour le projet et pour chaque sous-projet,
 l'évolution de l'indice de coût et de l'indice de délai — un point par revue marquée, et le dernier
@@ -1158,7 +1158,7 @@ US-1710.
 - **exigences** : `WF-IND-0090-A`, `WF-PLA-0060-A`, `WF-DAT-0030-A`, `WF-RAE-0030-A`
 - **opérations** : `getMilestoneTracking` ; `setNodeTracking`, `setTaskProgress` (ce qu'ils y
   changent)
-- **issue** : <numéro, rempli au démarrage>
+- **issue** : 2433
 
 **En tant que** chef de projet, **je veux** lire, pour chaque jalon inscrit au suivi, la date que
 chaque revue marquée prévoyait pour lui en fonction de la date de cette revue, jusqu'à sa
@@ -1237,7 +1237,7 @@ l'inscription elle-même (EP-06).
 - **opérations** : `getProjectIndicators`, `getCostCurve`, `getEarnedValueCurves`,
   `getIndexHistory` (le dernier point) ; `updateEstimateLine`, `setActualCostTrackedScope`,
   `abandonRevision` pour ce qu'ils invalident
-- **issue** : <numéro, rempli au démarrage>
+- **issue** : 2434
 
 **En tant qu'** exploitant, **je veux** que les indicateurs au jour courant d'un projet soient tenus
 dans Redis, invalidés par toute écriture dont ils dépendent et bornés par une durée de validité, et
@@ -1301,7 +1301,7 @@ dernier lot à l'écrire.
 - **opérations** : `getProjectIndicators`, `getIndexHistory`, `getMilestoneTracking`,
   `getCostCurve`, `getEarnedValueCurves` ; `getRevision`, `listSubprojects`, `listRevisions` que
   l'écran lit
-- **issue** : <numéro, rempli au démarrage>
+- **issue** : 2435
 
 **En tant que** chef de projet, **je veux** que l'écran des indicateurs — les cartes, l'évolution
 des indices, le diagramme temps/temps, la courbe des coûts cumulés et ses décaissements, les
@@ -1343,7 +1343,7 @@ et les autres parcours (US-1740).
 - **statut** : à faire
 - **exigences** : `WF-QUA-0040-A`, `WF-INTF-0010-A`
 - **opérations** : aucune en propre ; les lectures de l'EPIC sur le témoin chargé
-- **issue** : <numéro, rempli au démarrage>
+- **issue** : 2436
 
 **En tant que** développeur, **je veux** que PRJ-001, chargé, porte les indicateurs que le marquage
 rejoué de sa révision 101 a conservés et ceux du jour, que le service les compare aux exemples du
