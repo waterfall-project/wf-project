@@ -410,8 +410,10 @@ chargeur — s'étend à chacun.
   la tâche porteuse entre les années, sur le calendrier du rôle de la ligne (celui de la tâche
   hors main-d'œuvre), par arithmétique sur les semaines pleines et les jours restants, sans boucle
   sur les jours ; chaque part est projetée d'une fois le taux d'inflation par année écoulée depuis
-  l'année de référence, et le réestimé est la somme des parts projetées ; `consumption_year` est
-  l'année de la part la plus lourde, la première à égalité. Le taux d'inflation est celui du
+  l'année de référence, et le réestimé est la somme des parts projetées, arrondie une fois au
+  centime — jamais une somme de parts arrondies, pour que WF-DAT-0100 tienne sur une ligne à cheval
+  sur deux années — ; `consumption_year` est l'année de la part la plus lourde, la première à
+  égalité. Le taux d'inflation est celui du
   projet pour la révision en cours, celui conservé pour une révision marquée.
 - **Le budgété** suit « Ce que le cadrage décide » : fixé par la lignée à la création et à la copie,
   rafraîchi à la désignation ; la projection du budgété est celle de la référence, conservée avec
@@ -511,8 +513,10 @@ chargeur — s'étend à chacun.
 Aucun gestionnaire nouveau : l'import, l'export et le marquage sont ceux d'EP-06 et d'EP-04, qui
 appellent les registres. Le worker doit importer l'interface d'`estimate` pour les remplir
 (#2180) ; `worker/main.py` est encore écrit par US-1420/L2 #2341 : l'import est du lot d'US-1500
-qui écrit le marquage, après #2341. Jusque-là, un marquage dans le worker n'écrit pas d'image —
-aucun test ne l'attend avant ce lot.
+qui écrit le marquage, après #2341. Jusque-là, un marquage dans le worker n'écrit pas d'image, et
+le test des points d'entrée (#2180), que le socle étend, dit explicitement que les extensions
+d'`estimate` ne sont attendues du worker qu'à partir de ce lot — l'API et le chargeur les
+attendent dès le socle —, pour qu'il ne soit pas rouge entre les deux.
 
 ### Le chargeur du témoin
 
@@ -528,8 +532,11 @@ aucun test ne l'attend avant ce lot.
   suppression — par l'interface d'`estimate`, identifiants et instant imposés ;
   `witness/revisions.py` applique `rate_update_applied` par `apply_rate_update` et attend que la
   désignation de l'offre aboutisse (`designation_attempted` devient une désignation réussie, un
-  refus arrêtant la commande), le passage En cours constaté par les transitions. Les montants sont
-  ceux que le service calcule : le calculé devient l'attendu.
+  refus arrêtant la commande), le passage En cours constaté par les transitions. Entre la tranche
+  des tâches d'EP-06 (US-1480/L2 #2347) et celle des lignes, la désignation attendue refusée l'est
+  faute de lignes, non plus faute de tâches : le chargeur d'EP-06 ne doit pas tester le motif du
+  refus, seulement la condition `revision_has_tasks_and_lines` — une ligne pour le pilote d'EP-06.
+  Les montants sont ceux que le service calcule : le calculé devient l'attendu.
 
 ### Le front
 
@@ -582,8 +589,8 @@ ce lot, ou en dépendent par son numéro :
 | `core/planning` : `setPredecessors`, les registres de `resource_settings` (`reschedule_current_structures`) | US-1390/L2 #2339 | US-1500 (la garde des calendriers des rôles) |
 | `core/planning` : le collage (`previewPaste`, `applyPaste`), `api/history.py` | US-1450/L2 #2344 | US-1560 (le jugement des cellules de la ligne) |
 | `core/revisions/commands.py` (`export_*`), `api/tasks.py` | US-1430/L2 #2336 | US-1500 (`apply_rate_update`), US-1550 (`export_estimate`) |
-| `core/projects/commands.py` (`generate_skeleton`) | US-1460 #2325 | US-1550 (`import_estimate`) |
-| `core/exchanges` (la mécanique d'import, les formats) | US-1420/L1 #2332 | US-1550 |
+| `core/projects/commands.py` (`manage_timelines`, `generate_skeleton`) | US-1400/L1 #2331, US-1460 #2325 | US-1550 (`import_estimate`), après les deux |
+| `core/exchanges` (la mécanique d'import, les formats) | US-1420/L1 #2332 | US-1550 (la lecture, l'analyse et l'application du classeur ; son écriture, pure, n'en a pas besoin) |
 | `worker/main.py`, les Compose, `production.env.example`, le Makefile | US-1420/L2 #2341 | US-1500 (l'import de l'interface dans le worker) |
 | `REUSE.toml`, `LICENSES/` | US-1440/L1 #2337 | aucun : le logo porte son fichier `.license` |
 | `wftools`, `make mock-data` | US-1480/L1 #2330 | US-1570/L1 |
@@ -602,8 +609,10 @@ quatre lectures en une vague large, les écrans par l'US qui sert leur objet, la
 d'ensemble en dernier ; le plan de lots (étape 3) le détaille en vagues.
 
 1. **US-1490/L1**, le socle — dès la fusion d'US-1380/L1 #2328 : la migration `0024`, le module
-   `core/estimate` à vide avec son interface en paquet (un fichier par objet) et ses modules purs
-   `pricing` et `spreading` déclarés, les trois registres nouveaux de `core/revisions`
+   `core/estimate` à vide avec son interface en paquet (un fichier par objet) — hors les
+   sous-paquets `pricing/` et `spreading/`, que leurs lots possèdent entiers, comme le socle
+   d'EP-06 ne créait pas `scheduling/` : l'interface d'`estimate` ne les importe qu'une fois leurs
+   lots fusionnés —, les trois registres nouveaux de `core/revisions`
    (`register_marking`, `register_designation`) et de `core/cost_settings` (`register_employment`),
    l'enregistrement à vide dans ceux d'EP-04 et d'EP-06 (`register_facet`, `register_copy`,
    `register_tasks_and_lines`, `register_closing`, `register_format`, `register_exporter`,
@@ -620,8 +629,11 @@ d'ensemble en dernier ; le plan de lots (étape 3) le détaille en vagues.
 2. **La ligne** (US-1490 : la facette lue et créée, `updateEstimateLine`, le calcul, après #2335 ;
    puis la suppression, le déplacement, les questions de `core/projects` et de `cost_settings`,
    après #2338), **l'instantané et les taux** (US-1500 : la copie des taux, la proposition, la mise à
-   jour, le marquage, la désignation, l'inflation, les gardes, après #2336, #2339 et #2341 pour ce
-   qui les touche), **l'écriture du classeur** (US-1550, pure, après #2332).
+   jour, le marquage, la désignation, les gardes, après #2336, #2339 et #2341 pour ce qui les
+   touche ; l'inflation du projet après US-1490/L3, qui déclare `register_estimate_facts`),
+   **l'écriture du classeur** (US-1550, pure : XlsxWriter n'a besoin de rien d'EP-06, seul
+   l'enregistrement par `register_exporter`, déclaré par le socle d'EP-06, le relie à
+   `core/exchanges`).
 3. **Les quatre lectures** (US-1510, US-1520, US-1530, US-1540) et **la lecture et l'analyse du
    classeur** (US-1550), après la ligne.
 4. **La grille de devis** (US-1560, le collage après #2344), **l'export et l'import branchés**
