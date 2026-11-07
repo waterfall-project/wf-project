@@ -55,6 +55,11 @@ DATA = {
     "ContributorSuggestion.display_name": "a name",
     "ContributorSuggestion.org_node_label": "a label",
     "ContributorSuggestion.resource_role_labels": "labels",
+    # The label a person gave an element of the work breakdown, and that of the task that bears it.
+    "WorkPackageReading.label": "a label",
+    "OrderItemReading.label": "a label",
+    "DeliverableReading.label": "a label",
+    "AttachedTask.label": "a label",
     # The code a person gave a project, and the code of a function of the FBS.
     "AuditProject.code": "a code",
     "Permission.fbs_code": "a code",

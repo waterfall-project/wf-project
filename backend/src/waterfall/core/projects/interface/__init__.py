@@ -83,9 +83,20 @@ from waterfall.core.projects.interface.subprojects import (
 
 # ``work_breakdown`` (US-0950): the work breakdown of a project.
 from waterfall.core.projects.interface.work_breakdown import (
+    DeliverableEntry,
+    DeliverableView,
+    OrderItemEntry,
+    OrderItemView,
+    WorkBreakdownFilters,
+    WorkBreakdownLoad,
+    WorkBreakdownRead,
+    WorkBreakdownToWrite,
+    WorkPackageEntry,
+    WorkPackageView,
     load_work_breakdown,
     read_work_breakdown,
     set_work_breakdown,
+    work_breakdown_present,
 )
 
 __all__ = [
@@ -100,7 +111,11 @@ __all__ = [
     "ContributorsLoad",
     "ContributorsRead",
     "ContributorsToWrite",
+    "DeliverableEntry",
+    "DeliverableView",
     "LifecycleTrigger",
+    "OrderItemEntry",
+    "OrderItemView",
     "ProjectChange",
     "ProjectColumn",
     "ProjectDraft",
@@ -113,6 +128,12 @@ __all__ = [
     "ProjectState",
     "ProjectView",
     "Viewer",
+    "WorkBreakdownFilters",
+    "WorkBreakdownLoad",
+    "WorkBreakdownRead",
+    "WorkBreakdownToWrite",
+    "WorkPackageEntry",
+    "WorkPackageView",
     "advance",
     "contributor_kind",
     "contributors_present",
@@ -147,4 +168,5 @@ __all__ = [
     "set_work_breakdown",
     "update_project",
     "update_subproject",
+    "work_breakdown_present",
 ]
