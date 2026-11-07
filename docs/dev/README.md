@@ -604,7 +604,7 @@ the account it designates, naming it. The write leaves from a whole read, with i
 the grid reads the filtered list, the page re-reads it whole for the dialog, and the grid keeps
 what its read retains. An answered edit replaces its row, a deletion removes it, an answered list
 replaces that of a whole read, as long as their counter is more recent, the re-read page saying what the
-service kept (US-1000: the settings of the project no longer bear `MockupNotice`); a creation adds no
+service kept; a creation adds no
 row, the re-read page files it. A response closes only the form, the confirmation or the dialog it left
 from, never another opened since (openings counter, `key`, #672). The command that opens an edit
 waits, inactive, `aria-busy` and described by « Saving in progress… », for the response of a
@@ -3827,10 +3827,12 @@ removes the guard and its entry:
 - `projects.spec.ts` — the paths that write to PRJ-001 or reach it through its planning: the screen
   of the project, its settings and its lifecycle, the exit, the sub-projects and the contributors,
   the work breakdown (`FAKE_BACK_ONLY`): the account of the run is not a project manager of PRJ-001,
-  by decision (#2193, option A), and the planning its page leads to is **EP-06**'s. Each has its
-  twin, played against the service alone on a project the account creates (`SERVICE_ONLY`,
-  `own-project.ts`): settings, lifecycle, sub-projects, work breakdown, and an exit to Lost from
-  Pricing, read anew. The reading of PRJ-001 — the list, the sorts and the filters of the home, the
+  by decision (#2193, option A) — which the twins replay —, and the planning its page leads to is
+  **EP-06**'s. Each has its twin, played against the service alone on a project the account creates
+  (`SERVICE_ONLY`, `own-project.ts`): settings, lifecycle, sub-projects, work breakdown,
+  contributors (a second account, enrolled through the API since the screen proposes the accounts of
+  the estimate alone, WF-PRJ-0070-A; the quality of that account is changed on the screen, then read
+  anew after a reload) and an exit to Lost from Pricing, read anew. The reading of PRJ-001 — the list, the sorts and the filters of the home, the
   lists of its settings — plays on both sides.
 
 The two readers of a project (`service/project-readers.spec.ts`, WF-ADM-0040-A) play against the
@@ -3842,10 +3844,12 @@ enrols the other through the API under her token.
 The paths that depend on what the service does not do yet, or does not serve, are not replayed
 against it, being untagged; each is still played against the fake back, by `chromium`. What
 depends on the clock: nothing in the reference, whose dates are those of the loading (WF-DAT-0070)
-and which the paths do not wait for. On a screen the service does not serve: the openings of
+and which the paths do not wait for. On a screen the service does not serve: the openings, from
 `/`, of the portfolio, of the administration and of the status screen in `navigation.spec.ts` (the
-role "Manager" is offered neither the administration nor the status), as well as all its other
-paths, those of a project and that of the icon on `/`; almost all of those of `admin.spec.ts`
+role "Manager" is offered neither the administration nor the status); the home is served since
+US-0920/L2 and plays on both sides (`projects.spec.ts`), as do the screens of a project since
+US-1000; the other paths of `navigation.spec.ts`, those of a project and that of the icon on `/`,
+stay untagged until their US tags them; almost all of those of `admin.spec.ts`
 (`:40` to `:455`, only `:479` is `@shared`), administration screens outside the permissions of the
 role "Manager" of `mode.ts`, without the `users.*` permissions. On what their US does not tag yet:
 the reading of the settings outside any project (`reference-costs.spec.ts`, US-0250); the filter

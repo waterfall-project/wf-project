@@ -11,15 +11,21 @@
  * user does; the contributors are written by the API under her token, the screen of the contributors
  * proposing the accounts of the estimate alone (`listContributorSuggestions`).
  */
-import { type APIRequestContext, type Browser, expect, type Page, test } from "@playwright/test";
+import {
+  type APIRequestContext,
+  type Browser,
+  expect,
+  type Locator,
+  type Page,
+  test,
+} from "@playwright/test";
 
-import { openHydrated, openMenu, WORKING } from "../hydration";
-import { createOwnProject, type OwnProject } from "../own-project";
+import { openHydrated, openMenu } from "../hydration";
+import { createOwnProject, inscribe, openRevision, type OwnProject } from "../own-project";
 import { heldToTheContract } from "./contract";
 import {
   type Administrator,
   accountAdministrator,
-  frontToken,
   giveIdentifiers,
   gridPreferences,
   localAccount,
@@ -29,7 +35,6 @@ import {
 
 heldToTheContract();
 
-const API = `${process.env.WATERFALL_API_ADDRESS ?? ""}/api/v1`;
 const ACCOUNT = "/account";
 const ROLES = [
   ["Manager", []],
@@ -56,6 +61,23 @@ test.afterAll(async () => {
   await calls.dispose();
 });
 
+/**
+ * The names of the two contributors a grid lists: the cell of the column `name` of each row of its
+ * body, after the header and before the totals.
+ */
+async function namesOf(grid: Locator): Promise<string[]> {
+  const rows = grid.getByRole("row");
+  await expect(rows).toHaveCount(4);
+  const names = await rows.evaluateAll((all) =>
+    all
+      .slice(1, -1)
+      .map((row) => (row.querySelector('[data-column="name"]')?.textContent ?? "").trim()),
+  );
+  expect(names).toHaveLength(2);
+  expect(names.every((name) => name !== "")).toBe(true);
+  return names;
+}
+
 /** A page of a workstation of its own, its browser asking for a language. */
 async function workstation(browser: Browser, locale: string): Promise<Page> {
   const context = await browser.newContext({ locale, ignoreHTTPSErrors: true });
@@ -67,31 +89,6 @@ async function signInAt(page: Page, person: Person, screen: string): Promise<voi
   await page.goto(`/login?next=${encodeURIComponent(screen)}`);
   await giveIdentifiers(page, person);
   await expect(page).toHaveURL(screen);
-}
-
-/** Write the contributors of a project: its creator, project manager, and the other account. */
-async function inscribe(
-  browser: Browser,
-  creator: LocalPerson,
-  other: LocalPerson,
-  project: string,
-): Promise<void> {
-  const headers = { Authorization: `Bearer ${await frontToken(browser, creator)}` };
-  const id = project.split("/").at(-1) ?? "";
-  const read = await calls.get(`${API}/projects/${id}/contributors`, { headers });
-  expect(read.status(), "GET contributors").toBe(200);
-  const { lock_version: version } = (await read.json()) as { lock_version: number };
-  const written = await calls.put(`${API}/projects/${id}/contributors`, {
-    headers,
-    data: {
-      contributors: [
-        { user_id: creator.id, kind: "project_manager" },
-        { user_id: other.id, kind: "contributor" },
-      ],
-      lock_version: version,
-    },
-  });
-  expect(written.status(), "PUT contributors").toBe(200);
 }
 
 test("two contributors of a project read the same project and the same revisions, one in French with every column, the other in English with other columns kept [WF-ADM-0040-A]", async ({
@@ -110,14 +107,8 @@ test("two contributors of a project read the same project and the same revisions
 
     // The first creates the project and opens a revision, then inscribes the other.
     const own: OwnProject = await createOwnProject(mine, "Deux lecteurs");
-    await inscribe(browser, french, english, own.path);
-    await openHydrated(mine, `${own.path}/revisions`);
-    await mine
-      .getByRole("main")
-      .getByRole("region", { name: "Commandes" })
-      .getByRole("button", { name: "Ouvrir une révision en cours" })
-      .click();
-    await expect(mine).toHaveURL(/\?revision_id=[0-9a-f-]{36}$/, { timeout: WORKING });
+    await inscribe(browser, calls, french, english, own);
+    await openRevision(mine, own);
 
     // The second hides a column of the contributors in her own language.
     await openHydrated(hers, `${own.path}/settings`);
@@ -146,6 +137,7 @@ test("two contributors of a project read the same project and the same revisions
     await expect(ours.getByRole("row", { name: /Chef de projet/ })).toBeVisible();
     await expect(ours.getByRole("row", { name: /Contributeur/ })).toBeVisible();
     await expect(ours.getByRole("row").last()).toHaveText("2 contributeurs");
+    const peopleOfMine = await namesOf(ours);
     expect(gridPreferences(french.email, "contributors")).toBeNull();
 
     // The second finds her columns again, and the same two contributors in English.
@@ -153,6 +145,8 @@ test("two contributors of a project read the same project and the same revisions
     await expect(theirs.getByRole("columnheader", { name: "Capacity" })).toHaveCount(0);
     await expect(theirs.getByRole("columnheader", { name: "Name" })).toBeVisible();
     await expect(theirs.getByRole("row").last()).toHaveText("2 contributors");
+    // The same two people, whatever the language and the columns shown.
+    expect(await namesOf(theirs)).toEqual(peopleOfMine);
 
     // Both read the same revision, the one the first opened, each in her language.
     await openHydrated(mine, `${own.path}/revisions`);

@@ -5,7 +5,7 @@ import { expect, type Page } from "@playwright/test";
 import { compile } from "./compile";
 import { openHydrated, WORKING } from "./hydration";
 import { inService, test } from "./mode";
-import { createOwnProject } from "./own-project";
+import { createOwnProject, openRevision } from "./own-project";
 import { rowAt } from "./scroll";
 
 // The reading context of the screens of a project, against the fake back and, tagged `@shared`,
@@ -144,13 +144,7 @@ test("the screens of a project created name the project, then the revision opene
   await openHydrated(page, `${own.path}/settings`);
   await expect(banner(page).getByRole("definition").first()).toHaveText(own.label);
 
-  await openHydrated(page, `${own.path}/revisions`);
-  await page
-    .getByRole("main")
-    .getByRole("region", { name: "Commandes" })
-    .getByRole("button", { name: "Ouvrir une révision en cours" })
-    .click();
-  await expect(page).toHaveURL(/\?revision_id=[0-9a-f-]{36}$/, { timeout: WORKING });
+  await openRevision(page, own);
   await expect(banner(page).getByRole("definition").first()).toHaveText(own.label);
   await expect(banner(page)).toContainText("Révision en cours");
 });

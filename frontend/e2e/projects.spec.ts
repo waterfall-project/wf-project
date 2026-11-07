@@ -1,12 +1,18 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
-import { expect, type Locator } from "@playwright/test";
+import { expect, type Locator, type Page } from "@playwright/test";
 
 import { compile } from "./compile";
 import { openHydrated, sortUntilAddress, WORKING } from "./hydration";
 import { inService, test } from "./mode";
-import { createOwnProject } from "./own-project";
+import { createOwnProject, inscribe, openRevision } from "./own-project";
 import { withinBox } from "./scroll";
+import {
+  accountAdministrator,
+  gridPreferences,
+  localAccount,
+  type LocalPerson,
+} from "./service/realm";
 
 // The projects, against the fake back and, tagged `@shared`, against the service.
 //
@@ -26,7 +32,6 @@ const PROJECT = "/projects/01926f3a-7c00-7000-8000-000000000001";
 const CREATED = "/projects/01926f3a-7c00-7000-8000-000000000003";
 const CURRENT = "01926f3a-7c00-7000-8000-000000000102";
 
-// The paths of the fake back that need a service that remembers have a twin on a project of the run.
 /**
  * Lift the sort of the home, which the account keeps (WF-IHM-0060) and applies to an address that
  * says nothing: the paths that follow, played with the same account, find the list as they expect.
@@ -45,6 +50,50 @@ async function liftSort(list: Locator): Promise<void> {
       timeout: 1_000,
     });
   }).toPass({ timeout: 2 * WORKING });
+}
+
+/**
+ * Give the home back as the paths that follow expect it, against the service, where the account of
+ * the run keeps the sort and the states it chose (WF-IHM-0060): the defaults pressed again, the sort
+ * lifted, and the preference read in the database until it says so. Run whatever became of the path.
+ */
+async function restoreHome(
+  page: Page,
+  list: Locator,
+  manager: LocalPerson | undefined,
+): Promise<void> {
+  if (manager === undefined) {
+    return;
+  }
+  await page.goto("/");
+  const states = page.getByRole("group", { name: "Filtre par état" });
+  await expect(states).toBeVisible({ timeout: WORKING });
+  await states.getByRole("button", { name: "Tous les états" }).click();
+  await states.getByRole("button", { name: "Créé" }).click();
+  await states.getByRole("button", { name: "Chiffrage" }).click();
+  await states.getByRole("button", { name: "En cours" }).click();
+  await expect(states.getByRole("button", { name: "En cours" })).toHaveAttribute(
+    "aria-pressed",
+    "true",
+    { timeout: WORKING },
+  );
+  await liftSort(list);
+  // What the account keeps of the home: no sort, and no state chosen, the default being unwritten.
+  await expect
+    .poll(
+      () => {
+        const kept = gridPreferences(manager.email, "projects");
+        if (typeof kept !== "object" || kept === null) {
+          return { sort: null, filters: {} };
+        }
+        return {
+          sort: "sort" in kept ? kept.sort : null,
+          filters: "filters" in kept ? kept.filters : {},
+        };
+      },
+      { timeout: WORKING },
+    )
+    .toEqual({ sort: null, filters: {} });
 }
 
 const FAKE_BACK_ONLY =
@@ -89,95 +138,91 @@ test("the home lists the projects the user contributes to, a filter shown and li
 
 test("the home sorts its projects and filters them by state on the server, from the address (#522) @shared [WF-IHM-0130-A]", async ({
   page,
+  manager,
 }) => {
   await page.goto("/");
   const list = page.getByRole("grid", { name: "Liste des projets" });
-  // Nothing witnesses the hydration: the sort is pressed again until React answers it.
-  await sortUntilAddress(
-    list.getByRole("columnheader", { name: "Code" }),
-    list,
-    "/?sort_by=code&sort_order=asc",
-  );
-  const states = page.getByRole("group", { name: "Filtre par état" });
-  // The filter by default is said, Créé, Chiffrage and En cours pressed (US-0660/L4, #1401;
-  // US-1030, #1748).
-  await expect(
-    page.getByRole("region", { name: "Filtre par défaut de la liste par état" }),
-  ).toBeVisible();
-  await expect(states.getByRole("button", { name: "Créé" })).toHaveAttribute(
-    "aria-pressed",
-    "true",
-  );
-  await expect(states.getByRole("button", { name: "Chiffrage" })).toHaveAttribute(
-    "aria-pressed",
-    "true",
-  );
-  await expect(states.getByRole("button", { name: "Perdu" })).toHaveAttribute(
-    "aria-pressed",
-    "false",
-  );
-  // « Tous les états » lifts it, the rest of the address kept, and says so in the address.
-  await states.getByRole("button", { name: "Tous les états" }).click();
-  await expect(page).toHaveURL("/?sort_by=code&sort_order=asc&states=all", { timeout: WORKING });
-  await expect(states.getByRole("button", { name: "Tous les états" })).toHaveAttribute(
-    "aria-pressed",
-    "true",
-  );
-  await states.getByRole("button", { name: "Chiffrage" }).click();
-  await expect(page).toHaveURL("/?sort_by=code&sort_order=asc&states=pricing", {
-    timeout: WORKING,
-  });
-  // The state the address names stays pressed, whatever the fake back says it retained.
-  await expect(states.getByRole("button", { name: "Chiffrage" })).toHaveAttribute(
-    "aria-pressed",
-    "true",
-  );
-  // The grid holds in the window: its totals in view.
-  const total = list.getByRole("gridcell", { name: inService ? /^\d+ projets?$/ : "2 projets" });
-  expect(await withinBox(list, total)).toBe(true);
-  if (inService) {
-    // The states and the sort the account keeps are given back, the defaults being its own.
-    await states.getByRole("button", { name: "Créé" }).click();
-    await states.getByRole("button", { name: "En cours" }).click();
-    await expect(states.getByRole("button", { name: "En cours" })).toHaveAttribute(
+  try {
+    // Nothing witnesses the hydration: the sort is pressed again until React answers it.
+    await sortUntilAddress(
+      list.getByRole("columnheader", { name: "Code" }),
+      list,
+      "/?sort_by=code&sort_order=asc",
+    );
+    const states = page.getByRole("group", { name: "Filtre par état" });
+    // The filter by default is said, Créé, Chiffrage and En cours pressed (US-0660/L4, #1401;
+    // US-1030, #1748).
+    await expect(
+      page.getByRole("region", { name: "Filtre par défaut de la liste par état" }),
+    ).toBeVisible();
+    await expect(states.getByRole("button", { name: "Créé" })).toHaveAttribute(
       "aria-pressed",
       "true",
-      { timeout: WORKING },
     );
-    await liftSort(list);
+    await expect(states.getByRole("button", { name: "Chiffrage" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    await expect(states.getByRole("button", { name: "Perdu" })).toHaveAttribute(
+      "aria-pressed",
+      "false",
+    );
+    // « Tous les états » lifts it, the rest of the address kept, and says so in the address.
+    await states.getByRole("button", { name: "Tous les états" }).click();
+    await expect(page).toHaveURL("/?sort_by=code&sort_order=asc&states=all", { timeout: WORKING });
+    await expect(states.getByRole("button", { name: "Tous les états" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    await states.getByRole("button", { name: "Chiffrage" }).click();
+    await expect(page).toHaveURL("/?sort_by=code&sort_order=asc&states=pricing", {
+      timeout: WORKING,
+    });
+    // The state the address names stays pressed, whatever the fake back says it retained.
+    await expect(states.getByRole("button", { name: "Chiffrage" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    // The grid holds in the window: its totals in view.
+    const total = list.getByRole("gridcell", { name: inService ? /^\d+ projets?$/ : "2 projets" });
+    expect(await withinBox(list, total)).toBe(true);
+  } finally {
+    await restoreHome(page, list, manager);
   }
 });
 
 test("the home filters its projects by the period of their last modification on the server, from the address, the focus kept (#522) @shared [WF-IHM-0130-A]", async ({
   page,
+  manager,
 }) => {
   await page.goto("/");
   const list = page.getByRole("grid", { name: "Liste des projets" });
-  // Nothing witnesses the hydration: the sort is pressed again until React answers it.
-  await sortUntilAddress(
-    list.getByRole("columnheader", { name: "Code" }),
-    list,
-    "/?sort_by=code&sort_order=asc",
-  );
-  const period = page.getByRole("form", { name: "Période de modification" });
-  await period.getByLabel("Du").fill("2026-03-01");
-  await period.getByLabel("Au").fill("2026-03-16");
-  const apply = period.getByRole("button", { name: "Filtrer" });
-  await apply.click();
-  // Two instants under the names of the contract, drawn in the time zone of the browser: the start
-  // of the first day, the start of the day after the last; the sort kept, back to the first page.
-  const [from, to] = await page.evaluate(() => [
-    new Date(2026, 2, 1).toISOString(),
-    new Date(2026, 2, 17).toISOString(),
-  ]);
-  const asked = new URLSearchParams({ sort_by: "code", sort_order: "asc", from, to });
-  await expect(page).toHaveURL(`/?${asked.toString()}`, { timeout: WORKING });
-  // The form is never remounted: the period shows, and the button keeps the focus.
-  await expect(period.getByLabel("Du")).toHaveValue("2026-03-01");
-  await expect(period.getByLabel("Au")).toHaveValue("2026-03-16");
-  await expect(apply).toBeFocused();
-  if (inService) {
-    await liftSort(list);
+  try {
+    // Nothing witnesses the hydration: the sort is pressed again until React answers it.
+    await sortUntilAddress(
+      list.getByRole("columnheader", { name: "Code" }),
+      list,
+      "/?sort_by=code&sort_order=asc",
+    );
+    const period = page.getByRole("form", { name: "Période de modification" });
+    await period.getByLabel("Du").fill("2026-03-01");
+    await period.getByLabel("Au").fill("2026-03-16");
+    const apply = period.getByRole("button", { name: "Filtrer" });
+    await apply.click();
+    // Two instants under the names of the contract, drawn in the time zone of the browser: the start
+    // of the first day, the start of the day after the last; the sort kept, back to the first page.
+    const [from, to] = await page.evaluate(() => [
+      new Date(2026, 2, 1).toISOString(),
+      new Date(2026, 2, 17).toISOString(),
+    ]);
+    const asked = new URLSearchParams({ sort_by: "code", sort_order: "asc", from, to });
+    await expect(page).toHaveURL(`/?${asked.toString()}`, { timeout: WORKING });
+    // The form is never remounted: the period shows, and the button keeps the focus.
+    await expect(period.getByLabel("Du")).toHaveValue("2026-03-01");
+    await expect(period.getByLabel("Au")).toHaveValue("2026-03-16");
+    await expect(apply).toBeFocused();
+  } finally {
+    await restoreHome(page, list, manager);
   }
 });
 
@@ -670,13 +715,7 @@ test("an exit of the lifecycle of a project in pricing is confirmed, naming the 
   test.slow();
   const own = await createOwnProject(page, "Sortie");
   // A revision opened takes the project to pricing, with a current revision to leave (WF-CYC-0090).
-  await openHydrated(page, `${own.path}/revisions`);
-  await page
-    .getByRole("main")
-    .getByRole("region", { name: "Commandes" })
-    .getByRole("button", { name: "Ouvrir une révision en cours" })
-    .click();
-  await expect(page).toHaveURL(/\?revision_id=[0-9a-f-]{36}$/, { timeout: WORKING });
+  await openRevision(page, own);
 
   await openHydrated(page, `${own.path}/lifecycle`);
   const main = page.getByRole("main");
@@ -701,4 +740,51 @@ test("an exit of the lifecycle of a project in pricing is confirmed, naming the 
   await expect(history.getByRole("row").last()).toContainText("Perdu");
   await expect(history.getByRole("row").last()).toContainText("Offre non retenue");
   await expect(commands.getByRole("button")).toHaveCount(0);
+});
+
+test("the contributors of a project created are written on the screen, the quality of another account changed, kept by the service and read anew @shared [WF-PRJ-0060-A]", async ({
+  browser,
+  page,
+  playwright,
+  manager,
+}) => {
+  if (!inService || manager === undefined) {
+    test.skip(true, SERVICE_ONLY);
+    return;
+  }
+  test.slow();
+  const calls = await playwright.request.newContext({ ignoreHTTPSErrors: true });
+  try {
+    const own = await createOwnProject(page, "Contributeurs");
+    // The screen proposes the accounts of the estimate alone: the other account is inscribed by the
+    // API, then her quality is changed on the screen.
+    const administrator = await accountAdministrator(browser, calls);
+    const other = await localAccount(browser, administrator);
+    await inscribe(browser, calls, manager, other, own);
+    await openHydrated(page, `${own.path}/settings`);
+    const contributors = page.getByRole("main").getByRole("region", { name: "Contributeurs" });
+    const grid = contributors.getByRole("grid", { name: "Contributeurs" });
+    await expect(grid.getByRole("row").last()).toHaveText("2 contributeurs", { timeout: WORKING });
+    await expect(grid.getByRole("row", { name: /Contributeur/ })).toHaveCount(1);
+
+    await contributors.getByRole("button", { name: "Modifier les contributeurs" }).click();
+    const list = page.getByRole("dialog", { name: "Modifier les contributeurs" });
+    // Both accounts bear the same name: the one who contributes is the one whose quality changes.
+    await list
+      .getByRole("combobox", { name: `Qualité de ${other.name}` })
+      .filter({ has: page.locator('option[value="contributor"]:checked') })
+      .selectOption("project_manager");
+    await list.getByRole("button", { name: "Enregistrer" }).click();
+    await expect(list).toHaveCount(0);
+
+    // What the service kept, read anew: both are project managers.
+    await page.reload();
+    await expect(grid.getByRole("row", { name: /Chef de projet/ })).toHaveCount(2, {
+      timeout: WORKING,
+    });
+    await expect(grid.getByRole("row", { name: /Contributeur/ })).toHaveCount(0);
+    await expect(grid.getByRole("row").last()).toHaveText("2 contributeurs");
+  } finally {
+    await calls.dispose();
+  }
 });

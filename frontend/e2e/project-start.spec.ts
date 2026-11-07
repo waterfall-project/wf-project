@@ -11,18 +11,24 @@ import { createOwnProject } from "./own-project";
 // tagged `@shared`, against the service. The service serves the work breakdown (US-0950), not yet the
 // structures: the journeys that lead to the planning — the revision in progress of the witness, the
 // generation of the skeleton — wait for EP-06, and the service plays the work breakdown of a project
-// the run creates. Against the fake back, as far as a fake back that keeps no state lets a journey go. It serves the project of the witness, its revision in progress with its
-// thousand tasks, whatever the address but one: there the encart cannot be reached, and the journeys
-// that need a service that remembers — create, work breakdown, generate, planning; create, drop a file,
-// report, planning — wait for it (#1350). The project created today is served at its own address, with
-// no revision: its encart is reached, and its generation played to the planning. The rest is proved on
-// the examples of the contract by the tests of the components (`project-start.dom.test.tsx`) and of
-// the pages (`page.test.tsx`, `screens.test.tsx`).
+// the run creates.
+//
+// Against the fake back, as far as a fake back that keeps no state lets a journey go. It serves the
+// project of the witness, its revision in progress with its thousand tasks, whatever the address but
+// one: there the encart cannot be reached, and the journeys that need a service that remembers —
+// create, work breakdown, generate, planning; create, drop a file, report, planning — wait for it
+// (#1350). The project created today is served at its own address, with no revision: its encart is
+// reached, and its generation played to the planning. The rest is proved on the examples of the
+// contract by the tests of the components (`project-start.dom.test.tsx`) and of the pages
+// (`page.test.tsx`, `screens.test.tsx`).
 const PROJECT = "01926f3a-7c00-7000-8000-000000000001";
 
 // What the service does not replay of the start before EP-06, which serves the structures, the
 // imports of a planning and the generation of the planning from the work breakdown.
 const BEFORE_EP06 = "EP-06 serves the structures, the planning and its generation";
+
+// What the fake back does not replay: it keeps nothing of the work breakdown it is given.
+const FAKE_BACK_FORGETS = "the fake back keeps nothing of the work breakdown it is given";
 
 test("leads a project with a revision in progress to its planning, where no encart is offered @shared [WF-PRJ-0030-A]", async ({
   page,
@@ -108,10 +114,10 @@ test("starts the planning of the project created from its encart: the work break
   await expect(page).toHaveURL(new RegExp(`/revisions/${OPENED}/planning`), { timeout: WORKING });
 });
 
-test("enters the work breakdown of a project created on the screen of its start, kept by the service and read anew, « Engendrer le planning » waiting for the structures @shared [WF-PRJ-0030-A] [WF-PRJ-0020-A]", async ({
+test("enters the work breakdown of a project created on the screen of its start, kept by the service and read anew @shared [WF-PRJ-0020-A]", async ({
   page,
 }) => {
-  test.skip(!inService, "the fake back keeps nothing of the work breakdown it is given");
+  test.skip(!inService, FAKE_BACK_FORGETS);
   test.slow();
   const own = await createOwnProject(page, "Démarrage");
   await openHydrated(page, `${own.path}/settings?start=skeleton`);

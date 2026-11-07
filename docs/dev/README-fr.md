@@ -592,7 +592,7 @@ désigne, en le nommant. L'écriture part d'une lecture entière, avec son compt
 lit la liste filtrée, la page la relit entière pour le dialogue, et la grille garde ce que sa
 lecture retient. Une modification répondue remplace sa ligne, une suppression l'ôte, une liste
 répondue remplace celle d'une lecture entière, tant que leur compteur est plus récent, la page relue
-disant ce que le service a gardé (US-1000 : les paramètres du projet ne portent plus `MockupNotice`) ;
+disant ce que le service a gardé ;
 une création n'ajoute aucune ligne, la page relue la range. Une réponse ne ferme que le formulaire, la confirmation ou le
 dialogue d'où elle est partie, jamais un autre ouvert depuis (compteur d'ouvertures, `key`, #672).
 La commande qui ouvre une modification attend, inactive, `aria-busy` et décrite par « Enregistrement
@@ -3857,9 +3857,12 @@ retire la garde et son entrée :
 - `projects.spec.ts` — les parcours qui écrivent sur PRJ-001 ou y mènent par son planning : l'écran du
   projet, ses paramètres et son cycle de vie, la sortie, les sous-projets et les contributeurs, le
   lotissement (`FAKE_BACK_ONLY`) : le compte de la course n'est pas chef de projet de PRJ-001, par
-  décision (#2193, option A), et le planning vers lequel mène sa page est d'**EP-06**. Chacun a son
-  jumeau, joué contre le service seul sur un projet que le compte crée (`SERVICE_ONLY`, `own-project.ts`) :
-  paramètres, cycle de vie, sous-projets, lotissement, et une sortie à Perdu depuis Chiffrage, relue.
+  décision (#2193, option A) — ce que rejouent les jumeaux —, et le planning vers lequel mène sa
+  page est d'**EP-06**. Chacun a son jumeau, joué contre le service seul sur un projet que le compte
+  crée (`SERVICE_ONLY`, `own-project.ts`) : paramètres, cycle de vie, sous-projets, lotissement,
+  contributeurs (un second compte, inscrit par l'API puisque l'écran ne propose que les comptes du
+  devis, WF-PRJ-0070-A ; la qualité de ce compte est changée par l'écran, puis relue après
+  rechargement) et une sortie à Perdu depuis Chiffrage, relue.
   La lecture de PRJ-001 — la liste, les tris et les filtres de l'accueil, les listes de ses paramètres
   — se joue des deux côtés.
 
@@ -3872,10 +3875,12 @@ et inscrit l'autre par l'API sous son jeton.
 Ne se rejouent pas contre le service, faute d'être étiquetés, les parcours qui dépendent de ce
 qu'il ne fait pas encore ou ne sert pas ; chacun reste joué contre le faux back, par `chromium`.
 Ce qui dépend de l'horloge : rien dans le référentiel, dont les dates sont celles du chargement
-(WF-DAT-0070) et que les parcours n'attendent pas. D'un écran que le service ne sert pas : les ouvertures de
-`/`, du portefeuille, de l'administration et de l'écran d'état de `navigation.spec.ts` (le rôle
-« Manager » ne se voit offrir ni l'administration ni l'état), ainsi que tous ses autres
-parcours, ceux d'un projet et celui de l'icône sur `/` ; presque tous ceux de `admin.spec.ts`
+(WF-DAT-0070) et que les parcours n'attendent pas. D'un écran que le service ne sert pas : les ouvertures,
+depuis `/`, du portefeuille, de l'administration et de l'écran d'état de `navigation.spec.ts` (le rôle
+« Manager » ne se voit offrir ni l'administration ni l'état) ; l'accueil, lui, est servi depuis
+US-0920/L2 et se joue des deux côtés (`projects.spec.ts`), de même que les écrans d'un projet depuis
+US-1000 ; les autres parcours de `navigation.spec.ts`, ceux d'un projet et celui de l'icône sur
+`/`, restent sans étiquette tant que leur US ne les pose pas ; presque tous ceux de `admin.spec.ts`
 (`:40` à `:455`, seul `:479` est `@shared`), des écrans d'administration hors des permissions du
 rôle « Manager » de `mode.ts`, sans les permissions `users.*`. De ce que leur US n'étiquette pas
 encore : la lecture des réglages hors projet (`reference-costs.spec.ts`, US-0250) ; le filtre des

@@ -25,20 +25,18 @@ describe("the facts at the head of a project", () => {
     "write the label of each of the six states of the table of the specification, in %s [WF-CYC-0010-A]",
     (locale) => {
       const project = example("project") as components["schemas"]["Project"];
-      const shown = SPEC_STATES.map(([state]) => {
+      for (const [state, fr, en] of SPEC_STATES) {
         const { unmount } = render(
           <NextIntlClientProvider locale={locale} messages={CATALOGUES[locale]} timeZone="UTC">
             <ProjectFacts project={{ ...project, state }} />
           </NextIntlClientProvider>,
         );
         const term = screen.getByText(locale === "fr" ? "État" : "State");
-        const value = within(term.parentElement ?? document.body)
-          .getByRole("img")
-          .getAttribute("aria-label");
+        expect(within(term.parentElement ?? document.body).getByRole("img")).toHaveAccessibleName(
+          locale === "fr" ? fr : en,
+        );
         unmount();
-        return value;
-      });
-      expect(shown).toEqual(SPEC_STATES.map(([, fr, en]) => (locale === "fr" ? fr : en)));
+      }
     },
   );
 });

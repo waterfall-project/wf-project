@@ -204,13 +204,13 @@ describe("the states of the list, those of the table of the specification", () =
         ),
       );
       const rows = within(screen.getByRole("grid")).getAllByRole("row");
-      const shown = SPEC_STATES.map((_, index) => {
+      SPEC_STATES.forEach(([, fr, en], index) => {
         const row = rows.find((each) => within(each).queryByText(`P${String(index)}`) !== null);
-        return row === undefined
-          ? undefined
-          : within(row).getByRole("img").getAttribute("aria-label");
+        if (row === undefined) {
+          throw new Error(`the row of P${String(index)} is missing`);
+        }
+        expect(within(row).getByRole("img")).toHaveAccessibleName(locale === "fr" ? fr : en);
       });
-      expect(shown).toEqual(SPEC_STATES.map(([, fr, en]) => (locale === "fr" ? fr : en)));
     },
   );
 
