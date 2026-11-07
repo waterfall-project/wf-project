@@ -286,3 +286,12 @@ def load_transitions(session: Session, project_id: UUID, act: Act) -> None:
     """Write the transitions of a project of the witness, at the instants it imposes."""
     msg = "load_transitions is filled by US-0990/L2"
     raise NotImplementedError(msg)
+
+
+def no_background_task_running(session: Session, project_id: UUID) -> bool:
+    """Tell whether no background task that writes in the project is queued or running.
+
+    Always true until US-0970: no task of the platform aims at a project before the marking.
+    """
+    del session, project_id
+    return True

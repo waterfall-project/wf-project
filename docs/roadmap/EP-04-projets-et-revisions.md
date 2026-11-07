@@ -988,7 +988,7 @@ questions de l'interface qu'EP-07 et EP-09 rempliront, toujours vraies ici. La s
 
 ## US-0950 — Le lotissement
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-PRJ-0020-A`
 - **opérations** : `getWorkBreakdown`, `setWorkBreakdown`
 - **issue** : 2060
