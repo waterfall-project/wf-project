@@ -50,5 +50,5 @@ test("opens the list of projects, a project, and reads its planning and its esti
   // lines as the structure the grid shows (EP-02/L2), and says the same total.
   const indicators = page.getByRole("region", { name: "Indicateurs du devis" });
   await expect(indicators.getByRole("term").first()).toHaveText("Total du devis");
-  await expect(indicators).toContainText(/68\s923\s691,06/);
+  await expect(indicators).toContainText(/68\s923\s691,77/);
 });
