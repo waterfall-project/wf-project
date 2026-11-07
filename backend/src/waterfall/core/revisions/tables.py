@@ -158,6 +158,8 @@ class CostStructure(Audited):
         ),
         CheckConstraint(_in("kind", STRUCTURE_KINDS), name="kind_known"),
         *bounded("label", LABEL_LENGTH),
+        # What a revised row of the planning names: the structure with its revision (EP-06).
+        UniqueConstraint("project_id", "id", "revision_id"),
         Index(None, "project_id", "revision_id"),
         Index(
             "uq_cost_structure_main",

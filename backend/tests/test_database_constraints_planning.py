@@ -219,21 +219,23 @@ def stamped(table: type[Base]) -> list[Refusal]:
     ]
 
 
-# A value a row already written holds (``held``, below), and the facet of the second task.
+# A value a row already written holds (``held``, below), the facet of the second task, and a node
+# of a line, which never bears the facet of a task.
 TAKEN = "TAKEN"
 OTHER = "OTHER"
+LINE = "LINE"
+LINE_NODE = uuid4()
 
 REFUSALS: list[Refusal] = [
     (Node, {"kind": "milestone"}, "ck_node_kind_known"),
     (Node, {"rank": 0}, "ck_node_rank_positive"),
     (Node, {"lock_version": -1}, "ck_node_lock_version_not_negative"),
-    (Node, {"revision_id": uuid4()}, "fk_node_project_id_revision"),
-    (Node, {"structure_id": uuid4()}, "fk_node_project_id_cost_structure"),
+    (Node, {"revision_id": uuid4()}, "fk_node_project_id_cost_structure"),
     (Node, {"parent_id": uuid4()}, "fk_node_project_id_node"),
     (Node, {"rank": 1}, "uq_node_structure_id"),
     *stamped(Node),
-    (Task, {"node_id": uuid4()}, "fk_task_project_id_node"),
-    (Task, {"structure_id": uuid4()}, "fk_task_project_id_node"),
+    (Task, {"node_id": LINE}, "fk_task_project_id_node"),
+    (Task, {"structure_id": uuid4()}, "fk_task_node_id_node"),
     (Task, {"kind": "estimate_line"}, "ck_task_kind_task"),
     *bounds(Task, "label", 300),
     (Task, {"scheduling_mode": "fixed"}, "ck_task_scheduling_mode_known"),
@@ -255,8 +257,7 @@ REFUSALS: list[Refusal] = [
     (Task, {"work_package_id": uuid4()}, "fk_task_work_package_id_work_package"),
     (Task, {"node_id": OTHER, "order_item_id": TAKEN}, "uq_task_order_item"),
     (Task, {"node_id": OTHER, "work_package_id": TAKEN}, "uq_task_work_package"),
-    (TaskLink, {"revision_id": uuid4()}, "fk_task_link_project_id_revision"),
-    (TaskLink, {"structure_id": uuid4()}, "fk_task_link_project_id_cost_structure"),
+    (TaskLink, {"revision_id": uuid4()}, "fk_task_link_project_id_cost_structure"),
     (TaskLink, {"predecessor_id": uuid4()}, "fk_task_link_predecessor_id_node"),
     (TaskLink, {"successor_id": uuid4()}, "fk_task_link_successor_id_node"),
     (TaskLink, {"successor_id": TAKEN}, "ck_task_link_predecessor_not_successor"),
@@ -317,11 +318,16 @@ def resolved(parents: Parents, overrides: dict[str, object]) -> dict[str, object
     }
     if found.get("node_id") == OTHER:
         found["node_id"] = parents.other
+    if found.get("node_id") == LINE:
+        found["node_id"] = LINE_NODE
     return found
 
 
 def held(table: type[Base], parents: Parents, overrides: dict[str, object]) -> Executable | None:
     """Give the row already written that a refusal of uniqueness collides with, if it needs one."""
+    if table is Task and overrides.get("node_id") == LINE:
+        line = node_row(parents.project, parents.revision, parents.structure, id=LINE_NODE)
+        return insert(Node).values({**line, "kind": "estimate_line"})
     if table is Task and overrides.get("node_id") == OTHER:
         column = next(column for column in overrides if column != "node_id")
         return row(Task, parents, **resolved(parents, {column: TAKEN}))
@@ -376,6 +382,7 @@ CASCADES = {
     "fk_node_project_id_cost_structure",
     "fk_node_project_id_node",
     "fk_task_project_id_node",
+    "fk_task_node_id_node",
     "fk_task_link_project_id_cost_structure",
     "fk_task_link_predecessor_id_node",
     "fk_task_link_successor_id_node",

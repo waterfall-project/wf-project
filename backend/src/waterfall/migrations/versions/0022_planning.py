@@ -14,12 +14,16 @@ its truncation, which a partition does not inherit; the partitions of the projec
 created here. Each revised table of the planning has its guard, a trigger of the module of the
 planning that refuses, owner included, any write of a row whose revision is marked, the revision
 locked ``FOR KEY SHARE`` whatever its status, then read, as the guard of the cost structures does
-(#2104); the facet task reads its revision through its node. Every key refuses (``RESTRICT``), but
-inside a current revision, where the deletion cascades: the facet with its node, a link with either
-of its tasks or its structure, a node with its structure or its parent, an inscription with its
-timeline. The service may read, insert, change and delete the rows of the eight tables: the content
-of a current revision, a timeline, an inscription, a plan and an entry of the history are deleted
-for good, a report at its expiry or its abandonment (§4.4.1).
+(#2104); the facet task reads its revision through its node. A row names its revision and its
+structure together, by a key towards the structure that names its revision too, and the nodes a row
+names — its parent, the tasks of a link, the node of a facet — by a key that names its structure
+too: no row binds a revision in progress to a structure, a parent or a task of a marked one, which
+the guards, judging the revision of the row alone, would let pass. Every key refuses (``RESTRICT``),
+but inside a current revision, where the deletion cascades: the facet with its node, a link with
+either of its tasks or its structure, a node with its structure or its parent, an inscription with
+its timeline. The service may read, insert, change and delete the rows of the eight tables: the
+content of a current revision, a timeline, an inscription, a plan and an entry of the history are
+deleted for good, a report at its expiry or its abandonment (§4.4.1).
 """
 
 from typing import TYPE_CHECKING
@@ -241,26 +245,36 @@ def known(column: str, values: tuple[str, ...]) -> sa.CheckConstraint:
     return sa.CheckConstraint(f"{column} IN ({listed})", name=f"{column}_known")
 
 
-def of_revision(*, cascade_structure: bool) -> list[SchemaItem]:
-    """Give the keys of a revised row: its revision, which refuses, and its structure."""
-    return [
-        sa.ForeignKeyConstraint(
-            ["project_id", "revision_id"],
-            ["revision.project_id", "revision.id"],
-            ondelete="RESTRICT",
-        ),
-        *(
-            [
-                sa.ForeignKeyConstraint(
-                    ["project_id", "structure_id"],
-                    ["cost_structure.project_id", "cost_structure.id"],
-                    ondelete="CASCADE",
-                )
-            ]
-            if cascade_structure
-            else []
-        ),
-    ]
+def of_revision() -> sa.ForeignKeyConstraint:
+    """Give the key of a technical row towards its revision, which refuses."""
+    return sa.ForeignKeyConstraint(
+        ["project_id", "revision_id"], ["revision.project_id", "revision.id"], ondelete="RESTRICT"
+    )
+
+
+def in_revision() -> sa.ForeignKeyConstraint:
+    """Give the key of a revised row towards its structure, named with its revision; it cascades.
+
+    The structure names its revision in turn, which refuses: the row is of one revision, and of a
+    structure of that revision.
+    """
+    return sa.ForeignKeyConstraint(
+        ["project_id", "structure_id", "revision_id"],
+        ["cost_structure.project_id", "cost_structure.id", "cost_structure.revision_id"],
+        ondelete="CASCADE",
+    )
+
+
+def of_structure(column: str, *, first: bool = False) -> sa.ForeignKeyConstraint:
+    """Give the key of a node a row names, in the structure of the row, which cascades.
+
+    ``first`` puts the project first, so that the key is named after the project, not the column.
+    """
+    columns = ["project_id", column] if first else [column, "project_id"]
+    referred = ["node.project_id", "node.id"] if first else ["node.id", "node.project_id"]
+    return sa.ForeignKeyConstraint(
+        [*columns, "structure_id"], [*referred, "node.structure_id"], ondelete="CASCADE"
+    )
 
 
 DURATION_UNITS = ("min", "h", "d", "w", "mo", "emin", "eh", "ed", "ew", "emo")
@@ -271,6 +285,10 @@ def upgrade() -> None:
     op.add_column("cost_structure", sa.Column("planning_start_on", sa.Date(), nullable=True))
     op.add_column(
         "cost_structure", sa.Column("scheduled_at", sa.DateTime(timezone=True), nullable=True)
+    )
+    # What a revised row names: a structure with its revision.
+    op.create_unique_constraint(
+        "uq_cost_structure_project_id", "cost_structure", ["project_id", "id", "revision_id"]
     )
     _revised()
     _planning()
@@ -298,14 +316,12 @@ def _revised() -> None:
         sa.Column("lock_version", sa.Integer(), server_default="0", nullable=False),
         *stamped(),
         sa.PrimaryKeyConstraint("project_id", "id"),
-        *of_revision(cascade_structure=True),
-        sa.ForeignKeyConstraint(
-            ["project_id", "parent_id"], ["node.project_id", "node.id"], ondelete="CASCADE"
-        ),
+        in_revision(),
+        of_structure("parent_id", first=True),
         known("kind", ("task", "estimate_line")),
         sa.CheckConstraint("rank >= 1", name="rank_positive"),
         sa.UniqueConstraint("project_id", "id", "kind"),
-        sa.UniqueConstraint("id", "project_id", "structure_id", "kind"),
+        sa.UniqueConstraint("id", "project_id", "structure_id"),
         sa.UniqueConstraint(
             "structure_id",
             "parent_id",
@@ -346,10 +362,11 @@ def _revised() -> None:
         sa.Column("is_critical", sa.Boolean(), nullable=False),
         sa.PrimaryKeyConstraint("project_id", "node_id"),
         sa.ForeignKeyConstraint(
-            ["project_id", "node_id", "structure_id", "kind"],
-            ["node.project_id", "node.id", "node.structure_id", "node.kind"],
+            ["project_id", "node_id", "kind"],
+            ["node.project_id", "node.id", "node.kind"],
             ondelete="CASCADE",
         ),
+        of_structure("node_id"),
         sa.ForeignKeyConstraint(["order_item_id"], ["order_item.id"], ondelete="RESTRICT"),
         sa.ForeignKeyConstraint(["work_package_id"], ["work_package.id"], ondelete="RESTRICT"),
         sa.CheckConstraint("kind = 'task'", name="kind_task"),
@@ -395,13 +412,9 @@ def _revised() -> None:
         sa.Column("lag_unit", sa.Text(), nullable=False),
         sa.Column("in_conflict", sa.Boolean(), nullable=False),
         sa.PrimaryKeyConstraint("project_id", "id"),
-        *of_revision(cascade_structure=True),
-        sa.ForeignKeyConstraint(
-            ["predecessor_id", "project_id"], ["node.id", "node.project_id"], ondelete="CASCADE"
-        ),
-        sa.ForeignKeyConstraint(
-            ["successor_id", "project_id"], ["node.id", "node.project_id"], ondelete="CASCADE"
-        ),
+        in_revision(),
+        of_structure("predecessor_id"),
+        of_structure("successor_id"),
         sa.CheckConstraint("predecessor_id <> successor_id", name="predecessor_not_successor"),
         known(
             "link_type",
@@ -514,7 +527,7 @@ def _history() -> None:
         sa.Column("undone", sa.Boolean(), nullable=False),
         sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
         sa.PrimaryKeyConstraint("id"),
-        *of_revision(cascade_structure=False),
+        of_revision(),
         sa.ForeignKeyConstraint(["user_account_id"], ["user_account.id"], ondelete="RESTRICT"),
         known("kind", UNDONE_KINDS),
         sa.UniqueConstraint("revision_id", "user_account_id", "session_id", "rank"),
@@ -533,7 +546,7 @@ def _history() -> None:
         sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
         sa.Column("expires_at", sa.DateTime(timezone=True), nullable=False),
         sa.PrimaryKeyConstraint("id"),
-        *of_revision(cascade_structure=False),
+        of_revision(),
         sa.ForeignKeyConstraint(["user_account_id"], ["user_account.id"], ondelete="RESTRICT"),
         known("target_column", NODE_COLUMNS),
         sa.CheckConstraint(
@@ -610,5 +623,6 @@ def downgrade() -> None:
     for table in ("task_link", "task", "node"):
         op.execute(f"DROP FUNCTION {table}_refuse_truncate()")
         op.execute(f"DROP FUNCTION {table}_refuse_marked_change()")
+    op.drop_constraint("uq_cost_structure_project_id", "cost_structure", type_="unique")
     op.drop_column("cost_structure", "scheduled_at")
     op.drop_column("cost_structure", "planning_start_on")

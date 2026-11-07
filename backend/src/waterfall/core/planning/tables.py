@@ -63,6 +63,31 @@ def _in(column: str, values: tuple[str, ...]) -> str:
     return f"{column} IN ({', '.join(repr(value) for value in values)})"
 
 
+def _in_structure(column: str, *, first: bool = False) -> ForeignKeyConstraint:
+    """Name a node of the structure of the row, which the row follows (migration 0022).
+
+    ``first`` puts the project first, so that the key is named after the project, not the column.
+    """
+    columns = ["project_id", column] if first else [column, "project_id"]
+    referred = ["node.project_id", "node.id"] if first else ["node.id", "node.project_id"]
+    return ForeignKeyConstraint(
+        [*columns, "structure_id"], [*referred, "node.structure_id"], ondelete="CASCADE"
+    )
+
+
+def _in_revision() -> ForeignKeyConstraint:
+    """Name the structure of a revised row with its revision, which it follows (migration 0022).
+
+    The structure names its revision in turn, which refuses: the row is of one revision, and of a
+    structure of that revision.
+    """
+    return ForeignKeyConstraint(
+        ["project_id", "structure_id", "revision_id"],
+        ["cost_structure.project_id", "cost_structure.id", "cost_structure.revision_id"],
+        ondelete="CASCADE",
+    )
+
+
 def _hours(column: str) -> CheckConstraint:
     """Bound the working hours elapsed on a day, from 0 to 24 (``WorkInstant.hours``)."""
     return CheckConstraint(f"{column} BETWEEN 0 AND {DAY_HOURS}", name=f"{column}_of_a_day")
@@ -90,32 +115,24 @@ class Node(Stamped):
     """A node of a structure: a task here, an estimate line by EP-07, under its parent.
 
     Its facet names it with its kind (``uq_node_project_id``), so that a node never receives the
-    facet of another kind; the facet task names it with its structure besides, which keeps a work
-    package or an order item on a single task of a structure (``task``). ``lineage_id`` is kept by
+    facet of another kind; its facet, its children and the links of its task name it with its
+    structure (``uq_node_id``), so that none binds two structures — the facet task keeping a work
+    package or an order item on a single task of a structure (``task``) —, and its structure is
+    named with its revision, so that a node never binds a revision to the structure of another. ``lineage_id`` is kept by
     the copy of the revision (WF-DAT-0030); ``origin_risk_id`` is the risk a provision line comes
     from, null here (EP-08).
     """
 
     __tablename__ = "node"
     __table_args__ = (
-        ForeignKeyConstraint(
-            ["project_id", "revision_id"],
-            ["revision.project_id", "revision.id"],
-            ondelete="RESTRICT",
-        ),
-        ForeignKeyConstraint(
-            ["project_id", "structure_id"],
-            ["cost_structure.project_id", "cost_structure.id"],
-            ondelete="CASCADE",
-        ),
-        ForeignKeyConstraint(
-            ["project_id", "parent_id"], ["node.project_id", "node.id"], ondelete="CASCADE"
-        ),
+        _in_revision(),
+        _in_structure("parent_id", first=True),
         CheckConstraint(_in("kind", NODE_KINDS), name="kind_known"),
         CheckConstraint("rank >= 1", name="rank_positive"),
-        # What a facet names: the node with its kind; and the task with its structure besides.
+        # What a facet names: the node with its kind; what a facet, a child and a link name: the
+        # node with its structure.
         UniqueConstraint("project_id", "id", "kind"),
-        UniqueConstraint("id", "project_id", "structure_id", "kind"),
+        UniqueConstraint("id", "project_id", "structure_id"),
         # The order among the siblings of a kind, the roots included, checked at the end of the
         # statement: a renumbering moves every sibling at once.
         UniqueConstraint(
@@ -157,10 +174,11 @@ class Task(Base):
     __tablename__ = "task"
     __table_args__ = (
         ForeignKeyConstraint(
-            ["project_id", "node_id", "structure_id", "kind"],
-            ["node.project_id", "node.id", "node.structure_id", "node.kind"],
+            ["project_id", "node_id", "kind"],
+            ["node.project_id", "node.id", "node.kind"],
             ondelete="CASCADE",
         ),
+        _in_structure("node_id"),
         CheckConstraint("kind = 'task'", name="kind_task"),
         *bounded("label", LABEL_LENGTH),
         CheckConstraint(_in("scheduling_mode", SCHEDULING_MODES), name="scheduling_mode_known"),
@@ -234,28 +252,15 @@ class Task(Base):
 class TaskLink(Base):
     """A link between two tasks of a structure, its lag in the unit of its entry (WF-PLA-0030).
 
-    Two tasks are linked once at most. The absence of a loop and of a link between a summary task
+    Two tasks of its structure are linked once at most. The absence of a loop and of a link between a summary task
     and its subordinate is the service's to keep; ``in_conflict`` is the engine's (WF-PLA-0100).
     """
 
     __tablename__ = "task_link"
     __table_args__ = (
-        ForeignKeyConstraint(
-            ["project_id", "revision_id"],
-            ["revision.project_id", "revision.id"],
-            ondelete="RESTRICT",
-        ),
-        ForeignKeyConstraint(
-            ["project_id", "structure_id"],
-            ["cost_structure.project_id", "cost_structure.id"],
-            ondelete="CASCADE",
-        ),
-        ForeignKeyConstraint(
-            ["predecessor_id", "project_id"], ["node.id", "node.project_id"], ondelete="CASCADE"
-        ),
-        ForeignKeyConstraint(
-            ["successor_id", "project_id"], ["node.id", "node.project_id"], ondelete="CASCADE"
-        ),
+        _in_revision(),
+        _in_structure("predecessor_id"),
+        _in_structure("successor_id"),
         CheckConstraint("predecessor_id <> successor_id", name="predecessor_not_successor"),
         CheckConstraint(_in("link_type", LINK_TYPES), name="link_type_known"),
         CheckConstraint(_in("lag_unit", LAG_UNITS), name="lag_unit_known"),

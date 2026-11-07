@@ -394,3 +394,45 @@ def test_a_task_written_during_the_marking_waits_for_it_and_is_refused(
         with pytest.raises(IntegrityError, match=ROW_REFUSED):
             written.result(timeout=10)
     assert rows_of(owner, planned) == before
+
+
+def refused_by_key(owner: Engine, statement: Executable, key: str) -> None:
+    """Run a statement as the owner of the tables, and see it refused by the key named."""
+    with pytest.raises(IntegrityError, match=key), owner.begin() as connection:
+        connection.execute(statement)
+
+
+@pytest.mark.requirement("WF-DAT-0020-A")
+def test_a_row_of_a_current_revision_never_names_the_structure_or_a_node_of_a_marked_one(
+    api: ContractClient, stage: Scene, owner: Engine
+) -> None:
+    # The guards judge the revision a row names; the keys bind it to its structure, and the nodes
+    # it names to that structure: a row written around the service with the revision in progress
+    # and the structure, the parent, a task or the facet of a marked revision is refused, and the
+    # marked revision gains nothing it could no longer lose.
+    marked = planned_revision(api, stage)
+    current = open_revision(api, stage)
+    with owner.begin() as connection:
+        project_id, structure_id = main_structure(connection, current)
+        mine = insert_task(connection, project_id, current, structure_id)
+    before = rows_of(owner, marked)
+    stray = node_row(project_id, current, marked.structure_id, rank=3)
+    refused_by_key(owner, insert(Node).values(**stray), "fk_node_project_id_cost_structure")
+    child = node_row(project_id, current, structure_id, rank=1, parent_id=marked.first)
+    refused_by_key(owner, insert(Node).values(**child), "fk_node_project_id_node")
+    refused_by_key(
+        owner,
+        insert_link(project_id, current, structure_id, marked.first, mine),
+        "fk_task_link_predecessor_id_node",
+    )
+    refused_by_key(
+        owner,
+        insert_link(project_id, current, marked.structure_id, marked.second, marked.first),
+        "fk_task_link_project_id_cost_structure",
+    )
+    refused_by_key(
+        owner,
+        update(Task).where(Task.node_id == mine).values(structure_id=marked.structure_id),
+        "fk_task_node_id_node",
+    )
+    assert rows_of(owner, marked) == before
