@@ -275,8 +275,8 @@ export function fakeClient<const A extends FakeAnswers>(
 
 /**
  * Make a fake client answer one operation as the service does where it is behind the contract: a
- * refusal the contract no longer declares for it — the 404 of a read it does not serve yet, a
- * read of the reference until EP-05 (#1746) —, which `fakeClient` refuses to type. The call
+ * refusal the contract no longer declares for it — the 404 of a read it does not serve yet —,
+ * which `fakeClient` refuses to type. The call
  * still needs an answer of the contract, and is recorded as any other, but is answered the
  * envelope given. Only for a screen that must stand against the service as it is: an answer the contract
  * declares goes through `fakeClient`.

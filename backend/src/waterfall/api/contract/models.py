@@ -2321,7 +2321,7 @@ class HourlyRateWrite(ContractModel):
     amount: Annotated[
         Money,
         Field(
-            description="Le taux de l'heure, positif : un montant nul ou négatif est refusé par 422, `VALUE_OUT_OF_RANGE` sur `/amount`, `fields[].params.minimum` à `0.01`, le plus petit montant positif qu'un `Money` écrit."
+            description="Le taux de l'heure, positif et borné : un montant nul ou négatif est refusé par 422, `VALUE_OUT_OF_RANGE` sur `/amount`, `fields[].params.minimum` à `0.01`, le plus petit montant positif qu'un `Money` écrit ; un montant au-delà de `9999999999.99`, ce que la colonne du taux tient, l'est de même, `fields[].params.maximum` à `9999999999.99` (un `Money` n'a pas de borne haute : le schéma, une chaîne, la dit ici et non par `maximum`)."
         ),
     ]
     lock_version: LockVersion | None = None

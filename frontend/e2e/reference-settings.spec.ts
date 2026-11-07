@@ -100,3 +100,21 @@ test("modifies the risk matrix and the thresholds of the indices in their forms,
   await expect(page.getByText("6 semaines")).toBeVisible();
   await expect(page.getByRole("main").getByRole("alert")).toHaveCount(0);
 });
+
+test("offers no deletion on the settings of the risks and of the indicators, whose matrix and thresholds are constants to modify, not objects to deactivate (US-0880) @shared [WF-REF-0010-A]", async ({
+  page,
+}) => {
+  for (const [address, table, modification] of [
+    ["/reference/risks", "Bornes de la matrice de risques", "Modifier la matrice de risques"],
+    ["/reference/indicators", "Seuils d’alerte des indices", "Modifier les seuils et le délai"],
+  ] as const) {
+    await page.goto(address);
+    // The screen is read, its one command offered: nothing deactivates, nothing deletes.
+    await expect(page.getByRole("table", { name: table })).toBeVisible();
+    await expect(page.getByRole("button", { name: modification })).toBeVisible();
+    const main = page.getByRole("main");
+    await expect(main.getByRole("button", { name: /supprim|effac|delete/i })).toHaveCount(0);
+    await expect(main.getByRole("link", { name: /supprim|effac|delete/i })).toHaveCount(0);
+    await expect(main.getByRole("button", { name: /désactiv/i })).toHaveCount(0);
+  }
+});
