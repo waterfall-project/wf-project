@@ -58,14 +58,14 @@ function read(event: AuditEvent, locale: Locale): string[] {
 
 describe("what an action did, under the action, in the language of its reader", () => {
   it("reads the same attribution of a role in French and in English, the label of the role as it was entered [WF-ARC-0110-A]", () => {
-    const attribution = inscription("user_access_roles_set", "Camille Martin");
+    const attribution = inscription("user_access_roles_set", "Lucas Petit");
     expect(read(attribution, "fr")).toEqual([
       "Attribution des rôles d’un compte",
-      "Rôle donné : Direction de projet",
+      "Rôle donné : Chiffreur",
     ]);
     expect(read(attribution, "en")).toEqual([
       "Roles of an account assigned",
-      "Role granted: Direction de projet",
+      "Role granted: Chiffreur",
     ]);
   });
 
@@ -114,7 +114,17 @@ describe("what an action did, under the action, in the language of its reader", 
   });
 
   it("names the roles an attribution withdrew, by the labels they bore then", () => {
-    const withdrawn = inscription("user_access_roles_set", "Inès Roux");
+    // Inès Roux is given her role by the journal of the installation, and has it withdrawn by that
+    // of the administration: the inscription read is the one that withdraws.
+    const withdrawn = events.find(
+      (event) =>
+        event.action === "user_access_roles_set" &&
+        event.object.label === "Inès Roux" &&
+        event.params.access_roles_withdrawn?.length,
+    );
+    if (withdrawn === undefined) {
+      throw new Error("the witness journals keep no withdrawal of a role of Inès Roux");
+    }
     expect(read(withdrawn, "fr")[1]).toBe("Rôle retiré : Pilotage de projet");
     expect(read(withdrawn, "en")[1]).toBe("Role withdrawn: Pilotage de projet");
   });
@@ -147,7 +157,7 @@ describe("the title of the cell of the action", () => {
   });
 
   const restored = (params: AuditEvent["params"]): AuditEvent => ({
-    ...inscription("user_access_roles_set", "Camille Martin"),
+    ...inscription("user_access_roles_set", "Lucas Petit"),
     action: "restore",
     params,
   });

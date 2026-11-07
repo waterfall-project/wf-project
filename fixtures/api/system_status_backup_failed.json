@@ -72,7 +72,8 @@
         "status": 503,
         "params": {
           "component": "object_storage"
-        }
+        },
+        "correlation_id": "01926f3a-7c00-7000-8000-000000001983"
       }
     },
     "last_backup_copy": {

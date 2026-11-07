@@ -1,4 +1,4 @@
-# État du système, sauvegardes et restauration (FBS-1.3, FBS-1.4).
+# System status, backups and restore (FBS-1.3, FBS-1.4).
 
 SystemStatus:
   type: object
@@ -13,13 +13,17 @@ SystemStatus:
     - last_restore_test
     - alerts
   description: >-
-    Écran d'état, accessible sans qu'aucun projet ne soit ouvert (WF-ADM-0130). Les
-    disponibilités, espaces, taux et âges viennent des métriques (`getMetrics`) ; les dates et
-    résultats des dernières lecture des comptes, sauvegarde et test de restauration sont lus
-    dans la base (WF-OBS-0010) ; les paramètres d'exploitation, dans la configuration du
-    déploiement (§4.5.1).
+    Status screen, accessible without any project being open (WF-ADM-0130). The
+    availabilities, spaces, rates and ages come from the metrics (`getMetrics`); the dates and
+    results of the latest reading of the accounts, backup and restore test are read from the
+    database (WF-OBS-0010); the operating parameters, from the deployment configuration
+    (§4.5.1).
   properties:
-    version: { type: string }
+    version:
+      type: string
+      description: >-
+        The installed version: the version number that the front, the API and the worker of an
+        installation always share, displayed by the status screen (WF-EXP-0030).
     components:
       type: array
       items: { $ref: '#/ComponentHealth' }
@@ -28,27 +32,27 @@ SystemStatus:
     last_identity_sync:
       anyOf: [{ $ref: '#/OperationOutcome' }, { type: 'null' }]
       description: >-
-        Date et résultat de la dernière lecture des comptes du fournisseur d'identité
-        (WF-ADM-0070, WF-ADM-0130). Nulle tant qu'aucune n'a eu lieu.
+        Date and result of the latest reading of the identity provider's accounts
+        (WF-ADM-0070, WF-ADM-0130). Null as long as none has taken place.
     last_backup:
       anyOf: [{ $ref: '#/OperationOutcome' }, { type: 'null' }]
       description: >-
-        Date et résultat de la dernière sauvegarde (WF-ADM-0150, WF-ADM-0130). Nulle tant
-        qu'aucune n'a eu lieu.
+        Date and result of the latest backup (WF-ADM-0150, WF-ADM-0130). Null as long as none
+        has taken place.
     last_backup_copy:
       anyOf: [{ $ref: '#/OperationOutcome' }, { type: 'null' }]
       description: >-
-        Date et résultat de la dernière copie externe d'une sauvegarde planifiée, que la
-        planification règle (`BackupSchedule.external_copy`) : la copie hors plateforme se
-        vérifie ainsi (WF-ADM-0170, WF-EXP-0050). Nulle quand aucune copie n'est réglée ou
-        n'a encore été faite. Le motif d'une copie échouée est dans l'alerte en cours
-        (`scheduled_backup_copy_failed`), et non dans `problem`, le catalogue des erreurs ne
-        nommant pas les refus d'un emplacement.
+        Date and result of the latest external copy of a scheduled backup, which the schedule
+        sets (`BackupSchedule.external_copy`): this is how the copy outside the platform is
+        checked (WF-ADM-0170, WF-EXP-0050). Null when no copy is set or none has been made
+        yet. The reason for a failed copy is in the current alert
+        (`scheduled_backup_copy_failed`), and not in `problem`, since the error catalogue does
+        not name the refusals of a location.
     last_restore_test:
       anyOf: [{ $ref: '#/OperationOutcome' }, { type: 'null' }]
       description: >-
-        Date et résultat du dernier test de restauration (WF-EXP-0060, WF-ADM-0130). Nulle tant
-        qu'aucun n'a eu lieu.
+        Date and result of the latest restore test (WF-EXP-0060, WF-ADM-0130). Null as long as
+        none has taken place.
     alerts:
       type: array
       items: { $ref: '#/Alert' }
@@ -64,55 +68,58 @@ OperatingParameters:
     - error_rate_threshold
     - error_rate_window_seconds
   description: >-
-    Les valeurs en vigueur des paramètres d'exploitation (§4.5.1, WF-ADM-0130) : fixées par
-    l'exploitant au déploiement, dans les valeurs du chart ou du fichier Compose (WF-ARC-0050),
-    hors du référentiel et de l'interface — aucune opération ne les écrit. Un champ par paramètre
-    que la spécification cite avec sa valeur livrée, dite dans sa description ; une durée en
-    secondes, un taux en décimal de 0 à 1, comme `Percent`. Le front les présente dans la langue
-    du lecteur (WF-ARC-0110).
+    The current values of the operating parameters (§4.5.1, WF-ADM-0130): set by the operator
+    at deployment, in the values of the chart or of the Compose file (WF-ARC-0050), outside the
+    reference data and the interface — no operation writes them. One field per parameter that
+    the specification cites with its shipped value, stated in its description; a duration in
+    seconds, a rate as a decimal from 0 to 1, like `Percent`. The front presents them in the
+    reader's language (WF-ARC-0110).
   properties:
     cache_validity_seconds:
       type: integer
       minimum: 1
       description: >-
-        La durée de validité d'une entrée du cache des indicateurs, qui borne chaque entrée en
-        plus de son invalidation par écriture (WF-DAT-0130) ; livrée à dix minutes, `600`. La
-        Vérif de WF-ADM-0130 la nomme.
+        The validity period of an entry of the indicator cache, which bounds each entry in
+        addition to its invalidation on write (WF-DAT-0130); shipped at ten minutes, `600`.
+        The Vérif field of WF-ADM-0130 names it.
     background_task_retention_days:
       type: integer
       minimum: 1
       description: >-
-        La rétention du résultat d'une tâche de fond, au terme de laquelle la tâche se supprime
-        (§4.4.1) ; livrée à trente jours, `30`. Le fichier d'un export disparaît pour sa part au
-        terme de vingt-quatre heures (WF-DAT-0120), qui n'est pas un paramètre.
+        The retention of the result of a background task, at the end of which the task is
+        deleted (§4.4.1); shipped at thirty days, `30`. The file of an export, for its part,
+        disappears after twenty-four hours (WF-DAT-0120), which is not a parameter.
     avatar_max_bytes:
       type: integer
       minimum: 1
+      maximum: 8388608
       description: >-
-        La taille la plus grande d'un avatar, en octets (§4.4.1) ; livrée à 512 Ko, `524288`.
-        La même valeur que `Installation.avatar_max_bytes`, que le front lit sans session.
+        The largest size of an avatar, in bytes (§4.4.1); shipped at 512 KB, `524288`. The
+        same value as `Installation.avatar_max_bytes`, which the front reads without a session;
+        like it, it does not exceed 8 MiB (8,388,608 bytes).
     task_queue_age_threshold_seconds:
       type: integer
       minimum: 1
       description: >-
-        L'attente de la plus ancienne tâche en file au-delà de laquelle l'alerte
-        `task_queue_stalled` se déclenche (WF-OBS-0030) ; livrée à quinze minutes, `900`.
+        The wait of the oldest queued task beyond which the alert `task_queue_stalled` is
+        triggered (WF-OBS-0030); shipped at fifteen minutes, `900`.
     storage_usage_threshold:
       allOf: [{ $ref: ../common.yaml#/Percent }]
       description: >-
-        Le taux d'occupation de l'espace de stockage au-delà duquel l'alerte
-        `storage_nearly_full` se déclenche (WF-OBS-0030) ; livré à 85 %, `0.85`.
+        The occupancy rate of the storage space beyond which the alert `storage_nearly_full`
+        is triggered (WF-OBS-0030); shipped at 85 %, `0.85`.
     error_rate_threshold:
       allOf: [{ $ref: ../common.yaml#/Percent }]
       description: >-
-        Le taux d'erreur des requêtes au-delà duquel l'alerte `error_rate_abnormal` se déclenche,
-        mesuré sur la fenêtre `error_rate_window_seconds` (WF-OBS-0030) ; livré à 5 %, `0.05`.
+        The error rate of the requests beyond which the alert `error_rate_abnormal` is
+        triggered, measured over the window `error_rate_window_seconds` (WF-OBS-0030); shipped
+        at 5 %, `0.05`.
     error_rate_window_seconds:
       type: integer
       minimum: 1
       description: >-
-        La fenêtre sur laquelle le taux d'erreur se mesure, part du troisième seuil de
-        WF-OBS-0030 (« 5 % sur cinq minutes ») ; livrée à cinq minutes, `300`.
+        The window over which the error rate is measured, part of the third threshold of
+        WF-OBS-0030 ("5 % over five minutes"); shipped at five minutes, `300`.
 
 ComponentHealth:
   type: object
@@ -123,13 +130,15 @@ ComponentHealth:
     checked_at: { $ref: ../common.yaml#/Timestamp }
     version:
       anyOf: [{ type: string }, { type: 'null' }]
-      description: Version du composant employé, annoncée par WF-CMP-0020.
+      description: >-
+        Version of the component in use, announced by WF-CMP-0020. Null for a component that does
+        not announce its version, such as the object storage.
 
 PlatformComponent:
   type: string
   description: >-
-    Composant de la plateforme dont l'écran d'état dit la disponibilité (WF-ADM-0130), et
-    qu'une alerte nomme quand il est indisponible (WF-OBS-0030).
+    Platform component whose availability the status screen reports (WF-ADM-0130), and which
+    an alert names when it is unavailable (WF-OBS-0030).
   enum: [api, worker, database, cache, object_storage, identity_provider, metrics]
 
 StorageUsage:
@@ -147,13 +156,18 @@ OperationOutcome:
     succeeded: { type: boolean }
     problem:
       anyOf: [{ $ref: ../common.yaml#/Problem }, { type: 'null' }]
+      description: >-
+        Reason for the failure, null when the operation succeeded, and for an external copy,
+        whose reason is in its alert (`SystemStatus.last_backup_copy`). The failure of a backup
+        is that of its background task, with the task's `correlation_id`
+        (`BackgroundTaskRef.problem`, WF-OBS-0020).
 
 Alert:
   type: object
   required: [code, since, severity]
   description: >-
-    Alerte en cours, sur une situation qui a une conséquence pour les utilisateurs
-    (WF-OBS-0030). Elle disparaît dès que sa cause cesse.
+    Current alert, on a situation that has a consequence for the users (WF-OBS-0030). It
+    disappears as soon as its cause ceases.
   properties:
     code:
       type: string
@@ -170,14 +184,14 @@ Alert:
     params:
       type: object
       description: >-
-        Ce que l'alerte nomme, selon son code : `component_unavailable`, le composant
-        indisponible, `component` ; `storage_nearly_full`, l'espace employé et l'espace
-        libre, `used_bytes` et `available_bytes`, comme `StorageUsage` au moment où
-        l'alerte s'est déclenchée ; `scheduled_backup_copy_failed`, la sauvegarde planifiée
-        que la copie n'a pas atteinte, `backup_id`, l'emplacement, `location`, et le motif,
-        `failure` (WF-ADM-0170) ; elle disparaît à la copie réussie suivante. Les autres codes n'en portent pas : la sauvegarde
-        échouée et la synchronisation échouée disent leur motif dans `last_backup` et
-        `last_identity_sync`.
+        What the alert names, according to its code: `component_unavailable`, the unavailable
+        component, `component`; `storage_nearly_full`, the space used and the free space,
+        `used_bytes` and `available_bytes`, like `StorageUsage` at the moment the alert was
+        triggered; `scheduled_backup_copy_failed`, the scheduled backup the copy did not
+        reach, `backup_id`, the location, `location`, and the reason, `failure`
+        (WF-ADM-0170); it disappears at the next successful copy. The other codes carry none:
+        the failed backup and the failed synchronisation state their reason in `last_backup`
+        and `last_identity_sync`.
       properties:
         component: { $ref: '#/PlatformComponent' }
         used_bytes: { type: integer, minimum: 0 }
@@ -190,43 +204,41 @@ BackupVerification:
   type: string
   enum: [pending, passed, failed]
   description: >-
-    Résultat de la vérification d'une sauvegarde après sa production (WF-ADM-0150) : en attente,
-    réussie, échouée. La colonne se filtre (`verifications` de `listBackups`) et se trie dans
-    cet ordre (WF-IHM-0130, WF-IHM-0060). Seule une sauvegarde vérifiée sort de la plateforme ou
-    la remplace (`BackupCommand`).
+    Result of the verification of a backup after it is produced (WF-ADM-0150): pending,
+    succeeded, failed. The column is filtered (`verifications` of `listBackups`) and sorted in
+    this order (WF-IHM-0130, WF-IHM-0060). Only a verified backup leaves the platform or
+    replaces it (`BackupCommand`).
 
 BackupOrigin:
   type: string
   enum: [manual, scheduled]
   description: >-
-    Ce qui a produit une sauvegarde : un utilisateur habilité (`startBackup`, WF-ADM-0150) ou la
-    planification (WF-ADM-0170). La colonne se filtre (`origins` de `listBackups`) et se trie
-    dans cet ordre (WF-IHM-0130, WF-IHM-0060).
+    What produced a backup: an authorised user (`startBackup`, WF-ADM-0150) or the schedule
+    (WF-ADM-0170). The column is filtered (`origins` of `listBackups`) and sorted in this order
+    (WF-IHM-0130, WF-IHM-0060).
 
 BackupCommand:
   type: string
   enum: [retain, release, download, restore]
   description: >-
-    Commandes portées par une sauvegarde (WF-IHM-0090) : la marquer à conserver ou ne plus la
-    conserver, par `retainBackup` — une sauvegarde ne porte que celle qui change son marquage,
-    `retain` si elle n'est pas marquée, `release` si elle l'est (WF-ADM-0170) —, la copier hors
-    de la plateforme, par `downloadBackup` (WF-ADM-0150), et restaurer la plateforme depuis
-    elle, par `startRestore` (WF-ADM-0160). Aucune ne la supprime : seule la rotation le fait.
-    Le marquage relève de la permission de modifier les sauvegardes (`backups.write`), le
-    téléchargement de celles de les consulter et de les modifier (`backups.read`,
-    `backups.write` : l'archive porte les deux bases entières ; décision de l'auteur du
-    2026-10-10, #705), la restauration de celle de restaurer la plateforme
-    (`platform_restore`, WF-ADM-0100). Le téléchargement et la
-    restauration sont indisponibles tant que la vérification n'a pas réussi — en attente ou
-    échouée —, `backup_verified` manquante : la vérification est ce qui distingue une
-    sauvegarde d'un fichier qu'on espère restaurable (WF-ADM-0150). La restauration l'est aussi
-    pendant qu'une sauvegarde s'exécute, `no_backup_running` manquante — la sauvegarde lirait une
-    base en cours de remplacement —, et pendant qu'une restauration s'exécute déjà,
-    `no_restore_running` manquante ; le marquage l'est pendant une restauration, qui remplace
-    la base où il s'écrirait. Le téléchargement lit un fichier qu'aucune des deux ne touche : il
-    reste disponible pendant l'une et l'autre. Un appel envoyé malgré la liste est refusé par le
-    409 de l'opération, `STATE_FORBIDS_OPERATION`, `params.missing_condition` nommant la
-    condition.
+    Commands carried by a backup (WF-IHM-0090): mark it to keep or no longer keep it, through
+    `retainBackup` — a backup carries only the one that changes its mark, `retain` if it is
+    not marked, `release` if it is (WF-ADM-0170) —, copy it outside the platform, through
+    `downloadBackup` (WF-ADM-0150), and restore the platform from it, through `startRestore`
+    (WF-ADM-0160). None deletes it: only the rotation does. Marking falls under the
+    permission to modify the backups (`backups.write`), downloading under those to view and
+    to modify them (`backups.read`, `backups.write`: the archive carries both databases in
+    full; author's decision of 2026-10-10, #705), restoring under the permission to restore
+    the platform (`platform_restore`, WF-ADM-0100). Download and restore are unavailable as
+    long as the verification has not succeeded — pending or failed —, `backup_verified`
+    missing: the verification is what distinguishes a backup from a file one hopes is
+    restorable (WF-ADM-0150). Restore is also unavailable while a backup is running,
+    `no_backup_running` missing — the backup would read a database being replaced —, and
+    while a restore is already running, `no_restore_running` missing; marking is unavailable
+    during a restore, which replaces the database where it would be written. Download reads a
+    file that neither of them touches: it remains available during both. A call sent despite
+    the list is refused with the operation's 409, `STATE_FORBIDS_OPERATION`,
+    `params.missing_condition` naming the condition.
 
 BackupCommandAvailability:
   type: object
@@ -236,20 +248,20 @@ BackupCommandAvailability:
     is_available: { type: boolean }
     missing_conditions:
       type: array
-      description: Vide lorsque la commande est disponible.
+      description: Empty when the command is available.
       items: { $ref: projects.yaml#/CommandCondition }
 
 BackupCommands:
   type: array
   maxItems: 3
   description: >-
-    Commandes de la sauvegarde que l'appelant a la permission d'exercer, chacune disponible ou
-    non, avec les conditions qui lui manquent (WF-IHM-0090), dans l'ordre de `BackupCommand` :
-    au plus trois, celle qui change son marquage, le téléchargement et la restauration. Une
-    commande absente de la liste n'est pas présentée ; la liste est vide pour qui lit les
-    sauvegardes sans pouvoir ni les modifier ni restaurer la plateforme (`backups.read` seule,
-    WF-ADM-0100). Le front n'en déduit rien de l'état de la sauvegarde ni de la session : le
-    serveur dit ce qui se peut.
+    Commands of the backup that the caller has the permission to exercise, each available or
+    not, with the conditions it lacks (WF-IHM-0090), in the order of `BackupCommand`: at most
+    three, the one that changes its mark, the download and the restore. A command absent from
+    the list is not presented; the list is empty for whoever reads the backups without being
+    able either to modify them or to restore the platform (`backups.read` alone,
+    WF-ADM-0100). The front deduces nothing from it about the state of the backup or of the
+    session: the server says what can be done.
   items: { $ref: '#/BackupCommandAvailability' }
 
 Backup:
@@ -264,37 +276,35 @@ Backup:
     - origin
     - available_commands
   description: >-
-    Copie datée et vérifiée des deux bases de la plateforme, celle de Waterfall et celle du
-    fournisseur d'identité, chacune dans un état cohérent (WF-ADM-0150) : une archive de leurs
-    deux vidages et d'un manifeste — la date, la version de l'application, la révision du
-    schéma, les empreintes. Le journal d'audit en fait partie : il est sauvegardé avec la base
-    de Waterfall (WF-SEC-0030), et une restauration réinscrit celles de ses inscriptions qui
-    suivent la date de la sauvegarde (WF-ADM-0160). Les fichiers importés ne vivent que le temps
-    de leur import et n'y figurent pas (WF-DAT-0120). Chaque colonne de la liste se filtre et se
-    trie (`listBackups`, WF-IHM-0130, WF-IHM-0060), et la sauvegarde porte ses commandes
-    (WF-IHM-0090).
+    Dated and verified copy of the platform's two databases, Waterfall's and the identity
+    provider's, each in a consistent state (WF-ADM-0150): an archive of their two dumps and of
+    a manifest — the date, the application version, the schema revision, the checksums. The
+    audit log is part of it: it is backed up with Waterfall's database (WF-SEC-0030), and a
+    restore records again those of its entries that follow the date of the backup
+    (WF-ADM-0160). Imported files live only as long as their import and are not included
+    (WF-DAT-0120). Each column of the list is filtered and sorted (`listBackups`, WF-IHM-0130,
+    WF-IHM-0060), and the backup carries its commands (WF-IHM-0090).
   properties:
     backup_id: { $ref: ../common.yaml#/Uuid }
     taken_at:
       allOf: [{ $ref: ../common.yaml#/Timestamp }]
       description: >-
-        L'instant où la sauvegarde a été prise ; c'est la date que la confirmation d'une
-        restauration énonce (WF-ADM-0160), et l'ordre de la liste sans tri, les plus récentes
-        d'abord.
+        The instant the backup was taken; it is the date that the confirmation of a restore
+        states (WF-ADM-0160), and the order of the unsorted list, most recent first.
     size_bytes:
       type: integer
       minimum: 0
-      description: La taille du fichier, en octets, qui est la longueur de son téléchargement.
+      description: The size of the file, in bytes, which is the length of its download.
     verification: { $ref: '#/BackupVerification' }
     is_retained:
       type: boolean
-      description: Marquée à conserver, elle échappe à la rotation (WF-ADM-0170).
+      description: Marked to keep, it escapes the rotation (WF-ADM-0170).
     scope:
       type: string
       enum: [database]
       description: >-
-        Ce que la sauvegarde couvre : les bases de la plateforme, celle de Waterfall et celle du
-        fournisseur d'identité (WF-ADM-0150), le journal d'audit de la première compris.
+        What the backup covers: the platform's databases, Waterfall's and the identity
+        provider's (WF-ADM-0150), the audit log of the former included.
     origin: { $ref: '#/BackupOrigin' }
     available_commands: { $ref: '#/BackupCommands' }
 
@@ -308,13 +318,12 @@ BackupSchedule:
   type: object
   required: [is_enabled, frequency, at_time, weekday, retained_count, lock_version]
   description: >-
-    Planification et rétention des sauvegardes, à une fréquence et une heure choisies par un
-    utilisateur habilité (WF-ADM-0170). Livrée activée, quotidienne, à `01:00` UTC, sept
-    sauvegardes conservées, sans copie externe (WF-ADM-0170, WF-EXP-0050) : une installation
-    neuve est sauvegardée chaque jour sans qu'aucune planification ait été saisie, et
-    `getBackupSchedule` ne répond jamais 404 faute d'en avoir une. Une restauration la conserve,
-    copie externe comprise, comme la liste des sauvegardes qu'elle gouverne (WF-ADM-0160,
-    #1742).
+    Scheduling and retention of the backups, at a frequency and a time chosen by an
+    authorised user (WF-ADM-0170). Shipped enabled, daily, at `01:00` UTC, seven backups kept,
+    without external copy (WF-ADM-0170, WF-EXP-0050): a new installation is backed up every
+    day without any schedule having been entered, and `getBackupSchedule` never answers 404
+    for lack of one. A restore keeps it, external copy included, like the list of backups it
+    governs (WF-ADM-0160, #1742).
   properties:
     is_enabled: { type: boolean }
     frequency:
@@ -324,89 +333,86 @@ BackupSchedule:
       type: string
       pattern: '^([01]\d|2[0-3]):[0-5]\d$'
       description: >-
-        Heure de la sauvegarde, en temps universel (UTC), comme les horodatages de la
-        plateforme (`Timestamp`, WF-DAT-0100) : `01:00` est prise à `01:00Z`, quel que
-        soit le fuseau du poste qui la lit.
+        Time of the backup, in universal time (UTC), like the platform's timestamps
+        (`Timestamp`, WF-DAT-0100): `01:00` is taken at `01:00Z`, whatever the time zone of the
+        workstation that reads it.
     weekday:
       anyOf: [{ type: integer, minimum: 1, maximum: 7 }, { type: 'null' }]
       description: >-
-        Jour d'une sauvegarde hebdomadaire, numéroté comme ISO 8601 : 1 est le lundi, 7 le
-        dimanche, le jour s'entendant en temps universel comme l'heure ; nul pour une
-        sauvegarde quotidienne. Hors de ces bornes, refusé par 422 `VALIDATION_FAILED`, motif
-        `VALUE_OUT_OF_RANGE` sur `/weekday`, `params.minimum` à `1` ou `maximum` à `7`, la
-        seule borne franchie. Nul pour une planification hebdomadaire, refusé par le motif
-        `VALUE_REQUIRED` sur `/weekday` ; donné à une quotidienne, par le motif
-        `VALIDATION_FAILED` sur `/weekday`.
+        Day of a weekly backup, numbered as in ISO 8601: 1 is Monday, 7 Sunday, the day being
+        understood in universal time like the time; null for a daily backup. Outside these
+        bounds, refused with 422 `VALIDATION_FAILED`, reason `VALUE_OUT_OF_RANGE` on
+        `/weekday`, `params.minimum` set to `1` or `maximum` set to `7`, the only bound
+        crossed. Null for a weekly schedule, refused with the reason `VALUE_REQUIRED` on
+        `/weekday`; given to a daily one, with the reason `VALIDATION_FAILED` on `/weekday`.
     retained_count:
       type: integer
       minimum: 1
       maximum: 365
       description: >-
-        Le nombre de sauvegardes conservées sur la plateforme, manuelles ou planifiées, celles
-        qui sont marquées à conserver exceptées, de 1 à 365 : au-delà, la plus ancienne
-        sauvegarde non marquée est supprimée (WF-ADM-0170). Hors de ces bornes, refusé par 422
-        `VALIDATION_FAILED`, motif `VALUE_OUT_OF_RANGE` sur `/retained_count`,
-        `params.minimum` à `1` ou `maximum` à `365`, la seule borne franchie.
+        The number of backups kept on the platform, manual or scheduled, except those marked
+        to keep, from 1 to 365: beyond it, the oldest unmarked backup is deleted
+        (WF-ADM-0170). Outside these bounds, refused with 422 `VALIDATION_FAILED`, reason
+        `VALUE_OUT_OF_RANGE` on `/retained_count`, `params.minimum` set to `1` or `maximum`
+        set to `365`, the only bound crossed.
     external_copy:
       allOf: [{ $ref: '#/BackupExternalCopy' }]
       description: >-
-        La copie automatique de chaque sauvegarde planifiée vers un emplacement externe
-        (WF-ADM-0170) ; absente, aucune copie n'est réglée — une installation qui ne déclare
-        aucun emplacement n'en offre pas. Une planification enregistrée sans elle retire la
-        copie réglée.
+        The automatic copy of each scheduled backup to an external location (WF-ADM-0170);
+        when absent, no copy is set — an installation that declares no location offers none.
+        A schedule saved without it removes the copy that was set.
     lock_version: { $ref: ../common.yaml#/LockVersion }
 
 BackupExternalCopy:
   type: object
   required: [is_enabled, location, path, retained_count]
   description: >-
-    Copie externe automatique des sauvegardes planifiées (WF-ADM-0170) : après chaque
-    sauvegarde planifiée et vérifiée, le serveur la copie vers un emplacement que
-    l'installation déclare dans sa configuration de déploiement (`ExternalBackupLocation`),
-    nommé ici et jamais décrit : aucun identifiant ni secret ne se saisit à l'écran. L'échec
-    d'une copie est une alerte de l'état du système, comme celui de la sauvegarde
-    (`scheduled_backup_copy_failed`, WF-OBS-0030). Une sauvegarde manuelle se copie hors de la
-    plateforme par son téléchargement (WF-ADM-0150). Copiée ou téléchargée, l'archive porte
-    la date de sa sauvegarde dans son manifeste (`Backup.taken_at`), que l'achèvement du dépôt
-    d'une restauration relit (`completeChunkedUpload`, WF-ADM-0160).
+    Automatic external copy of the scheduled backups (WF-ADM-0170): after each scheduled and
+    verified backup, the server copies it to a location that the installation declares in its
+    deployment configuration (`ExternalBackupLocation`), named here and never described: no
+    credential or secret is entered on screen. The failure of a copy is an alert of the system
+    status, like that of the backup (`scheduled_backup_copy_failed`, WF-OBS-0030). A manual
+    backup is copied outside the platform by downloading it (WF-ADM-0150). Copied or
+    downloaded, the archive carries the date of its backup in its manifest
+    (`Backup.taken_at`), which the completion of a restore's upload reads back
+    (`completeChunkedUpload`, WF-ADM-0160).
   properties:
     is_enabled:
       type: boolean
       description: >-
-        Faux, la copie est suspendue et son réglage gardé, comme `BackupSchedule.is_enabled`.
+        False, the copy is suspended and its setting kept, like `BackupSchedule.is_enabled`.
     location:
       allOf: [{ $ref: '#/ExternalBackupLocationName' }]
       description: >-
-        Le nom d'un emplacement déclaré par l'installation (`listExternalBackupLocations`) ;
-        un nom qu'elle ne déclare pas est refusé par 422 `VALIDATION_FAILED`, motif
-        `UNKNOWN_EXTERNAL_BACKUP_LOCATION` sur `/external_copy/location`.
+        The name of a location declared by the installation (`listExternalBackupLocations`);
+        a name it does not declare is refused with 422 `VALIDATION_FAILED`, reason
+        `UNKNOWN_EXTERNAL_BACKUP_LOCATION` on `/external_copy/location`.
     path:
       allOf: [{ $ref: '#/ExternalBackupPath' }]
       description: >-
-        Le dossier, ou le préfixe, où les copies sont écrites dans l'emplacement ; un chemin
-        qui n'est pas relatif ou qui sort du dossier est refusé par 422 `VALIDATION_FAILED`,
-        motif `PATH_INVALID` sur `/external_copy/path`.
+        The folder, or the prefix, where the copies are written in the location; a path that
+        is not relative or that leaves the folder is refused with 422 `VALIDATION_FAILED`,
+        reason `PATH_INVALID` on `/external_copy/path`.
     retained_count:
       type: integer
       minimum: 1
       maximum: 365
       description: >-
-        Le nombre de copies gardées sur l'emplacement, au moins celui des sauvegardes gardées
-        sur la plateforme (`BackupSchedule.retained_count`) : les sauvegardes sont conservées
-        hors de la plateforme selon une rétention au moins égale (WF-EXP-0050). Un nombre
-        moindre est refusé par 422 `VALIDATION_FAILED`, motif `VALUE_OUT_OF_RANGE` sur
-        `/external_copy/retained_count`, `params.minimum` disant la rétention de la
-        plateforme — `1` quand celle-ci est elle-même hors de ses bornes ; un nombre au-delà de
-        365, par le même motif, `params.maximum` à `365`. Au-delà du nombre gardé, la plus
-        ancienne copie de ce dossier est supprimée ; le marquage
-        à conserver ne vaut que pour les sauvegardes de la plateforme.
+        The number of copies kept on the location, at least that of the backups kept on the
+        platform (`BackupSchedule.retained_count`): the backups are kept outside the platform
+        under a retention at least equal (WF-EXP-0050). A lower number is refused with 422
+        `VALIDATION_FAILED`, reason `VALUE_OUT_OF_RANGE` on `/external_copy/retained_count`,
+        `params.minimum` stating the platform's retention — `1` when that is itself outside
+        its bounds; a number beyond 365, with the same reason, `params.maximum` set to `365`.
+        Beyond the number kept, the oldest copy in this folder is deleted; the mark to keep
+        applies only to the platform's backups.
 
 ExternalBackupLocationName:
   type: string
   pattern: '^[a-z0-9][a-z0-9_-]{0,62}$'
   description: >-
-    Nom d'un emplacement externe, tel que la configuration de déploiement le déclare : une clé
-    de configuration, et non un objet que le serveur crée, d'où un nom plutôt qu'un UUID.
+    Name of an external location, as the deployment configuration declares it: a
+    configuration key, and not an object the server creates, hence a name rather than a UUID.
 
 ExternalBackupPath:
   type: string
@@ -414,45 +420,44 @@ ExternalBackupPath:
   maxLength: 255
   pattern: '^[A-Za-z0-9_][A-Za-z0-9_.-]*(/[A-Za-z0-9_][A-Za-z0-9_.-]*)*$'
   description: >-
-    Chemin relatif dans un emplacement externe : des segments séparés par `/`, sans `/` en tête
-    ni en fin, chacun commençant par une lettre, un chiffre ou `_` — ni `.` ni `..`, qui
-    sortiraient du dossier visé, ni segment vide. Le motif s'applique au texte entier, jusqu'à
-    sa fin : un retour à la ligne final (`a\n`) le rompt. Un chemin qui ne s'y conforme pas
-    est refusé par champ, 422 `VALIDATION_FAILED`, motif `PATH_INVALID`.
+    Relative path in an external location: segments separated by `/`, without a leading or
+    trailing `/`, each starting with a letter, a digit or `_` — neither `.` nor `..`, which
+    would leave the target folder, nor an empty segment. The pattern applies to the whole
+    text, up to its end: a final line break (`a\n`) breaks it. A path that does not conform
+    to it is refused per field, 422 `VALIDATION_FAILED`, reason `PATH_INVALID`.
 
 ExternalBackupLocationKind:
   type: string
   enum: [s3, mounted_share]
   description: >-
-    Ce qu'est un emplacement externe : un compartiment S3, d'un autre site, ou un partage
-    réseau monté sur le serveur. Le serveur l'atteint seul, jamais le navigateur.
+    What an external location is: an S3 bucket, on another site, or a network share mounted
+    on the server. Only the server reaches it, never the browser.
 
 ExternalBackupLocation:
   type: object
   required: [name, kind, description]
   description: >-
-    Un emplacement externe où copier les sauvegardes (WF-ADM-0170), déclaré par
-    l'installation dans sa configuration de déploiement — compartiment, point de montage,
-    identifiants — et lu ici sans aucun de ses secrets : ni identifiant, ni clé, ni adresse
-    qui en porterait. Il ne se crée ni ne se modifie par l'API.
+    An external location to copy the backups to (WF-ADM-0170), declared by the installation
+    in its deployment configuration — bucket, mount point, credentials — and read here
+    without any of its secrets: no credential, no key, no address that would carry one. It is
+    neither created nor modified through the API.
   properties:
     name: { $ref: '#/ExternalBackupLocationName' }
     kind: { $ref: '#/ExternalBackupLocationKind' }
     description:
       anyOf: [{ type: string, maxLength: 500 }, { type: 'null' }]
       description: >-
-        Ce que la configuration en dit pour l'administrateur, telle qu'elle est écrite ;
-        nulle quand elle n'en dit rien.
+        What the configuration says about it for the administrator, as it is written; null
+        when it says nothing.
 
 ExternalBackupLocationTestRequest:
   type: object
   description: >-
-    Ce que le test éprouve : l'emplacement, à la racine, ou dans le dossier que la copie
-    emploierait.
+    What the test checks: the location, at its root, or in the folder the copy would use.
   properties:
     path:
       allOf: [{ $ref: '#/ExternalBackupPath' }]
-      description: Le dossier où écrire le fichier témoin ; absent, la racine de l'emplacement.
+      description: The folder where the witness file is written; when absent, the location's root.
 
 ExternalBackupFailure:
   type: string
@@ -464,27 +469,27 @@ ExternalBackupFailure:
     - storage_full
     - timed_out
   description: >-
-    Pourquoi un emplacement externe a refusé une écriture : injoignable — compartiment ou
-    partage absent, réseau coupé —, accès refusé à ses identifiants, écriture ou effacement
-    du fichier refusés, espace épuisé, ou délai dépassé (WF-ARC-0110). Le motif d'un test
-    (`ExternalBackupLocationTest`) comme celui d'une copie échouée (`Alert.params`).
+    Why an external location refused a write: unreachable — bucket or share missing, network
+    down —, access denied to its credentials, writing or erasing the file refused, space
+    exhausted, or timeout exceeded (WF-ARC-0110). The reason of a test
+    (`ExternalBackupLocationTest`) as well as that of a failed copy (`Alert.params`).
 
 ExternalBackupLocationTest:
   type: object
   required: [location, path, tested_at, failure]
   description: >-
-    L'issue d'un test d'un emplacement externe : le serveur y a écrit puis effacé un fichier
-    témoin, avec les identifiants de la configuration (WF-ADM-0170). Réussi quand `failure`
-    est nul.
+    The outcome of a test of an external location: the server wrote then erased a witness file
+    there, with the credentials of the configuration (WF-ADM-0170). Succeeded when `failure`
+    is null.
   properties:
     location: { $ref: '#/ExternalBackupLocationName' }
     path:
       anyOf: [{ $ref: '#/ExternalBackupPath' }, { type: 'null' }]
-      description: Le dossier éprouvé ; nul pour la racine de l'emplacement.
+      description: The folder tested; null for the location's root.
     tested_at: { $ref: ../common.yaml#/Timestamp }
     failure:
       anyOf: [{ $ref: '#/ExternalBackupFailure' }, { type: 'null' }]
-      description: Le motif de l'échec ; nul quand le fichier a été écrit puis effacé.
+      description: The reason for the failure; null when the file was written then erased.
 
 RestoreRequest:
   type: object
@@ -493,56 +498,54 @@ RestoreRequest:
     - required: [backup_id]
     - required: [external_backup_upload_id]
   description: >-
-    Restauration : elle remplace l'intégralité des deux bases de la plateforme, Waterfall et
-    fournisseur d'identité, laisse le journal d'audit en place, ferme les sessions, vide les
-    caches, et n'est appliquée qu'après une confirmation qui énonce la date de la sauvegarde et
-    son caractère irréversible (WF-ADM-0160, WF-DAT-0130). Une sauvegarde de la liste se
-    restaure comme sa commande `restore` le dit d'avance (`BackupCommand`) : vérifiée, aucune
-    sauvegarde ni restauration en cours. Elle désigne une sauvegarde et une seule : les deux à
-    la fois, ou aucune, est refusé par 422 `VALIDATION_FAILED` : deux, `fields` désignant
-    `/external_backup_upload_id` par le motif `VALIDATION_FAILED` ; aucune, `/backup_id` par
-    `VALUE_REQUIRED`.
+    Restore: it replaces the whole of the platform's two databases, Waterfall and identity
+    provider, leaves the audit log in place, closes the sessions, empties the caches, and is
+    applied only after a confirmation that states the date of the backup and its irreversible
+    nature (WF-ADM-0160, WF-DAT-0130). A backup from the list is restored as its `restore`
+    command says in advance (`BackupCommand`): verified, no backup or restore in progress. It
+    designates one backup and only one: both at once, or none, is refused with 422
+    `VALIDATION_FAILED`: two, `fields` designating `/external_backup_upload_id` with the
+    reason `VALIDATION_FAILED`; none, `/backup_id` by `VALUE_REQUIRED`.
   properties:
     backup_id: { $ref: ../common.yaml#/Uuid }
     external_backup_upload_id:
       allOf: [{ $ref: ../common.yaml#/Uuid }]
       description: >-
-        Sauvegarde copiée hors de la plateforme, déposée au préalable pour une restauration
+        Backup copied outside the platform, uploaded beforehand for a restore
         (`FileUploadPurpose`, `external_backup`, WF-ADM-0160).
     acknowledged_backup_taken_at:
       allOf: [{ $ref: ../common.yaml#/Timestamp }]
       description: >-
-        Date de la sauvegarde restaurée, telle que la confirmation l'énonce : elle doit
-        correspondre à celle de la sauvegarde désignée (WF-ADM-0160) — `Backup.taken_at` pour
-        une sauvegarde de la liste, `FileUpload.backup_taken_at` pour une sauvegarde déposée,
-        la date que dit son manifeste, lue à l'achèvement du dépôt —, le même instant quelle que
-        soit l'écriture de son fuseau. Une autre date est une confirmation qui ne nomme pas la
-        sauvegarde qu'elle désigne, refusée par 400 `CONFIRMATION_REQUIRED`, et rien n'est mis en
-        file.
+        Date of the restored backup, as the confirmation states it: it must match that of the
+        designated backup (WF-ADM-0160) — `Backup.taken_at` for a backup from the list,
+        `FileUpload.backup_taken_at` for an uploaded backup, the date its manifest states, read
+        at the completion of the upload —, the same instant whatever the way its time zone is
+        written. Another date is a confirmation that does not name the backup it designates,
+        refused with 400 `CONFIRMATION_REQUIRED`, and nothing is queued.
     confirmed:
       type: boolean
       description: >-
-        La confirmation elle-même : absente ou fausse, la restauration n'est pas confirmée, refusée
-        par 400 `CONFIRMATION_REQUIRED` comme une date qui n'est pas celle de la sauvegarde, et
-        rien n'est mis en file (WF-ADM-0160). Le schéma ne l'exige pas et ne fixe pas sa valeur,
-        pour que ce soit la garde qui refuse, et non la validation du corps par 422 (US-0702/L3).
+        The confirmation itself: absent or false, the restore is not confirmed, refused with
+        400 `CONFIRMATION_REQUIRED` like a date that is not that of the backup, and nothing is
+        queued (WF-ADM-0160). The schema does not require it and does not fix its value, so
+        that it is the guard that refuses, and not the validation of the body with 422
+        (US-0702/L3).
 
 IdentitySyncSchedule:
   type: object
   required: [is_enabled, frequency, at_time, weekday, lock_version]
   description: >-
-    La périodicité de la lecture des comptes du fournisseur d'identité, choisie par un
-    utilisateur habilité, comme celle des sauvegardes (`BackupSchedule`, WF-ADM-0070,
-    WF-ADM-0170). Livrée activée, quotidienne, à `01:30` UTC, une demi-heure après la
-    sauvegarde livrée : une personne ajoutée à l'annuaire a un compte au terme de la
-    périodicité, sans que personne l'ait saisie, et `getIdentitySyncSchedule` ne répond jamais
-    404 faute d'en avoir une. La lecture planifiée se fait comme celle que l'on demande
-    (`startIdentitySync`), par la plateforme, et son échec est une alerte de l'écran d'état
-    (`identity_sync_failed`, WF-OBS-0030).
+    The periodicity of the reading of the identity provider's accounts, chosen by an
+    authorised user, like that of the backups (`BackupSchedule`, WF-ADM-0070, WF-ADM-0170).
+    Shipped enabled, daily, at `01:30` UTC, half an hour after the shipped backup: a person
+    added to the directory has an account at the end of the period, without anyone having
+    entered it, and `getIdentitySyncSchedule` never answers 404 for lack of one. The
+    scheduled reading is done like the one requested (`startIdentitySync`), by the platform,
+    and its failure is an alert of the status screen (`identity_sync_failed`, WF-OBS-0030).
   properties:
     is_enabled:
       type: boolean
-      description: Faux, aucune lecture n'est faite d'elle-même ; la lecture à la demande reste.
+      description: False, no reading is done on its own; reading on demand remains.
     frequency:
       type: string
       enum: [daily, weekly]
@@ -550,73 +553,73 @@ IdentitySyncSchedule:
       type: string
       pattern: '^([01]\d|2[0-3]):[0-5]\d$'
       description: >-
-        Heure de la lecture, en temps universel (UTC), comme celle des sauvegardes
+        Time of the reading, in universal time (UTC), like that of the backups
         (`BackupSchedule.at_time`).
     weekday:
       anyOf: [{ type: integer, minimum: 1, maximum: 7 }, { type: 'null' }]
       description: >-
-        Jour d'une lecture hebdomadaire, numéroté comme ISO 8601, 1 le lundi, 7 le dimanche, en
-        temps universel ; nul pour une lecture quotidienne. Refusé comme celui des sauvegardes :
-        hors de 1 à 7, par le motif `VALUE_OUT_OF_RANGE` sur `/weekday` ; nul pour une
-        hebdomadaire, par `VALUE_REQUIRED` ; donné à une quotidienne, par `VALIDATION_FAILED`.
+        Day of a weekly reading, numbered as in ISO 8601, 1 Monday, 7 Sunday, in universal
+        time; null for a daily reading. Refused like that of the backups: outside 1 to 7, with
+        the reason `VALUE_OUT_OF_RANGE` on `/weekday`; null for a weekly one, by
+        `VALUE_REQUIRED`; given to a daily one, by `VALIDATION_FAILED`.
     lock_version: { $ref: ../common.yaml#/LockVersion }
 
 IdentitySyncReport:
   type: object
   required: [task_id, finished_at, created, updated, deactivated, restored, skipped, removed]
   description: >-
-    Compte rendu d'une lecture des comptes du fournisseur d'identité (`startIdentitySync`, ou
-    la lecture que la plateforme planifie, `IdentitySyncSchedule`). Les comptes créés dans
-    Waterfall ne sont pas modifiés : c'est dans le fournisseur que la lecture rétablit leur
-    identité. Un compte que WF-ADM-0120 interdit de désactiver est conservé actif et signalé
-    (WF-ADM-0070). Un compte de Waterfall n'y est désigné que par son identifiant, son nom étant
-    lu à la consultation :
-    le compte rendu ne garde aucune donnée personnelle d'un compte (WF-ADM-0060, #920).
+    Report of a reading of the identity provider's accounts (`startIdentitySync`, or the
+    reading the platform schedules, `IdentitySyncSchedule`). The accounts created in Waterfall
+    are not modified: it is in the provider that the reading restores their identity. An
+    account that WF-ADM-0120 forbids deactivating is kept active and reported (WF-ADM-0070).
+    A Waterfall account is designated in it only by its identifier, its name being read at
+    viewing time: the report keeps no personal data of an account (WF-ADM-0060, #920).
   properties:
     task_id:
       allOf: [{ $ref: ../common.yaml#/Uuid }]
-      description: La tâche de la lecture (`BackgroundTaskRef.task_id`).
+      description: The task of the reading (`BackgroundTaskRef.task_id`).
     finished_at:
       allOf: [{ $ref: ../common.yaml#/Timestamp }]
-      description: Fin de la lecture.
+      description: End of the reading.
     created:
       type: integer
       minimum: 0
-      description: Comptes créés, sans rôle, pour les personnes que Waterfall ne connaissait pas.
+      description: Accounts created, without a role, for the people Waterfall did not know.
     updated:
       type: integer
       minimum: 0
       description: >-
-        Comptes dont le nom, le prénom ou l'adresse ont changé, dont ceux qu'une personne de
-        l'annuaire a rattachés par leur adresse (#707).
+        Accounts whose last name, first name or address changed, including those that a person
+        from the directory has linked through their address (#707).
     deactivated:
       type: integer
       minimum: 0
-      description: Comptes désactivés parce que le fournisseur ne les connaît plus.
+      description: Accounts deactivated because the provider no longer knows them.
     restored:
       type: integer
       minimum: 0
       description: >-
-        Comptes créés dans Waterfall dont le fournisseur tenait un autre nom, un autre prénom
-        ou une autre adresse, et dont la lecture rétablit dans le fournisseur l'identité que
-        Waterfall tient, puisqu'il en fait foi (WF-ADM-0050, #919). Le rétablissement suit la
-        validation de la lecture : un compte compté ici est rétabli, ou à rétablir ; un
-        rétablissement qui échoue est journalisé, et la lecture suivante le compte de nouveau.
-        Un compte anonymisé n'est jamais rétabli.
+        Accounts created in Waterfall for which the provider held another last name, another
+        first name or another address, and for which the reading restores in the provider the
+        identity Waterfall holds, since Waterfall is authoritative (WF-ADM-0050, #919). The
+        restoring follows the validation of the reading: an account counted here is restored,
+        or to be restored; a restoring that fails is logged, and the next reading counts it
+        again. An anonymised account is never restored.
     skipped:
       type: array
       description: >-
-        Ce que la lecture a laissé tel quel, chacun avec son motif, un code du catalogue : un
-        compte de Waterfall, ou une personne du fournisseur qui n'en a pas.
+        What the reading left as is, each with its reason, a code of the catalogue: a
+        Waterfall account, or a person from the provider who has none.
       items: { $ref: '#/IdentitySyncSkipped' }
     removed:
       type: array
       description: >-
-        Les adresses des comptes locaux que la lecture retire du fournisseur d'identité :
-        inconnus de Waterfall et sans mot de passe, laissés par une création que Waterfall n'a
-        pas menée à son terme (#811). Le retrait suit la validation de la lecture : une adresse
-        nommée ici est celle d'un compte retiré du fournisseur, ou à retirer. Un retrait qui
-        échoue est journalisé, et la lecture suivante nomme de nouveau l'adresse.
+        The addresses of the local accounts that the reading removes from the identity
+        provider: unknown to Waterfall and without a password, left by a creation that
+        Waterfall did not carry through (#811). The removal follows the validation of the
+        reading: an address named here is that of an account removed from the provider, or to
+        be removed. A removal that fails is logged, and the next reading names the address
+        again.
       items: { type: string }
 
 IdentitySyncSkipped:
@@ -624,17 +627,17 @@ IdentitySyncSkipped:
   additionalProperties: false
   required: [kind, user_id, subject, last_name, first_name, email, code]
   description: >-
-    Ce que la lecture des comptes a laissé tel quel. Un compte de Waterfall (`account`) n'est
-    gardé dans le compte rendu que par son identifiant : son nom, son prénom et son adresse sont
-    ceux qu'il porte à la consultation, nuls pour un compte anonymisé depuis, que le front
-    présente sous le libellé neutre de son catalogue (WF-ADM-0060, #920). Une personne du
-    fournisseur d'identité qui n'a pas de compte (`person`) est nommée telle que le fournisseur
-    la tient (#918) — sauf celle dont un compte de Waterfall porte l'adresse (`ALREADY_EXISTS`) :
-    cette adresse étant celle du compte, l'entrée ne garde que l'identifiant de la personne chez
-    le fournisseur (`subject`) et celui du compte (`user_id`), et le nom, le prénom et l'adresse
-    sont ceux du compte à la consultation, nuls s'il est anonymisé depuis (#920). Ainsi
-    `account` porte `user_id` et jamais `subject` ; `person` porte toujours `subject`, et
-    `user_id` pour `ALREADY_EXISTS` seulement.
+    What the reading of the accounts left as is. A Waterfall account (`account`) is kept in
+    the report only by its identifier: its last name, its first name and its address are
+    those it carries at viewing time, null for an account anonymised since, which the front
+    presents under the neutral label of its catalogue (WF-ADM-0060, #920). A person from the
+    identity provider who has no account (`person`) is named as the provider holds them
+    (#918) — except one whose address a Waterfall account carries (`ALREADY_EXISTS`): this
+    address being that of the account, the entry keeps only the person's identifier at the
+    provider (`subject`) and that of the account (`user_id`), and the last name, the first
+    name and the address are those of the account at viewing time, null if it has been
+    anonymised since (#920). Thus `account` carries `user_id` and never `subject`; `person`
+    always carries `subject`, and `user_id` for `ALREADY_EXISTS` only.
   properties:
     kind:
       type: string
@@ -642,39 +645,42 @@ IdentitySyncSkipped:
     user_id:
       anyOf: [{ $ref: ../common.yaml#/Uuid }, { type: 'null' }]
       description: >-
-        Le compte de Waterfall ; pour une personne, le compte qui porte son adresse
-        (`ALREADY_EXISTS`), nul s'il n'en portait plus aucun quand elle a été écartée, et nul
-        pour tout autre motif.
+        The Waterfall account; for a person, the account that carries their address
+        (`ALREADY_EXISTS`), null if it no longer carried any when the person was set aside,
+        and null for any other reason.
     subject:
       anyOf: [{ type: string }, { type: 'null' }]
-      description: L'identifiant de la personne chez le fournisseur d'identité ; nul pour un compte.
+      description: The person's identifier at the identity provider; null for an account.
     last_name:
       anyOf: [{ type: string }, { type: 'null' }]
       description: >-
-        Le nom du compte à la consultation — pour une personne `ALREADY_EXISTS`, celui du compte
-        qui porte son adresse —, nul s'il est anonymisé ou s'il n'y a pas de compte ; celui de la
-        personne chez le fournisseur pour tout autre motif, vide s'il n'en tient pas.
+        The last name of the account at viewing time — for an `ALREADY_EXISTS` person, that of
+        the account that carries their address —, null if it is anonymised or if there is no
+        account; that of the person at the provider for any other reason, empty if the
+        provider holds none.
     first_name:
       anyOf: [{ type: string }, { type: 'null' }]
       description: >-
-        Le prénom du compte à la consultation — pour une personne `ALREADY_EXISTS`, celui du
-        compte qui porte son adresse —, nul s'il est anonymisé ou s'il n'y a pas de compte ; celui
-        de la personne chez le fournisseur pour tout autre motif, vide s'il n'en tient pas.
+        The first name of the account at viewing time — for an `ALREADY_EXISTS` person, that
+        of the account that carries their address —, null if it is anonymised or if there is
+        no account; that of the person at the provider for any other reason, empty if the
+        provider holds none.
     email:
       anyOf: [{ type: string }, { type: 'null' }]
       description: >-
-        L'adresse du compte à la consultation — pour une personne `ALREADY_EXISTS`, celle du
-        compte qui la porte —, nulle s'il est anonymisé ou s'il n'y a pas de compte ; celle de la
-        personne chez le fournisseur pour tout autre motif, nulle s'il n'en tient pas
-        (`EMAIL_MISSING`).
+        The address of the account at viewing time — for an `ALREADY_EXISTS` person, that of
+        the account that carries it —, null if it is anonymised or if there is no account;
+        that of the person at the provider for any other reason, null if the provider holds
+        none (`EMAIL_MISSING`).
     code:
       allOf: [{ $ref: ../common.yaml#/ErrorCode }]
       description: >-
-        Pour un compte : `LAST_ADMINISTRATOR`, le dernier administrateur que le fournisseur ne
-        connaît plus, gardé actif (WF-ADM-0120) ; `ALREADY_EXISTS`, sa nouvelle adresse portée
-        par un autre ; `VALIDATION_FAILED`, un nouveau nom ou prénom vide, ou plus long que ce
-        que Waterfall garde ; `EMAIL_MISSING`, le fournisseur n'en tient plus d'adresse. Pour
-        une personne : `EMAIL_MISSING`, sans adresse, Waterfall ne sait pas la reconnaître ;
-        `ALREADY_EXISTS`, relayée par un fournisseur externe à une adresse déjà portée par un
-        compte, qu'elle ne rattache pas (#707), ce compte désigné par `user_id` ; `VALIDATION_FAILED`, un nom ou un prénom vide,
-        ou plus long que ce que Waterfall garde.
+        For an account: `LAST_ADMINISTRATOR`, the last administrator, whom the provider no
+        longer knows, kept active (WF-ADM-0120); `ALREADY_EXISTS`, its new address carried by
+        another; `VALIDATION_FAILED`, a new last name or first name that is empty, or longer
+        than what Waterfall keeps; `EMAIL_MISSING`, the provider no longer holds an address for
+        it. For a person: `EMAIL_MISSING`, without an address, Waterfall cannot recognise
+        them; `ALREADY_EXISTS`, relayed by an external provider with an address already
+        carried by an account, which it does not link (#707), that account designated by
+        `user_id`; `VALIDATION_FAILED`, an empty last name or first name, or one longer than
+        what Waterfall keeps.

@@ -122,6 +122,10 @@ DELIVERY_DELAY = Risk(
     reference_provision_line=N.REFERENCE_PROVISION_752,
     merged=N.MERGED,
 )
+OCCURRENCE_EXAMPLE = "WF-RIS-0060-A#474d7bce167a"
+"""The numeric example of the Vérif of WF-RIS-0060 the occurrence of the delay of the cabinets
+reproduces to the letter: two lines of 120 and 80 merged at a nought budgeted amount, re-estimated
+at 120 and 80, the line of provision gone (``wftools.examples``)."""
 AUTOMATION_ENGINEER = Risk(
     753,
     "Indisponibilité de l'automaticien",

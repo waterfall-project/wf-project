@@ -3,6 +3,7 @@
 """Tests of the witness project said once, and of the hours of work of its calendars."""
 
 import json
+import re
 from datetime import UTC, date, datetime
 from decimal import Decimal
 from itertools import pairwise
@@ -403,3 +404,57 @@ def test_each_identifier_of_the_examples_is_of_the_family_its_key_names() -> Non
             if not any(families[name].holds(value) for name in _KEYS[key]):
                 trespasses.add((key, value.removeprefix(PREFIX)))
     assert trespasses == _TRESPASSES
+
+
+_UUID = re.compile(r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}")
+
+_FOREIGN = frozenset({"subject"})
+"""The keys whose identifiers are not the server's: the subject of an account at the identity
+provider, which draws it."""
+
+
+def _uuids(value: Any, key: str = "") -> list[tuple[str, str]]:
+    """Return each UUID a value read from JSON carries, with the key that carries it."""
+    if isinstance(value, str):
+        return [(key, found) for found in _UUID.findall(value)]
+    if isinstance(value, list):
+        items = cast("list[Any]", value)
+        return [found for item in items for found in _uuids(item, key)]
+    if isinstance(value, dict):
+        fields = cast("dict[str, Any]", value)
+        return [found for name, item in fields.items() for found in _uuids(item, name)]
+    return []
+
+
+def test_every_identifier_of_the_examples_carries_the_prefix_of_the_universe() -> None:
+    strays = [
+        (path.name, key, value)
+        for path in sorted(mockwitness.FIXTURES.rglob("*.json"))
+        for key, value in _uuids(json.loads(path.read_text(encoding="utf-8"))["value"])
+        if key not in _FOREIGN and not value.startswith(PREFIX)
+    ]
+    assert strays == []
+
+
+def _problems(value: Any) -> list[dict[str, Any]]:
+    """Return each `problem` a value read from JSON nests: the failure of a task, of a backup."""
+    if isinstance(value, list):
+        items = cast("list[Any]", value)
+        return [found for item in items for found in _problems(item)]
+    if not isinstance(value, dict):
+        return []
+    fields = cast("dict[str, Any]", value)
+    nested = fields.get("problem")
+    own = [cast("dict[str, Any]", nested)] if isinstance(nested, dict) else []
+    return own + [found for item in fields.values() for found in _problems(item)]
+
+
+def test_the_failure_of_a_task_carries_the_correlation_of_the_task() -> None:
+    # `BackgroundTaskRef.problem`, `OperationOutcome.problem` (WF-OBS-0020).
+    found = {
+        path.name: problem
+        for path in sorted(mockwitness.FIXTURES.rglob("*.json"))
+        for problem in _problems(json.loads(path.read_text(encoding="utf-8"))["value"])
+    }
+    assert "task_failed.json" in found
+    assert [name for name, problem in found.items() if "correlation_id" not in problem] == []

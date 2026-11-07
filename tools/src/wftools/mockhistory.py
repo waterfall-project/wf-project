@@ -73,6 +73,7 @@ from wftools.mockwitnessrisks import (
     DISMISSED,
     IDENTIFIED,
     OCCURRED,
+    OCCURRENCE_EXAMPLE,
     REGISTER,
     Risk,
     reference,
@@ -821,6 +822,7 @@ def examples() -> dict[str, JsonObject]:
             f"pour risques (WF-RIS-0010, WF-RIS-0050, WF-RIS-0060). "
             f"{_risk_commands_text(items[1])}",
             items[1],
+            (OCCURRENCE_EXAMPLE,),
         ),
         "risk_dismissed_category_deactivated.json": mocktext.example(
             f"Variante contrefactuelle : « {engineer.label} », écarté le "
@@ -850,7 +852,7 @@ def examples() -> dict[str, JsonObject]:
         "risk_matrix.json": mocktext.example(
             f"La matrice des risques de la révision courante : {len(probabilities) + 1} niveaux "
             f"de probabilité bornés à {_percents(probabilities)}, {len(severities) + 1} de "
-            f"gravité bornés à {_percents(severities)} du budget de référence "
+            f"gravité bornés à {_percents(severities)} de l'assiette du projet "
             f"(`reference_settings`) ; chaque case avec sa zone et le nombre de ses seuls "
             f"risques identifiés, comme les bulles, que le serveur compte — {identified_counted} "
             f"(#1395) — ; {counted} du registre, {scale}, chacun un point à ses valeurs exactes, "

@@ -1,0 +1,10 @@
+{
+  "summary": "Un bloc collé dans la grille de devis de la structure principale de la révision « Référence », marquée (revision_marked) : la structure n'accepte plus de saisie (edit_estimate) ; l'application est refusée par la condition qui manque, revision_draft, sans juger les lignes du bloc ; rien n'est écrit (WF-DAT-0020, WF-IHM-0050, WF-IHM-0090).",
+  "description": "Exemple engendré par `make mock-data` (`wftools.mockdata`) : il ne se retouche pas.",
+  "value": {
+    "code": "STATE_FORBIDS_OPERATION",
+    "status": 409,
+    "params": {"missing_condition":"revision_draft"},
+    "correlation_id": "01926f3a-7c00-7000-8000-000000001942"
+  }
+}

@@ -434,9 +434,10 @@ def context(
 ) -> JsonObject:
     """Return the context of a calculation (`CalculationContext`, WF-IHM-0020).
 
-    At the instant of the reading, or at another — the workload of a marked revision is read
-    today —; ``stored`` for what a marking kept, indicators and curves (WF-DAT-0040); for the scope
-    computed, the whole project by default (WF-IND-0020).
+    At the instant of the reading, or at another — the budgeted workload of the reference is read
+    today —; ``stored`` for what a marking kept, indicators, curves and the workload by role and
+    month of the marked revision (WF-DAT-0040); for the scope computed, the whole project by
+    default (WF-IND-0020).
     """
     draft = reading.revision == mockhistory.CURRENT
     return {

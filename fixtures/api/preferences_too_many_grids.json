@@ -1,0 +1,12 @@
+{
+  "summary": "Les préférences d'affichage modifiées par une grille nouvelle, alors qu'elles en gardent déjà 100 : refusé sur les grilles, la borne nommée ; rien n'est enregistré (WF-ADM-0040, WF-IHM-0060).",
+  "description": "Exemple engendré par `make mock-data` (`wftools.mockdata`) : il ne se retouche pas.",
+  "value": {
+    "code": "VALIDATION_FAILED",
+    "status": 422,
+    "fields": [
+      {"pointer":"/grids","code":"VALUE_TOO_LONG","params":{"max_length":100}}
+    ],
+    "correlation_id": "01926f3a-7c00-7000-8000-000000001904"
+  }
+}

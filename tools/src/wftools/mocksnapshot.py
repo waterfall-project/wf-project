@@ -145,4 +145,29 @@ def examples(found: Mapping[str, JsonObject]) -> dict[str, JsonObject]:
             f"{_said(offer)}.",
             offer,
         ),
+        "revision_completed_project.json": mocktext.example(
+            "La révision de référence du projet témoin terminé aujourd'hui par sa sortie du cycle "
+            "de vie (project_completed), sa dernière révision marquée : elle ne liste plus que "
+            "ses quatre exports, disponibles, qui la lisent sans la modifier ; aucune autre "
+            "commande ne peut plus le redevenir (WF-CYC-0080, WF-CYC-0100, WF-IHM-0090). "
+            f"{_said(marked)[0].upper()}{_said(marked)[1:]}.",
+            completed(marked),
+        ),
+    }
+
+
+EXPORTS = frozenset(
+    {"export_planning", "export_estimate", "export_remaining", "export_task_tree_image"}
+)
+"""The commands of a revision that read it without modifying it: its exports."""
+
+
+def completed(marked: JsonObject) -> JsonObject:
+    """Return the marked revision as the project, once terminal, lists it: its exports alone."""
+    commands = cast("list[JsonObject]", marked["available_commands"])
+    return {
+        **marked,
+        "available_commands": cast(
+            "JsonValue", [each for each in commands if each["command"] in EXPORTS]
+        ),
     }

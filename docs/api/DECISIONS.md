@@ -10864,6 +10864,526 @@ Les suites : `make generate-server-models` et `make generate-client` (descriptio
 `test_audit_consultation.py`, `test_database_constraints.py`, `test_projects.py`), et `tools/tests/test_mockproject.py` tient les
 deux exemples nouveaux.
 
+### Les mineurs de la revue du 2026-10-31 (décision de l'auteur du 2026-11-07)
+
+La revue du 2026-10-31 (`2026-10-31-contrat-spec-et-fixtures.md`) relevait 120 constats ; US-0704 a
+porté les 31 majeurs et quatre mineurs (D-11, E-10, A-05, I-06), et les autres devaient devenir des
+issues « contrat » après le gel. Une vérification du 2026-11-07, constat par constat, en a trouvé
+quatre-vingts non réglés et dix en partie. L'auteur a décidé de les régler tous, sauf ceux dont la
+correction romprait le contrat figé en 1.0.0 — une réponse déclarée retirée, un champ rendu exigé,
+une valeur d'énumération ajoutée à une réponse, un statut ou un corps changé —, et de suivre, à
+chaque arbitrage, l'option que la vérification recommandait. Les entrées qui suivent disent ce qui a
+été écrit au contrat, à ses fixtures et à leurs générateurs.
+
+**Restent ouverts, pour une version ultérieure du contrat** : A-07 (le 503 de `getLiveness`), D-06
+(le code effacé d'un projet En cours), D-08 (le 404 de `listProjects`), E-06 (`target_year` exigé),
+E-15 (la fusion d'une structure qui n'est pas un différentiel non fusionné), la part de F-12 qui
+demande une condition nouvelle, G-07 (le reste à engager d'une révision marquée avant En cours),
+G-09 (un `as_of` dans l'avenir) et H-06 (`RiskReview.actor` exigé). Restent aussi incomplets, faute
+d'un choix de modélisation : trois exemples de H-07 (un compte rendu de survenance qui refuse des
+lignes, qui crée la révision en cours, dont la tâche porteuse est un jalon), la copie externe de
+B-04, vingt-trois propriétés nullables de J-14 dont la règle n'est pas déterminable aujourd'hui, et
+les volumes de comptes, de rôles, de nœuds et de contributeurs de V-07.
+
+#### Annexes A et B — système, comptes, plateforme, journal d'audit
+
+**Le compteur du compte n'avance qu'avec son administration : les préférences et l'avatar de son
+porteur ne le touchent pas.** `UserAccount.lock_version` avance par `updateUser`,
+`setUserActivation`, `anonymizeUser` et `setUserAccessRoles`, qui l'exigent ; pas par
+`updateMyPreferences`, `putMyAvatar` ni `deleteMyAvatar`, qui sont au porteur seul (WF-ADM-0040,
+WF-ADM-0080) : un administrateur qui renomme un compte ne reçoit pas 412 parce que son porteur a
+changé de thème. C'est ce que fait le service (`core/users/personal.py` n'écrit pas le compteur).
+`me_dark` et `me_with_avatar` passent à `lock_version: 3`, comme `me`, `me_english` et
+`me_grid_settings`. Revue du 2026-10-31, A-10 ; décision de l'auteur du 2026-11-07.
+
+**Les rôles d'habilitation se lisent sous `access_roles.read` et s'écrivent sous
+`access_roles.write` ; le catalogue des permissions et l'avatar d'un compte se lisent par toute
+session.** `listAccessRoles` et `getAccessRole` le disent (404 sans la permission, WF-ADM-0110) ;
+`createAccessRole` exige `access_roles.write`, `updateAccessRole` et `deleteAccessRole` aussi, sur
+un rôle lisible (404 sans `access_roles.read`) — ce que fait le service (`api/access_roles.py`).
+`listPermissions` n'a pas d'objet à cacher ; `getUserAvatar` est lisible par toute session, l'avatar
+étant montré partout où le compte est cité, et rend 404 pour un compte sans avatar (`has_avatar`
+faux), le front montrant l'image par défaut. Revue du 2026-10-31, A-11 ; décision de l'auteur du
+2026-11-07.
+
+**`listBackgroundTasks` sans `finished_since` rend toutes les tâches finies encore conservées.** La
+rétention des tâches de fond (`OperatingParameters.background_task_retention_days`, trente jours
+livrés) borne seule la liste ; le service ne filtre que si le paramètre est donné
+(`platform/tasks.py`). `BackgroundTaskRef.kind` décrit désormais chaque nature avec l'opération qui
+la crée. Revue du 2026-10-31, A-12 ; décision de l'auteur du 2026-11-07.
+
+**Le marquage d'une sauvegarde s'écrit sans compteur ni 412, par exception écrite, comme le
+périmètre suivi d'une ligne de coût réel.** `retainBackup` pose l'état visé (`is_retained`) sans
+dépendre d'aucune autre valeur : deux requêtes concurrentes ne peuvent donner que le même état ou le
+dernier demandé. La description de `retainBackup` le dit, et la ligne « lock_version » de
+`README.md` et `README-fr.md` le nomme à côté de `setActualCostTrackedScope` (US-0702/L2). L'option
+d'un `Backup.lock_version` exigé est écartée : elle ajouterait un champ exigé à la requête du
+contrat gelé. Revue du 2026-10-31, B-06 ; décision de l'auteur du 2026-11-07.
+
+**Le 422 d'une planification ouvre sur la règle générale : champ exigé absent `VALUE_REQUIRED`,
+heure hors `HH:MM` ou fréquence hors énumération `VALIDATION_FAILED`.** `setBackupSchedule` le dit
+avant ses refus propres, et `setIdentitySyncSchedule` nomme aussi l'heure et la fréquence ; exemples
+`backup_schedule_time_invalid` et `identity_sync_schedule_weekday_daily` (engendrés,
+`wftools.mockadminrefusals`). Rien ne change des refus : c'est ce que rend `api/problems.py`. Revue
+du 2026-10-31, B-07 ; décision de l'auteur du 2026-11-07.
+
+**Le journal d'audit se dit, partout, dans les mots de WF-ADM-0160 : une restauration ne le perd
+pas, ses inscriptions absentes du journal restauré sont relues avant le remplacement des bases et
+réinscrites après lui.** `listAuditEvents`, `AuditEvent` et `startRestore` le disent ; « hors du
+périmètre qu'une restauration remplace », la formule d'EP-02/L42 (#539), est dépassée par la lettre
+de la spécification 1.0.1, sans que le fond change. Revue du 2026-10-31, B-08 ; décision de l'auteur
+du 2026-11-07.
+
+**Le journal du témoin inscrit chaque rôle que porte un compte par une attribution à elle, et l'«
+Administrateur » que l'installation donne à son compte local.** Un compte naissant sans rôle (A-01,
+#1731), `mockaudit` inscrit une `user_access_roles_set` par compte qui porte des rôles, après sa
+création et le dernier de ses rôles, sous sa propre corrélation, par le compte qui peut modifier les
+rôles (Camille Martin) — Dominique Bernard compris, la lecture de l'annuaire n'attribuant aucun rôle
+(WF-ADM-0070) ; la plateforme donne « Administrateur » à Camille Martin à l'installation
+(WF-EXP-0020), qu'elle retire à 09:30 en prenant « Direction de projet » (`holder_count` 0 tenu).
+`audit_events` passe de 37 à 43 inscriptions ; les variantes écrites à la main renumérotent
+(`audit_events_anonymized_*` en 47 et 48). Revue du 2026-10-31, B-03 ; décision de l'auteur du
+2026-11-07.
+
+**Deux variantes du journal portent les actions qu'aucun exemple ne montrait : la restauration et le
+projet disparu, la suppression d'un rôle, le lien de fixation, la réactivation et la réintégration
+d'une ligne.** `audit_events_restored` (variante contrefactuelle, `wftools.mockauditadmin`) : le
+journal du 3 juin après une restauration de la sauvegarde du 2 juin, l'inscription `restore` en tête
+datée de sa fin, `backup_taken_at` la date de la sauvegarde, un projet créé après elle, sans code,
+`can_open` faux (WF-ADM-0190), et `cost_line_reinstate` sur FA-2026-0295.
+`audit_events_administration` gagne `password_link_create` (Léa Garnier), `user_reactivate` (Alix
+Moreau, `user_reactivated`) et `access_role_delete` (« Contrôle de gestion »). L'administration est
+maintenant engendrée par `mockauditadmin`, `mockaudit` dépassant mille lignes. Revue du 2026-10-31,
+B-04 ; décision de l'auteur du 2026-11-07.
+
+**La chronologie de 14 h 04 tient : la restauration acceptée est mise en file à 14 h 05 min 10 s,
+une fois prise la sauvegarde manuelle (14 h 04 min 50 s).** `task_restore_queued` passe à 14:05:10
+(14:05:30 est déjà l’instant d’une autre tâche) ; ses refus liés suivent
+(`restore_during_restore_refused` 14:05:15, `backup_start_during_restore_refused`,
+`backup_retain_refused` et `backup_schedule_refused_during_restore` 14:05:20) ;
+`restore_during_backup_refused` reste à 14:04:20, pendant la sauvegarde. `backups_unverified` se dit
+« Variante contrefactuelle », puisqu'elle contredit `backups` sur 0907. Revue du 2026-10-31, B-05 et
+V-04 ; décision de l'auteur du 2026-11-07.
+
+**Reste ouvert, à la demande de l'auteur : `getLiveness` garde son 503 déclaré (A-07).** Retirer une
+réponse déclarée romprait le contrat gelé 1.0.0 ; la décision est reportée à une version ultérieure.
+Revue du 2026-10-31, A-07 ; décision de l'auteur du 2026-11-07.
+
+#### Annexes C et D — référentiel, projets
+
+**L'amorçage est l'œuvre de la plateforme, les écritures du témoin celles de Camille Martin.** Le
+calendrier par défaut « Semaine standard », la nature PRV et la catégorie PRV-001, que
+l'installation crée elle-même, portent `created_by` et `updated_by` à `{"kind": "platform"}` à
+l'instant d'amorçage (`calendars*`, `cost_types*`, `volume/cost_categories*`, et les images de
+`revision_marked`, `revision_offer` ; `mockdata._INSTALLED_AUDIT`). Les paramètres communs du témoin
+gardent leurs valeurs (10/30/60 %, huit semaines) mais les doivent à une écriture de Camille Martin
+après l'amorçage, comme le chargeur du témoin du service les écrit : `reference_settings` en version
+2, ses trois écritures du jour en version 3, `reference_settings_stale` attendant la 3 (revue du
+2026-10-31, C-02 ; décision de l'auteur du 2026-11-07).
+
+**La gravité de la matrice se rapporte à l'assiette du projet, pas au seul budget de référence.**
+Les résumés de `reference_settings`, `reference_settings_matrix_updated`,
+`reference_settings_bounds_refused` et `risk_matrix` (`mockhistory`) disent « % de l'assiette du
+projet — son budget de référence ou, avant lui, le total hors provisions de son devis courant »,
+comme le contrat (revue du 2026-10-31, C-03 ; décision de l'auteur du 2026-11-07).
+
+**`params.cost_categories` est typé, comme `params.resource_roles`.** `ProblemParams` déclare
+`cost_categories`, un tableau de `ProblemCostCategory` (`cost_category_id`, `code`, `label`), que
+`updateCostType` rend avec `cost_type_unused` et `cost_type_unrated`. Rien ne change sur le fil : le
+paramètre était déjà décrit dans `Problem.params` et rendu par `cost_type_kind_refused` ; le typage
+s'ajoute, facultatif (revue du 2026-10-31, C-04 ; décision de l'auteur du 2026-11-07).
+
+**Chaque refus déclaré du référentiel a sa description et son exemple.** Les 403 de
+`listResourceRoles`, `listCostCategories` et `getHourlyRateGrid` disent les désactivés demandés
+(`include_inactive` ou `is_active` à false) sans la permission de modification, avec
+`resource_roles_inactive_forbidden`, `cost_categories_inactive_forbidden` et
+`hourly_rate_grid_inactive_forbidden` (`mockdeclared`) ; les 412 de `updateCostType` et
+`updateCostCategory` disent `STALE_LOCK_VERSION`, avec `cost_type_update_stale` et
+`cost_category_update_stale`, écrits à la main (revue du 2026-10-31, C-05 ; décision de l'auteur du
+2026-11-07).
+
+**Une image figée est l'objet tel qu'il était au marquage, champ par champ.** `ResourceRoleImage`,
+`CalendarImage` et `CostCategoryImage` le disent : dans `EmployedReference`, les libellés des
+rattachements, l'état, `is_default`, `cost_type_is_active`, `audit` et `lock_version` sont ceux du
+marquage (WF-REF-0130, WF-REV-0030) ; « résolu à la lecture » ne vaut que pour l'objet lu
+aujourd'hui. La règle d'EP-02/L42a passe ainsi de DECISIONS au contrat (revue du 2026-10-31, C-06 ;
+décision de l'auteur du 2026-11-07).
+
+**Les années de la grille des taux suivent la portée de la lecture, pas ses filtres.**
+`getHourlyRateGrid` s'aligne sur `HourlyRateGrid.years` : les années sont celles des catégories
+actives, et des désactivées aussi avec `include_inactive` ou `is_active` à false, quels que soient
+la page, la recherche, les bornes de taux et le tri (revue du 2026-10-31, C-09 ; décision de
+l'auteur du 2026-11-07).
+
+**La réponse de `updateOrgNode` porte le nœud seul ; le client relit l'arbre et les rôles.** Un
+déplacement change le `level` des descendants, un libellé le `parent_label` des enfants et
+l'`org_node_label` des rôles rattachés, que la réponse ne porte pas (WF-REF-0070) ; l'année du
+chemin de `setHourlyRate` hors 2000 à 2100 est décrite dans son 422 (`/path/year`,
+`VALUE_OUT_OF_RANGE` ou `NUMBER_INVALID`), comme le service la refuse déjà (revue du 2026-10-31,
+C-07, C-08 ; décision de l'auteur du 2026-11-07).
+
+**Chaque `project_not_terminal` nommé a son exemple ; la suppression d'un sous-projet le nomme en
+dernier.** `project_update_terminal`, `work_breakdown_terminal`, `subproject_create_terminal`,
+`subproject_update_terminal`, `subproject_delete_terminal` et `contributors_set_terminal`
+(`mockrefusals`, sur `project_completed`) ; `subproject_delete_terminal` est une variante
+contrefactuelle, un sous-projet à qui aucune de ses propres conditions ne manque, puisque la
+suppression les juge avant la clôture. S'y ajoutent `project_code_blank` et
+`project_fields_too_long` (`/label` et `/client`, `max_length` 300) au 422 de `createProject`, et
+`subproject_code_too_long` au 422 d'`updateSubproject` (revue du 2026-10-31, D-02 ; décision de
+l'auteur du 2026-11-07).
+
+**`project_in_progress` manque aussi à l'import des coûts réels et à l'exclusion d'une ligne.**
+`CommandCondition` nomme `import_actual_costs` et `exclude_cost_lines` (WF-CRE-0020, WF-CRE-0030),
+que les exemples marquaient déjà ainsi, et `ProjectCommand` nomme `project_in_progress` parmi les
+conditions d'état que `import_actual_costs` juge avant `actual_cost_mapping_complete`. Aucune valeur
+d'énumération ne change (revue du 2026-10-31, D-04 ; décision de l'auteur du 2026-11-07).
+
+**Un sort de révision envoyé à un projet sans révision en cours est ignoré.** La sortie s'applique
+dans la requête (200) ; la permission que l'action demande (`revision_abandon`, `revision_mark`)
+reste exigée (403). C'est ce que fait le service (`_judge_exit` revient sans juger le sort, la route
+exige la permission avant) ; le refus 422 `FIELD_NOT_ACCEPTED` que la revue préférait est écarté :
+il changerait un comportement observable du contrat gelé. `ProjectExit.current_revision` le dit
+(revue du 2026-10-31, D-05 ; décision de l'auteur du 2026-11-07).
+
+**Le compteur d'une sortie différée est jugé deux fois : à la requête, puis par la tâche.**
+`exitProject` le dit : la tâche de marquage rejuge, sous le verrou du projet et avant toute
+écriture, la version lue ; un projet écrit entre-temps — `update`, `manage_contributors`,
+`manage_timelines` restent disponibles pendant le marquage — fait échouer la tâche (`problem` à
+`STALE_LOCK_VERSION`), rien n'est appliqué et la révision reste en cours ; appliquée, la sortie
+avance le compteur comme une sortie dans la requête. C'est ce que fait le service (`run_marking`,
+`_judge_project_counter`) (revue du 2026-10-31, D-07 ; décision de l'auteur du 2026-11-07).
+
+**Recoder un sous-projet ne change aucune imputation.** Les lignes de coût réel déjà imputées
+restent rattachées au sous-projet par son identifiant, non par son code (WF-DAT-0060) ; une ligne
+importée sous l'ancien code ou le nouveau s'impute par le code qu'elle porte, à son prochain import
+(WF-CRE-0020, WF-INTF-0140). `updateSubproject` le dit ; le service des coûts réels (EP-07, EP-09)
+devra le suivre. `SubprojectUpdate` garde `code` et `label` exigés : les rendre facultatifs
+resterait compatible plus tard (revue du 2026-10-31, D-10 ; décision de l'auteur du 2026-11-07).
+
+#### Annexe E — révisions et structures
+
+**La comparaison ne porte que sur deux révisions marquées du projet** (revue du 2026-10-31, E-07 ;
+décision de l'auteur du 2026-11-07). `compareRevisions` refuse la révision en cours par un 409
+`STATE_FORBIDS_OPERATION`, `params.missing_condition` à `revision_marked` : WF-REV-0080 dit « deux
+révisions marquées », et une révision en cours change sous son lecteur ; la vue « en cours contre
+référence » est écartée. Une révision d'un autre projet est un 404, comme une révision inexistante.
+`from_revision_id` et `to_revision_id` sont décrits. Exemple engendré `comparison_revision_draft`
+(`wftools.mockrevisionminors`).
+
+**Un objet naît à la version 1, et la révision n'avance que par ses propres écritures** (revue du
+2026-10-31, E-09 et V-03 ; décision de l'auteur du 2026-11-07). `LockVersion` le dit, y compris pour
+l'objet créé avec un autre : la structure principale d'une révision, le lotissement par défaut d'un
+projet. `Revision.lock_version` avance à la mise à jour des taux, au marquage et à ce qu'un
+traitement écrit sur la révision, jamais à une saisie dans ses structures ou ses risques : un
+marquage ou un abandon après la saisie d'un autre contributeur ne reçoit pas de 412
+(`abandonRevision` reformulé). L'offre 100, créée puis marquée, passe à 2 (`revisions`,
+`revisions_marked` écrits à la main, `revision_offer`, `revisions_designation_open` engendrés),
+comme la 101 compte son marquage (#1352). La structure 207 passe à 1 (`structures_without_tasks`,
+`structures_estimator`), le squelette la fait passer de 1 à 2 (`skeleton_generated`), et le
+lotissement par défaut est à 1 (`work_breakdown_default`, `wftools.mockdata`). Écartée : la
+naissance à 0, qui aurait réaligné 103, 213 et les nœuds engendrés.
+
+**Une annulation se refuse pendant un traitement de la révision, et sous la permission de la saisie
+qu'elle défait** (revue du 2026-10-31, E-17 ; décision de l'auteur du 2026-11-07). Le 409 de
+`undoLastChange` et de `redoLastUndo` nomme d'abord `no_background_task_running` pendant un
+marquage, une fusion, une survenance ou l'application d'un import, comme toute saisie de la révision
+(exemples engendrés `undo_background_running`, `redo_background_running`). Leur 403 est déclaré :
+`PERMISSION_MISSING` à qui n'a plus la permission de la saisie défaite — `planning.write`,
+`estimate.write`, `remaining.write`, `risks.write` —, car « une annulation est une modification
+comme une autre » (WF-IHM-0110). Écartée : aucun contrôle au-delà de la propriété de la pile.
+
+**Le marquage manque de `no_restore_running` pendant une restauration** (revue du 2026-10-31, E-13 ;
+décision de l'auteur du 2026-11-07). `RevisionCommand` (`mark`) et le 409 de `markRevision`
+s'alignent sur ce que `CommandCondition` et `BackupCommand` disaient déjà : la condition vient après
+`revision_draft` et `no_background_task_running`. Exemple engendré `mark_restore_running`. Écartée :
+retirer le marquage de ces deux schémas et s'en remettre au 503 de maintenance.
+
+**La désignation de la référence ne manque d'un traitement que pendant le marquage de sa révision**
+(revue du 2026-10-31, E-14 ; décision de l'auteur du 2026-11-07). C'est le seul traitement après
+lequel elle deviendrait désignable : `RevisionCommand` et le 409 de `designateReferenceRevision` le
+disent, et le résumé de `revision_importing` (écrit à la main) dit que, pendant un import, la
+désignation manque de son marquage et de la correction de la référence, non du traitement en cours.
+
+**`listRevisions` trie par date de création, la plus récente d'abord** (revue du 2026-10-31, E-18 ;
+décision de l'auteur du 2026-11-07). La révision en cours, la dernière créée, vient en tête, comme
+dans `revisions` (102, 101, 100). La révision d'un projet terminal a son exemple :
+`revision_completed_project`, la référence 101 du témoin terminé, qui ne liste que ses quatre
+exports (`wftools.mocksnapshot`, cité par `getRevision`).
+
+**L'abandon sans révision marquée laisse le projet en Chiffrage, sans révision** (revue du
+2026-10-31, E-16 ; décision de l'auteur du 2026-11-07). `abandonRevision` le dit, avec
+`ProjectCommand.create_revision` de nouveau disponible (WF-REV-0010, WF-CYC-0020) ; `createRevision`
+dit que la première révision d'un projet Créé le fait passer en Chiffrage, l'écran relisant le
+projet (`project_revision_opened`).
+
+**`UndoneKind.risk_update` nomme le changement de la provision d'un risque** (revue du 2026-10-31,
+H-02 et E-17 ; décision de l'auteur du 2026-11-07). Depuis #1782, la modification de l'identité d'un
+risque (`updateRisk`) n'entre plus dans l'historique ; la seule modification annulable d'un risque
+est `updateRiskProvision`, que la valeur nomme désormais. La valeur est gardée (contrat figé) ;
+`undoLastChange`, ses 409 et ceux de `redoLastUndo`, et `UndoneKind` disent « changement de la
+provision » au lieu de « modification ».
+
+**Un nœud dont seul le taux change entre deux années de référence est modifié par son réestimé
+seul** (revue du 2026-10-31, J-17 et E-02 ; décision de l'auteur du 2026-11-07). `NodeChange` et
+`compareRevisions` le disent au niveau du nœud, comme `amount_deltas` le disait de l'agrégat : son
+montant budgété ne bouge pas (WF-REV-0060, WF-REV-0080, #1754 ; `comparison`).
+
+**L'écriture d'une structure ne rend aucun nœud défait** (revue du 2026-10-31, E-11 ; décision de
+l'auteur du 2026-11-07). `UndoResult.undone.node_ids` est vide pour `structure_update` comme pour
+une saisie de risque : ses tâches redatées sont recalculées, non écrites. `updateCostStructure`
+déclare en ligne son 409 et son 412, avec leurs exemples engendrés
+(`structure_update_revision_marked`, `structure_update_stale`), et son 200 a l'exemple d'un libellé
+seul, `structure_label_updated` (aucun nœud, compteur de 2 à 3).
+
+#### Annexes F et G — arbre commun, indicateurs, portefeuille
+
+**Un montant calculé s'arrondit au centime, au plus proche, la moitié s'éloignant de zéro** (revue
+du 2026-10-31, F-06 ; décision de l'auteur du 2026-11-07 ; WF-DAT-0100). La règle des parts du
+README vaut pour les montants : `Money` la dit, montant projeté compris, le serveur calculant sur
+les grandeurs exactes et n'arrondissant que la valeur rendue. Le générateur arrondissait au pair
+(`mockstructure.Projection.__call__`, `money()`) : il arrondit désormais comme `share()`, et `make
+mock-data` déplace d'un centime les montants projetés et les totaux qui en dépendent (environ
+soixante-dix exemples ; 68 491 568,05 budgétés deviennent 68 491 569,21). Écarté : garder l'arrondi
+au pair et le dire, deux règles d'arrondi dans un même contrat. Les montants cités plus haut dans ce
+fichier sont ceux d'avant.
+
+**L'année de consommation d'une ligne à cheval sur plusieurs années est celle du début de sa tâche**
+(revue du 2026-10-31, F-07 ; décision de l'auteur du 2026-11-07 ; WF-DEV-0040). Celle de la première
+part de la ligne, ses montants étant projetés part par part ; les filtres
+`consumption_year_min`/`_max` la retiennent sur cette année (`EstimateLineFacet.consumption_year`,
+paramètres `NodeConsumptionYearMin`/`Max`). C'est ce que le générateur faisait déjà. Écarté : une
+liste d'années, qui changerait la colonne et les filtres du 1.0.0 gelé.
+
+**La date de terminaison d'une récapitulative** (revue du 2026-10-31, F-08 ; WF-PLA-0130) :
+`TaskFacet.completed_on` dit la règle de la spécification, la plus tardive des terminaisons de ses
+subordonnées et de la mise à zéro de ses lignes propres hors provision, comme `started_on` disait
+déjà la sienne.
+
+**Le reste à engager ne change que ce qui est envoyé ; `reason` est accepté et ignoré** (revue du
+2026-10-31, F-09 ; décision de l'auteur du 2026-11-07 ; WF-RAE-0040, WF-DEV-0020).
+`RemainingUpdate.reestimated_amount_basis` : un chiffre absent reste ce qu'il était, un chiffre que
+la ligne n'accepte pas est refusé par `FIELD_NOT_ACCEPTED` ; le 422 de `setLineRemaining` nomme
+aussi `VALUE_OUT_OF_RANGE` et `HOURLY_RATE_MISSING` (`params.missing_rates`).
+`RemainingUpdate.reason`, que rien ne lit, reste au schéma, décrit comme accepté et ignoré, rien
+n'en étant conservé ni rendu ; le retirer casserait un client qui l'envoie : à reconsidérer en 2.0.
+
+**Les saisies du planning et le collage refusés sur une révision marquée ont leur exemple** (revue
+du 2026-10-31, F-10 ; WF-DAT-0020, WF-IHM-0090). `updateTaskFacet` et `setPredecessors` quittent la
+réponse commune `Conflict` pour un 409 décrit sur le modèle de leurs voisines :
+`project_not_terminal`, puis `revision_draft` et `no_background_task_running`
+(`StructureCommand.edit_planning`) ; le 409 d'`applyPaste` nomme `project_not_terminal` en premier,
+comme `createNode`, `moveNodes` et `updateEstimateLine` (US-0702/L3). Exemples engendrés par
+`wftools.mockrefusals`, sur la référence 101 : `task_update_marked_refused`,
+`predecessors_marked_refused`, `paste_apply_marked_refused`.
+
+**Le délai de paiement d'une ligne créée vaut zéro par défaut, quelle que soit sa nature** (revue du
+2026-10-31, F-11 ; décision de l'auteur du 2026-11-07 ; WF-DEV-0020).
+`EstimateLineWrite.payment_delay_days` absent : zéro, pour une ligne de main-d'œuvre comme pour une
+autre ; seule une ligne de provision n'en porte pas (null), et elle ne se crée pas par cette
+écriture. C'est ce que portent les exemples. Les filtres `cost_category_id`, `resource_role_id` et
+`is_critical` de `listNodes` ont leur description.
+
+**Un nœud retiré d'un différentiel garde un `remaining_entry` disponible, en 1.0.x** (revue du
+2026-10-31, F-12 ; décision de l'auteur du 2026-11-07). Le rendre indisponible demande une condition
+nouvelle de `CommandCondition`, énumération de réponse : laissé ouvert pour une version ultérieure.
+Seule la citation du résumé de `nodes_estimate` est corrigée (WF-PLA-0170, le rattachement à un lot,
+au lieu de WF-PLA-0130), dans `mockdata.py`.
+
+**`delta_to_reference` garde son nom, ses trois signes dits par leurs descriptions** (revue du
+2026-10-31, G-04 et V-05 ; décision de l'auteur du 2026-11-07 ; WF-RAE-0020, WF-PTF-0040,
+WF-DEV-0060). `RemainingIndicators.delta_to_reference` est une marge (négative au-delà du budget),
+`PortfolioProjectRow.delta_to_reference` un écart (positif au-delà), `EstimateIndicators` le devis
+moins la référence (positif au-delà) : chacune des trois descriptions nomme le signe des deux
+autres. Le nom est définitif pour les versions 1.x ; renommer la marge en `margin_to_reference`
+casserait le contrat gelé, à reconsidérer en 2.0.
+
+**Le plan de charge d'une révision marquée est conservé** (revue du 2026-10-31, G-05 ; WF-DAT-0040).
+`CalculationContext.is_stored` compte le plan de charge par rôle et par mois parmi ce que le
+marquage conserve ; `WorkloadPlan` dit `is_stored` vrai sur `marked_remaining`, faux sur
+`reference_budget`, lu aujourd'hui. `mockcurves.workload` le passe : `workload_marked_remaining`
+porte `is_stored: true`.
+
+**Le seuil de sous-charge est un rapport de 0 à 1, 0,5 par défaut ; `Percent` est toujours un
+rapport** (revue du 2026-10-31, G-06 ; décision de l'auteur du 2026-11-07 ; WF-PTF-0060,
+WF-DAT-0100). `under_load_threshold` de `getPortfolioWorkload` et
+`PortfolioWorkload.under_load_threshold` disent l'échelle et le défaut que le serveur retient, sans
+`minimum`/`maximum` au schéma en 1.0.x. `Percent` (common.yaml) dit son échelle unique, `0.03` pour
+3 % — toutes ses occurrences la suivent — et que le décalage d'un lien en pourcentage n'en est pas
+un (`Lag.value`, `50` pour la moitié). Le 422 a son exemple engendré par
+`wftools.mockportfoliotime`, `portfolio_workload_horizon_refused` (`/query/horizon_months`,
+`VALUE_OUT_OF_RANGE`, bornes 1 et 240).
+
+**Les indicateurs d'un sous-projet ont leur exemple ; la maille du devis est dite** (revue du
+2026-10-31, G-08 ; WF-IND-0020). `project_indicators_subproject` (`getProjectIndicators`, maille «
+Poste de commande »), engendré par `mocktoday`. `getEstimateIndicators` : restreint à un
+sous-projet, `by_subproject` porte cette seule clé, `by_cost_type` et `by_work_package` ses seules
+lignes — à confirmer par l'auteur pour `by_work_package`. L'absence d'exemple de courbe conservée
+reste admise.
+
+**Le monteur câbleur a sa main-d'œuvre dans la structure des coûts du portefeuille** (revue du
+2026-10-31, G-10 ; WF-PTF-0080, WF-PTF-0060). Réécrit la décision d'EP-02/L26 (« aucun projet ne
+l'emploie … la main-d'œuvre … reste tout entière au bureau d'études électricité »), rendue fausse
+par EP-02/L27, qui confie au monteur câbleur le câblage du témoin. `labor_by_org_node` porte deux
+nœuds : l'atelier de câblage, les montants budgétés des lignes du témoin que porte le monteur
+câbleur (13 352 h, 1 090 326,40), et le bureau d'études électricité le reste
+(`mockportfolio.cable_fitter_labour`). Le plan de charge agrégé le dit sans charge sur son horizon —
+le témoin ne l'emploie qu'au-delà —, et non plus employé par aucun projet.
+
+**Les zones des sous-projets, des signaux de pilotage et d'un rôle sans capacité** (revue du
+2026-10-31, G-11 ; décision de l'auteur du 2026-11-07 ; WF-IHM-0070, WF-RAE-0020, WF-PTF-0060,
+WF-PTF-0110). `SubprojectBalance.zone` : `alert` au-delà du budget, `nominal` sinon, jamais `watch`
+(les six sous-projets en dépassement des exemples sont en alerte). `PilotHealth.signals[].zone` :
+`alert` pour un jalon contractuel dépassé, `watch` pour les trois autres signaux (règle déjà décidée
+plus haut, écrite au contrat). Un mois de `PortfolioWorkload` d'un rôle sans capacité
+(`no_capacity`) : `alert` s'il a de la charge, `watch` sinon, comme tout rôle sans charge ;
+`mockportfoliotime.load_zone` le suit (il disait `nominal`).
+
+**Les rôles du plan de charge et le filtre des zones** (revue du 2026-10-31, G-12 ; WF-DEV-0070,
+WF-IHM-0130). `WorkloadPlan.roles` : tout rôle actif, chargé ou non sur l'horizon, restreint au nœud
+et à ses descendants avec `org_node_id`, ce que fait `mockcurves.workload`. Le filtre `zones` de
+`getPortfolioProjects` restreint sans trier, l'ordre restant celui de `sort_by` (« first of all »
+traduisait mal « d'abord »).
+
+**Laissés ouverts** par la décision de l'auteur du 2026-11-07 : G-07 (`revision_id` des lectures de
+devis et de reste à engager, et une révision marquée avant En cours), G-09 (les refus d'`as_of`), la
+partie (b) de F-12.
+
+**Corrélations** 1940 à 1943.
+
+#### Annexes H et I — risques, coûts réels, échanges
+
+**Le 409 de `getRiskOccurrenceReport` nomme la première condition manquante, dans l'ordre du 409 de
+`declareRiskOccurrence` : celles du projet (`project_not_terminal`, `reference_revision_designated`,
+`no_background_task_running`), puis celles du risque (`risk_identified`, puis
+`may_create_revision`).** Décision de l'auteur du 2026-11-07, option recommandée par la
+vérification. Le compte rendu suit ainsi son modèle, `getStructureMergeReport`, qui renvoie « la
+première condition manquante, comme au 409 de sa fusion » : on ne lit pas le compte rendu d'une
+survenance qui ne s'appliquerait pas. `may_create_revision` y reste, comme le compte rendu de fusion
+le garde par renvoi à `mergeCostStructure`. Ni statut ni valeur d'énumération ajoutés ;
+`risk_occurrence_not_identified` reste valable, et `risk_occurrence_without_reference`
+(`reference_revision_designated`) illustre les deux 409.
+
+**Les 409 de `createRisk`, `deleteRisk` et `reviewRisk` nomment, après leurs autres conditions,
+`may_create_revision` quand le projet n'a pas de révision en cours et que l'appelant n'a pas
+`revisions.write` : la saisie la créerait (WF-RIS-0020).** Décision de l'auteur du 2026-11-07. Le
+contrat le disait déjà de `ProjectCommand.declare_risk`/`edit_risks`, de `CommandCondition` et du
+409 d'`updateRiskProvision` ; les trois 409 l'énoncent désormais, dans l'ordre de la commande.
+Exemple `risk_may_create_revision_refused` (variante contrefactuelle : aucun rôle du témoin ne
+sépare `risks.write` de `revisions.write`).
+
+**`ExportRequest.depth` nul ou absent exporte l'image de l'arbre des tâches sur toute la profondeur
+de la structure ; un niveau au-delà de sa profondeur donne toute la structure ; les autres sortes
+d'export l'ignorent.** Décision de l'auteur du 2026-11-07, option recommandée par la vérification :
+WF-PLA-0120 donne à l'image la taille que son contenu demande, et `minimum: 1` fixe déjà le niveau 1
+comme premier niveau. Pas de borne haute, donc pas de 422 nouveau ; la forme de 1.0.0 est inchangée
+(`schemas/exchanges.yaml`).
+
+**`FileUpload.expires_at` vaut le dépôt plus vingt-quatre heures : passé ce délai, un dépôt qu'aucun
+import n'a ouvert est supprimé (404 à `openImport`) ; un dépôt ouvert par un import suit son import,
+jusqu'à ce qu'il soit appliqué, refusé, abandonné ou expiré.** Décision de l'auteur du 2026-11-07,
+qui complète I-01 (l'état `refused`) dans `FileUpload`, `uploadFile` et le résumé de
+`file_upload.json`. WF-DAT-0120 et WF-ARC-0100 dictent la règle ; l'exemple montrait déjà les
+vingt-quatre heures.
+
+**L'historique d'un risque (`listRiskReviews`, `RiskReview.actor` exigé) n'est pas traité.** H-06
+fait partie des constats que l'auteur garde pour une version ultérieure (décision de l'auteur du
+2026-11-07), y compris sa part descriptive et son exemple.
+
+#### Annexes J et V — transversal, cohérence des fixtures
+
+**Un 412 sans exemple propre montre l'exemple commun de `PreconditionFailed`.** La réponse partagée
+porte un exemple, `stale_lock_version` (écrit à la main : un compteur 3 envoyé quand l'objet porte
+4), que montrent les vingt-cinq opérations dont le 412 renvoie à `PreconditionFailed` sans exemple à
+elles — `updateUser`, `markRevision`, `updateTaskFacet`, `reviewRisk`… Un exemple propre à
+l'opération reste préféré là où il existe ; aucun `*_stale` par opération n'est engendré, la forme
+étant la même partout (revue du 2026-10-31, J-03 ; décision de l'auteur du 2026-11-07).
+
+**Les 409 sans exemple en reçoivent un, engendré** (revue du 2026-10-31, J-04, J-12 ; décision de
+l'auteur du 2026-11-07). La réponse partagée `Conflict`, que seuls `updateCostStructure`,
+`updateTaskFacet` et `setPredecessors` citent, montre une saisie de planning refusée sur la révision
+marquée 101 (`grid_write_marked_refused`, `revision_draft`) ; `applyPaste` montre un collage refusé
+de même (`paste_marked_refused`) ; `updateRisk`, le retard des armoires, survenu, refusé par
+`risk_not_occurred` que nomme sa commande `update` (`risk_update_occurred_refused`) ;
+`setTaskProgress`, la réception usine, un jalon, envoyée à l'état démarré, refusée par
+`task_not_milestone` (`task_progress_milestone_started_refused`) ; `updateUser` cite
+`user_email_taken`, celui de `createUser`. Générateurs : `wftools.mockrefusals`, `mockriskwrites`,
+`mockkanban`.
+
+**L'échec d'une tâche de fond porte la corrélation de la tâche** (revue du 2026-10-31, J-06 ;
+décision de l'auteur du 2026-11-07). `BackgroundTaskRef.problem` et `OperationOutcome.problem`
+disent que leur `correlation_id` est toujours présent : celui de la tâche, la corrélation de la
+requête qui l'a mise en file — celle que porte son inscription au journal —, ou celle tirée pour une
+tâche que la plateforme lance elle-même, une sauvegarde planifiée (WF-OBS-0020). C'est ce que le
+worker écrit déjà (`waterfall.worker.runner.failure`). `Problem.required` reste `[code, status]` :
+l'exiger aurait changé un champ obligatoire du contrat figé. Les onze `problem` imbriqués des
+exemples reçoivent le leur, et `tools/tests/test_mockwitness.py` l'exige.
+
+**Le refus des indicateurs d'une révision marquée avant En cours reste sans `params`** (revue du
+2026-10-31, V-02 ; décision de l'auteur du 2026-11-07). Le choix de #247 (décision de l'utilisateur
+du 2026-10-05) est gardé et dit au contrat : le 409 de `getProjectIndicators`, `getCostCurve` et
+`getEarnedValueCurves`, `Problem.params` — le seul `STATE_FORBIDS_OPERATION` sans paramètre — et le
+résumé de `project_indicators_offer` ; le front le distingue du refus d'un projet qui n'est pas en
+cours par l'absence de `params.state`. Une valeur nouvelle de `CommandCondition` aurait étendu une
+énumération de réponse figée.
+
+**Un exemple du contrat cite les phrases chiffrées qu'il reproduit sous `x-examples`** (revue du
+2026-10-31, V-01, H-10, I-10 ; décision de l'auteur du 2026-11-07). Un Example Object d'OpenAPI
+n'admet pas de clé `examples` : `wftools.examples.cited()` lit `x-examples` dans `fixtures/api/`,
+`mocktext.example` l'écrit. Une citation veut dire que la valeur reproduit la phrase, pas qu'elle en
+applique la règle à l'échelle du témoin. Citées : WF-PLA-0160 (`duration_units`), WF-PRJ-0050
+(`subproject_code_invalid`, `_reserved`, `_too_long`), WF-RIS-0060 (`nodes_risk_occurred`,
+`risk_occurred_detail` : les lignes de 120 et 80 du risque 752) et WF-CRE-0020, par un exemple
+contrefactuel nouveau, `import_actual_costs_dotted_code` (le projet A.ABC.26001), sous `getImport`.
+`make check-fixtures` passe de 5 à 9 exemples cités et ne fait toujours pas échouer un exemple non
+couvert : beaucoup n'ont pas de surface d'API. Ne sont pas cités : WF-RIS-0010
+(`node_deleted_provision_moved` applique la règle à 500 000 et le dit dans son résumé), WF-REF-0160
+et WF-REF-0170 (`reference_settings` ne porte que les bornes ; `fixtures/reference/` les couvre
+déjà), WF-RAE-0020 (`remaining_indicators` est à l'échelle du témoin).
+
+**Les phrases chiffrées de WF-RIS-0050 restent « non couvertes » par `fixtures/api/`** (revue du
+2026-10-31, H-10 ; décision de l'auteur du 2026-11-07). Le témoin applique la couverture des risques
+à son échelle (réserve, provisions restantes, coût des survenus), aucun exemple ne reproduit le
+projet à 1 000 de la Vérif, et `tools/tests/test_mockriskcoverage.py` n'en reprend pas les chiffres,
+contrairement à ce que la vérification supposait. Ces six phrases seront des tests du noyau
+(`backend/tests/examples/`, WF-QUA-0020) avec l'EPIC qui calcule la couverture ; un exemple d'API
+contrefactuel les dupliquerait sans rien éprouver.
+
+**Seule la barre oblique sépare le code projet du code de sous-projet dans un élément d'OTP**, et le
+code projet peut porter des points (`A.ABC.26001/10001`) : le commentaire de
+`WBS_ELEMENT_INVALID`/`_OUTSIDE_PROJECT`, `ImportRejection` et `Problem.params.project_code` le
+disent (WF-CRE-0020, WF-PRJ-0010 ; revue du 2026-10-31, I-10 ; décision de l'auteur du 2026-11-07).
+
+**Une propriété nullable dit quand elle est nulle** (revue du 2026-10-31, J-14 ; décision de
+l'auteur du 2026-11-07). Une phrase par propriété, tirée de ce que le contrat, les exemples ou le
+service font déjà ; dans un corps d'écriture, ce que veut dire `null` et, quand le service le
+montre, l'absence (`UserUpdate.org_node_id` : null détache, absent ne change rien ;
+`ProjectUpdate.description`, `order_received_on` : null efface). 80 des 103 propriétés relevées le
+disent. Restent, faute de règle que le contrat, les exemples ou le service établissent :
+`PortfolioProjectRow.win_probability` (jamais nulle dans les exemples, `Project.win_probability` ne
+l'est pas), `ProjectUpdate.code` (le service efface le code sur un null ; l'admettre d'un projet en
+cours, qui l'exige, est un choix), `Revision.snapshot` (absent, jamais nul dans les exemples),
+`TaskFacet.start`/`finish` et leurs écritures `TaskFacetWrite`/`TaskFacetUpdate`,
+`EstimateLineFacet.consumption_year`, `bearing_task_node_id`, `bearing_task_label` (jamais nuls ni
+montrés), `EstimateLineUpdate.resource_role_id`, `hours`, `unit_disbursement`, `payment_delay_days`
+(que fait un null envoyé sur une ligne qui porte la valeur), `Risk.last_review_on` (la déclaration
+compte pour une revue) et `ExportRequest.depth` (I-09, à l'agent H/I). Les facettes `Compared*`
+suivent celles qu'elles reprennent par ancre.
+
+**Les volumes du §4.6.2 que les exemples ne portent pas sont dits dans leur résumé** (revue du
+2026-10-31, V-07 ; décision de l'auteur du 2026-11-07). `volume/portfolio_risks` compte ses 429
+risques identifiés — le registre du témoin et jusqu'à trois par autre projet, une provision sans
+devis propre — face aux trente risques par projet du §4.6.2 ; `volume/nodes_thousand` dit que les
+devis propres des risques sont d'autres structures. Les volumes de comptes (500), de rôles (150), de
+nœuds d'organisation (40) et de contributeurs (50) ne reçoivent pas d'exemple : aucun écran ne le
+demande encore (`wftools.mockdata`).
+
+**Les identifiants des exemples portent tous le préfixe de l'univers**, sauf le `subject` d'un
+compte chez le fournisseur d'identité, qu'il tire : `dependencies_entered` reçoit la corrélation
+01926f3a-…-000000001999, et `tools/tests/test_mockwitness.py` refuse tout UUID sans le préfixe
+(revue du 2026-10-31, V-06 ; décision de l'auteur du 2026-11-07). Les corrélations nouvelles de
+cette passe sont prises du haut de la troisième suite, 1982 à 1999, pour ne pas croiser les autres
+passes qui prennent la première libre (1686 et suivantes).
+
 ## Collage et annulation
 
 **Le collage depuis un tableur suit exactement la forme d'un import** : `paste-preview`

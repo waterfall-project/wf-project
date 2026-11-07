@@ -335,7 +335,7 @@ describe("the skeleton of the planning", () => {
   it("is offered in the empty grid as the revision lists it, and fills the grid with the tasks it answers, the focus on what the screen says", async () => {
     const client = serve({ [SKELETON]: { example: "skeleton_generated", status: 201 } });
     render(
-      grid(empty, { structure: EMPTY, version: 0, skeleton: skeletonOf("revision_without_tasks") }),
+      grid(empty, { structure: EMPTY, version: 1, skeleton: skeletonOf("revision_without_tasks") }),
     );
     expect(
       screen.getByRole("row", { name: "Aucune ligne ne répond à la demande." }),
@@ -402,7 +402,7 @@ describe("the skeleton of the planning", () => {
     const problem = example("skeleton_structure_not_empty") as Problem & { readonly status: 409 };
     serve({ [SKELETON]: { problem } });
     render(
-      grid(empty, { structure: EMPTY, version: 0, skeleton: skeletonOf("revision_without_tasks") }),
+      grid(empty, { structure: EMPTY, version: 1, skeleton: skeletonOf("revision_without_tasks") }),
     );
     await userEvent.click(
       screen.getByRole("button", { name: "Engendrer le squelette de planning" }),
@@ -417,12 +417,12 @@ describe("the skeleton of the planning", () => {
     const hold = held();
     serve({ [SKELETON]: { example: "skeleton_generated", status: 201 } }, hold.until);
     const offer = skeletonOf("revision_without_tasks");
-    const { rerender } = render(grid(empty, { structure: EMPTY, version: 0, skeleton: offer }));
+    const { rerender } = render(grid(empty, { structure: EMPTY, version: 1, skeleton: offer }));
     await userEvent.click(
       screen.getByRole("button", { name: "Engendrer le squelette de planning" }),
     );
     // Another revision shown while the skeleton is generated: its answer fills nothing there.
-    rerender(grid(empty, { version: 0, skeleton: offer }));
+    rerender(grid(empty, { version: 1, skeleton: offer }));
     await act(async () => {
       hold.release();
       await hold.until;
@@ -431,12 +431,12 @@ describe("the skeleton of the planning", () => {
     expect(screen.queryByText(/^Squelette de planning engendré/)).toBeNull();
     // Back on the structure it was generated on, the tasks answered show; the same reading read
     // anew keeps them…
-    rerender(grid(empty, { structure: EMPTY, version: 0, skeleton: offer }));
+    rerender(grid(empty, { structure: EMPTY, version: 1, skeleton: offer }));
     expect(screen.getByText("Total — 4 tâches")).toBeInTheDocument();
-    rerender(grid({ ...empty }, { structure: EMPTY, version: 0, skeleton: offer }));
+    rerender(grid({ ...empty }, { structure: EMPTY, version: 1, skeleton: offer }));
     expect(screen.getByText("Total — 4 tâches")).toBeInTheDocument();
     // …and a reading at the version the skeleton moved the structure on to prevails.
-    rerender(grid(studies, { structure: EMPTY, version: 1, skeleton: offer }));
+    rerender(grid(studies, { structure: EMPTY, version: 2, skeleton: offer }));
     expect(screen.getByText("Total — 6 tâches")).toBeInTheDocument();
   });
 });

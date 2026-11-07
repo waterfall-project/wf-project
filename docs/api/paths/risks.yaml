@@ -2,22 +2,23 @@
   get:
     operationId: listRisks
     tags: [risks]
-    summary: Registre des risques
+    summary: Risk register
     description: >-
-      Libellé, probabilité, gravité, provision, état et date du dernier réexamen, avec la
-      case de matrice et les totaux de provisions (WF-RIS-0040), tels que la révision lue
-      les porte (`revision_id`, WF-RIS-0030). Le tri et les filtres sont faits par le
-      serveur, et les totaux sont ceux des risques retenus (WF-IHM-0130) : de tous les risques
-      que les filtres et la recherche retiennent, non de la seule page lue. Le registre est une
-      table plate, paginée comme toute autre (`limit`, `offset`, `meta` ; WF-IHM-0060, #1367).
-      Chacune de ses colonnes se filtre, selon la convention du README du contrat : l'état et la
-      zone par une liste, le libellé par la recherche, chaque colonne de nombres — probabilité,
-      gravité, provision, coût à la survenance et réestimé des survenus — par ses deux bornes
-      incluses, `<colonne>_min` et `<colonne>_max`, et la date du dernier réexamen par sa
-      période, `last_review_on_from` et `last_review_on_to`, fin incluse ; `last_review_on_to`
-      présente à la revue périodique les risques non réexaminés depuis une date (WF-RIS-0020,
-      `risks_filtered` ; H-01, #1785). Un risque sans coût à la survenance ni réestimé — un
-      risque identifié ou écarté — n'est retenu par aucune borne de ces deux colonnes.
+      Label, probability, severity, provision, state and date of the last review, with the
+      matrix cell and the provision totals (WF-RIS-0040), as the revision read holds them
+      (`revision_id`, WF-RIS-0030). Sorting and filtering are done by the server, and the
+      totals are those of the risks retained (WF-IHM-0130): of all the risks that the filters
+      and the search retain, not of the page read alone. The register is a flat table,
+      paginated like any other (`limit`, `offset`, `meta`; WF-IHM-0060, #1367). Each of its
+      columns can be filtered, following the convention of the contract's README: the state and
+      the zone by a list, the label by the search, each number column — probability, severity,
+      provision, cost at occurrence and reestimated of occurred — by its two inclusive bounds,
+      `<column>_min` and `<column>_max`, and the date of the last review by its period,
+      `last_review_on_from` and `last_review_on_to`, end included; `last_review_on_to` presents
+      to the periodic review the risks not reviewed since a date (WF-RIS-0020,
+      `risks_filtered`; H-01, #1785). A risk with neither a cost at occurrence nor a
+      reestimated amount — an identified or dismissed risk — is retained by no bound of these
+      two columns.
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
       - $ref: ../components/parameters.yaml#/RiskRevision
@@ -25,14 +26,14 @@
       - $ref: ../components/parameters.yaml#/Offset
       - name: states
         in: query
-        description: Restreint aux risques dans l'un de ces états (WF-RIS-0040).
+        description: Restricts to the risks in one of these states (WF-RIS-0040).
         schema:
           type: array
           items: { $ref: ../components/schemas/risks.yaml#/RiskState }
         explode: false
       - name: zones
         in: query
-        description: Restreint aux risques dont la case de matrice est dans l'une de ces zones.
+        description: Restricts to the risks whose matrix cell is in one of these zones.
         schema:
           type: array
           items: { $ref: ../components/schemas/reference.yaml#/AlertZone }
@@ -53,9 +54,10 @@
       - name: sort_by
         in: query
         description: >-
-          Colonne du tri ; absente, l'ordre de déclaration. Un risque sans coût à la survenance ni
-          réestimé vient après les autres dans l'ordre croissant de ces colonnes, avant dans le
-          décroissant, comme une valeur nulle de toute grille (#1761).
+          Sort column; when absent, the order of declaration. A risk with neither a cost at
+          occurrence nor a reestimated amount comes after the others in the ascending order of
+          these columns, before them in the descending order, like a null value of any grid
+          (#1761).
         schema:
           type: string
           enum:
@@ -70,7 +72,7 @@
       - $ref: ../components/parameters.yaml#/SortOrder
     responses:
       '200':
-        description: Risques et totaux.
+        description: Risks and totals.
         content:
           application/json:
             schema:
@@ -91,12 +93,12 @@
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '422':
         description: >-
-          Un filtre de colonne refusé, selon la convention du README, `fields` sur le paramètre :
-          une borne mal formée par `NUMBER_INVALID`, une date par `DATE_INVALID`, une borne
-          haute inférieure à la basse par `VALUE_OUT_OF_RANGE` sur `/query/<colonne>_max`,
-          `params.minimum` la borne inférieure donnée, une fin de période antérieure à son début
-          par `VALUE_OUT_OF_RANGE` sur `/query/last_review_on_to`, `params.minimum` le début
-          donné (WF-IHM-0130 ; H-01, #1785).
+          A column filter refused, following the convention of the README, `fields` on the
+          parameter: a malformed bound with `NUMBER_INVALID`, a date with `DATE_INVALID`, an
+          upper bound lower than the lower one with `VALUE_OUT_OF_RANGE` on
+          `/query/<column>_max`, `params.minimum` the lower bound given, an end of period
+          earlier than its start with `VALUE_OUT_OF_RANGE` on `/query/last_review_on_to`,
+          `params.minimum` the start given (WF-IHM-0130; H-01, #1785).
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
@@ -107,25 +109,25 @@
   post:
     operationId: createRisk
     tags: [risks]
-    summary: Déclarer un risque
+    summary: Declare a risk
     description: >-
-      La création ouvre la structure de coûts propre du risque et sa ligne de provision
-      dans la structure principale (WF-RIS-0010, WF-RIS-0030). La provision d'un risque
-      identifié ne fait pas partie du budget de référence (WF-RIS-0050). Une saisie de la
-      révision en cours, que le projet crée au préalable s'il n'en a pas, et qu'annule
-      `undoLastChange` (WF-RIS-0020, WF-IHM-0110) : elle relève de `edit_risks`
-      (`RevisionCommand`), et la commande `declare_risk` dit d'avance si elle aboutirait — une
-      structure principale avec une tâche, une catégorie active de type provision pour risques
-      (EP-14/L42s). La ligne de provision porte la catégorie que le risque désigne parmi
-      les catégories actives de type provision pour risques, retenue sans être demandée quand il
-      n'en existe qu'une, et appartient au sous-projet qu'il désigne, facultativement
-      (WF-RIS-0010 ; EP-14/L42p, #579, C-299) : le formulaire lit les catégories actives
-      (`listCostCategories`, `cost_type_kind`) et les sous-projets du projet (`listSubprojects`)
-      pour en proposer le choix. Elle est portée par la tâche de la structure principale qu'il
-      désigne, facultativement, et à défaut par la première tâche de premier niveau
-      (`provision_task_id`, WF-RIS-0010, #786) : le formulaire lit les tâches de la structure
-      principale (`listNodes`). La réponse nomme la structure propre créée (`structure_id`), la
-      ligne de provision (`provision_node_id`) et sa tâche (`provision_task`).
+      The creation opens the risk's own cost structure and its provision line in the main
+      structure (WF-RIS-0010, WF-RIS-0030). The provision of an identified risk is not part of
+      the reference budget (WF-RIS-0050). An entry in the current revision, which the project
+      creates beforehand if it has none, and which `undoLastChange` undoes (WF-RIS-0020,
+      WF-IHM-0110): it falls under `edit_risks` (`RevisionCommand`), and the `declare_risk`
+      command says in advance whether it would succeed — a main structure with a task, an
+      active category of the provision-for-risks type (EP-14/L42s). The provision line takes
+      the category that the risk designates among the active categories of the
+      provision-for-risks type, retained without being asked for when only one exists, and
+      belongs to the subproject that the risk designates, optionally (WF-RIS-0010;
+      EP-14/L42p, #579, C-299): the form reads the active categories (`listCostCategories`,
+      `cost_type_kind`) and the project's subprojects (`listSubprojects`) to offer the choice.
+      It is carried by the task of the main structure that the risk designates, optionally, and
+      failing that by the first top-level task (`provision_task_id`, WF-RIS-0010, #786): the
+      form reads the tasks of the main structure (`listNodes`). The response names the own
+      structure created (`structure_id`), the provision line (`provision_node_id`) and its
+      task (`provision_task`).
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
     requestBody:
@@ -135,7 +137,7 @@
           schema: { $ref: ../components/schemas/risks.yaml#/RiskWrite }
     responses:
       '201':
-        description: Risque créé.
+        description: Risk created.
         content:
           application/json:
             schema: { $ref: ../components/schemas/risks.yaml#/Risk }
@@ -147,42 +149,45 @@
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '409':
         description: >-
-          `STATE_FORBIDS_OPERATION`, `params.missing_condition` nommant la condition qui manque.
-          Le projet est terminal, `project_not_terminal` (WF-CYC-0100) — il ne liste alors aucune
-          commande, et ce 409 est le seul endroit où la condition est nommée —, ou un traitement
-          de fond court sur la révision en cours, `no_background_task_running` : les conditions
-          d'état de la saisie des risques. Ou la structure principale de la révision en cours, ou
-          de celle que la déclaration créerait, ne comporte aucune tâche : « La déclaration d'un
-          risque sur une structure principale sans tâche est refusée, en nommant la condition
-          manquante » (WF-RIS-0010) — la ligne de provision n'aurait pas de tâche où se ranger ;
-          `at_least_one_task` (EP-14/L42s). Ou aucune catégorie de coût active n'est de type
-          provision pour risques : la provision n'a pas de catégorie où se ranger (WF-RIS-0010) ;
-          `active_provision_category`, que la création d'un projet exige aussi (WF-CYC-0120). Les
-          conditions se jugent dans l'ordre où la commande `declare_risk` les liste sur un état
-          non terminal, et le refus nomme la première qui manque : `no_background_task_running`,
-          puis `at_least_one_task`, puis `active_provision_category` ; sur un projet terminal, où
-          la commande n'est pas listée, il nomme `project_not_terminal`. Ce 409 précède le 422 :
-          sans tâche ni catégorie active, aucune désignation ne serait valable, et les champs ne
-          sont pas jugés. Rien n'est écrit.
+          `STATE_FORBIDS_OPERATION`, `params.missing_condition` naming the missing condition.
+          The project is terminal, `project_not_terminal` (WF-CYC-0100) — it then lists no
+          command, and this 409 is the only place where the condition is named —, or a
+          background task is running on the current revision, `no_background_task_running`: the
+          state conditions of risk entry. Or the main structure of the current revision, or of
+          the one the declaration would create, has no task: "The declaration of a risk on a main
+          structure without a task is refused, naming the missing condition" (WF-RIS-0010) — the
+          provision line would have no task to sit under; `at_least_one_task` (EP-14/L42s). Or
+          no active cost category is of the provision-for-risks type: the provision has no
+          category to sit in (WF-RIS-0010); `active_provision_category`, which the creation of a
+          project also requires (WF-CYC-0120). The conditions are judged in the order in which
+          the `declare_risk` command lists them on a non-terminal state, and the refusal names
+          the first one missing: `no_background_task_running`, then `at_least_one_task`, then
+          `active_provision_category`, then `may_create_revision` when the project has no current
+          revision and the caller lacks `revisions.write`: the declaration would create it
+          (WF-RIS-0020, `ProjectCommand.declare_risk`); on a terminal project, where the command
+          is not listed, it names `project_not_terminal`. This 409 comes before the 422: without a task or an
+          active category, no designation would be valid, and the fields are not judged.
+          Nothing is written.
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
             examples:
               without_provision_category: { $ref: ../../../fixtures/api/risk_without_provision_category.json }
               without_task: { $ref: ../../../fixtures/api/risk_without_task.json }
+              may_create_revision: { $ref: ../../../fixtures/api/risk_may_create_revision_refused.json }
       '422':
         description: >-
-          `VALIDATION_FAILED`, `fields` désignant chaque champ : `/label` vide, `VALUE_REQUIRED`, ou
-          plus long que le schéma ne l'admet, `VALUE_TOO_LONG` ; `/provision_cost_category_id`
-          omise quand plusieurs catégories actives sont de type provision pour risques,
-          `VALUE_REQUIRED`, inconnue, `UNKNOWN_COST_CATEGORY`, désactivée,
-          `INACTIVE_REFERENCE_OBJECT` — une catégorie désactivée, ce qu'est toute catégorie
-          d'une nature désactivée (WF-REF-0010, C-291) —, ou d'une nature d'un autre type,
-          `PROVISION_CATEGORY_REQUIRED` ; `/provision_subproject_id` que le projet n'a pas,
-          `UNKNOWN_SUBPROJECT` ; `/provision_task_id` qui n'est pas une tâche de la structure
-          principale de la révision en cours, `UNKNOWN_TASK` (WF-RIS-0010, #786) ;
-          `/probability` hors de 0 à 1, `VALUE_OUT_OF_RANGE`, la borne franchie dans `params`.
-          Rien n'est écrit.
+          `VALIDATION_FAILED`, `fields` designating each field: `/label` empty, `VALUE_REQUIRED`,
+          or longer than the schema allows, `VALUE_TOO_LONG`; `/provision_cost_category_id`
+          omitted when several active categories are of the provision-for-risks type,
+          `VALUE_REQUIRED`, unknown, `UNKNOWN_COST_CATEGORY`, deactivated,
+          `INACTIVE_REFERENCE_OBJECT` — a deactivated category, which every category of a
+          deactivated cost type is (WF-REF-0010, C-291) —, or of a cost type of another type,
+          `PROVISION_CATEGORY_REQUIRED`; `/provision_subproject_id` that the project does not
+          have, `UNKNOWN_SUBPROJECT`; `/provision_task_id` that is not a task of the main
+          structure of the current revision, `UNKNOWN_TASK` (WF-RIS-0010, #786);
+          `/probability` outside 0 to 1, `VALUE_OUT_OF_RANGE`, the bound crossed in `params`.
+          Nothing is written.
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
@@ -192,15 +197,17 @@
                 $ref: ../../../fixtures/api/risk_provision_task_refused.json
               probability_out_of_range:
                 $ref: ../../../fixtures/api/risk_probability_out_of_range.json
+              category_required: { $ref: ../../../fixtures/api/risk_category_required.json }
+              category_inactive: { $ref: ../../../fixtures/api/risk_category_inactive.json }
       '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /projects/{project_id}/risks/{risk_id}:
   get:
     operationId: getRisk
-    summary: Un risque
+    summary: One risk
     description: >-
-      Attributs du risque et état où il se trouve dans la révision lue (`revision_id`,
+      Attributes of the risk and the state it is in within the revision read (`revision_id`,
       WF-RIS-0010, WF-RIS-0020, WF-RIS-0030).
     tags: [risks]
     parameters:
@@ -209,7 +216,7 @@
       - $ref: ../components/parameters.yaml#/RiskRevision
     responses:
       '200':
-        description: Risque.
+        description: Risk.
         content:
           application/json:
             schema: { $ref: ../components/schemas/risks.yaml#/Risk }
@@ -227,23 +234,23 @@
   patch:
     operationId: updateRisk
     tags: [risks]
-    summary: Modifier l'identité d'un risque
+    summary: Edit the identity of a risk
     description: >-
-      Le libellé, la description et la note de mitigation d'un risque, données du projet
-      (WF-RIS-0020, §4.4.1) : la modification ne crée aucune révision et s'écrit même sans
-      révision en cours, n'entre pas dans l'historique d'annulation (`undoLastChange`,
-      WF-IHM-0110), et l'abandon d'une révision ne la défait pas (`abandonRevision`). Elle relève
-      de la commande `update` du risque, sous `risks.write`, et non de la saisie des risques
-      dans la révision (`edit_risks`) : `may_create_revision` n'y manque jamais. La probabilité ne
-      se modifie pas ici : la changer est un réexamen daté, que seul `reviewRisk` écrit et que
-      l'historique montre (`RiskUpdate`, WF-RIS-0010, WF-RIS-0040 ; H-04). La gravité et la
-      provision ne sont pas saisissables : elles suivent la structure propre et la probabilité
-      (WF-RIS-0010). La catégorie, le sous-projet et la tâche de la provision, portés par chaque
-      révision, se changent par `updateRiskProvision` (décision de l'auteur du 2026-11-01, H-02,
-      #1782). Refusée sur un risque survenu, par 409 `STATE_FORBIDS_OPERATION`,
-      `params.missing_condition` à `risk_not_occurred` — la commande `update` du risque le
-      disait déjà indisponible. Elle porte le compteur lu du risque (`Risk.lock_version`), qu'elle
-      fait avancer.
+      The label, the description and the mitigation note of a risk, project data
+      (WF-RIS-0020, §4.4.1): the change creates no revision and is written even without a
+      current revision, does not enter the undo history (`undoLastChange`, WF-IHM-0110), and
+      abandoning a revision does not revert it (`abandonRevision`). It falls under the risk's
+      `update` command, under `risks.write`, and not under risk entry in the revision
+      (`edit_risks`): `may_create_revision` is never missing for it. The probability is not
+      changed here: changing it is a dated review, which only `reviewRisk` writes and which the
+      history shows (`RiskUpdate`, WF-RIS-0010, WF-RIS-0040; H-04). The severity and the
+      provision cannot be entered: they follow the own structure and the probability
+      (WF-RIS-0010). The category, the subproject and the task of the provision, held by each
+      revision, are changed through `updateRiskProvision` (author's decision of 2026-11-01, H-02,
+      #1782). Refused on an occurred risk, with 409 `STATE_FORBIDS_OPERATION`,
+      `params.missing_condition` set to `risk_not_occurred` — the risk's `update` command already
+      said it was unavailable. It carries the risk's lock version as read (`Risk.lock_version`),
+      which it advances.
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
       - $ref: ../components/parameters.yaml#/RiskId
@@ -254,7 +261,7 @@
           schema: { $ref: ../components/schemas/risks.yaml#/RiskUpdate }
     responses:
       '200':
-        description: Risque modifié.
+        description: Risk edited.
         content:
           application/json:
             schema: { $ref: ../components/schemas/risks.yaml#/Risk }
@@ -267,45 +274,49 @@
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '409':
         description: >-
-          `STATE_FORBIDS_OPERATION`, `params.missing_condition` nommant la condition qui manque :
-          `project_not_terminal` sur un projet terminal, qui ne liste pas la commande
-          (WF-CYC-0100) ; puis `risk_not_occurred` pour un risque survenu, que la commande
-          `update` dit indisponible. Aucune condition de la révision en cours : la modification
-          n'y écrit pas. Rien n'est écrit.
+          `STATE_FORBIDS_OPERATION`, `params.missing_condition` naming the missing condition:
+          `project_not_terminal` on a terminal project, which does not list the command
+          (WF-CYC-0100); then `risk_not_occurred` for an occurred risk, for which the `update`
+          command says it is unavailable. No condition of the current revision: the change does
+          not write to it. Nothing is written.
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              occurred: { $ref: ../../../fixtures/api/risk_update_occurred_refused.json }
       '412': { $ref: ../components/responses.yaml#/PreconditionFailed }
       '422':
         description: >-
-          `VALIDATION_FAILED`, `fields` désignant chaque champ : `/label` vide, `VALUE_REQUIRED`, ou
-          plus long que le schéma ne l'admet, `VALUE_TOO_LONG`, comme à la déclaration
-          (`createRisk`). La probabilité n'est pas un champ de la modification (`RiskUpdate`), ni la
-          provision (`updateRiskProvision`). Rien n'est écrit.
+          `VALIDATION_FAILED`, `fields` designating each field: `/label` empty, `VALUE_REQUIRED`,
+          or longer than the schema allows, `VALUE_TOO_LONG`, as at the declaration
+          (`createRisk`). The probability is not a field of the change (`RiskUpdate`), nor is the
+          provision (`updateRiskProvision`). Nothing is written.
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              label_blank: { $ref: ../../../fixtures/api/risk_update_label_blank.json }
       '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
   delete:
     operationId: deleteRisk
     tags: [risks]
-    summary: Supprimer un risque
+    summary: Delete a risk
     description: >-
-      Un risque qu'aucune révision marquée ne cite encore peut être supprimé, avec son devis
-      propre et sa ligne de provision ; au-delà, il s'écarte (WF-RIS-0020) : la suppression
-      d'un risque cité par une révision marquée est refusée par 409,
-      `STATE_FORBIDS_OPERATION`, `params.missing_condition` nommant `risk_not_cited`, et c'est
-      le réexamen (`reviewRisk`) qui l'écarte. Un risque survenu ne se supprime pas non plus :
-      aucune transition n'en part (WF-RIS-0020), `params.missing_condition` à
-      `risk_not_occurred`. `missing_condition` n'en nomme qu'une : quand les deux manquent,
-      `risk_not_occurred` l'emporte — un survenu ne s'écarte pas, et le renvoyer vers le
-      réexamen serait faux —, comme la commande `delete` les liste dans cet ordre. Relève de la saisie des risques
-      (`edit_risks`, `risks.write`), dans la révision en cours, créée au besoin, et
-      s'annule (WF-RIS-0020, WF-IHM-0110) — une annulation refusée par 409, `params.missing_condition`
-      à `restored_subproject_exists`, quand elle rendrait à sa provision un sous-projet supprimé
-      depuis (décision de l'auteur, #732) ; la commande `delete` du risque dit d'avance s'il se
-      supprime.
+      A risk that no marked revision cites yet can be deleted, with its own estimate and its
+      provision line; beyond that, it is dismissed (WF-RIS-0020): deleting a risk cited by a
+      marked revision is refused with 409, `STATE_FORBIDS_OPERATION`,
+      `params.missing_condition` naming `risk_not_cited`, and it is the review (`reviewRisk`)
+      that dismisses it. An occurred risk cannot be deleted either: no transition leaves it
+      (WF-RIS-0020), `params.missing_condition` set to `risk_not_occurred`.
+      `missing_condition` names only one: when both are missing, `risk_not_occurred` prevails
+      — an occurred risk is not dismissed, and pointing to the review would be wrong —, as the
+      `delete` command lists them in that order. Falls under risk entry
+      (`edit_risks`, `risks.write`), in the current revision, created if needed, and can be
+      undone (WF-RIS-0020, WF-IHM-0110) — an undo refused with 409, `params.missing_condition`
+      set to `restored_subproject_exists`, when it would give back to its provision a subproject
+      deleted since (author's decision, #732); the risk's `delete` command says in advance
+      whether it can be deleted.
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
       - $ref: ../components/parameters.yaml#/RiskId
@@ -313,35 +324,39 @@
         in: query
         required: true
         description: >-
-          Le compteur du risque supprimé, tel que l'écran l'a lu (`Risk.lock_version`) : périmé,
-          la suppression est refusée par 412 et rien n'est supprimé (WF-IHM-0110 ; décision de
-          l'auteur du 2026-10-28, US-0702/L2).
+          The lock version of the deleted risk, as the screen read it (`Risk.lock_version`):
+          when stale, the deletion is refused with 412 and nothing is deleted (WF-IHM-0110;
+          author's decision of 2026-10-28, US-0702/L2).
         schema: { $ref: ../components/common.yaml#/LockVersion }
     responses:
       '204':
-        description: Risque supprimé, son devis propre et sa ligne de provision avec lui.
+        description: Risk deleted, its own estimate and its provision line with it.
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '409':
         description: >-
-          `STATE_FORBIDS_OPERATION`, `params.missing_condition` nommant les conditions d'état de
-          la saisie des risques : `project_not_terminal` sur un projet terminal, qui ne liste pas
-          la commande, puis `no_background_task_running`, jugées avant celles du risque, comme à
-          la déclaration (`createRisk`) ;
-          puis à `risk_not_occurred` pour un risque survenu, dont aucune transition ne part, et
-          sinon à `risk_not_cited` : le risque est cité par une révision marquée, il ne se
-          supprime plus, il s'écarte (WF-RIS-0020). Quand les deux manquent, `risk_not_occurred`
-          est nommée.
+          `STATE_FORBIDS_OPERATION`, `params.missing_condition` naming the state conditions of
+          risk entry: `project_not_terminal` on a terminal project, which does not list the
+          command, then `no_background_task_running`, judged before those of the risk, as at
+          the declaration (`createRisk`);
+          then set to `risk_not_occurred` for an occurred risk, which no transition leaves, and
+          otherwise to `risk_not_cited`: the risk is cited by a marked revision, it can no longer
+          be deleted, it is dismissed (WF-RIS-0020). When both are missing, `risk_not_occurred`
+          is named. Then `may_create_revision` when the project has no current revision and the
+          caller lacks `revisions.write`: the deletion would create it (WF-RIS-0020,
+          `ProjectCommand.edit_risks`).
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
             examples:
               cited: { $ref: ../../../fixtures/api/risk_delete_cited.json }
+              occurred: { $ref: ../../../fixtures/api/risk_delete_occurred.json }
       '412':
         description: >-
-          `STALE_LOCK_VERSION` : le risque a été écrit depuis sa lecture, et rien n'est supprimé ;
-          `params.expected_lock_version` est son compteur courant (WF-IHM-0110, US-0702/L2).
+          `STALE_LOCK_VERSION`: the risk has been written since it was read, and nothing is
+          deleted; `params.expected_lock_version` is its current lock version (WF-IHM-0110,
+          US-0702/L2).
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
@@ -355,21 +370,21 @@
   put:
     operationId: updateRiskProvision
     tags: [risks]
-    summary: Changer la provision d'un risque
+    summary: Change the provision of a risk
     description: >-
-      La catégorie, le sous-projet et la tâche de la ligne de provision d'un risque, portés par
-      chaque révision avec son évaluation (WF-RIS-0020, WF-RIS-0010) : une saisie de la révision
-      en cours, que le projet crée au préalable s'il n'en a pas, qu'annule `undoLastChange` et que
-      l'abandon de la révision défait (WF-IHM-0110 ; décision de l'auteur du 2026-11-01, H-02,
-      #1782). Elle relève de la saisie des risques (`edit_risks`, `risks.write`), et la commande
-      `update_provision` du risque dit d'avance qu'elle n'est offerte que tant que le risque est
-      identifié (WF-RIS-0010). Chaque champ omis reste celui du risque. Une autre tâche déplace la
-      ligne de provision sur elle, le total du devis inchangé (WF-RIS-0010, #786). L'annulation
-      rend la catégorie, le sous-projet et la tâche d'avant, et elle est refusée quand ce
-      sous-projet a été supprimé depuis (409 `STATE_FORBIDS_OPERATION`,
-      `params.missing_condition` à `restored_subproject_exists` ; décision de l'auteur, #732).
-      Elle porte le compteur lu du risque (`Risk.lock_version`), le même que celui de la
-      modification de son identité, qu'elle fait avancer.
+      The category, the subproject and the task of a risk's provision line, held by each
+      revision with its assessment (WF-RIS-0020, WF-RIS-0010): an entry in the current
+      revision, which the project creates beforehand if it has none, which `undoLastChange`
+      undoes and which abandoning the revision reverts (WF-IHM-0110; author's decision of
+      2026-11-01, H-02, #1782). It falls under risk entry (`edit_risks`, `risks.write`), and the
+      risk's `update_provision` command says in advance that it is offered only while the risk
+      is identified (WF-RIS-0010). Each omitted field stays that of the risk. Another task
+      moves the provision line onto it, the estimate total unchanged (WF-RIS-0010, #786). The
+      undo gives back the previous category, subproject and task, and it is refused when that
+      subproject has been deleted since (409 `STATE_FORBIDS_OPERATION`,
+      `params.missing_condition` set to `restored_subproject_exists`; author's decision, #732).
+      It carries the risk's lock version as read (`Risk.lock_version`), the same as that of the
+      change of its identity, which it advances.
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
       - $ref: ../components/parameters.yaml#/RiskId
@@ -380,7 +395,7 @@
           schema: { $ref: ../components/schemas/risks.yaml#/RiskProvisionUpdate }
     responses:
       '200':
-        description: Provision du risque changée.
+        description: Provision of the risk changed.
         content:
           application/json:
             schema: { $ref: ../components/schemas/risks.yaml#/Risk }
@@ -392,16 +407,17 @@
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '409':
         description: >-
-          `STATE_FORBIDS_OPERATION`, `params.missing_condition` nommant la première condition qui
-          manque : les conditions d'état de la saisie des risques, `project_not_terminal` sur un
-          projet terminal, qui ne liste pas la commande, puis `no_background_task_running`,
-          jugées avant celles du risque, comme à la déclaration (`createRisk`) ; puis
-          `risk_identified` pour un risque survenu ou écarté, que la commande `update_provision`
-          dit indisponible (WF-RIS-0010) ; puis `may_create_revision`, sans révision en cours,
-          pour qui n'a pas `revisions.write` : la saisie la créerait (WF-RIS-0020). Ce 409 précède
-          le 422 : une catégorie envoyée pour un risque qui n'est pas identifié est refusée par
-          `risk_identified`, qu'elle soit désactivée, inconnue ou d'une nature d'un autre type,
-          aucune n'étant valable tant que la provision ne se change pas (#747). Rien n'est écrit.
+          `STATE_FORBIDS_OPERATION`, `params.missing_condition` naming the first missing
+          condition: the state conditions of risk entry, `project_not_terminal` on a terminal
+          project, which does not list the command, then `no_background_task_running`, judged
+          before those of the risk, as at the declaration (`createRisk`); then
+          `risk_identified` for an occurred or dismissed risk, for which the `update_provision`
+          command says it is unavailable (WF-RIS-0010); then `may_create_revision`, without a
+          current revision, for whoever lacks `revisions.write`: the entry would create it
+          (WF-RIS-0020). This 409 comes before the 422: a category sent for a risk that is not
+          identified is refused with `risk_identified`, whether it is deactivated, unknown or of
+          a cost type of another type, none being valid as long as the provision cannot be
+          changed (#747). Nothing is written.
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
@@ -410,10 +426,10 @@
       '412': { $ref: ../components/responses.yaml#/PreconditionFailed }
       '422':
         description: >-
-          `VALIDATION_FAILED`, `fields` désignant chaque champ, par les motifs de la déclaration
-          (`createRisk`), à ceci près que `INACTIVE_REFERENCE_OBJECT` ne vaut sur
-          `/provision_cost_category_id` que si la valeur change la catégorie du risque : sa
-          catégorie inchangée, désactivée depuis, est acceptée. Rien n'est écrit.
+          `VALIDATION_FAILED`, `fields` designating each field, on the grounds of the
+          declaration (`createRisk`), except that `INACTIVE_REFERENCE_OBJECT` applies to
+          `/provision_cost_category_id` only if the value changes the risk's category: its
+          unchanged category, deactivated since, is accepted. Nothing is written.
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
@@ -424,19 +440,20 @@
   get:
     operationId: listRiskReviews
     tags: [risks]
-    summary: Historique des réexamens
+    summary: History of the reviews
     description: >-
-      Chaque réexamen est daté et conserve la probabilité, la gravité et l'état retenus
-      (WF-RIS-0010). Pour une révision marquée (`revision_id`), les réexamens faits
-      jusqu'à son marquage : ceux qui le suivent n'appartiennent pas à ce qu'elle fige
-      (WF-RIS-0030).
+      Each review is dated and keeps the probability, the severity and the state retained
+      (WF-RIS-0010). For a marked revision (`revision_id`), the reviews made up to its
+      marking: those that follow it do not belong to what it freezes
+      (WF-RIS-0030). Without pagination: a risk is reviewed at the rhythm of its project, monthly
+      over the fifteen years a project lasts at most (WF-PLA-0150), some 180 reviews (§4.6.2).
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
       - $ref: ../components/parameters.yaml#/RiskId
       - $ref: ../components/parameters.yaml#/RiskRevision
     responses:
       '200':
-        description: Réexamens, du plus récent au plus ancien.
+        description: Reviews, from the most recent to the oldest.
         content:
           application/json:
             schema:
@@ -453,25 +470,25 @@
   post:
     operationId: reviewRisk
     tags: [risks]
-    summary: Réexaminer un risque
+    summary: Review a risk
     description: >-
-      La confirmation sans modification produit un réexamen daté ; un risque identifié
-      peut être écarté, et un risque écarté redevenir identifié (WF-RIS-0010,
-      WF-RIS-0020). C'est la seule écriture de la probabilité d'un risque : la modification
-      (`updateRisk`) ne la reçoit pas (H-04). Écarter un risque retire sa ligne de provision du reste à engager ;
-      la réserve pour risques et le budget de référence restent inchangés (WF-RIS-0050) ; la
-      provision du risque écarté qu'il présente est celle qu'il portait dans la révision de
-      référence (`Risk.provision_amount`). Un risque écarté qui redevient identifié recrée sa ligne
-      de provision avec la catégorie qu'il désignait si elle est encore active et de type
-      provision pour risques (`Risk.provision_cost_category_is_active`, #747), et sinon avec
-      celle que le réexamen désigne, comme à la déclaration (WF-RIS-0010 ; EP-14/L42p) ; hors
-      sous-projet si le sous-projet qu'il désignait a été supprimé (#732). Sa ligne de provision
-      est portée par la tâche qu'il désignait si elle est encore une tâche de la structure
-      principale, et sinon par la première tâche de premier niveau (WF-RIS-0010 ; #1227) ;
-      `provision_task` reste nul tant que le risque est écarté. Une saisie de la révision en
-      cours, créée au besoin : son annulation rend au risque sa probabilité et son
-      état précédents, et la catégorie qu'il désignait avant un retour à l'état identifié
-      (WF-RIS-0020, WF-IHM-0110).
+      Confirmation without change produces a dated review; an identified risk can be
+      dismissed, and a dismissed risk can become identified again (WF-RIS-0010,
+      WF-RIS-0020). It is the only write of a risk's probability: the change
+      (`updateRisk`) does not accept it (H-04). Dismissing a risk removes its provision line
+      from the remaining to commit; the risk reserve and the reference budget remain unchanged
+      (WF-RIS-0050); the provision of the dismissed risk that it presents is the one it held in
+      the reference revision (`Risk.provision_amount`). A dismissed risk that becomes
+      identified again recreates its provision line with the category it designated if that
+      category is still active and of the provision-for-risks type
+      (`Risk.provision_cost_category_is_active`, #747), and otherwise with the one the review
+      designates, as at the declaration (WF-RIS-0010; EP-14/L42p); outside any subproject if
+      the subproject it designated has been deleted (#732). Its provision line is carried by
+      the task it designated if that is still a task of the main structure, and otherwise by
+      the first top-level task (WF-RIS-0010; #1227); `provision_task` remains null while the
+      risk is dismissed. An entry in the current revision, created if needed: undoing it
+      gives the risk back its previous probability and state, and the category it designated
+      before a return to the identified state (WF-RIS-0020, WF-IHM-0110).
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
       - $ref: ../components/parameters.yaml#/RiskId
@@ -480,9 +497,12 @@
       content:
         application/json:
           schema: { $ref: ../components/schemas/risks.yaml#/RiskReviewWrite }
+          examples:
+            reidentified_category_chosen:
+              $ref: ../../../fixtures/api/risk_reidentified_category_chosen.json
     responses:
       '201':
-        description: Réexamen enregistré.
+        description: Review recorded.
         content:
           application/json:
             schema: { $ref: ../components/schemas/risks.yaml#/Risk }
@@ -496,43 +516,48 @@
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '409':
         description: >-
-          `STATE_FORBIDS_OPERATION`, `params.missing_condition` nommant les conditions d'état de
-          la saisie des risques : `project_not_terminal` sur un projet terminal, qui ne liste pas
-          la commande, puis `no_background_task_running`, jugées avant celles du risque, comme à
-          la déclaration (`createRisk`).
-          Puis le risque est survenu : aucune transition n'en part (WF-RIS-0020),
-          `params.missing_condition` à `risk_not_occurred`. Ou un
-          risque écarté qui redeviendrait identifié sur une structure principale qui ne comporte
-          aucune tâche : « La déclaration d'un risque sur une structure principale sans tâche,
-          comme le retour d'un risque écarté à l'état identifié sur une telle structure, est
-          refusée, en nommant la condition manquante » (WF-RIS-0010 ; décision de l'auteur, #787)
-          — sa ligne de provision n'aurait pas de tâche où se ranger ; `params.missing_condition`
-          à `at_least_one_task`. Ou alors qu'aucune catégorie de coût active n'est de type
-          provision pour risques (WF-RIS-0010) : `params.missing_condition` à
-          `active_provision_category`. Les conditions se jugent dans cet ordre, comme à la
-          déclaration, le refus nommant la première qui manque, et ce 409 précède le 422. Rien
-          n'est écrit.
+          `STATE_FORBIDS_OPERATION`, `params.missing_condition` naming the state conditions of
+          risk entry: `project_not_terminal` on a terminal project, which does not list the
+          command, then `no_background_task_running`, judged before those of the risk, as at
+          the declaration (`createRisk`).
+          Then the risk has occurred: no transition leaves it (WF-RIS-0020),
+          `params.missing_condition` set to `risk_not_occurred`. Or a
+          dismissed risk that would become identified again on a main structure that has no
+          task: "The declaration of a risk on a main structure without a task, like the return
+          of a dismissed risk to the identified state on such a structure, is refused, naming
+          the missing condition" (WF-RIS-0010; author's decision, #787)
+          — its provision line would have no task to sit under; `params.missing_condition`
+          set to `at_least_one_task`. Or while no active cost category is of the
+          provision-for-risks type (WF-RIS-0010): `params.missing_condition` set to
+          `active_provision_category`. Then `may_create_revision` when the project has no
+          current revision and the caller lacks `revisions.write`: the review would create it
+          (WF-RIS-0020, `ProjectCommand.edit_risks`). The conditions are judged in this order, as
+          at the declaration, the refusal naming the first one missing, and this 409 comes before
+          the 422. Nothing is written.
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
             examples:
               occurred: { $ref: ../../../fixtures/api/risk_review_occurred.json }
               without_task: { $ref: ../../../fixtures/api/risk_review_without_task.json }
+              without_provision_category:
+                $ref: ../../../fixtures/api/risk_review_without_provision_category.json
       '412': { $ref: ../components/responses.yaml#/PreconditionFailed }
       '422':
         description: >-
-          `VALIDATION_FAILED`, `fields` désignant `/provision_cost_category_id` quand un risque
-          écarté redevient identifié et que la catégorie qu'il désignait n'est plus active, ou
-          n'est plus de type provision pour risques, par les motifs de la déclaration
-          (`createRisk`) ; `/probability` hors de 0 à 1,
-          `VALUE_OUT_OF_RANGE`, la borne franchie dans `params`, comme à la déclaration
-          (`RiskReviewWrite.probability`, WF-RIS-0010). Rien n'est écrit.
+          `VALIDATION_FAILED`, `fields` designating `/provision_cost_category_id` when a
+          dismissed risk becomes identified again and the category it designated is no longer
+          active, or no longer of the provision-for-risks type, on the grounds of the declaration
+          (`createRisk`); `/probability` outside 0 to 1,
+          `VALUE_OUT_OF_RANGE`, the bound crossed in `params`, as at the declaration
+          (`RiskReviewWrite.probability`, WF-RIS-0010). Nothing is written.
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
             examples:
               probability_out_of_range:
                 $ref: ../../../fixtures/api/risk_review_probability_out_of_range.json
+              category_required: { $ref: ../../../fixtures/api/risk_review_category_required.json }
       '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
@@ -540,31 +565,33 @@
   get:
     operationId: getRiskOccurrenceReport
     tags: [risks]
-    summary: Compte rendu préalable de la survenance d'un risque
+    summary: Preliminary report of the occurrence of a risk
     description: >-
-      Une lecture, qui n'écrit rien : ce que la survenance du risque ferait de la structure
-      principale de la révision en cours (WF-RIS-0060), présenté avant sa confirmation comme le
-      compte rendu d'une fusion (`RiskOccurrenceReport`, sur le modèle de
-      `getStructureMergeReport`) — les tâches et les lignes du devis propre ajoutées sous la tâche
-      qui porte la ligne de provision, ou après elle quand c'est un jalon, la ligne de provision
-      retirée, la tâche porteuse modifiée —, et la provision retirée du reste à engager. L'écart
-      est celui que le serveur calcule, comme pour un différentiel (C-361), et le front ne le
-      compose pas (#1383). Abandonner à cette étape, c'est ne pas confirmer : rien n'est fusionné.
-      Le compte rendu décrit la révision en cours à l'instant de la lecture — ou, tant que le
-      projet n'en a pas, la dernière révision marquée, dont la survenance la créerait par copie
-      (`creates_current_revision`, comme pour la fusion d'un différentiel, #790) —, et la
-      survenance confirmée (`declareRiskOccurrence`) porte ce qu'il a lu : une saisie faite
-      entre-temps dans la structure principale, sur le risque ou dans son devis propre — qui
-      fait avancer `Risk.lock_version` —, ou une révision en cours née depuis la lecture, la
-      fait refuser par 412 (WF-IHM-0110). Tant que `refusals` n'est pas vide, la survenance ne
-      s'applique pas, et l'écran n'en offre pas la confirmation. Refusée par 409 pour un risque
-      qui n'est pas identifié, comme sa survenance.
+      A read, which writes nothing: what the occurrence of the risk would do to the main
+      structure of the current revision (WF-RIS-0060), presented before its confirmation like
+      the report of a merge (`RiskOccurrenceReport`, on the model of
+      `getStructureMergeReport`) — the tasks and the lines of the own estimate added under the
+      task that carries the provision line, or after it when it is a milestone, the provision
+      line removed, the carrying task changed —, and the provision removed from the remaining
+      to commit. The difference is the one the server computes, as for a differential
+      (C-361), and the front does not compose it (#1383). Abandoning at this step means not
+      confirming: nothing is merged. The report describes the current revision at the moment
+      of the read — or, as long as the project has none, the last marked revision, from which
+      the occurrence would create it by copy (`creates_current_revision`, as for the merge of a
+      differential, #790) —, and the confirmed occurrence (`declareRiskOccurrence`) carries
+      what it read: an entry made in the meantime in the main structure, on the risk or in its
+      own estimate — which advances `Risk.lock_version` —, or a current revision born since
+      the read, has it refused with 412 (WF-IHM-0110). As long as `refusals` is not empty, the
+      occurrence does not apply, and the screen does not offer its confirmation. Refused with
+      409 when the state forbids the occurrence, on the conditions of its 409 and in the same
+      order (`declareRiskOccurrence`): a report of an occurrence that could not apply is not
+      read.
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
       - $ref: ../components/parameters.yaml#/RiskId
     responses:
       '200':
-        description: Ce que la survenance ferait, et ce qui la refuse.
+        description: What the occurrence would do, and what refuses it.
         content:
           application/json:
             schema: { $ref: ../components/schemas/risks.yaml#/RiskOccurrenceReport }
@@ -574,53 +601,61 @@
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '409':
         description: >-
-          Le risque n'est pas identifié — survenu ou écarté — : seul un risque identifié survient
-          (WF-RIS-0020). `STATE_FORBIDS_OPERATION`, `params.missing_condition` à `risk_identified`,
-          la condition que la commande `declare_occurrence` du risque dit manquer.
+          The state forbids the occurrence: `STATE_FORBIDS_OPERATION`,
+          `params.missing_condition` the first missing condition, as in the 409 of the
+          occurrence (`declareRiskOccurrence`) and in the same order — those of the project,
+          `project_not_terminal`, `reference_revision_designated`, `no_background_task_running`
+          (WF-CYC-0100, WF-RIS-0060), then those of the risk, `risk_identified` for an occurred
+          or dismissed risk, only an identified risk occurring (WF-RIS-0020), then
+          `may_create_revision`, without a current revision, for whoever lacks
+          `revisions.write` (WF-RIS-0060). Each is the condition that the project's
+          `declare_risk_occurrence` command or the risk's `declare_occurrence` command says is
+          missing.
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
             examples:
               not_identified: { $ref: ../../../fixtures/api/risk_occurrence_not_identified.json }
+              without_reference: { $ref: ../../../fixtures/api/risk_occurrence_without_reference.json }
       '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
   post:
     operationId: declareRiskOccurrence
     tags: [risks]
-    summary: Déclarer un risque survenu
+    summary: Declare a risk occurred
     description: >-
-      Fusionne les tâches et les lignes du devis propre dans la structure principale de la
-      révision en cours, et retire la ligne de provision ; ne marque aucune révision et ne
-      déplace pas la référence (WF-RIS-0060, WF-RIS-0050). Les tâches de premier niveau du
-      devis propre sont placées, dans leur ordre, en dernière position sous la tâche qui
-      portait la ligne de provision ; quand c'est un jalon, immédiatement après lui, sous sa
-      tâche parente ou au premier niveau, et il reste un jalon sans sous-tâche. Leurs
-      subordonnées, leurs liaisons internes, leurs durées et leurs modes sont conservés ; une
-      tâche sans prédécesseur dans le devis propre passe en mode manuel aux dates qu'elle y
-      avait. Chaque ligne fusionnée garde ses grandeurs, porte un montant budgété nul et pour
-      réestimé le montant que ses grandeurs et ses dates donnent (WF-DEV-0020) — celui du
-      devis propre tant que ses dates n'ont pas changé (WF-RIS-0060) ; le compte rendu
-      préalable décrit cette place (`RiskOccurrenceReport.differences`). Le risque garde son
-      coût à la survenance, le total de son devis propre à cet instant (`Risk.occurrence_cost`,
-      WF-RIS-0010), que la couverture compare à la réserve (WF-RIS-0050). Chaque tâche et chaque
-      ligne fusionnées portent le risque (`Node.origin_risk_id`), que la copie, les déplacements,
-      les imports rapprochés par la lignée et la fusion d'un avenant conservent, et dont le
-      registre somme le réestimé courant (`Risk.occurred_reestimated_amount`, #1761). Les tâches
-      qu'elle ajoute ne portent aucun rattachement au lotissement, le devis propre d'un risque
-      n'en portant pas (WF-PLA-0170). Lorsque le projet n'a pas de révision en cours, la
-      survenance en crée une au préalable (WF-RIS-0060). Définitif : aucune commande ne
-      l'annule, et seul l'abandon de la révision en cours la défait, avec tout ce que cette
-      révision contient (`abandonRevision`, WF-RIS-0060) ; hors de l'historique d'annulation,
-      confié au worker, inscrit au journal d'audit (WF-RIS-0020, WF-IHM-0110,
-      WF-ARC-0090, WF-SEC-0030) ; pendant son traitement, les commandes d'écriture de la
-      révision en cours sont indisponibles (`no_background_task_running`). La confirmation suit
-      le compte rendu préalable (`getRiskOccurrenceReport`), et porte les deux compteurs qu'il a
-      lus : refusée par 412 si l'un a avancé depuis, elle n'applique jamais un compte rendu que
-      personne n'a vu, comme la fusion d'un différentiel (`mergeCostStructure`, US-0680). Le
-      compteur du risque (`Risk.lock_version`) avance aussi à toute saisie dans son devis propre,
-      que le compte rendu liste : une saisie du devis propre après la lecture fait donc refuser la
-      confirmation. Elle renvoie aussi `creates_current_revision`, tel que le compte rendu l'a
-      lu : une révision en cours née depuis la lecture, ou disparue, la fait refuser par 412.
+      Merges the tasks and the lines of the own estimate into the main structure of the
+      current revision, and removes the provision line; marks no revision and does not move
+      the reference (WF-RIS-0060, WF-RIS-0050). The top-level tasks of the own estimate are
+      placed, in their order, in last position under the task that carried the provision
+      line; when that is a milestone, immediately after it, under its parent task or at the
+      top level, and it remains a milestone without subtasks. Their subordinates, their
+      internal links, their durations and their modes are kept; a task without a predecessor
+      in the own estimate switches to manual mode at the dates it had there. Each merged line
+      keeps its quantities, takes a zero budgeted amount and as reestimated amount the amount
+      that its quantities and its dates give (WF-DEV-0020) — that of the own estimate as long
+      as its dates have not changed (WF-RIS-0060); the preliminary report describes this
+      placement (`RiskOccurrenceReport.differences`). The risk keeps its cost at occurrence,
+      the total of its own estimate at that moment (`Risk.occurrence_cost`, WF-RIS-0010),
+      which the coverage compares with the reserve (WF-RIS-0050). Each merged task and line
+      carries the risk (`Node.origin_risk_id`), which the copy, the moves, the imports matched
+      by lineage and the merge of an amendment keep, and whose current reestimated amount the
+      register sums (`Risk.occurred_reestimated_amount`, #1761). The tasks it adds carry no
+      attachment to the work breakdown, a risk's own estimate carrying none (WF-PLA-0170).
+      When the project has no current revision, the occurrence creates one beforehand
+      (WF-RIS-0060). Final: no command undoes it, and only abandoning the current revision
+      reverts it, with everything that revision contains (`abandonRevision`, WF-RIS-0060);
+      outside the undo history, handed to the worker, recorded in the audit log (WF-RIS-0020,
+      WF-IHM-0110, WF-ARC-0090, WF-SEC-0030); while it is processed, the write commands of
+      the current revision are unavailable (`no_background_task_running`). The confirmation
+      follows the preliminary report (`getRiskOccurrenceReport`), and carries the two lock
+      versions it read: refused with 412 if either has advanced since, it never applies a
+      report that nobody has seen, like the merge of a differential (`mergeCostStructure`,
+      US-0680). The risk's lock version (`Risk.lock_version`) also advances on any entry in
+      its own estimate, which the report lists: an entry in the own estimate after the read
+      therefore has the confirmation refused. It also sends back `creates_current_revision`,
+      as the report read it: a current revision born since the read, or gone, has it refused
+      with 412.
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
       - $ref: ../components/parameters.yaml#/RiskId
@@ -633,7 +668,7 @@
             sent: { $ref: ../../../fixtures/api/risk_occurrence_sent.json }
     responses:
       '202':
-        description: Survenance mise en file.
+        description: Occurrence queued.
         content:
           application/json:
             schema: { $ref: ../components/common.yaml#/BackgroundTaskRef }
@@ -645,31 +680,34 @@
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '409':
         description: >-
-          L'état interdit la survenance : `STATE_FORBIDS_OPERATION`, `params.missing_condition` la
-          première condition qui manque, celles du projet d'abord, dans l'ordre où sa commande
-          `declare_risk_occurrence` les nomme — `project_not_terminal` sur un projet terminal, qui
-          ne la liste plus (WF-CYC-0100), `reference_revision_designated` tant qu'il n'a pas de
-          révision de référence (WF-RIS-0060), `no_background_task_running` pendant un traitement
-          de fond qui écrit dans la révision en cours ou la crée —, puis celles du risque, dans
-          l'ordre où sa commande `declare_occurrence` les nomme — `risk_identified` pour un risque
-          survenu ou écarté, seul un risque identifié survenant (WF-RIS-0020), comme au compte
-          rendu, puis `may_create_revision`, sans révision en cours, pour qui n'a pas
-          `revisions.write` (WF-RIS-0060). Rien n'est écrit (H-08, US-0702/L2).
+          The state forbids the occurrence: `STATE_FORBIDS_OPERATION`, `params.missing_condition`
+          the first missing condition, those of the project first, in the order in which its
+          `declare_risk_occurrence` command names them — `project_not_terminal` on a terminal
+          project, which no longer lists it (WF-CYC-0100), `reference_revision_designated` as
+          long as it has no reference revision (WF-RIS-0060), `no_background_task_running` during
+          a background task that writes to the current revision or creates it —, then those of
+          the risk, in the order in which its `declare_occurrence` command names them —
+          `risk_identified` for an occurred or dismissed risk, only an identified risk occurring
+          (WF-RIS-0020), as at the report, then `may_create_revision`, without a current
+          revision, for whoever lacks `revisions.write` (WF-RIS-0060). Nothing is written (H-08,
+          US-0702/L2).
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
             examples:
               not_identified: { $ref: ../../../fixtures/api/risk_occurrence_not_identified.json }
+              without_reference: { $ref: ../../../fixtures/api/risk_occurrence_without_reference.json }
       '412':
         description: >-
-          La structure principale ou le risque ont changé depuis le compte rendu confirmé — le
-          risque change aussi à toute saisie dans son devis propre —, ou une révision en cours
-          est née depuis la lecture (`creates_current_revision` vrai), ou a disparu (faux) : le
-          compte rendu est périmé, et rien n'est fusionné (WF-RIS-0060, WF-IHM-0110).
-          `STALE_LOCK_VERSION`, `params.expected_lock_version` le compteur courant du risque,
-          l'objet que le chemin nomme, même quand seule la structure principale a changé, et rien
-          d'autre, comme tout 412 (#296), si bien qu'il ne dit pas lequel des deux a avancé ; le
-          client ne rejoue pas avec ce compteur, il relit le compte rendu, qui rend l'un et l'autre.
+          The main structure or the risk has changed since the confirmed report — the risk also
+          changes on any entry in its own estimate —, or a current revision has been born since
+          the read (`creates_current_revision` true), or has gone (false): the report is stale,
+          and nothing is merged (WF-RIS-0060, WF-IHM-0110).
+          `STALE_LOCK_VERSION`, `params.expected_lock_version` the current lock version of the
+          risk, the object the path names, even when only the main structure has changed, and
+          nothing else, like any 412 (#296), so that it does not say which of the two has
+          advanced; the client does not replay with this lock version, it reads the report
+          again, which returns both.
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
@@ -683,21 +721,22 @@
   get:
     operationId: getProjectRiskCoverage
     tags: [risks]
-    summary: Couverture des risques
+    summary: Risk coverage
     description: >-
-      La réserve pour risques (`RiskCoverageTotals.reserve`), face aux provisions des risques
-      identifiés dans la révision courante et aux coûts à la survenance des risques survenus
-      (`Risk.occurrence_cost`), et leur écart signé (WF-RIS-0050, WF-RAE-0020) : la terminaison
-      ou la réestimation des tâches issues d'un risque survenu ne change ni le coût des
-      survenus ni l'écart ; le réestimé courant de leurs lignes est présenté en regard du coût
-      des survenus, hors de l'écart (`RiskCoverageTotals.occurred_reestimated`, #1761). Dans la
-      révision nommée, ou la révision courante.
+      The risk reserve (`RiskCoverageTotals.reserve`), against the provisions of the
+      identified risks in the current revision and the costs at occurrence of the occurred
+      risks (`Risk.occurrence_cost`), and their signed variance (WF-RIS-0050, WF-RAE-0020): the
+      completion or the re-estimation of the tasks that came from an occurred risk changes
+      neither the cost of the occurred risks nor the variance; the current reestimated amount
+      of their lines is presented alongside the cost of the occurred risks, outside the
+      variance (`RiskCoverageTotals.occurred_reestimated`, #1761). In the named revision, or
+      the current revision.
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
       - $ref: ../components/parameters.yaml#/RiskRevision
     responses:
       '200':
-        description: Couverture des risques du projet.
+        description: Risk coverage of the project.
         content:
           application/json:
             schema: { $ref: ../components/schemas/risks.yaml#/RiskCoverage }
@@ -713,27 +752,31 @@
   get:
     operationId: getProjectRiskMatrix
     tags: [risks]
-    summary: Matrice de risques du projet
+    summary: Risk matrix of the project
     description: >-
-      Quatre niveaux de probabilité et quatre de gravité, d'après le référentiel
-      (WF-REF-0160, WF-RIS-0040), remplie par les risques de la révision lue
-      (`revision_id`, WF-RIS-0030) ; chaque niveau dit ses bornes, celles de gravité en
-      pourcentage de l'assiette du projet — son budget de référence ou, avant lui, le total
-      hors provisions du devis de sa révision courante (WF-REF-0160). Chaque case porte sa zone, doublée d'un indice non coloré à
-      l'affichage (WF-IHM-0070) et le nombre de ses seuls risques identifiés, comme les bulles
-      (`cells`, #1395) ; chaque risque lu est un point à ses valeurs exactes, avec son état
-      (`points`, #1053), et les totaux de provisions portent sur les trois états (WF-RIS-0040).
+      Four levels of probability and four of severity, from the reference data
+      (WF-REF-0160, WF-RIS-0040), filled with the risks of the revision read
+      (`revision_id`, WF-RIS-0030); each level states its bounds, those of severity as a
+      percentage of the base of the project — its reference budget or, before it, the total
+      excluding provisions of the estimate of its current revision (WF-REF-0160). Each cell
+      carries its zone, doubled by a non-colour cue on display (WF-IHM-0070), and the
+      number of its identified risks only, like the bubbles (`cells`, #1395); each risk read is
+      a point at its exact values, with its state (`points`, #1053), and the provision totals
+      cover the three states (WF-RIS-0040). On a zero base — a project without a reference
+      budget whose estimate carries only provisions so far — no share is computable
+      (`no_reference_budget`), and every point is at the lowest severity level (#1240).
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
       - $ref: ../components/parameters.yaml#/RiskRevision
     responses:
       '200':
-        description: Matrice remplie et totaux.
+        description: Filled matrix and totals.
         content:
           application/json:
             schema: { $ref: ../components/schemas/risks.yaml#/RiskMatrix }
             examples:
               witness: { $ref: ../../../fixtures/api/risk_matrix.json }
+              no_basis: { $ref: ../../../fixtures/api/risk_matrix_no_basis.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '422': { $ref: ../components/responses.yaml#/UnprocessableEntity }

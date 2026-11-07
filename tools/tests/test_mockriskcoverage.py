@@ -73,7 +73,7 @@ def test_a_risk_that_occurred_keeps_its_cost_at_occurrence_and_the_others_have_n
     assert detail["occurrence_cost"] == "200.00"
     assert detail == items[universe(DELIVERY_DELAY.number)]
     occurrence_cost = _risks_schemas()["Risk"]["properties"]["occurrence_cost"]
-    assert "coût à la survenance" in occurrence_cost["description"]
+    assert "The cost at occurrence" in occurrence_cost["description"]
     assert "occurrence_cost" in _risks_schemas()["Risk"]["required"]
 
 

@@ -467,7 +467,11 @@ def workload(reading: Reading, basis: str, org: str | None = None) -> JsonObject
     named = {node["org_node_id"]: node["label"] for node in fixture("org_nodes")}
     return {
         # A marked revision is calculated at its marking (Vérif of WF-DEV-0070).
-        "context": context(reading, at=reading.at if basis == "marked_remaining" else TODAY),
+        "context": context(
+            reading,
+            stored=basis == "marked_remaining",
+            at=reading.at if basis == "marked_remaining" else TODAY,
+        ),
         "basis": basis,
         "org_node_id": org,
         "org_node_label": None if org is None else named[org],

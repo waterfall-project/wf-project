@@ -537,8 +537,8 @@ def test_on_a_closed_project_the_conditions_of_the_subproject_come_before_its_cl
     paths = (API / "paths" / "projects.yaml").read_text(encoding="utf-8")
     deletion = paths.split("operationId: deleteSubproject", 1)[1]
     refusal = deletion.split("'409':", 1)[1].split("content:", 1)[0]
-    assert _order_said(command, "la commande les liste dans cet ordre") == ORDER
-    assert _order_said(refusal, "dans l'ordre où la commande `delete` les liste") == ORDER
+    assert _order_said(command, "the command lists them in this order") == ORDER
+    assert _order_said(refusal, "in the order in which the `delete` command lists them") == ORDER
     # The subprojects of the witness completed (`subprojects_completed`, EP-14/L42o) list no
     # command, as their project (US-0702/L3): their deletion sent all the same is refused by the
     # first condition in that order — the citation by the reference, before the closing.
@@ -657,10 +657,10 @@ def test_a_line_of_provision_is_moved_off_a_subproject_by_its_risk() -> None:
     block = text.split("operationId: deleteSubproject\n", 1)[1].split("    parameters:", 1)[0]
     said = " ".join(block.split())
     assert (
-        "une ligne de provision se passe par son risque (`updateRiskProvision`, "
+        "a provision line is moved through its risk (`updateRiskProvision`, "
         "`provision_subproject_id`)" in said
     )
-    assert "la décision contredit le Vérif" not in said
+    assert "the decision contradicts the Vérif" not in said
 
 
 def test_the_lines_a_refused_deletion_names_are_lines_of_the_current_revision() -> None:

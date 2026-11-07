@@ -726,7 +726,10 @@ def test_a_deposit_that_fails_its_verification_fails_its_restore_before_any_disc
         "code": unverified["code"],
         "status": unverified["status"],
         "params": unverified["params"],
+        # The correlation of the task, not that of the refused request (WF-OBS-0020).
+        "correlation_id": failed["problem"]["correlation_id"],
     }
+    assert failed["problem"]["correlation_id"] != unverified["correlation_id"]
     assert failed["problem"]["params"] == {"missing_condition": "backup_verified"}
     assert failed["problem"]["code"] != "FILE_FORMAT_UNREADABLE"
     deposit = fixture("file_upload_external_backup")
@@ -736,8 +739,8 @@ def test_a_deposit_that_fails_its_verification_fails_its_restore_before_any_disc
     assert "fixtures/api/task_restore_verification_failed.json" in tasks
     # The verification confirms the instant the deposit read; the deposit lasts the task.
     told = " ".join(_block_of("startRestore", "platform.yaml").split())
-    assert "confirme aussi l'instant que le dépôt a lu (`backup_taken_at`)" in told
-    assert "gardé jusqu'à la fin de sa tâche" in told
+    assert "also confirms the instant the upload read (`backup_taken_at`)" in told
+    assert "kept until the end of its task" in told
 
 
 def test_the_costs_on_disk_are_the_actual_cost_the_indicators_on_disk_count() -> None:
@@ -896,7 +899,8 @@ def test_the_coverage_of_the_portfolio_counts_that_of_the_witness() -> None:
 def test_every_inverted_period_is_refused_by_one_rule() -> None:
     # One rule for every period of the contract (docs/api/README.md): 422, `/query/to` by
     # VALUE_OUT_OF_RANGE, `params.minimum` the start given — a date or an instant, as `from` is.
-    # A table with several columns of dates names the end by its column (#936).
+    # A table with several columns of dates names the end by its column (#936), and a request
+    # body its field (`openImport`, `/period_to`).
     # A bound of the portfolio sent alone is completed by the default period, and the refusal
     # names the bound sent, `params` the bound completed (#560).
     found = sorted(mockwitness.FIXTURES.glob("*_period_inverted.json"))
@@ -904,6 +908,7 @@ def test_every_inverted_period_is_refused_by_one_rule() -> None:
         "access_roles": ("/query/updated_at_to", "minimum", datetime),
         "actual_costs": ("/query/to", "minimum", date),
         "audit_events": ("/query/to", "minimum", datetime),
+        "import": ("/period_to", "minimum", date),
         "backups": ("/query/to", "minimum", datetime),
         "nodes": ("/query/start_to", "minimum", date),
         "portfolio": ("/query/to", "minimum", date),

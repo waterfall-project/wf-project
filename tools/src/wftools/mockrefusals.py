@@ -11,10 +11,20 @@ never by a 403 (US-0702/L1):
   (``project_completed``), which lists no command any more (US-0702/L3), refused by
   ``project_not_terminal`` — and ``timeline_delete_terminal``, written by hand (#803), refused
   alike; ``reference_designation_terminal.json``, the offer designated as the reference of that
-  project, refused alike, before the conditions of the command (#1674);
+  project, refused alike, before the conditions of the command (#1674); and every other write of
+  that project that names ``project_not_terminal`` (``project_update_terminal``,
+  ``work_breakdown_terminal``, ``subproject_create_terminal``, ``subproject_update_terminal``,
+  ``contributors_set_terminal``), the deletion of a subproject naming it last, after the
+  conditions of the subproject, on a counterfactual variant (``subproject_delete_terminal``);
+- ``project_code_blank.json`` and ``project_fields_too_long.json``, a project created under a code
+  made only of blanks, and with a label and a client one character beyond their bound (D-02);
 - ``node_create_marked_refused.json`` and ``skeleton_marked_refused.json``, a task created and the
   skeleton generated on the reference, the marked revision 101, refused by ``revision_draft``,
-  the condition the revision names for its entries (``revision_marked``).
+  the condition the revision names for its entries (``revision_marked``); likewise
+  ``grid_write_marked_refused.json``, the example of the shared ``Conflict`` that the entries of
+  the planning give, and alike a task entered, its predecessors entered and a block pasted there
+  (``task_update_marked_refused``, ``predecessors_marked_refused``,
+  ``paste_apply_marked_refused``; F-10).
 
 And a catalogue in which every code and every condition is rendered by an operation, with an
 example (J-03, J-06, J-11, E-07, F-05, J-04):
@@ -119,7 +129,28 @@ ACCESS_ROLE_STALE_CORRELATION = universe(1664)
 """The correlation of the deletion of an access role, which carries its counter since #1733."""
 
 DESIGNATE_TERMINAL_CORRELATION = universe(1683)
+GRID_MARKED_CORRELATION = universe(1996)
 """The correlation of a reference designated on a terminal project (#1674)."""
+
+PROJECT_TERMINAL_CORRELATION, BREAKDOWN_TERMINAL_CORRELATION = universe(1766), universe(1767)
+SUBPROJECT_CREATE_TERMINAL_CORRELATION = universe(1768)
+SUBPROJECT_UPDATE_TERMINAL_CORRELATION = universe(1769)
+SUBPROJECT_DELETE_TERMINAL_CORRELATION = universe(1770)
+CONTRIBUTORS_TERMINAL_CORRELATION = universe(1771)
+"""The correlations of the other writes refused on a terminal project (D-02)."""
+
+CODE_BLANK_CORRELATION, TOO_LONG_FIELDS_CORRELATION = universe(1772), universe(1773)
+"""The correlations of a project created under a blank code, and with fields too long (D-02)."""
+
+LABEL_BOUND = 300
+"""The bound of the label and of the client of a project (``ProjectClient``)."""
+
+TASK_MARKED_CORRELATION, PREDECESSORS_MARKED_CORRELATION, PASTE_MARKED_CORRELATION = (
+    universe(1940),
+    universe(1941),
+    universe(1942),
+)
+"""The correlations of a task, its predecessors and a paste written on a marked revision (F-10)."""
 
 WITHOUT_HOURS_BLOCK = (
     mockwrites.BLOCK[0],
@@ -452,6 +483,84 @@ def examples() -> dict[str, JsonObject]:
         **_tree_examples(),
         **_named_examples(),
         **_stale_examples(),
+        **_terminal_examples(),
+        **_project_field_examples(),
+    }
+
+
+def _terminal_examples() -> dict[str, JsonObject]:
+    """Return the writes of the witness completed today refused by ``project_not_terminal``."""
+    project = cast("JsonObject", fixture("project_completed"))
+    on = f"sur le projet témoin, « {project['label']} », terminé aujourd'hui (project_completed)"
+    refused = (
+        "l'appel direct est refusé par la condition qui manque, project_not_terminal, comme "
+        "toute écriture d'un projet terminal"
+    )
+    return {
+        "project_update_terminal.json": mocktext.example(
+            f"Le libellé du projet modifié {on} : le projet clos ne liste plus update, et "
+            f"{refused} ; rien n'est écrit (WF-CYC-0100, WF-IHM-0090).",
+            state_refused("project_not_terminal", PROJECT_TERMINAL_CORRELATION),
+        ),
+        "work_breakdown_terminal.json": mocktext.example(
+            f"Le lotissement enregistré {on} : le projet clos ne liste plus "
+            f"update_work_breakdown, et {refused}, la première des conditions que la commande "
+            f"liste ; rien n'est écrit (WF-CYC-0100, WF-PRJ-0020, WF-IHM-0090).",
+            state_refused("project_not_terminal", BREAKDOWN_TERMINAL_CORRELATION),
+        ),
+        "subproject_create_terminal.json": mocktext.example(
+            f"Un sous-projet créé {on} : le projet clos ne liste plus update, qui en "
+            f"couvre les sous-projets, et "
+            f"{refused} ; rien n'est créé (WF-CYC-0100, WF-PRJ-0050, WF-IHM-0090).",
+            state_refused("project_not_terminal", SUBPROJECT_CREATE_TERMINAL_CORRELATION),
+        ),
+        "subproject_update_terminal.json": mocktext.example(
+            f"Le libellé du sous-projet « Poste de commande » modifié {on} : le sous-projet ne "
+            f"liste plus update (subprojects_completed), et {refused} ; rien n'est écrit "
+            f"(WF-CYC-0100, WF-PRJ-0050, WF-IHM-0090).",
+            state_refused("project_not_terminal", SUBPROJECT_UPDATE_TERMINAL_CORRELATION),
+        ),
+        "subproject_delete_terminal.json": mocktext.example(
+            f"Une variante contrefactuelle : un sous-projet que nulle révision marquée ne cite, "
+            f"auquel aucun coût réel n'est imputé et qu'aucune ligne de la révision en cours ne "
+            f"porte, supprimé {on}. Ses propres conditions ne manquent pas ; la condition qui "
+            f"manque, project_not_terminal, jugée après elles — sur le témoin, la suppression "
+            f"du « Poste de commande » nomme d'abord subproject_not_cited —, est nommée ; rien "
+            f"n'est supprimé (WF-CYC-0100, WF-DAT-0080, WF-PRJ-0050, WF-IHM-0090).",
+            state_refused("project_not_terminal", SUBPROJECT_DELETE_TERMINAL_CORRELATION),
+        ),
+        "contributors_set_terminal.json": mocktext.example(
+            f"La liste des contributeurs enregistrée {on} : le projet clos ne liste plus "
+            f"manage_contributors, et {refused} ; rien n'est écrit (WF-CYC-0100, WF-PRJ-0060, "
+            f"WF-IHM-0090).",
+            state_refused("project_not_terminal", CONTRIBUTORS_TERMINAL_CORRELATION),
+        ),
+    }
+
+
+def _project_field_examples() -> dict[str, JsonObject]:
+    """Return a project created under a blank code, and one with its texts too long (D-02)."""
+    too_long: JsonObject = {"max_length": LABEL_BOUND}
+    return {
+        "project_code_blank.json": mocktext.example(
+            "Un projet créé sous un code fait de trois espaces : refusé, le code désigné, un code "
+            "n'étant jamais blanc, comme tout libellé ; rien n'est écrit (WF-PRJ-0010).",
+            field_refused("/code", "VALIDATION_FAILED", CODE_BLANK_CORRELATION),
+        ),
+        "project_fields_too_long.json": mocktext.example(
+            f"Un projet créé avec un libellé et un client de {LABEL_BOUND + 1} caractères : "
+            f"refusé, chaque champ désigné, avec la borne qu'il dépasse, {LABEL_BOUND} "
+            f"caractères ; rien n'est écrit (WF-PRJ-0080).",
+            {
+                "code": "VALIDATION_FAILED",
+                "status": 422,
+                "fields": [
+                    {"pointer": "/label", "code": "VALUE_TOO_LONG", "params": too_long},
+                    {"pointer": "/client", "code": "VALUE_TOO_LONG", "params": too_long},
+                ],
+                "correlation_id": TOO_LONG_FIELDS_CORRELATION,
+            },
+        ),
     }
 
 
@@ -583,6 +692,7 @@ def _state_examples() -> dict[str, JsonObject]:
     project = cast("JsonObject", fixture("project_completed"))
     reference = _version_name(REFERENCE)
     _, timeline = CREATED_TIMELINE
+    review = {row.number: row for row in mockcore.current()}[N.DESIGN_REVIEW].label
     return {
         "timeline_create_terminal.json": mocktext.example(
             f"Une chronologie « {timeline} » créée sur le projet témoin, « {project['label']} », "
@@ -615,6 +725,36 @@ def _state_examples() -> dict[str, JsonObject]:
             f"generate_skeleton dit manquer, revision_draft ; rien n'est écrit (WF-DAT-0020, "
             f"WF-PRJ-0030, WF-IHM-0090).",
             state_refused("revision_draft", SKELETON_CORRELATION),
+        ),
+        "grid_write_marked_refused.json": mocktext.example(
+            f"Une saisie dans la structure principale de la révision « {reference} », marquée "
+            f"(revision_marked) — sa date de début de planning, la facette temps d'une tâche ou "
+            f"ses prédécesseurs : refusée par la condition que la révision dit manquer à ses "
+            f"saisies, revision_draft, une révision marquée ne se modifiant plus ; rien n'est "
+            f"écrit (WF-DAT-0020, WF-IHM-0090).",
+            state_refused("revision_draft", GRID_MARKED_CORRELATION),
+        ),
+        "task_update_marked_refused.json": mocktext.example(
+            f"La durée de la « {review} » saisie sur la structure principale de "
+            f"la révision « {reference} », marquée (revision_marked) : la saisie du planning, que "
+            f"la structure dit indisponible (edit_planning), est refusée par la condition qui "
+            f"manque, revision_draft ; rien n'est écrit (WF-DAT-0020, WF-PLA-0080, WF-IHM-0090).",
+            state_refused("revision_draft", TASK_MARKED_CORRELATION),
+        ),
+        "predecessors_marked_refused.json": mocktext.example(
+            f"Les prédécesseurs de la « {review} » saisis sur la structure "
+            f"principale de la révision « {reference} », marquée (revision_marked) : ils relèvent "
+            f"de la saisie du planning (edit_planning), refusée par la condition qui manque, "
+            f"revision_draft ; rien n'est écrit (WF-DAT-0020, WF-PLA-0030, WF-IHM-0090).",
+            state_refused("revision_draft", PREDECESSORS_MARKED_CORRELATION),
+        ),
+        "paste_apply_marked_refused.json": mocktext.example(
+            f"Un bloc collé dans la grille de devis de la structure principale de la révision "
+            f"« {reference} », marquée (revision_marked) : la structure n'accepte plus de saisie "
+            f"(edit_estimate) ; l'application est refusée par la condition qui manque, "
+            f"revision_draft, sans juger les lignes du bloc ; rien n'est écrit (WF-DAT-0020, "
+            f"WF-IHM-0050, WF-IHM-0090).",
+            state_refused("revision_draft", PASTE_MARKED_CORRELATION),
         ),
     }
 

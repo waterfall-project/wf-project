@@ -148,7 +148,7 @@ def test_the_contract_says_the_command_its_conditions_and_the_writes_it_chains()
     values = block.split("enum:\n", 1)[1].split("description:", 1)[0]
     listed = [line.strip()[2:] for line in values.splitlines() if line.strip().startswith("- ")]
     assert listed.index(SKELETON) == listed.index("import_planning") - 1
-    said = _flat(block).split(f"`{SKELETON}` dit d'avance", 1)[1]
+    said = _flat(block).split(f"`{SKELETON}` states in advance", 1)[1]
     at = [said.find(f"`{each}`") for each in ORDER]
     assert -1 not in at
     assert at == sorted(at)
@@ -195,8 +195,8 @@ def test_the_project_without_a_revision_names_the_background_task_that_creates_o
     # progress (WF-INTF-0090, WF-RIS-0060): meanwhile the project names the condition to the
     # commands it bears that would create or open that revision, the skeleton among them.
     conditions = _schema("projects.yaml", "CommandCondition")
-    said = conditions.split("Un projet sans révision en cours en a une qui naît", 1)[1]
-    said = said.split("L'analyse d'un import", 1)[0]
+    said = conditions.split("A project without a current revision has one being born", 1)[1]
+    said = said.split("The analysis of an import", 1)[0]
     for command in ("`edit_risks`", "`declare_risk`", f"`{SKELETON}`"):
         assert command in said, command
     decisions = _flat((API / "DECISIONS.md").read_text(encoding="utf-8"))

@@ -1,0 +1,14 @@
+{
+  "summary": "La modification de « Risque de reprise du câblage » envoyée avec un libellé vide : refusée sur ce champ, le libellé étant exigé comme à la déclaration ; rien n'est écrit (WF-RIS-0010).",
+  "value": {
+    "code": "VALIDATION_FAILED",
+    "status": 422,
+    "fields": [
+      {
+        "pointer": "/label",
+        "code": "VALUE_REQUIRED"
+      }
+    ],
+    "correlation_id": "01926f3a-7c00-7000-8000-000000001924"
+  }
+}

@@ -146,6 +146,18 @@ _READS = {
 _IDENTITY = ("task_id", "submitted_at", "finished_at")
 
 
+def _without_identity(read: dict[str, Any]) -> dict[str, Any]:
+    """Return a read of a task without what is the task's own.
+
+    Its identifier, its instants, and the correlation of its failure, which is that of the request
+    that queued it (WF-OBS-0020).
+    """
+    kept = {k: v for k, v in read.items() if k not in _IDENTITY}
+    if isinstance(kept.get("problem"), dict):
+        kept["problem"] = {k: v for k, v in kept["problem"].items() if k != "correlation_id"}
+    return kept
+
+
 def _took(name: str) -> timedelta:
     """Return how long a task took, from its being put in the queue to its end."""
     task = fixture(name)
@@ -161,9 +173,7 @@ def test_each_read_of_the_task_of_the_exit_is_the_marking_s_under_a_task_of_its_
     for name, marking in _READS.items():
         read, model = fixture(name), fixture(marking)
         # The same marking of the 102, the same progress and motive: only the task is its own.
-        assert {k: v for k, v in read.items() if k not in _IDENTITY} == {
-            k: v for k, v in model.items() if k not in _IDENTITY
-        }, name
+        assert _without_identity(read) == _without_identity(model), name
         assert read["task_id"] != model["task_id"], name
     for name in ("task_exit_mark_running", "task_exit_mark_succeeded", "task_exit_mark_failed"):
         read = fixture(name)
@@ -310,8 +320,8 @@ def test_an_exit_that_will_never_become_possible_is_not_listed() -> None:
 @pytest.mark.requirement("WF-CYC-0060-A")
 def test_the_presence_of_the_exits_is_written_where_the_contract_describes_the_commands() -> None:
     command = " ".join(_schemas()["ProjectCommand"]["description"].split())
-    assert "Déclarer perdu depuis En cours — n'y figure pas" in command
-    assert "Un projet terminal n'en liste aucune" in command
+    assert "Declare lost from In progress — does not appear" in command
+    assert "A terminal project lists none" in command
 
 
 @pytest.mark.requirement("WF-PRJ-0060-A")
@@ -396,8 +406,8 @@ def test_the_project_code_is_never_blank_and_bears_no_slash() -> None:
     # A code both blank and bearing a slash gets the slash first.
     assert not pattern.search("/  ")
     description = " ".join(_schemas()["ProjectCode"]["description"].split())
-    assert "blanc et porteur d'une barre oblique" in description
-    assert "`PROJECT_CODE_INVALID`, la barre oblique d'abord" in description
+    assert "both blank and containing a slash" in description
+    assert "`PROJECT_CODE_INVALID`, the slash first" in description
 
 
 @pytest.mark.requirement("WF-IHM-0090-A")

@@ -418,5 +418,5 @@ def test_a_constant_of_duration_at_zero_is_refused_by_its_own_motif() -> None:
     [crossed] = refused["fields"]
     assert crossed == {"pointer": "/hours_per_day", "code": "DURATION_UNIT_NOT_POSITIVE"}
     said = refusals(operations()["setDurationUnits"][1])
-    assert "par `DURATION_UNIT_NOT_POSITIVE`" in said
+    assert "with `DURATION_UNIT_NOT_POSITIVE`" in said
     assert "duration_units_zero" in said

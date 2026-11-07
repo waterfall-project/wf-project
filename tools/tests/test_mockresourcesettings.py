@@ -201,7 +201,7 @@ def test_each_role_bears_a_code_of_its_own_that_its_writes_keep() -> None:
 def test_the_roles_are_searched_filtered_and_sorted_by_their_code() -> None:
     listing = _block("listResourceRoles")
     flat = " ".join(listing.split())
-    assert "porte sur le libellé et sur le code du rôle" in flat
+    assert "covers the label and the code of the role" in flat
     assert "\n      - name: code\n        in: query\n" in listing
     sort = listing.split("- name: sort_by", 1)[1]
     assert "\n            - code\n" in sort
@@ -213,10 +213,10 @@ def test_the_refusal_of_a_calendar_names_each_project_by_its_label_and_its_code_
     # task, no identifier (#762, option (a)). A seizure in a revision names its tasks still.
     common = (API / "components" / "common.yaml").read_text(encoding="utf-8")
     problem = " ".join(common.split("\nProblem:\n", 1)[1].split("\n\n", 1)[0].split())
-    tasks = problem.split("`tasks` pour une saisie d'une révision", 1)[1].split("`projects`", 1)[0]
+    tasks = problem.split("`tasks` for an entry in a revision", 1)[1].split("`projects`", 1)[0]
     assert tasks.startswith(
-        " — `createNode`, `updateEstimateLine`, `moveNodes`, `mergeCostStructure`, et le motif"
-        " d'une ligne collée ou importée — "
+        " — `createNode`, `updateEstimateLine`, `moveNodes`, `mergeCostStructure`, and the reason"
+        " of a pasted or imported line — "
     )
     assert "(`project_id`, `node_id`, `label`)" in tasks
     assert "project_label" not in tasks
@@ -226,20 +226,22 @@ def test_the_refusal_of_a_calendar_names_each_project_by_its_label_and_its_code_
     )
     # The report of an import names its roles by their code and label, and its task by its
     # lineage, as it names its objects (#768, points 1 and 2).
-    assert "(`resource_roles` : `resource_role_id`, `code`, `label`)" in rejection
-    assert "(`tasks` : `lineage_id`, `label`)" in rejection
-    projects = problem.split("`projects` pour une modification du référentiel", 1)[1]
+    assert "(`resource_roles`: `resource_role_id`, `code`, `label`)" in rejection
+    assert "(`tasks`: `lineage_id`, `label`)" in rejection
+    projects = problem.split("`projects` for a modification of the reference data", 1)[1]
     assert projects.startswith(
-        " qui produirait le même effet (`updateCalendar`, `setDefaultCalendar`,"
-        " `updateResourceRole`), un élément par projet en cause, par son libellé et son code"
-        " (`project_label`, `project_code`, nul pour un projet sans code), sans identifiant ni"
-        " tâche"
+        " that would produce the same effect (`updateCalendar`, `setDefaultCalendar`,"
+        " `updateResourceRole`), one element per project involved, by its label and its code"
+        " (`project_label`, `project_code`, null for a project without a code), without"
+        " identifier or task"
     )
     for operation in PROJECTS_NAMED:
         refusals = " ".join(_block(operation).split("'422':", 1)[1].split("content:", 1)[0].split())
         assert "`TASK_WITHOUT_WORKING_HOURS`" in refusals, operation
         assert "`params.projects`" in refusals, operation
-        assert "(`project_label`, `project_code`), sans identifiant ni tâche" in refusals, operation
+        assert "(`project_label`, `project_code`), without identifier or task" in refusals, (
+            operation
+        )
         assert "params.tasks" not in refusals, operation
     # The task whose role is the only one loses its hours by the role's calendar alone: each text
     # of the refusal says it beside the calendars that never meet (#766, EP-14/L42s, relecture 1).
@@ -255,18 +257,18 @@ def test_the_refusal_of_a_calendar_names_each_project_by_its_label_and_its_code_
         "updateResourceRole": flat(_block("updateResourceRole").split("'422':", 1)[1]),
         "createNode": flat(described("createNode").split("    parameters:", 1)[0]),
         "updateEstimateLine": flat(described("updateEstimateLine").split("'422':", 1)[1]),
-        "resource_roles": problem.split("`resource_roles` pour tout", 1)[1].split("; `", 1)[0],
+        "resource_roles": problem.split("`resource_roles` for any", 1)[1].split("; `", 1)[0],
     }
     for name, text in texts.items():
-        assert re.search(r"ne (?:recoupe|se recoupent) jamais", text), name
-        assert "sur une tâche dont ce rôle est le seul" in text, name
-        assert "aucune heure dans la semaine" in text, name
+        assert re.search(r"never overlaps?", text), name
+        assert re.search(r"on a task of which (?:this|that) role is the only one", text), name
+        assert "it has no hour in the week" in text, name
     # Their sibling the calendar, which a role alone on its task may lose all its hours by (#795).
     calendar = flat(_block("updateCalendar").split("'422':", 1)[1].split("content:", 1)[0])
-    assert "ne se recoupant plus aucun jour" in calendar
+    assert "no longer overlapping on any day" in calendar
     assert (
-        "sur une tâche dont un rôle est le seul, le calendrier de ce rôle n'ayant plus aucune heure"
-        " dans la semaine — `params.resource_roles` nommant alors ce seul rôle"
+        "on a task of which a role is the only one, the calendar of that role no longer having any"
+        " hour in the week — `params.resource_roles` then naming that single role"
     ) in calendar
 
 
@@ -393,8 +395,8 @@ def test_a_designation_already_made_answers_without_change_after_the_version() -
     operation = text.split("operationId: setDefaultCalendar\n", 1)[1].split("parameters:", 1)[0]
     for said in (commands, operation):
         flat = " ".join(said.split())
-        assert "répond 200 sans rien changer" in flat
-        assert "412 si elle est périmée" in flat
+        assert "returns 200 without changing anything" in flat
+        assert "412 if it is stale" in flat
 
 
 @pytest.mark.parametrize("name", sorted(STALE))
@@ -474,4 +476,4 @@ def test_the_parent_is_required_to_modify_a_node() -> None:
     text = PATHS.read_text(encoding="utf-8")
     operation = text.split("operationId: updateOrgNode\n", 1)[1].split("operationId:", 1)[0]
     refusals = operation.split("'422':", 1)[1].split("content:", 1)[0]
-    assert "`/parent_id` absent, par `VALUE_REQUIRED`" in " ".join(refusals.split())
+    assert "`/parent_id` absent, with `VALUE_REQUIRED`" in " ".join(refusals.split())

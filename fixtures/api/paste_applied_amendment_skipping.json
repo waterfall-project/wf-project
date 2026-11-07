@@ -1,5 +1,5 @@
 {
-  "summary": "Sur l'« Avenant 2 — reprise des essais », différentiel non fusionné de la révision courante, dont le devis se saisit quel que soit l'état du projet (WF-DEV-0050), le bloc qui saute la ligne retirée appliqué (paste_plan_amendment_skipping) : « Câblage sur site », dont la quantité passe à 2 et le montant à 19 200,00, et la tâche « Essais sur site » renommée « Essais et reprise sur site », une version de plus chacune ; « Assistance aux essais de câblage », retirée, n'est pas écrite. Avec elles, leurs ancêtres, « Installation sur site » et « Montage des armoires sur site », dont le montant suit, les totaux de la structure, 5 000 lignes, 116310 h, 66 117 823,89 à l'année de référence, dont 68 494 688,05 budgétés, et le compteur du différentiel passé à 3 ; aucune ligne refusée (WF-IHM-0050, WF-REV-0050, #1278).",
+  "summary": "Sur l'« Avenant 2 — reprise des essais », différentiel non fusionné de la révision courante, dont le devis se saisit quel que soit l'état du projet (WF-DEV-0050), le bloc qui saute la ligne retirée appliqué (paste_plan_amendment_skipping) : « Câblage sur site », dont la quantité passe à 2 et le montant à 19 200,00, et la tâche « Essais sur site » renommée « Essais et reprise sur site », une version de plus chacune ; « Assistance aux essais de câblage », retirée, n'est pas écrite. Avec elles, leurs ancêtres, « Installation sur site » et « Montage des armoires sur site », dont le montant suit, les totaux de la structure, 5 000 lignes, 116310 h, 66 117 823,89 à l'année de référence, dont 68 494 689,21 budgétés, et le compteur du différentiel passé à 3 ; aucune ligne refusée (WF-IHM-0050, WF-REV-0050, #1278).",
   "description": "Exemple engendré par `make mock-data` (`wftools.mockdata`) : il ne se retouche pas.",
   "value": {
     "nodes": [
@@ -12,7 +12,7 @@
     ],
     "rescheduled": [],
     "reinflated": [],
-    "totals": {"task_count":1002,"estimate_line_count":5000,"hours":"116310","base_amount":"66117823.89","budgeted_amount":"68494688.05","reestimated_amount":"68936291.06"},
+    "totals": {"task_count":1002,"estimate_line_count":5000,"hours":"116310","base_amount":"66117823.89","budgeted_amount":"68494689.21","reestimated_amount":"68936291.77"},
     "structure_lock_version": 3,
     "rejected": []
   }

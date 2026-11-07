@@ -8,7 +8,7 @@
     "progress": 40,
     "submitted_at": "2026-06-03T14:05:30Z",
     "finished_at": "2026-06-03T14:07:30Z",
-    "problem": {"code":"HOURLY_RATE_MISSING","status":422,"params":{"missing_rates":[{"cost_category_id":"01926f3a-7c00-7000-8000-000000000402","label":"Ingénierie électrique","year":2026}]}},
+    "problem": {"code":"HOURLY_RATE_MISSING","status":422,"params":{"missing_rates":[{"cost_category_id":"01926f3a-7c00-7000-8000-000000000402","label":"Ingénierie électrique","year":2026}]},"correlation_id":"01926f3a-7c00-7000-8000-000000001982"},
     "result_url": null
   }
 }

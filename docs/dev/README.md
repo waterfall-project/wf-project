@@ -4237,6 +4237,10 @@ To exercise an example:
 2. write the test under `backend/tests/examples/`: the `example` fixture loads it by the
    key, the test calls the core and compares to the value of the sentence.
 
+An example of the contract (`fixtures/api/`) whose value reproduces a sentence cites its key in
+`x-examples`, an OpenAPI Example Object admitting no `examples` key; a generator passes it to
+`mocktext.example`. `make check-fixtures` counts it like the others.
+
 The sockets are closed there: an example that passes needs neither database, nor service, nor
 browser. A sentence modified in the document changes key; the fixture of the old one
 then makes the chain fail, and it is rewritten from the new sentence.

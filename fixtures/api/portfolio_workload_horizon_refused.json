@@ -1,0 +1,12 @@
+{
+  "summary": "Le plan de charge agrégé demandé sur 241 mois, au-delà des 240 que l'horizon admet : refusé sur le paramètre, ses bornes nommées ; rien n'est lu (WF-PTF-0060).",
+  "description": "Exemple engendré par `make mock-data` (`wftools.mockdata`) : il ne se retouche pas.",
+  "value": {
+    "code": "VALIDATION_FAILED",
+    "status": 422,
+    "fields": [
+      {"pointer":"/query/horizon_months","code":"VALUE_OUT_OF_RANGE","params":{"minimum":1,"maximum":240}}
+    ],
+    "correlation_id": "01926f3a-7c00-7000-8000-000000001943"
+  }
+}

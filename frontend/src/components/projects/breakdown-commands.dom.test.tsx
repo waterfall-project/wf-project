@@ -214,7 +214,7 @@ describe("the work breakdown edited in its grid", () => {
             ],
           },
         ],
-        lock_version: 0,
+        lock_version: 1,
       },
     ]);
   });

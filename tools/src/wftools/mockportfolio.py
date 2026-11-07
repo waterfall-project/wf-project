@@ -16,7 +16,7 @@ from decimal import Decimal
 from functools import cache
 from typing import Any, cast
 
-from wftools import mockhistory, mocktoday
+from wftools import mockcore, mockhistory, mocktext, mocktoday
 from wftools.mockids import PROJECTS, RISKS, identifier, universe
 from wftools.mockstructure import (
     CENT,
@@ -36,6 +36,7 @@ from wftools.mockstructure import (
 from wftools.mocktext import PAGE
 from wftools.mockwitness import (
     AMENDMENT_MERGED,
+    CABLE_FITTER,
     TODAY,
     by_identifier,
     fixture,
@@ -482,9 +483,24 @@ labour its share and the non-labour the rest, the reference budget being without
 lines (WF-IND-0020, G-15); the remaining to commit the provision too, the rest of its parts."""
 
 ENGINEER, TECHNICIAN = universe(451), universe(452)
-"""The roles of the universe the labour of the portfolio parts between: the electrical engineer
-and the commissioning technician, who work on its projects. The cable fitter, active, works on
-none: the workload shows him without load, at his capacity (decision of 2026-10-08 on #375)."""
+"""The roles of the universe the labour of the generated projects parts between: the electrical
+engineer and the commissioning technician. The cable fitter, active, works on the witness alone,
+which gives him the wiring since EP-02/L27, from September 2027: the aggregated workload shows him
+without load on its horizon, at his capacity, and the cost structure counts his labour in his own
+node of organisation (G-10)."""
+
+
+def cable_fitter_labour() -> Decimal:
+    """Return the budgeted labour of the cable fitter: that of the lines of the witness he bears."""
+    lines = (row.node.get("estimate_line") for row in mockcore.current())
+    return sum(
+        (
+            Decimal(cast("str", line["budgeted_amount"]))
+            for line in lines
+            if isinstance(line, dict) and line["resource_role_id"] == CABLE_FITTER
+        ),
+        Decimal(0),
+    )
 
 
 def role_shares(project_id: JsonValue) -> dict[str, Decimal]:
@@ -501,9 +517,11 @@ def portfolio_cost_structure(rows: list[JsonObject]) -> JsonObject:
 
     The budget parts between the labour and the non-labour, without the provision lines as the
     reference budget (WF-IND-0020); the remaining to commit between the three natures of the
-    universe, the provisions taking what is left; the parts sum to their totals. The labour is
-    that of the one node of organisation the roles that work on the projects come under. No
-    project of the list is completed, and the request adds no offer: the period is the default.
+    universe, the provisions taking what is left; the parts sum to their totals. The labour parts
+    between the nodes of organisation of the roles that bear it: the cable fitter's, that of the
+    witness, in the cabling workshop, the rest in the node of the two roles of the generated
+    projects. No project of the list is completed, and the request adds no offer: the period is
+    the default.
     """
     sums = _progressing(rows)
     budget = sum((each.budget for each in sums), Decimal(0))
@@ -514,12 +532,14 @@ def portfolio_cost_structure(rows: list[JsonObject]) -> JsonObject:
     ]
     labour = (budget * _LABOR_SHARE).quantize(CENT)
     budgets = {LABOR: labour, NON_LABOR: budget - labour}
-    org_node = next(
-        role["org_node_id"]
-        for role in fixture("resource_roles")["items"]
-        if role["resource_role_id"] == ENGINEER
-    )
-    label = next(node["label"] for node in fixture("org_nodes") if node["org_node_id"] == org_node)
+    of_role = {
+        role["resource_role_id"]: role["org_node_id"] for role in fixture("resource_roles")["items"]
+    }
+    named = {node["org_node_id"]: node["label"] for node in fixture("org_nodes")}
+    witness = fixture("project")["project_id"]
+    counted = any(r["project_id"] == witness and r["state"] == "in_progress" for r in rows)
+    cabling = cable_fitter_labour() if counted else Decimal(0)
+    by_node = {of_role[ENGINEER]: budgets[LABOR] - cabling, of_role[CABLE_FITTER]: cabling}
     return {
         "scope": _scope(rows, ["in_progress"], period=True),
         "budget_by_cost_type": _by_key(
@@ -531,7 +551,7 @@ def portfolio_cost_structure(rows: list[JsonObject]) -> JsonObject:
             remaining,
         ),
         "labor_by_org_node": _by_key(
-            [(org_node, label)], {org_node: budgets[LABOR]}, budgets[LABOR]
+            [(node, named[node]) for node in by_node], by_node, budgets[LABOR]
         ),
     }
 
@@ -771,3 +791,15 @@ def portfolio_risks(rows: list[JsonObject]) -> JsonObject:
             "dismissed_provisions": money(dismissed),
         },
     }
+
+
+def risk_volume(rows: list[JsonObject]) -> str:
+    """Say which volumes of §4.6.2 the risks of the portfolio hold, and which they do not."""
+    risks = identified_risks(rows)
+    projects = len({cast("str", risk.row["project_id"]) for risk in risks})
+    count = mocktext.count
+    return (
+        f"{count(len(risks))} risques identifiés sur {count(projects)} projets — le registre du "
+        f"témoin et jusqu'à trois par autre projet, une provision sans devis propre, et non les "
+        f"trente risques par projet, chacun d'une vingtaine de tâches, que le §4.6.2 suppose"
+    )

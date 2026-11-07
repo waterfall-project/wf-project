@@ -52,6 +52,8 @@ if TYPE_CHECKING:
     from wftools.mockstructure import JsonObject, JsonValue
 
 EXIT_TASK, EXIT_RELAUNCHED_TASK = universe(955), universe(959)
+EXIT_CORRELATION = universe(1982)
+"""The correlation of the exit that starts the marking: the failure of its task carries it."""
 """The task of the marking an exit of the witness starts (`exitProject`, 202), and the one the
 exit run again after its failure starts in its place."""
 
@@ -180,14 +182,18 @@ def exit_task(marking: str, task_id: str = EXIT_TASK) -> JsonObject:
     """Return a read of the task of the marking the exit starts, after one of `markRevision`'s.
 
     The same revision, the 102, marked the same way and failing for the same motive: only its
-    identifier, and its instants, a little later, are its own.
+    identifier, its instants, a little later, and the correlation of its failure, that of the
+    exit that queued it (WF-OBS-0020), are its own.
     """
     task = cast("JsonObject", fixture(marking))
-    return {
+    read: JsonObject = {
         **task,
         "task_id": task_id,
         **{key: _later(task[key]) for key in _INSTANTS},
     }
+    if isinstance(problem := task.get("problem"), dict):
+        read["problem"] = {**problem, "correlation_id": EXIT_CORRELATION}
+    return read
 
 
 def exit_relaunched_succeeded() -> JsonObject:

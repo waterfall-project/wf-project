@@ -1,23 +1,24 @@
-# Échanges par fichier. Waterfall n'échange que par les flux FLX-01 à FLX-07
-# (WF-INTF-0150), et tout import se déroule en deux temps (WF-ARC-0100).
+# File exchanges. Waterfall exchanges only through flows FLX-01 to FLX-07
+# (WF-INTF-0150), and every import runs in two steps (WF-ARC-0100).
 
 /file-uploads:
   post:
     operationId: uploadFile
     tags: [exchanges]
-    summary: Déposer un fichier
+    summary: Upload a file
     description: >-
-      Le fichier est écrit sur le stockage objet et n'y vit que le temps de l'import :
-      il est supprimé dès que celui-ci est appliqué, abandonné ou expiré (WF-DAT-0120).
-      Le dépôt dit son usage (`purpose`) : le fichier d'un import ne dépasse pas 10 Mio
-      (10 485 760 octets), la taille d'un fichier MS Project, le plus lourd des imports
-      (§4.6.2) ; au-delà, 413, `FILE_TOO_LARGE`. Un import ne s'ouvre que sur un dépôt d'import,
-      une restauration que sur un dépôt de sauvegarde : l'autre est refusé par 422,
-      `VALIDATION_FAILED`, le champ qui désigne le dépôt en défaut, `UPLOAD_PURPOSE_MISMATCH`
-      (`openImport`, `startRestore`). Le dépôt d'une sauvegarde ne passe pas par ici, mais par
-      morceaux (`openChunkedUpload`, `uploadChunk`, `completeChunkedUpload`) : `purpose` à
-      `external_backup` est refusé par 422, `VALIDATION_FAILED`, `fields` désignant `/purpose`
-      par `UPLOAD_PURPOSE_MISMATCH`.
+      The file is written to object storage and lives there only for the duration of the import:
+      it is deleted as soon as the import is applied, refused, abandoned or expired
+      (WF-DAT-0120, WF-ARC-0100), and, unused, twenty-four hours after the upload
+      (`FileUpload.expires_at`). The upload states its use (`purpose`): an import file does not exceed 10 MiB
+      (10,485,760 bytes), the size of an MS Project file, the heaviest of the imports
+      (§4.6.2); beyond that, 413, `FILE_TOO_LARGE`. An import opens only on an import upload,
+      a restore only on a backup upload: the other is refused with 422,
+      `VALIDATION_FAILED`, the field that designates the upload at fault, `UPLOAD_PURPOSE_MISMATCH`
+      (`openImport`, `startRestore`). A backup is not uploaded here, but in
+      chunks (`openChunkedUpload`, `uploadChunk`, `completeChunkedUpload`): `purpose` set to
+      `external_backup` is refused with 422, `VALIDATION_FAILED`, `fields` designating `/purpose`
+      with `UPLOAD_PURPOSE_MISMATCH`.
     requestBody:
       required: true
       content:
@@ -30,7 +31,7 @@
               purpose: { $ref: ../components/schemas/exchanges.yaml#/FileUploadPurpose }
     responses:
       '201':
-        description: Fichier déposé.
+        description: File uploaded.
         content:
           application/json:
             schema: { $ref: ../components/schemas/exchanges.yaml#/FileUpload }
@@ -47,21 +48,21 @@
   post:
     operationId: openChunkedUpload
     tags: [exchanges]
-    summary: Ouvrir le dépôt par morceaux d'une sauvegarde
+    summary: Open the chunked upload of a backup
     description: >-
-      Ouvre le dépôt d'une sauvegarde copiée hors de la plateforme, que `startRestore` désignera
-      (WF-ADM-0160) : un dépôt s'ouvre, reçoit ses morceaux (`uploadChunk`) et se termine
-      (`completeChunkedUpload`). Le serveur y dit en combien de morceaux, de quelle taille, le
-      fichier se découpe. La taille annoncée est bornée par
-      `Installation.external_backup_max_bytes`, et par les 10 000 morceaux que le stockage objet
-      admet : le serveur choisit `part_size_bytes` dans ses bornes pour tenir sous 10 000
-      morceaux, et une taille qui n'y tient pas même à 10 Mio le morceau (10 000 × 10 Mio) est
-      refusée comme celle qui dépasse le réglage. Dans les deux cas, 413, `FILE_TOO_LARGE`, avant
-      qu'aucun morceau ne soit envoyé. Le fichier est écrit sur le stockage objet et n'y vit
-      que le temps de sa restauration (WF-DAT-0120). Sous la permission de restaurer la plateforme
-      (`platform_restore`, WF-ADM-0160), comme `startRestore` : sans elle, 403. Un envoi
-      interrompu — par un rechargement de page — recommence par une ouverture, le dépôt
-      précédent expirant ; aucune opération ne lit un dépôt.
+      Opens the upload of a backup copied outside the platform, which `startRestore` will designate
+      (WF-ADM-0160): an upload opens, receives its chunks (`uploadChunk`) and is completed
+      (`completeChunkedUpload`). The server states in how many chunks, of what size, the
+      file is split. The announced size is bounded by
+      `Installation.external_backup_max_bytes`, and by the 10,000 chunks that object storage
+      accepts: the server chooses `part_size_bytes` within its bounds to stay under 10,000
+      chunks, and a size that does not fit even at 10 MiB per chunk (10,000 × 10 MiB) is
+      refused like one that exceeds the setting. In both cases, 413, `FILE_TOO_LARGE`, before
+      any chunk is sent. The file is written to object storage and lives there only
+      for the duration of its restore (WF-DAT-0120). Under the permission to restore the platform
+      (`platform_restore`, WF-ADM-0160), like `startRestore`: without it, 403. An interrupted
+      transfer — by a page reload — starts over with an opening, the previous upload
+      expiring; no operation reads an upload.
     requestBody:
       required: true
       content:
@@ -69,7 +70,7 @@
           schema: { $ref: ../components/schemas/exchanges.yaml#/ChunkedUploadOpen }
     responses:
       '201':
-        description: Dépôt ouvert, sans aucun morceau reçu.
+        description: Upload opened, with no chunk received.
         content:
           application/json:
             schema: { $ref: ../components/schemas/exchanges.yaml#/ChunkedUpload }
@@ -81,11 +82,11 @@
       '413': { $ref: ../components/responses.yaml#/PayloadTooLarge }
       '422':
         description: >-
-          `VALIDATION_FAILED`, `fields` désignant chaque champ en défaut : un nom vide,
-          `/filename` par `VALUE_REQUIRED`, ou plus long que le schéma ne l'admet, par
-          `VALUE_TOO_LONG` ; une taille hors de ses bornes, `/size_bytes` par
-          `VALUE_OUT_OF_RANGE`, `fields[].params.minimum` ou `maximum` la seule borne franchie,
-          comme toute borne d'une écriture. Rien n'est ouvert.
+          `VALIDATION_FAILED`, `fields` designating each field at fault: an empty name,
+          `/filename` with `VALUE_REQUIRED`, or longer than the schema allows, with
+          `VALUE_TOO_LONG`; a size outside its bounds, `/size_bytes` with
+          `VALUE_OUT_OF_RANGE`, `fields[].params.minimum` or `maximum` the only bound crossed,
+          like any bound of a write. Nothing is opened.
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
@@ -98,19 +99,19 @@
   put:
     operationId: uploadChunk
     tags: [exchanges]
-    summary: Déposer un morceau
+    summary: Upload a chunk
     description: >-
-      Reçoit le morceau de ce numéro de la sauvegarde à restaurer (WF-ADM-0160), en octets
-      bruts, de la taille exacte que le dépôt attend : `ChunkedUpload.part_size_bytes` pour tout
-      morceau sauf le dernier, le reste du fichier (`size_bytes` moins les morceaux qui le
-      précèdent) pour le dernier. Autrement, 422, `VALIDATION_FAILED`, `fields` désignant `/body`
-      par `VALUE_OUT_OF_RANGE`, `params.minimum` et `params.maximum` disant la taille attendue ;
-      rien n'est reçu. Redéposer un morceau déjà reçu le remplace, ce qui rend un envoi
-      interrompu reprenable avec la dernière réponse ; les morceaux peuvent arriver dans un
-      ordre quelconque. Un numéro que le dépôt ne compte pas, ou un dépôt terminé, expiré ou
-      inconnu, est un 404. Sous la permission de restaurer la plateforme (`platform_restore`),
-      comme `startRestore` : sans elle, 403. Le morceau est écrit sur le stockage objet avant la
-      réponse, qui dit les morceaux reçus.
+      Receives the chunk with this number of the backup to restore (WF-ADM-0160), as raw
+      bytes, of the exact size the upload expects: `ChunkedUpload.part_size_bytes` for every
+      chunk except the last, the rest of the file (`size_bytes` minus the chunks that
+      precede it) for the last. Otherwise, 422, `VALIDATION_FAILED`, `fields` designating `/body`
+      with `VALUE_OUT_OF_RANGE`, `params.minimum` and `params.maximum` stating the expected size;
+      nothing is received. Uploading again a chunk already received replaces it, which makes an
+      interrupted transfer resumable with the last response; chunks may arrive in any
+      order. A number the upload does not count, or a completed, expired or
+      unknown upload, is a 404. Under the permission to restore the platform (`platform_restore`),
+      like `startRestore`: without it, 403. The chunk is written to object storage before the
+      response, which states the chunks received.
     parameters:
       - $ref: ../components/parameters.yaml#/ChunkedUploadId
       - $ref: ../components/parameters.yaml#/ChunkedUploadPartNumber
@@ -121,7 +122,7 @@
           schema: { type: string, format: binary }
     responses:
       '200':
-        description: Morceau reçu.
+        description: Chunk received.
         content:
           application/json:
             schema: { $ref: ../components/schemas/exchanges.yaml#/ChunkedUpload }
@@ -133,8 +134,8 @@
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '422':
         description: >-
-          Un morceau qui n'a pas la taille attendue : `VALIDATION_FAILED`, `fields` désignant
-          `/body` par `VALUE_OUT_OF_RANGE`.
+          A chunk that does not have the expected size: `VALIDATION_FAILED`, `fields` designating
+          `/body` with `VALUE_OUT_OF_RANGE`.
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
@@ -147,27 +148,27 @@
   post:
     operationId: completeChunkedUpload
     tags: [exchanges]
-    summary: Terminer le dépôt par morceaux
+    summary: Complete the chunked upload
     description: >-
-      Assemble les morceaux de la sauvegarde à restaurer (WF-ADM-0160) en un seul fichier sur
-      le stockage objet et rend le dépôt, un `FileUpload` dont `purpose` est `external_backup` :
-      son `upload_id` est celui que `startRestore` désigne (`external_backup_upload_id`), et son
-      `backup_taken_at` la date que dit le manifeste de la sauvegarde, que la confirmation de la
-      restauration nomme (`acknowledged_backup_taken_at`). Refusé
-      par 422, `FILE_FORMAT_UNREADABLE`, quand le fichier assemblé n'est pas une archive dont le
-      manifeste, son premier membre, dit la date de la sauvegarde : un dépôt dont la date ne se
-      lit pas n'est jamais restaurable, et reste inachevé. Le dépôt ne vérifie pas l'archive
-      au-delà de son manifeste : la restauration la vérifie, avant de déconnecter quiconque
-      (`startRestore`). Refusé
-      par 409, `STATE_FORBIDS_OPERATION`, tant qu'un morceau manque ; `params.missing_parts`
-      dit les numéros qui manquent, en ordre croissant, et rien n'est assemblé. Un dépôt déjà
-      terminé, expiré ou inconnu est un 404. Sous la permission de restaurer la plateforme
-      (`platform_restore`), comme `startRestore` : sans elle, 403.
+      Assembles the chunks of the backup to restore (WF-ADM-0160) into a single file in
+      object storage and returns the upload, a `FileUpload` whose `purpose` is `external_backup`:
+      its `upload_id` is the one `startRestore` designates (`external_backup_upload_id`), and its
+      `backup_taken_at` the date stated by the backup's manifest, which the confirmation of the
+      restore names (`acknowledged_backup_taken_at`). Refused
+      with 422, `FILE_FORMAT_UNREADABLE`, when the assembled file is not an archive whose
+      manifest, its first member, states the date of the backup: an upload whose date cannot be
+      read is never restorable, and remains incomplete. The upload does not check the archive
+      beyond its manifest: the restore checks it, before disconnecting anyone
+      (`startRestore`). Refused
+      with 409, `STATE_FORBIDS_OPERATION`, as long as a chunk is missing; `params.missing_parts`
+      states the missing numbers, in ascending order, and nothing is assembled. An upload already
+      completed, expired or unknown is a 404. Under the permission to restore the platform
+      (`platform_restore`), like `startRestore`: without it, 403.
     parameters:
       - $ref: ../components/parameters.yaml#/ChunkedUploadId
     responses:
       '201':
-        description: Fichier assemblé et déposé.
+        description: File assembled and uploaded.
         content:
           application/json:
             schema: { $ref: ../components/schemas/exchanges.yaml#/FileUpload }
@@ -179,8 +180,8 @@
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '409':
         description: >-
-          Un morceau manque : `STATE_FORBIDS_OPERATION`, `params.missing_parts` les numéros des
-          morceaux que le dépôt n'a pas reçus, en tableau d'entiers.
+          A chunk is missing: `STATE_FORBIDS_OPERATION`, `params.missing_parts` the numbers of the
+          chunks the upload has not received, as an array of integers.
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
@@ -188,8 +189,8 @@
               missing_part: { $ref: ../../../fixtures/api/chunked_upload_incomplete.json }
       '422':
         description: >-
-          Le fichier assemblé n'est pas une archive de sauvegarde dont le manifeste, son premier
-          membre, dit la date, avec son fuseau : `FILE_FORMAT_UNREADABLE`, sans paramètre.
+          The assembled file is not a backup archive whose manifest, its first
+          member, states the date, with its time zone: `FILE_FORMAT_UNREADABLE`, without parameters.
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
@@ -202,18 +203,18 @@
   get:
     operationId: listImports
     tags: [exchanges]
-    summary: Imports du projet
+    summary: Imports of the project
     description: >-
-      Les imports du projet, en cours et passés, avec l'état où chacun s'est arrêté
-      (WF-INTF-0080, WF-ARC-0100), du plus récent au plus ancien par leur ouverture
-      (`created_at`), comme les autres journaux.
+      The imports of the project, ongoing and past, with the state where each one stopped
+      (WF-INTF-0080, WF-ARC-0100), from the most recent to the oldest by their opening
+      (`created_at`), like the other logs.
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
       - $ref: ../components/parameters.yaml#/Limit
       - $ref: ../components/parameters.yaml#/Offset
     responses:
       '200':
-        description: Imports, analysés, appliqués ou abandonnés, du plus récent au plus ancien.
+        description: Imports, analysed, applied or abandoned, from the most recent to the oldest.
         content:
           application/json:
             schema:
@@ -236,49 +237,49 @@
   post:
     operationId: openImport
     tags: [exchanges]
-    summary: Ouvrir un import et lancer son analyse
+    summary: Open an import and start its analysis
     description: >-
-      L'ouverture lit l'en-tête du fichier — son format, sa version, les intitulés de ses
-      colonnes — avant de mettre l'analyse en file, et refuse par 422 ce qu'elle ne reconnaît pas
-      (WF-INTF-0070) : la lecture se borne à l'en-tête, et le contenu n'est lu que par
-      l'analyse. L'analyse, confiée au
-      worker, compare le contenu aux données existantes et produit le compte rendu, sans rien
-      modifier (WF-ARC-0100, WF-INTF-0080) ; elle ne refuse plus de format, l'ouverture l'ayant
-      reconnu. Les imports de planning, de devis et de reste à engager s'appliquent à la
-      révision en cours, créée au besoin (WF-INTF-0090), sur la structure que la requête nomme,
-      la principale par défaut, que l'import rend (`Import.structure_id`). Selon le flux :
-      planning MS Project (WF-INTF-0040), dont la date de début du projet devient la date de
-      début de planning de la structure (`CostStructure.planning_start_on`, WF-PLA-0020), le
-      compte rendu présentant son changement ; devis (WF-INTF-0100), reste à engager
-      (WF-INTF-0120), coûts réels (WF-INTF-0140), dont la période extraite est journalisée
-      (WF-CRE-0050). Une extraction de coûts réels se lit selon la correspondance de
-      l'installation (`getActualCostMapping`, WF-REF-0190) : l'import est refusé tant que l'une
-      des quatre colonnes exigées n'y a aucun intitulé, ce que la commande `import_actual_costs`
-      du projet dit d'avance ; un fichier auquel manque une colonne exigée est refusé en la
-      nommant ; une colonne ni lue ni déclarée conservée est ignorée, et le compte rendu la nomme
-      (`ImportIgnoredKind`, `columns`). Le compte rendu analysé est ce qui s'applique, même si la
-      correspondance change entre-temps (`applyImport`). Un planning MS Project met à jour une tâche existante sans toucher à son
-      rattachement au lotissement ; sur la structure principale, seule à porter des
-      rattachements, un fichier qui placerait la tâche d'un poste hors du sous-arbre de la tâche de
-      son lot est rejeté entier au compte rendu, qui nomme les deux tâches, comme un planning
-      qui porterait la durée du projet au-delà de quinze ans (`ImportReport.refusals`,
-      `ORDER_ITEM_OUTSIDE_WORK_PACKAGE`, `PROJECT_HORIZON_EXCEEDED`, WF-PLA-0150 ; EP-14/L42s),
-      et la suppression d'une tâche rattachée est appliquée, le compte rendu
-      nommant le lot ou le poste qui perd sa tâche (`ImportDifference.work_breakdown_label`,
-      WF-INTF-0040, WF-PLA-0170). Sur un projet En cours, l'import du devis est refusé sur la
-      structure principale, en nommant la condition — son devis ne se saisit plus, le reste à
-      engager s'important selon WF-INTF-0120 —, et reste ouvert sur une structure différentielle
-      et sur le devis propre d'un risque (WF-INTF-0100 ; C-358, #1153) : la structure principale
-      le dit d'avance (`StructureCommand.edit_estimate`). Une ligne d'une tâche démarrée ou
-      terminée ne quitte pas un sous-projet qui a reçu des coûts réels (WF-PRJ-0050) : placée dans
-      l'onglet d'un autre sous-projet d'un reste à engager (WF-INTF-0120), ou portant un autre
-      sous-projet dans la colonne d'un devis (WF-INTF-0100), elle est rejetée au compte rendu, qui
-      nomme ce sous-projet (`ImportRejection`, `SUBPROJECT_HAS_ACTUAL_COSTS` ; C-359, #1152,
-      #1153). L'analyse est confiée au worker (WF-ARC-0090). Un dépôt inconnu, expiré ou déjà
-      employé par un import, donc supprimé (WF-DAT-0120), une structure inconnue ou d'une autre
-      révision sont refusés par 404 (I-03, #1789). Une ligne nouvelle sous une tâche terminée de la
-      structure principale est rejetée au compte rendu, la tâche nommée, comme sa saisie
-      (`ImportRejection`, `task_not_completed` ; I-05, #1793).
+      The opening reads the header of the file — its format, its version, the labels of its
+      columns — before queuing the analysis, and refuses with 422 what it does not recognise
+      (WF-INTF-0070): the reading is limited to the header, and the content is read only by the
+      analysis. The analysis, entrusted to the worker, compares the content with the existing
+      data and produces the report, without changing anything (WF-ARC-0100, WF-INTF-0080); it no
+      longer refuses a format, the opening having recognised it. Schedule, estimate and
+      remaining to commit imports apply to the current revision, created if needed
+      (WF-INTF-0090), on the structure the request names, the main one by default, which the
+      import returns (`Import.structure_id`). Depending on the flow: MS Project schedule
+      (WF-INTF-0040), whose project start date becomes the planning start date of the structure
+      (`CostStructure.planning_start_on`, WF-PLA-0020), the report presenting its change;
+      estimate (WF-INTF-0100), remaining to commit (WF-INTF-0120), actual costs (WF-INTF-0140),
+      whose extracted period is logged (WF-CRE-0050). An actual cost extraction is read
+      according to the mapping of the installation (`getActualCostMapping`, WF-REF-0190): the
+      import is refused as long as one of the four required columns has no label in it, which
+      the project's `import_actual_costs` command states in advance; a file missing a required
+      column is refused, naming it; a column neither read nor declared kept is ignored, and the
+      report names it (`ImportIgnoredKind`, `columns`). The analysed report is what applies,
+      even if the mapping changes in the meantime (`applyImport`). An MS Project schedule
+      updates an existing task without touching its attachment to the work breakdown; on the
+      main structure, the only one to carry attachments, a file that would place the task of an
+      order item outside the subtree of the task of its work package is rejected whole in the
+      report, which names both tasks, like a schedule that would extend the duration of the
+      project beyond fifteen years (`ImportReport.refusals`, `ORDER_ITEM_OUTSIDE_WORK_PACKAGE`,
+      `PROJECT_HORIZON_EXCEEDED`, WF-PLA-0150; EP-14/L42s), and the deletion of an attached task
+      is applied, the report naming the work package or order item that loses its task
+      (`ImportDifference.work_breakdown_label`, WF-INTF-0040, WF-PLA-0170). On an In progress
+      project, the estimate import is refused on the main structure, naming the condition — its
+      estimate is no longer entered, the remaining to commit being imported according to
+      WF-INTF-0120 —, and remains open on a differential structure and on the own estimate of a
+      risk (WF-INTF-0100; C-358, #1153): the main structure states it in advance
+      (`StructureCommand.edit_estimate`). A line of a started or completed task does not leave a
+      subproject that has received actual costs (WF-PRJ-0050): placed in the sheet of another
+      subproject of a remaining to commit (WF-INTF-0120), or carrying another subproject in the
+      column of an estimate (WF-INTF-0100), it is rejected in the report, which names that
+      subproject (`ImportRejection`, `SUBPROJECT_HAS_ACTUAL_COSTS`; C-359, #1152, #1153). The
+      analysis is entrusted to the worker (WF-ARC-0090). An unknown upload, expired or already
+      used by an import, hence deleted (WF-DAT-0120), and an unknown structure or one of another
+      revision are refused with 404 (I-03, #1789). A new line under a completed task of the main
+      structure is rejected in the report, the task named, like its entry (`ImportRejection`,
+      `task_not_completed`; I-05, #1793).
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
     requestBody:
@@ -288,7 +289,7 @@
           schema: { $ref: ../components/schemas/exchanges.yaml#/ImportRequest }
     responses:
       '202':
-        description: Analyse mise en file.
+        description: Analysis queued.
         content:
           application/json:
             schema: { $ref: ../components/schemas/exchanges.yaml#/ImportDetail }
@@ -300,24 +301,24 @@
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '409':
         description: >-
-          `STATE_FORBIDS_OPERATION`, `params.missing_condition` nommant la première condition qui
-          manque, et rien n'est analysé. Un projet terminal, `project_not_terminal`
-          (WF-CYC-0100) — il ne liste alors aucune commande, et ce 409 est le seul endroit où la
-          condition est nommée (I-03, #1789). Pour un planning, un devis ou un reste à engager,
-          dans l'ordre où `ProjectCommand.import_*` les nomme : `no_background_task_running`
-          pendant un traitement de fond qui écrit dans la révision en cours ou la fige, puis
-          `may_create_revision` à qui n'a pas `revisions.write` quand l'import créerait la
-          révision en cours — un 409 et non un 403, comme pour la fusion (`mergeCostStructure`)
-          (WF-INTF-0090 ; I-04, #1792). Ou un devis importé sur la structure principale d'un
-          projet qui a atteint En cours, `project_before_in_progress`, la condition que la
-          structure principale nomme à la saisie de son devis (`StructureCommand.edit_estimate`,
-          WF-INTF-0100 ; C-358). Une structure différentielle et le devis propre d'un risque
-          l'acceptent quel que soit l'état du projet. Ou un import de coûts réels tant que la
-          correspondance de l'installation est incomplète, `actual_cost_mapping_complete`, la
-          condition que la commande `import_actual_costs` du projet nomme d'avance, et
-          `params.columns` les colonnes exigées sans intitulé (`ActualCostSourceColumn`, dans
-          l'ordre de la correspondance ; WF-REF-0190). Elle se juge après l'état du projet, dans
-          l'ordre où la commande nomme ses conditions.
+          `STATE_FORBIDS_OPERATION`, `params.missing_condition` naming the first missing
+          condition, and nothing is analysed. A terminal project, `project_not_terminal`
+          (WF-CYC-0100) — it then lists no command, and this 409 is the only place where the
+          condition is named (I-03, #1789). For a schedule, an estimate or a remaining to commit,
+          in the order in which `ProjectCommand.import_*` names them: `no_background_task_running`
+          while a background task writes to the current revision or freezes it, then
+          `may_create_revision` for whoever lacks `revisions.write` when the import would create the
+          current revision — a 409 and not a 403, as for the merge (`mergeCostStructure`)
+          (WF-INTF-0090; I-04, #1792). Or an estimate imported on the main structure of a
+          project that has reached In progress, `project_before_in_progress`, the condition that the
+          main structure names when its estimate is entered (`StructureCommand.edit_estimate`,
+          WF-INTF-0100; C-358). A differential structure and the own estimate of a risk
+          accept it whatever the state of the project. Or an actual cost import as long as the
+          mapping of the installation is incomplete, `actual_cost_mapping_complete`, the
+          condition that the project's `import_actual_costs` command names in advance, and
+          `params.columns` the required columns without a label (`ActualCostSourceColumn`, in
+          the order of the mapping; WF-REF-0190). It is judged after the state of the project, in
+          the order in which the command names its conditions.
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
@@ -329,21 +330,21 @@
               may_create_revision: { $ref: ../../../fixtures/api/import_open_may_create_revision.json }
       '422':
         description: >-
-          Format ou version non reconnus à la lecture de l'en-tête, avant toute analyse ; le
-          format attendu est nommé (WF-INTF-0070) : `FILE_FORMAT_UNREADABLE`,
-          `params.expected_format` le format de la nature de l'import (un `ExchangeKind`) et
-          `params.expected_version` sa version. Une extraction de
-          coûts réels n'a pas de version : elle se reconnaît aux intitulés que déclare la
-          correspondance (WF-INTF-0070, WF-REF-0190) ; à laquelle manque une colonne exigée, elle
-          est refusée par `FILE_FORMAT_UNREADABLE`, `params.expected_format` à `actual_costs`,
-          sans `expected_version`, et `params.missing_columns` chaque colonne exigée que le
-          fichier ne porte sous aucun de ses intitulés, avec les intitulés déclarés, dans l'ordre
-          de la correspondance. Ou un dépôt
-          qui n'a pas été fait pour un import — une sauvegarde déposée pour une restauration
-          (`FileUploadPurpose`) — : `VALIDATION_FAILED`, `fields` désignant `/upload_id` par
-          `UPLOAD_PURPOSE_MISMATCH`. Ou une période extraite dont la fin précède le début :
-          `VALIDATION_FAILED`, `/period_to` par `VALUE_OUT_OF_RANGE`, `params.minimum` le début.
-          Rien n'est mis en file.
+          Format or version not recognised when reading the header, before any analysis; the
+          expected format is named (WF-INTF-0070): `FILE_FORMAT_UNREADABLE`,
+          `params.expected_format` the format of the import's kind (an `ExchangeKind`) and
+          `params.expected_version` its version. An actual cost
+          extraction has no version: it is recognised by the labels the mapping
+          declares (WF-INTF-0070, WF-REF-0190); when a required column is missing from it, it
+          is refused with `FILE_FORMAT_UNREADABLE`, `params.expected_format` set to `actual_costs`,
+          without `expected_version`, and `params.missing_columns` each required column that the
+          file carries under none of its labels, with the declared labels, in the order
+          of the mapping. Or an upload
+          that was not made for an import — a backup uploaded for a restore
+          (`FileUploadPurpose`) —: `VALIDATION_FAILED`, `fields` designating `/upload_id` with
+          `UPLOAD_PURPOSE_MISMATCH`. Or an extracted period whose end precedes its start:
+          `VALIDATION_FAILED`, `/period_to` with `VALUE_OUT_OF_RANGE`, `params.minimum` the start.
+          Nothing is queued.
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
@@ -351,6 +352,7 @@
               format_unreadable: { $ref: ../../../fixtures/api/import_format_unreadable.json }
               actual_costs_column_missing: { $ref: ../../../fixtures/api/import_actual_costs_column_missing.json }
               purpose_mismatch: { $ref: ../../../fixtures/api/import_upload_purpose_mismatch.json }
+              period_inverted: { $ref: ../../../fixtures/api/import_period_inverted.json }
       '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
@@ -358,40 +360,39 @@
   get:
     operationId: getImport
     tags: [exchanges]
-    summary: Compte rendu d'un import
+    summary: Report of an import
     description: >-
-      La structure, la révision et la période que l'ouverture a reçues, puis le compte rendu :
-      lignes lues, inchangées, rejetées avec leur motif, écarts avec les données existantes,
-      objets conservés et signalés, éléments ignorés, tâches terminées et écarts de dates
-      ou de durées constatés (WF-INTF-0080, WF-INTF-0040, WF-INTF-0120) ; d'un devis ou d'un
-      reste à engager, les lignes rejetées parce qu'elles quitteraient un sous-projet qui a reçu
-      des coûts réels, le sous-projet nommé (WF-INTF-0100, WF-INTF-0120), celles qui citent une
-      tâche, un rôle ou un sous-projet inconnus, la valeur lue nommée, ou une tâche par un libellé
-      que plusieurs portent (`AMBIGUOUS_TASK_LABEL`, ANNEXE B), les lignes de provision ignorées
-      ou conservées (`provision_lines`, `kept`, WF-INTF-0100), et les tâches qu'un reste à
-      engager termine à la date de la revue que porte le fichier (WF-INTF-0120) ; d'un planning
-      MS Project, la date de début de planning de la structure qu'il change (`cost_structure`),
-      les dates de tâches manuelles gardées sur un jour sans heure travaillée, et les
-      récapitulatives manuelles importées en mode automatique, signalées
-      (`ImportReport.signals`, WF-PLA-0020, WF-INTF-0040 ; #1271) ; d'une extraction de coûts
-      réels, les colonnes du fichier ni lues ni déclarées conservées, ignorées et nommées par leur
-      intitulé (`ImportIgnoredKind`, `columns`, WF-REF-0190), chaque ligne de coût désignée par sa
-      pièce et son poste, les lignes du fichier de même pièce et de même poste rejetées
-      (`DUPLICATE_COST_LINE`, WF-INTF-0140 ; EP-16/US-0630), et celles dont l'élément d'OTP est
-      mal formé ou d'un autre projet (`WBS_ELEMENT_INVALID`, `WBS_ELEMENT_OUTSIDE_PROJECT`,
-      WF-CRE-0020). Le compte rendu est conservé sous forme de codes et rendu dans la langue du
-      lecteur (WF-ARC-0110). L'import rend toujours son compte rendu, sa tâche et ses commandes,
-      appliquer et abandonner, disponibles ou non avec leurs conditions (`ImportDetail`,
-      WF-IHM-0090 ; I-01, I-06, #1789, #1780) ; d'un reste à engager, une ligne nouvelle sous une
-      tâche terminée est rejetée, la tâche nommée (`import_remaining_completed_task` ; I-05,
-      #1793), et un import dont l'application a été refusée se lit `refused`
-      (`import_apply_refused_permission`).
+      The structure, the revision and the period the opening received, then the report: lines
+      read, unchanged, rejected with their reason, differences with the existing data, objects
+      kept and signalled, ignored elements, completed tasks and differences in dates or
+      durations found (WF-INTF-0080, WF-INTF-0040, WF-INTF-0120); for an estimate or a remaining
+      to commit, the lines rejected because they would leave a subproject that has received
+      actual costs, the subproject named (WF-INTF-0100, WF-INTF-0120), those that cite an
+      unknown task, role or subproject, the value read named, or a task by a label that several
+      carry (`AMBIGUOUS_TASK_LABEL`, annex B), the provision lines ignored or kept
+      (`provision_lines`, `kept`, WF-INTF-0100), and the tasks that a remaining to commit
+      completes on the review date the file carries (WF-INTF-0120); for an MS Project schedule,
+      the planning start date of the structure that it changes (`cost_structure`), the dates of
+      manual tasks kept on a day without working hours, and the manual summary tasks imported in
+      automatic mode, signalled (`ImportReport.signals`, WF-PLA-0020, WF-INTF-0040; #1271); for
+      an actual cost extraction, the columns of the file neither read nor declared kept, ignored
+      and named by their label (`ImportIgnoredKind`, `columns`, WF-REF-0190), each cost line
+      designated by its document and its item, the lines of the file with the same document and
+      the same item rejected (`DUPLICATE_COST_LINE`, WF-INTF-0140; EP-16/US-0630), and those
+      whose WBS element is malformed or of another project (`WBS_ELEMENT_INVALID`,
+      `WBS_ELEMENT_OUTSIDE_PROJECT`, WF-CRE-0020). The report is stored as codes and rendered in
+      the language of the reader (WF-ARC-0110). The import always returns its report, its task
+      and its commands, apply and abandon, available or not with their conditions
+      (`ImportDetail`, WF-IHM-0090; I-01, I-06, #1789, #1780); for a remaining to commit, a new
+      line under a completed task is rejected, the task named
+      (`import_remaining_completed_task`; I-05, #1793), and an import whose application was
+      refused reads `refused` (`import_apply_refused_permission`).
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
       - $ref: ../components/parameters.yaml#/ImportId
     responses:
       '200':
-        description: Import et son compte rendu.
+        description: Import and its report.
         content:
           application/json:
             schema: { $ref: ../components/schemas/exchanges.yaml#/ImportDetail }
@@ -411,6 +412,7 @@
               planning_provision_moved: { $ref: ../../../fixtures/api/import_planning_provision_moved.json }
               estimate_task_without_hours: { $ref: ../../../fixtures/api/import_estimate_task_without_hours.json }
               actual_costs_wbs_invalid: { $ref: ../../../fixtures/api/import_actual_costs_wbs_invalid.json }
+              actual_costs_dotted_code: { $ref: ../../../fixtures/api/import_actual_costs_dotted_code.json }
               remaining_ambiguous_label: { $ref: ../../../fixtures/api/import_remaining_ambiguous_label.json }
               remaining_completed_task: { $ref: ../../../fixtures/api/import_remaining_completed_task.json }
               apply_refused_permission: { $ref: ../../../fixtures/api/import_apply_refused_permission.json }
@@ -421,28 +423,29 @@
   delete:
     operationId: abandonImport
     tags: [exchanges]
-    summary: Abandonner un import
+    summary: Abandon an import
     description: >-
-      Le projet reste inchangé et le fichier est supprimé (WF-INTF-0080, WF-DAT-0120). L'abandon
-      est idempotent : celui d'un import terminé sans écrire — abandonné, expiré, échoué ou refusé
-      — rend 204 sans effet, son fichier étant déjà supprimé (WF-ARC-0100). Un import appliqué ou
-      en cours d'application ne s'abandonne pas : ce qu'il a écrit ne se défait pas par l'abandon
-      (WF-INTF-0080), ce que sa commande `abandon` dit d'avance (I-02, #1789).
+      The project remains unchanged and the file is deleted (WF-INTF-0080, WF-DAT-0120).
+      Abandoning is idempotent: abandoning an import that ended without writing — abandoned,
+      expired, failed or refused — returns 204 without effect, its file being already deleted
+      (WF-ARC-0100). An import applied or being applied cannot be abandoned: what it has written
+      is not undone by abandoning it (WF-INTF-0080), which its `abandon` command states in
+      advance (I-02, #1789).
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
       - $ref: ../components/parameters.yaml#/ImportId
     responses:
       '204':
         description: >-
-          Import abandonné, ou déjà abandonné, expiré, échoué ou refusé (sans effet).
+          Import abandoned, or already abandoned, expired, failed or refused (without effect).
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '409':
         description: >-
-          `STATE_FORBIDS_OPERATION`, `params.missing_condition` à `import_not_applied` : l'import
-          est appliqué ou en cours d'application (`applying`, `applied`), et ce qu'il a écrit ne
-          se défait pas par l'abandon (WF-INTF-0080 ; I-02, #1789). Rien n'est changé.
+          `STATE_FORBIDS_OPERATION`, `params.missing_condition` set to `import_not_applied`: the
+          import is applied or being applied (`applying`, `applied`), and what it has written is
+          not undone by abandoning it (WF-INTF-0080; I-02, #1789). Nothing is changed.
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
@@ -455,17 +458,17 @@
   post:
     operationId: applyImport
     tags: [exchanges]
-    summary: Appliquer un import
+    summary: Apply an import
     description: >-
-      Écrit en une seule transaction ; un import interrompu laisse le projet inchangé
-      (WF-INTF-0080). Les droits, la qualité de contributeur et l'état du projet sont
-      revérifiés au moment de l'exécution (WF-ARC-0100) : un devis analysé sur la structure
-      principale n'est plus appliqué une fois le projet En cours (WF-INTF-0100). Un import de coûts
-      réels insère ou met à jour sur le numéro de pièce et le numéro de poste, sans toucher aux
-      exclusions (WF-INTF-0140, WF-DAT-0110, WF-CRE-0030 ; D-4). Il s'applique tel qu'il a été
-      analysé, même si la correspondance de l'extraction a changé depuis l'analyse : le compte rendu
-      confirmé est ce qui s'applique (WF-INTF-0080), et une modification de la correspondance vaut
-      pour les imports suivants, sans changer aucune ligne déjà importée (WF-REF-0190).
+      Writes in a single transaction; an interrupted import leaves the project unchanged
+      (WF-INTF-0080). The rights, the contributor status and the state of the project are
+      checked again at execution time (WF-ARC-0100): an estimate analysed on the main structure
+      is no longer applied once the project is In progress (WF-INTF-0100). An actual cost import
+      inserts or updates on the document number and the item number, without touching the
+      exclusions (WF-INTF-0140, WF-DAT-0110, WF-CRE-0030; D-4). It applies as it was analysed,
+      even if the mapping of the extraction has changed since the analysis: the confirmed report
+      is what applies (WF-INTF-0080), and a change to the mapping holds for subsequent imports,
+      without changing any line already imported (WF-REF-0190).
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
       - $ref: ../components/parameters.yaml#/ImportId
@@ -476,7 +479,7 @@
           schema: { $ref: ../components/schemas/exchanges.yaml#/ImportApply }
     responses:
       '202':
-        description: Application mise en file.
+        description: Application queued.
         content:
           application/json:
             schema: { $ref: ../components/common.yaml#/BackgroundTaskRef }
@@ -488,30 +491,31 @@
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '409':
         description: >-
-          `STATE_FORBIDS_OPERATION`, `params.missing_condition` nommant la première condition qui
-          manque, dans cet ordre (I-01, #1789). D'abord `import_awaiting_decision`, l'import n'étant
-          plus `analysed` — appliqué ou en cours d'application, abandonné, expiré, échoué ou
-          refusé : il n'y a plus rien à appliquer (WF-ARC-0100), et l'import ne change pas
-          (`import_apply_expired`). Puis `import_file_accepted`, un compte rendu qui rejette le
-          fichier entier (`ImportReport.refusals`, WF-INTF-0040, WF-PLA-0150 ; EP-14/L42s). Puis
-          les conditions d'état revérifiées au dépôt de la tâche, celles qu'a jugées l'ouverture
-          (`openImport`) : `project_not_terminal`, `no_background_task_running` (I-04, #1792),
-          `project_before_in_progress`. Refusé par l'une des deux dernières sortes — le compte
-          rendu ou une condition revérifiée —, comme par une permission ou une qualité de
-          contributeur retirées depuis l'analyse (403), l'import passe `refused` et son fichier est
-          supprimé (WF-ARC-0100) : il ne s'applique plus, et l'abandon rend 204 sans effet
-          (`import_apply_refused_permission`). Les refus se
-          rejugent à l'exécution : un fichier que l'analyse acceptait et qu'une saisie faite depuis
-          ferait rejeter n'est pas appliqué, la tâche de fond échouant sur le motif du refus, avec
-          les paramètres que le compte rendu lui donnerait. Un devis analysé sur la structure
-          principale avant le passage du projet à En cours n'est plus appliqué après lui :
-          `STATE_FORBIDS_OPERATION`, `params.missing_condition` à `project_before_in_progress`,
-          comme à l'ouverture (`openImport`, WF-INTF-0100 ; C-358).
+          `STATE_FORBIDS_OPERATION`, `params.missing_condition` naming the first missing
+          condition, in this order (I-01, #1789). First `import_awaiting_decision`, the import
+          being no longer `analysed` — applied or being applied, abandoned, expired, failed or
+          refused: there is nothing left to apply (WF-ARC-0100), and the import does not change
+          (`import_apply_expired`). Then `import_file_accepted`, a report that rejects the whole
+          file (`ImportReport.refusals`, WF-INTF-0040, WF-PLA-0150; EP-14/L42s). Then the state
+          conditions checked again when the task is submitted, those the opening judged
+          (`openImport`): `project_not_terminal`, `no_background_task_running` (I-04, #1792),
+          `project_before_in_progress`. Refused for one of the last two kinds — the report or a
+          condition checked again —, as for a permission or a contributor status withdrawn since
+          the analysis (403), the import becomes `refused` and its file is deleted
+          (WF-ARC-0100): it no longer applies, and abandoning returns 204 without effect
+          (`import_apply_refused_permission`). Refusals are judged again at execution: a file
+          that the analysis accepted and that an entry made since would cause to be rejected is
+          not applied, the background task failing on the reason for the refusal, with the
+          parameters the report would give it. An estimate analysed on the main structure before
+          the project moved to In progress is no longer applied after it:
+          `STATE_FORBIDS_OPERATION`, `params.missing_condition` set to
+          `project_before_in_progress`, as at the opening (`openImport`, WF-INTF-0100; C-358).
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
             examples:
               file_rejected: { $ref: ../../../fixtures/api/import_apply_rejected.json }
+              main_in_progress: { $ref: ../../../fixtures/api/import_apply_main_in_progress.json }
               expired: { $ref: ../../../fixtures/api/import_apply_expired.json }
       '422': { $ref: ../components/responses.yaml#/UnprocessableEntity }
       '500': { $ref: ../components/responses.yaml#/InternalError }
@@ -521,25 +525,24 @@
   post:
     operationId: requestExport
     tags: [exchanges]
-    summary: Demander un export
+    summary: Request an export
     description: >-
-      Planning MS Project avec ses calendriers (WF-INTF-0050), devis (WF-INTF-0110),
-      reste à engager (WF-INTF-0130) — un planning exporté puis réimporté sans
-      modification restitue les mêmes tâches (WF-INTF-0060) —, ou image de l'arborescence de tâches
-      (WF-PLA-0120). Le fichier est engendré par le worker et déposé sur le stockage objet, où il
-      attend son téléchargement (`getBackgroundTaskResult`) : il est supprimé à l'issue de son
-      premier téléchargement complet, ou au terme de vingt-quatre heures s'il n'a pas été
-      téléchargé, un téléchargement interrompu le laissant en place (WF-DAT-0120,
-      WF-ARC-0040) ; ses en-têtes ne dépendent pas de la langue (WF-INTF-0180). Un planning MS
-      Project écrit la date de début de planning de la structure dans la date de début du projet
-      (WF-INTF-0050, WF-PLA-0020) ; un reste à engager, la date de la revue en « Synthèse »,
-      celle que la requête nomme ou le jour de la demande (`ExportRequest.review_date`,
-      WF-INTF-0130), que son import retiendra pour terminer une tâche (WF-INTF-0120). La
-      révision nommée (`revision_id`, exigé) est celle dont la commande `export_*` juge
-      l'export ; une révision inconnue ou d'un autre projet est refusée par 404, un corps sans
-      révision par 422. Un export ne manque d'aucune condition — sur une révision marquée,
-      pendant un marquage, sur un projet terminal, il reste disponible (`RevisionCommand`,
-      WF-CYC-0110) — : il n'a pas de 409 (I-17, US-0702/L2).
+      MS Project schedule with its calendars (WF-INTF-0050), estimate (WF-INTF-0110), remaining
+      to commit (WF-INTF-0130) — a schedule exported then re-imported without modification gives
+      back the same tasks (WF-INTF-0060) —, or image of the task tree (WF-PLA-0120). The file is
+      generated by the worker and stored in object storage, where it awaits its download
+      (`getBackgroundTaskResult`): it is deleted after its first complete download, or after
+      twenty-four hours if it has not been downloaded, an interrupted download leaving it in
+      place (WF-DAT-0120, WF-ARC-0040); its headers do not depend on the language
+      (WF-INTF-0180). An MS Project schedule writes the planning start date of the structure
+      into the project start date (WF-INTF-0050, WF-PLA-0020); a remaining to commit, the review
+      date in "Synthèse", the one the request names or the day of the request
+      (`ExportRequest.review_date`, WF-INTF-0130), which its import will use to complete a task
+      (WF-INTF-0120). The named revision (`revision_id`, required) is the one whose `export_*`
+      command judges the export; an unknown revision or one of another project is refused with
+      404, a body without a revision with 422. An export lacks no condition — on a marked
+      revision, during a marking, on a terminal project, it remains available
+      (`RevisionCommand`, WF-CYC-0110) —: it has no 409 (I-17, US-0702/L2).
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
     requestBody:
@@ -549,7 +552,7 @@
           schema: { $ref: ../components/schemas/exchanges.yaml#/ExportRequest }
     responses:
       '202':
-        description: Export mis en file ; le résultat se télécharge par la tâche.
+        description: Export queued; the result is downloaded through the task.
         content:
           application/json:
             schema: { $ref: ../components/common.yaml#/BackgroundTaskRef }
@@ -560,7 +563,7 @@
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404':
         description: >-
-          Projet invisible, ou révision inconnue ou d'un autre projet (WF-ADM-0110) :
+          Project not visible, or revision unknown or of another project (WF-ADM-0110):
           `NOT_FOUND`.
         content:
           application/problem+json:
@@ -569,9 +572,9 @@
               revision_of_another_project: { $ref: ../../../fixtures/api/export_revision_not_found.json }
       '422':
         description: >-
-          `VALIDATION_FAILED`, `fields` désignant le champ en défaut : un corps sans révision,
-          `/revision_id` ; un niveau d'arborescence sous le premier, `/depth`,
-          `VALUE_OUT_OF_RANGE`, `params.minimum` à `1` (WF-PLA-0120).
+          `VALIDATION_FAILED`, `fields` designating the field at fault: a body without a revision,
+          `/revision_id`; a tree level below the first, `/depth`,
+          `VALUE_OUT_OF_RANGE`, `params.minimum` set to `1` (WF-PLA-0120).
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }

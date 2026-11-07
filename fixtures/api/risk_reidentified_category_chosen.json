@@ -1,0 +1,9 @@
+{
+  "summary": "Variante contrefactuelle : « Indisponibilité de l'automaticien », écarté le 2 février 2026, sa catégorie PRV-001 « Provisions pour risques » désactivée depuis (risk_dismissed_category_deactivated), rendu identifié à la probabilité de 5 % qu'il avait, la catégorie de sa provision choisie parmi les catégories actives de type provision pour risques : PRV-002 « Provisions pour aléas fournisseurs ». Sa ligne de provision est recréée dans cette catégorie, que l'annulation du réexamen lui reprendrait (WF-RIS-0010, WF-RIS-0020, #747).",
+  "value": {
+    "probability": "0.05",
+    "state": "identified",
+    "provision_cost_category_id": "01926f3a-7c00-7000-8000-000000000407",
+    "lock_version": 3
+  }
+}

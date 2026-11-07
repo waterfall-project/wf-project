@@ -1,0 +1,11 @@
+{
+  "summary": "Le réexamen qui rendrait identifié « Indisponibilité de l'automaticien », écarté le 2 février 2026, alors que PRV-001 « Provisions pour risques », la seule catégorie de type provision pour risques, a été désactivée depuis (risk_dismissed_category_deactivated) : sa ligne de provision recréée n'aurait aucune catégorie où se ranger, refusé, la condition manquante nommée ; rien n'est écrit. Une variante contrefactuelle : la provision pour risques du témoin est active (WF-RIS-0010, WF-REF-0030).",
+  "value": {
+    "code": "STATE_FORBIDS_OPERATION",
+    "status": 409,
+    "params": {
+      "missing_condition": "active_provision_category"
+    },
+    "correlation_id": "01926f3a-7c00-7000-8000-000000001926"
+  }
+}

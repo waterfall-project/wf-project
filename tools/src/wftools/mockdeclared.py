@@ -16,7 +16,8 @@ three, on the examples written by hand and the core of the witness:
   started, and of the last task that would bear a provision (``node_delete_started_refused``,
   ``node_delete_last_provision_task_refused``, F-04, H-05); an inscription on the reference
   (``node_tracking_marked_refused``, F-11); a line of actual cost excluded on the witness completed
-  (``actual_cost_scope_terminal``, I-06); the result of a task that has not succeeded
+  (``actual_cost_scope_terminal``, I-06), and on a project in pricing
+  (``actual_cost_scope_before_in_progress``, I-07); the result of a task that has not succeeded
   (``task_result_not_succeeded``, A-05);
 - a version name already borne, refused on its field, by the marking and the merge as by the exit
   (``mark_version_name_taken``, ``merge_version_name_taken``, E-05, E-12);
@@ -24,8 +25,8 @@ three, on the examples written by hand and the core of the witness:
   (``project_exit_unconfirmed``, D-03), a predecessor sent twice (``predecessors_duplicate``,
   F-03), an inscription to a timeline without one or with one of another project
   (``node_tracking_timeline_required``, ``node_tracking_timeline_unknown``, F-11);
-- the deactivated objects of three lists of the reference asked for without the permission that
-  modifies them (``*_inactive_forbidden``, C-01);
+- the deactivated objects of six lists of the reference asked for without the permission that
+  modifies them (``*_inactive_forbidden``, C-01, C-05);
 - and the answer the deletion of a task bearing a provision gives, which the witness cannot give —
   the one task that bears a provision is started — on a variant of its core
   (``node_deleted_provision_moved``, F-04, L-11).
@@ -83,12 +84,20 @@ TRACKING_CORRELATION, TIMELINE_REQUIRED_CORRELATION, TIMELINE_UNKNOWN_CORRELATIO
 """The correlations of the refusals of the common tree (F-03, F-04, F-11)."""
 
 SCOPE_CORRELATION, RESULT_CORRELATION = universe(1653), universe(1654)
+SCOPE_PRICING_CORRELATION = universe(1929)
 ORG_NODES_CORRELATION, CALENDARS_CORRELATION, COST_TYPES_CORRELATION = (
     universe(1655),
     universe(1656),
     universe(1657),
 )
 """The correlations of the refusals of the actual costs, the tasks and the reference."""
+
+ROLES_CORRELATION, CATEGORIES_CORRELATION, GRID_CORRELATION = (
+    universe(1763),
+    universe(1764),
+    universe(1765),
+)
+"""The correlations of the deactivated roles, categories and rows of the grid refused (C-05)."""
 
 DUPLICATED_ON, DUPLICATED = N.COMMISSIONING, N.MOUNTING
 """The commissioning, given the mounting for predecessor twice (WF-PLA-0030)."""
@@ -381,7 +390,9 @@ def _moved_examples() -> dict[str, JsonObject]:
             f"l'« {labels[N.INSTALLATION]} » reste {_STATES[cast('str', state)]} (WF-PLA-0020, "
             f"WF-RAE-0030). Les totaux de la structure diminuent des deux lignes du montage, "
             f"{mocktext.amount(lost)} ({mocktext.amount(hours, 0)} h) ; le budget de la "
-            f"provision ne bouge pas. Avec elle, {totals_said(moved)}, et le compteur de la "
+            f"provision ne bouge pas, la règle de l'exemple chiffré de WF-RIS-0010 — une "
+            f"provision de 40 passée sur la tâche parente, le devis inchangé — appliquée à "
+            f"l'échelle du témoin. Avec elle, {totals_said(moved)}, et le compteur de la "
             f"structure, passé à 2 (WF-PLA-0070, WF-RIS-0010, WF-IHM-0110, #1768).",
             moved,
         ),
@@ -393,7 +404,7 @@ _STATES = {"not_started": "non démarrée", "started": "démarrée", "completed"
 
 
 def _other_examples() -> dict[str, JsonObject]:
-    completed = _project("project_completed")
+    completed, pricing = _project("project_completed"), _project("project_pricing")
     return {
         "actual_cost_scope_terminal.json": mocktext.example(
             f"Une ligne de coût réel du projet témoin, « {completed['label']} », exclue du "
@@ -402,6 +413,14 @@ def _other_examples() -> dict[str, JsonObject]:
             f"condition qui manque, project_not_terminal ; rien n'est écrit (WF-CYC-0100, "
             f"WF-CRE-0030, WF-IHM-0090).",
             state_refused("project_not_terminal", SCOPE_CORRELATION),
+        ),
+        "actual_cost_scope_before_in_progress.json": mocktext.example(
+            f"Une ligne de coût réel exclue du périmètre suivi sur « {pricing['label']} », un "
+            f"projet en chiffrage (project_pricing) : le périmètre suivi des coûts réels ne se "
+            f"règle qu'à partir de l'état En cours, et sa commande exclude_cost_lines le dit "
+            f"indisponible ; refusée par la condition qui manque, project_in_progress ; rien "
+            f"n'est écrit (WF-CRE-0030, WF-IHM-0090).",
+            state_refused("project_in_progress", SCOPE_PRICING_CORRELATION),
         ),
         "task_result_not_succeeded.json": mocktext.example(
             "Le résultat de l'export demandé aujourd'hui, téléchargé alors que sa tâche est encore "
@@ -427,5 +446,24 @@ def _other_examples() -> dict[str, JsonObject]:
             "modifier les paramètres de coûts : les natures désactivées restent sous cette "
             "permission, refusée en la nommant ; rien n'est lu (WF-REF-0150, WF-ADM-0100).",
             _forbidden(COST_SETTINGS, COST_TYPES_CORRELATION),
+        ),
+        "resource_roles_inactive_forbidden.json": mocktext.example(
+            "Les rôles de ressources demandés avec include_inactive par une session qui ne peut "
+            "pas modifier les paramètres de ressources : les rôles désactivés restent sous cette "
+            "permission, refusée en la nommant ; rien n'est lu (WF-REF-0150, WF-ADM-0100).",
+            _forbidden(RESOURCE_SETTINGS, ROLES_CORRELATION),
+        ),
+        "cost_categories_inactive_forbidden.json": mocktext.example(
+            "Les catégories de coût demandées avec is_active=false par une session qui ne peut "
+            "pas modifier les paramètres de coûts : les catégories désactivées restent sous cette "
+            "permission, refusée en la nommant ; rien n'est lu (WF-REF-0150, WF-ADM-0100).",
+            _forbidden(COST_SETTINGS, CATEGORIES_CORRELATION),
+        ),
+        "hourly_rate_grid_inactive_forbidden.json": mocktext.example(
+            "La grille des taux horaires demandée avec include_inactive par une session qui lit "
+            "les paramètres de coûts sans pouvoir les modifier : les catégories désactivées "
+            "restent sous la permission de les modifier, refusée en la nommant ; rien n'est lu "
+            "(WF-REF-0150, WF-ADM-0100).",
+            _forbidden(COST_SETTINGS, GRID_CORRELATION),
         ),
     }

@@ -105,6 +105,15 @@ def test_a_fixture_cites_keys(fixtures: Path) -> None:
     assert examples.cited(fixtures) == {"fixtures/portfolio.json": ["K#1"]}
 
 
+def test_an_example_of_the_contract_cites_keys_under_its_extension(fixtures: Path) -> None:
+    # An Example Object of OpenAPI admits no `examples` key: it cites under `x-examples`.
+    (fixtures / "api").mkdir()
+    (fixtures / "api" / "risk.json").write_text(
+        '{"summary": "", "x-examples": ["K#2"], "value": {}}', encoding="utf-8"
+    )
+    assert examples.cited(fixtures) == {"fixtures/api/risk.json": ["K#2"]}
+
+
 def test_a_fixture_with_malformed_examples_is_refused(fixtures: Path) -> None:
     (fixtures / "bad.json").write_text('{"examples": "K#1"}')
     with pytest.raises(ValueError, match="must be a list of keys"):

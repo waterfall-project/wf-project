@@ -1,0 +1,11 @@
+{
+  "summary": "Exemple commun aux opérations qui n'en montrent pas d'autre : une modification envoyée avec le compteur que l'écran avait lu, 3, alors qu'une autre écriture l'a porté à 4 depuis ; rien n'est écrit, et le compteur courant de l'objet que le chemin nomme est rendu, l'écran proposant de relire (WF-IHM-0110).",
+  "value": {
+    "code": "STALE_LOCK_VERSION",
+    "status": 412,
+    "params": {
+      "expected_lock_version": 4
+    },
+    "correlation_id": "01926f3a-7c00-7000-8000-000000001998"
+  }
+}

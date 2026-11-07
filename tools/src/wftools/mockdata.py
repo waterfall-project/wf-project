@@ -87,10 +87,12 @@ from typing import TYPE_CHECKING, Any, cast
 
 from wftools import (
     REPOSITORY,
+    mockadminrefusals,
     mockamendment,
     mockamendmentwrites,
     mockanonymized,
     mockaudit,
+    mockauditadmin,
     mockcategories,
     mockchronology,
     mockcomparisons,
@@ -111,6 +113,7 @@ from wftools import (
     mockreference,
     mockrefusals,
     mockreview,
+    mockrevisionminors,
     mockriskwrites,
     mocksnapshot,
     mocksort,
@@ -134,6 +137,7 @@ from wftools.mockportfolio import (
     portfolio_performance,
     portfolio_risks,
     portfolio_value,
+    risk_volume,
 )
 from wftools.mockstructure import (
     COMMISSIONING_RATE,
@@ -168,6 +172,7 @@ from wftools.mockwitness import (
     WORK_BREAKDOWN,
     N,
 )
+from wftools.mockwitnessrisks import OCCURRENCE_EXAMPLE, REGISTER
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
@@ -195,6 +200,15 @@ _AUDIT: JsonObject = {
     "updated_at": mockhistory.stamp(INSTALLED.instant),
     "updated_by": {"kind": "user", "user_id": USER, "display_name": "Camille Martin"},
 }
+
+_INSTALLED_AUDIT: JsonObject = {
+    "created_at": mockhistory.stamp(INSTALLED.instant),
+    "created_by": {"kind": "platform"},
+    "updated_at": mockhistory.stamp(INSTALLED.instant),
+    "updated_by": {"kind": "platform"},
+}
+"""The audit of what the installation itself creates: the provision for risks, its nature and the
+default calendar, written by the platform at its bootstrap, not by an account."""
 
 
 # --- The grid of hourly rates -------------------------------------------------------------
@@ -228,7 +242,7 @@ def categories_of(
             "cost_type_is_active": nature["is_active"],
             "accounting_code": f"{account}{rank:03d}",
             "is_active": nature["is_active"],
-            "audit": _AUDIT,
+            "audit": _INSTALLED_AUDIT if nature["kind"] == "provision" else _AUDIT,
             "lock_version": 1,
         }
         for rank, (category, label) in enumerate(entries, start=1)
@@ -306,14 +320,16 @@ def named() -> dict[str, JsonObject]:
     Its readings, its writes, its history — its revisions compared and its risks —, its
     indicators today, its actual costs with the journal of their imports; the views of the
     portfolio over time that sum it with the other projects (``mockportfoliotime``); the
-    journal of audit of the universe (``mockaudit``); the readings of the lists of the
+    journal of audit of the universe (``mockaudit``), and its variants of the administration of
+    today and of a restore (``mockauditadmin``); the readings of the lists of the
     reference written by hand (``mockreference``), and those of the projects, the subprojects
     and the contributors (``mocklists``), the contributors once an account is anonymised
     (``mockanonymized``); the exit of the witness, its code refused and its readings by quality
     (``mockproject``); the refusals of one form each (``mockrefusals``), and those the contract
-    declared without a code, a condition nor an example (``mockdeclared``); the examples of the
-    majors of the review of the 2026-10-31 (``mockreview``); the chronology of the witness, for the
-    loader of the projects (``mockchronology``).
+    declared without a code, a condition nor an example (``mockdeclared``), and those of the
+    administration and of the platform described without one (``mockadminrefusals``); the
+    examples of the majors of the review of the 2026-10-31 (``mockreview``); the chronology of the
+    witness, for the loader of the projects (``mockchronology``).
     """
     marked = mocksnapshot.revisions(categories())
     return {
@@ -334,13 +350,16 @@ def named() -> dict[str, JsonObject]:
         **mockcosts.examples(),
         **mockportfoliotime.examples(),
         **mockaudit.examples(),
+        **mockauditadmin.examples(),
         **mockreference.named(),
         **mocklists.examples(),
         **mockanonymized.examples(),
         **mockproject.examples(),
         **mockrefusals.examples(),
+        **mockadminrefusals.examples(),
         **mockdeclared.examples(),
         **mockreview.examples(),
+        **mockrevisionminors.examples(),
         **mockchronology.examples(),
     }
 
@@ -431,7 +450,7 @@ def readings() -> dict[str, JsonObject]:
         ),
         "nodes_estimate.json": _example(
             f"Le devis de la récapitulative « Poste de commande », rattachée au lot "
-            f"« {FIRST_LOT.label} » du lotissement (WF-PLA-0130), lu avec ses lignes (subtree_of) "
+            f"« {FIRST_LOT.label} » du lotissement (WF-PLA-0170), lu avec ses lignes (subtree_of) "
             f"le {day} : "
             f"sous le câblage des armoires, démarré le 4 mai et qui s'achève le 30 juin, une "
             f"ligne de main-d'œuvre de 12,5 h à {_amount(ELECTRICAL_RATE)} — "
@@ -534,6 +553,7 @@ def readings() -> dict[str, JsonObject]:
             f"(origin_risk_id) ; la ligne de provision a disparu, et la récapitulative somme ses "
             f"lignes (WF-RIS-0060, WF-RIS-0050, #1788, #1761).",
             mockcore.subtree(rows, _RISK_OCCURRED),
+            (OCCURRENCE_EXAMPLE,),
         ),
         "timelines.json": _example(
             f"Les chronologies du projet témoin le {day} (WF-PLA-0140) : le comité de pilotage, "
@@ -555,7 +575,7 @@ def readings() -> dict[str, JsonObject]:
             f"commande n'est pas saisie : le lotissement par défaut, un lot comprenant un poste "
             f"sans livrable, qui portent le libellé du projet (WF-PRJ-0020), que rien n'a encore "
             f"écrit, et qu'aucune tâche ne porte : sa révision n'en a pas.",
-            mocklists.breakdown_reading(DEFAULT_BREAKDOWN, 0),
+            mocklists.breakdown_reading(DEFAULT_BREAKDOWN, 1),
         ),
         "timelines_empty.json": _example(
             f"Un projet qui n'a encore aucune chronologie nommée, le {day} : la liste est vide, "
@@ -729,13 +749,16 @@ def volumes() -> dict[str, JsonObject]:
             f"La structure des coûts des projets en cours du portefeuille du §4.6.2 au "
             f"{_day(TODAY.date())} : leur budget de référence, hors lignes de provision, et leur "
             "reste à engager, provisions comprises, par nature, en montant et en part, et leur "
-            "main-d'œuvre par nœud d'organisation de ses rôles ; aucune ventilation du coût réel "
-            "(WF-PTF-0080, WF-IND-0020). Aucun projet terminé n'est dans la période par défaut.",
+            "main-d'œuvre par nœud d'organisation de ses rôles — celle du monteur câbleur, que "
+            "seul le projet témoin emploie, à l'atelier de câblage, le reste au bureau d'études "
+            "électricité ; aucune ventilation du coût réel (WF-PTF-0080, WF-IND-0020). Aucun "
+            "projet terminé n'est dans la période par défaut.",
             portfolio_cost_structure(rows),
         ),
         "portfolio_risks.json": _example(
             f"Les risques des projets en cours du portefeuille du §4.6.2 au "
-            f"{_day(TODAY.date())} : le total des provisions identifiées, les dix risques "
+            f"{_day(TODAY.date())}, {risk_volume(rows)} : le total des provisions identifiées, "
+            f"les dix risques "
             f"les plus lourds avec leur projet, la matrice remplie — chaque risque identifié "
             f"compté dans sa case et placé en point à ses valeurs exactes, avec son projet —, "
             f"la couverture des risques "
@@ -802,7 +825,9 @@ def _structure_summary(answer: JsonObject) -> str:
         f"{_count(count['milestone'])} jalons. Les tâches sont datées en heures de travail sur "
         f"le calendrier de leurs rôles — le câblage, au monteur câbleur, sur la semaine de "
         f"quatre jours —, avec leur marge et le chemin critique de toute la structure, et leur "
-        f"avancement est celui du jour (WF-PLA-0010, WF-PLA-0100, WF-PLA-0160)."
+        f"avancement est celui du jour (WF-PLA-0010, WF-PLA-0100, WF-PLA-0160). Les devis propres "
+        f"des trente risques par projet que le §4.6.2 compte en plus sont d'autres structures, "
+        f"que cette lecture ne porte pas : le témoin en a {_count(len(REGISTER))}."
     )
 
 

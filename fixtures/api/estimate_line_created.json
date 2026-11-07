@@ -1,5 +1,5 @@
 {
-  "summary": "Sur l'« Avenant 2 — reprise des essais », différentiel non fusionné de la révision courante, dont le devis se saisit quel que soit l'état du projet (WF-DEV-0050), la ligne « Consommables d'essais » créée sous la mise en service, 350,00 de matériel au sous-projet « Essais et mise en service » : ses grandeurs sont celles de référence que l'avenant porte, d'où la fusion tirera son budget (WF-REV-0050) ; à sa première version (201), ajoutée à la structure principale (difference). Avec elle, ses ancêtres, « Installation sur site », « Essais sur site » et « Mise en service », dont le montant suit, les totaux de la structure, 5 001 lignes, 116310 h, 66 108 573,89 à l'année de référence, dont 68 495 038,05 budgétés, et le compteur du différentiel passé à 3 (#1214).",
+  "summary": "Sur l'« Avenant 2 — reprise des essais », différentiel non fusionné de la révision courante, dont le devis se saisit quel que soit l'état du projet (WF-DEV-0050), la ligne « Consommables d'essais » créée sous la mise en service, 350,00 de matériel au sous-projet « Essais et mise en service » : ses grandeurs sont celles de référence que l'avenant porte, d'où la fusion tirera son budget (WF-REV-0050) ; à sa première version (201), ajoutée à la structure principale (difference). Avec elle, ses ancêtres, « Installation sur site », « Essais sur site » et « Mise en service », dont le montant suit, les totaux de la structure, 5 001 lignes, 116310 h, 66 108 573,89 à l'année de référence, dont 68 495 039,21 budgétés, et le compteur du différentiel passé à 3 (#1214).",
   "description": "Exemple engendré par `make mock-data` (`wftools.mockdata`) : il ne se retouche pas.",
   "value": {
     "nodes": [
@@ -12,7 +12,7 @@
     ],
     "rescheduled": [],
     "reinflated": [],
-    "totals": {"task_count":1002,"estimate_line_count":5001,"hours":"116310","base_amount":"66108573.89","budgeted_amount":"68495038.05","reestimated_amount":"68927041.06"},
+    "totals": {"task_count":1002,"estimate_line_count":5001,"hours":"116310","base_amount":"66108573.89","budgeted_amount":"68495039.21","reestimated_amount":"68927041.77"},
     "structure_lock_version": 3
   }
 }

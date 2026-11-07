@@ -1,18 +1,18 @@
-# Portefeuille (FBS-2). Aucune saisie : ces vues consolident (WF-PTF-0030).
-# Elles sont accessibles à tout utilisateur qui en porte la permission, qu'il soit
-# ou non contributeur des projets qu'elles agrègent (WF-PRJ-0060).
+# Portfolio (FBS-2). No data entry: these views consolidate (WF-PTF-0030).
+# They are accessible to any user who holds the permission for them, whether or not
+# a contributor to the projects they aggregate (WF-PRJ-0060).
 
 /portfolio/projects:
   get:
     operationId: getPortfolioProjects
     tags: [portfolio]
-    summary: Liste des projets du portefeuille
+    summary: List of the portfolio projects
     description: >-
-      Libellé, code, état, budget de référence ou devis courant et probabilité, projection
-      du chef de projet et, pour un projet en cours, son écart au budget de référence,
-      indices avec leur zone, et date de la dernière révision marquée (WF-PTF-0040). La
-      liste se filtre par état, par période, par zone et par recherche sur le libellé ;
-      le tri est fait par le serveur, et `meta.total` compte les projets retenus
+      Label, code, state, reference budget or current estimate and probability, project
+      manager's projection and, for a project in progress, its variance to the reference
+      budget, indices with their zone, and date of the last marked revision (WF-PTF-0040).
+      The list is filtered by state, by period, by zone and by a search on the label; the
+      sort is done by the server, and `meta.total` counts the projects retained
       (WF-IHM-0130).
     parameters:
       - $ref: ../components/parameters.yaml#/PortfolioStates
@@ -26,15 +26,16 @@
       - name: zones
         in: query
         description: >-
-          Restreint aux projets dont l'indice de coût ou l'indice de délai est dans l'une
-          de ces zones : les projets en alerte, d'abord (WF-PTF-0040, WF-IHM-0130).
+          Restricts to the projects whose cost index or schedule index is in one of these
+          zones — `alert` to see the projects in alert (WF-PTF-0040, WF-IHM-0130); the order
+          remains that of `sort_by`.
         schema:
           type: array
           items: { $ref: ../components/schemas/reference.yaml#/AlertZone }
         explode: false
       - name: sort_by
         in: query
-        description: Colonne du tri ; absente, le libellé.
+        description: Sort column; when absent, the label.
         schema:
           type: string
           enum:
@@ -52,7 +53,7 @@
       - $ref: ../components/parameters.yaml#/SortOrder
     responses:
       '200':
-        description: Projets du périmètre.
+        description: Projects of the scope.
         content:
           application/json:
             schema:
@@ -78,11 +79,11 @@
   get:
     operationId: getPortfolioValue
     tags: [portfolio]
-    summary: Carnet, pipeline et réalisé
+    summary: Order book, pipeline and delivered
     description: >-
-      Carnet des projets en cours, pipeline des projets en chiffrage présenté brut et
-      pondéré par les probabilités de gain, réalisé des projets terminés de la période,
-      et taux de transformation (WF-PTF-0050, WF-PTF-0020).
+      Order book of the projects in progress, pipeline of the projects in pricing presented
+      gross and weighted by the win probabilities, delivered value of the projects completed
+      in the period, and conversion rate (WF-PTF-0050, WF-PTF-0020).
     parameters:
       - $ref: ../components/parameters.yaml#/PortfolioStates
       - $ref: ../components/parameters.yaml#/PortfolioFrom
@@ -91,7 +92,7 @@
       - $ref: ../components/parameters.yaml#/PortfolioOrgNode
     responses:
       '200':
-        description: Valeurs du portefeuille.
+        description: Values of the portfolio.
         content:
           application/json:
             schema: { $ref: ../components/schemas/portfolio.yaml#/PortfolioValue }
@@ -107,13 +108,13 @@
   get:
     operationId: getPortfolioWorkload
     tags: [portfolio]
-    summary: Plan de charge agrégé
+    summary: Aggregated workload
     description: >-
-      Somme des charges par rôle et par mois : reste à engager pour les projets en cours,
-      devis pondéré pour les projets en chiffrage inclus. La sous-charge est signalée
-      autant que la surcharge (WF-PTF-0060). Seuls ces deux états y contribuent : un autre
-      état que `states` nomme — terminé, créé, perdu ou abandonné — est sans effet, et la vue
-      ne prend pas de période (WF-PTF-0060, WF-PTF-0010).
+      Sum of the loads by role and by month: remaining to commit for the projects in
+      progress, weighted estimate for the projects in pricing included. Under-load is
+      flagged as much as overload (WF-PTF-0060). Only these two states contribute to it:
+      another state that `states` names — completed, created, lost or abandoned — has no
+      effect, and the view takes no period (WF-PTF-0060, WF-PTF-0010).
     parameters:
       - $ref: ../components/parameters.yaml#/PortfolioStates
       - $ref: ../components/parameters.yaml#/AsOf
@@ -121,18 +122,22 @@
       - name: horizon_months
         in: query
         description: >-
-          Nombre de mois du plan, le mois de la date de calcul le premier (WF-PTF-0060) ;
-          absent, six.
+          Number of months of the plan, the month of the calculation date first
+          (WF-PTF-0060); when absent, six.
         schema: { type: integer, minimum: 1, maximum: 240, default: 6 }
       - name: under_load_threshold
         in: query
-        description: Seuil de sous-charge, choisi par l'utilisateur (WF-PTF-0060).
+        description: >-
+          Under-load threshold, chosen by the user (WF-PTF-0060): a ratio of the load to the
+          capacity, from `0` to `1` — `0.5` for half the capacity (`Percent`) —, below which a
+          month of a role is in under-load; when absent, `0.5`, which the answer returns
+          (`PortfolioWorkload.under_load_threshold`).
         schema: { $ref: ../components/common.yaml#/Percent }
     responses:
       '200':
         description: >-
-          Charges et capacités par rôle et par mois, la capacité du périmètre et le total de
-          chaque mois.
+          Loads and capacities by role and by month, the capacity of the scope and the total
+          of each month.
         content:
           application/json:
             schema: { $ref: ../components/schemas/portfolio.yaml#/PortfolioWorkload }
@@ -143,13 +148,15 @@
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '422':
         description: >-
-          `VALIDATION_FAILED` : un nœud d'organisation inconnu, `fields` désignant
-          `/query/org_node_id` ; un seuil de sous-charge ou un horizon hors de ses bornes,
-          `/query/under_load_threshold` ou `/query/horizon_months` par `VALUE_OUT_OF_RANGE`
+          `VALIDATION_FAILED`: an unknown organisation node, `fields` designating
+          `/query/org_node_id`; an under-load threshold or a horizon outside its bounds,
+          `/query/under_load_threshold` or `/query/horizon_months` by `VALUE_OUT_OF_RANGE`
           (WF-PTF-0060).
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              horizon_refused: { $ref: ../../../fixtures/api/portfolio_workload_horizon_refused.json }
       '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
@@ -157,13 +164,13 @@
   get:
     operationId: getPortfolioPerformance
     tags: [portfolio]
-    summary: Indices, projections, répartition par zone et évolution trimestrielle
+    summary: Indices, projections, distribution by zone and quarterly evolution
     description: >-
-      Sur les seuls projets en cours du périmètre (WF-PTF-0070) : un projet en chiffrage ou
-      terminé que `states` ajoute n'y contribue pas, et `scope.states` nomme les états
-      demandés. Un indice de portefeuille est un rapport de sommes, jamais une moyenne
-      d'indices (WF-PTF-0020). L'évolution trimestrielle court sur les trimestres que la
-      période touche (`from`, `to`), chacun calculé à une date passée selon WF-PTF-0010
+      On the projects in progress of the scope only (WF-PTF-0070): a project in pricing or
+      completed that `states` adds does not contribute to it, and `scope.states` names the
+      states requested. A portfolio index is a ratio of sums, never an average of indices
+      (WF-PTF-0020). The quarterly evolution runs over the quarters that the period touches
+      (`from`, `to`), each calculated at a past date according to WF-PTF-0010
       (WF-PTF-0070).
     parameters:
       - $ref: ../components/parameters.yaml#/PortfolioStates
@@ -173,7 +180,7 @@
       - $ref: ../components/parameters.yaml#/PortfolioOrgNode
     responses:
       '200':
-        description: Performance du portefeuille.
+        description: Performance of the portfolio.
         content:
           application/json:
             schema: { $ref: ../components/schemas/portfolio.yaml#/PortfolioPerformance }
@@ -189,16 +196,16 @@
   get:
     operationId: getPortfolioCostStructure
     tags: [portfolio]
-    summary: Structure des coûts du portefeuille
+    summary: Portfolio cost structure
     description: >-
-      Ventilation par nature du budget de référence et du reste à engager, et
-      main-d'œuvre par nœud d'organisation. Aucune ventilation du coût réel par nature,
-      que l'ERP ne fournit pas (WF-PTF-0080). Les projets terminés qu'ajoute `states` sont
-      ceux de la période (`from`, `to`, à défaut la période par défaut, que `scope.from` et
-      `scope.to` rendent ; WF-PTF-0010). Un projet en chiffrage inclus contribue par son
-      devis courant pondéré par sa probabilité de gain : hors lignes de provision au budget
-      de référence, dont il tient lieu, provisions comprises au reste à engager
-      (WF-PTF-0080).
+      Breakdown by cost type of the reference budget and of the remaining to commit, and
+      labour by organisation node. No breakdown of the actual cost by cost type, which the
+      ERP does not provide (WF-PTF-0080). The completed projects that `states` adds are
+      those of the period (`from`, `to`, failing that the default period, which
+      `scope.from` and `scope.to` return; WF-PTF-0010). A project in pricing included
+      contributes through its current estimate weighted by its win probability: excluding
+      provision lines for the reference budget, which it stands in for, provisions
+      included for the remaining to commit (WF-PTF-0080).
     parameters:
       - $ref: ../components/parameters.yaml#/PortfolioStates
       - $ref: ../components/parameters.yaml#/PortfolioFrom
@@ -207,7 +214,7 @@
       - $ref: ../components/parameters.yaml#/PortfolioOrgNode
     responses:
       '200':
-        description: Ventilations.
+        description: Breakdowns.
         content:
           application/json:
             schema: { $ref: ../components/schemas/portfolio.yaml#/PortfolioCostStructure }
@@ -223,16 +230,15 @@
   get:
     operationId: getPortfolioRisks
     tags: [portfolio]
-    summary: Risques du portefeuille
+    summary: Portfolio risks
     description: >-
-      Total des provisions identifiées, risques les plus lourds tous projets confondus,
-      matrice remplie, couverture des risques agrégée — somme des réserves pour risques
-      face aux provisions restantes et aux coûts à la survenance des risques survenus
-      (WF-RIS-0050) —, et
-      provisions survenues face aux provisions écartées sur la période (WF-PTF-0090). Un
-      projet en chiffrage inclus apporte ses risques identifiés et leurs provisions sans
-      pondération (WF-PTF-0020) ; la réserve et la couverture ne portent que sur les projets
-      en cours et terminés du périmètre, un projet en chiffrage n'ayant pas de référence
+      Total of the identified provisions, heaviest risks across all projects, filled
+      matrix, aggregated risk coverage — sum of the risk reserves against the remaining
+      provisions and the costs at occurrence of the occurred risks (WF-RIS-0050) —, and
+      provisions occurred against provisions dismissed over the period (WF-PTF-0090). A
+      project in pricing included brings its identified risks and their provisions without
+      weighting (WF-PTF-0020); the reserve and the coverage cover only the projects in
+      progress and completed of the scope, a project in pricing having no reference
       (WF-PTF-0090).
     parameters:
       - $ref: ../components/parameters.yaml#/PortfolioStates
@@ -241,7 +247,7 @@
       - $ref: ../components/parameters.yaml#/AsOf
     responses:
       '200':
-        description: Risques agrégés.
+        description: Aggregated risks.
         content:
           application/json:
             schema: { $ref: ../components/schemas/portfolio.yaml#/PortfolioRisks }
@@ -257,20 +263,20 @@
   get:
     operationId: getPortfolioCostCurve
     tags: [portfolio]
-    summary: Courbe en S du portefeuille
+    summary: Portfolio S-curve
     description: >-
-      Somme, mois par mois, des courbes de coûts cumulés des projets du périmètre
-      (WF-IND-0100) : budget de référence, coût réel jusqu'à la date de calcul, puis
-      projection du chef de projet. Un projet en chiffrage inclus contribue par les courbes
-      de son devis courant, pondérées par sa probabilité de gain : hors lignes de provision
-      pour le budget de référence, provisions comprises pour la projection du chef de projet
-      (WF-PTF-0100). Les projets terminés qu'ajoute `states` sont ceux de la période
-      (`from`, `to`, à défaut la période par défaut, que `scope.from` et `scope.to` rendent ;
-      WF-PTF-0010) ; la période ne borne pas les mois de la courbe, que `horizon_months`
-      fixe. Sur demande (`payment_delays`), ce sont les décaissements que chaque projet rend
-      avec ses délais de paiement qui sont sommés, et la réponse les détaille par mois
-      (`cash_out_by_month`). Rien n'y est recalculé, de sorte que le portefeuille et les
-      projets racontent la même histoire (WF-PTF-0100).
+      Sum, month by month, of the cumulative cost curves of the projects of the scope
+      (WF-IND-0100): reference budget, actual cost up to the calculation date, then project
+      manager's projection. A project in pricing included contributes through the curves of
+      its current estimate, weighted by its win probability: excluding provision lines for
+      the reference budget, provisions included for the project manager's projection
+      (WF-PTF-0100). The completed projects that `states` adds are those of the period
+      (`from`, `to`, failing that the default period, which `scope.from` and `scope.to`
+      return; WF-PTF-0010); the period does not bound the months of the curve, which
+      `horizon_months` sets. On request (`payment_delays`), it is the cash-out that each
+      project returns with its payment delays that is summed, and the response details it by
+      month (`cash_out_by_month`). Nothing is recalculated in it, so that the portfolio and
+      the projects tell the same story (WF-PTF-0100).
     parameters:
       - $ref: ../components/parameters.yaml#/PortfolioStates
       - $ref: ../components/parameters.yaml#/PortfolioFrom
@@ -279,22 +285,22 @@
       - name: horizon_months
         in: query
         description: >-
-          Nombre de mois de la courbe à partir de celui de la date de calcul, ce mois le
-          premier ; absent, six. Les douze mois qui précèdent celui de la date de calcul les
-          précèdent toujours : sans horizon, la courbe court sur dix-huit mois (WF-PTF-0100).
+          Number of months of the curve from that of the calculation date, this month first;
+          when absent, six. The twelve months preceding that of the calculation date always
+          precede them: without a horizon, the curve runs over eighteen months (WF-PTF-0100).
         schema: { type: integer, minimum: 1, maximum: 240, default: 6 }
       - name: payment_delays
         in: query
         description: >-
-          Vrai, les séries sont celles des décaissements des projets, décalées des délais
-          de paiement et portant les provisions des risques identifiés (WF-IND-0100,
+          When true, the series are those of the projects' cash-out, shifted by the payment
+          delays and bearing the provisions of the identified risks (WF-IND-0100,
           WF-PTF-0100).
         schema: { type: boolean, default: false }
     responses:
       '200':
         description: >-
-          Séries cumulées par mois, décaissements par mois compris quand `payment_delays` est
-          vrai.
+          Cumulative series by month, cash-out by month included when `payment_delays` is
+          true.
         content:
           application/json:
             schema: { $ref: ../components/schemas/portfolio.yaml#/PortfolioCostCurve }
@@ -313,19 +319,19 @@
   get:
     operationId: getPortfolioPilotHealth
     tags: [portfolio]
-    summary: Santé du pilotage
+    summary: Project control health
     description: >-
-      Revues en retard, risques non réexaminés, coûts non importés, jalons contractuels
-      dépassés : les quatre signaux dont l'absence rend les autres vues trompeuses
-      (WF-PTF-0110, WF-REF-0180). Sur les seuls projets en cours du périmètre : un autre
-      état que `states` nomme — en chiffrage, terminé, créé, perdu ou abandonné — est sans
-      effet, et la vue ne prend pas de période (WF-PTF-0110, WF-PTF-0010).
+      Overdue reviews, risks not reviewed, costs not imported, overdue contractual
+      milestones: the four signals whose absence makes the other views misleading
+      (WF-PTF-0110, WF-REF-0180). On the projects in progress of the scope only: another
+      state that `states` names — in pricing, completed, created, lost or abandoned — has no
+      effect, and the view takes no period (WF-PTF-0110, WF-PTF-0010).
     parameters:
       - $ref: ../components/parameters.yaml#/PortfolioStates
       - $ref: ../components/parameters.yaml#/AsOf
     responses:
       '200':
-        description: Signaux par projet.
+        description: Signals by project.
         content:
           application/json:
             schema: { $ref: ../components/schemas/portfolio.yaml#/PilotHealth }

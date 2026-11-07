@@ -1,34 +1,42 @@
-# Paramètres partagés. Tous les identifiants de chemin sont des UUID (WF-DAT-0060).
+# Shared parameters. All path identifiers are UUIDs (WF-DAT-0060).
 
 Limit:
   name: limit
   in: query
+  description: >-
+    Page size: 50 when absent, at most 500 (WF-IHM-0060). The screens offer 10, 25, 50 or 100
+    lines per page (`GridPreferences.page_size`); the larger pages serve the lists read as a
+    choice, such as the categories and roles of an estimate line, which are read page after
+    page up to `meta.total` with the largest page.
   schema: { type: integer, minimum: 1, maximum: 500, default: 50 }
 
 Offset:
   name: offset
   in: query
+  description: >-
+    Number of items skipped before the page, from 0, in the order of the list as sorted
+    (WF-IHM-0060). An offset at or beyond `meta.total` gives an empty page.
   schema: { type: integer, minimum: 0, default: 0 }
 
 Search:
   name: search
   in: query
   description: >-
-    Recherche sur le libellé ; une opération qui cherche aussi sur un autre champ, le code
-    par exemple, le dit dans sa description. Le texte se compare comme toute recherche du
-    contrat, sans égard à la casse ni aux accents (README, « Une recherche… »).
+    Search on the label; an operation that also searches on another field, the code
+    for example, says so in its description. The text is compared like any search of the
+    contract, regardless of case and accents (README, "A search…").
   schema: { type: string, minLength: 1, maxLength: 200 }
 
 SortOrder:
   name: sort_order
   in: query
-  description: Sens du tri demandé par `sort_by`.
+  description: Direction of the sort requested by `sort_by`.
   schema: { $ref: common.yaml#/SortOrder }
 
 SubprojectFilter:
   name: subproject_id
   in: query
-  description: '`unassigned` pour ce qui ne relève d''aucun sous-projet (WF-IND-0020, WF-CRE-0020).'
+  description: '`unassigned` for what falls under no subproject (WF-IND-0020, WF-CRE-0020).'
   schema:
     anyOf:
       - type: string
@@ -39,23 +47,24 @@ IncludeInactive:
   name: include_inactive
   in: query
   description: >-
-    Inclut les objets désactivés d'une liste du référentiel (WF-REF-0150), sous la permission de
-    modification que l'opération exige : sans elle, la demande est refusée par 403
-    (`PERMISSION_MISSING`), comme pour `is_active` faux. Propre au référentiel : une liste qui
-    ne suit pas cette règle porte son propre paramètre — les comptes, dont les désactivés se
-    lisent comme les actifs (`listUsers`, WF-ADM-0060, #1736).
+    Includes the deactivated objects of a reference data list (WF-REF-0150), under the
+    modification permission that the operation requires: without it, the request is refused with 403
+    (`PERMISSION_MISSING`), as for `is_active` false. Specific to reference data: a list that
+    does not follow this rule carries its own parameter — the accounts, whose deactivated ones are
+    read like the active ones (`listUsers`, WF-ADM-0060, #1736).
   schema: { type: boolean, default: false }
 
 IsActive:
   name: is_active
   in: query
   description: >-
-    Restreint à l'un des deux états, la colonne de l'état d'une table du référentiel filtrée
-    (WF-IHM-0130) : vrai, les seuls objets actifs ; faux, les seuls désactivés, lus sous la
-    permission qu'`include_inactive` exige (WF-REF-0150). Il prime sur `include_inactive`, qui
-    ne fait qu'ajouter les désactivés aux actifs ; absent, `include_inactive` décide.
-    `include_inactive` reste refusé sans sa permission, même quand `is_active` le rend sans
-    effet : la permission se juge sur la requête, non sur ce qu'elle rendrait.
+    Restricts to one of the two states, the state column of a reference data table being
+    filtered (WF-IHM-0130): true, only the active objects; false, only the deactivated ones,
+    read under the permission that `include_inactive` requires (WF-REF-0150). It takes
+    precedence over `include_inactive`, which only adds the deactivated objects to the active
+    ones; absent, `include_inactive` decides. `include_inactive` remains refused without its
+    permission, even when `is_active` makes it ineffective: the permission is judged on the
+    request, not on what it would return.
   schema: { type: boolean }
 
 ProjectId:
@@ -87,7 +96,7 @@ RowNumber:
   in: path
   required: true
   description: >-
-    Un numéro de ligne dans la numérotation de toute la structure, à partir de 1, comme
+    A row number in the numbering of the whole structure, starting at 1, like
     `Node.row_number` (`resolveRowNumber`).
   schema: { type: integer, minimum: 1 }
 
@@ -95,10 +104,10 @@ NodeFields:
   name: fields
   in: query
   description: >-
-    Les propriétés à rendre de chaque nœud (`Node`), en plus de celles toujours rendues ; une
-    propriété inconnue est refusée comme tout paramètre de requête : 422 `VALIDATION_FAILED`,
-    `fields` désignant `/query/fields` par `FIELD_NOT_ACCEPTED` (WF-ARC-0110 ; J-10, US-0702/L1).
-    `listNodes` et `compareRevisions` le lisent de même.
+    The properties to return for each node (`Node`), in addition to those always returned; an
+    unknown property is refused like any query parameter: 422 `VALIDATION_FAILED`,
+    `fields` designating `/query/fields` with `FIELD_NOT_ACCEPTED` (WF-ARC-0110; J-10, US-0702/L1).
+    `listNodes` and `compareRevisions` read it likewise.
   schema:
     type: array
     minItems: 1
@@ -107,15 +116,15 @@ NodeFields:
       pattern: '^((task|estimate_line)\.)?[a-z_]+$'
   explode: false
 
-# Ce que lit une lecture des nœuds, `listNodes` et `compareRevisions` de même (#1193) : sa
-# description dit ce que chacun retient, rend et totalise.
+# What a reading of the nodes reads, `listNodes` and `compareRevisions` likewise (#1193): its
+# description says what each one retains, returns and totals.
 
 NodeKinds:
   name: kinds
   in: query
   description: >-
-    Choisit ce que la lecture rend, tâches ou lignes, selon la grille affichée ; ce n'est pas un
-    filtre : les totaux ne changent pas avec lui (`listNodes`, #487).
+    Chooses what the reading returns, tasks or lines, according to the grid displayed; it is not a
+    filter: the totals do not change with it (`listNodes`, #487).
   schema:
     type: array
     items: { $ref: schemas/revisions.yaml#/NodeKind }
@@ -125,51 +134,54 @@ NodeSubtreeOf:
   name: subtree_of
   in: query
   description: >-
-    Restreint au sous-arbre d'une tâche récapitulative, elle comprise
+    Restricts to the subtree of a summary task, the task itself included
     (WF-PLA-0080, WF-DEV-0050).
   schema: { $ref: common.yaml#/Uuid }
 
 NodeCostTypeFilter:
   name: cost_type_id
   in: query
-  description: Restreint aux lignes d'une nature de coût (WF-DEV-0050).
+  description: Restricts to the lines of a cost type (WF-DEV-0050).
   schema: { $ref: common.yaml#/Uuid }
 
 NodeOrderItemFilter:
   name: order_item_id
   in: query
   description: >-
-    Restreint au sous-arbre de la tâche rattachée à ce poste du lotissement, au niveau 2,
-    elle comprise (WF-PLA-0170, WF-DEV-0050) ; un poste qu'aucune tâche ne porte ne
-    retient rien.
+    Restricts to the subtree of the task attached to this order item of the work breakdown, at
+    level 2, the task itself included (WF-PLA-0170, WF-DEV-0050); an order item that no task
+    carries retains nothing.
   schema: { $ref: common.yaml#/Uuid }
 
 NodeWorkPackageFilter:
   name: work_package_id
   in: query
   description: >-
-    Restreint au sous-arbre de la tâche rattachée à ce lot du lotissement, au niveau 1, elle
-    comprise — le filtre par lot des grilles de devis et de reste à engager (WF-DEV-0050,
-    WF-RAE-0040, WF-PLA-0170) ; un lot qu'aucune tâche ne porte ne retient rien.
+    Restricts to the subtree of the task attached to this work package of the work breakdown, at
+    level 1, the task itself included — the work package filter of the estimate and
+    remaining-to-commit grids (WF-DEV-0050, WF-RAE-0040, WF-PLA-0170); a work package that no
+    task carries retains nothing.
   schema: { $ref: common.yaml#/Uuid }
 
 NodeCostCategoryFilter:
   name: cost_category_id
   in: query
+  description: Restricts to the lines of this cost category (WF-DEV-0050).
   schema: { $ref: common.yaml#/Uuid }
 
 NodeResourceRoleFilter:
   name: resource_role_id
   in: query
+  description: Restricts to the lines of this resource role (WF-DEV-0050).
   schema: { $ref: common.yaml#/Uuid }
 
 NodeProgressFilter:
   name: progress
   in: query
   description: >-
-    Restreint aux tâches dans l'un de ces états : les tâches démarrées, pour la
-    grille de planning (WF-PLA-0080) et la grille de reste à engager, qui ne montre
-    par défaut que leurs lignes (WF-RAE-0040).
+    Restricts to the tasks in one of these states: the started tasks, for the
+    planning grid (WF-PLA-0080) and the remaining-to-commit grid, which shows
+    by default only their lines (WF-RAE-0040).
   schema:
     type: array
     items: { $ref: schemas/revisions.yaml#/TaskProgress }
@@ -178,71 +190,74 @@ NodeProgressFilter:
 NodeCriticalFilter:
   name: is_critical
   in: query
+  description: >-
+    True, restricts to the tasks on the critical path; false, to the others; absent, no
+    restriction (`is_critical`, WF-PLA-0080, WF-PLA-0100).
   schema: { type: boolean }
 
 NodeSummariesOnly:
   name: summaries_only
   in: query
   description: >-
-    Vrai, restreint aux tâches récapitulatives (`is_summary`) : ni feuille ni jalon, que
-    l'arborescence de tâches ne représente pas (WF-PLA-0110). Faux ou absent, ne
-    restreint rien.
+    True, restricts to summary tasks (`is_summary`): neither leaf nor milestone, which
+    the task tree does not represent (WF-PLA-0110). False or absent, does not
+    restrict anything.
   schema: { type: boolean }
 
 NodeMaxLevel:
   name: max_level
   in: query
   description: >-
-    Restreint aux tâches dont le niveau (`level`) ne dépasse pas celui-ci, le premier
-    niveau étant celui des tâches sans parent : demandé à 2 avec `summaries_only`, les
-    récapitulatives des deux premiers niveaux, sous le nœud du projet (WF-PLA-0110).
-    Une ligne est retenue avec la tâche qui la porte, quel que soit son niveau.
+    Restricts to the tasks whose level (`level`) does not exceed this one, the first
+    level being that of the tasks without a parent: requested at 2 with `summaries_only`, the
+    summary tasks of the first two levels, under the project node (WF-PLA-0110).
+    A line is retained with the task that carries it, whatever its level.
   schema: { type: integer, minimum: 1 }
 
 NodeTimelineFilter:
   name: timeline_id
   in: query
   description: >-
-    Restreint aux tâches et aux jalons inscrits sur cette chronologie du projet
-    (`tracking`, WF-PLA-0140, WF-PLA-0060), sans leurs ancêtres ; une chronologie sans
-    inscription, ou qui n'est pas une chronologie du projet, ne retient rien.
+    Restricts to the tasks and milestones entered on this timeline of the project
+    (`tracking`, WF-PLA-0140, WF-PLA-0060), without their ancestors; a timeline without
+    entries, or that is not a timeline of the project, retains nothing.
   schema: { $ref: common.yaml#/Uuid }
 
 NodeDifferenceFilter:
   name: difference
   in: query
   description: >-
-    Restreint aux nœuds dont l'écart (`NodeDifference`) est l'une de ces valeurs, combinables ;
-    « Écarts seulement » les nomme toutes trois (#1398). Chaque nœud, tâche ou ligne, se juge sur
-    sa propre marque : une tâche retenue n'emporte pas ses lignes inchangées. Les ancêtres d'un
-    nœud retenu sont rendus, et sont eux-mêmes modifiés par leur contenu (`changes` vide quand
-    rien d'autre ne change d'eux) : l'arbre filtré reste un arbre. Un nœud déplacé est retenu à
-    sa place nouvelle. `totals` ne change pas avec lui — ceux de la lecture sans lui, de la
-    structure entière sans autre filtre (`NodeTotals`) —, quand `amount_deltas` de la comparaison
-    se calcule sur les lignes qu'il retient. Sur la structure principale et sur le devis propre
-    d'un risque, où `difference` est nul, il est sans effet : la lecture est celle sans lui.
-    `listNodes` et `compareRevisions` le lisent de même.
+    Restricts to the nodes whose difference (`NodeDifference`) is one of these values, which can
+    be combined; "Differences only" names all three (#1398). Each node, task or line, is judged
+    on its own mark: a retained task does not bring along its unchanged lines. The ancestors of
+    a retained node are returned, and are themselves modified by their content (`changes` empty
+    when nothing else about them changes): the filtered tree remains a tree. A moved node is
+    retained at its new place. `totals` does not change with it — those of the reading without
+    it, of the whole structure without any other filter (`NodeTotals`) —, whereas
+    `amount_deltas` of the comparison is calculated on the lines it retains. On the main
+    structure and on the own estimate of a risk, where `difference` is null, it has no effect:
+    the reading is the one without it. `listNodes` and `compareRevisions` read it likewise.
   schema:
     type: array
     minItems: 1
     items: { type: string, enum: [added, removed, modified] }
   explode: false
 
-# Les filtres de colonne de `listNodes` (US-0701/L3, F-06) : chaque colonne de nombres de ses trois
-# grilles par ses deux bornes, chaque colonne de dates par sa période (README du contrat).
+# The column filters of `listNodes` (US-0701/L3, F-06): each number column of its three
+# grids by its two bounds, each date column by its period (README of the contract).
 
 NodeDescriptionFilter:
   name: description
   in: query
   description: >-
-    Restreint aux tâches dont la description contient ce texte, sans égard à la casse ni aux
-    accents, comme `search` (README du contrat ; WF-PLA-0080).
+    Restricts to the tasks whose description contains this text, regardless of case and
+    accents, like `search` (README of the contract; WF-PLA-0080).
   schema: { type: string, minLength: 1 }
 
 NodeSchedulingModeFilter:
   name: scheduling_mode
   in: query
-  description: Restreint aux tâches dans l'un de ces modes de planification (WF-PLA-0080).
+  description: Restricts to the tasks in one of these scheduling modes (WF-PLA-0080).
   schema:
     type: array
     items: { $ref: schemas/revisions.yaml#/SchedulingMode }
@@ -252,58 +267,58 @@ NodeDurationMin:
   name: duration_min
   in: query
   description: >-
-    Borne inférieure, incluse, de la durée, en jours de travail : restreint aux tâches qui en
-    portent au moins autant (WF-PLA-0080).
+    Lower bound, inclusive, of the duration, in working days: restricts to the tasks that
+    carry at least as much (WF-PLA-0080).
   schema: { $ref: common.yaml#/Decimal }
 
 NodeDurationMax:
   name: duration_max
   in: query
   description: >-
-    Borne supérieure, incluse, de la durée, en jours de travail : restreint aux tâches qui n'en
-    portent pas plus (WF-PLA-0080). Inférieure à `duration_min`, refusée par 422
-    `VALUE_OUT_OF_RANGE` sur `/query/duration_max`.
+    Upper bound, inclusive, of the duration, in working days: restricts to the tasks that
+    carry no more (WF-PLA-0080). Lower than `duration_min`, refused with 422
+    `VALUE_OUT_OF_RANGE` on `/query/duration_max`.
   schema: { $ref: common.yaml#/Decimal }
 
 NodePhysicalProgressMin:
   name: physical_progress_min
   in: query
   description: >-
-    Borne inférieure, incluse, de l'avancement physique, de 0 à 1 : restreint aux récapitulatives
-    qui en portent au moins autant (WF-PLA-0080).
+    Lower bound, inclusive, of the physical progress, from 0 to 1: restricts to the summary tasks
+    that carry at least as much (WF-PLA-0080).
   schema: { $ref: common.yaml#/Decimal }
 
 NodePhysicalProgressMax:
   name: physical_progress_max
   in: query
   description: >-
-    Borne supérieure, incluse, de l'avancement physique, de 0 à 1 : restreint aux récapitulatives
-    qui n'en portent pas plus (WF-PLA-0080). Inférieure à `physical_progress_min`, refusée par 422
-    `VALUE_OUT_OF_RANGE` sur `/query/physical_progress_max`.
+    Upper bound, inclusive, of the physical progress, from 0 to 1: restricts to the summary tasks
+    that carry no more (WF-PLA-0080). Lower than `physical_progress_min`, refused with 422
+    `VALUE_OUT_OF_RANGE` on `/query/physical_progress_max`.
   schema: { $ref: common.yaml#/Decimal }
 
 NodeTotalFloatMin:
   name: total_float_min
   in: query
   description: >-
-    Borne inférieure, incluse, de la marge totale, en jours de travail, signée : restreint aux
-    tâches qui en portent au moins autant (WF-PLA-0080).
+    Lower bound, inclusive, of the total float, in working days, signed: restricts to the
+    tasks that carry at least as much (WF-PLA-0080).
   schema: { $ref: common.yaml#/Decimal }
 
 NodeTotalFloatMax:
   name: total_float_max
   in: query
   description: >-
-    Borne supérieure, incluse, de la marge totale, en jours de travail, signée : restreint aux
-    tâches qui n'en portent pas plus (WF-PLA-0080). Inférieure à `total_float_min`, refusée par 422
-    `VALUE_OUT_OF_RANGE` sur `/query/total_float_max`.
+    Upper bound, inclusive, of the total float, in working days, signed: restricts to the
+    tasks that carry no more (WF-PLA-0080). Lower than `total_float_min`, refused with 422
+    `VALUE_OUT_OF_RANGE` on `/query/total_float_max`.
   schema: { $ref: common.yaml#/Decimal }
 
 NodeQuantityMin:
   name: quantity_min
   in: query
   description: >-
-    Borne inférieure, incluse, de la quantité : restreint aux lignes qui en portent au moins autant
+    Lower bound, inclusive, of the quantity: restricts to the lines that carry at least as much
     (WF-DEV-0050).
   schema: { $ref: common.yaml#/Decimal }
 
@@ -311,8 +326,8 @@ NodeQuantityMax:
   name: quantity_max
   in: query
   description: >-
-    Borne supérieure, incluse, de la quantité : restreint aux lignes qui n'en portent pas plus
-    (WF-DEV-0050). Inférieure à `quantity_min`, refusée par 422 `VALUE_OUT_OF_RANGE` sur
+    Upper bound, inclusive, of the quantity: restricts to the lines that carry no more
+    (WF-DEV-0050). Lower than `quantity_min`, refused with 422 `VALUE_OUT_OF_RANGE` on
     `/query/quantity_max`.
   schema: { $ref: common.yaml#/Decimal }
 
@@ -320,16 +335,16 @@ NodeHoursMin:
   name: hours_min
   in: query
   description: >-
-    Borne inférieure, incluse, de la charge, en heures : restreint aux lignes qui en portent au
-    moins autant (WF-DEV-0050).
+    Lower bound, inclusive, of the effort, in hours: restricts to the lines that carry at
+    least as much (WF-DEV-0050).
   schema: { $ref: common.yaml#/Hours }
 
 NodeHoursMax:
   name: hours_max
   in: query
   description: >-
-    Borne supérieure, incluse, de la charge, en heures : restreint aux lignes qui n'en portent pas
-    plus (WF-DEV-0050). Inférieure à `hours_min`, refusée par 422 `VALUE_OUT_OF_RANGE` sur
+    Upper bound, inclusive, of the effort, in hours: restricts to the lines that carry no
+    more (WF-DEV-0050). Lower than `hours_min`, refused with 422 `VALUE_OUT_OF_RANGE` on
     `/query/hours_max`.
   schema: { $ref: common.yaml#/Hours }
 
@@ -337,16 +352,16 @@ NodeUnitDisbursementMin:
   name: unit_disbursement_min
   in: query
   description: >-
-    Borne inférieure, incluse, du débours unitaire : restreint aux lignes qui en portent au moins
-    autant (WF-DEV-0050).
+    Lower bound, inclusive, of the unit disbursement: restricts to the lines that carry at least
+    as much (WF-DEV-0050).
   schema: { $ref: common.yaml#/Money }
 
 NodeUnitDisbursementMax:
   name: unit_disbursement_max
   in: query
   description: >-
-    Borne supérieure, incluse, du débours unitaire : restreint aux lignes qui n'en portent pas plus
-    (WF-DEV-0050). Inférieure à `unit_disbursement_min`, refusée par 422 `VALUE_OUT_OF_RANGE` sur
+    Upper bound, inclusive, of the unit disbursement: restricts to the lines that carry no more
+    (WF-DEV-0050). Lower than `unit_disbursement_min`, refused with 422 `VALUE_OUT_OF_RANGE` on
     `/query/unit_disbursement_max`.
   schema: { $ref: common.yaml#/Money }
 
@@ -354,203 +369,207 @@ NodePaymentDelayMin:
   name: payment_delay_days_min
   in: query
   description: >-
-    Borne inférieure, incluse, du délai de paiement, en jours : restreint aux lignes qui en portent
-    au moins autant (WF-DEV-0050).
+    Lower bound, inclusive, of the payment delay, in days: restricts to the lines that carry
+    at least as much (WF-DEV-0050).
   schema: { type: integer, minimum: 0 }
 
 NodePaymentDelayMax:
   name: payment_delay_days_max
   in: query
   description: >-
-    Borne supérieure, incluse, du délai de paiement, en jours : restreint aux lignes qui n'en
-    portent pas plus (WF-DEV-0050). Inférieure à `payment_delay_days_min`, refusée par 422
-    `VALUE_OUT_OF_RANGE` sur `/query/payment_delay_days_max`.
+    Upper bound, inclusive, of the payment delay, in days: restricts to the lines that
+    carry no more (WF-DEV-0050). Lower than `payment_delay_days_min`, refused with 422
+    `VALUE_OUT_OF_RANGE` on `/query/payment_delay_days_max`.
   schema: { type: integer, minimum: 0 }
 
 NodeConsumptionYearMin:
   name: consumption_year_min
   in: query
   description: >-
-    Borne inférieure, incluse, de l'année de consommation : restreint aux lignes qui en portent au
-    moins autant (WF-DEV-0040).
+    Lower bound, inclusive, of the consumption year: restricts to the lines that carry at
+    least as much, a line whose task spans several years being retained on the year of its
+    start (`EstimateLineFacet.consumption_year`, WF-DEV-0040).
   schema: { $ref: common.yaml#/Year }
 
 NodeConsumptionYearMax:
   name: consumption_year_max
   in: query
   description: >-
-    Borne supérieure, incluse, de l'année de consommation : restreint aux lignes qui n'en portent
-    pas plus (WF-DEV-0040). Inférieure à `consumption_year_min`, refusée par 422
-    `VALUE_OUT_OF_RANGE` sur `/query/consumption_year_max`.
+    Upper bound, inclusive, of the consumption year: restricts to the lines that carry
+    no more, a line whose task spans several years being retained on the year of its start
+    (`EstimateLineFacet.consumption_year`, WF-DEV-0040). Lower than `consumption_year_min`,
+    refused with 422 `VALUE_OUT_OF_RANGE` on `/query/consumption_year_max`.
   schema: { $ref: common.yaml#/Year }
 
 NodeBaseAmountMin:
   name: base_amount_min
   in: query
   description: >-
-    Borne inférieure, incluse, du montant aux taux de l'année de référence, avant inflation :
-    restreint aux lignes qui en portent au moins autant (WF-DEV-0050).
+    Lower bound, inclusive, of the amount at the rates of the reference year, before inflation:
+    restricts to the lines that carry at least as much (WF-DEV-0050).
   schema: { $ref: common.yaml#/Money }
 
 NodeBaseAmountMax:
   name: base_amount_max
   in: query
   description: >-
-    Borne supérieure, incluse, du montant aux taux de l'année de référence, avant inflation :
-    restreint aux lignes qui n'en portent pas plus (WF-DEV-0050). Inférieure à `base_amount_min`,
-    refusée par 422 `VALUE_OUT_OF_RANGE` sur `/query/base_amount_max`.
+    Upper bound, inclusive, of the amount at the rates of the reference year, before inflation:
+    restricts to the lines that carry no more (WF-DEV-0050). Lower than `base_amount_min`,
+    refused with 422 `VALUE_OUT_OF_RANGE` on `/query/base_amount_max`.
   schema: { $ref: common.yaml#/Money }
 
 NodeBudgetedAmountMin:
   name: budgeted_amount_min
   in: query
   description: >-
-    Borne inférieure, incluse, du montant budgété, inflation comprise : restreint aux lignes qui en
-    portent au moins autant (WF-RAE-0040).
+    Lower bound, inclusive, of the budgeted amount, inflation included: restricts to the lines that
+    carry at least as much (WF-RAE-0040).
   schema: { $ref: common.yaml#/Money }
 
 NodeBudgetedAmountMax:
   name: budgeted_amount_max
   in: query
   description: >-
-    Borne supérieure, incluse, du montant budgété, inflation comprise : restreint aux lignes qui
-    n'en portent pas plus (WF-RAE-0040). Inférieure à `budgeted_amount_min`, refusée par 422
-    `VALUE_OUT_OF_RANGE` sur `/query/budgeted_amount_max`.
+    Upper bound, inclusive, of the budgeted amount, inflation included: restricts to the lines that
+    carry no more (WF-RAE-0040). Lower than `budgeted_amount_min`, refused with 422
+    `VALUE_OUT_OF_RANGE` on `/query/budgeted_amount_max`.
   schema: { $ref: common.yaml#/Money }
 
 NodeReestimatedAmountMin:
   name: reestimated_amount_min
   in: query
   description: >-
-    Borne inférieure, incluse, du montant réestimé, inflation comprise : restreint aux lignes qui en
-    portent au moins autant (WF-DEV-0050, WF-RAE-0040).
+    Lower bound, inclusive, of the re-estimated amount, inflation included: restricts to the
+    lines that carry at least as much (WF-DEV-0050, WF-RAE-0040).
   schema: { $ref: common.yaml#/Money }
 
 NodeReestimatedAmountMax:
   name: reestimated_amount_max
   in: query
   description: >-
-    Borne supérieure, incluse, du montant réestimé, inflation comprise : restreint aux lignes qui
-    n'en portent pas plus (WF-DEV-0050, WF-RAE-0040). Inférieure à `reestimated_amount_min`, refusée
-    par 422 `VALUE_OUT_OF_RANGE` sur `/query/reestimated_amount_max`.
+    Upper bound, inclusive, of the re-estimated amount, inflation included: restricts to the
+    lines that carry no more (WF-DEV-0050, WF-RAE-0040). Lower than `reestimated_amount_min`,
+    refused with 422 `VALUE_OUT_OF_RANGE` on `/query/reestimated_amount_max`.
   schema: { $ref: common.yaml#/Money }
 
 NodePreviousQuantityMin:
   name: previous_quantity_min
   in: query
   description: >-
-    Borne inférieure, incluse, de la quantité au reste à engager précédent : restreint aux lignes
-    qui en portent au moins autant (WF-RAE-0040).
+    Lower bound, inclusive, of the quantity at the previous remaining to commit: restricts to
+    the lines that carry at least as much (WF-RAE-0040).
   schema: { $ref: common.yaml#/Decimal }
 
 NodePreviousQuantityMax:
   name: previous_quantity_max
   in: query
   description: >-
-    Borne supérieure, incluse, de la quantité au reste à engager précédent : restreint aux lignes
-    qui n'en portent pas plus (WF-RAE-0040). Inférieure à `previous_quantity_min`, refusée par 422
-    `VALUE_OUT_OF_RANGE` sur `/query/previous_quantity_max`.
+    Upper bound, inclusive, of the quantity at the previous remaining to commit: restricts to
+    the lines that carry no more (WF-RAE-0040). Lower than `previous_quantity_min`, refused with
+    422 `VALUE_OUT_OF_RANGE` on `/query/previous_quantity_max`.
   schema: { $ref: common.yaml#/Decimal }
 
 NodePreviousHoursMin:
   name: previous_hours_min
   in: query
   description: >-
-    Borne inférieure, incluse, de la charge au reste à engager précédent : restreint aux lignes qui
-    en portent au moins autant (WF-RAE-0040).
+    Lower bound, inclusive, of the effort at the previous remaining to commit: restricts to the
+    lines that carry at least as much (WF-RAE-0040).
   schema: { $ref: common.yaml#/Hours }
 
 NodePreviousHoursMax:
   name: previous_hours_max
   in: query
   description: >-
-    Borne supérieure, incluse, de la charge au reste à engager précédent : restreint aux lignes qui
-    n'en portent pas plus (WF-RAE-0040). Inférieure à `previous_hours_min`, refusée par 422
-    `VALUE_OUT_OF_RANGE` sur `/query/previous_hours_max`.
+    Upper bound, inclusive, of the effort at the previous remaining to commit: restricts to the
+    lines that carry no more (WF-RAE-0040). Lower than `previous_hours_min`, refused with 422
+    `VALUE_OUT_OF_RANGE` on `/query/previous_hours_max`.
   schema: { $ref: common.yaml#/Hours }
 
 NodePreviousUnitDisbursementMin:
   name: previous_unit_disbursement_min
   in: query
   description: >-
-    Borne inférieure, incluse, du débours unitaire au reste à engager précédent : restreint aux
-    lignes qui en portent au moins autant (WF-RAE-0040).
+    Lower bound, inclusive, of the unit disbursement at the previous remaining to commit:
+    restricts to the lines that carry at least as much (WF-RAE-0040).
   schema: { $ref: common.yaml#/Money }
 
 NodePreviousUnitDisbursementMax:
   name: previous_unit_disbursement_max
   in: query
   description: >-
-    Borne supérieure, incluse, du débours unitaire au reste à engager précédent : restreint aux
-    lignes qui n'en portent pas plus (WF-RAE-0040). Inférieure à `previous_unit_disbursement_min`,
-    refusée par 422 `VALUE_OUT_OF_RANGE` sur `/query/previous_unit_disbursement_max`.
+    Upper bound, inclusive, of the unit disbursement at the previous remaining to commit:
+    restricts to the lines that carry no more (WF-RAE-0040). Lower than
+    `previous_unit_disbursement_min`, refused with 422 `VALUE_OUT_OF_RANGE` on
+    `/query/previous_unit_disbursement_max`.
   schema: { $ref: common.yaml#/Money }
 
 NodePreviousReestimatedAmountMin:
   name: previous_reestimated_amount_min
   in: query
   description: >-
-    Borne inférieure, incluse, du montant réestimé au reste à engager précédent : restreint aux
-    lignes qui en portent au moins autant (WF-RAE-0040).
+    Lower bound, inclusive, of the re-estimated amount at the previous remaining to commit:
+    restricts to the lines that carry at least as much (WF-RAE-0040).
   schema: { $ref: common.yaml#/Money }
 
 NodePreviousReestimatedAmountMax:
   name: previous_reestimated_amount_max
   in: query
   description: >-
-    Borne supérieure, incluse, du montant réestimé au reste à engager précédent : restreint aux
-    lignes qui n'en portent pas plus (WF-RAE-0040). Inférieure à `previous_reestimated_amount_min`,
-    refusée par 422 `VALUE_OUT_OF_RANGE` sur `/query/previous_reestimated_amount_max`.
+    Upper bound, inclusive, of the re-estimated amount at the previous remaining to commit:
+    restricts to the lines that carry no more (WF-RAE-0040). Lower than
+    `previous_reestimated_amount_min`, refused with 422 `VALUE_OUT_OF_RANGE` on
+    `/query/previous_reestimated_amount_max`.
   schema: { $ref: common.yaml#/Money }
 
 NodeStartFrom:
   name: start_from
   in: query
   description: >-
-    Début, inclus, de la période du début : restreint aux tâches qui en portent une dans la période
-    (WF-PLA-0080).
+    Start, inclusive, of the period of the start: restricts to the tasks that carry one within
+    the period (WF-PLA-0080).
   schema: { $ref: common.yaml#/PlanningDate }
 
 NodeStartTo:
   name: start_to
   in: query
   description: >-
-    Fin, inclus, de la période du début : restreint aux tâches qui en portent une dans la période ;
-    antérieure à `start_from`, refusée par 422 `VALUE_OUT_OF_RANGE` sur `/query/start_to`
-    (WF-PLA-0080).
+    End, inclusive, of the period of the start: restricts to the tasks that carry one within the
+    period; earlier than `start_from`, refused with 422 `VALUE_OUT_OF_RANGE` on
+    `/query/start_to` (WF-PLA-0080).
   schema: { $ref: common.yaml#/PlanningDate }
 
 NodeFinishFrom:
   name: finish_from
   in: query
   description: >-
-    Début, inclus, de la période de la fin : restreint aux tâches qui en portent une dans la période
-    (WF-PLA-0080, WF-RAE-0040).
+    Start, inclusive, of the period of the finish: restricts to the tasks that carry one within
+    the period (WF-PLA-0080, WF-RAE-0040).
   schema: { $ref: common.yaml#/PlanningDate }
 
 NodeFinishTo:
   name: finish_to
   in: query
   description: >-
-    Fin, inclus, de la période de la fin : restreint aux tâches qui en portent une dans la période ;
-    antérieure à `finish_from`, refusée par 422 `VALUE_OUT_OF_RANGE` sur `/query/finish_to`
-    (WF-PLA-0080, WF-RAE-0040).
+    End, inclusive, of the period of the finish: restricts to the tasks that carry one within
+    the period; earlier than `finish_from`, refused with 422 `VALUE_OUT_OF_RANGE` on
+    `/query/finish_to` (WF-PLA-0080, WF-RAE-0040).
   schema: { $ref: common.yaml#/PlanningDate }
 
 NodeStartedOnFrom:
   name: started_on_from
   in: query
   description: >-
-    Début, inclus, de la période de la date de démarrage : restreint aux tâches qui en portent une
-    dans la période (WF-PLA-0080).
+    Start, inclusive, of the period of the start date: restricts to the tasks that carry one
+    within the period (WF-PLA-0080).
   schema: { $ref: common.yaml#/PlanningDate }
 
 NodeStartedOnTo:
   name: started_on_to
   in: query
   description: >-
-    Fin, inclus, de la période de la date de démarrage : restreint aux tâches qui en portent une
-    dans la période ; antérieure à `started_on_from`, refusée par 422 `VALUE_OUT_OF_RANGE` sur
+    End, inclusive, of the period of the start date: restricts to the tasks that carry one
+    within the period; earlier than `started_on_from`, refused with 422 `VALUE_OUT_OF_RANGE` on
     `/query/started_on_to` (WF-PLA-0080).
   schema: { $ref: common.yaml#/PlanningDate }
 
@@ -558,16 +577,16 @@ NodeCompletedOnFrom:
   name: completed_on_from
   in: query
   description: >-
-    Début, inclus, de la période de la date de terminaison : restreint aux tâches qui en portent une
-    dans la période (WF-PLA-0080).
+    Start, inclusive, of the period of the completion date: restricts to the tasks that carry one
+    within the period (WF-PLA-0080).
   schema: { $ref: common.yaml#/PlanningDate }
 
 NodeCompletedOnTo:
   name: completed_on_to
   in: query
   description: >-
-    Fin, inclus, de la période de la date de terminaison : restreint aux tâches qui en portent une
-    dans la période ; antérieure à `completed_on_from`, refusée par 422 `VALUE_OUT_OF_RANGE` sur
+    End, inclusive, of the period of the completion date: restricts to the tasks that carry one
+    within the period; earlier than `completed_on_from`, refused with 422 `VALUE_OUT_OF_RANGE` on
     `/query/completed_on_to` (WF-PLA-0080).
   schema: { $ref: common.yaml#/PlanningDate }
 
@@ -575,49 +594,49 @@ NodeMilestoneFilter:
   name: is_milestone
   in: query
   description: >-
-    Vrai, restreint aux jalons, faux aux tâches qui n'en sont pas ; absent, ne restreint rien
-    (WF-PLA-0080).
+    True, restricts to milestones, false to the tasks that are not milestones; absent, does not
+    restrict anything (WF-PLA-0080).
   schema: { type: boolean }
 
 NodeFinishOverdueFilter:
   name: finish_overdue
   in: query
   description: >-
-    Vrai, restreint aux tâches démarrées dont la fin est dépassée (`finish_overdue`), faux aux
-    autres ; absent, ne restreint rien (WF-RAE-0040).
+    True, restricts to the started tasks whose finish is overdue (`finish_overdue`), false to the
+    others; absent, does not restrict anything (WF-RAE-0040).
   schema: { type: boolean }
 
 NodeInactiveObjectFilter:
   name: uses_inactive_object
   in: query
   description: >-
-    Vrai, restreint aux lignes qui emploient un objet désactivé du référentiel
-    (`uses_inactive_object`), faux aux autres ; absent, ne restreint rien (WF-REF-0010).
+    True, restricts to the lines that use a deactivated reference data object
+    (`uses_inactive_object`), false to the others; absent, does not restrict anything (WF-REF-0010).
   schema: { type: boolean }
 
-# Les nœuds issus d'un risque survenu (`Node.origin_risk_id`, #1761), filtrés comme les autres.
+# The nodes arising from an occurred risk (`Node.origin_risk_id`, #1761), filtered like the others.
 
 NodeIsFromRiskFilter:
   name: is_from_risk
   in: query
   description: >-
-    Vrai, restreint aux nœuds, tâches et lignes, qu'a fusionnés la survenance d'un risque
-    (`origin_risk_id` non nul, WF-RIS-0060) ; faux, aux autres ; absent, ne restreint rien. Chaque
-    nœud se juge sur le sien : une tâche issue d'un risque retient ses lignes issues de lui, non
-    une ligne créée depuis sous elle. Les ancêtres d'un nœud retenu sont rendus, comme pour tout
-    filtre, et les totaux sont ceux des lignes retenues (WF-IHM-0130). `listNodes` et
-    `compareRevisions` le lisent de même.
+    True, restricts to the nodes, tasks and lines, that the occurrence of a risk has merged
+    (`origin_risk_id` not null, WF-RIS-0060); false, to the others; absent, does not restrict
+    anything. Each node is judged on its own: a task arising from a risk retains its lines
+    arising from that risk, not a line created under it since. The ancestors of a retained node
+    are returned, as for any filter, and the totals are those of the retained lines
+    (WF-IHM-0130). `listNodes` and `compareRevisions` read it likewise.
   schema: { type: boolean }
 
 NodeOriginRiskFilter:
   name: origin_risk_ids
   in: query
   description: >-
-    Restreint aux nœuds qu'a fusionnés la survenance de l'un de ces risques
-    (`Node.origin_risk_id`, WF-RIS-0060), leurs ancêtres rendus comme pour tout filtre. Un
-    identifiant qui n'est pas celui d'un risque survenu du projet est refusé par 422
-    `VALIDATION_FAILED`, `fields` désignant `/query/origin_risk_ids/<n>` par `UNKNOWN_RISK`
-    (#1761). `listNodes` et `compareRevisions` le lisent de même.
+    Restricts to the nodes that the occurrence of one of these risks has merged
+    (`Node.origin_risk_id`, WF-RIS-0060), their ancestors returned as for any filter. An
+    identifier that is not that of an occurred risk of the project is refused with 422
+    `VALIDATION_FAILED`, `fields` designating `/query/origin_risk_ids/<n>` with `UNKNOWN_RISK`
+    (#1761). `listNodes` and `compareRevisions` read it likewise.
   schema:
     type: array
     minItems: 1
@@ -628,19 +647,18 @@ NodeSortBy:
   name: sort_by
   in: query
   description: >-
-    Colonne du tri des lignes de devis ; absente, l'ordre du plan. Le tri ne réordonne
-    que les lignes sous chaque tâche, chacune parmi celles de sa tâche ; les tâches et
-    leurs sous-arbres gardent l'ordre de l'arbre, et chaque nœud son `row_number`
-    (WF-IHM-0060) : trié par montant décroissant, chaque tâche rend ses lignes du plus
-    grand montant au plus petit, et les tâches restent à leur place. Un nombre se compare
-    par sa valeur ; le libellé, en texte, et la catégorie, le rôle et le sous-projet, par
-    leur libellé, caractère par caractère dans l'ordre des points de code Unicode ; une
-    ligne sans valeur — sans heures, sans rôle, sans sous-projet… — vient après les autres
-    dans l'ordre croissant, avant dans le décroissant. Des lignes d'une même valeur, ou
-    toutes deux sans valeur, gardent l'ordre du plan ; une colonne de la seule tâche, de
-    `description` à `work_breakdown`, que les lignes n'ont pas, les y laisse toutes. Ce
-    que chaque opération trie ainsi, et les grilles qui le proposent, l'opération le dit.
-    Une colonne de ligne qui manquerait ici est un constat sur le contrat.
+    Sort column of the estimate lines; absent, plan order. The sort only reorders the lines
+    under each task, each among those of its task; the tasks and their subtrees keep the order
+    of the tree, and each node its `row_number` (WF-IHM-0060): sorted by descending amount, each
+    task returns its lines from the largest amount to the smallest, and the tasks stay in place.
+    A number is compared by its value; the label, as text, and the category, the role and the
+    subproject, by their label, character by character in Unicode code point order; a line
+    without a value — without hours, without a role, without a subproject… — comes after the
+    others in ascending order, before them in descending order. Lines with the same value, or
+    both without a value, keep plan order; a column of the task alone, from `description` to
+    `work_breakdown`, which lines do not have, leaves them all in it. What each operation sorts
+    this way, and the grids that offer it, the operation says. A line column that would be
+    missing here is a finding on the contract.
   schema: { $ref: schemas/revisions.yaml#/NodeColumn }
 
 UserId:
@@ -697,14 +715,14 @@ RiskId:
   required: true
   schema: { $ref: common.yaml#/Uuid }
 
-# Les filtres de colonne du registre des risques (H-01, #1785) : chaque colonne de nombres par ses
-# deux bornes, la date du dernier réexamen par sa période (README du contrat ; WF-IHM-0130).
+# The column filters of the risk register (H-01, #1785): each number column by its
+# two bounds, the date of the last review by its period (README of the contract; WF-IHM-0130).
 
 RiskProbabilityMin:
   name: probability_min
   in: query
   description: >-
-    Restreint aux risques dont la probabilité atteint cette borne, incluse (WF-RIS-0040,
+    Restricts to the risks whose probability reaches this bound, inclusive (WF-RIS-0040,
     WF-IHM-0130).
   schema: { $ref: common.yaml#/Percent }
 
@@ -712,54 +730,54 @@ RiskProbabilityMax:
   name: probability_max
   in: query
   description: >-
-    Restreint aux risques dont la probabilité ne dépasse pas cette borne, incluse ; inférieure à
-    `probability_min`, refusée par 422 `VALUE_OUT_OF_RANGE` sur `/query/probability_max`.
+    Restricts to the risks whose probability does not exceed this bound, inclusive; lower than
+    `probability_min`, refused with 422 `VALUE_OUT_OF_RANGE` on `/query/probability_max`.
   schema: { $ref: common.yaml#/Percent }
 
 RiskSeverityMin:
   name: severity_min
   in: query
-  description: Restreint aux risques dont la gravité atteint cette borne, incluse (WF-RIS-0040).
+  description: Restricts to the risks whose severity reaches this bound, inclusive (WF-RIS-0040).
   schema: { $ref: common.yaml#/Money }
 
 RiskSeverityMax:
   name: severity_max
   in: query
   description: >-
-    Restreint aux risques dont la gravité ne dépasse pas cette borne, incluse ; inférieure à
-    `severity_min`, refusée par 422 `VALUE_OUT_OF_RANGE` sur `/query/severity_max`.
+    Restricts to the risks whose severity does not exceed this bound, inclusive; lower than
+    `severity_min`, refused with 422 `VALUE_OUT_OF_RANGE` on `/query/severity_max`.
   schema: { $ref: common.yaml#/Money }
 
 RiskProvisionAmountMin:
   name: provision_amount_min
   in: query
   description: >-
-    Restreint aux risques dont la provision (`Risk.provision_amount`) atteint cette borne,
-    incluse (WF-RIS-0040).
+    Restricts to the risks whose provision (`Risk.provision_amount`) reaches this bound,
+    inclusive (WF-RIS-0040).
   schema: { $ref: common.yaml#/Money }
 
 RiskProvisionAmountMax:
   name: provision_amount_max
   in: query
   description: >-
-    Restreint aux risques dont la provision ne dépasse pas cette borne, incluse ; inférieure à
-    `provision_amount_min`, refusée par 422 `VALUE_OUT_OF_RANGE` sur `/query/provision_amount_max`.
+    Restricts to the risks whose provision does not exceed this bound, inclusive; lower than
+    `provision_amount_min`, refused with 422 `VALUE_OUT_OF_RANGE` on `/query/provision_amount_max`.
   schema: { $ref: common.yaml#/Money }
 
 RiskOccurrenceCostMin:
   name: occurrence_cost_min
   in: query
   description: >-
-    Restreint aux risques dont le coût à la survenance atteint cette borne, incluse : des risques
-    survenus, un autre n'en ayant pas (`Risk.occurrence_cost`, WF-RIS-0010 ; #1761).
+    Restricts to the risks whose cost at occurrence reaches this bound, inclusive: occurred
+    risks, since another risk has none (`Risk.occurrence_cost`, WF-RIS-0010; #1761).
   schema: { $ref: common.yaml#/Money }
 
 RiskOccurrenceCostMax:
   name: occurrence_cost_max
   in: query
   description: >-
-    Restreint aux risques survenus dont le coût à la survenance ne dépasse pas cette borne,
-    incluse ; inférieure à `occurrence_cost_min`, refusée par 422 `VALUE_OUT_OF_RANGE` sur
+    Restricts to the occurred risks whose cost at occurrence does not exceed this bound,
+    inclusive; lower than `occurrence_cost_min`, refused with 422 `VALUE_OUT_OF_RANGE` on
     `/query/occurrence_cost_max`.
   schema: { $ref: common.yaml#/Money }
 
@@ -767,45 +785,46 @@ RiskOccurredReestimatedMin:
   name: occurred_reestimated_amount_min
   in: query
   description: >-
-    Restreint aux risques survenus dont le réestimé des lignes issues d'eux atteint cette borne,
-    incluse (`Risk.occurred_reestimated_amount` ; #1761).
+    Restricts to the occurred risks whose re-estimated amount of the lines arising from them
+    reaches this bound, inclusive (`Risk.occurred_reestimated_amount`; #1761).
   schema: { $ref: common.yaml#/Money }
 
 RiskOccurredReestimatedMax:
   name: occurred_reestimated_amount_max
   in: query
   description: >-
-    Restreint aux risques survenus dont le réestimé des lignes issues d'eux ne dépasse pas cette
-    borne, incluse ; inférieure à `occurred_reestimated_amount_min`, refusée par 422
-    `VALUE_OUT_OF_RANGE` sur `/query/occurred_reestimated_amount_max`.
+    Restricts to the occurred risks whose re-estimated amount of the lines arising from them
+    does not exceed this bound, inclusive; lower than `occurred_reestimated_amount_min`, refused
+    with 422 `VALUE_OUT_OF_RANGE` on `/query/occurred_reestimated_amount_max`.
   schema: { $ref: common.yaml#/Money }
 
 RiskLastReviewOnFrom:
   name: last_review_on_from
   in: query
   description: >-
-    Restreint aux risques dont le dernier réexamen (`Risk.last_review_on`) tombe ce jour ou
-    après (WF-RIS-0040).
+    Restricts to the risks whose last review (`Risk.last_review_on`) falls on this day or
+    after (WF-RIS-0040).
   schema: { $ref: common.yaml#/PlanningDate }
 
 RiskLastReviewOnTo:
   name: last_review_on_to
   in: query
   description: >-
-    Restreint aux risques dont le dernier réexamen tombe ce jour ou avant, la fin incluse : la
-    revue périodique l'emploie pour présenter les risques dont la probabilité n'a pas été
-    réexaminée depuis le dernier marquage (WF-RIS-0020). Antérieure à `last_review_on_from`,
-    refusée par 422 `VALUE_OUT_OF_RANGE` sur `/query/last_review_on_to`.
+    Restricts to the risks whose last review falls on this day or before, the end included: the
+    periodic review uses it to present the risks whose probability has not been
+    reviewed since the last marking (WF-RIS-0020). Earlier than `last_review_on_from`,
+    refused with 422 `VALUE_OUT_OF_RANGE` on `/query/last_review_on_to`.
   schema: { $ref: common.yaml#/PlanningDate }
 
 RiskRevision:
   name: revision_id
   in: query
   description: >-
-    Révision dont on lit les risques, chacune figeant la version de leur devis propre,
-    de leur probabilité et de leur état (WF-RIS-0030) ; absente, la révision en cours, ou
-    la dernière révision marquée quand aucune n'est en cours. La provision d'un risque
-    survenu est celle qu'il avait dans la révision de référence (WF-RIS-0050).
+    Revision whose risks are read, each one freezing the version of their own estimate,
+    of their probability and of their state (WF-RIS-0030); absent, the current revision, or
+    the last marked revision when none is current. The provision of an occurred or dismissed
+    risk is the one it held in the reference revision (`Risk.provision_amount`, WF-RIS-0040,
+    WF-RIS-0050).
   schema: { $ref: common.yaml#/Uuid }
 
 TimelineId:
@@ -842,14 +861,14 @@ ChunkedUploadPartNumber:
   name: part_number
   in: path
   required: true
-  description: Le numéro du morceau, à partir de 1 (`ChunkedUpload.part_count`).
+  description: The number of the part, starting at 1 (`ChunkedUpload.part_count`).
   schema: { type: integer, minimum: 1 }
 
 ExternalBackupLocationName:
   name: location_name
   in: path
   required: true
-  description: Le nom d'un emplacement externe que l'installation déclare.
+  description: The name of an external location that the installation declares.
   schema: { $ref: schemas/platform.yaml#/ExternalBackupLocationName }
 
 TaskId:
@@ -868,28 +887,28 @@ IndicatorsRevision:
   name: revision_id
   in: query
   description: >-
-    La révision du calcul, pour les indicateurs du projet comme pour les courbes :
-    absente, ou la révision en cours, le calcul au jour courant — sur la révision en cours,
-    ou, quand le projet n'en a pas, sur sa dernière révision marquée avec le coût réel du jour
-    (WF-IND-0010), `CalculationContext.is_stored` faux et `context.revision_id` nommant la
-    révision du calcul ; une révision marquée, le calcul à la date de son marquage : les
-    indicateurs et les courbes que son marquage a conservés (WF-DAT-0040), `is_stored` vrai,
-    sur les lignes de coût réel connues à son marquage, telles qu'elles étaient alors — une
-    ligne importée ensuite n'y entre pas, quelle que soit sa date de pièce, et une ligne mise à
-    jour ou exclue ensuite y reste telle qu'elle était (WF-IND-0010). Une révision marquée
-    avant l'état En cours n'a conservé que le total de son devis, sans aucun indicateur
-    projet (WF-DAT-0040) : refusée par 409, `STATE_FORBIDS_OPERATION`. Avec `as_of`, qui
-    choisit déjà la révision par sa date, refusée par 422, `VALIDATION_FAILED`.
+    The revision of the calculation, for the project indicators as for the curves: absent, or
+    the current revision, the calculation as of the current day — on the current revision, or,
+    when the project has none, on its last marked revision with the actual cost of the day
+    (WF-IND-0010), `CalculationContext.is_stored` false and `context.revision_id` naming the
+    revision of the calculation; a marked revision, the calculation at the date of its marking:
+    the indicators and curves that its marking kept (WF-DAT-0040), `is_stored` true, on the
+    actual cost lines known at its marking, as they were then — a line imported afterwards does
+    not enter it, whatever its document date, and a line updated or excluded afterwards remains
+    in it as it was (WF-IND-0010). A revision marked before the In progress state kept only the
+    total of its estimate, without any project indicator (WF-DAT-0040): refused with 409,
+    `STATE_FORBIDS_OPERATION`. With `as_of`, which already chooses the revision by its date,
+    refused with 422, `VALIDATION_FAILED`.
   schema: { $ref: common.yaml#/Uuid }
 
 AsOf:
   name: as_of
   in: query
   description: >-
-    Date de calcul. Absente, les indicateurs du jour courant : ceux de la révision en
-    cours, ou, quand le projet n'en a pas, ceux de sa dernière révision marquée calculés avec
-    le coût réel du jour, `is_stored` faux (WF-IND-0010) ; présente, ceux de la dernière
-    révision marquée antérieure ou égale, tels qu'ils ont été conservés à son marquage
+    Calculation date. Absent, the indicators of the current day: those of the current
+    revision, or, when the project has none, those of its last marked revision calculated with
+    the actual cost of the day, `is_stored` false (WF-IND-0010); present, those of the last
+    marked revision on or before it, as they were kept at its marking
     (WF-IND-0010, WF-DAT-0040, WF-PTF-0010).
   schema: { $ref: common.yaml#/PlanningDate }
 
@@ -897,11 +916,11 @@ Scope:
   name: scope
   in: query
   description: >-
-    Maille de calcul : le projet entier, ou un sous-projet, l'ensemble « hors
-    sous-projet » compris (WF-IND-0020). Un sous-projet que le projet n'a pas, ou un
-    identifiant mal formé, est refusé par 422 `VALIDATION_FAILED`, `fields[]` désignant
-    `/query/scope` par `UNKNOWN_SUBPROJECT`, comme le sous-projet des coûts réels : aucune
-    lecture nulle ne tient lieu de refus.
+    Calculation scope: the whole project, or a subproject, the "out of any
+    subproject" set included (WF-IND-0020). A subproject that the project does not have, or a
+    malformed identifier, is refused with 422 `VALIDATION_FAILED`, `fields[]` designating
+    `/query/scope` with `UNKNOWN_SUBPROJECT`, like the subproject of the actual costs: no
+    empty reading stands in for a refusal.
   schema:
     anyOf:
       - type: string
@@ -913,20 +932,20 @@ WorkloadBasis:
   in: query
   required: true
   description: >-
-    Base du plan de charge, où la charge des lignes de main-d'œuvre est prise : la révision de
-    référence, une révision marquée pour sa charge réestimée — nommée par `revision_id` —, ou la
-    révision en cours (WF-DEV-0070). Les deux dernières sont la base du reste à engager.
+    Basis of the workload, where the effort of the labour lines is taken: the reference
+    revision, a marked revision for its re-estimated effort — named by `revision_id` —, or the
+    current revision (WF-DEV-0070). The last two are the basis of the remaining to commit.
   schema: { type: string, enum: [reference_budget, marked_remaining, current_remaining] }
 
 ProjectStates:
   name: states
   in: query
   description: >-
-    États retenus par la liste des projets (`listProjects`) : tout état nommé est retenu — un
-    accueil qui liste tous les projets ouvrables nomme les six. Absent, les projets en cours
-    seuls. `meta.states` dit toujours les états retenus, nommés ou par défaut. Propre à la
-    liste : la règle des vues du portefeuille, qui ne comptent pas certains états
-    (`PortfolioStates`, WF-PTF-0010), ne vaut pas ici (décision de l'auteur du 2026-11-01,
+    States retained by the list of projects (`listProjects`): every state named is retained — a
+    home page that lists all the projects that can be opened names the six. Absent, the projects
+    in progress only. `meta.states` always says the states retained, named or by default.
+    Specific to the list: the rule of the portfolio views, which do not count certain states
+    (`PortfolioStates`, WF-PTF-0010), does not apply here (the author's decision of 2026-11-01,
     #1747).
   schema:
     type: array
@@ -937,11 +956,12 @@ PortfolioStates:
   name: states
   in: query
   description: >-
-    États retenus dans le périmètre (WF-PTF-0010). Par défaut, les projets en cours. Une vue du
-    portefeuille ne retient que les projets en cours, ceux en chiffrage qu'elle ajoute et les
-    projets terminés de la période : un projet créé, perdu ou abandonné que `states` nomme y
-    est sans effet, comme tout état que la vue dit ne pas compter (WF-PTF-0010). À une date passée
-    (`as_of`), un projet est retenu selon l'état qu'il avait à cette date (WF-CYC-0130).
+    States retained in the scope (WF-PTF-0010). By default, the projects in progress. A
+    portfolio view retains only the projects in progress, those in pricing that it adds and the
+    projects completed in the period: a created, lost or abandoned project that `states` names
+    has no effect there, like any state that the view says it does not count (WF-PTF-0010). At a
+    past date (`as_of`), a project is retained according to the state it had at that date
+    (WF-CYC-0130).
   schema:
     type: array
     items: { $ref: schemas/projects.yaml#/ProjectState }
@@ -951,106 +971,106 @@ PortfolioFrom:
   name: from
   in: query
   description: >-
-    Début de la période, inclus, pour les projets terminés et les statistiques de période.
-    Sans `to`, la fin est la date de calcul (`as_of`, ou le jour courant), celle de la période
-    par défaut ; un début qui lui est postérieur est refusé par 422, `/query/from`,
-    `params.maximum` la fin complétée (`PortfolioPeriodRefused`). Sans l'une ni l'autre, les
-    statistiques, l'évolution trimestrielle, la structure des coûts et la courbe en S
-    retiennent la période par défaut, les douze mois qui finissent à la date de calcul, et la
-    liste des projets aucune période ; `scope.from` et `scope.to` disent la période retenue.
+    Start of the period, inclusive, for the completed projects and the period statistics.
+    Without `to`, the end is the calculation date (`as_of`, or the current day), that of the default
+    period; a start later than it is refused with 422, `/query/from`,
+    `params.maximum` the end filled in (`PortfolioPeriodRefused`). Without either, the
+    statistics, the quarterly evolution, the cost structure and the S-curve
+    retain the default period, the twelve months that end at the calculation date, and the
+    list of projects no period; `scope.from` and `scope.to` say the period retained.
   schema: { $ref: common.yaml#/PlanningDate }
 
 PortfolioTo:
   name: to
   in: query
   description: >-
-    Fin de la période, incluse, une date de planning. Antérieure à `from`, elle est refusée par
-    422 (`PortfolioPeriodRefused`). Sans `from`, le début est celui de la période par défaut :
-    la date de calcul moins douze mois (le 28 février pour un 29 février), puis le lendemain —
-    le 4 juin 2025 pour le 3 juin 2026, le 1er mars 2027 pour le 29 février 2028 ; une fin qui
-    lui est antérieure est refusée de même, `params.minimum` le début complété.
+    End of the period, inclusive, a planning date. Earlier than `from`, it is refused with
+    422 (`PortfolioPeriodRefused`). Without `from`, the start is that of the default period:
+    the calculation date minus twelve months (28 February for a 29 February), then the next day —
+    4 June 2025 for 3 June 2026, 1 March 2027 for 29 February 2028; an end that
+    is earlier than it is refused likewise, `params.minimum` the start filled in.
   schema: { $ref: common.yaml#/PlanningDate }
 
 PortfolioOrgNode:
   name: org_node_id
   in: query
   description: >-
-    Restreint les seules lignes de main-d'œuvre dont le rôle relève du nœud — rattaché à
-    lui ou à l'un de ses descendants ; un projet n'appartient à aucun service
+    Restricts only the labour lines whose role falls under the node — attached to
+    it or to one of its descendants; a project belongs to no department
     (WF-PTF-0010).
   schema: { $ref: common.yaml#/Uuid }
 
-# Les colonnes d'audit d'une table plate (WF-DAT-0070), chacune triée et filtrée (WF-IHM-0060,
-# WF-IHM-0130) : une période par colonne de date, nommée d'après elle comme les bornes d'une
-# colonne de nombres (README, « Une période… »), et l'auteur comme celui du journal d'audit
-# (`user_id`, `actor_kind` de `listAuditEvents`).
+# The audit columns of a flat table (WF-DAT-0070), each sorted and filtered (WF-IHM-0060,
+# WF-IHM-0130): a period per date column, named after it like the bounds of a
+# number column (README, "A period…"), and the author like that of the audit log
+# (`user_id`, `actor_kind` of `listAuditEvents`).
 
 CreatedAtFrom:
   name: created_at_from
   in: query
   description: >-
-    Début, inclus, de la période de création : restreint aux lignes créées à cet instant ou après
-    lui (`audit.created_at`, WF-IHM-0130).
+    Start, inclusive, of the creation period: restricts to the rows created at this instant or after
+    it (`audit.created_at`, WF-IHM-0130).
   schema: { $ref: common.yaml#/Timestamp }
 
 CreatedAtTo:
   name: created_at_to
   in: query
   description: >-
-    Fin, exclue, de la période de création : restreint aux lignes créées avant cet instant
-    (WF-IHM-0130). Antérieure à `created_at_from`, elle est refusée par 422, `fields[]`
-    désignant `/query/created_at_to` par `VALUE_OUT_OF_RANGE`, `params.minimum` le début donné ;
-    égale, la période est vide.
+    End, exclusive, of the creation period: restricts to the rows created before this instant
+    (WF-IHM-0130). Earlier than `created_at_from`, it is refused with 422, `fields[]`
+    designating `/query/created_at_to` with `VALUE_OUT_OF_RANGE`, `params.minimum` the start given;
+    equal, the period is empty.
   schema: { $ref: common.yaml#/Timestamp }
 
 CreatedByUserId:
   name: created_by_user_id
   in: query
   description: >-
-    Restreint aux lignes créées par ce compte (`audit.created_by.user_id`), désactivé ou anonymisé
-    compris : ses actes lui restent attribués (WF-ADM-0060, WF-IHM-0130). Un identifiant qui ne
-    désigne aucun compte ne retient rien.
+    Restricts to the rows created by this account (`audit.created_by.user_id`), deactivated or
+    anonymised included: its acts remain attributed to it (WF-ADM-0060, WF-IHM-0130). An
+    identifier that designates no account retains nothing.
   schema: { $ref: common.yaml#/Uuid }
 
 CreatedByKind:
   name: created_by_kind
   in: query
   description: >-
-    Restreint aux lignes créées par un compte (`user`) ou par la plateforme (`platform`), un
-    traitement automatique (`audit.created_by.kind`, WF-DAT-0070) ; absent, les deux.
+    Restricts to the rows created by an account (`user`) or by the platform (`platform`), an
+    automatic process (`audit.created_by.kind`, WF-DAT-0070); absent, both.
   schema: { $ref: schemas/audit.yaml#/AuditActorKind }
 
 UpdatedAtFrom:
   name: updated_at_from
   in: query
   description: >-
-    Début, inclus, de la période de dernière modification : restreint aux lignes modifiées en
-    dernier à cet instant ou après lui (`audit.updated_at`, WF-IHM-0130).
+    Start, inclusive, of the last modification period: restricts to the rows last modified
+    at this instant or after it (`audit.updated_at`, WF-IHM-0130).
   schema: { $ref: common.yaml#/Timestamp }
 
 UpdatedAtTo:
   name: updated_at_to
   in: query
   description: >-
-    Fin, exclue, de la période de dernière modification : restreint aux lignes modifiées en
-    dernier avant cet instant (WF-IHM-0130). Antérieure à `updated_at_from`, elle est refusée par
-    422, `fields[]` désignant `/query/updated_at_to` par `VALUE_OUT_OF_RANGE`, `params.minimum`
-    le début donné ; égale, la période est vide.
+    End, exclusive, of the last modification period: restricts to the rows last modified
+    before this instant (WF-IHM-0130). Earlier than `updated_at_from`, it is refused with
+    422, `fields[]` designating `/query/updated_at_to` with `VALUE_OUT_OF_RANGE`, `params.minimum`
+    the start given; equal, the period is empty.
   schema: { $ref: common.yaml#/Timestamp }
 
 UpdatedByUserId:
   name: updated_by_user_id
   in: query
   description: >-
-    Restreint aux lignes modifiées en dernier par ce compte (`audit.updated_by.user_id`), désactivé
-    ou anonymisé compris (WF-ADM-0060, WF-IHM-0130). Un identifiant qui ne désigne aucun compte ne
-    retient rien.
+    Restricts to the rows last modified by this account (`audit.updated_by.user_id`), deactivated
+    or anonymised included (WF-ADM-0060, WF-IHM-0130). An identifier that designates no account
+    retains nothing.
   schema: { $ref: common.yaml#/Uuid }
 
 UpdatedByKind:
   name: updated_by_kind
   in: query
   description: >-
-    Restreint aux lignes modifiées en dernier par un compte (`user`) ou par la plateforme
-    (`platform`) (`audit.updated_by.kind`, WF-DAT-0070) ; absent, les deux.
+    Restricts to the rows last modified by an account (`user`) or by the platform
+    (`platform`) (`audit.updated_by.kind`, WF-DAT-0070); absent, both.
   schema: { $ref: schemas/audit.yaml#/AuditActorKind }

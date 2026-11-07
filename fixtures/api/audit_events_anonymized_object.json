@@ -1,9 +1,9 @@
 {
-  "summary": "L'histoire du compte d'Alix Moreau dans le journal (object_kind=user et object_id), après son anonymisation par Camille Martin aujourd'hui : trois inscriptions, aussi nombreuses, datées et de mêmes actions qu'avant elle, dont aucune ne porte plus son nom ; le libellé qui la désignait comme objet est nul, et le front présente le libellé neutre de son catalogue (WF-SEC-0030, WF-ADM-0060).",
+  "summary": "L'histoire du compte d'Alix Moreau dans le journal (object_kind=user et object_id), après son anonymisation par Camille Martin aujourd'hui : quatre inscriptions, aussi nombreuses, datées et de mêmes actions qu'avant elle, dont aucune ne porte plus son nom ; le libellé qui la désignait comme objet est nul, et le front présente le libellé neutre de son catalogue (WF-SEC-0030, WF-ADM-0060).",
   "value": {
     "items": [
       {
-        "audit_event_id": "01926f3a-7c00-7000-8000-000700000041",
+        "audit_event_id": "01926f3a-7c00-7000-8000-000700000047",
         "occurred_at": "2026-06-03T14:05:00Z",
         "actor": {
           "kind": "user",
@@ -19,10 +19,10 @@
         },
         "project": null,
         "params": {},
-        "correlation_id": "01926f3a-7c00-7000-8000-000800000041"
+        "correlation_id": "01926f3a-7c00-7000-8000-000800000047"
       },
       {
-        "audit_event_id": "01926f3a-7c00-7000-8000-000700000023",
+        "audit_event_id": "01926f3a-7c00-7000-8000-000700000029",
         "occurred_at": "2026-03-02T16:20:00Z",
         "actor": {
           "kind": "user",
@@ -38,10 +38,37 @@
         },
         "project": null,
         "params": {},
-        "correlation_id": "01926f3a-7c00-7000-8000-000800000021"
+        "correlation_id": "01926f3a-7c00-7000-8000-000800000027"
       },
       {
-        "audit_event_id": "01926f3a-7c00-7000-8000-000700000015",
+        "audit_event_id": "01926f3a-7c00-7000-8000-000700000020",
+        "occurred_at": "2026-01-12T10:00:00Z",
+        "actor": {
+          "kind": "user",
+          "user_id": "01926f3a-7c00-7000-8000-000000000301",
+          "display_name": "Camille Martin"
+        },
+        "action": "user_access_roles_set",
+        "object": {
+          "kind": "user",
+          "object_id": "01926f3a-7c00-7000-8000-000000000303",
+          "label": null,
+          "revision": null
+        },
+        "project": null,
+        "params": {
+          "access_roles_granted": [
+            {
+              "access_role_id": "01926f3a-7c00-7000-8000-000000000703",
+              "label": "Chef de projet"
+            }
+          ],
+          "access_roles_withdrawn": []
+        },
+        "correlation_id": "01926f3a-7c00-7000-8000-000800000020"
+      },
+      {
+        "audit_event_id": "01926f3a-7c00-7000-8000-000700000019",
         "occurred_at": "2026-01-12T10:00:00Z",
         "actor": {
           "kind": "user",
@@ -59,13 +86,13 @@
         "params": {
           "origin": "local"
         },
-        "correlation_id": "01926f3a-7c00-7000-8000-000800000015"
+        "correlation_id": "01926f3a-7c00-7000-8000-000800000019"
       }
     ],
     "meta": {
       "limit": 50,
       "offset": 0,
-      "total": 3
+      "total": 4
     }
   }
 }

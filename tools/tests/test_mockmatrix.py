@@ -63,7 +63,7 @@ def test_each_risk_the_matrix_reads_is_a_point_and_its_cells_count_the_identifie
     # of the budget the cells class, and the zone of its cell. The cells count the identified
     # alone, as the bubbles draw them, the server counting (#1395); the totals of the provisions
     # stay over the three states (WF-RIS-0040).
-    budget = Decimal("68241568.05")
+    budget = Decimal("68241569.21")
     items = history["risks"]["items"]
     matrix = history["risk_matrix"]
     points = matrix["points"]

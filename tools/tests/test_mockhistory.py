@@ -269,11 +269,11 @@ def test_the_reference_bears_a_reserve_of_its_provisions_and_a_budget_the_occurr
     budget = mockhistory.reference_budget(rows)
     assert budget == mockhistory.reference_budget(mockcore.current())
     # The lines the amendment 1 did not designate keep the rates of the offer (#467): the core's
-    # alone are budgeted 120,534.56, the whole structure 68,241,568.05, inflation included.
+    # alone are budgeted 120,534.56, the whole structure 68,241,569.21, inflation included.
     assert mockhistory.reference_budget(mockcore.core(mockwitnessrisks.reference())) == Decimal(
         "120534.56"
     )
-    assert budget == Decimal("68241568.05")
+    assert budget == Decimal("68241569.21")
     numbers = {row.number for row in rows}
     assert mockwitnessrisks.MERGED not in numbers
     assert {557, 567} <= numbers
@@ -452,7 +452,7 @@ def test_the_comparison_is_the_difference_of_the_offer_and_the_reference_by_line
     # drawn.
     # The budgeted deltas leave the rates out: the drawn labour keeps the budget of the offer.
     offer = mockhistory.offer_rows()
-    for key, expected in (("budgeted", "852925.00"), ("reestimated", "1034848.01")):
+    for key, expected in (("budgeted", "852925.00"), ("reestimated", "1034847.56")):
         difference = sum(
             (
                 getattr(row.amounts, key)
@@ -863,15 +863,15 @@ def test_a_line_of_provision_offers_no_payment_delay_it_does_not_carry() -> None
         return " ".join(schemas.split(f"\n{name}:\n", 1)[1].split("  properties:", 1)[0].split())
 
     said = schema("EstimateLineUpdate")
-    assert "le délai de paiement d'une ligne de provision, qui n'en porte pas" in said
+    assert "the payment delay of a provision line, which carries none" in said
     assert "`FIELD_NOT_ACCEPTED`" in said
     assert "    - FIELD_NOT_ACCEPTED\n" in (api / "components" / "common.yaml").read_text(
         encoding="utf-8"
     )
     # The motive of every field a node does not accept, neither entered nor computed for it — but
     # the payment delay of a line of labour, which the specification wants entered (#785).
-    assert "le débours ou le délai de paiement d'une ligne de main-d'œuvre" not in said
-    assert "Le délai de paiement se saisit sur une ligne de main-d'œuvre" in said
+    assert "the disbursement or the payment delay of a labour line" not in said
+    assert "The payment delay is entered on a labour line" in said
     paths = (api / "paths" / "revisions.yaml").read_text(encoding="utf-8")
     update = paths.split("operationId: updateEstimateLine\n", 1)[1].split("operationId:", 1)[0]
     for name, text in (

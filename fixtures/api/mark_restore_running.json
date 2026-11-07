@@ -1,0 +1,10 @@
+{
+  "summary": "Le marquage de la révision courante du témoin, la 102, demandé pendant que la restauration de la plateforme est en file (task_restore_queued) : la restauration remplace la base où le marquage s'écrirait, et la commande mark le disait d'avance ; refusé par la condition qui manque, no_restore_running ; rien n'est mis en file (WF-ADM-0160, WF-REV-0020, WF-IHM-0090).",
+  "description": "Exemple engendré par `make mock-data` (`wftools.mockdata`) : il ne se retouche pas.",
+  "value": {
+    "code": "STATE_FORBIDS_OPERATION",
+    "status": 409,
+    "params": {"missing_condition":"no_restore_running"},
+    "correlation_id": "01926f3a-7c00-7000-8000-000000001951"
+  }
+}

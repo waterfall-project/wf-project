@@ -43,10 +43,11 @@ The author decided each major point by point (`docs/api/DECISIONS.md`, the secti
 - the life of an import: refused on a terminal project, during a background task, or when it
   would create the current revision for a reader (``import_open_*``; I-03, I-04, #1789, #1792);
   applied expired and abandoned applied, refused by their condition (``import_apply_expired``,
-  ``import_abandon_applied``); read ``refused`` once its application is refused
-  (``import_apply_refused_permission``; I-01, I-02); and a remaining to commit whose new line
-  under the detailed studies, completed, is rejected (``import_remaining_completed_task``; I-05,
-  #1793).
+  ``import_abandon_applied``), and an estimate analysed on the main structure in pricing, applied
+  once the project is In progress (``import_apply_main_in_progress``, I-07); read ``refused``
+  once its application is refused (``import_apply_refused_permission``; I-01, I-02); and a
+  remaining to commit whose new line under the detailed studies, completed, is rejected
+  (``import_remaining_completed_task``; I-05, #1793).
 
 Nothing here reads the clock or draws at random, nor a file the same command writes.
 """
@@ -142,6 +143,11 @@ def too_long(pointer: str, bound: int) -> JsonObject:
     return {"pointer": pointer, "code": "VALUE_TOO_LONG", "params": {"max_length": bound}}
 
 
+SUBPROJECT_CODE_EXAMPLE = "WF-PRJ-0050-A#0959bb1f339c"
+"""The numeric example of the Vérif of WF-PRJ-0050 the code too long reproduces: a code of more
+than thirty-one characters is refused (``wftools.examples``)."""
+
+
 def _code_too_long() -> JsonObject:
     if len(TOO_LONG_CODE) != SUBPROJECT_CODE_BOUND + 1:
         message = f"{TOO_LONG_CODE}: {len(TOO_LONG_CODE)} characters, not the bound and one"
@@ -157,6 +163,7 @@ def _code_too_long() -> JsonObject:
             "fields": [too_long("/code", SUBPROJECT_CODE_BOUND)],
             "correlation_id": TOO_LONG_CORRELATION,
         },
+        (SUBPROJECT_CODE_EXAMPLE,),
     )
 
 
@@ -641,6 +648,7 @@ IMPORT_CORRELATIONS = {
     "import_open_may_create_revision": universe(1680),
     "import_apply_expired": universe(1681),
     "import_abandon_applied": universe(1682),
+    "import_apply_main_in_progress": universe(1930),
 }
 """The correlations of the refusals of the life of an import, by example."""
 
@@ -786,6 +794,15 @@ def _import_examples() -> dict[str, JsonObject]:
             f"plus rien à appliquer, et le refus nomme la condition qui manque, un import qui "
             f"attend la décision ; l'import ne change pas (WF-ARC-0100, #1789).",
             _refused("import_apply_expired", "import_awaiting_decision"),
+        ),
+        "import_apply_main_in_progress.json": mocktext.example(
+            "Variante contrefactuelle : un devis importé sur la structure principale de la "
+            "révision en cours pendant le chiffrage, analysé, puis appliqué après le passage du "
+            "projet en En cours : le devis de la structure principale ne s'importe plus, la "
+            "condition revérifiée à l'application comme à l'ouverture ; refusé par la condition "
+            "qui manque, project_before_in_progress, l'import devenu refusé (refused) et son "
+            "fichier supprimé ; rien n'est appliqué (WF-INTF-0100, WF-ARC-0100, #1789).",
+            _refused("import_apply_main_in_progress", "project_before_in_progress"),
         ),
         "import_abandon_applied.json": mocktext.example(
             f"L'abandon demandé aujourd'hui de « {applied['filename']} », appliquée ce matin "

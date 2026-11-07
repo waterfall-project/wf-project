@@ -1,5 +1,6 @@
 {
   "summary": "Un sous-projet créé, ou les essais et mise en service recodés, sous « synthèse », un nom que porte déjà l'onglet de synthèse du fichier de reste à engager, sans égard à la casse : refusé, le code désigné par son motif, le nom réservé nommé tel que Waterfall l'écrit, que le formulaire dit au champ ; rien n'est écrit (WF-PRJ-0050).",
+  "x-examples": ["WF-PRJ-0050-A#0959bb1f339c"],
   "value": {
     "code": "VALIDATION_FAILED",
     "status": 422,

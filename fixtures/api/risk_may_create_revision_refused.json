@@ -1,0 +1,11 @@
+{
+  "summary": "Variante contrefactuelle : un risque déclaré sur le projet sans révision en cours (project_without_current_revision), la révision 102 abandonnée, par un compte dont le rôle porte la saisie des risques sans la création des révisions — aucun rôle du témoin ne les sépare : la déclaration créerait la révision en cours, et elle est refusée par la condition qui manque, un 409 et non un 403, comme l'import (import_open_may_create_revision) ; rien n'est écrit, aucune révision n'est créée (WF-RIS-0020, WF-IHM-0090).",
+  "value": {
+    "code": "STATE_FORBIDS_OPERATION",
+    "status": 409,
+    "params": {
+      "missing_condition": "may_create_revision"
+    },
+    "correlation_id": "01926f3a-7c00-7000-8000-000000001920"
+  }
+}

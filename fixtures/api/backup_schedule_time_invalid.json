@@ -1,0 +1,12 @@
+{
+  "summary": "La planification des sauvegardes réglée aujourd'hui à « 25:00 », qui n'est pas une heure HH:MM : refusée, le champ désigné ; rien n'est écrit, la planification reste celle que getBackupSchedule lit (WF-ADM-0170).",
+  "description": "Exemple engendré par `make mock-data` (`wftools.mockdata`) : il ne se retouche pas.",
+  "value": {
+    "code": "VALIDATION_FAILED",
+    "status": 422,
+    "fields": [
+      {"pointer":"/at_time","code":"VALIDATION_FAILED"}
+    ],
+    "correlation_id": "01926f3a-7c00-7000-8000-000000001901"
+  }
+}
