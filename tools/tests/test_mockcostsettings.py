@@ -414,7 +414,7 @@ def test_no_file_of_the_contract_names_the_conditions_of_the_withdrawn_rule() ->
     assert "\n      '409':" not in block
     # The reactivation of a category refused under a deactivated nature is C-291, not #578.
     said = conflict_said(text, "setCostCategoryActivation")
-    assert "`params.missing_condition` à `cost_type_active`" in " ".join(said.split())
+    assert "`params.missing_condition` at `cost_type_active`" in " ".join(said.split())
     assert "C-291" in said
 
 
@@ -446,8 +446,8 @@ def test_a_refused_change_of_kind_names_the_first_condition_missing_in_the_order
 @pytest.mark.parametrize(
     ("operation", "condition"),
     [
-        ("updateCostType", "La dernière nomme des rôles :"),
-        ("updateCostCategory", f"`{CATEGORY_WITHOUT_ROLE}` ; nommant celle-ci,"),
+        ("updateCostType", "The last one names roles:"),
+        ("updateCostCategory", f"`{CATEGORY_WITHOUT_ROLE}`; when naming the latter,"),
     ],
 )
 def test_a_change_of_kind_refused_for_its_roles_names_them(operation: str, condition: str) -> None:
@@ -459,22 +459,21 @@ def test_a_change_of_kind_refused_for_its_roles_names_them(operation: str, condi
             (API / "paths" / "reference.yaml").read_text(encoding="utf-8"), operation
         ).split()
     )
-    assert f"{condition} `params.resource_roles` les rôles" in said
-    assert "chacun par son identifiant, son code et son libellé" in said
+    assert f"{condition} `params.resource_roles` the roles" in said
+    assert "each by its identifier, its code and its label" in said
     assert "resource_role_ids" not in said
     common = (API / "components" / "common.yaml").read_text(encoding="utf-8")
     problem = " ".join(common.split("\nProblem:\n", 1)[1].split("\n\n", 1)[0].split())
     assert (
-        "`resource_roles` quand `missing_condition` nomme `cost_type_without_role` ou"
+        "`resource_roles` when `missing_condition` names `cost_type_without_role` or"
         " `cost_category_without_role`"
     ) in problem
     assert (
-        "tous les rôles en cause, actifs ou désactivés, chacun par son identifiant, son code et son"
-        " libellé (`resource_role_id`, `code`, `label`)"
+        "all the roles involved, active or deactivated, each by its identifier, its code and its"
+        " label (`resource_role_id`, `code`, `label`)"
     ) in problem
     assert (
-        "à rattacher d'abord à une catégorie de main-d'œuvre hors de la catégorie, ou de la"
-        " nature, refusée"
+        "to be attached first to a labour category outside the refused category, or cost type"
     ) in problem
 
 
@@ -699,7 +698,7 @@ def unsaid_reading(text: str, operations: tuple[str, ...]) -> list[str]:
     missing: list[str] = []
     for operation in operations:
         block = text.split(f"operationId: {operation}\n", 1)[1].split("\n    responses:", 1)[0]
-        if "relit" not in block:
+        if "re-reads" not in block:
             missing.append(operation)
     return missing
 
@@ -707,8 +706,8 @@ def unsaid_reading(text: str, operations: tuple[str, ...]) -> list[str]:
 def test_each_write_that_changes_other_commands_says_the_client_reads_the_lists_anew() -> None:
     text = (API / "paths" / "reference.yaml").read_text(encoding="utf-8")
     assert unsaid_reading(text, RELIT) == []
-    probe = "    operationId: a\n    description: le client relit.\n    responses:\n"
-    probe += "    operationId: b\n    description: rien.\n    responses:\n      relit\n"
+    probe = "    operationId: a\n    description: the client re-reads.\n    responses:\n"
+    probe += "    operationId: b\n    description: nothing.\n    responses:\n      re-reads\n"
     assert unsaid_reading(probe, ("a", "b")) == ["b"]
 
 

@@ -677,20 +677,20 @@ def test_the_confirmation_of_a_merge_carries_the_counters_its_report_read() -> N
     # The counter a 412 names is the one of the object the path names, the amendment, and nothing
     # else, even when the main structure alone changed (#296); the check of both counters and the
     # deposit of the task are one transaction (relecture 2).
-    assert "le compteur courant du différentiel, l'objet que le chemin nomme" in stale
-    assert "la première qui a changé" not in stale
-    assert "le client relit le compte rendu, qui rend l'un et l'autre" in stale
-    assert "en une seule transaction" in stale
+    assert "the current counter of the differential, the object that the path names" in stale
+    assert "the first one that changed" not in stale
+    assert "the client reads the report again, which returns both" in stale
+    assert "in a single transaction" in stale
     # What the report read changes in either tree: 412; what changes outside them makes the task of
     # the merge fail on the motive of the refusal (relecture 2).
     report = revisions.split("operationId: getStructureMergeReport\n", 1)[1]
     read = " ".join(report.split("parameters:", 1)[0].split())
     assert (
-        "dans la structure principale ou dans le différentiel fait refuser la confirmation" in read
+        "in the main structure or in the differential causes the confirmation to be refused" in read
     )
-    assert "par 412" in read
-    assert "hors des deux arbres" in read
-    assert "fait échouer la tâche de fond sur le motif du refus" in read
+    assert "with 412" in read
+    assert "outside the two trees" in read
+    assert "makes the background task fail with the reason for the refusal" in read
     [main] = [each for each in fixture("structures") if each["kind"] == "main"]
     [amendment] = [each for each in fixture("structures") if each["kind"] == "amendment"]
     assert fixture("structure_merge_report")["amendment_lock_version"] == amendment["lock_version"]
@@ -725,7 +725,7 @@ def test_a_file_that_would_move_a_package_out_or_pass_the_horizon_is_rejected_wh
         "ORDER_ITEM_OUTSIDE_WORK_PACKAGE"
         not in _schemas("exchanges.yaml")
         .split("\nImportRejection:\n", 1)[1]
-        .split("Une tâche que le fichier", 1)[0]
+        .split("A task that the file", 1)[0]
     )
     assert "PROJECT_HORIZON_EXCEEDED" in _enumeration(
         COMMON.read_text(encoding="utf-8"), "ErrorCode"
@@ -857,4 +857,4 @@ def test_a_refusal_of_the_attachment_with_two_motives_names_each_on_its_field() 
     assert "Câblage des armoires" in _summary("task_attach_exclusive_attached")
     assert _cited_under("updateTaskFacet", "422")[-1] == "task_attach_exclusive_attached"
     said = " ".join(_schemas("revisions.yaml").split("\nTaskFacetUpdate:\n", 1)[1].split())
-    assert "`WORK_BREAKDOWN_ITEM_ALREADY_ATTACHED` rendus ensemble" in said
+    assert "`WORK_BREAKDOWN_ITEM_ALREADY_ATTACHED` returned together" in said

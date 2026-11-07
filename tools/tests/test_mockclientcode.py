@@ -137,12 +137,12 @@ def test_the_code_read_in_an_actual_cost_line_keeps_its_own_bound() -> None:
     line = _schemas("costs.yaml")["ActualCostLine"]["properties"]["subproject_code"]
     [text, _null] = line["anyOf"]
     assert text == {"type": "string", "maxLength": LONGEST_READ}
-    assert "garde sa borne de 50 caractères" in " ".join(line["description"].split())
+    assert "keeps its bound of 50 characters" in " ".join(line["description"].split())
 
 
 def test_a_code_refused_names_its_motive_and_its_parameter() -> None:
     said = " ".join(_code()["description"].split())
-    assert "`VALUE_TOO_LONG`, `fields[].params.max_length` à `31`" in said
+    assert "`VALUE_TOO_LONG`, `fields[].params.max_length` at `31`" in said
     assert "`SUBPROJECT_CODE_INVALID`, `fields[].params.forbidden_characters`" in said
     assert "`SUBPROJECT_CODE_INVALID`, `fields[].params.reserved_name`" in said
     common = yaml.safe_load((API / "components" / "common.yaml").read_text(encoding="utf-8"))
@@ -150,7 +150,7 @@ def test_a_code_refused_names_its_motive_and_its_parameter() -> None:
     for operation in ("createSubproject", "updateSubproject"):
         answer = " ".join(_answer(operation, "422").split())
         assert "`SUBPROJECT_CODE_INVALID`" in answer, operation
-        assert "`fields[].params.max_length` à `31`" in answer, operation
+        assert "`fields[].params.max_length` at `31`" in answer, operation
         assert "subproject_code_invalid.json" in answer, operation
 
 
