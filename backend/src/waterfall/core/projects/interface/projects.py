@@ -25,16 +25,14 @@ from typing import TYPE_CHECKING, Literal
 from sqlalchemy import ColumnElement, SQLColumnExpression, case, func, or_, select
 from sqlalchemy.exc import IntegrityError
 
-from waterfall.core.cost_settings.interface import (
-    labour_categories_exist,
-    provision_category_active,
-)
+from waterfall.core.cost_settings.interface import missing_prerequisites
 from waterfall.core.projects.commands import (
     PROJECT_NOT_TERMINAL,
     TERMINAL,
     commands_of,
     state_conditions,
 )
+from waterfall.core.projects.interface.contributors import require_project_manager
 from waterfall.core.projects.interface.lifecycle import advance, no_background_task_running
 from waterfall.core.projects.interface.work_breakdown import follow_project_label
 from waterfall.core.projects.tables import (
@@ -45,10 +43,7 @@ from waterfall.core.projects.tables import (
     ProjectStateTransition,
     WorkPackage,
 )
-from waterfall.core.resource_settings.interface import (
-    active_role_exists,
-    default_calendar_has_hours,
-)
+from waterfall.core.resource_settings.interface import share_reference
 from waterfall.core.users.interface import inscribed_actor
 from waterfall.platform.audit import AuditObject, AuditProject, Inscription, record
 from waterfall.platform.database import contains, unique_violated
@@ -82,14 +77,6 @@ STATE_FORBIDS_OPERATION = "STATE_FORBIDS_OPERATION"
 REFERENCE_INCOMPLETE = "REFERENCE_INCOMPLETE"
 # The unique index of the code of a project (migration of the tables of the projects).
 CODE_INDEX = "uq_project_code"
-# The questions of the minimal reference, in the order of ``ReferenceReadiness.missing``
-# (WF-CYC-0120): the modules of the settings answer, this one composes them as the route does.
-PREREQUISITES = (
-    ("default_calendar_with_hours", default_calendar_has_hours),
-    ("active_cost_category", labour_categories_exist),
-    ("active_provision_category", provision_category_active),
-    ("active_resource_role", active_role_exists),
-)
 RATIOS = ("win_probability", "inflation_rate")
 # The decimals the columns of the rates keep (``Numeric(5, 4)``): a value that has more would be
 # rounded by the base, which WF-DAT-0100 forbids, so it is refused.
@@ -269,11 +256,6 @@ class ProjectList:
     projects: list[ProjectView]
     total: int
     states: tuple[str, ...]
-
-
-def missing_prerequisites(session: Session) -> tuple[str, ...]:
-    """Name the prerequisites of the minimal reference that miss, in the order of the contract."""
-    return tuple(name for name, held in PREREQUISITES if not held(session))
 
 
 def retained_states(filters: ProjectFilters) -> tuple[str, ...]:
@@ -507,7 +489,12 @@ def _create(
     """Create a project and what is born with it, once the minimal reference holds.
 
     ``ready`` says the reference was judged to hold: the witness alone says so (``load_project``).
+    Otherwise the lock of the reference is shared before the four questions are asked, and held
+    until the commit: a write that could empty the reference waits for the project, or is waited
+    for (#2154).
     """
+    if not ready:
+        share_reference(session)
     missing = () if ready else missing_prerequisites(session)
     if missing:
         raise ConflictError(REFERENCE_INCOMPLETE, {"missing_prerequisites": list(missing)})
@@ -577,9 +564,8 @@ def create_project(session: Session, draft: ProjectDraft, act: Act, viewer: View
     order item bear the label of the project; the project is born ``created``, its transition
     written from no state; the creation is inscribed in the journal (WF-SEC-0030).
 
-    The minimal reference is read without the lock the design asks for, the module of the
-    revisions giving no interface to take it: a reference emptied between the reading and the
-    commit is not caught (#2154).
+    The minimal reference is read under the shared lock of the reference, held to the commit: no
+    deactivation can empty it between the reading and the commit (#2154).
     """
     return _views(session, [_create(session, draft, act, None, ready=False)], viewer)[0]
 
@@ -634,7 +620,8 @@ def update_project(
 
     The values are judged first: a rate or a probability out of 0 to 1, or that has more than four
     decimals, is refused field by field (422). Then the project is locked and read under the
-    lock: refused if unknown (404), at another version (412), if the probability is sent to a
+    lock: refused if unknown (404), if the writer is no project manager of it any more (403, 404;
+    ``require_project_manager``), at another version (412), if the probability is sent to a
     project that has reached In progress (409, ``project_before_in_progress``, which its command
     says first), if it is terminal (409, ``project_not_terminal``), or if its new code is borne by
     another project (409). A change that changes nothing writes nothing. On a terminal project the
@@ -649,6 +636,7 @@ def update_project(
     if faults:
         raise UnprocessableError(VALIDATION_FAILED, fields=tuple(faults))
     project = _locked(session, project_id)
+    require_project_manager(session, project_id, viewer)
     if project.lock_version != change.lock_version:
         raise PreconditionFailedError(
             STALE_LOCK_VERSION, {"expected_lock_version": project.lock_version}

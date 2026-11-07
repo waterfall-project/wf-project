@@ -34,7 +34,7 @@ from waterfall.core.projects.interface import (
     read_project,
     stored_lock_version,
 )
-from waterfall.core.revisions.interface import abandon_revision, read_revision
+from waterfall.core.revisions.interface import RevisionToAbandon, abandon_revision, read_revision
 from waterfall.core.users.interface import read_authors
 from waterfall.platform.audit import Act
 from waterfall.platform.database import utc_now
@@ -139,7 +139,8 @@ def post_exit(
     if fate == ABANDON and revision_id is not None:
         try:
             read = read_revision(session, project_id, revision_id, viewer)
-            abandon_revision(session, project_id, revision_id, read.lock_version, act)
+            abandoned = RevisionToAbandon(revision_id, read.lock_version)
+            abandon_revision(session, project_id, abandoned, act, viewer)
         except NotFoundError:
             # Another exit abandoned the revision first (the revision is locked before the
             # project, so we waited for it): the counter this one read is stale (412).
@@ -150,5 +151,5 @@ def post_exit(
         request = replace(
             request, moved=1, no_task_running=no_background_task_running(session, project_id)
         )
-    exit_project(session, project_id, request, act)
+    exit_project(session, project_id, request, act, viewer)
     return described(session, [read_project(session, project_id, viewer)])[0]

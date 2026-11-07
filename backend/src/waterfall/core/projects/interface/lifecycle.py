@@ -23,6 +23,7 @@ from typing import TYPE_CHECKING, Literal
 from sqlalchemy import select
 
 from waterfall.core.projects.commands import EXITS, state_conditions
+from waterfall.core.projects.interface.contributors import require_project_manager
 from waterfall.core.projects.tables import STATES, Project, ProjectStateTransition
 from waterfall.core.users.interface import inscribed_actor
 from waterfall.platform.audit import AuditObject, AuditProject, Inscription, record
@@ -41,6 +42,7 @@ if TYPE_CHECKING:
 
     from sqlalchemy.orm import Session
 
+    from waterfall.core.projects.interface.projects import Viewer
     from waterfall.platform.audit import Act
 
 # The two facts that move a project forward, as the contract says them (``LifecycleTrigger``).
@@ -236,16 +238,21 @@ def _judge_exit(project: Project, request: ExitRequest) -> None:
     raise ConflictError(STATE_FORBIDS_OPERATION, {"missing_condition": NO_CURRENT_REVISION})
 
 
-def exit_project(session: Session, project_id: UUID, request: ExitRequest, act: Act) -> None:
+def exit_project(
+    session: Session, project_id: UUID, request: ExitRequest, act: Act, viewer: Viewer
+) -> None:
     """Take a project out of its cycle, to a terminal state, with its reason (``exitProject``).
 
-    The project is locked, then read under the lock, and judged there: at another counter (412),
-    then by the conditions of the command of the exit, as the list says them (409), then for the
-    current revision it still bears, which the caller must have abandoned (422 without a fate, 409
-    ``no_current_revision`` with one). Then the state, the transition and its reason, and the
-    counter are written, and the exit is inscribed in the journal with its state and its reason.
+    The project is locked, then read under the lock, and judged there: the writer first, who must
+    still be a project manager of it (403, 404; ``require_project_manager``), then at another
+    counter (412), then by the conditions of the command of the exit, as the list says them (409),
+    then for the current revision it still bears, which the caller must have abandoned (422 without
+    a fate, 409 ``no_current_revision`` with one). Then the state, the transition and its reason,
+    and the counter are written, and the exit is inscribed in the journal with its state and its
+    reason.
     """
     project = _lock(session, project_id)
+    require_project_manager(session, project_id, viewer)
     _judge_exit(project, request)
     _move(session, project, request.to_state, request.reason, act)
     project.updated_at = act.at

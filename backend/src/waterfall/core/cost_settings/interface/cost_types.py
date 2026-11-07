@@ -42,6 +42,7 @@ from waterfall.core.cost_settings.records import (
     value_taken,
 )
 from waterfall.core.cost_settings.tables import CostCategory, CostType
+from waterfall.core.resource_settings.interface import lock_reference
 from waterfall.platform.database import contains, unique_violated
 from waterfall.platform.errors import ConflictError
 from waterfall.platform.identifiers import new_id
@@ -315,6 +316,7 @@ def update_cost_type(
     its own while a category of it is employed, rated or held by a role of resources (409). The
     code and the label are changed whatever its categories hold.
     """
+    lock_reference(session)
     lock_natures(session)
     nature = lock_row(session, CostType, type_id, lock_version)
     _refuse_taken(session, write.code, besides=type_id)
@@ -339,6 +341,8 @@ def set_cost_type_activation(
     author, in the same transaction. Reactivated, it alone becomes active. A nature already in the
     state asked for is not written.
     """
+    if not is_active:
+        lock_reference(session)
     lock_natures(session)
     nature = lock_row(session, CostType, type_id, lock_version)
     if nature.is_active != is_active:

@@ -30,6 +30,7 @@ from sqlalchemy import ColumnElement, SQLColumnExpression, func, insert, or_, se
 from sqlalchemy.exc import IntegrityError
 
 from waterfall.core.resource_settings.interface.org_nodes import lock_tree, within_node
+from waterfall.core.resource_settings.interface.readiness import lock_reference
 from waterfall.core.resource_settings.tables import Calendar, OrgNode, ResourceRole
 from waterfall.platform.database import contains, unique_violated
 from waterfall.platform.errors import (
@@ -581,6 +582,8 @@ def set_role_activation(
     category and its calendar may stay deactivated. A role already in the state asked for is
     answered as it is, nothing written.
     """
+    if not is_active:
+        lock_reference(session)
     lock_tree(session)
     role = _lock_role(session, role_id, lock_version)
     if role.is_active != is_active:

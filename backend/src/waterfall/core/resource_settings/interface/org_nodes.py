@@ -17,6 +17,7 @@ from typing import TYPE_CHECKING
 
 from sqlalchemy import ColumnElement, SQLColumnExpression, func, or_, select, update
 
+from waterfall.core.resource_settings.interface.readiness import lock_reference
 from waterfall.core.resource_settings.org_tree import (
     Branch,
     in_tree_order,
@@ -373,6 +374,8 @@ def set_activation(
     and their roles reactivated one by one. A node already in the state asked for is unchanged, and
     nothing is given.
     """
+    if not is_active:
+        lock_reference(session)
     nodes, node = _locked(session, node_id, lock_version)
     if node.is_active == is_active:
         return NodeActivation([], [])

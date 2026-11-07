@@ -28,6 +28,7 @@ from waterfall.core.projects.interface.contributors import (
     list_contributors,
     load_contributors,
     project_exists,
+    require_project_manager,
     set_contributors,
 )
 
@@ -69,7 +70,6 @@ from waterfall.core.projects.interface.projects import (
     list_projects,
     load_project,
     lock_project,
-    missing_prerequisites,
     project_code,
     project_commands,
     project_facts,
@@ -185,7 +185,6 @@ __all__ = [
     "load_transitions",
     "load_work_breakdown",
     "lock_project",
-    "missing_prerequisites",
     "next_state",
     "no_background_task_running",
     "project_code",
@@ -197,6 +196,7 @@ __all__ = [
     "read_next_state",
     "read_project",
     "read_work_breakdown",
+    "require_project_manager",
     "set_contributors",
     "set_current_revision",
     "set_work_breakdown",

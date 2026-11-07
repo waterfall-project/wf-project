@@ -34,6 +34,7 @@ from waterfall.core.projects.interface import CommandAvailability, Viewer
 from waterfall.core.revisions.interface import (
     RevisionFilters,
     RevisionPage,
+    RevisionToAbandon,
     RevisionView,
     abandon_revision,
     create_revision,
@@ -208,12 +209,13 @@ def delete_revision(
     project_id: UUID,
     revision_id: UUID,
     lock_version: Annotated[int, Query(ge=0)],
-    account: Caller,
+    actor: Acting,
     session: Transaction,
 ) -> Response:
     """Abandon the current revision of a project at the counter read; its rows are deleted."""
-    act = Act(account.user_id, utc_now())
-    abandon_revision(session, project_id, revision_id, lock_version, act)
+    act = Act(actor.user_id, utc_now())
+    abandoned = RevisionToAbandon(revision_id, lock_version)
+    abandon_revision(session, project_id, abandoned, act, viewer_of(actor))
     return Response(status_code=204)
 
 

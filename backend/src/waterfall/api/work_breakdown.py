@@ -21,7 +21,8 @@ from waterfall.api.contract.models import (
     WorkBreakdownKind,
     WorkBreakdownReading,
 )
-from waterfall.api.evaluation import RequiresProject
+from waterfall.api.evaluation import Acting, RequiresProject
+from waterfall.api.projects import viewer_of
 from waterfall.api.queries import Search, listed
 from waterfall.core.projects.interface import (
     DeliverableEntry,
@@ -153,9 +154,9 @@ def get_work_breakdown(
     response_model=WorkBreakdownReading,
 )
 def put_work_breakdown(
-    project_id: UUID, body: WriteBody, account: Caller, session: Transaction
+    project_id: UUID, body: WriteBody, actor: Acting, account: Caller, session: Transaction
 ) -> WorkBreakdownReading:
     """Write the whole work breakdown at the counter read; only a project manager may."""
     write = WorkBreakdownToWrite(entries_of(body), body.lock_version.root)
     act = Act(account.user_id, utc_now())
-    return described(set_work_breakdown(session, project_id, write, act))
+    return described(set_work_breakdown(session, project_id, write, act, viewer_of(actor)))
