@@ -17,11 +17,12 @@ import pytest
 from access_rows import account, role
 from project_rows import insert_project
 from realm import KEY, TestRealm
-from sqlalchemy import text, update
+from sqlalchemy import event, text, update
 from sqlalchemy.dialects import postgresql
 from support import ContractClient, bearer
 
 from waterfall.api.contract import models
+from waterfall.core.projects.interface import projects_named
 from waterfall.core.users.tables import UserAccount
 from waterfall.platform.audit import (
     AuditAction,
@@ -479,6 +480,35 @@ def test_the_facets_name_a_project_that_exists_by_its_code_and_label_of_today(
         (str(SECOND.project_id), "PRJ-002", SECOND.label),
         (str(FIRST.project_id), "PRJ-009", "Poste de commande rénové"),
     ]
+
+
+@pytest.mark.requirement("WF-ADM-0190-A")
+def test_the_projects_are_named_in_one_read_with_the_code_none_for_a_project_without_one(
+    database: Database,
+) -> None:
+    # The facets name the projects of the day in one read (#2165): a project without code is named
+    # by a null code, the identifier of no project is absent, and no identifier asks nothing.
+    coded, uncoded, absent = uuid4(), uuid4(), uuid4()
+    with database.transaction() as session:
+        session.execute(insert_project(id=coded, code="PRJ-1", label="Un"))
+        session.execute(insert_project(id=uncoded, code=None, label="Deux"))
+        connection = session.connection()
+        statements: list[str] = []
+
+        def count(_conn: Any, _cursor: Any, statement: str, *_rest: Any) -> None:
+            statements.append(statement)
+
+        event.listen(connection, "before_cursor_execute", count)
+        try:
+            named = projects_named(session, [coded, uncoded, absent])
+        finally:
+            event.remove(connection, "before_cursor_execute", count)
+        assert len(statements) == 1
+        assert named == {
+            coded: ("PRJ-1", "Un"),
+            uncoded: (None, "Deux"),
+        }
+        assert projects_named(session, []) == {}
 
 
 @pytest.mark.requirement("WF-ADM-0190-A")

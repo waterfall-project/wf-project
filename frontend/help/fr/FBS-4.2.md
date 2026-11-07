@@ -21,7 +21,7 @@ Les paramètres du projet sont ceux de ses chefs de projet : chaque commande sui
 - Les commandes du lotissement, des sous-projets et des contributeurs sont décrites dans l’aide de chaque liste.
 - **Engendrer le planning**, sous le lotissement, quand la structure principale de la révision en cours n’a encore aucune tâche : une récapitulative par lot et par poste, une tâche par livrable et leurs jalons de fin. Engendré, l’écran mène à la grille de planning.
 
-Pendant qu’une écriture est en route, la commande qui rouvrirait son formulaire attend, inactive, « Enregistrement en cours… » : le formulaire se rouvre sur la version que la réponse apporte. Si le projet a changé depuis sa lecture, le refus offre de relire la page.
+Pendant qu’une écriture est en route, la commande qui rouvrirait son formulaire attend, inactive, « Enregistrement en cours… » : le formulaire se rouvre sur la version que la réponse apporte. Si le projet a changé depuis sa lecture, le refus offre de relire la page. Un succès montre ce que le service a gardé : l’écran se relit après chaque écriture, et ce que vous lisez est ce qu’un autre contributeur du projet lira.
 
 ## Ses colonnes et ses valeurs calculées
 

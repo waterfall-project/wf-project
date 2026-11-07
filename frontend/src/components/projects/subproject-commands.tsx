@@ -28,8 +28,7 @@
  * another sub-project », without it (EP-02/L42g). A modification answered takes the place of its
  * row while it is newer than the row read (`lock_version`) — answered for another sub-project, it
  * is a failure of the service (`ANOTHER_OBJECT`), told under the form, and nothing takes the place
- * of any row —, a deletion answered takes its row away, for as long as the screen stays — against
- * the fake back, which keeps nothing (`MockupNotice`) —; a creation adds no row: the page read anew
+ * of any row —, a deletion answered takes its row away; a creation adds no row: the page read anew
  * lists the sub-project where the server retains it. What a write did is said in the region of the
  * list; a refusal of a deletion is told above the list (`Reactivations`). An answer closes only the
  * form or the confirmation it was sent from, never one opened since (#660, #672). A modification

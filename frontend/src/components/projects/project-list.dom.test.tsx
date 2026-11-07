@@ -1,6 +1,6 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
-import { cleanup, render, screen, waitFor, within } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
 import { NextIntlClientProvider } from "next-intl";
 import type { ReactNode } from "react";
@@ -118,9 +118,7 @@ describe("the grid of the list of projects", () => {
       .getAllByRole("row")
       .find((row) => row.textContent.includes("PRJ-001"));
     expect(witness).toHaveTextContent("En cours");
-    expect(within(witness ?? document.body).getByText("En cours").parentElement).toHaveClass(
-      "bg-state-in-progress",
-    );
+    expect(within(witness ?? document.body).getByRole("img", { name: "En cours" })).toBeVisible();
     expect(within(witness ?? document.body).getByText(/2026/)).toHaveAttribute(
       "datetime",
       "2026-02-02T09:00:00Z",
@@ -206,36 +204,42 @@ describe("the states of the list, those of the table of the specification", () =
         ),
       );
       const rows = within(screen.getByRole("grid")).getAllByRole("row");
-      const shown = SPEC_STATES.map((_, index) => {
+      SPEC_STATES.forEach(([, fr, en], index) => {
         const row = rows.find((each) => within(each).queryByText(`P${String(index)}`) !== null);
-        return row?.querySelector("[class*='bg-state-']")?.textContent;
+        if (row === undefined) {
+          throw new Error(`the row of P${String(index)} is missing`);
+        }
+        expect(within(row).getByRole("img")).toHaveAccessibleName(locale === "fr" ? fr : en);
       });
-      expect(shown).toEqual(SPEC_STATES.map(([, fr, en]) => (locale === "fr" ? fr : en)));
     },
   );
 
   it.each(["fr", "en"] as const)(
-    "the filter of the home offers the six states and no other, each writing its code in the address, in %s [WF-CYC-0010-A]",
-    async (locale) => {
-      const user = userEvent.setup();
+    "the filter of the home offers the six states and no other, in %s [WF-CYC-0010-A]",
+    (locale) => {
       render(inLocale(locale, <ProjectStateFilter states={[]} />));
       const filter = screen.getByRole("group", {
         name: locale === "fr" ? "Filtre par état" : "Filter by state",
       });
-      let buttons = within(filter).getAllByRole("button");
-      expect(buttons.map((button) => button.textContent)).toEqual([
+      expect(
+        within(filter)
+          .getAllByRole("button")
+          .map((button) => button.textContent),
+      ).toEqual([
         locale === "fr" ? "Tous les états" : "Every state",
         ...SPEC_STATES.map(([, fr, en]) => (locale === "fr" ? fr : en)),
       ]);
-      for (const [index, [code]] of SPEC_STATES.entries()) {
-        // Pressed from the default, where every state is pressed, a button retains its state alone.
-        await user.click(buttons.at(index + 1) ?? document.body);
-        expect(await lastAddress()).toBe(`/?states=${code}`);
-        page.search = "";
-        cleanup();
-        render(inLocale(locale, <ProjectStateFilter states={[]} />));
-        buttons = within(screen.getByRole("group")).getAllByRole("button");
-      }
+    },
+  );
+
+  it.each(SPEC_STATES)(
+    "the filter of the home writes the code %s of its state in the address, pressed from the default [WF-CYC-0010-A]",
+    async (code, fr) => {
+      const user = userEvent.setup();
+      render(inFrench(<ProjectStateFilter states={[]} />));
+      // Pressed from the default, where every state is pressed, a button retains its state alone.
+      await user.click(screen.getByRole("button", { name: fr }));
+      expect(await lastAddress()).toBe(`/?states=${code}`);
     },
   );
 });
@@ -269,7 +273,7 @@ describe("the filter of the list by state", () => {
     render(inFrench(<ProjectStateFilter states={["pricing", "lost"]} />));
     const pricing = screen.getByRole("button", { name: "Chiffrage" });
     expect(pricing).toHaveAttribute("aria-pressed", "true");
-    expect(within(pricing).getByText("Chiffrage").parentElement).toHaveClass("bg-state-pricing");
+    expect(within(pricing).getByRole("img", { name: "Chiffrage" })).toBeVisible();
     await user.click(pricing);
     expect(await lastAddress()).toBe("/?states=lost");
     await user.click(screen.getByRole("button", { name: "Tous les états" }));

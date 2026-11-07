@@ -1,10 +1,18 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
-import { expect, type Page, test } from "@playwright/test";
+import { expect, type Page } from "@playwright/test";
 
 import { compile } from "./compile";
 import { openHydrated, WORKING } from "./hydration";
+import { inService, test } from "./mode";
+import { createOwnProject, openRevision } from "./own-project";
 import { rowAt } from "./scroll";
+
+// The reading context of the screens of a project, against the fake back and, tagged `@shared`,
+// against the service. The screens of the data it names — the planning, the remaining to commit, the
+// risks, the indicators — are served by EP-06 to EP-10: the service plays the banner on the screens
+// it serves, those of a project created, its settings and its revisions.
+const BEFORE_THE_DATA = "EP-06 to EP-10 serve the screens of the data the banner names";
 
 // The fake back serves the first example of each operation: the project in progress, its
 // current revision — a draft, without a version name —, its structures — the main one, the
@@ -21,9 +29,10 @@ function banner(page: Page) {
   return page.getByRole("region", { name: "Contexte de lecture" });
 }
 
-test("each screen of the data of a project names the project and the revision shown [WF-IHM-0020-A]", async ({
+test("each screen of the data of a project names the project and the revision shown @shared [WF-IHM-0020-A]", async ({
   page,
 }) => {
+  test.skip(inService, BEFORE_THE_DATA);
   // The risks, a screen of its own reached by a click, and the planning the page of the project
   // leads to, compiled first (`e2e/compile.ts`).
   await compile(page.request, `${IN_REVISION}/risks`, `${IN_REVISION}/planning`);
@@ -52,9 +61,10 @@ test("each screen of the data of a project names the project and the revision sh
   );
 });
 
-test("an active filter is visible without opening the panel of filters [WF-IHM-0020-A]", async ({
+test("an active filter is visible without opening the panel of filters @shared [WF-IHM-0020-A]", async ({
   page,
 }) => {
+  test.skip(inService, BEFORE_THE_DATA);
   // The indicators read both the sub-project and the date: their banner shows both (#302).
   await page.goto(`${IN_REVISION}/indicators?subproject_id=${SUBPROJECT}&as_of=2026-05-31`);
   const chips = banner(page).getByRole("list", { name: "Filtres actifs" }).getByRole("listitem");
@@ -76,9 +86,10 @@ test("an active filter is visible without opening the panel of filters [WF-IHM-0
   ]);
 });
 
-test("a grid opened on a differential structure names it, chosen in the banner, and the main structure again [WF-IHM-0020-A]", async ({
+test("a grid opened on a differential structure names it, chosen in the banner, and the main structure again @shared [WF-IHM-0020-A]", async ({
   page,
 }) => {
+  test.skip(inService, BEFORE_THE_DATA);
   // Une grille ouverte sur une structure différentielle nomme cette structure. The fake back serves
   // the nodes of the amendment at its address (`nodes_amendment`, #1219): what the page asks of each
   // structure is proven by `planning/page.test.tsx`.
@@ -122,4 +133,18 @@ test("a grid opened on a differential structure names it, chosen in the banner, 
   await menu.getByRole("menuitemradio", { name: "Structure principale" }).click();
   await expect(page).toHaveURL(`${IN_REVISION}/planning`, { timeout: WORKING });
   await expect(facts.filter({ hasText: /^Avenant$/ })).toHaveCount(0);
+});
+
+test("the screens of a project created name the project, then the revision opened, in the reading context, as the service keeps them @shared [WF-IHM-0020-A]", async ({
+  page,
+}) => {
+  test.skip(!inService, "the fake back keeps nothing of the project it is asked to create");
+  test.slow();
+  const own = await createOwnProject(page, "Contexte");
+  await openHydrated(page, `${own.path}/settings`);
+  await expect(banner(page).getByRole("definition").first()).toHaveText(own.label);
+
+  await openRevision(page, own);
+  await expect(banner(page).getByRole("definition").first()).toHaveText(own.label);
+  await expect(banner(page)).toContainText("Révision en cours");
 });
