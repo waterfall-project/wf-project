@@ -6,7 +6,6 @@ import re
 import tomllib
 from typing import Any
 
-import pytest
 import yaml
 
 from wftools import REPOSITORY
@@ -25,13 +24,15 @@ def covers(pattern: str, path: str) -> bool:
     return re.fullmatch(expression, path) is not None
 
 
-def licence_of(path: str) -> str:
-    """Read the SPDX identifier ``REUSE.toml`` gives a file: the last annotation covering it."""
-    annotations: list[dict[str, Any]] = tomllib.loads(
-        (REPOSITORY / "REUSE.toml").read_text(encoding="utf-8")
-    )["annotations"]
+def licence_in(annotations: list[dict[str, Any]], path: str) -> str:
+    """Pick the SPDX identifier of a file among annotations: ``override`` wins, else the last.
+
+    REUSE lets an annotation whose precedence is ``override`` beat any other, wherever it stands;
+    otherwise the last annotation covering the file decides. ``aggregate``, which would add
+    licences, is not handled: the contract is covered by one licence.
+    """
     found = [
-        each["SPDX-License-Identifier"]
+        each
         for each in annotations
         if any(
             covers(glob, path)
@@ -39,10 +40,28 @@ def licence_of(path: str) -> str:
         )
     ]
     assert found, f"no annotation of REUSE.toml covers {path}"
-    return str(found[-1])
+    overriding = [each for each in found if each.get("precedence") == "override"]
+    return str((overriding or found)[-1]["SPDX-License-Identifier"])
 
 
-@pytest.mark.requirement("WF-QUA-0010-A")
+def licence_of(path: str) -> str:
+    """Read the SPDX identifier ``REUSE.toml`` gives a file."""
+    annotations: list[dict[str, Any]] = tomllib.loads(
+        (REPOSITORY / "REUSE.toml").read_text(encoding="utf-8")
+    )["annotations"]
+    return licence_in(annotations, path)
+
+
+def test_an_override_annotation_beats_a_later_one() -> None:
+    annotations = [
+        {"path": "docs/api/**", "SPDX-License-Identifier": "A", "precedence": "override"},
+        {"path": "**/*.yaml", "SPDX-License-Identifier": "B", "precedence": "closest"},
+    ]
+    assert licence_in(annotations, "docs/api/openapi.yaml") == "A"
+    assert licence_in(annotations[1:], "docs/api/openapi.yaml") == "B"
+
+
+# No requirement covers the licence of the contract: the test cites none.
 def test_the_licence_the_contract_declares_is_the_one_reuse_gives_its_file() -> None:
     contract = yaml.safe_load((REPOSITORY / CONTRACT).read_text(encoding="utf-8"))
     declared = contract["info"]["license"]

@@ -10796,7 +10796,7 @@ pour un contenu rendu qui ne change aucune forme. Le service le suit en EP-09, q
 `listStartableTasks` (WF-RAE-0030), l'état des récapitulatives en EP-06 (WF-PLA-0040) ; la carte du
 Kanban le lit sur le nouvel exemple par US-1240/L2.
 
-### La liste des contributeurs bornée, la description de la révision en cours, le projet sans code du journal, la licence du contrat (EP-04, #2196)
+### La liste des contributeurs bornée, la description de la révision en cours, le projet sans code du journal, les permissions de la sortie, la description de la sortie qui marque, la licence du contrat (EP-04, #2196)
 
 Décisions de l'auteur du 2026-11-07, par « La règle d'après le gel » : les revues des lots d'EP-04
 ont laissé au contrat huit constats (#2162, #2163, #2166, #2167, #2171, #2273, #2278, #2285), que
@@ -10861,8 +10861,7 @@ aucune forme.
 Les suites : `make generate-server-models` et `make generate-client` (descriptions et borne),
 `make mock-data`, à son point fixe ; le service suit chaque point, et ses tests le tiennent
 (`test_contributors.py`, `test_revisions.py`, `test_revision_mark.py`, `test_exit_marking.py`,
-`test_audit_consultation.py`,
-`test_database_constraints.py`, `test_projects.py`), et `tools/tests/test_mockproject.py` tient les
+`test_audit_consultation.py`, `test_database_constraints.py`, `test_projects.py`), et `tools/tests/test_mockproject.py` tient les
 deux exemples nouveaux.
 
 ## Collage et annulation
