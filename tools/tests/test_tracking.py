@@ -449,3 +449,250 @@ def test_make_takes_only_the_variables_of_its_command_line(issue: Issue) -> None
     before = issue.body
     assert make_tracking(issue, ["LOT=US-1090", "STATE="], environment) != 0
     assert issue.body == before
+
+
+# US-1290: the part cut off a lot, the lot added, the dependency moved, the gabarit of the epic.
+
+CUT_BODY = """\
+## Ordre de réalisation
+
+| # | US | Statut | Lot | Dépend de | Pas avec | État du lot | PR | Modèle |
+|---|---|---|---|---|---|---|---|---|
+| 1 | US-0820 #2036 | en cours | lot unique (#1840) | — | — | fusionné | #2100 | opus |
+|   |   |   | US-0820b #2099 | US-0820 #2036 | — | fusionné | #2118 | sonnet |
+| 2 | US-0830 #2037 | à faire | lot unique — en dernier | US-0820 | — | à faire | — | — |
+| 3 | US-1270 #2038 | à faire | L1 #2039 | US-0820, US-0850/L1 | — | à faire | — | — |
+|   |   |   | L2 #2040 | US-1270/L1 | — | à faire | — | — |
+|   |   |   | L2b #2033 | US-1270/L2 | — | à faire | — | — |
+| 4 | US-0850 #2041 | à faire | L1 #2042 | US-0820b, US-0820/L1x | — | à faire | — | — |
+
+## Constats ouverts
+
+Aucun constat.
+"""
+
+
+def cut_issue(tmp_path: Path) -> Issue:
+    return Issue(tmp_path, CUT_BODY)
+
+
+def test_a_part_cut_off_and_a_lot_unique_with_a_note_are_found(tmp_path: Path) -> None:
+    """US-1290: US-0820b, US-1270/L2b and « lot unique (#n) » name their rows, each its own."""
+    issue = cut_issue(tmp_path)
+    for lot in ("US-0820", "US-0820b", "US-0830", "US-1270/L2", "US-1270/L2b"):
+        assert issue.run("--lot", lot, "--state", "en revue")[0] == 0
+    changed = [after for _, after in changed_lines(CUT_BODY, issue.body)]
+    assert [row.count("en revue") for row in changed] == [1] * 5
+    assert [line.split("|")[4].strip() for line in changed] == [
+        "lot unique (#1840)",
+        "US-0820b #2099",
+        "lot unique — en dernier",
+        "L2 #2040",
+        "L2b #2033",
+    ]
+
+
+def test_add_lot_inserts_the_row_built_on_the_header(tmp_path: Path) -> None:
+    """US-1290: ADD_LOT puts the row under AFTER, empty cells as a continuation row."""
+    issue = cut_issue(tmp_path)
+    code, _ = issue.run(
+        "--add-lot",
+        "US-0830b",
+        "--after",
+        "US-0830",
+        "--depends",
+        "US-0830",
+        "--model",
+        "opus",
+        "--issue-number",
+        "2200",
+    )
+    assert code == 0
+    row = "|   |   |   | US-0830b #2200 | US-0830 | — | à faire | — | opus |\n"
+    above = CUT_BODY.splitlines(keepends=True)[6]
+    assert "US-0830" in above
+    assert issue.body == CUT_BODY.replace(above, above + row)
+    assert issue.run("--add-lot", "L9", "--after", "US-1270/L2")[0] != 0
+
+
+def test_add_lot_of_a_story_of_several_uses_the_label_and_defaults(tmp_path: Path) -> None:
+    """US-1290: L3 #n for a story of several lots; no issue, no dependency, no model: the dash."""
+    issue = cut_issue(tmp_path)
+    assert issue.run("--add-lot", "US-1270/L3", "--after", "US-1270/L2b")[0] == 0
+    assert "|   |   |   | L3 | — | — | à faire | — | — |\n| 4 |" in issue.body
+    assert (
+        issue.run("--add-lot", "US-1270/L4", "--after", "US-1270/L1", "--issue-number", "9")[0] == 0
+    )
+    assert "| L4 #9 | — |" in issue.body
+
+
+def test_add_lot_leaves_unknown_columns_empty_and_takes_the_line_ending(tmp_path: Path) -> None:
+    """US-1290: a column the tool does not know is empty; the ending is the row above's."""
+    body = (
+        "## Ordre de réalisation\r\n\r\n| Lot | Autre | US | Dépend de |\r\n|---|---|---|---|\r\n"
+        "| lot unique | x | US-0010 #1 | — |\r\n\r\nFin."
+    )
+    issue = Issue(tmp_path, body)
+    assert issue.run("--add-lot", "US-0010b", "--after", "US-0010")[0] == 0
+    assert issue.body.endswith(
+        "| lot unique | x | US-0010 #1 | — |\r\n| US-0010b |   |   | — |\r\n\r\nFin."
+    )
+
+
+def test_add_lot_refuses_a_row_that_exists_or_a_lot_it_does_not_find(tmp_path: Path) -> None:
+    """US-1290: an existing lot, an unknown AFTER, another story's AFTER: refused, body kept."""
+    issue = cut_issue(tmp_path)
+    for lot, after in (
+        ("US-0820b", "US-0820"),
+        ("US-0830b", "US-0999"),
+        ("US-0830b", "US-0820"),
+        ("US-1270/L2b", "US-1270/L1"),
+        ("US-0999b", "US-0999"),
+    ):
+        code, error = issue.run("--add-lot", lot, "--after", after)
+        assert code == 1
+        assert error.startswith("tracking: ")
+    assert issue.run("--add-lot", "nonsense", "--after", "US-0830")[0] == 1
+    assert issue.body == CUT_BODY
+    assert issue.writes == 0
+
+
+def test_depends_with_lot_replaces_the_cell(tmp_path: Path) -> None:
+    """US-1290: LOT with DEPENDS replaces « Dépend de » of the lot, no other cell."""
+    issue = cut_issue(tmp_path)
+    assert issue.run("--lot", "US-0830", "--depends", "US-0820b #2099 | x")[0] == 0
+    ((before, after),) = changed_lines(CUT_BODY, issue.body)
+    assert after == before.replace(" US-0820 |", " US-0820b #2099 \\| x |", 1)
+    assert issue.run("--us", "US-0830", "--status", "x", "--depends", "y")[0] == 1
+
+
+def test_replace_dependency_counts_rows_and_keeps_the_cut_part(tmp_path: Path) -> None:
+    """US-1290: the mention is replaced where it appears whole; the new lot keeps its own."""
+    issue = cut_issue(tmp_path)
+    process = issue.start(["--replace-dependency", "US-0820=US-0820b"])
+    output, _ = process.communicate(timeout=60)
+    assert process.returncode == 0
+    assert "2 row" in output
+    after = issue.body
+    assert "| lot unique — en dernier | US-0820b |" in after
+    assert "| US-0820b, US-0850/L1 |" in after
+    assert "| US-0820b #2099 | US-0820 #2036 |" in after
+    assert "US-0820b, US-0820/L1x" in after
+    assert len(changed_lines(CUT_BODY, after)) == 2
+
+
+def test_replace_dependency_refuses_a_mention_nobody_holds_or_a_malformed_pair(
+    tmp_path: Path,
+) -> None:
+    """US-1290: no row holds the old one, or no « = »: refused, the body unchanged."""
+    issue = cut_issue(tmp_path)
+    for pair in ("US-0999=US-0820b", "US-0820", "=US-0820b", "US-0820="):
+        assert issue.run("--replace-dependency", pair)[0] == 1
+    assert issue.run("--replace-dependency", "US-0820=US-0820b", "--model", "x")[0] == 1
+    assert issue.body == CUT_BODY
+    assert issue.writes == 0
+
+
+def test_the_new_forms_are_exclusive_and_refuse_a_line_break(tmp_path: Path) -> None:
+    """US-1290: one form at a time; a value with a break is refused whatever the form."""
+    issue = cut_issue(tmp_path)
+    assert issue.run("--lot", "US-0830", "--add-lot", "US-0830b", "--after", "US-0830")[0] == 1
+    assert issue.run("--add-lot", "US-0830b", "--replace-dependency", "a=b")[0] == 1
+    assert issue.run("--add-lot", "US-0830b")[0] == 1
+    assert issue.run("--lot", "US-0830", "--state", "x", "--after", "US-0830")[0] == 1
+    assert issue.run("--add-lot", "US-0830b", "--after", "US-0830", "--state", "x")[0] == 1
+    for arguments in (
+        ["--add-lot", "US-0830b", "--after", "US-0830", "--depends", "a\nb"],
+        ["--add-lot", "US-0830b", "--after", "US-0830", "--model", "a\rb"],
+        ["--lot", "US-0830", "--depends", "a\nb"],
+        ["--replace-dependency", "US-0820=a\nb"],
+    ):
+        code, error = issue.run(*arguments)
+        assert code == 1
+        assert "line break" in error
+    assert issue.body == CUT_BODY
+    assert issue.writes == 0
+
+
+def test_a_pipe_is_escaped_in_the_added_row(tmp_path: Path) -> None:
+    """US-1290: a pipe in DEPENDS or MODEL adds no column to the inserted row."""
+    issue = cut_issue(tmp_path)
+    code, _ = issue.run(
+        "--add-lot", "US-0830b", "--after", "US-0830", "--depends", "a|b", "--model", "c|d"
+    )
+    assert code == 0
+    row = next(line for line in issue.body.splitlines() if "US-0830b" in line)
+    assert "a\\|b" in row
+    assert "c\\|d" in row
+    assert len(tracking.cells(row)) == 9
+
+
+def test_the_new_forms_hold_the_lock_and_read_just_before_writing(tmp_path: Path) -> None:
+    """US-1290: two simultaneous new forms each keep their change; the rest is byte for byte."""
+    issue = cut_issue(tmp_path)
+    first = issue.start(["--add-lot", "US-0830b", "--after", "US-0830"], delay="1")
+    second = issue.start(["--replace-dependency", "US-0820=US-0820b"])
+    for process in (first, second):
+        process.communicate(timeout=60)
+        assert process.returncode == 0
+    assert issue.writes == 2
+    assert "| US-0830b" in issue.body
+    assert "| lot unique — en dernier | US-0820b |" in issue.body
+    assert issue.body.endswith("## Constats ouverts\n\nAucun constat.\n")
+
+
+def test_make_exposes_the_new_forms(tmp_path: Path) -> None:
+    """US-1290: ADD_LOT, AFTER, DEPENDS, LOT_ISSUE and REPLACE_DEPENDENCY reach the tool."""
+    issue = cut_issue(tmp_path)
+    environment = {"AFTER": "US-0999", "DEPENDS": "x"}
+    code = make_tracking(
+        issue,
+        ["ADD_LOT=US-0830b", "AFTER=US-0830", "LOT_ISSUE=2200", "DEPENDS=US-0830"],
+        environment,
+    )
+    assert code == 0
+    assert "| US-0830b #2200 | US-0830 |" in issue.body
+    assert make_tracking(issue, ["REPLACE_DEPENDENCY=US-0999=US-0830c"], {}) != 0
+    assert make_tracking(issue, ["REPLACE_DEPENDENCY=US-0830=US-0830c"], {}) == 0
+    assert "| US-0830b #2200 | US-0830c |" in issue.body
+    assert make_tracking(issue, ["ADD_LOT=US-0850b"], environment) != 0
+
+
+def epic_template() -> str:
+    """Return the table of the field ``tracking`` of the epic template, without any YAML library.
+
+    The block ``value: |`` of the field is the body: its lines, less the indentation of the block.
+    """
+    lines = (REPOSITORY / ".github" / "ISSUE_TEMPLATE" / "04-epic.yml").read_text().splitlines()
+    field = lines.index("    id: tracking")
+    start = next(i for i in range(field, len(lines)) if lines[i].strip() == "value: |") + 1
+    block: list[str] = []
+    for line in lines[start:]:
+        if line.strip() and not line.startswith("        "):
+            break
+        block.append(line[8:])
+    assert block
+    return "\n".join(block).rstrip("\n") + "\n"
+
+
+def test_the_epic_template_and_the_tool_agree(tmp_path: Path) -> None:
+    """US-1290 (#1915): each form of make tracking applies to the table of 04-epic.yml."""
+    body = epic_template()
+    issue = Issue(tmp_path, body)
+    issue.finding(2300, "[EP-99] outil : un constat", "OPEN")
+    forms = [
+        ["--lot", "US-0010/L1", "--state", "en cours", "--pr", "#5", "--model", "sonnet"],
+        ["--lot", "US-0020", "--state", "en cours"],
+        ["--us", "US-0020", "--status", "en cours"],
+        ["--finding", "2300", "--attached", "US-0010 #", "--decision", "**à trancher**"],
+        ["--add-lot", "US-0010/L3", "--after", "US-0010/L2", "--depends", "L2"],
+        ["--replace-dependency", "US-0010/L2=US-0010/L3"],
+        ["--lot", "US-0020", "--depends", "US-0010/L1"],
+    ]
+    for arguments in forms:
+        before = issue.body
+        code, error = issue.run(*arguments)
+        assert code == 0, (arguments, error)
+        assert issue.body != before, arguments
+    assert "|   |   |   | L3 | L2 | — | à faire | — | — |" in issue.body
+    assert "| US-0020 # | en cours | lot unique | US-0010/L1 |" in issue.body

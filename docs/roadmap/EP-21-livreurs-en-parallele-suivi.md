@@ -381,7 +381,7 @@ US-1310) — donnent les « Pas avec » du plan de lots.
 
 ## US-1290 — `make tracking` écrit ce que le pilote écrivait à la main
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : aucune — outil du dépôt
 - **opérations** : aucune
 - **issue** : #2246

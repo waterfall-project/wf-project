@@ -620,12 +620,15 @@ lot-size: ## The real size of a lot, against its epic (BASE=origin/epic/EP-nn); 
 # exports the command-line variables to the recipe; an empty value is ignored.
 tracking_option = $(if $(filter command line,$(origin $(1))),$${$(1):+$(2) "$$$(1)"})
 
-tracking: ## Change one line of the tracking table of an epic's issue, under a lock: ISSUE=<n> with LOT=<id> [STATE PR MODEL], US=<id> STATUS=…, or FINDING=<n> ATTACHED=… DECISION=…
+tracking: ## Change a line of the tracking table of an epic's issue, under a lock: ISSUE=<n> with LOT=<id> [STATE PR MODEL DEPENDS], US=<id> STATUS=…, FINDING=<n> ATTACHED=… DECISION=…, ADD_LOT=<id> AFTER=<lot> [DEPENDS MODEL LOT_ISSUE], or REPLACE_DEPENDENCY='<old>=<new>'
 	@$(WFTOOLS).tracking $(call tracking_option,ISSUE,--issue) $(call tracking_option,LOT,--lot) \
 		$(call tracking_option,US,--us) $(call tracking_option,FINDING,--finding) \
 		$(call tracking_option,STATE,--state) $(call tracking_option,PR,--pr) \
 		$(call tracking_option,MODEL,--model) $(call tracking_option,STATUS,--status) \
-		$(call tracking_option,ATTACHED,--attached) $(call tracking_option,DECISION,--decision)
+		$(call tracking_option,ATTACHED,--attached) $(call tracking_option,DECISION,--decision) \
+		$(call tracking_option,ADD_LOT,--add-lot) $(call tracking_option,AFTER,--after) \
+		$(call tracking_option,DEPENDS,--depends) $(call tracking_option,LOT_ISSUE,--issue-number) \
+		$(call tracking_option,REPLACE_DEPENDENCY,--replace-dependency)
 
 changes: ## Print which families of checks the change touches (BASE; HEAD, or the working tree)
 	@$(WFTOOLS).changes "$(BASE)" $(HEAD)

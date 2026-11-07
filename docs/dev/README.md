@@ -2808,7 +2808,16 @@ through `gh`, and touches nothing else: `LOT=<identifier>` (`US-1080` for a stor
 `US-1120/L2` for a lot of a story that has several) with `STATE`, `PR` or `MODEL`, only those given
 changing; `US=<identifier> STATUS=…`; `FINDING=<n> ATTACHED=… DECISION=…`, which adds the finding
 (the title of its issue without the `[EP-nn]`, `à trancher` in bold), changes it where it is, or
-removes it when its issue is closed. The columns are found by their header; the target refuses,
+removes it when its issue is closed. The lot cut at the request of the reviewer is written by it
+too, never by hand: `LOT=<identifier> DEPENDS=<list>` replaces the cell « Dépend de »;
+`ADD_LOT=<identifier> AFTER=<lot> [DEPENDS=<list>] [MODEL=…] [LOT_ISSUE=<n>]` inserts, under the
+lot `AFTER` and in the same story, the row of the new lot (`US-0820b` for the part cut off a story
+of one lot, `US-1270/L3` for a story of several; cells `#`, `US`, « Statut » empty, « Dépend de »
+the list or `—`, « État du lot » `à faire`) and refuses a lot already there;
+`REPLACE_DEPENDENCY='<old>=<new>'` replaces the mention of the old lot in « Dépend de » of every
+row that holds it, except the row of the new lot itself, says how many rows changed and refuses
+when none holds the old one. `LOT` recognises `US-0820b`, `US-1270/L2b` and a cell
+`lot unique (#1840)` or `lot unique — en dernier`. The columns are found by their header; the target refuses,
 non-zero code and body unchanged, a line it does not find, a value with a line break and a row of
 the table shorter than its header; a `|` in a value is escaped. It takes a variable only from the
 command line of make (a `PR` exported on the workstation changes nothing) and ignores an empty
