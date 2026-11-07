@@ -8,7 +8,6 @@ changes them. Every answer is checked against the contract (``ContractClient``);
 compared with the examples the faux back serves, played on the witness loaded.
 """
 
-import time
 from concurrent.futures import ThreadPoolExecutor
 from typing import TYPE_CHECKING, Any, cast
 from uuid import UUID
@@ -30,7 +29,7 @@ from cost_settings_examples import (
 )
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
-from support import WAITING
+from support import wait_for_a_lock
 
 from waterfall.core.cost_settings.records import NATURES_LOCK
 from waterfall.core.cost_settings.tables import HourlyRate
@@ -134,10 +133,11 @@ def test_the_witness_grid_is_read_as_the_example_the_faux_back_serves(
 ) -> None:
     # The 150 categories of labour on 15 years, in one page of 500, by a session that reads.
     volume = example("volume/hourly_rate_grid")
-    for headers in (sessions.reading, sessions.changing):
-        read = grid(api, headers, "limit=500")
-        assert shown(read) == shown(volume)
+    read = grid(api, sessions.reading, "limit=500")
+    assert shown(read) == shown(volume)
     assert len(read["rows"]) == 150
+    # The session that changes reads the same grid.
+    assert shown(grid(api, sessions.changing, "limit=500")) == shown(volume)
     assert all(len(row["cells"]) == len(read["years"]) for row in read["rows"])
     # The first page of fifty by the rate of 2026, descending, then the rates from 99.12 on.
     by_rate = grid(api, sessions.reading, "rate_year=2026&sort_by=rate.2026&sort_order=desc")
@@ -200,8 +200,8 @@ def test_the_grid_gives_a_row_per_category_of_labour_active_unless_the_deactivat
 ) -> None:
     changing = sessions.changing
     # Only the categories of labour have a row: the ones of the other natures, never.
-    assert "ACH-001" not in codes(api, changing, "include_inactive=true&limit=500")
-    assert "PRV-001" not in codes(api, changing, "include_inactive=true&limit=500")
+    # The 150 categories of labour of the witness are all the rows: no other nature adds one.
+    assert grid(api, changing, "include_inactive=true&limit=1")["meta"]["total"] == 150
     old = labour_category(api, changing, "OLD")
     assert (
         api.put(
@@ -214,8 +214,8 @@ def test_the_grid_gives_a_row_per_category_of_labour_active_unless_the_deactivat
     # The year of a deactivated category is a column only when the deactivated are in the read.
     plain = grid(api, sessions.reading)
     assert plain["years"][-1] == 2026
-    assert "OLD" not in codes(api, changing)
-    for query in ("include_inactive=true&limit=500", "is_active=false"):
+    assert codes(api, changing, "search=OLD") == []
+    for query in ("include_inactive=true&search=OLD", "is_active=false"):
         read = grid(api, changing, query)
         assert read["years"] == [*range(2012, 2027), 2030]
         row = next(r for r in read["rows"] if r["code"] == "OLD")
@@ -225,8 +225,8 @@ def test_the_grid_gives_a_row_per_category_of_labour_active_unless_the_deactivat
         )
     assert codes(api, changing, "is_active=false") == ["OLD"]
     # Deactivated after the active in the ascending order of the state.
-    ordered = codes(api, changing, "include_inactive=true&sort_by=is_active&limit=500")
-    assert (ordered[-1], len(ordered)) == ("OLD", 151)
+    ordered = grid(api, changing, "include_inactive=true&sort_by=is_active&limit=1&offset=150")
+    assert ([r["code"] for r in ordered["rows"]], ordered["meta"]["total"]) == (["OLD"], 151)
     assert (
         codes(api, changing, "include_inactive=true&sort_by=is_active&sort_order=desc")[0] == "OLD"
     )
@@ -272,10 +272,11 @@ def test_the_bounds_of_the_rate_keep_the_categories_that_bear_one_that_year_and_
     only = grid(api, headers, f"rate_year=2026&rate_min={mo_001}&rate_max={mo_001}&search=MO-001")
     assert [r["code"] for r in only["rows"]] == ["MO-001"]
     # A category without a rate that year is kept by no bound: MO-003 bears none before 2016.
-    assert "MO-003" not in codes(api, headers, "rate_year=2013&rate_max=1000&limit=500")
-    assert "MO-003" in codes(api, headers, "rate_year=2016&rate_max=1000&limit=500")
+    assert codes(api, headers, "rate_year=2013&rate_max=1000&search=MO-003") == []
+    assert codes(api, headers, "rate_year=2016&rate_max=1000&search=MO-003") == ["MO-003"]
     # The year alone filters and sorts nothing.
-    assert codes(api, headers, "rate_year=2013&limit=500") == codes(api, headers, "limit=500")
+    assert grid(api, headers, "rate_year=2013")["meta"]["total"] == 150
+    assert codes(api, headers, "rate_year=2013") == codes(api, headers)
     assert grid(api, headers, "rate_year=2026&rate_max=0.5")["meta"]["total"] == 0
 
 
@@ -517,18 +518,6 @@ def test_a_deactivated_nature_does_not_hide_the_rates_of_its_categories(
     assert "SHT" not in codes(api, headers, "limit=500")
 
 
-def wait_for_locks(database: Database, waiting: int) -> None:
-    """Wait until ``waiting`` transactions at least wait for a lock, in 10 seconds at most."""
-    deadline = time.monotonic() + 10
-    with database.engine.connect() as watching:
-        while time.monotonic() < deadline:
-            if (watching.scalar(WAITING) or 0) >= waiting:
-                return
-            watching.rollback()
-            time.sleep(0.05)
-    pytest.fail(f"fewer than {waiting} transactions wait for a lock")
-
-
 @pytest.mark.requirement("WF-REF-0050-A")
 def test_two_simultaneous_first_settings_of_one_year_leave_one_rate_and_one_refusal(
     api: ContractClient, database: Database, sessions: PartSessions
@@ -544,7 +533,7 @@ def test_two_simultaneous_first_settings_of_one_year_leave_one_rate_and_one_refu
         second = pool.submit(
             api.put, rate_url(ELECTRICAL, 2011), headers=headers, json=amount("2.00")
         )
-        wait_for_locks(database, 2)
+        wait_for_a_lock(database, 2)
         assert not first.done()
         assert not second.done()
         holding.commit()
@@ -582,7 +571,7 @@ def test_a_rate_set_while_the_kind_of_its_nature_changes_never_leaves_a_rate_out
         flipping = pool.submit(
             api.patch, f"{TYPES}/{nature['cost_type_id']}", headers=headers, json=recast
         )
-        wait_for_locks(database, 2)
+        wait_for_a_lock(database, 2)
         holding.commit()
         set_answer = setting.result(timeout=10)
         flip_answer = flipping.result(timeout=10)

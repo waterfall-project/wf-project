@@ -422,10 +422,13 @@ vit dans le tableau de suivi de #2051, non ici) :
   plan de lots d'EP-05, le même jour) : chaque US étiquette ses tests quand son écran est servi, le
   reste gardé par `inService`, et aucun fichier de configuration n'est partagé entre lots. Écarté : la
   liste, que les lots d'une même vague auraient écrite l'un après l'autre.
-- **`mode.ts` inscrit le compte de la course chef de projet des projets du témoin par
-  `setContributors`**, écrit par US-0970 — le premier parcours qui écrit sur un projet du témoin en
-  mode service —, qui dépend donc d'US-0930. Écarté : par US-0960, qui aurait attendu US-0930 et
-  perdu le parallélisme de la vague 3.
+- **Le compte de la course n'est inscrit chef de projet d'aucun projet du témoin** (auteur,
+  2026-11-07, option A de #2193, qui revient sur la décision du 2026-11-05) : le contrat réserve
+  `setContributors` aux chefs de projet, et PRJ-001 a une cheffe au compte actif. Les parcours qui
+  écrivent contre le service le font sur un projet que la course crée ; les lectures des commandes
+  du témoin restent jouées sur le faux back. Écarté : un compte de la course inscrit par le chargeur
+  du témoin, qui dénature le témoin ; désactiver puis réactiver la cheffe, qui écrit dans son
+  historique et ne tient qu'un worker.
 - **US-0990/L2 est la vérification d'ensemble**, après US-0980/L2 — la désignation tentée et refusée
   du témoin, l'étape du parcours — et après US-1000 — les trois parcours qu'il rejoue, le guide —,
   comme US-0890 l'est en EP-05 ; la vague 5 est US-0980/L2 et US-1000, puis US-0990/L2 seul. Écarté :
@@ -500,7 +503,7 @@ textes triés en collation `C`, cherchés par `contains` ; règles SQL du guide 
 | Module | Tables | Interface offerte |
 |---|---|---|
 | `waterfall.core.projects` (FBS-4.2, §3.3.2) | `project`, `project_state_transition`, `contributor`, `subproject`, `work_package`, `order_item`, `deliverable` | le projet lu, listé, créé (le créateur chef de projet, le lot et le poste par défaut, la transition `created`, les partitions), modifié ; `contributor_kind(project_id, user_id)` pour l'évaluation ; les contributeurs, les sous-projets et le lotissement — lecture, écriture, refus — ; le cycle de vie : `next_state(project)`, `advance(project, trigger)` (Créé → Chiffrage, Chiffrage → En cours), `exit(project, to_state, reason)`, les transitions ; les commandes du projet et leurs conditions ; `project_label(id)` et `project_code(id)` pour le journal (#927) ; `load_*` avec identifiant et instant imposés |
-| `waterfall.core.revisions` (FBS-4.1) | `revision`, `cost_structure` | l'historique, la révision lue, créée par `copy_revision(session, source, target)` — que chaque EPIC étend —, abandonnée (ses lignes supprimées), marquée (dans la tâche), désignée référence ; `revision_has_tasks_and_lines(revision_id)`, toujours faux ici, qu'EP-06 et EP-07 remplissent ; `compute_indicators(revision)`, sans effet ici, qu'EP-10 remplit ; les structures et leurs commandes ; `current_revision(project_id)` ; le refus d'une écriture sur une révision marquée (`revision_draft`) ; `load_*` |
+| `waterfall.core.revisions` (FBS-4.1) | `revision`, `cost_structure` | son interface en paquet partage dans `shared.py` le verrou `FOR UPDATE` d'une révision, son inscription au journal et les refus communs de `marking.py`, `revisions.py` et `structures.py` (#2213) ; l'historique, la révision lue, créée par `copy_revision(session, source, target)` — que chaque EPIC étend —, abandonnée (ses lignes supprimées), marquée (dans la tâche), désignée référence ; `revision_has_tasks_and_lines(revision_id)`, toujours faux ici, qu'EP-06 et EP-07 remplissent ; `compute_indicators(revision)`, sans effet ici, qu'EP-10 remplit ; les structures et leurs commandes ; `current_revision(project_id)` ; le refus d'une écriture sur une révision marquée (`revision_draft`) ; `load_*` |
 
 - **L'évaluation** (`waterfall.core.access_roles`) reçoit un second terme : `require_project(actor,
   project_id, permission)`, qui lit `contributor_kind` par l'interface des projets et décide 404
@@ -515,8 +518,9 @@ textes triés en collation `C`, cherchés par `contains` ; règles SQL du guide 
   `updateProject` pour le code — appellent `advance` sous le verrou du projet, qui écrit l'état
   et la transition, datée de l'instant de la transaction, l'auteur étant le compte qui a
   réalisé le fait. Une sortie écrit de même, avec son motif, et exige d'un projet qui porte une
-  révision en cours le sort de celle-ci (422 sans lui), qu'il abandonne avec la sortie ; le marquer
-  est refusé (`no_current_revision`) tant que US-0980/L2 ne le sert pas.
+  révision en cours le sort de celle-ci (422 sans lui) : l'abandon s'applique avec la sortie ; le
+  marquage est confié au worker (202, tâche `revision_mark`), qui marque puis sort le projet dans
+  la transaction de la tâche (#2204).
 - **Les commandes** du projet, des sous-projets, des révisions et des structures se calculent par
   les mêmes fonctions que les refus 409, dans l'ordre du contrat.
 - **Les verrous** : le projet (`FOR UPDATE` de sa ligne) pour toute transition, création de
@@ -531,7 +535,7 @@ textes triés en collation `C`, cherchés par `contains` ; règles SQL du guide 
   contrat existent (`api/contract/models.py`).
 - Chaque route d'un projet déclare la consultation par `RequiresProject(...)`, une dépendance
   qui lit `project_id` du chemin et évalue avant la validation du corps, comme `Requires` ; la
-  création d'un projet par `Requires("projects.write")` et le référentiel minimal lu par
+  création d'un projet par `Requires("project_create")` (#2153) et le référentiel minimal lu par
   l'interface d'EP-05 sous son verrou.
 - Les refus sont ceux du contrat, code par code ; chaque réponse d'un test passe par
   `ContractClient` ; `test_access_evaluation.py` reçoit chaque opération avec ses deux termes.
@@ -602,8 +606,8 @@ textes triés en collation `C`, cherchés par `contains` ; règles SQL du guide 
   `revisions.spec.ts`, US-0970 ceux de `revision-cycle.spec.ts`, US-1000 ceux de
   `project-start.spec.ts`, `projects.spec.ts` et `context.spec.ts`, US-0920/L2 l'accueil connecté,
   US-0990/L2 le cycle complet —, le reste gardé par `inService` ; le compte de la course en mode
-  service porte « chef de projet » et « manager » et est inscrit chef de projet des projets du
-  témoin par `setContributors` au début de la course, ce qu'US-0970 écrit (décision du 2026-11-05).
+  service porte « chef de projet » et « manager », et les parcours qui écrivent sur un projet le
+  créent d'abord (#2193, auteur, 2026-11-07).
 - Ce qui ne se rejoue pas avant EP-07 — PRJ-001 En cours, sa référence, ses structures au-delà de
   la principale, ses tâches et ses lignes — est marqué dans les parcours par `inService` et
   listé dans le guide, chaque entrée nommant l'EPIC qui la lève ; EP-06 et EP-07 retirent leurs
@@ -673,7 +677,7 @@ projet qu'on ne peut pas consulter n'existe pas pour l'appelant (#754).
 
 - `WF-ADM-0110-A` — « Un utilisateur sans la permission de consultation ne voit pas le projet,
   même contributeur ; un contributeur sans « consulter tous les projets » ne voit que ses
-  projets. » : `getProject` répond 404 à qui ne porte pas `projects.read`, contributeur ou non,
+  projets. » : `getProject` répond 404 à qui ne porte pas `project_settings.read` (#2153), contributeur ou non,
   et à qui la porte sans être contributeur ni porter `all_projects_read` ; `listProjects` ne rend
   que les projets ouvrables ;
 - `WF-ADM-0110-A` — « Une adresse d'objet inexistant et une adresse d'objet non consultable mènent
@@ -705,7 +709,8 @@ projet qu'on ne peut pas consulter n'existe pas pour l'appelant (#754).
 - `WF-ARC-0070-A` — « Un appel direct à l'API qui tente de modifier une révision marquée, un
   projet terminal, ou un projet dont l'utilisateur n'est pas contributeur est refusé, alors même
   que le front n'en propose pas l'action. » : par le service, sur chaque écriture du projet et de
-  ses révisions que cet EPIC sert — 403 `NOT_CONTRIBUTOR`, 403 `PROJECT_TERMINAL`, 409
+  ses révisions que cet EPIC sert — 403 `NOT_CONTRIBUTOR`, 409 `STATE_FORBIDS_OPERATION` avec
+  `project_not_terminal` sur un projet terminal (#2172, le contrat), 409
   `STATE_FORBIDS_OPERATION` sur une révision marquée — ; les grilles sont d'EP-06 et d'EP-07 ;
 - écart : `WF-ARC-0070-A` — « Un indicateur affiché est identique à celui que l'API renvoie pour
   la même date et le même périmètre. » : les indicateurs sont d'EP-10, qui clôt ;
@@ -1218,11 +1223,11 @@ quel que soit le chemin, **afin que** l'histoire du projet soit sûre.
   `no_background_task_running` pendant le marquage ;
 - propre à l'US : chaque réponse est validée contre le contrat dans les tests du service, et le
   parcours du marquage (`revision-cycle.spec.ts`, sa part) joue contre le service ;
-- propre à l'US : `load-witness` marque « Offre v1.0 » et « Référence » aux instants du témoin, par la
+- propre à l'US : `load-witness` marque « Offre v1.0 » (l'exemple du contrat, #2191) et « Référence » aux instants du témoin, par la
   même transaction que le worker ; les tests de `revision-cycle.spec.ts` portent l'étiquette
-  `@shared` pour ce qu'ils lisent sans référence, et `mode.ts` inscrit le compte de la course chef
-  de projet des projets du témoin par `setContributors` au début de la course en mode service, d'où
-  la dépendance à US-0930 (décisions de l'auteur du 2026-11-05).
+  `@shared` pour ce qu'ils lisent sans référence, et les parcours qui écrivent sur un projet le
+  créent d'abord, le compte de la course n'étant inscrit chef de projet d'aucun projet du témoin
+  (#2193 ; décisions de l'auteur des 2026-11-05 et 2026-11-07).
 
 **Notes de réalisation.** Le marquage est le premier traitement du métier confié au worker
 (EP-03, « Worker, file et planification ») : un gestionnaire `revision_mark` enregistré dans
@@ -1236,7 +1241,7 @@ révision par sa clé, dans le même module.
 
 ## US-0980 — La référence et le cycle de vie
 
-- **statut** : en cours
+- **statut** : fini
 - **exigences** : `WF-CYC-0020-A`, `WF-CYC-0030-A`, `WF-CYC-0050-A`, `WF-CYC-0060-A`,
   `WF-CYC-0080-A`, `WF-CYC-0090-A`, `WF-CYC-0100-A`, `WF-CYC-0110-A`, `WF-CYC-0130-A`,
   `WF-REV-0040-A`
@@ -1283,8 +1288,8 @@ case à cocher.
   indisponible en Chiffrage avec `project_in_progress` ; `lose` absente en En cours — l'état posé
   autour du service ;
 - `WF-CYC-0080-A` — « Toute tentative de transition depuis Terminé, Perdu ou Abandonné est
-  refusée. » : `exitProject` et `createRevision` répondent 409, `STATE_FORBIDS_OPERATION`,
-  `project_not_terminal` manquante, et aucune commande n'est listée disponible ;
+  refusée. » : `exitProject` et `createRevision` répondent 409 `STATE_FORBIDS_OPERATION` avec
+  `project_not_terminal` (#2172, le contrat), et aucune commande n'est listée disponible ;
 - `WF-CYC-0090-A` — « La confirmation nomme l'état visé et le passage en lecture seule du projet et
   de toutes ses données, et propose la saisie d'un motif ; une sortie confirmée sans motif est
   appliquée. » : `ProjectExit` porte `to_state`, `confirmed` et `reason` facultatif ; une sortie
@@ -1294,14 +1299,14 @@ case à cocher.
   indicateurs se lisent dans sa dernière révision marquée (WF-IND-0010). » : la sortie d'un
   projet qui porte une révision en cours reçoit le sort de celle-ci (`current_revision`), exigé — absent,
   422 `VALIDATION_FAILED`, `/current_revision` par `VALUE_REQUIRED` — ; l'abandon s'applique avec
-  la sortie, dans la même opération, et le marquage (202, `revision_mark`) est servi avec
-  US-0980/L2, refusé d'ici là par 409, `no_current_revision` manquante (#2204) ; après la sortie,
+  la sortie, dans la même opération, et le marquage (202, `revision_mark`) est confié au worker,
+  qui marque la révision puis sort le projet dans la transaction de la tâche — une tâche qui échoue
+  n'applique rien (US-0980/L2, #2204) ; après la sortie,
   `current_revision_id` est nul ; les indicateurs sont d'EP-10, qui clôt ;
 - `WF-CYC-0100-A` — « Toute modification d'un projet terminal est refusée, qu'elle soit tentée par
   la saisie, par un import Excel ou MS Project, ou par un traitement automatique. » : par la
-  saisie, chaque écriture de cet EPIC répond 409, `STATE_FORBIDS_OPERATION`,
-  `project_not_terminal` manquante ; les imports sont d'EP-06
-  à EP-09, qui clôt ;
+  saisie, chaque écriture de cet EPIC répond 409 `STATE_FORBIDS_OPERATION` avec
+  `project_not_terminal` (#2172) ; les imports sont d'EP-06 à EP-09, qui clôt ;
 - `WF-CYC-0110-A` — « Toutes les vues de consultation d'un projet clos s'affichent normalement, et
   ses exports aboutissent. » : les lectures de cet EPIC répondent 200 sur un projet clos ; les
   exports sont d'EP-06 à EP-09, qui clôt ;
@@ -1317,9 +1322,9 @@ case à cocher.
 - `WF-REV-0040-A` — « La désignation manuelle est proposée tant que le projet n'a ni coût réel ni
   révision marquée depuis la dernière désignation, et refusée au-delà. » : la commande
   `designate_reference` d'une révision marquée, `reference_correctable` manquante dès qu'une
-  révision a été marquée depuis la dernière désignation, et `REFERENCE_NOT_CORRECTABLE` au
-  refus ; les coûts réels sont d'EP-09 ; la désignation elle-même se constate autour du service
-  (EP-08 clôt) ;
+  révision a été marquée depuis la dernière désignation, et le refus 409
+  `STATE_FORBIDS_OPERATION`, `reference_correctable` manquante (J-01, #1797) ; les coûts réels
+  sont d'EP-09 ; la désignation elle-même se constate autour du service (EP-08 clôt) ;
 - écart : `WF-REV-0040-A` — « Un projet dont les offres v2 puis v3 sont marquées, et dont v2 a été
   désignée par erreur, accepte la désignation de v3 tant qu'il n'a reçu aucun coût réel. » :
   EP-09 et EP-08 ;

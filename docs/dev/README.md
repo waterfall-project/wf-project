@@ -3852,16 +3852,28 @@ US-1000; the other paths of `navigation.spec.ts`, those of a project and that of
 stay untagged until their US tags them; almost all of those of `admin.spec.ts`
 (`:40` to `:455`, only `:479` is `@shared`), administration screens outside the permissions of the
 role "Manager" of `mode.ts`, without the `users.*` permissions. On what their US does not tag yet:
-the reading of the settings outside any project (`reference-costs.spec.ts`, US-0250); the filter
-of the roles by calendar (`reference-costs.spec.ts:251`), whose comment says it of a screen not yet
-served, which is outdated, and the change of the units of duration
-(`reference-resources.spec.ts:271`), which asserts the echo of the fake back to a write ("7 and
-35"): tagging them is tracked by #2178. The `inService` guards of the tagged paths
-are not paths that are not replayed: the path is played on both sides, and only the assertion of a
+the reading of the settings outside any project (`reference-costs.spec.ts`, US-0250); the
+change of the units of duration (`reference-resources.spec.ts`), which writes the single object of
+the installation and asserts the echo of the fake back ("7 and 35"): it would be played in series
+(rule below), which the `realm` project does today only for `frontend/e2e/service/` (#2178).
+The `inService` guards of the tagged paths are not paths that are not replayed: the path is played on both sides, and only the assertion of a
 write differs (what was entered, read anew after a reload; a code and a label of the run's own,
 which the service keeps; a state left as it was found) — `reference-costs.spec.ts`,
 `reference-resources.spec.ts`, `reference-settings.spec.ts`,
 `reference-actual-cost-mapping.spec.ts`.
+
+A `@shared` path writes only objects it creates itself, under a code and a label of the run's own,
+and leaves them deactivated or removed at its end: the `shared` workers play in parallel against one
+installation, and an object of the witness that a path changes, even for the time it runs, changes
+under the eyes of those who read it or compare it with its examples (state, `lock_version`, audit
+dates — #2087). The paths that change a single object of the installation — the settings, the units
+of duration, the correspondence of the actual costs — are played in series, alone, not in parallel
+with the others. A path that must reactivate one of the witness does so in a `finally` that puts it
+back as it found it, and it is an exception it states, not the rule.
+Three paths depart from this rule today, pending #2211: the change of the units of duration
+(`reference-resources.spec.ts`, untagged), that of the settings (`reference-settings.spec.ts`) and
+that of the correspondence of the actual costs (`reference-actual-cost-mapping.spec.ts`), tagged
+`@shared` and yet writing these single objects.
 
 A limit of the paths against the service: Prism, as a proxy of the contract, reads every body as
 text and alters binary bodies — every byte beyond `0x7f` of an `application/octet-stream` request or
