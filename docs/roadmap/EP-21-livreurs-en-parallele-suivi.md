@@ -48,8 +48,15 @@ développe, personne ou agent, comme pour EP-19.
 - le harnais des parcours contre le service : les parcours d'administration joués contre le service
   sous un compte qui en a les permissions, les parcours qui écrivent un objet unique joués en série,
   et l'attente du verrou des rôles composés sous le délai d'un test — US-1330 (#2199, #2211, #2214) ;
-- les finitions d'outils et de guide reportées par EP-20 et EP-22 — US-1340 (#2028, #2074, #2075,
-  #2085).
+- les finitions d'outils et de guide reportées par EP-20 et EP-22, et les textes que les deux jours
+  ont rendus nécessaires — reprendre `main` dans une branche d'EPIC, le pilote devant les worktrees
+  des livreurs rendus et sa propre session — US-1340 (#2028, #2074, #2075, #2085) ;
+- les autorisations des livreurs versionnées dans `.claude/settings.json`, que chaque worktree
+  reçoit — US-1350 ;
+- la liste d'exemption TC001–TC003 de `ruff.toml`, un module par ligne et tenue par un test, qui
+  cessait de fusionner à chaque lot ajoutant un module de routes — US-1360 ;
+- le jeu de règles de la file de fusion d'une branche d'EPIC créé par une cible du Makefile, et
+  vérifié par le livreur du premier lot — US-1370.
 
 ## Ce qui n'en fait pas partie
 
@@ -64,6 +71,11 @@ développe, personne ou agent, comme pour EP-19.
   corrigés par les lots qui les ont causés ;
 - la durée des tests du back d'EP-05 (`back / check`, de 4 à 14 minutes, #2157 : délai porté à 15) :
   ce sont les tests d'EP-05, pas l'outillage ;
+- les leviers de l'audit de la chaîne du 2026-11-05 non encore pris — miroir des images de Docker
+  Hub, cache d'Actions sous 10 Go, `installation.setup` déterministe, les tests témoin des outils,
+  `.next/cache` — : EP-13, qui porte déjà #2050 et #2121 (décision de l'auteur du 2026-11-07) ; le
+  cadrage ouvre le constat qui les lui renvoie ;
+- la troncature des lignes de `make slots`, sans cas reproduit ;
 - l'amorçage de `risk_settings.write` et `indicator_settings.write` dans le rôle « Manager »
   (`TO_SEED_BY_EP04`, #1457) : EP-04.
 
@@ -93,10 +105,15 @@ EP-19 livré ; EP-05 fusionnée dans `main` (#2217, 2026-11-07).
   volume ls -q)` et `cd .git && bash -c 'rm index.lock'` sont refusés avant d'être exécutés ;
 - `make imports-back` refuse un import de `waterfall.core.users` depuis
   `waterfall.core.resource_settings` ; `make service-up` reconstruit l'image de `restore` ;
-- `make e2e-service` joue contre le service les parcours de l'administration et de l'état, et en
-  série ceux qui écrivent un objet unique ; aucun rôle composé n'est créé par les parcours tant que le
-  back n'amorce pas les permissions qu'il composait, sauf ce que la conception garde ;
-- les quinze constats reçus sont fermés, chacun par son lot.
+- `make e2e-service` joue contre le service les lectures de l'administration et de l'état sous le
+  rôle « Administrateur (parcours) », et en série les parcours qui écrivent un objet unique ;
+- dans un worktree neuf, un livreur met une pull request en file, édite une issue et prend son
+  créneau sans qu'une personne ait à accorder une règle ;
+- `make merge-queue-check EPIC=EP-05` passe, et `make merge-queue EPIC=EP-nn` crée le jeu de règles
+  d'une branche d'EPIC identique, à sa branche près, à celui d'EP-05 ;
+- un module de routes ajouté à `api/` sans sa ligne dans `ruff.toml` fait échouer `make test-tools`
+  en le nommant ;
+- les dix-sept constats reçus sont fermés, chacun par son lot.
 
 ## Constats reçus
 
@@ -174,7 +191,182 @@ Reportés d'EP-05 et de la nuit du 6 au 7 novembre (décisions de l'auteur du 20
 
 ## Conception
 
-À écrire après la validation des US.
+### Ce qui change, et ce qui ne change pas
+
+Aucune table, aucune migration, aucun module du noyau, aucune opération du contrat, aucun
+workflow. Trois outils existants s'étendent — `tools/src/wftools/tracking.py`, `slots.py`,
+`guard.py` —, un naît, `tools/src/wftools/mergequeue.py`, avec un modèle versionné
+`.github/rulesets/merge-queue.json`. Le reste est une modification : le Makefile, `ruff.toml`,
+`backend/pyproject.toml` (import-linter), `backend/tests/test_contract_declarations.py`,
+`frontend/e2e/mode.ts`, `frontend/e2e/service/realm.ts`, `installation.setup.ts`,
+`frontend/playwright.config.ts`, trois fichiers de parcours, `.claude/settings.json`,
+`REUSE.toml`, les agents (`epic-deliverer`, skill `pilote`), `docs/dev/agents.md`, le guide et sa
+traduction, `docs/dev/python.md`, `INSTALL.md`, `CONTRIBUTING.md`. La chaîne ne voit pas de
+différence : N y vaut 1, et aucune cible neuve n'y est appelée.
+
+### Le tableau de suivi (US-1290)
+
+- **Trois formes nouvelles** de `wftools.tracking`, exclusives entre elles et avec `LOT`, `US`,
+  `FINDING` : `--add-lot <id> --after <lot> [--depends <liste>] [--model <m>]`,
+  `--replace-dependency '<ancien>=<nouveau>'`, et `--depends <liste>` avec `--lot`. Le Makefile les
+  expose par `tracking_option` : `ADD_LOT`, `AFTER`, `DEPENDS`, `REPLACE_DEPENDENCY`, comme les
+  autres, prises sur la ligne de commande de make seulement.
+- **L'insertion** : la ligne du lot `AFTER` se trouve par `change_lot` ; la nouvelle ligne se
+  construit sur l'en-tête de la table — chaque colonne par son nom, les colonnes que l'outil ne
+  connaît pas à vide — et prend la fin de ligne de la ligne au-dessus ; sa cellule « Lot » est
+  `L3 #<issue>` quand l'identifiant porte `/Ln`, `US-0820b #<issue>` sinon, l'issue venant d'une
+  option `--issue-number`, ou absente si elle n'est pas donnée.
+- **La reconnaissance** : `LOT_LABEL` devient `L\d+b?` ; un identifiant `US-nnnnb` se cherche dans
+  les lignes de l'US `US-nnnn`, cellule « Lot » commençant par `US-nnnnb` ; une US à lot unique se
+  reconnaît à une cellule qui commence par `lot unique` suivie de rien, d'un espace ou d'une
+  parenthèse.
+- **Le test du gabarit** lit `04-epic.yml` sans bibliothèque YAML : le bloc `value: |` du champ
+  `tracking`, désindenté, est le corps ; il n'ajoute aucune dépendance aux outils.
+
+### L'arrêt d'un créneau (US-1300)
+
+- **La sous-commande** `slots.py stop-servers` — `make e2e-down` — cherche les processus à l'écoute
+  sur les ports de l'e2e du créneau courant : `E2E_API_PORT` et `front_ports(slot)`. Bibliothèque
+  standard seule : `/proc/net/tcp` et `/proc/net/tcp6` donnent les sockets en état `LISTEN`
+  (`0A`) et leur inode ; `/proc/<pid>/fd` des processus lisibles — ceux de l'utilisateur — donne le
+  PID. Chaque PID reçoit `SIGTERM` ; après cinq secondes, ceux qui écoutent encore reçoivent
+  `SIGKILL`, et la cible le dit. Rien n'est cherché par nom : la lettre du garde est tenue.
+- **Qui l'appelle** : `release` et `claim` (sur un créneau abandonné) l'appellent avant le retrait
+  des projets Compose, sous le verrou du registre ; `make e2e-down` seul, pour un livreur dont un
+  `make check-front` s'est interrompu. Au créneau 0, elle vise les ports d'avant.
+- **Le verrou des services de test** : `start_test_services` tient
+  `$XDG_RUNTIME_DIR/waterfall-test-services.<slot>.lock` (`flock`, bloquant, dit une fois qu'il
+  attend) le temps de `make test-services`. La seconde exécution trouve les services démarrés et
+  `up --wait` ne fait rien de plus.
+- **Les tests** : la recherche et l'arrêt se testent sur un processus enfant à l'écoute sur un port
+  éphémère, jamais sur un port d'un vrai créneau ; le verrou, par deux processus et le faux `make`
+  de `test_test_services.py`.
+
+### Le garde (US-1310)
+
+- **Les préfixes** : `busybox` (son premier opérande est l'applet, qui devient le mot de commande),
+  `chroot` (un opérande, puis la commande), `flock` (options `-w`, `-E`, `--timeout`,
+  `--conflict-exit-code`… ; un opérande, le verrou ; puis la commande, ou `-c <script>` analysé comme
+  `bash -c`), `su` et `runuser` (`-c <script>` analysé comme un script ; `-s`, `-g`, `-G` et leurs
+  formes longues prennent un argument), `watch` (ses opérandes forment un script, que `sh -c`
+  exécute : analysés comme tel).
+- **Les abréviations** : `_Options.parse` reconnaît un `--mot` par la règle du préfixe unique de GNU
+  sur la table des options longues de chaque préfixe ; `_SPLIT_STRING` n'énumère plus ses préfixes.
+- **Les formes** : `find` dont un opérande de chemin passe par `.git` — ou précédé d'un `cd` dans
+  `.git` — et qui porte `-delete` ou `-exec rm` ; `mv` et `rename` dont une source passe par `.git`
+  et finit par `.lock` ; `docker rmi`, `docker image rm|remove`, `docker volume rm|remove`, jugés
+  comme `_CONTAINER_STOPS` (cible calculée, tube, `xargs`, `--filter` refusés ; littéral permis).
+- **Le `cd`** : `moved` est passé à `_shell` et `_eval` ; `pushd` vaut `cd` ; `env -C`, `--chdir` et
+  leurs abréviations jugent leur argument comme un chemin de `cd` ; un `cd` dont le chemin porte
+  `$(…)`, un accent grave ou une variable pose `moved` ; un chemin littéral qui ne passe pas par
+  `.git`, `..` et `-` le retirent.
+- **La taille** : `guard.py` a 600 lignes ; le lot mesure, et reste sous 1 000 ; s'il devait les
+  dépasser, il le dit au relevé et la coupe se décide alors, le script n'important aucun autre module
+  de `wftools`.
+
+### Les contrôles de la chaîne (US-1320)
+
+- **Le contrat `layers`**, dans `backend/pyproject.toml`, à côté de l'`independence` gardé :
+  `containers = ["waterfall.core"]`, `layers = ["access_roles | backups | indicator_settings |
+  risk_settings", "cost_settings", "users", "resource_settings"]` — le haut importe le bas, jamais
+  l'inverse, et deux modules d'une même couche séparés par `|` ne s'importent pas. Le graphe du
+  2026-11-07 le vérifie déjà. Un module nouveau se range dans la couche que ses imports imposent ;
+  la règle écrite au guide Python : `resource_settings` ne dépend d'aucun autre module du noyau,
+  les auteurs d'un objet se nomment dans `api/`.
+- **Le test de complétude**, dans les tests des outils : chaque répertoire de
+  `backend/src/waterfall/core/` qui a un `__init__.py` est nommé dans les `layers` du contrat, lu de
+  `pyproject.toml` par `tomllib`.
+- **`service-up`** : `up --build --detach --wait restore`. Le test des outils lance
+  `docker compose -f deploy/compose/compose.service.yaml --profile e2e --profile install config
+  --format json` avec les valeurs de remplacement de `lint-compose` — le runner de la famille `repo`
+  a Docker, `lint-compose` le lui demande déjà —, relève les services qui ont un `build`, et vérifie
+  dans le texte du Makefile que chacun est nommé par une ligne `up --build` ou `build` des recettes
+  `service-up`, `service-install`, `e2e-service`.
+- **`drifting`** : `Bounds` porte aussi `pattern`, `enum` (ensemble), `minItems`, `maxItems` ; un
+  paramètre servi dont le contrat n'a pas le couple (opération, nom) est rapporté
+  « not in the contract ». Le test sur contrat de brouillon s'étend d'un cas par mot-clé.
+
+### Le harnais des parcours (US-1330)
+
+- **Le rôle de test** « Administrateur (parcours) » : créé par `installation.setup.ts`, seul et
+  premier, par l'API (`createAccessRole`), avec `users.read`, `access_roles.read`,
+  `system_status.read`, `audit_log.read`, `backups.read` ; retrouvé par son libellé à un rejeu, et ses
+  permissions vérifiées (comme #2149 le demande pour tout rôle retrouvé). `give` continue de refuser
+  les deux permissions d'administration à un autre compte que l'administrateur : le rôle n'en porte
+  aucune.
+- **`mode.ts`** : une fixture de worker `administration` à côté de `manager` — un compte local de la
+  course, créé par `accountAdministrator`, qui porte ce rôle — ; la fixture `served` connecte celui
+  des deux que le titre du parcours demande : l'étiquette `@administration` à côté de `@shared`,
+  lue comme les projets lisent `@shared` ; sans elle, le manager, comme aujourd'hui.
+- **Le projet en série** : l'étiquette `@serial` à côté de `@shared` ; un projet `shared-serial`
+  (`grep: /@serial/`, `workers: 1`, `dependencies: ["installation", "shared"]`) ; `shared` prend
+  `grepInvert: [SERIAL]` ; `realm` et `restoration` le mettent dans leurs dépendances. Les trois
+  parcours de #2211 prennent `@shared @serial`, celui des unités de durée compris, et affirment leur
+  relecture par `inService` comme les autres.
+- **Le verrou des rôles** : `ROLES_WAIT` passe à 25 s, sous les 30 s d'un test ; son message dit le
+  verrou et le nombre de workers derrière lui. Le délai de la fixture de worker (60 s) est inchangé.
+- **Le guide** : la règle de #2087 perd ses trois écarts et dit l'étiquette `@serial` ; « Ce qui ne
+  se rejoue pas » nomme les parcours d'`admin.spec.ts` qui écrivent — sauvegardes, horaire,
+  comptes, rôles — et leur raison : ils écrivent un objet unique ou demandent `users.write`, que
+  ceux d'`e2e/service/` éprouvent sous l'administrateur.
+
+### Les autorisations, la liste de ruff, la file de fusion (US-1350, US-1360, US-1370)
+
+- **`.claude/settings.json`** gagne `permissions.allow` avec les vingt-et-une règles d'US-1350 ; le
+  hook reste ; le fichier est déjà dans `REUSE.toml`. Un test des outils le lit en JSON.
+- **`ruff.toml`** : une entrée `"backend/src/waterfall/api/<module>.py" = ["TC001", "TC002",
+  "TC003"]` par module, triées, le commentaire une fois au-dessus ; le test des outils (dans
+  `test_rules.py`, qui éprouve déjà `ruff.toml`) lit le TOML par `tomllib`, relève les modules
+  d'`api/` dont le texte porte `APIRouter(`, et confronte.
+- **`wftools.mergequeue`** : `create EP-nn` lit `.github/rulesets/merge-queue.json`, y pose le nom
+  et `refs/heads/epic/EP-nn`, liste d'abord les jeux de règles (`gh api repos/{owner}/{repo}/rulesets`)
+  et refuse si l'un vise déjà la branche, puis `POST` par `gh api --input -` ; `check EP-nn` liste
+  les jeux, lit celui qui vise la branche (`gh api …/rulesets/<id>`) et exige `enforcement: active`
+  et une règle `merge_queue`. Le modèle est le jeu d'EP-05 relu par `gh api`, sans ses
+  identifiants ni ses dates. `gh` est appelé comme `tracking.py` l'appelle, et les tests posent un
+  faux `gh` sur le `PATH`.
+- **`epic-deliverer`**, « La branche de l'EPIC » : après la poussée, `make merge-queue-check
+  EPIC=EP-nn` ; en échec, une question à une personne, qui lance `make merge-queue EPIC=EP-nn`.
+
+### Ordre de construction
+
+Les US sont indépendantes ; l'ordre dit seulement ce qui rend service le plus tôt au pilotage
+d'EP-04 :
+
+1. US-1290, le tableau de suivi — à prendre en premier (#2112) ;
+2. US-1300, l'arrêt d'un créneau, et US-1370, la file de fusion ;
+3. US-1350, les autorisations, et US-1360, la liste de ruff — petits, les conflits de
+   synchronisation ;
+4. US-1310, le garde ; US-1320, les contrôles de la chaîne ; US-1330, le harnais ;
+5. US-1340, les finitions et les textes.
+
+Les fichiers partagés par plusieurs US — le Makefile (US-1290, US-1300, US-1370),
+`docs/dev/agents.md` (US-1300, US-1310, US-1340, US-1350), `epic-deliverer` (US-1290, US-1300,
+US-1370), le guide (US-1290, US-1300, US-1330, US-1340, US-1360, US-1370), `guard.py` (US-1300,
+US-1310) — donnent les « Pas avec » du plan de lots.
+
+### Décisions
+
+| Décision | Option écartée, et pourquoi |
+|---|---|
+| `depend_de: EP-19, EP-05` (auteur, 2026-11-07) | tirer `epic/EP-21` avant la fusion d'EP-05 et bloquer deux lots : EP-05 est dans `main` (#2217) |
+| Les processus de l'e2e trouvés par leur port dans `/proc`, arrêtés par PID (auteur, 2026-11-07) | `fuser -k`, `ss -p`, `lsof` : des paquets que le poste ou un runner peut ne pas avoir, et `slots.py` est de la bibliothèque standard seule ; par nom (`next-server`) : la règle du garde |
+| `slot-release` et la reprise d'un créneau abandonné arrêtent aussi les serveurs | une cible à part seulement : un créneau rendu avec un `next-server` dedans est celui de la nuit du 6 au 7 |
+| Un verrou propre au créneau autour de `make test-services`, bloquant | un `up` relancé sur échec : Compose échoue tard et de façon irrégulière sur un réseau en création (#1909) |
+| Le garde reste un seul script, mesuré par le lot | un second module importé par chemin : un script lancé par `python3` et un module importé comme `wftools.guard` ne résolvent pas le même import |
+| Un `cd` vers un chemin calculé compte comme un déplacement dans `.git` | le laisser passer : `cd "$(git rev-parse --git-dir)" && rm index.lock` est la forme de #1893 ; le faux positif est du côté sûr |
+| Un contrat `layers` sur `waterfall.core.*` + test de complétude (auteur, 2026-11-07) | la seule règle `forbidden` `resource_settings -/-> users` de #2124 : elle n'interdit que le cycle d'hier ; un contrat personnalisé « acyclique » : du code à charger dans l'environnement du back |
+| Le test du Compose par `docker compose config` | lire le YAML : les outils n'ont aucune dépendance, et les ancres `<<: *back` ne se lisent qu'en les résolvant |
+| Option B2, un rôle de test de lectures seules (auteur, 2026-11-07) | B1, un second compte au rôle prédéfini « Administrateur » : rompt `give` et les refus `LAST_ADMINISTRATOR` de `roles.spec.ts` ; B3, l'administrateur de l'installation : un compte partagé de plus sous `oneAtATime`, et ses recherches gardées d'un parcours à l'autre |
+| `SETTINGS_WRITER` reste jusqu'à EP-04 (auteur, 2026-11-07) | le retirer : aucun rôle prédéfini ne porte `risk_settings.write` ni `indicator_settings.write` (`predefined.py`) ; #2199 le croyait, à tort |
+| Le compte demandé par une étiquette du titre (`@administration`, `@serial`) | `test.use` par fichier : les trois fichiers mêlent des parcours des deux sortes ; une liste de fichiers : écartée par l'auteur pour `@shared` (2026-11-05) |
+| Un projet `shared-serial` à un worker | une remise de la valeur dans un `finally` (#2211, option 2) : l'objet change quand même sous les yeux des autres workers |
+| `ROLES_WAIT` à 25 s | relever le délai des tests : chaque appelant de `give` devrait le dire, et le délai de 30 s est celui que la chaîne tient |
+| Les 21 règles versionnées dans `.claude/settings.json`, sans la règle du poste (auteur, 2026-11-07) | les garder dans `~/.claude/settings.json` : elles ne suivent ni le dépôt ni ses worktrees, et chaque poste les retape |
+| Une entrée de `per-file-ignores` par module, triée (auteur, 2026-11-07) | un motif `api/*.py` : `middleware`, `problems` et `queries` perdraient le contrôle ; la liste entre accolades sur plusieurs lignes : une clé TOML tient sur une ligne |
+| Les modules de routes reconnus par `APIRouter(` dans leur texte | une liste figée dans le test : c'est elle qu'on oublierait ; `Depends(` : `queries` en porte un et n'est pas exempt, à dessein |
+| `make merge-queue` par `gh api`, réservé à une personne ; `make merge-queue-check` pour le livreur (auteur, 2026-11-07) | laisser le livreur créer le jeu de règles : le jeton de l'utilisateur le lui permettrait, et la file d'une branche n'appartient pas à un agent |
+| Le modèle du jeu de règles versionné sous `.github/rulesets/` | le lire du jeu d'EP-05 à chaque création : le jeu d'EP-05 disparaîtra avec sa branche |
 
 ---
 
@@ -409,16 +601,18 @@ réglages contre le service, et non plus contre le faux back seul (#2199, #2211,
 
 **Critères d'acceptation.**
 
-- propre à l'US : `frontend/e2e/mode.ts` connecte un parcours partagé qui le demande avec un compte
-  de la course qui porte les permissions de l'administration — `users.*`, `access_roles.read`,
-  `system_status.read`, `audit_log.read` —, selon la forme que la conception fixe (le compte, son
-  rôle, la manière dont le parcours le demande) ; le « Manager » garde le sens que les parcours
-  éprouvent : il ne reçoit ni `users.*` ni `system_status.read` (option B, décision de l'auteur du
-  2026-11-07) ;
-- propre à l'US : les parcours de l'administration d'`admin.spec.ts` que le service sert, l'ouverture
-  de l'administration et de l'état dans `navigation.spec.ts`, et ceux de `system.spec.ts` portent
-  `@shared` et se jouent contre le service sous ce compte ; ceux qui ne se rejouent pas sont nommés
-  au guide (« Un parcours de bout en bout », « Ce qui ne se rejoue pas ») avec leur raison ;
+- propre à l'US : un rôle de test « Administrateur (parcours) », créé à l'installation, porte les
+  lectures de l'administration — `users.read`, `access_roles.read`, `system_status.read`,
+  `audit_log.read`, `backups.read` — et ni `users.write` ni `access_roles.write` ;
+  `frontend/e2e/mode.ts` connecte un parcours partagé qui le demande avec un compte de la course qui
+  porte ce rôle, un par worker ; le « Manager » garde le sens que les parcours éprouvent : il ne
+  reçoit ni `users.*` ni `system_status.read` (option B2, décision de l'auteur du 2026-11-07) ;
+- propre à l'US : les lectures de l'administration et de l'état d'`admin.spec.ts` et l'ouverture de
+  l'administration et de l'état dans `navigation.spec.ts` portent `@shared` et se jouent contre le
+  service sous ce compte ; les parcours de l'administration qui écrivent — un compte, un rôle, une
+  sauvegarde — restent ceux d'`e2e/service/` sous l'administrateur de l'installation, et ceux
+  d'`admin.spec.ts` qui ne se rejouent pas sont nommés au guide (« Un parcours de bout en bout »,
+  « Ce qui ne se rejoue pas ») avec leur raison ;
 - propre à l'US : un projet Playwright joué en série contre le service, après `shared`, joue les
   parcours partagés qui portent une étiquette propre et écrivent un objet unique de l'installation :
   les unités de durée (`reference-resources.spec.ts`), les réglages (`reference-settings.spec.ts`) et
@@ -431,9 +625,9 @@ réglages contre le service, et non plus contre le faux back seul (#2199, #2211,
   relèvent leur délai en le disant ; les deux lignes du guide au-delà de 100 colonnes sont recoupées
   (#2214) ;
 - propre à l'US : le rôle composé « Paramètres des risques et des indicateurs (parcours) »
-  (`SETTINGS_WRITER`, #2149) n'est plus créé par les parcours si la conception trouve un compte qui
-  porte ces permissions ; sinon il reste, avec les trois corrections de #2149, et la raison est
-  écrite dans la conception ;
+  (`SETTINGS_WRITER`, #2149) reste, avec les trois corrections de #2149, jusqu'à ce qu'EP-04 amorce
+  ses permissions dans le « Manager » : aucun rôle prédéfini ne les porte (décision de l'auteur du
+  2026-11-07) ;
 - propre à l'US : `make e2e-service` passe au palier complet, sur le poste comme dans la chaîne, et
   `make e2e` ne change pas.
 
@@ -441,10 +635,12 @@ réglages contre le service, et non plus contre le faux back seul (#2199, #2211,
 
 Le rôle prédéfini « Administrateur » (`core/access_roles/predefined.py`) porte `users.*`,
 `access_roles.*`, `system_status.read`, `backups.*`, `audit_log.read` et `platform_restore`, et ni
-`risk_settings.write` ni `indicator_settings.write`. Le guide dit qu'aucun parcours ne donne à un
-autre compte que l'administrateur de l'installation les deux permissions d'administration — `give` le
-refuse —, parce que les refus `LAST_ADMINISTRATOR` de `roles.spec.ts` et d'`accounts.spec.ts` en
-dépendent : la conception doit choisir le compte de l'administration sans rompre cette règle.
+`risk_settings.write` ni `indicator_settings.write` : c'est pourquoi `SETTINGS_WRITER` reste. Le
+guide dit qu'aucun parcours ne donne à un autre compte que l'administrateur de l'installation les
+deux permissions d'administration — `give` le refuse —, parce que les refus `LAST_ADMINISTRATOR` de
+`roles.spec.ts` et d'`accounts.spec.ts` en dépendent : c'est pourquoi le rôle de test ne porte que
+des lectures (option B2, contre B1, un second compte au rôle prédéfini, et B3, l'administrateur de
+l'installation lui-même).
 
 **Hors périmètre.**
 
@@ -453,7 +649,7 @@ L'amorçage de `risk_settings.write` et `indicator_settings.write` dans le « Ma
 
 ---
 
-## US-1340 — Finitions d'outils et de guide reportées par EP-20 et EP-22
+## US-1340 — Finitions d'outils et de guide, et les textes des deux jours à quatre livreurs
 
 - **statut** : à faire
 - **exigences** : aucune — outil du dépôt
@@ -461,8 +657,11 @@ L'amorçage de `risk_settings.write` et `indicator_settings.write` dans le « Ma
 - **issue** :
 
 **En tant que** développeur, **je veux** que les quatre finitions reportées vers EP-21 par EP-20 et
-EP-22 soient faites, **afin que** le guide et les outils ne disent plus une version ou un chemin que
-le dépôt dément (#2028, #2074, #2075, #2085).
+EP-22 soient faites, et que le guide et le skill `pilote` disent ce que les deux jours à quatre
+livreurs ont appris — comment reprendre `main` dans une branche d'EPIC, ce que le pilote fait des
+worktrees des livreurs rendus et de sa propre session —, **afin que** le guide et les outils ne
+disent plus une version ou un chemin que le dépôt dément, et qu'une synchronisation ou un
+redémarrage ne coûtent plus un lot (#2028, #2074, #2075, #2085).
 
 **Critères d'acceptation.**
 
@@ -478,5 +677,125 @@ le dépôt dément (#2028, #2074, #2075, #2085).
   comme pour un outil absent, au lieu d'un avertissement sans version (#2075) ;
 - propre à l'US : `docs/dev/python.md`, « Les annotations sous Python 3.14 », écrit
   `platform/restoration.py` et `core/users/tables.py` (#2085) ;
-- propre à l'US : `make readmes` passe, et `make test-tools TESTS=tools/tests/test_openldap_entrypoint.py`
-  passe.
+- propre à l'US : le guide (`docs/dev/README-fr.md` et `README.md`, « Branches, lots et pull
+  requests ») a une rubrique « Reprendre `main` dans une branche d'EPIC » : qui le fait (une
+  personne), quand (après chaque fusion dans `main`, et avant qu'un lot ne parte d'une branche en
+  retard), comment (une branche `sync/EP-nn`, une pull request vers `epic/EP-nn`, mise en file comme
+  un lot, les conflits réglés là et non à la livraison), et ce qui a coûté les 6 et 7 novembre : une
+  synchronisation remise en file deux fois parce que des lots ont été fusionnés pendant sa chaîne —
+  elle se met en file quand aucun lot n'est en revue, ou se refait ;
+- propre à l'US : le skill `pilote` et `docs/dev/agents.md`, « Le pilote », disent qu'un pilote ne
+  redémarre pas sa session tant qu'un livreur qu'il a lancé est en vol — le redémarrage les arrête
+  tous, et un lot a dû être repris —, et qu'il retire lui-même le worktree d'un livreur qui a rendu
+  son relevé, lot fusionné (`git worktree unlock`, `git worktree remove`, `git worktree prune`),
+  parce que le harnais le garde verrouillé ; les autres worktrees de trop restent signalés, jamais
+  retirés ;
+- propre à l'US : `make readmes` et `make roadmap` passent, et
+  `make test-tools TESTS=tools/tests/test_openldap_entrypoint.py` passe.
+
+---
+
+## US-1350 — Les autorisations des livreurs suivent le dépôt
+
+- **statut** : à faire
+- **exigences** : aucune — outil du dépôt
+- **opérations** : aucune
+- **issue** :
+
+**En tant que** développeur, **je veux** que les règles d'autorisation dont un livreur a besoin —
+mettre en file, éditer une issue, pousser, prendre son créneau — soient versionnées dans
+`.claude/settings.json`, **afin qu'**un worktree neuf les ait d'emblée, au lieu de les chercher dans
+un `.claude/settings.local.json` que le worktree n'a pas, ce qui a fait perdre leur temps à un pilote
+et à ses livreurs les 6 et 7 novembre.
+
+**Critères d'acceptation.**
+
+- propre à l'US : `.claude/settings.json` porte, sous `permissions.allow`, les vingt-et-une règles
+  que les livreurs ont demandées : `Bash(cd:*)`, `Bash(gh api graphql:*)`,
+  `Bash(gh issue create:*)`, `Bash(gh issue close:*)`, `Bash(gh issue comment:*)`,
+  `Bash(gh issue edit:*)`, `Bash(gh pr create:*)`, `Bash(gh pr view:*)`, `Bash(gh pr checks:*)`,
+  `Bash(gh pr list:*)`, `Bash(gh pr merge:*)`, `Bash(gh run list:*)`, `Bash(gh run view:*)`,
+  `Bash(gh run watch:*)`, `Bash(git push:*)`, `Bash(git branch -d:*)`,
+  `Bash(git worktree unlock:*)`, `Bash(git worktree remove:*)`, `Bash(make tracking:*)`,
+  `Bash(make slot:*)`, `Bash(make slot-release:*)` ; la règle propre au poste
+  (`Bash(cat > /tmp/claude-1000/*)`) n'y est pas ; le hook `PreToolUse` du garde reste ;
+- propre à l'US : un test des outils lit `.claude/settings.json`, vérifie qu'il est un JSON, que son
+  hook est celui du garde et que sa liste porte la mutation `enqueuePullRequest` et les trois
+  commandes `make` du livreur ;
+- propre à l'US : `docs/dev/agents.md`, « La mise en file », dit que la règle est versionnée dans
+  `.claude/settings.json`, que chaque worktree la reçoit, et ce qu'elle n'autorise pas ; le passage
+  qui demandait à une personne de l'accorder une fois disparaît, et `CONTRIBUTING.md` suit.
+
+**Notes de réalisation.**
+
+`Bash(gh api graphql:*)` couvre la mutation exacte de la file que `docs/dev/agents.md` donne
+aujourd'hui, et plus large : c'est le choix de l'auteur du 2026-11-07, qui a vu les livreurs
+s'arrêter sur chacune de ces règles ; `docs/dev/agents.md` garde la mutation comme la seule forme
+que le livreur écrit.
+
+---
+
+## US-1360 — La liste d'exemption de `ruff.toml` fusionne et se tient
+
+- **statut** : à faire
+- **exigences** : aucune — outil du dépôt
+- **opérations** : aucune
+- **issue** :
+
+**En tant que** développeur, **je veux** que la liste des modules d'`api/` exemptés de TC001–TC003
+dans `ruff.toml` tienne un module par ligne, triée, et qu'un test exige chaque module de routes dans
+la liste, **afin que** deux lots qui ajoutent chacun un module de routes fusionnent sans conflit — la
+cause de quatre interventions d'un développeur les 6 et 7 novembre — et qu'un module oublié ne
+passe plus.
+
+**Critères d'acceptation.**
+
+- propre à l'US : `ruff.toml`, `[lint.per-file-ignores]`, exempte chaque module par une entrée à
+  lui — `"backend/src/waterfall/api/<module>.py" = ["TC001", "TC002", "TC003"]` —, les entrées
+  triées par nom, le commentaire qui dit pourquoi écrit une fois au-dessus d'elles ; le résultat de
+  `make lint-back` est inchangé ;
+- propre à l'US : un test des outils exige que chaque module de `backend/src/waterfall/api/*.py` qui
+  déclare un `APIRouter(` ait son entrée, que chaque entrée nomme un module qui existe, et que les
+  entrées soient triées ; il échoue en nommant le module ;
+- propre à l'US : le commentaire de `ruff.toml` et `docs/dev/python.md`, « Les annotations sous
+  Python 3.14 », disent qu'un module de routes nouveau prend sa ligne, et que le test le rappelle.
+
+**Notes de réalisation.**
+
+Une clé TOML ne s'écrit pas sur plusieurs lignes : la liste entre accolades d'aujourd'hui ne peut
+être qu'une seule ligne, que git ne fusionne pas quand deux lots l'allongent ; une entrée par module
+est la seule forme qu'il fusionne. `authentication`, `evaluation` et `reference_settings_write` ne
+déclarent pas de routeur et restent exemptés pour la raison écrite aujourd'hui.
+
+---
+
+## US-1370 — La file de fusion d'une branche d'EPIC se crée et se vérifie par le Makefile
+
+- **statut** : à faire
+- **exigences** : aucune — outil du dépôt
+- **opérations** : aucune
+- **issue** :
+
+**En tant que** développeur, **je veux** que le jeu de règles de la file de fusion d'une branche
+d'EPIC se crée par une cible du Makefile depuis un modèle versionné, et que le livreur du premier
+lot vérifie qu'il existe, **afin qu'**une faute de frappe dans la console de GitHub ne fasse plus
+fusionner un lot sans file, comme le 2026-11-06.
+
+**Critères d'acceptation.**
+
+- propre à l'US : `make merge-queue EPIC=EP-nn` crée, par `gh api`, le jeu de règles
+  « merge queue epic/EP-nn » sur `refs/heads/epic/EP-nn` depuis `.github/rulesets/merge-queue.json`,
+  copie du jeu d'EP-05 (id 24096055) à la branche près ; elle refuse quand un jeu de règles vise
+  déjà la branche, et quand `EPIC` manque ou n'a pas la forme `EP-nn` ; elle est réservée à une
+  personne, et le guide le dit ;
+- propre à l'US : `make merge-queue-check EPIC=EP-nn` passe quand un jeu de règles actif vise
+  `refs/heads/epic/EP-nn` avec une règle `merge_queue`, et échoue en disant ce qui manque — aucun
+  jeu, pas de règle de file, jeu inactif ;
+- propre à l'US : `epic-deliverer`, « La branche de l'EPIC », lance `make merge-queue-check` après
+  avoir poussé la branche, et, s'il échoue, pose la question à une personne au lieu de livrer un lot
+  sans file ;
+- propre à l'US : les deux cibles ont leurs tests dans les tests des outils, par un faux `gh` comme
+  ceux de `make tracking` ; `make merge-queue-check EPIC=EP-05` passe sur le dépôt ;
+- propre à l'US : le guide (« Commandes » et « Branches, lots et pull requests ») dit les deux
+  cibles et le modèle, et `.github/rulesets/merge-queue.json`, qui ne peut porter de commentaire,
+  est déclaré dans `REUSE.toml`.
