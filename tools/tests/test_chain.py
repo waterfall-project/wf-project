@@ -102,13 +102,17 @@ def built_when_started(config: dict[str, Any], makefile: str) -> set[str]:
     building: set[str] = set()
     for target in RECIPES:
         for line in recipe(makefile, target):
-            words = line.split()
-            for verb in ("up --build", "build"):
-                if f" {verb} " in f" {line} ":
-                    names = {word for word in words if word in services}
-                    named |= names
-                    if verb == "up --build":
-                        building |= names
+            # Only the command that starts or builds names its services: what follows a `||`, a
+            # `&&`, a `;` or a pipe (a `logs`, a message) is another command.
+            for command in re.split(r"\|\||&&|;|\|", line):
+                words = command.split()
+                for verb in ("up --build", "build"):
+                    if f" {verb} " in f" {command} ":
+                        names = {word for word in words if word in services}
+                        named |= names
+                        # `--no-deps` leaves the dependencies of a service as they are.
+                        if verb == "up --build" and "--no-deps" not in words:
+                            building |= names
     pending = list(building)
     while pending:
         for dependency in services[pending.pop()].get("depends_on", {}):
@@ -127,6 +131,10 @@ def not_built(config: dict[str, Any], makefile: str) -> list[str]:
 
 
 def test_every_service_that_builds_is_built_by_the_recipes_that_start_it() -> None:
+    """Read the Compose of service as Docker shows it: the test needs Docker.
+
+    The runner of the family `repo` has it; the guide does not say so yet (#2304).
+    """
     makefile = (REPOSITORY / "Makefile").read_text("utf-8")
     prism = re.search(r"^PRISM_VERSION\s*:?=\s*(\S+)", makefile, re.MULTILINE)
     assert prism is not None
@@ -146,11 +154,12 @@ def test_every_service_that_builds_is_built_by_the_recipes_that_start_it() -> No
             "--format",
             "json",
         ],
-        check=True,
+        check=False,
         capture_output=True,
         text=True,
         env={**os.environ, **stand_ins(makefile), "PRISM_VERSION": prism.group(1)},
     )
+    assert shown.returncode == 0, shown.stderr
     config = json.loads(shown.stdout)
     assert any("build" in each for each in config["services"].values())
     assert not_built(config, makefile) == [], (
@@ -196,3 +205,20 @@ def test_a_service_that_builds_and_starts_unbuilt_is_found_by_its_name() -> None
         not_built(DRAFT_COMPOSE, draft.replace("up --detach --wait restore", "up --build restore"))
         == []
     )
+
+
+def test_only_the_command_that_starts_names_the_services_it_builds() -> None:
+    # `--no-deps` builds `api` and not `migrate`, which it depends on; a service named after a
+    # `||` (the logs of a failed start) is not built by it.
+    draft = (
+        "service-up:\n"
+        "\t@$(COMPOSE_SERVICE) up --build --no-deps --detach api || { \\\n"
+        "\t  $(COMPOSE_SERVICE) logs restore; exit 1; }\n"
+        "\n"
+        "service-install:\n"
+        "\t@true\n"
+        "\n"
+        "e2e-service:\n"
+        "\t@true\n"
+    )
+    assert built_when_started(DRAFT_COMPOSE, draft) == {"api"}

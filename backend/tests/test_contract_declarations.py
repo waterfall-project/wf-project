@@ -16,7 +16,8 @@ bounds of each one, as the description of the application gives them, are held t
 contract (#1873). A bound that drifts, or is copied wrong, is found here and not by a user.
 """
 
-from dataclasses import dataclass
+import re
+from dataclasses import dataclass, fields, replace
 from decimal import Decimal
 from typing import TYPE_CHECKING, Annotated, Any, Literal, cast
 
@@ -55,6 +56,19 @@ class Bounds:
     enum: frozenset[Any] | None = None
     min_items: int | None = None
     max_items: int | None = None
+    # The branches of an ``anyOf`` or ``oneOf`` that bound differently: a value follows one of them.
+    either: tuple[Bounds, ...] = ()
+
+    def shown(self) -> str:
+        """Write the bounds that are set, and only them."""
+        return (
+            ", ".join(
+                f"{field.name}={getattr(self, field.name)!r}"
+                for field in fields(self)
+                if getattr(self, field.name) not in (None, ())
+            )
+            or "nothing"
+        )
 
     def over(self, other: Bounds) -> Bounds:
         """Complete these bounds by those of another schema the same value follows."""
@@ -67,6 +81,7 @@ class Bounds:
             self.enum if self.enum is not None else other.enum,
             self.min_items if self.min_items is not None else other.min_items,
             self.max_items if self.max_items is not None else other.max_items,
+            self.either or other.either,
         )
 
 
@@ -96,10 +111,44 @@ def bounds_of(schema: Any, at: Any, follow: Callable[[Any, Any], tuple[Any, Any]
         named.get("minItems"),
         named.get("maxItems"),
     )
-    for part in ("allOf", "anyOf", "oneOf"):
-        for each in cast("list[Any]", named.get(part) or []):
-            found = found.over(bounds_of(each, at, follow))
+    for each in cast("list[Any]", named.get("allOf") or []):
+        found = found.over(bounds_of(each, at, follow))
+    for part in ("anyOf", "oneOf"):
+        # The branches are alternatives, not a conjunction; a ``null`` one (an optional parameter)
+        # bounds nothing, and a single branch left is the schema itself.
+        branches = [
+            bounds_of(each, at, follow)
+            for each in cast("list[Any]", named.get(part) or [])
+            if follow(each, at)[0] != {"type": "null"}
+        ]
+        if len(branches) == 1:
+            found = found.over(branches[0])
+        elif branches:
+            found = replace(found, either=tuple(branches))
     return found
+
+
+def agrees(have: Bounds, want: Bounds) -> bool:
+    """Tell the bounds a service declares as the contract's, its alternatives included.
+
+    The contract may write a value as one of several schemas (an ``enum`` or a ``pattern``) where
+    the service writes one pattern of both: that pattern must accept each value of each ``enum``
+    and hold the pattern of each other branch.
+    """
+    if not want.either or have.either:
+        return have == want
+    if have.pattern is None or have.enum is not None:
+        return False
+    if replace(have, pattern=None) != replace(want, either=()):
+        return False
+    for branch in want.either:
+        if branch.enum is not None and not all(
+            re.fullmatch(have.pattern, str(value)) for value in branch.enum
+        ):
+            return False
+        if branch.pattern is not None and branch.pattern.strip("^$") not in have.pattern:
+            return False
+    return True
 
 
 class Contract:
@@ -284,9 +333,9 @@ def drifting(contract: Contract, served: dict[str, Any]) -> dict[tuple[str, str,
         for (place, name), have in parameters.items():
             if (place, name) not in in_contract:
                 found[operation, place, name] = "not in the contract"
-            elif have != in_contract[place, name]:
+            elif not agrees(have, in_contract[place, name]):
                 found[operation, place, name] = (
-                    f"declared {have}, contract {in_contract[place, name]}"
+                    f"declared {have.shown()}, contract {in_contract[place, name].shown()}"
                 )
     return found
 
@@ -353,31 +402,51 @@ def test_an_operation_that_lacks_either_is_found(tmp_path: Path) -> None:
     )
 
 
-# The bounds a route checks itself, for the contract names the refusal and the moment: the bounds
-# of the table of the roles of access are read as integers with the other parameters, and judged
-# after them, a negative one ``NUMBER_INVALID`` and named with the faults of the audit columns in
-# one refusal (``role_filters``, ``listAccessRoles``). Declared on the parameter, ``ge=0`` would
-# refuse it first, under another code. Every entry is a drift this test finds: one that no longer
-# is fails it.
+# The drifts of the parameters a route checks itself, each pinned with its exact words: a change of
+# one of them, or a new drift on the same parameter, fails the test. Every entry is a drift this
+# test finds: one that no longer is fails it.
 #
-# The same holds, found when ``pattern``, ``enum`` and ``minItems`` joined the comparison (#2185),
-# of the parameters read as text by a model of the query or by a route and judged after them, whose
-# refusal the contract names: the decimal bounds of the grid of the hourly rates and of the roles
-# of resource (``pattern``), the correlation and the actions of the journal (``pattern``,
-# ``minItems``). And of the sort of the grid, which the contract writes as an ``enum`` or a
-# ``pattern`` and the service as one pattern of both.
-CHECKED_BY_THE_ROUTE = {
-    ("listAccessRoles", "query", "holder_count_min"),
-    ("listAccessRoles", "query", "holder_count_max"),
-    ("getHourlyRateGrid", "query", "rate_min"),
-    ("getHourlyRateGrid", "query", "rate_max"),
-    ("getHourlyRateGrid", "query", "sort_by"),
-    ("listAuditEvents", "query", "actions"),
-    ("listAuditEvents", "query", "correlation_id"),
-    ("listResourceRoles", "query", "headcount_min"),
-    ("listResourceRoles", "query", "headcount_max"),
-    ("listResourceRoles", "query", "monthly_hours_min"),
-    ("listResourceRoles", "query", "monthly_hours_max"),
+# The bounds of the table of the roles of access are read as integers with the other parameters
+# and judged after them: a negative one ``NUMBER_INVALID``, named with the faults of the audit
+# columns in one refusal (``role_filters``, ``listAccessRoles``). The contract names
+# ``NUMBER_INVALID`` at the parameter, in 422; declared on the parameter, ``ge=0`` would give a
+# validation 422 of another code.
+#
+# The same holds of the parameters read as text by a model of the query or by a route, whose
+# refusal the contract names (#2185): the decimal bounds of the grid of the hourly rates and of the
+# roles of resource (``pattern``), the actions of the journal (``minItems``). The correlation of
+# the journal is declared by its model (``Field(pattern=CORRELATION)``, ``api/audit.py``), which
+# FastAPI does not describe: a blind spot of this comparison, which reads the application
+# description. The decision on these drifts is still to take (#2303).
+CHECKED_BY_THE_ROUTE: dict[tuple[str, str, str], str] = {
+    ("listAccessRoles", "query", "holder_count_min"): (
+        "declared nothing, contract low=(Decimal('0'), False)"
+    ),
+    ("listAccessRoles", "query", "holder_count_max"): (
+        "declared nothing, contract low=(Decimal('0'), False)"
+    ),
+    ("listAuditEvents", "query", "actions"): ("declared nothing, contract min_items=1"),
+    ("listAuditEvents", "query", "correlation_id"): (
+        "declared nothing, contract pattern='^[A-Za-z0-9._-]{1,64}$'"
+    ),
+    ("getHourlyRateGrid", "query", "rate_min"): (
+        r"declared nothing, contract pattern='^-?\\d+(\\.\\d{1,2})?$'"
+    ),
+    ("getHourlyRateGrid", "query", "rate_max"): (
+        r"declared nothing, contract pattern='^-?\\d+(\\.\\d{1,2})?$'"
+    ),
+    ("listResourceRoles", "query", "monthly_hours_min"): (
+        r"declared nothing, contract pattern='^-?\\d+(\\.\\d+)?$'"
+    ),
+    ("listResourceRoles", "query", "monthly_hours_max"): (
+        r"declared nothing, contract pattern='^-?\\d+(\\.\\d+)?$'"
+    ),
+    ("listResourceRoles", "query", "headcount_min"): (
+        r"declared nothing, contract pattern='^-?\\d+(\\.\\d+)?$'"
+    ),
+    ("listResourceRoles", "query", "headcount_max"): (
+        r"declared nothing, contract pattern='^-?\\d+(\\.\\d+)?$'"
+    ),
 }
 
 
@@ -390,7 +459,7 @@ def test_the_bounds_of_every_parameter_the_service_declares_are_those_of_the_con
     # #2185, ``pattern``, ``enum``, ``minItems`` and ``maxItems``, and a parameter the contract
     # lacks.
     found = drifting(Contract(CONTRACT), create_app(services).openapi())
-    assert found.keys() == CHECKED_BY_THE_ROUTE, found
+    assert found == CHECKED_BY_THE_ROUTE, found
 
 
 def list_things(
@@ -414,6 +483,14 @@ def list_more(
     del reference, kind, tags, unknown
 
 
+def list_sorted(
+    sort: str = Query("a", pattern=r"^(a|c\.[0-9]+)$"),
+    sort_kept: str = Query("a", pattern=r"^(a|b|c\.[0-9]+)$"),
+) -> None:
+    """Declare a sort the contract writes as an enum or a pattern."""
+    del sort, sort_kept
+
+
 @pytest.mark.requirement("WF-ARC-0060-A")
 def test_a_bound_that_drifts_from_the_contract_is_found(tmp_path: Path) -> None:
     (tmp_path / "parameters.yaml").write_text(
@@ -424,6 +501,10 @@ def test_a_bound_that_drifts_from_the_contract_is_found(tmp_path: Path) -> None:
         "Kept: { name: kept, in: query, schema: { type: integer, minimum: 1 } }\n"
         "Reference: { name: reference, in: query, schema: { type: string, pattern: '^b$' } }\n"
         "Kind: { name: kind, in: query, schema: { type: string, enum: [b, a, c] } }\n"
+        "Sort: { name: sort, in: query, schema: { anyOf: ["
+        "{ type: string, enum: [a, b] }, { type: string, pattern: '^c\\.[0-9]+$' }] } }\n"
+        "SortKept: { name: sort_kept, in: query, schema: { anyOf: ["
+        "{ type: string, enum: [a, b] }, { type: string, pattern: '^c\\.[0-9]+$' }] } }\n"
         "Tags: { name: tags, in: query,"
         " schema: { type: array, items: { type: string }, minItems: 1, maxItems: 4 } }\n",
         encoding="utf-8",
@@ -441,24 +522,45 @@ def test_a_bound_that_drifts_from_the_contract_is_found(tmp_path: Path) -> None:
         "        - $ref: 'parameters.yaml#/Reference'\n"
         "        - $ref: 'parameters.yaml#/Kind'\n"
         "        - $ref: 'parameters.yaml#/Tags'\n"
+        "        - $ref: 'parameters.yaml#/Sort'\n"
+        "        - $ref: 'parameters.yaml#/SortKept'\n"
         "      responses: { '200': {}, '422': {} }\n",
         encoding="utf-8",
     )
     app = FastAPI()
     app.add_api_route(
-        "/things", list_things, operation_id="listThings", dependencies=[Depends(list_more)]
+        "/things",
+        list_things,
+        operation_id="listThings",
+        dependencies=[Depends(list_more), Depends(list_sorted)],
     )
     found = drifting(Contract(tmp_path / "openapi.yaml"), app.openapi())
     # The limit is wrong above; the page excludes zero as the contract does, though 3.0 writes it
     # with a boolean and 3.1 with the limit itself; the code and the kept parameter agree. The
     # pattern, the set of the enum and the count of the items each drift, and a parameter the
     # contract lacks is named (#2185).
-    assert found == {
-        ("listThings", "query", "limit"): found["listThings", "query", "limit"],
-        ("listThings", "query", "reference"): found["listThings", "query", "reference"],
-        ("listThings", "query", "kind"): found["listThings", "query", "kind"],
-        ("listThings", "query", "tags"): found["listThings", "query", "tags"],
-        ("listThings", "query", "unknown"): "not in the contract",
+    assert found.keys() == {
+        ("listThings", "query", "limit"),
+        ("listThings", "query", "reference"),
+        ("listThings", "query", "kind"),
+        ("listThings", "query", "tags"),
+        ("listThings", "query", "unknown"),
+        ("listThings", "query", "sort"),
     }
+    assert found["listThings", "query", "unknown"] == "not in the contract"
+    limit_text = found["listThings", "query", "limit"]
+    assert "high=(Decimal('100'), False)" in limit_text
+    assert "high=(Decimal('500'), False)" in limit_text
     assert "pattern='^a$'" in found["listThings", "query", "reference"]
-    assert "max_items=3" in found["listThings", "query", "tags"]
+    assert "pattern='^b$'" in found["listThings", "query", "reference"]
+    kind_text = found["listThings", "query", "kind"]
+    assert "enum=frozenset({'a', 'b'})" in kind_text or "enum=frozenset({'b', 'a'})" in kind_text
+    assert "'c'" in kind_text
+    tags_text = found["listThings", "query", "tags"]
+    assert "min_items=1" in tags_text
+    assert "max_items=3" in tags_text
+    assert "max_items=4" in tags_text
+    # The contract writes the sort as an enum or a pattern: the pattern served omits ``b``, which
+    # the enum accepts, and is found; the one that holds both agrees.
+    assert "pattern=" in found["listThings", "query", "sort"]
+    assert "either=" in found["listThings", "query", "sort"]

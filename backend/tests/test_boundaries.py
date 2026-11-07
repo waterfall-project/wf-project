@@ -20,15 +20,22 @@ import pytest
 
 PROJECT = Path(__file__).resolve().parents[1] / "pyproject.toml"
 
-LAYERED = (
-    "access_roles",
-    "backups",
-    "indicator_settings",
-    "risk_settings",
-    "cost_settings",
-    "users",
-    "resource_settings",
-)
+
+def layered() -> tuple[str, ...]:
+    """Name the modules the contract of the layers of the core orders, as the project file does."""
+    contracts = tomllib.loads(PROJECT.read_text(encoding="utf-8"))["tool"]["importlinter"][
+        "contracts"
+    ]
+    ordered = [
+        contract
+        for contract in contracts
+        if contract["type"] == "layers" and contract.get("containers") == ["waterfall.core"]
+    ]
+    assert len(ordered) == 1
+    return tuple(name.strip() for layer in ordered[0]["layers"] for name in layer.split("|"))
+
+
+LAYERED = layered()
 LAYOUT = {
     "witness/__init__.py": "",
     "bootstrap.py": "",
@@ -138,6 +145,30 @@ def test_a_module_of_the_core_may_not_import_one_of_a_layer_above_it_by_its_inte
     result = lint(sample, f"core.{below}.interface", f"from sample.core.{above} import interface\n")
     assert result.returncode == 1
     assert f"sample.core.{below} is not allowed to import sample.core.{above}" in result.stdout
+
+
+def test_two_modules_of_a_same_layer_may_not_import_each_other(sample: Path) -> None:
+    result = lint(
+        sample, "core.access_roles.interface", "from sample.core.backups import interface\n"
+    )
+    assert result.returncode == 1
+    assert "sample.core.access_roles.interface -> sample.core.backups" in result.stdout
+
+
+@pytest.mark.parametrize(
+    ("importer", "imported_module"),
+    [("resource_settings", "users"), ("users", "resource_settings")],
+)
+def test_a_module_of_the_core_may_not_reach_the_tables_of_another(
+    sample: Path, importer: str, imported_module: str
+) -> None:
+    # Not through its interface: refused whatever the layers say of the two (the second pair is
+    # one the layers allow, so that only the independence of the modules refuses it).
+    result = lint(
+        sample, f"core.{importer}.interface", f"from sample.core.{imported_module} import tables\n"
+    )
+    assert result.returncode == 1
+    assert f"sample.core.{importer}.interface -> sample.core.{imported_module}" in result.stdout
 
 
 def test_a_module_of_the_core_may_import_one_of_a_layer_below_it_by_its_interface(
