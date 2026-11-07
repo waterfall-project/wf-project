@@ -91,7 +91,7 @@ through the interface of the accounts, with no identity provider, under an addre
 `waterfall.test`; they never sign in —, the contributors, the subprojects, the work breakdown, then
 the revisions 100, 101 and 102 of PRJ-001, their main structure and their transitions. It stops
 where the rules stop with no task and no line: PRJ-001 stays in Pricing (the passage to In progress
-belongs to the epic that serves the offer and the order, EP-07); the 100 is marked « v1.0 », the 101
+belongs to the epic that serves the offer and the order, EP-07); the 100 is marked « Offre v1.0 », the 101
 « Référence », the 102 is open; the designation of the 100 is tried and refused for the lack of tasks
 (`revision_has_tasks_and_lines`, noted in the output, `witness.designation_refused`: a designation
 that succeeds, or any other refusal, is a defect that stops the command), so PRJ-001 has no

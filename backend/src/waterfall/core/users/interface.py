@@ -36,7 +36,7 @@ from waterfall.core.users.accounts import (
     find_account,
     find_account_of_subject,
     find_active_accounts,
-    find_first_local_account_of_platform,
+    find_local_account_of_platform_at,
     lock_account_at,
     note_sessions_closed,
 )
@@ -311,9 +311,13 @@ def read_authors(session: Session, user_ids: Collection[UUID]) -> dict[UUID, Aut
     }
 
 
-def read_installation_administrator(session: Session) -> Account | None:
-    """Read the administrator the bootstrap created, or ``None`` before it did (WF-EXP-0020)."""
-    account = find_first_local_account_of_platform(session)
+def read_installation_administrator(session: Session, installed_at: datetime) -> Account | None:
+    """Read the administrator the bootstrap created at ``installed_at``, or ``None`` before it did.
+
+    The administrator is the account created in the installation's own instant (WF-EXP-0020): the
+    platform creates other local accounts for the witness, at the instants of its chronology.
+    """
+    account = find_local_account_of_platform_at(session, installed_at)
     return None if account is None else _account(session, account)
 
 

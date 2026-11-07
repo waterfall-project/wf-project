@@ -23,7 +23,7 @@ from installed_reference import install
 from projects_support import PROJECTS, READING, person
 from pydantic import SecretStr
 from sqlalchemy import func, select, text
-from support import WITNESS
+from support import WITNESS, captured_logs
 from test_witness import load, wipe
 
 from waterfall.core.cost_settings.tables import CostCategory
@@ -34,7 +34,7 @@ from waterfall.core.projects.tables import (
     Subproject,
     WorkPackage,
 )
-from waterfall.core.revisions.tables import Revision
+from waterfall.core.revisions.tables import CostStructure, Revision
 from waterfall.core.users.tables import UserAccount
 from waterfall.platform.audit import Act, AuditEntry
 from waterfall.platform.database import utc_now
@@ -343,6 +343,22 @@ def test_the_dates_of_the_reference_are_those_of_the_loading(witness: Database) 
 
 
 @pytest.mark.requirement("WF-QUA-0040-A")
+def test_the_revisions_100_101_and_102_each_hold_their_main_cost_structure(
+    witness: Database,
+) -> None:
+    with witness.transaction() as session:
+        main = [
+            session.scalar(
+                select(func.count())
+                .select_from(CostStructure)
+                .where(CostStructure.revision_id == each, CostStructure.kind == "main")
+            )
+            for each in (REVISION_100, REVISION_101, REVISION_102)
+        ]
+    assert main == [1, 1, 1]
+
+
+@pytest.mark.requirement("WF-QUA-0040-A")
 def test_the_designation_of_the_offer_is_tried_refused_and_noted_in_the_output(
     logs: Logs, witness: Database
 ) -> None:
@@ -445,24 +461,33 @@ def transition_not_made(events: list[dict[str, Any]]) -> None:
 
 @pytest.mark.requirement("WF-QUA-0040-A")
 @pytest.mark.parametrize(
-    "mutate",
+    "case",
     [
-        stray_field,
-        unknown_kind,
-        out_of_order,
-        unknown_revision,
-        misnamed_version,
-        transition_not_made,
+        (stray_field, "Extra inputs are not permitted"),
+        (unknown_kind, "project_deleted"),
+        (out_of_order, "does not come after event"),
+        (unknown_revision, "revision 999 that revisions.json does not"),
+        (misnamed_version, "revision 100 is marked Offre v9, not Offre v1.0"),
+        (transition_not_made, "the project did not move created to in_progress"),
     ],
 )
 def test_a_chronology_that_strays_from_its_model_or_the_description_stops_the_command(
-    mutate: Any, tmp_path: Path, witness: Database, owner: Engine, service_database_url: str
+    case: tuple[Any, str],
+    tmp_path: Path,
+    witness: Database,
+    owner: Engine,
+    service_database_url: str,
 ) -> None:
+    mutate, cause = case
     wipe(owner)
     install(owner)
+    before = counts(witness)
     directory = copied(tmp_path, mutate)
-    assert load(service_database_url, directory) == 1
-    assert counts(witness)["project"] == 0
+    with captured_logs() as logs:
+        assert load(service_database_url, directory) == 1
+    (failed,) = logs.named("witness.failed")
+    assert cause in failed["exception"]
+    assert counts(witness) == before
 
 
 @pytest.mark.requirement("WF-QUA-0040-A")

@@ -92,7 +92,7 @@ sans fournisseur d'identité, sous une adresse de `waterfall.test` ; ils ne se c
 contributeurs, les sous-projets, le lotissement, puis les révisions 100, 101 et 102 de PRJ-001, leur
 structure principale et leurs transitions. Elle s'arrête où les règles s'arrêtent sans tâche ni
 ligne : PRJ-001 reste en Chiffrage (le passage En cours est de l'EPIC qui sert l'offre et la
-commande, EP-07) ; la 100 est marquée « v1.0 », la 101 « Référence », la 102 est ouverte ; la
+commande, EP-07) ; la 100 est marquée « Offre v1.0 », la 101 « Référence », la 102 est ouverte ; la
 désignation de la 100 est tentée et refusée faute de tâches (`revision_has_tasks_and_lines`, notée
 dans la sortie, `witness.designation_refused` : une désignation qui aboutit, ou tout autre refus,
 est un défaut qui arrête la commande), si bien que PRJ-001 n'a pas de référence ; le code de PRJ-001

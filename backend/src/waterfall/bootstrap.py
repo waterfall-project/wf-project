@@ -266,7 +266,11 @@ def _bootstrap(
     with database.transaction() as session:
         installation = session.get(Installation, THE_ROW)
         language = None if installation is None else installation.default_language
-        administrator = read_installation_administrator(session)
+        administrator = (
+            None
+            if installation is None
+            else read_installation_administrator(session, installation.installed_at)
+        )
     if language is not None:
         if administrator is None:
             raise InstallationRefusedError(NO_ADMINISTRATOR)

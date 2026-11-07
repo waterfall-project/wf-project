@@ -446,6 +446,9 @@ def test_the_accounts_of_a_list_are_read_in_bulk_whatever_its_size(
     )
     assert written.status_code == 200, written.text
     assert len(written.json()["items"]) == len(many)
+    # A floor: a listener that saw nothing would make the two counts equal at zero (#2277).
+    assert few_listed >= 1
+    assert few_written >= 1
     assert many_written == few_written
     assert many_listed == few_listed
 

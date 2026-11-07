@@ -4,7 +4,7 @@
 
 ``createProject``, ``getProject`` and ``updateProject`` on a platform whose reference is complete
 (``projects_support``) or not, every answer checked against the contract. The list is tried in
-``test_projects_list.py``, the witness in ``test_projects_witness.py``.
+``test_projects_list.py``, the witness in ``test_witness_projects.py``.
 """
 
 from concurrent.futures import ThreadPoolExecutor

@@ -25,7 +25,7 @@ the role of the service may execute it, and holds no other right of DDL.
 
 Declared by US-0910/L1, which fills the partitions; US-0960 fills the rest. ``load_revision``
 opens a revision of the witness under the identifier it imposes, by the very rules of the opening
-(#1402), at the instant of the loading until US-0990/L2 imposes the chronology's.
+(#1402), at the instant of the act it is given: the chronology's, for the witness.
 """
 
 from dataclasses import dataclass

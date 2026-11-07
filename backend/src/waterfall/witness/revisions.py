@@ -157,7 +157,7 @@ class _Walk:
             case RevisionMarked():
                 self._mark(write, act)
             case DesignationAttempted():
-                self._designate(write)
+                self._designate(write, act)
             case CodeEntered():
                 self._enter(write, act)
             case StateTransition():
@@ -177,7 +177,7 @@ class _Walk:
             raise ValueError(message)
         load_marking(self.session, revision.revision_id.root, name, revision.description, act)
 
-    def _designate(self, write: DesignationAttempted) -> None:
+    def _designate(self, write: DesignationAttempted, act: Act) -> None:
         """Try the designation of a revision: refused for the lack of tasks, which is noted."""
         revision = self.revision(write)
         project_id = revision.project_id.root
@@ -189,7 +189,7 @@ class _Walk:
                 self.session,
                 project_id,
                 designated,
-                self.witness.act,
+                act,
                 self.manager,
             )
         except ConflictError as refused:
