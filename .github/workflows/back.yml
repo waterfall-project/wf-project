@@ -32,7 +32,10 @@ jobs:
           POSTGRES_HOST_AUTH_METHOD: trust
         ports:
           - 5432:5432
+        # Its data in memory, as on a workstation (compose.test.yaml): on the disk of the runner,
+        # each commit waits for its write, and the tests that load the witness wait the most.
         options: >-
+          --tmpfs /var/lib/postgresql
           --health-cmd "pg_isready --host 127.0.0.1 --username postgres"
           --health-interval 2s
           --health-timeout 3s

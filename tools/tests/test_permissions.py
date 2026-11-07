@@ -82,6 +82,7 @@ ALLOWED = [
     "Bash(git branch -d:*)",
     "Bash(git worktree unlock:*)",
     "Bash(git worktree remove:*)",
+    "Bash(git worktree prune:*)",
     "Bash(make tracking:*)",
     "Bash(make slot:*)",
     "Bash(make slot-release:*)",
@@ -89,8 +90,11 @@ ALLOWED = [
 ]
 
 
-def test_the_allow_list_is_the_twenty_two_rules_of_the_story() -> None:
-    """Exactly the twenty-two rules (US-1350's twenty-one and ``make e2e-down``), no duplicate."""
+def test_the_allow_list_is_the_twenty_three_rules_of_the_story() -> None:
+    """Exactly the twenty-three rules, no duplicate.
+
+    US-1350's twenty-one, ``make e2e-down`` and ``git worktree prune`` (#2418).
+    """
     allow = _allow()
     assert len(allow) == len(set(allow))
     assert set(allow) == set(ALLOWED)
