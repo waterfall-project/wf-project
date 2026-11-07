@@ -66,8 +66,8 @@ PRISM   := npx --yes @stoplight/prism-cli@$(PRISM_VERSION)
 	test-tools test-openldap lint-tools typecheck-tools sources fixtures check-fixtures requirements \
 	requirements-release screens readmes reuse lint-workflows \
 	lint-shell check slot slot-release e2e-down slots test-services test-services-down \
-	check-all check-repo check-spec \
-	check-contract check-back lint-back typecheck-back imports-back test-back check-front \
+	check-all check-repo check-repo-tools check-spec \
+	check-contract check-back check-back-static check-back-tests coverage-back-merge lint-back typecheck-back imports-back test-back check-front \
 	check-front-code check-front-e2e check-front-image \
 	install-front lint-front typecheck-front test-front build-front prerendered-front generate-client client-up-to-date generate-server-models server-models-up-to-date catalogs \
 	coverage-back coverage-front roadmap check-roadmap e2e e2e-measure e2e-browsers lot-size tracking merge-queue merge-queue-check \
@@ -381,10 +381,12 @@ check: ## Run the checks of what the change touches (BASE=origin/main by default
 		echo "== $$target"; $(MAKE) --no-print-directory $$target || exit 1; \
 	done
 
-check-all: check-repo check-spec check-contract check-back check-front check-front-image check-roadmap check-keycloak check-service check-production ## Run every family of checks
+check-all: check-repo check-repo-tools check-spec check-contract check-back check-front check-front-image check-roadmap check-keycloak check-service check-production ## Run every family of checks
 
 check-repo: reuse lint-workflows lint-shell lint-docker lint-compose sources check-fixtures \
-	requirements screens readmes lint-tools typecheck-tools test-tools ## Checks that run on any change
+	requirements screens readmes ## Checks that run on any change
+
+check-repo-tools: lint-tools typecheck-tools test-tools ## The tools of the repository: lint, types, tests
 
 check-spec: build-doc-strict ## The projection builds without warning and is up to date
 	@git diff --exit-code --stat -- $(SPEC)/waterfall-spec.md \
@@ -394,7 +396,15 @@ check-contract: lint-openapi inventory mock-data-up-to-date server-models-up-to-
 	@git diff --exit-code --stat -- $(API)/INVENTORY.md \
 		|| { echo "  INVENTORY.md is not the one the contract produces: run make inventory"; exit 1; }
 
-check-back: lint-back typecheck-back imports-back $(call full-else,coverage-back,test-back) ## The back: lint, types, boundaries, tests; coverage replaces the plain tests in the full tier
+check-back: check-back-static check-back-tests ## The back: lint, types, boundaries, tests; coverage replaces the plain tests in the full tier
+
+# The chain runs the back apart, as the front (back.yml): check-back-static on one runner,
+# check-back-tests SHARD=i/N on each of the others, and in the full tier the measures of their parts
+# gathered (coverage-back-merge). A part is the i-th of N of the tests, one in N in the order of their
+# collection: the files that load the witness, the longest, are spread over all the parts.
+check-back-static: lint-back typecheck-back imports-back ## The back but its tests: lint, types, boundaries
+
+check-back-tests: $(call full-else,coverage-back,test-back) ## The tests of the back, SHARD=i/N one part of them; in the full tier, measured
 
 lint-back: ## Lint and format check of the back
 	@cd $(BACK) && uv run --frozen ruff check . && uv run --frozen ruff format --check .
@@ -409,12 +419,26 @@ imports-back: ## The boundaries of the core (WF-ARC-0010)
 # one process per core (pytest-xdist), eight at most — each takes a database of Redis of its own,
 # which has sixteen. The tests of Keycloak (test-keycloak) stay on one: one of them restarts it.
 PYTEST_WORKERS = -n $(WATERFALL_PROCESSORS) --maxprocesses 8
+BACK_PART = $(if $(SHARD),--shard=$(SHARD))
 
-test-back: ## Tests of the back (TESTS=<file> runs one file)
-	@cd $(BACK) && $(TESTING_BACK) uv run --frozen pytest -q $(PYTEST_WORKERS) $(TESTS)
+test-back: ## Tests of the back (TESTS=<file> runs one file; SHARD=i/N one part of them, as the chain spreads them)
+	@cd $(BACK) && $(TESTING_BACK) uv run --frozen pytest -q $(PYTEST_WORKERS) $(BACK_PART) $(TESTS)
 
-coverage-back: ## Code coverage of the back: 90 % of lines, 85 % of branches (US-0060)
+# With SHARD, one part of the tests measured alone, its data kept apart for coverage-back-merge
+# (backend/.coverage-parts/), out of the reach of the next measure, which erases the data files beside
+# its own; the thresholds are held on the parts gathered alone.
+coverage-back: ## Code coverage of the back: 90 % of lines, 85 % of branches (US-0060); SHARD=i/N measures one part of the tests, for coverage-back-merge
+ifdef SHARD
+	@cd $(BACK) && $(TESTING_BACK) uv run --frozen pytest $(PYTEST_WORKERS) --quiet --cov --cov-report= $(BACK_PART)
+	@mkdir -p $(BACK)/.coverage-parts && mv $(BACK)/.coverage $(BACK)/.coverage-parts/.coverage.part-$(subst /,-of-,$(SHARD))
+else
 	@cd $(BACK) && $(TESTING_BACK) uv run --frozen pytest $(PYTEST_WORKERS) --quiet --cov --cov-report=json:coverage.json
+	@$(WFTOOLS).codecoverage coverage.py $(BACK)/coverage.json
+endif
+
+coverage-back-merge: ## The code coverage of the back from the parts of coverage-back SHARD=i/N (backend/.coverage-parts/), held to the same thresholds
+	@cd $(BACK) && uv run --frozen coverage combine --quiet --keep .coverage-parts \
+		&& uv run --frozen coverage json --quiet -o coverage.json
 	@$(WFTOOLS).codecoverage coverage.py $(BACK)/coverage.json
 
 # The front in two halves, which the chain runs side by side (front.yml, e2e.yml); on a

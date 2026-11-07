@@ -44,6 +44,7 @@ jobs:
     outputs:
       # The tier, decided once: full in the merge queue, the one chosen when run by hand.
       tier: ${{ github.event_name == 'merge_group' && 'full' || inputs.tier || 'fast' }}
+      tools: ${{ steps.families.outputs.tools }}
       spec: ${{ steps.families.outputs.spec }}
       contract: ${{ steps.families.outputs.contract }}
       back: ${{ steps.families.outputs.back }}
@@ -71,6 +72,11 @@ jobs:
 
   repo:
     uses: ./.github/workflows/repo.yml
+
+  tools:
+    needs: changes
+    if: needs.changes.outputs.tools == 'true'
+    uses: ./.github/workflows/tools.yml
 
   spec:
     needs: changes
@@ -183,6 +189,7 @@ jobs:
     needs:
       - changes
       - repo
+      - tools
       - spec
       - contract
       - back
