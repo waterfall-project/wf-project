@@ -45,11 +45,11 @@ from waterfall.core.revisions.interface.shared import (
     inscribe_revision,
     refuse,
 )
+from waterfall.core.revisions.registry import Registry
 from waterfall.core.revisions.tables import Revision
 from waterfall.platform.audit import Act, AuditEntry
 from waterfall.platform.database import utc_now
 from waterfall.platform.errors import PreconditionFailedError
-from waterfall.platform.registry import Registry
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -183,6 +183,6 @@ def revision_has_tasks_and_lines(session: Session, revision_id: UUID) -> bool:
     tasks alone never make a designation pass before EP-07 registers the lines.
     """
     questions = _TASKS_AND_LINES.entries()
-    if not REVISION_PARTS <= {part for part, _ in questions}:
+    if not {part for part, _ in questions} >= REVISION_PARTS:
         return False
     return all(question(session, revision_id) for _, question in questions)

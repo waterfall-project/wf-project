@@ -55,11 +55,11 @@ from waterfall.core.revisions.interface.shared import (
     inscribe_revision,
     refuse,
 )
+from waterfall.core.revisions.registry import Registry
 from waterfall.core.revisions.tables import Revision
 from waterfall.platform.audit import Act
 from waterfall.platform.database import utc_now
 from waterfall.platform.errors import ConflictError, FieldError, PreconditionFailedError
-from waterfall.platform.registry import Registry
 from waterfall.platform.tasks import PROJECT, submit
 
 if TYPE_CHECKING:

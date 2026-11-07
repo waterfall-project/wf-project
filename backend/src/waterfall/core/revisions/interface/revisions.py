@@ -66,12 +66,12 @@ from waterfall.core.revisions.interface.structures import (
     create_main_structure,
     delete_structures,
 )
+from waterfall.core.revisions.registry import Registry
 from waterfall.core.revisions.states import state_of
 from waterfall.core.revisions.tables import Revision
 from waterfall.platform.database import contains, unique_violated
 from waterfall.platform.errors import NotFoundError, PreconditionFailedError
 from waterfall.platform.identifiers import new_id
-from waterfall.platform.registry import Registry
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Collection

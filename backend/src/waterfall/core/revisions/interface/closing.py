@@ -19,7 +19,7 @@ its story fills it.
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Literal
 
-from waterfall.platform.registry import Registry
+from waterfall.core.revisions.registry import Registry
 
 if TYPE_CHECKING:
     from collections.abc import Callable

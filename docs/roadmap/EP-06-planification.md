@@ -429,7 +429,8 @@ supprime donc ses nœuds avec ses structures, et un test l'éprouve.
 ### Les points d'extension
 
 EP-06 est le premier EPIC à remplir ceux d'EP-04 et à créer ceux qu'EP-05 a laissés en
-promesse ; chacun est un registre ordonné sur le modèle de `core/revisions/registry.py`, rempli à
+promesse ; chacun est un registre ordonné, un `Registry` de `platform/registry.py` (que
+`core/revisions/registry.py` réexporte pour les fichiers d'EP-07, d'EP-09 et d'EP-10), rempli à
 l'import de l'interface du module qui enregistre, et le test des points d'entrée de #2180 les
 couvre tous : pour chaque processus — l'API (`create_app`), le worker (`handlers`), le chargeur
 (`load_witness`) — et chaque registre, les extensions attendues sont présentes.
