@@ -53,7 +53,9 @@ La portée dit si l'exigence est entière ici, commencée ici et close par un EP
 close ici après avoir été commencée plus tôt. Chaque exigence n'est close que par un seul EPIC.
 La colonne US se remplit quand l'EPIC passe `prêt`. WF-PLA-0040 et WF-PLA-0050 sont commencées
 par EP-06 et closes ici : leur Vérif demande le reste à engager d'une ligne et le Kanban (cadrage
-d'EP-06, décision de l'auteur du 2026-11-07).
+d'EP-06, décision de l'auteur du 2026-11-07). WF-REV-0060 et WF-REF-0010 sont commencées par EP-07
+et closes ici : leur Vérif demande un import de reste à engager et la grille de reste à engager
+(cadrage d'EP-07, décision de l'auteur du 2026-11-07).
 
 | Exigence | Titre | Portée | US |
 |---|---|---|---|
@@ -82,6 +84,8 @@ d'EP-06, décision de l'auteur du 2026-11-07).
 | `WF-CYC-0100-A` | Lecture seule des projets terminaux | fin — amorcée en EP-04 | — |
 | `WF-CYC-0110-A` | Consultation des projets terminaux | fin — amorcée en EP-04 | — |
 | `WF-IHM-0080-A` | Traitements longs | fin — amorcée en EP-02, EP-15, EP-04 | — |
+| `WF-REV-0060-A` | Année de référence et mise à jour des taux à la création d’une révision | fin — amorcée en EP-15, EP-07 | — |
+| `WF-REF-0010-A` | Désactivation des objets du référentiel | fin — amorcée en EP-05, EP-07 | — |
 
 ## Opérations du contrat
 
@@ -147,7 +151,16 @@ EP-16 en écrit le contrat et la page, et EP-09 la clôt.
 
 ## Préalables
 
-EP-07 livré : le reste à engager part des montants budgétés. Le point ouvert PO-01
+`epic/EP-09` se tire d'`epic/EP-07` dès la fusion de son lot pivot, **US-1490/L1 #2370** — le socle
+d'EP-07, qui pose `estimate_line` avec ses grandeurs courantes et de référence, ses trois montants,
+son délai de paiement et son sous-projet, les tables images, et l'interface de `core/estimate` déclarée
+(`update_line`, que `setLineRemaining` étendra ; `revision_has_lines`) —, et non de `main` à la livraison
+d'EP-07 (décision de l'auteur du 2026-11-07, pour toute la série EP-06 → EP-07 → EP-09 → EP-10 → EP-08 ;
+l'exception du README, « Branches ») : elle reprend `epic/EP-07` à chaque lot que celui-ci fusionne et se
+fusionne dans `main` après elle. Les lots d'EP-09 qui réestiment des lignes attendent aussi US-1490/L3
+#2372 et L4 #2373 (la ligne lue, créée, modifiée, supprimée et déplacée), ceux du Kanban
+US-1410 #2324 d'EP-06 ; chaque lot nomme ceux qu'il attend par leur numéro. Le reste à engager part des
+montants budgétés. Le point ouvert PO-01
 (extraction des engagements et des heures par l'ERP) est à relire avant de détailler les US de
 l'import.
 

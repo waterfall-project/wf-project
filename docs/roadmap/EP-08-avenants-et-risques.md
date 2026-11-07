@@ -51,7 +51,10 @@ La portée dit si l'exigence est entière ici, commencée ici et close par un EP
 close ici après avoir été commencée plus tôt. Chaque exigence n'est close que par un seul EPIC.
 La colonne US se remplit quand l'EPIC passe `prêt`. WF-IHM-0110 est construite par EP-06 et close
 ici : son Vérif demande le réexamen d'un risque et la déclaration d'une survenance (cadrage
-d'EP-06, décision de l'auteur du 2026-11-07).
+d'EP-06, décision de l'auteur du 2026-11-07). WF-DEV-0010, WF-DEV-0030, WF-PRJ-0040, WF-DEV-0050,
+WF-REV-0080, WF-INTF-0100, WF-INTF-0090 et WF-REF-0030 sont commencées par EP-07 et closes ici :
+leur Vérif demande une ligne de provision, un différentiel, une fusion ou la déclaration d'un
+risque (cadrage d'EP-07, décision de l'auteur du 2026-11-07).
 
 | Exigence | Titre | Portée | US |
 |---|---|---|---|
@@ -60,7 +63,7 @@ d'EP-06, décision de l'auteur du 2026-11-07).
 | `WF-PLA-0170-A` | Rattachement au lotissement | fin — amorcée en EP-06 | — |
 | `WF-REV-0100-A` | Structures de coûts d'une révision | fin — amorcée en EP-04, EP-15 | — |
 | `WF-IHM-0020-A` | Contexte de lecture affiché | fin — amorcée en EP-02, EP-15 | — |
-| `WF-IHM-0110-A` | Annulation et rétablissement des saisies | fin — amorcée en EP-02, EP-06 | — |
+| `WF-IHM-0110-A` | Annulation et rétablissement des saisies | fin — amorcée en EP-02, EP-06, EP-07 | — |
 | `WF-DEV-0080-A` | Valeur planifiée | fin — amorcée en EP-07 | — |
 | `WF-RIS-0010-A` | Attributs d’un risque | fin — amorcée en EP-15 | — |
 | `WF-RIS-0020-A` | États d’un risque | fin — amorcée en EP-15 | — |
@@ -71,8 +74,16 @@ d'EP-06, décision de l'auteur du 2026-11-07).
 | `WF-ADM-0100-A` | Catalogue des permissions | fin — amorcée en EP-03 | — |
 | `WF-IND-0030-A` | Valeur acquise | fin — amorcée en EP-10 | — |
 | `WF-IND-0100-A` | Courbe de coûts cumulés | fin — amorcée en EP-10 | — |
-| `WF-INTF-0010-A` | Usages du chef de projet | fin — amorcée en EP-06 | — |
+| `WF-INTF-0010-A` | Usages du chef de projet | fin — amorcée en EP-06, EP-07 | — |
 | `WF-REF-0160-A` | Matrice de risques | fin — amorcée en EP-05 | — |
+| `WF-DEV-0010-A` | Taux horaires requis pour le calcul à la création d’un chiffrage | fin — amorcée en EP-07 | — |
+| `WF-DEV-0030-A` | Calcul du montant d’une ligne | fin — amorcée en EP-07 | — |
+| `WF-PRJ-0040-A` | Taux d’inflation du projet | fin — amorcée en EP-07 | — |
+| `WF-DEV-0050-A` | Grille de devis | fin — amorcée en EP-15, EP-07 | — |
+| `WF-REV-0080-A` | Comparaison de deux révisions | fin — amorcée en EP-15, EP-07 | — |
+| `WF-INTF-0100-A` | Import du devis (FLX-03) | fin — amorcée en EP-07 | — |
+| `WF-INTF-0090-A` | Imports et révisions marquées | fin — amorcée en EP-06, EP-07 | — |
+| `WF-REF-0030-A` | Natures de coût | fin — amorcée en EP-05, EP-07 | — |
 
 ## Opérations du contrat
 
