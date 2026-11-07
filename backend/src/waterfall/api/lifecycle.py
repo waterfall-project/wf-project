@@ -263,5 +263,8 @@ def put_reference_revision(
     if not body.confirmed:
         raise BadRequestError(CONFIRMATION_REQUIRED)
     act = Act(account.user_id, utc_now())
-    designate_reference(session, project_id, body.revision_id.root, body.lock_version.root, act)
-    return described(session, [read_project(session, project_id, viewer_of(actor))])[0]
+    viewer = viewer_of(actor)
+    designate_reference(
+        session, project_id, body.revision_id.root, body.lock_version.root, act, viewer
+    )
+    return described(session, [read_project(session, project_id, viewer)])[0]

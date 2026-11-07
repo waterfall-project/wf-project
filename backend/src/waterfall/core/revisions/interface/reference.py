@@ -29,6 +29,7 @@ from sqlalchemy import func, select
 from waterfall.core.projects.interface import (
     lock_for_designation,
     no_background_task_running,
+    require_project_manager,
     set_reference_revision,
 )
 from waterfall.core.revisions.commands import (
@@ -54,6 +55,8 @@ if TYPE_CHECKING:
     from uuid import UUID
 
     from sqlalchemy.orm import Session
+
+    from waterfall.core.projects.interface import Viewer
 
 # The questions a revision answers to bear tasks and lines: EP-06 its tasks, EP-07 its lines.
 _TASKS_AND_LINES: Registry[Callable[[Session, UUID], bool]] = Registry()
@@ -95,15 +98,22 @@ def _write(revision: Revision, *, reference: bool, act: Act) -> None:
 
 
 def designate_reference(
-    session: Session, project_id: UUID, revision_id: UUID, lock_version: int, act: Act
+    session: Session,
+    project_id: UUID,
+    revision_id: UUID,
+    lock_version: int,
+    act: Act,
+    viewer: Viewer,
 ) -> None:
     """Designate a marked revision reference of its project (``designateReferenceRevision``).
 
-    Judged under the lock of the project, at the counter read; nothing is written if refused. The
+    Judged under the lock of the project, where the writer is judged again as a project manager of
+    it (403, 404; #2207), then at the counter read; nothing is written if refused. The
     revision that is the reference already is designated again without a write: no counter, no
     inscription, no transition. The moment of the designation is taken under the lock.
     """
     project = lock_for_designation(session, project_id)
+    require_project_manager(session, project_id, viewer)
     act = replace(act, at=utc_now())
     target = found_revision(session, revision_id, project_id, lock=False)
     if project.lock_version != lock_version:

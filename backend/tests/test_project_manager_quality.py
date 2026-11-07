@@ -23,6 +23,7 @@ import pytest
 from projects_support import PROJECTS, Scene
 from projects_support import scene as make_scene
 from sqlalchemy import func, select
+from sqlalchemy.orm import Session
 from support import wait_for_a_lock
 
 from waterfall.core.projects.interface import (
@@ -32,7 +33,11 @@ from waterfall.core.projects.interface import (
     set_contributors,
 )
 from waterfall.core.projects.tables import Project, Subproject, WorkPackage
+from waterfall.core.revisions.interface import mark_revision
 from waterfall.core.revisions.tables import Revision
+from waterfall.platform.audit import Act
+from waterfall.platform.database import utc_now
+from waterfall.platform.logs import logging_context
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -76,6 +81,13 @@ def sent_by_the_manager(api: ContractClient, stage: Scene) -> dict[str, Send]:
     path, headers = project_path(stage), stage.manager.headers
     created = api.post(f"{path}/subprojects", headers=headers, json={"code": "A", "label": "A"})
     changed = api.post(f"{path}/subprojects", headers=headers, json={"code": "B", "label": "B"})
+    marked = api.post(f"{path}/revisions", headers=headers, json={}).json()
+    with (
+        logging_context(correlation_id="marking"),
+        Session(stage.owner) as session,
+        session.begin(),
+    ):
+        mark_revision(session, UUID(marked["revision_id"]), "V0", None, Act(None, utc_now()))
     revision = api.post(f"{path}/revisions", headers=headers, json={}).json()
     version = api.get(path, headers=headers).json()["lock_version"]
     breakdown = api.get(f"{path}/work-breakdown", headers=headers).json()
@@ -111,6 +123,15 @@ def sent_by_the_manager(api: ContractClient, stage: Scene) -> dict[str, Send]:
             f"{path}/revisions/{revision['revision_id']}/mark",
             headers=headers,
             json={"version_name": "V1", "lock_version": revision["lock_version"]},
+        ),
+        "designateReferenceRevision": lambda: api.put(
+            f"{path}/reference-revision",
+            headers=headers,
+            json={
+                "revision_id": marked["revision_id"],
+                "confirmed": True,
+                "lock_version": api.get(path, headers=headers).json()["lock_version"],
+            },
         ),
         "exitProject": lambda: api.post(
             f"{path}/exit",
@@ -181,6 +202,7 @@ def demote_the_manager(stage: Scene, api: ContractClient, during: Send) -> Any:
         "setWorkBreakdown",
         "abandonRevision",
         "markRevision",
+        "designateReferenceRevision",
         "exitProject",
     ],
 )
