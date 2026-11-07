@@ -23,15 +23,21 @@ relevés et les commentaires dont tu as besoin, rien de plus, et borne les sorti
    qui le reprend lira la réponse.
 3. **Les livreurs en cours.** Tu sais lesquels tu as lancés et lesquels ont rendu la main.
    Un livreur rendu : lis son relevé (une vingtaine de lignes) et agis selon « Un relevé ».
+   **Ne redémarre jamais ta session** (nouvelle session, `/clear`, terminal fermé) tant qu'un
+   livreur que tu as lancé est en vol : le redémarrage les arrête tous, et un lot a dû être
+   repris. Attends leurs relevés.
 4. **Les créneaux.** Lis `make slots` : il écrit N (`WATERFALL_SLOTS`, 1 sur le poste actuel)
    puis les créneaux pris sur le poste. Les créneaux sont le verrou commun à tous les pilotes
    et à tous les dépôts du poste : il y a un pilote par EPIC, et jamais plus de N livreurs en
    tout. Le nombre de créneaux libres borne ce que tu peux lancer.
 5. **Les worktrees.** `git worktree list` ne doit pas en montrer plus de N + 1 dans ton dépôt,
    le dépôt principal compris — deux à N = 1 (#1444) : chaque livreur retire ceux de son lot
-   après la fusion. Au-delà, préviens l'utilisateur (« Prévenir ») avec leurs chemins, sans en
-   retirer aucun toi-même — l'un d'eux peut garder un travail non commité —, et continue de
-   piloter. Le worktree resté d'un lot arrêté (question, bloqué) se signale comme les autres.
+   après la fusion. **Fais exception du worktree d'un livreur qui a rendu son relevé, lot
+   fusionné** : le harnais le garde verrouillé, et tu le retires toi-même — `git worktree unlock
+   <chemin>`, `git worktree remove <chemin>`, puis `git worktree prune`. Pour les autres,
+   au-delà, préviens l'utilisateur (« Prévenir ») avec leurs chemins, sans en retirer aucun
+   toi-même — l'un d'eux peut garder un travail non commité —, et continue de piloter. Le
+   worktree resté d'un lot arrêté (question, bloqué) se signale comme les autres.
 6. **Lancer.** Lance un livreur par lot prêt, selon « Lancer un livreur », tant qu'il reste un
    créneau libre : autant de livreurs que de lots prêts et de créneaux libres, pas davantage.
    **Jamais plus de N livreurs sur le poste** : il s'est effondré trois fois sous les tests de

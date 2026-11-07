@@ -12,8 +12,8 @@ Pour installer une plateforme de démonstration à partir des images publiées, 
 
 | Outil | Pour quoi |
 |---|---|
-| [uv](https://docs.astral.sh/uv/) | Python 3.14 et les dépendances du back et des outils du dépôt |
-| Python 3.14, celui de `tools/.python-version`, sous le nom `python3` | la projection de la spécification |
+| [uv](https://docs.astral.sh/uv/) | la version de `tools/.python-version` et les dépendances du back et des outils du dépôt |
+| La version de `tools/.python-version`, sous le nom `python3` | la projection de la spécification |
 | Node 26 (par nvm, par exemple) | le front, et pnpm, que `npm install --global pnpm` installe une fois |
 | Docker et son greffon Compose | `make dev`, la plateforme de service, les images |
 | Le client PostgreSQL 18 (`postgresql-client-18`, celui d'Ubuntu 26.04) | `pg_dump` et `pg_restore` dans `/usr/bin`, que les tests des sauvegardes et des restaurations appellent : ceux de la majeure du serveur, ni plus récents ni plus anciens (#982) |

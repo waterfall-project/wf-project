@@ -329,8 +329,9 @@ différence : N y vaut 1, et aucune cible neuve n'y est appelée.
 
 ### Les autorisations, la liste de ruff, la file de fusion (US-1350, US-1360, US-1370)
 
-- **`.claude/settings.json`** gagne `permissions.allow` avec les vingt-et-une règles d'US-1350 ; le
-  hook reste ; le fichier est déjà dans `REUSE.toml`. Un test des outils le lit en JSON.
+- **`.claude/settings.json`** gagne `permissions.allow` avec les vingt-et-une règles d'US-1350,
+  puis `make e2e-down` (#2354, US-1340) ; le hook reste ; le fichier est déjà dans `REUSE.toml`.
+  Un test des outils le lit en JSON.
 - **`ruff.toml`** : une entrée `"backend/src/waterfall/api/<module>.py" = ["TC001", "TC002",
   "TC003"]` par module, triées, le commentaire une fois au-dessus ; le test des outils (dans
   `test_rules.py`, qui éprouve déjà `ruff.toml`) lit le TOML par `tomllib`, relève les modules
@@ -437,6 +438,9 @@ jours ont pourtant demandé (#2112).
 La ligne d'un lot coupé prend la place juste après le lot qu'elle détache, et en dépend (README de
 la roadmap, « Lots » ; `epic-deliverer`, point 3). Les lignes d'EP-05 écrites à la main (#2032) sont
 la forme à reproduire : `|   |   |   | US-0820b #2099 | US-0820 #2036 | — | fusionné | #2118 | sonnet |`.
+
+Le `#<issue>` de la ligne insérée (`L3 #<issue>`) vient de `LOT_ISSUE=<n>` (Makefile) ou
+`--issue-number` (outil) : sans lui, la ligne n'a pas d'issue (#2288).
 
 **Hors périmètre.**
 
@@ -669,7 +673,7 @@ L'amorçage de `risk_settings.write` et `indicator_settings.write` dans le « Ma
 
 ## US-1340 — Finitions d'outils et de guide, et les textes des deux jours à quatre livreurs
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : aucune — outil du dépôt
 - **opérations** : aucune
 - **issue** : #2254

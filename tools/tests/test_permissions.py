@@ -56,10 +56,10 @@ def test_the_pre_tool_use_hook_on_bash_is_the_guard() -> None:
 
 @pytest.mark.parametrize(
     "command",
-    [ENQUEUE, "make tracking ISSUE=2249", "make slot", "make slot-release"],
+    [ENQUEUE, "make tracking ISSUE=2249", "make slot", "make slot-release", "make e2e-down"],
 )
 def test_the_commands_of_the_deliverer_are_allowed(command: str) -> None:
-    """The queue mutation and the three ``make`` commands of the deliverer are covered."""
+    """The queue mutation and the four ``make`` commands of the deliverer are covered."""
     assert _covered(command, _allow())
 
 
@@ -85,11 +85,12 @@ ALLOWED = [
     "Bash(make tracking:*)",
     "Bash(make slot:*)",
     "Bash(make slot-release:*)",
+    "Bash(make e2e-down:*)",
 ]
 
 
-def test_the_allow_list_is_the_twenty_one_rules_of_the_story() -> None:
-    """Exactly the twenty-one rules of the story, no duplicate, none of a workstation."""
+def test_the_allow_list_is_the_twenty_two_rules_of_the_story() -> None:
+    """Exactly the twenty-two rules (US-1350's twenty-one and ``make e2e-down``), no duplicate."""
     allow = _allow()
     assert len(allow) == len(set(allow))
     assert set(allow) == set(ALLOWED)

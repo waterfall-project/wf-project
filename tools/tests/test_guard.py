@@ -662,3 +662,93 @@ def test_popd_is_not_followed_so_a_lock_after_it_stays_refused() -> None:
 def test_a_cd_up_resets_the_state_even_from_below_git() -> None:
     """US-1310: known limit, `cd ..` resets the state: `cd .git/refs/heads; cd ..` passes."""
     assert not refused("cd .git/refs/heads; cd ..; rm main.lock")
+
+
+@pytest.mark.parametrize(
+    "command",
+    [
+        "find .git -name '*.lock' | xargs rm",
+        "find . -name '*.lock' | xargs -r rm -f",
+        "find .git/refs -type f | xargs unlink",
+        "ls .git/*.lock | xargs mv -t /tmp",
+        "cd .git && find . -name x | xargs rm",
+        "rm -rf .git",
+        "rm -r .git/",
+        "rm -fr ./.git",
+        "rm -Rf /home/benjamin/projects/wf-project/.git",
+        "rm --recursive --force .git",
+        "sudo rm -rf .git",
+        "bash -c 'rm -rf .git'",
+    ],
+)
+def test_xargs_rm_of_what_names_git_and_rm_r_of_git_are_refused(command: str) -> None:
+    """#2293: `xargs rm` behind a pipe whose source names `.git` or a lock; `rm -r` of `.git`."""
+    assert refused(command)
+
+
+@pytest.mark.parametrize(
+    "command",
+    [
+        "find build -name '*.o' | xargs rm",
+        "pgrep make | xargs echo",
+        "rm -rf build",
+        "rm -rf .gitignore",
+        "rm -rf frontend/.github",
+        "rm .git",
+        "rm -rf -- -r .git-old",
+        "git status --porcelain | xargs ls",
+    ],
+)
+def test_a_removal_that_neither_reaches_git_nor_follows_its_name_passes(command: str) -> None:
+    """#2293: the forms next to those refused."""
+    assert not refused(command)
+
+
+@pytest.mark.parametrize(
+    "command",
+    [
+        "command -v pkill",
+        "command -v docker",
+        "command -V kill",
+        "command -pv killall",
+        "command -p -v pkill",
+    ],
+)
+def test_command_looking_a_name_up_runs_nothing(command: str) -> None:
+    """#2292: `command -v` asks whether a tool is installed; it is no execution of the tool."""
+    assert not refused(command)
+
+
+@pytest.mark.parametrize(
+    "command",
+    ["command pkill x", "command -p pkill x", "command -- pkill x", "command -v pkill; pkill x"],
+)
+def test_command_running_a_name_is_still_judged(command: str) -> None:
+    """#2292: without `-v`, `command` runs its operand, which is judged."""
+    assert refused(command)
+
+
+@pytest.mark.parametrize(
+    "command",
+    [
+        "make merge-queue EPIC=EP-21",
+        "make EPIC=EP-21 merge-queue",
+        "make -C . merge-queue",
+        "cd . && make merge-queue",
+        "sudo make merge-queue EPIC=EP-21",
+        "bash -c 'make merge-queue'",
+        "make merge-queue EPIC=$(echo 'EP-21",
+    ],
+)
+def test_the_merge_queue_target_is_refused_to_an_agent(command: str) -> None:
+    """#2294: `make merge-queue` creates the rule set with the token of the user: a person's."""
+    assert refused(command)
+
+
+@pytest.mark.parametrize(
+    "command",
+    ["make merge-queue-check EPIC=EP-21", "make check", "git log --oneline merge-queue"],
+)
+def test_the_merge_queue_check_and_the_other_targets_pass(command: str) -> None:
+    """#2294: `merge-queue-check` only reads, and the other targets of `make` always pass."""
+    assert not refused(command)

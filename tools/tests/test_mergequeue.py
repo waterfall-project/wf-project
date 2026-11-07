@@ -292,3 +292,30 @@ def test_create_says_a_post_that_gh_refuses(tmp_path: Path) -> None:
     assert "HTTP 422 Validation Failed" in error
     assert "Traceback" not in error
     assert fake.posted is None
+
+
+@pytest.mark.parametrize(
+    ("include", "exclude", "targets"),
+    [
+        (["refs/heads/epic/*"], [], True),
+        (["refs/heads/*"], [], False),
+        (["refs/heads/**"], [], True),
+        (["refs/heads/epic/EP-[12]1"], [], True),
+        (["~ALL"], [], True),
+        (["refs/heads/epic/EP-2?"], [], True),
+        (["refs/heads/epic/EP-21"], ["refs/heads/epic/EP-2*"], False),
+        (["refs/heads/epic/*"], ["~ALL"], False),
+        (["refs/heads/epic/EP-0*"], [], False),
+        (["~DEFAULT_BRANCH"], [], False),
+    ],
+)
+def test_the_patterns_of_ref_name_are_read_as_github_does(
+    tmp_path: Path, include: list[str], exclude: list[str], targets: bool
+) -> None:
+    """US-1370: ``include`` and ``exclude`` are patterns, not only exact references (#2296)."""
+    patterned = ruleset(2)
+    patterned["conditions"] = {"ref_name": {"exclude": exclude, "include": include}}
+    code, _, error = serving(tmp_path, patterned).run("check", "EP-21")
+    assert (code == 0) is targets
+    if not targets:
+        assert f"no ruleset targets {BRANCH}" in error

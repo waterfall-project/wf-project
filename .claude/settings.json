@@ -21,7 +21,8 @@
       "Bash(git worktree remove:*)",
       "Bash(make tracking:*)",
       "Bash(make slot:*)",
-      "Bash(make slot-release:*)"
+      "Bash(make slot-release:*)",
+      "Bash(make e2e-down:*)"
     ]
   },
   "hooks": {

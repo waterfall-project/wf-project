@@ -295,8 +295,11 @@ sub-issues follows the cutting:
 **The tracking table** is in the body of the epic's issue, never in a comment,
 and it is kept up to date at each change of state — lot started, in review, merged, blocked;
 story gone `en cours` or `fini`; finding opened or settled. The agents change it with
-`make tracking` — `ISSUE=<n> LOT=<identifier> [STATE=…] [PR=…] [MODEL=…]`, `US=<identifier>
-STATUS=…` or `FINDING=<n> ATTACHED=… DECISION=…` —, which reads the body again under a lock of
+`make tracking` — `ISSUE=<n> LOT=<identifier> [STATE=…] [PR=…] [MODEL=…]`, `LOT=<identifier>
+DEPENDS=<list>`, `ADD_LOT=<identifier> AFTER=<lot> [DEPENDS=…] [MODEL=…] [LOT_ISSUE=<n>]`
+(`LOT_ISSUE`: the issue of the inserted lot, the `#n` of its line),
+`REPLACE_DEPENDENCY='<old>=<new>'`, `US=<identifier> STATUS=…` or
+`FINDING=<n> ATTACHED=… DECISION=…` —, which reads the body again under a lock of
 the workstation just before writing it and changes only the line asked for: none rewrites the
 body itself, several deliverers would overwrite one another there. It has two parts:
 

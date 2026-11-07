@@ -294,10 +294,13 @@ sous-issues suit le découpage :
 **Le tableau de suivi** est dans le corps de l'issue de l'EPIC, jamais dans un commentaire,
 et il est tenu à jour à chaque changement d'état — lot commencé, en revue, fusionné, bloqué ;
 US passée `en cours` ou `fini` ; constat ouvert ou tranché. Les agents le changent par
-`make tracking` — `ISSUE=<n> LOT=<identifiant> [STATE=…] [PR=…] [MODEL=…]`, `US=<identifiant>
-STATUS=…` ou `FINDING=<n> ATTACHED=… DECISION=…` —, qui relit le corps sous un verrou du poste
-juste avant de l'écrire et ne change que la ligne demandée : aucun ne réécrit le corps lui-même,
-plusieurs livreurs s'y réécriraient l'un l'autre. Il a deux parties :
+`make tracking` — `ISSUE=<n> LOT=<identifiant> [STATE=…] [PR=…] [MODEL=…]`, `LOT=<identifiant>
+DEPENDS=<liste>`, `ADD_LOT=<identifiant> AFTER=<lot> [DEPENDS=…] [MODEL=…] [LOT_ISSUE=<n>]`
+(`LOT_ISSUE` : l'issue du lot inséré, le `#n` de sa ligne),
+`REPLACE_DEPENDENCY='<ancien>=<nouveau>'`, `US=<identifiant> STATUS=…` ou
+`FINDING=<n> ATTACHED=… DECISION=…` —, qui relit le corps sous un verrou du poste juste avant de
+l'écrire et ne change que la ligne demandée : aucun ne réécrit le corps lui-même, plusieurs livreurs
+s'y réécriraient l'un l'autre. Il a deux parties :
 
 - **Ordre de réalisation** : une ligne par US, dans l'ordre où elles se livrent, avec son
   issue et son statut, celui du fichier ; sous elle, une ligne par lot, dans l'ordre, avec ses
