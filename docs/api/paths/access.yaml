@@ -283,7 +283,8 @@
           `fields` designating `/email` with `ALREADY_EXISTS`, `fields[].params.conflicting_object_id`
           the account that holds it. A last name, first name or address sent for an
           anonymised account, anonymisation being irreversible (WF-ADM-0060):
-          `STATE_FORBIDS_OPERATION`, `params.missing_condition` at `is_not_anonymized`. Nothing is written.
+          `STATE_FORBIDS_OPERATION`, `params.missing_condition` at `is_not_anonymized`. Nothing is
+          written.
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }

@@ -1,41 +1,41 @@
-# Comptes, rôles d'habilitation et permissions (FBS-1.1, FBS-1.2).
-# Il n'existe aucune inscription libre : un compte est créé par un utilisateur
-# habilité, lu du fournisseur d'identité qui fédère l'annuaire, ou créé à sa première
-# connexion venue d'un fournisseur externe (WF-ADM-0050, WF-ADM-0070, WF-ADM-0180).
-# Waterfall ne voit jamais de mot de passe : l'authentification est celle du fournisseur
-# d'identité (WF-ARC-0030, WF-ADM-0140).
+# Accounts, access roles and permissions (FBS-1.1, FBS-1.2).
+# There is no open sign-up: an account is created by an authorised
+# user, read from the identity provider that federates the directory, or created at its first
+# sign-in coming from an external provider (WF-ADM-0050, WF-ADM-0070, WF-ADM-0180).
+# Waterfall never sees a password: authentication is that of the identity
+# provider (WF-ARC-0030, WF-ADM-0140).
 
 PasswordSetupLink:
   type: object
   required: [url, expires_at]
   description: >-
-    Le lien par lequel le porteur d'un compte local fixe ou réinitialise son mot de passe,
-    rendu à l'utilisateur habilité qui l'a demandé pour le remettre par un autre canal
-    (WF-ADM-0140) : le même lien qu'un courriel du fournisseur d'identité porterait, à usage
-    unique et valable une heure. Il mène à la page du fournisseur d'identité qui fixe le mot de
-    passe, non à un écran de Waterfall, qui n'en présente aucun (WF-ADM-0140, WF-ARC-0030). Il
-    n'est rendu qu'une fois, jamais relu, et sa demande est inscrite au journal d'audit
-    (WF-SEC-0030) ; le jeton n'y figure pas.
+    The link by which the holder of a local account sets or resets their password, returned
+    to the authorised user who requested it so that they hand it over by another channel
+    (WF-ADM-0140): the same link an email from the identity provider would carry, single-use
+    and valid for one hour. It leads to the identity provider's page that sets the password,
+    not to a Waterfall screen, which presents none (WF-ADM-0140, WF-ARC-0030). It
+    is returned only once, never read again, and its request is recorded in the audit log
+    (WF-SEC-0030); the token does not appear there.
   properties:
     url:
       type: string
       format: uri
-      description: Le lien entier, tel qu'il se remet.
+      description: The whole link, as it is handed over.
     expires_at:
       allOf: [{ $ref: ../common.yaml#/Timestamp }]
-      description: Quand le lien cesse d'être valable, une heure après sa création (WF-ADM-0140).
+      description: When the link ceases to be valid, one hour after its creation (WF-ADM-0140).
 
 UserOrigin:
   type: string
   enum: [local, directory, identity_provider]
   description: >-
-    Origine du compte : créé dans Waterfall (`local`), lu du fournisseur d'identité qui fédère
-    l'annuaire (`directory`), ou créé à la première connexion d'une personne venue d'un
-    fournisseur externe (`identity_provider`) (WF-ADM-0050, WF-ADM-0070, WF-ADM-0180).
+    Origin of the account: created in Waterfall (`local`), read from the identity provider that
+    federates the directory (`directory`), or created at the first sign-in of a person coming
+    from an external provider (`identity_provider`) (WF-ADM-0050, WF-ADM-0070, WF-ADM-0180).
 
 User:
   description: >-
-    Un compte tel que la table des comptes le lit : le compte, et ses commandes
+    An account as the accounts table reads it: the account, and its commands
     (`available_commands`, WF-IHM-0090).
   allOf:
     - $ref: '#/UserAccount'
@@ -46,24 +46,24 @@ User:
           type: array
           maxItems: 5
           description: >-
-            Commandes du compte que l'appelant a la permission d'exercer, chacune disponible ou
-            non, avec les conditions qui lui manquent (WF-IHM-0090), dans l'ordre de
-            `UserCommand` : au plus cinq, celle qui change son état, son anonymisation s'il est
-            désactivé, l'attribution de ses rôles, et pour un compte local non anonymisé, le lien
-            de fixation de son mot de passe et le renvoi de son invitation. Une commande absente
-            de la liste n'est pas présentée ; la liste est vide pour
-            qui lit les comptes sans la permission de les modifier (`users.write`, WF-ADM-0100),
-            et `set_access_roles` n'y est que pour qui porte aussi celle de modifier les rôles
-            d'habilitation (`access_roles.write`, WF-ADM-0090).
-            Le front ne rapproche pas les rôles des comptes pour savoir qui est le dernier
-            administrateur (WF-ARC-0020) : le compte le dit. Un appel envoyé malgré la liste
-            est refusé par son code d'erreur.
+            The account's commands that the caller has the permission to exercise, each
+            available or not, with the conditions it is missing (WF-IHM-0090), in the order of
+            `UserCommand`: at most five, the one that changes its state, its anonymisation if it
+            is deactivated, the assignment of its roles, and for a non-anonymised local account,
+            the setup link of its password and the resending of its invitation. A command absent
+            from the list is not presented; the list is empty for
+            whoever reads the accounts without the permission to modify them (`users.write`,
+            WF-ADM-0100), and `set_access_roles` is there only for whoever also holds the
+            permission to modify access roles (`access_roles.write`, WF-ADM-0090).
+            The front does not match roles against accounts to know who is the last
+            administrator (WF-ARC-0020): the account says so. A call sent despite the list
+            is refused with its error code.
           items: { $ref: '#/UserCommandAvailability' }
 
 UserCreated:
   description: >-
-    Le compte local créé (`createUser`), et si l'invitation qui porte son lien de fixation est
-    partie (WF-ADM-0140).
+    The local account created (`createUser`), and whether the invitation that carries its setup
+    link went out (WF-ADM-0140).
   allOf:
     - $ref: '#/User'
     - type: object
@@ -72,11 +72,11 @@ UserCreated:
         invitation_sent:
           type: boolean
           description: >-
-            Vrai quand le fournisseur d'identité a envoyé au porteur le courriel qui porte son lien
-            de fixation ; faux quand il ne l'a pas envoyé — installation sans messagerie
-            (WF-CMP-0030), serveur de courriel en échec, fournisseur injoignable : le compte existe
-            pourtant, et l'écran propose aussitôt le lien à remettre par un autre canal
-            (`createPasswordSetupLink`). Le courriel se renvoie ensuite (`resendInvitation`).
+            True when the identity provider has sent the holder the email that carries their
+            setup link; false when it has not sent it — installation without email
+            (WF-CMP-0030), failing mail server, unreachable provider: the account nevertheless
+            exists, and the screen immediately offers the link to be handed over by another
+            channel (`createPasswordSetupLink`). The email can be resent later (`resendInvitation`).
 
 UserCommand:
   type: string
@@ -88,34 +88,34 @@ UserCommand:
     - create_password_link
     - resend_invitation
   description: >-
-    Commandes portées par un compte (WF-IHM-0090) : le désactiver et le réactiver, par
-    `setUserActivation` — aucune ne le supprime (WF-ADM-0060) —, l'anonymiser, par
-    `anonymizeUser` (WF-ADM-0060), lui attribuer ses rôles d'habilitation, par
-    `setUserAccessRoles` (WF-ADM-0090), obtenir le lien de fixation de son mot de passe, par
-    `createPasswordSetupLink`, et lui renvoyer le courriel qui le porte, par `resendInvitation`
-    (WF-ADM-0140). Ces deux dernières ne se listent que pour un compte local non anonymisé : un
-    compte de l'annuaire ou d'un fournisseur externe ne les porte jamais, pas plus qu'un compte
-    anonymisé, retiré du fournisseur d'identité (WF-ADM-0060) — un état définitif retire la
-    commande, comme sur un projet clos ; elles sont disponibles pour un compte actif, et
-    indisponibles pour un compte désactivé, `is_active_account` manquante (décision de l'auteur
-    du 2026-11-01, #1737). Un compte ne porte que celle qui change son état :
-    `deactivate` s'il est actif, `reactivate` s'il est désactivé — indisponible pour un compte
-    anonymisé, `is_not_anonymized` manquante, l'anonymisation étant irréversible ; il porte
-    `anonymize` s'il est désactivé, comme `reactivate` qu'elle suit — disponible tant qu'il n'est
-    pas anonymisé, indisponible ensuite, `is_not_anonymized` manquante —, et toujours
-    `set_access_roles`. Toutes relèvent de la permission de modifier les comptes
-    (`users.write`, WF-ADM-0100) ; `set_access_roles` exige en outre celle de modifier les rôles
-    d'habilitation (`access_roles.write`) : attribuer un rôle relève de leur gestion (FBS-1.2,
-    WF-ADM-0090). Le dernier compte actif qui porte à la fois les permissions de
-    modifier les comptes et les rôles d'habilitation (`users.write`, `access_roles.write`) a sa
-    désactivation indisponible, `last_administrator` manquante (WF-ADM-0120) : elle est
-    disponible dès qu'un second compte actif les porte. L'attribution de ses rôles reste
-    disponible : WF-ADM-0120 n'interdit que de lui retirer ces permissions, et lui en donner
-    davantage reste possible (WF-IHM-0090 : n'est indisponible que ce qui l'est) ; seule une
-    attribution qui lui retirerait l'une d'elles est refusée, par le 409 `LAST_ADMINISTRATOR` de
-    `setUserAccessRoles`, qui dépend des rôles envoyés. Toute autre commande listée est
-    disponible, hors `reactivate` et `anonymize` d'un compte anonymisé, et
-    `create_password_link` et `resend_invitation` d'un compte désactivé.
+    Commands carried by an account (WF-IHM-0090): deactivating and reactivating it, through
+    `setUserActivation` — none of them deletes it (WF-ADM-0060) —, anonymising it, through
+    `anonymizeUser` (WF-ADM-0060), assigning its access roles, through
+    `setUserAccessRoles` (WF-ADM-0090), getting the setup link of its password, through
+    `createPasswordSetupLink`, and resending it the email that carries the link, through
+    `resendInvitation` (WF-ADM-0140). These last two are listed only for a non-anonymised local
+    account: an account from the directory or from an external provider never carries them, nor
+    does an anonymised account, removed from the identity provider (WF-ADM-0060) — a final state
+    removes the command, as on a closed project; they are available for an active account, and
+    unavailable for a deactivated account, `is_active_account` missing (author's decision
+    of 2026-11-01, #1737). An account carries only the one that changes its state:
+    `deactivate` if it is active, `reactivate` if it is deactivated — unavailable for an
+    anonymised account, `is_not_anonymized` missing, anonymisation being irreversible; it carries
+    `anonymize` if it is deactivated, like `reactivate` which it follows — available as long as
+    it is not anonymised, unavailable afterwards, `is_not_anonymized` missing —, and always
+    `set_access_roles`. All of them fall under the permission to modify accounts
+    (`users.write`, WF-ADM-0100); `set_access_roles` additionally requires the permission to
+    modify access roles (`access_roles.write`): assigning a role falls under their management
+    (FBS-1.2, WF-ADM-0090). The last active account that holds both the permissions to
+    modify accounts and access roles (`users.write`, `access_roles.write`) has its
+    deactivation unavailable, `last_administrator` missing (WF-ADM-0120): it becomes
+    available as soon as a second active account holds them. The assignment of its roles stays
+    available: WF-ADM-0120 only forbids removing these permissions from it, and giving it
+    more remains possible (WF-IHM-0090: only what is unavailable is unavailable); only an
+    assignment that would remove one of them from it is refused, with the 409 `LAST_ADMINISTRATOR`
+    of `setUserAccessRoles`, which depends on the roles sent. Every other listed command is
+    available, except `reactivate` and `anonymize` of an anonymised account, and
+    `create_password_link` and `resend_invitation` of a deactivated account.
 
 UserCommandAvailability:
   type: object
@@ -125,14 +125,14 @@ UserCommandAvailability:
     is_available: { type: boolean }
     missing_conditions:
       type: array
-      description: Vide lorsque la commande est disponible.
+      description: Empty when the command is available.
       items: { $ref: projects.yaml#/CommandCondition }
 
 UserAccount:
   type: object
   description: >-
-    Un compte, sans ses commandes : celui que `getMe` rend (`UserSelf`), et que la table
-    des comptes complète des siennes (`User`).
+    An account, without its commands: the one `getMe` returns (`UserSelf`), and which the
+    accounts table completes with its own (`User`).
   required:
     - user_id
     - last_name
@@ -154,61 +154,63 @@ UserAccount:
       anyOf:
         - { type: string, minLength: 1, pattern: '\S', maxLength: 100 }
         - { type: 'null' }
-      description: Nul pour un compte anonymisé seulement (`anonymized_at`, WF-ADM-0060).
+      description: Null for an anonymised account only (`anonymized_at`, WF-ADM-0060).
     first_name:
       anyOf:
         - { type: string, minLength: 1, pattern: '\S', maxLength: 100 }
         - { type: 'null' }
-      description: Nul pour un compte anonymisé seulement (`anonymized_at`, WF-ADM-0060).
+      description: Null for an anonymised account only (`anonymized_at`, WF-ADM-0060).
     email:
       anyOf: [{ type: string, format: email }, { type: 'null' }]
       description: >-
-        Unique dans l'installation ; c'est elle qui identifie la personne (WF-ADM-0050). Nulle
-        pour un compte anonymisé seulement (`anonymized_at`, WF-ADM-0060).
+        Unique in the installation; it is what identifies the person (WF-ADM-0050). Null
+        for an anonymised account only (`anonymized_at`, WF-ADM-0060).
     anonymized_at:
       anyOf: [{ $ref: ../common.yaml#/Timestamp }, { type: 'null' }]
       description: >-
-        L'instant de l'anonymisation du compte, nul tant qu'il ne l'est pas (WF-ADM-0060). Un
-        compte anonymisé n'a plus ni nom, ni prénom, ni adresse, ni avatar : ces trois champs
-        sont nuls, et le front le présente partout sous le libellé neutre de son catalogue,
-        l'API ne rendant aucune phrase (WF-ARC-0110) ; ses actes lui restent attribués, par son
-        identifiant. L'anonymisation est irréversible : un compte anonymisé ne se réactive pas.
+        The instant the account was anonymised, null as long as it is not (WF-ADM-0060). An
+        anonymised account no longer has a last name, first name, address or avatar: these three
+        fields are null, and the front presents it everywhere under the neutral label of its
+        catalogue, the API returning no sentence (WF-ARC-0110); its actions remain attributed to
+        it, by its identifier. Anonymisation is irreversible: an anonymised account is not
+        reactivated.
     is_active:
       type: boolean
       description: >-
-        L'état du compte (WF-ADM-0050) : vrai pour « actif » (`active`), faux pour
-        « désactivé » (`deactivated`). Un compte désactivé est refusé à chaque requête, par 401 `ACCOUNT_DEACTIVATED`, et ses sessions sont fermées (WF-SEC-0020).
+        The state of the account (WF-ADM-0050): true for "active" (`active`), false for
+        "deactivated" (`deactivated`). A deactivated account is refused on every request, with
+        401 `ACCOUNT_DEACTIVATED`, and its sessions are closed (WF-SEC-0020).
     origin: { $ref: '#/UserOrigin' }
     org_node_id:
       anyOf: [{ $ref: ../common.yaml#/Uuid }, { type: 'null' }]
-      description: Rattachement facultatif, qui n'accorde aucune permission (WF-ADM-0030).
+      description: Optional attachment, which grants no permission (WF-ADM-0030).
     org_node_label:
       anyOf: [{ type: string }, { type: 'null' }]
       description: >-
-        Libellé du nœud de rattachement, résolu à la lecture, actif ou désactivé
-        (WF-REF-0150) ; nul sans rattachement. Le front ne rapproche pas l'organisation
-        des comptes (WF-ARC-0020).
+        Label of the attachment node, resolved on read, active or deactivated
+        (WF-REF-0150); null without an attachment. The front does not match the organisation
+        against the accounts (WF-ARC-0020).
     access_role_ids:
       type: array
-      description: Un ou plusieurs rôles ; l'utilisateur dispose de l'union de leurs permissions (WF-ADM-0090).
+      description: One or more roles; the user has the union of their permissions (WF-ADM-0090).
       items: { $ref: ../common.yaml#/Uuid }
     access_role_labels:
       type: array
       description: >-
-        Libellés des rôles de `access_role_ids`, résolus à la lecture, dans le même
-        ordre. Le front ne rapproche pas les rôles des comptes (WF-ARC-0020).
+        Labels of the roles of `access_role_ids`, resolved on read, in the same
+        order. The front does not match roles against accounts (WF-ARC-0020).
       items: { type: string }
     has_avatar:
       type: boolean
-      description: Vrai quand le compte porte un avatar (WF-ADM-0080) ; faux, l'image par défaut.
+      description: True when the account carries an avatar (WF-ADM-0080); false, the default image.
     audit: { $ref: ../common.yaml#/Audit }
     lock_version: { $ref: ../common.yaml#/LockVersion }
 
 UserSelf:
   description: >-
-    Le compte connecté, ses préférences d'affichage (WF-ADM-0040) et ses permissions
-    effectives. Il ne porte pas les commandes de la table des comptes : un compte ne
-    s'administre pas par `getMe`.
+    The signed-in account, its display preferences (WF-ADM-0040) and its effective
+    permissions. It does not carry the commands of the accounts table: an account is not
+    administered through `getMe`.
   allOf:
     - $ref: '#/UserAccount'
     - type: object
@@ -218,19 +220,19 @@ UserSelf:
         permissions:
           type: array
           description: >-
-            Les permissions effectives du compte, l'union de celles de ses rôles, évaluées à
-            chaque requête (WF-ADM-0090, WF-ADM-0110) et rendues pour que le front sache quoi
-            présenter (WF-IHM-0090) : une fonction dont le compte n'a pas la consultation ne se
-            présente pas. Vide pour un compte sans rôle (WF-ADM-0180).
+            The account's effective permissions, the union of those of its roles, evaluated on
+            each request (WF-ADM-0090, WF-ADM-0110) and returned so that the front knows what to
+            present (WF-IHM-0090): a function the account cannot view is not
+            presented. Empty for an account without a role (WF-ADM-0180).
           items: { $ref: '#/PermissionCode' }
 
 UserCreate:
   type: object
   required: [last_name, first_name, email]
   description: >-
-    Un compte local naît sans rôle, comme un compte lu de l'annuaire (WF-ADM-0070) : ses rôles
-    lui sont attribués ensuite par `setUserAccessRoles`, sous la permission de modifier les rôles
-    d'habilitation (WF-ADM-0090, WF-ADM-0100).
+    A local account is born without a role, like an account read from the directory
+    (WF-ADM-0070): its roles are then assigned to it by `setUserAccessRoles`, under the
+    permission to modify access roles (WF-ADM-0090, WF-ADM-0100).
   properties:
     last_name: { type: string, minLength: 1, pattern: '\S', maxLength: 100 }
     first_name: { type: string, minLength: 1, pattern: '\S', maxLength: 100 }
@@ -242,9 +244,9 @@ UserUpdate:
   type: object
   required: [lock_version]
   description: >-
-    Le nom, le prénom et l'adresse d'un compte qui ne vient pas de Waterfall (`origin` autre
-    que `local`) ne sont pas modifiables ici : une valeur différente de celle du compte est
-    refusée, `FIELD_READ_ONLY`, le champ renvoyé inchangé ne l'est pas (WF-ADM-0050).
+    The last name, first name and address of an account that does not come from Waterfall
+    (`origin` other than `local`) cannot be modified here: a value different from the account's
+    is refused, `FIELD_READ_ONLY`, the field sent back unchanged is not (WF-ADM-0050).
   properties:
     last_name: { type: string, minLength: 1, pattern: '\S', maxLength: 100 }
     first_name: { type: string, minLength: 1, pattern: '\S', maxLength: 100 }
@@ -263,7 +265,7 @@ UserActivationWrite:
 UserAnonymizationWrite:
   type: object
   required: [lock_version]
-  description: L'anonymisation d'un compte désactivé, à la version lue (`anonymizeUser`).
+  description: The anonymisation of a deactivated account, at the version read (`anonymizeUser`).
   properties:
     lock_version: { $ref: ../common.yaml#/LockVersion }
 
@@ -279,46 +281,46 @@ UserRolesWrite:
 DisplayPreferences:
   type: object
   description: >-
-    Préférences personnelles, cantonnées à la présentation (WF-ADM-0040). Les
-    réglages de grille y sont conservés par grille (WF-IHM-0060). Une modification ne
-    change que les champs qu'elle porte ; dans `grids`, que les grilles qu'elle nomme,
-    chacune remplacée entière, et une grille à `null` retrouve ses réglages par défaut.
-    La disposition de chaque chronologie l'est de même dans `timelines`, par chronologie
-    (WF-PLA-0140, EP-15/US-0530) : une modification ne remplace que les chronologies qu'elle
-    nomme, chacune entière, et une chronologie à `null` retrouve sa disposition automatique.
-    L'état de chaque graphique l'est de même dans `charts`, par graphique (EP-15/US-0550) : une
-    modification ne remplace que les graphiques qu'elle nomme, et un graphique à `null` retrouve
-    l'état que son écran lui donne d'abord.
-    Les préférences sont relues avec le compte à chaque requête : leur taille est bornée
-    (#874) — cent grilles, cent chronologies et cent graphiques au plus, des noms de grille, de
-    colonne, de filtre, de chronologie, de tâche et de graphique de 64 caractères au plus ; par grille, 64 colonnes
-    masquées, 64 connues, 64 élargies et 20 filtres au plus, la valeur d'un filtre de 500 caractères au
-    plus ; par chronologie, 64 tâches placées au plus. Une préférence qui passe une borne est
-    refusée par 422 `VALUE_TOO_LONG`, au pointeur de l'objet, de la liste ou du texte en
-    défaut ; un nom trop long, au pointeur de l'objet qui le porte.
+    Personal preferences, confined to presentation (WF-ADM-0040). The
+    grid settings are kept there per grid (WF-IHM-0060). A modification
+    changes only the fields it carries; in `grids`, only the grids it names,
+    each replaced whole, and a grid set to `null` returns to its default settings.
+    The layout of each timeline is kept likewise in `timelines`, per timeline
+    (WF-PLA-0140, EP-15/US-0530): a modification replaces only the timelines it
+    names, each whole, and a timeline set to `null` returns to its automatic layout.
+    The state of each chart is kept likewise in `charts`, per chart (EP-15/US-0550): a
+    modification replaces only the charts it names, and a chart set to `null` returns to
+    the state its screen gives it initially.
+    The preferences are read again with the account on each request: their size is bounded
+    (#874) — a hundred grids, a hundred timelines and a hundred charts at most, grid,
+    column, filter, timeline, task and chart names of 64 characters at most; per grid, 64
+    hidden, 64 known, 64 widened columns and 20 filters at most, a filter value of 500
+    characters at most; per timeline, 64 placed tasks at most. A preference that exceeds a
+    bound is refused with 422 `VALUE_TOO_LONG`, at the pointer of the faulty object, list or
+    text; a name that is too long, at the pointer of the object that carries it.
   properties:
     language:
       type: string
       enum: [default, fr, en]
       description: >-
-        Langue de l'interface. `default` — ou, à la lecture, l'absence du champ — suit
-        le navigateur, puis la langue par défaut de l'installation ; `fr` ou `en` prime
-        dès qu'elle est choisie (WF-INTF-0160). C'est le seul champ de langue du
-        compte : le front résout la langue à chaque requête, l'API n'en localise aucune
-        réponse (WF-ARC-0110).
+        Interface language. `default` — or, on read, the absence of the field — follows
+        the browser, then the installation's default language; `fr` or `en` prevails
+        as soon as it is chosen (WF-INTF-0160). It is the account's only language
+        field: the front resolves the language on each request, the API localises none of its
+        responses (WF-ARC-0110).
     theme:
       type: string
       enum: [default, light, dark]
       description: >-
-        Mode d'affichage. `default` — ou, à la lecture, l'absence du champ — suit le
-        réglage du poste ; `light` ou `dark` prime dès qu'il est choisi. Une préférence de présentation
-        (WF-ADM-0040).
+        Display mode. `default` — or, on read, the absence of the field — follows the
+        device's setting; `light` or `dark` prevails as soon as it is chosen. A presentation
+        preference (WF-ADM-0040).
     highlight_tasks_added_after_reference:
       type: boolean
       description: >-
-        La préférence qui distingue visuellement les tâches ajoutées après la révision de
-        référence et, dans le reste à engager, les lignes dont le montant budgété est nul : une
-        seule préférence pour les deux (WF-ADM-0040, WF-RAE-0040). Absente, faux.
+        The preference that visually distinguishes the tasks added after the reference
+        revision and, in the remaining to commit, the lines whose budgeted amount is zero: a
+        single preference for both (WF-ADM-0040, WF-RAE-0040). When absent, false.
     grids:
       type: object
       maxProperties: 100
@@ -328,8 +330,8 @@ DisplayPreferences:
     timelines:
       type: object
       description: >-
-        La disposition de chaque chronologie que l'utilisateur a arrangée, par son
-        `timeline_id` : une préférence d'affichage, propre à chacun (WF-ADM-0040, WF-PLA-0140).
+        The layout of each timeline the user has arranged, by its
+        `timeline_id`: a display preference, specific to each user (WF-ADM-0040, WF-PLA-0140).
       maxProperties: 100
       propertyNames: { maxLength: 64 }
       additionalProperties:
@@ -337,9 +339,9 @@ DisplayPreferences:
     charts:
       type: object
       description: >-
-        L'état de chaque graphique que l'utilisateur a replié ou déplié, par le nom du graphique
-        sur son écran — `risk_matrix`, la matrice des risques de l'écran d'un projet, la même
-        pour tous ses projets : une préférence d'affichage, propre à chacun (WF-ADM-0040,
+        The state of each chart the user has folded or unfolded, by the chart's name
+        on its screen — `risk_matrix`, the risk matrix of a project's screen, the same
+        for all their projects: a display preference, specific to each user (WF-ADM-0040,
         EP-15/US-0550).
       maxProperties: 100
       propertyNames: { maxLength: 64 }
@@ -350,33 +352,33 @@ ChartPreferences:
   type: object
   required: [folded]
   description: >-
-    L'état d'un graphique qui se replie (EP-15/US-0550) : replié, l'écran n'en montre que le
-    titre et le bouton qui le déplie ; un graphique absent des préférences prend l'état que son
-    écran lui donne d'abord — replié pour la matrice des risques d'un projet (#1252).
+    The state of a foldable chart (EP-15/US-0550): when folded, the screen shows only its
+    title and the button that unfolds it; a chart absent from the preferences takes the state its
+    screen gives it initially — folded for a project's risk matrix (#1252).
   properties:
     folded:
       type: boolean
       description: >-
-        Replié (`true`) ou déplié (`false`). Exigé : un graphique qui retrouve l'état de son
-        écran s'envoie à `null`, entier.
+        Folded (`true`) or unfolded (`false`). Required: a chart that returns to its screen's
+        state is sent as `null`, whole.
 
 TimelinePreferences:
   type: object
   required: [lanes]
   description: >-
-    La disposition d'une chronologie en frise (EP-15/US-0530) : le couloir de chaque tâche que
-    l'utilisateur a placée. Une tâche qui n'y figure pas — inscrite depuis, ou jamais déplacée —
-    prend le couloir que la disposition automatique lui donne ; une tâche qui n'est plus inscrite
-    est ignorée.
+    The layout of a timeline shown as a frieze (EP-15/US-0530): the lane of each task the
+    user has placed. A task that does not appear there — registered since, or never moved —
+    takes the lane the automatic layout gives it; a task that is no longer registered
+    is ignored.
   properties:
     lanes:
       type: object
       maxProperties: 64
       propertyNames: { maxLength: 64 }
       description: >-
-        Le couloir de chaque tâche placée, par son `node_id` : un rang à partir de 0, le couloir
-        du haut. Un rang négatif est refusé par 422, `VALUE_OUT_OF_RANGE` sur
-        `/timelines/<chronologie>/lanes/<tâche>`, `fields[].params.minimum` à `0`.
+        The lane of each placed task, by its `node_id`: a rank from 0, the top
+        lane. A negative rank is refused with 422, `VALUE_OUT_OF_RANGE` on
+        `/timelines/<timeline>/lanes/<task>`, `fields[].params.minimum` at `0`.
       additionalProperties: { type: integer, minimum: 0 }
 
 GridPreferences:
@@ -386,48 +388,48 @@ GridPreferences:
       type: integer
       enum: [10, 25, 50, 100]
       description: >-
-        Le nombre de lignes par page d'une table plate, choisi parmi 10, 25, 50 et 100 ;
-        absent, 50, le défaut de `limit` (WF-IHM-0060, C-351). Une grille arborescente ne
-        l'offre pas. Une autre valeur est refusée par 422, `VALUE_OUT_OF_RANGE` sur
-        `/grids/<grille>/page_size`, sans paramètre : les valeurs admises sont celles-ci.
+        The number of rows per page of a flat table, chosen among 10, 25, 50 and 100;
+        when absent, 50, the default of `limit` (WF-IHM-0060, C-351). A tree grid does not
+        offer it. Another value is refused with 422, `VALUE_OUT_OF_RANGE` on
+        `/grids/<grid>/page_size`, without a parameter: the admitted values are these.
     hidden_columns:
       type: array
       maxItems: 64
       items: { type: string, maxLength: 64 }
       description: >-
-        Les clés des colonnes que l'utilisateur a masquées. Une colonne qu'elle nomme est masquée ;
-        une colonne qu'elle ne nomme pas est montrée si la grille la connaissait
-        (`known_columns`), et prend sinon ce que la grille lui donne par défaut.
+        The keys of the columns the user has hidden. A column it names is hidden;
+        a column it does not name is shown if the grid knew it
+        (`known_columns`), and otherwise takes what the grid gives it by default.
     known_columns:
       type: array
       maxItems: 64
       items: { type: string, maxLength: 64 }
       description: >-
-        Les clés des colonnes que la grille offrait quand ses préférences ont été écrites pour la
-        dernière fois — le front la récrit à chaque écriture de la grille, entière comme le reste.
-        Une colonne absente de cette liste est une colonne que la grille a reçue depuis : masquée
-        si la grille la masque par défaut, montrée sinon, sauf si `hidden_columns` la nomme. Une
-        colonne nouvelle masquée par défaut le reste ainsi pour un compte qui a déjà réglé la
-        grille, et une colonne que le compte a choisi d'afficher le reste (EP-16/US-0650, #1260).
-        Facultative : absente — un compte qui ne l'a jamais écrite —, elle vaut une liste vide, et
-        toute colonne masquée par défaut que `hidden_columns` ne nomme pas est masquée. Le serveur
-        la garde telle qu'elle est écrite, sans connaître les colonnes d'aucune grille.
+        The keys of the columns the grid offered when its preferences were last
+        written — the front rewrites it on each write of the grid, whole like the rest.
+        A column absent from this list is a column the grid has received since: hidden
+        if the grid hides it by default, shown otherwise, unless `hidden_columns` names it. A
+        new column hidden by default thus stays hidden for an account that has already set up the
+        grid, and a column the account has chosen to display stays displayed (EP-16/US-0650,
+        #1260). Optional: when absent — an account that has never written it —, it counts as an
+        empty list, and every column hidden by default that `hidden_columns` does not name is
+        hidden. The server keeps it as written, without knowing the columns of any grid.
     column_widths:
       type: object
       maxProperties: 64
       propertyNames: { maxLength: 64 }
       description: >-
-        La largeur de chaque colonne élargie, en points, par sa clé : au moins vingt, une largeur
-        plus étroite étant refusée par 422, `VALUE_OUT_OF_RANGE` sur
-        `/grids/<grille>/column_widths/<colonne>`, `fields[].params.minimum` à `20`.
+        The width of each widened column, in points, by its key: at least twenty, a narrower
+        width being refused with 422, `VALUE_OUT_OF_RANGE` on
+        `/grids/<grid>/column_widths/<column>`, `fields[].params.minimum` at `20`.
       additionalProperties: { type: integer, minimum: 20 }
     sort:
       anyOf:
         - type: object
           required: [column, order]
           description: >-
-            Le tri tel que la grille le demande au serveur : `column` est une valeur
-            du `sort_by` de l'opération qui la sert.
+            The sort as the grid requests it from the server: `column` is a value
+            of the `sort_by` of the operation that serves it.
           properties:
             column: { type: string, maxLength: 64 }
             order: { $ref: ../common.yaml#/SortOrder }
@@ -435,13 +437,13 @@ GridPreferences:
     filters:
       type: object
       description: >-
-        La recherche et les filtres de la grille, tels que son adresse les écrit : chaque
-        paramètre sous son nom, avec sa valeur en texte. Le serveur les garde tels qu'ils sont
-        écrits, sans connaître les paramètres d'aucune grille. Ainsi la liste des projets de
-        l'accueil, la grille `projects`, garde sous `states` les états choisis, séparés par des
-        virgules comme l'adresse les écrit (`states=pricing,in_progress,completed`) ; un compte
-        qui n'en a rien écrit prend le défaut de l'écran, Créé, Chiffrage et En cours, que le
-        contrat ne porte pas (WF-PTF-0030, WF-IHM-0060 ; #1401, #1747).
+        The search and the filters of the grid, as its address writes them: each
+        parameter under its name, with its value as text. The server keeps them as they are
+        written, without knowing the parameters of any grid. Thus the projects list of the
+        home page, the `projects` grid, keeps under `states` the chosen states, separated by
+        commas as the address writes them (`states=pricing,in_progress,completed`); an account
+        that has written nothing there takes the screen's default, Created, Pricing and In
+        progress, which the contract does not carry (WF-PTF-0030, WF-IHM-0060; #1401, #1747).
       maxProperties: 20
       propertyNames: { maxLength: 64 }
       additionalProperties: { type: string, maxLength: 500 }
@@ -449,31 +451,31 @@ GridPreferences:
 PermissionCode:
   type: string
   description: >-
-    Code du catalogue, livré et non modifiable : deux permissions par fonction de
-    second niveau, consulter et modifier, sauf pour les fonctions en lecture seule — l'état du
-    système (FBS-1.3), le journal d'audit (FBS-1.5) et les vues du portefeuille (FBS-2.1 à
-    FBS-2.7) —, qui n'ont que la permission de consulter (WF-ADM-0100, #739) ; la permission
-    d'une fonction couvrant ses sous-fonctions ; plus une permission propre par action irréversible ou
-    structurante — créer un projet, marquer une révision, abandonner une révision en cours,
-    désigner la révision de référence, fusionner un différentiel, déclarer une sortie du
-    cycle de vie, déclarer un risque survenu, exclure une ligne de coût, restaurer la
-    plateforme —, et « consulter tous les projets », qui ouvre à la consultation les
-    projets dont l'utilisateur n'est pas contributeur (WF-ADM-0100, WF-PRJ-0060). La
-    déclaration de survenance d'un risque emporte la fusion qu'elle déclenche et n'exige
-    pas `structure_merge` (WF-ADM-0100). La consultation du journal d'audit
-    (`audit_log.read`, WF-SEC-0030) est celle de la fonction que la spécification lui donne
-    sous l'administration, FBS-1.5 « Journal d'audit ». Les permissions de consultation des
-    paramètres applicatifs (FBS-3) ouvrent ce que toute session ne lit pas déjà : les objets
-    actifs du référentiel — nœuds, rôles de ressources, calendriers, natures et catégories — se
-    lisent par toute session ouverte, vocabulaire des projets (FBS-4), et leurs désactivés comme
-    leurs écritures relèvent de la permission de modifier la fonction. `cost_settings.read`
-    ouvre la grille des taux horaires (`getHourlyRateGrid`), les taux d'une catégorie
-    (`listHourlyRates`) et la correspondance de l'extraction des coûts réels
-    (`getActualCostMapping`), 404 sans elle ; `resource_settings.read`,
-    `risk_settings.read` et `indicator_settings.read` ouvrent la présentation des écrans de leur
-    fonction (`UserSelf.permissions`, WF-IHM-0090), leurs données actives se lisant par
-    ailleurs. Le catalogue les garde toutes (WF-ADM-0100 ; décision de l'auteur du 2026-11-01, #1745).
-    L'énumération est le catalogue : une permission nouvelle est une modification du contrat.
+    Catalogue code, delivered and not modifiable: two permissions per second-level
+    function, view and modify, except for read-only functions — the system
+    status (FBS-1.3), the audit log (FBS-1.5) and the portfolio views (FBS-2.1 to
+    FBS-2.7) —, which only have the view permission (WF-ADM-0100, #739); the permission
+    of a function covering its sub-functions; plus a dedicated permission per irreversible or
+    structuring action — create a project, mark a revision, abandon an in-progress revision,
+    designate the reference revision, merge a differential, declare an exit from the
+    life cycle, declare an occurred risk, exclude a cost line, restore the
+    platform —, and "view all projects", which opens for viewing the
+    projects of which the user is not a contributor (WF-ADM-0100, WF-PRJ-0060). Declaring
+    that a risk has occurred carries the merge it triggers and does not require
+    `structure_merge` (WF-ADM-0100). Viewing the audit log
+    (`audit_log.read`, WF-SEC-0030) is that of the function the specification gives it
+    under administration, FBS-1.5 "Audit log". The view permissions of the
+    application settings (FBS-3) open what every session does not already read: the active
+    reference data objects — nodes, resource roles, calendars, cost types and categories — are
+    read by any open session, as project vocabulary (FBS-4), and their deactivated objects as
+    well as their writes fall under the permission to modify the function. `cost_settings.read`
+    opens the hourly rate grid (`getHourlyRateGrid`), the rates of a category
+    (`listHourlyRates`) and the mapping of the actual cost extraction
+    (`getActualCostMapping`), 404 without it; `resource_settings.read`,
+    `risk_settings.read` and `indicator_settings.read` open the presentation of the screens of
+    their function (`UserSelf.permissions`, WF-IHM-0090), their active data being read
+    otherwise. The catalogue keeps them all (WF-ADM-0100; author's decision of 2026-11-01, #1745).
+    The enumeration is the catalogue: a new permission is a modification of the contract.
   enum:
     # FBS-1 — Administration.
     - users.read
@@ -484,7 +486,7 @@ PermissionCode:
     - backups.read
     - backups.write
     - audit_log.read
-    # FBS-2 — Portefeuille.
+    # FBS-2 — Portfolio.
     - portfolio_projects.read
     - portfolio_workload.read
     - portfolio_performance.read
@@ -492,7 +494,7 @@ PermissionCode:
     - portfolio_risks.read
     - portfolio_cost_curve.read
     - portfolio_pilot_health.read
-    # FBS-3 — Paramètres applicatifs.
+    # FBS-3 — Application settings.
     - cost_settings.read
     - cost_settings.write
     - resource_settings.read
@@ -501,7 +503,7 @@ PermissionCode:
     - risk_settings.write
     - indicator_settings.read
     - indicator_settings.write
-    # FBS-4 — Projets.
+    # FBS-4 — Projects.
     - revisions.read
     - revisions.write
     - project_settings.read
@@ -520,8 +522,8 @@ PermissionCode:
     - project_indicators.write
     - lifecycle.read
     - lifecycle.write
-    # Actions irréversibles, dans l'ordre où WF-ADM-0100 les nomme, puis les permissions
-    # structurantes : créer un projet, consulter tous les projets.
+    # Irreversible actions, in the order in which WF-ADM-0100 names them, then the structuring
+    # permissions: create a project, view all projects.
     - revision_mark
     - revision_abandon
     - reference_designate
@@ -542,19 +544,19 @@ Permission:
       type: string
       enum: [function_read, function_write, irreversible, structuring]
       description: >-
-        Consultation ou modification d'une fonction, action irréversible, ou permission
-        structurante — créer un projet, consulter tous les projets (WF-ADM-0100).
+        Viewing or modifying a function, irreversible action, or structuring
+        permission — create a project, view all projects (WF-ADM-0100).
     fbs_code:
       anyOf: [{ type: string }, { type: 'null' }]
-      description: Fonction de second niveau couverte, pour les deux premières natures.
+      description: Second-level function covered, for the first two kinds.
 
 AccessRole:
   type: object
   required: [access_role_id, label, permissions, is_predefined, holder_count, audit, lock_version]
   description: >-
-    Ensemble nommé de permissions (WF-ADM-0090). Les trois rôles prédéfinis sont
-    modifiables et supprimables (WF-ADM-0010) ; au moins un compte actif garde
-    toujours les permissions d'administration (WF-ADM-0120).
+    Named set of permissions (WF-ADM-0090). The three predefined roles can be
+    modified and deleted (WF-ADM-0010); at least one active account always keeps
+    the administration permissions (WF-ADM-0120).
   properties:
     access_role_id: { $ref: ../common.yaml#/Uuid }
     label: { type: string, minLength: 1, pattern: '\S', maxLength: 100 }
@@ -577,8 +579,8 @@ AccessRoleWrite:
 
 AccessRoleUpdate:
   description: >-
-    Modification d'un rôle d'habilitation : porte le compteur lu,
-    qu'une création n'a pas.
+    Modification of an access role: carries the lock version read,
+    which a creation does not have.
   allOf:
     - $ref: '#/AccessRoleWrite'
     - type: object
