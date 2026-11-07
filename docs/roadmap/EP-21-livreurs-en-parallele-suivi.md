@@ -1,7 +1,7 @@
 ---
 id: EP-21
 titre: Combler ce que deux jours à quatre livreurs ont révélé de l'outillage — tableau de suivi, arrêt d'un créneau, garde, contrôles de la chaîne, harnais des parcours
-statut: à planifier
+statut: prêt
 depend_de: EP-19, EP-05
 famille: plateforme
 issue:
@@ -44,7 +44,7 @@ développe, personne ou agent, comme pour EP-19.
   suit un `cd` dans `.git` — US-1310 (#1890, #1893) ;
 - la chaîne attrape ce que la file a attrapé tard : un cycle entre modules du noyau, un service du
   Compose démarré sans être reconstruit, une borne de paramètre qui s'écarte du contrat — US-1320
-  (#2124, #2083, #2185) ;
+  (#2124, #2083, #2218, #2185) ;
 - le harnais des parcours contre le service : les parcours d'administration joués contre le service
   sous un compte qui en a les permissions, les parcours qui écrivent un objet unique joués en série,
   et l'attente du verrou des rôles composés sous le délai d'un test — US-1330 (#2199, #2211, #2214) ;
@@ -113,7 +113,7 @@ EP-19 livré ; EP-05 fusionnée dans `main` (#2217, 2026-11-07).
   d'une branche d'EPIC identique, à sa branche près, à celui d'EP-05 ;
 - un module de routes ajouté à `api/` sans sa ligne dans `ruff.toml` fait échouer `make test-tools`
   en le nommant ;
-- les dix-sept constats reçus sont fermés, chacun par son lot.
+- les dix-huit constats reçus sont fermés, chacun par son lot.
 
 ## Constats reçus
 
@@ -188,6 +188,14 @@ Reportés d'EP-05 et de la nuit du 6 au 7 novembre (décisions de l'auteur du 20
 - #2214 — front : `giveRoles` attend le verrou des rôles composés jusqu'à 120 s, plus que les 30 s
   d'un test, et deux lignes du guide dépassent 100 colonnes ; à retirer avec le rôle composé des
   parcours (#2199, #2149). Relevé par le lot de finitions d'EP-05 (#2126).
+
+Reporté d'EP-04 (décision de l'auteur du 2026-11-07) :
+
+- #2218 — outil : `make service-up` ne reconstruit pas l'image de restauration, qui ignore les
+  migrations récentes — le même défaut que #2083, relevé par US-0970 sur le créneau 1. Décision : la
+  ligne `up --build --detach --wait restore` est ajoutée par US-0990/L2 d'EP-04, qui sera dans `main`
+  avant EP-21 ; EP-21 garde le test des outils qui confronte les services à `build` du Compose aux
+  recettes du Makefile, et pose la ligne si elle manquait encore à sa livraison.
 
 ## Conception
 
@@ -276,7 +284,8 @@ différence : N y vaut 1, et aucune cible neuve n'y est appelée.
 - **Le test de complétude**, dans les tests des outils : chaque répertoire de
   `backend/src/waterfall/core/` qui a un `__init__.py` est nommé dans les `layers` du contrat, lu de
   `pyproject.toml` par `tomllib`.
-- **`service-up`** : `up --build --detach --wait restore`. Le test des outils lance
+- **`service-up`** : `up --build --detach --wait restore`, ligne qu'US-0990/L2 d'EP-04 écrit
+  (#2218) et que le lot pose seulement si elle manque encore. Le test des outils lance
   `docker compose -f deploy/compose/compose.service.yaml --profile e2e --profile install config
   --format json` avec les valeurs de remplacement de `lint-compose` — le runner de la famille `repo`
   a Docker, `lint-compose` le lui demande déjà —, relève les services qui ont un `build`, et vérifie
@@ -561,7 +570,8 @@ n'attrape plus, après la revue, ce que le palier rapide savait voir (#2124, #20
 - propre à l'US : `make service-up` construit l'image de chaque service de
   `deploy/compose/compose.service.yaml` qu'il démarre et qui déclare un `build`, `restore` compris,
   de sorte qu'une restauration jouée en local après une migration nouvelle trouve la migration
-  (#2083) ;
+  (#2083, #2218) — la ligne `up --build --detach --wait restore` vient d'US-0990/L2 d'EP-04, livrée
+  avant ce lot ; le lot la pose si elle manque encore ;
 - propre à l'US : un test des outils lit les services du Compose de service qui déclarent un `build`
   (`docker compose config`, avec les valeurs de remplacement de `make lint-compose`) et vérifie que
   chacun est démarré avec `--build` ou construit avant son démarrage par `service-up`,
