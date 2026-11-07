@@ -266,7 +266,66 @@ def test_an_empty_or_blank_code_or_label_is_refused_field_by_field(
         ("/label", "VALUE_REQUIRED"),
     ]
     blank = add(api, stage, "   ")
-    assert faults(blank) == [("/code", "VALIDATION_FAILED", {})]
+    assert faults(blank) == [("/code", "VALUE_REQUIRED", {})]
+
+
+@pytest.mark.requirement("WF-PRJ-0050-A")
+def test_a_forbidden_code_and_an_empty_label_are_both_named_in_one_refusal(
+    api: ContractClient, stage: Scene
+) -> None:
+    refused = add(api, stage, "A/B", "")
+    assert refused.status_code == 422
+    assert faults(refused) == [
+        ("/code", "SUBPROJECT_CODE_INVALID", {"forbidden_characters": ["/"]}),
+        ("/label", "VALUE_REQUIRED", {}),
+    ]
+    assert stored(stage) == 0
+
+
+@pytest.mark.requirement("WF-PRJ-0050-A")
+def test_a_change_at_a_stale_version_is_refused_and_writes_nothing(
+    api: ContractClient, stage: Scene
+) -> None:
+    created = made(api, stage, "SP-1")
+    stale = api.patch(
+        path(stage, created["subproject_id"]),
+        headers=stage.manager.headers,
+        json={"code": "SP-2", "label": "Poste", "lock_version": 3},
+    )
+    assert refusal(stale) == (412, "STALE_LOCK_VERSION", {"expected_lock_version": 0})
+    listed = api.get(path(stage), headers=stage.manager.headers)
+    assert [item["code"] for item in listed.json()] == ["SP-1"]
+
+
+@pytest.mark.requirement("WF-PRJ-0050-A")
+@pytest.mark.requirement("WF-DAT-0080-A")
+def test_a_participant_neither_changes_nor_deletes_a_subproject(
+    api: ContractClient, stage: Scene
+) -> None:
+    created = made(api, stage, "SP-1")
+    where = path(stage, created["subproject_id"])
+    changed = api.patch(
+        where,
+        headers=stage.participant.headers,
+        json={"code": "SP-2", "label": "Poste", "lock_version": 0},
+    )
+    deleted = api.delete(where, headers=stage.participant.headers, params={"lock_version": 0})
+    assert (changed.status_code, deleted.status_code) == (403, 403)
+    assert stored(stage) == 1
+
+
+@pytest.mark.requirement("WF-PRJ-0050-A")
+def test_a_change_that_changes_nothing_does_not_raise_the_version(
+    api: ContractClient, stage: Scene
+) -> None:
+    created = made(api, stage, "SP-1", "Poste")
+    same = api.patch(
+        path(stage, created["subproject_id"]),
+        headers=stage.manager.headers,
+        json={"code": "SP-1", "label": "Poste", "lock_version": 0},
+    )
+    assert same.status_code == 200, same.text
+    assert same.json()["lock_version"] == 0
 
 
 @pytest.mark.requirement("WF-PRJ-0050-A")

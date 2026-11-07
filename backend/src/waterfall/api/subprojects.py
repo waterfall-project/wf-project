@@ -11,15 +11,16 @@ A project is read by its contributors and by the holders of ``all_projects_read`
 ``SUBPROJECT_CODE_INVALID``, which the module of the projects names (#1502).
 """
 
-from typing import Annotated, Any
+from typing import Annotated, Any, LiteralString, cast
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query, Response
-from pydantic import Field
+from pydantic import AfterValidator, Field
+from pydantic_core import PydanticCustomError
 from sqlalchemy.orm import Session
 
 from waterfall.api.actors import actor_ref
-from waterfall.api.authentication import Caller, Transaction
+from waterfall.api.authentication import Transaction
 from waterfall.api.contract.base import ContractModel
 from waterfall.api.contract.models import LockVersion, SortOrder, Subproject
 from waterfall.api.evaluation import Acting, RequiresProject
@@ -32,6 +33,7 @@ from waterfall.core.projects.interface import (
     SubprojectSort,
     SubprojectView,
     SubprojectWrite,
+    code_faults,
     create_subproject,
     delete_subproject,
     list_subprojects,
@@ -47,10 +49,25 @@ router = APIRouter(tags=["projects"])
 CONSULT = "project_settings.read"
 CHANGE = "project_settings.write"
 
+
+def _checked(code: str) -> str:
+    """Refuse a code that is blank, holds a character a tab refuses or is a reserved name.
+
+    The service judges the same (``code_faults``), for the witness; here the faults of the code
+    add to those of the label, as the contract's ``fields`` names each field.
+    """
+    for fault in code_faults(code):
+        message = "a subproject code cannot name a tab"
+        raise PydanticCustomError(cast("LiteralString", fault.code), message, dict(fault.params))
+    return code
+
+
 # ``DeclaredSubprojectCode`` of the contract, judged field by field: the generated model gives one
 # refusal to a pattern that fails, where the contract names three; the characters and the names
 # are judged by the module of the projects.
-Code = Annotated[str, Field(min_length=1, max_length=SUBPROJECT_CODE_LENGTH)]
+Code = Annotated[
+    str, Field(min_length=1, max_length=SUBPROJECT_CODE_LENGTH), AfterValidator(_checked)
+]
 Label = Annotated[str, Field(min_length=1, max_length=300, pattern=r"\S")]
 
 
@@ -152,11 +169,10 @@ def post_subproject(
     project_id: UUID,
     body: SubprojectWriteBody,
     actor: Acting,
-    account: Caller,
     session: Transaction,
 ) -> Subproject:
     """Create a subproject of a project; only its managers may."""
-    act = Act(account.user_id, utc_now())
+    act = Act(actor.user_id, utc_now())
     view = create_subproject(
         session, project_id, SubprojectWrite(body.code, body.label), act, viewer_of(actor)
     )

@@ -24,7 +24,7 @@ from contextlib import contextmanager
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Literal
 
-from sqlalchemy import ColumnElement, SQLColumnExpression, select
+from sqlalchemy import ColumnElement, SQLColumnExpression, false, select
 from sqlalchemy.exc import IntegrityError
 
 from waterfall.core.projects.commands import (
@@ -64,6 +64,7 @@ if TYPE_CHECKING:
     from waterfall.platform.audit import Act
 
 SUBPROJECT_CODE_INVALID = "SUBPROJECT_CODE_INVALID"
+VALUE_REQUIRED = "VALUE_REQUIRED"
 # The unique index of the code of a subproject in its project (the tables of the projects).
 CODE_INDEX = "uq_subproject_project_id"
 # The characters the name of a tab of a workbook refuses, in the order of the contract.
@@ -155,7 +156,9 @@ def normalised_name(code: str) -> str:
 
 
 def code_faults(code: str) -> list[FieldError]:
-    """Name what makes a code refused for a tab: the characters it holds, or the name it is."""
+    """Name what makes a code refused for a tab: blank, the characters it holds, or its name."""
+    if not code.strip():
+        return [FieldError("/code", VALUE_REQUIRED)]
     if any(character in code for character in FORBIDDEN_CHARACTERS):
         # Each once, in the order the code bears them.
         held = dict.fromkeys(character for character in code if character in FORBIDDEN_CHARACTERS)
@@ -168,10 +171,8 @@ def code_faults(code: str) -> list[FieldError]:
 
 
 def _checked(write: SubprojectWrite) -> None:
-    """Refuse a code that cannot name a tab (422); a blank one, as a blank label is."""
+    """Refuse a code that cannot name a tab (422): the witness's, which no body has judged."""
     faults = code_faults(write.code)
-    if not faults and not write.code.strip():
-        faults = [FieldError("/code", VALIDATION_FAILED)]
     if faults:
         raise UnprocessableError(VALIDATION_FAILED, fields=tuple(faults))
 
@@ -194,7 +195,7 @@ def subproject_is_estimated(session: Session, subproject_id: UUID) -> bool:
     return False
 
 
-def _deletion_lacks(session: Session, subproject_id: UUID, state: str) -> list[str]:
+def _deletion_lacks(session: Session, subproject_id: UUID) -> list[str]:
     """Name the conditions of the deletion that are lacking, in the order of the contract."""
     missing: list[str] = []
     if subproject_is_cited(session, subproject_id):
@@ -203,19 +204,33 @@ def _deletion_lacks(session: Session, subproject_id: UUID, state: str) -> list[s
         missing.append(WITHOUT_ACTUAL_COSTS)
     if subproject_is_estimated(session, subproject_id):
         missing.append(WITHOUT_ESTIMATE_LINES)
-    if state in TERMINAL:
-        missing.append(PROJECT_NOT_TERMINAL)
     return missing
 
 
 def _commands(
-    session: Session, project: Project, subproject_id: UUID, viewer: Viewer
+    held: dict[str, tuple[str, ...]],
+    quality: tuple[str, ...],
+    session: Session,
+    subproject_id: UUID,
 ) -> tuple[SubprojectCommandAvailability, ...]:
     """List the commands of a subproject as the command ``update`` of its project does.
 
-    None for a caller that does not hold it, and none on a terminal project, which lists no
+    ``held`` and ``quality`` are those of the reader on the project, computed once per list. None
+    for a caller that does not hold ``update``, and none on a terminal project, which lists no
     command; the quality on the project comes first among the conditions each lacks.
     """
+    if "update" not in held:
+        return ()
+    lacking = _deletion_lacks(session, subproject_id)
+    return (
+        SubprojectCommandAvailability("update", held["update"]),
+        SubprojectCommandAvailability("delete", (*quality, *lacking)),
+    )
+
+
+def _views(
+    session: Session, project: Project, rows: Collection[Subproject], viewer: Viewer
+) -> list[SubprojectView]:
     kind = contributor_kind(session, project.id, viewer.user_id)
     held = dict(
         commands_of(
@@ -226,26 +241,14 @@ def _commands(
             no_task_running=True,
         )
     )
-    if "update" not in held:
-        return ()
-    quality = quality_conditions(kind, manager=True)
-    lacking = _deletion_lacks(session, subproject_id, project.state)
-    return (
-        SubprojectCommandAvailability("update", held["update"]),
-        SubprojectCommandAvailability("delete", (*quality, *lacking)),
-    )
-
-
-def _views(
-    session: Session, project: Project, rows: Collection[Subproject], viewer: Viewer
-) -> list[SubprojectView]:
+    quality = tuple(quality_conditions(kind, manager=True))
     return [
         SubprojectView(
             subproject_id=row.id,
             code=row.code,
             label=row.label,
             has_actual_costs=subproject_has_actual_costs(session, row.id),
-            commands=_commands(session, project, row.id, viewer),
+            commands=_commands(held, quality, session, row.id),
             created_at=row.created_at,
             created_by=row.created_by,
             updated_at=row.updated_at,
@@ -264,7 +267,7 @@ def _criteria(project_id: UUID, filters: SubprojectFilters) -> list[ColumnElemen
         )
     # No actual cost is imputed before EP-09: a filter on those that bear some keeps none.
     if filters.has_actual_costs:
-        criteria.append(Subproject.id.is_(None))
+        criteria.append(false())
     return criteria
 
 
@@ -421,8 +424,8 @@ def delete_subproject(
     that is lacking (409 ``STATE_FORBIDS_OPERATION``, ``missing_condition``). The place of the
     risks that designate it for their provision is kept: EP-08 nulls the designation.
     """
-    project, row = _locked(session, project_id, subproject_id, lock_version)
-    lacking = _deletion_lacks(session, row.id, project.state)
+    _, row = _locked(session, project_id, subproject_id, lock_version)
+    lacking = _deletion_lacks(session, row.id)  # the project is writable: not terminal
     if lacking:
         raise ConflictError(STATE_FORBIDS_OPERATION, {"missing_condition": lacking[0]})
     session.delete(row)
