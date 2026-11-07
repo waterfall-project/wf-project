@@ -1,10 +1,10 @@
 ---
 id: EP-09
 titre: Suivre ce qui a été dépensé, et réestimer ce qui reste à engager
-statut: prêt
+statut: en cours
 depend_de: EP-07
 famille: front, back
-issue:
+issue: 2389
 ---
 
 # EP-09 — Coûts réels, reste à engager et import des coûts
@@ -713,14 +713,13 @@ une clé ou une fixture qui manque devient une issue.
 
 ### Ce que le cadrage laisse à EP-10
 
-Le socle (US-1580/L1) est le **lot pivot d'EP-10** : `epic/EP-10` se tire d'`epic/EP-09` dès sa
+Le socle (US-1580/L1 #2398) est le **lot pivot d'EP-10** : `epic/EP-10` se tire d'`epic/EP-09` dès sa
 fusion. Il lui garantit `cost_line` et `cost_import`, les colonnes `previous_*` et `reestimated_at`
 d'`estimate_line`, la chaîne des migrations arrêtée à `0025`, et l'interface déclarée que les
 indicateurs liront : `actual_costs_until(project_id, date, scope)` et `actual_cost_by_subproject`
 de `costs`, `remaining_of_revision(revision_id)` et `startable_tasks` d'`estimate`, à côté de
 `planned_value` d'EP-07 et des états et dates des tâches d'EP-06 ; les lots d'EP-10 qui lisent des
-coûts attendent US-1610, ceux qui lisent un reste US-1580/L2, nommés par leur numéro à leur
-ouverture. EP-10 remplit `register_indicators` de `core/revisions` (EP-04) pour conserver au marquage
+coûts attendent US-1610/L2 #2404, ceux qui lisent un reste US-1580/L2 #2399. EP-10 remplit `register_indicators` de `core/revisions` (EP-04) pour conserver au marquage
 ce que ces fonctions calculent, et pose le cache (WF-DAT-0130).
 
 ### L'ordre de construction
@@ -766,7 +765,7 @@ leur objet ; la vérification d'ensemble en dernier ; le plan de lots (étape 3)
 - **exigences** : `WF-RAE-0010-A`, `WF-RAE-0040-A`, `WF-RAE-0050-A`, `WF-DEV-0070-A`
 - **opérations** : `setLineRemaining`, `listNodes`, `createRevision`, `getProjectWorkload` ;
   `createNode`, `updateEstimateLine` pour la ligne ajoutée après la référence
-- **issue** :
+- **issue** : 2390
 
 **En tant que** chef de projet, **je veux** réestimer une ligne d'une tâche non terminée en saisissant
 ses grandeurs — sa charge, ou sa quantité et son débours —, lire à côté ce qu'elle valait au reste à
@@ -928,7 +927,7 @@ provision et la fusion (EP-08) ; les projections et l'indice de coût (EP-10).
 - **exigences** : `WF-RAE-0030-A`, `WF-PLA-0040-A`, `WF-PLA-0050-A`, `WF-PLA-0070-A`
 - **opérations** : `listStartableTasks`, `setTaskProgress`, `setLineRemaining`, `deleteNode`,
   `listNodes`
-- **issue** :
+- **issue** : 2391
 
 **En tant que** chef de projet, **je veux** lire mes tâches réparties par état et faire depuis le
 Kanban les gestes que chaque carte liste, voir la récapitulative dont toutes les subordonnées sont
@@ -1047,7 +1046,7 @@ provision (EP-08) ; la valeur acquise (EP-10).
 - **statut** : à faire
 - **exigences** : `WF-RAE-0020-A`
 - **opérations** : `getRemainingIndicators`
-- **issue** :
+- **issue** : 2392
 
 **En tant que** chef de projet, **je veux** lire le total de mon reste à engager, ses ventilations
 par nature de coût et par sous-projet, la marge sur le budget de référence, l'écart à la revue
@@ -1106,7 +1105,7 @@ portefeuille (EP-11).
 - **opérations** : `uploadFile`, `openImport`, `getImport`, `abandonImport`, `applyImport`,
   `listImports` pour `actual_costs` ; `listCostImports` ; `getProject`, `createSubproject`,
   `getActualCostMapping` pour ce que l'import en lit
-- **issue** :
+- **issue** : 2393
 
 **En tant que** chef de projet, **je veux** importer l'extraction de l'ERP en deux temps — ses
 colonnes lues selon la correspondance de l'installation, chaque ligne imputée par son élément
@@ -1243,7 +1242,7 @@ d'engagements et d'heures (PO-01) ; les indicateurs (EP-10).
   `WF-CYC-0110-A`
 - **opérations** : `listActualCosts`, `setActualCostTrackedScope`, `listCostImports`,
   `listSubprojects`, `deleteSubproject`, `updateEstimateLine`, `moveNodes`, `getProject`
-- **issue** :
+- **issue** : 2394
 
 **En tant que** chef de projet, **je veux** lire les coûts réels de mon projet en liste, filtrée par
 sous-projet, par période et selon l'exclusion, avec le total suivi, le total exclu et le total
@@ -1334,7 +1333,7 @@ la ligne de provision (EP-08).
 - **opérations** : `requestExport` (`remaining`), `getBackgroundTaskResult` ; `uploadFile`,
   `openImport`, `getImport`, `abandonImport`, `applyImport`, `listImports` pour `remaining` ;
   `createRevision`, `getRateUpdateProposal`, `applyRateUpdate` pour la révision que l'import crée
-- **issue** :
+- **issue** : 2395
 
 **En tant que** chef de projet, **je veux** exporter le reste à engager d'une révision au format
 « Reste à engager » de l'annexe B, un onglet par sous-projet, le faire remplir par les responsables
@@ -1452,7 +1451,7 @@ provision et l'import sur un différentiel (EP-08) ; l'écran des échanges lui-
 - **opérations** : `listNodes`, `setLineRemaining`, `createNode`, `deleteNode`, `moveNodes`,
   `updateEstimateLine`, `listStartableTasks`, `setTaskProgress`, `getRemainingIndicators`,
   `getProjectWorkload` ; toutes celles de l'EPIC que la grille et le Kanban lisent et écrivent
-- **issue** :
+- **issue** : 2396
 
 **En tant que** chef de projet, **je veux** que la grille de reste à engager et le Kanban
 travaillent contre le service — les lignes des tâches démarrées par défaut, les non démarrées à la
@@ -1551,7 +1550,7 @@ valeur acquise (EP-10) ; les écrans des coûts réels (US-1620).
 - **statut** : à faire
 - **exigences** : `WF-QUA-0040-A`, `WF-INTF-0010-A`
 - **opérations** : aucune en propre ; le chargement passe par les interfaces du noyau
-- **issue** :
+- **issue** : 2397
 
 **En tant que** développeur, **je veux** charger, sur une plateforme qui porte les lignes du témoin,
 les imports de coûts réels de PRJ-001 et leurs lignes, l'exclusion de la réception du client,

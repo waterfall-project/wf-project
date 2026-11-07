@@ -159,7 +159,7 @@ EP-08, the three hundred projects in EP-13, which closes. Four rules, which each
 | [EP-04](EP-04-projets-et-revisions.md) | Projects, revisions and life cycle | livré | EP-05 |
 | [EP-06](EP-06-planification.md) | Planning | en cours | EP-04 |
 | [EP-07](EP-07-chiffrage-et-devis.md) | Costing and estimate | en cours | EP-06 |
-| [EP-09](EP-09-couts-reels-et-reste-a-engager.md) | Actual costs, remaining to commit and cost import | prêt | EP-07 |
+| [EP-09](EP-09-couts-reels-et-reste-a-engager.md) | Actual costs, remaining to commit and cost import | en cours | EP-07 |
 | [EP-10](EP-10-indicateurs.md) | Project indicators | à planifier | EP-09 |
 | [EP-08](EP-08-avenants-et-risques.md) | Amendments, risks and provisions | à planifier | EP-10 |
 | [EP-11](EP-11-portefeuille.md) | Portfolio | à planifier | EP-08 |
@@ -359,7 +359,7 @@ merged into `main` after it, never before. First exception: `epic/EP-04` created
 `epic/EP-04` as soon as the issues of EP-06 are opened, EP-04 having only US-0990/L2 left to merge,
 and likewise for the whole series EP-06 → EP-07 → EP-09 → EP-10 → EP-08, each branch created from
 the previous one as soon as the pivot lot its framing names is merged (decision of 2026-11-07):
-US-1380/L1 (#2328) for `epic/EP-07`, US-1490/L1 (#2370) for `epic/EP-09`.
+US-1380/L1 (#2328) for `epic/EP-07`, US-1490/L1 (#2370) for `epic/EP-09`, US-1580/L1 (#2398) for `epic/EP-10`.
 
 The chain runs on every pull request, towards an epic's branch as towards `main`, and
 none is merged if it fails.
