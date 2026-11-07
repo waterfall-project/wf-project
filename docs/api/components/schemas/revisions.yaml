@@ -188,8 +188,8 @@ RevisionCommand:
     permission, `risks.write` (EP-14/L42s), its conditions in the order in which the 409 of
     `createRisk` judges them: the state conditions of `edit_risks` first — `project_not_terminal`
     on a terminal project, which only that 409 names, then `no_background_task_running` during
-    a background task that writes into the current revision or freezes it —, like `ProjectCommand.update_work_breakdown`; then its own
-    conditions — `at_least_one_task`, a main structure without tasks, then
+    a background task that writes into the current revision or freezes it —, like
+    `ProjectCommand.update_work_breakdown`; then its own conditions — `at_least_one_task`, a main structure without tasks, then
     `active_provision_category`, no active category of type risk provision
     (WF-RIS-0010) —; then the other conditions of `edit_risks`. Changing the provision,
     reviewing and deleting, which do not depend on them, remain under `edit_risks`.
@@ -2377,75 +2377,78 @@ PasteRejection:
   type: object
   required: [row, code]
   description: >-
-    Le refus d'une ligne d'un bloc collé, que l'aperçu annonce et que la confirmation redit :
-    la ligne, et, quand il tient à une cellule, sa colonne, avec son motif (WF-IHM-0050). La
-    confirmation en ajoute : le référentiel n'a pas de compteur, et elle juge de nouveau les lignes
-    acceptées par l'aperçu ; une ligne devenue invalide entre-temps — une catégorie ou un rôle
-    désactivés depuis l'aperçu, `INACTIVE_REFERENCE_OBJECT` — est refusée à son tour, sans être
-    écrite, et redite dans `PasteApplied.rejected` comme les refus de l'aperçu (EP-14/L42q, #747).
-    Une cellule qui nomme une catégorie ou un rôle désactivés n'est refusée, à l'aperçu comme à
-    la confirmation, que si elle change la catégorie ou le rôle de sa ligne : celle qui nomme la
-    catégorie ou le rôle que la ligne porte déjà, désactivés depuis, ne change rien et n'est pas
-    refusée, comme le parent d'un nœud, la catégorie d'un rôle ou celle d'un risque
-    (`updateOrgNode`, `updateResourceRole`, `updateRiskProvision` ; EP-14/L42j, #747). Une
-    cellule de la colonne `work_breakdown` collée sur une tâche d'un différentiel ou du devis
-    propre d'un risque est refusée par `WORK_BREAKDOWN_MAIN_STRUCTURE_ONLY` : le rattachement
-    n'existe que dans la structure principale (WF-PLA-0170 ; EP-14/L42k) ; collée sur une tâche
-    de la structure principale, elle suit les règles du rattachement (`TaskFacetUpdate`), et
-    `ORDER_ITEM_OUTSIDE_WORK_PACKAGE` porte dans `params` la tâche du lot et celles des postes
-    (`work_package_task`, `order_item_tasks`), comme le refus d'une cellule (EP-14/L42s). Une
-    cellule de la colonne `subproject` collée sur une ligne dont la tâche est démarrée ou terminée,
-    et dont le sous-projet a reçu des coûts réels — une ligne qui ne nomme pas
-    `estimate_line.subproject_id` dans `editable_fields` —, est refusée par
-    `SUBPROJECT_HAS_ACTUAL_COSTS` si elle nomme un autre sous-projet, `params.subproject`
-    nommant le sous-projet que la ligne ne peut pas quitter (`subproject_id`, `label`), comme
-    `updateEstimateLine` ; une cellule qui nomme le sous-projet de la ligne ne la déplace pas, et
-    n'est pas refusée, ni une cellule vide, qui n'écrit rien (`PastePreview`) (WF-PRJ-0050 ;
-    C-359, #1152). Une cellule de rôle qui laisserait la tâche de sa ligne sans aucune heure
-    travaillée dans la semaine est refusée par `TASK_WITHOUT_WORKING_HOURS`, `params` nommant les
-    rôles et la tâche comme le refus d'une saisie (`resource_roles`, `tasks`), et la ligne n'est
-    pas écrite (WF-PLA-0010 ; #779). Un collage dont la cellule visée est sur un nœud retiré par
-    le différentiel est refusé entier par `PASTE_TARGET_REMOVED`, un seul refus, à la ligne `0`,
-    sur la colonne visée : il tient à l'ancre, non à une ligne du bloc (`PastePlan` ; #1361). Une
-    ligne du bloc qui placerait une tâche sous un jalon, qui ne porte pas de sous-tâches, est
-    refusée par `MILESTONE_HAS_NO_SUBTASK`, `params` nommant le jalon (`node_id`, `label`), et
-    n'est pas écrite ; une ligne de devis sous un jalon est permise (WF-PLA-0050 ; F-04, #1771).
-    Une cellule non vide collée sur une ligne de la structure principale dont la tâche est
-    terminée — une ligne qui ne nomme aucun champ dans `editable_fields` — est refusée par
-    `STATE_FORBIDS_OPERATION`, `params.missing_condition` à `task_not_completed`, la tâche se
-    rouvrant d'abord depuis le Kanban, et la ligne n'est pas écrite ; une cellule vide n'écrit
-    rien et n'est pas refusée. Sur un différentiel, une telle ligne se colle comme une autre,
-    l'avenant la rebudgétant (WF-RAE-0040, WF-REV-0050 ; F-01, #1766).
+    The refusal of a row of a pasted block, which the preview announces and the confirmation
+    repeats: the row, and, when it concerns a cell, its column, with its reason (WF-IHM-0050). The
+    confirmation adds some: the reference data has no counter, and it judges again the rows
+    accepted by the preview; a row that has become invalid in the meantime — a category or a role
+    deactivated since the preview, `INACTIVE_REFERENCE_OBJECT` — is refused in turn, without
+    being written, and repeated in `PasteApplied.rejected` like the preview's refusals
+    (EP-14/L42q, #747).
+    A cell that names a deactivated category or role is refused, at the preview as at
+    the confirmation, only if it changes the category or the role of its line: one that names the
+    category or the role that the line already carries, deactivated since, changes nothing and is
+    not refused, like the parent of a node, the category of a role or that of a risk
+    (`updateOrgNode`, `updateResourceRole`, `updateRiskProvision`; EP-14/L42j, #747). A
+    cell of the `work_breakdown` column pasted on a task of a differential or of a risk's own
+    estimate is refused with `WORK_BREAKDOWN_MAIN_STRUCTURE_ONLY`: the attachment
+    exists only in the main structure (WF-PLA-0170; EP-14/L42k); pasted on a task
+    of the main structure, it follows the rules of the attachment (`TaskFacetUpdate`), and
+    `ORDER_ITEM_OUTSIDE_WORK_PACKAGE` carries in `params` the task of the work package and those
+    of the order items (`work_package_task`, `order_item_tasks`), like the refusal of a cell
+    (EP-14/L42s). A
+    cell of the `subproject` column pasted on a line whose task is started or completed,
+    and whose subproject has received actual costs — a line that does not name
+    `estimate_line.subproject_id` in `editable_fields` —, is refused with
+    `SUBPROJECT_HAS_ACTUAL_COSTS` if it names another subproject, `params.subproject`
+    naming the subproject that the line cannot leave (`subproject_id`, `label`), like
+    `updateEstimateLine`; a cell that names the line's subproject does not move it, and
+    is not refused, nor is an empty cell, which writes nothing (`PastePreview`) (WF-PRJ-0050;
+    C-359, #1152). A role cell that would leave the task of its line without any working
+    hour in the week is refused with `TASK_WITHOUT_WORKING_HOURS`, `params` naming the
+    roles and the task like the refusal of an entry (`resource_roles`, `tasks`), and the line is
+    not written (WF-PLA-0010; #779). A paste whose targeted cell is on a node removed by
+    the differential is refused whole with `PASTE_TARGET_REMOVED`, a single refusal, at row `0`,
+    on the targeted column: it concerns the anchor, not a row of the block (`PastePlan`; #1361).
+    A block row that would place a task under a milestone, which carries no subtasks, is
+    refused with `MILESTONE_HAS_NO_SUBTASK`, `params` naming the milestone (`node_id`, `label`),
+    and is not written; an estimate line under a milestone is allowed (WF-PLA-0050; F-04,
+    #1771).
+    A non-empty cell pasted on a line of the main structure whose task is
+    completed — a line that names no field in `editable_fields` — is refused with
+    `STATE_FORBIDS_OPERATION`, `params.missing_condition` at `task_not_completed`, the task
+    being reopened first from the Kanban, and the line is not written; an empty cell writes
+    nothing and is not refused. On a differential, such a line is pasted like any other,
+    the amendment re-budgeting it (WF-RAE-0040, WF-REV-0050; F-01, #1766).
   properties:
     row:
       type: integer
       minimum: 0
       description: >-
-        La ligne du bloc refusée, comptée de zéro. C'est une ligne du bloc, jamais un nœud : sur
-        un différentiel, les nœuds retirés que le collage saute ne la décalent pas, et aucun
-        refus ne les nomme (`PastePreview`, #1278).
+        The refused block row, counted from zero. It is a row of the block, never a node: on
+        a differential, the removed nodes that the paste skips do not shift it, and no
+        refusal names them (`PastePreview`, #1278).
     column:
       allOf: [{ $ref: '#/NodeColumn' }]
       description: >-
-        La colonne de la cellule refusée ; absente quand le refus porte sur la ligne
-        entière.
+        The column of the refused cell; absent when the refusal concerns the whole
+        row.
     code: { $ref: ../common.yaml#/ErrorCode }
     params: { $ref: ../common.yaml#/ProblemParams }
 
 PasteApplied:
   description: >-
-    Ce que rend la confirmation d'un collage (WF-IHM-0050) : un succès partiel quand l'aperçu
-    a refusé des lignes. Les lignes valides sont écrites en une seule opération et rendues comme
-    toute écriture de grille (`NodesWritten`) ; les lignes refusées ne le sont pas, et chacune
-    est redite avec son motif (`rejected`). Le plan retient le compteur de la structure lu à
-    l'aperçu, et la confirmation est refusée par 412 si la structure a changé depuis, quel que
-    soit le compteur envoyé (`PasteApply`) : la structure est celle que l'aperçu a jugée. Le
-    référentiel, lui, a pu changer — une catégorie ou un rôle désactivés entre-temps — : les lignes
-    acceptées du plan sont donc jugées de nouveau, et une ligne devenue invalide passe dans
-    `rejected` avec son motif, sans être écrite (`PasteRejection`). Sans aucune
-    ligne valide, rien n'est écrit : `nodes`, `ancestors`, `rescheduled` et `reinflated` sont
-    vides, le compteur de la structure reste celui qui a été envoyé, et aucune entrée d'annulation
-    n'est créée (WF-IHM-0110).
+    What the confirmation of a paste returns (WF-IHM-0050): a partial success when the preview
+    refused rows. The valid rows are written in a single operation and returned like
+    any grid write (`NodesWritten`); the refused rows are not, and each one
+    is repeated with its reason (`rejected`). The plan retains the structure's counter read at
+    the preview, and the confirmation is refused with 412 if the structure has changed since,
+    whatever counter is sent (`PasteApply`): the structure is the one the preview judged. The
+    reference data, for its part, may have changed — a category or a role deactivated in the
+    meantime —: the plan's accepted rows are therefore judged again, and a row that has become
+    invalid moves into `rejected` with its reason, without being written (`PasteRejection`).
+    Without any valid row, nothing is written: `nodes`, `ancestors`, `rescheduled` and
+    `reinflated` are empty, the structure's counter remains the one that was sent, and no undo
+    entry is created (WF-IHM-0110).
   allOf:
     - $ref: '#/NodesWritten'
     - type: object
@@ -2454,23 +2457,23 @@ PasteApplied:
         rejected:
           type: array
           description: >-
-            Les refus de l'aperçu et ceux que la confirmation y ajoute en jugeant de nouveau les
-            lignes acceptées, aucun écrit, dans l'ordre des lignes du bloc ; vide quand toutes les
-            lignes du bloc sont écrites.
+            The preview's refusals and those that the confirmation adds by judging the accepted
+            rows again, none written, in the order of the block rows; empty when all the
+            rows of the block are written.
           items: { $ref: '#/PasteRejection' }
 
 PasteApply:
   type: object
   required: [paste_id, confirmed, lock_version]
   description: >-
-    Confirme un plan de collage : ses lignes acceptées sont écrites, ses lignes refusées ne le
-    sont pas (WF-IHM-0050). Le compteur est celui de la structure dans laquelle le bloc
-    s'écrit (`CostStructure.lock_version`), lu avec la page ou rendu par la dernière écriture
-    (`NodesWritten.structure_lock_version`) ; périmé, le collage est refusé par 412 et rien
-    n'est écrit (WF-IHM-0050, WF-IHM-0110). Le plan retient aussi le compteur de la structure lu
-    à l'aperçu (`previewPaste`) : la structure changée depuis l'aperçu, la confirmation est
-    refusée par 412 quel que soit le compteur envoyé, le plan ayant été jugé sur une autre
-    structure (`params.expected_lock_version`, le compteur courant).
+    Confirms a paste plan: its accepted rows are written, its refused rows are
+    not (WF-IHM-0050). The counter is that of the structure into which the block
+    is written (`CostStructure.lock_version`), read with the page or returned by the last write
+    (`NodesWritten.structure_lock_version`); stale, the paste is refused with 412 and nothing
+    is written (WF-IHM-0050, WF-IHM-0110). The plan also retains the structure's counter read
+    at the preview (`previewPaste`): if the structure has changed since the preview, the
+    confirmation is refused with 412 whatever counter is sent, the plan having been judged on
+    another structure (`params.expected_lock_version`, the current counter).
   properties:
     paste_id: { $ref: ../common.yaml#/Uuid }
     confirmed:
@@ -2478,64 +2481,65 @@ PasteApply:
       const: true
     lock_version:
       allOf: [{ $ref: ../common.yaml#/LockVersion }]
-      description: Le compteur de la structure lue, que le collage écrit.
+      description: The counter of the structure read, which the paste writes.
 
 RevisionComparison:
   type: object
   required: [from_revision_id, to_revision_id, items, totals, meta, amount_deltas]
   description: >-
-    Comparaison de deux révisions marquées, rapprochée par l'identifiant de lignée
-    (WF-REV-0080, WF-DAT-0030) : l'arbre de la structure principale de la révision comparée, avec
-    les marques d'un différentiel, et les écarts de montants. Elle a la forme de la réponse de
-    `listNodes` — `items`, `totals`, `meta` —, et se lit comme elle, entière ou par la fenêtre
-    que ses filtres retiennent (#1193).
+    Comparison of two marked revisions, matched by the lineage identifier
+    (WF-REV-0080, WF-DAT-0030): the tree of the main structure of the compared revision, with
+    the marks of a differential, and the amount differences. It has the shape of the response of
+    `listNodes` — `items`, `totals`, `meta` —, and is read like it, whole or through the window
+    that its filters retain (#1193).
   properties:
     from_revision_id: { $ref: ../common.yaml#/Uuid }
     to_revision_id: { $ref: ../common.yaml#/Uuid }
     items:
       type: array
       description: >-
-        Les nœuds de la révision comparée (`to_revision_id`) que la lecture retient, en parcours
-        profondeur d'abord dans l'ordre du plan, sans pagination, comme `listNodes` les rend :
-        chaque nœud avec son écart à la révision de base (`difference`, `changes`) et les champs
-        que `fields` nomme, les nœuds retirés à la place qu'ils avaient dans la révision de
-        base, en lecture seule. Une paire identique rend chaque nœud inchangé (WF-REV-0080,
+        The nodes of the compared revision (`to_revision_id`) that the read retains, depth-first
+        in outline order, without pagination, as `listNodes` returns them:
+        each node with its difference from the base revision (`difference`, `changes`) and the
+        fields that `fields` names, the removed nodes at the place they had in the base
+        revision, read-only. An identical pair returns each node unchanged (WF-REV-0080,
         C-361).
       items: { $ref: '#/ComparedNodeRead' }
     totals:
       allOf: [{ $ref: '#/NodeTotals' }]
       description: >-
-        Les totaux de la révision comparée, comme `listNodes` les rend : ceux des lignes
-        retenues, sans les nœuds retirés, qui ne sont plus de sa structure ; `difference` ne les
-        restreint pas (`NodeTotals`).
+        The totals of the compared revision, as `listNodes` returns them: those of the retained
+        lines, without the removed nodes, which are no longer in its structure; `difference` does
+        not restrict them (`NodeTotals`).
     meta:
       allOf: [{ $ref: '#/NodeListMeta' }]
-      description: Ce que la lecture dit de la structure principale de la révision comparée.
+      description: What the read says about the main structure of the compared revision.
     amount_deltas:
       type: array
       description: >-
-        Les écarts des montants budgétés et des montants réestimés, inflation comprise, par nature
-        de coût et par sous-projet (WF-REV-0080), chacun nommé par
-        son libellé, résolu à la lecture comme `AmountByKey.label` : l'écran ne joint rien
-        (WF-ARC-0020). Rendus dans chaque réponse, comme `totals`, et calculés sur les lignes que
-        la lecture retient, retirées comprises, quel que soit `kinds` : sans filtre, ceux de toute
-        la structure ; d'un sous-arbre, les siens ; sous `difference`, ceux des seules lignes qu'il
-        retient, quand `totals` ne change pas avec lui (#1398). L'écart se compte par ligne retenue,
-        selon son parent dans la révision comparée (`to_revision_id`) : chaque ligne retenue y
-        apporte ses écarts entiers, ses montants dans la révision comparée moins ceux de la
-        révision de base, où qu'elle fût dans celle-ci. Une ligne compte sous la clé qu'elle porte
-        dans chaque révision : son montant dans la révision comparée sous sa nature et son
-        sous-projet d'alors, moins son montant dans la révision de base sous les siens. Une ligne
-        qui change de nature ou de sous-projet compte donc son montant entier en moins sous
-        l'ancienne clé et en plus sous la nouvelle, même quand son montant ne change pas ; l'offre
-        sans sous-projet comparée à la référence en est l'exemple (`comparison`). L'écart d'une clé
-        est ainsi la différence de ses totaux entre les deux révisions, et la somme des écarts par
-        sous-projet égale celle par nature (#1751). Une nature ou un sous-projet dont les deux
-        écarts sont nuls est omis. Une ligne déplacée hors d'un sous-arbre n'en compte
-        donc plus rien, et une ligne déplacée dedans y compte son écart entier, et non son seul
-        montant dans la révision comparée ; une ligne retirée se compte à la place qu'elle avait.
-        Les écarts de sous-arbres disjoints s'ajoutent ainsi à ceux de la structure entière, chaque
-        ligne comptée une fois.
+        The differences of the budgeted amounts and of the re-estimated amounts, inflation
+        included, by cost type and by subproject (WF-REV-0080), each named by
+        its label, resolved on read like `AmountByKey.label`: the screen joins nothing
+        (WF-ARC-0020). Returned in every response, like `totals`, and computed on the lines that
+        the read retains, removed ones included, whatever `kinds`: without a filter, those of the
+        whole structure; of a subtree, its own; under `difference`, those of only the lines it
+        retains, while `totals` does not change with it (#1398). The difference is counted per
+        retained line, according to its parent in the compared revision (`to_revision_id`): each
+        retained line contributes its whole differences there, its amounts in the compared
+        revision minus those of the base revision, wherever it was in the latter. A line counts
+        under the key it carries in each revision: its amount in the compared revision under its
+        cost type and its subproject at that time, minus its amount in the base revision under
+        its own there. A line that changes cost type or subproject therefore counts its whole
+        amount negatively under the old key and positively under the new one, even when its
+        amount does not change; the offer without a subproject compared with the reference is
+        the example of this (`comparison`). The difference of a key
+        is thus the difference of its totals between the two revisions, and the sum of the
+        differences by subproject equals that by cost type (#1751). A cost type or a subproject
+        whose two differences are zero is omitted. A line moved out of a subtree therefore
+        no longer counts anything there, and a line moved into it counts its whole difference
+        there, and not only its amount in the compared revision; a removed line is counted at the
+        place it had. The differences of disjoint subtrees thus add up to those of the whole
+        structure, each line counted once.
       items:
         type: object
         required: [dimension, key, label, budgeted_delta, reestimated_delta]
@@ -2545,45 +2549,46 @@ RevisionComparison:
             enum: [cost_type, subproject]
           key:
             type: string
-            description: L'identifiant de la nature ou du sous-projet, ou `unassigned` (WF-IND-0020).
+            description: The identifier of the cost type or of the subproject, or `unassigned` (WF-IND-0020).
           label:
             anyOf: [{ type: string }, { type: 'null' }]
-            description: Le libellé de la nature ou du sous-projet ; nul pour la seule clé `unassigned`, que le front nomme.
+            description: The label of the cost type or of the subproject; null for the `unassigned` key only, which the front names.
           budgeted_delta:
             allOf: [{ $ref: ../common.yaml#/Money }]
             description: >-
-              L'écart des montants budgétés de la nature ou du sous-projet, inflation comprise
-              (WF-DEV-0020, WF-REV-0080) : la révision comparée (`to_revision_id`) moins la
-              révision de base (`from_revision_id`), positif quand la comparée porte davantage —
-              le sens où une tâche est dite ajoutée, et celui du devis en cours moins le devis
-              comparé (`EstimateIndicators.delta_to_reference`). La comparaison d'une révision
-              obtenue par fusion d'un différentiel avec la révision marquée qui la précède, sans
-              autre modification entre les deux, restitue exactement les montants budgétés de ce
-              différentiel, quelle que soit l'année de référence de chacune (WF-REV-0080, #1754).
+              The difference of the budgeted amounts of the cost type or of the subproject,
+              inflation included (WF-DEV-0020, WF-REV-0080): the compared revision
+              (`to_revision_id`) minus the base revision (`from_revision_id`), positive when the
+              compared one carries more — the direction in which a task is said to be added, and
+              that of the current estimate minus the compared estimate
+              (`EstimateIndicators.delta_to_reference`). The comparison of a revision
+              obtained by merging a differential with the marked revision that precedes it, with no
+              other modification between the two, restores exactly the budgeted amounts of that
+              differential, whatever the reference year of each (WF-REV-0080, #1754).
           reestimated_delta:
             allOf: [{ $ref: ../common.yaml#/Money }]
             description: >-
-              L'écart des montants réestimés de la nature ou du sous-projet, inflation comprise,
-              dans le même sens (WF-REV-0080). Entre deux révisions de même année de référence, il
-              ne vient, après une fusion, que des lignes que le différentiel ajoute ou retire, de
-              celles des tâches démarrées qu'il termine et de celles dont il change l'année de
-              consommation : une ligne existante dont le différentiel ne modifie que le montant
-              budgété n'y apporte rien. Entre deux révisions d'années de référence différentes, il
-              vient aussi de chaque ligne dont le taux a été mis à jour ou projeté jusqu'à la
-              nouvelle année de référence (WF-REV-0060), les montants budgétés restant ceux du
-              différentiel ; l'offre de 2025 comparée à la référence de 2026 en est l'exemple
-              (`comparison`, #1754).
+              The difference of the re-estimated amounts of the cost type or of the subproject,
+              inflation included, in the same direction (WF-REV-0080). Between two revisions of
+              the same reference year, it comes, after a merge, only from the lines that the
+              differential adds or removes, from those of the started tasks it completes and from
+              those whose consumption year it changes: an existing line of which the differential
+              modifies only the budgeted amount contributes nothing to it. Between two revisions
+              of different reference years, it also comes from each line whose rate has been
+              updated or projected up to the new reference year (WF-REV-0060), the budgeted amounts
+              remaining those of the differential; the 2025 offer compared with the 2026 reference
+              is the example of this (`comparison`, #1754).
 
 ComparedNodeRead:
   type: object
   required: [node_id, row_number, level, lock_version, difference, changes]
   description: >-
-    Un nœud de la comparaison (`RevisionComparison.items`), tel que `compareRevisions` le rend :
-    les propriétés de `Node`, reprises de lui, dont seules sont exigées celles qu'une lecture rend
-    toujours — `node_id`, `row_number`, `level` et `lock_version`, et la marque du nœud,
-    `difference` et `changes` —, les autres n'étant rendues que si `fields` les nomme, ou toutes
-    s'il est omis (#166, #1201, #1208). Ses facettes sont partielles de même. `Node`, que rend
-    `listNodes`, ne change pas.
+    A node of the comparison (`RevisionComparison.items`), as `compareRevisions` returns it:
+    the properties of `Node`, taken over from it, of which only those that a read always returns
+    are required — `node_id`, `row_number`, `level` and `lock_version`, and the node's mark,
+    `difference` and `changes` —, the others being returned only if `fields` names them, or all
+    of them if it is omitted (#166, #1201, #1208). Its facets are partial likewise. `Node`, which
+    `listNodes` returns, does not change.
   properties:
     <<: *node_properties
     task:
@@ -2593,23 +2598,23 @@ ComparedNodeRead:
     difference:
       allOf: [{ $ref: '#/NodeDifference' }]
       description: >-
-        L'écart du nœud à la révision de base (`from_revision_id`), que le serveur rend et que le
-        front ne calcule pas (WF-REV-0080, C-361) : toujours rendu, que `fields` le nomme ou non,
-        jamais nul.
+        The node's difference from the base revision (`from_revision_id`), which the server
+        returns and the front does not compute (WF-REV-0080, C-361): always returned, whether
+        `fields` names it or not, never null.
 
 ComparedTaskFacet:
   type: object
   description: >-
-    La facette temps d'un nœud de la comparaison (`ComparedNodeRead.task`) : les propriétés de
-    `TaskFacet`, reprises de lui, aucune exigée — une lecture avec `fields` ne rend que celles
-    qu'il nomme (`task.label`), une lecture sans `fields` les rend toutes (#166, #1208).
+    The time facet of a node of the comparison (`ComparedNodeRead.task`): the properties of
+    `TaskFacet`, taken over from it, none required — a read with `fields` returns only those
+    it names (`task.label`), a read without `fields` returns them all (#166, #1208).
   properties: *task_facet_properties
 
 ComparedEstimateLineFacet:
   type: object
   description: >-
-    La facette devis d'un nœud de la comparaison (`ComparedNodeRead.estimate_line`) : les
-    propriétés d'`EstimateLineFacet`, reprises de lui, aucune exigée — une lecture avec `fields`
-    ne rend que celles qu'il nomme (`estimate_line.label`), une lecture sans `fields` les rend
-    toutes (#166, #1208).
+    The estimate facet of a node of the comparison (`ComparedNodeRead.estimate_line`): the
+    properties of `EstimateLineFacet`, taken over from it, none required — a read with `fields`
+    returns only those it names (`estimate_line.label`), a read without `fields` returns them
+    all (#166, #1208).
   properties: *estimate_line_facet_properties
