@@ -22,9 +22,9 @@
  * estimate, to a session that reads it (EP-14/L53) —, the contributors theirs as it lists
  * `manage_contributors` (EP-02/L44b): to a session that may write them, the page reads the accounts
  * the server proposes (`listContributorSuggestions`, WF-PRJ-0070), and the list whole when the grid
- * reads it filtered — a reading filtered has no counter to write from. Once, under its header, the
- * screen says that the fake back keeps none of what any of these commands writes and applies none of
- * the searches, sorts and filters above (`MockupNotice`, `lists`).
+ * reads it filtered — a reading filtered has no counter to write from. The service keeps what these
+ * commands write and applies the searches, sorts and filters above: a success is what it kept, the
+ * page read anew.
  */
 import type { Metadata } from "next";
 import { useTranslations } from "next-intl";
@@ -67,7 +67,6 @@ import {
   WorkBreakdownList,
 } from "@/components/projects/settings-lists";
 import { FUNCTION_DENSITY, FUNCTION_ICONS } from "@/components/shell/function-display";
-import { MockupNotice } from "@/components/shell/mockup-notice";
 import { PageHeader, Screen } from "@/components/shell/page-header";
 import { pageSearch } from "@/navigation/context";
 import { functionHref, functionOf } from "@/navigation/functions";
@@ -93,27 +92,22 @@ export async function generateMetadata({
 }
 
 /**
- * The title of the screen, with the icon of its function, and the state of the project; under it,
- * the notice of the fake back, which keeps nothing and applies none of the searches, sorts and
- * filters the lists of the screen ask (US-0760): the screen shows it whether it writes or not.
+ * The title of the screen, with the icon of its function, and the state of the project.
  */
 function SettingsHeader({ project }: { readonly project: Project }) {
   const t = useTranslations();
   return (
-    <>
-      <PageHeader
-        title={t("functions.projectSettings")}
-        icon={FUNCTION_ICONS.project_settings}
-        density={FUNCTION_DENSITY.project_settings}
-        subtitle={
-          <span className="inline-flex items-center gap-2">
-            {t("projectFacts.state")}
-            <ProjectStateBadge state={project.state} />
-          </span>
-        }
-      />
-      <MockupNotice lists />
-    </>
+    <PageHeader
+      title={t("functions.projectSettings")}
+      icon={FUNCTION_ICONS.project_settings}
+      density={FUNCTION_DENSITY.project_settings}
+      subtitle={
+        <span className="inline-flex items-center gap-2">
+          {t("projectFacts.state")}
+          <ProjectStateBadge state={project.state} />
+        </span>
+      }
+    />
   );
 }
 

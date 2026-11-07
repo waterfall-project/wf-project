@@ -24,9 +24,8 @@
  * follows a command of its own (`update_win_probability`, EP-14/L42i), frozen from the state in
  * progress (WF-PRJ-0090): listed unavailable, the field is shown fixed, the conditions it lacks said
  * under it, and the value is not sent. The answer takes the place of what the screen shows as
- * long as it is newer than the project the page read (`lock_version`) — against the fake back, which
- * keeps nothing, for as long as the screen stays; the settings say so once, under their header
- * (`MockupNotice`) —, and the page is read anew. The form writes from the version it opened on, as the
+ * long as it is newer than the project the page read (`lock_version`), and the page is read anew,
+ * the service having kept what the screen shows. The form writes from the version it opened on, as the
  * lists of the reference data do (`CommandedList`, `opened`): a reading that comes while it is open
  * does not lend its `lock_version` to a draft entered on another, which the optimistic lock
  * refuses; and the command waits while a write of a dialog closed is under way, for the form to

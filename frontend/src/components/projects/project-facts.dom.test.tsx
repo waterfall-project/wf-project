@@ -32,9 +32,9 @@ describe("the facts at the head of a project", () => {
           </NextIntlClientProvider>,
         );
         const term = screen.getByText(locale === "fr" ? "État" : "State");
-        const value = within(term.parentElement ?? document.body).getByText(
-          (_, element) => element?.className.includes("bg-state-") === true,
-        ).textContent;
+        const value = within(term.parentElement ?? document.body)
+          .getByRole("img")
+          .getAttribute("aria-label");
         unmount();
         return value;
       });

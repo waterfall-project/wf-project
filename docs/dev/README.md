@@ -603,9 +603,9 @@ an unknown account (`UNKNOWN_USER`) or a deactivated one (`USER_INACTIVE`) — s
 the account it designates, naming it. The write leaves from a whole read, with its counter: when
 the grid reads the filtered list, the page re-reads it whole for the dialog, and the grid keeps
 what its read retains. An answered edit replaces its row, a deletion removes it, an answered list
-replaces that of a whole read, as long as their counter is more recent — against the fake back, as
-long as the screen stays open (`MockupNotice`, under the header); a creation adds no row, the
-re-read page files it. A response closes only the form, the confirmation or the dialog it left
+replaces that of a whole read, as long as their counter is more recent, the re-read page saying what the
+service kept (US-1000: the settings of the project no longer bear `MockupNotice`); a creation adds no
+row, the re-read page files it. A response closes only the form, the confirmation or the dialog it left
 from, never another opened since (openings counter, `key`, #672). The command that opens an edit
 waits, inactive, `aria-busy` and described by « Saving in progress… », for the response of a
 write of the closed dialog, whatever it is, so that the dialog opens on the version it brings
@@ -655,8 +655,7 @@ success, a refusal, a rejected server action, the API unreachable —; a server 
 answers leaves it inactive until the page is reloaded. The openings counter remains, as a
 safeguard: the command awaiting the write, no other opening comes before the response. The
 response takes the place of the facts read as long as it is more recent than the project read
-(`lock_version`) — against the fake back, as long as the screen stays open (`MockupNotice`, said
-as long as the edit is available) —, the page re-read; the section is remounted when the screen
+(`lock_version`), the page re-read; the section is remounted when the screen
 shows another project. A refusal by field is said at the field, any other under the form — the
 probability fixed in the meantime (409 `STATE_FORBIDS_OPERATION`, the condition named), the stale
 version with the offer to re-read; a rate outside its bounds (422 `VALUE_OUT_OF_RANGE`,
@@ -1889,9 +1888,8 @@ whose history the address asks for, named and lifted, and the correlation, enter
 an author or a project the address names without any choice offering it stays chosen under the name
 the entries give it, and an author that no line read names is read by `getUser`, at most once, and
 named as everywhere (`naming.person`), never by its identifier (#1010). The project and the object
-are links where the session can consult them — a project it can open (`listProjects`, all states;
-none when the API does not find the list of projects, which the service only serves from EP-04 on, a
-tolerance of the 404 that #962 then removes) —: the project, a revision of such a project, and an
+are links where the session can consult them — a project the server says it can open (`AuditProject.can_open`, which the entries and `listAuditFacets`
+return, the latter naming the projects of the whole journal, even those it cannot open) —: the project, a revision of such a project, and an
 object that lives in a revision, towards its own screen in the one the entry names
 (`AuditObject.revision`) — a risk towards the risks of the revision, its detail open (`risk`), the
 import of a planning, of an estimate or of a remaining to commit towards its exchanges, its report
@@ -2735,8 +2733,10 @@ page), no `kinds`, no `fields`, no `include_inactive` — and it keeps nothing. 
 on them is badly judged on the mock-up (#1399): judging these gestures falls to the front tests,
 which test the request the screen makes, and to the service. The screens of lists and grids say it
 through `MockupNotice` with `lists` (`mockup.notFiltered`), in a single note under the header. The
-screens whose service is delivered (administration, EP-03) do not show the note, even though
-`make dev` serves them through Prism and the same limits apply.
+screens whose service is delivered do not show the note, even though `make dev` serves them through
+Prism and the same limits apply: administration (EP-03), the reference data (EP-05) and, from EP-04,
+the connected home (US-0920/L2), the revisions (US-0960, US-0970) and the settings of the project
+(US-1000); a success there is what the service kept, read anew.
 
 _Checks_: `make lint-openapi` (examples conforming to the schemas, volumes included),
 `make mock-data-up-to-date` (the versioned volumes are those the tool writes, in the
@@ -3813,6 +3813,31 @@ removes the guard and its entry:
   minimal reference is complete, and the service creates a project (#2194). The path of the
   restoration (`service/backups.spec.ts`) creates one before the backup, marks its revision and
   creates a second after it, and does not find them once restored (WF-ADM-0160-A).
+- `project-start.spec.ts` — the start towards the planning: the opening of PRJ-001 that leads to its
+  planning, the screen of the work breakdown that generates the planning, and the encart « Démarrer le
+  projet » of a project created, which the service does not offer to the account of the run before the
+  structures (`BEFORE_EP06`): lifted by **EP-06**, which serves the structures, the import of a
+  planning and `generatePlanningSkeleton`. The work breakdown of a project created, written then read
+  anew, plays since US-0950 (twin path, `SERVICE_ONLY`).
+- `context.spec.ts` — the banner of the context on the screens of the data, the planning, the
+  remaining to commit, the risks and the indicators, and on a differential structure
+  (`BEFORE_THE_DATA`): lifted screen by screen by **EP-06** (the planning, the structures), **EP-07**
+  (the remaining to commit), **EP-08** (the risks) and **EP-10** (the indicators). The banner of the
+  screens of a project created, its settings and its revisions, plays since US-1000.
+- `projects.spec.ts` — the paths that write to PRJ-001 or reach it through its planning: the screen
+  of the project, its settings and its lifecycle, the exit, the sub-projects and the contributors,
+  the work breakdown (`FAKE_BACK_ONLY`): the account of the run is not a project manager of PRJ-001,
+  by decision (#2193, option A), and the planning its page leads to is **EP-06**'s. Each has its
+  twin, played against the service alone on a project the account creates (`SERVICE_ONLY`,
+  `own-project.ts`): settings, lifecycle, sub-projects, work breakdown, and an exit to Lost from
+  Pricing, read anew. The reading of PRJ-001 — the list, the sorts and the filters of the home, the
+  lists of its settings — plays on both sides.
+
+The two readers of a project (`service/project-readers.spec.ts`, WF-ADM-0040-A) play against the
+service alone: two local accounts holding « Manager » and « Chef de projet », one reading in French
+and keeping every column, the other in English with a column hidden, read the same project, its
+contributors and its revisions; the first creates it and opens a revision through the screens, and
+enrols the other through the API under her token.
 
 The paths that depend on what the service does not do yet, or does not serve, are not replayed
 against it, being untagged; each is still played against the fake back, by `chromium`. What

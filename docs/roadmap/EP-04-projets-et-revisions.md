@@ -1420,7 +1420,7 @@ les trois cents projets (EP-13).
 
 ## US-1000 — Les écrans du projet branchés sur le service
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-ADM-0040-A`
 - **opérations** : toutes celles de l'EPIC, lues par les écrans du projet
 - **issue** : 2066

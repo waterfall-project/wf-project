@@ -591,9 +591,9 @@ un compte inconnu (`UNKNOWN_USER`) ou désactivé (`USER_INACTIVE`) — dit à l
 désigne, en le nommant. L'écriture part d'une lecture entière, avec son compteur : quand la grille
 lit la liste filtrée, la page la relit entière pour le dialogue, et la grille garde ce que sa
 lecture retient. Une modification répondue remplace sa ligne, une suppression l'ôte, une liste
-répondue remplace celle d'une lecture entière, tant que leur compteur est plus récent — face au faux
-back, tant que l'écran reste ouvert (`MockupNotice`, sous l'en-tête) ; une création n'ajoute aucune
-ligne, la page relue la range. Une réponse ne ferme que le formulaire, la confirmation ou le
+répondue remplace celle d'une lecture entière, tant que leur compteur est plus récent, la page relue
+disant ce que le service a gardé (US-1000 : les paramètres du projet ne portent plus `MockupNotice`) ;
+une création n'ajoute aucune ligne, la page relue la range. Une réponse ne ferme que le formulaire, la confirmation ou le
 dialogue d'où elle est partie, jamais un autre ouvert depuis (compteur d'ouvertures, `key`, #672).
 La commande qui ouvre une modification attend, inactive, `aria-busy` et décrite par « Enregistrement
 en cours… », la réponse d'une écriture du dialogue fermé, quelle qu'elle soit, pour que le dialogue
@@ -643,8 +643,7 @@ réponse, quelle qu'elle soit — un succès, un refus, une action serveur rejet
 ; une action serveur qui ne répond jamais la laisse inactive jusqu'au rechargement de la page. Le
 compteur d'ouvertures reste, en garde-fou : la commande attendant l'écriture, aucune autre ouverture
 ne vient avant la réponse. La réponse prend la place des faits lus tant qu'elle est plus récente que
-le projet lu (`lock_version`) — face au faux back, tant que l'écran reste ouvert (`MockupNotice`,
-dit tant que la modification est disponible) —, la page relue ; la section est remontée quand
+le projet lu (`lock_version`), la page relue ; la section est remontée quand
 l'écran montre un autre projet. Un refus par champ se dit au champ, tout autre sous le formulaire —
 la probabilité figée entre-temps (409 `STATE_FORBIDS_OPERATION`, la condition nommée), la version
 périmée avec l'offre de relire ; un taux hors de ses bornes (422 `VALUE_OUT_OF_RANGE`,
@@ -1884,9 +1883,9 @@ saisie (`TextFilter`) ; un auteur ou un projet que l'adresse nomme sans qu'aucun
 reste choisi sous le nom que les inscriptions lui donnent, et un auteur qu'aucune ligne lue ne nomme
 est lu par `getUser`, au plus une fois, et nommé comme partout (`naming.person`), jamais par son
 identifiant (#1010). Le projet et l'objet sont des liens là où la session peut les consulter — un
-projet qu'elle peut ouvrir (`listProjects`, tous états ; aucun quand l'API ne trouve pas la liste
-des projets, que le service ne sert qu'à partir d'EP-04, une tolérance du 404 que #962 retire alors)
-— : le projet, une révision d'un tel projet, et un objet qui vit dans une révision, vers son écran
+projet que le serveur dit qu'elle peut ouvrir (`AuditProject.can_open`, que rendent les inscriptions
+et `listAuditFacets`, qui nomme les projets du journal entier, même ceux qu'elle ne peut pas ouvrir) — :
+le projet, une révision d'un tel projet, et un objet qui vit dans une révision, vers son écran
 propre dans celle que l'inscription nomme (`AuditObject.revision`) — un risque vers les risques de
 la révision, son détail ouvert (`risk`), l'import d'un planning, d'un devis ou d'un reste à engager
 vers ses échanges, son compte rendu montré (`import`), le différentiel d'un avenant vers les
@@ -2738,8 +2737,10 @@ Sur un écran de `make dev`, il n'applique donc ni filtre, ni recherche, ni tri,
 qui en dépend se juge mal en maquette (#1399) : juger ces gestes revient aux tests du front, qui
 éprouvent la requête que l'écran fait, et au service. Les écrans de listes et de grilles le disent
 par `MockupNotice` avec `lists` (`mockup.notFiltered`), en une seule note sous l'en-tête. Les écrans
-dont le service est livré (l'administration, EP-03) ne portent pas la note, même si `make dev` les
-sert par Prism et que les mêmes limites s'y appliquent.
+dont le service est livré ne portent pas la note, même si `make dev` les sert par Prism et que les
+mêmes limites s'y appliquent : l'administration (EP-03), le référentiel (EP-05) et, d'EP-04, l'accueil
+connecté (US-0920/L2), les révisions (US-0960, US-0970) et les paramètres du projet (US-1000) ; un
+succès y est ce que le service a gardé, relu.
 
 _Contrôles_ : `make lint-openapi` (exemples conformes aux schémas, volumes compris),
 `make mock-data-up-to-date` (les volumes versionnés sont ceux que l'outil écrit, dans la
@@ -3843,6 +3844,30 @@ retire la garde et son entrée :
   le référentiel minimal est complet, et le service crée un projet (#2194). Le parcours de
   restauration (`service/backups.spec.ts`) en crée un avant la sauvegarde, marque sa révision et en
   crée un second après, et ne les retrouve plus une fois la restauration faite (WF-ADM-0160-A).
+- `project-start.spec.ts` — le départ vers le planning : l'ouverture de PRJ-001 qui mène à son planning,
+  l'écran du lotissement qui engendre le planning, et l'encart « Démarrer le projet » d'un projet créé,
+  que le service n'offre pas au compte de la course avant les structures (`BEFORE_EP06`) : levée par
+  **EP-06**, qui sert les structures, l'import d'un planning et `generatePlanningSkeleton`. Le
+  lotissement d'un projet créé, écrit puis relu, se joue dès US-0950 (parcours jumeau, `SERVICE_ONLY`).
+- `context.spec.ts` — le bandeau du contexte sur les écrans des données, le planning, le reste à
+  engager, les risques et les indicateurs, et sur une structure différentielle (`BEFORE_THE_DATA`) :
+  levée écran par écran par **EP-06** (le planning, les structures), **EP-07** (le reste à engager),
+  **EP-08** (les risques) et **EP-10** (les indicateurs). Le bandeau des écrans d'un projet créé, ses
+  paramètres et ses révisions, se joue dès US-1000.
+- `projects.spec.ts` — les parcours qui écrivent sur PRJ-001 ou y mènent par son planning : l'écran du
+  projet, ses paramètres et son cycle de vie, la sortie, les sous-projets et les contributeurs, le
+  lotissement (`FAKE_BACK_ONLY`) : le compte de la course n'est pas chef de projet de PRJ-001, par
+  décision (#2193, option A), et le planning vers lequel mène sa page est d'**EP-06**. Chacun a son
+  jumeau, joué contre le service seul sur un projet que le compte crée (`SERVICE_ONLY`, `own-project.ts`) :
+  paramètres, cycle de vie, sous-projets, lotissement, et une sortie à Perdu depuis Chiffrage, relue.
+  La lecture de PRJ-001 — la liste, les tris et les filtres de l'accueil, les listes de ses paramètres
+  — se joue des deux côtés.
+
+Les deux lecteurs d'un projet (`service/project-readers.spec.ts`, WF-ADM-0040-A) se jouent contre le
+service seul : deux comptes locaux qui portent « Manager » et « Chef de projet », l'un lisant en
+français et gardant toutes les colonnes, l'autre en anglais avec une colonne masquée, lisent le même
+projet, ses contributeurs et ses révisions ; le premier le crée et ouvre une révision par les écrans,
+et inscrit l'autre par l'API sous son jeton.
 
 Ne se rejouent pas contre le service, faute d'être étiquetés, les parcours qui dépendent de ce
 qu'il ne fait pas encore ou ne sert pas ; chacun reste joué contre le faux back, par `chromium`.
