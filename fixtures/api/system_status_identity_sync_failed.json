@@ -67,7 +67,8 @@
         "status": 503,
         "params": {
           "component": "identity_provider"
-        }
+        },
+        "correlation_id": "01926f3a-7c00-7000-8000-000000001979"
       }
     },
     "last_backup": {
