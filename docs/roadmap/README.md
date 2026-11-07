@@ -153,7 +153,7 @@ EP-08, the three hundred projects in EP-13, which closes. Four rules, which each
 | [EP-18](EP-18-comptes-ecarts-revue-du-contrat.md) | Accounts: findings of the contract review | livré | EP-16 |
 | [EP-19](EP-19-livreurs-en-parallele.md) | Deliverers in parallel | livré | rien |
 | [EP-20](EP-20-migration-des-dependances.md) | Migration of the dependencies | livré | EP-19 |
-| [EP-21](EP-21-livreurs-en-parallele-suivi.md) | Deliverers in parallel: follow-up | à planifier | EP-19 |
+| [EP-21](EP-21-livreurs-en-parallele-suivi.md) | Deliverers in parallel: follow-up | en cours | EP-19, EP-05 |
 | [EP-22](EP-22-kanban-recapitulatives-demarrees.md) | The Kanban lists the summary awaiting only its own lines | livré | EP-17 |
 | [EP-05](EP-05-referentiel.md) | Reference data of the company | livré | EP-16, EP-18, EP-19, EP-20 |
 | [EP-04](EP-04-projets-et-revisions.md) | Projects, revisions and life cycle | en cours | EP-05 |
@@ -205,7 +205,9 @@ platform, its runtimes and its dependencies to their latest stable versions, and
 them regular; it comes after EP-19, whose pins it raises, and before EP-05, the first domain
 epic, which is built on the target versions (decision of the author, 2026-11-03). EP-21 takes
 up the tooling findings that EP-19 could not fix in its lots (decision of the author,
-2026-11-04); its rank is set when it is framed.
+2026-11-04) and what two days of delivery with four deliverers revealed; framed on 2026-11-07, it
+also depends on EP-05, whose merge into `main` carries the files it touches, and its lots, small
+and independent, are delivered alongside EP-04 on the free slots.
 
 EP-13 depends only on EP-04: it can start early, but it closes cross-cutting requirements
 whose last action comes late, and it finishes last.
