@@ -502,7 +502,7 @@ textes triés en collation `C`, cherchés par `contains` ; règles SQL du guide 
 | Module | Tables | Interface offerte |
 |---|---|---|
 | `waterfall.core.projects` (FBS-4.2, §3.3.2) | `project`, `project_state_transition`, `contributor`, `subproject`, `work_package`, `order_item`, `deliverable` | le projet lu, listé, créé (le créateur chef de projet, le lot et le poste par défaut, la transition `created`, les partitions), modifié ; `contributor_kind(project_id, user_id)` pour l'évaluation ; les contributeurs, les sous-projets et le lotissement — lecture, écriture, refus — ; le cycle de vie : `next_state(project)`, `advance(project, trigger)` (Créé → Chiffrage, Chiffrage → En cours), `exit(project, to_state, reason)`, les transitions ; les commandes du projet et leurs conditions ; `project_label(id)` et `project_code(id)` pour le journal (#927) ; `load_*` avec identifiant et instant imposés |
-| `waterfall.core.revisions` (FBS-4.1) | `revision`, `cost_structure` | l'historique, la révision lue, créée par `copy_revision(session, source, target)` — que chaque EPIC étend —, abandonnée (ses lignes supprimées), marquée (dans la tâche), désignée référence ; `revision_has_tasks_and_lines(revision_id)`, toujours faux ici, qu'EP-06 et EP-07 remplissent ; `compute_indicators(revision)`, sans effet ici, qu'EP-10 remplit ; les structures et leurs commandes ; `current_revision(project_id)` ; le refus d'une écriture sur une révision marquée (`revision_draft`) ; `load_*` |
+| `waterfall.core.revisions` (FBS-4.1) | `revision`, `cost_structure` | son interface en paquet partage dans `shared.py` le verrou `FOR UPDATE` d'une révision, son inscription au journal et les refus communs de `marking.py`, `revisions.py` et `structures.py` (#2213) ; l'historique, la révision lue, créée par `copy_revision(session, source, target)` — que chaque EPIC étend —, abandonnée (ses lignes supprimées), marquée (dans la tâche), désignée référence ; `revision_has_tasks_and_lines(revision_id)`, toujours faux ici, qu'EP-06 et EP-07 remplissent ; `compute_indicators(revision)`, sans effet ici, qu'EP-10 remplit ; les structures et leurs commandes ; `current_revision(project_id)` ; le refus d'une écriture sur une révision marquée (`revision_draft`) ; `load_*` |
 
 - **L'évaluation** (`waterfall.core.access_roles`) reçoit un second terme : `require_project(actor,
   project_id, permission)`, qui lit `contributor_kind` par l'interface des projets et décide 404
@@ -706,7 +706,8 @@ projet qu'on ne peut pas consulter n'existe pas pour l'appelant (#754).
 - `WF-ARC-0070-A` — « Un appel direct à l'API qui tente de modifier une révision marquée, un
   projet terminal, ou un projet dont l'utilisateur n'est pas contributeur est refusé, alors même
   que le front n'en propose pas l'action. » : par le service, sur chaque écriture du projet et de
-  ses révisions que cet EPIC sert — 403 `NOT_CONTRIBUTOR`, 403 `PROJECT_TERMINAL`, 409
+  ses révisions que cet EPIC sert — 403 `NOT_CONTRIBUTOR`, 409 `STATE_FORBIDS_OPERATION` avec
+  `project_not_terminal` sur un projet terminal (#2172, le contrat), 409
   `STATE_FORBIDS_OPERATION` sur une révision marquée — ; les grilles sont d'EP-06 et d'EP-07 ;
 - écart : `WF-ARC-0070-A` — « Un indicateur affiché est identique à celui que l'API renvoie pour
   la même date et le même périmètre. » : les indicateurs sont d'EP-10, qui clôt ;
@@ -1284,8 +1285,8 @@ case à cocher.
   indisponible en Chiffrage avec `project_in_progress` ; `lose` absente en En cours — l'état posé
   autour du service ;
 - `WF-CYC-0080-A` — « Toute tentative de transition depuis Terminé, Perdu ou Abandonné est
-  refusée. » : `exitProject` et `createRevision` répondent 403, `PROJECT_TERMINAL`, et aucune
-  commande n'est listée disponible ;
+  refusée. » : `exitProject` et `createRevision` répondent 409 `STATE_FORBIDS_OPERATION` avec
+  `project_not_terminal` (#2172, le contrat), et aucune commande n'est listée disponible ;
 - `WF-CYC-0090-A` — « La confirmation nomme l'état visé et le passage en lecture seule du projet et
   de toutes ses données, et propose la saisie d'un motif ; une sortie confirmée sans motif est
   appliquée. » : `ProjectExit` porte `to_state`, `confirmed` et `reason` facultatif ; une sortie
@@ -1298,8 +1299,8 @@ case à cocher.
   sont d'EP-10, qui clôt ;
 - `WF-CYC-0100-A` — « Toute modification d'un projet terminal est refusée, qu'elle soit tentée par
   la saisie, par un import Excel ou MS Project, ou par un traitement automatique. » : par la
-  saisie, chaque écriture de cet EPIC répond 403, `PROJECT_TERMINAL` ; les imports sont d'EP-06
-  à EP-09, qui clôt ;
+  saisie, chaque écriture de cet EPIC répond 409 `STATE_FORBIDS_OPERATION` avec
+  `project_not_terminal` (#2172) ; les imports sont d'EP-06 à EP-09, qui clôt ;
 - `WF-CYC-0110-A` — « Toutes les vues de consultation d'un projet clos s'affichent normalement, et
   ses exports aboutissent. » : les lectures de cet EPIC répondent 200 sur un projet clos ; les
   exports sont d'EP-06 à EP-09, qui clôt ;
