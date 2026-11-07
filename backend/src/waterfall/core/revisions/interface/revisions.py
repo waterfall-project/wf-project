@@ -377,7 +377,7 @@ def create_revision(session: Session, project_id: UUID, act: Act, viewer: Viewer
 
     Refused, nothing written, on a terminal project (409 ``project_not_terminal``), while a
     current revision exists (409 ``no_current_revision``), and while a background task would
-    create it itself (409 ``no_background_task_running``, never until US-0970).
+    create it itself (409 ``no_background_task_running``).
     """
     revision = _open(session, project_id, new_id(), act)
     return _views(session, [revision], project_id, viewer)[0]

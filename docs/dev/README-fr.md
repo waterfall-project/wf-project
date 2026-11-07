@@ -59,7 +59,9 @@ nœuds puis la désactivation de ceux que le témoin dit désactivés, les rôle
 correspondance de l'extraction des coûts réels ; puis, par une seule entrée
 (`waterfall.witness.chronology`), la tranche des projets (EP-04) : les projets et les comptes locaux
 de leurs contributeurs, les contributeurs, les sous-projets, le lotissement, les révisions et les
-événements de la chronologie du témoin, aux instants qu'elle impose. Une tranche n'écrit rien de ce que la plateforme
+événements de la chronologie du témoin, aux instants qu'elle impose — chaque révision ouverte par
+les règles de l'ouverture, marquée par la transaction même du worker (`load_marking`), sous le nom
+de version et la description de `revisions.json`, que la chronologie ne fait qu'ordonner. Une tranche n'écrit rien de ce que la plateforme
 tient déjà : relancé, il n'écrit rien et réussit, en disant le témoin là
 (`witness.already_loaded`) ; un refus ou une erreur n'écrit rien et l'arrête en échec (1). Chaque US
 du référentiel et des projets remplit sa tranche, dans son fichier de `waterfall.witness`, sans
@@ -86,7 +88,12 @@ partition par projet (WF-DAT-0050), que crée dans la transaction de la créatio
 fonction `create_project_partitions` du propriétaire des tables (`SECURITY DEFINER`), que le rôle du
 service seul peut exécuter, sans autre droit de DDL ; chaque EPIC qui ajoute une table révisionnée la
 remplace. Deux déclencheurs du module des révisions refusent, propriétaire compris, ce qu'une
-révision marquée interdit (migration `0020`).
+révision marquée interdit (migration `0020`). Celui d'une table révisionnée verrouille la révision
+de la ligne `FOR KEY SHARE` quel que soit son état, puis la lit, et le marquage verrouille la
+révision `FOR UPDATE` avant de la marquer : un écrivain venu pendant le marquage l'attend, puis se
+voit refusé, et le marquage attend l'écrivain commencé avant lui (#2104). Chaque EPIC qui ajoute
+une table révisionnée lui donne un déclencheur de cette forme. Les verrous se prennent dans un seul
+ordre : la révision, puis son projet, jamais le projet avant la révision.
 Un module en importe un autre par `waterfall.core.<module>.interface`, jamais par ses
 tables. Le noyau n'importe ni l'API ni le worker, qui ne s'importent pas l'un l'autre.
 
@@ -123,6 +130,19 @@ défaut. Qui ouvre la file dit combien il attend Redis : une requête ou le plan
 retienne pas la réponse ; le worker `WORKER_TIMEOUT`, plus long que chacune de ses lectures. Une
 erreur que le worker n'attend pas — Redis ou PostgreSQL hors d'atteinte — l'arrête en échec (1),
 dite dans ses journaux par `worker.failed`, secrets masqués.
+
+**Le marquage, premier traitement du métier** (US-0970). Une tâche qui vise un projet le nomme dans
+sa charge, sous `project_id` (`PROJECT` de `waterfall.platform.tasks`) : tant qu'elle est en file
+ou en cours, `no_background_task_running` de l'interface des projets est faux, et les commandes
+qui écriraient dans le projet nomment cette condition. `markRevision` juge le marquage sous le
+verrou de la révision — 404, 412, `revision_draft`, `no_background_task_running`, puis
+`ALREADY_EXISTS` sur `/version_name` —, et dépose sa tâche `revision_mark` dans la transaction de
+la requête (`submit_marking`), 202 ; le front la suit par `getBackgroundTask`. Le worker
+(`waterfall.worker.marking`) refait le jugement dans la transaction de la tâche (`mark_revision`),
+calcule les indicateurs (`compute_indicators`, qu'EP-10 remplit), marque la révision, la retire du
+projet et inscrit `revision_mark` au journal, son auteur le demandeur ; un refus, ou un calcul qui
+lève, fait échouer la tâche avec son code (`BackgroundTask.problem`), rien n'étant écrit, et un
+nouveau `markRevision` la relance.
 
 Toute opération servie que le contrat garde déclare, sur sa route, les permissions qu'elle demande :
 `dependencies=[Depends(Requires(...))]` (`waterfall.api.evaluation`), évaluées avant la validation

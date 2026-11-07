@@ -59,7 +59,9 @@ of those the witness says deactivated, the roles then theirs, the mapping of the
 actual costs; then, through a single entry (`waterfall.witness.chronology`), the slice of the
 projects (EP-04): the projects and the local accounts of their contributors, the contributors, the
 subprojects, the work breakdown, the revisions and the events of the chronology of the witness, at
-the instants it imposes. A slice writes nothing the platform already holds: run again, it writes nothing and
+the instants it imposes — each revision opened by the rules of the opening, marked by the very
+transaction of the worker (`load_marking`), under the name of version and the description of
+`revisions.json`, which the chronology only orders. A slice writes nothing the platform already holds: run again, it writes nothing and
 succeeds, saying the witness is there (`witness.already_loaded`); a refusal or an error writes
 nothing and stops it in failure (1). Each story of the reference and of the projects fills its
 slice, in its file of `waterfall.witness`, without touching the order. Its module, `waterfall.witness`, is at the top of
@@ -84,7 +86,12 @@ which the function `create_project_partitions` of the owner of the tables (`SECU
 creates in the transaction of the creation of the project; the role of the service alone may
 execute it, with no other right of DDL; each epic that adds a revised table replaces it. Two
 triggers of the module of the revisions refuse, owner included, what a marked revision forbids
-(migration `0020`).
+(migration `0020`). The one of a revised table locks the revision of the row `FOR KEY SHARE`
+whatever its status, then reads it, and the marking locks the revision `FOR UPDATE` before marking
+it: a writer that comes during the marking waits for it, then is refused, and the marking waits
+for the writer that began before it (#2104). Each epic that adds a revised table gives it a trigger
+of that form. The locks are taken in a single order: the revision, then its project, never the
+project before the revision.
 A module imports another through `waterfall.core.<module>.interface`, never through its
 tables. The core imports neither the API nor the worker, which do not import each other.
 
@@ -122,6 +129,19 @@ Whoever opens the queue says how long it waits for Redis: a request or the sched
 hold back the response; the worker `WORKER_TIMEOUT`, longer than each of its reads. An error the
 worker does not expect — Redis or PostgreSQL out of reach — stops it in failure (1), said in its
 logs by `worker.failed`, secrets masked.
+
+**The marking, the first task of the trade** (US-0970). A task that aims at a project names it in
+its payload, under `project_id` (`PROJECT` of `waterfall.platform.tasks`): while it is queued or
+running, `no_background_task_running` of the interface of the projects is false, and the commands
+that would write in the project name that condition. `markRevision` judges the marking under the
+lock of the revision — 404, 412, `revision_draft`, `no_background_task_running`, then
+`ALREADY_EXISTS` on `/version_name` —, and deposits its task `revision_mark` in the transaction of
+the request (`submit_marking`), 202; the front follows it by `getBackgroundTask`. The worker
+(`waterfall.worker.marking`) judges again in the transaction of the task (`mark_revision`),
+computes the indicators (`compute_indicators`, which EP-10 fills), marks the revision, takes it
+from the project and inscribes `revision_mark` in the journal, its author the requester; a
+refusal, or a computation that raises, fails the task with its code (`BackgroundTask.problem`),
+nothing written, and a new `markRevision` asks for it again.
 
 Every served operation the contract keeps declares, on its route, the permissions it requires:
 `dependencies=[Depends(Requires(...))]` (`waterfall.api.evaluation`), evaluated before the

@@ -59,6 +59,7 @@ from waterfall.platform.errors import (
     UnprocessableError,
 )
 from waterfall.platform.identifiers import new_id
+from waterfall.platform.tasks import project_task_pending
 
 if TYPE_CHECKING:
     from collections.abc import Collection, Generator, Iterable, Mapping
@@ -464,10 +465,10 @@ def projects_present(session: Session, project_ids: Collection[UUID]) -> frozens
 def no_background_task_running(session: Session, project_id: UUID) -> bool:
     """Tell whether no background task that writes in the project is queued or running.
 
-    Always true until US-0970: no task of the platform aims at a project before the marking.
+    The tasks that aim at a project — its marking (US-0970), and the merges, occurrences and
+    imports of later epics — are read in ``waterfall.platform.tasks``.
     """
-    del session, project_id
-    return True
+    return not project_task_pending(session, project_id)
 
 
 def _code_taken(session: Session, code: str, own: UUID) -> ConflictError:

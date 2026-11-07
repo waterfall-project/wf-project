@@ -1121,7 +1121,7 @@ transaction de la création, qu'EP-06 (tâches, liaisons), EP-07 (lignes, images
 
 ## US-0970 — Le marquage par le worker, et l'immuabilité par la base
 
-- **statut** : à faire
+- **statut** : en cours
 - **exigences** : `WF-REV-0020-A`, `WF-DAT-0020-A`, `WF-DAT-0040-A`, `WF-DAT-0030-A`,
   `WF-IHM-0080-A`, `WF-ADM-0060-A`, `WF-ADM-0160-A`
 - **opérations** : `markRevision` ; `getBackgroundTask`, `listBackgroundTasks`

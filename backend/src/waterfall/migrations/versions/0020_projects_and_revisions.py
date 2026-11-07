@@ -14,11 +14,12 @@ refuses a project that has its partitions already; each epic that adds a revised
 Two triggers of the module of the revisions refuse, owner included, what a marked revision forbids
 (WF-REV-0020): on ``revision``, going back from ``marked``, any change of a marked revision but its
 designation as reference, its counter and its audit, and its deletion; on ``cost_structure``, any
-write of a row whose revision is marked — the revision read under ``FOR KEY SHARE``, which the lock
-of a marking waits for. Their search path is their own and the table they read is named in
-``public``: a temporary table of the session never shadows it. A project is never deleted, nor a
-transition (``INSERT`` and ``SELECT`` alone); the rest is deleted by the service, row by row. Every
-key refuses (``RESTRICT``).
+write of a row whose revision is marked — the revision locked ``FOR KEY SHARE`` whatever its
+status, then read: the marking, which locks it ``FOR UPDATE``, waits for the writer, and a writer
+that comes after the marking waits for it and reads the revision marked (#2104). Their search path
+is their own and the table they read is named in ``public``: a temporary table of the session never
+shadows it. A project is never deleted, nor a transition (``INSERT`` and ``SELECT`` alone); the
+rest is deleted by the service, row by row. Every key refuses (``RESTRICT``).
 """
 
 from typing import TYPE_CHECKING
@@ -102,22 +103,32 @@ CREATE TRIGGER revision_refuse_marked_change BEFORE UPDATE OR DELETE ON revision
 FOR EACH ROW EXECUTE FUNCTION revision_refuse_marked_change();
 """
 
+# The revision of the row is locked whatever its status, then judged: a draft one, locked so, waits
+# for the marking that holds it ``FOR UPDATE``, and is read marked once it has committed (#2104).
 STRUCTURE_GUARD = """
 CREATE FUNCTION cost_structure_refuse_marked_change() RETURNS trigger
 LANGUAGE plpgsql SET search_path = pg_catalog, pg_temp AS $$
+DECLARE
+    status text;
 BEGIN
-    IF TG_OP <> 'INSERT' AND EXISTS (
-        SELECT FROM public.revision WHERE id = OLD.revision_id AND status = 'marked' FOR KEY SHARE
-    ) OR TG_OP <> 'DELETE' AND EXISTS (
-        SELECT FROM public.revision WHERE id = NEW.revision_id AND status = 'marked' FOR KEY SHARE
-    ) THEN
-        RAISE EXCEPTION 'a row of a marked revision is never written: % refused', TG_OP
-            USING ERRCODE = 'restrict_violation';
+    IF TG_OP <> 'INSERT' THEN
+        SELECT revision.status INTO status FROM public.revision
+        WHERE revision.id = OLD.revision_id FOR KEY SHARE;
+        IF status = 'marked' THEN
+            RAISE EXCEPTION 'a row of a marked revision is never written: % refused', TG_OP
+                USING ERRCODE = 'restrict_violation';
+        END IF;
     END IF;
-    IF TG_OP = 'DELETE' THEN
-        RETURN OLD;
+    IF TG_OP <> 'DELETE' THEN
+        SELECT revision.status INTO status FROM public.revision
+        WHERE revision.id = NEW.revision_id FOR KEY SHARE;
+        IF status = 'marked' THEN
+            RAISE EXCEPTION 'a row of a marked revision is never written: % refused', TG_OP
+                USING ERRCODE = 'restrict_violation';
+        END IF;
+        RETURN NEW;
     END IF;
-    RETURN NEW;
+    RETURN OLD;
 END
 $$;
 CREATE TRIGGER cost_structure_refuse_marked_change BEFORE INSERT OR UPDATE OR DELETE

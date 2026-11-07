@@ -56,6 +56,8 @@ KINDS: tuple[str, ...] = get_args(TaskKind.__value__)
 STATUSES = ("queued", "running", "succeeded", "failed")
 PENDING = ("queued", "running")
 FINISHED = ("succeeded", "failed")
+# The key of the payload of a task that names the project it aims at, which waits for it.
+PROJECT = "project_id"
 # Why a task that a restoration finds pending in the restored database fails (#892).
 INTERRUPTED = {"code": "TASK_INTERRUPTED_BY_RESTORE", "status": 409}
 
@@ -168,6 +170,17 @@ def pending_task(session: Session, kind: TaskKind) -> UUID | None:
     """Give a task of a kind that is queued or running, if there is one."""
     pending = (BackgroundTask.kind == kind) & BackgroundTask.status.in_(PENDING)
     return session.scalar(select(BackgroundTask.id).where(pending).limit(1))
+
+
+def project_task_pending(session: Session, project_id: UUID) -> bool:
+    """Tell whether a task that aims at a project is queued or running.
+
+    A task aims at a project when its payload names it under ``PROJECT``, as the marking of a
+    revision does (US-0970); this module knows no table of the projects.
+    """
+    aimed = BackgroundTask.payload[PROJECT].astext == str(project_id)
+    pending = select(BackgroundTask.id).where(BackgroundTask.status.in_(PENDING), aimed)
+    return session.scalar(pending.limit(1)) is not None
 
 
 def read_task(session: Session, task_id: UUID, requested_by: UUID) -> BackgroundTask | None:
