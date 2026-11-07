@@ -9698,7 +9698,15 @@ export interface operations {
                 };
             };
             401: components["responses"]["Unauthorized"];
-            403: components["responses"]["Forbidden"];
+            /** @description Comme la réponse commune `Forbidden` le dit : une permission manquante, `PERMISSION_MISSING`, ou une qualité sur le projet, `NOT_PROJECT_MANAGER` ou `NOT_CONTRIBUTOR`. Une sortie qui dispose de la révision en cours en demande de plus la permission de l'action, comme `abandonRevision` ou `markRevision` la demandent : le sort `abandon` demande aussi `revision_abandon`, le sort `mark` demande aussi `revision_mark` (WF-CYC-0090, WF-ADM-0100). Rien n'est écrit. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
             404: components["responses"]["NotFound"];
             /** @description La sortie demandée est indisponible : `STATE_FORBIDS_OPERATION`, `params.missing_condition` la première condition qui lui manque, dans l'ordre où la commande de la sortie (`complete`, `lose`, `abandon`) les nomme — `project_not_terminal` pour toute sortie d'un projet terminal, d'où aucune transition ne part (WF-CYC-0080), et où la commande n'est jamais listée : seul ce 409 la nomme ; puis `project_in_progress` pour `completed` avant En cours, `project_in_pricing` pour `lost` hors de Chiffrage, Créé comme En cours (WF-CYC-0060) ; puis `no_background_task_running` pendant un traitement de fond qui écrit dans la révision en cours ou la fige. Ou un nom de version déjà employé par une révision marquée du projet, comme pour `markRevision` : `ALREADY_EXISTS`, `fields` désignant `/current_revision/version_name` par `ALREADY_EXISTS`, `fields[].params.conflicting_object_id` la révision qui le porte (WF-REV-0020). Rien n'est écrit. */
             409: {

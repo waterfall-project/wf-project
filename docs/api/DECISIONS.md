@@ -10796,11 +10796,11 @@ pour un contenu rendu qui ne change aucune forme. Le service le suit en EP-09, q
 `listStartableTasks` (WF-RAE-0030), l'état des récapitulatives en EP-06 (WF-PLA-0040) ; la carte du
 Kanban le lit sur le nouvel exemple par US-1240/L2.
 
-### La liste des contributeurs bornée, la description de la révision en cours, le projet sans code du journal (EP-04, #2196)
+### La liste des contributeurs bornée, la description de la révision en cours, le projet sans code du journal, la licence du contrat (EP-04, #2196)
 
 Décisions de l'auteur du 2026-11-07, par « La règle d'après le gel » : les revues des lots d'EP-04
-ont laissé au contrat cinq constats (#2162, #2163, #2166, #2167, #2171), que le lot du contrat
-d'EP-04 solde en l'ouvrant une seule fois, après les US de l'EPIC. Aucune opération, aucun schéma
+ont laissé au contrat huit constats (#2162, #2163, #2166, #2167, #2171, #2273, #2278, #2285), que
+le lot du contrat d'EP-04 solde en l'ouvrant une seule fois, après les US de l'EPIC. Aucune opération, aucun schéma
 ni aucun code d'erreur nouveaux ; `info.version` reste `1.0.0` : la borne de la liste n'écarte qu'un
 corps qu'aucun écran n'envoie, et les autres points disent ce que le service fait sans changer
 aucune forme.
@@ -10836,8 +10836,16 @@ aucune forme.
   qui écrit toujours sa description, une absente valant nulle, et une « reprise » laissée à
   l'écran.
   `CurrentRevisionMark.description` (`projects.yaml`) porte la même phrase ; le service de la sortie
-  qui marque l'appliquera en US-0980/L2 (#2065), par `KEPT` et `model_fields_set`, comme celui du
-  marquage.
+  qui marque l'applique (#2278) : la route d'`exitProject` lit `description` dans les champs reçus
+  de `CurrentRevisionMark` et passe `KEPT` quand elle est absente, comme celle du marquage.
+- **Les permissions de la sortie** (#2273 ; WF-CYC-0090, WF-ADM-0100). Le 403 d'`exitProject` dit ce
+  que le service fait déjà : le sort `abandon` de la révision en cours demande aussi
+  `revision_abandon`, le sort `mark`, `revision_mark`, en plus de la permission de sortir.
+- **La licence du contrat** (#2285). `info.license` de `openapi.yaml` disait l'AGPL-3.0-only, quand
+  `REUSE.toml` et le README placent le contrat (`docs/api/**/*.yaml`) sous Apache-2.0 : il dit
+  `Apache License 2.0`, `Apache-2.0`. Aucune forme ne change. Un test des outils
+  (`test_contract_licence.py`) exige que l'identifiant déclaré soit celui que `REUSE.toml` donne au
+  fichier.
 - **Le projet sans code du journal** (#2166 ; WF-SEC-0030, WF-PRJ-0010). Un projet naît sans code,
   et sa création, l'abandon de sa révision ou sa sortie s'inscrivent avant qu'il en ait un : le
   journal le nomme alors par son identifiant et son libellé, son code nul — la contrainte
@@ -10851,9 +10859,9 @@ aucune forme.
   pourrait alors choisir.
 
 Les suites : `make generate-server-models` et `make generate-client` (descriptions et borne),
-`make mock-data`, à son point fixe ; le service suit chaque point, sauf la description de
-`CurrentRevisionMark`, que celui de la sortie appliquera en US-0980/L2, et ses tests le tiennent
-(`test_contributors.py`, `test_revisions.py`, `test_revision_mark.py`, `test_audit_consultation.py`,
+`make mock-data`, à son point fixe ; le service suit chaque point, et ses tests le tiennent
+(`test_contributors.py`, `test_revisions.py`, `test_revision_mark.py`, `test_exit_marking.py`,
+`test_audit_consultation.py`,
 `test_database_constraints.py`, `test_projects.py`), et `tools/tests/test_mockproject.py` tient les
 deux exemples nouveaux.
 

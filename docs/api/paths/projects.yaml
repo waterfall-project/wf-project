@@ -392,7 +392,17 @@
             examples:
               unconfirmed: { $ref: ../../../fixtures/api/project_exit_unconfirmed.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
-      '403': { $ref: ../components/responses.yaml#/Forbidden }
+      '403':
+        description: >-
+          Comme la réponse commune `Forbidden` le dit : une permission manquante,
+          `PERMISSION_MISSING`, ou une qualité sur le projet, `NOT_PROJECT_MANAGER` ou
+          `NOT_CONTRIBUTOR`. Une sortie qui dispose de la révision en cours en demande de plus la
+          permission de l'action, comme `abandonRevision` ou `markRevision` la demandent : le sort
+          `abandon` demande aussi `revision_abandon`, le sort `mark` demande aussi
+          `revision_mark` (WF-CYC-0090, WF-ADM-0100). Rien n'est écrit.
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '409':
         description: >-
