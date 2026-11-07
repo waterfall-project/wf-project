@@ -60,7 +60,9 @@ nœuds puis la désactivation de ceux que le témoin dit désactivés, les rôle
 correspondance de l'extraction des coûts réels ; puis, par une seule entrée
 (`waterfall.witness.chronology`), la tranche des projets (EP-04) : les projets et les comptes locaux
 de leurs contributeurs, les contributeurs, les sous-projets, le lotissement, les révisions et les
-événements de la chronologie du témoin, aux instants qu'elle impose. Une tranche n'écrit rien de ce que la plateforme
+événements de la chronologie du témoin, aux instants qu'elle impose — chaque révision ouverte par
+les règles de l'ouverture, marquée par la transaction même du worker (`load_marking`), sous le nom
+de version et la description de `revisions.json`, que la chronologie ne fait qu'ordonner. Une tranche n'écrit rien de ce que la plateforme
 tient déjà : relancé, il n'écrit rien et réussit, en disant le témoin là
 (`witness.already_loaded`) ; un refus ou une erreur n'écrit rien et l'arrête en échec (1). Chaque US
 du référentiel et des projets remplit sa tranche, dans son fichier de `waterfall.witness`, sans
@@ -98,7 +100,12 @@ partition par projet (WF-DAT-0050), que crée dans la transaction de la créatio
 fonction `create_project_partitions` du propriétaire des tables (`SECURITY DEFINER`), que le rôle du
 service seul peut exécuter, sans autre droit de DDL ; chaque EPIC qui ajoute une table révisionnée la
 remplace. Deux déclencheurs du module des révisions refusent, propriétaire compris, ce qu'une
-révision marquée interdit (migration `0020`).
+révision marquée interdit (migration `0020`). Celui d'une table révisionnée verrouille la révision
+de la ligne `FOR KEY SHARE` quel que soit son état, puis la lit, et le marquage verrouille la
+révision `FOR UPDATE` avant de la marquer : un écrivain venu pendant le marquage l'attend, puis se
+voit refusé, et le marquage attend l'écrivain commencé avant lui (#2104). Chaque EPIC qui ajoute
+une table révisionnée lui donne un déclencheur de cette forme. Les verrous se prennent dans un seul
+ordre : la révision, puis son projet, jamais le projet avant la révision.
 Un module en importe un autre par `waterfall.core.<module>.interface`, jamais par ses
 tables. Le noyau n'importe ni l'API ni le worker, qui ne s'importent pas l'un l'autre.
 
@@ -135,6 +142,19 @@ défaut. Qui ouvre la file dit combien il attend Redis : une requête ou le plan
 retienne pas la réponse ; le worker `WORKER_TIMEOUT`, plus long que chacune de ses lectures. Une
 erreur que le worker n'attend pas — Redis ou PostgreSQL hors d'atteinte — l'arrête en échec (1),
 dite dans ses journaux par `worker.failed`, secrets masqués.
+
+**Le marquage, premier traitement du métier** (US-0970). Une tâche qui vise un projet le nomme dans
+sa charge, sous `project_id` (`PROJECT` de `waterfall.platform.tasks`) : tant qu'elle est en file
+ou en cours, `no_background_task_running` de l'interface des projets est faux, et les commandes
+qui écriraient dans le projet nomment cette condition. `markRevision` juge le marquage sous le
+verrou de la révision — 404, 412, `revision_draft`, `no_background_task_running`, puis
+`ALREADY_EXISTS` sur `/version_name` —, et dépose sa tâche `revision_mark` dans la transaction de
+la requête (`submit_marking`), 202 ; le front la suit par `getBackgroundTask`. Le worker
+(`waterfall.worker.marking`) refait le jugement dans la transaction de la tâche (`mark_revision`),
+calcule les indicateurs (`compute_indicators`, qu'EP-10 remplit), marque la révision, la retire du
+projet et inscrit `revision_mark` au journal, son auteur le demandeur ; un refus, ou un calcul qui
+lève, fait échouer la tâche avec son code (`BackgroundTask.problem`), rien n'étant écrit, et un
+nouveau `markRevision` la relance.
 
 Toute opération servie que le contrat garde déclare, sur sa route, les permissions qu'elle demande :
 `dependencies=[Depends(Requires(...))]` (`waterfall.api.evaluation`), évaluées avant la validation
@@ -3790,8 +3810,9 @@ aucune liste de fichiers ne le nomme.
 Chaque US étiquette ses parcours quand le service sert son écran. Contre le faux back, `test` ne
 change rien : le faux back accorde la session. Avec `WATERFALL_API_ADDRESS`, `inService` est vrai,
 et deux fixtures de `mode.ts` font ce qu'un fichier de `frontend/e2e/service/` demande par ses
-crochets : chaque worker obtient une fois un compte local de la course qui porte le rôle prédéfini
-« Manager », que crée l'administrateur de l'installation (`accountAdministrator`, `localAccount`),
+crochets : chaque worker obtient une fois un compte local de la course qui porte les rôles prédéfinis
+« Manager » et « Chef de projet » (US-0970), que crée l'administrateur de l'installation
+(`accountAdministrator`, `localAccount`),
 et chaque parcours se connecte d'abord avec lui (`signIn`, sur `/account`), puis se tient au
 contrat, comme `heldToTheContract()` y tient un fichier (`startReading`, `expectNothingRefused`,
 `contract.ts`). Des fixtures plutôt que des crochets : un crochet déclaré dans un module que les
@@ -3805,9 +3826,23 @@ retire la garde et son entrée :
 
 - `revisions.spec.ts` — la révision en cours et ses parties, et la comparaison, de la volumétrie
   comprise, et « Écarts seulement » (`BEFORE_EP07`) : levée par **EP-07**, qui sert la comparaison
-  (`compareRevisions`) et la mise à jour des taux (`getRateUpdateProposal`), que l'écran d'une
-  révision en cours lit et sans laquelle il est introuvable ; les révisions marquées comparées
-  viennent d'US-0970 (EP-04). L'historique, lui, se joue contre le service dès US-0960.
+  (`compareRevisions`) et la mise à jour des taux (`getRateUpdateProposal`). L'écran d'une révision
+  en cours lit la proposition par `readUnlessRefused` et se rend sans elle sur le 404 du service
+  (#2173), ses commandes jouables. L'historique se joue contre le service dès US-0960, avec les
+  révisions 100 et 101 du témoin marquées dès US-0970.
+- `revision-cycle.spec.ts` — les commandes de la révision 102 de PRJ-001, l'ouverture
+  indisponible et la désignation au-delà de la correction (`NOT_REPLAYED_IN_SERVICE`) : le compte
+  de la course n'est pas inscrit chef de projet des projets du témoin, par décision (#2193,
+  option A) : les parcours qui écrivent créent leur propre projet, et la référence du témoin
+  est désignée par **US-0980/L2**. L'abandon de la 102 (`WITNESS_KEPT`) ne se joue jamais contre le
+  service, qui l'ôterait à tous les autres parcours : le cycle — un projet créé par le compte de la
+  course, chef de projet comme créateur, une révision ouverte, marquée par le worker, une autre
+  ouverte puis abandonnée (US-0970) — s'y joue sur un projet à lui, et contre le service seul
+  (`SERVICE_ONLY`) ; sa suite — rouvrir, saisir le code, sortir, la désignation refusée — est
+  d'**US-0990/L2**. Le cycle se joue depuis qu'**US-0850** (EP-05) sert les rôles de ressources :
+  le référentiel minimal est complet, et le service crée un projet (#2194). Le parcours de
+  restauration (`service/backups.spec.ts`) en crée un avant la sauvegarde, marque sa révision et en
+  crée un second après, et ne les retrouve plus une fois la restauration faite (WF-ADM-0160-A).
 
 Ne se rejouent pas contre le service, faute d'être étiquetés, les parcours qui dépendent de ce
 qu'il ne fait pas encore ou ne sert pas ; chacun reste joué contre le faux back, par `chromium`.

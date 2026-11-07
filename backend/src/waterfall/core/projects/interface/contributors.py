@@ -410,7 +410,10 @@ def set_contributors(
     ``LAST_PROJECT_MANAGER``) — an active one when the writer rescues the project. Nothing is
     written then. The list is answered whole with its next counter, built before the commit.
     """
-    # The accounts of the lines, read in one request before the lock is taken.
+    # The accounts of the lines, read in one request before the lock is taken. Reading them under
+    # it would close no race: a deactivation locks the row of the account, never the project's,
+    # so ``USER_INACTIVE`` judges the same either way; the active project managers of a rescue are
+    # read again under the lock (``active_accounts``).
     accounts = _accounts_of(session, [entry.user_id for entry in write.entries])
     project = _locked(session, project_id)
     _, kinds = _stored(session, project_id)
