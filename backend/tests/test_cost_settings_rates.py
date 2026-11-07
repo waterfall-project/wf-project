@@ -136,9 +136,8 @@ def test_the_witness_grid_is_read_as_the_example_the_faux_back_serves(
     read = grid(api, sessions.reading, "limit=500")
     assert shown(read) == shown(volume)
     assert len(read["rows"]) == 150
-    # The session that changes reads the same: its first page is the first rows of the example.
-    changing = grid(api, sessions.changing, "limit=5")
-    assert shown(changing)["rows"] == shown(volume)["rows"][:5]
+    # The session that changes reads the same grid.
+    assert shown(grid(api, sessions.changing, "limit=500")) == shown(volume)
     assert all(len(row["cells"]) == len(read["years"]) for row in read["rows"])
     # The first page of fifty by the rate of 2026, descending, then the rates from 99.12 on.
     by_rate = grid(api, sessions.reading, "rate_year=2026&sort_by=rate.2026&sort_order=desc")
@@ -201,8 +200,8 @@ def test_the_grid_gives_a_row_per_category_of_labour_active_unless_the_deactivat
 ) -> None:
     changing = sessions.changing
     # Only the categories of labour have a row: the ones of the other natures, never.
-    assert codes(api, changing, "include_inactive=true&search=ACH-001") == []
-    assert codes(api, changing, "include_inactive=true&search=PRV-001") == []
+    # The 150 categories of labour of the witness are all the rows: no other nature adds one.
+    assert grid(api, changing, "include_inactive=true&limit=1")["meta"]["total"] == 150
     old = labour_category(api, changing, "OLD")
     assert (
         api.put(
@@ -244,21 +243,23 @@ def test_the_grid_is_searched_by_code_and_label_and_sorted_by_code_label_state_o
     # The accounting code is no column of the grid: it is not searched.
     accounting = category_of(api, headers, "MO-001")["accounting_code"]
     assert codes(api, headers, f"search={accounting}") == []
-    by_label = grid(api, headers, "sort_by=label")["rows"]
+    by_label = grid(api, headers, "sort_by=label&limit=500")["rows"]
     assert [r["label"] for r in by_label] == sorted(r["label"] for r in by_label)
     assert codes(api, headers, "sort_by=code&sort_order=desc&limit=2") == ["MO-150", "MO-149"]
     # A category without a rate that year comes after the others ascending, before descending.
     bare = labour_category(api, headers, "BARE")
-    # The last 51 rows ascending, the first 51 descending: of 151, a short page each.
-    asc = grid(api, headers, "sort_by=rate.2026&limit=51&offset=100")["rows"]
-    desc = grid(api, headers, "sort_by=rate.2026&sort_order=desc&limit=51")["rows"]
+    asc = grid(api, headers, "sort_by=rate.2026&limit=500")["rows"]
+    desc = grid(api, headers, "sort_by=rate.2026&sort_order=desc&limit=500")["rows"]
     assert (asc[-1]["code"], desc[0]["code"]) == ("BARE", "BARE")
     rates = [float(r["cells"][-1]["amount"]) for r in asc[:-1]]
     assert rates == sorted(rates)
-    descending = [float(r["cells"][-1]["amount"]) for r in desc[1:]]
-    assert descending == sorted(descending, reverse=True)
+    assert [r["cells"][-1]["amount"] for r in desc[1:]] == [
+        r["cells"][-1]["amount"] for r in asc[:-1]
+    ][::-1]
     # A year the grid does not carry leaves the order of the code; bare categories keep the code.
-    assert codes(api, headers, "sort_by=rate.2099") == sorted(codes(api, headers))
+    assert codes(api, headers, "sort_by=rate.2099&limit=500") == sorted(
+        codes(api, headers, "limit=500")
+    )
     assert bare["code"] == "BARE"
 
 

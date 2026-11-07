@@ -45,7 +45,7 @@ jamais la table d'un autre module.
 Quand l'interface est un paquet (`interface/__init__.py`, `resource_settings` en est le
 premier), un fichier par objet, elle ré-exporte les noms de chaque fichier ainsi : un
 `from … import X as X` par nom, chacun sous le commentaire qui nomme le fichier et l'US qui le
-remplit, sans `__all__` ni `import (A, B, …)`. Ruff (isort sans `combine-as-imports`) écrit
+remplit, sans `__all__` ni `import (A, B, …)`. Ruff (son tri des imports, dont `combine-as-imports` reste à sa valeur par défaut, fausse, que `ruff.toml` ne change pas) écrit
 chaque ré-export en une instruction à part, ce qui fait beaucoup de lignes mais un seul bloc par
 US : deux US qui remplissent deux fichiers écrivent deux endroits de ce fichier, et ne se
 disputent pas une liste commune, que `__all__` ou un `import (…)` unique rendrait. Un module

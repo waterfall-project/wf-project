@@ -342,17 +342,47 @@ def test_a_role_changed_without_its_category_does_not_wait_for_the_natures_but_a
     }
     url = f"{roles}/{read['resource_role_id']}"
     connection, transaction = hold_the_lock(witness, NATURES_LOCK)
-    with ThreadPoolExecutor(1) as other:
-        # The lock of the natures is held exclusively: a change that keeps the category does not
-        # ask for it, and ends at once.
-        renamed = other.submit(api.patch, url, headers=headers, json={**kept, "label": "Renommé"})
-        assert renamed.result(timeout=10).status_code == 200
-        version = renamed.result().json()["lock_version"]
-        # A move to another category asks for it, and waits until it is released.
-        moving = {**kept, "cost_category_id": str(category_id), "lock_version": version}
-        moved = other.submit(api.patch, url, headers=headers, json=moving)
-        wait_for_a_lock(witness)
-        assert not moved.done()
-        transaction.commit()
-        connection.close()
-        assert moved.result(timeout=10).status_code == 200
+    try:
+        with ThreadPoolExecutor(1) as other:
+            # The lock of the natures is held exclusively: a change that keeps the category does
+            # not ask for it, and ends at once.
+            renamed = other.submit(
+                api.patch, url, headers=headers, json={**kept, "label": "Renommé"}
+            )
+            assert renamed.result(timeout=10).status_code == 200
+            version = renamed.result().json()["lock_version"]
+            # A move to another category asks for it, and waits until it is released.
+            moving = {**kept, "cost_category_id": str(category_id), "lock_version": version}
+            moved = other.submit(api.patch, url, headers=headers, json=moving)
+            wait_for_a_lock(witness)
+            assert not moved.done()
+            transaction.commit()
+            connection.close()
+            assert moved.result(timeout=10).status_code == 200
+    finally:
+        # A failed assertion must not leave the lock held for the other tests.
+        if not connection.closed:
+            transaction.rollback()
+            connection.close()
+    # The role was moved since the version ``kept`` read: a change that keeps the category it now
+    # has, on that stale version, is asked as for a move, so it waits for the natures' lock, then
+    # is refused (412) and not applied.
+    connection, transaction = hold_the_lock(witness, NATURES_LOCK)
+    try:
+        with ThreadPoolExecutor(1) as other:
+            stale = other.submit(
+                api.patch,
+                url,
+                headers=headers,
+                json={**kept, "cost_category_id": str(category_id), "label": "Périmé"},
+            )
+            wait_for_a_lock(witness)
+            assert not stale.done()
+            transaction.commit()
+            connection.close()
+            answer = stale.result(timeout=10)
+        assert (answer.status_code, answer.json()["code"]) == (412, "STALE_LOCK_VERSION")
+    finally:
+        if not connection.closed:
+            transaction.rollback()
+            connection.close()
