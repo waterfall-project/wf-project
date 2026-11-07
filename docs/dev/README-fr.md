@@ -2799,7 +2799,7 @@ commande.
 | `make service-witness`                                                  | charge le témoin sur la plateforme de service démarrée et amorcée (`waterfall-api load-witness`, service `witness`, EP-05) : les exemples du contrat, `fixtures/api/`, montés en lecture seule, écrits par le rôle du service ; relancée, elle n'écrit rien ; une tranche par objet, dans l'ordre des dépendances, en une transaction (« Le back et les frontières du noyau »)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
 | `make service-up`, `make service-down`                                  | démarre, arrête la plateforme de service (`deploy/compose/compose.service.yaml` : PostgreSQL, Redis, le stockage objet Garage et ses compartiments, les migrations, l'API, le worker et le planificateur de ses tâches, le service de la restauration, Keycloak derrière son frontal HTTPS et son royaume, appliqué de nouveau à chaque démarrage par `keycloak-realm`, qui reste démarré pour le réappliquer après une restauration, OpenLDAP, Mailpit) ; elle exige ses secrets dans l'environnement (ci-dessous), et `service-down WATERFALL_RESET_DATA=yes` supprime aussi ses bases, son stockage, son annuaire et l'autorité de son frontal ; `service-up` refuse un volume PostgreSQL d'une autre majeure que 18, en affichant le refus de `postgres-volume`, qui dit ce remède (US-1130)                                                                                                                                                                                                                                                                                                                                                                                                                                                |
 | `make keycloak-authority`                                               | copie hors de la plateforme la racine de l'autorité du frontal de Keycloak, dans `deploy/compose/.authority/root.crt`, que git ignore ; `service-up` et `test-keycloak` le font à chaque démarrage                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
-| `make e2e-service`                                                      | les parcours du projet Playwright `service` (`frontend/e2e/service/`), et ceux de `shared` (l'étiquette `@shared`), contre le vrai service, par Prism en mandataire (« Un parcours de bout en bout ») ; mêmes secrets que `service-up`, et le navigateur de `make e2e-browsers` ; il charge le témoin après l'amorçage, comme `make service-witness`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| `make e2e-service`                                                      | les parcours du projet Playwright `service` (`frontend/e2e/service/`), et ceux de `shared` (l'étiquette `@shared`), contre le vrai service, par Prism en mandataire (« Un parcours de bout en bout ») ; mêmes secrets que `service-up`, et le navigateur de `make e2e-browsers` ; il charge le témoin après l'amorçage, comme `make service-witness` ; `TESTS=<fichier>` n'en joue qu'un                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
 | `make service-logs`                                                     | les journaux des services de la plateforme, ceux de `SERVICES` (`SERVICES="keycloak openldap"`), tous par défaut                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
 | `make test-services`, `make test-services-down`                         | démarre, retire les services des tests (`deploy/compose/compose.test.yaml` : PostgreSQL 18, Redis, Garage, en mémoire) pour le créneau du worktree, sur ses ports (`SERVICES=redis` n'en démarre que certains) ; `test-services` attend qu'ils répondent et ne fait rien de plus s'ils tournent, `test-services-down` les retire avec leurs volumes ; `make test-back` et les autres tests qui en ont besoin les démarrent d'eux-mêmes                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
 | `make migrate`                                                          | applique les migrations à la base que désigne `WATERFALL_DATABASE_URL`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
@@ -2876,10 +2876,10 @@ copie laisse le repère : les données n'ont jamais servi, et au démarrage suiv
 et recharge l'amorce, comme il le fait sur deux volumes vides. Des données sans repère et sans
 configuration sont celles d'un annuaire qui a servi, dont le volume de configuration a disparu : le
 script refuse (code 1) de les réamorcer, ce qui donnerait d'autres identifiants à ses personnes, et
-dit le remède, `make service-down WATERFALL_RESET_DATA=yes`. Cela vaut aussi pour le volume laissé
-par une amorce interrompue d'avant ce lot, sans repère : il est désormais refusé, et le remède le
-supprime. Les volumes de l'image d'avant, celle d'`osixia`, servent tels quels : leurs personnes
-gardent leurs identifiants.
+dit le remède, `make service-down WATERFALL_RESET_DATA=yes`. Cela vaut aussi pour un volume laissé
+par une amorce interrompue sans repère (ancienne version du script) : il est refusé, et le remède
+le supprime. Les volumes de l'image précédente, celle d'`osixia`, servent tels quels : leurs
+personnes gardent leurs identifiants.
 
 Les ports cités ici sont ceux du dépôt principal, au créneau 0 ; un worktree de lot a ceux du
 bloc de son créneau (« Les créneaux des worktrees », ci-dessous).
@@ -2917,11 +2917,14 @@ poste propre à l'issue, `$XDG_RUNTIME_DIR/waterfall-tracking-<issue>.lock`
 `make merge-queue-check EPIC=EP-nn` vérifie qu'un jeu de règles actif vise `refs/heads/epic/EP-nn`
 avec une règle `merge_queue` (`wftools.mergequeue`, par `gh api`), et échoue en disant ce qui
 manque : aucun jeu, pas de règle de file, jeu inactif. Elle passe dès qu'un des jeux visant la
-branche est actif avec une règle `merge_queue` ; un jeu qui exclut la branche ne la vise pas. `make merge-queue EPIC=EP-nn` crée ce jeu,
-« merge queue epic/EP-nn », depuis le modèle `.github/rulesets/merge-queue.json` (la copie du jeu
-d'EP-05, sans identifiants ni dates), et refuse quand un jeu vise déjà la branche ou quand `EPIC`
-manque ou n'a pas la forme `EP-nn`. Elle est réservée à une personne : un livreur ne la lance
-jamais, il lance la vérification et, en échec, pose la question.
+branche est actif avec une règle `merge_queue` ; un jeu qui exclut la branche ne la vise pas. Les
+références de `include` et d'`exclude` se lisent comme des motifs, par `fnmatch`
+(`refs/heads/epic/*`, `~ALL`) : le `*` y franchit aussi un `/`, et `~DEFAULT_BRANCH` n'est pas
+résolu. `make merge-queue EPIC=EP-nn` crée ce jeu, « merge queue epic/EP-nn », depuis le modèle
+`.github/rulesets/merge-queue.json` (la copie du jeu d'EP-05, sans identifiants ni dates), et
+refuse quand un jeu vise déjà la branche ou quand `EPIC` manque ou n'a pas la forme `EP-nn`. Elle
+est réservée à une personne : un livreur ne la lance jamais, il lance la vérification et, en
+échec, pose la question ; le garde (`guard.py`) refuse la cible `merge-queue` à un agent.
 
 Le poste n'admet que `WATERFALL_SLOTS` exécutions lourdes à la fois — les tests entiers et la
 couverture du back et du front, `make test-tools`, la construction du front pour la production,
@@ -3365,7 +3368,8 @@ _Contrôle_ : `make reuse` échoue sur un fichier couvert ni par un en-tête ni 
 
 ## Outils du dépôt
 
-Les outils vivent dans `tools/`, en Python, avec leurs tests (`make test-tools`). Tout outil
+Les outils vivent dans `tools/`, en Python, avec leurs tests (`make test-tools`, qui exige Docker :
+le test du Compose de service lance `docker compose config` et échoue sans lui). Tout outil
 qui a besoin des exigences les lit par `wftools.projection`, qui lit la projection
 `docs/spec/waterfall-spec.md` : un seul lecteur, pour que deux outils ne puissent pas
 diverger sur ce qu'une exigence dit. Il compare les textes après normalisation — apostrophes
@@ -4745,6 +4749,25 @@ contrôle ne juge pas la traduction ; il prouve que sa structure suit l'original
 _Contrôle_ : `make readmes` (`wftools.readmes`, famille `repo`), qui échoue sur un
 `README-fr.md` de `docs/` sans son `README.md`, ou l'inverse, et sur une paire dont les titres
 diffèrent, un pour un — en nombre, ou en niveau à un rang donné.
+
+### Reprendre `main` dans une branche d'EPIC
+
+Une branche `epic/EP-nn` vit plusieurs jours pendant que `main` reçoit d'autres EPIC : la reprendre
+de `main` évite que les conflits n'apparaissent à la fusion de l'EPIC, ou à la livraison d'un lot.
+
+- **Qui.** Une personne (ou le pilote, sur sa demande) : ni un livreur ni un développeur n'y
+  touche de lui-même.
+- **Quand.** Après chaque fusion dans `main`, et avant qu'un lot ne parte d'une branche en retard.
+- **Comment.** Une branche `sync/EP-nn-main-k` (`k` numérote les synchronisations de l'EPIC),
+  tirée de `epic/EP-nn` à jour ; `git merge origin/main` ; les conflits se résolvent en gardant les
+  deux faits, jamais l'un des deux ; `make check BASE=origin/epic/EP-nn` passe ; une pull request
+  vers `epic/EP-nn`, mise en file comme celle d'un lot. Les conflits se règlent là, dans cette
+  pull request, et non à la livraison d'un lot qui les découvrirait. Les lots en vol reprennent la
+  nouvelle pointe de `epic/EP-nn` (`git merge origin/epic/EP-nn`) avant leur mise en file.
+- **Ce que cela a coûté, les 6 et 7 novembre 2026.** Une synchronisation a été remise en file deux
+  fois : des lots ont été fusionnés dans `epic/EP-nn` pendant sa chaîne, et la file la refaisait à
+  chaque fois sur une pointe qui avait changé. Elle se met en file quand aucun lot n'est en revue,
+  ou elle se refait.
 
 ## Signature des commits
 

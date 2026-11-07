@@ -16,6 +16,7 @@ passes as soon as one of the rulesets targeting the branch is active with a ``me
 """
 
 import argparse
+import fnmatch
 import json
 import re
 import sys
@@ -61,12 +62,28 @@ def targeting(branch: str) -> list[dict[str, object]]:
         if not isinstance(summary, dict) or "id" not in summary:
             refuse("gh api answered a ruleset without id")
         ruleset = read_ruleset(cast("dict[str, object]", summary)["id"])
-        if branch in included(ruleset, "include") and branch not in included(ruleset, "exclude"):
+        if matches(branch, ref_names(ruleset, "include")) and not matches(
+            branch, ref_names(ruleset, "exclude")
+        ):
             found.append(ruleset)
     return found
 
 
-def included(ruleset: dict[str, object], key: str) -> list[object]:
+def matches(branch: str, patterns: list[object]) -> bool:
+    """Say whether a reference matches one of the patterns of ``ref_name``.
+
+    The patterns of GitHub (``refs/heads/epic/*``, ``refs/heads/epic/EP-2?``, ``~ALL``) are read
+    by ``fnmatch``, where a ``*`` also crosses a ``/``: ``refs/heads/*`` takes every branch, where
+    GitHub's takes one level. ``~DEFAULT_BRANCH`` is not resolved: it never matches an epic's
+    branch.
+    """
+    return any(
+        isinstance(pattern, str) and (pattern == "~ALL" or fnmatch.fnmatchcase(branch, pattern))
+        for pattern in patterns
+    )
+
+
+def ref_names(ruleset: dict[str, object], key: str) -> list[object]:
     """Return the references a ruleset includes or excludes (``key``), none when it names none."""
     conditions = ruleset.get("conditions")
     names = (

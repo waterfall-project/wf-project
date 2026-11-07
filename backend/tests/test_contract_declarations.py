@@ -64,6 +64,10 @@ class Bounds:
         value: object = getattr(self, name)
         if name == "enum" and self.enum is not None:
             return "{" + ", ".join(sorted(repr(item) for item in self.enum)) + "}"
+        if name == "either":
+            # The alternatives, each as it is shown: not the repr of a bound, which orders a set
+            # by its hash.
+            return "(" + " | ".join(branch.shown() for branch in self.either) + ")"
         return repr(value)
 
     def shown(self) -> str:
@@ -135,12 +139,58 @@ def bounds_of(schema: Any, at: Any, follow: Callable[[Any, Any], tuple[Any, Any]
     return found
 
 
+def alternatives(pattern: str) -> set[str]:
+    r"""Split a pattern into its alternatives at its top level, its anchors and outer group removed.
+
+    ``^(a|c\.[0-9]+)$`` gives ``{"a", "c\.[0-9]+"}``. A ``|`` inside a group or a class does not
+    split; the ``$`` ending the pattern is an anchor unless a backslash escapes it.
+    """
+    body = pattern.removeprefix("^")
+    if body.endswith("$"):
+        escaping = len(body) - 1 - len(body[:-1].rstrip("\\"))
+        body = body[:-1] if escaping % 2 == 0 else body
+    parts: list[str] = []
+    depth = 0
+    in_class = False
+    start = 0
+    index = 0
+    first_group_ends = -1
+    while index < len(body):
+        char = body[index]
+        if char == "\\":
+            index += 1
+        elif in_class:
+            in_class = char != "]"
+        elif char == "[":
+            in_class = True
+        elif char == "(":
+            depth += 1
+        elif char == ")":
+            depth -= 1
+            if depth == 0 and first_group_ends < 0:
+                first_group_ends = index
+        elif char == "|" and depth == 0:
+            parts.append(body[start:index])
+            start = index + 1
+        index += 1
+    parts.append(body[start:])
+    if len(parts) == 1 and body.startswith("(") and first_group_ends == len(body) - 1:
+        return alternatives(body.removeprefix("(?:").removeprefix("(").removesuffix(")"))
+    return set(parts)
+
+
 def agrees(have: Bounds, want: Bounds) -> bool:
-    """Tell the bounds a service declares as the contract's, its alternatives included.
+    r"""Tell the bounds a service declares as the contract's, its alternatives included.
 
     The contract may write a value as one of several schemas (an ``enum`` or a ``pattern``) where
-    the service writes one pattern of both: that pattern must accept each value of each ``enum``
-    and hold the pattern of each other branch.
+    the service writes one pattern of both. That pattern must accept each value of each ``enum``
+    (#2306), and, once the alternatives that spell an ``enum`` value are taken off, its alternatives
+    must be those of the patterns of the other branches: a pattern that holds a branch inside a
+    longer one (``c\.[0-9]+x``), or that accepts more than the contract, is found.
+
+    Not verified: two alternatives that write one language in two ways are taken for different (the
+    test then fails, and the service's is rewritten as the contract's), and an alternative
+    nested in a group is one alternative.
     """
     if not want.either or have.either:
         return have == want
@@ -148,14 +198,15 @@ def agrees(have: Bounds, want: Bounds) -> bool:
         return False
     if replace(have, pattern=None) != replace(want, either=()):
         return False
+    values = {str(value) for branch in want.either if branch.enum for value in branch.enum}
+    if not all(re.fullmatch(have.pattern, value) for value in values):
+        return False
+    spelled = values | {re.escape(value) for value in values}
+    wanted: set[str] = set()
     for branch in want.either:
-        if branch.enum is not None and not all(
-            re.fullmatch(have.pattern, str(value)) for value in branch.enum
-        ):
-            return False
-        if branch.pattern is not None and branch.pattern.strip("^$") not in have.pattern:
-            return False
-    return True
+        if branch.pattern is not None:
+            wanted |= alternatives(branch.pattern)
+    return alternatives(have.pattern) - spelled == wanted
 
 
 class Contract:
@@ -501,9 +552,11 @@ def list_more(
 def list_sorted(
     sort: str = Query("a", pattern=r"^(a|c\.[0-9]+)$"),
     sort_kept: str = Query("a", pattern=r"^(a|b|c\.[0-9]+)$"),
+    sort_narrow: str = Query("a", pattern=r"^(a|b|c\.[0-9]+x)$"),
+    sort_wide: str = Query("a", pattern=r"^(a|b|zz|c\.[0-9]+)$"),
 ) -> None:
     """Declare a sort the contract writes as an enum or a pattern."""
-    del sort, sort_kept
+    del sort, sort_kept, sort_narrow, sort_wide
 
 
 @pytest.mark.requirement("WF-ARC-0060-A")
@@ -519,6 +572,10 @@ def test_a_bound_that_drifts_from_the_contract_is_found(tmp_path: Path) -> None:
         "Sort: { name: sort, in: query, schema: { anyOf: ["
         "{ type: string, enum: [a, b] }, { type: string, pattern: '^c\\.[0-9]+$' }] } }\n"
         "SortKept: { name: sort_kept, in: query, schema: { anyOf: ["
+        "{ type: string, enum: [a, b] }, { type: string, pattern: '^c\\.[0-9]+$' }] } }\n"
+        "SortNarrow: { name: sort_narrow, in: query, schema: { anyOf: ["
+        "{ type: string, enum: [a, b] }, { type: string, pattern: '^c\\.[0-9]+$' }] } }\n"
+        "SortWide: { name: sort_wide, in: query, schema: { anyOf: ["
         "{ type: string, enum: [a, b] }, { type: string, pattern: '^c\\.[0-9]+$' }] } }\n"
         "Tags: { name: tags, in: query,"
         " schema: { type: array, items: { type: string }, minItems: 1, maxItems: 4 } }\n",
@@ -539,6 +596,8 @@ def test_a_bound_that_drifts_from_the_contract_is_found(tmp_path: Path) -> None:
         "        - $ref: 'parameters.yaml#/Tags'\n"
         "        - $ref: 'parameters.yaml#/Sort'\n"
         "        - $ref: 'parameters.yaml#/SortKept'\n"
+        "        - $ref: 'parameters.yaml#/SortNarrow'\n"
+        "        - $ref: 'parameters.yaml#/SortWide'\n"
         "      responses: { '200': {}, '422': {} }\n",
         encoding="utf-8",
     )
@@ -561,6 +620,8 @@ def test_a_bound_that_drifts_from_the_contract_is_found(tmp_path: Path) -> None:
         ("listThings", "query", "tags"),
         ("listThings", "query", "unknown"),
         ("listThings", "query", "sort"),
+        ("listThings", "query", "sort_narrow"),
+        ("listThings", "query", "sort_wide"),
     }
     assert found["listThings", "query", "unknown"] == "not in the contract"
     limit_text = found["listThings", "query", "limit"]
@@ -575,7 +636,14 @@ def test_a_bound_that_drifts_from_the_contract_is_found(tmp_path: Path) -> None:
     assert "min_items=1" in tags_text
     assert "max_items=3" in tags_text
     assert "max_items=4" in tags_text
-    # The contract writes the sort as an enum or a pattern: the pattern served omits ``b``, which
-    # the enum accepts, and is found; the one that holds both agrees.
-    assert "pattern=" in found["listThings", "query", "sort"]
-    assert "either=" in found["listThings", "query", "sort"]
+    # The contract writes the sort as an enum or a pattern. The pattern served by ``sort`` omits
+    # ``b``, which the enum accepts; ``sort_narrow`` holds the branch in a longer alternative, so
+    # that ``c.1`` is refused though the branch is a substring of it (#2306); ``sort_wide`` accepts
+    # ``zz``, which the contract does not; ``sort_kept`` holds both and agrees. #2306 also asks
+    # for the whole text of the finding, not its fragments.
+    assert found["listThings", "query", "sort"] == (
+        r"declared pattern='^(a|c\\.[0-9]+)$', "
+        r"contract either=(enum={'a', 'b'} | pattern='^c\\.[0-9]+$')"
+    )
+    for name in ("sort_narrow", "sort_wide"):
+        assert found["listThings", "query", name].startswith("declared pattern='^(a|b|")

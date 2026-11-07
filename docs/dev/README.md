@@ -2794,7 +2794,7 @@ its side; a failure of the chain is therefore reproduced by the same command.
 | `make service-witness`                                                  | loads the witness on the service platform, started and bootstrapped (`waterfall-api load-witness`, service `witness`, EP-05): the examples of the contract, `fixtures/api/`, mounted read-only, written by the role of the service; run again, it writes nothing; one slice per object, in the order of the dependencies, in one transaction ("The back and the boundaries of the core")                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
 | `make service-up`, `make service-down`                                  | starts, stops the service platform (`deploy/compose/compose.service.yaml`: PostgreSQL, Redis, the Garage object storage and its buckets, the migrations, the API, the worker and the scheduler of its tasks, the restoration service, Keycloak behind its HTTPS front end and its realm, applied again at each start by `keycloak-realm`, which stays started to reapply it after a restoration, OpenLDAP, Mailpit); it requires its secrets in the environment (below), and `service-down WATERFALL_RESET_DATA=yes` also deletes its databases, its storage, its directory and the authority of its front end; `service-up` refuses a PostgreSQL volume of another major than 18, printing the refusal of `postgres-volume`, which says this remedy (US-1130)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
 | `make keycloak-authority`                                               | copies out of the platform the root of the authority of Keycloak's front end, into `deploy/compose/.authority/root.crt`, which git ignores; `service-up` and `test-keycloak` do it at each start                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
-| `make e2e-service`                                                      | the paths of the Playwright project `service` (`frontend/e2e/service/`), and those of `shared` (the tag `@shared`), against the real service, through Prism as a proxy (« An end-to-end path »); same secrets as `service-up`, and the browser of `make e2e-browsers`; it loads the witness after the bootstrap, as `make service-witness` does                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| `make e2e-service`                                                      | the paths of the Playwright project `service` (`frontend/e2e/service/`), and those of `shared` (the tag `@shared`), against the real service, through Prism as a proxy (« An end-to-end path »); same secrets as `service-up`, and the browser of `make e2e-browsers`; it loads the witness after the bootstrap, as `make service-witness` does; `TESTS=<file>` plays only one                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
 | `make service-logs`                                                     | the logs of the services of the platform, those of `SERVICES` (`SERVICES="keycloak openldap"`), all by default                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
 | `make test-services`, `make test-services-down`                         | start, remove the services of the tests (`deploy/compose/compose.test.yaml`: PostgreSQL 18, Redis, Garage, in memory) for the slot of the worktree, on its ports (`SERVICES=redis` starts only some); `test-services` waits for them to answer and does nothing more if they run, `test-services-down` removes them with their volumes; `make test-back` and the other tests that need them start them by themselves                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
 | `make migrate`                                                          | applies the migrations to the database `WATERFALL_DATABASE_URL` designates                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
@@ -2868,10 +2868,10 @@ start interrupted before that copy leaves the marker: the data never served, and
 the script empties them and loads the seed again, as it does on two empty volumes. Data with neither
 marker nor configuration are those of a directory that has served, whose configuration volume is
 gone: the script refuses (code 1) to seed them again, which would give its people other identifiers,
-and says the remedy, `make service-down WATERFALL_RESET_DATA=yes`. That holds too for the volume an
-interrupted seeding left before this lot, without a marker: it is now refused, and the remedy
-deletes it. The volumes of the image of before, that of `osixia`, serve as they are: their people
-keep their identifiers.
+and says the remedy, `make service-down WATERFALL_RESET_DATA=yes`. That holds too for a volume an
+interrupted seeding left without a marker (an older version of the script): it is refused, and the
+remedy deletes it. The volumes of the previous image, that of `osixia`, serve as they are: their
+people keep their identifiers.
 
 The ports given here are those of the main repository, at slot 0; a worktree of a lot has those of
 the block of its slot (« The slots of the worktrees », below).
@@ -2910,11 +2910,13 @@ issue, `$XDG_RUNTIME_DIR/waterfall-tracking-<issue>.lock`
 with a `merge_queue` rule (`wftools.mergequeue`, through `gh api`), and fails saying what is
 missing: no ruleset, no queue rule, an inactive ruleset. It passes as soon as one of the rulesets
 targeting the branch is active with a `merge_queue` rule; a ruleset that excludes the branch does
-not target it. `make merge-queue EPIC=EP-nn` creates that
-ruleset, « merge queue epic/EP-nn », from the model `.github/rulesets/merge-queue.json` (the copy
-of the EP-05 ruleset, without identifiers or dates), and refuses when a ruleset already targets
-the branch or when `EPIC` is missing or not of the form `EP-nn`. It is reserved to a person: a
-deliverer never runs it, it runs the check and, when it fails, asks the question.
+not target it. The references of `include` and `exclude` are read as patterns, by `fnmatch`
+(`refs/heads/epic/*`, `~ALL`): a `*` also crosses a `/`, and `~DEFAULT_BRANCH` is not resolved.
+`make merge-queue EPIC=EP-nn` creates that ruleset, « merge queue epic/EP-nn », from the model
+`.github/rulesets/merge-queue.json` (the copy of the EP-05 ruleset, without identifiers or dates),
+and refuses when a ruleset already targets the branch or when `EPIC` is missing or not of the form
+`EP-nn`. It is reserved to a person: a deliverer never runs it, it runs the check and, when it
+fails, asks the question; the guard (`guard.py`) refuses the `merge-queue` target to an agent.
 
 The workstation admits only `WATERFALL_SLOTS` heavy runs at a time — the whole tests and the
 coverage of the back and the front, `make test-tools`, the production build of the front, the
@@ -3346,7 +3348,8 @@ _Check_: `make reuse` fails on a file covered neither by a header nor by
 
 ## Repository tools
 
-The tools live in `tools/`, in Python, with their tests (`make test-tools`). Every tool
+The tools live in `tools/`, in Python, with their tests (`make test-tools`, which needs Docker:
+the test of the service Compose runs `docker compose config` and fails without it). Every tool
 that needs the requirements reads them through `wftools.projection`, which reads the projection
 `docs/spec/waterfall-spec.md`: one single reader, so that two tools cannot
 diverge on what a requirement says. It compares the texts after normalisation — apostrophes
@@ -4672,6 +4675,24 @@ not judge the translation; it proves that its structure follows the original.
 _Check_: `make readmes` (`wftools.readmes`, family `repo`), which fails on a `README-fr.md` of
 `docs/` without its `README.md`, or the reverse, and on a pair whose headings differ, one for
 one — in number, or in level at a given rank.
+
+### Taking `main` back into an epic's branch
+
+A branch `epic/EP-nn` lives several days while `main` receives other epics: taking `main` back
+into it keeps the conflicts from appearing at the merge of the epic, or at the delivery of a lot.
+
+- **Who.** A person (or the pilot, at their request): neither a deliverer nor a developer does it
+  on their own.
+- **When.** After each merge into `main`, and before a lot starts from a branch that is behind.
+- **How.** A branch `sync/EP-nn-main-k` (`k` numbers the synchronisations of the epic), created
+  from an up-to-date `epic/EP-nn`; `git merge origin/main`; the conflicts are resolved by keeping
+  both facts, never one of the two; `make check BASE=origin/epic/EP-nn` passes; a pull request to
+  `epic/EP-nn`, queued like a lot's. The conflicts are settled there, in that pull request, and
+  not at the delivery of a lot that would find them. The lots in flight take the new tip of
+  `epic/EP-nn` (`git merge origin/epic/EP-nn`) before they are queued.
+- **What it cost, on 6 and 7 November 2026.** A synchronisation was queued again twice: lots were
+  merged into `epic/EP-nn` during its chain, and the queue redid it each time on a tip that had
+  changed. It is queued when no lot is in review, or it is redone.
 
 ## Commit signing
 

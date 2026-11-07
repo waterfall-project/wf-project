@@ -174,8 +174,8 @@ la revue.
   d'`as` (10 `except` de `backend/src` et `tools/src`), et garde les parenthèses là où
   l'`as` lie l'exception (13, tous avec `as`). Une chaîne de gabarit (PEP 750) ne s'emploie
   que là où une fonction la consomme (aucune aujourd'hui : `text()` de SQLAlchemy attend une
-  chaîne, et les deux `text(f"…")` du dépôt, dans `restoration.py` et `tables.py`, n'y
-  changent rien).
+  chaîne, et les deux `text(f"…")` du dépôt, dans `platform/restoration.py` et
+  `core/users/tables.py`, n'y changent rien).
 
 *Pourquoi* : une évaluation tardive rend le futur import inutile, et un import évalué à tort
 coûte au démarrage et aux cycles. *Contrôle* : Ruff (`TC`, `UP`, `FA`) ; `make test-back` pour

@@ -22,6 +22,11 @@ nothing, and are left out — the body of an unquoted one is still searched for 
 which the shell runs. ``shlex`` cuts the words alone: its operators do not tell a quoted ``;``
 from one that ends a command, and ``kill 1 ';' $pid`` would hide its last target.
 
+Three more forms are refused (US-1340): ``xargs rm`` (or ``unlink``, ``mv``, ``rename``) when a
+command before it on the line names ``.git`` or a lock, ``rm -r`` of ``.git``, and the target
+``merge-queue`` of ``make``, which a person alone runs. ``command -v`` looks a name up and runs
+nothing: the name that follows is not judged.
+
 A ``cd`` into a directory of git is followed along the line, into the scripts it runs: the
 relative paths that come after it are read from there. A ``cd`` to a literal path outside
 ``.git``, ``cd ..`` and ``cd -`` reset it. ``popd`` is not followed: after ``cd .git; popd`` the
@@ -64,7 +69,10 @@ _OPERATORS = frozenset(";&|()\n")
 _REDIRECTION = re.compile(r"&>>?|<<<|<<-?|<>|<&|<|>>|>&|>\||>")
 _BACKSLASHED = re.compile(r"\\([\\`$])")
 # What a line not cut is refused for naming: the command words of the forms refused.
-_FORBIDDEN = re.compile(r"(?<![\w-])(?:pkill|killall|kill|docker|docker-compose)(?![\w-])|\.lock\b")
+_FORBIDDEN = re.compile(
+    r"(?<![\w-])(?:pkill|killall|kill|docker|docker-compose)(?![\w-])|\.lock\b"
+    r"|(?<![\w-])make\s+merge-queue(?![\w-])"
+)
 _ASSIGNMENT = re.compile(r"[A-Za-z_][A-Za-z0-9_]*\+?=")
 _PID = re.compile(r"-?[0-9]+")
 _KEYWORDS = frozenset({"!", "{", "if", "then", "else", "elif", "do", "while", "until"})
@@ -491,19 +499,27 @@ def _judge(
         found = _FORBIDDEN.search(text)
         form = None if found is None else f"a line it cannot cut, which names `{found.group()}`"
         return form, moved
+    named = False
     for words in split:
-        form, moved = _simple(words, depth, piped=piped, moved=moved)
+        form, moved = _simple(words, depth, piped=piped, moved=moved, named=named or moved)
         if form is not None:
             return form, moved
+        named = named or _names_git(words)
     return None, moved
 
 
+def _names_git(words: list[str]) -> bool:
+    """Say whether a command names a path of git or a lock: the source a pipe may feed to ``rm``."""
+    return any(".lock" in word or ".git" in word.split("/") for word in words)
+
+
 def _simple(
-    words: list[str], depth: int, *, piped: bool = False, moved: bool = False
+    words: list[str], depth: int, *, piped: bool = False, moved: bool = False, named: bool = False
 ) -> tuple[str | None, bool]:
     """Judge a simple command, past its assignments and the prefixes that run it.
 
     Return the refused form, and whether the shell stands in a directory of git after it.
+    ``named``: a command before it on the line names a path of git or a lock.
     """
     # Where the command runs: a prefix may change it, for the command alone.
     here = moved
@@ -514,6 +530,9 @@ def _simple(
         if _ASSIGNMENT.match(word) or word in _KEYWORDS:
             index += 1
             continue
+        if name == "command" and _describes(words[index + 1 :]):
+            # `command -v pkill` looks a name up: nothing is run.
+            break
         prefix = _PREFIXES.get(name)
         if prefix is None:
             arguments = words[index + 1 :]
@@ -523,7 +542,7 @@ def _simple(
             if name == "eval":
                 return _judge(" ".join(arguments), depth + 1, moved=here)
             check = _CHECKS.get(name)
-            command = _Command(name, arguments, piped=piped, depth=depth, moved=here)
+            command = _Command(name, arguments, piped=piped, depth=depth, moved=here, named=named)
             return (None if check is None else check(command)), moved
         # What `xargs` runs takes its arguments from the pipe: they are never literal.
         piped = piped or name == "xargs"
@@ -547,6 +566,18 @@ def _simple(
             if (form := _line(script, depth + 1, piped=piped, moved=here)) is not None:
                 return form, moved
     return None, moved
+
+
+def _describes(arguments: list[str]) -> bool:
+    """Say whether ``command`` looks a name up (``-v``, ``-V``, ``-pv``) instead of running it."""
+    for word in arguments:
+        if word == "--" or word[:1] != "-" or word == "-":
+            return False
+        if set(word[1:]) <= set("pvV") and set(word[1:]) & set("vV"):
+            return True
+        if set(word[1:]) != {"p"}:
+            return False
+    return False
 
 
 def _cd(arguments: list[str], *, moved: bool, pushd: bool) -> bool:
@@ -590,6 +621,8 @@ class _Command(NamedTuple):
     depth: int
     moved: bool = False
     """Run in a directory of git, after a ``cd`` on the same line or by an option of a prefix."""
+    named: bool = False
+    """A command before it, or the directory it runs in, names a path of git or a lock."""
 
 
 def _pattern(command: _Command) -> str | None:
@@ -674,7 +707,18 @@ def _compose(command: _Command) -> str | None:
 
 
 def _unlink(command: _Command) -> str | None:
-    """Refuse to remove or move a lock of git: ``rm``, ``unlink``, ``mv``, ``rename``."""
+    """Refuse to remove or move a lock of git, or to remove ``.git``: ``rm``, ``unlink``, ``mv``."""
+    if command.piped and command.named:
+        return (
+            f"`{command.name}` run by `xargs` on what a command that names .git or a .lock "
+            "found: a lock of git is held by a git command that runs, maybe in another worktree"
+        )
+    if command.name == "rm" and _recursive(command.arguments):
+        for argument in command.arguments:
+            if argument.rstrip("/").rpartition("/")[2] == ".git":
+                return (
+                    f"`rm -r {argument}`: it removes the repository, and the work of every worktree"
+                )
     for argument in command.arguments:
         directories, _, last = argument.rstrip("/").rpartition("/")
         lock = last.endswith(".lock")
@@ -686,6 +730,18 @@ def _unlink(command: _Command) -> str | None:
                 "maybe in another worktree"
             )
     return None
+
+
+def _recursive(arguments: list[str]) -> bool:
+    """Say whether the options of an ``rm`` ask for a recursive removal."""
+    for word in arguments:
+        if word == "--":
+            return False
+        if word == "--recursive" or (
+            word[:1] == "-" and word[1:2] != "-" and set(word) & set("rR")
+        ):
+            return True
+    return False
 
 
 def _find(command: _Command) -> str | None:
@@ -716,6 +772,16 @@ def _find(command: _Command) -> str | None:
         return (
             f"`find … -delete` or `-exec rm` ({reason}): a lock of git is held by a git "
             "command that runs, maybe in another worktree"
+        )
+    return None
+
+
+def _make(command: _Command) -> str | None:
+    """Refuse the target ``merge-queue``, which a person runs; ``merge-queue-check`` passes."""
+    if "merge-queue" in command.arguments:
+        return (
+            "`make merge-queue`: it creates the rule set of the merge queue with the token of the "
+            "user; a person runs it, and `make merge-queue-check` says whether it is there"
         )
     return None
 
@@ -820,6 +886,7 @@ _CHECKS: dict[str, Callable[[_Command], str | None]] = {
     "mv": _unlink,
     "rename": _unlink,
     "find": _find,
+    "make": _make,
     "su": _su,
     "runuser": _su,
     "watch": _watch,

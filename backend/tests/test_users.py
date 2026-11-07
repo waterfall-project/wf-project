@@ -9,6 +9,7 @@ the permissions a test asks for (``caller_permissions``) — to consult the acco
 otherwise.
 """
 
+from datetime import timedelta
 from typing import TYPE_CHECKING, Any
 from uuid import UUID, uuid4
 
@@ -607,7 +608,7 @@ def test_the_administrator_of_the_installation_is_the_account_of_its_instant(
             session,
             Identity("Témoin", "Ancien", "temoin@example.org"),
             "kc-witness",
-            Act(None, installed_at.replace(year=installed_at.year - 1)),
+            Act(None, installed_at - timedelta(days=365)),
         )
         assert read_installation_administrator(session, installed_at) is None
         created = create_local_account(
