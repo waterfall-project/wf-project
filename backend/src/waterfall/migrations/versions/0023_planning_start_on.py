@@ -5,9 +5,10 @@
 A data migration, apart from the schema (sql.md, rule 3): each structure receives the values the
 code derived for it before ``0022`` gave them columns — the day, in universal time, of the creation
 of the origin of its lineage, or of its own creation were that origin missing; the instant of its
-own creation. Nothing a reader sees changes, a marked revision's structures included: the guard of
-the cost structures, which refuses any write of a row of a marked revision, is turned off for the
-statement alone, in the transaction of the migration, by the owner of the table.
+own creation —, each column kept where a value is present. Nothing a reader sees changes, a marked
+revision's structures included: the guard of the cost structures, which refuses any write of a row
+of a marked revision, is turned off for the statement alone, in the transaction of the migration,
+by the owner of the table.
 """
 
 from typing import TYPE_CHECKING
@@ -25,16 +26,20 @@ depends_on: str | Sequence[str] | None = None
 GUARD = "cost_structure_refuse_marked_change"
 FILL = """
 UPDATE cost_structure AS structure
-SET planning_start_on = (
-        COALESCE(
-            (
-                SELECT origin.created_at FROM cost_structure AS origin
-                WHERE origin.project_id = structure.project_id AND origin.id = structure.lineage_id
-            ),
-            structure.created_at
-        ) AT TIME ZONE 'UTC'
-    )::date,
-    scheduled_at = structure.created_at
+SET planning_start_on = COALESCE(
+        structure.planning_start_on,
+        (
+            COALESCE(
+                (
+                    SELECT origin.created_at FROM cost_structure AS origin
+                    WHERE origin.project_id = structure.project_id
+                    AND origin.id = structure.lineage_id
+                ),
+                structure.created_at
+            ) AT TIME ZONE 'UTC'
+        )::date
+    ),
+    scheduled_at = COALESCE(structure.scheduled_at, structure.created_at)
 WHERE structure.planning_start_on IS NULL OR structure.scheduled_at IS NULL
 """
 EMPTY = "UPDATE cost_structure SET planning_start_on = NULL, scheduled_at = NULL"

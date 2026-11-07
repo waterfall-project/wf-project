@@ -655,15 +655,24 @@ def test_the_migration_of_the_planning_start_fills_each_structure_as_the_code_de
 ) -> None:
     # #2170: the day of the creation of the origin of the lineage — in universal time, late on the
     # 4th of March —, which a copy in a marked revision keeps; the day of its own creation for a
-    # structure whose origin is missing; the instant of its creation for its dates. The guard of a
-    # marked revision is off for the migration alone; the descent empties the columns again.
+    # structure whose origin is missing; the instant of its creation for its dates; a value present
+    # is kept, the other filled. The guard of a marked revision is off for the migration alone; the
+    # descent empties the columns again.
     upgrade(empty_engine, "0022")
     project, offer, lost, current, origin = uuid4(), uuid4(), uuid4(), uuid4(), uuid4()
     born = datetime(2026, 3, 4, 23, 30, tzinfo=UTC)
     copied_at = datetime(2026, 4, 1, 8, 0, tzinfo=UTC)
     structures = (
         (offer, {"id": origin, "lineage_id": origin, "label": "Origine", "created_at": born}),
-        (lost, {"lineage_id": uuid4(), "label": "Orpheline", "created_at": copied_at}),
+        (
+            lost,
+            {
+                "lineage_id": uuid4(),
+                "label": "Orpheline",
+                "created_at": copied_at,
+                "planning_start_on": date(2026, 1, 15),
+            },
+        ),
         (current, {"lineage_id": origin, "label": "Copie", "created_at": copied_at}),
     )
     with empty_engine.begin() as connection:
@@ -682,7 +691,7 @@ def test_the_migration_of_the_planning_start_fills_each_structure_as_the_code_de
     assert started(empty_engine) == {
         "Origine": (date(2026, 3, 4), born),
         "Copie": (date(2026, 3, 4), copied_at),
-        "Orpheline": (date(2026, 4, 1), copied_at),
+        "Orpheline": (date(2026, 1, 15), copied_at),
     }
     with pytest.raises(DBAPIError, match="never written"), empty_engine.begin() as connection:
         connection.execute(
