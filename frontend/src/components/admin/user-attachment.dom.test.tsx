@@ -115,7 +115,7 @@ describe("the attachment of an account, in its cell", () => {
     ]);
   });
 
-  it("shows a deactivated node the account stays attached to by its label, and does not offer it to the others", () => {
+  it("shows a deactivated node the account stays attached to by its label, and does not offer it to the others [WF-REF-0010-A]", () => {
     // Variant of the account of Lucas Petit: attached to a node deactivated since.
     const attached: User = {
       ...account("Petit"),
@@ -136,6 +136,40 @@ describe("the attachment of an account, in its cell", () => {
     expect(within(listOf("Alix Moreau")).queryByText(inactive.label)).toBeNull();
   });
 
+  it("offers the node to every account once it is reactivated, the account attached to it choosing it among the active ones [WF-REF-0150-A]", () => {
+    const attached: User = {
+      ...account("Petit"),
+      org_node_id: inactive.org_node_id,
+      org_node_label: inactive.label,
+    };
+    const reactivated = [
+      ...active,
+      {
+        id: inactive.org_node_id,
+        code: inactive.code,
+        label: inactive.label,
+        level: inactive.level,
+      },
+    ];
+    render(
+      accounts(
+        true,
+        users.items.map((user) => (user.user_id === attached.user_id ? attached : user)),
+        undefined,
+        reactivated,
+      ),
+    );
+    expect(listOf("Lucas Petit")).toHaveValue(inactive.org_node_id);
+    for (const name of ["Lucas Petit", "Alix Moreau"]) {
+      // A string name matches the whole text of the option, where a pattern made of a code could
+      // hold a special sign.
+      const option = within(listOf(name)).getByRole("option", {
+        name: `${inactive.code} · ${inactive.label}`,
+      });
+      expect(option).toBeEnabled();
+    }
+  });
+
   it.each([
     [
       "the node deactivated between the reading and the choice",
@@ -152,7 +186,7 @@ describe("the attachment of an account, in its cell", () => {
       "rechargez-la pour voir sa dernière version.",
     ],
   ])(
-    "tells in the region of the accounts the attachment the server refuses — %s —, the list back at the node read and the focus on its cell [WF-ADM-0050-A]",
+    "tells in the region of the accounts the attachment the server refuses — %s —, the list back at the node read and the focus on its cell [WF-ADM-0030-A]",
     async (_, problem, said) => {
       const client = serve({ "PATCH /users/{user_id}": { problem } });
       render(accounts(true, users.items, undefined, active));
@@ -171,7 +205,7 @@ describe("the attachment of an account, in its cell", () => {
     },
   );
 
-  it("shows an anonymised account attached to a node by its label alone, read only, for a session that may modify the accounts [WF-ADM-0060-A]", () => {
+  it("shows an anonymised account attached to a node by its label alone, read only, for a session that may modify the accounts [WF-ADM-0030-A]", () => {
     const [anonymised] = (example("users_anonymized") as { items: User[] }).items;
     if (anonymised?.org_node_label == null) {
       throw new Error("the example holds an anonymised account attached to a node");

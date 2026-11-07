@@ -404,16 +404,16 @@ WAITING = text(
 )
 
 
-def wait_for_a_lock(database: Database) -> None:
-    """Wait until a transaction waits for a lock another one holds, in 10 seconds at most."""
+def wait_for_a_lock(database: Database, waiting: int = 1) -> None:
+    """Wait until ``waiting`` transactions at least wait for a lock another holds, in 10 seconds."""
     deadline = time.monotonic() + 10
     with database.engine.connect() as watching:
         while time.monotonic() < deadline:
-            if watching.scalar(WAITING):
+            if (watching.scalar(WAITING) or 0) >= waiting:
                 return
             watching.rollback()
             time.sleep(0.05)
-    pytest.fail("no transaction waits for a lock")
+    pytest.fail(f"fewer than {waiting} transactions wait for a lock")
 
 
 class Watching(KeycloakAdmin):

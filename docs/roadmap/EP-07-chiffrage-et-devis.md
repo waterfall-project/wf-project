@@ -156,3 +156,8 @@ Reportés d'EP-17 à sa livraison (rangement du 2026-11-05) :
   (`estimate/page.test.tsx`), une route complète dans celui du planning ; à nommer d'après ce que
   la constante est, quand les tests du devis se rejouent contre le service. Relevé par la revue
   d'US-0800 (EP-17).
+
+- #2190 [EP-04] — le code d'un sous-projet sert de nom d'onglet Excel, qu'Excel unifie sans égard
+  à la casse et mesure en unités UTF-16 ; le modèle garde ses codes tels quels, et c'est la
+  génération des onglets qui désambiguïse (suffixe, troncature en unités UTF-16). Décision de
+  l'auteur du 2026-11-07, option B ; reporté d'EP-04.

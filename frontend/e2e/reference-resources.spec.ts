@@ -7,7 +7,7 @@
  * that write leave what they found, and the screen shows no mock-up notice. The units of duration
  * are not served yet (US-0860b): their path is not tagged.
  */
-import { expect } from "@playwright/test";
+import { expect, type Locator } from "@playwright/test";
 
 import { sortUntilAddress, WORKING } from "./hydration";
 import { inService, test } from "./mode";
@@ -55,10 +55,11 @@ test("sorts and searches each list of the settings of the resources by the serve
   await expect(page).toHaveURL(/include_inactive=true/, { timeout: WORKING });
   await expect(page.getByRole("link", { name: "Masquer les désactivés" })).toBeVisible();
   try {
-    // The reactivation is a server action: its answer awaited, from before the click. The payload of
-    // an action is opaque (Next serialises its arguments), so no identifier or code can tell this one
-    // from another; but the page is idle here — the only steps before were links, awaited by their
-    // address — and the row below shows the reactivation itself, so no other action can pass for it.
+    // The reactivation is a server action: its answer awaited, from before the click. The payload
+    // of an action is opaque (Next serialises its arguments), so no identifier or code can tell
+    // this one from another; but the page is idle here — the only steps before were links, awaited
+    // by their address — and the row below shows the reactivation itself, so no other action can
+    // pass for it.
     const reactivated = page.waitForResponse((response) => isServerAction(response.request()));
     await roles.getByRole("button", { name: "Réactiver «\u00a0Automaticien\u00a0»" }).click();
     expect((await reactivated).status()).toBe(200);
@@ -69,7 +70,8 @@ test("sorts and searches each list of the settings of the resources by the serve
     await expect(page.getByRole("main").getByRole("alert")).toHaveCount(0);
   } finally {
     if (inService) {
-      // The service kept it: the role is left deactivated, as the witness has it, even on a failure.
+      // The service kept it: the role is left deactivated, as the witness has it, even on a
+      // failure.
       const deactivate = roles.getByRole("button", {
         name: "Désactiver «\u00a0Automaticien\u00a0»",
       });
@@ -145,17 +147,20 @@ test("creates a role in its form, moves a node under an active one, and designat
     .selectOption({ label: "Semaine standard" });
   await form.getByRole("textbox", { name: "Heures par mois" }).fill("520");
   await form.getByRole("textbox", { name: "Effectif" }).fill("3");
-  await form.getByRole("button", { name: "Créer" }).click();
-  await expect(form).toBeHidden({ timeout: WORKING });
-  // The list says what the server created — its example —, and adds no row of its own.
-  await expect(roles.getByRole("status").filter({ hasText: "créé" })).toHaveText(
-    `«\u00a0${label}\u00a0» créé.`,
-  );
   const nodeForm = page.getByRole("dialog", { name: "Modifier «\u00a0Atelier de câblage\u00a0»" });
   const calendars = page.getByRole("grid", { name: "Calendriers" });
   const calendarRow = (label: string) => calendars.getByRole("row").filter({ hasText: label });
   let moved = false;
+  // The restorations that failed: told once the path is done, if the path itself did not fail.
+  const notRestored: unknown[] = [];
+  // The role is written by the click on « Créer »: whatever fails after it, it is deactivated.
   try {
+    await form.getByRole("button", { name: "Créer" }).click();
+    await expect(form).toBeHidden({ timeout: WORKING });
+    // The list says what the server created — its example —, and adds no row of its own.
+    await expect(roles.getByRole("status").filter({ hasText: "créé" })).toHaveText(
+      `«\u00a0${label}\u00a0» créé.`,
+    );
     if (inService) {
       // The service kept it: the list read anew shows the role.
       await page.goto("/reference/resources?include_inactive=true");
@@ -167,8 +172,9 @@ test("creates a role in its form, moves a node under an active one, and designat
       await page.goto("/reference/resources");
     }
 
-    // The workshop moved under the direction in its form: the active nodes alone are offered as its
-    // parent, never the workshop itself; the parent is sent, and the list says what the server wrote.
+    // The workshop moved under the direction in its form: the active nodes alone are offered as
+    // its parent, never the workshop itself; the parent is sent, and the list says what the server
+    // wrote.
     const organisation = page.getByRole("region", { name: "Arbre d’organisation" });
     await page
       .getByRole("treegrid", { name: "Arbre d’organisation" })
@@ -183,8 +189,8 @@ test("creates a role in its form, moves a node under an active one, and designat
     ]);
     await parent.selectOption({ label: "DT · Direction technique" });
     await nodeForm.getByRole("button", { name: "Enregistrer" }).click();
-    await expect(nodeForm).toBeHidden({ timeout: WORKING });
     moved = true;
+    await expect(nodeForm).toBeHidden({ timeout: WORKING });
     await expect(organisation.getByRole("status").filter({ hasText: "enregistré" })).toHaveText(
       "«\u00a0Atelier de câblage\u00a0» enregistré.",
     );
@@ -217,7 +223,7 @@ test("creates a role in its form, moves a node under an active one, and designat
           await page.goto("/reference/resources");
           await step();
         } catch (error) {
-          console.warn("restoration failed:", error);
+          notRestored.push(error);
         }
       };
       const deactivate = page
@@ -266,6 +272,8 @@ test("creates a role in its form, moves a node under an active one, and designat
       });
     }
   }
+  // A restoration that failed leaves the service changed: the path, which passed, does not.
+  expect(notRestored, "the restorations that failed").toEqual([]);
 });
 
 test("modifies the units of duration from the settings of the resources, and says what the change does to the schedules (US-0570)", async ({
@@ -299,4 +307,135 @@ test("modifies the units of duration from the settings of the resources, and say
   );
   await expect(section.getByRole("button", { name: "Modifier les unités de durée" })).toBeFocused();
   await expect(page.getByRole("main").getByRole("alert")).toHaveCount(0);
+});
+
+/** What a command to delete is called: the settings of the resources offer none (WF-REF-0010-A). */
+const DELETION = /supprim|effac|delete/i;
+
+test("shows the deactivated roles, calendars and nodes asked for, still named by the roles that employ them, offers no deletion, proposes only the active nodes and calendars to a role, and each again once reactivated (US-0880) @shared [WF-REF-0010-A] [WF-REF-0150-A]", async ({
+  page,
+}) => {
+  test.slow();
+  // The witness holds, deactivated, a calendar, two nodes — the second under the first — and the
+  // role of the automata programmer under it (the examples of the contract). The fake back ignores
+  // `include_inactive` and answers its examples whatever the address says: the roles alone hold a
+  // deactivated one, so what a read leaves out or brings is asserted in service alone.
+  const calendarLabel = "Semaine de trente-neuf heures";
+  const nodeLabel = "Bureau d'études automatismes";
+  const calendars = page.getByRole("grid", { name: "Calendriers" });
+  const tree = page.getByRole("treegrid", { name: "Arbre d’organisation" });
+  const roles = page.getByRole("grid", { name: "Rôles de ressources" });
+  const calendar = calendars.getByRole("row", { name: new RegExp(calendarLabel) });
+  const node = tree.getByRole("row", { name: new RegExp(nodeLabel) });
+  const form = page.getByRole("dialog", { name: "Nouveau rôle de ressource" });
+  const calendarChoice = form
+    .getByRole("combobox", { name: "Calendrier" })
+    .getByRole("option", { name: new RegExp(calendarLabel) });
+  const nodeChoice = form
+    .getByRole("combobox", { name: "Nœud d’organisation" })
+    .getByRole("option", { name: new RegExp(nodeLabel) });
+  const command = (verb: "Réactiver" | "Désactiver", grid: Locator, label: string) =>
+    grid.getByRole("button", { name: `${verb} «\u00a0${label}\u00a0»` });
+  /** The form of a role, opened pressed again until React opens it, and never once it is open. */
+  const openForm = async () => {
+    await expect(async () => {
+      if (!(await form.isVisible())) {
+        await page
+          .getByRole("region", { name: "Rôles de ressources" })
+          .getByRole("button", { name: "Nouveau rôle" })
+          .click();
+      }
+      await expect(form).toBeVisible({ timeout: 1_000 });
+    }).toPass({ timeout: WORKING });
+  };
+  /** A command of a row, pressed again until React answers it: the row then offers the opposite. */
+  const press = async (pressed: Locator, answered: Locator) => {
+    await expect(async () => {
+      if (!(await answered.isVisible())) {
+        await pressed.click();
+      }
+      await expect(answered).toBeVisible({ timeout: 1_000 });
+    }).toPass({ timeout: WORKING });
+  };
+
+  await page.goto("/reference/resources");
+  if (inService) {
+    // Without the switch, the active objects alone.
+    await expect(roles.getByRole("row", { name: /Ingénieur électricien/ })).toHaveCount(1);
+    await expect(calendars).toBeVisible();
+    await expect(tree).toBeVisible();
+    await expect(calendar).toHaveCount(0);
+    await expect(node).toHaveCount(0);
+    await expect(roles.getByRole("row", { name: /Programmeur d'automates/ })).toHaveCount(0);
+  }
+
+  // The deactivated asked of the server by the switch of the header, named deactivated and offered
+  // to be reactivated by the command their row lists.
+  await page.getByRole("link", { name: "Afficher aussi les désactivés" }).click();
+  await expect(page).toHaveURL(/include_inactive=true/, { timeout: WORKING });
+  const programmer = roles.getByRole("row", { name: /Programmeur d'automates/ });
+  await expect(programmer).toContainText("Désactivé", { timeout: WORKING });
+  await expect(roles.getByRole("button", { name: /^Réactiver/ }).first()).toBeVisible();
+  if (inService) {
+    await expect(calendar).toContainText("Désactivé");
+    await expect(node).toContainText("Désactivé");
+    await expect(command("Réactiver", calendars, calendarLabel)).toBeVisible();
+    await expect(command("Réactiver", tree, nodeLabel)).toBeVisible();
+    // A deactivated object stays named where it is employed (WF-REF-0010-A): the programmer by its
+    // node, the automation engineer by its calendar.
+    await expect(programmer).toContainText(nodeLabel);
+    await expect(roles.getByRole("row", { name: /Automaticien/ })).toContainText(calendarLabel);
+  }
+  // No screen offers to delete an object: neither a button nor a link of the page says it.
+  await expect(page.getByRole("main").getByRole("button", { name: DELETION })).toHaveCount(0);
+  await expect(page.getByRole("main").getByRole("link", { name: DELETION })).toHaveCount(0);
+  await expect(page.getByRole("menuitem", { name: DELETION })).toHaveCount(0);
+
+  // The choices of a role are the active objects alone, the switch notwithstanding.
+  await openForm();
+  await expect(form.getByRole("combobox", { name: "Nœud d’organisation" })).toBeVisible();
+  await expect(nodeChoice).toHaveCount(0);
+  await expect(calendarChoice).toHaveCount(0);
+  await page.keyboard.press("Escape");
+  await expect(form).toBeHidden();
+
+  if (inService) {
+    try {
+      // Reactivated, the calendar and the node are proposed again: the page is read anew by the
+      // command, and the form shows them.
+      await press(
+        command("Réactiver", calendars, calendarLabel),
+        command("Désactiver", calendars, calendarLabel),
+      );
+      await press(command("Réactiver", tree, nodeLabel), command("Désactiver", tree, nodeLabel));
+      await expect(page.getByRole("main").getByRole("alert")).toHaveCount(0);
+      await page.goto("/reference/resources");
+      await openForm();
+      await expect(nodeChoice).toHaveCount(1);
+      await expect(calendarChoice).toHaveCount(1);
+      await page.keyboard.press("Escape");
+      await expect(form).toBeHidden();
+    } finally {
+      // Leave what was found, even on a failure: the node and the calendar deactivated again. Only
+      // the gestures are here, so that no check hides the error that brought us here.
+      // The deactivated asked for, so that a row stays on the page once deactivated.
+      await page.goto("/reference/resources?include_inactive=true");
+      await expect(calendars).toBeVisible({ timeout: WORKING });
+      await expect(tree).toBeVisible();
+      for (const [grid, label] of [
+        [tree, nodeLabel],
+        [calendars, calendarLabel],
+      ] as const) {
+        if (await command("Désactiver", grid, label).isVisible()) {
+          await press(command("Désactiver", grid, label), command("Réactiver", grid, label));
+        }
+      }
+    }
+    // Left as found: neither the calendar nor the node is among the active objects again.
+    await page.goto("/reference/resources");
+    await expect(calendars).toBeVisible({ timeout: WORKING });
+    await expect(tree).toBeVisible();
+    await expect(calendar).toHaveCount(0);
+    await expect(node).toHaveCount(0);
+  }
 });

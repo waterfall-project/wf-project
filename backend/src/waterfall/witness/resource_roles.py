@@ -26,7 +26,7 @@ from typing import TYPE_CHECKING
 from pydantic import BaseModel
 
 from waterfall.api.contract.models import ResourceRole
-from waterfall.api.resource_roles import category_admission
+from waterfall.api.resource_role_admission import category_admission
 from waterfall.core.resource_settings.interface import (
     Capacity,
     RoleDraft,
