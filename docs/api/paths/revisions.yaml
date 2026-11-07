@@ -69,7 +69,9 @@
       l'année courante (`reference_year`) ; quand elle diffère de celle de la révision copiée,
       elle est chiffrée aux taux de la révision copiée, projetés par le taux d'inflation du projet
       jusqu'à son année de référence, sauf `apply_rate_update`, et la mise à jour des taux est
-      proposée, jamais imposée (WF-REV-0060, WF-REV-0010 ; #1764).
+      proposée, jamais imposée (WF-REV-0060, WF-REV-0010 ; #1764). La description reçue est
+      conservée sur la révision en cours, rendue avec elle, et reprise à son marquage
+      (`RevisionCreate.description`, WF-REV-0090 ; #2171).
       C'est la première des deux écritures du squelette de planning sur un projet sans révision
       en cours, que le projet dit d'avance (`ProjectCommand.generate_skeleton`) : la révision
       rendue liste `generate_skeleton`, et `generatePlanningSkeleton` s'y applique

@@ -95,8 +95,6 @@ const EVERY_STATE = "created,pricing,in_progress,completed,lost,abandoned";
 /** The states the home asks when its address names none and the account kept none. */
 const DEFAULT_STATES = "created,pricing,in_progress";
 const UNAUTHORIZED = { problem: { code: "SESSION_REQUIRED", status: 401 } } as const;
-/** The notice that the fake back keeps nothing, for a session that may create a project. */
-const MOCKUP = `${CATALOGUES.en.mockup.notKept} ${CATALOGUES.en.mockup.notFiltered}`;
 
 /** What a page says, its tags left out: the texts a reader reads, one space apart. */
 function text(markup: string): string {
@@ -371,10 +369,33 @@ describe("the home, the list of projects", () => {
     expect(html).not.toContain('aria-label="Pages of the projects"');
   });
 
-  it("offers the creation of a project to a session that holds its permission, saying the fake back keeps nothing [WF-ADM-0100-A]", async () => {
+  it("offers the creation of a project to a session that holds its permission [WF-ADM-0100-A]", async () => {
     const html = await home();
     expect(html).toMatch(/<button[^>]*>(?:(?!<\/button>).)*Create a project<\/button>/);
-    expect(html).toMatch(/<p role="note"[^>]*>.*Mock-up: the simulated service/);
+  });
+
+  it("shows no note of the mock-up, whatever the session: the service filters, sorts and pages the list (US-0920, #1004)", async () => {
+    expect(await home()).not.toMatch(/role="note"|Mock-up/);
+    server.answers = { ...server.answers, "GET /me": "me_estimator" };
+    expect(await home()).not.toMatch(/role="note"|Mock-up/);
+  });
+
+  it("offers the six states of the lifecycle and no other in its filter, under their labels [WF-CYC-0010-A]", async () => {
+    const html = await home({ states: "all" });
+    const group =
+      /role="group" aria-label="Filter by state"[^>]*>(.*?)<\/div>/.exec(html)?.[1] ?? "";
+    const labels = [...group.matchAll(/<button[^>]*>(.*?)<\/button>/g)].map((m) =>
+      text(m[1] ?? ""),
+    );
+    expect(labels).toEqual([
+      "Every state",
+      "Created",
+      "Pricing",
+      "In progress",
+      "Completed",
+      "Lost",
+      "Abandoned",
+    ]);
   });
 
   it("presents the creation of a project unavailable while the minimum reference data is incomplete, which the server would refuse", async () => {
@@ -396,8 +417,6 @@ describe("the home, the list of projects", () => {
     server.answers = { ...server.answers, "GET /me": "me_estimator" };
     const html = await home();
     expect(text(html)).not.toContain("Create a project");
-    // Its list still says what the fake back does not apply: the one note of the screen.
-    expect(html.match(/<p role="note"/g)).toHaveLength(1);
   });
 
   it("titles the tab with the list of projects", async () => {
@@ -410,7 +429,7 @@ describe("the empty states of the home", () => {
     server.answers = { ...server.answers, "GET /projects": "projects_empty" };
     const html = await home({ states: "all" });
     expect(text(html)).toMatch(
-      /^Projects Help Create a project Projects you contribute to Show all projects Mock-up: .* Every state .* You contribute to no project\.$/,
+      /^Projects Help Create a project Projects you contribute to Show all projects Every state .* You contribute to no project\.$/,
     );
     expect(links(html)).toEqual(["/?states=all&is_contributor=false"]);
     expect(html).not.toContain('role="grid"');
@@ -448,7 +467,7 @@ describe("the empty states of the home", () => {
     server.answers = { ...server.answers, "GET /projects": "projects_empty" };
     const html = await home({ is_contributor: "false", states: "all" });
     expect(text(html)).toMatch(
-      /^Projects Help Create a project Show only my projects Mock-up: .* Every state .* No project\.$/,
+      /^Projects Help Create a project Show only my projects Every state .* No project\.$/,
     );
   });
 
@@ -467,7 +486,7 @@ describe("the empty states of the home", () => {
       ["/reference/costs"],
     ],
   ] as const)(
-    "names each prerequisite an incomplete reference lacks, and leads to where it is provided (%s) [WF-IHM-0120-A]",
+    "names each prerequisite an incomplete reference lacks, and leads to where it is provided (%s) [WF-IHM-0120-A] [WF-CYC-0120-A]",
     async (readiness, missing, provided) => {
       // Sur une installation au référentiel incomplet, l'accueil nomme les prérequis manquants et
       // mène au référentiel.
@@ -475,7 +494,7 @@ describe("the empty states of the home", () => {
       const html = await home({ states: "all" });
       expect(text(html)).toMatch(
         new RegExp(
-          `^Projects Help Create a project The minimum reference data is incomplete\\. Projects you contribute to Show all projects Mock-up: .* Incomplete reference data No project can be created until the common reference data has: ${missing} Every state`,
+          `^Projects Help Create a project The minimum reference data is incomplete\\. Projects you contribute to Show all projects Incomplete reference data No project can be created until the common reference data has: ${missing} Every state`,
         ),
       );
       expect(links(html).slice(1, 1 + provided.length)).toEqual(provided);
@@ -513,7 +532,7 @@ describe("the empty states of the home", () => {
     expect(html.match(/<h1/g)).toHaveLength(1);
     expect(text(html)).toBe(
       "Projects Help Create a project The minimum reference data is incomplete. Show only my projects " +
-        `${MOCKUP} Incomplete reference data No project can be created until the common reference data has: ` +
+        `Incomplete reference data No project can be created until the common reference data has: ` +
         "an active labour category an active resource role " +
         "Every state Created Pricing In progress Completed Lost Abandoned From To Filter No project.",
     );

@@ -55,12 +55,14 @@ class NewAccount:
     idp_subject: str
     origin: str
     org_node_id: UUID | None = None
+    # The identifier the witness imposes; the service draws its own otherwise (WF-DAT-0060).
+    account_id: UUID | None = None
 
 
 def add_account(session: Session, new: NewAccount, stamp: Stamp) -> UserAccount:
-    """Insert an active account, with a new identifier, and return it."""
+    """Insert an active account, with a new identifier unless one is imposed, and return it."""
     account = UserAccount(
-        id=new_id(),
+        id=new_id() if new.account_id is None else new.account_id,
         last_name=new.last_name,
         first_name=new.first_name,
         email=new.email,
@@ -189,16 +191,21 @@ def find_account_of_subject(session: Session, subject: str) -> UserAccount | Non
     ).first()
 
 
-def find_first_local_account_of_platform(session: Session) -> UserAccount | None:
-    """Read the first local account the platform created, or ``None`` if it created none.
+def find_local_account_of_platform_at(session: Session, at: datetime) -> UserAccount | None:
+    """Read the local account the platform created at the instant ``at``, or ``None`` if none.
 
-    The platform creates no other local account than the administrator of the bootstrap: an
-    authorized user creates the others, and the provider admits none (WF-ADM-0070).
+    The bootstrap creates the administrator in the transaction that writes the installation, at
+    the instant of the installation. The platform creates another local account only for the
+    witness, at the instants of its chronology, never at that one (WF-ADM-0070).
     """
     return session.scalars(
         select(UserAccount)
-        .where(UserAccount.origin == "local", UserAccount.created_by.is_(None))
-        .order_by(UserAccount.created_at, UserAccount.id)
+        .where(
+            UserAccount.origin == "local",
+            UserAccount.created_by.is_(None),
+            UserAccount.created_at == at,
+        )
+        .order_by(UserAccount.id)
         .limit(1)
     ).first()
 

@@ -570,9 +570,10 @@ describe("the settings of a project", () => {
     );
   });
 
-  it("offers the commands of the sub-projects and the contributors as the project lists them, and says the fake back keeps nothing [WF-PRJ-0050-A]", async () => {
+  it("offers the commands of the sub-projects and the contributors as the project lists them, and carries no note of the mock-up [WF-PRJ-0050-A]", async () => {
     const page = html(await SettingsPage(at()));
-    expect(text(page)).toContain("Mock-up:");
+    expect(page).not.toContain('role="note"');
+    expect(text(page)).not.toContain("Mock-up");
     expect(buttons(page)).toEqual(
       expect.arrayContaining([
         "Edit the project",
@@ -604,16 +605,14 @@ describe("the settings of a project", () => {
     expect(buttons(page)).toContain("Modify the contributors");
   });
 
-  it("says the fake back keeps nothing and filters nothing, once, on a terminal project, which lists no command (US-0702/L3, US-0760)", async () => {
+  it("carries no note of the mock-up on a terminal project, which lists no command (US-0702/L3, US-0760)", async () => {
     server.answers = {
       ...server.answers,
       "GET /projects/{project_id}": "project_completed",
       "GET /projects/{project_id}/subprojects": "subprojects_completed",
     };
     const page = html(await SettingsPage(at()));
-    expect(page.match(/<p role="note"/g)).toHaveLength(1);
-    expect(text(page)).toContain(CATALOGUES.en.mockup.notFiltered);
-    expect(text(page)).toContain(CATALOGUES.en.mockup.notKept);
+    expect(page).not.toContain('role="note"');
     // Nothing is offered that writes, the commands of the sub-projects' rows neither: the
     // project lists none, so the screen presents none, available or not.
     expect(buttons(page).filter((name) => /Edit|New|Modify|Delete/.test(name))).toEqual([]);
@@ -625,16 +624,15 @@ describe("the settings of a project", () => {
     server.answers = { ...server.answers, "GET /projects/{project_id}": "project_reader" };
     const read = html(await SettingsPage(at()));
     expect(buttons(read).filter((name) => /New|Modify|Delete|Edit/.test(name))).toEqual([]);
-    expect(read.match(/<p role="note"/g)).toHaveLength(1);
+    expect(read).not.toContain('role="note"');
     expect(paths()["GET /projects/{project_id}/contributors/suggestions"]).toBeUndefined();
   });
 
-  it("offers to modify the project as it lists the command, besides the commands of its lists, saying once that the fake back keeps nothing (EP-02/L44a)", async () => {
+  it("offers to modify the project as it lists the command, besides the commands of its lists, with no note of the mock-up (EP-02/L44a)", async () => {
     const page = html(await SettingsPage(at()));
     expect(buttons(page)).toContain("Edit the project");
-    expect(page.match(/<p role="note"/g)).toHaveLength(1);
-    expect(page).toMatch(/<p role="note"[^>]*>.*Mock-up: the simulated service/);
-    expect(page).toContain("Filters, search, sort and pages are ignored");
+    expect(page).not.toContain('role="note"');
+    expect(page).not.toContain("Filters, search, sort and pages are ignored");
     // The forms are the searches of the work breakdown, the sub-projects and the contributors: the
     // commands open theirs in a dialog.
     expect([...page.matchAll(/<form[^>]*>/g)].map((form) => form[0])).toEqual([
@@ -644,12 +642,11 @@ describe("the settings of a project", () => {
     ]);
   });
 
-  it("offers no modification to a session the project lists none for, yet says once what the fake back does not apply to its lists (US-0760)", async () => {
+  it("offers no modification to a session the project lists none for, and carries no note of the mock-up either (US-0760)", async () => {
     server.answers = { ...server.answers, "GET /projects/{project_id}": "project_reader" };
     const page = html(await SettingsPage(at()));
     expect(buttons(page).filter((name) => name.includes("Edit"))).toEqual([]);
-    expect(page.match(/<p role="note"/g)).toHaveLength(1);
-    expect(page).toContain("Filters, search, sort and pages are ignored");
+    expect(page).not.toContain('role="note"');
   });
 
   it("offers no modification of a terminal project, which lists no command [WF-CYC-0100-A]", async () => {
@@ -657,8 +654,7 @@ describe("the settings of a project", () => {
     server.answers = { ...server.answers, "GET /projects/{project_id}": "project_completed" };
     const page = html(await SettingsPage(at()));
     expect(buttons(page).filter((name) => name.includes("Edit"))).toEqual([]);
-    // Nothing can be written, the note stays for the lists: one, never two.
-    expect(page.match(/<p role="note"/g)).toHaveLength(1);
+    expect(page).not.toContain('role="note"');
   });
 
   it("is not found for a project the API does not find, as the other screens of a project", async () => {

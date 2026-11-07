@@ -48,6 +48,25 @@ function inFrench(children: ReactNode) {
   );
 }
 
+/** The six states of the table of the specification (3.3.2): code, then label in each language. */
+const SPEC_STATES = [
+  ["created", "Créé", "Created"],
+  ["pricing", "Chiffrage", "Pricing"],
+  ["in_progress", "En cours", "In progress"],
+  ["completed", "Terminé", "Completed"],
+  ["lost", "Perdu", "Lost"],
+  ["abandoned", "Abandonné", "Abandoned"],
+] as const;
+
+/** A part of the home, in a language, under the address of the screen. */
+function inLocale(locale: "fr" | "en", children: ReactNode) {
+  return (
+    <NextIntlClientProvider locale={locale} messages={CATALOGUES[locale]} timeZone="UTC">
+      <PendingAddress>{children}</PendingAddress>
+    </NextIntlClientProvider>
+  );
+}
+
 /** The grid of the list, as the page hands it the projects of the example. */
 function listGrid() {
   return inFrench(
@@ -99,9 +118,7 @@ describe("the grid of the list of projects", () => {
       .getAllByRole("row")
       .find((row) => row.textContent.includes("PRJ-001"));
     expect(witness).toHaveTextContent("En cours");
-    expect(within(witness ?? document.body).getByText("En cours").parentElement).toHaveClass(
-      "bg-state-in-progress",
-    );
+    expect(within(witness ?? document.body).getByRole("img", { name: "En cours" })).toBeVisible();
     expect(within(witness ?? document.body).getByText(/2026/)).toHaveAttribute(
       "datetime",
       "2026-02-02T09:00:00Z",
@@ -163,6 +180,70 @@ describe("the grid of the list of projects", () => {
   });
 });
 
+describe("the states of the list, those of the table of the specification", () => {
+  it.each(["fr", "en"] as const)(
+    "the state column of the list writes the six labels of the table and no other in %s [WF-CYC-0010-A]",
+    (locale) => {
+      const projects = SPEC_STATES.map(([state], index) =>
+        listedProject({
+          ...(example("project") as Schemas["Project"]),
+          project_id: `id-${String(index)}`,
+          label: `P${String(index)}`,
+          state,
+        }),
+      );
+      render(
+        inLocale(
+          locale,
+          <ProjectListGrid
+            projects={projects}
+            page={{ limit: 50, offset: 0, total: 6 }}
+            query={{ sort: undefined, search: undefined, size: undefined }}
+            preferences={undefined}
+          />,
+        ),
+      );
+      const rows = within(screen.getByRole("grid")).getAllByRole("row");
+      SPEC_STATES.forEach(([, fr, en], index) => {
+        const row = rows.find((each) => within(each).queryByText(`P${String(index)}`) !== null);
+        if (row === undefined) {
+          throw new Error(`the row of P${String(index)} is missing`);
+        }
+        expect(within(row).getByRole("img")).toHaveAccessibleName(locale === "fr" ? fr : en);
+      });
+    },
+  );
+
+  it.each(["fr", "en"] as const)(
+    "the filter of the home offers the six states and no other, in %s [WF-CYC-0010-A]",
+    (locale) => {
+      render(inLocale(locale, <ProjectStateFilter states={[]} />));
+      const filter = screen.getByRole("group", {
+        name: locale === "fr" ? "Filtre par état" : "Filter by state",
+      });
+      expect(
+        within(filter)
+          .getAllByRole("button")
+          .map((button) => button.textContent),
+      ).toEqual([
+        locale === "fr" ? "Tous les états" : "Every state",
+        ...SPEC_STATES.map(([, fr, en]) => (locale === "fr" ? fr : en)),
+      ]);
+    },
+  );
+
+  it.each(SPEC_STATES)(
+    "the filter of the home writes the code %s of its state in the address, pressed from the default [WF-CYC-0010-A]",
+    async (code, fr) => {
+      const user = userEvent.setup();
+      render(inFrench(<ProjectStateFilter states={[]} />));
+      // Pressed from the default, where every state is pressed, a button retains its state alone.
+      await user.click(screen.getByRole("button", { name: fr }));
+      expect(await lastAddress()).toBe(`/?states=${code}`);
+    },
+  );
+});
+
 describe("the filter of the list by state", () => {
   it("says the states by default, Créé, Chiffrage and En cours (WF-IHM-0130)", () => {
     render(inFrench(<DefaultStatesFilter />));
@@ -192,7 +273,7 @@ describe("the filter of the list by state", () => {
     render(inFrench(<ProjectStateFilter states={["pricing", "lost"]} />));
     const pricing = screen.getByRole("button", { name: "Chiffrage" });
     expect(pricing).toHaveAttribute("aria-pressed", "true");
-    expect(within(pricing).getByText("Chiffrage").parentElement).toHaveClass("bg-state-pricing");
+    expect(within(pricing).getByRole("img", { name: "Chiffrage" })).toBeVisible();
     await user.click(pricing);
     expect(await lastAddress()).toBe("/?states=lost");
     await user.click(screen.getByRole("button", { name: "Tous les états" }));

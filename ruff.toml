@@ -77,8 +77,8 @@ convention = "pep257"
 # real imports. Ruff cannot tell the handlers of a local `router = APIRouter()`, so each
 # module of routes has its own line below, sorted by name. A new module that declares an
 # `APIRouter(` takes its line here, not `TYPE_CHECKING` imports: the test of
-# `tools/tests/test_rules.py` names the module that lacks one, and the one whose line
-# points to no file. The others (middleware, problems) are not exempt; `queries` holds the
+# `tools/tests/test_rules.py` names the modules that lack one, and the lines that
+# point to no file. The others (middleware, problems) are not exempt; `queries` holds the
 # dependency `audit_column_filters` and is safe only while its annotations use local types
 # or real imports: a parameter typed by an import brings it back here.
 # `authentication`, `evaluation` and `reference_settings_write` declare no router:
@@ -91,21 +91,27 @@ convention = "pep257"
 "backend/src/waterfall/api/avatars.py" = ["TC001", "TC002", "TC003"]
 "backend/src/waterfall/api/backups.py" = ["TC001", "TC002", "TC003"]
 "backend/src/waterfall/api/calendars.py" = ["TC001", "TC002", "TC003"]
+"backend/src/waterfall/api/contributors.py" = ["TC001", "TC002", "TC003"]
 "backend/src/waterfall/api/cost_types.py" = ["TC001", "TC002", "TC003"]
 "backend/src/waterfall/api/evaluation.py" = ["TC001", "TC002", "TC003"]
 "backend/src/waterfall/api/hourly_rates.py" = ["TC001", "TC002", "TC003"]
 "backend/src/waterfall/api/identity_syncs.py" = ["TC001", "TC002", "TC003"]
+"backend/src/waterfall/api/lifecycle.py" = ["TC001", "TC002", "TC003"]
 "backend/src/waterfall/api/me.py" = ["TC001", "TC002", "TC003"]
 "backend/src/waterfall/api/org_nodes.py" = ["TC001", "TC002", "TC003"]
+"backend/src/waterfall/api/projects.py" = ["TC001", "TC002", "TC003"]
 "backend/src/waterfall/api/reference.py" = ["TC001", "TC002", "TC003"]
 "backend/src/waterfall/api/reference_settings.py" = ["TC001", "TC002", "TC003"]
 "backend/src/waterfall/api/reference_settings_write.py" = ["TC001", "TC002", "TC003"]
 "backend/src/waterfall/api/resource_roles.py" = ["TC001", "TC002", "TC003"]
 "backend/src/waterfall/api/restores.py" = ["TC001", "TC002", "TC003"]
+"backend/src/waterfall/api/revisions.py" = ["TC001", "TC002", "TC003"]
+"backend/src/waterfall/api/subprojects.py" = ["TC001", "TC002", "TC003"]
 "backend/src/waterfall/api/system.py" = ["TC001", "TC002", "TC003"]
 "backend/src/waterfall/api/tasks.py" = ["TC001", "TC002", "TC003"]
 "backend/src/waterfall/api/uploads.py" = ["TC001", "TC002", "TC003"]
 "backend/src/waterfall/api/users.py" = ["TC001", "TC002", "TC003"]
+"backend/src/waterfall/api/work_breakdown.py" = ["TC001", "TC002", "TC003"]
 "tools/src/**" = [
     "T201", # the repository tools speak on the console
     "S603", # they run git and their own commands, never user input

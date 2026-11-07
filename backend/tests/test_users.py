@@ -17,7 +17,15 @@ from access_rows import ADMINISTRATION, account, anonymized_account, role
 from realm import KEY, TestRealm
 from support import ContractClient, bearer
 
+from waterfall.core.users.interface import (
+    Identity,
+    create_local_account,
+    read_installation_administrator,
+)
+from waterfall.platform.audit import Act
 from waterfall.platform.correlation import HEADER
+from waterfall.platform.database import utc_now
+from waterfall.platform.logs import logging_context
 
 if TYPE_CHECKING:
     from waterfall.platform.database import Database
@@ -585,3 +593,29 @@ def test_the_deactivation_of_an_administrator_is_available_once_another_holds_th
     # A deactivated holder does not count: the administration is held by an active account.
     account(database, "Gris", "Tom", state="deactivated", roles=(second,))
     assert commands(api, headers, CALLER)[0] == available("deactivate")
+
+
+@pytest.mark.requirement("WF-EXP-0020-A")
+def test_the_administrator_of_the_installation_is_the_account_of_its_instant(
+    database: Database,
+) -> None:
+    # The witness creates local accounts for the platform at the instants of its chronology, before
+    # the installation: the administrator is read at the instant of the installation (#2298).
+    installed_at = utc_now()
+    with logging_context(correlation_id="installation"), database.transaction() as session:
+        create_local_account(
+            session,
+            Identity("Témoin", "Ancien", "temoin@example.org"),
+            "kc-witness",
+            Act(None, installed_at.replace(year=installed_at.year - 1)),
+        )
+        assert read_installation_administrator(session, installed_at) is None
+        created = create_local_account(
+            session,
+            Identity("Administrateur", "Premier", "admin@example.org"),
+            "kc-admin",
+            Act(None, installed_at),
+        )
+        found = read_installation_administrator(session, installed_at)
+    assert found is not None
+    assert found.user_id == created.user_id

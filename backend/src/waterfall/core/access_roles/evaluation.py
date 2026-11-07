@@ -7,8 +7,15 @@ The effective permissions of an account are the union of those of its roles that
 without their signing in again. An action is evaluated when it is asked for, whatever the front
 presented (WF-ADM-0110). A permission to consult that is missing makes the object absent for the
 caller: the refusal is that of an unknown object, which does not reveal that it exists (404). Any
-other permission that is missing is named by the refusal (403). The quality of contributor, the
-second term of the evaluation, arrives with EP-04.
+other permission that is missing is named by the refusal (403). Whether a permission consults is
+declared by the catalogue (``CONSULTATION``), not read from its code (#754).
+
+An action on a project has a second term, the quality of the caller on it, which the module of the
+projects reads (``contributor_kind``): the project exists for the caller who holds the permission
+to consult and is its contributor, or holds ``all_projects_read`` besides (WF-ADM-0110,
+WF-PRJ-0060). A project that does not exist and one the caller may not consult are refused alike.
+A write asks for the quality of contributor, and an action reserved to the project managers for
+theirs: each missing is named by a 403, to a caller who may consult the project.
 """
 
 from dataclasses import dataclass
@@ -16,6 +23,7 @@ from typing import TYPE_CHECKING, cast
 
 from sqlalchemy import ColumnElement, select
 
+from waterfall.core.access_roles.predefined import CONSULTATION
 from waterfall.core.access_roles.roles import NOT_FOUND, HeldRole
 from waterfall.core.access_roles.tables import (
     AccessRole,
@@ -23,6 +31,7 @@ from waterfall.core.access_roles.tables import (
     Permission,
     UserAccessRole,
 )
+from waterfall.core.projects.interface import ContributorKind, contributor_kind, project_exists
 from waterfall.platform.errors import ForbiddenError, NotFoundError
 
 if TYPE_CHECKING:
@@ -31,8 +40,13 @@ if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
 PERMISSION_MISSING = "PERMISSION_MISSING"
-# The permission to consult a function ends so; that to change it, ``.write`` (``PermissionCode``).
-CONSULTATION = ".read"
+NOT_CONTRIBUTOR = "NOT_CONTRIBUTOR"
+NOT_PROJECT_MANAGER = "NOT_PROJECT_MANAGER"
+# The qualities a refusal names, as the contract says them (``CommandCondition``).
+IS_CONTRIBUTOR = "is_contributor"
+IS_PROJECT_MANAGER = "is_project_manager"
+# The permission that opens to consultation the projects its holder does not contribute to.
+ALL_PROJECTS_READ = "all_projects_read"
 
 
 @dataclass(frozen=True, slots=True)
@@ -115,6 +129,62 @@ def require(actor: Actor, permission: str) -> None:
     """
     if permission in actor.permissions:
         return
-    if permission.endswith(CONSULTATION):
+    if CONSULTATION[permission]:
         raise NotFoundError(NOT_FOUND)
     raise ForbiddenError(PERMISSION_MISSING, {"missing_permission": permission})
+
+
+@dataclass(frozen=True, slots=True)
+class Standing:
+    """What an account is on a project: whether the project exists, and the account's kind there."""
+
+    exists: bool
+    # ``None`` for an account that is no contributor of the project.
+    kind: ContributorKind | None
+
+
+def standing_on(session: Session, project_id: UUID, user_id: UUID) -> Standing:
+    """Read what an account is on a project, by the interface of the projects.
+
+    A contributor's project exists (a foreign key): its existence is read only for the others.
+    """
+    kind = contributor_kind(session, project_id, user_id)
+    return Standing(kind is not None or project_exists(session, project_id), kind)
+
+
+def judge_project(
+    actor: Actor, standing: Standing, permissions: tuple[str, ...], *, manager: bool = False
+) -> None:
+    """Let an action on a project pass, or refuse it, as the actor stands on the project.
+
+    The project absent, or not consultable — neither its contributor nor holding
+    ``all_projects_read`` —, is refused as an unknown object (404 ``NOT_FOUND``), whatever is asked
+    for: the refusal does not tell one from the other (WF-ADM-0110). Then each permission in its
+    order, as ``require`` judges it, a write asking besides for the quality of contributor (403
+    ``NOT_CONTRIBUTOR``); and last, for an action reserved to the project managers (``manager``),
+    that quality (403 ``NOT_PROJECT_MANAGER``), a caller who is no contributor being told he is
+    not first. Each quality missing is named by ``params.missing_condition``.
+    """
+    if not standing.exists or (
+        standing.kind is None and ALL_PROJECTS_READ not in actor.permissions
+    ):
+        raise NotFoundError(NOT_FOUND)
+    for permission in permissions:
+        require(actor, permission)
+        if not CONSULTATION[permission] and standing.kind is None:
+            raise ForbiddenError(NOT_CONTRIBUTOR, {"missing_condition": IS_CONTRIBUTOR})
+    if manager and standing.kind != "project_manager":
+        if standing.kind is None:
+            raise ForbiddenError(NOT_CONTRIBUTOR, {"missing_condition": IS_CONTRIBUTOR})
+        raise ForbiddenError(NOT_PROJECT_MANAGER, {"missing_condition": IS_PROJECT_MANAGER})
+
+
+def require_project(
+    session: Session, actor: Actor, project_id: UUID, *permissions: str, manager: bool = False
+) -> None:
+    """Let an action on a project pass, or refuse it: ``judge_project`` on what the actor is there.
+
+    One reading of the quality of the actor, whatever the number of permissions asked for.
+    """
+    held = standing_on(session, project_id, actor.user_id)
+    judge_project(actor, held, permissions, manager=manager)

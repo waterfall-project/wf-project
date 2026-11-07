@@ -44,9 +44,10 @@ test("a user who opened no project reads the cost settings, then the resource se
   await expect(page.getByRole("link", { name: "Retour au projet" })).toHaveCount(0);
 });
 
-// Against the fake back only: the service serves neither `/` nor the portfolio (listed as not
-// replayed in the guide).
-test("a user who opened no project reaches the portfolio and the cost settings from `/` [WF-IHM-0010-A]", async ({
+// Against the fake back only: the service serves no portfolio (EP-11 lifts it) and no status
+// screen (EP-13 lifts it, #2307); the administration is read elsewhere, under `@administration`
+// (listed as not replayed in the guide).
+test("a user who opened no project reaches the portfolio, the administration and the status screen from `/` [WF-IHM-0010-A]", async ({
   page,
 }) => {
   // The screens of their own reached by a click, compiled first (`e2e/compile.ts`).
@@ -86,6 +87,8 @@ test("a user who opened no project reaches the administration and the status scr
   await expect(page.getByRole("link", { name: "Retour au projet" })).toHaveCount(0);
 });
 
+// Against the fake back only: it leads to the remaining and to the risks of PRJ-001, screens the
+// service serves with EP-07 and EP-08 (listed as not replayed in the guide).
 test("the way back to the previous project from a function outside any project finds the same context [WF-IHM-0010-A]", async ({
   page,
 }) => {
@@ -110,6 +113,8 @@ test("the way back to the previous project from a function outside any project f
   await expect(page).toHaveURL(`${IN_PROJECT}/risks${CONTEXT}`);
 });
 
+// Against the fake back only: it leads to the planning, which the service serves with EP-06 (listed
+// as not replayed in the guide).
 test("the address of a project leads to its revision, the reading context and its filters kept, the way to the screens of the revision then offered [WF-IHM-0010-A]", async ({
   page,
 }) => {
@@ -119,7 +124,9 @@ test("the address of a project leads to its revision, the reading context and it
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("Planification");
 });
 
-test("a screen of the project itself, read without a revision, offers the functions of the project itself (the project's own address leads to its revision, US-0720)", async ({
+// Played in service too (`@shared`, EP-04): the settings and the lifecycle of PRJ-001 are served,
+// read by the account of the run, a reader of every project.
+test("a screen of the project itself, read without a revision, offers the functions of the project itself (the project's own address leads to its revision, US-0720) [WF-IHM-0010-A] @shared", async ({
   page,
 }) => {
   // The lifecycle, a screen of its own reached by a click, compiled first (`e2e/compile.ts`).
@@ -134,7 +141,8 @@ test("a screen of the project itself, read without a revision, offers the functi
   ).toHaveCount(0);
 });
 
-test("the tab bears the icon of the product", async ({ page }) => {
+// Played in service too (`@shared`, EP-04): the home is served (US-0920/L2).
+test("the tab bears the icon of the product @shared", async ({ page }) => {
   await page.goto("/");
   await expect(page).toHaveTitle("Projets — Waterfall");
   await expect(page.locator('link[rel="icon"]')).toHaveAttribute("href", /^\/icon\.svg/);

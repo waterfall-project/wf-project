@@ -36,7 +36,7 @@ from waterfall.core.users.accounts import (
     find_account,
     find_account_of_subject,
     find_active_accounts,
-    find_first_local_account_of_platform,
+    find_local_account_of_platform_at,
     lock_account_at,
     note_sessions_closed,
 )
@@ -180,6 +180,7 @@ __all__ = [
     "put_avatar",
     "read_account",
     "read_account_label",
+    "read_account_labels",
     "read_account_of_subject",
     "read_author",
     "read_authors",
@@ -251,6 +252,29 @@ def read_account_label(session: Session, user_id: UUID) -> AccountLabel | None:
     return None if account is None else _label(account)
 
 
+def read_account_labels(session: Session, user_ids: Collection[UUID]) -> dict[UUID, AccountLabel]:
+    """Read the labels of the accounts given in one request, deactivated and anonymised included.
+
+    An identifier no account bears is left out. One statement on the columns of the label, where
+    ``list_accounts`` would count the table and read the authors and the nodes besides (#2167).
+    """
+    if not user_ids:
+        return {}
+    found = session.execute(
+        select(
+            UserAccount.id,
+            UserAccount.last_name,
+            UserAccount.first_name,
+            UserAccount.email,
+            UserAccount.state,
+        ).where(UserAccount.id.in_(set(user_ids)))
+    )
+    return {
+        user_id: AccountLabel(user_id, last_name, first_name, email, state == "active")
+        for user_id, last_name, first_name, email, state in found
+    }
+
+
 def _label(account: UserAccount) -> AccountLabel:
     return AccountLabel(
         user_id=account.id,
@@ -287,9 +311,13 @@ def read_authors(session: Session, user_ids: Collection[UUID]) -> dict[UUID, Aut
     }
 
 
-def read_installation_administrator(session: Session) -> Account | None:
-    """Read the administrator the bootstrap created, or ``None`` before it did (WF-EXP-0020)."""
-    account = find_first_local_account_of_platform(session)
+def read_installation_administrator(session: Session, installed_at: datetime) -> Account | None:
+    """Read the administrator the bootstrap created at ``installed_at``, or ``None`` before it did.
+
+    The administrator is the account created in the installation's own instant (WF-EXP-0020): the
+    platform creates other local accounts for the witness, at the instants of its chronology.
+    """
+    account = find_local_account_of_platform_at(session, installed_at)
     return None if account is None else _account(session, account)
 
 
@@ -319,12 +347,19 @@ def add_account_of_provider(
     return admitted if isinstance(admitted, NotAdmitted) else _account(session, admitted[0])
 
 
-def create_local_account(session: Session, identity: Identity, subject: str, act: Act) -> Account:
+def create_local_account(
+    session: Session,
+    identity: Identity,
+    subject: str,
+    act: Act,
+    account_id: UUID | None = None,
+) -> Account:
     """Create the local account the provider holds under ``subject``, and inscribe it.
 
     Refused if a field is in fault (422), or if another account holds the address (409).
+    ``account_id`` is the identifier the witness imposes, for an account no provider holds.
     """
-    return _account(session, create_local(session, identity, subject, act))
+    return _account(session, create_local(session, identity, subject, act, account_id))
 
 
 def change_account(

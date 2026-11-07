@@ -50,7 +50,10 @@ modification sans effet rétroactif.
 
 La portée dit si l'exigence est entière ici, commencée ici et close par un EPIC ultérieur, ou
 close ici après avoir été commencée plus tôt. Chaque exigence n'est close que par un seul EPIC.
-La colonne US se remplit quand l'EPIC passe `prêt`.
+La colonne US se remplit quand l'EPIC passe `prêt`. WF-PLA-0010, WF-INTF-0040, WF-INTF-0050 et
+WF-INTF-0060 sont commencées par EP-06 et closes ici : leur Vérif demande des lignes de devis,
+l'import d'un devis ou des rôles aux calendriers différents (cadrage d'EP-06, décision de l'auteur
+du 2026-11-07).
 
 | Exigence | Titre | Portée | US |
 |---|---|---|---|
@@ -78,6 +81,10 @@ La colonne US se remplit quand l'EPIC passe `prêt`.
 | `WF-DAT-0100-A` | Types des grandeurs | fin — amorcée en EP-03 | — |
 | `WF-IHM-0060-A` | Lecture d'une grille | fin — amorcée en EP-02, EP-03, EP-15 | — |
 | `WF-INTF-0070-A` | Formats d’échange Excel | début — close en EP-09 | — |
+| `WF-PLA-0010-A` | Calendrier applicable à une tâche | fin — amorcée en EP-06 | — |
+| `WF-INTF-0040-A` | Imports MS Project | fin — amorcée en EP-06 | — |
+| `WF-INTF-0050-A` | Exports MS Project | fin — amorcée en EP-06 | — |
+| `WF-INTF-0060-A` | Réversibilité de l’échange MS Project | fin — amorcée en EP-06 | — |
 | `WF-INTF-0080-A` | Contrôle et confirmation des imports Excel | fin — amorcée en EP-06 | — |
 | `WF-INTF-0090-A` | Imports et révisions marquées | fin — amorcée en EP-06 | — |
 | `WF-INTF-0100-A` | Import du devis (FLX-03) | entière | — |

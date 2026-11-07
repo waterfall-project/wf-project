@@ -41,7 +41,11 @@ from waterfall.core.cost_settings.records import (
     value_taken,
 )
 from waterfall.core.cost_settings.tables import CostCategory, CostType
-from waterfall.core.resource_settings.interface import category_has_roles, roles_of_categories
+from waterfall.core.resource_settings.interface import (
+    category_has_roles,
+    lock_reference,
+    roles_of_categories,
+)
 from waterfall.platform.database import contains, unique_violated
 from waterfall.platform.errors import (
     ConflictError,
@@ -408,6 +412,7 @@ def update_cost_category(
     holds (409). A move to a nature of another kind is refused (409) while the category is
     employed, rated or held by a role of resources; to a nature of the same kind, never.
     """
+    lock_reference(session)
     lock_natures(session)
     category = lock_row(session, CostCategory, category_id, lock_version)
     moved = write.cost_type_id != category.cost_type_id
@@ -457,6 +462,8 @@ def set_cost_category_activation(
     is refused (409, ``cost_type_active`` lacking, the nature named), as its command says in
     advance. A category already in the state asked for is not written.
     """
+    if not is_active:
+        lock_reference(session)
     lock_natures(session)
     category = lock_row(session, CostCategory, category_id, lock_version)
     if category.is_active != is_active:
