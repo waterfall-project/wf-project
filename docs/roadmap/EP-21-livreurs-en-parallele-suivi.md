@@ -1,8 +1,8 @@
 ---
 id: EP-21
-titre: Combler ce que l'outillage des livreurs en parallèle laisse passer, avant l'essai à N = 4
+titre: Combler ce que deux jours à quatre livreurs ont révélé de l'outillage — tableau de suivi, arrêt d'un créneau, garde, contrôles de la chaîne, harnais des parcours
 statut: à planifier
-depend_de: EP-19
+depend_de: EP-19, EP-05
 famille: plateforme
 issue:
 ---
@@ -11,29 +11,66 @@ issue:
 
 ## Objet
 
-EP-19 a rendu le dépôt sûr pour plusieurs livreurs à la fois sur un même poste. Ses revues
-locales ont relevé des écarts qu'aucun lot ne pouvait reprendre (décision de l'auteur du
-2026-11-04) : des formes d'arrêt ou de suppression qu'un agent peut écrire sans malice et que le
-garde des commandes laisse passer, deux démarrages concurrents des services de test d'un même
-créneau, et l'accord entre le gabarit du tableau de suivi et `make tracking`, que rien
-n'éprouve. EP-21 les comble. À N = 1, ils restent rares ; ils compteront à l'essai à N = 4.
+EP-19 a rendu le dépôt sûr pour plusieurs livreurs à la fois, et N = 4 est en service depuis le
+2026-11-05 : EP-20, EP-05 et EP-04 se sont livrés à quatre livreurs les 5, 6 et 7 novembre. Ces deux
+jours ont montré ce que l'outillage laisse encore à une personne. Le pilote a édité six fois à la
+main le tableau de suivi, parce que `make tracking` ne sait ni ajouter la ligne d'un lot coupé ni
+changer une dépendance (#2112, #1979). Un `next-server` orphelin a bloqué un créneau toute une nuit,
+parce qu'aucune cible n'arrête les serveurs de l'e2e d'un créneau et que le garde, à raison, interdit
+`kill` aux agents (#2198). La file de fusion a attrapé tard ce que la chaîne aurait dû voir : un
+cycle d'imports entre deux interfaces du noyau (#2124), une image `restore` périmée (#2083), un
+contrôle des bornes qui ignore `pattern` et `enum` (#2185). Et le harnais des parcours contre le
+service laisse l'administration sur le faux back (#2199) et joue en parallèle des parcours qui
+écrivent un objet unique (#2211). EP-21 comble ces manques, avec les constats d'EP-19 que ses lots
+n'avaient pu reprendre (#1890, #1893, #1909, #1915) et les finitions d'outils et de guide reportées
+par EP-20 et EP-22.
 
-Il dépend d'EP-19. Son rang se fixe à son cadrage.
+Il dépend d'EP-19, dont il complète les outils, et d'EP-05, dont la fusion dans `main` (#2217) porte
+les fichiers que le harnais et les contrôles touchent — `frontend/e2e/mode.ts`, le projet Playwright
+`shared`, le contrôle des bornes de `test_contract_declarations.py`, les modules du noyau que le
+contrat d'imports ordonne. Ses lots sont petits et indépendants, pour se livrer sur les créneaux
+qu'EP-04 laisse libres. Ses US n'ont pas d'acteur du §3.1.3 : leur bénéficiaire est celui qui
+développe, personne ou agent, comme pour EP-19.
 
 ## Ce qui en fait partie
 
-- les constats ci-dessous, à détailler en US au cadrage.
+- `make tracking` sait écrire tout ce que le pilote écrivait à la main : la ligne d'un lot coupé,
+  une dépendance changée, une US à lot unique dont la cellule cite ses constats ; et un test tient
+  le gabarit de l'issue d'un EPIC d'accord avec l'outil — US-1290 (#2112, #1979, #1915) ;
+- un créneau se rend entier : une cible arrête les serveurs de l'e2e du créneau, que
+  `make slot-release` appelle, et les services de test d'un créneau ne se démarrent qu'une fois à la
+  fois — US-1300 (#2198, #1909) ;
+- le garde des commandes voit les formes d'arrêt et de suppression qu'un agent écrit sans malice, et
+  suit un `cd` dans `.git` — US-1310 (#1890, #1893) ;
+- la chaîne attrape ce que la file a attrapé tard : un cycle entre modules du noyau, un service du
+  Compose démarré sans être reconstruit, une borne de paramètre qui s'écarte du contrat — US-1320
+  (#2124, #2083, #2185) ;
+- le harnais des parcours contre le service : les parcours d'administration joués contre le service
+  sous un compte qui en a les permissions, les parcours qui écrivent un objet unique joués en série,
+  et l'attente du verrou des rôles composés sous le délai d'un test — US-1330 (#2199, #2211, #2214) ;
+- les finitions d'outils et de guide reportées par EP-20 et EP-22 — US-1340 (#2028, #2074, #2075,
+  #2085).
 
 ## Ce qui n'en fait pas partie
 
-- les formes qui ne s'écrivent que pour contourner le garde : ce sont des limites connues
-  d'US-1080 (EP-19, « Hors périmètre ») ;
-- relever N et l'essai à N = 4 : c'est l'auteur qui les fait, sur la nouvelle machine, selon
-  le guide (EP-19).
+- les formes qui ne s'écrivent que pour contourner le garde : ce sont des limites connues d'US-1080
+  (EP-19, « Hors périmètre ») ;
+- relever N au-delà de 4 : c'est l'auteur qui le fait, selon le guide (EP-19) ;
+- ce que le harnais de l'agent fait des worktrees et des sessions — les worktrees des livreurs finis
+  qu'il garde verrouillés, les livreurs en vol qu'un redémarrage de la session du pilote arrête : le
+  dépôt ne les commande pas ;
+- les incidents de code des synchronisations entre branches d'EPIC des 6 et 7 novembre — un fichier
+  de test passé au-dessus de 1 000 lignes, un test de témoin qui ne nettoyait pas ses partitions —,
+  corrigés par les lots qui les ont causés ;
+- la durée des tests du back d'EP-05 (`back / check`, de 4 à 14 minutes, #2157 : délai porté à 15) :
+  ce sont les tests d'EP-05, pas l'outillage ;
+- l'amorçage de `risk_settings.write` et `indicator_settings.write` dans le rôle « Manager »
+  (`TO_SEED_BY_EP04`, #1457) : EP-04.
 
 ## Exigences réalisées
 
-Aucune : c'est l'outillage du dépôt, comme EP-19.
+Aucune : c'est l'outillage du dépôt, comme EP-19. Ses US portent « aucune — outil du dépôt », et
+leurs critères sont propres à l'US.
 
 ## Opérations du contrat
 
@@ -41,11 +78,25 @@ Aucune.
 
 ## Préalables
 
-EP-19 livré.
+EP-19 livré ; EP-05 fusionnée dans `main` (#2217, 2026-11-07).
 
 ## Définition de fini
 
-À écrire au cadrage.
+- `make check BASE=origin/main` passe sur `epic/EP-21`, ainsi que `make roadmap` et
+  `make readmes` ;
+- sur le tableau du gabarit `04-epic.yml`, `make tracking` ajoute la ligne d'un lot coupé et change
+  une dépendance, et reconnaît `lot unique (#n)` ;
+- dans un worktree de lot, après un `make e2e TESTS=<un fichier>` interrompu, `make e2e-down` ne
+  laisse aucun processus à l'écoute sur les ports de l'e2e du créneau, et `make slot-release` rend un
+  créneau sans conteneur, sans volume ni serveur ;
+- dans une session de ce dépôt, `find .git -name '*.lock' -delete`, `docker volume rm $(docker
+  volume ls -q)` et `cd .git && bash -c 'rm index.lock'` sont refusés avant d'être exécutés ;
+- `make imports-back` refuse un import de `waterfall.core.users` depuis
+  `waterfall.core.resource_settings` ; `make service-up` reconstruit l'image de `restore` ;
+- `make e2e-service` joue contre le service les parcours de l'administration et de l'état, et en
+  série ceux qui écrivent un objet unique ; aucun rôle composé n'est créé par les parcours tant que le
+  back n'amorce pas les permissions qu'il composait, sauf ce que la conception garde ;
+- les quinze constats reçus sont fermés, chacun par son lot.
 
 ## Constats reçus
 
@@ -87,6 +138,12 @@ Reporté d'EP-22 à sa livraison (décision de l'auteur du 2026-11-06) :
   chaque objet du référentiel aura le sien. Mineur de la revue d'US-1280 (#2023), à prendre avec
   #2074 et #2075.
 
+Reportés du pilotage d'EP-20, d'EP-05 et d'EP-04 (décision de l'auteur du 2026-11-06) :
+
+- #2112 — outil : `make tracking` ne sait ni ajouter la ligne d'un lot coupé (`US-1270/L2b`,
+  `US-0820b`, `US-0860b`, `US-0840b`), ni changer une dépendance ; le pilote a édité le corps de
+  l'issue à la main, six fois en deux jours. À prendre en premier.
+
 Reporté d'EP-05 (décision de l'auteur du 2026-11-06) :
 
 - #2124 — outil : un cycle d'imports entre deux interfaces en paquet du noyau
@@ -104,7 +161,322 @@ Reportés d'EP-05 et de la nuit du 6 au 7 novembre (décisions de l'auteur du 20
 - #2199 — royaume : le « Manager » de `./mode` ne porte ni `users.*` ni `system_status.read`, les
   parcours d'administration ne se jouent pas contre le service ; décision : un rôle de test
   « Administrateur » du royaume de développement et un second compte des parcours (option B).
-
 - #2185 — outil : le contrôle des bornes des paramètres de requête contre le contrat (#1873,
   `test_contract_declarations.py`) ignore `pattern`, `enum` et les paramètres absents du contrat ;
-  à étendre avec les autres contrôles de conformité. Reporté d'EP-05 le 2026-11-07.
+  à étendre avec les autres contrôles de conformité.
+- #2211 — front : trois parcours `@shared` écrivent un objet unique — les unités de durée, les
+  réglages, la correspondance des coûts réels — sans se jouer en série contre le service, et aucun
+  projet Playwright ne joue en série un parcours hors de `e2e/service/` ; proposition : un projet joué
+  en série (option 1). Relevé par le lot de finitions d'EP-05 (#2126).
+- #2214 — front : `giveRoles` attend le verrou des rôles composés jusqu'à 120 s, plus que les 30 s
+  d'un test, et deux lignes du guide dépassent 100 colonnes ; à retirer avec le rôle composé des
+  parcours (#2199, #2149). Relevé par le lot de finitions d'EP-05 (#2126).
+
+## Conception
+
+À écrire après la validation des US.
+
+---
+
+## US-1290 — `make tracking` écrit ce que le pilote écrivait à la main
+
+- **statut** : à faire
+- **exigences** : aucune — outil du dépôt
+- **opérations** : aucune
+- **issue** :
+
+**En tant que** développeur, **je veux** que `make tracking` sache ajouter la ligne d'un lot coupé,
+changer une dépendance et reconnaître toute cellule « Lot » que le cadreur écrit, et qu'un test
+tienne le gabarit de l'issue d'un EPIC d'accord avec l'outil, **afin que** plus aucun pilote ne
+réécrive le corps de l'issue à la main, ce que ses règles lui interdisent et que six éditions en deux
+jours ont pourtant demandé (#2112).
+
+**Critères d'acceptation.**
+
+- propre à l'US : `make tracking ISSUE=<n> ADD_LOT=<identifiant> AFTER=<lot> [DEPENDS=<liste>]
+  [MODEL=<modèle>]` insère, sous la ligne du lot nommé par `AFTER` et dans la même US, la ligne d'un
+  lot nouveau : cellules « # », « US » et « Statut » vides comme toute ligne de continuation,
+  « Lot » l'identifiant donné (`L3 #<issue>` pour le lot d'une US à plusieurs lots, `US-0820b #2099`
+  pour la part détachée d'une US à lot unique), « Dépend de » la liste donnée ou `—`, « Pas avec »
+  `—`, « État du lot » `à faire`, « PR » `—`, « Modèle » le modèle donné ou `—` ; elle refuse un
+  lot dont la ligne existe déjà, et un `AFTER` qu'elle ne trouve pas ;
+- propre à l'US : `make tracking ISSUE=<n> LOT=<identifiant> DEPENDS=<liste>` remplace la cellule
+  « Dépend de » du lot ; `make tracking ISSUE=<n> REPLACE_DEPENDENCY='<ancien>=<nouveau>'` remplace
+  la mention de l'ancien lot par celle du nouveau dans la cellule « Dépend de » de toutes les lignes
+  où elle paraît, de sorte que les lots qui dépendaient d'une US coupée dépendent de sa seconde
+  moitié ; elle dit combien de lignes elle a changées, et refuse quand aucune ne porte l'ancien ;
+- propre à l'US : `LOT=<identifiant>` reconnaît la part détachée d'un lot coupé — `US-0820b`, dont
+  la ligne est une continuation sous US-0820, et `US-1270/L2b` — et la cellule « Lot » d'une US à
+  lot unique suivie de ses constats ou d'une note (`lot unique (#1840)`, `lot unique — en dernier`),
+  qu'aucune US à lot unique d'EP-17 ne pouvait changer (#1979) ;
+- propre à l'US : un test des outils lit le tableau du `value` du gabarit
+  `.github/ISSUE_TEMPLATE/04-epic.yml` et lui applique chaque forme de `make tracking` — `LOT` avec
+  `STATE`, `PR` et `MODEL` ; `US` avec `STATUS` ; `FINDING` ; `ADD_LOT` ; `DEPENDS` ;
+  `REPLACE_DEPENDENCY` — : un gabarit et un outil qui ne s'accordent plus font échouer
+  `make test-tools` (#1915) ;
+- propre à l'US : chaque forme nouvelle a son test dans `tools/tests/test_tracking.py`, par le faux
+  `gh` des tests existants, et garde ce que l'outil garantit déjà — le verrou du poste, la relecture
+  juste avant l'écriture, le reste du corps réécrit octet pour octet, une valeur à saut de ligne
+  refusée, un `|` échappé ;
+- propre à l'US : le guide (`docs/dev/README-fr.md` et `README.md`, « Commandes »), le Makefile
+  (`make help`) et `epic-deliverer` (la coupe à la demande du relecteur, point 3 de « Chaque lot »)
+  disent ces commandes ; le livreur qui coupe un lot ajoute sa ligne et déplace les dépendances par
+  elles, et plus jamais à la main.
+
+**Notes de réalisation.**
+
+La ligne d'un lot coupé prend la place juste après le lot qu'elle détache, et en dépend (README de
+la roadmap, « Lots » ; `epic-deliverer`, point 3). Les lignes d'EP-05 écrites à la main (#2032) sont
+la forme à reproduire : `|   |   |   | US-0820b #2099 | US-0820 #2036 | — | fusionné | #2118 | sonnet |`.
+
+**Hors périmètre.**
+
+Une réécriture de l'ordre des US, ou l'ajout d'une US : le tableau est écrit une fois par le cadreur,
+et une US nouvelle est un recadrage.
+
+---
+
+## US-1300 — Un créneau se rend entier
+
+- **statut** : à faire
+- **exigences** : aucune — outil du dépôt
+- **opérations** : aucune
+- **issue** :
+
+**En tant que** développeur, **je veux** qu'une cible du Makefile arrête les serveurs de l'e2e de mon
+créneau, que `make slot-release` l'appelle, et que les services de test d'un créneau ne se démarrent
+qu'une fois à la fois, **afin qu'**un `make check-front` interrompu ne laisse plus un `next-server`
+occuper un cœur et un créneau toute une nuit (#2198), et qu'un `make test-back TESTS=…` et un
+`make test-front TESTS=…` lancés ensemble ne fassent plus deux `docker compose up` du même projet
+(#1909).
+
+**Critères d'acceptation.**
+
+- propre à l'US : `make e2e-down` arrête, pour le créneau du worktree, les processus de l'utilisateur
+  qui écoutent sur les ports de l'e2e de son bloc — le faux back (`E2E_API_PORT`) et les fronts des
+  parcours (`E2E_FRONT_PORT` et les trente-neuf suivants) —, et ceux-là seuls : chacun est trouvé par
+  son port, puis arrêté par son PID, jamais par un motif ; au créneau 0, ce sont les ports d'avant
+  (4110, 3100 à 3139) ; elle dit ce qu'elle arrête, et ne dit rien quand rien n'écoute ;
+- propre à l'US : un processus qui n'est pas arrêté par `SIGTERM` dans le délai de la conception
+  reçoit `SIGKILL`, et la cible le dit ; dans un worktree lié sans créneau, elle échoue en disant
+  `make slot`, comme les autres cibles d'un créneau ;
+- propre à l'US : `make slot-release` l'appelle avant de retirer les conteneurs et les volumes du
+  créneau, de sorte qu'un créneau rendu n'a ni conteneur, ni volume, ni serveur ; `make slot`, qui
+  reprend un créneau dont le worktree n'existe plus, en arrête de même les serveurs ;
+- propre à l'US : un test des outils démarre un processus à l'écoute sur un port du bloc d'un
+  créneau de test, lui applique l'arrêt et constate qu'il n'écoute plus et qu'un processus à
+  l'écoute hors du bloc n'est pas touché ;
+- propre à l'US : deux exécutions `slots.py run --services …` lancées ensemble dans un même worktree
+  ne font qu'un `make test-services` à la fois : la seconde attend la première sous un verrou propre
+  au créneau, puis trouve ses services démarrés ; un test à deux processus le prouve (#1909) ;
+- propre à l'US : le refus du garde (`guard.py`, `INSTEAD`) nomme `make e2e-down` parmi les cibles
+  qui arrêtent ce que le Makefile a démarré ; `docs/dev/agents.md` (« Un lot ne laisse rien derrière
+  lui », « Un agent n'arrête que ce qu'il a lancé »), `epic-deliverer` (point 10 de « Chaque lot »)
+  et le guide (« Commandes », « Les créneaux des worktrees ») disent la cible et quand l'appeler :
+  avant `make slot-release`, et dès qu'un `make e2e`, `make e2e-service` ou `make check-front`
+  s'interrompt.
+
+**Notes de réalisation.**
+
+Prism du mandataire du contrat (`contract-proxy`) et la plateforme sont des conteneurs, que
+`make service-down` et `make slot-release` retirent déjà : la cible ne vise que les processus du
+poste. Chromium et Playwright n'écoutent sur aucun port : ils s'arrêtent avec les serveurs qu'ils
+attendaient, ou avec le processus qui les a lancés ; ce que la cible ne sait pas arrêter va au
+relevé du livreur.
+
+**Hors périmètre.**
+
+Les serveurs de `make dev` et de `make mock` lancés à la main, hors des créneaux (EP-19, « Ce qui
+n'en fait pas partie »).
+
+---
+
+## US-1310 — Le garde voit les formes qu'un agent écrit sans malice
+
+- **statut** : à faire
+- **exigences** : aucune — outil du dépôt
+- **opérations** : aucune
+- **issue** :
+
+**En tant que** développeur, **je veux** que le garde des commandes refuse les formes d'arrêt et de
+suppression qu'un agent écrit sans malice et qu'il laisse passer aujourd'hui, et qu'il suive un `cd`
+dans `.git` sous toutes ses formes, **afin que** le filet d'US-1080 tienne à quatre livreurs, où un
+verrou de git supprimé ou un volume retiré touche un autre créneau (#1890, #1893).
+
+**Critères d'acceptation.**
+
+- propre à l'US : le garde refuse `find` dont un chemin passe par `.git` et qui porte `-delete` ou
+  `-exec rm`, et `mv` ou `rename` d'un chemin qui passe par `.git` et finit par `.lock` — un verrou
+  de git ne se supprime ni ne se déplace, la commande se relance ;
+- propre à l'US : il refuse `docker rmi`, `docker image rm` et `docker volume rm` — et leurs formes
+  `docker image remove`, `docker volume remove` — dont une cible porte `$`, un accent grave ou un
+  joker, vient d'un tube ou de `xargs`, ou qui portent `--filter`, comme il refuse déjà `docker rm` ;
+  une cible littérale passe ;
+- propre à l'US : il analyse la commande que lancent `busybox`, `su -c`, `runuser -c`, `flock`,
+  `watch` et `chroot`, avec leurs options, comme il analyse déjà celle de `sudo`, `env`, `timeout`
+  ou `nohup` : `flock /tmp/x pkill make` et `su -c 'pkill make'` sont refusés ;
+- propre à l'US : il suit un `cd` dans `.git` sous `bash -c`, `sh -c` et `eval` lancés après lui
+  (`cd .git && bash -c 'rm index.lock'`), par `pushd`, par `env -C`, `env --chdir` et leurs
+  abréviations, et derrière `command` ou `builtin` ; un `cd` vers un chemin calculé
+  (`cd "$(git rev-parse --git-dir)"`, `cd $GIT_DIR`) compte comme un déplacement dans `.git`, du côté
+  sûr ; un `cd` vers un chemin littéral hors de `.git`, `cd ..` et `cd -` remettent l'état à zéro, de
+  sorte que `cd .git; cd ..; rm foo.lock` passe ;
+- propre à l'US : chaque option longue de chaque préfixe admet ses abréviations selon la règle du
+  préfixe unique de GNU, comme `--split-string` les admet déjà : `env --ch /tmp pkill x` est refusé ;
+- propre à l'US : chaque forme refusée et chaque forme permise ci-dessus a son test dans
+  `tools/tests/test_guard.py`, et les formes d'US-1080 passent ou sont refusées comme avant ;
+- propre à l'US : `guard.py` reste un script de la bibliothèque standard, sans autre module de
+  `wftools`, lancé par `python3`, et sous les 1 000 lignes de `make sources` ;
+- propre à l'US : `docs/dev/agents.md`, « Un agent n'arrête que ce qu'il a lancé », nomme les formes
+  ajoutées — `find … -delete` et `mv` d'un verrou de git, `docker rmi` et `docker volume rm` d'une
+  cible calculée —, et le message du garde dit ce qu'il faut faire à leur place.
+
+**Notes de réalisation.**
+
+Le garde est un filet contre l'erreur, pas un bac à sable (US-1080, « Hors périmètre ») : une forme
+qui ne s'écrit que pour le contourner — commande passée en texte à un interpréteur, substitution ou
+variable en position de mot de commande — reste une limite connue, et n'entre pas ici.
+`docker stop "wf-$SLOT-pg"` reste refusé (#1890) : les conteneurs d'un créneau se retirent par
+`make slot-release` et `make test-services-down`.
+
+---
+
+## US-1320 — La chaîne attrape ce que la file a attrapé tard
+
+- **statut** : à faire
+- **exigences** : aucune — outil du dépôt
+- **opérations** : aucune
+- **issue** :
+
+**En tant que** développeur, **je veux** que `make check` refuse un cycle d'imports entre deux
+modules du noyau, que `make service-up` reconstruise chaque image qu'il démarre, et que le contrôle
+des bornes des paramètres compare tout ce que le contrat déclare, **afin que** la file de fusion
+n'attrape plus, après la revue, ce que le palier rapide savait voir (#2124, #2083, #2185).
+
+**Critères d'acceptation.**
+
+- propre à l'US : un contrat import-linter de `backend/pyproject.toml` ordonne les modules de
+  `waterfall.core` en couches, dans l'ordre que la conception fixe, et `make imports-back` refuse un
+  import d'un module d'une couche haute depuis une couche basse, par l'interface comme autrement :
+  `waterfall.core.resource_settings` qui importerait `waterfall.core.users` est refusé — le cycle de
+  #2124 ne peut plus naître ;
+- propre à l'US : un test des outils tient le contrat à jour : chaque paquet de
+  `backend/src/waterfall/core/` est nommé dans ses couches, et un paquet nouveau qui n'y est pas fait
+  échouer `make test-tools` en nommant le paquet ;
+- propre à l'US : `docs/dev/python.md`, « Défauts déjà rencontrés », dit le cycle de #2124, la
+  règle — `resource_settings` ne dépend d'aucun autre module du noyau, et les auteurs d'un objet se
+  nomment dans `api/` — et le contrat qui la tient ;
+- propre à l'US : `make service-up` construit l'image de chaque service de
+  `deploy/compose/compose.service.yaml` qu'il démarre et qui déclare un `build`, `restore` compris,
+  de sorte qu'une restauration jouée en local après une migration nouvelle trouve la migration
+  (#2083) ;
+- propre à l'US : un test des outils lit les services du Compose de service qui déclarent un `build`
+  (`docker compose config`, avec les valeurs de remplacement de `make lint-compose`) et vérifie que
+  chacun est démarré avec `--build` ou construit avant son démarrage par `service-up`,
+  `service-install` ou `e2e-service` : un service construit qui serait démarré sans l'être fait
+  échouer `make test-tools` en le nommant ;
+- propre à l'US : le contrôle des bornes des paramètres de requête (`drifting`,
+  `backend/tests/test_contract_declarations.py`) compare aussi `pattern`, `enum`, `minItems` et
+  `maxItems`, et trouve un paramètre que le service déclare et que le contrat n'a pas ; le test sur
+  un contrat de brouillon qui prouve chaque écart trouvé s'étend à ces cas (#2185).
+
+**Notes de réalisation.**
+
+Le graphe des imports du noyau au 2026-11-07, sur `main` : `users` lit `resource_settings` ;
+`cost_settings` lit `users` et `resource_settings` ; `indicator_settings` lit `cost_settings` ;
+`access_roles` et `backups` lisent `users` ; `risk_settings` ne lit rien. EP-04 ajoute ses modules
+sur sa branche : le test des outils le lui dira à sa prochaine reprise de `main`, et c'est voulu.
+
+**Hors périmètre.**
+
+Les durées des tests du back (#2157) ; les leviers de l'audit de la chaîne du 2026-11-05 non encore
+pris (miroir des images, cache, `installation.setup`), s'ils ne sont pas retenus au cadrage.
+
+---
+
+## US-1330 — Les parcours d'administration et les parcours en série contre le service
+
+- **statut** : à faire
+- **exigences** : aucune — outil du dépôt
+- **opérations** : aucune
+- **issue** :
+
+**En tant que** développeur, **je veux** que les parcours partagés de l'administration et de l'état
+se jouent contre le service sous un compte qui en a les permissions, que les parcours qui écrivent un
+objet unique de l'installation se jouent en série, et que l'attente du verrou des rôles composés
+tienne dans le délai d'un test, **afin que** `make e2e-service` éprouve l'administration et les
+réglages contre le service, et non plus contre le faux back seul (#2199, #2211, #2214).
+
+**Critères d'acceptation.**
+
+- propre à l'US : `frontend/e2e/mode.ts` connecte un parcours partagé qui le demande avec un compte
+  de la course qui porte les permissions de l'administration — `users.*`, `access_roles.read`,
+  `system_status.read`, `audit_log.read` —, selon la forme que la conception fixe (le compte, son
+  rôle, la manière dont le parcours le demande) ; le « Manager » garde le sens que les parcours
+  éprouvent : il ne reçoit ni `users.*` ni `system_status.read` (option B, décision de l'auteur du
+  2026-11-07) ;
+- propre à l'US : les parcours de l'administration d'`admin.spec.ts` que le service sert, l'ouverture
+  de l'administration et de l'état dans `navigation.spec.ts`, et ceux de `system.spec.ts` portent
+  `@shared` et se jouent contre le service sous ce compte ; ceux qui ne se rejouent pas sont nommés
+  au guide (« Un parcours de bout en bout », « Ce qui ne se rejoue pas ») avec leur raison ;
+- propre à l'US : un projet Playwright joué en série contre le service, après `shared`, joue les
+  parcours partagés qui portent une étiquette propre et écrivent un objet unique de l'installation :
+  les unités de durée (`reference-resources.spec.ts`), les réglages (`reference-settings.spec.ts`) et
+  la correspondance des coûts réels (`reference-actual-cost-mapping.spec.ts`) y passent, et la règle
+  du guide décidée pour #2087 ne connaît plus d'écart (#2211, option 1) ;
+- propre à l'US : la rubrique du guide qui nomme ces trois parcours comme écarts les retire, et dit
+  l'étiquette et le projet ;
+- propre à l'US : l'attente du verrou des rôles composés (`giveRoles`, `ROLES_WAIT`,
+  `frontend/e2e/service/realm.ts`) tient sous le délai d'un test, ou les parcours qui l'appellent
+  relèvent leur délai en le disant ; les deux lignes du guide au-delà de 100 colonnes sont recoupées
+  (#2214) ;
+- propre à l'US : le rôle composé « Paramètres des risques et des indicateurs (parcours) »
+  (`SETTINGS_WRITER`, #2149) n'est plus créé par les parcours si la conception trouve un compte qui
+  porte ces permissions ; sinon il reste, avec les trois corrections de #2149, et la raison est
+  écrite dans la conception ;
+- propre à l'US : `make e2e-service` passe au palier complet, sur le poste comme dans la chaîne, et
+  `make e2e` ne change pas.
+
+**Notes de réalisation.**
+
+Le rôle prédéfini « Administrateur » (`core/access_roles/predefined.py`) porte `users.*`,
+`access_roles.*`, `system_status.read`, `backups.*`, `audit_log.read` et `platform_restore`, et ni
+`risk_settings.write` ni `indicator_settings.write`. Le guide dit qu'aucun parcours ne donne à un
+autre compte que l'administrateur de l'installation les deux permissions d'administration — `give` le
+refuse —, parce que les refus `LAST_ADMINISTRATOR` de `roles.spec.ts` et d'`accounts.spec.ts` en
+dépendent : la conception doit choisir le compte de l'administration sans rompre cette règle.
+
+**Hors périmètre.**
+
+L'amorçage de `risk_settings.write` et `indicator_settings.write` dans le « Manager » : EP-04
+(`TO_SEED_BY_EP04`, #1457).
+
+---
+
+## US-1340 — Finitions d'outils et de guide reportées par EP-20 et EP-22
+
+- **statut** : à faire
+- **exigences** : aucune — outil du dépôt
+- **opérations** : aucune
+- **issue** :
+
+**En tant que** développeur, **je veux** que les quatre finitions reportées vers EP-21 par EP-20 et
+EP-22 soient faites, **afin que** le guide et les outils ne disent plus une version ou un chemin que
+le dépôt dément (#2028, #2074, #2075, #2085).
+
+**Critères d'acceptation.**
+
+- propre à l'US : dans `tools/tests/test_openldap_entrypoint.py`, le test des volumes d'une image
+  d'avant l'entrypoint les pose sans l'entrypoint — un `cn=config.ldif` et un fichier de données
+  touchés —, puis démarre une fois ; le test du repère resté auprès de la configuration a sa docstring
+  d'une ligne, et celle du module dit ce cas ; le guide (`docs/dev/README-fr.md` et `README.md`,
+  paragraphe de l'annuaire) remplace « d'avant ce lot » et « désormais » par une formulation durable
+  (#2028) ;
+- propre à l'US : `INSTALL.md` ne dit plus « 3.14 » à côté de son renvoi à `tools/.python-version` :
+  il ne garde que le renvoi, sur la ligne de Python comme sur celle d'uv (#2074) ;
+- propre à l'US : `make check-tools` dit « missing  tools/.python-version » quand le fichier manque,
+  comme pour un outil absent, au lieu d'un avertissement sans version (#2075) ;
+- propre à l'US : `docs/dev/python.md`, « Les annotations sous Python 3.14 », écrit
+  `platform/restoration.py` et `core/users/tables.py` (#2085) ;
+- propre à l'US : `make readmes` passe, et `make test-tools TESTS=tools/tests/test_openldap_entrypoint.py`
+  passe.
