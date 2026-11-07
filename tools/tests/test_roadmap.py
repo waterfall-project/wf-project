@@ -2,9 +2,15 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 """Tests of the confrontation of the roadmap with the requirements of the document."""
 
+import subprocess
+from typing import TYPE_CHECKING
+
 import pytest
 
 from wftools import projection, roadmap
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 BLOCK = """\
 ```yaml exigence
@@ -178,10 +184,6 @@ def test_the_example_of_the_document_is_left_out() -> None:
     assert findings.uncited == []
 
 
-def test_the_roadmap_of_the_repository_holds() -> None:
-    assert roadmap.main() == 0
-
-
 MAKEFILE = """\
 check: ## Run what the change touches
 \t@echo check
@@ -240,13 +242,24 @@ def test_the_word_make_in_prose_is_not_a_command() -> None:
     assert roadmap.cited_targets("On make sure que tout passe, sans code.") == set()
 
 
-def test_the_agents_of_the_repository_cite_existing_commands() -> None:
-    defined = roadmap.targets(roadmap.MAKEFILE.read_text(encoding="utf-8"))
-    texts = roadmap.agent_texts()
-    assert ".claude/agents/python-developer.md" in texts
-    assert "docs/dev/python.md" in texts
-    assert "docs/dev/python-fastapi-expert.md" not in texts  # untracked: never read
-    assert roadmap.missing_commands(texts, defined) == []
+def test_the_agents_read_the_tracked_guides_and_agents_alone(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # What the repository's agents cite, make check-roadmap holds on the repository itself (#2157).
+    def git(*arguments: str) -> None:
+        subprocess.run(["git", *arguments], cwd=tmp_path, check=True, capture_output=True)
+
+    for path in (".claude/agents/python-developer.md", "docs/dev/python.md", "docs/README.md"):
+        (tmp_path / path).parent.mkdir(parents=True, exist_ok=True)
+        (tmp_path / path).write_text("`make check`", encoding="utf-8")
+    git("init", "--quiet")
+    git("add", ".")
+    (tmp_path / "docs/dev/python-fastapi-expert.md").write_text("`make nope`", encoding="utf-8")
+    monkeypatch.setattr(roadmap, "REPOSITORY", tmp_path)
+    assert sorted(roadmap.agent_texts()) == [
+        ".claude/agents/python-developer.md",
+        "docs/dev/python.md",
+    ]
 
 
 def test_a_wrapped_requirements_field_is_read_whole() -> None:

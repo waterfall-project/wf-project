@@ -157,9 +157,9 @@ les trois cents projets en EP-13, qui clôt. Quatre règles, que chaque tranche 
 | [EP-05](EP-05-referentiel.md) | Référentiel de l'entreprise | livré | EP-16, EP-18, EP-19, EP-20 |
 | [EP-04](EP-04-projets-et-revisions.md) | Projets, révisions et cycle de vie | livré | EP-05 |
 | [EP-06](EP-06-planification.md) | Planification | en cours | EP-04 |
-| [EP-07](EP-07-chiffrage-et-devis.md) | Chiffrage et devis | à planifier | EP-06 |
-| [EP-09](EP-09-couts-reels-et-reste-a-engager.md) | Coûts réels, reste à engager et import des coûts | à planifier | EP-07 |
-| [EP-10](EP-10-indicateurs.md) | Indicateurs de projet | à planifier | EP-09 |
+| [EP-07](EP-07-chiffrage-et-devis.md) | Chiffrage et devis | en cours | EP-06 |
+| [EP-09](EP-09-couts-reels-et-reste-a-engager.md) | Coûts réels, reste à engager et import des coûts | en cours | EP-07 |
+| [EP-10](EP-10-indicateurs.md) | Indicateurs de projet | en cours | EP-09 |
 | [EP-08](EP-08-avenants-et-risques.md) | Avenants, risques et provisions | à planifier | EP-10 |
 | [EP-11](EP-11-portefeuille.md) | Portefeuille | à planifier | EP-08 |
 | [EP-12](EP-12-echanges-de-fichiers.md) | Échanges de fichiers (FLX-01 à FLX-06) | abandonné : chaque aller-retour se valide dans son bloc fonctionnel | — |
@@ -294,10 +294,13 @@ sous-issues suit le découpage :
 **Le tableau de suivi** est dans le corps de l'issue de l'EPIC, jamais dans un commentaire,
 et il est tenu à jour à chaque changement d'état — lot commencé, en revue, fusionné, bloqué ;
 US passée `en cours` ou `fini` ; constat ouvert ou tranché. Les agents le changent par
-`make tracking` — `ISSUE=<n> LOT=<identifiant> [STATE=…] [PR=…] [MODEL=…]`, `US=<identifiant>
-STATUS=…` ou `FINDING=<n> ATTACHED=… DECISION=…` —, qui relit le corps sous un verrou du poste
-juste avant de l'écrire et ne change que la ligne demandée : aucun ne réécrit le corps lui-même,
-plusieurs livreurs s'y réécriraient l'un l'autre. Il a deux parties :
+`make tracking` — `ISSUE=<n> LOT=<identifiant> [STATE=…] [PR=…] [MODEL=…]`, `LOT=<identifiant>
+DEPENDS=<liste>`, `ADD_LOT=<identifiant> AFTER=<lot> [DEPENDS=…] [MODEL=…] [LOT_ISSUE=<n>]`
+(`LOT_ISSUE` : l'issue du lot inséré, le `#n` de sa ligne),
+`REPLACE_DEPENDENCY='<ancien>=<nouveau>'`, `US=<identifiant> STATUS=…` ou
+`FINDING=<n> ATTACHED=… DECISION=…` —, qui relit le corps sous un verrou du poste juste avant de
+l'écrire et ne change que la ligne demandée : aucun ne réécrit le corps lui-même, plusieurs livreurs
+s'y réécriraient l'un l'autre. Il a deux parties :
 
 - **Ordre de réalisation** : une ligne par US, dans l'ordre où elles se livrent, avec son
   issue et son statut, celui du fichier ; sous elle, une ligne par lot, dans l'ordre, avec ses
@@ -357,7 +360,9 @@ peu de choses. Elle reprend cette branche à chaque lot que l'autre fusionne, et
 `US-0810/L1` (décision du 2026-11-05). Seconde : `epic/EP-06` tirée d'`epic/EP-04` dès
 l'ouverture des issues d'EP-06, EP-04 n'ayant plus qu'US-0990/L2 à fusionner, et de même pour
 toute la série EP-06 → EP-07 → EP-09 → EP-10 → EP-08, chaque branche tirée de la précédente dès
-le lot pivot que le cadrage de celle-ci désigne (décision du 2026-11-07).
+le lot pivot que le cadrage de celle-ci désigne (décision du 2026-11-07) : US-1380/L1 (#2328)
+pour `epic/EP-07`, US-1490/L1 (#2370) pour `epic/EP-09`, US-1580/L1 (#2398) pour `epic/EP-10`, US-1660/L1 (#2437) pour
+`epic/EP-08`.
 
 La chaîne s'exécute sur toute pull request, vers une branche d'EPIC comme vers `main`, et
 aucune n'est fusionnée si elle échoue.

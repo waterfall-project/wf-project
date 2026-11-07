@@ -98,20 +98,20 @@ service sont des écarts, qui nomment l'EPIC qui les clôt.
 |---|---|---|---|
 | `WF-PRJ-0020-A` | Lotissement | début — close en EP-04 | US-0450 |
 | `WF-PLA-0080-A` | Grille de planning | début — close en EP-06 | US-0460 |
-| `WF-DEV-0050-A` | Grille de devis | début — close en EP-07 | US-0460 |
+| `WF-DEV-0050-A` | Grille de devis | début — close en EP-08 | US-0460 |
 | `WF-RAE-0040-A` | Grille de reste à engager | début — close en EP-09 | US-0460 |
 | `WF-PLA-0020-A` | Mode de planification | début — close en EP-06 | US-0470 |
 | `WF-PLA-0030-A` | Liaisons entre tâches | début — close en EP-06 | US-0470 |
 | `WF-PLA-0160-A` | Unités de durée | début — close en EP-06 | US-0470 |
 | `WF-PLA-0060-A` | Inscription aux suivis | début — close en EP-10 | US-0480 |
-| `WF-PRJ-0050-A` | Sous-projets | début — close en EP-09 | US-0480 |
+| `WF-PRJ-0050-A` | Sous-projets | début — close en EP-08 | US-0480 |
 | `WF-PRJ-0030-A` | Squelette de planning | début — close en EP-06 | US-0490 |
 | `WF-REV-0010-A` | Unicité de la révision en cours | début — close en EP-07 | US-0490 |
 | `WF-REV-0040-A` | Désignation de la révision de référence | début — close en EP-08 | US-0490 |
 | `WF-CYC-0030-A` | Conditions du passage à En cours | début — close en EP-07 | US-0490 |
-| `WF-REV-0060-A` | Année de référence et mise à jour des taux à la création d’une révision | début — close en EP-07 | US-0490 |
+| `WF-REV-0060-A` | Année de référence et mise à jour des taux à la création d’une révision | début — close en EP-09 | US-0490 |
 | `WF-IHM-0020-A` | Contexte de lecture affiché | début — close en EP-08 | US-0500 |
-| `WF-REV-0080-A` | Comparaison de deux révisions | début — close en EP-07 | US-0500 |
+| `WF-REV-0080-A` | Comparaison de deux révisions | début — close en EP-08 | US-0500 |
 | `WF-REV-0100-A` | Structures de coûts d'une révision | début — close en EP-08 | US-0500 |
 | `WF-REV-0050-A` | Fusion d’un différentiel | début — close en EP-08 | US-0510 |
 | `WF-RIS-0010-A` | Attributs d’un risque | début — close en EP-08 | US-0520 |
@@ -119,7 +119,7 @@ service sont des écarts, qui nomment l'EPIC qui les clôt.
 | `WF-RIS-0030-A` | Devis propre d’un risque | début — close en EP-08 | US-0520 |
 | `WF-PLA-0090-A` | Diagramme de Gantt | début — close en EP-06 | US-0530 |
 | `WF-PLA-0140-A` | Chronologies nommées | début — close en EP-06 | US-0530 |
-| `WF-RAE-0030-A` | Démarrage d’une tâche | début — close en EP-09 | US-0540 |
+| `WF-RAE-0030-A` | Démarrage d’une tâche | début — close en EP-10 | US-0540 |
 | `WF-DEV-0070-A` | Plan de charge du projet | début — close en EP-09 | US-0550 |
 | `WF-PTF-0060-A` | Plan de charge agrégé | début — close en EP-11 | US-0550 |
 | `WF-RIS-0040-A` | Grille de suivi des risques | début — close en EP-08 | US-0550 |

@@ -156,8 +156,11 @@ la revue.
   (`runtime-evaluated-base-classes`), et celles des routes et des dépendances de FastAPI.
 - Ces dernières sont les modules de `backend/src/waterfall/api/` que `ruff.toml` nomme sous
   `per-file-ignores`, avec leur raison : Ruff ne reconnaît pas les routes d'un
-  `router = APIRouter()` local, et aucun contrôle ne vérifie la liste. Un nouveau module de
-  routes ou de dépendances s'y ajoute, au lieu de ranger ses imports sous `TYPE_CHECKING`.
+  `router = APIRouter()` local, et un test de `tools/` vérifie la liste. Un nouveau module de
+  routes (qui déclare un `APIRouter(`) y prend sa ligne, au lieu de ranger ses imports sous
+  `TYPE_CHECKING`, une par module, triées par nom ; le test de `tools/tests/test_rules.py` le
+  rappelle, en nommant les modules qui manquent ou la ligne qui ne désigne aucun fichier, mais
+  il ne reconnaît que les modules de routes : un module de dépendances seules s'ajoute à la main.
   Un module de `api/` sans route ni dépendance (intergiciel, gestion des erreurs) n'y
   figure pas, sauf un module de modèles d'écriture du contrat (`reference_settings_write`) :
   ses sous-classes de `ContractModel` sont lues à l'exécution par FastAPI, et Ruff ne les
@@ -171,8 +174,8 @@ la revue.
   d'`as` (10 `except` de `backend/src` et `tools/src`), et garde les parenthèses là où
   l'`as` lie l'exception (13, tous avec `as`). Une chaîne de gabarit (PEP 750) ne s'emploie
   que là où une fonction la consomme (aucune aujourd'hui : `text()` de SQLAlchemy attend une
-  chaîne, et les deux `text(f"…")` du dépôt, dans `restoration.py` et `tables.py`, n'y
-  changent rien).
+  chaîne, et les deux `text(f"…")` du dépôt, dans `platform/restoration.py` et
+  `core/users/tables.py`, n'y changent rien).
 
 *Pourquoi* : une évaluation tardive rend le futur import inutile, et un import évalué à tort
 coûte au démarrage et aux cycles. *Contrôle* : Ruff (`TC`, `UP`, `FA`) ; `make test-back` pour
@@ -214,3 +217,13 @@ partage le même invariant. Un défaut trouvé en revue et qui peut revenir s'aj
     pas le miroir de la montée, ou une migration ne s'applique pas sur PostgreSQL.
 12. **Test qui passe sur les lignes sans rien vérifier.** Il exécute le code, fait monter la
     couverture, et n'affirme rien du résultat.
+13. **Module du noyau qui dépend d'un autre, en cycle.** Pour afficher les auteurs d'un objet,
+    `resource_settings` a lu `users`, qui lit déjà `resource_settings` : un cycle (#2124), que
+    le contrat `independence` laisse passer quand il passe par l'interface. La règle :
+    `resource_settings` ne dépend d'aucun autre module du noyau, et les auteurs d'un objet
+    se nomment dans `api/`, qui lit les deux. Le contrat `layers` de `backend/pyproject.toml`
+    la tient : le haut importe le bas, jamais l'inverse (`access_roles`, `backups`,
+    `indicator_settings`, `risk_settings` > `cost_settings` > `users` > `resource_settings`),
+    et `make imports-back` refuse l'import contraire, par l'interface comme autrement. Un
+    module nouveau se range dans la couche que ses imports imposent ; un test des outils
+    (`tools/tests/test_chain.py`) échoue en le nommant tant qu'il n'est dans aucune.

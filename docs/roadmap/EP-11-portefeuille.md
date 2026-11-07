@@ -43,11 +43,17 @@ sur un dépôt qui les porte tous (WF-ARC-0010).
 
 La portée dit si l'exigence est entière ici, commencée ici et close par un EPIC ultérieur, ou
 close ici après avoir été commencée plus tôt. Chaque exigence n'est close que par un seul EPIC.
-La colonne US se remplit quand l'EPIC passe `prêt`.
+La colonne US se remplit quand l'EPIC passe `prêt`. WF-DAT-0040 est commencée par EP-04 et EP-10
+et close ici : son Vérif demande une vue de portefeuille à une date passée sur trois cents projets,
+risques compris, qui ne lit ni ligne de tâche ni ligne de devis — EP-10 conserve au marquage les
+indicateurs et les courbes, EP-11 conserve de plus ce que le portefeuille lit, la charge par rôle et
+par mois et les totaux par nature et par nœud d'organisation, par un second enregistrement de
+`register_indicators` (cadrage d'EP-10, décision de l'auteur du 2026-11-07).
 
 | Exigence | Titre | Portée | US |
 |---|---|---|---|
 | `WF-INTF-0020-A` | Usages du manager | fin — amorcée en EP-05 | — |
+| `WF-DAT-0040-A` | Conservation des indicateurs des révisions marquées | fin — amorcée en EP-04, EP-10 | — |
 | `WF-PTF-0010-A` | Périmètre et date de calcul du portefeuille | entière | — |
 | `WF-PTF-0020-A` | Règle d’agrégation | entière | — |
 | `WF-PTF-0030-A` | Vues en consultation seule | entière | — |

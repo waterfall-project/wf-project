@@ -85,8 +85,8 @@ tâches, des liaisons et des structures sans ligne ; les phrases qui demandent p
 
 | Exigence | Titre | Portée | US |
 |---|---|---|---|
-| `WF-PLA-0040-A` | Hiérarchie des tâches | début — close en EP-09 | US-1380 |
-| `WF-PLA-0050-A` | Jalons | début — close en EP-09 | US-1380 |
+| `WF-PLA-0040-A` | Hiérarchie des tâches | début — close en EP-08 | US-1380 |
+| `WF-PLA-0050-A` | Jalons | début — close en EP-08 | US-1380 |
 | `WF-PLA-0070-A` | Suppression d’une tâche | début — close en EP-09 | US-1380 |
 | `WF-PLA-0170-A` | Rattachement au lotissement | début — close en EP-08 | US-1380, US-1460 |
 | `WF-PLA-0150-A` | Horizon d’un projet | entière | US-1380, US-1430 |
@@ -100,7 +100,7 @@ tâches, des liaisons et des structures sans ligne ; les phrases qui demandent p
 | `WF-PLA-0130-A` | Attributs d’une tâche | début — close en EP-10 | US-1410 |
 | `WF-ARC-0100-A` | Import en deux temps | entière | US-1420 |
 | `WF-INTF-0080-A` | Contrôle et confirmation des imports Excel | début — close en EP-07 | US-1420 |
-| `WF-INTF-0090-A` | Imports et révisions marquées | début — close en EP-07 | US-1420 |
+| `WF-INTF-0090-A` | Imports et révisions marquées | début — close en EP-08 | US-1420 |
 | `WF-ARC-0110-A` | Le texte est rendu au plus près du lecteur | fin — amorcée en EP-03 | US-1420 |
 | `WF-DAT-0120-A` | Contenu et purge du stockage objet | fin — amorcée en EP-03 | US-1420, US-1430 |
 | `WF-INTF-0040-A` | Imports MS Project | début — close en EP-07 | US-1430 |
@@ -1131,9 +1131,9 @@ s'importent de la même façon.
 - écart : `WF-INTF-0090-A` — « L’import d’un planning sur la structure principale d’une révision
   qui porte un devis propre de risque laisse ce devis propre inchangé, tâches comprises ; l’import
   du même fichier sur ce devis propre laisse la structure principale inchangée. » : la structure
-  visée (`structure_id`) est seule écrite, et l'écriture sur une autre structure de la révision
-  est éprouvée ici sur deux structures posées autour du service ; les devis propres sont d'EP-08,
-  EP-07 clôt ;
+  visée (`structure_id`) est seule écrite ; une seconde structure ne se pose pas autour du service
+  (`cost_structure.kind` n'admet que `main`), et les devis propres sont d'EP-08, qui clôt (cadrage
+  d'EP-07, décision de l'auteur du 2026-11-07) ;
 - `WF-ARC-0110-A` — « Aucune réponse de l'API ne contient de phrase destinée à l'utilisateur. »
 - `WF-ARC-0110-A` — « Un import fait par un utilisateur en français, relu par un utilisateur en
   anglais, présente son compte rendu en anglais. » : le compte rendu est conservé en codes et

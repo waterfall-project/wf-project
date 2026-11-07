@@ -63,14 +63,14 @@ PRISM   := npx --yes @stoplight/prism-cli@$(PRISM_VERSION)
 	mock-tools mock-spec mock-data mock-data-up-to-date dev dev-down lint-compose service-up service-install service-witness service-logs service-down migrate \
 	build-keycloak build-cache test-keycloak check-keycloak keycloak-authority e2e-service check-service images \
 	production-trial check-production \
-	test-tools lint-tools typecheck-tools sources fixtures check-fixtures requirements \
+	test-tools test-openldap lint-tools typecheck-tools sources fixtures check-fixtures requirements \
 	requirements-release screens readmes reuse lint-workflows \
-	lint-shell check slot slot-release slots test-services test-services-down \
-	check-all check-repo check-spec \
-	check-contract check-back lint-back typecheck-back imports-back test-back check-front \
+	lint-shell check slot slot-release e2e-down slots test-services test-services-down \
+	check-all check-repo check-repo-tools check-spec \
+	check-contract check-back check-back-static check-back-tests coverage-back-merge lint-back typecheck-back imports-back test-back check-front \
 	check-front-code check-front-e2e check-front-image \
 	install-front lint-front typecheck-front test-front build-front prerendered-front generate-client client-up-to-date generate-server-models server-models-up-to-date catalogs \
-	coverage-back coverage-front roadmap check-roadmap e2e e2e-measure e2e-browsers lot-size tracking \
+	coverage-back coverage-front roadmap check-roadmap e2e e2e-measure e2e-browsers lot-size tracking merge-queue merge-queue-check \
 	lint-docker changes gate \
 	check-tools clean
 
@@ -197,6 +197,11 @@ dev-down: ## Stop the development platform
 # share of the processors, unless it selects a single file (TESTS).
 test-tools: ## Run the tests of the repository tools (TESTS=<file> runs one file)
 	@cd $(TOOLS) && $(heavy) uv run --frozen pytest -n $(WATERFALL_PROCESSORS) --dist worksteal $(TESTS)
+
+# The entrypoint of the directory, tried in Docker on throwaway volumes: a minute of starts that the
+# tools leave out (the marker openldap), run by the keycloak family, which deploy/openldap wakes.
+test-openldap: ## Try the entrypoint of the directory of test on throwaway volumes (needs Docker)
+	@cd $(TOOLS) && uv run --frozen pytest -m openldap -n $(WATERFALL_PROCESSORS) --dist worksteal
 
 lint-tools: ## Lint and format check of the repository tools
 	@cd $(TOOLS) && uv run --frozen ruff check . $(DOC_TOOLS) \
@@ -376,10 +381,12 @@ check: ## Run the checks of what the change touches (BASE=origin/main by default
 		echo "== $$target"; $(MAKE) --no-print-directory $$target || exit 1; \
 	done
 
-check-all: check-repo check-spec check-contract check-back check-front check-front-image check-roadmap check-keycloak check-service check-production ## Run every family of checks
+check-all: check-repo check-repo-tools check-spec check-contract check-back check-front check-front-image check-roadmap check-keycloak check-service check-production ## Run every family of checks
 
 check-repo: reuse lint-workflows lint-shell lint-docker lint-compose sources check-fixtures \
-	requirements screens readmes lint-tools typecheck-tools test-tools ## Checks that run on any change
+	requirements screens readmes ## Checks that run on any change
+
+check-repo-tools: lint-tools typecheck-tools test-tools ## The tools of the repository: lint, types, tests
 
 check-spec: build-doc-strict ## The projection builds without warning and is up to date
 	@git diff --exit-code --stat -- $(SPEC)/waterfall-spec.md \
@@ -389,7 +396,15 @@ check-contract: lint-openapi inventory mock-data-up-to-date server-models-up-to-
 	@git diff --exit-code --stat -- $(API)/INVENTORY.md \
 		|| { echo "  INVENTORY.md is not the one the contract produces: run make inventory"; exit 1; }
 
-check-back: lint-back typecheck-back imports-back $(call full-else,coverage-back,test-back) ## The back: lint, types, boundaries, tests; coverage replaces the plain tests in the full tier
+check-back: check-back-static check-back-tests ## The back: lint, types, boundaries, tests; coverage replaces the plain tests in the full tier
+
+# The chain runs the back apart, as the front (back.yml): check-back-static on one runner,
+# check-back-tests SHARD=i/N on each of the others, and in the full tier the measures of their parts
+# gathered (coverage-back-merge). A part is the i-th of N of the tests, one in N in the order of their
+# collection: the files that load the witness, the longest, are spread over all the parts.
+check-back-static: lint-back typecheck-back imports-back ## The back but its tests: lint, types, boundaries
+
+check-back-tests: $(call full-else,coverage-back,test-back) ## The tests of the back, SHARD=i/N one part of them; in the full tier, measured
 
 lint-back: ## Lint and format check of the back
 	@cd $(BACK) && uv run --frozen ruff check . && uv run --frozen ruff format --check .
@@ -404,12 +419,26 @@ imports-back: ## The boundaries of the core (WF-ARC-0010)
 # one process per core (pytest-xdist), eight at most — each takes a database of Redis of its own,
 # which has sixteen. The tests of Keycloak (test-keycloak) stay on one: one of them restarts it.
 PYTEST_WORKERS = -n $(WATERFALL_PROCESSORS) --maxprocesses 8
+BACK_PART = $(if $(SHARD),--shard=$(SHARD))
 
-test-back: ## Tests of the back (TESTS=<file> runs one file)
-	@cd $(BACK) && $(TESTING_BACK) uv run --frozen pytest -q $(PYTEST_WORKERS) $(TESTS)
+test-back: ## Tests of the back (TESTS=<file> runs one file; SHARD=i/N one part of them, as the chain spreads them)
+	@cd $(BACK) && $(TESTING_BACK) uv run --frozen pytest -q $(PYTEST_WORKERS) $(BACK_PART) $(TESTS)
 
-coverage-back: ## Code coverage of the back: 90 % of lines, 85 % of branches (US-0060)
+# With SHARD, one part of the tests measured alone, its data kept apart for coverage-back-merge
+# (backend/.coverage-parts/), out of the reach of the next measure, which erases the data files beside
+# its own; the thresholds are held on the parts gathered alone.
+coverage-back: ## Code coverage of the back: 90 % of lines, 85 % of branches (US-0060); SHARD=i/N measures one part of the tests, for coverage-back-merge
+ifdef SHARD
+	@cd $(BACK) && $(TESTING_BACK) uv run --frozen pytest $(PYTEST_WORKERS) --quiet --cov --cov-report= $(BACK_PART)
+	@mkdir -p $(BACK)/.coverage-parts && mv $(BACK)/.coverage $(BACK)/.coverage-parts/.coverage.part-$(subst /,-of-,$(SHARD))
+else
 	@cd $(BACK) && $(TESTING_BACK) uv run --frozen pytest $(PYTEST_WORKERS) --quiet --cov --cov-report=json:coverage.json
+	@$(WFTOOLS).codecoverage coverage.py $(BACK)/coverage.json
+endif
+
+coverage-back-merge: ## The code coverage of the back from the parts of coverage-back SHARD=i/N (backend/.coverage-parts/), held to the same thresholds
+	@cd $(BACK) && uv run --frozen coverage combine --quiet --keep .coverage-parts \
+		&& uv run --frozen coverage json --quiet -o coverage.json
 	@$(WFTOOLS).codecoverage coverage.py $(BACK)/coverage.json
 
 # The front in two halves, which the chain runs side by side (front.yml, e2e.yml); on a
@@ -510,7 +539,7 @@ coverage-front-merge: install-front ## The code coverage of the front from the p
 
 check-roadmap: roadmap ## The roadmap and the requirements agree (US-0070)
 
-check-keycloak: build-keycloak test-keycloak ## The image of Keycloak builds, its realm applies and its extension answers (US-0350)
+check-keycloak: build-keycloak test-keycloak test-openldap ## The image of Keycloak builds, its realm applies and its extension answers (US-0350); the entrypoint of the directory seeds its volumes
 
 # The production image of the front, which the chain publishes after a merge alone (images.yml),
 # built and started at a pull request that changes what makes it (wftools.frontimage, US-0430).
@@ -576,7 +605,7 @@ e2e-service: export E2E_PART = service
 e2e-service: export WATERFALL_ADMIN_EMAIL := $(E2E_ADMIN_EMAIL)
 e2e-service: export E2E_ADMIN_EMAIL := $(E2E_ADMIN_EMAIL)
 e2e-service: export E2E_BUILT = 1
-e2e-service: install-front mock-tools $(call e2e-build,$(E2E_DEV_SERVER)) ## End-to-end paths of the project `service` against the real service, through Prism as a proxy, on the front built for production (needs the secrets of service-up and a browser, make e2e-browsers)
+e2e-service: install-front mock-tools $(call e2e-build,$(E2E_DEV_SERVER)) ## End-to-end paths of the project `service` against the real service, through Prism as a proxy, on the front built for production (needs the secrets of service-up and a browser, make e2e-browsers); TESTS=<arguments of playwright test>: a file alone also plays installation and, with a @realm-wide or @platform-wide path, the projects its own depends on; TESTS="--no-deps --project=shared --project=realm <files>" plays only the files, on an installation already played
 	@$(MAKE) --no-print-directory mock-spec MOCK_SPEC=$(PROXY_SPEC)
 	@$(MAKE) --no-print-directory service-up
 	@$(COMPOSE_SERVICE) up --detach --wait contract-proxy
@@ -590,15 +619,18 @@ e2e-service: install-front mock-tools $(call e2e-build,$(E2E_DEV_SERVER)) ## End
 		WATERFALL_REDIS_URL=redis://:$${WATERFALL_REDIS_PASSWORD}@127.0.0.1:$${WATERFALL_REDIS_PORT:-6379}/0 && \
 		NODE_EXTRA_CA_CERTS=$(KEYCLOAK_AUTHORITY) && \
 		export E2E_INSTALLATION_LINK E2E_CONTRACT_PROXY E2E_SERVICE_DATABASE WATERFALL_API_ADDRESS WATERFALL_KEYCLOAK_ADDRESS WATERFALL_REDIS_URL NODE_EXTRA_CA_CERTS && \
-		$(PNPM) exec playwright test
+		$(PNPM) exec playwright test $(TESTS)
 
 # The slot of the worktree, among the N of WATERFALL_SLOTS, in the register of the workstation
 # ($XDG_RUNTIME_DIR/waterfall-slots, /tmp/waterfall-slots without it), whatever the repository.
 slot: ## Take a slot of 1 to N for this worktree of a lot — its ports and its names —, or say the one it holds; fails, naming the holders, when all are taken
 	@$(SLOTS) claim
 
-slot-release: ## Remove the containers and volumes of the slot of this worktree — the service platform, the services of the tests —, then free it
+slot-release: ## Stop the servers of the e2e paths, remove the containers and volumes of the slot of this worktree — the service platform, the services of the tests —, then free it
 	@$(SLOTS) release
+
+e2e-down: ## Stop the servers of the end-to-end paths of the slot of this worktree — the fake back, the fronts —, found by their ports and stopped by PID; after an interrupted e2e, e2e-service or check-front (US-1300)
+	@$(SLOTS) stop-servers
 
 slots: ## Print N, then the slots taken on the workstation and their worktrees
 	@$(SLOTS) list
@@ -620,12 +652,21 @@ lot-size: ## The real size of a lot, against its epic (BASE=origin/epic/EP-nn); 
 # exports the command-line variables to the recipe; an empty value is ignored.
 tracking_option = $(if $(filter command line,$(origin $(1))),$${$(1):+$(2) "$$$(1)"})
 
-tracking: ## Change one line of the tracking table of an epic's issue, under a lock: ISSUE=<n> with LOT=<id> [STATE PR MODEL], US=<id> STATUS=…, or FINDING=<n> ATTACHED=… DECISION=…
+tracking: ## Change a line of the tracking table of an epic's issue, under a lock: ISSUE=<n> with LOT=<id> [STATE PR MODEL DEPENDS], US=<id> STATUS=…, FINDING=<n> ATTACHED=… DECISION=…, ADD_LOT=<id> AFTER=<lot> [DEPENDS MODEL LOT_ISSUE], or REPLACE_DEPENDENCY='<old>=<new>'
 	@$(WFTOOLS).tracking $(call tracking_option,ISSUE,--issue) $(call tracking_option,LOT,--lot) \
 		$(call tracking_option,US,--us) $(call tracking_option,FINDING,--finding) \
 		$(call tracking_option,STATE,--state) $(call tracking_option,PR,--pr) \
 		$(call tracking_option,MODEL,--model) $(call tracking_option,STATUS,--status) \
-		$(call tracking_option,ATTACHED,--attached) $(call tracking_option,DECISION,--decision)
+		$(call tracking_option,ATTACHED,--attached) $(call tracking_option,DECISION,--decision) \
+		$(call tracking_option,ADD_LOT,--add-lot) $(call tracking_option,AFTER,--after) \
+		$(call tracking_option,DEPENDS,--depends) $(call tracking_option,LOT_ISSUE,--issue-number) \
+		$(call tracking_option,REPLACE_DEPENDENCY,--replace-dependency)
+
+merge-queue: ## Create the merge queue ruleset of an epic's branch from .github/rulesets/merge-queue.json (EPIC=EP-nn); for a person, never a deliverer
+	@$(WFTOOLS).mergequeue create "$(EPIC)"
+
+merge-queue-check: ## Check that an active ruleset with a merge queue targets an epic's branch (EPIC=EP-nn)
+	@$(WFTOOLS).mergequeue check "$(EPIC)"
 
 changes: ## Print which families of checks the change touches (BASE; HEAD, or the working tree)
 	@$(WFTOOLS).changes "$(BASE)" $(HEAD)
@@ -637,9 +678,11 @@ check-tools: ## Report which prerequisites are missing
 	@for t in python3 pandoc node npx pnpm uv docker; do \
 		command -v $$t >/dev/null && echo "  ok       $$t" || echo "  missing  $$t"; \
 	done
-	@v=$$(cut -d. -f1,2 $(TOOLS)/.python-version); \
+	@if [ ! -f $(TOOLS)/.python-version ]; then echo "  missing  $(TOOLS)/.python-version"; else \
+		v=$$(cut -d. -f1,2 $(TOOLS)/.python-version); \
 		python3 --version 2>/dev/null | grep -q "^Python $$(echo "$$v" | sed 's/\./\\./g')\." \
-		|| echo "  warning  python3 is not $$v, the version of $(TOOLS)/.python-version: the guard and the slots would run by another"
+		|| echo "  warning  python3 is not $$v, the version of $(TOOLS)/.python-version: the guard and the slots would run by another"; \
+	fi
 	@command -v pandoc >/dev/null && pandoc --version | head -1 | grep -q " 3.13$$" \
 		|| echo "  warning  pandoc is not 3.13: the projection would differ from the chain's"
 	@/usr/bin/pg_restore --version 2>/dev/null | grep -q " 18\." \

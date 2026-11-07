@@ -303,9 +303,18 @@ def test_a_release_with_a_requirement_the_front_alone_covers_fails_naming_it(
 def test_the_report_goes_to_the_job_summary(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
+    # On a document of its own: make requirements reports on the repository itself (#2157).
     summary = tmp_path / "summary.md"
     monkeypatch.setenv("GITHUB_STEP_SUMMARY", str(summary))
+
+    def one_citation(_declaration: paths.Declaration, _repository: Path = Path()) -> list[Citation]:
+        return [back("WF-QUA-0010-A", "tests/test_x.py::test_y")]
+
+    monkeypatch.setattr(coverage, "citations", one_citation)
+    monkeypatch.setattr(roadmap, "read", lambda: ())
+    monkeypatch.setattr(projection, "read", lambda: document(("WF-QUA-0010-A", "F0")))
     assert coverage.main([]) == 0
     text = summary.read_text(encoding="utf-8")
     assert "## Couverture des exigences par les tests" in text
     assert "| Exigence | Flex | Titre | Familles | Tests |" in text
+    assert "WF-QUA-0010-A" in text

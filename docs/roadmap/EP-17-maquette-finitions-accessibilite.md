@@ -117,12 +117,12 @@ demandent le service sont des écarts, qui nomment l'EPIC qui les clôt.
 
 | Exigence | Titre | Portée | US |
 |---|---|---|---|
-| `WF-RAE-0030-A` | Démarrage d’une tâche | début — close en EP-09 | US-0730 |
-| `WF-PLA-0040-A` | Hiérarchie des tâches | début — close en EP-06 | US-0730 |
+| `WF-RAE-0030-A` | Démarrage d’une tâche | début — close en EP-10 | US-0730 |
+| `WF-PLA-0040-A` | Hiérarchie des tâches | début — close en EP-08 | US-0730 |
 | `WF-RIS-0040-A` | Grille de suivi des risques | début — close en EP-08 | US-0740 |
 | `WF-PLA-0080-A` | Grille de planning | début — close en EP-06 | US-0750 |
 | `WF-PLA-0090-A` | Diagramme de Gantt | début — close en EP-06 | US-0750 |
-| `WF-PLA-0050-A` | Jalons | début — close en EP-06 | US-0750 |
+| `WF-PLA-0050-A` | Jalons | début — close en EP-08 | US-0750 |
 | `WF-PRJ-0020-A` | Lotissement | début — close en EP-04 | US-0750 |
 | `WF-ADM-0060-A` | Cycle de vie d’un compte | début — close en EP-04 | US-0780 |
 | `WF-IHM-0140-A` | Aide en ligne | début — close en EP-11 | US-0790 |

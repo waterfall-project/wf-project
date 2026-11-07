@@ -6,7 +6,10 @@
 volumes, data and configuration, of a name of its own to each test and removed after it. Without
 configuration, it empties and seeds again the volume of the data only if the marker it lays before
 loading the seed is there — a seeding interrupted — or if the volume is empty; data without marker
-are a directory that has served, and it refuses. Docker is needed: a test skips without it.
+are a directory that has served, and it refuses. Volumes laid without the entrypoint, as the image
+of osixia left them, are served as they are; a marker left beside the configuration by a stop
+between its copy and the removal is removed, and nothing is emptied. Docker is needed: a test
+skips without it.
 """
 
 import shutil
@@ -26,7 +29,10 @@ SEED = REPOSITORY / "deploy" / "keycloak" / "development" / "directory.ldif"
 REMEDY = "make service-down WATERFALL_RESET_DATA=yes"
 MARKER = ".seeding"
 
-pytestmark = pytest.mark.skipif(shutil.which("docker") is None, reason="docker is not installed")
+pytestmark = [
+    pytest.mark.openldap,
+    pytest.mark.skipif(shutil.which("docker") is None, reason="docker is not installed"),
+]
 
 
 class Volumes:
@@ -122,21 +128,29 @@ def test_a_later_start_loads_nothing(volumes: Volumes) -> None:
     assert "kept" in volumes.listing().split("---")[0]
 
 
-def test_volumes_of_the_image_of_before_start_untouched(volumes: Volumes) -> None:
-    """Data and configuration without marker, as osixia left them: nothing is loaded or emptied."""
-    assert volumes.start().returncode == 124
-    kept = volumes.run("touch /var/lib/ldap/osixia /etc/ldap/slapd.d/osixia")
-    assert kept.returncode == 0
-    assert volumes.start().returncode == 124
+def test_volumes_laid_without_the_entrypoint_are_not_emptied_or_refused(volumes: Volumes) -> None:
+    """Data and configuration without marker, as osixia's image left them: nothing is touched."""
+    laid = volumes.run("touch /etc/ldap/slapd.d/cn=config.ldif /var/lib/ldap/osixia")
+    assert laid.returncode == 0
+    started = volumes.start()
+    # slapd, not the entrypoint, ends it: the configuration laid here is an empty file, which slapd
+    # reads as an entry without a name before it stops (#2423). The status alone, 1, would not
+    # tell: every failure of the entrypoint exits with it.
+    assert started.returncode == 1
+    assert "str2entry: entry -1 has no dn" in started.stderr
+    assert "slapd stopped." in started.stderr
+    assert REMEDY not in started.stderr
+    assert "interrupted" not in started.stderr
     data, config = volumes.listing().split("---")
     assert "osixia" in data
-    assert "osixia" in config
+    assert "cn=config.ldif" in config
     assert MARKER not in data
 
 
 def test_a_marker_left_beside_the_configuration_is_removed_and_nothing_emptied(
     volumes: Volumes,
 ) -> None:
+    """A stop between the copy of the configuration and the removal of the marker leaves both."""
     assert volumes.start().returncode == 124
     left = volumes.run(f"touch /var/lib/ldap/{MARKER} /var/lib/ldap/kept")
     assert left.returncode == 0

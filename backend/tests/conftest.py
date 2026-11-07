@@ -4,7 +4,7 @@
 
 import json
 import os
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 from urllib.parse import urlsplit, urlunsplit
 from uuid import uuid4
 
@@ -34,6 +34,7 @@ from support import (
     raw_account,
     service_role,
 )
+from witness_rows import WitnessRows, copied, laid
 
 from waterfall.api.app import create_app
 from waterfall.api.authentication import Services
@@ -51,6 +52,38 @@ from waterfall.witness.main import load_witness
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
+
+
+def pytest_addoption(parser: pytest.Parser) -> None:
+    """Declare ``--shard``: one part of the tests, as the chain spreads them (back.yml)."""
+    parser.addoption(
+        "--shard",
+        default=None,
+        help="i/N: run the i-th of N parts of the tests, one in N in the order of their collection",
+    )
+
+
+@pytest.hookimpl(trylast=True)
+def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item]) -> None:
+    """Keep, under ``--shard i/N``, the tests at the positions that are i modulo N, from 1.
+
+    The order of the collection is the same in every process of pytest-xdist, which compare what
+    they collected: each keeps the same part. One in N, rather than N runs of files, spreads the
+    files that load the witness, the longest, over all the parts.
+    """
+    shard = cast("str | None", config.getoption("shard"))
+    if shard is None:
+        return
+    part, _, parts = shard.partition("/")
+    if not (part.isdigit() and parts.isdigit() and 1 <= int(part) <= int(parts)):
+        message = f"--shard must be i/N, 1 <= i <= N, not {shard!r}"
+        raise pytest.UsageError(message)
+    kept: list[pytest.Item] = []
+    left: list[pytest.Item] = []
+    for index, item in enumerate(items):
+        (kept if index % int(parts) == int(part) - 1 else left).append(item)
+    config.hook.pytest_deselected(items=left)
+    items[:] = kept
 
 
 @pytest.fixture
@@ -417,14 +450,38 @@ def witness(database: Database, owner: Engine, service_database_url: str) -> Dat
     The row of the installation and the reference the bootstrap writes — the settings, the units,
     the mapping, the default calendar, the provision —, as the owner of the tables, then the
     witness as the service (#2143): the slices that set what the bootstrap wrote have it to set.
-    Emptied with the database after the test, as any row.
+    Emptied with the database after the test, as any row. Loaded once by each process: the tests
+    after the first find its rows laid again (``witness_rows``); a test that reads what the
+    command says asks for ``witness_loaded``.
     """
+    rows = WITNESS_ROWS.get(service_database_url)
+    if rows is None:
+        WITNESS_ROWS[service_database_url] = loaded(owner, service_database_url)
+    else:
+        laid(owner, rows)
+    return database
+
+
+@pytest.fixture
+def witness_loaded(database: Database, owner: Engine, service_database_url: str) -> Database:
+    """Give the database the witness was loaded on by the command in this very test."""
+    rows = loaded(owner, service_database_url)
+    WITNESS_ROWS.setdefault(service_database_url, rows)
+    return database
+
+
+def loaded(owner: Engine, service_database_url: str) -> WitnessRows:
+    """Install the database, load the witness by the command; give the rows it wrote, copied."""
     install(owner)
     settings = WitnessSettings(
         database_url=SecretStr(service_database_url), witness_path=str(WITNESS)
     )
     assert load_witness(settings) == 0
-    return database
+    return copied(owner)
+
+
+# The rows of the witness, by the database of the process that loaded them.
+WITNESS_ROWS: dict[str, WitnessRows] = {}
 
 
 @pytest.fixture

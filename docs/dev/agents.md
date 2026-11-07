@@ -64,6 +64,14 @@ Ses règles sont dans le skill `pilote` (`.claude/skills/pilote/SKILL.md`). En b
   à un autre lot. Le jour, de 6 h à 20 h, il prévient l'utilisateur par une notification ; la
   nuit, de 20 h à 6 h, il ne le dérange pas. L'utilisateur répond dans l'issue, à ses
   créneaux, de 6 h à 7 h et de 18 h 30 à 20 h.
+- **Pas de redémarrage avec des livreurs en vol.** Un pilote ne redémarre pas sa session (une
+  nouvelle session, `/clear`, la fermeture du terminal) tant qu'un livreur qu'il a lancé tourne :
+  le redémarrage les arrête tous, et un lot a dû être repris. Il attend leurs relevés.
+- **Le worktree d'un livreur rendu.** Quand un livreur a rendu son relevé et que son lot est
+  fusionné, le pilote retire lui-même son worktree (`git worktree unlock <chemin>`, `git worktree
+  remove <chemin>`, puis `git worktree prune`), parce que le harnais le garde verrouillé. Les
+  autres worktrees de trop ne sont que signalés, jamais retirés : l'un d'eux peut garder un
+  travail non commité.
 - **Un réveil périodique**, toutes les trente minutes environ, même sans livreur rendu :
   c'est lui qui reprend après une limite d'usage, un livreur planté ou une réponse donnée,
   sans personne.
@@ -72,21 +80,26 @@ Ses règles sont dans le skill `pilote` (`.claude/skills/pilote/SKILL.md`). En b
 
 Un livreur met la pull request de son lot en file de fusion par la mutation GraphQL
 `enqueuePullRequest` (`.claude/agents/epic-deliverer.md`). Cette commande, `gh api graphql`,
-demande une permission que les règles de l'outil `Bash` ne donnent pas d'office ; c'est une
-personne qui l'accorde, une fois, avec l'entrée suivante de `permissions.allow`, éprouvée le
-2026-11-05 (un livreur a mis #1978 en file avec elle) :
+demande une permission que les règles de l'outil `Bash` ne donnent pas d'office. La règle est
+versionnée dans `.claude/settings.json`, sous `permissions.allow`, avec les vingt-et-une autres
+dont un livreur a besoin (`cd`, `gh issue`, `gh pr` — dont `gh pr merge` —, `gh run`, `git push`,
+`git branch -d`, `git worktree unlock` et `remove`, `make tracking`, `make slot`,
+`make slot-release`, `make e2e-down`) : chaque worktree la reçoit donc d'emblée, sans que personne
+l'accorde. Un test des outils (`tools/tests/test_permissions.py`) l'éprouve.
 
-```json
-"permissions": { "allow": [ "Bash(gh api graphql -f query='mutation($id:ID!){enqueuePullRequest(input:{pullRequestId:$id}){mergeQueueEntry{state}}}' -f id=*)" ] }
-```
-
-- **Où elle se pose.** Dans `~/.claude/settings.json`, pour tous les dépôts du poste ; ou dans
-  `.claude/settings.json` du clone, pour ce dépôt seul. L'entrée s'ajoute à la liste
-  `permissions.allow` qui existe déjà, elle ne la remplace pas.
-- **Ce qu'elle autorise.** Cette mutation exacte, pour n'importe quel identifiant de pull request :
-  l'identifiant est le `*` final, et tout le texte de la requête doit être celui-là.
-- **Ce qu'elle n'autorise pas.** Aucune autre requête GraphQL, et ni `gh pr merge` ni une fusion
-  hors de la file : la fusion reste celle de la file, après la chaîne.
+- **Ce qu'elle autorise.** `Bash(gh api graphql:*)` est plus large que la mutation : toute
+  requête GraphQL de `gh`. La mutation de mise en file reste la seule forme que le livreur écrit.
+  `Bash(gh pr merge:*)` est dans la liste : l'étape 8 d'`epic-deliverer` s'en sert pour fusionner
+  une branche sans file.
+- **Ce qu'elle n'interdit pas, et que les règles interdisent.** La permission ne garantit rien là
+  contre : sur une branche qui a sa file, le livreur met en file et ne fusionne pas à la main,
+  c'est une consigne d'`epic-deliverer` et des règles communes. De même `Bash(git push:*)` et
+  `Bash(cd:*)` sont larges : ce sont les règles des agents qui interdisent de pousser sur `main`
+  ou sur une branche `epic/*` et de forcer une poussée. Le garde (`guard.py`) ne vise que
+  l'arrêt de processus (`kill`, `pkill`, `killall`), `docker`, les fichiers `.lock` et `.git`, et
+  `make merge-queue` : il ne voit ni `gh pr merge` ni `git push`.
+- **Une règle propre à un poste** (un chemin de `/tmp`, par exemple) reste dans
+  `.claude/settings.local.json`, que git ignore ; elle ne va pas dans `.claude/settings.json`.
 
 [`CONTRIBUTING.md`](../../CONTRIBUTING.md) y renvoie.
 
@@ -129,16 +142,20 @@ personne qui l'accorde, une fois, avec l'entrée suivante de `permissions.allow`
   — `epic-framer` le crée, `epic-deliverer` le tient — dans le corps de l'issue, jamais en
   commentaire. Un agent ne réécrit pas ce corps lui-même : plusieurs livreurs s'y réécriraient
   l'un l'autre. Il passe par `make tracking ISSUE=<n> LOT=<identifiant> [STATE=…] [PR=…]
-  [MODEL=…]`, `US=<identifiant> STATUS=…` ou `FINDING=<n> ATTACHED=… DECISION=…`, qui relit le
-  corps sous un verrou du poste juste avant de l'écrire et ne change que la ligne demandée
-  (guide, « Commandes »). Le cadreur, qui écrit le tableau pour la première fois, l'écrit
-  lui-même ; ensuite, `make tracking`.
+  [MODEL=…]`, `LOT=<identifiant> DEPENDS=<liste>`, `ADD_LOT=<identifiant> AFTER=<lot>
+  [DEPENDS=…] [MODEL=…] [LOT_ISSUE=<n>]` (`LOT_ISSUE` est l'issue du lot inséré, le `#n` de sa
+  ligne), `REPLACE_DEPENDENCY='<ancien>=<nouveau>'`, `US=<identifiant> STATUS=…` ou
+  `FINDING=<n> ATTACHED=… DECISION=…`, qui relit le corps sous un verrou du poste juste avant
+  de l'écrire et ne change que la ligne demandée (guide, « Commandes »). Le cadreur, qui écrit le
+  tableau pour la première fois, l'écrit lui-même ; ensuite, `make tracking`.
 - **Un lot ne laisse rien derrière lui** (#1444). Après la fusion de sa pull request, l'agent
   de livraison supprime la branche locale du lot et toute branche de travail qu'il a tirée
   (`git branch -d`, qui refuse une branche non fusionnée), retire les worktrees du lot — le
   sien et ceux de ses développeurs — (`git worktree remove`, puis `git worktree prune`), et
   vérifie qu'aucun processus lancé pour le lot ne tourne encore : serveur de Next, Prism,
-  Chromium. Un agent de développement fait de même, avant de rendre la main, pour les branches
+  Chromium. Les serveurs de l'e2e se rendent par `make e2e-down`, avant `make slot-release`
+  (qui l'appelle) et dès qu'un `make e2e`, `make e2e-service` ou `make check-front` s'interrompt
+  (US-1300, #2198). Un agent de développement fait de même, avant de rendre la main, pour les branches
   de travail qu'il a tirées à côté de celle du lot et les commandes qu'il a lancées en
   arrière-plan. Une centaine de branches fusionnées et quinze worktrees de lots fusionnés
   brouillaient `git branch` et `git worktree list`. Le nettoyage d'un dépôt déjà encombré se
@@ -146,16 +163,25 @@ personne qui l'accorde, une fois, avec l'entrée suivante de `permissions.allow`
 - **Un agent n'arrête que ce qu'il a lancé** (US-1080), par son PID ou par un nom propre à
   son lot ; jamais par motif. Ni `pkill`, ni `killall`, ni un `kill` dont une cible n'est pas
   un PID écrit en chiffres — `kill $(pgrep make)`, `kill $pid`, un nom —, lancé par `xargs`,
-  ou qui vise `-1` ou `0` ; ni `docker rm`, `docker stop` ou `docker kill` d'une
-  substitution, d'un tube ou d'un filtre ; ni `docker … prune` ; ni `docker compose … down`
-  hors du Makefile. `pkill -f "^make check"` a pu interrompre ainsi, le 2026-11-03, le
+  ou qui vise `-1` ou `0` ; ni `docker rm`, `docker stop`, `docker kill`, `docker rmi` ou
+  `docker volume rm` d'une cible calculée — substitution, variable, joker —, d'un tube ou d'un
+  filtre, quand une cible littérale passe (US-1310) ; ni `docker … prune` ; ni
+  `docker compose … down` hors du Makefile. `pkill -f "^make check"` a pu interrompre ainsi, le 2026-11-03, le
   `make check` d'un livreur d'un autre EPIC. Ce que le Makefile a démarré, sa cible l'arrête :
-  `make service-down` pour la plateforme de service. Un verrou de git (`.git/…/*.lock`) ne
-  se supprime pas : une commande `git` le tient, peut-être dans un autre worktree, et la
+  `make service-down` pour la plateforme de service, `make e2e-down` pour les serveurs de l'e2e
+  du créneau (trouvés par leur port, arrêtés par leur PID). Un verrou de git (`.git/…/*.lock`) ne
+  se supprime ni ne se déplace — ni `rm`, ni `find … -delete` ou `-exec rm`, ni `mv` ou
+  `rename` — : une commande `git` le tient, peut-être dans un autre worktree, et la
   commande se relance. Le hook `PreToolUse` de `.claude/settings.json` tient la règle : avant
   chaque commande de l'outil `Bash`, `tools/src/wftools/guard.py` refuse ces formes où
-  qu'elles se trouvent dans la ligne, et dit quoi faire à la place ; une commande `make`
-  passe toujours.
+  qu'elles se trouvent dans la ligne — derrière `sudo`, `env`, `su -c`, `flock`, `watch` ou
+  `busybox`, après un `cd` dans `.git`, ou un `cd` vers un chemin calculé, qu'il tient pour
+  `.git` —, et dit quoi faire à la place ; une commande `make` passe, sauf la cible `merge-queue`
+  (`make merge-queue EPIC=EP-nn`, qui crée le jeu de règles de la file avec le jeton de
+  l'utilisateur : une personne la lance), que le garde refuse ; `make merge-queue-check` passe.
+  Il refuse aussi `find … | xargs rm` (ou `unlink`, `mv`, `rename`) quand une commande plus haut
+  dans le tube nomme `.git` ou un `.lock`, et `rm -r` de `.git` ; `command -v <nom>` ne lance
+  rien et passe.
 - **Avant de rendre la main**, un agent qui a modifié le dépôt lance
   `make check BASE=origin/epic/EP-nn`, qui éprouve ce que la modification touche, fichiers
   non commités compris. Il peut demander un créneau : depuis US-1100, dans un worktree lié qui

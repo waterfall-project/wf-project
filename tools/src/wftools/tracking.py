@@ -2,8 +2,10 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 """Change one line of the tracking table of an epic's issue, under a lock (US-1120).
 
-Usage: ``python -m wftools.tracking --issue N --lot ID [--state S] [--pr P] [--model M]``,
-``--issue N --us ID --status S``, or ``--issue N --finding F [--attached A] [--decision D]``.
+Usage: ``python -m wftools.tracking --issue N --lot ID [--state S] [--pr P] [--model M]
+[--depends D]``, ``--issue N --us ID --status S``, ``--issue N --finding F [--attached A]
+[--decision D]``, ``--issue N --add-lot ID --after LOT [--depends D] [--model M]
+[--issue-number I]`` or ``--issue N --replace-dependency OLD=NEW`` (US-1290).
 
 The body of the issue is read, changed and written again by ``gh`` while the tool holds
 ``$XDG_RUNTIME_DIR/waterfall-tracking-<issue>.lock`` (``/tmp`` by default): two deliverers that
@@ -15,7 +17,10 @@ The table « Ordre de réalisation » is read by the names of its columns (« Pa
 the epics from EP-19 on only). A story of one lot has the cell « Lot » ``lot unique`` and is named
 by its identifier (``US-1080``); the lots of a story of several are named ``US-1120/L2`` and are
 the rows from the story's own down to the next story's, the cells ``#``, ``US`` and « Statut »
-empty. The table « Constats ouverts » takes a finding added (the title of its issue, whose
+empty. A part cut off a lot is ``US-0820b`` (a row under ``US-0820``) or ``US-1270/L2b``; the cell
+« Lot » of a story of one lot may go on after ``lot unique`` (``lot unique (#1840)``). A lot cut
+is added under the lot it is cut from, and a dependency moved from one lot to another.
+The table « Constats ouverts » takes a finding added (the title of its issue, whose
 ``[EP-nn]`` prefix is dropped), changed when it is there, or removed when its issue is closed;
 where the section has the sentence « Aucun constat… » and no table, the table replaces it.
 """
@@ -38,12 +43,26 @@ if TYPE_CHECKING:
 
 ORDER_TITLE = "## Ordre de réalisation"
 FINDINGS_TITLE = "## Constats ouverts"
-SINGLE_LOT = "lot unique"
+SINGLE_LOT = re.compile(r"lot unique(?=$|[ (])")
+LOT_ID = re.compile(r"(US-\d+)(?:(b)|/(L\d+b?))?")
+DASH = "—"
 TO_DECIDE = "à trancher"
 PIPE = re.compile(r"(?<!\\)\|")
 HEADING = re.compile(r"#{1,6} ")
-LOT_LABEL = re.compile(r"L\d+(?!\w)")
+LOT_LABEL = re.compile(r"L\d+b?(?!\w)")
 TITLE_PREFIX = re.compile(r"^\[[^\]]*\]\s*")
+CELL_OPTIONS = (
+    "state",
+    "pr",
+    "model",
+    "status",
+    "attached",
+    "decision",
+    "depends",
+    "after",
+    "add_lot",
+    "replace_dependency",
+)
 FINDINGS_COLUMNS = ["Constat", "Rattaché à", "Décision"]
 
 
@@ -207,22 +226,127 @@ def story_rows(lines: list[str], span: tuple[int, int], story: str) -> list[int]
     return rows
 
 
+def parse_lot(lot: str) -> tuple[str, str, str]:
+    """Return the story of a lot, its label (``L2``, ``L2b``) and the part cut off (``b``)."""
+    found = LOT_ID.fullmatch(lot)
+    if found is None:
+        refuse(f"« {lot} » is not a lot: US-1080, US-0820b, US-1120/L2 or US-1270/L2b")
+    return found.group(1), found.group(3) or "", found.group(2) or ""
+
+
+def lot_row(lines: list[str], span: tuple[int, int], lot: str) -> int | None:
+    """Return the row of a lot in the table « Ordre de réalisation », if the table has it."""
+    story, label, cut = parse_lot(lot)
+    lot_column = columns(lines, span, ["Lot"])["Lot"]
+    for index in story_rows(lines, span, story):
+        row = cells(lines[index])
+        if len(row) <= lot_column:
+            refuse(f"the row is shorter than the header of its table: {lines[index].strip()}")
+        cell = row[lot_column]
+        found = LOT_LABEL.match(cell)
+        if label:
+            matches = found is not None and found.group() == label
+        elif cut:
+            matches = re.match(re.escape(lot) + r"(?!\w)", cell) is not None
+        else:
+            matches = SINGLE_LOT.match(cell) is not None
+        if matches:
+            return index
+    return None
+
+
 def change_lot(lines: list[str], lot: str, changes: dict[str, str]) -> None:
     """Change the cells of the row of a lot."""
     span = order_table(lines)
-    story, _, label = lot.partition("/")
     names = columns(lines, span, ["Lot", *changes])
-    for index in story_rows(lines, span, story):
+    index = lot_row(lines, span, lot)
+    if index is None:
+        refuse(f"no row for the lot {lot} in the table « Ordre de réalisation »")
+    if len(cells(lines[index])) <= max(names.values()):
+        refuse(f"the row is shorter than the header of its table: {lines[index].strip()}")
+    for name, value in changes.items():
+        lines[index] = set_cell(lines[index], names[name], value)
+
+
+def new_lot_row(header: list[str], values: dict[str, str]) -> str:
+    """Return a row built on the header: each column by its name, those unknown left empty."""
+    pieces = [f" {escape(values[name])} " if values.get(name) else "   " for name in header]
+    return "|" + "|".join(pieces) + "|"
+
+
+def add_lot(lines: list[str], options: argparse.Namespace) -> None:
+    """Insert the row of a new lot under the lot it follows, in the same story."""
+    span = order_table(lines)
+    wanted = ["Lot"]
+    wanted += ["Dépend de"] if options.depends is not None else []
+    wanted += ["Modèle"] if options.model is not None else []
+    columns(lines, span, wanted)
+    story, label, _ = parse_lot(options.add_lot)
+    if lot_row(lines, span, options.add_lot) is not None:
+        refuse(f"the lot {options.add_lot} already has a row in the table « Ordre de réalisation »")
+    if parse_lot(options.after)[0] != story:
+        refuse(f"the lot {options.after} is not in the story {story}")
+    after = lot_row(lines, span, options.after)
+    if after is None:
+        refuse(f"no row for the lot {options.after} in the table « Ordre de réalisation »")
+    name = label or options.add_lot
+    cell = f"{name} #{options.issue_number}" if options.issue_number else name
+    values = {
+        "Lot": cell,
+        "Dépend de": options.depends or DASH,
+        "Pas avec": DASH,
+        "État du lot": "à faire",
+        "PR": DASH,
+        "Modèle": options.model or DASH,
+    }
+    row = new_lot_row(cells(lines[span[0]]), values)
+    ending = split_ending(lines[after])[1]
+    if not ending:
+        # The last line of the body: the new row ends the body, the line before it takes the
+        # ending of its neighbours.
+        lines[after] += split_ending(lines[span[0]])[1]
+    lines.insert(after + 1, row + ending)
+
+
+def own_lot(story: str, cell: str) -> str:
+    """Return the identifier a cell « Lot » names, in the story its row belongs to."""
+    first = cell.split(" ", maxsplit=1)[0]
+    if first.startswith("US-"):
+        return first
+    found = LOT_LABEL.match(cell)
+    return f"{story}/{found.group()}" if found else story
+
+
+def replace_dependency(lines: list[str], replacement: str) -> int:
+    """Replace a mention in the cell « Dépend de » of every row that has it; count the rows.
+
+    The row of the lot that is the new mention keeps its own dependency: it is the part cut off,
+    and it depends on the lot it was cut from. The issue number that follows the old mention
+    (``US-0820 #2036``) is the old lot's: it goes with the mention, it is never left on the new one.
+    """
+    old, separator, new = replacement.partition("=")
+    if not separator or not old.strip() or not new.strip() or "=" in new:
+        refuse("give REPLACE_DEPENDENCY as <old>=<new>")
+    old, new = old.strip(), new.strip()
+    span = order_table(lines)
+    names = columns(lines, span, ["US", "Lot", "Dépend de"])
+    mention = re.compile(r"(?<![\w/-])" + re.escape(old) + r"(?![\w/])(?:[ \t]+#\d+)?")
+    story = ""
+    count = 0
+    for index in range(span[0] + 2, span[1]):
         row = cells(lines[index])
         if len(row) <= max(names.values()):
             refuse(f"the row is shorter than the header of its table: {lines[index].strip()}")
-        cell = row[names["Lot"]]
-        found = LOT_LABEL.match(cell)
-        if (label and found and found.group() == label) or (not label and cell == SINGLE_LOT):
-            for name, value in changes.items():
-                lines[index] = set_cell(lines[index], names[name], value)
-            return
-    refuse(f"no row for the lot {lot} in the table « Ordre de réalisation »")
+        story = row[names["US"]].split(" ")[0] or story
+        if own_lot(story, row[names["Lot"]]) == new:
+            continue
+        changed = mention.sub(lambda _: new, row[names["Dépend de"]])
+        if changed != row[names["Dépend de"]]:
+            lines[index] = set_cell(lines[index], names["Dépend de"], changed)
+            count += 1
+    if not count:
+        refuse(f"no row of the table « Ordre de réalisation » depends on {old}")
+    return count
 
 
 def change_story(lines: list[str], story: str, status: str) -> None:
@@ -315,10 +439,16 @@ def apply(body: str, options: argparse.Namespace) -> str:
                 ("État du lot", options.state),
                 ("PR", options.pr),
                 ("Modèle", options.model),
+                ("Dépend de", options.depends),
             )
             if value is not None
         }
         change_lot(lines, options.lot, changes)
+    elif options.add_lot:
+        add_lot(lines, options)
+    elif options.replace_dependency:
+        count = replace_dependency(lines, options.replace_dependency)
+        print(f"tracking: {count} row(s) changed")
     elif options.us:
         change_story(lines, options.us, options.status)
     else:
@@ -338,6 +468,13 @@ def parser() -> argparse.ArgumentParser:
     result.add_argument("--state", help="the cell « État du lot »")
     result.add_argument("--pr", help="the cell « PR »")
     result.add_argument("--model", help="the cell « Modèle »")
+    result.add_argument("--depends", help="the cell « Dépend de »")
+    result.add_argument("--add-lot", help="a lot to add: US-0820b, or US-1270/L3")
+    result.add_argument("--after", help="the lot the added lot follows")
+    result.add_argument("--issue-number", type=int, help="the issue of the added lot")
+    result.add_argument(
+        "--replace-dependency", help="<old>=<new>: the mention changed in « Dépend de »"
+    )
     result.add_argument("--us", help="a story: US-1120")
     result.add_argument("--status", help="the cell « Statut » of the story")
     result.add_argument("--finding", type=int, help="the issue of a finding")
@@ -348,14 +485,31 @@ def parser() -> argparse.ArgumentParser:
 
 def validate(options: argparse.Namespace) -> None:
     """Refuse a call that does not name exactly one thing to change, and what to change."""
-    targets = [name for name in ("lot", "us", "finding") if getattr(options, name) is not None]
-    if len(targets) != 1:
-        refuse("give exactly one of LOT, US or FINDING")
-    if options.lot and options.state is None and options.pr is None and options.model is None:
-        refuse("give at least one of STATE, PR or MODEL with LOT")
+    names = ("lot", "us", "finding", "add_lot", "replace_dependency")
+    if sum(getattr(options, name) is not None for name in names) != 1:
+        refuse("give exactly one of LOT, US, FINDING, ADD_LOT or REPLACE_DEPENDENCY")
+    given = (options.state, options.pr, options.model, options.depends)
+    if options.lot and all(value is None for value in given):
+        refuse("give at least one of STATE, PR, MODEL or DEPENDS with LOT")
     if options.us and options.status is None:
         refuse("give STATUS with US")
-    for name in ("state", "pr", "model", "status", "attached", "decision"):
+    if options.add_lot and options.after is None:
+        refuse("give AFTER with ADD_LOT")
+    if options.add_lot is None and (options.after or options.issue_number is not None):
+        refuse("AFTER and the issue of the lot go with ADD_LOT only")
+    if options.depends is not None and not (options.lot or options.add_lot):
+        refuse("DEPENDS goes with LOT or ADD_LOT only")
+    if (options.add_lot or options.replace_dependency) and (
+        options.state or options.pr or options.status or options.attached or options.decision
+    ):
+        refuse("ADD_LOT and REPLACE_DEPENDENCY take no STATE, PR, STATUS, ATTACHED or DECISION")
+    if options.replace_dependency and options.model is not None:
+        refuse("REPLACE_DEPENDENCY takes no MODEL")
+    for name in ("lot", "add_lot", "replace_dependency"):
+        value = getattr(options, name)
+        if value is not None and not value.strip():
+            refuse(f"{name.upper()} is empty")
+    for name in CELL_OPTIONS:
         value = getattr(options, name)
         if value is not None and ("\n" in value or "\r" in value):
             refuse(f"{name.upper()} holds a line break: a cell is one line")

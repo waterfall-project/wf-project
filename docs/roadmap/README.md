@@ -158,9 +158,9 @@ EP-08, the three hundred projects in EP-13, which closes. Four rules, which each
 | [EP-05](EP-05-referentiel.md) | Reference data of the company | livré | EP-16, EP-18, EP-19, EP-20 |
 | [EP-04](EP-04-projets-et-revisions.md) | Projects, revisions and life cycle | livré | EP-05 |
 | [EP-06](EP-06-planification.md) | Planning | en cours | EP-04 |
-| [EP-07](EP-07-chiffrage-et-devis.md) | Costing and estimate | à planifier | EP-06 |
-| [EP-09](EP-09-couts-reels-et-reste-a-engager.md) | Actual costs, remaining to commit and cost import | à planifier | EP-07 |
-| [EP-10](EP-10-indicateurs.md) | Project indicators | à planifier | EP-09 |
+| [EP-07](EP-07-chiffrage-et-devis.md) | Costing and estimate | en cours | EP-06 |
+| [EP-09](EP-09-couts-reels-et-reste-a-engager.md) | Actual costs, remaining to commit and cost import | en cours | EP-07 |
+| [EP-10](EP-10-indicateurs.md) | Project indicators | en cours | EP-09 |
 | [EP-08](EP-08-avenants-et-risques.md) | Amendments, risks and provisions | à planifier | EP-10 |
 | [EP-11](EP-11-portefeuille.md) | Portfolio | à planifier | EP-08 |
 | [EP-12](EP-12-echanges-de-fichiers.md) | File exchanges (FLX-01 to FLX-06) | abandonné : each round trip is validated in its functional block | — |
@@ -295,8 +295,11 @@ sub-issues follows the cutting:
 **The tracking table** is in the body of the epic's issue, never in a comment,
 and it is kept up to date at each change of state — lot started, in review, merged, blocked;
 story gone `en cours` or `fini`; finding opened or settled. The agents change it with
-`make tracking` — `ISSUE=<n> LOT=<identifier> [STATE=…] [PR=…] [MODEL=…]`, `US=<identifier>
-STATUS=…` or `FINDING=<n> ATTACHED=… DECISION=…` —, which reads the body again under a lock of
+`make tracking` — `ISSUE=<n> LOT=<identifier> [STATE=…] [PR=…] [MODEL=…]`, `LOT=<identifier>
+DEPENDS=<list>`, `ADD_LOT=<identifier> AFTER=<lot> [DEPENDS=…] [MODEL=…] [LOT_ISSUE=<n>]`
+(`LOT_ISSUE`: the issue of the inserted lot, the `#n` of its line),
+`REPLACE_DEPENDENCY='<old>=<new>'`, `US=<identifier> STATUS=…` or
+`FINDING=<n> ATTACHED=… DECISION=…` —, which reads the body again under a lock of
 the workstation just before writing it and changes only the line asked for: none rewrites the
 body itself, several deliverers would overwrite one another there. It has two parts:
 
@@ -358,7 +361,9 @@ merged into `main` after it, never before. First exception: `epic/EP-04` created
 `epic/EP-05` after `US-0810/L1` (decision of 2026-11-05). Second: `epic/EP-06` created from
 `epic/EP-04` as soon as the issues of EP-06 are opened, EP-04 having only US-0990/L2 left to merge,
 and likewise for the whole series EP-06 → EP-07 → EP-09 → EP-10 → EP-08, each branch created from
-the previous one as soon as the pivot lot its framing names is merged (decision of 2026-11-07).
+the previous one as soon as the pivot lot its framing names is merged (decision of 2026-11-07):
+US-1380/L1 (#2328) for `epic/EP-07`, US-1490/L1 (#2370) for `epic/EP-09`, US-1580/L1 (#2398) for `epic/EP-10`, US-1660/L1 (#2437) for
+`epic/EP-08`.
 
 The chain runs on every pull request, towards an epic's branch as towards `main`, and
 none is merged if it fails.

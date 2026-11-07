@@ -1579,8 +1579,8 @@ une capacité négative, avec la borne franchie (`VALUE_OUT_OF_RANGE`) ; le libe
 calendrier, désactivés compris, nomme son porteur d'après la page, par son identifiant, de façon
 générique sinon ; le reste comme pour les coûts, la version périmée sous le formulaire avec l'offre
 de relire ; l'écran ne porte plus `MockupNotice` depuis US-0850 : le service garde ce qui s'écrit,
-et ses parcours sont étiquetés `@shared` (les unités de durée, que le service ne sert pas encore,
-attendent US-0860b). Une écriture qui laisserait une tâche sans heure travaillée — un calendrier
+et ses parcours sont étiquetés `@shared` (les unités de durée aussi, avec `@serial`).
+Une écriture qui laisserait une tâche sans heure travaillée — un calendrier
 modifié ou désigné par défaut, un rôle modifié — est refusée (`TASK_WITHOUT_WORKING_HOURS`, « Une
 tâche n'aurait plus aucune heure travaillée dans la semaine. ») en disant pourquoi et en nommant
 chaque projet en cause par son libellé et son code, par son seul libellé sans code
@@ -2799,13 +2799,13 @@ commande.
 | `make service-witness`                                                  | charge le témoin sur la plateforme de service démarrée et amorcée (`waterfall-api load-witness`, service `witness`, EP-05) : les exemples du contrat, `fixtures/api/`, montés en lecture seule, écrits par le rôle du service ; relancée, elle n'écrit rien ; une tranche par objet, dans l'ordre des dépendances, en une transaction (« Le back et les frontières du noyau »)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
 | `make service-up`, `make service-down`                                  | démarre, arrête la plateforme de service (`deploy/compose/compose.service.yaml` : PostgreSQL, Redis, le stockage objet Garage et ses compartiments, les migrations, l'API, le worker et le planificateur de ses tâches, le service de la restauration, Keycloak derrière son frontal HTTPS et son royaume, appliqué de nouveau à chaque démarrage par `keycloak-realm`, qui reste démarré pour le réappliquer après une restauration, OpenLDAP, Mailpit) ; elle exige ses secrets dans l'environnement (ci-dessous), et `service-down WATERFALL_RESET_DATA=yes` supprime aussi ses bases, son stockage, son annuaire et l'autorité de son frontal ; `service-up` refuse un volume PostgreSQL d'une autre majeure que 18, en affichant le refus de `postgres-volume`, qui dit ce remède (US-1130)                                                                                                                                                                                                                                                                                                                                                                                                                                                |
 | `make keycloak-authority`                                               | copie hors de la plateforme la racine de l'autorité du frontal de Keycloak, dans `deploy/compose/.authority/root.crt`, que git ignore ; `service-up` et `test-keycloak` le font à chaque démarrage                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
-| `make e2e-service`                                                      | les parcours du projet Playwright `service` (`frontend/e2e/service/`), et ceux de `shared` (l'étiquette `@shared`), contre le vrai service, par Prism en mandataire (« Un parcours de bout en bout ») ; mêmes secrets que `service-up`, et le navigateur de `make e2e-browsers` ; il charge le témoin après l'amorçage, comme `make service-witness`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| `make e2e-service`                                                      | les parcours du projet Playwright `service` (`frontend/e2e/service/`), et ceux de `shared` (l'étiquette `@shared`), contre le vrai service, par Prism en mandataire (« Un parcours de bout en bout ») ; mêmes secrets que `service-up`, et le navigateur de `make e2e-browsers` ; il charge le témoin après l'amorçage, comme `make service-witness` ; `TESTS=<arguments de playwright test>` : un fichier seul joue aussi `installation`, et, s'il porte un parcours `@realm-wide` ou `@platform-wide`, les projets dont dépend le sien (`service`, `shared`, `shared-serial`) ; `TESTS="--no-deps --project=shared --project=realm e2e/reference-resources.spec.ts e2e/service/reference-manager.spec.ts"` ne joue que ces fichiers, sans `installation` (sur une installation déjà jouée)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
 | `make service-logs`                                                     | les journaux des services de la plateforme, ceux de `SERVICES` (`SERVICES="keycloak openldap"`), tous par défaut                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
 | `make test-services`, `make test-services-down`                         | démarre, retire les services des tests (`deploy/compose/compose.test.yaml` : PostgreSQL 18, Redis, Garage, en mémoire) pour le créneau du worktree, sur ses ports (`SERVICES=redis` n'en démarre que certains) ; `test-services` attend qu'ils répondent et ne fait rien de plus s'ils tournent, `test-services-down` les retire avec leurs volumes ; `make test-back` et les autres tests qui en ont besoin les démarrent d'eux-mêmes                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
 | `make migrate`                                                          | applique les migrations à la base que désigne `WATERFALL_DATABASE_URL`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
 | `make build-keycloak`                                                   | construit l'image de Keycloak (`deploy/keycloak/`) : l'extension compilée et ses tests JUnit passés, les thèmes, le royaume ; aucune JVM n'est demandée au poste                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
 | `make test-keycloak`                                                    | démarre Keycloak sur la plateforme — et Mailpit, où il envoie ses courriels et où ses tests les lisent —, applique son royaume et lance les tests du marqueur `keycloak` (`backend/tests/test_keycloak_*.py`), que les autres tests du back écartent : le royaume et l'extension, et l'API qui valide ses jetons, servie dans le processus des tests sur une base qu'ils créent sur le PostgreSQL de la plateforme, sauf si `WATERFALL_TEST_DATABASE_URL` en nomme un autre ; il mesure la couverture du client de l'API d'administration de Keycloak et de l'amorçage, `waterfall-api install` (« Couverture du code ») ; mêmes secrets que `service-up`. Ses tests changent le royaume le temps d'un test — la durée d'une session inactive, celle des liens, le verrouillage, l'annuaire et le fournisseur désactivés, l'annuaire non synchronisé (`UNSYNCED`) —, et l'un d'eux redémarre Keycloak (#852) : il ne se lance jamais en même temps qu'un autre usage de la plateforme, `make e2e-service` ou les tests d'un autre agent, pas plus que `make check-keycloak` ni `make check` quand il éprouve la famille `keycloak` ou `service`                                                                                                 |
-| `make check-keycloak`                                                   | la famille `keycloak` : `build-keycloak`, puis `test-keycloak`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| `make check-keycloak`                                                   | la famille `keycloak` : `build-keycloak`, `test-keycloak`, puis `test-openldap`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
 | `make images`                                                           | construit les trois images que la chaîne publie — `front`, `waterfall`, `keycloak` —, chacune l'étape `production` de son Dockerfile, sous `ghcr.io/waterfall-project/<image>`, étiquetées par le commit (son empreinte entière), par la branche mise en forme d'étiquette (`epic/EP-03` donne `epic-EP-03`) et, sur `main`, par la version de la distribution du back (`backend/pyproject.toml`), que le front porte aussi, une seule fois et pour les trois ensemble : l'étiquette de version est immuable ; la branche et le commit sont ceux du dépôt, sauf si `IMAGE_BRANCH` et `IMAGE_COMMIT` les nomment ; `PUSH=yes` les publie, depuis `main` ou une branche `epic/…` seulement, d'un dépôt propre au commit nommé, une fois les trois construites et fouillées (`wftools.images`, « Chaîne »)                                                                                                                                                                                                                                                                                                                                                                                                                                         |
 | `make prerendered-front`                                                | lit le manifeste que la dernière construction de production du front a écrit (`frontend/.next/prerender-manifest.json`) et affirme qu'elle n'a prérendu que `/_global-error` et `/icon.svg`, sans Docker : la famille `front` l'enchaîne après `build-front` au palier rapide, après les parcours au palier complet (`wftools.frontimage --manifest`, « Chaîne »)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
 | `make check-front-image`                                                | la famille `front-image` : construit l'étape `production` du front (`frontend/Dockerfile`), la démarre, et affirme que `/` répond avec les réglages du service `front` du Compose de production, que le front s'arrête sans chacune des variables dont il ne se passe pas en la nommant (#825), que `WATERFALL_AUTH=mock` sans `WATERFALL_E2E` est refusé, et que `next build` n'a prérendu que `/_global-error` et `/icon.svg` (`wftools.frontimage`, « Chaîne »)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
@@ -2876,10 +2876,10 @@ copie laisse le repère : les données n'ont jamais servi, et au démarrage suiv
 et recharge l'amorce, comme il le fait sur deux volumes vides. Des données sans repère et sans
 configuration sont celles d'un annuaire qui a servi, dont le volume de configuration a disparu : le
 script refuse (code 1) de les réamorcer, ce qui donnerait d'autres identifiants à ses personnes, et
-dit le remède, `make service-down WATERFALL_RESET_DATA=yes`. Cela vaut aussi pour le volume laissé
-par une amorce interrompue d'avant ce lot, sans repère : il est désormais refusé, et le remède le
-supprime. Les volumes de l'image d'avant, celle d'`osixia`, servent tels quels : leurs personnes
-gardent leurs identifiants.
+dit le remède, `make service-down WATERFALL_RESET_DATA=yes`. Cela vaut aussi pour un volume laissé
+par une amorce interrompue sans repère (ancienne version du script) : il est refusé, et le remède
+le supprime. Les volumes de l'image précédente, celle d'`osixia`, servent tels quels : leurs
+personnes gardent leurs identifiants.
 
 Les ports cités ici sont ceux du dépôt principal, au créneau 0 ; un worktree de lot a ceux du
 bloc de son créneau (« Les créneaux des worktrees », ci-dessous).
@@ -2896,13 +2896,39 @@ dépassement ne fait rien échouer (README de la roadmap, section « Lots »).
 `US-1120/L2` pour le lot d'une US qui en a plusieurs) avec `STATE`, `PR` ou `MODEL`, les seuls
 donnés changeant ; `US=<identifiant> STATUS=…` ; `FINDING=<n> ATTACHED=… DECISION=…`, qui ajoute
 le constat (le titre de son issue sans le `[EP-nn]`, `à trancher` en gras), le change s'il est
-déjà là, ou le retire quand son issue est fermée. Les colonnes se repèrent par leur en-tête ; la
-cible refuse, code non nul et corps inchangé, une ligne qu'elle ne trouve pas, une valeur à saut de
-ligne et une ligne du tableau plus courte que son en-tête ; un `|` d'une valeur est échappé. Elle ne
-prend une variable que sur la ligne de commande de make (une `PR` exportée sur le poste ne change
-rien), et ignore une valeur vide (`STATE=`). Elle relit le corps
-sous un verrou du poste propre à l'issue, `$XDG_RUNTIME_DIR/waterfall-tracking-<issue>.lock`
+déjà là, ou le retire quand son issue est fermée. Le lot coupé à la demande du relecteur s'écrit
+par elle aussi, jamais à la main : `LOT=<identifiant> DEPENDS=<liste>` remplace la cellule « Dépend
+de » ; `ADD_LOT=<identifiant> AFTER=<lot> [DEPENDS=<liste>] [MODEL=…] [LOT_ISSUE=<n>]` insère, sous
+le lot `AFTER` et dans la même US, la ligne du lot nouveau (`US-0820b` pour la part détachée d'une
+US à lot unique, `US-1270/L3` pour une US à plusieurs ; cellules `#`, `US`, « Statut » vides,
+« Dépend de » la liste ou `—`, « État du lot » `à faire`) et refuse un lot déjà là ;
+`REPLACE_DEPENDENCY='<ancien>=<nouveau>'` remplace la mention de l'ancien lot dans « Dépend de » de
+toutes les lignes où elle paraît, sauf celle du lot nouveau lui-même, retire avec elle le ` #n` qui
+la suit (l'issue de l'ancien lot ne reste jamais sur le nouveau), dit combien de lignes ont changé
+et refuse quand aucune ne porte l'ancien. `LOT` reconnaît `US-0820b`, `US-1270/L2b` et une cellule
+`lot unique (#1840)` ou `lot unique — en dernier`. Les colonnes se repèrent par leur en-tête ; la
+cible refuse, code non nul et corps inchangé, une ligne qu'elle ne trouve pas, une valeur vide ou à
+saut de ligne et une ligne du tableau plus courte que son en-tête ; un `|` d'une valeur est
+échappé. Elle ne prend une variable que sur la ligne de commande de make (une `PR` exportée sur le
+poste ne change rien), et ignore une valeur vide (`STATE=`). Elle relit le corps sous un verrou du
+poste propre à l'issue, `$XDG_RUNTIME_DIR/waterfall-tracking-<issue>.lock`
 (`/tmp` à défaut), juste avant de l'écrire : deux appels simultanés gardent chacun leur changement.
+
+`make merge-queue-check EPIC=EP-nn` vérifie qu'un jeu de règles actif vise `refs/heads/epic/EP-nn`
+avec une règle `merge_queue` (`wftools.mergequeue`, par `gh api`), et échoue en disant ce qui
+manque : aucun jeu, pas de règle de file, jeu inactif. Elle passe dès qu'un des jeux visant la
+branche est actif avec une règle `merge_queue` ; un jeu qui exclut la branche ne la vise pas. Les
+références de `include` et d'`exclude` se lisent comme des motifs, par `fnmatch`
+avec `FNM_PATHNAME`, comme GitHub les lit (`refs/heads/epic/*`, `~ALL`) : un `*` ou un `?` s'arrête
+à un `/`, donc `refs/heads/*` ne vise pas `refs/heads/epic/EP-nn` ; seul un `**/` en début de
+segment franchit des répertoires, zéro ou plus (`refs/heads/**/*`), un autre `**` vaut `*`, et
+`refs/heads/**` ne vise pas plus la branche ; les accolades se lisent telles quelles, GitHub
+n'acceptant pas `FNM_EXTGLOB` ; `~DEFAULT_BRANCH` n'est pas résolu. `make merge-queue EPIC=EP-nn` crée ce jeu, « merge queue
+epic/EP-nn », depuis le modèle `.github/rulesets/merge-queue.json` (la copie du jeu d'EP-05, sans
+identifiants ni dates), et refuse quand un jeu vise déjà la branche ou quand `EPIC` manque ou n'a
+pas la forme `EP-nn`. Elle est réservée à une personne : un livreur ne la lance jamais, il lance la
+vérification et, en échec, pose la question ; le garde (`guard.py`) refuse la cible `merge-queue` à
+un agent.
 
 Le poste n'admet que `WATERFALL_SLOTS` exécutions lourdes à la fois — les tests entiers et la
 couverture du back et du front, `make test-tools`, la construction du front pour la production,
@@ -2926,11 +2952,12 @@ images : deux livreurs jouent ensemble les parcours de bout en bout, les tests d
 parcours contre le service sans se heurter. Le dépôt principal, comme chaque runner de la chaîne,
 est au créneau 0 : ses ports et ses noms sont ceux d'avant les créneaux.
 
-| Commande            | Ce qu'elle fait                                                                                                                                                                                                                                |
-| ------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `make slot`         | prend pour le worktree où elle est lancée le premier créneau libre de 1 à N, ou dit le sien ; si N sont pris, elle échoue, porteurs nommés ; dans le dépôt principal (son `.git` est un répertoire), elle dit le créneau 0, sans en prendre    |
-| `make slot-release` | retire les conteneurs et les volumes du créneau du worktree — la plateforme de service, les services de test —, puis le libère ; si Docker ne peut les retirer, le créneau reste pris, et elle le dit                                          |
-| `make slots`        | écrit N, puis chaque créneau pris sur le poste, tous dépôts confondus, avec son worktree et l'instant de sa prise                                                                                                                              |
+| Commande            | Ce qu'elle fait                                                                                                                                                                                                                                                                                                                           |
+| ------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `make slot`         | prend pour le worktree où elle est lancée le premier créneau libre de 1 à N, ou dit le sien ; si N sont pris, elle échoue, porteurs nommés ; dans le dépôt principal (son `.git` est un répertoire), elle dit le créneau 0, sans en prendre                                                                                               |
+| `make slot-release` | arrête les serveurs de l'e2e du créneau, retire ses conteneurs et ses volumes — la plateforme de service, les services de test —, puis le libère ; si Docker ne peut les retirer, le créneau reste pris, et elle le dit                                                                                                                   |
+| `make e2e-down`     | arrête les processus de l'utilisateur qui écoutent sur les ports de l'e2e du créneau — le faux back, les fronts des parcours (au créneau 0, 4110 et 3100 à 3139) —, chacun trouvé par son port dans `/proc`, arrêté par son PID : `SIGTERM`, puis `SIGKILL` après cinq secondes ; elle dit ce qu'elle arrête, et rien quand rien n'écoute |
+| `make slots`        | écrit N, puis chaque créneau pris sur le poste, tous dépôts confondus, avec son worktree et l'instant de sa prise                                                                                                                                                                                                                         |
 
 Le registre du poste est `$XDG_RUNTIME_DIR/waterfall-slots/` — `/tmp/waterfall-slots/` sans
 `XDG_RUNTIME_DIR`, comme les verrous des exécutions lourdes : un fichier `<i>` par créneau pris,
@@ -2940,7 +2967,8 @@ créneau dont le worktree n'existe plus est libre ; celui qui prend un créneau 
 ce qu'un porteur y a laissé (`docker compose -p <projet> down --volumes`, pour chacun de ses deux
 projets), le verrou du registre tenu jusqu'à ce que ce retrait ait réussi, comme le tient
 `make slot-release` : un `make slot` lancé entre-temps attend, en le disant, et si Docker échoue,
-le créneau n'est pas pris, et le `make slot` suivant refait le retrait. `slots.py which` dit le
+le créneau n'est pas pris, et le `make slot` suivant refait le retrait. Avant ce retrait, l'un et
+l'autre arrêtent les serveurs de l'e2e que le créneau a laissés (`make e2e-down`). `slots.py which` dit le
 créneau du worktree courant.
 
 Au créneau i de 1 à 9, les ports sont ceux du bloc `20000 + 100·i`, sous la plage des ports
@@ -2983,8 +3011,19 @@ retiré entre-temps est redémarré —, l'outil lance `make test-services` pour
 variable `WATERFALL_TEST_DATABASE_URL`, `WATERFALL_TEST_REDIS_URL` ou `WATERFALL_TEST_STORAGE_URL`
 n'est pas posée, et la pose sur leur port ; une variable que l'environnement donne déjà l'emporte,
 son service n'est pas démarré, et le travail de la chaîne, qui pose les trois, n'en est pas changé.
-`make slot-release` les retire avec la plateforme de service. Dans un worktree lié sans créneau,
-les deux cibles échouent en disant `make slot`.
+`make slot-release` les retire avec la plateforme de service. Deux exécutions lancées ensemble
+dans un worktree ne font qu'un `make test-services` à la fois, sous un verrou du créneau
+(`$XDG_RUNTIME_DIR/waterfall-test-services.<créneau>.lock`) : la seconde attend, en le disant, puis
+trouve les services démarrés. Dans un worktree lié sans créneau, ces cibles et `make e2e-down`
+échouent en disant `make slot`.
+
+**Les serveurs de l'e2e.** `make e2e`, `make e2e-service` et `make check-front` lancent un faux back
+et des fronts (`next-server`) qu'un arrêt brutal peut laisser à l'écoute, un cœur occupé, des
+heures durant. `make e2e-down` les arrête pour le créneau du worktree, par leur port et par leur
+PID, jamais par leur nom : à lancer dès qu'une de ces cibles s'interrompt, et avant
+`make slot-release` (qui l'appelle de toute façon). Elle ne touche pas aux conteneurs, que
+`make service-down` et `make slot-release` retirent, ni aux serveurs de `make dev` et de
+`make mock` lancés à la main.
 
 **L'essai à N = 4** (EP-19, hors de l'EPIC). La preuve d'EP-19 se joue à N = 2, sur le poste actuel.
 Quatre livreurs ensemble ne s'essaient qu'à l'arrivée de la nouvelle machine, et c'est l'auteur qui
@@ -3069,7 +3108,16 @@ La chaîne est faite de workflows GitHub Actions (`.github/workflows/`) :
   et la tient à ses seuils (`make coverage-front-merge`). ESLint garde son cache, par le contenu de
   chaque fichier (`pnpm lint`, `actions/cache`) : sans lui, il prend une minute. `front-cache.yml`
   écrit ce cache et le magasin de pnpm après chaque fusion, sur la branche dont les pull requests et
-  la file de fusion lisent les caches : sans lui, elles ne trouveraient rien. `keycloak.yml`
+  la file de fusion lisent les caches : sans lui, elles ne trouveraient rien.
+  `back.yml` répartit de même le back : un runner tient le lint, les types et les frontières du
+  cœur (`make check-back-static`), deux jouent chacun la moitié des tests, avec leurs services
+  (`make check-back-tests`, `SHARD=1/2` et `SHARD=2/2`), et au palier complet un dernier rassemble
+  leur couverture et la tient à ses seuils (`make coverage-back-merge`). Une moitié est un test sur
+  deux dans l'ordre de leur collecte (`--shard`, `backend/tests/conftest.py`), plutôt que des
+  fichiers entiers : les fichiers qui chargent le témoin, les plus longs, sont répartis sur les deux.
+  Le témoin n'est chargé par la commande qu'une fois par processus de pytest ; les tests suivants
+  retrouvent ses lignes recopiées (`backend/tests/witness_rows.py`, #2157). Sur un runner, chaque
+  test qui le demandait payait son chargement, plus de six minutes en tout. `keycloak.yml`
   construit l'image de Keycloak et l'éprouve sur la plateforme de service, son royaume appliqué
   (`make check-keycloak`), aux deux paliers : la famille `keycloak` se réveille sur
   `deploy/keycloak/`, sur les fichiers de la plateforme qui la démarrent, sur ses tests, sur tout le
@@ -3166,8 +3214,10 @@ familles. Le reste des outils réveille les familles qui s'en servent : chacune 
 chemins son workflow, les actions locales qu'il prend et les modules de `wftools` que ses
 contrôles lancent. `tools/tests/test_families.py` les tient contre le Makefile, les workflows
 et le harnais de Playwright, imports compris : un module lancé par une famille sans la
-réveiller fait échouer `make check-repo`. La famille `repo`, qui tourne à chaque modification,
-teste tous les outils.
+réveiller fait échouer `make check-repo-tools`. La famille `repo`, qui tourne à chaque modification,
+ne tient que les contrôles de quelques secondes (`make check-repo`) ; la famille `tools` teste tous
+les outils (`make check-repo-tools`), quand change ce dont ils sont faits ou ce que leurs tests
+lisent : une modification de la feuille de route ou d'un guide seule ne la réveille pas.
 
 Deux paliers : le rapide à chaque poussée sur une pull request (`pull_request`), le complet
 dans la file de fusion (`merge_group`), sur le résultat de la fusion, avant qu'elle soit
@@ -3188,7 +3238,7 @@ Le palier complet vise moins de huit minutes dans la file pour son travail le pl
   l'image (`PLAYWRIGHT_BROWSERS_PATH=/ms-playwright`), et non `make check-front-e2e`, qui en
   installerait un. Monter `@playwright/test` monte l'image avec lui, étiquette et empreinte : sinon
   les parcours s'arrêtent d'emblée sur un navigateur introuvable, et
-  `tools/tests/test_playwrightimage.py` échoue avant eux, dans `make check-repo`. L'empreinte est
+  `tools/tests/test_playwrightimage.py` échoue avant eux, dans `make check-repo-tools`. L'empreinte est
   celle de l'index multi-architecture de l'étiquette, que donne la ligne `Digest:` de
   `docker buildx imagetools inspect mcr.microsoft.com/playwright:v<X>-noble`, ou l'en-tête
   `docker-content-digest` de
@@ -3333,7 +3383,11 @@ _Contrôle_ : `make reuse` échoue sur un fichier couvert ni par un en-tête ni 
 
 ## Outils du dépôt
 
-Les outils vivent dans `tools/`, en Python, avec leurs tests (`make test-tools`). Tout outil
+Les outils vivent dans `tools/`, en Python, avec leurs tests (`make test-tools`, qui exige Docker :
+le test du Compose de service lance `docker compose config` et échoue sans lui). Les tests de
+l'entrypoint de l'annuaire, qui démarrent son image sur des volumes jetables, en sont écartés
+(marqueur `openldap`) : `make test-openldap` les lance, et la famille `keycloak`, que
+`deploy/openldap` réveille, les éprouve. Tout outil
 qui a besoin des exigences les lit par `wftools.projection`, qui lit la projection
 `docs/spec/waterfall-spec.md` : un seul lecteur, pour que deux outils ne puissent pas
 diverger sur ce qu'une exigence dit. Il compare les textes après normalisation — apostrophes
@@ -3846,15 +3900,26 @@ aucune liste de fichiers ne le nomme.
 Chaque US étiquette ses parcours quand le service sert son écran. Contre le faux back, `test` ne
 change rien : le faux back accorde la session. Avec `WATERFALL_API_ADDRESS`, `inService` est vrai,
 et deux fixtures de `mode.ts` font ce qu'un fichier de `frontend/e2e/service/` demande par ses
-crochets : chaque worker obtient une fois un compte local de la course qui porte les rôles prédéfinis
-« Manager » et « Chef de projet » (US-0970), que crée l'administrateur de l'installation
-(`accountAdministrator`, `localAccount`),
-et chaque parcours se connecte d'abord avec lui (`signIn`, sur `/account`), puis se tient au
-contrat, comme `heldToTheContract()` y tient un fichier (`startReading`, `expectNothingRefused`,
-`contract.ts`). Des fixtures plutôt que des crochets : un crochet déclaré dans un module que les
-fichiers importent ne se déclare qu'une fois par worker, pour le premier de ses fichiers seul. Un
-parcours dont l'assertion diffère entre les deux — une écriture que le faux back ne garde pas — lit
-`inService`.
+crochets : chaque worker obtient une fois un compte local de la course qui porte les rôles
+prédéfinis « Manager » et « Chef de projet » (US-0970), que crée l'administrateur de l'installation
+(`accountAdministrator`, `localAccount`), et chaque parcours se connecte d'abord avec lui (`signIn`,
+sur `/account`), puis se tient au contrat, comme `heldToTheContract()` y tient un fichier
+(`startReading`, `expectNothingRefused`, `contract.ts`). Des fixtures plutôt que des crochets : un
+crochet déclaré dans un module que les fichiers importent ne se déclare qu'une fois par worker, pour
+le premier de ses fichiers seul. Un parcours dont l'assertion diffère entre les deux — une écriture
+que le faux back ne garde pas — lit `inService`.
+
+Un parcours de l'administration ou de l'état porte `@administration` à côté de `@shared`, dans son
+titre comme `@shared` : la fixture `administration` de `mode.ts` le connecte alors avec un compte de
+la course, un par worker, qui porte le rôle « Administrateur (parcours) » — `users.read`,
+`access_roles.read`, `system_status.read`, `audit_log.read`, `backups.read`, et ni `users.write` ni
+`access_roles.write` —, que `installation.setup.ts` crée seul et en premier. Le « Manager » ne
+reçoit ni `users.*` ni `system_status.read` ; et `give` refuse toujours les deux permissions
+d'administration à un autre compte que l'administrateur de l'installation, dont les refus
+`LAST_ADMINISTRATOR` de `roles.spec.ts` dépendent : le rôle ne porte que des lectures. Chaque
+parcours `@shared` remet aussi à zéro les préférences de grille du compte qui s'y connecte
+(`resetGridPreferences`, `updateMyPreferences`), qu'un tri ou un filtre d'un parcours précédent
+aurait laissées (#2282), ce que `service/grid-reset.spec.ts` éprouve.
 
 Le projet `shared` joue ainsi les parcours du projet contre le témoin chargé, tranche des projets
 comprise (« Le back et les frontières du noyau ») : PRJ-001 en Chiffrage, ses révisions 100 et 101
@@ -3875,72 +3940,76 @@ chaque entrée nommant l'EPIC qui la lève ; cet EPIC retire la garde et son ent
   révisions 100 et 101 du témoin marquées dès US-0970.
 - `revision-cycle.spec.ts` — les commandes de la révision 102 de PRJ-001 et l'ouverture indisponible
   (`NOT_REPLAYED_IN_SERVICE`) : le compte de la course n'est pas inscrit chef de projet des projets
-  du témoin, par décision (#2193, option A), si bien que le service ne lui liste pas les commandes de
-  PRJ-001 ; les parcours qui écrivent créent leur propre projet. La désignation de la référence de
-  PRJ-001, refusée faute de tâches et de lignes, est levée par **EP-07** (EP-06 sert les tâches).
-  L'abandon de la 102 (`WITNESS_KEPT`) ne se joue jamais contre le service, qui l'ôterait à tous
-  les autres parcours. Le cycle (#1350) se joue contre le service seul (`SERVICE_ONLY`), sur un projet
+  du témoin, par décision (#2193, option A), si bien que le service ne lui liste pas les commandes
+  de PRJ-001 ; les parcours qui écrivent créent leur propre projet. La désignation de la référence
+  de PRJ-001, refusée faute de tâches et de lignes, est levée par **EP-07** (EP-06 sert les tâches).
+  L'abandon de la 102 (`WITNESS_KEPT`) ne se joue jamais contre le service, qui l'ôterait à tous les
+  autres parcours. Le cycle (#1350) se joue contre le service seul (`SERVICE_ONLY`), sur un projet
   que le compte de la course crée (`own-project.ts`), chef de projet comme créateur : une révision
   ouverte puis marquée par le worker, la désignation refusée faute de tâches et de lignes — ce
   qu'**EP-07** renversera : la désignation aboutira, et le code saisi emmènera le projet En cours —,
   une autre ouverte puis abandonnée, rouverte, le code saisi, le projet sorti à Perdu. Il se joue
-  depuis qu'**US-0850** (EP-05) sert les rôles de ressources : le référentiel minimal est complet, et
-  le service crée un projet (#2194). Le parcours de restauration (`service/backups.spec.ts`) en
+  depuis qu'**US-0850** (EP-05) sert les rôles de ressources : le référentiel minimal est complet,
+  et le service crée un projet (#2194). Le parcours de restauration (`service/backups.spec.ts`) en
   crée un avant la sauvegarde, marque sa révision et en crée un second après, et ne les retrouve
-  plus une fois la restauration faite (WF-ADM-0160-A) ; rejoué sur une même installation, il y laisse
-  un compte et un projet de plus, la restauration reprenant tout le reste.
-- `project-start.spec.ts` — le départ vers le planning : l'ouverture de PRJ-001 qui mène à son planning,
-  l'écran du lotissement qui engendre le planning, et l'encart « Démarrer le projet » d'un projet créé,
-  que le service n'offre pas au compte de la course avant les structures (`BEFORE_EP06`) : levée par
-  **EP-06**, qui sert les structures, l'import d'un planning et `generatePlanningSkeleton`. Le
-  lotissement d'un projet créé, écrit puis relu, se joue dès US-0950 (parcours jumeau, `SERVICE_ONLY`).
+  plus une fois la restauration faite (WF-ADM-0160-A) ; rejoué sur une même installation, il y
+  laisse un compte et un projet de plus, la restauration reprenant tout le reste.
+- `project-start.spec.ts` — le départ vers le planning : l'ouverture de PRJ-001 qui mène à son
+  planning, l'écran du lotissement qui engendre le planning, et l'encart « Démarrer le projet » d'un
+  projet créé, que le service n'offre pas au compte de la course avant les structures
+  (`BEFORE_EP06`) : levée par **EP-06**, qui sert les structures, l'import d'un planning et
+  `generatePlanningSkeleton`. Le lotissement d'un projet créé, écrit puis relu, se joue dès US-0950
+  (parcours jumeau, `SERVICE_ONLY`).
 - `context.spec.ts` — le bandeau du contexte sur les écrans des données, le planning, le reste à
   engager, les risques et les indicateurs, et sur une structure différentielle (`BEFORE_THE_DATA`) :
   levée écran par écran par **EP-06** (le planning, les structures), **EP-07** (le reste à engager),
-  **EP-08** (les risques) et **EP-10** (les indicateurs). Le bandeau des écrans d'un projet créé, ses
-  paramètres et ses révisions, se joue dès US-1000.
-- `projects.spec.ts` — les parcours qui écrivent sur PRJ-001 ou y mènent par son planning : l'écran du
-  projet, ses paramètres et son cycle de vie, la sortie, les sous-projets et les contributeurs, le
-  lotissement (`FAKE_BACK_ONLY`) : le compte de la course n'est pas chef de projet de PRJ-001, par
-  décision (#2193, option A), que nul EPIC ne renverse — ce que rejouent les jumeaux —, et le
-  planning vers lequel mène sa page est d'**EP-06**. Chacun a son jumeau, joué contre le service seul sur un projet que le compte
-  crée (`SERVICE_ONLY`, `own-project.ts`) : paramètres, cycle de vie, sous-projets, lotissement,
-  contributeurs (un second compte, inscrit par l'API puisque l'écran ne propose que les comptes du
-  devis, WF-PRJ-0070-A ; la qualité de ce compte est changée par l'écran, puis relue après
-  rechargement) et une sortie à Perdu depuis Chiffrage, relue.
-  La lecture de PRJ-001 — la liste, les tris et les filtres de l'accueil, les listes de ses paramètres
-  — se joue des deux côtés.
+  **EP-08** (les risques) et **EP-10** (les indicateurs). Le bandeau des écrans d'un projet créé,
+  ses paramètres et ses révisions, se joue dès US-1000.
+- `projects.spec.ts` — les parcours qui écrivent sur PRJ-001 ou y mènent par son planning : l'écran
+  du projet, ses paramètres et son cycle de vie, la sortie, les sous-projets et les contributeurs,
+  le lotissement (`FAKE_BACK_ONLY`) : le compte de la course n'est pas chef de projet de PRJ-001,
+  par décision (#2193, option A), que nul EPIC ne renverse — ce que rejouent les jumeaux —, et le
+  planning vers lequel mène sa page est d'**EP-06**. Chacun a son jumeau, joué contre le service
+  seul sur un projet que le compte crée (`SERVICE_ONLY`, `own-project.ts`) : paramètres, cycle de
+  vie, sous-projets, lotissement, contributeurs (un second compte, inscrit par l'API puisque l'écran
+  ne propose que les comptes du devis, WF-PRJ-0070-A ; la qualité de ce compte est changée par
+  l'écran, puis relue après rechargement) et une sortie à Perdu depuis Chiffrage, relue. La lecture
+  de PRJ-001 — la liste, les tris et les filtres de l'accueil, les listes de ses paramètres — se
+  joue des deux côtés.
 
 Les deux lecteurs d'un projet (`service/project-readers.spec.ts`, WF-ADM-0040-A) se jouent contre le
 service seul : deux comptes locaux qui portent « Manager » et « Chef de projet », l'un lisant en
 français et gardant toutes les colonnes, l'autre en anglais avec une colonne masquée, lisent le même
-projet, ses contributeurs et ses révisions ; le premier le crée et ouvre une révision par les écrans,
-et inscrit l'autre par l'API sous son jeton.
+projet, ses contributeurs et ses révisions ; le premier le crée et ouvre une révision par les
+écrans, et inscrit l'autre par l'API sous son jeton.
 
-Ne se rejouent pas contre le service, faute d'être étiquetés, les parcours qui dépendent de ce
-qu'il ne fait pas encore ou ne sert pas ; chacun reste joué contre le faux back, par `chromium`.
-Ce qui dépend de l'horloge : rien dans le référentiel, dont les dates sont celles du chargement
-(WF-DAT-0070) et que les parcours n'attendent pas. D'un écran que le service ne sert pas, ou que
-le compte de la course ne se voit pas offrir : l'ouverture, depuis `/`, du portefeuille de
-`navigation.spec.ts`, levée par **EP-11**, et celle de l'écran d'état du système, levée par
-**EP-13** ; celle de l'administration, que **nul EPIC ne lève** : le rôle « Manager » de `mode.ts` ne
-porte pas les permissions `users.*`, et les écrans d'administration que le service sert se jouent
-dans `frontend/e2e/service/` ; de même presque tous les parcours de `admin.spec.ts` (`:40` à
-`:455`, seul `:479` est `@shared`), non levés pour la même raison. L'accueil est servi depuis
-US-0920/L2 et se joue des deux côtés (`projects.spec.ts`, et l'icône de l'onglet de
+Ne se rejouent pas contre le service, faute d'être étiquetés, les parcours qui dépendent de ce qu'il
+ne fait pas encore ou ne sert pas ; chacun reste joué contre le faux back, par `chromium`. Ce qui
+dépend de l'horloge : rien dans le référentiel, dont les dates sont celles du chargement
+(WF-DAT-0070) et que les parcours n'attendent pas. D'un écran que le service ne sert pas :
+l'ouverture, depuis `/`, du portefeuille de `navigation.spec.ts`, levée par **EP-11**, et celle de
+l'écran d'état du système, levée par **EP-13** (`getSystemStatus`, #2307). L'administration, elle,
+se lit sous `@administration` (le compte de la course n'y porte pas le rôle « Manager » mais «
+Administrateur (parcours) ») : les parcours d'`admin.spec.ts` qui lisent sont `@shared
+@administration`. Ne se rejouent pas ceux d'`admin.spec.ts` qui écrivent — les sauvegardes (lancer,
+garder, restaurer), l'horaire des sauvegardes, les comptes et les rôles : chacun écrit un objet
+unique de l'installation, ou demande `users.write` ou `access_roles.write`, que le compte de
+`@administration` n'a pas, et que les parcours de `frontend/e2e/service/` (`backups.spec.ts`,
+`accounts.spec.ts`, `roles.spec.ts`) éprouvent sous l'administrateur de l'installation. L'accueil
+est servi depuis US-0920/L2 et se joue des deux côtés (`projects.spec.ts`, et l'icône de l'onglet de
 `navigation.spec.ts`), de même que les écrans d'un projet depuis US-1000 (dont, dans
 `navigation.spec.ts`, le passage des paramètres au cycle de vie). Restent sans étiquette, dans
 `navigation.spec.ts`, le retour au projet précédent depuis une fonction hors projet, qui rouvre le
-reste à engager puis les risques de PRJ-001 (levé par **EP-07** et **EP-08**), et l'adresse du projet
-qui mène à son planning, avec son contexte de lecture (levée par **EP-06**). De ce que leur US
-n'étiquette pas encore : la lecture des réglages hors projet (`reference-costs.spec.ts`, US-0250) ; la
-modification des unités de durée (`reference-resources.spec.ts`), qui écrit l'objet unique de
-l'installation et affirme l'écho du faux back (« 7 et 35 ») : elle se jouerait en série (règle
-ci-dessous), ce que le projet `realm` ne fait aujourd'hui que pour `frontend/e2e/service/` (#2178).
-Les gardes `inService` des parcours étiquetés ne sont pas des parcours non rejoués : le parcours se joue des deux côtés, et
-seule l'assertion d'une écriture diffère (ce qui a été saisi, relu après un rechargement ; un
-code et un libellé propres à la course, que le service garde ; un état laissé comme on l'a trouvé)
-— `reference-costs.spec.ts`, `reference-resources.spec.ts`, `reference-settings.spec.ts`,
+reste à engager puis les risques de PRJ-001 (levé par **EP-07** et **EP-08**), et l'adresse du
+projet qui mène à son planning, avec son contexte de lecture (levée par **EP-06**). De ce que leur
+US n'étiquette pas encore : la lecture des réglages hors projet (`reference-costs.spec.ts`,
+US-0250). La modification des unités de durée (`reference-resources.spec.ts`), qui écrit l'objet
+unique de l'installation, se joue en `@serial` dans le projet `shared-serial`, comme les autres
+parcours qui écrivent un objet unique. Les gardes `inService` des parcours étiquetés ne sont pas des
+parcours non rejoués : le parcours se joue des deux côtés, et seule l'assertion d'une écriture
+diffère (ce qui a été saisi, relu après un rechargement ; un code et un libellé propres à la course,
+que le service garde ; un état laissé comme on l'a trouvé) — `reference-costs.spec.ts`,
+`reference-resources.spec.ts`, `reference-settings.spec.ts`,
 `reference-actual-cost-mapping.spec.ts`.
 
 Un parcours `@shared` n'écrit que des objets qu'il crée lui-même, sous un code et un libellé propres
@@ -3948,13 +4017,15 @@ Un parcours `@shared` n'écrit que des objets qu'il crée lui-même, sous un cod
 contre une même installation, et un objet du témoin qu'un parcours modifie, même le temps de son
 déroulement, change sous les yeux de ceux qui le lisent ou le comparent à ses exemples (état,
 `lock_version`, dates d'audit — #2087). Les parcours qui modifient un objet unique de l'installation
-— les réglages, les unités de durée, la correspondance des coûts réels — se jouent en série, seuls,
-et non en parallèle des autres. Un parcours qui doit en réactiver un du témoin le fait dans un
-`finally` qui le remet comme il l'a trouvé, et c'est une exception qu'il dit, non la règle.
-Trois parcours s'écartent aujourd'hui de cette règle, en attendant #2211 : la modification des unités de
-durée (`reference-resources.spec.ts`, sans étiquette), celle des réglages (`reference-settings.spec.ts`)
-et celle de la correspondance des coûts réels (`reference-actual-cost-mapping.spec.ts`), étiquetés
-`@shared` et qui écrivent pourtant ces objets uniques.
+— les réglages, les unités de durée, la correspondance des coûts réels — portent l'étiquette
+`@serial` à côté de `@shared` : le projet `shared-serial` les joue seuls, sur un worker, après
+`shared` et avant `realm` et `restoration`, et `shared` les laisse (`grepInvert`) ; ils affirment
+leur relecture par `inService` comme les autres (#2211). Un parcours qui doit en réactiver un du
+témoin le fait dans un `finally` qui le remet comme il l'a trouvé, et c'est une exception qu'il dit,
+non la règle.
+
+L'attente du verrou des rôles composés (`giveRoles`, `ROLES_WAIT`) est de 25 s, sous les 30 s d'un
+test : son message dit le verrou et le nombre de workers qui font la queue derrière lui (#2214).
 
 Une limite des parcours contre le service : Prism, en mandataire du contrat, lit tout corps comme
 du texte et altère les corps binaires — chaque octet au-delà de `0x7f` d'une requête ou d'une
@@ -4685,6 +4756,12 @@ Les règles sont dans le [README de la roadmap](../roadmap/README-fr.md), sectio
 « Branches », et dans [CONTRIBUTING](../../CONTRIBUTING.md) : un lot, une issue, une branche
 `lot/<identifiant>` tirée de `epic/EP-nn`, une pull request qui y revient.
 
+Chaque branche `epic/EP-nn` a sa file de fusion, un jeu de règles par branche (GitHub n'en accepte
+pas sur un motif). Le livreur du premier lot lance `make merge-queue-check EPIC=EP-nn` après avoir
+poussé la branche ; si elle échoue, une personne lance `make merge-queue EPIC=EP-nn`, qui crée le
+jeu depuis le modèle `.github/rulesets/merge-queue.json` (voir « Commandes »). Cette cible lui est
+réservée.
+
 Chaque répertoire de `docs/` a son README en anglais, `README.md`, à côté de son original
 français, `README-fr.md`, qui fait foi. Un lot qui modifie un `README-fr.md` porte la même
 modification, traduite, dans le `README.md` voisin, dans la même pull request : un titre
@@ -4694,6 +4771,25 @@ contrôle ne juge pas la traduction ; il prouve que sa structure suit l'original
 _Contrôle_ : `make readmes` (`wftools.readmes`, famille `repo`), qui échoue sur un
 `README-fr.md` de `docs/` sans son `README.md`, ou l'inverse, et sur une paire dont les titres
 diffèrent, un pour un — en nombre, ou en niveau à un rang donné.
+
+### Reprendre `main` dans une branche d'EPIC
+
+Une branche `epic/EP-nn` vit plusieurs jours pendant que `main` reçoit d'autres EPIC : la reprendre
+de `main` évite que les conflits n'apparaissent à la fusion de l'EPIC, ou à la livraison d'un lot.
+
+- **Qui.** Une personne : ni un livreur, ni un développeur, ni le pilote n'y touche
+  de lui-même.
+- **Quand.** Après chaque fusion dans `main`, et avant qu'un lot ne parte d'une branche en retard.
+- **Comment.** Une branche `sync/EP-nn-main-k` (`k` numérote les synchronisations de l'EPIC),
+  tirée de `epic/EP-nn` à jour ; `git merge origin/main` ; les conflits se résolvent en gardant les
+  deux faits, jamais l'un des deux ; `make check BASE=origin/epic/EP-nn` passe ; une pull request
+  vers `epic/EP-nn`, mise en file comme celle d'un lot. Les conflits se règlent là, dans cette
+  pull request, et non à la livraison d'un lot qui les découvrirait. Les lots en vol reprennent la
+  nouvelle pointe de `epic/EP-nn` (`git merge origin/epic/EP-nn`) avant leur mise en file.
+- **Ce que cela a coûté, les 6 et 7 novembre 2026.** Une synchronisation a été remise en file deux
+  fois : des lots ont été fusionnés dans `epic/EP-nn` pendant sa chaîne, et la file la refaisait à
+  chaque fois sur une pointe qui avait changé. Elle se met en file quand aucun lot n'est en revue,
+  ou elle se refait.
 
 ## Signature des commits
 

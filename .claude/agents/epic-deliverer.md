@@ -67,10 +67,12 @@ seulement si le harnais t'y oblige, en disant dans le relevé que le développeu
   lot, de son US ou d'un constat (README de la roadmap, « Suivi sur GitHub »), **par
   `make tracking`** : `make tracking ISSUE=<n> LOT=<identifiant> STATE=… [PR=…] [MODEL=…]`,
   `make tracking ISSUE=<n> US=<identifiant> STATUS=…`, `make tracking ISSUE=<n> FINDING=<n>
-  ATTACHED=… DECISION=…`. Il relit le corps sous un verrou du poste juste avant de l'écrire et
-  ne change que la ligne demandée : tu ne relis ni ne réécris ce corps toi-même, d'autres
-  livreurs y écrivent en même temps. Une ligne qu'il refuse (introuvable) se rapporte, elle ne
-  se contourne pas.
+  ATTACHED=… DECISION=…`, et, pour un lot coupé, `make tracking ISSUE=<n> ADD_LOT=<identifiant>
+  AFTER=<lot> [DEPENDS=…] [MODEL=…] [LOT_ISSUE=<n>]`, `LOT=<identifiant> DEPENDS=<liste>` et
+  `REPLACE_DEPENDENCY='<ancien>=<nouveau>'`. Il relit le corps sous un verrou du poste juste
+  avant de l'écrire et ne change que la ligne demandée : tu ne relis ni ne réécris ce corps
+  toi-même, d'autres livreurs y écrivent en même temps. Une ligne qu'il refuse (introuvable) se
+  rapporte, elle ne se contourne pas.
 - Le tableau a une colonne « Pas avec » : les lots de l'EPIC avec lesquels le tien ne se livre
   pas en même temps. Le pilote la respecte pour lancer ; tu n'y touches pas.
 - Une issue de lot incomplète, ou qui contredit le fichier, t'arrête : tu le dis comme une
@@ -81,8 +83,11 @@ seulement si le harnais t'y oblige, en disant dans le relevé que le développeu
 Au premier lot, tu tires `epic/EP-nn` de `main` à jour et tu la pousses — la seule poussée
 sur une branche `epic/*` que les règles communes te permettent —, et seulement si les EPIC
 dont celui-ci dépend sont livrés, c'est-à-dire fusionnés dans `main` ; sinon tu t'arrêtes.
-Tu demandes alors à une personne de régler sa file de fusion : GitHub n'en accepte pas sur
-un motif de branche, il faut un jeu de règles par branche d'EPIC.
+GitHub n'accepte pas de file de fusion sur un motif de branche : il faut un jeu de règles par
+branche d'EPIC. Après la poussée, lance `make merge-queue-check EPIC=EP-nn`. S'il échoue, tu
+ne livres aucun lot sans file : tu poses la question à une personne, qui lance `make
+merge-queue EPIC=EP-nn` — cette cible lui est réservée, tu ne la lances jamais —, puis tu
+relances la vérification.
 
 ## Choisir le modèle
 
@@ -132,8 +137,11 @@ un motif de branche, il faut un jeu de règles par branche d'EPIC.
    tour, qu'il ne peut pas le relire d'un seul tenant : la part détachée devient alors un lot
    nouveau, sous-issue de la même US, numéroté comme le dit le README de la roadmap
    (« Lots »), qui dépend du premier et prend sa place juste après lui ; reporte la coupe
-   dans le tableau et au relevé. Ce qui protège de la boucle de revue, c'est le plafond du
-   point 5.
+   dans le tableau et au relevé : la ligne s'ajoute par `make tracking ISSUE=<n>
+   ADD_LOT=<identifiant> AFTER=<lot> DEPENDS=<lot coupé> LOT_ISSUE=<n>`, et les lots qui
+   dépendaient du premier passent au second par `REPLACE_DEPENDENCY='<ancien>=<nouveau>'` ou
+   `LOT=… DEPENDS=…`, jamais en réécrivant le corps de l'issue à la main. Ce qui protège de la
+   boucle de revue, c'est le plafond du point 5.
 4. **Revue locale** : confie le diff à l'agent de revue de chaque langage touché.
    - **Premier tour** : renvoie à l'agent de développement tous les constats du périmètre
      du lot, majeurs et mineurs.
@@ -179,7 +187,9 @@ un motif de branche, il faut un jeu de règles par branche d'EPIC.
     - supprime la branche locale du lot, et toute branche de travail tirée pour lui
       (`git branch -d lot/<identifiant>`, de même pour chacune) ; `git branch -d` refuse une
       branche non fusionnée : un refus se lit, il ne se force pas, et il va au relevé ;
-    - retire les services de test et la plateforme de service de ton lot, et rends le créneau
+    - arrête les serveurs de l'e2e de ton créneau (`make e2e-down`, dès qu'un `make e2e`,
+      `make e2e-service` ou `make check-front` s'est interrompu, et avant `make slot-release`),
+      retire les services de test et la plateforme de service de ton lot, et rends le créneau
       pris au départ : `make slot-release`, lancé dans le worktree du lot, avant de le retirer ;
     - retire les worktrees du lot : le tien, qui détient le créneau, ceux des agents que tu as
       lancés, et tout autre qu'un harnais aurait quand même créé pour le lot
