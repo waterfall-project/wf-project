@@ -1,5 +1,5 @@
 {
-  "summary": "Une sauvegarde déclenchée à 14 h 04 min 40 s, pendant que la restauration mise en file à 14 h 04 min 30 s s'exécute (task_restore_queued) : refusée, no_restore_running manquante — une sauvegarde prise pendant une restauration ne serait d'aucun état cohérent ; rien n'est mis en file (WF-ADM-0150, WF-ADM-0160).",
+  "summary": "Une sauvegarde déclenchée à 14 h 05 min 40 s, pendant que la restauration mise en file à 14 h 05 min 30 s s'exécute (task_restore_queued) : refusée, no_restore_running manquante — une sauvegarde prise pendant une restauration ne serait d'aucun état cohérent ; rien n'est mis en file (WF-ADM-0150, WF-ADM-0160).",
   "value": {
     "code": "STATE_FORBIDS_OPERATION",
     "status": 409,
