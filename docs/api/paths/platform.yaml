@@ -2,34 +2,34 @@
   get:
     operationId: listBackups
     tags: [platform]
-    summary: Sauvegardes
+    summary: Backups
     description: >-
-      Date, taille et résultat de vérification de chaque sauvegarde (WF-ADM-0150), son origine
-      et son marquage à conserver (WF-ADM-0170), et les commandes que l'appelant peut exercer sur
-      elle, disponibles ou non (`available_commands`, WF-IHM-0090). Une table plate, dont chaque
-      colonne se filtre (WF-IHM-0130) — la date par une période (`from`, `to`), l'origine
-      (`origins`), la vérification (`verifications`), le marquage (`is_retained`), la taille par
-      ses bornes (`size_bytes_min`, `size_bytes_max`) —, les filtres se combinant, et se trie
-      (`sort_by`, WF-IHM-0060) ; sans tri, par date, les plus récentes d'abord. Le serveur
-      pagine ; `meta.total` compte les sauvegardes retenues. Lisible sous la permission de
-      consulter les sauvegardes (`backups.read`, WF-ADM-0100).
+      Date, size and verification result of each backup (WF-ADM-0150), its origin and its
+      mark to keep (WF-ADM-0170), and the commands the caller can exercise on it, available or
+      not (`available_commands`, WF-IHM-0090). A flat table, each of whose columns can be
+      filtered (WF-IHM-0130) — the date by a period (`from`, `to`), the origin (`origins`),
+      the verification (`verifications`), the mark (`is_retained`), the size by its bounds
+      (`size_bytes_min`, `size_bytes_max`) —, the filters combining, and sorted (`sort_by`,
+      WF-IHM-0060); without a sort, by date, most recent first. The server paginates;
+      `meta.total` counts the backups retained. Readable under the permission to view the
+      backups (`backups.read`, WF-ADM-0100).
     parameters:
       - $ref: ../components/parameters.yaml#/Limit
       - $ref: ../components/parameters.yaml#/Offset
       - name: from
         in: query
-        description: Retient les sauvegardes prises à cet instant ou après lui (WF-IHM-0130).
+        description: Retains the backups taken at this instant or after it (WF-IHM-0130).
         schema: { $ref: ../components/common.yaml#/Timestamp }
       - name: to
         in: query
         description: >-
-          Retient les sauvegardes prises avant cet instant, exclu. Antérieur à `from`, il est
-          refusé par 422.
+          Retains the backups taken before this instant, excluded. Earlier than `from`, it is
+          refused with 422.
         schema: { $ref: ../components/common.yaml#/Timestamp }
       - name: origins
         in: query
         description: >-
-          Retient les sauvegardes de ces origines, manuelles ou planifiées ; absent, les deux
+          Retains the backups of these origins, manual or scheduled; when absent, both
           (WF-IHM-0130).
         schema:
           type: array
@@ -39,8 +39,8 @@
       - name: verifications
         in: query
         description: >-
-          Retient les sauvegardes dont la vérification a cette issue, en attente, réussie ou
-          échouée ; absent, toutes (WF-ADM-0150, WF-IHM-0130).
+          Retains the backups whose verification has this outcome, pending, succeeded or
+          failed; when absent, all of them (WF-ADM-0150, WF-IHM-0130).
         schema:
           type: array
           minItems: 1
@@ -49,44 +49,43 @@
       - name: is_retained
         in: query
         description: >-
-          Retient les sauvegardes marquées à conserver (vrai), ou celles que la rotation
-          supprimera à leur tour (faux) ; absent, toutes (WF-ADM-0170, WF-IHM-0130).
+          Retains the backups marked to keep (true), or those the rotation will delete in their
+          turn (false); when absent, all of them (WF-ADM-0170, WF-IHM-0130).
         schema: { type: boolean }
       - name: size_bytes_min
         in: query
         description: >-
-          Borne inférieure, incluse, de la taille en octets : retient les sauvegardes au moins
-          aussi lourdes (WF-IHM-0130).
+          Lower bound, inclusive, of the size in bytes: retains the backups at least as heavy
+          (WF-IHM-0130).
         schema: { type: integer, minimum: 0 }
       - name: size_bytes_max
         in: query
         description: >-
-          Borne supérieure, incluse, de la taille en octets : retient les sauvegardes qui ne
-          sont pas plus lourdes (WF-IHM-0130). Inférieure à `size_bytes_min`, elle est refusée
-          par 422.
+          Upper bound, inclusive, of the size in bytes: retains the backups that are no heavier
+          (WF-IHM-0130). Lower than `size_bytes_min`, it is refused with 422.
         schema: { type: integer, minimum: 0 }
       - name: sort_by
         in: query
         description: >-
-          Colonne du tri ; absente, la date. Les colonnes qui se trient (WF-IHM-0060) : la
-          date ; la taille ; la vérification et l'origine, dans l'ordre de leur énumération
-          (`BackupVerification`, `BackupOrigin`) — l'API ne rend pas leur libellé, que le front
-          choisit dans la langue du lecteur (WF-ARC-0110), et ne trie pas par lui — ; le
-          marquage, les sauvegardes marquées à conserver d'abord dans l'ordre croissant, comme
-          l'état des comptes range les actifs. Une égalité se départage par l'ordre de la liste
-          sans tri — la date, les plus récentes d'abord —, puis par l'identifiant.
+          Sort column; when absent, the date. The sortable columns (WF-IHM-0060): the date;
+          the size; the verification and the origin, in the order of their enumeration
+          (`BackupVerification`, `BackupOrigin`) — the API does not return their label, which
+          the front chooses in the reader's language (WF-ARC-0110), and does not sort by it —;
+          the mark, the backups marked to keep first in ascending order, as the account status
+          ranks the active ones. A tie is broken by the order of the unsorted list — the date,
+          most recent first —, then by the identifier.
         schema:
           type: string
           enum: [taken_at, size_bytes, verification, origin, is_retained]
       - name: sort_order
         in: query
         description: >-
-          Sens du tri ; absent, décroissant pour la date — les sauvegardes les plus récentes
-          d'abord —, croissant pour toute autre colonne.
+          Sort direction; when absent, descending for the date — the most recent backups
+          first —, ascending for any other column.
         schema: { $ref: ../components/common.yaml#/SortOrder }
     responses:
       '200':
-        description: Liste des sauvegardes.
+        description: List of the backups.
         content:
           application/json:
             schema:
@@ -112,13 +111,13 @@
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '422':
         description: >-
-          Une période refusée selon la règle de toute période du contrat (WF-IHM-0130) : une fin
-          qui précède le début, `VALIDATION_FAILED`, `fields[]` désignant `/query/to` par
-          `VALUE_OUT_OF_RANGE`, `params.minimum` le début donné ; un début ou une fin mal
-          formés, `/query/from` ou `/query/to` par `DATE_INVALID`. Une borne de la taille mal
-          formée, `/query/<borne>` par `NUMBER_INVALID` ; `size_bytes_max` inférieure à
-          `size_bytes_min`, `/query/size_bytes_max` par `VALUE_OUT_OF_RANGE`, `params.minimum`
-          la borne inférieure donnée.
+          A period refused under the rule of every period of the contract (WF-IHM-0130): an end
+          that precedes the start, `VALIDATION_FAILED`, `fields[]` designating `/query/to` by
+          `VALUE_OUT_OF_RANGE`, `params.minimum` the given start; a malformed start or end,
+          `/query/from` or `/query/to` by `DATE_INVALID`. A malformed bound of the size,
+          `/query/<bound>` by `NUMBER_INVALID`; `size_bytes_max` lower than `size_bytes_min`,
+          `/query/size_bytes_max` by `VALUE_OUT_OF_RANGE`, `params.minimum` the given lower
+          bound.
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
@@ -130,21 +129,21 @@
   post:
     operationId: startBackup
     tags: [platform]
-    summary: Déclencher une sauvegarde
+    summary: Start a backup
     description: >-
-      Sauvegarde complète des deux bases de la plateforme, celle de Waterfall et celle du
-      fournisseur d'identité — comptes fédérés et réglages compris —, chacune dans un état
-      cohérent, le journal d'audit compris, sauvegardé avec la base de Waterfall (WF-SEC-0030) ;
-      l'archive est vérifiée après sa production, et la sauvegarde apparaît dans la liste avec le
-      résultat de sa vérification (WF-ADM-0150). Confiée au worker (WF-ARC-0090), qui l'inscrit au
-      journal d'audit. Une seule à la fois : une sauvegarde ou une restauration qui s'exécute déjà
-      la fait refuser par 409. Une sauvegarde s'exécute de sa mise en file à la production du
-      fichier ; la vérification qui suit n'empêche rien, et une sauvegarde en attente de
-      vérification (`backup_pending`) en laisse déclencher une autre. Sous la permission de
-      modifier les sauvegardes (`backups.write`, WF-ADM-0100).
+      Full backup of the platform's two databases, Waterfall's and the identity provider's —
+      federated accounts and settings included —, each in a consistent state, the audit log
+      included, backed up with Waterfall's database (WF-SEC-0030); the archive is verified
+      after it is produced, and the backup appears in the list with the result of its
+      verification (WF-ADM-0150). Handed to the worker (WF-ARC-0090), which records it in the
+      audit log. Only one at a time: a backup or a restore already running gets it refused
+      with 409. A backup runs from its queuing to the production of the file; the verification
+      that follows prevents nothing, and a backup awaiting verification (`backup_pending`)
+      lets another one be started. Under the permission to modify the backups
+      (`backups.write`, WF-ADM-0100).
     responses:
       '202':
-        description: Sauvegarde mise en file.
+        description: Backup queued.
         content:
           application/json:
             schema: { $ref: ../components/common.yaml#/BackgroundTaskRef }
@@ -154,11 +153,10 @@
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '409':
         description: >-
-          Une sauvegarde ou une restauration s'exécute déjà : `STATE_FORBIDS_OPERATION`,
-          `params.missing_condition` nommant `no_backup_running` ou `no_restore_running` ; rien
-          n'est mis en file. Deux sauvegardes à la fois liraient la même base pour rien, et une
-          sauvegarde prise pendant une restauration ne serait d'aucun état cohérent
-          (WF-ADM-0150, WF-ADM-0160).
+          A backup or a restore is already running: `STATE_FORBIDS_OPERATION`,
+          `params.missing_condition` naming `no_backup_running` or `no_restore_running`; nothing
+          is queued. Two backups at once would read the same database for nothing, and a backup
+          taken during a restore would be of no consistent state (WF-ADM-0150, WF-ADM-0160).
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
@@ -171,17 +169,17 @@
 /backups/{backup_id}:
   get:
     operationId: getBackup
-    summary: Une sauvegarde
+    summary: A backup
     description: >-
-      État, date et taille d'une sauvegarde (WF-ADM-0150), et les commandes que l'appelant peut
-      exercer sur elle (`available_commands`, WF-IHM-0090). Lisible sous la permission de
-      consulter les sauvegardes (`backups.read`, WF-ADM-0100).
+      State, date and size of a backup (WF-ADM-0150), and the commands the caller can
+      exercise on it (`available_commands`, WF-IHM-0090). Readable under the permission to
+      view the backups (`backups.read`, WF-ADM-0100).
     tags: [platform]
     parameters:
       - $ref: ../components/parameters.yaml#/BackupId
     responses:
       '200':
-        description: Sauvegarde.
+        description: Backup.
         content:
           application/json:
             schema: { $ref: ../components/schemas/platform.yaml#/Backup }
@@ -195,12 +193,12 @@
   patch:
     operationId: retainBackup
     tags: [platform]
-    summary: Marquer une sauvegarde à conserver
+    summary: Mark a backup to keep
     description: >-
-      Une sauvegarde marquée échappe à la rotation (WF-ADM-0170). La sauvegarde porte celle des
-      deux commandes qui change son marquage, `retain` ou `release` (`BackupCommand`,
-      WF-IHM-0090), indisponible pendant qu'une restauration s'exécute. Sous la permission de
-      modifier les sauvegardes (`backups.write`, WF-ADM-0100).
+      A marked backup escapes the rotation (WF-ADM-0170). The backup carries whichever of the
+      two commands changes its mark, `retain` or `release` (`BackupCommand`, WF-IHM-0090),
+      unavailable while a restore is running. Under the permission to modify the backups
+      (`backups.write`, WF-ADM-0100).
     parameters:
       - $ref: ../components/parameters.yaml#/BackupId
     requestBody:
@@ -210,7 +208,7 @@
           schema: { $ref: ../components/schemas/platform.yaml#/BackupRetain }
     responses:
       '200':
-        description: Marquage enregistré.
+        description: Mark recorded.
         content:
           application/json:
             schema: { $ref: ../components/schemas/platform.yaml#/Backup }
@@ -223,9 +221,9 @@
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '409':
         description: >-
-          Une restauration s'exécute, qui remplace la base où le marquage s'écrirait :
-          `STATE_FORBIDS_OPERATION`, `params.missing_condition` nommant `no_restore_running` ;
-          rien n'est écrit (WF-ADM-0160).
+          A restore is running, which replaces the database where the mark would be written:
+          `STATE_FORBIDS_OPERATION`, `params.missing_condition` naming `no_restore_running`;
+          nothing is written (WF-ADM-0160).
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
@@ -239,47 +237,47 @@
   get:
     operationId: downloadBackup
     tags: [platform]
-    summary: Copier une sauvegarde hors de la plateforme
+    summary: Copy a backup outside the platform
     description: >-
-      La copie hors plateforme est ce qui protège d'une perte de la plateforme (WF-ADM-0150) :
-      l'archive telle que le stockage objet la garde, rendue en flux. Elle porte les deux bases
-      entières, comptes et réglages du fournisseur d'identité compris : sous la permission de
-      consulter les sauvegardes et celle de les modifier (`backups.read`, `backups.write`,
-      WF-ADM-0100). Seule une sauvegarde vérifiée se télécharge, comme sa commande `download` le
-      dit d'avance (`BackupCommand`, WF-IHM-0090) ; le fichier vient nommé et mesuré, en pièce
-      jointe.
+      The copy outside the platform is what protects against a loss of the platform
+      (WF-ADM-0150): the archive as the object storage keeps it, returned as a stream. It
+      carries both databases in full, the identity provider's accounts and settings included:
+      under the permission to view the backups and the permission to modify them
+      (`backups.read`, `backups.write`, WF-ADM-0100). Only a verified backup can be
+      downloaded, as its `download` command says in advance (`BackupCommand`, WF-IHM-0090);
+      the file comes named and sized, as an attachment.
     parameters:
       - $ref: ../components/parameters.yaml#/BackupId
     responses:
       '200':
         description: >-
-          Contenu de la sauvegarde, en pièce jointe nommée, de la longueur qu'elle dit.
-          L'archive porte l'instant de sa sauvegarde (`Backup.taken_at`), que le dépôt d'une
-          restauration relit (`uploadFile`, WF-ADM-0160).
+          Content of the backup, as a named attachment, of the length it states. The archive
+          carries the instant of its backup (`Backup.taken_at`), which the upload of a restore
+          reads back (`uploadFile`, WF-ADM-0160).
         headers:
           Content-Disposition:
             required: true
             description: >-
-              `attachment`, et le nom que le serveur donne au fichier (`filename`) :
-              `waterfall-backup-`, l'instant de la sauvegarde en temps universel sans
-              séparateur (`20260603T010000Z` pour `2026-06-03T01:00:00Z`), et l'extension de
-              son archive, que l'exploitation fixe. Un nom en ASCII, qu'un poste enregistre tel
-              quel, et que `filename*` (RFC 8187) n'a pas à redire (RFC 6266).
+              `attachment`, and the name the server gives the file (`filename`):
+              `waterfall-backup-`, the instant of the backup in universal time without
+              separators (`20260603T010000Z` for `2026-06-03T01:00:00Z`), and the extension of
+              its archive, which operations set. A name in ASCII, which a workstation saves as
+              is, and which `filename*` (RFC 8187) need not repeat (RFC 6266).
             schema: { type: string }
             examples:
               night:
                 summary: >-
-                  Le nom de la sauvegarde planifiée de la nuit du 3 juin 2026, prise à une heure
-                  en temps universel (WF-ADM-0150).
+                  The name of the scheduled backup of the night of 3 June 2026, taken at one
+                  o'clock universal time (WF-ADM-0150).
                 value: 'attachment; filename="waterfall-backup-20260603T010000Z.tar"'
           Content-Length:
             required: true
             description: >-
-              La longueur du fichier, en octets : `Backup.size_bytes`, le corps transmis tel
-              qu'il est conservé, sans codage qui en changerait la longueur, pour que le poste
-              dise l'avancement du téléchargement (WF-ADM-0150). Sans exemple : le faux back
-              rejouerait la longueur de la liste sur un corps de quelques octets, et la route du
-              front qui relaie le téléchargement recopie l'en-tête.
+              The length of the file, in bytes: `Backup.size_bytes`, the body transmitted as it
+              is stored, without any encoding that would change its length, so that the
+              workstation can show the progress of the download (WF-ADM-0150). No example: the
+              fake back would replay the length from the list on a body of a few bytes, and the
+              front's route that relays the download copies the header.
             schema: { type: integer, minimum: 0 }
         content:
           application/octet-stream:
@@ -289,9 +287,9 @@
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '409':
         description: >-
-          Une sauvegarde dont la vérification n'a pas réussi, en attente ou échouée :
-          `STATE_FORBIDS_OPERATION`, `params.missing_condition` nommant `backup_verified` ; rien
-          n'est transmis (WF-ADM-0150).
+          A backup whose verification has not succeeded, pending or failed:
+          `STATE_FORBIDS_OPERATION`, `params.missing_condition` naming `backup_verified`; nothing
+          is transmitted (WF-ADM-0150).
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
@@ -304,18 +302,17 @@
   get:
     operationId: getBackupSchedule
     tags: [platform]
-    summary: Planification et rétention des sauvegardes
+    summary: Scheduling and retention of the backups
     description: >-
-      Fréquence, heure et nombre de sauvegardes conservées, et la copie automatique de
-      chaque sauvegarde planifiée vers un emplacement externe déclaré par l'installation
-      (WF-ADM-0170). Une installation neuve lit la planification livrée, quotidienne
-      (`BackupSchedule`, WF-EXP-0050) : le 404 ne dit que la lecture refusée. Lisible sous la
-      permission de consulter les sauvegardes (`backups.read`, WF-ADM-0100). Une restauration
-      ne la change pas : elle la conserve, comme la liste des sauvegardes (`startRestore`,
-      #1742).
+      Frequency, time and number of backups kept, and the automatic copy of each scheduled
+      backup to an external location declared by the installation (WF-ADM-0170). A new
+      installation reads the shipped schedule, daily (`BackupSchedule`, WF-EXP-0050): the 404
+      only means the read is refused. Readable under the permission to view the backups
+      (`backups.read`, WF-ADM-0100). A restore does not change it: it keeps it, like the list
+      of backups (`startRestore`, #1742).
     responses:
       '200':
-        description: Planification courante (WF-ADM-0170).
+        description: Current schedule (WF-ADM-0170).
         content:
           application/json:
             schema: { $ref: ../components/schemas/platform.yaml#/BackupSchedule }
@@ -330,20 +327,19 @@
   put:
     operationId: setBackupSchedule
     tags: [platform]
-    summary: Régler la planification et la rétention
+    summary: Set the scheduling and the retention
     description: >-
-      Fréquence, heure et rétention, toutes trois exigées, le jour pour une planification
-      hebdomadaire seulement (WF-ADM-0170). Au-delà du nombre conservé, les plus anciennes
-      sauvegardes non marquées, manuelles ou planifiées, sont supprimées ; celles qui sont
-      marquées à conserver ne sont ni comptées ni supprimées. La copie externe, si elle est réglée, nomme un emplacement que
-      l'installation déclare et un dossier relatif dans cet emplacement, et garde au moins
-      autant de copies que la plateforme garde de sauvegardes (WF-EXP-0050). Un échec, de la
-      sauvegarde ou de sa copie, est signalé sur l'écran d'état (WF-ADM-0170, WF-OBS-0030).
-      Sous la permission de modifier les sauvegardes (`backups.write`, WF-ADM-0100). Refusé
-      pendant qu'une restauration s'exécute, comme toute autre écriture des sauvegardes
-      (`startRestore`) : la restauration conserve la planification, la rétention et la copie
-      externe, qu'elle relit avant le remplacement des bases et réécrit après lui, et un réglage
-      fait entre-temps serait perdu (WF-ADM-0160, WF-EXP-0040 ; décision de l'auteur du
+      Frequency, time and retention, all three required, the day for a weekly schedule only
+      (WF-ADM-0170). Beyond the number kept, the oldest unmarked backups, manual or scheduled,
+      are deleted; those marked to keep are neither counted nor deleted. The external copy, if
+      set, names a location the installation declares and a relative folder in that location,
+      and keeps at least as many copies as the platform keeps backups (WF-EXP-0050). A
+      failure, of the backup or of its copy, is reported on the status screen (WF-ADM-0170,
+      WF-OBS-0030). Under the permission to modify the backups (`backups.write`, WF-ADM-0100).
+      Refused while a restore is running, like any other write to the backups
+      (`startRestore`): the restore keeps the schedule, the retention and the external copy,
+      which it reads back before the databases are replaced and rewrites after, and a setting
+      made in the meantime would be lost (WF-ADM-0160, WF-EXP-0040; author's decision of
       2026-11-01, #1742).
     requestBody:
       required: true
@@ -352,7 +348,7 @@
           schema: { $ref: ../components/schemas/platform.yaml#/BackupSchedule }
     responses:
       '200':
-        description: Planification enregistrée.
+        description: Schedule recorded.
         content:
           application/json:
             schema: { $ref: ../components/schemas/platform.yaml#/BackupSchedule }
@@ -363,9 +359,9 @@
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '409':
         description: >-
-          Une restauration s'exécute, qui relit la planification avant de remplacer les bases et
-          la réécrit après : `STATE_FORBIDS_OPERATION`, `params.missing_condition` nommant
-          `no_restore_running` ; rien n'est écrit (WF-ADM-0160, WF-EXP-0040).
+          A restore is running, which reads the schedule back before replacing the databases
+          and rewrites it after: `STATE_FORBIDS_OPERATION`, `params.missing_condition` naming
+          `no_restore_running`; nothing is written (WF-ADM-0160, WF-EXP-0040).
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
@@ -374,17 +370,16 @@
       '412': { $ref: ../components/responses.yaml#/PreconditionFailed }
       '422':
         description: >-
-          Une planification refusée, `VALIDATION_FAILED`, `fields` désignant chaque champ en
-          défaut : une rétention hors de 1 à 365, sur la plateforme (`/retained_count`) ou sur
-          l'emplacement (`/external_copy/retained_count`), ou un jour hors de 1 à 7
-          (`/weekday`), `VALUE_OUT_OF_RANGE`, `params.minimum` ou `maximum` la seule borne
-          franchie (WF-ADM-0170) ; un jour nul pour une planification hebdomadaire, `/weekday`
-          par `VALUE_REQUIRED`, ou donné à une quotidienne, `/weekday` par le motif
-          `VALIDATION_FAILED` ; et, pour la
-          copie externe, un emplacement que l'installation ne déclare pas
-          (`/external_copy/location`, `UNKNOWN_EXTERNAL_BACKUP_LOCATION`), un chemin qui n'est
-          pas relatif ou qui sort du dossier (`/external_copy/path`, `PATH_INVALID`), une
-          rétention moindre que celle de la plateforme (`/external_copy/retained_count`,
+          A refused schedule, `VALIDATION_FAILED`, `fields` designating each faulty field: a
+          retention outside 1 to 365, on the platform (`/retained_count`) or on the location
+          (`/external_copy/retained_count`), or a day outside 1 to 7 (`/weekday`),
+          `VALUE_OUT_OF_RANGE`, `params.minimum` or `maximum` the only bound crossed
+          (WF-ADM-0170); a null day for a weekly schedule, `/weekday` by `VALUE_REQUIRED`, or
+          one given to a daily schedule, `/weekday` with the reason `VALIDATION_FAILED`; and,
+          for the external copy, a location the installation does not declare
+          (`/external_copy/location`, `UNKNOWN_EXTERNAL_BACKUP_LOCATION`), a path that is not
+          relative or that leaves the folder (`/external_copy/path`, `PATH_INVALID`), a
+          retention lower than the platform's (`/external_copy/retained_count`,
           `VALUE_OUT_OF_RANGE`, `params.minimum`, WF-EXP-0050).
         content:
           application/problem+json:
@@ -403,17 +398,17 @@
   get:
     operationId: listExternalBackupLocations
     tags: [platform]
-    summary: Emplacements externes des sauvegardes
+    summary: External backup locations
     description: >-
-      Les emplacements où une sauvegarde planifiée peut être copiée automatiquement
-      (WF-ADM-0170), tels que l'installation les déclare dans sa configuration de
-      déploiement, dans l'ordre de leurs noms : leur nom, leur nature et leur description,
-      jamais leurs identifiants ni aucun secret. Le serveur les atteint seul. Aucune opération
-      ne les crée ni ne les modifie : leur déclaration est une affaire d'exploitation.
-      Lisible sous la permission de consulter les sauvegardes (`backups.read`, WF-ADM-0100).
+      The locations to which a scheduled backup can be copied automatically (WF-ADM-0170), as
+      the installation declares them in its deployment configuration, in the order of their
+      names: their name, their kind and their description, never their credentials nor any
+      secret. Only the server reaches them. No operation creates or modifies them: declaring
+      them is a matter for operations. Readable under the permission to view the backups
+      (`backups.read`, WF-ADM-0100).
     responses:
       '200':
-        description: Emplacements déclarés ; une liste vide quand l'installation n'en déclare aucun.
+        description: Declared locations; an empty list when the installation declares none.
         content:
           application/json:
             schema:
@@ -431,15 +426,15 @@
   post:
     operationId: testExternalBackupLocation
     tags: [platform]
-    summary: Éprouver un emplacement externe des sauvegardes
+    summary: Test an external backup location
     description: >-
-      Le serveur écrit puis efface un fichier témoin dans l'emplacement, à sa racine ou dans
-      le dossier donné, avec les identifiants de la configuration, et rend l'issue : réussie,
-      ou le motif de l'échec, en code (WF-ADM-0170, WF-ARC-0110). Rien n'est conservé : le
-      test n'a pas d'état, et un échec n'est pas une alerte, que seule une copie planifiée
-      déclenche (WF-OBS-0030). Le test attend un emplacement qui ne répond pas trente secondes
-      au plus, et dit leur dépassement comme un échec (`timed_out`). Sous la permission de modifier les
-      sauvegardes (`backups.write`, WF-ADM-0100).
+      The server writes then erases a witness file in the location, at its root or in the
+      given folder, with the credentials of the configuration, and returns the outcome:
+      succeeded, or the reason for the failure, as a code (WF-ADM-0170, WF-ARC-0110). Nothing
+      is kept: the test has no state, and a failure is not an alert, which only a scheduled
+      copy triggers (WF-OBS-0030). The test waits for a location that does not answer for
+      thirty seconds at most, and reports exceeding them as a failure (`timed_out`). Under the
+      permission to modify the backups (`backups.write`, WF-ADM-0100).
     parameters:
       - $ref: ../components/parameters.yaml#/ExternalBackupLocationName
     requestBody:
@@ -449,7 +444,7 @@
           schema: { $ref: ../components/schemas/platform.yaml#/ExternalBackupLocationTestRequest }
     responses:
       '200':
-        description: Issue du test, réussi ou non.
+        description: Outcome of the test, succeeded or not.
         content:
           application/json:
             schema: { $ref: ../components/schemas/platform.yaml#/ExternalBackupLocationTest }
@@ -461,15 +456,15 @@
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404':
         description: >-
-          Emplacement que l'installation ne déclare pas, ou lecture des sauvegardes refusée,
-          sans distinction (WF-ADM-0110).
+          A location the installation does not declare, or reading the backups refused,
+          without distinction (WF-ADM-0110).
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
       '422':
         description: >-
-          Un dossier qui n'est pas relatif ou qui sort de l'emplacement : `VALIDATION_FAILED`,
-          `fields` désignant `/path` par `PATH_INVALID`.
+          A folder that is not relative or that leaves the location: `VALIDATION_FAILED`,
+          `fields` designating `/path` by `PATH_INVALID`.
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
@@ -482,56 +477,52 @@
   post:
     operationId: startRestore
     tags: [platform]
-    summary: Restaurer la plateforme
+    summary: Restore the platform
     description: >-
-      Remplace l'intégralité des deux bases de la plateforme, Waterfall et fournisseur
-      d'identité, par leur contenu sauvegardé, et n'est appliquée qu'après confirmation
-      (WF-ADM-0160, WF-DAT-0130). Ne porte jamais sur un projet isolé. Le journal d'audit reste
-      en place, et la restauration s'y inscrit (WF-ADM-0160, WF-SEC-0030). Sous la permission de
-      restaurer la plateforme (`platform_restore`). Une sauvegarde de la liste se restaure comme
-      sa commande `restore` le dit d'avance (`BackupCommand`, WF-IHM-0090) : vérifiée, et aucune
-      sauvegarde ni restauration en cours — sinon 409. Une archive d'une version plus récente que
-      l'installation est refusée par la tâche, non par cette requête, qui ne lit pas l'archive :
-      la tâche échoue (`BackgroundTaskRef.problem`, `BACKUP_FROM_NEWER_VERSION`,
-      `params.backup_version` et `params.installed_version`) avant la mise en maintenance, donc
-      sans qu'aucune session soit fermée ni rien écrit. Une sauvegarde déposée n'est vérifiée
-      qu'ici, par la restauration même, avant la mise en maintenance — la vérification qu'une
-      sauvegarde de la liste a passée après sa production (WF-ADM-0150), qui confirme aussi
-      l'instant que le dépôt a lu (`backup_taken_at`) : une archive qui ne la passe pas fait
-      échouer la tâche (`failed`), son `problem` à `STATE_FORBIDS_OPERATION`,
-      `params.missing_condition` à `backup_verified`, comme une sauvegarde de la liste non
-      vérifiée ; aucune session n'est fermée, aucune base remplacée. Le dépôt qu'une restauration
-      acceptée désigne est gardé jusqu'à la fin de sa tâche, même au-delà de son jour
-      (WF-DAT-0120). La tâche (`BackgroundTaskRef.kind` à
-      `restore`) met ensuite la plateforme en maintenance : toutes les sessions
-      sont fermées et l'API répond 503 `COMPONENT_UNAVAILABLE` jusqu'à la fin de la restauration
-      — bases recréées, migrations postérieures à la sauvegarde appliquées, caches vidés — ; la
-      maintenance n'est levée qu'une fois la tâche passée à `succeeded` et la restauration
-      inscrite, et une restauration interrompue reprend depuis le début (WF-ARC-0090). Pendant la maintenance, la tâche n'est
-      pas lisible : `getLiveness` dit la maintenance et sa levée (#604). La confirmation nomme la
-      date de la sauvegarde : `acknowledged_backup_taken_at` est celle de la sauvegarde désignée
-      — celle que la liste donne (`Backup.taken_at`), ou, pour une sauvegarde déposée, celle que
-      le dépôt a lue dans son manifeste (`FileUpload.backup_taken_at`) —, et une autre date est
-      une confirmation qui ne la nomme pas, refusée par 400 `CONFIRMATION_REQUIRED` ; une
-      sauvegarde ou un dépôt inconnus, 404 ; une restauration déjà en file ou en cours, ou une
-      sauvegarde de la liste que sa commande `restore` dit indisponible, 409
-      `STATE_FORBIDS_OPERATION`. Pendant qu'une restauration s'exécute, de sa mise en file à la
-      mise en maintenance, toute autre écriture des sauvegardes est refusée de même par 409 — en
-      déclencher une (`startBackup`), en marquer une (`retainBackup`), en régler la
-      planification (`setBackupSchedule`), en restaurer une autre — ;
-      le téléchargement d'une sauvegarde vérifiée (`downloadBackup`) reste possible. Les tâches
-      restaurées encore en file ou
-      en cours échouent par `TASK_INTERRUPTED_BY_RESTORE`, sans reprendre (#892), sauf celles que
-      la restauration garde — la sienne, celles des sauvegardes —, qui reprennent l'état gardé
-      (#987) ; la liste des
-      sauvegardes et le journal d'audit gardent ce qu'ils tenaient avant la restauration (#893,
-      #894), et de même la planification, la rétention et la copie externe qui gouvernent la
-      liste, relues avant le remplacement des bases et réécrites après lui : `getBackupSchedule`
-      lit après la restauration la planification d'avant (WF-ADM-0160 ; décision de l'auteur du
-      2026-11-01, #1742). Le royaume du fournisseur d'identité garde la configuration de
-      l'installation qui restaure — ses clients et ses adresses — ; ses comptes et leurs mots de
-      passe sont ceux de
-      la sauvegarde (#955).
+      Replaces the whole of the platform's two databases, Waterfall and identity provider, with
+      their backed-up content, and is applied only after confirmation (WF-ADM-0160,
+      WF-DAT-0130). Never applies to a single project. The audit log stays in place, and the
+      restore is recorded in it (WF-ADM-0160, WF-SEC-0030). Under the permission to restore
+      the platform (`platform_restore`). A backup from the list is restored as its `restore`
+      command says in advance (`BackupCommand`, WF-IHM-0090): verified, and no backup or
+      restore in progress — otherwise 409. An archive from a version more recent than the
+      installation is refused by the task, not by this request, which does not read the
+      archive: the task fails (`BackgroundTaskRef.problem`, `BACKUP_FROM_NEWER_VERSION`,
+      `params.backup_version` and `params.installed_version`) before the switch to
+      maintenance, hence without any session being closed or anything written. An uploaded
+      backup is verified only here, by the restore itself, before the switch to maintenance —
+      the verification a backup from the list has passed after it was produced (WF-ADM-0150),
+      which also confirms the instant the upload read (`backup_taken_at`): an archive that
+      does not pass it makes the task fail (`failed`), its `problem` set to
+      `STATE_FORBIDS_OPERATION`, `params.missing_condition` set to `backup_verified`, like an
+      unverified backup from the list; no session is closed, no database replaced. The upload
+      that an accepted restore designates is kept until the end of its task, even beyond its
+      day (WF-DAT-0120). The task (`BackgroundTaskRef.kind` set to `restore`) then puts the
+      platform in maintenance: all sessions are closed and the API answers 503
+      `COMPONENT_UNAVAILABLE` until the end of the restore — databases recreated, migrations
+      later than the backup applied, caches emptied —; the maintenance is lifted only once the
+      task has moved to `succeeded` and the restore has been recorded, and an interrupted
+      restore resumes from the start (WF-ARC-0090). During the maintenance, the task cannot be
+      read: `getLiveness` reports the maintenance and its lifting (#604). The confirmation
+      names the date of the backup: `acknowledged_backup_taken_at` is that of the designated
+      backup — the one the list gives (`Backup.taken_at`), or, for an uploaded backup, the one
+      the upload read in its manifest (`FileUpload.backup_taken_at`) —, and another date is a
+      confirmation that does not name it, refused with 400 `CONFIRMATION_REQUIRED`; an unknown
+      backup or upload, 404; a restore already queued or in progress, or a backup from the
+      list whose `restore` command says it is unavailable, 409 `STATE_FORBIDS_OPERATION`.
+      While a restore is running, from its queuing to the switch to maintenance, every other
+      write to the backups is likewise refused with 409 — starting one (`startBackup`),
+      marking one (`retainBackup`), setting their schedule (`setBackupSchedule`), restoring
+      another —; downloading a verified backup (`downloadBackup`) remains possible. The
+      restored tasks still queued or in progress fail with `TASK_INTERRUPTED_BY_RESTORE`,
+      without resuming (#892), except those the restore keeps — its own, those of the backups
+      —, which resume the kept state (#987); the list of backups and the audit log keep what
+      they held before the restore (#893, #894), and likewise the schedule, the retention and
+      the external copy that govern the list, read back before the databases are replaced and
+      rewritten after: `getBackupSchedule` reads, after the restore, the schedule from before
+      (WF-ADM-0160; author's decision of 2026-11-01, #1742). The identity provider's realm
+      keeps the configuration of the installation that restores — its clients and its
+      addresses —; its accounts and their passwords are those of the backup (#955).
     requestBody:
       required: true
       content:
@@ -539,7 +530,7 @@
           schema: { $ref: ../components/schemas/platform.yaml#/RestoreRequest }
     responses:
       '202':
-        description: Restauration mise en file.
+        description: Restore queued.
         content:
           application/json:
             schema: { $ref: ../components/common.yaml#/BackgroundTaskRef }
@@ -547,11 +538,11 @@
               queued: { $ref: ../../../fixtures/api/task_restore_queued.json }
       '400':
         description: >-
-          Requête mal formée (`MALFORMED_REQUEST`), ou une restauration non confirmée
-          (`CONFIRMATION_REQUIRED`, WF-ADM-0160) : `confirmed` absent ou faux, ou une confirmation
-          qui ne nomme pas la date de la sauvegarde désignée, de la liste (`Backup.taken_at`) ou
-          déposée (`FileUpload.backup_taken_at`) — la confirmation est une seule chose. Rien n'est
-          mis en file.
+          Malformed request (`MALFORMED_REQUEST`), or an unconfirmed restore
+          (`CONFIRMATION_REQUIRED`, WF-ADM-0160): `confirmed` absent or false, or a confirmation
+          that does not name the date of the designated backup, from the list
+          (`Backup.taken_at`) or uploaded (`FileUpload.backup_taken_at`) — the confirmation is
+          a single thing. Nothing is queued.
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
@@ -562,12 +553,12 @@
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404':
         description: >-
-          Une sauvegarde que la liste n'a pas (`backup_id`), ou que l'appelant ne peut pas lire
-          faute de la permission de consulter les sauvegardes, ou un dépôt inconnu ou expiré
-          (`external_backup_upload_id`) — un dépôt ne vit qu'un jour (WF-DAT-0120) — :
-          `NOT_FOUND`, sans paramètre ni `fields`, comme pour l'ouverture d'un import
-          (`openImport`) ; le refus ne distingue pas l'objet inconnu de l'objet disparu ni de
-          l'objet que l'appelant ne voit pas (WF-ADM-0110). Rien n'est mis en file.
+          A backup the list does not have (`backup_id`), or that the caller cannot read for
+          lack of the permission to view the backups, or an unknown or expired upload
+          (`external_backup_upload_id`) — an upload lives only one day (WF-DAT-0120) —:
+          `NOT_FOUND`, without parameters or `fields`, as for opening an import (`openImport`);
+          the refusal does not distinguish the unknown object from the vanished object nor from
+          the object the caller does not see (WF-ADM-0110). Nothing is queued.
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
@@ -575,12 +566,12 @@
               upload_expired: { $ref: ../../../fixtures/api/restore_not_found.json }
       '409':
         description: >-
-          Un état qui interdit la restauration : `STATE_FORBIDS_OPERATION`,
-          `params.missing_condition` nommant la condition que la commande `restore` de la
-          sauvegarde disait manquante (`BackupCommand`) — `backup_verified`, la sauvegarde
-          désignée n'étant pas vérifiée, en attente ou échouée (WF-ADM-0150) ;
-          `no_backup_running`, une sauvegarde s'exécutant ; `no_restore_running`, une
-          restauration déjà en file ou en cours (WF-ADM-0160). Rien n'est mis en file.
+          A state that forbids the restore: `STATE_FORBIDS_OPERATION`,
+          `params.missing_condition` naming the condition that the backup's `restore` command
+          reported as missing (`BackupCommand`) — `backup_verified`, the designated backup not
+          being verified, pending or failed (WF-ADM-0150); `no_backup_running`, a backup
+          running; `no_restore_running`, a restore already queued or in progress (WF-ADM-0160).
+          Nothing is queued.
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
@@ -590,13 +581,13 @@
               restore_running: { $ref: ../../../fixtures/api/restore_during_restore_refused.json }
       '422':
         description: >-
-          Un dépôt qui n'a pas été fait pour une restauration — le fichier d'un import
-          (`FileUploadPurpose`) — : `VALIDATION_FAILED`, `fields` désignant
-          `/external_backup_upload_id` par `UPLOAD_PURPOSE_MISMATCH`, seul : la date ne se
-          compare qu'à un dépôt de sauvegarde, le dépôt d'un import n'en ayant pas
-          (`backup_taken_at` nul). Une requête qui désigne deux sauvegardes, de la liste et
-          déposée, `/external_backup_upload_id` par le motif `VALIDATION_FAILED` ; qui n'en désigne
-          aucune, `/backup_id` par `VALUE_REQUIRED` (`RestoreRequest`). Rien n'est mis en file.
+          An upload that was not made for a restore — the file of an import
+          (`FileUploadPurpose`) —: `VALIDATION_FAILED`, `fields` designating
+          `/external_backup_upload_id` by `UPLOAD_PURPOSE_MISMATCH`, alone: the date is compared
+          only with a backup upload, the upload of an import having none (`backup_taken_at`
+          null). A request that designates two backups, from the list and uploaded,
+          `/external_backup_upload_id` with the reason `VALIDATION_FAILED`; one that designates
+          none, `/backup_id` by `VALUE_REQUIRED` (`RestoreRequest`). Nothing is queued.
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
