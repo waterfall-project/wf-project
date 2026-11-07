@@ -30,6 +30,7 @@ import { expect, type Locator, type Page, test } from "@playwright/test";
 
 import { compileAnswered } from "../compile";
 import { openMenu, WORKING } from "../hydration";
+import { isServerAction } from "../server-action";
 import type { components } from "../../src/api/generated/schema";
 import { heldToTheContract } from "./contract";
 import {
@@ -99,16 +100,26 @@ async function choose(list: Locator, text: string): Promise<void> {
 
 /**
  * Deactivate an object from its row, on a page read at an address, pressed again until React
- * answers and never once the row offers nothing to deactivate. A cleanup: told if it fails, never
- * thrown — it would hide the error of the path that brought us here (#963).
+ * answers and never once the row offers nothing to deactivate; the answer of the service awaited.
+ * A cleanup: told if it fails, never thrown — it would hide the error of the path that brought us
+ * here (#963).
  */
 async function deactivate(page: Page, address: string, label: string): Promise<void> {
   try {
     await page.goto(address);
     const command = page.getByRole("button", { name: `Désactiver ${quoted(label)}` });
+    // The row first: a page read has not always drawn its commands, and a command not seen yet is
+    // not a command done — the deactivation would be skipped, and the object left active.
+    await expect(command).toBeVisible({ timeout: WORKING });
     await expect(async () => {
       if (await command.isVisible()) {
+        // The answer of the action awaited: the row hides at once, and the next page read would
+        // abandon the request before the service has kept the deactivation.
+        const answered = page.waitForResponse((response) => isServerAction(response.request()), {
+          timeout: 5_000,
+        });
         await command.click({ timeout: 1_000 });
+        expect((await answered).status()).toBe(200);
       }
       await expect(command).toBeHidden({ timeout: 1_000 });
     }).toPass({ timeout: WORKING });
@@ -394,9 +405,8 @@ test(
       if (made.includes("node")) {
         await deactivate(page, `${RESOURCES}?org_search=${node.code}`, node.label);
       }
-      if (made.includes("category")) {
-        await deactivate(page, COSTS, category.label);
-      }
+      // The category is not deactivated by itself: its nature takes it with it (WF-REF-0010-A), and
+      // the list of the categories, paged, may not show it.
       if (made.includes("nature")) {
         await deactivate(page, COSTS, nature.label);
       }
