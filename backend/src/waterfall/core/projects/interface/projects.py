@@ -457,6 +457,22 @@ def project_code(session: Session, project_id: UUID) -> str | None:
     return session.scalar(select(Project.code).where(Project.id == project_id))
 
 
+def projects_named(
+    session: Session, project_ids: Collection[UUID]
+) -> dict[UUID, tuple[str | None, str]]:
+    """Give the code and the label of the day of each of these projects that exists, in one read.
+
+    The code is ``None`` for a project that has none; an identifier of no project is absent from
+    the result (#927, #2165).
+    """
+    if not project_ids:
+        return {}
+    rows = session.execute(
+        select(Project.id, Project.code, Project.label).where(Project.id.in_(project_ids))
+    )
+    return {project_id: (code, label) for project_id, code, label in rows}
+
+
 def projects_present(session: Session, project_ids: Collection[UUID]) -> frozenset[UUID]:
     """Keep, of the identifiers given, those of the projects that exist: the witness's question."""
     if not project_ids:
