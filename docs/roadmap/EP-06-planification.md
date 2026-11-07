@@ -635,7 +635,7 @@ remplis (#2180).
 ### Le harnais
 
 Chaque US étiquette `@shared` les tests dont l'écran est servi : US-1400 `timelines.spec.ts` ;
-US-1430 `exchanges.spec.ts` et `tasks.spec.ts` ; US-1440 l'arborescence de `planning.spec.ts` ;
+US-1430 `exchanges.spec.ts` et `tasks.spec.ts` ; US-1440 `task-tree.spec.ts` ;
 US-1450 `undo.spec.ts` et `paste.spec.ts` pour le planning ; US-1460 les étapes du squelette de
 `project-start.spec.ts` (`BEFORE_EP06` levé) ; US-1470 `planning.spec.ts`, `structure.spec.ts`,
 `computed.spec.ts`, `keyboard.spec.ts`, la part du planning de `grid.spec.ts` et de
@@ -1333,7 +1333,7 @@ présenter la structure du projet sans ses détails.
 - propre à l'US : l'image porte le libellé du projet, de la révision et la date de calcul, dans
   la langue du compte demandeur (WF-ARC-0110) ; l'écran de l'arborescence (`…/task-tree`)
   travaille contre le service, offre l'export sous `export_task_tree_image`, et son parcours
-  (`planning.spec.ts`, l'arborescence) porte `@shared` ; chaque réponse est validée contre le
+  (`task-tree.spec.ts`) porte `@shared` ; chaque réponse est validée contre le
   contrat dans les tests du service.
 
 **Notes de réalisation.** La bibliothèque d'image du worker se fixe à la conception. Le témoin
