@@ -161,10 +161,10 @@ describe("the attachment of an account, in its cell", () => {
     );
     expect(listOf("Lucas Petit")).toHaveValue(inactive.org_node_id);
     for (const name of ["Lucas Petit", "Alix Moreau"]) {
-      // The exact text of the option, never a pattern made of a code that may hold a special sign.
+      // A string name matches the whole text of the option, where a pattern made of a code could
+      // hold a special sign.
       const option = within(listOf(name)).getByRole("option", {
         name: `${inactive.code} · ${inactive.label}`,
-        exact: true,
       });
       expect(option).toBeEnabled();
     }
