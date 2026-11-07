@@ -12,6 +12,11 @@
  * update would apply to — the rate update the API proposes. The ergonomics gathers the leaves of
  * the function on one screen.
  *
+ * The service serves the history, the revision, its structures, its opening and its abandonment
+ * (`listRevisions`, `getRevision`, `listCostStructures`, `createRevision`, `abandonRevision`,
+ * US-0960): the screen shows no note of the mock-up. The comparison and the rate update are served
+ * by EP-07.
+ *
  * The report of the import the address names (`?import=`, which the screen of the project carries
  * here when no revision is readable) stands above the history, as on the screen of the project
  * (`readShownImport`, #1922); an address without it is read as before.
@@ -42,7 +47,6 @@ import {
 import { ReferenceDesignation, RevisionHistory } from "@/components/revisions/revision-history";
 import { CostStructureList, RateUpdate } from "@/components/revisions/revision-parts";
 import { FUNCTION_DENSITY, FUNCTION_ICONS } from "@/components/shell/function-display";
-import { MockupNotice } from "@/components/shell/mockup-notice";
 import { PageHeader, Screen } from "@/components/shell/page-header";
 import { contextAddress, pageSearch, type ProjectContext } from "@/navigation/context";
 import { requestSession } from "@/session/request";
@@ -158,7 +162,6 @@ export default async function RevisionsPage(props: ProjectPageProps) {
       <ContextBanner reading={read} difference={difference} />
       <Screen density={FUNCTION_DENSITY.revisions}>
         <RevisionsHeader revision={read.revision} project={read.project} context={read.context} />
-        <MockupNotice lists />
         {shown === undefined ? null : (
           <ImportReport
             key={shown.import_id}

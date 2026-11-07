@@ -6,9 +6,26 @@
 with the quality on its project each asks for besides (``ON_PROJECT``, declared by US-0910/L2).
 """
 
-# The permissions each operation asks for, in the order they are evaluated.
-ASKED: dict[str, tuple[str, ...]] = {}
+CONSULT = "revisions.read"
+
+# The permissions each operation asks for, in the order they are evaluated: the history, a
+# revision and its structures are read by the holder of the permission to consult the revisions,
+# a revision is opened by the holder of the permission to manage them, and abandoned by the holder
+# of the permission of its own, a structuring action (WF-ADM-0100).
+ASKED: dict[str, tuple[str, ...]] = {
+    "listRevisions": (CONSULT,),
+    "createRevision": (CONSULT, "revisions.write"),
+    "getRevision": (CONSULT,),
+    "abandonRevision": (CONSULT, "revision_abandon"),
+    "listCostStructures": (CONSULT,),
+}
 # The quality on its project each operation that names one asks for, evaluated by
 # ``RequiresProject``: ``consultation`` — its contributor, or holding ``all_projects_read`` —,
 # ``contributor``, the quality a write asks for, or ``project_manager`` (WF-ADM-0110, WF-PRJ-0060).
-ON_PROJECT: dict[str, str] = {}
+ON_PROJECT: dict[str, str] = {
+    "listRevisions": "consultation",
+    "createRevision": "contributor",
+    "getRevision": "consultation",
+    "abandonRevision": "project_manager",
+    "listCostStructures": "consultation",
+}

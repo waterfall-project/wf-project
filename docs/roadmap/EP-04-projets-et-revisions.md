@@ -480,7 +480,8 @@ textes triés en collation `C`, cherchés par `contains` ; règles SQL du guide 
   huit tables du projet, la table révisionnée partitionnée, la fonction
   `create_project_partitions(project_id)` du propriétaire avec `EXECUTE` au rôle du service, les
   déclencheurs, les droits et `SERVICE_RIGHTS`) ; les actions d'audit, qui étend la contrainte
-  `action_known` du journal à `project_create` et `revision_abandon`, comme `0011` l'a fait — le
+  `action_known` du journal à `project_create` et `revision_abandon`, comme `0011` l'a fait, et
+  étend aussi `object_labeled` au libellé nul de `revision_abandon` (#2161) — le
   contrat figé 1.0.0 les porte (#1577 pris). Aucune autre migration de données.
 - **La partition** : `create_project_partitions` crée `cost_structure_p_<uuid sans tirets>`
   `FOR VALUES IN (project_id)` ; chaque EPIC qui ajoute une table révisionnée la remplace
@@ -1027,7 +1028,7 @@ d'EP-06, rendu nul. L'écran est celui d'EP-02/L44c (#585) et d'EP-14/L44c.
 
 ## US-0960 — La révision en cours, son abandon, l'historique et les structures
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-REV-0010-A`, `WF-REV-0070-A`, `WF-REV-0090-A`, `WF-REV-0100-A`,
   `WF-DAT-0010-A`, `WF-REV-0030-A`
 - **opérations** : `listRevisions`, `createRevision`, `getRevision`, `abandonRevision`,

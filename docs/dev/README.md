@@ -3733,6 +3733,16 @@ hooks: a hook declared in a module that the files import is declared once in a w
 first of its files alone. A path whose assertion differs between the two — a write the fake back
 does not keep — reads `inService`.
 
+What a tagged path does not replay against the service yet is skipped by `inService`
+(`test.skip(inService, …)`), and listed here, each entry naming the epic that lifts it; that epic
+removes the guard and its entry:
+
+- `revisions.spec.ts` — the current revision and its parts, and the comparison, the volume's
+  included, and « Écarts seulement » (`BEFORE_EP07`): lifted by **EP-07**, which serves the
+  comparison (`compareRevisions`) and the rate update (`getRateUpdateProposal`), which the screen of
+  a current revision reads and without which it is not found; the marked revisions compared come
+  with US-0970 (EP-04). The history itself plays against the service from US-0960.
+
 A limit of the paths against the service: Prism, as a proxy of the contract, reads every body as
 text and alters binary bodies — every byte beyond `0x7f` of an `application/octet-stream` request or
 response becomes U+FFFD (#973, #1025). The paths therefore exercise neither

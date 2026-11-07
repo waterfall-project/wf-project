@@ -11,8 +11,10 @@ that writes in its current revision is queued or running, a condition of the com
 write in it or freeze it.
 
 Declared by US-0910/L1; US-0920/L1 fills the project, its list, its commands and its names for
-the journal, US-0970 the background task. ``load_project`` writes with the identifier and the
-instant the witness imposes, by the very rules of the creation (#1402).
+the journal, US-0960 what the revisions read of it and its current revision, which the module of
+the revisions names (``set_current_revision``), US-0970 the background task. ``load_project``
+writes with the identifier and the instant the witness imposes, by the very rules of the creation
+(#1402).
 """
 
 from contextlib import contextmanager
@@ -199,6 +201,29 @@ class ProjectView:
 
 
 @dataclass(frozen=True, slots=True)
+class ProjectFacts:
+    """What the revisions read of a project: its state, its current revision, its rates.
+
+    The rates are those a current revision follows until its marking (``Revision.inflation_rate``,
+    ``Revision.win_probability``).
+    """
+
+    state: str
+    current_revision_id: UUID | None
+    inflation_rate: Decimal
+    win_probability: Decimal
+
+
+def _facts(project: Project) -> ProjectFacts:
+    return ProjectFacts(
+        project.state,
+        project.current_revision_id,
+        project.inflation_rate,
+        project.win_probability,
+    )
+
+
+@dataclass(frozen=True, slots=True)
 class ProjectDraft:
     """What a project is created with: a label, and what the creator knows already."""
 
@@ -377,9 +402,39 @@ def list_projects(
     return ProjectList(_views(session, rows, viewer), total, retained_states(filters))
 
 
-def lock_project(session: Session, project_id: UUID) -> None:
-    """Lock the row of a project for the transaction, before it is read (``FOR UPDATE``); or 404."""
-    _locked(session, project_id)
+def lock_project(session: Session, project_id: UUID) -> ProjectFacts:
+    """Lock the row of a project for the transaction, then read it under the lock; or 404.
+
+    ``FOR UPDATE``: the creation of a revision decides on the state and the current revision read
+    here (EP-04, "Modules").
+    """
+    return _facts(_locked(session, project_id))
+
+
+def project_facts(session: Session, project_id: UUID) -> ProjectFacts:
+    """Read what the revisions read of a project, without a lock; or refuse (404)."""
+    project = session.get(Project, project_id)
+    if project is None:
+        raise NotFoundError(NOT_FOUND)
+    return _facts(project)
+
+
+def set_current_revision(
+    session: Session, project_id: UUID, revision_id: UUID | None, act: Act
+) -> None:
+    """Name the current revision of a project, ``None`` for none (WF-REV-0010); or 404.
+
+    The project is locked first, if its caller has not done so: the abandonment of a revision
+    and its marking hold the lock of the revision, then this one. The row of the project is
+    written, its counter and its audit with it, so that a screen that read it reads it again.
+    """
+    project = _locked(session, project_id)
+    if project.current_revision_id == revision_id:
+        return
+    project.current_revision_id = revision_id
+    project.updated_at = act.at
+    project.updated_by = act.author
+    project.lock_version += 1
 
 
 def project_commands(
