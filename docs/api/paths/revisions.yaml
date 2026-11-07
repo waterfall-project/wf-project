@@ -1868,6 +1868,8 @@
             examples:
               reopen_not_started_refused:
                 $ref: ../../../fixtures/api/task_reopen_not_started_refused.json
+              milestone_started_refused:
+                $ref: ../../../fixtures/api/task_progress_milestone_started_refused.json
       '412': { $ref: ../components/responses.yaml#/PreconditionFailed }
       '422':
         description: >-
@@ -2280,6 +2282,8 @@
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              marked: { $ref: ../../../fixtures/api/paste_marked_refused.json }
       '412':
         description: >-
           The counter sent is stale, or the structure has changed since the preview, whatever

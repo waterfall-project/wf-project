@@ -62,6 +62,8 @@ Conflict:
   content:
     application/problem+json:
       schema: { $ref: common.yaml#/Problem }
+      examples:
+        marked: { $ref: ../../../fixtures/api/grid_write_marked_refused.json }
 
 PreconditionFailed:
   description: >-
@@ -71,6 +73,8 @@ PreconditionFailed:
   content:
     application/problem+json:
       schema: { $ref: common.yaml#/Problem }
+      examples:
+        stale: { $ref: ../../../fixtures/api/stale_lock_version.json }
 
 LockVersionInvalid:
   description: >-

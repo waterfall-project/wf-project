@@ -34,6 +34,7 @@ CITED = (
     ("risks.yaml", "createRisk", "201", "risk_created"),
     ("risks.yaml", "updateRisk", "200", "risk_updated"),
     ("risks.yaml", "updateRisk", "200", "risk_updated_without_current_revision"),
+    ("risks.yaml", "updateRisk", "409", "risk_update_occurred_refused"),
     ("risks.yaml", "updateRiskProvision", "200", "risk_provision_moved"),
     ("risks.yaml", "reviewRisk", "201", "risk_reviewed"),
     ("risks.yaml", "reviewRisk", "201", "risk_dismissed"),
