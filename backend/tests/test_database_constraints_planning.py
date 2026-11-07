@@ -5,13 +5,17 @@
 The constraints of the eight tables of US-1380/L1, one refusal each, as
 ``test_database_constraints_projects.py`` tries those of EP-04; then the cascades the design decides
 inside a current revision, and the renumbering of siblings in one statement. Every row is written
-around the services of the modules, by the service (WF-DAT-0090).
+around the services of the modules, by the service (WF-DAT-0090). Each list of values the tables
+and the migration copy from an enumeration of the contract is compared with it, so that a value the
+contract adds is never refused by the database in silence.
 """
 
+import re
 from dataclasses import dataclass
 from datetime import date
 from decimal import Decimal
-from typing import TYPE_CHECKING
+from enum import StrEnum
+from typing import TYPE_CHECKING, get_args
 from uuid import UUID, uuid4
 
 import psycopg
@@ -22,9 +26,24 @@ from sqlalchemy import Engine, delete, func, insert, select, text, update
 from sqlalchemy.exc import IntegrityError
 from support import raw_account
 
-from waterfall.core.exchanges.tables import ImportReport
-from waterfall.core.history.tables import PastePlan, UndoEntry
-from waterfall.core.planning.tables import Node, Task, TaskLink, Timeline, TrackingEntry
+from waterfall.api.contract import models
+from waterfall.core.exchanges.interface import ExchangeKind, ExportKind
+from waterfall.core.exchanges.tables import EXCHANGE_KINDS, IMPORT_STATUSES, ImportReport
+from waterfall.core.history.interface import UndoneKind
+from waterfall.core.history.tables import NODE_COLUMNS, UNDONE_KINDS, PastePlan, UndoEntry
+from waterfall.core.planning.tables import (
+    DURATION_UNITS,
+    LAG_UNITS,
+    LINK_TYPES,
+    NODE_KINDS,
+    PROGRESSES,
+    SCHEDULING_MODES,
+    Node,
+    Task,
+    TaskLink,
+    Timeline,
+    TrackingEntry,
+)
 from waterfall.core.projects.tables import OrderItem, WorkPackage
 from waterfall.core.revisions.tables import CostStructure
 from waterfall.core.users.tables import UserAccount
@@ -465,3 +484,61 @@ def test_the_siblings_of_a_node_are_renumbered_in_one_statement(database: Databa
         connection.execute(update(Node).values(rank=Node.rank + 1))
         ranks = connection.execute(select(Node.rank).order_by(Node.rank)).scalars().all()
     assert list(ranks) == [2, 3]
+
+
+# Each list of values a table keeps, by the constraint of its column, and the enumeration of the
+# contract it copies (EP-06, "Tables et migrations").
+IMPORT_STATUS = models.Import.model_fields["status"].annotation
+assert isinstance(IMPORT_STATUS, type)
+assert issubclass(IMPORT_STATUS, StrEnum)
+ENUMERATIONS: list[tuple[str, str, tuple[str, ...], type[StrEnum]]] = [
+    ("node", "kind", NODE_KINDS, models.NodeKind),
+    ("task", "scheduling_mode", SCHEDULING_MODES, models.SchedulingMode),
+    ("task", "duration_unit", DURATION_UNITS, models.DurationUnit),
+    ("task", "progress", PROGRESSES, models.TaskProgress),
+    ("task_link", "link_type", LINK_TYPES, models.LinkType),
+    ("task_link", "lag_unit", LAG_UNITS, models.LagUnit),
+    ("undo_entry", "kind", UNDONE_KINDS, models.UndoneKind),
+    ("paste_plan", "target_column", NODE_COLUMNS, models.NodeColumn),
+    ("import_report", "kind", EXCHANGE_KINDS, models.ExchangeKind),
+    ("import_report", "status", IMPORT_STATUSES, IMPORT_STATUS),
+]
+
+
+@pytest.mark.parametrize(
+    ("table", "column", "kept", "enumeration"),
+    ENUMERATIONS,
+    ids=[f"{table}.{column}" for table, column, _, _ in ENUMERATIONS],
+)
+def test_each_list_of_values_of_the_tables_is_the_enumeration_of_the_contract(
+    database: Database, table: str, column: str, kept: tuple[str, ...], enumeration: type[StrEnum]
+) -> None:
+    # The code's list, and the one the migration wrote in the constraint, in the contract's order.
+    values = [member.value for member in enumeration]
+    with database.engine.connect() as connection:
+        definition = connection.scalar(
+            text(
+                "SELECT pg_get_constraintdef(oid) FROM pg_constraint "
+                "WHERE conname = :name AND conrelid = CAST(:table AS regclass)"
+            ),
+            {"name": f"ck_{table}_{column}_known", "table": table},
+        )
+    assert list(kept) == values
+    assert re.findall(r"'([^']*)'::text", str(definition)) == values
+
+
+@pytest.mark.parametrize(
+    ("declared", "enumeration"),
+    [
+        (UndoneKind, models.UndoneKind),
+        (ExchangeKind, models.ExchangeKind),
+        (ExportKind, models.ExportKind),
+    ],
+    ids=["UndoneKind", "ExchangeKind", "ExportKind"],
+)
+def test_each_kind_the_interfaces_declare_is_the_enumeration_of_the_contract(
+    declared: object, enumeration: type[StrEnum]
+) -> None:
+    assert list(get_args(getattr(declared, "__value__", None))) == [
+        member.value for member in enumeration
+    ]
