@@ -1,4 +1,4 @@
-# Coûts réels importés de l'ERP (FBS-4.7). Waterfall ne les produit pas (§2.2).
+# Actual costs imported from the ERP (FBS-4.7). Waterfall does not produce them (§2.2).
 
 ActualCostLine:
   type: object
@@ -16,74 +16,74 @@ ActualCostLine:
     - passthrough
     - audit
   description: >-
-    Ligne de coût réel. Quatre attributs significatifs ; les autres colonnes du
-    fichier sont conservées à titre d'information et n'entrent dans aucun calcul
-    (WF-CRE-0010). L'imputation est déduite de l'élément d'OTP (WF-CRE-0020).
+    Actual cost line. Four significant attributes; the other columns of the
+    file are kept for information and enter no computation
+    (WF-CRE-0010). The charging is deduced from the WBS element (WF-CRE-0020).
   properties:
     cost_line_id: { $ref: ../common.yaml#/Uuid }
     document_number:
       type: string
       description: >-
-        Numéro de pièce ; avec le poste, il identifie la ligne dans son projet et fonde
-        l'idempotence (WF-INTF-0140, WF-DAT-0110 ; D-4, EP-16/US-0630).
+        Document number; with the item, it identifies the line within its project and underpins
+        idempotence (WF-INTF-0140, WF-DAT-0110; D-4, EP-16/US-0630).
     document_item:
       anyOf: [{ type: string }, { type: 'null' }]
       description: >-
-        Numéro du poste de la ligne dans sa pièce, tel que l'extraction le porte (WF-CRE-0010) ;
-        nul quand l'extraction n'en donne pas — la correspondance ne déclare pas le poste, ou la
-        cellule est vide. Le projet, le numéro de pièce et le numéro de poste identifient la
-        ligne (D-4) : une facture ventilée sur deux éléments d'OTP, en deux postes de la même
-        pièce, donne deux lignes (WF-INTF-0140). Un poste nul est une valeur comme une autre :
-        deux lignes de la même pièce sans poste sont la même ligne.
+        Number of the line's item within its document, as the extraction carries it
+        (WF-CRE-0010); null when the extraction gives none — the mapping does not declare the
+        item, or the cell is empty. The project, the document number and the item number
+        identify the line (D-4): an invoice split over two WBS elements, as two items of the
+        same document, gives two lines (WF-INTF-0140). A null item is a value like any other:
+        two lines of the same document without an item are the same line.
     document_date: { $ref: ../common.yaml#/PlanningDate }
     amount:
       allOf: [{ $ref: ../common.yaml#/Money }]
-      description: Montant signé ; un montant négatif diminue le coût réel (WF-CRE-0010).
+      description: Signed amount; a negative amount decreases the actual cost (WF-CRE-0010).
     project_id: { $ref: ../common.yaml#/Uuid }
     subproject_id:
       anyOf: [{ $ref: ../common.yaml#/Uuid }, { type: 'null' }]
       description: >-
-        Le sous-projet imputé ; nul lorsque la ligne est imputée au seul projet, donc « hors
-        sous-projet » — sans partie sous-projet dans son élément d'OTP, ou avec un code qu'aucun
-        sous-projet du projet ne porte (WF-CRE-0020).
+        The subproject charged; null when the line is charged to the project alone, hence
+        "hors sous-projet" — without a subproject part in its WBS element, or with a code that no
+        subproject of the project bears (WF-CRE-0020).
     subproject_code:
       anyOf: [{ type: string, maxLength: 50 }, { type: 'null' }]
       description: >-
-        Le code de sous-projet lu dans l'élément d'OTP de la ligne, conservé tel quel, qu'il
-        corresponde ou non à un sous-projet déclaré (WF-CRE-0010) : toujours renseigné quand
-        l'OTP en donne un, nul seulement pour une ligne sans partie sous-projet. Une ligne au
-        code inconnu est imputée au seul projet (`subproject_id` nul) et présentée avec son code
-        (WF-CRE-0020) ; c'est par ce code que la création du sous-projet lui impute aussitôt les
-        lignes qui l'attendaient, et qu'un réimport qui change l'élément d'OTP recalcule son
-        imputation — un écart `updated` du compte rendu sur la colonne `subproject`
-        (`ActualCostColumn`, WF-INTF-0140). Il garde sa borne de 50 caractères : celle de 31 et le
-        motif d'un sous-projet déclaré (`DeclaredSubprojectCode`) ne valent qu'à l'écriture d'un
-        sous-projet (EP-16/US-0610).
+        The subproject code read in the line's WBS element, kept as is, whether or not it
+        matches a declared subproject (WF-CRE-0010): always filled in when the WBS element gives
+        one, null only for a line without a subproject part. A line with an unknown code is
+        charged to the project alone (`subproject_id` null) and presented with its code
+        (WF-CRE-0020); it is through this code that the creation of the subproject immediately
+        charges to it the lines that were waiting for it, and that a re-import that changes the
+        WBS element recomputes its charging — an `updated` difference of the report on the
+        `subproject` column (`ActualCostColumn`, WF-INTF-0140). It keeps its bound of 50
+        characters: the bound of 31 and the pattern of a declared subproject
+        (`DeclaredSubprojectCode`) apply only when a subproject is written (EP-16/US-0610).
     subproject_label:
       anyOf: [{ type: string }, { type: 'null' }]
       description: >-
-        Libellé du sous-projet imputé, résolu à la lecture ; nul pour une ligne hors
-        sous-projet, code inconnu compris.
+        Label of the charged subproject, resolved at read time; null for a line outside any
+        subproject, unknown code included.
     is_in_tracked_scope:
       type: boolean
-      description: Faux pour une ligne exclue, qui reste consultable et n'entre dans aucun indicateur (WF-CRE-0030).
+      description: False for an excluded line, which remains viewable and enters no indicator (WF-CRE-0030).
     excluded_reason:
       anyOf: [{ type: string }, { type: 'null' }]
       description: >-
-        Le motif de l'exclusion, tel que l'utilisateur l'a saisi ; nul pour une ligne suivie, ou
-        exclue sans motif (WF-CRE-0030). Toujours rendu.
+        The reason for the exclusion, as the user entered it; null for a tracked line, or one
+        excluded without a reason (WF-CRE-0030). Always returned.
     passthrough:
       type: object
       additionalProperties: { type: string }
       description: >-
-        Colonnes conservées du fichier, restituées à la consultation (WF-CRE-0010) ; toujours
-        rendu, vide pour une ligne qui n'en porte pas.
+        Kept columns of the file, returned when viewing (WF-CRE-0010); always
+        returned, empty for a line that carries none.
     audit: { $ref: ../common.yaml#/Audit }
 
 ActualCostListMeta:
   description: >-
-    La pagination de la consultation des coûts réels, et l'union des colonnes conservées
-    des fichiers de toutes les lignes retenues par les filtres, et non de la seule page
+    The pagination of the actual cost view, and the union of the kept columns of the files
+    of all the lines retained by the filters, and not of the page alone
     (WF-CRE-0010).
   allOf:
     - $ref: ../common.yaml#/PaginationMeta
@@ -95,16 +95,16 @@ ActualCostListMeta:
           uniqueItems: true
           items: { type: string }
           description: >-
-            Les colonnes conservées, nommées comme `passthrough` les nomme, chacune une fois :
-            dans l'ordre où les imports les ont déclarées — les imports dans l'ordre où ils ont
-            été appliqués, les colonnes d'un import dans l'ordre de son fichier, une colonne
-            à sa première déclaration. Une ligne qui n'en porte pas l'une la présente vide ;
-            vide quand aucune ligne n'est retenue.
+            The kept columns, named as `passthrough` names them, each one once: in the order
+            in which the imports declared them — the imports in the order in which they were
+            applied, the columns of an import in the order of its file, a column at its first
+            declaration. A line that does not carry one of them presents it empty; empty when
+            no line is retained.
 
 ActualCostTotals:
   type: object
   required: [tracked, excluded, overall]
-  description: Les trois totaux de la consultation (WF-CRE-0040).
+  description: The three totals of the view (WF-CRE-0040).
   properties:
     tracked: { $ref: ../common.yaml#/Money }
     excluded: { $ref: ../common.yaml#/Money }
@@ -114,8 +114,8 @@ ScopeExclusion:
   type: object
   required: [is_in_tracked_scope]
   description: >-
-    Exclut ou réintègre une ligne. L'exclusion est conservée lors des imports
-    ultérieurs, même quand les périodes se recouvrent (WF-CRE-0030).
+    Excludes or reinstates a line. The exclusion is kept through later
+    imports, even when the periods overlap (WF-CRE-0030).
   properties:
     is_in_tracked_scope: { type: boolean }
     reason:
@@ -134,34 +134,34 @@ CostImport:
     - unchanged_count
     - rejected_count
   description: >-
-    Entrée du journal des imports de coûts réels : de quand datent les chiffres qu'on lit, sa
-    date, son auteur, la période extraite et le nombre de lignes créées, mises à jour,
-    inchangées et rejetées (WF-CRE-0050).
+    Entry of the log of actual cost imports: how recent the figures being read are, its
+    date, its author, the extracted period and the number of lines created, updated,
+    unchanged and rejected (WF-CRE-0050).
   properties:
     cost_import_id: { $ref: ../common.yaml#/Uuid }
     imported_at: { $ref: ../common.yaml#/Timestamp }
     actor: { $ref: ../common.yaml#/ActorRef }
     period_from:
       anyOf: [{ $ref: ../common.yaml#/PlanningDate }, { type: 'null' }]
-      description: Le début de la période extraite ; nul quand l'import n'en a pas déclaré.
+      description: The start of the extracted period; null when the import declared none.
     period_to:
       anyOf: [{ $ref: ../common.yaml#/PlanningDate }, { type: 'null' }]
-      description: La fin de la période extraite, incluse ; nulle quand l'import n'en a pas déclaré.
+      description: The end of the extracted period, included; null when the import declared none.
     created_count:
       type: integer
       minimum: 0
-      description: Lignes dont la pièce et le poste n'étaient pas encore importés (WF-INTF-0140).
+      description: Lines whose document and item were not yet imported (WF-INTF-0140).
     updated_count:
       type: integer
       minimum: 0
-      description: Lignes déjà importées dont le fichier change une valeur (WF-INTF-0140).
+      description: Lines already imported of which the file changes a value (WF-INTF-0140).
     unchanged_count:
       type: integer
       minimum: 0
-      description: Lignes déjà importées, que le fichier porte à l'identique (WF-CRE-0050).
+      description: Lines already imported, which the file carries identically (WF-CRE-0050).
     rejected_count:
       type: integer
       minimum: 0
       description: >-
-        Lignes rejetées au compte rendu : un élément d'OTP mal formé ou d'un autre projet
-        (WF-CRE-0020), deux lignes de même pièce et de même poste (WF-INTF-0140).
+        Lines rejected in the report: a malformed WBS element or one of another project
+        (WF-CRE-0020), two lines with the same document and the same item (WF-INTF-0140).

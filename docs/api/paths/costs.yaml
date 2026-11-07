@@ -2,15 +2,14 @@
   get:
     operationId: listActualCosts
     tags: [actual-costs]
-    summary: Coûts réels du projet
+    summary: Actual costs of the project
     description: >-
-      Liste filtrable par sous-projet, par période et selon l'exclusion, avec le total du
-      périmètre suivi, le total exclu et le total général (WF-CRE-0040). Les colonnes
-      conservées du fichier sont restituées (WF-CRE-0010), ligne par ligne (`passthrough`),
-      et leur union nommée une fois pour toute la lecture (`meta.passthrough_columns`) : la
-      grille les présente toutes, à toutes les pages. Le tri et les filtres sont faits par
-      le serveur, et les totaux comme cette union sont ceux de toutes les lignes retenues,
-      pas de la seule page rendue.
+      List filterable by subproject, by period and by exclusion, with the total of the
+      tracked scope, the excluded total and the grand total (WF-CRE-0040). The kept columns of
+      the file are returned (WF-CRE-0010), line by line (`passthrough`), and their union named
+      once for the whole read (`meta.passthrough_columns`): the grid presents them all, on
+      every page. Sorting and filtering are done by the server, and the totals, like this
+      union, are those of all the lines retained, not of the page returned alone.
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
       - $ref: ../components/parameters.yaml#/Limit
@@ -19,32 +18,32 @@
       - name: from
         in: query
         description: >-
-          Le début de la période, sur la date de pièce (`document_date`), inclus (WF-CRE-0040).
+          The start of the period, on the document date (`document_date`), included (WF-CRE-0040).
         schema: { $ref: ../components/common.yaml#/PlanningDate }
       - name: to
         in: query
         description: >-
-          La fin de la période, sur la date de pièce, incluse ; une fin qui précède le début est
-          refusée par 422, `/query/to` par `VALUE_OUT_OF_RANGE`.
+          The end of the period, on the document date, included; an end that precedes the start
+          is refused with 422, `/query/to` with `VALUE_OUT_OF_RANGE`.
         schema: { $ref: ../components/common.yaml#/PlanningDate }
       - name: in_tracked_scope
         in: query
         description: >-
-          Vrai, les lignes suivies seules ; faux, les lignes exclues seules ; absent, toutes
-          (WF-CRE-0030, WF-CRE-0040).
+          When true, the tracked lines only; when false, the excluded lines only; when absent,
+          all of them (WF-CRE-0030, WF-CRE-0040).
         schema: { type: boolean }
       - name: sort_by
         in: query
         description: >-
-          Colonne du tri ; absente, les pièces les plus récentes d'abord. Chaque colonne de la
-          grille se trie (WF-IHM-0060). `in_tracked_scope` range dans l'ordre croissant les
-          lignes exclues avant les lignes suivies. `document_item` range par numéro de poste,
-          `excluded_reason` par motif, et `passthrough.<colonne>` par la valeur d'une colonne
-          conservée du fichier, nommée comme `passthrough` la nomme : chacun comparé en texte,
-          caractère par caractère dans l'ordre des points de code Unicode, sans lire un nombre
-          ni une date qu'il écrirait ; une ligne sans valeur — sans poste, suivie donc sans
-          motif, ou sans cette colonne — vient après les autres dans l'ordre croissant, avant
-          dans le décroissant.
+          Sort column; when absent, the most recent documents first. Every column of the grid
+          can be sorted (WF-IHM-0060). `in_tracked_scope` puts the excluded lines before the
+          tracked lines in ascending order. `document_item` sorts by item number,
+          `excluded_reason` by reason, and `passthrough.<colonne>` by the value of a kept column
+          of the file, named as `passthrough` names it: each compared as text, character by
+          character in Unicode code point order, without reading a number or a date it might
+          write; a line without a value — without an item, tracked and so without a reason, or
+          without that column — comes after the others in ascending order, before them in
+          descending order.
         schema:
           anyOf:
             - type: string
@@ -61,7 +60,7 @@
       - $ref: ../components/parameters.yaml#/SortOrder
     responses:
       '200':
-        description: Lignes de coût et les trois totaux.
+        description: Cost lines and the three totals.
         content:
           application/json:
             schema:
@@ -87,13 +86,13 @@
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '422':
         description: >-
-          `VALIDATION_FAILED` : un filtre que le serveur ne peut appliquer, désigné dans
-          `fields` — une période dont la fin précède le début (`/query/to`,
-          `VALUE_OUT_OF_RANGE`, `params.minimum` le début donné, la règle de toute période du
-          contrat), une date mal formée (`/query/from` ou `/query/to`,
-          `DATE_INVALID`), un sous-projet que le projet n'a pas ou un identifiant mal formé
-          (`/query/subproject_id`, `UNKNOWN_SUBPROJECT`). Aucune liste vide ne tient lieu de
-          refus.
+          `VALIDATION_FAILED`: a filter that the server cannot apply, designated in
+          `fields` — a period whose end precedes its start (`/query/to`,
+          `VALUE_OUT_OF_RANGE`, `params.minimum` the start given, the rule of every period of the
+          contract), a malformed date (`/query/from` or `/query/to`,
+          `DATE_INVALID`), a subproject that the project does not have or a malformed identifier
+          (`/query/subproject_id`, `UNKNOWN_SUBPROJECT`). No empty list stands in for a
+          refusal.
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
@@ -107,17 +106,17 @@
   put:
     operationId: setActualCostTrackedScope
     tags: [actual-costs]
-    summary: Exclure une ligne du périmètre suivi, ou la réintégrer
+    summary: Exclude a line from the tracked scope, or reinstate it
     description: >-
-      Une ligne exclue reste consultable et n'entre dans aucun indicateur ; l'exclusion
-      est conservée lors des imports ultérieurs, même quand les périodes se recouvrent
-      (WF-CRE-0030). L'exclusion est une action irréversible au sens du journal d'audit
-      (WF-SEC-0030) et demande sa propre permission (WF-ADM-0100). Une écriture sans compteur,
-      par exception à la règle de `lock_version` (README, « Conventions ») : le `PUT` idempotent
-      pose l'état visé, exclue ou suivie, sans dépendre d'aucune autre valeur de la ligne, si
-      bien que deux requêtes concurrentes ne peuvent que donner le même état ou le dernier
-      demandé, et le rejouer ne change rien ; il n'a ni `lock_version` ni 412 (« Un état est une
-      ressource », DECISIONS.md ; décision de l'auteur du 2026-10-28, US-0702/L2).
+      An excluded line remains viewable and enters no indicator; the exclusion is kept
+      through later imports, even when the periods overlap (WF-CRE-0030). The exclusion is an
+      irreversible action in the sense of the audit log (WF-SEC-0030) and requires its own
+      permission (WF-ADM-0100). A write without a lock version, by exception to the
+      `lock_version` rule (README, "Conventions"): the idempotent `PUT` sets the target state,
+      excluded or tracked, without depending on any other value of the line, so that two
+      concurrent requests can only give the same state or the last one requested, and
+      replaying it changes nothing; it has neither `lock_version` nor 412 ("A state is a
+      resource", DECISIONS.md; author's decision of 2026-10-28, US-0702/L2).
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
       - $ref: ../components/parameters.yaml#/CostLineId
@@ -128,7 +127,7 @@
           schema: { $ref: ../components/schemas/costs.yaml#/ScopeExclusion }
     responses:
       '200':
-        description: Ligne exclue ou réintégrée ; les totaux suivent immédiatement.
+        description: Line excluded or reinstated; the totals follow immediately.
         content:
           application/json:
             schema: { $ref: ../components/schemas/costs.yaml#/ActualCostLine }
@@ -141,11 +140,11 @@
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '409':
         description: >-
-          La commande `exclude_cost_lines` du projet est indisponible : `STATE_FORBIDS_OPERATION`,
-          `params.missing_condition` la première condition qui lui manque, dans l'ordre où elle les
-          nomme — `project_not_terminal` sur un projet terminal, dont les coûts réels sont en
-          lecture seule et qui ne la liste plus (WF-CYC-0100), `project_in_progress` avant En
-          cours (WF-CRE-0030) ; I-06, US-0702/L2. Rien n'est écrit.
+          The project's `exclude_cost_lines` command is unavailable: `STATE_FORBIDS_OPERATION`,
+          `params.missing_condition` the first condition it lacks, in the order in which it names
+          them — `project_not_terminal` on a terminal project, whose actual costs are read-only
+          and which no longer lists it (WF-CYC-0100), `project_in_progress` before In progress
+          (WF-CRE-0030); I-06, US-0702/L2. Nothing is written.
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
@@ -159,17 +158,17 @@
   get:
     operationId: listCostImports
     tags: [actual-costs]
-    summary: Journal des imports de coûts réels
+    summary: Log of the actual cost imports
     description: >-
-      Date, auteur, période extraite et nombre de lignes créées, mises à jour, inchangées et
-      rejetées : de quand datent les chiffres qu'on lit (WF-CRE-0050).
+      Date, author, extracted period and number of lines created, updated, unchanged and
+      rejected: how recent the figures being read are (WF-CRE-0050).
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
       - $ref: ../components/parameters.yaml#/Limit
       - $ref: ../components/parameters.yaml#/Offset
     responses:
       '200':
-        description: Entrées du journal, de la plus récente à la plus ancienne.
+        description: Log entries, from the most recent to the oldest.
         content:
           application/json:
             schema:
