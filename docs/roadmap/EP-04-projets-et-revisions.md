@@ -514,8 +514,9 @@ textes triés en collation `C`, cherchés par `contains` ; règles SQL du guide 
   et les transactions qui réalisent un fait — `createRevision`, `designateReferenceRevision`,
   `updateProject` pour le code — appellent `advance` sous le verrou du projet, qui écrit l'état
   et la transition, datée de l'instant de la transaction, l'auteur étant le compte qui a
-  réalisé le fait. Une sortie écrit de même, avec son motif, et refuse un projet qui porte une
-  révision en cours (`no_current_revision`).
+  réalisé le fait. Une sortie écrit de même, avec son motif, et exige d'un projet qui porte une
+  révision en cours le sort de celle-ci (422 sans lui), qu'il abandonne avec la sortie ; le marquer
+  est refusé (`no_current_revision`) tant que US-0980/L2 ne le sert pas.
 - **Les commandes** du projet, des sous-projets, des révisions et des structures se calculent par
   les mêmes fonctions que les refus 409, dans l'ordre du contrat.
 - **Les verrous** : le projet (`FOR UPDATE` de sa ligne) pour toute transition, création de
@@ -1235,7 +1236,7 @@ révision par sa clé, dans le même module.
 
 ## US-0980 — La référence et le cycle de vie
 
-- **statut** : à faire
+- **statut** : en cours
 - **exigences** : `WF-CYC-0020-A`, `WF-CYC-0030-A`, `WF-CYC-0050-A`, `WF-CYC-0060-A`,
   `WF-CYC-0080-A`, `WF-CYC-0090-A`, `WF-CYC-0100-A`, `WF-CYC-0110-A`, `WF-CYC-0130-A`,
   `WF-REV-0040-A`
@@ -1282,21 +1283,24 @@ case à cocher.
   indisponible en Chiffrage avec `project_in_progress` ; `lose` absente en En cours — l'état posé
   autour du service ;
 - `WF-CYC-0080-A` — « Toute tentative de transition depuis Terminé, Perdu ou Abandonné est
-  refusée. » : `exitProject` et `createRevision` répondent 403, `PROJECT_TERMINAL`, et aucune
-  commande n'est listée disponible ;
+  refusée. » : `exitProject` et `createRevision` répondent 409, `STATE_FORBIDS_OPERATION`,
+  `project_not_terminal` manquante, et aucune commande n'est listée disponible ;
 - `WF-CYC-0090-A` — « La confirmation nomme l'état visé et le passage en lecture seule du projet et
   de toutes ses données, et propose la saisie d'un motif ; une sortie confirmée sans motif est
   appliquée. » : `ProjectExit` porte `to_state`, `confirmed` et `reason` facultatif ; une sortie
-  non confirmée est refusée par 422 ; l'écran d'EP-02/L44a confirme ainsi ;
+  non confirmée est refusée par 400 `CONFIRMATION_REQUIRED` ; l'écran d'EP-02/L44a confirme ainsi ;
 - `WF-CYC-0090-A` — « La sortie d'un projet qui porte une révision en cours demande de la marquer
   ou de l'abandonner ; après la sortie, le projet n'a plus de révision en cours, et ses
   indicateurs se lisent dans sa dernière révision marquée (WF-IND-0010). » : la sortie d'un
-  projet qui porte une révision en cours est refusée par 409, `no_current_revision` manquante,
-  que la commande dit d'avance ; après la sortie, `current_revision_id` est nul ; les indicateurs
-  sont d'EP-10, qui clôt ;
+  projet qui porte une révision en cours reçoit le sort de celle-ci (`current_revision`), exigé — absent,
+  422 `VALIDATION_FAILED`, `/current_revision` par `VALUE_REQUIRED` — ; l'abandon s'applique avec
+  la sortie, dans la même opération, et le marquage (202, `revision_mark`) est servi avec
+  US-0980/L2, refusé d'ici là par 409, `no_current_revision` manquante (#2204) ; après la sortie,
+  `current_revision_id` est nul ; les indicateurs sont d'EP-10, qui clôt ;
 - `WF-CYC-0100-A` — « Toute modification d'un projet terminal est refusée, qu'elle soit tentée par
   la saisie, par un import Excel ou MS Project, ou par un traitement automatique. » : par la
-  saisie, chaque écriture de cet EPIC répond 403, `PROJECT_TERMINAL` ; les imports sont d'EP-06
+  saisie, chaque écriture de cet EPIC répond 409, `STATE_FORBIDS_OPERATION`,
+  `project_not_terminal` manquante ; les imports sont d'EP-06
   à EP-09, qui clôt ;
 - `WF-CYC-0110-A` — « Toutes les vues de consultation d'un projet clos s'affichent normalement, et
   ses exports aboutissent. » : les lectures de cet EPIC répondent 200 sur un projet clos ; les

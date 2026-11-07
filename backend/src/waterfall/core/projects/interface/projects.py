@@ -649,7 +649,8 @@ def update_project(
     probability is refused for ``project_before_in_progress``, not ``project_not_terminal``: a
     terminal project has reached In progress, and the condition of the probability is the one its
     own command names, where a terminal project lists no command at all. A code entered calls
-    ``advance`` under the lock, which has no effect before US-0980 (WF-PRJ-0010, WF-CYC-0030).
+    ``advance`` under the lock, which moves a Pricing project to In progress when the reference is
+    designated already (WF-PRJ-0010, WF-CYC-0030).
     """
     values = change.values
     faults = _ratio_faults(values)
