@@ -3,7 +3,8 @@
 """What the commands of a revision and of its structures read of it, private to the module.
 
 Its status, whether a background task writes in its project (``no_background_task_running``,
-US-0970), and whether it bears tasks and lines (``revision_has_tasks_and_lines``, EP-06, EP-07):
+US-0970), whether it bears tasks and lines (``revision_has_tasks_and_lines``, EP-06, EP-07) and
+whether the reference of its project is still correctable (``reference_correctable``, US-0980/L2):
 the facts ``commands`` judges, read once for a revision and all its structures.
 """
 
@@ -13,7 +14,10 @@ from sqlalchemy import select
 
 from waterfall.core.projects.interface import no_background_task_running
 from waterfall.core.revisions.commands import RevisionState
-from waterfall.core.revisions.interface.reference import revision_has_tasks_and_lines
+from waterfall.core.revisions.interface.reference import (
+    reference_correctable,
+    revision_has_tasks_and_lines,
+)
 from waterfall.core.revisions.tables import Revision
 from waterfall.platform.errors import NotFoundError
 
@@ -33,18 +37,26 @@ def revision_state(session: Session, project_id: UUID, revision_id: UUID) -> Rev
     if status is None:
         raise NotFoundError(NOT_FOUND)
     idle = no_background_task_running(session, project_id)
-    return state_of(session, revision_id, status, no_task_running=idle)
+    correctable = reference_correctable(session, project_id)
+    return state_of(session, revision_id, status, no_task_running=idle, correctable=correctable)
 
 
 def state_of(
-    session: Session, revision_id: UUID, status: str, *, no_task_running: bool
+    session: Session,
+    revision_id: UUID,
+    status: str,
+    *,
+    no_task_running: bool,
+    correctable: bool,
 ) -> RevisionState:
-    """Give the state of a revision whose status, and its project's background tasks, are read.
+    """Give the state of a revision whose status, and its project's facts, are read.
 
-    Whether a task writes in the project is the project's, read once for all its revisions.
+    Whether a task writes in the project, and whether its reference is still correctable, are the
+    project's, read once for all its revisions.
     """
     return RevisionState(
         marked=status == "marked",
         no_task_running=no_task_running,
         has_tasks_and_lines=revision_has_tasks_and_lines(session, revision_id),
+        reference_correctable=correctable,
     )

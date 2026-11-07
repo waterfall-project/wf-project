@@ -518,8 +518,9 @@ textes triés en collation `C`, cherchés par `contains` ; règles SQL du guide 
   `updateProject` pour le code — appellent `advance` sous le verrou du projet, qui écrit l'état
   et la transition, datée de l'instant de la transaction, l'auteur étant le compte qui a
   réalisé le fait. Une sortie écrit de même, avec son motif, et exige d'un projet qui porte une
-  révision en cours le sort de celle-ci (422 sans lui), qu'il abandonne avec la sortie ; le marquer
-  est refusé (`no_current_revision`) tant que US-0980/L2 ne le sert pas.
+  révision en cours le sort de celle-ci (422 sans lui) : l'abandon s'applique avec la sortie ; le
+  marquage est confié au worker (202, tâche `revision_mark`), qui marque puis sort le projet dans
+  la transaction de la tâche (#2204).
 - **Les commandes** du projet, des sous-projets, des révisions et des structures se calculent par
   les mêmes fonctions que les refus 409, dans l'ordre du contrat.
 - **Les verrous** : le projet (`FOR UPDATE` de sa ligne) pour toute transition, création de
@@ -1240,7 +1241,7 @@ révision par sa clé, dans le même module.
 
 ## US-0980 — La référence et le cycle de vie
 
-- **statut** : en cours
+- **statut** : fini
 - **exigences** : `WF-CYC-0020-A`, `WF-CYC-0030-A`, `WF-CYC-0050-A`, `WF-CYC-0060-A`,
   `WF-CYC-0080-A`, `WF-CYC-0090-A`, `WF-CYC-0100-A`, `WF-CYC-0110-A`, `WF-CYC-0130-A`,
   `WF-REV-0040-A`
@@ -1298,8 +1299,9 @@ case à cocher.
   indicateurs se lisent dans sa dernière révision marquée (WF-IND-0010). » : la sortie d'un
   projet qui porte une révision en cours reçoit le sort de celle-ci (`current_revision`), exigé — absent,
   422 `VALIDATION_FAILED`, `/current_revision` par `VALUE_REQUIRED` — ; l'abandon s'applique avec
-  la sortie, dans la même opération, et le marquage (202, `revision_mark`) est servi avec
-  US-0980/L2, refusé d'ici là par 409, `no_current_revision` manquante (#2204) ; après la sortie,
+  la sortie, dans la même opération, et le marquage (202, `revision_mark`) est confié au worker,
+  qui marque la révision puis sort le projet dans la transaction de la tâche — une tâche qui échoue
+  n'applique rien (US-0980/L2, #2204) ; après la sortie,
   `current_revision_id` est nul ; les indicateurs sont d'EP-10, qui clôt ;
 - `WF-CYC-0100-A` — « Toute modification d'un projet terminal est refusée, qu'elle soit tentée par
   la saisie, par un import Excel ou MS Project, ou par un traitement automatique. » : par la
@@ -1320,9 +1322,9 @@ case à cocher.
 - `WF-REV-0040-A` — « La désignation manuelle est proposée tant que le projet n'a ni coût réel ni
   révision marquée depuis la dernière désignation, et refusée au-delà. » : la commande
   `designate_reference` d'une révision marquée, `reference_correctable` manquante dès qu'une
-  révision a été marquée depuis la dernière désignation, et `REFERENCE_NOT_CORRECTABLE` au
-  refus ; les coûts réels sont d'EP-09 ; la désignation elle-même se constate autour du service
-  (EP-08 clôt) ;
+  révision a été marquée depuis la dernière désignation, et le refus 409
+  `STATE_FORBIDS_OPERATION`, `reference_correctable` manquante (J-01, #1797) ; les coûts réels
+  sont d'EP-09 ; la désignation elle-même se constate autour du service (EP-08 clôt) ;
 - écart : `WF-REV-0040-A` — « Un projet dont les offres v2 puis v3 sont marquées, et dont v2 a été
   désignée par erreur, accepte la désignation de v3 tant qu'il n'a reçu aucun coût réel. » :
   EP-09 et EP-08 ;
