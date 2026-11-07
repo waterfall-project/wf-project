@@ -707,7 +707,7 @@ redémarrage ne coûtent plus un lot (#2028, #2074, #2075, #2085).
 
 ## US-1350 — Les autorisations des livreurs suivent le dépôt
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : aucune — outil du dépôt
 - **opérations** : aucune
 - **issue** : #2249

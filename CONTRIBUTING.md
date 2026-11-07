@@ -28,9 +28,10 @@ and pnpm (`npm install --global pnpm`, once); Docker, for `make dev`; the Postgr
 the version the projection is generated with, since another one writes another Markdown; `openssl`,
 to draw another Garage secret than the workflow's; and `mmdc`, installed through npm, if you want
 the diagrams validated. [`INSTALL.md`](INSTALL.md) says where to find pandoc 3.13 on Ubuntu 26.04,
-how to install `mmdc` and what to put in `~/.bashrc`. If you drive the work with agents, the
-permission that lets a deliverer put its pull request in the merge queue is in
-[`docs/dev/agents.md`](docs/dev/agents.md) (in French), « La mise en file ».
+how to install `mmdc` and what to put in `~/.bashrc`. If you drive the work with agents, their
+permissions are versioned in `.claude/settings.json`, the one that lets a deliverer put its pull
+request in the merge queue included: [`docs/dev/agents.md`](docs/dev/agents.md) (in French),
+« La mise en file », says what they allow.
 
 ## Changing the specification
 

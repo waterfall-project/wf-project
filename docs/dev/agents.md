@@ -72,21 +72,26 @@ Ses règles sont dans le skill `pilote` (`.claude/skills/pilote/SKILL.md`). En b
 
 Un livreur met la pull request de son lot en file de fusion par la mutation GraphQL
 `enqueuePullRequest` (`.claude/agents/epic-deliverer.md`). Cette commande, `gh api graphql`,
-demande une permission que les règles de l'outil `Bash` ne donnent pas d'office ; c'est une
-personne qui l'accorde, une fois, avec l'entrée suivante de `permissions.allow`, éprouvée le
-2026-11-05 (un livreur a mis #1978 en file avec elle) :
+demande une permission que les règles de l'outil `Bash` ne donnent pas d'office. La règle est
+versionnée dans `.claude/settings.json`, sous `permissions.allow`, avec les vingt autres dont un
+livreur a besoin (`cd`, `gh issue`, `gh pr` — dont `gh pr merge` —, `gh run`, `git push`,
+`git branch -d`, `git worktree unlock` et `remove`, `make tracking`, `make slot`,
+`make slot-release`) : chaque worktree la reçoit donc d'emblée, sans que personne l'accorde. Un
+test des outils (`tools/tests/test_permissions.py`) l'éprouve.
 
-```json
-"permissions": { "allow": [ "Bash(gh api graphql -f query='mutation($id:ID!){enqueuePullRequest(input:{pullRequestId:$id}){mergeQueueEntry{state}}}' -f id=*)" ] }
-```
-
-- **Où elle se pose.** Dans `~/.claude/settings.json`, pour tous les dépôts du poste ; ou dans
-  `.claude/settings.json` du clone, pour ce dépôt seul. L'entrée s'ajoute à la liste
-  `permissions.allow` qui existe déjà, elle ne la remplace pas.
-- **Ce qu'elle autorise.** Cette mutation exacte, pour n'importe quel identifiant de pull request :
-  l'identifiant est le `*` final, et tout le texte de la requête doit être celui-là.
-- **Ce qu'elle n'autorise pas.** Aucune autre requête GraphQL, et ni `gh pr merge` ni une fusion
-  hors de la file : la fusion reste celle de la file, après la chaîne.
+- **Ce qu'elle autorise.** `Bash(gh api graphql:*)` est plus large que la mutation : toute
+  requête GraphQL de `gh`. La mutation de mise en file reste la seule forme que le livreur écrit.
+  `Bash(gh pr merge:*)` est dans la liste : l'étape 8 d'`epic-deliverer` s'en sert pour fusionner
+  une branche sans file.
+- **Ce qu'elle n'interdit pas, et que les règles interdisent.** La permission ne garantit rien là
+  contre : sur une branche qui a sa file, le livreur met en file et ne fusionne pas à la main,
+  c'est une consigne d'`epic-deliverer` et des règles communes. De même `Bash(git push:*)` et
+  `Bash(cd:*)` sont larges : ce sont les règles des agents qui interdisent de pousser sur `main`
+  ou sur une branche `epic/*` et de forcer une poussée. Le garde (`guard.py`) ne vise que
+  l'arrêt de processus (`kill`, `pkill`, `killall`), `docker` et les fichiers `.lock` : il ne
+  voit ni `gh pr merge` ni `git push`.
+- **Une règle propre à un poste** (un chemin de `/tmp`, par exemple) reste dans
+  `.claude/settings.local.json`, que git ignore ; elle ne va pas dans `.claude/settings.json`.
 
 [`CONTRIBUTING.md`](../../CONTRIBUTING.md) y renvoie.
 
