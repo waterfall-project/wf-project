@@ -8,21 +8,40 @@ writes, when it has nothing to write and when a slice fails.
 """
 
 import json
+import shutil
 from decimal import Decimal
-from typing import TYPE_CHECKING
-from uuid import uuid4
+from typing import TYPE_CHECKING, Any, cast
+from uuid import UUID, uuid4
 
 import pytest
-from cost_settings_examples import LABOUR, NON_LABOUR, PROVISION
+from cost_settings_examples import LABOUR, NON_LABOUR, PROVISION, UNSHARED
+from installed_reference import install
 from pydantic import SecretStr, ValidationError
-from sqlalchemy import insert, select, text
+from sqlalchemy import delete, insert, select, text
 from support import WITNESS
 
 from waterfall import __version__
 from waterfall.api.contract.models import DurationUnits
-from waterfall.core.cost_settings.tables import CostType
+from waterfall.core.access_roles.tables import WRITTEN_BY_MIGRATION
+from waterfall.core.cost_settings.interface import (
+    read_actual_cost_mapping,
+    read_reference_settings,
+)
+from waterfall.core.cost_settings.tables import (
+    CostCategory,
+    CostType,
+    HourlyRate,
+    ReferenceSetting,
+)
+from waterfall.core.resource_settings.interface import get_duration_units
+from waterfall.core.resource_settings.tables import (
+    Calendar,
+    DurationUnit,
+    OrgNode,
+    ResourceRole,
+)
 from waterfall.platform.audit import Act
-from waterfall.platform.database import utc_now
+from waterfall.platform.database import Base, utc_now
 from waterfall.platform.errors import ConflictError
 from waterfall.platform.logs import logging_context
 from waterfall.platform.settings import WitnessSettings
@@ -33,8 +52,9 @@ from waterfall.witness.main import WITNESS_LOCK, load_witness, main
 if TYPE_CHECKING:
     from pathlib import Path
 
+    from sqlalchemy import Engine
     from sqlalchemy.orm import Session
-    from support import Logs
+    from support import ContractClient, Logs, ReferenceSessions
 
     from waterfall.platform.database import Database
 
@@ -261,13 +281,25 @@ def test_the_command_passes_anything_else_to_the_bootstrap_and_the_api(
     assert "usage: waterfall-api [--version | install | load-witness]" in capsys.readouterr().err
 
 
-def test_the_witness_of_the_tests_is_loaded_by_the_command_as_the_service(
+def test_the_witness_of_the_tests_is_installed_as_the_bootstrap_does_then_loaded(
     witness: Database,
 ) -> None:
-    # Each slice fills it as its story comes (EP-05, "Les tests du back"): the natures first.
+    # #2143: the settings, the units and the mapping the slices set are the bootstrap's to give
+    # (``install_reference``): the witness of the tests is whole, the provision of the bootstrap
+    # beside the three natures of the witness.
     with witness.transaction() as session:
         natures = set(session.scalars(select(CostType.id)))
-    assert natures == {LABOUR, NON_LABOUR, PROVISION}
+        units = get_duration_units(session).units
+        settings = read_reference_settings(session)
+        mapping = read_actual_cost_mapping(session)
+    assert {LABOUR, NON_LABOUR, PROVISION} < natures
+    assert len(natures) == 4
+    assert units.hours_per_week == 40
+    assert (settings.company_name, settings.max_weeks_between_reviews) == (
+        "Delmas Automatismes",
+        8,
+    )
+    assert mapping.is_complete
 
 
 def test_a_slice_finds_its_objects_all_there_none_there_or_a_platform_half_loaded() -> None:
@@ -282,3 +314,278 @@ def test_a_slice_finds_its_objects_all_there_none_there_or_a_platform_half_loade
         ALREADY_EXISTS,
         {"conflicting_object_id": str(second)},
     )
+
+
+# The witness whole (US-0890): the slices each story wrote, tried together on a platform.
+
+# The examples whose objects bear the identifiers the witness imposes, and the key of their id.
+EXAMPLES = (
+    ("org_nodes_with_inactive", "org_node_id"),
+    ("resource_roles", "resource_role_id"),
+    ("calendars_with_inactive", "calendar_id"),
+    ("cost_types", "cost_type_id"),
+    ("volume/cost_categories", "cost_category_id"),
+)
+# The columns a loading dates and signs as the platform (WF-DAT-0070), and the counter of writes.
+AUDIT = frozenset({"lock_version", "created_at", "created_by", "updated_at", "updated_by"})
+# The tables the witness fills, and the column that holds the identifier the witness imposes.
+OBJECTS = (
+    (OrgNode, "id"),
+    (ResourceRole, "id"),
+    (Calendar, "id"),
+    (CostType, "id"),
+    (CostCategory, "id"),
+    (HourlyRate, "cost_category_id"),
+)
+
+
+def example(name: str) -> Any:
+    """Read the value of an example of the contract the witness is made of."""
+    return json.loads((WITNESS / f"{name}.json").read_text(encoding="utf-8"))["value"]
+
+
+def items_of(name: str) -> list[dict[str, Any]]:
+    """Give the objects of an example: a list of nodes, or the items of a page."""
+    value = example(name)
+    if isinstance(value, list):
+        return cast("list[dict[str, Any]]", value)
+    return cast("list[dict[str, Any]]", value["items"])
+
+
+def imposed() -> set[UUID]:
+    """Give the identifiers the witness imposes on its nodes, roles, calendars and categories."""
+    return {UUID(item[key]) for name, key in EXAMPLES for item in items_of(name)}
+
+
+def rows_of(session: Session, model: type[Base], column: str) -> list[Any]:
+    """Read the rows of a table that bear an identifier of the witness, in the order of the key."""
+    held = getattr(model, column)
+    return list(session.scalars(select(model).where(held.in_(imposed())).order_by(held)))
+
+
+def identifying(database: Database) -> dict[str, list[tuple[str, ...]]]:
+    """Give what identifies the objects of the witness: every column but those the platform fills.
+
+    The audit and the identifier of a rate are the platform's; the rest is the witness's, and the
+    same on two platforms.
+    """
+    held: dict[str, list[tuple[str, ...]]] = {}
+    with database.transaction() as session:
+        for model, column in OBJECTS:
+            names = [
+                each.key
+                for each in model.__table__.columns
+                if each.key not in AUDIT and not (model is HourlyRate and each.key == "id")
+            ]
+            held[model.__tablename__] = sorted(
+                tuple(str(getattr(row, name)) for name in names)
+                for row in rows_of(session, model, column)
+            )
+        for model in (DurationUnit, ReferenceSetting):
+            held[model.__tablename__] = [
+                tuple(
+                    str(getattr(row, each.key))
+                    for each in model.__table__.columns
+                    if each.key not in AUDIT
+                )
+                for row in session.scalars(select(model))
+            ]
+        mapping = read_actual_cost_mapping(session)
+        held["actual_cost_mapping"] = [(str(mapping.columns), str(mapping.kept_columns))]
+    return held
+
+
+def load(url: str, directory: Path = WITNESS) -> int:
+    """Run the command on the database of the test, the description at ``directory``."""
+    return load_witness(WitnessSettings(database_url=SecretStr(url), witness_path=str(directory)))
+
+
+def wipe(owner: Engine) -> None:
+    """Empty the database of every row, as the owner does after a test: a platform neuve again."""
+    with owner.begin() as connection:
+        connection.execute(text("SET LOCAL session_replication_role = replica"))
+        for table in reversed(Base.metadata.sorted_tables):
+            if not table.info.get(WRITTEN_BY_MIGRATION):
+                connection.execute(delete(table))
+
+
+def test_the_witness_holds_the_volumes_of_the_tranche_of_the_reference(witness: Database) -> None:
+    # Six nodes (two deactivated), five roles (two deactivated), three calendars (one deactivated),
+    # three natures, two hundred categories, the grid of a hundred and fifty on fifteen years, the
+    # units, the settings and the mapping.
+    grid = example("volume/hourly_rate_grid")
+    cells = [cell for row in grid["rows"] for cell in row["cells"] if cell is not None]
+    with witness.transaction() as session:
+        held = [
+            rows_of(session, model, column) for model, column in OBJECTS if model is not HourlyRate
+        ]
+        rates = rows_of(session, HourlyRate, "cost_category_id")
+        units = get_duration_units(session).units
+        mapping = read_actual_cost_mapping(session)
+    nodes, roles, calendars, types, _ = held
+    assert [len(each) for each in held] == [6, 5, 3, 3, 200]
+    assert [sum(not each.is_active for each in rows) for rows in (nodes, roles, calendars)] == [
+        2,
+        2,
+        1,
+    ]
+    assert (len(grid["rows"]), len(grid["years"]), len(cells)) == (150, 15, 1938)
+    assert len(rates) == len(cells)
+    assert {each.year for each in rates} == set(grid["years"])
+    assert [each.label for each in calendars if each.is_default] == ["Semaine standard"]
+    assert [each.kind for each in types if each.is_active] == ["labor", "non_labor", "provision"]
+    assert (units.hours_per_day, units.hours_per_week, units.days_per_month) == (8, 40, 20)
+    assert [column.column for column in mapping.columns] == [
+        column["column"] for column in example("actual_cost_mapping")["columns"]
+    ]
+
+
+def without_audit(value: Any) -> Any:
+    """Give a value of the contract without what a loading does not write as the example says.
+
+    The audit, the counter of writes and the commands (``UNSHARED``), at any depth.
+    """
+    if isinstance(value, list):
+        return [without_audit(each) for each in cast("list[object]", value)]
+    if isinstance(value, dict):
+        mapped = cast("dict[str, object]", value)
+        return {key: without_audit(each) for key, each in mapped.items() if key not in UNSHARED}
+    return value
+
+
+def item_id(item: dict[str, Any]) -> UUID:
+    """Give the identifier of an object read, whatever its kind: its key that ends in ``_id``."""
+    return UUID(next(value for key, value in item.items() if key.endswith("_id")))
+
+
+@pytest.mark.parametrize(
+    "case",
+    [
+        ("org-nodes?include_inactive=true", "resource_settings", "org_nodes_with_inactive"),
+        ("resource-roles?include_inactive=true", "resource_settings", "resource_roles"),
+        ("calendars?include_inactive=true", "resource_settings", "calendars_with_inactive"),
+        ("cost-types", "cost_settings", "cost_types"),
+        ("cost-categories?limit=500", "cost_settings", "volume/cost_categories"),
+        ("hourly-rates?limit=500", "cost_settings", "volume/hourly_rate_grid"),
+        ("duration-units", "resource_settings", "duration_units"),
+        ("settings", "cost_settings", "reference_settings"),
+        ("actual-cost-mapping", "cost_settings", "actual_cost_mapping"),
+    ],
+)
+def test_the_lists_of_the_service_loaded_with_the_witness_are_the_examples_the_faux_back_serves(
+    api: ContractClient,
+    witness: Database,
+    reference_sessions: ReferenceSessions,
+    case: tuple[str, str, str],
+) -> None:
+    # The calculated becomes the expected: what the service reads of the witness is what the
+    # fixtures say, to the audit columns, the counter of writes and the commands near, as the
+    # tests of each list.
+    del witness
+    path, part, example_name = case
+    response = api.get(f"/api/v1/reference/{path}", headers=reference_sessions(part).changing)
+    assert response.status_code == 200, response.text
+    expected = example(example_name)
+    read = response.json()
+    if "items" in expected:
+        # What the bootstrap wrote beside (its default calendar, its provision) is not the witness.
+        read = {
+            "items": [item for item in read["items"] if item_id(item) in imposed()],
+        }
+        expected = {"items": expected["items"]}
+    assert without_audit(read) == without_audit(expected)
+
+
+def test_two_new_platforms_loaded_with_the_witness_hold_the_same_identifying_data(
+    witness: Database, owner: Engine, service_database_url: str
+) -> None:
+    # Two loadings, each on a platform neuve (the rows emptied, the bootstrap done again): the
+    # identifiers, the codes and the labels are the same; only what the platform engenders differs.
+    first = identifying(witness)
+    wipe(owner)
+    install(owner)
+    assert load(service_database_url) == 0
+    assert identifying(witness) == first
+    assert len(first["cost_category"]) == 200
+
+
+def test_a_second_loading_on_the_same_platform_writes_nothing_and_says_the_witness_is_there(
+    witness: Database, service_database_url: str, logs: Logs
+) -> None:
+    def audited() -> list[tuple[object, ...]]:
+        with witness.transaction() as session:
+            return [
+                tuple(getattr(row, name) for name in sorted(AUDIT))
+                for model, column in OBJECTS
+                for row in rows_of(session, model, column)
+            ]
+
+    before, held = audited(), identifying(witness)
+    logs.clear()
+    assert load(service_database_url) == 0
+    assert events(logs) == ["witness.already_loaded"]
+    assert audited() == before
+    assert identifying(witness) == held
+
+
+def test_the_loading_dates_and_signs_every_object_as_the_platform_not_as_the_witness(
+    database: Database, owner: Engine, service_database_url: str
+) -> None:
+    # WF-DAT-0070: created at the moment of the loading, by no account (the platform); the dates
+    # and the authors the examples say (September 2025, an account) are not kept.
+    said = items_of("org_nodes_with_inactive")[0]["audit"]
+    assert (said["created_at"][:4], said["created_by"]["kind"]) == ("2025", "user")
+    install(owner)
+    started = utc_now()
+    assert load(service_database_url) == 0
+    ended = utc_now()
+    with database.transaction() as session:
+        for model, column in OBJECTS:
+            rows = rows_of(session, model, column)
+            assert rows, model
+            for row in rows:
+                assert started <= row.created_at <= row.updated_at <= ended, model
+                assert (row.created_by, row.updated_by) == (None, None), model
+
+
+def test_the_witness_holds_no_address_and_only_the_fictitious_labels_of_its_description(
+    witness: Database,
+) -> None:
+    # No electronic address in any text the tranche writes, and the labels of the objects are those
+    # of the examples, which `test_mockuniverse.py` holds fictitious.
+    said = {item["label"] for name, _ in EXAMPLES for item in items_of(name)}
+    texts: set[str] = set()
+    labels: set[str] = set()
+    with witness.transaction() as session:
+        for model, column in OBJECTS:
+            for row in rows_of(session, model, column):
+                texts.update(
+                    value
+                    for each in model.__table__.columns
+                    if isinstance(value := getattr(row, each.key), str)
+                )
+                if model is not HourlyRate:
+                    labels.add(row.label)
+    assert not any("@" in text for text in texts)
+    assert labels == said
+
+
+def test_the_command_stops_saying_so_on_a_witness_the_rules_refuse_and_writes_nothing(
+    tmp_path: Path, database: Database, owner: Engine, service_database_url: str, logs: Logs
+) -> None:
+    # A role of the description bears the code of another: the rule of the roles refuses it, after
+    # the slices before it have written; one transaction, none of them stays.
+    install(owner)
+    refused = tmp_path / "witness"
+    shutil.copytree(WITNESS, refused)
+    path = refused / "resource_roles.json"
+    document = json.loads(path.read_text(encoding="utf-8"))
+    items = document["value"]["items"]
+    items[1]["code"] = items[0]["code"]
+    path.write_text(json.dumps(document), encoding="utf-8")
+    assert load(service_database_url, refused) == 1
+    assert [record["code"] for record in logs.named("witness.refused")] == [ALREADY_EXISTS]
+    assert events(logs) == ["witness.refused"]
+    with database.transaction() as session:
+        for model, column in OBJECTS:
+            assert rows_of(session, model, column) == [], model

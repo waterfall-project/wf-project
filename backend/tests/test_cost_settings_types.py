@@ -57,6 +57,15 @@ UNKNOWN = "7d1e5b0a-3c94-4f2e-9a68-5b20c4e1f9d3"
 AVAILABLE: list[tuple[str, bool, list[str]]] = [("deactivate", True, []), ("change_kind", True, [])]
 
 
+# The provision of the bootstrap, which the witness of the tests carries too (#2143).
+BOOTSTRAPPED = "PROV"
+
+
+def own(items: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Give the natures of the witness: those read, but the one the bootstrap wrote."""
+    return [item for item in items if item["code"] != BOOTSTRAPPED]
+
+
 @pytest.fixture
 def sessions(witness: Database, reference_sessions: ReferenceSessions) -> PartSessions:
     """Give the three sessions of the cost settings on a service loaded with the witness."""
@@ -83,13 +92,14 @@ def test_every_session_reads_the_active_natures_as_the_example_the_faux_back_ser
     # The active natures are the vocabulary of the projects: read without any permission of the
     # cost settings (decision of the author, 2026-11-01). The service answers the example, to the
     # dates and the authors of the loading, the counters and the commands.
+    # The provision the bootstrap wrote beside the three of the witness (#2143) is read too.
     expected = [shown(item) for item in example("cost_types")["items"]]
     for headers in (sessions.without, sessions.reading, sessions.changing):
         read = listed(api, headers)
-        assert [shown(item) for item in read["items"]] == expected
-        assert read["meta"] == {"limit": 50, "offset": 0, "total": 3}
+        assert [shown(item) for item in own(read["items"])] == expected
+        assert read["meta"] == {"limit": 50, "offset": 0, "total": 4}
     reader = example("cost_types_reader")["items"]
-    assert [shown(item) for item in listed(api, sessions.reading)["items"]] == [
+    assert [shown(item) for item in own(listed(api, sessions.reading)["items"])] == [
         shown(item) for item in reader
     ]
 
@@ -98,12 +108,21 @@ def test_every_session_reads_the_active_natures_as_the_example_the_faux_back_ser
 def test_the_commands_of_a_nature_are_those_of_a_caller_who_changes_the_cost_settings(
     api: ContractClient, sessions: PartSessions
 ) -> None:
-    # Nothing binds a category before the lines, the rates and the roles exist: the change of kind
-    # is available, and the deactivation always is.
+    # Nothing binds a category before the lines exist, but the rates and the roles: the witness
+    # rates every category of labour and attaches roles to them (US-0850), so the nature of labour
+    # cannot change kind, the others can. The deactivation always is available.
     for headers in (sessions.without, sessions.reading):
         assert all(item["available_commands"] == [] for item in listed(api, headers)["items"])
-    managed = listed(api, sessions.changing)["items"]
-    assert [commands(item) for item in managed] == [AVAILABLE] * 3
+    managed = {item["code"]: commands(item) for item in listed(api, sessions.changing)["items"]}
+    assert managed == {
+        "MO": [
+            AVAILABLE[0],
+            ("change_kind", False, ["cost_type_unrated", "cost_type_without_role"]),
+        ],
+        "DEB": AVAILABLE,
+        "PROV": AVAILABLE,
+        "PRV": AVAILABLE,
+    }
 
 
 @pytest.mark.requirement("WF-REF-0030-A")
@@ -111,20 +130,20 @@ def test_the_natures_are_filtered_searched_sorted_and_paged_by_the_server(
     api: ContractClient, sessions: PartSessions
 ) -> None:
     headers = sessions.without
-    assert codes(api, headers, "kinds=labor,provision") == ["MO", "PRV"]
+    assert codes(api, headers, "kinds=labor,provision") == ["MO", "PROV", "PRV"]
     assert codes(api, headers, "kinds=non_labor") == ["DEB"]
     # The search covers the code and the label, whatever the case and the accents.
     assert codes(api, headers, "search=prv") == ["PRV"]
     assert codes(api, headers, "search=DEBOURS") == ["DEB"]
     assert codes(api, headers, "search=main-d") == ["MO"]
-    assert codes(api, headers, "sort_by=kind&sort_order=desc") == ["PRV", "DEB", "MO"]
-    assert codes(api, headers, "sort_by=label") == ["DEB", "MO", "PRV"]
+    assert codes(api, headers, "sort_by=kind&sort_order=desc") == ["PROV", "PRV", "DEB", "MO"]
+    assert codes(api, headers, "sort_by=label") == ["DEB", "MO", "PRV", "PROV"]
     # ``meta.total`` counts what is kept, not the page.
     page = listed(api, headers, "kinds=labor,non_labor&limit=1&offset=1")
     assert [item["code"] for item in page["items"]] == ["MO"]
     assert page["meta"] == {"limit": 1, "offset": 1, "total": 2}
     beyond = listed(api, headers, "limit=5&offset=10")
-    assert (beyond["items"], beyond["meta"]["total"]) == ([], 3)
+    assert (beyond["items"], beyond["meta"]["total"]) == ([], 4)
 
 
 @pytest.mark.requirement("WF-REF-0030-A")
@@ -135,19 +154,25 @@ def test_the_deactivated_natures_are_read_by_the_permission_to_change_and_come_l
     changing = sessions.changing
     deb = next(item for item in listed(api, changing)["items"] if item["code"] == "DEB")
     assert deactivate(api, changing, deb).status_code == 200
-    assert codes(api, sessions.without) == ["MO", "PRV"]
-    assert codes(api, changing, "include_inactive=true") == ["DEB", "MO", "PRV"]
+    assert codes(api, sessions.without) == ["MO", "PROV", "PRV"]
+    assert codes(api, changing, "include_inactive=true") == ["DEB", "MO", "PROV", "PRV"]
     assert codes(api, changing, "is_active=false") == ["DEB"]
-    assert codes(api, changing, "is_active=true&include_inactive=true") == ["MO", "PRV"]
-    assert codes(api, changing, "include_inactive=true&sort_by=is_active") == ["MO", "PRV", "DEB"]
+    assert codes(api, changing, "is_active=true&include_inactive=true") == ["MO", "PROV", "PRV"]
+    assert codes(api, changing, "include_inactive=true&sort_by=is_active") == [
+        "MO",
+        "PROV",
+        "PRV",
+        "DEB",
+    ]
     # Equals keep the order of the code, whatever the direction.
     assert codes(api, changing, "include_inactive=true&sort_by=is_active&sort_order=desc") == [
         "DEB",
         "MO",
+        "PROV",
         "PRV",
     ]
     page = listed(api, changing, "include_inactive=true&limit=2")
-    assert page["meta"]["total"] == 3
+    assert page["meta"]["total"] == 4
 
 
 @pytest.mark.requirement("WF-REF-0150-A")
@@ -202,7 +227,7 @@ def test_a_nature_whose_code_exists_is_refused_naming_the_nature_that_holds_it(
     assert deactivate(api, sessions.changing, deb).status_code == 200
     again = api.post(TYPES, headers=sessions.changing, json=sent)
     assert pointers(again) == pointers(response)
-    assert codes(api, sessions.changing, "include_inactive=true") == ["DEB", "MO", "PRV"]
+    assert codes(api, sessions.changing, "include_inactive=true") == ["DEB", "MO", "PROV", "PRV"]
 
 
 @pytest.mark.requirement("WF-REF-0030-A")
@@ -254,7 +279,7 @@ def test_a_nature_without_code_or_label_or_beyond_their_bounds_is_refused_field_
     ]
     blank = api.post(TYPES, headers=sessions.changing, json={**sent, "code": "  ", "label": "x"})
     assert pointers(blank) == [("/code", "VALIDATION_FAILED", {})]
-    assert codes(api, sessions.without) == ["DEB", "MO", "PRV"]
+    assert codes(api, sessions.without) == ["DEB", "MO", "PROV", "PRV"]
 
 
 @pytest.mark.requirement("WF-REF-0030-A")
@@ -270,7 +295,7 @@ def test_every_write_of_a_nature_asks_for_the_permission_to_change_the_cost_sett
             api.put(f"{TYPES}/{LABOUR}/activation", headers=headers, json=activation),
         ):
             assert refusal(response) == (403, "PERMISSION_MISSING", {"missing_permission": CHANGE})
-    assert codes(api, sessions.without) == ["DEB", "MO", "PRV"]
+    assert codes(api, sessions.without) == ["DEB", "MO", "PROV", "PRV"]
 
 
 @pytest.mark.requirement("WF-REF-0030-A")
@@ -464,7 +489,7 @@ def test_the_activation_of_a_nature_is_refused_stale_or_unknown(
         json={"is_active": False, "lock_version": 0},
     )
     assert unknown.status_code == 404
-    assert codes(api, sessions.without) == ["DEB", "MO", "PRV"]
+    assert codes(api, sessions.without) == ["DEB", "MO", "PROV", "PRV"]
 
 
 def insert_type(code: str, type_id: UUID) -> Any:

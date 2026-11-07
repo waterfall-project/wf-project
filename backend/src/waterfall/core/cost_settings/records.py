@@ -5,7 +5,10 @@
 Never a deletion: an object of the reference is deactivated (WF-DAT-0080). The author of a write
 is an account, or ``None`` for the platform (WF-DAT-0070); the moment is an argument, never read
 here. Every write takes ``NATURES_LOCK`` first when it depends on the state of a nature, then the
-rows it changes: always in that order, so that two writes never wait for each other.
+rows it changes: always in that order, so that two writes never wait for each other. A write of
+another module that relies on the kind or the state of a category — a role of resources attached
+to it — shares that lock, first too (``share_natures``): it waits for those writes, and they for
+it, without either holding a row the other one asks for.
 """
 
 from dataclasses import dataclass
@@ -85,6 +88,16 @@ def lock_natures(session: Session) -> None:
     it, a reactivation, the cascade of a deactivation — before it reads anything.
     """
     session.execute(select(func.pg_advisory_xact_lock(NATURES_LOCK)))
+
+
+def share_natures(session: Session) -> None:
+    """Share the lock of the rule between a nature and its categories, until the transaction ends.
+
+    By a write of another module that relies on what a category is — its kind, its state — before
+    it reads it or locks anything: the writes that change those (``lock_natures``) wait for it, or
+    are waited for; two of them that share it do not wait for each other.
+    """
+    session.execute(select(func.pg_advisory_xact_lock_shared(NATURES_LOCK)))
 
 
 def lock_row[Entity: (CostType, CostCategory)](

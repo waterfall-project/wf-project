@@ -1,9 +1,10 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
-import { expect, type Page, test } from "@playwright/test";
+import { expect, type Page } from "@playwright/test";
 
 import { compile } from "./compile";
 import { setExpanded } from "./hydration";
+import { test } from "./mode";
 
 // The session of the fake back grants the whole catalogue of permissions: every function
 // of the navigation is offered.
@@ -27,7 +28,26 @@ async function open(page: Page, name: string, block?: string) {
   await expect(page.getByRole("heading", { level: 1 })).toHaveText(name);
 }
 
-test("a user who opened no project reaches the portfolio, the reference, the administration and the status screen [WF-IHM-0010-A]", async ({
+// Played in service too (`@shared`, EP-05): the reference is served. The role « Manager » of
+// `mode.ts` holds no permission of the administration: the reference is read from one setting to
+// the next.
+test("a user who opened no project reads the cost settings, then the resource settings of the reference [WF-IHM-0010-A] @shared", async ({
+  page,
+}) => {
+  // The screens of their own reached by a click, compiled first (`e2e/compile.ts`).
+  await compile(page.request, "/reference/costs", "/reference/resources");
+  await page.goto("/reference/costs");
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Paramètres de coûts");
+  await open(page, "Paramètres de ressources");
+  await expect(page).toHaveURL("/reference/resources");
+  // No project was opened: there is none to go back to.
+  await expect(page.getByRole("link", { name: "Retour au projet" })).toHaveCount(0);
+});
+
+// Against the fake back only: the service serves neither `/` nor the portfolio, and the role
+// « Manager » holds no permission of the administration or of the status (listed as not replayed in
+// the guide).
+test("a user who opened no project reaches the portfolio, the administration and the status screen from `/` [WF-IHM-0010-A]", async ({
   page,
 }) => {
   // The screens of their own reached by a click, compiled first (`e2e/compile.ts`).

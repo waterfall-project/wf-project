@@ -148,10 +148,13 @@ la revue.
   `router = APIRouter()` local, et aucun contrôle ne vérifie la liste. Un nouveau module de
   routes ou de dépendances s'y ajoute, au lieu de ranger ses imports sous `TYPE_CHECKING`.
   Un module de `api/` sans route ni dépendance (intergiciel, gestion des erreurs) n'y
-  figure pas. `queries` porte pourtant `audit_column_filters`, une dépendance FastAPI
-  (`Annotated[AuditColumnsQuery, Query()]`) : il n'est sûr que parce que ses annotations
-  n'emploient que des types locaux ou des imports réels. Un paramètre ajouté à cette
-  dépendance et typé par un import ramène `queries` dans l'exception de `ruff.toml`.
+  figure pas, sauf un module de modèles d'écriture du contrat (`reference_settings_write`) :
+  ses sous-classes de `ContractModel` sont lues à l'exécution par FastAPI, et Ruff ne les
+  reconnaît pas comme des modèles de Pydantic. `queries` porte pourtant
+  `audit_column_filters`, une dépendance FastAPI (`Annotated[AuditColumnsQuery, Query()]`) :
+  il n'est sûr que parce que ses annotations n'emploient que des types locaux ou des imports
+  réels. Un paramètre ajouté à cette dépendance et typé par un import ramène `queries` dans
+  l'exception de `ruff.toml`.
 - Les nouveautés de 3.14 ne s'emploient pas pour elles-mêmes. `except A, B:` sans
   parenthèses (PEP 758) n'est permis que sans `as` : le dépôt l'emploie là où il n'y a pas
   d'`as` (10 `except` de `backend/src` et `tools/src`), et garde les parenthèses là où
