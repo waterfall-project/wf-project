@@ -146,16 +146,19 @@ personne qui l'accorde, une fois, avec l'entrée suivante de `permissions.allow`
 - **Un agent n'arrête que ce qu'il a lancé** (US-1080), par son PID ou par un nom propre à
   son lot ; jamais par motif. Ni `pkill`, ni `killall`, ni un `kill` dont une cible n'est pas
   un PID écrit en chiffres — `kill $(pgrep make)`, `kill $pid`, un nom —, lancé par `xargs`,
-  ou qui vise `-1` ou `0` ; ni `docker rm`, `docker stop` ou `docker kill` d'une
-  substitution, d'un tube ou d'un filtre ; ni `docker … prune` ; ni `docker compose … down`
-  hors du Makefile. `pkill -f "^make check"` a pu interrompre ainsi, le 2026-11-03, le
+  ou qui vise `-1` ou `0` ; ni `docker rm`, `docker stop`, `docker kill`, `docker rmi` ou
+  `docker volume rm` d'une cible calculée — substitution, variable, joker —, d'un tube ou d'un
+  filtre, quand une cible littérale passe (US-1310) ; ni `docker … prune` ; ni
+  `docker compose … down` hors du Makefile. `pkill -f "^make check"` a pu interrompre ainsi, le 2026-11-03, le
   `make check` d'un livreur d'un autre EPIC. Ce que le Makefile a démarré, sa cible l'arrête :
   `make service-down` pour la plateforme de service. Un verrou de git (`.git/…/*.lock`) ne
-  se supprime pas : une commande `git` le tient, peut-être dans un autre worktree, et la
+  se supprime ni ne se déplace — ni `rm`, ni `find … -delete` ou `-exec rm`, ni `mv` ou
+  `rename` — : une commande `git` le tient, peut-être dans un autre worktree, et la
   commande se relance. Le hook `PreToolUse` de `.claude/settings.json` tient la règle : avant
   chaque commande de l'outil `Bash`, `tools/src/wftools/guard.py` refuse ces formes où
-  qu'elles se trouvent dans la ligne, et dit quoi faire à la place ; une commande `make`
-  passe toujours.
+  qu'elles se trouvent dans la ligne — derrière `sudo`, `env`, `su -c`, `flock`, `watch` ou
+  `busybox`, après un `cd` dans `.git`, ou un `cd` vers un chemin calculé, qu'il tient pour
+  `.git` —, et dit quoi faire à la place ; une commande `make` passe toujours.
 - **Avant de rendre la main**, un agent qui a modifié le dépôt lance
   `make check BASE=origin/epic/EP-nn`, qui éprouve ce que la modification touche, fichiers
   non commités compris. Il peut demander un créneau : depuis US-1100, dans un worktree lié qui

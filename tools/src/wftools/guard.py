@@ -1,6 +1,6 @@
 # SPDX-FileCopyrightText: 2026 waterfall-project
 # SPDX-License-Identifier: AGPL-3.0-only
-"""Refuse a command of an agent that would stop what another agent started (US-1080).
+"""Refuse a command of an agent that would stop what another agent started (US-1080, US-1310).
 
 The ``PreToolUse`` hook of ``.claude/settings.json`` runs it before every command of the ``Bash``
 tool: ``python3 "$CLAUDE_PROJECT_DIR/tools/src/wftools/guard.py"``. It reads the JSON of the hook
@@ -13,15 +13,20 @@ worktree runs it before its environment is synchronised.
 
 The line is cut into simple commands the way the shell runs them: at its operators, inside each
 substitution — ``$( )``, backquotes, ``<( )`` —, inside the script of ``bash -c``, ``sh -c`` or
-``zsh -c``, of ``eval``, of ``trap`` and of ``env -S``; past the assignments and the prefixes
-that run a command (``sudo``, ``env``, ``timeout``, ``nohup``, ``xargs``…). Each command is then
-split into words by ``shlex``, and judged by the base name of its command word. Comments,
-redirections and the body of a here-document run nothing, and are left out — the body of an
-unquoted one is still searched for substitutions, which the shell runs. ``shlex`` cuts the words
-alone: its operators do not tell a quoted ``;`` from one that ends a command, and
-``kill 1 ';' $pid`` would hide its last target.
+``zsh -c``, of ``eval``, of ``trap``, of ``env -S``, of ``su -c``, ``runuser -c``, ``flock -c``
+and ``watch``; past the assignments and the prefixes that run a command (``sudo``, ``env``,
+``timeout``, ``nohup``, ``xargs``, ``busybox``, ``chroot``, ``flock``…), whose long options take
+their GNU abbreviations. Each command is then split into words by ``shlex``, and judged by the
+base name of its command word. Comments, redirections and the body of a here-document run
+nothing, and are left out — the body of an unquoted one is still searched for substitutions,
+which the shell runs. ``shlex`` cuts the words alone: its operators do not tell a quoted ``;``
+from one that ends a command, and ``kill 1 ';' $pid`` would hide its last target.
+
+A ``cd`` into a directory of git is followed along the line, into the scripts it runs: the
+relative paths that come after it are read from there.
 """
 
+import itertools
 import json
 import re
 import shlex
@@ -36,8 +41,10 @@ RULE = (
     "pattern. A lock of git is not removed: the git command is run again."
 )
 INSTEAD = (
-    "Instead: `kill <PID>` of a process you started; for what the Makefile started, the target "
-    "that stops it: `make test-services-down`, `make service-down`, `make slot-release`."
+    "Instead: `kill <PID>` of a process you started; `docker rm`, `docker rmi` or `docker volume "
+    "rm` of a literal name; for what the Makefile started, the target that stops it: "
+    "`make test-services-down`, `make service-down`, `make slot-release`; for a lock of git, "
+    "the git command run again."
 )
 
 # A substitution stands as this word in the command that holds it: its value is not known.
@@ -56,9 +63,20 @@ _PID = re.compile(r"-?[0-9]+")
 _KEYWORDS = frozenset({"!", "{", "if", "then", "else", "elif", "do", "while", "until"})
 _SHELLS = frozenset({"bash", "sh", "zsh", "dash", "ksh"})
 _CONTAINER_STOPS = frozenset({"rm", "remove", "stop", "kill", "restart"})
+# What `docker` removes, by the group of its subcommand: `docker rmi`, `docker volume rm`…
+_DOCKER_REMOVALS = {
+    "": _CONTAINER_STOPS | {"rmi"},
+    "container": _CONTAINER_STOPS,
+    "image": frozenset({"rm", "remove"}),
+    "volume": frozenset({"rm", "remove"}),
+}
 _COMPOSE_STOPS = frozenset({"down", "stop", "kill", "rm"})
 # `kill -1` or `kill -0` alone reads as a signal without a target, or as a target: refused.
 _LONE_TARGETS = frozenset({"-1", "-0"})
+# The actions of `find` that run a command on what it found, and the commands that remove.
+_FIND_EXECS = frozenset({"-exec", "-execdir", "-ok", "-okdir"})
+_FIND_REMOVERS = frozenset({"rm", "unlink", "mv", "rename"}) | _SHELLS
+_FIND_OPTIONS = frozenset({"-H", "-L", "-P"})
 
 
 class _UnsplittableError(ValueError):
@@ -77,8 +95,18 @@ class _Options(NamedTuple):
     """The options of a command that takes another command, or a subcommand, after them."""
 
     short: str = ""
+    """The short options that take an argument."""
     long: frozenset[str] = frozenset()
+    """The long options that take an argument."""
+    flags: frozenset[str] = frozenset()
+    """The long options that take none: an abbreviation is unique among them and ``long``."""
     operands: int = 0
+    chdir: frozenset[str] = frozenset()
+    """The options whose argument is the directory the command runs in."""
+    scripts: frozenset[str] = frozenset()
+    """The options whose argument is a line of shell."""
+    abbreviates: bool = True
+    """GNU ``getopt_long`` takes a unique prefix of a long option; Go's ``pflag`` does not."""
 
     def skip(self, words: list[str], index: int) -> int:
         """Return the index of the word that follows the options and operands from ``index``."""
@@ -87,7 +115,8 @@ class _Options(NamedTuple):
     def parse(self, words: list[str], index: int) -> tuple[list[tuple[str, str]], int]:
         """Return the options from ``index`` that take an argument, and the index past them.
 
-        Each option comes with its argument; the index is that of the first operand.
+        Each option comes with its argument, a long one by its full name; the index is that of
+        the first operand.
         """
         taken: list[tuple[str, str]] = []
         while index < len(words):
@@ -100,10 +129,12 @@ class _Options(NamedTuple):
             if word == "-" or not word.startswith("-"):
                 break
             if word.startswith("--"):
-                name, equals, value = word.partition("=")
-                if equals or word in self.long:
+                written, equals, value = word.partition("=")
+                name = self._long(written)
+                takes = name in self.long
+                if equals or takes:
                     taken.append((name, value if equals else following))
-                index += 2 if not equals and word in self.long else 1
+                index += 2 if takes and not equals else 1
                 continue
             # A cluster of short options: the first that takes an argument ends it, the rest of
             # the word being its argument, or the next word when it ends the cluster.
@@ -115,47 +146,133 @@ class _Options(NamedTuple):
             index += 2 if taking == len(cluster) - 1 else 1
         return taken, index
 
+    def permuted(self, words: list[str]) -> tuple[list[tuple[str, str]], list[str]]:
+        """Return the options that take an argument wherever they stand, and the operands.
 
+        ``getopt`` without ``+`` reads an option past an operand: ``su root -c 'make'``.
+        """
+        taken: list[tuple[str, str]] = []
+        operands: list[str] = []
+        index = 0
+        while index < len(words):
+            found, index = self.parse(words, index)
+            taken += found
+            if index < len(words) and (words[index] == "-" or not words[index].startswith("-")):
+                operands.append(words[index])
+                index += 1
+        return taken, operands
+
+    def _long(self, written: str) -> str:
+        """Return the long option ``written`` names: itself, or the one it uniquely abbreviates."""
+        known = self.long | self.flags
+        if not self.abbreviates or written in known:
+            return written
+        matches = [option for option in known if option.startswith(written)]
+        # An ambiguous one is an error of the command, which then runs nothing.
+        return matches[0] if len(matches) == 1 else written
+
+
+def _names(*names: str) -> frozenset[str]:
+    return frozenset(f"--{name}" for name in names)
+
+
+_HELP = _names("help", "version")
 # The option of `env` whose argument is a command line, which it splits into words and runs
-# before the words that follow its options; GNU `env` takes `--s` and up for `--split-string`.
-_SPLIT_STRING = frozenset({"-S"} | {"--split-string"[:end] for end in range(3, 15)})
+# before the words that follow its options.
+_SPLIT_STRING = frozenset({"-S", "--split-string"})
 # The commands that run the command that follows their options.
 _PREFIXES = {
     "sudo": _Options(
         "CDghpRrTtUu",
-        frozenset({"--chdir", "--chroot", "--close-from", "--command-timeout", "--group"})
-        | frozenset({"--host", "--other-user", "--prompt", "--role", "--type", "--user"}),
+        _names("auth-type", "chdir", "chroot", "close-from", "command-timeout", "group", "host")
+        | _names("login-class", "other-user", "prompt", "role", "type", "user"),
+        _HELP
+        | _names("askpass", "background", "bell", "edit", "list", "login", "non-interactive")
+        | _names("no-update", "preserve-env", "preserve-groups", "remove-timestamp")
+        | _names("reset-timestamp", "set-home", "shell", "stdin", "validate"),
+        chdir=frozenset({"-D", "--chdir"}),
     ),
     "doas": _Options("Cu"),
-    "env": _Options("CSu", frozenset({"--chdir", "--unset"}) | (_SPLIT_STRING - {"-S"})),
-    "nohup": _Options(),
-    "nice": _Options("n", frozenset({"--adjustment"})),
-    "timeout": _Options("ks", frozenset({"--kill-after", "--signal"}), operands=1),
-    "time": _Options("fo", frozenset({"--format", "--output"})),
+    "env": _Options(
+        "CSafu",
+        _names("argv0", "chdir", "file", "split-string", "unset"),
+        _HELP
+        | _names("block-signal", "debug", "default-signal", "ignore-environment")
+        | _names("ignore-signal", "list-signal-handling", "null"),
+        chdir=frozenset({"-C", "--chdir"}),
+        scripts=_SPLIT_STRING,
+    ),
+    "nohup": _Options(flags=_HELP),
+    "nice": _Options("n", _names("adjustment"), _HELP),
+    "timeout": _Options(
+        "ks",
+        _names("kill-after", "signal"),
+        _HELP | _names("foreground", "preserve-status", "verbose"),
+        operands=1,
+    ),
+    "time": _Options(
+        "fo",
+        _names("format", "output"),
+        _HELP | _names("append", "portability", "quiet", "verbose"),
+    ),
     "command": _Options(),
     "builtin": _Options(),
     "exec": _Options("a"),
-    "setsid": _Options(),
-    "stdbuf": _Options("eio", frozenset({"--error", "--input", "--output"})),
-    "ionice": _Options("cn", frozenset({"--class", "--classdata"})),
+    "setsid": _Options(flags=_HELP | _names("ctty", "fork", "wait")),
+    "stdbuf": _Options("eio", _names("error", "input", "output"), _HELP),
+    "ionice": _Options(
+        "cn", _names("class", "classdata", "pgid", "pid", "uid"), _HELP | _names("ignore")
+    ),
     "xargs": _Options(
         "EILPadns",
-        frozenset({"--arg-file", "--delimiter", "--max-args", "--max-chars", "--max-procs"})
-        | frozenset({"--process-slot-var"}),
+        _names("arg-file", "delimiter", "max-args", "max-chars", "max-procs", "process-slot-var"),
+        _HELP
+        | _names("eof", "exit", "interactive", "max-lines", "no-run-if-empty", "null")
+        | _names("open-tty", "replace", "show-limits", "verbose"),
+    ),
+    # Its first operand is the applet, which stands as the command word.
+    "busybox": _Options(flags=_HELP | _names("install", "list", "list-full")),
+    # Its operand is the new root, where the command runs.
+    "chroot": _Options("", _names("groups", "userspec"), _HELP | _names("skip-chdir"), operands=1),
+    # Its operand is the lock; a `-c` after it brings a script instead of a command.
+    "flock": _Options(
+        "Ecw",
+        _names("command", "conflict-exit-code", "timeout", "wait"),
+        _HELP
+        | _names("close", "exclusive", "fcntl", "nb", "no-fork", "nonblock", "nonblocking")
+        | _names("shared", "unlock", "verbose"),
+        operands=1,
+        scripts=frozenset({"-c", "--command"}),
     ),
 }
+_SU = _Options(
+    "Gcgsw",
+    _names("command", "group", "session-command", "shell", "supp-group", "whitelist-environment"),
+    _HELP | _names("fast", "login", "no-pty", "preserve-environment", "pty"),
+    scripts=frozenset({"-c", "--command", "--session-command"}),
+)
+# `runuser -u <user> [--] <command>` runs the command itself, without a shell.
+_RUNUSER = _SU._replace(short=_SU.short + "u", long=_SU.long | _names("user"))
+_WATCH = _Options(
+    "nq",
+    _names("equexit", "interval"),
+    _HELP
+    | _names("beep", "chgexit", "color", "differences", "errexit", "exec", "no-color")
+    | _names("no-rerun", "no-title", "no-wrap", "precise"),
+)
 # The long options of `bash` that take the next word for their argument.
 _SHELL_LONG = frozenset({"--init-file", "--rcfile"})
 _DOCKER = _Options(
     "cHl",
-    frozenset({"--config", "--context", "--host", "--log-level", "--tlscacert", "--tlscert"})
-    | frozenset({"--tlskey"}),
+    _names("config", "context", "host", "log-level", "tlscacert", "tlscert", "tlskey"),
+    abbreviates=False,
 )
 _TRAP = _Options()
 _COMPOSE = _Options(
     "fp",
-    frozenset({"--ansi", "--env-file", "--file", "--parallel", "--profile", "--progress"})
-    | frozenset({"--project-directory", "--project-name"}),
+    _names("ansi", "env-file", "file", "parallel", "profile", "progress", "project-directory")
+    | _names("project-name"),
+    abbreviates=False,
 )
 
 
@@ -346,49 +463,109 @@ def refusal(command: str) -> str | None:
     return _line(command, 0)
 
 
-def _line(text: str, depth: int, *, piped: bool = False) -> str | None:
+def _line(text: str, depth: int, *, piped: bool = False, moved: bool = False) -> str | None:
+    return _judge(text, depth, piped=piped, moved=moved)[0]
+
+
+def _judge(
+    text: str, depth: int, *, piped: bool = False, moved: bool = False
+) -> tuple[str | None, bool]:
+    """Return the refused form a line takes, and whether it ends in a directory of git.
+
+    ``moved``: the line runs after a ``cd`` into a directory of git.
+    """
     commands: list[str] = []
     try:
         _Scanner(text, commands, depth).scan()
         split = [shlex.split(command) for command in commands]
     except ValueError:
         found = _FORBIDDEN.search(text)
-        return None if found is None else f"a line it cannot cut, which names `{found.group()}`"
-    moved = False
+        form = None if found is None else f"a line it cannot cut, which names `{found.group()}`"
+        return form, moved
     for words in split:
-        if (form := _simple(words, depth, piped=piped, moved=moved)) is not None:
-            return form
-        # A `cd` into a directory of git: the relative paths that follow are read from there.
-        if words[:1] == ["cd"] and any(".git" in word.split("/") for word in words[1:]):
-            moved = True
-    return None
+        form, moved = _simple(words, depth, piped=piped, moved=moved)
+        if form is not None:
+            return form, moved
+    return None, moved
 
 
 def _simple(
     words: list[str], depth: int, *, piped: bool = False, moved: bool = False
-) -> str | None:
-    """Judge a simple command, past its assignments and the prefixes that run it."""
+) -> tuple[str | None, bool]:
+    """Judge a simple command, past its assignments and the prefixes that run it.
+
+    Return the refused form, and whether the shell stands in a directory of git after it.
+    """
+    # Where the command runs: a prefix may change it, for the command alone.
+    here = moved
     index = 0
     while index < len(words):
         word = words[index]
         name = word.rsplit("/", 1)[-1]
         if _ASSIGNMENT.match(word) or word in _KEYWORDS:
             index += 1
-        elif name in _PREFIXES:
-            # What `xargs` runs takes its arguments from the pipe: they are never literal.
-            piped = piped or name == "xargs"
-            options, index = _PREFIXES[name].parse(words, index + 1)
-            index += _PREFIXES[name].operands
-            lines = [value for option, value in options if option in _SPLIT_STRING]
-            if name == "env" and lines:
-                # `env -S 'pkill x'`: the words of the line come before those that follow.
-                line = " ".join([*lines, shlex.join(words[index:])])
-                return _line(line, depth + 1, piped=piped)
-        else:
+            continue
+        prefix = _PREFIXES.get(name)
+        if prefix is None:
+            arguments = words[index + 1 :]
+            if name in {"cd", "pushd"}:
+                return None, _cd(arguments, moved=here, pushd=name == "pushd")
+            # `eval` runs in the shell itself: its `cd` holds for what follows it.
+            if name == "eval":
+                return _judge(" ".join(arguments), depth + 1, moved=here)
             check = _CHECKS.get(name)
-            command = _Command(name, words[index + 1 :], piped=piped, depth=depth, moved=moved)
-            return None if check is None else check(command)
-    return None
+            command = _Command(name, arguments, piped=piped, depth=depth, moved=here)
+            return (None if check is None else check(command)), moved
+        # What `xargs` runs takes its arguments from the pipe: they are never literal.
+        piped = piped or name == "xargs"
+        options, index = prefix.parse(words, index + 1)
+        operands = words[index : index + prefix.operands]
+        index += prefix.operands
+        for option, value in options:
+            if option in prefix.chdir:
+                here = _moved(value, moved=here)
+        if name == "chroot" and operands:
+            here = _moved(operands[0], moved=here)
+        scripts = [value for option, value in options if option in prefix.scripts]
+        if name == "flock" and words[index : index + 1] in (["-c"], ["--command"]):
+            scripts.append(words[index + 1] if index + 1 < len(words) else "")
+            index = len(words)
+        if name == "env" and scripts:
+            # `env -S 'pkill x'`: the words of the line come before those that follow.
+            line = " ".join([*scripts, shlex.join(words[index:])])
+            return _line(line, depth + 1, piped=piped, moved=here), moved
+        for script in scripts:
+            if (form := _line(script, depth + 1, piped=piped, moved=here)) is not None:
+                return form, moved
+    return None, moved
+
+
+def _cd(arguments: list[str], *, moved: bool, pushd: bool) -> bool:
+    """Return whether the shell stands in a directory of git after ``cd`` or ``pushd``.
+
+    ``pushd`` alone, or with ``+N`` or ``-N``, turns its stack: where it lands is not known, and
+    the state is kept.
+    """
+    operands = list(arguments)
+    while operands[:1] and operands[0].startswith("-") and operands[0] != "-":
+        if operands.pop(0) == "--":
+            break
+    if not operands:
+        return moved if pushd else False
+    return _moved(operands[0], moved=moved)
+
+
+def _moved(path: str, *, moved: bool) -> bool:
+    """Return whether a change of directory to ``path`` leaves the shell in a directory of git.
+
+    A path computed by a substitution or a variable is taken for ``git rev-parse --git-dir``; a
+    relative path that does not climb keeps the state it starts from.
+    """
+    if "$" in path or ".git" in path.split("/"):
+        return True
+    if path in {"", "-"} or path.startswith(("/", "~")) or path.partition("/")[0] == "..":
+        return False
+    return moved
 
 
 class _Command(NamedTuple):
@@ -400,7 +577,7 @@ class _Command(NamedTuple):
     """Run by ``xargs``: its arguments come from a pipe."""
     depth: int
     moved: bool = False
-    """Run after a ``cd`` into a directory of git, on the same line."""
+    """Run in a directory of git, after a ``cd`` on the same line or by an option of a prefix."""
 
 
 def _pattern(command: _Command) -> str | None:
@@ -448,16 +625,17 @@ def _docker(command: _Command) -> str | None:
         return None
     if words[0] == "compose":
         return _compose(command._replace(name="docker compose", arguments=words[1:]))
-    # `docker container stop` is `docker stop`.
-    if words[0] == "container":
+    # `docker container stop` is `docker stop`; `docker image rm`, `docker rmi`.
+    group = words[0] if words[0] in _DOCKER_REMOVALS else ""
+    if group:
         words = words[_DOCKER.skip(words, 1) :]
         if not words:
             return None
     verb, rest = words[0], words[1:]
     if "prune" in {verb, *rest[:1]}:
         return "`docker … prune`: it removes what the other lots hold"
-    if verb in _CONTAINER_STOPS:
-        return _container_stop(verb, rest, piped=command.piped)
+    if verb in _DOCKER_REMOVALS[group]:
+        return _container_stop(f"{group} {verb}".lstrip(), rest, piped=command.piped)
     return None
 
 
@@ -484,6 +662,7 @@ def _compose(command: _Command) -> str | None:
 
 
 def _unlink(command: _Command) -> str | None:
+    """Refuse to remove or move a lock of git: ``rm``, ``unlink``, ``mv``, ``rename``."""
     for argument in command.arguments:
         directories, _, last = argument.rstrip("/").rpartition("/")
         lock = last.endswith(".lock")
@@ -494,6 +673,36 @@ def _unlink(command: _Command) -> str | None:
                 f"`{command.name} {argument}`: a lock of git is held by a git command that runs, "
                 "maybe in another worktree"
             )
+    return None
+
+
+def _find(command: _Command) -> str | None:
+    """Judge a ``find`` that removes what it finds, by ``-delete`` or ``-exec rm``.
+
+    It is refused in a directory of git, or when it looks for a lock: from the root of a clone,
+    ``find . -name '*.lock' -delete`` reaches the locks of ``.git``.
+    """
+    arguments = command.arguments
+    index = 0
+    while index < len(arguments) and (
+        arguments[index] in _FIND_OPTIONS or arguments[index][:2] in {"-D", "-O"}
+    ):
+        index += 2 if arguments[index] == "-D" else 1
+    paths: list[str] = []
+    while index < len(arguments) and arguments[index][:1] not in {"-", "(", ")", "!"}:
+        paths.append(arguments[index])
+        index += 1
+    expression = arguments[index:]
+    removes = "-delete" in expression or any(
+        word in _FIND_EXECS and following.rsplit("/", 1)[-1] in _FIND_REMOVERS
+        for word, following in itertools.pairwise(expression)
+    )
+    in_git = command.moved or any(".git" in path.split("/") for path in paths)
+    if removes and (in_git or any(".lock" in word for word in expression)):
+        return (
+            "`find … -delete` or `-exec rm` in a directory of git: a lock of git is held by a git "
+            "command that runs, maybe in another worktree"
+        )
     return None
 
 
@@ -510,7 +719,8 @@ def _shell(command: _Command) -> str | None:
         (
             form
             for script in sorted(found for found in scripts if found is not None)
-            if (form := _line(arguments[script], command.depth + 1)) is not None
+            if (form := _line(arguments[script], command.depth + 1, moved=command.moved))
+            is not None
         ),
         None,
     )
@@ -547,14 +757,37 @@ def _script(arguments: list[str], *, rest: bool) -> int | None:
     return index if scripted and index < len(arguments) else None
 
 
-def _eval(command: _Command) -> str | None:
-    return _line(" ".join(command.arguments), command.depth + 1)
+def _su(command: _Command) -> str | None:
+    """Judge the script of ``su -c`` or ``runuser -c``, and the command of ``runuser -u``.
+
+    Their options are read wherever they stand, as ``getopt`` permutes them; the words that
+    follow the user are passed to the shell, which reads a ``-c`` among them too.
+    """
+    table = _RUNUSER if command.name == "runuser" else _SU
+    arguments = command.arguments
+    options, operands = table.permuted(arguments)
+    for option, script in options:
+        if option in table.scripts and (
+            form := _line(script, command.depth + 1, moved=command.moved)
+        ):
+            return form
+    if any(option in {"-u", "--user"} for option, _ in options):
+        run = arguments[arguments.index("--") + 1 :] if "--" in arguments else operands
+        return _simple(run, command.depth + 1, piped=command.piped, moved=command.moved)[0]
+    return None
+
+
+def _watch(command: _Command) -> str | None:
+    """Judge what ``watch`` runs: its operands, joined, are the script of ``sh -c``."""
+    index = _WATCH.skip(command.arguments, 0)
+    script = " ".join(command.arguments[index:])
+    return _line(script, command.depth + 1, piped=command.piped, moved=command.moved)
 
 
 def _trap(command: _Command) -> str | None:
     """Judge the action of ``trap``, which the shell runs on its signal: ``trap 'kill 0' EXIT``."""
     arguments = command.arguments[_TRAP.skip(command.arguments, 0) :]
-    return _line(arguments[0], command.depth + 1) if arguments else None
+    return _line(arguments[0], command.depth + 1, moved=command.moved) if arguments else None
 
 
 _CHECKS: dict[str, Callable[[_Command], str | None]] = {
@@ -566,7 +799,12 @@ _CHECKS: dict[str, Callable[[_Command], str | None]] = {
     "docker-compose": _compose,
     "rm": _unlink,
     "unlink": _unlink,
-    "eval": _eval,
+    "mv": _unlink,
+    "rename": _unlink,
+    "find": _find,
+    "su": _su,
+    "runuser": _su,
+    "watch": _watch,
     "trap": _trap,
 } | dict.fromkeys(_SHELLS, _shell)
 

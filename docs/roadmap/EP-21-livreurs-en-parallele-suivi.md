@@ -494,7 +494,7 @@ n'en fait pas partie »).
 
 ## US-1310 — Le garde voit les formes qu'un agent écrit sans malice
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : aucune — outil du dépôt
 - **opérations** : aucune
 - **issue** : #2251
