@@ -69,10 +69,10 @@ seulement si le harnais t'y oblige, en disant dans le relevé que le développeu
   `make tracking ISSUE=<n> US=<identifiant> STATUS=…`, `make tracking ISSUE=<n> FINDING=<n>
   ATTACHED=… DECISION=…`, et, pour un lot coupé, `make tracking ISSUE=<n> ADD_LOT=<identifiant>
   AFTER=<lot> [DEPENDS=…] [MODEL=…] [LOT_ISSUE=<n>]`, `LOT=<identifiant> DEPENDS=<liste>` et
-  `REPLACE_DEPENDENCY='<ancien>=<nouveau>'`. Il relit le corps sous un verrou du poste juste avant de l'écrire et
-  ne change que la ligne demandée : tu ne relis ni ne réécris ce corps toi-même, d'autres
-  livreurs y écrivent en même temps. Une ligne qu'il refuse (introuvable) se rapporte, elle ne
-  se contourne pas.
+  `REPLACE_DEPENDENCY='<ancien>=<nouveau>'`. Il relit le corps sous un verrou du poste juste
+  avant de l'écrire et ne change que la ligne demandée : tu ne relis ni ne réécris ce corps
+  toi-même, d'autres livreurs y écrivent en même temps. Une ligne qu'il refuse (introuvable) se
+  rapporte, elle ne se contourne pas.
 - Le tableau a une colonne « Pas avec » : les lots de l'EPIC avec lesquels le tien ne se livre
   pas en même temps. Le pilote la respecte pour lancer ; tu n'y touches pas.
 - Une issue de lot incomplète, ou qui contredit le fichier, t'arrête : tu le dis comme une
@@ -137,8 +137,8 @@ un motif de branche, il faut un jeu de règles par branche d'EPIC.
    dans le tableau et au relevé : la ligne s'ajoute par `make tracking ISSUE=<n>
    ADD_LOT=<identifiant> AFTER=<lot> DEPENDS=<lot coupé> LOT_ISSUE=<n>`, et les lots qui
    dépendaient du premier passent au second par `REPLACE_DEPENDENCY='<ancien>=<nouveau>'` ou
-   `LOT=… DEPENDS=…`, jamais en réécrivant le corps de l'issue à la main. Ce qui protège de la boucle de revue, c'est le plafond du
-   point 5.
+   `LOT=… DEPENDS=…`, jamais en réécrivant le corps de l'issue à la main. Ce qui protège de la
+   boucle de revue, c'est le plafond du point 5.
 4. **Revue locale** : confie le diff à l'agent de revue de chaque langage touché.
    - **Premier tour** : renvoie à l'agent de développement tous les constats du périmètre
      du lot, majeurs et mineurs.

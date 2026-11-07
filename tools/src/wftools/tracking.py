@@ -277,7 +277,10 @@ def new_lot_row(header: list[str], values: dict[str, str]) -> str:
 def add_lot(lines: list[str], options: argparse.Namespace) -> None:
     """Insert the row of a new lot under the lot it follows, in the same story."""
     span = order_table(lines)
-    columns(lines, span, ["Lot"])
+    wanted = ["Lot"]
+    wanted += ["Dépend de"] if options.depends is not None else []
+    wanted += ["Modèle"] if options.model is not None else []
+    columns(lines, span, wanted)
     story, label, _ = parse_lot(options.add_lot)
     if lot_row(lines, span, options.add_lot) is not None:
         refuse(f"the lot {options.add_lot} already has a row in the table « Ordre de réalisation »")
@@ -299,7 +302,9 @@ def add_lot(lines: list[str], options: argparse.Namespace) -> None:
     row = new_lot_row(cells(lines[span[0]]), values)
     ending = split_ending(lines[after])[1]
     if not ending:
-        lines[after] += "\n"
+        # The last line of the body: the new row ends the body, the line before it takes the
+        # ending of its neighbours.
+        lines[after] += split_ending(lines[span[0]])[1]
     lines.insert(after + 1, row + ending)
 
 
@@ -316,7 +321,8 @@ def replace_dependency(lines: list[str], replacement: str) -> int:
     """Replace a mention in the cell « Dépend de » of every row that has it; count the rows.
 
     The row of the lot that is the new mention keeps its own dependency: it is the part cut off,
-    and it depends on the lot it was cut from.
+    and it depends on the lot it was cut from. The issue number that follows the old mention
+    (``US-0820 #2036``) is the old lot's: it goes with the mention, it is never left on the new one.
     """
     old, separator, new = replacement.partition("=")
     if not separator or not old.strip() or not new.strip() or "=" in new:
@@ -324,13 +330,13 @@ def replace_dependency(lines: list[str], replacement: str) -> int:
     old, new = old.strip(), new.strip()
     span = order_table(lines)
     names = columns(lines, span, ["US", "Lot", "Dépend de"])
-    mention = re.compile(r"(?<![\w/-])" + re.escape(old) + r"(?![\w/])")
+    mention = re.compile(r"(?<![\w/-])" + re.escape(old) + r"(?![\w/])(?:[ \t]+#\d+)?")
     story = ""
     count = 0
     for index in range(span[0] + 2, span[1]):
         row = cells(lines[index])
         if len(row) <= max(names.values()):
-            continue
+            refuse(f"the row is shorter than the header of its table: {lines[index].strip()}")
         story = row[names["US"]].split(" ")[0] or story
         if own_lot(story, row[names["Lot"]]) == new:
             continue
@@ -499,6 +505,10 @@ def validate(options: argparse.Namespace) -> None:
         refuse("ADD_LOT and REPLACE_DEPENDENCY take no STATE, PR, STATUS, ATTACHED or DECISION")
     if options.replace_dependency and options.model is not None:
         refuse("REPLACE_DEPENDENCY takes no MODEL")
+    for name in ("lot", "add_lot", "replace_dependency"):
+        value = getattr(options, name)
+        if value is not None and not value.strip():
+            refuse(f"{name.upper()} is empty")
     for name in CELL_OPTIONS:
         value = getattr(options, name)
         if value is not None and ("\n" in value or "\r" in value):

@@ -557,6 +557,76 @@ def test_add_lot_refuses_a_row_that_exists_or_a_lot_it_does_not_find(tmp_path: P
     assert issue.writes == 0
 
 
+@pytest.mark.parametrize("ending", ["\n", "\r\n"])
+def test_add_lot_after_the_last_line_of_a_body_without_a_final_break(
+    tmp_path: Path, ending: str
+) -> None:
+    """US-1290: AFTER last, no final break: the neighbours' ending; the body ends without one."""
+    body = ending.join(
+        [
+            "## Ordre de réalisation",
+            "",
+            "| US | Lot | Dépend de |",
+            "|---|---|---|",
+            "| US-0010 #1 | lot unique | — |",
+        ]
+    )
+    issue = Issue(tmp_path, body)
+    assert issue.run("--add-lot", "US-0010b", "--after", "US-0010")[0] == 0
+    assert issue.body == body + ending + "|   | US-0010b | — |"
+
+
+def test_replace_dependency_takes_the_number_of_the_old_lot_with_its_mention(
+    tmp_path: Path,
+) -> None:
+    """US-1290: « US-0820 #2036 » in another row loses #2036, the old lot's issue."""
+    body = CUT_BODY.replace("| US-0820, US-0850/L1 |", "| US-0820 #2036, US-0850/L1 |")
+    issue = Issue(tmp_path, body)
+    assert issue.run("--replace-dependency", "US-0820=US-0820b")[0] == 0
+    assert "| US-0820b, US-0850/L1 |" in issue.body
+    assert "#2036 |" in issue.body.split("US-0820b #2099")[1]
+    assert issue.body.count("2036") == 2
+
+
+def test_replace_dependency_refuses_a_row_shorter_than_the_header(tmp_path: Path) -> None:
+    """US-1290: a short row is refused as change_lot refuses it, the body unchanged."""
+    body = CUT_BODY.replace(
+        "| 4 | US-0850 #2041 | à faire | L1 #2042 | US-0820b, US-0820/L1x | — | à faire | — | — |",
+        "| 4 | US-0850 |",
+    )
+    assert body != CUT_BODY
+    issue = Issue(tmp_path, body)
+    code, error = issue.run("--replace-dependency", "US-0820=US-0820b")
+    assert code == 1
+    assert "shorter than the header" in error
+    assert issue.writes == 0
+
+
+def test_an_empty_value_is_refused_whatever_the_form(tmp_path: Path) -> None:
+    """US-1290: --lot, --add-lot and --replace-dependency refuse an empty value."""
+    issue = cut_issue(tmp_path)
+    for arguments in (
+        ["--lot", "", "--state", "x"],
+        ["--add-lot", "", "--after", "US-0830"],
+        ["--replace-dependency", ""],
+    ):
+        code, error = issue.run(*arguments)
+        assert code == 1
+        assert error.startswith("tracking: ")
+    assert issue.writes == 0
+
+
+def test_add_lot_refuses_a_missing_column_of_a_value_given(tmp_path: Path) -> None:
+    """US-1290: DEPENDS or MODEL given, and the column missing: refused, as the form LOT does."""
+    body = "## Ordre de réalisation\n\n| Lot | US |\n|---|---|\n| lot unique | US-0010 #1 |\n"
+    issue = Issue(tmp_path, body)
+    for option in ("--depends", "--model"):
+        code, error = issue.run("--add-lot", "US-0010b", "--after", "US-0010", option, "x")
+        assert code == 1
+        assert "no column" in error
+    assert issue.body == body
+
+
 def test_depends_with_lot_replaces_the_cell(tmp_path: Path) -> None:
     """US-1290: LOT with DEPENDS replaces « Dépend de » of the lot, no other cell."""
     issue = cut_issue(tmp_path)

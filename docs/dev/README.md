@@ -2815,14 +2815,15 @@ lot `AFTER` and in the same story, the row of the new lot (`US-0820b` for the pa
 of one lot, `US-1270/L3` for a story of several; cells `#`, `US`, « Statut » empty, « Dépend de »
 the list or `—`, « État du lot » `à faire`) and refuses a lot already there;
 `REPLACE_DEPENDENCY='<old>=<new>'` replaces the mention of the old lot in « Dépend de » of every
-row that holds it, except the row of the new lot itself, says how many rows changed and refuses
-when none holds the old one. `LOT` recognises `US-0820b`, `US-1270/L2b` and a cell
-`lot unique (#1840)` or `lot unique — en dernier`. The columns are found by their header; the target refuses,
-non-zero code and body unchanged, a line it does not find, a value with a line break and a row of
-the table shorter than its header; a `|` in a value is escaped. It takes a variable only from the
-command line of make (a `PR` exported on the workstation changes nothing) and ignores an empty
-value (`STATE=`). It reads the body again under a lock of
-the workstation of its own for the issue, `$XDG_RUNTIME_DIR/waterfall-tracking-<issue>.lock`
+row that holds it, except the row of the new lot itself, removes with it the ` #n` that follows it
+(the issue of the old lot never stays on the new one), says how many rows changed and refuses when
+none holds the old one. `LOT` recognises `US-0820b`, `US-1270/L2b` and a cell `lot unique (#1840)`
+or `lot unique — en dernier`. The columns are found by their header; the target refuses, non-zero
+code and body unchanged, a line it does not find, an empty value or one with a line break, and a
+row of the table shorter than its header; a `|` in a value is escaped. It takes a variable only
+from the command line of make (a `PR` exported on the workstation changes nothing) and ignores an
+empty value (`STATE=`). It reads the body again under a lock of the workstation of its own for the
+issue, `$XDG_RUNTIME_DIR/waterfall-tracking-<issue>.lock`
 (`/tmp` by default), just before writing it: two simultaneous calls each keep their change.
 
 The workstation admits only `WATERFALL_SLOTS` heavy runs at a time — the whole tests and the
