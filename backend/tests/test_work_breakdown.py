@@ -313,7 +313,7 @@ def test_a_label_that_is_empty_or_too_long_is_refused_at_its_field(
             package(
                 "",
                 item("x" * 301, deliverable("")),
-                item("Poste", deliverable("y" * 301)),
+                item("Poste", deliverable("y" * 301), deliverable("   ")),
             )
         ],
         0,
@@ -324,6 +324,7 @@ def test_a_label_that_is_empty_or_too_long_is_refused_at_its_field(
         ("/work_packages/0/order_items/0/label", "VALUE_TOO_LONG"),
         ("/work_packages/0/order_items/0/deliverables/0/label", "VALUE_REQUIRED"),
         ("/work_packages/0/order_items/1/deliverables/0/label", "VALUE_TOO_LONG"),
+        ("/work_packages/0/order_items/1/deliverables/1/label", "VALIDATION_FAILED"),
     ]
     assert counts(stage) == (1, 1, 0)
 
@@ -452,6 +453,58 @@ def test_a_background_task_that_writes_in_the_project_refuses_the_writing(
     )
     assert counts(stage) == (1, 1, 0)
     assert read(api, stage, stage.manager)["lock_version"] == 0
+
+
+@pytest.mark.requirement("WF-PRJ-0020-A")
+def test_a_terminal_project_is_refused_before_the_background_task(
+    api: ContractClient, stage: Scene, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # The substitution of ``no_background_task_running`` gives way to a real task with US-0970.
+    monkeypatch.setattr(
+        "waterfall.core.projects.interface.work_breakdown.no_background_task_running",
+        busy,
+    )
+    put_in_state(stage.owner, stage.project["project_id"], "lost")
+    refused = write(api, stage, stage.manager, [package("Lot", item("Poste"))], 0)
+    assert refusal(refused) == (
+        409,
+        "STATE_FORBIDS_OPERATION",
+        {"missing_condition": "project_not_terminal"},
+    )
+
+
+def rename(api: ContractClient, stage: Scene, label: str, version: int) -> None:
+    """Rename the project as its manager does, at the version ``version``."""
+    renamed = api.patch(
+        f"{PROJECTS}/{stage.project['project_id']}",
+        headers=stage.manager.headers,
+        json={"label": label, "lock_version": version},
+    )
+    assert renamed.status_code == 200, renamed.text
+
+
+@pytest.mark.requirement("WF-PRJ-0020-A")
+def test_the_birth_work_breakdown_follows_the_label_of_the_project(
+    api: ContractClient, stage: Scene
+) -> None:
+    rename(api, stage, "Beta", 0)
+    body = read(api, stage, stage.manager)
+    assert body["lock_version"] == 0
+    (lot,) = body["work_packages"]
+    assert (lot["label"], [poste["label"] for poste in lot["order_items"]]) == ("Beta", ["Beta"])
+
+
+@pytest.mark.requirement("WF-PRJ-0020-A")
+def test_a_work_breakdown_that_was_written_keeps_its_labels_when_the_project_is_renamed(
+    api: ContractClient, stage: Scene
+) -> None:
+    written = write(api, stage, stage.manager, [package("Lot saisi", item("Poste saisi"))], 0)
+    assert written.status_code == 200, written.text
+    rename(api, stage, "Beta", 0)
+    body = read(api, stage, stage.manager)
+    (lot,) = body["work_packages"]
+    assert body["lock_version"] == 1
+    assert (lot["label"], lot["order_items"][0]["label"]) == ("Lot saisi", "Poste saisi")
 
 
 @pytest.mark.requirement("WF-PRJ-0020-A")

@@ -25,7 +25,7 @@ from waterfall.core.projects.commands import (
     PROJECT_NOT_TERMINAL,
     TERMINAL,
 )
-from waterfall.core.projects.interface.projects import no_background_task_running
+from waterfall.core.projects.interface.lifecycle import no_background_task_running
 from waterfall.core.projects.tables import Deliverable, OrderItem, Project, WorkPackage
 from waterfall.platform.database import contains
 from waterfall.platform.errors import (
@@ -516,6 +516,23 @@ def work_breakdown_present(session: Session, ids: Iterable[UUID]) -> frozenset[U
         for table in (WorkPackage, OrderItem, Deliverable)
         for found in session.scalars(select(table.id).where(table.id.in_(wanted)))
     )
+
+
+def follow_project_label(session: Session, project: Project, label: str, act: Act) -> None:
+    """Make the work package and the order item of the birth bear a new label of the project.
+
+    They follow the label of the project (D-11) while no writing has set the work breakdown, that
+    is while its counter is 0; written once, they are the writing's and stay as it set them. To be
+    called under the lock of the project, which ``update_project`` holds.
+    """
+    if project.work_breakdown_lock_version != 0:
+        return
+    packages, items, _ = _held(session, project.id)
+    for row in (*packages.values(), *items.values()):
+        if row.label != label:
+            row.label = label
+            _stamp(row, act.at, act.author)
+    session.flush()
 
 
 def load_work_breakdown(session: Session, load: WorkBreakdownLoad, act: Act) -> None:

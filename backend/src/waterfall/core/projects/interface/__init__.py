@@ -39,6 +39,7 @@ from waterfall.core.projects.interface.lifecycle import (
     list_state_transitions,
     load_transitions,
     next_state,
+    no_background_task_running,
 )
 
 # ``projects`` (US-0920): the project, its commands, its names for the journal.
@@ -61,7 +62,6 @@ from waterfall.core.projects.interface.projects import (
     load_project,
     lock_project,
     missing_prerequisites,
-    no_background_task_running,
     project_code,
     project_commands,
     project_facts,
