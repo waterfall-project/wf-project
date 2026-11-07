@@ -36,6 +36,7 @@ from waterfall.api.queries import Search, listed
 from waterfall.api.tasks import task_ref
 from waterfall.core.projects.interface import CommandAvailability, Viewer
 from waterfall.core.revisions.interface import (
+    KEPT,
     MarkingRequest,
     RevisionFilters,
     RevisionPage,
@@ -227,8 +228,10 @@ def delete_revision(
 
 def marking_request(project_id: UUID, revision_id: UUID, body: RevisionMark) -> MarkingRequest:
     """Read the marking asked for: the revision of the path, the name, the counter read."""
+    # A description absent keeps the one given at the creation; a null one clears it (#2171).
+    description = body.description if "description" in body.model_fields_set else KEPT
     return MarkingRequest(
-        project_id, revision_id, body.version_name, body.description, body.lock_version.root
+        project_id, revision_id, body.version_name, description, body.lock_version.root
     )
 
 

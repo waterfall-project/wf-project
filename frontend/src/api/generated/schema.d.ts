@@ -3993,6 +3993,7 @@ export interface components {
              */
             action: "mark";
             version_name: string;
+            /** @description Absente, la description conservée à la création de la révision est reprise ; présente, elle la remplace ; nulle, elle l'efface — la règle d'`updateProject` pour `client` (#2171). */
             description?: string | null;
         };
         /** @description Abandonner la révision en cours à la sortie (WF-CYC-0090, WF-REV-0010), comme `abandonRevision`, dans la requête : la sortie rend 200 et le projet. Aucun nom de version ni description, que seul un marquage fige. */
@@ -4248,6 +4249,7 @@ export interface components {
         /** @description Marque la révision. Le marquage fige la révision et calcule ses indicateurs dans la même transaction (WF-REV-0020, WF-DAT-0040) ; il est confié au worker et renvoie une tâche de fond (WF-ARC-0090). */
         RevisionMark: {
             version_name: string;
+            /** @description Absente, la description conservée à la création de la révision est reprise ; présente, elle la remplace ; nulle, elle l'efface — la règle d'`updateProject` pour `client` (#2171). */
             description?: string | null;
             lock_version: components["schemas"]["LockVersion"];
         };

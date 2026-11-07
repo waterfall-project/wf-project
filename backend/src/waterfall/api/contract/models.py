@@ -2590,7 +2590,12 @@ class NextState(ContractModel):
 class CurrentRevisionMark(ContractModel):
     action: Literal["mark"]
     version_name: Annotated[str, Field(max_length=100, min_length=1, pattern="\\S")]
-    description: str | None = None
+    description: Annotated[
+        str | None,
+        Field(
+            description="Absente, la description conservée à la création de la révision est reprise ; présente, elle la remplace ; nulle, elle l'efface — la règle d'`updateProject` pour `client` (#2171)."
+        ),
+    ] = None
 
 
 class CurrentRevisionAbandon(ContractModel):
@@ -3018,7 +3023,12 @@ class RevisionCreate(ContractModel):
 
 class RevisionMark(ContractModel):
     version_name: Annotated[str, Field(max_length=100, min_length=1, pattern="\\S")]
-    description: str | None = None
+    description: Annotated[
+        str | None,
+        Field(
+            description="Absente, la description conservée à la création de la révision est reprise ; présente, elle la remplace ; nulle, elle l'efface — la règle d'`updateProject` pour `client` (#2171)."
+        ),
+    ] = None
     lock_version: LockVersion
 
 

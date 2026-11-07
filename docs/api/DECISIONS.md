@@ -10815,7 +10815,11 @@ aucune forme.
   nulle quand la création n'en a pas reçu) —, puis reprise à son marquage. Le Vérif de WF-REV-0090,
   « la description [est] celle saisie au marquage », reste celui de la révision marquée. Écartés :
   retirer le champ de `RevisionCreate`, une forme retirée au contrat figé ; dire que la création
-  l'ignore, un champ reçu sans effet.
+  l'ignore, un champ reçu sans effet. La reprise suit la règle d'`updateProject` pour `client`
+  (décision de l'auteur, 2026-11-07) : `RevisionMark.description` absente, celle conservée à la
+  création est reprise ; présente, elle la remplace ; nulle, elle l'efface. Écarté : un marquage
+  qui écrit toujours sa description, une absente valant nulle, et une « reprise » laissée à
+  l'écran.
 - **Le projet sans code du journal** (#2166 ; WF-SEC-0030, WF-PRJ-0010). Un projet naît sans code,
   et sa création, l'abandon de sa révision ou sa sortie s'inscrivent avant qu'il en ait un : le
   journal le nomme alors par son identifiant et son libellé, son code nul — la contrainte
@@ -10830,7 +10834,7 @@ aucune forme.
 
 Les suites : `make generate-server-models` et `make generate-client` (descriptions et borne),
 `make mock-data`, à son point fixe ; le service suit chaque point, ses tests le tiennent
-(`test_contributors.py`, `test_revisions.py`, `test_audit_consultation.py`,
+(`test_contributors.py`, `test_revisions.py`, `test_revision_mark.py`, `test_audit_consultation.py`,
 `test_database_constraints.py`, `test_projects.py`), et `tools/tests/test_mockproject.py` tient les
 deux exemples nouveaux.
 

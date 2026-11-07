@@ -314,6 +314,9 @@ RevisionMark:
     version_name: { type: string, minLength: 1, pattern: '\S', maxLength: 100 }
     description:
       anyOf: [{ type: string }, { type: 'null' }]
+      description: >-
+        Absente, la description conservée à la création de la révision est reprise ; présente, elle
+        la remplace ; nulle, elle l'efface — la règle d'`updateProject` pour `client` (#2171).
     lock_version: { $ref: ../common.yaml#/LockVersion }
 
 ReferenceDesignation:

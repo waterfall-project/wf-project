@@ -24,6 +24,7 @@ transaction as the worker.
 """
 
 from dataclasses import dataclass
+from enum import Enum
 from typing import TYPE_CHECKING
 from uuid import UUID
 
@@ -65,6 +66,15 @@ DESCRIPTION = "description"
 _INDICATORS: Registry[Callable[[Session, UUID], None]] = Registry()
 
 
+class Kept(Enum):
+    """A description the marking does not send: the one kept at the creation stays (#2171)."""
+
+    DESCRIPTION = "kept"
+
+
+KEPT = Kept.DESCRIPTION
+
+
 @dataclass(frozen=True, slots=True)
 class MarkingRequest:
     """A marking asked for: which revision, under which name, at the counter read."""
@@ -72,7 +82,7 @@ class MarkingRequest:
     project_id: UUID
     revision_id: UUID
     version_name: str
-    description: str | None
+    description: str | Kept | None
     lock_version: int
 
 
@@ -115,24 +125,34 @@ def submit_marking(session: Session, queue: TaskQueue, request: MarkingRequest, 
     if not no_background_task_running(session, project_id):
         raise refuse(NO_BACKGROUND_TASK_RUNNING)
     _judge_name(session, revision, request.version_name)
-    payload = {
+    payload: dict[str, str | None] = {
         PROJECT: str(project_id),
         REVISION: str(revision.id),
         NAME: request.version_name,
-        DESCRIPTION: request.description,
     }
+    # An absent description stays absent from the payload, down to the write; a null one is kept.
+    if not isinstance(request.description, Kept):
+        payload[DESCRIPTION] = request.description
     return submit(session, queue, "revision_mark", act.author, payload)
 
 
 def run_marking(session: Session, payload: Mapping[str, Any], act: Act) -> None:
     """Mark the revision a task of marking names, in the transaction of the task (the worker's)."""
-    mark_revision(session, UUID(payload[REVISION]), payload[NAME], payload.get(DESCRIPTION), act)
+    description = payload.get(DESCRIPTION, KEPT)
+    mark_revision(session, UUID(payload[REVISION]), payload[NAME], description, act)
 
 
 def mark_revision(
-    session: Session, revision_id: UUID, version_name: str, description: str | None, act: Act
+    session: Session,
+    revision_id: UUID,
+    version_name: str,
+    description: str | Kept | None,
+    act: Act,
 ) -> None:
     """Mark the current revision of a project, in the transaction of the task.
+
+    The description follows the rule of ``updateProject`` for ``client``: kept (``KEPT``), the one
+    given at the creation stays; given, it replaces it; null, it clears it (#2171).
 
     Under the lock of the revision: refused if unknown (404), marked already (409
     ``revision_draft``), or under a name of version taken (409 ``ALREADY_EXISTS``): a project has
@@ -148,7 +168,8 @@ def mark_revision(
     compute_indicators(session, revision_id)
     revision.status = "marked"
     revision.version_name = version_name
-    revision.description = description
+    if not isinstance(description, Kept):
+        revision.description = description
     revision.marked_at = act.at
     revision.updated_at = act.at
     revision.updated_by = act.author
