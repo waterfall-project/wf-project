@@ -3851,7 +3851,7 @@ export interface components {
         };
         /** @description Le compteur est absent à la première saisie de l'année, où le taux n'existe pas encore, et obligatoire pour corriger un taux déjà saisi. Une première saisie, sans compteur, pour une année qui porte déjà un taux en serait un second : refusée par 409, `ALREADY_EXISTS` (WF-REF-0050). */
         HourlyRateWrite: {
-            /** @description Le taux de l'heure, positif : un montant nul ou négatif est refusé par 422, `VALUE_OUT_OF_RANGE` sur `/amount`, `fields[].params.minimum` à `0.01`, le plus petit montant positif qu'un `Money` écrit. */
+            /** @description Le taux de l'heure, positif et borné : un montant nul ou négatif est refusé par 422, `VALUE_OUT_OF_RANGE` sur `/amount`, `fields[].params.minimum` à `0.01`, le plus petit montant positif qu'un `Money` écrit ; un montant au-delà de `9999999999.99`, ce que la colonne du taux tient, l'est de même, `fields[].params.maximum` à `9999999999.99` (un `Money` n'a pas de borne haute : le schéma, une chaîne, la dit ici et non par `maximum`). */
             amount: components["schemas"]["Money"];
             lock_version?: components["schemas"]["LockVersion"];
         };
@@ -9322,7 +9322,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
-            /** @description Un montant nul ou négatif : `VALIDATION_FAILED`, `fields` désignant `/amount` par `VALUE_OUT_OF_RANGE`, `fields[].params.minimum` à `0.01`, le plus petit taux admis. Une catégorie dont la nature ne relève pas de la main-d'œuvre, qui ne porte pas de taux (WF-REF-0050) : `LABOUR_CATEGORY_REQUIRED`, sans `fields` — la catégorie est celle du chemin. Rien n'est écrit. */
+            /** @description Un montant nul ou négatif, ou au-delà de ce que la colonne du taux tient : `VALIDATION_FAILED`, `fields` désignant `/amount` par `VALUE_OUT_OF_RANGE`, `fields[].params.minimum` à `0.01`, le plus petit taux admis, ou `fields[].params.maximum` à `9999999999.99`, le plus grand. Une catégorie dont la nature ne relève pas de la main-d'œuvre, qui ne porte pas de taux (WF-REF-0050) : `LABOUR_CATEGORY_REQUIRED`, sans `fields` — la catégorie est celle du chemin. Rien n'est écrit. */
             422: {
                 headers: {
                     [name: string]: unknown;

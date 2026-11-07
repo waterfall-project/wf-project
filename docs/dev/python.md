@@ -42,6 +42,16 @@ Ce qu'un module du noyau offre aux autres est dans son module `interface` ; ses 
 requêtes et ses objets de persistance lui restent. Une requête SQL écrite en texte ne nomme
 jamais la table d'un autre module.
 
+Quand l'interface est un paquet (`interface/__init__.py`, `resource_settings` en est le
+premier), un fichier par objet, elle ré-exporte les noms de chaque fichier ainsi : un
+`from … import X as X` par nom, chacun sous le commentaire qui nomme le fichier et l'US qui le
+remplit, sans `__all__` ni `import (A, B, …)`. Ruff (isort sans `combine-as-imports`) écrit
+chaque ré-export en une instruction à part, ce qui fait beaucoup de lignes mais un seul bloc par
+US : deux US qui remplissent deux fichiers écrivent deux endroits de ce fichier, et ne se
+disputent pas une liste commune, que `__all__` ou un `import (…)` unique rendrait. Un module
+d'interface en fichier unique (`users/interface.py`) garde son `__all__`. Un autre module importe
+toujours les noms depuis `…interface`, jamais depuis le fichier d'un objet (#2100).
+
 *Pourquoi* : c'est ce qui garde possible l'extraction d'un module en service (WF-ARC-0010).
 *Contrôle* : `make imports-back` pour les imports ; le SQL en texte, la revue — ses règles
 sont dans [sql.md](sql.md).

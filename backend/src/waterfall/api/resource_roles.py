@@ -11,8 +11,8 @@ permission to change the resource settings (``resource_settings.write``, WF-ADM-
 of the author, #2084). A role is described with the commands its caller may exercise.
 
 The resource settings do not read the cost settings, which read them: the route asks the cost
-settings what a role is told of its category (``category_admission``), the label of each category
-it names, and the label a list sorts the categories by (``category_label_of``).
+settings what a role is told of its category (``waterfall.api.resource_role_admission``), the label
+of each category it names, and the label a list sorts the categories by (``category_label_of``).
 """
 
 import re
@@ -27,7 +27,6 @@ from waterfall.api.actors import actor_ref
 from waterfall.api.authentication import Caller, Transaction
 from waterfall.api.contract.base import ContractModel, Text
 from waterfall.api.contract.models import (
-    CostTypeKind,
     LockVersion,
     PaginationMeta,
     ResourceRole,
@@ -38,10 +37,13 @@ from waterfall.api.contract.models import (
 )
 from waterfall.api.evaluation import Acting, Requires, RequiresForInactive
 from waterfall.api.queries import refuse_query
+from waterfall.api.resource_role_admission import (
+    category_admission,
+    category_admission_for_change,
+)
 from waterfall.core.cost_settings.interface import category_label_of, category_labels
 from waterfall.core.resource_settings.interface import (
     Capacity,
-    CategoryAdmission,
     RoleChange,
     RoleColumn,
     RoleDraft,
@@ -122,22 +124,6 @@ def node_sent_null(body: ResourceRoleUpdate) -> None:
         raise UnprocessableError(
             VALIDATION_FAILED, fields=(FieldError("/org_node_id", VALIDATION_FAILED),)
         )
-
-
-def category_admission(session: Session, category_id: UUID) -> CategoryAdmission | None:
-    """Ask the cost settings what a role is told of a category, sharing the lock of the natures.
-
-    Whether its nature is of labour and whether it is active; ``None`` for a category the
-    reference does not have. Asked first, before the write locks anything of the resource settings
-    — the tree, the role —: the lock holds until the transaction ends, and a change of the kind or
-    of the state of the category waits for the role attached to it, or is waited for.
-    """
-    found = category_labels(session, [category_id], locked=True).get(category_id)
-    if found is None:
-        return None
-    return CategoryAdmission(
-        is_labour=found.cost_type_kind == CostTypeKind.labor.value, is_active=found.is_active
-    )
 
 
 def _plain(value: Decimal) -> str:
@@ -363,7 +349,9 @@ def patch_resource_role(
         body.label,
         None if body.org_node_id is None else body.org_node_id.root,
         category_id,
-        category_admission(session, category_id),
+        category_admission_for_change(
+            session, resource_role_id, category_id, body.lock_version.root
+        ),
         body.calendar_id.root,
         capacity_of(body.capacity),
     )
