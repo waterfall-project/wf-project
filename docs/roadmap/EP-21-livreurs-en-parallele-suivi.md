@@ -1,10 +1,10 @@
 ---
 id: EP-21
 titre: Combler ce que deux jours à quatre livreurs ont révélé de l'outillage — tableau de suivi, arrêt d'un créneau, garde, contrôles de la chaîne, harnais des parcours
-statut: prêt
+statut: en cours
 depend_de: EP-19, EP-05
 famille: plateforme
-issue:
+issue: 2225
 ---
 
 # EP-21 — Livreurs en parallèle : suivi
@@ -384,7 +384,7 @@ US-1310) — donnent les « Pas avec » du plan de lots.
 - **statut** : à faire
 - **exigences** : aucune — outil du dépôt
 - **opérations** : aucune
-- **issue** :
+- **issue** : #2246
 
 **En tant que** développeur, **je veux** que `make tracking` sache ajouter la ligne d'un lot coupé,
 changer une dépendance et reconnaître toute cellule « Lot » que le cadreur écrit, et qu'un test
@@ -442,7 +442,7 @@ et une US nouvelle est un recadrage.
 - **statut** : à faire
 - **exigences** : aucune — outil du dépôt
 - **opérations** : aucune
-- **issue** :
+- **issue** : #2247
 
 **En tant que** développeur, **je veux** qu'une cible du Makefile arrête les serveurs de l'e2e de mon
 créneau, que `make slot-release` l'appelle, et que les services de test d'un créneau ne se démarrent
@@ -497,7 +497,7 @@ n'en fait pas partie »).
 - **statut** : à faire
 - **exigences** : aucune — outil du dépôt
 - **opérations** : aucune
-- **issue** :
+- **issue** : #2251
 
 **En tant que** développeur, **je veux** que le garde des commandes refuse les formes d'arrêt et de
 suppression qu'un agent écrit sans malice et qu'il laisse passer aujourd'hui, et qu'il suive un `cd`
@@ -547,7 +547,7 @@ variable en position de mot de commande — reste une limite connue, et n'entre 
 - **statut** : à faire
 - **exigences** : aucune — outil du dépôt
 - **opérations** : aucune
-- **issue** :
+- **issue** : #2252
 
 **En tant que** développeur, **je veux** que `make check` refuse un cycle d'imports entre deux
 modules du noyau, que `make service-up` reconstruise chaque image qu'il démarre, et que le contrôle
@@ -601,7 +601,7 @@ pris (miroir des images, cache, `installation.setup`), s'ils ne sont pas retenus
 - **statut** : à faire
 - **exigences** : aucune — outil du dépôt
 - **opérations** : aucune
-- **issue** :
+- **issue** : #2253
 
 **En tant que** développeur, **je veux** que les parcours partagés de l'administration et de l'état
 se jouent contre le service sous un compte qui en a les permissions, que les parcours qui écrivent un
@@ -664,7 +664,7 @@ L'amorçage de `risk_settings.write` et `indicator_settings.write` dans le « Ma
 - **statut** : à faire
 - **exigences** : aucune — outil du dépôt
 - **opérations** : aucune
-- **issue** :
+- **issue** : #2254
 
 **En tant que** développeur, **je veux** que les quatre finitions reportées vers EP-21 par EP-20 et
 EP-22 soient faites, et que le guide et le skill `pilote` disent ce que les deux jours à quatre
@@ -710,7 +710,7 @@ redémarrage ne coûtent plus un lot (#2028, #2074, #2075, #2085).
 - **statut** : à faire
 - **exigences** : aucune — outil du dépôt
 - **opérations** : aucune
-- **issue** :
+- **issue** : #2249
 
 **En tant que** développeur, **je veux** que les règles d'autorisation dont un livreur a besoin —
 mettre en file, éditer une issue, pousser, prendre son créneau — soient versionnées dans
@@ -750,7 +750,7 @@ que le livreur écrit.
 - **statut** : à faire
 - **exigences** : aucune — outil du dépôt
 - **opérations** : aucune
-- **issue** :
+- **issue** : #2250
 
 **En tant que** développeur, **je veux** que la liste des modules d'`api/` exemptés de TC001–TC003
 dans `ruff.toml` tienne un module par ligne, triée, et qu'un test exige chaque module de routes dans
@@ -784,7 +784,7 @@ déclarent pas de routeur et restent exemptés pour la raison écrite aujourd'hu
 - **statut** : à faire
 - **exigences** : aucune — outil du dépôt
 - **opérations** : aucune
-- **issue** :
+- **issue** : #2248
 
 **En tant que** développeur, **je veux** que le jeu de règles de la file de fusion d'une branche
 d'EPIC se crée par une cible du Makefile depuis un modèle versionné, et que le livreur du premier
