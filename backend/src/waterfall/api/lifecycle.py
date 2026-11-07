@@ -49,6 +49,7 @@ from waterfall.core.projects.interface import (
 )
 from waterfall.core.revisions.interface import (
     MarkingRequest,
+    ReferenceToDesignate,
     RevisionToAbandon,
     abandon_revision,
     designate_reference,
@@ -264,7 +265,6 @@ def put_reference_revision(
         raise BadRequestError(CONFIRMATION_REQUIRED)
     act = Act(account.user_id, utc_now())
     viewer = viewer_of(actor)
-    designate_reference(
-        session, project_id, body.revision_id.root, body.lock_version.root, act, viewer
-    )
+    designated = ReferenceToDesignate(body.revision_id.root, body.lock_version.root)
+    designate_reference(session, project_id, designated, act, viewer)
     return described(session, [read_project(session, project_id, viewer)])[0]

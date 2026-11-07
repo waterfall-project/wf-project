@@ -35,6 +35,7 @@ from waterfall.core.revisions.interface.marking import (
 
 # ``reference`` (US-0980/L2): the reference revision of a project.
 from waterfall.core.revisions.interface.reference import (
+    ReferenceToDesignate,
     designate_reference,
     reference_correctable,
     register_tasks_and_lines,
@@ -73,6 +74,7 @@ from waterfall.core.revisions.interface.structures import (
 
 __all__ = [
     "MarkingRequest",
+    "ReferenceToDesignate",
     "RevisionCopy",
     "RevisionFilters",
     "RevisionList",

@@ -21,7 +21,7 @@ the new one, the project, and ``reference_designate`` in the journal; the projec
 progress if its code is entered (``set_reference_revision``).
 """
 
-from dataclasses import replace
+from dataclasses import dataclass, replace
 from typing import TYPE_CHECKING
 
 from sqlalchemy import func, select
@@ -97,13 +97,16 @@ def _write(revision: Revision, *, reference: bool, act: Act) -> None:
     revision.lock_version += 1
 
 
+@dataclass(frozen=True, slots=True)
+class ReferenceToDesignate:
+    """The revision a designation names, and the counter of the project its caller read."""
+
+    revision_id: UUID
+    lock_version: int
+
+
 def designate_reference(
-    session: Session,
-    project_id: UUID,
-    revision_id: UUID,
-    lock_version: int,
-    act: Act,
-    viewer: Viewer,
+    session: Session, project_id: UUID, designated: ReferenceToDesignate, act: Act, viewer: Viewer
 ) -> None:
     """Designate a marked revision reference of its project (``designateReferenceRevision``).
 
@@ -115,8 +118,9 @@ def designate_reference(
     project = lock_for_designation(session, project_id)
     require_project_manager(session, project_id, viewer)
     act = replace(act, at=utc_now())
+    revision_id = designated.revision_id
     target = found_revision(session, revision_id, project_id, lock=False)
-    if project.lock_version != lock_version:
+    if project.lock_version != designated.lock_version:
         raise PreconditionFailedError(
             STALE_LOCK_VERSION, {"expected_lock_version": project.lock_version}
         )
