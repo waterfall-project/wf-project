@@ -126,11 +126,18 @@ def _is_empty(value: object) -> bool:
 _NOT_BLANK = "\\S"
 
 
+# The fields whose value of blanks alone is a value that is lacking, not a value malformed: the
+# name of the version a revision is marked under (WF-REV-0020). The other texts under the pattern
+# keep ``VALIDATION_FAILED`` for it.
+_BLANK_IS_LACKING = frozenset({"version_name"})
+
+
 def _is_blank(fault: Mapping[str, Any]) -> bool:
-    """Tell a text made of blanks alone, where the pattern asks for one character that is not one."""
+    """Tell a text of blanks alone, where the pattern asks for a character that is not one."""
     value = fault.get("input")
     return (
         fault["type"] == "string_pattern_mismatch"
+        and fault["loc"][-1] in _BLANK_IS_LACKING
         and fault.get("ctx", {}).get("pattern") == _NOT_BLANK
         and isinstance(value, str)
         and not value.strip()
