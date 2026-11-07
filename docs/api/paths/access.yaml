@@ -726,7 +726,8 @@
         description: >-
           A refused periodicity, `VALIDATION_FAILED`, `fields` designating each faulty
           field, like that of backups: a missing frequency or time, with
-          `VALUE_REQUIRED`; a day outside 1 to 7 (`/weekday`), `VALUE_OUT_OF_RANGE`,
+          `VALUE_REQUIRED`; a time outside `HH:MM` (`/at_time`) or a frequency outside `daily`
+          and `weekly` (`/frequency`), `VALIDATION_FAILED`; a day outside 1 to 7 (`/weekday`), `VALUE_OUT_OF_RANGE`,
           `params.minimum` or `maximum` the only bound crossed; a null day for a weekly
           read, `/weekday` with `VALUE_REQUIRED`, or one given to a daily read, `/weekday`
           with the pattern's `VALIDATION_FAILED` (WF-ADM-0070). Nothing is written.
