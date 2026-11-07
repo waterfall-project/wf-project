@@ -51,7 +51,8 @@ La portée dit si l'exigence est entière ici, commencée ici et close par un EP
 close ici après avoir été commencée plus tôt. Chaque exigence n'est close que par un seul EPIC.
 La colonne US se remplit quand l'EPIC passe `prêt`. WF-REF-0130 est commencée par EP-05 et EP-07
 et close ici : son Vérif demande la zone de l'indice de coût d'une révision marquée (cadrage
-d'EP-07, décision de l'auteur du 2026-11-07).
+d'EP-07, décision de l'auteur du 2026-11-07). WF-RAE-0030 est commencée par EP-15 et EP-09 et close
+ici : son Vérif demande la valeur acquise (cadrage d'EP-09, décision de l'auteur du 2026-11-07).
 
 | Exigence | Titre | Portée | US |
 |---|---|---|---|
@@ -59,6 +60,7 @@ d'EP-07, décision de l'auteur du 2026-11-07).
 | `WF-PLA-0130-A` | Attributs d’une tâche | fin — amorcée en EP-06 | — |
 | `WF-PLA-0060-A` | Inscription aux suivis | fin — amorcée en EP-06, EP-15 | — |
 | `WF-RAE-0050-A` | Tâches ajoutées en cours d’exécution | fin — amorcée en EP-09 | — |
+| `WF-RAE-0030-A` | Démarrage d’une tâche | fin — amorcée en EP-15, EP-09 | — |
 | `WF-IND-0010-A` | Date et périmètre de calcul | entière | — |
 | `WF-IND-0020-A` | Granularité des indicateurs | entière | — |
 | `WF-IND-0030-A` | Valeur acquise | début — close en EP-08 | — |
@@ -106,7 +108,16 @@ suit une fois figé.
 
 ## Préalables
 
-EP-09 livré : la valeur acquise, les indices et les projections se calculent sur la référence, les coûts réels et le reste à engager.
+`epic/EP-10` se tire d'`epic/EP-09` dès la fusion de son lot pivot, **US-1580/L1 #2398** — le socle
+d'EP-09, qui pose `cost_line` et `cost_import`, les colonnes `previous_*` et `reestimated_at` d'`estimate_line`, la
+chaîne des migrations arrêtée à `0025`, et l'interface déclarée que les indicateurs liront : `actual_costs_until` et
+`actual_cost_by_subproject` de `core/costs`, `remaining_of_revision` et `startable_tasks` de `core/estimate` —, et non
+de `main` à la livraison d'EP-09 (décision de l'auteur du 2026-11-07, pour toute la série EP-06 → EP-07 → EP-09 →
+EP-10 → EP-08 ; l'exception du README, « Branches ») : elle reprend `epic/EP-09` à chaque lot que celui-ci fusionne et
+se fusionne dans `main` après elle. Les lots d'EP-10 qui lisent des coûts attendent aussi US-1610/L2 #2404,
+ceux qui lisent un reste US-1580/L2 #2399 ; chaque lot nomme ceux qu'il attend par leur numéro
+(EP-09, « Ce que le cadrage laisse à EP-10 »). La valeur acquise, les indices et les projections se calculent sur la
+référence, les coûts réels et le reste à engager.
 
 ## Définition de fini
 

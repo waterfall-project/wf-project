@@ -121,7 +121,7 @@ chaque point de #1304 va à son EPIC de domaine, qui le reçoit dans ses « Cons
 |---|---|---|---|
 | `WF-EXP-0020-A` | Amorçage d'une installation neuve | début — close en EP-07 | US-0600 |
 | `WF-PRJ-0080-A` | Attributs d’un projet | début — close en EP-07 | US-0610 |
-| `WF-PRJ-0050-A` | Sous-projets | début — close en EP-09 | US-0610 |
+| `WF-PRJ-0050-A` | Sous-projets | début — close en EP-08 | US-0610 |
 | `WF-REF-0190-A` | Correspondance de l’extraction des coûts réels | début — close en EP-09 | US-0620 |
 | `WF-IHM-0140-A` | Aide en ligne | début — close en EP-11 | US-0670, US-0670b |
 

@@ -92,7 +92,7 @@ les phrases qui demandent plus sont des écarts, qui nomment l'EPIC qui les clô
 | `WF-CYC-0010-A` | États du cycle de vie | entière | US-0920 |
 | `WF-PRJ-0060-A` | Liste des contributeurs | début — close en EP-07 | US-0930 |
 | `WF-ADM-0070-A` | Lecture des comptes du fournisseur d’identité | fin — amorcée en EP-03 | US-0930 |
-| `WF-PRJ-0050-A` | Sous-projets | début — close en EP-09, amorcée aussi en EP-15, EP-16 | US-0940 |
+| `WF-PRJ-0050-A` | Sous-projets | début — close en EP-08, amorcée aussi en EP-15, EP-16 | US-0940 |
 | `WF-DAT-0080-A` | Régimes de suppression | début — close en EP-07, amorcée aussi en EP-03 | US-0940 |
 | `WF-PRJ-0020-A` | Lotissement | fin — amorcée en EP-15 | US-0950 |
 | `WF-REV-0010-A` | Unicité de la révision en cours | début — close en EP-07, amorcée aussi en EP-15 | US-0960 |
