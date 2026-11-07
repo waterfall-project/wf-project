@@ -181,7 +181,7 @@ def test_the_probability_sent_as_a_percent_is_refused_with_the_bound_it_crosses(
     assert said.index("fixtures/api/risk_provision_task_refused.json") < said.index(
         "fixtures/api/risk_probability_out_of_range.json"
     )
-    assert "`/probability` hors de 0 à 1, `VALUE_OUT_OF_RANGE`" in _flat(said)
+    assert "`/probability` outside 0 to 1, `VALUE_OUT_OF_RANGE`" in _flat(said)
 
 
 def test_the_probability_sent_as_a_percent_is_refused_alike_when_the_risk_is_reviewed() -> None:
@@ -202,8 +202,8 @@ def test_the_probability_sent_as_a_percent_is_refused_alike_when_the_risk_is_rev
     said = _block("reviewRisk", "422")
     assert "fixtures/api/risk_review_probability_out_of_range.json" in said
     assert "fixtures/api/risk_probability_out_of_range.json" not in said
-    assert "`/probability` hors de 0 à 1, `VALUE_OUT_OF_RANGE`" in _flat(said)
-    bound = "De `0` à `1` inclus, un rapport (WF-RIS-0010)."
+    assert "`/probability` outside 0 to 1, `VALUE_OUT_OF_RANGE`" in _flat(said)
+    bound = "From `0` to `1` inclusive, a ratio (WF-RIS-0010)."
     assert bound in _schema("risks.yaml", "RiskReviewWrite")
     assert bound in _schema("risks.yaml", "RiskWrite")
 
@@ -275,13 +275,13 @@ def test_with_c291_a_nature_deactivates_its_categories_and_the_provisional_defin
     # C-291, now in the contract (#728, EP-14/L42s): « Désactiver une nature de coût désactive ses
     # catégories ; une catégorie ne peut être réactivée que si sa nature est active » (WF-REF-0010).
     for path in sorted(API.rglob("*.yaml")):
-        assert "jusqu'à C-291" not in _flat(path.read_text(encoding="utf-8")), path.name
-    assert "désactive ses catégories" in _description("setCostTypeActivation")
-    assert "ne compte pas pour `active_provision_category`" not in _description(
+        assert "until C-291" not in _flat(path.read_text(encoding="utf-8")), path.name
+    assert "type deactivates its categories" in _description("setCostTypeActivation")
+    assert "does not count for `active_provision_category`" not in _description(
         "setCostTypeActivation"
     )
     assert "`cost_type_active`" in _description("setCostCategoryActivation")
-    assert "se réactive même sous une nature désactivée" not in _description(
+    assert "is reactivated even under a deactivated cost type" not in _description(
         "setCostCategoryActivation"
     )
     said = _flat(_block("setCostCategoryActivation", "409"))
@@ -308,9 +308,9 @@ def test_with_c291_a_nature_deactivates_its_categories_and_the_provisional_defin
 
 
 def test_an_unchanged_category_deactivated_since_is_kept_at_the_modification() -> None:
-    said = "ne vaut que si la valeur change la catégorie du risque"
+    said = "applies only if the value changes the risk's category"
     assert said in _schema("risks.yaml", "RiskProvisionUpdate")
-    assert "que si la valeur change la catégorie du risque" in _flat(
+    assert "only if the value changes the risk's category" in _flat(
         _block("updateRiskProvision", "422")
     )
 
@@ -318,7 +318,7 @@ def test_an_unchanged_category_deactivated_since_is_kept_at_the_modification() -
 def test_a_deleted_subproject_leaves_the_risks_not_identified_without_designation() -> None:
     # The specification does not settle it: a provisional decision, #732.
     assert "#732" in _description("deleteSubproject")
-    assert "passe à nul la désignation" in _description("deleteSubproject")
+    assert "sets to null the designation" in _description("deleteSubproject")
     risk = (SCHEMAS / "risks.yaml").read_text(encoding="utf-8").split("\nRisk:\n", 1)[1]
     subproject = risk.split("    provision_subproject_id:\n", 1)[1].split("    provision_", 1)[0]
     assert "#732" in _flat(subproject)
@@ -334,10 +334,10 @@ def test_the_category_of_a_risk_says_whether_it_is_still_active() -> None:
 
 
 def test_the_command_of_the_provision_names_identified_alone_and_the_refusals_their_order() -> None:
-    assert "ne nomme que `risk_identified`" in _schema("risks.yaml", "RiskCommand")
+    assert "it names only `risk_identified`" in _schema("risks.yaml", "RiskCommand")
     said = _flat(_block("createRisk", "409"))
-    assert said.index("`at_least_one_task`, puis") < said.index("puis `active_provision_category`")
-    assert "Ce 409 précède le 422" in said
+    assert said.index("`at_least_one_task`, then") < said.index("then `active_provision_category`")
+    assert "This 409 comes before the 422" in said
 
 
 def test_a_risk_declared_on_a_main_structure_without_task_is_refused_naming_the_condition() -> None:
@@ -357,7 +357,7 @@ def test_a_risk_declared_on_a_main_structure_without_task_is_refused_naming_the_
     assert main["revision_id"] == project["current_revision_id"]
     assert fixture("nodes_empty")["totals"]["task_count"] == 0
     general = _schema("projects.yaml", "CommandCondition")
-    assert "`at_least_one_task` manque à la déclaration d'un risque" in general
+    assert "`at_least_one_task` is missing for the declaration of a risk" in general
     assert "`at_least_one_task`" in _schema("risks.yaml", "RiskWrite")
 
 
@@ -406,7 +406,7 @@ def test_the_declaration_of_a_risk_says_ahead_the_conditions_its_409_names() -> 
         listed = [each["command"] for each in _commands(json.loads(path.read_text("utf-8")))]
         assert listed.count("edit_risks") == listed.count(DECLARE), path.name
     said = _flat(_block("createRisk", "409"))
-    assert "la commande `declare_risk` les liste" in said
+    assert "the `declare_risk` command lists them" in said
 
 
 def _commands(value: object) -> list[Entry]:
@@ -449,36 +449,36 @@ def test_the_declaration_names_the_state_of_the_entry_before_its_own_conditions(
     said = _flat(
         revision.split("\nRevisionCommand:\n", 1)[1].split("\nRevisionCommandAvailability:")[0]
     )
-    paragraph = said.split(f"`{DECLARE}` dit d'avance", 1)[1].split("`generate_skeleton`", 1)[0]
+    paragraph = said.split(f"`{DECLARE}` tells in advance", 1)[1].split("`generate_skeleton`", 1)[0]
     assert _in_order(paragraph, STATE_FIRST)
-    assert "les autres conditions d'`edit_risks`" in paragraph
+    assert "the other conditions of `edit_risks`" in paragraph
     project = _flat((SCHEMAS / "projects.yaml").read_text(encoding="utf-8"))
     commands = project.split("ProjectCommand: type: string", 1)[1].split(
         "ProjectCommandAvailability:"
     )[0]
     assert _in_order(
-        commands.split(f"`{DECLARE}` la suit", 1)[1], [*STATE_FIRST, "may_create_revision"]
+        commands.split(f"`{DECLARE}` follows it", 1)[1], [*STATE_FIRST, "may_create_revision"]
     )
     general = project.split("CommandCondition: type: string", 1)[1].split(" enum: ", 1)[0]
     # `at_least_one_task`, the condition the sentence is of, between those of the state and the
     # active category.
-    told = general.split("`at_least_one_task` manque à la déclaration", 1)[1].split("(EP-14/L42s)")[
-        0
-    ]
-    told = told.split("`createRisk` la nomme dans son 409, après", 1)[1]
+    told = general.split("`at_least_one_task` is missing for the declaration", 1)[1].split(
+        "(EP-14/L42s)"
+    )[0]
+    told = told.split("`createRisk` names it in its 409, after", 1)[1]
     assert _in_order(told, [name for name in STATE_FIRST if name != "at_least_one_task"])
-    assert told.index("`no_background_task_running`, et avant `active_provision_category`") > 0
+    assert told.index("`no_background_task_running`, and before `active_provision_category`") > 0
     refused = _flat(_block("createRisk", "409"))
     # On a terminal project the command is not listed and the 409 names `project_not_terminal`
     # (US-0702/L3); the order of the commands listed holds for the other states.
-    first = " puis ".join(f"`{name}`," for name in STATE_FIRST[1:]).rstrip(",")
-    assert f"nomme la première qui manque : {first}" in refused
-    terminal = refused.split("nomme la première qui manque", 1)[1].split(
-        "sur un projet terminal, où la commande n'est pas listée", 1
+    first = " then ".join(f"`{name}`," for name in STATE_FIRST[1:]).rstrip(",")
+    assert f"names the first one missing: {first}" in refused
+    terminal = refused.split("names the first one missing", 1)[1].split(
+        "on a terminal project, where the command is not listed", 1
     )
     assert len(terminal) == 2
     assert "`project_not_terminal`" in terminal[1][:60]
-    assert "de la révision en cours, ou de celle que la déclaration créerait" in refused
+    assert "of the current revision, or of the one the declaration would create" in refused
     # The examples name the conditions in that order, `project_not_terminal` first on a terminal
     # project; those of the entry of the risks alone, where the structure is not judged.
     for path in sorted(mockwitness.FIXTURES.glob("*.json")):
@@ -503,7 +503,7 @@ def test_the_conditions_name_the_declaration_wherever_they_name_the_entry_of_the
     assert len(named) >= 3
     for part in named:
         assert f"`{DECLARE}`" in part or f"`ProjectCommand.{DECLARE}`" in part, part
-    assert f"et des risques, la déclaration d'un risque (`{DECLARE}`)" in general
+    assert f"and the risks, the declaration of a risk (`{DECLARE}`)" in general
 
 
 def test_a_fresh_installation_misses_the_labour_category_and_the_role_alone() -> None:
@@ -518,9 +518,7 @@ def test_a_fresh_installation_misses_the_labour_category_and_the_role_alone() ->
     assert "installation neuve" in _summary("reference_readiness_incomplete")
     assert "catégorie de main-d'œuvre active" in _summary("reference_readiness_incomplete")
     readiness = (SCHEMAS / "reference.yaml").read_text(encoding="utf-8")
-    assert "catégorie de main-d'œuvre active" in _flat(
-        readiness.split("\nReferenceReadiness:\n")[1]
-    )
+    assert "an active labour category" in _flat(readiness.split("\nReferenceReadiness:\n")[1])
 
 
 # --- The answers of the second review (revue 2) --------------------------------------------------
@@ -559,8 +557,8 @@ def test_a_designation_set_to_nil_advances_the_risk_and_names_who_deleted() -> N
             .split("    provision_subproject_label:", 1)[0]
         ),
     ):
-        assert "`lock_version` avancer" in said
-        assert "l'auteur de la suppression" in said
+        assert "`lock_version` advance" in said
+        assert "the author of the deletion" in said
 
 
 def test_the_undo_that_would_restore_a_deleted_subproject_is_refused_by_its_condition() -> None:
@@ -574,14 +572,14 @@ def test_the_undo_that_would_restore_a_deleted_subproject_is_refused_by_its_cond
     # Every undo and every redo that would restore it, deleteRisk and the writes of the grid
     # included (revue 3).
     general = _schema("projects.yaml", "CommandCondition")
-    assert "toute annulation et à tout rétablissement" in general
-    assert "sa suppression défaites ou rétablies" in general
-    for operation, verb in (("undoLastChange", "défait"), ("redoLastUndo", "rétablit")):
+    assert "every undo and every redo" in general
+    assert "its deletion undone or redone" in general
+    for operation, verb in (("undoLastChange", "undoes"), ("redoLastUndo", "redoes")):
         said = _flat(_block(operation, "409"))
         assert "`restored_subproject_exists`" in said, operation
-        assert f"dont {'elle' if verb == 'défait' else 'il'} {verb} la création" in said
-        assert "la modification ou la suppression" in said, operation
-        assert "la suppression d'une ligne ou d'une tâche" in said, operation
+        assert f"whose creation, modification or deletion it {verb}" in said
+        assert "modification or deletion" in said, operation
+        assert "the deletion of a line or of a task" in said, operation
 
 
 def test_the_category_of_a_risk_reads_inactive_once_its_nature_is_deactivated(
@@ -635,12 +633,12 @@ def test_the_category_of_a_risk_reads_false_once_moved_to_a_nature_of_another_ki
         .split("    provision_cost_category_is_active:\n", 1)[1]
         .split("\n    provision_subproject_id:", 1)[0]
     )
-    assert "active et que sa nature est de type provision pour risques" in flag
-    assert "rattachée depuis à une nature d'un autre type" in flag
-    assert "encore active et de type provision pour risques" in _schema(
+    assert "active and its cost type is of the provision-for-risks type" in flag
+    assert "attached since to a cost type of another type" in flag
+    assert "still active and of the provision-for-risks type" in _schema(
         "risks.yaml", "RiskReviewWrite"
     )
-    assert "n'est plus de type provision pour risques" in _flat(_block("reviewRisk", "422"))
+    assert "no longer of the provision-for-risks type" in _flat(_block("reviewRisk", "422"))
 
 
 def test_the_undo_or_redo_that_would_recreate_a_provision_names_the_conditions_of_its_return() -> (
@@ -660,7 +658,7 @@ def test_the_undo_or_redo_that_would_recreate_a_provision_names_the_conditions_o
         ("redoLastUndo", "redo_risk_category_deactivated", ACTIVE_PROVISION),
     ):
         block = _flat(_block(operation, "409"))
-        assert "recréerait la ligne de provision d'un risque" in block, operation
+        assert "would recreate the provision line of a risk" in block, operation
         assert said in block, operation
         assert f"fixtures/api/{example}.json" in block, operation
         answer = json.loads((mockwitness.FIXTURES / f"{example}.json").read_text(encoding="utf-8"))
@@ -668,26 +666,26 @@ def test_the_undo_or_redo_that_would_recreate_a_provision_names_the_conditions_o
         assert answer["value"]["code"] == "STATE_FORBIDS_OPERATION"
         assert answer["value"]["params"] == {"missing_condition": condition}
     general = _schema("projects.yaml", "CommandCondition")
-    assert "`at_least_one_task` manque aussi au retour d'un risque écarté" in general
-    assert "et de même à toute annulation et à tout rétablissement" in general
+    assert "`at_least_one_task` is also missing for the return of a dismissed risk" in general
+    assert "and likewise for every undo and every redo" in general
     # The return itself, which the undo of a dismissal repeats (decision of the author, #787).
     review = _flat(_block("reviewRisk", "409"))
-    assert "`params.missing_condition` à `at_least_one_task`" in review
+    assert "`params.missing_condition` set to `at_least_one_task`" in review
     assert "fixtures/api/risk_review_without_task.json" in review
     answer = json.loads(
         (mockwitness.FIXTURES / "risk_review_without_task.json").read_text(encoding="utf-8")
     )
     assert answer["value"]["params"] == {"missing_condition": "at_least_one_task"}
-    assert "n'envoyant rien, ils ne peuvent pas en désigner une autre" in general
+    assert "sending nothing, they cannot designate another one" in general
 
 
 def test_the_change_of_a_provision_refused_by_its_state_precedes_the_refusal_of_its_value() -> None:
     # Which refusal wins when a dismissed risk is sent another category that is itself refused:
     # the 409, as at the declaration (#747, point 5).
     said = _flat(_block("updateRiskProvision", "409"))
-    assert "Ce 409 précède le 422" in said
-    assert "qu'elle soit désactivée, inconnue ou d'une nature d'un autre type" in said
-    assert "Ce 409 précède le 422" in _flat(_block("createRisk", "409"))
+    assert "This 409 comes before the 422" in said
+    assert "whether it is deactivated, unknown or of a cost type of another type" in said
+    assert "This 409 comes before the 422" in _flat(_block("createRisk", "409"))
 
 
 def test_the_condition_of_the_restored_subproject_is_said_where_its_enumeration_ranks_it() -> None:
@@ -703,6 +701,6 @@ def test_the_condition_of_the_restored_subproject_is_said_where_its_enumeration_
         "risk_not_cited",
     ]
     general = _schema("projects.yaml", "CommandCondition")
-    said = general.index("`restored_subproject_exists` manque")
-    assert general.rindex("`may_create_revision` manque", 0, said) < said
-    assert said < general.index("Trois conditions tiennent à l'état d'un risque")
+    said = general.index("`restored_subproject_exists` is missing")
+    assert general.rindex("`may_create_revision` is missing", 0, said) < said
+    assert said < general.index("Three conditions depend on the state of a risk")

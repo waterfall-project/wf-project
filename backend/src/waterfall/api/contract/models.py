@@ -3019,7 +3019,7 @@ class RevisionMark(ContractModel):
     description: Annotated[
         str | None,
         Field(
-            description="Absent, the description kept at the revision's creation is taken over; present, it replaces it; null, it clears it — the rule of `updateProject` for `client` (#2171)."
+            description="Absent, the description kept at the creation of the revision is carried over; present, it replaces it; null, it clears it — the rule of `updateProject` for `client` (#2171)."
         ),
     ] = None
     lock_version: LockVersion

@@ -315,7 +315,7 @@ RevisionMark:
     description:
       anyOf: [{ type: string }, { type: 'null' }]
       description: >-
-        Absent, the description kept at the revision's creation is taken over; present, it
+        Absent, the description kept at the creation of the revision is carried over; present, it
         replaces it; null, it clears it — the rule of `updateProject` for `client` (#2171).
     lock_version: { $ref: ../common.yaml#/LockVersion }
 

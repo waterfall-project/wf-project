@@ -491,7 +491,7 @@ def test_a_paste_confirmed_after_its_structure_moved_on_is_refused_with_the_curr
     assert "fixtures/api/paste_stale.json" in refused
     assert "fixtures/api/paste_applied_rejudged.json" in operation.split("'400'", 1)[0]
     said = " ".join(operation.split("    parameters:", 1)[0].split())
-    assert "le plan retient aussi le compteur de la structure lu à l'aperçu" in said
+    assert "the plan also retains the counter of the structure read at the preview" in said
 
 
 def test_the_partial_paste_is_the_last_example_of_its_answer_and_its_plan_says_so() -> None:
@@ -511,17 +511,15 @@ def test_the_partial_paste_is_the_last_example_of_its_answer_and_its_plan_says_s
     schemas = REPOSITORY / "docs" / "api" / "components" / "schemas" / "revisions.yaml"
     applied = schemas.read_text(encoding="utf-8").split("\nPasteApplied:\n", 1)[1]
     said = " ".join(applied.split("\n\n", 1)[0].split())
-    assert "les lignes acceptées du plan sont donc jugées de nouveau" in said
-    assert "Le plan retient le compteur de la structure lu à l'aperçu" in said
-    assert (
-        "refusée par 412 si la structure a changé depuis, quel que soit le compteur envoyé" in said
-    )
+    assert "the plan's accepted rows are therefore judged again" in said
+    assert "The plan retains the structure's counter read at the preview" in said
+    assert "refused with 412 if the structure has changed since, whatever counter is sent" in said
     apply = schemas.read_text(encoding="utf-8").split("\nPasteApply:\n", 1)[1]
-    assert "quel que soit le compteur envoyé" in " ".join(apply.split("\n\n", 1)[0].split())
+    assert "whatever counter is sent" in " ".join(apply.split("\n\n", 1)[0].split())
     undo = schemas.read_text(encoding="utf-8").split("\nUndoResult:\n", 1)[1]
     flat_undo = " ".join(undo.split("\n\n", 1)[0].split())
     assert "`restored_subproject_exists`" in flat_undo
-    assert "la suppression d'une ligne ou d'une tâche et de ses lignes comprise" in flat_undo
+    assert "the deletion of a line or of a task and its lines included" in flat_undo
     # The undo and the redo of a write of the grid that would restore a deleted subproject are
     # refused by the condition, in the same words as EP-14/L42p (revue 3).
     paths = (REPOSITORY / "docs" / "api" / "paths" / "revisions.yaml").read_text(encoding="utf-8")
@@ -531,9 +529,9 @@ def test_the_partial_paste_is_the_last_example_of_its_answer_and_its_plan_says_s
             block.split("      '409':\n", 1)[1].split("        content:", 1)[0].split()
         )
         assert "`restored_subproject_exists`" in refused, operation
-        assert "une écriture de la grille, la suppression d'une ligne" in refused, operation
-    assert "passe dans `rejected` avec son motif" in said
-    assert "aucune entrée d'annulation n'est créée" in said
+        assert "a write of the grid, including the deletion of a line" in refused, operation
+    assert "moves into `rejected` with its reason" in said
+    assert "no undo entry is created" in said
 
 
 def test_a_block_too_wide_is_refused_by_the_width_of_a_line_in_the_contract() -> None:

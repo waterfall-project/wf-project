@@ -79,8 +79,8 @@ def test_the_designation_on_a_terminal_project_names_its_condition_before_the_co
     schemas = API / "components" / "schemas"
     projects = " ".join((schemas / "projects.yaml").read_text("utf-8").split())
     revisions = " ".join((schemas / "revisions.yaml").read_text("utf-8").split())
-    assert "sur un projet terminal, il nomme d'abord `project_not_terminal` (#1674)" in projects
-    assert "`project_not_terminal` d'abord sur un projet terminal" in revisions
+    assert "on a terminal project, it names first `project_not_terminal` (#1674)" in projects
+    assert "`project_not_terminal` first on a terminal project" in revisions
 
 
 def test_a_marked_revision_refuses_a_task_created_and_the_skeleton_by_revision_draft() -> None:
@@ -104,13 +104,13 @@ def test_no_state_has_a_code_of_its_own_and_no_403_says_a_state() -> None:
     assert "REVISION_MARKED" not in codes
     forbidden = yaml.safe_load((API / "components" / "responses.yaml").read_text("utf-8"))
     said = forbidden["Forbidden"]["description"]
-    assert "jamais par 403" in said
+    assert "never refused with 403" in said
     assert "NOT_PROJECT_MANAGER" in said
     readme = (API / "README-fr.md").read_text("utf-8")
     assert "Le refus d'une commande qu'un état rend indisponible est un 409" in readme
     for path in sorted((API / "paths").glob("*.yaml")):
         text = path.read_text("utf-8")
-        assert not re.search(r"(terminal|marquée)[^.]{0,80}par 403", text), path.name
+        assert not re.search(r"(terminal|marked)[^.]{0,80}(?:with|by) 403", text), path.name
 
 
 def _shared() -> dict[str, Entry]:

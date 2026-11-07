@@ -4249,7 +4249,7 @@ export interface components {
         /** @description Marks the revision. Marking freezes the revision and computes its indicators in the same transaction (WF-REV-0020, WF-DAT-0040); it is handed to the worker and returns a background task (WF-ARC-0090). */
         RevisionMark: {
             version_name: string;
-            /** @description Absent, the description kept at the revision's creation is taken over; present, it replaces it; null, it clears it — the rule of `updateProject` for `client` (#2171). */
+            /** @description Absent, the description kept at the creation of the revision is carried over; present, it replaces it; null, it clears it — the rule of `updateProject` for `client` (#2171). */
             description?: string | null;
             lock_version: components["schemas"]["LockVersion"];
         };
