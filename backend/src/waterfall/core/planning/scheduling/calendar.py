@@ -16,9 +16,10 @@ its days is read as one.
 
 from dataclasses import dataclass, field
 from datetime import date, timedelta
-from decimal import ROUND_FLOOR, Decimal
+from decimal import Decimal
+from fractions import Fraction
 
-from waterfall.core.planning.scheduling.units import HOURS_PER_ELAPSED_DAY
+from waterfall.core.planning.scheduling.units import HOURS_PER_ELAPSED_DAY, decimal_of
 
 DAYS_PER_WEEK = 7
 
@@ -38,24 +39,24 @@ class WorkInstant:
 
 @dataclass(frozen=True, slots=True, order=True)
 class Moment:
-    """An instant inside the engine: the ordinal of its day, and the hours elapsed that day.
+    """An instant inside the engine: the ordinal of its day, and the exact hours elapsed that day.
 
     The ordinal of the first of January of the year 1 is 1, a Monday.
     """
 
     ordinal: int
-    hours: Decimal = Decimal(0)
+    hours: Fraction = Fraction(0)
 
     @classmethod
     def of(cls, instant: WorkInstant) -> Moment:
         """Return the moment of an instant of work."""
-        return cls(instant.day.toordinal(), instant.hours)
+        return cls(instant.day.toordinal(), Fraction(instant.hours))
 
     def instant(self) -> WorkInstant:
         """Return the instant of work of a moment, which must lie within the days a date holds."""
-        return WorkInstant(date.fromordinal(self.ordinal), self.hours)
+        return WorkInstant(date.fromordinal(self.ordinal), decimal_of(self.hours))
 
-    def elapsed(self, hours: Decimal) -> Moment:
+    def elapsed(self, hours: Fraction) -> Moment:
         """Return the moment so many elapsed hours later, or earlier when they are negative.
 
         Elapsed time runs on days of twenty-four hours whose hours of work take the first places,
@@ -63,25 +64,31 @@ class Moment:
         place in its day of twenty-four. The moment reached may lie past the day's hours of work.
         """
         position = self.ordinal * HOURS_PER_ELAPSED_DAY + self.hours + hours
-        ordinal = (position / HOURS_PER_ELAPSED_DAY).to_integral_value(rounding=ROUND_FLOOR)
-        return Moment(int(ordinal), position - ordinal * HOURS_PER_ELAPSED_DAY)
+        ordinal = position // HOURS_PER_ELAPSED_DAY
+        return Moment(ordinal, position - ordinal * HOURS_PER_ELAPSED_DAY)
 
 
 @dataclass(frozen=True, slots=True)
 class Calendar:
-    """The hours worked on each day of the week, Monday first (WF-REF-0110)."""
+    """The hours worked on each day of the week, Monday first (WF-REF-0110).
+
+    The engine counts them exactly, as fractions (``units``).
+    """
 
     week: tuple[Decimal, Decimal, Decimal, Decimal, Decimal, Decimal, Decimal]
-    _before: tuple[Decimal, ...] = field(init=False, repr=False, compare=False)
+    _week: tuple[Fraction, ...] = field(init=False, repr=False, compare=False)
+    _before: tuple[Fraction, ...] = field(init=False, repr=False, compare=False)
 
     def __post_init__(self) -> None:
-        before = [Decimal(0)]
-        for hours in self.week:
+        week = tuple(Fraction(hours) for hours in self.week)
+        before = [Fraction(0)]
+        for hours in week:
             before.append(before[-1] + hours)
+        object.__setattr__(self, "_week", week)
         object.__setattr__(self, "_before", tuple(before))
 
     @property
-    def weekly(self) -> Decimal:
+    def weekly(self) -> Fraction:
         """Return the hours of a week of work: a calendar without any can place no task."""
         return self._before[-1]
 
@@ -104,30 +111,30 @@ class Calendar:
 
     def work_between(self, first: WorkInstant, last: WorkInstant) -> Decimal:
         """Return the hours of work from one instant to another, negative when it comes first."""
-        return self.count(Moment.of(last)) - self.count(Moment.of(first))
+        return decimal_of(self.count(Moment.of(last)) - self.count(Moment.of(first)))
 
-    def count(self, moment: Moment) -> Decimal:
+    def count(self, moment: Moment) -> Fraction:
         """Return the hours of work from the origin to a moment; hours past the day's are not.
 
         A moment past the hours of work of its day counts as their end: an elapsed lag that ends
         outside them places a successor at the first hour of work that follows (WF-PLA-0160).
         """
         weeks, weekday = divmod(moment.ordinal - 1, DAYS_PER_WEEK)
-        worked = min(moment.hours, self.week[weekday])
+        worked = min(moment.hours, self._week[weekday])
         return weeks * self.weekly + self._before[weekday] + worked
 
-    def moment(self, count: Decimal, *, finish: bool) -> Moment:
+    def moment(self, count: Fraction, *, finish: bool) -> Moment:
         """Return where a count of hours of work from the origin is reached.
 
         On the end of a day's work, a finish reads that day's end, a start the first hour of work
         of the next working day.
         """
-        weeks = (count / self.weekly).to_integral_value(rounding=ROUND_FLOOR)
+        weeks = count // self.weekly
         rest = count - weeks * self.weekly
         if finish and rest == 0:
             weeks, rest = weeks - 1, self.weekly
-        monday = int(weeks) * DAYS_PER_WEEK + 1
-        for weekday, hours in enumerate(self.week):
+        monday = weeks * DAYS_PER_WEEK + 1
+        for weekday, hours in enumerate(self._week):
             if hours > 0 and (rest <= hours if finish else rest < hours):
                 return Moment(monday + weekday, rest)
             rest -= hours

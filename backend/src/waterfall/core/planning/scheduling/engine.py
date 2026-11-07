@@ -20,6 +20,7 @@ automatic mode whose float is nil or negative.
 
 from dataclasses import dataclass
 from datetime import MAXYEAR, date
+from fractions import Fraction
 from typing import TYPE_CHECKING
 
 from waterfall.core.planning.scheduling.calendar import Moment
@@ -38,10 +39,9 @@ from waterfall.core.planning.scheduling.structure import (
     ScheduledTask,
     TaskWithoutWorkingHoursError,
 )
-from waterfall.core.planning.scheduling.units import Duration
+from waterfall.core.planning.scheduling.units import Span, decimal_of
 
 if TYPE_CHECKING:
-    from decimal import Decimal
     from uuid import UUID
 
     from waterfall.core.planning.scheduling.calendar import Calendar
@@ -52,6 +52,7 @@ if TYPE_CHECKING:
         Structure,
         Task,
     )
+    from waterfall.core.planning.scheduling.units import Duration
 
 HORIZON_YEARS = 15
 """The longest a project lasts, from the start of its first task to the finish of its last."""
@@ -116,9 +117,9 @@ class _Engine:
         self.early: dict[UUID, _Span] = {}
         self.late: dict[UUID, Moment] = {}
 
-    def hours(self, duration: Duration) -> Decimal:
-        """Return a duration in hours, by the constants of the structure."""
-        return duration.hours(self.structure.constants)
+    def span(self, duration: Duration) -> Span:
+        """Return a duration in exact hours, by the constants of the structure."""
+        return duration.span(self.structure.constants)
 
     def is_automatic_leaf(self, task_id: UUID) -> bool:
         """Whether a task is placed by its links: in automatic mode, without subordinates."""
@@ -126,56 +127,55 @@ class _Engine:
 
     # --- Placing on a calendar ---------------------------------------------------------------
 
-    def shifted(self, calendar: Calendar, at: Moment, span: Duration) -> Decimal:
+    def shifted(self, calendar: Calendar, at: Moment, span: Span) -> Fraction:
         """Return the count of work on a calendar a span reaches from a moment.
 
         Work is added hour of work after hour of work; elapsed time without a calendar, a moment
         past the hours of its day counting as their end (WF-PLA-0160).
         """
-        hours = self.hours(span)
         if span.is_elapsed:
-            return calendar.count(at.elapsed(hours))
-        return calendar.count(at) + hours
+            return calendar.count(at.elapsed(span.hours))
+        return calendar.count(at) + span.hours
 
-    def start_for(self, calendar: Calendar, finish: Decimal, duration: Duration) -> Decimal:
+    def start_for(self, calendar: Calendar, finish: Fraction, duration: Duration) -> Fraction:
         """Return the count a task of a duration starts at to finish at a count."""
-        hours = self.hours(duration)
-        if duration.is_elapsed:
-            return calendar.count(calendar.moment(finish, finish=True).elapsed(-hours))
-        return finish - hours
+        span = self.span(duration)
+        if span.is_elapsed:
+            return calendar.count(calendar.moment(finish, finish=True).elapsed(-span.hours))
+        return finish - span.hours
 
     def placed(
-        self, calendar: Calendar, start: Decimal, duration: Duration, *, finish_reading: bool
+        self, calendar: Calendar, start: Fraction, duration: Duration, *, finish_reading: bool
     ) -> _Span:
         """Return the span of a task of a duration started at a count.
 
         A milestone sits at one moment (WF-PLA-0050): where its predecessor finishes when a link
         from a finish drives it, the first hour of work of its day otherwise.
         """
-        hours = self.hours(duration)
-        if hours == 0:
+        span = self.span(duration)
+        if span.hours == 0:
             at = calendar.moment(start, finish=finish_reading)
             return _Span(at, at)
         first = calendar.moment(start, finish=False)
-        if duration.is_elapsed:
+        if span.is_elapsed:
             # The first moment lies within the hours of work of its day: an elapsed span always
             # reaches further.
-            last = calendar.count(first.elapsed(hours))
+            last = calendar.count(first.elapsed(span.hours))
             return _Span(first, calendar.moment(last, finish=True))
-        return _Span(first, calendar.moment(start + hours, finish=True))
+        return _Span(first, calendar.moment(start + span.hours, finish=True))
 
-    def span_of_lag(self, link: Link) -> Duration:
-        """Return the lag of a link as a duration: a percent of its predecessor's (WF-PLA-0030).
+    def span_of_lag(self, link: Link) -> Span:
+        """Return the lag of a link in hours: a percent of its predecessor's (WF-PLA-0030).
 
         A summary's duration is its work between its dates on its own calendar (WF-PLA-0040).
         """
-        predecessor = self.tasks[link.predecessor_id]
-        duration = predecessor.duration
         if link.predecessor_id in self.plan.children:
-            duration = Duration(self.work(link.predecessor_id), "h")
-        return link.lag.span(duration)
+            predecessor = Span(self.work(link.predecessor_id), is_elapsed=False)
+        else:
+            predecessor = self.span(self.tasks[link.predecessor_id].duration)
+        return link.lag.span(predecessor, self.structure.constants)
 
-    def work(self, task_id: UUID) -> Decimal:
+    def work(self, task_id: UUID) -> Fraction:
         """Return the hours of work between the dates of a task, on its calendar."""
         span, calendar = self.early[task_id], self.tasks[task_id].calendar
         return calendar.count(span.finish) - calendar.count(span.start)
@@ -206,7 +206,7 @@ class _Engine:
                 raise ValueError(message)
             return _Span(Moment.of(task.start), Moment.of(task.finish))
         calendar = task.calendar
-        bounds: list[tuple[Decimal, bool]] = []
+        bounds: list[tuple[Fraction, bool]] = []
         for holder in [task.task_id, *self.plan.ancestors(task.task_id)]:
             for link in self.plan.incoming.get(holder, []):
                 at = self.shifted(calendar, self.anchor(link), self.span_of_lag(link))
@@ -261,12 +261,12 @@ class _Engine:
         if not self.is_automatic_leaf(task_id):
             return self.early[task_id]
         task, finish = self.tasks[task_id], self.late[task_id]
-        if self.hours(task.duration) == 0:
+        if self.span(task.duration).hours == 0:
             return _Span(finish, finish)
         start = self.start_for(task.calendar, task.calendar.count(finish), task.duration)
         return _Span(task.calendar.moment(start, finish=False), finish)
 
-    def bound(self, task_id: UUID, link: Link, span: Duration, successor_id: UUID) -> Moment:
+    def bound(self, task_id: UUID, link: Link, span: Span, successor_id: UUID) -> Moment:
         """Return the latest finish a link to one successor leaves a task.
 
         The lag goes back from the successor's latest start, or finish, on its calendar, as the
@@ -278,7 +278,7 @@ class _Engine:
         calendar = self.tasks[successor_id].calendar
         latest = self.late_span(successor_id)
         target = latest.start if link.link_type in TO_START else latest.finish
-        count = self.shifted(calendar, target, Duration(-span.value, span.unit))
+        count = self.shifted(calendar, target, -span)
         task = self.tasks[task_id]
         end = task.calendar.count(calendar.moment(count, finish=False))
         if link.link_type in FROM_FINISH:
@@ -311,11 +311,16 @@ class _Engine:
         rank = self.plan.rank
         return sorted(found, key=lambda each: (rank[each.predecessor_id], rank[each.successor_id]))
 
-    def total_float(self, task_id: UUID) -> Decimal | None:
-        """Return the total float of a task in days of work, a summary's from its subordinates.
+    def total_float(self, task_id: UUID) -> Fraction | None:
+        """Return the total float of a task in days, a summary's from its subordinates.
 
-        A summary bears the smallest float of those of its subordinates that bear one, none when
-        none does; a task in manual mode none (WF-PLA-0100).
+        The float is the hours of work on the task's own calendar from its finish to its latest
+        finish, and a day is worth the installation's hours per day, as the unit « j » is
+        (WF-PLA-0160) — not the hours of a day of that calendar: sixteen hours of float on a
+        calendar of four hours a day are two days, not four. The floats of the subordinates of a
+        summary, on different calendars, are so measured alike and compared. A summary bears the
+        smallest float of those of its subordinates that bear one, none when none does; a task in
+        manual mode none (WF-PLA-0100).
         """
         if task_id in self.plan.children:
             floats = [self.total_float(child) for child in self.plan.children[task_id]]
@@ -324,7 +329,7 @@ class _Engine:
             return None
         calendar = self.tasks[task_id].calendar
         work = calendar.count(self.late[task_id]) - calendar.count(self.early[task_id].finish)
-        return work / self.structure.constants.hours_per_day
+        return work / Fraction(self.structure.constants.hours_per_day)
 
     def rendered(self) -> Schedule:
         """Return the schedule: each task's dates, float, criticality and conflicts."""
@@ -337,8 +342,8 @@ class _Engine:
             tasks[task_id] = ScheduledTask(
                 start=span.start.instant(),
                 finish=span.finish.instant(),
-                work_hours=self.work(task_id),
-                total_float=float_days,
+                work_hours=decimal_of(self.work(task_id)),
+                total_float=None if float_days is None else decimal_of(float_days),
                 is_critical=float_days is not None and float_days <= 0,
                 link_conflicts=tuple(
                     each

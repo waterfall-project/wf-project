@@ -499,6 +499,28 @@ def test_a_predecessor_start_to_start_that_cannot_start_before_a_manual_task_is_
 
 
 @pytest.mark.requirement("WF-PLA-0100-A")
+def test_three_tasks_of_twenty_minutes_against_one_of_sixty_are_both_critical() -> None:
+    # Both branches last an hour exactly: the chain's float is nil, not a remainder of a third.
+    tasks = [task(1, "20 min"), task(2, "20 min"), task(3, "20 min"), task(4, "60 min")]
+    dated = planned(tasks, [link(1, 2), link(2, 3)])
+    assert of(dated, 3).finish == of(dated, 4).finish == day(0, 1)
+    assert [(of(dated, n).total_float, of(dated, n).is_critical) for n in (1, 2, 3, 4)] == [
+        (Decimal(0), True)
+    ] * 4
+
+
+@pytest.mark.requirement("WF-PLA-0100-A")
+def test_a_chain_of_minutes_reaching_a_manual_task_exactly_is_no_conflict() -> None:
+    # Three tasks of forty minutes finish at the Monday's second hour, where a manual task starts.
+    tasks = [task(1, "40 min"), task(2, "40 min"), task(3, "40 min")]
+    tasks.append(task(4, manual=(day(0, 2), day(0, 8))))
+    dated = planned(tasks, [link(1, 2), link(2, 3), link(3, 4)])
+    assert of(dated, 3).finish == day(0, 2)
+    assert dated.link_conflicts == ()
+    assert (of(dated, 3).total_float, of(dated, 3).is_critical) == (Decimal(0), True)
+
+
+@pytest.mark.requirement("WF-PLA-0100-A")
 def test_a_predecessor_on_another_calendar_floats_by_its_own_hours_and_not_its_successors() -> None:
     # A, sixteen hours on eight a day, finishes on the Tuesday at 8; B, four hours on four a day,
     # follows it on the Wednesday: no conflict. Their latest dates are read each on its calendar.
