@@ -251,6 +251,17 @@ def test_each_unit_converts_by_its_constant_or_without_a_calendar(
     assert Duration(Decimal(value), unit).hours(CONSTANTS) == Decimal(hours)
 
 
+@pytest.mark.requirement("WF-PLA-0030-A")
+def test_a_percent_of_an_elapsed_predecessor_is_an_elapsed_lag() -> None:
+    # Ten elapsed days from the Monday finish on the Wednesday after, at its eighth hour; half of
+    # them, five elapsed days, reach the Monday's eighth hour, where a successor working every
+    # hour starts. Five days of work would have reached the Friday.
+    tasks = [task(1, "10 ed"), task(2, calendar=EVERY_HOUR)]
+    dated = planned(tasks, [link(1, 2, lag="50", unit="percent")])
+    assert of(dated, 1).finish == day(9, 8)
+    assert of(dated, 2).start == day(14, 8)
+
+
 @pytest.mark.requirement("WF-PLA-0160-A")
 def test_an_elapsed_duration_runs_over_the_days_without_hours_of_work() -> None:
     # Two elapsed days from a Friday morning end on the Sunday: the task finishes at the end of
@@ -499,6 +510,15 @@ def test_a_predecessor_start_to_start_that_cannot_start_before_a_manual_task_is_
 
 
 @pytest.mark.requirement("WF-PLA-0100-A")
+def test_a_float_on_a_calendar_of_four_hours_is_in_days_of_the_installation() -> None:
+    # Four hours on four a day beside five days on eight: the task may finish on the Friday,
+    # sixteen hours of its calendar later, four of its days, rendered as two of eight hours.
+    dated = planned([task(1, "5"), task(2, "4 h", calendar=FOUR_HOURS)])
+    assert of(dated, 2).finish == day(0, 4)
+    assert of(dated, 2).total_float == Decimal(2)
+
+
+@pytest.mark.requirement("WF-PLA-0100-A")
 def test_three_tasks_of_twenty_minutes_against_one_of_sixty_are_both_critical() -> None:
     # Both branches last an hour exactly: the chain's float is nil, not a remainder of a third.
     tasks = [task(1, "20 min"), task(2, "20 min"), task(3, "20 min"), task(4, "60 min")]
@@ -580,6 +600,17 @@ def test_a_project_finishing_fifteen_years_and_a_day_after_its_start_is_beyond_i
     assert planned([task(1, "200000 mo")]).horizon_exceeded_by == ident(1)
     assert horizon_of(date(2028, 2, 29)) == date(2043, 2, 28)
     assert horizon_of(date(9990, 1, 1)) is None
+
+
+@pytest.mark.requirement("WF-PLA-0150-A")
+def test_a_task_led_before_the_first_day_a_date_holds_is_refused_as_beyond_the_horizon() -> None:
+    # From the first Monday of the year 1, a lead of ten days would start the successor before
+    # it: the structure is refused, naming the task that finishes last.
+    first = date(1, 1, 1)
+    tasks = (task(1, "2"), task(2))
+    structure = Structure(tasks, (link(1, 2, lag="-10"),), first, CONSTANTS)
+    assert schedule(structure).horizon_exceeded_by == ident(1)
+    assert schedule(Structure(tasks, (link(1, 2),), first, CONSTANTS)).horizon_exceeded_by is None
 
 
 @pytest.mark.requirement("WF-PLA-0020-A")

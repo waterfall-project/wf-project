@@ -124,7 +124,9 @@ class Lag:
         """Return the lag as the engine places it: in percent, that share of its predecessor's.
 
         Fifty percent of ten days are five days, of work as the ten are (WF-PLA-0030); the sign
-        stays, a lead being a negative span.
+        stays, a lead being a negative span. The share keeps the predecessor's kind of time, which
+        the specification does not say: fifty percent of ten elapsed days are five elapsed days,
+        placed without a calendar, as « in that duration's own unit » reads.
         """
         if self.unit == "percent":
             share = Fraction(self.value) / PERCENT

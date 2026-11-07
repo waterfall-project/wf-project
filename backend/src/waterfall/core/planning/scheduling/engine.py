@@ -226,7 +226,11 @@ class _Engine:
         """Return the task, not a summary, that finishes last when the project lasts too long.
 
         The first in the order of the plan among those finishing last; none within fifteen years
-        of the start of the first task (WF-PLA-0150).
+        of the start of the first task (WF-PLA-0150). A task that starts before the first day a
+        date holds — a lead of centuries from a planning start in the first years — has dates the
+        engine cannot render any more than past the last: the structure is refused the same way,
+        by the only refusal of the contract for dates out of reach, naming as always the task that
+        finishes last, rather than by a code the contract does not have.
         """
         last = self.leaves[0]
         for task_id in self.leaves:
