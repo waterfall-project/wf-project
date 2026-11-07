@@ -111,6 +111,7 @@ KINDS = [
     Kind("cost_type", TYPES, "cost_type_id", "cost_settings", make_type),
     Kind("cost_category", CATEGORIES, "cost_category_id", "cost_settings", make_category),
 ]
+BY_NAME = {kind.name: kind for kind in KINDS}
 EACH_LIST = pytest.mark.parametrize("kind", KINDS, ids=[kind.name for kind in KINDS])
 
 
@@ -250,7 +251,7 @@ def test_a_deactivated_object_leaves_the_default_list_and_is_listed_to_who_may_c
 def test_a_deactivated_category_leaves_the_grid_and_is_read_by_who_may_change_the_cost_settings(
     api: ContractClient, world: World
 ) -> None:
-    kind = KINDS[4]
+    kind = BY_NAME["cost_category"]
     created = kind.make(api, world, "GRID")
     code = created["code"]
     cost = world["cost_settings"]
@@ -273,6 +274,7 @@ def test_a_deactivated_category_leaves_the_grid_and_is_read_by_who_may_change_th
             {"missing_permission": "cost_settings.write"},
         )
     assert rows(cost.changing, "include_inactive=true")[code]["is_active"] is False
+    # ``>=`` on purpose: the witness holds other deactivated categories, this one among them.
     assert set(rows(cost.changing, "is_active=false")) >= {code}
     assert code not in rows(cost.changing, "is_active=true&include_inactive=true")
     switch(api, world, kind, created[kind.key], active=True)
@@ -316,6 +318,8 @@ def test_an_object_is_reactivated_by_its_command_under_the_permission_to_change_
 # The audit columns, and the journal.
 
 
+@pytest.mark.requirement("WF-DAT-0070-A")
+@pytest.mark.requirement("WF-SEC-0030-A")
 @EACH_LIST
 def test_the_audit_columns_of_a_deactivated_then_reactivated_object_name_the_author_and_the_moment(
     api: ContractClient,
@@ -371,7 +375,7 @@ def test_the_audit_columns_of_a_deactivated_then_reactivated_object_name_the_aut
 def test_a_deactivated_object_stays_named_where_it_is_employed_and_is_not_proposed(
     api: ContractClient, database: Database, realm: TestRealm, world: World
 ) -> None:
-    node, category, calendar = KINDS[0], KINDS[4], KINDS[2]
+    node, category, calendar = BY_NAME["org_node"], BY_NAME["cost_category"], BY_NAME["calendar"]
     created = make_role(api, world, "USE")
     role_id = created["resource_role_id"]
     switch(api, world, calendar, created["calendar_id"], active=False)
@@ -381,7 +385,9 @@ def test_a_deactivated_object_stays_named_where_it_is_employed_and_is_not_propos
         # The role is active, and names its category and its calendar deactivated; the lists of
         # choice of its form propose neither.
         (employing,) = [
-            each for each in read(api, headers, KINDS[1]) if each["resource_role_id"] == role_id
+            each
+            for each in read(api, headers, BY_NAME["resource_role"])
+            if each["resource_role_id"] == role_id
         ]
         assert employing["cost_category_label"] == created["cost_category_label"]
         assert employing["calendar_label"] == created["calendar_label"]
@@ -397,7 +403,7 @@ def test_a_deactivated_object_stays_named_where_it_is_employed_and_is_not_propos
     attached = account(database, "Attachee", "Camille", org_node_id=created["org_node_id"])
     switch(api, world, node, created["org_node_id"], active=False)
     assert created["org_node_id"] not in identifiers(api, resource.without, node)
-    off = find(api, world, KINDS[1], role_id)
+    off = find(api, world, BY_NAME["resource_role"], role_id)
     assert off["is_active"] is False
     assert off["org_node_label"] == created["org_node_label"]
     reader = bearer(realm.token(subject, KEY))
@@ -412,7 +418,7 @@ def test_a_deactivated_object_stays_named_where_it_is_employed_and_is_not_propos
 def test_a_deactivated_nature_stays_named_by_its_categories_which_are_deactivated_with_it(
     api: ContractClient, world: World
 ) -> None:
-    nature, category = KINDS[3], KINDS[4]
+    nature, category = BY_NAME["cost_type"], BY_NAME["cost_category"]
     created = make_type(api, world, "NAT")
     sent = {
         "code": "C-NAT",
@@ -507,12 +513,12 @@ def test_a_modification_writes_the_object_and_nothing_that_employs_it(
     assert moved.status_code == 200, moved.text
     after = snapshot(api, world)
     assert written(before, after) == {("resource_role", created["resource_role_id"])}
-    weekly = find(api, world, KINDS[2], created["calendar_id"])["weekly_hours"]
+    weekly = find(api, world, BY_NAME["calendar"], created["calendar_id"])["weekly_hours"]
     renamings = (
-        (KINDS[0], {"code": "N-MOD", "label": "Renommé", "parent_id": None}),
-        (KINDS[2], {"label": "Renommé", "weekly_hours": weekly}),
+        (BY_NAME["org_node"], {"code": "N-MOD", "label": "Renommé", "parent_id": None}),
+        (BY_NAME["calendar"], {"label": "Renommé", "weekly_hours": weekly}),
         (
-            KINDS[4],
+            BY_NAME["cost_category"],
             {
                 "code": "C-MOD",
                 "label": "Renommée",

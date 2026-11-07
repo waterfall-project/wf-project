@@ -20,6 +20,7 @@ from dataclasses import dataclass
 from decimal import Decimal
 from typing import TYPE_CHECKING, Any, cast
 
+import pytest
 import yaml
 from fastapi import FastAPI, Query
 from support import CONTRACT
@@ -341,6 +342,7 @@ CHECKED_BY_THE_ROUTE = {
 }
 
 
+@pytest.mark.requirement("WF-ARC-0060-A")
 def test_the_bounds_of_every_parameter_the_service_declares_are_those_of_the_contract(
     services: Services,
 ) -> None:
@@ -360,6 +362,7 @@ def list_things(
     del limit, page, code, kept
 
 
+@pytest.mark.requirement("WF-ARC-0060-A")
 def test_a_bound_that_drifts_from_the_contract_is_found(tmp_path: Path) -> None:
     (tmp_path / "parameters.yaml").write_text(
         "Limit: { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 500 } }\n"
