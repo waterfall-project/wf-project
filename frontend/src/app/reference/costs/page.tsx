@@ -2,17 +2,18 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * The settings of the costs (FBS-3.1, US-0250), outside any project: the currency of the
- * installation, every amount expressed in it (WF-REF-0140), and beside it the name of the company the
- * exported files bear (WF-EXP-0020), modified where the session may modify the cost settings; then, stacked one under the other in a
- * page that scrolls, as the settings of the resources are (US-0570, #1044), the natures and the
- * categories of cost (FBS-3.1.1), two dense grids searched, filtered, sorted and paged by the
- * server, as the address asks under the names of each grid (#510), and the grid of the hourly rates
- * (FBS-3.1.2), a row for each category of labour and a column for each year, on the dense grid,
- * searched, filtered on the state of its categories and on the bounds of the rate of a year, sorted
- * and paged by the server under the names of the contract (#509, #545), its cells entered where the
- * session may modify the cost settings (WF-REF-0050). Each grid keeps a height of its own, no taller
- * than the window; its size is the rows per page the account chose for it (WF-IHM-0060). Every
- * figure as the API gives it: the front computes, sorts, filters and pages nothing.
+ * installation, every amount expressed in it (WF-REF-0140), and beside it the name of the company
+ * the exported files bear (WF-EXP-0020), modified where the session may modify the cost settings;
+ * then, stacked one under the other in a page that scrolls, as the settings of the resources are
+ * (US-0570, #1044), the natures and the categories of cost (FBS-3.1.1), two dense grids searched,
+ * filtered, sorted and paged by the server, as the address asks under the names of each grid
+ * (#510), and the grid of the hourly rates (FBS-3.1.2), a row for each category of labour and a
+ * column for each year, on the dense grid, searched, filtered on the state of its categories and on
+ * the bounds of the rate of a year, sorted and paged by the server under the names of the contract
+ * (#509, #545), its cells entered where the session may modify the cost settings (WF-REF-0050).
+ * Each grid keeps a height of its own, no taller than the window; its size is the rows per page the
+ * account chose for it (WF-IHM-0060). Every figure as the API gives it: the front computes, sorts,
+ * filters and pages nothing.
  *
  * The lists and the grid hold the active objects alone, and the deactivated ones too when the
  * address asks for them and the session bears the permission of modifying the cost settings,
@@ -20,11 +21,11 @@
  * category carries the command that reactivates it, as the server lists it. The categories are
  * filtered by a nature chosen among every one the session reads, read whole as a list of choices is
  * (#303). A session that may modify the cost settings creates and modifies the natures and the
- * categories, and deactivates them as each lists it (EP-02/L43a), the form of a category reading the
- * type of every nature, deactivated ones included (EP-02/L42g); the screen then says that the fake
- * back keeps none of what is written (`MockupNotice`). Bounds of the rate the API refuses (422) leave the grid unread, the bound said at its
- * field; any other read the API refuses, or cannot answer, is thrown for the pages of the shell to
- * say.
+ * categories, and deactivates them as each lists it (EP-02/L43a), the form of a category reading
+ * the type of every nature, deactivated ones included (EP-02/L42g); the service keeps what is
+ * written, and the screen shows no mock-up notice. Bounds of the rate the API refuses (422) leave
+ * the grid unread, the bound said at its field; any other read the API refuses, or cannot answer,
+ * is thrown for the pages of the shell to say.
  */
 import { Coins } from "lucide-react";
 import type { Metadata } from "next";
@@ -92,7 +93,6 @@ import { InactiveSwitch } from "@/components/reference/reference-filters";
 import { CompanyName, CompanySettings } from "@/components/reference/settings-forms";
 import { BoundsRefused, ReferenceSection } from "@/components/reference/section";
 import { FUNCTION_DENSITY, FUNCTION_ICONS, LEAF_ICONS } from "@/components/shell/function-display";
-import { MockupNotice } from "@/components/shell/mockup-notice";
 import { PageHeader, Screen } from "@/components/shell/page-header";
 import { buttonVariants } from "@/components/ui/button";
 import { leafOf } from "@/navigation/functions";
@@ -271,8 +271,7 @@ async function readCosts(queries: CostQueries, session: { readonly editable: boo
 
 /**
  * The title of the screen, the currency every amount of it is expressed in, and the switch of the
- * deactivated objects for who may modify the settings; under it, for who may write, that the fake
- * back keeps nothing of what is written.
+ * deactivated objects for who may modify the settings.
  */
 function CostsHeader({
   settings,
@@ -315,7 +314,6 @@ function CostsHeader({
       ) : (
         <CompanyName name={settings.company_name} />
       )}
-      <MockupNotice lists />
     </>
   );
 }

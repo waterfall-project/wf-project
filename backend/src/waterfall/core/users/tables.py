@@ -106,6 +106,12 @@ class UserAccount(Base):
     # a token of a sign-in before is refused (WF-SEC-0020, #668, #835). Not a change of the
     # account: neither its version nor its audit columns move.
     sessions_closed_at: Mapped[datetime | None] = mapped_column(UtcDateTime)
+    # The node of the organisation the account is attached to, null without one (WF-DAT-0090):
+    # a node of the resource settings, named by its table, whose key is the database's (0019).
+    # A node names its authors, accounts: the key is added once both tables are, as 0019 does.
+    org_node_id: Mapped[UUID | None] = mapped_column(
+        ForeignKey("org_node.id", ondelete="RESTRICT", use_alter=True), index=True
+    )
     created_at: Mapped[datetime] = mapped_column(UtcDateTime)
     created_by: Mapped[UUID | None] = mapped_column(
         ForeignKey("user_account.id", ondelete="RESTRICT")

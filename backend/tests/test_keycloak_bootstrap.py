@@ -23,7 +23,7 @@ from uuid import uuid4
 
 import pytest
 from pydantic import SecretStr
-from sqlalchemy import Engine, func, insert, select, text, update
+from sqlalchemy import Engine, delete, func, insert, select, text, update
 from support import CONTRACT, TO_SEED_BY_EP04, ContractClient, Logs, captured_logs
 from test_keycloak_authentication import (
     ME,
@@ -52,6 +52,14 @@ from test_migrations import HEAD, scratch_database
 
 from waterfall import bootstrap
 from waterfall.core.access_roles.tables import AccessRole, Permission
+from waterfall.core.cost_settings.interface import read_reference_settings
+from waterfall.core.cost_settings.tables import (
+    ActualCostMapping,
+    CostCategory,
+    CostType,
+    ReferenceSetting,
+)
+from waterfall.core.resource_settings.tables import Calendar, DurationUnit
 from waterfall.core.users.tables import UserAccount
 from waterfall.platform.audit import AuditEntry
 from waterfall.platform.installation import Installation
@@ -73,6 +81,15 @@ ACCESS_ROLES = "/api/v1/access-roles"
 PERMISSIONS = "/api/v1/permissions"
 # The example of the contract that gives the roles of an installation, the three predefined ones.
 WITNESS = CONTRACT.parents[2] / "fixtures" / "api" / "access_roles.json"
+# What the bootstrap writes of the reference, its referred rows after those they refer to.
+REFERENCE_TABLES = (
+    ReferenceSetting,
+    DurationUnit,
+    ActualCostMapping,
+    CostCategory,
+    CostType,
+    Calendar,
+)
 # The expiry of a link valid until it is used: the last moment a token of Keycloak can say.
 UNTIL_USED = 2**31 - 1
 
@@ -88,6 +105,8 @@ def settings_of(database_url: str, email: str, language: str = "fr") -> Installa
             "installation_client_secret": required(INSTALLATION_CREDENTIAL_VARIABLE),
             "admin_email": email,
             "default_language": language,
+            "currency": "EUR",
+            "company_name": "Delmas Automatismes",
         }
     )
 
@@ -228,12 +247,12 @@ def test_a_second_installation_creates_nothing_and_replaces_the_link_until_a_pas
 ) -> None:
     # « Une seconde exécution de l'installation ne crée ni compte, ni calendrier, ni nature
     # supplémentaire ; elle produit un nouveau lien, qui remplace le précédent, tant que
-    # l'administrateur n'a pas fixé son mot de passe, et aucun lien ensuite. » The calendar and
-    # the nature arrive with EP-05.
+    # l'administrateur n'a pas fixé son mot de passe, et aucun lien ensuite. » The calendar, the
+    # nature of provision for risks and its category arrive with EP-05.
     settings = settings_of(database_url, address)
     first = link_of(settings)
     created = counts(admin, database, address)
-    assert created == (1, 3, 1, 1)
+    assert created == (1, 3, 1, 1, 1, 1, 1)
     second = link_of(settings)
     assert second != first
     assert counts(admin, database, address) == created
@@ -272,20 +291,18 @@ def test_an_administrator_given_a_password_another_way_is_given_no_link_and_its_
     assert (spent.status_code, SPENT in html.unescape(spent.text)) == (400, True)
 
 
-def test_two_installations_run_at_once_make_one(
-    admin: httpx2.Client, database: Database, owner: Engine, database_url: str, address: str
-) -> None:
-    # The advisory lock keeps two bootstraps apart, run at once in two processes: the second waits
-    # for the first, finds the installation made, and replaces its link. Without it, both would
-    # find none and install, and the second would fail on the row of the first. The test holds
-    # the lock itself until both wait on it, so that they do run at once: without a lock in the
-    # code, none ever waits, and the test fails at the end of its delay.
+def run_at_once(owner: Engine, settings: InstallationSettings) -> list[tuple[str, str]]:
+    """Run two bootstraps at once, in two processes; give what each wrote, once both ended.
+
+    The test holds the lock itself until both wait on it, so that they do run at once: without a
+    lock in the code, none ever waits, and the test fails at the end of its delay.
+    """
     command = [
         sys.executable,
         "-c",
         "import sys; from waterfall.bootstrap import main; sys.exit(main(['install']))",
     ]
-    environment = os.environ | variables_of(settings_of(database_url, address))
+    environment = os.environ | variables_of(settings)
     # A key of 64 bits is held as two halves of 32: the high one is 0 for this one.
     waiting = text(
         "SELECT count(*) FROM pg_locks WHERE locktype = 'advisory' AND NOT granted "
@@ -320,14 +337,46 @@ def test_two_installations_run_at_once_make_one(
             holder.commit()
     written = [run.communicate(timeout=180) for run in runs]
     assert [run.returncode for run in runs] == [0, 0], [err for _, err in written]
+    return written
+
+
+def test_two_installations_run_at_once_make_one(
+    admin: httpx2.Client, database: Database, owner: Engine, database_url: str, address: str
+) -> None:
+    # The advisory lock keeps two bootstraps apart, run at once in two processes: the second waits
+    # for the first, finds the installation made, and replaces its link. Without it, both would
+    # find none and install, and the second would fail on the row of the first.
+    written = run_at_once(owner, settings_of(database_url, address))
     links = [out.removesuffix("\n") for out, _ in written]
     assert all(link and "\n" not in link for link in links), links
-    assert counts(admin, database, address) == (1, 3, 1, 1)
+    assert counts(admin, database, address) == (1, 3, 1, 1, 1, 1, 1)
     # The link of the first is replaced by that of the second, whichever came first.
     # The other opens, at the page that asks to confirm it.
     opened = [Browser().get(link) for link in links]
     assert sorted(REPLACED in html.unescape(page.text) for page in opened) == [False, True]
     assert sorted(page.status_code for page in opened) == [200, 400]
+
+
+@pytest.mark.requirement("WF-EXP-0020-A")
+def test_two_runs_at_once_give_an_installation_made_before_the_reference_one_reference(
+    admin: httpx2.Client, database: Database, owner: Engine, database_url: str, address: str
+) -> None:
+    # The reference given again to an old installation is written under the lock as well, in its
+    # own transaction: the second run finds it written by the first, says nothing installed, and
+    # ends well — the single row of the settings, the unique default calendar and the unique code
+    # of the nature would refuse a second, but as a failure of the run.
+    settings = settings_of(database_url, address)
+    link_of(settings)
+    with owner.begin() as connection:
+        for table in REFERENCE_TABLES:
+            connection.execute(delete(table))
+    written = run_at_once(owner, settings)
+    given = [err.count("installation.reference_installed") for _, err in written]
+    assert sorted(given) == [0, 1], [err for _, err in written]
+    assert counts(admin, database, address) == (1, 3, 1, 1, 1, 1, 1)
+    with database.transaction() as session:
+        assert read_reference_settings(session).lock_version == 1
+        assert session.scalar(select(func.count()).select_from(DurationUnit)) == 1
 
 
 @pytest.mark.requirement("WF-EXP-0020-A")
@@ -406,6 +455,54 @@ def test_a_second_installation_for_another_address_says_it_ignores_it(
     assert len(logs.named("installation.admin_email_ignored")) == 1
 
 
+@pytest.mark.requirement("WF-EXP-0020-A")
+@pytest.mark.requirement("WF-REF-0140-A")
+def test_a_second_installation_for_another_currency_and_name_says_it_ignores_them(
+    database: Database, database_url: str, address: str, logs: Logs
+) -> None:
+    # The currency and the name of the company are those of the installation made: given others
+    # since, it keeps them, and the logs say them ignored — without them.
+    settings = settings_of(database_url, address)
+    link_of(settings)
+    link_of(settings)
+    assert not logs.named("installation.currency_ignored")
+    assert not logs.named("installation.company_name_ignored")
+    link_of(settings.model_copy(update={"currency": "USD", "company_name": "Autre Société"}))
+    for event in ("installation.currency_ignored", "installation.company_name_ignored"):
+        (ignored,) = logs.named(event)
+        assert ignored["level"] == "warning"
+    assert "USD" not in logs.text
+    assert "Autre Société" not in logs.text
+    with database.transaction() as session:
+        kept = read_reference_settings(session)
+    assert (kept.currency_code, kept.company_name) == ("EUR", "Delmas Automatismes")
+
+
+@pytest.mark.requirement("WF-EXP-0020-A")
+def test_an_installation_made_before_the_reference_is_given_it_when_run_again(
+    owner: Engine, database: Database, database_url: str, address: str, logs: Logs
+) -> None:
+    # No migration writes data: an installation bootstrapped before the reference existed is
+    # given it by its bootstrap run again, in the language of the installation, with the currency
+    # and the name the run is given (#2092).
+    link_of(settings_of(database_url, address, language="en"))
+    with owner.begin() as connection:
+        for table in REFERENCE_TABLES:
+            connection.execute(delete(table))
+    link_of(settings_of(database_url, address).model_copy(update={"currency": "CHF"}))
+    assert len(logs.named("installation.reference_installed")) == 1
+    with database.transaction() as session:
+        kept = read_reference_settings(session)
+        calendar = session.scalars(select(Calendar.label)).one()
+        mapping = session.scalar(select(func.count()).select_from(ActualCostMapping))
+    assert (kept.currency_code, kept.lock_version, calendar, mapping) == (
+        "CHF",
+        1,
+        "Standard calendar",
+        1,
+    )
+
+
 def test_the_installation_gives_the_realm_its_language_at_each_run(
     database_url: str, address: str
 ) -> None:
@@ -423,14 +520,22 @@ def test_the_installation_gives_the_realm_its_language_at_each_run(
     assert realm_language() == "en"
 
 
-def counts(admin: httpx2.Client, database: Database, email: str) -> tuple[int, int, int, int]:
-    """Count the accounts, the roles and the installations made, and the accounts of the realm."""
+def counts(admin: httpx2.Client, database: Database, email: str) -> tuple[int, ...]:
+    """Count what an installation makes, and the accounts of the realm.
+
+    The accounts, the roles and the installations, the accounts of the realm, and the calendars,
+    the natures and the categories of the reference.
+    """
     with database.transaction() as session:
         return (
             session.scalar(select(func.count()).select_from(UserAccount)) or 0,
             session.scalar(select(func.count()).select_from(AccessRole)) or 0,
             session.scalar(select(func.count()).select_from(Installation)) or 0,
             len(realm_accounts(admin, email)),
+            *(
+                session.scalar(select(func.count()).select_from(table)) or 0
+                for table in (Calendar, CostType, CostCategory)
+            ),
         )
 
 

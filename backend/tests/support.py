@@ -7,6 +7,7 @@ import json
 import logging
 import time
 from contextlib import contextmanager
+from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, cast
@@ -34,7 +35,7 @@ from waterfall.platform.queue import DEPOSIT_TIMEOUT, TaskQueue
 from waterfall.platform.storage import Bucket
 
 if TYPE_CHECKING:
-    from collections.abc import Generator, Iterable, Iterator
+    from collections.abc import Callable, Generator, Iterable, Iterator
 
     from fastapi.testclient import TestClient
     from httpx2 import Response
@@ -45,6 +46,10 @@ if TYPE_CHECKING:
     from waterfall.platform.settings import ServiceSettings
 
 CONTRACT = Path(__file__).resolve().parents[2] / "docs" / "api" / "openapi.yaml"
+# The description of the witness, the examples of the contract the fake back serves (EP-05).
+WITNESS = Path(__file__).resolve().parents[2] / "fixtures" / "api"
+# The four parts of the reference, each with its permission to read and its permission to change.
+REFERENCE_PARTS = ("cost_settings", "resource_settings", "risk_settings", "indicator_settings")
 
 # The back lags behind the contract until EP-04, without a change of the service in EP-16
 # (decision of the author of 2026-10-28 on #1457, option b): the predefined manager of the witness
@@ -344,9 +349,29 @@ class ContractClient:
         """Send a PATCH and check the answer."""
         return self.request("PATCH", path, **kwargs)
 
+    def put(self, path: str, **kwargs: Any) -> Response:
+        """Send a PUT and check the answer."""
+        return self.request("PUT", path, **kwargs)
+
     def delete(self, path: str, **kwargs: Any) -> Response:
         """Send a DELETE and check the answer."""
         return self.request("DELETE", path, **kwargs)
+
+
+@dataclass(frozen=True, slots=True)
+class PartSessions:
+    """Three sessions on a part of the reference, each the header of a token of its own account.
+
+    ``without`` holds no permission of the reference; ``reading``, the permission to read the
+    part; ``changing``, to read and to change it.
+    """
+
+    without: dict[str, str]
+    reading: dict[str, str]
+    changing: dict[str, str]
+
+
+type ReferenceSessions = Callable[[str], PartSessions]
 
 
 def bearer(token: str) -> dict[str, str]:
@@ -379,16 +404,16 @@ WAITING = text(
 )
 
 
-def wait_for_a_lock(database: Database) -> None:
-    """Wait until a transaction waits for a lock another one holds, in 10 seconds at most."""
+def wait_for_a_lock(database: Database, waiting: int = 1) -> None:
+    """Wait until ``waiting`` transactions at least wait for a lock another holds, in 10 seconds."""
     deadline = time.monotonic() + 10
     with database.engine.connect() as watching:
         while time.monotonic() < deadline:
-            if watching.scalar(WAITING):
+            if (watching.scalar(WAITING) or 0) >= waiting:
                 return
             watching.rollback()
             time.sleep(0.05)
-    pytest.fail("no transaction waits for a lock")
+    pytest.fail(f"fewer than {waiting} transactions wait for a lock")
 
 
 class Watching(KeycloakAdmin):

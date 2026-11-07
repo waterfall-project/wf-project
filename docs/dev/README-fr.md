@@ -45,9 +45,44 @@ lecteur du flux des restaurations, seul à tenir les propriétaires des deux bas
 migrations comme l'amorçage, et son module, `waterfall.restore`, est comme lui au sommet des
 couches, importé par aucun.
 
+Un verbe de `waterfall-api`, `load-witness` (EP-05), charge le témoin : l'univers que décrivent les
+exemples du contrat, `fixtures/api/`, que `make mock-data` tient et que le faux back sert. Il lit
+`WATERFALL_DATABASE_URL`, le rôle du service — il écrit par les interfaces des modules, avec les
+identifiants du témoin, la plateforme pour auteur et l'instant du chargement pour date —, et
+`WATERFALL_WITNESS_PATH`, le répertoire de la description ; un réglage absent, ou un chemin qui
+n'est pas un répertoire, l'arrête au départ en le nommant (2). Chaque fichier se lit dans la forme
+du contrat, par ses modèles (`api/contract/models.py`) : un fichier qui s'en écarte l'arrête. Il
+écrit en une transaction, sous un verrou consultatif qui lui est propre, une tranche par objet,
+dans l'ordre de leurs dépendances (`waterfall.witness.loader`) : les paramètres communs, les unités
+de durée, les natures, les catégories, les taux, les calendriers (`calendars_with_inactive.json` :
+tous créés, puis ceux que le témoin dit désactivés désactivés) et le calendrier par défaut, les
+nœuds puis la désactivation de ceux que le témoin dit désactivés, les rôles puis la leur, la
+correspondance de l'extraction des coûts réels. Une tranche n'écrit rien de ce que la plateforme
+tient déjà : relancé, il n'écrit rien et réussit, en disant le témoin là
+(`witness.already_loaded`) ; un refus ou une erreur n'écrit rien et l'arrête en échec (1). Chaque US
+du référentiel remplit sa tranche, dans son fichier de `waterfall.witness`, sans toucher l'ordre. Son module,
+`waterfall.witness`, est au sommet des couches, importé par aucun : `waterfall-api` commence par
+lui, qui passe à l'amorçage tout autre argument. Le Compose de service l'offre (service `witness`,
+`make service-witness`), celui de production non : une installation réelle ne porte pas le témoin.
+`make service-witness` ne prend aucune variable propre : le Compose de service passe au service
+`witness` le rôle du service (`WATERFALL_DATABASE_URL`, par `WATERFALL_POSTGRES_PASSWORD`, qu'il
+faut exporter comme pour `make service-up`) et monte `fixtures/api/` en lecture seule sur
+`WATERFALL_WITNESS_PATH` (`/witness`) ; la plateforme doit être démarrée et amorcée
+(`make service-install`), car la commande n'écrit pas ce que l'amorçage écrit — la ligne de
+l'installation, les paramètres communs, les unités, la correspondance, le calendrier par défaut
+et la provision —, elle règle ce qu'il a posé. La fixture `witness` de `backend/tests/conftest.py`
+fait de même sur la base des tests : elle installe d'abord ce que l'amorçage écrit, puis lance la
+commande. `backend/tests/test_witness.py` éprouve le témoin entier : ses volumes, deux plateformes
+neuves chargées identiques, une seconde exécution qui n'écrit rien, les dates et les auteurs de la
+plateforme, l'arrêt en le disant sur un témoin que les règles refusent, et les listes du service
+comparées aux exemples du contrat, aux colonnes d'audit près. `fixtures/api/` et Prism restent les
+exemples du contrat et le faux back des écrans que le service ne sert pas.
+
 Le noyau, `waterfall.core`, a un sous-paquet par module, nommé d'après son bloc FBS de
 second niveau, en anglais. Un module expose ce que les autres peuvent utiliser dans son
-module `interface`, et rien d'autre : ses tables et son accès aux données lui sont privés.
+module `interface` — un paquet d'un fichier par objet, que `interface/__init__.py`
+réexporte, pour les modules du référentiel (EP-05) —, et rien d'autre : ses tables et son accès
+aux données lui sont privés.
 Un module en importe un autre par `waterfall.core.<module>.interface`, jamais par ses
 tables. Le noyau n'importe ni l'API ni le worker, qui ne s'importent pas l'un l'autre.
 
@@ -1391,12 +1426,16 @@ réponse est plus récente que la ligne lue (`lock_version`, `useAnswered`) — 
 ne garde rien, elle survit donc aux relectures — ; une création n'ajoute aucune ligne, la page relue
 la range où le serveur la retient. Ce qu'une écriture a fait se dit dans la région de sa liste (« «
 Débours » désactivée. ») ; le refus d'une activation, au-dessus de la liste comme celui d'une
-réactivation (`useListReport`). Le faux back ne gardant rien, l'écran le dit sous son en-tête, pour
-qui écrit — la note, avec celle des listes, tient en 150 signes au plus, pour que les totaux de
-grille restent dans la fenêtre, et ne dit pas qu'une ligne écrite reste montrée telle que le serveur
-l'a rendue tant que l'écran reste ouvert — (`MockupNotice`, `components/shell/mockup-notice.tsx`, à
-reprendre par chaque écran de la maquette dont les commandes écrivent, retiré quand l'écran est
-branché sur le service de son EPIC). La saisie d'un taux reste celle de la grille.
+réactivation (`useListReport`). Le service garde ce qui s'écrit (EP-05, US-0820 à US-0830) : l'écran
+des coûts ne porte plus `MockupNotice`, et un succès est ce que le service a gardé, relu. Le faux
+back, qui ne garde rien, reste joué par les parcours, qui n'affirment contre lui que ce qu'il répond ;
+la relecture après rechargement ne s'affirme qu'en service (`inService` de `e2e/mode.ts`), et les
+tests de `reference-costs.spec.ts` portent l'étiquette `@shared`, sauf ceux qui jouent aussi des
+écrans pas encore servis (les rôles, US-0850). La saisie d'un taux reste celle de
+la grille : le parcours en saisit un contre le service, qui répond ce qui a été saisi. Une année
+ajoutée par la grille n'est qu'une colonne du front, vide, jusqu'au premier taux (aucune opération
+ne crée une colonne, #299) : celle d'une année que la grille a déjà est refusée par la grille
+elle-même (WF-REF-0060-A), contre le service comme contre le faux back.
 
 La correspondance de l'extraction des coûts réels (US-0620/L2, WF-REF-0190, FBS-3.1.3) a sa page,
 `/reference/costs/actual-cost-mapping`, que l'en-tête des paramètres de coûts offre par
@@ -1459,48 +1498,71 @@ ou un rattachement désactivé entre-temps (`INACTIVE_REFERENCE_OBJECT`), des he
 une capacité négative, avec la borne franchie (`VALUE_OUT_OF_RANGE`) ; le libellé déjà porté d'un
 calendrier, désactivés compris, nomme son porteur d'après la page, par son identifiant, de façon
 générique sinon ; le reste comme pour les coûts, la version périmée sous le formulaire avec l'offre
-de relire ; l'écran dit que le faux back ne garde rien (`MockupNotice`). Une écriture qui laisserait
-une tâche sans heure travaillée — un calendrier modifié ou désigné par défaut, un rôle modifié — est
-refusée (`TASK_WITHOUT_WORKING_HOURS`, « Une tâche n'aurait plus aucune heure travaillée dans la
-semaine. ») en disant pourquoi et en nommant chaque projet en cause par son libellé et son code, par
-son seul libellé sans code (`params.projects`, WF-PLA-0010), jusqu'à cinq dans la phrase, en liste
-hors de l'alerte au-delà, comme les lignes d'un sous-projet. La cause est celle de
-`params.resource_roles` : les rôles dont les calendriers ne se recoupent aucun jour, que le refus
-nomme lui-même par leur code et leur libellé, partout où il se dit, le planning compris, la page
-n'en lisant aucun ; une liste vide désigne le calendrier par défaut, vidé ou désigné, quand seules
-des tâches sans ligne de main-d'œuvre perdent leurs heures.
+de relire ; l'écran ne porte plus `MockupNotice` depuis US-0850 : le service garde ce qui s'écrit,
+et ses parcours sont étiquetés `@shared` (les unités de durée, que le service ne sert pas encore,
+attendent US-0860b). Une écriture qui laisserait une tâche sans heure travaillée — un calendrier
+modifié ou désigné par défaut, un rôle modifié — est refusée (`TASK_WITHOUT_WORKING_HOURS`, « Une
+tâche n'aurait plus aucune heure travaillée dans la semaine. ») en disant pourquoi et en nommant
+chaque projet en cause par son libellé et son code, par son seul libellé sans code
+(`params.projects`, WF-PLA-0010), jusqu'à cinq dans la phrase, en liste hors de l'alerte au-delà,
+comme les lignes d'un sous-projet. La cause est celle de `params.resource_roles` : les rôles dont
+les calendriers ne se recoupent aucun jour, que le refus nomme lui-même par leur code et leur
+libellé, partout où il se dit, le planning compris, la page n'en lisant aucun ; une liste vide
+désigne le calendrier par défaut, vidé ou désigné, quand seules des tâches sans ligne de
+main-d'œuvre perdent leurs heures.
+
+Le service sert les rôles depuis US-0850 (`api/resource_roles.py`, le fichier `resource_roles` de
+l'interface de `resource_settings`) : les actifs se lisent par toute session ouverte, les désactivés
+(`include_inactive`, `is_active` faux) et toute écriture sous `resource_settings.write` (décision
+de l'auteur, #2084). Un rôle naît actif, sous un nœud actif, et ne se réactive que sous un nœud
+actif ; la création, l'activation d'un rôle et celle d'un nœud se font sous le verrou consultatif de
+l'arbre, que la cascade tient aussi : la désactivation d'un nœud désactive, dans la même
+transaction, ses descendants et les rôles rattachés à lui ou à l'un d'eux, chacun son compteur
+avancé et son auteur, et la réponse les porte. `resource_settings` ne lit pas `cost_settings`, qui
+le lit (`category_has_roles`, `roles_of_categories`, #2114) : la route demande aux paramètres de
+coûts ce qu'un rôle sait de sa catégorie — main-d'œuvre, active —, sous le verrou consultatif des
+natures, partagé et pris avant tout autre — celui de l'arbre, la ligne du rôle —, comme les
+écritures des paramètres de coûts le prennent avant leurs lignes, et le libellé de chaque catégorie
+nommée ou triée (`category_labels`, `category_label_of`). La tranche du témoin
+(`witness/resource_roles.py`) crée les rôles de `resource_roles.json` par la même interface, puis
+désactive ceux qu'il dit désactivés ; un rôle ne naît ni sous un nœud ni avec un calendrier
+désactivés : le calendrier d'un rôle, que la tranche des calendriers a désactivé
+(`calendars_with_inactive.json`, #2131), et le nœud de son rattachement, que celle des nœuds a
+désactivé en cascade, sont rouverts le temps de l'écrire, puis refermés.
 
 ### Les paramètres des risques et des indicateurs
 
 Les paramètres des risques et des indicateurs se modifient chacun dans un formulaire (EP-14/L43e,
 #512 ; `settings-forms.tsx`), offert par « Modifier la matrice de risques » à une session qui porte
 `risk_settings.write`, par « Modifier les seuils et le délai » à une session qui porte
-`indicator_settings.write` (`platformOffer`) ; une autre session lit les tables seules, sans avis de
-la maquette. L'un saisit les six bornes, en pourcentages (`editablePercent`, `percentRatio`), et les
-seize zones, un choix par case ; l'autre les quatre seuils, en valeurs de l'indice, et le délai, en
-semaines entières (`control: "whole"`, un nombre entier, signe compris, ses bornes au serveur, jugé
-au champ avec les autres, dit par le texte propre au champ, `invalid`). Chaque écran suit sa seule
-permission : une session qui porte l'une sans l'autre lit l'autre écran sans commande ni avis.
-Chacun envoie par `updateReferenceSettings` le seul sous-objet de son écran et la version lue
-(`RiskMatrixWrite`, `IndicatorWrite`), jamais un champ de l'autre écran, que garde une autre
-permission ; ni la devise (WF-REF-0140) ni la langue de l'installation, qui est à EP-03, n'y sont
-offertes. Le formulaire du référentiel range côte à côte, sous une légende, les champs qui vont
-ensemble (`group` d'un `FormField`, un `fieldset` qui se replie sur deux colonnes dans une fenêtre
-étroite) : les bornes d'un axe, les zones d'un niveau de probabilité, les deux seuils d'un indice,
-chaque champ nommé par la légende de son groupe puis par son libellé (`aria-labelledby`), que les
-groupes répètent ; et il juge, dans le même envoi que les champs, sur ceux qui sont passés, les
-règles qui lient des champs entre eux (`rules`), avant toute demande — un champ refusé n'a pas de
-valeur, qu'une règle laisse sans jugement, et son propre refus l'emporte ; tout ce qui est refusé se
-dit en une fois (EP-14/L52) — : chaque borne qui n'est pas strictement au-dessus de la précédente, à
-son rang (`BOUNDS_NOT_ORDERED`), chaque seuil d'alerte qui n'est pas sous son seuil de vigilance
-(`THRESHOLD_NOT_BELOW_WATCH`), dits au champ que le serveur désignerait, les décimaux comparés sans
-flottant (`compareDecimals`). Le refus du serveur se dit de même : par champ au champ, la permission
-manquante (403) et la version périmée (412, les deux écrans partageant le compteur) sous le
-formulaire. La réponse prend la place des paramètres lus tant qu'elle est plus récente qu'eux, la
-page relue, comme les paramètres du projet, et ne ferme que le dialogue d'où elle est partie, jamais
-un dialogue rouvert depuis ; la commande qui l'ouvre attend, inactive, la réponse d'une écriture
-d'un dialogue fermé (#661) ; face au faux back, qui répond par le premier exemple de l'opération —
-les seuils écrits —, la matrice montrée reste celle d'avant.
+`indicator_settings.write` (`platformOffer`) ; une autre session lit les tables seules. Servis par
+le service depuis US-0810/L2, ils ne portent aucun avis de la maquette : un succès est ce que le
+service a gardé, relu. L'un saisit les six bornes, en pourcentages (`editablePercent`,
+`percentRatio`), et les seize zones, un choix par case ; l'autre les quatre seuils, en valeurs de
+l'indice, et le délai, en semaines entières (`control: "whole"`, un nombre entier, signe compris,
+ses bornes au serveur, jugé au champ avec les autres, dit par le texte propre au champ, `invalid`).
+Chaque écran suit sa seule permission : une session qui porte l'une sans l'autre lit l'autre écran
+sans commande ni avis. Chacun envoie par `updateReferenceSettings` le seul sous-objet de son écran
+et la version lue (`RiskMatrixWrite`, `IndicatorWrite`), jamais un champ de l'autre écran, que garde
+une autre permission ; ni la devise (WF-REF-0140) ni la langue de l'installation, qui est à EP-03,
+n'y sont offertes. Le formulaire du référentiel range côte à côte, sous une légende, les champs qui
+vont ensemble (`group` d'un `FormField`, un `fieldset` qui se replie sur deux colonnes dans une
+fenêtre étroite) : les bornes d'un axe, les zones d'un niveau de probabilité, les deux seuils d'un
+indice, chaque champ nommé par la légende de son groupe puis par son libellé (`aria-labelledby`),
+que les groupes répètent ; et il juge, dans le même envoi que les champs, sur ceux qui sont passés,
+les règles qui lient des champs entre eux (`rules`), avant toute demande — un champ refusé n'a pas
+de valeur, qu'une règle laisse sans jugement, et son propre refus l'emporte ; tout ce qui est refusé
+se dit en une fois (EP-14/L52) — : chaque borne qui n'est pas strictement au-dessus de la
+précédente, à son rang (`BOUNDS_NOT_ORDERED`), chaque seuil d'alerte qui n'est pas sous son seuil de
+vigilance (`THRESHOLD_NOT_BELOW_WATCH`), dits au champ que le serveur désignerait, les décimaux
+comparés sans flottant (`compareDecimals`). Le refus du serveur se dit de même : par champ au champ,
+la permission manquante (403) et la version périmée (412, les deux écrans partageant le compteur)
+sous le formulaire. La réponse prend la place des paramètres lus tant qu'elle est plus récente
+qu'eux, la page relue, comme les paramètres du projet, et ne ferme que le dialogue d'où elle est
+partie, jamais un dialogue rouvert depuis ; la commande qui l'ouvre attend, inactive, la réponse
+d'une écriture d'un dialogue fermé (#661) ; face au faux back, qui répond par le premier exemple de
+l'opération quoi qu'on écrive, la matrice montrée est celle de l'exemple, et le parcours
+(`e2e/reference-settings.spec.ts`, étiqueté `@shared`) n'affirme la relecture que par `inService`.
 
 ### Les écrans de l'administration
 
@@ -2652,10 +2714,11 @@ commande.
 | `make check-<famille>`                                                  | une famille : `repo`, `spec`, `contract`, `back`, `front`, `front-image`, `roadmap`, `keycloak`, `service`, `production`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
 | `make changes BASE=…`                                                   | les familles qu'une modification touche                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
 | `make test-back TESTS=…`, `make test-front TESTS=…`, `make e2e TESTS=…` | un seul fichier de tests, pendant le développement ; sans `TESTS`, tous, comme dans la chaîne                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
-| `make service-install`                                                  | amorce la plateforme de service démarrée, son royaume appliqué (`waterfall-api install`, US-0420) : applique les migrations sous le propriétaire des tables, crée l'installation, ses trois rôles prédéfinis et son administrateur local, `WATERFALL_ADMIN_EMAIL` (`administrateur@waterfall.test` par défaut), dans la langue `WATERFALL_DEFAULT_LANGUAGE` (`fr` par défaut), et écrit seul sur sa sortie le lien qui fixe son mot de passe, valable jusqu'à son emploi ; relancée, elle ne crée rien, et écrit un nouveau lien, qui remplace le précédent, tant que l'administrateur n'a pas de mot de passe, aucun ensuite                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| `make service-install`                                                  | amorce la plateforme de service démarrée, son royaume appliqué (`waterfall-api install`, US-0420) : applique les migrations sous le propriétaire des tables, crée l'installation, ses trois rôles prédéfinis et son administrateur local, `WATERFALL_ADMIN_EMAIL` (`administrateur@waterfall.test` par défaut), dans la langue `WATERFALL_DEFAULT_LANGUAGE` (`fr` par défaut), et son référentiel minimal (EP-05) : les paramètres communs, avec la devise `WATERFALL_CURRENCY` (`EUR` par défaut) et le nom de l'entreprise `WATERFALL_COMPANY_NAME` (`Delmas Automatismes` par défaut, ceux du témoin), les unités de durée, la correspondance des coûts réels, vide, le calendrier par défaut, la nature et la catégorie de provision pour risques ; écrit seul sur sa sortie le lien qui fixe son mot de passe, valable jusqu'à son emploi ; relancée, elle ne crée rien, dit ignorées une autre devise ou un autre nom, et écrit un nouveau lien, qui remplace le précédent, tant que l'administrateur n'a pas de mot de passe, aucun ensuite                                                                                                                                                                                              |
+| `make service-witness`                                                  | charge le témoin sur la plateforme de service démarrée et amorcée (`waterfall-api load-witness`, service `witness`, EP-05) : les exemples du contrat, `fixtures/api/`, montés en lecture seule, écrits par le rôle du service ; relancée, elle n'écrit rien ; une tranche par objet, dans l'ordre des dépendances, en une transaction (« Le back et les frontières du noyau »)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
 | `make service-up`, `make service-down`                                  | démarre, arrête la plateforme de service (`deploy/compose/compose.service.yaml` : PostgreSQL, Redis, le stockage objet Garage et ses compartiments, les migrations, l'API, le worker et le planificateur de ses tâches, le service de la restauration, Keycloak derrière son frontal HTTPS et son royaume, appliqué de nouveau à chaque démarrage par `keycloak-realm`, qui reste démarré pour le réappliquer après une restauration, OpenLDAP, Mailpit) ; elle exige ses secrets dans l'environnement (ci-dessous), et `service-down WATERFALL_RESET_DATA=yes` supprime aussi ses bases, son stockage, son annuaire et l'autorité de son frontal ; `service-up` refuse un volume PostgreSQL d'une autre majeure que 18, en affichant le refus de `postgres-volume`, qui dit ce remède (US-1130)                                                                                                                                                                                                                                                                                                                                                                                                                                                |
 | `make keycloak-authority`                                               | copie hors de la plateforme la racine de l'autorité du frontal de Keycloak, dans `deploy/compose/.authority/root.crt`, que git ignore ; `service-up` et `test-keycloak` le font à chaque démarrage                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
-| `make e2e-service`                                                      | les parcours du projet Playwright `service` (`frontend/e2e/service/`) contre le vrai service, par Prism en mandataire (« Un parcours de bout en bout ») ; mêmes secrets que `service-up`, et le navigateur de `make e2e-browsers`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| `make e2e-service`                                                      | les parcours du projet Playwright `service` (`frontend/e2e/service/`), et ceux de `shared` (l'étiquette `@shared`), contre le vrai service, par Prism en mandataire (« Un parcours de bout en bout ») ; mêmes secrets que `service-up`, et le navigateur de `make e2e-browsers` ; il charge le témoin après l'amorçage, comme `make service-witness`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
 | `make service-logs`                                                     | les journaux des services de la plateforme, ceux de `SERVICES` (`SERVICES="keycloak openldap"`), tous par défaut                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
 | `make test-services`, `make test-services-down`                         | démarre, retire les services des tests (`deploy/compose/compose.test.yaml` : PostgreSQL 18, Redis, Garage, en mémoire) pour le créneau du worktree, sur ses ports (`SERVICES=redis` n'en démarre que certains) ; `test-services` attend qu'ils répondent et ne fait rien de plus s'ils tournent, `test-services-down` les retire avec leurs volumes ; `make test-back` et les autres tests qui en ont besoin les démarrent d'eux-mêmes                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
 | `make migrate`                                                          | applique les migrations à la base que désigne `WATERFALL_DATABASE_URL`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
@@ -3605,8 +3668,11 @@ journaux) : sur une plateforme amorcée avec une autre, par `make service-instal
 `WATERFALL_ADMIN_EMAIL`, les parcours chercheraient un administrateur qui n'existe pas. Il faut
 alors donner la première adresse à `E2E_ADMIN_EMAIL`, ou repartir d'une plateforme vide
 (`make service-down WATERFALL_RESET_DATA=yes`).
+L'amorçage fait, il charge le témoin (service `witness`, comme `make service-witness`, EP-05) : les
+écrans du référentiel que le service sert y lisent ce que disent les exemples du contrat ; une
+plateforme qui le porte déjà n'en reçoit rien de plus.
 
-Les parcours se jouent en cinq projets Playwright. `installation` d'abord
+Les parcours se jouent en six projets Playwright. `installation` d'abord
 (`installation.setup.ts`, WF-EXP-0020) : le lien ne sert qu'une fois, et ce parcours fixe le mot de
 passe de l'administrateur, se connecte, et constate son rôle, les trois rôles prédéfinis et le
 catalogue. `service` ensuite, sur plusieurs workers (#730) : chaque parcours se connecte avec un
@@ -3622,7 +3688,8 @@ que seul `sign-in.spec.ts` emploie, reçoivent le leur par une écriture dans la
 deux permissions d'administration — `give` le refuse —, et aucun ne renomme ni ne change un rôle
 prédéfini : les refus `LAST_ADMINISTRATOR` de l'écran des rôles et de celui des comptes en dépendent
 (`roles.spec.ts`). Le jeton de l'administrateur, qui vit cinq minutes, se redemande quand il en a
-plus de quatre.
+plus de quatre. `shared` à côté de `service`, après `installation` : les parcours partagés avec
+le faux back (ci-dessous).
 
 Tous les workers connectent l'administrateur, et le royaume refuse les identifiants d'un compte
 qu'il est déjà en train de vérifier, comme s'il était verrouillé (`user_temporarily_disabled`, sans
@@ -3632,11 +3699,11 @@ jusqu'à la réponse du royaume, attendue quinze secondes au plus, bien en deç�
 autres workers attendent le verrou. Un écran de table de l'administration s'ouvre par une adresse
 qui dit sa recherche, vide au besoin (`?search=`) : une adresse muette rétablirait la recherche ou
 les filtres que l'administrateur a gardés sur un autre parcours, puisqu'il est le même sur tous.
-`realm` ensuite, sur un seul worker, une fois les autres finis : les parcours marqués `@realm-wide`,
-qui raccourcissent une durée du royaume, que lit chaque compte. `restoration` après eux, seul : les
-parcours marqués `@platform-wide`, qui restaurent la plateforme entière et en ferment toutes les
-sessions (US-0440, `backups.spec.ts`). `contract` enfin, le démontage de `installation` : la garde
-du contrat de toute la course.
+`realm` ensuite, sur un seul worker, une fois `service` et `shared` finis : les parcours marqués
+`@realm-wide`, qui raccourcissent une durée du royaume, que lit chaque compte. `restoration` après
+eux, seul : les parcours marqués `@platform-wide`, qui restaurent la plateforme entière et en
+ferment toutes les sessions (US-0440, `backups.spec.ts`). `contract` enfin, le démontage
+de `installation` : la garde du contrat de toute la course.
 
 Le projet `service` ne joue que `frontend/e2e/service/`, que les autres projets laissent : contre
 le front construit, comme les autres, sans `WATERFALL_AUTH=mock` — la vraie connexion, par le
@@ -3687,6 +3754,57 @@ dans sa langue (`audit.spec.ts`) ; l'amorçage (`installation.setup.ts`), l'écr
 d'administration, en administrateur du royaume `master` (`WATERFALL_KEYCLOAK_ADMIN_PASSWORD`) — une
 durée raccourcie le temps d'un parcours, que `service-up` rend de toute façon au royaume suivant —,
 et demandent un jeton pour l'API par le flux du client du front (`WATERFALL_FRONT_CLIENT_SECRET`).
+
+Un parcours dont le service sert l'écran se joue des deux côtés : contre le faux back par
+`chromium`, comme avant, et contre le service par le projet `shared` (EP-05). Il importe `test` de
+`frontend/e2e/mode.ts` et non de `@playwright/test`, et porte l'étiquette `@shared` — dans son
+titre, ou par `tag`, comme `@realm-wide` : le `grep` du projet lit les deux —, dans quelque fichier
+de `frontend/e2e/` qu'il soit, ceux de la mesure exceptés, et ceux de `frontend/e2e/service/`, que
+le projet `service` joue déjà (l'étiquette ne s'y pose pas : le parcours serait joué deux fois) ;
+aucune liste de fichiers ne le nomme.
+Chaque US étiquette ses parcours quand le service sert son écran. Contre le faux back, `test` ne
+change rien : le faux back accorde la session. Avec `WATERFALL_API_ADDRESS`, `inService` est vrai,
+et deux fixtures de `mode.ts` font ce qu'un fichier de `frontend/e2e/service/` demande par ses
+crochets : chaque worker obtient une fois un compte local de la course qui porte le rôle prédéfini
+« Manager », que crée l'administrateur de l'installation (`accountAdministrator`, `localAccount`),
+et chaque parcours se connecte d'abord avec lui (`signIn`, sur `/account`), puis se tient au
+contrat, comme `heldToTheContract()` y tient un fichier (`startReading`, `expectNothingRefused`,
+`contract.ts`). Des fixtures plutôt que des crochets : un crochet déclaré dans un module que les
+fichiers importent ne se déclare qu'une fois par worker, pour le premier de ses fichiers seul. Un
+parcours dont l'assertion diffère entre les deux — une écriture que le faux back ne garde pas — lit
+`inService`.
+
+Ne se rejouent pas contre le service, faute d'être étiquetés, les parcours qui dépendent de ce
+qu'il ne fait pas encore ou ne sert pas ; chacun reste joué contre le faux back, par `chromium`.
+Ce qui dépend de l'horloge : rien dans le référentiel, dont les dates sont celles du chargement
+(WF-DAT-0070) et que les parcours n'attendent pas. D'un écran que le service ne sert pas : les ouvertures de
+`/`, du portefeuille, de l'administration et de l'écran d'état de `navigation.spec.ts` (le rôle
+« Manager » ne se voit offrir ni l'administration ni l'état), ainsi que tous ses autres
+parcours, ceux d'un projet et celui de l'icône sur `/` ; presque tous ceux de `admin.spec.ts`
+(`:40` à `:455`, seul `:479` est `@shared`), des écrans d'administration hors des permissions du
+rôle « Manager » de `mode.ts`, sans les permissions `users.*`. De ce que leur US n'étiquette pas
+encore : la lecture des réglages hors projet (`reference-costs.spec.ts`, US-0250) ; la
+modification des unités de durée (`reference-resources.spec.ts`), qui écrit l'objet unique de
+l'installation et affirme l'écho du faux back (« 7 et 35 ») : elle se jouerait en série (règle
+ci-dessous), ce que le projet `realm` ne fait aujourd'hui que pour `frontend/e2e/service/` (#2178).
+Les gardes `inService` des parcours étiquetés ne sont pas des parcours non rejoués : le parcours se joue des deux côtés, et
+seule l'assertion d'une écriture diffère (ce qui a été saisi, relu après un rechargement ; un
+code et un libellé propres à la course, que le service garde ; un état laissé comme on l'a trouvé)
+— `reference-costs.spec.ts`, `reference-resources.spec.ts`, `reference-settings.spec.ts`,
+`reference-actual-cost-mapping.spec.ts`.
+
+Un parcours `@shared` n'écrit que des objets qu'il crée lui-même, sous un code et un libellé propres
+à la course, et les laisse désactivés ou retirés à sa fin : les workers `shared` jouent en parallèle
+contre une même installation, et un objet du témoin qu'un parcours modifie, même le temps de son
+déroulement, change sous les yeux de ceux qui le lisent ou le comparent à ses exemples (état,
+`lock_version`, dates d'audit — #2087). Les parcours qui modifient un objet unique de l'installation
+— les réglages, les unités de durée, la correspondance des coûts réels — se jouent en série, seuls,
+et non en parallèle des autres. Un parcours qui doit en réactiver un du témoin le fait dans un
+`finally` qui le remet comme il l'a trouvé, et c'est une exception qu'il dit, non la règle.
+Trois parcours s'écartent aujourd'hui de cette règle, en attendant #2211 : la modification des unités de
+durée (`reference-resources.spec.ts`, sans étiquette), celle des réglages (`reference-settings.spec.ts`)
+et celle de la correspondance des coûts réels (`reference-actual-cost-mapping.spec.ts`), étiquetés
+`@shared` et qui écrivent pourtant ces objets uniques.
 
 Une limite des parcours contre le service : Prism, en mandataire du contrat, lit tout corps comme
 du texte et altère les corps binaires — chaque octet au-delà de `0x7f` d'une requête ou d'une

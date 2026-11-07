@@ -9,7 +9,7 @@ The resource settings of the installation, outside any project. Three settings t
 - the [calendars](FBS-3.2.3.md): the hours worked on each day of the week, one of them by default;
 - the **Units of duration**: the hours per day, the hours per week and the days per month, by which a duration entered in days, in weeks or in months is converted into hours.
 
-Each table is searched and filtered by the server, and keeps its own height; the roles and the calendars are also sorted and paged by it. The lists show only the active objects, unless the deactivated ones are asked for too: nothing is deleted in the reference data, an object is deactivated and can be reactivated. Each object names those it is attached to, active or not.
+Each table is searched and filtered by the server, and keeps its own height; the roles and the calendars are also sorted and paged by it. The lists show only the active objects, unless the deactivated ones are asked for too: nothing is deleted in the reference data, an object is deactivated and can be reactivated. Each object names those it is attached to, active or not. The service keeps what is written. Deactivating a node also deactivates its descendants and the roles attached to it or to one of them, which the list read again shows; reactivating a node or a role makes only that object active, and it is refused while its node, or the parent of the node, is deactivated.
 
 ## Its commands
 
@@ -18,7 +18,7 @@ At the top of the screen, **Show the deactivated ones too** adds to the three ta
 The commands that write are offered only to whoever may modify the resource settings; to the others, the screen is read only:
 
 - the creation, the modification, the deactivation and the reactivation of a node, of a role or of a calendar, and the designation of the default calendar, detailed in the help of each table;
-- **Modify the units of duration** opens their form: each strictly positive. The change holds for all the projects: the plannings of the revisions in progress are recalculated, a marked revision keeps the hours it calculated.
+- **Modify the units of duration** opens their form: each strictly positive. The change holds for all the projects: the plannings of the revisions in progress are recalculated, a marked revision keeps the hours it calculated. The units of duration have a version of their own: two people changing them at the same time do not overwrite each other, the second is invited to read them again.
 
 A modification of the reference data touches no marked revision, which keeps the values used at its marking.
 

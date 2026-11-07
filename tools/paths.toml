@@ -64,9 +64,9 @@ target = "check-contract"
 # change of the contract alone — a status, a header — is confronted with the service (#671). They
 # read what they test against besides: the tree of the functions in the projection of the
 # specification (WF-ADM-0100), the examples of the contract and the fixtures of the numeric
-# examples under fixtures/, and the file of the service platform, whose PostgreSQL they hold to the
-# chain's and whose Redis to its rules (test_platform_images.py) — a change of these alone wakes
-# them too (#794).
+# examples under fixtures/ — the witness the loader writes, too (EP-05) —, and the file of the
+# service platform, whose PostgreSQL they hold to the chain's and whose Redis to its rules
+# (test_platform_images.py) — a change of these alone wakes them too (#794).
 paths = [
     "backend/**",
     "docs/api/**",
@@ -130,11 +130,13 @@ target = "check-keycloak"
 
 [families.service]
 # The paths against the real service (US-0340), in the full tier only: the front, the back, the
-# contract Prism holds the answers to, and the platform they all run on.
+# contract Prism holds the answers to, the platform they all run on, and the witness loaded on it,
+# the examples of the contract (EP-05).
 paths = [
     "frontend/**",
     "backend/**",
     "docs/api/**",
+    "fixtures/**",
     "deploy/compose/compose.service.yaml",
     "deploy/compose/Caddyfile.service",
     "deploy/compose/postgres-volume.sh",

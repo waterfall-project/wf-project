@@ -617,7 +617,7 @@ l'ordonnanceur du témoin hors de son propre fichier ; ce qu'il lui manque vit d
 
 ## US-0810 — Le socle du référentiel : tables, modules, amorçage et paramètres communs
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-EXP-0020-A`, `WF-CYC-0120-A`, `WF-REF-0140-A`, `WF-REF-0160-A`,
   `WF-REF-0170-A`, `WF-REF-0180-A`
 - **opérations** : `getReferenceReadiness`, `getReferenceSettings`, `updateReferenceSettings`
@@ -746,7 +746,7 @@ indices (EP-10) ; la santé du pilotage (EP-11).
 
 ## US-0820 — Les natures et les catégories de coût
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-REF-0030-A`, `WF-REF-0040-A`
 - **opérations** : `listCostTypes`, `createCostType`, `updateCostType`, `setCostTypeActivation`,
   `listCostCategories`, `createCostCategory`, `updateCostCategory`, `setCostCategoryActivation`
@@ -825,7 +825,7 @@ employée, toujours fausse ici, qu'EP-07 remplit) et ne manquent jamais.
 
 ## US-0830 — Les taux horaires annuels
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-REF-0050-A`, `WF-REF-0060-A`
 - **opérations** : `getHourlyRateGrid`, `listHourlyRates`, `setHourlyRate`
 - **issue** : 2040
@@ -876,7 +876,7 @@ catégories sur quinze ans, est chargée par US-0890 : les tests de la grille se
 
 ## US-0840 — L'arbre d'organisation et le rattachement d'un compte
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-REF-0070-A`, `WF-ADM-0030-A`
 - **opérations** : `listOrgNodes`, `createOrgNode`, `updateOrgNode`, `setOrgNodeActivation` ;
   `listUsers`, `getUser`, `updateUser`, `getMe` (le rattachement)
@@ -938,7 +938,7 @@ agrégé (EP-11).
 
 ## US-0850 — Les rôles de ressources, leur capacité et la désactivation en cascade
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-REF-0090-A`, `WF-REF-0100-A`, `WF-REF-0080-A`
 - **opérations** : `listResourceRoles`, `createResourceRole`, `updateResourceRole`,
   `setResourceRoleActivation` ; `setOrgNodeActivation` (la cascade)
@@ -1002,7 +1002,7 @@ désactivations croisées ne laissent pas un rôle actif sous un nœud fermé.
 
 ## US-0860 — Les calendriers, le calendrier par défaut et les unités de durée
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-REF-0110-A`, `WF-REF-0120-A`, `WF-PLA-0160-A`
 - **opérations** : `listCalendars`, `createCalendar`, `updateCalendar`, `setDefaultCalendar`,
   `setCalendarActivation`, `getDurationUnits`, `setDurationUnits`
@@ -1072,7 +1072,7 @@ choix de la conception, avec leur propre compteur (`DurationUnits.lock_version`)
 
 ## US-0870 — La correspondance de l'extraction des coûts réels
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-REF-0190-A`
 - **opérations** : `getActualCostMapping`, `setActualCostMapping`
 - **issue** : 2039
@@ -1126,7 +1126,7 @@ contrainte de la base et non un parcours. EP-09 lit l'extraction selon cette for
 
 ## US-0880 — La désactivation à la place de la suppression, et les objets désactivés
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-REF-0010-A`, `WF-REF-0150-A`, `WF-REF-0020-A`, `WF-REF-0130-A`
 - **opérations** : les opérations d'activation et les listes du référentiel, servies par
   US-0820 à US-0860
@@ -1190,7 +1190,7 @@ dans les grilles (EP-07).
 
 ## US-0890 — Le témoin chargé, et les parcours rejoués contre le service
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-QUA-0040-A`
 - **opérations** : aucune en propre ; le chargement passe par les interfaces du noyau
 - **issue** : 2043
@@ -1260,7 +1260,7 @@ et `fixtures/api/` restent les exemples du contrat.
 
 ## US-0900 — Les écrans du référentiel branchés sur le service, et les usages du manager
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-INTF-0020-A`, `WF-ADM-0020-A`
 - **opérations** : toutes celles de `reference`, lues par les cinq écrans
 - **issue** : 2044
@@ -1304,6 +1304,9 @@ contre le service et constate que #512 est soldé — l'avis retiré partout, le
 le service. Un manque que le branchement révèle — un refus que
 l'écran ne dit pas, un exemple qui ne vaut pas contre le service — devient une issue, tranchée
 selon le README ; un manque du contrat, une « Interface contract issue », le contrat étant figé.
+Tant que l'amorçage ne donne pas `risk_settings.write` et `indicator_settings.write` au « Manager »,
+le compte du premier parcours porte aussi un rôle de parcours des risques et indicateurs (#2187) ;
+le Vérif et les critères ne changent pas.
 
 **Hors périmètre.** Les vues du portefeuille et le projet non contributeur (EP-11) ; les écrans
 hors du référentiel.

@@ -9,7 +9,7 @@ Les paramètres de ressources de l’installation, hors de tout projet. Trois pa
 - les [calendriers](FBS-3.2.3.md) : les heures travaillées de chaque jour de la semaine, dont un par défaut ;
 - les **Unités de durée** : les heures par jour, les heures par semaine et les jours par mois, par lesquels une durée saisie en jours, en semaines ou en mois se convertit en heures.
 
-Chaque table est cherchée et filtrée par le serveur, et tient sa propre hauteur ; les rôles et les calendriers sont aussi triés et paginés par lui. Les listes ne montrent que les objets actifs, à moins de demander aussi les désactivés : rien ne se supprime dans le référentiel, un objet se désactive et peut être réactivé. Chaque objet nomme ceux auxquels il est rattaché, actifs ou non.
+Chaque table est cherchée et filtrée par le serveur, et tient sa propre hauteur ; les rôles et les calendriers sont aussi triés et paginés par lui. Les listes ne montrent que les objets actifs, à moins de demander aussi les désactivés : rien ne se supprime dans le référentiel, un objet se désactive et peut être réactivé. Chaque objet nomme ceux auxquels il est rattaché, actifs ou non. Le service garde ce qui s’écrit. Désactiver un nœud désactive aussi ses descendants et les rôles rattachés à lui ou à l’un d’eux, que la liste relue montre ; la réactivation d’un nœud ou d’un rôle ne rend actif que cet objet, et elle est refusée tant que son nœud, ou le parent du nœud, est désactivé.
 
 ## Ses commandes
 
@@ -18,7 +18,7 @@ En tête de l’écran, **Afficher aussi les désactivés** ajoute aux trois tab
 Les commandes qui écrivent ne sont offertes qu’à qui peut modifier les paramètres de ressources ; aux autres, l’écran se lit :
 
 - la création, la modification, la désactivation et la réactivation d’un nœud, d’un rôle ou d’un calendrier, et la désignation du calendrier par défaut, détaillées dans l’aide de chaque table ;
-- **Modifier les unités de durée** ouvre leur formulaire : chacune strictement positive. Le changement vaut pour tous les projets : les plannings des révisions en cours sont recalculés, une révision marquée garde les heures qu’elle a calculées.
+- **Modifier les unités de durée** ouvre leur formulaire : chacune strictement positive. Le changement vaut pour tous les projets : les plannings des révisions en cours sont recalculés, une révision marquée garde les heures qu’elle a calculées. Les unités de durée ont leur propre version : deux personnes qui les modifient en même temps ne s’écrasent pas, la seconde est invitée à relire.
 
 Une modification du référentiel ne touche aucune révision marquée, qui garde les valeurs employées à son marquage.
 

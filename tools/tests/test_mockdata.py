@@ -713,9 +713,9 @@ def test_two_hundred_categories_a_hundred_and_fifty_of_them_labour(
 
 
 def test_the_marks_the_reference_journeys_read(volumes: dict[str, Any]) -> None:
-    # The journey of the reference data (reference.spec.ts), the tests of the grid of the rates
-    # (rate-grid.dom.test.tsx) and the two examples of setHourlyRate read the third row of the
-    # grid: a change of the generator that moves it fails here.
+    # The journey of the reference data (reference-costs.spec.ts), the tests of the grid of the
+    # rates (rate-grid.dom.test.tsx) and the two examples of setHourlyRate read the third row of
+    # the grid: a change of the generator that moves it fails here.
     grid = volumes["hourly_rate_grid.json"]["value"]
     mechanical = grid["rows"][2]
     assert mechanical["code"] == "MO-003"

@@ -323,6 +323,12 @@ def test_the_bootstrap_is_a_service_of_its_own_never_started_by_up() -> None:
     assert holders == ["restore", "install"]
 
 
+def test_the_production_platform_offers_no_loader_of_the_witness() -> None:
+    # The witness is the platform of the tests' (EP-05): a real installation holds none.
+    commands = [service.get("command", []) for service in services().values()]
+    assert not [command for command in commands if "load-witness" in command]
+
+
 def test_the_restoration_has_a_service_of_its_own_always_started_and_the_realm_its_own() -> None:
     # #953, #955: a service of the image waterfall, always started, that holds the owners of both
     # databases and the client of the bootstrap, opens no port, and shares with keycloak-realm
@@ -883,6 +889,8 @@ def test_the_environment_of_compose_takes_the_defaults_of_a_local_trial() -> Non
         "WATERFALL_DOMAIN": "waterfall.localhost",
         "WATERFALL_ADMIN_EMAIL": EMAIL,
         "WATERFALL_ACME_EMAIL": EMAIL,
+        "WATERFALL_CURRENCY": "EUR",
+        "WATERFALL_COMPANY_NAME": "Delmas Automatismes",
     }
     command = production.compose_command("p")
     assert command[-4:] == ["--file", str(PRODUCTION), "--file", str(LOCAL)]

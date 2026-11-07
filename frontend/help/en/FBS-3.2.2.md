@@ -4,7 +4,9 @@
 
 The second table of the [resource settings](FBS-3.2.md): the resource roles, each a position or a function of the company, which the labour estimate lines use. Each with its label, its code, unique, its organisation node, its labour cost category, whose hourly rate costs its hours, its calendar, which gives its working days to the tasks that use it, and its capacity: the hours available per month and the headcount they correspond to. The capacity does not vary over time, and only the hours are compared to the workload.
 
-The three attachments are required and designate, when they are made, active objects; the table names them as the server resolves them, active or not. The node of a role no longer changes after its creation: a role that changes department is deactivated, and created again under the new node.
+The three attachments are required and designate, when they are made, active objects; the table names them as the server resolves them, active or not. The node of a role no longer changes after its creation: a role that changes department is deactivated, and created again under the new node. The category and the calendar are changed to active objects, the capacity is never negative and carries no date.
+
+The service keeps what is written. Active roles are read without any particular permission; the deactivated ones, and every write, require the permission to modify the resource settings. Deactivating a node also deactivates its descendants and every role attached to it or to one of them; reactivating a node makes only that node active, and each role is reactivated in turn.
 
 ## Its commands
 
@@ -14,7 +16,7 @@ These commands are offered only to whoever may modify the resource settings:
 - **Modify**, on a row, opens the same form, without the node, which the form names.
 - **Deactivate** and **Reactivate**, in the column **State**, without confirmation. The reactivation of a role whose node is deactivated is unavailable (“organisation node active”): the command stays shown and says the condition it lacks.
 
-A code or a label already borne is refused at its field, which names the role that bears it; a value outside its bounds, with the bound crossed.
+A code already borne, among the active or the deactivated roles, is refused at its field, which names the role that bears it; a category outside labour or a deactivated attachment is refused likewise; a value outside its bounds, with the bound crossed.
 
 Above the table, for all:
 

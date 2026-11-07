@@ -9,34 +9,45 @@ from urllib.parse import urlsplit, urlunsplit
 from uuid import uuid4
 
 import pytest
+from access_rows import role
 from fastapi.testclient import TestClient
 from installations import Installation, Take, installed, taker
+from installed_reference import install
 from openapi_core import Config, OpenAPI
+from pydantic import SecretStr
 from realm import KEY, TestRealm
-from sqlalchemy import Engine, delete, text
+from sqlalchemy import Engine, delete, insert, text
 from sqlalchemy.orm import Session
 from support import (
     CONTRACT,
     PLATFORM_ADDRESSES,
     PLATFORM_SECRETS,
+    REFERENCE_PARTS,
+    WITNESS,
     ContractClient,
     Logs,
+    PartSessions,
+    ReferenceSessions,
+    bearer,
     captured_logs,
     nowhere,
+    raw_account,
     service_role,
 )
 
 from waterfall.api.app import create_app
 from waterfall.api.authentication import Services
-from waterfall.core.access_roles.tables import WRITTEN_BY_MIGRATION
+from waterfall.core.access_roles.tables import WRITTEN_BY_MIGRATION, UserAccessRole
+from waterfall.core.users.tables import UserAccount
 from waterfall.migrations.runner import upgrade
 from waterfall.platform.database import Base, Database, create_database_engine, engine_url
 from waterfall.platform.keycloak import Keycloak
 from waterfall.platform.keycloak_admin import KeycloakAdmin
 from waterfall.platform.maintenance import SUFFIX, Maintenance
 from waterfall.platform.queue import RESTORES, WORKER_TIMEOUT, TaskQueue
-from waterfall.platform.settings import ServiceSettings, load_service_settings
+from waterfall.platform.settings import ServiceSettings, WitnessSettings, load_service_settings
 from waterfall.platform.storage import Bucket
+from waterfall.witness.main import load_witness
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
@@ -387,3 +398,46 @@ def installation_api(
         Maintenance.of(queue),
     )
     return ContractClient(TestClient(create_app(services), raise_server_exceptions=False), contract)
+
+
+@pytest.fixture
+def witness(database: Database, owner: Engine, service_database_url: str) -> Database:
+    """Install the database as the bootstrap does, load the witness by the command; give it.
+
+    The row of the installation and the reference the bootstrap writes — the settings, the units,
+    the mapping, the default calendar, the provision —, as the owner of the tables, then the
+    witness as the service (#2143): the slices that set what the bootstrap wrote have it to set.
+    Emptied with the database after the test, as any row.
+    """
+    install(owner)
+    settings = WitnessSettings(
+        database_url=SecretStr(service_database_url), witness_path=str(WITNESS)
+    )
+    assert load_witness(settings) == 0
+    return database
+
+
+@pytest.fixture
+def reference_sessions(database: Database, realm: TestRealm) -> ReferenceSessions:
+    """Give a maker of the three sessions of a part of the reference, each its own account.
+
+    The part is named as its permissions are (``cost_settings``): without any permission of the
+    reference, with the permission to read it, with those to read and to change it.
+    """
+
+    def holding(*permissions: str) -> dict[str, str]:
+        account = raw_account(email=f"{uuid4().hex}@example.org")
+        held = role(database, f"Rôle {uuid4().hex}", permissions=permissions)
+        with database.transaction() as session:
+            session.execute(insert(UserAccount).values(**account))
+            session.execute(
+                insert(UserAccessRole).values(user_account_id=account["id"], access_role_id=held)
+            )
+        return bearer(realm.token(str(account["idp_subject"]), KEY))
+
+    def sessions(part: str) -> PartSessions:
+        assert part in REFERENCE_PARTS, part
+        read, write = f"{part}.read", f"{part}.write"
+        return PartSessions(holding(), holding(read), holding(read, write))
+
+    return sessions

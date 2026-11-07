@@ -129,13 +129,17 @@ class InstallationSettings(KeycloakSettings):
     ``installation_client_secret`` is the secret of the client of the bootstrap, the only one that
     makes a link valid until it is used, which neither the API nor the worker holds (#652);
     ``admin_email`` the address of the first administrator, and ``default_language`` the language
-    of the installation (WF-EXP-0020, WF-INTF-0160). It deposits no task and serves nothing: it
-    reads neither Redis nor where the API listens.
+    of the installation (WF-EXP-0020, WF-INTF-0160); ``currency`` its single currency, three
+    capital letters (WF-REF-0140), and ``company_name`` the name of the company that uses it, from
+    1 to 200 characters and never blank (WF-EXP-0020), both written once, at the first run. It
+    deposits no task and serves nothing: it reads neither Redis nor where the API listens.
     """
 
     installation_client_secret: SecretStr = Field(min_length=1)
     admin_email: str = Field(min_length=1)
     default_language: Literal["fr", "en"]
+    currency: str = Field(pattern="^[A-Z]{3}$")
+    company_name: str = Field(min_length=1, max_length=200, pattern=r"\S")
 
 
 class RestoreSettings(ServiceSettings):
@@ -154,6 +158,18 @@ class RestoreSettings(ServiceSettings):
     keycloak_database_url: SecretStr = Field(min_length=1)
     installation_client_secret: SecretStr = Field(min_length=1)
     realm_requests: str = Field(min_length=1)
+
+
+class WitnessSettings(PlatformSettings):
+    """What the loader of the witness reads, ``waterfall-api load-witness`` (WF-QUA-0040, EP-05).
+
+    ``database_url`` designates the role of the service: the loader writes through the interfaces
+    of the modules, as the service does, never as the owner of the tables. ``witness_path`` is the
+    directory of the description of the witness, the examples of the contract (``fixtures/api``).
+    It reaches neither Redis nor Keycloak.
+    """
+
+    witness_path: str = Field(min_length=1)
 
 
 def load_settings() -> Settings:
@@ -182,6 +198,11 @@ def load_restore_settings() -> RestoreSettings:
 def load_installation_settings() -> InstallationSettings:
     """Read the settings of the bootstrap, as ``load_settings`` does."""
     return _load(InstallationSettings)
+
+
+def load_witness_settings() -> WitnessSettings:
+    """Read the settings of the loader of the witness, as ``load_settings`` does."""
+    return _load(WitnessSettings)
 
 
 def _load[Kind: PlatformSettings](kind: type[Kind]) -> Kind:

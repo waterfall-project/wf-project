@@ -42,6 +42,17 @@ Ce qu'un module du noyau offre aux autres est dans son module `interface` ; ses 
 requêtes et ses objets de persistance lui restent. Une requête SQL écrite en texte ne nomme
 jamais la table d'un autre module.
 
+Quand l'interface est un paquet (`interface/__init__.py`, `cost_settings`, `indicator_settings`,
+`resource_settings` et `risk_settings` en sont), un fichier par objet, elle ré-exporte les noms de
+chaque fichier ainsi : un `from … import X as X` par nom, chacun sous le commentaire qui nomme le
+fichier et l'US qui le remplit, sans `__all__` ni `import (A, B, …)`. Ruff (le tri des imports,
+`combine-as-imports` à sa valeur par défaut, fausse) écrit chaque ré-export en une instruction à
+part, ce qui fait beaucoup de lignes mais un seul bloc par US : deux US qui remplissent deux
+fichiers écrivent deux endroits de ce fichier, et ne se disputent pas une liste commune, que
+`__all__` ou un `import (…)` unique rendrait. Un module d'interface en fichier unique
+(`users/interface.py`) garde son `__all__`. Un autre module importe toujours les noms depuis
+`…interface`, jamais depuis le fichier d'un objet (#2100).
+
 *Pourquoi* : c'est ce qui garde possible l'extraction d'un module en service (WF-ARC-0010).
 *Contrôle* : `make imports-back` pour les imports ; le SQL en texte, la revue — ses règles
 sont dans [sql.md](sql.md).
@@ -148,10 +159,13 @@ la revue.
   `router = APIRouter()` local, et aucun contrôle ne vérifie la liste. Un nouveau module de
   routes ou de dépendances s'y ajoute, au lieu de ranger ses imports sous `TYPE_CHECKING`.
   Un module de `api/` sans route ni dépendance (intergiciel, gestion des erreurs) n'y
-  figure pas. `queries` porte pourtant `audit_column_filters`, une dépendance FastAPI
-  (`Annotated[AuditColumnsQuery, Query()]`) : il n'est sûr que parce que ses annotations
-  n'emploient que des types locaux ou des imports réels. Un paramètre ajouté à cette
-  dépendance et typé par un import ramène `queries` dans l'exception de `ruff.toml`.
+  figure pas, sauf un module de modèles d'écriture du contrat (`reference_settings_write`) :
+  ses sous-classes de `ContractModel` sont lues à l'exécution par FastAPI, et Ruff ne les
+  reconnaît pas comme des modèles de Pydantic. `queries` porte pourtant
+  `audit_column_filters`, une dépendance FastAPI (`Annotated[AuditColumnsQuery, Query()]`) :
+  il n'est sûr que parce que ses annotations n'emploient que des types locaux ou des imports
+  réels. Un paramètre ajouté à cette dépendance et typé par un import ramène `queries` dans
+  l'exception de `ruff.toml`.
 - Les nouveautés de 3.14 ne s'emploient pas pour elles-mêmes. `except A, B:` sans
   parenthèses (PEP 758) n'est permis que sans `as` : le dépôt l'emploie là où il n'y a pas
   d'`as` (10 `except` de `backend/src` et `tools/src`), et garde les parenthèses là où

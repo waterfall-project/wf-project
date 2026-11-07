@@ -45,9 +45,43 @@ stream of restores, the only one to hold the owners of the two databases, it app
 migrations like the bootstrap, and its module, `waterfall.restore`, is like it at the top of the
 layers, imported by none.
 
+A verb of `waterfall-api`, `load-witness` (EP-05), loads the witness: the universe the examples of
+the contract describe, `fixtures/api/`, which `make mock-data` keeps and the fake back serves. It
+reads `WATERFALL_DATABASE_URL`, the role of the service — it writes through the interfaces of the
+modules, with the identifiers of the witness, the platform as author and the instant of the loading
+as date —, and `WATERFALL_WITNESS_PATH`, the directory of the description; a setting that lacks, or
+a path that is no directory, stops it at start, naming it (2). Each file is read in the form of the
+contract, by its models (`api/contract/models.py`): a file that strays from it stops it. It writes
+in one transaction, under an advisory lock of its own, one slice per object, in the order of their
+dependencies (`waterfall.witness.loader`): the common settings, the units of duration, the natures,
+the categories, the rates, the calendars (`calendars_with_inactive.json`: all created, then those the
+witness says deactivated deactivated) and the default calendar, the nodes then the deactivation
+of those the witness says deactivated, the roles then theirs, the mapping of the extraction of the
+actual costs. A slice writes nothing the platform already holds: run again, it writes nothing and
+succeeds, saying the witness is there (`witness.already_loaded`); a refusal or an error writes
+nothing and stops it in failure (1). Each story of the reference fills its slice, in its file of
+`waterfall.witness`, without touching the order. Its module, `waterfall.witness`, is at the top of
+the layers, imported by none: `waterfall-api` starts in it, which passes any other argument to the
+bootstrap. The service Compose offers it (service `witness`, `make service-witness`), the
+production one does not: a real installation holds no witness. `make service-witness` takes no
+variable of its own: the service Compose gives the `witness` service the role of the service
+(`WATERFALL_DATABASE_URL`, by `WATERFALL_POSTGRES_PASSWORD`, which must be exported as for
+`make service-up`) and mounts `fixtures/api/` read-only on `WATERFALL_WITNESS_PATH` (`/witness`);
+the platform must be started and bootstrapped (`make service-install`), for the command does not
+write what the bootstrap writes — the row of the installation, the common settings, the units, the
+mapping, the default calendar and the provision —, it sets what the bootstrap laid. The `witness`
+fixture of `backend/tests/conftest.py` does likewise on the database of the tests: it first
+installs what the bootstrap writes, then runs the command. `backend/tests/test_witness.py` tries
+the witness whole: its volumes, two new platforms loaded identical, a second run that writes
+nothing, the dates and authors of the platform, the stop, saying so, on a witness the rules refuse,
+and the lists of the service compared with the examples of the contract, the audit columns apart.
+`fixtures/api/` and Prism remain the examples of the contract and the fake back of the screens the
+service does not serve.
+
 The core, `waterfall.core`, has one sub-package per module, named after its second-level FBS
-block, in English. A module exposes what the others may use in its `interface` module, and
-nothing else: its tables and its data access are private to it.
+block, in English. A module exposes what the others may use in its `interface` module — a
+package of one file per object, which `interface/__init__.py` re-exports, for the modules of
+the reference (EP-05) —, and nothing else: its tables and its data access are private to it.
 A module imports another through `waterfall.core.<module>.interface`, never through its
 tables. The core imports neither the API nor the worker, which do not import each other.
 
@@ -1397,13 +1431,16 @@ renders, as long as the answer is more recent than the row read (`lock_version`,
 against the fake back, which keeps nothing, it therefore survives the re-reads —; a creation adds
 no row, the re-read page files it where the server retains it. What a write did is said in the
 region of its list (« “Disbursement” deactivated. »); the refusal of an activation, above the list
-like that of a reactivation (`useListReport`). The fake back keeping nothing, the screen says so
-under its header, for whoever writes — the note, with that of the lists, fits in 150 characters at
-most, so that the totals of a grid stay in the window, and does not say that a written row remains
-shown as the server rendered it as long as the screen stays open — (`MockupNotice`,
-`components/shell/mockup-notice.tsx`, to be taken up by each screen of the mockup whose commands
-write, removed when the screen is plugged into the service of its epic). The entry of a rate remains
-that of the grid.
+like that of a reactivation (`useListReport`). The service keeps what is written (EP-05, US-0820 to
+US-0830): the cost screen no longer bears `MockupNotice`, and a success is what the service kept,
+read back. The fake back, which keeps nothing, is still played by the paths, which assert against it
+only what it answers; the reading anew after a reload is asserted in service only (`inService` of
+`e2e/mode.ts`), and the tests of `reference-costs.spec.ts` bear the `@shared` tag, except those that also play
+screens not yet served (the roles, US-0850). The entry of a
+rate remains that of the grid: the path enters one against the service, which answers what was
+entered. A year added by the grid is only a column of the front, empty, until the first rate (no
+operation creates a column, #299): that of a year the grid already has is refused by the grid itself
+(WF-REF-0060-A), against the service as against the fake back.
 
 The mapping of the actual costs extraction (US-0620/L2, WF-REF-0190, FBS-3.1.3) has its page,
 `/reference/costs/actual-cost-mapping`, which the header of the cost settings offers through
@@ -1466,50 +1503,71 @@ a parent, a node or an attachment deactivated in the meantime (`INACTIVE_REFEREN
 outside 0 to 24 or a negative capacity, with the bound crossed (`VALUE_OUT_OF_RANGE`); the label
 already carried by a calendar, deactivated ones included, names its carrier from the page, by its
 identifier, generically otherwise; the rest as for the costs, the stale version under the form
-with the offer to re-read; the screen says that the fake back keeps nothing (`MockupNotice`). A
-write that would leave a task without a working hour — a calendar modified or designated as default,
-a role modified — is refused (`TASK_WITHOUT_WORKING_HOURS`, « A task would have no working hour left
-in the week. ») by saying why and by naming each project involved by its label and its code, by its
-label alone without a code (`params.projects`, WF-PLA-0010), up to five in the sentence, as a list
-outside the alert beyond, like the lines of a subproject. The cause is that of
-`params.resource_roles`: the roles whose calendars overlap on no day, which the refusal names itself
-by their code and their label, wherever it is told, the planning included, the page reading none; an
-empty list designates the default calendar, emptied or designated, when only tasks without a labour
-line lose their hours.
+with the offer to re-read; the screen no longer carries `MockupNotice` since US-0850: the service
+keeps what is written, and its paths are tagged `@shared` (the units of duration, which the service
+does not serve yet, wait for US-0860b). A write that would leave a task without a working hour — a
+calendar modified or designated as default, a role modified — is refused
+(`TASK_WITHOUT_WORKING_HOURS`, « A task would have no working hour left in the week. ») by saying
+why and by naming each project involved by its label and its code, by its label alone without a code
+(`params.projects`, WF-PLA-0010), up to five in the sentence, as a list outside the alert beyond,
+like the lines of a subproject. The cause is that of `params.resource_roles`: the roles whose
+calendars overlap on no day, which the refusal names itself by their code and their label, wherever
+it is told, the planning included, the page reading none; an empty list designates the default
+calendar, emptied or designated, when only tasks without a labour line lose their hours.
+
+The service serves the roles since US-0850 (`api/resource_roles.py`, the file `resource_roles` of
+the interface of `resource_settings`): the active ones are read by any open session, the
+deactivated ones (`include_inactive`, `is_active` false) and every write under
+`resource_settings.write` (decision of the author, #2084). A role is born active, under an active
+node, and is reactivated only under an active node; the creation, the activation of a role and that
+of a node run under the advisory lock of the tree, which the cascade holds too: the deactivation of
+a node deactivates, in the same transaction, its descendants and the roles attached to it or to one
+of them, each its counter advanced and its author, and the answer carries them.
+`resource_settings` does not read `cost_settings`, which reads it (`category_has_roles`,
+`roles_of_categories`, #2114): the route asks the cost settings what a role knows of its category
+— labour, active —, under the advisory lock of the natures, shared and taken before any other — the
+tree's, the row of the role —, as the writes of the cost settings take it before their rows, and the
+label of each category named or sorted (`category_labels`, `category_label_of`). The slice of the
+witness (`witness/resource_roles.py`) creates the roles of `resource_roles.json` through the same
+interface, then deactivates those it says deactivated; a role is born under no deactivated node and
+with no deactivated calendar: the calendar of a role, which the slice of the calendars deactivated
+(`calendars_with_inactive.json`, #2131), and the node it hangs from, which that of the nodes
+deactivated in cascade, are reopened the time of writing it, then closed again.
 
 ### Risk and indicator settings
 
 The risk settings and the indicator settings are each modified in a form (EP-14/L43e, #512;
 `settings-forms.tsx`), offered by « Modify the risk matrix » to a session that carries
 `risk_settings.write`, by « Modify the thresholds and the delay » to a session that carries
-`indicator_settings.write` (`platformOffer`); any other session reads the tables alone, without a
-notice of the mockup. The one enters the six bounds, as percentages (`editablePercent`,
-`percentRatio`), and the sixteen zones, one choice per cell; the other the four thresholds, as
-values of the index, and the delay, in whole weeks (`control: "whole"`, a whole number, sign
-included, its bounds left to the server, judged at the field with the others, said by the text of
-the field's own, `invalid`). Each screen follows its single permission: a session that carries
-one without the other reads the other screen without a command or a notice. Each sends through
-`updateReferenceSettings` the single sub-object of its screen and the version read
-(`RiskMatrixWrite`, `IndicatorWrite`), never a field of the other screen, which another permission
-guards; neither the currency (WF-REF-0140) nor the language of the installation, which belongs to
-EP-03, are offered there. The form of the reference data lays side by side, under a legend, the
-fields that go together (`group` of a `FormField`, a `fieldset` that folds onto two columns in a
-narrow window): the bounds of an axis, the zones of a probability level, the two thresholds of an
-index, each field named by the legend of its group then by its label (`aria-labelledby`), which
-the groups repeat; and it judges, in the same submission as the fields, on those that passed, the
-rules that bind fields to one another (`rules`), before any request — a refused field has no
-value, which a rule leaves unjudged, and its own refusal prevails; everything refused is said at
-once (EP-14/L52) —: each bound that is not strictly above the previous one, at its rank
-(`BOUNDS_NOT_ORDERED`), each alert threshold that is not below its watch threshold
+`indicator_settings.write` (`platformOffer`); any other session reads the tables alone. Served by
+the service since US-0810/L2, they carry no mock-up notice: a success is what the service kept, read
+anew. The one enters the six bounds, as percentages (`editablePercent`, `percentRatio`), and the
+sixteen zones, one choice per cell; the other the four thresholds, as values of the index, and the
+delay, in whole weeks (`control: "whole"`, a whole number, sign included, its bounds left to the
+server, judged at the field with the others, said by the text of the field's own, `invalid`). Each
+screen follows its single permission: a session that carries one without the other reads the other
+screen without a command or a notice. Each sends through `updateReferenceSettings` the single
+sub-object of its screen and the version read (`RiskMatrixWrite`, `IndicatorWrite`), never a field
+of the other screen, which another permission guards; neither the currency (WF-REF-0140) nor the
+language of the installation, which belongs to EP-03, are offered there. The form of the reference
+data lays side by side, under a legend, the fields that go together (`group` of a `FormField`, a
+`fieldset` that folds onto two columns in a narrow window): the bounds of an axis, the zones of a
+probability level, the two thresholds of an index, each field named by the legend of its group then
+by its label (`aria-labelledby`), which the groups repeat; and it judges, in the same submission as
+the fields, on those that passed, the rules that bind fields to one another (`rules`), before any
+request — a refused field has no value, which a rule leaves unjudged, and its own refusal prevails;
+everything refused is said at once (EP-14/L52) —: each bound that is not strictly above the previous
+one, at its rank (`BOUNDS_NOT_ORDERED`), each alert threshold that is not below its watch threshold
 (`THRESHOLD_NOT_BELOW_WATCH`), said at the field the server would designate, the decimals compared
 without a float (`compareDecimals`). The refusal of the server is said likewise: per field at the
-field, the missing permission (403) and the stale version (412, the two screens sharing the
-counter) under the form. The answer takes the place of the settings read as long as it is more
-recent than them, the page re-read, like the settings of the project, and closes only the dialog
-it started from, never a dialog reopened since; the command that opens it waits, inactive, for the
-answer of a write of a closed dialog (#661); against the fake back, which answers with the first
-example of the operation — the thresholds written —, the matrix shown remains the one from
-before.
+field, the missing permission (403) and the stale version (412, the two screens sharing the counter)
+under the form. The answer takes the place of the settings read as long as it is more recent than
+them, the page re-read, like the settings of the project, and closes only the dialog it started
+from, never a dialog reopened since; the command that opens it waits, inactive, for the answer of a
+write of a closed dialog (#661); against the fake back, which answers with the first example of the
+operation whatever is written, the matrix shown is the example's, and the journey
+(`e2e/reference-settings.spec.ts`, tagged `@shared`) asserts the re-reading only through
+`inService`.
 
 ### The administration screens
 
@@ -2652,10 +2710,11 @@ its side; a failure of the chain is therefore reproduced by the same command.
 | `make check-<famille>`                                                  | one family: `repo`, `spec`, `contract`, `back`, `front`, `front-image`, `roadmap`, `keycloak`, `service`, `production`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
 | `make changes BASE=…`                                                 | the families a change touches                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
 | `make test-back TESTS=…`, `make test-front TESTS=…`, `make e2e TESTS=…` | one single test file, during development; without `TESTS`, all of them, as in the chain                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
-| `make service-install`                                                  | bootstraps the started service platform, its realm applied (`waterfall-api install`, US-0420): applies the migrations under the owner of the tables, creates the installation, its three predefined roles and its local administrator, `WATERFALL_ADMIN_EMAIL` (`administrateur@waterfall.test` by default), in the language `WATERFALL_DEFAULT_LANGUAGE` (`fr` by default), and writes on its output only the link that sets its password, valid until it is used; run again, it creates nothing, and writes a new link, which replaces the previous one, as long as the administrator has no password, none afterwards                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| `make service-install`                                                  | bootstraps the started service platform, its realm applied (`waterfall-api install`, US-0420): applies the migrations under the owner of the tables, creates the installation, its three predefined roles and its local administrator, `WATERFALL_ADMIN_EMAIL` (`administrateur@waterfall.test` by default), in the language `WATERFALL_DEFAULT_LANGUAGE` (`fr` by default), and its minimal reference (EP-05): the shared settings, with the currency `WATERFALL_CURRENCY` (`EUR` by default) and the name of the company `WATERFALL_COMPANY_NAME` (`Delmas Automatismes` by default, those of the witness), the units of duration, the mapping of the actual costs, empty, the default calendar, the nature and the category of provision for risks; writes on its output only the link that sets its password, valid until it is used; run again, it creates nothing, says another currency or another name ignored, and writes a new link, which replaces the previous one, as long as the administrator has no password, none afterwards                                                                                                                                                                                                   |
+| `make service-witness`                                                  | loads the witness on the service platform, started and bootstrapped (`waterfall-api load-witness`, service `witness`, EP-05): the examples of the contract, `fixtures/api/`, mounted read-only, written by the role of the service; run again, it writes nothing; one slice per object, in the order of the dependencies, in one transaction ("The back and the boundaries of the core")                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
 | `make service-up`, `make service-down`                                  | starts, stops the service platform (`deploy/compose/compose.service.yaml`: PostgreSQL, Redis, the Garage object storage and its buckets, the migrations, the API, the worker and the scheduler of its tasks, the restoration service, Keycloak behind its HTTPS front end and its realm, applied again at each start by `keycloak-realm`, which stays started to reapply it after a restoration, OpenLDAP, Mailpit); it requires its secrets in the environment (below), and `service-down WATERFALL_RESET_DATA=yes` also deletes its databases, its storage, its directory and the authority of its front end; `service-up` refuses a PostgreSQL volume of another major than 18, printing the refusal of `postgres-volume`, which says this remedy (US-1130)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
 | `make keycloak-authority`                                               | copies out of the platform the root of the authority of Keycloak's front end, into `deploy/compose/.authority/root.crt`, which git ignores; `service-up` and `test-keycloak` do it at each start                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
-| `make e2e-service`                                                      | the paths of the Playwright project `service` (`frontend/e2e/service/`) against the real service, through Prism as a proxy (« An end-to-end path »); same secrets as `service-up`, and the browser of `make e2e-browsers`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| `make e2e-service`                                                      | the paths of the Playwright project `service` (`frontend/e2e/service/`), and those of `shared` (the tag `@shared`), against the real service, through Prism as a proxy (« An end-to-end path »); same secrets as `service-up`, and the browser of `make e2e-browsers`; it loads the witness after the bootstrap, as `make service-witness` does                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
 | `make service-logs`                                                     | the logs of the services of the platform, those of `SERVICES` (`SERVICES="keycloak openldap"`), all by default                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
 | `make test-services`, `make test-services-down`                         | start, remove the services of the tests (`deploy/compose/compose.test.yaml`: PostgreSQL 18, Redis, Garage, in memory) for the slot of the worktree, on its ports (`SERVICES=redis` starts only some); `test-services` waits for them to answer and does nothing more if they run, `test-services-down` removes them with their volumes; `make test-back` and the other tests that need them start them by themselves                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
 | `make migrate`                                                          | applies the migrations to the database `WATERFALL_DATABASE_URL` designates                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
@@ -3583,8 +3642,11 @@ bootstrapped with another one, by `make service-install` and another `WATERFALL_
 paths would look for an administrator who does not exist. One must then give the first address to
 `E2E_ADMIN_EMAIL`, or start again from an empty platform
 (`make service-down WATERFALL_RESET_DATA=yes`).
+Once bootstrapped, it loads the witness (service `witness`, as `make service-witness`, EP-05): the
+screens of the reference the service serves read there what the examples of the contract say; a
+platform that already holds it receives nothing more.
 
-The paths are played in five Playwright projects. `installation` first (`installation.setup.ts`,
+The paths are played in six Playwright projects. `installation` first (`installation.setup.ts`,
 WF-EXP-0020): the link serves only once, and this path sets the administrator's password, signs in,
 and observes their role, the three predefined roles and the catalogue. `service` next, on several
 workers (#730): each path signs in with a local account of its own, which the administrator creates
@@ -3599,7 +3661,8 @@ write into the platform's database (`grantRole`), once admitted. No path gives a
 than the administrator the two administration permissions — `give` refuses it —, and none renames or
 changes a predefined role: the `LAST_ADMINISTRATOR` refusals of the roles screen and of the accounts
 screen depend on it (`roles.spec.ts`). The administrator's token, which lives five minutes, is
-requested again when it is more than four minutes old.
+requested again when it is more than four minutes old. `shared` beside `service`, after
+`installation`: the paths shared with the fake back (below).
 
 All the workers sign the administrator in, and the realm refuses the credentials of an account it is
 already verifying, as if it were locked (`user_temporarily_disabled`, with no failure counted): a
@@ -3608,9 +3671,9 @@ temporary folder, named after the run and the account —, which it holds until 
 awaited for fifteen seconds at most, well below the thirty that the other workers wait for the lock.
 A table screen of the administration is opened by an address that states its search, empty if need
 be (`?search=`): a silent address would restore the search or the filters the administrator kept on
-another path, since they are the same on all of them. `realm` next, on a single worker, once the
-others are finished: the paths marked `@realm-wide`, which shorten a duration of the realm, which
-every account reads. `restoration` after them, alone: the paths marked `@platform-wide`, which
+another path, since they are the same on all of them. `realm` next, on a single worker, once
+`service` and `shared` are finished: the paths marked `@realm-wide`, which shorten a duration of
+the realm, which every account reads. `restoration` after them, alone: the paths marked `@platform-wide`, which
 restore the whole platform and close all its sessions (US-0440, `backups.spec.ts`). `contract` last,
 the teardown of `installation`: the guard of the contract of the whole run.
 
@@ -3662,6 +3725,56 @@ and its action, presents to each reader in their language (`audit.spec.ts`); the
 `master` realm (`WATERFALL_KEYCLOAK_ADMIN_PASSWORD`) — a duration shortened for the time of a path,
 which `service-up` gives back to the realm anyway next time —, and request a token for the API
 through the flow of the front's client (`WATERFALL_FRONT_CLIENT_SECRET`).
+
+A path whose screen the service serves is played against both: against the fake back by
+`chromium`, as before, and against the service by the project `shared` (EP-05). It imports `test`
+from `frontend/e2e/mode.ts` rather than from `@playwright/test`, and carries the tag `@shared` —
+in its title, or by `tag`, as `@realm-wide`: the `grep` of the project reads both —, in whatever
+file of `frontend/e2e/` it lives, the measure's left out, and those of `frontend/e2e/service/`,
+which the project `service` already plays (the tag is not set there: the path would play twice); no
+list of files names it. Each US tags
+its paths once the service serves its screen. Against the fake back, `test` changes nothing: the
+fake back grants the session. With `WATERFALL_API_ADDRESS` set, `inService` is true, and two
+fixtures of `mode.ts` do what a file of `frontend/e2e/service/` asks for by its hooks: each worker
+obtains once a local account of the run that holds the predefined role « Manager », created by the
+administrator of the installation (`accountAdministrator`, `localAccount`), and each path is first
+signed in with it (`signIn`, at `/account`), then held to the contract, as `heldToTheContract()`
+holds a file (`startReading`, `expectNothingRefused`, `contract.ts`). Fixtures rather than
+hooks: a hook declared in a module that the files import is declared once in a worker, for the
+first of its files alone. A path whose assertion differs between the two — a write the fake back
+does not keep — reads `inService`.
+
+The paths that depend on what the service does not do yet, or does not serve, are not replayed
+against it, being untagged; each is still played against the fake back, by `chromium`. What
+depends on the clock: nothing in the reference, whose dates are those of the loading (WF-DAT-0070)
+and which the paths do not wait for. On a screen the service does not serve: the openings of
+`/`, of the portfolio, of the administration and of the status screen in `navigation.spec.ts` (the
+role "Manager" is offered neither the administration nor the status), as well as all its other
+paths, those of a project and that of the icon on `/`; almost all of those of `admin.spec.ts`
+(`:40` to `:455`, only `:479` is `@shared`), administration screens outside the permissions of the
+role "Manager" of `mode.ts`, without the `users.*` permissions. On what their US does not tag yet:
+the reading of the settings outside any project (`reference-costs.spec.ts`, US-0250); the
+change of the units of duration (`reference-resources.spec.ts`), which writes the single object of
+the installation and asserts the echo of the fake back ("7 and 35"): it would be played in series
+(rule below), which the `realm` project does today only for `frontend/e2e/service/` (#2178).
+The `inService` guards of the tagged paths are not paths that are not replayed: the path is played on both sides, and only the assertion of a
+write differs (what was entered, read anew after a reload; a code and a label of the run's own,
+which the service keeps; a state left as it was found) — `reference-costs.spec.ts`,
+`reference-resources.spec.ts`, `reference-settings.spec.ts`,
+`reference-actual-cost-mapping.spec.ts`.
+
+A `@shared` path writes only objects it creates itself, under a code and a label of the run's own,
+and leaves them deactivated or removed at its end: the `shared` workers play in parallel against one
+installation, and an object of the witness that a path changes, even for the time it runs, changes
+under the eyes of those who read it or compare it with its examples (state, `lock_version`, audit
+dates — #2087). The paths that change a single object of the installation — the settings, the units
+of duration, the correspondence of the actual costs — are played in series, alone, not in parallel
+with the others. A path that must reactivate one of the witness does so in a `finally` that puts it
+back as it found it, and it is an exception it states, not the rule.
+Three paths depart from this rule today, pending #2211: the change of the units of duration
+(`reference-resources.spec.ts`, untagged), that of the settings (`reference-settings.spec.ts`) and
+that of the correspondence of the actual costs (`reference-actual-cost-mapping.spec.ts`), tagged
+`@shared` and yet writing these single objects.
 
 A limit of the paths against the service: Prism, as a proxy of the contract, reads every body as
 text and alters binary bodies — every byte beyond `0x7f` of an `application/octet-stream` request or

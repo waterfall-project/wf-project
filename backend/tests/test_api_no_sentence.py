@@ -32,14 +32,15 @@ FORMS = {"uuid", "date", "date-time", "uri", "email", "binary", "byte"}
 # The texts the answers hold that are data, not sentences, by the schema and the property that
 # hold them: a property of the same name elsewhere is not one of them.
 DATA = {
-    # The label a person gave an object, kept as it was: a role, a node, the object of an
-    # inscription of the journal and its revision, a role before it was renamed.
+    # The label a person gave an object, kept as it was: a role, a node, a calendar, the object
+    # of an inscription of the journal and its revision, a role before it was renamed.
     "AccessRole.label": "a label",
     "AuditAccessRole.label": "a label",
     "AuditObject.label": "a label",
+    "AuditParams.previous_label": "a label",
     "AuditProject.label": "a label",
     "AuditRevision.label": "a label",
-    "AuditParams.previous_label": "a label",
+    "CalendarImage.label": "a label",
     # The reason a person gave when she took a project out of its lifecycle, kept as she wrote it.
     "AuditParams.reason": "a reason",
     "UserAccount.access_role_labels": "labels",
@@ -86,9 +87,36 @@ DATA = {
     "ProblemSubproject.label": "a label",
     "ProblemRisk.label": "a label",
     "ProblemMissingColumn.labels": "labels of the extraction",
+    # The codes and the labels a person gave a nature and a category of cost, and the label of the
+    # nature a category is read under (US-0820).
+    "CostType.code": "a code",
+    "CostType.label": "a label",
+    # The labels the mapping itself declares, and the columns it keeps (US-0870, WF-REF-0190).
+    "ActualCostMappingColumn.labels": "labels of the extraction",
+    "ActualCostMapping.kept_columns": "labels of the extraction",
+    "CostCategoryImage.code": "a code",
+    "CostCategoryImage.label": "a label",
+    "CostCategoryImage.accounting_code": "a code",
+    "CostCategoryImage.cost_type_label": "a label",
     # A category of labour without an hourly rate, by its label, as the reference names it
     # (``ProblemParams.missing_rates``, ``MissingRate``, HOURLY_RATE_MISSING; US-0702/L1).
     "MissingRate.label": "a label",
+    # The category of a row of the grid of the hourly rates, by the code and the label a person
+    # gave it (``getHourlyRateGrid``, US-0830).
+    "HourlyRateRow.code": "a code",
+    "HourlyRateRow.label": "a label",
+    # The objects of the reference, by the code and the label a person gave them: a node of the
+    # organisation and its parent, and the role a deactivation names (``setOrgNodeActivation``).
+    "OrgNode.code": "a code",
+    "OrgNode.label": "a label",
+    "OrgNode.parent_label": "a label",
+    "ResourceRoleImage.code": "a code",
+    "ResourceRoleImage.label": "a label",
+    "ResourceRoleImage.org_node_label": "a label",
+    "ResourceRoleImage.cost_category_label": "a label",
+    "ResourceRoleImage.calendar_label": "a label",
+    # The name of the company that uses the installation, as it was given (WF-EXP-0020).
+    "ReferenceSettings.company_name": "a name",
 }
 # The objects the answers hold whose properties the contract does not close: the parameters of a
 # refusal, and of each field it refuses, which name its condition by codes and values, the ones

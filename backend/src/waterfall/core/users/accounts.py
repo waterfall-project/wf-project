@@ -54,6 +54,7 @@ class NewAccount:
     email: str
     idp_subject: str
     origin: str
+    org_node_id: UUID | None = None
 
 
 def add_account(session: Session, new: NewAccount, stamp: Stamp) -> UserAccount:
@@ -65,6 +66,7 @@ def add_account(session: Session, new: NewAccount, stamp: Stamp) -> UserAccount:
         email=new.email,
         idp_subject=new.idp_subject,
         origin=new.origin,
+        org_node_id=new.org_node_id,
         created_at=stamp.at,
         created_by=stamp.author,
         updated_at=stamp.at,

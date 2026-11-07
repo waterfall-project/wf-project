@@ -34,12 +34,12 @@ beforeEach(() => {
 });
 
 describe("the page of the correspondence of the actual costs", () => {
-  it("offers the form to a session that holds cost_settings.write, saying the fake back keeps nothing [WF-REF-0190-A]", async () => {
+  it("offers the form to a session that holds cost_settings.write, with no mock-up notice [WF-REF-0190-A]", async () => {
     const page = await rendered();
     expect(page).toContain("Correspondance des coûts réels");
     expect(page).toContain('aria-label="Correspondance de l’extraction des coûts réels"');
     expect(page).toContain("Enregistrer la correspondance");
-    expect(page).toMatch(/role="note"/);
+    expect(page).not.toContain('role="note"');
   });
 
   it("shows the lists with no command to a session that only holds cost_settings.read [WF-REF-0190-A]", async () => {
@@ -49,8 +49,7 @@ describe("the page of the correspondence of the actual costs", () => {
     expect(page).toContain("Texte de commande");
     expect(page).not.toContain("Enregistrer la correspondance");
     expect(page).not.toContain("<input");
-    // The list says what the fake back does not apply, in its one note.
-    expect(page.match(/role="note"/g)).toHaveLength(1);
+    expect(page).not.toContain('role="note"');
   });
 
   it("says the four columns without a label of an empty correspondence [WF-REF-0190-A]", async () => {

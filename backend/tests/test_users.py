@@ -237,7 +237,7 @@ def test_the_accounts_are_sorted_on_a_text_in_the_order_of_the_code_points_both_
         ),
         # The deactivated accounts after the active ones.
         ("is_active", [[name for name in EVERY_ONE if name != "Moreau Alix"], ["Moreau Alix"]]),
-        # No account is attached to a node before EP-05: all equal, by name.
+        # No account of this table is attached to a node: all equal, by name.
         ("org_node", [EVERY_ONE]),
     ],
 )
@@ -316,7 +316,7 @@ def test_the_table_is_read_by_pages_of_fifty_and_says_the_total(
         ),
         ("?is_active=false", ["Moreau Alix"]),
         ("?is_active=true&include_inactive=true", [n for n in EVERY_ONE if n != "Moreau Alix"]),
-        # No account is attached to a node before EP-05.
+        # A node no account is attached to, nor any of its descendants, keeps none.
         (f"?org_node_id={UNKNOWN}", []),
         # The filters combine, and combine with the sort; the deactivated join on demand.
         ("?search=martin&sort_by=first_name&sort_order=desc", ["Martin Camille", "Martin Bastien"]),

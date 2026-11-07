@@ -60,7 +60,7 @@ PRISM   := npx --yes @stoplight/prism-cli@$(PRISM_VERSION)
 
 .DEFAULT_GOAL := help
 .PHONY: help build-doc build-doc-strict build-openapi lint-openapi inventory allocate-pbs mock \
-	mock-tools mock-spec mock-data mock-data-up-to-date dev dev-down lint-compose service-up service-install service-logs service-down migrate \
+	mock-tools mock-spec mock-data mock-data-up-to-date dev dev-down lint-compose service-up service-install service-witness service-logs service-down migrate \
 	build-keycloak build-cache test-keycloak check-keycloak keycloak-authority e2e-service check-service images \
 	production-trial check-production \
 	test-tools lint-tools typecheck-tools sources fixtures check-fixtures requirements \
@@ -129,7 +129,7 @@ SLOT_SERVICE := WATERFALL_SERVICE_PROJECT WATERFALL_KEYCLOAK_IMAGE WATERFALL_OPE
 	WATERFALL_POSTGRES_PORT WATERFALL_REDIS_PORT WATERFALL_API_PORT WATERFALL_KEYCLOAK_PORT \
 	WATERFALL_MAILPIT_PORT WATERFALL_PROXY_PORT
 SLOT_PATHS := E2E_API_PORT E2E_FRONT_PORT
-$(call slot-export,service-up service-install keycloak-authority service-logs service-down \
+$(call slot-export,service-up service-install service-witness keycloak-authority service-logs service-down \
 	test-keycloak e2e-service,$(SLOT_SERVICE))
 $(call slot-export,build-keycloak,WATERFALL_KEYCLOAK_IMAGE)
 $(call slot-export,test-services test-services-down,WATERFALL_TEST_PROJECT \
@@ -256,9 +256,15 @@ service-up: ## Start the service platform: PostgreSQL, Redis, the migrations, th
 # administrator on the standard output, alone — its image built quietly first, and no terminal,
 # which would mix the logs in —, and nothing on an installation whose administrator has set a
 # password.
-service-install: ## Bootstrap the installation of the service platform, started, and print the link of its first administrator (WATERFALL_ADMIN_EMAIL, WATERFALL_DEFAULT_LANGUAGE)
+service-install: ## Bootstrap the installation of the service platform, started, and print the link of its first administrator (WATERFALL_ADMIN_EMAIL, WATERFALL_DEFAULT_LANGUAGE, WATERFALL_CURRENCY, WATERFALL_COMPANY_NAME)
 	@$(COMPOSE_SERVICE) build --quiet install
 	@$(COMPOSE_SERVICE) run --rm --no-TTY install
+
+# The witness (EP-05), once the platform is bootstrapped: the examples of the contract written on it
+# by `waterfall-api load-witness`, as the role of the service; run again, it writes nothing.
+service-witness: ## Load the witness, the examples of the contract (fixtures/api), on the service platform, started and bootstrapped
+	@$(COMPOSE_SERVICE) build --quiet witness
+	@$(COMPOSE_SERVICE) run --rm --no-TTY witness
 
 keycloak-authority: ## Copy out of the service platform the root of the authority of Keycloak's front end (KEYCLOAK_AUTHORITY)
 	@mkdir -p $(dir $(KEYCLOAK_AUTHORITY))
@@ -269,7 +275,7 @@ service-logs: ## Print the logs of the services of the platform (SERVICES, all o
 	@$(COMPOSE_SERVICE) logs --no-color $(SERVICES)
 
 service-down: ## Stop the service platform, the proxy of e2e-service included; WATERFALL_RESET_DATA=yes also drops its databases, its directory and its authority
-	@$(COMPOSE_SERVICE) --profile e2e --profile install down $(if $(filter yes,$(WATERFALL_RESET_DATA)),--volumes)
+	@$(COMPOSE_SERVICE) --profile e2e --profile install --profile witness down $(if $(filter yes,$(WATERFALL_RESET_DATA)),--volumes)
 
 migrate: ## Apply the migrations to the database WATERFALL_DATABASE_URL designates (the guide, "Migrations")
 	@cd $(BACK) && uv run --frozen waterfall-migrate
@@ -283,9 +289,10 @@ lint-compose: ## Validate the Compose files
 		WATERFALL_FRONT_CLIENT_SECRET=stand-in WATERFALL_SERVICE_CLIENT_SECRET=stand-in \
 		WATERFALL_INSTALLATION_CLIENT_SECRET=stand-in \
 		WATERFALL_STORAGE_SECRET=stand-in WATERFALL_STORAGE_RPC_SECRET=stand-in \
-		$(COMPOSE_SERVICE_FILE) --profile e2e --profile install config --quiet
+		$(COMPOSE_SERVICE_FILE) --profile e2e --profile install --profile witness config --quiet
 	@WATERFALL_DOMAIN=waterfall.localhost WATERFALL_ACME_EMAIL=stand-in WATERFALL_IMAGE_TAG=stand-in \
 		WATERFALL_ADMIN_EMAIL=stand-in WATERFALL_SERVER_ACTIONS_KEY=stand-in \
+		WATERFALL_CURRENCY=EUR WATERFALL_COMPANY_NAME=stand-in \
 		WATERFALL_POSTGRES_ADMIN_PASSWORD=stand-in WATERFALL_POSTGRES_PASSWORD=stand-in WATERFALL_SERVICE_DATABASE_PASSWORD=stand-in \
 		WATERFALL_BACKUP_DATABASE_PASSWORD=stand-in \
 		WATERFALL_REDIS_PASSWORD=stand-in WATERFALL_KEYCLOAK_DATABASE_PASSWORD=stand-in WATERFALL_KEYCLOAK_ADMIN_PASSWORD=stand-in \
@@ -560,7 +567,8 @@ e2e-measure: install-front mock-tools $(call e2e-build) ## The measure of the se
 # empty once a path has set it, the administrator then signing in with the constant password of the
 # paths. Through it, each path signs in as an account of its own, on several workers. The address
 # must be the one the platform was first bootstrapped with: a bootstrap run again ignores another
-# one (the guide, « Un parcours de bout en bout »).
+# one (the guide, « Un parcours de bout en bout »). The witness is loaded once it is bootstrapped
+# (EP-05), as make service-witness does: the paths of the reference read what the examples say.
 E2E_ADMIN_EMAIL ?= administrateur@waterfall.test
 e2e-service: export WATERFALL_FRONT_ADDRESS = http://127.0.0.1:$(E2E_FRONT_PORT)
 e2e-service: export WATERFALL_FRONT_BACKCHANNEL = http://host.docker.internal:$(E2E_FRONT_PORT)
@@ -572,8 +580,9 @@ e2e-service: install-front mock-tools $(call e2e-build,$(E2E_DEV_SERVER)) ## End
 	@$(MAKE) --no-print-directory mock-spec MOCK_SPEC=$(PROXY_SPEC)
 	@$(MAKE) --no-print-directory service-up
 	@$(COMPOSE_SERVICE) up --detach --wait contract-proxy
-	@$(COMPOSE_SERVICE) build --quiet install
+	@$(COMPOSE_SERVICE) build --quiet install witness
 	@E2E_INSTALLATION_LINK=$$($(COMPOSE_SERVICE) run --rm --no-TTY install) && \
+		$(COMPOSE_SERVICE) run --rm --no-TTY witness && \
 		E2E_CONTRACT_PROXY=$$($(COMPOSE_SERVICE) ps --quiet contract-proxy) && \
 		E2E_SERVICE_DATABASE=$$($(COMPOSE_SERVICE) ps --quiet postgres) && \
 		WATERFALL_API_ADDRESS=http://127.0.0.1:$(WATERFALL_PROXY_PORT) && \
