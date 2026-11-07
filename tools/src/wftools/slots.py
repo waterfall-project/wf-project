@@ -67,9 +67,11 @@ RETRY_SECONDS = 1.0
 REMOVE_SECONDS = 300
 """How long ``docker compose down`` may take, the lock of the register held, before it fails."""
 GRACE_SECONDS = 5.0
-SETTLE_SECONDS = 2.0
-POLL_SECONDS = 0.1
 """How long a server may take to end on ``SIGTERM`` before it receives ``SIGKILL``."""
+SETTLE_SECONDS = 2.0
+"""How long to wait, at most, for a server to be gone after ``SIGKILL``."""
+POLL_SECONDS = 0.1
+"""The step, in seconds, between two polls of the listening table."""
 ADDRESS_COLUMN, STATE_COLUMN, INODE_COLUMN = 1, 3, 9
 """The columns of ``/proc/net/tcp`` that matter: the local address, the state, the inode."""
 LISTEN = "0A"

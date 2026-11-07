@@ -618,10 +618,12 @@ def test_stop_servers_returns_at_once_when_nothing_listens(
         reads.append(1)
         return {}
 
+    def no_wait(_seconds: float) -> None:
+        pytest.fail("stop_servers waited with nothing to stop")
+
     monkeypatch.setattr(slots, "listening_pids", table)
-    started = time.monotonic()
+    monkeypatch.setattr(time, "sleep", no_wait)
     assert slots.stop_servers({20120}, PROC) == []
-    assert time.monotonic() - started < 0.05
     assert len(reads) == 1
 
 
