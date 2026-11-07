@@ -2815,12 +2815,22 @@ dépassement ne fait rien échouer (README de la roadmap, section « Lots »).
 `US-1120/L2` pour le lot d'une US qui en a plusieurs) avec `STATE`, `PR` ou `MODEL`, les seuls
 donnés changeant ; `US=<identifiant> STATUS=…` ; `FINDING=<n> ATTACHED=… DECISION=…`, qui ajoute
 le constat (le titre de son issue sans le `[EP-nn]`, `à trancher` en gras), le change s'il est
-déjà là, ou le retire quand son issue est fermée. Les colonnes se repèrent par leur en-tête ; la
-cible refuse, code non nul et corps inchangé, une ligne qu'elle ne trouve pas, une valeur à saut de
-ligne et une ligne du tableau plus courte que son en-tête ; un `|` d'une valeur est échappé. Elle ne
-prend une variable que sur la ligne de commande de make (une `PR` exportée sur le poste ne change
-rien), et ignore une valeur vide (`STATE=`). Elle relit le corps
-sous un verrou du poste propre à l'issue, `$XDG_RUNTIME_DIR/waterfall-tracking-<issue>.lock`
+déjà là, ou le retire quand son issue est fermée. Le lot coupé à la demande du relecteur s'écrit
+par elle aussi, jamais à la main : `LOT=<identifiant> DEPENDS=<liste>` remplace la cellule « Dépend
+de » ; `ADD_LOT=<identifiant> AFTER=<lot> [DEPENDS=<liste>] [MODEL=…] [LOT_ISSUE=<n>]` insère, sous
+le lot `AFTER` et dans la même US, la ligne du lot nouveau (`US-0820b` pour la part détachée d'une
+US à lot unique, `US-1270/L3` pour une US à plusieurs ; cellules `#`, `US`, « Statut » vides,
+« Dépend de » la liste ou `—`, « État du lot » `à faire`) et refuse un lot déjà là ;
+`REPLACE_DEPENDENCY='<ancien>=<nouveau>'` remplace la mention de l'ancien lot dans « Dépend de » de
+toutes les lignes où elle paraît, sauf celle du lot nouveau lui-même, retire avec elle le ` #n` qui
+la suit (l'issue de l'ancien lot ne reste jamais sur le nouveau), dit combien de lignes ont changé
+et refuse quand aucune ne porte l'ancien. `LOT` reconnaît `US-0820b`, `US-1270/L2b` et une cellule
+`lot unique (#1840)` ou `lot unique — en dernier`. Les colonnes se repèrent par leur en-tête ; la
+cible refuse, code non nul et corps inchangé, une ligne qu'elle ne trouve pas, une valeur vide ou à
+saut de ligne et une ligne du tableau plus courte que son en-tête ; un `|` d'une valeur est
+échappé. Elle ne prend une variable que sur la ligne de commande de make (une `PR` exportée sur le
+poste ne change rien), et ignore une valeur vide (`STATE=`). Elle relit le corps sous un verrou du
+poste propre à l'issue, `$XDG_RUNTIME_DIR/waterfall-tracking-<issue>.lock`
 (`/tmp` à défaut), juste avant de l'écrire : deux appels simultanés gardent chacun leur changement.
 
 Le poste n'admet que `WATERFALL_SLOTS` exécutions lourdes à la fois — les tests entiers et la
