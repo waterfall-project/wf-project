@@ -158,7 +158,7 @@ les trois cents projets en EP-13, qui clôt. Quatre règles, que chaque tranche 
 | [EP-04](EP-04-projets-et-revisions.md) | Projets, révisions et cycle de vie | livré | EP-05 |
 | [EP-06](EP-06-planification.md) | Planification | en cours | EP-04 |
 | [EP-07](EP-07-chiffrage-et-devis.md) | Chiffrage et devis | en cours | EP-06 |
-| [EP-09](EP-09-couts-reels-et-reste-a-engager.md) | Coûts réels, reste à engager et import des coûts | à planifier | EP-07 |
+| [EP-09](EP-09-couts-reels-et-reste-a-engager.md) | Coûts réels, reste à engager et import des coûts | prêt | EP-07 |
 | [EP-10](EP-10-indicateurs.md) | Indicateurs de projet | à planifier | EP-09 |
 | [EP-08](EP-08-avenants-et-risques.md) | Avenants, risques et provisions | à planifier | EP-10 |
 | [EP-11](EP-11-portefeuille.md) | Portefeuille | à planifier | EP-08 |

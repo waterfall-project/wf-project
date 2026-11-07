@@ -159,7 +159,7 @@ EP-08, the three hundred projects in EP-13, which closes. Four rules, which each
 | [EP-04](EP-04-projets-et-revisions.md) | Projects, revisions and life cycle | livré | EP-05 |
 | [EP-06](EP-06-planification.md) | Planning | en cours | EP-04 |
 | [EP-07](EP-07-chiffrage-et-devis.md) | Costing and estimate | en cours | EP-06 |
-| [EP-09](EP-09-couts-reels-et-reste-a-engager.md) | Actual costs, remaining to commit and cost import | à planifier | EP-07 |
+| [EP-09](EP-09-couts-reels-et-reste-a-engager.md) | Actual costs, remaining to commit and cost import | prêt | EP-07 |
 | [EP-10](EP-10-indicateurs.md) | Project indicators | à planifier | EP-09 |
 | [EP-08](EP-08-avenants-et-risques.md) | Amendments, risks and provisions | à planifier | EP-10 |
 | [EP-11](EP-11-portefeuille.md) | Portfolio | à planifier | EP-08 |

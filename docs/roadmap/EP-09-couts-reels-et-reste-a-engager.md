@@ -1,7 +1,7 @@
 ---
 id: EP-09
 titre: Suivre ce qui a été dépensé, et réestimer ce qui reste à engager
-statut: à planifier
+statut: prêt
 depend_de: EP-07
 famille: front, back
 issue:
@@ -153,10 +153,13 @@ son délai de paiement et son sous-projet, les tables images, et l'interface de 
 (`update_line`, que `setLineRemaining` étendra ; `revision_has_lines`) —, et non de `main` à la livraison
 d'EP-07 (décision de l'auteur du 2026-11-07, pour toute la série EP-06 → EP-07 → EP-09 → EP-10 → EP-08 ;
 l'exception du README, « Branches ») : elle reprend `epic/EP-07` à chaque lot que celui-ci fusionne et se
-fusionne dans `main` après elle. Les lots d'EP-09 qui réestiment des lignes attendent aussi US-1490/L3
-#2372 et L4 #2373 (la ligne lue, créée, modifiée, supprimée et déplacée), ceux du Kanban
-US-1410 #2324 d'EP-06 et US-1380/L2 #2335 ; chaque lot nomme ceux qu'il attend par leur numéro. Le reste
-à engager part des montants budgétés.
+fusionne dans `main` après elle. Le premier lot d'EP-09, son socle, étend `core/estimate` et en réexporte
+ses fonctions : il attend **US-1490/L4 #2373**, dernier lot d'EP-07 à écrire `core/estimate/interface/__init__.py`
+et les questions du référentiel de ce module (décision de l'auteur du 2026-11-07, au cadrage d'EP-09) ; c'est
+donc à la fusion de #2373 que la branche se tire, en pratique. Les lots d'EP-09 qui réestiment des lignes
+attendent aussi US-1490/L3 #2372 (la ligne lue, créée, modifiée, chiffrée), ceux du Kanban US-1410 #2324
+d'EP-06, US-1380/L2 #2335 et L3 #2338 ; chaque lot nomme ceux qu'il attend par leur numéro. Le reste à engager
+part des montants budgétés.
 
 Le point ouvert PO-01 (extraction des engagements et des heures par l'ERP) a été relu au cadrage :
 EP-09 réalise FLX-07 tel que l'annexe B le décrit, et PO-01 reste ouvert (« Ce qui n'en fait pas
@@ -233,7 +236,510 @@ EP-16 en écrit le contrat et la page, et EP-09 la clôt.
 
 ## Conception
 
-Écrite à l'étape 2 du cadrage, une fois les US validées.
+EP-09 est le cinquième EPIC de domaine du back, et le premier qui lit une dépense : il étend le
+module du devis d'EP-07 au reste à engager — six colonnes de plus sur `estimate_line`, la
+réestimation, le Kanban, les indicateurs et le format Excel du reste à engager —, ajoute un module
+du noyau pour les coûts réels et ses deux tables, les routes de ses six opérations nouvelles, deux
+formats d'échange sur la mécanique d'EP-06, la tranche des coûts du témoin, et il branche sur le
+service les écrans du reste à engager, du Kanban et des coûts réels. Il **ne modifie pas le
+contrat**, figé en 1.0.0 : un manque devient une « Interface contract issue » que l'auteur
+tranche. Ce qui suit fixe ce que chaque lot devrait sinon décider seul. Il se livre pendant les
+lots d'EP-07 et les derniers d'EP-06, sur une branche tirée de celle d'EP-07 : les sections « Ce
+qu'EP-07 écrit encore » et « Ce qu'EP-06 écrit encore » disent ce que les lots d'EP-09 n'écrivent
+pas avant le lot qui le possède.
+
+### Ce que le cadrage décide
+
+Décisions de l'auteur du 2026-11-07, sur les questions du cadrage, chacune avec l'option écartée :
+
+- **Huit US, le socle en lot technique de la première**, lot pivot d'EP-10 ; les indicateurs à
+  part parce qu'ils lisent les coûts et le reste à engager. Écartés : les indicateurs fondus dans
+  la réestimation ; l'export et l'import du reste à engager en deux US, pour un seul Vérif.
+- **Sept portées recalées** (voir « Exigences réalisées »), comme EP-06 et EP-07 l'ont fait : une
+  phrase de Vérif qui demande une ligne de provision, un risque ou un avenant se clôt en EP-08, la
+  valeur acquise en EP-10. Écarté : clore ici avec des écarts, contre la règle du README.
+- **WF-QUA-0040 et WF-INTF-0010 entrent au tableau** en portée « début ». Écarté : les laisser en
+  « propre à l'US ».
+- **PO-01 reste ouvert** : FLX-07 tel que l'annexe B le décrit, les coûts payés ; rien n'est
+  préparé pour les engagements ni les heures. Écartés : des colonnes spéculatives sur `cost_line` ;
+  une issue de spécification qui aurait suspendu le cadrage.
+- **Le reste à engager est une extension de `core/estimate`** (FBS-4.5 : « il n'introduit aucun
+  objet : ce sont les lignes de devis vues sous un autre angle »), dans un sous-paquet `remaining/`
+  et des fichiers d'interface qu'EP-09 possède, et six colonnes de plus sur `estimate_line`. Le
+  socle réexporte ses fonctions dans `core/estimate/interface/__init__.py` et attend donc
+  **US-1490/L4 #2373**, dernier lot d'EP-07 à écrire ce fichier et les questions du référentiel de
+  ce module ; EP-07 est en vague 3 quand EP-09 démarre, le délai est court. Écarté : un module
+  `core/remaining` avec une table 1:1 (`line_remaining`) qui n'écrit rien dans `core/estimate`, au
+  prix d'un registre de lecture pour que `listNodes` rende `previous_*`, et d'une facette
+  reconstituée à partir de deux tables pour quatre colonnes.
+- **Les coûts réels sont un module propre, `core/costs`** (FBS-4.7), qui possède `cost_line` et
+  `cost_import`, deux tables du régime « projet » (Tableau 10) ; `estimate` l'importe pour les
+  indicateurs, lui n'importe ni `estimate` ni `planning`. Écarté : les coûts dans `core/estimate`,
+  qui aurait mêlé une dépense sans révision aux lignes d'une révision.
+- **« Le reste à engager précédent » est celui de la dernière révision marquée à l'état En cours**,
+  copié à l'ouverture d'une révision par un second enregistrement de `register_copy`, après la
+  copie des lignes d'EP-07 : `previous_*` reçoivent les grandeurs et le réestimé courants de la
+  ligne source si celle-ci appartient à une révision marquée après le passage En cours du projet
+  (l'instant de la transition, lu par l'interface des projets, comparé à `marked_at`) ; nuls sinon
+  — une offre marquée en chiffrage n'est pas une revue (`delta_to_previous_revision`) — et pour
+  une ligne créée depuis. Écartés : la copie depuis toute révision marquée, qui montrerait un
+  « reste précédent » sans revue ; la jointure à la lecture avec la révision marquée précédente,
+  cinq mille lignes jointes à chaque lecture ; une colonne `marked_in_progress` sur `revision`.
+- **Une ligne réestimée porte une marque**, `reestimated_at`, posée par `setLineRemaining` et par
+  l'import du reste à engager, jamais par la saisie du devis ni par la copie ; c'est ce que la
+  fusion d'un avenant (EP-08) lira pour épargner une ligne réestimée (WF-RAE-0010, « une ligne
+  réestimée à 140 avant l'avenant garde 140 »). Écarté : comparer les grandeurs courantes aux
+  grandeurs de référence, qui ne distinguerait pas une ligne réestimée à sa valeur de référence.
+- **`RemainingUpdate.reason` est conservé sur la ligne** (`remaining_reason`), écrasé à chaque
+  réestimation, et aucune opération du contrat ne le rend (F-09 de la revue du 2026-10-31) : un
+  constat « contrat », ouvert avec les issues de l'EPIC et « à trancher », propose soit
+  `EstimateLineFacet.remaining_reason`, que la grille montrerait au reste précédent, soit le retrait
+  de `reason` ; le lot d'US-1580 suit la décision. Écartés : ne pas le conserver ; trancher au
+  cadrage une modification du contrat figé.
+- **La question des lignes propres ouvertes est un registre de `core/planning`**,
+  `register_open_lines`, déclaré par EP-09 dans un fichier nouveau de l'interface de `planning`
+  (`open_lines.py`) et rempli par `estimate` : « parmi ces tâches, lesquelles portent une ligne
+  propre hors provision dont le reste n'est pas nul ». `planning` l'appelle pour terminer une
+  récapitulative dont la dernière subordonnée se termine, pour `awaiting_own_lines`, et pour la
+  feuille qu'une récapitulative devient ; il n'écrit pas `FacetHooks` (`facets.py`), que #2335,
+  #2372, #2373 et #2382 écrivent encore. Écarté : un crochet de plus dans `FacetHooks`, qui aurait
+  attendu le collage d'EP-07 (#2382), en vague 4.
+- **Les commandes nouvelles s'écrivent après le dernier lot d'EP-07 qui tient leur fichier** :
+  `import_actual_costs`, `exclude_cost_lines` et `import_remaining` dans `RULES` de
+  `core/projects/commands.py` par un seul lot d'EP-09, après US-1550/L3 #2380 ; `export_remaining`
+  dans `REVISION_RULES` de `core/revisions/commands.py` par un seul lot, après US-1550/L4 #2381 ;
+  les autres lots en dépendent par leur numéro. Écarté : un registre de commandes dans
+  `core/projects`, qui changeait la mécanique d'EP-04 pour trois lignes.
+- **La couverture des risques est servie à zéro par un registre**, `register_coverage`, déclaré
+  par le socle dans `core/estimate` et vide jusqu'à EP-08 : réserve, provisions restantes, coût des
+  survenus et écart nuls, ce qui est vrai d'un projet sans risque ; la nature provision compte zéro
+  dans `by_cost_type`. Écarté : lire des tables qui n'existent pas.
+- **Le témoin charge ses imports par les interfaces, sans fichier ni worker** : une fonction
+  `load_import` de `core/exchanges` écrit une ligne d'`import_report` à son instant, dans son état,
+  sans dépôt — écrite par EP-09 dans un fichier nouveau de l'interface d'`exchanges` après
+  US-1420/L2 #2341, dernier lot d'EP-06 à écrire ce module — ; `load_cost_import` et
+  `load_cost_lines` de `core/costs` écrivent le journal et les lignes aux identifiants imposés ;
+  l'exclusion passe par la fonction de `setActualCostTrackedScope` à son instant. Écarté : rejouer
+  cinq classeurs engendrés par le moteur d'import, qui exige le stockage objet et le worker dans
+  une commande d'une seule transaction, et des fixtures binaires.
+- **Une seule migration, `0025`, dans le socle**, au prochain numéro libre à la création
+  d'`epic/EP-09` — `epic/EP-07` s'arrête à `0024` —, aucune donnée à reprendre : les colonnes
+  nouvelles d'`estimate_line` naissent nulles. Aucune migration d'EP-09 après le socle ; EP-10
+  chaîne la sienne sur `0025`. Écarté : une migration par US.
+- **XlsxWriter écrit, openpyxl lit**, comme EP-07 l'a décidé : le prototype
+  `docs/spec/exemples/prototype_rae.py` vaut pour le reste à engager ce que `prototype_devis.py` a
+  valu pour le devis ; `sheet_name` d'EP-07 nomme les onglets des sous-projets (#2190, option B).
+  Rien n'entre dans `pyproject` : les deux bibliothèques y sont depuis le socle d'EP-07.
+- **Le reste d'une ligne se saisit, dans le fichier, en jours ou en montant, et se range dans les
+  grandeurs** : pour une ligne de main-d'œuvre, « Jours restants » vaut quantité × charge ÷ heures
+  par jour à l'export, et l'import écrit la charge, jours × heures par jour ÷ quantité, la quantité
+  conservée (portée à 1 si elle est nulle) ; pour une ligne hors main-d'œuvre, « Débours restant »
+  est le réestimé inflation comprise, et l'import écrit le débours unitaire, montant ÷ (quantité ×
+  coefficient d'inflation de la tâche), arrondi au centime, la quantité conservée de même. Écartés :
+  une quantité ramenée à 1 à chaque import, qui perdrait une grandeur saisie ; un montant écrit tel
+  quel dans le débours unitaire, qui ferait réestimer quantité fois trop.
+- **Le recodage d'un sous-projet ne change l'imputation d'aucune ligne** (D-10 de la revue) : les
+  lignes imputées le restent par leur identifiant (WF-DAT-0060), celles qui attendaient l'ancien ou
+  le nouveau code ne bougent qu'à leur réimport ; la création d'un sous-projet impute aussitôt les
+  lignes de son code (WF-CRE-0020). Un constat « contrat », « à trancher », propose la phrase pour
+  la description d'`updateSubproject`, sans changement de forme. Écarté : réimputer par le code au
+  recodage, qui capterait des lignes sans réimport et contredirait le Vérif de WF-DAT-0060.
+- **Le Kanban se mesure avant de se fenêtrer** (#646) : `listStartableTasks` et l'écran sur les
+  mille tâches de PRJ-001, contre le service, relevés sur la pull request ; sous la borne `WORKING`,
+  rien ne change hors la raison donnée dans le guide ; au-delà, une issue. Écarté : fenêtrer
+  d'avance.
+
+### Tables et migrations
+
+Régime « projet » (§4.4.1) pour `cost_line` et `cost_import`, non partitionnées — seul le
+révisionné l'est —, UUID v7 engendrés par le service ou imposés par le chargeur, textes en
+collation `C`, règles SQL du guide ; chaque clé refuse (`RESTRICT`) : une ligne de coût ne se
+supprime jamais, un journal non plus. Les colonnes nouvelles d'`estimate_line` suivent son régime
+révisionné et son déclencheur d'immuabilité d'EP-07, qui les protège sans rien changer.
+
+| Table | Contenu | Contraintes |
+|---|---|---|
+| `estimate_line` | reçoit `previous_quantity` (`numeric(14,4)`), `previous_hours` (`numeric(12,2)`), `previous_unit_disbursement` (`numeric(14,2)`), `previous_reestimated_amount` (`numeric(14,2)`), `reestimated_at` (`timestamptz`, la marque de réestimation), `remaining_reason` (`text`), tous nuls | `previous_* ≥ 0` ; aucune autre : la cohérence main-d'œuvre/hors main-d'œuvre des `previous_*` est celle de la ligne source, copiée telle quelle |
+| `cost_line` | `id`, `project_id`, `subproject_id` (nul hors sous-projet et pour un code inconnu), `subproject_code` (le code lu dans l'OTP, nul sans partie sous-projet), `document_number`, `document_item` (nul sans poste), `document_date` (`date`), `amount` (`numeric(14,2)`, signé), `is_in_tracked_scope`, `excluded_reason`, `passthrough` (`jsonb`, un objet texte → texte), `last_import_id` (le dernier import qui l'a écrite), audit | unique (`project_id`, `document_number`, `document_item`) `NULLS NOT DISTINCT` (WF-DAT-0110) ; `document_number` de 1 à 200 non blanc, `subproject_code` de 50 au plus ; `excluded_reason IS NULL OR NOT is_in_tracked_scope` ; `subproject_id IS NULL OR subproject_code IS NOT NULL` ; clé vers `project` et clé composite (`project_id`, `subproject_id`) vers `subproject` en refus — la suppression d'un sous-projet imputé est refusée par le service avant la base (WF-PRJ-0050) — ; clé vers `cost_import` en refus ; index sur (`project_id`, `document_date`), (`project_id`, `subproject_id`), (`project_id`, `subproject_code`) pour l'imputation à la création d'un sous-projet |
+| `cost_import` | `id`, `project_id`, `import_report_id`, `imported_at`, `requested_by` (le compte qui a confirmé), `period_from`, `period_to`, `created_count`, `updated_count`, `unchanged_count`, `rejected_count`, `passthrough_columns` (`jsonb`, la liste des colonnes conservées du fichier, dans son ordre) | `import_report_id` unique, clé vers `import_report` en refus ; `requested_by` vers `user_account` en refus ; `period_from <= period_to` quand les deux sont donnés ; comptes `≥ 0` ; jamais modifiée : pas de `lock_version`, l'instant et l'auteur tiennent lieu d'audit, comme une transition d'état |
+
+- **Une migration, `0025`, dans le socle** (US-1580/L1) : les six colonnes d'`estimate_line` — par
+  `ALTER TABLE` sur la table partitionnée, qui les porte à chaque partition —, les deux tables, les
+  droits du rôle du service — `SELECT`, `INSERT`, `UPDATE` sur `cost_line` (une ligne se met à jour
+  et s'exclut, jamais ne se supprime), `SELECT`, `INSERT` sur `cost_import` — déclarés dans
+  `SERVICE_RIGHTS`. Aucune migration de données.
+- **L'idempotence par la base** : l'application d'un import insère ou met à jour sur le triplet,
+  et la contrainte unique refuse ce qu'un chemin oublierait ; `test_database_constraints.py`
+  l'éprouve en propriétaire (deux lignes de même pièce et de même poste, nul compris, refusées ;
+  de postes différents, acceptées).
+- Les tests : `test_migrations.py` (schéma, droits), `test_database_constraints.py` (une
+  contrainte, un test), `test_revision_immutability.py` étendu aux colonnes nouvelles d'une ligne
+  marquée.
+
+### Modules
+
+| Module | Tables | Interface offerte |
+|---|---|---|
+| `waterfall.core.estimate`, sous-paquet `remaining/` (FBS-4.5) | les six colonnes nouvelles d'`estimate_line` | `set_line_remaining` (la réestimation, la mise à zéro qui termine) ; `copy_previous` (le second enregistrement de `register_copy`) ; `open_lines(task_ids)` pour le registre de `planning` ; `startable_tasks(project_id)` (le Kanban) ; `remaining_indicators(project_id, revision_id)` et `register_coverage` ; `remaining_of_revision(revision_id)` — le total et le reste par ligne des tâches non terminées, à l'état des tâches de la révision — pour les indicateurs et EP-10 ; le format et l'exporteur `remaining` ; `remaining_entry` et `previous_*` rendus par la lecture de la facette d'EP-07, que le lot de la réestimation complète après #2372 |
+| `waterfall.core.costs` (FBS-4.7) | `cost_line`, `cost_import` | le format `actual_costs` (l'en-tête selon la correspondance, l'analyse, l'application) ; `list_actual_costs` (filtres, tri, totaux, colonnes conservées, dernier import), `set_tracked_scope`, `list_cost_imports` ; `actual_cost_by_subproject(project_id)` et `actual_costs_until(project_id, date, scope)` — les lignes suivies, pour les indicateurs du reste à engager et pour EP-10 — ; `subproject_has_actual_costs` et `impute_waiting_lines(project_id, subproject_id, code)` pour le registre de `projects` ; `load_cost_import`, `load_cost_lines` et `load_exclusion` avec identifiants et instants imposés |
+
+- **La couche** : `estimate` importe l'interface de `costs` (le coût réel par sous-projet des
+  indicateurs), outre celles qu'EP-07 lui donne ; `costs` importe `projects`, `cost_settings` (la
+  correspondance, l'unicité des intitulés), `exchanges` (le format), `users` (l'auteur du journal)
+  et `platform` ; ni `planning`, ni `projects`, ni `exchanges` n'importent l'un ou l'autre — ils
+  appellent des registres. Le socle ajoute `costs` au contrat de couches d'import-linter que le socle
+  d'EP-07 a déclaré, sous `estimate`.
+- **La réestimation** passe par `update_line` d'EP-07, la même fonction que la saisie du devis :
+  les grandeurs écrites, le réestimé recalculé par `pricing` et `spreading`, le budgété et la lignée
+  intacts, `reinflated` et `ancestors` rendus ; elle y ajoute `reestimated_at` et
+  `remaining_reason`, et juge d'abord `remaining_entry`. « Un reste nul » est un `reestimated_amount`
+  à zéro ; quand toutes les lignes propres hors provision d'une tâche sont à zéro, et pour une
+  récapitulative quand toutes ses subordonnées sont terminées, `set_line_remaining` appelle la
+  terminaison de `planning` (US-1410 #2324) à `completed_on`, dans la même transaction, par
+  l'interface — une tâche non démarrée qui n'est pas un jalon passe par l'état démarré, un jalon
+  non, les deux avec `started_on` égal à `completed_on` ; sans `completed_on`, 422
+  `COMPLETION_DATE_REQUIRED` et rien n'est écrit.
+- **Les commandes** : `import_actual_costs` (`actual_costs.write` ; `project_in_progress`,
+  `no_background_task_running`, `actual_cost_mapping_complete`), `exclude_cost_lines`
+  (`cost_line_exclude` ; `project_in_progress`) et `import_remaining` (`remaining.write` ;
+  `project_in_progress`, `no_background_task_running`, `may_create_revision`) entrent dans `RULES`
+  de `core/projects/commands.py`, dans l'ordre de `ProjectCommand` ; `export_remaining`
+  (`remaining.read`, sans condition, sur un projet terminal aussi) dans `REVISION_RULES` de
+  `core/revisions/commands.py` ; chaque fichier par un seul lot, après #2380 et #2381.
+
+### Les points d'extension
+
+Chaque registre est un `Registry` de `core/revisions/registry.py`, rempli à l'import de
+l'interface du module qui enregistre, et le test des points d'entrée d'EP-06 (#2180) — l'API, le
+worker, le chargeur — s'étend à chacun.
+
+| Module | Registre | Qui le déclare | Qui le remplit | Ce qu'il fait |
+|---|---|---|---|---|
+| `core/planning` | `register_open_lines` (nouveau) | US-1590, après #2324 et #2338 | `estimate` (`open_lines`) | la dernière subordonnée terminée ne termine la récapitulative que si aucune ligne propre hors provision ne garde un reste ; `awaiting_own_lines` est vrai pour une récapitulative démarrée dont toutes les subordonnées sont terminées et qu'une ligne propre retient ; la feuille qu'une récapitulative devient reste démarrée si une ligne propre retient (WF-PLA-0040) |
+| `core/planning` | `progress_commands(task, bears_lines)` (fonction nouvelle, pas un registre) | US-1590, après #2324 | — | les gestes d'une carte du Kanban et l'état que chacun envoie, par la fonction qui juge le 409 de `setTaskProgress` (US-1410), pour que la carte et le refus nomment la même condition |
+| `core/revisions` | `register_copy` (EP-04) | EP-04 | `estimate`, second enregistrement (`copy_previous`), après la copie des lignes | `previous_*` des lignes copiées depuis une révision marquée En cours |
+| `core/projects` | `register_cost_facts` (nouveau) | US-1610, après #2373 | `costs` | `subproject_has_actual_costs` (la suppression refusée, `has_actual_costs` de la liste et son filtre), `impute_waiting_lines` dans la transaction de `createSubproject` ; `updateSubproject` ne l'appelle pas |
+| `core/estimate` | `register_coverage` (nouveau) | socle | EP-08 | la couverture des risques de `getRemainingIndicators`, à zéro sans entrée |
+| `core/estimate` | `register_estimate_facts` (EP-07) | US-1490/L4 #2373 | `estimate` | `subproject_is_cited` : une ligne d'une révision marquée ; les coûts réels ont leur registre propre, ci-dessus |
+| `core/exchanges` | `register_format`, `register_exporter` (EP-06) | EP-06 | `estimate` (`remaining`), `costs` (`actual_costs`) | l'en-tête, l'analyse, l'application et l'export des deux natures |
+| `core/exchanges` | `load_import` (fonction nouvelle) | US-1650, après #2341 | — | une ligne d'`import_report` à son instant, dans son état, son compte rendu et sa période, sans dépôt ni tâche, pour le témoin |
+| `witness/revisions` | la marche des événements (EP-04, EP-07) | US-1650, après #2385 | `witness/costs` | les écritures `cost_import_applied`, `cost_line_excluded` et `import_expired` de la chronologie, à leur instant |
+
+### Le Kanban et les lignes propres
+
+- `startable_tasks` lit la structure principale de la révision courante — la révision en cours,
+  ou la dernière marquée sans elle — par l'interface de `planning` (les tâches, leur état, leurs
+  dates, leurs liaisons pour `predecessors_completed`), et par `estimate` les tâches qui portent une
+  ligne hors provision ; trois colonnes dans l'ordre du plan, jamais une récapitulative, sauf celle
+  dont `awaiting_own_lines` est vrai, dans `started` (#1851) ; chaque carte reçoit
+  `progress_commands` de `planning`, puis les conditions de `edit_remaining` de la structure
+  principale, vides sans `remaining.write`, et le nœud entier (`KanbanTask`, `NotStartedTask`). Une
+  requête par table, jamais une par tâche : la liste se tient en deux lectures (nœuds et liaisons,
+  lignes porteuses).
+- `open_lines(task_ids)` répond par une requête sur `estimate_line` : les tâches parmi celles
+  nommées qui portent une ligne propre, hors provision (EP-08 : `origin_risk_id` du nœud ou la
+  catégorie de type provision, jamais vrai ici), dont `reestimated_amount` n'est pas nul ;
+  `planning` la pose à la terminaison d'une subordonnée, à chaque lecture de `TaskFacet` pour les
+  récapitulatives démarrées rendues, et à la transformation d'une récapitulative en feuille.
+- La mesure (#646) : `listStartableTasks` sur PRJ-001 chargé, et l'ouverture de l'écran du Kanban
+  par son adresse et par un clic, relevées sur la pull request d'US-1590 ; la raison donnée dans
+  `docs/dev/README-fr.md` et `README.md` pour la présence du Kanban parmi les écrans à `WORKING`
+  est corrigée — il lit `listStartableTasks`, non `listNodes`.
+
+### Les coûts réels
+
+- **L'en-tête** (`openImport`) : le premier onglet, ses intitulés en ligne 1, lus par openpyxl en
+  valeurs et comparés aux intitulés de la correspondance par la fonction d'EP-05 (sans égard à la
+  casse, aux accents ni aux espaces en bout) ; une colonne exigée sans intitulé déclaré, 409
+  `actual_cost_mapping_complete` (`params.columns`), que la commande dit d'avance ; une colonne
+  exigée absente du fichier, 422 `FILE_FORMAT_UNREADABLE`, `expected_format` à `actual_costs`,
+  `missing_columns` avec leurs intitulés ; la correspondance lue est gardée avec le compte rendu
+  (les rangs des colonnes lues et conservées), pour que l'application s'exécute telle que l'analyse
+  l'a lue même si la correspondance change.
+- **L'analyse** (worker) lit chaque ligne : l'élément d'OTP, un texte — vide ou commençant par
+  `/`, `WBS_ELEMENT_INVALID` ; la part avant la première barre oblique est le code projet, qui peut
+  contenir des points, celle après le code de sous-projet (C-373) ; un code projet qui n'est pas
+  celui du projet, `WBS_ELEMENT_OUTSIDE_PROJECT` et `lines_outside_project` ; un code de sous-projet
+  qu'aucun sous-projet ne porte, la ligne acceptée, imputée au seul projet, `unknown_subproject` — ;
+  le numéro de pièce, texte ou entier lu comme texte ; le poste, texte ou nul ; la date, cellule de
+  date ou texte AAAA-MM-JJ ; le montant, cellule numérique, un texte rejeté (`NUMBER_INVALID`) ;
+  les colonnes conservées en texte ; une ligne vide ignorée ; les colonnes ni lues ni conservées
+  comptées dans `ignored` (`columns`) ; deux lignes de même pièce et de même poste, nul compris,
+  rejetées chacune (`DUPLICATE_COST_LINE`, `params.rows`). Puis le rapprochement avec les lignes du
+  projet sur le triplet : `added`, `updated` (les champs qui changent : `document_date`, `amount`,
+  `subproject`, `passthrough.<colonne>`), `unchanged_count` ; `format_version` nul ;
+  `requires_confirmation_reasons`.
+- **L'application** (worker, dans la transaction de la tâche d'EP-06, sous le verrou du projet) :
+  revérifie ce qu'EP-06 revérifie, écrit l'entrée de `cost_import` (l'auteur `requested_by`, la
+  période de l'ouverture, les colonnes conservées du fichier), puis insère ou met à jour chaque
+  ligne acceptée sur le triplet — l'imputation recalculée depuis l'OTP, `passthrough` remplacé,
+  `is_in_tracked_scope` et `excluded_reason` intacts, `last_import_id`, `updated_by` l'auteur —,
+  compte les quatre nombres, et laisse à `exchanges` l'inscription `import_apply` au journal d'audit
+  et l'absence d'entrée d'historique annulable ; une tâche `applying` qui échoue ne laisse rien.
+- **L'imputation à la création d'un sous-projet** : `createSubproject` d'EP-04 appelle
+  `register_cost_facts.impute_waiting_lines` dans sa transaction, qui pose `subproject_id` sur les
+  lignes du projet dont `subproject_code` est le code créé et `subproject_id` nul, l'auteur de
+  `updated_by` étant celui de la création ; le recodage n'appelle rien.
+- **L'exclusion** (`set_tracked_scope`) : une mise à jour de la ligne seule, idempotente, sans
+  compteur — l'état visé et le motif, nul en réintégration —, après `project_not_terminal` et
+  `project_in_progress` (`exclude_cost_lines`), sous `cost_line_exclude` et la qualité de
+  contributeur, inscrite au journal d'audit par la fonction d'EP-03 (`cost_line_exclude`,
+  `cost_line_reinstate`, l'objet `cost_line` nommé par sa pièce et son poste, le projet) ; hors de
+  l'historique annulable.
+- **La consultation** (`list_actual_costs`) : une requête filtrée (sous-projet — `unassigned` par
+  `subproject_id` nul n'est pas un filtre du contrat —, période sur `document_date`, périmètre),
+  triée par la colonne demandée — `passthrough.<colonne>` par `passthrough ->> colonne` en texte,
+  les nuls après dans l'ordre croissant —, paginée ; les trois totaux et `last_import_at` par des
+  agrégats sur l'ensemble retenu ; `meta.passthrough_columns` l'union, dans l'ordre, des
+  `passthrough_columns` des imports (`cost_import`, par `imported_at`) que `last_import_id` des
+  lignes retenues désigne, chaque colonne à sa première déclaration ; `subproject_label` résolu.
+
+### Les indicateurs du reste à engager
+
+- `remaining_of_revision(revision_id)` : la somme des `reestimated_amount` des lignes hors provision
+  des tâches non terminées de la structure principale, et la même par ligne — l'état des tâches de
+  cette révision, en cours ou marquée ; c'est la fonction qu'EP-10 lira pour la projection du chef
+  de projet et l'indice de coût, et le marquage (EP-10) pour conserver.
+- `remaining_indicators` : `total` et `by_cost_type` (le même module de parts qu'EP-07, la nature
+  provision à zéro) sur la révision lue ; `by_subproject` par sous-projet et `unassigned` — `budget`
+  la somme des budgétés hors provision des lignes de la révision de référence par sous-projet (nul
+  sans référence), `actual_cost` par `actual_cost_by_subproject` de `costs` (les lignes suivies,
+  `subproject_id` nul vers `unassigned`), `remaining` par `remaining_of_revision`, `variance` =
+  budget − coût réel − reste, `is_over_budget` quand elle est négative, `zone` `alert` ou `nominal`
+  — ; `delta_to_reference` = budget de référence − (coût réel + reste), nul sans référence ;
+  `delta_to_previous_revision` = reste courant − `remaining_of_revision` de la dernière révision
+  marquée après le passage En cours, nul sans elle ; `coverage` par `register_coverage` ;
+  `context` avec `is_stored` faux. Tout se calcule à la lecture ; la conservation au marquage et le
+  cache sont d'EP-10.
+- Le plan de charge sur le reste (`current_remaining`, `marked_remaining`) est celui d'EP-07
+  (US-1520) : la charge restante d'une ligne est sa charge courante, que la réestimation écrit ; EP-09
+  n'y ajoute que des tests (le reste de 80 heures, la tâche terminée par mise à zéro).
+
+### Le format Excel du reste à engager
+
+- **L'écriture** (XlsxWriter) suit le prototype et l'annexe B : « Synthèse » (format « Reste à
+  engager » et version en A1-B2, l'entreprise, le client, le projet, la révision, la date de la
+  revue — `review_date`, le jour de la demande par défaut —, la devise ; par sous-projet et pour le
+  projet : budget, coûts réels, reste à engager, projection, écart signé dans le sens de la dérive,
+  avancement financier, ventilation du reste par nature et en jours par code comptable, par des
+  formules qui lisent les onglets) ; un onglet par sous-projet, nommé par son code ramené aux
+  règles d'Excel par `sheet_name`, et « Hors sous-projet », chacun avec son en-tête puis ses lignes
+  des tâches non terminées en tableau Excel à ligne de total déclarée — tâche, description, état,
+  rôle ou catégorie, désignation, budget, reste précédent (`previous_reestimated_amount`), jours
+  restants ou débours restant, puis les colonnes calculées (nature, code comptable, service, taux,
+  main-d'œuvre, débours, reste à engager, type, coefficient), la lignée masquée —, listes de
+  validation sur « Tâches » et « Paramètres », dix lignes vides pour les lignes nouvelles ;
+  « Tâches » (les tâches non terminées par sous-projet, leur lignée, leur état, le coefficient
+  d'inflation de leur année de consommation, leur description) et « Paramètres » (le référentiel
+  que la révision retient, les heures par jour), protégés ; le logo et le pied de page d'EP-07 ;
+  `strings_to_formulas` faux. Les montants des en-têtes sont ceux que `remaining_indicators` et
+  `costs` calculent pour la révision exportée. Le nom : `<code ou libellé du projet>-<version>-reste-a-engager.xlsx`.
+- **La lecture** (openpyxl, valeurs) : l'en-tête (A1, B1, A2, B2 — format « Reste à engager »,
+  version connue, sinon `FILE_FORMAT_UNREADABLE` avec `expected_format` à `remaining` et
+  `expected_version`), la date de la revue en « Synthèse », puis chaque onglet de sous-projet et
+  « Hors sous-projet » — reconnus par leur nom, les onglets « Synthèse », « Tâches » et
+  « Paramètres » exclus — par ses en-têtes ; les colonnes lues : la tâche, le rôle ou la catégorie,
+  la désignation, les jours restants, le débours restant, la lignée ; une ligne vide ou de total
+  ignorée, une colonne inconnue ignorée, un nombre en texte rejeté, chaque rejet par son onglet et
+  son rang.
+- **L'analyse** rapproche par la lignée : une ligne connue reçoit ses grandeurs (« Ce que le
+  cadrage décide »), un écart `updated` sur la colonne changée, le budgété et la lignée intacts ;
+  une ligne d'une tâche terminée, inchangée, est rejetée (`task_not_completed`) ; une ligne sans
+  lignée crée une ligne à budgété nul sous la tâche désignée par « Tâches » ou par son libellé
+  (`AMBIGUOUS_TASK_LABEL`, `UNKNOWN_TASK`), rejetée sous une tâche terminée (I-05, #1794) ; le
+  sous-projet est celui de l'onglet — une ligne existante placée ailleurs en change (écart
+  `subproject`), sauf si sa tâche est démarrée ou terminée et que son sous-projet a reçu des coûts
+  réels (`SUBPROJECT_HAS_ACTUAL_COSTS`) — ; un rôle ou un sous-projet inconnu, une catégorie de
+  provision, une ligne qui laisserait sa tâche sans heure, rejetés comme au devis ; les lignes
+  absentes du fichier, inchangées et non signalées ; les tâches dont toutes les lignes du fichier
+  portent zéro, dans `completed_tasks` à la date de la revue ; les lignes de provision ignorées
+  (`provision_lines`) sont d'EP-08. **L'application** écrit par `set_line_remaining`, sous le verrou
+  de la structure, dans la transaction de la tâche d'EP-06, la marque de réestimation posée, les
+  tâches de `completed_tasks` terminées à la date de la revue, sans entrée d'historique ; sur un
+  projet dont toutes les révisions sont marquées, la révision en cours est créée d'abord (EP-06), aux
+  taux projetés (EP-07), et `previous_*` copiés ; `ProjectCommand.import_remaining` dit la phase.
+- **L'export** s'enregistre par `register_exporter` : la révision et la structure nommées, le
+  fichier `.xlsx`, `media_type`
+  `application/vnd.openxmlformats-officedocument.spreadsheetml.sheet` ; le stockage, le
+  téléchargement et la purge sont ceux d'EP-06 ; disponible sur un projet terminal (WF-CYC-0110).
+
+### Le service d'API
+
+- Un routeur par US — `api/remaining_lines.py` (US-1580 : `setLineRemaining`),
+  `api/startable_tasks.py` (US-1590 : `listStartableTasks`), `api/remaining_indicators.py` (US-1600 :
+  `getRemainingIndicators`), `api/cost_imports.py` (US-1610 : `listCostImports`),
+  `api/actual_costs.py` (US-1620 : `listActualCosts`, `setActualCostTrackedScope`) —, créés vides et
+  enregistrés dans `app.py` par le socle, chacun avec son `asked_*.py` ; `setTaskProgress`,
+  `deleteNode`, `listNodes`, `createNode`, `moveNodes`, `updateEstimateLine`, `openImport`,
+  `applyImport`, `requestExport`, `createSubproject`, `listSubprojects` restent aux routeurs
+  d'EP-04, d'EP-06 et d'EP-07, qui appellent les registres.
+- Chaque route déclare `RequiresProject(...)` : `remaining.read` pour `listStartableTasks` et
+  `getRemainingIndicators`, la qualité de contributeur et `remaining.write` pour `setLineRemaining`,
+  `actual_costs.read` pour `listActualCosts` et `listCostImports`, la qualité de contributeur et
+  `cost_line_exclude` pour `setActualCostTrackedScope` ; les refus sont ceux du contrat, dans
+  l'ordre que chaque opération écrit ; chaque réponse d'un test passe par `ContractClient` ;
+  `test_access_evaluation.py` reçoit chaque opération avec ses deux termes.
+
+### Le worker
+
+Aucun gestionnaire nouveau : l'analyse, l'application et l'export sont ceux d'EP-06, qui
+appellent les registres. Le worker doit importer l'interface de `costs` pour que le format
+`actual_costs` soit enregistré (#2180) — `remaining` l'est par l'interface d'`estimate`, qu'EP-07
+y importe depuis US-1500/L2 #2375 — ; `worker/main.py` est écrit par #2341 (EP-06) puis #2375
+(EP-07) : l'import est du lot d'US-1610 qui applique une extraction, après #2375. Le test des
+points d'entrée (#2180), que le socle étend, dit que les extensions de `costs` ne sont attendues du
+worker qu'à partir de ce lot — l'API et le chargeur les attendent dès le socle.
+
+### Le chargeur du témoin
+
+- **Un lot d'outil**, dans `wftools` : la chronologie exportée reçoit, sur les cinq événements
+  « Import de coûts réels », l'écriture `cost_import_applied` (le numéro de l'import) ; un
+  événement nouveau, « Exclusion de la réception du client », le 6 avril 2026 à 9 h 15, avec
+  l'écriture `cost_line_excluded` (la pièce, le poste, le motif) ; et sur « Extraction d'avril
+  rejouée et analysée », l'écriture `import_expired` ; `make mock-data` écrit
+  `fixtures/api/witness_costs.json` : chaque import de coûts — son numéro, son import des échanges,
+  son fichier, sa période, ses colonnes conservées, son compte rendu tel que l'analyse l'a
+  présenté, ses comptes —, chaque ligne de coût — pièce, poste, date, montant, code de
+  sous-projet, colonnes conservées, les imports qui l'ont apportée et mise à jour, son exclusion —,
+  depuis `wftools.mockwitnesscosts` et `mockexchanges` ; le back le lit par un modèle propre,
+  strict, sans importer `wftools`.
+- **La tranche** : `witness/costs.py`, appelé par la marche des événements de `witness/revisions.py`
+  (étendue après #2385) pour chaque écriture nouvelle — `load_import` d'`exchanges` pour la ligne du
+  journal des imports (appliquée, ou analysée puis expirée, avec son compte rendu), `load_cost_import`
+  et `load_cost_lines` de `costs` pour l'entrée du journal et les lignes créées ou mises à jour, aux
+  identifiants du témoin, à l'instant de l'événement, l'auteur du témoin pour compte —, et
+  `load_exclusion` à l'instant de l'exclusion. `witness/timeline.py` (EP-04, écrit par #2384 et
+  #2385) reçoit les trois modèles d'écriture après #2385. Rien n'est chargé pour le reste à engager :
+  les états viennent d'EP-06, les lignes d'EP-07, `previous_*` de la copie de la révision 102 depuis
+  la référence 101, marquée En cours — le registre est rempli dès le chargement, qui tourne entier
+  sur une plateforme neuve. Les imports du planning (a10) et du devis (a11) restent à EP-06, EP-07 et
+  EP-08. Les montants et imputations sont ceux que le service calcule : le calculé devient l'attendu.
+
+### Le front
+
+- Les écrans sont ceux d'EP-02, d'EP-14, d'EP-15, d'EP-16, d'EP-17 et d'EP-22 ; chaque US branche
+  le sien et retire `MockupNotice` de la page qu'elle sert en dernier : les coûts réels par
+  US-1620, le reste à engager par US-1640 ; le Kanban n'en a pas, les échanges l'ont perdu par EP-06.
+  Les aides `frontend/help/fr/FBS-4.5*.md` par US-1640, `FBS-4.7.md` et `FBS-3.1.3.md` (#2093) par
+  US-1620, l'aide du Kanban (`FBS-4.5.3`) par US-1590.
+- Le front ne calcule rien : les restes, les totaux, les écarts, les gestes des cartes et les
+  conditions viennent du service. Un manque que le branchement révèle devient une issue ; un manque
+  du contrat, une « Interface contract issue ».
+
+### Le harnais
+
+Chaque US étiquette `@shared` les tests dont l'écran est servi : US-1620 `actual-costs.spec.ts` ;
+US-1640 `remaining.spec.ts`, que la grille et le Kanban partagent ; US-1630 ajoute à
+`exchanges.spec.ts`, après US-1550/L4 #2381, le parcours de l'import d'un reste à engager quitté
+pendant son application et informé de son aboutissement (WF-IHM-0080). Les parcours qui écrivent le
+font sur un projet que la course crée (#2193) ; ceux qui lisent une provision ou un risque restent
+gardés par `inService` jusqu'à EP-08, et le guide le dit. La liste des entrées non rejouées n'est
+écrite que par US-1650/L3.
+
+### Les tests du back
+
+Un fichier par objet et par règle — `test_line_remaining.py` (la réestimation, la mise à zéro, la
+marque), `test_previous_remaining.py` (la copie), `test_remaining_entry.py`,
+`test_remaining_workload.py`, `test_open_lines.py` (la récapitulative, la feuille, dans
+`planning`), `test_startable_tasks.py`, `test_remaining_indicators.py`, `test_actual_costs_header.py`,
+`test_actual_costs_analysis.py`, `test_actual_costs_apply.py`, `test_actual_costs_imputation.py`,
+`test_actual_costs_list.py`, `test_actual_costs_scope.py`, `test_cost_imports.py`,
+`test_subproject_costs.py` (la suppression, la liste, la ligne retenue), `test_remaining_excel_write.py`,
+`test_remaining_excel_read.py`, `test_remaining_import.py`, `test_remaining_export.py`,
+`test_terminal_project_costs.py`, `test_witness_costs.py` —, chaque test citant son exigence, chaque
+réponse validée contre le contrat ; les exemples chiffrés des Vérif sont des tests sans base quand
+ils le peuvent (`tests/examples`). Les fixtures communes — un projet En cours avec sa référence, ses
+tâches et ses lignes par l'interface, des lignes de coût chargées, l'horloge posée — vivent dans
+`tests/remaining_support.py` et `tests/costs_support.py`, écrits par le socle. Un test de concurrence
+par règle d'ensemble : deux réestimations d'une même ligne, deux exclusions d'une même ligne, une
+application d'extraction pendant une saisie.
+
+### Ce qu'EP-07 écrit encore
+
+Les lots d'EP-09 se livrent pendant ceux d'EP-07, et `epic/EP-09` reprend `epic/EP-07` à chaque
+fusion. Un fichier qu'un lot d'EP-07 non fusionné possède, les lots d'EP-09 ne l'écrivent pas avant
+ce lot, ou en dépendent par son numéro :
+
+| Fichier | Lot d'EP-07 qui le possède | Lots d'EP-09 qui l'attendent |
+|---|---|---|
+| `core/estimate/interface/__init__.py`, les questions du référentiel, `register_estimate_facts`, la suppression et le déplacement d'une ligne | US-1490/L3 #2372, US-1490/L4 #2373 | le socle (US-1580/L1), et tout lot d'EP-09 |
+| `core/estimate` : la lecture de la facette (`remaining_entry`, que `previous_*` complètent), `update_line`, `pricing/` | US-1490/L2 #2371, US-1490/L3 #2372 | US-1580 (la réestimation) |
+| `core/estimate` : `spreading/`, `workload`, `planned_value` | US-1520/L1 #2376, US-1520/L2 #2377 | US-1580 (le plan de charge sur le reste) |
+| `core/estimate` : les taux, le marquage, la désignation, `reinflate_project` | US-1500/L1 #2374, US-1500/L2 #2375 | US-1630 (la révision créée par l'import, aux taux projetés) |
+| `core/estimate` : les crochets de la facette dans `core/planning` (`FacetHooks`, `judge_cell`) | US-1490/L3 #2372, US-1490/L4 #2373, US-1560/L1 #2382 | aucun : `register_open_lines` est un fichier propre |
+| `core/estimate/excel/` (l'écriture, `sheet_name`), la lecture, l'analyse, le format `estimate` | US-1550/L1 #2378, L2 #2379, L3 #2380, L4 #2381 | US-1630 (`sheet_name`, le logo et le pied de page, après #2378 ; les fonctions de lecture communes, après #2379) |
+| `core/projects/commands.py` (`import_estimate`) | US-1550/L3 #2380 | le lot qui écrit `import_actual_costs`, `exclude_cost_lines`, `import_remaining` |
+| `core/revisions/commands.py` (`apply_rate_update`, `export_estimate`) | US-1500/L1 #2374, US-1550/L4 #2381 | le lot qui écrit `export_remaining` |
+| `core/projects` (`register_estimate_facts`, `subproject_is_cited`, `subproject_is_estimated`) | US-1490/L4 #2373 | US-1610 (`register_cost_facts`) |
+| `worker/main.py` (l'import de l'interface d'`estimate`) | US-1500/L2 #2375 | US-1610 (l'import de l'interface de `costs`) |
+| `wftools`, `make mock-data`, `DECISIONS.md` (L-01) | US-1570/L1 #2384 | US-1650/L1 |
+| `witness/revisions.py`, `witness/timeline.py`, `witness/estimate_lines.py` | US-1570/L2 #2385 | US-1650/L2 |
+| `frontend/e2e/exchanges.spec.ts`, `revisions.spec.ts`, les pages du devis, le guide (la liste des entrées non rejouées) | US-1550/L4 #2381, US-1530, US-1560/L2 #2383, US-1570/L3 #2386 | US-1630 (`exchanges.spec.ts`), US-1650/L3 (le guide) |
+| `app.py`, `pyproject`, `tests/estimate_support.py`, `chronology.py`, le test des points d'entrée | US-1490/L1 #2370, fusionné avant la branche | aucun |
+
+### Ce qu'EP-06 écrit encore
+
+| Fichier | Lot d'EP-06 qui le possède | Lots d'EP-09 qui l'attendent |
+|---|---|---|
+| `core/planning` : la lecture et la création des nœuds (`interface/nodes.py`, `facets.py`) | US-1380/L2 #2335 | US-1590 (`register_open_lines`, `progress_commands`) |
+| `core/planning` : la suppression et le déplacement, `core/projects` (`register_attachments`) | US-1380/L3 #2338 | US-1590 (la feuille qu'une récapitulative devient, `deleteNode`) |
+| `core/planning` : l'état des tâches (`setTaskProgress`, `started_on`, `completed_on`, `finish_overdue`, les récapitulatives) | US-1410 #2324 | US-1590 (`register_open_lines`, `progress_commands`), US-1580 (la terminaison par mise à zéro) |
+| `core/planning` : `setPredecessors`, les registres de `resource_settings` | US-1390/L2 #2339 | aucun |
+| `core/planning` : le collage, `api/history.py` | US-1450/L2 #2344 | aucun |
+| `core/exchanges` : la mécanique d'import, les formats | US-1420/L1 #2332 | US-1610 (le format `actual_costs`), US-1630 (le format `remaining`) |
+| `core/exchanges` : la purge ; `worker/main.py`, les Compose, `production.env.example`, le Makefile | US-1420/L2 #2341 | US-1650 (`load_import`), US-1610 (l'import dans le worker, après #2375 aussi) |
+| `core/revisions/commands.py` (`export_*`), `api/tasks.py`, `api/exports.py` | US-1430/L2 #2336, US-1440/L2 #2343 | aucun : `export_remaining` attend #2381 d'EP-07, qui vient après |
+| `core/projects/commands.py` (`manage_timelines`, `generate_skeleton`) | US-1400/L1 #2331, US-1460 #2325 | aucun : le lot des commandes attend #2380 d'EP-07, qui vient après |
+| `REUSE.toml`, `LICENSES/` | US-1440/L1 #2337 | aucun |
+| `wftools`, `make mock-data` | US-1480/L1 #2330 | aucun : US-1650/L1 attend #2384 d'EP-07, qui vient après |
+| `witness/tasks.py` | US-1480/L2 #2347 | aucun : US-1650/L2 attend #2385 d'EP-07, qui vient après |
+| le guide, la liste des entrées non rejouées | US-1480/L3 #2348 | aucun : US-1650/L3 attend #2386 d'EP-07, qui vient après |
+
+Les catalogues `messages/*.json` (hors les deux clés de #2093, qu'US-1620 corrige), `conftest.py`,
+`support.py`, `api/queries.py`, `loader.py` et `mode.ts` ne s'écrivent dans aucun des trois EPIC :
+une clé ou une fixture qui manque devient une issue.
+
+### Ce que le cadrage laisse à EP-10
+
+Le socle (US-1580/L1) est le **lot pivot d'EP-10** : `epic/EP-10` se tire d'`epic/EP-09` dès sa
+fusion. Il lui garantit `cost_line` et `cost_import`, les colonnes `previous_*` et `reestimated_at`
+d'`estimate_line`, la chaîne des migrations arrêtée à `0025`, et l'interface déclarée que les
+indicateurs liront : `actual_costs_until(project_id, date, scope)` et `actual_cost_by_subproject`
+de `costs`, `remaining_of_revision(revision_id)` et `startable_tasks` d'`estimate`, à côté de
+`planned_value` d'EP-07 et des états et dates des tâches d'EP-06 ; les lots d'EP-10 qui lisent des
+coûts attendent US-1610, ceux qui lisent un reste US-1580/L2, nommés par leur numéro à leur
+ouverture. EP-10 remplit `register_indicators` de `core/revisions` (EP-04) pour conserver au marquage
+ce que ces fonctions calculent, et pose le cache (WF-DAT-0130).
+
+### L'ordre de construction
+
+Le socle d'abord, dès #2373 ; puis ce qui ne dépend que de lui et des lots d'EP-07 déjà fusionnés,
+en largeur quatre ; les lectures et les formats après les écritures ; les écrans par l'US qui sert
+leur objet ; la vérification d'ensemble en dernier ; le plan de lots (étape 3) le détaille en vagues.
+
+1. **US-1580/L1**, le socle — dès la fusion d'US-1490/L4 #2373 : la migration `0025`, le sous-paquet
+   `remaining/` de `core/estimate` à vide et ses fichiers d'interface réexportés, le module
+   `core/costs` à vide avec son interface en paquet, `register_coverage` déclaré, l'enregistrement à
+   vide dans `register_format`, `register_exporter` et `register_copy`, le contrat de couches, les
+   cinq routeurs vides et leurs `asked_*`, `tests/remaining_support.py`, `tests/costs_support.py`, les
+   fichiers de tests, `witness/costs.py` à vide, le test des points d'entrée étendu. **Lot pivot
+   d'EP-10.** Ni `core/planning`, ni `core/projects`, ni `core/exchanges`, ni le worker. En parallèle,
+   dès la branche : **le lot d'outil** d'US-1650 (la chronologie, `witness_costs.json`, après #2384)
+   et **l'écriture du classeur** du reste à engager (US-1630, pure, après #2378).
+2. **La réestimation** (US-1580 : `setLineRemaining`, `remaining_entry` et `previous_*` lus, la copie,
+   la mise à zéro qui termine, après #2372 et #2324), **les lignes propres et le Kanban** (US-1590 :
+   `register_open_lines`, `progress_commands`, `listStartableTasks`, après #2324, #2338 ; la mesure),
+   **l'en-tête et l'analyse d'une extraction** (US-1610, après #2332), **la lecture du classeur**
+   (US-1630, après #2379).
+3. **L'application d'une extraction et le journal** (US-1610, après #2375 pour le worker, #2380
+   pour les commandes), **la consultation et l'exclusion** (US-1620, `register_cost_facts` après
+   #2373), **les indicateurs** (US-1600, après la réestimation et l'application), **le plan de charge
+   sur le reste** (US-1580, après #2377), **l'analyse et l'application du reste à engager** (US-1630,
+   après la réestimation et #2380).
+4. **L'écran des coûts réels** (US-1620), **l'export branché et l'aller-retour** (US-1630, après
+   #2381), **la grille de reste à engager et le Kanban branchés** (US-1640, après #2383 et US-1600),
+   **la tranche des coûts** (US-1650, après #2385 et #2341), après tout ce qui écrit ; puis **la
+   vérification d'ensemble** (US-1650, après #2386), seule.
 
 ---
 
@@ -692,7 +1198,7 @@ de mon budget sans compter deux fois la même pièce.
   journalisés, une fin qui précède le début refusée par 422 (`/period_to`, `VALUE_OUT_OF_RANGE`) ;
   l'import n'écrit sur aucune structure ni révision (`structure_id`, `revision_id` nuls), et
   `ProjectCommand.import_actual_costs` est listée sous `actual_costs.write`, indisponible hors de
-  l'état En cours (`project_in_progress`, D-04), puis `no_background_task_running`, puis
+  l'état En cours (`project_in_progress` ; D-04 de la revue du 2026-10-31, `docs/api/2026-10-31-contrat-spec-et-fixtures.md`), puis `no_background_task_running`, puis
   `actual_cost_mapping_complete` ; un compte rendu analysé s'applique tel qu'il a été analysé, même
   si la correspondance change entre-temps ; l'application écrit dans la transaction de la tâche
   d'EP-06, les lignes puis l'entrée du journal, inscrit `import_apply` au journal d'audit avec sa
@@ -780,7 +1286,7 @@ rapprochement avec l'ERP.
   `subproject_label` résolus, `passthrough` et l'union `meta.passthrough_columns` dans l'ordre des
   imports puis du fichier, `last_import_at` nul sans import ; sous `actual_costs.read` ;
 - propre à l'US : `setActualCostTrackedScope` est gardée par `cost_line_exclude`, refusée par 409
-  `project_not_terminal` puis `project_in_progress` (`exclude_cost_lines`, D-04), inscrite au
+  `project_not_terminal` puis `project_in_progress` (`exclude_cost_lines` ; D-04 de la revue du 2026-10-31), inscrite au
   journal d'audit (`cost_line_exclude`, `cost_line_reinstate`, WF-SEC-0030), et n'entre pas dans
   l'historique annulable (WF-IHM-0110, constaté par EP-08 qui clôt) ; chaque réponse est validée
   contre le contrat dans les tests du service ;
