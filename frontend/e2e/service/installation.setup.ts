@@ -16,6 +16,9 @@ import { openMenu, WORKING } from "../hydration";
 import { heldToTheContract } from "./contract";
 import type { components } from "../../src/api/generated/schema";
 import {
+  accountAdministrator,
+  ADMINISTRATION_READER,
+  ADMINISTRATION_READS,
   ADMINISTRATOR,
   expectPasswordSet,
   frontToken,
@@ -65,7 +68,7 @@ test("the administrator of a new installation sets its password by the link of t
   const name = `«\u00a0${ADMINISTRATOR.name}\u00a0»`;
   const held = page.getByRole("group", { name: `Rôles de ${name}` });
   await openMenu(accounts.getByRole("button", { name: `Rôles de ${name}` }), held);
-  await expect(held.getByRole("checkbox", { name: "Administrateur" })).toBeChecked();
+  await expect(held.getByRole("checkbox", { name: "Administrateur", exact: true })).toBeChecked();
   await expect(held.getByRole("checkbox", { checked: true })).toHaveCount(1);
   await page.keyboard.press("Escape");
 
@@ -97,5 +100,31 @@ test("the administrator of a new installation sets its password by the link of t
       // A pattern is matched against the name as Playwright reads it, its spaces made plain.
       matrix.getByRole("checkbox", { name: new RegExp(` pour «\\s${label}\\s»$`) }),
     ).toHaveCount(catalogue.length);
+  }
+});
+
+test("the installation holds the role « Administrateur (parcours) », made by the administrator with the reads of the administration alone, found again on a replay with its permissions checked [WF-ADM-0020]", async ({
+  browser,
+  playwright,
+}) => {
+  const calls = await playwright.request.newContext({ ignoreHTTPSErrors: true });
+  try {
+    const administrator = await accountAdministrator(browser, calls);
+    // Made first, and alone, before any worker composes a role beside it (`giveRoles`): a role
+    // found by its label has its permissions checked, as for any role of the paths.
+    await administrator.compose([[ADMINISTRATION_READER, ADMINISTRATION_READS]]);
+    // Read again by the API: the permissions of the role are exactly the reads, none of the writes.
+    const token = await frontToken(browser, ADMINISTRATOR);
+    const search = new URLSearchParams({ search: ADMINISTRATION_READER }).toString();
+    const answer = await calls.get(
+      `${process.env.WATERFALL_API_ADDRESS ?? ""}/api/v1/access-roles?${search}`,
+      { headers: { Authorization: `Bearer ${token}` } },
+    );
+    expect(answer.status()).toBe(200);
+    const roles = (await answer.json()) as components["schemas"]["AccessRole"][];
+    const role = roles.find((one) => one.label === ADMINISTRATION_READER);
+    expect([...(role?.permissions ?? [])].sort()).toEqual([...ADMINISTRATION_READS].sort());
+  } finally {
+    await calls.dispose();
   }
 });

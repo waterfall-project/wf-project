@@ -107,6 +107,12 @@ type = "layers"
 layers = ["waterfall.witness", "waterfall.bootstrap | waterfall.restore", "waterfall.api | waterfall.worker | waterfall.migrations", "waterfall.schema", "waterfall.core", "waterfall.platform"]
 
 [[tool.importlinter.contracts]]
+name = "The modules of the core are ordered: the one above imports the one below, never the reverse (the cycle of #2124); projects and revisions sit between them and cost_settings; resource_settings imports no other module of the core"
+type = "layers"
+containers = ["waterfall.core"]
+layers = ["access_roles | backups | indicator_settings | risk_settings", "revisions", "projects", "cost_settings", "users", "resource_settings"]
+
+[[tool.importlinter.contracts]]
 name = "A module of the core reaches another only through its public interface"
 type = "independence"
 modules = ["waterfall.core.*"]

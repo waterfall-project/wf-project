@@ -61,11 +61,18 @@ class Workstation:
             "PATH": f"{bin_directory}{os.pathsep}{os.environ['PATH']}",
             "XDG_RUNTIME_DIR": str(root / "run"),
             "STAND_IN_LOG": str(self.log),
+            # An empty process table: claim and release stop no server of the workstation (US-1300).
+            "WATERFALL_SLOTS_PROC": str(self.empty_table()),
         }
         self.main.mkdir()
         self.git(self.main, "init", "--quiet")
         self.git(self.main, "commit", "--quiet", "--allow-empty", "--message", "start")
         (self.main / "frontend").mkdir()
+
+    def empty_table(self) -> Path:
+        table = self.root / "proc"
+        table.mkdir()
+        return table
 
     def git(self, directory: Path, *arguments: str) -> None:
         identity = ["-c", "user.name=test", "-c", "user.email=test@waterfall.test"]

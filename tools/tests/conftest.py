@@ -15,6 +15,18 @@ import pytest
 from wftools import mockdata
 
 
+@pytest.fixture(autouse=True)
+def no_process_table(
+    tmp_path_factory: pytest.TempPathFactory, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Point ``WATERFALL_SLOTS_PROC`` at an empty directory: no test can stop a server of the poste.
+
+    A test that needs a real table (an ephemeral port it listens on) passes ``/proc`` explicitly.
+    """
+    empty = tmp_path_factory.mktemp("process-table")
+    monkeypatch.setenv("WATERFALL_SLOTS_PROC", str(empty))
+
+
 @pytest.fixture(scope="session")
 def universe_computed() -> tuple[dict[str, Any], dict[str, Any]]:
     """Return the volumes and the named examples of the universe, computed once a session."""

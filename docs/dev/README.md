@@ -1584,9 +1584,9 @@ outside 0 to 24 or a negative capacity, with the bound crossed (`VALUE_OUT_OF_RA
 already carried by a calendar, deactivated ones included, names its carrier from the page, by its
 identifier, generically otherwise; the rest as for the costs, the stale version under the form
 with the offer to re-read; the screen no longer carries `MockupNotice` since US-0850: the service
-keeps what is written, and its paths are tagged `@shared` (the units of duration, which the service
-does not serve yet, wait for US-0860b). A write that would leave a task without a working hour — a
-calendar modified or designated as default, a role modified — is refused
+keeps what is written, and its paths are tagged `@shared` (the units of duration too, with
+`@serial`). A write that would leave a task without a working hour — a calendar modified or
+designated as default, a role modified — is refused
 (`TASK_WITHOUT_WORKING_HOURS`, « A task would have no working hour left in the week. ») by saying
 why and by naming each project involved by its label and its code, by its label alone without a code
 (`params.projects`, WF-PLA-0010), up to five in the sentence, as a list outside the alert beyond,
@@ -2794,7 +2794,7 @@ its side; a failure of the chain is therefore reproduced by the same command.
 | `make service-witness`                                                  | loads the witness on the service platform, started and bootstrapped (`waterfall-api load-witness`, service `witness`, EP-05): the examples of the contract, `fixtures/api/`, mounted read-only, written by the role of the service; run again, it writes nothing; one slice per object, in the order of the dependencies, in one transaction ("The back and the boundaries of the core")                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
 | `make service-up`, `make service-down`                                  | starts, stops the service platform (`deploy/compose/compose.service.yaml`: PostgreSQL, Redis, the Garage object storage and its buckets, the migrations, the API, the worker and the scheduler of its tasks, the restoration service, Keycloak behind its HTTPS front end and its realm, applied again at each start by `keycloak-realm`, which stays started to reapply it after a restoration, OpenLDAP, Mailpit); it requires its secrets in the environment (below), and `service-down WATERFALL_RESET_DATA=yes` also deletes its databases, its storage, its directory and the authority of its front end; `service-up` refuses a PostgreSQL volume of another major than 18, printing the refusal of `postgres-volume`, which says this remedy (US-1130)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
 | `make keycloak-authority`                                               | copies out of the platform the root of the authority of Keycloak's front end, into `deploy/compose/.authority/root.crt`, which git ignores; `service-up` and `test-keycloak` do it at each start                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
-| `make e2e-service`                                                      | the paths of the Playwright project `service` (`frontend/e2e/service/`), and those of `shared` (the tag `@shared`), against the real service, through Prism as a proxy (« An end-to-end path »); same secrets as `service-up`, and the browser of `make e2e-browsers`; it loads the witness after the bootstrap, as `make service-witness` does                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| `make e2e-service`                                                      | the paths of the Playwright project `service` (`frontend/e2e/service/`), and those of `shared` (the tag `@shared`), against the real service, through Prism as a proxy (« An end-to-end path »); same secrets as `service-up`, and the browser of `make e2e-browsers`; it loads the witness after the bootstrap, as `make service-witness` does; `TESTS=<arguments of playwright test>`: a single file also plays `installation` and, if it carries a `@realm-wide` or `@platform-wide` path, the projects its own depends on (`service`, `shared`, `shared-serial`); `TESTS="--no-deps --project=shared --project=realm e2e/reference-resources.spec.ts e2e/service/reference-manager.spec.ts"` plays only those files, without `installation` (on an installation already played)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
 | `make service-logs`                                                     | the logs of the services of the platform, those of `SERVICES` (`SERVICES="keycloak openldap"`), all by default                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
 | `make test-services`, `make test-services-down`                         | start, remove the services of the tests (`deploy/compose/compose.test.yaml`: PostgreSQL 18, Redis, Garage, in memory) for the slot of the worktree, on its ports (`SERVICES=redis` starts only some); `test-services` waits for them to answer and does nothing more if they run, `test-services-down` removes them with their volumes; `make test-back` and the other tests that need them start them by themselves                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
 | `make migrate`                                                          | applies the migrations to the database `WATERFALL_DATABASE_URL` designates                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
@@ -2868,10 +2868,10 @@ start interrupted before that copy leaves the marker: the data never served, and
 the script empties them and loads the seed again, as it does on two empty volumes. Data with neither
 marker nor configuration are those of a directory that has served, whose configuration volume is
 gone: the script refuses (code 1) to seed them again, which would give its people other identifiers,
-and says the remedy, `make service-down WATERFALL_RESET_DATA=yes`. That holds too for the volume an
-interrupted seeding left before this lot, without a marker: it is now refused, and the remedy
-deletes it. The volumes of the image of before, that of `osixia`, serve as they are: their people
-keep their identifiers.
+and says the remedy, `make service-down WATERFALL_RESET_DATA=yes`. That holds too for a volume an
+interrupted seeding left without a marker (an older version of the script): it is refused, and the
+remedy deletes it. The volumes of the previous image, that of `osixia`, serve as they are: their
+people keep their identifiers.
 
 The ports given here are those of the main repository, at slot 0; a worktree of a lot has those of
 the block of its slot (« The slots of the worktrees », below).
@@ -2888,13 +2888,37 @@ through `gh`, and touches nothing else: `LOT=<identifier>` (`US-1080` for a stor
 `US-1120/L2` for a lot of a story that has several) with `STATE`, `PR` or `MODEL`, only those given
 changing; `US=<identifier> STATUS=…`; `FINDING=<n> ATTACHED=… DECISION=…`, which adds the finding
 (the title of its issue without the `[EP-nn]`, `à trancher` in bold), changes it where it is, or
-removes it when its issue is closed. The columns are found by their header; the target refuses,
-non-zero code and body unchanged, a line it does not find, a value with a line break and a row of
-the table shorter than its header; a `|` in a value is escaped. It takes a variable only from the
-command line of make (a `PR` exported on the workstation changes nothing) and ignores an empty
-value (`STATE=`). It reads the body again under a lock of
-the workstation of its own for the issue, `$XDG_RUNTIME_DIR/waterfall-tracking-<issue>.lock`
+removes it when its issue is closed. The lot cut at the request of the reviewer is written by it
+too, never by hand: `LOT=<identifier> DEPENDS=<list>` replaces the cell « Dépend de »;
+`ADD_LOT=<identifier> AFTER=<lot> [DEPENDS=<list>] [MODEL=…] [LOT_ISSUE=<n>]` inserts, under the
+lot `AFTER` and in the same story, the row of the new lot (`US-0820b` for the part cut off a story
+of one lot, `US-1270/L3` for a story of several; cells `#`, `US`, « Statut » empty, « Dépend de »
+the list or `—`, « État du lot » `à faire`) and refuses a lot already there;
+`REPLACE_DEPENDENCY='<old>=<new>'` replaces the mention of the old lot in « Dépend de » of every
+row that holds it, except the row of the new lot itself, removes with it the ` #n` that follows it
+(the issue of the old lot never stays on the new one), says how many rows changed and refuses when
+none holds the old one. `LOT` recognises `US-0820b`, `US-1270/L2b` and a cell `lot unique (#1840)`
+or `lot unique — en dernier`. The columns are found by their header; the target refuses, non-zero
+code and body unchanged, a line it does not find, an empty value or one with a line break, and a
+row of the table shorter than its header; a `|` in a value is escaped. It takes a variable only
+from the command line of make (a `PR` exported on the workstation changes nothing) and ignores an
+empty value (`STATE=`). It reads the body again under a lock of the workstation of its own for the
+issue, `$XDG_RUNTIME_DIR/waterfall-tracking-<issue>.lock`
 (`/tmp` by default), just before writing it: two simultaneous calls each keep their change.
+
+`make merge-queue-check EPIC=EP-nn` checks that an active ruleset targets `refs/heads/epic/EP-nn`
+with a `merge_queue` rule (`wftools.mergequeue`, through `gh api`), and fails saying what is
+missing: no ruleset, no queue rule, an inactive ruleset. It passes as soon as one of the rulesets
+targeting the branch is active with a `merge_queue` rule; a ruleset that excludes the branch does
+not target it. The references of `include` and `exclude` are read as patterns, by `fnmatch`
+with `FNM_PATHNAME`, as GitHub reads them (`refs/heads/epic/*`, `~ALL`): a `*` or a `?` stops at
+a `/`, a `**` crosses it, so `refs/heads/*` does not target `refs/heads/epic/EP-nn`;
+`~DEFAULT_BRANCH` is not resolved.
+`make merge-queue EPIC=EP-nn` creates that ruleset, « merge queue epic/EP-nn », from the model
+`.github/rulesets/merge-queue.json` (the copy of the EP-05 ruleset, without identifiers or dates),
+and refuses when a ruleset already targets the branch or when `EPIC` is missing or not of the form
+`EP-nn`. It is reserved to a person: a deliverer never runs it, it runs the check and, when it
+fails, asks the question; the guard (`guard.py`) refuses the `merge-queue` target to an agent.
 
 The workstation admits only `WATERFALL_SLOTS` heavy runs at a time — the whole tests and the
 coverage of the back and the front, `make test-tools`, the production build of the front, the
@@ -2917,11 +2941,12 @@ images: two deliverers play the end-to-end paths, the tests of Keycloak or the p
 service together without colliding. The main repository, like every runner of the chain, is at
 slot 0: its ports and its names are those of before the slots.
 
-| Command             | What it does                                                                                                                                                                                                            |
-| ------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `make slot`         | takes for the worktree it is run in the first free slot from 1 to N, or says its own; if the N are taken, it fails, holders named; in the main repository (its `.git` is a directory), it says slot 0, taking nothing   |
-| `make slot-release` | removes the containers and the volumes of the slot of the worktree — the service platform, the services of the tests —, then frees it; if Docker cannot remove them, the slot stays taken, and it says so               |
-| `make slots`        | writes N, then each slot taken on the workstation, whatever the repository, with its worktree and the moment it was taken                                                                                               |
+| Command             | What it does                                                                                                                                                                                                                                                                                                            |
+| ------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `make slot`         | takes for the worktree it is run in the first free slot from 1 to N, or says its own; if the N are taken, it fails, holders named; in the main repository (its `.git` is a directory), it says slot 0, taking nothing                                                                                                   |
+| `make slot-release` | stops the e2e servers of the slot, removes its containers and volumes — the service platform, the services of the tests —, then frees it; if Docker cannot remove them, the slot stays taken, and it says so                                                                                                            |
+| `make e2e-down`     | stops the processes of the user that listen on the e2e ports of the slot — the fake back, the fronts of the paths (at slot 0, 4110 and 3100 to 3139) —, each found by its port in `/proc` and stopped by its PID: `SIGTERM`, then `SIGKILL` after five seconds; it says what it stops, and nothing when nothing listens |
+| `make slots`        | writes N, then each slot taken on the workstation, whatever the repository, with its worktree and the moment it was taken                                                                                                                                                                                               |
 
 The register of the workstation is `$XDG_RUNTIME_DIR/waterfall-slots/` — `/tmp/waterfall-slots/`
 without `XDG_RUNTIME_DIR`, like the locks of the heavy runs: a file `<i>` per slot taken, which
@@ -2931,7 +2956,8 @@ written under an exclusive lock of the register (`tools/src/wftools/slots.py cla
 holder left in it (`docker compose -p <project> down --volumes`, for each of its two projects),
 the lock of the register held until that removal has succeeded, as `make slot-release` holds it: a
 `make slot` started meanwhile waits, saying so, and if Docker fails, the slot is not taken, and the
-next `make slot` does the removal again. `slots.py which` says the slot of the current worktree.
+next `make slot` does the removal again. Before that removal, both stop the e2e servers the slot
+left (`make e2e-down`). `slots.py which` says the slot of the current worktree.
 
 At slot i from 1 to 9, the ports are those of the block `20000 + 100·i`, below the range of the
 ephemeral ports of Linux; at slot 0, those of before:
@@ -2973,8 +2999,18 @@ that what was removed in the meantime is started again —, the tool runs `make 
 the services whose variable `WATERFALL_TEST_DATABASE_URL`, `WATERFALL_TEST_REDIS_URL` or
 `WATERFALL_TEST_STORAGE_URL` is not set, and sets it on their port; a variable the environment
 already gives wins, its service is not started, and the job of the chain, which sets all three, is
-not changed. `make slot-release` removes them with the service platform. In a linked worktree
-without a slot, the two targets fail, saying `make slot`.
+not changed. `make slot-release` removes them with the service platform. Two runs started together
+in a worktree make only one `make test-services` at a time, under a lock of the slot
+(`$XDG_RUNTIME_DIR/waterfall-test-services.<slot>.lock`): the second waits, saying so, then finds
+the services started. In a linked worktree without a slot, these targets and `make e2e-down` fail,
+saying `make slot`.
+
+**The e2e servers.** `make e2e`, `make e2e-service` and `make check-front` start a fake back and
+fronts (`next-server`) that a brutal stop can leave listening, a core busy, for hours.
+`make e2e-down` stops them for the slot of the worktree, by their port and their PID, never by
+their name: run it as soon as one of these targets is interrupted, and before `make slot-release`
+(which calls it anyway). It leaves alone the containers, which `make service-down` and
+`make slot-release` remove, and the servers of `make dev` and `make mock` started by hand.
 
 **The trial at N = 4** (EP-19, outside the epic). The proof of EP-19 is played at N = 2, on the
 current workstation. Four deliverers together are only tried when the new machine arrives, and the
@@ -3314,7 +3350,8 @@ _Check_: `make reuse` fails on a file covered neither by a header nor by
 
 ## Repository tools
 
-The tools live in `tools/`, in Python, with their tests (`make test-tools`). Every tool
+The tools live in `tools/`, in Python, with their tests (`make test-tools`, which needs Docker:
+the test of the service Compose runs `docker compose config` and fails without it). Every tool
 that needs the requirements reads them through `wftools.projection`, which reads the projection
 `docs/spec/waterfall-spec.md`: one single reader, so that two tools cannot
 diverge on what a requirement says. It compares the texts after normalisation — apostrophes
@@ -3825,6 +3862,18 @@ hooks: a hook declared in a module that the files import is declared once in a w
 first of its files alone. A path whose assertion differs between the two — a write the fake back
 does not keep — reads `inService`.
 
+A path of the administration or of the state carries `@administration` beside `@shared`, in its
+title as `@shared`: the `administration` fixture of `mode.ts` then signs it in with an account of
+the run, one for each worker, that holds the role « Administrateur (parcours) » — `users.read`,
+`access_roles.read`, `system_status.read`, `audit_log.read`, `backups.read`, and neither
+`users.write` nor `access_roles.write` —, which `installation.setup.ts` creates, alone and first.
+The "Manager" is given neither `users.*` nor `system_status.read`; and `give` still refuses the two
+permissions of the administration to an account other than the administrator of the installation, on
+which the `LAST_ADMINISTRATOR` refusals of `roles.spec.ts` depend: the role holds reads alone. Each
+`@shared` path also resets the grid preferences of the account it signs in (`resetGridPreferences`,
+`updateMyPreferences`), which a sort or a filter of an earlier path would have left (#2282),
+which `service/grid-reset.spec.ts` tests.
+
 The project `shared` thus plays the paths of the project against the loaded witness, the slice of
 the projects included ("The back and the boundaries of the core"): PRJ-001 in Pricing, its
 revisions 100 and 101 marked, the 102 open, with no task, no line and no reference. Their
@@ -3860,26 +3909,27 @@ the epic that lifts it; that epic removes the guard and its entry:
   installation, it leaves one more account and one more project there, the restoration taking back
   all the rest.
 - `project-start.spec.ts` — the start towards the planning: the opening of PRJ-001 that leads to its
-  planning, the screen of the work breakdown that generates the planning, and the encart « Démarrer le
-  projet » of a project created, which the service does not offer to the account of the run before the
-  structures (`BEFORE_EP06`): lifted by **EP-06**, which serves the structures, the import of a
-  planning and `generatePlanningSkeleton`. The work breakdown of a project created, written then read
-  anew, plays since US-0950 (twin path, `SERVICE_ONLY`).
+  planning, the screen of the work breakdown that generates the planning, and the encart « Démarrer
+  le projet » of a project created, which the service does not offer to the account of the run
+  before the structures (`BEFORE_EP06`): lifted by **EP-06**, which serves the structures, the
+  import of a planning and `generatePlanningSkeleton`. The work breakdown of a project created,
+  written then read anew, plays since US-0950 (twin path, `SERVICE_ONLY`).
 - `context.spec.ts` — the banner of the context on the screens of the data, the planning, the
   remaining to commit, the risks and the indicators, and on a differential structure
-  (`BEFORE_THE_DATA`): lifted screen by screen by **EP-06** (the planning, the structures), **EP-07**
-  (the remaining to commit), **EP-08** (the risks) and **EP-10** (the indicators). The banner of the
-  screens of a project created, its settings and its revisions, plays since US-1000.
+  (`BEFORE_THE_DATA`): lifted screen by screen by **EP-06** (the planning, the structures),
+  **EP-07** (the remaining to commit), **EP-08** (the risks) and **EP-10** (the indicators). The
+  banner of the screens of a project created, its settings and its revisions, plays since US-1000.
 - `projects.spec.ts` — the paths that write to PRJ-001 or reach it through its planning: the screen
   of the project, its settings and its lifecycle, the exit, the sub-projects and the contributors,
   the work breakdown (`FAKE_BACK_ONLY`): the account of the run is not a project manager of PRJ-001,
   by decision (#2193, option A), which no epic reverses — which the twins replay —, and the planning
-  its page leads to is **EP-06**'s. Each has its twin, played against the service alone on a project the account creates
-  (`SERVICE_ONLY`, `own-project.ts`): settings, lifecycle, sub-projects, work breakdown,
-  contributors (a second account, enrolled through the API since the screen proposes the accounts of
-  the estimate alone, WF-PRJ-0070-A; the quality of that account is changed on the screen, then read
-  anew after a reload) and an exit to Lost from Pricing, read anew. The reading of PRJ-001 — the list, the sorts and the filters of the home, the
-  lists of its settings — plays on both sides.
+  its page leads to is **EP-06**'s. Each has its twin, played against the service alone on a project
+  the account creates (`SERVICE_ONLY`, `own-project.ts`): settings, lifecycle, sub-projects, work
+  breakdown, contributors (a second account, enrolled through the API since the screen proposes the
+  accounts of the estimate alone, WF-PRJ-0070-A; the quality of that account is changed on the
+  screen, then read anew after a reload) and an exit to Lost from Pricing, read anew. The reading of
+  PRJ-001 — the list, the sorts and the filters of the home, the lists of its settings — plays on
+  both sides.
 
 The two readers of a project (`service/project-readers.spec.ts`, WF-ADM-0040-A) play against the
 service alone: two local accounts holding « Manager » and « Chef de projet », one reading in French
@@ -3887,27 +3937,6 @@ and keeping every column, the other in English with a column hidden, read the sa
 contributors and its revisions; the first creates it and opens a revision through the screens, and
 enrols the other through the API under her token.
 
-The paths that depend on what the service does not do yet, or does not serve, are not replayed
-against it, being untagged; each is still played against the fake back, by `chromium`. What
-depends on the clock: nothing in the reference, whose dates are those of the loading (WF-DAT-0070)
-and which the paths do not wait for. On a screen the service does not serve, or that the account of
-the run is not offered: the opening, from `/`, of the portfolio in `navigation.spec.ts`, lifted by
-**EP-11**, and that of the status screen of the system, lifted by **EP-13**; that of the
-administration, which **no epic lifts**: the role "Manager" of `mode.ts` holds no `users.*`
-permission, and the administration screens the service serves play in `frontend/e2e/service/`;
-likewise almost all the paths of `admin.spec.ts` (`:40` to `:455`, only `:479` is `@shared`), not
-lifted for the same reason. The home is served since US-0920/L2 and plays on both sides
-(`projects.spec.ts`, and the icon of the tab in `navigation.spec.ts`), as do the screens of a project
-since US-1000 (among them, in `navigation.spec.ts`, the move from the settings to the lifecycle).
-Untagged in `navigation.spec.ts` stay the way back to the previous project from a function outside
-any project, which reopens the remaining to commit then the risks of PRJ-001 (lifted by **EP-07**
-and **EP-08**), and the address of the project that leads to its planning, with its reading context
-(lifted by **EP-06**). On what their US does not tag yet:
-the reading of the settings outside any project (`reference-costs.spec.ts`, US-0250); the
-change of the units of duration (`reference-resources.spec.ts`), which writes the single object of
-the installation and asserts the echo of the fake back ("7 and 35"): it would be played in series
-(rule below), which the `realm` project does today only for `frontend/e2e/service/` (#2178).
-The `inService` guards of the tagged paths are not paths that are not replayed: the path is played on both sides, and only the assertion of a
 write differs (what was entered, read anew after a reload; a code and a label of the run's own,
 which the service keeps; a state left as it was found) — `reference-costs.spec.ts`,
 `reference-resources.spec.ts`, `reference-settings.spec.ts`,
@@ -3918,13 +3947,14 @@ and leaves them deactivated or removed at its end: the `shared` workers play in 
 installation, and an object of the witness that a path changes, even for the time it runs, changes
 under the eyes of those who read it or compare it with its examples (state, `lock_version`, audit
 dates — #2087). The paths that change a single object of the installation — the settings, the units
-of duration, the correspondence of the actual costs — are played in series, alone, not in parallel
-with the others. A path that must reactivate one of the witness does so in a `finally` that puts it
-back as it found it, and it is an exception it states, not the rule.
-Three paths depart from this rule today, pending #2211: the change of the units of duration
-(`reference-resources.spec.ts`, untagged), that of the settings (`reference-settings.spec.ts`) and
-that of the correspondence of the actual costs (`reference-actual-cost-mapping.spec.ts`), tagged
-`@shared` and yet writing these single objects.
+of duration, the correspondence of the actual costs — carry the `@serial` tag beside `@shared`: the
+`shared-serial` project plays them alone, on one worker, after `shared` and before `realm` and
+`restoration`, and `shared` leaves them out (`grepInvert`); they assert their re-reading through
+`inService` like the others (#2211). A path that must reactivate one of the witness does so in a
+`finally` that puts it back as it found it, and it is an exception it states, not the rule.
+
+The wait for the lock of the composed roles (`giveRoles`, `ROLES_WAIT`) is 25 s, under the 30 s of a
+test: its message says the lock and the number of workers queued behind it (#2214).
 
 A limit of the paths against the service: Prism, as a proxy of the contract, reads every body as
 text and alters binary bodies — every byte beyond `0x7f` of an `application/octet-stream` request or
@@ -4633,6 +4663,11 @@ The rules are in the [README of the roadmap](../roadmap/README.md), sections « 
 « Branches », and in [CONTRIBUTING](../../CONTRIBUTING.md): one lot, one issue, one branch
 `lot/<identifiant>` created from `epic/EP-nn`, one pull request that returns to it.
 
+Each branch `epic/EP-nn` has its merge queue, one ruleset per branch (GitHub accepts none on a
+pattern). The deliverer of the first lot runs `make merge-queue-check EPIC=EP-nn` after pushing the
+branch; if it fails, a person runs `make merge-queue EPIC=EP-nn`, which creates the ruleset from the
+model `.github/rulesets/merge-queue.json` (see « Commands »). That target is reserved to a person.
+
 Each directory of `docs/` has its README in English, `README.md`, next to its French original,
 `README-fr.md`, which is the reference. A lot that changes a `README-fr.md` carries the same
 change, translated, to the neighbouring `README.md`, in the same pull request: a heading added,
@@ -4642,6 +4677,24 @@ not judge the translation; it proves that its structure follows the original.
 _Check_: `make readmes` (`wftools.readmes`, family `repo`), which fails on a `README-fr.md` of
 `docs/` without its `README.md`, or the reverse, and on a pair whose headings differ, one for
 one — in number, or in level at a given rank.
+
+### Taking `main` back into an epic's branch
+
+A branch `epic/EP-nn` lives several days while `main` receives other epics: taking `main` back
+into it keeps the conflicts from appearing at the merge of the epic, or at the delivery of a lot.
+
+- **Who.** A person: neither a deliverer, nor a developer, nor the pilot does it on their
+  own.
+- **When.** After each merge into `main`, and before a lot starts from a branch that is behind.
+- **How.** A branch `sync/EP-nn-main-k` (`k` numbers the synchronisations of the epic), created
+  from an up-to-date `epic/EP-nn`; `git merge origin/main`; the conflicts are resolved by keeping
+  both facts, never one of the two; `make check BASE=origin/epic/EP-nn` passes; a pull request to
+  `epic/EP-nn`, queued like a lot's. The conflicts are settled there, in that pull request, and
+  not at the delivery of a lot that would find them. The lots in flight take the new tip of
+  `epic/EP-nn` (`git merge origin/epic/EP-nn`) before they are queued.
+- **What it cost, on 6 and 7 November 2026.** A synchronisation was queued again twice: lots were
+  merged into `epic/EP-nn` during its chain, and the queue redid it each time on a tip that had
+  changed. It is queued when no lot is in review, or it is redone.
 
 ## Commit signing
 
@@ -4684,3 +4737,29 @@ already merged. Order: the key registered and verified, the merge of EP-15, then
 commits » on `main` (*Settings → Rules*), before creating the branch of the next epic. The rule
 targets neither `epic/*` nor `lot/*`. No check of the chain duplicates it: it is GitHub that
 refuses, hence this section.
+
+The paths that depend on what the service does not do yet, or does not serve, are not replayed
+against it, being untagged; each is still played against the fake back, by `chromium`. What
+depends on the clock: nothing in the reference, whose dates are those of the loading (WF-DAT-0070)
+and which the paths do not wait for. On a screen the service does not serve: the opening, from `/`,
+of the portfolio in `navigation.spec.ts`, lifted by **EP-11**, and that of the status screen of the
+system, lifted by **EP-13** (`getSystemStatus`, #2307). The administration, for its part, is read
+under `@administration` (the account of the run holds there not the role "Manager" but
+« Administrateur (parcours) »): the paths of `admin.spec.ts` that read are
+`@shared @administration`. Not replayed are those of `admin.spec.ts` that write — the backups
+(start, keep, restore), the schedule of the backups, the accounts and the roles: each writes a
+single object of the installation, or asks for `users.write` or `access_roles.write`, which the
+account of `@administration` lacks, and which the paths of `frontend/e2e/service/`
+(`backups.spec.ts`, `accounts.spec.ts`, `roles.spec.ts`) prove as the administrator of the
+installation. The home is served since US-0920/L2 and plays on both sides (`projects.spec.ts`, and
+the icon of the tab in `navigation.spec.ts`), as do the screens of a project since US-1000 (among
+them, in `navigation.spec.ts`, the move from the settings to the lifecycle). Untagged in
+`navigation.spec.ts` stay the way back to the previous project from a function outside any project,
+which reopens the remaining to commit then the risks of PRJ-001 (lifted by **EP-07** and **EP-08**),
+and the address of the project that leads to its planning, with its reading context (lifted by
+**EP-06**). On what their US does not tag yet: the reading of the settings outside any project
+(`reference-costs.spec.ts`, US-0250). The change of the units of duration
+(`reference-resources.spec.ts`), which writes the single object of the installation, plays as
+`@serial` in the project `shared-serial`, like the other paths that write a single object.
+The `inService` guards of the tagged paths are not paths that are not replayed: the path is played
+on both sides, and only the assertion of a

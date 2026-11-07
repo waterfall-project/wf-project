@@ -15,7 +15,7 @@ import { expect } from "@playwright/test";
 import { WORKING } from "./hydration";
 import { inService, test } from "./mode";
 
-test("modifies the risk matrix and the thresholds of the indices in their forms, a bound out of order refused before asking, no mock-up notice, the service alone proving it kept them (US-0810/L2) @shared [WF-REF-0160-A] [WF-REF-0170-A] [WF-REF-0180-A]", async ({
+test("modifies the risk matrix and the thresholds of the indices in their forms, a bound out of order refused before asking, no mock-up notice, the service alone proving it kept them (US-0810/L2) @shared @serial [WF-REF-0160-A] [WF-REF-0170-A] [WF-REF-0180-A]", async ({
   page,
 }) => {
   test.slow();

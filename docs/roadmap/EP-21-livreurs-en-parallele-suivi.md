@@ -329,8 +329,9 @@ différence : N y vaut 1, et aucune cible neuve n'y est appelée.
 
 ### Les autorisations, la liste de ruff, la file de fusion (US-1350, US-1360, US-1370)
 
-- **`.claude/settings.json`** gagne `permissions.allow` avec les vingt-et-une règles d'US-1350 ; le
-  hook reste ; le fichier est déjà dans `REUSE.toml`. Un test des outils le lit en JSON.
+- **`.claude/settings.json`** gagne `permissions.allow` avec les vingt-et-une règles d'US-1350,
+  puis `make e2e-down` (#2354, US-1340) ; le hook reste ; le fichier est déjà dans `REUSE.toml`.
+  Un test des outils le lit en JSON.
 - **`ruff.toml`** : une entrée `"backend/src/waterfall/api/<module>.py" = ["TC001", "TC002",
   "TC003"]` par module, triées, le commentaire une fois au-dessus ; le test des outils (dans
   `test_rules.py`, qui éprouve déjà `ruff.toml`) lit le TOML par `tomllib`, relève les modules
@@ -389,7 +390,7 @@ US-1310) — donnent les « Pas avec » du plan de lots.
 
 ## US-1290 — `make tracking` écrit ce que le pilote écrivait à la main
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : aucune — outil du dépôt
 - **opérations** : aucune
 - **issue** : #2246
@@ -438,6 +439,9 @@ La ligne d'un lot coupé prend la place juste après le lot qu'elle détache, et
 la roadmap, « Lots » ; `epic-deliverer`, point 3). Les lignes d'EP-05 écrites à la main (#2032) sont
 la forme à reproduire : `|   |   |   | US-0820b #2099 | US-0820 #2036 | — | fusionné | #2118 | sonnet |`.
 
+Le `#<issue>` de la ligne insérée (`L3 #<issue>`) vient de `LOT_ISSUE=<n>` (Makefile) ou
+`--issue-number` (outil) : sans lui, la ligne n'a pas d'issue (#2288).
+
 **Hors périmètre.**
 
 Une réécriture de l'ordre des US, ou l'ajout d'une US : le tableau est écrit une fois par le cadreur,
@@ -447,7 +451,7 @@ et une US nouvelle est un recadrage.
 
 ## US-1300 — Un créneau se rend entier
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : aucune — outil du dépôt
 - **opérations** : aucune
 - **issue** : #2247
@@ -502,7 +506,7 @@ n'en fait pas partie »).
 
 ## US-1310 — Le garde voit les formes qu'un agent écrit sans malice
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : aucune — outil du dépôt
 - **opérations** : aucune
 - **issue** : #2251
@@ -552,7 +556,7 @@ variable en position de mot de commande — reste une limite connue, et n'entre 
 
 ## US-1320 — La chaîne attrape ce que la file a attrapé tard
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : aucune — outil du dépôt
 - **opérations** : aucune
 - **issue** : #2252
@@ -606,7 +610,7 @@ pris (miroir des images, cache, `installation.setup`), s'ils ne sont pas retenus
 
 ## US-1330 — Les parcours d'administration et les parcours en série contre le service
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : aucune — outil du dépôt
 - **opérations** : aucune
 - **issue** : #2253
@@ -669,7 +673,7 @@ L'amorçage de `risk_settings.write` et `indicator_settings.write` dans le « Ma
 
 ## US-1340 — Finitions d'outils et de guide, et les textes des deux jours à quatre livreurs
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : aucune — outil du dépôt
 - **opérations** : aucune
 - **issue** : #2254
@@ -715,7 +719,7 @@ redémarrage ne coûtent plus un lot (#2028, #2074, #2075, #2085).
 
 ## US-1350 — Les autorisations des livreurs suivent le dépôt
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : aucune — outil du dépôt
 - **opérations** : aucune
 - **issue** : #2249
@@ -755,7 +759,7 @@ que le livreur écrit.
 
 ## US-1360 — La liste d'exemption de `ruff.toml` fusionne et se tient
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : aucune — outil du dépôt
 - **opérations** : aucune
 - **issue** : #2250
@@ -789,7 +793,7 @@ déclarent pas de routeur et restent exemptés pour la raison écrite aujourd'hu
 
 ## US-1370 — La file de fusion d'une branche d'EPIC se crée et se vérifie par le Makefile
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : aucune — outil du dépôt
 - **opérations** : aucune
 - **issue** : #2248

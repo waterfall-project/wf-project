@@ -65,12 +65,12 @@ PRISM   := npx --yes @stoplight/prism-cli@$(PRISM_VERSION)
 	production-trial check-production \
 	test-tools lint-tools typecheck-tools sources fixtures check-fixtures requirements \
 	requirements-release screens readmes reuse lint-workflows \
-	lint-shell check slot slot-release slots test-services test-services-down \
+	lint-shell check slot slot-release e2e-down slots test-services test-services-down \
 	check-all check-repo check-spec \
 	check-contract check-back lint-back typecheck-back imports-back test-back check-front \
 	check-front-code check-front-e2e check-front-image \
 	install-front lint-front typecheck-front test-front build-front prerendered-front generate-client client-up-to-date generate-server-models server-models-up-to-date catalogs \
-	coverage-back coverage-front roadmap check-roadmap e2e e2e-measure e2e-browsers lot-size tracking \
+	coverage-back coverage-front roadmap check-roadmap e2e e2e-measure e2e-browsers lot-size tracking merge-queue merge-queue-check \
 	lint-docker changes gate \
 	check-tools clean
 
@@ -576,7 +576,7 @@ e2e-service: export E2E_PART = service
 e2e-service: export WATERFALL_ADMIN_EMAIL := $(E2E_ADMIN_EMAIL)
 e2e-service: export E2E_ADMIN_EMAIL := $(E2E_ADMIN_EMAIL)
 e2e-service: export E2E_BUILT = 1
-e2e-service: install-front mock-tools $(call e2e-build,$(E2E_DEV_SERVER)) ## End-to-end paths of the project `service` against the real service, through Prism as a proxy, on the front built for production (needs the secrets of service-up and a browser, make e2e-browsers)
+e2e-service: install-front mock-tools $(call e2e-build,$(E2E_DEV_SERVER)) ## End-to-end paths of the project `service` against the real service, through Prism as a proxy, on the front built for production (needs the secrets of service-up and a browser, make e2e-browsers); TESTS=<arguments of playwright test>: a file alone also plays installation and, with a @realm-wide or @platform-wide path, the projects its own depends on; TESTS="--no-deps --project=shared --project=realm <files>" plays only the files, on an installation already played
 	@$(MAKE) --no-print-directory mock-spec MOCK_SPEC=$(PROXY_SPEC)
 	@$(MAKE) --no-print-directory service-up
 	@$(COMPOSE_SERVICE) up --detach --wait contract-proxy
@@ -590,15 +590,18 @@ e2e-service: install-front mock-tools $(call e2e-build,$(E2E_DEV_SERVER)) ## End
 		WATERFALL_REDIS_URL=redis://:$${WATERFALL_REDIS_PASSWORD}@127.0.0.1:$${WATERFALL_REDIS_PORT:-6379}/0 && \
 		NODE_EXTRA_CA_CERTS=$(KEYCLOAK_AUTHORITY) && \
 		export E2E_INSTALLATION_LINK E2E_CONTRACT_PROXY E2E_SERVICE_DATABASE WATERFALL_API_ADDRESS WATERFALL_KEYCLOAK_ADDRESS WATERFALL_REDIS_URL NODE_EXTRA_CA_CERTS && \
-		$(PNPM) exec playwright test
+		$(PNPM) exec playwright test $(TESTS)
 
 # The slot of the worktree, among the N of WATERFALL_SLOTS, in the register of the workstation
 # ($XDG_RUNTIME_DIR/waterfall-slots, /tmp/waterfall-slots without it), whatever the repository.
 slot: ## Take a slot of 1 to N for this worktree of a lot — its ports and its names —, or say the one it holds; fails, naming the holders, when all are taken
 	@$(SLOTS) claim
 
-slot-release: ## Remove the containers and volumes of the slot of this worktree — the service platform, the services of the tests —, then free it
+slot-release: ## Stop the servers of the e2e paths, remove the containers and volumes of the slot of this worktree — the service platform, the services of the tests —, then free it
 	@$(SLOTS) release
+
+e2e-down: ## Stop the servers of the end-to-end paths of the slot of this worktree — the fake back, the fronts —, found by their ports and stopped by PID; after an interrupted e2e, e2e-service or check-front (US-1300)
+	@$(SLOTS) stop-servers
 
 slots: ## Print N, then the slots taken on the workstation and their worktrees
 	@$(SLOTS) list
@@ -620,12 +623,21 @@ lot-size: ## The real size of a lot, against its epic (BASE=origin/epic/EP-nn); 
 # exports the command-line variables to the recipe; an empty value is ignored.
 tracking_option = $(if $(filter command line,$(origin $(1))),$${$(1):+$(2) "$$$(1)"})
 
-tracking: ## Change one line of the tracking table of an epic's issue, under a lock: ISSUE=<n> with LOT=<id> [STATE PR MODEL], US=<id> STATUS=…, or FINDING=<n> ATTACHED=… DECISION=…
+tracking: ## Change a line of the tracking table of an epic's issue, under a lock: ISSUE=<n> with LOT=<id> [STATE PR MODEL DEPENDS], US=<id> STATUS=…, FINDING=<n> ATTACHED=… DECISION=…, ADD_LOT=<id> AFTER=<lot> [DEPENDS MODEL LOT_ISSUE], or REPLACE_DEPENDENCY='<old>=<new>'
 	@$(WFTOOLS).tracking $(call tracking_option,ISSUE,--issue) $(call tracking_option,LOT,--lot) \
 		$(call tracking_option,US,--us) $(call tracking_option,FINDING,--finding) \
 		$(call tracking_option,STATE,--state) $(call tracking_option,PR,--pr) \
 		$(call tracking_option,MODEL,--model) $(call tracking_option,STATUS,--status) \
-		$(call tracking_option,ATTACHED,--attached) $(call tracking_option,DECISION,--decision)
+		$(call tracking_option,ATTACHED,--attached) $(call tracking_option,DECISION,--decision) \
+		$(call tracking_option,ADD_LOT,--add-lot) $(call tracking_option,AFTER,--after) \
+		$(call tracking_option,DEPENDS,--depends) $(call tracking_option,LOT_ISSUE,--issue-number) \
+		$(call tracking_option,REPLACE_DEPENDENCY,--replace-dependency)
+
+merge-queue: ## Create the merge queue ruleset of an epic's branch from .github/rulesets/merge-queue.json (EPIC=EP-nn); for a person, never a deliverer
+	@$(WFTOOLS).mergequeue create "$(EPIC)"
+
+merge-queue-check: ## Check that an active ruleset with a merge queue targets an epic's branch (EPIC=EP-nn)
+	@$(WFTOOLS).mergequeue check "$(EPIC)"
 
 changes: ## Print which families of checks the change touches (BASE; HEAD, or the working tree)
 	@$(WFTOOLS).changes "$(BASE)" $(HEAD)
@@ -637,9 +649,11 @@ check-tools: ## Report which prerequisites are missing
 	@for t in python3 pandoc node npx pnpm uv docker; do \
 		command -v $$t >/dev/null && echo "  ok       $$t" || echo "  missing  $$t"; \
 	done
-	@v=$$(cut -d. -f1,2 $(TOOLS)/.python-version); \
+	@if [ ! -f $(TOOLS)/.python-version ]; then echo "  missing  $(TOOLS)/.python-version"; else \
+		v=$$(cut -d. -f1,2 $(TOOLS)/.python-version); \
 		python3 --version 2>/dev/null | grep -q "^Python $$(echo "$$v" | sed 's/\./\\./g')\." \
-		|| echo "  warning  python3 is not $$v, the version of $(TOOLS)/.python-version: the guard and the slots would run by another"
+		|| echo "  warning  python3 is not $$v, the version of $(TOOLS)/.python-version: the guard and the slots would run by another"; \
+	fi
 	@command -v pandoc >/dev/null && pandoc --version | head -1 | grep -q " 3.13$$" \
 		|| echo "  warning  pandoc is not 3.13: the projection would differ from the chain's"
 	@/usr/bin/pg_restore --version 2>/dev/null | grep -q " 18\." \

@@ -17,7 +17,7 @@ import { inService, test } from "./mode";
 
 const COLUMN = "Poste de la pièce";
 
-test("enters a label for the optional column of the extraction and saves the correspondence whole, the service alone proving it kept it, with no mock-up notice (US-0870) @shared [WF-REF-0190-A]", async ({
+test("enters a label for the optional column of the extraction and saves the correspondence whole, the service alone proving it kept it, with no mock-up notice (US-0870) @shared @serial [WF-REF-0190-A]", async ({
   page,
 }) => {
   test.slow();
