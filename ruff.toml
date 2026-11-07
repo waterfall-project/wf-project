@@ -72,7 +72,7 @@ convention = "pep257"
     "S603",    # tests run the repository's own commands
     "S607",
 ]
-"backend/src/waterfall/api/{access_roles,actual_cost_mapping,audit,authentication,avatars,backups,calendars,contributors,cost_types,evaluation,identity_syncs,lifecycle,me,org_nodes,projects,reference,reference_settings,restores,revisions,subprojects,system,tasks,uploads,users,work_breakdown}.py" = [
+"backend/src/waterfall/api/{access_roles,actual_cost_mapping,audit,authentication,avatars,backups,calendars,contributors,cost_types,evaluation,hourly_rates,identity_syncs,lifecycle,me,org_nodes,projects,reference,reference_settings,reference_settings_write,resource_roles,restores,revisions,subprojects,system,tasks,uploads,users,work_breakdown}.py" = [
     # FastAPI reads at run time the annotations of a route handler (the parameters, the body,
     # the response) and of a dependency (`authentication`, `evaluation`): their imports stay
     # real imports. Ruff cannot tell the handlers of a local `router = APIRouter()`, and
@@ -80,7 +80,8 @@ convention = "pep257"
     # given `TYPE_CHECKING` imports. The others (middleware, problems) are not exempt;
     # `queries` holds the dependency `audit_column_filters` and is safe only while its
     # annotations use local types or real imports: a parameter typed by an import brings it
-    # back here.
+    # back here. `reference_settings_write` holds no route: its write models are read by
+    # FastAPI and subclass `ContractModel`, which Ruff does not know for a model of Pydantic.
     "TC001",
     "TC002",
     "TC003",

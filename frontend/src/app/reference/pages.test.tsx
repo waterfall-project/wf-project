@@ -252,12 +252,12 @@ describe("the settings of the costs", () => {
     expect(queriesOf("GET /reference/cost-types")).toEqual([{}, WHOLE]); // no category form
   });
 
-  it("offer the creation and the modification of the natures and the categories to a session that may modify the cost settings, and say the fake back keeps nothing; neither to a session that may only read them [WF-IHM-0090-A]", async () => {
+  it("offer the creation and the modification of the natures and the categories to a session that may modify the cost settings, with no mock-up notice; neither to a session that may only read them [WF-IHM-0090-A]", async () => {
     const page = await costsAt();
     expect(text(page)).toContain("Nouvelle nature");
     expect(text(page)).toContain("Nouvelle catégorie");
     expect(page).toContain('aria-label="Modifier «\u00a0Débours\u00a0»"');
-    expect(page).toMatch(/<p role="note"[^>]*>.*?Maquette\u00a0: le service simulé ne conserve/);
+    expect(page).not.toContain('role="note"');
     server.answers = {
       ...server.answers,
       "GET /me": "me_estimator",

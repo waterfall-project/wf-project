@@ -498,8 +498,9 @@ fixent au lot, dans les deux langues, à côté des libellés des rôles prédé
   dans un fichier du module par objet (décision du 2026-11-05) ; US-0890 l'éprouve entière.
 - **Ce qu'elle lit** : les fichiers de `fixtures/api/` que `make mock-data` tient —
   `reference_settings.json`, `duration_units.json`, `cost_types.json`,
-  `volume/cost_categories.json`, `volume/hourly_rate_grid.json`, `calendars.json`,
-  `org_nodes_with_inactive.json`, `resource_roles.json` (désactivés compris),
+  `volume/cost_categories.json`, `volume/hourly_rate_grid.json`, `calendars_with_inactive.json`
+  (créés, puis les désactivés désactivés, pour que les rôles qui les citent naissent ; #2131,
+  auteur, 2026-11-06), `org_nodes_with_inactive.json`, `resource_roles.json` (désactivés compris),
   `actual_cost_mapping.json` —, validés par les modèles du contrat (`api/contract/models.py`) : le
   témoin est lu dans la forme du contrat, et un fichier qui s'en écarte arrête la commande. Elle ne
   recopie rien dans le paquet.
@@ -824,7 +825,7 @@ employée, toujours fausse ici, qu'EP-07 remplit) et ne manquent jamais.
 
 ## US-0830 — Les taux horaires annuels
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-REF-0050-A`, `WF-REF-0060-A`
 - **opérations** : `getHourlyRateGrid`, `listHourlyRates`, `setHourlyRate`
 - **issue** : 2040
@@ -937,7 +938,7 @@ agrégé (EP-11).
 
 ## US-0850 — Les rôles de ressources, leur capacité et la désactivation en cascade
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-REF-0090-A`, `WF-REF-0100-A`, `WF-REF-0080-A`
 - **opérations** : `listResourceRoles`, `createResourceRole`, `updateResourceRole`,
   `setResourceRoleActivation` ; `setOrgNodeActivation` (la cascade)
@@ -1187,7 +1188,7 @@ dans les grilles (EP-07).
 
 ## US-0890 — Le témoin chargé, et les parcours rejoués contre le service
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-QUA-0040-A`
 - **opérations** : aucune en propre ; le chargement passe par les interfaces du noyau
 - **issue** : 2043

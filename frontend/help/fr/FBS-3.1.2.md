@@ -12,7 +12,7 @@ Un taux sert au chiffrage des lignes de main-d’œuvre des projets. Sa modifica
 
 Ces commandes ne sont offertes qu’à qui peut modifier les paramètres de coûts :
 
-- Une cellule se saisit : la saisie enregistre le taux de cette catégorie pour cette année, seul. Un taux ne se vide pas.
+- Une cellule se saisit : la saisie enregistre le taux de cette catégorie pour cette année, seul, et le service le garde : la grille relue le montre. Un taux ne se vide pas, et il est strictement positif. Une catégorie ne porte qu’un taux par année : saisir un taux là où l’année en a déjà un, sans l’avoir relu, est refusé, et rien n’est écrit. Dès qu’une catégorie porte un taux, son type et celui de sa nature ne se changent plus.
 - **Ajouter une année à la grille** : l’**Année**, puis **Ajouter la colonne**. Aucune colonne ne se crée d’elle-même : la colonne ajoutée est vide, les taux des autres années inchangés, et elle n’entre dans la grille du serveur qu’avec son premier taux saisi. Une année que la grille a déjà, ou hors de 2000 à 2100, est refusée.
 - **Retirer la colonne**, pour une année ajoutée dont aucun taux n’est encore saisi.
 

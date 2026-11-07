@@ -13,7 +13,7 @@ settings to set: the slice writes nothing there.
 from typing import TYPE_CHECKING
 
 from waterfall.api.contract.models import ReferenceSettings
-from waterfall.api.reference_settings import SettingsWrite, change_of
+from waterfall.api.reference_settings_write import SettingsWrite, change_of
 from waterfall.core.cost_settings.interface import (
     read_reference_settings,
     reference_settings_installed,
