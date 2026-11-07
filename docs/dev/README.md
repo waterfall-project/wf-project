@@ -3774,7 +3774,8 @@ The "Manager" is given neither `users.*` nor `system_status.read`; and `give` st
 permissions of the administration to an account other than the administrator of the installation, on
 which the `LAST_ADMINISTRATOR` refusals of `roles.spec.ts` depend: the role holds reads alone. Each
 `@shared` path also resets the grid preferences of the account it signs in (`resetGridPreferences`,
-`updateMyPreferences`), which a sort or a filter of an earlier path would have left (#2282), which `service/grid-reset.spec.ts` tests.
+`updateMyPreferences`), which a sort or a filter of an earlier path would have left (#2282),
+which `service/grid-reset.spec.ts` tests.
 
 The paths that depend on what the service does not do yet, or does not serve, are not replayed
 against it, being untagged; each is still played against the fake back, by `chromium`. What depends
