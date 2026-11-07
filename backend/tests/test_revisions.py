@@ -191,7 +191,9 @@ def test_the_description_given_at_the_opening_is_kept_on_the_current_revision(
 ) -> None:
     # ``RevisionCreate.description`` is kept on the current revision, read with it, for its marking
     # to take up (#2171); none given, it has none. The Vérif of WF-REV-0090 is the marking's, which
-    # US-0970 holds: this test cites no requirement.
+    # ``test_revision_mark.py`` holds, in
+    # ``test_the_description_of_the_marking_follows_the_rule_of_the_update_of_a_project``: this
+    # test cites no requirement.
     revision = open_revision(api, stage, description="Chiffrage de l'appel d'offres")
     assert revision["description"] == "Chiffrage de l'appel d'offres"
     path = f"{revisions_of(stage.project['project_id'])}/{revision['revision_id']}"

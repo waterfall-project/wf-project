@@ -23,10 +23,11 @@ from sqlalchemy.orm import Session
 from support import WITNESS, raw_account, wait_for_a_lock
 
 from waterfall.core.projects.tables import Contributor, Project
-from waterfall.core.users.interface import read_account_labels
 from waterfall.core.users.tables import UserAccount
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     from httpx2 import Response
     from realm import TestRealm
     from sqlalchemy import Engine
@@ -341,7 +342,6 @@ def test_an_account_that_is_unknown_or_deactivated_is_refused_at_its_line(
     assert read(api, stage, stage.manager)["lock_version"] == 0
 
 
-@pytest.mark.requirement("WF-PRJ-0060-A")
 def test_an_account_written_twice_is_refused_at_its_repeated_line(
     api: ContractClient, stage: Scene
 ) -> None:
@@ -361,7 +361,6 @@ def test_an_account_written_twice_is_refused_at_its_repeated_line(
     assert read(api, stage, stage.manager)["lock_version"] == 0
 
 
-@pytest.mark.requirement("WF-PRJ-0060-A")
 def test_a_list_of_more_than_five_hundred_lines_is_refused_whole(
     api: ContractClient, stage: Scene
 ) -> None:
@@ -385,29 +384,70 @@ def test_a_list_of_more_than_five_hundred_lines_is_refused_whole(
     assert read(api, stage, stage.manager)["lock_version"] == 0
 
 
-def test_the_accounts_of_a_list_are_read_in_one_statement(stage: Scene) -> None:
-    # The accounts of the lines are read in bulk, their label alone, deactivated and anonymised
-    # ones included, an identifier no account bears left out (#2167).
+def test_the_accounts_of_a_list_are_read_in_bulk_whatever_its_size(
+    api: ContractClient, stage: Scene
+) -> None:
+    # The accounts of the lines are read in bulk (#2167): the statements that read ``user_account``
+    # around a write and a reading of the list are as many for 3 lines as for 48. Only the
+    # statements on that table are counted, so that no other thread's can make the count vary.
+    # Deactivated and anonymised accounts keep their label, as before.
     leaver = account(stage.database, "Alix", "Moreau", active=False)
     forgotten = account(stage.database, "", "", anonymized=True)
-    wanted = [stage.manager.user_id, leaver, forgotten, uuid4(), leaver]
+    crowd = [account(stage.database, f"Prenom{row}", f"Nom{row}") for row in range(47)]
     statements: list[str] = []
 
     def count(*caught: Any) -> None:
         statements.append(caught[2])
 
-    event.listen(stage.database.engine, "before_cursor_execute", count)
-    try:
-        with stage.database.transaction() as session:
-            labels = read_account_labels(session, wanted)
-    finally:
-        event.remove(stage.database.engine, "before_cursor_execute", count)
-    selects = [each for each in statements if each.lstrip().upper().startswith("SELECT")]
-    assert len(selects) == 1, selects
-    assert set(labels) == {stage.manager.user_id, leaver, forgotten}
-    assert (labels[leaver].first_name, labels[leaver].is_active) == ("Alix", False)
-    assert (labels[forgotten].last_name, labels[forgotten].is_active) == (None, False)
-    assert labels[stage.manager.user_id].is_active
+    def accounts_read(call: Callable[[], Response]) -> tuple[Response, int]:
+        statements.clear()
+        event.listen(stage.database.engine, "before_cursor_execute", count)
+        try:
+            answer = call()
+        finally:
+            event.remove(stage.database.engine, "before_cursor_execute", count)
+        reads = [
+            each
+            for each in statements
+            if each.lstrip().upper().startswith("SELECT") and "user_account" in each
+        ]
+        return answer, len(reads)
+
+    def listing() -> Response:
+        return api.get(path(stage), headers=stage.manager.headers)
+
+    # Deactivated and anonymised accounts are inscribed around the service: the write refuses them.
+    inscribe(stage.database, stage, leaver, CONTRIBUTOR)
+    inscribe(stage.database, stage, forgotten, CONTRIBUTOR)
+    listed, few_listed = accounts_read(listing)
+    assert listed.status_code == 200, listed.text
+    few_items = len(listed.json()["items"])
+    items = {item["user_id"]: item for item in listed.json()["items"]}
+    assert (items[str(leaver)]["display_name"], items[str(leaver)]["is_active"]) == (
+        "Alix Moreau",
+        False,
+    )
+    assert items[str(forgotten)]["is_active"] is False
+    assert items[str(stage.manager.user_id)]["is_active"]
+    few = [(stage.manager.user_id, MANAGER), (crowd[0], CONTRIBUTOR), (crowd[1], CONTRIBUTOR)]
+    written, few_written = accounts_read(
+        lambda: write(api, stage, stage.manager, few, listed.json()["lock_version"])
+    )
+    assert written.status_code == 200, written.text
+    assert names(written.json())[0] == "Camille Martin"
+    for each in crowd[2:]:
+        inscribe(stage.database, stage, each, CONTRIBUTOR)
+    listed, many_listed = accounts_read(listing)
+    assert len(listed.json()["items"]) == len(crowd) + 1
+    assert len(listed.json()["items"]) > few_items
+    many = [(stage.manager.user_id, MANAGER), *((each, CONTRIBUTOR) for each in crowd)]
+    written, many_written = accounts_read(
+        lambda: write(api, stage, stage.manager, many, listed.json()["lock_version"])
+    )
+    assert written.status_code == 200, written.text
+    assert len(written.json()["items"]) == len(many)
+    assert many_written == few_written
+    assert many_listed == few_listed
 
 
 @pytest.mark.requirement("WF-PRJ-0060-A")

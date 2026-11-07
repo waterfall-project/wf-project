@@ -10820,6 +10820,9 @@ aucune forme.
   création est reprise ; présente, elle la remplace ; nulle, elle l'efface. Écarté : un marquage
   qui écrit toujours sa description, une absente valant nulle, et une « reprise » laissée à
   l'écran.
+  `CurrentRevisionMark.description` (`projects.yaml`) porte la même phrase ; le service de la sortie
+  qui marque l'appliquera en US-0980/L2 (#2065), par `KEPT` et `model_fields_set`, comme celui du
+  marquage.
 - **Le projet sans code du journal** (#2166 ; WF-SEC-0030, WF-PRJ-0010). Un projet naît sans code,
   et sa création, l'abandon de sa révision ou sa sortie s'inscrivent avant qu'il en ait un : le
   journal le nomme alors par son identifiant et son libellé, son code nul — la contrainte
@@ -10833,7 +10836,8 @@ aucune forme.
   pourrait alors choisir.
 
 Les suites : `make generate-server-models` et `make generate-client` (descriptions et borne),
-`make mock-data`, à son point fixe ; le service suit chaque point, ses tests le tiennent
+`make mock-data`, à son point fixe ; le service suit chaque point, sauf la description de
+`CurrentRevisionMark`, que celui de la sortie appliquera en US-0980/L2, et ses tests le tiennent
 (`test_contributors.py`, `test_revisions.py`, `test_revision_mark.py`, `test_audit_consultation.py`,
 `test_database_constraints.py`, `test_projects.py`), et `tools/tests/test_mockproject.py` tient les
 deux exemples nouveaux.
