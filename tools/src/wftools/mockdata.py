@@ -128,6 +128,7 @@ from wftools.mockportfolio import (
     QUARTERS,
     UNOPENABLE_EVERY,
     WATCH_THRESHOLD,
+    identified_risks,
     portfolio,
     portfolio_cost_structure,
     portfolio_page,
@@ -168,7 +169,7 @@ from wftools.mockwitness import (
     WORK_BREAKDOWN,
     N,
 )
-from wftools.mockwitnessrisks import OCCURRENCE_EXAMPLE
+from wftools.mockwitnessrisks import OCCURRENCE_EXAMPLE, REGISTER
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
@@ -737,7 +738,8 @@ def volumes() -> dict[str, JsonObject]:
         ),
         "portfolio_risks.json": _example(
             f"Les risques des projets en cours du portefeuille du §4.6.2 au "
-            f"{_day(TODAY.date())} : le total des provisions identifiées, les dix risques "
+            f"{_day(TODAY.date())}, {_risk_volume(rows)} : le total des provisions identifiées, "
+            f"les dix risques "
             f"les plus lourds avec leur projet, la matrice remplie — chaque risque identifié "
             f"compté dans sa case et placé en point à ses valeurs exactes, avec son projet —, "
             f"la couverture des risques "
@@ -781,6 +783,17 @@ def summary_dependencies(answer: JsonObject) -> JsonObject:
     }
 
 
+def _risk_volume(rows: list[JsonObject]) -> str:
+    """Say which volumes of §4.6.2 the risks of the portfolio hold, and which they do not."""
+    risks = identified_risks(rows)
+    projects = len({risk.row["project_id"] for risk in risks})
+    return (
+        f"{_count(len(risks))} risques identifiés sur {_count(projects)} projets — le registre du "
+        f"témoin et jusqu'à trois par autre projet, une provision sans devis propre, et non les "
+        f"trente risques par projet, chacun d'une vingtaine de tâches, que le §4.6.2 suppose"
+    )
+
+
 def _structure_summary(answer: JsonObject) -> str:
     """Say what the structure holds, counted from the answer itself."""
     items = cast("list[dict[str, Any]]", answer["items"])
@@ -804,7 +817,9 @@ def _structure_summary(answer: JsonObject) -> str:
         f"{_count(count['milestone'])} jalons. Les tâches sont datées en heures de travail sur "
         f"le calendrier de leurs rôles — le câblage, au monteur câbleur, sur la semaine de "
         f"quatre jours —, avec leur marge et le chemin critique de toute la structure, et leur "
-        f"avancement est celui du jour (WF-PLA-0010, WF-PLA-0100, WF-PLA-0160)."
+        f"avancement est celui du jour (WF-PLA-0010, WF-PLA-0100, WF-PLA-0160). Les devis propres "
+        f"des trente risques par projet que le §4.6.2 compte en plus sont d'autres structures, "
+        f"que cette lecture ne porte pas : le témoin en a {_count(len(REGISTER))}."
     )
 
 
