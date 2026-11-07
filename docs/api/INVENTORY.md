@@ -7,7 +7,7 @@ les réponses en citent d'autres, comptées dans la couverture ci-dessous mais p
 dans le tableau.
 
 **169 opérations sur 131 chemins, dans 13 familles.**
-Le contrat cite **189 des 212 exigences** de la spécification.
+Le contrat cite **190 des 212 exigences** de la spécification.
 
 ## Système, métriques et traitements de fond
 
@@ -19,7 +19,7 @@ Le contrat cite **189 des 212 exigences** de la spécification.
 | GET | `/installation` | What the front must know about the installation before any session | WF-EXP-0020, WF-INTF-0160 |
 | GET | `/health/ready` | Readiness probe | WF-EXP-0040 |
 | GET | `/metrics` | Metrics in Prometheus format | WF-ADM-0130, WF-OBS-0010, WF-SEC-0010 |
-| GET | `/system/status` | System status screen | WF-ADM-0100, WF-ADM-0130, WF-ADM-0170, WF-OBS-0030 |
+| GET | `/system/status` | System status screen | WF-ADM-0100, WF-ADM-0130, WF-ADM-0170, WF-EXP-0030, WF-OBS-0030 |
 | GET | `/tasks` | The caller's background tasks | WF-ARC-0090, WF-IHM-0080 |
 | GET | `/tasks/{task_id}` | Progress of a background task | WF-ARC-0090, WF-IHM-0080 |
 | GET | `/tasks/{task_id}/result` | Result of a background task | WF-ARC-0040, WF-ARC-0090, WF-DAT-0120 |
@@ -57,11 +57,11 @@ Le contrat cite **189 des 212 exigences** de la spécification.
 | GET | `/identity-sync-schedule` | Periodicity of the account read | WF-ADM-0070, WF-ADM-0100, WF-ADM-0170 |
 | PUT | `/identity-sync-schedule` | Set the periodicity of the account read | WF-ADM-0070, WF-ADM-0100 |
 | GET | `/permissions` | Permission catalogue | WF-ADM-0100 |
-| GET | `/access-roles` | Access roles | WF-ADM-0010, WF-ADM-0060, WF-ADM-0090, WF-DAT-0070, WF-IHM-0060, WF-IHM-0130 |
-| POST | `/access-roles` | Compose an access role | WF-ADM-0020 |
-| GET | `/access-roles/{access_role_id}` | An access role | WF-ADM-0090, WF-ADM-0100 |
-| PATCH | `/access-roles/{access_role_id}` | Modify a role | WF-ADM-0090 |
-| DELETE | `/access-roles/{access_role_id}` | Delete a role | WF-ADM-0090, WF-ADM-0120, WF-DAT-0080 |
+| GET | `/access-roles` | Access roles | WF-ADM-0010, WF-ADM-0060, WF-ADM-0090, WF-ADM-0100, WF-ADM-0110, WF-DAT-0070, WF-IHM-0060, WF-IHM-0130 |
+| POST | `/access-roles` | Compose an access role | WF-ADM-0020, WF-ADM-0100 |
+| GET | `/access-roles/{access_role_id}` | An access role | WF-ADM-0090, WF-ADM-0100, WF-ADM-0110 |
+| PATCH | `/access-roles/{access_role_id}` | Modify a role | WF-ADM-0090, WF-ADM-0100, WF-ADM-0110 |
+| DELETE | `/access-roles/{access_role_id}` | Delete a role | WF-ADM-0090, WF-ADM-0100, WF-ADM-0110, WF-ADM-0120, WF-DAT-0080 |
 
 ## Sauvegarde et restauration
 
@@ -72,7 +72,7 @@ Le contrat cite **189 des 212 exigences** de la spécification.
 | GET | `/backups` | Backups | WF-ADM-0100, WF-ADM-0150, WF-ADM-0170, WF-IHM-0060, WF-IHM-0090, WF-IHM-0130 |
 | POST | `/backups` | Start a backup | WF-ADM-0100, WF-ADM-0150, WF-ARC-0090, WF-SEC-0030 |
 | GET | `/backups/{backup_id}` | A backup | WF-ADM-0100, WF-ADM-0150, WF-IHM-0090 |
-| PATCH | `/backups/{backup_id}` | Mark a backup to keep | WF-ADM-0100, WF-ADM-0170, WF-IHM-0090 |
+| PATCH | `/backups/{backup_id}` | Mark a backup to keep | WF-ADM-0100, WF-ADM-0170, WF-IHM-0090, WF-IHM-0110 |
 | GET | `/backups/{backup_id}/content` | Copy a backup outside the platform | WF-ADM-0100, WF-ADM-0150, WF-IHM-0090 |
 | GET | `/backup-schedule` | Scheduling and retention of the backups | WF-ADM-0100, WF-ADM-0170, WF-EXP-0050 |
 | PUT | `/backup-schedule` | Set the scheduling and the retention | WF-ADM-0100, WF-ADM-0160, WF-ADM-0170, WF-EXP-0040, WF-EXP-0050, WF-OBS-0030 |
@@ -144,7 +144,7 @@ Le contrat cite **189 des 212 exigences** de la spécification.
 | PUT | `/projects/{project_id}/work-breakdown` | Enter the work breakdown | WF-DAT-0080, WF-IHM-0080, WF-IHM-0090, WF-IHM-0110, WF-PLA-0170, WF-PRJ-0020 |
 | GET | `/projects/{project_id}/subprojects` | Subprojects | WF-IHM-0060, WF-IHM-0090, WF-IHM-0130, WF-PRJ-0050 |
 | POST | `/projects/{project_id}/subprojects` | Create a subproject | WF-CRE-0020, WF-PRJ-0050, WF-PRJ-0060 |
-| PATCH | `/projects/{project_id}/subprojects/{subproject_id}` | Edit a subproject | WF-PRJ-0050 |
+| PATCH | `/projects/{project_id}/subprojects/{subproject_id}` | Edit a subproject | WF-CRE-0020, WF-DAT-0060, WF-INTF-0140, WF-PRJ-0050 |
 | DELETE | `/projects/{project_id}/subprojects/{subproject_id}` | Delete a subproject | WF-DAT-0070, WF-DAT-0080, WF-IHM-0090, WF-IHM-0110, WF-PRJ-0050, WF-PRJ-0060, WF-RIS-0010 |
 | GET | `/projects/{project_id}/contributors` | Contributors of the project | WF-ADM-0060, WF-IHM-0060, WF-IHM-0110, WF-IHM-0130, WF-PRJ-0060 |
 | PUT | `/projects/{project_id}/contributors` | Register or remove contributors | WF-ADM-0060, WF-ADM-0110, WF-IHM-0110, WF-PRJ-0060 |
@@ -160,14 +160,14 @@ Le contrat cite **189 des 212 exigences** de la spécification.
 | Méthode | Chemin | Opération | Exigences citées |
 |---|---|---|---|
 | GET | `/projects/{project_id}/revisions` | Revision history | WF-IHM-0020, WF-REV-0070, WF-REV-0090 |
-| POST | `/projects/{project_id}/revisions` | Open the current revision | WF-DAT-0010, WF-DAT-0020, WF-PLA-0170, WF-REV-0010, WF-REV-0050, WF-REV-0060, WF-REV-0090, WF-REV-0100, WF-RIS-0060 |
+| POST | `/projects/{project_id}/revisions` | Open the current revision | WF-CYC-0020, WF-DAT-0010, WF-DAT-0020, WF-PLA-0170, WF-REV-0010, WF-REV-0050, WF-REV-0060, WF-REV-0090, WF-REV-0100, WF-RIS-0060 |
 | GET | `/projects/{project_id}/revisions/{revision_id}` | A revision and its snapshot | WF-REV-0030, WF-REV-0090 |
-| DELETE | `/projects/{project_id}/revisions/{revision_id}` | Abandon the current revision | WF-DAT-0010, WF-DAT-0020, WF-IHM-0110, WF-REV-0010, WF-RIS-0020, WF-RIS-0060 |
+| DELETE | `/projects/{project_id}/revisions/{revision_id}` | Abandon the current revision | WF-CYC-0020, WF-DAT-0010, WF-DAT-0020, WF-IHM-0110, WF-REV-0010, WF-RIS-0020, WF-RIS-0060 |
 | POST | `/projects/{project_id}/revisions/{revision_id}/mark` | Mark the revision | WF-ARC-0090, WF-DAT-0040, WF-DEV-0010, WF-IHM-0080, WF-REV-0020, WF-SEC-0030 |
 | PUT | `/projects/{project_id}/reference-revision` | Designate the reference revision | WF-CYC-0030, WF-IHM-0110, WF-REV-0040, WF-SEC-0030 |
 | GET | `/projects/{project_id}/revisions/{revision_id}/rate-update` | Proposed rate difference, category by category | WF-REV-0060 |
 | POST | `/projects/{project_id}/revisions/{revision_id}/rate-update` | Apply the rate update | WF-DAT-0020, WF-REF-0130, WF-REV-0060 |
-| GET | `/projects/{project_id}/revisions/comparison` | Compare two marked revisions | WF-DAT-0030, WF-IHM-0130, WF-REV-0080 |
+| GET | `/projects/{project_id}/revisions/comparison` | Compare two marked revisions | WF-DAT-0030, WF-IHM-0130, WF-REV-0060, WF-REV-0080 |
 | GET | `/projects/{project_id}/revisions/{revision_id}/structures` | Cost structures of the revision | WF-DEV-0050, WF-IHM-0090, WF-RAE-0040, WF-REV-0100 |
 | POST | `/projects/{project_id}/revisions/{revision_id}/structures` | Open a differential | WF-REV-0050, WF-REV-0100, WF-RIS-0030 |
 | PATCH | `/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}` | Modify the planning start date and the label of a structure | WF-PLA-0010, WF-PLA-0020, WF-REV-0100 |
@@ -197,7 +197,7 @@ Le contrat cite **189 des 212 exigences** de la spécification.
 
 | Méthode | Chemin | Opération | Exigences citées |
 |---|---|---|---|
-| GET | `/projects/{project_id}/estimate-indicators` | Estimate indicators | WF-DEV-0010, WF-DEV-0060, WF-IND-0010, WF-PLA-0170 |
+| GET | `/projects/{project_id}/estimate-indicators` | Estimate indicators | WF-DEV-0010, WF-DEV-0060, WF-IND-0010, WF-IND-0020, WF-PLA-0170 |
 | GET | `/projects/{project_id}/estimate-indicators/missing-rates` | Hourly rates missing for the computation | WF-CYC-0120, WF-DEV-0010, WF-REV-0060 |
 | GET | `/projects/{project_id}/workload` | Project workload | WF-DEV-0070 |
 | GET | `/projects/{project_id}/remaining-indicators` | Remaining-to-commit indicators | WF-IND-0020, WF-RAE-0020 |
@@ -220,7 +220,7 @@ Le contrat cite **189 des 212 exigences** de la spécification.
 | PATCH | `/projects/{project_id}/risks/{risk_id}` | Edit the identity of a risk | WF-IHM-0110, WF-RIS-0010, WF-RIS-0020, WF-RIS-0040 |
 | DELETE | `/projects/{project_id}/risks/{risk_id}` | Delete a risk | WF-IHM-0110, WF-RIS-0020 |
 | PUT | `/projects/{project_id}/risks/{risk_id}/provision` | Change the provision of a risk | WF-IHM-0110, WF-RIS-0010, WF-RIS-0020 |
-| GET | `/projects/{project_id}/risks/{risk_id}/reviews` | History of the reviews | WF-RIS-0010, WF-RIS-0030 |
+| GET | `/projects/{project_id}/risks/{risk_id}/reviews` | History of the reviews | WF-PLA-0150, WF-RIS-0010, WF-RIS-0030 |
 | POST | `/projects/{project_id}/risks/{risk_id}/reviews` | Review a risk | WF-IHM-0110, WF-RIS-0010, WF-RIS-0020, WF-RIS-0050 |
 | GET | `/projects/{project_id}/risks/{risk_id}/occurrence` | Preliminary report of the occurrence of a risk | WF-IHM-0110, WF-RIS-0060 |
 | POST | `/projects/{project_id}/risks/{risk_id}/occurrence` | Declare a risk occurred | WF-ARC-0090, WF-DEV-0020, WF-IHM-0110, WF-PLA-0170, WF-RIS-0010, WF-RIS-0020, WF-RIS-0050, WF-RIS-0060, WF-SEC-0030 |
@@ -243,7 +243,7 @@ Le contrat cite **189 des 212 exigences** de la spécification.
 
 | Méthode | Chemin | Opération | Exigences citées |
 |---|---|---|---|
-| POST | `/file-uploads` | Upload a file | WF-DAT-0120 |
+| POST | `/file-uploads` | Upload a file | WF-ARC-0100, WF-DAT-0120 |
 | POST | `/chunked-uploads` | Open the chunked upload of a backup | WF-ADM-0160, WF-DAT-0120 |
 | PUT | `/chunked-uploads/{chunked_upload_id}/parts/{part_number}` | Upload a chunk | WF-ADM-0160 |
 | POST | `/chunked-uploads/{chunked_upload_id}/completion` | Complete the chunked upload | WF-ADM-0160 |
@@ -271,7 +271,7 @@ Le contrat cite **189 des 212 exigences** de la spécification.
 
 ## Exigences que le contrat ne cite pas
 
-23 sur 212. Aucune n'est un oubli : ce sont celles qui n'ont pas de
+22 sur 212. Aucune n'est un oubli : ce sont celles qui n'ont pas de
 surface d'interface, et il vaut mieux qu'elles n'en aient pas.
 
 | Domaine | Exigences | Pourquoi aucune surface d'API |
@@ -279,7 +279,7 @@ surface d'interface, et il vaut mieux qu'elles n'en aient pas.
 | ARC | WF-ARC-0010, WF-ARC-0070, WF-ARC-0080 | Choix d'architecture interne : noyau unique, rôles des composants de données, empaquetage, autorité du serveur, absence d'état. Ils se vérifient sur le dépôt et le déploiement. |
 | CMP | WF-CMP-0010 | Compatibilité des navigateurs et largeurs d'affichage : propriété du front. |
 | DAT | WF-DAT-0050, WF-DAT-0140 | Partitionnement et migrations : propriétés du schéma, invisibles du contrat. |
-| EXP | WF-EXP-0010, WF-EXP-0030 | Exploitation : environnements, amorçage, mise à jour, perte maximale. Aucune n'est une opération d'API. |
+| EXP | WF-EXP-0010 | Exploitation : environnements, amorçage, mise à jour, perte maximale. Aucune n'est une opération d'API. |
 | IHM | WF-IHM-0010, WF-IHM-0100, WF-IHM-0140 | Invariants d'interface : navigation, accessibilité, aide en ligne. Ils vivent dans le front. |
 | INTF | WF-INTF-0010, WF-INTF-0020, WF-INTF-0030, WF-INTF-0170 | Les trois usages d'acteurs décrivent le contenu des rôles prédéfinis, servi par le catalogue des permissions ; la règle de traduction vit dans le front. |
 | QUA | WF-QUA-0010, WF-QUA-0020, WF-QUA-0030, WF-QUA-0040, WF-QUA-0050, WF-QUA-0060, WF-QUA-0070, WF-QUA-0080 | Chaîne de vérification : tests, analyse statique, jeu de données, mesures. Elle s'exerce sur le contrat, elle n'y figure pas. |

@@ -15,7 +15,7 @@ export interface Examples {
     200: "access_role";
   };
   "GET /audit-events": {
-    200: "audit_events" | "audit_events_administration" | "audit_events_anonymized_actor" | "audit_events_anonymized_object" | "audit_events_auditor" | "audit_events_by_actor" | "audit_events_by_object_label" | "audit_events_correlation" | "audit_events_empty" | "audit_events_exited" | "audit_events_import_applied" | "audit_events_page" | "audit_events_project" | "audit_events_revision_abandoned" | "audit_events_search";
+    200: "audit_events" | "audit_events_administration" | "audit_events_anonymized_actor" | "audit_events_anonymized_object" | "audit_events_auditor" | "audit_events_by_actor" | "audit_events_by_object_label" | "audit_events_correlation" | "audit_events_empty" | "audit_events_exited" | "audit_events_import_applied" | "audit_events_page" | "audit_events_project" | "audit_events_restored" | "audit_events_revision_abandoned" | "audit_events_search";
   };
   "GET /audit-events/facets": {
     200: "audit_facets" | "audit_facets_anonymized";
@@ -105,10 +105,10 @@ export interface Examples {
     200: "imports" | "imports_empty" | "imports_page";
   };
   "GET /projects/{project_id}/imports/{import_id}": {
-    200: "import_actual_costs_analysed" | "import_actual_costs_column_ignored" | "import_actual_costs_duplicate_line" | "import_actual_costs_first" | "import_actual_costs_wbs_invalid" | "import_analysed" | "import_analysing" | "import_apply_refused_permission" | "import_estimate_task_without_hours" | "import_planning_mismatch" | "import_planning_non_working_day" | "import_planning_provision_moved" | "import_planning_rejected" | "import_remaining_ambiguous_label" | "import_remaining_analysed" | "import_remaining_completed_task" | "import_remaining_completed_tasks" | "import_remaining_subproject_held";
+    200: "import_actual_costs_analysed" | "import_actual_costs_column_ignored" | "import_actual_costs_dotted_code" | "import_actual_costs_duplicate_line" | "import_actual_costs_first" | "import_actual_costs_wbs_invalid" | "import_analysed" | "import_analysing" | "import_apply_refused_permission" | "import_estimate_task_without_hours" | "import_planning_mismatch" | "import_planning_non_working_day" | "import_planning_provision_moved" | "import_planning_rejected" | "import_remaining_ambiguous_label" | "import_remaining_analysed" | "import_remaining_completed_task" | "import_remaining_completed_tasks" | "import_remaining_subproject_held";
   };
   "GET /projects/{project_id}/indicators": {
-    200: "project_indicators" | "project_indicators_marked" | "project_indicators_without_current_revision";
+    200: "project_indicators" | "project_indicators_marked" | "project_indicators_subproject" | "project_indicators_without_current_revision";
   };
   "GET /projects/{project_id}/indicators/cost-curve": {
     200: "cost_curve" | "cost_curve_amendment" | "cost_curve_payment_delays" | "cost_curve_subproject" | "cost_curve_subproject_empty" | "cost_curve_subproject_empty_payment_delays" | "cost_curve_subproject_unbudgeted";
@@ -138,7 +138,7 @@ export interface Examples {
     200: "comparison" | "comparison_differences" | "comparison_identical" | "comparison_moved" | "volume/comparison_volume";
   };
   "GET /projects/{project_id}/revisions/{revision_id}": {
-    200: "revision" | "revision_estimator" | "revision_importing" | "revision_marked" | "revision_marked_merge_offered" | "revision_marking" | "revision_offer" | "revision_rate_update_offered" | "revision_reader" | "revision_without_tasks";
+    200: "revision" | "revision_completed_project" | "revision_estimator" | "revision_importing" | "revision_marked" | "revision_marked_merge_offered" | "revision_marking" | "revision_offer" | "revision_rate_update_offered" | "revision_reader" | "revision_without_tasks";
   };
   "GET /projects/{project_id}/revisions/{revision_id}/rate-update": {
     200: "rate_update" | "rate_update_none";
@@ -165,7 +165,7 @@ export interface Examples {
     200: "risk_coverage";
   };
   "GET /projects/{project_id}/risks/matrix": {
-    200: "risk_matrix";
+    200: "risk_matrix" | "risk_matrix_no_basis";
   };
   "GET /projects/{project_id}/risks/{risk_id}": {
     200: "risk" | "risk_dismissed_category_deactivated" | "risk_occurred_detail" | "risk_uncited";
@@ -225,7 +225,7 @@ export interface Examples {
     200: "reference_settings";
   };
   "GET /system/status": {
-    200: "system_status" | "system_status_backup_failed" | "system_status_copy_failed" | "system_status_storage_full";
+    200: "system_status" | "system_status_backup_failed" | "system_status_copy_failed" | "system_status_error_rate_abnormal" | "system_status_identity_sync_failed" | "system_status_storage_full" | "system_status_task_queue_stalled";
   };
   "GET /tasks": {
     200: "tasks_none" | "tasks_running";
@@ -237,7 +237,7 @@ export interface Examples {
     200: "users" | "users_anonymized" | "users_by_access_role" | "users_by_created_at" | "users_created_by_platform" | "users_inactive" | "users_page" | "users_search";
   };
   "GET /users/{user_id}": {
-    200: "user_anonymized" | "user_deactivated";
+    200: "user" | "user_anonymized" | "user_deactivated";
   };
   "PATCH /access-roles/{access_role_id}": {
     200: "access_role_marking_granted" | "access_role_renamed" | "access_role_updated";
@@ -252,7 +252,7 @@ export interface Examples {
     200: "project_updated";
   };
   "PATCH /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}": {
-    200: "volume/structure_planning_start_advanced";
+    200: "structure_label_updated" | "volume/structure_planning_start_advanced";
   };
   "PATCH /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}/estimate-line": {
     200: "estimate_line_entered" | "estimate_line_payment_delay_amendment" | "estimate_line_rebudgeted_amendment" | "estimate_line_redated" | "estimate_line_subproject_changed" | "estimate_line_updated" | "estimate_line_updated_amendment";
@@ -463,6 +463,6 @@ export interface Examples {
     200: "user_access_roles_cleared" | "user_access_roles_set" | "user_access_roles_two";
   };
   "PUT /users/{user_id}/activation": {
-    200: "user_deactivated";
+    200: "user_deactivated" | "user_reactivated";
   };
 }

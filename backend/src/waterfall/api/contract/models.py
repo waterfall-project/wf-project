@@ -115,7 +115,14 @@ class Uuid(RootModel[UUID]):
 
 
 class Year(RootModel[int]):
-    root: Annotated[int, Field(ge=2000, le=2100)]
+    root: Annotated[
+        int,
+        Field(
+            description="Calendar year, from 2000 to 2100. Outside these bounds, the value is refused with 422 `VALIDATION_FAILED`, `fields` designating it with `VALUE_OUT_OF_RANGE` and `fields[].params.minimum` or `maximum`; a year of the path is designated by `/path/year` (`FieldProblem.pointer`).",
+            ge=2000,
+            le=2100,
+        ),
+    ]
 
 
 class MissingRate(ContractModel):
@@ -126,6 +133,12 @@ class MissingRate(ContractModel):
 
 class ProblemResourceRole(ContractModel):
     resource_role_id: Uuid
+    code: str
+    label: str
+
+
+class ProblemCostCategory(ContractModel):
+    cost_category_id: Uuid
     code: str
     label: str
 
@@ -202,6 +215,12 @@ class ProblemParams(ContractModel):
             description="The roles involved, active or deactivated, each by its identifier, its code and its label, whether or not the author reads roles (`STATE_FORBIDS_OPERATION`, `cost_type_without_role`, `cost_category_without_role`, WF-REF-0030, WF-REF-0040; EP-14/L42r); and those of any refusal that would leave a task without a working hour (`TASK_WITHOUT_WORKING_HOURS`, WF-PLA-0010) — a write to the reference data or to a revision, a pasted (`PasteRejection.params`) or imported line (`ImportRejection.params`), a merge —, empty when only tasks without a labour line lose their hours (#768; #1684)."
         ),
     ] = None
+    cost_categories: Annotated[
+        list[ProblemCostCategory] | None,
+        Field(
+            description="The categories that make a change of the kind of a cost type miss its condition, active or deactivated, each by its identifier, its code and its label, in the order of their code: those of the cost type in use for `cost_type_unused`, those that carry an hourly rate for `cost_type_unrated` (`STATE_FORBIDS_OPERATION`, `updateCostType`, WF-REF-0030)."
+        ),
+    ] = None
     projects: Annotated[
         list[ProblemProject] | None,
         Field(
@@ -251,7 +270,7 @@ class FieldProblem(ContractModel):
     pointer: Annotated[
         str,
         Field(
-            description="The faulty field. In the request body, its JSON pointer (RFC 6901), `/label` or `/lines/2/amount`; a query parameter, under `/query` followed by its name, `/query/revision_id`; a path parameter that is not an identifier, under `/path` followed by its name, `/path/year` (a malformed identifier is a 404, like a nonexistent object). No body field is named `query`, and the only `path` of a body is a text, with no field under it: a pointer thus designates only one field, whatever the operation."
+            description="The faulty field. In the request body, its JSON pointer (RFC 6901), `/label` or `/lines/2/amount`; a query parameter, under `/query` followed by its name, `/query/revision_id`; a path parameter that is not an identifier, under `/path` followed by its name, `/path/year` (a malformed identifier is a 404, like a nonexistent object); a body that is not a JSON object, the raw bytes of an uploaded chunk, is designated whole by `/body` (`uploadChunk`, WF-ADM-0160). No body field is named `query` or `body`, and the only `path` of a body is a text, with no field under it: a pointer thus designates only one field, whatever the operation."
         ),
     ]
     code: ErrorCode
@@ -269,7 +288,7 @@ class Problem(ContractModel):
     params: Annotated[
         ProblemParams | None,
         Field(
-            description='Parameters of the code, as the case may be — those that several refusals share are typed by `ProblemParams`, the others remain open: `missing_permission` (a `PermissionCode`), `missing_condition` (a `CommandCondition`), `conflicting_object_id` and `conflicting_object_label` (the object, and its label, that a later modification has taken up and that an undo or a redo would undo, `UNDO_CONFLICT`, WF-IHM-0110), `missing_rates` (the labour categories without an hourly rate for the reference year, `HOURLY_RATE_MISSING`, WF-DEV-0010), `expected_lock_version` (the current version of the object, the only parameter of a 412 `STALE_LOCK_VERSION`, WF-IHM-0110), `subordinate_node_ids` (the direct subordinates of a summary task, `SUMMARY_TASK_DERIVED`, WF-IHM-0030, WF-PLA-0040), `field` (a field the server does not calculate for the node whose dependencies are requested, WF-IHM-0030), `missing_prerequisites` (WF-CYC-0120), `state` and `state_enum` (the state of the object that forbids the operation, `STATE_FORBIDS_OPERATION`, and the name of the contract enumeration of which it is a value, which always travel together — one is never returned without the other: only `ProjectState` falls under it today — the state of a project that has not reached the In progress state, whose indicators are requested (WF-IND-0010), or without a reference revision, whose workload is requested on a basis it does not have (WF-DEV-0070); a new enumeration is a modification of the contract), `max_columns` (paste too wide, WF-IHM-0050), `minimum` (the smallest allowed value of a value too small, `VALUE_OUT_OF_RANGE`; in `fields[].params` for a field, such as the retention of the external copy of backups, at least that of the platform, WF-EXP-0050, the retention of backups, at least `1`, the interval between two reviews, at least `1` week, the win probability and the inflation rate of a project, at least `0`, the hours of a day of a calendar and the capacity of a role, at least `0`, the payment delay of a line, at least `0`, the level of a tree snapshot, at least `1`, the day of a weekly backup, at least `1`, the hours of a work instant sent (`/start/hours`, `/finish/hours` of `updateTaskFacet`), at least `0`, or the width of a column of the grid preferences, at least `20`), `maximum` (the largest allowed value of a value too large, `VALUE_OUT_OF_RANGE`, in `fields[].params`: such as the start of a portfolio period later than the end the server filled in, the win probability and the inflation rate of a project, at most `1`, the retention of backups, at most `365`, the interval between two reviews, at most `104` weeks, the hours of a day of a calendar, at most `24`, the hours of a work instant sent (`/start/hours`, `/finish/hours` of `updateTaskFacet`), at most the hours the task\'s calendar grants that day, never `0` — a day without a working hour is refused by its date, `NON_WORKING_DAY` (#1244, #1271) —, or the day of a weekly backup, at most `7`), `component` (a `PlatformComponent`, WF-EXP-0040), `expected_format` (an `ExchangeKind`) and `expected_version` (a string) for an import file whose format or version is not recognised (`FILE_FORMAT_UNREADABLE`, WF-INTF-0070) — absent for an uploaded backup whose archive cannot be read (`uploadFile`, WF-ADM-0160), and `expected_version` absent for an actual cost extraction, which has no version (`expected_format` at `actual_costs`) —; `missing_columns` for an actual cost extraction that lacks a required column (`FILE_FORMAT_UNREADABLE`, `openImport`, WF-REF-0190): each required column that the file does not carry under any of its labels, in the order of the mapping, by its identifier (`column`, an `ActualCostSourceColumn`) and the labels the mapping declares for it (`labels`); `columns` when `missing_condition` names `actual_cost_mapping_complete` (`STATE_FORBIDS_OPERATION`, `openImport`, WF-REF-0190): the required columns of the mapping that have no label, each by its identifier (`ActualCostSourceColumn`), in the order of the mapping; `resource_roles` for any refusal that would leave a task without a working hour (`TASK_WITHOUT_WORKING_HOURS`, WF-PLA-0010) — a write to the reference data or to a revision, a pasted or imported line, a merge —: the roles whose calendars never overlap — that role alone when, on a task of which that role is the only one, it has no hour in the week (EP-14/L42s); none when it is the default calendar of a task without a labour line that has no hour left —, active or deactivated, each by its identifier, its code and its label (`resource_role_id`, `code`, `label`), so that the refusal reads without rereading the roles, from the planning as from the grid, and without `resource_settings.read` (#768, point 1; #1684); `resource_roles` when `missing_condition` names `cost_type_without_role` or `cost_category_without_role` (`STATE_FORBIDS_OPERATION`, WF-REF-0030, WF-REF-0040): all the roles involved, active or deactivated, each by its identifier, its code and its label (`resource_role_id`, `code`, `label`) — the cost settings screen does not read deactivated roles —, to be attached first to a labour category outside the refused category, or cost type (WF-IHM-0090); `cost_categories` when `missing_condition` names `cost_type_unused` or `cost_type_unrated` (`updateCostType`, WF-REF-0030): all the categories of the cost type in use for `cost_type_unused`, all those that carry an hourly rate for `cost_type_unrated`, active or deactivated, each by its identifier, its code and its label (`cost_category_id`, `code`, `label`), in the order of their code — to be attached first to another cost type of the same kind (WF-IHM-0090; EP-14/L42s); `tasks` for an entry in a revision — `createNode`, `updateEstimateLine`, `moveNodes`, `mergeCostStructure`, and the reason of a pasted or imported line — that would leave a task without a working hour (`TASK_WITHOUT_WORKING_HOURS`): the tasks involved, each by its project, its node and its label (`project_id`, `node_id`, `label`), the author of the entry consulting their project — in the reason of an imported line, by its lineage and its label (`lineage_id`, `label`), as the report names its objects (#768, point 2); `projects` for a modification of the reference data that would produce the same effect (`updateCalendar`, `setDefaultCalendar`, `updateResourceRole`), one element per project involved, by its label and its code (`project_label`, `project_code`, null for a project without a code), without identifier or task — "without further detail", since the author may not consult the project (WF-PLA-0010, WF-ADM-0110); `estimate_lines` for the deletion of a subproject that estimate lines of the current revision carry (`STATE_FORBIDS_OPERATION`, `missing_condition` at `subproject_without_estimate_lines`, WF-DAT-0080): those lines, each by its structure, the label of that structure, its node, its row number and its label (`structure_id`, `structure_label`, `node_id`, `row_number`, `label`); `work_package_task` and `order_item_tasks` for a merge that would take the task of an order item out of the subtree of the task of its work package (`ORDER_ITEM_OUTSIDE_WORK_PACKAGE`, `mergeCostStructure`, WF-PLA-0170) : the task of the work package and those of the order items that would leave it, nodes of the main structure, each by its node and its label (`node_id`, `label`), like the tasks of `TASK_WITHOUT_WORKING_HOURS` — "the failure names what failed" (WF-IHM-0080; EP-14/L42k) —, and likewise for the import file that would be rejected whole for this reason (`ImportReport.refusals`) and the preliminary report of a merge (`StructureMergeReport.refusals`; EP-14/L42s); `task` for a planning that would extend the project\'s duration beyond fifteen years (`PROJECT_HORIZON_EXCEEDED`, WF-PLA-0150): the task involved, by its node and its label (`node_id`, `label`), the node null for a task that the file or the differential creates; for a merge (`mergeCostStructure`, `StructureMergeReport.refusals`; #788), the task of the merged structure that finishes last, excluding summary tasks, which draw their dates from their subordinates (WF-PLA-0040), the first in plan order in case of a tie — and, for an entry that moves a date (`updateTaskFacet`, `setPredecessors`, `createNode`, `moveNodes`; EP-15/US-0460), the task the entry writes: the one whose duration, dates or predecessors are entered, the one the creation would add, named by the label sent and its node null, the moved task or the one that receives the moved line; `cycle` for predecessors that would close a loop of links (`LINK_CYCLE`, `setPredecessors`, WF-PLA-0030): the tasks of the loop, each by its node and its label (`node_id`, `label`), from the one whose predecessors are being entered to the predecessor sent that already follows it, each preceding the next — "the reason is named to the user", since the grid, filtered, may not read them; when several predecessors sent close a loop, the shortest is returned, then, at equal length, the first in the order of the links, and a task given as its own predecessor returns the loop of that single task; and for a move or an indent that would close a loop through the summary task that would receive the node (`moveNodes`, WF-PLA-0030, WF-PLA-0040; #1164, #1167) — a summary task covers its subordinates: what precedes it precedes them, what follows it follows them —, the tasks of the chain of links that leads from that summary task, or from one of its ancestors, to the task it would receive or to one of its subordinates, or from these to the former, each preceding the next: the shortest, then, at equal length, the one that starts from the nearest ancestor, then from the received task and its subordinates in plan order; for a selection, judged on the structure the move would leave, all its nodes moved, the loop closed by the first node involved in the plan order of the structure read — not in that of `node_ids`, which only governs their placement (`NodeMove`; #1169); and for a merge that would close a loop in the main structure (`mergeCostStructure`, `StructureMergeReport.refusals`, WF-PLA-0030, WF-REV-0050; #788), the tasks of the loop that the merged structure would carry, each by its node in the main structure and its label, the node null for a task that the differential adds, from the first in the plan order of that structure to the one that precedes it, each preceding the next — the shortest when there are several, then the one whose first task comes first in plan order. A chain of a single link is the link between a summary task and its subordinate: `LINK_FORBIDDEN`, without parameter for an entry or a move; for a merge that would give rise to such a link (`mergeCostStructure`, `StructureMergeReport.refusals`, WF-PLA-0030; #1582), `link` names the two tasks, the summary task first, each by its node in the main structure and its label, the node null for a task that the differential adds — `tasks` does not fit, as it requires a project and a node. A chain, for a move as for predecessors, follows the links and crosses the hierarchy, a summary task covering its subordinates: from a task reached at its start to one of its subordinates, which what precedes it precedes, and from a task to its summary task, which what follows it follows; it names each task it crosses, the summary task and the subordinate — a loop P → W, W summary task of a task Z that precedes M, M moved under P, names P, W, Z and M (#1169). Between two equally short chains, the one returned takes, at each task, its links before the hierarchy, and its subordinates before its summary task. The parameters of a per-field reason are in `fields[].params`: such as `conflicting_object_id` and `conflicting_object_label`, the node and the label of the task that already carries the work package or the order item another one would carry (`WORK_BREAKDOWN_ITEM_ALREADY_ATTACHED`, WF-PLA-0170; EP-14/L42k); `work_package_task` and `order_item_tasks`, the task of the work package and those of its order items that would leave its subtree, each by its node and its label (`node_id`, `label`), like the failure of a merge (`ORDER_ITEM_OUTSIDE_WORK_PACKAGE`, `updateTaskFacet`, `createNode`, `moveNodes`, WF-PLA-0170; EP-14/L42s) — the node null for the task that `createNode` creates, named by the label sent, and the same parameters in the reason of a pasted `work_breakdown` cell (`PasteRejection.params`); `task_node_id`, in `fields[].params`, the task that a re-estimation would complete without its completion date (`COMPLETION_DATE_REQUIRED`, WF-RAE-0040); `subproject`, in `fields[].params`, the subproject that a line of a started or completed task cannot leave, because it has received actual costs, by its identifier and its label (`subproject_id`, `label`; `SUBPROJECT_HAS_ACTUAL_COSTS`, WF-PRJ-0050), and the same parameter in the reason of a pasted subproject cell (`PasteRejection.params`) or of a rejected import line (`ImportRejection.params`, WF-INTF-0100, WF-INTF-0120); `location`, the external backup location that the installation does not declare (`UNKNOWN_EXTERNAL_BACKUP_LOCATION`, WF-ADM-0170); `conflicting_object_id`, in `fields[].params`, the object that already carries the unique value of a field (`ALREADY_EXISTS`, WF-REF-0030, WF-REF-0040), and `conflicting_object_label`, next to it, its label, when the form does not know the list that carries it: the code of a project (WF-PRJ-0010), that of a subproject (WF-PRJ-0050), that of an organisation node (WF-REF-0070) and that of a resource role (WF-REF-0090); `backup_version` and `installed_version`, in `params`, the version of the application that took the backup and that of the installation that refuses to restore it (`BACKUP_FROM_NEWER_VERSION`, reason for the failure of the `restore` task, WF-ADM-0160); `risk`, in `fields[].params`, the risk to which a provision line moved in the grid belongs, by its identifier and its label (`risk_id`, `label`; `PROVISION_LINE_MOVED_BY_RISK`, `moveNodes`, WF-RIS-0010, #1227): the line is moved through the risk\'s form; `date` and `next_working_day`, in `fields[].params`, the date of a manual task sent on a day with no working hour at all on the task\'s calendar, and the next working day, which the entry can take — "the refusal names the next working day" (`NON_WORKING_DAY`, `updateTaskFacet`, WF-PLA-0020; #1271) —, and the same parameters in the signal of such an imported date (`ImportSignal.params`); `missing_parts`, the numbers, as an array of integers, of the parts that a chunked upload has not received (`completeChunkedUpload`, `STATE_FORBIDS_OPERATION`, WF-ADM-0160); `max_length`, in `fields[].params`, which accompanies every `VALUE_TOO_LONG`: the bound of the refused field, the largest number of characters a text allows (`maxLength`) or of elements a list allows (`maxItems`) — `50` for the code of a project, `31` for that of a subproject (WF-PRJ-0010, WF-PRJ-0050; J-02, #1796) —, and `forbidden_characters` or `reserved_name`, those of `SUBPROJECT_CODE_INVALID` — and `forbidden_characters`, of `PROJECT_CODE_INVALID`, `["/"]` (`createProject`, `updateProject`, WF-PRJ-0010; D-07, US-0701/L9) —: the forbidden characters the code carries, as an array, each once in the order in which it carries them, or the reserved name it equals, "Synthèse" or "Hors sous-projet", as Waterfall writes it (`createSubproject`, `updateSubproject`, WF-PRJ-0050; EP-16/US-0610); `duplicate_of`, in `fields[].params`, the pointer of the label that a label of the mapping of the actual cost extraction duplicates (`DUPLICATE_COLUMN_LABEL`, `setActualCostMapping`, WF-REF-0190; EP-16/US-0620); `rows`, the row numbers, as an array of integers, of the other lines of the file that carry the same document and the same item as a rejected line of an actual cost extraction (`DUPLICATE_COST_LINE`, `ImportRejection.params`, WF-INTF-0140; EP-16/US-0630); `wbs_element`, the WBS element of a rejected line of an actual cost extraction, as the file carries it, and `project_code`, the project code it carries when it is that of another project (`WBS_ELEMENT_INVALID`, `WBS_ELEMENT_OUTSIDE_PROJECT`, `ImportRejection.params`, WF-CRE-0020); `value`, the value of the cell as the file carries it, of a line of an estimate or of a remaining to commit that cites an unknown task, role or subproject (`UNKNOWN_TASK`, `UNKNOWN_RESOURCE_ROLE`, `UNKNOWN_SUBPROJECT`, `ImportRejection.params`, WF-INTF-0100); `label`, the label of a task that several tasks carry, with `tasks` those that carry it (`AMBIGUOUS_TASK_LABEL`, `ImportRejection.params`, annex B); `start` and `finish`, the dates that an MS Project planning gives to a summary task in manual mode, imported in automatic mode (`SUMMARY_TASK_DERIVED`, `ImportSignal.params`, WF-INTF-0040).'
+            description='Parameters of the code, as the case may be. Those that several refusals share are declared and typed by `ProblemParams` — `state` and `state_enum`, `subordinate_node_ids`, `missing_rates`, `resource_roles`, `projects`, `tasks`, `estimate_lines`, `risks`, `subproject`, `columns` and `missing_columns` —, the others remain open; all are described here: `missing_permission` (a `PermissionCode`), `missing_condition` (a `CommandCondition`), `conflicting_object_id` and `conflicting_object_label` (the object, and its label, that a later modification has taken up and that an undo or a redo would undo, `UNDO_CONFLICT`, WF-IHM-0110), `missing_rates` (the labour categories without an hourly rate for the reference year, `HOURLY_RATE_MISSING`, WF-DEV-0010), `expected_lock_version` (the current version of the object, the only parameter of a 412 `STALE_LOCK_VERSION`, WF-IHM-0110), `subordinate_node_ids` (the direct subordinates of a summary task, `SUMMARY_TASK_DERIVED`, WF-IHM-0030, WF-PLA-0040), `field` (a field the server does not calculate for the node whose dependencies are requested, WF-IHM-0030), `missing_prerequisites` (WF-CYC-0120), `state` and `state_enum` (the state of the object that forbids the operation, `STATE_FORBIDS_OPERATION`, and the name of the contract enumeration of which it is a value, which always travel together — one is never returned without the other: only `ProjectState` falls under it today — the state of a project that has not reached the In progress state, whose indicators are requested (WF-IND-0010), or without a reference revision, whose workload is requested on a basis it does not have (WF-DEV-0070); a new enumeration is a modification of the contract; the indicators and curves of a revision marked before the In progress state are refused without them, and without any other parameter, the project being in progress: the only `STATE_FORBIDS_OPERATION` without parameters, `getProjectIndicators`, #247), `max_columns` (paste too wide, WF-IHM-0050), `minimum` (the smallest allowed value of a value too small, `VALUE_OUT_OF_RANGE`; in `fields[].params` for a field, such as the retention of the external copy of backups, at least that of the platform, WF-EXP-0050, the retention of backups, at least `1`, the interval between two reviews, at least `1` week, the win probability and the inflation rate of a project, at least `0`, the hours of a day of a calendar and the capacity of a role, at least `0`, the payment delay of a line, at least `0`, the level of a tree snapshot, at least `1`, the day of a weekly backup, at least `1`, the hours of a work instant sent (`/start/hours`, `/finish/hours` of `updateTaskFacet`), at least `0`, or the width of a column of the grid preferences, at least `20`), `maximum` (the largest allowed value of a value too large, `VALUE_OUT_OF_RANGE`, in `fields[].params`: such as the start of a portfolio period later than the end the server filled in, the win probability and the inflation rate of a project, at most `1`, the retention of backups, at most `365`, the interval between two reviews, at most `104` weeks, the hours of a day of a calendar, at most `24`, the hours of a work instant sent (`/start/hours`, `/finish/hours` of `updateTaskFacet`), at most the hours the task\'s calendar grants that day, never `0` — a day without a working hour is refused by its date, `NON_WORKING_DAY` (#1244, #1271) —, or the day of a weekly backup, at most `7`), `component` (a `PlatformComponent`, WF-EXP-0040), `expected_format` (an `ExchangeKind`) and `expected_version` (a string) for an import file whose format or version is not recognised (`FILE_FORMAT_UNREADABLE`, WF-INTF-0070) — absent for an uploaded backup whose archive cannot be read (`uploadFile`, WF-ADM-0160), and `expected_version` absent for an actual cost extraction, which has no version (`expected_format` at `actual_costs`) —; `missing_columns` for an actual cost extraction that lacks a required column (`FILE_FORMAT_UNREADABLE`, `openImport`, WF-REF-0190): each required column that the file does not carry under any of its labels, in the order of the mapping, by its identifier (`column`, an `ActualCostSourceColumn`) and the labels the mapping declares for it (`labels`); `columns` when `missing_condition` names `actual_cost_mapping_complete` (`STATE_FORBIDS_OPERATION`, `openImport`, WF-REF-0190): the required columns of the mapping that have no label, each by its identifier (`ActualCostSourceColumn`), in the order of the mapping; `resource_roles` for any refusal that would leave a task without a working hour (`TASK_WITHOUT_WORKING_HOURS`, WF-PLA-0010) — a write to the reference data or to a revision, a pasted or imported line, a merge —: the roles whose calendars never overlap — that role alone when, on a task of which that role is the only one, it has no hour in the week (EP-14/L42s); none when it is the default calendar of a task without a labour line that has no hour left —, active or deactivated, each by its identifier, its code and its label (`resource_role_id`, `code`, `label`), so that the refusal reads without rereading the roles, from the planning as from the grid, and without `resource_settings.read` (#768, point 1; #1684); `resource_roles` when `missing_condition` names `cost_type_without_role` or `cost_category_without_role` (`STATE_FORBIDS_OPERATION`, WF-REF-0030, WF-REF-0040): all the roles involved, active or deactivated, each by its identifier, its code and its label (`resource_role_id`, `code`, `label`) — the cost settings screen does not read deactivated roles —, to be attached first to a labour category outside the refused category, or cost type (WF-IHM-0090); `cost_categories` when `missing_condition` names `cost_type_unused` or `cost_type_unrated` (`updateCostType`, WF-REF-0030): all the categories of the cost type in use for `cost_type_unused`, all those that carry an hourly rate for `cost_type_unrated`, active or deactivated, each by its identifier, its code and its label (`cost_category_id`, `code`, `label`), in the order of their code — to be attached first to another cost type of the same kind (WF-IHM-0090; EP-14/L42s); `tasks` for an entry in a revision — `createNode`, `updateEstimateLine`, `moveNodes`, `mergeCostStructure`, and the reason of a pasted or imported line — that would leave a task without a working hour (`TASK_WITHOUT_WORKING_HOURS`): the tasks involved, each by its project, its node and its label (`project_id`, `node_id`, `label`), the author of the entry consulting their project — in the reason of an imported line, by its lineage and its label (`lineage_id`, `label`), as the report names its objects (#768, point 2); `projects` for a modification of the reference data that would produce the same effect (`updateCalendar`, `setDefaultCalendar`, `updateResourceRole`), one element per project involved, by its label and its code (`project_label`, `project_code`, null for a project without a code), without identifier or task — "without further detail", since the author may not consult the project (WF-PLA-0010, WF-ADM-0110); `estimate_lines` for the deletion of a subproject that estimate lines of the current revision carry (`STATE_FORBIDS_OPERATION`, `missing_condition` at `subproject_without_estimate_lines`, WF-DAT-0080): those lines, each by its structure, the label of that structure, its node, its row number and its label (`structure_id`, `structure_label`, `node_id`, `row_number`, `label`); `risks` for the deletion that would leave without a task a main structure that carries one (`STATE_FORBIDS_OPERATION`, `missing_condition` at `at_least_one_task`, `deleteNode`, WF-RIS-0010, WF-RIS-0060): the risks whose provision line would no longer have a task to be placed in, each by its identifier and its label (`risk_id`, `label`), in the order of the list of risks; `work_package_task` and `order_item_tasks` for a merge that would take the task of an order item out of the subtree of the task of its work package (`ORDER_ITEM_OUTSIDE_WORK_PACKAGE`, `mergeCostStructure`, WF-PLA-0170) : the task of the work package and those of the order items that would leave it, nodes of the main structure, each by its node and its label (`node_id`, `label`), like the tasks of `TASK_WITHOUT_WORKING_HOURS` — "the failure names what failed" (WF-IHM-0080; EP-14/L42k) —, and likewise for the import file that would be rejected whole for this reason (`ImportReport.refusals`) and the preliminary report of a merge (`StructureMergeReport.refusals`; EP-14/L42s); `task` for a planning that would extend the project\'s duration beyond fifteen years (`PROJECT_HORIZON_EXCEEDED`, WF-PLA-0150): the task involved, by its node and its label (`node_id`, `label`), the node null for a task that the file or the differential creates; for a merge (`mergeCostStructure`, `StructureMergeReport.refusals`; #788), the task of the merged structure that finishes last, excluding summary tasks, which draw their dates from their subordinates (WF-PLA-0040), the first in plan order in case of a tie — and, for an entry that moves a date (`updateTaskFacet`, `setPredecessors`, `createNode`, `moveNodes`; EP-15/US-0460), the task the entry writes: the one whose duration, dates or predecessors are entered, the one the creation would add, named by the label sent and its node null, the moved task or the one that receives the moved line; `cycle` for predecessors that would close a loop of links (`LINK_CYCLE`, `setPredecessors`, WF-PLA-0030): the tasks of the loop, each by its node and its label (`node_id`, `label`), from the one whose predecessors are being entered to the predecessor sent that already follows it, each preceding the next — "the reason is named to the user", since the grid, filtered, may not read them; when several predecessors sent close a loop, the shortest is returned, then, at equal length, the first in the order of the links, and a task given as its own predecessor returns the loop of that single task; and for a move or an indent that would close a loop through the summary task that would receive the node (`moveNodes`, WF-PLA-0030, WF-PLA-0040; #1164, #1167) — a summary task covers its subordinates: what precedes it precedes them, what follows it follows them —, the tasks of the chain of links that leads from that summary task, or from one of its ancestors, to the task it would receive or to one of its subordinates, or from these to the former, each preceding the next: the shortest, then, at equal length, the one that starts from the nearest ancestor, then from the received task and its subordinates in plan order; for a selection, judged on the structure the move would leave, all its nodes moved, the loop closed by the first node involved in the plan order of the structure read — not in that of `node_ids`, which only governs their placement (`NodeMove`; #1169); and for a merge that would close a loop in the main structure (`mergeCostStructure`, `StructureMergeReport.refusals`, WF-PLA-0030, WF-REV-0050; #788), the tasks of the loop that the merged structure would carry, each by its node in the main structure and its label, the node null for a task that the differential adds, from the first in the plan order of that structure to the one that precedes it, each preceding the next — the shortest when there are several, then the one whose first task comes first in plan order. A chain of a single link is the link between a summary task and its subordinate: `LINK_FORBIDDEN`, without parameter for an entry or a move; for a merge that would give rise to such a link (`mergeCostStructure`, `StructureMergeReport.refusals`, WF-PLA-0030; #1582), `link` names the two tasks, the summary task first, each by its node in the main structure and its label, the node null for a task that the differential adds — `tasks` does not fit, as it requires a project and a node. A chain, for a move as for predecessors, follows the links and crosses the hierarchy, a summary task covering its subordinates: from a task reached at its start to one of its subordinates, which what precedes it precedes, and from a task to its summary task, which what follows it follows; it names each task it crosses, the summary task and the subordinate — a loop P → W, W summary task of a task Z that precedes M, M moved under P, names P, W, Z and M (#1169). Between two equally short chains, the one returned takes, at each task, its links before the hierarchy, and its subordinates before its summary task. The parameters of a per-field reason are in `fields[].params`: such as `conflicting_object_id` and `conflicting_object_label`, the node and the label of the task that already carries the work package or the order item another one would carry (`WORK_BREAKDOWN_ITEM_ALREADY_ATTACHED`, WF-PLA-0170; EP-14/L42k); `work_package_task` and `order_item_tasks`, the task of the work package and those of its order items that would leave its subtree, each by its node and its label (`node_id`, `label`), like the failure of a merge (`ORDER_ITEM_OUTSIDE_WORK_PACKAGE`, `updateTaskFacet`, `createNode`, `moveNodes`, WF-PLA-0170; EP-14/L42s) — the node null for the task that `createNode` creates, named by the label sent, and the same parameters in the reason of a pasted `work_breakdown` cell (`PasteRejection.params`); `task_node_id`, in `fields[].params`, the task that a re-estimation would complete without its completion date (`COMPLETION_DATE_REQUIRED`, WF-RAE-0040); `subproject`, in `fields[].params`, the subproject that a line of a started or completed task cannot leave, because it has received actual costs, by its identifier and its label (`subproject_id`, `label`; `SUBPROJECT_HAS_ACTUAL_COSTS`, WF-PRJ-0050), and the same parameter in the reason of a pasted subproject cell (`PasteRejection.params`) or of a rejected import line (`ImportRejection.params`, WF-INTF-0100, WF-INTF-0120); `location`, the external backup location that the installation does not declare (`UNKNOWN_EXTERNAL_BACKUP_LOCATION`, WF-ADM-0170); `conflicting_object_id`, in `fields[].params`, the object that already carries the unique value of a field (`ALREADY_EXISTS`, WF-REF-0030, WF-REF-0040), and `conflicting_object_label`, next to it, its label, when the form does not know the list that carries it: the code of a project (WF-PRJ-0010), that of a subproject (WF-PRJ-0050), that of an organisation node (WF-REF-0070) and that of a resource role (WF-REF-0090); `backup_version` and `installed_version`, in `params`, the version of the application that took the backup and that of the installation that refuses to restore it (`BACKUP_FROM_NEWER_VERSION`, reason for the failure of the `restore` task, WF-ADM-0160); `risk`, in `fields[].params`, the risk to which a provision line moved in the grid belongs, by its identifier and its label (`risk_id`, `label`; `PROVISION_LINE_MOVED_BY_RISK`, `moveNodes`, WF-RIS-0010, #1227): the line is moved through the risk\'s form; `date` and `next_working_day`, in `fields[].params`, the date of a manual task sent on a day with no working hour at all on the task\'s calendar, and the next working day, which the entry can take — "the refusal names the next working day" (`NON_WORKING_DAY`, `updateTaskFacet`, WF-PLA-0020; #1271) —, and the same parameters in the signal of such an imported date (`ImportSignal.params`); `missing_parts`, the numbers, as an array of integers, of the parts that a chunked upload has not received (`completeChunkedUpload`, `STATE_FORBIDS_OPERATION`, WF-ADM-0160); `max_length`, in `fields[].params`, which accompanies every `VALUE_TOO_LONG`: the bound of the refused field, the largest number of characters a text allows (`maxLength`) or of elements a list allows (`maxItems`) — `50` for the code of a project, `31` for that of a subproject (WF-PRJ-0010, WF-PRJ-0050; J-02, #1796) —, and `forbidden_characters` or `reserved_name`, those of `SUBPROJECT_CODE_INVALID` — and `forbidden_characters`, of `PROJECT_CODE_INVALID`, `["/"]` (`createProject`, `updateProject`, WF-PRJ-0010; D-07, US-0701/L9) —: the forbidden characters the code carries, as an array, each once in the order in which it carries them, or the reserved name it equals, "Synthèse" or "Hors sous-projet", as Waterfall writes it (`createSubproject`, `updateSubproject`, WF-PRJ-0050; EP-16/US-0610); `duplicate_of`, in `fields[].params`, the pointer of the label that a label of the mapping of the actual cost extraction duplicates (`DUPLICATE_COLUMN_LABEL`, `setActualCostMapping`, WF-REF-0190; EP-16/US-0620); `rows`, the row numbers, as an array of integers, of the other lines of the file that carry the same document and the same item as a rejected line of an actual cost extraction (`DUPLICATE_COST_LINE`, `ImportRejection.params`, WF-INTF-0140; EP-16/US-0630); `wbs_element`, the WBS element of a rejected line of an actual cost extraction, as the file carries it, and `project_code`, the project code it carries when it is that of another project, everything before the slash, dots included (`WBS_ELEMENT_INVALID`, `WBS_ELEMENT_OUTSIDE_PROJECT`, `ImportRejection.params`, WF-CRE-0020); `value`, the value of the cell as the file carries it, of a line of an estimate or of a remaining to commit that cites an unknown task, role or subproject (`UNKNOWN_TASK`, `UNKNOWN_RESOURCE_ROLE`, `UNKNOWN_SUBPROJECT`, `ImportRejection.params`, WF-INTF-0100); `label`, the label of a task that several tasks carry, with `tasks` those that carry it (`AMBIGUOUS_TASK_LABEL`, `ImportRejection.params`, annex B); `start` and `finish`, the dates that an MS Project planning gives to a summary task in manual mode, imported in automatic mode (`SUMMARY_TASK_DERIVED`, `ImportSignal.params`, WF-INTF-0040).'
         ),
     ] = None
     fields: Annotated[
@@ -306,7 +325,10 @@ class ComponentHealth(ContractModel):
     is_available: bool
     checked_at: Timestamp
     version: Annotated[
-        str | None, Field(description="Version of the component in use, announced by WF-CMP-0020.")
+        str | None,
+        Field(
+            description="Version of the component in use, announced by WF-CMP-0020. Null for a component that does not announce its version, such as the object storage."
+        ),
     ]
 
 
@@ -329,7 +351,7 @@ class Percent(RootModel[Decimal]):
     root: Annotated[
         Decimal,
         Field(
-            description="Percentage, exact decimal, not rounded before calculations (WF-DAT-0100)."
+            description="Percentage, exact decimal, not rounded before calculations (WF-DAT-0100), carried as a ratio and never as a number of percent: `0.03` for 3 %, `1` for 100 %. A lag entered in percent of the duration of a predecessor is not a `Percent`: it counts percents, `50` for half (`Lag.value`, WF-PLA-0160)."
         ),
     ]
 
@@ -352,8 +374,9 @@ class OperatingParameters(ContractModel):
     avatar_max_bytes: Annotated[
         int,
         Field(
-            description="The largest size of an avatar, in bytes (§4.4.1); shipped at 512 KB, `524288`. The same value as `Installation.avatar_max_bytes`, which the front reads without a session.",
+            description="The largest size of an avatar, in bytes (§4.4.1); shipped at 512 KB, `524288`. The same value as `Installation.avatar_max_bytes`, which the front reads without a session; like it, it does not exceed 8 MiB (8,388,608 bytes).",
             ge=1,
+            le=8388608,
         ),
     ]
     task_queue_age_threshold_seconds: Annotated[
@@ -387,7 +410,12 @@ class OperatingParameters(ContractModel):
 class OperationOutcome(ContractModel):
     at: Timestamp
     succeeded: bool
-    problem: Problem | None
+    problem: Annotated[
+        Problem | None,
+        Field(
+            description="Reason for the failure, null when the operation succeeded, and for an external copy, whose reason is in its alert (`SystemStatus.last_backup_copy`). The failure of a backup is that of its background task, with the task's `correlation_id` (`BackgroundTaskRef.problem`, WF-OBS-0020)."
+        ),
+    ]
 
 
 class AlertZone(StrEnum):
@@ -447,7 +475,12 @@ class Alert(ContractModel):
 
 
 class SystemStatus(ContractModel):
-    version: str
+    version: Annotated[
+        str,
+        Field(
+            description="The installed version: the version number that the front, the API and the worker of an installation always share, displayed by the status screen (WF-EXP-0030)."
+        ),
+    ]
     components: list[ComponentHealth]
     storage: StorageUsage
     operating_parameters: OperatingParameters
@@ -527,7 +560,7 @@ class BackgroundTaskRef(ContractModel):
     kind: Annotated[
         Kind,
         Field(
-            description="What the task does. `backup` takes the backup of the two databases and verifies it; `restore` follows the whole restore, from entering maintenance to leaving it: it only moves to `succeeded` once maintenance is lifted, and an interrupted restore resumes from the beginning; an archive from a version more recent than the installation is refused before maintenance, the task failing with `BACKUP_FROM_NEWER_VERSION` (WF-ARC-0090, WF-ADM-0160); `identity_sync` reads the accounts of the identity provider (WF-ADM-0070); `revision_mark` freezes the revision and calculates its indicators, and fails without freezing anything with `HOURLY_RATE_MISSING`, `params.missing_rates` naming the labour categories without a rate for the reference year (`markRevision`, WF-DEV-0010)."
+            description="What the task does. `backup` takes the backup of the two databases and verifies it; `restore` follows the whole restore, from entering maintenance to leaving it: it only moves to `succeeded` once maintenance is lifted, and an interrupted restore resumes from the beginning; an archive from a version more recent than the installation is refused before maintenance, the task failing with `BACKUP_FROM_NEWER_VERSION` (WF-ARC-0090, WF-ADM-0160); `identity_sync` reads the accounts of the identity provider (WF-ADM-0070); `revision_mark` freezes the revision and calculates its indicators, and fails without freezing anything with `HOURLY_RATE_MISSING`, `params.missing_rates` naming the labour categories without a rate for the reference year (`markRevision`, WF-DEV-0010); `import_analysis` analyses an imported file before anything is applied (`openImport`); `import_apply` applies an analysed import (`applyImport`); `structure_merge` merges a differential into the main structure (`mergeCostStructure`); `risk_occurrence` merges the own estimate of a risk declared occurred into the main structure (`declareRiskOccurrence`); `export` produces an export file, read through `getBackgroundTaskResult` (`requestExport`)."
         ),
     ]
     status: BackgroundTaskStatus
@@ -542,7 +575,7 @@ class BackgroundTaskRef(ContractModel):
     problem: Annotated[
         Problem | None,
         Field(
-            description="Reason for the failure, null as long as the task has not failed (WF-IHM-0080)."
+            description="Reason for the failure, null as long as the task has not failed (WF-IHM-0080). Its `correlation_id` is always present: that of the task, which is the correlation of the request that queued it — the one its audit entry carries —, or, for a task the platform queues itself (a scheduled backup), the one drawn for it, so that the failure is traced in the logs like a refused request (WF-OBS-0020)."
         ),
     ]
     result_url: Annotated[
@@ -592,7 +625,7 @@ class LockVersion(RootModel[int]):
     root: Annotated[
         int,
         Field(
-            description="Write counter of the object. Every modification carries it and requires it, a creation has none; a stale value is refused with 412, which makes undo safe with several contributors (WF-IHM-0110, WF-PRJ-0060). It follows the user's writes: what the server recalculates without anyone writing it — the dates of the successors of a link or of a duration, what the critical path moves, the amounts and dates of a summary task, the amounts, inflation included, of the lines and tasks that a write moves from one year to another — does not advance the counter of any node.",
+            description="Write counter of the object. Every modification carries it and requires it, a creation has none; a stale value is refused with 412, which makes undo safe with several contributors (WF-IHM-0110, WF-PRJ-0060). An object is created at 1, whether a request creates it or another write creates it with it — the main structure of a revision, the default work breakdown of a project —, and each write of it advances it by one: the marking of a revision created and then marked carries it to 2 (WF-IHM-0110). It follows the user's writes: what the server recalculates without anyone writing it — the dates of the successors of a link or of a duration, what the critical path moves, the amounts and dates of a summary task, the amounts, inflation included, of the lines and tasks that a write moves from one year to another — does not advance the counter of any node.",
             ge=0,
         ),
     ]
@@ -653,7 +686,9 @@ class UserAccount(ContractModel):
     origin: UserOrigin
     org_node_id: Annotated[
         Uuid | None,
-        Field(description="Optional attachment, which grants no permission (WF-ADM-0030)."),
+        Field(
+            description="Optional attachment, which grants no permission (WF-ADM-0030). Null for an account attached to no node."
+        ),
     ]
     org_node_label: Annotated[
         str | None,
@@ -680,7 +715,12 @@ class UserAccount(ContractModel):
         ),
     ]
     audit: Audit
-    lock_version: LockVersion
+    lock_version: Annotated[
+        LockVersion,
+        Field(
+            description="Advanced by the administration writes of the account (`updateUser`, `setUserActivation`, `anonymizeUser`, `setUserAccessRoles`), which require it; not by its holder's preferences or avatar (`updateMyPreferences`, `putMyAvatar`, `deleteMyAvatar`), which belong to the holder alone (WF-ADM-0040, WF-ADM-0080) and do not compete with the administration of the account."
+        ),
+    ]
 
 
 class SortOrder(StrEnum):
@@ -743,7 +783,12 @@ class GridPreferences(ContractModel):
             max_length=64,
         ),
     ] = None
-    sort: Sort | None = None
+    sort: Annotated[
+        Sort | None,
+        Field(
+            description="Null, or absent, when the user has chosen no sort: the grid is read in the default order of its operation."
+        ),
+    ] = None
     filters: Annotated[
         dict[Annotated[str, StringConstraints(max_length=64)], FiltersAdditionalProperty] | None,
         Field(
@@ -986,10 +1031,37 @@ class User(UserAccount):
 
 
 class UserCreate(ContractModel):
-    last_name: Annotated[str, Field(max_length=100, min_length=1, pattern="\\S")]
-    first_name: Annotated[str, Field(max_length=100, min_length=1, pattern="\\S")]
-    email: Annotated[str, Field(max_length=254)]
-    org_node_id: Uuid | None = None
+    last_name: Annotated[
+        str,
+        Field(
+            description="The last name of the account (WF-ADM-0050); one the identity provider refuses, `VALIDATION_FAILED`.",
+            max_length=100,
+            min_length=1,
+            pattern="\\S",
+        ),
+    ]
+    first_name: Annotated[
+        str,
+        Field(
+            description="The first name of the account (WF-ADM-0050); one the identity provider refuses, `VALIDATION_FAILED`.",
+            max_length=100,
+            min_length=1,
+            pattern="\\S",
+        ),
+    ]
+    email: Annotated[
+        str,
+        Field(
+            description="The address to which the invitation is sent, unique among the accounts (WF-ADM-0050): an address already held, 409 `ALREADY_EXISTS`; one the identity provider refuses, `VALIDATION_FAILED`.",
+            max_length=254,
+        ),
+    ]
+    org_node_id: Annotated[
+        Uuid | None,
+        Field(
+            description="The optional attachment of the account to an organisation node, which grants no permission (WF-ADM-0030); null or absent, the account is attached to no node. A node the installation does not have, `UNKNOWN_ORG_NODE`; a deactivated one, `INACTIVE_REFERENCE_OBJECT`."
+        ),
+    ] = None
 
 
 class UserCreated(User):
@@ -1005,12 +1077,19 @@ class UserUpdate(ContractModel):
     last_name: Annotated[str | None, Field(max_length=100, min_length=1, pattern="\\S")] = None
     first_name: Annotated[str | None, Field(max_length=100, min_length=1, pattern="\\S")] = None
     email: Annotated[str | None, Field(max_length=254)] = None
-    org_node_id: Uuid | None = None
+    org_node_id: Annotated[
+        Uuid | None,
+        Field(
+            description="Null detaches the account from its node; absent, the attachment does not change."
+        ),
+    ] = None
     lock_version: LockVersion
 
 
 class UserActivationWrite(ContractModel):
-    is_active: bool
+    is_active: Annotated[
+        bool, Field(description="False deactivates the account, true reactivates it.")
+    ]
     lock_version: LockVersion
 
 
@@ -1019,7 +1098,12 @@ class UserAnonymizationWrite(ContractModel):
 
 
 class UserRolesWrite(ContractModel):
-    access_role_ids: list[Uuid]
+    access_role_ids: Annotated[
+        list[Uuid],
+        Field(
+            description="The full list of the account's roles, which replaces the one it held; empty, the account holds no role (WF-ADM-0180). A role the installation does not have, or a deleted one, `UNKNOWN_ACCESS_ROLE`; roles that would remove the administration permissions from the last active account holding them, 409 `LAST_ADMINISTRATOR` (WF-ADM-0120)."
+        ),
+    ]
     lock_version: LockVersion
 
 
@@ -1176,7 +1260,10 @@ class Permission(ContractModel):
         ),
     ]
     fbs_code: Annotated[
-        str | None, Field(description="Second-level function covered, for the first two kinds.")
+        str | None,
+        Field(
+            description="Second-level function covered, for the first two kinds. Null for an irreversible or a structuring permission, which covers no single function."
+        ),
     ]
 
 
@@ -1870,7 +1957,7 @@ class OrgNode(ContractModel):
         ),
     ]
     label: Annotated[str, Field(max_length=200, min_length=1, pattern="\\S")]
-    parent_id: Uuid | None
+    parent_id: Annotated[Uuid | None, Field(description="Null for a root.")]
     parent_label: Annotated[
         ParentLabel | None,
         Field(
@@ -2262,7 +2349,7 @@ class Money(RootModel[str]):
     root: Annotated[
         str,
         Field(
-            description="Amount in the installation's single currency (WF-REF-0140), with two decimals.",
+            description="Amount in the installation's single currency (WF-REF-0140), with two decimals. An amount the server computes, a projected amount included, is rounded to the cent, to nearest, a half going away from zero; the server computes on the exact quantities and rounds only the value returned (WF-DAT-0100).",
             pattern="(?=^-?\\d+(\\.\\d+)?$)(?=^-?\\d+(\\.\\d{1,2})?$)",
         ),
     ]
@@ -2458,7 +2545,7 @@ class ProjectCommandAvailability(ContractModel):
 class Project(ContractModel):
     project_id: Uuid
     label: Annotated[str, Field(max_length=300, min_length=1, pattern="\\S")]
-    description: str | None
+    description: Annotated[str | None, Field(description="Null when none is entered.")]
     client: Annotated[
         ProjectClient | None,
         Field(
@@ -2484,15 +2571,20 @@ class Project(ContractModel):
             description="Win probability, 0 by default, with no effect on any calculation of the project (WF-PRJ-0090): a ratio, from `0` to `1` inclusive, outside of which `updateProject` refuses the value (`VALUE_OUT_OF_RANGE`). Modifiable in the Created and Pricing states, frozen from In progress onwards: the `update_win_probability` command states it in advance, and a value sent regardless is refused with 409 `STATE_FORBIDS_OPERATION`, `params.missing_condition` at `project_before_in_progress`."
         ),
     ]
-    order_received_on: PlanningDate | None
+    order_received_on: Annotated[
+        PlanningDate | None, Field(description="Null as long as it is not entered.")
+    ]
     reference_revision_id: Annotated[
         Uuid | None,
         Field(
-            description="Reference revision, designated once at contractualisation (WF-REV-0040)."
+            description="Reference revision, designated once at contractualisation (WF-REV-0040). Null as long as no reference is designated."
         ),
     ]
     current_revision_id: Annotated[
-        Uuid | None, Field(description="Revision being drawn up, if one exists (WF-REV-0010).")
+        Uuid | None,
+        Field(
+            description="Revision being drawn up, if one exists (WF-REV-0010). Null when the project holds none: before its first revision, between a marking and the next revision, and in a terminal state (WF-CYC-0090)."
+        ),
     ]
     available_commands: Annotated[
         list[ProjectCommandAvailability],
@@ -2510,19 +2602,28 @@ class ProjectListMeta(PaginationMeta):
 
 class ProjectCreate(ContractModel):
     label: Annotated[str, Field(max_length=300, min_length=1, pattern="\\S")]
-    description: str | None = None
+    description: Annotated[
+        str | None, Field(description="Null or absent, the project has none.")
+    ] = None
     client: Annotated[
         ProjectClient | None,
         Field(
             description="The name of the client (WF-PRJ-0080), optional: null, or absent, the project has none."
         ),
     ] = None
-    code: ProjectCode | None = None
+    code: Annotated[
+        ProjectCode | None,
+        Field(
+            description="Null or absent, the project is created without a code, which the passage to In progress requires (WF-PRJ-0010, WF-CYC-0030)."
+        ),
+    ] = None
 
 
 class ProjectUpdate(ContractModel):
     label: Annotated[str | None, Field(max_length=300, min_length=1, pattern="\\S")] = None
-    description: str | None = None
+    description: Annotated[
+        str | None, Field(description="Null clears it; absent, it does not change.")
+    ] = None
     client: Annotated[
         ProjectClient | None,
         Field(
@@ -2539,12 +2640,19 @@ class ProjectUpdate(ContractModel):
             description="From `0` to `1` inclusive, a ratio; refused from In progress onwards, 409 `STATE_FORBIDS_OPERATION`, `params.missing_condition` at `project_before_in_progress` (WF-PRJ-0090). Absent, the value does not change."
         ),
     ] = None
-    order_received_on: PlanningDate | None = None
+    order_received_on: Annotated[
+        PlanningDate | None, Field(description="Null clears it; absent, it does not change.")
+    ] = None
     lock_version: LockVersion
 
 
 class StateTransition(ContractModel):
-    from_state: ProjectState | None
+    from_state: Annotated[
+        ProjectState | None,
+        Field(
+            description="Null for the first transition, the creation of the project in the Created state."
+        ),
+    ]
     to_state: ProjectState
     occurred_at: Timestamp
     actor: ActorRef
@@ -2563,7 +2671,12 @@ class LifecycleTrigger(StrEnum):
 
 class NextState(ContractModel):
     current_state: ProjectState
-    next_state: ProjectState | None
+    next_state: Annotated[
+        ProjectState | None,
+        Field(
+            description="Null for a project in progress or in a terminal state, which no event takes any further."
+        ),
+    ]
     trigger: Annotated[
         LifecycleTrigger | None,
         Field(
@@ -2614,13 +2727,13 @@ class ProjectExit(ContractModel):
     reason: Annotated[
         str | None,
         Field(
-            description="Optional reason, which the transition keeps (WF-CYC-0090, WF-CYC-0130)."
+            description="Optional reason, which the transition keeps (WF-CYC-0090, WF-CYC-0130). Null or absent, the transition carries none (`StateTransition.reason`)."
         ),
     ] = None
     current_revision: Annotated[
         CurrentRevisionFate | None,
         Field(
-            description="The fate of the current revision, required when the project holds one (`Project.current_revision_id`): absent or null, the exit is refused with 422 `VALIDATION_FAILED`, `fields` designating `/current_revision` with `VALUE_REQUIRED`, and nothing is written (`project_exit_revision_required`). Absent or null when the project holds none (D-01, US-0701/L9)."
+            description="The fate of the current revision, required when the project holds one (`Project.current_revision_id`): absent or null, the exit is refused with 422 `VALIDATION_FAILED`, `fields` designating `/current_revision` with `VALUE_REQUIRED`, and nothing is written (`project_exit_revision_required`). Absent or null when the project holds none (D-01, US-0701/L9); sent when the project holds none, it is ignored: the exit applies within the request (200), the permission its action requires (`revision_abandon`, `revision_mark`) still being asked (403)."
         ),
     ] = None
     lock_version: Annotated[
@@ -2652,7 +2765,12 @@ class OrderItemReading(ContractModel):
     order_item_id: Uuid
     label: Annotated[str, Field(max_length=300, min_length=1)]
     is_match: bool
-    attached_task: AttachedTask | None
+    attached_task: Annotated[
+        AttachedTask | None,
+        Field(
+            description="Null when no task holds the order item, or when the project has no current revision, as for a work package."
+        ),
+    ]
     deliverables: list[DeliverableReading]
 
 
@@ -2996,7 +3114,12 @@ class Revision(ContractModel):
         ),
     ]
     audit: Audit
-    lock_version: LockVersion
+    lock_version: Annotated[
+        LockVersion,
+        Field(
+            description="The counter of the revision itself, 1 at its creation (`LockVersion`): it advances at each write of the revision — the rate update (`applyRateUpdate`), the marking, and what a background task writes on it —, never at an entry into its structures or its risks, which advances the counter of the node, of the structure or of the risk (`CostStructure.lock_version`, `Risk.lock_version`). The marking and the abandonment carry it as read (`RevisionMark.lock_version`, `abandonRevision`): an entry by another contributor does not make them stale (WF-IHM-0110)."
+        ),
+    ]
 
 
 class RevisionCreate(ContractModel):
@@ -3197,7 +3320,12 @@ class Params1(ContractModel):
 
 class Computable(ContractModel):
     is_computable: bool
-    value: Decimal | None
+    value: Annotated[
+        Decimal | None,
+        Field(
+            description="Null when the value is not computable (`is_computable` false), `reason` saying why (WF-IND-0010)."
+        ),
+    ]
     reason: Annotated[
         NotComputableReason | None,
         Field(
@@ -3239,7 +3367,7 @@ class ExternalId(RootModel[str]):
 
 class ComparedTaskFacet(ContractModel):
     label: Annotated[str | None, Field(max_length=300, min_length=1, pattern="\\S")] = None
-    description: str | None = None
+    description: Annotated[str | None, Field(description="Null when none is entered.")] = None
     scheduling_mode: SchedulingMode | None = None
     duration: Duration | None = None
     start: WorkInstant | None = None
@@ -3266,7 +3394,7 @@ class ComparedTaskFacet(ContractModel):
     completed_on: Annotated[
         PlanningDate | None,
         Field(
-            description="Completion date, which places the earned value in time (WF-IND-0030), null for a task that is not completed; a read column of the planning grid (`NodeColumn.completed_on`, WF-PLA-0080)."
+            description="Completion date, which places the earned value in time (WF-IND-0030), null for a task that is not completed. A summary task carries the latest of the completion dates of its subordinates and of the setting to zero of its own lines outside provision (WF-PLA-0130). A read column of the planning grid (`NodeColumn.completed_on`, WF-PLA-0080)."
         ),
     ] = None
     is_summary: Annotated[
@@ -3339,7 +3467,7 @@ class ComparedTaskFacet(ContractModel):
     order_item_id: Annotated[
         Uuid | None,
         Field(
-            description='The order item of the work breakdown that this task carries (WF-PLA-0170), under the same rules as `work_package_id`, exclusive of it: a task carries a work package or an order item, never both; an order item is carried by only one task at a time. "When the work package of an order item is attached, the task of that order item lies in the subtree of the task of that work package" (WF-PLA-0170). The grids filter by order item on this attachment (WF-DEV-0050, WF-RAE-0040).'
+            description='The order item of the work breakdown that this task carries (WF-PLA-0170), under the same rules as `work_package_id`, exclusive of it: a task carries a work package or an order item, never both; an order item is carried by only one task at a time. "When the work package of an order item is attached, the task of that order item lies in the subtree of the task of that work package" (WF-PLA-0170). The grids filter by order item on this attachment (WF-DEV-0050, WF-RAE-0040). Null when the task carries no order item.'
         ),
     ] = None
     work_package_id: Annotated[
@@ -3408,9 +3536,17 @@ class ComparedEstimateLineFacet(ContractModel):
             description="Label of the resource role, resolved on read, active or deactivated; null for a line without a role."
         ),
     ] = None
-    hours: Hours | None = None
+    hours: Annotated[
+        Hours | None,
+        Field(
+            description="The effort of a labour line; null for a line without a role, which carries none (WF-DEV-0020)."
+        ),
+    ] = None
     unit_disbursement: Annotated[
-        Money | None, Field(description="Unit disbursement of a non-labour line (WF-DEV-0020).")
+        Money | None,
+        Field(
+            description="Unit disbursement of a non-labour line (WF-DEV-0020). Null for a labour line, which carries none."
+        ),
     ] = None
     payment_delay_days: Annotated[
         PaymentDelayDays | None,
@@ -3421,7 +3557,7 @@ class ComparedEstimateLineFacet(ContractModel):
     subproject_id: Annotated[
         Uuid | None,
         Field(
-            description='Optional subproject; without it, the line falls under "Hors sous-projet" (WF-IND-0020).'
+            description='Optional subproject; without it, the line falls under "Hors sous-projet" (WF-IND-0020). Null for a line under no subproject.'
         ),
     ] = None
     subproject_label: Annotated[
@@ -3473,7 +3609,10 @@ class ComparedEstimateLineFacet(ContractModel):
         ),
     ] = None
     consumption_year: Annotated[
-        Year | None, Field(description="Consumption year, deduced from the planning (WF-DEV-0040).")
+        Year | None,
+        Field(
+            description="Consumption year, deduced from the planning: that of the start of the task that carries the line. For a task spanning several years, the year of the first part of the line, its amounts being projected part by part (`reestimated_amount`, WF-DEV-0040); the filters `consumption_year_min` and `consumption_year_max` retain the line on that year."
+        ),
     ] = None
     is_computed: Annotated[
         bool | None,
@@ -3591,7 +3730,9 @@ class ComparedNodeRead(ContractModel):
     node_id: Uuid
     lineage_id: Uuid | None = None
     kind: NodeKind | None = None
-    parent_id: Uuid | None = None
+    parent_id: Annotated[
+        Uuid | None, Field(description="Null for a node of the first level of the structure.")
+    ] = None
     position: Annotated[
         int | None,
         Field(
@@ -3613,8 +3754,12 @@ class ComparedNodeRead(ContractModel):
             description="The risk whose occurrence merged this node, task or line, into the main structure (WF-RIS-0060); null for any other. Read-only: the occurrence sets it on each task and each line it merges, and no write changes it. The copy of a revision, moves, imports that match the node by its lineage (`lineage_id`) and the merge of an amendment keep it; a creation leaves it null, even under a task that came from a risk. It finds the lines that came from an occurred risk, which the filters `is_from_risk` and `origin_risk_ids` retain, and whose re-estimated amount is compared with the cost at occurrence (`Risk.occurred_reestimated_amount`; #1761)."
         ),
     ] = None
-    task: ComparedTaskFacet | None = None
-    estimate_line: ComparedEstimateLineFacet | None = None
+    task: Annotated[ComparedTaskFacet | None, Field(description="Null for an estimate line.")] = (
+        None
+    )
+    estimate_line: Annotated[
+        ComparedEstimateLineFacet | None, Field(description="Null for a task.")
+    ] = None
     predecessors: list[Predecessor] | None = None
     computed_fields: Annotated[
         list[ComputedField] | None,
@@ -3760,7 +3905,10 @@ class CostStructure(ContractModel):
         ),
     ]
     risk_id: Annotated[
-        Uuid | None, Field(description="Set for a structure of kind `risk` (WF-RIS-0030).")
+        Uuid | None,
+        Field(
+            description="Set for a structure of kind `risk` (WF-RIS-0030). Null for the main structure and a differential."
+        ),
     ] = None
     is_merged: Annotated[
         bool,
@@ -3800,7 +3948,7 @@ class StructureUpdate(ContractModel):
 
 class TaskFacet(ContractModel):
     label: Annotated[str, Field(max_length=300, min_length=1, pattern="\\S")]
-    description: str | None = None
+    description: Annotated[str | None, Field(description="Null when none is entered.")] = None
     scheduling_mode: SchedulingMode
     duration: Duration
     start: WorkInstant | None
@@ -3827,7 +3975,7 @@ class TaskFacet(ContractModel):
     completed_on: Annotated[
         PlanningDate | None,
         Field(
-            description="Completion date, which places the earned value in time (WF-IND-0030), null for a task that is not completed; a read column of the planning grid (`NodeColumn.completed_on`, WF-PLA-0080)."
+            description="Completion date, which places the earned value in time (WF-IND-0030), null for a task that is not completed. A summary task carries the latest of the completion dates of its subordinates and of the setting to zero of its own lines outside provision (WF-PLA-0130). A read column of the planning grid (`NodeColumn.completed_on`, WF-PLA-0080)."
         ),
     ] = None
     is_summary: Annotated[
@@ -3900,7 +4048,7 @@ class TaskFacet(ContractModel):
     order_item_id: Annotated[
         Uuid | None,
         Field(
-            description='The order item of the work breakdown that this task carries (WF-PLA-0170), under the same rules as `work_package_id`, exclusive of it: a task carries a work package or an order item, never both; an order item is carried by only one task at a time. "When the work package of an order item is attached, the task of that order item lies in the subtree of the task of that work package" (WF-PLA-0170). The grids filter by order item on this attachment (WF-DEV-0050, WF-RAE-0040).'
+            description='The order item of the work breakdown that this task carries (WF-PLA-0170), under the same rules as `work_package_id`, exclusive of it: a task carries a work package or an order item, never both; an order item is carried by only one task at a time. "When the work package of an order item is attached, the task of that order item lies in the subtree of the task of that work package" (WF-PLA-0170). The grids filter by order item on this attachment (WF-DEV-0050, WF-RAE-0040). Null when the task carries no order item.'
         ),
     ] = None
     work_package_id: Annotated[
@@ -3954,9 +4102,17 @@ class EstimateLineFacet(ContractModel):
             description="Label of the resource role, resolved on read, active or deactivated; null for a line without a role."
         ),
     ]
-    hours: Hours | None = None
+    hours: Annotated[
+        Hours | None,
+        Field(
+            description="The effort of a labour line; null for a line without a role, which carries none (WF-DEV-0020)."
+        ),
+    ] = None
     unit_disbursement: Annotated[
-        Money | None, Field(description="Unit disbursement of a non-labour line (WF-DEV-0020).")
+        Money | None,
+        Field(
+            description="Unit disbursement of a non-labour line (WF-DEV-0020). Null for a labour line, which carries none."
+        ),
     ] = None
     payment_delay_days: Annotated[
         PaymentDelayDays | None,
@@ -3967,7 +4123,7 @@ class EstimateLineFacet(ContractModel):
     subproject_id: Annotated[
         Uuid | None,
         Field(
-            description='Optional subproject; without it, the line falls under "Hors sous-projet" (WF-IND-0020).'
+            description='Optional subproject; without it, the line falls under "Hors sous-projet" (WF-IND-0020). Null for a line under no subproject.'
         ),
     ] = None
     subproject_label: Annotated[
@@ -4019,7 +4175,10 @@ class EstimateLineFacet(ContractModel):
         ),
     ] = None
     consumption_year: Annotated[
-        Year | None, Field(description="Consumption year, deduced from the planning (WF-DEV-0040).")
+        Year | None,
+        Field(
+            description="Consumption year, deduced from the planning: that of the start of the task that carries the line. For a task spanning several years, the year of the first part of the line, its amounts being projected part by part (`reestimated_amount`, WF-DEV-0040); the filters `consumption_year_min` and `consumption_year_max` retain the line on that year."
+        ),
     ] = None
     is_computed: Annotated[
         bool,
@@ -4049,7 +4208,9 @@ class Node(ContractModel):
     node_id: Uuid
     lineage_id: Uuid
     kind: NodeKind
-    parent_id: Uuid | None
+    parent_id: Annotated[
+        Uuid | None, Field(description="Null for a node of the first level of the structure.")
+    ]
     position: Annotated[
         int,
         Field(
@@ -4071,8 +4232,8 @@ class Node(ContractModel):
             description="The risk whose occurrence merged this node, task or line, into the main structure (WF-RIS-0060); null for any other. Read-only: the occurrence sets it on each task and each line it merges, and no write changes it. The copy of a revision, moves, imports that match the node by its lineage (`lineage_id`) and the merge of an amendment keep it; a creation leaves it null, even under a task that came from a risk. It finds the lines that came from an occurred risk, which the filters `is_from_risk` and `origin_risk_ids` retain, and whose re-estimated amount is compared with the cost at occurrence (`Risk.occurred_reestimated_amount`; #1761)."
         ),
     ]
-    task: TaskFacet | None = None
-    estimate_line: EstimateLineFacet | None = None
+    task: Annotated[TaskFacet | None, Field(description="Null for an estimate line.")] = None
+    estimate_line: Annotated[EstimateLineFacet | None, Field(description="Null for a task.")] = None
     predecessors: list[Predecessor] | None = None
     computed_fields: Annotated[
         list[ComputedField],
@@ -4349,7 +4510,7 @@ class StructureMerge(ContractModel):
     description: Annotated[
         str | None,
         Field(
-            description="The description attached to the marked revision, as at marking (`RevisionMark.description`, WF-REV-0020, WF-REV-0090)."
+            description="The description attached to the marked revision, as at marking (`RevisionMark.description`, WF-REV-0020, WF-REV-0090). Null or absent, the marked revision has none."
         ),
     ] = None
     main_structure_lock_version: Annotated[
@@ -4373,17 +4534,29 @@ class WorkInstantWrite(ContractModel):
 
 class TaskFacetWrite(ContractModel):
     label: Annotated[str, Field(max_length=300, min_length=1, pattern="\\S")]
-    description: str | None = None
+    description: Annotated[str | None, Field(description="Null or absent, the task has none.")] = (
+        None
+    )
     scheduling_mode: SchedulingMode | None = None
     duration: Duration | None = None
     start: WorkInstantWrite | None = None
     finish: WorkInstantWrite | None = None
-    order_item_id: Uuid | None = None
-    work_package_id: Uuid | None = None
+    order_item_id: Annotated[
+        Uuid | None, Field(description="Null or absent, the task carries no order item.")
+    ] = None
+    work_package_id: Annotated[
+        Uuid | None, Field(description="Null or absent, the task carries no work package.")
+    ] = None
 
 
 class PaymentDelayDays2(RootModel[int]):
-    root: Annotated[int, Field(ge=0)]
+    root: Annotated[
+        int,
+        Field(
+            description="Payment delay, in days. Absent, zero, for a labour line as for any other line this write creates; only a provision line carries none (null), and it is not created here (WF-DEV-0020, WF-RIS-0010).",
+            ge=0,
+        ),
+    ]
 
 
 class EstimateLineWrite(ContractModel):
@@ -4403,17 +4576,45 @@ class EstimateLineWrite(ContractModel):
         ),
     ] = None
     quantity: Decimal
-    resource_role_id: Uuid | None = None
-    hours: Hours | None = None
-    unit_disbursement: Money | None = None
-    payment_delay_days: PaymentDelayDays2 | None = None
-    subproject_id: Uuid | None = None
+    resource_role_id: Annotated[
+        Uuid | None,
+        Field(
+            description="Null or absent for a line of another category than labour, whose category is then required."
+        ),
+    ] = None
+    hours: Annotated[
+        Hours | None,
+        Field(description="Null or absent for a line without a role, which carries no effort."),
+    ] = None
+    unit_disbursement: Annotated[
+        Money | None,
+        Field(description="Null or absent for a labour line, which carries no disbursement."),
+    ] = None
+    payment_delay_days: Annotated[
+        PaymentDelayDays2 | None,
+        Field(
+            description="Payment delay, in days. Absent, zero, for a labour line as for any other line this write creates; only a provision line carries none (null), and it is not created here (WF-DEV-0020, WF-RIS-0010)."
+        ),
+    ] = None
+    subproject_id: Annotated[
+        Uuid | None,
+        Field(
+            description='Null or absent, the line falls under no subproject ("Hors sous-projet", WF-IND-0020).'
+        ),
+    ] = None
 
 
 class NodeCreate(ContractModel):
     kind: NodeKind
-    parent_id: Uuid | None
-    after_node_id: Uuid | None = None
+    parent_id: Annotated[
+        Uuid | None, Field(description="Null for a node of the first level of the structure.")
+    ]
+    after_node_id: Annotated[
+        Uuid | None,
+        Field(
+            description="The sibling after which the node is placed: null, at the head of the lines or of the subtasks; absent, after the last of them."
+        ),
+    ] = None
     task: TaskFacetWrite | None = None
     estimate_line: EstimateLineWrite | None = None
 
@@ -4484,7 +4685,7 @@ class ComputedValueDependencies(ContractModel):
 
 class TaskFacetUpdate(ContractModel):
     label: Annotated[str | None, Field(max_length=300, min_length=1, pattern="\\S")] = None
-    description: str | None = None
+    description: Annotated[str | None, Field(description="Null clears it.")] = None
     scheduling_mode: SchedulingMode | None = None
     duration: Duration | None = None
     start: WorkInstantWrite | None = None
@@ -4504,6 +4705,10 @@ class TaskFacetUpdate(ContractModel):
     lock_version: LockVersion
 
 
+class PaymentDelayDays3(RootModel[int]):
+    root: Annotated[int, Field(ge=0)]
+
+
 class EstimateLineUpdate(ContractModel):
     label: Annotated[str | None, Field(max_length=300, min_length=1, pattern="\\S")] = None
     cost_category_id: Annotated[
@@ -4516,7 +4721,7 @@ class EstimateLineUpdate(ContractModel):
     resource_role_id: Uuid | None = None
     hours: Hours | None = None
     unit_disbursement: Money | None = None
-    payment_delay_days: PaymentDelayDays2 | None = None
+    payment_delay_days: PaymentDelayDays3 | None = None
     subproject_id: Annotated[
         Uuid | None,
         Field(
@@ -4551,13 +4756,20 @@ class ReestimatedAmountBasis(ContractModel):
 class RemainingUpdate(ContractModel):
     reestimated_amount_basis: Annotated[
         ReestimatedAmountBasis,
-        Field(description="The entered figures from which the re-estimated amount is recomputed."),
+        Field(
+            description="The entered figures from which the re-estimated amount is recomputed. Only what is sent changes, an absent figure remaining what it was; a figure the line does not accept — the unit disbursement of a labour line, the hours of another line — is refused with 422, reason `FIELD_NOT_ACCEPTED` on its field, and nothing is written (WF-DEV-0020, WF-RAE-0040)."
+        ),
     ]
-    reason: str | None = None
+    reason: Annotated[
+        str | None,
+        Field(
+            description="Free text accepted and ignored: no requirement reads it, the server keeps nothing of it and returns it nowhere. A client need not send it."
+        ),
+    ] = None
     completed_on: Annotated[
         PlanningDate | None,
         Field(
-            description="Completion date of the task, asked for at validation when the entry completes it — the last of its still-open lines set to zero —, proposed by the screen as the current day and modifiable (WF-RAE-0040, WF-PLA-0130). Required in that case: without it, the entry is refused with a reason `COMPLETION_DATE_REQUIRED` on `/completed_on`, `fields[].params.task_node_id` naming the task, and nothing is written; the screen asks for the date and replays the entry. For a not-started task, milestone included, the same date is also that of its start (`started_on`, WF-PLA-0130); a task that is not a milestone goes through the started state (WF-RAE-0030). Ignored when the entry does not complete the task."
+            description="Completion date of the task, asked for at validation when the entry completes it — the last of its still-open lines set to zero —, proposed by the screen as the current day and modifiable (WF-RAE-0040, WF-PLA-0130). Required in that case: without it, the entry is refused with a reason `COMPLETION_DATE_REQUIRED` on `/completed_on`, `fields[].params.task_node_id` naming the task, and nothing is written; the screen asks for the date and replays the entry. For a not-started task, milestone included, the same date is also that of its start (`started_on`, WF-PLA-0130); a task that is not a milestone goes through the started state (WF-RAE-0030). Ignored when the entry does not complete the task. Null or absent when the entry does not complete the task."
         ),
     ] = None
     lock_version: LockVersion
@@ -4565,8 +4777,15 @@ class RemainingUpdate(ContractModel):
 
 class NodeMove(ContractModel):
     node_ids: Annotated[list[Uuid], Field(min_length=1)]
-    parent_id: Uuid | None
-    after_node_id: Uuid | None = None
+    parent_id: Annotated[
+        Uuid | None, Field(description="Null for the first level of the structure.")
+    ]
+    after_node_id: Annotated[
+        Uuid | None,
+        Field(
+            description="The sibling after which the node is placed: null, at the head of the lines or of the subtasks; absent, after the last of them."
+        ),
+    ] = None
     lock_version: LockVersion
 
 
@@ -4655,7 +4874,7 @@ class Undone(ContractModel):
     node_ids: Annotated[
         list[Uuid],
         Field(
-            description="The nodes that the undo, or the redo, returns to their previous state; empty for a risk entry."
+            description="The nodes that the undo, or the redo, returns to their previous state; empty for a risk entry and for a write of a structure (`structure_update`), whose re-dated tasks are recomputed, not written (`written.rescheduled`)."
         ),
     ]
     risk_ids: Annotated[
@@ -4696,14 +4915,19 @@ class CalculationContext(ContractModel):
     is_stored: Annotated[
         bool,
         Field(
-            description="True for what the marking of a revision stored — its indicators and its curves, unchanging since its marking, on the actual cost known then (WF-DAT-0040, WF-IND-0010); false for the current revision, and for the computation on the current day of a project without a current revision, on its last marked revision with the actual cost of the day. The zone of a stored index is classified when read (`IndexValue.zone`)."
+            description="True for what the marking of a revision stored — its indicators, its curves and its workload by role and month (`WorkloadPlan`, `marked_remaining`), unchanging since its marking, on the actual cost known then (WF-DAT-0040, WF-IND-0010); false for the current revision, and for the computation on the current day of a project without a current revision, on its last marked revision with the actual cost of the day. The zone of a stored index is classified when read (`IndexValue.zone`)."
         ),
     ]
 
 
 class ComputableMoney(ContractModel):
     is_computable: bool
-    value: Money | None
+    value: Annotated[
+        Money | None,
+        Field(
+            description="Null when the amount is not computable (`is_computable` false), `reason` saying why (WF-IND-0010)."
+        ),
+    ]
     reason: Annotated[
         NotComputableReason | None,
         Field(
@@ -4751,7 +4975,7 @@ class EstimateIndicators(ContractModel):
     delta_to_reference: Annotated[
         ComputableMoney | None,
         Field(
-            description="The difference between the estimate total of the revision read (`context.revision_id`) and that of the reference revision, provision lines included on both sides (WF-DEV-0060): the estimate read minus that of the reference, positive when it exceeds it; null when the project has no reference revision."
+            description="The difference between the estimate total of the revision read (`context.revision_id`) and that of the reference revision, provision lines included on both sides (WF-DEV-0060): the estimate read minus that of the reference, positive when it exceeds it; null when the project has no reference revision. The sign of the portfolio's variance (`PortfolioProjectRow.delta_to_reference`), the opposite of the remaining to commit's margin of the same name (`RemainingIndicators.delta_to_reference`)."
         ),
     ]
     delta_to_previous_revision: Annotated[
@@ -4829,7 +5053,12 @@ class WorkloadPlan(ContractModel):
             description="The total hours of each month of the plan, the sum of the hours of the roles selected that month, which the top of the month's bar carries, without the front summing the roles (WF-DEV-0070, WF-ARC-0020, #1247): from the first to the last month that a role loads, ascending and without gaps, a month without load included at zero, each naming its month like the months of a role (`roles[].months`) and like `PortfolioWorkload.monthly_totals`; empty when no role has any load."
         ),
     ]
-    roles: list[Role]
+    roles: Annotated[
+        list[Role],
+        Field(
+            description="Every active role, with its capacity, whether the lines load it on the horizon or not; restricted, with `org_node_id`, to the roles of that node and of its descendants (WF-DEV-0070)."
+        ),
+    ]
 
 
 class RiskCoverageTotals(ContractModel):
@@ -4905,7 +5134,12 @@ class SubprojectBalance(ContractModel):
         ),
     ]
     is_over_budget: bool
-    zone: AlertZone
+    zone: Annotated[
+        AlertZone,
+        Field(
+            description="`alert` when the subproject exceeds its budget (`is_over_budget`, a negative `variance`), `nominal` otherwise; never `watch` (WF-RAE-0020, WF-IHM-0070)."
+        ),
+    ]
 
 
 class RemainingIndicators(ContractModel):
@@ -4920,7 +5154,7 @@ class RemainingIndicators(ContractModel):
     delta_to_reference: Annotated[
         Money | None,
         Field(
-            description="The margin on the reference budget (WF-RAE-0020): the reference budget minus the sum of the actual cost and the remaining to commit, positive when some is left, negative when the project exceeds its budget — budget 1,000, actual cost 500, remaining to commit 550, margin -50; null when the project has no reference revision."
+            description="The margin on the reference budget (WF-RAE-0020): the reference budget minus the sum of the actual cost and the remaining to commit, positive when some is left, negative when the project exceeds its budget — budget 1,000, actual cost 500, remaining to commit 550, margin -50; null when the project has no reference revision. Despite its name, the opposite sign of the field of the same name of the portfolio, a variance, +50 in the same case (`PortfolioProjectRow.delta_to_reference`), and of that of the estimate, the estimate minus the reference (`EstimateIndicators.delta_to_reference`)."
         ),
     ]
     delta_to_previous_revision: Annotated[
@@ -5158,7 +5392,12 @@ class CurveSeries(ContractModel):
 class IndexHistoryPoint(ContractModel):
     at: Timestamp
     revision_id: Uuid
-    version_name: str | None
+    version_name: Annotated[
+        str | None,
+        Field(
+            description="The version name of the marked revision; null for the last point, the current day, which no marking names."
+        ),
+    ]
     cost_index: IndexValue
     schedule_index: IndexValue
 
@@ -5247,8 +5486,8 @@ class RiskCommandAvailability(ContractModel):
 class Risk(ContractModel):
     risk_id: Uuid
     label: Annotated[str, Field(max_length=300, min_length=1, pattern="\\S")]
-    description: str | None
-    mitigation_notes: str | None
+    description: Annotated[str | None, Field(description="Null when none is entered.")]
+    mitigation_notes: Annotated[str | None, Field(description="Null when none is entered.")]
     probability: Percent
     severity: Annotated[Money, Field(description="Computed, never entered (WF-RIS-0010).")]
     provision_amount: Annotated[
@@ -5278,7 +5517,9 @@ class Risk(ContractModel):
     ]
     provision_node_id: Annotated[
         Uuid | None,
-        Field(description="Provision line carried by the main structure (WF-RIS-0010)."),
+        Field(
+            description="Provision line carried by the main structure (WF-RIS-0010). Null when the risk is not identified — occurred or dismissed —: it then carries no provision line."
+        ),
     ]
     provision_cost_category_id: Annotated[
         Uuid,
@@ -5359,8 +5600,12 @@ class ProvisionTotals(ContractModel):
 
 class RiskWrite(ContractModel):
     label: Annotated[str, Field(max_length=300, min_length=1, pattern="\\S")]
-    description: str | None = None
-    mitigation_notes: str | None = None
+    description: Annotated[str | None, Field(description="Null or absent, the risk has none.")] = (
+        None
+    )
+    mitigation_notes: Annotated[
+        str | None, Field(description="Null or absent, the risk has none.")
+    ] = None
     probability: Annotated[
         Percent, Field(description="From `0` to `1` inclusive, a ratio (WF-RIS-0010).")
     ]
@@ -5379,15 +5624,15 @@ class RiskWrite(ContractModel):
     provision_task_id: Annotated[
         Uuid | None,
         Field(
-            description='The task of the main structure of the current revision that carries the provision line, optional: "failing a designation, it is carried by the first top-level task of the structure" (WF-RIS-0010, #786). A summary task carries it like a leaf; the line does not enter into the state of its task (WF-PLA-0040). A node that is not a task of this structure — a line, a task of another structure, an unknown identifier — is refused with 422, `UNKNOWN_TASK`. It is then changed through `updateRiskProvision`, like the category.'
+            description='The task of the main structure of the current revision that carries the provision line, optional: "failing a designation, it is carried by the first top-level task of the structure" (WF-RIS-0010, #786). A summary task carries it like a leaf; the line does not enter into the state of its task (WF-PLA-0040). A node that is not a task of this structure — a line, a task of another structure, an unknown identifier — is refused with 422, `UNKNOWN_TASK`. It is then changed through `updateRiskProvision`, like the category. Null or absent, the first top-level task carries the line.'
         ),
     ] = None
 
 
 class RiskUpdate(ContractModel):
     label: Annotated[str, Field(max_length=300, min_length=1, pattern="\\S")]
-    description: str | None = None
-    mitigation_notes: str | None = None
+    description: Annotated[str | None, Field(description="Null, the risk has none.")] = None
+    mitigation_notes: Annotated[str | None, Field(description="Null, the risk has none.")] = None
     lock_version: LockVersion
 
 
@@ -5504,7 +5749,9 @@ class RiskOccurrence(ContractModel):
 class RiskMatrixLevel(ContractModel):
     level: Annotated[int, Field(ge=1, le=4)]
     lower: Percent
-    upper: Percent | None
+    upper: Annotated[
+        Percent | None, Field(description="Null at the last level, which has no upper bound.")
+    ]
 
 
 class RiskMatrixPoint(ContractModel):
@@ -5679,7 +5926,12 @@ class ActualCostListMeta(PaginationMeta):
 
 class ScopeExclusion(ContractModel):
     is_in_tracked_scope: bool
-    reason: str | None = None
+    reason: Annotated[
+        str | None,
+        Field(
+            description="The reason for an exclusion, as the user enters it; null or absent, an exclusion without a reason (WF-CRE-0030). A reinstated line carries none (`ActualCostLine.excluded_reason`)."
+        ),
+    ] = None
 
 
 class CostImport(ContractModel):
@@ -5736,7 +5988,12 @@ class FileUpload(ContractModel):
     filename: str
     size_bytes: Annotated[int, Field(ge=1)]
     uploaded_at: Timestamp
-    expires_at: Timestamp
+    expires_at: Annotated[
+        Timestamp,
+        Field(
+            description="Twenty-four hours after the upload (`uploaded_at`). Beyond that, an upload that no import has opened is deleted, and `openImport` refuses it with 404 (WF-DAT-0120). An upload that an import has opened follows its import: it lives until the import is applied, refused, abandoned or expired (WF-ARC-0100). A backup upload that an accepted restore designates is kept until the end of its task (`startRestore`)."
+        ),
+    ]
     backup_taken_at: Annotated[
         Timestamp | None,
         Field(
@@ -6051,19 +6308,19 @@ class ImportRequest(ContractModel):
     structure_id: Annotated[
         Uuid | None,
         Field(
-            description="The targeted structure, a single one (WF-INTF-0090): a structure of the current revision, or of the last marked revision when the import will create the current revision; the main structure by default; not applicable to an actual cost extraction. An unknown structure, or one of another revision, is refused with 404."
+            description="The targeted structure, a single one (WF-INTF-0090): a structure of the current revision, or of the last marked revision when the import will create the current revision; the main structure by default; not applicable to an actual cost extraction. An unknown structure, or one of another revision, is refused with 404. Null or absent, the main structure."
         ),
     ] = None
     period_from: Annotated[
         PlanningDate | None,
         Field(
-            description="For an actual cost extraction only (`actual_costs`), the start of the period extracted from the ERP, which the log keeps (WF-CRE-0050); optional, like the end, each bound possibly missing; not applicable to another kind."
+            description="For an actual cost extraction only (`actual_costs`), the start of the period extracted from the ERP, which the log keeps (WF-CRE-0050); optional, like the end, each bound possibly missing; not applicable to another kind. Null or absent when the extraction does not state its start."
         ),
     ] = None
     period_to: Annotated[
         PlanningDate | None,
         Field(
-            description="The end of the extracted period, inclusive, optional (WF-CRE-0050). An end that precedes the start is refused with 422, `VALIDATION_FAILED`, `/period_to` with `VALUE_OUT_OF_RANGE`, `params.minimum` the start, like any period of the contract."
+            description="The end of the extracted period, inclusive, optional (WF-CRE-0050). An end that precedes the start is refused with 422, `VALIDATION_FAILED`, `/period_to` with `VALUE_OUT_OF_RANGE`, `params.minimum` the start, like any period of the contract. Null or absent when the extraction does not state its end."
         ),
     ] = None
 
@@ -6097,7 +6354,13 @@ class ExportKind(StrEnum):
 
 
 class Depth(RootModel[int]):
-    root: Annotated[int, Field(description="Level kept for the tree image (WF-PLA-0120).", ge=1)]
+    root: Annotated[
+        int,
+        Field(
+            description="The depth level kept for the task tree image (`task_tree_image`), from 1, the first level. Null or absent, the whole depth of the structure; a level beyond the depth of the structure gives the whole structure. Not applicable to another kind, which ignores it (WF-PLA-0120).",
+            ge=1,
+        ),
+    ]
 
 
 class ExportRequest(ContractModel):
@@ -6111,16 +6374,19 @@ class ExportRequest(ContractModel):
     structure_id: Annotated[
         Uuid | None,
         Field(
-            description="The exported structure, of the named revision; the main structure by default (WF-INTF-0050, WF-INTF-0110, WF-INTF-0130, WF-PLA-0120)."
+            description="The exported structure, of the named revision; the main structure by default (WF-INTF-0050, WF-INTF-0110, WF-INTF-0130, WF-PLA-0120). Null or absent, the main structure."
         ),
     ] = None
     depth: Annotated[
-        Depth | None, Field(description="Level kept for the tree image (WF-PLA-0120).")
+        Depth | None,
+        Field(
+            description="The depth level kept for the task tree image (`task_tree_image`), from 1, the first level. Null or absent, the whole depth of the structure; a level beyond the depth of the structure gives the whole structure. Not applicable to another kind, which ignores it (WF-PLA-0120)."
+        ),
     ] = None
     review_date: Annotated[
         PlanningDate | None,
         Field(
-            description='For a remaining to commit (`remaining`), the review date that the file carries in "Synthèse", and that its import will use to complete a task all of whose lines carry a zero remainder (WF-INTF-0130, WF-INTF-0120, `ImportCompletedTask.completed_on`); the day of the request by default. Not applicable to another kind, which ignores it.'
+            description='For a remaining to commit (`remaining`), the review date that the file carries in "Synthèse", and that its import will use to complete a task all of whose lines carry a zero remainder (WF-INTF-0130, WF-INTF-0120, `ImportCompletedTask.completed_on`); the day of the request by default. Not applicable to another kind, which ignores it. Null or absent, the day of the request.'
         ),
     ] = None
 
@@ -6144,9 +6410,23 @@ class PortfolioScope(ContractModel):
         ),
     ]
     as_of: PlanningDate
-    from_: Annotated[PlanningDate | None, Field(alias="from")]
-    to: PlanningDate | None
-    org_node_id: Uuid | None
+    from_: Annotated[
+        PlanningDate | None,
+        Field(
+            alias="from",
+            description="Start of the period retained; null, like `to`, for a view that retains no period: the project list read with neither `from` nor `to`, and the workload (`PortfolioFrom`).",
+        ),
+    ]
+    to: Annotated[
+        PlanningDate | None,
+        Field(
+            description="End of the period retained; null, like `from`, when no period is retained."
+        ),
+    ]
+    org_node_id: Annotated[
+        Uuid | None,
+        Field(description="The organisation node retained (`org_node_id`); null without a node."),
+    ]
     org_node_label: Annotated[
         OrgNodeLabel1 | None,
         Field(
@@ -6159,7 +6439,10 @@ class PortfolioScope(ContractModel):
 class PortfolioProjectRow(ContractModel):
     project_id: Uuid
     label: str
-    code: str | None
+    code: Annotated[
+        str | None,
+        Field(description="Null as long as the project code is not entered (WF-PRJ-0010)."),
+    ]
     state: ProjectState
     can_open: Annotated[
         bool,
@@ -6167,11 +6450,16 @@ class PortfolioProjectRow(ContractModel):
             description='Whether the caller can open the project, evaluated by the server according to WF-ADM-0110: the read permission and the status of contributor, or the permission "view all projects". When false, the row is presented without a link (WF-PTF-0030); the front infers nothing about it from the permissions of `getMe`.'
         ),
     ]
-    reference_budget: Money | None
+    reference_budget: Annotated[
+        Money | None,
+        Field(
+            description="Null for a project without a reference revision, before In progress: its current estimate is presented instead (`current_estimate`)."
+        ),
+    ]
     current_estimate: Annotated[
         Money | None,
         Field(
-            description="Current estimate, presented in place of the budget for a project in pricing."
+            description="Current estimate, presented in place of the budget for a project in pricing. Null for a project that is not in pricing, which presents its reference budget, and for a project in pricing that has no revision yet."
         ),
     ]
     win_probability: Percent | None
@@ -6184,12 +6472,27 @@ class PortfolioProjectRow(ContractModel):
     delta_to_reference: Annotated[
         Money | None,
         Field(
-            description="Variance of this projection to the reference budget, positive when it exceeds it: budget 1,000, actual cost 500, remaining to commit 550, projection 1,050, variance 50 (WF-PTF-0040). Null outside a project in progress."
+            description="Variance of this projection to the reference budget, positive when it exceeds it: budget 1,000, actual cost 500, remaining to commit 550, projection 1,050, variance 50 (WF-PTF-0040). Null outside a project in progress. The same name carries the opposite sign in the remaining to commit, a margin, -50 in the same case (`RemainingIndicators.delta_to_reference`), and the sign of this variance in the estimate, the estimate minus the reference (`EstimateIndicators.delta_to_reference`): the description of each field gives its sign."
         ),
     ]
-    cost_index: IndexValue | None
-    schedule_index: IndexValue | None
-    last_marked_at: Timestamp | None
+    cost_index: Annotated[
+        IndexValue | None,
+        Field(
+            description="Null for a project that has not reached the In progress state, which has no project indicators (WF-IND-0010)."
+        ),
+    ]
+    schedule_index: Annotated[
+        IndexValue | None,
+        Field(
+            description="Null for a project that has not reached the In progress state, which has no project indicators (WF-IND-0010)."
+        ),
+    ]
+    last_marked_at: Annotated[
+        Timestamp | None,
+        Field(
+            description="Instant of the marking of the last marked revision; null for a project that has none."
+        ),
+    ]
 
 
 class PortfolioValue(ContractModel):
@@ -6222,7 +6525,7 @@ class Month2(ContractModel):
     zone: Annotated[
         AlertZone,
         Field(
-            description="The zone of the month, classified by the server: `alert` when the load exceeds the capacity, `watch` when the load ratio is below `under_load_threshold`, a role without load included, `nominal` otherwise (WF-PTF-0060, WF-IHM-0070)."
+            description="The zone of the month, classified by the server: `alert` when the load exceeds the capacity, `watch` when the load ratio is below `under_load_threshold`, a role without load included, `nominal` otherwise (WF-PTF-0060, WF-IHM-0070). A role without capacity that month, whose load ratio is not computable (`no_capacity`), is in `alert` when it has load, in `watch` otherwise."
         ),
     ]
 
@@ -6244,7 +6547,7 @@ class PortfolioWorkload(ContractModel):
     under_load_threshold: Annotated[
         Percent,
         Field(
-            description="The under-load threshold retained, always returned: the one the request asked for, or, without a request, the one the server chose, which the screen shows (WF-PTF-0060)."
+            description="The under-load threshold retained, always returned: the one the request asked for, or, without a request, the one the server chose, `0.5`, which the screen shows (WF-PTF-0060). A ratio of the load to the capacity, from `0` to `1` (`Percent`)."
         ),
     ]
     capacity_monthly_hours: Annotated[
@@ -6423,7 +6726,12 @@ class Signal(ContractModel):
             description="Whether the caller can open the project of the signal (WF-ADM-0110), like `PortfolioProjectRow.can_open`; when false, the signal names its project without a link (WF-PTF-0030)."
         ),
     ]
-    zone: AlertZone
+    zone: Annotated[
+        AlertZone,
+        Field(
+            description="`alert` for an overdue contractual milestone (`contractual_milestone_overdue`), `watch` for the three other signals (WF-PTF-0110, WF-IHM-0070)."
+        ),
+    ]
     code: Code1
     params: Annotated[
         Params3 | None,
