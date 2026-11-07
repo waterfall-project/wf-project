@@ -569,7 +569,7 @@ textes triés en collation `C`, cherchés par `contains` ; règles SQL du guide 
   la chronologie pour l'ordre et les instants, et écrit par les interfaces : les comptes locaux
   des contributeurs, PRJ-002 et PRJ-001 avec leur client, les contributeurs, les sous-projets, le
   lotissement, puis les événements dans l'ordre — la révision 100 ouverte (Créé → Chiffrage), son
-  marquage « v1.0 », la 101 ouverte, la désignation de 100 tentée et refusée (notée dans la
+  marquage « Offre v1.0 », la 101 ouverte, la désignation de 100 tentée et refusée (notée dans la
   sortie), le code saisi, la 101 marquée « Référence », la 102 ouverte. Les transitions portent
   les instants du témoin.
 - Une collision d'identifiant, ou un témoin que les règles refusent ailleurs qu'à la désignation,
@@ -1217,7 +1217,7 @@ quel que soit le chemin, **afin que** l'histoire du projet soit sûre.
   `no_background_task_running` pendant le marquage ;
 - propre à l'US : chaque réponse est validée contre le contrat dans les tests du service, et le
   parcours du marquage (`revision-cycle.spec.ts`, sa part) joue contre le service ;
-- propre à l'US : `load-witness` marque « v1.0 » et « Référence » aux instants du témoin, par la
+- propre à l'US : `load-witness` marque « Offre v1.0 » et « Référence » aux instants du témoin, par la
   même transaction que le worker ; les tests de `revision-cycle.spec.ts` portent l'étiquette
   `@shared` pour ce qu'ils lisent sans référence, et `mode.ts` inscrit le compte de la course chef
   de projet des projets du témoin par `setContributors` au début de la course en mode service, d'où

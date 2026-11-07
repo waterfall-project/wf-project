@@ -12,7 +12,7 @@ are opened by the rules of the opening (#1402) and marked by the very transactio
 (``load_marking``), in the order of the chronology, at the instant of the loading until US-0990/L2
 imposes the chronology's. A marked revision bears the name of version and the description of
 ``revisions.json``, the object the contract answers, which the chronology only orders: its
-``version_name`` is a short name of the event (« v1.0 » for « Offre v1.0 »). A write this slice
+``version_name`` is the name of the event, « Offre v1.0 ». A write this slice
 does not know — the designation and the code, US-0980's — changes nothing of what the openings and
 the markings judge, and is passed over.
 
