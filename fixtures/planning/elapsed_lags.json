@@ -1,0 +1,32 @@
+{
+  "summary": "Une liaison fin à début dont le prédécesseur finit à la dernière heure travaillée d'un vendredi, sur un calendrier de huit heures du lundi au vendredi : un décalage de 2 ej s'achève le dimanche, et le successeur commence le lundi à la première heure travaillée, de même qu'avec 2 eh ; avec 2 j, il commence le mercredi (WF-PLA-0160).",
+  "examples": ["WF-PLA-0160-A#6b5177e54497", "WF-PLA-0160-A#a1744bbc07cd"],
+  "weekly_hours": {
+    "monday": "8",
+    "tuesday": "8",
+    "wednesday": "8",
+    "thursday": "8",
+    "friday": "8",
+    "saturday": "0",
+    "sunday": "0"
+  },
+  "predecessor_finish": {"date": "2026-03-06", "weekday": "friday", "hours": "8"},
+  "lags": [
+    {
+      "example": "WF-PLA-0160-A#6b5177e54497",
+      "lag": {"value": "2", "unit": "ed"},
+      "lag_ends_on": "sunday",
+      "successor_start": {"weekday": "monday", "hours": "0"}
+    },
+    {
+      "example": "WF-PLA-0160-A#6b5177e54497",
+      "lag": {"value": "2", "unit": "eh"},
+      "successor_start": {"weekday": "monday", "hours": "0"}
+    },
+    {
+      "example": "WF-PLA-0160-A#a1744bbc07cd",
+      "lag": {"value": "2", "unit": "d"},
+      "successor_start": {"weekday": "wednesday", "hours": "0"}
+    }
+  ]
+}
