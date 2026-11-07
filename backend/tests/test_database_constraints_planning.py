@@ -323,14 +323,19 @@ def resolved(parents: Parents, overrides: dict[str, object]) -> dict[str, object
     return found
 
 
-def held(table: type[Base], parents: Parents, overrides: dict[str, object]) -> Executable | None:
-    """Give the row already written that a refusal of uniqueness collides with, if it needs one."""
-    if table is Task and overrides.get("node_id") == LINE:
+def held_by_a_node(parents: Parents, overrides: dict[str, object]) -> Executable:
+    """Give the row a facet tried collides with: the node of a line, or the facet of a task."""
+    if overrides.get("node_id") == LINE:
         line = node_row(parents.project, parents.revision, parents.structure, id=LINE_NODE)
         return insert(Node).values({**line, "kind": "estimate_line"})
-    if table is Task and overrides.get("node_id") == OTHER:
-        column = next(column for column in overrides if column != "node_id")
-        return row(Task, parents, **resolved(parents, {column: TAKEN}))
+    column = next(column for column in overrides if column != "node_id")
+    return row(Task, parents, **resolved(parents, {column: TAKEN}))
+
+
+def held(table: type[Base], parents: Parents, overrides: dict[str, object]) -> Executable | None:
+    """Give the row already written that a refusal collides with, if it needs one."""
+    if table is Task and overrides.get("node_id") in {LINE, OTHER}:
+        return held_by_a_node(parents, overrides)
     if table is TaskLink and "in_conflict" in overrides:
         return row(TaskLink, parents)
     if table is TrackingEntry and overrides.get("timeline_id", TAKEN) is None:

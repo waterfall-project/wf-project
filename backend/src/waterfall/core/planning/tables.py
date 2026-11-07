@@ -118,9 +118,9 @@ class Node(Stamped):
     facet of another kind; its facet, its children and the links of its task name it with its
     structure (``uq_node_id``), so that none binds two structures — the facet task keeping a work
     package or an order item on a single task of a structure (``task``) —, and its structure is
-    named with its revision, so that a node never binds a revision to the structure of another. ``lineage_id`` is kept by
-    the copy of the revision (WF-DAT-0030); ``origin_risk_id`` is the risk a provision line comes
-    from, null here (EP-08).
+    named with its revision, so that a node never binds a revision to the structure of another.
+    ``lineage_id`` is kept by the copy of the revision (WF-DAT-0030); ``origin_risk_id`` is the risk
+    a provision line comes from, null here (EP-08).
     """
 
     __tablename__ = "node"
@@ -252,8 +252,9 @@ class Task(Base):
 class TaskLink(Base):
     """A link between two tasks of a structure, its lag in the unit of its entry (WF-PLA-0030).
 
-    Two tasks of its structure are linked once at most. The absence of a loop and of a link between a summary task
-    and its subordinate is the service's to keep; ``in_conflict`` is the engine's (WF-PLA-0100).
+    Two tasks of its structure are linked once at most. The absence of a loop and of a link between
+    a summary task and its subordinate is the service's to keep; ``in_conflict`` is the engine's
+    (WF-PLA-0100).
     """
 
     __tablename__ = "task_link"

@@ -15,9 +15,10 @@ contract answers, which the chronology only orders: its ``version_name`` must be
 event, « Offre v1.0 ». The designation is tried by the project manager of the witness and is
 refused for the lack of tasks and lines (``revision_has_tasks_and_lines``; of lines alone once the
 tasks are loaded, until EP-07 registers them), which the loader notes
-(``witness.designation_refused``) — a designation that succeeds, or any other refusal, is a defect that stops the command. The code is
-entered by the same project manager, through the change of a project. The state a transition
-write names is checked against the transitions the writes before it left.
+(``witness.designation_refused``) — a designation that succeeds, or any other refusal, is a defect
+that stops the command. The code is entered by the same project manager, through the change of a
+project. The state a transition write names is checked against the transitions the writes before it
+left.
 
 The content of a revision is written between its opening and the next event, by the fillers
 registered (``register_revision_filler``, EP-06): the tasks (``witness.tasks``), then EP-07's
@@ -210,7 +211,7 @@ class _Walk:
         load_marking(self.session, revision.revision_id.root, name, revision.description, act)
 
     def _designate(self, write: DesignationAttempted, act: Act) -> None:
-        """Try the designation of a revision: refused for the lack of tasks and lines, which is noted."""
+        """Try the designation of a revision: refused for want of tasks and lines, then noted."""
         revision = self.revision(write)
         project_id = revision.project_id.root
         designated = ReferenceToDesignate(

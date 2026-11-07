@@ -183,6 +183,6 @@ def revision_has_tasks_and_lines(session: Session, revision_id: UUID) -> bool:
     tasks alone never make a designation pass before EP-07 registers the lines.
     """
     questions = _TASKS_AND_LINES.entries()
-    if {part for part, _ in questions} != REVISION_PARTS:
+    if not REVISION_PARTS <= {part for part, _ in questions}:
         return False
     return all(question(session, revision_id) for _, question in questions)
