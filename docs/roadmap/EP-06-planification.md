@@ -242,6 +242,13 @@ Reportés d'EP-04 le 2026-11-06 (relevés par la revue d'US-0960, #2061) :
 (décision de l'auteur du 2026-11-07) : il est noté dans ses « Constats reçus », et son issue est
 retitrée et relabellisée à l'ouverture des issues d'EP-06.
 
+- #2305 [EP-06] contrat : `updateProject` refuse `inflation_rate` et `win_probability` à plus de
+  quatre décimales (`VALIDATION_FAILED` sans `params`, `_ratio_faults`), et le 422 du contrat ne
+  décrit pas ce refus. Une « Interface contract issue » dit la précision au schéma et le refus au
+  422, au lot d'EP-06 qui touche le projet ; relevé par US-0990/L2 (EP-04), reporté ici par l'auteur
+  le 2026-11-07, au tableau de #2316.
+
+
 ## Conception
 
 EP-06 est le troisième EPIC de domaine du back, et le premier qui écrit dans une révision : il
