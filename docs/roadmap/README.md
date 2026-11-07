@@ -160,7 +160,7 @@ EP-08, the three hundred projects in EP-13, which closes. Four rules, which each
 | [EP-06](EP-06-planification.md) | Planning | en cours | EP-04 |
 | [EP-07](EP-07-chiffrage-et-devis.md) | Costing and estimate | en cours | EP-06 |
 | [EP-09](EP-09-couts-reels-et-reste-a-engager.md) | Actual costs, remaining to commit and cost import | en cours | EP-07 |
-| [EP-10](EP-10-indicateurs.md) | Project indicators | à planifier | EP-09 |
+| [EP-10](EP-10-indicateurs.md) | Project indicators | prêt | EP-09 |
 | [EP-08](EP-08-avenants-et-risques.md) | Amendments, risks and provisions | à planifier | EP-10 |
 | [EP-11](EP-11-portefeuille.md) | Portfolio | à planifier | EP-08 |
 | [EP-12](EP-12-echanges-de-fichiers.md) | File exchanges (FLX-01 to FLX-06) | abandonné : each round trip is validated in its functional block | — |

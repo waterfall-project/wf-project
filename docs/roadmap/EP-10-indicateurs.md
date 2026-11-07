@@ -1,7 +1,7 @@
 ---
 id: EP-10
 titre: Lire où en est un projet : avancement, indices, projections et courbes
-statut: à planifier
+statut: prêt
 depend_de: EP-09
 famille: front, back
 issue:
@@ -180,7 +180,504 @@ l'auteur tranche.
 
 ## Conception
 
-Écrite à l'étape 2 du cadrage, après la validation des US.
+EP-10 est le sixième EPIC de domaine du back, et le premier qui ne crée aucun objet saisi : il met
+en relation ce que les cinq précédents ont construit — la référence et ses lignes (EP-07), les
+tâches, leurs états et leurs dates (EP-06), les coûts réels et le reste à engager (EP-09) — dans un
+module du noyau qui calcule, conserve au marquage et cache au jour courant ; il ajoute une table du
+Tableau 10, les routes de ses cinq opérations nouvelles, un crochet dans `core/planning` pour
+l'avancement physique, un module de cache sur Redis, et il branche sur le service l'écran des
+indicateurs. Il **ne modifie pas le contrat**, figé en 1.0.0 : un manque devient une « Interface
+contract issue » que l'auteur tranche — le cadrage en ouvre une, le refus d'`as_of`. Ce qui suit
+fixe ce que chaque lot devrait sinon décider seul. Il se livre pendant les lots d'EP-09, d'EP-07 et
+les derniers d'EP-06, sur une branche tirée de celle d'EP-09 : les sections « Ce qu'EP-09 écrit
+encore », « Ce qu'EP-07 écrit encore » et « Ce qu'EP-06 écrit encore » disent ce que les lots
+d'EP-10 n'écrivent pas avant le lot qui le possède.
+
+### Ce que le cadrage décide
+
+Décisions de l'auteur du 2026-11-07, sur les questions du cadrage, chacune avec l'option écartée :
+
+- **Neuf US, le socle en lot technique de la première**, lot pivot d'EP-08 : la migration, le module
+  à vide et ses routeurs ; EP-08 tire sa branche dès sa fusion et attend par leur numéro les lots du
+  calcul, de la conservation et des courbes. Écarté : un pivot au dernier lot du calcul et de la
+  conservation, qui laissait dormir des créneaux deux vagues de plus.
+- **WF-DAT-0040 est recalée vers EP-11** (« Exigences réalisées ») : EP-10 conserve au marquage ce
+  que ses lectures et celles d'EP-07 et d'EP-09 servent, EP-11 conserve de plus ce que le
+  portefeuille lit, par un second enregistrement de `register_indicators`, et clôt. Écartés : clore
+  ici avec un écart, contre la règle du README ; conserver dès maintenant la charge par rôle et par
+  mois et les totaux par nœud d'organisation, sans lecteur avant EP-11.
+- **WF-QUA-0040 et WF-INTF-0010 entrent au tableau** en portée « début ». Écarté : les laisser en
+  « propre à l'US ».
+- **Le module est `core/indicators`** (FBS-4.8), au sommet des modules du domaine : il importe les
+  interfaces d'`estimate`, de `costs`, de `planning`, de `revisions`, de `projects` et
+  d'`indicator_settings`, et aucun ne l'importe ; ce qu'il leur donne passe par les registres
+  d'EP-04 (`register_indicators`) et par un crochet de `planning` (`register_physical_progress`).
+  Les lectures qui lui manquent — les lignes d'une révision avec leur calendrier, les tâches d'une
+  révision avec leurs états, les dates d'une lignée dans les révisions marquées, les empreintes du
+  cache — sont des fichiers nouveaux de l'interface d'`estimate` et de `planning`, qu'EP-10 écrit
+  après le dernier lot qui possède leur `__init__`, sur le modèle d'`open_lines.py` d'EP-09.
+  Écartés : la valeur acquise et l'avancement physique dans `core/estimate`, qui aurait mêlé le
+  pilotage au devis ; une requête SQL sur les tables d'un autre module, que le guide interdit.
+- **Le calcul reçoit l'instant du marquage** : `compute_indicators(session, revision_id, act)` et
+  les entrées de `register_indicators` prennent l'`Act` que `run_marking` forme sous ses verrous ;
+  le socle change la signature dans `core/revisions/interface/marking.py` (EP-04, dans `main` ;
+  US-1490/L1 #2370 d'EP-07 l'a écrit avant la branche), l'ordre d'EP-04 — calculé avant que rien ne
+  s'écrive — étant conservé. Écarté : écrire `marked_at` avant le calcul et le relire.
+- **`revision_indicator` conserve un document JSON par révision, nature et maille** — la réponse du
+  contrat telle que le marquage l'a calculée, zones exclues —, sous une clé unique
+  (`revision_id`, `kind`, `scope`) ; EP-11 ajoute ses natures sans migration. Écarté : des colonnes
+  typées par indicateur et une table de points, six tables et une migration par nature nouvelle.
+- **Les indicateurs de devis et de reste à engager d'une révision marquée sont conservés et servis
+  conservés** (`is_stored` vrai), par les routes d'EP-07 et d'EP-09 complétées après leurs lots
+  (US-1510 #2363, US-1600 #2392) ; une offre marquée en chiffrage ne conserve que ces deux natures
+  (WF-DAT-0040). Écarté : les laisser calculés à la lecture, contre la description du contrat.
+- **Les courbes sont conservées au marquage**, dans leurs deux variantes de délais de paiement, et
+  rendues telles quelles pour une révision marquée. Écarté : les recalculer à la lecture sur « les
+  lignes connues au marquage telles qu'elles étaient alors », qu'aucune table ne garde — une ligne
+  de coût mise à jour ou exclue n'a pas d'historique.
+- **Le cache est à clé versionnée** : la clé d'une entrée est l'empreinte de ce dont les
+  indicateurs du jour dépendent, lue à chaque consultation par des lectures des interfaces
+  (« Le cache ») ; aucune écriture d'EP-06, d'EP-07 ni d'EP-09 n'appelle le cache. Écarté :
+  l'invalidation explicite par un registre appelé dans chaque chemin d'écriture — des dizaines
+  d'appels dans des fichiers que quatorze lots en vol écrivent encore, et un oubli servi dix
+  minutes.
+- **Le cache vit dans la plateforme**, `platform/cache.py`, sur le Redis de la file des tâches, sous
+  un préfixe propre, comme `maintenance.py` ; sa durée de validité est
+  `WATERFALL_INDICATORS_CACHE_TTL`, en secondes, six cents par défaut, un réglage de l'API ; une
+  erreur de Redis rend le calcul. Écartés : un second Redis ; un cache en mémoire du processus, que
+  deux instances de l'API ne partageraient pas.
+- **La zone d'un indice n'est jamais conservée ni cachée** : elle se classe à la lecture sur les
+  seuils courants (`index_zone` d'EP-05, WF-REF-0130), pour un indice conservé comme pour un indice
+  du jour. Écarté : conserver la zone, qu'un seuil abaissé rendrait fausse.
+- **L'avancement physique d'une récapitulative se calcule quel que soit l'état du projet** : le
+  rapport des budgétés acquis au total du sous-arbre, 0 % avant En cours faute de tâche terminée,
+  `no_budgeted_amount` sur un sous-arbre sans montant ; `core/indicators` le calcule, `planning` le
+  rend par un registre. Écartés : nul avant En cours, un cas d'état de plus dans la grille ; le
+  calcul par `estimate`.
+- **La valeur planifiée et les séries s'étalent par le module pur d'EP-07** (`spreading`, US-1520/L1
+  #2376), ligne par ligne, en un passage qui donne le point du jour et les fins de mois ;
+  `planned_value(reference, at)` d'EP-07 est l'oracle d'un test d'égalité à la maille du projet.
+  Écarté : un appel de `planned_value` par point et par maille, cinq mille lignes étalées des
+  centaines de fois par courbe.
+- **« Marquée à l'état En cours » se lit dans `revision_indicator`** : une révision marquée donne un
+  point à l'évolution des indices et au temps/temps si et seulement si son marquage a conservé un
+  document de nature `project` — ce que le marquage décide une fois, sous le verrou du projet, sur
+  son état. Écarté : comparer `marked_at` aux transitions à chaque lecture.
+- **Rien n'est conservé pour le temps/temps** : les dates d'un jalon dans chaque révision marquée
+  sont des lignes immuables de `task`, lues par la lignée (WF-DAT-0030) ; WF-DAT-0040 ne le demande
+  pas. Écarté : un document `milestones` conservé au marquage, redondant.
+- **Le refus d'`as_of` sans révision marquée En cours est un 409** `STATE_FORBIDS_OPERATION` sans
+  `params.state`, comme l'offre : un constat « contrat », « à trancher », propose la phrase pour la
+  description du 409 des trois opérations ; les lots suivent la décision. Écartés : 422 sur
+  `/query/as_of` ; 200 sur le calcul du jour, contre la description d'`as_of`.
+- **Le témoin ne charge aucune tranche** : la conservation est un effet du marquage rejoué par
+  `load_marking` ; ses lectures se comparent aux exemples à la référence près — l'offre 100 reste la
+  référence jusqu'à EP-08 (US-1570 d'EP-07) —, les écarts listés. Écarté : désigner la 101 après
+  coup, contre WF-REV-0040 et #1402.
+- **Une seule migration, `0026`, dans le socle**, chaînée sur `0025`, aucune donnée à reprendre ;
+  aucune migration d'EP-10 après le socle, EP-08 chaîne la sienne sur `0026`. Écarté : une migration
+  par US.
+- **Les quatre routes nouvelles sont sous `project_indicators.read`** (le catalogue d'EP-03), un
+  routeur par US, créés vides par le socle.
+
+### Tables et migrations
+
+Régime « révisionné » (§4.4.1) pour `revision_indicator`, partitionnée par projet comme
+`cost_structure` ; UUID v7 engendrés par le service ; textes en collation `C` ; règles SQL du guide.
+Une ligne ne se modifie ni ne se supprime jamais : écrite par le marquage, protégée ensuite par
+l'immuabilité de sa révision (WF-DAT-0020) ; une révision en cours n'en a aucune, l'abandon n'a donc
+rien à emporter.
+
+| Table | Contenu | Contraintes |
+|---|---|---|
+| `revision_indicator` | `project_id` (clé de partition), `id`, `revision_id`, `kind` (`estimate`, `remaining`, `project`, `cost_curve`, `cost_curve_payment_delays`, `earned_value_curves` ; EP-11 ajoute les siennes), `scope` (`project`, `unassigned`, ou l'identifiant du sous-projet en texte, comme le contrat l'écrit), `document` (`jsonb`, la réponse du contrat de cette nature pour cette maille, `context` compris, `zone` nulle sur chaque indice), `computed_at` (l'instant du marquage), `created_at`, `created_by` | clé primaire (`project_id`, `id`) ; unique (`project_id`, `revision_id`, `kind`, `scope`) ; clé composite (`project_id`, `revision_id`) vers `revision` en refus ; `kind` dans les six natures, `scope` de 1 à 36 non blanc ; `document` objet ; index sur (`project_id`, `revision_id`) ; déclencheur d'immuabilité comme `cost_structure`, et un déclencheur qui refuse l'écriture d'une ligne dont la révision n'est pas en cours de marquage — la révision verrouillée `FOR UPDATE` par le marquage, encore `draft` à l'instant de l'écriture |
+
+- **Une migration, `0026`, dans le socle** (US-1660/L1) : la table, `create_project_partitions`
+  remplacée pour qu'elle crée sa partition (`revision_indicator_p_<uuid>`) et celles des projets
+  existants, les déclencheurs, les droits du rôle du service — `SELECT`, `INSERT` : rien ne se met à
+  jour ni ne se supprime — déclarés dans `SERVICE_RIGHTS`. Aucune migration de données.
+- **La nature `project` n'existe que pour une révision marquée à l'état En cours** : c'est ce que
+  l'évolution des indices, le temps/temps et le 409 de l'offre lisent.
+- Les tests : `test_migrations.py` (schéma, droits, partition d'un projet créé),
+  `test_database_constraints.py` (une contrainte, un test), `test_revision_immutability.py` étendu.
+
+### Modules
+
+| Module | Tables | Interface offerte |
+|---|---|---|
+| `waterfall.core.indicators` (FBS-4.8) | `revision_indicator` | `project_indicators(project_id, selection, scope)` — la révision en cours ou la dernière marquée au jour courant, une révision marquée nommée, ou une date — ; `cost_curve(…, payment_delays)`, `earned_value_curves(…)` ; `index_history(project_id, scope)` ; `milestone_tracking(project_id)` ; `store_indicators(session, revision_id, act)`, l'entrée de `register_indicators` ; `physical_progress(session, revision_id, node_ids)`, l'entrée du crochet de `planning` ; `stored_document(revision_id, kind, scope)` pour les routes d'EP-07 et d'EP-09 ; le sous-paquet pur `formulas/` (les ratios, les indices, les projections, l'enveloppe `Computable`, l'arrondi) et `series/` (les séries au pas du mois, les décaissements) ; `invalidate_nothing` — aucune fonction d'invalidation : la clé change par construction |
+| `waterfall.platform.cache` (PBS-3.2) | aucune (Redis) | `IndicatorsCache.of(queue, ttl)` : `read(key)`, `write(key, document)`, chaque erreur de Redis rendue `None` ou ignorée et journalisée une fois par processus et par cause ; la clé `waterfall:indicators:<project_id>:<empreinte>` |
+
+- **La couche** : `indicators` importe `estimate`, `costs`, `planning`, `revisions`, `projects`,
+  `indicator_settings`, `cost_settings` (les seuils) et `platform` ; aucun module du domaine ne
+  l'importe ; `api` et `worker` l'importent — le worker après US-1610/L2 #2404. Le socle ajoute
+  `indicators` au contrat de couches d'import-linter, au-dessus d'`estimate` et de `costs`.
+- **Ce que les autres modules déclarent pour lui**, chacun dans un fichier nouveau de son
+  interface, réexporté par son `__init__` après le dernier lot qui l'écrit :
+  - `core/estimate/interface/indicator_lines.py` (après US-1580/L1 #2398, qui a écrit le dernier
+    `__init__`) : `lines_for_indicators(revision_id)` — par ligne hors provision : le nœud, la
+    lignée, la tâche porteuse, le sous-projet, le montant budgété, le réestimé, le délai de
+    paiement, les heures hebdomadaires du calendrier de son rôle (celui de la tâche hors
+    main-d'œuvre), lues sur les images pour une révision marquée — ; `lines_stamp(revision_id)`,
+    le nombre et le dernier `updated_at` de ses lignes ; `remaining_of_revision` (EP-09, US-1580/L2
+    #2399), `estimate_indicators` (EP-07, US-1510 #2363) et `remaining_indicators` (EP-09, US-1600
+    #2392) servent tels quels ;
+  - `core/planning/interface/indicator_tasks.py` (après US-1390/L2 #2339 et US-1590/L1 #2401, les
+    deux derniers à écrire `__init__`) : `tasks_for_indicators(revision_id)` — par tâche de la
+    structure principale : le nœud, la lignée, le parent, récapitulative ou jalon, `progress`,
+    `started_on`, `completed_on`, le début et la fin calculés, les heures hebdomadaires de son
+    calendrier applicable — ; `milestone_forecasts(project_id, lineage_ids, revision_ids)`, la date de
+    fin de chaque lignée dans chaque révision nommée ; `tracked_milestones(project_id)`, les lignées
+    inscrites au suivi temps/temps (US-1400/L2 #2340) ; `revision_content_stamp(revision_id)`, le
+    nombre et le dernier `updated_at` de ses nœuds, tâches et liaisons ; `register_physical_progress`,
+    le crochet (« Les points d'extension ») ;
+  - `core/costs/interface/indicator_costs.py` (après US-1610/L2 #2404 et US-1610/L3 #2405) :
+    `costs_stamp(project_id)`, le dernier `imported_at` de `cost_import` et le dernier
+    `updated_at` de `cost_line` ; `actual_costs_until` et `actual_cost_by_subproject` (EP-09)
+    servent tels quels ;
+  - `core/revisions` et `core/projects` servent par leurs lectures existantes : `found_revision`,
+    `current_revision`, `list_revisions`, `read_revision` (`marked_at`, `is_reference`, le statut) ;
+    `project_facts`, `read_project` (la référence, l'état), `stored_lock_version`,
+    `subprojects_present`, `list_subprojects`, `list_state_transitions`.
+- **La signature du registre** : `register_indicators(compute)` avec
+  `compute: Callable[[Session, UUID, Act], None]`, et `compute_indicators(session, revision_id, act)`
+  appelé par `mark_revision` avec l'`Act` du marquage ; `load_marking` passe celui du témoin.
+
+### Les points d'extension
+
+Chaque registre est un `Registry` de `core/revisions/registry.py`, rempli à l'import de
+`core/indicators/interface`, et le test des points d'entrée d'EP-06 (#2180, `test_registries.py`)
+s'étend à chacun : l'API et le chargeur l'attendent dès le socle, le worker à partir du lot qui
+importe l'interface (US-1670/L1).
+
+| Module | Registre | Qui le déclare | Qui le remplit | Ce qu'il fait |
+|---|---|---|---|---|
+| `core/revisions` | `register_indicators` (EP-04) | EP-04 ; la signature changée par le socle | `indicators` (`store_indicators`) | dans la transaction du marquage, après `register_marking` d'EP-07 (les images et les taux, dont les montants dépendent), avant que la révision ne s'écrive : les documents conservés de la révision (« La conservation au marquage ») ; une exception fait échouer le marquage ; EP-11 enregistre ensuite les siens |
+| `core/planning` | `register_physical_progress` (nouveau) | US-1680, après #2339 et #2401 | `indicators` (`physical_progress`) | la lecture de la facette tâche (`interface/nodes.py`, `facets.py` : après US-1380/L2 #2335, US-1560/L1 #2382 et US-1590/L1 #2401) appelle le registre pour les récapitulatives rendues, en une fois, et pose `TaskFacet.physical_progress` ; sans entrée, nul |
+| `core/revisions` | `register_closing` (EP-06) | EP-06 | personne | une révision en cours n'a aucune ligne de `revision_indicator` : rien à faire à l'abandon |
+
+### Le calcul des indicateurs
+
+- **La sélection** (`IndicatorsRevision`, `AsOf`) : `revision_id` absent ou celui de la révision en
+  cours → le calcul au jour courant sur la révision en cours, ou, sans elle, sur la dernière
+  révision marquée (`marked_at` le plus récent), `context.revision_id` la nommant, `is_stored` faux ;
+  `revision_id` d'une révision marquée → le document conservé, `is_stored` vrai, 409
+  `STATE_FORBIDS_OPERATION` sans `params.state` si elle n'a pas de document `project` (marquée avant
+  En cours) ; `as_of` → la dernière révision marquée dont `marked_at` ≤ la fin de la date, parmi
+  celles qui ont un document `project`, sinon le même 409 (constat « contrat ») ; les deux ensemble
+  → 422 sur `/query/revision_id` ; un projet antérieur à En cours → 409 avec `params.state` et
+  `params.state_enum`, avant toute autre lecture. `scope` : `project`, `unassigned`, ou un identifiant
+  parmi `subprojects_present` du projet, sinon 422 `UNKNOWN_SUBPROJECT` sur `/query/scope`.
+- **La date de calcul** D : le jour courant en temps universel pour le calcul du jour (`computed_at`
+  l'instant), le jour de `marked_at` pour le marquage ; la révision de référence Ref est celle du
+  projet à l'instant du calcul (la lecture du projet, sous son verrou au marquage).
+- **Les grandeurs d'une maille S**, en `Decimal`, arrondies une fois (`ROUND_HALF_EVEN`,
+  WF-DAT-0100) — les montants au centime, les ratios et les indices à quatre décimales :
+  - le budget de référence : la somme des budgétés des lignes de Ref hors provision dont le
+    sous-projet dans Ref est S (`unassigned` : nul) ;
+  - la valeur planifiée à D : chaque ligne de Ref de la maille étalée sur les dates de sa tâche dans
+    Ref, au prorata des heures travaillées de son calendrier (`spreading`), la part écoulée à la fin
+    de D ; une ligne d'un jalon compte entière à sa date ;
+  - la valeur acquise à D : la somme des budgétés des lignes de Ref de la maille dont la tâche, par
+    sa lignée, est `completed` dans la révision calculée R avec `completed_on` ≤ D ; une ligne dont
+    la lignée de tâche n'est pas dans R compte zéro ; les lignes de provision et les tâches de
+    survenance (`origin_risk_id`, EP-08) sont exclues par construction ;
+  - le coût réel à D : `actual_costs_until(project_id, D, S)` d'EP-09, les lignes suivies connues au
+    moment du calcul dont la date de pièce ≤ D, `unassigned` les lignes au `subproject_id` nul ;
+  - le reste à engager : `remaining_of_revision(R)` par ligne, filtré par le sous-projet de la ligne
+    dans R ;
+  - puis `financial_progress` = CR ÷ (CR + RAE) (`no_actual_or_remaining`), `budget_consumption` =
+    CR ÷ BR et `physical_progress` = VA ÷ BR (`no_reference_budget`), `cost_index` = VA ÷ CR
+    (`no_actual_cost`), `schedule_index` = VA ÷ VP (`no_planned_value`), `cost_variance` = VA − CR,
+    `schedule_variance` = VA − VP, `at_budget` = CR + BR − VA, `project_manager` = CR + RAE,
+    `at_observed_rate` = BR ÷ CPI (`no_actual_cost` tant que CR est nul, `no_earned_value` quand
+    VA l'est), et les écarts au budget, `variance_at_observed_rate` nul quand la projection ne se
+    calcule pas ; la zone par `index_zone` sur `IndexThresholds` du référentiel, nulle pour un
+    indice non calculable.
+- **Un passage pour toutes les mailles** : les lignes de Ref et de R, les tâches de R et de Ref et
+  les coûts se lisent une fois par calcul, et les douze mailles s'en déduisent en mémoire ; c'est ce
+  que le marquage conserve d'un coup et ce que le cache tient d'un coup.
+- **Les exemples chiffrés** (WF-IND-0040 à WF-IND-0080, WF-REF-0170) sont des tests sans base de
+  `formulas/` (`tests/examples`), et les mêmes sur le service.
+
+### La conservation au marquage
+
+- `store_indicators(session, revision_id, act)` lit l'état du projet (verrouillé par `run_marking`
+  avant `mark_revision` ; le chargeur, en une transaction, le lit sans verrou) et la référence, puis
+  écrit, pour le projet, chaque sous-projet et `unassigned` : `estimate` (le document
+  d'`estimate_indicators` d'EP-07 pour la révision et la maille), `remaining` (celui de
+  `remaining_indicators` d'EP-09, la couverture à zéro jusqu'à EP-08), et, si le projet est
+  `in_progress`, `project` (le calcul ci-dessus à la date du marquage) et les trois natures de
+  courbes (« Les courbes ») ; `context` de chaque document porte `revision_status` `marked`,
+  `computed_at` = `act.at`, `is_stored` vrai ; `created_by` l'auteur de l'`Act`.
+- **La politique d'erreur** (#2180, point 2) : rien n'est attrapé ; une exception du calcul remonte
+  à `mark_revision`, qui n'a encore rien écrit, et au worker, qui fait échouer la tâche avec son code
+  (`BackgroundTask.problem` ; une exception non typée, le code d'une erreur interne) ; la révision
+  reste en cours, un nouveau `markRevision` la relance ; la docstring de `compute_indicators` le dit,
+  et `test_indicators_failure.py` l'éprouve avec une entrée de registre qui lève.
+- **La lecture** : `project_indicators` avec le `revision_id` d'une révision marquée rend le
+  document de la maille, la zone de chaque indice classée à la lecture ; `getEstimateIndicators` et
+  `getRemainingIndicators` (routes d'EP-07 et d'EP-09) lisent `stored_document` pour une révision
+  marquée et gardent leur calcul pour la révision en cours — leurs documents conservés portent
+  déjà `is_stored` vrai.
+- **Le témoin** : `load_marking` → `mark_revision` → `compute_indicators` : la 100 conserve
+  `estimate` et `remaining`, la 101 les quatre natures ; aucune tranche.
+
+### L'avancement physique
+
+- `physical_progress(session, revision_id, node_ids)` : les lignes de la révision hors provision
+  (`lines_for_indicators`), les tâches (`tasks_for_indicators`) ; pour chaque récapitulative
+  demandée, le total des budgétés de son sous-arbre, lignes propres comprises, et la part portée par
+  les tâches `completed` du sous-arbre — ses lignes propres acquises si elle est elle-même
+  `completed` — ; `Computable` à quatre décimales, `no_budgeted_amount` sur un total nul ; une
+  requête par lecture, jamais une par tâche.
+- `planning` l'appelle à la lecture de la facette pour les récapitulatives rendues, sur la révision
+  lue, en cours ou marquée ; le résultat n'est pas conservé : sur une révision marquée, lignes et
+  états sont immuables.
+
+### Les courbes
+
+- **Le pas** (`CurveSeries`, `docs/api/DECISIONS.md`, G-01, M-02, M-06) : un point par fin de mois,
+  du mois qui précède le premier montant — nul — à la fin de la dernière tâche de Ref (le budget, la
+  valeur planifiée) ou de R (la projection) ; la date de calcul en point de plus sur `actual_cost`,
+  `earned_value` et `project_manager_projection`, qui s'y arrêtent ou en partent.
+- **Les séries** : `reference_budget` et `planned_value`, le budgété de chaque ligne de Ref de la
+  maille étalé sur les dates de sa tâche dans Ref (`spreading`), cumulé par fin de mois —
+  identiques tant qu'aucun avenant ne déplace la référence, et `planned_value` se prolonge jusqu'à
+  la fin de Ref — ; `earned_value`, les budgétés cumulés par mois de `completed_on` ; `actual_cost`,
+  les lignes suivies cumulées par mois de date de pièce jusqu'à D ; `project_manager_projection`,
+  depuis le coût réel à D, le reste de chaque ligne de R (`remaining_of_revision`) étalé sur la
+  part de sa tâche postérieure à D, porté entier à D quand la fin est dépassée, jusqu'à
+  `projections.project_manager` ; `steps` vide (EP-08 écrit les marches).
+- **Les décaissements** (`payment_delays`) : chaque part du budget et de la projection décalée du
+  `payment_delay_days` de sa ligne avant le cumul mensuel, le coût réel non ; `cash_out_by_month`
+  du premier au dernier mois, `past` par mois de date de pièce, `forecast` par mois de part
+  décalée, le mois de D portant les deux ; la somme des `forecast` égale le reste à engager.
+- **Les mailles** : une maille sans ligne dans Ref ni dans R et sans coût réel a des séries sans
+  point ; le budget d'une maille qu'aucune référence ne budgète est une série sans point ; le coût
+  réel d'une maille qui a des lignes et aucune pièce est tracé nul.
+- **La conservation** : `cost_curve`, `cost_curve_payment_delays` et `earned_value_curves` par
+  maille, au marquage ; une révision marquée les rend telles quelles.
+
+### L'évolution des indices et le temps/temps
+
+- `index_history` : pour chaque maille (le projet, les sous-projets dans l'ordre de
+  `listSubprojects`, `unassigned` ; ou la seule maille de `scope`), un point par document `project`
+  conservé du projet, par `marked_at` croissant — `at` = `computed_at`, `revision_id`,
+  `version_name`, les deux `IndexValue` du document, zone classée sur les seuils courants — ; puis le
+  point du jour, `version_name` nul, le calcul au jour courant (le cache) ; `thresholds` les seuils
+  courants ; 409 avant En cours.
+- `milestone_tracking` : les lignées de `tracked_milestones` ; la révision du jour (en cours ou
+  dernière marquée) donne `label` et `completed_on` ; les révisions marquées qui ont un document
+  `project`, par `marked_at` croissant, donnent chacune un point `{marked_at, finish}` par
+  `milestone_forecasts`, jusqu'à la terminaison — aucune révision marquée après `completed_on` n'en
+  ajoute — ; puis, terminé, `{completed_on à minuit UTC, completed_on}` ; non terminé,
+  `{computed_at, finish dans la révision du jour}` ; une lignée absente d'une révision marquée n'y a
+  pas de point ; 409 avant En cours ; `context` celui de la révision du jour, `is_stored` faux.
+
+### Le cache
+
+- **La clé** : `waterfall:indicators:<project_id>:<empreinte>`, l'empreinte étant le haché
+  (SHA-256, tronqué) d'un texte canonique formé de : l'état, la révision en cours, la référence et le
+  compteur du projet (`project_facts`, `read_project`, `stored_lock_version`) ; la révision calculée
+  R et sa référence Ref ; `revision_content_stamp(R)` et `lines_stamp(R)` ; `costs_stamp(project)` ;
+  le nombre de sous-projets ; le jour D en temps universel. Toute écriture dont une entrée dépend
+  change l'empreinte : une saisie de nœud, de ligne ou d'état (les `updated_at` et les comptes), un
+  marquage ou un abandon (la révision en cours), une désignation (la référence, le compteur), un
+  import ou une exclusion de coût (`costs_stamp`), un sous-projet créé (le nombre ; les lignes
+  imputées bougent `costs_stamp`), le passage d'un jour. L'empreinte coûte six lectures indexées ;
+  la seule écriture qui lui échappe est un changement de seuil, que la zone classée à la lecture
+  n'a pas besoin de voir.
+- **L'entrée** : un seul document JSON par projet et par jour — les `ProjectIndicators` et les trois
+  `CurveSeries` de chaque maille, zones nulles —, écrit après un calcul complet avec la durée de
+  validité ; `getProjectIndicators`, `getCostCurve`, `getEarnedValueCurves` au jour courant et le
+  dernier point de `getIndexHistory` le lisent ; aucune lecture d'une révision marquée ne passe par
+  le cache. Deux lectures parallèles d'une entrée absente calculent toutes deux et écrivent la même
+  valeur : aucun verrou.
+- **L'indisponibilité** : `IndicatorsCache` attrape `redis.exceptions.RedisError` et les délais
+  (`socket_timeout` d'une seconde, comme `DEPOSIT_TIMEOUT`), rend `None` à la lecture, ignore à
+  l'écriture, et journalise `indicators.cache_unavailable` une fois par cause ; le calcul est rendu.
+  Les saisies ne touchent pas Redis.
+- **Les tests** : contre Redis (guide, « Un test contre Redis »), sur une base propre au test : une
+  entrée servie, une entrée ignorée après chaque écriture du Vérif, `FLUSHDB` puis l'identité, Redis
+  pointé sur un port fermé.
+
+### Le service d'API
+
+- Un routeur par US — `api/project_indicators.py` (US-1660 : `getProjectIndicators` ; US-1670 y
+  ajoute `revision_id` marqué et `as_of`), `api/indicator_curves.py` (US-1690 : `getCostCurve`,
+  `getEarnedValueCurves`), `api/index_history.py` (US-1700), `api/milestone_tracking.py` (US-1710)
+  —, créés vides et enregistrés dans `app.py` par le socle, chacun avec son `asked_*.py` ;
+  `api/estimate_indicators.py` (EP-07, #2363) et `api/remaining_indicators.py` (EP-09, #2392) sont
+  complétés par US-1670 pour la révision marquée ; `listNodes` reste au routeur d'EP-06, qui rend ce
+  que `planning` lui donne.
+- Chaque route déclare `RequiresProject(project_indicators.read)` ; les refus sont ceux du contrat,
+  dans l'ordre que chaque opération écrit — 404, 403, 409 de l'état, 422 des paramètres, 409 de la
+  révision nommée — ; chaque réponse d'un test passe par `ContractClient` ;
+  `test_access_evaluation.py` reçoit chaque opération avec ses deux termes.
+
+### Le worker
+
+Aucun gestionnaire nouveau : le marquage est celui d'EP-04 (`run_marking`), qui appelle
+`compute_indicators`, dont la signature change. Le worker doit importer l'interface d'`indicators`
+pour que `register_indicators` soit rempli (#2180) ; `worker/main.py` est écrit par #2341 (EP-06),
+#2375 (EP-07) puis #2404 (EP-09) : l'import est du lot d'US-1670 qui conserve, après #2404. Le test
+des points d'entrée (`test_registries.py`), que le socle étend, dit que l'extension d'`indicators`
+n'est attendue du worker qu'à partir de ce lot — l'API et le chargeur l'attendent dès le socle.
+
+### Le chargeur du témoin
+
+Aucune tranche, aucun fichier d'outil : `witness/revisions.py` marque par `load_marking`, et le
+marquage conserve dès que le chargeur porte l'extension (l'interface importée par `waterfall.witness`
+dès le socle). `test_witness_indicators.py` (US-1740) compare les lectures du témoin chargé aux
+exemples — `project_indicators`, `project_indicators_marked`, `project_indicators_offer`,
+`index_history`, `index_history_subproject`, `milestone_tracking`, `cost_curve`,
+`cost_curve_payment_delays`, `cost_curve_subproject`, `earned_value_curves`, `estimate_indicators`
+et `remaining_indicators` de la 101 — à la référence, aux provisions, aux risques et aux montants
+qui en dépendent près, listés ; tels quels les contextes, `is_stored`, le coût réel, le reste, les
+dates des jalons, les formes ; et prouve les invariants sur le témoin. Les fixtures ne changent pas :
+aucune pièce du témoin n'est datée avant le marquage de la 101, et les exemples les lisent déjà
+conservés ; un désaccord hors de la liste se tranche par la spécification, par une issue.
+
+### Le front
+
+- L'écran est celui d'EP-02 (US-0240), d'EP-14 et d'EP-15 (US-0530) ; US-1730 le branche et ne le
+  réécrit pas ; il n'a pas de `MockupNotice`. Les aides `frontend/help/fr/FBS-4.8*.md` disent ce que
+  le service fait, par US-1730. La grille de planning (EP-06, US-1470 #2326) montre l'avancement
+  physique sans changement : sa colonne lit `physical_progress`.
+- Le front ne calcule rien : les montants, les ratios, les zones et les séries viennent du service
+  (WF-ARC-0070). Un manque que le branchement révèle devient une issue ; un manque du contrat, une
+  « Interface contract issue ».
+
+### Le harnais
+
+US-1730 étiquette `@shared` `indicators.spec.ts` et lève la part des indicateurs de `context.spec.ts`
+(`BEFORE_THE_DATA`, après US-1470 #2326 d'EP-06 et US-1560/L2 #2383 d'EP-07) ; US-1740 garde par
+`inService` les chiffres de `review.spec.ts`, qui sont ceux de la référence 101, et écrit l'entrée du
+guide qu'EP-08 lève ; les parcours qui marquent le font sur un projet que la course crée (#2193). La
+liste des entrées non rejouées n'est écrite que par le dernier lot d'US-1740, après US-1650/L3 #2416
+d'EP-09.
+
+### Les tests du back
+
+Un fichier par objet et par règle — `test_indicators_formulas.py` (pur), `test_indicators_series.py`
+(pur), `test_indicators_scope.py`, `test_earned_value.py`, `test_project_indicators.py`,
+`test_indicators_stored.py`, `test_indicators_failure.py` (#2180), `test_indicators_marked_read.py`,
+`test_physical_progress.py`, `test_cost_curve.py`, `test_cash_out.py`,
+`test_earned_value_curves.py`, `test_index_history.py`, `test_milestone_tracking.py`,
+`test_indicators_cache.py`, `test_witness_indicators.py` —, chaque test citant son exigence, chaque
+réponse validée contre le contrat ; les exemples chiffrés des Vérif sont des tests sans base
+(`tests/examples`). Les fixtures communes — un projet En cours avec sa référence désignée, ses
+tâches, ses lignes, des tâches terminées, des lignes de coût chargées, l'horloge posée — vivent
+dans `tests/indicators_support.py`, écrit par le socle, par les interfaces d'EP-04 à EP-09. Un test de
+concurrence par règle d'ensemble : un marquage pendant une saisie, deux lectures d'une entrée de
+cache absente.
+
+### Ce qu'EP-09 écrit encore
+
+Les lots d'EP-10 se livrent pendant ceux d'EP-09, et `epic/EP-10` reprend `epic/EP-09` à chaque
+fusion. Un fichier qu'un lot d'EP-09 non fusionné possède, les lots d'EP-10 ne l'écrivent pas avant
+ce lot, ou en dépendent par son numéro :
+
+| Fichier | Lot d'EP-09 qui le possède | Lots d'EP-10 qui l'attendent |
+|---|---|---|
+| `core/estimate/remaining/` : `set_line_remaining`, `remaining_entry` et `previous_*`, `remaining_of_revision` | US-1580/L2 #2399 | US-1660 (le reste par ligne), US-1690 (la projection) |
+| `core/estimate/remaining/` : les indicateurs du reste, `api/remaining_indicators.py` | US-1600 #2392 | US-1670 (le document `remaining`, la route conservée) |
+| `core/estimate/remaining/excel/`, le format `remaining` | US-1630/L1 #2408 à L4 #2411 | aucun |
+| `core/planning/interface/__init__.py`, `register_open_lines`, `progress_commands`, la lecture de la facette (`awaiting_own_lines`) | US-1590/L1 #2401 | US-1660 (`indicator_tasks.py` réexporté), US-1680 (le crochet et son appel), US-1710 |
+| `core/costs` : l'en-tête et l'analyse d'une extraction | US-1610/L1 #2403 | aucun |
+| `core/costs` : l'application, `cost_import`, `actual_costs_until` servie ; `core/projects/commands.py` ; `worker/main.py` | US-1610/L2 #2404 | US-1660 (le coût réel), US-1670 (l'import dans le worker), US-1720 (`costs_stamp`) |
+| `core/costs` : `register_cost_facts`, `core/projects/interface/subprojects.py` | US-1610/L3 #2405 | US-1720 (`indicator_costs.py` réexporté) |
+| `core/costs` : la consultation, l'exclusion | US-1620/L1 #2406 | US-1720 (l'exclusion qui change la clé, en test) |
+| `core/revisions/commands.py` (`export_remaining`), `exchanges.spec.ts` | US-1630/L4 #2411 | aucun |
+| `remaining.spec.ts`, les aides FBS-4.5*, les grilles | US-1640/L1 #2412, L2 #2413 | aucun |
+| `wftools`, `make mock-data` | US-1650/L1 #2414 | aucun : EP-10 n'écrit pas d'outil |
+| `witness/costs.py`, `witness/revisions.py`, `witness/timeline.py`, `core/exchanges/interface` | US-1650/L2 #2415 | US-1740 (le témoin chargé coûts compris) |
+| le guide, la liste des entrées non rejouées | US-1650/L3 #2416 | US-1740 (la vérification d'ensemble) |
+| `app.py`, `core/estimate/interface/__init__.py`, `core/costs/interface/__init__.py`, `test_registries.py`, `chronology.py` | US-1580/L1 #2398, fusionné avant la branche | aucun |
+
+### Ce qu'EP-07 écrit encore
+
+| Fichier | Lot d'EP-07 qui le possède | Lots d'EP-10 qui l'attendent |
+|---|---|---|
+| `core/estimate` : les taux, le marquage (`register_marking` rempli), `api/revisions.py`, `worker/main.py` | US-1500/L1 #2374, US-1500/L2 #2375 | US-1670 (les images avant le calcul) |
+| `core/estimate` : `estimate_indicators`, `api/estimate_indicators.py` | US-1510 #2363 | US-1670 (le document `estimate`, la route conservée) |
+| `core/estimate` : `workload`, `planned_value`, `api/workload.py` | US-1520/L2 #2377 | US-1660 (l'oracle du test de la valeur planifiée) |
+| `core/estimate` : la comparaison, `revisions.spec.ts` | US-1530 #2365 | aucun |
+| `core/estimate` : le passage En cours, les contributeurs | US-1540 #2366 | aucun : la transition est d'EP-04, la désignation exige des lignes (#2373) |
+| `core/estimate/excel/`, le format `estimate`, `core/projects/commands.py`, `core/revisions/commands.py`, `exchanges.spec.ts` | US-1550/L1 #2378 à L4 #2381 | aucun |
+| `core/planning` : `FacetHooks.judge_cell` (`facets.py`), la grille de devis, `context.spec.ts` (le devis) | US-1560/L1 #2382, L2 #2383 | US-1680 (l'appel du crochet dans la lecture de la facette), US-1730 (`context.spec.ts`) |
+| `wftools`, `DECISIONS.md` (L-01) ; `witness/estimate_lines.py`, `witness/revisions.py`, `witness/timeline.py` ; le guide | US-1570/L1 #2384, L2 #2385, L3 #2386 | US-1740 (le témoin En cours, lignes comprises) |
+| `core/estimate/interface/__init__.py`, `pricing/`, `spreading/`, la facette lue et créée, `update_line`, la suppression, `core/projects` (`register_estimate_facts`), `core/revisions/interface/marking.py` (`register_marking` déclaré) | US-1490/L1 #2370 à L4 #2373, US-1520/L1 #2376, fusionnés avant la branche | aucun |
+
+### Ce qu'EP-06 écrit encore
+
+| Fichier | Lot d'EP-06 qui le possède | Lots d'EP-10 qui l'attendent |
+|---|---|---|
+| `core/planning` : la lecture et la création des nœuds (`interface/nodes.py`, `facets.py`) | US-1380/L2 #2335 | US-1660 (`tasks_for_indicators`), US-1680 (l'appel du crochet) |
+| `core/planning` : la suppression et le déplacement, `core/projects` (`register_attachments`) | US-1380/L3 #2338 | aucun |
+| `core/planning/interface/__init__.py`, le moteur, `setPredecessors`, `resource_settings` | US-1390/L1 #2329, L2 #2339 | US-1660, US-1680, US-1710 (le réexport d'`indicator_tasks.py`) |
+| `core/planning` : les chronologies, `core/projects/commands.py` ; les inscriptions (`tracking_entry`, `listNodes` avec `timeline_id`) | US-1400/L1 #2331, L2 #2340 | US-1710 (`tracked_milestones`) |
+| `core/planning` : l'état des tâches (`setTaskProgress`, `started_on`, `completed_on`) | US-1410 #2324 | US-1660 (la valeur acquise), US-1680, US-1690, US-1710 |
+| `core/exchanges` : la mécanique d'import, les formats ; la purge, `worker/main.py`, les Compose, `production.env.example`, le Makefile | US-1420/L1 #2332, L2 #2341 | US-1720 (`WATERFALL_INDICATORS_CACHE_TTL` dans `production.env.example`) |
+| `core/revisions/commands.py` (`export_*`), `api/tasks.py`, `api/exports.py` ; `core/planning` : le collage, `api/history.py` ; `REUSE.toml` | US-1430/L2 #2336, US-1440/L1 #2337, L2 #2343, US-1450/L2 #2344 | aucun |
+| la grille et le Gantt, `planning.spec.ts`, `context.spec.ts` (le planning) | US-1470 #2326 | US-1680 (la colonne lue contre le service), US-1730 (`context.spec.ts`) |
+| `wftools` ; `witness/tasks.py` ; le guide | US-1480/L1 #2330, L2 #2347, L3 #2348 | US-1740 |
+| `app.py`, `pyproject`, `tests/planning_support.py`, `test_registries.py`, `chronology.py`, `witness/revisions.py` (`register_revision_filler`) | US-1380/L1 #2328, fusionné avant la branche | aucun |
+
+Les catalogues `messages/*.json`, `conftest.py`, `support.py`, `api/queries.py`, `loader.py` et
+`mode.ts` ne s'écrivent dans aucun des quatre EPIC : une clé ou une fixture qui manque devient une
+issue. `platform/settings.py` (le réglage du cache) et `platform/cache.py` ne sont nommés par aucun
+lot des trois autres : EP-10 les écrit (US-1720).
+
+### Ce que le cadrage laisse à EP-08
+
+Le socle (US-1660/L1) est le **lot pivot d'EP-08** : `epic/EP-08` se tire d'`epic/EP-10` dès sa
+fusion. Il lui garantit `revision_indicator` et sa partition, la chaîne des migrations arrêtée à
+`0026`, le module `core/indicators` avec son interface déclarée — `project_indicators`,
+`cost_curve`, `earned_value_curves`, `index_history`, `milestone_tracking`, `store_indicators`,
+`physical_progress` — et la signature du registre avec l'`Act`. Les lots d'EP-08 qui lisent les
+indicateurs devant un risque survenu, une fusion ou un avenant attendent par leur numéro le calcul
+du jour (US-1660/L3), la conservation et la lecture conservée (US-1670/L1, L2) et les courbes
+(US-1690/L2, L3) ; ils y ajoutent les marches d'avenant (`steps`, la référence en vigueur à chaque
+date), les lignes de provision dans la projection et les décaissements, l'exclusion des tâches de
+survenance de la valeur acquise (`origin_risk_id`, déjà prévue dans la sélection des lignes), la
+couverture des risques dans le document `remaining`, et leurs propres compteurs dans l'empreinte du
+cache (les structures des risques, les risques eux-mêmes).
+
+### L'ordre de construction
+
+Le socle d'abord, dès #2398 ; puis les modules purs et ce qui ne dépend que de lots déjà fusionnés,
+en largeur quatre ; le calcul du jour avant la conservation, la conservation avant les lectures
+historiques, les courbes conservées après les deux ; l'écran et le témoin après tout ce qui sert ; la
+vérification d'ensemble en dernier ; le plan de lots (étape 3) le détaille en vagues.
+
+1. **US-1660/L1**, le socle — dès la fusion d'US-1580/L1 #2398 : la migration `0026`, le module
+   `core/indicators` à vide avec son interface en paquet — hors les sous-paquets `formulas/` et
+   `series/`, que leurs lots possèdent entiers, comme `pricing/` et `spreading/` en EP-07 —,
+   l'enregistrement à vide dans `register_indicators` et la signature changée dans `marking.py`,
+   le contrat de couches, les quatre routeurs vides et leurs `asked_*`, `tests/indicators_support.py`,
+   les fichiers de tests, le test des points d'entrée étendu. **Lot pivot d'EP-08.** Ni
+   `core/planning`, ni `core/estimate`, ni `core/costs`, ni le worker. En parallèle, dès la
+   branche : **les formules** (US-1660, pur : les ratios, les indices, les projections, l'enveloppe
+   et l'arrondi, les exemples chiffrés sans base) et **les séries** (US-1690, pur : le pas du mois,
+   l'étalement par `spreading` d'EP-07 #2376, les décaissements).
+2. **Le calcul du jour** (US-1660 : `indicator_lines.py`, `indicator_tasks.py`, `getProjectIndicators`
+   sur la révision en cours ou la dernière marquée, les mailles, après #2324, #2339, #2399, #2401 et
+   #2404), **l'avancement physique** (US-1680 : le crochet et son appel, après #2335, #2382, #2401,
+   #2324), **le temps/temps** (US-1710 : `tracked_milestones`, `milestone_forecasts`,
+   `getMilestoneTracking`, après #2340, #2324, #2401 — la lecture des documents `project` conservés
+   attend la conservation : le lot livre sur les transitions d'état d'abord, et se branche sur les
+   documents par US-1670), puis **la conservation** (US-1670/L1 : `store_indicators`, l'import dans le
+   worker après #2375 et #2404, la politique d'erreur, les 409 de l'offre, après le calcul du jour).
+3. **Les courbes du jour** (US-1690 : `getCostCurve`, `getEarnedValueCurves`, après le calcul du
+   jour), **l'évolution des indices** (US-1700, après la conservation), **le cache** (US-1720, après
+   le calcul du jour, #2341, #2405 et #2406), **la lecture conservée** (US-1670/L2 : `revision_id`,
+   `as_of`, les routes d'EP-07 et d'EP-09, après la conservation, #2363 et #2392).
+4. **Les courbes conservées** (US-1690, après la conservation et les courbes du jour), **l'écran**
+   (US-1730, après toutes les lectures, #2326 et #2383), **le témoin comparé** (US-1740, après la
+   lecture conservée, les courbes conservées et #2415) ; puis **la vérification d'ensemble**
+   (US-1740, après #2416), seule.
 
 ---
 
