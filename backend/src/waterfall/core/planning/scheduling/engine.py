@@ -271,16 +271,19 @@ class _Engine:
 
         The lag goes back from the successor's latest start, or finish, on its calendar, as the
         forward pass placed it; a link from a start bounds the task's start, its finish following.
+        The count reached is the successor's: the task's end may lie up to the last instant that
+        count holds — read as a start, the first hour of work that follows —, and is then counted
+        on the task's own calendar, whose hours do not measure the same day (WF-PLA-0010).
         """
         calendar = self.tasks[successor_id].calendar
         latest = self.late_span(successor_id)
         target = latest.start if link.link_type in TO_START else latest.finish
         count = self.shifted(calendar, target, Duration(-span.value, span.unit))
-        if link.link_type in FROM_FINISH:
-            return calendar.moment(count, finish=True)
         task = self.tasks[task_id]
-        start = task.calendar.count(calendar.moment(count, finish=False))
-        return self.placed(task.calendar, start, task.duration, finish_reading=False).finish
+        end = task.calendar.count(calendar.moment(count, finish=False))
+        if link.link_type in FROM_FINISH:
+            return task.calendar.moment(end, finish=True)
+        return self.placed(task.calendar, end, task.duration, finish_reading=False).finish
 
     # --- Rendering ----------------------------------------------------------------------------
 

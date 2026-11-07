@@ -499,6 +499,26 @@ def test_a_predecessor_start_to_start_that_cannot_start_before_a_manual_task_is_
 
 
 @pytest.mark.requirement("WF-PLA-0100-A")
+def test_a_predecessor_on_another_calendar_floats_by_its_own_hours_and_not_its_successors() -> None:
+    # A, sixteen hours on eight a day, finishes on the Tuesday at 8; B, four hours on four a day,
+    # follows it on the Wednesday: no conflict. Their latest dates are read each on its calendar.
+    alone = planned([task(1, "16 h"), task(2, "4 h", calendar=FOUR_HOURS)], [link(1, 2)])
+    assert (of(alone, 1).finish, of(alone, 2).start) == (day(1, 8), day(2))
+    assert [(of(alone, n).total_float, of(alone, n).is_critical) for n in (1, 2)] == [
+        (Decimal(0), True),
+        (Decimal(0), True),
+    ]
+    # Beside a branch of five days, both may slip two working days: A finishing on the Thursday,
+    # B on the Friday. A's float is sixteen hours, B's eight, each in days of eight hours.
+    tasks = [task(1, "16 h"), task(2, "4 h", calendar=FOUR_HOURS), task(3, "5")]
+    beside = planned(tasks, [link(1, 2)])
+    assert [(of(beside, n).total_float, of(beside, n).is_critical) for n in (1, 2)] == [
+        (Decimal(2), False),
+        (Decimal(1), False),
+    ]
+
+
+@pytest.mark.requirement("WF-PLA-0100-A")
 @pytest.mark.parametrize(
     ("link_type", "lag", "floats"),
     [
