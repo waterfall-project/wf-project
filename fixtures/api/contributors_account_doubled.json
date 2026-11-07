@@ -1,0 +1,14 @@
+{
+  "summary": "La liste du témoin enregistrée avec Lucas Petit inscrit une seconde fois, à la cinquième ligne : refusée, sa ligne répétée désignée, la première, à la troisième ligne, jugée comme les autres ; sans ce refus, la seconde qualité écraserait la première sans le dire. Rien n'est écrit (WF-PRJ-0060 ; #2163).",
+  "value": {
+    "code": "VALIDATION_FAILED",
+    "status": 422,
+    "fields": [
+      {
+        "pointer": "/contributors/4/user_id",
+        "code": "VALIDATION_FAILED"
+      }
+    ],
+    "correlation_id": "01926f3a-7c00-7000-8000-000000001684"
+  }
+}

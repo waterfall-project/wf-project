@@ -18,11 +18,12 @@ from uuid import UUID, uuid4
 import pytest
 from projects_support import PROJECTS, Person, Scene, person, put_in_state
 from projects_support import scene as make_scene
-from sqlalchemy import insert, select, update
+from sqlalchemy import event, insert, select, update
 from sqlalchemy.orm import Session
 from support import WITNESS, raw_account, wait_for_a_lock
 
 from waterfall.core.projects.tables import Contributor, Project
+from waterfall.core.users.interface import read_account_labels
 from waterfall.core.users.tables import UserAccount
 
 if TYPE_CHECKING:
@@ -338,6 +339,75 @@ def test_an_account_that_is_unknown_or_deactivated_is_refused_at_its_line(
     ]
     assert kinds_of(stage)[leaver] == CONTRIBUTOR
     assert read(api, stage, stage.manager)["lock_version"] == 0
+
+
+@pytest.mark.requirement("WF-PRJ-0060-A")
+def test_an_account_written_twice_is_refused_at_its_repeated_line(
+    api: ContractClient, stage: Scene
+) -> None:
+    # The second kind would silently overwrite the first: the repeated line is refused, the first
+    # judged as the others (#2163, ``contributors_account_doubled``).
+    colleague = account(stage.database, "Lucas", "Petit")
+    lines = [
+        (stage.manager.user_id, MANAGER),
+        (colleague, CONTRIBUTOR),
+        (colleague, MANAGER),
+    ]
+    refused = write(api, stage, stage.manager, lines, 0)
+    assert refused.status_code == 422
+    assert refused.json()["code"] == "VALIDATION_FAILED"
+    assert faults(refused) == [("/contributors/2/user_id", "VALIDATION_FAILED")]
+    assert colleague not in kinds_of(stage)
+    assert read(api, stage, stage.manager)["lock_version"] == 0
+
+
+@pytest.mark.requirement("WF-PRJ-0060-A")
+def test_a_list_of_more_than_five_hundred_lines_is_refused_whole(
+    api: ContractClient, stage: Scene
+) -> None:
+    # The bound of the contract (``maxItems: 500``, #2162): the 501st line refuses the list before
+    # any line is judged under the lock; five hundred lines are judged, and refused here only for
+    # the accounts the installation has not.
+    over = [(stage.manager.user_id, MANAGER)] + [(uuid4(), CONTRIBUTOR) for _ in range(500)]
+    refused = write(api, stage, stage.manager, over, 0)
+    assert refused.status_code == 422
+    body = refused.json()
+    assert body["code"] == "VALIDATION_FAILED"
+    assert body["fields"] == [
+        {"pointer": "/contributors", "code": "VALUE_TOO_LONG", "params": {"max_length": 500}}
+    ]
+    judged = write(api, stage, stage.manager, over[:500], 0)
+    assert judged.status_code == 422
+    assert len(faults(judged)) == 499
+    assert set(faults(judged)) == {
+        (f"/contributors/{row}/user_id", "UNKNOWN_USER") for row in range(1, 500)
+    }
+    assert read(api, stage, stage.manager)["lock_version"] == 0
+
+
+def test_the_accounts_of_a_list_are_read_in_one_statement(stage: Scene) -> None:
+    # The accounts of the lines are read in bulk, their label alone, deactivated and anonymised
+    # ones included, an identifier no account bears left out (#2167).
+    leaver = account(stage.database, "Alix", "Moreau", active=False)
+    forgotten = account(stage.database, "", "", anonymized=True)
+    wanted = [stage.manager.user_id, leaver, forgotten, uuid4(), leaver]
+    statements: list[str] = []
+
+    def count(*caught: Any) -> None:
+        statements.append(caught[2])
+
+    event.listen(stage.database.engine, "before_cursor_execute", count)
+    try:
+        with stage.database.transaction() as session:
+            labels = read_account_labels(session, wanted)
+    finally:
+        event.remove(stage.database.engine, "before_cursor_execute", count)
+    selects = [each for each in statements if each.lstrip().upper().startswith("SELECT")]
+    assert len(selects) == 1, selects
+    assert set(labels) == {stage.manager.user_id, leaver, forgotten}
+    assert (labels[leaver].first_name, labels[leaver].is_active) == ("Alix", False)
+    assert (labels[forgotten].last_name, labels[forgotten].is_active) == (None, False)
+    assert labels[stage.manager.user_id].is_active
 
 
 @pytest.mark.requirement("WF-PRJ-0060-A")

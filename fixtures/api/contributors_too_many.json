@@ -1,0 +1,17 @@
+{
+  "summary": "Une liste de cinq cent une lignes : refusée entière, désignée par sa borne, cinq cents lignes, dix fois les cinquante inscriptions d'un projet (§4.6.2) ; aucune ligne n'est jugée, et rien n'est écrit (WF-PRJ-0060 ; #2162).",
+  "value": {
+    "code": "VALIDATION_FAILED",
+    "status": 422,
+    "fields": [
+      {
+        "pointer": "/contributors",
+        "code": "VALUE_TOO_LONG",
+        "params": {
+          "max_length": 500
+        }
+      }
+    ],
+    "correlation_id": "01926f3a-7c00-7000-8000-000000001685"
+  }
+}

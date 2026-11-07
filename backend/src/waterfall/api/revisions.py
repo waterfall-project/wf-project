@@ -177,11 +177,11 @@ def post_revision(
     """Open the current revision of a project, a copy of its last marked one (WF-REV-0010).
 
     The body's ``apply_rate_update`` has nothing to apply until EP-07 keeps the rates; its
-    ``description`` is the marking's (``Revision.description``), and is not written here.
+    ``description`` is kept on the revision, which its marking takes up (#2171).
     """
-    del body
     act = Act(account.user_id, utc_now())
-    return described(session, [create_revision(session, project_id, act, viewer_of(actor))])[0]
+    opened = create_revision(session, project_id, act, viewer_of(actor), body.description)
+    return described(session, [opened])[0]
 
 
 @router.get(

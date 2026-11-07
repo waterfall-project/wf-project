@@ -13,6 +13,11 @@ alone: the contract inscribes the abandonment of a revision, which is deleted, w
 (``audit_events_revision_abandoned``, #2161). The condition names the action, not every object of
 the nature ``revision``, so that no other inscription of a revision loses its label.
 
+The constraint ``project_named`` names a project by its identifier and its label, and admits its
+code null: a project is born without code, which it bears from the state In progress on
+(WF-PRJ-0010), and its creation and the abandonment of its revision are inscribed before (#2166).
+A code without a project stays refused.
+
 Created in the transaction of the migration, not ``CONCURRENTLY``: the journal holds at most the
 inscriptions of the platform and of its accounts when it runs.
 """
@@ -67,6 +72,18 @@ LABELED = (
 )
 
 
+NAMED = (
+    (
+        "(project_id IS NULL) = (project_code IS NULL) "
+        "AND (project_id IS NULL) = (project_label IS NULL)"
+    ),
+    (
+        "(project_id IS NULL) = (project_label IS NULL) "
+        "AND (project_id IS NOT NULL OR project_code IS NULL)"
+    ),
+)
+
+
 def _in(values: tuple[str, ...]) -> str:
     return f"action IN ({', '.join(repr(value) for value in values)})"
 
@@ -76,7 +93,7 @@ def _rank(values: tuple[str, ...]) -> str:
     return f"array_position(ARRAY[{array}], action)"
 
 
-def _replace(actions: tuple[str, ...], labeled: str) -> None:
+def _replace(actions: tuple[str, ...], labeled: str, named: str) -> None:
     constraint = op.f(f"ck_{TABLE}_action_known")
     op.drop_constraint(constraint, TABLE, type_="check")
     op.create_check_constraint(constraint, TABLE, _in(actions))
@@ -85,13 +102,16 @@ def _replace(actions: tuple[str, ...], labeled: str) -> None:
     labeled_name = op.f(f"ck_{TABLE}_object_labeled")
     op.drop_constraint(labeled_name, TABLE, type_="check")
     op.create_check_constraint(labeled_name, TABLE, labeled)
+    named_name = op.f(f"ck_{TABLE}_project_named")
+    op.drop_constraint(named_name, TABLE, type_="check")
+    op.create_check_constraint(named_name, TABLE, named)
 
 
 def upgrade() -> None:
-    """Admit the two actions, rank them in the order of the contract, label-free abandonment."""
-    _replace(ACTIONS, LABELED[1])
+    """Admit the two actions, ranked as the contract, a nameless abandonment, a codeless project."""
+    _replace(ACTIONS, LABELED[1], NAMED[1])
 
 
 def downgrade() -> None:
-    """Refuse the two actions and the null label again; fails while the journal holds one."""
-    _replace(ACTIONS_BEFORE, LABELED[0])
+    """Refuse the two actions, a null label, a codeless project; fails if the journal holds one."""
+    _replace(ACTIONS_BEFORE, LABELED[0], NAMED[0])

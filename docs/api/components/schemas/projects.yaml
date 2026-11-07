@@ -1113,6 +1113,13 @@ ContributorsWrite:
     contributors:
       type: array
       minItems: 1
+      maxItems: 500
+      description: >-
+        Chaque compte une fois : un compte inscrit deux fois est refusé à sa ligne répétée, par
+        422 `VALIDATION_FAILED`. Cinq cents lignes au plus — dix fois les cinquante inscriptions
+        d'un projet, autant que les personnes de la plateforme (§4.6.2) — ; au-delà, la liste est
+        refusée par 422, `fields` désignant `/contributors` par `VALUE_TOO_LONG`,
+        `fields[].params.max_length` à `500` (#2162, #2163).
       items: { $ref: '#/ContributorWrite' }
     lock_version:
       allOf: [{ $ref: ../common.yaml#/LockVersion }]

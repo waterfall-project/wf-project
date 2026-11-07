@@ -39,8 +39,10 @@ Revision:
     description:
       anyOf: [{ type: string }, { type: 'null' }]
       description: >-
-        La description saisie au marquage, facultative (WF-REV-0090) ; nulle tant que la révision
-        n'est pas marquée, ou quand le marquage n'en a pas reçu (E-10, #1780).
+        La description de la révision, facultative (WF-REV-0090). Sur la révision en cours, celle
+        reçue à sa création (`RevisionCreate.description`), conservée jusqu'au marquage, qui la
+        reprend ; nulle si la création n'en a pas reçu (#2171). Sur une révision marquée, celle de
+        son marquage, nulle s'il n'y en a pas (E-10, #1780).
     status: { $ref: '#/RevisionStatus' }
     marked_at:
       anyOf: [{ $ref: ../common.yaml#/Timestamp }, { type: 'null' }]
@@ -284,6 +286,11 @@ RevisionCreate:
   properties:
     description:
       anyOf: [{ type: string }, { type: 'null' }]
+      description: >-
+        La description de la révision, facultative (WF-REV-0090) : conservée sur la révision en
+        cours, que `getRevision` et `listRevisions` rendent avec elle (`Revision.description`), et
+        reprise à son marquage (`markRevision`). Absente ou nulle, la révision en cours n'en a pas
+        (#2171).
     apply_rate_update:
       type: boolean
       default: false

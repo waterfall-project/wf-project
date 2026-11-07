@@ -180,6 +180,7 @@ __all__ = [
     "put_avatar",
     "read_account",
     "read_account_label",
+    "read_account_labels",
     "read_account_of_subject",
     "read_author",
     "read_authors",
@@ -249,6 +250,29 @@ def read_account_label(session: Session, user_id: UUID) -> AccountLabel | None:
     """Read the label of an account, or ``None`` if there is none."""
     account = find_account(session, user_id)
     return None if account is None else _label(account)
+
+
+def read_account_labels(session: Session, user_ids: Collection[UUID]) -> dict[UUID, AccountLabel]:
+    """Read the labels of the accounts given in one request, deactivated and anonymised included.
+
+    An identifier no account bears is left out. One statement on the columns of the label, where
+    ``list_accounts`` would count the table and read the authors and the nodes besides (#2167).
+    """
+    if not user_ids:
+        return {}
+    found = session.execute(
+        select(
+            UserAccount.id,
+            UserAccount.last_name,
+            UserAccount.first_name,
+            UserAccount.email,
+            UserAccount.state,
+        ).where(UserAccount.id.in_(set(user_ids)))
+    )
+    return {
+        user_id: AccountLabel(user_id, last_name, first_name, email, state == "active")
+        for user_id, last_name, first_name, email, state in found
+    }
 
 
 def _label(account: UserAccount) -> AccountLabel:

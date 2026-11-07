@@ -948,7 +948,10 @@
       l'installation n'a pas, ou un compte désactivé inscrit ou changé de qualité, l'est par 422,
       `fields` désignant le compte à sa ligne (`/contributors/<n>/user_id`) par `UNKNOWN_USER` ou
       `USER_INACTIVE` — un contributeur désactivé depuis son inscription reste dans la liste, tel
-      qu'il a été lu (WF-ADM-0060). Porte le compteur de la liste
+      qu'il a été lu (WF-ADM-0060) ; un compte inscrit deux fois l'est à sa ligne répétée, par
+      `VALIDATION_FAILED`, sa première ligne jugée comme les autres (#2163). La liste porte cinq
+      cents lignes au plus, refusée au-delà par 422, `fields` désignant `/contributors` par
+      `VALUE_TOO_LONG`, `fields[].params.max_length` à `500` (#2162). Porte le compteur de la liste
       lue, refusé par 412 s'il est périmé (WF-IHM-0110), et rend la liste avec le suivant ;
       un compteur nul, celui d'une lecture filtrée, est refusé par 422, `fields` désignant
       `/lock_version` par `VALUE_REQUIRED`.
@@ -991,13 +994,18 @@
           `VALIDATION_FAILED`, `fields` désignant chaque refus : un compte que l'installation n'a
           pas, `/contributors/<n>/user_id` par `UNKNOWN_USER` ; un compte désactivé inscrit ou
           changé de qualité, `/contributors/<n>/user_id` par `USER_INACTIVE` (WF-ADM-0060) ; un
-          compteur nul, celui d'une lecture filtrée, `/lock_version` par `VALUE_REQUIRED`
-          (WF-IHM-0110). Rien n'est écrit.
+          compte inscrit deux fois, sa ligne répétée, `/contributors/<n>/user_id` par
+          `VALIDATION_FAILED` (#2163) ; une liste de plus de cinq cents lignes, `/contributors` par
+          `VALUE_TOO_LONG`, `fields[].params.max_length` à `500` (#2162) ; un compteur nul, celui
+          d'une lecture filtrée, `/lock_version` par `VALUE_REQUIRED` (WF-IHM-0110). Rien n'est
+          écrit.
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
             examples:
               accounts_refused: { $ref: ../../../fixtures/api/contributors_accounts_refused.json }
+              account_doubled: { $ref: ../../../fixtures/api/contributors_account_doubled.json }
+              too_many: { $ref: ../../../fixtures/api/contributors_too_many.json }
       '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 

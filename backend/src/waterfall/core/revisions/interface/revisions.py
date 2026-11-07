@@ -335,7 +335,9 @@ def _last_marked(session: Session, project_id: UUID) -> UUID | None:
     )
 
 
-def _open(session: Session, project_id: UUID, revision_id: UUID, act: Act) -> Revision:
+def _open(
+    session: Session, project_id: UUID, revision_id: UUID, act: Act, description: str | None = None
+) -> Revision:
     """Open the current revision of a project, under the lock of the project the caller takes."""
     project = lock_project(session, project_id)
     _judge_opening(session, project_id, project)
@@ -344,6 +346,7 @@ def _open(session: Session, project_id: UUID, revision_id: UUID, act: Act) -> Re
         id=revision_id,
         project_id=project_id,
         status="draft",
+        description=description,
         reference_year=act.at.year,
         is_reference=False,
         lineage_id=revision_id,
@@ -372,14 +375,17 @@ def _open(session: Session, project_id: UUID, revision_id: UUID, act: Act) -> Re
     return revision
 
 
-def create_revision(session: Session, project_id: UUID, act: Act, viewer: Viewer) -> RevisionView:
+def create_revision(
+    session: Session, project_id: UUID, act: Act, viewer: Viewer, description: str | None = None
+) -> RevisionView:
     """Open the current revision of a project, a copy of its last marked (``createRevision``).
 
+    The description given is kept on the current revision, which its marking takes up (#2171).
     Refused, nothing written, on a terminal project (409 ``project_not_terminal``), while a
     current revision exists (409 ``no_current_revision``), and while a background task would
     create it itself (409 ``no_background_task_running``, never until US-0970).
     """
-    revision = _open(session, project_id, new_id(), act)
+    revision = _open(session, project_id, new_id(), act, description)
     return _views(session, [revision], project_id, viewer)[0]
 
 
@@ -408,10 +414,8 @@ def _inscribe_abandonment(session: Session, revision: Revision, act: Act) -> Non
     """Inscribe the abandonment in the journal: the revision, nameless, and its project."""
     code = project_code(session, revision.project_id)
     label = project_label(session, revision.project_id)
-    # The journal names a project by both its code and its label, or not at all (#927).
-    named = (
-        None if code is None or label is None else AuditProject(revision.project_id, code, label)
-    )
+    # The journal names a project by its label, and by its code once it has one (#927, #2166).
+    named = None if label is None else AuditProject(revision.project_id, code, label)
     audited = AuditObject("revision", revision.id, None)
     actor = inscribed_actor(session, act.author)
     record(session, Inscription("revision_abandon", actor, audited, act.at, project=named))

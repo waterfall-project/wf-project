@@ -156,6 +156,13 @@ def test_a_creation_writes_what_is_born_with_the_project_in_one_transaction(
         stage.manager.user_id,
     )
     assert journal.object_label == stage.project["label"]
+    # Born without code, the project is named in the journal all the same, its code null (#2166).
+    assert stage.project["code"] is None
+    assert (journal.project_id, journal.project_code, journal.project_label) == (
+        project_id,
+        None,
+        stage.project["label"],
+    )
 
 
 @pytest.mark.requirement("WF-PRJ-0080-A")

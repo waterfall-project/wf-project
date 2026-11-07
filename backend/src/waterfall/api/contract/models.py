@@ -1714,7 +1714,7 @@ class AuditFacets(ContractModel):
     projects: Annotated[
         list[AuditProject],
         Field(
-            description="Les projets d'au moins une inscription, chacun une fois, par leur code et leur libellé d'aujourd'hui — un projet qui n'existe plus, par le code et le libellé de sa dernière inscription —, dans l'ordre des codes puis des identifiants : consultables ou non par l'appelant, comme le journal les nomme."
+            description="Les projets d'au moins une inscription, chacun une fois, par leur code et leur libellé d'aujourd'hui — un projet qui n'existe plus, par le code et le libellé de sa dernière inscription —, dans l'ordre des codes puis des identifiants : consultables ou non par l'appelant, comme le journal les nomme. Un projet sans code — inscrit avant que son code ne soit saisi, qui n'en a toujours pas — y figure, `code` nul, après les codes, comme le tri du journal par projet le range (#2166)."
         ),
     ]
 
@@ -2811,7 +2811,14 @@ class ContributorWrite(ContractModel):
 
 
 class ContributorsWrite(ContractModel):
-    contributors: Annotated[list[ContributorWrite], Field(min_length=1)]
+    contributors: Annotated[
+        list[ContributorWrite],
+        Field(
+            description="Chaque compte une fois : un compte inscrit deux fois est refusé à sa ligne répétée, par 422 `VALIDATION_FAILED`. Cinq cents lignes au plus — dix fois les cinquante inscriptions d'un projet, autant que les personnes de la plateforme (§4.6.2) — ; au-delà, la liste est refusée par 422, `fields` désignant `/contributors` par `VALUE_TOO_LONG`, `fields[].params.max_length` à `500` (#2162, #2163).",
+            max_length=500,
+            min_length=1,
+        ),
+    ]
     lock_version: Annotated[
         LockVersion,
         Field(
@@ -2935,7 +2942,7 @@ class Revision(ContractModel):
     description: Annotated[
         str | None,
         Field(
-            description="La description saisie au marquage, facultative (WF-REV-0090) ; nulle tant que la révision n'est pas marquée, ou quand le marquage n'en a pas reçu (E-10, #1780)."
+            description="La description de la révision, facultative (WF-REV-0090). Sur la révision en cours, celle reçue à sa création (`RevisionCreate.description`), conservée jusqu'au marquage, qui la reprend ; nulle si la création n'en a pas reçu (#2171). Sur une révision marquée, celle de son marquage, nulle s'il n'y en a pas (E-10, #1780)."
         ),
     ]
     status: RevisionStatus
@@ -2995,7 +3002,12 @@ class Revision(ContractModel):
 
 
 class RevisionCreate(ContractModel):
-    description: str | None = None
+    description: Annotated[
+        str | None,
+        Field(
+            description="La description de la révision, facultative (WF-REV-0090) : conservée sur la révision en cours, que `getRevision` et `listRevisions` rendent avec elle (`Revision.description`), et reprise à son marquage (`markRevision`). Absente ou nulle, la révision en cours n'en a pas (#2171)."
+        ),
+    ] = None
     apply_rate_update: Annotated[
         bool | None,
         Field(

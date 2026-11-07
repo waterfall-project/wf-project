@@ -126,9 +126,10 @@ class AuditEntry(Base):
         CheckConstraint(
             "actor_user_id IS NOT NULL OR actor_display_name IS NULL", name="actor_named"
         ),
+        # A project is named by its identifier and its label; its code, once it has one (#2166).
         CheckConstraint(
-            "(project_id IS NULL) = (project_code IS NULL) "
-            "AND (project_id IS NULL) = (project_label IS NULL)",
+            "(project_id IS NULL) = (project_label IS NULL) "
+            "AND (project_id IS NOT NULL OR project_code IS NULL)",
             name="project_named",
         ),
         CheckConstraint(
@@ -208,10 +209,14 @@ class AuditObject:
 
 @dataclass(frozen=True, slots=True)
 class AuditProject:
-    """The project of the object, by its identifier, its code and its label at that moment."""
+    """The project of the object, by its identifier, its code and its label at that moment.
+
+    A project is born without code, which it bears from the state In progress on (WF-PRJ-0010):
+    ``None`` until then (#2166).
+    """
 
     project_id: UUID
-    code: str
+    code: str | None
     label: str
 
 
