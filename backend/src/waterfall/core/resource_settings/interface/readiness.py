@@ -46,7 +46,9 @@ def lock_reference(session: Session) -> None:
     By every write that can turn a question of the minimal reference false — a calendar made the
     default or given no hour, a category or a nature of labour or of provision deactivated or of
     another kind, a role or a node deactivated —, before it reads anything or takes any other lock.
-    It waits for the creations of a project in progress, and they wait for it.
+    It waits for the creations of a project in progress, and they wait for it. The update of a
+    cost type, a cost category or a calendar takes it even for a change of label alone: the effect
+    of a write is only known under the lock, and these writes are rare — accepted.
     """
     session.execute(select(func.pg_advisory_xact_lock(REFERENCE_LOCK)))
 

@@ -64,19 +64,19 @@ if TYPE_CHECKING:
 type ContributorKind = Literal["project_manager", "contributor"]
 type ContributorColumn = Literal["display_name", "kind", "is_active"]
 
-STALE_LOCK_VERSION = "STALE_LOCK_VERSION"
-STATE_FORBIDS_OPERATION = "STATE_FORBIDS_OPERATION"
 NOT_FOUND = "NOT_FOUND"
 NOT_CONTRIBUTOR = "NOT_CONTRIBUTOR"
 NOT_PROJECT_MANAGER = "NOT_PROJECT_MANAGER"
+STALE_LOCK_VERSION = "STALE_LOCK_VERSION"
+STATE_FORBIDS_OPERATION = "STATE_FORBIDS_OPERATION"
 LAST_PROJECT_MANAGER = "LAST_PROJECT_MANAGER"
 VALIDATION_FAILED = "VALIDATION_FAILED"
 UNKNOWN_USER = "UNKNOWN_USER"
 USER_INACTIVE = "USER_INACTIVE"
 # The permission of the settings of a project, which the rescue asks for besides.
 SETTINGS_WRITE = "project_settings.write"
-# The kinds in the order of the contract (``ContributorKind``): the project managers first.
 MANAGER: ContributorKind = "project_manager"
+# The kinds in the order of the contract (``ContributorKind``): the project managers first.
 KIND_ORDER = {"project_manager": 0, "contributor": 1}
 
 

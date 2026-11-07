@@ -300,21 +300,26 @@ def list_subprojects(
     return _views(session, project, rows, viewer)
 
 
-def _writable(session: Session, project_id: UUID, viewer: Viewer | None) -> Project:
-    """Lock a project, then read it under the lock, refused if it is terminal (409).
-
-    The writer is judged first under that lock: refused if it is no project manager of the project
-    (403, 404; ``require_project_manager``). The witness loads as nobody (``viewer`` none).
-    """
+def _unterminated(session: Session, project_id: UUID) -> Project:
+    """Lock a project, then read it under the lock, refused if it is terminal (409)."""
     lock_project(session, project_id)
-    if viewer is not None:
-        require_project_manager(session, project_id, viewer)
     project = session.get(Project, project_id, populate_existing=True)
     if project is None:
         raise NotFoundError(NOT_FOUND)
     if project.state in TERMINAL:
         raise ConflictError(STATE_FORBIDS_OPERATION, {"missing_condition": PROJECT_NOT_TERMINAL})
     return project
+
+
+def _writable(session: Session, project_id: UUID, viewer: Viewer) -> Project:
+    """Lock a project for a write of the API, the writer judged first under that lock.
+
+    Refused if the writer is no project manager of the project (403, 404;
+    ``require_project_manager``), then if the project is terminal (409).
+    """
+    lock_project(session, project_id)
+    require_project_manager(session, project_id, viewer)
+    return _unterminated(session, project_id)
 
 
 def _code_taken(session: Session, project_id: UUID, code: str, own: UUID) -> ConflictError:
@@ -458,7 +463,7 @@ def load_subprojects(
     By the rules of the creation: the code is judged, unique in the project, the project not
     terminal.
     """
-    project = _writable(session, project_id, None)
+    project = _unterminated(session, project_id)
     for load in loads:
         _checked(load.write)
         _insert(session, project.id, load.write, act, load.subproject_id)
