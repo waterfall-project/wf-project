@@ -4,7 +4,9 @@
 
 La deuxième table des [paramètres de ressources](FBS-3.2.md) : les rôles de ressources, chacun un poste ou une fonction de l’entreprise, que les lignes de devis de main-d’œuvre emploient. Chacun avec son libellé, son code, unique, son nœud d’organisation, sa catégorie de coût de main-d’œuvre, dont le taux horaire chiffre ses heures, son calendrier, qui donne ses jours travaillés aux tâches qui l’emploient, et sa capacité : les heures disponibles par mois et l’effectif auquel elles correspondent. La capacité ne varie pas dans le temps, et seules les heures se comparent au plan de charge.
 
-Les trois rattachements sont obligatoires et désignent, quand ils se font, des objets actifs ; la table les nomme tels que le serveur les résout, actifs ou non. Le nœud d’un rôle ne change plus après sa création : un rôle qui change de service se désactive, et se recrée sous le nouveau nœud.
+Les trois rattachements sont obligatoires et désignent, quand ils se font, des objets actifs ; la table les nomme tels que le serveur les résout, actifs ou non. Le nœud d’un rôle ne change plus après sa création : un rôle qui change de service se désactive, et se recrée sous le nouveau nœud. La catégorie et le calendrier se modifient vers des objets actifs, la capacité n’est jamais négative et ne porte pas de date.
+
+Le service garde ce qui s’écrit. Les rôles actifs se lisent sans permission particulière ; les désactivés, et toute écriture, demandent celle de modifier les paramètres de ressources. Désactiver un nœud désactive aussi ses descendants et tous les rôles rattachés à lui ou à l’un d’eux ; réactiver un nœud ne rend actif que lui, et chaque rôle se réactive à son tour.
 
 ## Ses commandes
 
@@ -14,7 +16,7 @@ Ces commandes ne sont offertes qu’à qui peut modifier les paramètres de ress
 - **Modifier**, sur une ligne, ouvre le même formulaire, sans le nœud, que le formulaire nomme.
 - **Désactiver** et **Réactiver**, dans la colonne **État**, sans confirmation. La réactivation d’un rôle dont le nœud est désactivé est indisponible (« nœud d’organisation actif ») : la commande reste présentée et dit la condition qui lui manque.
 
-Un code ou un libellé déjà porté est refusé à son champ, qui nomme le rôle qui le porte ; une valeur hors de ses bornes, avec la borne franchie.
+Un code déjà porté, parmi les rôles actifs ou désactivés, est refusé à son champ, qui nomme le rôle qui le porte ; une catégorie hors main-d’œuvre ou un rattachement désactivé est refusé de même ; une valeur hors de ses bornes, avec la borne franchie.
 
 Au-dessus de la table, pour tous :
 

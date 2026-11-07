@@ -19,7 +19,7 @@ En tête de l’écran :
 - **Correspondance des coûts réels** mène à la [correspondance de l’extraction des coûts réels](FBS-3.1.3.md).
 - **Modifier le nom de l’entreprise** ouvre son formulaire : le nom est obligatoire, de 200 caractères au plus.
 
-Les commandes qui écrivent — le nom de l’entreprise, la création, la modification, la désactivation et la réactivation d’une nature ou d’une catégorie, la saisie d’un taux, l’ajout d’une année — ne sont offertes qu’à qui peut modifier les paramètres de coûts ; aux autres, l’écran se lit. Leur détail est dans l’aide de chaque partie.
+Les commandes qui écrivent — le nom de l’entreprise, la création, la modification, la désactivation et la réactivation d’une nature ou d’une catégorie, la saisie d’un taux, l’ajout d’une année — ne sont offertes qu’à qui peut modifier les paramètres de coûts ; aux autres, l’écran se lit. Le service garde ce qu’elles écrivent : une table relue montre l’objet tel qu’il l’a gardé, et un refus laisse tout comme il était. Leur détail est dans l’aide de chaque partie.
 
 Une modification du référentiel ne touche aucune révision marquée, qui garde les valeurs employées à son marquage.
 

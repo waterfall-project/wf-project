@@ -14,10 +14,10 @@
  * modification or an activation answered takes the place of its row meanwhile, as long as the answer
  * is newer than the row the page read (`lock_version`), a reading that has caught up prevailing.
  * Against the fake back, which keeps nothing, a row answered so outlives the readings anew, which
- * serve what it served before (`MockupNotice`). A creation adds no row: the page read anew lists the
- * object where the server retains it. What a write did is said in the region of the list, the dialog
- * open or closed; a refusal answered once the dialog is gone, and the refusal of a command of a row,
- * are said above the list as that of a reactivation (`useListReport`). A dialog closed gives the
+ * serve what it served before; the service keeps what it answered. A creation adds no row: the
+ * page read anew lists the object where the server retains it. What a write did is said in the
+ * region of the list, the dialog open or closed; a refusal answered once the dialog is gone, and
+ * the refusal of a command of a row, are said above the list as that of a reactivation (`useListReport`). A dialog closed gives the
  * focus back where it was opened from: the cell of the row, the grid being one stop, or the command
  * of the creation.
  *
@@ -116,7 +116,7 @@ const ListCommands = createContext<Commands | undefined>(undefined);
 /**
  * The rows of a page, each replaced by the answer of the server to a write of it while the answer is
  * newer than the row read — against the fake back, which keeps nothing, for as long as the screen
- * stays.
+ * stays; against the service, until the reading that follows has caught up.
  */
 export function useAnswered<Row extends ReferenceObject>(rows: readonly Row[]): readonly Row[] {
   const commands = useContext(ListCommands);

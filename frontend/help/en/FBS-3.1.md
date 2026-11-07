@@ -19,7 +19,7 @@ At the top of the screen:
 - **Actual cost mapping** leads to the [actual cost extraction mapping](FBS-3.1.3.md).
 - **Modify the company name** opens its form: the name is required, of 200 characters at most.
 
-The commands that write — the name of the company, the creation, the modification, the deactivation and the reactivation of a cost type or of a category, the entry of a rate, the addition of a year — are offered only to whoever may modify the cost settings; to the others, the screen is read only. Their detail is in the help of each part.
+The commands that write — the name of the company, the creation, the modification, the deactivation and the reactivation of a cost type or of a category, the entry of a rate, the addition of a year — are offered only to whoever may modify the cost settings; to the others, the screen is read only. The service keeps what they write: a table read anew shows the object as it kept it, and a refusal leaves everything as it was. Their detail is in the help of each part.
 
 A modification of the reference data touches no marked revision, which keeps the values used at its marking.
 

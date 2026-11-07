@@ -193,9 +193,10 @@ describe("the roles", () => {
 });
 
 describe("the settings of the resources", () => {
-  it("offer the commands of the nodes, the roles and the calendars, none that deletes, to a session that may modify the settings of the resources, and say the fake back keeps nothing; none to a session that may only read them [WF-IHM-0090-A] [WF-REF-0010-A]", async () => {
+  it("offer the commands of the nodes, the roles and the calendars, none that deletes, to a session that may modify the settings of the resources, with no mock-up notice; none to a session that may only read them [WF-IHM-0090-A] [WF-REF-0010-A]", async () => {
     const page = text(await resourcesAt());
-    expect(page).toMatch(/Maquette.*Nouveau nœud.*Nouveau rôle.*Nouveau calendrier.*Désigner/);
+    expect(page).toMatch(/Nouveau nœud.*Nouveau rôle.*Nouveau calendrier.*Désigner/);
+    expect(page).not.toContain("Maquette");
     expect(page).not.toMatch(/Supprimer|Effacer/);
     // The natures are not read: a category says if it is of labour (`cost_type_kind`).
     expect(queriesOf("GET /reference/cost-types")).toEqual([]);

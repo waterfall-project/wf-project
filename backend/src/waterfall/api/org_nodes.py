@@ -24,6 +24,7 @@ from waterfall.api.contract.models import LockVersion, OrgNode, OrgNodeUpdate, O
 from waterfall.api.contract.models import ResourceRole as ResourceRoleRead
 from waterfall.api.evaluation import Acting, Requires, RequiresForInactive
 from waterfall.api.queries import refuse_query
+from waterfall.api.resource_roles import described as described_roles
 from waterfall.core.resource_settings.interface import (
     ACTIVE_ONLY,
     NodeFilters,
@@ -31,6 +32,7 @@ from waterfall.core.resource_settings.interface import (
     NodeWrite,
     create_node,
     list_nodes,
+    read_roles,
     set_activation,
     update_node,
 )
@@ -193,9 +195,17 @@ def patch_org_node(
 def put_org_node_activation(
     org_node_id: UUID, body: OrgNodeActivation, account: Caller, session: Transaction
 ) -> OrgNodeActivationChanged:
-    """Deactivate or reactivate a node (WF-REF-0080); the node itself, until the roles cascade."""
+    """Deactivate a node with its descendants and their roles, or reactivate it alone (WF-REF-0080).
+
+    The answer gives the nodes and the roles whose state changed; the commands of the others —
+    the reactivation of a child or of a role — the client reads again in the lists.
+    """
     act = Act(account.user_id, utc_now())
     changed = set_activation(
         session, org_node_id, is_active=body.is_active, lock_version=body.lock_version.root, act=act
     )
-    return OrgNodeActivationChanged(org_nodes=described(session, changed), resource_roles=[])
+    roles = read_roles(session, changed.resource_role_ids, may_change=True)
+    return OrgNodeActivationChanged(
+        org_nodes=described(session, changed.nodes),
+        resource_roles=described_roles(session, roles),
+    )

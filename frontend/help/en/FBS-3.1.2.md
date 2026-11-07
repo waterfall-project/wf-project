@@ -12,7 +12,7 @@ A rate serves the costing of the labour lines of the projects. Its modification 
 
 These commands are offered only to whoever may modify the cost settings:
 
-- A cell is entered: the entry saves the rate of this category for this year, alone. A rate is not emptied.
+- A cell is entered: the entry saves the rate of this category for this year, alone, and the service keeps it: the grid read anew shows it. A rate is not emptied, and it is strictly positive. A category bears one rate per year: entering a rate where the year already has one, without having read it, is refused and nothing is written. As soon as a category bears a rate, its type and that of its nature can no longer be changed.
 - **Add a year to the grid**: the **Year**, then **Add the column**. No column is created by itself: the column added is empty, the rates of the other years unchanged, and it enters the grid of the server only with its first rate entered. A year the grid already has, or outside 2000 to 2100, is refused.
 - **Remove the column**, for a year added none of whose rates is entered yet.
 
