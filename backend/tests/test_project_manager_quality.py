@@ -107,6 +107,11 @@ def sent_by_the_manager(api: ContractClient, stage: Scene) -> dict[str, Send]:
             f"{path}/revisions/{revision['revision_id']}?lock_version={revision['lock_version']}",
             headers=headers,
         ),
+        "markRevision": lambda: api.post(
+            f"{path}/revisions/{revision['revision_id']}/mark",
+            headers=headers,
+            json={"version_name": "V1", "lock_version": revision["lock_version"]},
+        ),
         "exitProject": lambda: api.post(
             f"{path}/exit",
             headers=headers,
@@ -175,6 +180,7 @@ def demote_the_manager(stage: Scene, api: ContractClient, during: Send) -> Any:
         "deleteSubproject",
         "setWorkBreakdown",
         "abandonRevision",
+        "markRevision",
         "exitProject",
     ],
 )

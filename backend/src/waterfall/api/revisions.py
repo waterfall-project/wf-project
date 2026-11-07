@@ -243,6 +243,7 @@ def marking_request(project_id: UUID, revision_id: UUID, body: RevisionMark) -> 
 )
 def post_marking(
     request: Annotated[MarkingRequest, Depends(marking_request)],
+    actor: Acting,
     account: Caller,
     session: Transaction,
     services: ServicesOf,
@@ -253,7 +254,7 @@ def post_marking(
     task is written in the transaction of the request, and deposited once it is committed.
     """
     act = Act(account.user_id, utc_now())
-    task_id = submit_marking(session, services.queue, request, act)
+    task_id = submit_marking(session, services.queue, request, act, viewer_of(actor))
     return task_ref(session.get_one(BackgroundTask, task_id))
 
 
