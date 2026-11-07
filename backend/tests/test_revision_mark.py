@@ -256,7 +256,11 @@ def test_a_participant_does_not_mark_even_holding_the_permission(
 
 
 @pytest.mark.requirement("WF-REV-0020-A")
-@pytest.mark.parametrize("name", [{"version_name": ""}, {}], ids=["empty", "absent"])
+@pytest.mark.parametrize(
+    "name",
+    [{"version_name": ""}, {"version_name": " \t  "}, {}],
+    ids=["empty", "blank", "absent"],
+)
 def test_a_marking_without_a_name_of_version_is_refused(
     api: ContractClient, stage: Scene, database: Database, name: dict[str, str]
 ) -> None:
