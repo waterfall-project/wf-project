@@ -1499,7 +1499,8 @@ une capacité négative, avec la borne franchie (`VALUE_OUT_OF_RANGE`) ; le libe
 calendrier, désactivés compris, nomme son porteur d'après la page, par son identifiant, de façon
 générique sinon ; le reste comme pour les coûts, la version périmée sous le formulaire avec l'offre
 de relire ; l'écran ne porte plus `MockupNotice` depuis US-0850 : le service garde ce qui s'écrit,
-et ses parcours sont étiquetés `@shared` (les unités de durée aussi, avec `@serial`). Une écriture qui laisserait une tâche sans heure travaillée — un calendrier
+et ses parcours sont étiquetés `@shared` (les unités de durée aussi, avec `@serial`).
+Une écriture qui laisserait une tâche sans heure travaillée — un calendrier
 modifié ou désigné par défaut, un rôle modifié — est refusée (`TASK_WITHOUT_WORKING_HOURS`, « Une
 tâche n'aurait plus aucune heure travaillée dans la semaine. ») en disant pourquoi et en nommant
 chaque projet en cause par son libellé et son code, par son seul libellé sans code
@@ -3802,11 +3803,11 @@ d'administration à un autre compte que l'administrateur de l'installation, dont
 `LAST_ADMINISTRATOR` de `roles.spec.ts` dépendent : le rôle ne porte que des lectures. Chaque
 parcours `@shared` remet aussi à zéro les préférences de grille du compte qui s'y connecte
 (`resetGridPreferences`, `updateMyPreferences`), qu'un tri ou un filtre d'un parcours précédent
-aurait laissées (#2282).
+aurait laissées (#2282), ce que `service/grid-reset.spec.ts` éprouve.
 
-Ne se rejouent pas contre le service, faute d'être étiquetés, les parcours qui dépendent de ce qu'il
-ne fait pas encore ou ne sert pas ; chacun reste joué contre le faux back, par `chromium`. Ce qui
-dépend de l'horloge : rien dans le référentiel, dont les dates sont celles du chargement
+Ne se rejouent pas contre le service, faute d'être étiquetés, les parcours qui dépendent de ce
+qu'il ne fait pas encore ou ne sert pas ; chacun reste joué contre le faux back, par `chromium`.
+Ce qui dépend de l'horloge : rien dans le référentiel, dont les dates sont celles du chargement
 (WF-DAT-0070) et que les parcours n'attendent pas. D'un écran que le service ne sert pas : les
 ouvertures de `/` et du portefeuille de `navigation.spec.ts`, ainsi que tous ses autres parcours,
 ceux d'un projet et celui de l'icône sur `/`. De ce que le service ne rend pas comme le faux back :
@@ -3816,11 +3817,11 @@ sauvegardes, les comptes et les rôles : chacun écrit un objet unique de l'inst
 `users.write` ou `access_roles.write`, que le compte de `@administration` n'a pas, et que les
 parcours de `frontend/e2e/service/` (`backups.spec.ts`, `accounts.spec.ts`, `roles.spec.ts`)
 éprouvent sous l'administrateur de l'installation. De ce que leur US n'étiquette pas encore : la
-lecture des réglages hors projet (`reference-costs.spec.ts`, US-0250). Les gardes `inService` des
-parcours étiquetés ne sont pas des parcours non rejoués : le parcours se joue des deux côtés, et
-seule l'assertion d'une écriture diffère (ce qui a été saisi, relu après un rechargement ; un code
-et un libellé propres à la course, que le service garde ; un état laissé comme on l'a trouvé) —
-`reference-costs.spec.ts`, `reference-resources.spec.ts`, `reference-settings.spec.ts`,
+lecture des réglages hors projet (`reference-costs.spec.ts`, US-0250).
+Les gardes `inService` des parcours étiquetés ne sont pas des parcours non rejoués : le parcours se joue des deux côtés, et
+seule l'assertion d'une écriture diffère (ce qui a été saisi, relu après un rechargement ; un
+code et un libellé propres à la course, que le service garde ; un état laissé comme on l'a trouvé)
+— `reference-costs.spec.ts`, `reference-resources.spec.ts`, `reference-settings.spec.ts`,
 `reference-actual-cost-mapping.spec.ts`.
 
 Un parcours `@shared` n'écrit que des objets qu'il crée lui-même, sous un code et un libellé propres

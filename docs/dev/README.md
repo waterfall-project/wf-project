@@ -1504,7 +1504,9 @@ outside 0 to 24 or a negative capacity, with the bound crossed (`VALUE_OUT_OF_RA
 already carried by a calendar, deactivated ones included, names its carrier from the page, by its
 identifier, generically otherwise; the rest as for the costs, the stale version under the form
 with the offer to re-read; the screen no longer carries `MockupNotice` since US-0850: the service
-keeps what is written, and its paths are tagged `@shared` (the units of duration too, with `@serial`). A write that would leave a task without a working hour — a
+keeps what is written, and its paths are tagged `@shared`
+(the units of duration too, with `@serial`).
+A write that would leave a task without a working hour — a
 calendar modified or designated as default, a role modified — is refused
 (`TASK_WITHOUT_WORKING_HOURS`, « A task would have no working hour left in the week. ») by saying
 why and by naming each project involved by its label and its code, by its label alone without a code
@@ -3772,7 +3774,7 @@ The "Manager" is given neither `users.*` nor `system_status.read`; and `give` st
 permissions of the administration to an account other than the administrator of the installation, on
 which the `LAST_ADMINISTRATOR` refusals of `roles.spec.ts` depend: the role holds reads alone. Each
 `@shared` path also resets the grid preferences of the account it signs in (`resetGridPreferences`,
-`updateMyPreferences`), which a sort or a filter of an earlier path would have left (#2282).
+`updateMyPreferences`), which a sort or a filter of an earlier path would have left (#2282), which `service/grid-reset.spec.ts` tests.
 
 The paths that depend on what the service does not do yet, or does not serve, are not replayed
 against it, being untagged; each is still played against the fake back, by `chromium`. What depends

@@ -59,8 +59,11 @@ const ADMINISTRATION_TAG = "@administration";
 interface WorkerFixtures {
   /** The manager of the worker, against the service; none against the fake back. */
   manager: LocalPerson | undefined;
-  /** The reader of the administration of the worker, against the service; none against the fake back. */
-  administration: LocalPerson | undefined;
+  /**
+   * The reader of the administration of the worker, made at the first call and once, so that only
+   * a worker that plays an `@administration` path makes it; none against the fake back.
+   */
+  administration: (() => Promise<LocalPerson>) | undefined;
 }
 
 interface TestFixtures {
@@ -100,25 +103,30 @@ export const test = base.extend<TestFixtures, WorkerFixtures>({
         await use(undefined);
         return;
       }
-      startReading();
-      const calls = await playwright.request.newContext({ ignoreHTTPSErrors: true });
-      let reader: LocalPerson;
-      try {
-        const administrator = await accountAdministrator(browser, calls);
-        reader = await localAccount(browser, administrator);
-        // Made by `installation.setup.ts`: found by its label, its reads checked.
-        await administrator.give(reader.id, ADMINISTRATION_READER, ADMINISTRATION_READS);
-      } finally {
-        await calls.dispose();
-      }
-      await use(reader);
+      let made: Promise<LocalPerson> | undefined;
+      const make = async (): Promise<LocalPerson> => {
+        startReading();
+        const calls = await playwright.request.newContext({ ignoreHTTPSErrors: true });
+        try {
+          const administrator = await accountAdministrator(browser, calls);
+          const reader = await localAccount(browser, administrator);
+          // Made by `installation.setup.ts`: found by its label, its reads checked.
+          await administrator.give(reader.id, ADMINISTRATION_READER, ADMINISTRATION_READS);
+          return reader;
+        } finally {
+          await calls.dispose();
+        }
+      };
+      await use(() => (made ??= make()));
     },
     { scope: "worker", timeout: MAKING_THE_MANAGER },
   ],
   served: [
     async ({ page, browser, request, manager, administration }, use) => {
       // The account the title asks for, like the projects read `@shared` from it.
-      const person = base.info().title.includes(ADMINISTRATION_TAG) ? administration : manager;
+      const person = base.info().title.includes(ADMINISTRATION_TAG)
+        ? await administration?.()
+        : manager;
       if (person === undefined) {
         await use(undefined);
         return;
@@ -129,6 +137,7 @@ export const test = base.extend<TestFixtures, WorkerFixtures>({
       await use(undefined);
       expectNothingRefused();
     },
-    { auto: true },
+    // The reader of the administration is made here, by the first path that asks for it.
+    { auto: true, timeout: MAKING_THE_MANAGER },
   ],
 });

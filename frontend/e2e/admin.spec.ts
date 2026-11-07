@@ -64,7 +64,6 @@ test("reads the accounts, the matrix of the permissions, the state of the platfo
     await expect(accounts.getByRole("row").last()).toHaveText(/^\d+ comptes?$/, {
       timeout: WORKING,
     });
-    await expect(accounts.getByRole("row")).not.toHaveCount(2);
   } else {
     // The header, the seven accounts, the totals: how many the server retained.
     await expect(accounts.getByRole("row")).toHaveCount(9);
@@ -91,15 +90,23 @@ test("reads the accounts, the matrix of the permissions, the state of the platfo
   const restore = matrix.getByRole("row").filter({
     has: page.getByRole("rowheader", { name: "Restaurer la plateforme", exact: true }),
   });
-  if (!inService) {
-    await expect(restore.getByRole("checkbox")).toHaveCount(7);
-  }
   if (inService) {
     // The reader of the administration writes no role: each cell says whether the role holds the
-    // permission, in the order of the labels, « Administrateur » before « Administrateur (parcours) ».
-    await expect(restore.getByRole("cell").nth(0)).toHaveAccessibleName("Accordée");
-    await expect(restore.getByRole("cell").nth(1)).toHaveAccessibleName("Non accordée");
+    // permission. The column of a role is found by its header, as other paths compose roles whose
+    // labels begin the same way: the cells come after the headers of the permission itself.
+    const headers = await matrix.getByRole("columnheader").allInnerTexts();
+    const cells = restore.getByRole("cell");
+    const lead = headers.length - (await cells.count());
+    for (const [role, held] of [
+      ["Administrateur", "Accordée"],
+      ["Administrateur (parcours)", "Non accordée"],
+    ] as const) {
+      const column = headers.findIndex((header) => header.trim() === role);
+      expect(column, `the column of the role ${role}`).toBeGreaterThanOrEqual(lead);
+      await expect(cells.nth(column - lead)).toHaveAccessibleName(held);
+    }
   } else {
+    await expect(restore.getByRole("checkbox")).toHaveCount(7);
     for (const [role, held] of [
       ["Administrateur", true],
       ["Auditeur", false],

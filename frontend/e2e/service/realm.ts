@@ -180,6 +180,7 @@ async function oneAtATime<T>(login: string, run: () => Promise<T>, wait = 30_000
         }
       },
       {
+        // `test.info()` throws outside a test: the lock is taken by paths and their fixtures only.
         message: `the lock of ${login}, held by another worker for more than ${String(wait / 1000)} s, with up to ${String(test.info().config.workers - 1)} others of the run queued behind it`,
         intervals: [100],
         timeout: wait,
@@ -682,12 +683,13 @@ export async function accountAdministrator(browser: Browser, request: APIRequest
     }
     return token;
   };
-  const composeRoles = async (
+  const giveRoles = async (
+    id: string | undefined,
     wanted: readonly (readonly [string, readonly Schemas["PermissionCode"][]])[],
-  ): Promise<string[]> =>
+  ): Promise<void> => {
     // The search of a role by its label, then its creation, are one step: the label is not unique
     // at the back, and workers on a fresh installation would each make theirs.
-    oneAtATime(
+    const ids = await oneAtATime(
       ROLES_MADE,
       async () => {
         const found: (Schemas["AccessRole"] | undefined)[] = [];
@@ -739,11 +741,9 @@ export async function accountAdministrator(browser: Browser, request: APIRequest
       },
       ROLES_WAIT,
     );
-  const giveRoles = async (
-    id: string,
-    wanted: readonly (readonly [string, readonly Schemas["PermissionCode"][]])[],
-  ): Promise<void> => {
-    const ids = await composeRoles(wanted);
+    if (id === undefined) {
+      return;
+    }
     const { lock_version: version } = await read<Schemas["User"]>(
       request,
       await current(),
@@ -760,12 +760,13 @@ export async function accountAdministrator(browser: Browser, request: APIRequest
     self,
     /**
      * Make the roles of the labels given, each as `give` makes it — found by its label and its
-     * permissions checked, or created by `createAccessRole` — and give them to none.
+     * permissions checked, or created by `createAccessRole` — and give them to none (`giveRoles`
+     * without an account).
      */
     compose: async (
       wanted: readonly (readonly [string, readonly Schemas["PermissionCode"][]])[],
     ): Promise<void> => {
-      await composeRoles(wanted);
+      await giveRoles(undefined, wanted);
     },
     /** Create a local account, Jeanne Montgolfier's, at an address of its own. */
     create: async (): Promise<{ id: string; email: string }> => {

@@ -113,8 +113,17 @@ test("the installation holds the role « Administrateur (parcours) », made by t
     // Made first, and alone, before any worker composes a role beside it (`giveRoles`): a role
     // found by its label has its permissions checked, as for any role of the paths.
     await administrator.compose([[ADMINISTRATION_READER, ADMINISTRATION_READS]]);
-    expect(ADMINISTRATION_READS).not.toContain("users.write");
-    expect(ADMINISTRATION_READS).not.toContain("access_roles.write");
+    // Read again by the API: the permissions of the role are exactly the reads, none of the writes.
+    const token = await frontToken(browser, ADMINISTRATOR);
+    const search = new URLSearchParams({ search: ADMINISTRATION_READER }).toString();
+    const answer = await calls.get(
+      `${process.env.WATERFALL_API_ADDRESS ?? ""}/api/v1/access-roles?${search}`,
+      { headers: { Authorization: `Bearer ${token}` } },
+    );
+    expect(answer.status()).toBe(200);
+    const roles = (await answer.json()) as components["schemas"]["AccessRole"][];
+    const role = roles.find((one) => one.label === ADMINISTRATION_READER);
+    expect([...(role?.permissions ?? [])].sort()).toEqual([...ADMINISTRATION_READS].sort());
   } finally {
     await calls.dispose();
   }
