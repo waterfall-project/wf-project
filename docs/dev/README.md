@@ -1504,10 +1504,9 @@ outside 0 to 24 or a negative capacity, with the bound crossed (`VALUE_OUT_OF_RA
 already carried by a calendar, deactivated ones included, names its carrier from the page, by its
 identifier, generically otherwise; the rest as for the costs, the stale version under the form
 with the offer to re-read; the screen no longer carries `MockupNotice` since US-0850: the service
-keeps what is written, and its paths are tagged `@shared`
-(the units of duration too, with `@serial`).
-A write that would leave a task without a working hour — a
-calendar modified or designated as default, a role modified — is refused
+keeps what is written, and its paths are tagged `@shared` (the units of duration too, with
+`@serial`). A write that would leave a task without a working hour — a calendar modified or
+designated as default, a role modified — is refused
 (`TASK_WITHOUT_WORKING_HOURS`, « A task would have no working hour left in the week. ») by saying
 why and by naming each project involved by its label and its code, by its label alone without a code
 (`params.projects`, WF-PLA-0010), up to five in the sentence, as a list outside the alert beyond,

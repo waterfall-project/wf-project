@@ -3818,11 +3818,11 @@ sauvegardes, les comptes et les rôles : chacun écrit un objet unique de l'inst
 parcours de `frontend/e2e/service/` (`backups.spec.ts`, `accounts.spec.ts`, `roles.spec.ts`)
 éprouvent sous l'administrateur de l'installation. De ce que leur US n'étiquette pas encore : la
 lecture des réglages hors projet (`reference-costs.spec.ts`, US-0250).
-Les gardes `inService` des parcours étiquetés ne sont pas des parcours non rejoués : le parcours se joue des deux côtés, et
-seule l'assertion d'une écriture diffère (ce qui a été saisi, relu après un rechargement ; un
-code et un libellé propres à la course, que le service garde ; un état laissé comme on l'a trouvé)
-— `reference-costs.spec.ts`, `reference-resources.spec.ts`, `reference-settings.spec.ts`,
-`reference-actual-cost-mapping.spec.ts`.
+Les gardes `inService` des parcours étiquetés ne sont pas des parcours non rejoués : le parcours se
+joue des deux côtés, et seule l'assertion d'une écriture diffère (ce qui a été saisi, relu après un
+rechargement ; un code et un libellé propres à la course, que le service garde ; un état laissé
+comme on l'a trouvé) — `reference-costs.spec.ts`, `reference-resources.spec.ts`,
+`reference-settings.spec.ts`, `reference-actual-cost-mapping.spec.ts`.
 
 Un parcours `@shared` n'écrit que des objets qu'il crée lui-même, sous un code et un libellé propres
 à la course, et les laisse désactivés ou retirés à sa fin : les workers `shared` jouent en parallèle
