@@ -104,3 +104,7 @@ Reportés d'EP-05 et de la nuit du 6 au 7 novembre (décisions de l'auteur du 20
 - #2199 — royaume : le « Manager » de `./mode` ne porte ni `users.*` ni `system_status.read`, les
   parcours d'administration ne se jouent pas contre le service ; décision : un rôle de test
   « Administrateur » du royaume de développement et un second compte des parcours (option B).
+
+- #2185 — outil : le contrôle des bornes des paramètres de requête contre le contrat (#1873,
+  `test_contract_declarations.py`) ignore `pattern`, `enum` et les paramètres absents du contrat ;
+  à étendre avec les autres contrôles de conformité. Reporté d'EP-05 le 2026-11-07.

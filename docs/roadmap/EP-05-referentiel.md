@@ -1157,8 +1157,8 @@ réactiver, **afin que** l'histoire des projets reste lisible et qu'une erreur s
   l'affichage des objets désactivés est demandé, et peut y être réactivé. » : contre le service,
   pour chacune des cinq listes — nœuds, rôles, calendriers, natures, catégories — et la grille des
   taux : sans `include_inactive`, les actifs seuls ; avec, les désactivés aussi, à une session
-  qui porte la permission de lecture de la partie (`cost_settings.read`,
-  `resource_settings.read`), refusé par 403 sans elle (#300, #351) ; `is_active` faux de même ; un
+  qui porte la permission de modification de la partie (`cost_settings.write`,
+  `resource_settings.write` ; #2084), refusé par 403 sans elle (#300, #351) ; `is_active` faux de même ; un
   objet désactivé s'y réactive par sa commande, pour qui porte la permission de modification ;
 - écart : `WF-REF-0020-A` — « On désactive un rôle de ressource et une catégorie de coût employés
   par une révision en cours. » : la révision est d'EP-07, qui clôt ; ici, la désactivation n'écrit
@@ -1282,8 +1282,9 @@ composer un rôle sur mesure qui cumule ce que deux acteurs font.
   clôt ;
 - `WF-ADM-0020-A` — « Un rôle d'habilitation composé sur mesure permet à un utilisateur de cumuler
   des permissions relevant de deux acteurs différents. » : un rôle composé de
-  `cost_settings.write` et d'`users.write` permet au même compte de créer une nature et un compte
-  local, contre le service ;
+  `cost_settings.write` et d'`users.write`, avec les lectures que les écrans demandent
+  (`cost_settings.read`, `users.read` ; #2188), permet au même compte de créer une nature et un
+  compte local, contre le service ;
 - `WF-ADM-0020-A` — « Réciproquement, un rôle privé d'une permission empêche l'action
   correspondante, quel que soit l'acteur auquel l'utilisateur ressemble. » : un rôle qui porte
   tout « manager » sauf `resource_settings.write` lit les rôles de ressources et se voit refuser

@@ -422,10 +422,13 @@ vit dans le tableau de suivi de #2051, non ici) :
   plan de lots d'EP-05, le même jour) : chaque US étiquette ses tests quand son écran est servi, le
   reste gardé par `inService`, et aucun fichier de configuration n'est partagé entre lots. Écarté : la
   liste, que les lots d'une même vague auraient écrite l'un après l'autre.
-- **`mode.ts` inscrit le compte de la course chef de projet des projets du témoin par
-  `setContributors`**, écrit par US-0970 — le premier parcours qui écrit sur un projet du témoin en
-  mode service —, qui dépend donc d'US-0930. Écarté : par US-0960, qui aurait attendu US-0930 et
-  perdu le parallélisme de la vague 3.
+- **Le compte de la course n'est inscrit chef de projet d'aucun projet du témoin** (auteur,
+  2026-11-07, option A de #2193, qui revient sur la décision du 2026-11-05) : le contrat réserve
+  `setContributors` aux chefs de projet, et PRJ-001 a une cheffe au compte actif. Les parcours qui
+  écrivent contre le service le font sur un projet que la course crée ; les lectures des commandes
+  du témoin restent jouées sur le faux back. Écarté : un compte de la course inscrit par le chargeur
+  du témoin, qui dénature le témoin ; désactiver puis réactiver la cheffe, qui écrit dans son
+  historique et ne tient qu'un worker.
 - **US-0990/L2 est la vérification d'ensemble**, après US-0980/L2 — la désignation tentée et refusée
   du témoin, l'étape du parcours — et après US-1000 — les trois parcours qu'il rejoue, le guide —,
   comme US-0890 l'est en EP-05 ; la vague 5 est US-0980/L2 et US-1000, puis US-0990/L2 seul. Écarté :
@@ -568,7 +571,7 @@ textes triés en collation `C`, cherchés par `contains` ; règles SQL du guide 
   la chronologie pour l'ordre et les instants, et écrit par les interfaces : les comptes locaux
   des contributeurs, PRJ-002 et PRJ-001 avec leur client, les contributeurs, les sous-projets, le
   lotissement, puis les événements dans l'ordre — la révision 100 ouverte (Créé → Chiffrage), son
-  marquage « v1.0 », la 101 ouverte, la désignation de 100 tentée et refusée (notée dans la
+  marquage « Offre v1.0 », la 101 ouverte, la désignation de 100 tentée et refusée (notée dans la
   sortie), le code saisi, la 101 marquée « Référence », la 102 ouverte. Les transitions portent
   les instants du témoin.
 - Une collision d'identifiant, ou un témoin que les règles refusent ailleurs qu'à la désignation,
@@ -600,8 +603,8 @@ textes triés en collation `C`, cherchés par `contains` ; règles SQL du guide 
   `revisions.spec.ts`, US-0970 ceux de `revision-cycle.spec.ts`, US-1000 ceux de
   `project-start.spec.ts`, `projects.spec.ts` et `context.spec.ts`, US-0920/L2 l'accueil connecté,
   US-0990/L2 le cycle complet —, le reste gardé par `inService` ; le compte de la course en mode
-  service porte « chef de projet » et « manager » et est inscrit chef de projet des projets du
-  témoin par `setContributors` au début de la course, ce qu'US-0970 écrit (décision du 2026-11-05).
+  service porte « chef de projet » et « manager », et les parcours qui écrivent sur un projet le
+  créent d'abord (#2193, auteur, 2026-11-07).
 - Ce qui ne se rejoue pas avant EP-07 — PRJ-001 En cours, sa référence, ses structures au-delà de
   la principale, ses tâches et ses lignes — est marqué dans les parcours par `inService` et
   listé dans le guide, chaque entrée nommant l'EPIC qui la lève ; EP-06 et EP-07 retirent leurs
@@ -1216,11 +1219,11 @@ quel que soit le chemin, **afin que** l'histoire du projet soit sûre.
   `no_background_task_running` pendant le marquage ;
 - propre à l'US : chaque réponse est validée contre le contrat dans les tests du service, et le
   parcours du marquage (`revision-cycle.spec.ts`, sa part) joue contre le service ;
-- propre à l'US : `load-witness` marque « v1.0 » et « Référence » aux instants du témoin, par la
+- propre à l'US : `load-witness` marque « Offre v1.0 » (l'exemple du contrat, #2191) et « Référence » aux instants du témoin, par la
   même transaction que le worker ; les tests de `revision-cycle.spec.ts` portent l'étiquette
-  `@shared` pour ce qu'ils lisent sans référence, et `mode.ts` inscrit le compte de la course chef
-  de projet des projets du témoin par `setContributors` au début de la course en mode service, d'où
-  la dépendance à US-0930 (décisions de l'auteur du 2026-11-05).
+  `@shared` pour ce qu'ils lisent sans référence, et les parcours qui écrivent sur un projet le
+  créent d'abord, le compte de la course n'étant inscrit chef de projet d'aucun projet du témoin
+  (#2193 ; décisions de l'auteur des 2026-11-05 et 2026-11-07).
 
 **Notes de réalisation.** Le marquage est le premier traitement du métier confié au worker
 (EP-03, « Worker, file et planification ») : un gestionnaire `revision_mark` enregistré dans
