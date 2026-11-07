@@ -1,0 +1,12 @@
+{
+  "summary": "Le différentiel « Avenant 2 — reprise des essais » renommé « Avenant 2 — reprise des essais usine et site », sa date de début de planning inchangée : aucune tâche n'est redatée et aucun montant ne bouge — nodes, rescheduled, reinflated et ancestors vides, les totaux du différentiel inchangés —, et le compteur de la structure passe de 2 à 3 ; l'écriture entre dans l'historique de l'auteur (structure_update) (WF-REV-0100, WF-IHM-0110).",
+  "description": "Exemple engendré par `make mock-data` (`wftools.mockdata`) : il ne se retouche pas.",
+  "value": {
+    "nodes": [],
+    "ancestors": [],
+    "rescheduled": [],
+    "reinflated": [],
+    "totals": {"task_count":1002,"estimate_line_count":5000,"hours":"116310","base_amount":"66108223.89","budgeted_amount":"68494688.05","reestimated_amount":"68926691.06"},
+    "structure_lock_version": 3
+  }
+}

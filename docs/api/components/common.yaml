@@ -98,7 +98,11 @@ LockVersion:
   description: >-
     Write counter of the object. Every modification carries it and requires it, a
     creation has none; a stale value is refused with 412, which makes
-    undo safe with several contributors (WF-IHM-0110, WF-PRJ-0060). It follows
+    undo safe with several contributors (WF-IHM-0110, WF-PRJ-0060). An object is created
+    at 1, whether a request creates it or another write creates it with it — the main
+    structure of a revision, the default work breakdown of a project —, and each write of it
+    advances it by one: the marking of a revision created and then marked carries it to 2
+    (WF-IHM-0110). It follows
     the user's writes: what the server recalculates without anyone writing
     it — the dates of the successors of a link or of a duration, what the critical
     path moves, the amounts and dates of a summary task, the amounts, inflation

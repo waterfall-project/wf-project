@@ -5,6 +5,6 @@
     "work_packages": [
       {"work_package_id":"01926f3a-7c00-7000-8000-000000000714","label":"Rénovation du poste de livraison","is_match":true,"attached_task":null,"order_items":[{"order_item_id":"01926f3a-7c00-7000-8000-000000000715","label":"Rénovation du poste de livraison","is_match":true,"attached_task":null,"deliverables":[]}]}
     ],
-    "lock_version": 0
+    "lock_version": 1
   }
 }
