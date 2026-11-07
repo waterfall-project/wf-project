@@ -1,10 +1,10 @@
 ---
 id: EP-06
 titre: Construire le planning d'un projet, et le lire en grille, en Gantt et en arborescence
-statut: prêt
+statut: en cours
 depend_de: EP-04
 famille: front, back
-issue:
+issue: 2316
 ---
 
 # EP-06 — Planification
@@ -276,7 +276,9 @@ Décisions de l'auteur du 2026-11-07, sur les questions du cadrage, chacune avec
 - **Le corpus de WF-QUA-0080 est fourni par l'auteur** (« Préalables »), dans
   `fixtures/msproject/`, un fichier par cas, et le lot du format ne part pas sans lui ; le schéma
   XSD de Microsoft est désigné par la variable `WATERFALL_MSPDI_SCHEMA_PATH`, lue par le seul
-  test qui l'emploie, qui se déclare non exécuté sans elle. Écartés : un corpus écrit à la main
+  test qui l'emploie, qui se déclare non exécuté sans elle ; le lecteur et l'écrivain se prouvent
+  d'abord sans lui, par l'aller-retour structurel et le schéma, et le test du corpus vient avec
+  l'analyse (plan de lots). Écartés : un corpus écrit à la main
   d'après le schéma, daté par le moteur de Waterfall lui-même, qui ne confronterait rien ; le
   report de WF-QUA-0080.
 - **La purge est un verbe du worker, `waterfall-worker purge`**, planifié par le service
@@ -429,7 +431,7 @@ couvre tous : pour chaque processus — l'API (`create_app`), le worker (`handle
 |---|---|---|---|
 | `core/revisions` | `register_copy` (EP-04) | `planning` (les nœuds, leur facette tâche, les liaisons, après les structures) ; EP-07 (la facette ligne, les images) | `copy_revision` |
 | `core/revisions` | `register_tasks_and_lines` (EP-04) | `planning` (`revision_has_tasks`) ; EP-07 (les lignes) | la désignation de la référence |
-| `core/revisions` | `register_closing` (nouveau, créé par le socle) | `history` (`close_history`), puis `planning` (`delete_nodes`, à l'abandon seul) | le crochet commun du marquage et de l'abandon, appelé avant que la révision ne s'écrive, chaque module y faisant sa part dans l'ordre de l'enregistrement — l'historique et les plans d'abord, puis les nœuds, puis les structures d'EP-04 (`delete_structures`) : l'abandon d'une révision pleine ne laisse aucune ligne (WF-DAT-0010) ; la cascade des clés tient le même ordre si un chemin l'oublie |
+| `core/revisions` | `register_closing` (nouveau, créé par le socle) | `history` (`close_history`), puis `planning` (`delete_nodes`, à l'abandon seul, dès le lot qui crée des nœuds) | le crochet commun du marquage et de l'abandon, appelé avant que la révision ne s'écrive, chaque module y faisant sa part dans l'ordre de l'enregistrement — l'historique et les plans d'abord, puis les nœuds, puis les structures d'EP-04 (`delete_structures`) : l'abandon d'une révision pleine ne laisse aucune ligne (WF-DAT-0010) ; la cascade des clés tient le même ordre si un chemin l'oublie |
 | `core/resource_settings` | `register_idle_task_guard` (nouveau ; remplace le `True` de `calendar_change_is_admissible`) | `planning` (`tasks_left_idle` : les projets dont une tâche d'une révision en cours n'aurait plus aucune heure dans la semaine) | `updateCalendar`, `setDefaultCalendar`, `updateResourceRole` refusent par `TASK_WITHOUT_WORKING_HOURS`, `params.projects` ; ici le calendrier par défaut, EP-07 les rôles |
 | `core/resource_settings` | `register_recalculation` (nouveau) | `planning` (`reschedule_current_structures`) | `set_duration_units` et l'écriture d'un calendrier redatent, dans leur transaction, les structures des révisions en cours |
 | `core/projects` | `register_attachments` (nouveau) | `planning` (`work_breakdown_item_cited`, `detach_work_breakdown_item`) | `set_work_breakdown` marque supprimé un lot ou un poste qu'une tâche d'une révision marquée porte (`deleted_at`), le supprime sinon, et retire le rattachement des tâches de la révision en cours ; `follow_project_label` ne change pas |
@@ -655,7 +657,10 @@ est là, les écrans par l'US qui sert leur objet, la vérification d'ensemble e
 de lots (étape 3) le détaille en vagues.
 
 1. **US-1380/L1**, le socle — après la fusion d'US-0990/L2 d'EP-04 (#2069) : les deux
-   migrations, les trois modules à vide et leurs interfaces en paquet, les registres nouveaux
+   migrations, les trois modules à vide et leurs interfaces en paquet — hors le sous-paquet
+   `core/planning/scheduling/`, que le lot du moteur possède entier, et avec le fichier de
+   l'analyseur XML durci de `core/exchanges` et son réexport, pour que les lots de la vague 2
+   n'écrivent que leurs fichiers —, les registres nouveaux
    déclarés dans `core/revisions`, `core/projects`, `resource_settings` et `witness/revisions`,
    les routeurs vides, les gestionnaires du worker et le verbe `purge` déclarés, les fichiers de
    tranche, de tests et `planning_support.py`, le test des points d'entrée (#2180). **Lot pivot
@@ -664,20 +669,25 @@ de lots (étape 3) le détaille en vagues.
    `register_tasks_and_lines`, `register_closing` et `register_facet`, l'interface de
    `core/exchanges` (`register_format`, `register_exporter`) et celle de `core/history`, la chaîne
    des migrations arrêtée à `0023` ; EP-07 ajoute par sa migration la table `estimate_line`
-   (clé vers `node`), les tables images de la révision, et chaîne sur `0023`. En parallèle, le lot
-   d'outil d'US-1480 (`witness_tasks.json`).
-2. **Le moteur pur** (US-1390), **la mécanique d'import** (US-1420), **les chronologies**
-   (US-1400, la lecture et l'écriture des chronologies), **le lecteur et l'écrivain MS Project**
-   (US-1430, purs, avec le corpus) et **l'historique** (US-1450, `record`, `undo`, `redo` sur
-   des lignes posées) : tout ce qui ne dépend que du socle.
-3. **L'arbre des tâches** (US-1380 : lecture, création, modification, suppression, puis
-   déplacement, rattachement, numéro, dépendances), après le moteur et l'historique ; **les
-   exports** (US-1430 : la tâche `export`, le stockage, `getBackgroundTaskResult`, la purge des
-   exports) et **la purge** (US-1420).
+   (clé vers `node`), les tables images de la révision, et chaîne sur `0023` ; ses lots qui créent
+   des lignes attendent aussi les deux lots suivants de l'arbre. En parallèle, dès la création de
+   la branche : **le moteur pur** (US-1390), sans table ni dépendance nouvelle, qui possède
+   `core/planning/scheduling/` entier ; et le lot d'outil d'US-1480 (`witness_tasks.json`).
+2. **La mécanique d'import** (US-1420), **les chronologies** (US-1400, la lecture et l'écriture
+   des chronologies), **le lecteur et l'écrivain MS Project** (US-1430, purs, éprouvés par
+   l'aller-retour structurel et la validation XSD — le test du corpus attend l'analyse, en 5) et
+   **l'historique** (US-1450, `recording`, `undo`, `redo` sur des instantanés posés) : tout ce qui
+   ne dépend que du socle.
+3. **L'arbre des tâches** (US-1380 : lecture, création, modification, dépendances, numéro — et
+   la suppression des nœuds à l'abandon d'une révision, dès ce lot, pour que l'abandon ne casse
+   pas entre deux vagues —, puis suppression, déplacement, rattachement), après le moteur et
+   l'historique ; **les exports** (US-1430 : la tâche `export`, le stockage,
+   `getBackgroundTaskResult`), sans rien de la purge ; **le rendu de l'image** (US-1440, pur).
 4. **Les liaisons et la date de début** (US-1390), **les inscriptions** (US-1400), **l'état**
-   (US-1410), après l'arbre.
-5. **L'analyse et l'application MS Project** (US-1430), **le collage** (US-1450), **le
-   squelette** (US-1460), **l'image de l'arborescence** (US-1440), après l'arbre et les liaisons.
+   (US-1410), après l'arbre ; **la purge entière** (US-1420), après les exports.
+5. **L'analyse et l'application MS Project** (US-1430, avec le test du corpus), **le collage**
+   (US-1450), **le squelette** (US-1460), **l'image de l'arborescence branchée** (US-1440), après
+   l'arbre et les liaisons.
 6. **La grille et le Gantt** (US-1470), **l'export et l'écran des échanges** (US-1430), **les
    commandes Annuler et Rétablir** (US-1450), **la tranche des tâches** (US-1480), après tout ce
    qui écrit ; puis **la vérification d'ensemble** (US-1480), seule.
@@ -691,7 +701,7 @@ de lots (étape 3) le détaille en vagues.
   `WF-PLA-0150-A`
 - **opérations** : `listNodes`, `createNode`, `updateTaskFacet`, `deleteNode`, `moveNodes`,
   `resolveRowNumber`, `getComputedValueDependencies`
-- **issue** :
+- **issue** : 2317
 
 **En tant que** chef de projet, **je veux** créer les tâches et les jalons de la structure
 principale, les nommer, les décrire, les rattacher à un lot ou à un poste, les déplacer et les
@@ -841,7 +851,7 @@ inscriptions (US-1400) ; l'état (US-1410) ; le collage et l'annulation (US-1450
   `WF-PLA-0160-A`
 - **opérations** : `setPredecessors`, `updateCostStructure` ; `listNodes`, `createNode`,
   `updateTaskFacet`, `moveNodes`, `deleteNode` pour ce qu'elles rendent de redaté
-- **issue** :
+- **issue** : 2318
 
 **En tant que** chef de projet, **je veux** que les dates de mes tâches automatiques, leurs marges
 et le chemin critique se calculent sur leur calendrier, à partir de leurs durées, de leurs
@@ -970,7 +980,7 @@ répartition de la charge (EP-07).
 - **exigences** : `WF-PLA-0140-A`, `WF-PLA-0060-A`
 - **opérations** : `listTimelines`, `createTimeline`, `deleteTimeline`, `setNodeTracking` ;
   `listNodes` avec `timeline_id`
-- **issue** :
+- **issue** : 2320
 
 **En tant que** chef de projet, **je veux** nommer des chronologies, y inscrire des tâches et des
 jalons ou les en retirer, inscrire un jalon au suivi temps/temps, et lire chaque chronologie en
@@ -1017,7 +1027,7 @@ préférence d'affichage (EP-03, EP-15).
 - **statut** : à faire
 - **exigences** : `WF-PLA-0130-A`
 - **opérations** : `setTaskProgress`
-- **issue** :
+- **issue** : 2324
 
 **En tant que** chef de projet, **je veux** qu'une tâche porte son état et ses dates de démarrage
 et de terminaison, qu'une récapitulative les tire de ses subordonnées, et qu'un jalon passe de non
@@ -1069,7 +1079,7 @@ se pose autour du service dans les tests, comme EP-04 l'a fait.
   `WF-DAT-0120-A`
 - **opérations** : `uploadFile`, `listImports`, `openImport`, `getImport`, `abandonImport`,
   `applyImport`
-- **issue** :
+- **issue** : 2319
 
 **En tant que** chef de projet, **je veux** déposer un fichier, lire le compte rendu de son
 analyse, puis l'appliquer ou l'abandonner, **afin que** rien ne change dans mon projet sans que
@@ -1170,7 +1180,7 @@ des échanges, branché par US-1430.
   `WF-DAT-0120-A`
 - **opérations** : `requestExport` (`ms_project_schedule`), `getBackgroundTaskResult` ;
   `openImport`, `getImport`, `applyImport` pour `ms_project_schedule`
-- **issue** :
+- **issue** : 2321
 
 **En tant que** chef de projet, **je veux** importer un planning MS Project dans ma révision en
 cours, le retravailler dans MS Project et le réimporter sans perdre mes tâches, et exporter mon
@@ -1288,7 +1298,7 @@ lignes d'une tâche réimportée (EP-07).
 - **exigences** : `WF-PLA-0110-A`, `WF-PLA-0120-A`
 - **opérations** : `listNodes` (`summaries_only`, `max_level`) ; `requestExport`
   (`task_tree_image`), `getBackgroundTaskResult`
-- **issue** :
+- **issue** : 2323
 
 **En tant que** chef de projet, **je veux** lire les récapitulatives de mon planning en
 arborescence jusqu'au niveau que je choisis, et en exporter une image à imprimer, **afin de**
@@ -1331,7 +1341,7 @@ PRJ-001 a la profondeur que `summary_depth` dit.
 - **statut** : à faire
 - **exigences** : `WF-IHM-0110-A`
 - **opérations** : `previewPaste`, `applyPaste`, `undoLastChange`, `redoLastUndo`
-- **issue** :
+- **issue** : 2322
 
 **En tant que** chef de projet, **je veux** coller dans la grille de planning un bloc venu d'un
 tableur après en avoir vu le compte rendu, annuler mes saisies une par une et les rétablir, et
@@ -1391,7 +1401,7 @@ saisies de risque (EP-08).
 - **statut** : à faire
 - **exigences** : `WF-PRJ-0030-A`, `WF-PLA-0170-A`
 - **opérations** : `generatePlanningSkeleton` ; `getWorkBreakdown`, `createRevision`
-- **issue** :
+- **issue** : 2325
 
 **En tant que** chef de projet, **je veux** engendrer d'un coup, depuis mon lotissement, les
 récapitulatives, les livrables et les jalons de fin de mon planning, **afin de** ne pas ressaisir
@@ -1451,7 +1461,7 @@ révision en cours, l'écran ouvre la révision d'abord (`createRevision`, EP-04
 - **exigences** : `WF-PLA-0080-A`, `WF-PLA-0090-A`, `WF-ADM-0110-A`, `WF-INTF-0010-A`
 - **opérations** : toutes celles de l'EPIC que la grille de planning et le Gantt lisent et
   écrivent
-- **issue** :
+- **issue** : 2326
 
 **En tant que** chef de projet, **je veux** que la grille de planning et le Gantt travaillent
 contre le service — saisie, prédécesseurs, rattachement, date de début de planning, menu
@@ -1532,7 +1542,7 @@ physique (EP-10).
 - **statut** : à faire
 - **exigences** : `WF-QUA-0040-A`
 - **opérations** : aucune en propre ; le chargement passe par les interfaces du noyau
-- **issue** :
+- **issue** : 2327
 
 **En tant que** développeur, **je veux** charger sur une plateforme qui porte les projets du
 témoin les mille tâches de PRJ-001, leurs liaisons, leurs états, leurs inscriptions et ses
