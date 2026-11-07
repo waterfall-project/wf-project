@@ -135,7 +135,10 @@ CommandCondition:
     that would modify a marked revision, which no longer changes (WF-DAT-0020) — every revision
     of a terminal project is one. `project_in_progress` is missing outside the In progress state
     for what is done only during execution: the exit to Completed (`complete`, WF-CYC-0060), the
-    entry of the remaining to commit (below). `project_in_pricing` is missing for the
+    entry of the remaining to commit (below), the import of the actual costs and the exclusion of
+    a line from the tracked scope (`import_actual_costs`, `exclude_cost_lines`; WF-CRE-0020,
+    WF-CRE-0030), which `setActualCostTrackedScope` names in its 409 after
+    `project_not_terminal`. `project_in_pricing` is missing for the
     declaration of loss (`lose`) of a Created project: a project is declared lost only from
     Pricing (WF-CYC-0060). `no_current_revision` is missing for opening a revision
     (`create_revision`) as long as the project holds a current one, the only one to receive
@@ -494,7 +497,8 @@ ProjectCommand:
     project are named there (`reference_revision_designated`, `no_background_task_running`),
     those of the risk on the risk (`RiskCommand.declare_occurrence`); import the actual costs —
     `import_actual_costs` names `actual_cost_mapping_complete` as long as the extraction mapping
-    of the installation is incomplete, after the conditions of the project state (WF-REF-0190)
+    of the installation is incomplete, after the conditions of the project state
+    (`project_in_progress`; WF-REF-0190)
     —, exclude a line from the tracked scope (WF-CRE-0030); import an MS Project planning, an
     estimate, a remaining to commit — one command per kind, each guarded by its permission —,
     which the import applies to the current revision and creates if needed (WF-INTF-0090):
@@ -712,7 +716,9 @@ ProjectExit:
         (`Project.current_revision_id`): absent or null, the exit is refused with 422
         `VALIDATION_FAILED`, `fields` designating `/current_revision` with `VALUE_REQUIRED`, and
         nothing is written (`project_exit_revision_required`). Absent or null when the project
-        holds none (D-01, US-0701/L9).
+        holds none (D-01, US-0701/L9); sent when the project holds none, it is ignored: the exit
+        applies within the request (200), the permission its action requires
+        (`revision_abandon`, `revision_mark`) still being asked (403).
     lock_version:
       allOf: [{ $ref: ../common.yaml#/LockVersion }]
       description: >-

@@ -145,6 +145,8 @@
             examples:
               refused: { $ref: ../../../fixtures/api/project_creation_refused.json }
               code_invalid: { $ref: ../../../fixtures/api/project_code_invalid.json }
+              code_blank: { $ref: ../../../fixtures/api/project_code_blank.json }
+              fields_too_long: { $ref: ../../../fixtures/api/project_fields_too_long.json }
       '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
@@ -242,6 +244,7 @@
             examples:
               code_taken: { $ref: ../../../fixtures/api/project_code_taken.json }
               win_probability_frozen: { $ref: ../../../fixtures/api/project_win_probability_frozen.json }
+              terminal: { $ref: ../../../fixtures/api/project_update_terminal.json }
       '412': { $ref: ../components/responses.yaml#/PreconditionFailed }
       '422':
         description: >-
@@ -343,7 +346,12 @@
       exit is applied when the task succeeds, under the same correlation as the marking: the
       project moves to the target state, without a current revision, the revision marked under
       the given name; a task that fails applies nothing, and the project keeps its state and its
-      current revision. During this marking, the three exits name `no_background_task_running`
+      current revision. The lock version sent is judged at the request (412) and judged again by
+      the task, under the lock of the project, before anything is written: a project written in
+      between — its `update`, `manage_contributors` or `manage_timelines` remaining available
+      during the marking — fails the task, its `problem` at `STALE_LOCK_VERSION`, and nothing is
+      applied, the revision staying current; applied, the exit moves the lock version of the
+      project, as an exit within the request does (WF-IHM-0110). During this marking, the three exits name `no_background_task_running`
       (`ProjectCommand`). An exit that abandons records the abandonment of the revision and the
       exit, under one correlation (`audit_events_exited`); an exit that marks, the marking and
       the exit. After the exit, the project no longer has a current revision, and its indicators
@@ -573,6 +581,7 @@
             schema: { $ref: ../components/common.yaml#/Problem }
             examples:
               background_task: { $ref: ../../../fixtures/api/work_breakdown_background_task.json }
+              terminal: { $ref: ../../../fixtures/api/work_breakdown_terminal.json }
       '412':
         description: >-
           The lock version sent is no longer that of the work breakdown: another entry has
@@ -706,6 +715,7 @@
             schema: { $ref: ../components/common.yaml#/Problem }
             examples:
               code_taken: { $ref: ../../../fixtures/api/subproject_code_taken.json }
+              terminal: { $ref: ../../../fixtures/api/subproject_create_terminal.json }
       '422':
         description: >-
           `VALIDATION_FAILED`, `fields` designating each field: `/code` or `/label` empty,
@@ -733,7 +743,10 @@
     description: >-
       A subproject of the current project (WF-PRJ-0050), as its `update` command states
       (`Subproject.available_commands`): its code and its label, at any time, whether actual costs
-      are charged or not.
+      are charged or not. A new code changes no imputation: the actual cost lines already charged
+      to the subproject stay attached to it by its identifier, not by its code (WF-DAT-0060), and
+      a line imported under the old code or the new one is charged by the code it carries at its
+      next import (WF-CRE-0020, WF-INTF-0140).
     tags: [projects]
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
@@ -768,6 +781,7 @@
             schema: { $ref: ../components/common.yaml#/Problem }
             examples:
               code_taken: { $ref: ../../../fixtures/api/subproject_code_taken.json }
+              terminal: { $ref: ../../../fixtures/api/subproject_update_terminal.json }
       '412': { $ref: ../components/responses.yaml#/PreconditionFailed }
       '422':
         description: >-
@@ -785,6 +799,7 @@
             examples:
               code_invalid: { $ref: ../../../fixtures/api/subproject_code_invalid.json }
               code_reserved: { $ref: ../../../fixtures/api/subproject_code_reserved.json }
+              code_too_long: { $ref: ../../../fixtures/api/subproject_code_too_long.json }
       '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
   delete:
@@ -858,6 +873,7 @@
               cited: { $ref: ../../../fixtures/api/subproject_delete_cited.json }
               refused: { $ref: ../../../fixtures/api/subproject_delete_refused.json }
               estimated: { $ref: ../../../fixtures/api/subproject_delete_estimated.json }
+              terminal: { $ref: ../../../fixtures/api/subproject_delete_terminal.json }
       '412':
         description: >-
           `STALE_LOCK_VERSION`: the subproject has been written since it was read, and nothing is
@@ -1009,6 +1025,7 @@
             schema: { $ref: ../components/common.yaml#/Problem }
             examples:
               without_manager: { $ref: ../../../fixtures/api/contributors_without_manager_refused.json }
+              terminal: { $ref: ../../../fixtures/api/contributors_set_terminal.json }
       '412': { $ref: ../components/responses.yaml#/PreconditionFailed }
       '422':
         description: >-

@@ -1,0 +1,10 @@
+{
+  "summary": "Une variante contrefactuelle : un sous-projet que nulle révision marquée ne cite, auquel aucun coût réel n'est imputé et qu'aucune ligne de la révision en cours ne porte, supprimé sur le projet témoin, « Modernisation du poste de commande », terminé aujourd'hui (project_completed). Ses propres conditions ne manquent pas ; la condition qui manque, project_not_terminal, jugée après elles — sur le témoin, la suppression du « Poste de commande » nomme d'abord subproject_not_cited —, est nommée ; rien n'est supprimé (WF-CYC-0100, WF-DAT-0080, WF-PRJ-0050, WF-IHM-0090).",
+  "description": "Exemple engendré par `make mock-data` (`wftools.mockdata`) : il ne se retouche pas.",
+  "value": {
+    "code": "STATE_FORBIDS_OPERATION",
+    "status": 409,
+    "params": {"missing_condition":"project_not_terminal"},
+    "correlation_id": "01926f3a-7c00-7000-8000-000000001770"
+  }
+}
