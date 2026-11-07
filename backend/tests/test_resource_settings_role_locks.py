@@ -8,14 +8,16 @@ state left is coherent, and no error of the base escapes. The service is loaded 
 """
 
 import threading
+from concurrent.futures import ThreadPoolExecutor
 from decimal import Decimal
 from typing import TYPE_CHECKING, Any
 from uuid import UUID
 
 import pytest
 from sqlalchemy import func, select
+from support import wait_for_a_lock
 
-from waterfall.api.resource_roles import category_admission
+from waterfall.api.resource_role_admission import category_admission
 from waterfall.core.cost_settings.interface import (
     CostCategoryDraft,
     CostTypeDraft,
@@ -75,11 +77,15 @@ def hold_the_lock(database: Database, key: int = TREE_LOCK) -> tuple[Any, Any]:
     return connection, transaction
 
 
-def crossed(database: Database, *jobs: Any, key: int = TREE_LOCK) -> list[Any]:
+def crossed(
+    database: Database, *jobs: Any, key: int = TREE_LOCK, in_order: bool = False
+) -> list[Any]:
     """Run the jobs at once while a lock is held, the tree's unless said, then release it.
 
     Each job waits for the lock, then runs in a transaction of its own; a refusal is its result.
-    The results come in the order the jobs ended.
+    The results come in the order the jobs ended. ``in_order`` starts each job only once the one
+    before waits for the lock, which queues them in the order given: the lock is granted in the
+    order it was asked, and so the jobs run in it.
     """
     results: list[Any] = []
 
@@ -92,8 +98,10 @@ def crossed(database: Database, *jobs: Any, key: int = TREE_LOCK) -> list[Any]:
 
     connection, transaction = hold_the_lock(database, key)
     threads = [threading.Thread(target=run, args=(job,)) for job in jobs]
-    for thread in threads:
+    for waiting, thread in enumerate(threads, start=1):
         thread.start()
+        if in_order:
+            wait_for_a_lock(database, waiting)
     for thread in threads:
         thread.join(timeout=1)
     assert all(thread.is_alive() for thread in threads)
@@ -211,8 +219,13 @@ def role_job(category_id: UUID) -> Any:
 
 
 @pytest.mark.requirement("WF-REF-0030-A")
+@pytest.mark.parametrize("role_first", [True, False], ids=["role-first", "nature-first"])
 def test_a_nature_deactivated_while_a_role_is_created_on_its_category_leaves_a_coherent_state(
-    api: ContractClient, reference_sessions: ReferenceSessions, witness: Database
+    api: ContractClient,
+    reference_sessions: ReferenceSessions,
+    witness: Database,
+    *,
+    role_first: bool,
 ) -> None:
     nature_id, category_id = labour_category(witness)
     act = Act(None, utc_now())
@@ -222,20 +235,23 @@ def test_a_nature_deactivated_while_a_role_is_created_on_its_category_leaves_a_c
             session, nature_id, is_active=False, lock_version=0, act=act
         )
 
-    # Both wait for the lock of the natures, then run in either order: no error of the base.
-    results = crossed(witness, role_job(category_id), nature_off, key=NATURES_LOCK)
+    # Both wait for the lock of the natures, the one the case says first: the role created first
+    # binds the nature, deactivated after; the nature deactivated first refuses the role.
+    jobs = (role_job(category_id), nature_off)
+    results = crossed(
+        witness, *(jobs if role_first else jobs[::-1]), key=NATURES_LOCK, in_order=True
+    )
     refused = [each for each in results if isinstance(each, ServiceError)]
     with witness.transaction() as session:
         bound = category_has_roles(session, [category_id])
-    # The role created first binds the nature, deactivated after; or the nature deactivated first
-    # refuses the role, at its category.
-    if refused:
+    if role_first:
+        assert refused == []
+        assert bound == {category_id}
+    else:
         assert [(each.code, [(f.pointer, f.code) for f in each.fields]) for each in refused] == [
             ("VALIDATION_FAILED", [("/cost_category_id", "INACTIVE_REFERENCE_OBJECT")])
         ]
         assert bound == frozenset()
-    else:
-        assert bound == {category_id}
     costs = reference_sessions("cost_settings").changing
     natures = api.get("/api/v1/reference/cost-types?include_inactive=true", headers=costs)
     own = next(each for each in natures.json()["items"] if each["code"] == "MO2")
@@ -309,3 +325,64 @@ def test_a_change_of_kind_waits_for_the_role_being_attached_then_is_refused_for_
         missing,
     )
     assert [each["code"] for each in refused.params["resource_roles"]] == [created.code]
+
+
+@pytest.mark.requirement("WF-REF-0090-A")
+def test_a_role_changed_without_its_category_does_not_wait_for_the_natures_but_a_move_does(
+    api: ContractClient, reference_sessions: ReferenceSessions, witness: Database
+) -> None:
+    _, category_id = labour_category(witness)
+    headers = reference_sessions("resource_settings").changing
+    roles = "/api/v1/reference/resource-roles"
+    found = api.get(f"{roles}?include_inactive=true&code=TECH-MES", headers=headers)
+    read = found.json()["items"][0]
+    kept = {
+        key: read[key]
+        for key in ("code", "label", "cost_category_id", "calendar_id", "capacity", "lock_version")
+    }
+    url = f"{roles}/{read['resource_role_id']}"
+    connection, transaction = hold_the_lock(witness, NATURES_LOCK)
+    try:
+        with ThreadPoolExecutor(1) as other:
+            # The lock of the natures is held exclusively: a change that keeps the category does
+            # not ask for it, and ends at once.
+            renamed = other.submit(
+                api.patch, url, headers=headers, json={**kept, "label": "Renommé"}
+            )
+            assert renamed.result(timeout=10).status_code == 200
+            version = renamed.result().json()["lock_version"]
+            # A move to another category asks for it, and waits until it is released.
+            moving = {**kept, "cost_category_id": str(category_id), "lock_version": version}
+            moved = other.submit(api.patch, url, headers=headers, json=moving)
+            wait_for_a_lock(witness)
+            assert not moved.done()
+            transaction.commit()
+            connection.close()
+            assert moved.result(timeout=10).status_code == 200
+    finally:
+        # A failed assertion must not leave the lock held for the other tests.
+        if not connection.closed:
+            transaction.rollback()
+            connection.close()
+    # The role was moved since the version ``kept`` read: a change that keeps the category it now
+    # has, on that stale version, is asked as for a move, so it waits for the natures' lock, then
+    # is refused (412) and not applied.
+    connection, transaction = hold_the_lock(witness, NATURES_LOCK)
+    try:
+        with ThreadPoolExecutor(1) as other:
+            stale = other.submit(
+                api.patch,
+                url,
+                headers=headers,
+                json={**kept, "cost_category_id": str(category_id), "label": "Périmé"},
+            )
+            wait_for_a_lock(witness)
+            assert not stale.done()
+            transaction.commit()
+            connection.close()
+            answer = stale.result(timeout=10)
+        assert (answer.status_code, answer.json()["code"]) == (412, "STALE_LOCK_VERSION")
+    finally:
+        if not connection.closed:
+            transaction.rollback()
+            connection.close()

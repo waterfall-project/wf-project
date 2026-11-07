@@ -31,9 +31,11 @@ const MANAGER = "Manager";
  * The role beside it that writes the settings of the risks and of the indicators: the contract gives
  * both permissions to the manager (WF-INTF-0020), but the back does not seed them in its predefined
  * role before EP-04 (`TO_SEED_BY_EP04`, #1457), so the administrator of the installation composes
- * them (WF-ADM-0020). Made once, kept by the installation, found again by its label on a replay.
+ * them (WF-ADM-0020). Made once, kept by the installation, found again by its label on a replay: the
+ * search and the creation are held one at a time across the workers (`giveRoles`), so that none
+ * makes a double.
  */
-const SETTINGS_WRITER = "Paramètres des risques et des indicateurs (parcours)";
+export const SETTINGS_WRITER = "Paramètres des risques et des indicateurs (parcours)";
 
 /** The screen a shared path signs in at, before it opens its own: any account reaches it. */
 const SIGNED_IN_AT = "/account";

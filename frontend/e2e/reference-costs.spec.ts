@@ -246,9 +246,9 @@ test("sorts the grid of the hourly rates by the rate of a year, filters the cate
   });
 });
 
-// Apart from the sort of the rates, which is tagged: the roles are read on `/reference/resources`,
-// which the service does not serve yet (US-0850), so this path is played against the fake back only.
-test("filters the roles by calendar, bounds their monthly hours and filters their code by the server [WF-IHM-0060-A] [WF-IHM-0130-A]", async ({
+// The roles are read on `/reference/resources`, served since US-0850: the path asserts addresses
+// alone, with the identifiers of the witness, which the fixtures hold; it writes nothing.
+test("filters the roles by calendar, bounds their monthly hours and filters their code by the server [WF-IHM-0060-A] [WF-IHM-0130-A] @shared", async ({
   page,
 }) => {
   test.slow();
@@ -403,7 +403,7 @@ test("deactivates a nature from its row, the row showing what the service or the
   await expect(page.getByRole("main").getByRole("alert")).toHaveCount(0);
 });
 
-test("presents fixed the type of a nature whose category is employed, with its condition, and the deactivation of the nature of provision for risks available [WF-IHM-0090-A] @shared", async ({
+test("presents fixed the type of a nature whose category is employed, with its conditions — in service, those of the rates and of the roles alone —, and the deactivation of the nature of provision for risks available [WF-IHM-0090-A] @shared", async ({
   page,
 }) => {
   await page.goto("/reference/costs");
@@ -413,7 +413,9 @@ test("presents fixed the type of a nature whose category is employed, with its c
   await expect(deactivation).not.toHaveAttribute("aria-disabled", "true");
 
   // The type of the labour, whose categories the estimate employs, bear rates and serve roles, is
-  // fixed with its conditions (EP-14/L42r):
+  // fixed with its conditions (EP-14/L42r). The service plays two of the three, those of the rates
+  // and of the roles; the one of the estimates, which holds no category in its data, is carried by
+  // the fake back and by the unit tests.
   // Une commande momentanément impossible est présentée indisponible, avec la condition qui manque.
   // Its modification is opened from its row, pressed again until React opens it.
   const form = page.getByRole("dialog", { name: "Modifier « Main-d'œuvre »" });
@@ -427,7 +429,8 @@ test("presents fixed the type of a nature whose category is employed, with its c
   await expect(type).toHaveAttribute("readonly", "");
   await expect(type).toHaveValue("Main-d’œuvre");
   // The conditions the service lacks are those of its data: the witness holds rates and roles of
-  // resource attached to its categories (US-0850), and no estimate employing a category of the nature.
+  // resource attached to its categories (US-0850), and no estimate employing a category of the
+  // nature.
   await expect(type).toHaveAccessibleDescription(
     inService
       ? /^Le type ne se modifie pas\. Conditions non remplies\s:\saucune catégorie de la nature portant un taux horaire et aucune catégorie de la nature rattachée à un rôle de ressource\.$/
@@ -441,7 +444,7 @@ test("presents fixed the type of a nature whose category is employed, with its c
 /** What a command to delete is called: the settings of the costs offer none (WF-REF-0010-A). */
 const DELETION = /supprim|effac|delete/i;
 
-test("shows the deactivated natures and categories asked for and reactivates them, offers no deletion, proposes only the active natures to a category and the nature again once reactivated (US-0880) @shared [WF-REF-0010-A] [WF-REF-0150-A]", async ({
+test("shows the deactivated natures and categories asked for and reactivates them, offers no deletion, proposes only the active natures to a category, and the nature again once reactivated, the category too, proposed to the form of a role (US-0880) @shared [WF-REF-0010-A] [WF-REF-0150-A]", async ({
   page,
 }) => {
   test.slow();

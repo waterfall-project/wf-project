@@ -5,22 +5,24 @@
  * dialog of the forms of the reference data (`ReferenceForm`), offered to a session that holds the
  * permission of modification of the screen's function (WF-ADM-0100) — the page hands over only what
  * that session may write: the risk matrix, its six bounds and its sixteen zones (FBS-3.3,
- * WF-REF-0160), under `risk_settings.write`; the thresholds of the indices and the delay between two
- * reviews (FBS-3.4, WF-REF-0170, WF-REF-0180), under `indicator_settings.write`; the name of the
- * company, which the exported files bear (WF-EXP-0020), under `cost_settings.write`, beside the
+ * WF-REF-0160), under `risk_settings.write`; the thresholds of the indices and the delay between
+ * two reviews (FBS-3.4, WF-REF-0170, WF-REF-0180), under `indicator_settings.write`; the name of
+ * the company, which the exported files bear (WF-EXP-0020), under `cost_settings.write`, beside the
  * currency. Each form sends the part of its screen alone with the version read
- * (`updateReferenceSettings`), never a field of the other screen; neither the currency, which is not modified (WF-REF-0140), nor the default language
- * of the installation, which is EP-03's, is offered.
+ * (`updateReferenceSettings`), never a field of the other screen; neither the currency, which is
+ * not modified (WF-REF-0140), nor the default language of the installation, which is EP-03's, is
+ * offered.
  *
  * The form checks before asking that the bounds of each axis rise strictly and that the alert
  * threshold of each index stays below its watch threshold, each broken rule said at the field the
- * server would point at — the bound of the rank that breaks the order, the alert —; the server judges
- * the rest, a refusal by field said at its field, any other under the form, the version stale (412)
- * with the offer to read the page anew. The answer takes the place of the settings read while it is
- * newer than them (`lock_version`), and the page is read anew: a success is what the service kept. A
- * form writes from the version it opened on: a reading that comes while it is open does not lend its
- * version to a draft entered on another; and the command that opens it waits while a write of a
- * dialog closed is under way, for the form to open on the version its answer brings (#661).
+ * server would point at — the bound of the rank that breaks the order, the alert —; the server
+ * judges the rest, a refusal by field said at its field, any other under the form, the version
+ * stale (412) with the offer to read the page anew. The answer takes the place of the settings read
+ * while it is newer than them (`lock_version`), and the page is read anew: a success is what the
+ * service kept. A form writes from the version it opened on: a reading that comes while it is open
+ * does not lend its version to a draft entered on another; and the command that opens it waits
+ * while a write of a dialog closed is under way, for the form to open on the version its answer
+ * brings (#661).
  */
 "use client";
 

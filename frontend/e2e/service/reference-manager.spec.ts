@@ -33,6 +33,7 @@ import { expect, type Locator, type Page, test } from "@playwright/test";
 
 import { compileAnswered } from "../compile";
 import { openMenu, WORKING } from "../hydration";
+import { SETTINGS_WRITER } from "../mode";
 import type { components } from "../../src/api/generated/schema";
 import { heldToTheContract } from "./contract";
 import {
@@ -58,8 +59,6 @@ const USERS = "/admin/users";
 /** The API, through the proxy of the contract. */
 const API = `${process.env.WATERFALL_API_ADDRESS ?? ""}/api/v1`;
 
-/** The role beside « Manager » that composes the two settings the predefined role does not hold yet. */
-const SETTINGS_WRITER = "Paramètres des risques et des indicateurs (parcours)";
 /** The role of the cumulation: costs and accounts, read to be shown and written to be changed. */
 const CUMULATION = "Paramètres de coûts et comptes (parcours)";
 /** The role of the reciprocal: all of « Manager » but `resource_settings.write`. */
