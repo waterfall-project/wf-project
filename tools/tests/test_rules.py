@@ -8,8 +8,10 @@ complexity of 15. The same file without the fault passes, so that the failure is
 fault's and not the scratch file's.
 """
 
+import itertools
 import json
 import subprocess
+import tomllib
 from typing import TYPE_CHECKING
 
 import pytest
@@ -92,3 +94,39 @@ def test_a_silenced_type_error_still_fails(strict: Path) -> None:
 def test_a_well_typed_module_passes(strict: Path) -> None:
     (strict / "scratch.py").write_text("X: int = 1\n", encoding="utf-8")
     assert run("pyright", cwd=strict) == 0
+
+
+API = REPOSITORY / "backend" / "src" / "waterfall" / "api"
+API_ENTRY_PREFIX = "backend/src/waterfall/api/"
+
+
+def api_exemptions() -> list[str]:
+    """Return the modules of `api/` that `ruff.toml` exempts from TC001 to TC003, in order."""
+    config = tomllib.loads((REPOSITORY / "ruff.toml").read_text(encoding="utf-8"))
+    patterns = config["lint"]["per-file-ignores"]
+    return [
+        pattern.removeprefix(API_ENTRY_PREFIX).removesuffix(".py")
+        for pattern in patterns
+        if pattern.startswith(API_ENTRY_PREFIX)
+    ]
+
+
+def test_every_module_of_routes_has_its_exemption() -> None:
+    """A module that declares an `APIRouter(` has its line in `ruff.toml`."""
+    exempt = set(api_exemptions())
+    routed = {path.stem for path in API.glob("*.py") if "APIRouter(" in path.read_text("utf-8")}
+    for module in sorted(routed - exempt):
+        pytest.fail(f"{module}: declares an APIRouter( but has no line in ruff.toml")
+
+
+def test_every_exemption_names_an_existing_module() -> None:
+    """A line of `ruff.toml` for `api/<module>.py` points to a file that exists."""
+    for module in api_exemptions():
+        assert (API / f"{module}.py").is_file(), f"{module}: ruff.toml names no such file"
+
+
+def test_the_exemptions_are_sorted() -> None:
+    """The lines of `api/` modules in `ruff.toml` are sorted by name."""
+    modules = api_exemptions()
+    for before, after in itertools.pairwise(modules):
+        assert before < after, f"{after}: listed after {before} in ruff.toml, not sorted"
