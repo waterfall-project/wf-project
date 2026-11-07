@@ -34,6 +34,7 @@ from waterfall.core.projects.interface.contributors import (
 
 # ``lifecycle`` (US-0980): the cycle of life of a project.
 from waterfall.core.projects.interface.lifecycle import (
+    DesignationFacts,
     ExitRequest,
     ExitState,
     LifecycleTrigger,
@@ -45,9 +46,12 @@ from waterfall.core.projects.interface.lifecycle import (
     judge_exit_unlocked,
     list_state_transitions,
     load_transitions,
+    lock_counter,
+    lock_for_designation,
     next_state,
     no_background_task_running,
     read_next_state,
+    set_reference_revision,
     stored_lock_version,
 )
 
@@ -131,6 +135,7 @@ __all__ = [
     "ContributorsToWrite",
     "DeliverableEntry",
     "DeliverableView",
+    "DesignationFacts",
     "ExitRequest",
     "ExitState",
     "LifecycleTrigger",
@@ -184,6 +189,8 @@ __all__ = [
     "load_subprojects",
     "load_transitions",
     "load_work_breakdown",
+    "lock_counter",
+    "lock_for_designation",
     "lock_project",
     "next_state",
     "no_background_task_running",
@@ -199,6 +206,7 @@ __all__ = [
     "require_project_manager",
     "set_contributors",
     "set_current_revision",
+    "set_reference_revision",
     "set_work_breakdown",
     "stored_lock_version",
     "subprojects_present",
