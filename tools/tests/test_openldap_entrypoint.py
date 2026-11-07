@@ -7,8 +7,9 @@ volumes, data and configuration, of a name of its own to each test and removed a
 configuration, it empties and seeds again the volume of the data only if the marker it lays before
 loading the seed is there — a seeding interrupted — or if the volume is empty; data without marker
 are a directory that has served, and it refuses. Volumes laid without the entrypoint, as the image
-of osixia left them, and a marker left beside the configuration by a stop between its copy and the
-removal, are served as they are. Docker is needed: a test skips without it.
+of osixia left them, are served as they are; a marker left beside the configuration by a stop
+between its copy and the removal is removed, and nothing is emptied. Docker is needed: a test
+skips without it.
 """
 
 import shutil
@@ -129,6 +130,8 @@ def test_volumes_laid_without_the_entrypoint_are_not_emptied_or_refused(volumes:
     laid = volumes.run("touch /etc/ldap/slapd.d/cn=config.ldif /var/lib/ldap/osixia")
     assert laid.returncode == 0
     started = volumes.start()
+    # slapd, not the entrypoint, ends it: the configuration laid here is an empty file.
+    assert started.returncode == 1
     assert REMEDY not in started.stderr
     assert "interrupted" not in started.stderr
     data, config = volumes.listing().split("---")

@@ -16,7 +16,6 @@ passes as soon as one of the rulesets targeting the branch is active with a ``me
 """
 
 import argparse
-import fnmatch
 import json
 import re
 import sys
@@ -73,14 +72,42 @@ def matches(branch: str, patterns: list[object]) -> bool:
     """Say whether a reference matches one of the patterns of ``ref_name``.
 
     The patterns of GitHub (``refs/heads/epic/*``, ``refs/heads/epic/EP-2?``, ``~ALL``) are read
-    by ``fnmatch``, where a ``*`` also crosses a ``/``: ``refs/heads/*`` takes every branch, where
-    GitHub's takes one level. ``~DEFAULT_BRANCH`` is not resolved: it never matches an epic's
-    branch.
+    as ``fnmatch`` does with ``File::FNM_PATHNAME``, which GitHub applies: a ``*`` and a ``?``
+    stop at a ``/``, a ``**`` crosses it. So ``refs/heads/*`` does not take an epic's branch,
+    ``refs/heads/epic/EP-21``, and ``refs/heads/**`` does. ``~DEFAULT_BRANCH`` is not resolved: it
+    never matches an epic's branch.
     """
     return any(
-        isinstance(pattern, str) and (pattern == "~ALL" or fnmatch.fnmatchcase(branch, pattern))
+        isinstance(pattern, str)
+        and (pattern == "~ALL" or re.fullmatch(pathname_pattern(pattern), branch) is not None)
         for pattern in patterns
     )
+
+
+def pathname_pattern(pattern: str) -> str:
+    """Translate a pattern of ``fnmatch`` with ``FNM_PATHNAME`` into a regular expression."""
+    translated: list[str] = []
+    index = 0
+    while index < len(pattern):
+        char = pattern[index]
+        if pattern.startswith("**", index):
+            translated.append(".*")
+            index += 2
+            continue
+        closing = pattern.find("]", index + 2) if char == "[" else -1
+        if char == "[" and closing > 0:
+            members = pattern[index + 1 : closing]
+            members = "^" + members[1:] if members[:1] in ("!", "^") else members
+            translated.append(f"[{members.replace(chr(92), chr(92) * 2)}]")
+            index = closing
+        elif char == "*":
+            translated.append("[^/]*")
+        elif char == "?":
+            translated.append("[^/]")
+        else:
+            translated.append(re.escape(char))
+        index += 1
+    return "".join(translated)
 
 
 def ref_names(ruleset: dict[str, object], key: str) -> list[object]:

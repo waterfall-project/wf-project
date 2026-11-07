@@ -298,6 +298,9 @@ def test_create_says_a_post_that_gh_refuses(tmp_path: Path) -> None:
     ("include", "exclude", "targets"),
     [
         (["refs/heads/epic/*"], [], True),
+        (["refs/heads/*"], [], False),
+        (["refs/heads/**"], [], True),
+        (["refs/heads/epic/EP-[12]1"], [], True),
         (["~ALL"], [], True),
         (["refs/heads/epic/EP-2?"], [], True),
         (["refs/heads/epic/EP-21"], ["refs/heads/epic/EP-2*"], False),

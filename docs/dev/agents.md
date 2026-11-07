@@ -146,8 +146,8 @@ l'accorde. Un test des outils (`tools/tests/test_permissions.py`) l'éprouve.
   [DEPENDS=…] [MODEL=…] [LOT_ISSUE=<n>]` (`LOT_ISSUE` est l'issue du lot inséré, le `#n` de sa
   ligne), `REPLACE_DEPENDENCY='<ancien>=<nouveau>'`, `US=<identifiant> STATUS=…` ou
   `FINDING=<n> ATTACHED=… DECISION=…`, qui relit le corps sous un verrou du poste juste avant
-  de l'écrire et ne change que la ligne demandée (guide, « Commandes »). Le cadreur, qui écrit le tableau pour la première fois, l'écrit
-  lui-même ; ensuite, `make tracking`.
+  de l'écrire et ne change que la ligne demandée (guide, « Commandes »). Le cadreur, qui écrit le
+  tableau pour la première fois, l'écrit lui-même ; ensuite, `make tracking`.
 - **Un lot ne laisse rien derrière lui** (#1444). Après la fusion de sa pull request, l'agent
   de livraison supprime la branche locale du lot et toute branche de travail qu'il a tirée
   (`git branch -d`, qui refuse une branche non fusionnée), retire les worktrees du lot — le

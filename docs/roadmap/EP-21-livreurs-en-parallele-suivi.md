@@ -329,8 +329,9 @@ différence : N y vaut 1, et aucune cible neuve n'y est appelée.
 
 ### Les autorisations, la liste de ruff, la file de fusion (US-1350, US-1360, US-1370)
 
-- **`.claude/settings.json`** gagne `permissions.allow` avec les vingt-et-une règles d'US-1350, puis `make e2e-down` (#2354, US-1340) ; le
-  hook reste ; le fichier est déjà dans `REUSE.toml`. Un test des outils le lit en JSON.
+- **`.claude/settings.json`** gagne `permissions.allow` avec les vingt-et-une règles d'US-1350,
+  puis `make e2e-down` (#2354, US-1340) ; le hook reste ; le fichier est déjà dans `REUSE.toml`.
+  Un test des outils le lit en JSON.
 - **`ruff.toml`** : une entrée `"backend/src/waterfall/api/<module>.py" = ["TC001", "TC002",
   "TC003"]` par module, triées, le commentaire une fois au-dessus ; le test des outils (dans
   `test_rules.py`, qui éprouve déjà `ruff.toml`) lit le TOML par `tomllib`, relève les modules

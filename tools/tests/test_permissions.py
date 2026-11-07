@@ -59,7 +59,7 @@ def test_the_pre_tool_use_hook_on_bash_is_the_guard() -> None:
     [ENQUEUE, "make tracking ISSUE=2249", "make slot", "make slot-release", "make e2e-down"],
 )
 def test_the_commands_of_the_deliverer_are_allowed(command: str) -> None:
-    """The queue mutation and the three ``make`` commands of the deliverer are covered."""
+    """The queue mutation and the four ``make`` commands of the deliverer are covered."""
     assert _covered(command, _allow())
 
 

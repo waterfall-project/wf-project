@@ -12,7 +12,7 @@ Pour installer une plateforme de démonstration à partir des images publiées, 
 
 | Outil | Pour quoi |
 |---|---|
-| [uv](https://docs.astral.sh/uv/) | La version de `tools/.python-version` et les dépendances du back et des outils du dépôt |
+| [uv](https://docs.astral.sh/uv/) | la version de `tools/.python-version` et les dépendances du back et des outils du dépôt |
 | La version de `tools/.python-version`, sous le nom `python3` | la projection de la spécification |
 | Node 26 (par nvm, par exemple) | le front, et pnpm, que `npm install --global pnpm` installe une fois |
 | Docker et son greffon Compose | `make dev`, la plateforme de service, les images |
