@@ -74,6 +74,12 @@ BEGIN
         name,
         project
     );
+    -- A statement trigger of the parent is not cloned on a partition, which TRUNCATE aims at alone.
+    EXECUTE format(
+        'CREATE TRIGGER cost_structure_refuse_truncate BEFORE TRUNCATE ON public.%I '
+        'FOR EACH STATEMENT EXECUTE FUNCTION public.cost_structure_refuse_truncate()',
+        name
+    );
 END
 $$;
 REVOKE ALL ON FUNCTION create_project_partitions(uuid) FROM PUBLIC;
@@ -101,6 +107,14 @@ END
 $$;
 CREATE TRIGGER revision_refuse_marked_change BEFORE UPDATE OR DELETE ON revision
 FOR EACH ROW EXECUTE FUNCTION revision_refuse_marked_change();
+CREATE FUNCTION revision_refuse_truncate() RETURNS trigger
+LANGUAGE plpgsql SET search_path = pg_catalog, pg_temp AS $$
+BEGIN
+    RAISE EXCEPTION 'a revision is never truncated' USING ERRCODE = 'restrict_violation';
+END
+$$;
+CREATE TRIGGER revision_refuse_truncate BEFORE TRUNCATE ON revision
+FOR EACH STATEMENT EXECUTE FUNCTION revision_refuse_truncate();
 """
 
 # The revision of the row is locked whatever its status, then judged: a draft one, locked so, waits
@@ -133,6 +147,14 @@ END
 $$;
 CREATE TRIGGER cost_structure_refuse_marked_change BEFORE INSERT OR UPDATE OR DELETE
 ON cost_structure FOR EACH ROW EXECUTE FUNCTION cost_structure_refuse_marked_change();
+CREATE FUNCTION cost_structure_refuse_truncate() RETURNS trigger
+LANGUAGE plpgsql SET search_path = pg_catalog, pg_temp AS $$
+BEGIN
+    RAISE EXCEPTION 'the cost structure is never truncated' USING ERRCODE = 'restrict_violation';
+END
+$$;
+CREATE TRIGGER cost_structure_refuse_truncate BEFORE TRUNCATE ON cost_structure
+FOR EACH STATEMENT EXECUTE FUNCTION cost_structure_refuse_truncate();
 """
 
 
@@ -393,6 +415,8 @@ def downgrade() -> None:
     ):
         op.drop_table(table)
     for function in (
+        "cost_structure_refuse_truncate()",
+        "revision_refuse_truncate()",
         "cost_structure_refuse_marked_change()",
         "revision_refuse_marked_change()",
         "create_project_partitions(uuid)",

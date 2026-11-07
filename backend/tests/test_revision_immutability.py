@@ -15,8 +15,8 @@ from uuid import UUID
 import pytest
 from projects_support import PROJECTS, Scene
 from projects_support import scene as make_scene
-from sqlalchemy import delete, insert, select, update
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy import delete, insert, select, text, update
+from sqlalchemy.exc import DBAPIError, IntegrityError
 from sqlalchemy.orm import Session
 from support import wait_for_a_lock
 
@@ -127,6 +127,40 @@ def test_a_row_of_a_marked_revision_written_directly_in_the_base_is_refused(
         owner, delete(CostStructure).where(CostStructure.revision_id == revision_id), ROW_REFUSED
     )
     refused_by_owner(owner, second_structure(owner, revision_id), ROW_REFUSED)
+    assert structure_of(owner, revision_id) == before
+
+
+@pytest.mark.requirement("WF-DAT-0020-A")
+def test_a_row_of_a_revision_in_progress_is_not_moved_into_a_marked_one(
+    api: ContractClient, stage: Scene, owner: Engine
+) -> None:
+    # The update of ``revision_id`` is a write into the marked revision, which its owner is refused.
+    marked = marked_revision(api, stage)
+    in_progress = open_revision(api, stage)
+    before = structure_of(owner, in_progress)
+    refused_by_owner(
+        owner,
+        update(CostStructure)
+        .where(CostStructure.revision_id == in_progress)
+        .values(revision_id=marked),
+        ROW_REFUSED,
+    )
+    assert structure_of(owner, in_progress) == before
+
+
+@pytest.mark.requirement("WF-DAT-0020-A")
+def test_the_owner_may_not_truncate_the_revisions_nor_their_structure_nor_a_partition_of_it(
+    api: ContractClient, stage: Scene, owner: Engine
+) -> None:
+    # « … toute suppression, quel que soit le client » : TRUNCATE deletes without row, so the tables
+    # refuse it by a statement trigger, on the parent of the partitions and on each partition.
+    revision_id = marked_revision(api, stage)
+    before = structure_of(owner, revision_id)
+    partition = f"cost_structure_p_{str(stage.project['project_id']).replace('-', '')}"
+    for table in ("revision", "cost_structure", partition):
+        statement = text(f'TRUNCATE TABLE "{table}" CASCADE')  # noqa: S608
+        with pytest.raises(DBAPIError, match="never truncated"), owner.begin() as connection:
+            connection.execute(statement)
     assert structure_of(owner, revision_id) == before
 
 
