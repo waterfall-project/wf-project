@@ -111,7 +111,7 @@ UserCommand:
     deactivation unavailable, `last_administrator` missing (WF-ADM-0120): it becomes
     available as soon as a second active account holds them. The assignment of its roles stays
     available: WF-ADM-0120 only forbids removing these permissions from it, and giving it
-    more remains possible (WF-IHM-0090: only what is unavailable is unavailable); only an
+    more remains possible (WF-IHM-0090: only what truly is unavailable is shown as such); only an
     assignment that would remove one of them from it is refused, with the 409 `LAST_ADMINISTRATOR`
     of `setUserAccessRoles`, which depends on the roles sent. Every other listed command is
     available, except `reactivate` and `anonymize` of an anonymised account, and

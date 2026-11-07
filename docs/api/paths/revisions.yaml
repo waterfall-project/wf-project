@@ -1740,14 +1740,14 @@
   put:
     operationId: setPredecessors
     tags: [planning]
-    summary: Remplacer les prédécesseurs d'une tâche
+    summary: Replace the predecessors of a task
     description: >-
-      Les quatre types de liaison, avec un décalage positif ou négatif dans l'unité de sa
-      saisie — temps de travail, temps écoulé ou pourcentage de la durée du prédécesseur
-      (WF-PLA-0030, WF-PLA-0160). Des prédécesseurs qui fermeraient une boucle de liaisons sont
-      refusés, comme une liaison entre une récapitulative et l'une de ses subordonnées
-      (WF-PLA-0030, WF-PLA-0040), et des liaisons qui porteraient la durée du projet au-delà de
-      quinze ans (WF-PLA-0150) : 422, rien n'est écrit.
+      The four link types, with a positive or negative lag in the unit of its
+      entry — work time, elapsed time or percentage of the duration of the predecessor
+      (WF-PLA-0030, WF-PLA-0160). Predecessors that would close a loop of links are
+      refused, as is a link between a summary task and one of its subordinates
+      (WF-PLA-0030, WF-PLA-0040), and links that would take the duration of the project beyond
+      fifteen years (WF-PLA-0150): 422, nothing is written.
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
       - $ref: ../components/parameters.yaml#/RevisionId
@@ -1761,8 +1761,8 @@
     responses:
       '200':
         description: >-
-          Liaisons enregistrées, dates recalculées ; les ancêtres, les tâches que la liaison
-          redate — les successeurs, et ce que le chemin critique déplace — et les totaux avec
+          Links saved, dates recomputed; the ancestors, the tasks that the link
+          re-dates — the successors, and what the critical path shifts — and the totals as well
           (`NodesWritten`, WF-PLA-0020, WF-PLA-0100).
         content:
           application/json:
@@ -1778,18 +1778,18 @@
       '412': { $ref: ../components/responses.yaml#/PreconditionFailed }
       '422':
         description: >-
-          Liaisons refusées, rien n'est écrit : une boucle de liaisons, `LINK_CYCLE`,
-          `params.cycle` nommant ses tâches par leur nœud et leur libellé, dans l'ordre des
-          liaisons, de la tâche saisie au prédécesseur envoyé qui la suit déjà (WF-PLA-0030) ; une
-          liaison entre une récapitulative et l'une de ses subordonnées, `LINK_FORBIDDEN`, sans
-          paramètre (WF-PLA-0040) ; ou des liaisons qui porteraient la durée du projet au-delà de
-          quinze ans, `PROJECT_HORIZON_EXCEEDED`, `params.task` nommant la tâche saisie
-          (WF-PLA-0150) ; ou un prédécesseur envoyé deux fois, une seconde liaison entre les
-          mêmes tâches, `VALIDATION_FAILED`, `fields` désignant chaque occurrence après la
-          première, `/predecessors/<n>/predecessor_node_id`, par `DUPLICATE_PREDECESSOR`
-          (WF-PLA-0030 ; F-03, US-0702/L2) ; ou une valeur hors règle, `fields` la localisant,
-          comme la réponse commune `UnprocessableEntity` le dit. Le code nomme la raison, que la
-          colonne des prédécesseurs dit à sa cellule.
+          Links refused, nothing is written: a loop of links, `LINK_CYCLE`,
+          `params.cycle` naming its tasks by their node and their label, in the order of the
+          links, from the task entered to the predecessor sent that already follows it
+          (WF-PLA-0030); a link between a summary task and one of its subordinates,
+          `LINK_FORBIDDEN`, without a parameter (WF-PLA-0040); or links that would take the
+          duration of the project beyond fifteen years, `PROJECT_HORIZON_EXCEEDED`,
+          `params.task` naming the task entered (WF-PLA-0150); or a predecessor sent twice, a
+          second link between the same tasks, `VALIDATION_FAILED`, `fields` designating each
+          occurrence after the first, `/predecessors/<n>/predecessor_node_id`, with
+          `DUPLICATE_PREDECESSOR` (WF-PLA-0030; F-03, US-0702/L2); or a value outside the rules,
+          `fields` locating it, as the common response `UnprocessableEntity` says. The code
+          names the reason, which the predecessors column states at its cell.
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
@@ -1805,16 +1805,16 @@
   put:
     operationId: setTaskProgress
     tags: [remaining]
-    summary: Démarrer, terminer ou rouvrir une tâche
+    summary: Start, complete or reopen a task
     description: >-
-      Le geste d'une carte du Kanban, l'état envoyé étant celui que la carte nomme
-      (`KanbanCommandAvailability.progress`). La date du geste fait foi et situe la valeur
-      acquise (WF-RAE-0030, WF-IND-0030, WF-PLA-0130) : une tâche terminée sans avoir été
-      démarrée, jalon compris, prend pour date de démarrage celle de sa terminaison — un jalon
-      sans passer par l'état démarré —, et un jalon rouvert perd l'une et l'autre
-      (`ProgressUpdate`, `milestone_completed`, `milestone_reopened`). Refusé sur une
-      récapitulative, dont l'état est dérivé de ses subordonnées (WF-PLA-0040) : 422
-      `SUMMARY_TASK_DERIVED`, qui les nomme (WF-IHM-0030).
+      The action of a Kanban card, the state sent being the one the card names
+      (`KanbanCommandAvailability.progress`). The date of the action is authoritative and
+      situates the earned value (WF-RAE-0030, WF-IND-0030, WF-PLA-0130): a task completed
+      without having been started, milestone included, takes as its start date that of its
+      completion — a milestone without going through the started state —, and a reopened
+      milestone loses both (`ProgressUpdate`, `milestone_completed`, `milestone_reopened`).
+      Refused on a summary task, whose state is derived from its subordinates (WF-PLA-0040):
+      422 `SUMMARY_TASK_DERIVED`, which names them (WF-IHM-0030).
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
       - $ref: ../components/parameters.yaml#/RevisionId
@@ -1828,14 +1828,14 @@
     responses:
       '200':
         description: >-
-          État enregistré ; la tâche, une version de plus, et l'avancement des récapitulatives
-          au-dessus recalculé (`NodesWritten`). Les lignes de la tâche ne sont pas rendues : elles
-          ne sont pas écrites, mais ce qu'elles acceptent suit l'état de leur tâche — une ligne
-          d'une tâche démarrée ou terminée dont le sous-projet a reçu des coûts réels ne nomme plus
-          `estimate_line.subproject_id` (WF-PRJ-0050), une ligne d'une tâche terminée n'accepte
-          plus la réestimation (`remaining_entry`, WF-RAE-0040) —, et une grille qui les tient
-          relit les lignes de la tâche (`listNodes`, `subtree_of`) avant d'en offrir une saisie
-          (#1154).
+          State saved; the task, one version higher, and the progress of the summary tasks
+          above recomputed (`NodesWritten`). The lines of the task are not returned: they
+          are not written, but what they accept follows the state of their task — a line
+          of a started or completed task whose subproject has received actual costs no longer
+          names `estimate_line.subproject_id` (WF-PRJ-0050), a line of a completed task no longer
+          accepts re-estimation (`remaining_entry`, WF-RAE-0040) —, and a grid that holds them
+          reads the lines of the task again (`listNodes`, `subtree_of`) before offering an entry
+          on them (#1154).
         content:
           application/json:
             schema: { $ref: ../components/schemas/revisions.yaml#/NodesWritten }
@@ -1850,17 +1850,17 @@
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '409':
         description: >-
-          L'état ou la nature de la tâche interdit le geste, rien n'étant écrit :
-          `STATE_FORBIDS_OPERATION`, `params.missing_condition` nommant la première condition
-          qui manque, comme la carte du Kanban la dit (`KanbanCommand`) — `task_is_milestone`,
-          une tâche non démarrée qui n'est pas un jalon envoyée à `completed` ;
-          `task_without_lines`, une tâche qui porte une ligne hors provision envoyée à
-          `completed`, que la saisie de son reste à engager termine (WF-RAE-0040) ;
-          `task_not_milestone`, un jalon envoyé à `started`, qui ne passe pas par l'état
-          démarré (WF-PLA-0050) ; `completed_milestone`, `not_started` envoyé pour une tâche qui
-          n'est pas un jalon terminé (`reopen_not_started_refused`, WF-RAE-0030) —, puis les
+          The state or the kind of the task forbids the action, nothing being written:
+          `STATE_FORBIDS_OPERATION`, `params.missing_condition` naming the first missing
+          condition, as the Kanban card states it (`KanbanCommand`) — `task_is_milestone`,
+          a task not started that is not a milestone sent to `completed`;
+          `task_without_lines`, a task that carries a non-provision line sent to
+          `completed`, which the entry of its remaining to commit completes (WF-RAE-0040);
+          `task_not_milestone`, a milestone sent to `started`, which does not go through the
+          started state (WF-PLA-0050); `completed_milestone`, `not_started` sent for a task that
+          is not a completed milestone (`reopen_not_started_refused`, WF-RAE-0030) —, then the
           conditions
-          de la saisie du reste à engager (`StructureCommand.edit_remaining`) :
+          of the remaining to commit entry (`StructureCommand.edit_remaining`):
           `project_in_progress`, `no_background_task_running`.
         content:
           application/problem+json:
@@ -1871,10 +1871,11 @@
       '412': { $ref: ../components/responses.yaml#/PreconditionFailed }
       '422':
         description: >-
-          Une récapitulative, dont l'état n'est pas saisissable : `SUMMARY_TASK_DERIVED`,
-          `params.subordinate_node_ids` nommant ses subordonnées directes, dans l'ordre du plan, dont
-          elle tire son état (WF-PLA-0040, WF-IHM-0030) ; rien n'est écrit. Ou une valeur hors
-          règle, `fields` la localisant, comme la réponse commune `UnprocessableEntity` le dit.
+          A summary task, whose state cannot be entered: `SUMMARY_TASK_DERIVED`,
+          `params.subordinate_node_ids` naming its direct subordinates, in plan order, from
+          which it derives its state (WF-PLA-0040, WF-IHM-0030); nothing is written. Or a value
+          outside the rules, `fields` locating it, as the common response `UnprocessableEntity`
+          says.
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
@@ -1887,15 +1888,15 @@
   put:
     operationId: setLineRemaining
     tags: [remaining]
-    summary: Réestimer une ligne
+    summary: Re-estimate a line
     description: >-
-      Refusé sur une ligne d'une tâche terminée et sur une ligne de provision ; une tâche non
-      démarrée se réestime aussi, et un reste à engager nul pour toutes les lignes d'une tâche
-      la termine, à la date demandée à la validation (`completed_on`, WF-RAE-0040, WF-PLA-0130) ;
-      une tâche non démarrée qui n'est pas un jalon passe par l'état démarré, démarrée et
-      terminée à cette même date (WF-RAE-0030), et un jalon, qui n'y passe pas, porte aussi
-      `started_on` égal à `completed_on` (WF-PLA-0130). La ligne dit elle-même si elle accepte la
-      réestimation (`remaining_entry`).
+      Refused on a line of a completed task and on a provision line; a task not
+      started can also be re-estimated, and a zero remaining to commit for all the lines of a
+      task completes it, at the date requested at validation (`completed_on`, WF-RAE-0040,
+      WF-PLA-0130); a task not started that is not a milestone goes through the started state,
+      started and completed at that same date (WF-RAE-0030), and a milestone, which does not
+      go through it, also carries `started_on` equal to `completed_on` (WF-PLA-0130). The line
+      itself says whether it accepts re-estimation (`remaining_entry`).
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
       - $ref: ../components/parameters.yaml#/RevisionId
@@ -1909,8 +1910,8 @@
     responses:
       '200':
         description: >-
-          Réestimation enregistrée ; les montants réestimés des ancêtres et les totaux
-          recalculés (`NodesWritten`).
+          Re-estimate saved; the re-estimated amounts of the ancestors and the totals
+          recomputed (`NodesWritten`).
         content:
           application/json:
             schema: { $ref: ../components/schemas/revisions.yaml#/NodesWritten }
@@ -1922,13 +1923,13 @@
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '409':
         description: >-
-          La ligne n'accepte pas la réestimation, rien n'étant écrit :
-          `STATE_FORBIDS_OPERATION`, `params.missing_condition` nommant la première des
-          conditions que sa `remaining_entry` dit manquer — `task_not_completed`, une ligne d'une
-          tâche terminée (`completed_refused`, WF-RAE-0040) ; `line_not_provision`, une ligne de provision, dont le
-          montant est celui que son risque calcule (`remaining_provision_refused`, WF-RIS-0010,
-          WF-RAE-0010) —, ou un traitement de fond qui court sur la révision,
-          `no_background_task_running`.
+          The line does not accept re-estimation, nothing being written:
+          `STATE_FORBIDS_OPERATION`, `params.missing_condition` naming the first of the
+          conditions that its `remaining_entry` says are missing — `task_not_completed`, a line
+          of a completed task (`completed_refused`, WF-RAE-0040); `line_not_provision`, a
+          provision line, whose amount is the one its risk computes
+          (`remaining_provision_refused`, WF-RIS-0010, WF-RAE-0010) —, or a background task
+          running on the revision, `no_background_task_running`.
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
@@ -1938,9 +1939,9 @@
       '412': { $ref: ../components/responses.yaml#/PreconditionFailed }
       '422':
         description: >-
-          `VALIDATION_FAILED` : une saisie qui termine la tâche sans date de terminaison —
-          motif `COMPLETION_DATE_REQUIRED` sur `/completed_on`, `fields[].params.task_node_id`
-          nommant la tâche (WF-RAE-0040, WF-PLA-0130) ; rien n'est écrit.
+          `VALIDATION_FAILED`: an entry that completes the task without a completion date —
+          reason `COMPLETION_DATE_REQUIRED` on `/completed_on`, `fields[].params.task_node_id`
+          naming the task (WF-RAE-0040, WF-PLA-0130); nothing is written.
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
@@ -1953,15 +1954,15 @@
   put:
     operationId: setNodeTracking
     tags: [planning]
-    summary: Inscrire ou retirer une tâche des suivis
+    summary: Register a task for tracking or remove it
     description: >-
-      Une tâche s'inscrit à une chronologie, un jalon au suivi temps/temps ; les jalons
-      contractuels ne sont rien d'autre que des jalons inscrits (WF-PLA-0060). Une tâche de la
-      structure principale le dit d'avance, `task.tracking` dans ses `editable_fields` (#1065).
-      Le suivi temps/temps est celui des jalons : une tâche qui n'est pas un jalon, envoyée avec
-      une entrée `milestone_tracking`, est refusée par 422 `VALIDATION_FAILED`, `fields` sur le
-      genre de cette entrée (`/entries/<n>/kind`, `n` son rang dans `entries`, à partir de 0),
-      motif `MILESTONE_REQUIRED`, et rien n'est écrit (#1159).
+      A task is registered in a timeline, a milestone in time/time tracking; the contractual
+      milestones are nothing other than registered milestones (WF-PLA-0060). A task of the
+      main structure states it in advance, `task.tracking` in its `editable_fields` (#1065).
+      Time/time tracking is that of milestones: a task that is not a milestone, sent with
+      a `milestone_tracking` entry, is refused with 422 `VALIDATION_FAILED`, `fields` on the
+      kind of that entry (`/entries/<n>/kind`, `n` its rank in `entries`, starting from 0),
+      reason `MILESTONE_REQUIRED`, and nothing is written (#1159).
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
       - $ref: ../components/parameters.yaml#/RevisionId
@@ -1981,7 +1982,7 @@
               lock_version: { $ref: ../components/common.yaml#/LockVersion }
     responses:
       '200':
-        description: Inscriptions enregistrées (`NodesWritten`).
+        description: Registrations saved (`NodesWritten`).
         content:
           application/json:
             schema: { $ref: ../components/schemas/revisions.yaml#/NodesWritten }
@@ -1993,12 +1994,12 @@
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '409':
         description: >-
-          La commande de saisie du planning de la structure est indisponible
-          (`StructureCommand.edit_planning`, dont relève `task.tracking`) :
-          `STATE_FORBIDS_OPERATION`, `params.missing_condition` la première condition qui lui
-          manque — `revision_draft` sur une révision marquée (WF-DAT-0020), puis
-          `no_background_task_running` pendant un traitement de fond qui écrit dans la révision
-          ou la fige (F-11, US-0702/L2). Rien n'est écrit.
+          The planning entry command of the structure is unavailable
+          (`StructureCommand.edit_planning`, to which `task.tracking` belongs):
+          `STATE_FORBIDS_OPERATION`, `params.missing_condition` the first condition it
+          lacks — `revision_draft` on a marked revision (WF-DAT-0020), then
+          `no_background_task_running` while a background task writes to the revision
+          or freezes it (F-11, US-0702/L2). Nothing is written.
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
@@ -2007,12 +2008,13 @@
       '412': { $ref: ../components/responses.yaml#/PreconditionFailed }
       '422':
         description: >-
-          Refusé, rien n'étant écrit : le suivi temps/temps d'une tâche qui n'est pas un jalon,
-          `VALIDATION_FAILED`, `fields` sur `/entries/<n>/kind`, motif `MILESTONE_REQUIRED`
-          (WF-PLA-0060, #1159) ; une entrée `timeline` sans chronologie, `/entries/<n>/timeline_id`
-          par `VALUE_REQUIRED`, ou dont la chronologie n'est pas du projet, par `UNKNOWN_TIMELINE`
-          (WF-PLA-0140 ; F-11, US-0702/L2) ; ou une valeur hors règle, `fields` la localisant,
-          comme la réponse commune `UnprocessableEntity` le dit (`TrackingEntry`).
+          Refused, nothing being written: the time/time tracking of a task that is not a
+          milestone, `VALIDATION_FAILED`, `fields` on `/entries/<n>/kind`, reason
+          `MILESTONE_REQUIRED` (WF-PLA-0060, #1159); a `timeline` entry without a timeline,
+          `/entries/<n>/timeline_id` with `VALUE_REQUIRED`, or whose timeline is not of the
+          project, with `UNKNOWN_TIMELINE` (WF-PLA-0140; F-11, US-0702/L2); or a value outside
+          the rules, `fields` locating it, as the common response `UnprocessableEntity` says
+          (`TrackingEntry`).
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
@@ -2027,34 +2029,34 @@
   post:
     operationId: moveNodes
     tags: [revisions]
-    summary: Déplacer des nœuds dans l'arbre
+    summary: Move nodes in the tree
     description: >-
-      Déplacer une ligne, ou la tâche au-dessus d'elle, change sa tâche porteuse, qui
-      est résolue à la lecture (§3.5.1). La hiérarchie obtenue reste celle d'un arbre de
-      tâches et de récapitulatives (WF-PLA-0040). Un déplacement change la structure de
-      l'arbre, et peut redater des tâches qui ne sont ni déplacées ni ancêtres : elles sont
-      rendues dans `rescheduled` (WF-PLA-0020), et leurs montants, inflation comprise, dans
-      `reinflated` (WF-DEV-0040). Une récapitulative qui perd sa dernière subordonnée devient une
-      feuille en mode automatique, de la durée qu'elle calculait, à son état, avec ses lignes
-      propres et son rattachement au lotissement ; un jalon si cette durée est nulle et qu'elle
-      n'est pas démarrée, une feuille d'un jour si elle l'est (WF-PLA-0040, `deleteNode`) — rendue
-      ainsi dans `ancestors`, parmi les anciens ancêtres ; une feuille en mode manuel qui reçoit
-      une subordonnée devient une récapitulative, toujours en mode automatique — jamais un jalon,
-      qui ne porte pas de sous-tâches : une tâche déplacée sous lui est refusée par 422
-      `MILESTONE_HAS_NO_SUBTASK` (WF-PLA-0050, `NodeMove` ; #1771). Un déplacement qui
-      sortirait la tâche d'un poste du
-      sous-arbre de la tâche de son lot est refusé (WF-PLA-0170, `NodeMove`), comme un
-      déplacement qui porterait la durée du projet au-delà de quinze ans (WF-PLA-0150). La
-      récapitulative qui reçoit un nœud le couvre, avec ses ancêtres : ce qui la précède le
-      précède, ce qui la suit le suit (WF-PLA-0040). Un déplacement ou une mise en retrait qui
-      relierait ainsi une récapitulative à l'une de ses subordonnées — mettre en retrait une
-      tâche sous celle au-dessus d'elle, qui est son prédécesseur — est refusé par 422
-      `LINK_FORBIDDEN` ; un déplacement qui fermerait une boucle de liaisons à travers elle, par
-      422 `LINK_CYCLE`, `params.cycle` nommant les tâches de la boucle (WF-PLA-0030) — la chaîne
-      peut traverser la hiérarchie, une récapitulative couvrant ses subordonnées (#1169) — ;
-      rien n'est écrit. Une sélection se juge sur la structure que le déplacement laisserait,
-      tous ses nœuds déplacés, et le refus nomme le premier nœud en cause dans l'ordre du plan de
-      la structure lue ; l'ordre de `node_ids` ne règle que le placement (`NodeMove`).
+      Moving a line, or the task above it, changes its carrying task, which
+      is resolved on read (§3.5.1). The resulting hierarchy remains that of a tree of
+      tasks and summary tasks (WF-PLA-0040). A move changes the structure of
+      the tree, and can re-date tasks that are neither moved nor ancestors: they are
+      returned in `rescheduled` (WF-PLA-0020), and their amounts, inflation included, in
+      `reinflated` (WF-DEV-0040). A summary task that loses its last subordinate becomes a
+      leaf in automatic mode, of the duration it computed, in its state, with its own lines
+      and its attachment to the work breakdown; a milestone if that duration is zero and it is
+      not started, a one-day leaf if it is (WF-PLA-0040, `deleteNode`) — returned
+      as such in `ancestors`, among the former ancestors; a leaf in manual mode that receives
+      a subordinate becomes a summary task, always in automatic mode — never a milestone,
+      which carries no subtasks: a task moved under it is refused with 422
+      `MILESTONE_HAS_NO_SUBTASK` (WF-PLA-0050, `NodeMove`; #1771). A move that
+      would take the task of an item out of the
+      subtree of the task of its work package is refused (WF-PLA-0170, `NodeMove`), as is a
+      move that would take the duration of the project beyond fifteen years (WF-PLA-0150). The
+      summary task that receives a node covers it, with its ancestors: what precedes it
+      precedes the node, what follows it follows the node (WF-PLA-0040). A move or an indent
+      that would thus link a summary task to one of its subordinates — indenting a
+      task under the one above it, which is its predecessor — is refused with 422
+      `LINK_FORBIDDEN`; a move that would close a loop of links through it, with
+      422 `LINK_CYCLE`, `params.cycle` naming the tasks of the loop (WF-PLA-0030) — the chain
+      can cross the hierarchy, a summary task covering its subordinates (#1169) —;
+      nothing is written. A selection is judged on the structure that the move would leave,
+      all its nodes moved, and the refusal names the first node concerned in the plan order of
+      the structure read; the order of `node_ids` governs only the placement (`NodeMove`).
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
       - $ref: ../components/parameters.yaml#/RevisionId
@@ -2069,9 +2071,9 @@
     responses:
       '200':
         description: >-
-          Nœuds déplacés ; leurs anciens et nouveaux ancêtres recalculés, et les totaux
-          (`NodesWritten`). Une mise en retrait est un déplacement sous la tâche au-dessus, à son
-          niveau (`nodes_indented`).
+          Nodes moved; their former and new ancestors recomputed, and the totals
+          (`NodesWritten`). An indent is a move under the task above, at its
+          level (`nodes_indented`).
         content:
           application/json:
             schema: { $ref: ../components/schemas/revisions.yaml#/NodesWritten }
@@ -2084,20 +2086,20 @@
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '409':
         description: >-
-          L'état interdit le déplacement, rien ne bougeant : `STATE_FORBIDS_OPERATION`,
-          `params.missing_condition` nommant la première condition qui manque, dans cet ordre —
-          `project_not_terminal` sur un projet terminal (WF-CYC-0100) ; puis les conditions d'état
-          de la révision, `revision_draft` sur une révision marquée (WF-DAT-0020) et
-          `no_background_task_running` pendant un traitement de fond qui court sur la révision,
-          comme la commande de la structure le dit ; puis, sur la structure principale seule, une
-          ligne déplacée vers une tâche terminée, ou depuis elle, qui se rouvre d'abord depuis le
-          Kanban — « La création d'une ligne sous une tâche terminée, ou le déplacement d'une
-          ligne vers elle, est refusé » (Vérif de WF-DEV-0050, WF-RAE-0030, WF-RAE-0040) —,
-          `task_not_completed` (`completed_refused` ; #1214, #1766). Dans un différentiel, une
-          ligne se déplace vers une tâche terminée ou depuis elle comme ailleurs, l'avenant la
-          rebudgétant (WF-REV-0050, #1765). La phase du projet ne refuse rien (C-358). Une
-          sélection nomme la condition du premier nœud en cause dans l'ordre du plan, comme ses
-          autres refus.
+          The state forbids the move, nothing moving: `STATE_FORBIDS_OPERATION`,
+          `params.missing_condition` naming the first missing condition, in this order —
+          `project_not_terminal` on a terminal project (WF-CYC-0100); then the state conditions
+          of the revision, `revision_draft` on a marked revision (WF-DAT-0020) and
+          `no_background_task_running` while a background task runs on the revision,
+          as the command of the structure says; then, on the main structure only, a
+          line moved to a completed task, or from it, which is first reopened from the
+          Kanban — "The creation of a line under a completed task, or the move of a
+          line to it, is refused" (Verification of WF-DEV-0050, WF-RAE-0030, WF-RAE-0040) —,
+          `task_not_completed` (`completed_refused`; #1214, #1766). In a differential, a
+          line is moved to a completed task or from it as elsewhere, the amendment
+          rebudgeting it (WF-REV-0050, #1765). The phase of the project refuses nothing (C-358).
+          A selection names the condition of the first node concerned in plan order, like its
+          other refusals.
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
@@ -2106,33 +2108,33 @@
       '412': { $ref: ../components/responses.yaml#/PreconditionFailed }
       '422':
         description: >-
-          Le déplacement sortirait la tâche d'un poste du sous-arbre de la tâche de son lot
-          (WF-PLA-0170) : `VALIDATION_FAILED`, `fields` sur le nœud déplacé en cause, motif
-          `ORDER_ITEM_OUTSIDE_WORK_PACKAGE`, `fields[].params.work_package_task` et
-          `order_item_tasks` nommant la tâche du lot et celles des postes par leur nœud et leur
-          libellé, comme l'échec d'une fusion (`NodeMove`, WF-IHM-0080). Ou une ligne de
-          main-d'œuvre déplacée change de tâche porteuse, et son rôle laisserait la tâche qui la
-          reçoit sans aucune heure travaillée dans la semaine : `TASK_WITHOUT_WORKING_HOURS`,
-          `params.resource_roles` et `params.tasks` nommant les rôles et la tâche, chacun par son
-          libellé (WF-PLA-0010 ; #1684). Ou un nœud après lequel se placer qui n'est pas un frère
-          sous le parent visé : `fields` sur `/after_node_id`, `NODE_NOT_SIBLING`, sans paramètre
-          (`NodeMove` ; #1183). Ou une tâche déplacée sous un jalon, qui ne porte pas de sous-tâches
-          : `fields` sur `/parent_id`, `MILESTONE_HAS_NO_SUBTASK`, `fields[].params` nommant le
-          jalon (`node_id`, `label` ; WF-PLA-0050, #1771). Ou, sans `fields`, un déplacement qui, en
-          changeant le calendrier d'une tâche, porterait la durée du projet au-delà de quinze ans :
-          `PROJECT_HORIZON_EXCEEDED`, `params.task` nommant la tâche déplacée ou celle qui reçoit la
-          ligne déplacée (WF-PLA-0150). Ou une ligne de provision parmi les nœuds déplacés : sa
-          tâche est celle que son risque désigne, et elle se déplace par le formulaire du risque
-          (`updateRiskProvision`, `provision_task_id`) — `fields` sur la ligne, `/node_ids/<n>`,
-          motif `PROVISION_LINE_MOVED_BY_RISK`, `fields[].params.risk` nommant le risque par son
-          identifiant et son libellé (`risk_id`, `label`), que la grille ne lit pas (WF-RIS-0010 ;
-          #1227) ; une tâche qui porte une ligne de provision se déplace, elle, avec sa ligne. Ou,
-          sans `fields`, un déplacement ou une mise en retrait qui relierait la récapitulative qui
-          reçoit le nœud, ou l'un de ses ancêtres, au nœud ou à l'une de ses subordonnées :
-          `LINK_FORBIDDEN`, sans paramètre (WF-PLA-0030, WF-PLA-0040) ; ou qui fermerait une boucle
-          de liaisons à travers elle : `LINK_CYCLE`, `params.cycle` nommant les tâches de la boucle
-          par leur nœud et leur libellé, dans l'ordre des liaisons (WF-PLA-0030) — la grille,
-          filtrée, peut ne pas les lire.
+          The move would take the task of an item out of the subtree of the task of its work
+          package (WF-PLA-0170): `VALIDATION_FAILED`, `fields` on the moved node concerned,
+          reason `ORDER_ITEM_OUTSIDE_WORK_PACKAGE`, `fields[].params.work_package_task` and
+          `order_item_tasks` naming the task of the work package and those of the items by their
+          node and their label, like the failure of a merge (`NodeMove`, WF-IHM-0080). Or a
+          moved labour line changes carrying task, and its role would leave the task that
+          receives it without any worked hour in the week: `TASK_WITHOUT_WORKING_HOURS`,
+          `params.resource_roles` and `params.tasks` naming the roles and the task, each one by
+          its label (WF-PLA-0010; #1684). Or a node to be placed after that is not a sibling
+          under the target parent: `fields` on `/after_node_id`, `NODE_NOT_SIBLING`, without a
+          parameter (`NodeMove`; #1183). Or a task moved under a milestone, which carries no
+          subtasks: `fields` on `/parent_id`, `MILESTONE_HAS_NO_SUBTASK`, `fields[].params`
+          naming the milestone (`node_id`, `label`; WF-PLA-0050, #1771). Or, without `fields`, a
+          move that, by changing the calendar of a task, would take the duration of the project
+          beyond fifteen years: `PROJECT_HORIZON_EXCEEDED`, `params.task` naming the moved task
+          or the one that receives the moved line (WF-PLA-0150). Or a provision line among the
+          moved nodes: its task is the one its risk designates, and it is moved through the risk
+          form (`updateRiskProvision`, `provision_task_id`) — `fields` on the line,
+          `/node_ids/<n>`, reason `PROVISION_LINE_MOVED_BY_RISK`, `fields[].params.risk` naming
+          the risk by its identifier and its label (`risk_id`, `label`), which the grid does not
+          read (WF-RIS-0010; #1227); a task that carries a provision line, for its part, moves
+          with its line. Or, without `fields`, a move or an indent that would link the summary
+          task that receives the node, or one of its ancestors, to the node or to one of its
+          subordinates: `LINK_FORBIDDEN`, without a parameter (WF-PLA-0030, WF-PLA-0040); or
+          that would close a loop of links through it: `LINK_CYCLE`, `params.cycle` naming the
+          tasks of the loop by their node and their label, in the order of the links
+          (WF-PLA-0030) — the grid, filtered, may not read them.
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }

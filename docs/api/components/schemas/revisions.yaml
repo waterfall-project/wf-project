@@ -1896,21 +1896,21 @@ NodeCreate:
   type: object
   required: [kind, parent_id]
   description: >-
-    Le nœud créé prend place sous `parent_id`, après le frère que nomme `after_node_id`. Les
-    lignes d'une tâche précèdent toujours ses sous-tâches (`Node.position`) : nul, une ligne se
-    place en tête des lignes, une tâche en tête des sous-tâches ; absent, une ligne se place
-    après la dernière ligne, une tâche après la dernière sous-tâche. Un `after_node_id` d'un
-    autre genre que le nœud créé se replie sur la frontière entre lignes et sous-tâches : une
-    ligne envoyée après une sous-tâche se place après la dernière ligne, une tâche envoyée après
-    une ligne en tête des sous-tâches (#1187). Un `after_node_id` qui n'est pas un frère sous le
-    parent visé — un nœud d'un autre parent, ou qui n'est pas de la structure — est refusé par
-    422 `VALIDATION_FAILED`, `fields[].pointer` à `/after_node_id`, motif `NODE_NOT_SIBLING`,
-    rien n'étant écrit : la grille désigne la place par le nœud qu'elle lit, jamais par un rang
-    qu'une lecture filtrée ne lui permet pas de compter (#1183). Une tâche créée sous un jalon,
-    qui ne porte pas de sous-tâches, est refusée par 422 `VALIDATION_FAILED`, `fields[].pointer`
-    à `/parent_id`, motif `MILESTONE_HAS_NO_SUBTASK`, `fields[].params` nommant le jalon
-    (`node_id`, `label`), rien n'étant écrit ; une ligne de devis sous un jalon est permise
-    (WF-PLA-0050 ; F-04, #1771).
+    The created node takes its place under `parent_id`, after the sibling that `after_node_id`
+    names. The lines of a task always precede its subtasks (`Node.position`): null, a line is
+    placed at the head of the lines, a task at the head of the subtasks; absent, a line is placed
+    after the last line, a task after the last subtask. An `after_node_id` of a
+    different kind from the created node falls back to the boundary between lines and subtasks:
+    a line sent after a subtask is placed after the last line, a task sent after
+    a line at the head of the subtasks (#1187). An `after_node_id` that is not a sibling under
+    the targeted parent — a node of another parent, or one not in the structure — is refused
+    with 422 `VALIDATION_FAILED`, `fields[].pointer` at `/after_node_id`, reason
+    `NODE_NOT_SIBLING`, nothing being written: the grid designates the place by the node it
+    reads, never by a rank that a filtered read does not let it count (#1183). A task created
+    under a milestone, which carries no subtasks, is refused with 422 `VALIDATION_FAILED`,
+    `fields[].pointer` at `/parent_id`, reason `MILESTONE_HAS_NO_SUBTASK`, `fields[].params`
+    naming the milestone (`node_id`, `label`), nothing being written; an estimate line under a
+    milestone is allowed (WF-PLA-0050; F-04, #1771).
   properties:
     kind: { $ref: '#/NodeKind' }
     parent_id:
@@ -1924,19 +1924,19 @@ TaskFacetWrite:
   type: object
   required: [label]
   description: >-
-    Champs saisissables d'une tâche, à sa création (WF-PLA-0130). Les valeurs calculées sont
-    refusées. La durée se saisit dans son unité (WF-PLA-0160) ; le début et la fin,
-    saisissables en mode manuel, se saisissent comme à la modification (`WorkInstantWrite`) :
-    sans leurs heures, que le serveur complète sur le calendrier de la tâche — le calendrier par
-    défaut pour une tâche créée sans ligne (WF-PLA-0010) —, et que la lecture rend complétées
-    (`WorkInstant`, WF-DAT-0100 ; `node_created_manual`, #1769) ; des heures envoyées hors du
-    jour sont refusées, `/task/start/hours` ou `/task/finish/hours` par `VALUE_OUT_OF_RANGE`.
-    Une date sur un jour sans aucune heure travaillée au calendrier de la tâche est refusée,
-    nommant le jour travaillé suivant (`NON_WORKING_DAY`, WF-PLA-0020), comme à la modification
-    (`TaskFacetUpdate` ; #1345). Le rattachement à un lot ou à un poste est accepté de toute
-    tâche de la structure principale et suit les règles de `TaskFacetUpdate`, le parent de la
-    tâche créée (`NodeCreate.parent_id`) disant si la tâche d'un poste reste sous celle de son
-    lot.
+    Enterable fields of a task, at its creation (WF-PLA-0130). Computed values are
+    refused. The duration is entered in its unit (WF-PLA-0160); the start and the finish,
+    enterable in manual mode, are entered as on modification (`WorkInstantWrite`):
+    without their hours, which the server completes on the task's calendar — the default
+    calendar for a task created without a line (WF-PLA-0010) —, and which the read returns
+    completed (`WorkInstant`, WF-DAT-0100; `node_created_manual`, #1769); hours sent outside
+    the day are refused, `/task/start/hours` or `/task/finish/hours` with `VALUE_OUT_OF_RANGE`.
+    A date on a day without any working hour in the task's calendar is refused,
+    naming the next working day (`NON_WORKING_DAY`, WF-PLA-0020), as on modification
+    (`TaskFacetUpdate`; #1345). The attachment to a work package or an order item is accepted
+    from any task of the main structure and follows the rules of `TaskFacetUpdate`, the parent
+    of the created task (`NodeCreate.parent_id`) telling whether the task of an order item
+    stays under that of its work package.
   properties:
     label: { type: string, minLength: 1, pattern: '\S', maxLength: 300 }
     description:
@@ -1957,44 +1957,49 @@ TaskFacetUpdate:
   required: [lock_version]
   minProperties: 2
   description: >-
-    Modification d'une tâche, cellule par cellule (WF-IHM-0040) : seul le compteur lu est
-    exigé, tout autre champ est facultatif, et seul ce qui est envoyé change — un champ absent
-    reste ce qu'il était. Les mêmes champs qu'à la création (`TaskFacetWrite`) : le début et la
-    fin se saisissent sans leurs heures, que le serveur complète sur le calendrier de la tâche
-    (`WorkInstantWrite`, #1244, #1769), et une date sur un jour sans heure
-    travaillée à ce calendrier est refusée, nommant le jour travaillé suivant (`NON_WORKING_DAY`,
-    WF-PLA-0020 ; #1271) ; une valeur
-    que le serveur calcule pour ce nœud est refusée (`COMPUTED_VALUE`, WF-IHM-0030) — ainsi le
-    mode d'une récapitulative, toujours automatique et jamais saisissable (`scheduling_mode`
-    envoyé sur elle, même `automatic`, WF-PLA-0040) —, et un champ
-    que le nœud n'accepte pas, ni saisi ni calculé pour lui — la durée d'un jalon, qui n'en a pas
-    à saisir (WF-PLA-0050) —, par `FIELD_NOT_ACCEPTED` (`editable_fields` ; EP-14/L42s).
+    Modification of a task, cell by cell (WF-IHM-0040): only the counter as read is
+    required, any other field is optional, and only what is sent changes — an absent field
+    remains what it was. The same fields as at creation (`TaskFacetWrite`): the start and the
+    finish are entered without their hours, which the server completes on the task's calendar
+    (`WorkInstantWrite`, #1244, #1769), and a date on a day without any working
+    hour in that calendar is refused, naming the next working day (`NON_WORKING_DAY`,
+    WF-PLA-0020; #1271); a value
+    that the server computes for this node is refused (`COMPUTED_VALUE`, WF-IHM-0030) — such as
+    the mode of a summary task, always automatic and never enterable (`scheduling_mode`
+    sent on it, even `automatic`, WF-PLA-0040) —, and a field
+    that the node does not accept, neither entered nor computed for it — the duration of a
+    milestone, which has none to enter (WF-PLA-0050) —, with `FIELD_NOT_ACCEPTED`
+    (`editable_fields`; EP-14/L42s).
 
-    Le rattachement au lotissement (WF-PLA-0170) : `work_package_id` ou `order_item_id`
-    rattache la tâche, récapitulative, feuille ou jalon, à ce lot ou à ce poste, `null` retire
-    le rattachement. L'échange se fait en une écriture : `{work_package_id: null, order_item_id:
-    X}` sur une tâche qui porte un lot retire le lot et rattache le poste. Le refus est un
-    422 `VALIDATION_FAILED`, `fields` sur le champ envoyé, une entrée par motif qui s'applique —
-    `WORK_BREAKDOWN_ITEMS_EXCLUSIVE` et `WORK_BREAKDOWN_ITEM_ALREADY_ATTACHED` rendus ensemble
-    quand l'un et l'autre s'appliquent :
-    `WORK_BREAKDOWN_MAIN_STRUCTURE_ONLY` quand la tâche n'est pas de la structure principale —
-    d'un différentiel ou du devis propre d'un risque, qui n'en portent pas ; `null` y est
-    accepté, qui ne change rien — ; `UNKNOWN_WORK_BREAKDOWN_ITEM` quand le lotissement du
-    projet n'a pas ce lot ou ce poste ; `WORK_BREAKDOWN_ITEMS_EXCLUSIVE`, sans paramètre, quand
-    les deux sont envoyés non nuls — chacun refusé à son champ —, ou que l'un est envoyé non nul
-    quand l'autre est porté et n'est pas mis à `null` dans le même corps — « jamais aux deux »,
-    le rattachement « d'une même tâche à un lot et à un poste » est refusé ;
-    `WORK_BREAKDOWN_ITEM_ALREADY_ATTACHED` quand une autre tâche porte déjà ce lot ou ce poste —
-    « un lot ou un poste n'y est porté que par une tâche à la fois », « le rattachement d'une
-    tâche à un poste déjà porté par une autre est refusé » —, `fields[].params.conflicting_object_id`
-    nommant le nœud de cette tâche et `conflicting_object_label` son libellé, la grille de
-    planning, filtrée, pouvant ne pas la lire ; `ORDER_ITEM_OUTSIDE_WORK_PACKAGE` quand le
-    rattachement sortirait la tâche d'un poste du sous-arbre de la tâche de son lot — un poste
-    rattaché à une tâche hors du sous-arbre de la tâche de son lot, ou un lot rattaché à une
-    tâche dont le sous-arbre ne contient pas la tâche de l'un de ses postes —,
-    `fields[].params.work_package_task` nommant la tâche du lot et `order_item_tasks` celles des
-    postes en cause, chacune par son nœud et son libellé, comme l'échec d'une fusion (Vérif de
-    WF-PLA-0170 ; WF-IHM-0080 ; EP-14/L42s).
+    The attachment to the work breakdown (WF-PLA-0170): `work_package_id` or `order_item_id`
+    attaches the task, summary, leaf or milestone, to that work package or order item, `null`
+    removes the attachment. The swap is done in one write: `{work_package_id: null, order_item_id:
+    X}` on a task that carries a work package removes the work package and attaches the order
+    item. The refusal is a
+    422 `VALIDATION_FAILED`, `fields` on the field sent, one entry per reason that applies —
+    `WORK_BREAKDOWN_ITEMS_EXCLUSIVE` and `WORK_BREAKDOWN_ITEM_ALREADY_ATTACHED` returned together
+    when both apply:
+    `WORK_BREAKDOWN_MAIN_STRUCTURE_ONLY` when the task is not in the main structure —
+    of a differential or of a risk's own estimate, which carry none; `null` is
+    accepted there, which changes nothing —; `UNKNOWN_WORK_BREAKDOWN_ITEM` when the project's
+    work breakdown does not have that work package or order item;
+    `WORK_BREAKDOWN_ITEMS_EXCLUSIVE`, without parameter, when both are sent non-null — each
+    refused at its field —, or when one is sent non-null while the other is carried and is not
+    set to `null` in the same body — "never to both", the attachment "of the same task to a
+    work package and to an order item" is refused;
+    `WORK_BREAKDOWN_ITEM_ALREADY_ATTACHED` when another task already carries that work package
+    or order item — "a work package or an order item is carried there by only one task at a
+    time", "the attachment of a task to an order item already carried by another is
+    refused" —, `fields[].params.conflicting_object_id`
+    naming the node of that task and `conflicting_object_label` its label, the planning
+    grid, filtered, possibly not reading it; `ORDER_ITEM_OUTSIDE_WORK_PACKAGE` when the
+    attachment would take the task of an order item out of the subtree of the task of its work
+    package — an order item attached to a task outside the subtree of the task of its work
+    package, or a work package attached to a task whose subtree does not contain the task of
+    one of its order items —,
+    `fields[].params.work_package_task` naming the task of the work package and
+    `order_item_tasks` those of the order items concerned, each by its node and its label, like
+    the failure of a merge (Verification of WF-PLA-0170; WF-IHM-0080; EP-14/L42s).
   properties:
     label: { type: string, minLength: 1, pattern: '\S', maxLength: 300 }
     description:
@@ -2007,26 +2012,26 @@ TaskFacetUpdate:
       anyOf: [{ $ref: ../common.yaml#/WorkInstantWrite }, { type: 'null' }]
     work_package_id:
       anyOf: [{ $ref: ../common.yaml#/Uuid }, { type: 'null' }]
-      description: Le lot du lotissement à porter, ou `null` pour retirer le rattachement.
+      description: The work package of the work breakdown to carry, or `null` to remove the attachment.
     order_item_id:
       anyOf: [{ $ref: ../common.yaml#/Uuid }, { type: 'null' }]
-      description: Le poste du lotissement à porter, ou `null` pour retirer le rattachement.
+      description: The order item of the work breakdown to carry, or `null` to remove the attachment.
     lock_version: { $ref: ../common.yaml#/LockVersion }
 
 EstimateLineWrite:
   type: object
   required: [quantity]
   description: >-
-    Champs saisissables d'une ligne de devis, à sa création (WF-DEV-0020) : le rôle et la
-    charge pour une ligne de main-d'œuvre, la catégorie et le débours unitaire pour une autre ;
-    un champ que la ligne n'accepte pas — le débours d'une ligne de main-d'œuvre, le rôle ou la
-    charge d'une autre — est refusé par 422, motif `FIELD_NOT_ACCEPTED` sur son champ
-    (EP-14/L42s). Un rôle envoyé fait de la ligne une ligne de main-d'œuvre, dont la catégorie
-    est celle du rôle, calculée (Vérif de WF-DEV-0020) : la catégorie n'est pas exigée ; envoyée,
-    celle du rôle est acceptée, une autre refusée par 422 `VALIDATION_FAILED`, `fields` sur
-    `/estimate_line/cost_category_id`, motif `COMPUTED_VALUE`, la grille nommant ce dont elle
-    dépend (`resource_role`, `getComputedValueDependencies`, WF-IHM-0030). Sans rôle, la
-    catégorie est exigée : absente, refusée par `VALUE_REQUIRED` sur le même champ.
+    Enterable fields of an estimate line, at its creation (WF-DEV-0020): the role and the
+    effort for a labour line, the category and the unit disbursement for another;
+    a field that the line does not accept — the disbursement of a labour line, the role or the
+    effort of another — is refused with 422, reason `FIELD_NOT_ACCEPTED` on its field
+    (EP-14/L42s). A role sent makes the line a labour line, whose category
+    is that of the role, computed (Verification of WF-DEV-0020): the category is not required;
+    sent, the role's is accepted, another refused with 422 `VALIDATION_FAILED`, `fields` on
+    `/estimate_line/cost_category_id`, reason `COMPUTED_VALUE`, the grid naming what it
+    depends on (`resource_role`, `getComputedValueDependencies`, WF-IHM-0030). Without a role,
+    the category is required: absent, refused with `VALUE_REQUIRED` on the same field.
   properties:
     label:
       type: string
@@ -2034,16 +2039,16 @@ EstimateLineWrite:
       pattern: '\S'
       maxLength: 300
       description: >-
-        Facultatif : absent, le serveur compose le libellé de celui de la tâche qui porte la
-        ligne et, s'il y en a un, de celui de son rôle, séparés par un tiret cadratin entre deux
-        espaces — « Mise en service — Technicien de mise en service » —, tronqué à 300
-        caractères ; envoyé, il est pris tel quel, non vide (WF-DEV-0020). Le libellé reste
+        Optional: absent, the server composes the label from that of the task that carries the
+        line and, if there is one, from that of its role, separated by an em dash between two
+        spaces — "Mise en service — Technicien de mise en service" —, truncated to 300
+        characters; sent, it is taken as is, non-empty (WF-DEV-0020). The label remains
         modifiable (`EstimateLineUpdate`).
     cost_category_id:
       allOf: [{ $ref: ../common.yaml#/Uuid }]
       description: >-
-        Exigée sans rôle ; d'une ligne de main-d'œuvre, celle du rôle, calculée — envoyée, elle
-        doit être la sienne.
+        Required without a role; for a labour line, that of the role, computed — sent, it
+        must be its own.
     quantity: { $ref: ../common.yaml#/Decimal }
     resource_role_id:
       anyOf: [{ $ref: ../common.yaml#/Uuid }, { type: 'null' }]
@@ -2061,28 +2066,28 @@ EstimateLineUpdate:
   required: [lock_version]
   minProperties: 2
   description: >-
-    Modification d'une ligne de devis, cellule par cellule (WF-IHM-0040) : seul le compteur
-    lu est exigé, tout autre champ est facultatif, et seul ce qui est envoyé change — un
-    champ absent reste ce qu'il était. Les mêmes champs qu'à la création
-    (`EstimateLineWrite`) ; un champ que la ligne n'accepte pas — le débours d'une ligne de
-    main-d'œuvre, le rôle ou la charge d'une autre, le délai de paiement d'une ligne de
-    provision, qui n'en porte pas (WF-DEV-0020, WF-IND-0100 ; EP-14/L42s) — est refusé par 422
-    `VALIDATION_FAILED`, `fields` sur son champ, motif `FIELD_NOT_ACCEPTED`, et le nœud dit
-    lesquels il accepte (`editable_fields`). Le délai de paiement se saisit sur une ligne de
-    main-d'œuvre comme sur une ligne hors main-d'œuvre, nul par défaut pour la première
-    (WF-DEV-0020 ; #785). La catégorie d'une ligne de main-d'œuvre est celle de son rôle,
-    calculée : un rôle changé lui donne la catégorie du nouveau rôle, et une catégorie envoyée
-    sur elle qui n'est pas celle de son rôle — le rôle envoyé dans le même corps, ou celui
-    qu'elle porte — est refusée par 422 `VALIDATION_FAILED`, `fields` sur `/cost_category_id`,
-    motif `COMPUTED_VALUE`, comme toute valeur calculée (`resource_role`, WF-DEV-0020,
-    WF-IHM-0030) ; la sienne ne change rien, comme à la création (`EstimateLineWrite`).
+    Modification of an estimate line, cell by cell (WF-IHM-0040): only the counter
+    as read is required, any other field is optional, and only what is sent changes — an
+    absent field remains what it was. The same fields as at creation
+    (`EstimateLineWrite`); a field that the line does not accept — the disbursement of a
+    labour line, the role or the effort of another, the payment delay of a provision
+    line, which carries none (WF-DEV-0020, WF-IND-0100; EP-14/L42s) — is refused with 422
+    `VALIDATION_FAILED`, `fields` on its field, reason `FIELD_NOT_ACCEPTED`, and the node says
+    which ones it accepts (`editable_fields`). The payment delay is entered on a labour line
+    as on a non-labour line, null by default for the former
+    (WF-DEV-0020; #785). The category of a labour line is that of its role,
+    computed: a changed role gives it the category of the new role, and a category sent
+    on it that is not that of its role — the role sent in the same body, or the one
+    it carries — is refused with 422 `VALIDATION_FAILED`, `fields` on `/cost_category_id`,
+    reason `COMPUTED_VALUE`, like any computed value (`resource_role`, WF-DEV-0020,
+    WF-IHM-0030); its own changes nothing, as at creation (`EstimateLineWrite`).
   properties:
     label: { type: string, minLength: 1, pattern: '\S', maxLength: 300 }
     cost_category_id:
       allOf: [{ $ref: ../common.yaml#/Uuid }]
       description: >-
-        La catégorie d'une ligne hors main-d'œuvre ; une ligne de main-d'œuvre tient la sienne
-        de son rôle, et en refuse une autre (`COMPUTED_VALUE`).
+        The category of a non-labour line; a labour line takes its own from its role, and
+        refuses another (`COMPUTED_VALUE`).
     quantity: { $ref: ../common.yaml#/Decimal }
     resource_role_id:
       anyOf: [{ $ref: ../common.yaml#/Uuid }, { type: 'null' }]
@@ -2095,18 +2100,18 @@ EstimateLineUpdate:
     subproject_id:
       anyOf: [{ $ref: ../common.yaml#/Uuid }, { type: 'null' }]
       description: >-
-        Le sous-projet de la ligne, ou `null` pour la passer hors sous-projet. Celui d'une ligne de
-        provision est celui que son risque désigne, calculé : envoyé sur elle, il est refusé par
-        422 `COMPUTED_VALUE`, comme ses grandeurs (WF-IHM-0030), et se change par le risque
-        (`updateRiskProvision`, `update_provision`, WF-RIS-0010) ; un collage refuse la cellule de même.
-        Une ligne dont la tâche est démarrée ou terminée ne quitte pas un sous-projet qui a reçu
-        des coûts réels, une part de ces coûts lui revenant : la passer à un autre sous-projet ou
-        hors sous-projet est refusé par 422 `VALIDATION_FAILED`, `fields` sur `/subproject_id`,
-        motif `SUBPROJECT_HAS_ACTUAL_COSTS`, `params.subproject` nommant le sous-projet quitté
-        (`subproject_id`, `label`), et la ligne ne nomme pas ce champ dans `editable_fields`. Une
-        ligne d'une tâche non démarrée change de sous-projet (WF-PRJ-0050 ; C-359, #1066). Un
-        collage et un import refusent de même la cellule ou la ligne qui la déplacerait
-        (`PasteRejection`, `ImportRejection` ; #1152).
+        The line's subproject, or `null` to move it outside any subproject. That of a provision
+        line is the one its risk designates, computed: sent on it, it is refused with
+        422 `COMPUTED_VALUE`, like its figures (WF-IHM-0030), and is changed through the risk
+        (`updateRiskProvision`, `update_provision`, WF-RIS-0010); a paste refuses the cell
+        likewise. A line whose task is started or completed does not leave a subproject that has
+        received actual costs, a share of these costs being due to it: moving it to another
+        subproject or outside any subproject is refused with 422 `VALIDATION_FAILED`, `fields` on
+        `/subproject_id`, reason `SUBPROJECT_HAS_ACTUAL_COSTS`, `params.subproject` naming the
+        subproject left (`subproject_id`, `label`), and the line does not name this field in
+        `editable_fields`. A line of a task not started changes subproject (WF-PRJ-0050; C-359,
+        #1066). A paste and an import likewise refuse the cell or the line that would move it
+        (`PasteRejection`, `ImportRejection`; #1152).
     lock_version: { $ref: ../common.yaml#/LockVersion }
 
 NodeMove:
