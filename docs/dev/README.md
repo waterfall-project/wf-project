@@ -2828,7 +2828,9 @@ issue, `$XDG_RUNTIME_DIR/waterfall-tracking-<issue>.lock`
 
 `make merge-queue-check EPIC=EP-nn` checks that an active ruleset targets `refs/heads/epic/EP-nn`
 with a `merge_queue` rule (`wftools.mergequeue`, through `gh api`), and fails saying what is
-missing: no ruleset, no queue rule, an inactive ruleset. `make merge-queue EPIC=EP-nn` creates that
+missing: no ruleset, no queue rule, an inactive ruleset. It passes as soon as one of the rulesets
+targeting the branch is active with a `merge_queue` rule; a ruleset that excludes the branch does
+not target it. `make merge-queue EPIC=EP-nn` creates that
 ruleset, « merge queue epic/EP-nn », from the model `.github/rulesets/merge-queue.json` (the copy
 of the EP-05 ruleset, without identifiers or dates), and refuses when a ruleset already targets
 the branch or when `EPIC` is missing or not of the form `EP-nn`. It is reserved to a person: a

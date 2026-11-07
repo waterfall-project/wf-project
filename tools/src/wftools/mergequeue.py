@@ -10,7 +10,9 @@ name ``merge queue epic/EP-nn`` and the branch ``refs/heads/epic/EP-nn``, and po
 ``gh api``, refusing when a ruleset already targets the branch. It is for a person: a deliverer
 only runs ``check``, which wants a ruleset targeting the branch that is ``active`` and has a
 ``merge_queue`` rule, and says what is missing. The list of rulesets does not carry their
-conditions: each one is read to know the branch it targets.
+conditions: each one is read to know the branch it targets, over all the pages of the list
+(``--paginate --slurp``), and a ruleset that excludes the branch does not target it. ``check``
+passes as soon as one of the rulesets targeting the branch is active with a ``merge_queue`` rule.
 """
 
 import argparse
@@ -46,21 +48,26 @@ def read_ruleset(identifier: object) -> dict[str, object]:
 
 def targeting(branch: str) -> list[dict[str, object]]:
     """Return the rulesets of the repository that target a branch, each read in full."""
-    listed = parse_json(gh(["api", RULESETS]), "the rulesets")
-    if not isinstance(listed, list):
-        refuse("gh api did not answer a list for the rulesets")
+    pages = parse_json(gh(["api", "--paginate", "--slurp", RULESETS]), "the rulesets")
+    if not isinstance(pages, list):
+        refuse("gh api did not answer a list of pages for the rulesets")
+    listed: list[object] = []
+    for page in cast("list[object]", pages):
+        if not isinstance(page, list):
+            refuse("gh api did not answer a list of pages for the rulesets")
+        listed.extend(cast("list[object]", page))
     found: list[dict[str, object]] = []
-    for summary in cast("list[object]", listed):
+    for summary in listed:
         if not isinstance(summary, dict) or "id" not in summary:
             refuse("gh api answered a ruleset without id")
         ruleset = read_ruleset(cast("dict[str, object]", summary)["id"])
-        if branch in included(ruleset):
+        if branch in included(ruleset, "include") and branch not in included(ruleset, "exclude"):
             found.append(ruleset)
     return found
 
 
-def included(ruleset: dict[str, object]) -> list[object]:
-    """Return the references a ruleset includes, none when it names none."""
+def included(ruleset: dict[str, object], key: str) -> list[object]:
+    """Return the references a ruleset includes or excludes (``key``), none when it names none."""
     conditions = ruleset.get("conditions")
     names = (
         cast("dict[str, object]", conditions).get("ref_name")
@@ -69,8 +76,8 @@ def included(ruleset: dict[str, object]) -> list[object]:
     )
     if not isinstance(names, dict):
         return []
-    include = cast("dict[str, object]", names).get("include")
-    return cast("list[object]", include) if isinstance(include, list) else []
+    listed = cast("dict[str, object]", names).get(key)
+    return cast("list[object]", listed) if isinstance(listed, list) else []
 
 
 def problems(ruleset: dict[str, object]) -> list[str]:

@@ -2835,7 +2835,8 @@ poste propre à l'issue, `$XDG_RUNTIME_DIR/waterfall-tracking-<issue>.lock`
 
 `make merge-queue-check EPIC=EP-nn` vérifie qu'un jeu de règles actif vise `refs/heads/epic/EP-nn`
 avec une règle `merge_queue` (`wftools.mergequeue`, par `gh api`), et échoue en disant ce qui
-manque : aucun jeu, pas de règle de file, jeu inactif. `make merge-queue EPIC=EP-nn` crée ce jeu,
+manque : aucun jeu, pas de règle de file, jeu inactif. Elle passe dès qu'un des jeux visant la
+branche est actif avec une règle `merge_queue` ; un jeu qui exclut la branche ne la vise pas. `make merge-queue EPIC=EP-nn` crée ce jeu,
 « merge queue epic/EP-nn », depuis le modèle `.github/rulesets/merge-queue.json` (la copie du jeu
 d'EP-05, sans identifiants ni dates), et refuse quand un jeu vise déjà la branche ou quand `EPIC`
 manque ou n'a pas la forme `EP-nn`. Elle est réservée à une personne : un livreur ne la lance

@@ -29,9 +29,11 @@ arguments = sys.argv[1:]
 with open(os.path.join(directory, "calls"), "a") as calls:
     calls.write(" ".join(arguments) + "\\n")
 if arguments[:3] == ["api", "--method", "POST"]:
+    if os.path.exists(os.path.join(directory, "fail-post")):
+        sys.exit("HTTP 422 Validation Failed")
     with open(os.path.join(directory, "posted"), "w") as posted:
         posted.write(sys.stdin.read())
-elif arguments[0] == "api" and arguments[1].endswith("/rulesets"):
+elif arguments[0] == "api" and arguments[-1].endswith("/rulesets"):
     with open(os.path.join(directory, "list")) as listed:
         print(listed.read())
 elif arguments[0] == "api":
@@ -66,7 +68,7 @@ def ruleset(
 class Rulesets:
     """The fake ``gh`` of a test, and the rulesets it serves."""
 
-    def __init__(self, directory: Path, sets: list[dict[str, object]]) -> None:
+    def __init__(self, directory: Path, sets: list[dict[str, object]], per_page: int = 30) -> None:
         self.directory = directory
         bin_directory = directory / "bin"
         bin_directory.mkdir()
@@ -75,7 +77,8 @@ class Rulesets:
         gh.chmod(gh.stat().st_mode | stat.S_IXUSR)
         self.bin = bin_directory
         summaries = [{"id": one["id"], "name": one["name"]} for one in sets]
-        (directory / "list").write_text(json.dumps(summaries))
+        pages = [summaries[i : i + per_page] for i in range(0, len(summaries), per_page)]
+        (directory / "list").write_text(json.dumps(pages or [[]]))
         for one in sets:
             (directory / f"ruleset-{one['id']}.json").write_text(json.dumps(one))
 
@@ -109,8 +112,8 @@ class Rulesets:
         return process.returncode, process.stdout, process.stderr
 
 
-def serving(tmp_path: Path, *sets: dict[str, object]) -> Rulesets:
-    return Rulesets(tmp_path, list(sets))
+def serving(tmp_path: Path, *sets: dict[str, object], per_page: int = 30) -> Rulesets:
+    return Rulesets(tmp_path, list(sets), per_page)
 
 
 def test_create_posts_the_model_with_the_name_and_the_branch_of_the_epic(tmp_path: Path) -> None:
@@ -125,7 +128,7 @@ def test_create_posts_the_model_with_the_name_and_the_branch_of_the_epic(tmp_pat
         "conditions": {"ref_name": {"exclude": [], "include": [BRANCH]}},
     }
     assert fake.posted == expected
-    assert fake.calls[0] == "api repos/{owner}/{repo}/rulesets"
+    assert fake.calls[0] == "api --paginate --slurp repos/{owner}/{repo}/rulesets"
     assert fake.calls[-1] == "api --method POST repos/{owner}/{repo}/rulesets --input -"
 
 
@@ -205,7 +208,7 @@ def test_a_gh_that_fails_or_answers_badly_is_said_without_a_trace(tmp_path: Path
     code, _, error = fake.run("check", "EP-21")
     assert code == 1
     assert error.startswith("merge-queue: ")
-    (tmp_path / "list").write_text(json.dumps([{"id": 9}]))
+    (tmp_path / "list").write_text(json.dumps([[{"id": 9}]]))
     code, _, error = fake.run("check", "EP-21")
     assert code == 1
     assert "failed: HTTP 404" in error
@@ -222,6 +225,7 @@ def test_make_runs_the_two_targets(tmp_path: Path) -> None:
         "FAKE_GH_DIR": str(tmp_path),
     }
     codes: list[int] = []
+    errors: list[str] = []
     for target, epic in (
         ("merge-queue-check", "EP-21"),
         ("merge-queue", "EP-21"),
@@ -244,5 +248,47 @@ def test_make_runs_the_two_targets(tmp_path: Path) -> None:
             timeout=60,
         )
         codes.append(process.returncode)
+        errors.append(process.stderr)
     assert codes == [0, 2, 2]
+    assert errors[0] == ""
+    assert "already targets" in errors[1]
+    assert BRANCH in errors[1]
+    assert "EP-nn" in errors[2]
+    assert fake.posted is None
+
+
+def test_a_ruleset_on_a_later_page_is_seen(tmp_path: Path) -> None:
+    """US-1370: the list is read over all its pages, for ``create`` and for ``check``."""
+    others = [ruleset(number, "refs/heads/epic/EP-04") for number in range(1, 4)]
+    fake = serving(tmp_path, *others, ruleset(4), per_page=2)
+    assert len(json.loads((tmp_path / "list").read_text())) == 2
+    code, out, error = fake.run("check", "EP-21")
+    assert (code, error) == (0, "")
+    assert BRANCH in out
+    code, _, error = fake.run("create", "EP-21")
+    assert code == 1
+    assert "already targets" in error
+    assert fake.posted is None
+
+
+def test_a_ruleset_that_excludes_the_branch_does_not_target_it(tmp_path: Path) -> None:
+    """US-1370: a ruleset that includes and excludes the branch is not a queue on it."""
+    both = ruleset(2)
+    both["conditions"] = {"ref_name": {"exclude": [BRANCH], "include": [BRANCH]}}
+    fake = serving(tmp_path, both)
+    code, _, error = fake.run("check", "EP-21")
+    assert code == 1
+    assert f"no ruleset targets {BRANCH}" in error
+
+
+def test_create_says_a_post_that_gh_refuses(tmp_path: Path) -> None:
+    """US-1370: a failed ``POST`` is a refusal with the answer of GitHub, not a traceback."""
+    fake = serving(tmp_path)
+    (tmp_path / "fail-post").write_text("")
+    code, out, error = fake.run("create", "EP-21")
+    assert code == 1
+    assert out == ""
+    assert error.startswith("merge-queue: ")
+    assert "HTTP 422 Validation Failed" in error
+    assert "Traceback" not in error
     assert fake.posted is None
