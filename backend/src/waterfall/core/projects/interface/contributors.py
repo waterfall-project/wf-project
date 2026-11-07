@@ -15,7 +15,8 @@ It is written under the lock of the project, which the quality of the writer is 
 the evaluation read it in a transaction of its own: a writer withdrawn from the list meanwhile is
 refused as the evaluation would have refused it (WF-ADM-0090). One caller who is no contributor
 may write: the rescue of a project whose project managers are all deactivated, to inscribe one
-(WF-PRJ-0060, ``manage_contributors``).
+(WF-PRJ-0060, ``manage_contributors``). Every other write reserved to the project managers judges
+its caller the same way, under the lock of the project (``require_project_manager``, #2207).
 
 Declared by US-0910/L1, without effect: US-0910/L2 filled ``contributor_kind`` and
 ``project_exists``, US-0930 fills the rest; ``load_contributors`` writes those of the witness.
@@ -32,7 +33,6 @@ from waterfall.core.projects.commands import (
     PROJECT_NOT_TERMINAL,
     TERMINAL,
 )
-from waterfall.core.projects.interface.projects import ALL_PROJECTS_READ, Viewer
 from waterfall.core.projects.tables import Contributor, Project
 from waterfall.core.users.interface import (
     Account,
@@ -57,6 +57,8 @@ if TYPE_CHECKING:
     from uuid import UUID
 
     from sqlalchemy.orm import Session
+
+    from waterfall.core.projects.interface.projects import Viewer
 
 # The two kinds of contributor, as the contract says them (``ContributorKind``).
 type ContributorKind = Literal["project_manager", "contributor"]
@@ -177,6 +179,34 @@ def contributor_kind(session: Session, project_id: UUID, user_id: UUID) -> Contr
     )
     # The table holds the two kinds alone (``kind_known``).
     return cast("ContributorKind | None", kind)
+
+
+def refusal_to_non_manager(
+    kind: ContributorKind | None, viewer: Viewer
+) -> ForbiddenError | NotFoundError:
+    """Give the refusal of a write reserved to the project managers to who is not one.
+
+    A participant is told so (403 ``NOT_PROJECT_MANAGER``). One who is no contributor is refused
+    as the evaluation does: 404 if it cannot consult the project (no ``all_projects_read``), 403
+    ``NOT_CONTRIBUTOR`` otherwise.
+    """
+    if kind is not None:
+        return ForbiddenError(NOT_PROJECT_MANAGER, {"missing_condition": IS_PROJECT_MANAGER})
+    if not viewer.sees_all:
+        return NotFoundError(NOT_FOUND)
+    return ForbiddenError(NOT_CONTRIBUTOR, {"missing_condition": IS_CONTRIBUTOR})
+
+
+def require_project_manager(session: Session, project_id: UUID, viewer: Viewer) -> None:
+    """Refuse a write reserved to the project managers to who no longer is one of the project.
+
+    To be called under the lock of the project, once taken: the list of the contributors changes
+    under that same lock, so the quality read here is the one the write commits with. The kind is
+    read afresh by a statement of its own; nothing is cached in the session.
+    """
+    kind = contributor_kind(session, project_id, viewer.user_id)
+    if kind != MANAGER:
+        raise refusal_to_non_manager(kind, viewer)
 
 
 def project_exists(session: Session, project_id: UUID) -> bool:
@@ -334,23 +364,19 @@ def _locked(session: Session, project_id: UUID) -> Project:
 def _check_writer(session: Session, kinds: Mapping[UUID, ContributorKind], viewer: Viewer) -> bool:
     """Judge the writer under the lock; tell whether it writes as the rescue of the project.
 
-    A project manager writes. A participant is refused (403 ``NOT_PROJECT_MANAGER``). One who is
-    no contributor (any more) is refused as the evaluation does: 404 if it cannot consult the
-    project, 403 ``NOT_CONTRIBUTOR`` otherwise — unless every project manager of the project is
-    deactivated and it holds the permission of the settings and ``all_projects_read``: it rescues
-    the project, and its list must hold a project manager that is active.
+    A project manager writes. Who is not one is refused as the evaluation does
+    (``refusal_to_non_manager``) — unless it is no contributor, holds the permission of the
+    settings and ``all_projects_read``, and every project manager of the project is deactivated: it
+    rescues the project, and its list must hold a project manager that is active.
     """
     kind = kinds.get(viewer.user_id)
     if kind == MANAGER:
         return False
-    if kind is not None:
-        raise ForbiddenError(NOT_PROJECT_MANAGER, {"missing_condition": IS_PROJECT_MANAGER})
-    if ALL_PROJECTS_READ not in viewer.permissions:
-        raise NotFoundError(NOT_FOUND)
-    managers = [user_id for user_id, held in kinds.items() if held == MANAGER]
-    if SETTINGS_WRITE not in viewer.permissions or active_accounts(session, managers):
-        raise ForbiddenError(NOT_CONTRIBUTOR, {"missing_condition": IS_CONTRIBUTOR})
-    return True
+    if kind is None and viewer.sees_all and SETTINGS_WRITE in viewer.permissions:
+        managers = [user_id for user_id, held in kinds.items() if held == MANAGER]
+        if not active_accounts(session, managers):
+            return True
+    raise refusal_to_non_manager(kind, viewer)
 
 
 def _faults(

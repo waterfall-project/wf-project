@@ -19,6 +19,7 @@ from typing import TYPE_CHECKING, Any, Literal
 from sqlalchemy import ColumnElement, SQLColumnExpression, func, insert, select, update
 from sqlalchemy.exc import IntegrityError
 
+from waterfall.core.resource_settings.interface.readiness import lock_reference
 from waterfall.core.resource_settings.tables import DAYS, Calendar
 from waterfall.platform.database import contains, unique_violated
 from waterfall.platform.errors import (
@@ -383,6 +384,7 @@ def create_calendar(
     _refuse_hours(new.weekly_hours)
     calendar_id = new_id() if identifier is None else identifier
     if default:
+        lock_reference(session)
         _lock_designation(session)
         _retire_default(session, act)
     with _unique_label(session, new.label):
@@ -412,6 +414,7 @@ def update_calendar(
     leave a task without an hour is refused (422), which EP-06 judges.
     """
     _refuse_hours(change.weekly_hours)
+    lock_reference(session)
     calendar = _lock_calendar(session, calendar_id)
     _expect(calendar, lock_version)
     _refuse_idle_tasks(session, calendar_id, change.weekly_hours, default=calendar.is_default)
@@ -428,6 +431,7 @@ def set_default_calendar(
     The version is judged first, as for any versioned write. A calendar that is the default
     already answers as it is, nothing written; a deactivated one is not designated (409).
     """
+    lock_reference(session)
     _lock_designation(session)
     calendar = _lock_calendar(session, calendar_id)
     _expect(calendar, lock_version)

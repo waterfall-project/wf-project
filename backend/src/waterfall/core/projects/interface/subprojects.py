@@ -33,7 +33,10 @@ from waterfall.core.projects.commands import (
     commands_of,
     quality_conditions,
 )
-from waterfall.core.projects.interface.contributors import contributor_kind
+from waterfall.core.projects.interface.contributors import (
+    contributor_kind,
+    require_project_manager,
+)
 from waterfall.core.projects.interface.projects import (
     ALREADY_EXISTS,
     NOT_FOUND,
@@ -297,7 +300,7 @@ def list_subprojects(
     return _views(session, project, rows, viewer)
 
 
-def _writable(session: Session, project_id: UUID) -> Project:
+def _unterminated(session: Session, project_id: UUID) -> Project:
     """Lock a project, then read it under the lock, refused if it is terminal (409)."""
     lock_project(session, project_id)
     project = session.get(Project, project_id, populate_existing=True)
@@ -306,6 +309,17 @@ def _writable(session: Session, project_id: UUID) -> Project:
     if project.state in TERMINAL:
         raise ConflictError(STATE_FORBIDS_OPERATION, {"missing_condition": PROJECT_NOT_TERMINAL})
     return project
+
+
+def _writable(session: Session, project_id: UUID, viewer: Viewer) -> Project:
+    """Lock a project for a write of the API, the writer judged first under that lock.
+
+    Refused if the writer is no project manager of the project (403, 404;
+    ``require_project_manager``), then if the project is terminal (409).
+    """
+    lock_project(session, project_id)
+    require_project_manager(session, project_id, viewer)
+    return _unterminated(session, project_id)
 
 
 def _code_taken(session: Session, project_id: UUID, code: str, own: UUID) -> ConflictError:
@@ -344,11 +358,12 @@ def create_subproject(
     """Create a subproject of a project (``createSubproject``).
 
     The code is judged first (422); then the project is locked and read under the lock: refused if
-    unknown (404), if terminal (409 ``project_not_terminal``), or if the code is borne by another
-    subproject of the project (409 ``ALREADY_EXISTS`` on ``/code``).
+    unknown (404), if the writer is no project manager of it any more (403), if terminal (409
+    ``project_not_terminal``), or if the code is borne by another subproject of the project (409
+    ``ALREADY_EXISTS`` on ``/code``).
     """
     _checked(write)
-    project = _writable(session, project_id)
+    project = _writable(session, project_id, viewer)
     row = _insert(session, project.id, write, act, new_id())
     return _views(session, project, [row], viewer)[0]
 
@@ -373,10 +388,10 @@ def _insert(
 
 
 def _locked(
-    session: Session, project_id: UUID, subproject_id: UUID, lock_version: int
+    session: Session, project_id: UUID, subproject_id: UUID, lock_version: int, viewer: Viewer
 ) -> tuple[Project, Subproject]:
     """Lock the project, then read the subproject under the lock at the version read; or refuse."""
-    project = _writable(session, project_id)
+    project = _writable(session, project_id, viewer)
     row = session.scalars(
         select(Subproject)
         .where(Subproject.id == subproject_id, Subproject.project_id == project_id)
@@ -404,7 +419,7 @@ def update_subproject(
     """
     write = change.write
     _checked(write)
-    project, row = _locked(session, project_id, change.subproject_id, change.lock_version)
+    project, row = _locked(session, project_id, change.subproject_id, change.lock_version, viewer)
     if (row.code, row.label) != (write.code, write.label):
         with _unique_code(session, project_id, write.code, row.id):
             row.code = write.code
@@ -416,7 +431,7 @@ def update_subproject(
 
 
 def delete_subproject(
-    session: Session, project_id: UUID, subproject_id: UUID, lock_version: int
+    session: Session, project_id: UUID, subproject_id: UUID, lock_version: int, viewer: Viewer
 ) -> None:
     """Delete for good a subproject that nothing cites (``deleteSubproject``).
 
@@ -424,7 +439,7 @@ def delete_subproject(
     that is lacking (409 ``STATE_FORBIDS_OPERATION``, ``missing_condition``). The place of the
     risks that designate it for their provision is kept: EP-08 nulls the designation.
     """
-    _, row = _locked(session, project_id, subproject_id, lock_version)
+    _, row = _locked(session, project_id, subproject_id, lock_version, viewer)
     lacking = _deletion_lacks(session, row.id)  # the project is writable: not terminal
     if lacking:
         raise ConflictError(STATE_FORBIDS_OPERATION, {"missing_condition": lacking[0]})
@@ -448,7 +463,7 @@ def load_subprojects(
     By the rules of the creation: the code is judged, unique in the project, the project not
     terminal.
     """
-    project = _writable(session, project_id)
+    project = _unterminated(session, project_id)
     for load in loads:
         _checked(load.write)
         _insert(session, project.id, load.write, act, load.subproject_id)

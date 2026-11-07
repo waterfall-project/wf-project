@@ -37,9 +37,12 @@ from sqlalchemy import select
 
 from waterfall.core.projects.interface import (
     ExitRequest,
+    Viewer,
     exit_project,
     lock_counter,
+    lock_project,
     no_background_task_running,
+    require_project_manager,
     set_current_revision,
     stored_lock_version,
 )
@@ -128,17 +131,23 @@ def _judge_project_counter(session: Session, project_id: UUID, read: int) -> Non
         raise PreconditionFailedError(STALE_LOCK_VERSION, {"expected_lock_version": stored})
 
 
-def submit_marking(session: Session, queue: TaskQueue, request: MarkingRequest, act: Act) -> UUID:
+def submit_marking(
+    session: Session, queue: TaskQueue, request: MarkingRequest, act: Act, viewer: Viewer
+) -> UUID:
     """Judge a marking asked for, then submit its task, in the transaction of the request.
 
-    Under the lock of the revision, read under it, in the order of the contract: unknown (404), a
-    stale counter (412), a marked revision (409 ``revision_draft``), a background task that writes
+    Under the lock of the revision, read under it, then the lock of the project, under which the
+    requester is judged again as a project manager (#2207) — in the request, not in the worker —
+    in the order of the contract: unknown (404), no project manager (403, 404), a stale counter
+    (412), a marked revision (409 ``revision_draft``), a background task that writes
     in the project — another marking among them — (409 ``no_background_task_running``), a name of
     version taken (409 ``ALREADY_EXISTS``). For an exit, the counter of the project the chief read
     is judged last, under the lock of the project (412). Nothing is written then.
     """
     project_id = request.project_id
     revision = found_revision(session, request.revision_id, project_id, lock=True)
+    lock_project(session, project_id)
+    require_project_manager(session, project_id, viewer)
     if revision.lock_version != request.lock_version:
         raise PreconditionFailedError(
             STALE_LOCK_VERSION, {"expected_lock_version": revision.lock_version}
@@ -182,7 +191,8 @@ def run_marking(session: Session, payload: Mapping[str, Any], act: Act) -> None:
         project_id = UUID(payload[PROJECT])
         counter = stored_lock_version(session, project_id)
         request = ExitRequest(exit_state, payload.get(EXIT_REASON), counter)
-        exit_project(session, project_id, request, act)
+        # The requester was judged a project manager in the request; judged again under the lock.
+        exit_project(session, project_id, request, act, Viewer(UUID(str(act.author)), ()))
 
 
 def mark_revision(

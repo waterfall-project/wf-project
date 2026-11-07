@@ -23,7 +23,10 @@ export const inService = process.env.WATERFALL_API_ADDRESS !== undefined;
 
 /**
  * The predefined role a shared path acts with, which every installation holds (WF-EXP-0020,
- * `installation.setup.ts`): its permissions are the installation's, none given here.
+ * `installation.setup.ts`): its permissions are the installation's, none given here. It carries
+ * the settings of the risks and of the indicators too (`risk_settings.write`,
+ * `indicator_settings.write`, WF-INTF-0020), which is why no role composed by the paths comes
+ * beside it.
  */
 const MANAGER = "Manager";
 
@@ -33,16 +36,6 @@ const MANAGER = "Manager";
  * (`revision-cycle.spec.ts`).
  */
 const PROJECT_MANAGER = "Chef de projet";
-
-/**
- * The role beside it that writes the settings of the risks and of the indicators: the contract gives
- * both permissions to the manager (WF-INTF-0020), but the back does not seed them in its predefined
- * role before EP-04 (`TO_SEED_BY_EP04`, #1457), so the administrator of the installation composes
- * them (WF-ADM-0020). Made once, kept by the installation, found again by its label on a replay: the
- * search and the creation are held one at a time across the workers (`giveRoles`), so that none
- * makes a double.
- */
-export const SETTINGS_WRITER = "Paramètres des risques et des indicateurs (parcours)";
 
 /** The screen a shared path signs in at, before it opens its own: any account reaches it. */
 const SIGNED_IN_AT = "/account";
@@ -78,7 +71,6 @@ export const test = base.extend<TestFixtures, WorkerFixtures>({
         await administrator.giveAlso(manager.id, [
           [MANAGER, []],
           [PROJECT_MANAGER, []],
-          [SETTINGS_WRITER, ["risk_settings.write", "indicator_settings.write"]],
         ]);
       } finally {
         await calls.dispose();
