@@ -613,40 +613,6 @@ export async function accountAdministrator(browser: Browser, request: APIRequest
     }
     return token;
   };
-  const giveRoles = async (
-    id: string,
-    wanted: readonly (readonly [string, readonly Schemas["PermissionCode"][]])[],
-  ): Promise<void> => {
-    const ids: string[] = [];
-    for (const [label, permissions] of wanted) {
-      const search = new URLSearchParams({ search: label }).toString();
-      const found = (
-        await read<Schemas["AccessRole"][]>(request, await current(), `/access-roles?${search}`)
-      ).find((one) => one.label === label);
-      const granted = found?.permissions ?? permissions;
-      expect(
-        ADMINISTRATION.every((permission) => granted.includes(permission)),
-        `the role ${label} gives both permissions of the administration`,
-      ).toBe(false);
-      const written: Schemas["AccessRoleWrite"] = { label, permissions: [...permissions] };
-      ids.push(
-        found?.access_role_id ??
-          (await posted<Schemas["AccessRole"]>(request, await current(), "/access-roles", written))
-            .access_role_id,
-      );
-    }
-    const { lock_version: version } = await read<Schemas["User"]>(
-      request,
-      await current(),
-      `/users/${id}`,
-    );
-    const roles: Schemas["UserRolesWrite"] = { access_role_ids: ids, lock_version: version };
-    const given = await request.put(`${API}/users/${id}/access-roles`, {
-      headers: { Authorization: `Bearer ${await current()}` },
-      data: roles,
-    });
-    expect(given.status(), `PUT /users/${id}/access-roles`).toBe(200);
-  };
   return {
     self,
     /** Create a local account, Jeanne Montgolfier's, at an address of its own. */
@@ -681,17 +647,31 @@ export async function accountAdministrator(browser: Browser, request: APIRequest
       label: string,
       permissions: readonly Schemas["PermissionCode"][],
     ): Promise<void> => {
-      await giveRoles(id, [[label, permissions]]);
-    },
-    /**
-     * Give a local account several roles at once, each as `give` makes it, in place of those it
-     * holds: a predefined role the installation delivers, and a role of the path beside it.
-     */
-    giveAlso: async (
-      id: string,
-      roles: readonly (readonly [string, readonly Schemas["PermissionCode"][]])[],
-    ): Promise<void> => {
-      await giveRoles(id, roles);
+      const search = new URLSearchParams({ search: label }).toString();
+      const found = (
+        await read<Schemas["AccessRole"][]>(request, await current(), `/access-roles?${search}`)
+      ).find((one) => one.label === label);
+      const granted = found?.permissions ?? permissions;
+      expect(
+        ADMINISTRATION.every((permission) => granted.includes(permission)),
+        `the role ${label} gives both permissions of the administration`,
+      ).toBe(false);
+      const written: Schemas["AccessRoleWrite"] = { label, permissions: [...permissions] };
+      const roleId =
+        found?.access_role_id ??
+        (await posted<Schemas["AccessRole"]>(request, await current(), "/access-roles", written))
+          .access_role_id;
+      const { lock_version: version } = await read<Schemas["User"]>(
+        request,
+        await current(),
+        `/users/${id}`,
+      );
+      const roles: Schemas["UserRolesWrite"] = { access_role_ids: [roleId], lock_version: version };
+      const given = await request.put(`${API}/users/${id}/access-roles`, {
+        headers: { Authorization: `Bearer ${await current()}` },
+        data: roles,
+      });
+      expect(given.status(), `PUT /users/${id}/access-roles`).toBe(200);
     },
     /**
      * Delete the role of a label once no account holds it (`deleteAccessRole`), so that a path that

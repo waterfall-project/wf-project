@@ -27,14 +27,6 @@ export const inService = process.env.WATERFALL_API_ADDRESS !== undefined;
  */
 const MANAGER = "Manager";
 
-/**
- * The role beside it that writes the settings of the risks and of the indicators: the contract gives
- * both permissions to the manager (WF-INTF-0020), but the back does not seed them in its predefined
- * role before EP-04 (`TO_SEED_BY_EP04`, #1457), so the administrator of the installation composes
- * them (WF-ADM-0020). Made once, kept by the installation, found again by its label on a replay.
- */
-const SETTINGS_WRITER = "Paramètres des risques et des indicateurs (parcours)";
-
 /** The screen a shared path signs in at, before it opens its own: any account reaches it. */
 const SIGNED_IN_AT = "/account";
 
@@ -66,10 +58,7 @@ export const test = base.extend<TestFixtures, WorkerFixtures>({
       try {
         const administrator = await accountAdministrator(browser, calls);
         manager = await localAccount(browser, administrator);
-        await administrator.giveAlso(manager.id, [
-          [MANAGER, []],
-          [SETTINGS_WRITER, ["risk_settings.write", "indicator_settings.write"]],
-        ]);
+        await administrator.give(manager.id, MANAGER, []);
       } finally {
         await calls.dispose();
       }
