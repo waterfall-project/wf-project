@@ -168,6 +168,7 @@ from wftools.mockwitness import (
     WORK_BREAKDOWN,
     N,
 )
+from wftools.mockwitnessrisks import OCCURRENCE_EXAMPLE
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
@@ -534,6 +535,7 @@ def readings() -> dict[str, JsonObject]:
             f"(origin_risk_id) ; la ligne de provision a disparu, et la récapitulative somme ses "
             f"lignes (WF-RIS-0060, WF-RIS-0050, #1788, #1761).",
             mockcore.subtree(rows, _RISK_OCCURRED),
+            (OCCURRENCE_EXAMPLE,),
         ),
         "timelines.json": _example(
             f"Les chronologies du projet témoin le {day} (WF-PLA-0140) : le comité de pilotage, "

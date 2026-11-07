@@ -363,7 +363,8 @@ Problem:
         line of an actual cost extraction (`DUPLICATE_COST_LINE`, `ImportRejection.params`,
         WF-INTF-0140; EP-16/US-0630); `wbs_element`, the WBS element of a rejected line of an
         actual cost extraction, as the file carries it, and `project_code`, the project code it
-        carries when it is that of another project (`WBS_ELEMENT_INVALID`,
+        carries when it is that of another project, everything before the slash, dots included
+        (`WBS_ELEMENT_INVALID`,
         `WBS_ELEMENT_OUTSIDE_PROJECT`, `ImportRejection.params`, WF-CRE-0020); `value`, the
         value of the cell as the file carries it, of a line of an estimate or of a remaining to
         commit that cites an unknown task, role or subproject (`UNKNOWN_TASK`,
@@ -685,7 +686,9 @@ ErrorCode:
     # A line of an actual cost extraction rejected for its WBS element (`ImportRejection`,
     # WF-CRE-0020): an element that does not have the form of a project code optionally followed
     # by a slash and a subproject code, `params.wbs_element` the element read; an element of
-    # another project, `params.wbs_element` and `params.project_code` the project code read.
+    # another project, `params.wbs_element` and `params.project_code` the project code read. Only
+    # the slash separates the two codes, and the project code may contain dots
+    # (`A.ABC.26001/10001`, WF-PRJ-0010).
     - WBS_ELEMENT_INVALID
     - WBS_ELEMENT_OUTSIDE_PROJECT
     # A line of an estimate or of a remaining to commit that designates its task by a label that

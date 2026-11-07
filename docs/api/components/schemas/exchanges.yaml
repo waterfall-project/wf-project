@@ -595,7 +595,9 @@ ImportRejection:
     none is preferred to the other (WF-INTF-0140, D-4; EP-16/US-0630). And a line rejected for
     its WBS element (WF-CRE-0020), `params.wbs_element` the element as the file carries it:
     `WBS_ELEMENT_INVALID`, an element that does not have the form of a project code optionally
-    followed by a slash and a subproject code — empty, or with nothing before the slash —;
+    followed by a slash and a subproject code — empty, or with nothing before the slash —, only
+    the slash separating the two codes, and the project code possibly containing dots
+    (`A.ABC.26001/10001`, WF-PRJ-0010);
     `WBS_ELEMENT_OUTSIDE_PROJECT`, an element of another project, `params.project_code` the
     project code read, which is not that of the imported project. A line whose subproject code
     is that of no subproject is not rejected: imported and charged to the project alone, it

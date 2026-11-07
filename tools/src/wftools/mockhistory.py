@@ -73,6 +73,7 @@ from wftools.mockwitnessrisks import (
     DISMISSED,
     IDENTIFIED,
     OCCURRED,
+    OCCURRENCE_EXAMPLE,
     REGISTER,
     Risk,
     reference,
@@ -821,6 +822,7 @@ def examples() -> dict[str, JsonObject]:
             f"pour risques (WF-RIS-0010, WF-RIS-0050, WF-RIS-0060). "
             f"{_risk_commands_text(items[1])}",
             items[1],
+            (OCCURRENCE_EXAMPLE,),
         ),
         "risk_dismissed_category_deactivated.json": mocktext.example(
             f"Variante contrefactuelle : « {engineer.label} », écarté le "

@@ -410,6 +410,7 @@
               planning_provision_moved: { $ref: ../../../fixtures/api/import_planning_provision_moved.json }
               estimate_task_without_hours: { $ref: ../../../fixtures/api/import_estimate_task_without_hours.json }
               actual_costs_wbs_invalid: { $ref: ../../../fixtures/api/import_actual_costs_wbs_invalid.json }
+              actual_costs_dotted_code: { $ref: ../../../fixtures/api/import_actual_costs_dotted_code.json }
               remaining_ambiguous_label: { $ref: ../../../fixtures/api/import_remaining_ambiguous_label.json }
               remaining_completed_task: { $ref: ../../../fixtures/api/import_remaining_completed_task.json }
               apply_refused_permission: { $ref: ../../../fixtures/api/import_apply_refused_permission.json }

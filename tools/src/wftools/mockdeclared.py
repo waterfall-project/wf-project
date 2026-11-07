@@ -381,7 +381,9 @@ def _moved_examples() -> dict[str, JsonObject]:
             f"l'« {labels[N.INSTALLATION]} » reste {_STATES[cast('str', state)]} (WF-PLA-0020, "
             f"WF-RAE-0030). Les totaux de la structure diminuent des deux lignes du montage, "
             f"{mocktext.amount(lost)} ({mocktext.amount(hours, 0)} h) ; le budget de la "
-            f"provision ne bouge pas. Avec elle, {totals_said(moved)}, et le compteur de la "
+            f"provision ne bouge pas, la règle de l'exemple chiffré de WF-RIS-0010 — une "
+            f"provision de 40 passée sur la tâche parente, le devis inchangé — appliquée à "
+            f"l'échelle du témoin. Avec elle, {totals_said(moved)}, et le compteur de la "
             f"structure, passé à 2 (WF-PLA-0070, WF-RIS-0010, WF-IHM-0110, #1768).",
             moved,
         ),

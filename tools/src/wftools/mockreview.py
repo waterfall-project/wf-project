@@ -142,6 +142,11 @@ def too_long(pointer: str, bound: int) -> JsonObject:
     return {"pointer": pointer, "code": "VALUE_TOO_LONG", "params": {"max_length": bound}}
 
 
+SUBPROJECT_CODE_EXAMPLE = "WF-PRJ-0050-A#0959bb1f339c"
+"""The numeric example of the Vérif of WF-PRJ-0050 the code too long reproduces: a code of more
+than thirty-one characters is refused (``wftools.examples``)."""
+
+
 def _code_too_long() -> JsonObject:
     if len(TOO_LONG_CODE) != SUBPROJECT_CODE_BOUND + 1:
         message = f"{TOO_LONG_CODE}: {len(TOO_LONG_CODE)} characters, not the bound and one"
@@ -157,6 +162,7 @@ def _code_too_long() -> JsonObject:
             "fields": [too_long("/code", SUBPROJECT_CODE_BOUND)],
             "correlation_id": TOO_LONG_CORRELATION,
         },
+        (SUBPROJECT_CODE_EXAMPLE,),
     )
 
 
