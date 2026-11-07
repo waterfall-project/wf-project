@@ -14,7 +14,9 @@ never by a 403 (US-0702/L1):
   project, refused alike, before the conditions of the command (#1674);
 - ``node_create_marked_refused.json`` and ``skeleton_marked_refused.json``, a task created and the
   skeleton generated on the reference, the marked revision 101, refused by ``revision_draft``,
-  the condition the revision names for its entries (``revision_marked``).
+  the condition the revision names for its entries (``revision_marked``); and alike a task
+  entered, its predecessors entered and a block pasted there (``task_update_marked_refused``,
+  ``predecessors_marked_refused``, ``paste_apply_marked_refused``; F-10).
 
 And a catalogue in which every code and every condition is rendered by an operation, with an
 example (J-03, J-06, J-11, E-07, F-05, J-04):
@@ -120,6 +122,13 @@ ACCESS_ROLE_STALE_CORRELATION = universe(1664)
 
 DESIGNATE_TERMINAL_CORRELATION = universe(1683)
 """The correlation of a reference designated on a terminal project (#1674)."""
+
+TASK_MARKED_CORRELATION, PREDECESSORS_MARKED_CORRELATION, PASTE_MARKED_CORRELATION = (
+    universe(1940),
+    universe(1941),
+    universe(1942),
+)
+"""The correlations of a task, its predecessors and a paste written on a marked revision (F-10)."""
 
 WITHOUT_HOURS_BLOCK = (
     mockwrites.BLOCK[0],
@@ -583,6 +592,7 @@ def _state_examples() -> dict[str, JsonObject]:
     project = cast("JsonObject", fixture("project_completed"))
     reference = _version_name(REFERENCE)
     _, timeline = CREATED_TIMELINE
+    review = {row.number: row for row in mockcore.current()}[N.DESIGN_REVIEW].label
     return {
         "timeline_create_terminal.json": mocktext.example(
             f"Une chronologie « {timeline} » créée sur le projet témoin, « {project['label']} », "
@@ -615,6 +625,28 @@ def _state_examples() -> dict[str, JsonObject]:
             f"generate_skeleton dit manquer, revision_draft ; rien n'est écrit (WF-DAT-0020, "
             f"WF-PRJ-0030, WF-IHM-0090).",
             state_refused("revision_draft", SKELETON_CORRELATION),
+        ),
+        "task_update_marked_refused.json": mocktext.example(
+            f"La durée de la « {review} » saisie sur la structure principale de "
+            f"la révision « {reference} », marquée (revision_marked) : la saisie du planning, que "
+            f"la structure dit indisponible (edit_planning), est refusée par la condition qui "
+            f"manque, revision_draft ; rien n'est écrit (WF-DAT-0020, WF-PLA-0080, WF-IHM-0090).",
+            state_refused("revision_draft", TASK_MARKED_CORRELATION),
+        ),
+        "predecessors_marked_refused.json": mocktext.example(
+            f"Les prédécesseurs de la « {review} » saisis sur la structure "
+            f"principale de la révision « {reference} », marquée (revision_marked) : ils relèvent "
+            f"de la saisie du planning (edit_planning), refusée par la condition qui manque, "
+            f"revision_draft ; rien n'est écrit (WF-DAT-0020, WF-PLA-0030, WF-IHM-0090).",
+            state_refused("revision_draft", PREDECESSORS_MARKED_CORRELATION),
+        ),
+        "paste_apply_marked_refused.json": mocktext.example(
+            f"Un bloc collé dans la grille de devis de la structure principale de la révision "
+            f"« {reference} », marquée (revision_marked) : la structure n'accepte plus de saisie "
+            f"(edit_estimate) ; l'application est refusée par la condition qui manque, "
+            f"revision_draft, sans juger les lignes du bloc ; rien n'est écrit (WF-DAT-0020, "
+            f"WF-IHM-0050, WF-IHM-0090).",
+            state_refused("revision_draft", PASTE_MARKED_CORRELATION),
         ),
     }
 

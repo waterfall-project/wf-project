@@ -29,7 +29,11 @@ Hours:
 Percent:
   allOf:
     - $ref: '#/Decimal'
-  description: Percentage, exact decimal, not rounded before calculations (WF-DAT-0100).
+  description: >-
+    Percentage, exact decimal, not rounded before calculations (WF-DAT-0100), carried as a ratio
+    and never as a number of percent: `0.03` for 3 %, `1` for 100 %. A lag entered in percent of
+    the duration of a predecessor is not a `Percent`: it counts percents, `50` for half
+    (`Lag.value`, WF-PLA-0160).
 
 PlanningDate:
   type: string

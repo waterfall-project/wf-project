@@ -90,6 +90,9 @@ HORIZON = 6
 """The months of the horizon when the request names none (``horizon_months``), the month of the
 day of calculation the first: those of the workload, and of the S-curve after its past (G-04)."""
 
+HORIZON_BOUNDS, HORIZON_REFUSED = (1, 240), universe(1943)
+"""The bounds of ``horizon_months`` of the workload, and the correlation of its refusal (G-06)."""
+
 PAST_MONTHS = 12
 """The months of the S-curve before that of the day of calculation, whatever the horizon (G-04):
 the curve of the examples runs over eighteen months, twelve past and the six of the horizon."""
@@ -308,11 +311,11 @@ def load_zone(load: Decimal, capacity: Decimal) -> str:
     """Return the zone of a month of a role, by its load against its capacity.
 
     Over its capacity in alert, under the threshold of under-load in watch, nominal between
-    (WF-PTF-0060, WF-IHM-0070).
+    (WF-PTF-0060, WF-IHM-0070); without capacity, in alert with load, in watch without (G-11).
     """
     if load > capacity:
         return "alert"
-    if load < capacity * UNDER_LOAD:
+    if not capacity or load < capacity * UNDER_LOAD:
         return "watch"
     return "nominal"
 
@@ -846,7 +849,10 @@ def _roles_said(plan: JsonObject) -> str:
         ]
         state = ", ".join(zones) if zones else "dans sa capacité tout l'horizon"
         if all(Decimal(cast("str", m["hours"])) == 0 for m in months):
-            state = "sans charge — aucun projet ne l'emploie —, sa capacité seule, en sous-charge"
+            state = (
+                "sans charge sur l'horizon — seul le projet témoin l'emploie, au-delà —, sa "
+                "capacité seule, en sous-charge"
+            )
         said.append(
             f"{article}{label}, {mocktext.count(int(headcounts[role['resource_role_id']]))} "
             f"personnes, {state}"
@@ -909,6 +915,23 @@ def examples() -> dict[str, JsonObject]:
             f"capacité du périmètre, la somme de celles des rôles du nœud, et le total de chaque "
             f"mois sont donc ceux du plan entier (#1051).",
             filtered,
+        ),
+        "portfolio_workload_horizon_refused.json": mocktext.example(
+            f"Le plan de charge agrégé demandé sur {HORIZON_BOUNDS[1] + 1} mois, au-delà des "
+            f"{HORIZON_BOUNDS[1]} que l'horizon admet : refusé sur le paramètre, ses bornes "
+            f"nommées ; rien n'est lu (WF-PTF-0060).",
+            {
+                "code": "VALIDATION_FAILED",
+                "status": 422,
+                "fields": [
+                    {
+                        "pointer": "/query/horizon_months",
+                        "code": "VALUE_OUT_OF_RANGE",
+                        "params": {"minimum": HORIZON_BOUNDS[0], "maximum": HORIZON_BOUNDS[1]},
+                    }
+                ],
+                "correlation_id": HORIZON_REFUSED,
+            },
         ),
         "portfolio_cost_curve.json": mocktext.example(
             f"La courbe en S du portefeuille au {today}, de "

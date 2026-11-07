@@ -1,5 +1,5 @@
 {
-  "summary": "La structure des coûts des projets en cours du portefeuille du §4.6.2 au 3 juin 2026 : leur budget de référence, hors lignes de provision, et leur reste à engager, provisions comprises, par nature, en montant et en part, et leur main-d'œuvre par nœud d'organisation de ses rôles ; aucune ventilation du coût réel (WF-PTF-0080, WF-IND-0020). Aucun projet terminé n'est dans la période par défaut.",
+  "summary": "La structure des coûts des projets en cours du portefeuille du §4.6.2 au 3 juin 2026 : leur budget de référence, hors lignes de provision, et leur reste à engager, provisions comprises, par nature, en montant et en part, et leur main-d'œuvre par nœud d'organisation de ses rôles — celle du monteur câbleur, que seul le projet témoin emploie, à l'atelier de câblage, le reste au bureau d'études électricité ; aucune ventilation du coût réel (WF-PTF-0080, WF-IND-0020). Aucun projet terminé n'est dans la période par défaut.",
   "description": "Exemple engendré par `make mock-data` (`wftools.mockdata`) : il ne se retouche pas.",
   "value": {
     "scope": {"states":["in_progress"],"as_of":"2026-06-03","from":"2025-06-04","to":"2026-06-03","org_node_id":null,"org_node_label":null,"project_count":269},
@@ -13,7 +13,8 @@
       {"key":"01926f3a-7c00-7000-8000-000000000463","label":"Provision","amount":"151044403.35","share":{"is_computable":true,"value":"0.1","reason":null}}
     ],
     "labor_by_org_node": [
-      {"key":"01926f3a-7c00-7000-8000-000000000471","label":"Bureau d'études électricité","amount":"1465987087.43","share":{"is_computable":true,"value":"1","reason":null}}
+      {"key":"01926f3a-7c00-7000-8000-000000000471","label":"Bureau d'études électricité","amount":"1464896761.03","share":{"is_computable":true,"value":"0.9993","reason":null}},
+      {"key":"01926f3a-7c00-7000-8000-000000000472","label":"Atelier de câblage","amount":"1090326.40","share":{"is_computable":true,"value":"0.0007","reason":null}}
     ]
   }
 }

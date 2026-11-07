@@ -431,7 +431,7 @@ def readings() -> dict[str, JsonObject]:
         ),
         "nodes_estimate.json": _example(
             f"Le devis de la récapitulative « Poste de commande », rattachée au lot "
-            f"« {FIRST_LOT.label} » du lotissement (WF-PLA-0130), lu avec ses lignes (subtree_of) "
+            f"« {FIRST_LOT.label} » du lotissement (WF-PLA-0170), lu avec ses lignes (subtree_of) "
             f"le {day} : "
             f"sous le câblage des armoires, démarré le 4 mai et qui s'achève le 30 juin, une "
             f"ligne de main-d'œuvre de 12,5 h à {_amount(ELECTRICAL_RATE)} — "
@@ -729,8 +729,10 @@ def volumes() -> dict[str, JsonObject]:
             f"La structure des coûts des projets en cours du portefeuille du §4.6.2 au "
             f"{_day(TODAY.date())} : leur budget de référence, hors lignes de provision, et leur "
             "reste à engager, provisions comprises, par nature, en montant et en part, et leur "
-            "main-d'œuvre par nœud d'organisation de ses rôles ; aucune ventilation du coût réel "
-            "(WF-PTF-0080, WF-IND-0020). Aucun projet terminé n'est dans la période par défaut.",
+            "main-d'œuvre par nœud d'organisation de ses rôles — celle du monteur câbleur, que "
+            "seul le projet témoin emploie, à l'atelier de câblage, le reste au bureau d'études "
+            "électricité ; aucune ventilation du coût réel (WF-PTF-0080, WF-IND-0020). Aucun "
+            "projet terminé n'est dans la période par défaut.",
             portfolio_cost_structure(rows),
         ),
         "portfolio_risks.json": _example(

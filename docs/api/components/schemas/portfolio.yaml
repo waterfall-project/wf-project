@@ -88,7 +88,11 @@ PortfolioProjectRow:
       description: >-
         Variance of this projection to the reference budget, positive when it exceeds it:
         budget 1,000, actual cost 500, remaining to commit 550, projection 1,050, variance 50
-        (WF-PTF-0040). Null outside a project in progress.
+        (WF-PTF-0040). Null outside a project in progress. The same name carries the opposite
+        sign in the remaining to commit, a margin, -50 in the same case
+        (`RemainingIndicators.delta_to_reference`), and the sign of this variance in the
+        estimate, the estimate minus the reference (`EstimateIndicators.delta_to_reference`):
+        the description of each field gives its sign.
     cost_index:
       anyOf: [{ $ref: indicators.yaml#/IndexValue }, { type: 'null' }]
     schedule_index:
@@ -129,7 +133,8 @@ PortfolioWorkload:
       allOf: [{ $ref: ../common.yaml#/Percent }]
       description: >-
         The under-load threshold retained, always returned: the one the request asked for, or,
-        without a request, the one the server chose, which the screen shows (WF-PTF-0060).
+        without a request, the one the server chose, `0.5`, which the screen shows
+        (WF-PTF-0060). A ratio of the load to the capacity, from `0` to `1` (`Percent`).
     capacity_monthly_hours:
       allOf: [{ $ref: ../common.yaml#/Hours }]
       description: >-
@@ -186,7 +191,9 @@ PortfolioWorkload:
                     The zone of the month, classified by the server: `alert` when the load
                     exceeds the capacity, `watch` when the load ratio is below
                     `under_load_threshold`, a role without load included, `nominal` otherwise
-                    (WF-PTF-0060, WF-IHM-0070).
+                    (WF-PTF-0060, WF-IHM-0070). A role without capacity that month, whose load
+                    ratio is not computable (`no_capacity`), is in `alert` when it has load,
+                    in `watch` otherwise.
 
 PortfolioPerformance:
   type: object
@@ -410,7 +417,11 @@ PilotHealth:
               Whether the caller can open the project of the signal (WF-ADM-0110), like
               `PortfolioProjectRow.can_open`; when false, the signal names its project without
               a link (WF-PTF-0030).
-          zone: { $ref: reference.yaml#/AlertZone }
+          zone:
+            allOf: [{ $ref: reference.yaml#/AlertZone }]
+            description: >-
+              `alert` for an overdue contractual milestone (`contractual_milestone_overdue`),
+              `watch` for the three other signals (WF-PTF-0110, WF-IHM-0070).
           code:
             type: string
             enum:

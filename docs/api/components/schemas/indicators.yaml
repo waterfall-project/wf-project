@@ -118,8 +118,9 @@ CalculationContext:
     is_stored:
       type: boolean
       description: >-
-        True for what the marking of a revision stored — its indicators and its curves,
-        unchanging since its marking, on the actual cost known then (WF-DAT-0040, WF-IND-0010);
+        True for what the marking of a revision stored — its indicators, its curves and its
+        workload by role and month (`WorkloadPlan`, `marked_remaining`), unchanging since its
+        marking, on the actual cost known then (WF-DAT-0040, WF-IND-0010);
         false for the current revision, and for the computation on the current day of a project
         without a current revision, on its last marked revision with the actual cost of the day.
         The zone of a stored index is classified when read (`IndexValue.zone`).
@@ -179,7 +180,9 @@ EstimateIndicators:
         The difference between the estimate total of the revision read (`context.revision_id`)
         and that of the reference revision, provision lines included on both sides
         (WF-DEV-0060): the estimate read minus that of the reference, positive when it exceeds
-        it; null when the project has no reference revision.
+        it; null when the project has no reference revision. The sign of the portfolio's
+        variance (`PortfolioProjectRow.delta_to_reference`), the opposite of the remaining to
+        commit's margin of the same name (`RemainingIndicators.delta_to_reference`).
     delta_to_previous_revision:
       anyOf: [{ $ref: '#/ComputableMoney' }, { type: 'null' }]
       description: >-
@@ -256,7 +259,10 @@ RemainingIndicators:
         The margin on the reference budget (WF-RAE-0020): the reference budget minus the sum of
         the actual cost and the remaining to commit, positive when some is left, negative when
         the project exceeds its budget — budget 1,000, actual cost 500, remaining to commit 550,
-        margin -50; null when the project has no reference revision.
+        margin -50; null when the project has no reference revision. Despite its name, the
+        opposite sign of the field of the same name of the portfolio, a variance, +50 in the
+        same case (`PortfolioProjectRow.delta_to_reference`), and of that of the estimate,
+        the estimate minus the reference (`EstimateIndicators.delta_to_reference`).
     delta_to_previous_revision:
       anyOf: [{ $ref: ../common.yaml#/Money }, { type: 'null' }]
       description: >-
@@ -297,7 +303,11 @@ SubprojectBalance:
         remaining to commit, positive when some is left, negative when the subproject exceeds
         its budget (WF-RAE-0020) — the direction of `RemainingIndicators.delta_to_reference`.
     is_over_budget: { type: boolean }
-    zone: { $ref: reference.yaml#/AlertZone }
+    zone:
+      allOf: [{ $ref: reference.yaml#/AlertZone }]
+      description: >-
+        `alert` when the subproject exceeds its budget (`is_over_budget`, a negative
+        `variance`), `nominal` otherwise; never `watch` (WF-RAE-0020, WF-IHM-0070).
 
 AmountByKey:
   type: object
@@ -449,7 +459,10 @@ WorkloadPlan:
     (`context.computed_at`, the marking date for a marked revision), and carried to the month of
     the computation date when the end of the task is past: a not started task whose start
     date is earlier than the computation date presents no load on the elapsed months;
-    a completed task presents none (WF-DEV-0070, WF-IND-0010).
+    a completed task presents none (WF-DEV-0070, WF-IND-0010). On `marked_remaining`, the plan
+    its marking stored, `context.computed_at` its marking date, `context.is_stored` true; on
+    `reference_budget`, the budgeted load of the reference, read today, `context.is_stored`
+    false (WF-DAT-0040).
   properties:
     context: { $ref: '#/CalculationContext' }
     basis:
@@ -489,6 +502,10 @@ WorkloadPlan:
           hours: { $ref: ../common.yaml#/Hours }
     roles:
       type: array
+      description: >-
+        Every active role, with its capacity, whether the lines load it on the horizon or not;
+        restricted, with `org_node_id`, to the roles of that node and of its descendants
+        (WF-DEV-0070).
       items:
         type: object
         required: [resource_role_id, label, org_node_id, capacity_monthly_hours, months]
