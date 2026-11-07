@@ -4,19 +4,24 @@
 
 ``waterfall-worker`` runs the tasks of the queue until it is stopped (WF-ARC-0090);
 ``waterfall-worker enqueue <kind>`` deposits a task the platform schedules, unless one of that kind
-is pending (PBS-5.3). Each stops at start, naming the variable that lacks, rather than starting
-without its settings (WF-SEC-0010).
+is pending (PBS-5.3); ``waterfall-worker purge`` purges what expired — imports, deposits, exports,
+history — under a lock of its own (EP-06, "La purge"). Each stops at start, naming the variable that
+lacks, rather than starting without its settings (WF-SEC-0010).
 """
 
 import signal
 import sys
+from datetime import timedelta
 from typing import TYPE_CHECKING
 
 from sqlalchemy import func, select
 
 from waterfall import __version__, schema
+from waterfall.core.exchanges import interface as exchanges_interface
+from waterfall.core.history import interface as history_interface
+from waterfall.core.planning import interface as planning_interface
 from waterfall.platform.correlation import correlation_id_from
-from waterfall.platform.database import Database, create_database_engine
+from waterfall.platform.database import Database, create_database_engine, utc_now
 from waterfall.platform.logs import PLATFORM, configure_logging, get_logger, logging_context
 from waterfall.platform.queue import DEPOSIT_TIMEOUT, WORKER_TIMEOUT, TaskQueue
 from waterfall.platform.settings import (
@@ -27,6 +32,7 @@ from waterfall.platform.settings import (
     load_worker_settings,
 )
 from waterfall.platform.tasks import TaskHandler, TaskKind, pending_task, submit
+from waterfall.worker import exchanges
 from waterfall.worker.backup import BackupTask
 from waterfall.worker.identity_sync import IdentitySync
 from waterfall.worker.marking import mark
@@ -36,18 +42,26 @@ if TYPE_CHECKING:
     from collections.abc import Callable, Sequence
 
 NAME = "waterfall-worker"
-USAGE = f"usage: {NAME} [--version | enqueue <kind>]\n"
+USAGE = f"usage: {NAME} [--version | enqueue <kind> | purge]\n"
+# The modules that fill the registries of the others at the import of their interface (#2180):
+# imported here, so that no revision the worker marks or creates, no import it applies, lacks
+# their part.
+EXTENDING = (exchanges_interface, history_interface, planning_interface)
 
 
 def handlers(settings: WorkerSettings) -> dict[str, TaskHandler]:
     """Give what the worker runs, by kind of task: a backup, the reading of the accounts, a marking.
 
-    The marking is the first task of the trade (US-0970).
+    The marking is the first task of the trade (US-0970); the analysis and the application of an
+    import and an export are the exchanges' (EP-06).
     """
     return {
         "backup": BackupTask.of(settings),
         "identity_sync": IdentitySync.of(settings),
         "revision_mark": mark,
+        "import_analysis": exchanges.analyse,
+        "import_apply": exchanges.apply,
+        "export": exchanges.export,
     }
 
 
@@ -55,6 +69,11 @@ def handlers(settings: WorkerSettings) -> dict[str, TaskHandler]:
 SCHEDULED: tuple[TaskKind, ...] = ("identity_sync",)
 # The key of the advisory lock under which a schedule looks for a pending task, then deposits.
 SCHEDULE_LOCK = 3_700_010
+# The key of the advisory lock of a purge: two purges never run together.
+PURGE_LOCK = 3_700_020
+# How long the history of a session is kept: the longest session of the realm, twelve hours, until
+# US-1420/L2 reads it from ``WATERFALL_UNDO_RETENTION_HOURS``.
+UNDO_RETENTION = timedelta(hours=12)
 
 logger = get_logger(__name__)
 
@@ -71,6 +90,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     match arguments:
         case ["enqueue", kind] if kind in SCHEDULED:
             return _started(load_settings, lambda settings: _enqueue(settings, kind))
+        case ["purge"]:
+            return _started(load_settings, _purge)
         case ["enqueue", kind]:
             fault = f"not a kind the platform schedules: {kind}"
         case _:
@@ -146,6 +167,26 @@ def _schedule(database: Database, queue: TaskQueue, kind: TaskKind) -> int:
     event = "task.already_pending" if deposited is None else "task.enqueued"
     logger.info(event, kind=kind, task_id=str(pending or deposited))
     return 0
+
+
+def _purge(settings: Settings) -> int:
+    """Purge what expired, under a correlation of its own; an unexpected error ends it (1)."""
+    database = Database(create_database_engine(settings.database_url.get_secret_value()))
+    try:
+        with logging_context(correlation_id=correlation_id_from(None), actor=PLATFORM):
+            try:
+                with database.transaction() as session:
+                    session.execute(select(func.pg_advisory_xact_lock(PURGE_LOCK)))
+                    now = utc_now()
+                    exchanges_interface.purge(session, now)
+                    history_interface.purge(session, now - UNDO_RETENTION)
+            except Exception:
+                logger.exception("purge.failed")
+                return 1
+            logger.info("purge.done")
+            return 0
+    finally:
+        database.dispose()
 
 
 if __name__ == "__main__":

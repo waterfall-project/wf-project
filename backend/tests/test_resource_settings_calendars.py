@@ -25,15 +25,16 @@ from waterfall.core.resource_settings.interface import (
     CalendarFilters,
     CalendarSort,
     CalendarWindow,
+    IdleProject,
     WeeklyHours,
     create_calendar,
     get_duration_units,
     install_duration_units,
     list_calendars,
     read_calendar,
+    register_idle_task_guard,
     set_default_calendar,
 )
-from waterfall.core.resource_settings.interface import calendars as calendars_module
 from waterfall.core.resource_settings.tables import Calendar
 from waterfall.core.users.tables import UserAccount
 from waterfall.platform.audit import Act
@@ -401,35 +402,44 @@ def test_a_change_that_would_leave_a_task_without_an_hour_is_refused_and_writes_
     api: ContractClient,
     database: Database,
     sessions: PartSessions,
-    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    # The question is EP-06's (WF-PLA-0010); the interface asks it before writing, for a change of
-    # hours and for a designation.
+    # The question is EP-06's (WF-PLA-0010), asked of the guards the planning registers
+    # (``register_idle_task_guard``); the interface asks it before writing, for a change of hours
+    # and for a designation, and names the projects by their label and their code.
     standard = seed(database, "Semaine standard", default=True)
     other = seed(database, "Autre")
 
-    def never(*_: object, **__: object) -> bool:
-        return False
+    def every_change(*_: object) -> tuple[IdleProject, ...]:
+        return (IdleProject("Ligne de convoyage", "PRJ-001"),)
 
-    monkeypatch.setattr(calendars_module, "calendar_change_is_admissible", never)
-    sent = {"label": "Semaine standard", "weekly_hours": week("0", "0", "0", "0", "0", "0", "0")}
-    changed = api.patch(
-        f"{CALENDARS}/{standard}", headers=sessions.changing, json={**sent, "lock_version": 1}
-    )
-    assert refusal(changed)[:3] == (
-        422,
-        "TASK_WITHOUT_WORKING_HOURS",
-        {"resource_roles": [], "projects": []},
-    )
-    designated = put(api, sessions.changing, f"{other}/default", lock_version=1)
-    assert refusal(designated)[1] == "TASK_WITHOUT_WORKING_HOURS"
+    withdraw = register_idle_task_guard(every_change)
+    try:
+        sent = {
+            "label": "Semaine standard",
+            "weekly_hours": week("0", "0", "0", "0", "0", "0", "0"),
+        }
+        changed = api.patch(
+            f"{CALENDARS}/{standard}", headers=sessions.changing, json={**sent, "lock_version": 1}
+        )
+        assert refusal(changed)[:3] == (
+            422,
+            "TASK_WITHOUT_WORKING_HOURS",
+            {
+                "resource_roles": [],
+                "projects": [{"project_label": "Ligne de convoyage", "project_code": "PRJ-001"}],
+            },
+        )
+        designated = put(api, sessions.changing, f"{other}/default", lock_version=1)
+        assert refusal(designated)[1] == "TASK_WITHOUT_WORKING_HOURS"
+    finally:
+        withdraw()
     with database.transaction() as session:
         assert read_calendar(session, standard).weekly_hours == hours_of()
         assert read_calendar(session, standard).is_default
         assert not read_calendar(session, other).is_default
 
 
-def test_the_question_of_the_tasks_a_calendar_change_would_leave_idle_is_always_answered_yes(
+def test_a_calendar_change_is_admissible_while_no_guard_names_a_project_left_idle(
     database: Database,
 ) -> None:
     calendar_id = seed(database, "Semaine standard")

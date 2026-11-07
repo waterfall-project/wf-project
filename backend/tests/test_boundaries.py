@@ -79,14 +79,22 @@ REFERENCE_INTERFACES: dict[str, set[str]] = {
         "resource_roles",
         "calendars",
         "duration_units",
+        "extensions",
     },
     "risk_settings": set(),
     "indicator_settings": set(),
 }
 # The modules of the projects and of the revisions (EP-04), one file per subject.
 PROJECT_INTERFACES: dict[str, set[str]] = {
-    "projects": {"projects", "contributors", "subprojects", "work_breakdown", "lifecycle"},
-    "revisions": {"revisions", "structures", "marking", "reference", "shared"},
+    "projects": {
+        "projects",
+        "contributors",
+        "subprojects",
+        "work_breakdown",
+        "lifecycle",
+        "attachments",
+    },
+    "revisions": {"revisions", "structures", "marking", "reference", "shared", "closing"},
 }
 # What the design names of each (EP-04, "Modules"), declared from US-0910/L1 on, which the other
 # stories call before theirs fill them.

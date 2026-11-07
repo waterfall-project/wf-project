@@ -56,8 +56,9 @@ def test_the_version_is_stated_without_starting_anything(
             ),
         ),
         (SCHEDULE, ("DATABASE_URL",)),
+        (["purge"], ("DATABASE_URL",)),
     ],
-    ids=["worker", "schedule"],
+    ids=["worker", "schedule", "purge"],
 )
 def test_without_its_secrets_the_worker_returns_failure_and_names_them(
     arguments: list[str], secrets: tuple[str, ...], capsys: pytest.CaptureFixture[str]
@@ -74,7 +75,13 @@ def test_without_its_secrets_the_worker_returns_failure_and_names_them(
 
 @pytest.mark.parametrize(
     "arguments",
-    [["--versoin"], ["enqueue"], ["enqueue", "backup"], ["enqueue", "identity_sync", "now"]],
+    [
+        ["--versoin"],
+        ["enqueue"],
+        ["enqueue", "backup"],
+        ["enqueue", "identity_sync", "now"],
+        ["purge", "now"],
+    ],
 )
 def test_any_argument_but_the_version_or_a_kind_the_platform_schedules_is_refused(
     arguments: list[str], capsys: pytest.CaptureFixture[str]
@@ -82,7 +89,7 @@ def test_any_argument_but_the_version_or_a_kind_the_platform_schedules_is_refuse
     assert worker_main.main(arguments) == 2
     captured = capsys.readouterr()
     assert captured.out == ""
-    assert captured.err.startswith("usage: waterfall-worker [--version | enqueue <kind>]\n")
+    assert captured.err.startswith("usage: waterfall-worker [--version | enqueue <kind> | purge]\n")
     assert arguments[-1] in captured.err.splitlines()[-1]
 
 
@@ -99,7 +106,14 @@ def test_with_its_secrets_the_worker_runs_the_kinds_it_has_a_handler_for(
     monkeypatch.setattr(worker_main, "serve", serve)
     assert worker_main.main([]) == 0
     (worker,) = served
-    assert set(worker.handlers) == {"backup", "identity_sync", "revision_mark"}
+    assert set(worker.handlers) == {
+        "backup",
+        "identity_sync",
+        "revision_mark",
+        "import_analysis",
+        "import_apply",
+        "export",
+    }
     assert worker.consumer
     # A read as long as the socket's wait would end in a timeout, and stop the worker.
     waits = worker.queue.client.connection_pool.connection_kwargs["socket_timeout"]
@@ -200,3 +214,34 @@ def test_the_schedule_deposits_a_task_for_the_platform_unless_one_is_pending(
     said = [record["event"] for record in records(capsys.readouterr().err)]
     pending = "task.already_pending"
     assert said == ["task.enqueued", pending, pending, "task.enqueued"]
+
+
+@pytest.mark.usefixtures("logs", "database")
+def test_the_purge_runs_under_its_lock_and_says_so(
+    service_environment: dict[str, str],
+    capsys: pytest.CaptureFixture[str],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # The verb the scheduler calls (EP-06, "La purge"): what it purges is US-1420/L2's and
+    # US-1450/L1's; here it runs, under a correlation of its own, and says it is done.
+    for name, value in service_environment.items():
+        monkeypatch.setenv(name, value)
+    assert worker_main.main(["purge"]) == 0
+    (done,) = records(capsys.readouterr().err)
+    assert (done["event"], done["actor"]) == ("purge.done", "platform")
+    assert FORM.fullmatch(str(done["correlation_id"]))
+
+
+def test_a_purge_that_cannot_reach_the_database_ends_in_failure_said_in_its_logs(
+    service_environment: dict[str, str],
+    capsys: pytest.CaptureFixture[str],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    unreachable = "postgresql+psycopg://waterfall:s3cret-of-the-purge@127.0.0.1:9/waterfall"
+    for name, value in {**service_environment, "WATERFALL_DATABASE_URL": unreachable}.items():
+        monkeypatch.setenv(name, value)
+    assert worker_main.main(["purge"]) == 1
+    err = capsys.readouterr().err
+    (failed,) = records(err)
+    assert (failed["event"], failed["actor"]) == ("purge.failed", "platform")
+    assert "s3cret-of-the-purge" not in err

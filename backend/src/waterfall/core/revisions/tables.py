@@ -15,12 +15,13 @@ its designation as reference, its counter and its audit — and of a row of a ma
 any write — is said by the triggers of the migration, owner included.
 """
 
-from datetime import datetime
+from datetime import date, datetime
 from uuid import UUID
 
 from sqlalchemy import (
     Boolean,
     CheckConstraint,
+    Date,
     ForeignKey,
     ForeignKeyConstraint,
     Index,
@@ -142,7 +143,10 @@ class CostStructure(Audited):
     """A cost structure of a revision: its main one alone here (WF-REV-0100), one per revision.
 
     The first revised table, partitioned by project. ``lineage_id`` is kept by the copy of the
-    revision, its own identifier at the creation of the structure (WF-DAT-0030).
+    revision, its own identifier at the creation of the structure (WF-DAT-0030). The date its
+    planning starts on and the instant its dates were computed (EP-06, #2170) are null for a row
+    the migration ``0023`` did not fill, which the code reads as their derived values: the day of
+    the creation of the origin of its lineage, the instant of its own creation.
     """
 
     __tablename__ = "cost_structure"
@@ -173,3 +177,5 @@ class CostStructure(Audited):
     label: Mapped[str] = mapped_column(Text(collation=CODE_POINTS))
     is_merged: Mapped[bool] = mapped_column(Boolean)
     lineage_id: Mapped[UUID]
+    planning_start_on: Mapped[date | None] = mapped_column(Date)
+    scheduled_at: Mapped[datetime | None] = mapped_column(UtcDateTime)

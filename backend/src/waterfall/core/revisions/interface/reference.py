@@ -44,11 +44,11 @@ from waterfall.core.revisions.interface.shared import (
     inscribe_revision,
     refuse,
 )
-from waterfall.core.revisions.registry import Registry
 from waterfall.core.revisions.tables import Revision
 from waterfall.platform.audit import Act, AuditEntry
 from waterfall.platform.database import utc_now
 from waterfall.platform.errors import PreconditionFailedError
+from waterfall.platform.registry import Registry
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -59,7 +59,7 @@ if TYPE_CHECKING:
     from waterfall.core.projects.interface import Viewer
 
 # The questions a revision answers to bear tasks and lines: EP-06 its tasks, EP-07 its lines.
-_TASKS_AND_LINES: Registry[Callable[[Session, UUID], bool]] = Registry()
+_TASKS_AND_LINES: Registry[Callable[[Session, UUID], bool]] = Registry("revisions.tasks_and_lines")
 
 
 def reference_correctable(session: Session, project_id: UUID) -> bool:

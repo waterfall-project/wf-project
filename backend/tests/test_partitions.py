@@ -13,6 +13,7 @@ from uuid import uuid4
 
 import pytest
 from project_rows import (
+    drop_partitions,
     insert_project,
     insert_revision,
     insert_structure,
@@ -109,7 +110,7 @@ def test_the_service_creates_the_partitions_of_a_project_in_the_transaction_that
         assert getattr(twice.value.orig, "sqlstate", None) == "42P07"
     finally:
         with owner.begin() as connection:
-            connection.execute(text(f'DROP TABLE IF EXISTS "{partition_of(project_id)}"'))
+            drop_partitions(connection, project_id)
 
 
 def test_a_row_of_a_project_without_its_partitions_is_refused(

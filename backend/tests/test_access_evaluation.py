@@ -17,15 +17,23 @@ import asked_actual_cost_mapping
 import asked_calendars
 import asked_contributors
 import asked_cost_types
+import asked_exports
+import asked_history
 import asked_hourly_rates
+import asked_imports
 import asked_lifecycle
+import asked_nodes
 import asked_org_nodes
+import asked_progress
 import asked_projects
 import asked_reference
 import asked_reference_settings
 import asked_resource_roles
 import asked_revisions
+import asked_scheduling
+import asked_skeleton
 import asked_subprojects
+import asked_timelines
 import asked_work_breakdown
 import pytest
 from access_rows import ADMINISTRATION, role
@@ -424,6 +432,18 @@ PROJECTS = (
     asked_revisions,
     asked_lifecycle,
 )
+# The operations of the planning, of its imports and of its exports, declared router by router
+# (EP-06).
+PLANNING = (
+    asked_nodes,
+    asked_scheduling,
+    asked_timelines,
+    asked_progress,
+    asked_imports,
+    asked_exports,
+    asked_history,
+    asked_skeleton,
+)
 # The permissions each served operation asks for, in the order they are evaluated.
 ASKED: dict[str, tuple[str, ...]] = {
     "getLiveness": (),
@@ -465,15 +485,18 @@ ASKED: dict[str, tuple[str, ...]] = {
     "completeChunkedUpload": ("platform_restore",),
     **{name: asked for router in REFERENCE for name, asked in router.ASKED.items()},
     **{name: asked for router in PROJECTS for name, asked in router.ASKED.items()},
+    **{name: asked for router in PLANNING for name, asked in router.ASKED.items()},
 }
 # Two files that declare the same operation would overwrite each other in the table above.
-DECLARED = [name for router in (*REFERENCE, *PROJECTS) for name in router.ASKED]
+DECLARED = [name for router in (*REFERENCE, *PROJECTS, *PLANNING) for name in router.ASKED]
 assert len(DECLARED) == len(set(DECLARED)), sorted(
     name for name in set(DECLARED) if DECLARED.count(name) > 1
 )
 # The quality on its project each operation of a project asks for, by ``RequiresProject``.
 ON_PROJECT: dict[str, str] = {
-    name: quality for router in PROJECTS for name, quality in router.ON_PROJECT.items()
+    name: quality
+    for router in (*PROJECTS, *PLANNING)
+    for name, quality in router.ON_PROJECT.items()
 }
 # The permission each list of the reference asks for besides when it asks for deactivated objects.
 INACTIVE: dict[str, str] = {

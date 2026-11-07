@@ -87,6 +87,27 @@ from waterfall.core.resource_settings.interface.duration_units import (
     set_duration_units as set_duration_units,
 )
 
+# ``extensions`` (US-1380/L1, filled by the planning in US-1390/L2): the guard of the idle tasks
+# and the recalculation that the planning registers.
+from waterfall.core.resource_settings.interface.extensions import (
+    CalendarChange as CalendarChange,
+)
+from waterfall.core.resource_settings.interface.extensions import (
+    IdleProject as IdleProject,
+)
+from waterfall.core.resource_settings.interface.extensions import (
+    projects_left_idle as projects_left_idle,
+)
+from waterfall.core.resource_settings.interface.extensions import (
+    recalculate as recalculate,
+)
+from waterfall.core.resource_settings.interface.extensions import (
+    register_idle_task_guard as register_idle_task_guard,
+)
+from waterfall.core.resource_settings.interface.extensions import (
+    register_recalculation as register_recalculation,
+)
+
 # ``org_nodes`` (US-0840): the tree of the organisation.
 from waterfall.core.resource_settings.interface.org_nodes import (
     ACTIVE_ONLY as ACTIVE_ONLY,

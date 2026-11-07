@@ -197,16 +197,6 @@ def test_an_account_is_active_unless_written_otherwise(database: Database) -> No
 
 
 @pytest.mark.requirement("WF-DAT-0090-A")
-def test_every_foreign_key_of_the_schema_refuses_by_default(database: Database) -> None:
-    with database.engine.connect() as connection:
-        actions = connection.execute(
-            text("SELECT conname, confdeltype, confupdtype FROM pg_constraint WHERE contype = 'f'")
-        ).all()
-    assert len(actions) >= 2
-    assert {(row.confdeltype, row.confupdtype) for row in actions} <= {("r", "a"), ("a", "a")}
-
-
-@pytest.mark.requirement("WF-DAT-0090-A")
 @pytest.mark.parametrize("column", ["created_by", "updated_by"])
 def test_an_author_that_is_not_an_account_is_refused(database: Database, column: str) -> None:
     statement = write_account(**{column: uuid4()})

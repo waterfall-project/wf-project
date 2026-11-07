@@ -10,6 +10,14 @@ comment that names it, in the order Ruff keeps. Another module imports them from
 the file.
 """
 
+# ``attachments`` (US-1380/L1, filled by US-1380/L3): the tasks attached to the work breakdown.
+from waterfall.core.projects.interface.attachments import (
+    Attachments,
+    detach_item,
+    item_cited,
+    register_attachments,
+)
+
 # ``contributors`` (US-0930; the kind and the existence, US-0910/L2): a project's contributors.
 from waterfall.core.projects.interface.contributors import (
     ContributorColumn,
@@ -122,6 +130,7 @@ from waterfall.core.projects.interface.work_breakdown import (
 )
 
 __all__ = [
+    "Attachments",
     "CommandAvailability",
     "ContributorColumn",
     "ContributorEntry",
@@ -177,7 +186,9 @@ __all__ = [
     "create_project",
     "create_subproject",
     "delete_subproject",
+    "detach_item",
     "exit_project",
+    "item_cited",
     "judge_exit_unlocked",
     "list_contributor_suggestions",
     "list_contributors",
@@ -203,6 +214,7 @@ __all__ = [
     "read_next_state",
     "read_project",
     "read_work_breakdown",
+    "register_attachments",
     "require_project_manager",
     "set_contributors",
     "set_current_revision",

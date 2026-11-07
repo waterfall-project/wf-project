@@ -5,7 +5,7 @@
 import subprocess
 import sys
 from contextlib import contextmanager
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from typing import TYPE_CHECKING, Any
 from uuid import UUID, uuid4
 
@@ -13,8 +13,14 @@ import pytest
 from alembic.autogenerate import compare_metadata
 from alembic.migration import MigrationContext
 from alembic.script import ScriptDirectory
-from project_rows import partition_of, projects_with_partitions
-from sqlalchemy import Engine, func, insert, select, text
+from project_rows import (
+    insert_project,
+    insert_revision,
+    insert_structure,
+    partition_of,
+    projects_with_partitions,
+)
+from sqlalchemy import Engine, func, insert, select, text, update
 from sqlalchemy.exc import DBAPIError
 from support import raw_account, service_role
 
@@ -33,6 +39,9 @@ from waterfall.core.cost_settings.tables import (
     HourlyRate,
     ReferenceSetting,
 )
+from waterfall.core.exchanges.tables import ImportReport
+from waterfall.core.history.tables import PastePlan, UndoEntry
+from waterfall.core.planning.tables import Node, Task, TaskLink, Timeline, TrackingEntry
 from waterfall.core.projects.tables import (
     Contributor,
     Deliverable,
@@ -260,6 +269,14 @@ def test_the_migrations_build_the_schema_the_tables_of_the_code_declare(
         Deliverable.__tablename__,
         Revision.__tablename__,
         CostStructure.__tablename__,
+        Node.__tablename__,
+        Task.__tablename__,
+        TaskLink.__tablename__,
+        Timeline.__tablename__,
+        TrackingEntry.__tablename__,
+        ImportReport.__tablename__,
+        UndoEntry.__tablename__,
+        PastePlan.__tablename__,
     }
     upgrade(empty_engine)
     with empty_engine.connect() as connection:
@@ -372,6 +389,18 @@ SERVICE_RIGHTS: dict[str, set[str]] = {
     # refuses to change or delete, its rows too (migration 0020, test_revision_immutability.py).
     "revision": {"SELECT", "INSERT", "UPDATE", "DELETE"},
     "cost_structure": {"SELECT", "INSERT", "UPDATE", "DELETE"},
+    # The planning (EP-06): the content of a current revision is written and deleted for good with
+    # it, a marked one's the database refuses to change (migration 0022); a timeline and its
+    # inscriptions are deleted for good (#1733), as a plan of a paste and an entry of the history at
+    # their closing or their purge, and a report at its expiry or its abandonment (§4.4.1).
+    "node": {"SELECT", "INSERT", "UPDATE", "DELETE"},
+    "task": {"SELECT", "INSERT", "UPDATE", "DELETE"},
+    "task_link": {"SELECT", "INSERT", "UPDATE", "DELETE"},
+    "timeline": {"SELECT", "INSERT", "UPDATE", "DELETE"},
+    "tracking_entry": {"SELECT", "INSERT", "UPDATE", "DELETE"},
+    "import_report": {"SELECT", "INSERT", "UPDATE", "DELETE"},
+    "undo_entry": {"SELECT", "INSERT", "UPDATE", "DELETE"},
+    "paste_plan": {"SELECT", "INSERT", "UPDATE", "DELETE"},
 }
 
 
@@ -433,15 +462,17 @@ def test_the_guards_of_a_marked_revision_run_under_their_own_search_path(
     with owner.connect() as connection:
         guards = connection.execute(
             text(
-                "SELECT proname, prosecdef, proconfig FROM pg_proc WHERE proname IN "
-                "('revision_refuse_marked_change', 'cost_structure_refuse_marked_change') "
-                "ORDER BY proname"
+                "SELECT proname, prosecdef, proconfig FROM pg_proc "
+                "WHERE proname LIKE '%refuse_marked_change' ORDER BY proname"
             )
         ).all()
     own = ["search_path=pg_catalog, pg_temp"]
     assert [tuple(guard) for guard in guards] == [
         ("cost_structure_refuse_marked_change", False, own),
+        ("node_refuse_marked_change", False, own),
         ("revision_refuse_marked_change", False, own),
+        ("task_link_refuse_marked_change", False, own),
+        ("task_refuse_marked_change", False, own),
     ]
 
 
@@ -449,24 +480,32 @@ def test_the_guards_of_a_marked_revision_run_under_their_own_search_path(
 def test_the_function_called_by_the_owner_creates_the_partition_of_the_project_and_no_other(
     database: Database, owner: Engine
 ) -> None:
-    # One partition per project, by list on its identifier, owned by the owner of the tables; a
-    # second call is refused, the project having its partitions already, and a null one too.
+    # One partition per project in each revised table, by list on its identifier, owned by the
+    # owner of the tables, with the trigger that refuses its truncation; a second call is refused,
+    # the project having its partitions already, and a null one too.
     del database
     with projects_with_partitions(owner) as (project_id,), owner.connect() as connection:
         partitions = connection.execute(
             text(
-                "SELECT child.relname, pg_get_userbyid(child.relowner), "
-                "pg_get_expr(child.relpartbound, child.oid), pg_get_userbyid(parent.relowner) "
+                "SELECT parent.relname, child.relname, pg_get_userbyid(child.relowner), "
+                "pg_get_expr(child.relpartbound, child.oid), pg_get_userbyid(parent.relowner), "
+                "(SELECT array_agg(tgname) FROM pg_trigger WHERE tgrelid = child.oid "
+                "AND tgtype & 32 <> 0) "
                 "FROM pg_inherits JOIN pg_class AS child ON child.oid = inhrelid "
                 "JOIN pg_class AS parent ON parent.oid = inhparent "
-                "WHERE parent.relname = 'cost_structure' AND child.relname = :name"
+                "WHERE child.relname LIKE :name ORDER BY parent.relname"
             ),
-            {"name": partition_of(project_id)},
+            {"name": f"%_p_{project_id.hex}"},
         ).all()
-        assert [(name, bound) for name, _, bound, _ in partitions] == [
-            (partition_of(project_id), f"FOR VALUES IN ('{project_id}')")
+        bound = f"FOR VALUES IN ('{project_id}')"
+        assert [
+            (parent, name, values, truncate) for parent, name, _, values, _, truncate in partitions
+        ] == [
+            (table, f"{table}_p_{project_id.hex}", bound, [f"{table}_refuse_truncate"])
+            for table in ("cost_structure", "node", "task", "task_link")
         ]
-        assert partitions[0][1] == partitions[0][3]
+        assert partition_of(project_id) == f"cost_structure_p_{project_id.hex}"
+        assert all(row[2] == row[4] for row in partitions)
         for refused, code in ((project_id, "42P07"), (None, "22004")):
             with pytest.raises(DBAPIError) as raised, owner.begin() as attempt:
                 attempt.execute(select(func.create_project_partitions(refused)))
@@ -600,3 +639,54 @@ def test_the_reports_kept_name_an_account_of_waterfall_by_its_identifier_alone(
     assert skipped_of(empty_engine, former) == [named, taken]
     again = [named, {"email": "hugo@example.org", "code": "VALIDATION_FAILED"}]
     assert skipped_of(empty_engine, latest) == again
+
+
+def started(engine: Engine) -> dict[str, tuple[object, object]]:
+    """Read the day each structure starts its planning on and the instant of its dates, by label."""
+    with engine.connect() as connection:
+        rows = connection.execute(
+            select(CostStructure.label, CostStructure.planning_start_on, CostStructure.scheduled_at)
+        ).all()
+    return {label: (start, scheduled) for label, start, scheduled in rows}
+
+
+def test_the_migration_of_the_planning_start_fills_each_structure_as_the_code_derived_it(
+    empty_engine: Engine,
+) -> None:
+    # #2170: the day of the creation of the origin of the lineage — in universal time, late on the
+    # 4th of March —, which a copy in a marked revision keeps; the day of its own creation for a
+    # structure whose origin is missing; the instant of its creation for its dates. The guard of a
+    # marked revision is off for the migration alone; the descent empties the columns again.
+    upgrade(empty_engine, "0022")
+    project, offer, lost, current, origin = uuid4(), uuid4(), uuid4(), uuid4(), uuid4()
+    born = datetime(2026, 3, 4, 23, 30, tzinfo=UTC)
+    copied_at = datetime(2026, 4, 1, 8, 0, tzinfo=UTC)
+    structures = (
+        (offer, {"id": origin, "lineage_id": origin, "label": "Origine", "created_at": born}),
+        (lost, {"lineage_id": uuid4(), "label": "Orpheline", "created_at": copied_at}),
+        (current, {"lineage_id": origin, "label": "Copie", "created_at": copied_at}),
+    )
+    with empty_engine.begin() as connection:
+        connection.execute(insert_project(id=project))
+        connection.execute(select(func.create_project_partitions(project)))
+        for name, (revision_id, structure) in zip(("v1.0", "v2.0", None), structures, strict=True):
+            connection.execute(insert_revision(project, id=revision_id))
+            connection.execute(insert_structure(project, revision_id, **structure))
+            if name is not None:
+                connection.execute(
+                    update(Revision)
+                    .where(Revision.id == revision_id)
+                    .values(status="marked", version_name=name, marked_at=copied_at)
+                )
+    upgrade(empty_engine)
+    assert started(empty_engine) == {
+        "Origine": (date(2026, 3, 4), born),
+        "Copie": (date(2026, 3, 4), copied_at),
+        "Orpheline": (date(2026, 4, 1), copied_at),
+    }
+    with pytest.raises(DBAPIError, match="never written"), empty_engine.begin() as connection:
+        connection.execute(
+            update(CostStructure).where(CostStructure.id == origin).values(scheduled_at=None)
+        )
+    downgrade(empty_engine, "0022")
+    assert set(started(empty_engine).values()) == {(None, None)}

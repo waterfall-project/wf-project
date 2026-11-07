@@ -21,20 +21,28 @@ from waterfall.api import (
     calendars,
     contributors,
     cost_types,
+    exports,
+    history,
     hourly_rates,
     identity_syncs,
+    imports,
     lifecycle,
     me,
+    nodes,
     org_nodes,
+    progress,
     projects,
     reference,
     reference_settings,
     resource_roles,
     restores,
     revisions,
+    scheduling,
+    skeleton,
     subprojects,
     system,
     tasks,
+    timelines,
     uploads,
     users,
     work_breakdown,
@@ -42,12 +50,19 @@ from waterfall.api import (
 from waterfall.api.maintenance import MaintenanceMiddleware
 from waterfall.api.middleware import CorrelationMiddleware
 from waterfall.api.problems import install_problem_handlers
+from waterfall.core.exchanges import interface as exchanges_interface
+from waterfall.core.history import interface as history_interface
+from waterfall.core.planning import interface as planning_interface
 
 if TYPE_CHECKING:
     from waterfall.api.authentication import Services
 
 # The single prefix of version the contract declares in its ``servers``.
 PREFIX = "/api/v1"
+# The modules that fill the registries of the others at the import of their interface (#2180):
+# imported here whether or not a route reads them yet, so that no revision is copied, closed or
+# designated, and no reference changed, without their part.
+EXTENDING = (exchanges_interface, history_interface, planning_interface)
 
 
 def create_app(services: Services) -> FastAPI:
@@ -104,4 +119,17 @@ def create_app(services: Services) -> FastAPI:
         lifecycle.router,
     ):
         app.include_router(project_router, prefix=PREFIX)
+    # The planning, its imports and its exports (EP-06): a router per story, each registered here
+    # from the start.
+    for planning_router in (
+        nodes.router,
+        scheduling.router,
+        timelines.router,
+        progress.router,
+        imports.router,
+        exports.router,
+        history.router,
+        skeleton.router,
+    ):
+        app.include_router(planning_router, prefix=PREFIX)
     return app

@@ -703,7 +703,7 @@ de lots (étape 3) le détaille en vagues.
 
 ## US-1380 — L'arbre des tâches de la structure principale
 
-- **statut** : à faire
+- **statut** : en cours
 - **exigences** : `WF-PLA-0040-A`, `WF-PLA-0050-A`, `WF-PLA-0070-A`, `WF-PLA-0170-A`,
   `WF-PLA-0150-A`
 - **opérations** : `listNodes`, `createNode`, `updateTaskFacet`, `deleteNode`, `moveNodes`,

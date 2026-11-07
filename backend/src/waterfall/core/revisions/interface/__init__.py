@@ -9,11 +9,12 @@ few the design leaves silent. A name a story adds besides joins the import of it
 comment that names it, in the order Ruff keeps. Another module imports them from here, never from
 the file.
 
-The later epics extend the revisions through three ordered registries, without this module
+The later epics extend the revisions through four ordered registries, without this module
 importing theirs: ``register_copy`` the copy of a revision opened from a marked one (EP-06 the
 tasks and their links, EP-07 the lines and the images, EP-08 the structures it adds),
-``register_tasks_and_lines`` the question the designation asks (EP-06, EP-07), and
-``register_indicators`` the indicators kept at the marking (EP-10). Each registers its own by a
+``register_tasks_and_lines`` the question the designation asks (EP-06, EP-07),
+``register_indicators`` the indicators kept at the marking (EP-10), and ``register_closing`` what
+a module does before a revision is marked or abandoned (EP-06). Each registers its own by a
 call in the ``__init__`` of its module's interface (``waterfall.core.<module>.interface``), at its
 import: that interface imports this one first, so its copy comes after the structures', which this
 module registers itself, and after the copies of the modules it imports, whose rows its rows name.
@@ -21,6 +22,13 @@ A registry holds nothing for a module its process never imported: the entry poin
 mark a revision — the API, the worker, the loader of the witness — import the interface of each
 such module, by what they serve or explicitly. ``RevisionCopy`` is what a copy receives.
 """
+
+# ``closing`` (US-1380/L1): what the later modules do before a revision is marked or abandoned.
+from waterfall.core.revisions.interface.closing import (
+    ClosingKind,
+    RevisionClosing,
+    register_closing,
+)
 
 # ``marking`` (US-0970; the indicators, EP-10): the marking of a revision.
 from waterfall.core.revisions.interface.marking import (
@@ -74,8 +82,10 @@ from waterfall.core.revisions.interface.structures import (
 
 __all__ = [
     "KEPT",
+    "ClosingKind",
     "MarkingRequest",
     "ReferenceToDesignate",
+    "RevisionClosing",
     "RevisionCopy",
     "RevisionFilters",
     "RevisionList",
@@ -98,6 +108,7 @@ __all__ = [
     "mark_revision",
     "read_revision",
     "reference_correctable",
+    "register_closing",
     "register_copy",
     "register_indicators",
     "register_tasks_and_lines",

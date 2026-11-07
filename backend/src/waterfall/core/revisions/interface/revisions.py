@@ -52,6 +52,7 @@ from waterfall.core.revisions.commands import (
     TERMINAL,
     revision_commands,
 )
+from waterfall.core.revisions.interface.closing import close_revision
 from waterfall.core.revisions.interface.reference import reference_correctable
 from waterfall.core.revisions.interface.shared import (
     NOT_FOUND,
@@ -65,12 +66,12 @@ from waterfall.core.revisions.interface.structures import (
     create_main_structure,
     delete_structures,
 )
-from waterfall.core.revisions.registry import Registry
 from waterfall.core.revisions.states import state_of
 from waterfall.core.revisions.tables import Revision
 from waterfall.platform.database import contains, unique_violated
 from waterfall.platform.errors import NotFoundError, PreconditionFailedError
 from waterfall.platform.identifiers import new_id
+from waterfall.platform.registry import Registry
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Collection
@@ -172,7 +173,7 @@ class RevisionCopy:
 # The copies a revision opened from a marked one makes, table after table, in the order of their
 # registration: a module registers its copy after those of the tables its rows name, whose copies it
 # finds in ``RevisionCopy.identifiers`` (EP-04, "Modules").
-_COPIES: Registry[Callable[[RevisionCopy], None]] = Registry()
+_COPIES: Registry[Callable[[RevisionCopy], None]] = Registry("revisions.copy")
 
 
 def register_copy(copier: Callable[[RevisionCopy], None]) -> Callable[[], None]:
@@ -416,9 +417,10 @@ def abandon_revision(
     Under the lock of the revision, read under it, then the lock of the project: refused if
     unknown (404), if the writer is no project manager of the project any more (403, 404), at
     another version (412), once marked (409 ``revision_draft``), or while a background task writes
-    in it (409 ``no_background_task_running``). The project names no current revision any more, then
-    the structures and the revision are deleted, and the abandonment is inscribed in the journal. A
-    terminal project's revisions are all marked: ``revision_draft`` refuses there too.
+    in it (409 ``no_background_task_running``). The modules registered close it
+    (``register_closing``), the project names no current revision any more, then the structures and
+    the revision are deleted, and the abandonment is inscribed in the journal. A terminal project's
+    revisions are all marked: ``revision_draft`` refuses there too.
     """
     revision_id, lock_version = abandoned.revision_id, abandoned.lock_version
     revision = found_revision(session, revision_id, project_id, lock=True)
@@ -434,6 +436,7 @@ def abandon_revision(
         raise refuse(REVISION_DRAFT)
     if not no_background_task_running(session, project_id):
         raise refuse(NO_BACKGROUND_TASK_RUNNING)
+    close_revision(session, project_id, revision_id, "abandoned")
     set_current_revision(session, project_id, None, act)
     delete_structures(session, project_id, revision_id)
     inscribe_revision(session, revision, "revision_abandon", None, act)
