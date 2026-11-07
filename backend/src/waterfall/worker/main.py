@@ -170,7 +170,10 @@ def _schedule(database: Database, queue: TaskQueue, kind: TaskKind) -> int:
 
 
 def _purge(settings: Settings) -> int:
-    """Purge what expired, under a correlation of its own; an unexpected error ends it (1)."""
+    """Purge what expired, under a correlation of its own; an unexpected error ends it (1).
+
+    The rows are purged in one transaction; what the storage loses is known after it.
+    """
     database = Database(create_database_engine(settings.database_url.get_secret_value()))
     try:
         with logging_context(correlation_id=correlation_id_from(None), actor=PLATFORM):
@@ -178,12 +181,14 @@ def _purge(settings: Settings) -> int:
                 with database.transaction() as session:
                     session.execute(select(func.pg_advisory_xact_lock(PURGE_LOCK)))
                     now = utc_now()
-                    exchanges_interface.purge(session, now)
+                    purged = exchanges_interface.purge(session, now)
                     history_interface.purge(session, now - UNDO_RETENTION)
             except Exception:
                 logger.exception("purge.failed")
                 return 1
-            logger.info("purge.done")
+            # What the storage loses, once the rows are gone: ``remove_purged``, to which
+            # US-1420/L2 hands it with the bucket of the backups.
+            logger.info("purge.done", objects=len(purged.objects), deposits=len(purged.deposits))
             return 0
     finally:
         database.dispose()

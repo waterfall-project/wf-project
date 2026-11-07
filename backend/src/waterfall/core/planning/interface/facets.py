@@ -9,7 +9,8 @@ lines, which the calendar applicable to a task intersects (``calendar_of``, WF-P
 planning knows no other facet than its own: it asks the hooks of the kind (EP-06, "Les points
 d'extension").
 
-Declared by US-1380/L1; US-1380/L2 reads it.
+Declared by US-1380/L1; US-1380/L2 reads it, and fills ``calendar_of``: the default calendar
+here, intersected with the calendars of the roles of the lines by EP-07.
 """
 
 from dataclasses import dataclass
@@ -58,3 +59,9 @@ def register_facet(kind: str, hooks: FacetHooks) -> Callable[[], None]:
 def facets() -> Mapping[str, FacetHooks]:
     """Give the hooks of each kind of node registered, by kind."""
     return dict(_FACETS.entries())
+
+
+def calendar_of(session: Session, project_id: UUID, task_id: UUID) -> None:
+    """Give the calendar applicable to a task (WF-PLA-0010)."""
+    msg = "calendar_of is filled by US-1380/L2"
+    raise NotImplementedError(msg)

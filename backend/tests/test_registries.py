@@ -36,7 +36,16 @@ from waterfall.core.exchanges.interface import (
     register_exporter,
     register_format,
 )
-from waterfall.core.planning.interface import FacetHooks, facets, register_facet
+from waterfall.core.history.interface import close_history
+from waterfall.core.planning.interface import (
+    MS_PROJECT_EXPORTER,
+    MS_PROJECT_FORMAT,
+    TASK_TREE_EXPORTER,
+    FacetHooks,
+    delete_nodes,
+    facets,
+    register_facet,
+)
 from waterfall.core.projects.interface import (
     Attachments,
     detach_item,
@@ -60,6 +69,7 @@ from waterfall.core.resource_settings.interface import (
 )
 from waterfall.core.revisions.interface import (
     RevisionClosing,
+    closers,
     mark_revision,
     register_closing,
 )
@@ -103,7 +113,7 @@ def named(entry):
     if dataclasses.is_dataclass(entry):
         parts = ", ".join(named(getattr(entry, field.name)) for field in dataclasses.fields(entry))
         return f"{type(entry).__qualname__}({parts})"
-    return f"{entry.__module__}.{entry.__qualname__}"
+    return f"{entry.__module__}.{getattr(entry, '__qualname__', type(entry).__qualname__)}"
 
 
 for name in sys.argv[1:]:
@@ -145,6 +155,15 @@ REGISTERED = {
             f"Attachments({PLANNING}.work_breakdown.work_breakdown_item_cited, "
             f"{PLANNING}.work_breakdown.detach_work_breakdown_item)"
         )
+    ],
+    "revisions.closing": [
+        "history:waterfall.core.history.interface.closing.close_history",
+        f"content:{PLANNING}.closing.delete_nodes",
+    ],
+    "exchanges.formats": [f"ms_project_schedule:{PLANNING}.msproject.MsProjectFormat"],
+    "exchanges.exporters": [
+        f"ms_project_schedule:{PLANNING}.msproject.MsProjectExporter",
+        f"task_tree_image:{PLANNING}.task_tree.TaskTreeExporter",
     ],
     "witness.revision_fillers": ["waterfall.witness.tasks.fill"],
 }
@@ -225,7 +244,7 @@ def test_a_closing_registered_runs_before_the_revision_is_marked_or_abandoned(
         closed.append(Closed(closing.revision_id, closing.kind, str(status)))
 
     with ExitStack() as registered:
-        registered.callback(register_closing(close))
+        registered.callback(register_closing("content", close))
         marked = open_revision(api, stage)
         with (
             logging_context(correlation_id="marking"),
@@ -243,6 +262,24 @@ def test_a_closing_registered_runs_before_the_revision_is_marked_or_abandoned(
         Closed(UUID(marked["revision_id"]), "marked", "draft"),
         Closed(UUID(abandoned["revision_id"]), "abandoned", "draft"),
     ]
+
+
+def test_the_closings_run_stage_by_stage_whatever_the_order_of_their_registration() -> None:
+    # The history and its plans before the content of the revision (EP-06, "Les points
+    # d'extension"): a part of the content registered first still runs after a part of the history
+    # registered later, and the planning's nodes after the history's stacks in any process.
+    def content(closing: RevisionClosing) -> None:
+        del closing
+
+    def history(closing: RevisionClosing) -> None:
+        del closing
+
+    with ExitStack() as registered:
+        registered.callback(register_closing("content", content))
+        registered.callback(register_closing("history", history))
+        ordered = closers()
+    assert ordered.index(history) < ordered.index(content)
+    assert closers().index(close_history) < closers().index(delete_nodes)
 
 
 EIGHT = Decimal(8)
@@ -340,11 +377,9 @@ def test_the_attachments_registered_tell_and_detach_an_element_of_the_work_break
     assert detached == [(project_id, item_id)]
 
 
-class Unread:
-    """A format, an exporter or the hooks of a facet no test reads."""
-
-
 def test_a_kind_has_one_facet_one_format_and_one_exporter_at_most() -> None:
+    # Those of the planning, registered at the import of its interface, serve another kind here.
+    held = (dict(facets()), dict(formats()), dict(exporters()))
     hooks = FacetHooks(
         read=lambda _session, _project, _nodes: {},
         copy=lambda _copy: None,
@@ -353,20 +388,20 @@ def test_a_kind_has_one_facet_one_format_and_one_exporter_at_most() -> None:
     )
     with ExitStack() as registered:
         registered.callback(register_facet("estimate_line", hooks))
-        registered.callback(register_format("estimate", Unread()))
-        registered.callback(register_exporter("estimate", Unread()))
+        registered.callback(register_format("estimate", MS_PROJECT_FORMAT))
+        registered.callback(register_exporter("estimate", TASK_TREE_EXPORTER))
         assert (list(facets()), list(formats()), list(exporters())) == (
             ["estimate_line"],
-            ["estimate"],
-            ["estimate"],
+            ["ms_project_schedule", "estimate"],
+            ["ms_project_schedule", "task_tree_image", "estimate"],
         )
         with pytest.raises(ValueError, match="registered already"):
             register_facet("estimate_line", hooks)
         with pytest.raises(ValueError, match="has a format already"):
-            register_format("estimate", Unread())
+            register_format("estimate", MS_PROJECT_FORMAT)
         with pytest.raises(ValueError, match="has an exporter already"):
-            register_exporter("estimate", Unread())
-    assert (dict(facets()), dict(formats()), dict(exporters())) == ({}, {}, {})
+            register_exporter("estimate", MS_PROJECT_EXPORTER)
+    assert (dict(facets()), dict(formats()), dict(exporters())) == held
 
 
 @pytest.fixture

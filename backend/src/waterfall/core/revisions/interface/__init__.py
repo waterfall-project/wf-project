@@ -14,19 +14,23 @@ importing theirs: ``register_copy`` the copy of a revision opened from a marked 
 tasks and their links, EP-07 the lines and the images, EP-08 the structures it adds),
 ``register_tasks_and_lines`` the questions the designation asks, the tasks (EP-06) and the lines
 (EP-07), ``register_indicators`` the indicators kept at the marking (EP-10), and
-``register_closing`` what a module does before a revision is marked or abandoned (EP-06). Each registers its own by a
-call in the ``__init__`` of its module's interface (``waterfall.core.<module>.interface``), at its
-import: that interface imports this one first, so its copy comes after the structures', which this
-module registers itself, and after the copies of the modules it imports, whose rows its rows name.
-A registry holds nothing for a module its process never imported: the entry points that open or
-mark a revision — the API, the worker, the loader of the witness — import the interface of each
-such module, by what they serve or explicitly. ``RevisionCopy`` is what a copy receives.
+``register_closing`` what a module does before a revision is marked or abandoned, under its stage
+(EP-06). Each registers its own by a call in the ``__init__`` of its module's interface
+(``waterfall.core.<module>.interface``), at its import: that interface imports this one first, so
+its copy comes after the structures', which this module registers itself, and after the copies of
+the modules it imports, whose rows its rows name. A registry holds nothing for a module its process
+never imported: the entry points that open or mark a revision — the API, the worker, the loader of
+the witness — import the interface of each such module, by what they serve or explicitly.
+``RevisionCopy`` is what a copy receives.
 """
 
 # ``closing`` (US-1380/L1): what the later modules do before a revision is marked or abandoned.
 from waterfall.core.revisions.interface.closing import (
+    CLOSING_STAGES,
     ClosingKind,
+    ClosingStage,
     RevisionClosing,
+    closers,
     register_closing,
 )
 
@@ -82,8 +86,10 @@ from waterfall.core.revisions.interface.structures import (
 )
 
 __all__ = [
+    "CLOSING_STAGES",
     "KEPT",
     "ClosingKind",
+    "ClosingStage",
     "MarkingRequest",
     "ReferenceToDesignate",
     "RevisionClosing",
@@ -97,6 +103,7 @@ __all__ = [
     "RevisionView",
     "StructureView",
     "abandon_revision",
+    "closers",
     "compute_indicators",
     "copy_revision",
     "create_project_partitions",
