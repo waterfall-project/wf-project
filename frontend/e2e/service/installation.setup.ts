@@ -68,7 +68,7 @@ test("the administrator of a new installation sets its password by the link of t
   const name = `«\u00a0${ADMINISTRATOR.name}\u00a0»`;
   const held = page.getByRole("group", { name: `Rôles de ${name}` });
   await openMenu(accounts.getByRole("button", { name: `Rôles de ${name}` }), held);
-  await expect(held.getByRole("checkbox", { name: "Administrateur" })).toBeChecked();
+  await expect(held.getByRole("checkbox", { name: "Administrateur", exact: true })).toBeChecked();
   await expect(held.getByRole("checkbox", { checked: true })).toHaveCount(1);
   await page.keyboard.press("Escape");
 

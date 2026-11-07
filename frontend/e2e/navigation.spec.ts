@@ -4,7 +4,7 @@ import { expect, type Page } from "@playwright/test";
 
 import { compile } from "./compile";
 import { setExpanded } from "./hydration";
-import { test } from "./mode";
+import { inService, test } from "./mode";
 
 // The session of the fake back grants the whole catalogue of permissions: every function
 // of the navigation is offered.
@@ -65,10 +65,20 @@ test("a user who opened no project reaches the administration and the status scr
   page,
 }) => {
   // The screens of their own reached by a click, compiled first (`e2e/compile.ts`).
-  await compile(page.request, "/admin/users", "/system");
+  await compile(page.request, "/admin/users", ...(inService ? [] : ["/system"]));
   await page.goto("/account");
   await open(page, "Gestion des utilisateurs", "Administration");
   await expect(page).toHaveURL("/admin/users");
+  if (inService) {
+    // The service does not serve the state of the system before EP-13 (`getSystemStatus`): its link
+    // is offered, and the screen is read against the fake back alone.
+    await expect(
+      page.getByRole("navigation", { name: "Fonctions" }).getByRole("link", {
+        name: "Surveillance de l’état du système",
+      }),
+    ).toBeVisible();
+    return;
+  }
   await open(page, "Surveillance de l’état du système", "Administration");
   await expect(page).toHaveURL("/system");
   await expect(page).toHaveTitle("Surveillance de l’état du système — Waterfall");
