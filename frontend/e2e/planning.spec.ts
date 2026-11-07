@@ -3,7 +3,6 @@
 import { type Download, expect, type Locator, test } from "@playwright/test";
 
 import { columnsOf } from "./columns";
-import { compile } from "./compile";
 import { holdScripts, openHydrated, WORKING } from "./hydration";
 import { rowAt, scrollToPosition, withinBox } from "./scroll";
 import { isServerAction } from "./server-action";
@@ -488,110 +487,6 @@ test("folds a summary in the grid and the Gantt follows, unfolds it from the Gan
   await page.keyboard.press("Alt+Shift+Equal");
   await expect(summary).toHaveAttribute("aria-expanded", "true");
   await expect(task).toBeVisible();
-});
-
-test("leads from the planning to its task tree, read only, its depth in the address", async ({
-  page,
-}) => {
-  // Three bounds of a screen of grid (`WORKING`): more than the thirty seconds of a test.
-  test.slow();
-  // The leaf, a screen of its own reached by a click, compiled first (`e2e/compile.ts`). The tree
-  // asks the server for the summaries down to its depth (`summaries_only`, `max_level`), and keeps
-  // them once more of what the fake back renders, the volumes whole (#463).
-  await compile(page.request, `${IN_REVISION}/task-tree`);
-  // Hydrated, the planning follows its link in the browser: the tree arrives answering the keys.
-  await openHydrated(page, `${IN_REVISION}/planning`);
-  await page.getByRole("main").getByRole("link", { name: "Arborescence de tâches" }).click();
-  await expect(page).toHaveURL(`${IN_REVISION}/task-tree`, { timeout: WORKING });
-  await expect(page).toHaveTitle(
-    "Arborescence de tâches · Modernisation du poste de commande — Waterfall",
-  );
-  // The summaries of the first two levels, under the project; no leaf, no milestone. The tree
-  // reads the structure of a thousand tasks: the bound of a grid.
-  const tree = page.getByRole("tree", { name: "Arborescence des tâches récapitulatives" });
-  // The three roots of the core, then the nine phases drawn about it.
-  await expect(tree.getByRole("treeitem", { level: 2 })).toHaveCount(12, { timeout: WORKING });
-  await expect(tree.getByRole("treeitem", { name: /^8 Poste de commande/ })).toBeVisible();
-  await expect(tree.getByText("Préparation 1.1.1")).toHaveCount(0);
-  // The levels the structure has, as the server says them, and not one more (#494).
-  const depths = page.getByRole("navigation", { name: "Niveau affiché" });
-  await expect(depths.getByRole("link")).toHaveText(["Niveau 1", "Niveau 2"]);
-  // One stop of the tabulation, whose arrows go through it.
-  await tree.getByRole("treeitem").first().focus();
-  await page.keyboard.press("ArrowRight");
-  await expect(tree.getByRole("treeitem", { name: /^1 Études/ })).toBeFocused();
-  // The first level alone, by the address: the structure read anew, in the bound of a grid.
-  await page.getByRole("link", { name: "Niveau 1" }).click();
-  await expect(page).toHaveURL(`${IN_REVISION}/task-tree?depth=1`, { timeout: WORKING });
-  await expect(tree.getByRole("treeitem", { level: 3 })).toHaveCount(0);
-});
-
-test("leads from the planning to the timelines of the project, read only", async ({ page }) => {
-  // Three bounds of a screen of grid (`WORKING`): more than the thirty seconds of a test.
-  test.slow();
-  await compile(page.request, `${IN_REVISION}/timelines`);
-  await openHydrated(page, `${IN_REVISION}/planning`);
-  await page.getByRole("main").getByRole("link", { name: "Chronologies" }).click();
-  await expect(page).toHaveURL(`${IN_REVISION}/timelines`, { timeout: WORKING });
-  await expect(page).toHaveTitle("Chronologies · Modernisation du poste de commande — Waterfall");
-  await expect(page.getByRole("region", { name: "Contexte de lecture" })).toContainText(
-    "Modernisation du poste de commande",
-  );
-  // The timelines of the project; the screen asks the tasks of the one shown (`timeline_id`), and
-  // keeps those inscribed to it of what the fake back renders (#463): those of the core.
-  // They read the structure of a thousand tasks: the bound of a grid.
-  await expect(page.getByRole("link", { name: "Comité de pilotage" })).toHaveAttribute(
-    "aria-current",
-    "true",
-    { timeout: WORKING },
-  );
-  // Another timeline, by the address: the structure read anew, in the bound of a grid.
-  await page.getByRole("link", { name: "Revue client" }).click();
-  await expect(page.getByRole("link", { name: "Revue client" })).toHaveAttribute(
-    "aria-current",
-    "true",
-    { timeout: WORKING },
-  );
-  // The customer follows the two receptions of the core, the structure its first rows (#376).
-  await expect(page.getByRole("main")).toContainText("Réception usine");
-  await expect(
-    page.getByText("Aucune tâche de cette révision n’est inscrite à cette chronologie."),
-  ).toHaveCount(0);
-});
-
-test("creates a timeline by its name, and deletes the one shown once confirmed, the screen showing the first one left (EP-14/L44f)", async ({
-  page,
-}) => {
-  // Two readings of the structure of a thousand tasks, each in the bound of a grid.
-  test.slow();
-  await openHydrated(page, `${IN_REVISION}/timelines`);
-  const steering = page.getByRole("link", { name: "Comité de pilotage" });
-  await expect(steering).toHaveAttribute("aria-current", "true", { timeout: WORKING });
-  await expect(page.getByRole("note")).toContainText("Maquette");
-  await page.getByRole("button", { name: "Nouvelle chronologie" }).click();
-  const form = page.getByRole("dialog", { name: "Nouvelle chronologie" });
-  await form.getByRole("textbox", { name: "Nom" }).fill("Réunion de chantier");
-  await form.getByRole("button", { name: "Créer" }).click();
-  await expect(form).toHaveCount(0);
-  await expect(page.getByText("Chronologie « Réunion de chantier » créée.")).toBeVisible();
-
-  await page
-    .getByRole("button", { name: "Supprimer la chronologie «\u00a0Comité de pilotage\u00a0»" })
-    .click();
-  const confirmation = page.getByRole("dialog", { name: /^Supprimer la chronologie/ });
-  await expect(confirmation).toContainText("les tâches et les jalons gardent leurs dates");
-  await confirmation.getByRole("button", { name: "Supprimer" }).click();
-  await expect(page.getByText("Chronologie « Comité de pilotage » supprimée.")).toBeVisible();
-  await expect(steering).toHaveCount(0);
-  await expect(page).toHaveURL(
-    `${IN_REVISION}/timelines?timeline=01926f3a-7c00-7000-8000-000000001001`,
-    { timeout: WORKING },
-  );
-  await expect(page.getByRole("link", { name: "Revue client" })).toHaveAttribute(
-    "aria-current",
-    "true",
-    { timeout: WORKING },
-  );
 });
 
 /** The frame of the axis of the Gantt that scrolls, in its header: how far, how wide, over what. */

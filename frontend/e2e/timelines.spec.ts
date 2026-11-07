@@ -3,6 +3,7 @@
 import { expect, type Locator, type Page, test } from "@playwright/test";
 
 import { columnsOf } from "./columns";
+import { compile } from "./compile";
 import { openHydrated, WORKING } from "./hydration";
 import { scrollToPosition } from "./scroll";
 import { isServerAction } from "./server-action";
@@ -225,4 +226,72 @@ test("exports the frieze of a timeline as a PNG image, named after the project [
   const image = Buffer.concat(chunks);
   expect(image.subarray(0, 8).toString("hex")).toBe("89504e470d0a1a0a");
   expect([image.readUInt32BE(16), image.readUInt32BE(20)]).toEqual([2560, 1440]);
+});
+
+test("leads from the planning to the timelines of the project, read only", async ({ page }) => {
+  // Three bounds of a screen of grid (`WORKING`): more than the thirty seconds of a test.
+  test.slow();
+  await compile(page.request, `${IN_REVISION}/timelines`);
+  await openHydrated(page, `${IN_REVISION}/planning`);
+  await page.getByRole("main").getByRole("link", { name: "Chronologies" }).click();
+  await expect(page).toHaveURL(`${IN_REVISION}/timelines`, { timeout: WORKING });
+  await expect(page).toHaveTitle("Chronologies · Modernisation du poste de commande — Waterfall");
+  await expect(page.getByRole("region", { name: "Contexte de lecture" })).toContainText(
+    "Modernisation du poste de commande",
+  );
+  // The timelines of the project; the screen asks the tasks of the one shown (`timeline_id`), and
+  // keeps those inscribed to it of what the fake back renders (#463): those of the core.
+  // They read the structure of a thousand tasks: the bound of a grid.
+  await expect(page.getByRole("link", { name: "Comité de pilotage" })).toHaveAttribute(
+    "aria-current",
+    "true",
+    { timeout: WORKING },
+  );
+  // Another timeline, by the address: the structure read anew, in the bound of a grid.
+  await page.getByRole("link", { name: "Revue client" }).click();
+  await expect(page.getByRole("link", { name: "Revue client" })).toHaveAttribute(
+    "aria-current",
+    "true",
+    { timeout: WORKING },
+  );
+  // The customer follows the two receptions of the core, the structure its first rows (#376).
+  await expect(page.getByRole("main")).toContainText("Réception usine");
+  await expect(
+    page.getByText("Aucune tâche de cette révision n’est inscrite à cette chronologie."),
+  ).toHaveCount(0);
+});
+
+test("creates a timeline by its name, and deletes the one shown once confirmed, the screen showing the first one left (EP-14/L44f)", async ({
+  page,
+}) => {
+  // Two readings of the structure of a thousand tasks, each in the bound of a grid.
+  test.slow();
+  await openHydrated(page, `${IN_REVISION}/timelines`);
+  const steering = page.getByRole("link", { name: "Comité de pilotage" });
+  await expect(steering).toHaveAttribute("aria-current", "true", { timeout: WORKING });
+  await expect(page.getByRole("note")).toContainText("Maquette");
+  await page.getByRole("button", { name: "Nouvelle chronologie" }).click();
+  const form = page.getByRole("dialog", { name: "Nouvelle chronologie" });
+  await form.getByRole("textbox", { name: "Nom" }).fill("Réunion de chantier");
+  await form.getByRole("button", { name: "Créer" }).click();
+  await expect(form).toHaveCount(0);
+  await expect(page.getByText("Chronologie « Réunion de chantier » créée.")).toBeVisible();
+
+  await page
+    .getByRole("button", { name: "Supprimer la chronologie «\u00a0Comité de pilotage\u00a0»" })
+    .click();
+  const confirmation = page.getByRole("dialog", { name: /^Supprimer la chronologie/ });
+  await expect(confirmation).toContainText("les tâches et les jalons gardent leurs dates");
+  await confirmation.getByRole("button", { name: "Supprimer" }).click();
+  await expect(page.getByText("Chronologie « Comité de pilotage » supprimée.")).toBeVisible();
+  await expect(steering).toHaveCount(0);
+  await expect(page).toHaveURL(
+    `${IN_REVISION}/timelines?timeline=01926f3a-7c00-7000-8000-000000001001`,
+    { timeout: WORKING },
+  );
+  await expect(page.getByRole("link", { name: "Revue client" })).toHaveAttribute(
+    "aria-current",
+    "true",
+    { timeout: WORKING },
+  );
 });
