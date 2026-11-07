@@ -1,0 +1,10 @@
+{
+  "summary": "La grille des taux horaires demandée avec include_inactive par une session qui lit les paramètres de coûts sans pouvoir les modifier : les catégories désactivées restent sous la permission de les modifier, refusée en la nommant ; rien n'est lu (WF-REF-0150, WF-ADM-0100).",
+  "description": "Exemple engendré par `make mock-data` (`wftools.mockdata`) : il ne se retouche pas.",
+  "value": {
+    "code": "PERMISSION_MISSING",
+    "status": 403,
+    "params": {"missing_permission":"cost_settings.write"},
+    "correlation_id": "01926f3a-7c00-7000-8000-000000001765"
+  }
+}

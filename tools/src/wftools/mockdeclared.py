@@ -24,8 +24,8 @@ three, on the examples written by hand and the core of the witness:
   (``project_exit_unconfirmed``, D-03), a predecessor sent twice (``predecessors_duplicate``,
   F-03), an inscription to a timeline without one or with one of another project
   (``node_tracking_timeline_required``, ``node_tracking_timeline_unknown``, F-11);
-- the deactivated objects of three lists of the reference asked for without the permission that
-  modifies them (``*_inactive_forbidden``, C-01);
+- the deactivated objects of six lists of the reference asked for without the permission that
+  modifies them (``*_inactive_forbidden``, C-01, C-05);
 - and the answer the deletion of a task bearing a provision gives, which the witness cannot give —
   the one task that bears a provision is started — on a variant of its core
   (``node_deleted_provision_moved``, F-04, L-11).
@@ -89,6 +89,13 @@ ORG_NODES_CORRELATION, CALENDARS_CORRELATION, COST_TYPES_CORRELATION = (
     universe(1657),
 )
 """The correlations of the refusals of the actual costs, the tasks and the reference."""
+
+ROLES_CORRELATION, CATEGORIES_CORRELATION, GRID_CORRELATION = (
+    universe(1763),
+    universe(1764),
+    universe(1765),
+)
+"""The correlations of the deactivated roles, categories and rows of the grid refused (C-05)."""
 
 DUPLICATED_ON, DUPLICATED = N.COMMISSIONING, N.MOUNTING
 """The commissioning, given the mounting for predecessor twice (WF-PLA-0030)."""
@@ -427,5 +434,24 @@ def _other_examples() -> dict[str, JsonObject]:
             "modifier les paramètres de coûts : les natures désactivées restent sous cette "
             "permission, refusée en la nommant ; rien n'est lu (WF-REF-0150, WF-ADM-0100).",
             _forbidden(COST_SETTINGS, COST_TYPES_CORRELATION),
+        ),
+        "resource_roles_inactive_forbidden.json": mocktext.example(
+            "Les rôles de ressources demandés avec include_inactive par une session qui ne peut "
+            "pas modifier les paramètres de ressources : les rôles désactivés restent sous cette "
+            "permission, refusée en la nommant ; rien n'est lu (WF-REF-0150, WF-ADM-0100).",
+            _forbidden(RESOURCE_SETTINGS, ROLES_CORRELATION),
+        ),
+        "cost_categories_inactive_forbidden.json": mocktext.example(
+            "Les catégories de coût demandées avec is_active=false par une session qui ne peut "
+            "pas modifier les paramètres de coûts : les catégories désactivées restent sous cette "
+            "permission, refusée en la nommant ; rien n'est lu (WF-REF-0150, WF-ADM-0100).",
+            _forbidden(COST_SETTINGS, CATEGORIES_CORRELATION),
+        ),
+        "hourly_rate_grid_inactive_forbidden.json": mocktext.example(
+            "La grille des taux horaires demandée avec include_inactive par une session qui lit "
+            "les paramètres de coûts sans pouvoir les modifier : les catégories désactivées "
+            "restent sous la permission de les modifier, refusée en la nommant ; rien n'est lu "
+            "(WF-REF-0150, WF-ADM-0100).",
+            _forbidden(COST_SETTINGS, GRID_CORRELATION),
         ),
     }

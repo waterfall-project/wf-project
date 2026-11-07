@@ -1,5 +1,5 @@
 {
-  "summary": "Les paramètres communs de l'installation : l'euro, sa devise unique ; Delmas Automatismes, le nom de l'entreprise utilisatrice saisi à l'installation ; le français, sa langue par défaut ; la matrice de risques bornée à 10, 30 et 60 % de probabilité et à 1, 5 et 10 % du budget de référence, ses seize zones celles des cases de `risk_matrix`, rangées par probabilité puis par gravité ; les seuils de vigilance et d'alerte des deux indices, 0,9 et 0,8 ; huit semaines au plus entre deux révisions marquées, que le projet témoin, revu il y a onze semaines, dépasse (WF-REF-0140, WF-EXP-0020, WF-REF-0160, WF-REF-0170, WF-REF-0180).",
+  "summary": "Les paramètres communs de l'installation : l'euro, sa devise unique ; Delmas Automatismes, le nom de l'entreprise utilisatrice saisi à l'installation ; le français, sa langue par défaut ; la matrice de risques bornée à 10, 30 et 60 % de probabilité et à 1, 5 et 10 % de l'assiette du projet — son budget de référence ou, avant lui, le total hors provisions de son devis courant, ses seize zones celles des cases de `risk_matrix`, rangées par probabilité puis par gravité ; les seuils de vigilance et d'alerte des deux indices, 0,9 et 0,8 ; huit semaines au plus entre deux révisions marquées, que le projet témoin, revu il y a onze semaines, dépasse ; la matrice, les seuils et le délai, livrés à l'installation, écrits ensuite une fois par Camille Martin, d'où la version 2 (WF-REF-0140, WF-EXP-0020, WF-REF-0160, WF-REF-0170, WF-REF-0180).",
   "value": {
     "currency_code": "EUR",
     "company_name": "Delmas Automatismes",
@@ -46,11 +46,13 @@
       "created_by": {
         "kind": "platform"
       },
-      "updated_at": "2025-09-01T09:00:00Z",
+      "updated_at": "2025-09-01T09:30:00Z",
       "updated_by": {
-        "kind": "platform"
+        "kind": "user",
+        "user_id": "01926f3a-7c00-7000-8000-000000000301",
+        "display_name": "Camille Martin"
       }
     },
-    "lock_version": 1
+    "lock_version": 2
   }
 }

@@ -301,7 +301,10 @@
       — no active object remains in a closed department (WF-REF-0080) —, nor under itself or
       one of its descendants, the tree remaining a tree. The parent is required on modification,
       null for a root. Only the move is constrained, judged on the parent sent: a deactivated
-      node that keeps its deactivated parent can be modified.
+      node that keeps its deactivated parent can be modified. The response carries the node
+      alone: a move changes the depth (`level`) of its descendants, and a new label the
+      `parent_label` of its children and the `org_node_label` of the roles attached to it, which
+      the response does not carry: the client re-reads the tree and the roles (WF-REF-0070).
     tags: [reference]
     parameters:
       - $ref: ../components/parameters.yaml#/OrgNodeId
@@ -546,7 +549,16 @@
               reader: { $ref: ../../../fixtures/api/resource_roles_reader.json }
               bounded: { $ref: ../../../fixtures/api/resource_roles_bounded.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
-      '403': { $ref: ../components/responses.yaml#/Forbidden }
+      '403':
+        description: >-
+          The deactivated roles requested (`include_inactive`, `is_active` false) without
+          the permission to modify the resource settings: `PERMISSION_MISSING`,
+          `params.missing_permission` at `resource_settings.write` (WF-REF-0150, WF-ADM-0100).
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              inactive_forbidden: { $ref: ../../../fixtures/api/resource_roles_inactive_forbidden.json }
       '422':
         description: >-
           A malformed bound, which is not a number of its type: `VALIDATION_FAILED`,
@@ -1368,7 +1380,16 @@
             examples:
               kind_frozen: { $ref: ../../../fixtures/api/cost_type_kind_refused.json }
               code_taken: { $ref: ../../../fixtures/api/cost_type_code_taken.json }
-      '412': { $ref: ../components/responses.yaml#/PreconditionFailed }
+      '412':
+        description: >-
+          The version sent is no longer that of the cost type: it has been modified since it
+          was read, and nothing is written (WF-IHM-0110). `STALE_LOCK_VERSION`,
+          `params.expected_lock_version` the current version.
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              stale: { $ref: ../../../fixtures/api/cost_type_update_stale.json }
       '422':
         description: >-
           `VALIDATION_FAILED`, `fields` locating each refusal, as on creation: `/code` or
@@ -1500,7 +1521,16 @@
               reader: { $ref: ../../../fixtures/api/volume/cost_categories_reader.json }
               type_deactivated: { $ref: ../../../fixtures/api/volume/cost_categories_type_deactivated.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
-      '403': { $ref: ../components/responses.yaml#/Forbidden }
+      '403':
+        description: >-
+          The deactivated categories requested (`include_inactive`, `is_active` false) without
+          the permission to modify the cost settings: `PERMISSION_MISSING`,
+          `params.missing_permission` at `cost_settings.write` (WF-REF-0150, WF-ADM-0100).
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              inactive_forbidden: { $ref: ../../../fixtures/api/cost_categories_inactive_forbidden.json }
       '422': { $ref: ../components/responses.yaml#/UnprocessableEntity }
       '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
@@ -1616,7 +1646,16 @@
               employed_kind_changed: { $ref: ../../../fixtures/api/cost_category_kind_refused.json }
               rated_kind_changed: { $ref: ../../../fixtures/api/cost_category_rated_kind_refused.json }
               role_kind_changed: { $ref: ../../../fixtures/api/cost_category_role_kind_refused.json }
-      '412': { $ref: ../components/responses.yaml#/PreconditionFailed }
+      '412':
+        description: >-
+          The version sent is no longer that of the category: it has been modified since it
+          was read, and nothing is written (WF-IHM-0110). `STALE_LOCK_VERSION`,
+          `params.expected_lock_version` the current version.
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              stale: { $ref: ../../../fixtures/api/cost_category_update_stale.json }
       '422':
         description: >-
           `VALIDATION_FAILED`, `fields` locating each refusal, as on creation: `/code`,
@@ -1715,14 +1754,16 @@
       (WF-ADM-0110). Only the reference data screen reads it — the server calculates the amounts of the
       lines —, and the rates, close to the payroll, are not shown to every session
       (author's decision of 2026-11-01, #1745). The deactivated categories are returned
-      only with `include_inactive` (WF-REF-0150), under the permission to modify the cost
-      settings: without it, `include_inactive` is refused with 403 (WF-ADM-0100). A flat table,
+      only with `include_inactive` or `is_active` false (WF-REF-0150), under the permission to
+      modify the cost settings: without it, both are refused with 403 (WF-ADM-0100). A flat table,
       sorted and paginated by the server like the other lists of the reference data (WF-IHM-0060):
       `search` retains the categories whose code or label contains the text searched for
       (WF-IHM-0130), the state is filtered (`is_active`), the rate of a year is bounded (`rate_year`,
       `rate_min`, `rate_max`),
       `sort_by` orders them, and `meta.total` counts the categories retained; the years remain
-      those of the whole grid, whatever the page, the search, the filters and the sort.
+      those of the whole grid read — those of the active categories, and of the deactivated ones
+      too when `include_inactive` is true or `is_active` false (`HourlyRateGrid.years`) —,
+      whatever the page, the search, the rate bounds and the sort.
     parameters:
       - $ref: ../components/parameters.yaml#/Limit
       - $ref: ../components/parameters.yaml#/Offset
@@ -1778,7 +1819,16 @@
               by_rate: { $ref: ../../../fixtures/api/volume/hourly_rate_grid_by_rate.json }
               bounded: { $ref: ../../../fixtures/api/volume/hourly_rate_grid_bounded.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
-      '403': { $ref: ../components/responses.yaml#/Forbidden }
+      '403':
+        description: >-
+          The deactivated categories requested (`include_inactive`, `is_active` false) without
+          the permission to modify the cost settings: `PERMISSION_MISSING`,
+          `params.missing_permission` at `cost_settings.write` (WF-REF-0150, WF-ADM-0100).
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              inactive_forbidden: { $ref: ../../../fixtures/api/hourly_rate_grid_inactive_forbidden.json }
       '404':
         description: >-
           A session that does not hold the permission to read the cost settings
@@ -1910,7 +1960,9 @@
           at `9999999999.99`, the largest. A
           category whose cost type does not come under labour, which carries no rate
           (WF-REF-0050): `LABOUR_CATEGORY_REQUIRED`, without `fields` — the category is the one in the
-          path. Nothing is written.
+          path. A year of the path outside 2000 to 2100: `/path/year` with `VALUE_OUT_OF_RANGE`,
+          `fields[].params.minimum` or `maximum` the bound crossed (`Year`); a year that is not a
+          number: `/path/year` with `NUMBER_INVALID`. Nothing is written.
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
