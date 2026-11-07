@@ -18,11 +18,11 @@ contract (#1873). A bound that drifts, or is copied wrong, is found here and not
 
 from dataclasses import dataclass
 from decimal import Decimal
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Annotated, Any, Literal, cast
 
 import pytest
 import yaml
-from fastapi import FastAPI, Query
+from fastapi import Depends, FastAPI, Query
 from support import CONTRACT
 
 from waterfall.api.app import create_app
@@ -38,7 +38,10 @@ METHODS = ("get", "put", "post", "patch", "delete")
 
 @dataclass(frozen=True, slots=True)
 class Bounds:
-    """What a schema bounds: a number from below and above, a text by its length.
+    """What a schema bounds: a number from below and above, a text by its length and pattern.
+
+    A list is bounded by its item count (``minItems``, ``maxItems``), and a value may be one of a
+    set (``enum``) — an order of the contract's list that does not matter.
 
     A limit of a number is a value and whether it is excluded. OpenAPI 3.0 writes the exclusion
     as a boolean beside ``minimum``, 3.1 as the limit itself: both read the same here.
@@ -48,6 +51,10 @@ class Bounds:
     high: tuple[Decimal, bool] | None = None
     min_length: int | None = None
     max_length: int | None = None
+    pattern: str | None = None
+    enum: frozenset[Any] | None = None
+    min_items: int | None = None
+    max_items: int | None = None
 
     def over(self, other: Bounds) -> Bounds:
         """Complete these bounds by those of another schema the same value follows."""
@@ -56,6 +63,10 @@ class Bounds:
             self.high or other.high,
             self.min_length if self.min_length is not None else other.min_length,
             self.max_length if self.max_length is not None else other.max_length,
+            self.pattern if self.pattern is not None else other.pattern,
+            self.enum if self.enum is not None else other.enum,
+            self.min_items if self.min_items is not None else other.min_items,
+            self.max_items if self.max_items is not None else other.max_items,
         )
 
 
@@ -80,6 +91,10 @@ def bounds_of(schema: Any, at: Any, follow: Callable[[Any, Any], tuple[Any, Any]
         limit(named, "maximum", "exclusiveMaximum"),
         named.get("minLength"),
         named.get("maxLength"),
+        named.get("pattern"),
+        frozenset(named["enum"]) if "enum" in named else None,
+        named.get("minItems"),
+        named.get("maxItems"),
     )
     for part in ("allOf", "anyOf", "oneOf"):
         for each in cast("list[Any]", named.get(part) or []):
@@ -258,14 +273,22 @@ def served_bounds(served: dict[str, Any]) -> dict[str, dict[tuple[str, str], Bou
 
 
 def drifting(contract: Contract, served: dict[str, Any]) -> dict[tuple[str, str, str], str]:
-    """Name each parameter of a served operation whose declared bounds are not the contract's."""
+    """Name each parameter of a served operation whose declared bounds are not the contract's.
+
+    A parameter the service declares and the contract does not is named too (#2185).
+    """
     declared = contract.parameter_bounds()
-    return {
-        (operation, place, name): f"declared {have}, contract {declared[operation][place, name]}"
-        for operation, parameters in served_bounds(served).items()
-        for (place, name), have in parameters.items()
-        if (place, name) in declared[operation] and have != declared[operation][place, name]
-    }
+    found: dict[tuple[str, str, str], str] = {}
+    for operation, parameters in served_bounds(served).items():
+        in_contract = declared.get(operation, {})
+        for (place, name), have in parameters.items():
+            if (place, name) not in in_contract:
+                found[operation, place, name] = "not in the contract"
+            elif have != in_contract[place, name]:
+                found[operation, place, name] = (
+                    f"declared {have}, contract {in_contract[place, name]}"
+                )
+    return found
 
 
 def test_every_operation_with_a_query_parameter_declares_its_422() -> None:
@@ -336,9 +359,25 @@ def test_an_operation_that_lacks_either_is_found(tmp_path: Path) -> None:
 # one refusal (``role_filters``, ``listAccessRoles``). Declared on the parameter, ``ge=0`` would
 # refuse it first, under another code. Every entry is a drift this test finds: one that no longer
 # is fails it.
+#
+# The same holds, found when ``pattern``, ``enum`` and ``minItems`` joined the comparison (#2185),
+# of the parameters read as text by a model of the query or by a route and judged after them, whose
+# refusal the contract names: the decimal bounds of the grid of the hourly rates and of the roles
+# of resource (``pattern``), the correlation and the actions of the journal (``pattern``,
+# ``minItems``). And of the sort of the grid, which the contract writes as an ``enum`` or a
+# ``pattern`` and the service as one pattern of both.
 CHECKED_BY_THE_ROUTE = {
     ("listAccessRoles", "query", "holder_count_min"),
     ("listAccessRoles", "query", "holder_count_max"),
+    ("getHourlyRateGrid", "query", "rate_min"),
+    ("getHourlyRateGrid", "query", "rate_max"),
+    ("getHourlyRateGrid", "query", "sort_by"),
+    ("listAuditEvents", "query", "actions"),
+    ("listAuditEvents", "query", "correlation_id"),
+    ("listResourceRoles", "query", "headcount_min"),
+    ("listResourceRoles", "query", "headcount_max"),
+    ("listResourceRoles", "query", "monthly_hours_min"),
+    ("listResourceRoles", "query", "monthly_hours_max"),
 }
 
 
@@ -347,7 +386,9 @@ def test_the_bounds_of_every_parameter_the_service_declares_are_those_of_the_con
     services: Services,
 ) -> None:
     # #1873: ``ge``, ``le``, ``gt``, ``lt``, ``min_length`` and ``max_length`` of the declaration
-    # against ``minimum``, ``maximum``, their exclusion, ``minLength`` and ``maxLength``.
+    # against ``minimum``, ``maximum``, their exclusion, ``minLength`` and ``maxLength``; and, since
+    # #2185, ``pattern``, ``enum``, ``minItems`` and ``maxItems``, and a parameter the contract
+    # lacks.
     found = drifting(Contract(CONTRACT), create_app(services).openapi())
     assert found.keys() == CHECKED_BY_THE_ROUTE, found
 
@@ -362,6 +403,17 @@ def list_things(
     del limit, page, code, kept
 
 
+def list_more(
+    *,
+    reference: str = Query("a", pattern="^a$"),
+    kind: Literal["a", "b"] = Query("a"),
+    tags: Annotated[list[str] | None, Query(min_length=1, max_length=3)] = None,
+    unknown: int = Query(1),
+) -> None:
+    """Declare the parameters of the other keywords, a dependency of the route."""
+    del reference, kind, tags, unknown
+
+
 @pytest.mark.requirement("WF-ARC-0060-A")
 def test_a_bound_that_drifts_from_the_contract_is_found(tmp_path: Path) -> None:
     (tmp_path / "parameters.yaml").write_text(
@@ -369,7 +421,11 @@ def test_a_bound_that_drifts_from_the_contract_is_found(tmp_path: Path) -> None:
         "Page: { name: page, in: query,"
         " schema: { type: integer, minimum: 0, exclusiveMinimum: true } }\n"
         "Code: { name: code, in: query, schema: { type: string, minLength: 1, maxLength: 20 } }\n"
-        "Kept: { name: kept, in: query, schema: { type: integer, minimum: 1 } }\n",
+        "Kept: { name: kept, in: query, schema: { type: integer, minimum: 1 } }\n"
+        "Reference: { name: reference, in: query, schema: { type: string, pattern: '^b$' } }\n"
+        "Kind: { name: kind, in: query, schema: { type: string, enum: [b, a, c] } }\n"
+        "Tags: { name: tags, in: query,"
+        " schema: { type: array, items: { type: string }, minItems: 1, maxItems: 4 } }\n",
         encoding="utf-8",
     )
     (tmp_path / "openapi.yaml").write_text(
@@ -382,12 +438,27 @@ def test_a_bound_that_drifts_from_the_contract_is_found(tmp_path: Path) -> None:
         "        - $ref: 'parameters.yaml#/Page'\n"
         "        - $ref: 'parameters.yaml#/Code'\n"
         "        - $ref: 'parameters.yaml#/Kept'\n"
+        "        - $ref: 'parameters.yaml#/Reference'\n"
+        "        - $ref: 'parameters.yaml#/Kind'\n"
+        "        - $ref: 'parameters.yaml#/Tags'\n"
         "      responses: { '200': {}, '422': {} }\n",
         encoding="utf-8",
     )
     app = FastAPI()
-    app.add_api_route("/things", list_things, operation_id="listThings")
+    app.add_api_route(
+        "/things", list_things, operation_id="listThings", dependencies=[Depends(list_more)]
+    )
     found = drifting(Contract(tmp_path / "openapi.yaml"), app.openapi())
     # The limit is wrong above; the page excludes zero as the contract does, though 3.0 writes it
-    # with a boolean and 3.1 with the limit itself; the code and the kept parameter agree.
-    assert list(found) == [("listThings", "query", "limit")]
+    # with a boolean and 3.1 with the limit itself; the code and the kept parameter agree. The
+    # pattern, the set of the enum and the count of the items each drift, and a parameter the
+    # contract lacks is named (#2185).
+    assert found == {
+        ("listThings", "query", "limit"): found["listThings", "query", "limit"],
+        ("listThings", "query", "reference"): found["listThings", "query", "reference"],
+        ("listThings", "query", "kind"): found["listThings", "query", "kind"],
+        ("listThings", "query", "tags"): found["listThings", "query", "tags"],
+        ("listThings", "query", "unknown"): "not in the contract",
+    }
+    assert "pattern='^a$'" in found["listThings", "query", "reference"]
+    assert "max_items=3" in found["listThings", "query", "tags"]

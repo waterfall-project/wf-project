@@ -20,6 +20,15 @@ import pytest
 
 PROJECT = Path(__file__).resolve().parents[1] / "pyproject.toml"
 
+LAYERED = (
+    "access_roles",
+    "backups",
+    "indicator_settings",
+    "risk_settings",
+    "cost_settings",
+    "users",
+    "resource_settings",
+)
 LAYOUT = {
     "witness/__init__.py": "",
     "bootstrap.py": "",
@@ -43,6 +52,8 @@ LAYOUT = {
     ),
     "core/settings/interface/rates.py": "from sample.core.settings import tables\nRATE = 1\n",
     "core/settings/tables.py": "",
+    # The modules the contract of the layers orders, by their names (#2124).
+    **{f"core/{name}/{each}.py": "" for name in LAYERED for each in ("__init__", "interface")},
 }
 # The modules of the reference (EP-05), and the files of the interface of each, one per object.
 REFERENCE_INTERFACES: dict[str, set[str]] = {
@@ -114,6 +125,27 @@ def lint(sample: Path, module: str, code: str) -> subprocess.CompletedProcess[st
 
 def test_a_module_may_use_the_interface_of_another(sample: Path) -> None:
     result = lint(sample, "core.projects.tables", "from sample.core.accounts import interface\n")
+    assert result.returncode == 0, result.stdout
+
+
+@pytest.mark.parametrize(
+    ("below", "above"), [("resource_settings", "users"), ("users", "cost_settings")]
+)
+def test_a_module_of_the_core_may_not_import_one_of_a_layer_above_it_by_its_interface(
+    sample: Path, below: str, above: str
+) -> None:
+    # The cycle of #2124: the interface is the way the independence contract allows, not this one.
+    result = lint(sample, f"core.{below}.interface", f"from sample.core.{above} import interface\n")
+    assert result.returncode == 1
+    assert f"sample.core.{below} is not allowed to import sample.core.{above}" in result.stdout
+
+
+def test_a_module_of_the_core_may_import_one_of_a_layer_below_it_by_its_interface(
+    sample: Path,
+) -> None:
+    result = lint(
+        sample, "core.users.interface", "from sample.core.resource_settings import interface\n"
+    )
     assert result.returncode == 0, result.stdout
 
 
