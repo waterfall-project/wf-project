@@ -166,7 +166,9 @@
         in: query
         description: >-
           Retains, among finished tasks, only those that have succeeded or failed since this
-          date; those that are running are always retained.
+          date; those that are running are always retained. When absent, every finished task
+          still kept is retained, within the retention of the background tasks
+          (`OperatingParameters.background_task_retention_days`, thirty days as shipped).
         schema: { $ref: ../components/common.yaml#/Timestamp }
       - $ref: ../components/parameters.yaml#/Limit
       - $ref: ../components/parameters.yaml#/Offset

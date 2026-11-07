@@ -586,7 +586,10 @@
     tags: [users]
     summary: Avatar of an account
     description: >-
-      Image of the account, served as it was uploaded (WF-ADM-0080).
+      Image of the account, served as it was uploaded (WF-ADM-0080). Readable by any open
+      session, the avatar being shown wherever the account is cited. 404 for an unknown account,
+      or for an account without an avatar (`has_avatar` false), the front then showing the
+      default image (WF-ADM-0080).
     parameters:
       - $ref: ../components/parameters.yaml#/UserId
     responses:
@@ -744,7 +747,8 @@
     description: >-
       Two permissions per second-level function, plus a dedicated permission per
       irreversible or structuring action. The catalogue is delivered and not modifiable:
-      no screen allows creating one (WF-ADM-0100).
+      no screen allows creating one (WF-ADM-0100). Readable by any open session: the catalogue
+      is delivered and names no object.
     responses:
       '200':
         description: Complete catalogue.
@@ -782,7 +786,8 @@
       in ascending order, so that two successive reads return the same order
       (WF-IHM-0060, #741). Without pagination: an installation has a few dozen roles
       at most — the three predefined ones and those it composes —, which the screen paginates
-      itself, the response being the whole list.
+      itself, the response being the whole list. Readable under the permission to view access
+      roles (`access_roles.read`, WF-ADM-0100); 404 without it (WF-ADM-0110).
     parameters:
       - $ref: ../components/parameters.yaml#/Search
       - name: is_predefined
@@ -883,7 +888,8 @@
     summary: Compose an access role
     description: >-
       Any set of permissions can be composed: no action is reserved for an
-      actor (WF-ADM-0020).
+      actor (WF-ADM-0020). Under the permission to modify access roles (`access_roles.write`,
+      WF-ADM-0100).
     requestBody:
       required: true
       content:
@@ -910,7 +916,8 @@
     summary: An access role
     description: >-
       A role and the permissions it carries, taken from the catalogue (WF-ADM-0090,
-      WF-ADM-0100).
+      WF-ADM-0100). Readable under the permission to view access roles (`access_roles.read`,
+      WF-ADM-0100); 404 without it, as for an unknown role (WF-ADM-0110).
     tags: [access]
     parameters:
       - $ref: ../components/parameters.yaml#/AccessRoleId
@@ -930,7 +937,10 @@
     operationId: updateAccessRole
     tags: [access]
     summary: Modify a role
-    description: The change applies immediately to all its holders (WF-ADM-0090).
+    description: >-
+      The change applies immediately to all its holders (WF-ADM-0090). Under the permission to
+      modify access roles (`access_roles.write`, WF-ADM-0100), on a role the caller can consult
+      (`access_roles.read`): 404 without it (WF-ADM-0110).
     parameters:
       - $ref: ../components/parameters.yaml#/AccessRoleId
     requestBody:
@@ -975,7 +985,9 @@
       Logical deletion (WF-DAT-0080): the role is no longer offered — neither `listAccessRoles`,
       nor `getAccessRole`, nor assignment to an account returns it — and its trace is kept,
       with what the audit log says about it. A deleted role is a 404, like a role that
-      never existed. Refused as long as an account holds it (WF-ADM-0090, WF-ADM-0120).
+      never existed. Refused as long as an account holds it (WF-ADM-0090, WF-ADM-0120). Under
+      the permission to modify access roles (`access_roles.write`, WF-ADM-0100), on a role the
+      caller can consult (`access_roles.read`): 404 without it (WF-ADM-0110).
     parameters:
       - $ref: ../components/parameters.yaml#/AccessRoleId
       - name: lock_version

@@ -88,9 +88,11 @@ OperatingParameters:
     avatar_max_bytes:
       type: integer
       minimum: 1
+      maximum: 8388608
       description: >-
         The largest size of an avatar, in bytes (§4.4.1); shipped at 512 KB, `524288`. The
-        same value as `Installation.avatar_max_bytes`, which the front reads without a session.
+        same value as `Installation.avatar_max_bytes`, which the front reads without a session;
+        like it, it does not exceed 8 MiB (8,388,608 bytes).
     task_queue_age_threshold_seconds:
       type: integer
       minimum: 1
