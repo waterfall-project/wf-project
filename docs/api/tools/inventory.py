@@ -62,17 +62,11 @@ REASONS: dict[str, str] = {
     "le catalogue des permissions ; la règle de traduction vit dans le front.",
     "QUA": "Chaîne de vérification : tests, analyse statique, jeu de données, mesures. Elle "
     "s'exerce sur le contrat, elle n'y figure pas.",
-    # Not a domain without surface: a requirement added on 2026-10-22, whose surface is still to
-    # write. The line goes once the contract cites it.
-    "REF": "Pas encore au contrat : la correspondance de l'extraction des coûts réels, "
-    "exigence ajoutée le 2026-10-22 (C-374), y entre par #1304.",
 }
 
 # Operations that legitimately realise no requirement: they exist because HTTP or a
 # supervision tool needs them, not because the specification asked for them.
-NO_REQUIREMENT: dict[str, str] = {
-    "getLiveness": "Sonde de vivacité : elle ne touche à rien et ne réalise rien.",
-}
+NO_REQUIREMENT: dict[str, str] = {}
 
 RE_OPERATION = re.compile(
     r"^  (get|post|put|patch|delete):\n(.*?)(?=\n  [a-z]+:\n|\Z)", re.DOTALL | re.MULTILINE

@@ -2210,8 +2210,8 @@
       '422':
         description: >-
           Block wider than the columns of the facet starting from the target column
-          (`NodeColumn`): `params.max_columns` says how many remain; nothing is written
-          (WF-IHM-0050).
+          (`NodeColumn`): `PASTE_TOO_WIDE`, `params.max_columns` saying how many remain;
+          nothing is written (WF-IHM-0050).
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }

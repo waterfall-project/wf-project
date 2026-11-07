@@ -433,7 +433,8 @@
       Each review is dated and keeps the probability, the severity and the state retained
       (WF-RIS-0010). For a marked revision (`revision_id`), the reviews made up to its
       marking: those that follow it do not belong to what it freezes
-      (WF-RIS-0030).
+      (WF-RIS-0030). Without pagination: a risk is reviewed at the rhythm of its project, monthly
+      over the fifteen years a project lasts at most (WF-PLA-0150), some 180 reviews (§4.6.2).
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
       - $ref: ../components/parameters.yaml#/RiskId
@@ -743,6 +744,7 @@
             schema: { $ref: ../components/schemas/risks.yaml#/RiskMatrix }
             examples:
               witness: { $ref: ../../../fixtures/api/risk_matrix.json }
+              no_basis: { $ref: ../../../fixtures/api/risk_matrix_no_basis.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '422': { $ref: ../components/responses.yaml#/UnprocessableEntity }

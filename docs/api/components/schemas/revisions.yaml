@@ -525,6 +525,7 @@ StructureCreate:
     is born with the risk (`createRisk`, WF-RIS-0030) and disappears with it.
   properties:
     kind:
+      type: string
       allOf: [{ $ref: '#/StructureKind' }]
       enum: [amendment]
     label: { type: string, minLength: 1, pattern: '\S', maxLength: 300 }

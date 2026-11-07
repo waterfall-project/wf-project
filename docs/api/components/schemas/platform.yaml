@@ -19,7 +19,11 @@ SystemStatus:
     database (WF-OBS-0010); the operating parameters, from the deployment configuration
     (§4.5.1).
   properties:
-    version: { type: string }
+    version:
+      type: string
+      description: >-
+        The installed version: the version number that the front, the API and the worker of an
+        installation always share, displayed by the status screen (WF-EXP-0030).
     components:
       type: array
       items: { $ref: '#/ComponentHealth' }

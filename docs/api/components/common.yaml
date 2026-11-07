@@ -91,6 +91,11 @@ Year:
   type: integer
   minimum: 2000
   maximum: 2100
+  description: >-
+    Calendar year, from 2000 to 2100. Outside these bounds, the value is refused with 422
+    `VALIDATION_FAILED`, `fields` designating it with `VALUE_OUT_OF_RANGE` and
+    `fields[].params.minimum` or `maximum`; a year of the path is designated by `/path/year`
+    (`FieldProblem.pointer`).
 
 LockVersion:
   type: integer
@@ -158,8 +163,11 @@ Problem:
     params:
       allOf: [{ $ref: '#/ProblemParams' }]
       description: >-
-        Parameters of the code, as the case may be — those that several refusals share are typed
-        by `ProblemParams`, the others remain open: `missing_permission` (a `PermissionCode`),
+        Parameters of the code, as the case may be. Those that several refusals share are
+        declared and typed by `ProblemParams` — `state` and `state_enum`,
+        `subordinate_node_ids`, `missing_rates`, `resource_roles`, `projects`, `tasks`,
+        `estimate_lines`, `risks`, `subproject`, `columns` and `missing_columns` —, the others
+        remain open; all are described here: `missing_permission` (a `PermissionCode`),
         `missing_condition` (a `CommandCondition`), `conflicting_object_id` and
         `conflicting_object_label` (the object, and its label, that a later modification has
         taken up and that an undo or a redo would undo, `UNDO_CONFLICT`, WF-IHM-0110),
@@ -241,7 +249,11 @@ Problem:
         (`STATE_FORBIDS_OPERATION`, `missing_condition` at `subproject_without_estimate_lines`,
         WF-DAT-0080): those lines, each by its structure, the label of that structure, its node,
         its row number and its label (`structure_id`, `structure_label`, `node_id`,
-        `row_number`, `label`); `work_package_task` and `order_item_tasks` for a merge that
+        `row_number`, `label`); `risks` for the deletion that would leave without a task a main
+        structure that carries one (`STATE_FORBIDS_OPERATION`, `missing_condition` at
+        `at_least_one_task`, `deleteNode`, WF-RIS-0010, WF-RIS-0060): the risks whose provision
+        line would no longer have a task to be placed in, each by its identifier and its label
+        (`risk_id`, `label`), in the order of the list of risks; `work_package_task` and `order_item_tasks` for a merge that
         would take the task of an order item out of the subtree of the task of its work package
         (`ORDER_ITEM_OUTSIDE_WORK_PACKAGE`, `mergeCostStructure`, WF-PLA-0170) : the task of the
         work package and those of the order items that would leave it, nodes of the main
@@ -725,9 +737,10 @@ FieldProblem:
         `/label` or `/lines/2/amount`; a query parameter, under `/query` followed by its
         name, `/query/revision_id`; a path parameter that is not an identifier,
         under `/path` followed by its name, `/path/year` (a malformed identifier is a 404,
-        like a nonexistent object). No body field is named `query`, and the only
-        `path` of a body is a text, with no field under it: a pointer thus designates
-        only one field, whatever the operation.
+        like a nonexistent object); a body that is not a JSON object, the raw bytes of an
+        uploaded chunk, is designated whole by `/body` (`uploadChunk`, WF-ADM-0160). No body
+        field is named `query` or `body`, and the only `path` of a body is a text, with no
+        field under it: a pointer thus designates only one field, whatever the operation.
     code: { $ref: '#/ErrorCode' }
     params:
       allOf: [{ $ref: '#/ProblemParams' }]
@@ -926,6 +939,10 @@ SortOrder:
 
 PaginationMeta:
   type: object
+  description: >-
+    The page as applied: `limit` and `offset` those of the request, or their defaults;
+    `total` the number of items that the search and the filters retain, whatever the page
+    (WF-IHM-0060).
   required: [limit, offset, total]
   properties:
     limit: { type: integer, minimum: 1, maximum: 500 }
