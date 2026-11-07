@@ -245,8 +245,9 @@ describe("the accounts", () => {
     expect(queriesOf("GET /users")).toEqual([{ include_inactive: "true" }]);
   });
 
-  it("is not found, not a list without a node, where the service answers an unexpected 404 to the read of the nodes (#2119)", async () => {
-    // The contract declares no 404 for the active nodes (C-01): one is not the tree, and comes up.
+  it("comes up as not found, not as a list without a node, when the service answers 404 to the read of the nodes (#2119)", async () => {
+    // The contract declares no 404 for the active nodes (C-01): an answer of that kind is not an
+    // empty tree, and the page lets it come up as a not found.
     server.behind = { route: "GET /reference/org-nodes", problem: NOT_FOUND.problem };
     await expect(UsersPage(searched())).rejects.toMatchObject({
       digest: "NEXT_HTTP_ERROR_FALLBACK;404",

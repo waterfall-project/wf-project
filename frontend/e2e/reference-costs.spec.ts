@@ -499,9 +499,7 @@ test("shows the deactivated natures and categories asked for and reactivates the
     await open(creation, "Natures de coût", "Nouvelle nature");
     await creation.getByRole("textbox", { name: "Code", exact: true }).fill(natureCode);
     await creation.getByRole("textbox", { name: "Libellé" }).fill(natureLabel);
-    await creation
-      .getByRole("combobox", { name: "Type" })
-      .selectOption({ label: "Hors main-d’œuvre" });
+    await creation.getByRole("combobox", { name: "Type" }).selectOption({ label: "Main-d’œuvre" });
     await creation.getByRole("button", { name: "Créer" }).click();
     await expect(creation).toBeHidden({ timeout: WORKING });
     await expect(nature).toHaveCount(1, { timeout: WORKING });
@@ -545,6 +543,7 @@ test("shows the deactivated natures and categories asked for and reactivates the
     // No screen offers to delete an object: neither a button nor a link of the page says it.
     await expect(page.getByRole("main").getByRole("button", { name: DELETION })).toHaveCount(0);
     await expect(page.getByRole("main").getByRole("link", { name: DELETION })).toHaveCount(0);
+    await expect(page.getByRole("menuitem", { name: DELETION })).toHaveCount(0);
 
     if (inService) {
       // A deactivated nature is not among the choices of a category.
@@ -559,6 +558,17 @@ test("shows the deactivated natures and categories asked for and reactivates the
     if (inService) {
       await press(reactivation, deactivation);
       await expect(page.getByRole("main").getByRole("alert")).toHaveCount(0);
+      // The category stays deactivated with the nature reactivated: its row is reactivated in turn
+      // (WF-REF-0150-A), and the row shows it active again.
+      const categoryReactivation = categories.getByRole("button", {
+        name: `Réactiver «\u00a0${categoryLabel}\u00a0»`,
+      });
+      const categoryDeactivation = categories.getByRole("button", {
+        name: `Désactiver «\u00a0${categoryLabel}\u00a0»`,
+      });
+      await press(categoryReactivation, categoryDeactivation);
+      await expect(category).not.toContainText("Désactivé");
+      await expect(page.getByRole("main").getByRole("alert")).toHaveCount(0);
       // Proposed again: the page read anew, the nature is among the choices.
       await page.goto(`/reference/costs?category_search=${categoryCode}`);
       await expect(natures).toBeVisible({ timeout: WORKING });
@@ -567,6 +577,17 @@ test("shows the deactivated natures and categories asked for and reactivates the
       await expect(natureChoice).toHaveCount(1);
       await page.keyboard.press("Escape");
       await expect(form).toBeHidden();
+      // The nature being of labour, the category is proposed to the form of a role.
+      await page.goto("/reference/resources");
+      const roleForm = page.getByRole("dialog", { name: "Nouveau rôle de ressource" });
+      await open(roleForm, "Rôles de ressources", "Nouveau rôle");
+      await expect(
+        roleForm
+          .getByRole("combobox", { name: "Catégorie de coût" })
+          .getByRole("option", { name: `${categoryCode} · ${categoryLabel}` }),
+      ).toHaveCount(1);
+      await page.keyboard.press("Escape");
+      await expect(roleForm).toBeHidden();
     }
   } finally {
     if (inService) {

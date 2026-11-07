@@ -115,7 +115,7 @@ describe("the attachment of an account, in its cell", () => {
     ]);
   });
 
-  it("shows a deactivated node the account stays attached to by its label, and does not offer it to the others", () => {
+  it("shows a deactivated node the account stays attached to by its label, and does not offer it to the others [WF-REF-0010-A]", () => {
     // Variant of the account of Lucas Petit: attached to a node deactivated since.
     const attached: User = {
       ...account("Petit"),
@@ -134,6 +134,38 @@ describe("the attachment of an account, in its cell", () => {
     expect(list).toHaveValue(inactive.org_node_id);
     expect(within(list).getByRole("option", { name: inactive.label })).toBeDisabled();
     expect(within(listOf("Alix Moreau")).queryByText(inactive.label)).toBeNull();
+  });
+
+  it("offers the node to every account once it is reactivated, the account attached to it choosing it among the active ones [WF-REF-0150-A]", () => {
+    const attached: User = {
+      ...account("Petit"),
+      org_node_id: inactive.org_node_id,
+      org_node_label: inactive.label,
+    };
+    const reactivated = [
+      ...active,
+      {
+        id: inactive.org_node_id,
+        code: inactive.code,
+        label: inactive.label,
+        level: inactive.level,
+      },
+    ];
+    render(
+      accounts(
+        true,
+        users.items.map((user) => (user.user_id === attached.user_id ? attached : user)),
+        undefined,
+        reactivated,
+      ),
+    );
+    expect(listOf("Lucas Petit")).toHaveValue(inactive.org_node_id);
+    for (const name of ["Lucas Petit", "Alix Moreau"]) {
+      const option = within(listOf(name)).getByRole("option", {
+        name: new RegExp(`${inactive.code} · ${inactive.label}`),
+      });
+      expect(option).toBeEnabled();
+    }
   });
 
   it.each([

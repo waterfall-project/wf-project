@@ -26,8 +26,8 @@
  * WF-ADM-0070), which that session sets (`IdentitySync`): an installation always has one, but the
  * service, behind the contract until EP-04, does not serve it yet, and a 404 leaves the section
  * out rather than the page. The active nodes of the organisation are read by any session (C-01,
- * #1746). Any other read the API refuses, or cannot answer, is
- * thrown for the pages of the shell to say.
+ * #1746). Any other read that the API refuses, or cannot answer, is thrown for the pages of the
+ * shell to say.
  */
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
