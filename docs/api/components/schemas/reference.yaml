@@ -183,7 +183,10 @@ ResourceRoleImage:
     Resource role, which carries a unique code and a label. It belongs to an organisation
     node, a cost category and a calendar (WF-REF-0090), and carries a single capacity
     (WF-REF-0100). The image alone, without commands: the one a marked revision freezes
-    (`EmployedReference`).
+    (`EmployedReference`). In a frozen image, every field — the labels of its node, its category
+    and its calendar, its state, `audit` and `lock_version` included — is that of the role at
+    the marking (WF-REF-0130, WF-REV-0030): "resolved on read" applies only to the role read
+    today.
   properties:
     resource_role_id: { $ref: ../common.yaml#/Uuid }
     code:
@@ -338,7 +341,9 @@ CalendarImage:
     Calendar: a label and seven hour values, from Monday to Sunday. Neither public holidays nor
     part-time work (WF-REF-0110). One and only one active calendar is the default
     (WF-REF-0120). The image alone, without commands: the one a marked revision freezes
-    (`EmployedReference`).
+    (`EmployedReference`). In a frozen image, every field — the hours, `is_default`, the state,
+    `audit` and `lock_version` included — is that of the calendar at the marking (WF-REF-0130,
+    WF-REV-0030).
   properties:
     calendar_id: { $ref: ../common.yaml#/Uuid }
     label:
@@ -566,7 +571,10 @@ CostCategoryImage:
     - lock_version
   description: >-
     Cost category, attached to a cost type (WF-REF-0040). The image alone, without commands:
-    the one a marked revision freezes (`EmployedReference`).
+    the one a marked revision freezes (`EmployedReference`). In a frozen image, every field —
+    the label, the kind and the state of its cost type (`cost_type_is_active`), its own state,
+    `audit` and `lock_version` included — is that of the category at the marking (WF-REF-0130,
+    WF-REV-0030): "resolved on read" applies only to the category read today.
   properties:
     cost_category_id: { $ref: ../common.yaml#/Uuid }
     code:

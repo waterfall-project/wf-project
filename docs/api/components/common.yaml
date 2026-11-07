@@ -780,6 +780,15 @@ ProblemParams:
         (`ImportRejection.params`), a merge —, empty when only tasks without a labour
         line lose their hours (#768; #1684).
       items: { $ref: '#/ProblemResourceRole' }
+    cost_categories:
+      type: array
+      description: >-
+        The categories that make a change of the kind of a cost type miss its condition, active
+        or deactivated, each by its identifier, its code and its label, in the order of their
+        code: those of the cost type in use for `cost_type_unused`, those that carry an hourly
+        rate for `cost_type_unrated` (`STATE_FORBIDS_OPERATION`, `updateCostType`,
+        WF-REF-0030).
+      items: { $ref: '#/ProblemCostCategory' }
     projects:
       type: array
       description: >-
@@ -848,6 +857,15 @@ ProblemResourceRole:
   description: A resource role named by a refusal, active or deactivated (`ProblemParams.resource_roles`).
   properties:
     resource_role_id: { $ref: '#/Uuid' }
+    code: { type: string }
+    label: { type: string }
+
+ProblemCostCategory:
+  type: object
+  required: [cost_category_id, code, label]
+  description: A cost category named by a refusal, active or deactivated (`ProblemParams.cost_categories`).
+  properties:
+    cost_category_id: { $ref: '#/Uuid' }
     code: { type: string }
     label: { type: string }
 

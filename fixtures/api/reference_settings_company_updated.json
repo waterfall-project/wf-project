@@ -1,5 +1,5 @@
 {
-  "summary": "Les paramètres communs après que l'écran des paramètres de coûts a écrit aujourd'hui, par Camille Martin, le seul nom de l'entreprise (company_name, version 1) : Delmas Automatismes devient Delmas Automatismes Industriels, le nom que portent les fichiers exportés ensuite ; la devise, la langue, la matrice, les seuils et le délai restent tels qu'ils étaient ; version 2 (WF-EXP-0020, WF-IHM-0110).",
+  "summary": "Les paramètres communs après que l'écran des paramètres de coûts a écrit aujourd'hui, par Camille Martin, le seul nom de l'entreprise (company_name, version 2) : Delmas Automatismes devient Delmas Automatismes Industriels, le nom que portent les fichiers exportés ensuite ; la devise, la langue, la matrice, les seuils et le délai restent tels qu'ils étaient ; version 3 (WF-EXP-0020, WF-IHM-0110).",
   "value": {
     "currency_code": "EUR",
     "company_name": "Delmas Automatismes Industriels",
@@ -53,6 +53,6 @@
         "display_name": "Camille Martin"
       }
     },
-    "lock_version": 2
+    "lock_version": 3
   }
 }

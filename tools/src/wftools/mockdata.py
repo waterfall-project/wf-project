@@ -199,6 +199,15 @@ _AUDIT: JsonObject = {
     "updated_by": {"kind": "user", "user_id": USER, "display_name": "Camille Martin"},
 }
 
+_INSTALLED_AUDIT: JsonObject = {
+    "created_at": mockhistory.stamp(INSTALLED.instant),
+    "created_by": {"kind": "platform"},
+    "updated_at": mockhistory.stamp(INSTALLED.instant),
+    "updated_by": {"kind": "platform"},
+}
+"""The audit of what the installation itself creates: the provision for risks, its nature and the
+default calendar, written by the platform at its bootstrap, not by an account."""
+
 
 # --- The grid of hourly rates -------------------------------------------------------------
 
@@ -231,7 +240,7 @@ def categories_of(
             "cost_type_is_active": nature["is_active"],
             "accounting_code": f"{account}{rank:03d}",
             "is_active": nature["is_active"],
-            "audit": _AUDIT,
+            "audit": _INSTALLED_AUDIT if nature["kind"] == "provision" else _AUDIT,
             "lock_version": 1,
         }
         for rank, (category, label) in enumerate(entries, start=1)

@@ -162,7 +162,7 @@ describe("the form of the risk matrix", () => {
             severity_bounds: ["0.02", "0.05", "0.1"],
             zones: witness.risk_matrix.zones.with(3, "alert"),
           },
-          lock_version: 1,
+          lock_version: 2,
         },
       },
     ]);
@@ -331,7 +331,7 @@ describe("the form of the risk matrix", () => {
     });
     expect(client.calls[1]?.body).toMatchObject({
       risk_matrix: { probability_bounds: ["0.1", "0.25", "0.5"] },
-      lock_version: 2,
+      lock_version: 3,
     });
   });
 });
@@ -355,7 +355,7 @@ describe("the form of the name of the company", () => {
       expect(refresh).toHaveBeenCalledOnce();
     });
     expect(client.calls.map(({ body }) => body)).toEqual([
-      { company_name: "Delmas Automatismes Industriels", lock_version: 1 },
+      { company_name: "Delmas Automatismes Industriels", lock_version: 2 },
     ]);
     expect(said()).toHaveTextContent("Nom de l’entreprise enregistré.");
     expect(screen.getByText("Delmas Automatismes Industriels")).toBeInTheDocument();
@@ -380,9 +380,9 @@ describe("the form of the name of the company", () => {
         problem: example("reference_settings_company_refused") as Problem & { status: 422 },
       },
     });
-    const outcome = await updateReferenceSettings({ company_name: "", lock_version: 1 });
+    const outcome = await updateReferenceSettings({ company_name: "", lock_version: 2 });
     expect(client.calls.map(({ route, body }) => ({ route, body }))).toEqual([
-      { route: UPDATE, body: { company_name: "", lock_version: 1 } },
+      { route: UPDATE, body: { company_name: "", lock_version: 2 } },
     ]);
     expect(outcome).toMatchObject({
       problem: {
@@ -490,7 +490,7 @@ describe("the form of the thresholds and the delay", () => {
           schedule_alert: "0.85",
         },
         max_weeks_between_reviews: 6,
-        lock_version: 1,
+        lock_version: 2,
       },
     ]);
     expect(said()).toHaveTextContent("Seuils et délai enregistrés.");
@@ -605,12 +605,12 @@ describe("the form of the thresholds and the delay", () => {
     await vi.waitFor(() => {
       expect(refresh).toHaveBeenCalledOnce();
     });
-    // The page read anew serves the version 1 again — the fake back keeps nothing: the answer stays.
+    // The page read anew serves the version 2 again — the fake back keeps nothing: the answer stays.
     rerender(inFrench(<IndicatorSettings settings={witness} />));
     expect(screen.getByText(/6 semaines/)).toBeInTheDocument();
     // A reading newer than the answer prevails — the matrix written meanwhile by the other screen,
     // then the delay —, and the form writes from it.
-    const newer = { ...witness, max_weeks_between_reviews: 4, lock_version: 3 };
+    const newer = { ...witness, max_weeks_between_reviews: 4, lock_version: 4 };
     rerender(inFrench(<IndicatorSettings settings={newer} />));
     expect(screen.getByText(/4 semaines/)).toBeInTheDocument();
     await open();
@@ -618,6 +618,6 @@ describe("the form of the thresholds and the delay", () => {
     await vi.waitFor(() => {
       expect(client.calls).toHaveLength(2);
     });
-    expect(client.calls[1]?.body).toMatchObject({ max_weeks_between_reviews: 4, lock_version: 3 });
+    expect(client.calls[1]?.body).toMatchObject({ max_weeks_between_reviews: 4, lock_version: 4 });
   });
 });

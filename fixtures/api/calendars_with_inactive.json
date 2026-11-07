@@ -114,15 +114,11 @@
         "audit": {
           "created_at": "2025-09-01T09:00:00Z",
           "created_by": {
-            "kind": "user",
-            "user_id": "01926f3a-7c00-7000-8000-000000000301",
-            "display_name": "Camille Martin"
+            "kind": "platform"
           },
           "updated_at": "2025-09-01T09:00:00Z",
           "updated_by": {
-            "kind": "user",
-            "user_id": "01926f3a-7c00-7000-8000-000000000301",
-            "display_name": "Camille Martin"
+            "kind": "platform"
           }
         },
         "lock_version": 1
