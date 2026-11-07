@@ -120,6 +120,9 @@ ScopeExclusion:
     is_in_tracked_scope: { type: boolean }
     reason:
       anyOf: [{ type: string }, { type: 'null' }]
+      description: >-
+        The reason for an exclusion, as the user enters it; null or absent, an exclusion without a
+        reason (WF-CRE-0030). A reinstated line carries none (`ActualCostLine.excluded_reason`).
 
 CostImport:
   type: object

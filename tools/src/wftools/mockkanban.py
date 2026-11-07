@@ -29,7 +29,7 @@ REOPENED_TASK, REOPENED_MILESTONE = N.DETAILED_STUDIES, N.STUDIES_RECEIVED
 today; the factory acceptance, a milestone without a line, completed today; the detailed studies,
 completed, reopened; the reception of the studies, a completed milestone, reopened."""
 
-REFUSAL_CORRELATION = universe(1540)
+REFUSAL_CORRELATION, MILESTONE_REFUSAL_CORRELATION = universe(1540), universe(1997)
 
 
 def commands(facet: JsonObject, *, bears_lines: bool) -> list[JsonValue]:
@@ -162,6 +162,20 @@ def reopen_not_started_refused() -> JsonObject:
     }
 
 
+def milestone_started_refused() -> JsonObject:
+    """Return what setTaskProgress answers to the factory acceptance, a milestone, sent to started.
+
+    A milestone does not go through the started state (WF-PLA-0050): its card offers no
+    ``start``, and the direct call is refused, the condition named; nothing is written.
+    """
+    return {
+        "code": "STATE_FORBIDS_OPERATION",
+        "status": 409,
+        "params": {"missing_condition": "task_not_milestone"},
+        "correlation_id": MILESTONE_REFUSAL_CORRELATION,
+    }
+
+
 # --- The examples ------------------------------------------------------------------------------
 
 
@@ -277,5 +291,12 @@ def examples() -> dict[str, JsonObject]:
             f"à cet état — leur carte ne rouvre que vers l'état démarré (available_commands). Le "
             f"geste est refusé, la condition nommée ; rien n'est écrit (WF-RAE-0030).",
             reopen_not_started_refused(),
+        ),
+        "task_progress_milestone_started_refused.json": mocktext.example(
+            f"Le jalon « {rows[COMPLETED_MILESTONE].label} », non démarré, envoyé à l'état "
+            f"démarré : un jalon ne passe pas par cet état — sa carte n'offre pas de démarrage "
+            f"(available_commands), il se termine directement. Le geste est refusé, la condition "
+            f"nommée ; rien n'est écrit (WF-PLA-0050, WF-RAE-0030).",
+            milestone_started_refused(),
         ),
     }

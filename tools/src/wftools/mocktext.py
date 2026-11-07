@@ -264,6 +264,11 @@ def holds(value: str, text: str) -> bool:
     return folded(text) in folded(value)
 
 
-def example(summary: str, value: JsonValue) -> JsonObject:
-    """Return an example of the contract: its summary, its description, its value."""
-    return {"summary": summary, "description": DESCRIPTION, "value": value}
+def example(summary: str, value: JsonValue, examples: Collection[str] = ()) -> JsonObject:
+    """Return an example of the contract: its summary, its description, its value.
+
+    ``examples`` are the keys of the numeric examples of the document the value reproduces
+    (``wftools.examples``), carried under ``x-examples``: an Example Object admits no other key.
+    """
+    cited: JsonObject = {"x-examples": list(examples)} if examples else {}
+    return {"summary": summary, "description": DESCRIPTION, **cited, "value": value}

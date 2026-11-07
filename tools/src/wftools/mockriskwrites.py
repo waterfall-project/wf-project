@@ -22,7 +22,8 @@ their answers are read, as the register is, from the risks of ``wftools.mockwitn
   2 February, identified again today, its line recreated on the task it designated
   (``risk_reidentified``, WF-RIS-0010, WF-RIS-0020);
 - the occurrence of the delay of the cabinets, on 20 February, put in the queue
-  (``task_occurrence_queued``, WF-RIS-0060, WF-ARC-0090);
+  (``task_occurrence_queued``, WF-RIS-0060, WF-ARC-0090), and its identity modified since,
+  refused by the condition its command ``update`` names (``risk_update_occurred_refused``);
 - a declaration whose provision names a task the main structure does not bear
   (``risk_provision_task_refused``);
 - the line of provision of the rework of the wiring moved in the grid, which its form alone
@@ -500,6 +501,30 @@ def risk_occurrence_not_identified() -> JsonObject:
     }
 
 
+OCCURRED_UPDATE_CORRELATION = universe(1994)
+
+
+def risk_update_occurred_refused() -> JsonObject:
+    """Return the refusal of the change of the identity of the delay of the cabinets, occurred.
+
+    The condition its command ``update`` says it lacks (WF-RIS-0060, WF-IHM-0090): an occurred
+    risk is a fact, which no entry of its form changes any more.
+    """
+    item = risk_item(DELIVERY_DELAY, _budget())
+    [command] = [
+        each
+        for each in cast("list[JsonObject]", item["available_commands"])
+        if each["command"] == "update"
+    ]
+    [condition] = cast("list[JsonValue]", command["missing_conditions"])
+    return {
+        "code": "STATE_FORBIDS_OPERATION",
+        "status": 409,
+        "params": {"missing_condition": condition},
+        "correlation_id": OCCURRED_UPDATE_CORRELATION,
+    }
+
+
 def risk_occurrence_report_stale() -> JsonObject:
     """Return the refusal of an occurrence confirmed with the counters of a stale report.
 
@@ -702,6 +727,14 @@ def examples() -> dict[str, JsonObject]:
             f"cours, annulable et que l'abandon défait ; une version de plus, le même compteur "
             f"que la modification de son identité (WF-RIS-0010, WF-RIS-0020, #786, #1782).",
             moved,
+        ),
+        "risk_update_occurred_refused.json": mocktext.example(
+            f"« {DELIVERY_DELAY.label} », survenu le "
+            f"{mocktext.day(DELIVERY_DELAY.last.at.date())}, son identité modifiée aujourd'hui : "
+            f"un risque survenu est un fait, que son formulaire ne change plus, et la commande "
+            f"update du risque nomme la condition qui manque (risk_not_occurred). Rien n'est "
+            f"écrit (WF-RIS-0020, WF-RIS-0060, WF-IHM-0090).",
+            risk_update_occurred_refused(),
         ),
         **_reviews_examples(),
         "task_occurrence_queued.json": mocktext.example(

@@ -183,7 +183,9 @@ UserAccount:
     origin: { $ref: '#/UserOrigin' }
     org_node_id:
       anyOf: [{ $ref: ../common.yaml#/Uuid }, { type: 'null' }]
-      description: Optional attachment, which grants no permission (WF-ADM-0030).
+      description: >-
+        Optional attachment, which grants no permission (WF-ADM-0030). Null for an account attached
+        to no node.
     org_node_label:
       anyOf: [{ type: string }, { type: 'null' }]
       description: >-
@@ -269,8 +271,9 @@ UserCreate:
       anyOf: [{ $ref: ../common.yaml#/Uuid }, { type: 'null' }]
       description: >-
         The optional attachment of the account to an organisation node, which grants no
-        permission (WF-ADM-0030): a node the installation does not have, `UNKNOWN_ORG_NODE`; a
-        deactivated one, `INACTIVE_REFERENCE_OBJECT`.
+        permission (WF-ADM-0030); null or absent, the account is attached to no node. A node the
+        installation does not have, `UNKNOWN_ORG_NODE`; a deactivated one,
+        `INACTIVE_REFERENCE_OBJECT`.
 
 UserUpdate:
   type: object
@@ -285,6 +288,7 @@ UserUpdate:
     email: { type: string, format: email, maxLength: 254 }
     org_node_id:
       anyOf: [{ $ref: ../common.yaml#/Uuid }, { type: 'null' }]
+      description: Null detaches the account from its node; absent, the attachment does not change.
     lock_version: { $ref: ../common.yaml#/LockVersion }
 
 UserActivationWrite:
@@ -481,6 +485,9 @@ GridPreferences:
             column: { type: string, maxLength: 64 }
             order: { $ref: ../common.yaml#/SortOrder }
         - type: 'null'
+      description: >-
+        Null, or absent, when the user has chosen no sort: the grid is read in the default order of
+        its operation.
     filters:
       type: object
       description: >-
@@ -596,7 +603,9 @@ Permission:
         permission — create a project, view all projects (WF-ADM-0100).
     fbs_code:
       anyOf: [{ type: string }, { type: 'null' }]
-      description: Second-level function covered, for the first two kinds.
+      description: >-
+        Second-level function covered, for the first two kinds. Null for an irreversible or a
+        structuring permission, which covers no single function.
 
 AccessRole:
   type: object

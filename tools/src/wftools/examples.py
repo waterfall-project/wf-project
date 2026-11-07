@@ -13,8 +13,11 @@ unnoticed. The rank of a sentence stays out of the key: inserting a sentence wou
 the others and fail fixtures of sentences nobody changed.
 
 A fixture is a JSON file under ``fixtures/`` that names, in ``examples``, the keys of the
-sentences it carries; its data is written by hand, from the sentence. With ``--write``, the
-listing is regenerated. Without it, the listing is checked against the document, every key
+sentences it carries; its data is written by hand, from the sentence. An example of the contract,
+under ``fixtures/api/``, names them in ``x-examples``: an Example Object of OpenAPI admits no other
+key than its own and those of an extension (``summary``, ``description``, ``value``, ``x-*``), and
+its data may be generated, as long as it reproduces the sentence. With ``--write``, the listing
+is regenerated. Without it, the listing is checked against the document, every key
 a fixture cites must exist, and the examples no fixture cites yet are reported.
 """
 
@@ -82,6 +85,10 @@ def listing(found: list[Example]) -> str:
     return json.dumps(document, ensure_ascii=False, indent=2) + "\n"
 
 
+CITING = ("examples", "x-examples")
+"""The keys a fixture names its sentences under: ``x-examples`` in an example of the contract."""
+
+
 def cited(fixtures: Path = FIXTURES) -> dict[str, list[str]]:
     """Return, for each fixture that cites examples, the keys it cites."""
     found: dict[str, list[str]] = {}
@@ -89,16 +96,20 @@ def cited(fixtures: Path = FIXTURES) -> dict[str, list[str]]:
         if path == LISTING:
             continue
         data = cast("object", json.loads(path.read_text(encoding="utf-8")))
-        if isinstance(data, dict) and "examples" in data:
-            fields = cast("dict[str, object]", data)
-            found[path.relative_to(REPOSITORY).as_posix()] = _keys(path, fields["examples"])
+        if not isinstance(data, dict):
+            continue
+        fields = cast("dict[str, object]", data)
+        for name in CITING:
+            if name in fields:
+                cited_keys = _keys(path, name, fields[name])
+                found.setdefault(path.relative_to(REPOSITORY).as_posix(), []).extend(cited_keys)
     return found
 
 
-def _keys(path: Path, keys: object) -> list[str]:
+def _keys(path: Path, name: str, keys: object) -> list[str]:
     items = cast("list[object]", keys) if isinstance(keys, list) else None
     if items is None or not all(isinstance(key, str) for key in items):
-        message = f"{path}: `examples` must be a list of keys"
+        message = f"{path}: `{name}` must be a list of keys"
         raise ValueError(message)
     return [str(key) for key in items]
 

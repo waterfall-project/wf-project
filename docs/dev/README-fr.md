@@ -4230,6 +4230,10 @@ Pour éprouver un exemple :
 2. écrire le test sous `backend/tests/examples/` : la fixture `example` le charge par la
    clé, le test appelle le noyau et compare à la valeur de la phrase.
 
+Un exemple du contrat (`fixtures/api/`) dont la valeur reproduit une phrase en cite la clé dans
+`x-examples`, un Example Object d'OpenAPI n'admettant pas de clé `examples` ; un générateur la
+passe à `mocktext.example`. `make check-fixtures` le compte comme les autres.
+
 Les sockets y sont fermées : un exemple qui passe ne demande ni base, ni service, ni
 navigateur. Une phrase modifiée dans le document change de clé ; la fixture de l'ancienne
 fait alors échouer la chaîne, et on la réécrit d'après la nouvelle phrase.

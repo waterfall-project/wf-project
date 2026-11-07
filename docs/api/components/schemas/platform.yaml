@@ -19,7 +19,11 @@ SystemStatus:
     database (WF-OBS-0010); the operating parameters, from the deployment configuration
     (§4.5.1).
   properties:
-    version: { type: string }
+    version:
+      type: string
+      description: >-
+        The installed version: the version number that the front, the API and the worker of an
+        installation always share, displayed by the status screen (WF-EXP-0030).
     components:
       type: array
       items: { $ref: '#/ComponentHealth' }
@@ -126,7 +130,9 @@ ComponentHealth:
     checked_at: { $ref: ../common.yaml#/Timestamp }
     version:
       anyOf: [{ type: string }, { type: 'null' }]
-      description: Version of the component in use, announced by WF-CMP-0020.
+      description: >-
+        Version of the component in use, announced by WF-CMP-0020. Null for a component that does
+        not announce its version, such as the object storage.
 
 PlatformComponent:
   type: string
@@ -150,6 +156,11 @@ OperationOutcome:
     succeeded: { type: boolean }
     problem:
       anyOf: [{ $ref: ../common.yaml#/Problem }, { type: 'null' }]
+      description: >-
+        Reason for the failure, null when the operation succeeded, and for an external copy,
+        whose reason is in its alert (`SystemStatus.last_backup_copy`). The failure of a backup
+        is that of its background task, with the task's `correlation_id`
+        (`BackgroundTaskRef.problem`, WF-OBS-0020).
 
 Alert:
   type: object

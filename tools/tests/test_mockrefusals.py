@@ -89,12 +89,18 @@ def test_a_marked_revision_refuses_a_task_created_and_the_skeleton_by_revision_d
     for operation, name in (
         ("createNode", "node_create_marked_refused"),
         ("generatePlanningSkeleton", "skeleton_marked_refused"),
+        ("applyPaste", "paste_marked_refused"),
     ):
         refused = fixture(name)
         assert (refused["status"], refused["code"]) == STATE, name
         assert refused["params"] == {"missing_condition": "revision_draft"}, name
         assert name in _cited(operation, "409"), name
     assert fixture("revision_marked")["revision_id"] == mockrefusals.REFERENCE
+    # The entries of the planning that answer the shared `Conflict` show it by its example.
+    shared = _shared()["Conflict"]["content"]["application/problem+json"]["examples"]
+    assert shared["marked"]["$ref"].endswith("/grid_write_marked_refused.json")
+    refused = fixture("grid_write_marked_refused")
+    assert refused["params"] == {"missing_condition": "revision_draft"}
 
 
 def test_no_state_has_a_code_of_its_own_and_no_403_says_a_state() -> None:

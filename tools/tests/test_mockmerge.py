@@ -91,7 +91,13 @@ def test_a_merge_that_would_close_a_loop_or_pass_the_horizon_fails_as_its_report
     # each by its node of the main structure and its label (WF-IHM-0080).
     task, report = fixture(f"task_merge_{name}"), fixture(f"structure_merge_report_{name}")
     assert (task["kind"], task["status"], task["result_url"]) == ("structure_merge", "failed", None)
-    assert task["problem"] == {"code": code, "status": 422, "params": params}
+    # The failure carries the correlation of the task (`BackgroundTaskRef.problem`, WF-OBS-0020).
+    assert task["problem"] == {
+        "code": code,
+        "status": 422,
+        "params": params,
+        "correlation_id": task["problem"]["correlation_id"],
+    }
     assert report["refusals"] == [{"code": code, "params": params}]
     assert (report["completed_tasks"], report["creates_current_revision"]) == ([], False)
     [main] = [each for each in fixture("structures") if each["kind"] == "main"]

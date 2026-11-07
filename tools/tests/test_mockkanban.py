@@ -222,6 +222,18 @@ def test_a_reopening_sends_what_the_card_says_and_erases_the_date_of_completion(
         assert "completed_on" not in node["task"]
 
 
+def test_a_milestone_is_refused_started_by_the_condition_its_card_misses(
+    examples: dict[str, Any], cards: dict[str, Node]
+) -> None:
+    refused = examples["task_progress_milestone_started_refused"]
+    assert (refused["status"], refused["code"]) == (409, "STATE_FORBIDS_OPERATION")
+    assert refused["params"] == {"missing_condition": "task_not_milestone"}
+    # The factory acceptance is a milestone not started, whose card offers no start.
+    card = cards[universe(N.FACTORY_ACCEPTANCE)]
+    assert (card["task"]["progress"], card["task"]["is_milestone"]) == ("not_started", True)
+    assert "start" not in [command for command, *_ in _gestures(card)]
+
+
 def test_a_task_but_a_completed_milestone_is_refused_back_to_not_started(
     examples: dict[str, Any], cards: dict[str, Node]
 ) -> None:

@@ -726,7 +726,10 @@ def test_a_deposit_that_fails_its_verification_fails_its_restore_before_any_disc
         "code": unverified["code"],
         "status": unverified["status"],
         "params": unverified["params"],
+        # The correlation of the task, not that of the refused request (WF-OBS-0020).
+        "correlation_id": failed["problem"]["correlation_id"],
     }
+    assert failed["problem"]["correlation_id"] != unverified["correlation_id"]
     assert failed["problem"]["params"] == {"missing_condition": "backup_verified"}
     assert failed["problem"]["code"] != "FILE_FORMAT_UNREADABLE"
     deposit = fixture("file_upload_external_backup")

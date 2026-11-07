@@ -96,6 +96,7 @@ OrgNode:
       anyOf:
         - $ref: ../common.yaml#/Uuid
         - type: 'null'
+      description: Null for a root.
     parent_label:
       anyOf:
         - { type: string, minLength: 1, maxLength: 200 }

@@ -13,6 +13,9 @@ Computable:
     is_computable: { type: boolean }
     value:
       anyOf: [{ $ref: ../common.yaml#/Decimal }, { type: 'null' }]
+      description: >-
+        Null when the value is not computable (`is_computable` false), `reason` saying why
+        (WF-IND-0010).
     reason:
       anyOf: [{ $ref: '#/NotComputableReason' }, { type: 'null' }]
       description: >-
@@ -40,6 +43,9 @@ ComputableMoney:
     is_computable: { type: boolean }
     value:
       anyOf: [{ $ref: ../common.yaml#/Money }, { type: 'null' }]
+      description: >-
+        Null when the amount is not computable (`is_computable` false), `reason` saying why
+        (WF-IND-0010).
     reason:
       anyOf: [{ $ref: '#/NotComputableReason' }, { type: 'null' }]
       description: Why the amount is not computable, as a code; null for a computable amount.
@@ -715,5 +721,8 @@ IndexHistoryPoint:
     revision_id: { $ref: ../common.yaml#/Uuid }
     version_name:
       anyOf: [{ type: string }, { type: 'null' }]
+      description: >-
+        The version name of the marked revision; null for the last point, the current day, which no
+        marking names.
     cost_index: { $ref: '#/IndexValue' }
     schedule_index: { $ref: '#/IndexValue' }

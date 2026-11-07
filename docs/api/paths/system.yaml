@@ -128,8 +128,8 @@
     tags: [system]
     summary: System status screen
     description: >-
-      Availability of each component and its version, storage space, installed version,
-      current values of the operating parameters — including the cache validity period
+      Availability of each component and its version, storage space, installed version —
+      common to the front, the API and the worker (WF-EXP-0030) —, current values of the operating parameters — including the cache validity period
       (§4.5.1) —, latest reading of the accounts, backup and restore test, and current alerts,
       including the failure of a scheduled backup or of its external copy (WF-OBS-0030,
       WF-ADM-0170). Accessible without any project being open (WF-ADM-0130). Readable under

@@ -91,6 +91,11 @@ Year:
   type: integer
   minimum: 2000
   maximum: 2100
+  description: >-
+    Calendar year, from 2000 to 2100. Outside these bounds, the value is refused with 422
+    `VALIDATION_FAILED`, `fields` designating it with `VALUE_OUT_OF_RANGE` and
+    `fields[].params.minimum` or `maximum`; a year of the path is designated by `/path/year`
+    (`FieldProblem.pointer`).
 
 LockVersion:
   type: integer
@@ -162,8 +167,11 @@ Problem:
     params:
       allOf: [{ $ref: '#/ProblemParams' }]
       description: >-
-        Parameters of the code, as the case may be — those that several refusals share are typed
-        by `ProblemParams`, the others remain open: `missing_permission` (a `PermissionCode`),
+        Parameters of the code, as the case may be. Those that several refusals share are
+        declared and typed by `ProblemParams` — `state` and `state_enum`,
+        `subordinate_node_ids`, `missing_rates`, `resource_roles`, `projects`, `tasks`,
+        `estimate_lines`, `risks`, `subproject`, `columns` and `missing_columns` —, the others
+        remain open; all are described here: `missing_permission` (a `PermissionCode`),
         `missing_condition` (a `CommandCondition`), `conflicting_object_id` and
         `conflicting_object_label` (the object, and its label, that a later modification has
         taken up and that an undo or a redo would undo, `UNDO_CONFLICT`, WF-IHM-0110),
@@ -179,7 +187,10 @@ Problem:
         without the other: only `ProjectState` falls under it today — the state of a project
         that has not reached the In progress state, whose indicators are requested
         (WF-IND-0010), or without a reference revision, whose workload is requested on a basis
-        it does not have (WF-DEV-0070); a new enumeration is a modification of the contract),
+        it does not have (WF-DEV-0070); a new enumeration is a modification of the contract;
+        the indicators and curves of a revision marked before the In progress state are refused
+        without them, and without any other parameter, the project being in progress: the only
+        `STATE_FORBIDS_OPERATION` without parameters, `getProjectIndicators`, #247),
         `max_columns` (paste too wide, WF-IHM-0050), `minimum` (the smallest allowed value of a
         value too small, `VALUE_OUT_OF_RANGE`; in `fields[].params` for a field, such as the
         retention of the external copy of backups, at least that of the platform, WF-EXP-0050,
@@ -245,7 +256,11 @@ Problem:
         (`STATE_FORBIDS_OPERATION`, `missing_condition` at `subproject_without_estimate_lines`,
         WF-DAT-0080): those lines, each by its structure, the label of that structure, its node,
         its row number and its label (`structure_id`, `structure_label`, `node_id`,
-        `row_number`, `label`); `work_package_task` and `order_item_tasks` for a merge that
+        `row_number`, `label`); `risks` for the deletion that would leave without a task a main
+        structure that carries one (`STATE_FORBIDS_OPERATION`, `missing_condition` at
+        `at_least_one_task`, `deleteNode`, WF-RIS-0010, WF-RIS-0060): the risks whose provision
+        line would no longer have a task to be placed in, each by its identifier and its label
+        (`risk_id`, `label`), in the order of the list of risks; `work_package_task` and `order_item_tasks` for a merge that
         would take the task of an order item out of the subtree of the task of its work package
         (`ORDER_ITEM_OUTSIDE_WORK_PACKAGE`, `mergeCostStructure`, WF-PLA-0170) : the task of the
         work package and those of the order items that would leave it, nodes of the main
@@ -352,7 +367,8 @@ Problem:
         line of an actual cost extraction (`DUPLICATE_COST_LINE`, `ImportRejection.params`,
         WF-INTF-0140; EP-16/US-0630); `wbs_element`, the WBS element of a rejected line of an
         actual cost extraction, as the file carries it, and `project_code`, the project code it
-        carries when it is that of another project (`WBS_ELEMENT_INVALID`,
+        carries when it is that of another project, everything before the slash, dots included
+        (`WBS_ELEMENT_INVALID`,
         `WBS_ELEMENT_OUTSIDE_PROJECT`, `ImportRejection.params`, WF-CRE-0020); `value`, the
         value of the cell as the file carries it, of a line of an estimate or of a remaining to
         commit that cites an unknown task, role or subproject (`UNKNOWN_TASK`,
@@ -674,7 +690,9 @@ ErrorCode:
     # A line of an actual cost extraction rejected for its WBS element (`ImportRejection`,
     # WF-CRE-0020): an element that does not have the form of a project code optionally followed
     # by a slash and a subproject code, `params.wbs_element` the element read; an element of
-    # another project, `params.wbs_element` and `params.project_code` the project code read.
+    # another project, `params.wbs_element` and `params.project_code` the project code read. Only
+    # the slash separates the two codes, and the project code may contain dots
+    # (`A.ABC.26001/10001`, WF-PRJ-0010).
     - WBS_ELEMENT_INVALID
     - WBS_ELEMENT_OUTSIDE_PROJECT
     # A line of an estimate or of a remaining to commit that designates its task by a label that
@@ -729,9 +747,10 @@ FieldProblem:
         `/label` or `/lines/2/amount`; a query parameter, under `/query` followed by its
         name, `/query/revision_id`; a path parameter that is not an identifier,
         under `/path` followed by its name, `/path/year` (a malformed identifier is a 404,
-        like a nonexistent object). No body field is named `query`, and the only
-        `path` of a body is a text, with no field under it: a pointer thus designates
-        only one field, whatever the operation.
+        like a nonexistent object); a body that is not a JSON object, the raw bytes of an
+        uploaded chunk, is designated whole by `/body` (`uploadChunk`, WF-ADM-0160). No body
+        field is named `query` or `body`, and the only `path` of a body is a text, with no
+        field under it: a pointer thus designates only one field, whatever the operation.
     code: { $ref: '#/ErrorCode' }
     params:
       allOf: [{ $ref: '#/ProblemParams' }]
@@ -948,6 +967,10 @@ SortOrder:
 
 PaginationMeta:
   type: object
+  description: >-
+    The page as applied: `limit` and `offset` those of the request, or their defaults;
+    `total` the number of items that the search and the filters retain, whatever the page
+    (WF-IHM-0060).
   required: [limit, offset, total]
   properties:
     limit: { type: integer, minimum: 1, maximum: 500 }
@@ -1014,7 +1037,12 @@ BackgroundTaskRef:
       anyOf:
         - $ref: '#/Problem'
         - type: 'null'
-      description: Reason for the failure, null as long as the task has not failed (WF-IHM-0080).
+      description: >-
+        Reason for the failure, null as long as the task has not failed (WF-IHM-0080). Its
+        `correlation_id` is always present: that of the task, which is the correlation of the
+        request that queued it — the one its audit entry carries —, or, for a task the platform
+        queues itself (a scheduled backup), the one drawn for it, so that the failure is traced
+        in the logs like a refused request (WF-OBS-0020).
     result_url:
       anyOf:
         - type: string

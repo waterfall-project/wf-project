@@ -25,10 +25,15 @@ PortfolioScope:
     as_of: { $ref: ../common.yaml#/PlanningDate }
     from:
       anyOf: [{ $ref: ../common.yaml#/PlanningDate }, { type: 'null' }]
+      description: >-
+        Start of the period retained; null, like `to`, for a view that retains no period: the
+        project list read with neither `from` nor `to`, and the workload (`PortfolioFrom`).
     to:
       anyOf: [{ $ref: ../common.yaml#/PlanningDate }, { type: 'null' }]
+      description: End of the period retained; null, like `from`, when no period is retained.
     org_node_id:
       anyOf: [{ $ref: ../common.yaml#/Uuid }, { type: 'null' }]
+      description: The organisation node retained (`org_node_id`); null without a node.
     org_node_label:
       anyOf:
         - { type: string, minLength: 1, maxLength: 200 }
@@ -63,6 +68,7 @@ PortfolioProjectRow:
     label: { type: string }
     code:
       anyOf: [{ type: string }, { type: 'null' }]
+      description: Null as long as the project code is not entered (WF-PRJ-0010).
     state: { $ref: projects.yaml#/ProjectState }
     can_open:
       type: boolean
@@ -73,9 +79,15 @@ PortfolioProjectRow:
         infers nothing about it from the permissions of `getMe`.
     reference_budget:
       anyOf: [{ $ref: ../common.yaml#/Money }, { type: 'null' }]
+      description: >-
+        Null for a project without a reference revision, before In progress: its current estimate is
+        presented instead (`current_estimate`).
     current_estimate:
       anyOf: [{ $ref: ../common.yaml#/Money }, { type: 'null' }]
-      description: Current estimate, presented in place of the budget for a project in pricing.
+      description: >-
+        Current estimate, presented in place of the budget for a project in pricing. Null for a
+        project that is not in pricing, which presents its reference budget, and for a project in
+        pricing that has no revision yet.
     win_probability:
       anyOf: [{ $ref: ../common.yaml#/Percent }, { type: 'null' }]
     project_manager_projection:
@@ -91,10 +103,18 @@ PortfolioProjectRow:
         (WF-PTF-0040). Null outside a project in progress.
     cost_index:
       anyOf: [{ $ref: indicators.yaml#/IndexValue }, { type: 'null' }]
+      description: >-
+        Null for a project that has not reached the In progress state, which has no project
+        indicators (WF-IND-0010).
     schedule_index:
       anyOf: [{ $ref: indicators.yaml#/IndexValue }, { type: 'null' }]
+      description: >-
+        Null for a project that has not reached the In progress state, which has no project
+        indicators (WF-IND-0010).
     last_marked_at:
       anyOf: [{ $ref: ../common.yaml#/Timestamp }, { type: 'null' }]
+      description: >-
+        Instant of the marking of the last marked revision; null for a project that has none.
 
 PortfolioValue:
   type: object

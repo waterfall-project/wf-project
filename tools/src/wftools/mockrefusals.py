@@ -20,7 +20,9 @@ never by a 403 (US-0702/L1):
   made only of blanks, and with a label and a client one character beyond their bound (D-02);
 - ``node_create_marked_refused.json`` and ``skeleton_marked_refused.json``, a task created and the
   skeleton generated on the reference, the marked revision 101, refused by ``revision_draft``,
-  the condition the revision names for its entries (``revision_marked``).
+  the condition the revision names for its entries (``revision_marked``); likewise
+  ``grid_write_marked_refused.json``, the example of the shared ``Conflict`` that the entries of
+  the planning give, and ``paste_marked_refused.json``, a block pasted there.
 
 And a catalogue in which every code and every condition is rendered by an operation, with an
 example (J-03, J-06, J-11, E-07, F-05, J-04):
@@ -125,6 +127,7 @@ ACCESS_ROLE_STALE_CORRELATION = universe(1664)
 """The correlation of the deletion of an access role, which carries its counter since #1733."""
 
 DESIGNATE_TERMINAL_CORRELATION = universe(1683)
+GRID_MARKED_CORRELATION, PASTE_MARKED_CORRELATION = universe(1996), universe(1995)
 """The correlation of a reference designated on a terminal project (#1674)."""
 
 PROJECT_TERMINAL_CORRELATION, BREAKDOWN_TERMINAL_CORRELATION = universe(1766), universe(1767)
@@ -712,6 +715,21 @@ def _state_examples() -> dict[str, JsonObject]:
             f"generate_skeleton dit manquer, revision_draft ; rien n'est écrit (WF-DAT-0020, "
             f"WF-PRJ-0030, WF-IHM-0090).",
             state_refused("revision_draft", SKELETON_CORRELATION),
+        ),
+        "grid_write_marked_refused.json": mocktext.example(
+            f"Une saisie dans la structure principale de la révision « {reference} », marquée "
+            f"(revision_marked) — sa date de début de planning, la facette temps d'une tâche ou "
+            f"ses prédécesseurs : refusée par la condition que la révision dit manquer à ses "
+            f"saisies, revision_draft, une révision marquée ne se modifiant plus ; rien n'est "
+            f"écrit (WF-DAT-0020, WF-IHM-0090).",
+            state_refused("revision_draft", GRID_MARKED_CORRELATION),
+        ),
+        "paste_marked_refused.json": mocktext.example(
+            f"Un bloc collé dans la grille de la structure principale de la révision "
+            f"« {reference} », marquée (revision_marked) : refusé en entier par la première "
+            f"condition que la commande de la structure dit manquer, revision_draft, et non ligne "
+            f"à ligne ; rien n'est écrit (WF-DAT-0020, WF-IHM-0050, WF-IHM-0090).",
+            state_refused("revision_draft", PASTE_MARKED_CORRELATION),
         ),
     }
 

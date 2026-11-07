@@ -292,6 +292,7 @@
             schema: { $ref: ../components/common.yaml#/Problem }
             examples:
               anonymized: { $ref: ../../../fixtures/api/user_anonymized_update_refused.json }
+              email_taken: { $ref: ../../../fixtures/api/user_email_taken.json }
       '412': { $ref: ../components/responses.yaml#/PreconditionFailed }
       '422':
         description: >-

@@ -1932,6 +1932,8 @@
             examples:
               reopen_not_started_refused:
                 $ref: ../../../fixtures/api/task_reopen_not_started_refused.json
+              milestone_started_refused:
+                $ref: ../../../fixtures/api/task_progress_milestone_started_refused.json
       '412': { $ref: ../components/responses.yaml#/PreconditionFailed }
       '422':
         description: >-
@@ -2274,8 +2276,8 @@
       '422':
         description: >-
           Block wider than the columns of the facet starting from the target column
-          (`NodeColumn`): `params.max_columns` says how many remain; nothing is written
-          (WF-IHM-0050).
+          (`NodeColumn`): `PASTE_TOO_WIDE`, `params.max_columns` saying how many remain;
+          nothing is written (WF-IHM-0050).
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
@@ -2344,6 +2346,8 @@
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              marked: { $ref: ../../../fixtures/api/paste_marked_refused.json }
       '412':
         description: >-
           The counter sent is stale, or the structure has changed since the preview, whatever

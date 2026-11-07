@@ -47,8 +47,10 @@ Risk:
     label: { type: string, minLength: 1, pattern: '\S', maxLength: 300 }
     description:
       anyOf: [{ type: string }, { type: 'null' }]
+      description: Null when none is entered.
     mitigation_notes:
       anyOf: [{ type: string }, { type: 'null' }]
+      description: Null when none is entered.
     probability: { $ref: ../common.yaml#/Percent }
     severity:
       allOf: [{ $ref: ../common.yaml#/Money }]
@@ -88,7 +90,9 @@ Risk:
         version of it (WF-RIS-0030).
     provision_node_id:
       anyOf: [{ $ref: ../common.yaml#/Uuid }, { type: 'null' }]
-      description: Provision line carried by the main structure (WF-RIS-0010).
+      description: >-
+        Provision line carried by the main structure (WF-RIS-0010). Null when the risk is not
+        identified — occurred or dismissed —: it then carries no provision line.
     provision_cost_category_id:
       allOf: [{ $ref: ../common.yaml#/Uuid }]
       description: >-
@@ -274,8 +278,10 @@ RiskWrite:
     label: { type: string, minLength: 1, pattern: '\S', maxLength: 300 }
     description:
       anyOf: [{ type: string }, { type: 'null' }]
+      description: Null or absent, the risk has none.
     mitigation_notes:
       anyOf: [{ type: string }, { type: 'null' }]
+      description: Null or absent, the risk has none.
     probability:
       allOf: [{ $ref: ../common.yaml#/Percent }]
       description: From `0` to `1` inclusive, a ratio (WF-RIS-0010).
@@ -305,6 +311,7 @@ RiskWrite:
         enter into the state of its task (WF-PLA-0040). A node that is not a task of this
         structure — a line, a task of another structure, an unknown identifier — is refused with
         422, `UNKNOWN_TASK`. It is then changed through `updateRiskProvision`, like the category.
+        Null or absent, the first top-level task carries the line.
 
 RiskUpdate:
   type: object
@@ -321,8 +328,10 @@ RiskUpdate:
     label: { type: string, minLength: 1, pattern: '\S', maxLength: 300 }
     description:
       anyOf: [{ type: string }, { type: 'null' }]
+      description: Null, the risk has none.
     mitigation_notes:
       anyOf: [{ type: string }, { type: 'null' }]
+      description: Null, the risk has none.
     lock_version: { $ref: ../common.yaml#/LockVersion }
 
 RiskProvisionUpdate:
@@ -554,6 +563,7 @@ RiskMatrixLevel:
     lower: { $ref: ../common.yaml#/Percent }
     upper:
       anyOf: [{ $ref: ../common.yaml#/Percent }, { type: 'null' }]
+      description: Null at the last level, which has no upper bound.
 
 RiskMatrixPoint:
   type: object

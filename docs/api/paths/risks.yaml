@@ -283,7 +283,7 @@
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
             examples:
-              occurred: { $ref: ../../../fixtures/api/risk_update_occurred.json }
+              occurred: { $ref: ../../../fixtures/api/risk_update_occurred_refused.json }
       '412': { $ref: ../components/responses.yaml#/PreconditionFailed }
       '422':
         description: >-
@@ -445,7 +445,8 @@
       Each review is dated and keeps the probability, the severity and the state retained
       (WF-RIS-0010). For a marked revision (`revision_id`), the reviews made up to its
       marking: those that follow it do not belong to what it freezes
-      (WF-RIS-0030).
+      (WF-RIS-0030). Without pagination: a risk is reviewed at the rhythm of its project, monthly
+      over the fifteen years a project lasts at most (WF-PLA-0150), some 180 reviews (§4.6.2).
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
       - $ref: ../components/parameters.yaml#/RiskId
