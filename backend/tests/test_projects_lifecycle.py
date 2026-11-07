@@ -15,14 +15,16 @@ from typing import TYPE_CHECKING, Any
 from uuid import UUID
 
 import pytest
-from projects_support import PROJECTS, Scene, contribute, person, put_in_state
+from projects_support import MANAGING, PROJECTS, Scene, contribute, create, person, put_in_state
 from projects_support import scene as make_scene
 from sqlalchemy import insert, select, update
 from sqlalchemy.orm import Session
 from support import wait_for_a_lock
 
+from waterfall.api import lifecycle as lifecycle_api
 from waterfall.core.projects.interface import NextState, advance, next_state
 from waterfall.core.projects.tables import Project, ProjectStateTransition
+from waterfall.core.revisions.interface import revisions as revisions_core
 from waterfall.core.revisions.tables import Revision
 from waterfall.platform.audit import Act, AuditEntry
 from waterfall.platform.identifiers import new_id
@@ -301,8 +303,16 @@ def test_no_operation_leads_to_pricing_or_in_progress_by_an_exit(
         assert refused.status_code == 422
     assert state_in_the_base(stage)[0] == CREATED
     commands = missing(project_of(api, stage))
-    assert {"complete", "lose", "abandon"} <= set(commands)
-    assert not {command for command in commands if "pricing" in command or "progress" in command}
+    # What the project lists besides the commands that change it is its exits, and exactly three.
+    changing = {
+        "update",
+        "update_win_probability",
+        "update_work_breakdown",
+        "manage_timelines",
+        "manage_contributors",
+        "create_revision",
+    }
+    assert set(commands) - changing == {"complete", "lose", "abandon"}
 
 
 @pytest.mark.requirement("WF-CYC-0060-A")
@@ -558,3 +568,90 @@ def test_two_exits_at_once_exit_the_project_once(api: ContractClient, stage: Sce
         answers = sorted(each.result(timeout=10).status_code for each in exits)
     assert answers == [200, 412]
     assert [item["to_state"] for item in transitions(api, stage)] == [CREATED, "abandoned"]
+
+
+@pytest.mark.requirement("WF-CYC-0080-A")
+def test_two_exits_abandoning_the_same_revision_at_once_exit_the_project_once(
+    api: ContractClient, stage: Scene
+) -> None:
+    # Both abandon the revision: the second waits for the lock of the revision, finds it deleted
+    # and is told the counter moved (412), not that the revision is unknown (404).
+    revision = open_revision(api, stage)
+    body = {
+        "to_state": "abandoned",
+        "confirmed": True,
+        "lock_version": project_of(api, stage)["lock_version"],
+        "current_revision": ABANDONING,
+    }
+    path = path_of(stage, "exit")
+    with ThreadPoolExecutor(2) as others, Session(stage.database.engine) as holding:
+        holding.execute(
+            select(Revision.id)
+            .where(Revision.id == UUID(revision["revision_id"]))
+            .with_for_update()
+        )
+        exits = [
+            others.submit(api.post, path, headers=stage.manager.headers, json=body)
+            for _ in range(2)
+        ]
+        wait_for_a_lock(stage.database)
+        holding.commit()
+        answers = sorted(each.result(timeout=10).status_code for each in exits)
+    assert answers == [200, 412]
+    with stage.database.transaction() as session:
+        actions = session.scalars(
+            select(AuditEntry.action).where(
+                AuditEntry.action.in_(["revision_abandon", "project_exit"])
+            )
+        ).all()
+        assert sorted(actions) == ["project_exit", "revision_abandon"]
+    assert [item["to_state"] for item in transitions(api, stage)] == [CREATED, PRICING, "abandoned"]
+
+
+@pytest.mark.requirement("WF-CYC-0060-A")
+def test_the_first_condition_of_the_contract_is_told_before_the_revision_is_abandoned(
+    api: ContractClient, stage: Scene, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # A Pricing project with a current revision and a task of the background running (no task
+    # aims at a project before US-0970: both readings are put to false): the state
+    # (``project_in_progress``) is told, not the task of the revision, and nothing is abandoned.
+    open_revision(api, stage)
+    before = state_in_the_base(stage)
+
+    def running(_session: Session, _project_id: UUID) -> bool:
+        return False
+
+    for module in (lifecycle_api, revisions_core):
+        monkeypatch.setattr(module, "no_background_task_running", running)
+    answer = leave(api, stage, "completed", current_revision=ABANDONING)
+    assert refusal(answer) == (
+        409,
+        "STATE_FORBIDS_OPERATION",
+        {"missing_condition": "project_in_progress"},
+    )
+    assert state_in_the_base(stage) == before
+    assert project_of(api, stage)["current_revision_id"] is not None
+
+
+@pytest.mark.requirement("WF-ADM-0100-A")
+def test_an_exit_abandoning_the_revision_asks_for_the_permission_to_abandon_one(
+    api: ContractClient, stage: Scene, realm: TestRealm
+) -> None:
+    # The exit deletes the revision: it asks for ``revision_abandon`` as ``abandonRevision`` does.
+    database = stage.database
+    chief = person(
+        database, realm, *(each for each in MANAGING if each != "revision_abandon"), name="Zoé"
+    )
+    project = create(api, chief, label="Sans abandon")
+    path = f"{PROJECTS}/{project['project_id']}"
+    assert api.post(f"{path}/revisions", headers=chief.headers, json={}).status_code == 201
+    body = {
+        "to_state": "abandoned",
+        "confirmed": True,
+        "lock_version": api.get(path, headers=chief.headers).json()["lock_version"],
+        "current_revision": ABANDONING,
+    }
+    answer = api.post(f"{path}/exit", headers=chief.headers, json=body)
+    assert answer.status_code == 403, answer.text
+    assert answer.json()["code"] == "PERMISSION_MISSING"
+    assert api.get(path, headers=chief.headers).json()["state"] == PRICING

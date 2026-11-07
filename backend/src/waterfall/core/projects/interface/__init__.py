@@ -41,10 +41,12 @@ from waterfall.core.projects.interface.lifecycle import (
     TransitionView,
     advance,
     exit_project,
+    judge_exit_unlocked,
     list_state_transitions,
     load_transitions,
     next_state,
     read_next_state,
+    stored_lock_version,
 )
 
 # ``projects`` (US-0920): the project, its commands, its names for the journal.
@@ -131,6 +133,7 @@ __all__ = [
     "create_subproject",
     "delete_subproject",
     "exit_project",
+    "judge_exit_unlocked",
     "list_contributor_suggestions",
     "list_contributors",
     "list_projects",
@@ -157,6 +160,7 @@ __all__ = [
     "set_contributors",
     "set_current_revision",
     "set_work_breakdown",
+    "stored_lock_version",
     "update_project",
     "update_subproject",
 ]

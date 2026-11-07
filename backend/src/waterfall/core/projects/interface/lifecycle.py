@@ -23,7 +23,7 @@ from typing import TYPE_CHECKING, Literal
 from sqlalchemy import select
 
 from waterfall.core.projects.commands import EXITS, state_conditions
-from waterfall.core.projects.tables import Project, ProjectStateTransition
+from waterfall.core.projects.tables import STATES, Project, ProjectStateTransition
 from waterfall.core.users.interface import inscribed_actor
 from waterfall.platform.audit import AuditObject, AuditProject, Inscription, record
 from waterfall.platform.errors import (
@@ -48,6 +48,9 @@ type LifecycleTrigger = Literal["first_revision_created", "reference_designated_
 # The states a manual exit reaches (``ProjectExit.to_state``), and the fate of a current revision.
 type ExitState = Literal["completed", "lost", "abandoned"]
 type RevisionFate = Literal["mark", "abandon"]
+
+# Created, Pricing and In progress: the states before a terminal one.
+BEFORE_TERMINAL = STATES[:3]
 
 NOT_FOUND = "NOT_FOUND"
 VALIDATION_FAILED = "VALIDATION_FAILED"
@@ -182,8 +185,8 @@ def _lock(session: Session, project_id: UUID) -> Project:
     return project
 
 
-def _judge_exit(project: Project, request: ExitRequest) -> None:
-    """Refuse an exit as the project, read under its lock, does; in the order of the contract."""
+def _judge_state(project: Project, request: ExitRequest) -> None:
+    """Refuse an exit for the counter, then the conditions of its command: the first two checks."""
     stored = project.lock_version - request.moved
     if stored != request.lock_version:
         raise PreconditionFailedError(STALE_LOCK_VERSION, {"expected_lock_version": stored})
@@ -195,6 +198,33 @@ def _judge_exit(project: Project, request: ExitRequest) -> None:
     )
     if lacking:
         raise ConflictError(STATE_FORBIDS_OPERATION, {"missing_condition": lacking[0]})
+
+
+def judge_exit_unlocked(session: Session, project_id: UUID, request: ExitRequest) -> None:
+    """Refuse an exit early, on the facts read without a lock; the judgment under the lock rules.
+
+    A route that abandons the current revision before the exit calls this first, so that the first
+    refusal of the contract (the counter, then the conditions of the state) is the one that is
+    told, and the revision is not abandoned for an exit that was refused anyway. It takes no lock,
+    and decides nothing: ``exit_project`` judges again under the lock of the project.
+    """
+    project = session.get(Project, project_id)
+    if project is None:
+        raise NotFoundError(NOT_FOUND)
+    _judge_state(project, request)
+
+
+def stored_lock_version(session: Session, project_id: UUID) -> int:
+    """Read the counter of a project as the base keeps it now, not as the session saw it; or 404."""
+    stored = session.scalar(select(Project.lock_version).where(Project.id == project_id))
+    if stored is None:
+        raise NotFoundError(NOT_FOUND)
+    return stored
+
+
+def _judge_exit(project: Project, request: ExitRequest) -> None:
+    """Refuse an exit as the project, read under its lock, does; in the order of the contract."""
+    _judge_state(project, request)
     if project.current_revision_id is None:
         return
     if request.fate is None:
@@ -229,6 +259,11 @@ def exit_project(session: Session, project_id: UUID, request: ExitRequest, act: 
     record(session, Inscription("project_exit", actor, audited, act.at, named, params))
 
 
+def _rank(state: str) -> int:
+    """Give the place of a state in the cycle; the terminal states share the last place."""
+    return min(STATES.index(state), len(BEFORE_TERMINAL))
+
+
 def list_state_transitions(session: Session, project_id: UUID) -> list[TransitionView]:
     """List the transitions of a project, in their order (``listProjectStateTransitions``)."""
     if session.get(Project, project_id) is None:
@@ -236,11 +271,14 @@ def list_state_transitions(session: Session, project_id: UUID) -> list[Transitio
     rows = session.scalars(
         select(ProjectStateTransition)
         .where(ProjectStateTransition.project_id == project_id)
-        .order_by(ProjectStateTransition.occurred_at, ProjectStateTransition.id)
+        .order_by(ProjectStateTransition.occurred_at)
     )
+    # Two transitions can share an instant (the creation and the first revision of a project of the
+    # witness): the cycle only goes forward, so the state reached ranks them, never the identifier.
+    ranked = sorted(rows, key=lambda row: (row.occurred_at, _rank(row.to_state)))
     return [
         TransitionView(row.from_state, row.to_state, row.occurred_at, row.actor_user_id, row.reason)
-        for row in rows
+        for row in ranked
     ]
 
 

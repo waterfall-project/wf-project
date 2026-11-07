@@ -113,6 +113,22 @@ def test_the_projects_of_the_witness_are_read_through_the_service(
     assert body["meta"]["total"] == 2
 
 
+def test_the_transitions_of_the_witness_project_are_read_in_their_order_at_one_instant(
+    api: ContractClient, witness: Database, realm: TestRealm
+) -> None:
+    # The creation and the first revision of PRJ-001 share an instant: the order read through the
+    # service is the cycle's, whatever the identifiers the witness gives its transitions.
+    reader = person(witness, realm, *READING)
+    answer = api.get(f"{PROJECTS}/{PRJ_001}/state-transitions", headers=reader.headers)
+    assert answer.status_code == 200, answer.text
+    body = answer.json()
+    assert [(item["from_state"], item["to_state"]) for item in body] == [
+        (None, "created"),
+        ("created", "pricing"),
+    ]
+    assert body[0]["occurred_at"] == body[1]["occurred_at"]
+
+
 def test_a_second_loading_finds_the_projects_there_and_writes_nothing(
     witness: Database, service_database_url: str, logs: Logs
 ) -> None:
