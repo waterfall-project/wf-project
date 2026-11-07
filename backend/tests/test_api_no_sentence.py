@@ -127,12 +127,16 @@ DATA = {
     "Project.label": "a label",
     "Project.description": "a text",
     "Project.client": "a name",
+    # The label of a subproject, as its project manager gave it (its code is a value pattern-bound).
+    "Subproject.label": "a label",
     # The name of version and the description a revision was marked with, and its source's; the
     # label of a structure, as given — the main one's, as the examples of the contract name it.
     "Revision.version_name": "a name",
     "Revision.description": "a text",
     "Revision.source_version_name": "a name",
     "CostStructure.label": "a label",
+    # The reason a person gave when she took a project out of its cycle, as she wrote it.
+    "StateTransition.reason": "a reason",
 }
 # The objects the answers hold whose properties the contract does not close: the parameters of a
 # refusal, and of each field it refuses, which name its condition by codes and values, the ones
