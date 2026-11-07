@@ -3783,15 +3783,24 @@ Ce qui dépend de l'horloge : rien dans le référentiel, dont les dates sont ce
 parcours, ceux d'un projet et celui de l'icône sur `/` ; presque tous ceux de `admin.spec.ts`
 (`:40` à `:455`, seul `:479` est `@shared`), des écrans d'administration hors des permissions du
 rôle « Manager » de `mode.ts`, sans les permissions `users.*`. De ce que leur US n'étiquette pas
-encore : la lecture des réglages hors projet (`reference-costs.spec.ts`, US-0250) ; le filtre des
-rôles par calendrier (`reference-costs.spec.ts:251`), dont le commentaire le dit d'un écran pas encore
-servi, ce qui est périmé, et la modification des unités de durée (`reference-resources.spec.ts:271`),
-qui affirme l'écho du faux back à une écriture (« 7 et 35 ») : les étiqueter est suivi par #2178. Les gardes `inService` des
-parcours étiquetés ne sont pas des parcours non rejoués : le parcours se joue des deux côtés, et
+encore : la lecture des réglages hors projet (`reference-costs.spec.ts`, US-0250) ; la
+modification des unités de durée (`reference-resources.spec.ts`), qui écrit l'objet unique de
+l'installation et affirme l'écho du faux back (« 7 et 35 ») : elle se jouerait en série (règle
+ci-dessous), ce que le projet `realm` ne fait aujourd'hui que pour `frontend/e2e/service/` (#2178).
+Les gardes `inService` des parcours étiquetés ne sont pas des parcours non rejoués : le parcours se joue des deux côtés, et
 seule l'assertion d'une écriture diffère (ce qui a été saisi, relu après un rechargement ; un
 code et un libellé propres à la course, que le service garde ; un état laissé comme on l'a trouvé)
 — `reference-costs.spec.ts`, `reference-resources.spec.ts`, `reference-settings.spec.ts`,
 `reference-actual-cost-mapping.spec.ts`.
+
+Un parcours `@shared` n'écrit que des objets qu'il crée lui-même, sous un code et un libellé propres
+à la course, et les laisse désactivés ou retirés à sa fin : les workers `shared` jouent en parallèle
+contre une même installation, et un objet du témoin qu'un parcours modifie, même le temps de son
+déroulement, change sous les yeux de ceux qui le lisent ou le comparent à ses exemples (état,
+`lock_version`, dates d'audit — #2087). Les parcours qui modifient un objet unique de l'installation
+— les réglages, les unités de durée, la correspondance des coûts réels — se jouent en série, seuls,
+et non en parallèle des autres. Un parcours qui doit en réactiver un du témoin le fait dans un
+`finally` qui le remet comme il l'a trouvé, et c'est une exception qu'il dit, non la règle.
 
 Une limite des parcours contre le service : Prism, en mandataire du contrat, lit tout corps comme
 du texte et altère les corps binaires — chaque octet au-delà de `0x7f` d'une requête ou d'une

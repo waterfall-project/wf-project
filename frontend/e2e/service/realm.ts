@@ -589,6 +589,9 @@ async function read<T>(request: APIRequestContext, token: string, path: string):
  */
 const ADMINISTRATION: readonly Schemas["PermissionCode"][] = ["users.write", "access_roles.write"];
 
+/** The lock (`oneAtATime`) of the search and the creation of the roles the paths compose. */
+const ROLES_MADE = "the roles composed by the paths";
+
 /**
  * How old a token of the administrator may grow before it is asked again: the realm gives it five
  * minutes, and a file of paths lasts longer.
@@ -617,24 +620,50 @@ export async function accountAdministrator(browser: Browser, request: APIRequest
     id: string,
     wanted: readonly (readonly [string, readonly Schemas["PermissionCode"][]])[],
   ): Promise<void> => {
-    const ids: string[] = [];
-    for (const [label, permissions] of wanted) {
-      const search = new URLSearchParams({ search: label }).toString();
-      const found = (
-        await read<Schemas["AccessRole"][]>(request, await current(), `/access-roles?${search}`)
-      ).find((one) => one.label === label);
-      const granted = found?.permissions ?? permissions;
+    // The search of a role by its label, then its creation, are one step: the label is not unique
+    // at the back, and workers on a fresh installation would each make theirs.
+    const ids = await oneAtATime(ROLES_MADE, async () => {
+      const found: (Schemas["AccessRole"] | undefined)[] = [];
+      const granted = new Set<Schemas["PermissionCode"]>();
+      for (const [label, permissions] of wanted) {
+        const search = new URLSearchParams({ search: label }).toString();
+        const role = (
+          await read<Schemas["AccessRole"][]>(request, await current(), `/access-roles?${search}`)
+        ).find((one) => one.label === label);
+        // A role of this label that the installation changed would fail the path further on,
+        // without a word: it is told here.
+        expect(
+          permissions.filter(
+            (permission) => !(role?.permissions ?? permissions).includes(permission),
+          ),
+          `the role ${label} of the installation lacks permissions the path asks of it`,
+        ).toEqual([]);
+        found.push(role);
+        for (const permission of role?.permissions ?? permissions) {
+          granted.add(permission);
+        }
+      }
+      // The permissions of an account are the union of its roles (WF-ADM-0020): checked once,
+      // before anything is written.
       expect(
-        ADMINISTRATION.every((permission) => granted.includes(permission)),
-        `the role ${label} gives both permissions of the administration`,
+        ADMINISTRATION.every((permission) => granted.has(permission)),
+        `the roles ${wanted.map(([label]) => label).join(", ")} give both permissions of the administration`,
       ).toBe(false);
-      const written: Schemas["AccessRoleWrite"] = { label, permissions: [...permissions] };
-      ids.push(
-        found?.access_role_id ??
+      const made: string[] = [];
+      for (const [index, [label, permissions]] of wanted.entries()) {
+        const role = found[index];
+        if (role !== undefined) {
+          made.push(role.access_role_id);
+          continue;
+        }
+        const written: Schemas["AccessRoleWrite"] = { label, permissions: [...permissions] };
+        made.push(
           (await posted<Schemas["AccessRole"]>(request, await current(), "/access-roles", written))
             .access_role_id,
-      );
-    }
+        );
+      }
+      return made;
+    });
     const { lock_version: version } = await read<Schemas["User"]>(
       request,
       await current(),

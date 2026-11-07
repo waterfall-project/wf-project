@@ -55,10 +55,11 @@ test("sorts and searches each list of the settings of the resources by the serve
   await expect(page).toHaveURL(/include_inactive=true/, { timeout: WORKING });
   await expect(page.getByRole("link", { name: "Masquer les désactivés" })).toBeVisible();
   try {
-    // The reactivation is a server action: its answer awaited, from before the click. The payload of
-    // an action is opaque (Next serialises its arguments), so no identifier or code can tell this one
-    // from another; but the page is idle here — the only steps before were links, awaited by their
-    // address — and the row below shows the reactivation itself, so no other action can pass for it.
+    // The reactivation is a server action: its answer awaited, from before the click. The payload
+    // of an action is opaque (Next serialises its arguments), so no identifier or code can tell
+    // this one from another; but the page is idle here — the only steps before were links, awaited
+    // by their address — and the row below shows the reactivation itself, so no other action can
+    // pass for it.
     const reactivated = page.waitForResponse((response) => isServerAction(response.request()));
     await roles.getByRole("button", { name: "Réactiver «\u00a0Automaticien\u00a0»" }).click();
     expect((await reactivated).status()).toBe(200);
@@ -69,7 +70,8 @@ test("sorts and searches each list of the settings of the resources by the serve
     await expect(page.getByRole("main").getByRole("alert")).toHaveCount(0);
   } finally {
     if (inService) {
-      // The service kept it: the role is left deactivated, as the witness has it, even on a failure.
+      // The service kept it: the role is left deactivated, as the witness has it, even on a
+      // failure.
       const deactivate = roles.getByRole("button", {
         name: "Désactiver «\u00a0Automaticien\u00a0»",
       });
@@ -145,17 +147,20 @@ test("creates a role in its form, moves a node under an active one, and designat
     .selectOption({ label: "Semaine standard" });
   await form.getByRole("textbox", { name: "Heures par mois" }).fill("520");
   await form.getByRole("textbox", { name: "Effectif" }).fill("3");
-  await form.getByRole("button", { name: "Créer" }).click();
-  await expect(form).toBeHidden({ timeout: WORKING });
-  // The list says what the server created — its example —, and adds no row of its own.
-  await expect(roles.getByRole("status").filter({ hasText: "créé" })).toHaveText(
-    `«\u00a0${label}\u00a0» créé.`,
-  );
   const nodeForm = page.getByRole("dialog", { name: "Modifier «\u00a0Atelier de câblage\u00a0»" });
   const calendars = page.getByRole("grid", { name: "Calendriers" });
   const calendarRow = (label: string) => calendars.getByRole("row").filter({ hasText: label });
   let moved = false;
+  // The restorations that failed: told once the path is done, if the path itself did not fail.
+  const notRestored: unknown[] = [];
+  // The role is written by the click on « Créer »: whatever fails after it, it is deactivated.
   try {
+    await form.getByRole("button", { name: "Créer" }).click();
+    await expect(form).toBeHidden({ timeout: WORKING });
+    // The list says what the server created — its example —, and adds no row of its own.
+    await expect(roles.getByRole("status").filter({ hasText: "créé" })).toHaveText(
+      `«\u00a0${label}\u00a0» créé.`,
+    );
     if (inService) {
       // The service kept it: the list read anew shows the role.
       await page.goto("/reference/resources?include_inactive=true");
@@ -167,8 +172,9 @@ test("creates a role in its form, moves a node under an active one, and designat
       await page.goto("/reference/resources");
     }
 
-    // The workshop moved under the direction in its form: the active nodes alone are offered as its
-    // parent, never the workshop itself; the parent is sent, and the list says what the server wrote.
+    // The workshop moved under the direction in its form: the active nodes alone are offered as
+    // its parent, never the workshop itself; the parent is sent, and the list says what the server
+    // wrote.
     const organisation = page.getByRole("region", { name: "Arbre d’organisation" });
     await page
       .getByRole("treegrid", { name: "Arbre d’organisation" })
@@ -183,8 +189,8 @@ test("creates a role in its form, moves a node under an active one, and designat
     ]);
     await parent.selectOption({ label: "DT · Direction technique" });
     await nodeForm.getByRole("button", { name: "Enregistrer" }).click();
-    await expect(nodeForm).toBeHidden({ timeout: WORKING });
     moved = true;
+    await expect(nodeForm).toBeHidden({ timeout: WORKING });
     await expect(organisation.getByRole("status").filter({ hasText: "enregistré" })).toHaveText(
       "«\u00a0Atelier de câblage\u00a0» enregistré.",
     );
@@ -217,7 +223,7 @@ test("creates a role in its form, moves a node under an active one, and designat
           await page.goto("/reference/resources");
           await step();
         } catch (error) {
-          console.warn("restoration failed:", error);
+          notRestored.push(error);
         }
       };
       const deactivate = page
@@ -266,6 +272,8 @@ test("creates a role in its form, moves a node under an active one, and designat
       });
     }
   }
+  // A restoration that failed leaves the service changed: the path, which passed, does not.
+  expect(notRestored, "the restorations that failed").toEqual([]);
 });
 
 test("modifies the units of duration from the settings of the resources, and says what the change does to the schedules (US-0570)", async ({

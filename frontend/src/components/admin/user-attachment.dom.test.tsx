@@ -161,8 +161,10 @@ describe("the attachment of an account, in its cell", () => {
     );
     expect(listOf("Lucas Petit")).toHaveValue(inactive.org_node_id);
     for (const name of ["Lucas Petit", "Alix Moreau"]) {
+      // The exact text of the option, never a pattern made of a code that may hold a special sign.
       const option = within(listOf(name)).getByRole("option", {
-        name: new RegExp(`${inactive.code} · ${inactive.label}`),
+        name: `${inactive.code} · ${inactive.label}`,
+        exact: true,
       });
       expect(option).toBeEnabled();
     }
@@ -184,7 +186,7 @@ describe("the attachment of an account, in its cell", () => {
       "rechargez-la pour voir sa dernière version.",
     ],
   ])(
-    "tells in the region of the accounts the attachment the server refuses — %s —, the list back at the node read and the focus on its cell [WF-ADM-0050-A]",
+    "tells in the region of the accounts the attachment the server refuses — %s —, the list back at the node read and the focus on its cell [WF-ADM-0030-A]",
     async (_, problem, said) => {
       const client = serve({ "PATCH /users/{user_id}": { problem } });
       render(accounts(true, users.items, undefined, active));
@@ -203,7 +205,7 @@ describe("the attachment of an account, in its cell", () => {
     },
   );
 
-  it("shows an anonymised account attached to a node by its label alone, read only, for a session that may modify the accounts [WF-ADM-0060-A]", () => {
+  it("shows an anonymised account attached to a node by its label alone, read only, for a session that may modify the accounts [WF-ADM-0030-A]", () => {
     const [anonymised] = (example("users_anonymized") as { items: User[] }).items;
     if (anonymised?.org_node_label == null) {
       throw new Error("the example holds an anonymised account attached to a node");
