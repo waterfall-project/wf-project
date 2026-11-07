@@ -19,6 +19,7 @@
       "Bash(git branch -d:*)",
       "Bash(git worktree unlock:*)",
       "Bash(git worktree remove:*)",
+      "Bash(git worktree prune:*)",
       "Bash(make tracking:*)",
       "Bash(make slot:*)",
       "Bash(make slot-release:*)",

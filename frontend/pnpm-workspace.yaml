@@ -21,3 +21,8 @@ overrides:
   # GHSA-4w7w-5xrc-9h26, fixed in 8.12.2; pulled by jsdom, under vitest. Caret: stays in the
   # major version jsdom asks for.
   undici: "^8.12.2"
+  # GHSA-g3hv-75wg-m249, fixed in 11.0.1 and in no 10.x; pulled by ESLint (@eslint/config-array,
+  # typescript-eslint), which asks for ^10.2.4 and reads with it only the globs of its own
+  # configuration. They call only Minimatch, its match and pattern, and minimatch(), which 11
+  # keeps; it drops makeRe, matchOne and AST, which none of them calls.
+  "minimatch@>=10.0.0 <11.0.1": "^11.0.1"

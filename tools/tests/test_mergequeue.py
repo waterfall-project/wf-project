@@ -299,7 +299,16 @@ def test_create_says_a_post_that_gh_refuses(tmp_path: Path) -> None:
     [
         (["refs/heads/epic/*"], [], True),
         (["refs/heads/*"], [], False),
-        (["refs/heads/**"], [], True),
+        # As Ruby's File.fnmatch with FNM_PATHNAME answers (#2423): a `**` that is not followed by
+        # a `/` stays within a segment, a `**/` crosses zero directories or more.
+        (["refs/heads/**"], [], False),
+        (["refs/heads/**/*"], [], True),
+        (["refs/heads/epic/**/*"], [], True),
+        (["refs/**/epic/EP-21"], [], True),
+        (["refs/heads/ep**/EP-21"], [], True),
+        (["refs/heads**/EP-21"], [], False),
+        # No FNM_EXTGLOB on GitHub: braces are literal.
+        (["refs/heads/epic/{EP-21,EP-22}"], [], False),
         (["refs/heads/epic/EP-[12]1"], [], True),
         (["~ALL"], [], True),
         (["refs/heads/epic/EP-2?"], [], True),

@@ -63,7 +63,7 @@ PRISM   := npx --yes @stoplight/prism-cli@$(PRISM_VERSION)
 	mock-tools mock-spec mock-data mock-data-up-to-date dev dev-down lint-compose service-up service-install service-witness service-logs service-down migrate \
 	build-keycloak build-cache test-keycloak check-keycloak keycloak-authority e2e-service check-service images \
 	production-trial check-production \
-	test-tools lint-tools typecheck-tools sources fixtures check-fixtures requirements \
+	test-tools test-openldap lint-tools typecheck-tools sources fixtures check-fixtures requirements \
 	requirements-release screens readmes reuse lint-workflows \
 	lint-shell check slot slot-release e2e-down slots test-services test-services-down \
 	check-all check-repo check-spec \
@@ -197,6 +197,11 @@ dev-down: ## Stop the development platform
 # share of the processors, unless it selects a single file (TESTS).
 test-tools: ## Run the tests of the repository tools (TESTS=<file> runs one file)
 	@cd $(TOOLS) && $(heavy) uv run --frozen pytest -n $(WATERFALL_PROCESSORS) --dist worksteal $(TESTS)
+
+# The entrypoint of the directory, tried in Docker on throwaway volumes: a minute of starts that the
+# tools leave out (the marker openldap), run by the keycloak family, which deploy/openldap wakes.
+test-openldap: ## Try the entrypoint of the directory of test on throwaway volumes (needs Docker)
+	@cd $(TOOLS) && uv run --frozen pytest -m openldap -n $(WATERFALL_PROCESSORS) --dist worksteal
 
 lint-tools: ## Lint and format check of the repository tools
 	@cd $(TOOLS) && uv run --frozen ruff check . $(DOC_TOOLS) \
@@ -510,7 +515,7 @@ coverage-front-merge: install-front ## The code coverage of the front from the p
 
 check-roadmap: roadmap ## The roadmap and the requirements agree (US-0070)
 
-check-keycloak: build-keycloak test-keycloak ## The image of Keycloak builds, its realm applies and its extension answers (US-0350)
+check-keycloak: build-keycloak test-keycloak test-openldap ## The image of Keycloak builds, its realm applies and its extension answers (US-0350); the entrypoint of the directory seeds its volumes
 
 # The production image of the front, which the chain publishes after a merge alone (images.yml),
 # built and started at a pull request that changes what makes it (wftools.frontimage, US-0430).

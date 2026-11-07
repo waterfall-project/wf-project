@@ -446,6 +446,18 @@ def test_a_date_sent_for_an_automatic_task_is_refused_as_computed(read: dict[str
     assert "task.finish" in mounting["computed_fields"]
 
 
+@pytest.mark.parametrize(
+    ("start", "beyond"),
+    [(date(2028, 2, 29), date(2043, 3, 1)), (date(2028, 2, 28), date(2043, 3, 1))],
+)
+def test_the_horizon_of_a_start_on_a_29th_of_february_ends_on_the_28th(
+    monkeypatch: pytest.MonkeyPatch, start: date, beyond: date
+) -> None:
+    # #2419: fifteen years after a 29th of February, a common year, is the 28th; then the day after.
+    monkeypatch.setattr(mockgestures, "project_start", lambda: start)
+    assert mockgestures.beyond_horizon() == beyond
+
+
 def test_the_horizon_counts_fifteen_years_from_the_start_and_the_entry_names_its_task(
     read: dict[str, Node],
 ) -> None:

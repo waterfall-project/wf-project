@@ -27,6 +27,8 @@ KEYS_PATH = f"/auth/realms/{REALM}/protocol/openid-connect/certs"
 AUDIENCE = "waterfall-api"
 # The key the realm of test signs its tokens with, unless a test asks for another.
 KEY = "key-1"
+# How often the server of the realm looks whether it is asked to stop, in seconds.
+POLL_INTERVAL = 0.01
 
 
 def new_key() -> rsa.RSAPrivateKey:
@@ -70,7 +72,11 @@ class TestRealm:
                 self.wfile.write(body)
 
         self._server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
-        self._thread = threading.Thread(target=self._server.serve_forever, daemon=True)
+        # shutdown() waits for the loop to look at its flag, every poll_interval: half a second by
+        # default, paid by every test that starts a realm — a third of the time of the suite.
+        self._thread = threading.Thread(
+            target=self._server.serve_forever, kwargs={"poll_interval": POLL_INTERVAL}, daemon=True
+        )
         self._thread.start()
 
     @property

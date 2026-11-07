@@ -348,9 +348,17 @@ def project_start() -> date:
 
 
 def beyond_horizon() -> date:
-    """Return fifteen years and a day after the start of the project (Vérif of WF-PLA-0150)."""
+    """Return fifteen years and a day after the start of the project (Vérif of WF-PLA-0150).
+
+    Fifteen years after a 29th of February is the 28th, as for the period of the portfolio
+    (``mockportfolio.period_from``): the year it lands on is not a leap year (#2419).
+    """
     start = project_start()
-    return start.replace(year=start.year + HORIZON_YEARS) + timedelta(days=1)
+    try:
+        later = start.replace(year=start.year + HORIZON_YEARS)
+    except ValueError:
+        later = start.replace(year=start.year + HORIZON_YEARS, day=28)
+    return later + timedelta(days=1)
 
 
 COMPUTED_CORRELATION, HORIZON_CORRELATION = universe(1169), universe(1170)

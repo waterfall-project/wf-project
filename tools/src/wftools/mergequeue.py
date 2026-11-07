@@ -85,13 +85,22 @@ def matches(branch: str, patterns: list[object]) -> bool:
 
 
 def pathname_pattern(pattern: str) -> str:
-    """Translate a pattern of ``fnmatch`` with ``FNM_PATHNAME`` into a regular expression."""
+    """Translate a pattern of ``fnmatch`` with ``FNM_PATHNAME`` into a regular expression.
+
+    As Ruby reads it (#2423): a ``**/`` that starts a segment crosses zero or more directories,
+    any other ``**`` is a ``*``, which stops at a ``/``. Braces are literal: GitHub does not
+    support ``FNM_EXTGLOB``.
+    """
     translated: list[str] = []
     index = 0
     while index < len(pattern):
         char = pattern[index]
+        if pattern.startswith("**/", index) and (index == 0 or pattern[index - 1] == "/"):
+            translated.append("(?:[^/]*/)*")
+            index += 3
+            continue
         if pattern.startswith("**", index):
-            translated.append(".*")
+            translated.append("[^/]*")
             index += 2
             continue
         closing = pattern.find("]", index + 2) if char == "[" else -1

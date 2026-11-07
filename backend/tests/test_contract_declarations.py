@@ -140,14 +140,19 @@ def bounds_of(schema: Any, at: Any, follow: Callable[[Any, Any], tuple[Any, Any]
 
 
 def anchored(pattern: str) -> bool:
-    r"""Tell whether a pattern starts with ``^`` and ends with a ``$`` no backslash escapes.
+    r"""Tell whether a pattern is anchored at both ends, whichever of its alternatives matches.
 
-    Pydantic searches a pattern without anchoring it: ``^(a|c\.[0-9]+)`` accepts ``c.1zzz``.
+    It starts with ``^``, ends with a ``$`` no backslash escapes, and has no ``|`` at its top
+    level: ``^a|b$`` anchors ``a`` at its start and ``b`` at its end only (#2423). Pydantic
+    searches a pattern without anchoring it: ``^(a|c\.[0-9]+)`` accepts ``c.1zzz``.
     """
-    if not pattern.startswith("^") or not pattern.endswith("$"):
+    if not pattern.startswith("^"):
         return False
-    escaping = len(pattern) - 1 - len(pattern[:-1].rstrip("\\"))
-    return escaping % 2 == 0
+    body = _unanchored(pattern)
+    if body is None:
+        return False
+    parts, _ = _top_level(body)
+    return len(parts) == 1
 
 
 def alternatives(pattern: str) -> set[str]:
@@ -156,10 +161,27 @@ def alternatives(pattern: str) -> set[str]:
     ``^(a|c\.[0-9]+)$`` gives ``{"a", "c\.[0-9]+"}``. A ``|`` inside a group or a class does not
     split; the ``$`` ending the pattern is an anchor unless a backslash escapes it.
     """
+    body = _unanchored(pattern)
+    if body is None:
+        body = pattern.removeprefix("^")
+    parts, first_group_ends = _top_level(body)
+    if len(parts) == 1 and body.startswith("(") and first_group_ends == len(body) - 1:
+        opening = "(?:" if body.startswith("(?:") else "("
+        return alternatives(body.removeprefix(opening).removesuffix(")"))
+    return set(parts)
+
+
+def _unanchored(pattern: str) -> str | None:
+    """Give the pattern without its ``^`` and its ending ``$``; None if no unescaped ``$`` ends."""
     body = pattern.removeprefix("^")
-    if body.endswith("$"):
-        escaping = len(body) - 1 - len(body[:-1].rstrip("\\"))
-        body = body[:-1] if escaping % 2 == 0 else body
+    if not body.endswith("$"):
+        return None
+    escaping = len(body) - 1 - len(body[:-1].rstrip("\\"))
+    return body[:-1] if escaping % 2 == 0 else None
+
+
+def _top_level(body: str) -> tuple[list[str], int]:
+    """Split a body at its top-level ``|``; give the parts and where its first group closes."""
     parts: list[str] = []
     depth = 0
     in_class = False
@@ -185,10 +207,7 @@ def alternatives(pattern: str) -> set[str]:
             start = index + 1
         index += 1
     parts.append(body[start:])
-    if len(parts) == 1 and body.startswith("(") and first_group_ends == len(body) - 1:
-        opening = "(?:" if body.startswith("(?:") else "("
-        return alternatives(body.removeprefix(opening).removesuffix(")"))
-    return set(parts)
+    return parts, first_group_ends
 
 
 def agrees(have: Bounds, want: Bounds) -> bool:
@@ -585,6 +604,9 @@ def test_the_alternatives_of_a_pattern_keep_a_group_nested_in_the_outer_one() ->
     assert not anchored("(a|b)$")
     assert not anchored(r"^(a|b)\$")
     assert anchored(r"^(a|b)\\$")
+    assert anchored("^ab$")
+    assert not anchored("^a|b$")
+    assert not anchored(r"^(a)|(b)$")
 
 
 @pytest.mark.requirement("WF-ARC-0060-A")

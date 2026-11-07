@@ -111,6 +111,8 @@ paths = [
     "deploy/compose/service-database-role.sql",
     "deploy/compose/backup-database-role.sql",
     "backend/tests/test_keycloak_*.py",
+    # The entrypoint of the directory, tried by make test-openldap.
+    "tools/tests/test_openldap_entrypoint.py",
     "backend/tests/conftest.py",
     "backend/tests/support.py",
     # The accounts and roles written around the service, which they take (#886).

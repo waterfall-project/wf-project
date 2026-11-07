@@ -29,7 +29,10 @@ SEED = REPOSITORY / "deploy" / "keycloak" / "development" / "directory.ldif"
 REMEDY = "make service-down WATERFALL_RESET_DATA=yes"
 MARKER = ".seeding"
 
-pytestmark = pytest.mark.skipif(shutil.which("docker") is None, reason="docker is not installed")
+pytestmark = [
+    pytest.mark.openldap,
+    pytest.mark.skipif(shutil.which("docker") is None, reason="docker is not installed"),
+]
 
 
 class Volumes:
@@ -130,8 +133,12 @@ def test_volumes_laid_without_the_entrypoint_are_not_emptied_or_refused(volumes:
     laid = volumes.run("touch /etc/ldap/slapd.d/cn=config.ldif /var/lib/ldap/osixia")
     assert laid.returncode == 0
     started = volumes.start()
-    # slapd, not the entrypoint, ends it: the configuration laid here is an empty file.
+    # slapd, not the entrypoint, ends it: the configuration laid here is an empty file, which slapd
+    # reads as an entry without a name before it stops (#2423). The status alone, 1, would not
+    # tell: every failure of the entrypoint exits with it.
     assert started.returncode == 1
+    assert "str2entry: entry -1 has no dn" in started.stderr
+    assert "slapd stopped." in started.stderr
     assert REMEDY not in started.stderr
     assert "interrupted" not in started.stderr
     data, config = volumes.listing().split("---")
