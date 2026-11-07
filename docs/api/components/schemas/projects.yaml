@@ -835,7 +835,7 @@ WorkPackage:
 OrderItem:
   type: object
   required: [label, deliverables]
-  description: An order item that `setWorkBreakdown` writes in its work package, its identifier like that of a work package.
+  description: An order item that `setWorkBreakdown` writes in its work package, identified like a work package.
   properties:
     order_item_id: { $ref: ../common.yaml#/Uuid }
     label: { type: string, minLength: 1, pattern: '\S', maxLength: 300 }
@@ -846,7 +846,7 @@ OrderItem:
 Deliverable:
   type: object
   required: [label]
-  description: A deliverable that `setWorkBreakdown` writes in its order item, its identifier like that of a work package.
+  description: A deliverable that `setWorkBreakdown` writes in its order item, identified like a work package.
   properties:
     deliverable_id: { $ref: ../common.yaml#/Uuid }
     label: { type: string, minLength: 1, pattern: '\S', maxLength: 300 }
