@@ -10,6 +10,7 @@ import ast
 import importlib
 import os
 import pkgutil
+import re
 import subprocess
 import sys
 import tomllib
@@ -63,6 +64,45 @@ REFERENCE_INTERFACES: dict[str, set[str]] = {
     },
     "risk_settings": set(),
     "indicator_settings": set(),
+}
+# The modules of the projects and of the revisions (EP-04), one file per subject.
+PROJECT_INTERFACES: dict[str, set[str]] = {
+    "projects": {"projects", "contributors", "subprojects", "work_breakdown", "lifecycle"},
+    "revisions": {"revisions", "structures", "marking", "reference", "shared"},
+}
+# What the design names of each (EP-04, "Modules"), declared from US-0910/L1 on, which the other
+# stories call before theirs fill them.
+DESIGNED: dict[str, set[str]] = {
+    "projects": {
+        "read_project",
+        "list_projects",
+        "create_project",
+        "update_project",
+        "contributor_kind",
+        "next_state",
+        "advance",
+        "exit_project",
+        "list_state_transitions",
+        "no_background_task_running",
+        "project_label",
+        "project_code",
+        "load_project",
+    },
+    "revisions": {
+        "list_revisions",
+        "read_revision",
+        "create_revision",
+        "copy_revision",
+        "abandon_revision",
+        "mark_revision",
+        "designate_reference",
+        "revision_has_tasks_and_lines",
+        "compute_indicators",
+        "current_revision",
+        "revision_draft",
+        "create_project_partitions",
+        "load_revision",
+    },
 }
 
 
@@ -237,6 +277,218 @@ def test_each_module_of_the_reference_offers_its_interface_as_a_package_of_one_f
     interface = importlib.import_module(f"waterfall.core.{module}.interface")
     held = {info.name for info in pkgutil.iter_modules(interface.__path__)}
     assert held == files
+
+
+@pytest.mark.requirement("WF-ARC-0010-A")
+@pytest.mark.parametrize(("module", "files"), PROJECT_INTERFACES.items())
+def test_the_projects_and_the_revisions_offer_their_interface_as_a_package_by_subject(
+    module: str, files: set[str]
+) -> None:
+    interface = importlib.import_module(f"waterfall.core.{module}.interface")
+    held = {info.name for info in pkgutil.iter_modules(interface.__path__)}
+    assert held == files
+    offered = set(interface.__all__)
+    assert DESIGNED[module] <= offered
+    # Each name is the one its file declares, re-exported: a function of a file alone, or of the
+    # package alone, would be another.
+    for name in offered:
+        declared = getattr(interface, name)
+        source = getattr(declared, "__module__", f"{interface.__name__}.?")
+        assert source.rsplit(".", 1)[0] == interface.__name__, name
+
+
+STUB_STATEMENTS = 2
+# The functions the design leaves silent until a story fills them: each gives a documented result,
+# without effect, and a caller relies on it — a stub in their place would refuse every caller.
+SILENT = {
+    "projects": {"no_background_task_running", "advance"},
+    "revisions": {"revision_has_tasks_and_lines", "compute_indicators"},
+}
+
+
+def names_not_implemented(node: ast.expr | None) -> bool:
+    """Tell whether an expression names ``NotImplementedError``, bare or as ``builtins`` has it."""
+    if isinstance(node, ast.Name):
+        return node.id == "NotImplementedError"
+    return (
+        isinstance(node, ast.Attribute)
+        and node.attr == "NotImplementedError"
+        and isinstance(node.value, ast.Name)
+        and node.value.id == "builtins"
+    )
+
+
+def stub_message(function: ast.FunctionDef | ast.AsyncFunctionDef) -> str | None:
+    """Give the message of a stub — a docstring at most, ``msg = "..."``, then the raise — or None.
+
+    The raise names ``NotImplementedError`` bare: any other form is no stub.
+    """
+    body = list(function.body)
+    if (
+        body
+        and isinstance(body[0], ast.Expr)
+        and isinstance(body[0].value, ast.Constant)
+        and isinstance(body[0].value.value, str)
+    ):
+        body.pop(0)
+    if len(body) != STUB_STATEMENTS:
+        return None
+    assign, raised = body
+    if not (
+        isinstance(assign, ast.Assign)
+        and len(assign.targets) == 1
+        and isinstance(assign.targets[0], ast.Name)
+        and assign.targets[0].id == "msg"
+        and isinstance(assign.value, ast.Constant)
+        and isinstance(assign.value.value, str)
+        and isinstance(raised, ast.Raise)
+        and isinstance(raised.exc, ast.Call)
+        and isinstance(raised.exc.func, ast.Name)
+        and raised.exc.func.id == "NotImplementedError"
+        and len(raised.exc.args) == 1
+        and isinstance(raised.exc.args[0], ast.Name)
+        and raised.exc.args[0].id == "msg"
+        and not raised.exc.keywords
+    ):
+        return None
+    return assign.value.value
+
+
+def functions(tree: ast.AST) -> list[ast.FunctionDef | ast.AsyncFunctionDef]:
+    """List every function of a tree, nested ones and ``async`` ones included."""
+    return [n for n in ast.walk(tree) if isinstance(n, ast.FunctionDef | ast.AsyncFunctionDef)]
+
+
+def refuses(function: ast.FunctionDef | ast.AsyncFunctionDef) -> bool:
+    """Tell whether a function's own body (not a nested one's) raises NotImplementedError."""
+    pending: list[ast.AST] = list(function.body)
+    while pending:
+        node = pending.pop()
+        if isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef | ast.Lambda):
+            continue
+        if isinstance(node, ast.Raise):
+            target = node.exc.func if isinstance(node.exc, ast.Call) else node.exc
+            if names_not_implemented(target):
+                return True
+        pending.extend(ast.iter_child_nodes(node))
+    return False
+
+
+def malformed_stubs(source: str) -> list[str]:
+    """Name the functions of a source that raise NotImplementedError without being a stub."""
+    tree = ast.parse(source)
+    return [f.name for f in functions(tree) if refuses(f) and stub_message(f) is None]
+
+
+def interface_sources() -> list[tuple[str, str]]:
+    """List (file, source) of each file of the two interfaces, subpackages included.
+
+    Each file is named by its path under the interface, after its module: two files of the same
+    name in two subpackages are two.
+    """
+    found: list[tuple[str, str]] = []
+    for module in PROJECT_INTERFACES:
+        interface = importlib.import_module(f"waterfall.core.{module}.interface")
+        for directory in interface.__path__:
+            found.extend(
+                (
+                    f"{module}/{path.relative_to(directory).as_posix()}",
+                    path.read_text(encoding="utf-8"),
+                )
+                for path in sorted(Path(directory).rglob("*.py"))
+            )
+    return found
+
+
+def stubs() -> list[tuple[str, str, str]]:
+    """List (file, function, message) of each stub the files of the two interfaces declare.
+
+    Read from the code, not from a list: a function a story fills leaves it alone. The silent ones
+    (the design gives them a documented result without effect) are not stubs.
+    """
+    return [
+        (file, node.name, message)
+        for file, source in interface_sources()
+        for node in functions(ast.parse(source))
+        if (message := stub_message(node)) is not None
+    ]
+
+
+@pytest.mark.requirement("WF-ARC-0010-A")
+def test_no_function_of_the_interfaces_raises_not_implemented_without_being_a_stub() -> None:
+    # True whatever the number of stubs left, none included: the sweep and `stub_message` agree.
+    assert [(f, m) for f, s in interface_sources() for m in malformed_stubs(s)] == []
+
+
+@pytest.mark.requirement("WF-ARC-0010-A")
+@pytest.mark.parametrize(
+    "source",
+    [
+        "def f():\n    raise NotImplementedError('f is filled by US-0001')\n",
+        "async def f():\n    msg = 1\n    raise NotImplementedError(msg)\n",
+        "async def f():\n    raise NotImplementedError\n",
+        "def g():\n    def f():\n        raise NotImplementedError('x')\n    return f\n",
+        (
+            "class C:\n    def f(self):\n        msg = 'x'\n        print(msg)\n"
+            "        raise NotImplementedError(msg)\n"
+        ),
+        # Named through ``builtins``, the refusal is one all the same, and no stub.
+        "def f():\n    msg = 'x'\n    raise builtins.NotImplementedError(msg)\n",
+        "def f():\n    msg = 'x'\n    raise NotImplementedError(msg, msg)\n",
+    ],
+)
+def test_the_sweep_of_the_stubs_rejects_a_malformed_or_async_or_nested_stub(source: str) -> None:
+    assert malformed_stubs(source) == ["f"]
+
+
+@pytest.mark.requirement("WF-ARC-0010-A")
+@pytest.mark.parametrize(
+    "source",
+    [
+        "async def f():\n    msg = 'f is filled by US-0001'\n    raise NotImplementedError(msg)\n",
+        (
+            "def g():\n    def f():\n        msg = 'f is filled by US-0001'\n"
+            "        raise NotImplementedError(msg)\n"
+        ),
+    ],
+)
+def test_the_sweep_of_the_stubs_accepts_a_well_formed_stub_async_or_nested(source: str) -> None:
+    assert malformed_stubs(source) == []
+
+
+@pytest.mark.requirement("WF-ARC-0010-A")
+def test_a_stub_of_the_projects_and_the_revisions_refuses_naming_the_story_that_fills_it() -> None:
+    # A caller that reaches a function before its story fills it must fail, not read or write
+    # nothing: a green test would hide a refusal (`revision_draft`) that does not exist yet. One
+    # test over them all, not one per stub: once the last is filled, it still runs, and passes.
+    assert [
+        (file, message)
+        for file, name, message in stubs()
+        if not re.fullmatch(rf"{name} is filled by US-\d{{4}}(/L\d+)?", message)
+    ] == []
+
+
+@pytest.mark.requirement("WF-ARC-0010-A")
+def test_the_functions_the_design_leaves_silent_do_not_refuse() -> None:
+    # Made a stub by mistake, one of them would refuse a caller that relies on its result: the
+    # marking, the designation of the reference, a transition of the cycle of life. Filled by
+    # their story, they still do not refuse; renamed or removed, this list must follow.
+    declared = {
+        module: {
+            node.name: node
+            for file, source in interface_sources()
+            if file.startswith(f"{module}/")
+            for node in functions(ast.parse(source))
+        }
+        for module in SILENT
+    }
+    assert {module: names & set(declared[module]) for module, names in SILENT.items()} == SILENT
+    assert [
+        name
+        for module, names in SILENT.items()
+        for name in names
+        if refuses(declared[module][name])
+    ] == []
 
 
 def imported(statement: str) -> str:

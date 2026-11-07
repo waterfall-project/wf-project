@@ -16,11 +16,15 @@
  * unread, the filters kept to be changed. The projects show in the dense grid, its columns,
  * widths and sort kept in the settings of the account (WF-ADM-0040). Above the list, in every
  * case, the prerequisites the minimum reference data lacks, which forbid creating a project
- * (WF-CYC-0120); and, when the list holds no project and nothing narrows it, that it is — the
+ * (WF-CYC-0120), each named and leading to the reference data where the session may read it
+ * (WF-IHM-0120); and, when the list holds no project and nothing narrows it, that it is — the
  * states by default count as a filter, so a home whose default states retain no project shows an
  * empty grid, not that notice. A session that holds the permission to create a project is offered
- * its creation in the header (`CreateProject`, WF-ADM-0100), the screen saying that the fake back
- * keeps nothing (`MockupNotice`); no other session is.
+ * its creation in the header (`CreateProject`, WF-ADM-0100); no other session is.
+ *
+ * The page reads what the service serves, the list (`listProjects`) and the readiness of the
+ * reference data (`getReferenceReadiness`) as they are (US-0920, #1004): it shows no note of the
+ * mock-up, the list being filtered, sorted and paged by the server.
  */
 import type { Metadata } from "next";
 import { useTranslations } from "next-intl";
@@ -49,7 +53,6 @@ import {
 } from "@/components/projects/project-list-grid";
 import { ProjectPeriodFilter, ProjectStateFilter } from "@/components/projects/project-list-view";
 import { GROUP_ICONS } from "@/components/shell/function-display";
-import { MockupNotice } from "@/components/shell/mockup-notice";
 import { PageHeader, Screen } from "@/components/shell/page-header";
 import { ReferenceIncomplete } from "@/components/system/empty-states";
 import { type PageSearchParams, pageSearch, searchQuery } from "@/navigation/context";
@@ -207,7 +210,6 @@ export default async function HomePage({
             <ContributorFilter filtered={filtered} mayLift={mayLift} query={searchQuery(raw)} />
           }
         />
-        <MockupNotice lists />
         <ReferenceIncomplete readiness={readiness} permissions={permissions} />
         <ProjectsShown projects={projects} asked={asked} preferences={kept} />
       </Screen>

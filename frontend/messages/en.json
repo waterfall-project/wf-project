@@ -2187,6 +2187,7 @@
       "version": "Version",
       "status": "Status",
       "markedAt": "Marked on",
+      "referenceYear": "Reference year",
       "source": "Copy of",
       "noSource": "None",
       "inflationRate": "Inflation rate",

@@ -29,8 +29,8 @@ type Schemas = components["schemas"];
 export const KEYCLOAK = process.env.WATERFALL_KEYCLOAK_ADDRESS ?? "https://localhost:8443/auth";
 /** The realm of Waterfall, under it. */
 export const REALM = `${KEYCLOAK}/realms/waterfall`;
-/** The API, through the proxy of the contract. */
-const API = `${process.env.WATERFALL_API_ADDRESS ?? ""}/api/v1`;
+/** The API, through the proxy of the contract: the service the environment names, under `/api/v1`. */
+export const API = `${process.env.WATERFALL_API_ADDRESS ?? ""}/api/v1`;
 
 /** A person who signs in at the realm: by her address and her password, or by a provider. */
 export interface Person {
@@ -731,7 +731,7 @@ export async function accountAdministrator(browser: Browser, request: APIRequest
     },
     /**
      * Give a local account several roles at once, each as `give` makes it, in place of those it
-     * holds: a predefined role the installation delivers, and a role of the path beside it.
+     * holds: the predefined roles the installation delivers, « Manager » and « Chef de projet ».
      */
     giveAlso: async (
       id: string,

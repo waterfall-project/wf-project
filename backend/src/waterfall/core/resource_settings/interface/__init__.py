@@ -134,9 +134,16 @@ from waterfall.core.resource_settings.interface.org_nodes import (
     within_node as within_node,
 )
 
-# ``readiness`` (US-0810/L2): the questions of the minimal reference this module answers.
+# ``readiness`` (US-0810/L2): the questions of the minimal reference this module answers, and the
+# lock that guards them (#2154).
 from waterfall.core.resource_settings.interface.readiness import (
     default_calendar_has_hours as default_calendar_has_hours,
+)
+from waterfall.core.resource_settings.interface.readiness import (
+    lock_reference as lock_reference,
+)
+from waterfall.core.resource_settings.interface.readiness import (
+    share_reference as share_reference,
 )
 
 # ``resource_roles`` (US-0850): the roles of resources and their capacity.

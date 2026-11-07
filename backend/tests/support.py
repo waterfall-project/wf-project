@@ -51,12 +51,6 @@ WITNESS = Path(__file__).resolve().parents[2] / "fixtures" / "api"
 # The four parts of the reference, each with its permission to read and its permission to change.
 REFERENCE_PARTS = ("cost_settings", "resource_settings", "risk_settings", "indicator_settings")
 
-# The back lags behind the contract until EP-04, without a change of the service in EP-16
-# (decision of the author of 2026-10-28 on #1457, option b): the predefined manager of the witness
-# writes the settings of risks and of indicators (US-0701/L8, A-01, WF-INTF-0020), which the
-# bootstrap does not give it yet.
-TO_SEED_BY_EP04 = {"Manager": ("risk_settings.write", "indicator_settings.write")}
-
 # The secrets of the test platform: the values a search of the logs looks for (WF-OBS-0020).
 DB_CREDENTIAL = "db-pass-4f8a1c"
 REDIS_CREDENTIAL = "redis-pass-9d2e7b"

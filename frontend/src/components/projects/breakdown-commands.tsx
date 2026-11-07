@@ -16,8 +16,7 @@
  * the tasks of the revision in progress that bear it remain and lose their attachment, the marked
  * revisions keeping it (WF-PLA-0170) — the reading does not say whether a task bears it, so every one
  * says so. The work breakdown answered, read whole, takes the place of the rows of a reading whole
- * while its counter is newer — against the fake back, which keeps nothing, for as long as the screen
- * stays (`MockupNotice`) —, and the page is read anew; a reading filtered shows what it retains.
+ * while its counter is newer, and the page is read anew, the service having kept it; a reading filtered shows what it retains.
  * A refusal by field that points at the element a dialog writes — its label, its identifier — is said
  * at its field; one that points at another element is said naming it, by its kind and its label
  * (`UNKNOWN_WORK_BREAKDOWN_ITEM`, `DUPLICATE_WORK_BREAKDOWN_ITEM`); any other — the version stale

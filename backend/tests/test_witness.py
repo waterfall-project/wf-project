@@ -43,8 +43,9 @@ from waterfall.core.resource_settings.tables import (
 from waterfall.platform.audit import Act
 from waterfall.platform.database import Base, utc_now
 from waterfall.platform.errors import ConflictError
+from waterfall.platform.logs import logging_context
 from waterfall.platform.settings import WitnessSettings
-from waterfall.witness import loader
+from waterfall.witness import chronology, loader
 from waterfall.witness.description import Witness, is_loaded
 from waterfall.witness.main import WITNESS_LOCK, load_witness, main
 
@@ -71,6 +72,8 @@ ORDER = [
     "org_nodes",
     "resource_roles",
     "actual_cost_mapping",
+    # The slices of the projects, after the reference, by their entry (EP-04).
+    "chronology",
 ]
 
 
@@ -107,6 +110,40 @@ def test_the_slices_are_loaded_in_the_order_of_their_dependencies(
     assert called == ORDER
     loaded = [record["slices"] for record in logs.named("witness.loaded")]
     assert loaded == [[name for name in ORDER if name != "hourly_rates"]]
+
+
+def test_the_slices_of_the_projects_are_loaded_in_their_order_after_the_reference(
+    session: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # One entry for the slices of the projects, last of the loader (EP-04): each slice called, in
+    # the order of their dependencies, and the entry tells whether one of them wrote.
+    called: list[str] = []
+
+    def slice_of(name: str, *, writes: bool) -> loader.Slice:
+        def load(_: Session, witness: Witness) -> bool:
+            assert witness.act.author is None
+            called.append(name)
+            return writes
+
+        return load
+
+    order = ["projects", "contributors", "subprojects", "work_breakdown", "revisions"]
+    assert [name for name, _ in chronology.SLICES] == order
+    witness = Witness(WITNESS, Act(None, utc_now()))
+    # The slices of the projects are filled: on a platform that holds none they write, and the
+    # entry tells so; on a platform that holds them it writes nothing.
+    with logging_context(correlation_id="witness-slices"):
+        # The projects ask the reference of the witness, which the slices before them load (#2155).
+        for _, load in loader.SLICES[:-1]:
+            load(session, witness)
+        assert chronology.load(session, witness) is True
+        assert chronology.load(session, witness) is False
+    nothing: set[str] = set()
+    for writing in (nothing, {"subprojects"}):
+        slices = tuple((name, slice_of(name, writes=name in writing)) for name in order)
+        monkeypatch.setattr(chronology, "SLICES", slices)
+        assert chronology.load(session, witness) is bool(writing)
+    assert called == order * 2
 
 
 def test_a_loading_that_writes_nothing_succeeds_and_says_the_witness_is_there(
@@ -367,8 +404,19 @@ def load(url: str, directory: Path = WITNESS) -> int:
 
 
 def wipe(owner: Engine) -> None:
-    """Empty the database of every row, as the owner does after a test: a platform neuve again."""
+    """Empty the database of every row, as the owner does after a test: a platform neuve again.
+
+    The partitions of the projects go with their rows: a project loaded again creates them again.
+    """
     with owner.begin() as connection:
+        children = connection.execute(
+            text(
+                "SELECT c.relname FROM pg_inherits i JOIN pg_class c ON c.oid = i.inhrelid "
+                "WHERE i.inhparent = 'public.cost_structure'::regclass"
+            )
+        ).scalars()
+        for name in list(children):
+            connection.execute(text(f'DROP TABLE "{name}"'))
         connection.execute(text("SET LOCAL session_replication_role = replica"))
         for table in reversed(Base.metadata.sorted_tables):
             if not table.info.get(WRITTEN_BY_MIGRATION):

@@ -18,7 +18,7 @@
  * unasked.
  *
  * The object and the project are links where the session may consult them (WF-ADM-0110): a project
- * the session may open — one `listProjects` lists —, and of its objects a revision, which has an
+ * the session may open — the inscription says it by `can_open` —, and of its objects a revision, which has an
  * address, and an object that lives in a revision, in the revision the inscription names
  * (`AuditObject.revision`) — a risk, in the risks of the revision, its detail open; the import of a
  * planning, an estimate or a remaining to commit, in its exchanges, its report shown; the

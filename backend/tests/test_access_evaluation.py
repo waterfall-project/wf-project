@@ -4,7 +4,9 @@
 
 Each person is an account written around the service, with the roles a test gives it
 (``access_rows``), and calls the API with a token of the realm of test. Every answer is checked
-against the contract (``ContractClient``).
+against the contract (``ContractClient``). The second term of the evaluation of an action on a
+project, the quality of the caller there, is tried on projects and contributors the owner writes,
+before any story serves them, and on a route of trial no operation of the contract is.
 """
 
 from collections.abc import Callable
@@ -13,14 +15,21 @@ from uuid import UUID, uuid4
 
 import asked_actual_cost_mapping
 import asked_calendars
+import asked_contributors
 import asked_cost_types
 import asked_hourly_rates
+import asked_lifecycle
 import asked_org_nodes
+import asked_projects
 import asked_reference
 import asked_reference_settings
 import asked_resource_roles
+import asked_revisions
+import asked_subprojects
+import asked_work_breakdown
 import pytest
 from access_rows import ADMINISTRATION, role
+from fastapi import Depends
 from fastapi.routing import APIRoute
 from realm import KEY, TestRealm
 from sqlalchemy import insert, select
@@ -28,15 +37,21 @@ from starlette.requests import Request
 from support import REFERENCE_PARTS, ContractClient, bearer, operations, raw_account
 
 from waterfall.api.app import create_app
-from waterfall.api.evaluation import Requires, RequiresByField, RequiresForInactive
+from waterfall.api.contract.models import PermissionCode
+from waterfall.api.evaluation import (
+    Requires,
+    RequiresByField,
+    RequiresForInactive,
+    RequiresProject,
+)
 from waterfall.core.access_roles.interface import (
     PERMISSION_MISSING,
     Actor,
     holding,
     require,
 )
-from waterfall.core.access_roles.predefined import ADMINISTRATOR, PROJECT_MANAGER
-from waterfall.core.access_roles.tables import AccessRole, UserAccessRole
+from waterfall.core.access_roles.predefined import ADMINISTRATOR, CONSULTATION, PROJECT_MANAGER
+from waterfall.core.access_roles.tables import AccessRole, Permission, UserAccessRole
 from waterfall.core.users.tables import UserAccount
 from waterfall.platform.audit import AuditEntry
 from waterfall.platform.correlation import HEADER
@@ -55,6 +70,8 @@ ROLES = "/api/v1/access-roles"
 USERS = "/api/v1/users"
 CONSULT = "access_roles.read"
 CHANGE = "access_roles.write"
+READ = "project_settings.read"
+WRITE = "project_settings.write"
 # A change of a role, as the front sends it.
 CHANGED: dict[str, object] = {
     "label": "Pilote",
@@ -398,6 +415,15 @@ REFERENCE = (
     asked_calendars,
     asked_actual_cost_mapping,
 )
+# The operations of the projects and of their revisions, declared router by router (EP-04).
+PROJECTS = (
+    asked_projects,
+    asked_contributors,
+    asked_subprojects,
+    asked_work_breakdown,
+    asked_revisions,
+    asked_lifecycle,
+)
 # The permissions each served operation asks for, in the order they are evaluated.
 ASKED: dict[str, tuple[str, ...]] = {
     "getLiveness": (),
@@ -438,12 +464,17 @@ ASKED: dict[str, tuple[str, ...]] = {
     "uploadChunk": ("platform_restore",),
     "completeChunkedUpload": ("platform_restore",),
     **{name: asked for router in REFERENCE for name, asked in router.ASKED.items()},
+    **{name: asked for router in PROJECTS for name, asked in router.ASKED.items()},
 }
 # Two files that declare the same operation would overwrite each other in the table above.
-DECLARED = [name for router in REFERENCE for name in router.ASKED]
+DECLARED = [name for router in (*REFERENCE, *PROJECTS) for name in router.ASKED]
 assert len(DECLARED) == len(set(DECLARED)), sorted(
     name for name in set(DECLARED) if DECLARED.count(name) > 1
 )
+# The quality on its project each operation of a project asks for, by ``RequiresProject``.
+ON_PROJECT: dict[str, str] = {
+    name: quality for router in PROJECTS for name, quality in router.ON_PROJECT.items()
+}
 # The permission each list of the reference asks for besides when it asks for deactivated objects.
 INACTIVE: dict[str, str] = {
     name: permission for router in REFERENCE for name, permission in router.INACTIVE.items()
@@ -459,13 +490,25 @@ PATH_OBJECTS = {"getBackgroundTask", "getUserAvatar"}
 
 
 def asked(route: APIRoute) -> tuple[str, ...]:
-    """Give the permissions a route asks for, by its dependencies."""
+    """Give the permissions a route asks for, by its dependencies, on a project or not."""
     return tuple(
         permission
         for depends in route.dependencies
-        if isinstance(depends.dependency, Requires)
+        if isinstance(depends.dependency, Requires | RequiresProject)
         for permission in depends.dependency.permissions
     )
+
+
+def on_project(route: APIRoute) -> str | None:
+    """Give the quality on its project a route asks for, if it evaluates one."""
+    for depends in route.dependencies:
+        guard = depends.dependency
+        if isinstance(guard, RequiresProject):
+            if guard.manager:
+                return "project_manager"
+            writes = any(not CONSULTATION[permission] for permission in guard.permissions)
+            return "contributor" if writes else "consultation"
+    return None
 
 
 def inactive(route: APIRoute) -> str | None:
@@ -512,20 +555,32 @@ def refused_without(permission: str) -> str:
     return str(refused.value.status)
 
 
+@pytest.mark.requirement("WF-ADM-0110-A")
 def test_every_served_operation_asks_for_the_permission_the_contract_refuses_it_without(
     contract: OpenAPI, services: Services
 ) -> None:
     # A permission to consult missing is a 404, any other a 403: the operation declares the
     # refusal it may give; one that declares neither asks for nothing. An operation that asks for
     # nothing refuses nothing by a 403, nor by a 404 unless it reads an object of its caller's own.
+    # An operation on a project refuses by a 404 the project its caller may not consult, and by a
+    # 403 the quality a write asks for.
     routes = served_routes(services)
     assert {name: asked(route) for name, route in routes.items()} == ASKED
+    held = {name: on_project(route) for name, route in routes.items()}
+    assert {name: quality for name, quality in held.items() if quality} == ON_PROJECT
+    # A guard on a project reads ``project_id`` of the path: a route without it would answer 404
+    # to everyone, silently.
+    for name, route in routes.items():
+        if held[name]:
+            assert "project_id" in route.param_convertors, name
     declared = operations(contract)
     for name, permissions in ASKED.items():
         method, path = declared[name]
         relative = path.removeprefix((contract.spec / "servers" / 0 / "url").read_value())
         responses = set((contract.spec / "paths" / relative / method.lower() / "responses").keys())
         needed = {refused_without(code) for code in permissions}
+        if name in ON_PROJECT:
+            needed |= {"404"} if ON_PROJECT[name] == "consultation" else {"403", "404"}
         assert needed <= responses, name
         if not permissions:
             # The 403 of a list that asks for nothing to read the active objects is its guard of
@@ -537,6 +592,22 @@ def test_every_served_operation_asks_for_the_permission_the_contract_refuses_it_
             allowed_403: set[str] = {"403"} if guarded else set()
             refused = refusals - allowed_404 - allowed_403
             assert not refused & responses, name
+
+
+@pytest.mark.requirement("WF-ADM-0110-A")
+def test_the_quality_a_route_asks_for_on_its_project_follows_its_guard() -> None:
+    # Consultation for a read, contributor for a write, project manager when asked for (#754).
+    def route(*guards: RequiresProject) -> APIRoute:
+        return APIRoute(
+            "/projects/{project_id}",
+            lambda: None,
+            dependencies=[Depends(guard) for guard in guards],
+        )
+
+    assert on_project(route()) is None
+    assert on_project(route(RequiresProject(READ))) == "consultation"
+    assert on_project(route(RequiresProject(READ, WRITE))) == "contributor"
+    assert on_project(route(RequiresProject(READ, manager=True))) == "project_manager"
 
 
 @pytest.mark.requirement("WF-ADM-0100-A")
@@ -594,6 +665,33 @@ def test_an_actor_passes_with_the_permission_and_is_refused_without_it() -> None
         PERMISSION_MISSING,
         {"missing_permission": "users.write"},
     )
+
+
+# The two permissions of the catalogue that are neither a function nor irreversible.
+STRUCTURING = ("project_create", "all_projects_read")
+
+
+@pytest.mark.requirement("WF-ADM-0110-A")
+def test_whether_each_permission_of_the_catalogue_consults_is_declared_in_its_order(
+    database: Database,
+) -> None:
+    # The declaration follows the catalogue the migrations write, and the contract's: a function
+    # read consults, a function written or an irreversible action does not; of the two structuring
+    # ones, ``all_projects_read`` consults, ``project_create`` does not (#754).
+    with database.transaction() as session:
+        rows = session.execute(
+            select(Permission.code, Permission.kind).order_by(Permission.position)
+        )
+        catalogue = [(code, kind) for code, kind in rows]
+    assert list(CONSULTATION) == [code for code, _ in catalogue] == list(PermissionCode)
+    by_kind = {"function_read": True, "function_write": False, "irreversible": False}
+    assert {code: by_kind[kind] for code, kind in catalogue if kind in by_kind} == {
+        code: consults for code, consults in CONSULTATION.items() if code not in STRUCTURING
+    }
+    assert {code: CONSULTATION[code] for code in STRUCTURING} == {
+        "project_create": False,
+        "all_projects_read": True,
+    }
 
 
 @pytest.mark.requirement("WF-REF-0150-A")

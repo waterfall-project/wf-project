@@ -6,21 +6,32 @@ The caller is read once per request — its account, then its effective permissi
 operation the contract guards declares the permissions it asks for, by a dependency of its route
 that runs before the validation of its parameters and body, after the reading of the body: a body
 that cannot be read is refused first (400); past it, a refusal never depends on what the request
-carries, and nothing the front presented or hid lets a caller past it.
+carries, and nothing the front presented or hid lets a caller past it. An operation on a project
+declares besides the quality on it it asks for (``RequiresProject``), evaluated likewise.
 """
 
 from collections.abc import Mapping
 from typing import Annotated, cast
+from uuid import UUID
 
 from fastapi import Depends, Request
 from pydantic import TypeAdapter, ValidationError
 
 from waterfall.api.authentication import Caller, ServicesOf
-from waterfall.core.access_roles.interface import PERMISSION_MISSING, Actor, actor_of, require
-from waterfall.platform.errors import ForbiddenError
+from waterfall.core.access_roles.interface import (
+    NOT_FOUND,
+    PERMISSION_MISSING,
+    Actor,
+    actor_of,
+    require,
+    require_project,
+)
+from waterfall.platform.errors import ForbiddenError, NotFoundError
 
 # How a parameter of the query is read as a boolean, as the validation of the route reads it.
 BOOLEAN = TypeAdapter(bool)
+# How the identifier of a project is read from the path, as the validation of the route reads it.
+IDENTIFIER = TypeAdapter(UUID)
 
 
 def acting(account: Caller, services: ServicesOf) -> Actor:
@@ -52,6 +63,33 @@ class Requires:
         """Refuse the operation for the first permission the caller does not hold."""
         for permission in self.permissions:
             require(actor, permission)
+
+
+class RequiresProject:
+    """The permissions an operation on a project asks for, and the quality on it, in their order.
+
+    The project is the one the path names (``project_id``), read before the validation of the
+    parameters, as ``Requires`` is: an identifier that cannot name a project is a project that does
+    not exist (404), refused as one the caller may not consult. The project's existence and the
+    caller's quality are read in a transaction of their own, as the caller is; a route that writes
+    decides on the state of the project under its own lock. ``manager`` reserves the operation to
+    the project managers of the project (WF-PRJ-0060).
+    """
+
+    __slots__ = ("manager", "permissions")
+
+    def __init__(self, *permissions: str, manager: bool = False) -> None:
+        self.permissions = permissions
+        self.manager = manager
+
+    def __call__(self, request: Request, actor: Acting, services: ServicesOf) -> None:
+        """Refuse the operation as the caller stands on the project, or let it run."""
+        try:
+            project_id = IDENTIFIER.validate_python(request.path_params.get("project_id"))
+        except ValidationError:
+            raise NotFoundError(NOT_FOUND) from None
+        with services.database.transaction() as session:
+            require_project(session, actor, project_id, *self.permissions, manager=self.manager)
 
 
 def _flag(value: str | None) -> bool | None:
