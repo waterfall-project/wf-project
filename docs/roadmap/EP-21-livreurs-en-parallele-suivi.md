@@ -781,7 +781,7 @@ déclarent pas de routeur et restent exemptés pour la raison écrite aujourd'hu
 
 ## US-1370 — La file de fusion d'une branche d'EPIC se crée et se vérifie par le Makefile
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : aucune — outil du dépôt
 - **opérations** : aucune
 - **issue** : #2248

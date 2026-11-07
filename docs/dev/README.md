@@ -2826,6 +2826,14 @@ empty value (`STATE=`). It reads the body again under a lock of the workstation 
 issue, `$XDG_RUNTIME_DIR/waterfall-tracking-<issue>.lock`
 (`/tmp` by default), just before writing it: two simultaneous calls each keep their change.
 
+`make merge-queue-check EPIC=EP-nn` checks that an active ruleset targets `refs/heads/epic/EP-nn`
+with a `merge_queue` rule (`wftools.mergequeue`, through `gh api`), and fails saying what is
+missing: no ruleset, no queue rule, an inactive ruleset. `make merge-queue EPIC=EP-nn` creates that
+ruleset, « merge queue epic/EP-nn », from the model `.github/rulesets/merge-queue.json` (the copy
+of the EP-05 ruleset, without identifiers or dates), and refuses when a ruleset already targets
+the branch or when `EPIC` is missing or not of the form `EP-nn`. It is reserved to a person: a
+deliverer never runs it, it runs the check and, when it fails, asks the question.
+
 The workstation admits only `WATERFALL_SLOTS` heavy runs at a time — the whole tests and the
 coverage of the back and the front, `make test-tools`, the production build of the front, the
 end-to-end paths —, whatever the repository or the worktree. This environment variable, set in the
@@ -4492,6 +4500,11 @@ follow this guide like a person, and their own rules are in
 The rules are in the [README of the roadmap](../roadmap/README.md), sections « Lots » and
 « Branches », and in [CONTRIBUTING](../../CONTRIBUTING.md): one lot, one issue, one branch
 `lot/<identifiant>` created from `epic/EP-nn`, one pull request that returns to it.
+
+Each branch `epic/EP-nn` has its merge queue, one ruleset per branch (GitHub accepts none on a
+pattern). The deliverer of the first lot runs `make merge-queue-check EPIC=EP-nn` after pushing the
+branch; if it fails, a person runs `make merge-queue EPIC=EP-nn`, which creates the ruleset from the
+model `.github/rulesets/merge-queue.json` (see « Commands »). That target is reserved to a person.
 
 Each directory of `docs/` has its README in English, `README.md`, next to its French original,
 `README-fr.md`, which is the reference. A lot that changes a `README-fr.md` carries the same
