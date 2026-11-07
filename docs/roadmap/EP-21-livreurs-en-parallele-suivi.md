@@ -747,7 +747,7 @@ que le livreur écrit.
 
 ## US-1360 — La liste d'exemption de `ruff.toml` fusionne et se tient
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : aucune — outil du dépôt
 - **opérations** : aucune
 - **issue** : #2250

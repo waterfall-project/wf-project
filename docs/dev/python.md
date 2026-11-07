@@ -156,8 +156,11 @@ la revue.
   (`runtime-evaluated-base-classes`), et celles des routes et des dépendances de FastAPI.
 - Ces dernières sont les modules de `backend/src/waterfall/api/` que `ruff.toml` nomme sous
   `per-file-ignores`, avec leur raison : Ruff ne reconnaît pas les routes d'un
-  `router = APIRouter()` local, et aucun contrôle ne vérifie la liste. Un nouveau module de
-  routes ou de dépendances s'y ajoute, au lieu de ranger ses imports sous `TYPE_CHECKING`.
+  `router = APIRouter()` local, et un test de `tools/` vérifie la liste. Un nouveau module de
+  routes (qui déclare un `APIRouter(`) y prend sa ligne, au lieu de ranger ses imports sous
+  `TYPE_CHECKING`, une par module, triées par nom ; le test de `tools/tests/test_rules.py` le
+  rappelle, en nommant les modules qui manquent ou la ligne qui ne désigne aucun fichier, mais
+  il ne reconnaît que les modules de routes : un module de dépendances seules s'ajoute à la main.
   Un module de `api/` sans route ni dépendance (intergiciel, gestion des erreurs) n'y
   figure pas, sauf un module de modèles d'écriture du contrat (`reference_settings_write`) :
   ses sous-classes de `ContractModel` sont lues à l'exécution par FastAPI, et Ruff ne les
