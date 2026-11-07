@@ -77,7 +77,7 @@ d'EP-09, décision de l'auteur du 2026-11-07).
 | `WF-ADM-0100-A` | Catalogue des permissions | fin — amorcée en EP-03 | — |
 | `WF-IND-0030-A` | Valeur acquise | fin — amorcée en EP-10 | — |
 | `WF-IND-0100-A` | Courbe de coûts cumulés | fin — amorcée en EP-10 | — |
-| `WF-INTF-0010-A` | Usages du chef de projet | fin — amorcée en EP-06, EP-07, EP-09 | — |
+| `WF-INTF-0010-A` | Usages du chef de projet | fin — amorcée en EP-06, EP-07, EP-09, EP-10 | — |
 | `WF-RAE-0010-A` | Composition du reste à engager | fin — amorcée en EP-09 | — |
 | `WF-RAE-0020-A` | Indicateurs de reste à engager | fin — amorcée en EP-09 | — |
 | `WF-PLA-0040-A` | Hiérarchie des tâches | fin — amorcée en EP-06, EP-22, EP-09 | — |
