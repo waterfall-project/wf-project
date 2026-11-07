@@ -25,6 +25,9 @@ if TYPE_CHECKING:
 # The states that end the cycle of life (WF-CYC-0080), and those before the project is in progress.
 TERMINAL = ("completed", "lost", "abandoned")
 BEFORE_IN_PROGRESS = ("created", "pricing")
+# The commands that take a project out of its cycle, and the terminal state each reaches
+# (``exitProject``, WF-CYC-0060).
+EXITS = {"completed": "complete", "lost": "lose", "abandoned": "abandon"}
 
 IS_CONTRIBUTOR = "is_contributor"
 IS_PROJECT_MANAGER = "is_project_manager"
@@ -64,6 +67,9 @@ def state_conditions(
     command: str, state: str, current_revision_id: UUID | None, *, no_task_running: bool
 ) -> list[str]:
     """Name the conditions of the state a command lacks, in the order the contract lists them."""
+    # No exit leaves a terminal project, which lists none: only the 409 of a direct call says it.
+    if state in TERMINAL and command in EXITS.values():
+        return [PROJECT_NOT_TERMINAL]
     missing: list[str] = []
     if command == "update_win_probability" and state not in BEFORE_IN_PROGRESS:
         missing.append(PROJECT_BEFORE_IN_PROGRESS)
@@ -71,7 +77,8 @@ def state_conditions(
         missing.append(NO_CURRENT_REVISION)
     if command == "complete" and state != "in_progress":
         missing.append(PROJECT_IN_PROGRESS)
-    if command == "lose" and state == "created":
+    # Created or In progress: the list omits the command from the second, the 409 names it.
+    if command == "lose" and state != "pricing":
         missing.append(PROJECT_IN_PRICING)
     # A task of the background that writes in the current revision, or freezes it, suspends what
     # would move the project or its work breakdown (EP-04, "Le worker").

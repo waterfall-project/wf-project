@@ -33,12 +33,18 @@ from waterfall.core.projects.interface.contributors import (
 
 # ``lifecycle`` (US-0980): the cycle of life of a project.
 from waterfall.core.projects.interface.lifecycle import (
+    ExitRequest,
+    ExitState,
     LifecycleTrigger,
+    NextState,
+    RevisionFate,
+    TransitionView,
     advance,
     exit_project,
     list_state_transitions,
     load_transitions,
     next_state,
+    read_next_state,
 )
 
 # ``projects`` (US-0920): the project, its commands, its names for the journal.
@@ -100,7 +106,10 @@ __all__ = [
     "ContributorsLoad",
     "ContributorsRead",
     "ContributorsToWrite",
+    "ExitRequest",
+    "ExitState",
     "LifecycleTrigger",
+    "NextState",
     "ProjectChange",
     "ProjectColumn",
     "ProjectDraft",
@@ -112,6 +121,8 @@ __all__ = [
     "ProjectSort",
     "ProjectState",
     "ProjectView",
+    "RevisionFate",
+    "TransitionView",
     "Viewer",
     "advance",
     "contributor_kind",
@@ -140,6 +151,7 @@ __all__ = [
     "project_facts",
     "project_label",
     "projects_present",
+    "read_next_state",
     "read_project",
     "read_work_breakdown",
     "set_contributors",

@@ -68,7 +68,7 @@ def test_the_witness_loads_the_local_accounts_of_its_contributors_under_its_iden
         assert account.idp_subject == f"witness-{account.id}"
 
 
-def test_the_witness_loads_the_two_projects_with_their_client_in_the_state_created(
+def test_the_witness_loads_the_two_projects_with_their_client_the_first_moved_by_its_revision(
     witness: Database,
 ) -> None:
     items = {item["project_id"]: item for item in example("projects")["items"]}
@@ -83,15 +83,19 @@ def test_the_witness_loads_the_two_projects_with_their_client_in_the_state_creat
             expected["client"],
             expected["description"],
         )
-        assert (row.state, row.code, row.created_by) == ("created", None, None)
+        # The chronology opens a revision of PRJ-001, which moves it to Pricing (US-0980/L1).
+        state = "pricing" if identifier == PRJ_001 else "created"
+        assert (row.state, row.code, row.created_by) == (state, None, None)
     assert projects[PRJ_001].client == "Papeteries de la Vienne"
     assert projects[PRJ_002].client is None
-    # Each project is born from no state, by the platform: the chronology moves it on.
+    # Each project is born from no state, by the platform; the opening of the revision of PRJ-001
+    # moves it to Pricing, by the platform too.
     assert sorted(
-        (t.project_id, t.from_state, t.to_state, t.actor_user_id) for t in transitions
+        (t.project_id, t.from_state or "", t.to_state, t.actor_user_id) for t in transitions
     ) == [
-        (PRJ_001, None, "created", None),
-        (PRJ_002, None, "created", None),
+        (PRJ_001, "", "created", None),
+        (PRJ_001, "created", "pricing", None),
+        (PRJ_002, "", "created", None),
     ]
 
 
@@ -99,7 +103,7 @@ def test_the_projects_of_the_witness_are_read_through_the_service(
     api: ContractClient, witness: Database, realm: TestRealm
 ) -> None:
     reader = person(witness, realm, *READING)
-    answer = api.get(f"{PROJECTS}?states=created", headers=reader.headers)
+    answer = api.get(f"{PROJECTS}?states=created,pricing", headers=reader.headers)
     assert answer.status_code == 200
     body = answer.json()
     assert {item["project_id"]: item["client"] for item in body["items"]} == {
