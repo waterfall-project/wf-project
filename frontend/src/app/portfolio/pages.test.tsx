@@ -51,8 +51,8 @@ vi.mock("@/api/server", () => ({
     return behind === undefined ? client : behindTheContract(client, behind.route, behind.problem);
   },
 }));
-/** The answer of the service to the read of the nodes of organisation, until EP-05 (#1746). */
-const NODES_NOT_SERVED: Problem = { code: "NOT_FOUND", status: 404 };
+/** A 404 the contract does not declare for the read of the nodes of organisation (#2119). */
+const UNEXPECTED_NOT_FOUND: Problem = { code: "NOT_FOUND", status: 404 };
 // The grid renders as it would, and keeps what its page handed it.
 const grids = vi.hoisted((): { projects: ProjectsGridProps[] } => ({ projects: [] }));
 vi.mock("@/components/portfolio/projects-grid", async (original) => {
@@ -391,21 +391,16 @@ describe("the screens of the portfolio", () => {
     expect(markup).toContain('<option value="12" selected="">12 months</option>');
   });
 
-  it("stands without a node to choose where the service does not serve the nodes of organisation yet (404, EP-05)", async () => {
-    // The contract declares no 404 for the active nodes (C-01); the service, behind it, answers one.
-    server.behind = { route: "GET /reference/org-nodes", problem: NODES_NOT_SERVED };
-    const markup = await render(ProjectsPage);
-    expect(text(markup)).toMatch(/Order book .*2,665,431,068\.05/);
-    expect(grids.projects[0]?.projects).toHaveLength(300);
-    expect(markup).not.toContain("Organisation node");
-  });
-
-  it("stands without a node to choose on a view that takes one, where the service does not serve the nodes yet (404, EP-05)", async () => {
-    server.behind = { route: "GET /reference/org-nodes", problem: NODES_NOT_SERVED };
-    const markup = await render(PerformancePage);
-    expect(text(markup)).toMatch(/Cost index 0\.941 Nominal/);
-    expect(markup).not.toContain("Organisation node");
-  });
+  it.each([
+    ["a view that lists projects", ProjectsPage],
+    ["a view that takes a node", PerformancePage],
+  ])(
+    "is not found, not a view without a node to choose, where the service answers an unexpected 404 to the read of the nodes, on %s (#2119)",
+    async (_view, page) => {
+      server.behind = { route: "GET /reference/org-nodes", problem: UNEXPECTED_NOT_FOUND };
+      await expect(render(page)).rejects.toMatchObject({ digest: "NEXT_HTTP_ERROR_FALLBACK;404" });
+    },
+  );
 
   it("sends the horizon of the S-curve, lists the points of its three curves, and offers to read it as cash-out [WF-PTF-0100-A]", async () => {
     const markup = await render(CostCurvePage, { horizon_months: "24" });
