@@ -148,14 +148,14 @@ describe("the columns of the grid of the estimate", () => {
     expect(row("Génie civil")?.task?.is_summary).toBe(true);
     expect(amounts(row("Génie civil"))).toEqual([
       "7\u202f828\u202f839,16",
-      "7\u202f847\u202f988,93",
+      "7\u202f847\u202f988,97",
     ]);
     expect(row("Reprise 2.1.22")?.task?.start?.date).toBe("2027-01-06");
     expect(amounts(row("Reprise 2.1.22"))).toEqual(["40\u202f758,82", "41\u202f981,58"]);
     const totals = ESTIMATE_GRID.columns
       .filter((column) => ["base_amount", "reestimated_amount"].includes(column.key))
       .map((column) => column.total?.(volume.totals));
-    expect(totals).toEqual(["66105223.89", "68923691.06"]);
+    expect(totals).toEqual(["66105223.89", "68923691.77"]);
   });
 
   it("have the label alone pinned, the amount computed whole, and the figures and the sub-project of a line where its node says so", () => {

@@ -27,7 +27,8 @@
         in: query
         description: >-
           Restricts to the projects whose cost index or schedule index is in one of these
-          zones: the projects in alert, first of all (WF-PTF-0040, WF-IHM-0130).
+          zones — `alert` to see the projects in alert (WF-PTF-0040, WF-IHM-0130); the order
+          remains that of `sort_by`.
         schema:
           type: array
           items: { $ref: ../components/schemas/reference.yaml#/AlertZone }
@@ -126,7 +127,11 @@
         schema: { type: integer, minimum: 1, maximum: 240, default: 6 }
       - name: under_load_threshold
         in: query
-        description: Under-load threshold, chosen by the user (WF-PTF-0060).
+        description: >-
+          Under-load threshold, chosen by the user (WF-PTF-0060): a ratio of the load to the
+          capacity, from `0` to `1` — `0.5` for half the capacity (`Percent`) —, below which a
+          month of a role is in under-load; when absent, `0.5`, which the answer returns
+          (`PortfolioWorkload.under_load_threshold`).
         schema: { $ref: ../components/common.yaml#/Percent }
     responses:
       '200':
@@ -150,6 +155,8 @@
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              horizon_refused: { $ref: ../../../fixtures/api/portfolio_workload_horizon_refused.json }
       '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 

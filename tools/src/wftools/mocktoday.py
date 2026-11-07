@@ -186,6 +186,7 @@ def values() -> dict[str, JsonValue]:
         "remaining_indicators_over_budget": remaining_indicators(reestimated, base, base, costs),
         "project_indicators": project_today(found),
         "project_indicators_marked": project_indicators(base, base, costs),
+        "project_indicators_subproject": project_indicators(now, base, costs, SUBPROJECT_CONTROL),
         "project_indicators_without_current_revision": project_indicators(
             latest_today(base), base, costs
         ),
@@ -455,6 +456,7 @@ def _project_summaries(found: dict[str, JsonValue], read_once: Witness) -> dict[
     history = _get(found, "index_history")
     indices = " ; ".join(_indices(scope) for scope in _objs(history["scopes"]))
     [control] = _objs(_get(found, "index_history_subproject")["scopes"])
+    scoped = _get(found, "project_indicators_subproject")
     thresholds = _obj(history["thresholds"])
     marked_names = ", ".join(
         f"« {point['version_name']} »"
@@ -496,6 +498,16 @@ def _project_summaries(found: dict[str, JsonValue], read_once: Witness) -> dict[
             f"engager de {_money(latest['remaining'])} qu'elle porte. Ses indicateurs conservés à "
             f"son marquage du {_day(AMENDMENT_MERGED.on)} ne changent pas : ce sont ceux de "
             f"project_indicators_marked (WF-IND-0010, WF-DAT-0040)."
+        ),
+        "project_indicators_subproject": (
+            f"Les indicateurs du seul sous-projet « {control['label']} » (scope) au {_TODAY}, sur "
+            f"la révision courante, que le contexte nomme : les mêmes grandeurs que celles du "
+            f"projet, sommées sur ses seules lignes — le budget de référence de "
+            f"{_money(scoped['reference_budget'])}, la valeur acquise de "
+            f"{_money(scoped['earned_value'])}, le coût réel de {_money(scoped['actual_cost'])}, "
+            f"le reste à engager de "
+            f"{_money(scoped['remaining'])} —, d'où ses avancements, ses indices, leurs écarts et "
+            f"ses projections (WF-IND-0020, WF-IND-0010 à WF-IND-0080)."
         ),
         "index_history": (
             f"L'évolution des indices du projet et de ses mailles : un point par révision "

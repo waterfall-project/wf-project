@@ -1537,7 +1537,9 @@ TaskFacet:
       anyOf: [{ $ref: ../common.yaml#/PlanningDate }, { type: 'null' }]
       description: >-
         Completion date, which places the earned value in time (WF-IND-0030), null for
-        a task that is not completed; a read column of the planning grid
+        a task that is not completed. A summary task carries the latest of the completion
+        dates of its subordinates and of the setting to zero of its own lines outside
+        provision (WF-PLA-0130). A read column of the planning grid
         (`NodeColumn.completed_on`, WF-PLA-0080).
     is_summary:
       type: boolean
@@ -1807,7 +1809,11 @@ EstimateLineFacet:
         `previous_unit_disbursement`); null before the first review.
     consumption_year:
       anyOf: [{ $ref: ../common.yaml#/Year }, { type: 'null' }]
-      description: Consumption year, deduced from the planning (WF-DEV-0040).
+      description: >-
+        Consumption year, deduced from the planning: that of the start of the task that carries
+        the line. For a task spanning several years, the year of the first part of the line, its
+        amounts being projected part by part (`reestimated_amount`, WF-DEV-0040); the filters
+        `consumption_year_min` and `consumption_year_max` retain the line on that year.
     is_computed:
       type: boolean
       description: >-
@@ -2102,7 +2108,9 @@ EstimateLineWrite:
     payment_delay_days:
       anyOf: [{ type: integer, minimum: 0 }, { type: 'null' }]
       description: >-
-        Null or absent, the default delay: zero for a labour line (WF-DEV-0020).
+        Payment delay, in days. Absent, zero, for a labour line as for any other line this
+        write creates; only a provision line carries none (null), and it is not created here
+        (WF-DEV-0020, WF-RIS-0010).
     subproject_id:
       anyOf: [{ $ref: ../common.yaml#/Uuid }, { type: 'null' }]
       description: >-
@@ -2248,7 +2256,12 @@ RemainingUpdate:
   properties:
     reestimated_amount_basis:
       type: object
-      description: The entered figures from which the re-estimated amount is recomputed.
+      description: >-
+        The entered figures from which the re-estimated amount is recomputed. Only what is sent
+        changes, an absent figure remaining what it was; a figure the line does not accept —
+        the unit disbursement of a labour line, the hours of another line — is refused with
+        422, reason `FIELD_NOT_ACCEPTED` on its field, and nothing is written (WF-DEV-0020,
+        WF-RAE-0040).
       properties:
         quantity: { $ref: ../common.yaml#/Decimal }
         hours:
@@ -2257,7 +2270,9 @@ RemainingUpdate:
           anyOf: [{ $ref: ../common.yaml#/Money }, { type: 'null' }]
     reason:
       anyOf: [{ type: string }, { type: 'null' }]
-      description: The reason for the re-estimate, as the user enters it; null or absent, none.
+      description: >-
+        Free text accepted and ignored: no requirement reads it, the server keeps nothing of it
+        and returns it nowhere. A client need not send it.
     completed_on:
       anyOf: [{ $ref: ../common.yaml#/PlanningDate }, { type: 'null' }]
       description: >-

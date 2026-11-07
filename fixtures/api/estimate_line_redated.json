@@ -17,7 +17,7 @@
       {"node_id":"01926f3a-7c00-7000-8000-000000000565","budgeted_amount":"5880.00","reestimated_amount":"6180.00","consumption_year":null},
       {"node_id":"01926f3a-7c00-7000-8000-000000000566","budgeted_amount":"5880.00","reestimated_amount":"6180.00","consumption_year":2027}
     ],
-    "totals": {"task_count":1000,"estimate_line_count":5000,"hours":"116270","base_amount":"66105223.89","budgeted_amount":"68491568.05","reestimated_amount":"68923871.06"},
+    "totals": {"task_count":1000,"estimate_line_count":5000,"hours":"116270","base_amount":"66105223.89","budgeted_amount":"68491569.21","reestimated_amount":"68923871.77"},
     "structure_lock_version": 2
   }
 }

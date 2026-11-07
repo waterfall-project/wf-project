@@ -101,8 +101,8 @@ const FRENCH: Language = {
   // French separates thousands with a narrow no-break space (U+202F), and the currency of the
   // installation, the euro, from its amount with a no-break one (U+00A0).
   figures: [
-    ["Reste à engager", "67\u202f470\u202f132,98\u00a0€"],
-    ["Budget de référence", "68\u202f241\u202f568,05\u00a0€"],
+    ["Reste à engager", "67\u202f470\u202f133,69\u00a0€"],
+    ["Budget de référence", "68\u202f241\u202f569,21\u00a0€"],
     ["Valeur planifiée", "1\u202f671\u202f458,13\u00a0€"],
     ["Écart de délai", "-221\u202f599,80\u00a0€"],
     ["Indice de délai", "0,8674"],
@@ -139,8 +139,8 @@ const ENGLISH: Language = {
     backToProject: "Back to the project",
   },
   figures: [
-    ["Remaining to commit", "€67,470,132.98"],
-    ["Reference budget", "€68,241,568.05"],
+    ["Remaining to commit", "€67,470,133.69"],
+    ["Reference budget", "€68,241,569.21"],
     ["Planned value", "€1,671,458.13"],
     ["Schedule variance", "-€221,599.80"],
     ["Schedule index", "0.8674"],

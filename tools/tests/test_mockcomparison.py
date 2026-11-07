@@ -319,7 +319,7 @@ def test_the_volume_of_the_comparison_is_the_whole_comparison_read_with_the_fiel
     summary = str(volume["summary"])
     assert "5 999 nœuds" in summary
     assert "4 251 modifiés par leurs propres valeurs" in summary
-    assert "852 925,00 et 1 034 848,01 en tout" in summary
+    assert "852 925,00 et 1 034 847,56 en tout" in summary
 
 
 VOLUME_BOUND = 1_500_000

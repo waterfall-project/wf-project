@@ -166,11 +166,13 @@ NodeWorkPackageFilter:
 NodeCostCategoryFilter:
   name: cost_category_id
   in: query
+  description: Restricts to the lines of this cost category (WF-DEV-0050).
   schema: { $ref: common.yaml#/Uuid }
 
 NodeResourceRoleFilter:
   name: resource_role_id
   in: query
+  description: Restricts to the lines of this resource role (WF-DEV-0050).
   schema: { $ref: common.yaml#/Uuid }
 
 NodeProgressFilter:
@@ -188,6 +190,9 @@ NodeProgressFilter:
 NodeCriticalFilter:
   name: is_critical
   in: query
+  description: >-
+    True, restricts to the tasks on the critical path; false, to the others; absent, no
+    restriction (`is_critical`, WF-PLA-0080, WF-PLA-0100).
   schema: { type: boolean }
 
 NodeSummariesOnly:
@@ -382,7 +387,8 @@ NodeConsumptionYearMin:
   in: query
   description: >-
     Lower bound, inclusive, of the consumption year: restricts to the lines that carry at
-    least as much (WF-DEV-0040).
+    least as much, a line whose task spans several years being retained on the year of its
+    start (`EstimateLineFacet.consumption_year`, WF-DEV-0040).
   schema: { $ref: common.yaml#/Year }
 
 NodeConsumptionYearMax:
@@ -390,8 +396,9 @@ NodeConsumptionYearMax:
   in: query
   description: >-
     Upper bound, inclusive, of the consumption year: restricts to the lines that carry
-    no more (WF-DEV-0040). Lower than `consumption_year_min`, refused with 422
-    `VALUE_OUT_OF_RANGE` on `/query/consumption_year_max`.
+    no more, a line whose task spans several years being retained on the year of its start
+    (`EstimateLineFacet.consumption_year`, WF-DEV-0040). Lower than `consumption_year_min`,
+    refused with 422 `VALUE_OUT_OF_RANGE` on `/query/consumption_year_max`.
   schema: { $ref: common.yaml#/Year }
 
 NodeBaseAmountMin:

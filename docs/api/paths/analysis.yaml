@@ -14,7 +14,10 @@
       (WF-DEV-0060). Available from pricing onwards (WF-IND-0010). An hourly rate missing for
       the reference year does not make a budget wrong: the amounts concerned are not
       computed, and state which categories and which years are missing
-      (`hourly_rate_missing`, WF-DEV-0010).
+      (`hourly_rate_missing`, WF-DEV-0010). Restricted to a subproject (`scope`), every amount
+      counts the lines of that subproject alone: `by_subproject` carries that one key, and
+      `by_cost_type` and `by_work_package` the lines of the subproject under each cost type and
+      each work package (WF-IND-0020).
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
       - name: revision_id
@@ -253,6 +256,7 @@
             examples:
               witness: { $ref: ../../../fixtures/api/project_indicators.json }
               marked: { $ref: ../../../fixtures/api/project_indicators_marked.json }
+              subproject: { $ref: ../../../fixtures/api/project_indicators_subproject.json }
               without_current_revision: { $ref: ../../../fixtures/api/project_indicators_without_current_revision.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }

@@ -1,5 +1,5 @@
 {
-  "summary": "Sur l'« Avenant 2 — reprise des essais », différentiel non fusionné de la révision courante, dont le devis se saisit quel que soit l'état du projet (WF-DEV-0050), la ligne de main-d'œuvre « Assistance à la reprise des essais », que l'avenant ajoute, dont la charge passe de 40 à 48 h : son montant recalculé depuis ses grandeurs, 3 600,00, et son budgété avec lui, 3 600,00 — sur un différentiel, les grandeurs sont celles de référence, d'où la fusion tirera le budget (WF-REV-0050) — ; une version de plus. Avec elle, ses ancêtres, « Installation sur site », « Essais sur site » et « Reprise des essais de câblage », dont le montant suit, les totaux de la structure, 5 000 lignes, 116318 h, 66 108 823,89 à l'année de référence, dont 68 495 288,05 budgétés, et le compteur du différentiel passé à 3 ; aucune date ne bouge (WF-DEV-0020, WF-DEV-0030, #1277).",
+  "summary": "Sur l'« Avenant 2 — reprise des essais », différentiel non fusionné de la révision courante, dont le devis se saisit quel que soit l'état du projet (WF-DEV-0050), la ligne de main-d'œuvre « Assistance à la reprise des essais », que l'avenant ajoute, dont la charge passe de 40 à 48 h : son montant recalculé depuis ses grandeurs, 3 600,00, et son budgété avec lui, 3 600,00 — sur un différentiel, les grandeurs sont celles de référence, d'où la fusion tirera le budget (WF-REV-0050) — ; une version de plus. Avec elle, ses ancêtres, « Installation sur site », « Essais sur site » et « Reprise des essais de câblage », dont le montant suit, les totaux de la structure, 5 000 lignes, 116318 h, 66 108 823,89 à l'année de référence, dont 68 495 289,21 budgétés, et le compteur du différentiel passé à 3 ; aucune date ne bouge (WF-DEV-0020, WF-DEV-0030, #1277).",
   "description": "Exemple engendré par `make mock-data` (`wftools.mockdata`) : il ne se retouche pas.",
   "value": {
     "nodes": [
@@ -12,7 +12,7 @@
     ],
     "rescheduled": [],
     "reinflated": [],
-    "totals": {"task_count":1002,"estimate_line_count":5000,"hours":"116318","base_amount":"66108823.89","budgeted_amount":"68495288.05","reestimated_amount":"68927291.06"},
+    "totals": {"task_count":1002,"estimate_line_count":5000,"hours":"116318","base_amount":"66108823.89","budgeted_amount":"68495289.21","reestimated_amount":"68927291.77"},
     "structure_lock_version": 3
   }
 }

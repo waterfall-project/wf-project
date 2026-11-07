@@ -89,7 +89,7 @@ def test_a_marked_revision_refuses_a_task_created_and_the_skeleton_by_revision_d
     for operation, name in (
         ("createNode", "node_create_marked_refused"),
         ("generatePlanningSkeleton", "skeleton_marked_refused"),
-        ("applyPaste", "paste_marked_refused"),
+        ("applyPaste", "paste_apply_marked_refused"),
     ):
         refused = fixture(name)
         assert (refused["status"], refused["code"]) == STATE, name
