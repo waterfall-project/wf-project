@@ -2074,7 +2074,7 @@ EstimateLineUpdate:
     line, which carries none (WF-DEV-0020, WF-IND-0100; EP-14/L42s) — is refused with 422
     `VALIDATION_FAILED`, `fields` on its field, reason `FIELD_NOT_ACCEPTED`, and the node says
     which ones it accepts (`editable_fields`). The payment delay is entered on a labour line
-    as on a non-labour line, null by default for the former
+    as on a non-labour line, zero by default for the former
     (WF-DEV-0020; #785). The category of a labour line is that of its role,
     computed: a changed role gives it the category of the new role, and a category sent
     on it that is not that of its role — the role sent in the same body, or the one
