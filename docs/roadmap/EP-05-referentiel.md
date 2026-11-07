@@ -1257,7 +1257,7 @@ et `fixtures/api/` restent les exemples du contrat.
 
 ## US-0900 — Les écrans du référentiel branchés sur le service, et les usages du manager
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-INTF-0020-A`, `WF-ADM-0020-A`
 - **opérations** : toutes celles de `reference`, lues par les cinq écrans
 - **issue** : 2044
