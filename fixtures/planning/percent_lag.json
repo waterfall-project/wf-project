@@ -1,0 +1,7 @@
+{
+  "summary": "Un décalage de 50 % sur un prédécesseur de dix jours vaut cinq jours de travail (WF-PLA-0030).",
+  "examples": ["WF-PLA-0030-A#0db0c7e480a9"],
+  "predecessor": {"value": "10", "unit": "d"},
+  "lag": {"value": "50", "unit": "percent"},
+  "worth": {"value": "5", "unit": "d"}
+}
