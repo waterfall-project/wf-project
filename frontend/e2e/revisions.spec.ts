@@ -1,23 +1,71 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
+/*
+ * The screen of the revisions of a project (`/projects/{id}/revisions`), against the fake back and,
+ * tagged `@shared`, against the service, which serves the history, the revision and its structures
+ * (US-0960).
+ *
+ * The fake back serves the first example of each operation: the history of three revisions —
+ * the reference, the draft, the offer v1.0 —, the draft read whatever the address names, its
+ * structures, no rate update proposed for it, and the comparison of the offer to the reference;
+ * the comparison proves the fake back serves `compareRevisions` — its path,
+ * `/revisions/comparison`, could be mistaken for a revision named `comparison`. The service serves
+ * the witness, of which PRJ-001 holds the same three revisions, its 100 and 101 marked by the loader
+ * as the worker marks (US-0970).
+ */
 import { readFileSync } from "node:fs";
 
-import { expect, test } from "@playwright/test";
+import { expect } from "@playwright/test";
 
 import { openHydrated, WORKING } from "./hydration";
+import { inService, test } from "./mode";
 
-// The fake back serves the first example of each operation: the history of three revisions —
-// the reference, the draft, the offer v1.0 —, the draft read whatever the address names, its
-// structures, no rate update proposed for it, and the comparison of the offer to the
-// reference. The screen of the revisions shows them all; the comparison proves the fake back
-// serves `compareRevisions` — its path, `/revisions/comparison`, could be mistaken for a
-// revision named `comparison`.
 const PROJECT = "01926f3a-7c00-7000-8000-000000000001";
 const REVISION = "01926f3a-7c00-7000-8000-000000000102";
 
-test("the revisions of a project, their comparison as the API renders it, its structures and the rates proposed [WF-ARC-0020-A]", async ({
+// The current revision is the first of the history: the fake back's, opened in 2026; the service's,
+// the revision 102 of PRJ-001, whose reference year is that of the loading of the witness, not of
+// the run of the test: a four-digit year only is asserted there.
+const CURRENT_YEAR: string | RegExp = inService ? /^\d{4}$/ : "2026";
+
+// What the service does not replay before EP-07, which serves the comparison and the rate update:
+// skipped in it, as the guide lists (« Un parcours de bout en bout »).
+const BEFORE_EP07 = "EP-07 serves the comparison and the rate update";
+
+test("the history of the revisions of a project, each attribute of a revision in it, no note of the mock-up (US-0960) @shared [WF-REV-0070-A] [WF-REV-0090-A]", async ({
   page,
 }) => {
+  await openHydrated(page, `/projects/${PROJECT}/revisions`);
+  const main = page.getByRole("main");
+  await expect(main.getByRole("heading", { level: 1 })).toHaveText("Gestion des révisions");
+  await expect(main.getByRole("note")).toHaveCount(0);
+
+  // Chacun de ces attributs est présent dans l’historique des révisions — the reference character
+  // is the badge of the version, which the test of the page proves on the reference.
+  const history = main.getByRole("table", { name: "Historique des révisions" });
+  for (const column of ["Version", "État", "Marquée le", "Année de référence", "Description"]) {
+    await expect(history.getByRole("columnheader", { name: column, exact: true })).toBeVisible();
+  }
+  const current = history.getByRole("row").nth(1);
+  await expect(current).toContainText("Révision en cours");
+  await expect(current).toContainText("En cours d’élaboration");
+  await expect(current).toContainText("Non marquée");
+  // The cell of the column « Année de référence » itself: the text of a row runs its cells together.
+  const yearColumn = (await history.getByRole("columnheader").allTextContents()).indexOf(
+    "Année de référence",
+  );
+  await expect(current.getByRole("cell").nth(yearColumn)).toHaveText(CURRENT_YEAR);
+  // Three revisions, the current one and the two marked, on both sides.
+  await expect(history.getByRole("row")).toHaveCount(4);
+  await expect(
+    current.getByRole("link", { name: "Ouvrir la révision «\u00a0Révision en cours\u00a0»" }),
+  ).toBeVisible();
+});
+
+test("the revisions of a project, their comparison as the API renders it, its structures and the rates proposed @shared [WF-ARC-0020-A]", async ({
+  page,
+}) => {
+  test.skip(inService, BEFORE_EP07);
   // Les montants, dates et indices affichés sont ceux que l'API renvoie, sans recalcul.
   await openHydrated(page, `/projects/${PROJECT}/revisions?revision_id=${REVISION}`);
   const main = page.getByRole("main");
@@ -85,9 +133,10 @@ const VOLUME_NODES = (
   ) as { value: { items: unknown[] } }
 ).value.items.length;
 
-test("the comparison of the whole structure, 5 999 nodes, shows its grid with its marks under the bound of a screen of grid [WF-REV-0080-A]", async ({
+test("the comparison of the whole structure, 5 999 nodes, shows its grid with its marks under the bound of a screen of grid @shared [WF-REV-0080-A]", async ({
   page,
 }) => {
+  test.skip(inService, BEFORE_EP07);
   test.slow();
   const started = Date.now();
   await openHydrated(
@@ -109,9 +158,10 @@ test("the comparison of the whole structure, 5 999 nodes, shows its grid with it
   expect(elapsed).toBeLessThan(WORKING);
 });
 
-test("retains the differences alone in the comparison: pressed, in the address and the banner, kept through the choice of the pair [WF-REV-0080-A]", async ({
+test("retains the differences alone in the comparison: pressed, in the address and the banner, kept through the choice of the pair @shared [WF-REV-0080-A]", async ({
   page,
 }) => {
+  test.skip(inService, BEFORE_EP07);
   // The fake back serves the same comparison whatever the address names: what the server retains is
   // proven on `comparison_differences` by the test of the page (`revisions/page.test.tsx`).
   await openHydrated(

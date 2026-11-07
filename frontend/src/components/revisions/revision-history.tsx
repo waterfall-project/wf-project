@@ -3,9 +3,9 @@
 /**
  * The history of the revisions of a project (FBS-4.1, US-0210), in the order the server gives
  * it: each revision by its version name — the draft, which has none yet, as the current
- * revision —, its status, whether it is the reference, when it was marked, the revision it is a
- * copy of, the inflation rate and the win probability it keeps — those of its marking when it is
- * marked (WF-REV-0070) —, and its description (WF-REV-0090). Its name shows it on the screen of the revisions — its commands, its structures,
+ * revision —, its status, whether it is the reference, when it was marked, its reference year, the
+ * revision it is a copy of, the inflation rate and the win probability it keeps — those of its
+ * marking when it is marked (WF-REV-0070) —, and its description (WF-REV-0090). Its name shows it on the screen of the revisions — its commands, its structures,
  * its proposal of rates —, the one shown marked as current; a link opens it, its planning and its
  * estimate as they were (WF-REV-0070). Under it, the designation of the reference among the marked
  * revisions (`ReferenceDesignation`).
@@ -36,6 +36,7 @@ export type HistoryRevision = NamedRevision &
     components["schemas"]["Revision"],
     | "is_reference"
     | "marked_at"
+    | "reference_year"
     | "description"
     | "source_version_name"
     | "inflation_rate"
@@ -113,6 +114,7 @@ function HistoryRow({
       <TableCell className={CELL}>
         {revision.marked_at == null ? t("notMarked") : <LocalTime value={revision.marked_at} />}
       </TableCell>
+      <TableCell className={`${CELL} tabular-nums`}>{revision.reference_year}</TableCell>
       <TableCell className={CELL}>{revision.source_version_name ?? t("noSource")}</TableCell>
       <TableCell className={`${CELL} tabular-nums`}>
         {formatPercent(revision.inflation_rate, locale)}
@@ -205,6 +207,7 @@ export function RevisionHistory({ revisions, context }: RevisionHistoryProps) {
           t("version"),
           t("status"),
           t("markedAt"),
+          t("referenceYear"),
           t("source"),
           t("inflationRate"),
           t("winProbability"),

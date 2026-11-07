@@ -29,6 +29,7 @@ from waterfall.platform.settings import (
 from waterfall.platform.tasks import TaskHandler, TaskKind, pending_task, submit
 from waterfall.worker.backup import BackupTask
 from waterfall.worker.identity_sync import IdentitySync
+from waterfall.worker.marking import mark
 from waterfall.worker.runner import Worker
 
 if TYPE_CHECKING:
@@ -39,8 +40,15 @@ USAGE = f"usage: {NAME} [--version | enqueue <kind>]\n"
 
 
 def handlers(settings: WorkerSettings) -> dict[str, TaskHandler]:
-    """Give what the worker runs, by kind of task: a backup, the reading of the accounts."""
-    return {"backup": BackupTask.of(settings), "identity_sync": IdentitySync.of(settings)}
+    """Give what the worker runs, by kind of task: a backup, the reading of the accounts, a marking.
+
+    The marking is the first task of the trade (US-0970).
+    """
+    return {
+        "backup": BackupTask.of(settings),
+        "identity_sync": IdentitySync.of(settings),
+        "revision_mark": mark,
+    }
 
 
 # The kinds the platform schedules (PBS-5.3); the scheduled backup comes with EP-13.

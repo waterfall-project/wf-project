@@ -19,19 +19,25 @@ from waterfall.api import (
     avatars,
     backups,
     calendars,
+    contributors,
     cost_types,
     hourly_rates,
     identity_syncs,
+    lifecycle,
     me,
     org_nodes,
+    projects,
     reference,
     reference_settings,
     resource_roles,
     restores,
+    revisions,
+    subprojects,
     system,
     tasks,
     uploads,
     users,
+    work_breakdown,
 )
 from waterfall.api.maintenance import MaintenanceMiddleware
 from waterfall.api.middleware import CorrelationMiddleware
@@ -87,4 +93,15 @@ def create_app(services: Services) -> FastAPI:
         actual_cost_mapping.router,
     ):
         app.include_router(reference_router, prefix=PREFIX)
+    # The projects and their revisions (EP-04): a router per story, each registered here from the
+    # start.
+    for project_router in (
+        projects.router,
+        contributors.router,
+        subprojects.router,
+        work_breakdown.router,
+        revisions.router,
+        lifecycle.router,
+    ):
+        app.include_router(project_router, prefix=PREFIX)
     return app

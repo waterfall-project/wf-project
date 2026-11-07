@@ -303,8 +303,9 @@ describe("the shell", () => {
     const choice = await screen.findByRole("button", {
       name: "Modernisation du poste de commande PRJ-001 En cours",
     });
-    // Its state by the one badge of the states (#523).
-    expect(within(choice).getByText("En cours").parentElement).toHaveClass("bg-state-in-progress");
+    // Its state by the one badge of the states (#523), found by its role and its name, not by the
+    // classes of its style (#2279).
+    expect(within(choice).getByRole("img", { name: "En cours" })).toBeInTheDocument();
     const crumbs = bar().getByRole("navigation", { name: "Fil d’Ariane" });
     expect(within(crumbs).getByRole("link", { name: "Projets" })).toHaveAttribute("href", "/");
     expect(

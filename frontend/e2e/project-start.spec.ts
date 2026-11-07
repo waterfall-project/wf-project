@@ -1,23 +1,39 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
-import { expect, test } from "@playwright/test";
+import { expect } from "@playwright/test";
 
 import { compile } from "./compile";
 import { openHydrated, WORKING } from "./hydration";
+import { inService, test } from "./mode";
+import { createOwnProject } from "./own-project";
 
-// The start of the planning of a project (US-0490/L3, #1058, L4 #1358), as far as a fake back that keeps
-// no state lets a journey go. It serves the project of the witness, its revision in progress with its
-// thousand tasks, whatever the address but one: there the encart cannot be reached, and the journeys
-// that need a service that remembers — create, work breakdown, generate, planning; create, drop a file,
-// report, planning — wait for it (#1350). The project created today is served at its own address, with
-// no revision: its encart is reached, and its generation played to the planning. The rest is proved on
-// the examples of the contract by the tests of the components (`project-start.dom.test.tsx`) and of
-// the pages (`page.test.tsx`, `screens.test.tsx`).
+// The start of the planning of a project (US-0490/L3, #1058, L4 #1358), against the fake back and,
+// tagged `@shared`, against the service. The service serves the work breakdown (US-0950), not yet the
+// structures: the journeys that lead to the planning — the revision in progress of the witness, the
+// generation of the skeleton — wait for EP-06, and the service plays the work breakdown of a project
+// the run creates.
+//
+// Against the fake back, as far as a fake back that keeps no state lets a journey go. It serves the
+// project of the witness, its revision in progress with its thousand tasks, whatever the address but
+// one: there the encart cannot be reached, and the journeys that need a service that remembers —
+// create, work breakdown, generate, planning; create, drop a file, report, planning — wait for it
+// (#1350). The project created today is served at its own address, with no revision: its encart is
+// reached, and its generation played to the planning. The rest is proved on the examples of the
+// contract by the tests of the components (`project-start.dom.test.tsx`) and of the pages
+// (`page.test.tsx`, `screens.test.tsx`).
 const PROJECT = "01926f3a-7c00-7000-8000-000000000001";
 
-test("leads a project with a revision in progress to its planning, where no encart is offered [WF-PRJ-0030-A]", async ({
+// What the service does not replay of the start before EP-06, which serves the structures, the
+// imports of a planning and the generation of the planning from the work breakdown.
+const BEFORE_EP06 = "EP-06 serves the structures, the planning and its generation";
+
+// What the fake back does not replay: it keeps nothing of the work breakdown it is given.
+const FAKE_BACK_FORGETS = "the fake back keeps nothing of the work breakdown it is given";
+
+test("leads a project with a revision in progress to its planning, where no encart is offered @shared [WF-PRJ-0030-A]", async ({
   page,
 }) => {
+  test.skip(inService, BEFORE_EP06);
   // `goto`, not `openHydrated`: the page leads elsewhere, and the probe of hydration would run on a
   // document that is being left.
   await page.goto(`/projects/${PROJECT}`);
@@ -33,9 +49,10 @@ test("leads a project with a revision in progress to its planning, where no enca
   await expect(page.getByRole("button", { name: "Démarrer le projet" })).toHaveCount(0);
 });
 
-test("offers « Engendrer le planning » on the work breakdown reached from the encart, unavailable once the structure bears a task, naming the condition [WF-PRJ-0030-A]", async ({
+test("offers « Engendrer le planning » on the work breakdown reached from the encart, unavailable once the structure bears a task, naming the condition @shared [WF-PRJ-0030-A]", async ({
   page,
 }) => {
+  test.skip(inService, BEFORE_EP06);
   await openHydrated(page, `/projects/${PROJECT}/settings?start=skeleton`);
   const section = page.getByRole("region", { name: "Engendrer le planning" });
   await expect(section).toBeVisible({ timeout: WORKING });
@@ -58,7 +75,7 @@ test("offers « Engendrer le planning » on the work breakdown reached from the 
   expect(sent).toEqual([]);
 });
 
-test("offers no « Engendrer le planning » on the work breakdown when it is not asked for and unavailable", async ({
+test("offers no « Engendrer le planning » on the work breakdown when it is not asked for and unavailable @shared [WF-PRJ-0030-A]", async ({
   page,
 }) => {
   await openHydrated(page, `/projects/${PROJECT}/settings`);
@@ -71,9 +88,10 @@ test("offers no « Engendrer le planning » on the work breakdown when it is not
 const CREATED = "01926f3a-7c00-7000-8000-000000000003";
 const OPENED = "01926f3a-7c00-7000-8000-000000000103";
 
-test("starts the planning of the project created from its encart: the work breakdown, then « Engendrer le planning » opens the revision and generates [WF-PRJ-0030-A]", async ({
+test("starts the planning of the project created from its encart: the work breakdown, then « Engendrer le planning » opens the revision and generates @shared [WF-PRJ-0030-A]", async ({
   page,
 }) => {
+  test.skip(inService, BEFORE_EP06);
   test.slow();
   await compile(
     page.request,
@@ -94,4 +112,28 @@ test("starts the planning of the project created from its encart: the work break
   await expect(generate).not.toHaveAttribute("aria-disabled", "true", { timeout: WORKING });
   await generate.click();
   await expect(page).toHaveURL(new RegExp(`/revisions/${OPENED}/planning`), { timeout: WORKING });
+});
+
+test("enters the work breakdown of a project created on the screen of its start, kept by the service and read anew @shared [WF-PRJ-0020-A]", async ({
+  page,
+}) => {
+  test.skip(!inService, FAKE_BACK_FORGETS);
+  test.slow();
+  const own = await createOwnProject(page, "Démarrage");
+  await openHydrated(page, `${own.path}/settings?start=skeleton`);
+  const section = page.getByRole("region", { name: "Lotissement" });
+  await expect(section).toBeVisible({ timeout: WORKING });
+  await section.getByRole("button", { name: "Nouveau lot" }).click();
+  const form = page.getByRole("dialog", { name: "Nouveau lot" });
+  await form.getByRole("textbox", { name: "Libellé" }).fill("Armoires");
+  await form.getByRole("button", { name: "Créer" }).click();
+  await expect(form).toHaveCount(0);
+  // The work breakdown the service kept, read anew.
+  await openHydrated(page, `${own.path}/settings?start=skeleton`);
+  await expect(
+    page
+      .getByRole("region", { name: "Lotissement" })
+      .getByRole("treegrid", { name: "Lotissement" })
+      .getByText("Armoires", { exact: true }),
+  ).toBeVisible({ timeout: WORKING });
 });

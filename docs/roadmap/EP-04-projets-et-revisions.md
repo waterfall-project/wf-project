@@ -483,7 +483,8 @@ textes triés en collation `C`, cherchés par `contains` ; règles SQL du guide 
   huit tables du projet, la table révisionnée partitionnée, la fonction
   `create_project_partitions(project_id)` du propriétaire avec `EXECUTE` au rôle du service, les
   déclencheurs, les droits et `SERVICE_RIGHTS`) ; les actions d'audit, qui étend la contrainte
-  `action_known` du journal à `project_create` et `revision_abandon`, comme `0011` l'a fait — le
+  `action_known` du journal à `project_create` et `revision_abandon`, comme `0011` l'a fait, et
+  étend aussi `object_labeled` au libellé nul de `revision_abandon` (#2161) — le
   contrat figé 1.0.0 les porte (#1577 pris). Aucune autre migration de données.
 - **La partition** : `create_project_partitions` crée `cost_structure_p_<uuid sans tirets>`
   `FOR VALUES IN (project_id)` ; chaque EPIC qui ajoute une table révisionnée la remplace
@@ -516,8 +517,10 @@ textes triés en collation `C`, cherchés par `contains` ; règles SQL du guide 
   et les transactions qui réalisent un fait — `createRevision`, `designateReferenceRevision`,
   `updateProject` pour le code — appellent `advance` sous le verrou du projet, qui écrit l'état
   et la transition, datée de l'instant de la transaction, l'auteur étant le compte qui a
-  réalisé le fait. Une sortie écrit de même, avec son motif, et refuse un projet qui porte une
-  révision en cours (`no_current_revision`).
+  réalisé le fait. Une sortie écrit de même, avec son motif, et exige d'un projet qui porte une
+  révision en cours le sort de celle-ci (422 sans lui) : l'abandon s'applique avec la sortie ; le
+  marquage est confié au worker (202, tâche `revision_mark`), qui marque puis sort le projet dans
+  la transaction de la tâche (#2204).
 - **Les commandes** du projet, des sous-projets, des révisions et des structures se calculent par
   les mêmes fonctions que les refus 409, dans l'ordre du contrat.
 - **Les verrous** : le projet (`FOR UPDATE` de sa ligne) pour toute transition, création de
@@ -561,9 +564,9 @@ textes triés en collation `C`, cherchés par `contains` ; règles SQL du guide 
 
 - L'amorçage ne change pas : aucun projet à l'installation.
 - `waterfall-api load-witness` (EP-05) reçoit la tranche des projets, après celle du
-  référentiel : `make mock-data` écrit, à côté des exemples, `fixtures/witness/projects.json` (nom
-  à fixer au lot), la chronologie du témoin exportée de `wftools.mockwitness` — chaque événement
-  avec son instant et ce qu'il écrit —, pour que le back n'importe jamais `wftools` ; cette
+  référentiel : `make mock-data` écrit, à côté des exemples,
+  `fixtures/api/project_state_transitions.json`, la chronologie du témoin exportée de
+  `wftools.mockwitness` — chaque événement avec son instant et ce qu'il écrit —, pour que le back n'importe jamais `wftools` ; cette
   exportation est le lot `US-0990/L1`, d'outil seul, dès la première vague (décision du
   2026-11-05). La commande
   lit les exemples du contrat pour les objets (`projects.json`, `project.json`, `revisions.json`,
@@ -658,7 +661,7 @@ socle déclare ce que les lots d'une même vague auraient écrit en commun).
 
 ## US-0910 — Le socle du projet : tables, partition, modules et consultation d'un projet
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-ADM-0110-A`, `WF-DAT-0060-A`, `WF-DAT-0050-A`, `WF-ARC-0070-A`
 - **opérations** : aucune en propre ; l'évaluation que toutes les opérations du projet
   partagent
@@ -739,7 +742,7 @@ migrations »).
 
 ## US-0920 — Le projet : sa création, ses attributs, la liste des projets et l'accueil
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-CYC-0120-A`, `WF-EXP-0020-A`, `WF-PRJ-0080-A`, `WF-PRJ-0010-A`,
   `WF-PRJ-0090-A`, `WF-IHM-0120-A`, `WF-CYC-0010-A`
 - **opérations** : `listProjects`, `createProject`, `getProject`, `updateProject`,
@@ -853,7 +856,7 @@ désactivation concurrente ne laisse pas naître un projet sans rôle.
 
 ## US-0930 — Les contributeurs et les chefs de projet
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-PRJ-0060-A`, `WF-ADM-0070-A`
 - **opérations** : `listContributors`, `setContributors`, `listContributorSuggestions`
 - **issue** : 2058
@@ -922,7 +925,7 @@ la liste ne le retire pas, elle le signale. L'écran est celui d'EP-02/L44b (#58
 
 ## US-0940 — Les sous-projets
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-PRJ-0050-A`, `WF-DAT-0080-A`
 - **opérations** : `listSubprojects`, `createSubproject`, `updateSubproject`, `deleteSubproject`
 - **issue** : 2059
@@ -990,7 +993,7 @@ questions de l'interface qu'EP-07 et EP-09 rempliront, toujours vraies ici. La s
 
 ## US-0950 — Le lotissement
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-PRJ-0020-A`
 - **opérations** : `getWorkBreakdown`, `setWorkBreakdown`
 - **issue** : 2060
@@ -1031,7 +1034,7 @@ d'EP-06, rendu nul. L'écran est celui d'EP-02/L44c (#585) et d'EP-14/L44c.
 
 ## US-0960 — La révision en cours, son abandon, l'historique et les structures
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-REV-0010-A`, `WF-REV-0070-A`, `WF-REV-0090-A`, `WF-REV-0100-A`,
   `WF-DAT-0010-A`, `WF-REV-0030-A`
 - **opérations** : `listRevisions`, `createRevision`, `getRevision`, `abandonRevision`,
@@ -1124,7 +1127,7 @@ transaction de la création, qu'EP-06 (tâches, liaisons), EP-07 (lignes, images
 
 ## US-0970 — Le marquage par le worker, et l'immuabilité par la base
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-REV-0020-A`, `WF-DAT-0020-A`, `WF-DAT-0040-A`, `WF-DAT-0030-A`,
   `WF-IHM-0080-A`, `WF-ADM-0060-A`, `WF-ADM-0160-A`
 - **opérations** : `markRevision` ; `getBackgroundTask`, `listBackgroundTasks`
@@ -1238,7 +1241,7 @@ révision par sa clé, dans le même module.
 
 ## US-0980 — La référence et le cycle de vie
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-CYC-0020-A`, `WF-CYC-0030-A`, `WF-CYC-0050-A`, `WF-CYC-0060-A`,
   `WF-CYC-0080-A`, `WF-CYC-0090-A`, `WF-CYC-0100-A`, `WF-CYC-0110-A`, `WF-CYC-0130-A`,
   `WF-REV-0040-A`
@@ -1290,13 +1293,16 @@ case à cocher.
 - `WF-CYC-0090-A` — « La confirmation nomme l'état visé et le passage en lecture seule du projet et
   de toutes ses données, et propose la saisie d'un motif ; une sortie confirmée sans motif est
   appliquée. » : `ProjectExit` porte `to_state`, `confirmed` et `reason` facultatif ; une sortie
-  non confirmée est refusée par 422 ; l'écran d'EP-02/L44a confirme ainsi ;
+  non confirmée est refusée par 400 `CONFIRMATION_REQUIRED` ; l'écran d'EP-02/L44a confirme ainsi ;
 - `WF-CYC-0090-A` — « La sortie d'un projet qui porte une révision en cours demande de la marquer
   ou de l'abandonner ; après la sortie, le projet n'a plus de révision en cours, et ses
   indicateurs se lisent dans sa dernière révision marquée (WF-IND-0010). » : la sortie d'un
-  projet qui porte une révision en cours est refusée par 409, `no_current_revision` manquante,
-  que la commande dit d'avance ; après la sortie, `current_revision_id` est nul ; les indicateurs
-  sont d'EP-10, qui clôt ;
+  projet qui porte une révision en cours reçoit le sort de celle-ci (`current_revision`), exigé — absent,
+  422 `VALIDATION_FAILED`, `/current_revision` par `VALUE_REQUIRED` — ; l'abandon s'applique avec
+  la sortie, dans la même opération, et le marquage (202, `revision_mark`) est confié au worker,
+  qui marque la révision puis sort le projet dans la transaction de la tâche — une tâche qui échoue
+  n'applique rien (US-0980/L2, #2204) ; après la sortie,
+  `current_revision_id` est nul ; les indicateurs sont d'EP-10, qui clôt ;
 - `WF-CYC-0100-A` — « Toute modification d'un projet terminal est refusée, qu'elle soit tentée par
   la saisie, par un import Excel ou MS Project, ou par un traitement automatique. » : par la
   saisie, chaque écriture de cet EPIC répond 409 `STATE_FORBIDS_OPERATION` avec
@@ -1316,9 +1322,9 @@ case à cocher.
 - `WF-REV-0040-A` — « La désignation manuelle est proposée tant que le projet n'a ni coût réel ni
   révision marquée depuis la dernière désignation, et refusée au-delà. » : la commande
   `designate_reference` d'une révision marquée, `reference_correctable` manquante dès qu'une
-  révision a été marquée depuis la dernière désignation, et `REFERENCE_NOT_CORRECTABLE` au
-  refus ; les coûts réels sont d'EP-09 ; la désignation elle-même se constate autour du service
-  (EP-08 clôt) ;
+  révision a été marquée depuis la dernière désignation, et le refus 409
+  `STATE_FORBIDS_OPERATION`, `reference_correctable` manquante (J-01, #1797) ; les coûts réels
+  sont d'EP-09 ; la désignation elle-même se constate autour du service (EP-08 clôt) ;
 - écart : `WF-REV-0040-A` — « Un projet dont les offres v2 puis v3 sont marquées, et dont v2 a été
   désignée par erreur, accepte la désignation de v3 tant qu'il n'a reçu aucun coût réel. » :
   EP-09 et EP-08 ;
@@ -1351,7 +1357,7 @@ réels (EP-09).
 
 ## US-0990 — Le témoin : la tranche des projets, et les parcours rejoués
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-QUA-0040-A`
 - **opérations** : aucune en propre ; le chargement passe par les interfaces du noyau
 - **issue** : 2067
@@ -1419,7 +1425,7 @@ les trois cents projets (EP-13).
 
 ## US-1000 — Les écrans du projet branchés sur le service
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-ADM-0040-A`
 - **opérations** : toutes celles de l'EPIC, lues par les écrans du projet
 - **issue** : 2066

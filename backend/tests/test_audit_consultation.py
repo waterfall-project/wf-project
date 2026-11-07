@@ -15,12 +15,14 @@ from uuid import UUID, uuid4
 
 import pytest
 from access_rows import account, role
+from project_rows import insert_project
 from realm import KEY, TestRealm
-from sqlalchemy import text, update
+from sqlalchemy import event, text, update
 from sqlalchemy.dialects import postgresql
 from support import ContractClient, bearer
 
 from waterfall.api.contract import models
+from waterfall.core.projects.interface import projects_named
 from waterfall.core.users.tables import UserAccount
 from waterfall.platform.audit import (
     AuditAction,
@@ -458,6 +460,103 @@ def replace_actor(written: Written, actors: dict[AuditActor, AuditActor]) -> Wri
         written.params,
         written.object_id,
     )
+
+
+@pytest.mark.requirement("WF-ADM-0190-A")
+def test_the_facets_name_a_project_that_exists_by_its_code_and_label_of_today(
+    api: ContractClient, database: Database, reader: dict[str, str]
+) -> None:
+    # « Le code et le libellé d'aujourd'hui de chaque projet, ceux de la dernière inscription
+    # seulement pour un projet qui n'existe plus » (#927): FIRST was renamed after its
+    # inscriptions and is named by the name of today, SECOND is gone and keeps its inscription's.
+    write(database)
+    with database.transaction() as session:
+        session.execute(
+            insert_project(id=FIRST.project_id, code="PRJ-009", label="Poste de commande rénové")
+        )
+    response = api.get(FACETS, headers=reader)
+    assert response.status_code == 200, response.text
+    assert [(p["project_id"], p["code"], p["label"]) for p in response.json()["projects"]] == [
+        (str(SECOND.project_id), "PRJ-002", SECOND.label),
+        (str(FIRST.project_id), "PRJ-009", "Poste de commande rénové"),
+    ]
+
+
+@pytest.mark.requirement("WF-ADM-0190-A")
+def test_the_projects_are_named_in_one_read_with_the_code_none_for_a_project_without_one(
+    database: Database,
+) -> None:
+    # The facets name the projects of the day in one read (#2165): a project without code is named
+    # by a null code, the identifier of no project is absent, and no identifier asks nothing.
+    coded, uncoded, absent = uuid4(), uuid4(), uuid4()
+    with database.transaction() as session:
+        session.execute(insert_project(id=coded, code="PRJ-1", label="Un"))
+        session.execute(insert_project(id=uncoded, code=None, label="Deux"))
+        connection = session.connection()
+        statements: list[str] = []
+
+        def count(_conn: Any, _cursor: Any, statement: str, *_rest: Any) -> None:
+            statements.append(statement)
+
+        event.listen(connection, "before_cursor_execute", count)
+        try:
+            named = projects_named(session, [coded, uncoded, absent])
+        finally:
+            event.remove(connection, "before_cursor_execute", count)
+        assert len(statements) == 1
+        assert named == {
+            coded: ("PRJ-1", "Un"),
+            uncoded: (None, "Deux"),
+        }
+        assert projects_named(session, []) == {}
+
+
+@pytest.mark.requirement("WF-ADM-0190-A")
+def test_the_facets_keep_the_code_of_the_last_inscription_for_a_project_that_has_none_today(
+    api: ContractClient, database: Database, reader: dict[str, str]
+) -> None:
+    # An existing project whose code is null today is named by the code of its latest inscription,
+    # which held one, and by its label of today.
+    write(database)
+    with database.transaction() as session:
+        session.execute(insert_project(id=FIRST.project_id, code=None, label="Poste rénové"))
+    response = api.get(FACETS, headers=reader)
+    assert response.status_code == 200, response.text
+    assert [(p["project_id"], p["code"], p["label"]) for p in response.json()["projects"]] == [
+        (str(FIRST.project_id), "PRJ-001", "Poste rénové"),
+        (str(SECOND.project_id), "PRJ-002", SECOND.label),
+    ]
+
+
+@pytest.mark.requirement("WF-ADM-0190-A")
+def test_the_facets_keep_a_project_inscribed_without_code_after_the_codes(
+    api: ContractClient, database: Database, reader: dict[str, str]
+) -> None:
+    # A project is born without code (WF-PRJ-0010): inscribed before it has one, it is a facet all
+    # the same, its code null, after the codes — the one that exists named by its label of today,
+    # the one that is gone by its inscription's (#2166).
+    created = AuditProject(uuid4(), None, "Rénovation du poste de livraison")
+    gone = AuditProject(uuid4(), None, "Étude abandonnée")
+    first, second = sorted((created, gone), key=lambda project: project.project_id)
+    journal = (
+        *JOURNAL,
+        Written(at(7), CLAIRE, "project_create", "project", first.label, "req-h", first),
+        Written(at(8), CLAIRE, "project_create", "project", second.label, "req-i", second),
+    )
+    write(database, journal)
+    with database.transaction() as session:
+        session.execute(
+            insert_project(id=created.project_id, code=None, label="Poste de livraison")
+        )
+    response = api.get(FACETS, headers=reader)
+    assert response.status_code == 200, response.text
+    today = {created.project_id: "Poste de livraison", gone.project_id: gone.label}
+    assert [(p["project_id"], p["code"], p["label"]) for p in response.json()["projects"]] == [
+        (str(FIRST.project_id), "PRJ-001", FIRST.label),
+        (str(SECOND.project_id), "PRJ-002", SECOND.label),
+        (str(first.project_id), None, today[first.project_id]),
+        (str(second.project_id), None, today[second.project_id]),
+    ]
 
 
 def test_a_journal_without_any_inscription_has_no_facet(

@@ -157,7 +157,7 @@ EP-08, the three hundred projects in EP-13, which closes. Four rules, which each
 | [EP-22](EP-22-kanban-recapitulatives-demarrees.md) | The Kanban lists the summary awaiting only its own lines | livré | EP-17 |
 | [EP-05](EP-05-referentiel.md) | Reference data of the company | livré | EP-16, EP-18, EP-19, EP-20 |
 | [EP-04](EP-04-projets-et-revisions.md) | Projects, revisions and life cycle | en cours | EP-05 |
-| [EP-06](EP-06-planification.md) | Planning | à planifier | EP-04 |
+| [EP-06](EP-06-planification.md) | Planning | en cours | EP-04 |
 | [EP-07](EP-07-chiffrage-et-devis.md) | Costing and estimate | à planifier | EP-06 |
 | [EP-09](EP-09-couts-reels-et-reste-a-engager.md) | Actual costs, remaining to commit and cost import | à planifier | EP-07 |
 | [EP-10](EP-10-indicateurs.md) | Project indicators | à planifier | EP-09 |
@@ -355,7 +355,10 @@ branch of an epic is created from the branch of the epic it depends on, as soon 
 one which gives it its tables and interfaces is merged, when waiting for the delivery would put two
 epics in series for little. It takes that branch back in at every lot the other merges, and is
 merged into `main` after it, never before. First exception: `epic/EP-04` created from
-`epic/EP-05` after `US-0810/L1` (decision of 2026-11-05).
+`epic/EP-05` after `US-0810/L1` (decision of 2026-11-05). Second: `epic/EP-06` created from
+`epic/EP-04` as soon as the issues of EP-06 are opened, EP-04 having only US-0990/L2 left to merge,
+and likewise for the whole series EP-06 → EP-07 → EP-09 → EP-10 → EP-08, each branch created from
+the previous one as soon as the pivot lot its framing names is merged (decision of 2026-11-07).
 
 The chain runs on every pull request, towards an epic's branch as towards `main`, and
 none is merged if it fails.

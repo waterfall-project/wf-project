@@ -59,11 +59,18 @@ class Bounds:
     # The branches of an ``anyOf`` or ``oneOf`` that bound differently: a value follows one of them.
     either: tuple[Bounds, ...] = ()
 
+    def _written(self, name: str) -> str:
+        """Write a bound; a set in sorted order, which a hash would otherwise change per process."""
+        value: object = getattr(self, name)
+        if name == "enum" and self.enum is not None:
+            return "{" + ", ".join(sorted(repr(item) for item in self.enum)) + "}"
+        return repr(value)
+
     def shown(self) -> str:
         """Write the bounds that are set, and only them."""
         return (
             ", ".join(
-                f"{field.name}={getattr(self, field.name)!r}"
+                f"{field.name}={self._written(field.name)}"
                 for field in fields(self)
                 if getattr(self, field.name) not in (None, ())
             )
@@ -418,6 +425,10 @@ def test_an_operation_that_lacks_either_is_found(tmp_path: Path) -> None:
 # the journal is declared by its model (``Field(pattern=CORRELATION)``, ``api/audit.py``), which
 # FastAPI does not describe: a blind spot of this comparison, which reads the application
 # description. The decision on these drifts is still to take (#2303).
+#
+# The sort column of the contributors of a project (EP-04, US-0930, ``listContributors``) is
+# declared by a ``pattern`` where the contract names an ``enum``: the same three columns, read as
+# text and judged by the route. The author of #2303 decided to keep this tolerance pinned.
 CHECKED_BY_THE_ROUTE: dict[tuple[str, str, str], str] = {
     ("listAccessRoles", "query", "holder_count_min"): (
         "declared nothing, contract low=(Decimal('0'), False)"
@@ -446,6 +457,10 @@ CHECKED_BY_THE_ROUTE: dict[tuple[str, str, str], str] = {
     ),
     ("listResourceRoles", "query", "headcount_max"): (
         r"declared nothing, contract pattern='^-?\\d+(\\.\\d+)?$'"
+    ),
+    ("listContributors", "query", "sort_by"): (
+        "declared pattern='^(display_name|kind|is_active)$', "
+        "contract enum={'display_name', 'is_active', 'kind'}"
     ),
 }
 
@@ -554,7 +569,7 @@ def test_a_bound_that_drifts_from_the_contract_is_found(tmp_path: Path) -> None:
     assert "pattern='^a$'" in found["listThings", "query", "reference"]
     assert "pattern='^b$'" in found["listThings", "query", "reference"]
     kind_text = found["listThings", "query", "kind"]
-    assert "enum=frozenset({'a', 'b'})" in kind_text or "enum=frozenset({'b', 'a'})" in kind_text
+    assert "enum={'a', 'b'}" in kind_text
     assert "'c'" in kind_text
     tags_text = found["listThings", "query", "tags"]
     assert "min_items=1" in tags_text

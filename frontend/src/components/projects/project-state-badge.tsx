@@ -9,6 +9,9 @@
  * a printed page or a colour-blind reader still tells the states apart. The state is the API's;
  * the front deduces none.
  *
+ * The badge is an image named by the word of the state (`role="img"`), which a test or a reader
+ * finds without its classes.
+ *
  * Neither server nor client: a page renders it on the server, a grid in the browser.
  */
 import {
@@ -60,6 +63,8 @@ export function ProjectStateBadge({ state, className }: ProjectStateBadgeProps) 
   const { icon: Icon, tone } = STATES[state];
   return (
     <span
+      role="img"
+      aria-label={t(state)}
       className={cn(
         "inline-flex w-fit shrink-0 items-center gap-1 overflow-hidden rounded-full px-2 py-px text-xs font-medium whitespace-nowrap",
         tone,

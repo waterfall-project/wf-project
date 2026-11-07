@@ -155,7 +155,13 @@ from waterfall.core.cost_settings.interface.hourly_rates import (
 
 # ``readiness`` (US-0810/L2): the questions of the minimal reference this module answers.
 from waterfall.core.cost_settings.interface.readiness import (
+    PREREQUISITES as PREREQUISITES,
+)
+from waterfall.core.cost_settings.interface.readiness import (
     labour_categories_exist as labour_categories_exist,
+)
+from waterfall.core.cost_settings.interface.readiness import (
+    missing_prerequisites as missing_prerequisites,
 )
 from waterfall.core.cost_settings.interface.readiness import (
     provision_category_active as provision_category_active,

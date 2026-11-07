@@ -153,6 +153,12 @@ def client(contract: OpenAPI, services: Services) -> ContractClient:
 
 
 TEST_DATABASE_VARIABLE = "WATERFALL_TEST_DATABASE_URL"
+# The partitions of every partitioned table, which the rows deleted leave in place.
+PARTITIONS = text(
+    "SELECT child.oid::regclass::text FROM pg_inherits "
+    "JOIN pg_class AS parent ON parent.oid = pg_inherits.inhparent "
+    "JOIN pg_class AS child ON child.oid = pg_inherits.inhrelid WHERE parent.relkind = 'p'"
+)
 
 
 @pytest.fixture(scope="session")
@@ -249,6 +255,10 @@ def database(database_url: str, service_database_url: str) -> Iterator[Database]
     owner = create_database_engine(database_url)
     with owner.begin() as connection:
         connection.execute(text("SET LOCAL session_replication_role = replica"))
+        # The partitions a project brings with it (WF-DAT-0050) outlive its rows: the witness
+        # imposes its identifiers, and a creation refuses a project that has its partitions.
+        for partition in list(connection.scalars(PARTITIONS)):
+            connection.execute(text(f"DROP TABLE {partition}"))
         for table in reversed(Base.metadata.sorted_tables):
             if not table.info.get(WRITTEN_BY_MIGRATION):
                 connection.execute(delete(table))

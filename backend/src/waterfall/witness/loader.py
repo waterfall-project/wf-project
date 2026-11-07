@@ -5,7 +5,8 @@
 A slice is the function ``load`` of its file: it writes its objects through the interfaces of the
 modules, with the identifiers the witness imposes, unless the platform already holds them, and
 tells whether it wrote. An empty slice writes nothing — its objects, none, are held. The story of
-an object fills its file and never touches this order, which EP-05 fixes ("Le chargeur du témoin").
+an object fills its file and never touches this order, which EP-05 fixes ("Le chargeur du témoin");
+the slices of the projects come after it, ordered in their own entry (EP-04, ``chronology``).
 
 What "the platform holds them" means, for every slice (EP-05, "Le chargeur du témoin"):
 
@@ -28,6 +29,7 @@ from typing import TYPE_CHECKING
 from waterfall.witness import (
     actual_cost_mapping,
     calendars,
+    chronology,
     cost_categories,
     cost_types,
     duration_units,
@@ -47,7 +49,9 @@ if TYPE_CHECKING:
 type Slice = Callable[[Session, Witness], bool]
 
 # The settings and the units name nothing; a category names its nature, a rate its category, a
-# node its parent, a role its node, its category and its calendar; the mapping comes last.
+# node its parent, a role its node, its category and its calendar; the mapping comes last of the
+# reference. The projects follow, which their creation asks the minimal reference of (EP-04): one
+# entry, which orders the slices of the projects (``chronology``).
 SLICES: tuple[tuple[str, Slice], ...] = (
     ("reference_settings", reference_settings.load),
     ("duration_units", duration_units.load),
@@ -58,6 +62,7 @@ SLICES: tuple[tuple[str, Slice], ...] = (
     ("org_nodes", org_nodes.load),
     ("resource_roles", resource_roles.load),
     ("actual_cost_mapping", actual_cost_mapping.load),
+    ("chronology", chronology.load),
 )
 
 

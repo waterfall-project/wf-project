@@ -24,8 +24,8 @@ info:
 
     Les exigences citées sont celles de la spécification, dans docs/spec.
   license:
-    name: GNU Affero General Public License v3.0 only
-    identifier: AGPL-3.0-only
+    name: Apache License 2.0
+    identifier: Apache-2.0
 servers:
   - url: /api/v1
     description: Préfixe unique de version, pour toutes les familles.

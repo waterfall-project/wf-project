@@ -45,9 +45,11 @@ from waterfall.platform.logs import names_a_secret
 
 # The actions and the natures of objects of the contract (``AuditAction``, ``AuditObjectKind``),
 # in its order; a new one is a change of the contract, then a migration of the constraint. The
-# actions lag behind the contract until EP-04 (#1577, K-04): test_audit_journal.py names the gaps.
+# merge of a differential keeps its former name (K-04): test_audit_journal.py names the gap.
 type AuditAction = Literal[
+    "project_create",
     "revision_mark",
+    "revision_abandon",
     "reference_designate",
     "amendment_merge",
     "risk_occurrence",
@@ -84,6 +86,9 @@ ACTIONS: tuple[str, ...] = get_args(AuditAction.__value__)
 # The natures of objects an inscription may name without a label: a backup, which has none, and an
 # account, whose name an anonymisation forgets (WF-ADM-0060).
 UNLABELED_KINDS = ("backup", "user")
+# The one action whose object may lack its label whatever its nature: an abandoned revision is
+# deleted, and the contract carries its inscription with a null label (#2161).
+UNLABELED_ACTIONS = ("revision_abandon",)
 OBJECT_KINDS: tuple[str, ...] = get_args(AuditObjectKind.__value__)
 
 # What the data of an inscription may hold: codes, identifiers in text, numbers, never a float.
@@ -121,13 +126,15 @@ class AuditEntry(Base):
         CheckConstraint(
             "actor_user_id IS NOT NULL OR actor_display_name IS NULL", name="actor_named"
         ),
+        # A project is named by its identifier and its label; its code, once it has one (#2166).
         CheckConstraint(
-            "(project_id IS NULL) = (project_code IS NULL) "
-            "AND (project_id IS NULL) = (project_label IS NULL)",
+            "(project_id IS NULL) = (project_label IS NULL) "
+            "AND (project_id IS NOT NULL OR project_code IS NULL)",
             name="project_named",
         ),
         CheckConstraint(
-            f"object_label IS NOT NULL OR {_in('object_kind', UNLABELED_KINDS)}",
+            f"object_label IS NOT NULL OR {_in('object_kind', UNLABELED_KINDS)} "
+            f"OR {_in('action', UNLABELED_ACTIONS)}",
             name="object_labeled",
         ),
         CheckConstraint(
@@ -202,10 +209,14 @@ class AuditObject:
 
 @dataclass(frozen=True, slots=True)
 class AuditProject:
-    """The project of the object, by its identifier, its code and its label at that moment."""
+    """The project of the object, by its identifier, its code and its label at that moment.
+
+    A project is born without code, which it bears from the state In progress on (WF-PRJ-0010):
+    ``None`` until then (#2166).
+    """
 
     project_id: UUID
-    code: str
+    code: str | None
     label: str
 
 
@@ -260,7 +271,11 @@ def record(session: Session, inscription: Inscription) -> UUID:
         message = f"an inscription does not carry a secret: field {secret!r}"
         raise AuditError(message)
     actor, audited, project = inscription.actor, inscription.audited, inscription.project
-    if audited.label is None and audited.kind not in UNLABELED_KINDS:
+    if (
+        audited.label is None
+        and audited.kind not in UNLABELED_KINDS
+        and inscription.action not in UNLABELED_ACTIONS
+    ):
         message = f"an object of kind {audited.kind!r} is inscribed without its label"
         raise AuditError(message)
     identifier = new_id()

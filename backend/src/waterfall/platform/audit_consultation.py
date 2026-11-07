@@ -180,21 +180,26 @@ def journal_actors(session: Session) -> list[ActorNamed]:
     ]
 
 
+def by_code(project: AuditProject) -> tuple[bool, str, UUID]:
+    """Sort the projects of the journal by their code, those without one last, then by identifier.
+
+    Codes are compared code point by code point; a project without code comes after the codes, as
+    the sort of the journal on its project puts it (#2166).
+    """
+    return (project.code is None, project.code or "", project.project_id)
+
+
 def journal_projects(session: Session) -> list[AuditProject]:
     """Give each project of the journal once, by the code and the label of its latest inscription.
 
-    In the order of the codes, compared code point by code point, then of the identifiers. The
-    contract names a project by its code and its label of today, those of its latest inscription
-    only for one that no longer exists: there are no projects yet, and the code and the label are
-    always those of the latest inscription, until the module of the projects reads them (#927,
-    EP-04).
+    A project without code is given all the same, its code null (#2166); in the order of
+    ``by_code``. The journal knows nothing of the projects: the API names the ones that still exist
+    by their code and label of today, read through the module of the projects (#927).
     """
     latest = session.scalars(_latest_first(AuditEntry.project_id))
     projects = [
         AuditProject(entry.project_id, entry.project_code, entry.project_label)
         for entry in latest
-        if entry.project_id is not None
-        and entry.project_code is not None
-        and entry.project_label is not None
+        if entry.project_id is not None and entry.project_label is not None
     ]
-    return sorted(projects, key=lambda project: (project.code, project.project_id))
+    return sorted(projects, key=by_code)
