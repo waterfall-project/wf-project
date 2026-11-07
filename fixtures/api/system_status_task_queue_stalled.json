@@ -1,0 +1,90 @@
+{
+  "summary": "Le même instant, la plus ancienne tâche de fond en file depuis 13 h 35, plus longtemps que le seuil de quinze minutes (task_queue_age_threshold_seconds) : une alerte en cours depuis 13 h 50, qui disparaît dès que la file avance (WF-OBS-0030, WF-ADM-0130).",
+  "value": {
+    "version": "1.0.0",
+    "components": [
+      {
+        "component": "api",
+        "is_available": true,
+        "checked_at": "2026-06-03T14:04:30Z",
+        "version": "1.0.0"
+      },
+      {
+        "component": "worker",
+        "is_available": true,
+        "checked_at": "2026-06-03T14:04:30Z",
+        "version": "1.0.0"
+      },
+      {
+        "component": "database",
+        "is_available": true,
+        "checked_at": "2026-06-03T14:04:30Z",
+        "version": "16.4"
+      },
+      {
+        "component": "cache",
+        "is_available": true,
+        "checked_at": "2026-06-03T14:04:30Z",
+        "version": "7.4.1"
+      },
+      {
+        "component": "object_storage",
+        "is_available": true,
+        "checked_at": "2026-06-03T14:04:30Z",
+        "version": null
+      },
+      {
+        "component": "identity_provider",
+        "is_available": true,
+        "checked_at": "2026-06-03T14:04:30Z",
+        "version": "26.0.5"
+      },
+      {
+        "component": "metrics",
+        "is_available": true,
+        "checked_at": "2026-06-03T14:04:30Z",
+        "version": "2.53.0"
+      }
+    ],
+    "storage": {
+      "used_bytes": 41875931136,
+      "available_bytes": 172922789888
+    },
+    "operating_parameters": {
+      "cache_validity_seconds": 600,
+      "background_task_retention_days": 30,
+      "avatar_max_bytes": 2097152,
+      "task_queue_age_threshold_seconds": 900,
+      "storage_usage_threshold": "0.85",
+      "error_rate_threshold": "0.05",
+      "error_rate_window_seconds": 300
+    },
+    "last_identity_sync": {
+      "at": "2026-06-03T02:00:00Z",
+      "succeeded": true,
+      "problem": null
+    },
+    "last_backup": {
+      "at": "2026-06-03T01:00:00Z",
+      "succeeded": true,
+      "problem": null
+    },
+    "last_backup_copy": {
+      "at": "2026-06-03T01:14:00Z",
+      "succeeded": true,
+      "problem": null
+    },
+    "last_restore_test": {
+      "at": "2026-06-01T03:00:00Z",
+      "succeeded": true,
+      "problem": null
+    },
+    "alerts": [
+      {
+        "code": "task_queue_stalled",
+        "since": "2026-06-03T13:50:00Z",
+        "severity": "alert"
+      }
+    ]
+  }
+}

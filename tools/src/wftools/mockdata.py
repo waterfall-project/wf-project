@@ -87,10 +87,12 @@ from typing import TYPE_CHECKING, Any, cast
 
 from wftools import (
     REPOSITORY,
+    mockadminrefusals,
     mockamendment,
     mockamendmentwrites,
     mockanonymized,
     mockaudit,
+    mockauditadmin,
     mockcategories,
     mockchronology,
     mockcomparisons,
@@ -306,14 +308,16 @@ def named() -> dict[str, JsonObject]:
     Its readings, its writes, its history — its revisions compared and its risks —, its
     indicators today, its actual costs with the journal of their imports; the views of the
     portfolio over time that sum it with the other projects (``mockportfoliotime``); the
-    journal of audit of the universe (``mockaudit``); the readings of the lists of the
+    journal of audit of the universe (``mockaudit``), and its variants of the administration of
+    today and of a restore (``mockauditadmin``); the readings of the lists of the
     reference written by hand (``mockreference``), and those of the projects, the subprojects
     and the contributors (``mocklists``), the contributors once an account is anonymised
     (``mockanonymized``); the exit of the witness, its code refused and its readings by quality
     (``mockproject``); the refusals of one form each (``mockrefusals``), and those the contract
-    declared without a code, a condition nor an example (``mockdeclared``); the examples of the
-    majors of the review of the 2026-10-31 (``mockreview``); the chronology of the witness, for the
-    loader of the projects (``mockchronology``).
+    declared without a code, a condition nor an example (``mockdeclared``), and those of the
+    administration and of the platform described without one (``mockadminrefusals``); the
+    examples of the majors of the review of the 2026-10-31 (``mockreview``); the chronology of the
+    witness, for the loader of the projects (``mockchronology``).
     """
     marked = mocksnapshot.revisions(categories())
     return {
@@ -334,11 +338,13 @@ def named() -> dict[str, JsonObject]:
         **mockcosts.examples(),
         **mockportfoliotime.examples(),
         **mockaudit.examples(),
+        **mockauditadmin.examples(),
         **mockreference.named(),
         **mocklists.examples(),
         **mockanonymized.examples(),
         **mockproject.examples(),
         **mockrefusals.examples(),
+        **mockadminrefusals.examples(),
         **mockdeclared.examples(),
         **mockreview.examples(),
         **mockchronology.examples(),

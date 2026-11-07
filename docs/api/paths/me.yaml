@@ -141,6 +141,7 @@
               column_width_out_of_range: { $ref: ../../../fixtures/api/preferences_column_width_out_of_range.json }
               lane_out_of_range: { $ref: ../../../fixtures/api/preferences_lane_out_of_range.json }
               page_size_out_of_range: { $ref: ../../../fixtures/api/preferences_page_size_out_of_range.json }
+              too_many_grids: { $ref: ../../../fixtures/api/preferences_too_many_grids.json }
       '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
@@ -189,9 +190,27 @@
             schema: { $ref: ../components/common.yaml#/Problem }
             examples:
               too_large: { $ref: ../../../fixtures/api/avatar_too_large.json }
-      '422': { $ref: ../components/responses.yaml#/UnprocessableEntity }
+      '422':
+        description: >-
+          A content that is neither a PNG nor a JPEG, whatever its declared type:
+          `VALIDATION_FAILED`, `fields` designating the whole body (pointer `""`); the avatar of
+          the account is not touched (WF-ADM-0080).
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              not_image: { $ref: ../../../fixtures/api/avatar_not_image.json }
       '500': { $ref: ../components/responses.yaml#/InternalError }
-      '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
+      '503':
+        description: >-
+          An unavailable component prevents the operation, `COMPONENT_UNAVAILABLE`,
+          `params.component` naming it (WF-EXP-0040): the database before the bootstrap of the
+          installation (WF-EXP-0020); or any other, as for every operation (`ServiceUnavailable`).
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              not_bootstrapped: { $ref: ../../../fixtures/api/installation_not_bootstrapped.json }
   delete:
     operationId: deleteMyAvatar
     tags: [me]

@@ -397,6 +397,7 @@
               retention_out_of_range: { $ref: ../../../fixtures/api/backup_schedule_retention_out_of_range.json }
               weekday_out_of_range: { $ref: ../../../fixtures/api/backup_schedule_weekday_out_of_range.json }
               weekday_missing: { $ref: ../../../fixtures/api/backup_schedule_weekday_missing.json }
+              time_invalid: { $ref: ../../../fixtures/api/backup_schedule_time_invalid.json }
       '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 

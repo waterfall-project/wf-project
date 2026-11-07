@@ -16,6 +16,7 @@ import pytest
 from wftools import (
     REPOSITORY,
     mockaudit,
+    mockauditadmin,
     mockcosts,
     mockdata,
     mockhistory,
@@ -35,7 +36,7 @@ def journal() -> dict[str, Node]:
     """Read the answers of the journal back from the text the generator writes, by name."""
     return {
         name.removesuffix(".json"): json.loads(mockdata.render(example))["value"]
-        for name, example in mockaudit.examples().items()
+        for name, example in {**mockaudit.examples(), **mockauditadmin.examples()}.items()
     }
 
 
@@ -169,20 +170,51 @@ def test_each_account_role_and_backup_is_inscribed_as_its_example_says(
         assert actor["kind"] == "platform" or names[actor["user_id"]] == actor["display_name"]
 
 
-def test_an_account_is_given_the_roles_created_after_it_once_they_exist(
+def test_every_role_an_account_holds_is_given_by_an_attribution_of_its_own(
     journal: dict[str, Node],
 ) -> None:
+    # An account is born without a role (#1731): each role it holds was given to it after its
+    # creation, once the last of them came to be, by a request of its own; by the one account that
+    # may modify the roles, the read of the directory giving none (WF-ADM-0070). The installation
+    # gives its local account « Administrateur » (WF-EXP-0020), which it exchanged since for the
+    # roles it composed: nobody holds it (`holder_count` 0).
     roles = {role["access_role_id"]: role for role in fixture("access_roles")}
-    given = [e for e in _events(journal["audit_events"]) if e["action"] == "user_access_roles_set"]
-    for event in given:
-        user = next(
-            each
-            for each in fixture("users")["items"]
-            if each["user_id"] == event["object"]["object_id"]
+    events = _events(journal["audit_events"])
+    given = [e for e in events[::-1] if e["action"] == "user_access_roles_set"]
+    users = {user["user_id"]: user for user in fixture("users")["items"]}
+    [administrator] = [role for role in roles.values() if role["label"] == "Administrateur"]
+    named = {"access_role_id": administrator["access_role_id"], "label": "Administrateur"}
+    [installed] = [e for e in given if e["actor"] == mockaudit.PLATFORM]
+    assert installed["params"]["access_roles_granted"] == [named]
+    assert (
+        installed["occurred_at"] == users[installed["object"]["object_id"]]["audit"]["created_at"]
+    )
+    assert administrator["holder_count"] == 0
+    others = [e for e in given if e is not installed]
+    holders = [user for user in users.values() if user["access_role_ids"]]
+    assert sorted(e["object"]["object_id"] for e in others) == sorted(u["user_id"] for u in holders)
+    created = {e["object"]["object_id"]: e for e in events if e["action"] == "user_create"}
+    for event in others:
+        user = users[event["object"]["object_id"]]
+        assert [each["access_role_id"] for each in event["params"]["access_roles_granted"]] == (
+            user["access_role_ids"]
         )
-        created = max(roles[role]["audit"]["created_at"] for role in user["access_role_ids"])
-        assert event["occurred_at"] == created > user["audit"]["created_at"]
-    assert [event["object"]["label"] for event in given] == ["Camille Martin"]
+        last = max(
+            [user["audit"]["created_at"]]
+            + [roles[role]["audit"]["created_at"] for role in user["access_role_ids"]]
+        )
+        assert event["occurred_at"] == last
+        assert event["actor"]["kind"] == "user"
+        assert "access_roles.write" in {
+            code
+            for role in users[event["actor"]["user_id"]]["access_role_ids"]
+            for code in roles[role]["permissions"]
+        }
+        assert event["correlation_id"] != created[user["user_id"]]["correlation_id"]
+        withdrawn = (
+            [] if event["object"]["object_id"] != installed["object"]["object_id"] else [named]
+        )
+        assert event["params"]["access_roles_withdrawn"] == withdrawn
 
 
 def test_each_inscription_says_what_its_action_did_in_codes_and_identifiers(
@@ -203,14 +235,8 @@ def test_each_inscription_says_what_its_action_did_in_codes_and_identifiers(
         elif event["action"] == "access_role_create":
             assert event["params"] == {"permissions": roles[named]["permissions"]}
         elif event["action"] == "user_access_roles_set":
-            granted = [
-                {"access_role_id": held, "label": roles[held]["label"]}
-                for held in users[named]["access_role_ids"]
-            ]
-            assert event["params"] == {
-                "access_roles_granted": granted,
-                "access_roles_withdrawn": [],
-            }
+            # What each attribution gives and withdraws is held by the test above.
+            assert set(event["params"]) == {"access_roles_granted", "access_roles_withdrawn"}
         else:
             assert event["params"] == {}, event["action"]
 
@@ -708,6 +734,10 @@ def test_the_administration_of_today_says_what_each_write_on_an_account_or_a_rol
             "Inès Roux",
             {"access_roles_granted": [], "access_roles_withdrawn": [pilotage]},
         ),
+        # The link, the reactivation and the deletion say nothing more than their object.
+        (camille, "password_link_create", user, "Léa Garnier", {}),
+        (camille, "user_reactivate", universe(303), "Alix Moreau", {}),
+        (camille, "access_role_delete", role, "Contrôle de gestion", {}),
     ]
     assert [
         (
@@ -724,7 +754,7 @@ def test_the_administration_of_today_says_what_each_write_on_an_account_or_a_rol
     assert all(event["project"] is None for event in administration)
     assert all(event["object"]["revision"] is None for event in administration)
     roles = {role["access_role_id"]: role for role in fixture("access_roles")}
-    assert set(mockaudit.WITHDRAWN) <= set(roles[renamed["access_role_id"]]["permissions"])
+    assert set(mockauditadmin.WITHDRAWN) <= set(roles[renamed["access_role_id"]]["permissions"])
 
 
 def test_the_administration_of_today_is_numbered_apart_from_every_other_example(
@@ -761,10 +791,10 @@ def test_the_combined_modification_of_manager_is_a_variant_whose_changes_add_up(
     [combined] = [event for event in administration if "previous_label" in event["params"]]
     before = cast("list[str]", roles[combined["object"]["object_id"]]["permissions"])
     updated = cast("list[str]", fixture("access_role_updated")["permissions"])
-    after = [code for code in updated if code not in mockaudit.WITHDRAWN]
+    after = [code for code in updated if code not in mockauditadmin.WITHDRAWN]
     granted = combined["params"]["permissions_granted"]
     withdrawn = combined["params"]["permissions_withdrawn"]
-    assert withdrawn == list(mockaudit.WITHDRAWN)
+    assert withdrawn == list(mockauditadmin.WITHDRAWN)
     assert set(withdrawn) <= set(before)
     assert not set(granted) & set(before)
     kept = [code for code in before if code not in withdrawn]
@@ -823,3 +853,30 @@ def test_each_inscription_read_from_an_example_is_by_the_one_who_last_updated_it
     accounts = [each for each in written if each.get("user_id") == attached["object"]["object_id"]]
     assert accounts
     assert all(each["audit"]["updated_by"] != mockaudit.PLATFORM for each in accounts)
+
+
+def test_the_restore_heads_the_journal_of_today_and_its_vanished_project_leads_nowhere(
+    journal: dict[str, Node],
+) -> None:
+    # The last inscription is the restore itself, dated at its end, the date of the backup put
+    # back in place in its parameters; what the journal held today is kept. A project created
+    # after the backup keeps its label and leads nowhere (`can_open` false).
+    restored = _events(journal["audit_events_restored"])
+    head, *rest = restored
+    backups = {each["backup_id"]: each for each in fixture("backups")["items"]}
+    assert (head["action"], head["object"]["kind"], head["project"]) == ("restore", "backup", None)
+    assert head["params"] == {"backup_taken_at": backups[head["object"]["object_id"]]["taken_at"]}
+    assert head["occurred_at"] == max(event["occurred_at"] for event in restored)
+    [vanished] = [event for event in rest if event["project"] and not event["project"]["can_open"]]
+    assert vanished["action"] == "project_create"
+    assert vanished["occurred_at"] > backups[head["object"]["object_id"]]["taken_at"]
+    assert vanished["project"]["label"] == vanished["object"]["label"]
+    assert vanished["project"]["project_id"] not in {
+        each["project_id"] for each in fixture("projects")["items"]
+    }
+    [reinstated] = [event for event in rest if event["action"] == "cost_line_reinstate"]
+    events = _events(journal["audit_events"])
+    [excluded] = [event for event in events if event["action"] == "cost_line_exclude"]
+    assert reinstated["object"] == excluded["object"]
+    today = [event for event in events if event["occurred_at"] >= "2026-06-03"]
+    assert all(event in restored for event in today)

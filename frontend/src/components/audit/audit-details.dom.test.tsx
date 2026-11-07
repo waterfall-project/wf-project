@@ -58,14 +58,14 @@ function read(event: AuditEvent, locale: Locale): string[] {
 
 describe("what an action did, under the action, in the language of its reader", () => {
   it("reads the same attribution of a role in French and in English, the label of the role as it was entered [WF-ARC-0110-A]", () => {
-    const attribution = inscription("user_access_roles_set", "Camille Martin");
+    const attribution = inscription("user_access_roles_set", "Lucas Petit");
     expect(read(attribution, "fr")).toEqual([
       "Attribution des rôles d’un compte",
-      "Rôle donné : Direction de projet",
+      "Rôle donné : Chiffreur",
     ]);
     expect(read(attribution, "en")).toEqual([
       "Roles of an account assigned",
-      "Role granted: Direction de projet",
+      "Role granted: Chiffreur",
     ]);
   });
 
@@ -147,7 +147,7 @@ describe("the title of the cell of the action", () => {
   });
 
   const restored = (params: AuditEvent["params"]): AuditEvent => ({
-    ...inscription("user_access_roles_set", "Camille Martin"),
+    ...inscription("user_access_roles_set", "Lucas Petit"),
     action: "restore",
     params,
   });
