@@ -86,3 +86,25 @@ Reporté d'EP-22 à sa livraison (décision de l'auteur du 2026-11-06) :
   `tables.py` sans leur répertoire (`platform/restoration.py`, `core/users/tables.py`), alors que
   chaque objet du référentiel aura le sien. Mineur de la revue d'US-1280 (#2023), à prendre avec
   #2074 et #2075.
+
+Reporté d'EP-05 (décision de l'auteur du 2026-11-06) :
+
+- #2124 — outil : un cycle d'imports entre deux interfaces en paquet du noyau
+  (`users.interface` ↔ `resource_settings.interface`) a échappé à import-linter et n'a été révélé
+  que par la file de fusion ; un contrat import-linter interdira les cycles entre interfaces du
+  noyau. Relevé par la revue d'US-0860.
+
+Reportés d'EP-05 et de la nuit du 6 au 7 novembre (décisions de l'auteur du 2026-11-07) :
+
+- #2083 — chaîne : `make service-up` ne reconstruit pas l'image du service `restore` (pas de
+  `--build` sur sa ligne), d'où des restaurations qui échouent en local après une migration
+  nouvelle ; un test du Compose vérifiera que chaque service construit l'est au démarrage.
+- #2198 — outil : aucune cible n'arrête les serveurs de l'e2e d'un créneau (Next, Playwright,
+  Prism), et le garde interdit `kill` aux agents : une cible par port, appelée par `slot-release`.
+- #2199 — royaume : le « Manager » de `./mode` ne porte ni `users.*` ni `system_status.read`, les
+  parcours d'administration ne se jouent pas contre le service ; décision : un rôle de test
+  « Administrateur » du royaume de développement et un second compte des parcours (option B).
+
+- #2185 — outil : le contrôle des bornes des paramètres de requête contre le contrat (#1873,
+  `test_contract_declarations.py`) ignore `pattern`, `enum` et les paramètres absents du contrat ;
+  à étendre avec les autres contrôles de conformité. Reporté d'EP-05 le 2026-11-07.

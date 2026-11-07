@@ -18,7 +18,7 @@ from pydantic import SecretStr
 from sqlalchemy import func, select
 from support import WITNESS, ContractClient
 
-from waterfall.api.resource_roles import category_admission
+from waterfall.api.resource_role_admission import category_admission
 from waterfall.core.cost_settings.interface import (
     CostCategoryDraft,
     CostTypeDraft,

@@ -71,3 +71,18 @@ test("enters a label for the optional column of the extraction and saves the cor
     await expect(labels).toHaveCount(before);
   }
 });
+
+test("offers no deletion of an object on the correspondence of the extraction, which holds labels to enter and remove, not objects to deactivate (US-0880) @shared [WF-REF-0010-A]", async ({
+  page,
+}) => {
+  await page.goto("/reference/costs/actual-cost-mapping");
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText(
+    "Correspondance des coûts réels",
+  );
+  await expect(page.getByRole("button", { name: "Enregistrer la correspondance" })).toBeVisible();
+  // The only removal is that of a label of a column, saved with the whole correspondence.
+  const main = page.getByRole("main");
+  await expect(main.getByRole("button", { name: /supprim|effac|delete/i })).toHaveCount(0);
+  await expect(main.getByRole("link", { name: /supprim|effac|delete/i })).toHaveCount(0);
+  await expect(main.getByRole("button", { name: /désactiv|réactiv/i })).toHaveCount(0);
+});
