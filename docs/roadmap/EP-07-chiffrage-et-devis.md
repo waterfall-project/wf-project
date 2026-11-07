@@ -1,7 +1,7 @@
 ---
 id: EP-07
 titre: Chiffrer un projet sur ses tâches, et le faire passer En cours
-statut: à planifier
+statut: prêt
 depend_de: EP-06
 famille: front, back
 issue:
@@ -236,7 +236,397 @@ Reportés d'EP-17 à sa livraison (rangement du 2026-11-05) :
 
 ## Conception
 
-<À écrire à l'étape 2.>
+EP-07 est le quatrième EPIC de domaine du back, et le premier qui calcule des montants : il
+ajoute la seconde facette de la table des nœuds d'EP-06, les tables images que la révision
+conserve, un module du noyau, les routes de ses huit opérations nouvelles, le second format
+d'échange sur la mécanique d'EP-06, la tranche des lignes du témoin, et il branche sur le service
+les écrans du devis. Il **ne modifie pas le contrat**, figé en 1.0.0 : un manque devient une
+« Interface contract issue » que l'auteur tranche. Ce qui suit fixe ce que chaque lot devrait sinon
+décider seul. Il se livre pendant les lots d'EP-06, sur une branche tirée de la sienne : la section
+« Ce qu'EP-06 écrit encore » dit ce que les lots d'EP-07 n'écrivent pas avant le lot d'EP-06 qui le
+possède.
+
+### Ce que le cadrage décide
+
+Décisions de l'auteur du 2026-11-07, sur les questions du cadrage, chacune avec l'option écartée :
+
+- **Neuf US, le socle en lot technique de la première**, lot pivot d'EP-09 ; quatre lectures
+  indépendantes (les indicateurs, le plan de charge, la comparaison, les contributeurs) dans une
+  même vague. Écartés : les indicateurs et le plan de charge en une US ; le passage En cours fondu
+  dans la ligne.
+- **Dix portées recalées** (voir « Exigences réalisées »), comme EP-06 l'a fait : une phrase de
+  Vérif qui demande une ligne de provision, un différentiel, une fusion ou la déclaration d'un
+  risque se clôt en EP-08, le reste à engager ou sa grille en EP-09, l'indice de coût en EP-10.
+  Écarté : clore ici avec des écarts, contre la règle du README.
+- **WF-IHM-0110, WF-INTF-0010 et WF-QUA-0040 entrent au tableau** en portée « début », pour que les
+  US les citent et que les tests les nomment. Écarté : les laisser en « propre à l'US ».
+- **La valeur planifiée est une fonction du noyau, sans écran** : `planned_value` de l'interface
+  de `core/estimate`, le même module d'étalement que le plan de charge, éprouvée par les exemples
+  chiffrés ; EP-10 branche les courbes (G-01, G-02 : aucun indicateur projet avant En cours), EP-08
+  clôt. Écarté : la reporter à EP-10, qui réécrirait l'étalement.
+- **Le plan de charge sert les trois bases** et toutes les phrases du Vérif sauf celle du reste de
+  80 heures : sans réestimation, la charge restante d'une ligne est sa charge courante, et les
+  tâches terminent déjà par `setTaskProgress` (EP-06). Écarté : la seule base de la référence.
+- **La référence du témoin reste l'offre 100** jusqu'à la fusion de l'avenant 1 par EP-08 : la
+  révision 101 est marquée sans être référence, WF-REV-0040 interdisant de la désigner après coup,
+  et le chargeur ne contourne aucune règle (#1402). Les lectures du témoin se comparent aux
+  exemples à la référence, aux provisions et aux montants qui en dépendent près, listés. Écartés :
+  écrire `is_reference` autour des règles ; ne pas rejouer la désignation.
+- **Les exemples du témoin projettent l'offre 100 depuis son année de référence, 2025** : le
+  raccourci de #1628 (option 4 du 2026-10-29) se retire par un lot d'outil d'US-1570, avant la
+  tranche des lignes, et le témoin chargé se compare aux exemples montants compris (README, « le
+  calculé devient l'attendu, la spécification arbitre »). Écarté : garder le raccourci et une liste
+  d'écarts connus que chaque EPIC suivant hériterait.
+- **Les trois montants et l'année de consommation sont conservés** sur `estimate_line`, comme les
+  dates des tâches d'EP-06, et recalculés dans la transaction de ce qui les change (« Le calcul des
+  montants ») ; le tri et les bornes de `listNodes`, `compareRevisions` et WF-REV-0070 lisent des
+  colonnes, et l'immuabilité d'une révision marquée protège les montants eux-mêmes. Écarté : le
+  calcul à la lecture, qui chiffrerait cinq mille lignes à chaque lecture et laisserait le tri par
+  montant à la mémoire.
+- **Le montant budgété est conservé et fixé par la lignée** : à la création ou à la copie d'une
+  ligne, celui de la ligne de même lignée dans la révision de référence, nul sans elle, confondu
+  avec le réestimé sur un projet sans référence ; rafraîchi dans la révision en cours quand une
+  référence est désignée, par un registre nouveau de `core/revisions` ; une révision marquée garde
+  le sien pour toujours (WF-REV-0070). Les grandeurs de référence qu'EP-08 écrira à la fusion
+  (`reference_quantity`, `reference_hours`, `reference_unit_disbursement`) naissent nulles dès la
+  migration d'EP-07. Écartés : le budgété lu par la lignée à chaque lecture, qui changerait sur une
+  révision marquée quand la référence se déplace ; laisser à EP-08 une migration sur
+  `estimate_line`.
+- **XlsxWriter écrit, openpyxl lit** : le prototype de la spécification
+  (`docs/spec/exemples/prototype_devis.py`) est écrit avec XlsxWriter et ses leçons sur Excel et
+  LibreOffice — totaux déclarés, formules qui nomment leur tableau, fonctions communes — sont
+  acquises ; openpyxl lit les cellules saisies, et `check_xlsx.py` s'en sert déjà. Les deux entrent
+  dans `backend/pyproject.toml` par le socle. Écarté : openpyxl seul, qui retraduirait le prototype.
+- **Le logo est copié dans le paquet**, `core/estimate/excel/assets/waterfall_logo.png`, sa
+  licence dans le fichier voisin `waterfall_logo.png.license` que REUSE admet : aucun lot d'EP-07
+  n'écrit `REUSE.toml`, qu'US-1440/L1 #2337 possède encore. Écartés : la ligne dans `REUSE.toml`,
+  qui attendait #2337 ; aucun logo, contre l'annexe B.
+- **Les registres de `core/projects` sont déclarés par US-1490/L3, après US-1380/L3 #2338** —
+  un seul, `register_estimate_facts` —, et celui de `core/cost_settings` par le socle : le socle
+  (pivot d'EP-09) n'attend que #2328 et n'écrit ni `core/projects` ni `core/planning`. Écarté : un
+  socle qui déclare tout et attend #2338, deux vagues d'EP-06 plus tard.
+- **EP-07 complète `FacetHooks` et ses appels dans `core/planning`**, après le lot d'EP-06 qui
+  possède chaque fichier, nommé par son numéro ; `planning` ne connaît toujours pas `estimate`, il
+  appelle le registre. Écarté : `api/nodes.py` qui routerait par `kind` vers `estimate`, deux
+  chemins d'écriture pour un même nœud.
+- **La chronologie du témoin reçoit l'écriture `rate_update_applied`**, par le lot d'outil
+  d'US-1570, et la désignation de l'offre cesse d'être attendue refusée par le chargeur. Écarté :
+  une date lue dans un fichier du chargeur, deux sources pour un instant du témoin.
+- **Le module est `core/estimate`** (FBS-4.4, « Chiffrage et devis »), et la fonction qui nomme un
+  onglet Excel (#2190) vit dans son interface, qu'EP-09 importera : `core/exchanges` reste aux
+  seuls lots d'EP-06. Écarté : la fonction dans `core/exchanges`, dont l'interface est écrite par
+  trois lots d'EP-06.
+- **Une seule migration, `0024`, dans le socle**, au prochain numéro libre à la création
+  d'`epic/EP-07` — `epic/EP-06` s'arrête à `0023` —, aucune donnée à reprendre : les colonnes
+  nouvelles de `revision` restent nulles et se lisent comme les valeurs du projet. Aucune migration
+  d'EP-07 après le socle ; EP-09 chaîne la sienne sur `0024`. Écarté : une migration par US.
+
+### Tables et migrations
+
+Régime « révisionné » (§4.4.1), partitionnées par projet comme `node`, pour `estimate_line` et les
+quatre tables images ; UUID v7 engendrés par le service, ou imposés par le chargeur ; colonnes
+d'audit et `lock_version` sur `estimate_line` ; textes en collation `C` ; règles SQL du guide. Chaque
+clé refuse (`RESTRICT`), sauf la clé composite de la facette vers son nœud, en cascade : la ligne
+suit sa tâche (WF-DAT-0090), et les images suivent leur révision abandonnée par `register_closing`
+avant toute cascade ; une révision marquée ne supprime rien, ses déclencheurs le refusant.
+
+| Table | Contenu | Contraintes |
+|---|---|---|
+| `estimate_line` | `project_id`, `node_id` (clé primaire avec lui), `kind` (`CHECK (kind = 'estimate_line')`, clé composite (`project_id`, `node_id`, `kind`) vers `node` en cascade, sur le modèle de `task`), `label`, `cost_category_id`, `resource_role_id` (nul hors main-d'œuvre), `quantity` (`numeric(14,4)`), `hours` (`numeric(12,2)`, nul hors main-d'œuvre), `unit_disbursement` (`numeric(14,2)`, nul en main-d'œuvre), `payment_delay_days`, `subproject_id` (nul hors sous-projet), `reference_quantity`, `reference_hours`, `reference_unit_disbursement` (nuls : écrits par la fusion d'un avenant, EP-08), `base_amount`, `budgeted_amount`, `reestimated_amount` (`numeric(14,2)`), `consumption_year`, audit, `lock_version` | `label` de 1 à 300 non blanc ; `quantity ≥ 0`, `hours ≥ 0`, `unit_disbursement ≥ 0`, `payment_delay_days ≥ 0` ; `(resource_role_id IS NULL) = (hours IS NULL)` et `(resource_role_id IS NULL) = (unit_disbursement IS NOT NULL)` — EP-08 les assouplit pour la ligne de provision — ; clés vers `cost_category`, `resource_role` et `(project_id, subproject_id)` vers `subproject` en refus ; index sur (`project_id`, `cost_category_id`), (`project_id`, `resource_role_id`), (`project_id`, `subproject_id`) pour les questions du référentiel ; déclencheur d'immuabilité comme `task` |
+| `revision_rate` | `project_id`, `id`, `revision_id`, `cost_category_id`, `amount` (`numeric(12,2)`), `origin` (`reference`, `projected`) | unique (`revision_id`, `cost_category_id`) ; clé composite vers `revision` en refus ; `amount ≥ 0.01` ; déclencheur d'immuabilité |
+| `revision_role` | `project_id`, `id`, `revision_id`, `resource_role_id`, et les colonnes de `ResourceRoleImage` : `code`, `label`, `org_node_id`, `org_node_label`, `cost_category_id`, `cost_category_label`, `calendar_id`, `calendar_label`, la capacité, `is_active`, l'audit et le compteur de l'objet au marquage | unique (`revision_id`, `resource_role_id`) ; clé composite vers `revision` en refus ; déclencheur d'immuabilité |
+| `revision_calendar` | `project_id`, `id`, `revision_id`, `calendar_id`, `label`, les sept heures de `WeeklyHours`, `is_default`, `is_active`, l'audit et le compteur au marquage (`CalendarImage`) | unique (`revision_id`, `calendar_id`) ; idem |
+| `revision_category` | `project_id`, `id`, `revision_id`, `cost_category_id`, `code`, `label`, `cost_type_id`, `cost_type_label`, `cost_type_kind`, `cost_type_is_active`, `accounting_code`, `is_active`, l'audit et le compteur au marquage (`CostCategoryImage`) | unique (`revision_id`, `cost_category_id`) ; idem |
+| `revision` | reçoit `inflation_rate` et `win_probability` (`numeric(5,4)`, nuls : les valeurs du projet, que le code lit encore ; écrits au marquage) | aucune autre contrainte ; `copy_revision` ne les reprend pas (la révision en cours suit le projet) |
+
+- **Une migration, `0024`, dans le socle** (US-1490/L1) : les cinq tables, les deux colonnes de
+  `revision`, `create_project_partitions` remplacée pour qu'elle crée leurs partitions
+  (`estimate_line_p_<uuid>`, `revision_rate_p_<uuid>`…) et celles des projets existants, les
+  déclencheurs d'immuabilité sur le modèle d'EP-06, les droits du rôle du service — `SELECT`,
+  `INSERT`, `UPDATE`, `DELETE` : une ligne et un taux conservé d'une révision en cours se modifient
+  et se suppriment, une image s'écrit une fois — déclarés dans `SERVICE_RIGHTS`. Aucune migration de
+  données : rien n'existe à reprendre.
+- **L'immuabilité** : une fonction de déclencheur par table, dans le module `estimate`, qui lit
+  l'état de la révision par `revision_id` sous `FOR KEY SHARE`, comme `cost_structure` et `task`.
+  Elle protège les montants conservés (WF-REF-0130, WF-REV-0070) autant que les grandeurs.
+- Les tests : `test_migrations.py` (schéma, droits, partitions d'un projet créé),
+  `test_database_constraints.py` (une contrainte, un test), `test_revision_immutability.py`
+  étendu aux cinq tables.
+
+### Modules
+
+| Module | Tables | Interface offerte |
+|---|---|---|
+| `waterfall.core.estimate` (FBS-4.4) | `estimate_line`, `revision_rate`, `revision_role`, `revision_calendar`, `revision_category` | les crochets de la facette pour `planning` (`FacetHooks` : lire, créer, instantané, restituer, juger une cellule, rechiffrer, `calendar_of`) ; une ligne modifiée (`update_line`) ; les filtres, le tri et les totaux des lignes pour `listNodes` ; `pricing` (pur : le montant d'une ligne, sa projection) et `spreading` (pur : l'étalement au prorata des heures d'un calendrier, par année ou par mois) ; `estimate_indicators`, `missing_rates` ; `workload`, `planned_value` ; `compare_revisions` ; les taux d'une révision — `rate_update_proposal`, `apply_rate_update`, la copie des taux, l'instantané au marquage, le budgété rafraîchi à la désignation — ; `category_is_employed`, `subproject_is_cited`, `subproject_is_estimated`, `roles_employed` et `reinflate_project` pour les registres de `cost_settings` et de `projects` ; `revision_has_lines` ; `idle_tasks_for_role_calendar` pour `resource_settings` ; le format et l'exporteur `estimate`, `sheet_name` ; `load_*` avec identifiants et instants imposés |
+
+- **La couche** : `estimate` importe les interfaces de `planning`, `revisions`, `projects`,
+  `cost_settings`, `resource_settings`, `users` (les comptes des propositions) et `exchanges` ; aucun
+  d'eux ne l'importe — ils appellent des registres. Le contrat d'import-linter de
+  `backend/pyproject.toml` le déclare (socle).
+- **Le calendrier applicable** d'une tâche devient l'intersection des calendriers des rôles de
+  ses lignes de main-d'œuvre, le calendrier par défaut sans elles : `calendar_of(task)` d'EP-06
+  reçoit les calendriers par le crochet de la facette ; une ligne dont le rôle ne recouperait
+  aucune heure est refusée (`TASK_WITHOUT_WORKING_HOURS`), et la garde
+  `register_idle_task_guard` juge aussi les calendriers des rôles (`updateCalendar`,
+  `updateResourceRole`).
+- **Les commandes** : `apply_rate_update` et `export_estimate` entrent dans `REVISION_RULES` de
+  `core/revisions/commands.py` — `revisions.write` et `rate_update_available` ; `estimate.read`,
+  présente ou absente —, `import_estimate` dans celles de `core/projects/commands.py`
+  (`estimate.write`, `project_before_in_progress` dès En cours, puis `no_background_task_running`,
+  `may_create_revision`) ; les deux fichiers sont encore écrits par EP-06 (« Ce qu'EP-06 écrit
+  encore »).
+
+### Les points d'extension
+
+Chaque registre est un `Registry` de `core/revisions/registry.py`, rempli à l'import de
+`core/estimate/interface`, et le test des points d'entrée d'EP-06 (#2180) — l'API, le worker, le
+chargeur — s'étend à chacun.
+
+| Module | Registre | Qui le déclare | Qui le remplit | Ce qu'il fait |
+|---|---|---|---|---|
+| `core/planning` | `register_facet` (EP-06) | EP-06 | `estimate` (`estimate_line`) | `listNodes` lit la facette, la copie et la suppression l'emportent, `calendar_of` lit ses rôles ; **complété par EP-07** : `create` (la facette d'un nœud créé, sa charge utile opaque pour `planning`), `snapshot`/`restore` (ses lignes de `estimate_line` pour l'historique), `judge_cell` (une cellule collée, dans l'ordre de `NodeColumn`), `reinflate` (les montants des lignes des nœuds redatés ou déplacés, rendus dans `reinflated`), `filters`/`sort`/`totals` (les colonnes de la ligne) |
+| `core/revisions` | `register_copy` (EP-04) | EP-04 | `estimate`, après `planning` | la copie des lignes (par les identifiants des nœuds copiés) et des taux conservés, projetés si l'année change |
+| `core/revisions` | `register_tasks_and_lines` (EP-04) | EP-04 | `estimate` (`revision_has_lines`) | la désignation exige une ligne |
+| `core/revisions` | `register_closing` (EP-06) | EP-06 | `estimate` | à l'abandon, les taux conservés supprimés (les lignes suivent les nœuds) |
+| `core/revisions` | `register_marking` (nouveau) | socle d'EP-07 | `estimate` | dans la transaction du marquage, avant `compute_indicators` : les images des rôles, calendriers et catégories employés et des taux retenus, `revision.inflation_rate` et `win_probability` |
+| `core/revisions` | `register_designation` (nouveau) | socle d'EP-07 | `estimate` | après la désignation d'une référence : le budgété des lignes de la révision en cours rafraîchi par la lignée |
+| `core/cost_settings` | `register_employment` (nouveau) | socle d'EP-07 | `estimate` | `category_is_employed` d'EP-05 rempli ; la modification du type d'une nature et le rattachement d'une catégorie employée refusés |
+| `core/projects` | `register_estimate_facts` (nouveau) | US-1490/L3, après #2338 | `estimate` | `subproject_is_cited` et `subproject_is_estimated` (la suppression d'un sous-projet), `roles_employed` (`listContributorSuggestions`), `reinflate_project` (`updateProject` rechiffre la révision en cours quand l'inflation change) |
+| `core/resource_settings` | `register_idle_task_guard` (EP-06) | EP-06 | `estimate` | les calendriers des rôles des lignes, projets nommés par `params.projects` |
+| `core/exchanges` | `register_format`, `register_exporter` (EP-06) | EP-06 | `estimate` (`estimate`) | l'en-tête, l'analyse, l'application et l'export du devis |
+| `witness/revisions` | `register_revision_filler` (EP-06) | EP-06 | `witness/estimate_lines` | les lignes de chaque révision écrites après ses tâches et avant son marquage |
+
+### Le calcul des montants
+
+- **Le montant de base** d'une ligne (`base_amount`) : quantité × charge × taux horaire de sa
+  catégorie pour l'année de référence de la révision — le taux conservé (`revision_rate`) s'il
+  existe, celui du référentiel (`hourly_rate`) sinon — pour une ligne de main-d'œuvre ; quantité ×
+  débours sinon ; en `Decimal`, arrondi au centime (`ROUND_HALF_EVEN`) une fois par ligne, pour que
+  la somme ne dépende pas de l'ordre (WF-DAT-0100). Sans taux ni conservé ni du référentiel, la
+  ligne n'a pas de montant : la saisie est refusée (`HOURLY_RATE_MISSING`) ; une ligne existante
+  dont le taux manque après une correction du référentiel garde ses montants et `getMissingRates`
+  la nomme — ce cas ne se produit que si un taux est retiré, ce que le référentiel ne fait pas.
+- **L'année de consommation et la projection** : `spreading` répartit les heures travaillées de
+  la tâche porteuse entre les années, sur le calendrier du rôle de la ligne (celui de la tâche
+  hors main-d'œuvre), par arithmétique sur les semaines pleines et les jours restants, sans boucle
+  sur les jours ; chaque part est projetée d'une fois le taux d'inflation par année écoulée depuis
+  l'année de référence, et le réestimé est la somme des parts projetées ; `consumption_year` est
+  l'année de la part la plus lourde, la première à égalité. Le taux d'inflation est celui du
+  projet pour la révision en cours, celui conservé pour une révision marquée.
+- **Le budgété** suit « Ce que le cadrage décide » : fixé par la lignée à la création et à la copie,
+  rafraîchi à la désignation ; la projection du budgété est celle de la référence, conservée avec
+  lui — il ne suit pas les dates de la révision courante (`NodeInflation`).
+- **Les déclencheurs du recalcul**, chacun dans sa transaction, sous le verrou de la structure :
+  l'écriture de la ligne (création, modification, collage, import, annulation) ; le redatage de sa
+  tâche par toute écriture de `planning` et par `reschedule_current_structures` (unités de durée,
+  calendriers), par le crochet `reinflate` que `planning` appelle avec les tâches redatées ; le
+  déplacement d'une ligne ou de sa tâche ; la mise à jour des taux (`applyRateUpdate`) ; le taux
+  d'inflation du projet (`updateProject`, par `register_estimate_facts.reinflate_project`) ; un taux
+  du référentiel écrit pour une catégorie sans taux conservé (`setHourlyRate`, par
+  `register_employment` qui rend les révisions en cours à rechiffrer) ; la désignation (le budgété).
+  Chaque recalcul rend les lignes et tâches dont un montant change (`reinflated`) et les totaux.
+- **Les totaux d'une tâche** (`TaskFacet.base_amount`, `budgeted_amount`, `reestimated_amount`) sont
+  la somme de ses lignes et de ses subordonnées, calculée à la lecture par `listNodes` et aux
+  `ancestors` des écritures — ils ne sont pas conservés, une somme se refaisant sans perte.
+- **Les indicateurs** sont des sommes des montants conservés : `total` et ses ventilations sur le
+  réestimé, le budget de référence sur le budgété hors provision ; un montant non calculable
+  (`hourly_rate_missing`) ne se présente que pour une ligne sans montant, cas qu'une saisie refuse
+  — l'enveloppe `Computable` est servie telle que le contrat la lit.
+
+### L'instantané et les taux
+
+- **La révision en cours suit le référentiel** pour ses rôles, calendriers et catégories, et ne
+  conserve que ses taux (`RevisionSnapshot` du contrat) : `revision_rate` porte, pour les
+  catégories qu'une révision copiée employait, le taux copié (`reference`) à année égale, projeté
+  (`projected`) sinon, remplacé par celui du référentiel pour les catégories que `apply_rate_update`
+  de `createRevision` retient ; la première révision d'un projet n'en a aucun.
+- **La proposition** (`getRateUpdateProposal`) liste chaque catégorie de main-d'œuvre employée
+  dont le taux conservé est `projected` : `previous_amount` le taux projeté, `proposed_amount` et
+  `source` le taux du référentiel pour `target_year` (`reference_rate`) ou, sans lui, le taux
+  projeté (`inflated_previous`) ; `applyRateUpdate` écrit `reference` sur les catégories retenues
+  et rechiffre.
+- **Au marquage**, `register_marking` écrit les images des rôles, calendriers et catégories que les
+  lignes emploient — un calendrier par rôle employé, le calendrier par défaut compris —, un
+  `revision_rate` pour chaque catégorie de main-d'œuvre employée sans taux conservé (celui du
+  référentiel, `reference`), `inflation_rate` et `win_probability` du projet ; `getRevision` rend
+  `snapshot` d'une révision marquée seule.
+- **Une révision marquée se lit sur ses images** : les libellés de `EstimateLineFacet`, les
+  calendriers de l'export MS Project, la comparaison ; une révision en cours sur le référentiel.
+
+### Le format Excel du devis
+
+- **L'écriture** (XlsxWriter) suit le prototype de la spécification et l'annexe B : « Présentation »
+  (format et version en A1-B2, l'entreprise de `getReferenceSettings`, le client, le projet, la
+  révision, la structure, l'année de référence, la devise, la date, la ventilation par nature) ;
+  « Devis » (une ligne par lot, par poste, par lot hors postes, « Hors lot », avec `SOMME.SI.ENS`
+  sur les onglets de lignes, la case « Inclus ») ; un onglet par poste (« 1.1 Libellé »), par lot et
+  « Hors lot », chacun un tableau Excel à ligne de total déclarée, listes de validation sur
+  « Tâches » et « Paramètres », colonnes calculées par formule qui nomme son tableau, lignée dans une
+  colonne masquée ; « Tâches » (lignée, numéro, libellé, onglet, dates, description) et
+  « Paramètres » (rôles, catégories hors main-d'œuvre, taux retenus, sous-projets), protégés ; le
+  logo et le pied de page sur chaque onglet ; aucun texte saisi écrit comme formule
+  (`strings_to_formulas` faux). `sheet_name` ramène un nom aux règles d'Excel : caractères refusés
+  remplacés, 31 unités UTF-16, unicité sans égard à la casse par un suffixe ` (2)` ; EP-09
+  l'importe pour les codes des sous-projets (#2190).
+- **La lecture** (openpyxl, `read_only`, valeurs) : l'en-tête d'abord — format « Devis », version
+  connue (`FILE_FORMAT_UNREADABLE`, `expected_format`, `expected_version`) —, puis chaque onglet de
+  lignes par ses en-têtes ; les colonnes lues sont la tâche, le rôle ou la catégorie, la
+  désignation, la quantité, les heures, le débours unitaire, le délai de paiement, le sous-projet et
+  la lignée ; une ligne vide ou de total ignorée, une colonne inconnue ignorée, un nombre en texte
+  rejeté (`NUMBER_INVALID`), chaque rejet par son onglet et son numéro de ligne Excel.
+- **L'analyse** rapproche par la lignée, puis désigne la tâche par « Tâches » ou par son libellé
+  (`AMBIGUOUS_TASK_LABEL`, `UNKNOWN_TASK`), crée les lignes sans lignée, met à jour les autres sans
+  toucher leur budgété, supprime les absentes sauf sous une tâche démarrée ou terminée (`kept`),
+  rejette une ligne nouvelle sous une tâche terminée de la structure principale
+  (`task_not_completed`), un rôle ou un sous-projet inconnu, une catégorie de provision
+  (`PROVISION_CATEGORY_RESERVED`), une ligne qui laisserait sa tâche sans heure
+  (`TASK_WITHOUT_WORKING_HOURS`), et présente les écarts (`differences`) ; **l'application** écrit
+  par les mêmes fonctions que la saisie, sous le verrou de la structure, dans la transaction de la
+  tâche d'EP-06, sans entrée d'historique ; `ProjectCommand.import_estimate` dit la phase.
+- **L'export** s'enregistre par `register_exporter` : la révision et la structure nommées, le
+  fichier `.xlsx`, `media_type`
+  `application/vnd.openxmlformats-officedocument.spreadsheetml.sheet`, le nom
+  `<code ou libellé du projet>-<version>-devis.xlsx` ; le stockage, le téléchargement et la purge
+  sont ceux d'EP-06.
+
+### Le service d'API
+
+- Un routeur par US — `api/estimate_lines.py` (US-1490 : `updateEstimateLine`),
+  `api/rate_update.py` (US-1500 : `getRateUpdateProposal`, `applyRateUpdate`),
+  `api/estimate_indicators.py` (US-1510 : `getEstimateIndicators`, `getMissingRates`),
+  `api/workload.py` (US-1520), `api/comparison.py` (US-1530) —, créés vides et enregistrés dans
+  `app.py` par le socle, chacun avec son `asked_*.py` ; `listContributorSuggestions`
+  (`api/contributors.py`, EP-04) et `getRevision` (`api/revisions.py`, le `snapshot`) sont des
+  routes existantes qu'US-1540 et US-1500 complètent ; `createNode`, `deleteNode`, `moveNodes`,
+  `listNodes`, `previewPaste`, `applyPaste`, `openImport`, `requestExport` restent aux routeurs
+  d'EP-06, qui appellent les registres.
+- Chaque route déclare `RequiresProject(...)` : `estimate.read` pour les lectures, la qualité de
+  contributeur et `estimate.write` pour `updateEstimateLine`, `revisions.write` pour
+  `applyRateUpdate` ; les refus sont ceux du contrat, dans l'ordre que chaque opération écrit ;
+  chaque réponse d'un test passe par `ContractClient` ; `test_access_evaluation.py` reçoit chaque
+  opération avec ses deux termes.
+
+### Le worker
+
+Aucun gestionnaire nouveau : l'import, l'export et le marquage sont ceux d'EP-06 et d'EP-04, qui
+appellent les registres. Le worker doit importer l'interface d'`estimate` pour les remplir
+(#2180) ; `worker/main.py` est encore écrit par US-1420/L2 #2341 : l'import est du lot d'US-1500
+qui écrit le marquage, après #2341. Jusque-là, un marquage dans le worker n'écrit pas d'image —
+aucun test ne l'attend avant ce lot.
+
+### Le chargeur du témoin
+
+- **Un lot d'outil**, dans `wftools` : `mockdating` projette l'offre depuis 2025, les exemples se
+  régénèrent, `DECISIONS.md` retire le raccourci de L-01 ; la chronologie exportée reçoit
+  l'écriture `rate_update_applied` (révision 101, 12 janvier 2026, 10 h 15, les deux catégories) ;
+  `make mock-data` écrit `fixtures/api/witness_lines.json` : pour chaque révision de PRJ-001 (100,
+  101, 102), ses lignes par lignée — la tâche porteuse par sa lignée, le rang parmi les lignes, la
+  facette saisie — ; le back le lit par un modèle propre, strict, sans importer `wftools`.
+- **La tranche** : `witness/estimate_lines.py` s'enregistre par `register_revision_filler`, après
+  `witness/tasks.py` (l'ordre de l'enregistrement, par l'import dans `chronology.py`), et réconcilie
+  par lignée les lignes que la copie a données avec celles du fichier — création, modification,
+  suppression — par l'interface d'`estimate`, identifiants et instant imposés ;
+  `witness/revisions.py` applique `rate_update_applied` par `apply_rate_update` et attend que la
+  désignation de l'offre aboutisse (`designation_attempted` devient une désignation réussie, un
+  refus arrêtant la commande), le passage En cours constaté par les transitions. Les montants sont
+  ceux que le service calcule : le calculé devient l'attendu.
+
+### Le front
+
+- Les écrans sont ceux d'EP-02, d'EP-14 et d'EP-15 ; chaque US branche le sien et retire
+  `MockupNotice` de la page qu'elle sert en dernier : le plan de charge par US-1520, le devis par
+  US-1560 ; les révisions et les paramètres du projet l'ont perdu par EP-04. Les aides
+  `frontend/help/fr/FBS-4.4*.md` disent ce que le service fait, par US-1560 ; `FBS-4.2.4.md`
+  (contributeurs) par US-1540.
+- Le front ne calcule rien : les montants, les parts, les écarts et les propositions viennent du
+  service. Un manque que le branchement révèle devient une issue ; un manque du contrat, une
+  « Interface contract issue ».
+
+### Le harnais
+
+Chaque US étiquette `@shared` les tests dont l'écran est servi : US-1520 `workload.spec.ts` ;
+US-1530 `revisions.spec.ts` (`BEFORE_EP07` levé, la proposition des taux comprise, après US-1500) ;
+US-1540 le jumeau des contributeurs et le cycle (`revision-cycle.spec.ts`) ; US-1550 l'import en
+deux temps d'`exchanges.spec.ts` ; US-1560 `entry.spec.ts`, `computed.spec.ts`, `keyboard.spec.ts`,
+`paste.spec.ts`, `undo.spec.ts`, la part du devis de `grid.spec.ts`, `structure.spec.ts` et
+`context.spec.ts` (`BEFORE_THE_DATA` levé pour le devis). Les parcours qui écrivent le font sur un
+projet que la course crée (#2193) ; ceux qui lisent le devis propre d'un risque restent gardés par
+`inService` jusqu'à EP-08, et le guide le dit. La liste des entrées non rejouées n'est écrite que
+par US-1570/L3.
+
+### Les tests du back
+
+Un fichier par objet et par règle — `test_estimate_lines.py`, `test_estimate_lines_move.py`,
+`test_pricing.py` (pur), `test_spreading.py` (pur), `test_estimate_hooks.py` (la facette dans
+`planning` : création, historique, collage, redatage), `test_revision_snapshot.py`,
+`test_rate_update.py`, `test_estimate_indicators.py`, `test_workload.py`, `test_planned_value.py`,
+`test_comparison.py`, `test_contributor_suggestions.py`, `test_in_progress.py`,
+`test_estimate_excel_write.py`, `test_estimate_excel_read.py`, `test_estimate_import.py`,
+`test_estimate_export.py`, `test_witness_lines.py` —, chaque test citant son exigence, chaque réponse
+validée contre le contrat ; les exemples chiffrés des Vérif sont des tests sans base quand ils le
+peuvent (`tests/examples`). Les fixtures communes — une structure avec ses tâches et ses lignes par
+l'interface, une référence désignée, l'horloge posée — vivent dans `tests/estimate_support.py`,
+écrit par le socle. Un test de concurrence par règle d'ensemble : deux écritures d'une même ligne,
+deux mises à jour des taux, un marquage pendant une saisie.
+
+### Ce qu'EP-06 écrit encore
+
+Les lots d'EP-07 se livrent pendant ceux d'EP-06, et `epic/EP-07` reprend `epic/EP-06` à chaque
+fusion. Un fichier qu'un lot d'EP-06 non fusionné possède, les lots d'EP-07 ne l'écrivent pas avant
+ce lot, ou en dépendent par son numéro :
+
+| Fichier | Lot d'EP-06 qui le possède | Lots d'EP-07 qui l'attendent |
+|---|---|---|
+| `core/planning/interface/{nodes,facets}.py` (lecture, création, `snapshot`) | US-1380/L2 #2335 | tout lot qui crée ou lit une ligne (US-1490/L2 et suivants) |
+| `core/planning` : suppression, déplacement ; `core/projects` (`register_attachments`) | US-1380/L3 #2338 | US-1490/L3, US-1500, US-1540 |
+| `core/planning` : `setPredecessors`, les registres de `resource_settings` (`reschedule_current_structures`) | US-1390/L2 #2339 | US-1500 (la garde des calendriers des rôles) |
+| `core/planning` : le collage (`previewPaste`, `applyPaste`), `api/history.py` | US-1450/L2 #2344 | US-1560 (le jugement des cellules de la ligne) |
+| `core/revisions/commands.py` (`export_*`), `api/tasks.py` | US-1430/L2 #2336 | US-1500 (`apply_rate_update`), US-1550 (`export_estimate`) |
+| `core/projects/commands.py` (`generate_skeleton`) | US-1460 #2325 | US-1550 (`import_estimate`) |
+| `core/exchanges` (la mécanique d'import, les formats) | US-1420/L1 #2332 | US-1550 |
+| `worker/main.py`, les Compose, `production.env.example`, le Makefile | US-1420/L2 #2341 | US-1500 (l'import de l'interface dans le worker) |
+| `REUSE.toml`, `LICENSES/` | US-1440/L1 #2337 | aucun : le logo porte son fichier `.license` |
+| `wftools`, `make mock-data` | US-1480/L1 #2330 | US-1570/L1 |
+| `witness/tasks.py` | US-1480/L2 #2347 | US-1570 (la tranche des lignes, après les tâches) |
+| le guide, la liste des entrées non rejouées | US-1480/L3 #2348 | US-1570/L3 |
+| `app.py`, `pyproject`, `tests/planning_support.py`, `witness/revisions.py`, `chronology.py` | US-1380/L1 #2328, fusionné avant la branche | aucun |
+
+Les catalogues `messages/*.json`, `conftest.py`, `support.py`, `api/queries.py`, `loader.py` et
+`mode.ts` ne s'écrivent dans aucun des deux EPIC : une clé ou une fixture qui manque devient une
+issue.
+
+### L'ordre de construction
+
+Le socle d'abord, puis ce qui ne dépend que de lui, la ligne dès que l'arbre d'EP-06 est là, les
+quatre lectures en une vague large, les écrans par l'US qui sert leur objet, la vérification
+d'ensemble en dernier ; le plan de lots (étape 3) le détaille en vagues.
+
+1. **US-1490/L1**, le socle — dès la fusion d'US-1380/L1 #2328 : la migration `0024`, le module
+   `core/estimate` à vide avec son interface en paquet (un fichier par objet) et ses modules purs
+   `pricing` et `spreading` déclarés, les trois registres nouveaux de `core/revisions`
+   (`register_marking`, `register_designation`) et de `core/cost_settings` (`register_employment`),
+   l'enregistrement à vide dans ceux d'EP-04 et d'EP-06 (`register_facet`, `register_copy`,
+   `register_tasks_and_lines`, `register_closing`, `register_format`, `register_exporter`,
+   `register_idle_task_guard`, `register_revision_filler`), les cinq routeurs vides dans `app.py` et
+   leurs `asked_*`, XlsxWriter et openpyxl dans `pyproject`, le contrat de couches,
+   `tests/estimate_support.py` et les fichiers de tests, `witness/estimate_lines.py` à vide enchaîné
+   dans `chronology.py`, le test des points d'entrée étendu. **Lot pivot d'EP-09** : `epic/EP-09` se
+   tire d'`epic/EP-07` dès sa fusion. Il lui garantit `estimate_line` avec ses grandeurs courantes
+   et de référence, ses trois montants, son délai de paiement et son sous-projet, les tables
+   images, l'interface d'`estimate` déclarée — dont `update_line`, que `setLineRemaining` étendra,
+   et `revision_has_lines` —, et la chaîne des migrations arrêtée à `0024`. En parallèle, dès la
+   branche : **les modules purs** `pricing` et `spreading` (US-1490, US-1520) et **le lot d'outil**
+   d'US-1570 (les exemples depuis 2025, la chronologie, `witness_lines.json`, après #2330).
+2. **La ligne** (US-1490 : la facette lue et créée, `updateEstimateLine`, le calcul, après #2335 ;
+   puis la suppression, le déplacement, les questions de `core/projects` et de `cost_settings`,
+   après #2338), **l'instantané et les taux** (US-1500 : la copie des taux, la proposition, la mise à
+   jour, le marquage, la désignation, l'inflation, les gardes, après #2336, #2339 et #2341 pour ce
+   qui les touche), **l'écriture du classeur** (US-1550, pure, après #2332).
+3. **Les quatre lectures** (US-1510, US-1520, US-1530, US-1540) et **la lecture et l'analyse du
+   classeur** (US-1550), après la ligne.
+4. **La grille de devis** (US-1560, le collage après #2344), **l'export et l'import branchés**
+   (US-1550, après #2336 et #2325), **la tranche des lignes** (US-1570, après #2347), après tout ce
+   qui écrit ; puis **la vérification d'ensemble** (US-1570, après #2348), seule.
 
 ---
 
