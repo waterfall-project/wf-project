@@ -2,59 +2,59 @@
   get:
     operationId: listAuditEvents
     tags: [audit]
-    summary: Journal d'audit
+    summary: Audit log
     description: >-
-      La consultation du journal d'audit (WF-ADM-0190) : ses inscriptions, chacune avec sa date,
-      son auteur, son action, l'objet concerné et le projet s'il y en a un (WF-SEC-0030) : les
-      actions irréversibles ou structurantes, de tous les projets et de la plateforme. Le
-      journal est conservé aussi longtemps que les projets : celui d'un projet terminé depuis
-      des années se lit comme celui d'un projet en cours, par le même filtre. Il ne se lit
-      qu'ici : aucune opération n'inscrit, ne modifie ni ne supprime une inscription, que seule
-      l'action elle-même produit, et une restauration ne le remplace pas : il est hors du
-      périmètre qu'elle restaure, et l'inscription de la restauration s'écrit une fois celle-ci
-      faite (WF-ADM-0160, #539). Les filtres se combinent (WF-IHM-0130), la recherche (`search`)
-      portant sur le libellé de l'objet que l'inscription garde, et les cinq filtres de
-      WF-ADM-0190 sont la période (`from`, `to`), l'auteur (`user_id`, `actor_kind`), l'action
-      (`actions`), le projet (`project_id`) et l'objet (`object_kind`, `object_id`) ; une table
-      plate, qui se trie sur chacune de ses colonnes — la date, l'auteur, l'action, la nature de
-      l'objet, son libellé, le projet et la corrélation (WF-IHM-0060) : sans tri, par date, les
-      plus récentes d'abord, deux inscriptions de même instant dans l'ordre de leur inscription,
-      inversé dans l'ordre décroissant ; deux inscriptions qu'une autre colonne égale, dans cet
-      ordre sans tri, puis par leur identifiant. Le serveur pagine. Les auteurs et les projets
-      que nomme le journal se lisent par `listAuditFacets`. Lisible sous la seule permission de
-      consulter le journal (`audit_log.read`, WF-ADM-0100, WF-ADM-0190), sans condition de
-      contributeur et sans qu'aucun projet soit ouvert — le chemin n'en nomme aucun —, qui ouvre
-      le journal entier : un projet s'y nomme par son code et son libellé, que l'appelant en
-      soit contributeur ou non ; l'inscription ne mène qu'à un projet qu'il peut ouvrir
-      (WF-ADM-0110), ce que le serveur dit pour lui (`AuditProject.can_open`), et qu'à un objet
-      qu'il peut consulter ; un projet qui n'existe plus — créé après la sauvegarde qu'une
-      restauration a remise en place — se nomme de même, sans mener à lui (WF-ADM-0190).
+      The consultation of the audit log (WF-ADM-0190): its entries, each with its date, its
+      author, its action, the object concerned and the project if there is one (WF-SEC-0030):
+      the irreversible or structuring actions, of all projects and of the platform. The log
+      is kept as long as the projects: that of a project completed years ago reads like that
+      of a project in progress, through the same filter. It is read only here: no operation
+      writes, modifies or deletes an entry, which only the action itself produces, and a
+      restore does not replace it: it is outside the scope that a restore restores, and the
+      entry of the restore is written once the restore is done (WF-ADM-0160, #539). The
+      filters combine (WF-IHM-0130), the search (`search`) bearing on the label of the object
+      that the entry keeps, and the five filters of WF-ADM-0190 are the period (`from`,
+      `to`), the author (`user_id`, `actor_kind`), the action (`actions`), the project
+      (`project_id`) and the object (`object_kind`, `object_id`); a flat table, sortable on
+      each of its columns — the date, the author, the action, the kind of the object, its
+      label, the project and the correlation (WF-IHM-0060): without a sort, by date, the most
+      recent first, two entries of the same instant in the order they were written, reversed
+      in descending order; two entries that another column ties, in this unsorted order, then
+      by their identifier. The server paginates. The authors and projects that the log names
+      are read through `listAuditFacets`. Readable under the sole permission to view the log
+      (`audit_log.read`, WF-ADM-0100, WF-ADM-0190), without a contributor condition and
+      without any project being open — the path names none —, which opens the whole log: a
+      project is named in it by its code and its label, whether or not the caller is a
+      contributor to it; the entry leads only to a project the caller can open (WF-ADM-0110),
+      which the server states for them (`AuditProject.can_open`), and only to an object they
+      can view; a project that no longer exists — created after the backup that a restore put
+      back in place — is named likewise, without leading to it (WF-ADM-0190).
     parameters:
       - $ref: ../components/parameters.yaml#/Limit
       - $ref: ../components/parameters.yaml#/Offset
       - name: from
         in: query
-        description: Retient les inscriptions faites à cet instant ou après lui.
+        description: Retains the entries made at this instant or after it.
         schema: { $ref: ../components/common.yaml#/Timestamp }
       - name: to
         in: query
-        description: Retient les inscriptions faites avant cet instant, exclu.
+        description: Retains the entries made before this instant, excluded.
         schema: { $ref: ../components/common.yaml#/Timestamp }
       - name: user_id
         in: query
         description: >-
-          Retient les inscriptions dont l'auteur est ce compte, désactivé compris
+          Retains the entries whose author is this account, deactivated included
           (WF-ADM-0060).
         schema: { $ref: ../components/common.yaml#/Uuid }
       - name: actor_kind
         in: query
         description: >-
-          Retient les inscriptions d'un compte (`user`) ou de la plateforme (`platform`) ;
-          absent, les deux.
+          Retains the entries of an account (`user`) or of the platform (`platform`); when
+          absent, both.
         schema: { $ref: ../components/schemas/audit.yaml#/AuditActorKind }
       - name: actions
         in: query
-        description: Retient les inscriptions de ces actions ; absent, toutes.
+        description: Retains the entries of these actions; when absent, all.
         schema:
           type: array
           minItems: 1
@@ -63,56 +63,57 @@
       - name: project_id
         in: query
         description: >-
-          Retient les inscriptions de ce projet ; un projet qu'aucune inscription ne nomme ne
-          retient rien, qu'il existe encore ou non.
+          Retains the entries of this project; a project that no entry names retains nothing,
+          whether it still exists or not.
         schema: { $ref: ../components/common.yaml#/Uuid }
       - name: object_kind
         in: query
-        description: Retient les inscriptions dont l'objet est de cette nature.
+        description: Retains the entries whose object is of this kind.
         schema: { $ref: ../components/schemas/audit.yaml#/AuditObjectKind }
       - name: object_id
         in: query
         description: >-
-          Retient les inscriptions de cet objet — l'histoire d'une révision, d'une ligne de
-          coût, d'un compte.
+          Retains the entries of this object — the history of a revision, of a cost line, of
+          an account.
         schema: { $ref: ../components/common.yaml#/Uuid }
       - $ref: ../components/parameters.yaml#/Search
       - name: correlation_id
         in: query
         description: >-
-          Retient les inscriptions de cette requête, ou de la tâche de fond qu'elle a
-          déclenchée : toutes celles d'une même action, comme la fusion d'un différentiel, avec le
-          marquage et la désignation qu'elle produit (WF-OBS-0020, WF-IHM-0130). Une
-          corrélation que le journal ne porte pas ne retient rien.
+          Retains the entries of this request, or of the background task it triggered: all
+          those of a single action, such as the merge of a differential, with the marking and
+          the designation it produces (WF-OBS-0020, WF-IHM-0130). A correlation that the log
+          does not carry retains nothing.
         schema:
           type: string
           pattern: '^[A-Za-z0-9._-]{1,64}$'
       - name: sort_by
         in: query
         description: >-
-          Colonne du tri ; absente, la date. Les colonnes du journal qui se trient
-          (WF-IHM-0060) : la date ; l'auteur, par son nom affiché, dans l'ordre croissant un
-          compte anonymisé, qui n'en a plus, après les noms, et la plateforme, qui n'en a pas,
-          après les comptes ; l'action et la nature de l'objet, dans l'ordre de leur énumération
-          (`AuditAction`, celui où WF-SEC-0030 les nomme, et `AuditObjectKind`) — l'API ne rend
-          pas leur libellé, que le front choisit dans la langue du lecteur (WF-ARC-0110), et ne
-          trie pas par lui — ; le libellé de l'objet que l'inscription garde, un objet sans
-          libellé — une sauvegarde, un compte anonymisé — après les autres dans l'ordre
-          croissant ; le projet, par son code, une inscription sans projet ou dont le projet
-          n'avait pas de code après les autres dans l'ordre croissant ; la corrélation. Les textes se comparent caractère par
-          caractère dans l'ordre des points de code Unicode.
+          Sort column; when absent, the date. The columns of the log that can be sorted
+          (WF-IHM-0060): the date; the author, by their display name, in ascending order an
+          anonymised account, which no longer has one, after the names, and the platform, which
+          has none, after the accounts; the action and the kind of the object, in the order of
+          their enumeration (`AuditAction`, the one in which WF-SEC-0030 names them, and
+          `AuditObjectKind`) — the API does not return their label, which the front chooses in
+          the reader's language (WF-ARC-0110), and does not sort by it —; the label of the
+          object that the entry keeps, an object without a label — a backup, an anonymised
+          account — after the others in ascending order; the project, by its code, an entry
+          without a project or whose project had no code after the others in ascending order;
+          the correlation. Texts are compared character by character in the order of the
+          Unicode code points.
         schema:
           type: string
           enum: [occurred_at, actor, action, object_kind, object_label, project, correlation_id]
       - name: sort_order
         in: query
         description: >-
-          Sens du tri ; absent, décroissant pour la date — les inscriptions les plus récentes
-          d'abord —, croissant pour toute autre colonne.
+          Sort direction; when absent, descending for the date — the most recent entries
+          first —, ascending for any other column.
         schema: { $ref: ../components/common.yaml#/SortOrder }
     responses:
       '200':
-        description: Inscriptions retenues, une page, et leur nombre.
+        description: Entries retained, one page, and their count.
         content:
           application/json:
             schema:
@@ -143,10 +144,10 @@
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '422':
         description: >-
-          `VALIDATION_FAILED` : une période dont la fin précède le début, désignée dans
-          `fields` (`/query/to`, `VALUE_OUT_OF_RANGE`, `params.minimum` le début donné, la règle
-          de toute période du contrat) ; un instant mal formé, `/query/from` ou `/query/to` par
-          `DATE_INVALID`. Aucune liste vide ne tient lieu de refus.
+          `VALIDATION_FAILED`: a period whose end precedes its start, designated in `fields`
+          (`/query/to`, `VALUE_OUT_OF_RANGE`, `params.minimum` the given start, the rule of every
+          period of the contract); a malformed instant, `/query/from` or `/query/to` by
+          `DATE_INVALID`. No empty list stands in for a refusal.
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
@@ -159,25 +160,25 @@
   get:
     operationId: listAuditFacets
     tags: [audit]
-    summary: Auteurs et projets du journal d'audit
+    summary: Authors and projects of the audit log
     description: >-
-      Les comptes et les projets que nomme le journal d'audit entier, chacun une fois, pour
-      choisir l'auteur et le projet dans les filtres du journal (WF-SEC-0030, WF-ADM-0190,
-      WF-IHM-0130) : les comptes auteurs d'au moins une inscription, désactivés compris
-      (WF-ADM-0060), et les projets d'au moins une inscription, consultables ou non par
-      l'appelant. Le journal entier, quels que soient les filtres de `listAuditEvents`, que
-      l'opération ne prend pas : une liste de choix ne se vide pas au gré des autres filtres.
-      Lisible sous la seule permission de consulter le journal (`audit_log.read`), sans
-      condition de contributeur ni projet ouvert : une fonction en lecture seule n'a que la
-      permission de consulter (WF-ADM-0100, WF-ADM-0190), et un auditeur qui ne lit ni les
-      comptes ni tous les projets filtre ainsi le journal par auteur et par projet. Sans
-      pagination : il y a au plus autant d'auteurs que de comptes et de projets que
-      l'installation en conserve, soit au plus 500 comptes et 600 projets conservés sur vingt
-      ans aux volumes du §4.6.2 — une réponse de l'ordre de cent kilo-octets, quand une page de
-      50 inscriptions en pèse une vingtaine.
+      The accounts and projects that the whole audit log names, each once, to choose the
+      author and the project in the filters of the log (WF-SEC-0030, WF-ADM-0190,
+      WF-IHM-0130): the accounts that authored at least one entry, deactivated included
+      (WF-ADM-0060), and the projects of at least one entry, whether or not the caller can
+      view them. The whole log, whatever the filters of `listAuditEvents`, which the operation
+      does not take: a list of choices does not empty itself as the other filters change.
+      Readable under the sole permission to view the log (`audit_log.read`), without a
+      contributor condition or an open project: a read-only function has only the permission
+      to view (WF-ADM-0100, WF-ADM-0190), and an auditor who reads neither the accounts nor
+      all the projects thus filters the log by author and by project. Without pagination:
+      there are at most as many authors as accounts and as many projects as the installation
+      keeps, that is at most 500 accounts and 600 projects kept over twenty years at the
+      volumes of §4.6.2 — a response of the order of a hundred kilobytes, when a page of 50
+      entries weighs about twenty.
     responses:
       '200':
-        description: Auteurs et projets du journal.
+        description: Authors and projects of the log.
         content:
           application/json:
             schema: { $ref: ../components/schemas/audit.yaml#/AuditFacets }

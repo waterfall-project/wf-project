@@ -1,19 +1,20 @@
-# Journal d'audit des actions irréversibles ou structurantes (WF-SEC-0030), en lecture seule.
+# Audit log of the irreversible or structuring actions (WF-SEC-0030), read-only.
 
 AuditAction:
   type: string
   description: >-
-    Ce qu'une inscription du journal d'audit consigne : chacune des actions irréversibles ou
-    structurantes que WF-SEC-0030 énumère, dans son ordre — la création d'un projet, le marquage
-    d'une révision, l'abandon d'une révision en cours (#1577), la désignation de la révision de
-    référence, la fusion d'un différentiel (`structure_merge`, WF-REV-0050), la déclaration d'un
-    risque survenu, la sortie du cycle de vie d'un projet, l'exclusion et la réintégration d'une
-    ligne de coût, l'application d'un import, la création et la modification des comptes — dont leur
-    désactivation et leur réactivation, leur anonymisation (`user_anonymize`, WF-ADM-0060), et le
-    lien qui fixe un mot de passe, obtenu ou renvoyé par courriel, sans son jeton
-    (`password_link_create`, `createPasswordSetupLink` et `resendInvitation`, WF-ADM-0140) —, la
-    création, la modification et la suppression des rôles, l'attribution des rôles aux comptes, la
-    sauvegarde et la restauration. Une action nouvelle est une modification du contrat.
+    What an entry of the audit log records: each of the irreversible or structuring actions
+    that WF-SEC-0030 lists, in its order — the creation of a project, the marking of a
+    revision, the abandonment of a revision in progress (#1577), the designation of the
+    reference revision, the merge of a differential (`structure_merge`, WF-REV-0050), the
+    declaration of an occurred risk, the exit of a project from the life cycle, the exclusion
+    and the reinstatement of a cost line, the application of an import, the creation and the
+    modification of accounts — including their deactivation and their reactivation, their
+    anonymisation (`user_anonymize`, WF-ADM-0060), and the link that sets a password, obtained
+    or resent by email, without its token (`password_link_create`, `createPasswordSetupLink`
+    and `resendInvitation`, WF-ADM-0140) —, the creation, the modification and the deletion of
+    roles, the attribution of roles to accounts, the backup and the restore. A new action is a
+    change to the contract.
   enum:
     - project_create
     - revision_mark
@@ -42,18 +43,18 @@ AuditActorKind:
   type: string
   enum: [user, platform]
   description: >-
-    L'auteur d'une inscription, un compte ou la plateforme, comme `ActorRef.kind` le dit :
-    nommé pour filtrer le journal.
+    The author of an entry, an account or the platform, as `ActorRef.kind` says: named to
+    filter the log.
 
 AuditObjectKind:
   type: string
   description: >-
-    La nature de l'objet qu'une inscription concerne : le projet créé ou sorti du cycle de vie,
-    la révision marquée, abandonnée ou désignée, la structure différentielle fusionnée, le risque
-    survenu, la ligne de coût exclue ou réintégrée, l'import appliqué, le compte, le rôle, la
-    sauvegarde prise ou restaurée, et le dépôt d'une sauvegarde copiée hors de la plateforme qu'une
-    restauration remet en place (`external_backup_upload`, l'identifiant du dépôt,
-    `RestoreRequest.external_backup_upload_id` ; WF-SEC-0030, WF-ADM-0160).
+    The kind of the object an entry concerns: the project created or exited from the life
+    cycle, the revision marked, abandoned or designated, the differential structure merged, the
+    occurred risk, the cost line excluded or reinstated, the import applied, the account, the
+    role, the backup taken or restored, and the upload of a backup copied outside the platform
+    that a restore puts back in place (`external_backup_upload`, the identifier of the upload,
+    `RestoreRequest.external_backup_upload_id`; WF-SEC-0030, WF-ADM-0160).
   enum:
     - project
     - revision
@@ -70,243 +71,247 @@ AuditObject:
   type: object
   required: [kind, object_id, label, revision]
   description: >-
-    L'objet concerné, tel qu'il était au moment de l'action : son libellé est celui de ce
-    moment, gardé dans l'inscription, et non relu de l'objet, qui a pu changer de nom depuis —
-    ou ne plus être lisible : le journal reste consultable aussi longtemps que les projets
-    (WF-SEC-0030). Un objet qui vit dans une révision la nomme (`revision`), pour que l'écran
-    y mène.
+    The object concerned, as it was at the time of the action: its label is the one of that
+    moment, kept in the entry, and not read again from the object, which may have changed its
+    name since — or may no longer be readable: the log stays viewable as long as the projects
+    (WF-SEC-0030). An object that lives in a revision names it (`revision`), so that the screen
+    leads to it.
   properties:
     kind: { $ref: '#/AuditObjectKind' }
     object_id: { $ref: ../common.yaml#/Uuid }
     label:
       anyOf: [{ type: string }, { type: 'null' }]
       description: >-
-        Le libellé de l'objet au moment de l'action — le nom de version d'une révision, le
-        numéro de pièce d'une ligne de coût, le nom du fichier d'un import, le nom affiché
-        d'un compte, le nom du fichier d'un dépôt — ; nul pour une sauvegarde, qui n'en a
-        pas : pour l'action `backup`, sa date est celle de l'inscription ; pour `restore`, elle
-        est dans `params.backup_taken_at`, l'inscription datant la fin de la restauration ; nul pour
-        une révision en cours abandonnée, qui n'a pas encore de nom de version (WF-REV-0010) ; nul
-        pour un compte anonymisé, dont l'anonymisation efface le nom de toutes les inscriptions qui
-        le désignent, seule modification qu'une inscription admet (WF-SEC-0030, WF-ADM-0060) : le
-        front le présente sous le libellé neutre de son catalogue.
+        The label of the object at the time of the action — the version name of a revision,
+        the document number of a cost line, the file name of an import, the display name of
+        an account, the file name of an upload —; null for a backup, which has none: for the
+        action `backup`, its date is that of the entry; for `restore`, it is in
+        `params.backup_taken_at`, the entry dating the end of the restore; null for an
+        abandoned revision in progress, which does not yet have a version name (WF-REV-0010);
+        null for an anonymised account, whose anonymisation erases its name from all the
+        entries that designate it, the only modification an entry admits (WF-SEC-0030,
+        WF-ADM-0060): the front presents it under the neutral label of its catalogue.
     revision:
       anyOf: [{ $ref: '#/AuditRevision' }, { type: 'null' }]
       description: >-
-        La révision où l'objet vit, au moment de l'action : celle dont le registre porte le
-        risque (WF-RIS-0030) — pour une survenance, la révision en cours où elle fusionne son
-        devis propre (WF-RIS-0060) —, celle de la structure différentielle
-        (`CostStructure.revision_id`, WF-REV-0050), celle où s'applique l'import d'un planning,
-        d'un devis ou d'un reste à engager (WF-INTF-0090). Nulle pour un objet qui ne vit pas
-        dans une révision : le projet, une révision elle-même, une ligne de coût réel, imputée
-        au projet (WF-CRE-0010), et l'import des coûts réels, quand seuls les imports d'un
-        planning, d'un devis ou d'un reste à engager s'appliquent à une révision (WF-INTF-0090),
-        un compte, un rôle, une sauvegarde, un dépôt.
+        The revision the object lives in, at the time of the action: the one whose register
+        carries the risk (WF-RIS-0030) — for an occurrence, the revision in progress into which
+        it merges its own estimate (WF-RIS-0060) —, that of the differential structure
+        (`CostStructure.revision_id`, WF-REV-0050), the one to which the import of a planning,
+        an estimate or a remaining to commit applies (WF-INTF-0090). Null for an object that
+        does not live in a revision: the project, a revision itself, an actual cost line,
+        charged to the project (WF-CRE-0010), and the import of actual costs, since only the
+        imports of a planning, an estimate or a remaining to commit apply to a revision
+        (WF-INTF-0090), an account, a role, a backup, an upload.
 
 AuditRevision:
   type: object
   required: [revision_id, label]
   description: >-
-    La révision d'un objet du journal, par son identifiant et son libellé au moment de l'action
-    (WF-SEC-0030).
+    The revision of an object of the log, by its identifier and its label at the time of the
+    action (WF-SEC-0030).
   properties:
     revision_id: { $ref: ../common.yaml#/Uuid }
     label:
       anyOf: [{ type: string }, { type: 'null' }]
       description: >-
-        Le nom de version de la révision au moment de l'action ; nul pour une révision en
-        cours d'élaboration, qui n'en a pas encore (WF-REV-0010).
+        The version name of the revision at the time of the action; null for a revision being
+        drawn up, which does not have one yet (WF-REV-0010).
 
 AuditProject:
   type: object
   required: [project_id, code, label, can_open]
   description: >-
-    Un projet du journal, par son identifiant, son code et son libellé : ceux du moment de
-    l'action dans une inscription (`AuditEvent.project`), ceux d'aujourd'hui dans les facettes
-    (`AuditFacets.projects`) — pour un projet qui n'existe plus, créé après la sauvegarde
-    qu'une restauration a remise en place, ceux de sa dernière inscription —, et si
-    l'inscription mène à lui (`can_open`, WF-ADM-0190).
+    A project of the log, by its identifier, its code and its label: those at the time of the
+    action in an entry (`AuditEvent.project`), today's in the facets
+    (`AuditFacets.projects`) — for a project that no longer exists, created after the backup
+    that a restore put back in place, those of its last entry —, and whether the entry leads
+    to it (`can_open`, WF-ADM-0190).
   properties:
     project_id: { $ref: ../common.yaml#/Uuid }
     code:
       anyOf: [{ type: string }, { type: 'null' }]
       description: >-
-        Le code du projet, au moment de l'action ou aujourd'hui comme le libellé ; nul pour un
-        projet qui n'en avait pas encore, un code n'étant exigé qu'au passage à En cours
-        (WF-PRJ-0010, WF-CYC-0030).
+        The code of the project, at the time of the action or today like the label; null for a
+        project that did not have one yet, a code being required only on the move to In
+        progress (WF-PRJ-0010, WF-CYC-0030).
     label: { type: string }
     can_open:
       type: boolean
       description: >-
-        Vrai si l'appelant peut consulter le projet aujourd'hui (WF-ADM-0110) : la permission de
-        le consulter et la qualité de contributeur, ou celle de consulter tous les projets ;
-        faux sinon, et pour un projet qui n'existe plus (WF-ADM-0190). L'inscription mène alors au
-        projet, ou le nomme par son libellé et son code sans mener à lui ; le front n'en déduit
-        rien des permissions de la session, qui ne connaît pas les contributeurs. Évalué de même
-        dans les facettes. Un objet qui vit dans un projet — révision, structure, risque, ligne
-        de coût, import — ne mène à lui que si le projet est ouvrable.
+        True if the caller can view the project today (WF-ADM-0110): the permission to view it
+        and the status of contributor, or the permission to view all projects; false
+        otherwise, and for a project that no longer exists (WF-ADM-0190). The entry then leads
+        to the project, or names it by its label and its code without leading to it; the front
+        infers nothing about it from the permissions of the session, which does not know the
+        contributors. Evaluated the same way in the facets. An object that lives in a project —
+        revision, structure, risk, cost line, import — leads to it only if the project can be
+        opened.
 
 AuditEvent:
   type: object
   required:
     [audit_event_id, occurred_at, actor, action, object, project, params, correlation_id]
   description: >-
-    Une inscription du journal d'audit : la date, l'auteur, l'action, l'objet concerné et le
-    projet s'il y en a un (WF-SEC-0030), et l'identifiant de corrélation de la requête ou de la
-    tâche de fond qui l'a produite, celui des journaux de la plateforme (WF-OBS-0020). Une
-    inscription n'est ni modifiable ni supprimable : aucune opération ne le permet, et une
-    restauration ne la touche pas — le journal est hors du périmètre qu'elle remplace, et son
-    inscription `restore` s'écrit une fois la restauration faite (WF-ADM-0160, #539).
-    Une action qui en produit d'autres les inscrit toutes, au même instant et sous la même
-    corrélation : la fusion d'un différentiel inscrit `structure_merge` sur sa structure, puis
-    `revision_mark` et `reference_designate` sur la révision qui en résulte (WF-REV-0050).
+    An entry of the audit log: the date, the author, the action, the object concerned and the
+    project if there is one (WF-SEC-0030), and the correlation identifier of the request or of
+    the background task that produced it, that of the platform's logs (WF-OBS-0020). An entry
+    can be neither modified nor deleted: no operation allows it, and a restore does not touch
+    it — the log is outside the scope that a restore replaces, and its `restore` entry is
+    written once the restore is done (WF-ADM-0160, #539).
+    An action that produces others records them all, at the same instant and under the same
+    correlation: the merge of a differential records `structure_merge` on its structure, then
+    `revision_mark` and `reference_designate` on the resulting revision (WF-REV-0050).
   properties:
     audit_event_id: { $ref: ../common.yaml#/Uuid }
     occurred_at:
       allOf: [{ $ref: ../common.yaml#/Timestamp }]
       description: >-
-        L'instant où l'action a pris effet : pour une action confiée au worker — marquage,
-        fusion, survenance, application d'un import, restauration —, celui où la tâche a
-        abouti ; pour une sauvegarde, sa date (`Backup.taken_at`), l'instant de l'état qu'elle
-        copie.
+        The instant the action took effect: for an action handed to the worker — marking,
+        merge, occurrence, application of an import, restore —, the one at which the task
+        succeeded; for a backup, its date (`Backup.taken_at`), the instant of the state it
+        copies.
     actor:
       allOf: [{ $ref: ../common.yaml#/ActorRef }]
       description: >-
-        L'auteur : un compte, par son identifiant et son nom affiché, conservé après sa
-        désactivation (WF-ADM-0060) — nul après son anonymisation, qui l'efface de toutes les
-        inscriptions dont il est l'auteur, leur nombre, leurs dates et leurs actions inchangés
-        (WF-SEC-0030) — ; `platform` pour ce que la plateforme fait d'elle-même —
-        une sauvegarde planifiée, un compte créé à sa première connexion par le fournisseur
-        d'identité ou par la lecture du fournisseur d'identité —, et ce que l'installation crée.
+        The author: an account, by its identifier and its display name, kept after its
+        deactivation (WF-ADM-0060) — null after its anonymisation, which erases it from all
+        the entries it authored, their number, their dates and their actions unchanged
+        (WF-SEC-0030) —; `platform` for what the platform does of its own accord —
+        a scheduled backup, an account created on its first sign-in by the identity provider
+        or by the read of the identity provider —, and what the installation creates.
     action: { $ref: '#/AuditAction' }
     object: { $ref: '#/AuditObject' }
     project:
       anyOf: [{ $ref: '#/AuditProject' }, { type: 'null' }]
       description: >-
-        Le projet de l'objet ; nul pour un objet de la plateforme — compte, rôle, sauvegarde,
-        dépôt d'une sauvegarde.
+        The project of the object; null for an object of the platform — account, role,
+        backup, upload of a backup.
     params: { $ref: '#/AuditParams' }
     correlation_id:
       type: string
       pattern: '^[A-Za-z0-9._-]{1,64}$'
       description: >-
-        L'identifiant de corrélation de la requête qui a demandé l'action, que la tâche de
-        fond qu'elle déclenche reprend (WF-OBS-0020) : il mène aux journaux de la plateforme.
+        The correlation identifier of the request that asked for the action, which the
+        background task it triggers takes up (WF-OBS-0020): it leads to the platform's logs.
 
 AuditParams:
   type: object
   additionalProperties: false
   description: >-
-    Ce que l'action a fait à son objet, propre à chaque action, en codes, en identifiants et en
-    libellés gardés au moment de l'action, jamais en phrase : le front le rend dans la langue du
-    lecteur (WF-ARC-0110), et le journal dit ainsi qui a donné quel droit (WF-SEC-0030, #706). Un
-    objet vide pour une action qui n'a rien à dire de plus que son objet — la désactivation, la
-    réactivation et l'anonymisation d'un compte, le lien qui fixe un mot de passe, la suppression
-    d'un rôle — ; pour la création d'un projet (`project_create`), que l'inscription désigne
-    déjà par son code et son libellé du moment (`AuditEvent.project`, et son libellé dans
-    `AuditObject.label`) ; pour l'abandon d'une révision en cours (`revision_abandon`), que
-    l'inscription désigne par son identifiant et par son projet, une révision en cours n'ayant
-    pas encore de nom de version (`AuditObject.label` nul, WF-REV-0010), ses lignes supprimées
-    avec elle (#1577) ; pour le marquage, la désignation, la fusion, la survenance, l'exclusion
-    et la réintégration d'une ligne de coût, que leur objet dit entier ; pour une sauvegarde, dont
-    l'origine se lit de l'auteur — la plateforme pour une planifiée. La sortie du cycle de vie
-    dit l'état atteint et son motif, la restauration la date de la sauvegarde remise en place,
-    l'application d'un import sa nature. Un paramètre nouveau est une modification du contrat.
+    What the action did to its object, specific to each action, in codes, identifiers and
+    labels kept at the time of the action, never as a sentence: the front renders it in the
+    reader's language (WF-ARC-0110), and the log thus says who granted which right
+    (WF-SEC-0030, #706). An empty object for an action that has nothing more to say than its
+    object — the deactivation, the reactivation and the anonymisation of an account, the link
+    that sets a password, the deletion of a role —; for the creation of a project
+    (`project_create`), which the entry already designates by its code and its label of the
+    moment (`AuditEvent.project`, and its label in `AuditObject.label`); for the abandonment
+    of a revision in progress (`revision_abandon`), which the entry designates by its
+    identifier and by its project, a revision in progress not yet having a version name
+    (`AuditObject.label` null, WF-REV-0010), its lines deleted with it (#1577); for the
+    marking, the designation, the merge, the occurrence, the exclusion and the reinstatement
+    of a cost line, which their object says in full; for a backup, whose origin is read from
+    the author — the platform for a scheduled one. The exit from the life cycle gives the
+    state reached and its reason, the restore the date of the backup put back in place, the
+    application of an import its kind. A new parameter is a change to the contract.
   properties:
     to_state:
       type: string
       enum: [completed, lost, abandoned]
       description: >-
-        `project_exit` : l'état terminal atteint, Terminé, Perdu ou Abandonné (`ProjectExit`,
-        WF-CYC-0060) ; un auditeur distingue ainsi un projet terminé d'un projet perdu sans
-        l'ouvrir (WF-ADM-0190).
+        `project_exit`: the terminal state reached, Completed, Lost or Abandoned
+        (`ProjectExit`, WF-CYC-0060); an auditor thus tells a completed project from a lost
+        project without opening it (WF-ADM-0190).
     reason:
       anyOf: [{ type: string }, { type: 'null' }]
       description: >-
-        `project_exit` : le motif donné à la confirmation, que la transition conserve
-        (`ProjectExit.reason`, WF-CYC-0130) ; nul s'il n'en a pas été donné.
+        `project_exit`: the reason given at the confirmation, which the transition keeps
+        (`ProjectExit.reason`, WF-CYC-0130); null if none was given.
     backup_taken_at:
       allOf: [{ $ref: ../common.yaml#/Timestamp }]
       description: >-
-        `restore` : la date de la sauvegarde remise en place, celle que la confirmation a
-        énoncée (`RestoreRequest.acknowledged_backup_taken_at`, WF-ADM-0160) ; l'inscription,
-        elle, est datée de la fin de la restauration.
+        `restore`: the date of the backup put back in place, the one the confirmation stated
+        (`RestoreRequest.acknowledged_backup_taken_at`, WF-ADM-0160); the entry itself is
+        dated at the end of the restore.
     import_kind:
       allOf: [{ $ref: exchanges.yaml#/ExchangeKind }]
       description: >-
-        `import_apply` : la nature de l'import appliqué (WF-INTF-0090) — un planning, un devis
-        ou un reste à engager, qui s'écrivent dans une révision, ou des coûts réels, imputés au
-        projet.
+        `import_apply`: the kind of the import applied (WF-INTF-0090) — a planning, an
+        estimate or a remaining to commit, which are written into a revision, or actual costs,
+        charged to the project.
     origin:
       allOf: [{ $ref: access.yaml#/UserOrigin }]
       description: >-
-        `user_create` : l'origine du compte créé — par un administrateur (`local`), par la
-        lecture du fournisseur d'identité (`directory`), à la première connexion d'une personne
-        relayée par un fournisseur externe (`identity_provider`).
+        `user_create`: the origin of the account created — by an administrator (`local`), by
+        the read of the identity provider (`directory`), on the first sign-in of a person
+        relayed by an external provider (`identity_provider`).
     fields:
       type: array
       description: >-
-        `user_update` : les champs du compte que la modification a changés, dans l'ordre du
-        compte — son identité et son rattachement à un nœud d'organisation (#1739) ; leurs
-        valeurs n'y sont pas, celles d'avant comme celles d'après.
+        `user_update`: the fields of the account that the modification changed, in the order of
+        the account — its identity and its attachment to an organisation node (#1739); their
+        values are not in it, neither the before nor the after.
       items: { $ref: '#/AuditUserField' }
     attached:
       type: boolean
       description: >-
-        `user_update` : vrai quand la modification rattache le compte à une personne de
-        l'annuaire qui porte son adresse (#707) — le compte prend son identifiant chez le
-        fournisseur et vient désormais de l'annuaire ; absent sinon.
+        `user_update`: true when the modification attaches the account to a person of the
+        directory who carries its address (#707) — the account takes its identifier at the
+        provider and henceforth comes from the directory; absent otherwise.
     permissions:
       type: array
       description: >-
-        `access_role_create` : les permissions du rôle créé, dans l'ordre du catalogue.
+        `access_role_create`: the permissions of the role created, in the order of the
+        catalogue.
       items: { $ref: access.yaml#/PermissionCode }
     permissions_granted:
       type: array
       description: >-
-        `access_role_update` : les permissions que la modification a données au rôle, dans
-        l'ordre du catalogue ; vide si elle n'en a donné aucune.
+        `access_role_update`: the permissions that the modification granted to the role, in
+        the order of the catalogue; empty if it granted none.
       items: { $ref: access.yaml#/PermissionCode }
     permissions_withdrawn:
       type: array
       description: >-
-        `access_role_update` : les permissions que la modification a retirées au rôle, dans
-        l'ordre du catalogue ; vide si elle n'en a retiré aucune.
+        `access_role_update`: the permissions that the modification withdrew from the role, in
+        the order of the catalogue; empty if it withdrew none.
       items: { $ref: access.yaml#/PermissionCode }
     previous_label:
       type: string
       description: >-
-        `access_role_update` : le libellé du rôle avant la modification, quand elle l'a changé ;
-        absent sinon. Le libellé d'après est celui de l'objet (`AuditObject.label`).
+        `access_role_update`: the label of the role before the modification, when it changed
+        it; absent otherwise. The label after is that of the object (`AuditObject.label`).
     access_roles_granted:
       type: array
       description: >-
-        `user_access_roles_set` : les rôles que l'attribution a donnés au compte, dans l'ordre où
-        il les tient ; vide si elle n'en a donné aucun. À la création d'un compte, ses premiers
-        rôles.
+        `user_access_roles_set`: the roles that the attribution granted to the account, in the
+        order in which it holds them; empty if it granted none. On the creation of an account,
+        its first roles.
       items: { $ref: '#/AuditAccessRole' }
     access_roles_withdrawn:
       type: array
       description: >-
-        `user_access_roles_set` : les rôles que l'attribution a retirés au compte ; vide si elle
-        n'en a retiré aucun.
+        `user_access_roles_set`: the roles that the attribution withdrew from the account;
+        empty if it withdrew none.
       items: { $ref: '#/AuditAccessRole' }
 
 AuditUserField:
   type: string
   enum: [last_name, first_name, email, org_node_id]
   description: >-
-    Un champ du compte qu'une modification change (`user_update`), nommé comme la colonne de la
-    table des comptes, que le front rend par son catalogue (WF-ARC-0110) : le nom, le prénom,
-    l'adresse, et le rattachement au nœud d'organisation (`org_node_id`), donné, changé ou retiré
-    (WF-ADM-0030, WF-ADM-0050) ; la valeur n'y est pas, comme pour les autres champs.
+    A field of the account that a modification changes (`user_update`), named like the column of
+    the accounts table, which the front renders through its catalogue (WF-ARC-0110): the last
+    name, the first name, the address, and the attachment to the organisation node
+    (`org_node_id`), given, changed or removed (WF-ADM-0030, WF-ADM-0050); the value is not in
+    it, as for the other fields.
 
 AuditAccessRole:
   type: object
   required: [access_role_id, label]
   description: >-
-    Un rôle d'habilitation donné ou retiré à un compte, par son identifiant et son libellé au
-    moment de l'action : un rôle supprimé depuis se nomme toujours (WF-ADM-0090).
+    An access role granted to or withdrawn from an account, by its identifier and its label at
+    the time of the action: a role deleted since is still named (WF-ADM-0090).
   properties:
     access_role_id: { $ref: ../common.yaml#/Uuid }
     label: { type: string }
@@ -314,38 +319,38 @@ AuditAccessRole:
 AuditActorFacet:
   type: object
   required: [user_id, display_name]
-  description: Un compte auteur d'au moins une inscription du journal.
+  description: An account that authored at least one entry of the log.
   properties:
     user_id: { $ref: ../common.yaml#/Uuid }
     display_name:
       anyOf: [{ type: string }, { type: 'null' }]
       description: >-
-        Le nom affiché du compte aujourd'hui, désactivé compris : un compte ne se supprime
-        jamais (WF-ADM-0060) ; nul pour un compte anonymisé, que le front présente sous le
-        libellé neutre de son catalogue.
+        The display name of the account today, deactivated included: an account is never
+        deleted (WF-ADM-0060); null for an anonymised account, which the front presents under
+        the neutral label of its catalogue.
 
 AuditFacets:
   type: object
   required: [actors, projects]
   description: >-
-    Les auteurs et les projets que nomme le journal entier, pour en choisir un dans les filtres
-    de `listAuditEvents` (WF-IHM-0130) : la permission de consulter le journal suffit à les
-    lire, sans celle de lire les comptes ni les projets (WF-ADM-0100).
+    The authors and projects that the whole log names, to choose one of them in the filters
+    of `listAuditEvents` (WF-IHM-0130): the permission to view the log suffices to read them,
+    without the one to read the accounts or the projects (WF-ADM-0100).
   properties:
     actors:
       type: array
       description: >-
-        Les comptes auteurs d'au moins une inscription, chacun une fois, par nom affiché puis
-        par identifiant — un compte anonymisé, qui n'a plus de nom, après les noms — ; la
-        plateforme n'y est pas : `actor_kind` la retient.
+        The accounts that authored at least one entry, each once, by display name then by
+        identifier — an anonymised account, which no longer has a name, after the names —; the
+        platform is not in it: `actor_kind` retains it.
       items: { $ref: '#/AuditActorFacet' }
     projects:
       type: array
       description: >-
-        Les projets d'au moins une inscription, chacun une fois, par leur code et leur libellé
-        d'aujourd'hui — un projet qui n'existe plus, par le code et le libellé de sa dernière
-        inscription —, dans l'ordre des codes puis des identifiants : consultables ou non par
-        l'appelant, comme le journal les nomme. Un projet sans code — inscrit avant que son code
-        ne soit saisi, qui n'en a toujours pas — y figure, `code` nul, après les codes, comme le
-        tri du journal par projet le range (#2166).
+        The projects of at least one entry, each once, by their code and their label of
+        today — a project that no longer exists, by the code and the label of its last
+        entry —, in the order of the codes then of the identifiers: whether or not the caller
+        can view them, as the log names them. A project without a code — recorded before its
+        code was entered, and that still has none — appears in it, `code` null, after the
+        codes, as the sort of the log by project places it (#2166).
       items: { $ref: '#/AuditProject' }
