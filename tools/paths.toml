@@ -320,7 +320,8 @@ by = "make fixtures"
 # nor an example (wftools.mockdeclared, held by tools/tests/test_mockdeclared.py), and the examples
 # of the majors of the review of the 2026-10-31 (wftools.mockreview, held by
 # tools/tests/test_mockreview.py), and the chronology of the witness the loader of the projects
-# reads (wftools.mockchronology, held by tools/tests/test_mockchronology.py).
+# reads (wftools.mockchronology, held by tools/tests/test_mockchronology.py), and its tasks the
+# loader of the tasks reads (wftools.mockwitnesstasks, held by tools/tests/test_witness_tasks.py).
 paths = [
     "fixtures/api/volume/**",
     "fixtures/api/nodes.json",
@@ -703,6 +704,7 @@ paths = [
     "fixtures/api/backups_period.json",
     "fixtures/api/backups_by_size.json",
     "fixtures/api/project_state_transitions.json",
+    "fixtures/api/witness_tasks.json",
 ]
 by = "make mock-data"
 

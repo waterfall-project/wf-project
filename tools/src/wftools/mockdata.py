@@ -63,8 +63,8 @@ and its exit, its code refused and its readings by the quality of its reader, by
 ``wftools.mockrefusals`` (US-0702/L1); and the refusals the contract declared without a code,
 a condition nor an example, by ``wftools.mockdeclared`` (US-0702/L2); and the examples of the
 majors of the review of the 2026-10-31, by ``wftools.mockreview`` (US-0704), with the Kanban of
-the summary that awaits its own lines (US-1240); and the chronology of the witness,
-``project_state_transitions``, by ``wftools.mockchronology`` (US-0990/L1).
+the summary that awaits its own lines (US-1240); and the chronology and the tasks of the witness, by
+``wftools.mockchronology`` (US-0990/L1) and ``wftools.mockwitnesstasks`` (US-1480/L1).
 
 They live in the universe of the other examples: identifiers are kept, and what the
 witness project, the offer and the labels of the universe say is read from their fixtures,
@@ -120,6 +120,7 @@ from wftools import (
     mocktext,
     mocktoday,
     mockwitness,
+    mockwitnesstasks,
     mockwrites,
     paths,
 )
@@ -329,7 +330,7 @@ def named() -> dict[str, JsonObject]:
     declared without a code, a condition nor an example (``mockdeclared``), and those of the
     administration and of the platform described without one (``mockadminrefusals``); the
     examples of the majors of the review of the 2026-10-31 (``mockreview``); the chronology of the
-    witness, for the loader of the projects (``mockchronology``).
+    witness and its tasks, for the loaders (``mockchronology``, ``mockwitnesstasks``).
     """
     marked = mocksnapshot.revisions(categories())
     return {
@@ -361,6 +362,7 @@ def named() -> dict[str, JsonObject]:
         **mockreview.examples(),
         **mockrevisionminors.examples(),
         **mockchronology.examples(),
+        **mockwitnesstasks.examples(),
     }
 
 
