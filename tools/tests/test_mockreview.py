@@ -600,6 +600,7 @@ def test_an_import_says_its_commands_and_refuses_what_its_state_forbids() -> Non
         ("import_open_background_running", "openImport", "no_background_task_running"),
         ("import_open_may_create_revision", "openImport", "may_create_revision"),
         ("import_apply_expired", "applyImport", "import_awaiting_decision"),
+        ("import_apply_main_in_progress", "applyImport", "project_before_in_progress"),
         ("import_abandon_applied", "abandonImport", "import_not_applied"),
     ):
         assert name in _cited(operation, "409"), name

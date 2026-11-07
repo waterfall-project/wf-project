@@ -16,7 +16,8 @@ three, on the examples written by hand and the core of the witness:
   started, and of the last task that would bear a provision (``node_delete_started_refused``,
   ``node_delete_last_provision_task_refused``, F-04, H-05); an inscription on the reference
   (``node_tracking_marked_refused``, F-11); a line of actual cost excluded on the witness completed
-  (``actual_cost_scope_terminal``, I-06); the result of a task that has not succeeded
+  (``actual_cost_scope_terminal``, I-06), and on a project in pricing
+  (``actual_cost_scope_before_in_progress``, I-07); the result of a task that has not succeeded
   (``task_result_not_succeeded``, A-05);
 - a version name already borne, refused on its field, by the marking and the merge as by the exit
   (``mark_version_name_taken``, ``merge_version_name_taken``, E-05, E-12);
@@ -83,6 +84,7 @@ TRACKING_CORRELATION, TIMELINE_REQUIRED_CORRELATION, TIMELINE_UNKNOWN_CORRELATIO
 """The correlations of the refusals of the common tree (F-03, F-04, F-11)."""
 
 SCOPE_CORRELATION, RESULT_CORRELATION = universe(1653), universe(1654)
+SCOPE_PRICING_CORRELATION = universe(1929)
 ORG_NODES_CORRELATION, CALENDARS_CORRELATION, COST_TYPES_CORRELATION = (
     universe(1655),
     universe(1656),
@@ -393,7 +395,7 @@ _STATES = {"not_started": "non démarrée", "started": "démarrée", "completed"
 
 
 def _other_examples() -> dict[str, JsonObject]:
-    completed = _project("project_completed")
+    completed, pricing = _project("project_completed"), _project("project_pricing")
     return {
         "actual_cost_scope_terminal.json": mocktext.example(
             f"Une ligne de coût réel du projet témoin, « {completed['label']} », exclue du "
@@ -402,6 +404,14 @@ def _other_examples() -> dict[str, JsonObject]:
             f"condition qui manque, project_not_terminal ; rien n'est écrit (WF-CYC-0100, "
             f"WF-CRE-0030, WF-IHM-0090).",
             state_refused("project_not_terminal", SCOPE_CORRELATION),
+        ),
+        "actual_cost_scope_before_in_progress.json": mocktext.example(
+            f"Une ligne de coût réel exclue du périmètre suivi sur « {pricing['label']} », un "
+            f"projet en chiffrage (project_pricing) : le périmètre suivi des coûts réels ne se "
+            f"règle qu'à partir de l'état En cours, et sa commande exclude_cost_lines le dit "
+            f"indisponible ; refusée par la condition qui manque, project_in_progress ; rien "
+            f"n'est écrit (WF-CRE-0030, WF-IHM-0090).",
+            state_refused("project_in_progress", SCOPE_PRICING_CORRELATION),
         ),
         "task_result_not_succeeded.json": mocktext.example(
             "Le résultat de l'export demandé aujourd'hui, téléchargé alors que sa tâche est encore "

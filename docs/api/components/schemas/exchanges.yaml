@@ -7,7 +7,7 @@ FileUpload:
   type: object
   required: [upload_id, purpose, filename, size_bytes, uploaded_at, expires_at, backup_taken_at]
   description: >-
-    File uploaded, in transit. It is deleted as soon as the import is applied,
+    File uploaded, in transit. It is deleted as soon as the import is applied, refused,
     abandoned or expired (WF-DAT-0120, WF-ARC-0100). An uploaded backup that an accepted
     restore designates is kept until the end of its task, even beyond `expires_at`
     (`startRestore`).
@@ -17,7 +17,14 @@ FileUpload:
     filename: { type: string }
     size_bytes: { type: integer, minimum: 1 }
     uploaded_at: { $ref: ../common.yaml#/Timestamp }
-    expires_at: { $ref: ../common.yaml#/Timestamp }
+    expires_at:
+      allOf: [{ $ref: ../common.yaml#/Timestamp }]
+      description: >-
+        Twenty-four hours after the upload (`uploaded_at`). Beyond that, an upload that no
+        import has opened is deleted, and `openImport` refuses it with 404 (WF-DAT-0120). An
+        upload that an import has opened follows its import: it lives until the import is
+        applied, refused, abandoned or expired (WF-ARC-0100). A backup upload that an accepted
+        restore designates is kept until the end of its task (`startRestore`).
     backup_taken_at:
       anyOf: [{ $ref: ../common.yaml#/Timestamp }, { type: 'null' }]
       description: >-
@@ -809,7 +816,11 @@ ExportRequest:
         (WF-INTF-0050, WF-INTF-0110, WF-INTF-0130, WF-PLA-0120).
     depth:
       anyOf: [{ type: integer, minimum: 1 }, { type: 'null' }]
-      description: Level kept for the tree image (WF-PLA-0120).
+      description: >-
+        The depth level kept for the task tree image (`task_tree_image`), from 1, the first
+        level. Null or absent, the whole depth of the structure; a level beyond the depth of the
+        structure gives the whole structure. Not applicable to another kind, which ignores it
+        (WF-PLA-0120).
     review_date:
       anyOf: [{ $ref: ../common.yaml#/PlanningDate }, { type: 'null' }]
       description: >-

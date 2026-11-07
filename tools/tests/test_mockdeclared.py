@@ -73,6 +73,7 @@ REFUSED = {
     "revision_create_background_running": ("createRevision", "no_background_task_running"),
     "node_tracking_marked_refused": ("setNodeTracking", "revision_draft"),
     "actual_cost_scope_terminal": ("setActualCostTrackedScope", "project_not_terminal"),
+    "actual_cost_scope_before_in_progress": ("setActualCostTrackedScope", "project_in_progress"),
     "task_result_not_succeeded": ("getBackgroundTaskResult", "task_succeeded"),
 }
 

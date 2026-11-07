@@ -8,8 +8,9 @@
     summary: Upload a file
     description: >-
       The file is written to object storage and lives there only for the duration of the import:
-      it is deleted as soon as the import is applied, abandoned or expired (WF-DAT-0120).
-      The upload states its use (`purpose`): an import file does not exceed 10 MiB
+      it is deleted as soon as the import is applied, refused, abandoned or expired
+      (WF-DAT-0120, WF-ARC-0100), and, unused, twenty-four hours after the upload
+      (`FileUpload.expires_at`). The upload states its use (`purpose`): an import file does not exceed 10 MiB
       (10,485,760 bytes), the size of an MS Project file, the heaviest of the imports
       (§4.6.2); beyond that, 413, `FILE_TOO_LARGE`. An import opens only on an import upload,
       a restore only on a backup upload: the other is refused with 422,
@@ -351,6 +352,7 @@
               format_unreadable: { $ref: ../../../fixtures/api/import_format_unreadable.json }
               actual_costs_column_missing: { $ref: ../../../fixtures/api/import_actual_costs_column_missing.json }
               purpose_mismatch: { $ref: ../../../fixtures/api/import_upload_purpose_mismatch.json }
+              period_inverted: { $ref: ../../../fixtures/api/import_period_inverted.json }
       '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
@@ -512,6 +514,7 @@
             schema: { $ref: ../components/common.yaml#/Problem }
             examples:
               file_rejected: { $ref: ../../../fixtures/api/import_apply_rejected.json }
+              main_in_progress: { $ref: ../../../fixtures/api/import_apply_main_in_progress.json }
               expired: { $ref: ../../../fixtures/api/import_apply_expired.json }
       '422': { $ref: ../components/responses.yaml#/UnprocessableEntity }
       '500': { $ref: ../components/responses.yaml#/InternalError }

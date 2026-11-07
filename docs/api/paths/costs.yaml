@@ -150,6 +150,8 @@
             schema: { $ref: ../components/common.yaml#/Problem }
             examples:
               project_terminal: { $ref: ../../../fixtures/api/actual_cost_scope_terminal.json }
+              before_in_progress:
+                $ref: ../../../fixtures/api/actual_cost_scope_before_in_progress.json
       '422': { $ref: ../components/responses.yaml#/UnprocessableEntity }
       '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }

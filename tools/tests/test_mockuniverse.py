@@ -896,7 +896,8 @@ def test_the_coverage_of_the_portfolio_counts_that_of_the_witness() -> None:
 def test_every_inverted_period_is_refused_by_one_rule() -> None:
     # One rule for every period of the contract (docs/api/README.md): 422, `/query/to` by
     # VALUE_OUT_OF_RANGE, `params.minimum` the start given — a date or an instant, as `from` is.
-    # A table with several columns of dates names the end by its column (#936).
+    # A table with several columns of dates names the end by its column (#936), and a request
+    # body its field (`openImport`, `/period_to`).
     # A bound of the portfolio sent alone is completed by the default period, and the refusal
     # names the bound sent, `params` the bound completed (#560).
     found = sorted(mockwitness.FIXTURES.glob("*_period_inverted.json"))
@@ -904,6 +905,7 @@ def test_every_inverted_period_is_refused_by_one_rule() -> None:
         "access_roles": ("/query/updated_at_to", "minimum", datetime),
         "actual_costs": ("/query/to", "minimum", date),
         "audit_events": ("/query/to", "minimum", datetime),
+        "import": ("/period_to", "minimum", date),
         "backups": ("/query/to", "minimum", datetime),
         "nodes": ("/query/start_to", "minimum", date),
         "portfolio": ("/query/to", "minimum", date),
