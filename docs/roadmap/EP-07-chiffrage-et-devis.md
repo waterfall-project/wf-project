@@ -222,6 +222,11 @@ Reportés d'EP-17 à sa livraison (rangement du 2026-11-05) :
   d'US-0800 (EP-17). Corrigé par le premier lot d'EP-07 qui touche ce fichier, US-1560 (décision
   de l'auteur du 2026-11-07).
 
+- #1628 [EP-16] — outil : l'offre du témoin projetée depuis 2026, et non depuis son année de référence
+  2025 ; fermée le 2026-10-29 par l'option 4 (raccourci déclaré, #1641 sans code). Rouverte par le
+  cadrage d'EP-07 : le service calculera l'offre à ses taux de 2025, et la fixture se corrige
+  (décision de l'auteur du 2026-11-07). US-1570, lot d'outil.
+
 - #2190 [EP-04] — le code d'un sous-projet sert de nom d'onglet Excel, qu'Excel unifie sans égard
   à la casse et mesure en unités UTF-16 ; le modèle garde ses codes tels quels, et c'est la
   génération des onglets qui désambiguïse (suffixe, troncature en unités UTF-16). Décision de
@@ -1057,7 +1062,7 @@ connaissent et de revenir sans écart.
   par son libellé, crée les lignes sans lignée (budgété nul si le projet porte une référence),
   supprime les lignes absentes du fichier sauf sous une tâche démarrée ou terminée (`kept`),
   rejette une ligne nouvelle sous une tâche terminée de la structure principale
-  (`task_not_completed`, #1793) et présente ses écarts (`differences`) ; `ProjectCommand.import_estimate`
+  (`task_not_completed`, #1767) et présente ses écarts (`differences`) ; `ProjectCommand.import_estimate`
   sous `estimate.write`, indisponible dès En cours ; l'import appliqué n'entre pas dans l'historique
   annulable ;
 - propre à l'US : l'écran des échanges, branché par EP-06, importe et exporte un devis contre le
@@ -1220,9 +1225,14 @@ plus gros devis.
   aboutisse, le passage En cours constaté par les transitions du témoin ; les lectures du témoin
   chargé — `nodes_estimate`, `nodes_estimate_sorted`, `nodes_estimate_filtered`,
   `nodes_estimate_hours`, `volume/nodes_thousand`, `estimate_indicators`, `workload`,
-  `contributor_suggestions`, `revisions`, `project` — sont comparées aux exemples, aux colonnes
-  d'audit, à la référence, aux provisions et aux montants qui en dépendent près, listés dans le
-  test ;
+  `contributor_suggestions`, `revisions`, `project`, `comparison` — sont comparées aux exemples,
+  montants compris, aux colonnes d'audit, à la référence, aux provisions et aux montants qui en
+  dépendent près, listés dans le test ;
+- propre à l'US (lot d'outil) : les exemples projettent l'offre 100 depuis son année de référence,
+  2025, et non plus depuis 2026 — `mockdating` corrigé, les exemples régénérés, le raccourci de
+  `DECISIONS.md` (section L-01 du « Contrat figé ») retiré, le budget de référence des lignes que
+  l'avenant 1 ne touche pas recalculé (#467) —, avant que la tranche des lignes ne se compare aux
+  exemples (#1628, décision de l'auteur du 2026-11-07, qui remplace l'option 4 du 2026-10-29) ;
 - propre à l'US : tous les parcours du devis, du plan de charge, de la comparaison, des
   contributeurs proposés et de l'import du devis étiquetés `@shared` passent contre le service, le
   témoin chargé ; la définition de fini est constatée — un projet chiffré et passé En cours, un
@@ -1230,15 +1240,18 @@ plus gros devis.
   du guide que `BEFORE_EP07` et `BEFORE_THE_DATA` (le devis) gardaient, et celles qu'EP-04 a
   marquées « levées par EP-07 » (PRJ-001 En cours, sa référence, ses lignes) et qu'EP-06 laisse
   (« les lignes, les montants, le devis »), sont levées, le guide disant ce que la tranche charge et
-  ce qu'EP-08 et EP-09 y ajoutent ; les statuts des US sont passés `fini` dans le fichier.
+  ce qu'EP-08 et EP-09 y ajoutent ; le statut de cette US est passé `fini` dans le fichier — chaque
+  autre US l'est par le lot qui la termine.
 
 **Notes de réalisation.** La tranche suit la chronologie d'EP-04 (`Act.at`) et le registre d'EP-06
 (`register_revision_filler`) : les lignes de chaque révision s'écrivent après ses tâches et avant
-son marquage. L'offre 100 porte l'année de référence 2025 et les fixtures la projettent depuis
-2026 (raccourci déclaré, #1628, option 4 de l'auteur du 2026-10-29) : les montants de l'offre que
-le service calcule à ses taux de 2025 diffèrent des exemples, et le test les liste parmi les écarts
-connus ; la spécification arbitre. Le fichier de la tranche est un lot d'outil, lançable tôt, après
-celui d'EP-06 (US-1480/L1 #2330), seul autre lot à écrire `wftools`.
+son marquage. Le calculé devient l'attendu, et la spécification arbitre : les exemples projetaient
+l'offre 100 depuis 2026 quand elle porte l'année de référence 2025 (raccourci déclaré, #1628) ; EP-07,
+premier EPIC dont le service calcule des montants, corrige les exemples plutôt que de lister l'écart
+(README, « Le jeu de données de référence »). Le récit de la mise à jour des taux (2025 → 2026)
+ne dépendait pas du raccourci. Les deux fichiers d'outil — les exemples corrigés, puis la tranche des
+lignes — sont des lots d'outil, lançables tôt, après celui d'EP-06 (US-1480/L1 #2330), seul autre
+lot à écrire `wftools`.
 
 **Hors périmètre.** Les provisions, l'avenant 1 et la référence 101 (EP-08) ; les coûts réels
 (EP-09) ; les trois cents projets (EP-13).
