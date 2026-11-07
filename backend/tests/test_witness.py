@@ -401,8 +401,19 @@ def load(url: str, directory: Path = WITNESS) -> int:
 
 
 def wipe(owner: Engine) -> None:
-    """Empty the database of every row, as the owner does after a test: a platform neuve again."""
+    """Empty the database of every row, as the owner does after a test: a platform neuve again.
+
+    The partitions of the projects go with their rows: a project loaded again creates them again.
+    """
     with owner.begin() as connection:
+        children = connection.execute(
+            text(
+                "SELECT c.relname FROM pg_inherits i JOIN pg_class c ON c.oid = i.inhrelid "
+                "WHERE i.inhparent = 'public.cost_structure'::regclass"
+            )
+        ).scalars()
+        for name in list(children):
+            connection.execute(text(f'DROP TABLE "{name}"'))
         connection.execute(text("SET LOCAL session_replication_role = replica"))
         for table in reversed(Base.metadata.sorted_tables):
             if not table.info.get(WRITTEN_BY_MIGRATION):
