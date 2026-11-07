@@ -158,7 +158,7 @@ def test_the_owner_may_not_truncate_the_revisions_nor_their_structure_nor_a_part
     before = structure_of(owner, revision_id)
     partition = f"cost_structure_p_{str(stage.project['project_id']).replace('-', '')}"
     for table in ("revision", "cost_structure", partition):
-        statement = text(f'TRUNCATE TABLE "{table}" CASCADE')  # noqa: S608
+        statement = text(f'TRUNCATE TABLE "{table}" CASCADE')
         with pytest.raises(DBAPIError, match="never truncated"), owner.begin() as connection:
             connection.execute(statement)
     assert structure_of(owner, revision_id) == before

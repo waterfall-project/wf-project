@@ -31,21 +31,18 @@ from sqlalchemy import select
 
 from waterfall.core.projects.interface import (
     no_background_task_running,
-    project_code,
-    project_label,
     set_current_revision,
 )
 from waterfall.core.revisions.commands import NO_BACKGROUND_TASK_RUNNING, REVISION_DRAFT
+from waterfall.core.revisions.interface.shared import (
+    STALE_LOCK_VERSION,
+    found_revision,
+    inscribe_revision,
+    refuse,
+)
 from waterfall.core.revisions.registry import Registry
 from waterfall.core.revisions.tables import Revision
-from waterfall.core.users.interface import inscribed_actor
-from waterfall.platform.audit import AuditObject, AuditProject, Inscription, record
-from waterfall.platform.errors import (
-    ConflictError,
-    FieldError,
-    NotFoundError,
-    PreconditionFailedError,
-)
+from waterfall.platform.errors import ConflictError, FieldError, PreconditionFailedError
 from waterfall.platform.tasks import PROJECT, submit
 
 if TYPE_CHECKING:
@@ -57,9 +54,6 @@ if TYPE_CHECKING:
     from waterfall.platform.audit import Act
     from waterfall.platform.queue import TaskQueue
 
-NOT_FOUND = "NOT_FOUND"
-STATE_FORBIDS_OPERATION = "STATE_FORBIDS_OPERATION"
-STALE_LOCK_VERSION = "STALE_LOCK_VERSION"
 ALREADY_EXISTS = "ALREADY_EXISTS"
 VERSION_NAME = "/version_name"
 # What the task of a marking carries besides its project: the revision, its name, its description.
@@ -82,30 +76,10 @@ class MarkingRequest:
     lock_version: int
 
 
-def _refuse(condition: str) -> ConflictError:
-    return ConflictError(STATE_FORBIDS_OPERATION, {"missing_condition": condition})
-
-
 def _name_taken(revision_id: UUID) -> ConflictError:
     """Refuse a name of version a marked revision of the project bears, naming it (WF-REV-0020)."""
     params = {"conflicting_object_id": str(revision_id)}
     return ConflictError(ALREADY_EXISTS, fields=(FieldError(VERSION_NAME, ALREADY_EXISTS, params),))
-
-
-def _locked(session: Session, revision_id: UUID, project_id: UUID | None = None) -> Revision:
-    """Lock a revision ``FOR UPDATE``, then read it under the lock; or refuse (404).
-
-    ``FOR UPDATE``, not the ``FOR NO KEY UPDATE`` of an ``UPDATE`` alone: it excludes the
-    ``FOR KEY SHARE`` under which the guard of a revised table reads the revision (#2104).
-    """
-    query = select(Revision).where(Revision.id == revision_id)
-    if project_id is not None:
-        query = query.where(Revision.project_id == project_id)
-    query = query.with_for_update().execution_options(populate_existing=True)
-    revision = session.scalars(query).first()
-    if revision is None:
-        raise NotFoundError(NOT_FOUND)
-    return revision
 
 
 def _judge_name(session: Session, revision: Revision, version_name: str) -> None:
@@ -131,15 +105,15 @@ def submit_marking(session: Session, queue: TaskQueue, request: MarkingRequest, 
     version taken (409 ``ALREADY_EXISTS``). Nothing is written then.
     """
     project_id = request.project_id
-    revision = _locked(session, request.revision_id, project_id)
+    revision = found_revision(session, request.revision_id, project_id, lock=True)
     if revision.lock_version != request.lock_version:
         raise PreconditionFailedError(
             STALE_LOCK_VERSION, {"expected_lock_version": revision.lock_version}
         )
     if revision.status != "draft":
-        raise _refuse(REVISION_DRAFT)
+        raise refuse(REVISION_DRAFT)
     if not no_background_task_running(session, project_id):
-        raise _refuse(NO_BACKGROUND_TASK_RUNNING)
+        raise refuse(NO_BACKGROUND_TASK_RUNNING)
     _judge_name(session, revision, request.version_name)
     payload = {
         PROJECT: str(project_id),
@@ -155,19 +129,6 @@ def run_marking(session: Session, payload: Mapping[str, Any], act: Act) -> None:
     mark_revision(session, UUID(payload[REVISION]), payload[NAME], payload.get(DESCRIPTION), act)
 
 
-def _inscribe(session: Session, revision: Revision, act: Act) -> None:
-    """Inscribe the marking in the journal: the revision by its name of version, its project."""
-    code = project_code(session, revision.project_id)
-    label = project_label(session, revision.project_id)
-    # The journal names a project by both its code and its label, or not at all (#927).
-    named = (
-        None if code is None or label is None else AuditProject(revision.project_id, code, label)
-    )
-    audited = AuditObject("revision", revision.id, revision.version_name)
-    actor = inscribed_actor(session, act.author)
-    record(session, Inscription("revision_mark", actor, audited, act.at, project=named))
-
-
 def mark_revision(
     session: Session, revision_id: UUID, version_name: str, description: str | None, act: Act
 ) -> None:
@@ -180,9 +141,9 @@ def mark_revision(
     Its indicators are computed before anything is written: a computation that raises leaves the
     revision current.
     """
-    revision = _locked(session, revision_id)
+    revision = found_revision(session, revision_id, lock=True)
     if revision.status != "draft":
-        raise _refuse(REVISION_DRAFT)
+        raise refuse(REVISION_DRAFT)
     _judge_name(session, revision, version_name)
     compute_indicators(session, revision_id)
     revision.status = "marked"
@@ -194,7 +155,7 @@ def mark_revision(
     revision.lock_version += 1
     session.flush()
     set_current_revision(session, revision.project_id, None, act)
-    _inscribe(session, revision, act)
+    inscribe_revision(session, revision, "revision_mark", revision.version_name, act)
     session.flush()
 
 

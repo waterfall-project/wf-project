@@ -12,7 +12,6 @@ from typing import TYPE_CHECKING, Any
 from uuid import UUID
 
 import pytest
-from sqlalchemy import event
 from projects_support import (
     PROJECTS,
     Person,
@@ -23,6 +22,7 @@ from projects_support import (
     put_in_state,
 )
 from projects_support import scene as make_scene
+from sqlalchemy import event
 
 from waterfall.core.access_roles.predefined import PROJECT_MANAGER
 

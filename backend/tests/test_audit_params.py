@@ -65,10 +65,10 @@ WRITERS = {
     "waterfall.core.backups.interface",
     # The creation of a project, tried in test_projects.py, which creates one through the service.
     "waterfall.core.projects.interface.projects",
-    # The marking of a revision, tried in test_revision_mark.py, which marks one by the worker.
-    "waterfall.core.revisions.interface.marking",
-    # The abandonment of a revision, tried in test_revisions.py, which abandons one by the service.
-    "waterfall.core.revisions.interface.revisions",
+    # The marking and the abandonment of a revision inscribe by one function, tried in
+    # test_revision_mark.py, which marks one by the worker, and test_revisions.py, which abandons
+    # one by the service.
+    "waterfall.core.revisions.interface.shared",
     "waterfall.core.users.identity",
     "waterfall.core.users.password_link",
     "waterfall.core.users.provider",
