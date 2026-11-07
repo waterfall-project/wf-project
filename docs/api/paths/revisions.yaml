@@ -2153,28 +2153,28 @@
   post:
     operationId: previewPaste
     tags: [revisions]
-    summary: Aperçu d'un collage depuis un tableur
+    summary: Preview of a paste from a spreadsheet
     description: >-
-      Dit ce qui sera écrit et ce qui sera refusé, avec le motif de chaque refus ; rien
-      n'est écrit à cette étape (WF-IHM-0050). Confirmé, le collage écrira les lignes acceptées
-      et non les lignes refusées (`applyPaste`). Le bloc remplit, à partir de la colonne
-      visée, les colonnes de la facette du nœud visé dans l'ordre de `NodeColumn` — l'ordre
-      des grilles (WF-PLA-0080, WF-DEV-0050) —, sans décaler aucune cellule : une cellule
-      non vide qui tombe sur une colonne que sa ligne n'accepte pas est refusée, nommée par
-      sa ligne et sa colonne (`PastePreview`), et le sous-projet d'une ligne d'une tâche démarrée
-      ou terminée ne quitte pas un sous-projet qui a reçu des coûts réels
-      (`SUBPROJECT_HAS_ACTUAL_COSTS`, `PasteRejection`, WF-PRJ-0050) ; sur la structure
-      principale, une ligne d'une tâche terminée, qui n'accepte aucun champ, refuse toute cellule
-      non vide par `STATE_FORBIDS_OPERATION`, `params.missing_condition` à `task_not_completed`, et
-      n'est pas écrite (`PasteRejection`, WF-RAE-0040 ; F-01, #1766). Sur un différentiel, un
-      bloc qui couvre des nœuds que le différentiel retire, rendus à leur place en lecture
-      seule (`NodeDifference`), saute ces nœuds et remplit les suivants, sans refus : chaque
-      ligne du bloc écrit le nœud suivant qui n'est pas retiré (`PastePreview`, #1278). Mais
-      un bloc dont la cellule visée est elle-même sur un nœud retiré, qui n'accepte aucun champ
-      (`editable_fields` vide), est refusé entier : une seule `PasteRejection`, sur la première
-      ligne du bloc et la colonne visée, par `PASTE_TARGET_REMOVED`, aucune ligne acceptée ni
-      jugée ; l'ancre n'est pas reportée au nœud suivant, qui écrirait ailleurs que là où
-      l'utilisateur a cliqué (#1361).
+      States what will be written and what will be refused, with the reason for each refusal;
+      nothing is written at this stage (WF-IHM-0050). Once confirmed, the paste will write the
+      accepted lines and not the refused lines (`applyPaste`). The block fills, starting from
+      the target column, the columns of the facet of the target node in the order of
+      `NodeColumn` — the order of the grids (WF-PLA-0080, WF-DEV-0050) —, without shifting any
+      cell: a non-empty cell that falls on a column that its line does not accept is refused,
+      named by its line and its column (`PastePreview`), and the subproject of a line of a
+      started or completed task does not leave a subproject that has received actual costs
+      (`SUBPROJECT_HAS_ACTUAL_COSTS`, `PasteRejection`, WF-PRJ-0050); on the main
+      structure, a line of a completed task, which accepts no field, refuses every non-empty
+      cell with `STATE_FORBIDS_OPERATION`, `params.missing_condition` set to
+      `task_not_completed`, and is not written (`PasteRejection`, WF-RAE-0040; F-01, #1766).
+      On a differential, a block that covers nodes that the differential removes, returned in
+      their place read-only (`NodeDifference`), skips these nodes and fills the following
+      ones, without refusal: each line of the block writes the next node that is not removed
+      (`PastePreview`, #1278). But a block whose target cell is itself on a removed node,
+      which accepts no field (`editable_fields` empty), is refused whole: a single
+      `PasteRejection`, on the first line of the block and the target column, with
+      `PASTE_TARGET_REMOVED`, no line accepted or judged; the anchor is not carried over to
+      the next node, which would write somewhere other than where the user clicked (#1361).
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
       - $ref: ../components/parameters.yaml#/RevisionId
@@ -2187,9 +2187,9 @@
     responses:
       '200':
         description: >-
-          Plan de collage. L'exemple `unknown_category` montre une cellule de catégorie refusée,
-          `without_hours` une cellule de rôle qui laisserait la tâche de sa ligne sans aucune heure
-          travaillée (`TASK_WITHOUT_WORKING_HOURS`, WF-PLA-0010 ; #779).
+          Paste plan. The `unknown_category` example shows a refused category cell,
+          `without_hours` a role cell that would leave the task of its line without any worked
+          hour (`TASK_WITHOUT_WORKING_HOURS`, WF-PLA-0010; #779).
         content:
           application/json:
             schema: { $ref: ../components/schemas/revisions.yaml#/PastePlan }
@@ -2209,8 +2209,8 @@
       '413': { $ref: ../components/responses.yaml#/PayloadTooLarge }
       '422':
         description: >-
-          Bloc plus large que les colonnes de la facette à partir de la colonne visée
-          (`NodeColumn`) : `params.max_columns` dit combien il en reste ; rien n'est écrit
+          Block wider than the columns of the facet starting from the target column
+          (`NodeColumn`): `params.max_columns` says how many remain; nothing is written
           (WF-IHM-0050).
         content:
           application/problem+json:
@@ -2224,22 +2224,24 @@
   post:
     operationId: applyPaste
     tags: [revisions]
-    summary: Appliquer un collage
+    summary: Apply a paste
     description: >-
-      Les lignes valides du plan sont écrites en une seule opération, et les lignes refusées ne le
-      sont pas ; un collage abandonné laisse la grille inchangée (WF-IHM-0050 ; EP-14/L42q). Porte
-      le compteur de la structure, refusé par 412 s'il est périmé ; le plan retient aussi le
-      compteur de la structure lu à l'aperçu, et la confirmation est refusée par 412 si la
-      structure a changé depuis, quel que soit le compteur envoyé (`PasteApply`,
-      `params.expected_lock_version` le compteur courant). Elle rend le compteur suivant avec
-      les nœuds écrits, leurs ancêtres et les totaux, et les refus de l'aperçu, ligne par ligne,
-      que la confirmation n'a pas écrits, avec ceux qu'elle ajoute en jugeant de nouveau les
-      lignes acceptées contre le référentiel (`PasteApplied`, `PasteRejection`, WF-IHM-0110) :
-      un succès partiel se lit à ce que `rejected` n'est pas vide. Sur un différentiel, les nœuds qu'il retire, que le bloc
-      couvre, sont sautés sans refus et ne sont jamais écrits : les lignes du bloc écrivent les
-      nœuds suivants, comme l'aperçu les a jugés (`PastePreview`, #1278) ; un plan dont la
-      cellule visée est sur un nœud retiré, refusé entier (`PASTE_TARGET_REMOVED`), n'écrit rien,
-      confirmé : le compteur de la structure n'avance pas, et le refus est redit (#1361).
+      The valid lines of the plan are written in a single operation, and the refused lines are
+      not; an abandoned paste leaves the grid unchanged (WF-IHM-0050; EP-14/L42q). Carries
+      the counter of the structure, refused with 412 if it is stale; the plan also retains the
+      counter of the structure read at the preview, and the confirmation is refused with 412
+      if the structure has changed since, whatever the counter sent (`PasteApply`,
+      `params.expected_lock_version` the current counter). It returns the next counter with
+      the nodes written, their ancestors and the totals, and the refusals of the preview, line
+      by line, which the confirmation did not write, with those it adds by judging the
+      accepted lines again against the reference data (`PasteApplied`, `PasteRejection`,
+      WF-IHM-0110): a partial success can be read from `rejected` not being empty. On a
+      differential, the nodes it removes, which the block
+      covers, are skipped without refusal and are never written: the lines of the block write
+      the following nodes, as the preview judged them (`PastePreview`, #1278); a plan whose
+      target cell is on a removed node, refused whole (`PASTE_TARGET_REMOVED`), writes
+      nothing, once confirmed: the counter of the structure does not move forward, and the
+      refusal is stated again (#1361).
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
       - $ref: ../components/parameters.yaml#/RevisionId
@@ -2252,8 +2254,8 @@
     responses:
       '200':
         description: >-
-          Collage appliqué, entier ou en partie ; le compteur de la structure a avancé dès qu'une
-          ligne est écrite.
+          Paste applied, wholly or in part; the counter of the structure has moved forward as
+          soon as a line is written.
         content:
           application/json:
             schema: { $ref: ../components/schemas/revisions.yaml#/PasteApplied }
@@ -2269,20 +2271,20 @@
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '409':
         description: >-
-          La structure n'accepte plus la saisie de sa grille, rien n'étant écrit :
-          `STATE_FORBIDS_OPERATION`, `params.missing_condition` la première condition que sa
-          commande dit manquer (`StructureCommand`) — `revision_draft` sur une révision marquée,
-          `no_background_task_running` pendant un traitement de fond qui court sur la révision
-          (WF-IHM-0050, WF-IHM-0090). Le refus d'une ligne du bloc n'est pas un 409 : elle est
-          rendue dans `rejected`, avec son motif (`PasteRejection`).
+          The structure no longer accepts entry in its grid, nothing being written:
+          `STATE_FORBIDS_OPERATION`, `params.missing_condition` the first condition that its
+          command says is missing (`StructureCommand`) — `revision_draft` on a marked revision,
+          `no_background_task_running` while a background task runs on the revision
+          (WF-IHM-0050, WF-IHM-0090). The refusal of a line of the block is not a 409: it is
+          returned in `rejected`, with its reason (`PasteRejection`).
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
       '412':
         description: >-
-          Le compteur envoyé est périmé, ou la structure a changé depuis l'aperçu, quel que soit le
-          compteur envoyé (`PasteApply`) : `STALE_LOCK_VERSION`, `params.expected_lock_version` le
-          compteur courant de la structure ; rien n'est écrit (WF-IHM-0050, WF-IHM-0110).
+          The counter sent is stale, or the structure has changed since the preview, whatever
+          the counter sent (`PasteApply`): `STALE_LOCK_VERSION`, `params.expected_lock_version`
+          the current counter of the structure; nothing is written (WF-IHM-0050, WF-IHM-0110).
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
@@ -2296,31 +2298,31 @@
   post:
     operationId: undoLastChange
     tags: [revisions]
-    summary: Annuler la dernière modification
+    summary: Undo the last change
     description: >-
-      L'historique annulable est tenu par le serveur : une pile par révision et par utilisateur,
-      qui vit le temps de sa session — le jeton `bearer` qui porte ses requêtes —, et ne survit
-      ni à la fin de cette session, ni au marquage de la révision, ni à son abandon, la révision
-      n'étant plus en cours (décision de l'auteur du 2026-10-28, E-06). Elle reçoit chacune de
-      ses modifications de la révision en cours — les saisies des grilles, la date de début de
-      planning et le libellé d'une structure, et celles des risques, création, modification,
-      réexamen, suppression d'un risque (WF-RIS-0020) — et en garde au moins les cinquante
-      dernières ; deux utilisateurs ont chacun la leur. L'annulation défait la dernière, une par
-      une et dans l'ordre inverse. Une
-      annulation est une modification comme une autre : elle rend ce qu'une écriture rend
-      (`UndoResult.written`), s'inscrit dans les colonnes d'audit et est refusée si une
-      modification postérieure porte sur le même objet (WF-IHM-0110). Aucune commande n'annule
-      ce qui a sa propre commande inverse ou est définitif — un import appliqué, un marquage,
-      l'abandon d'une révision en cours, une fusion, la désignation de la référence, une sortie
-      du cycle de vie, la déclaration d'un risque survenu —, ni l'exclusion et la réintégration
-      d'une ligne de coût, qui se défont par le geste inverse (WF-IHM-0110, WF-CRE-0030,
-      C-363).
+      The undoable history is kept by the server: one stack per revision and per user,
+      which lives as long as their session — the `bearer` token that carries their requests —,
+      and survives neither the end of that session, nor the marking of the revision, nor its
+      abandonment, the revision no longer being current (decision of the author of
+      2026-10-28, E-06). It receives each of their changes to the current revision — the
+      entries of the grids, the planning start date and the label of a structure, and those of
+      the risks, creation, modification, review, deletion of a risk (WF-RIS-0020) — and keeps
+      at least the last fifty of them; two users each have their own. Undo reverts the last
+      one, one by one and in reverse order. An
+      undo is a change like any other: it returns what a write returns
+      (`UndoResult.written`), is recorded in the audit columns and is refused if a later
+      change applies to the same object (WF-IHM-0110). No command undoes
+      what has its own inverse command or is final — an applied import, a marking,
+      the abandonment of a current revision, a merge, the designation of the reference, an exit
+      from the life cycle, the declaration of an occurred risk —, nor the exclusion and the
+      reinstatement of a cost line, which are reverted by the inverse action (WF-IHM-0110,
+      WF-CRE-0030, C-363).
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
       - $ref: ../components/parameters.yaml#/RevisionId
     responses:
       '200':
-        description: Modification annulée.
+        description: Change undone.
         content:
           application/json:
             schema: { $ref: ../components/schemas/revisions.yaml#/UndoResult }
@@ -2329,28 +2331,29 @@
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '409':
         description: >-
-          Une modification postérieure porte sur le même objet — `UNDO_CONFLICT`,
-          `params.conflicting_object_id` et `params.conflicting_object_label` nommant l'objet repris
-          depuis, une tâche, une ligne de devis ou un risque, rien n'étant défait : « Elle est
-          refusée, en nommant l'objet en conflit » (`later_change`, WF-IHM-0110 ; #1531, E-07) —,
-          ou l'historique de l'appelant sur la révision est vide, `STATE_FORBIDS_OPERATION`,
-          `params.missing_condition` à `undo_history_not_empty` (`history_empty`). Ou l'annulation rendrait un sous-projet supprimé
-          depuis — à la provision d'un risque dont elle défait la création, la modification ou la
-          suppression, ou à une ligne de devis dont elle défait une écriture de la grille, la
-          suppression d'une ligne ou d'une tâche et de ses lignes comprise — :
-          `STATE_FORBIDS_OPERATION`, `params.missing_condition` à `restored_subproject_exists`, et
-          rien n'est défait (décision de l'auteur, #732). Ou l'annulation recréerait la ligne de
-          provision d'un risque — elle défait la suppression d'un risque identifié, le réexamen
-          qui l'a écarté ou le changement de la catégorie de sa provision — sur une structure
-          principale qui ne comporte plus aucune tâche, `at_least_one_task`, ou avec une catégorie
-          qui n'est plus active et de type provision pour risques, désactivée ou rattachée à une
-          nature d'un autre type depuis, `active_provision_category` : une annulation subit les
-          règles de la saisie (WF-IHM-0110), qui refuse le retour d'un risque à l'état identifié
-          sur une telle structure ou sans telle catégorie (WF-RIS-0010) ; n'envoyant rien, elle ne
-          peut pas désigner une autre catégorie comme le réexamen. Ces conditions se jugent dans
-          l'ordre de l'énumération (`CommandCondition`) — `at_least_one_task`,
-          `restored_subproject_exists`, `active_provision_category` —, le refus nommant la
-          première qui manque, et rien n'est défait (#795).
+          A later change applies to the same object — `UNDO_CONFLICT`,
+          `params.conflicting_object_id` and `params.conflicting_object_label` naming the object
+          changed since, a task, an estimate line or a risk, nothing being undone: "It is
+          refused, naming the conflicting object" (`later_change`, WF-IHM-0110; #1531, E-07) —,
+          or the caller's history on the revision is empty, `STATE_FORBIDS_OPERATION`,
+          `params.missing_condition` set to `undo_history_not_empty` (`history_empty`). Or the
+          undo would restore a subproject deleted
+          since — to the provision of a risk whose creation, modification or deletion it undoes,
+          or to an estimate line of which it undoes a write of the grid, including the deletion
+          of a line or of a task and its lines —:
+          `STATE_FORBIDS_OPERATION`, `params.missing_condition` set to
+          `restored_subproject_exists`, and nothing is undone (decision of the author, #732). Or
+          the undo would recreate the provision line of a risk — it undoes the deletion of an
+          identified risk, the review that dismissed it or the change of the category of its
+          provision — on a main structure that no longer has any task, `at_least_one_task`, or
+          with a category that is no longer active and of the risk provision kind, deactivated
+          or attached to a cost type of another kind since, `active_provision_category`: an undo
+          is subject to the rules of entry (WF-IHM-0110), which refuse the return of a risk to
+          the identified state on such a structure or without such a category (WF-RIS-0010);
+          sending nothing, it cannot designate another category as the review can. These
+          conditions are judged in the order of the enumeration (`CommandCondition`) —
+          `at_least_one_task`, `restored_subproject_exists`, `active_provision_category` —, the
+          refusal naming the first one missing, and nothing is undone (#795).
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
@@ -2367,17 +2370,17 @@
   post:
     operationId: redoLastUndo
     tags: [revisions]
-    summary: Rétablir la dernière annulation
+    summary: Redo the last undo
     description: >-
-      Rétablit la saisie que la dernière annulation de l'appelant sur la révision avait défaite,
-      dans le même historique que `undoLastChange` (WF-IHM-0110). La réponse a la forme de celle
-      de l'annulation (`UndoResult`).
+      Restores the entry that the caller's last undo on the revision had reverted,
+      in the same history as `undoLastChange` (WF-IHM-0110). The response has the shape of
+      that of the undo (`UndoResult`).
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
       - $ref: ../components/parameters.yaml#/RevisionId
     responses:
       '200':
-        description: Modification rétablie (WF-IHM-0110).
+        description: Change redone (WF-IHM-0110).
         content:
           application/json:
             schema: { $ref: ../components/schemas/revisions.yaml#/UndoResult }
@@ -2386,25 +2389,25 @@
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '409':
         description: >-
-          Une modification postérieure porte sur le même objet — `UNDO_CONFLICT`,
-          `params.conflicting_object_id` et `params.conflicting_object_label` nommant l'objet repris
-          depuis, rien n'étant rétabli (`later_change`, WF-IHM-0110 ; #1531, E-07) —, ou aucune
-          annulation n'est à rétablir, `STATE_FORBIDS_OPERATION`, `params.missing_condition` à
-          `redo_history_not_empty` (`history_empty`). Ou le rétablissement rendrait un sous-projet supprimé depuis — à la
-          provision d'un risque dont il rétablit la création, la modification ou la suppression, ou
-          à une ligne de devis dont il rétablit une écriture de la grille, la suppression d'une
-          ligne ou d'une tâche et de ses lignes comprise — : `STATE_FORBIDS_OPERATION`,
-          `params.missing_condition` à `restored_subproject_exists`, et rien n'est rétabli
-          (décision de l'auteur, #732). Ou le rétablissement recréerait la ligne de provision d'un
-          risque — il rétablit sa création, le réexamen qui l'a rendu identifié ou le changement de
-          la catégorie de sa provision — sur une structure principale qui ne comporte plus aucune
-          tâche, `at_least_one_task`, ou avec une catégorie qui n'est plus active et de type
-          provision pour risques, désactivée ou rattachée à une nature d'un autre type depuis,
-          `active_provision_category`, comme l'annulation (`undoLastChange`, WF-RIS-0010,
-          WF-IHM-0110). Ces conditions se jugent dans l'ordre de l'énumération
+          A later change applies to the same object — `UNDO_CONFLICT`,
+          `params.conflicting_object_id` and `params.conflicting_object_label` naming the object
+          changed since, nothing being redone (`later_change`, WF-IHM-0110; #1531, E-07) —, or
+          there is no undo to redo, `STATE_FORBIDS_OPERATION`, `params.missing_condition` set to
+          `redo_history_not_empty` (`history_empty`). Or the redo would restore a subproject
+          deleted since — to the provision of a risk whose creation, modification or deletion it
+          redoes, or to an estimate line of which it redoes a write of the grid, including the
+          deletion of a line or of a task and its lines —: `STATE_FORBIDS_OPERATION`,
+          `params.missing_condition` set to `restored_subproject_exists`, and nothing is redone
+          (decision of the author, #732). Or the redo would recreate the provision line of a
+          risk — it redoes its creation, the review that made it identified or the change of
+          the category of its provision — on a main structure that no longer has any
+          task, `at_least_one_task`, or with a category that is no longer active and of the
+          risk provision kind, deactivated or attached to a cost type of another kind since,
+          `active_provision_category`, like the undo (`undoLastChange`, WF-RIS-0010,
+          WF-IHM-0110). These conditions are judged in the order of the enumeration
           (`CommandCondition`) — `at_least_one_task`, `restored_subproject_exists`,
-          `active_provision_category` —, le refus nommant la première qui manque, et rien n'est
-          rétabli (#795).
+          `active_provision_category` —, the refusal naming the first one missing, and nothing
+          is redone (#795).
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
@@ -2420,35 +2423,37 @@
   post:
     operationId: generatePlanningSkeleton
     tags: [planning]
-    summary: Engendrer le squelette de planning depuis le lotissement
+    summary: Generate the planning skeleton from the work breakdown
     description: >-
-      Une récapitulative par lot et par poste, chacune rattachée au lot ou au poste qu'elle
-      représente (`TaskFacet.work_package_id`, `order_item_id`, WF-PLA-0170), celle d'un poste
-      subordonnée à celle de son lot, une feuille par livrable, un jalon de fin par poste et par
-      lot, avec leurs liaisons. Engendré sur la
-      structure principale de la révision, seule à porter des rattachements — jamais sur un
-      différentiel ni sur le devis propre d'un risque, que l'opération ne désigne pas —, et
-      proposé seulement quand elle ne comporte aucune tâche, sans créer d'autre lien avec le
-      lotissement que ce rattachement : modifier ensuite le lotissement ne déplace ni ne
-      supprime aucune tâche, seul le rattachement le suit (WF-PRJ-0030, WF-PLA-0170). La
-      révision dit d'avance si la génération est proposée (`RevisionCommand.generate_skeleton`) ;
-      sur un projet sans révision en cours, c'est le projet qui le dit
-      (`ProjectCommand.generate_skeleton`), et la génération n'ouvre pas la révision : l'écran
-      l'ouvre d'abord (`createRevision`), puis engendre le squelette sur la révision rendue
-      (EP-15/US-0490/L4) ; refusée sur une révision marquée, toute révision d'un projet terminal
-      l'étant, par 409, comme toute saisie (WF-DAT-0020, WF-CYC-0100). Une écriture de grille comme les autres :
-      elle rend les tâches créées, les totaux et le compteur de la structure (`NodesWritten`),
-      pour que la grille vide se remplisse et que la saisie suivante porte le bon compteur
-      (WF-IHM-0110).
+      One summary task per work package and per item, each one attached to the work package
+      or item it represents (`TaskFacet.work_package_id`, `order_item_id`, WF-PLA-0170), that
+      of an item subordinate to that of its work package, one leaf per deliverable, one end
+      milestone per item and per work package, with their links. Generated on the
+      main structure of the revision, the only one to carry attachments — never on a
+      differential nor on the own estimate of a risk, which the operation does not
+      designate —, and offered only when it has no task, without creating any link with the
+      work breakdown other than this attachment: modifying the work breakdown afterwards
+      neither moves nor deletes any task, only the attachment follows it (WF-PRJ-0030,
+      WF-PLA-0170). The revision states in advance whether the generation is offered
+      (`RevisionCommand.generate_skeleton`); on a project without a current revision, it is
+      the project that states it (`ProjectCommand.generate_skeleton`), and the generation
+      does not open the revision: the screen opens it first (`createRevision`), then
+      generates the skeleton on the revision returned (EP-15/US-0490/L4); refused on a marked
+      revision, every revision of a terminal project being one, with 409, like any entry
+      (WF-DAT-0020, WF-CYC-0100). A grid write like the others:
+      it returns the tasks created, the totals and the counter of the structure
+      (`NodesWritten`), so that the empty grid fills up and the next entry carries the right
+      counter (WF-IHM-0110).
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
       - $ref: ../components/parameters.yaml#/RevisionId
     responses:
       '201':
         description: >-
-          Squelette engendré : ses tâches dans `nodes`, dans l'ordre du plan — la récapitulative
-          d'un lot, puis celle de chacun de ses postes suivie de ses livrables et de son jalon de
-          fin, puis le jalon de fin du lot —, sans ancêtre à recalculer ni tâche redatée.
+          Skeleton generated: its tasks in `nodes`, in plan order — the summary task of a
+          work package, then that of each of its items followed by its deliverables and its end
+          milestone, then the end milestone of the work package —, without an ancestor to
+          recompute or a task re-dated.
         content:
           application/json:
             schema: { $ref: ../components/schemas/revisions.yaml#/NodesWritten }
@@ -2459,13 +2464,13 @@
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '409':
         description: >-
-          La génération n'est pas proposée : `STATE_FORBIDS_OPERATION`,
-          `params.missing_condition` nommant la première condition qui manque, dans l'ordre où la
-          commande les liste (`generate_skeleton`) — `main_structure_without_tasks` dès que la
-          structure principale comporte une tâche (Vérif de WF-PRJ-0030), puis
-          `no_background_task_running` pendant un marquage, un import, le traitement d'une
-          survenance de risque ou une fusion (WF-IHM-0080). Sur une révision marquée, la commande
-          ne manque que de `revision_draft` (`marked_refused`, WF-DAT-0020).
+          The generation is not offered: `STATE_FORBIDS_OPERATION`,
+          `params.missing_condition` naming the first missing condition, in the order in which
+          the command lists them (`generate_skeleton`) — `main_structure_without_tasks` as soon
+          as the main structure has a task (Verification of WF-PRJ-0030), then
+          `no_background_task_running` during a marking, an import, the processing of a risk
+          occurrence or a merge (WF-IHM-0080). On a marked revision, the command
+          lacks only `revision_draft` (`marked_refused`, WF-DAT-0020).
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
