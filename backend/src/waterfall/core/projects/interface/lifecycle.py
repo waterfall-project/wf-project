@@ -306,8 +306,8 @@ def exit_project(
     project.updated_by = act.author
     project.lock_version += 1
     audited = AuditObject("project", project.id, project.label)
-    # The journal names a project by both its code and its label, or not at all (#927).
-    named = None if project.code is None else AuditProject(project.id, project.code, project.label)
+    # The journal names a project by its label, and by its code once it has one (#927, #2166).
+    named = AuditProject(project.id, project.code, project.label)
     params = {"to_state": request.to_state, "reason": request.reason}
     actor = inscribed_actor(session, act.author)
     record(session, Inscription("project_exit", actor, audited, act.at, named, params))

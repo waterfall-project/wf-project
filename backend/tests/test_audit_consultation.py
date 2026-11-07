@@ -515,8 +515,8 @@ def test_the_projects_are_named_in_one_read_with_the_code_none_for_a_project_wit
 def test_the_facets_keep_the_code_of_the_last_inscription_for_a_project_that_has_none_today(
     api: ContractClient, database: Database, reader: dict[str, str]
 ) -> None:
-    # The contract sorts the projects by a code: an existing project whose code is null today is
-    # named by the code of its latest inscription, and by its label of today.
+    # An existing project whose code is null today is named by the code of its latest inscription,
+    # which held one, and by its label of today.
     write(database)
     with database.transaction() as session:
         session.execute(insert_project(id=FIRST.project_id, code=None, label="Poste rénové"))
@@ -525,6 +525,37 @@ def test_the_facets_keep_the_code_of_the_last_inscription_for_a_project_that_has
     assert [(p["project_id"], p["code"], p["label"]) for p in response.json()["projects"]] == [
         (str(FIRST.project_id), "PRJ-001", "Poste rénové"),
         (str(SECOND.project_id), "PRJ-002", SECOND.label),
+    ]
+
+
+@pytest.mark.requirement("WF-ADM-0190-A")
+def test_the_facets_keep_a_project_inscribed_without_code_after_the_codes(
+    api: ContractClient, database: Database, reader: dict[str, str]
+) -> None:
+    # A project is born without code (WF-PRJ-0010): inscribed before it has one, it is a facet all
+    # the same, its code null, after the codes — the one that exists named by its label of today,
+    # the one that is gone by its inscription's (#2166).
+    created = AuditProject(uuid4(), None, "Rénovation du poste de livraison")
+    gone = AuditProject(uuid4(), None, "Étude abandonnée")
+    first, second = sorted((created, gone), key=lambda project: project.project_id)
+    journal = (
+        *JOURNAL,
+        Written(at(7), CLAIRE, "project_create", "project", first.label, "req-h", first),
+        Written(at(8), CLAIRE, "project_create", "project", second.label, "req-i", second),
+    )
+    write(database, journal)
+    with database.transaction() as session:
+        session.execute(
+            insert_project(id=created.project_id, code=None, label="Poste de livraison")
+        )
+    response = api.get(FACETS, headers=reader)
+    assert response.status_code == 200, response.text
+    today = {created.project_id: "Poste de livraison", gone.project_id: gone.label}
+    assert [(p["project_id"], p["code"], p["label"]) for p in response.json()["projects"]] == [
+        (str(FIRST.project_id), "PRJ-001", FIRST.label),
+        (str(SECOND.project_id), "PRJ-002", SECOND.label),
+        (str(first.project_id), None, today[first.project_id]),
+        (str(second.project_id), None, today[second.project_id]),
     ]
 
 

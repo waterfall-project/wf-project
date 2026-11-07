@@ -60,10 +60,8 @@ def inscribe_revision(
     """Inscribe in the journal what was done to a revision: it, by its name, and its project."""
     code = project_code(session, revision.project_id)
     label = project_label(session, revision.project_id)
-    # The journal names a project by both its code and its label, or not at all (#927).
-    named = (
-        None if code is None or label is None else AuditProject(revision.project_id, code, label)
-    )
+    # The journal names a project by its label, and by its code once it has one (#927, #2166).
+    named = None if label is None else AuditProject(revision.project_id, code, label)
     audited = AuditObject("revision", revision.id, name)
     actor = inscribed_actor(session, act.author)
     record(session, Inscription(action, actor, audited, act.at, project=named))

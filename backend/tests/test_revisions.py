@@ -186,6 +186,27 @@ def test_the_first_revision_is_born_current_with_its_main_structure_alone(
     assert (read.status_code, read.json()) == (200, revision)
 
 
+def test_the_description_given_at_the_opening_is_kept_on_the_current_revision(
+    api: ContractClient, stage: Scene
+) -> None:
+    # ``RevisionCreate.description`` is kept on the current revision, read with it, for its marking
+    # to take up (#2171); none given, it has none. The Vérif of WF-REV-0090 is the marking's, which
+    # ``test_revision_mark.py`` holds, in
+    # ``test_the_description_of_the_marking_follows_the_rule_of_the_update_of_a_project``: this
+    # test cites no requirement.
+    revision = open_revision(api, stage, description="Chiffrage de l'appel d'offres")
+    assert revision["description"] == "Chiffrage de l'appel d'offres"
+    path = f"{revisions_of(stage.project['project_id'])}/{revision['revision_id']}"
+    read = api.get(path, headers=stage.manager.headers)
+    assert read.json()["description"] == "Chiffrage de l'appel d'offres"
+    listed = api.get(revisions_of(stage.project["project_id"]), headers=stage.manager.headers)
+    assert [item["description"] for item in listed.json()["items"]] == [
+        "Chiffrage de l'appel d'offres"
+    ]
+    assert abandon(api, stage, revision).status_code == 204
+    assert open_revision(api, stage)["description"] is None
+
+
 @pytest.mark.requirement("WF-REV-0010-A")
 def test_a_second_current_revision_is_refused_while_the_first_is_not_marked(
     api: ContractClient, stage: Scene
@@ -288,7 +309,12 @@ def test_abandoning_the_only_revision_leaves_the_project_in_pricing_without_one(
             UUID(revision["revision_id"]),
             None,
         )
-        assert (journal.actor_user_id, journal.project_id) == (stage.manager.user_id, None)
+        # The project, without code, is named all the same (#2166).
+        assert (journal.actor_user_id, journal.project_id, journal.project_code) == (
+            stage.manager.user_id,
+            UUID(stage.project["project_id"]),
+            None,
+        )
     listed = api.get(revisions_of(stage.project["project_id"]), headers=stage.manager.headers)
     assert listed.json() == {"items": [], "meta": {"limit": 50, "offset": 0, "total": 0}}
     assert open_revision(api, stage)["source_revision_id"] is None
@@ -585,6 +611,28 @@ def test_the_abandonment_in_a_coded_project_is_read_in_the_journal_naming_its_pr
         "user",
         str(stage.manager.user_id),
     )
+
+
+@pytest.mark.requirement("WF-SEC-0030-A")
+def test_the_abandonment_in_a_project_without_code_names_its_project_by_its_label(
+    api: ContractClient, stage: Scene, database: Database, realm: TestRealm
+) -> None:
+    # A project is born without code (WF-PRJ-0010): the abandonment of its revision names it by
+    # its label all the same, its code null (#2166).
+    project = project_of(api, stage)
+    assert project["code"] is None
+    revision = open_revision(api, stage)
+    assert abandon(api, stage, revision).status_code == 204
+    auditor = person(database, realm, "audit_log.read", name="Ada")
+    journal = api.get(f"{EVENTS}?actions=revision_abandon", headers=auditor.headers)
+    assert journal.status_code == 200
+    [event] = journal.json()["items"]
+    assert event["project"] == {
+        "project_id": project["project_id"],
+        "code": None,
+        "label": project["label"],
+        "can_open": False,
+    }
 
 
 def test_an_abandonment_waits_for_the_write_that_judged_the_revision_current(

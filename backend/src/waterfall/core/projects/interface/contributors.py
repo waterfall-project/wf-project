@@ -34,14 +34,7 @@ from waterfall.core.projects.commands import (
     TERMINAL,
 )
 from waterfall.core.projects.tables import Contributor, Project
-from waterfall.core.users.interface import (
-    Account,
-    AccountFilters,
-    AccountSort,
-    Page,
-    active_accounts,
-    list_accounts,
-)
+from waterfall.core.users.interface import AccountLabel, active_accounts, read_account_labels
 from waterfall.platform.database import contains
 from waterfall.platform.errors import (
     ConflictError,
@@ -232,27 +225,9 @@ def _stored(session: Session, project_id: UUID) -> tuple[int, dict[UUID, Contrib
     return lines[0][0], kinds
 
 
-def _accounts_of(session: Session, user_ids: Collection[UUID]) -> dict[UUID, Account]:
-    """Read the accounts given in one request, deactivated and anonymised ones included.
-
-    An identifier no account bears is left out.
-    """
-    wanted = list(set(user_ids))
-    if not wanted:
-        return {}
-    filters = AccountFilters(
-        states=frozenset({"active", "deactivated"}), held=lambda id_: id_.in_(wanted)
-    )
-    page = list_accounts(
-        session,
-        filters,
-        AccountSort(),
-        Page(limit=len(wanted), offset=0),
-    )
-    return {account.user_id: account for account in page.accounts}
-
-
-def _rows(accounts: Mapping[UUID, Account], kinds: Mapping[UUID, ContributorKind]) -> list[_Row]:
+def _rows(
+    accounts: Mapping[UUID, AccountLabel], kinds: Mapping[UUID, ContributorKind]
+) -> list[_Row]:
     """Name the accounts of the lines, each as it is shown today."""
     rows: list[_Row] = []
     for user_id, kind in kinds.items():
@@ -321,7 +296,7 @@ def _read(
     sort: ContributorSort,
 ) -> tuple[ContributorView, ...]:
     """Filter and sort the lines; equals keep the order of the list unsorted (WF-IHM-0060)."""
-    rows = _rows(_accounts_of(session, kinds), kinds)
+    rows = _rows(read_account_labels(session, kinds), kinds)
     found = None if filters.search is None else _found(session, rows, filters.search)
     ordered = sorted(rows, key=_by_name)
     if sort.column is not None:
@@ -380,7 +355,7 @@ def _check_writer(session: Session, kinds: Mapping[UUID, ContributorKind], viewe
 
 
 def _faults(
-    accounts: Mapping[UUID, Account],
+    accounts: Mapping[UUID, AccountLabel],
     entries: Iterable[ContributorEntry],
     kinds: Mapping[UUID, ContributorKind],
 ) -> list[FieldError]:
@@ -431,16 +406,17 @@ def set_contributors(
 
     Under the lock of the project, the writer judged on the list as it stands (403, 404), then a
     terminal project refused (409, ``project_not_terminal``), a counter that is not the list's
-    (412), each line whose account is unknown or deactivated (422, ``UNKNOWN_USER``,
-    ``USER_INACTIVE``, at its line), and a list that keeps no project manager (409,
-    ``LAST_PROJECT_MANAGER``) — an active one when the writer rescues the project. Nothing is
-    written then. The list is answered whole with its next counter, built before the commit.
+    (412), each line whose account is unknown, deactivated or written twice (422,
+    ``UNKNOWN_USER``, ``USER_INACTIVE``, ``VALIDATION_FAILED`` at the repeated line), and a list
+    that keeps no project manager (409, ``LAST_PROJECT_MANAGER``) — an active one when the writer
+    rescues the project. Nothing is written then. The list is answered whole with its next
+    counter, built before the commit.
     """
     # The accounts of the lines, read in one request before the lock is taken. Reading them under
     # it would close no race: a deactivation locks the row of the account, never the project's,
     # so ``USER_INACTIVE`` judges the same either way; the active project managers of a rescue are
     # read again under the lock (``active_accounts``).
-    accounts = _accounts_of(session, [entry.user_id for entry in write.entries])
+    accounts = read_account_labels(session, [entry.user_id for entry in write.entries])
     project = _locked(session, project_id)
     _, kinds = _stored(session, project_id)
     rescuing = _check_writer(session, kinds, viewer)
@@ -496,7 +472,7 @@ def load_contributors(session: Session, load: ContributorsLoad) -> None:
     By the rules of the list but those of a writer: the accounts are known and the list keeps a
     project manager; the account deactivated since its inscription is listed all the same.
     """
-    accounts = _accounts_of(session, [entry.user_id for entry in load.entries])
+    accounts = read_account_labels(session, [entry.user_id for entry in load.entries])
     project = _locked(session, load.project_id)
     faults = [
         FieldError(f"/contributors/{position}/user_id", UNKNOWN_USER)

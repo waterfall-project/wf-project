@@ -10796,6 +10796,74 @@ pour un contenu rendu qui ne change aucune forme. Le service le suit en EP-09, q
 `listStartableTasks` (WF-RAE-0030), l'état des récapitulatives en EP-06 (WF-PLA-0040) ; la carte du
 Kanban le lit sur le nouvel exemple par US-1240/L2.
 
+### La liste des contributeurs bornée, la description de la révision en cours, le projet sans code du journal, les permissions de la sortie, la description de la sortie qui marque, la licence du contrat (EP-04, #2196)
+
+Décisions de l'auteur du 2026-11-07, par « La règle d'après le gel » : les revues des lots d'EP-04
+ont laissé au contrat huit constats (#2162, #2163, #2166, #2167, #2171, #2273, #2278, #2285), que
+le lot du contrat d'EP-04 solde en l'ouvrant une seule fois, après les US de l'EPIC. Aucune opération, aucun schéma
+ni aucun code d'erreur nouveaux ; `info.version` reste `1.0.0` : la borne de la liste n'écarte qu'un
+corps qu'aucun écran n'envoie, et les autres points disent ce que le service fait sans changer
+aucune forme.
+
+- **La liste des contributeurs bornée** (#2162 ; WF-PRJ-0060). `ContributorsWrite.contributors`
+  porte `maxItems: 500` — dix fois les cinquante inscriptions d'un projet, autant que les personnes
+  de la plateforme (§4.6.2) : le service juge chaque ligne le verrou du projet tenu, et rien ne
+  bornait la durée de cette tenue. Au-delà, 422 `VALIDATION_FAILED`, `fields` désignant
+  `/contributors` par `VALUE_TOO_LONG`, `fields[].params.max_length` à `500`, comme tout
+  `VALUE_TOO_LONG` d'une liste (J-02, #1796) : aucune ligne n'est jugée, rien n'est écrit. Exemple
+  écrit à la main, `contributors_too_many` (corrélation 1685). Écarté : 50, l'hypothèse de
+  volumétrie elle-même, qui refuserait un projet un peu plus large qu'elle.
+- **Un compte inscrit deux fois** (#2163 ; WF-PRJ-0060). La description de `setContributors`, de
+  son 422 et de `ContributorsWrite.contributors` dit ce qu'US-0930 fait déjà : la ligne répétée est
+  refusée, `/contributors/<n>/user_id` par `VALIDATION_FAILED`, la première ligne du compte jugée
+  comme les autres ; sans ce refus, la seconde qualité écraserait la première sans le dire. Exemple
+  écrit à la main, `contributors_account_doubled` (corrélation 1684) : Lucas Petit, troisième de la
+  liste du témoin, répété en cinquième ligne. Écarté : `ALREADY_EXISTS`, que les « Conventions »
+  réservent à une valeur unique déjà portée par un autre objet, en 409.
+- **La lecture des comptes en bloc** (#2167), sans changement du contrat, liée à la borne : le
+  module des projets lit les comptes des lignes par `read_account_labels` de l'interface des
+  comptes, une requête sur les colonnes du libellé, au lieu de `list_accounts`, qui y ajoutait le
+  décompte de la table, la lecture des auteurs et celle des nœuds d'organisation.
+- **La description de la révision en cours** (#2171 ; WF-REV-0090). `RevisionCreate.description`,
+  que la création ignorait (US-0960), est conservée sur la révision en cours et rendue avec elle —
+  par la réponse de `createRevision`, `getRevision` et `listRevisions` (`Revision.description`,
+  nulle quand la création n'en a pas reçu) —, puis reprise à son marquage. Le Vérif de WF-REV-0090,
+  « la description [est] celle saisie au marquage », reste celui de la révision marquée. Écartés :
+  retirer le champ de `RevisionCreate`, une forme retirée au contrat figé ; dire que la création
+  l'ignore, un champ reçu sans effet. La reprise suit la règle d'`updateProject` pour `client`
+  (décision de l'auteur, 2026-11-07) : `RevisionMark.description` absente, celle conservée à la
+  création est reprise ; présente, elle la remplace ; nulle, elle l'efface. Écarté : un marquage
+  qui écrit toujours sa description, une absente valant nulle, et une « reprise » laissée à
+  l'écran.
+  `CurrentRevisionMark.description` (`projects.yaml`) porte la même phrase ; le service de la sortie
+  qui marque l'applique (#2278) : la route d'`exitProject` lit `description` dans les champs reçus
+  de `CurrentRevisionMark` et passe `KEPT` quand elle est absente, comme celle du marquage.
+- **Les permissions de la sortie** (#2273 ; WF-CYC-0090, WF-ADM-0100). Le 403 d'`exitProject` dit ce
+  que le service fait déjà : le sort `abandon` de la révision en cours demande aussi
+  `revision_abandon`, le sort `mark`, `revision_mark`, en plus de la permission de sortir.
+- **La licence du contrat** (#2285). `info.license` de `openapi.yaml` disait l'AGPL-3.0-only, quand
+  `REUSE.toml` et le README placent le contrat (`docs/api/**/*.yaml`) sous Apache-2.0 : il dit
+  `Apache License 2.0`, `Apache-2.0`. Aucune forme ne change. Un test des outils
+  (`test_contract_licence.py`) exige que l'identifiant déclaré soit celui que `REUSE.toml` donne au
+  fichier.
+- **Le projet sans code du journal** (#2166 ; WF-SEC-0030, WF-PRJ-0010). Un projet naît sans code,
+  et sa création, l'abandon de sa révision ou sa sortie s'inscrivent avant qu'il en ait un : le
+  journal le nomme alors par son identifiant et son libellé, son code nul — la contrainte
+  `project_named` ne lie plus le code qu'à la présence d'un projet, et la migration du journal
+  d'EP-04 (`0021`) la remplace. `listAuditFacets` garde ce projet, `code` nul, après les codes, puis
+  par identifiant, comme le tri du journal par projet range déjà « une inscription dont le projet
+  n'avait pas de code » ; un projet qui existe et n'a plus de code garde celui de sa dernière
+  inscription, s'il y en avait un. `AuditProject.code` était déjà nullable : seule la description
+  d'`AuditFacets.projects` change. Aucun exemple nouveau : le projet du journal du témoin, PRJ-001,
+  a son code. Écarté : écarter des facettes un projet sans code, qu'aucun filtre du journal ne
+  pourrait alors choisir.
+
+Les suites : `make generate-server-models` et `make generate-client` (descriptions et borne),
+`make mock-data`, à son point fixe ; le service suit chaque point, et ses tests le tiennent
+(`test_contributors.py`, `test_revisions.py`, `test_revision_mark.py`, `test_exit_marking.py`,
+`test_audit_consultation.py`, `test_database_constraints.py`, `test_projects.py`), et `tools/tests/test_mockproject.py` tient les
+deux exemples nouveaux.
+
 ## Collage et annulation
 
 **Le collage depuis un tableur suit exactement la forme d'un import** : `paste-preview`

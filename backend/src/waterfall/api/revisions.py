@@ -36,6 +36,7 @@ from waterfall.api.queries import Search, listed
 from waterfall.api.tasks import task_ref
 from waterfall.core.projects.interface import CommandAvailability, Viewer
 from waterfall.core.revisions.interface import (
+    KEPT,
     MarkingRequest,
     RevisionFilters,
     RevisionPage,
@@ -186,11 +187,11 @@ def post_revision(
     """Open the current revision of a project, a copy of its last marked one (WF-REV-0010).
 
     The body's ``apply_rate_update`` has nothing to apply until EP-07 keeps the rates; its
-    ``description`` is the marking's (``Revision.description``), and is not written here.
+    ``description`` is kept on the revision, which its marking takes up (#2171).
     """
-    del body
     act = Act(account.user_id, utc_now())
-    return described(session, [create_revision(session, project_id, act, viewer_of(actor))])[0]
+    opened = create_revision(session, project_id, act, viewer_of(actor), body.description)
+    return described(session, [opened])[0]
 
 
 @router.get(
@@ -229,8 +230,10 @@ def delete_revision(
 
 def marking_request(project_id: UUID, revision_id: UUID, body: RevisionMark) -> MarkingRequest:
     """Read the marking asked for: the revision of the path, the name, the counter read."""
+    # A description absent keeps the one given at the creation; a null one clears it (#2171).
+    description = body.description if "description" in body.model_fields_set else KEPT
     return MarkingRequest(
-        project_id, revision_id, body.version_name, body.description, body.lock_version.root
+        project_id, revision_id, body.version_name, description, body.lock_version.root
     )
 
 

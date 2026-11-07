@@ -345,5 +345,7 @@ AuditFacets:
         Les projets d'au moins une inscription, chacun une fois, par leur code et leur libellé
         d'aujourd'hui — un projet qui n'existe plus, par le code et le libellé de sa dernière
         inscription —, dans l'ordre des codes puis des identifiants : consultables ou non par
-        l'appelant, comme le journal les nomme.
+        l'appelant, comme le journal les nomme. Un projet sans code — inscrit avant que son code
+        ne soit saisi, qui n'en a toujours pas — y figure, `code` nul, après les codes, comme le
+        tri du journal par projet le range (#2166).
       items: { $ref: '#/AuditProject' }

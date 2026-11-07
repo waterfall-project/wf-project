@@ -48,6 +48,7 @@ from waterfall.core.projects.interface import (
     stored_lock_version,
 )
 from waterfall.core.revisions.interface import (
+    KEPT,
     MarkingRequest,
     ReferenceToDesignate,
     RevisionToAbandon,
@@ -210,11 +211,14 @@ def post_exit(
     if isinstance(fate, CurrentRevisionMark) and revision_id is not None:
         try:
             revision = read_revision(session, project_id, revision_id, viewer)
+            # A description absent keeps the one given at the creation; a null one clears it
+            # (#2171, #2278), as ``markRevision`` does.
+            description = fate.description if "description" in fate.model_fields_set else KEPT
             marking = MarkingRequest(
                 project_id,
                 revision_id,
                 fate.version_name,
-                fate.description,
+                description,
                 revision.lock_version,
                 exit_state=request.to_state,
                 exit_reason=request.reason,
