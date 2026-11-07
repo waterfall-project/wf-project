@@ -83,6 +83,42 @@ and the lists of the service compared with the examples of the contract, the aud
 `fixtures/api/` and Prism remain the examples of the contract and the fake back of the screens the
 service does not serve.
 
+**The slice of the projects (EP-04, US-0990).** Loaded after that of the reference, through the
+interfaces of the modules, it writes PRJ-001 and PRJ-002 with their attributes and their client
+(each created by the rules of the creation, the minimal reference included), the local accounts of
+their contributors — the four of the witness, one of them deactivated: created in Waterfall alone,
+through the interface of the accounts, with no identity provider, under an address of
+`waterfall.test`; they never sign in —, the contributors, the subprojects, the work breakdown, then
+the revisions 100, 101 and 102 of PRJ-001, their main structure and their transitions. It stops
+where the rules stop with no task and no line: PRJ-001 stays in Pricing (the passage to In progress
+belongs to the epic that serves the offer and the order, EP-07); the 100 is marked « v1.0 », the 101
+« Référence », the 102 is open; the designation of the 100 is tried and refused for the lack of tasks
+(`revision_has_tasks_and_lines`, noted in the output, `witness.designation_refused`: a designation
+that succeeds, or any other refusal, is a defect that stops the command), so PRJ-001 has no
+reference; the code of PRJ-001 is entered after that refusal. The loader sets neither
+`inflation_rate` nor `win_probability` (the order received sets the second, EP-07). What the slice
+does not reach, by object, is listed in `backend/tests/test_witness_projects.py` (`UNREACHED`), each
+entry with the epic that lifts it, and its readings of the loaded witness are compared with the
+examples of the contract (`projects.json`, `revisions.json`, `contributors.json`,
+`subprojects.json`, `work_breakdown.json`, the transitions) but for those states.
+
+The chronology is a file of the slice, `fixtures/api/project_state_transitions.json`, which
+`make mock-data` writes beside the examples (`wftools.mockchronology`, from `CHRONOLOGY` of
+`wftools.mockwitness`, US-0990/L1): the events of the witness in their order, each with its instant
+in universal time, its label and the list of what the slice writes at it — the project created, a
+revision opened, a revision marked under its name of version, the designation tried and its refusal,
+the code entered, a state transition —, an event the slice does not write (the installation, the
+entries of risks and of costs, the imports; EP-06 to EP-09) keeping its place. The back reads it with
+a model of its own (`waterfall.witness.timeline`) and never imports `wftools`: a file that strays
+from it — an unknown kind, a field too many or too few, an instant without a zone, events out of
+order — stops the command before anything is written. The dates are of two kinds: those of the
+reference are those of the loading (WF-DAT-0070); those of the projects, of the revisions and of the
+transitions are those of the chronology, which the loader imposes on each write (`Act.at`,
+WF-CYC-0130), the platform being the author — two loadings therefore give the same dates of project,
+revision and transition. A collision of identifiers, or a refusal anywhere but at the designation,
+stops the command, nothing being written; run again on a loaded platform, it succeeds, saying the
+witness is there.
+
 The core, `waterfall.core`, has one sub-package per module, named after its second-level FBS
 block, in English. A module exposes what the others may use in its `interface` module — a
 package of one file per object, which `interface/__init__.py` re-exports, for the modules of
@@ -1806,8 +1842,7 @@ abandoned. Once queued, the restoration gives way to the screen of its maintenan
 serves, then the liveness probe, and says the disconnection of the users, then the end; the
 tracking of the shell does not receive it: a restoration is only relaunched from this confirmation.
 The refusal of a command of the list is said above it (`Reactivations`), the condition named for a
-409; the screen says that the fake back keeps nothing (`MockupNotice`) as soon as a command is
-offered. The restoration from a file goes through the chunked upload of EP-03 (#350,
+409. The restoration from a file goes through the chunked upload of EP-03 (#350,
 `completeChunkedUpload`), offered to whoever carries `platform_restore` under the list, whose date
 read in the manifest is the one the confirmation names: the same dialog, the identifier of the
 upload entered, its verification said pending — its restoration does it (EP-14/L42o). The schedule
@@ -3790,9 +3825,16 @@ hooks: a hook declared in a module that the files import is declared once in a w
 first of its files alone. A path whose assertion differs between the two — a write the fake back
 does not keep — reads `inService`.
 
-What a tagged path does not replay against the service yet is skipped by `inService`
-(`test.skip(inService, …)`), and listed here, each entry naming the epic that lifts it; that epic
-removes the guard and its entry:
+The project `shared` thus plays the paths of the project against the loaded witness, the slice of
+the projects included ("The back and the boundaries of the core"): PRJ-001 in Pricing, its
+revisions 100 and 101 marked, the 102 open, with no task, no line and no reference. Their
+assertions of reading are not rewritten for what a project in pricing and empty revisions leave to
+read; what reads PRJ-001 In progress, its reference, its tasks or its lines is not replayed before
+EP-07. The assertions of a write affirm what was written, read anew, by `inService`.
+
+The consolidated list of what a path does not replay against the service yet is kept here: it is
+skipped by `inService` (`test.skip(inService, …)`) when tagged, or stays untagged, each entry naming
+the epic that lifts it; that epic removes the guard and its entry:
 
 - `revisions.spec.ts` — the current revision and its parts, and the comparison, the volume's
   included, and « Écarts seulement » (`BEFORE_EP07`): lifted by **EP-07**, which serves the
@@ -3800,19 +3842,23 @@ removes the guard and its entry:
   current revision reads the proposal by `readUnlessRefused` and renders without it on the 404 of
   the service (#2173), its commands playable. The history plays against the service from US-0960,
   with the revisions 100 and 101 of the witness marked from US-0970.
-- `revision-cycle.spec.ts` — the commands of the revision 102 of PRJ-001, the opening unavailable
-  and the designation beyond the correction (`NOT_REPLAYED_IN_SERVICE`): the account of the
-  run is not enrolled as project manager of the projects of the witness, by decision (#2193, option A): the
-  paths that write create their own project, and the reference of the witness is designated by
-  **US-0980/L2**. The abandon of the 102 (`WITNESS_KEPT`) never plays against the service, which
-  would take it from every other path: the cycle — a project created by the account of the run, its
-  project manager as its creator, a revision opened, marked by the worker, another opened then
-  abandoned (US-0970) — plays there on a project of its own, and against the service alone
-  (`SERVICE_ONLY`); its sequel — reopened, the code entered, the exit, the designation refused — is
-  **US-0990/L2**'s. The cycle plays since **US-0850** (EP-05) serves the roles of resources: the
-  minimal reference is complete, and the service creates a project (#2194). The path of the
-  restoration (`service/backups.spec.ts`) creates one before the backup, marks its revision and
-  creates a second after it, and does not find them once restored (WF-ADM-0160-A).
+- `revision-cycle.spec.ts` — the commands of the revision 102 of PRJ-001 and the opening unavailable
+  (`NOT_REPLAYED_IN_SERVICE`): the account of the run is not enrolled as project manager of the
+  projects of the witness, by decision (#2193, option A), so the service lists it no command of
+  PRJ-001; the paths that write create their own project. The designation of the reference of
+  PRJ-001, refused for the lack of tasks and lines, is lifted by **EP-07** (EP-06 serves the tasks).
+  The abandon of the 102 (`WITNESS_KEPT`) never plays against the service, which would take it from
+  every other path. The cycle (#1350) plays against the service alone (`SERVICE_ONLY`), on a project
+  the account of the run creates (`own-project.ts`), its project manager as its creator: a revision
+  opened then marked by the worker, the designation refused for the lack of tasks and lines — which
+  **EP-07** will reverse: the designation will succeed, and the code entered will take the project
+  In progress —, another opened then abandoned, opened again, the code entered, the project left to
+  Lost. It plays since **US-0850** (EP-05) serves the roles of resources: the minimal reference is
+  complete, and the service creates a project (#2194). The path of the restoration
+  (`service/backups.spec.ts`) creates one before the backup, marks its revision and creates a second
+  after it, and does not find them once restored (WF-ADM-0160-A); played again on the same
+  installation, it leaves one more account and one more project there, the restoration taking back
+  all the rest.
 - `project-start.spec.ts` — the start towards the planning: the opening of PRJ-001 that leads to its
   planning, the screen of the work breakdown that generates the planning, and the encart « Démarrer le
   projet » of a project created, which the service does not offer to the account of the run before the
@@ -3827,8 +3873,8 @@ removes the guard and its entry:
 - `projects.spec.ts` — the paths that write to PRJ-001 or reach it through its planning: the screen
   of the project, its settings and its lifecycle, the exit, the sub-projects and the contributors,
   the work breakdown (`FAKE_BACK_ONLY`): the account of the run is not a project manager of PRJ-001,
-  by decision (#2193, option A) — which the twins replay —, and the planning its page leads to is
-  **EP-06**'s. Each has its twin, played against the service alone on a project the account creates
+  by decision (#2193, option A), which no epic reverses — which the twins replay —, and the planning
+  its page leads to is **EP-06**'s. Each has its twin, played against the service alone on a project the account creates
   (`SERVICE_ONLY`, `own-project.ts`): settings, lifecycle, sub-projects, work breakdown,
   contributors (a second account, enrolled through the API since the screen proposes the accounts of
   the estimate alone, WF-PRJ-0070-A; the quality of that account is changed on the screen, then read
@@ -3844,14 +3890,19 @@ enrols the other through the API under her token.
 The paths that depend on what the service does not do yet, or does not serve, are not replayed
 against it, being untagged; each is still played against the fake back, by `chromium`. What
 depends on the clock: nothing in the reference, whose dates are those of the loading (WF-DAT-0070)
-and which the paths do not wait for. On a screen the service does not serve: the openings, from
-`/`, of the portfolio, of the administration and of the status screen in `navigation.spec.ts` (the
-role "Manager" is offered neither the administration nor the status); the home is served since
-US-0920/L2 and plays on both sides (`projects.spec.ts`), as do the screens of a project since
-US-1000; the other paths of `navigation.spec.ts`, those of a project and that of the icon on `/`,
-stay untagged until their US tags them; almost all of those of `admin.spec.ts`
-(`:40` to `:455`, only `:479` is `@shared`), administration screens outside the permissions of the
-role "Manager" of `mode.ts`, without the `users.*` permissions. On what their US does not tag yet:
+and which the paths do not wait for. On a screen the service does not serve, or that the account of
+the run is not offered: the opening, from `/`, of the portfolio in `navigation.spec.ts`, lifted by
+**EP-11**, and that of the status screen of the system, lifted by **EP-13**; that of the
+administration, which **no epic lifts**: the role "Manager" of `mode.ts` holds no `users.*`
+permission, and the administration screens the service serves play in `frontend/e2e/service/`;
+likewise almost all the paths of `admin.spec.ts` (`:40` to `:455`, only `:479` is `@shared`), not
+lifted for the same reason. The home is served since US-0920/L2 and plays on both sides
+(`projects.spec.ts`, and the icon of the tab in `navigation.spec.ts`), as do the screens of a project
+since US-1000 (among them, in `navigation.spec.ts`, the move from the settings to the lifecycle).
+Untagged in `navigation.spec.ts` stay the way back to the previous project from a function outside
+any project, which reopens the remaining to commit then the risks of PRJ-001 (lifted by **EP-07**
+and **EP-08**), and the address of the project that leads to its planning, with its reading context
+(lifted by **EP-06**). On what their US does not tag yet:
 the reading of the settings outside any project (`reference-costs.spec.ts`, US-0250); the
 change of the units of duration (`reference-resources.spec.ts`), which writes the single object of
 the installation and asserts the echo of the fake back ("7 and 35"): it would be played in series

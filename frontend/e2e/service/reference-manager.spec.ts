@@ -33,8 +33,9 @@ import { openMenu, WORKING } from "../hydration";
 import type { components } from "../../src/api/generated/schema";
 import { heldToTheContract } from "./contract";
 import {
-  ADMINISTRATOR,
   accountAdministrator,
+  ADMINISTRATOR,
+  API,
   frontToken,
   localAccount,
   signIn,
@@ -53,7 +54,6 @@ const RISKS = "/reference/risks";
 const INDICATORS = "/reference/indicators";
 const USERS = "/admin/users";
 /** The API, through the proxy of the contract. */
-const API = `${process.env.WATERFALL_API_ADDRESS ?? ""}/api/v1`;
 
 /** The role of the cumulation: costs and accounts, read to be shown and written to be changed. */
 const CUMULATION = "Paramètres de coûts et comptes (parcours)";

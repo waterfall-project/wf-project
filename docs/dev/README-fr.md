@@ -84,6 +84,42 @@ plateforme, l'arrêt en le disant sur un témoin que les règles refusent, et le
 comparées aux exemples du contrat, aux colonnes d'audit près. `fixtures/api/` et Prism restent les
 exemples du contrat et le faux back des écrans que le service ne sert pas.
 
+**La tranche des projets (EP-04, US-0990).** Chargée après celle du référentiel, par les interfaces
+des modules, elle écrit PRJ-001 et PRJ-002 avec leurs attributs et leur client (chacun créé par les
+règles de la création, référentiel minimal compris), les comptes locaux de leurs contributeurs —
+les quatre du témoin, dont un désactivé : créés dans Waterfall seul, par l'interface des comptes,
+sans fournisseur d'identité, sous une adresse de `waterfall.test` ; ils ne se connectent pas —, les
+contributeurs, les sous-projets, le lotissement, puis les révisions 100, 101 et 102 de PRJ-001, leur
+structure principale et leurs transitions. Elle s'arrête où les règles s'arrêtent sans tâche ni
+ligne : PRJ-001 reste en Chiffrage (le passage En cours est de l'EPIC qui sert l'offre et la
+commande, EP-07) ; la 100 est marquée « v1.0 », la 101 « Référence », la 102 est ouverte ; la
+désignation de la 100 est tentée et refusée faute de tâches (`revision_has_tasks_and_lines`, notée
+dans la sortie, `witness.designation_refused` : une désignation qui aboutit, ou tout autre refus,
+est un défaut qui arrête la commande), si bien que PRJ-001 n'a pas de référence ; le code de PRJ-001
+est saisi après ce refus. Le chargeur ne pose ni `inflation_rate` ni `win_probability` (la commande
+reçue pose la seconde, EP-07). Ce que la tranche n'atteint pas, par objet, est listé dans
+`backend/tests/test_witness_projects.py` (`UNREACHED`), chaque entrée avec l'EPIC qui la lève, et
+ses lectures du témoin chargé sont comparées aux exemples du contrat (`projects.json`,
+`revisions.json`, `contributors.json`, `subprojects.json`, `work_breakdown.json`, les transitions)
+à ces états près.
+
+La chronologie est un fichier de la tranche, `fixtures/api/project_state_transitions.json`, que
+`make mock-data` écrit à côté des exemples (`wftools.mockchronology`, de `CHRONOLOGY` de
+`wftools.mockwitness`, US-0990/L1) : les événements du témoin dans leur ordre, chacun avec son
+instant en temps universel, son libellé et la liste de ce que la tranche y écrit — le projet créé,
+une révision ouverte, une révision marquée sous son nom de version, la désignation tentée et son
+refus, le code saisi, une transition d'état —, un événement que la tranche n'écrit pas (installation,
+saisies de risques et de coûts, imports ; EP-06 à EP-09) gardant sa place. Le back le lit par un
+modèle qui lui est propre (`waterfall.witness.timeline`) et n'importe jamais `wftools` : un fichier
+qui s'en écarte — un genre inconnu, un champ de trop ou de moins, un instant sans fuseau, des
+événements hors d'ordre — arrête la commande avant toute écriture. Les dates sont de deux sortes :
+celles du référentiel sont celles du chargement (WF-DAT-0070) ; celles des projets, des révisions
+et des transitions sont celles de la chronologie, que le chargeur impose à chaque écriture
+(`Act.at`, WF-CYC-0130), la plateforme en étant l'auteur — deux chargements donnent donc les mêmes
+dates de projet, de révision et de transition. Une collision d'identifiant, ou un refus ailleurs qu'à
+la désignation, arrête la commande, rien n'étant écrit ; relancée sur une plateforme chargée, elle
+réussit en disant le témoin là.
+
 Le noyau, `waterfall.core`, a un sous-paquet par module, nommé d'après son bloc FBS de
 second niveau, en anglais. Un module expose ce que les autres peuvent utiliser dans son
 module `interface` — un paquet d'un fichier par objet, que `interface/__init__.py`
@@ -1800,8 +1836,7 @@ en file, la restauration fait place à l'écran de sa maintenance (`restoration.
 `maintenance.tsx`, US-0440), qui suit sa tâche tant que la plateforme sert, puis la sonde de vie, et
 dit la déconnexion des utilisateurs, puis la fin ; le suivi de la coquille ne la reçoit pas : une
 restauration ne se relance que depuis cette confirmation. Le refus d'une commande de la liste se dit
-au-dessus d'elle (`Reactivations`), la condition nommée pour un 409 ; l'écran dit que le faux back
-ne garde rien (`MockupNotice`) dès qu'une commande est offerte. La restauration depuis un fichier
+au-dessus d'elle (`Reactivations`), la condition nommée pour un 409. La restauration depuis un fichier
 passe par le dépôt par morceaux d'EP-03 (#350, `completeChunkedUpload`), offert à qui porte
 `platform_restore` sous la liste, dont la date lue dans le manifeste est celle que la confirmation
 nomme : le même dialogue, l'identifiant du dépôt saisi, sa vérification dite en attente — sa
@@ -3821,9 +3856,16 @@ fichiers importent ne se déclare qu'une fois par worker, pour le premier de ses
 parcours dont l'assertion diffère entre les deux — une écriture que le faux back ne garde pas — lit
 `inService`.
 
-Ce qu'un parcours étiqueté ne rejoue pas encore contre le service se saute par `inService`
-(`test.skip(inService, …)`), et s'inscrit ici, chaque entrée nommant l'EPIC qui la lève ; cet EPIC
-retire la garde et son entrée :
+Le projet `shared` joue ainsi les parcours du projet contre le témoin chargé, tranche des projets
+comprise (« Le back et les frontières du noyau ») : PRJ-001 en Chiffrage, ses révisions 100 et 101
+marquées, la 102 ouverte, sans tâche ni ligne ni référence. Leurs attendus de lecture ne sont pas
+réécrits pour ce qu'un projet en chiffrage et des révisions vides laissent lire ; ce qui lit PRJ-001
+En cours, sa référence, ses tâches ou ses lignes ne se rejoue pas avant EP-07. Les assertions
+d'écriture affirment ce qui a été écrit, relu, par `inService`.
+
+La liste consolidée de ce qu'un parcours ne rejoue pas encore contre le service tient ici : il se
+saute par `inService` (`test.skip(inService, …)`) quand il est étiqueté, ou reste sans étiquette,
+chaque entrée nommant l'EPIC qui la lève ; cet EPIC retire la garde et son entrée :
 
 - `revisions.spec.ts` — la révision en cours et ses parties, et la comparaison, de la volumétrie
   comprise, et « Écarts seulement » (`BEFORE_EP07`) : levée par **EP-07**, qui sert la comparaison
@@ -3831,19 +3873,22 @@ retire la garde et son entrée :
   en cours lit la proposition par `readUnlessRefused` et se rend sans elle sur le 404 du service
   (#2173), ses commandes jouables. L'historique se joue contre le service dès US-0960, avec les
   révisions 100 et 101 du témoin marquées dès US-0970.
-- `revision-cycle.spec.ts` — les commandes de la révision 102 de PRJ-001, l'ouverture
-  indisponible et la désignation au-delà de la correction (`NOT_REPLAYED_IN_SERVICE`) : le compte
-  de la course n'est pas inscrit chef de projet des projets du témoin, par décision (#2193,
-  option A) : les parcours qui écrivent créent leur propre projet, et la référence du témoin
-  est désignée par **US-0980/L2**. L'abandon de la 102 (`WITNESS_KEPT`) ne se joue jamais contre le
-  service, qui l'ôterait à tous les autres parcours : le cycle — un projet créé par le compte de la
-  course, chef de projet comme créateur, une révision ouverte, marquée par le worker, une autre
-  ouverte puis abandonnée (US-0970) — s'y joue sur un projet à lui, et contre le service seul
-  (`SERVICE_ONLY`) ; sa suite — rouvrir, saisir le code, sortir, la désignation refusée — est
-  d'**US-0990/L2**. Le cycle se joue depuis qu'**US-0850** (EP-05) sert les rôles de ressources :
-  le référentiel minimal est complet, et le service crée un projet (#2194). Le parcours de
-  restauration (`service/backups.spec.ts`) en crée un avant la sauvegarde, marque sa révision et en
-  crée un second après, et ne les retrouve plus une fois la restauration faite (WF-ADM-0160-A).
+- `revision-cycle.spec.ts` — les commandes de la révision 102 de PRJ-001 et l'ouverture indisponible
+  (`NOT_REPLAYED_IN_SERVICE`) : le compte de la course n'est pas inscrit chef de projet des projets
+  du témoin, par décision (#2193, option A), si bien que le service ne lui liste pas les commandes de
+  PRJ-001 ; les parcours qui écrivent créent leur propre projet. La désignation de la référence de
+  PRJ-001, refusée faute de tâches et de lignes, est levée par **EP-07** (EP-06 sert les tâches).
+  L'abandon de la 102 (`WITNESS_KEPT`) ne se joue jamais contre le service, qui l'ôterait à tous
+  les autres parcours. Le cycle (#1350) se joue contre le service seul (`SERVICE_ONLY`), sur un projet
+  que le compte de la course crée (`own-project.ts`), chef de projet comme créateur : une révision
+  ouverte puis marquée par le worker, la désignation refusée faute de tâches et de lignes — ce
+  qu'**EP-07** renversera : la désignation aboutira, et le code saisi emmènera le projet En cours —,
+  une autre ouverte puis abandonnée, rouverte, le code saisi, le projet sorti à Perdu. Il se joue
+  depuis qu'**US-0850** (EP-05) sert les rôles de ressources : le référentiel minimal est complet, et
+  le service crée un projet (#2194). Le parcours de restauration (`service/backups.spec.ts`) en
+  crée un avant la sauvegarde, marque sa révision et en crée un second après, et ne les retrouve
+  plus une fois la restauration faite (WF-ADM-0160-A) ; rejoué sur une même installation, il y laisse
+  un compte et un projet de plus, la restauration reprenant tout le reste.
 - `project-start.spec.ts` — le départ vers le planning : l'ouverture de PRJ-001 qui mène à son planning,
   l'écran du lotissement qui engendre le planning, et l'encart « Démarrer le projet » d'un projet créé,
   que le service n'offre pas au compte de la course avant les structures (`BEFORE_EP06`) : levée par
@@ -3857,8 +3902,8 @@ retire la garde et son entrée :
 - `projects.spec.ts` — les parcours qui écrivent sur PRJ-001 ou y mènent par son planning : l'écran du
   projet, ses paramètres et son cycle de vie, la sortie, les sous-projets et les contributeurs, le
   lotissement (`FAKE_BACK_ONLY`) : le compte de la course n'est pas chef de projet de PRJ-001, par
-  décision (#2193, option A) — ce que rejouent les jumeaux —, et le planning vers lequel mène sa
-  page est d'**EP-06**. Chacun a son jumeau, joué contre le service seul sur un projet que le compte
+  décision (#2193, option A), que nul EPIC ne renverse — ce que rejouent les jumeaux —, et le
+  planning vers lequel mène sa page est d'**EP-06**. Chacun a son jumeau, joué contre le service seul sur un projet que le compte
   crée (`SERVICE_ONLY`, `own-project.ts`) : paramètres, cycle de vie, sous-projets, lotissement,
   contributeurs (un second compte, inscrit par l'API puisque l'écran ne propose que les comptes du
   devis, WF-PRJ-0070-A ; la qualité de ce compte est changée par l'écran, puis relue après
@@ -3875,15 +3920,20 @@ et inscrit l'autre par l'API sous son jeton.
 Ne se rejouent pas contre le service, faute d'être étiquetés, les parcours qui dépendent de ce
 qu'il ne fait pas encore ou ne sert pas ; chacun reste joué contre le faux back, par `chromium`.
 Ce qui dépend de l'horloge : rien dans le référentiel, dont les dates sont celles du chargement
-(WF-DAT-0070) et que les parcours n'attendent pas. D'un écran que le service ne sert pas : les ouvertures,
-depuis `/`, du portefeuille, de l'administration et de l'écran d'état de `navigation.spec.ts` (le rôle
-« Manager » ne se voit offrir ni l'administration ni l'état) ; l'accueil, lui, est servi depuis
-US-0920/L2 et se joue des deux côtés (`projects.spec.ts`), de même que les écrans d'un projet depuis
-US-1000 ; les autres parcours de `navigation.spec.ts`, ceux d'un projet et celui de l'icône sur
-`/`, restent sans étiquette tant que leur US ne les pose pas ; presque tous ceux de `admin.spec.ts`
-(`:40` à `:455`, seul `:479` est `@shared`), des écrans d'administration hors des permissions du
-rôle « Manager » de `mode.ts`, sans les permissions `users.*`. De ce que leur US n'étiquette pas
-encore : la lecture des réglages hors projet (`reference-costs.spec.ts`, US-0250) ; la
+(WF-DAT-0070) et que les parcours n'attendent pas. D'un écran que le service ne sert pas, ou que
+le compte de la course ne se voit pas offrir : l'ouverture, depuis `/`, du portefeuille de
+`navigation.spec.ts`, levée par **EP-11**, et celle de l'écran d'état du système, levée par
+**EP-13** ; celle de l'administration, que **nul EPIC ne lève** : le rôle « Manager » de `mode.ts` ne
+porte pas les permissions `users.*`, et les écrans d'administration que le service sert se jouent
+dans `frontend/e2e/service/` ; de même presque tous les parcours de `admin.spec.ts` (`:40` à
+`:455`, seul `:479` est `@shared`), non levés pour la même raison. L'accueil est servi depuis
+US-0920/L2 et se joue des deux côtés (`projects.spec.ts`, et l'icône de l'onglet de
+`navigation.spec.ts`), de même que les écrans d'un projet depuis US-1000 (dont, dans
+`navigation.spec.ts`, le passage des paramètres au cycle de vie). Restent sans étiquette, dans
+`navigation.spec.ts`, le retour au projet précédent depuis une fonction hors projet, qui rouvre le
+reste à engager puis les risques de PRJ-001 (levé par **EP-07** et **EP-08**), et l'adresse du projet
+qui mène à son planning, avec son contexte de lecture (levée par **EP-06**). De ce que leur US
+n'étiquette pas encore : la lecture des réglages hors projet (`reference-costs.spec.ts`, US-0250) ; la
 modification des unités de durée (`reference-resources.spec.ts`), qui écrit l'objet unique de
 l'installation et affirme l'écho du faux back (« 7 et 35 ») : elle se jouerait en série (règle
 ci-dessous), ce que le projet `realm` ne fait aujourd'hui que pour `frontend/e2e/service/` (#2178).

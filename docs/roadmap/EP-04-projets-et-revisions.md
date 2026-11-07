@@ -1357,7 +1357,7 @@ réels (EP-09).
 
 ## US-0990 — Le témoin : la tranche des projets, et les parcours rejoués
 
-- **statut** : en cours
+- **statut** : fini
 - **exigences** : `WF-QUA-0040-A`
 - **opérations** : aucune en propre ; le chargement passe par les interfaces du noyau
 - **issue** : 2067

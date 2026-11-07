@@ -730,9 +730,16 @@ test("an exit of the lifecycle of a project in pricing is confirmed, naming the 
   await confirmation.getByRole("radio", { name: /^Abandonner la révision en cours/ }).check();
   await expect(confirmation.getByRole("textbox", { name: "Nom de version" })).toHaveCount(0);
   await confirmation.getByRole("button", { name: "Confirmer la sortie" }).click();
-  await expect(commands.getByRole("status").filter({ hasText: /./ })).toHaveText(
-    /^Le projet est passé à l’état «\s?Perdu\s?»\.$/,
-  );
+  // The note of the exit goes with the commands, which the project, terminal, no longer lists: the
+  // history of the messages, in the shell, keeps what was told.
+  await page.getByRole("button", { name: /^Tâches et messages/ }).click();
+  const told = page
+    .getByRole("dialog", { name: "Tâches et messages" })
+    .getByRole("region", { name: "Messages" })
+    .getByRole("listitem")
+    .first();
+  await expect(told).toContainText(/Le projet est passé à l’état «\s?Perdu\s?»\./);
+  await page.keyboard.press("Escape");
 
   // The service kept the transition and its reason, and the project is terminal.
   await page.reload();

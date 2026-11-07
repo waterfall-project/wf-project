@@ -1,35 +1,35 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
-import { randomBytes } from "node:crypto";
-
 import { expect } from "@playwright/test";
 
 import { openHydrated, WORKING } from "./hydration";
 import { inService, test } from "./mode";
+import { createOwnProject, openRevision } from "./own-project";
 
 // The cycle of the revisions, against the fake back and, tagged `@shared`, against the service.
 //
 // The fake back keeps no state: it serves the project in progress, its current revision and the
 // history of three revisions, and answers each write with the first example of its operation. The
-// commands are therefore read as the server lists them — the opening unavailable while a revision is
-// current, the designation unavailable once the reference cannot be corrected —, and the abandon,
-// available, is played to its end. The chain of the states — marked, designated, code entered, in
+// commands are therefore read as the server lists them — the opening unavailable while a revision
+// is current, the designation unavailable once the reference cannot be corrected —, and the
+// abandon, available, is played to its end. The chain of the states — marked, designated, code entered, in
 // progress, opened, the remaining entered — needs a service that remembers: each step is proved on
 // the examples of the contract by the tests of the commands (`revision-commands.dom.test.tsx`).
 //
 // The service remembers (#1350): the cycle is played there on a project the account of the run
-// creates, and manages as its creator — created, a revision opened, marked by the worker, another
-// opened and abandoned (US-0970) —, never on the witness, whose revisions every other path reads.
-// The rest of the cycle — reopened, the code entered, the exit, the designation refused — is
-// US-0990/L2's.
+// creates (`own-project.ts`), and manages as its creator, never on the witness, whose revisions
+// every other path reads — created, a revision opened, marked by the worker, the designation
+// refused for the lack of tasks, another opened and abandoned (US-0970), opened again, the code
+// entered, the project left (US-0990/L2). EP-07 reverses the refusal: with tasks and lines the
+// designation succeeds, and the code entered then takes the project to In progress.
 const PROJECT = "01926f3a-7c00-7000-8000-000000000001";
 const REVISION = "01926f3a-7c00-7000-8000-000000000102";
 
 // What the service does not replay of the witness yet, as the guide lists it (« Un parcours de bout
-// en bout »): the commands of PRJ-001 are listed to its project managers alone, and its reference is
-// designated by US-0980/L2.
+// en bout »): the commands of PRJ-001 are listed to its project managers alone, and its reference
+// stays undesignated until its tasks and lines are served (EP-07).
 const NOT_REPLAYED_IN_SERVICE =
-  "by decision the account of the run is not a project manager of PRJ-001 (#2193, option A), and US-0980/L2 designates its reference";
+  "by decision the account of the run is not a project manager of PRJ-001 (#2193, option A), and its reference waits for its tasks and lines (EP-07)";
 
 // The abandon of the witness's current revision would take it from every other path: the service
 // plays the abandon on the project the cycle creates.
@@ -89,36 +89,19 @@ test("abandoning the current revision asks for a confirmation that says the retu
   await expect(told).toContainText("La révision en cours est abandonnée");
 });
 
-test("a project created, a revision opened then marked by the worker, which keeps it marked, another opened then abandoned, back to the marked one (US-0970) @shared [WF-REV-0020-A] [WF-IHM-0080-A] [WF-REV-0090-A] [WF-REV-0010-A]", async ({
+test("a project created, a revision opened, marked by the worker, the designation refused for the lack of tasks, another opened and abandoned, opened again, the code entered, the project left (#1350) @shared [WF-REV-0020-A] [WF-IHM-0080-A] [WF-REV-0090-A] [WF-REV-0010-A] [WF-CYC-0030-A] [WF-CYC-0090-A]", async ({
   page,
 }) => {
   test.skip(!inService, SERVICE_ONLY);
   test.slow();
   const main = page.getByRole("main");
 
-  // Created from the home, its creator its project manager (WF-PRJ-0060). No project is opened
-  // there, nothing witnesses the hydration: the creation is pressed again until React opens its
-  // form, and never once it is open.
-  await page.goto("/");
-  const creation = page.getByRole("dialog", { name: "Créer un projet" });
-  await expect(async () => {
-    if (!(await creation.isVisible())) {
-      await main.getByRole("button", { name: "Créer un projet" }).click();
-    }
-    await expect(creation).toBeVisible({ timeout: 1_000 });
-  }).toPass({ timeout: WORKING });
-  const label = `Cycle des révisions ${randomBytes(4).toString("hex")}`;
-  await creation.getByRole("textbox", { name: "Libellé" }).fill(label);
-  await creation.getByRole("button", { name: "Créer", exact: true }).click();
-  await expect(page).toHaveURL(/\/projects\/[0-9a-f-]{36}$/, { timeout: WORKING });
-  const project = new URL(page.url()).pathname;
-
-  // A revision opened: the screen leads to it.
-  await openHydrated(page, `${project}/revisions`);
-  const commands = main.getByRole("region", { name: "Commandes" });
-  await commands.getByRole("button", { name: "Ouvrir une révision en cours" }).click();
-  await expect(page).toHaveURL(/\?revision_id=[0-9a-f-]{36}$/, { timeout: WORKING });
+  // Created from the home, its creator its project manager (WF-PRJ-0060), and a revision opened:
+  // the screen leads to it.
+  const own = await createOwnProject(page, "Cycle des révisions");
+  await openRevision(page, own);
   const opened = page.url();
+  const commands = main.getByRole("region", { name: "Commandes" });
 
   // Marked: without a version name, refused before anything is asked (WF-REV-0020); named, the
   // hand is back at once, and the tracker follows the task of the worker to its end (WF-IHM-0080).
@@ -154,6 +137,21 @@ test("a project created, a revision opened then marked by the worker, which keep
   const open = commands.getByRole("button", { name: "Ouvrir une révision en cours" });
   await expect(open).not.toHaveAttribute("aria-disabled", "true");
 
+  // The designation of the marked revision is refused for the lack of tasks and lines, and says so
+  // (WF-CYC-0030): pressed from the keyboard, it opens nothing. EP-07 reverses it.
+  const designation = main.getByRole("region", { name: "Désignation de la référence" });
+  const designate = designation
+    .getByRole("listitem")
+    .filter({ hasText: "v1.0" })
+    .getByRole("button", { name: "Désigner comme référence" });
+  await expect(designate).toHaveAttribute("aria-disabled", "true");
+  await expect(designate).toHaveAccessibleDescription(
+    /révision portant au moins une tâche et une ligne de devis/,
+  );
+  await designate.focus();
+  await page.keyboard.press("Enter");
+  await expect(designation.getByRole("form")).toHaveCount(0);
+
   // Another opened, then abandoned, confirmed: the project is back to its last marked revision,
   // which stays marked (WF-REV-0010, WF-REV-0090).
   await open.click();
@@ -163,8 +161,46 @@ test("a project created, a revision opened then marked by the worker, which keep
   await commands.getByRole("button", { name: "Abandonner la révision en cours" }).click();
   const abandon = commands.getByRole("form", { name: "Abandonner la révision en cours" });
   await abandon.getByRole("button", { name: "Confirmer l’abandon" }).click();
-  await expect(page).toHaveURL(`${project}/revisions`, { timeout: WORKING });
+  await expect(page).toHaveURL(`${own.path}/revisions`, { timeout: WORKING });
   await expect(history.getByRole("row")).toHaveCount(2);
   await expect(history.getByRole("row").nth(1)).toContainText("v1.0");
   await expect(history.getByRole("row").nth(1)).toContainText("Marquée");
+
+  // Opened again: a current revision once more, the history counting the marked one and it.
+  await open.click();
+  await expect(page).toHaveURL(/\?revision_id=[0-9a-f-]{36}$/, { timeout: WORKING });
+  await expect(history.getByRole("row")).toHaveCount(3);
+
+  // The code entered on the settings, kept once the page is read anew. Without a reference the
+  // project stays in pricing, and the designation stays refused (WF-CYC-0030-A).
+  await openHydrated(page, `${own.path}/settings`);
+  await main.getByRole("button", { name: "Modifier le projet" }).click();
+  const identity = page.getByRole("dialog", { name: /^Modifier/ });
+  const code = `CYC-${own.label.slice(-4).toUpperCase()}`;
+  await identity.getByRole("textbox", { name: /^Code projet/ }).fill(code);
+  await identity.getByRole("button", { name: "Enregistrer" }).click();
+  await expect(identity).toBeHidden({ timeout: WORKING });
+  await page.reload();
+  await expect(main.getByLabel("Paramètres du projet")).toContainText(code);
+  await openHydrated(page, `${own.path}/lifecycle`);
+  const states = main.getByRole("table", { name: "Historique des états" });
+  await expect(states.getByRole("row")).toHaveCount(3);
+  await expect(states.getByRole("row").last()).toContainText("Chiffrage");
+  await openHydrated(page, `${own.path}/revisions`);
+  await expect(designate).toHaveAttribute("aria-disabled", "true");
+
+  // Left to Lost, from pricing, the current revision abandoned with it (WF-CYC-0090): the project
+  // is terminal and lists no command.
+  await openHydrated(page, `${own.path}/lifecycle`);
+  const lifecycle = main.getByRole("region", { name: "Commandes" });
+  await lifecycle.getByRole("button", { name: "Déclarer le projet perdu" }).click();
+  const exit = lifecycle.getByRole("form", { name: "Déclarer le projet perdu" });
+  await exit.getByRole("radio", { name: /^Abandonner la révision en cours/ }).check();
+  await exit.getByRole("button", { name: "Confirmer la sortie" }).click();
+  // The screen shows the state the service answered; the commands go with it, and with them the
+  // note of the exit.
+  await expect(main.getByRole("img", { name: "Perdu" }).first()).toBeVisible({ timeout: WORKING });
+  await page.reload();
+  await expect(states.getByRole("row").last()).toContainText("Perdu");
+  await expect(lifecycle.getByRole("button")).toHaveCount(0);
 });

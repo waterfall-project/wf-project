@@ -10,9 +10,7 @@ import { randomBytes } from "node:crypto";
 import { type APIRequestContext, type Browser, expect, type Page } from "@playwright/test";
 
 import { openHydrated, WORKING } from "./hydration";
-import { frontToken, type LocalPerson } from "./service/realm";
-
-const API = `${process.env.WATERFALL_API_ADDRESS ?? ""}/api/v1`;
+import { API, frontToken, type LocalPerson } from "./service/realm";
 
 /** What a path keeps of the project it created: the address of its screen, and its label. */
 export interface OwnProject {
