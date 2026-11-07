@@ -49,7 +49,7 @@ la famille `plateforme` en plus de `front`.
 
 | Exigence | Titre | Portée | US |
 |---|---|---|---|
-| `WF-PLA-0040-A` | Hiérarchie des tâches | début — close en EP-06 | US-1240 |
+| `WF-PLA-0040-A` | Hiérarchie des tâches | début — close en EP-08 | US-1240 |
 
 ## Opérations du contrat
 

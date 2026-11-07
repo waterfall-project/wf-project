@@ -51,7 +51,8 @@ La portée dit si l'exigence est entière ici, commencée ici et close par un EP
 close ici après avoir été commencée plus tôt. Chaque exigence n'est close que par un seul EPIC.
 La colonne US se remplit quand l'EPIC passe `prêt`. WF-REF-0130 est commencée par EP-05 et EP-07
 et close ici : son Vérif demande la zone de l'indice de coût d'une révision marquée (cadrage
-d'EP-07, décision de l'auteur du 2026-11-07).
+d'EP-07, décision de l'auteur du 2026-11-07). WF-RAE-0030 est commencée par EP-15 et EP-09 et close
+ici : son Vérif demande la valeur acquise (cadrage d'EP-09, décision de l'auteur du 2026-11-07).
 
 | Exigence | Titre | Portée | US |
 |---|---|---|---|
@@ -59,6 +60,7 @@ d'EP-07, décision de l'auteur du 2026-11-07).
 | `WF-PLA-0130-A` | Attributs d’une tâche | fin — amorcée en EP-06 | — |
 | `WF-PLA-0060-A` | Inscription aux suivis | fin — amorcée en EP-06, EP-15 | — |
 | `WF-RAE-0050-A` | Tâches ajoutées en cours d’exécution | fin — amorcée en EP-09 | — |
+| `WF-RAE-0030-A` | Démarrage d’une tâche | fin — amorcée en EP-15, EP-09 | — |
 | `WF-IND-0010-A` | Date et périmètre de calcul | entière | — |
 | `WF-IND-0020-A` | Granularité des indicateurs | entière | — |
 | `WF-IND-0030-A` | Valeur acquise | début — close en EP-08 | — |

@@ -54,7 +54,10 @@ ici : son Vérif demande le réexamen d'un risque et la déclaration d'une surve
 d'EP-06, décision de l'auteur du 2026-11-07). WF-DEV-0010, WF-DEV-0030, WF-PRJ-0040, WF-DEV-0050,
 WF-REV-0080, WF-INTF-0100, WF-INTF-0090 et WF-REF-0030 sont commencées par EP-07 et closes ici :
 leur Vérif demande une ligne de provision, un différentiel, une fusion ou la déclaration d'un
-risque (cadrage d'EP-07, décision de l'auteur du 2026-11-07).
+risque (cadrage d'EP-07, décision de l'auteur du 2026-11-07). WF-RAE-0010, WF-RAE-0020, WF-PLA-0040,
+WF-PLA-0050, WF-PRJ-0050 et WF-INTF-0120 sont commencées par EP-09 ou avant lui et closes ici : leur
+Vérif demande une ligne de provision, un risque identifié, écarté ou survenu, ou un avenant (cadrage
+d'EP-09, décision de l'auteur du 2026-11-07).
 
 | Exigence | Titre | Portée | US |
 |---|---|---|---|
@@ -74,7 +77,13 @@ risque (cadrage d'EP-07, décision de l'auteur du 2026-11-07).
 | `WF-ADM-0100-A` | Catalogue des permissions | fin — amorcée en EP-03 | — |
 | `WF-IND-0030-A` | Valeur acquise | fin — amorcée en EP-10 | — |
 | `WF-IND-0100-A` | Courbe de coûts cumulés | fin — amorcée en EP-10 | — |
-| `WF-INTF-0010-A` | Usages du chef de projet | fin — amorcée en EP-06, EP-07 | — |
+| `WF-INTF-0010-A` | Usages du chef de projet | fin — amorcée en EP-06, EP-07, EP-09 | — |
+| `WF-RAE-0010-A` | Composition du reste à engager | fin — amorcée en EP-09 | — |
+| `WF-RAE-0020-A` | Indicateurs de reste à engager | fin — amorcée en EP-09 | — |
+| `WF-PLA-0040-A` | Hiérarchie des tâches | fin — amorcée en EP-06, EP-22, EP-09 | — |
+| `WF-PLA-0050-A` | Jalons | fin — amorcée en EP-06, EP-09 | — |
+| `WF-PRJ-0050-A` | Sous-projets | fin — amorcée en EP-15, EP-16, EP-04, EP-09 | — |
+| `WF-INTF-0120-A` | Import du reste à engager (FLX-05) | fin — amorcée en EP-09 | — |
 | `WF-REF-0160-A` | Matrice de risques | fin — amorcée en EP-05 | — |
 | `WF-DEV-0010-A` | Taux horaires requis pour le calcul à la création d’un chiffrage | fin — amorcée en EP-07 | — |
 | `WF-DEV-0030-A` | Calcul du montant d’une ligne | fin — amorcée en EP-07 | — |

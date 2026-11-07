@@ -85,8 +85,8 @@ tâches, des liaisons et des structures sans ligne ; les phrases qui demandent p
 
 | Exigence | Titre | Portée | US |
 |---|---|---|---|
-| `WF-PLA-0040-A` | Hiérarchie des tâches | début — close en EP-09 | US-1380 |
-| `WF-PLA-0050-A` | Jalons | début — close en EP-09 | US-1380 |
+| `WF-PLA-0040-A` | Hiérarchie des tâches | début — close en EP-08 | US-1380 |
+| `WF-PLA-0050-A` | Jalons | début — close en EP-08 | US-1380 |
 | `WF-PLA-0070-A` | Suppression d’une tâche | début — close en EP-09 | US-1380 |
 | `WF-PLA-0170-A` | Rattachement au lotissement | début — close en EP-08 | US-1380, US-1460 |
 | `WF-PLA-0150-A` | Horizon d’un projet | entière | US-1380, US-1430 |
