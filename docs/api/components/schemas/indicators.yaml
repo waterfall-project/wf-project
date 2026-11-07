@@ -1,14 +1,14 @@
-# Indicateurs de projet (FBS-4.8), de devis (FBS-4.4.1) et de reste à engager
-# (FBS-4.5.1). Un indicateur se calcule à une date et pour une maille
-# (WF-IND-0010, WF-IND-0020) ; une grandeur nulle au dénominateur le rend non
-# calculable, jamais zéro ni infini.
+# Project indicators (FBS-4.8), estimate indicators (FBS-4.4.1) and remaining to commit
+# indicators (FBS-4.5.1). An indicator is computed at a date and for a scope
+# (WF-IND-0010, WF-IND-0020); a zero quantity in the denominator makes it not
+# computable, never zero nor infinite.
 
 Computable:
   type: object
   required: [is_computable, value, reason]
   description: >-
-    Enveloppe d'une valeur qui peut être non calculable (WF-IND-0010) : un indicateur, un
-    montant qu'un taux horaire manquant empêche de calculer (WF-DEV-0010).
+    Envelope of a value that may be not computable (WF-IND-0010): an indicator, an
+    amount that a missing hourly rate prevents from being computed (WF-DEV-0010).
   properties:
     is_computable: { type: boolean }
     value:
@@ -16,13 +16,13 @@ Computable:
     reason:
       anyOf: [{ $ref: '#/NotComputableReason' }, { type: 'null' }]
       description: >-
-        Pourquoi la valeur n'est pas calculable, en code que le front rend dans la langue
-        du lecteur (WF-ARC-0110) ; nul pour une valeur calculable.
+        Why the value is not computable, as a code that the front renders in the language
+        of the reader (WF-ARC-0110); null for a computable value.
     params:
       type: object
       description: >-
-        Ce que le motif nomme, quand il nomme quelque chose : `missing_rates`, les catégories
-        et les années sans taux horaire (`hourly_rate_missing`, WF-DEV-0010). Absent sinon.
+        What the reason names, when it names something: `missing_rates`, the categories
+        and the years without an hourly rate (`hourly_rate_missing`, WF-DEV-0010). Absent otherwise.
       properties:
         missing_rates:
           type: array
@@ -33,20 +33,20 @@ ComputableMoney:
   type: object
   required: [is_computable, value, reason]
   description: >-
-    Un montant qui peut être non calculable : la même enveloppe que `Computable`, sa valeur
-    contrainte comme un `Money` — deux décimales au plus, dans la devise de l'installation
-    (WF-REF-0140, WF-DAT-0100). Les ratios, les indices et les parts restent des `Computable`.
+    An amount that may be not computable: the same envelope as `Computable`, its value
+    constrained like a `Money` — at most two decimal places, in the currency of the installation
+    (WF-REF-0140, WF-DAT-0100). Ratios, indices and shares remain `Computable`.
   properties:
     is_computable: { type: boolean }
     value:
       anyOf: [{ $ref: ../common.yaml#/Money }, { type: 'null' }]
     reason:
       anyOf: [{ $ref: '#/NotComputableReason' }, { type: 'null' }]
-      description: Pourquoi le montant n'est pas calculable, en code ; nul pour un montant calculable.
+      description: Why the amount is not computable, as a code; null for a computable amount.
     params:
       type: object
       description: >-
-        Ce que le motif nomme, comme pour `Computable` — `missing_rates` pour
+        What the reason names, as for `Computable` — `missing_rates` for
         `hourly_rate_missing`.
       properties:
         missing_rates:
@@ -58,9 +58,9 @@ MissingRate:
   type: object
   required: [cost_category_id, year]
   description: >-
-    Une catégorie de main-d'œuvre employée par un chiffrage, sans taux horaire pour une
-    année (WF-DEV-0010) : ce que `getMissingRates` liste, et ce qu'un montant non calculable
-    nomme (`Computable.params.missing_rates`).
+    A labour category used by a pricing, without an hourly rate for a
+    year (WF-DEV-0010): what `getMissingRates` lists, and what a non-computable amount
+    names (`Computable.params.missing_rates`).
   properties:
     cost_category_id: { $ref: ../common.yaml#/Uuid }
     label: { type: string }
@@ -69,26 +69,27 @@ MissingRate:
 NotComputableReason:
   type: string
   description: >-
-    Pourquoi une valeur n'est pas calculable : la grandeur nulle à son dénominateur
-    (WF-IND-0010). `no_actual_cost`, l'indice de coût, et la projection au rythme constaté tant
-    qu'il ne se calcule pas (WF-IND-0070, WF-IND-0050) ; `no_earned_value`, la projection au rythme
-    constaté quand l'indice de coût est nul, faute de valeur acquise (WF-IND-0050) ;
-    `no_planned_value`, l'indice de délai (WF-IND-0080) ; `no_reference_budget`, la consommation du
-    budget et l'avancement physique du projet (WF-IND-0040, WF-IND-0060), et la part de gravité d'un
-    risque sur une assiette nulle, un projet sans budget de référence dont le devis ne porte encore
-    que des provisions (`RiskMatrixPoint.severity_ratio`, WF-REF-0160, #1240) ;
-    `no_budgeted_amount`, l'avancement physique d'une récapitulative dont le sous-arbre ne porte
-    aucun montant budgété (WF-IND-0060) ; `no_actual_or_remaining`, l'avancement financier
-    (WF-IND-0040) ; `no_capacity`, le taux de charge d'un rôle (WF-DEV-0070, WF-PTF-0060) ;
-    `no_offer_out_of_pricing`, le taux de transformation d'une période où aucune offre n'est passée
-    de Chiffrage à En cours ou à Perdu, une offre abandonnée ne comptant pas (WF-PTF-0050) ;
-    `no_total`, la part d'un montant dans une répartition dont le total est nul
-    (`AmountByKey.share`, `ComputableAmountByKey.share`, WF-IND-0010 ; #1633). Un motif n'est pas
-    une grandeur nulle : `hourly_rate_missing`, un montant du devis qu'une catégorie de main-d'œuvre
-    sans taux horaire pour l'année de référence empêche de calculer — le calcul est refusé plutôt
-    que fait avec zéro, et `params.missing_rates` nomme les catégories et les années (WF-DEV-0010) ;
-    ni `work_package_without_task`, le total d'un lot du lotissement qu'aucune tâche ne porte : « un
-    lot sans tâche rattachée est présenté sans total » (WF-DEV-0060 ; EP-14/L42s).
+    Why a value is not computable: the zero quantity in its denominator (WF-IND-0010).
+    `no_actual_cost`, the cost index, and the projection at the observed rate as long as it is
+    not computed (WF-IND-0070, WF-IND-0050); `no_earned_value`, the projection at the observed
+    rate when the cost index is zero, for lack of earned value (WF-IND-0050);
+    `no_planned_value`, the schedule index (WF-IND-0080); `no_reference_budget`, the budget
+    consumption and the physical progress of the project (WF-IND-0040, WF-IND-0060), and the
+    severity share of a risk on a zero base, a project without a reference budget whose estimate
+    still carries only provisions (`RiskMatrixPoint.severity_ratio`, WF-REF-0160, #1240);
+    `no_budgeted_amount`, the physical progress of a summary task whose subtree carries no
+    budgeted amount (WF-IND-0060); `no_actual_or_remaining`, the financial progress
+    (WF-IND-0040); `no_capacity`, the load ratio of a role (WF-DEV-0070, WF-PTF-0060);
+    `no_offer_out_of_pricing`, the conversion rate of a period in which no offer moved from
+    Pricing to In progress or to Lost, an abandoned offer not counting (WF-PTF-0050);
+    `no_total`, the share of an amount in a distribution whose total is zero
+    (`AmountByKey.share`, `ComputableAmountByKey.share`, WF-IND-0010; #1633). A reason is not a
+    zero quantity: `hourly_rate_missing`, an amount of the estimate that a labour category
+    without an hourly rate for the reference year prevents from being computed — the computation
+    is refused rather than done with zero, and `params.missing_rates` names the categories and
+    the years (WF-DEV-0010); nor `work_package_without_task`, the total of a work package of the
+    work breakdown that no task carries: "a work package without an attached task is presented
+    without a total" (WF-DEV-0060; EP-14/L42s).
   enum:
     - no_actual_cost
     - no_earned_value
@@ -106,22 +107,22 @@ CalculationContext:
   type: object
   required: [revision_id, revision_status, computed_at, scope, is_stored]
   description: >-
-    Contexte du calcul, que tout écran doit pouvoir afficher (WF-IHM-0020).
+    Context of the computation, which every screen must be able to display (WF-IHM-0020).
   properties:
     revision_id: { $ref: ../common.yaml#/Uuid }
     revision_status: { $ref: revisions.yaml#/RevisionStatus }
     computed_at: { $ref: ../common.yaml#/Timestamp }
     scope:
       type: string
-      description: '`project`, `unassigned`, ou l''identifiant d''un sous-projet (WF-IND-0020).'
+      description: '`project`, `unassigned`, or the identifier of a subproject (WF-IND-0020).'
     is_stored:
       type: boolean
       description: >-
-        Vrai pour ce que le marquage d'une révision a conservé — ses indicateurs et ses courbes,
-        invariables depuis son marquage, sur le coût réel connu alors (WF-DAT-0040,
-        WF-IND-0010) ; faux pour la révision en cours, et pour le calcul au jour courant d'un
-        projet sans révision en cours, sur sa dernière révision marquée avec le coût réel du
-        jour. La zone d'un indice conservé se classe à la lecture (`IndexValue.zone`).
+        True for what the marking of a revision stored — its indicators and its curves,
+        unchanging since its marking, on the actual cost known then (WF-DAT-0040, WF-IND-0010);
+        false for the current revision, and for the computation on the current day of a project
+        without a current revision, on its last marked revision with the actual cost of the day.
+        The zone of a stored index is classified when read (`IndexValue.zone`).
 
 EstimateIndicators:
   type: object
@@ -135,18 +136,18 @@ EstimateIndicators:
     - delta_to_reference
     - delta_to_previous_revision
   description: >-
-    Indicateurs de devis, disponibles dès le chiffrage (WF-DEV-0060, WF-IND-0010). Chaque
-    montant est un `ComputableMoney` : tant qu'une catégorie de main-d'œuvre employée n'a pas de
-    taux horaire pour l'année de référence, les montants qui en dépendent — le total, la
-    nature, le sous-projet et le lot qui portent ses lignes, les écarts, et les parts qui
-    se rapportent au total — ne se calculent pas, motif `hourly_rate_missing`, les catégories
-    et les années nommées par `params.missing_rates` (WF-DEV-0010) ; jamais un budget faux à
-    zéro. Les montants que ces lignes ne touchent pas se calculent. Tous sont des montants
-    réestimés, inflation comprise, à l'année de consommation des lignes (WF-DEV-0020) —
-    `total`, ses ventilations par nature, par sous-projet et par lot, et les deux écarts —,
-    `total` valant le `reestimated_amount` des totaux de la structure ; aucun n'est au montant
-    avant inflation, valeur de lecture de la grille (`NodeTotals.base_amount`, WF-DEV-0050), et
-    la somme des parts vaut cent sur cette seule base (WF-DEV-0060).
+    Estimate indicators, available from the pricing onwards (WF-DEV-0060, WF-IND-0010). Each
+    amount is a `ComputableMoney`: as long as a labour category in use has no hourly rate for
+    the reference year, the amounts that depend on it — the total, the cost type, the subproject
+    and the work package that carry its lines, the differences, and the shares that relate to
+    the total — are not computed, reason `hourly_rate_missing`, the categories and the years
+    named by `params.missing_rates` (WF-DEV-0010); never a budget wrongly at zero. The amounts
+    that these lines do not affect are computed. All are re-estimated amounts, inflation
+    included, at the consumption year of the lines (WF-DEV-0020) — `total`, its breakdowns by
+    cost type, by subproject and by work package, and the two differences —, `total` being equal
+    to the `reestimated_amount` of the totals of the structure; none is at the amount before
+    inflation, a reading value of the grid (`NodeTotals.base_amount`, WF-DEV-0050), and the sum
+    of the shares is one hundred on this basis alone (WF-DEV-0060).
   properties:
     context: { $ref: '#/CalculationContext' }
     total: { $ref: '#/ComputableMoney' }
@@ -161,52 +162,53 @@ EstimateIndicators:
       minItems: 1
       items: { $ref: '#/ComputableAmountByKey' }
       description: >-
-        Chaque lot du lotissement, son niveau 1 (WF-PRJ-0020), dans l'ordre saisi, et son total,
-        lu à travers la tâche, récapitulative ou feuille, qui le porte — le total de son
-        sous-arbre (WF-PLA-0170). « Pour chaque lot du lotissement porté par une tâche rattachée
-        […], il présente le total du sous-arbre de cette tâche ; un lot sans tâche rattachée est
-        présenté sans total » (WF-DEV-0060) : son montant et sa part ne se calculent pas, motif
-        `work_package_without_task` — absents plutôt que nuls, comme le veut le Vérif. Jamais
-        vide : un projet sans lotissement saisi en a un par défaut, d'un lot (EP-14/L42s). Les
-        indicateurs conservés d'une révision marquée rendent les lots de son marquage, tels
-        qu'elle les a figés (WF-DAT-0040), un lot marqué supprimé depuis compris (WF-DAT-0080).
+        Each work package of the work breakdown, its level 1 (WF-PRJ-0020), in the order
+        entered, and its total, read through the task, summary or leaf, that carries it — the
+        total of its subtree (WF-PLA-0170). "For each work package of the work breakdown carried
+        by an attached task […], it presents the total of the subtree of that task; a work
+        package without an attached task is presented without a total" (WF-DEV-0060): its amount
+        and its share are not computed, reason `work_package_without_task` — absent rather than
+        zero, as the Vérif requires. Never empty: a project without an entered work breakdown
+        has one by default, of one work package (EP-14/L42s). The stored indicators of a marked
+        revision return the work packages of its marking, as it froze them (WF-DAT-0040),
+        including a marked work package deleted since (WF-DAT-0080).
     provisions_identified: { $ref: ../common.yaml#/Money }
     delta_to_reference:
       anyOf: [{ $ref: '#/ComputableMoney' }, { type: 'null' }]
       description: >-
-        L'écart entre le total du devis de la révision lue (`context.revision_id`) et celui de
-        la révision de référence, lignes de provision comprises de part et d'autre
-        (WF-DEV-0060) : le devis lu moins celui de la référence, positif quand il le dépasse ;
-        nul quand le projet n'a pas de révision de référence.
+        The difference between the estimate total of the revision read (`context.revision_id`)
+        and that of the reference revision, provision lines included on both sides
+        (WF-DEV-0060): the estimate read minus that of the reference, positive when it exceeds
+        it; null when the project has no reference revision.
     delta_to_previous_revision:
       anyOf: [{ $ref: '#/ComputableMoney' }, { type: 'null' }]
       description: >-
-        L'écart avec la révision marquée précédente : le devis en cours moins le sien, positif
-        quand il le dépasse ; nul sans elle.
+        The difference with the previous marked revision: the current estimate minus its own,
+        positive when it exceeds it; null without it.
 
 ComputableAmountByKey:
   type: object
   required: [key, label, amount, share]
   description: >-
-    Un montant par clé — nature de coût, sous-projet, lot —, qui peut ne pas se calculer
-    (`hourly_rate_missing` ; pour un lot qu'aucune tâche ne porte, `work_package_without_task`),
-    et sa part du total, toujours rendue : elle ne se calcule pas sans le montant, ni sur un
-    total nul (`no_total`).
+    An amount per key — cost type, subproject, work package —, which may not be computed
+    (`hourly_rate_missing`; for a work package that no task carries, `work_package_without_task`),
+    and its share of the total, always returned: it is not computed without the amount, nor on a
+    zero total (`no_total`).
   properties:
     key: { type: string }
     label:
       anyOf: [{ type: string }, { type: 'null' }]
       description: >-
-        Le libellé de la clé, résolu à la lecture ; nul pour la seule clé `unassigned`, que le
-        front nomme (`AmountByKey.label` ; G-03, #1780).
+        The label of the key, resolved when read; null for the `unassigned` key alone, which the
+        front names (`AmountByKey.label`; G-03, #1780).
     amount: { $ref: '#/ComputableMoney' }
     share:
       allOf: [{ $ref: '#/Computable' }]
       description: >-
-        Le montant sur le total, à quatre décimales, jamais nul quand le montant ne l'est pas,
-        non calculable sur un total nul (`no_total`, WF-IND-0010) ;
-        les parts d'une répartition — par nature, par sous-projet — somment à 1, la plus grande
-        portant le reste des arrondis, celles des lots non (README, « Une part… »).
+        The amount over the total, to four decimal places, never zero when the amount is not,
+        not computable on a zero total (`no_total`, WF-IND-0010); the shares of a distribution —
+        by cost type, by subproject — sum to 1, the largest carrying the remainder of the
+        roundings, those of the work packages do not (README, "A share…").
 
 RemainingIndicators:
   type: object
@@ -219,28 +221,29 @@ RemainingIndicators:
     - delta_to_reference
     - delta_to_previous_revision
   description: >-
-    Indicateurs de reste à engager (WF-RAE-0020, WF-RAE-0010) : le total, lignes de provision des
-    risques identifiés comprises, ses ventilations, ses écarts et la couverture des risques. Chaque
-    montant du reste à engager et du budget est inflation comprise, à l'année de consommation
-    courante des lignes, comme le montant réestimé dont il est la somme, et le budget de référence
-    auquel la marge le compare (WF-DEV-0020) ; une ligne de provision n'est pas projetée
-    (WF-DEV-0030). Une ligne d'une tâche non terminée compte pour son montant réestimé, que sa tâche
-    soit démarrée ou non et qu'elle ait été réestimée ou non : faute de réestimation, il se calcule
-    depuis les grandeurs de la référence, aux taux conservés par la révision courante et sur son
-    année de consommation courante (WF-RAE-0010, `EstimateLineFacet.reestimated_amount`) ; une ligne
-    d'une tâche terminée ne compte pas. Le reste à engager parle de marge, au budget de référence
-    (`delta_to_reference`) comme à celui d'un sous-projet (`SubprojectBalance.variance`) : le budget
-    moins la somme du coût réel et du reste à engager, positive quand il en reste, négative au-delà
-    du budget — le sens de l'écart de couverture des risques
-    (`RiskCoverageTotals.coverage_variance`), qui garde son nom de la spécification. Le portefeuille
-    et les projections parlent d'écart, positif au-delà du budget
+    Remaining to commit indicators (WF-RAE-0020, WF-RAE-0010): the total, provision lines of the
+    identified risks included, its breakdowns, its differences and the risk coverage. Each
+    amount of the remaining to commit and of the budget is inflation included, at the current
+    consumption year of the lines, like the re-estimated amount of which it is the sum, and the
+    reference budget to which the margin compares it (WF-DEV-0020); a provision line is not
+    projected (WF-DEV-0030). A line of a task not completed counts for its re-estimated amount,
+    whether its task is started or not and whether it has been re-estimated or not: without
+    re-estimation, it is computed from the quantities of the reference, at the rates stored by
+    the current revision and on its current consumption year (WF-RAE-0010,
+    `EstimateLineFacet.reestimated_amount`); a line of a completed task does not count. The
+    remaining to commit speaks of margin, against the reference budget (`delta_to_reference`) as
+    against that of a subproject (`SubprojectBalance.variance`): the budget minus the sum of the
+    actual cost and the remaining to commit, positive when some is left, negative beyond the
+    budget — the direction of the risk coverage variance
+    (`RiskCoverageTotals.coverage_variance`), which keeps its name from the specification. The
+    portfolio and the projections speak of variance, positive beyond the budget
     (`PortfolioProjectRow.delta_to_reference`, `Projections`).
   properties:
     context: { $ref: '#/CalculationContext' }
     total: { $ref: ../common.yaml#/Money }
     coverage:
       allOf: [{ $ref: risks.yaml#/RiskCoverageTotals }]
-      description: La couverture des risques à la date de calcul (WF-RAE-0020, WF-RIS-0050).
+      description: The risk coverage at the computation date (WF-RAE-0020, WF-RIS-0050).
     by_cost_type:
       type: array
       items: { $ref: '#/AmountByKey' }
@@ -250,48 +253,49 @@ RemainingIndicators:
     delta_to_reference:
       anyOf: [{ $ref: ../common.yaml#/Money }, { type: 'null' }]
       description: >-
-        La marge sur le budget de référence (WF-RAE-0020) : le budget de référence moins la
-        somme du coût réel et du reste à engager, positive quand il en reste, négative quand le
-        projet dépasse son budget — budget 1 000, coût réel 500, reste à engager 550, marge
-        -50 ; nulle quand le projet n'a pas de révision de référence.
+        The margin on the reference budget (WF-RAE-0020): the reference budget minus the sum of
+        the actual cost and the remaining to commit, positive when some is left, negative when
+        the project exceeds its budget — budget 1,000, actual cost 500, remaining to commit 550,
+        margin -50; null when the project has no reference revision.
     delta_to_previous_revision:
       anyOf: [{ $ref: ../common.yaml#/Money }, { type: 'null' }]
       description: >-
-        L'écart avec le reste à engager de la révision marquée précédente qui l'a été à l'état
-        En cours, à son marquage (WF-RAE-0020) : ce que cette revue a changé, le reste à engager
-        courant moins le sien, négatif quand il a diminué ; nul (`null`), et non zéro, quand
-        aucune révision n'a été marquée à l'état En cours avant celle qui est lue — une offre
-        marquée en chiffrage n'est pas une revue — : l'écran l'omet alors (WF-RAE-0020).
+        The difference with the remaining to commit of the previous marked revision that was
+        marked in the In progress state, at its marking (WF-RAE-0020): what that review changed,
+        the current remaining to commit minus its own, negative when it has decreased; null
+        (`null`), and not zero, when no revision was marked in the In progress state before the
+        one read — an offer marked during pricing is not a review —: the screen then omits it
+        (WF-RAE-0020).
 
 SubprojectBalance:
   type: object
   required: [key, budget, actual_cost, remaining, variance, is_over_budget, zone]
   description: >-
-    Marge entre le budget d'un sous-projet et la somme de son coût réel et de son
-    reste à engager (WF-RAE-0020). `unassigned` désigne l'ensemble « hors
-    sous-projet » (WF-IND-0020). Le serveur classe le dépassement dans l'échelle commune
-    des signalements (`zone`, WF-IHM-0070) : le front n'en déduit aucune zone.
+    Margin between the budget of a subproject and the sum of its actual cost and its
+    remaining to commit (WF-RAE-0020). `unassigned` designates the "out of any
+    subproject" set (WF-IND-0020). The server classifies the overrun on the common scale
+    of signals (`zone`, WF-IHM-0070): the front deduces no zone from it.
   properties:
     key: { type: string }
     label: { type: string }
     budget:
       allOf: [{ $ref: ../common.yaml#/Money }]
       description: >-
-        Le budget de référence du sous-projet : la somme des montants budgétés des lignes qui lui
-        appartiennent dans la révision de référence, hors lignes de provision (WF-IND-0020).
+        The reference budget of the subproject: the sum of the budgeted amounts of the lines that
+        belong to it in the reference revision, excluding provision lines (WF-IND-0020).
     actual_cost: { $ref: ../common.yaml#/Money }
     remaining:
       allOf: [{ $ref: ../common.yaml#/Money }]
       description: >-
-        Le reste à engager des lignes qui lui appartiennent dans la révision courante
-        (WF-IND-0020) : une ligne passée d'un sous-projet à un autre après la référence compte
-        son budget dans le premier, son reste à engager dans le second.
+        The remaining to commit of the lines that belong to it in the current revision
+        (WF-IND-0020): a line moved from one subproject to another after the reference counts
+        its budget in the first, its remaining to commit in the second.
     variance:
       allOf: [{ $ref: ../common.yaml#/Money }]
       description: >-
-        La marge du sous-projet : son budget moins la somme de son coût réel et de son reste à
-        engager, positive quand il en reste, négative quand le sous-projet dépasse son budget
-        (WF-RAE-0020) — le sens de `RemainingIndicators.delta_to_reference`.
+        The margin of the subproject: its budget minus the sum of its actual cost and its
+        remaining to commit, positive when some is left, negative when the subproject exceeds
+        its budget (WF-RAE-0020) — the direction of `RemainingIndicators.delta_to_reference`.
     is_over_budget: { type: boolean }
     zone: { $ref: reference.yaml#/AlertZone }
 
@@ -303,16 +307,16 @@ AmountByKey:
     label:
       anyOf: [{ type: string }, { type: 'null' }]
       description: >-
-        Le libellé de la clé, résolu à la lecture ; nul pour la seule clé `unassigned`, que le
-        front nomme dans la langue du lecteur, comme `IndexHistoryScope.label` (G-03, #1780).
+        The label of the key, resolved when read; null for the `unassigned` key alone, which the
+        front names in the language of the reader, like `IndexHistoryScope.label` (G-03, #1780).
     amount: { $ref: ../common.yaml#/Money }
     share:
       allOf: [{ $ref: '#/Computable' }]
       description: >-
-        Le montant sur le total, à quatre décimales, jamais nul quand le montant ne l'est pas,
-        les parts d'une répartition sommant à 1, la plus grande portant le reste des arrondis
-        (README, « Une part… ») : un quotient calculé, non un pourcentage conservé (`Percent`) ;
-        toujours rendue, non calculable sur un total nul (`no_total`, WF-IND-0010).
+        The amount over the total, to four decimal places, never zero when the amount is not,
+        the shares of a distribution summing to 1, the largest carrying the remainder of the
+        roundings (README, "A share…"): a computed quotient, not a stored percentage
+        (`Percent`); always returned, not computable on a zero total (`no_total`, WF-IND-0010).
 
 ProjectIndicators:
   type: object
@@ -332,37 +336,37 @@ ProjectIndicators:
     - schedule_variance
     - projections
   description: >-
-    Les indicateurs de valeur acquise. Calculés à partir de l'état En cours
-    seulement ; avant, seuls les indicateurs de devis existent (WF-IND-0010).
+    The earned value indicators. Computed from the In progress state
+    only; before it, only the estimate indicators exist (WF-IND-0010).
   properties:
     context: { $ref: '#/CalculationContext' }
     reference_budget: { $ref: ../common.yaml#/Money }
     planned_value:
       allOf: [{ $ref: ../common.yaml#/Money }]
       description: >-
-        Lignes comptées au budget de référence, chacune étalée sur la durée de sa tâche telle
-        que la révision de référence la date, au prorata des heures travaillées — du calendrier
-        de son rôle pour une ligne de main-d'œuvre, du calendrier applicable de la tâche sinon
+        Lines counted in the reference budget, each spread over the duration of its task as
+        the reference revision dates it, in proportion to the working hours — of the calendar
+        of its role for a labour line, of the applicable calendar of the task otherwise
         (WF-DEV-0080).
     earned_value:
       allOf: [{ $ref: ../common.yaml#/Money }]
       description: >-
-        Montants budgétés des lignes des tâches terminées à la date de calcul, hors lignes de
-        provision, la date de terminaison faisant foi ; les lignes propres d'une récapitulative
-        s'acquièrent quand elle est terminée, et celles issues d'un risque survenu ne s'acquièrent
-        pas (WF-IND-0030).
+        Budgeted amounts of the lines of the tasks completed at the computation date, excluding
+        provision lines, the completion date being authoritative; the own lines of a summary task
+        are earned when it is completed, and those coming from an occurred risk are not
+        earned (WF-IND-0030).
     actual_cost:
       allOf: [{ $ref: ../common.yaml#/Money }]
       description: >-
-        Lignes du périmètre suivi dont la date de pièce est antérieure ou égale à la date de
-        calcul (WF-IND-0010).
+        Lines of the tracked scope whose document date is earlier than or equal to the computation
+        date (WF-IND-0010).
     remaining: { $ref: ../common.yaml#/Money }
     financial_progress:
       allOf: [{ $ref: '#/Computable' }]
       description: >-
-        Rapport du coût réel à la somme du coût réel et du reste à engager ; non
-        calculable lorsque les deux sont nuls (WF-IND-0040). À quatre décimales, comme la
-        consommation du budget et l'avancement physique (README, « Une part… »).
+        Ratio of the actual cost to the sum of the actual cost and the remaining to commit; not
+        computable when both are zero (WF-IND-0040). To four decimal places, like the
+        budget consumption and the physical progress (README, "A share…").
     budget_consumption: { $ref: '#/Computable' }
     physical_progress: { $ref: '#/Computable' }
     cost_index: { $ref: '#/IndexValue' }
@@ -370,35 +374,35 @@ ProjectIndicators:
     cost_variance:
       allOf: [{ $ref: ../common.yaml#/Money }]
       description: >-
-        L'écart de coût : la valeur acquise moins le coût réel, positif quand le travail fait a
-        coûté moins que son budget, négatif au-delà — une valeur acquise de 400 pour un coût réel
-        de 500 donne -100 (WF-IND-0070, glossaire).
+        The cost variance: the earned value minus the actual cost, positive when the work done has
+        cost less than its budget, negative beyond — an earned value of 400 for an actual cost
+        of 500 gives -100 (WF-IND-0070, glossary).
     schedule_variance:
       allOf: [{ $ref: ../common.yaml#/Money }]
       description: >-
-        L'écart de délai : la valeur acquise moins la valeur planifiée, positif en avance,
-        négatif en retard — une valeur acquise de 400 pour une valeur planifiée de 500 donne -100
-        (WF-IND-0080, glossaire).
+        The schedule variance: the earned value minus the planned value, positive when ahead,
+        negative when behind — an earned value of 400 for a planned value of 500 gives -100
+        (WF-IND-0080, glossary).
     projections: { $ref: '#/Projections' }
 
 IndexValue:
   type: object
   required: [value, zone]
-  description: Indice et sa zone d'après les seuils du référentiel (WF-IND-0070, WF-IND-0080, WF-REF-0170).
+  description: Index and its zone according to the thresholds of the reference data (WF-IND-0070, WF-IND-0080, WF-REF-0170).
   properties:
     value:
       allOf: [{ $ref: '#/Computable' }]
       description: >-
-        L'indice, rapport de deux grandeurs, à quatre décimales (README, « Une part… »).
+        The index, ratio of two quantities, to four decimal places (README, "A share…").
     zone:
       anyOf: [{ $ref: reference.yaml#/AlertZone }, { type: 'null' }]
       description: >-
-        La zone de l'indice, classée par le serveur à la lecture d'après les seuils courants du
-        référentiel : supérieur ou égal au seuil de vigilance, nominal ; inférieur à lui et
-        supérieur ou égal au seuil d'alerte, en vigilance ; inférieur au seuil d'alerte, en alerte
-        — aux seuils 0,9 et 0,8, un indice de 0,9 est nominal, un de 0,8 en vigilance
-        (WF-REF-0170). Un indice conservé l'est aussi : sa valeur ne change pas, sa zone peut
-        changer avec les seuils (WF-REF-0130). Nulle quand l'indice ne se calcule pas.
+        The zone of the index, classified by the server when read according to the current
+        thresholds of the reference data: greater than or equal to the watch threshold, nominal;
+        below it and greater than or equal to the alert threshold, watch; below the alert
+        threshold, alert — at thresholds 0.9 and 0.8, an index of 0.9 is nominal, one of 0.8 is
+        in watch (WF-REF-0170). A stored index is classified too: its value does not change, its
+        zone may change with the thresholds (WF-REF-0130). Null when the index is not computed.
 
 Projections:
   type: object
@@ -410,8 +414,8 @@ Projections:
     - variance_project_manager
     - variance_at_observed_rate
   description: >-
-    Les trois projections à terminaison, nommées par leur hypothèse sur le travail
-    restant, présentées ensemble avec leur écart au budget (WF-IND-0050).
+    The three projections at completion, named by their assumption about the remaining
+    work, presented together with their variance from the budget (WF-IND-0050).
   properties:
     at_budget: { $ref: ../common.yaml#/Money }
     project_manager: { $ref: ../common.yaml#/Money }
@@ -419,64 +423,64 @@ Projections:
     variance_at_budget:
       allOf: [{ $ref: ../common.yaml#/Money }]
       description: >-
-        La projection moins le budget de référence, positive quand elle le dépasse
-        (WF-IND-0050), au sens de `PortfolioProjectRow.delta_to_reference`.
+        The projection minus the reference budget, positive when it exceeds it
+        (WF-IND-0050), in the sense of `PortfolioProjectRow.delta_to_reference`.
     variance_project_manager:
       allOf: [{ $ref: ../common.yaml#/Money }]
       description: >-
-        La projection moins le budget de référence, positive quand elle le dépasse
-        (WF-IND-0050), au sens de `PortfolioProjectRow.delta_to_reference`.
+        The projection minus the reference budget, positive when it exceeds it
+        (WF-IND-0050), in the sense of `PortfolioProjectRow.delta_to_reference`.
     variance_at_observed_rate:
       anyOf: [{ $ref: ../common.yaml#/Money }, { type: 'null' }]
       description: >-
-        La projection moins le budget de référence, positive quand elle le dépasse
-        (WF-IND-0050), au sens de `PortfolioProjectRow.delta_to_reference` ; nulle tant que la
-        projection au rythme constaté ne se calcule pas.
+        The projection minus the reference budget, positive when it exceeds it
+        (WF-IND-0050), in the sense of `PortfolioProjectRow.delta_to_reference`; null as long as the
+        projection at the observed rate is not computed.
 
 WorkloadPlan:
   type: object
   required: [context, basis, org_node_id, org_node_label, monthly_totals, roles]
   description: >-
-    Plan de charge par rôle et par mois, en heures : la charge d'une ligne est répartie sur la
-    durée de sa tâche au prorata des heures travaillées du calendrier de son rôle. Sur une base
-    de reste à engager — une révision marquée pour sa charge réestimée (`marked_remaining`) ou la
-    révision en cours (`current_remaining`) —, la charge restante de chaque ligne d'une tâche non
-    terminée l'est sur la seule part de la durée de sa tâche postérieure à la date de calcul
-    (`context.computed_at`, la date de marquage pour une révision marquée), et portée au mois de
-    la date de calcul quand la fin de la tâche est dépassée : une tâche non démarrée dont la date
-    de début est antérieure à la date de calcul ne présente aucune charge sur les mois écoulés ;
-    une tâche terminée n'en présente aucune (WF-DEV-0070, WF-IND-0010).
+    Workload by role and by month, in hours: the load of a line is spread over the
+    duration of its task in proportion to the working hours of the calendar of its role. On a basis
+    of remaining to commit — a marked revision for its re-estimated load (`marked_remaining`) or the
+    current revision (`current_remaining`) —, the remaining load of each line of a task not
+    completed is spread over only the part of the duration of its task after the computation date
+    (`context.computed_at`, the marking date for a marked revision), and carried to the month of
+    the computation date when the end of the task is past: a not started task whose start
+    date is earlier than the computation date presents no load on the elapsed months;
+    a completed task presents none (WF-DEV-0070, WF-IND-0010).
   properties:
     context: { $ref: '#/CalculationContext' }
     basis:
       type: string
       enum: [reference_budget, marked_remaining, current_remaining]
       description: >-
-        La base retenue : la charge de la révision de référence, la charge réestimée d'une
-        révision marquée, ou celle de la révision en cours (WF-DEV-0070). `context.revision_id`
-        nomme la révision lue.
+        The basis used: the load of the reference revision, the re-estimated load of a
+        marked revision, or that of the current revision (WF-DEV-0070). `context.revision_id`
+        names the revision read.
     org_node_id:
       anyOf: [{ $ref: ../common.yaml#/Uuid }, { type: 'null' }]
       description: >-
-        Le nœud d'organisation retenu par le filtre (`org_node_id` de `getProjectWorkload`),
-        nul sans filtre (WF-DEV-0070).
+        The organisation node selected by the filter (`org_node_id` of `getProjectWorkload`),
+        null without a filter (WF-DEV-0070).
     org_node_label:
       anyOf:
         - { type: string, minLength: 1, maxLength: 200 }
         - type: 'null'
       description: >-
-        Le libellé du nœud retenu, résolu à la lecture, qu'il soit actif ou désactivé
-        (WF-REF-0150), que l'en-tête du plan de charge nomme sans lire l'arbre d'organisation
-        (WF-ARC-0020) ; nul sans nœud.
+        The label of the selected node, resolved when read, whether it is active or deactivated
+        (WF-REF-0150), which the header of the workload names without reading the organisation tree
+        (WF-ARC-0020); null without a node.
     monthly_totals:
       type: array
       description: >-
-        Le total des heures de chaque mois du plan, la somme des heures des rôles retenus ce
-        mois-là, que le sommet de la barre du mois porte, sans que le front somme les rôles
-        (WF-DEV-0070, WF-ARC-0020, #1247) : du premier au dernier mois qu'un rôle charge,
-        croissants et sans trou, un mois sans charge compris à zéro, chacun nommant son mois
-        comme les mois d'un rôle (`roles[].months`) et comme `PortfolioWorkload.monthly_totals` ;
-        vide quand aucun rôle n'a de charge.
+        The total hours of each month of the plan, the sum of the hours of the roles selected that
+        month, which the top of the month's bar carries, without the front summing the roles
+        (WF-DEV-0070, WF-ARC-0020, #1247): from the first to the last month that a role loads,
+        ascending and without gaps, a month without load included at zero, each naming its month
+        like the months of a role (`roles[].months`) and like `PortfolioWorkload.monthly_totals`;
+        empty when no role has any load.
       items:
         type: object
         required: [month, hours]
@@ -507,20 +511,21 @@ WorkloadZone:
   type: string
   enum: [nominal, alert]
   description: >-
-    Zone d'un mois du plan de charge d'un projet : en alerte, quand ses heures dépassent la
-    capacité du rôle ; nominal sinon. Jamais en vigilance : la vigilance du plan de charge est la
-    sous-charge, un taux de charge sous le seuil que l'utilisateur choisit (WF-PTF-0060), et le
-    plan d'un projet ne présente pas de taux de charge, la capacité étant celle de toute
-    l'installation (WF-DEV-0070) ; le plan agrégé du portefeuille le porte (`PortfolioWorkload`).
-    Ses valeurs sont celles d'`AlertZone`, et le front les dit de même (WF-IHM-0070).
+    Zone of a month of the workload of a project: alert, when its hours exceed the capacity of
+    the role; nominal otherwise. Never watch: the watch of the workload is under-load, a load
+    ratio below the threshold that the user chooses (WF-PTF-0060), and the plan of a project
+    does not present a load ratio, the capacity being that of the whole installation
+    (WF-DEV-0070); the aggregated workload of the portfolio carries it (`PortfolioWorkload`).
+    Its values are those of `AlertZone`, and the front expresses them the same way
+    (WF-IHM-0070).
 
 MilestoneTracking:
   type: object
   required: [context, milestones]
   description: >-
-    Diagramme temps/temps : pour chaque jalon inscrit, la date que chaque révision marquée à
-    l'état En cours prévoyait, en fonction de sa date de marquage ; les révisions marquées avant
-    l'état En cours ne donnent aucun point (WF-IND-0090).
+    Time/time diagram: for each tracked milestone, the date that each revision marked in
+    the In progress state forecast, as a function of its marking date; the revisions marked before
+    the In progress state give no point (WF-IND-0090).
   properties:
     context: { $ref: '#/CalculationContext' }
     milestones:
@@ -533,16 +538,16 @@ MilestoneTracking:
           label: { type: string }
           completed_on:
             anyOf: [{ $ref: ../common.yaml#/PlanningDate }, { type: 'null' }]
-            description: La date de terminaison du jalon ; nulle tant qu'il n'est pas terminé.
+            description: The completion date of the milestone; null as long as it is not completed.
           points:
             type: array
             description: >-
-              Un point par révision marquée à l'état En cours, à sa date de marquage, jusqu'à la
-              terminaison du jalon — le dernier point d'un jalon terminé est à sa date de
-              terminaison, en abscisse comme en ordonnée, et aucune révision marquée ensuite n'en
-              ajoute — ; puis, pour un jalon non terminé, le point du jour courant, que fournit la
-              révision en cours ou, à défaut, la dernière révision marquée (WF-IND-0090,
-              WF-IND-0010).
+              One point per revision marked in the In progress state, at its marking date, up to
+              the completion of the milestone — the last point of a completed milestone is at
+              its completion date, on the x-axis as on the y-axis, and no revision marked
+              afterwards adds one —; then, for a milestone not completed, the point of the
+              current day, provided by the current revision or, failing that, the last marked
+              revision (WF-IND-0090, WF-IND-0010).
             items:
               type: object
               required: [marked_at, forecast_date]
@@ -550,43 +555,42 @@ MilestoneTracking:
                 marked_at:
                   allOf: [{ $ref: ../common.yaml#/Timestamp }]
                   description: >-
-                    L'abscisse du point : la date de marquage de sa révision, la terminaison du
-                    jalon — à minuit, la date de terminaison n'ayant pas d'heure —, ou l'instant
-                    du calcul pour le point du jour courant.
+                    The x-coordinate of the point: the marking date of its revision, the
+                    completion of the milestone — at midnight, the completion date having no
+                    time —, or the instant of the computation for the point of the current day.
                 forecast_date:
                   allOf: [{ $ref: ../common.yaml#/PlanningDate }]
                   description: >-
-                    L'ordonnée : la date que la révision prévoyait pour le jalon, ou sa date de
-                    terminaison pour le dernier point d'un jalon terminé.
+                    The y-coordinate: the date that the revision forecast for the milestone, or its
+                    completion date for the last point of a completed milestone.
 
 CurveSeries:
   type: object
   required: [context, payment_delays, series, steps, cash_out_by_month]
   description: >-
-    Séries cumulées au pas du mois, chaque point portant le cumul à la fin du mois
-    (WF-IND-0100, WF-IND-0110) : la première, à la fin du mois qui précède le premier montant
-    — ou celui de la marche d'avenant, si elle est plus ancienne —, nulle ; la date de calcul
-    est un point de plus sur les séries qui s'y arrêtent ou en partent (`actual_cost`,
-    `earned_value`, `project_manager_projection`), et une marche d'avenant deux points à sa
-    date, avant et après (`steps`). Les changements du budget de référence y apparaissent
-    comme des marches datées. Les courbes d'une révision marquée sont conservées avec ses
-    indicateurs et présentées au même pas (WF-DAT-0040). Demandée avec
-    les délais de paiement, la courbe de coûts cumulés porte les décaissements : ses
-    séries sont décalées, et `cash_out_by_month` les détaille par mois. Une série sans point
-    n'a rien à tracer pour la maille (WF-IND-0020) : le budget de référence, quand aucune
-    référence n'y budgète de ligne ; toutes les séries, quand la maille n'a ni ligne ni coût
-    réel, comme le dit `getCostCurve`. Le coût réel d'une maille qui a des lignes sans pièce
-    reste tracé, nul, de l'origine de la courbe à la date de calcul. L'écran dit une série sans
-    point plutôt que de tracer un zéro.
+    Cumulative series at a monthly step, each point carrying the cumulative total at the end of
+    the month (WF-IND-0100, WF-IND-0110): the first, at the end of the month preceding the first
+    amount — or that of the amendment step, if it is earlier —, zero; the computation date is
+    one more point on the series that stop or start there (`actual_cost`, `earned_value`,
+    `project_manager_projection`), and an amendment step two points at its date, before and
+    after (`steps`). The changes of the reference budget appear in them as dated steps. The
+    curves of a marked revision are stored with its indicators and presented at the same step
+    (WF-DAT-0040). Requested with the payment delays, the cumulative cost curve carries the
+    disbursements: its series are shifted, and `cash_out_by_month` details them by month. A
+    series without points has nothing to plot for the scope (WF-IND-0020): the reference budget,
+    when no reference budgets a line in it; all the series, when the scope has neither a line
+    nor an actual cost, as `getCostCurve` states. The actual cost of a scope that has lines
+    without a document remains plotted, at zero, from the origin of the curve to the computation
+    date. The screen states a series without points rather than plotting a zero.
   properties:
     context: { $ref: '#/CalculationContext' }
     payment_delays:
       type: boolean
       description: >-
-        Vrai quand les séries sont celles des décaissements : le budget de référence et la
-        projection décalés, chaque montant du délai de paiement de sa ligne, les provisions des
-        risques identifiés, qui n'en portent pas, à la date de la tâche qui les porte ; le coût
-        réel n'est pas décalé (WF-IND-0100). Faux sinon.
+        True when the series are those of the disbursements: the reference budget and the
+        projection shifted, each amount by the payment delay of its line, the provisions of the
+        identified risks, which carry none, at the date of the task that carries them; the actual
+        cost is not shifted (WF-IND-0100). False otherwise.
     series:
       type: array
       items:
@@ -612,9 +616,9 @@ CurveSeries:
     steps:
       type: array
       description: >-
-        Marches du budget de référence, datées et motivées : seuls les avenants le
-        déplacent (WF-IND-0100, WF-RIS-0050). Toujours rendu, vide quand aucune marche ne tombe
-        dans la courbe lue (`cost_curve_subproject_empty` ; G-03, #1780).
+        Steps of the reference budget, dated and with their cause: only amendments
+        move it (WF-IND-0100, WF-RIS-0050). Always returned, empty when no step falls
+        within the curve read (`cost_curve_subproject_empty`; G-03, #1780).
       items:
         type: object
         required: [date, amount, cause]
@@ -623,10 +627,10 @@ CurveSeries:
           amount:
             allOf: [{ $ref: ../common.yaml#/Money }]
             description: >-
-              Le montant de la marche, signé : ce dont le budget de référence change à sa
-              date — l'avenant contractualisé, seul événement qui le déplace (WF-REV-0040,
-              WF-RIS-0050) —, pas le budget après elle, que porte la série
-              `reference_budget`.
+              The amount of the step, signed: by how much the reference budget changes at its
+              date — the contracted amendment, the only event that moves it (WF-REV-0040,
+              WF-RIS-0050) —, not the budget after it, which the series
+              `reference_budget` carries.
           cause:
             type: string
             enum: [amendment]
@@ -636,22 +640,22 @@ CurveSeries:
           items: { $ref: '#/CashOutMonth' }
         - type: 'null'
       description: >-
-        Les décaissements par mois, rendus quand `payment_delays` est vrai : le passé par mois
-        de date de pièce — le coût réel n'est pas décalé — ; l'avenir en étalant le reste à
-        engager de chaque ligne, au prorata des heures travaillées, sur la part de la durée de sa
-        tâche postérieure à la date de calcul, porté entier à la date de calcul quand la fin de la
-        tâche est dépassée, chaque part décalée du délai de paiement de sa ligne, et les
-        provisions des risques identifiés à la date de leur tâche (WF-IND-0100, WF-RAE-0040).
-        Nul sinon.
+        The disbursements by month, returned when `payment_delays` is true: the past by month of
+        document date — the actual cost is not shifted —; the future by spreading the remaining
+        to commit of each line, in proportion to the working hours, over the part of the
+        duration of its task after the computation date, carried whole to the computation date
+        when the end of the task is past, each part shifted by the payment delay of its line,
+        and the provisions of the identified risks at the date of their task (WF-IND-0100,
+        WF-RAE-0040). Null otherwise.
 
 CashOutMonth:
   type: object
   required: [month, past, forecast]
   description: >-
-    Un mois de décaissements : ce qui a été décaissé, et ce qui le sera. Un mois qui
-    précède celui de la date de calcul ne porte que le passé, un mois qui le suit que
-    l'avenir, l'autre montant nul ; le mois de la date de calcul porte les deux — le
-    décaissé jusqu'à elle, le reste à décaisser après (WF-IND-0100, WF-PTF-0100).
+    A month of disbursements: what has been disbursed, and what will be. A month that
+    precedes that of the computation date carries only the past, a month that follows it only
+    the future, the other amount zero; the month of the computation date carries both — the
+    amount disbursed up to it, the remainder to disburse after (WF-IND-0100, WF-PTF-0100).
   properties:
     month: { type: string, pattern: '^\d{4}-(0[1-9]|1[0-2])$' }
     past: { $ref: ../common.yaml#/Money }
@@ -661,51 +665,51 @@ IndexHistory:
   type: object
   required: [context, thresholds, scopes]
   description: >-
-    Évolution de l'indice de coût et de l'indice de délai, pour le projet et pour chaque
-    sous-projet : un point par révision marquée à partir de l'état En cours, à sa date de
-    marquage, et le dernier au jour courant (WF-IND-0010) — sur la révision en cours, ou, sur un
-    projet qui n'en a pas, sur sa dernière révision marquée avec le coût réel du jour —, avec les
-    seuils du référentiel à tracer (WF-IND-0130, WF-REF-0170). Sur un projet de trois révisions
-    marquées à partir de l'état En cours, chaque courbe porte quatre points.
+    Evolution of the cost index and the schedule index, for the project and for each subproject:
+    one point per revision marked from the In progress state onwards, at its marking date, and
+    the last on the current day (WF-IND-0010) — on the current revision, or, on a project that
+    has none, on its last marked revision with the actual cost of the day —, with the thresholds
+    of the reference data to plot (WF-IND-0130, WF-REF-0170). On a project with three revisions
+    marked from the In progress state onwards, each curve carries four points.
   properties:
     context: { $ref: '#/CalculationContext' }
     thresholds:
       allOf: [{ $ref: reference.yaml#/IndexThresholds }]
       description: >-
-        Les seuils courants du référentiel, ceux qui classent chaque point, conservé ou du jour
-        (WF-REF-0130, WF-REF-0170).
+        The current thresholds of the reference data, those that classify each point, stored or
+        of the day (WF-REF-0130, WF-REF-0170).
     scopes:
       type: array
       description: >-
-        Le projet d'abord, puis chaque sous-projet, puis « hors sous-projet » ; la seule maille
-        demandée par `scope`.
+        The project first, then each subproject, then "out of any subproject"; only the scope
+        requested by `scope`.
       items: { $ref: '#/IndexHistoryScope' }
 
 IndexHistoryScope:
   type: object
   required: [scope, label, points]
-  description: Les courbes d'une maille de calcul (WF-IND-0020, WF-IND-0130).
+  description: The curves of a computation scope (WF-IND-0020, WF-IND-0130).
   properties:
     scope:
       type: string
-      description: '`project`, `unassigned`, ou l''identifiant d''un sous-projet (WF-IND-0020).'
+      description: '`project`, `unassigned`, or the identifier of a subproject (WF-IND-0020).'
     label:
       anyOf: [{ type: string }, { type: 'null' }]
-      description: Le libellé du sous-projet ; nul pour le projet et pour « hors sous-projet ».
+      description: The label of the subproject; null for the project and for "out of any subproject".
     points:
       type: array
-      description: Du plus ancien marquage au jour courant.
+      description: From the oldest marking to the current day.
       items: { $ref: '#/IndexHistoryPoint' }
 
 IndexHistoryPoint:
   type: object
   required: [at, revision_id, version_name, cost_index, schedule_index]
   description: >-
-    Les deux indices d'une révision : à sa date de marquage, tels que le marquage les a
-    conservés (WF-DAT-0040), leur zone classée sur les seuils courants (WF-REF-0130) ; au jour
-    courant, le dernier point, `version_name` nul et `revision_id` celui de la révision en
-    cours, ou de la dernière révision marquée sur un projet qui n'en a pas, calculé avec le coût
-    réel du jour (WF-IND-0010, WF-IND-0130).
+    The two indices of a revision: at its marking date, as the marking stored them
+    (WF-DAT-0040), their zone classified on the current thresholds (WF-REF-0130); on the current
+    day, the last point, `version_name` null and `revision_id` that of the current revision, or
+    of the last marked revision on a project that has none, computed with the actual cost of the
+    day (WF-IND-0010, WF-IND-0130).
   properties:
     at: { $ref: ../common.yaml#/Timestamp }
     revision_id: { $ref: ../common.yaml#/Uuid }
