@@ -224,7 +224,7 @@ describe("the screens of the portfolio", () => {
     const page = text(await render(ProjectsPage));
     expect(page).toContain("In progress and Pricing · 300 projects · calculated on 3 Jun 2026");
     expect(page).toMatch(
-      /Order book .*2,665,431,068\.05 Gross pipeline .*317,939,400\.00 Weighted pipeline .*146,660,510\.00 Delivered .*0\.00 Conversion rate 40%/,
+      /Order book .*2,665,431,069\.21 Gross pipeline .*317,939,400\.00 Weighted pipeline .*146,660,510\.00 Delivered .*0\.00 Conversion rate 40%/,
     );
     const [grid] = grids.projects;
     expect(grid?.projects).toHaveLength(300);
@@ -245,7 +245,7 @@ describe("the screens of the portfolio", () => {
       "In progress · 269 projects · period from 4 Jun 2025 to 3 Jun 2026 · calculated on 3 Jun 2026",
     );
     expect(page).toMatch(/Cost index 0\.941 Nominal Schedule index 0\.9088 Nominal/);
-    expect(page).toMatch(/At the observed rate .*2,832,594,354\.58 .*167,163,286\.53/);
+    expect(page).toMatch(/At the observed rate .*2,832,594,355\.81 .*167,163,286\.60/);
     expect(page).toContain(
       "Cost index Nominal 169 Cost index Watch 47 Cost index Alert 53 Schedule index Nominal 152",
     );
@@ -258,8 +258,11 @@ describe("the screens of the portfolio", () => {
     const page = text(await render(CostStructurePage, { from: "2025-01-01" }));
     expect(queryOf("GET /portfolio/cost-structure")).toEqual({ from: "2025-01-01" });
     expect(page).toContain("The actual cost is not broken down by cost type");
-    expect(page).toMatch(/Reference budget by cost type .*Main-d'œuvre .*1,465,987,087\.43 55%/);
-    expect(page).toMatch(/Labour by organisation node .*Bureau d'études électricité .*100%/);
+    expect(page).toMatch(/Reference budget by cost type .*Main-d'œuvre .*1,465,987,088\.07 55%/);
+    // The cable fitter, whom the witness alone employs, is the cabling workshop's labour.
+    expect(page).toMatch(
+      /Labour by organisation node .*Bureau d'études électricité .*1,464,896,761\.33 .*Atelier de câblage .*1,090,326\.74/,
+    );
   });
 
   it("opens the project of each of the heaviest risks, and fills the matrix [WF-PTF-0030-A]", async () => {
