@@ -330,7 +330,13 @@ def test_the_refusal_says_the_rule_the_form_and_what_to_do_instead(
     assert "`kill $(…)`" in said.err
     assert "by its PID or by a name of its own lot; never by pattern" in said.err
     assert "A lock of git is not removed: the git command is run again" in said.err
-    instead = ("kill <PID>", "make test-services-down", "make service-down", "make slot-release")
+    instead = (
+        "kill <PID>",
+        "make test-services-down",
+        "make service-down",
+        "make e2e-down",
+        "make slot-release",
+    )
     assert all(command in said.err for command in instead)
 
 

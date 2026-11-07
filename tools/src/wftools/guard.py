@@ -50,8 +50,8 @@ RULE = (
 INSTEAD = (
     "Instead: `kill <PID>` of a process you started; `docker rm`, `docker rmi` or `docker volume "
     "rm` of a literal name; for what the Makefile started, the target that stops it: "
-    "`make test-services-down`, `make service-down`, `make slot-release`; for a lock of git, "
-    "the git command run again."
+    "`make test-services-down`, `make service-down`, `make e2e-down`, `make slot-release`; for a "
+    "lock of git, the git command run again."
 )
 
 # A substitution stands as this word in the command that holds it: its value is not known.

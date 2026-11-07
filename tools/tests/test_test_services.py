@@ -311,3 +311,33 @@ def test_the_storage_key_of_the_compose_file_is_the_one_of_the_url() -> None:
     key, _, secret = slots.TEST_STORAGE_CREDENTIALS.partition(":")
     assert f"GARAGE_DEFAULT_ACCESS_KEY: {key}" in text
     assert f"GARAGE_DEFAULT_SECRET_KEY: {secret}" in text
+
+
+def test_two_runs_of_one_worktree_start_the_test_services_one_at_a_time(
+    workstation: Workstation,
+) -> None:
+    """US-1300: the second run waits under the lock of the slot, then finds the services started."""
+    tree = lot(workstation)
+    gate = workstation.root / "gate"
+    environment = workstation.environment | {"STAND_IN_GATE": str(gate)}
+    command = [sys.executable, str(SLOTS), "run", "--services", "redis", "--", "true"]
+    first = subprocess.Popen(command, cwd=tree, env=environment, stderr=subprocess.PIPE, text=True)
+    deadline = time.monotonic() + 60
+    while not workstation.log.exists() and time.monotonic() < deadline:
+        time.sleep(0.05)
+    second = subprocess.Popen(command, cwd=tree, env=environment, stderr=subprocess.PIPE, text=True)
+    try:
+        time.sleep(1.5)
+        assert first.poll() is None
+        assert second.poll() is None, "the second run waits for the first"
+        assert len(docker_asked(workstation.log.read_text())) == 1, "one make test-services only"
+    finally:
+        gate.write_text("")
+    _, first_error = first.communicate(timeout=60)
+    _, second_error = second.communicate(timeout=60)
+    assert first.returncode == 0, first_error
+    assert second.returncode == 0, second_error
+    assert "being started by another run; waiting" in second_error
+    assert "waiting" not in first_error
+    assert len(docker_asked(workstation.logged())) == 2, "the second finds them and does nothing"
+    assert (workstation.root / "run" / "waterfall-test-services.1.lock").exists()

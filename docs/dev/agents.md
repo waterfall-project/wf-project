@@ -143,7 +143,9 @@ test des outils (`tools/tests/test_permissions.py`) l'éprouve.
   (`git branch -d`, qui refuse une branche non fusionnée), retire les worktrees du lot — le
   sien et ceux de ses développeurs — (`git worktree remove`, puis `git worktree prune`), et
   vérifie qu'aucun processus lancé pour le lot ne tourne encore : serveur de Next, Prism,
-  Chromium. Un agent de développement fait de même, avant de rendre la main, pour les branches
+  Chromium. Les serveurs de l'e2e se rendent par `make e2e-down`, avant `make slot-release`
+  (qui l'appelle) et dès qu'un `make e2e`, `make e2e-service` ou `make check-front` s'interrompt
+  (US-1300, #2198). Un agent de développement fait de même, avant de rendre la main, pour les branches
   de travail qu'il a tirées à côté de celle du lot et les commandes qu'il a lancées en
   arrière-plan. Une centaine de branches fusionnées et quinze worktrees de lots fusionnés
   brouillaient `git branch` et `git worktree list`. Le nettoyage d'un dépôt déjà encombré se
@@ -156,7 +158,8 @@ test des outils (`tools/tests/test_permissions.py`) l'éprouve.
   filtre, quand une cible littérale passe (US-1310) ; ni `docker … prune` ; ni
   `docker compose … down` hors du Makefile. `pkill -f "^make check"` a pu interrompre ainsi, le 2026-11-03, le
   `make check` d'un livreur d'un autre EPIC. Ce que le Makefile a démarré, sa cible l'arrête :
-  `make service-down` pour la plateforme de service. Un verrou de git (`.git/…/*.lock`) ne
+  `make service-down` pour la plateforme de service, `make e2e-down` pour les serveurs de l'e2e
+  du créneau (trouvés par leur port, arrêtés par leur PID). Un verrou de git (`.git/…/*.lock`) ne
   se supprime ni ne se déplace — ni `rm`, ni `find … -delete` ou `-exec rm`, ni `mv` ou
   `rename` — : une commande `git` le tient, peut-être dans un autre worktree, et la
   commande se relance. Le hook `PreToolUse` de `.claude/settings.json` tient la règle : avant

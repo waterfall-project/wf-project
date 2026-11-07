@@ -439,7 +439,7 @@ et une US nouvelle est un recadrage.
 
 ## US-1300 — Un créneau se rend entier
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : aucune — outil du dépôt
 - **opérations** : aucune
 - **issue** : #2247

@@ -2860,7 +2860,8 @@ slot 0: its ports and its names are those of before the slots.
 | Command             | What it does                                                                                                                                                                                                            |
 | ------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `make slot`         | takes for the worktree it is run in the first free slot from 1 to N, or says its own; if the N are taken, it fails, holders named; in the main repository (its `.git` is a directory), it says slot 0, taking nothing   |
-| `make slot-release` | removes the containers and the volumes of the slot of the worktree — the service platform, the services of the tests —, then frees it; if Docker cannot remove them, the slot stays taken, and it says so               |
+| `make slot-release` | stops the e2e servers of the slot, removes its containers and volumes — the service platform, the services of the tests —, then frees it; if Docker cannot remove them, the slot stays taken, and it says so |
+| `make e2e-down`     | stops the processes of the user that listen on the e2e ports of the slot — the fake back, the fronts of the paths (at slot 0, 4110 and 3100 to 3139) —, each found by its port in `/proc` and stopped by its PID: `SIGTERM`, then `SIGKILL` after five seconds; it says what it stops, and nothing when nothing listens |
 | `make slots`        | writes N, then each slot taken on the workstation, whatever the repository, with its worktree and the moment it was taken                                                                                               |
 
 The register of the workstation is `$XDG_RUNTIME_DIR/waterfall-slots/` — `/tmp/waterfall-slots/`
@@ -2871,7 +2872,8 @@ written under an exclusive lock of the register (`tools/src/wftools/slots.py cla
 holder left in it (`docker compose -p <project> down --volumes`, for each of its two projects),
 the lock of the register held until that removal has succeeded, as `make slot-release` holds it: a
 `make slot` started meanwhile waits, saying so, and if Docker fails, the slot is not taken, and the
-next `make slot` does the removal again. `slots.py which` says the slot of the current worktree.
+next `make slot` does the removal again. Before that removal, both stop the e2e servers the slot
+left (`make e2e-down`). `slots.py which` says the slot of the current worktree.
 
 At slot i from 1 to 9, the ports are those of the block `20000 + 100·i`, below the range of the
 ephemeral ports of Linux; at slot 0, those of before:
@@ -2913,8 +2915,18 @@ that what was removed in the meantime is started again —, the tool runs `make 
 the services whose variable `WATERFALL_TEST_DATABASE_URL`, `WATERFALL_TEST_REDIS_URL` or
 `WATERFALL_TEST_STORAGE_URL` is not set, and sets it on their port; a variable the environment
 already gives wins, its service is not started, and the job of the chain, which sets all three, is
-not changed. `make slot-release` removes them with the service platform. In a linked worktree
-without a slot, the two targets fail, saying `make slot`.
+not changed. `make slot-release` removes them with the service platform. Two runs started together
+in a worktree make only one `make test-services` at a time, under a lock of the slot
+(`$XDG_RUNTIME_DIR/waterfall-test-services.<slot>.lock`): the second waits, saying so, then finds
+the services started. In a linked worktree without a slot, these targets and `make e2e-down` fail,
+saying `make slot`.
+
+**The e2e servers.** `make e2e`, `make e2e-service` and `make check-front` start a fake back and
+fronts (`next-server`) that a brutal stop can leave listening, a core busy, for hours.
+`make e2e-down` stops them for the slot of the worktree, by their port and their PID, never by
+their name: run it as soon as one of these targets is interrupted, and before `make slot-release`
+(which calls it anyway). It leaves alone the containers, which `make service-down` and
+`make slot-release` remove, and the servers of `make dev` and `make mock` started by hand.
 
 **The trial at N = 4** (EP-19, outside the epic). The proof of EP-19 is played at N = 2, on the
 current workstation. Four deliverers together are only tried when the new machine arrives, and the

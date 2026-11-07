@@ -17,6 +17,7 @@ from pathlib import Path
 from typing import Any
 
 import pytest
+from test_worktree_slots import MAKEFILE, Workstation, docker_asked
 
 from wftools import REPOSITORY, slots
 
@@ -347,3 +348,186 @@ def test_an_empty_slot_count_is_refused_as_the_tool_refuses_it(tmp_path: Path) -
     from_environment = plan(tmp_path, "test-tools", "TESTS=x", extra={"WATERFALL_SLOTS": ""})
     assert from_environment.returncode != 0
     assert "WATERFALL_SLOTS must be an integer from 1 to 9" in from_environment.stderr
+
+
+# --- The servers of a slot (US-1300) ---------------------------------------------------------
+# Listens on a port the system chooses (never one of a real slot), says which once it is ready.
+LISTENER = (
+    "import signal, socket, sys, time\n"
+    "if sys.argv[1] == 'ignore':\n"
+    "    signal.signal(signal.SIGTERM, signal.SIG_IGN)\n"
+    "server = socket.socket()\n"
+    "server.bind(('127.0.0.1', 0))\n"
+    "server.listen()\n"
+    "print(server.getsockname()[1], flush=True)\n"
+    "time.sleep(120)\n"
+)
+PROC = Path("/proc")
+
+
+def listener(mode: str = "default") -> tuple[subprocess.Popen[str], int]:
+    """Start a child that listens on an ephemeral port; return it and the port."""
+    child = subprocess.Popen(
+        [sys.executable, "-c", LISTENER, mode], stdout=subprocess.PIPE, text=True
+    )
+    assert child.stdout is not None
+    return child, int(child.stdout.readline())
+
+
+def reap(*children: subprocess.Popen[Any]) -> None:
+    """End the children the test started, which it knows by their handle."""
+    for child in children:
+        if child.poll() is None:
+            child.terminate()
+        child.wait(timeout=30)
+        if child.stdout:
+            child.stdout.close()
+
+
+def test_stop_servers_stops_what_listens_on_the_ports_and_nothing_else(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """US-1300: the process that listens on a port of the block is stopped; one outside is not."""
+    inside, port = listener()
+    outside, other = listener()
+    try:
+        assert port != other
+        stopped = slots.stop_servers({port}, PROC)
+        assert stopped == [inside.pid]
+        assert inside.wait(timeout=30) == -signal.SIGTERM
+        assert outside.poll() is None
+        assert slots.listening_pids({other}, PROC) == {outside.pid: {other}}
+        assert slots.listening_pids({port}, PROC) == {}
+        said = capsys.readouterr().out
+        assert f"stopping process {inside.pid}, which listens on port {port}" in said
+        assert str(outside.pid) not in said
+        assert "SIGKILL" not in said
+    finally:
+        reap(inside, outside)
+
+
+def test_stop_servers_says_nothing_when_nothing_listens(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """US-1300: nothing listens on the ports: nothing is stopped, and nothing is said."""
+    child, port = listener()
+    reap(child)
+    assert slots.stop_servers({port}, PROC) == []
+    assert capsys.readouterr().out == ""
+
+
+def test_stop_servers_kills_what_ignores_sigterm_and_says_so(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """US-1300: a process that still listens after the grace receives SIGKILL, and it is said."""
+    child, port = listener("ignore")
+    try:
+        slots.stop_servers({port}, PROC, grace=0.5)
+        assert child.wait(timeout=30) == -signal.SIGKILL
+        said = capsys.readouterr().out
+        assert f"stopping process {child.pid}" in said
+        assert f"process {child.pid} still listens after 0.5 s: killing it (SIGKILL)" in said
+    finally:
+        reap(child)
+
+
+def test_the_ports_of_a_slot_are_the_fake_back_and_the_forty_fronts() -> None:
+    """US-1300: slot 2 has 20220 and 20240 to 20279; slot 0 the ports of before, 4110, 3100-3139."""
+    assert slots.end_to_end_ports(2) == {20220, *range(20240, 20280)}
+    assert slots.end_to_end_ports(0) == {4110, *range(3100, 3140)}
+
+
+def fake_table(root: Path, sockets: dict[int, dict[int, int]]) -> Path:
+    """Return a process table: for each PID, the sockets it holds, as ``{port: inode}``."""
+    table = root / "table"
+    (table / "net").mkdir(parents=True)
+    header = "  sl  local_address rem_address   st tx_queue rx_queue tr tm->when retrnsmt   uid"
+    rows = [
+        f"   0: 0100007F:{port:04X} 00000000:0000 0A 00000000:00000000 00:00000000 00000000"
+        f"  1000        0 {inode} 1 0000000000000000 100 0 0 10 0"
+        for held in sockets.values()
+        for port, inode in held.items()
+    ]
+    (table / "net" / "tcp").write_text("\n".join([header, *rows]) + "\n")
+    (table / "net" / "tcp6").write_text(header + "\n")
+    for pid, held in sockets.items():
+        descriptors = table / str(pid) / "fd"
+        descriptors.mkdir(parents=True)
+        for index, inode in enumerate(held.values()):
+            (descriptors / str(index)).symlink_to(f"socket:[{inode}]")
+    return table
+
+
+def test_release_stops_the_servers_of_the_slot_then_frees_it(tmp_path: Path) -> None:
+    """US-1300: make slot-release stops the servers of the paths of the slot before Compose."""
+    workstation = Workstation(tmp_path)
+    tree = workstation.worktree("lot")
+    (tree / "Makefile").write_text(f"include {MAKEFILE}\n")
+    (tree / "tools").symlink_to(REPOSITORY / "tools")
+    assert workstation.tool(tree, "claim").returncode == 0
+    server = subprocess.Popen(["sleep", "120"])
+    table = fake_table(tmp_path, {server.pid: {20120: 4242, 20140: 4243}})
+    try:
+        workstation.logged()
+        using = {"WATERFALL_SLOTS_PROC": str(table)}
+        released = workstation.make(tree, "slot-release", extra=using)
+        assert released.returncode == 0, released.stderr
+        assert server.wait(timeout=30) == -signal.SIGTERM
+        said = f"stopping process {server.pid}, which listens on port 20120, 20140"
+        assert said in released.stdout
+        assert docker_asked(workstation.logged()), "the projects of Compose are removed too"
+        assert not (workstation.register / "1").exists()
+    finally:
+        reap(server)
+
+
+def test_claim_of_an_abandoned_slot_stops_its_servers(tmp_path: Path) -> None:
+    """US-1300: make slot, taking a slot whose worktree is gone, stops the servers it left."""
+    workstation = Workstation(tmp_path)
+    workstation.register.mkdir(parents=True)
+    (workstation.register / "1").write_text(f"{tmp_path / 'gone'}\n2026-11-07T00:00:00+00:00\n")
+    server = subprocess.Popen(["sleep", "120"])
+    table = fake_table(tmp_path, {server.pid: {20160: 4244}})
+    try:
+        claimed = workstation.tool(
+            workstation.worktree("lot"), "claim", extra={"WATERFALL_SLOTS_PROC": str(table)}
+        )
+        assert claimed.returncode == 0, claimed.stderr
+        assert server.wait(timeout=30) == -signal.SIGTERM
+        assert f"stopping process {server.pid}, which listens on port 20160" in claimed.stdout
+    finally:
+        reap(server)
+
+
+def test_make_e2e_down_stops_the_servers_of_the_current_slot_and_only_them(
+    tmp_path: Path,
+) -> None:
+    """US-1300: make e2e-down stops what listens on the ports of the slot, not on another slot's."""
+    workstation = Workstation(tmp_path)
+    tree = workstation.worktree("lot")
+    (tree / "Makefile").write_text(f"include {MAKEFILE}\n")
+    (tree / "tools").symlink_to(REPOSITORY / "tools")
+    assert workstation.tool(tree, "claim").returncode == 0
+    ours = subprocess.Popen(["sleep", "120"])
+    theirs = subprocess.Popen(["sleep", "120"])
+    # 20140 is the first front of slot 1; 20240, the first of slot 2, is outside its block.
+    table = fake_table(tmp_path, {ours.pid: {20140: 4245}, theirs.pid: {20240: 4246}})
+    try:
+        done = workstation.make(tree, "e2e-down", extra={"WATERFALL_SLOTS_PROC": str(table)})
+        assert done.returncode == 0, done.stderr
+        assert ours.wait(timeout=30) == -signal.SIGTERM
+        assert theirs.poll() is None
+        assert str(theirs.pid) not in done.stdout
+    finally:
+        reap(ours, theirs)
+
+
+def test_make_e2e_down_in_a_worktree_without_a_slot_says_make_slot(tmp_path: Path) -> None:
+    """US-1300: no slot, nothing is stopped: the target fails and says make slot."""
+    workstation = Workstation(tmp_path)
+    tree = workstation.worktree("lot")
+    (tree / "Makefile").write_text(f"include {MAKEFILE}\n")
+    (tree / "tools").symlink_to(REPOSITORY / "tools")
+    done = workstation.make(tree, "e2e-down")
+    assert done.returncode != 0
+    assert "make slot" in done.stderr
