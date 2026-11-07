@@ -5,8 +5,9 @@
 ``getProjectNextState``, ``exitProject`` and ``listProjectStateTransitions`` on a project its
 manager created (``projects_support``), every answer checked against the contract. The facts of
 ``next_state`` are tried without a base. In progress is reached through the designation of the
-reference, which is US-0980/L2's and asks tasks and lines (EP-06, EP-07): the project is put there
-around the service, by the owner of the tables, as the tests of the revisions put it in Pricing.
+reference, which asks tasks and lines (EP-06, EP-07): the project is put there around the service,
+by the owner of the tables, as the tests of the revisions put it in Pricing (the designation is
+tried in ``test_reference_designation``, the exit that marks in ``test_exit_marking``).
 """
 
 from concurrent.futures import ThreadPoolExecutor
@@ -27,6 +28,7 @@ from waterfall.core.projects.tables import Project, ProjectStateTransition
 from waterfall.core.revisions.interface import revisions as revisions_core
 from waterfall.core.revisions.tables import Revision
 from waterfall.platform.audit import Act, AuditEntry
+from waterfall.platform.errors import NotFoundError
 from waterfall.platform.identifiers import new_id
 
 if TYPE_CHECKING:
@@ -39,6 +41,7 @@ if TYPE_CHECKING:
 AT = datetime(2026, 2, 1, 9, 0, tzinfo=UTC)
 ABANDONING: dict[str, Any] = {"action": "abandon"}
 MARKING: dict[str, Any] = {"action": "mark", "version_name": "Clôture"}
+NOT_FOUND = "NOT_FOUND"
 CREATED, PRICING, IN_PROGRESS = "created", "pricing", "in_progress"
 TERMINAL = ("completed", "lost", "abandoned")
 
@@ -248,7 +251,7 @@ def test_the_code_and_the_reference_move_the_project_to_in_progress_in_either_or
 ) -> None:
     # « Un projet dont la référence est désignée avant le code projet passe à En cours à la saisie
     # du code ; un projet dont le code est saisi avant la désignation y passe à la désignation. »
-    # The designation is US-0980/L2's: the reference is put around the service.
+    # The reference is put around the service here (``test_reference_designation`` designates it).
     revision = open_revision(api, stage)
     with stage.owner.begin() as connection:
         connection.execute(
@@ -494,24 +497,6 @@ def test_an_exit_that_abandons_the_current_revision_leaves_the_project_without_o
     assert [event["action"] for event in journal.json()["items"]] == ["project_exit"]
 
 
-@pytest.mark.requirement("WF-CYC-0090-A")
-def test_an_exit_that_marks_the_current_revision_is_refused_until_the_worker_marks(
-    api: ContractClient, stage: Scene
-) -> None:
-    # The marking at the exit is US-0980/L2's (202, ``revision_mark``, #2204): until it serves it,
-    # a project that bears a current revision cannot leave by marking it, and nothing is written.
-    revision = open_revision(api, stage)
-    before = state_in_the_base(stage)
-    answer = leave(api, stage, "abandoned", current_revision=MARKING)
-    assert refusal(answer) == (
-        409,
-        "STATE_FORBIDS_OPERATION",
-        {"missing_condition": "no_current_revision"},
-    )
-    assert state_in_the_base(stage) == before
-    assert project_of(api, stage)["current_revision_id"] == revision["revision_id"]
-
-
 @pytest.mark.requirement("WF-IHM-0110-A")
 def test_an_exit_at_a_stale_counter_is_refused_naming_the_counter(
     api: ContractClient, stage: Scene
@@ -655,3 +640,47 @@ def test_an_exit_abandoning_the_revision_asks_for_the_permission_to_abandon_one(
     assert answer.status_code == 403, answer.text
     assert answer.json()["code"] == "PERMISSION_MISSING"
     assert api.get(path, headers=chief.headers).json()["state"] == PRICING
+
+
+@pytest.mark.requirement("WF-CYC-0090-A")
+def test_an_exit_whose_revision_is_not_found_without_the_counter_moving_stays_a_404(
+    api: ContractClient, stage: Scene, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # A revision out of the reach of the reader is a 404, not the 412 of an exit that lost the
+    # race: the counter of the project is the one read, nothing moved it.
+    open_revision(api, stage)
+    before = state_in_the_base(stage)
+
+    def unknown(*_arguments: object) -> None:
+        raise NotFoundError(NOT_FOUND)
+
+    monkeypatch.setattr(lifecycle_api, "read_revision", unknown)
+    for fate in (ABANDONING, MARKING):
+        answer = leave(api, stage, "abandoned", current_revision=fate)
+        assert refusal(answer)[:2] == (404, "NOT_FOUND")
+    assert state_in_the_base(stage) == before
+
+
+@pytest.mark.requirement("WF-ADM-0100-A")
+def test_an_exit_abandoning_asks_for_the_permission_even_without_a_current_revision(
+    api: ContractClient, stage: Scene, realm: TestRealm
+) -> None:
+    # Choice of the route, fixed here: the fate ``abandon`` is judged on the permission to abandon
+    # a revision whether the project bears one or not.
+    chief = person(
+        stage.database,
+        realm,
+        *(each for each in MANAGING if each != "revision_abandon"),
+        name="Zoé",
+    )
+    project = create(api, chief, label="Sans révision")
+    path = f"{PROJECTS}/{project['project_id']}"
+    body = {
+        "to_state": "abandoned",
+        "confirmed": True,
+        "lock_version": api.get(path, headers=chief.headers).json()["lock_version"],
+        "current_revision": ABANDONING,
+    }
+    answer = api.post(f"{path}/exit", headers=chief.headers, json=body)
+    assert (answer.status_code, answer.json()["code"]) == (403, "PERMISSION_MISSING")
+    assert api.get(path, headers=chief.headers).json()["state"] == CREATED

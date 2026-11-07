@@ -14,7 +14,7 @@ any more (WF-CYC-0100); their exports, which EP-09 adds, are the exception.
 This module knows the commands of EP-04 — the entries of a revision and of its structures, its
 marking, its designation and its abandonment —; the later epics add theirs to ``REVISION_RULES``
 in the order of ``RevisionCommand`` (the skeleton, the risks, the amendments, the update of the
-rates, the exports), with their conditions. ``reference_correctable`` is US-0980/L2's.
+rates, the exports), with their conditions.
 """
 
 from dataclasses import dataclass
@@ -37,6 +37,7 @@ NO_BACKGROUND_TASK_RUNNING = "no_background_task_running"
 REVISION_DRAFT = "revision_draft"
 REVISION_MARKED = "revision_marked"
 REVISION_HAS_TASKS_AND_LINES = "revision_has_tasks_and_lines"
+REFERENCE_CORRECTABLE = "reference_correctable"
 
 
 @dataclass(frozen=True, slots=True)
@@ -74,6 +75,7 @@ class RevisionState:
     marked: bool
     no_task_running: bool
     has_tasks_and_lines: bool
+    reference_correctable: bool = True
 
 
 def quality_conditions(kind: str | None, *, manager: bool) -> list[str]:
@@ -89,12 +91,15 @@ def revision_conditions(command: str, revision: RevisionState) -> list[str]:
     """Name the conditions of the revision a command lacks, in the order the contract lists them.
 
     A marked revision lacks ``revision_draft`` alone for what would modify it; the designation,
-    which asks it marked, lacks ``revision_marked`` on the current one, then what it asks of it.
+    which asks it marked, lacks ``revision_marked`` on the current one, then what it asks of it:
+    tasks and lines, a designation still correctable, no background task (WF-CYC-0030, WF-REV-0040).
     """
     if command == "designate_reference":
         missing = [] if revision.marked else [REVISION_MARKED]
         if not revision.has_tasks_and_lines:
             missing.append(REVISION_HAS_TASKS_AND_LINES)
+        if not revision.reference_correctable:
+            missing.append(REFERENCE_CORRECTABLE)
         if not revision.no_task_running:
             missing.append(NO_BACKGROUND_TASK_RUNNING)
         return missing

@@ -10,11 +10,13 @@ CONSULT = "lifecycle.read"
 
 # The permissions each operation asks for, in the order they are evaluated: the next state and the
 # transitions are read by the holder of the permission to consult the cycle of life, an exit is
-# declared by the holder of the permission of its own, an irreversible action (WF-ADM-0100).
+# declared by the holder of the permission of its own, an irreversible action (WF-ADM-0100), and
+# the reference designated by the holder of the permission of its own (``reference_designate``).
 ASKED: dict[str, tuple[str, ...]] = {
     "getProjectNextState": (CONSULT,),
     "listProjectStateTransitions": (CONSULT,),
     "exitProject": (CONSULT, "project_exit"),
+    "designateReferenceRevision": (CONSULT, "reference_designate"),
 }
 # The quality on its project each operation that names one asks for, evaluated by
 # ``RequiresProject``: ``consultation`` — its contributor, or holding ``all_projects_read`` —,
@@ -23,4 +25,5 @@ ON_PROJECT: dict[str, str] = {
     "getProjectNextState": "consultation",
     "listProjectStateTransitions": "consultation",
     "exitProject": "project_manager",
+    "designateReferenceRevision": "project_manager",
 }
