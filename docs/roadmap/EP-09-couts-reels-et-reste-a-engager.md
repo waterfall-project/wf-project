@@ -151,7 +151,16 @@ EP-16 en écrit le contrat et la page, et EP-09 la clôt.
 
 ## Préalables
 
-EP-07 livré : le reste à engager part des montants budgétés. Le point ouvert PO-01
+`epic/EP-09` se tire d'`epic/EP-07` dès la fusion de son lot pivot, **US-1490/L1 #2370** — le socle
+d'EP-07, qui pose `estimate_line` avec ses grandeurs courantes et de référence, ses trois montants,
+son délai de paiement et son sous-projet, les tables images, et l'interface de `core/estimate` déclarée
+(`update_line`, que `setLineRemaining` étendra ; `revision_has_lines`) —, et non de `main` à la livraison
+d'EP-07 (décision de l'auteur du 2026-11-07, pour toute la série EP-06 → EP-07 → EP-09 → EP-10 → EP-08 ;
+l'exception du README, « Branches ») : elle reprend `epic/EP-07` à chaque lot que celui-ci fusionne et se
+fusionne dans `main` après elle. Les lots d'EP-09 qui réestiment des lignes attendent aussi US-1490/L3
+#2372 et L4 #2373 (la ligne lue, créée, modifiée, supprimée et déplacée), ceux du Kanban
+US-1410 #2324 d'EP-06 ; chaque lot nomme ceux qu'il attend par leur numéro. Le reste à engager part des
+montants budgétés. Le point ouvert PO-01
 (extraction des engagements et des heures par l'ERP) est à relire avant de détailler les US de
 l'import.
 

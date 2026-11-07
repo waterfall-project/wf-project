@@ -1,10 +1,10 @@
 ---
 id: EP-07
 titre: Chiffrer un projet sur ses tâches, et le faire passer En cours
-statut: prêt
+statut: en cours
 depend_de: EP-06
 famille: front, back
-issue:
+issue: 2360
 ---
 
 # EP-07 — Chiffrage et devis
@@ -651,7 +651,7 @@ d'ensemble en dernier ; le plan de lots (étape 3) le détaille en vagues.
 - **opérations** : `createNode`, `updateEstimateLine`, `deleteNode`, `moveNodes`, `listNodes`,
   `getComputedValueDependencies`, `resolveRowNumber` ; `deleteSubproject`, `updateCostCategory`
   pour ce que les lignes leur refusent
-- **issue** : <numéro, rempli au démarrage>
+- **issue** : 2361
 
 **En tant que** chef de projet, **je veux** accrocher des lignes de devis aux tâches de ma
 structure principale — une ligne de main-d'œuvre avec son rôle et sa charge, une ligne hors
@@ -892,7 +892,7 @@ la mise à jour des taux (US-1500).
   `createRevision`, `markRevision`, `updateProject` ; `setHourlyRate`, `updateCostCategory`,
   `setCostCategoryActivation`, `setCostTypeActivation`, `updateCostType`, `updateResourceRole`,
   `setResourceRoleActivation`, `updateCalendar`, `setDefaultCalendar` pour leurs effets
-- **issue** : <numéro, rempli au démarrage>
+- **issue** : 2362
 
 **En tant que** chef de projet, **je veux** qu'une révision marquée garde les rôles, les
 calendriers, les catégories et les taux qu'elle employait, ainsi que le taux d'inflation et la
@@ -1041,7 +1041,7 @@ l'import de reste à engager (EP-09) ; l'indice de coût (EP-10).
 - **statut** : à faire
 - **exigences** : `WF-DEV-0060-A`, `WF-DEV-0010-A`
 - **opérations** : `getEstimateIndicators`, `getMissingRates`
-- **issue** : <numéro, rempli au démarrage>
+- **issue** : 2363
 
 **En tant que** chef de projet, **je veux** lire le total de mon devis, ses ventilations par
 nature de coût, par sous-projet et par lot du lotissement, ses écarts avec la référence et la
@@ -1092,7 +1092,7 @@ de totaux sert `NodeTotals` de `listNodes` (US-1490) et les ventilations.
 - **statut** : à faire
 - **exigences** : `WF-DEV-0070-A`, `WF-DEV-0080-A`
 - **opérations** : `getProjectWorkload` ; `listRevisions`, `listOrgNodes` que l'écran lit
-- **issue** : <numéro, rempli au démarrage>
+- **issue** : 2364
 
 **En tant que** chef de projet, **je veux** lire, par rôle et par mois, la charge que mon devis
 représente — sur la révision de référence, sur une révision marquée ou sur la révision en cours —,
@@ -1163,7 +1163,7 @@ et de valeur planifiée (EP-10) ; le plan de charge agrégé du portefeuille (EP
 - **statut** : à faire
 - **exigences** : `WF-REV-0080-A`
 - **opérations** : `compareRevisions`
-- **issue** : <numéro, rempli au démarrage>
+- **issue** : 2365
 
 **En tant que** chef de projet, **je veux** comparer deux révisions marquées de mon projet dans la
 grille, chaque tâche et chaque ligne marquée ajoutée, retirée, modifiée ou inchangée, avec les
@@ -1222,7 +1222,7 @@ conservés (US-1500) : rien n'est recalculé sur le référentiel du jour. L'éc
   `WF-PRJ-0060-A`, `WF-PRJ-0070-A`
 - **opérations** : `listContributorSuggestions`, `designateReferenceRevision`,
   `getProjectNextState`, `updateProject`, `getProject`, `setContributors`
-- **issue** : <numéro, rempli au démarrage>
+- **issue** : 2366
 
 **En tant que** chef de projet, **je veux** que mon projet passe En cours de lui-même dès que sa
 référence porte des tâches et des lignes et que son code est saisi, et qu'on me propose comme
@@ -1299,7 +1299,7 @@ n'y change.
   `WF-DAT-0110-A`, `WF-EXP-0020-A`, `WF-PRJ-0080-A`, `WF-REF-0140-A`
 - **opérations** : `requestExport` (`estimate`), `getBackgroundTaskResult` ; `uploadFile`,
   `openImport`, `getImport`, `abandonImport`, `applyImport` pour `estimate`
-- **issue** : <numéro, rempli au démarrage>
+- **issue** : 2367
 
 **En tant que** chef de projet, **je veux** exporter le devis d'une révision au format Excel
 « Devis » de l'annexe B, le travailler dans Excel et le réimporter dans ma révision en cours sans
@@ -1490,7 +1490,7 @@ différentiel ou un devis propre, les lignes de provision (EP-08) ; l'écran des
 - **exigences** : `WF-DEV-0050-A`, `WF-IHM-0060-A`, `WF-IHM-0110-A`
 - **opérations** : `previewPaste`, `applyPaste`, `undoLastChange`, `redoLastUndo` ; toutes celles
   de l'EPIC que la grille de devis lit et écrit
-- **issue** : <numéro, rempli au démarrage>
+- **issue** : 2368
 
 **En tant que** chef de projet, **je veux** que la grille de devis travaille contre le service —
 saisie des lignes, création et déplacement des tâches et des lignes, collage depuis un tableur,
@@ -1585,7 +1585,7 @@ qui lisent le devis propre d'un risque (`paste.spec.ts`, `entry.spec.ts`) resten
 - **statut** : à faire
 - **exigences** : `WF-QUA-0040-A`, `WF-INTF-0010-A`
 - **opérations** : aucune en propre ; le chargement passe par les interfaces du noyau
-- **issue** : <numéro, rempli au démarrage>
+- **issue** : 2369
 
 **En tant que** développeur, **je veux** charger, sur une plateforme qui porte les tâches du
 témoin, les lignes des trois révisions de PRJ-001, la mise à jour des taux de la révision 101 et la
