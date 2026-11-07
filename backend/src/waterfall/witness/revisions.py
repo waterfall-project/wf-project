@@ -8,19 +8,25 @@ tried and refused, the code entered, the 101 marked, the 102 opened. The witness
 
 A write of the chronology names its project by its code (``projects.json``) and its revision by
 the number the identifiers of the witness end with (``01926f3a-…-000000000100``). The revisions
-are opened by the rules of the opening (#1402), in the order of the chronology, at the instant of
-the loading until US-0990/L2 imposes the chronology's; the walk stops at the first marking, which
-US-0970 writes: a revision opened after it would be refused, the one before it being current.
+are opened by the rules of the opening (#1402) and marked by the very transaction of the worker
+(``load_marking``), in the order of the chronology, at the instant of the loading until US-0990/L2
+imposes the chronology's. A marked revision bears the name of version and the description of
+``revisions.json``, the object the contract answers, which the chronology only orders: its
+``version_name`` is the name of the event, « Offre v1.0 ». A write this slice
+does not know — the designation and the code, US-0980's — changes nothing of what the openings and
+the markings judge, and is passed over.
 
-Filled by US-0960; US-0970 adds the markings, US-0980 the designation and the code.
+Filled by US-0960 and US-0970; US-0980 adds the designation and the code.
 """
 
+from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 from pydantic import BaseModel
 
 from waterfall.api.contract.models import Project, Revision
-from waterfall.core.revisions.interface import load_revision, revisions_present
+from waterfall.core.revisions.interface import load_marking, load_revision, revisions_present
+from waterfall.platform.errors import FieldError, UnprocessableError
 from waterfall.witness.description import is_loaded
 
 if TYPE_CHECKING:
@@ -34,8 +40,9 @@ REVISIONS_FILE = "revisions.json"
 PROJECTS_FILE = "projects.json"
 CHRONOLOGY_FILE = "project_state_transitions.json"
 OPENED = "revision_opened"
-# The writes after which the walk stops until their story writes them (US-0970).
-UNWRITTEN = frozenset({"revision_marked"})
+MARKED = "revision_marked"
+VALIDATION_FAILED = "VALIDATION_FAILED"
+VALUE_REQUIRED = "VALUE_REQUIRED"
 
 
 class Revisions(BaseModel):
@@ -77,34 +84,67 @@ def _numbered(revision: UUID) -> int | None:
     return int(last) if last.isdecimal() else None
 
 
-def openings(witness: Witness) -> list[tuple[UUID, UUID]]:
-    """Give the revisions the chronology opens, project and revision, until its first marking."""
+@dataclass(frozen=True, slots=True)
+class Marking:
+    """The name of version and the description a revision of the witness is marked under."""
+
+    version_name: str
+    description: str | None
+
+
+@dataclass(frozen=True, slots=True)
+class Step:
+    """A write of the chronology this slice makes: a revision opened, or marked (``marking``)."""
+
+    project_id: UUID
+    revision_id: UUID
+    marking: Marking | None = None
+
+
+def _marking(revision: Revision) -> Marking:
+    """Give what ``revisions.json`` says a revision is marked under; refuse it without a name."""
+    if revision.version_name is None:
+        raise UnprocessableError(
+            VALIDATION_FAILED, fields=(FieldError("/version_name", VALUE_REQUIRED),)
+        )
+    return Marking(revision.version_name.root, revision.description)
+
+
+def steps(witness: Witness) -> list[Step]:
+    """Give the openings and the markings of the chronology, in its order."""
     codes = {
         project.code.root: project.project_id.root
         for project in witness.read(PROJECTS_FILE, Projects).items
         if project.code is not None
     }
     numbered = {
-        (revision.project_id.root, _numbered(revision.revision_id.root)): revision.revision_id.root
+        (revision.project_id.root, _numbered(revision.revision_id.root)): revision
         for revision in witness.read(REVISIONS_FILE, Revisions).items
     }
-    opened: list[tuple[UUID, UUID]] = []
+    walked: list[Step] = []
     for event in witness.read(CHRONOLOGY_FILE, Chronology).events:
         for write in event.writes:
-            if write.kind in UNWRITTEN:
-                return opened
-            if write.kind == OPENED:
-                project_id = codes[write.project]
-                opened.append((project_id, numbered[project_id, write.revision]))
-    return opened
+            if write.kind not in {OPENED, MARKED}:
+                continue
+            project_id = codes[write.project]
+            revision = numbered[project_id, write.revision]
+            marking = _marking(revision) if write.kind == MARKED else None
+            walked.append(Step(project_id, revision.revision_id.root, marking))
+    return walked
 
 
 def load(session: Session, witness: Witness) -> bool:
     """Write this slice of the witness unless the platform holds it; tell whether it wrote."""
-    opened = openings(witness)
-    imposed = {revision for _, revision in opened}
+    walked = steps(witness)
+    imposed = {step.revision_id for step in walked if step.marking is None}
     if is_loaded(imposed, revisions_present(session, imposed)):
         return False
-    for project_id, revision_id in opened:
-        load_revision(session, project_id, revision_id, witness.act)
-    return bool(opened)
+    for step in walked:
+        if step.marking is None:
+            load_revision(session, step.project_id, step.revision_id, witness.act)
+        else:
+            marking = step.marking
+            load_marking(
+                session, step.revision_id, marking.version_name, marking.description, witness.act
+            )
+    return bool(walked)

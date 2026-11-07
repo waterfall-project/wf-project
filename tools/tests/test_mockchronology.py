@@ -88,7 +88,7 @@ def test_each_write_has_the_fields_of_its_kind() -> None:
     }
     assert all(set(write) == fields[write["kind"]] for write in _writes())
     assert [(w["revision"], w["version_name"]) for w in _written("revision_marked")] == [
-        (100, "v1.0"),
+        (100, "Offre v1.0"),
         (101, "Référence"),
     ]
     assert [(w["revision"], w["refused"]) for w in _written("designation_attempted")] == [

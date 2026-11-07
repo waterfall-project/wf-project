@@ -5,6 +5,7 @@ import type { ReactNode } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { UnexpectedAnswer } from "@/api/problem";
 import type { RevisionComparison } from "@/components/revisions/revision-comparison";
 import { CATALOGUES } from "@/i18n/catalogues";
 import { formatMoney } from "@/i18n/format";
@@ -450,6 +451,33 @@ describe("the parts of the revision the screen reads in", () => {
       "Mise à jour des taux proposée Le référentiel n’a pas changé : aucune mise à jour des taux n’est proposée.",
     );
     expect(text(page)).not.toContain("Taux de l’année");
+  });
+
+  it("renders without a rate update when getRateUpdateProposal answers 404, the service serving none before EP-07, its commands and structures shown, the abandon included (WF-REV-0010-A, #2173)", async () => {
+    server.answers = {
+      ...server.answers,
+      "GET /projects/{project_id}/revisions/{revision_id}/rate-update": NOT_FOUND,
+    };
+    const page = html(await RevisionsPage(at({ revision_id: DRAFT })));
+    expect(callTo("GET /projects/{project_id}/revisions/{revision_id}/rate-update")?.path).toBe(
+      `${REVISIONS}/${DRAFT}/rate-update`,
+    );
+    expect(text(page)).not.toContain("Mise à jour des taux");
+    expect(offered(page, "Appliquer la mise à jour des taux")).toBe("absent");
+    expect(offered(page, "Abandonner la révision en cours")).toBe("available");
+    expect(table(page, "Structures de coûts")).toContain("Structure principale");
+  });
+
+  it("fails as any read does when getRateUpdateProposal answers other than 404", async () => {
+    server.answers = {
+      ...server.answers,
+      "GET /projects/{project_id}/revisions/{revision_id}/rate-update": {
+        problem: { code: "INTERNAL_ERROR", status: 500 },
+      },
+    };
+    await expect(RevisionsPage(at({ revision_id: DRAFT }))).rejects.toBeInstanceOf(
+      UnexpectedAnswer,
+    );
   });
 
   it("offers the application of the rates as the revision lists it, and the designation of the reference under the history [WF-REV-0060-A]", async () => {

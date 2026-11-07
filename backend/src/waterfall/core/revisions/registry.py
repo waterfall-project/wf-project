@@ -23,13 +23,23 @@ class Registry[T]:
     def register(self, entry: T) -> Callable[[], None]:
         """Add an entry after the others, and give what withdraws it; refused if held already.
 
-        An entry registered twice would act twice — a copy, two rows for one —: it is refused.
+        An entry registered twice would act twice — a copy, two rows for one —: it is refused. The
+        withdrawal withdraws this registration once, and does nothing after: called again, it
+        never withdraws the same entry registered anew since.
         """
         if entry in self._entries:
             msg = f"{entry!r} is registered already"
             raise ValueError(msg)
         self._entries.append(entry)
-        return lambda: self._entries.remove(entry)
+        withdrawn = False
+
+        def withdraw() -> None:
+            nonlocal withdrawn
+            if not withdrawn:
+                withdrawn = True
+                self._entries.remove(entry)
+
+        return withdraw
 
     def entries(self) -> tuple[T, ...]:
         """Give the entries, in the order of their registration."""
