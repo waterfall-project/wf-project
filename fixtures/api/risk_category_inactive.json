@@ -1,0 +1,14 @@
+{
+  "summary": "Variante contrefactuelle : un risque déclaré en désignant pour sa provision PRV-001 « Provisions pour risques », désactivée depuis que PRV-002 « Provisions pour aléas fournisseurs » l'a remplacée : une catégorie désactivée n'est plus proposée à la saisie, refusé sur ce champ ; rien n'est écrit. La provision pour risques du témoin est active (WF-RIS-0010, WF-REF-0010).",
+  "value": {
+    "code": "VALIDATION_FAILED",
+    "status": 422,
+    "fields": [
+      {
+        "pointer": "/provision_cost_category_id",
+        "code": "INACTIVE_REFERENCE_OBJECT"
+      }
+    ],
+    "correlation_id": "01926f3a-7c00-7000-8000-000000001922"
+  }
+}

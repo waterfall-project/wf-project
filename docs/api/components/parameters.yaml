@@ -807,8 +807,9 @@ RiskRevision:
   description: >-
     Revision whose risks are read, each one freezing the version of their own estimate,
     of their probability and of their state (WF-RIS-0030); absent, the current revision, or
-    the last marked revision when none is current. The provision of an occurred
-    risk is the one it had in the reference revision (WF-RIS-0050).
+    the last marked revision when none is current. The provision of an occurred or dismissed
+    risk is the one it held in the reference revision (`Risk.provision_amount`, WF-RIS-0040,
+    WF-RIS-0050).
   schema: { $ref: common.yaml#/Uuid }
 
 TimelineId:

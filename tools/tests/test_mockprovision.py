@@ -346,7 +346,11 @@ def test_a_risk_declared_on_a_main_structure_without_task_is_refused_naming_the_
     # passed to Chiffrage, bears the revision without task: no variant.
     said = _flat(_block("createRisk", "409"))
     cited = re.findall(r"fixtures/api/(\w+)\.json", said)
-    assert cited == ["risk_without_provision_category", "risk_without_task"]
+    assert cited == [
+        "risk_without_provision_category",
+        "risk_without_task",
+        "risk_may_create_revision_refused",
+    ]
     refused = fixture("risk_without_task")
     assert (refused["status"], refused["code"]) == (409, "STATE_FORBIDS_OPERATION")
     assert refused["params"] == {"missing_condition": "at_least_one_task"}

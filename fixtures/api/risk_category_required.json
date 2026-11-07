@@ -1,0 +1,14 @@
+{
+  "summary": "Variante contrefactuelle : un risque déclaré sans désigner la catégorie de sa provision, alors qu'une seconde catégorie de type provision pour risques, PRV-002 « Provisions pour aléas fournisseurs », a été créée active à côté de PRV-001 : aucune n'est retenue sans être demandée, refusé sur ce champ ; rien n'est écrit. La provision pour risques du témoin est la seule de son type (WF-RIS-0010).",
+  "value": {
+    "code": "VALIDATION_FAILED",
+    "status": 422,
+    "fields": [
+      {
+        "pointer": "/provision_cost_category_id",
+        "code": "VALUE_REQUIRED"
+      }
+    ],
+    "correlation_id": "01926f3a-7c00-7000-8000-000000001921"
+  }
+}

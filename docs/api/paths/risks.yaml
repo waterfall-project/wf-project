@@ -162,8 +162,10 @@
           project also requires (WF-CYC-0120). The conditions are judged in the order in which
           the `declare_risk` command lists them on a non-terminal state, and the refusal names
           the first one missing: `no_background_task_running`, then `at_least_one_task`, then
-          `active_provision_category`; on a terminal project, where the command is not listed, it
-          names `project_not_terminal`. This 409 comes before the 422: without a task or an
+          `active_provision_category`, then `may_create_revision` when the project has no current
+          revision and the caller lacks `revisions.write`: the declaration would create it
+          (WF-RIS-0020, `ProjectCommand.declare_risk`); on a terminal project, where the command
+          is not listed, it names `project_not_terminal`. This 409 comes before the 422: without a task or an
           active category, no designation would be valid, and the fields are not judged.
           Nothing is written.
         content:
@@ -172,6 +174,7 @@
             examples:
               without_provision_category: { $ref: ../../../fixtures/api/risk_without_provision_category.json }
               without_task: { $ref: ../../../fixtures/api/risk_without_task.json }
+              may_create_revision: { $ref: ../../../fixtures/api/risk_may_create_revision_refused.json }
       '422':
         description: >-
           `VALIDATION_FAILED`, `fields` designating each field: `/label` empty, `VALUE_REQUIRED`,
@@ -194,6 +197,8 @@
                 $ref: ../../../fixtures/api/risk_provision_task_refused.json
               probability_out_of_range:
                 $ref: ../../../fixtures/api/risk_probability_out_of_range.json
+              category_required: { $ref: ../../../fixtures/api/risk_category_required.json }
+              category_inactive: { $ref: ../../../fixtures/api/risk_category_inactive.json }
       '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
@@ -277,6 +282,8 @@
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              occurred: { $ref: ../../../fixtures/api/risk_update_occurred.json }
       '412': { $ref: ../components/responses.yaml#/PreconditionFailed }
       '422':
         description: >-
@@ -287,6 +294,8 @@
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              label_blank: { $ref: ../../../fixtures/api/risk_update_label_blank.json }
       '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
   delete:
@@ -334,12 +343,15 @@
           then set to `risk_not_occurred` for an occurred risk, which no transition leaves, and
           otherwise to `risk_not_cited`: the risk is cited by a marked revision, it can no longer
           be deleted, it is dismissed (WF-RIS-0020). When both are missing, `risk_not_occurred`
-          is named.
+          is named. Then `may_create_revision` when the project has no current revision and the
+          caller lacks `revisions.write`: the deletion would create it (WF-RIS-0020,
+          `ProjectCommand.edit_risks`).
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
             examples:
               cited: { $ref: ../../../fixtures/api/risk_delete_cited.json }
+              occurred: { $ref: ../../../fixtures/api/risk_delete_occurred.json }
       '412':
         description: >-
           `STALE_LOCK_VERSION`: the risk has been written since it was read, and nothing is
@@ -484,6 +496,9 @@
       content:
         application/json:
           schema: { $ref: ../components/schemas/risks.yaml#/RiskReviewWrite }
+          examples:
+            reidentified_category_chosen:
+              $ref: ../../../fixtures/api/risk_reidentified_category_chosen.json
     responses:
       '201':
         description: Review recorded.
@@ -513,15 +528,19 @@
           — its provision line would have no task to sit under; `params.missing_condition`
           set to `at_least_one_task`. Or while no active cost category is of the
           provision-for-risks type (WF-RIS-0010): `params.missing_condition` set to
-          `active_provision_category`. The conditions are judged in this order, as at the
-          declaration, the refusal naming the first one missing, and this 409 comes before the
-          422. Nothing is written.
+          `active_provision_category`. Then `may_create_revision` when the project has no
+          current revision and the caller lacks `revisions.write`: the review would create it
+          (WF-RIS-0020, `ProjectCommand.edit_risks`). The conditions are judged in this order, as
+          at the declaration, the refusal naming the first one missing, and this 409 comes before
+          the 422. Nothing is written.
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
             examples:
               occurred: { $ref: ../../../fixtures/api/risk_review_occurred.json }
               without_task: { $ref: ../../../fixtures/api/risk_review_without_task.json }
+              without_provision_category:
+                $ref: ../../../fixtures/api/risk_review_without_provision_category.json
       '412': { $ref: ../components/responses.yaml#/PreconditionFailed }
       '422':
         description: >-
@@ -537,6 +556,7 @@
             examples:
               probability_out_of_range:
                 $ref: ../../../fixtures/api/risk_review_probability_out_of_range.json
+              category_required: { $ref: ../../../fixtures/api/risk_review_category_required.json }
       '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
@@ -562,7 +582,9 @@
       own estimate — which advances `Risk.lock_version` —, or a current revision born since
       the read, has it refused with 412 (WF-IHM-0110). As long as `refusals` is not empty, the
       occurrence does not apply, and the screen does not offer its confirmation. Refused with
-      409 for a risk that is not identified, like its occurrence.
+      409 when the state forbids the occurrence, on the conditions of its 409 and in the same
+      order (`declareRiskOccurrence`): a report of an occurrence that could not apply is not
+      read.
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
       - $ref: ../components/parameters.yaml#/RiskId
@@ -578,15 +600,22 @@
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '409':
         description: >-
-          The risk is not identified — occurred or dismissed —: only an identified risk occurs
-          (WF-RIS-0020). `STATE_FORBIDS_OPERATION`, `params.missing_condition` set to
-          `risk_identified`, the condition that the risk's `declare_occurrence` command says is
+          The state forbids the occurrence: `STATE_FORBIDS_OPERATION`,
+          `params.missing_condition` the first missing condition, as in the 409 of the
+          occurrence (`declareRiskOccurrence`) and in the same order — those of the project,
+          `project_not_terminal`, `reference_revision_designated`, `no_background_task_running`
+          (WF-CYC-0100, WF-RIS-0060), then those of the risk, `risk_identified` for an occurred
+          or dismissed risk, only an identified risk occurring (WF-RIS-0020), then
+          `may_create_revision`, without a current revision, for whoever lacks
+          `revisions.write` (WF-RIS-0060). Each is the condition that the project's
+          `declare_risk_occurrence` command or the risk's `declare_occurrence` command says is
           missing.
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
             examples:
               not_identified: { $ref: ../../../fixtures/api/risk_occurrence_not_identified.json }
+              without_reference: { $ref: ../../../fixtures/api/risk_occurrence_without_reference.json }
       '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
   post:
@@ -666,6 +695,7 @@
             schema: { $ref: ../components/common.yaml#/Problem }
             examples:
               not_identified: { $ref: ../../../fixtures/api/risk_occurrence_not_identified.json }
+              without_reference: { $ref: ../../../fixtures/api/risk_occurrence_without_reference.json }
       '412':
         description: >-
           The main structure or the risk has changed since the confirmed report — the risk also
@@ -731,7 +761,9 @@
       carries its zone, doubled by a non-colour cue on display (WF-IHM-0070), and the
       number of its identified risks only, like the bubbles (`cells`, #1395); each risk read is
       a point at its exact values, with its state (`points`, #1053), and the provision totals
-      cover the three states (WF-RIS-0040).
+      cover the three states (WF-RIS-0040). On a zero base — a project without a reference
+      budget whose estimate carries only provisions so far — no share is computable
+      (`no_reference_budget`), and every point is at the lowest severity level (#1240).
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
       - $ref: ../components/parameters.yaml#/RiskRevision
@@ -743,6 +775,7 @@
             schema: { $ref: ../components/schemas/risks.yaml#/RiskMatrix }
             examples:
               witness: { $ref: ../../../fixtures/api/risk_matrix.json }
+              no_basis: { $ref: ../../../fixtures/api/risk_matrix_no_basis.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '422': { $ref: ../components/responses.yaml#/UnprocessableEntity }

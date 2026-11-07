@@ -646,7 +646,8 @@ def _occurrence_examples() -> dict[str, JsonObject]:
             f"Le compte rendu de la survenance de « {NOT_IDENTIFIED.label} », écarté le "
             f"{mocktext.day(reviewed)}, ou sa survenance, demandés aujourd'hui : seul un risque "
             f"identifié survient, et la commande declare_occurrence du risque nomme la condition "
-            f"qui manque (risks). Rien n'est lu ni écrit (WF-RIS-0020, WF-IHM-0090, #1383).",
+            f"qui manque (risk_identified). Rien n'est lu ni écrit (WF-RIS-0020, WF-IHM-0090, "
+            f"#1383).",
             risk_occurrence_not_identified(),
         ),
         "risk_occurrence_report_stale.json": mocktext.example(
