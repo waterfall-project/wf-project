@@ -72,7 +72,7 @@ convention = "pep257"
     "S603",    # tests run the repository's own commands
     "S607",
 ]
-"backend/src/waterfall/api/{access_roles,actual_cost_mapping,audit,authentication,avatars,backups,calendars,contributors,cost_types,evaluation,hourly_rates,identity_syncs,me,org_nodes,projects,reference,reference_settings,reference_settings_write,resource_roles,restores,revisions,system,tasks,uploads,users}.py" = [
+"backend/src/waterfall/api/{access_roles,actual_cost_mapping,audit,authentication,avatars,backups,calendars,contributors,cost_types,evaluation,hourly_rates,identity_syncs,lifecycle,me,org_nodes,projects,reference,reference_settings,reference_settings_write,resource_roles,restores,revisions,subprojects,system,tasks,uploads,users}.py" = [
     # FastAPI reads at run time the annotations of a route handler (the parameters, the body,
     # the response) and of a dependency (`authentication`, `evaluation`): their imports stay
     # real imports. Ruff cannot tell the handlers of a local `router = APIRouter()`, and
