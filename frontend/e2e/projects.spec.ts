@@ -737,8 +737,8 @@ test("an exit of the lifecycle of a project in pricing is confirmed, naming the 
     .getByRole("dialog", { name: "Tâches et messages" })
     .getByRole("region", { name: "Messages" })
     .getByRole("listitem")
-    .first();
-  await expect(told).toContainText(/Le projet est passé à l’état «\s?Perdu\s?»\./);
+    .filter({ hasText: /Le projet est passé à l’état «\s?Perdu\s?»\./ });
+  await expect(told).toHaveCount(1);
   await page.keyboard.press("Escape");
 
   // The service kept the transition and its reason, and the project is terminal.

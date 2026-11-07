@@ -12,9 +12,10 @@ import { createOwnProject, openRevision } from "./own-project";
 // history of three revisions, and answers each write with the first example of its operation. The
 // commands are therefore read as the server lists them — the opening unavailable while a revision
 // is current, the designation unavailable once the reference cannot be corrected —, and the
-// abandon, available, is played to its end. The chain of the states — marked, designated, code entered, in
-// progress, opened, the remaining entered — needs a service that remembers: each step is proved on
-// the examples of the contract by the tests of the commands (`revision-commands.dom.test.tsx`).
+// abandon, available, is played to its end. The chain of the states — marked, designated, code
+// entered, in progress, opened, the remaining entered — needs a service that remembers: each step
+// is proved on the examples of the contract by the tests of the commands
+// (`revision-commands.dom.test.tsx`).
 //
 // The service remembers (#1350): the cycle is played there on a project the account of the run
 // creates (`own-project.ts`), and manages as its creator, never on the witness, whose revisions
@@ -188,6 +189,8 @@ test("a project created, a revision opened, marked by the worker, the designatio
   await expect(states.getByRole("row").last()).toContainText("Chiffrage");
   await openHydrated(page, `${own.path}/revisions`);
   await expect(designate).toHaveAttribute("aria-disabled", "true");
+  // The project has no reference: no row of the history carries the mark (WF-CYC-0030-A).
+  await expect(history).not.toContainText("Référence");
 
   // Left to Lost, from pricing, the current revision abandoned with it (WF-CYC-0090): the project
   // is terminal and lists no command.
@@ -203,4 +206,11 @@ test("a project created, a revision opened, marked by the worker, the designatio
   await page.reload();
   await expect(states.getByRole("row").last()).toContainText("Perdu");
   await expect(lifecycle.getByRole("button")).toHaveCount(0);
+  // The revision in progress went with the exit: the history keeps the marked one alone, and none
+  // is still in progress (WF-CYC-0090-A).
+  await openHydrated(page, `${own.path}/revisions`);
+  await expect(history.getByRole("row")).toHaveCount(2);
+  await expect(history.getByRole("row").nth(1)).toContainText("v1.0");
+  await expect(history.getByRole("row").nth(1)).toContainText("Marquée");
+  await expect(history).not.toContainText("En cours d’élaboration");
 });

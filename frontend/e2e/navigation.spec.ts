@@ -45,8 +45,8 @@ test("a user who opened no project reads the cost settings, then the resource se
 });
 
 // Against the fake back only: the service serves no portfolio, and the role « Manager » holds no
-// permission of the administration (listed as not replayed in the guide, with EP-11 and EP-13 for the
-// portfolio and the status).
+// permission of the administration (listed as not replayed in the guide, with EP-11 and EP-13 for
+// the portfolio and the status).
 test("a user who opened no project reaches the portfolio, the administration and the status screen from `/` [WF-IHM-0010-A]", async ({
   page,
 }) => {
@@ -101,8 +101,8 @@ test("the address of a project leads to its revision, the reading context and it
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("Planification");
 });
 
-// Played in service too (`@shared`, EP-04): the settings and the lifecycle of PRJ-001 are served, read
-// by the account of the run, a reader of every project.
+// Played in service too (`@shared`, EP-04): the settings and the lifecycle of PRJ-001 are served,
+// read by the account of the run, a reader of every project.
 test("a screen of the project itself, read without a revision, offers the functions of the project itself (the project's own address leads to its revision, US-0720) [WF-IHM-0010-A] @shared", async ({
   page,
 }) => {

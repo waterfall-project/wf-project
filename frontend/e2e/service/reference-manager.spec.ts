@@ -53,8 +53,6 @@ const RESOURCES = "/reference/resources";
 const RISKS = "/reference/risks";
 const INDICATORS = "/reference/indicators";
 const USERS = "/admin/users";
-/** The API, through the proxy of the contract. */
-
 /** The role of the cumulation: costs and accounts, read to be shown and written to be changed. */
 const CUMULATION = "Paramètres de coûts et comptes (parcours)";
 /** The role of the reciprocal: all of « Manager » but `resource_settings.write`. */
