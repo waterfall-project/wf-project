@@ -45,6 +45,7 @@ from waterfall.core.projects.interface.lifecycle import (
     list_state_transitions,
     load_transitions,
     next_state,
+    no_background_task_running,
     read_next_state,
     stored_lock_version,
 )
@@ -69,7 +70,6 @@ from waterfall.core.projects.interface.projects import (
     load_project,
     lock_project,
     missing_prerequisites,
-    no_background_task_running,
     project_code,
     project_commands,
     project_facts,
@@ -101,9 +101,20 @@ from waterfall.core.projects.interface.subprojects import (
 
 # ``work_breakdown`` (US-0950): the work breakdown of a project.
 from waterfall.core.projects.interface.work_breakdown import (
+    DeliverableEntry,
+    DeliverableView,
+    OrderItemEntry,
+    OrderItemView,
+    WorkBreakdownFilters,
+    WorkBreakdownLoad,
+    WorkBreakdownRead,
+    WorkBreakdownToWrite,
+    WorkPackageEntry,
+    WorkPackageView,
     load_work_breakdown,
     read_work_breakdown,
     set_work_breakdown,
+    work_breakdown_present,
 )
 
 __all__ = [
@@ -118,10 +129,14 @@ __all__ = [
     "ContributorsLoad",
     "ContributorsRead",
     "ContributorsToWrite",
+    "DeliverableEntry",
+    "DeliverableView",
     "ExitRequest",
     "ExitState",
     "LifecycleTrigger",
     "NextState",
+    "OrderItemEntry",
+    "OrderItemView",
     "ProjectChange",
     "ProjectColumn",
     "ProjectDraft",
@@ -144,6 +159,12 @@ __all__ = [
     "SubprojectWrite",
     "TransitionView",
     "Viewer",
+    "WorkBreakdownFilters",
+    "WorkBreakdownLoad",
+    "WorkBreakdownRead",
+    "WorkBreakdownToWrite",
+    "WorkPackageEntry",
+    "WorkPackageView",
     "advance",
     "code_faults",
     "contributor_kind",
@@ -183,4 +204,5 @@ __all__ = [
     "subprojects_present",
     "update_project",
     "update_subproject",
+    "work_breakdown_present",
 ]

@@ -35,7 +35,8 @@ from waterfall.core.projects.commands import (
     commands_of,
     state_conditions,
 )
-from waterfall.core.projects.interface.lifecycle import advance
+from waterfall.core.projects.interface.lifecycle import advance, no_background_task_running
+from waterfall.core.projects.interface.work_breakdown import follow_project_label
 from waterfall.core.projects.tables import (
     STATES,
     Contributor,
@@ -461,15 +462,6 @@ def projects_present(session: Session, project_ids: Collection[UUID]) -> frozens
     return frozenset(session.scalars(select(Project.id).where(Project.id.in_(project_ids))))
 
 
-def no_background_task_running(session: Session, project_id: UUID) -> bool:
-    """Tell whether no background task that writes in the project is queued or running.
-
-    Always true until US-0970: no task of the platform aims at a project before the marking.
-    """
-    del session, project_id
-    return True
-
-
 def _code_taken(session: Session, code: str, own: UUID) -> ConflictError:
     """Refuse a code another project bears, naming that project (409, WF-PRJ-0010)."""
     holder = session.execute(
@@ -680,6 +672,8 @@ def update_project(
             project.updated_at = act.at
             project.updated_by = act.author
             project.lock_version += 1
+        if "label" in changed:
+            follow_project_label(session, project, project.label, act)
         if changed.get("code") is not None:
             advance(session, project.id, "reference_designated_and_code_set", act)
     return _views(session, [project], viewer)[0]
