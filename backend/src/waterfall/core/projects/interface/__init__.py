@@ -71,10 +71,19 @@ from waterfall.core.projects.interface.projects import (
 
 # ``subprojects`` (US-0940): the subprojects of a project.
 from waterfall.core.projects.interface.subprojects import (
+    SubprojectChange,
+    SubprojectColumn,
+    SubprojectCommandAvailability,
+    SubprojectFilters,
+    SubprojectLoad,
+    SubprojectSort,
+    SubprojectView,
+    SubprojectWrite,
     create_subproject,
     delete_subproject,
     list_subprojects,
     load_subprojects,
+    subprojects_present,
     update_subproject,
 )
 
@@ -108,6 +117,14 @@ __all__ = [
     "ProjectSort",
     "ProjectState",
     "ProjectView",
+    "SubprojectChange",
+    "SubprojectColumn",
+    "SubprojectCommandAvailability",
+    "SubprojectFilters",
+    "SubprojectLoad",
+    "SubprojectSort",
+    "SubprojectView",
+    "SubprojectWrite",
     "Viewer",
     "advance",
     "contributor_kind",
@@ -139,6 +156,7 @@ __all__ = [
     "read_work_breakdown",
     "set_contributors",
     "set_work_breakdown",
+    "subprojects_present",
     "update_project",
     "update_subproject",
 ]
