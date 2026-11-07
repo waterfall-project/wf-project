@@ -16,7 +16,7 @@ from decimal import Decimal
 from functools import cache
 from typing import Any, cast
 
-from wftools import mockcore, mockhistory, mocktoday
+from wftools import mockcore, mockhistory, mocktext, mocktoday
 from wftools.mockids import PROJECTS, RISKS, identifier, universe
 from wftools.mockstructure import (
     CENT,
@@ -791,3 +791,15 @@ def portfolio_risks(rows: list[JsonObject]) -> JsonObject:
             "dismissed_provisions": money(dismissed),
         },
     }
+
+
+def risk_volume(rows: list[JsonObject]) -> str:
+    """Say which volumes of §4.6.2 the risks of the portfolio hold, and which they do not."""
+    risks = identified_risks(rows)
+    projects = len({cast("str", risk.row["project_id"]) for risk in risks})
+    count = mocktext.count
+    return (
+        f"{count(len(risks))} risques identifiés sur {count(projects)} projets — le registre du "
+        f"témoin et jusqu'à trois par autre projet, une provision sans devis propre, et non les "
+        f"trente risques par projet, chacun d'une vingtaine de tâches, que le §4.6.2 suppose"
+    )

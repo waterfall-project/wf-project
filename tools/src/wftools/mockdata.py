@@ -131,13 +131,13 @@ from wftools.mockportfolio import (
     QUARTERS,
     UNOPENABLE_EVERY,
     WATCH_THRESHOLD,
-    identified_risks,
     portfolio,
     portfolio_cost_structure,
     portfolio_page,
     portfolio_performance,
     portfolio_risks,
     portfolio_value,
+    risk_volume,
 )
 from wftools.mockstructure import (
     COMMISSIONING_RATE,
@@ -757,7 +757,7 @@ def volumes() -> dict[str, JsonObject]:
         ),
         "portfolio_risks.json": _example(
             f"Les risques des projets en cours du portefeuille du §4.6.2 au "
-            f"{_day(TODAY.date())}, {_risk_volume(rows)} : le total des provisions identifiées, "
+            f"{_day(TODAY.date())}, {risk_volume(rows)} : le total des provisions identifiées, "
             f"les dix risques "
             f"les plus lourds avec leur projet, la matrice remplie — chaque risque identifié "
             f"compté dans sa case et placé en point à ses valeurs exactes, avec son projet —, "
@@ -800,17 +800,6 @@ def summary_dependencies(answer: JsonObject) -> JsonObject:
         "depends_on": ["subordinates"],
         "rows": rows,
     }
-
-
-def _risk_volume(rows: list[JsonObject]) -> str:
-    """Say which volumes of §4.6.2 the risks of the portfolio hold, and which they do not."""
-    risks = identified_risks(rows)
-    projects = len({cast("str", risk.row["project_id"]) for risk in risks})
-    return (
-        f"{_count(len(risks))} risques identifiés sur {_count(projects)} projets — le registre du "
-        f"témoin et jusqu'à trois par autre projet, une provision sans devis propre, et non les "
-        f"trente risques par projet, chacun d'une vingtaine de tâches, que le §4.6.2 suppose"
-    )
 
 
 def _structure_summary(answer: JsonObject) -> str:
