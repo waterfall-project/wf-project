@@ -111,18 +111,19 @@ async function deactivate(page: Page, address: string, label: string): Promise<v
     // The row first: a page read has not always drawn its commands, and a command not seen yet is
     // not a command done — the deactivation would be skipped, and the object left active.
     await expect(command).toBeVisible({ timeout: WORKING });
+    // Pressed again only until the page answers (React may not be hydrated yet), and never once an
+    // answer came: a deactivation is not asked twice. Both promises are awaited together, so that a
+    // click that fails never leaves the wait of the answer to reject unheard.
     await expect(async () => {
-      if (await command.isVisible()) {
-        // The answer of the action awaited: the row hides at once, and the next page read would
-        // abandon the request before the service has kept the deactivation.
-        const answered = page.waitForResponse((response) => isServerAction(response.request()), {
-          timeout: 5_000,
-        });
-        await command.click({ timeout: 1_000 });
-        expect((await answered).status()).toBe(200);
-      }
-      await expect(command).toBeHidden({ timeout: 1_000 });
+      const [answer] = await Promise.all([
+        page.waitForResponse((response) => isServerAction(response.request()), { timeout: 3_000 }),
+        command.click({ timeout: 1_000 }),
+      ]);
+      expect(answer.status()).toBe(200);
     }).toPass({ timeout: WORKING });
+    // The answer of the action awaited: the row hides at once, and the next page read would abandon
+    // the request. A 200 of a server action says the request ended, not that the service kept it.
+    await expect(command).toBeHidden({ timeout: WORKING });
   } catch (failure) {
     console.warn(`The deactivation of ${label} failed:`, failure);
   }
@@ -187,7 +188,6 @@ test(
       await categoryForm.getByRole("textbox", { name: "Libellé" }).fill(category.label);
       await choose(categoryForm.getByRole("combobox", { name: "Nature" }), nature.code);
       await categoryForm.getByRole("textbox", { name: "Code comptable" }).fill(category.accounting);
-      made.push("category");
       await categoryForm.getByRole("button", { name: "Créer" }).click();
       await expect(categoryForm).toBeHidden({ timeout: WORKING });
       await expect(categories.getByRole("status").filter({ hasText: "créée" })).toHaveText(
@@ -394,8 +394,9 @@ test(
       await expect(page.getByText("6 semaines")).toBeVisible();
       await expect(page.getByRole("main").getByRole("alert")).toHaveCount(0);
     } finally {
-      // What the path made is deactivated, the roles first: an object that a role holds is not
-      // deactivated, and the cascade of a node would take the role with it.
+      // What the path made is deactivated: the role, the calendar and the node, then the nature,
+      // whose cascade takes the category with it (WF-REF-0010-A). The role first: an object that a
+      // role holds is not deactivated, and the cascade of a node would take the role with it.
       if (made.includes("role")) {
         await deactivate(page, `${RESOURCES}?role_code=${role.code}`, role.label);
       }
@@ -405,10 +406,10 @@ test(
       if (made.includes("node")) {
         await deactivate(page, `${RESOURCES}?org_search=${node.code}`, node.label);
       }
-      // The category is not deactivated by itself: its nature takes it with it (WF-REF-0010-A), and
-      // the list of the categories, paged, may not show it.
+      // The category is not deactivated by itself: the list of the categories is paged, and the
+      // nature takes it with it. The natures are paged too: found under the search of its code.
       if (made.includes("nature")) {
-        await deactivate(page, COSTS, nature.label);
+        await deactivate(page, `${COSTS}?type_search=${nature.code}`, nature.label);
       }
       try {
         withdrawRoles(manager.email);
