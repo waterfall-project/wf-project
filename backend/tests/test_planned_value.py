@@ -107,3 +107,12 @@ def test_a_task_over_a_weekend_counts_whole_at_its_end_not_at_its_start() -> Non
     )
     assert planned_value([weekend], date(2026, 3, 7)) == Decimal(0)
     assert planned_value([weekend], date(2026, 3, 9)) == Decimal(80)
+
+
+@pytest.mark.requirement("WF-DEV-0080-A")
+def test_the_planned_value_keeps_the_two_decimals_of_the_cent() -> None:
+    """The value serialises with its cents: ``80.00``, ``1.80`` and ``0.00``, not ``80``."""
+    weekend = line(80, date(2026, 3, 7), date(2026, 3, 8))
+    assert str(planned_value([weekend], date(2026, 3, 9))) == "80.00"
+    assert str(planned_value([TWO_MONTHS], date(2026, 3, 31))) == "500.00"
+    assert str(planned_value([], date(2026, 3, 13))) == "0.00"

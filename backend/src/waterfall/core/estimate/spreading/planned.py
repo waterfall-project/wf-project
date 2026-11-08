@@ -38,7 +38,8 @@ def planned_value(lines: Iterable[PlannedLine], at: date) -> Decimal:
     total = Fraction(0)
     for line in lines:
         total += Fraction(line.amount) * _earned(line, end)
-    return Decimal(round(total * 100)) / 100  # one rounding, to the nearest even, of the exact sum
+    # One rounding, to the nearest even, of the exact sum; ``scaleb`` keeps the two decimals.
+    return Decimal(round(total * 100)).scaleb(-2)
 
 
 def _earned(line: PlannedLine, end: WorkInstant) -> Fraction:
