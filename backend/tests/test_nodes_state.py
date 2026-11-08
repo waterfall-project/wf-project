@@ -10,6 +10,7 @@ Every answer is checked against the contract.
 """
 
 from concurrent.futures import ThreadPoolExecutor
+from datetime import timedelta
 from decimal import Decimal
 from typing import TYPE_CHECKING
 from uuid import UUID, uuid4
@@ -26,7 +27,7 @@ from nodes_support import (
     refusal,
     signed_in,
 )
-from planning_support import insert_link, node_row
+from planning_support import DAY, insert_link, node_row
 from projects_support import PROJECTS, Scene, contribute, person, put_in_state
 from projects_support import scene as make_scene
 from sqlalchemy import func, insert, select
@@ -293,7 +294,11 @@ def test_a_revision_opened_from_a_marked_one_copies_its_tree_its_facets_and_its_
     assert [item["task"]["label"] for item in after] == ["Études", "Études de détail", "Revue"]
     assert [item["lock_version"] for item in after] == [1, 1, 1]
     assert after[2]["predecessors"][0]["predecessor_node_id"] == after[1]["node_id"]
-    assert after[2]["task"]["start"] == before[2]["task"]["start"]
+    # The copy is dated at its opening (WF-PLA-0160): the link, written around the service and never
+    # dated in the marked revision, puts the review on the day after the detailed studies.
+    assert before[2]["task"]["start"] == {"date": DAY.isoformat(), "hours": "0"}
+    following = (DAY + timedelta(days=1)).isoformat()
+    assert after[2]["task"]["start"] == {"date": following, "hours": "0"}
     # The marked revision keeps its own, unchanged.
     assert tree.items() == before
 

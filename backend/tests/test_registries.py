@@ -57,6 +57,7 @@ from waterfall.core.resource_settings.interface import (
     CalendarChange,
     CalendarContent,
     IdleProject,
+    Units,
     WeeklyHours,
     create_calendar,
     get_duration_units,
@@ -141,11 +142,13 @@ DECLARED = {
     "witness.revision_fillers",
 }
 PLANNING = "waterfall.core.planning.interface"
-# What the socle of EP-06 registers (US-1380/L1), the copy of the nodes after the structures'.
+# What EP-06 registers (US-1380/L1, US-1390/L2), the copy of the nodes after the structures', and
+# their redating after them.
 REGISTERED = {
     "revisions.copy": [
         "waterfall.core.revisions.interface.structures.copy_structures",
         f"{PLANNING}.nodes.copy_nodes",
+        f"{PLANNING}.reference.redate_copy",
     ],
     "revisions.tasks_and_lines": [f"tasks:{PLANNING}.nodes.revision_has_tasks"],
     "resource_settings.idle_task_guard": [f"{PLANNING}.reference.tasks_left_idle"],
@@ -286,6 +289,8 @@ EIGHT = Decimal(8)
 WEEK = WeeklyHours(EIGHT, EIGHT, EIGHT, EIGHT, EIGHT, Decimal(0), Decimal(0))
 ATELIER = CalendarContent("Atelier", WEEK)
 RENAMED = CalendarContent("Atelier B", WEEK)
+SIX_DAYS = WeeklyHours(EIGHT, EIGHT, EIGHT, EIGHT, EIGHT, EIGHT, Decimal(0))
+SEVEN_HOURS = Units(Decimal(7), Decimal(35), Decimal(20))
 
 
 def test_a_guard_registered_refuses_a_calendar_that_would_leave_a_task_idle(
@@ -328,7 +333,7 @@ def test_a_guard_registered_refuses_a_calendar_that_would_leave_a_task_idle(
     )
 
 
-def test_a_recalculation_registered_runs_once_the_reference_is_written(
+def test_a_recalculation_registered_runs_once_what_dates_the_plannings_is_written(
     database: Database,
 ) -> None:
     ran: list[str] = []
@@ -337,23 +342,31 @@ def test_a_recalculation_registered_runs_once_the_reference_is_written(
         install_duration_units(session, act)
         calendar = create_calendar(session, ATELIER, act)
     with ExitStack() as registered:
-        registered.callback(register_recalculation(lambda _session: ran.append("redated")))
+        registered.callback(register_recalculation(lambda _session, _at: ran.append("redated")))
+        # The same constants sent again are written, and redate nothing; others redate.
+        for units in (DEFAULT_UNITS, SEVEN_HOURS):
+            with database.transaction() as session:
+                set_duration_units(session, units, get_duration_units(session).lock_version, act)
+        assert ran == ["redated"]
+        # A calendar that is not the default redates nothing, whatever its hours.
+        longer = CalendarContent("Atelier B", SIX_DAYS)
         with database.transaction() as session:
-            set_duration_units(
-                session, DEFAULT_UNITS, get_duration_units(session).lock_version, act
+            changed = update_calendar(
+                session, calendar.calendar_id, longer, calendar.lock_version, act
             )
         assert ran == ["redated"]
         with database.transaction() as session:
-            changed = update_calendar(
-                session,
-                calendar.calendar_id,
-                CalendarContent("Atelier B", WEEK),
-                calendar.lock_version,
-                act,
+            designated = set_default_calendar(
+                session, calendar.calendar_id, changed.lock_version, act
             )
         assert ran == ["redated"] * 2
-        with database.transaction() as session:
-            set_default_calendar(session, calendar.calendar_id, changed.lock_version, act)
+        # The default renamed alone redates nothing; its hours changed redate.
+        counter = designated.lock_version
+        for content in (CalendarContent("Atelier C", SIX_DAYS), RENAMED):
+            with database.transaction() as session:
+                counter = update_calendar(
+                    session, calendar.calendar_id, content, counter, act
+                ).lock_version
         assert ran == ["redated"] * 3
 
 

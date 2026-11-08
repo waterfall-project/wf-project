@@ -1,0 +1,10 @@
+{
+  "summary": "Les heures par jour passées de 8 à 7 : une durée saisie « 2 j » vaut quatorze heures dans une révision en cours, que le recalcul redate — commencée un lundi matin sur un calendrier de huit heures du lundi au vendredi, elle finit le mardi à la sixième heure ; une révision marquée garde les seize heures qu'elle a calculées, et sa fin du mardi soir (WF-PLA-0160).",
+  "examples": ["WF-PLA-0160-A#accda3317067"],
+  "duration": {"value": "2", "unit": "d"},
+  "weekly_hours": ["8", "8", "8", "8", "8", "0", "0"],
+  "before": {"hours_per_day": "8", "hours_per_week": "40", "days_per_month": "20"},
+  "after": {"hours_per_day": "7", "hours_per_week": "35", "days_per_month": "20"},
+  "current": {"hours": "14", "finish": {"weekday": "tuesday", "hours": "6"}},
+  "marked": {"hours": "16", "finish": {"weekday": "tuesday", "hours": "8"}}
+}
