@@ -103,6 +103,7 @@ tâches, des liaisons et des structures sans ligne ; les phrases qui demandent p
 | `WF-INTF-0090-A` | Imports et révisions marquées | début — close en EP-08 | US-1420 |
 | `WF-ARC-0110-A` | Le texte est rendu au plus près du lecteur | fin — amorcée en EP-03 | US-1420 |
 | `WF-DAT-0120-A` | Contenu et purge du stockage objet | fin — amorcée en EP-03 | US-1420, US-1430 |
+| `WF-DAT-0150-A` | Écritures concurrentes | entière | US-1380 |
 | `WF-INTF-0040-A` | Imports MS Project | début — close en EP-07 | US-1430 |
 | `WF-INTF-0050-A` | Exports MS Project | début — close en EP-07 | US-1430 |
 | `WF-INTF-0060-A` | Réversibilité de l’échange MS Project | début — close en EP-07 | US-1430 |
@@ -715,7 +716,7 @@ de lots (étape 3) le détaille en vagues.
 
 - **statut** : fini
 - **exigences** : `WF-PLA-0040-A`, `WF-PLA-0050-A`, `WF-PLA-0070-A`, `WF-PLA-0170-A`,
-  `WF-PLA-0150-A`
+  `WF-PLA-0150-A`, `WF-DAT-0150-A`
 - **opérations** : `listNodes`, `createNode`, `updateTaskFacet`, `deleteNode`, `moveNodes`,
   `resolveRowNumber`, `getComputedValueDependencies`
 - **issue** : 2317
@@ -756,6 +757,14 @@ planning dont le devis portera les lignes.
 - `WF-PLA-0040-A` — « Une récapitulative terminée dont la seule subordonnée, un jalon, est
   déplacée devient un jalon terminé. » : `moveNodes` rend l'ancienne récapitulative dans
   `ancestors`, jalon terminé, états posés par US-1410 ;
+- `WF-PLA-0040-A` — « Le déplacement d’une sélection qui contient une récapitulative et l’une de ses
+  subordonnées laisse la subordonnée sous la récapitulative : le groupe est déplacé entier, sans
+  être aplati. » : `moveNodes` ignore une tâche nommée dont une ancêtre est aussi nommée
+  (spécification 1.0.3, #2521), réalisé par US-1380/L4 (#2519) ;
+- `WF-DAT-0150-A` — « Deux contributeurs lisent la même tâche ; le premier la modifie ; la
+  modification du second, fondée sur sa lecture, est refusée, le refus le dit, et la tâche garde la
+  valeur du premier. Relue, la tâche se modifie. » : 412 `STALE_LOCK_VERSION` sur le `lock_version`
+  des écritures de l’arbre ; les tests du 412 la citent (#2525), redressés par US-1480/L3 (#2348) ;
 - `WF-PLA-0050-A` — « Une tâche feuille de durée nulle ne peut recevoir de sous-tâche. » :
   `createNode` et `moveNodes` refusent par 422 `MILESTONE_HAS_NO_SUBTASK` sur `/parent_id`,
   `node_id` et `label` du jalon (#1772) ; une ligne de devis sous un jalon reste permise (EP-07) ;
@@ -1070,6 +1079,10 @@ démarré à terminé, **afin que** le planning dise où en est chaque tâche av
 - `WF-PLA-0130-A` — « La marge totale, la criticité et l’avancement physique s’affichent et ne
   sont pas saisissables. » : la marge et la criticité, par US-1390 et US-1470 ; l'avancement
   physique est d'EP-10, qui clôt ;
+- `WF-PLA-0130-A` — « Une terminaison datée avant le démarrage de la tâche est refusée. » :
+  `setTaskProgress` refuse par 422 `VALUE_OUT_OF_RANGE` sur la date, et le jour par défaut se lit
+  dans le fuseau horaire de l’installation (spécification 1.0.3, #2524), réalisé par US-1380/L4
+  (#2519) ;
 - propre à l'US : `setTaskProgress` démarre, termine ou rouvre une tâche feuille, au compteur lu,
   et refuse par 409 — `task_is_milestone`, `task_without_lines` (jamais manquante sans ligne),
   `task_not_milestone`, `completed_milestone`, puis `project_in_progress` et
@@ -1122,6 +1135,9 @@ s'importent de la même façon.
   contributeur et l'état ; refusé, l'import passe `refused`, son fichier supprimé (#1790) ;
 - `WF-ARC-0100-A` — « Il en va de même si le projet est passé dans un état terminal
   entre-temps. » : `project_not_terminal` ;
+- `WF-ARC-0100-A` — « Une application refusée parce qu’un marquage est en cours sur le projet peut
+  être redemandée après lui, sans nouveau dépôt. » : un refus passager laisse le compte rendu
+  applicable et son fichier en place (spécification 1.0.3, #2523), réalisé par US-1380/L4 (#2519) ;
 - `WF-INTF-0080-A` — « Pour un fichier qui contient des lignes invalides, le compte rendu les
   liste avec leur motif avant la confirmation. » : `ImportReport.rejected`, par le format
   (US-1430 pour MS Project) ; les lignes d'un devis sont d'EP-07, qui clôt ;
@@ -1340,6 +1356,9 @@ présenter la structure du projet sans ses détails.
   `VALUE_OUT_OF_RANGE` sous 1 ;
 - `WF-PLA-0120-A` — « L’export d’une arborescence trop large pour une page produit une image plus
   large que la page, sans réduction. »
+- `WF-PLA-0120-A` — « L’export d’une arborescence dont l’image dépasserait cent millions de pixels
+  échoue, et l’échec le dit. » : `TASK_TREE_IMAGE_TOO_LARGE`, calculé avant le rendu (spécification
+  1.0.3, #2522), réalisé par US-1440/L2 (#2343) ;
 - propre à l'US : l'image porte le libellé du projet, de la révision et la date de calcul, dans
   la langue du compte demandeur (WF-ARC-0110) ; l'écran de l'arborescence (`…/task-tree`)
   travaille contre le service, offre l'export sous `export_task_tree_image`, et son parcours
