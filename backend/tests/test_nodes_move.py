@@ -567,7 +567,7 @@ def test_a_write_of_the_tree_reads_the_facts_of_its_structure_once(
     # facts again under the lock would be missed by a patch of a function.
     def counted(_conn: Any, _cursor: Any, statement: str, *_rest: Any) -> None:
         text = " ".join(statement.lower().split())
-        if "from cost_structure" in text and text.endswith("for update"):
+        if "from cost_structure" in text and " for update" in text:
             calls.append(1)
 
     event.listen(Engine, "before_cursor_execute", counted)
