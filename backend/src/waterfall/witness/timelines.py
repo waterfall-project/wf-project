@@ -13,7 +13,7 @@ from typing import TYPE_CHECKING
 from pydantic import RootModel
 
 from waterfall.api.contract.models import Project, Timeline
-from waterfall.core.planning.interface import TimelineLoad, load_timeline, timelines_present
+from waterfall.core.planning.interface import TimelineView, load_timeline, timelines_present
 from waterfall.witness import timeline
 from waterfall.witness.description import is_loaded
 
@@ -35,7 +35,7 @@ def load(session: Session, witness: Witness) -> bool:
     project = witness.read(PROJECT_FILE, Project)
     project_id = project.project_id.root
     loads = tuple(
-        TimelineLoad(item.timeline_id.root, item.label)
+        TimelineView(item.timeline_id.root, item.label)
         for item in witness.read(TIMELINES_FILE, Timelines).root
     )
     imposed = {load.timeline_id for load in loads}

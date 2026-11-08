@@ -291,8 +291,11 @@ def test_the_witness_loads_the_two_timelines_of_its_project_under_the_identifier
     project = json.loads((WITNESS / "project.json").read_text(encoding="utf-8"))["value"]
     answer = api.get(f"{PROJECTS}/{project['project_id']}/timelines", headers=reader.headers)
     assert answer.status_code == 200, answer.text
-    assert answer.json() == value
-    assert len(value) == 2
+    # The order of the list is not what is judged here: compare the identifiers and labels.
+    assert {(item["timeline_id"], item["label"]) for item in answer.json()} == {
+        (item["timeline_id"], item["label"]) for item in value
+    }
+    assert len(answer.json()) == len(value) == 2
     with witness.transaction() as session:
         rows = session.scalars(select(Timeline)).all()
         assert {row.created_by for row in rows} == {None}

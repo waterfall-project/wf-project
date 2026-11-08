@@ -47,15 +47,7 @@ TERMINAL = ("completed", "lost", "abandoned")
 
 @dataclass(frozen=True, slots=True)
 class TimelineView:
-    """A timeline as it is read: its identifier and its label."""
-
-    timeline_id: UUID
-    label: str
-
-
-@dataclass(frozen=True, slots=True)
-class TimelineLoad:
-    """A timeline of the witness: the identifier it imposes, and its label."""
+    """A timeline: its identifier and its label, as it is read or as the witness imposes it."""
 
     timeline_id: UUID
     label: str
@@ -150,7 +142,7 @@ def timelines_present(session: Session, timeline_ids: Collection[UUID]) -> froze
     return frozenset(session.scalars(found))
 
 
-def load_timeline(session: Session, project_id: UUID, load: TimelineLoad, act: Act) -> None:
+def load_timeline(session: Session, project_id: UUID, load: TimelineView, act: Act) -> None:
     """Write a timeline of the witness, at the identifier and the instant it imposes.
 
     By the rules of the creation: the label is judged, the project is not terminal.
