@@ -12,8 +12,7 @@ US-1380/L2's, the deletion, the move and the attachment to the work breakdown (`
 US-1380/L3's; each write judges its revision, opens its entry of the history, locks its structure,
 replays the engine on it and gives back what it wrote (``writing``). A marked revision reads as the
 current one. The copy leaves null the attachment to an element marked deleted (WF-PLA-0170).
-``load_task`` writes a task of the witness at the identifiers and the instant it imposes
-(US-1480/L2).
+The tasks of the witness are written by ``loading`` (US-1480/L2).
 """
 
 from dataclasses import dataclass
@@ -886,9 +885,3 @@ def _moved(write: Write, placing: Placing) -> NodesWritten:
     redated = write.redate(blamed, origin)
     write.after(touched)
     return redated.written(node_ids, former)
-
-
-def load_task(session: Session, project_id: UUID, structure_id: UUID, act: Act) -> None:
-    """Write a task of the witness, at the identifiers and the instant it imposes."""
-    msg = "load_task is filled by US-1480/L2"
-    raise NotImplementedError(msg)

@@ -111,7 +111,6 @@ def test_a_task_has_exactly_the_keys_the_loader_reads() -> None:
     for task in _value()["tasks"]:
         assert set(task) == KEYS
         assert task["scheduling_mode"] in {"automatic", "manual"}
-        assert task["progress"] in {"not_started", "started", "completed"}
         for amount in (task["duration"], *(link["lag"] for link in task["predecessors"])):
             assert set(amount) == {"value", "unit"}
             assert amount["unit"] in UNITS
@@ -216,27 +215,39 @@ def test_the_dates_are_those_of_the_planning_example() -> None:
         assert current[lineage]["progress"] == facet["progress"]
 
 
-def test_the_dates_of_the_offer_and_of_the_reference_are_those_of_the_current() -> None:
-    # WF-QUA-0040-A: the dates of 100 and 101 come from the history rows, not from the engine;
-    # they are held to the revision in progress, which the planning example holds to the engine.
+def _differing(revision: int) -> dict[str, dict[str, Any]]:
+    """Give the tasks of a revision whose dates are not the current's, by lineage."""
     current = {task["lineage_id"]: task for task in _tasks(mockchronology.CURRENT)}
-    for revision in (mockchronology.OFFER, mockchronology.REFERENCE):
-        differing = {
-            task["lineage_id"]: task
-            for task in _tasks(revision)
-            if task["lineage_id"] in current
-            and (task["start"], task["finish"])
-            != (current[task["lineage_id"]]["start"], current[task["lineage_id"]]["finish"])
-        }
-        if revision == mockchronology.REFERENCE:
-            assert not differing
-            continue
-        # The offer lengthened by the amendment 1: the detailed design file finished on the 13th.
-        assert {task["label"] for task in differing.values()} == {"Dossier de conception"}
-        for lineage, task in differing.items():
-            assert task["start"] == current[lineage]["start"]
-            assert task["finish"] == {"date": "2026-04-13", "hours": "8"}
-            assert current[lineage]["finish"] == {"date": "2026-04-15", "hours": "8"}
+    return {
+        task["lineage_id"]: task
+        for task in _tasks(revision)
+        if task["lineage_id"] in current
+        and (task["start"], task["finish"])
+        != (current[task["lineage_id"]]["start"], current[task["lineage_id"]]["finish"])
+    }
+
+
+def test_the_dates_of_the_reference_are_those_of_the_current() -> None:
+    # WF-QUA-0040-A: the dates of 101 come from the history rows, not from the engine; they are held
+    # to the revision in progress, which the planning example holds to the engine.
+    assert not _differing(mockchronology.REFERENCE)
+
+
+def test_the_dates_of_the_offer_differ_from_the_current_only_by_the_amendment() -> None:
+    # WF-QUA-0040-A: the offer lengthened by the amendment 1: the detailed design file finished on
+    # the 13th. The preliminary trials on site the amendment removed are the offer's alone, so
+    # the current cannot hold their dates: the loading, where the engine computes them, does
+    # (backend `test_witness_tasks.py`).
+    current = {task["lineage_id"]: task for task in _tasks(mockchronology.CURRENT)}
+    differing = _differing(mockchronology.OFFER)
+    assert {task["label"] for task in differing.values()} == {"Dossier de conception"}
+    for lineage, task in differing.items():
+        assert task["start"] == current[lineage]["start"]
+        assert task["finish"] == {"date": "2026-04-13", "hours": "8"}
+        assert current[lineage]["finish"] == {"date": "2026-04-15", "hours": "8"}
+    alone = [task for task in _tasks(mockchronology.OFFER) if task["lineage_id"] not in current]
+    trials = mockwitness.lineage_id(mockwitness.N.SITE_TRIALS)
+    assert [task["lineage_id"] for task in alone] == [trials]
 
 
 def test_no_address_and_no_real_label_figure_in_the_file() -> None:

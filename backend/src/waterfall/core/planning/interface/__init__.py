@@ -62,6 +62,23 @@ from waterfall.core.planning.interface.lines import (
     place_line as place_line,
 )
 
+# ``loading`` (US-1480/L2): the tasks of the witness, a revision's tree reconciled with them.
+from waterfall.core.planning.interface.loading import (
+    DatesDisagreeing as DatesDisagreeing,
+)
+from waterfall.core.planning.interface.loading import (
+    LinkLoad as LinkLoad,
+)
+from waterfall.core.planning.interface.loading import (
+    TaskLoad as TaskLoad,
+)
+from waterfall.core.planning.interface.loading import (
+    TasksLoad as TasksLoad,
+)
+from waterfall.core.planning.interface.loading import (
+    load_tasks as load_tasks,
+)
+
 # ``msproject`` (US-1380/L1; US-1430/L3, L4): the format and the exporter of MS Project.
 from waterfall.core.planning.interface.msproject import (
     MS_PROJECT_EXPORTER as MS_PROJECT_EXPORTER,
@@ -70,7 +87,7 @@ from waterfall.core.planning.interface.msproject import (
     MS_PROJECT_FORMAT as MS_PROJECT_FORMAT,
 )
 
-# ``nodes`` (US-1380/L1; US-1380/L2, L3; US-1480/L2): the nodes of a structure.
+# ``nodes`` (US-1380/L1; US-1380/L2, L3): the nodes of a structure.
 from waterfall.core.planning.interface.nodes import (
     Dependencies as Dependencies,
 )
@@ -118,9 +135,6 @@ from waterfall.core.planning.interface.nodes import (
 )
 from waterfall.core.planning.interface.nodes import (
     list_nodes as list_nodes,
-)
-from waterfall.core.planning.interface.nodes import (
-    load_task as load_task,
 )
 from waterfall.core.planning.interface.nodes import (
     move_nodes as move_nodes,
