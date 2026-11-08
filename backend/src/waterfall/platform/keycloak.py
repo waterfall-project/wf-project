@@ -90,14 +90,18 @@ def is_moment(claim: object) -> TypeIs[int | float]:
 
 @dataclass(frozen=True, slots=True)
 class Bearer:
-    """What the API takes from a valid access token: whom it is lent to, and since when.
+    """What the API takes from a valid access token: whom, since when, in which session.
 
     ``signed_in_at`` is the moment of the sign-in the token comes from, ``auth_time``, which a
     refresh does not move; a token without it gives its moment of issue, ``iat`` (#835).
+    ``session_id`` is the session of sign-in of Keycloak, ``sid``, which a refresh does not change
+    either: the stacks of the history are kept by it (EP-06, "L'historique annulable"); ``None``
+    for a token without it, a client of the realm whose scopes do not give it.
     """
 
     subject: str
     signed_in_at: datetime
+    session_id: str | None = None
 
 
 class Keycloak:
@@ -135,13 +139,13 @@ class Keycloak:
         self._http.close()
 
     def validate(self, token: str) -> Bearer:
-        """Validate an access token, give its subject and the moment of its sign-in, or refuse it.
+        """Validate an access token, give its subject, its sign-in and its session, or refuse it.
 
         An expired token is ``SESSION_EXPIRED`` (401); any other fault — a key the realm does not
         have, a signature that does not match, another issuer, another audience, no subject, no
-        moment of issue, or a moment of sign-in that is none or that no date can hold — is
-        ``SESSION_REQUIRED`` (401). The signature is checked first: an expired token signed by
-        another key is not merely expired.
+        moment of issue, a moment of sign-in that is none or that no date can hold, or a session
+        that is no text or an empty one — is ``SESSION_REQUIRED`` (401). The signature is checked
+        first: an expired token signed by another key is not merely expired.
         """
         try:
             key_id = jwt.get_unverified_header(token).get("kid")
@@ -168,11 +172,13 @@ class Keycloak:
         subject = claims["sub"]
         issued_at = claims["iat"]
         signed_in_at = claims.get("auth_time", issued_at)
+        session_id = claims.get("sid")
         if (
             not isinstance(subject, str)
             or not subject
             or not is_moment(issued_at)
             or not is_moment(signed_in_at)
+            or (session_id is not None and (not isinstance(session_id, str) or not session_id))
         ):
             raise UnauthenticatedError(SESSION_REQUIRED)
         try:
@@ -180,7 +186,7 @@ class Keycloak:
         except OverflowError, OSError, ValueError:
             # Signed, but beyond any date: ``1e20``, an infinity, not a number.
             raise UnauthenticatedError(SESSION_REQUIRED) from None
-        return Bearer(subject, moment)
+        return Bearer(subject, moment, session_id)
 
     def send(
         self, method: str, path: str, *, answered: Collection[int] = (), **options: Any
