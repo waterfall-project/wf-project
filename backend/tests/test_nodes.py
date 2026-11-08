@@ -12,34 +12,30 @@ structure at once. The links, the states and the inscriptions their stories writ
 around the service (``planning_support``).
 """
 
-from concurrent.futures import ThreadPoolExecutor
 from datetime import date, datetime, timedelta
-from decimal import Decimal
 from typing import TYPE_CHECKING, Any
 from uuid import UUID, uuid4
 
 import pytest
-from access_rows import role
+from nodes_support import (
+    FRIDAY,
+    NEXT_MONDAY,
+    SATURDAY,
+    Tree,
+    faults,
+    instant,
+    opened,
+    refusal,
+    scheduled_at,
+    set_progress,
+)
 from planning_support import DAY, insert_link
 from project_rows import STAMP
-from projects_support import MANAGING, PROJECTS, Person, Scene, contribute, person, put_in_state
+from projects_support import PROJECTS, Scene
 from projects_support import scene as make_scene
-from realm import KEY
-from sqlalchemy import func, insert, select, update
-from sqlalchemy.orm import Session
-from support import bearer, raw_account
+from sqlalchemy import insert
 
-from waterfall.core.access_roles.tables import UserAccessRole
-from waterfall.core.history.tables import UndoEntry
-from waterfall.core.planning.interface import FacetHooks, calendar_of, register_facet
-from waterfall.core.planning.tables import Node, Task, TaskLink, TrackingEntry
-from waterfall.core.resource_settings.interface import CalendarContent, WeeklyHours, create_calendar
-from waterfall.core.revisions.interface import mark_revision
-from waterfall.core.revisions.tables import CostStructure
-from waterfall.core.users.tables import UserAccount
-from waterfall.platform.audit import Act
-from waterfall.platform.database import utc_now
-from waterfall.platform.logs import logging_context
+from waterfall.core.planning.tables import TrackingEntry
 
 if TYPE_CHECKING:
     from realm import TestRealm
@@ -48,92 +44,6 @@ if TYPE_CHECKING:
 
     from waterfall.platform.database import Database
 
-CONSULT = "planning.read"
-CHANGE = "planning.write"
-# The Friday after the Monday the structures of these tests start their planning on, a Saturday,
-# and the following Monday.
-FRIDAY = DAY + timedelta(days=4)
-SATURDAY = DAY + timedelta(days=5)
-NEXT_MONDAY = DAY + timedelta(days=7)
-SESSION = "office"
-
-
-class Tree:
-    """The main structure of the current revision of the project of a stage, and its writes."""
-
-    def __init__(self, api: ContractClient, stage: Scene, revision: dict[str, Any]) -> None:
-        """Read the main structure of the revision, and start its planning on a Monday."""
-        self.api = api
-        self.stage = stage
-        self.revision = revision
-        base = f"{PROJECTS}/{stage.project['project_id']}/revisions/{revision['revision_id']}"
-        listed = api.get(f"{base}/structures", headers=stage.manager.headers)
-        assert listed.status_code == 200, listed.text
-        self.structure_id = listed.json()[0]["structure_id"]
-        self.path = f"{base}/structures/{self.structure_id}"
-        with stage.owner.begin() as connection:
-            connection.execute(
-                update(CostStructure)
-                .where(CostStructure.id == UUID(self.structure_id))
-                .values(planning_start_on=DAY)
-            )
-        self.created_at = scheduled_at(self)
-
-    def create(self, label: str, who: Person | None = None, **body: Any) -> Any:
-        """Ask for a task, as the manager does by default; give the answer."""
-        task = {"label": label, **body.pop("task", {})}
-        sent = {"kind": "task", "parent_id": None, "task": task, **body}
-        headers = (who or self.stage.manager).headers
-        return self.api.post(f"{self.path}/nodes", headers=headers, json=sent)
-
-    def made(self, label: str, **body: Any) -> dict[str, Any]:
-        """Create a task that must be created; give the node created."""
-        answer = self.create(label, **body)
-        assert answer.status_code == 201, answer.text
-        return answer.json()["nodes"][0]
-
-    def change(self, node: dict[str, Any], who: Person | None = None, **body: Any) -> Any:
-        """Change the facet of a task at the counter read; give the answer."""
-        sent = {"lock_version": node["lock_version"], **body}
-        headers = (who or self.stage.manager).headers
-        path = f"{self.path}/nodes/{node['node_id']}/task"
-        return self.api.patch(path, headers=headers, json=sent)
-
-    def changed(self, node: dict[str, Any], **body: Any) -> dict[str, Any]:
-        """Change a task that must be changed; give what is answered."""
-        answer = self.change(node, **body)
-        assert answer.status_code == 200, answer.text
-        return answer.json()
-
-    def read(self, query: str = "", who: Person | None = None) -> Any:
-        """Read the structure with a query; give the answer."""
-        headers = (who or self.stage.manager).headers
-        return self.api.get(f"{self.path}/nodes{query}", headers=headers)
-
-    def items(self, query: str = "") -> list[dict[str, Any]]:
-        """Read the nodes the query retains, in their order."""
-        answer = self.read(query)
-        assert answer.status_code == 200, answer.text
-        return answer.json()["items"]
-
-    def labels(self, query: str = "") -> list[str]:
-        """Read the labels of the tasks the query retains, in their order."""
-        return [item["task"]["label"] for item in self.items(query)]
-
-    def node(self, node_id: str) -> dict[str, Any]:
-        """Read a node of the structure as the reading gives it."""
-        return next(item for item in self.items() if item["node_id"] == node_id)
-
-
-def scheduled_at(tree: Tree) -> datetime:
-    """Read the instant the dates of the structure were last computed."""
-    with tree.stage.database.transaction() as session:
-        found = session.scalar(
-            select(CostStructure.scheduled_at).where(CostStructure.id == UUID(tree.structure_id))
-        )
-    assert found is not None
-    return found
-
 
 @pytest.fixture
 def stage(api: ContractClient, owner: Engine, database: Database, realm: TestRealm) -> Scene:
@@ -141,71 +51,10 @@ def stage(api: ContractClient, owner: Engine, database: Database, realm: TestRea
     return make_scene(api, owner, database, realm)
 
 
-def opened(api: ContractClient, stage: Scene) -> dict[str, Any]:
-    """Open the current revision of the project of the stage, as its manager does."""
-    path = f"{PROJECTS}/{stage.project['project_id']}/revisions"
-    answer = api.post(path, headers=stage.manager.headers, json={})
-    assert answer.status_code == 201, answer.text
-    return answer.json()
-
-
 @pytest.fixture
 def tree(api: ContractClient, stage: Scene) -> Tree:
     """Give the main structure of the revision the manager opened on the project of the stage."""
     return Tree(api, stage, opened(api, stage))
-
-
-def refusal(answer: Any) -> tuple[int, str, dict[str, Any]]:
-    """Give the status, the code and the parameters of a refusal."""
-    body = answer.json()
-    return answer.status_code, body["code"], body.get("params", {})
-
-
-def faults(answer: Any) -> list[tuple[str, str, dict[str, Any]]]:
-    """Give the fields a refusal of 422 names, each with its code and its parameters."""
-    assert answer.status_code == 422, answer.text
-    return [
-        (each["pointer"], each["code"], each.get("params", {})) for each in answer.json()["fields"]
-    ]
-
-
-def instant(day: date, hours: str) -> dict[str, str]:
-    """Write an instant of work as the contract reads it."""
-    return {"date": day.isoformat(), "hours": hours}
-
-
-def signed_in(stage: Scene, realm: TestRealm) -> Person:
-    """Write a contributor of the project whose token carries a session of sign-in (``sid``)."""
-    account = raw_account(email=f"{uuid4().hex}@example.org", first_name="Léa")
-    held = role(stage.database, f"Rôle {uuid4().hex}", permissions=MANAGING)
-    with stage.database.transaction() as session:
-        session.execute(insert(UserAccount).values(**account))
-        session.execute(
-            insert(UserAccessRole).values(user_account_id=account["id"], access_role_id=held)
-        )
-    token = realm.token(str(account["idp_subject"]), KEY, claims={"sid": SESSION})
-    who = Person(bearer(token), UUID(str(account["id"])))
-    contribute(stage.database, stage.project["project_id"], who, "contributor")
-    return who
-
-
-def entries(stage: Scene) -> list[UndoEntry]:
-    """Read the entries of the history, in the order of their stack."""
-    with stage.database.transaction() as session:
-        found = session.scalars(select(UndoEntry).order_by(UndoEntry.rank)).all()
-        session.expunge_all()
-        return list(found)
-
-
-def set_progress(stage: Scene, node_id: str, progress: str, on: date) -> None:
-    """Put a task in a state around the service, as US-1410 will."""
-    completed = on if progress == "completed" else None
-    with stage.owner.begin() as connection:
-        connection.execute(
-            update(Task)
-            .where(Task.node_id == UUID(node_id))
-            .values(progress=progress, started_on=on, completed_on=completed)
-        )
 
 
 # --- Reading -----------------------------------------------------------------------------------
@@ -844,261 +693,3 @@ def test_a_row_number_resolves_to_its_node_whatever_the_filters_and_none_beyond(
     }
     assert refusal(resolved(3)) == (404, "NOT_FOUND", {})
     assert faults(resolved(0))[0][0] == "/path/row_number"
-
-
-# --- The state and the rights ------------------------------------------------------------------
-
-
-def mark(stage: Scene, revision: dict[str, Any]) -> None:
-    """Mark a revision by the transaction of the worker (US-0970)."""
-    with (
-        logging_context(correlation_id="marking"),
-        Session(stage.owner) as session,
-        session.begin(),
-    ):
-        marked = UUID(revision["revision_id"])
-        mark_revision(session, marked, "v1.0", None, Act(None, utc_now()))
-
-
-@pytest.mark.requirement("WF-DAT-0020-A")
-def test_a_marked_revision_reads_as_the_current_one_and_refuses_every_write(
-    tree: Tree, stage: Scene
-) -> None:
-    node = tree.made("Études")
-    mark(stage, tree.revision)
-    assert tree.labels() == ["Études"]
-    refused = (tree.create("Revue"), tree.change(node, label="Autre"))
-    for answer in refused:
-        assert refusal(answer) == (
-            409,
-            "STATE_FORBIDS_OPERATION",
-            {"missing_condition": "revision_draft"},
-        )
-    put_in_state(stage.owner, stage.project["project_id"], "completed")
-    for answer in (tree.create("Revue"), tree.change(node, label="Autre")):
-        assert refusal(answer)[2] == {"missing_condition": "project_not_terminal"}
-    assert tree.labels() == ["Études"]
-
-
-@pytest.mark.requirement("WF-IHM-0090-A")
-def test_a_write_while_a_background_task_runs_in_the_project_is_refused(
-    api: ContractClient, tree: Tree, stage: Scene
-) -> None:
-    node = tree.made("Études")
-    path = f"{PROJECTS}/{stage.project['project_id']}/revisions/{tree.revision['revision_id']}"
-    revision = api.get(path, headers=stage.manager.headers).json()
-    asked = api.post(
-        f"{path}/mark",
-        headers=stage.manager.headers,
-        json={"version_name": "v1.0", "lock_version": revision["lock_version"]},
-    )
-    assert asked.status_code == 202, asked.text
-    for answer in (tree.create("Revue"), tree.change(node, label="Autre")):
-        assert refusal(answer) == (
-            409,
-            "STATE_FORBIDS_OPERATION",
-            {"missing_condition": "no_background_task_running"},
-        )
-
-
-@pytest.mark.requirement("WF-ADM-0110-A")
-def test_a_reader_an_outsider_and_a_contributor_without_planning_write_do_not_write(
-    tree: Tree, stage: Scene, realm: TestRealm
-) -> None:
-    node = tree.made("Études")
-    reading = person(stage.database, realm, "project_settings.read", CONSULT)
-    contribute(stage.database, stage.project["project_id"], reading, "contributor")
-    assert refusal(tree.create("Revue", reading)) == (
-        403,
-        "PERMISSION_MISSING",
-        {"missing_permission": CHANGE},
-    )
-    # Who sees every project and may write the planning is still no contributor of this one.
-    seeing = person(stage.database, realm, CONSULT, CHANGE, "all_projects_read")
-    assert refusal(tree.create("Revue", seeing)) == (
-        403,
-        "NOT_CONTRIBUTOR",
-        {"missing_condition": "is_contributor"},
-    )
-    assert tree.create("Revue", stage.reader).status_code == 403
-    assert refusal(tree.change(node, stage.outsider, label="Autre"))[:2] == (404, "NOT_FOUND")
-    assert tree.read(who=stage.outsider).status_code == 404
-    assert tree.read(who=stage.reader).status_code == 200
-    assert tree.create("Revue", stage.participant).status_code == 201
-    assert tree.labels() == ["Études", "Revue"]
-
-
-@pytest.mark.requirement("WF-PLA-0080-A")
-def test_a_structure_of_another_revision_or_unknown_is_not_found(
-    api: ContractClient, tree: Tree, stage: Scene
-) -> None:
-    moved = tree.path.replace(tree.revision["revision_id"], str(uuid4()))
-    for path in (moved, f"{tree.path.rsplit('/', 1)[0]}/{uuid4()}"):
-        answer = api.get(f"{path}/nodes", headers=stage.manager.headers)
-        assert refusal(answer) == (404, "NOT_FOUND", {})
-
-
-# --- The history, the abandonment, the copy, two writes at once ---------------------------------
-
-
-@pytest.mark.requirement("WF-IHM-0110-A")
-def test_each_write_keeps_its_entry_with_the_nodes_before_and_after_it(
-    tree: Tree, stage: Scene, realm: TestRealm
-) -> None:
-    writer = signed_in(stage, realm)
-    created = tree.create("Études", writer)
-    assert created.status_code == 201, created.text
-    node = created.json()["nodes"][0]
-    tree.changed({**node}, label="Études détaillées")  # the manager, without a session: no entry
-    read = tree.node(node["node_id"])
-    assert tree.change(read, writer, label="Avant-projet").status_code == 200
-    kept = entries(stage)
-    assert [(entry.kind, entry.rank, entry.session_id) for entry in kept] == [
-        ("node_create", 1, SESSION),
-        ("cell", 2, SESSION),
-    ]
-    creation, cell = kept
-    assert creation.node_ids == [UUID(node["node_id"])]
-    assert creation.before == []
-    [after] = creation.after
-    assert (after["object_id"], after["lock_version"], after["label"]) == (
-        node["node_id"],
-        1,
-        "Études",
-    )
-    assert after["rows"]["task"]["label"] == "Études"
-    assert after["rows"]["node"]["rank"] == 1
-    assert (cell.before[0]["lock_version"], cell.after[0]["lock_version"]) == (2, 3)
-    assert cell.before[0]["rows"]["task"]["label"] == "Études détaillées"
-    assert cell.after[0]["rows"]["task"]["label"] == "Avant-projet"
-    # A refused write keeps nothing.
-    assert (
-        tree.create(
-            "Exploitation", writer, task={"duration": {"value": "200", "unit": "mo"}}
-        ).status_code
-        == 422
-    )
-    assert len(entries(stage)) == 2
-
-
-@pytest.mark.requirement("WF-DAT-0010-A")
-def test_the_abandonment_of_a_full_revision_leaves_no_node_no_facet_no_link(
-    api: ContractClient, tree: Tree, stage: Scene, realm: TestRealm
-) -> None:
-    writer = signed_in(stage, realm)
-    studies = tree.made("Études")
-    first = tree.made("Études de détail", parent_id=studies["node_id"])
-    second = tree.create("Revue", writer, parent_id=studies["node_id"]).json()["nodes"][0]
-    with stage.database.transaction() as session:
-        session.execute(
-            insert_link(
-                UUID(stage.project["project_id"]),
-                UUID(tree.revision["revision_id"]),
-                UUID(tree.structure_id),
-                UUID(first["node_id"]),
-                UUID(second["node_id"]),
-            )
-        )
-    path = f"{PROJECTS}/{stage.project['project_id']}/revisions/{tree.revision['revision_id']}"
-    revision = api.get(path, headers=stage.manager.headers).json()
-    gone = api.delete(
-        f"{path}?lock_version={revision['lock_version']}", headers=stage.manager.headers
-    )
-    assert gone.status_code == 204, gone.text
-    with stage.database.transaction() as session:
-        for table in (Node, Task, TaskLink, UndoEntry):
-            assert session.scalar(select(func.count()).select_from(table)) == 0, table
-
-
-@pytest.mark.requirement("WF-DAT-0010-A")
-def test_a_revision_opened_from_a_marked_one_copies_its_tree_its_facets_and_its_links(
-    api: ContractClient, tree: Tree, stage: Scene
-) -> None:
-    studies = tree.made("Études")
-    first = tree.made("Études de détail", parent_id=studies["node_id"])
-    second = tree.made("Revue", parent_id=studies["node_id"])
-    with stage.database.transaction() as session:
-        session.execute(
-            insert_link(
-                UUID(stage.project["project_id"]),
-                UUID(tree.revision["revision_id"]),
-                UUID(tree.structure_id),
-                UUID(first["node_id"]),
-                UUID(second["node_id"]),
-            )
-        )
-    before = tree.items()
-    mark(stage, tree.revision)
-    copy = Tree(api, stage, opened(api, stage))
-    after = copy.items()
-    assert [item["lineage_id"] for item in after] == [item["lineage_id"] for item in before]
-    assert {item["node_id"] for item in after}.isdisjoint({item["node_id"] for item in before})
-    assert [item["task"]["label"] for item in after] == ["Études", "Études de détail", "Revue"]
-    assert [item["lock_version"] for item in after] == [1, 1, 1]
-    assert after[2]["predecessors"][0]["predecessor_node_id"] == after[1]["node_id"]
-    assert after[2]["task"]["start"] == before[2]["task"]["start"]
-    # The marked revision keeps its own, unchanged.
-    assert tree.items() == before
-
-
-@pytest.mark.requirement("WF-PLA-0080-A")
-def test_two_creations_at_once_in_one_structure_are_both_written_one_after_the_other(
-    tree: Tree,
-) -> None:
-    with ThreadPoolExecutor(2) as pool:
-        pending = [pool.submit(tree.create, label) for label in ("Gauche", "Droite")]
-        answers = [each.result() for each in pending]
-    assert [answer.status_code for answer in answers] == [201, 201]
-    counters = sorted(answer.json()["structure_lock_version"] for answer in answers)
-    assert counters[1] == counters[0] + 1
-    read = tree.items()
-    assert sorted(item["task"]["label"] for item in read) == ["Droite", "Gauche"]
-    assert [item["position"] for item in read] == [1, 2]
-    with tree.stage.database.transaction() as session:
-        ranks = session.scalars(select(Node.rank).order_by(Node.rank)).all()
-    assert ranks == [1, 2]
-    assert Decimal(read[0]["task"]["duration"]["value"]) == 1
-
-
-@pytest.mark.requirement("WF-PLA-0010-A")
-def test_a_task_is_on_the_default_calendar_or_on_the_calendars_its_facets_name_intersected(
-    tree: Tree, stage: Scene
-) -> None:
-    # « Une tâche sans ligne de main-d'œuvre est planifiée sur le calendrier par défaut. » The
-    # calendars of the roles of its lines are EP-07's, which names them by its facet
-    # (``register_facet``); a facet of a test names them here, and the task is placed on the
-    # fewest hours of each day, a calendar of no identifier.
-    node = tree.made("Câblage")
-    project_id, task_id = UUID(stage.project["project_id"]), UUID(node["node_id"])
-    week = (Decimal(6), Decimal(8), Decimal(8), Decimal(8), Decimal(4), Decimal(0), Decimal(0))
-    with stage.database.transaction() as session:
-        content = CalendarContent("Atelier", WeeklyHours(*week))
-        short = create_calendar(session, content, Act(None, utc_now())).calendar_id
-        default = calendar_of(session, project_id, task_id)
-    assert default.calendar_id == UUID(node["task"]["calendar_id"])
-    assert default.calendar.week == (*[Decimal(8)] * 5, Decimal(0), Decimal(0))
-    named: set[UUID] = {short}
-
-    def calendars(session: Session, project: UUID, task: UUID) -> set[UUID]:
-        del session
-        return named if (project, task) == (project_id, task_id) else set()
-
-    def read(*_: object) -> dict[UUID, object]:
-        return {}
-
-    def nothing(*_: object) -> None:
-        return None
-
-    hooks = FacetHooks(read, nothing, nothing, calendars)
-    withdraw = register_facet("estimate_line", hooks)
-    try:
-        with pytest.raises(ValueError, match="registered already"):
-            register_facet("estimate_line", hooks)
-        with stage.database.transaction() as session:
-            own = calendar_of(session, project_id, task_id)
-            named.add(default.calendar_id or short)
-            both = calendar_of(session, project_id, task_id)
-    finally:
-        withdraw()
-    assert (own.calendar_id, own.calendar.week) == (short, week)
-    assert (both.calendar_id, both.calendar.week) == (None, week)
