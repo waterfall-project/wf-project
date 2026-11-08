@@ -1015,6 +1015,8 @@ ont acquise —, **afin de** voir l'avancement de chaque phase sans rien saisir.
   pas saisissables. » : la marge et la criticité, constatées par EP-06 (US-1390, US-1470) ; ici,
   `physical_progress` est rendu par `listNodes`, absent de `TaskFacetWrite`, et la cellule de la
   grille est calculée (`computed_fields`) ;
+- `WF-PLA-0130-A` — « Une terminaison datée avant le démarrage de la tâche est refusée. » : constaté
+  par EP-06 (US-1380/L4, #2519) ;
 - propre à l'US : `core/planning` déclare un registre nouveau, dans un fichier propre de son
   interface, que `core/indicators` remplit — « pour ces récapitulatives, l'avancement physique de
   chacune » — et l'appelle à la lecture de la facette tâche pour les récapitulatives rendues, une
