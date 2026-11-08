@@ -25,10 +25,6 @@ they serve or explicitly (#2180).
 # The registries the planning fills.
 from waterfall.core.exchanges.interface import register_exporter, register_format
 
-# The history first: it registers its closing stage before the planning's, whichever file of the
-# planning an entry point imports first (the order of ``revisions.closing`` is the import's).
-from waterfall.core.history.interface import close_history as close_history
-
 # Beside the interface (US-1380/L2): the calendar applicable to a task, what a reading of the tree
 # retains, a duration and an instant of the engine, the frame of a write, the nodes as read.
 from waterfall.core.planning.calendars import (

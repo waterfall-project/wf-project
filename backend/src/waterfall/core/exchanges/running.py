@@ -222,6 +222,12 @@ def _judged(
             revision_draft(session, current)
     judge_state(session, Standing(project_id, facts, form.scope), requester.viewer, task.task_id)
     if current is None:
+        # The opening shares the lock of the reference while this one holds the lock of the
+        # project, against the order "reference, then project" (#2510). Safe as long as no holder
+        # of the reference waits for the lock of a project (``share_reference``): the change that
+        # redates locks only the structures of the current revisions, and this project has none.
+        # It is not shared before the project's: a write of the planning never locks the reference,
+        # and whether the import opens the revision is known only under the lock of the project.
         act = Act(task.requested_by, utc_now())
         current = open_revision_by_task(session, project_id, act, task.task_id)
     target = ImportTarget(project_id, current, aimed_by(session, row, current))

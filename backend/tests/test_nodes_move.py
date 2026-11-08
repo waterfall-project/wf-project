@@ -572,7 +572,6 @@ def test_a_write_of_the_tree_reads_the_facts_of_its_structure_once(
         return real(*args, **kwargs)
 
     monkeypatch.setattr(writing, "structure_facts", counted)
-    monkeypatch.setattr(structures, "structure_facts", counted)
     monkeypatch.setattr(rescheduling, "structure_facts", counted)
     summary = tree.made("Études")
     assert len(calls) == 1
@@ -583,7 +582,14 @@ def test_a_write_of_the_tree_reads_the_facts_of_its_structure_once(
     moved(tree, [tree.node(note["node_id"])], None)
     assert len(calls) == 1
     calls.clear()
-    assert delete(tree, tree.node(note["node_id"])).status_code == 200
+    deleted = delete(tree, tree.node(note["node_id"]))
+    assert deleted.status_code == 200, deleted.text
+    assert len(calls) == 1
+    # The write of the structure itself builds the structure after from what it read (#2513).
+    calls.clear()
+    sent = {"label": "Autre", "lock_version": deleted.json()["structure_lock_version"]}
+    answer = tree.api.patch(tree.path, headers=tree.stage.manager.headers, json=sent)
+    assert answer.status_code == 200, answer.text
     assert len(calls) == 1
 
     # A caller that has read nothing hands the replay no facts: it reads them, once, under the lock.

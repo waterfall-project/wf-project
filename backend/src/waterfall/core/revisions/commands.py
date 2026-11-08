@@ -20,16 +20,16 @@ rates), with their conditions, and the exports to ``EXPORT_RULES``.
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
+from waterfall.core.projects.interface import TERMINAL
+
 if TYPE_CHECKING:
     from collections.abc import Collection
 
-# The states that end the cycle of life (WF-CYC-0080), and those before the project is in progress.
-TERMINAL = ("completed", "lost", "abandoned")
+# The states before the project is in progress; those that end its cycle are the projects'.
 BEFORE_IN_PROGRESS = ("created", "pricing")
 
 IS_CONTRIBUTOR = "is_contributor"
 IS_PROJECT_MANAGER = "is_project_manager"
-PROJECT_NOT_TERMINAL = "project_not_terminal"
 PROJECT_IN_PROGRESS = "project_in_progress"
 PROJECT_BEFORE_IN_PROGRESS = "project_before_in_progress"
 NO_CURRENT_REVISION = "no_current_revision"
