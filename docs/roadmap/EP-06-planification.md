@@ -1622,7 +1622,7 @@ révision en cours, l'écran ouvre la révision d'abord (`createRevision`, EP-04
 
 ## US-1470 — La grille de planning et le Gantt branchés sur le service
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-PLA-0080-A`, `WF-PLA-0090-A`, `WF-ADM-0110-A`, `WF-INTF-0010-A`
 - **opérations** : toutes celles de l'EPIC que la grille de planning et le Gantt lisent et
   écrivent

@@ -1183,6 +1183,28 @@ profonde récapitulative, que le serveur dit quels que soient les filtres (`meta
 #494), et montre le niveau demandé, ou le plus profond quand on lui en demande un au-delà
 (`depthShown`).
 
+Le planning est branché sur le service (EP-06, US-1470) : la page ne porte plus la note de la maquette
+(`MockupNotice`), chaque cellule s'écrit par `updateTaskFacet`, les prédécesseurs par
+`setPredecessors` (`resolveRowNumber` pour un numéro que la recherche a écarté), la date de début par
+`updateCostStructure`, et le rattachement, la création, l'indentation, le déplacement et la
+suppression par les opérations de l'arbre ; les tâches redatées, les liaisons en conflit, la marge et
+le chemin critique sont ceux que le serveur rend. Un compte qui voit le projet sans en être
+contributeur lit le planning et reçoit `NOT_CONTRIBUTOR` à chaque écriture et à `openImport`
+(`e2e/service/planning-readers.spec.ts`, WF-ADM-0110-A). Les parcours de `planning.spec.ts`,
+`structure.spec.ts`, `computed.spec.ts`, `keyboard.spec.ts`, `grid.spec.ts` (le Gantt épinglé) et
+`context.spec.ts` qui jouent contre le service portent `@shared` : le témoin de PRJ-001 n'a pas encore
+ses tâches dans le service (US-1480), et le compte de la course n'en est pas contributeur (#2193),
+si bien que chacun écrit son propre projet (`e2e/planning-seed.ts` : le projet créé depuis l'accueil,
+sa révision ouverte, six tâches écrites par l'API). Le report d'une grille à l'autre (#1057) se joue
+ainsi : une tâche créée depuis la grille de devis du projet — avant son démarrage, il se saisit — est
+lue dans le planning, et son indentation avec elle. Ce qui ne se rejoue pas avant son EPIC reste gardé
+par `inService` : les lignes, les montants et le devis (EP-07) ; le reste à engager (EP-09) ; les
+risques (EP-08) ; les indicateurs (EP-10) ; les structures différentielles (EP-08), si bien que le
+parcours de `context.spec.ts` qui ouvre l'avenant, celui de l'écran des risques et celui des
+indicateurs restent sur le faux back ; les parcours de `planning.spec.ts` et de `keyboard.spec.ts`
+qui lisent les mille tâches du témoin (US-1480). La mesure d'une validation de cellule (#196) et celle
+du déplacement de la cellule active sur mille tâches (#620) sont au relevé de livraison d'US-1470.
+
 ### L'écran des risques
 
 L'écran des risques, `…/revisions/[r]/risks` (`frontend/src/components/risks/`), lit chacune de ses
