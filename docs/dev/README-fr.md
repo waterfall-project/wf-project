@@ -188,7 +188,8 @@ dépose pas une quand une tâche du même genre est en file ou en cours : le ser
 Compose l'appelle à l'intervalle de `WATERFALL_IDENTITY_SYNC_INTERVAL`, en secondes, un jour par
 défaut ; sa seconde boucle appelle `waterfall-worker purge`, qui ramasse ce qui a expiré — comptes
 rendus d'import, dépôts, exports, historique annulable, et leurs objets sur le stockage —, à
-l'intervalle de `WATERFALL_PURGE_INTERVAL`, dix minutes par défaut (EP-06, « La purge »).
+l'intervalle de `WATERFALL_PURGE_INTERVAL`, dix minutes par défaut (EP-06, « La purge ») ; un
+intervalle qui n'est pas un entier positif arrête le service avec 2.
 Qui ouvre la file dit combien il attend Redis : une requête ou le planificateur
 `TaskQueue.connect(adresse, timeout=DEPOSIT_TIMEOUT)`, une seconde, pour qu'un Redis muet ne
 retienne pas la réponse ; le worker `WORKER_TIMEOUT`, plus long que chacune de ses lectures. Une

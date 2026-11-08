@@ -186,7 +186,8 @@ same kind is queued or running: the `scheduler` service of Compose calls it at t
 `WATERFALL_IDENTITY_SYNC_INTERVAL`, in seconds, one day by default; its second loop calls
 `waterfall-worker purge`, which collects what expired — reports of imports, deposits, exports, the
 undo history, and their objects on the storage — at the interval of `WATERFALL_PURGE_INTERVAL`, ten
-minutes by default (EP-06, "La purge").
+minutes by default (EP-06, "La purge"); an interval that is not a positive whole number stops the
+service with 2.
 Whoever opens the queue says how long it waits for Redis: a request or the scheduler
 `TaskQueue.connect(adresse, timeout=DEPOSIT_TIMEOUT)`, one second, so that a mute Redis does not
 hold back the response; the worker `WORKER_TIMEOUT`, longer than each of its reads. An error the
