@@ -1370,12 +1370,6 @@
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
             examples:
-              parent_unknown: { $ref: ../../../fixtures/api/node_create_parent_unknown.json }
-              dates_required: { $ref: ../../../fixtures/api/node_create_dates_required.json }
-              finish_before_start:
-                $ref: ../../../fixtures/api/node_create_finish_before_start.json
-              facet_missing: { $ref: ../../../fixtures/api/node_create_facet_missing.json }
-              kind_not_accepted: { $ref: ../../../fixtures/api/node_create_kind_not_accepted.json }
               provision_refused: { $ref: ../../../fixtures/api/estimate_line_provision_refused.json }
               out_of_range: { $ref: ../../../fixtures/api/node_create_out_of_range.json }
               horizon_exceeded: { $ref: ../../../fixtures/api/node_create_horizon_exceeded.json }
@@ -1386,6 +1380,12 @@
               without_hours: { $ref: ../../../fixtures/api/node_create_without_hours.json }
               field_not_accepted: { $ref: ../../../fixtures/api/node_create_field_not_accepted.json }
               under_milestone: { $ref: ../../../fixtures/api/node_create_under_milestone.json }
+              parent_unknown: { $ref: ../../../fixtures/api/node_create_parent_unknown.json }
+              dates_required: { $ref: ../../../fixtures/api/node_create_dates_required.json }
+              finish_before_start:
+                $ref: ../../../fixtures/api/node_create_finish_before_start.json
+              facet_missing: { $ref: ../../../fixtures/api/node_create_facet_missing.json }
+              kind_not_accepted: { $ref: ../../../fixtures/api/node_create_kind_not_accepted.json }
       '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 

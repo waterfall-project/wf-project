@@ -68,7 +68,7 @@ if TYPE_CHECKING:
 ) = (universe(number) for number in range(1686, 1706))
 """The correlations of the refusals of US-1380/L4, the first free of the third range."""
 
-CREATED_ORDER = (date(2026, 7, 6), date(2026, 7, 2))
+CREATED_ORDER = (date(2026, 6, 1), date(2026, 5, 28))
 """A Monday and the Thursday before it, both worked: the start and the finish sent for a task."""
 
 DESKS_FINISH = date(2026, 2, 26)

@@ -1,11 +1,11 @@
 {
-  "summary": "Une tâche créée en mode manuel, du 6 juillet 2026 au 2 juillet 2026 : sa fin précède son début, refusée sur sa date, le début nommé comme le plus petit jour admis ; rien n'est créé (WF-PLA-0020, #2490).",
+  "summary": "Une tâche créée en mode manuel, du 1er juin 2026 au 28 mai 2026 : sa fin précède son début, refusée sur sa date, le début nommé comme le plus petit jour admis ; rien n'est créé (WF-PLA-0020, #2490).",
   "description": "Exemple engendré par `make mock-data` (`wftools.mockdata`) : il ne se retouche pas.",
   "value": {
     "code": "VALIDATION_FAILED",
     "status": 422,
     "fields": [
-      {"pointer":"/task/finish/date","code":"VALUE_OUT_OF_RANGE","params":{"minimum":"2026-07-06"}}
+      {"pointer":"/task/finish/date","code":"VALUE_OUT_OF_RANGE","params":{"minimum":"2026-06-01"}}
     ],
     "correlation_id": "01926f3a-7c00-7000-8000-000000001688"
   }
