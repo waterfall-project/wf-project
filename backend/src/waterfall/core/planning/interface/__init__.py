@@ -266,6 +266,18 @@ from waterfall.core.planning.interface.timelines import (
 
 # ``tracking`` (US-1380/L1; US-1400/L2): the inscriptions of a task.
 from waterfall.core.planning.interface.tracking import (
+    TrackingChange as TrackingChange,
+)
+from waterfall.core.planning.interface.tracking import (
+    TrackingLoad as TrackingLoad,
+)
+from waterfall.core.planning.interface.tracking import (
+    TrackingSent as TrackingSent,
+)
+from waterfall.core.planning.interface.tracking import (
+    load_tracking as load_tracking,
+)
+from waterfall.core.planning.interface.tracking import (
     set_node_tracking as set_node_tracking,
 )
 

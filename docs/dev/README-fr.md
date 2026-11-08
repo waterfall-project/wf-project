@@ -1175,9 +1175,9 @@ leur nom et la chronologie montrée se supprime après confirmation, comme le pr
 `manage_timelines` (`timeline-commands.tsx`, EP-14/L44c). Le serveur sélectionne ce que chacune
 dessine (#463) : l'arborescence demande les récapitulatives jusqu'au niveau de l'adresse
 (`summaries_only`, `max_level`), une chronologie les tâches qui y sont inscrites (`timeline_id`). Le
-faux back ignorant ces filtres (« Ce que le faux back ne fait pas »), chacune applique encore le
-même critère à la réponse (`summaryTree`, `inscribedTo`) : un filtre idempotent, qui ne change rien
-contre un serveur qui les tient, écart temporaire d'EP-02 retiré avec le back d'EP-03.
+service les tient pour les chronologies (US-1400) : l'écran dessine ce qu'il rend, sans appliquer
+de critère à la réponse ; l'arborescence applique encore le sien (`summaryTree`) contre le faux
+back, écart temporaire d'EP-02 retiré par US-1440.
 L'arborescence offre exactement les niveaux que la structure a, du premier à celui de sa plus
 profonde récapitulative, que le serveur dit quels que soient les filtres (`meta.summary_depth`,
 #494), et montre le niveau demandé, ou le plus profond quand on lui en demande un au-delà
