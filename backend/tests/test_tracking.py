@@ -30,7 +30,7 @@ from nodes_support import (
 )
 from projects_support import PROJECTS, Person, Scene, contribute, person, put_in_state
 from projects_support import scene as make_scene
-from sqlalchemy import delete, select
+from sqlalchemy import delete, select, text
 from support import WITNESS
 
 from waterfall.core.planning.tables import Timeline, TrackingEntry
@@ -446,6 +446,23 @@ def test_a_timeline_deleted_while_a_task_is_inscribed_to_it_leaves_no_orphan_ins
     assert rows(stage) == []
 
 
+def _wait_for_a_lock(stage: Scene, seconds: float = 10.0) -> None:
+    """Wait until a backend of the base waits for a lock: the request is blocked, not yet there."""
+    deadline = time.monotonic() + seconds
+    with stage.owner.connect() as watcher:
+        while time.monotonic() < deadline:
+            waiting = watcher.execute(
+                text(
+                    "SELECT count(*) FROM pg_stat_activity "
+                    "WHERE wait_event_type = 'Lock' AND datname = current_database()"
+                )
+            ).scalar_one()
+            if waiting:
+                return
+            time.sleep(0.05)
+    pytest.fail("the inscription never waited for the lock of the deletion")
+
+
 @pytest.mark.requirement("WF-PLA-0140-A")
 def test_a_timeline_that_goes_while_the_inscription_waits_is_refused_as_unknown(
     api: ContractClient, tree: Tree, stage: Scene
@@ -459,10 +476,36 @@ def test_a_timeline_that_goes_while_the_inscription_waits_is_refused_as_unknown(
         connection.execute(delete(Timeline).where(Timeline.id == UUID(committee)))
         with ThreadPoolExecutor(1) as pool:
             pending = pool.submit(track, tree, node, on(committee))
-            time.sleep(1)
+            _wait_for_a_lock(stage)
             deletion.commit()
             answer = pending.result()
     assert faults(answer) == [("/entries/0/timeline_id", "UNKNOWN_TIMELINE", {})]
+    assert rows(stage) == []
+    assert tree.node(node["node_id"])["lock_version"] == node["lock_version"]
+
+
+@pytest.mark.requirement("WF-PLA-0060-A")
+@pytest.mark.parametrize(
+    ("body", "pointer"),
+    [
+        ({"entries": [{"kind": "unknown"}], "lock_version": 1}, "/entries/0/kind"),
+        ({"entries": "timeline", "lock_version": 1}, "/entries"),
+        ({"entries": []}, "/lock_version"),
+    ],
+    ids=["unknown-kind", "entries-not-a-list", "lock-version-absent"],
+)
+def test_a_malformed_body_is_refused_by_the_envelope_and_nothing_is_written(
+    tree: Tree, stage: Scene, body: dict[str, Any], pointer: str
+) -> None:
+    node = tree.made("Études")
+    answer = tree.api.put(
+        f"{tree.path}/nodes/{node['node_id']}/tracking",
+        headers=stage.manager.headers,
+        json=body,
+    )
+    assert answer.status_code == 422, answer.text
+    assert answer.json()["code"] == "VALIDATION_FAILED"
+    assert [each["pointer"] for each in answer.json()["fields"]] == [pointer]
     assert rows(stage) == []
     assert tree.node(node["node_id"])["lock_version"] == node["lock_version"]
 
