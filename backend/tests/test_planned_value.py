@@ -11,7 +11,7 @@ from decimal import Decimal
 
 import pytest
 
-from waterfall.core.estimate.spreading import PlannedLine, Placement, WorkWeek, planned_value
+from waterfall.core.estimate.spreading import Placement, PlannedLine, WorkWeek, planned_value
 from waterfall.core.planning.interface import WorkInstant
 
 EIGHT = Decimal(8)
@@ -30,7 +30,7 @@ TWO_MONTHS = line(1000, date(2026, 3, 1), date(2026, 4, 30))
 
 
 @pytest.mark.requirement("WF-DEV-0080-A")
-def test_a_line_of_a_task_of_two_months_of_equal_hours_counts_for_half_at_the_end_of_the_first() -> None:
+def test_a_task_of_two_equal_months_counts_for_half_at_the_end_of_the_first() -> None:
     # « Une ligne portée par une tâche de deux mois comptant autant d'heures travaillées
     # contribue pour moitié à la fin du premier mois. »
     assert planned_value([TWO_MONTHS], date(2026, 3, 31)) == Decimal(500)
@@ -40,7 +40,9 @@ def test_a_line_of_a_task_of_two_months_of_equal_hours_counts_for_half_at_the_en
 def test_the_planned_value_grows_with_the_hours_worked_and_stops_at_the_amount() -> None:
     # « Étalé sur la durée de leur tâche au prorata des heures travaillées. »
     week_one = date(2026, 3, 6)
-    values = [planned_value([TWO_MONTHS], at) for at in (date(2026, 2, 28), week_one, date(2026, 4, 30))]
+    values = [
+        planned_value([TWO_MONTHS], at) for at in (date(2026, 2, 28), week_one, date(2026, 4, 30))
+    ]
     assert values == [Decimal(0), Decimal("113.64"), Decimal(1000)]
     assert planned_value([TWO_MONTHS], date(2030, 1, 1)) == Decimal(1000)
 
@@ -59,11 +61,15 @@ def test_the_lines_add_up_and_the_sum_is_rounded_once_to_the_cent() -> None:
     # « Elle doit totaliser exactement le budget de référence en fin de projet. »
     lines = [line(1, date(2026, 3, 2), date(2026, 3, 6))] * 3
     assert planned_value(lines, date(2026, 3, 4)) == Decimal("1.80")
-    assert planned_value([line(10, date(2026, 3, 2), date(2026, 3, 4))] * 3, date(2026, 3, 2)) == Decimal(10)
+    assert planned_value(
+        [line(10, date(2026, 3, 2), date(2026, 3, 4))] * 3, date(2026, 3, 2)
+    ) == Decimal(10)
 
 
 @pytest.mark.requirement("WF-DEV-0080-A")
-def test_delaying_a_task_of_the_current_revision_leaves_the_planned_value_of_the_reference() -> None:
+def test_delaying_a_task_of_the_current_revision_leaves_the_planned_value_of_the_reference() -> (
+    None
+):
     # « Retarder une tâche dans la révision courante ne change pas la valeur planifiée. »
     reference = [line(400, date(2026, 3, 2), date(2026, 3, 13))]
     delayed = line(400, date(2026, 3, 30), date(2026, 4, 10))

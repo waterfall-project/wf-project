@@ -93,7 +93,9 @@ def test_the_load_after_the_date_of_calculation_is_spread_on_the_months_left_onl
 
 
 @pytest.mark.requirement("WF-DEV-0070-A")
-def test_a_task_not_started_before_the_date_of_calculation_shows_nothing_on_the_months_past() -> None:
+def test_a_task_not_started_before_the_date_of_calculation_shows_nothing_on_the_months_past() -> (
+    None
+):
     # « Une tâche non démarrée dont la date de début est antérieure à la date de calcul ne
     # présente aucune charge sur les mois écoulés. »
     parts = spread_by_month(
@@ -147,7 +149,7 @@ def test_the_hours_of_a_long_task_are_counted_by_weeks_whatever_its_length() -> 
     assert EIGHT_HOURS.worked_between(first, last) == 40 * weeks
     spread = spread_by_year(Placement(EIGHT_HOURS, first, last), Decimal(1000))
     assert sum(spread.values()) == 1000
-    assert len(spread) == 4_986
+    assert len(spread) == last.day.year - first.day.year + 1
 
 
 @pytest.mark.requirement("WF-DEV-0040-A")

@@ -15,8 +15,8 @@ import pytest
 
 from waterfall.core.estimate.spreading import (
     Month,
-    PlannedLine,
     Placement,
+    PlannedLine,
     WorkWeek,
     planned_value,
     spread_by_month,
@@ -57,7 +57,9 @@ def test_a_remaining_load_of_80_hours_is_spread_40_and_40_on_the_two_months_left
     data = example("WF-DEV-0070-A#e69ddd150e53")
     task = placement_of(week_of(data), cast("dict[str, str]", data["task"]))
     spread = spread_by_month(
-        task, Decimal(cast("str", data["remaining_hours"])), as_of=date.fromisoformat(cast("str", data["as_of"]))
+        task,
+        Decimal(cast("str", data["remaining_hours"])),
+        as_of=date.fromisoformat(cast("str", data["as_of"])),
     )
     expected = {
         Month(int(month[:4]), int(month[5:])): Decimal(hours)
@@ -80,4 +82,6 @@ def test_a_budget_of_1000_is_planned_at_1000_on_the_last_finish_and_at_0_before_
     ]
     assert sum(line.amount for line in lines) == Decimal(cast("str", data["budget"]))
     for expected in cast("list[dict[str, str]]", data["values"]):
-        assert planned_value(lines, date.fromisoformat(expected["at"])) == Decimal(expected["value"])
+        assert planned_value(lines, date.fromisoformat(expected["at"])) == Decimal(
+            expected["value"]
+        )

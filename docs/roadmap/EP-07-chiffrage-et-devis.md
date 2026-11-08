@@ -1101,7 +1101,7 @@ de totaux sert `NodeTotals` de `listNodes` (US-1490) et les ventilations.
 
 ## US-1520 — Le plan de charge sur le devis, et la valeur planifiée
 
-- **statut** : à faire
+- **statut** : en cours
 - **exigences** : `WF-DEV-0070-A`, `WF-DEV-0080-A`
 - **opérations** : `getProjectWorkload` ; `listRevisions`, `listOrgNodes` que l'écran lit
 - **issue** : 2364
