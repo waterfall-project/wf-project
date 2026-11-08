@@ -530,7 +530,7 @@ def delete_task(
     session: Transaction,
 ) -> dict[str, Any]:
     """Delete a node of a structure and its subtree, at the counter of the node read."""
-    return _written(delete_node(session, place, node_id, lock_version, writer))
+    return written(delete_node(session, place, node_id, lock_version, writer))
 
 
 @router.post(
@@ -553,7 +553,7 @@ def post_move(
         after_given="after_node_id" in body.model_fields_set,
         lock_version=body.lock_version.root,
     )
-    return _written(move_nodes(session, place, moving, writer))
+    return written(move_nodes(session, place, moving, writer))
 
 
 @router.get(
