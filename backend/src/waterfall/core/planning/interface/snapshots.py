@@ -1,6 +1,6 @@
 # SPDX-FileCopyrightText: 2026 waterfall-project
 # SPDX-License-Identifier: AGPL-3.0-only
-"""The snapshots of the nodes the history keeps, and their restitution.
+"""The snapshots of the nodes the history keeps.
 
 Each write of the planning takes the snapshot of the nodes it creates, changes or deletes — their
 rows of ``node``, ``task``, ``task_link`` and ``tracking_entry`` — before and after it, and hands
@@ -13,8 +13,8 @@ Declared by US-1380/L1; ``snapshot`` filled by US-1380/L2: each node present, in
 at its version, named by the label of its task, its rows written as JSON holds them — under
 ``node`` and ``task`` its rows, under ``links`` those of the links it is an end of, under
 ``tracking`` the inscriptions of its lineage. A node absent is left out: one a write creates is
-absent before it, one it deletes after it. ``restore`` is US-1450/L2's, which gives its arguments
-and its result.
+absent before it, one it deletes after it. The restitution is ``restoring``'s, framed by
+``undoing`` (US-1450/L2).
 """
 
 from datetime import date, datetime
@@ -94,9 +94,3 @@ def snapshot(session: Session, project_id: UUID, node_ids: Collection[UUID]) -> 
         label = "" if task is None else task.label
         states.append(ObjectState(node_id, node.lock_version, label, rows))
     return tuple(states)
-
-
-def restore(session: Session, project_id: UUID, structure_id: UUID) -> None:
-    """Restore the rows of a snapshot the history gives back, and redate the structure."""
-    msg = "restore is filled by US-1450/L2"
-    raise NotImplementedError(msg)

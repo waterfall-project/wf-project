@@ -42,7 +42,7 @@ if TYPE_CHECKING:
 
     from sqlalchemy.orm import Session
 
-    from waterfall.core.history.interface import JsonValue, Snapshot
+    from waterfall.core.history.interface import JsonValue
     from waterfall.core.planning.rescheduling import Rescheduled
     from waterfall.core.planning.writing import NodesWritten, Place, Writer
     from waterfall.core.revisions.interface import StructureFacts
@@ -78,14 +78,17 @@ class StructureChange:
     lock_version: int
 
 
-def _snapshot(facts: StructureFacts) -> Snapshot:
-    """Give the structure as the history keeps it: its start and its label, at its version."""
+def structure_state(facts: StructureFacts) -> ObjectState:
+    """Give the structure as the history keeps it: its start and its label, at its version.
+
+    The object of an entry of ``structure_update``, which restores it (``restoring``).
+    """
     structure: dict[str, JsonValue] = {
         "planning_start_on": facts.planning_start_on.isoformat(),
         "label": facts.label,
     }
     rows: dict[str, JsonValue] = {"structure": structure}
-    return (ObjectState(facts.structure_id, facts.lock_version, facts.label, rows),)
+    return ObjectState(facts.structure_id, facts.lock_version, facts.label, rows)
 
 
 def _judge_start(session: Session, day: date) -> None:
@@ -118,7 +121,7 @@ def update_cost_structure(
             )
         if change.planning_start_on is not None:
             _judge_start(session, change.planning_start_on)
-        write.frame.keep_before(_snapshot(facts))
+        write.frame.keep_before((structure_state(facts),))
         project_id, structure_id = place.project_id, place.structure_id
         sent = (change.planning_start_on, change.label)
         write_structure(session, project_id, structure_id, sent, writer.act)
@@ -130,5 +133,5 @@ def update_cost_structure(
         )
         redated = write.redate(None)
         after = structure_facts(session, project_id, structure_id, lock=True)
-        write.frame.keep_after(_snapshot(after))
+        write.frame.keep_after((structure_state(after),))
         return redated.written(())

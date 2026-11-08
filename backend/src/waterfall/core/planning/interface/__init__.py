@@ -132,6 +132,21 @@ from waterfall.core.planning.interface.nodes import (
 
 # ``paste`` (US-1380/L1; US-1450/L2): the paste of a block of cells.
 from waterfall.core.planning.interface.paste import (
+    PasteApplied as PasteApplied,
+)
+from waterfall.core.planning.interface.paste import (
+    PasteBlock as PasteBlock,
+)
+from waterfall.core.planning.interface.paste import (
+    PasteConfirmation as PasteConfirmation,
+)
+from waterfall.core.planning.interface.paste import (
+    PastePlanned as PastePlanned,
+)
+from waterfall.core.planning.interface.paste import (
+    PasteRefusal as PasteRefusal,
+)
+from waterfall.core.planning.interface.paste import (
     apply_paste as apply_paste,
 )
 from waterfall.core.planning.interface.paste import (
@@ -179,10 +194,7 @@ from waterfall.core.planning.interface.skeleton import (
     generate_skeleton as generate_skeleton,
 )
 
-# ``snapshots`` (US-1380/L1; US-1380/L2, US-1450/L2): the snapshots the history keeps.
-from waterfall.core.planning.interface.snapshots import (
-    restore as restore,
-)
+# ``snapshots`` (US-1380/L1; US-1380/L2): the snapshots the history keeps.
 from waterfall.core.planning.interface.snapshots import (
     snapshot as snapshot,
 )
@@ -226,6 +238,17 @@ from waterfall.core.planning.interface.timelines import (
 # ``tracking`` (US-1380/L1; US-1400/L2): the inscriptions of a task.
 from waterfall.core.planning.interface.tracking import (
     set_node_tracking as set_node_tracking,
+)
+
+# ``undoing`` (US-1380/L1; US-1450/L2): the last change of a caller undone or redone.
+from waterfall.core.planning.interface.undoing import (
+    UndoDone as UndoDone,
+)
+from waterfall.core.planning.interface.undoing import (
+    redo_last_undo as redo_last_undo,
+)
+from waterfall.core.planning.interface.undoing import (
+    undo_last_change as undo_last_change,
 )
 
 # ``work_breakdown`` (US-1380/L1; US-1380/L3): the tasks attached to the work breakdown.

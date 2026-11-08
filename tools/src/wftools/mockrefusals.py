@@ -34,8 +34,7 @@ example (J-03, J-06, J-11, E-07, F-05, J-04):
   (WF-PRJ-0060); ``next_state_pricing_without_code.json``, the offer whose reference would be
   designated before its code: ``project_code_set`` alone remains (WF-CYC-0030, WF-PRJ-0010);
 - ``undo_session_id_missing.json`` and ``redo_session_id_missing.json``, an undo and a redo asked
-  with a token that carries no session of sign-in (``sid``): ``SESSION_ID_MISSING``, a 403 without
-  parameter (#2472);
+  with a token without ``sid``: a 403 ``SESSION_ID_MISSING`` (#2472);
 - ``undo_history_empty.json`` and ``redo_history_empty.json``, an undo and a redo with nothing
   to undo or to redo; the undo and the redo of a change another contributor took up since,
   refused by naming the object (``undo_later_change``, ``redo_later_change``), stay written by
@@ -107,9 +106,7 @@ MANAGER_CORRELATION, UNDO_CORRELATION, REDO_CORRELATION = (
     universe(1614),
     universe(1615),
 )
-UNDO_NO_SESSION_CORRELATION, REDO_NO_SESSION_CORRELATION = universe(2001), universe(2002)
-"""The correlations of an undo and a redo asked with a token that carries no ``sid`` (#2472)."""
-
+UNDO_NO_SID_CORRELATION, REDO_NO_SID_CORRELATION = universe(1993), universe(1995)
 PROGRESS_CORRELATION, DATE_CORRELATION = universe(1616), universe(1617)
 RATE_CORRELATION, ROLE_CORRELATION = universe(1618), universe(1619)
 """The correlations of the refusals of the catalogue."""
@@ -803,16 +800,13 @@ def _catalogue_examples() -> dict[str, JsonObject]:
             state_refused("redo_history_not_empty", REDO_CORRELATION),
         ),
         "undo_session_id_missing.json": mocktext.example(
-            "Une annulation demandée avec le jeton d'un compte de service du témoin, qui ne porte "
-            "pas de session de connexion (sid) : l'historique se tient par session, et le jeton, "
-            "valide, n'en a pas ; refusée, sans paramètre, et rien n'est défait — une écriture "
-            "faite avec ce jeton passe, sans entrer dans l'historique (WF-IHM-0110, #2472).",
-            session_missing(UNDO_NO_SESSION_CORRELATION),
+            "Une annulation demandée avec le jeton d'un compte de service, sans session (sid) : "
+            "refusée, rien n'est défait ; son écriture passe, sans entrée (WF-IHM-0110, #2472).",
+            session_missing(UNDO_NO_SID_CORRELATION),
         ),
         "redo_session_id_missing.json": mocktext.example(
-            "Un rétablissement demandé avec le même jeton, sans session de connexion (sid) : "
-            "refusé de même, rien n'est rétabli (WF-IHM-0110, #2472).",
-            session_missing(REDO_NO_SESSION_CORRELATION),
+            "Un rétablissement demandé avec le même jeton, refusé de même (WF-IHM-0110, #2472).",
+            session_missing(REDO_NO_SID_CORRELATION),
         ),
         "task_progress_summary_refused.json": mocktext.example(
             f"Les « {rows[PROGRESS_SUMMARY].label} », récapitulative, envoyées à l'état terminé : "
