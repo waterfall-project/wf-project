@@ -30,13 +30,21 @@ test("leads from the planning to its task tree, read only, its depth in the addr
   // reads the structure of a thousand tasks: the bound of a grid.
   const tree = page.getByRole("tree", { name: "Arborescence des tâches récapitulatives" });
   const depths = page.getByRole("navigation", { name: "Niveau affiché" });
+  // Against the service the tree has the depth the server says (`meta.summary_depth`, #494): the
+  // witness of PRJ-001 holds no task until US-1480/L2 fills it, and its tree is then the project
+  // alone, with no level to choose; with summaries, nothing deeper than the level asked is drawn.
+  let summarized = false;
   if (inService) {
-    // The service selects the summaries down to the level asked: nothing deeper is drawn.
-    await expect(tree.getByRole("treeitem", { level: 2 }).first()).toBeVisible({
-      timeout: WORKING,
-    });
-    await expect(tree.getByRole("treeitem", { level: 4 })).toHaveCount(0);
-    await expect(depths.getByRole("link").first()).toHaveText("Niveau 1");
+    await expect(tree.getByRole("treeitem", { level: 1 })).toBeVisible({ timeout: WORKING });
+    summarized = (await depths.getByRole("link").count()) > 0;
+    if (summarized) {
+      await expect(tree.getByRole("treeitem", { level: 2 }).first()).toBeVisible();
+      await expect(tree.getByRole("treeitem", { level: 4 })).toHaveCount(0);
+      await expect(depths.getByRole("link").first()).toHaveText("Niveau 1");
+    } else {
+      await expect(tree.getByRole("treeitem")).toHaveCount(1);
+      await expect(page.getByText("Ce planning n’a aucune tâche récapitulative")).toBeVisible();
+    }
   } else {
     // The fake back renders the structure whatever the tree asks, and the screen keeps none of it
     // aside (#496): the three roots of the core, then the nine phases drawn about it.
@@ -45,15 +53,17 @@ test("leads from the planning to its task tree, read only, its depth in the addr
     // The levels the structure has, as the server says them, and not one more (#494).
     await expect(depths.getByRole("link")).toHaveText(["Niveau 1", "Niveau 2"]);
   }
-  // One stop of the tabulation, whose arrows go through it.
-  await tree.getByRole("treeitem").first().focus();
-  await page.keyboard.press("ArrowRight");
-  await expect(tree.getByRole("treeitem", { name: /^1 Études/ })).toBeFocused();
-  // The first level alone, by the address: the structure read anew, in the bound of a grid.
-  await page.getByRole("link", { name: "Niveau 1" }).click();
-  await expect(page).toHaveURL(`${IN_REVISION}/task-tree?depth=1`, { timeout: WORKING });
-  if (inService) {
-    await expect(tree.getByRole("treeitem", { level: 3 })).toHaveCount(0);
+  if (!inService || summarized) {
+    // One stop of the tabulation, whose arrows go through it.
+    await tree.getByRole("treeitem").first().focus();
+    await page.keyboard.press("ArrowRight");
+    await expect(tree.getByRole("treeitem", { name: /^1 Études/ })).toBeFocused();
+    // The first level alone, by the address: the structure read anew, in the bound of a grid.
+    await page.getByRole("link", { name: "Niveau 1" }).click();
+    await expect(page).toHaveURL(`${IN_REVISION}/task-tree?depth=1`, { timeout: WORKING });
+    if (inService) {
+      await expect(tree.getByRole("treeitem", { level: 3 })).toHaveCount(0);
+    }
   }
   // The image is asked from the head, at the level shown: a task of the shell, followed.
   await page.getByRole("button", { name: "Exporter l’image de l’arborescence de tâches" }).click();
