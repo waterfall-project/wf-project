@@ -542,7 +542,11 @@
       command judges the export; an unknown revision or one of another project is refused with
       404, a body without a revision with 422. An export lacks no condition — on a marked
       revision, during a marking, on a terminal project, it remains available
-      (`RevisionCommand`, WF-CYC-0110) —: it has no 409 (I-17, US-0702/L2).
+      (`RevisionCommand`, WF-CYC-0110) —: it has no 409 (I-17, US-0702/L2). The image of the
+      task tree is never reduced, and not drawn beyond one hundred million pixels (width times
+      height, measured from its layout before drawing it): the task then fails, nothing
+      written, `BackgroundTaskRef.problem` set to `TASK_TREE_IMAGE_TOO_LARGE` (422), and the
+      user chooses a shallower `depth` (WF-PLA-0120).
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
     requestBody:

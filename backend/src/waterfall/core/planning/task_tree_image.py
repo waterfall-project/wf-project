@@ -32,6 +32,9 @@ ROW_GAP: Final = 12
 INDENT: Final = 28
 MARGIN: Final = 24
 HEADER_GAP: Final = 24
+# The most pixels (width times height) an image has: beyond, the export fails and says so, never
+# reduces the image (WF-PLA-0120, #2481).
+MAX_PIXELS: Final = 100_000_000
 
 _BACKGROUND: Final = (255, 255, 255)
 _INK: Final = (31, 41, 55)
@@ -45,6 +48,8 @@ _HEADER: Final = {
     "en": ("Project: {project}", "Revision: {revision}", "Computed on {date}"),
 }
 _DATE_FORMAT: Final = {"fr": "%d/%m/%Y", "en": "%Y-%m-%d"}
+# What names the current revision, which bears no version name yet.
+_CURRENT_REVISION: Final = {"fr": "révision courante", "en": "current revision"}
 
 
 @dataclass(frozen=True)
@@ -82,14 +87,33 @@ class TreeLayout:
     height: int
 
 
+def one_line(label: str) -> str:
+    """Give a label on one line: each run of blanks and line breaks is a single space (#2482).
+
+    The rendering measures and draws one line; a label with a line break would be measured wider
+    than the text drawn.
+    """
+    return " ".join(label.split())
+
+
+def language_of(language: str) -> str:
+    """Give the language of the catalogue a language stands for: its primary subtag, or English."""
+    primary = language.replace("_", "-").split("-")[0].lower()
+    return primary if primary in _HEADER else DEFAULT_LANGUAGE
+
+
+def revision_label(language: str, version_name: str | None) -> str:
+    """Give how the header names a revision: its version name, or the current revision."""
+    return version_name if version_name is not None else _CURRENT_REVISION[language_of(language)]
+
+
 def header_lines(language: str, project: str, revision: str, computed_on: date) -> tuple[str, ...]:
     """Return the three lines of the header (project, revision, date of the computation).
 
     A language with a region (``fr-FR``, ``fr_FR``) is read as its primary subtag; a language the
     catalogue does not know falls back to English.
     """
-    primary = language.replace("_", "-").split("-")[0].lower()
-    lang = primary if primary in _HEADER else DEFAULT_LANGUAGE
+    lang = language_of(language)
     day = computed_on.strftime(_DATE_FORMAT[lang])
     return tuple(
         line.format(project=project, revision=revision, date=day) for line in _HEADER[lang]
@@ -101,8 +125,11 @@ def _font_bytes() -> bytes:
     return files("waterfall.core.exchanges").joinpath("fonts", "DejaVuSans.ttf").read_bytes()
 
 
-@cache
 def _font(size: int) -> FreeTypeFont:
+    """Give a font of its own: Pillow does not promise a ``FreeTypeFont`` safe between threads.
+
+    Only the bytes of the file are cached, shared and read-only (#2486).
+    """
     return ImageFont.truetype(BytesIO(_font_bytes()), size)
 
 
@@ -191,6 +218,11 @@ def render_task_tree_image(
         revision=revision,
         computed_on=computed_on,
     )
+    return draw_task_tree(layout)
+
+
+def draw_task_tree(layout: TreeLayout) -> bytes:
+    """Draw a layout; the PNG's bytes. The size of the layout is the caller's to bound."""
     image = Image.new("RGB", (layout.width, layout.height), _BACKGROUND)
     draw = ImageDraw.Draw(image)
     head_font = _font(HEADER_FONT_SIZE)

@@ -7,6 +7,7 @@ writes its tests here ("Les tests du back").
 """
 
 from datetime import date
+from concurrent.futures import ThreadPoolExecutor
 from io import BytesIO
 from itertools import pairwise
 
@@ -15,14 +16,21 @@ from PIL import Image
 
 from waterfall.core.planning.task_tree_image import (
     FONT_SIZE,
+    HEADER_FONT_SIZE,
     INDENT,
+    MARGIN,
+    MAX_PIXELS,
     PADDING,
     Box,
     TreeLayout,
     TreeNode,
+    draw_task_tree,
     header_lines,
+    language_of,
     layout_task_tree,
+    one_line,
     render_task_tree_image,
+    revision_label,
 )
 
 PAGE_WIDTH = 794  # an A4 page at 96 dpi
@@ -69,6 +77,10 @@ def _frame_tops(image: Image.Image, x: int) -> set[int]:
     """Return the y of the first fill row of each frame crossing the column ``x`` + 2 of the PNG.
 
     A frame's top is its outline over its fill, which text and connecting lines never reproduce.
+    The probe sits two pixels in from the left edge, where the top edge is flat only because the
+    frames are drawn with square corners (``draw.rectangle``): rounded corners would move the
+    probe off the outline and fail every test on the pixels, as they should be adjusted with it.
+    The middle of the edge is no better, a connecting line entering the frame there.
     """
     return {
         y + 1
@@ -76,6 +88,15 @@ def _frame_tops(image: Image.Image, x: int) -> set[int]:
         if image.getpixel((x + 2, y)) == OUTLINE
         and image.getpixel((x + 2, y + 1)) in (FILL, ROOT_FILL)
     }
+
+
+def _ink_in(image: Image.Image, top: int, bottom: int) -> bool:
+    """Tell whether anything but the background lies in the rows ``top`` to ``bottom`` (excluded)."""
+    return any(
+        image.getpixel((x, y)) != (255, 255, 255)
+        for x in range(image.width)
+        for y in range(top, bottom)
+    )
 
 
 def _assert_frames_in_png(image: Image.Image, boxes: tuple[Box, ...]) -> None:
@@ -108,7 +129,7 @@ def test_the_first_level_is_laid_out_horizontally_and_the_next_ones_vertically()
         for level in (2, 3):
             ys = [b.y for b in below if b.level == level]
             assert ys == sorted(set(ys))
-        # Each frame lies under the one before it, the PNG's own pixels agreeing.
+        # Each frame lies under the one before it, in the layout (the PNG is checked above).
         ordered = [column, *below]
         assert all(p.y + p.height < n.y for p, n in pairwise(ordered))
 
@@ -120,12 +141,7 @@ def test_the_png_of_a_three_level_tree_has_its_frames_where_the_layout_puts_them
     layout = _layout(project, language="en")
     assert image.size == (layout.width, layout.height)
     _assert_frames_in_png(image, layout.boxes)
-    # Something is drawn: the header's ink above the first frame.
-    assert any(
-        image.getpixel((x, y)) != (255, 255, 255)
-        for x in range(layout.width)
-        for y in range(layout.boxes[0].y)
-    )
+    assert _ink_in(image, 0, layout.boxes[0].y)
     png = render_task_tree_image(
         project=project, depth=3, language="en", revision="R1", computed_on=DAY
     )
@@ -222,3 +238,89 @@ def test_accented_labels_are_drawn_by_the_embedded_font() -> None:
         computed_on=DAY,
     )
     assert png.startswith(b"\x89PNG\r\n\x1a\n")
+
+
+@pytest.mark.requirement("WF-PLA-0120-A")
+def test_the_three_lines_of_the_header_are_placed_one_under_the_other_each_with_its_ink() -> None:
+    layout = _layout(_tree())
+    image = _png(_tree())
+    step = round(HEADER_FONT_SIZE * 1.3)
+    assert layout.header_ys == (MARGIN, MARGIN + step, MARGIN + 2 * step)
+    assert len(layout.header) == 3
+    assert layout.boxes[0].y >= layout.header_ys[-1] + step
+    # Each line of the header leaves its ink in its own band, and none lies between the header
+    # and the first frame.
+    for line_y in layout.header_ys:
+        assert _ink_in(image, line_y, line_y + step)
+    assert not _ink_in(image, layout.header_ys[-1] + step, layout.boxes[0].y)
+
+
+@pytest.mark.requirement("WF-PLA-0120-A")
+def test_the_label_of_each_frame_is_drawn_inside_it() -> None:
+    layout = _layout(_tree())
+    image = _png(_tree())
+    background = {FILL, ROOT_FILL}
+    for box in layout.boxes:
+        inside = [
+            image.getpixel((x, y))
+            for x in range(box.x + 1, box.x + box.width)
+            for y in range(box.y + 1, box.y + box.height)
+        ]
+        assert any(pixel not in background for pixel in inside), box.label
+    # The check discriminates: a frame without label has nothing but its fill.
+    empty = _layout(TreeNode("", (TreeNode(""),)), depth=1)
+    blank = _png(TreeNode("", (TreeNode(""),)), depth=1)
+    for box in empty.boxes:
+        inside = {
+            blank.getpixel((x, y))
+            for x in range(box.x + 1, box.x + box.width)
+            for y in range(box.y + 1, box.y + box.height)
+        }
+        assert inside <= background
+
+
+@pytest.mark.requirement("WF-PLA-0120-A")
+def test_a_label_is_brought_to_one_line_blanks_and_line_breaks_alike() -> None:
+    assert one_line("Études\net\r\n  essais\t\u2028finaux ") == "Études et essais finaux"
+    assert one_line("Simple") == "Simple"
+    assert one_line(" \n ") == ""
+
+
+@pytest.mark.requirement("WF-PLA-0120-A")
+def test_the_language_and_the_name_of_the_revision_follow_the_catalogue() -> None:
+    assert [language_of(each) for each in ("fr", "fr-FR", "EN", "de")] == ["fr", "fr", "en", "en"]
+    assert revision_label("fr", None) == "révision courante"
+    assert revision_label("en-GB", None) == "current revision"
+    assert revision_label("fr", "v1.0") == "v1.0"
+
+
+@pytest.mark.requirement("WF-PLA-0120-A")
+def test_renders_in_parallel_threads_give_the_png_of_a_render_alone() -> None:
+    # The fonts are not shared between threads (#2486): the same bytes however many render at once.
+    projects = [_tree(columns=3 + i % 3, label=f"Lot{i % 3}") for i in range(24)]
+
+    def render(project: TreeNode) -> bytes:
+        return render_task_tree_image(
+            project=project, depth=3, language="fr", revision="R1", computed_on=DAY
+        )
+
+    alone = [render(project) for project in projects]
+    with ThreadPoolExecutor(max_workers=8) as pool:
+        together = list(pool.map(render, projects * 4))
+    assert together == alone * 4
+
+
+@pytest.mark.requirement("WF-PLA-0120-A")
+def test_a_layout_beyond_the_ceiling_of_one_hundred_million_pixels_is_measured_by_its_size() -> None:
+    assert MAX_PIXELS == 100_000_000
+    # 300 columns of 40 nested summaries: about 18,000 by 8,000 pixels, laid out in a blink.
+    column = TreeNode("Lot récapitulatif")
+    for _ in range(40):
+        column = TreeNode("Lot récapitulatif", (column,))
+    project = TreeNode("Projet", tuple(column for _ in range(300)))
+    layout = _layout(project, depth=40)
+    assert layout.width * layout.height > MAX_PIXELS
+    # The size is known from the layout alone: nothing was drawn to measure it.
+    small = _layout(_tree())
+    assert small.width * small.height < MAX_PIXELS
+    assert draw_task_tree(small).startswith(b"\x89PNG")

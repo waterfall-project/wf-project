@@ -70,6 +70,7 @@ class ErrorCode(StrEnum):
     UPLOAD_PURPOSE_MISMATCH = "UPLOAD_PURPOSE_MISMATCH"
     BACKUP_FROM_NEWER_VERSION = "BACKUP_FROM_NEWER_VERSION"
     TASK_INTERRUPTED_BY_RESTORE = "TASK_INTERRUPTED_BY_RESTORE"
+    TASK_TREE_IMAGE_TOO_LARGE = "TASK_TREE_IMAGE_TOO_LARGE"
     PROVISION_CATEGORY_RESERVED = "PROVISION_CATEGORY_RESERVED"
     PROVISION_CATEGORY_REQUIRED = "PROVISION_CATEGORY_REQUIRED"
     PROVISION_LINE_MOVED_BY_RISK = "PROVISION_LINE_MOVED_BY_RISK"
@@ -560,7 +561,7 @@ class BackgroundTaskRef(ContractModel):
     kind: Annotated[
         Kind,
         Field(
-            description="What the task does. `backup` takes the backup of the two databases and verifies it; `restore` follows the whole restore, from entering maintenance to leaving it: it only moves to `succeeded` once maintenance is lifted, and an interrupted restore resumes from the beginning; an archive from a version more recent than the installation is refused before maintenance, the task failing with `BACKUP_FROM_NEWER_VERSION` (WF-ARC-0090, WF-ADM-0160); `identity_sync` reads the accounts of the identity provider (WF-ADM-0070); `revision_mark` freezes the revision and calculates its indicators, and fails without freezing anything with `HOURLY_RATE_MISSING`, `params.missing_rates` naming the labour categories without a rate for the reference year (`markRevision`, WF-DEV-0010); `import_analysis` analyses an imported file before anything is applied (`openImport`); `import_apply` applies an analysed import (`applyImport`); `structure_merge` merges a differential into the main structure (`mergeCostStructure`); `risk_occurrence` merges the own estimate of a risk declared occurred into the main structure (`declareRiskOccurrence`); `export` produces an export file, read through `getBackgroundTaskResult` (`requestExport`)."
+            description="What the task does. `backup` takes the backup of the two databases and verifies it; `restore` follows the whole restore, from entering maintenance to leaving it: it only moves to `succeeded` once maintenance is lifted, and an interrupted restore resumes from the beginning; an archive from a version more recent than the installation is refused before maintenance, the task failing with `BACKUP_FROM_NEWER_VERSION` (WF-ARC-0090, WF-ADM-0160); `identity_sync` reads the accounts of the identity provider (WF-ADM-0070); `revision_mark` freezes the revision and calculates its indicators, and fails without freezing anything with `HOURLY_RATE_MISSING`, `params.missing_rates` naming the labour categories without a rate for the reference year (`markRevision`, WF-DEV-0010); `import_analysis` analyses an imported file before anything is applied (`openImport`); `import_apply` applies an analysed import (`applyImport`); `structure_merge` merges a differential into the main structure (`mergeCostStructure`); `risk_occurrence` merges the own estimate of a risk declared occurred into the main structure (`declareRiskOccurrence`); `export` produces an export file, read through `getBackgroundTaskResult` (`requestExport`); the image of the task tree is not drawn beyond one hundred million pixels, the task then failing with `TASK_TREE_IMAGE_TOO_LARGE` (WF-PLA-0120)."
         ),
     ]
     status: BackgroundTaskStatus

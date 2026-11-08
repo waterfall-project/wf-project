@@ -615,6 +615,12 @@ ErrorCode:
     # overwrite its archive (`startRestore`, #892); the reason for the failure of the task,
     # whose `problem` carries the 409 status of a state that forbids the operation, and not 422.
     - TASK_INTERRUPTED_BY_RESTORE
+    # The image of the task tree, which the worker would have to draw beyond one hundred million
+    # pixels (width times height, measured from the layout before anything is drawn): the
+    # `export` task of the kind `task_tree_image` fails, nothing written, and the image is never
+    # reduced (`requestExport`, `BackgroundTaskRef.problem`, WF-PLA-0120). The user chooses a
+    # shallower level (`ExportRequest.depth`); `problem` carries the 422 status, without `params`.
+    - TASK_TREE_IMAGE_TOO_LARGE
     # A category of the risk provision type given to an entered line: only the
     # declaration of a risk creates a provision line (WF-DEV-0020, WF-RIS-0010).
     - PROVISION_CATEGORY_RESERVED
@@ -1017,7 +1023,9 @@ BackgroundTaskRef:
         differential into the main structure (`mergeCostStructure`); `risk_occurrence` merges
         the own estimate of a risk declared occurred into the main structure
         (`declareRiskOccurrence`); `export` produces an export file, read through
-        `getBackgroundTaskResult` (`requestExport`).
+        `getBackgroundTaskResult` (`requestExport`); the image of the task tree is not drawn
+        beyond one hundred million pixels, the task then failing with
+        `TASK_TREE_IMAGE_TOO_LARGE` (WF-PLA-0120).
       enum:
         - import_analysis
         - import_apply
