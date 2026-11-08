@@ -178,6 +178,9 @@ from waterfall.core.planning.interface.reference import (
 from waterfall.core.planning.interface.skeleton import (
     generate_skeleton as generate_skeleton,
 )
+from waterfall.core.planning.interface.skeleton import (
+    opening_with_tasks,
+)
 
 # ``snapshots`` (US-1380/L1; US-1380/L2, US-1450/L2): the snapshots the history keeps.
 from waterfall.core.planning.interface.snapshots import (
@@ -271,7 +274,11 @@ from waterfall.core.planning.writing import (
 from waterfall.core.planning.writing import (
     Writer as Writer,
 )
-from waterfall.core.projects.interface import Attachments, register_attachments
+from waterfall.core.projects.interface import (
+    Attachments,
+    register_attachments,
+    register_opening_question,
+)
 from waterfall.core.resource_settings.interface import (
     register_idle_task_guard,
     register_recalculation,
@@ -292,6 +299,7 @@ register_closing("content", delete_nodes)
 register_idle_task_guard(tasks_left_idle)
 register_recalculation(reschedule_current_structures)
 register_attachments(Attachments(work_breakdown_item_cited, detach_work_breakdown_item))
+register_opening_question(opening_with_tasks)
 register_format("ms_project_schedule", MS_PROJECT_FORMAT)
 register_exporter("ms_project_schedule", MS_PROJECT_EXPORTER)
 register_exporter("task_tree_image", TASK_TREE_EXPORTER)

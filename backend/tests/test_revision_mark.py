@@ -430,6 +430,7 @@ def test_while_the_marking_is_pending_the_writes_of_the_revision_name_the_task(
     running = ["no_background_task_running"]
     assert missing(during) == {
         "edit_planning": running,
+        "generate_skeleton": running,
         "edit_estimate": running,
         "edit_remaining": running,
         "mark": running,

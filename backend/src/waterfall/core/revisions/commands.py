@@ -35,6 +35,7 @@ PROJECT_BEFORE_IN_PROGRESS = "project_before_in_progress"
 NO_CURRENT_REVISION = "no_current_revision"
 NO_BACKGROUND_TASK_RUNNING = "no_background_task_running"
 REVISION_DRAFT = "revision_draft"
+MAIN_STRUCTURE_WITHOUT_TASKS = "main_structure_without_tasks"
 REVISION_MARKED = "revision_marked"
 REVISION_HAS_TASKS_AND_LINES = "revision_has_tasks_and_lines"
 REFERENCE_CORRECTABLE = "reference_correctable"
@@ -53,6 +54,7 @@ class Rule:
 # permission of their own, structuring actions reserved to the project managers (WF-ADM-0100).
 REVISION_RULES: tuple[Rule, ...] = (
     Rule("edit_planning", "planning.write"),
+    Rule("generate_skeleton", "planning.write"),
     Rule("edit_estimate", "estimate.write"),
     Rule("edit_remaining", "remaining.write"),
     Rule("mark", "revision_mark", manager=True),
@@ -81,6 +83,7 @@ class RevisionState:
     no_task_running: bool
     has_tasks_and_lines: bool
     reference_correctable: bool
+    has_tasks: bool = False
 
 
 def quality_conditions(kind: str | None, *, manager: bool) -> list[str]:
@@ -98,6 +101,7 @@ def revision_conditions(command: str, revision: RevisionState) -> list[str]:
     A marked revision lacks ``revision_draft`` alone for what would modify it; the designation,
     which asks it marked, lacks ``revision_marked`` on the current one, then what it asks of it:
     tasks and lines, a designation still correctable, no background task (WF-CYC-0030, WF-REV-0040).
+    The skeleton lacks, on a draft, a main structure without tasks before the background task.
     """
     if command == "designate_reference":
         missing = [] if revision.marked else [REVISION_MARKED]
@@ -110,7 +114,10 @@ def revision_conditions(command: str, revision: RevisionState) -> list[str]:
         return missing
     if revision.marked:
         return [REVISION_DRAFT]
-    return [] if revision.no_task_running else [NO_BACKGROUND_TASK_RUNNING]
+    # The skeleton asks a main structure without tasks first, its own condition (WF-PRJ-0030).
+    skeleton = command == "generate_skeleton" and revision.has_tasks
+    missing = [MAIN_STRUCTURE_WITHOUT_TASKS] if skeleton else []
+    return missing if revision.no_task_running else [*missing, NO_BACKGROUND_TASK_RUNNING]
 
 
 def phase_conditions(command: str, state: str, *, main: bool) -> list[str]:

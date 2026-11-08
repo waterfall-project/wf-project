@@ -92,6 +92,12 @@ from waterfall.core.projects.interface.projects import (
     update_project,
 )
 
+# ``skeleton`` (US-1460): whether the revision a project would open carries a task.
+from waterfall.core.projects.interface.skeleton import (
+    opening_with_tasks,
+    register_opening_question,
+)
+
 # ``subprojects`` (US-0940): the subprojects of a project.
 from waterfall.core.projects.interface.subprojects import (
     SubprojectChange,
@@ -207,6 +213,7 @@ __all__ = [
     "lock_project",
     "next_state",
     "no_background_task_running",
+    "opening_with_tasks",
     "project_code",
     "project_commands",
     "project_exists",
@@ -218,6 +225,7 @@ __all__ = [
     "read_project",
     "read_work_breakdown",
     "register_attachments",
+    "register_opening_question",
     "require_project_manager",
     "set_contributors",
     "set_current_revision",

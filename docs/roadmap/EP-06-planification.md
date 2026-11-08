@@ -1435,7 +1435,7 @@ saisies de risque (EP-08).
 
 ## US-1460 — Le squelette de planning engendré du lotissement
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-PRJ-0030-A`, `WF-PLA-0170-A`
 - **opérations** : `generatePlanningSkeleton` ; `getWorkBreakdown`, `createRevision`
 - **issue** : 2325
