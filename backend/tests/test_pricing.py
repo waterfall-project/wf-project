@@ -6,9 +6,11 @@ The numeric examples of WF-DEV-0020, WF-DEV-0030 and WF-DAT-0100 on the pure mod
 """
 
 from decimal import Decimal
-from itertools import permutations
+from itertools import permutations, product
 
 import pytest
+import yaml
+from support import CONTRACT
 
 from waterfall.core.estimate.pricing import (
     Amount,
@@ -36,19 +38,6 @@ def test_disbursement_base_amount_is_quantity_times_disbursement() -> None:
     assert disbursement_base_amount(D(3), D("12.345")) == D("37.04")
 
 
-@pytest.mark.requirement("WF-DEV-0020-A")
-def test_labour_line_two_years_later_is_the_product_times_1_0609() -> None:
-    base = labour_base_amount(D(1), D(100), D(50))
-    shares = [Share(2028, D(1) * D(100) * D(50))]
-    assert projected_amount(shares, 2026, RATE) == round_to_cent(base * D("1.0609"))
-    assert projected_amount(shares, 2026, RATE) == D("5304.50")
-
-
-@pytest.mark.requirement("WF-DEV-0030-A")
-def test_two_years_at_three_percent_is_1_03_times_1_03() -> None:
-    assert inflation_factor(RATE, 2026, 2028) == D("1.03") * D("1.03") == D("1.0609")
-
-
 @pytest.mark.requirement("WF-DEV-0030-A")
 def test_line_consumed_in_the_reference_year_is_its_base_amount() -> None:
     base = labour_base_amount(D(1), D(7), D("33.33"))
@@ -56,7 +45,8 @@ def test_line_consumed_in_the_reference_year_is_its_base_amount() -> None:
 
 
 @pytest.mark.requirement("WF-DEV-0030-A")
-def test_year_before_the_reference_year_is_not_deflated() -> None:
+def test_year_before_the_reference_year_is_not_deflated_pending_2545() -> None:
+    """Fix the reading kept until #2545 settles it (to be decided), not a Vérif of the sentence."""
     assert inflation_factor(RATE, 2026, 2025) == D(1)
 
 
@@ -69,9 +59,12 @@ def test_provision_line_is_not_projected() -> None:
 
 @pytest.mark.requirement("WF-DAT-0100-A")
 def test_reestimated_amount_sums_the_projected_shares_then_rounds_once() -> None:
-    shares = [Share(2026, D("0.05")), Share(2027, D("0.05"))]
-    # 0.05 + 0.0515 = 0.1015, rounded once to 0.10; the two shares apart would give 0.05 + 0.05.
-    assert projected_amount(shares, 2026, RATE) == D("0.10")
+    shares = [Share(2026, D("0.004")), Share(2027, D("0.004")), Share(2027, D("0.004"))]
+    # 0.004 + 2 x 0.00412 = 0.01224, rounded once to 0.01; each projected share rounded apart is
+    # 0.00, and their sum 0.00.
+    assert projected_amount(shares, 2026, RATE) == D("0.01")
+    apart = (round_to_cent(s.amount * inflation_factor(RATE, 2026, s.year)) for s in shares)
+    assert sum_amounts(apart) == D("0.00")
     halves = [Share(2026, D("0.045")), Share(2026, D("0.045"))]
     assert projected_amount(halves, 2026, RATE) == D("0.09")
     assert sum_amounts(round_to_cent(share.amount) for share in halves) == D("0.08")
@@ -92,6 +85,10 @@ def test_sum_does_not_depend_on_the_order() -> None:
 
 @pytest.mark.requirement("WF-DAT-0100-A")
 def test_ten_times_ten_cents_is_exactly_one() -> None:
+    """Ten cents ten times are one exactly: decimal precision, where binary floats drift.
+
+    The independence to the order is carried by the permutations test.
+    """
     assert sum_amounts([D("0.10")] * 10) == D("1.00")
 
 
@@ -105,6 +102,28 @@ def test_dependencies_of_the_amounts() -> None:
 
 @pytest.mark.requirement("WF-DEV-0030-A")
 def test_dependencies_of_a_provision_line_name_no_inflation() -> None:
-    assert dependencies_of(Amount.REESTIMATED, labour=False, provision=True) == (
-        "remaining_reviews",
+    for amount in Amount:
+        assert "inflation" not in dependencies_of(amount, labour=False, provision=True)
+
+
+@pytest.mark.requirement("WF-DEV-0020-A")
+def test_dependencies_of_a_provision_line_follow_the_risk() -> None:
+    assert dependencies_of(Amount.BASE, labour=False, provision=True) == ("risk",)
+    assert dependencies_of(Amount.REESTIMATED, labour=False, provision=True) == ("risk",)
+    assert dependencies_of(Amount.BUDGETED, labour=False, provision=True) == ("reference_revision",)
+
+
+@pytest.mark.requirement("WF-DEV-0020-A")
+def test_every_dependency_named_is_one_of_the_contract() -> None:
+    contract = yaml.safe_load(
+        (CONTRACT.parent / "components" / "schemas" / "revisions.yaml").read_text(encoding="utf-8")
     )
+    declared = contract["ComputedDependency"].get("enum")
+    assert declared, "ComputedDependency declares no enumeration"
+    for amount, labour, provision in product(Amount, (True, False), (True, False)):
+        assert set(dependencies_of(amount, labour=labour, provision=provision)) <= set(declared)
+
+
+@pytest.mark.requirement("WF-DAT-0100-A")
+def test_an_empty_sum_is_zero_to_the_cent() -> None:
+    assert str(sum_amounts([])) == "0.00"

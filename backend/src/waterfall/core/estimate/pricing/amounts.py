@@ -5,6 +5,9 @@
 Pure: numbers in, numbers out, without a database, a setting or a clock. Every amount is a
 ``Decimal`` rounded to the cent once, half to even, so that a sum of amounts does not depend on
 the order it is made in (WF-DAT-0100); a share is never rounded before it is summed.
+
+The re-estimated amount starts from the unrounded products, not from the rounded base amount: it
+may therefore differ by one cent from the rounded base amount times the inflation factor.
 """
 
 from dataclasses import dataclass
@@ -31,7 +34,11 @@ class Amount(StrEnum):
 
 @dataclass(frozen=True, slots=True)
 class Share:
-    """The part of a line's base amount consumed in one year, before projection and rounding."""
+    """The part of a line's base amount consumed in one year, before projection and rounding.
+
+    It is cut from the unrounded product (``unrounded_*_amount``), so the re-estimated amount may
+    differ by one cent from the rounded base amount times the factor: rounding comes once, last.
+    """
 
     year: int
     amount: Decimal
@@ -55,14 +62,22 @@ def disbursement_base_amount(quantity: Decimal, unit_disbursement: Decimal) -> D
 
 
 def unrounded_labour_amount(quantity: Decimal, effort: Decimal, hourly_rate: Decimal) -> Decimal:
-    """Return the product of a labour line, which the shares are cut from."""
+    """Return the product of a labour line, which the shares are cut from.
+
+    Not rounded: the re-estimated amount starts from it, so it may differ by one cent from the
+    rounded base amount times the inflation factor.
+    """
     with localcontext() as context:
         context.prec = _PRECISION
         return quantity * effort * hourly_rate
 
 
 def unrounded_disbursement_amount(quantity: Decimal, unit_disbursement: Decimal) -> Decimal:
-    """Return the product of a non-labour line, which the shares are cut from."""
+    """Return the product of a non-labour line, which the shares are cut from.
+
+    Not rounded, like ``unrounded_labour_amount``: the re-estimated amount may differ by one cent
+    from the rounded base amount times the inflation factor.
+    """
     with localcontext() as context:
         context.prec = _PRECISION
         return quantity * unit_disbursement
@@ -72,6 +87,7 @@ def inflation_factor(inflation_rate: Decimal, reference_year: int, year: int) ->
     """Return the factor of one share: (1 + rate) once per year elapsed since the reference year.
 
     A year before the reference one has no year elapsed, hence a factor of one: nothing deflates.
+    That reading is kept until #2545, which settles it (to be decided): it is not a requirement.
     """
     with localcontext() as context:
         context.prec = _PRECISION
@@ -105,10 +121,10 @@ def projected_amount(
 
 
 def sum_amounts(amounts: Iterable[Decimal]) -> Decimal:
-    """Return the exact sum of amounts already rounded to the cent."""
+    """Return the exact sum of amounts already rounded to the cent; an empty sum is 0.00."""
     with localcontext() as context:
         context.prec = _PRECISION
-        return sum(amounts, Decimal(0))
+        return round_to_cent(sum(amounts, Decimal(0)))
 
 
 def dependencies_of(amount: Amount, *, labour: bool, provision: bool = False) -> tuple[str, ...]:
@@ -116,14 +132,20 @@ def dependencies_of(amount: Amount, *, labour: bool, provision: bool = False) ->
 
     The base amount comes from the hourly rate of a labour line, from the unit disbursement of
     another; the budgeted one is set by the reference revision, the re-estimated one tracked by the
-    reviews of the remaining to commit; both are projected at the inflation rate, but a provision
-    line is not (WF-DEV-0020, WF-DEV-0030).
+    reviews of the remaining to commit; both are projected at the inflation rate (WF-DEV-0020,
+    WF-DEV-0030).
+
+    A provision line follows the contract (``ComputedDependency`` in ``revisions.yaml``: ``risk``
+    is "the figures, the subproject and the amount of a provision line"): its base and
+    re-estimated amounts depend on ``risk``, its budgeted one, fixed like every line's by the
+    reference revision, on ``reference_revision``. It is not projected, so never ``inflation``.
     """
+    if provision:
+        return ("reference_revision",) if amount is Amount.BUDGETED else ("risk",)
     match amount:
         case Amount.BASE:
             return ("hourly_rate",) if labour else ("unit_disbursement",)
         case Amount.BUDGETED:
-            named = ("reference_revision",)
+            return ("reference_revision", "inflation")
         case Amount.REESTIMATED:
-            named = ("remaining_reviews",)
-    return named if provision else (*named, "inflation")
+            return ("remaining_reviews", "inflation")
