@@ -109,6 +109,16 @@ class Bucket:
         with reached():
             self.client.upload_file(str(path), self.name, key)
 
+    def put(self, key: str, content: bytes, media_type: str) -> None:
+        """Write the content of an object, whole, under a key; an object there is replaced."""
+        with reached():
+            self.client.put_object(Bucket=self.name, Key=key, Body=content, ContentType=media_type)
+
+    def delete(self, key: str) -> None:
+        """Delete the object of a key; one that is not there is already deleted."""
+        with reached():
+            self.client.delete_object(Bucket=self.name, Key=key)
+
     def download(self, key: str, path: Path) -> None:
         """Read the object of a key into a file."""
         with reached():

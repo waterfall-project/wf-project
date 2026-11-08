@@ -12,6 +12,7 @@ Declared by US-1380/L1; US-1420/L1 fills the analysis and the application, US-14
 from typing import TYPE_CHECKING
 
 from waterfall.core.exchanges.interface import run_analysis, run_apply, run_export
+from waterfall.platform.storage import Bucket
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
@@ -19,6 +20,7 @@ if TYPE_CHECKING:
 
     from sqlalchemy.orm import Session
 
+    from waterfall.platform.settings import ServiceSettings
     from waterfall.platform.tasks import Task
 
 
@@ -32,6 +34,20 @@ def apply(session: Session, task: Task) -> Mapping[str, Any] | None:
     return run_apply(session, task)
 
 
-def export(session: Session, task: Task) -> Mapping[str, Any] | None:
-    """Write the file of the export a task asks for, and give where it is kept."""
-    return run_export(session, task)
+class ExportTask:
+    """Write the file of an export, as the worker runs a task of the kind ``export``.
+
+    The file goes to the bucket the settings name, under ``exports/``; the task keeps where.
+    """
+
+    def __init__(self, bucket: Bucket) -> None:
+        self.bucket = bucket
+
+    @classmethod
+    def of(cls, settings: ServiceSettings) -> ExportTask:
+        """Write into the bucket the settings name."""
+        return cls(Bucket.of_backups(settings))
+
+    def __call__(self, session: Session, task: Task) -> Mapping[str, Any]:
+        """Write the file of the export a task asks for, and give where it is kept."""
+        return run_export(session, task, self.bucket)

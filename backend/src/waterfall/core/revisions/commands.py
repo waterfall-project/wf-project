@@ -9,12 +9,12 @@ holds its permission; the quality it asks on the project comes first among the c
 lacks (``is_contributor``, then ``is_project_manager`` for an action of its own permission,
 WF-ADM-0100, WF-PRJ-0060), then the conditions of the phase of the project, then those of the
 revision. A terminal project lists none: its revisions are all marked, and nothing modifies them
-any more (WF-CYC-0100); their exports, which EP-09 adds, are the exception.
+any more (WF-CYC-0100); their exports are the exception, and lack no condition (WF-CYC-0110).
 
 This module knows the commands of EP-04 — the entries of a revision and of its structures, its
 marking, its designation and its abandonment —; the later epics add theirs to ``REVISION_RULES``
 in the order of ``RevisionCommand`` (the skeleton, the risks, the amendments, the update of the
-rates, the exports), with their conditions.
+rates), with their conditions, and the exports to ``EXPORT_RULES``.
 """
 
 from dataclasses import dataclass
@@ -59,6 +59,11 @@ REVISION_RULES: tuple[Rule, ...] = (
     Rule("designate_reference", "reference_designate", manager=True),
     Rule("abandon", "revision_abandon", manager=True),
 )
+# The exports, listed after the other commands as ``RevisionCommand`` orders them: a matter of
+# consultation, each guarded by the permission to view the function of its kind, lacking no
+# condition (WF-CYC-0110). The planning's is here; the tree image (US-1440), the estimate (EP-07)
+# and the remaining to commit (EP-09) add theirs.
+EXPORT_RULES: tuple[Rule, ...] = (Rule("export_planning", "planning.read"),)
 # In the order of ``StructureCommand``: each guarded by the permission of the command of the same
 # name of the revision.
 STRUCTURE_RULES: tuple[Rule, ...] = (
@@ -124,19 +129,28 @@ def phase_conditions(command: str, state: str, *, main: bool) -> list[str]:
 def revision_commands(
     permissions: Collection[str], kind: str | None, state: str, revision: RevisionState
 ) -> list[tuple[str, tuple[str, ...]]]:
-    """List the commands a caller holds on a revision, each with the conditions it lacks."""
+    """List the commands a caller holds on a revision, each with the conditions it lacks.
+
+    A terminal project lists its exports alone.
+    """
+    exports: list[tuple[str, tuple[str, ...]]] = [
+        (rule.command, ()) for rule in EXPORT_RULES if rule.permission in permissions
+    ]
     if state in TERMINAL:
-        return []
+        return exports
     return [
-        (
-            rule.command,
+        *(
             (
-                *quality_conditions(kind, manager=rule.manager),
-                *revision_conditions(rule.command, revision),
-            ),
-        )
-        for rule in REVISION_RULES
-        if rule.permission in permissions
+                rule.command,
+                (
+                    *quality_conditions(kind, manager=rule.manager),
+                    *revision_conditions(rule.command, revision),
+                ),
+            )
+            for rule in REVISION_RULES
+            if rule.permission in permissions
+        ),
+        *exports,
     ]
 
 

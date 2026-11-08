@@ -166,6 +166,7 @@ def test_the_first_revision_is_born_current_with_its_main_structure_alone(
         "mark": [],
         "designate_reference": ["revision_marked", "revision_has_tasks_and_lines"],
         "abandon": [],
+        "export_planning": [],
     }
     [main] = structures(api, stage, revision["revision_id"])
     assert (main["kind"], main["label"], main["is_merged"]) == (

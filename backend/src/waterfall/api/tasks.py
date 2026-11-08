@@ -16,6 +16,7 @@ from waterfall.api.authentication import Caller, Transaction
 from waterfall.api.contract.base import Text
 from waterfall.api.contract.models import BackgroundTaskRef, BackgroundTaskStatus, PaginationMeta
 from waterfall.api.queries import listed
+from waterfall.core.exchanges.interface import has_file
 from waterfall.platform.errors import NotFoundError
 from waterfall.platform.tasks import BackgroundTask, TaskFilters, list_tasks, read_task
 
@@ -25,9 +26,11 @@ NOT_FOUND = "NOT_FOUND"
 
 
 # Where a task that succeeded gives its result, by its kind: the backup it took, the report of the
-# reading of the accounts. The exports, whose result is a file to download, add theirs (EP-07).
+# reading of the accounts, and the file of an export, which ``getBackgroundTaskResult`` downloads
+# until it is downloaded to the end or expires (WF-DAT-0120).
 BACKUPS = "/api/v1/backups"
 IDENTITY_SYNC_REPORT = "/api/v1/identity-syncs/latest"
+TASKS = "/api/v1/tasks"
 
 
 def result_url(row: BackgroundTask) -> str | None:
@@ -36,6 +39,8 @@ def result_url(row: BackgroundTask) -> str | None:
         return None
     if row.kind == "backup" and row.result is not None:
         return f"{BACKUPS}/{row.result['backup_id']}"
+    if row.kind == "export":
+        return f"{TASKS}/{row.id}/result" if has_file(row.result) else None
     return IDENTITY_SYNC_REPORT if row.kind == "identity_sync" else None
 
 

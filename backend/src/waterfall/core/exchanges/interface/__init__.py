@@ -14,6 +14,9 @@ by the modules that serve them, at the import of their interface (``register_for
 
 # ``exports`` (US-1380/L1; US-1430/L2): the exporters, the task that runs one, and its result.
 from waterfall.core.exchanges.interface.exports import (
+    ExportAsked as ExportAsked,
+)
+from waterfall.core.exchanges.interface.exports import (
     ExportedFile as ExportedFile,
 )
 from waterfall.core.exchanges.interface.exports import (
@@ -26,10 +29,16 @@ from waterfall.core.exchanges.interface.exports import (
     ExportOrder as ExportOrder,
 )
 from waterfall.core.exchanges.interface.exports import (
+    ExportResult as ExportResult,
+)
+from waterfall.core.exchanges.interface.exports import (
     consumed as consumed,
 )
 from waterfall.core.exchanges.interface.exports import (
     exporters as exporters,
+)
+from waterfall.core.exchanges.interface.exports import (
+    has_file as has_file,
 )
 from waterfall.core.exchanges.interface.exports import (
     register_exporter as register_exporter,

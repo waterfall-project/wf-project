@@ -509,7 +509,7 @@ BY_FIELD = asked_reference_settings.BY_FIELD
 # The operations that ask for no permission and still refuse by a 404 the object their path names:
 # the task another account asked for does not exist for the caller, nor the avatar of an account
 # without one.
-PATH_OBJECTS = {"getBackgroundTask", "getUserAvatar"}
+PATH_OBJECTS = {"getBackgroundTask", "getBackgroundTaskResult", "getUserAvatar"}
 
 
 def asked(route: APIRoute) -> tuple[str, ...]:
