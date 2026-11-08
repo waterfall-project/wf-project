@@ -70,8 +70,9 @@ witness project, the offer and the labels of the universe say is read from their
 never copied here. Nothing here reads the clock or draws at random, so that two runs write
 the same bytes. Amounts are ``Decimal`` and travel as the strings of the contract.
 
-With ``--check``, nothing is written: the volumes and the named examples are compared with what
-the generator writes; a file missing, outdated or unreadable, or an entry left over, fails.
+With ``--check``, nothing is written: the volumes directory is compared with what the
+generator writes, and a file missing, outdated or unreadable, or any entry left over, fails; a
+named example missing or outdated fails too.
 """
 
 import argparse
@@ -328,8 +329,7 @@ def named() -> dict[str, JsonObject]:
     (``mockproject``); the refusals of one form each (``mockrefusals``), and those the contract
     declared without a code, a condition nor an example (``mockdeclared``), and those of the
     administration and of the platform described without one (``mockadminrefusals``); the
-    examples of the majors of the review of the 2026-10-31 (``mockreview``); the files of the
-    loaders (``mockchronology``, ``mockwitnesstasks``, ``mockwitnesslines``).
+    examples of the majors of the review of the 2026-10-31 (``mockreview``); the loaders' files.
     """
     marked = mocksnapshot.revisions(categories())
     return {

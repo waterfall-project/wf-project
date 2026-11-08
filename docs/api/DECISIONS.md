@@ -2131,6 +2131,11 @@ le reste à engager moins le budget, comme l'exemple écrit à la main le faisai
 dépasse son budget est en alerte, les autres nominaux, et un mois de charge au-delà de la capacité
 de son rôle aussi : WF-IHM-0070 ne fixe aucun seuil intermédiaire pour l'un ni l'autre.
 
+*Remplacé par US-1570/L1 (#1628, L-01) : `remaining_indicators_over_budget` n'est plus la suite de
+`remaining_reestimated` mais une variante contrefactuelle (le risque de reprise du câblage
+réexaminé à 60 %, un dépassement de 88 889,09 pour l'ensemble hors sous-projet) ; le poste de
+commande de `remaining_indicators` garde 632 737,10 de marge, et non plus 2 200 au-delà.*
+
 *Remplacé en partie par US-0701/L1 (#1601, M-08) : depuis la spécification du 2026-10-22
 (WF-RAE-0010) et le recadrage du 2026-10-28, une tâche non démarrée ne compte plus son budgété
 projeté, mais le montant réestimé de ses lignes, calculé, faute de réestimation, depuis les
@@ -2616,6 +2621,12 @@ nœuds modifiés, et un écart de main-d'œuvre de 177 541,25 — les 3 515 du c
 sur les 116 017,5 h tirées. Dans l'offre, la réception usine n'existait pas : ce qui la suit
 aujourd'hui — le montage sur site, les lots du poste de commande tirés autour du cœur — suivait le
 câblage des armoires, qu'elle termine, aux mêmes dates.
+
+*Chiffres de la comparaison remplacés par US-1570/L1 (#1628, L-01) : l'offre est projetée depuis
+2025 et la référence depuis 2026, si bien que la comparaison dit 4 995 lignes réestimées seules et
+4 997 nœuds modifiés ; l'écart de main-d'œuvre n'est plus celui-ci (« Le Vérif de WF-REV-0080 »,
+plus bas, tient les chiffres qui font foi). Le reste du paragraphe — la marche de 2 865, les
+budgets de l'offre gardés — demeure.*
 
 **Les tâches tirées déjà terminées reçoivent des coûts réels** (`mockcosts.drawn`, WF-CRE-0010,
 WF-CRE-0020). Chaque tâche de travail tirée et terminée le 3 juin — 21, du 1er mai au 1er juin,
@@ -8853,6 +8864,9 @@ décisions d'EP-02 disaient l'ancienne règle, « le budgété projeté d'une t�
   2026 que la révision conserve : le reste à engager du témoin passe de 67 293 028,72 à
   67 470 132,98, sa marge sur le budget de référence à -641 535,13, et le poste de commande dépasse
   son budget de 64 699,97. `test_mockinflation.py` tient le Vérif de WF-RAE-0010 sur elles.
+  *Chiffres remplacés par US-1570/L1 (#1628, L-01) : le reste à engager du témoin vaut
+  67 470 133,69, sa marge 1 405 592,07, et le poste de commande, avec la facture des écrans, garde
+  une marge de 632 737,10 — il ne dépasse plus son budget (voir plus haut).*
 
 ### Le compte rendu préalable de la survenance d'un risque (US-0680/L1, #1453)
 

@@ -17,7 +17,7 @@ from wftools import mockcomparisons, mockcore, mockdata, mockdiff, mockhistory
 from wftools.mockdating import Amounts
 from wftools.mockids import universe
 from wftools.mockstructure import LABOUR_RATES, OFFER_PROJECTION, WITNESS, money
-from wftools.mockwitness import SCHEDULED_AT, N, fixture
+from wftools.mockwitness import GENERATED, SCHEDULED_AT, N, fixture
 
 type Node = dict[str, Any]
 
@@ -25,6 +25,15 @@ LINES_REESTIMATED_ALONE = 4_995
 """The lines from the offer 100 to the reference 101 whose re-estimate alone changes: every line
 drawn and the four of the core the amendment does not designate, labour moved by the rates of 2026,
 every line by its projection from 2026 rather than from 2025 (#1628); fixed by the seed."""
+
+
+DRAWN_LINES = tuple(
+    row
+    for row in mockhistory.offer_rows()
+    if row.kind == "estimate_line" and row.number >= GENERATED
+)
+"""Every line drawn about the core in the offer, counted rather than fixed: the 4 991 that
+`test_mockhistory.py` also names (#1628)."""
 
 
 @pytest.fixture(scope="module")
@@ -249,7 +258,7 @@ def test_the_witness_comparison_moves_the_reestimates_only_of_the_lines_the_amen
     alone = [node for node in lines if _amounts(node) == ["reestimated_amount"]]
     assert len(alone) == LINES_REESTIMATED_ALONE
     rates = {2025: mockhistory.offer_rates(), 2026: LABOUR_RATES}
-    disbursements = 0
+    disbursements = labour = 0
     for node in alone:
         before, after = offered[node["node_id"]], marked[node["node_id"]]
         kept = ("quantity", "hours", "unit_disbursement", "budgeted_amount", "consumption_year")
@@ -268,10 +277,14 @@ def test_the_witness_comparison_moves_the_reestimates_only_of_the_lines_the_amen
             continue
         # A labour line moves because the reference keeps the rates of 2026, the offer those of
         # 2025: its amount at the rates of the reference year says it.
+        labour += 1
         hours = Decimal(after["quantity"]) * Decimal(after["hours"])
         for facet, base in ((before, 2025), (after, 2026)):
             assert facet["base_amount"] == money(hours * rates[base][facet["cost_category_id"]])
-    assert disbursements == LINES_REESTIMATED_ALONE - 2_768
+    assert labour + disbursements == LINES_REESTIMATED_ALONE
+    # The four lines of the core the amendment does not designate are re-estimated besides the
+    # lines drawn, labour or disbursement.
+    assert labour + disbursements - len(DRAWN_LINES) == 4
 
 
 def test_a_reading_with_fields_renders_what_it_names_besides_the_four() -> None:
@@ -322,7 +335,7 @@ def test_the_volume_of_the_comparison_is_the_whole_comparison_read_with_the_fiel
     assert len(read["items"]) == 5_999
     modified = (node for node in read["items"] if node["difference"] == "modified")
     # Modified by their own values: the six of the core and every line drawn (#1628).
-    assert sum(1 for node in modified if node["changes"]) == 6 + 4_991
+    assert sum(1 for node in modified if node["changes"]) == 6 + len(DRAWN_LINES)
     kept = {*mockdiff.ALWAYS, "kind", "task", "estimate_line"}
     for node, entire in zip(read["items"], whole["items"], strict=True):
         assert set(node) <= kept

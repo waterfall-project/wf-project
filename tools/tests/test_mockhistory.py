@@ -71,6 +71,10 @@ or a deposit — of an import or of a backup —, a day after its analysis or it
 WF-DAT-0120); the chunked deposit of a backup, a day after its opening (WF-ADM-0160,
 WF-DAT-0120)."""
 
+DRAWN_LINES = 4_991
+"""The lines drawn about the core in the offer, each re-estimated by the reference; the count
+`test_mockcomparison.py` recounts from the rows (#1628)."""
+
 
 def _later(name: str, key: str) -> timedelta:
     """Return how far after today an instant of a file, under a key, may lie."""
@@ -450,7 +454,7 @@ def test_the_comparison_is_the_difference_of_the_offer_and_the_reference_by_line
         if lineage not in core
     }
     rerated = {lineage: changes for lineage, changes in drawn.items() if changes}
-    assert len(rerated) == 4_991
+    assert len(rerated) == DRAWN_LINES
     assert {tuple(changes) for changes in rerated.values()} == {("reestimated_amount",)}
     # The deltas by nature, as by subproject, sum to the difference of the two estimates: what the
     # amendment changed of the core, the 850,060 of the provisions the reference bore — 751 and 753
@@ -480,7 +484,7 @@ def test_the_comparison_is_the_difference_of_the_offer_and_the_reference_by_line
     # Read whole, its totals are those of listNodes on the reference (#1193).
     assert len(compared["items"]) == 5_999
     # Modified by their own values: the six of the core and every line drawn (#1628).
-    assert sum(1 for node in _marked(compared, "modified") if node["changes"]) == 6 + 4_991
+    assert sum(1 for node in _marked(compared, "modified") if node["changes"]) == 6 + DRAWN_LINES
     assert compared["totals"] == mockcore.whole(mockhistory.reference_rows())["totals"]
     # Its meta is that of listNodes, but for when the dates were last computed: the marking, which
     # the merge of the amendment redated, and after which nothing redates it (#1404, WF-DAT-0020).
@@ -571,7 +575,7 @@ def test_the_comparison_names_the_lines_reestimated_without_being_designated(
         "Câblage sur site",
         "Mise en service sur site",
     ]
-    assert len(rerated) - len(kept) == 4_991
+    assert len(rerated) - len(kept) == DRAWN_LINES
     installed = ["Câblage sur site", "Mise en service sur site"]
     example = mockcomparisons.examples()["comparison.json"]
     window = cast("list[Node]", cast("Node", example["value"])["items"])
@@ -829,7 +833,7 @@ def test_a_line_the_amendment_does_not_designate_keeps_in_the_reference_its_offe
     ]
     assert sorted(number for number in kept if number < GENERATED) == [527, 554, 563, 566]
     # Every line drawn about the core is kept as it was: none was designated (EP-14/L45a).
-    assert sum(1 for number in kept if number >= GENERATED) == 4_991
+    assert sum(1 for number in kept if number >= GENERATED) == DRAWN_LINES
     for number in kept:
         assert reference[number].amounts.budgeted == offer[number].amounts.budgeted, number
 

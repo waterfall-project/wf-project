@@ -144,11 +144,10 @@ def examples() -> dict[str, JsonObject]:
             "et 102 ouvertes, la mise à jour des taux de 2026 acceptée sur la 101 pour ses deux "
             "catégories de main-d'œuvre (WF-REV-0060), l'offre et la référence marquées, la "
             "désignation tentée et refusée faute de tâches, le code saisi, les transitions "
-            "(WF-CYC-0130). Chaque écriture nomme "
-            "son projet, PRJ-001 : PRJ-002 n'est pas datée ici, le chargeur crée PRJ-002 et "
-            "PRJ-001 depuis `projects.json` avant les événements, et `project_created` date "
-            "PRJ-001. Lue par "
-            "`waterfall-api load-witness` sans importer `wftools`.",
+            "(WF-CYC-0130). Chaque écriture nomme son projet, PRJ-001 : PRJ-002 n'est pas datée "
+            "ici, le chargeur crée PRJ-002 et PRJ-001 depuis `projects.json` avant les "
+            "événements, et `project_created` date PRJ-001. Lue par `waterfall-api load-witness` "
+            "sans importer `wftools`.",
             chronology(),
         )
     }
