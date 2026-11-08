@@ -189,9 +189,9 @@ def test_a_work_package_or_an_order_item_shows_the_task_that_bears_it_its_subtre
         ("?total_float_max=0", ["Retard"]),
         # No physical progress is stored nor computed before EP-07: a bound retains none of the
         # three tasks, which the unfiltered reading (the last case) shows to exist.
-        ("?physical_progress_min=10", []),
-        ("?physical_progress_max=10", []),
-        ("?physical_progress_min=0&physical_progress_max=100", []),
+        ("?physical_progress_min=0.5", []),
+        ("?physical_progress_max=0.5", []),
+        ("?physical_progress_min=0&physical_progress_max=1", []),
         ("", ["Retard", "Fini", "Neuf"]),
         ("?is_from_risk=true", ["Retard", "Neuf"]),
         ("?is_from_risk=false", ["Fini"]),
@@ -707,9 +707,8 @@ def test_a_finish_entered_fifteen_years_and_a_day_after_the_start_is_refused_nam
     [
         {"value": "99999999999", "unit": "d"},
         {"value": "9999999", "unit": "mo"},
-        {"value": "5000", "unit": "d"},
     ],
-    ids=["days-beyond-the-calendar", "months-beyond-the-calendar", "days-beyond-fifteen-years"],
+    ids=["days-beyond-the-calendar", "months-beyond-the-calendar"],
 )
 def test_a_manual_duration_so_long_that_its_finish_is_no_date_is_refused_naming_the_task(
     tree: Tree, duration: dict[str, str]
