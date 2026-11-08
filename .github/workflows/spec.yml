@@ -26,9 +26,10 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+      # A release download answers a passing 502 or 504 now and then (#2530): curl tries again.
       - name: Install pandoc
         run: |
-          curl -sSfL -o pandoc.deb "https://github.com/jgm/pandoc/releases/download/${PANDOC_VERSION}/pandoc-${PANDOC_VERSION}-1-amd64.deb"
+          curl -sSfL --retry 5 --retry-all-errors --retry-delay 5 -o pandoc.deb "https://github.com/jgm/pandoc/releases/download/${PANDOC_VERSION}/pandoc-${PANDOC_VERSION}-1-amd64.deb"
           echo "${PANDOC_SHA256}  pandoc.deb" | sha256sum --check --strict
           sudo dpkg -i pandoc.deb
           rm pandoc.deb

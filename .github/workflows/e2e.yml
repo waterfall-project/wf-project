@@ -62,9 +62,10 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+      # A release download answers a passing 502 or 504 now and then (#2530): curl tries again.
       - name: Install make
         run: |
-          curl -sSfL -o make.deb "${MAKE_DEB}"
+          curl -sSfL --retry 5 --retry-all-errors --retry-delay 5 -o make.deb "${MAKE_DEB}"
           echo "${MAKE_DEB_SHA256}  make.deb" | sha256sum --check --strict
           dpkg -i make.deb
           rm make.deb
