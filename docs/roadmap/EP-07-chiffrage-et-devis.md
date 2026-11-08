@@ -236,11 +236,6 @@ Reportés d'EP-17 à sa livraison (rangement du 2026-11-05) :
 
 Relevés par les revues locales d'EP-06 et reportés ici par l'auteur le 2026-11-08 :
 
-- #2485 [EP-06] — contrat : une lecture de `listNodes` avec `fields` rend des nœuds partiels que
-  le schéma `Node` refuse (ses propriétés requises), et le front lit déjà `fields: ["node_id"]`
-  en typant des `Node` entiers. EP-07, qui ajoute la facette ligne à `Node` et reprend la grille,
-  donne à la réponse un schéma de projection (`NodeProjection`, de même pour `compareRevisions`)
-  et aligne les types du front ; jusque-là le test d'US-1380/L2 lit `fields` hors `ContractClient`.
 - #2510, point 3 [EP-06] — `redate_copy` (`core/planning/interface/reference.py`) s'enregistre
   après `copy_nodes` : une facette qu'EP-07 copie à l'ouverture d'une révision s'enregistre
   avant lui, ou se redate elle-même.

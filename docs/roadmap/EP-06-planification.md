@@ -226,6 +226,10 @@ suit une fois figé.
   et Annuler et Rétablir branchés. US-1450 (Annuler et Rétablir), US-1470 (le parcours du
   report, joué sur des tâches, les lignes étant d'EP-07).
 
+- #2485 [EP-06] contrat : une lecture de `listNodes` avec `fields` ne se valide pas contre le
+  schéma `Node` — relevé par US-1380/L2 (#2335), reporté vers EP-07 puis ramené ici par
+  l'utilisateur le 2026-11-08 : corrigé par `[US-1400/L3]` (#2535) (« La projection de `listNodes` »).
+
 Reportés d'EP-04 le 2026-11-06 (relevés par la revue d'US-0960, #2061) :
 
 - #2170 — `CostStructure.planning_start_on` n'a pas de colonne : US-0960 la dérive de la date de
@@ -617,6 +621,45 @@ remplis (#2180).
 - **Dans l'ordre d'EP-04** : la tranche des tâches ne touche ni `loader.py` ni l'ordre des
   tranches des projets ; le socle attend la fusion d'US-0990/L2 (#2069), qui écrit encore
   `witness/revisions.py`, avant d'y déclarer le registre.
+
+### La projection de `listNodes` (décision de l'utilisateur du 2026-11-08, #2485)
+
+La lecture d'`listNodes` avec `fields` ne se validait pas contre le contrat : `items` était `Node`,
+dont les propriétés exigées ne le sont pas d'une lecture qui en nomme (`DECISIONS.md`, « Une lecture
+de `listNodes` choisit les champs qu'elle rend »), et `ContractClient` comme le proxy du contrat
+(Prism) la refusent — les parcours `@shared` de l'arbre, de la grille et des chronologies ne
+passent pas contre le service. Le cadrage l'avait reporté vers EP-07 ; la décision du 2026-11-08 le
+ramène ici, par **un lot technique, `[US-1400/L3]`**, sous US-1400 qu'il prépare en premier
+(numéro suivant, livré avant US-1400/L2), qui ne ferme aucun critère et sert WF-ARC-0060-A. C'est
+une « Interface contract issue » tranchée : la modification du contrat que la conception ne
+prévoyait pas, et la seule d'EP-06. Elle assouplit une réponse, la version reste `1.0.0`.
+
+- **`NodeProjection`** (`docs/api/components/schemas/revisions.yaml`) : les propriétés de `Node`
+  reprises par l'ancre `&node_properties`, comme `ComparedNodeRead`, dont seules `node_id`,
+  `row_number`, `level` et `lock_version` sont exigées ; ses facettes sont `ComparedTaskFacet` et
+  `ComparedEstimateLineFacet`, aucune propriété exigée, leurs descriptions élargies à `listNodes`.
+  Les `items` du `200` de `listNodes` deviennent `NodeProjection`, et sa description dit : sans
+  `fields`, chaque nœud est entier ; avec, il est projeté. `Node` ne change pas : les écritures
+  (`NodesWritten`, `KanbanTask`) le rendent entier. `compareRevisions` n'est pas touché, son
+  `ComparedNodeRead` faisant déjà ce travail (#1208).
+- **`DECISIONS.md`** : l'entrée « Une lecture de `listNodes` choisit les champs qu'elle rend »
+  perd la phrase « la seule réponse du contrat dont le schéma ne dit pas tout », et la décision se
+  note avec les options écartées. Les modèles du service et le client du front se régénèrent
+  (`make generate-client`, `server-models-up-to-date`).
+- **Le back** : `test_fields_returns_what_it_names_and_the_four_always_returned` repasse par
+  `ContractClient`. La garde perdue sur les lectures sans `fields` est compensée dans
+  `test_nodes.py` : le test des lectures entières valide en plus chaque nœud contre `Node`, strict
+  — la compensation est locale à ce test, `ContractClient` ne change pas.
+- **Le front** : `NodeList` (`components/grid/nodes.tsx`) se redéfinit en un seul endroit,
+  `Omit<réponse de listNodes, "items"> & { items: Node[] }`, avec un commentaire : une grille ne
+  lit que ce qu'elle a demandé par `fields`. Les consommateurs ne changent pas.
+- **Options écartées** : des facettes de projection neuves ou le renommage de `Compared*` (un lot
+  de plus pour rien) ; retyper chaque consommateur en `NodeProjection` (plus de 1 000 lignes, et
+  EP-07 reprend la grille) ; un exemple `nodes_fields.json` (le test du back et le parcours
+  `@shared` d'US-1400/L2 en font la preuve) ; laisser le constat à EP-07, qui laissait sans preuve
+  tous les parcours `@shared` d'EP-06 ; une garde générale dans `ContractClient` selon la requête.
+- **Ordre** : le lot précède US-1400/L2 (#2340) et, par elle, US-1470 et US-1480/L2 ; il est
+  « pas avec » US-1380/L4 (#2519), qui écrit les mêmes fichiers du contrat et leurs dérivés.
 
 ### Le front
 
@@ -1069,9 +1112,10 @@ démarré à terminé, **afin que** le planning dise où en est chaque tâche av
   sont pas saisissables. » : la marge et la criticité, par US-1390 et US-1470 ; l'avancement
   physique est d'EP-10, qui clôt ;
 - `WF-PLA-0130-A` — « Une terminaison datée avant le démarrage de la tâche est refusée. » :
-  `setTaskProgress` refuse par 422 `VALUE_OUT_OF_RANGE` sur la date, et le jour par défaut se lit
-  dans le fuseau horaire de l’installation (spécification 1.0.3, #2524), réalisé par US-1380/L4
-  (#2519) ;
+  `setTaskProgress` refuse par 422 `VALUE_OUT_OF_RANGE` sur la date (US-1380/L4, #2519) ; écart :
+  le jour par défaut se lit dans le fuseau horaire de l’installation (spécification 1.0.3, #2524),
+  qui n'existe pas encore — le jour courant est pris en UTC, et le fuseau est reporté vers EP-07
+  (#2527), qui clôt ;
 - propre à l'US : `setTaskProgress` démarre, termine ou rouvre une tâche feuille, au compteur lu,
   et refuse par 409 — `task_is_milestone`, `task_without_lines` (jamais manquante sans ligne),
   `task_not_milestone`, `completed_milestone`, puis `project_in_progress` et
