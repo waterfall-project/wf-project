@@ -317,7 +317,7 @@ def test_the_siblings_a_creation_moves_down_are_counted_and_kept_in_its_entry(
     assert after[last["node_id"]]["rows"]["node"]["rank"] == 2
 
 
-@pytest.mark.requirement("WF-PLA-0080-A")
+@pytest.mark.requirement("WF-DEV-0050-A")
 def test_two_creations_at_once_in_one_structure_are_both_written_one_after_the_other(
     tree: Tree,
 ) -> None:
@@ -343,7 +343,7 @@ def test_a_reading_made_while_tasks_are_created_answers_a_consistent_state_every
     project_id = UUID(stage.project["project_id"])
     revision_id, structure_id = UUID(tree.revision["revision_id"]), UUID(tree.structure_id)
     first = tree.made("Départ")
-    finished = []
+    finished: list[bool] = []
 
     def writing() -> None:
         previous = first
@@ -365,15 +365,15 @@ def test_a_reading_made_while_tasks_are_created_answers_a_consistent_state_every
     def reading() -> list[int]:
         found: list[int] = []
         while not finished:
-            for answer in (
+            asked = (
                 tree.read(),
                 tree.api.get(
                     f"{tree.path}/nodes/{first['node_id']}/dependencies?field=task.start",
                     headers=stage.manager.headers,
                 ),
                 tree.api.get(f"{tree.path}/rows/1", headers=stage.manager.headers),
-            ):
-                found.append(answer.status_code)
+            )
+            found.extend(answer.status_code for answer in asked)
         return found
 
     with ThreadPoolExecutor(3) as pool:

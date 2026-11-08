@@ -107,7 +107,7 @@ def read_tree(session: Session, project_id: UUID, structure_id: UUID) -> Tree:
         .where(Node.project_id == project_id, Node.structure_id == structure_id)
         .execution_options(populate_existing=True)
     ).all()
-    tasks = {task.node_id: task for _, task in rows if task is not None}
+    tasks = {node.id: task for node, task in rows if node.kind == TASK}
     return Tree({node.id: node for node, _ in rows}, tasks)
 
 

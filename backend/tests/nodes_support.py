@@ -14,6 +14,7 @@ from uuid import UUID, uuid4
 
 from access_rows import role
 from planning_support import DAY
+from project_rows import STAMP
 from projects_support import MANAGING, PROJECTS, Person, Scene, contribute
 from realm import KEY
 from sqlalchemy import insert, select, update
@@ -22,7 +23,8 @@ from support import bearer, raw_account
 
 from waterfall.core.access_roles.tables import UserAccessRole
 from waterfall.core.history.tables import UndoEntry
-from waterfall.core.planning.tables import Task
+from waterfall.core.planning.tables import Node, Task
+from waterfall.core.projects.tables import OrderItem, WorkPackage
 from waterfall.core.revisions.interface import mark_revision
 from waterfall.core.revisions.tables import CostStructure
 from waterfall.core.users.tables import UserAccount
@@ -192,3 +194,34 @@ def mark(stage: Scene, revision: dict[str, Any]) -> None:
     ):
         marked = UUID(revision["revision_id"])
         mark_revision(session, marked, "v1.0", None, Act(None, utc_now()))
+
+
+def put_facts(stage: Scene, node_id: str, **facts: object) -> None:
+    """Put columns of the facet of a task around the service, as the engine and US-1410 will."""
+    with stage.owner.begin() as connection:
+        connection.execute(update(Task).where(Task.node_id == UUID(node_id)).values(**facts))
+
+
+def put_risk(stage: Scene, node_id: str, risk_id: UUID) -> None:
+    """Make a task come from a risk, around the service, as EP-08 will."""
+    with stage.owner.begin() as connection:
+        connection.execute(
+            update(Node).where(Node.id == UUID(node_id)).values(origin_risk_id=risk_id)
+        )
+
+
+def work_breakdown(stage: Scene) -> tuple[UUID, UUID]:
+    """Write a work package and an order item of the project of a stage; give their identifiers."""
+    package, item = uuid4(), uuid4()
+    element = {"project_id": UUID(stage.project["project_id"]), **STAMP}
+    with stage.owner.begin() as connection:
+        # The project holds a bare work package at the position 0 already.
+        connection.execute(
+            insert(WorkPackage).values(id=package, label="Lot", position=1, **element)
+        )
+        connection.execute(
+            insert(OrderItem).values(
+                id=item, work_package_id=package, label="Poste", position=0, **element
+            )
+        )
+    return package, item

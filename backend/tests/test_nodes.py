@@ -13,6 +13,7 @@ around the service (``planning_support``).
 """
 
 from datetime import date, datetime, timedelta
+from decimal import Decimal
 from typing import TYPE_CHECKING, Any
 from uuid import UUID, uuid4
 
@@ -25,9 +26,12 @@ from nodes_support import (
     faults,
     instant,
     opened,
+    put_facts,
+    put_risk,
     refusal,
     scheduled_at,
     set_progress,
+    work_breakdown,
 )
 from planning_support import DAY, insert_link
 from project_rows import STAMP
@@ -150,6 +154,85 @@ def test_the_filters_retain_tasks_with_their_ancestors_and_count_only_those_reta
     assert site["node_id"] not in {item["node_id"] for item in tree.items("?is_critical=false")}
 
 
+@pytest.mark.requirement("WF-PLA-0080-A")
+def test_a_work_package_or_an_order_item_shows_the_task_that_bears_it_its_subtree_and_parents(
+    tree: Tree, stage: Scene
+) -> None:
+    # « ne laisse voir que la tâche qui le porte, son sous-arbre et ses parents »
+    studies = tree.made("Études")
+    carrying = tree.made("Lot câblage", parent_id=studies["node_id"])
+    tree.made("Tirage", parent_id=carrying["node_id"])
+    site = tree.made("Chantier")
+    ordered = tree.made("Poste pupitres", parent_id=site["node_id"])
+    tree.made("Livraison", parent_id=site["node_id"])
+    package, item = work_breakdown(stage)
+    put_facts(stage, carrying["node_id"], work_package_id=package)
+    put_facts(stage, ordered["node_id"], order_item_id=item)
+    assert tree.labels(f"?work_package_id={package}") == ["Études", "Lot câblage", "Tirage"]
+    assert tree.labels(f"?order_item_id={item}") == ["Chantier", "Poste pupitres"]
+    assert tree.labels(f"?work_package_id={uuid4()}") == []
+
+
+@pytest.mark.requirement("WF-PLA-0080-A")
+@pytest.mark.parametrize(
+    ("query", "expected"),
+    [
+        ("?finish_overdue=true", ["Retard"]),
+        ("?finish_overdue=false", ["Fini", "Neuf"]),
+        ("?started_on_from=2026-11-03", ["Fini"]),
+        ("?started_on_to=2026-11-02", ["Retard"]),
+        ("?completed_on_from=2026-11-05&completed_on_to=2026-11-05", ["Fini"]),
+        ("?completed_on_to=2026-11-04", []),
+        ("?duration_min=2&duration_max=5", ["Fini"]),
+        ("?duration_max=1", ["Retard"]),
+        ("?total_float_min=1", ["Fini"]),
+        ("?total_float_max=0", ["Retard"]),
+        ("?physical_progress_min=0", []),
+        ("?is_from_risk=true", ["Retard", "Neuf"]),
+        ("?is_from_risk=false", ["Fini"]),
+        ("?origin_risk_ids={first}", ["Retard"]),
+        ("?origin_risk_ids={first},{second}", ["Retard", "Neuf"]),
+        ("?is_critical=true", ["Retard"]),
+    ],
+)
+def test_a_filter_of_the_state_the_float_the_duration_or_the_risk_retains_the_tasks_it_names(
+    tree: Tree, stage: Scene, query: str, expected: list[str]
+) -> None:
+    late, done, new = (tree.made(label) for label in ("Retard", "Fini", "Neuf"))
+    first, second = uuid4(), uuid4()
+    later = date(2099, 1, 1)
+    put_facts(
+        stage,
+        late["node_id"],
+        progress="started",
+        started_on=DAY,
+        total_float_days=Decimal(0),
+        is_critical=True,
+    )
+    put_facts(
+        stage,
+        done["node_id"],
+        progress="completed",
+        started_on=DAY + timedelta(days=1),
+        completed_on=DAY + timedelta(days=3),
+        duration_value=Decimal(3),
+        finish_date=later,
+        total_float_days=Decimal(5),
+        is_critical=False,
+    )
+    put_facts(
+        stage,
+        new["node_id"],
+        duration_value=Decimal(10),
+        finish_date=later,
+        total_float_days=None,
+        is_critical=False,
+    )
+    put_risk(stage, late["node_id"], first)
+    put_risk(stage, new["node_id"], second)
+    assert tree.labels(query.format(first=first, second=second)) == expected
+
+
 @pytest.mark.requirement("WF-PLA-0140-A")
 def test_a_timeline_retains_its_inscribed_tasks_without_their_ancestors(
     api: ContractClient, tree: Tree, stage: Scene
@@ -214,7 +297,8 @@ def test_fields_returns_what_it_names_and_the_four_always_returned(
 ) -> None:
     tree.made("Études")
     # A reading that names its fields returns less than the schema of a node requires: it is
-    # judged on its own, not by the schema the contract gives a node whole.
+    # judged on its own, not by the schema the contract gives a node whole (#2485): the client
+    # of the service, not the ``ContractClient`` that validates every answer.
     answer = api.client.get(
         f"{tree.path}/nodes?fields=task.label,task.duration,parent_id",
         headers=stage.manager.headers,
@@ -248,7 +332,7 @@ def test_a_summary_is_started_once_a_subordinate_is_and_completed_after_the_last
 # --- Creation ----------------------------------------------------------------------------------
 
 
-@pytest.mark.requirement("WF-PLA-0080-A")
+@pytest.mark.requirement("WF-DEV-0050-A")
 def test_a_task_created_without_mode_nor_duration_is_an_automatic_leaf_of_a_day(
     tree: Tree,
 ) -> None:
@@ -480,7 +564,7 @@ def test_a_modification_writes_what_it_sends_alone_and_advances_the_version(tree
     )
 
 
-@pytest.mark.requirement("WF-PLA-0080-A")
+@pytest.mark.requirement("WF-PLA-0160-A")
 def test_a_duration_is_kept_in_its_unit_and_redates_the_successor_it_moves(
     tree: Tree, stage: Scene
 ) -> None:
@@ -563,7 +647,7 @@ def test_the_dates_and_mode_of_a_summary_are_not_entered_its_subordinates_named(
     assert tree.node(summary["node_id"])["lock_version"] == read["lock_version"]
 
 
-@pytest.mark.requirement("WF-PLA-0050-A")
+@pytest.mark.requirement("WF-PLA-0020-A")
 def test_the_date_of_an_automatic_task_and_the_duration_of_a_milestone_are_refused(
     tree: Tree,
 ) -> None:
@@ -673,7 +757,6 @@ def test_a_computed_value_names_what_it_depends_on_and_an_entered_one_is_refused
     assert refusal(asked({"node_id": str(uuid4())}, "task.start"))[:2] == (404, "NOT_FOUND")
 
 
-@pytest.mark.requirement("WF-PLA-0080-A")
 def test_a_row_number_resolves_to_its_node_whatever_the_filters_and_none_beyond(
     tree: Tree,
 ) -> None:

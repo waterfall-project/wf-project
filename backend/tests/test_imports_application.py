@@ -176,7 +176,8 @@ def test_an_import_on_a_project_whose_revisions_are_all_marked_creates_the_curre
     assert revisions(database) == sorted([(first, "marked"), (current, "draft")])
     written = [node for node in nodes(database) if node not in of_marked]
     assert {(revision, kind) for revision, _, kind in written} == {(current, "task")}
-    assert len(written) == 2
+    # The two tasks of the file, and the one of the marked revision that the new one copies.
+    assert len(written) == 3
     assert [node for node in nodes(database) if node[0] == first] == of_marked
     with database.transaction() as session:
         structure = session.scalars(

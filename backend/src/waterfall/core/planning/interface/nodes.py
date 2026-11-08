@@ -336,9 +336,13 @@ def _stamp(node: Node, act: Act) -> None:
 
 
 def _insert(
-    write: Write, creation: NodeCreation, node_id: UUID, facet: Facet, placed: tuple[int, list[UUID]]
+    write: Write,
+    creation: NodeCreation,
+    node_id: UUID,
+    facet: Facet,
+    placed: tuple[int, list[UUID]],
 ) -> None:
-    """Write the node and the facet of a task created at its rank, its younger siblings moved down.
+    """Write the node and the facet of a task created at its rank, the siblings after it moved.
 
     The siblings at that rank or after (``placed``) are moved down by one in one statement — the
     rank is unique, checked at its end — and counted as any write of a node is.
