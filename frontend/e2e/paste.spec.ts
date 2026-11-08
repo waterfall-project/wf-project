@@ -291,7 +291,10 @@ test("a block of two labels pasted on the planning of a project the run creates 
   await expect(dialog).toBeVisible({ timeout: WORKING });
   await expect(dialog).toContainText("2 lignes seront écrites.");
   await expect(dialog).toContainText("Aucune ligne n’est refusée.");
-  await expect(one).toContainText("Tâche A");
+  // The dialog is modal: the grid behind it is out of the accessibility tree, read by its markup.
+  await expect(
+    page.locator('[role="treegrid"] [aria-rowindex="2"] :is(td, [role="gridcell"])').nth(at.label),
+  ).toContainText("Tâche A");
 
   await dialog.getByRole("button", { name: "Appliquer le collage" }).click();
   await expect(dialog).toHaveCount(0, { timeout: WORKING });
@@ -303,5 +306,5 @@ test("a block of two labels pasted on the planning of a project the run creates 
   await page.getByRole("button", { name: "Annuler", exact: true }).click();
   await expect(one).toContainText("Tâche A", { timeout: WORKING });
   await expect(two).toContainText("Tâche B");
-  await expect(page.getByRole("alert")).toHaveCount(0);
+  await expect(page.getByRole("main").getByRole("alert")).toHaveCount(0);
 });

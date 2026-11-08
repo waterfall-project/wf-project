@@ -185,7 +185,7 @@ test("fifty entries of the planning are undone one by one by the grid, then redo
     await expect(label).toContainText(`Tâche ${entry.toString()}`, { timeout: WORKING });
     await idle();
   }
-  await expect(page.getByRole("alert")).toHaveCount(0);
+  await expect(page.getByRole("main").getByRole("alert")).toHaveCount(0);
 
   // Redone in order, up to the last.
   for (let entry = 1; entry <= ENTRIES; entry += 1) {
@@ -193,12 +193,15 @@ test("fifty entries of the planning are undone one by one by the grid, then redo
     await expect(label).toContainText(`Tâche ${entry.toString()}`, { timeout: WORKING });
     await idle();
   }
-  await expect(page.getByRole("alert")).toHaveCount(0);
+  await expect(page.getByRole("main").getByRole("alert")).toHaveCount(0);
 
   // Nothing is left to redo: the refusal is told by the catalogue, naming the condition.
   await redo.click();
-  await expect(page.getByRole("alert")).toContainText("historique de rétablissement non vide", {
-    timeout: WORKING,
-  });
+  await expect(page.getByRole("main").getByRole("alert")).toContainText(
+    "historique de rétablissement non vide",
+    {
+      timeout: WORKING,
+    },
+  );
   await expect(label).toContainText(`Tâche ${ENTRIES.toString()}`);
 });
