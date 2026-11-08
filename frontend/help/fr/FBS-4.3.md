@@ -28,7 +28,9 @@ Au-dessus de la grille :
 
 Dans le menu d’une cellule (clic droit, `Maj+F10` ou la touche Menu) : **Insérer au-dessous**, **Insérer une sous-tâche**, **Indenter**, **Désindenter**, **Monter**, **Descendre**, **Supprimer**, le pliage de la ligne, **Annuler** et **Rétablir**, et deux sous-menus : **Chronologies**, pour inscrire la tâche — ou la sélection — à une chronologie, et **Suivi temps/temps** pour un jalon. Le détail de ces gestes et de leurs touches est dans l’aide de la [grille de planning](FBS-4.3.2.md) ; le zoom et l’export du Gantt dans celle du [Gantt](FBS-4.3.3.md).
 
-La grille ne se saisit, et n’offre ses gestes, que là où la structure lue liste « Modifier le planning » disponible pour vous : une révision marquée, un projet clos ou un traitement de fond en cours la laissent en lecture seule. Une cellule calculée ne se saisit jamais : elle dit de quoi sa valeur dépend.
+La grille ne se saisit, et n’offre ses gestes, que là où la structure lue liste « Modifier le planning » disponible pour vous : une révision marquée, un projet clos ou un traitement de fond en cours la laissent en lecture seule. Une cellule calculée ne se saisit jamais : elle dit de quoi sa valeur dépend. Un compte qui voit le projet sans en être contributeur lit le planning sans pouvoir le modifier, ni par la grille ni par un import : le service refuse chaque écriture, et l’accepte dès qu’il est inscrit comme contributeur.
+
+Le service conserve ce que vous saisissez : chaque cellule, chaque liaison, chaque création, indentation, déplacement ou suppression est écrit, et la grille montre les lignes que le serveur rend — les tâches qu’il redate, les liaisons en conflit, le chemin critique et les marges compris. Rien n’y est simulé ; les lignes, les montants et le devis, que la grille de planning ne porte pas, relèvent des écrans du chiffrage.
 
 ## Ses colonnes et ses valeurs calculées
 

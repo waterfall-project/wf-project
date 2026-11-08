@@ -463,11 +463,8 @@ def paste_plan_amendment(
     rejected: list[JsonValue] = [
         {"row": row, "column": column, "code": code} for row, column, code in refusals
     ]
-    return {
-        "paste_id": paste_id,
-        "accepted": len(block) - len({row for row, _, _ in refusals}),
-        "rejected": rejected,
-    }
+    refused = len({row for row, _, _ in refusals})
+    return mocktext.paste_plan_of(paste_id, len(block) - refused, rejected)
 
 
 def paste_applied_amendment(block: Block = AMENDMENT_BLOCK) -> JsonObject:
@@ -496,7 +493,7 @@ def paste_plan_amendment_target_removed() -> JsonObject:
     Reporting the anchor to the next node would write elsewhere than where the user clicked.
     """
     rejected: list[JsonValue] = [{"row": 0, "column": "label", "code": TARGET_REMOVED}]
-    return {"paste_id": REMOVED_ANCHOR_PASTE, "accepted": 0, "rejected": rejected}
+    return mocktext.paste_plan_of(REMOVED_ANCHOR_PASTE, 0, rejected)
 
 
 def paste_applied_amendment_skipping() -> JsonObject:

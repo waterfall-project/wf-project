@@ -359,8 +359,11 @@ _STRUCTURE_NODES = next(f for f in mockids.IDENTIFIERS if f.what == "nœuds de l
 _STRUCTURE_LINEAGES = next(f for f in mockids.IDENTIFIERS if f.first == 600)
 
 _RENAMED = {
-    ("task_renamed.json", universe(WIRING)),
-    ("task_renamed.json", mockcore.lineage(WIRING)),
+    *(
+        (name, identifier)
+        for name in ("task_renamed.json", "redo_task_renamed.json")
+        for identifier in (universe(WIRING), mockcore.lineage(WIRING))
+    ),
     *(
         ("paste_applied_amendment.json", identifier)
         for number in mockamendmentwrites.paste_targets()
@@ -377,7 +380,8 @@ _RENAMED = {
     ),
 }
 """The nodes a write renames, by their node and their lineage, in the fixture that answers it:
-the wiring of the cabinets (``wftools.mockwrites``), the three rows the block pasted on the
+the wiring of the cabinets (``wftools.mockwrites``), renamed again by the redo of its renaming
+undone (``wftools.mockundoable``, #2564), the three rows the block pasted on the
 amendment 2 relabels (``wftools.mockamendmentwrites``, #1277), and the trials on site the block
 that skips the line withdrawn relabels (#1278); and the own estimate of the risk 752 as the
 reference 101 froze it, whose nodes the occurrence merged as nodes of the core (#1788)."""

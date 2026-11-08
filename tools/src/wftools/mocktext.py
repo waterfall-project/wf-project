@@ -18,7 +18,7 @@ from typing import TYPE_CHECKING, cast
 from wftools import REPOSITORY
 
 if TYPE_CHECKING:
-    from collections.abc import Collection, Mapping
+    from collections.abc import Collection, Mapping, Sequence
     from decimal import Decimal
 
     from wftools.mockstructure import JsonObject, JsonValue
@@ -272,3 +272,19 @@ def example(summary: str, value: JsonValue, examples: Collection[str] = ()) -> J
     """
     cited: JsonObject = {"x-examples": list(examples)} if examples else {}
     return {"summary": summary, "description": DESCRIPTION, **cited, "value": value}
+
+
+def paste_plan_of(
+    paste_id: str, accepted: int, rejected: Sequence[JsonValue], created: int = 0
+) -> JsonObject:
+    """Return what previewPaste answers: the rows accepted, those that create, and the refusals.
+
+    The rows that create are counted among the rows accepted too; none, unless the block falls
+    past the last node of the structure (`PastePlan`, #2559).
+    """
+    return {
+        "paste_id": paste_id,
+        "accepted": accepted,
+        "created": created,
+        "rejected": list(rejected),
+    }

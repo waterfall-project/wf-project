@@ -34,7 +34,10 @@ VOLUME_WRITES = {
     "paste_applied.json",
     "paste_applied_partial.json",
     "paste_applied_rejudged.json",
+    "paste_applied_creating.json",
 }
+NOT_STARTED = {"progress": "not_started"}
+"""The facts of a task created: not started, neither started on nor completed on a day."""
 CONTROL_STATION, WIRING, LABOUR, BLOCKS, MILESTONE = 551, 552, 553, 554, 556
 INSTALLATION, MOUNTING, ON_SITE, TESTS, COMMISSIONING, COMMISSIONING_LINE = (
     561,
@@ -271,7 +274,8 @@ def test_no_write_moves_a_fact_already_recorded(
         read = by_id(answer["items"] if name in VOLUME_WRITES else whole["items"])
         for node in [*value["nodes"], *value["ancestors"]]:
             if node["kind"] == "task":
-                was = read[node["node_id"]]["task"]
+                # A task a paste creates has no fact yet: it is not started (#2559).
+                was = read[node["node_id"]]["task"] if node["node_id"] in read else NOT_STARTED
                 assert [node["task"].get(key) for key in facts] == [
                     was.get(key) for key in facts
                 ], (name, node["node_id"])
@@ -360,6 +364,7 @@ def test_a_block_is_planned_by_the_categories_and_roles_the_reference_names() ->
     assert mockwrites.paste_plan(mockwrites.BLOCK, universe(991)) == {
         "paste_id": universe(991),
         "accepted": 3,
+        "created": 0,
         "rejected": [],
     }
     assert mockwrites.paste_plan(mockwrites.UNKNOWN_CATEGORY, universe(992))["rejected"] == [
@@ -369,6 +374,7 @@ def test_a_block_is_planned_by_the_categories_and_roles_the_reference_names() ->
     assert mockwrites.paste_plan(unknown_role, universe(992)) == {
         "paste_id": universe(992),
         "accepted": 0,
+        "created": 0,
         "rejected": [{"row": 0, "column": "resource_role", "code": "UNKNOWN_RESOURCE_ROLE"}],
     }
 
