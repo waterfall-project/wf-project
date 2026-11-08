@@ -500,6 +500,103 @@ def test_an_import_whose_project_turned_terminal_since_its_analysis_is_refused(
 
 @pytest.mark.requirement("WF-ARC-0100-A")
 @pytest.mark.usefixtures("trial")
+def test_an_application_refused_during_a_marking_is_asked_again_after_it_without_a_new_deposit(
+    api: ContractClient, stage: Scene, worker: Worker, backups_bucket: Bucket
+) -> None:
+    # « Une application refusée parce qu'un marquage est en cours sur le projet peut être
+    # redemandée après lui, sans nouveau dépôt. » : a refusal that passes leaves the report
+    # applicable and its file in place (#2475).
+    database, queue = worker.database, worker.queue
+    import_id = analysed(api, stage, worker)["import_id"]
+    key = stored(database, import_id).object_key
+    project_id = stage.project["project_id"]
+    with logging_context(correlation_id="imports-marking"), database.transaction() as session:
+        submit(session, queue, "revision_mark", stage.manager.user_id, {"project_id": project_id})
+    response = apply(api, stage, import_id)
+    assert refusal(response) == (
+        409,
+        "STATE_FORBIDS_OPERATION",
+        {"missing_condition": "no_background_task_running"},
+    )
+    row = stored(database, import_id)
+    assert (row.status, row.expires_at is not None) == ("analysed", True)
+    assert backups_bucket.size(key) is not None
+    run(worker)
+    assert apply(api, stage, import_id).status_code == 202
+    assert stored(database, import_id).status == "applying"
+
+
+@pytest.mark.requirement("WF-ARC-0100-A")
+@pytest.mark.usefixtures("trial")
+def test_an_application_by_whom_may_not_create_the_revision_leaves_the_import_awaiting(
+    api: ContractClient, stage: Scene, worker: Worker, database: Database, backups_bucket: Bucket
+) -> None:
+    # The permission to create the revision the import would create may be granted again: the
+    # refusal passes, the import stays ``analysed`` with its file (#2475).
+    import_id = analysed(api, stage, worker)["import_id"]
+    key = stored(database, import_id).object_key
+    withdraw(database, stage.manager, "revisions.write")
+    response = apply(api, stage, import_id)
+    assert refusal(response) == (
+        409,
+        "STATE_FORBIDS_OPERATION",
+        {"missing_condition": "may_create_revision"},
+    )
+    assert stored(database, import_id).status == "analysed"
+    assert backups_bucket.size(key) is not None
+
+
+@pytest.mark.requirement("WF-ARC-0100-A")
+def test_an_application_refused_by_a_condition_of_its_kind_refuses_the_import(
+    api: ContractClient, stage: Scene, worker: Worker, backups_bucket: Bucket, trial: TrialFormat
+) -> None:
+    # A condition of the kind — an estimate of the main structure once In progress — does not
+    # pass: the import is refused for good, its file deleted (WF-INTF-0100, #2475).
+    database = worker.database
+    import_id = analysed(api, stage, worker)["import_id"]
+    key = stored(database, import_id).object_key
+    trial.condition = "project_before_in_progress"
+    response = apply(api, stage, import_id)
+    assert refusal(response)[2] == {"missing_condition": "project_before_in_progress"}
+    assert stored(database, import_id).status == "refused"
+    assert backups_bucket.size(key) is None
+
+
+@pytest.mark.requirement("WF-ARC-0100-A")
+@pytest.mark.usefixtures("trial")
+def test_an_application_whose_structure_is_gone_from_the_current_revision_refuses_the_import(
+    api: ContractClient, stage: Scene, worker: Worker, database: Database, backups_bucket: Bucket
+) -> None:
+    # The revision analysed abandoned, another opened from no marked one: the structure aimed at
+    # has no copy there, and the import is refused for good, not found (#2475).
+    revision = open_revision(api, stage)
+    import_id = analysed(api, stage, worker)["import_id"]
+    key = stored(database, import_id).object_key
+    revisions = f"{PROJECTS}/{stage.project['project_id']}/revisions"
+    abandoned = api.delete(
+        f"{revisions}/{revision['revision_id']}?lock_version={revision['lock_version']}",
+        headers=stage.manager.headers,
+    )
+    assert abandoned.status_code == 204, abandoned.text
+    open_revision(api, stage)
+    assert refusal(apply(api, stage, import_id))[:2] == (404, "NOT_FOUND")
+    assert stored(database, import_id).status == "refused"
+    assert backups_bucket.size(key) is None
+
+
+def open_revision(api: ContractClient, stage: Scene) -> dict[str, Any]:
+    """Open the current revision of the project as its manager does."""
+    response = api.post(
+        f"{PROJECTS}/{stage.project['project_id']}/revisions",
+        headers=stage.manager.headers,
+        json={},
+    )
+    assert response.status_code == 201, response.text
+    return response.json()
+
+
+@pytest.mark.requirement("WF-ARC-0100-A")
+@pytest.mark.usefixtures("trial")
 def test_a_report_that_rejects_the_whole_file_refuses_its_application(
     api: ContractClient, stage: Scene, worker: Worker, database: Database
 ) -> None:

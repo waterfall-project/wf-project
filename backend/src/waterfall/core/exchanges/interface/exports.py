@@ -20,6 +20,7 @@ from pathlib import PurePosixPath
 from typing import TYPE_CHECKING, Any, Literal, Protocol
 from uuid import UUID
 
+from waterfall.core.projects.interface import current_day
 from waterfall.core.revisions.interface import list_cost_structures, read_revision
 from waterfall.platform.database import utc_now
 from waterfall.platform.errors import ConflictError, ForbiddenError, NotFoundError
@@ -160,7 +161,7 @@ def request_export(
         raise ForbiddenError(PERMISSION_MISSING, {"missing_permission": permission})
     review_date = asked.review_date
     if asked.kind == "remaining" and review_date is None:
-        review_date = utc_now().date()
+        review_date = current_day(utc_now())
     payload = {
         PROJECT: project_id,
         "kind": asked.kind,

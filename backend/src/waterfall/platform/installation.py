@@ -19,6 +19,8 @@ from waterfall.platform.errors import UnavailableError
 from waterfall.platform.logs import get_logger
 
 LANGUAGES = ("fr", "en")
+# The language that follows the browser, then the installation: the realm's own by default.
+FOLLOWED = "default"
 AVATAR_MAX_BYTES = 8 * 1024 * 1024
 EXTERNAL_BACKUP_MAX_BYTES = 2**53 - 1
 THE_ROW = 1

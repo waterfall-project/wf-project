@@ -241,6 +241,7 @@
               import_analysis_failed: { $ref: ../../../fixtures/api/task_import_analysis_failed.json }
               relaunched: { $ref: ../../../fixtures/api/task_mark_relaunched.json }
               export_succeeded: { $ref: ../../../fixtures/api/task_export_succeeded.json }
+              export_tree_image_too_large: { $ref: ../../../fixtures/api/task_export_tree_image_too_large.json }
               restore_verification_failed: { $ref: ../../../fixtures/api/task_restore_verification_failed.json }
               merge_outside_work_package: { $ref: ../../../fixtures/api/task_merge_outside_work_package.json }
               merge_link_cycle: { $ref: ../../../fixtures/api/task_merge_link_cycle.json }

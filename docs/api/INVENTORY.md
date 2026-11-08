@@ -7,7 +7,7 @@ les réponses en citent d'autres, comptées dans la couverture ci-dessous mais p
 dans le tableau.
 
 **169 opérations sur 131 chemins, dans 13 familles.**
-Le contrat cite **190 des 212 exigences** de la spécification.
+Le contrat cite **190 des 213 exigences** de la spécification.
 
 ## Système, métriques et traitements de fond
 
@@ -181,7 +181,7 @@ Le contrat cite **190 des 212 exigences** de la spécification.
 | PATCH | `/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}/task` | Modify the time facet of a task | WF-IHM-0040, WF-PLA-0010, WF-PLA-0020, WF-PLA-0040, WF-PLA-0050, WF-PLA-0150, WF-PLA-0160, WF-PLA-0170 |
 | PATCH | `/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}/estimate-line` | Modify the money facet of an estimate line | WF-DEV-0020, WF-DEV-0030, WF-DEV-0040, WF-DEV-0050, WF-IHM-0040, WF-PLA-0010, WF-PRJ-0050, WF-RAE-0040, WF-REV-0050, WF-RIS-0010 |
 | PUT | `/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}/predecessors` | Replace the predecessors of a task | WF-PLA-0030, WF-PLA-0040, WF-PLA-0150, WF-PLA-0160 |
-| PUT | `/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}/progress` | Start, complete or reopen a task | WF-IHM-0030, WF-IND-0030, WF-PLA-0040, WF-PLA-0130, WF-RAE-0030 |
+| PUT | `/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}/progress` | Start, complete or reopen a task | WF-EXP-0020, WF-IHM-0030, WF-IND-0030, WF-PLA-0040, WF-PLA-0130, WF-RAE-0030 |
 | PUT | `/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}/remaining` | Re-estimate a line | WF-PLA-0130, WF-RAE-0030, WF-RAE-0040 |
 | PUT | `/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}/tracking` | Register a task for tracking or remove it | WF-PLA-0060 |
 | POST | `/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/move` | Move nodes in the tree | WF-DEV-0040, WF-PLA-0020, WF-PLA-0030, WF-PLA-0040, WF-PLA-0050, WF-PLA-0150, WF-PLA-0170 |
@@ -271,14 +271,14 @@ Le contrat cite **190 des 212 exigences** de la spécification.
 
 ## Exigences que le contrat ne cite pas
 
-22 sur 212. Aucune n'est un oubli : ce sont celles qui n'ont pas de
+23 sur 213. Aucune n'est un oubli : ce sont celles qui n'ont pas de
 surface d'interface, et il vaut mieux qu'elles n'en aient pas.
 
 | Domaine | Exigences | Pourquoi aucune surface d'API |
 |---|---|---|
 | ARC | WF-ARC-0010, WF-ARC-0070, WF-ARC-0080 | Choix d'architecture interne : noyau unique, rôles des composants de données, empaquetage, autorité du serveur, absence d'état. Ils se vérifient sur le dépôt et le déploiement. |
 | CMP | WF-CMP-0010 | Compatibilité des navigateurs et largeurs d'affichage : propriété du front. |
-| DAT | WF-DAT-0050, WF-DAT-0140 | Partitionnement et migrations : propriétés du schéma, invisibles du contrat. |
+| DAT | WF-DAT-0050, WF-DAT-0140, WF-DAT-0150 | Partitionnement et migrations : propriétés du schéma, invisibles du contrat. |
 | EXP | WF-EXP-0010 | Exploitation : environnements, amorçage, mise à jour, perte maximale. Aucune n'est une opération d'API. |
 | IHM | WF-IHM-0010, WF-IHM-0100, WF-IHM-0140 | Invariants d'interface : navigation, accessibilité, aide en ligne. Ils vivent dans le front. |
 | INTF | WF-INTF-0010, WF-INTF-0020, WF-INTF-0030, WF-INTF-0170 | Les trois usages d'acteurs décrivent le contenu des rôles prédéfinis, servi par le catalogue des permissions ; la règle de traduction vit dans le front. |

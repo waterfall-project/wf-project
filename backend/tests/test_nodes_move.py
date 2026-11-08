@@ -31,9 +31,8 @@ from nodes_support import (
 from planning_support import DAY, insert_link
 from project_rows import STAMP
 from projects_support import scene as make_scene
-from sqlalchemy import func, insert, select
+from sqlalchemy import Engine, event, func, insert, select
 
-from waterfall.core.planning import rescheduling, writing
 from waterfall.core.planning.interface import structures
 from waterfall.core.planning.tables import Node, TaskLink, TrackingEntry
 from waterfall.core.revisions.tables import CostStructure
@@ -41,7 +40,6 @@ from waterfall.core.revisions.tables import CostStructure
 if TYPE_CHECKING:
     from projects_support import Person, Scene
     from realm import TestRealm
-    from sqlalchemy import Engine
     from support import ContractClient
 
     from waterfall.platform.database import Database
@@ -462,25 +460,33 @@ def test_a_place_after_a_node_that_is_no_sibling_is_refused_and_nothing_moves(tr
 
 
 @pytest.mark.requirement("WF-PLA-0040-A")
-def test_a_selection_moved_under_a_node_of_its_own_subtree_is_refused(tree: Tree) -> None:
-    # A summary moved takes its subordinates with it: it cannot go under one of them (#2500 for
-    # the code answered, not in the contract yet).
+def test_a_selection_moved_under_itself_or_one_of_its_subordinates_closes_a_loop_refused(
+    tree: Tree,
+) -> None:
+    # A summary moved takes its subordinates with it: under one of them, or under itself, the
+    # hierarchy would loop, and the refusal says so (``NODE_CYCLE``, #2500).
     parent = tree.made("Chantier")
     inner = tree.made("Câblage", parent_id=parent["node_id"])
     for target in (inner, parent):
         answer = move(tree, [parent], target)
-        assert faults(answer) == [("/parent_id", "UNKNOWN_TASK", {})]
+        assert faults(answer) == [("/parent_id", "NODE_CYCLE", {})]
     assert tree.labels() == ["Chantier", "Câblage"]
 
 
 @pytest.mark.requirement("WF-PLA-0040-A")
-def test_a_selection_moved_under_an_unknown_parent_or_of_an_unknown_node_is_refused(
+def test_a_selection_moved_under_an_unknown_parent_is_refused_as_an_unknown_task(
     tree: Tree,
 ) -> None:
-    # The parent unknown is answered as the parent in the selection (#2500).
+    # A parent the structure does not hold as a task: ``UNKNOWN_TASK`` on its field (#2500).
     parent = tree.made("Chantier")
     answer = move(tree, [parent], {"node_id": str(uuid4())})
     assert faults(answer) == [("/parent_id", "UNKNOWN_TASK", {})]
+    assert tree.labels() == ["Chantier"]
+
+
+@pytest.mark.requirement("WF-PLA-0040-A")
+def test_a_selection_of_an_unknown_node_is_not_found(tree: Tree) -> None:
+    tree.made("Chantier")
     assert refusal(move(tree, [{"node_id": str(uuid4())}], None))[:2] == (404, "NOT_FOUND")
     assert tree.labels() == ["Chantier"]
 
@@ -529,36 +535,43 @@ def test_a_deletion_and_a_move_keep_their_entry_of_the_history(
 
 
 @pytest.mark.requirement("WF-PLA-0040-A")
-def test_a_selection_that_holds_a_node_and_its_descendant_is_placed_as_sent(tree: Tree) -> None:
+def test_a_selection_of_a_summary_and_its_subordinate_moves_the_group_whole(tree: Tree) -> None:
+    # « Le déplacement d'une sélection qui contient une récapitulative et l'une de ses subordonnées
+    # laisse la subordonnée sous la récapitulative : le groupe est déplacé entier, sans être
+    # aplati. » : the subordinate named is left to its summary, whatever the order sent (#2507).
     target = tree.made("Chantier")
     summary = tree.made("Études")
     child = tree.made("Note", parent_id=summary["node_id"])
-    moved(tree, [tree.node(summary["node_id"]), tree.node(child["node_id"])], target)
-    # Both under the parent, side by side, in the order sent: the descendant leaves its summary.
+    grandchild = tree.made("Annexe", parent_id=child["node_id"])
+    sent = [tree.node(each["node_id"]) for each in (grandchild, summary, child)]
+    body = moved(tree, sent, target)
+    assert [node["node_id"] for node in body["nodes"]] == [summary["node_id"]]
     assert [(i["task"]["label"], i["level"]) for i in tree.items()] == [
         ("Chantier", 1),
         ("Études", 2),
-        ("Note", 2),
+        ("Note", 3),
+        ("Annexe", 4),
     ]
+    assert tree.node(child["node_id"])["parent_id"] == summary["node_id"]
 
 
 @pytest.mark.requirement("WF-PLA-0040-A")
 def test_a_write_of_the_tree_reads_the_facts_of_its_structure_once(
-    tree: Tree, monkeypatch: pytest.MonkeyPatch
+    tree: Tree, request: pytest.FixtureRequest
 ) -> None:
     # #2492: the facts of the structure, read under its lock, are handed to the replay; a second
     # reading under the lock would lock the structure again.
     calls: list[int] = []
-    real = writing.structure_facts
 
-    def counted(*args: Any, **kwargs: Any) -> Any:
-        if kwargs.get("lock"):
+    # Counted at the database, whichever module asks: a name imported elsewhere and reading the
+    # facts again under the lock would be missed by a patch of a function.
+    def counted(_conn: Any, _cursor: Any, statement: str, *_rest: Any) -> None:
+        text = " ".join(statement.lower().split())
+        if "from cost_structure" in text and " for update" in text:
             calls.append(1)
-        return real(*args, **kwargs)
 
-    monkeypatch.setattr(writing, "structure_facts", counted)
-    monkeypatch.setattr(structures, "structure_facts", counted)
-    monkeypatch.setattr(rescheduling, "structure_facts", counted)
+    event.listen(Engine, "before_cursor_execute", counted)
+    request.addfinalizer(lambda: event.remove(Engine, "before_cursor_execute", counted))
     summary = tree.made("Études")
     assert len(calls) == 1
     calls.clear()
@@ -568,7 +581,14 @@ def test_a_write_of_the_tree_reads_the_facts_of_its_structure_once(
     moved(tree, [tree.node(note["node_id"])], None)
     assert len(calls) == 1
     calls.clear()
-    assert delete(tree, tree.node(note["node_id"])).status_code == 200
+    deleted = delete(tree, tree.node(note["node_id"]))
+    assert deleted.status_code == 200, deleted.text
+    assert len(calls) == 1
+    # The write of the structure itself builds the structure after from what it read (#2513).
+    calls.clear()
+    sent = {"label": "Autre", "lock_version": deleted.json()["structure_lock_version"]}
+    answer = tree.api.patch(tree.path, headers=tree.stage.manager.headers, json=sent)
+    assert answer.status_code == 200, answer.text
     assert len(calls) == 1
 
     # A caller that has read nothing hands the replay no facts: it reads them, once, under the lock.

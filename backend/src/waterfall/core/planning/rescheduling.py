@@ -7,9 +7,12 @@ reference does to each structure of a current revision (``reference``): the stru
 tree read under the lock, the engine run on it, the dates and the floats that change written, its
 dates' instant moved on and its counter advanced. The interface offers it as ``reschedule``
 (``interface.structures``); the frame of a write calls it here, so that the interface may frame a
-write of the structure itself without the two files importing each other.
+write of the structure itself without the two files importing each other. A write that holds the
+lock of the structure already hands the replay what it read under it (``Holding``, #2492): the
+structure, not read again, what the engine's refusal names, and the links in conflict.
 
-Written by US-1380/L2 in ``interface.structures``, moved here by US-1390/L2.
+Written by US-1380/L2 in ``interface.structures``, moved here by US-1390/L2; ``Holding`` posed by
+US-1380/L3.
 """
 
 from dataclasses import dataclass

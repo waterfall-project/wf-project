@@ -13,7 +13,11 @@ from dataclasses import dataclass
 from datetime import timedelta
 from typing import TYPE_CHECKING, Literal
 
-from waterfall.core.projects.interface import no_background_task_running
+from waterfall.core.projects.interface import (
+    PROJECT_NOT_TERMINAL,
+    TERMINAL,
+    no_background_task_running,
+)
 from waterfall.platform.errors import ConflictError
 
 if TYPE_CHECKING:
@@ -33,10 +37,12 @@ type ImportScope = Literal["structure", "project"]
 type Judge = Callable[[Session, UUID, str], None]
 
 STATE_FORBIDS_OPERATION = "STATE_FORBIDS_OPERATION"
-PROJECT_NOT_TERMINAL = "project_not_terminal"
 NO_BACKGROUND_TASK_RUNNING = "no_background_task_running"
 MAY_CREATE_REVISION = "may_create_revision"
-TERMINAL = ("completed", "lost", "abandoned")
+# The conditions an application lacks for a while, which refuse it and leave the import awaiting
+# its decision, its file kept: a background task ends, a permission is granted (WF-ARC-0100,
+# #2475). The others refuse it for good.
+PASSING = (NO_BACKGROUND_TASK_RUNNING, MAY_CREATE_REVISION)
 # Who may create the revision an import creates (WF-INTF-0090).
 REVISIONS_WRITE = "revisions.write"
 # How long a report awaits its decision once analysed (WF-ARC-0100).

@@ -196,7 +196,8 @@
       refused with 409 `STATE_FORBIDS_OPERATION`, `params.missing_condition` at
       `project_before_in_progress`; the inflation rate can be modified at any time and affects
       no marked revision (WF-PRJ-0040). Both are ratios from `0` to `1`, outside of which the
-      value is refused per field (422, `VALUE_OUT_OF_RANGE`).
+      value is refused per field (422, `VALUE_OUT_OF_RANGE`), kept at four decimals, a fifth
+      significant one being refused rather than rounded (`ProjectRatio`; #2305).
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
     requestBody:
@@ -250,7 +251,10 @@
         description: >-
           `VALIDATION_FAILED`, `fields` designating each field: `/win_probability` or
           `/inflation_rate` outside `0` to `1`, `VALUE_OUT_OF_RANGE`, `fields[].params.minimum` or
-          `fields[].params.maximum` the bound crossed (WF-PRJ-0040, WF-PRJ-0090); `/label` or
+          `fields[].params.maximum` the bound crossed (WF-PRJ-0040, WF-PRJ-0090), or within its
+          bounds with a fifth significant decimal, beyond the four the ratio keeps,
+          `VALIDATION_FAILED`, without a parameter (`ProjectRatio`, `rate_precision`;
+          WF-DAT-0100, #2305); `/label` or
           `/client` empty, `VALUE_REQUIRED`, or longer than the schema allows,
           `VALUE_TOO_LONG` (WF-PRJ-0080); `/code` refused as at creation (`ProjectCode`,
           WF-PRJ-0010, WF-CRE-0020). Nothing is written.
@@ -259,6 +263,7 @@
             schema: { $ref: ../components/common.yaml#/Problem }
             examples:
               rates_out_of_range: { $ref: ../../../fixtures/api/project_rates_out_of_range.json }
+              rate_precision: { $ref: ../../../fixtures/api/project_rate_precision.json }
       '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
