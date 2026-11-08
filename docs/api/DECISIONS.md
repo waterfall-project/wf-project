@@ -11446,7 +11446,9 @@ courant, que WF-PLA-0130 et WF-EXP-0020 prennent dans le fuseau de l'installatio
 encore ce fuseau : une seule fonction du noyau le calcule (`current_day`,
 `core/projects/interface/days.py`), en temps universel, et EP-07 la branchera sur le fuseau de
 l'installation (#2527). Le geste, la date de revue par défaut d'un export du reste à engager et la
-date de début de planning d'une structure créée la prennent. Ni migration, ni réglage, ni variable
+date de début de planning d'une structure créée la prennent. Une tâche démarrée à une date future
+et terminée sans `occurred_on` reçoit donc un 422 sur `/occurred_on`, champ non envoyé : voulu, le jour
+courant précède le démarrage (WF-PLA-0130-A). Ni migration, ni réglage, ni variable
 d'environnement ici.
 
 **Un refus passager laisse l'import applicable** (#2475 ; WF-ARC-0100-A, spécification 1.0.3).

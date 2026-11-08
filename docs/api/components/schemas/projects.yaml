@@ -54,10 +54,11 @@ Project:
       description: >-
         Win probability, 0 by default, with no effect on any calculation of the project
         (WF-PRJ-0090): a ratio, from `0` to `1` inclusive, outside of which `updateProject`
-        refuses the value (`VALUE_OUT_OF_RANGE`), at four decimals (`ProjectRatio`). Modifiable in the Created and Pricing states,
-        frozen from In progress onwards: the `update_win_probability` command states it in
-        advance, and a value sent regardless is refused with 409 `STATE_FORBIDS_OPERATION`,
-        `params.missing_condition` at `project_before_in_progress`.
+        refuses the value (`VALUE_OUT_OF_RANGE`), at four decimals (`ProjectRatio`). Modifiable
+        in the Created and Pricing states, frozen from In progress onwards: the
+        `update_win_probability` command states it in advance, and a value sent regardless is
+        refused with 409 `STATE_FORBIDS_OPERATION`, `params.missing_condition` at
+        `project_before_in_progress`.
     order_received_on:
       anyOf: [{ $ref: ../common.yaml#/PlanningDate }, { type: 'null' }]
       description: Null as long as it is not entered.
@@ -655,9 +656,9 @@ ProjectUpdate:
     win_probability:
       allOf: [{ $ref: '#/ProjectRatio' }]
       description: >-
-        From `0` to `1` inclusive, a ratio, at four decimals (`ProjectRatio`); refused from In progress onwards, 409
-        `STATE_FORBIDS_OPERATION`, `params.missing_condition` at `project_before_in_progress`
-        (WF-PRJ-0090). Absent, the value does not change.
+        From `0` to `1` inclusive, a ratio, at four decimals (`ProjectRatio`); refused from In
+        progress onwards, 409 `STATE_FORBIDS_OPERATION`, `params.missing_condition` at
+        `project_before_in_progress` (WF-PRJ-0090). Absent, the value does not change.
     order_received_on:
       anyOf: [{ $ref: ../common.yaml#/PlanningDate }, { type: 'null' }]
       description: Null clears it; absent, it does not change.

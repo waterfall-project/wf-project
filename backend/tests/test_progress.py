@@ -12,7 +12,7 @@ of the project is put around the service, as EP-04 did (``put_in_state``).
 
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import replace
-from datetime import UTC, date, datetime
+from datetime import UTC, date, datetime, timedelta
 from typing import TYPE_CHECKING, Any
 from uuid import UUID, uuid4
 
@@ -175,6 +175,23 @@ def test_a_completion_dated_before_the_start_of_the_task_is_refused_naming_the_s
     assert (kept["task"]["progress"], kept["lock_version"]) == ("started", started["lock_version"])
     done = moved(tree, kept, "completed", occurred_on=JUNE_TENTH)
     assert (done["task"]["started_on"], done["task"]["completed_on"]) == (JUNE_TENTH, JUNE_TENTH)
+
+
+@pytest.mark.requirement("WF-PLA-0130-A")
+def test_a_completion_without_date_is_refused_for_a_task_started_in_the_future(
+    tree: Tree,
+) -> None:
+    # The default day is the current day (#2495): a task started tomorrow, completed without
+    # a date, is completed before its start, whatever the field not sent (422 on /occurred_on).
+    tomorrow = (datetime.now(UTC).date() + timedelta(days=1)).isoformat()
+    node = tree.made("Câblage")
+    started = moved(tree, node, "started", occurred_on=tomorrow)
+    answer = gesture(tree, started, "completed")
+    assert refusal(answer)[:2] == (422, "VALIDATION_FAILED")
+    assert answer.json()["fields"] == [
+        {"pointer": "/occurred_on", "code": "VALUE_OUT_OF_RANGE", "params": {"minimum": tomorrow}}
+    ]
+    assert tree.node(node["node_id"])["task"]["progress"] == "started"
 
 
 @pytest.mark.requirement("WF-PLA-0130-A")
@@ -437,6 +454,26 @@ def test_a_gesture_while_a_background_task_runs_is_refused_after_the_other_condi
     assert missing(gesture(tree, node, "started")) == "project_in_progress"
     status, code, _ = refusal(gesture(tree, {**node, "lock_version": 9}, "started"))
     assert (status, code) == (412, "STALE_LOCK_VERSION")
+
+
+@pytest.mark.requirement("WF-IHM-0090-A")
+def test_a_project_not_in_progress_is_named_before_the_background_task_that_marks_a_revision(
+    api: ContractClient, tree: Tree, stage: Scene
+) -> None:
+    # Both conditions lack (the order of the contract: the project, then the task of the
+    # background): the refusal of the revision is judged on the tree first and names the project.
+    node = tree.made("Câblage")
+    path = f"{PROJECTS}/{stage.project['project_id']}/revisions/{tree.revision['revision_id']}"
+    revision = api.get(path, headers=stage.manager.headers).json()
+    asked = api.post(
+        f"{path}/mark",
+        headers=stage.manager.headers,
+        json={"version_name": "v1.0", "lock_version": revision["lock_version"]},
+    )
+    assert asked.status_code == 202, asked.text
+    assert missing(gesture(tree, node, "started")) == "no_background_task_running"
+    put_in_state(stage.owner, stage.project["project_id"], "created")
+    assert missing(gesture(tree, node, "started")) == "project_in_progress"
 
 
 @pytest.mark.requirement("WF-DAT-0020-A")

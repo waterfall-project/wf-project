@@ -11733,7 +11733,7 @@ export interface operations {
                 };
             };
             412: components["responses"]["PreconditionFailed"];
-            /** @description A summary task, whose state cannot be entered: `SUMMARY_TASK_DERIVED`, `params.subordinate_node_ids` naming its direct subordinates, in plan order, from which it derives its state (WF-PLA-0040, WF-IHM-0030); nothing is written. Or a completion dated before the start of a started task — "a completion is not dated before the start" (WF-PLA-0130; #2495) —, the date sent or the current day by default: `VALIDATION_FAILED`, `fields` on `/occurred_on`, `VALUE_OUT_OF_RANGE`, `fields[].params.minimum` the date of the start (`completed_before_start`); nothing is written. Or a value outside the rules, `fields` locating it, as the common response `UnprocessableEntity` says. */
+            /** @description A summary task, whose state cannot be entered: `SUMMARY_TASK_DERIVED`, `params.subordinate_node_ids` naming its direct subordinates, in plan order, from which it derives its state (WF-PLA-0040, WF-IHM-0030); nothing is written. Or a completion dated before the start of a started task — "a completion is not dated before the start" (WF-PLA-0130; #2495) —, the date sent or the current day by default (so a task started on a future date, completed without a date, is refused on `/occurred_on`, a field not sent): `VALIDATION_FAILED`, `fields` on `/occurred_on`, `VALUE_OUT_OF_RANGE`, `fields[].params.minimum` the date of the start (`completed_before_start`); nothing is written. Or a value outside the rules, `fields` locating it, as the common response `UnprocessableEntity` says. */
             422: {
                 headers: {
                     [name: string]: unknown;
