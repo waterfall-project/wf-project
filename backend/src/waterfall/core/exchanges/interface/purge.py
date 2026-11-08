@@ -8,13 +8,20 @@ without leaving its trace (the attempts spent, never abandoned) — the file of 
 deletes the rows of the deposits expired — those of EP-03 included, a deposit left in parts being
 aborted —, sparing the object of a deposit an import still keeps; it marks consumed the results of
 the exports of more than twenty-four hours, their file going; and it gives what the storage must
-lose, to which it adds the old objects that no row designates: those of ``uploads/`` past the life
-of a deposit, those of ``exports/`` past the life of an export (WF-DAT-0120-A). The worker hands all
-that to ``remove_purged`` once the transaction is validated, as EP-03 deletes its deposits: an
-object is never deleted for a row a failed transaction keeps.
+lose, to which it adds what no row designates any more: the old objects of ``uploads/`` past the
+life of a deposit, those of ``exports/`` past the life of an export, and the deposits in parts of
+``uploads/`` left open past the life of a deposit (WF-DAT-0120-A). The worker hands all that to
+``remove_purged`` once the transaction is validated, as EP-03 deletes its deposits: an object is
+never deleted for a row a failed transaction keeps.
 
 A storage that cannot be cleaned leaves what it holds to the next pass: the sweep of the prefixes
-finds again every object whose row is gone.
+finds again every object, and every deposit in parts, whose row is gone — the deposit in parts
+not completed is no object, so it is listed apart. The sweep is bounded by ``SWEEP_LIMIT`` for
+each kind, the rest going to the next pass.
+
+The storage tells the age of an object by its own clock, the purge judges by that of the
+application: a drift of a few minutes between them moves the term of a sweep by as much, which no
+object of a day needs to mind; an object younger than the term is never swept.
 """
 
 from dataclasses import dataclass
@@ -46,6 +53,9 @@ if TYPE_CHECKING:
 # How long the file of an export waits to be downloaded (WF-DAT-0120-A).
 EXPORT_LIFETIME = timedelta(hours=24)
 
+# How many old objects, and how many deposits in parts, a pass lists at most from each prefix.
+SWEEP_LIMIT = 10_000
+
 logger = get_logger(__name__)
 
 
@@ -65,24 +75,28 @@ class Purged:
 class Stored:
     """The old objects of the prefixes the purge sweeps, listed before its transaction.
 
-    ``uploads`` those past the life of a deposit, ``exports`` those past the life of an export:
-    candidates, which the purge keeps when a row designates them.
+    ``uploads`` those past the life of a deposit, ``exports`` those past the life of an export,
+    ``parts`` the key and the deposit of the deposits in parts of ``uploads/`` open past the life
+    of a deposit: candidates, which the purge keeps when a row designates them.
     """
 
     uploads: tuple[str, ...] = ()
     exports: tuple[str, ...] = ()
+    parts: tuple[tuple[str, str], ...] = ()
 
 
 def stored_before(bucket: Bucket, now: datetime) -> Stored:
     """List the objects of ``uploads/`` and of ``exports/`` old enough to be swept at ``now``.
 
-    Listed before the transaction of the purge, never under its lock: an object a request writes
-    later is younger than the term, and no row of it is missing. A storage out of reach raises
-    ``UnavailableError``.
+    Listed before the transaction of the purge, never under its lock: an object is written before
+    its row, under an identifier that is new, so an object listed as more than a day old cannot be
+    named by a row created between the listing and the transaction; and one a request writes
+    later is younger than the term. A storage out of reach raises ``UnavailableError``.
     """
     return Stored(
-        uploads=tuple(bucket.keys_before(UPLOADS_PREFIX, now - LIFETIME)),
-        exports=tuple(bucket.keys_before(EXPORTS_PREFIX, now - EXPORT_LIFETIME)),
+        uploads=tuple(bucket.keys_before(UPLOADS_PREFIX, now - LIFETIME, SWEEP_LIMIT)),
+        exports=tuple(bucket.keys_before(EXPORTS_PREFIX, now - EXPORT_LIFETIME, SWEEP_LIMIT)),
+        parts=tuple(bucket.deposits_before(UPLOADS_PREFIX, now - LIFETIME, SWEEP_LIMIT)),
     )
 
 
@@ -95,8 +109,10 @@ def purge(session: Session, now: datetime, stored: Stored | None = None) -> Purg
     swept = stored or Stored()
     objects = [*_imports_ended(session, now), *_exports_old(session, now)]
     deposited, parts = _deposits_expired(session, now)
-    objects += [*deposited, *_strays(session, swept)]
-    return Purged(tuple(dict.fromkeys(objects)), tuple(parts))
+    strays, stray_parts = _strays(session, swept)
+    objects += [*deposited, *strays]
+    parts += stray_parts
+    return Purged(tuple(dict.fromkeys(objects)), tuple(dict.fromkeys(parts)))
 
 
 def _imports_ended(session: Session, now: datetime) -> list[str]:
@@ -180,13 +196,26 @@ def _among(
     return column == any_(bindparam("values", list(values), type_=ARRAY(kind)))
 
 
-def _strays(session: Session, stored: Stored) -> list[str]:
-    """Give the old objects that no row designates: left by a process that stopped mid-way (#2479).
+def _strays(session: Session, stored: Stored) -> tuple[list[str], list[tuple[str, str]]]:
+    """Give the old objects and the deposits in parts that no row designates (#2479, #2484).
 
-    Under ``uploads/``, an object that no deposit and no import keeping its file names; under
-    ``exports/``, one that no task whose result is not consumed names (#2484).
+    Left by a process that stopped mid-way, or by a storage out of reach at the last pass. Under
+    ``uploads/``, an object that no deposit and no import keeping its file names, and a deposit in
+    parts that no deposit names; under ``exports/``, an object that no task whose result is not
+    consumed names.
     """
     strays: list[str] = []
+    left: list[tuple[str, str]] = []
+    if stored.parts:
+        kept = {
+            (each.object_key, each.deposit)
+            for each in session.execute(
+                select(FileUpload.object_key, FileUpload.deposit).where(
+                    _among(FileUpload.object_key, [key for key, _ in stored.parts], Text())
+                )
+            )
+        }
+        left = [each for each in stored.parts if each not in kept]
     if stored.uploads:
         named = set(
             session.scalars(
@@ -216,7 +245,7 @@ def _strays(session: Session, stored: Stored) -> list[str]:
             )
         )
         strays += [each for each in stored.exports if each not in named]
-    return strays
+    return strays, left
 
 
 def remove_purged(bucket: Bucket, purged: Purged) -> None:
@@ -224,7 +253,7 @@ def remove_purged(bucket: Bucket, purged: Purged) -> None:
 
     An object gone already is no fault, nor a deposit in parts closed already. A storage out of
     reach stops the deletion, said in the journal: the rows are gone, and the sweep of the prefixes
-    finds the objects again at the next pass.
+    finds the objects, and the deposits in parts, again at the next pass.
     """
     try:
         for key in purged.objects:

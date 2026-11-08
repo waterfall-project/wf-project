@@ -9,6 +9,7 @@ that a day goes by without waiting for it. The verb of the worker, its lock and 
 ``test_worker_main.py``.
 """
 
+import threading
 from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Any
 from uuid import UUID, uuid4
@@ -19,6 +20,7 @@ from imports_trial import (
     TrialFormat,
     analysed,
     apply,
+    deposited,
     import_worker,
     opened,
     read,
@@ -34,12 +36,14 @@ from waterfall.api.app import create_app
 from waterfall.api.authentication import Services
 from waterfall.core.exchanges.interface import (
     Purged,
+    head_to_read,
     purge,
     register_format,
     remove_purged,
     stored_before,
 )
 from waterfall.core.exchanges.tables import ImportReport
+from waterfall.platform.audit import Act
 from waterfall.platform.database import utc_now
 from waterfall.platform.identifiers import new_id
 from waterfall.platform.keycloak_admin import KeycloakAdmin
@@ -330,8 +334,10 @@ def test_the_purge_sweeps_the_old_objects_of_uploads_that_no_row_names(
     stage: Scene, database: Database, backups_bucket: Bucket
 ) -> None:
     # An object written before its row, the process stopped between the two (#2479): past the life
-    # of a deposit it is deleted; younger, it may be about to have its row. One a deposit names
-    # stays with its row.
+    # of a deposit it is deleted; younger, it may be about to have its row, and is spared. One
+    # listed as more than a day old cannot gain its row between the listing and the transaction:
+    # the object is written under an identifier that is new, and the row follows within the
+    # request. One a deposit names stays with its row.
     orphan = object_key_of(uuid4())
     named = object_key_of(uuid4())
     backups_bucket.put(orphan, b"orphan")
@@ -429,6 +435,124 @@ def test_a_storage_out_of_reach_leaves_the_deletion_to_the_next_pass_and_ends_no
     assert backups_bucket.size(key) is None
 
 
+@pytest.mark.requirement("WF-DAT-0120-A")
 def test_nothing_to_purge_gives_nothing_to_the_storage(database: Database) -> None:
+    # Nothing expired, nothing is deleted: the purge never asks the storage for more than the rows
+    # and the old objects it was given.
     with database.transaction() as session:
         assert purge(session, utc_now()) == Purged()
+
+
+@pytest.mark.requirement("WF-DAT-0120-A")
+def test_a_deposit_in_parts_whose_abort_failed_is_aborted_by_the_next_pass(
+    stage: Scene, database: Database, backups_bucket: Bucket
+) -> None:
+    # « Un fichier déposé et jamais confirmé disparaît au terme du délai d'expiration. » : the
+    # storage out of reach at the abort, the row of the deposit is gone and the parts remain; an
+    # unfinished deposit in parts is no object of the listing, so the next pass finds it by the
+    # list of the deposits open, which no row names.
+    key = object_key_of(uuid4())
+    deposit = backups_bucket.open_parts(key)
+    backups_bucket.put_part(key, deposit, 1, b"x" * SMALLEST_PART)
+    with database.transaction() as session:
+        record_upload(
+            session,
+            UUID(key.removeprefix("uploads/")),
+            Opened(
+                "external_backup",
+                "sauvegarde.tar",
+                SMALLEST_PART,
+                Cut(SMALLEST_PART, 1),
+                key,
+                deposit,
+                stage.manager.user_id,
+            ),
+            utc_now() - LIFETIME,
+        )
+    out_of_reach = Bucket.connect("none", "http://127.0.0.1:9", "us-east-1", "key", "secret")
+    purged_at(database, backups_bucket, utc_now() + LATER, removing=out_of_reach)
+    assert not deposit_row_exists(database, key)
+    assert backups_bucket.parts(key, deposit)
+    purged_at(database, backups_bucket, utc_now() + LATER)
+    with pytest.raises(MissingObjectError):
+        backups_bucket.parts(key, deposit)
+
+
+@pytest.mark.requirement("WF-DAT-0120-A")
+def test_the_purge_spares_a_deposit_in_parts_a_row_names_and_one_younger_than_a_day(
+    stage: Scene, database: Database, backups_bucket: Bucket
+) -> None:
+    # The sweep of the deposits open frees what no row names and is past the term of a deposit: the
+    # deposit a row still names, and the one opened a minute ago, keep their parts.
+    named_key = object_key_of(uuid4())
+    named = backups_bucket.open_parts(named_key)
+    backups_bucket.put_part(named_key, named, 1, b"x" * SMALLEST_PART)
+    with database.transaction() as session:
+        record_upload(
+            session,
+            UUID(named_key.removeprefix("uploads/")),
+            Opened(
+                "external_backup",
+                "sauvegarde.tar",
+                SMALLEST_PART,
+                Cut(SMALLEST_PART, 1),
+                named_key,
+                named,
+                stage.manager.user_id,
+            ),
+            utc_now() + timedelta(hours=48),
+        )
+    young_key = object_key_of(uuid4())
+    young = backups_bucket.open_parts(young_key)
+    backups_bucket.put_part(young_key, young, 1, b"x" * SMALLEST_PART)
+    purged_at(database, backups_bucket, utc_now())
+    assert backups_bucket.parts(young_key, young)
+    purged_at(database, backups_bucket, utc_now() + LATER)
+    assert backups_bucket.parts(named_key, named)
+    with pytest.raises(MissingObjectError):
+        backups_bucket.parts(young_key, young)
+    backups_bucket.abort_parts(named_key, named)
+
+
+@pytest.mark.requirement("WF-DAT-0120-A")
+def test_the_sweep_lists_no_more_than_its_limit_and_leaves_the_rest_to_the_next_pass(
+    backups_bucket: Bucket,
+) -> None:
+    prefix = f"exports/{uuid4()}/"
+    keys = {f"{prefix}{each}.xml" for each in range(3)}
+    for key in keys:
+        backups_bucket.put(key, b"<Project/>")
+    later = utc_now() + LATER
+    listed = backups_bucket.keys_before(prefix, later, 2)
+    assert len(listed) == 2
+    assert set(backups_bucket.keys_before(prefix, later)) == keys
+    for key in keys:
+        backups_bucket.remove(key)
+
+
+@pytest.mark.requirement("WF-DAT-0120-A")
+def test_an_import_opened_on_a_deposit_at_its_term_waits_for_the_purge_that_deletes_it(
+    api: ContractClient, stage: Scene, database: Database, backups_bucket: Bucket
+) -> None:
+    # « Un fichier déposé et jamais confirmé disparaît au terme du délai d'expiration. » : the
+    # opening reads the deposit under a lock, and the purge deletes it by a statement that locks
+    # its row: the opening cannot take, an instant before its term, a deposit whose object the
+    # purge is about to delete — it waits for the purge, and finds no deposit.
+    upload_id = UUID(deposited(api, stage.manager, b"WF"))
+    reading = Act(stage.manager.user_id, utc_now())
+    outcome: list[object] = []
+
+    def open_import() -> None:
+        with database.transaction() as session:
+            outcome.append(head_to_read(session, upload_id, "remaining", reading))
+
+    swept = stored_before(backups_bucket, utc_now() + LATER)
+    with database.transaction() as session:
+        gone = purge(session, utc_now() + LATER, swept)
+        opening = threading.Thread(target=open_import)
+        opening.start()
+        opening.join(timeout=1)
+        assert opening.is_alive()
+    opening.join(timeout=30)
+    assert outcome == [None]
+    remove_purged(backups_bucket, gone)

@@ -96,7 +96,12 @@ class Bucket:
 
     @classmethod
     def of_backups(cls, settings: StorageSettings) -> Bucket:
-        """Open the bucket of the backups the settings name."""
+        """Open the bucket of the backups the settings name.
+
+        One bucket carries the three prefixes (EP-06, "Ce que le cadrage décide"): the backups, the
+        files in transit under ``uploads/`` and the exports under ``exports/``; the purge of the
+        last two opens it by this name too.
+        """
         return cls.connect(
             settings.backups_bucket,
             settings.storage_address,
@@ -128,8 +133,12 @@ class Bucket:
         with reached():
             self.client.delete_object(Bucket=self.name, Key=key)
 
-    def keys_before(self, prefix: str, before: datetime) -> list[str]:
-        """List the keys under a prefix of the objects last modified before an instant."""
+    def keys_before(self, prefix: str, before: datetime, limit: int | None = None) -> list[str]:
+        """List the keys under a prefix of the objects last modified before an instant.
+
+        ``limit`` bounds the list: the keys beyond it are left to a later call, so that a bucket
+        with a great many old objects is not held in memory.
+        """
         keys: list[str] = []
         with reached():
             pages = self.client.get_paginator("list_objects_v2").paginate(
@@ -140,7 +149,31 @@ class Bucket:
                     modified = listed.get("LastModified")
                     if modified is not None and modified < before:
                         keys.append(listed.get("Key", ""))
+                        if limit is not None and len(keys) >= limit:
+                            return keys
         return keys
+
+    def deposits_before(
+        self, prefix: str, before: datetime, limit: int | None = None
+    ) -> list[tuple[str, str]]:
+        """List the deposits in parts under a prefix opened before an instant, by key and deposit.
+
+        A deposit in parts not completed is not an object: ``keys_before`` never lists it.
+        ``limit`` bounds the list, as for the keys.
+        """
+        found: list[tuple[str, str]] = []
+        with reached():
+            pages = self.client.get_paginator("list_multipart_uploads").paginate(
+                Bucket=self.name, Prefix=prefix
+            )
+            for page in pages:
+                for listed in page.get("Uploads", []):
+                    opened = listed.get("Initiated")
+                    if opened is not None and opened < before:
+                        found.append((listed.get("Key", ""), listed.get("UploadId", "")))
+                        if limit is not None and len(found) >= limit:
+                            return found
+        return found
 
     def abort_parts(self, key: str, deposit: str) -> None:
         """Abort the deposit in parts of an object: the parts it received are freed."""
