@@ -28,7 +28,9 @@ Above the grid:
 
 In the menu of a cell (right click, `Shift+F10` or the Menu key): **Insert below**, **Insert a sub-task**, **Indent**, **Outdent**, **Move up**, **Move down**, **Delete**, the folding of the row, **Undo** and **Redo**, and two submenus: **Timelines**, to inscribe the task — or the selection — to a timeline, and **Time/time tracking** for a milestone. The detail of these gestures and of their keys is in the help of the [planning grid](FBS-4.3.2.md); the zoom and the export of the Gantt in that of the [Gantt](FBS-4.3.3.md).
 
-The grid is entered, and offers its gestures, only where the structure read lists “Edit the planning” available to you: a marked revision, a closed project or a background process running leave it read only. A computed cell is never entered: it says what its value depends on.
+The grid is entered, and offers its gestures, only where the structure read lists “Edit the planning” available to you: a marked revision, a closed project or a background process running leave it read only. A computed cell is never entered: it says what its value depends on. An account that sees the project without being a contributor of it reads the planning without being able to modify it, by the grid or by an import: the service refuses each write, and accepts it as soon as the account is inscribed as a contributor.
+
+The service keeps what you enter: each cell, each link, each creation, indentation, move or deletion is written, and the grid shows the rows the server renders — the tasks it redates, the links in conflict, the critical path and the floats included. Nothing is simulated; the lines, the amounts and the estimate, which the planning grid does not carry, belong to the screens of the estimate.
 
 ## Its columns and computed values
 

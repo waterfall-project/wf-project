@@ -1,6 +1,6 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
-import { expect, type Locator, type Page, type Request, test } from "@playwright/test";
+import { expect, type Locator, type Page, type Request } from "@playwright/test";
 
 import {
   edgesBetween,
@@ -12,6 +12,8 @@ import {
   withinBox,
 } from "./scroll";
 import { holdRoute, openHydrated, openMenu, pause, WORKING } from "./hydration";
+import { inService, test } from "./mode";
+import { seedPlanning } from "./planning-seed";
 
 // The fake back serves the first example of `listNodes`, the structure of the witness at the sizes
 // of §4.6.2, its core first (#376): a thousand tasks and five thousand lines, six thousand rows, of
@@ -279,10 +281,18 @@ test.describe("on a narrow window", () => {
     expect(disjoint(await chip.boundingBox(), await source.boundingBox())).toBe(true);
   });
 
-  test("pins the Gantt of the planning at the end, its handle widening it over the columns before it, each of which the active cell scrolls out from under it", async ({
+  test("pins the Gantt of the planning at the end, its handle widening it over the columns before it, each of which the active cell scrolls out from under it @shared [WF-PLA-0090-A]", async ({
     page,
+    browser,
+    request,
+    manager,
   }) => {
-    await openHydrated(page, PLANNING);
+    // Against the service, the planning the path seeds (its first row is « Études », as the fake
+    // back's witness has it); the fake back serves the witness.
+    const shown = inService
+      ? (await seedPlanning(page, browser, request, manager, "Gantt épinglé")).planning
+      : PLANNING;
+    await openHydrated(page, shown);
     const planning = page.getByRole("treegrid", { name: "Grille de planning" });
     const box = scroller(planning);
     const gantt = planning.getByRole("columnheader", { name: "Gantt" });

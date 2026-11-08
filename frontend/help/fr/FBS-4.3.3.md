@@ -19,7 +19,7 @@ Le zoom et l’export se trouvent aussi au menu d’une cellule du Gantt. Sur un
 
 ## Ses colonnes et ses valeurs calculées
 
-Les dates que le Gantt dessine sont celles que la grille montre, calculées par le serveur pour une tâche en mode automatique.
+Les dates que le Gantt dessine sont celles que la grille montre, calculées par le serveur pour une tâche en mode automatique. Le chemin critique et les liaisons en conflit sont ceux que le service rend : le Gantt les dessine, il ne les calcule pas.
 
 ## Les gestes au clavier
 
