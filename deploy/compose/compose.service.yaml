@@ -232,6 +232,7 @@ services:
       <<: [*back-environment, *storage-environment]
       WATERFALL_IDENTITY_SYNC_INTERVAL: ${WATERFALL_IDENTITY_SYNC_INTERVAL:-86400}
       WATERFALL_PURGE_INTERVAL: ${WATERFALL_PURGE_INTERVAL:-600}
+      WATERFALL_UNDO_RETENTION_HOURS: ${WATERFALL_UNDO_RETENTION_HOURS:-12}
     init: true
     command:
       - sh

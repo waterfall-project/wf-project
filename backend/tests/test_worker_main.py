@@ -300,13 +300,15 @@ def test_a_purge_whose_storage_does_not_answer_still_purges_the_rows_and_says_so
         assert session.get(FileUpload, upload_id) is None
 
 
-@pytest.mark.requirement("WF-DAT-0120-A")
+@pytest.mark.requirement("WF-IHM-0110-A")
 @pytest.mark.usefixtures("logs", "database", "purge_environment")
 @pytest.mark.parametrize(("hours", "expected"), [(None, 12), ("3", 3)])
 def test_the_history_of_a_session_is_kept_for_the_hours_the_settings_say_twelve_by_default(
     hours: str | None, expected: int, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    # The entries of a session older than ``WATERFALL_UNDO_RETENTION_HOURS`` are purged.
+    # « [L'historique annulable] ne survit ni à la fin de la session, ni au marquage, ni à
+    # l'abandon de la révision. » : the entries of a session older than the longest session of the
+    # realm, ``WATERFALL_UNDO_RETENTION_HOURS``, are purged.
     if hours is not None:
         monkeypatch.setenv("WATERFALL_UNDO_RETENTION_HOURS", hours)
     called: list[tuple[datetime, datetime]] = []
@@ -320,10 +322,13 @@ def test_the_history_of_a_session_is_kept_for_the_hours_the_settings_say_twelve_
     assert now - before == timedelta(hours=expected)
 
 
+@pytest.mark.requirement("WF-OBS-0020-A")
 @pytest.mark.usefixtures("logs", "purge_environment")
 def test_a_purge_that_cannot_reach_the_database_ends_in_failure_said_in_its_logs(
     capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
 ) -> None:
+    # « Une recherche des secrets et des jetons connus dans les journaux ne les trouve pas. » : the
+    # purge that fails says so in a record of its logs, the secret of its URL masked.
     unreachable = "postgresql+psycopg://waterfall:s3cret-of-the-purge@127.0.0.1:9/waterfall"
     monkeypatch.setenv("WATERFALL_DATABASE_URL", unreachable)
     assert worker_main.main(["purge"]) == 1

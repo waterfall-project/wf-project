@@ -42,6 +42,7 @@ if TYPE_CHECKING:
 
 TESTS = Path(__file__).resolve().parent
 COMPOSE = TESTS.parents[1] / "deploy" / "compose" / "compose.service.yaml"
+PRODUCTION = TESTS.parents[1] / "deploy" / "compose" / "compose.prod.yaml"
 # Long enough for a process to start, and short enough for a test to fail in reasonable time.
 PATIENCE = 30.0
 INTERVAL = 1
@@ -105,12 +106,12 @@ def test_a_worker_stopped_during_a_task_leaves_the_base_unchanged_and_resumes_it
     assert task(database, task_id).attempts == 2
 
 
-def scheduler() -> tuple[dict[str, str], list[str]]:
-    """Read the service that schedules the tasks in the Compose file: settings and command.
+def scheduler(compose: Path = COMPOSE) -> tuple[dict[str, str], list[str]]:
+    """Read the service that schedules the tasks in a Compose file: settings and command.
 
     The command is given as its shell reads it, once Compose has written ``$$`` as ``$``.
     """
-    service = yaml.safe_load(COMPOSE.read_text(encoding="utf-8"))["services"]["scheduler"]
+    service = yaml.safe_load(compose.read_text(encoding="utf-8"))["services"]["scheduler"]
     command = cast("list[str]", service["command"])
     return cast("dict[str, str]", service["environment"]), [
         part.replace("$$", "$") for part in command
@@ -184,10 +185,13 @@ def test_the_platform_purges_what_expired_at_its_interval_by_the_second_loop_of_
     assert backups_bucket.size(key) is None
 
 
+@pytest.mark.requirement("WF-DAT-0120-A")
 @pytest.mark.parametrize("interval", ["0", "soon", ""])
 def test_a_schedule_whose_purge_interval_is_no_positive_number_stops_with_two(
     interval: str, service_environment: dict[str, str]
 ) -> None:
+    # « Un fichier déposé et jamais confirmé disparaît au terme du délai d'expiration. » : a purge
+    # that is scheduled at no interval would never come, so the schedule refuses to start.
     _, shell = scheduler()
     environment = {
         **service_environment,
@@ -196,3 +200,22 @@ def test_a_schedule_whose_purge_interval_is_no_positive_number_stops_with_two(
     }
     with started(shell, environment) as process:
         assert process.wait(timeout=PATIENCE) == 2
+
+
+@pytest.mark.requirement("WF-DAT-0120-A")
+def test_the_two_compose_files_schedule_the_same_loops_with_the_same_settings() -> None:
+    # The purge that makes a deposit never confirmed disappear must run in production as the tests
+    # run it: the same script of loops, the same intervals and retention by default.
+    service_settings, service_shell = scheduler(COMPOSE)
+    production_settings, production_shell = scheduler(PRODUCTION)
+    assert production_shell == service_shell
+    names = (
+        "WATERFALL_IDENTITY_SYNC_INTERVAL",
+        PURGE,
+        "WATERFALL_UNDO_RETENTION_HOURS",
+    )
+    retention = "WATERFALL_UNDO_RETENTION_HOURS"
+    assert service_settings[retention] == f"${{{retention}:-12}}"
+    assert {each: production_settings[each] for each in names} == {
+        each: service_settings[each] for each in names
+    }
