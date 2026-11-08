@@ -21,6 +21,7 @@ from waterfall.core.planning.tree import read_tree
 from waterfall.core.revisions.interface import structure_facts, structure_rescheduled
 
 if TYPE_CHECKING:
+    from collections.abc import Collection
     from datetime import datetime
     from uuid import UUID
 
@@ -56,22 +57,35 @@ class Blamed:
     origin: Origin = None
 
 
+@dataclass(frozen=True, slots=True)
+class Written:
+    """What a write tells the replay: what it names, and the links in conflict before it wrote.
+
+    ``conflicts`` are read under the lock of the structure before the write, each link by its two
+    tasks: a link it deletes in conflict moves its ends that stay (``kept``). ``None`` takes the
+    links of the replay as they are, which a recalculation writes none of.
+    """
+
+    blamed: Blamed | None = None
+    conflicts: Collection[tuple[UUID, UUID]] | None = None
+
+
 def replayed(
     session: Session,
     project_id: UUID,
     structure_id: UUID,
     at: datetime,
-    blamed: Blamed | None = None,
+    written: Written | None = None,
 ) -> Rescheduled:
     """Replay the engine on a structure locked, write what changes; give what it moved.
 
     The structure is locked, its dates' instant moved on to ``at`` and its counter advanced.
     Beyond fifteen years (WF-PLA-0150), refused (422 ``PROJECT_HORIZON_EXCEEDED``), nothing
-    written: naming ``blamed`` — the node of the task written, none for a task created, and its
-    label — or, without one, the task that finishes last. A loop of links is named from the
-    origin ``blamed`` gives (422 ``LINK_CYCLE``), a link across the hierarchy refused
-    (``LINK_FORBIDDEN``).
+    written: naming the task the write blames — its node, none for a task created, and its label
+    — or, without one, the task that finishes last. A loop of links is named from the origin the
+    write gives (422 ``LINK_CYCLE``), a link across the hierarchy refused (``LINK_FORBIDDEN``).
     """
+    blamed = None if written is None else written.blamed
     facts = structure_facts(session, project_id, structure_id, lock=True)
     session.flush()
     tree = read_tree(session, project_id, structure_id)
@@ -85,7 +99,7 @@ def replayed(
         if blamed is None:
             raise horizon_exceeded(beyond, tree.tasks[beyond].label)
         raise horizon_exceeded(blamed.node_id, blamed.label)
-    moved = kept(replay, computed)
+    moved = kept(replay, computed, None if written is None else written.conflicts)
     session.flush()
     counter = structure_rescheduled(session, project_id, structure_id, at)
     return Rescheduled(tree, replay.links, calendars, frozenset(moved), counter)

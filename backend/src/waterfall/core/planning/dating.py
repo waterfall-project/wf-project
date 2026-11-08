@@ -35,7 +35,7 @@ from waterfall.core.resource_settings.interface import get_duration_units
 from waterfall.platform.errors import UnprocessableError
 
 if TYPE_CHECKING:
-    from collections.abc import Collection
+    from collections.abc import Collection, Iterable
     from datetime import date
     from decimal import Decimal
     from uuid import UUID
@@ -158,6 +158,11 @@ def dated(replay: Replay, origin: Origin = None) -> Schedule:
         raise UnprocessableError(LINK_FORBIDDEN) from None
 
 
+def conflicts_of(links: Iterable[TaskLink]) -> frozenset[tuple[UUID, UUID]]:
+    """Give the links in conflict among these, each by its two tasks, predecessor first."""
+    return frozenset((link.predecessor_id, link.successor_id) for link in links if link.in_conflict)
+
+
 def _conflicts(pairs: Collection[tuple[UUID, UUID]]) -> dict[UUID, set[tuple[UUID, UUID]]]:
     """Give, by task, the links in conflict it is an end of, each by its two tasks."""
     held: dict[UUID, set[tuple[UUID, UUID]]] = {}
@@ -190,16 +195,21 @@ def _kept(task: Task, placed: ScheduledTask, summary: Duration | None) -> bool:
     return moved
 
 
-def kept(replay: Replay, computed: Schedule) -> set[UUID]:
+def kept(
+    replay: Replay,
+    computed: Schedule,
+    conflicts: Collection[tuple[UUID, UUID]] | None = None,
+) -> set[UUID]:
     """Write what the engine computed on the facets and the links; give the tasks it moved.
 
     A task moves when its dates, its float, its criticality or its links in conflict change.
+    ``conflicts`` are the links in conflict before the write, read before it wrote any link: a
+    link it deleted in conflict moves its ends that stay. Without them, the links of the replay
+    are taken as they were, which a recalculation writes none of.
     """
     tree = replay.tree
     in_conflict = {(each.predecessor_id, each.successor_id) for each in computed.link_conflicts}
-    before = _conflicts(
-        [(link.predecessor_id, link.successor_id) for link in replay.links if link.in_conflict]
-    )
+    before = _conflicts(conflicts_of(replay.links) if conflicts is None else conflicts)
     after = _conflicts(in_conflict)
     for link in replay.links:
         flagged = (link.predecessor_id, link.successor_id) in in_conflict

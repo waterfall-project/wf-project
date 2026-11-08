@@ -5,8 +5,9 @@
 ``updateCostStructure`` on the main structure of a revision a project's manager opened, every
 answer checked against the contract: the automatic tasks without a predecessor and their
 successors moved with the date, the manual ones left; a day without hours of the default calendar
-refused naming the next; the label alone; a body without a field, a stale counter, a marked
-revision; the horizon; the entry of the history; the date kept by the copy of a marked revision.
+refused naming the next, none when it has no hour at all; the label alone; a body without a field,
+a stale counter, a marked revision; the horizon; the entry of the history; the date kept by the
+copy of a marked revision.
 The structure starts its planning on Monday the 2nd of November 2026, on the default calendar of
 eight hours from Monday to Friday.
 
@@ -32,6 +33,9 @@ from nodes_support import (
 from planning_support import DAY
 from projects_support import Scene
 from projects_support import scene as make_scene
+from sqlalchemy import update as update_rows
+
+from waterfall.core.resource_settings.tables import DAYS, Calendar
 
 if TYPE_CHECKING:
     from realm import TestRealm
@@ -41,6 +45,7 @@ if TYPE_CHECKING:
     from waterfall.platform.database import Database
 
 WEEK_BEFORE = DAY - timedelta(days=7)
+TUESDAY = DAY + timedelta(days=1)
 
 
 @pytest.fixture
@@ -166,7 +171,25 @@ def test_a_start_on_a_day_without_hours_of_the_default_calendar_names_the_next_w
     assert (read["planning_start_on"], read["lock_version"]) == (DAY.isoformat(), counter)
 
 
-@pytest.mark.requirement("WF-REV-0100-A")
+def test_a_start_on_a_default_calendar_without_any_hour_names_no_next_working_day(
+    tree: Tree, stage: Scene
+) -> None:
+    # A default calendar left without an hour while no current task is on it: no day follows.
+    with stage.owner.begin() as connection:
+        connection.execute(
+            update_rows(Calendar).where(Calendar.is_default).values(dict.fromkeys(DAYS, 0))
+        )
+    answer = update(tree, planning_start_on=TUESDAY.isoformat())
+    assert faults(answer) == [
+        (
+            "/planning_start_on",
+            "NON_WORKING_DAY",
+            {"date": TUESDAY.isoformat(), "next_working_day": None},
+        )
+    ]
+    assert structure(tree)["planning_start_on"] == DAY.isoformat()
+
+
 def test_the_label_alone_redates_nothing_and_advances_the_counter(tree: Tree) -> None:
     tree.made("Études")
     counter = structure(tree)["lock_version"]
@@ -194,7 +217,7 @@ def test_a_body_without_a_field_a_null_one_or_a_stale_counter_writes_nothing(tre
     assert (read["label"], read["lock_version"]) == ("Structure principale", counter)
 
 
-@pytest.mark.requirement("WF-DAT-0020-A")
+@pytest.mark.requirement("WF-REV-0020-A")
 def test_a_structure_of_a_marked_revision_is_not_written(tree: Tree, stage: Scene) -> None:
     mark(stage, tree.revision)
     assert refusal(update(tree, label="Autre")) == (

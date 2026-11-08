@@ -17,7 +17,15 @@ from fastapi import APIRouter, Depends
 from waterfall.api.authentication import Transaction
 from waterfall.api.contract.models import PredecessorsReplace, StructureUpdate
 from waterfall.api.evaluation import RequiresProject
-from waterfall.api.nodes import STRUCTURE, Placed, Writing, written_of
+from waterfall.api.nodes import (
+    CHANGE,
+    CONSULT,
+    STRUCTURE,
+    VALIDATION_FAILED,
+    Placed,
+    Writing,
+    written_of,
+)
 from waterfall.core.planning.interface import (
     PredecessorSent,
     PredecessorsEntry,
@@ -26,10 +34,6 @@ from waterfall.core.planning.interface import (
     update_cost_structure,
 )
 from waterfall.platform.errors import FieldError, UnprocessableError
-
-CONSULT = "planning.read"
-CHANGE = "planning.write"
-VALIDATION_FAILED = "VALIDATION_FAILED"
 
 # Each route its tag, as the contract has them: ``planning`` for ``setPredecessors``, ``revisions``
 # for ``updateCostStructure``.

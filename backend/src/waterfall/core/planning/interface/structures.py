@@ -31,7 +31,7 @@ from typing import TYPE_CHECKING
 
 from waterfall.core.history.interface import ObjectState
 from waterfall.core.planning.calendars import default_calendar
-from waterfall.core.planning.rescheduling import replayed
+from waterfall.core.planning.rescheduling import Written, replayed
 from waterfall.core.planning.writing import writing
 from waterfall.core.revisions.interface import structure_facts, write_structure
 from waterfall.platform.errors import FieldError, PreconditionFailedError, UnprocessableError
@@ -65,7 +65,7 @@ def reschedule(
     Beyond fifteen years (WF-PLA-0150), refused (422 ``PROJECT_HORIZON_EXCEEDED``), nothing
     written: naming the task ``blamed`` names or, without one, the task that finishes last.
     """
-    return replayed(session, project_id, structure_id, at, blamed)
+    return replayed(session, project_id, structure_id, at, Written(blamed))
 
 
 @dataclass(frozen=True, slots=True)

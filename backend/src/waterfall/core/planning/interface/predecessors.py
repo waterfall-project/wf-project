@@ -22,7 +22,7 @@ from sqlalchemy import insert, select
 from waterfall.core.planning.dating import LINK_CYCLE
 from waterfall.core.planning.scheduling import Entry
 from waterfall.core.planning.tables import TaskLink
-from waterfall.core.planning.writing import Redated, writing
+from waterfall.core.planning.writing import writing
 from waterfall.platform.errors import (
     FieldError,
     NotFoundError,
@@ -105,24 +105,23 @@ def set_predecessors(
             named = [{"node_id": str(node_id), "label": task.label}]
             raise UnprocessableError(LINK_CYCLE, {"cycle": named})
         write.before((node_id,))
-        lost = _replace(session, place, node_id, entry.predecessors)
+        _replace(session, place, node_id, entry.predecessors)
         node.lock_version += 1
         node.updated_at = writer.act.at
         node.updated_by = writer.act.author
+        # A predecessor whose link in conflict is withdrawn loses its signal: it moved too, which
+        # the replay judges against the links in conflict read before the write.
         redated = write.redate((node_id, task.label), Entry(node_id))
         write.after((node_id,))
-        # A predecessor whose link in conflict is withdrawn loses its signal: it moved too.
-        moved = redated.moved | {each for each in lost if each in tree.tasks}
-        return Redated(redated.reading, moved, redated.counter).written((node_id,))
+        return redated.written((node_id,))
 
 
 def _replace(
     session: Session, place: Place, node_id: UUID, sent: tuple[PredecessorSent, ...]
-) -> set[UUID]:
-    """Write the links sent to a task, those it keeps changed in place; give the conflicts lost.
+) -> None:
+    """Write the links sent to a task, those it keeps changed in place, the others deleted.
 
-    A link kept keeps its row and its signal of conflict until the engine judges it again; one
-    withdrawn is deleted, and its predecessor given back when the link was in conflict.
+    A link kept keeps its row and its signal of conflict until the engine judges it again.
     """
     held = {
         link.predecessor_id: link
@@ -135,11 +134,6 @@ def _replace(
         )
     }
     wanted = {each.predecessor_id for each in sent}
-    lost = {
-        predecessor
-        for predecessor, link in held.items()
-        if predecessor not in wanted and link.in_conflict
-    }
     for predecessor, link in held.items():
         if predecessor not in wanted:
             session.delete(link)
@@ -168,4 +162,3 @@ def _replace(
     session.flush()
     if added:
         session.execute(insert(TaskLink), added)
-    return lost

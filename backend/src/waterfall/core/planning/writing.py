@@ -26,9 +26,10 @@ from typing import TYPE_CHECKING
 
 from waterfall.core.history import interface as history
 from waterfall.core.history.interface import RecordedChange, Recording, UndoStack
+from waterfall.core.planning.dating import conflicts_of
 from waterfall.core.planning.interface.snapshots import snapshot
-from waterfall.core.planning.rescheduling import Blamed, replayed
-from waterfall.core.planning.tree import read_tree
+from waterfall.core.planning.rescheduling import Blamed, Written, replayed
+from waterfall.core.planning.tree import read_links, read_tree
 from waterfall.core.planning.views import NodeView, Reading, ScheduleView
 from waterfall.core.projects.interface import no_background_task_running, project_facts
 from waterfall.core.revisions.interface import (
@@ -139,13 +140,18 @@ class Write:
     """A write of the tree under the lock of its structure, the tree read under that lock."""
 
     def __init__(self, session: Session, place: Place, writer: Writer, frame: Recording) -> None:
-        """Lock the structure, then read it and its tree under the lock."""
+        """Lock the structure, then read it, its tree and its links in conflict under the lock.
+
+        The links in conflict are read before the write, so that the replay that follows judges
+        what moved against them, whatever links the write deletes (``kept``).
+        """
         self.session = session
         self.place = place
         self.writer = writer
         self.frame = frame
         self.facts = facts_of(session, place, lock=True)
         self.tree = read_tree(session, place.project_id, place.structure_id)
+        self.conflicts = conflicts_of(read_links(session, place.project_id, place.structure_id))
 
     def before(self, node_ids: Collection[UUID]) -> None:
         """Hand the history the nodes the write touches, as they are before it."""
@@ -162,7 +168,11 @@ class Write:
         place = self.place
         named = None if blamed is None else Blamed(*blamed, origin)
         done = replayed(
-            self.session, place.project_id, place.structure_id, self.writer.act.at, named
+            self.session,
+            place.project_id,
+            place.structure_id,
+            self.writer.act.at,
+            Written(named, self.conflicts),
         )
         structure = (place.project_id, self.writer.act.at, self.facts.is_main)
         reading = Reading(self.session, structure, done.tree, done.links, done.calendars)
