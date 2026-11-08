@@ -60,7 +60,7 @@ PRISM   := npx --yes @stoplight/prism-cli@$(PRISM_VERSION)
 
 .DEFAULT_GOAL := help
 .PHONY: help build-doc build-doc-strict build-openapi lint-openapi inventory allocate-pbs mock \
-	mock-tools mock-spec mock-data mock-data-up-to-date dev dev-down lint-compose service-up service-install service-witness service-logs service-down migrate \
+	mock-tools mock-spec mock-data mock-data-up-to-date dev dev-down lint-compose service-up service-install service-witness service-purge service-logs service-down migrate \
 	build-keycloak build-cache test-keycloak check-keycloak keycloak-authority e2e-service check-service images \
 	production-trial check-production \
 	test-tools test-openldap lint-tools typecheck-tools sources fixtures check-fixtures requirements \
@@ -129,7 +129,7 @@ SLOT_SERVICE := WATERFALL_SERVICE_PROJECT WATERFALL_KEYCLOAK_IMAGE WATERFALL_OPE
 	WATERFALL_POSTGRES_PORT WATERFALL_REDIS_PORT WATERFALL_API_PORT WATERFALL_KEYCLOAK_PORT \
 	WATERFALL_MAILPIT_PORT WATERFALL_PROXY_PORT
 SLOT_PATHS := E2E_API_PORT E2E_FRONT_PORT
-$(call slot-export,service-up service-install service-witness keycloak-authority service-logs service-down \
+$(call slot-export,service-up service-install service-witness service-purge keycloak-authority service-logs service-down \
 	test-keycloak e2e-service,$(SLOT_SERVICE))
 $(call slot-export,build-keycloak,WATERFALL_KEYCLOAK_IMAGE)
 $(call slot-export,test-services test-services-down,WATERFALL_TEST_PROJECT \
@@ -270,6 +270,12 @@ service-install: ## Bootstrap the installation of the service platform, started,
 service-witness: ## Load the witness, the examples of the contract (fixtures/api), on the service platform, started and bootstrapped
 	@$(COMPOSE_SERVICE) build --quiet witness
 	@$(COMPOSE_SERVICE) run --rm --no-TTY witness
+
+# The purge of what expired (EP-06, "La purge"), by hand: the verb the scheduler calls at each
+# interval of WATERFALL_PURGE_INTERVAL, run in the container of the scheduler, which holds its
+# settings. Two purges never run together: the verb takes a lock of its own.
+service-purge: ## Purge what expired on the service platform, started: imports, deposits, exports, history (`waterfall-worker purge`)
+	@$(COMPOSE_SERVICE) exec --no-TTY scheduler waterfall-worker purge
 
 keycloak-authority: ## Copy out of the service platform the root of the authority of Keycloak's front end (KEYCLOAK_AUTHORITY)
 	@mkdir -p $(dir $(KEYCLOAK_AUTHORITY))

@@ -20,12 +20,13 @@ from waterfall.platform.errors import UnavailableError
 
 if TYPE_CHECKING:
     from collections.abc import Generator, Iterator
+    from datetime import datetime
     from pathlib import Path
 
     from mypy_boto3_s3.client import S3Client
     from mypy_boto3_s3.type_defs import CompletedPartTypeDef
 
-    from waterfall.platform.settings import ServiceSettings
+    from waterfall.platform.settings import StorageSettings
 
 COMPONENT_UNAVAILABLE = "COMPONENT_UNAVAILABLE"
 OBJECT_STORAGE = "object_storage"
@@ -94,7 +95,7 @@ class Bucket:
         return cls(client, name)
 
     @classmethod
-    def of_backups(cls, settings: ServiceSettings) -> Bucket:
+    def of_backups(cls, settings: StorageSettings) -> Bucket:
         """Open the bucket of the backups the settings name."""
         return cls.connect(
             settings.backups_bucket,
@@ -126,6 +127,25 @@ class Bucket:
         """Delete the object of a key; a key that holds none is no fault, S3 says nothing of it."""
         with reached():
             self.client.delete_object(Bucket=self.name, Key=key)
+
+    def keys_before(self, prefix: str, before: datetime) -> list[str]:
+        """List the keys under a prefix of the objects last modified before an instant."""
+        keys: list[str] = []
+        with reached():
+            pages = self.client.get_paginator("list_objects_v2").paginate(
+                Bucket=self.name, Prefix=prefix
+            )
+            for page in pages:
+                for listed in page.get("Contents", []):
+                    modified = listed.get("LastModified")
+                    if modified is not None and modified < before:
+                        keys.append(listed.get("Key", ""))
+        return keys
+
+    def abort_parts(self, key: str, deposit: str) -> None:
+        """Abort the deposit in parts of an object: the parts it received are freed."""
+        with reached():
+            self.client.abort_multipart_upload(Bucket=self.name, Key=key, UploadId=deposit)
 
     def download(self, key: str, path: Path) -> None:
         """Read the object of a key into a file."""

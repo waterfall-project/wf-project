@@ -16,17 +16,21 @@ import time
 from contextlib import contextmanager
 from pathlib import Path
 from typing import TYPE_CHECKING, cast
-from uuid import UUID
+from uuid import UUID, uuid4
 
 import pytest
 import yaml
+from access_rows import holder
+from purge_environment import storage_environment
 from sqlalchemy import insert, select
 from support import raw_account
 from task_handlers import REQUEST, Runs, deposit, inscriptions, task
 
 from waterfall.core.users.tables import UserAccount
 from waterfall.platform.correlation import FORM
+from waterfall.platform.database import utc_now
 from waterfall.platform.tasks import BackgroundTask
+from waterfall.platform.uploads import LIFETIME, FileUpload, Whole, object_key_of, record_whole
 from waterfall.worker.runner import Timing, Worker
 
 if TYPE_CHECKING:
@@ -34,12 +38,14 @@ if TYPE_CHECKING:
 
     from waterfall.platform.database import Database
     from waterfall.platform.queue import TaskQueue
+    from waterfall.platform.storage import Bucket
 
 TESTS = Path(__file__).resolve().parent
 COMPOSE = TESTS.parents[1] / "deploy" / "compose" / "compose.service.yaml"
 # Long enough for a process to start, and short enough for a test to fail in reasonable time.
 PATIENCE = 30.0
 INTERVAL = 1
+PURGE = "WATERFALL_PURGE_INTERVAL"
 
 
 def wait_for(condition: Callable[[], bool]) -> None:
@@ -124,7 +130,8 @@ def test_the_platform_deposits_the_reading_of_the_accounts_at_its_interval_as_an
     runs = Runs()
     platform_queue.prepare()
     taker = Worker(database, platform_queue, {"identity_sync": runs}, "worker", Timing(block=0.1))
-    with started(shell, {**service_environment, variable: str(INTERVAL)}):
+    # The other loop of the schedule, the purge, sleeps through the test.
+    with started(shell, {**service_environment, variable: str(INTERVAL), PURGE: "3600"}):
         wait_for(lambda: taker.step() and len(runs) == 2)
     with database.transaction() as session:
         scheduled = list(session.scalars(select(BackgroundTask).order_by(BackgroundTask.id)))
@@ -144,3 +151,48 @@ def test_the_platform_deposits_the_reading_of_the_accounts_at_its_interval_as_an
     wait_for(lambda: not taker.step())
     assert asked in runs
     assert task(database, asked).status == "succeeded"
+
+
+@pytest.mark.requirement("WF-DAT-0120-A")
+def test_the_platform_purges_what_expired_at_its_interval_by_the_second_loop_of_its_schedule(
+    database: Database, backups_bucket: Bucket, service_environment: dict[str, str]
+) -> None:
+    # « Un fichier déposé et jamais confirmé disparaît au terme du délai d'expiration. » : the
+    # schedule purges at the interval of ``WATERFALL_PURGE_INTERVAL``, ten minutes by default, while
+    # the loop of the reading of the accounts waits for its day.
+    scheduled_with, shell = scheduler()
+    assert scheduled_with[PURGE] == f"${{{PURGE}:-600}}"
+    upload_id = uuid4()
+    key = object_key_of(upload_id)
+    backups_bucket.put(key, b"WF")
+    user = holder(database)
+    with database.transaction() as session:
+        record_whole(session, upload_id, Whole("oublie.wft", 2, user), utc_now() - LIFETIME * 2)
+    environment = {
+        **service_environment,
+        **storage_environment(backups_bucket),
+        "WATERFALL_IDENTITY_SYNC_INTERVAL": "3600",
+        PURGE: str(INTERVAL),
+    }
+
+    def purged() -> bool:
+        with database.transaction() as session:
+            return session.get(FileUpload, upload_id) is None
+
+    with started(shell, environment):
+        wait_for(purged)
+    assert backups_bucket.size(key) is None
+
+
+@pytest.mark.parametrize("interval", ["0", "soon", ""])
+def test_a_schedule_whose_purge_interval_is_no_positive_number_stops_with_two(
+    interval: str, service_environment: dict[str, str]
+) -> None:
+    _, shell = scheduler()
+    environment = {
+        **service_environment,
+        "WATERFALL_IDENTITY_SYNC_INTERVAL": "3600",
+        PURGE: interval,
+    }
+    with started(shell, environment) as process:
+        assert process.wait(timeout=PATIENCE) == 2
