@@ -314,9 +314,12 @@ def deposit(
 def _usable_deposit(session: Session, upload_id: UUID, act: Act) -> FileUpload | None:
     """Give a deposit an import may open now: completed, unexpired, unused, its author's own.
 
-    A deposit another account made does not exist for the caller, as an unknown one.
+    A deposit another account made does not exist for the caller, as an unknown one. The row is
+    read under a lock: the purge deletes a deposit expired with its object, and an import opened
+    on the deposit just before its term would find its file gone — the purge waits for the
+    import's transaction, or the import finds the row gone.
     """
-    row = session.get(FileUpload, upload_id)
+    row = session.get(FileUpload, upload_id, with_for_update=True)
     if (
         row is None
         or row.completed_at is None

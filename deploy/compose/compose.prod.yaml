@@ -269,21 +269,33 @@ services:
       storage-buckets: *done
 
   # Deposits the reading of the accounts at the end of each interval, in seconds, a day by default
-  # (PBS-5.3). An interval that sleep refuses stops the service, with 2.
+  # (PBS-5.3). A second loop purges what expired at the end of each purge interval, ten minutes by
+  # default (EP-06, "La purge"). An interval that is not a positive number stops the service, with 2.
   scheduler:
     image: *waterfall-image
     environment:
-      <<: *back-environment
+      <<: [*back-environment, *storage-environment]
       WATERFALL_IDENTITY_SYNC_INTERVAL: ${WATERFALL_IDENTITY_SYNC_INTERVAL:-86400}
+      WATERFALL_PURGE_INTERVAL: ${WATERFALL_PURGE_INTERVAL:-600}
+      WATERFALL_UNDO_RETENTION_HOURS: ${WATERFALL_UNDO_RETENTION_HOURS:-12}
     init: true
     command:
       - sh
       - -c
-      - while sleep "$$WATERFALL_IDENTITY_SYNC_INTERVAL"; do waterfall-worker enqueue identity_sync; done; exit 2
+      - |
+        for interval in "$$WATERFALL_IDENTITY_SYNC_INTERVAL" "$$WATERFALL_PURGE_INTERVAL"; do
+          [ "$$interval" -gt 0 ] 2>/dev/null || exit 2
+        done
+        while sleep "$$WATERFALL_PURGE_INTERVAL"; do waterfall-worker purge; done &
+        purging=$$!
+        while sleep "$$WATERFALL_IDENTITY_SYNC_INTERVAL"; do waterfall-worker enqueue identity_sync; done
+        kill "$$purging"
+        exit 2
     restart: unless-stopped
     depends_on:
       service-database-role: *done
       redis: *healthy
+      storage-buckets: *done
 
   # Runs the restorations the API deposits in their stream, and nothing else (WF-ADM-0160, #953),
   # and starts again if it stops: a restoration is asked for at the screen, where nobody runs a

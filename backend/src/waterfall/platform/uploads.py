@@ -28,6 +28,8 @@ from waterfall.platform.database import Base, UtcDateTime
 PURPOSES = ("import", "external_backup")
 EXTERNAL_BACKUP = "external_backup"
 IMPORT = "import"
+# Where the objects of the deposits lie in the bucket: under this prefix, by identifier.
+PREFIX = "uploads/"
 # How long a deposit lives, opened or completed (``ChunkedUpload.expires_at``).
 LIFETIME = timedelta(hours=24)
 # The bounds of a part: the storage assembles no part smaller than 5 MiB, but the last; 10 MiB is
@@ -112,7 +114,7 @@ class Opened:
 
 def object_key_of(upload_id: UUID) -> str:
     """Give the key of the object of a deposit on the storage."""
-    return f"uploads/{upload_id}"
+    return f"{PREFIX}{upload_id}"
 
 
 def record_upload(session: Session, upload_id: UUID, opened: Opened, at: datetime) -> FileUpload:
