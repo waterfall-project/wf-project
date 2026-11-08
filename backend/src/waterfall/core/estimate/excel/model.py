@@ -115,7 +115,12 @@ class Lot:
 
 @dataclass(frozen=True)
 class Estimate:
-    """The estimate of a structure of a revision, as the workbook says it."""
+    """The estimate of a structure of a revision, as the workbook says it.
+
+    The writer trusts the model to be coherent: a line names a role or a category of the
+    reference, a category a nature of it. The exporter (US-1550/L4) builds it from the service, so
+    it keeps that coherence; the writer raises a bare ``KeyError`` on a model that does not.
+    """
 
     company: str
     client: str

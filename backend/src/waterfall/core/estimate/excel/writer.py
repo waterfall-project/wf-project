@@ -14,7 +14,7 @@ import re
 from dataclasses import dataclass, replace
 from importlib.resources import files
 from io import BytesIO
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Literal
 
 import xlsxwriter
 from xlsxwriter.utility import xl_col_to_name, xl_rowcol_to_cell
@@ -176,6 +176,17 @@ class _Lists:
 
 
 @dataclass(frozen=True)
+class _Row:
+    """A row of the breakdown: a lot (with its count of tabs) or a tab (with its table)."""
+
+    level: Literal["lot", "tab"]
+    number: str
+    label: str
+    tabs: int = 0
+    table: str = ""
+
+
+@dataclass(frozen=True)
 class _Context:
     """What the sheets share: the estimate, its tabs of lines with their names, the formats."""
 
@@ -184,6 +195,14 @@ class _Context:
     sheets: tuple[str, ...]
     tables: tuple[str, ...]
     fmt: dict[str, Format]
+    labels: dict[str, str]  # the label of a role or of a category, by code
+
+
+def _labels(estimate: Estimate) -> dict[str, str]:
+    """Give the label of every role and category, by code, once for the whole workbook."""
+    labels = {role.code: role.label for role in estimate.roles}
+    labels.update({category.code: category.label for category in estimate.categories})
+    return labels
 
 
 def _name_tabs(estimate: Estimate) -> tuple[tuple[Tab, ...], tuple[str, ...]]:
@@ -398,11 +417,9 @@ def _table_names(tabs: tuple[Tab, ...]) -> tuple[str, ...]:
     return tuple(names)
 
 
-def _line_row(estimate: Estimate, task: Task, line: Line) -> list[Any]:
+def _line_row(labels: dict[str, str], task: Task, line: Line) -> list[Any]:
     """Give the cells a line writes; the calculated columns stay empty."""
     code = line.role if line.role is not None else line.category
-    labels = {role.code: role.label for role in estimate.roles}
-    labels.update({category.code: category.label for category in estimate.categories})
     values: dict[str, Any] = {
         "Tâche": _task_entry(task),
         "Rôle ou catégorie": _entry(labels[code or ""], code or ""),
@@ -420,10 +437,10 @@ def _line_row(estimate: Estimate, task: Task, line: Line) -> list[Any]:
 
 def _write_lines_tab(sheet: Worksheet, ctx: _Context, position: int, lists: _Lists) -> None:
     """Write a tab of lines: a table with its total row, its lists, its calculated columns."""
-    estimate, fmt = ctx.estimate, ctx.fmt
+    fmt = ctx.fmt
     tab, table, tasks_list = ctx.tabs[position], ctx.tables[position], lists.tasks[position]
     formulas = _line_formulas(table)
-    data = [_line_row(estimate, task, line) for task in tab.tasks for line in task.lines]
+    data = [_line_row(ctx.labels, task, line) for task in tab.tasks for line in task.lines]
     last = len(data) + PREPARED
     data += [[None] * len(LINE_HEADERS) for _ in range(PREPARED)]
     columns: list[dict[str, Any]] = []
@@ -542,20 +559,21 @@ def _write_summary(sheet: Worksheet, ctx: _Context) -> tuple[int, list[tuple[str
     top = 4
     sheet.write_row(top, 0, header, fmt["head"])
     sheet.set_row(top, 32)
-    plan: list[tuple[str, str, str, str]] = []
+    plan: list[_Row] = []
     tables = iter(ctx.tables)  # in the order of the tabs: the lots', then the one outside
     for lot in estimate.lots:
-        plan.append(("lot", lot.number, lot.label, str(len(lot.tabs))))
-        plan += [("tab", tab.number, tab.label, next(tables)) for tab in lot.tabs]
+        plan.append(_Row("lot", lot.number, lot.label, tabs=len(lot.tabs)))
+        plan += [_Row("tab", tab.number, tab.label, table=next(tables)) for tab in lot.tabs]
     if estimate.outside_lot is not None:
         outside = estimate.outside_lot
-        plan.append(("tab", outside.number, outside.label, next(tables)))
+        plan.append(_Row("tab", outside.number, outside.label, table=next(tables)))
     first = top + 1
     last = top + len(plan)
-    for offset, (level, number, label, extra) in enumerate(plan):
+    for offset, entry in enumerate(plan):
         row = first + offset
-        if level == "lot":
-            count = int(extra)
+        number, label = entry.number, entry.label
+        if entry.level == "lot":
+            count = entry.tabs
             sheet.write_string(row, 0, number, fmt["lot"])
             sheet.write(row, 1, label, fmt["lot"])
             sheet.write(row, 2, "", fmt["lot"])
@@ -578,7 +596,7 @@ def _write_summary(sheet: Worksheet, ctx: _Context) -> tuple[int, list[tuple[str
         sheet.write(row, 3, "onglet")
         for position, (_, kind, key) in enumerate(columns, start=4):
             style = fmt["hours"] if kind == "hours" else fmt["money"]
-            formula = f'=IF($C${row + 1}="Oui",{_tab_formula(kind, key, extra)},0)'
+            formula = f'=IF($C${row + 1}="Oui",{_tab_formula(kind, key, entry.table)},0)'
             sheet.write_formula(row, position, formula, style)
     total = last + 1
     sheet.write(total, 1, "Total", fmt["bold"])
@@ -724,7 +742,12 @@ def write_workbook(estimate: Estimate) -> bytes:
     book.set_calc_mode("auto")
     tabs, sheet_names = _name_tabs(estimate)
     ctx = _Context(
-        estimate, tabs, sheet_names, _table_names(tabs), _text_formats(book, estimate.currency)
+        estimate,
+        tabs,
+        sheet_names,
+        _table_names(tabs),
+        _text_formats(book, estimate.currency),
+        _labels(estimate),
     )
     presentation = book.add_worksheet(PRESENTATION)
     summary = book.add_worksheet(SUMMARY)
