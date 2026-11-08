@@ -15,16 +15,22 @@ here.
 The estimate fills, at the import of this interface, the registries of the modules below it
 (EP-07, "Les points d'extension"), none of which imports it. The socle registers without effect
 what the registries of EP-04 and EP-06 call — the copy and the closing of a revision, the guard
-of the idle tasks, the format and the exporter ``estimate`` —; the facet ``estimate_line`` and the
-question of the lines (``register_facet``, ``register_tasks_and_lines``) are registered by
-US-1490/L3, and the registries EP-07 declares (``register_marking``, ``register_designation``,
-``register_employment``, ``register_estimate_facts``) by the stories that fill them (decisions of
+of the idle tasks, the format and the exporter ``estimate`` —; US-1490/L3 registers the facet
+``estimate_line`` (``register_facet``), whose hooks the planning asks for every line it reads,
+creates, copies, snapshots, restores and redates, and the question of the lines
+(``register_tasks_and_lines``); the registries EP-07 declares (``register_marking``,
+``register_designation``, ``register_employment``, ``register_estimate_facts``) by the stories that
+fill them (decisions of
 2026-11-08, #2370). The entry points that copy, mark, designate or close a revision, change the
 reference or run an exchange — the API, the worker from US-1500 on, the loader of the witness —
 import it, by what they serve or explicitly (#2180).
 """
 
 # ``calendars`` (US-1490/L1; US-1500): the calendars of the roles, which a change must not idle.
+# ``entries`` (US-1490/L3): what a write sends of a line.
+from waterfall.core.estimate.entries import (
+    LineEntry as LineEntry,
+)
 from waterfall.core.estimate.interface.calendars import (
     idle_tasks_for_role_calendar as idle_tasks_for_role_calendar,
 )
@@ -85,6 +91,9 @@ from waterfall.core.estimate.interface.facet import (
 )
 from waterfall.core.estimate.interface.facet import (
     line_calendars as line_calendars,
+)
+from waterfall.core.estimate.interface.facet import (
+    line_dependencies as line_dependencies,
 )
 from waterfall.core.estimate.interface.facet import (
     line_filters as line_filters,
@@ -155,6 +164,14 @@ from waterfall.core.estimate.interface.workload import (
     workload as workload,
 )
 
+# ``reading`` (US-1490/L3): the lines as ``listNodes`` reads them, and what it filters.
+from waterfall.core.estimate.reading import (
+    LineFilters as LineFilters,
+)
+from waterfall.core.estimate.reading import (
+    LineView as LineView,
+)
+
 # ``spreading`` (US-1520/L1): the planned value, which EP-10 reads.
 from waterfall.core.estimate.spreading import (
     PlannedLine as PlannedLine,
@@ -165,12 +182,20 @@ from waterfall.core.estimate.spreading import (
 
 # The registries the estimate fills.
 from waterfall.core.exchanges.interface import register_exporter, register_format
+from waterfall.core.planning.interface import register_facet
 from waterfall.core.resource_settings.interface import register_idle_task_guard
-from waterfall.core.revisions.interface import register_closing, register_copy
+from waterfall.core.revisions.interface import (
+    register_closing,
+    register_copy,
+    register_tasks_and_lines,
+)
 
-# The registrations, once, at the import, each without effect until its story: the copy of the
-# rates after the planning's, whose interface the facet imports first; the rates of a revision
-# abandoned deleted after its nodes, in the stage of its content.
+# The registrations, once, at the import, each without effect until its story: the facet of the
+# lines, whose copy the planning makes with its nodes; the copy of the rates after the planning's,
+# whose interface the facet imports first; the rates of a revision abandoned deleted after its
+# nodes, in the stage of its content.
+register_facet("estimate_line", LINE_FACET)
+register_tasks_and_lines("lines", revision_has_lines)
 register_copy(copy_rates)
 register_closing("content", close_rates)
 register_idle_task_guard(idle_tasks_for_role_calendar)

@@ -121,10 +121,20 @@ def projected_amount(
 
 
 def sum_amounts(amounts: Iterable[Decimal]) -> Decimal:
-    """Return the exact sum of amounts already rounded to the cent; an empty sum is 0.00."""
+    """Return the exact sum of amounts already rounded to the cent; an empty sum is 0.00.
+
+    An amount that is not to the cent is refused rather than rounded: it was passed by mistake,
+    and its rounding here would hide it (#2548).
+    """
     with localcontext() as context:
         context.prec = _PRECISION
-        return round_to_cent(sum(amounts, Decimal(0)))
+        total = Decimal(0)
+        for amount in amounts:
+            if amount != round_to_cent(amount):
+                msg = f"an amount summed is not to the cent: {amount}"
+                raise ValueError(msg)
+            total += amount
+        return round_to_cent(total)
 
 
 def dependencies_of(amount: Amount, *, labour: bool, provision: bool = False) -> tuple[str, ...]:

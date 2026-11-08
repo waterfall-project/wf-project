@@ -11,15 +11,17 @@ a subproject (#2190), which EP-09 imports too.
 Declared by US-1490/L1 and registered without effect (decision of 2026-11-08, #2370): the format
 refuses every head as a file it does not recognise (422 ``FILE_FORMAT_UNREADABLE``), as when no
 format served the kind, so that an import of an estimate never passes before US-1550; the methods
-it never reaches, the export and ``sheet_name`` raise ``NotImplementedError`` naming US-1550.
+it never reaches and the export raise ``NotImplementedError`` naming US-1550. ``sheet_name`` is
+written by US-1550/L1 (``excel/names.py``), as the workbook (``excel/writer.py``).
 """
 
 from typing import TYPE_CHECKING, Any
 
+from waterfall.core.estimate.excel.names import sheet_name as named_sheet
 from waterfall.platform.errors import UnprocessableError
 
 if TYPE_CHECKING:
-    from collections.abc import Mapping
+    from collections.abc import Iterable, Mapping
 
     from sqlalchemy.orm import Session
 
@@ -82,10 +84,13 @@ class EstimateExporter:
         raise NotImplementedError(msg)
 
 
-def sheet_name(label: str) -> str:
-    """Name a tab of a workbook from a label, as Excel admits it (#2190)."""
-    msg = "sheet_name is filled by US-1550"
-    raise NotImplementedError(msg)
+def sheet_name(label: str, taken: Iterable[str] = ()) -> str:
+    """Name a tab of a workbook from a label, as Excel admits it (#2190).
+
+    The characters Excel refuses are replaced, the name is cut to 31 UTF-16 units, and it differs
+    from every name of ``taken`` without regard to case, by a suffix `` (2)``, `` (3)``…
+    """
+    return named_sheet(label, taken)
 
 
 ESTIMATE_FORMAT = EstimateFormat()

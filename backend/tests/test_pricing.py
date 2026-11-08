@@ -44,9 +44,11 @@ def test_line_consumed_in_the_reference_year_is_its_base_amount() -> None:
     assert projected_amount([Share(2026, D(7) * D("33.33"))], 2026, RATE) == base
 
 
-@pytest.mark.requirement("WF-DEV-0030-A")
 def test_year_before_the_reference_year_is_not_deflated_pending_2545() -> None:
-    """Fix the reading kept until #2545 settles it (to be decided), not a Vérif of the sentence."""
+    """Fix the reading kept until #2545 settles it (to be decided), not a Vérif of the sentence.
+
+    It cites no requirement, so as not to count as the coverage of WF-DEV-0030-A (#2548).
+    """
     assert inflation_factor(RATE, 2026, 2025) == D(1)
 
 
@@ -83,6 +85,13 @@ def test_sum_does_not_depend_on_the_order() -> None:
     assert sum_amounts(amounts) == D("1261.73")
 
 
+def test_an_amount_not_to_the_cent_is_refused_by_the_sum() -> None:
+    """A sum of amounts holds amounts already rounded: one that is not is an error, not rounded."""
+    with pytest.raises(ValueError, match="not to the cent"):
+        sum_amounts([D("1.00"), D("0.005")])
+    assert sum_amounts([D("1.500"), D("2")]) == D("3.50")
+
+
 @pytest.mark.requirement("WF-DAT-0100-A")
 def test_ten_times_ten_cents_is_exactly_one() -> None:
     """Ten cents ten times are one exactly: decimal precision, where binary floats drift.
@@ -100,20 +109,20 @@ def test_dependencies_of_the_amounts() -> None:
     assert dependencies_of(Amount.REESTIMATED, labour=False) == ("remaining_reviews", "inflation")
 
 
-@pytest.mark.requirement("WF-DEV-0030-A")
+@pytest.mark.requirement("WF-DEV-0020-A")
 def test_dependencies_of_a_provision_line_name_no_inflation() -> None:
     for amount in Amount:
         assert "inflation" not in dependencies_of(amount, labour=False, provision=True)
 
 
-@pytest.mark.requirement("WF-DEV-0020-A")
+@pytest.mark.requirement("WF-IHM-0030-A")
 def test_dependencies_of_a_provision_line_follow_the_risk() -> None:
     assert dependencies_of(Amount.BASE, labour=False, provision=True) == ("risk",)
     assert dependencies_of(Amount.REESTIMATED, labour=False, provision=True) == ("risk",)
     assert dependencies_of(Amount.BUDGETED, labour=False, provision=True) == ("reference_revision",)
 
 
-@pytest.mark.requirement("WF-DEV-0020-A")
+@pytest.mark.requirement("WF-IHM-0030-A")
 def test_every_dependency_named_is_one_of_the_contract() -> None:
     contract = yaml.safe_load(
         (CONTRACT.parent / "components" / "schemas" / "revisions.yaml").read_text(encoding="utf-8")

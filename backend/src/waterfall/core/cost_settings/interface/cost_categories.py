@@ -129,13 +129,17 @@ class CostCategoryDraft:
 
 @dataclass(frozen=True, slots=True)
 class CategoryLabel:
-    """What a role of resources shows of its category, and what admits it (WF-REF-0090)."""
+    """What a role of resources shows of its category, and what admits it (WF-REF-0090).
+
+    ``cost_type_id`` its nature, by which a line of estimate is filtered (EP-07).
+    """
 
     cost_category_id: UUID
     label: str
     cost_type_kind: str
     is_active: bool
     cost_type_is_active: bool
+    cost_type_id: UUID | None = None
 
 
 # What tells, of the categories given, those a line employs: the estimate's (EP-07), registered at
@@ -307,7 +311,12 @@ def category_labels(
     )
     return {
         category.id: CategoryLabel(
-            category.id, category.label, nature.kind, category.is_active, nature.is_active
+            category.id,
+            category.label,
+            nature.kind,
+            category.is_active,
+            nature.is_active,
+            nature.id,
         )
         for category, nature in rows
     }

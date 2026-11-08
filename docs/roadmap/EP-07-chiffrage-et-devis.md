@@ -1328,7 +1328,7 @@ n'y change.
 
 ## US-1550 — Le format Excel du devis : export, import et aller-retour
 
-- **statut** : à faire
+- **statut** : en cours
 - **exigences** : `WF-INTF-0070-A`, `WF-INTF-0100-A`, `WF-INTF-0110-A`, `WF-INTF-0180-A`,
   `WF-INTF-0080-A`, `WF-INTF-0090-A`, `WF-INTF-0040-A`, `WF-INTF-0050-A`, `WF-INTF-0060-A`,
   `WF-DAT-0110-A`, `WF-EXP-0020-A`, `WF-PRJ-0080-A`, `WF-REF-0140-A`

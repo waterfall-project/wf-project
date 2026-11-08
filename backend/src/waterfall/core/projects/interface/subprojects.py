@@ -450,6 +450,23 @@ def delete_subproject(
     session.flush()
 
 
+def subproject_labels(
+    session: Session, project_id: UUID, subproject_ids: Collection[UUID]
+) -> dict[UUID, str]:
+    """Give the label of each subproject of a project named; one of another project is left out.
+
+    What a line of estimate shows of its subproject, and what it may name (EP-07).
+    """
+    if not subproject_ids:
+        return {}
+    rows = session.execute(
+        select(Subproject.id, Subproject.label).where(
+            Subproject.project_id == project_id, Subproject.id.in_(subproject_ids)
+        )
+    )
+    return dict(rows.all())
+
+
 def subprojects_present(session: Session, subproject_ids: Collection[UUID]) -> frozenset[UUID]:
     """Keep, of the identifiers given, those of the subprojects that exist (the witness's)."""
     if not subproject_ids:

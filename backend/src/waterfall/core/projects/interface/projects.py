@@ -203,6 +203,7 @@ class ProjectFacts:
     current_revision_id: UUID | None
     inflation_rate: Decimal
     win_probability: Decimal
+    reference_revision_id: UUID | None = None
 
 
 def _facts(project: Project) -> ProjectFacts:
@@ -211,6 +212,7 @@ def _facts(project: Project) -> ProjectFacts:
         project.current_revision_id,
         project.inflation_rate,
         project.win_probability,
+        project.reference_revision_id,
     )
 
 
