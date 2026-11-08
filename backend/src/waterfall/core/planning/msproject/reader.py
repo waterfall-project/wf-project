@@ -236,7 +236,8 @@ def _lineage(element: Tag, lineage_field: str | None) -> UUID | None:
     values = [
         _value(attribute, "Value")
         for attribute in element.every("ExtendedAttribute")
-        if _value(attribute, "FieldID") in {lineage_field, LINEAGE_FIELD_ID}
+        if (field_id := _value(attribute, "FieldID")) is not None
+        and field_id in {lineage_field, LINEAGE_FIELD_ID}
     ]
     for value in [*values, _value(element, "GUID")]:
         if value is not None:
@@ -342,6 +343,7 @@ def _ignored(root: Tag, project: MsProject) -> tuple[Ignored, ...]:
         element
         for element in _every(root, "ExtendedAttributes", "ExtendedAttribute")
         if _value(element, "Alias") != LINEAGE_ALIAS
+        and _value(element, "FieldID") != LINEAGE_FIELD_ID
     ]
     summaries = {uid for uid in project.parents().values() if uid is not None}
     leaves = [task for task in tasks if _required(task, "UID") not in summaries]

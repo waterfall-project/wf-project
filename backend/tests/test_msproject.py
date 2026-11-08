@@ -478,6 +478,27 @@ def test_a_lineage_is_found_by_the_field_when_its_alias_was_renamed() -> None:
     assert [task.lineage for task in tasks] == [DESIGN, None]
 
 
+@pytest.mark.requirement("WF-QUA-0080-A")
+def test_an_attribute_without_a_field_is_not_a_lineage() -> None:
+    content = _tasks_file(
+        "<Task><UID>1</UID><OutlineLevel>1</OutlineLevel><ExtendedAttribute>"
+        f"<Value>{DESIGN}</Value></ExtendedAttribute></Task>"
+    )
+
+    assert read_project(content).project.tasks[0].lineage is None
+
+
+@pytest.mark.requirement("WF-QUA-0080-A")
+def test_a_lineage_field_with_a_renamed_alias_is_not_a_custom_field() -> None:
+    content = (
+        b'<Project xmlns="http://schemas.microsoft.com/project"><ExtendedAttributes>'
+        b"<ExtendedAttribute><FieldID>188743731</FieldID><Alias>Mine</Alias></ExtendedAttribute>"
+        b"</ExtendedAttributes></Project>"
+    )
+
+    assert read_project(content).ignored == ()
+
+
 def test_an_entity_of_the_file_is_never_resolved() -> None:
     content = (
         b'<?xml version="1.0"?>\n<!DOCTYPE Project [<!ENTITY name SYSTEM "file:///etc/hostname">]>'
