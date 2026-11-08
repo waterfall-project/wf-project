@@ -34,7 +34,10 @@ if TYPE_CHECKING:
 class FacetHooks:
     """What the planning asks of the facet of a kind of node.
 
-    ``read(session, project_id, node_ids)`` gives the facet of each node named, by node;
+    ``read(session, project_id, node_ids)`` gives the facet of each node named, by node: nothing
+    calls it yet. ``listNodes`` will, for the lines it returns, when EP-07 registers the facet of
+    its kind (EP-06, "Les points d'extension": « `listNodes` rend la facette »); the tasks have
+    no line to ask it for;
     ``copy(copy)`` copies the facets of the source into the revision opened, the nodes copied found
     in ``copy.identifiers``; ``delete(session, project_id, node_ids)`` deletes the facets of the
     nodes deleted; ``calendars(session, project_id, task_id)`` gives the calendars of the roles of

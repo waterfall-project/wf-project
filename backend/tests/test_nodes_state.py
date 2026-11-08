@@ -26,10 +26,10 @@ from nodes_support import (
     refusal,
     signed_in,
 )
-from planning_support import insert_link
+from planning_support import insert_link, node_row
 from projects_support import PROJECTS, Scene, contribute, person, put_in_state
 from projects_support import scene as make_scene
-from sqlalchemy import func, select
+from sqlalchemy import func, insert, select
 
 from waterfall.core.history.tables import UndoEntry
 from waterfall.core.planning.interface import FacetHooks, calendar_of, register_facet
@@ -39,11 +39,14 @@ from waterfall.platform.audit import Act
 from waterfall.platform.database import utc_now
 
 if TYPE_CHECKING:
+    from collections.abc import Callable, Collection
+
     from realm import TestRealm
     from sqlalchemy import Engine
     from sqlalchemy.orm import Session
     from support import ContractClient
 
+    from waterfall.core.revisions.interface import RevisionCopy
     from waterfall.platform.database import Database
 
 
@@ -210,6 +213,58 @@ def test_the_abandonment_of_a_full_revision_leaves_no_node_no_facet_no_link(
     with stage.database.transaction() as session:
         for table in (Node, Task, TaskLink, UndoEntry):
             assert session.scalar(select(func.count()).select_from(table)) == 0, table
+
+
+def spy(
+    copied: list[tuple[UUID, UUID]], deleted: list[tuple[UUID, set[UUID]]]
+) -> Callable[[], None]:
+    """Register the facet of the lines with hooks that note the copies and the deletions."""
+
+    def copy(copy: RevisionCopy) -> None:
+        copied.append((copy.source, copy.target))
+
+    def delete(session: Session, project: UUID, node_ids: Collection[UUID]) -> None:
+        del session
+        deleted.append((project, set(node_ids)))
+
+    def read(*_: object) -> dict[UUID, object]:
+        return {}
+
+    def calendars(*_: object) -> set[UUID]:
+        return set()
+
+    return register_facet("estimate_line", FacetHooks(read, copy, delete, calendars))
+
+
+@pytest.mark.requirement("WF-DAT-0010-A")
+def test_the_copy_of_a_revision_and_the_abandonment_of_another_call_the_hooks_of_a_facet(
+    api: ContractClient, tree: Tree, stage: Scene
+) -> None:
+    project_id, revision_id = UUID(stage.project["project_id"]), UUID(tree.revision["revision_id"])
+    copied: list[tuple[UUID, UUID]] = []
+    deleted: list[tuple[UUID, set[UUID]]] = []
+    tree.made("Câblage")
+    withdraw = spy(copied, deleted)
+    try:
+        mark(stage, tree.revision)
+        successor = opened(api, stage)
+        assert copied == [(revision_id, UUID(successor["revision_id"]))]
+        assert deleted == []
+        structure_id = UUID(Tree(api, stage, successor).structure_id)
+        line = node_row(
+            project_id, UUID(successor["revision_id"]), structure_id, kind="estimate_line", rank=1
+        )
+        with stage.owner.begin() as connection:
+            connection.execute(insert(Node).values(**line))
+        path = f"{PROJECTS}/{stage.project['project_id']}/revisions/{successor['revision_id']}"
+        current = api.get(path, headers=stage.manager.headers).json()
+        gone = api.delete(
+            f"{path}?lock_version={current['lock_version']}", headers=stage.manager.headers
+        )
+        assert gone.status_code == 204, gone.text
+    finally:
+        withdraw()
+    assert deleted == [(project_id, {line["id"]})]
 
 
 @pytest.mark.requirement("WF-DAT-0010-A")
