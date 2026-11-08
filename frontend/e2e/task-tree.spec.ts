@@ -61,5 +61,10 @@ test("leads from the planning to its task tree, read only, its depth in the addr
   const tasks = page
     .getByRole("dialog", { name: "Tâches et messages" })
     .getByRole("region", { name: "Tâches de fond" });
-  await expect(tasks.getByRole("listitem").filter({ hasText: /Export/ }).first()).toBeVisible();
+  await expect(
+    tasks
+      .getByRole("listitem")
+      .filter({ hasText: /Export/ })
+      .first(),
+  ).toBeVisible();
 });
