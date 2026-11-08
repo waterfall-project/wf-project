@@ -10,9 +10,22 @@ parser of the exchanges (EP-06, "Le format MS Project").
 
 Declared by US-1380/L1; each method raises ``NotImplementedError`` naming the story that fills it,
 so that an import or an export of a planning before it fails, and never passes without effect.
+
+The format is filled by US-1430/L3. The head of a file is recognised by its root, a ``Project`` of
+the namespace of MS Project, after the declaration, the comments and the instructions; anything
+else is refused (422 ``FILE_FORMAT_UNREADABLE``, ``expected_format``: MSPDI has no version). The
+whole file is read by the reader at the analysis, which fails the import on a file it cannot read.
+The analysis and the application build the same plan (``importing``), the application under the
+lock of the structure, which the task of the exchanges takes after the revision and the project.
 """
 
+import re
 from typing import TYPE_CHECKING, Any
+
+from waterfall.core.planning.applying import apply_plan
+from waterfall.core.planning.importing import plan_import, report_of
+from waterfall.core.planning.msproject import NAMESPACES, UnreadableProjectError, read_project
+from waterfall.platform.errors import UnprocessableError
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
@@ -25,10 +38,39 @@ if TYPE_CHECKING:
         ImportScope,
         ImportTarget,
     )
+    from waterfall.core.planning.msproject import ReadProject
     from waterfall.platform.audit import Act
 
 # The bytes of the head of a file the header is read in: the declaration and the root of MSPDI.
 HEADER_LENGTH = 4096
+FILE_FORMAT_UNREADABLE = "FILE_FORMAT_UNREADABLE"
+KIND = "ms_project_schedule"
+# What may precede the root of a file: a mark of its encoding, its declaration, comments,
+# instructions and blanks; then the root, its name and its attributes as far as the head holds.
+PROLOG = re.compile(
+    rb"(?:\xef\xbb\xbf)?(?:\s|<\?.*?\?>|<!--.*?-->)*<(?:(?P<prefix>[\w.-]+):)?Project(?P<attributes>[\s>/][^>]*)",
+    re.DOTALL,
+)
+NAMESPACE_DECLARATION = re.compile(
+    rb"""xmlns(?::(?P<prefix>[\w.-]+))?\s*=\s*["'](?P<uri>[^"']*)["']"""
+)
+
+
+def _unreadable() -> UnprocessableError:
+    """Give the refusal of a file that is no planning of MS Project."""
+    return UnprocessableError(FILE_FORMAT_UNREADABLE, {"expected_format": KIND})
+
+
+def recognised(head: bytes) -> bool:
+    """Tell whether the head of a file opens a ``Project`` of the namespace of MS Project."""
+    root = PROLOG.match(head)
+    if root is None:
+        return False
+    prefix = root.group("prefix")
+    for declared in NAMESPACE_DECLARATION.finditer(root.group("attributes")):
+        if declared.group("prefix") == prefix:
+            return declared.group("uri").decode(errors="replace") in NAMESPACES
+    return False
 
 
 class MsProjectFormat:
@@ -43,8 +85,9 @@ class MsProjectFormat:
 
     def read_header(self, session: Session, head: bytes) -> None:
         """Refuse the head of a file that is not a planning of MS Project."""
-        msg = "read_header is filled by US-1430/L3"
-        raise NotImplementedError(msg)
+        del session
+        if not recognised(head):
+            raise _unreadable()
 
     def judge(self, session: Session, target: ImportTarget) -> None:
         """Refuse an import of a planning on the state of its structure: none until US-1430/L3."""
@@ -52,8 +95,9 @@ class MsProjectFormat:
 
     def analyse(self, session: Session, target: ImportTarget, content: bytes) -> Mapping[str, Any]:
         """Give the report of a planning of MS Project against a structure, writing nothing."""
-        msg = "analyse is filled by US-1430/L3"
-        raise NotImplementedError(msg)
+        read = _read(content)
+        plan, items = plan_import(session, target, read, lock=False)
+        return report_of(plan, read, items)
 
     def apply(
         self,
@@ -63,9 +107,22 @@ class MsProjectFormat:
         report: Mapping[str, Any],
         act: Act,
     ) -> None:
-        """Write the report of a planning of MS Project into a structure."""
-        msg = "apply is filled by US-1430/L3"
-        raise NotImplementedError(msg)
+        """Write the report of a planning of MS Project into a structure, judged again.
+
+        The plan is built again under the lock of the structure: what changed since the analysis
+        is judged as it now stands, and a refusal fails the import.
+        """
+        del report
+        plan, _ = plan_import(session, target, _read(content), lock=True)
+        apply_plan(session, plan, act)
+
+
+def _read(content: bytes) -> ReadProject:
+    """Read a whole file; one the reader cannot read is refused as its head would be."""
+    try:
+        return read_project(content)
+    except UnreadableProjectError as error:
+        raise _unreadable() from error
 
 
 class MsProjectExporter:

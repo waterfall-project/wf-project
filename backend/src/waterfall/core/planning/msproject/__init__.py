@@ -48,9 +48,35 @@ from waterfall.core.planning.msproject.reader import (
     read_project as read_project,
 )
 
+# ``translation`` (US-1430/L3): a planning of the file in the hours, units and instants of work.
+from waterfall.core.planning.msproject.translation import (
+    FileCalendar as FileCalendar,
+)
+from waterfall.core.planning.msproject.translation import (
+    calendar_of as calendar_of,
+)
+from waterfall.core.planning.msproject.translation import (
+    calendars_of as calendars_of,
+)
+from waterfall.core.planning.msproject.translation import (
+    constants_of as constants_of,
+)
+from waterfall.core.planning.msproject.translation import (
+    duration_of as duration_of,
+)
+from waterfall.core.planning.msproject.translation import (
+    hours_of as hours_of,
+)
+from waterfall.core.planning.msproject.translation import (
+    lag_of as lag_of,
+)
+
 # ``tree``: the namespaces of MSPDI.
 from waterfall.core.planning.msproject.tree import (
     NAMESPACE as NAMESPACE,
+)
+from waterfall.core.planning.msproject.tree import (
+    NAMESPACES as NAMESPACES,
 )
 
 # ``writer``: the model into an MSPDI file, in the order of the schema.
