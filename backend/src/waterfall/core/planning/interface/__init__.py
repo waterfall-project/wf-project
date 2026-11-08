@@ -140,6 +140,12 @@ from waterfall.core.planning.interface.paste import (
 
 # ``predecessors`` (US-1380/L1; US-1390/L2): the predecessors of a task.
 from waterfall.core.planning.interface.predecessors import (
+    PredecessorSent as PredecessorSent,
+)
+from waterfall.core.planning.interface.predecessors import (
+    PredecessorsEntry as PredecessorsEntry,
+)
+from waterfall.core.planning.interface.predecessors import (
     set_predecessors as set_predecessors,
 )
 
@@ -158,6 +164,9 @@ from waterfall.core.planning.interface.progress import (
 )
 
 # ``reference`` (US-1380/L1; US-1390/L2): what the planning answers to the reference.
+from waterfall.core.planning.interface.reference import (
+    redate_copy as redate_copy,
+)
 from waterfall.core.planning.interface.reference import (
     reschedule_current_structures as reschedule_current_structures,
 )
@@ -180,7 +189,7 @@ from waterfall.core.planning.interface.snapshots import (
 
 # ``structures`` (US-1380/L1; US-1380/L2, US-1390/L2): the dates, the start and the label.
 from waterfall.core.planning.interface.structures import (
-    Holding as Holding,
+    StructureChange as StructureChange,
 )
 from waterfall.core.planning.interface.structures import (
     reschedule as reschedule,
@@ -225,6 +234,9 @@ from waterfall.core.planning.interface.work_breakdown import (
 )
 from waterfall.core.planning.interface.work_breakdown import (
     work_breakdown_item_cited as work_breakdown_item_cited,
+)
+from waterfall.core.planning.rescheduling import (
+    Holding as Holding,
 )
 from waterfall.core.planning.scheduling import (
     Duration as Duration,
@@ -271,8 +283,10 @@ from waterfall.core.revisions.interface import (
 )
 
 # The registrations, once, at the import: the copy of the nodes after the structures', whose
-# module this one imports first; the nodes deleted after the history, by the stage of their part.
+# module this one imports first, and their redating after them; the nodes deleted after the
+# history, by the stage of their part.
 register_copy(copy_nodes)
+register_copy(redate_copy)
 register_tasks_and_lines("tasks", revision_has_tasks)
 register_closing("content", delete_nodes)
 register_idle_task_guard(tasks_left_idle)

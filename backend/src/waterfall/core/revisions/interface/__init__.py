@@ -80,16 +80,19 @@ from waterfall.core.revisions.interface.revisions import (
     revisions_present,
 )
 
-# ``structures`` (US-0960; the facts the planning reads, US-1380/L2): the cost structures.
+# ``structures`` (US-0960; the facts the planning reads, US-1380/L2; written, US-1390/L2).
 from waterfall.core.revisions.interface.structures import (
+    CurrentStructure,
     StructureFacts,
     StructureView,
     aimed_structure,
+    current_structures,
     list_cost_structures,
     structure_commands,
     structure_facts,
     structure_in_revision,
     structure_rescheduled,
+    write_structure,
 )
 
 __all__ = [
@@ -97,6 +100,7 @@ __all__ = [
     "KEPT",
     "ClosingKind",
     "ClosingStage",
+    "CurrentStructure",
     "MarkingRequest",
     "ReferenceToDesignate",
     "RevisionClosing",
@@ -118,6 +122,7 @@ __all__ = [
     "create_project_partitions",
     "create_revision",
     "current_revision",
+    "current_structures",
     "designate_reference",
     "last_marked_revision",
     "list_cost_structures",
@@ -141,4 +146,5 @@ __all__ = [
     "structure_in_revision",
     "structure_rescheduled",
     "submit_marking",
+    "write_structure",
 ]

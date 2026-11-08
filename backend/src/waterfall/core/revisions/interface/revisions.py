@@ -44,6 +44,7 @@ from waterfall.core.projects.interface import (
     require_project_manager,
     set_current_revision,
 )
+from waterfall.core.resource_settings.interface import share_reference
 from waterfall.core.revisions.commands import (
     NO_BACKGROUND_TASK_RUNNING,
     NO_CURRENT_REVISION,
@@ -351,8 +352,15 @@ class _Opening:
 
 
 def _open(session: Session, project_id: UUID, act: Act, opening: _Opening) -> Revision:
-    """Open the current revision of a project, under the lock of the project the caller takes."""
+    """Open the current revision of a project, under the lock of the project the caller takes.
+
+    The lock of the reference is shared first, and held until the commit: a change of the units
+    of duration or of a calendar, which redates the structures of the current revisions, waits for
+    the opening, and sees the revision it opens, or is waited for, and the copy is dated with what
+    it wrote (WF-PLA-0160). No holder of the reference waits for the lock of a project.
+    """
     revision_id, description = opening.revision_id, opening.description
+    share_reference(session)
     project = lock_project(session, project_id)
     _judge_opening(session, project_id, project, opening.running)
     source = _last_marked(session, project_id)

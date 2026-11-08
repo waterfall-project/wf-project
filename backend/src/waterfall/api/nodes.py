@@ -371,8 +371,8 @@ def _totals(task_count: int) -> dict[str, Any]:
     }
 
 
-def written(result: NodesWritten) -> dict[str, Any]:
-    """Write what a write of the tree gives back (``NodesWritten``)."""
+def written_of(result: NodesWritten) -> dict[str, Any]:
+    """Write what a write of the tree gives back (``NodesWritten``); ``scheduling`` too."""
     return {
         "nodes": [_node(each) for each in result.nodes],
         "ancestors": [_node(each) for each in result.ancestors],
@@ -486,7 +486,7 @@ def post_node(
         after_given="after_node_id" in body.model_fields_set,
         task=_entry(body.task),
     )
-    return written(create_node(session, place, creation, writer))
+    return written_of(create_node(session, place, creation, writer))
 
 
 @router.patch(
@@ -513,7 +513,7 @@ def patch_task(
     if faults or not sent:
         raise UnprocessableError(VALIDATION_FAILED, fields=tuple(faults))
     change = replace(_entry(body, sent), lock_version=body.lock_version.root)
-    return written(update_task_facet(session, place, node_id, change, writer))
+    return written_of(update_task_facet(session, place, node_id, change, writer))
 
 
 @router.delete(
@@ -530,7 +530,7 @@ def delete_task(
     session: Transaction,
 ) -> dict[str, Any]:
     """Delete a node of a structure and its subtree, at the counter of the node read."""
-    return written(delete_node(session, place, node_id, lock_version, writer))
+    return written_of(delete_node(session, place, node_id, lock_version, writer))
 
 
 @router.post(
@@ -553,7 +553,7 @@ def post_move(
         after_given="after_node_id" in body.model_fields_set,
         lock_version=body.lock_version.root,
     )
-    return written(move_nodes(session, place, moving, writer))
+    return written_of(move_nodes(session, place, moving, writer))
 
 
 @router.get(

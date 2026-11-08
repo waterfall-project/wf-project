@@ -39,7 +39,7 @@ from waterfall.core.planning.scheduling.structure import (
     ScheduledTask,
     TaskWithoutWorkingHoursError,
 )
-from waterfall.core.planning.scheduling.units import Span, decimal_of
+from waterfall.core.planning.scheduling.units import Span, decimal_of, rounded
 
 if TYPE_CHECKING:
     from uuid import UUID
@@ -310,7 +310,8 @@ class _Engine:
             needed = self.shifted(calendar, self.anchor(link), self.span_of_lag(link))
             span = self.early[link.successor_id]
             imposed = span.start if link.link_type in TO_START else span.finish
-            if needed > calendar.count(imposed):
+            # At the scale of the rendering: a manual date is one the engine rendered (#2460).
+            if rounded(needed) > calendar.count(imposed):
                 found.append(LinkConflict(link.predecessor_id, link.successor_id, link.link_type))
         rank = self.plan.rank
         return sorted(found, key=lambda each: (rank[each.predecessor_id], rank[each.successor_id]))
@@ -342,13 +343,15 @@ class _Engine:
         for task in self.structure.tasks:
             task_id = task.task_id
             float_days = self.total_float(task_id)
+            # Judged as it is rendered: a ten-billionth short of a manual date is no float lost.
+            rendered = None if float_days is None else decimal_of(float_days)
             span = self.early[task_id]
             tasks[task_id] = ScheduledTask(
                 start=span.start.instant(),
                 finish=span.finish.instant(),
                 work_hours=decimal_of(self.work(task_id)),
-                total_float=None if float_days is None else decimal_of(float_days),
-                is_critical=float_days is not None and float_days <= 0,
+                total_float=rendered,
+                is_critical=rendered is not None and rendered <= 0,
                 link_conflicts=tuple(
                     each
                     for each in conflicts
