@@ -24,6 +24,7 @@ from nodes_support import (
     faults,
     opened,
     refusal,
+    scheduled_at,
     set_progress,
     signed_in,
 )
@@ -32,7 +33,7 @@ from project_rows import STAMP
 from projects_support import scene as make_scene
 from sqlalchemy import func, insert, select
 
-from waterfall.core.planning import writing
+from waterfall.core.planning import rescheduling, writing
 from waterfall.core.planning.interface import structures
 from waterfall.core.planning.tables import Node, TaskLink, TrackingEntry
 from waterfall.core.revisions.tables import CostStructure
@@ -557,6 +558,7 @@ def test_a_write_of_the_tree_reads_the_facts_of_its_structure_once(
 
     monkeypatch.setattr(writing, "structure_facts", counted)
     monkeypatch.setattr(structures, "structure_facts", counted)
+    monkeypatch.setattr(rescheduling, "structure_facts", counted)
     summary = tree.made("Études")
     assert len(calls) == 1
     calls.clear()
@@ -567,4 +569,15 @@ def test_a_write_of_the_tree_reads_the_facts_of_its_structure_once(
     assert len(calls) == 1
     calls.clear()
     assert delete(tree, tree.node(note["node_id"])).status_code == 200
+    assert len(calls) == 1
+
+    # A caller that has read nothing hands the replay no facts: it reads them, once, under the lock.
+    calls.clear()
+    with tree.stage.database.transaction() as session:
+        structures.reschedule(
+            session,
+            UUID(tree.stage.project["project_id"]),
+            UUID(tree.structure_id),
+            scheduled_at(tree),
+        )
     assert len(calls) == 1
