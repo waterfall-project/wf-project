@@ -146,6 +146,10 @@ class Keycloak:
         moment of issue, a moment of sign-in that is none or that no date can hold, or a session
         that is no text or an empty one — is ``SESSION_REQUIRED`` (401). The signature is checked
         first: an expired token signed by another key is not merely expired.
+
+        The session is judged on two cases apart: a ``sid`` present but empty, or no text, is a
+        fault, refused; a token without ``sid`` is accepted, its ``session_id`` ``None``. What the
+        history does of a caller without a session is not decided here (#2472, for US-1450/L2).
         """
         try:
             key_id = jwt.get_unverified_header(token).get("kid")

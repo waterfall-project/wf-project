@@ -22,7 +22,10 @@ if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
 
-def purge(session: Session, before: datetime, now: datetime) -> None:
-    """Remove the entries written before ``before``, and the plans expired at ``now``."""
+def purge(session: Session, *, before: datetime, now: datetime) -> None:
+    """Remove the entries written before ``before``, and the plans expired at ``now``.
+
+    Both moments are named at the call: two dates of one type, which an order would let swap.
+    """
     session.execute(delete(UndoEntry).where(UndoEntry.created_at < before))
     session.execute(delete(PastePlan).where(PastePlan.expires_at <= now))
