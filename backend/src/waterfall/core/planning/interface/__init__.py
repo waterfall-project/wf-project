@@ -24,6 +24,10 @@ they serve or explicitly (#2180).
 # ``closing`` (US-1380/L1; US-1380/L2): the nodes of a revision abandoned.
 # The registries the planning fills.
 from waterfall.core.exchanges.interface import register_exporter, register_format
+
+# The history first: it registers its closing stage before the planning's, whichever file of the
+# planning an entry point imports first (the order of ``revisions.closing`` is the import's).
+from waterfall.core.history import interface as _history_interface  # noqa: F401
 from waterfall.core.planning.interface.closing import (
     delete_nodes as delete_nodes,
 )
