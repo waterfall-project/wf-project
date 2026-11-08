@@ -69,6 +69,7 @@ from waterfall.core.resource_settings.interface import (
     update_calendar,
 )
 from waterfall.core.revisions.interface import (
+    CLOSING_STAGES,
     RevisionClosing,
     closers,
     mark_revision,
@@ -127,12 +128,14 @@ for name in sys.argv[1:]:
 held = {name: [named(entry) for entry in entries] for name, entries in registries().items()}
 print(json.dumps(held))
 """
+# The registry whose order of registration does not count across its stages (#2470).
+CLOSING = "revisions.closing"
 # Every registry of the core and of the witness EP-04 and EP-06 declare.
 DECLARED = {
     "revisions.copy",
     "revisions.tasks_and_lines",
     "revisions.indicators",
-    "revisions.closing",
+    CLOSING,
     "resource_settings.idle_task_guard",
     "resource_settings.recalculation",
     "projects.attachments",
@@ -161,7 +164,7 @@ REGISTERED = {
         )
     ],
     "projects.opening": [f"{PLANNING}.skeleton.opening_with_tasks"],
-    "revisions.closing": [
+    CLOSING: [
         "history:waterfall.core.history.interface.closing.close_history",
         f"content:{PLANNING}.closing.delete_nodes",
     ],
@@ -174,8 +177,20 @@ REGISTERED = {
 }
 
 
+def as_run(name: str, entries: list[str]) -> list[str]:
+    """Give the entries of a registry in the order they act.
+
+    The closings run stage by stage whatever the order of the imports (``closers``), each stage in
+    the order of its registrations: a process that imports the planning before the history holds
+    the same closings, which run in the same order.
+    """
+    if name != CLOSING:
+        return entries
+    return sorted(entries, key=lambda entry: CLOSING_STAGES.index(entry.split(":")[0]))
+
+
 def registered_in(*modules: str) -> dict[str, list[str]]:
-    """Give the registries of a process that imports these modules alone, by name."""
+    """Give the registries of a process that imports these modules alone, by name, as they act."""
     result = subprocess.run(
         [sys.executable, "-c", DUMP, *modules],
         capture_output=True,
@@ -183,7 +198,8 @@ def registered_in(*modules: str) -> dict[str, list[str]]:
         timeout=120,
         check=True,
     )
-    return json.loads(result.stdout)
+    held: dict[str, list[str]] = json.loads(result.stdout)
+    return {name: as_run(name, entries) for name, entries in held.items()}
 
 
 @pytest.fixture(scope="module")

@@ -138,10 +138,16 @@ from waterfall.core.exchanges.interface.purge import (
     Purged as Purged,
 )
 from waterfall.core.exchanges.interface.purge import (
+    Stored as Stored,
+)
+from waterfall.core.exchanges.interface.purge import (
     purge as purge,
 )
 from waterfall.core.exchanges.interface.purge import (
     remove_purged as remove_purged,
+)
+from waterfall.core.exchanges.interface.purge import (
+    stored_before as stored_before,
 )
 
 # ``xml`` (US-1380/L1): the hardened reader of an XML file deposited, for every XML format.

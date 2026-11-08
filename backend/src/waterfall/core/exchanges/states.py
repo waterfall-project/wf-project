@@ -25,6 +25,9 @@ IS_CONTRIBUTOR = "is_contributor"
 # The states of an import whose task runs; those in which it has written or writes.
 RUNNING = ("analysing", "applying")
 WRITING = ("applying", "applied")
+# The states in which an import keeps its file: it is being analysed, awaits its decision, or is
+# being applied.
+FILE_KEPT = ("analysing", "analysed", "applying")
 # The states of an import that ended without writing: abandoning it again changes nothing.
 ENDED_WITHOUT_WRITING = ("abandoned", "expired", "failed", "refused")
 

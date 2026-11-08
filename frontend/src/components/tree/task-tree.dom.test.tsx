@@ -8,17 +8,24 @@ import type { NodeList } from "@/components/grid/nodes";
 import { expectAccessible } from "@/test/axe";
 import { example } from "@/test/fixtures";
 
-import { summaryTree } from "./summaries";
+import { hangTree } from "./summaries";
 import { TaskTree } from "./task-tree";
 
-// The summaries of the core of the witness, down to the second level.
-const core = (example("nodes_core") as NodeList).items.filter((node) => node.kind === "task");
+// The summaries of the core of the witness, as the server renders them down to a level
+// (`summaries_only`, `max_level`): the tree itself keeps nothing aside (#496).
+const core = (example("nodes_core") as NodeList).items.filter(
+  (node) => node.task?.is_summary === true,
+);
 const PROJECT = "Modernisation du poste de commande";
 
 /** Render the tree of the core at a depth. */
 function renderTree(depth = 2) {
   return render(
-    <TaskTree name="Arborescence" project={PROJECT} nodes={summaryTree(core, depth)} />,
+    <TaskTree
+      name="Arborescence"
+      project={PROJECT}
+      nodes={hangTree(core.filter((node) => node.level <= depth))}
+    />,
   );
 }
 

@@ -474,7 +474,7 @@ def test_the_command_of_the_kind_is_present_without_condition_or_absent_and_refu
         )
     # The exports remain on a project that ended, where no other command does.
     put_in_state(owner, stage.project["project_id"], "completed")
-    assert commands() == {"export_planning": []}
+    assert commands() == {"export_planning": [], "export_task_tree_image": []}
     assert ask(api, stage, revision_id).status_code == 202
 
 
@@ -501,10 +501,11 @@ def test_the_exports_are_listed_to_whoever_may_consult_the_planning_and_to_no_ot
         marked=True, no_task_running=False, has_tasks_and_lines=False, reference_correctable=False
     )
     reading = revision_commands(("planning.read",), None, "in_progress", revision)
-    assert reading == [("export_planning", ())]
+    assert reading == [("export_planning", ()), ("export_task_tree_image", ())]
     assert revision_commands((), None, "in_progress", revision) == []
     assert revision_commands(("planning.read",), None, "lost", revision) == [
-        ("export_planning", ())
+        ("export_planning", ()),
+        ("export_task_tree_image", ()),
     ]
 
 
