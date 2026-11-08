@@ -105,7 +105,9 @@ test("offers « Engendrer le planning » on the work breakdown reached from the 
   await expect(section).toBeVisible({ timeout: WORKING });
   const generate = section.getByRole("button", { name: "Engendrer le planning" });
   await expect(generate).toHaveAttribute("aria-disabled", "true");
-  await expect(generate).toHaveAccessibleDescription(/Condition non remplie\s: .*tâche/);
+  await expect(generate).toHaveAccessibleDescription(
+    /Condition non remplie\s: .*structure principale sans aucune tâche/,
+  );
 
   // Pressed, from the keyboard as from the pointer, it asks nothing and leads nowhere.
   const sent: string[] = [];
@@ -148,6 +150,9 @@ test("starts the planning of the project created from its encart: the work break
     path = own.path;
     planning = new RegExp(`${own.path}/revisions/[^/]+/planning`);
   }
+  // Two proofs of the fake back alone, either side of `openHydrated` (the compiled route must exist before
+  // the page opens, the encart can be read only after): the service neither compiles the planning nor lists
+  // `import_planning` with the import of the schedule (US-1430) yet.
   if (!inService) {
     await compile(
       page.request,
@@ -159,8 +164,6 @@ test("starts the planning of the project created from its encart: the work break
   const encart = page.getByRole("region", { name: "Démarrer le projet" });
   await expect(encart).toBeVisible({ timeout: WORKING });
   if (!inService) {
-    // The project lists `import_planning` with the import of the schedule (US-1430): the fake back
-    // lists it, the service not before.
     await expect(
       encart.getByRole("button", { name: "Importer un fichier MS Project" }),
     ).toBeVisible();
