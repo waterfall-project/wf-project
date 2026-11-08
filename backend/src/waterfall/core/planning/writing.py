@@ -27,8 +27,8 @@ from typing import TYPE_CHECKING
 from waterfall.core.history import interface as history
 from waterfall.core.history.interface import RecordedChange, Recording, UndoStack
 from waterfall.core.planning.dating import conflicts_of
-from waterfall.core.planning.interface.snapshots import snapshot
 from waterfall.core.planning.rescheduling import Blamed, Holding, replayed
+from waterfall.core.planning.snapshotting import taken
 from waterfall.core.planning.tree import read_links, read_tree
 from waterfall.core.planning.views import NodeView, Reading, ScheduleView
 from waterfall.core.projects.interface import no_background_task_running, project_facts
@@ -155,7 +155,7 @@ class Write:
 
     def before(self, node_ids: Collection[UUID]) -> None:
         """Hand the history the nodes the write touches, as they are before it."""
-        self.frame.keep_before(snapshot(self.session, self.place.project_id, node_ids))
+        self.frame.keep_before(taken(self.session, self.place.project_id, node_ids))
 
     def redate(self, blamed: tuple[UUID | None, str] | None, origin: Origin = None) -> Redated:
         """Replay the engine on the structure written, keep what it computes, advance it.
@@ -172,7 +172,7 @@ class Write:
 
     def after(self, node_ids: Collection[UUID]) -> None:
         """Hand the history the nodes the write touched, as they are after it, redated."""
-        self.frame.keep_after(snapshot(self.session, self.place.project_id, node_ids))
+        self.frame.keep_after(taken(self.session, self.place.project_id, node_ids))
 
 
 def redated_structure(

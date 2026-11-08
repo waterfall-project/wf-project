@@ -33,9 +33,9 @@ from sqlalchemy import select
 from waterfall.core.history.interface import UNDO_CONFLICT, ObjectState
 from waterfall.core.planning.attachments import ORDER_ITEM_ID, WORK_PACKAGE_ID, carriers
 from waterfall.core.planning.dating import conflicts_of
-from waterfall.core.planning.interface.snapshots import snapshot
 from waterfall.core.planning.interface.structures import structure_state
 from waterfall.core.planning.shaping import PARKED, deleted
+from waterfall.core.planning.snapshotting import taken
 from waterfall.core.planning.tables import Node, Task, TaskLink, Timeline, TrackingEntry
 from waterfall.core.planning.tree import read_links, read_tree, tracking_of
 from waterfall.core.planning.writing import redated_structure
@@ -83,7 +83,7 @@ def read_objects(session: Session, project_id: UUID, object_ids: tuple[UUID, ...
 
     Those absent are left out.
     """
-    found = snapshot(session, project_id, object_ids)
+    found = taken(session, project_id, object_ids)
     known = {state.object_id for state in found}
     structures: list[ObjectState] = []
     for each in object_ids:
@@ -397,7 +397,7 @@ def _restore_structure(
     return redated.written(())
 
 
-def restore(
+def bring_back(
     session: Session,
     place: Place,
     facts: StructureFacts,
@@ -436,5 +436,5 @@ def restore(
     _restore_tracking(session, project_id, restoration, restoring.kind)
     redated = redated_structure(session, place, writer.act, (facts, None, conflicts))
     ids = tuple(state.object_id for state in restoring.restored)
-    restoring.keep_present(snapshot(session, project_id, ids))
+    restoring.keep_present(taken(session, project_id, ids))
     return redated.written(ids, former)
