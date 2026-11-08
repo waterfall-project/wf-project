@@ -16,6 +16,7 @@ ASKED: dict[str, tuple[str, ...]] = {
     "listTimelines": (CONSULT,),
     "createTimeline": (CONSULT, CHANGE),
     "deleteTimeline": (CONSULT, CHANGE),
+    "setNodeTracking": (CONSULT, CHANGE),
 }
 # The quality on its project each operation that names one asks for, evaluated by
 # ``RequiresProject``: ``consultation`` — its contributor, or holding ``all_projects_read`` —,
@@ -24,4 +25,5 @@ ON_PROJECT: dict[str, str] = {
     "listTimelines": "consultation",
     "createTimeline": "contributor",
     "deleteTimeline": "contributor",
+    "setNodeTracking": "contributor",
 }

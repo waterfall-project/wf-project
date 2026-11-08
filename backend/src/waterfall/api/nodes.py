@@ -366,7 +366,7 @@ def _totals(task_count: int) -> dict[str, Any]:
     }
 
 
-def _written(written: NodesWritten) -> dict[str, Any]:
+def written_body(written: NodesWritten) -> dict[str, Any]:
     """Write what a write of the tree gives back (``NodesWritten``)."""
     return {
         "nodes": [_node(each) for each in written.nodes],
@@ -490,7 +490,7 @@ def post_node(
         after_given="after_node_id" in body.model_fields_set,
         task=_entry(body.task),
     )
-    return _written(create_node(session, place, creation, writer))
+    return written_body(create_node(session, place, creation, writer))
 
 
 @router.patch(
@@ -518,7 +518,7 @@ def patch_task(
     if faults or not sent:
         raise UnprocessableError(VALIDATION_FAILED, fields=tuple(faults))
     change = replace(_entry(body, sent), lock_version=body.lock_version.root)
-    return _written(update_task_facet(session, place, node_id, change, writer))
+    return written_body(update_task_facet(session, place, node_id, change, writer))
 
 
 @router.get(
