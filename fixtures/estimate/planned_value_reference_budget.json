@@ -1,0 +1,22 @@
+{
+  "summary": "Un projet dont le budget de référence est de 1 000, en deux lignes de 400 et de 600 portées par deux tâches de deux semaines, du 2 au 13 mars et du 16 au 27 mars 2026, sur un calendrier de huit heures du lundi au vendredi : la valeur planifiée vaut 1 000 le 27 mars, la date de fin de la dernière tâche, et 0 le 1er mars, avant le début de la première (WF-DEV-0080-A).",
+  "examples": ["WF-DEV-0080-A#97ee98949ad1"],
+  "weekly_hours": {
+    "monday": "8",
+    "tuesday": "8",
+    "wednesday": "8",
+    "thursday": "8",
+    "friday": "8",
+    "saturday": "0",
+    "sunday": "0"
+  },
+  "budget": "1000",
+  "lines": [
+    {"amount": "400", "start": "2026-03-02", "finish": "2026-03-13", "finish_hours": "8"},
+    {"amount": "600", "start": "2026-03-16", "finish": "2026-03-27", "finish_hours": "8"}
+  ],
+  "values": [
+    {"at": "2026-03-01", "value": "0"},
+    {"at": "2026-03-27", "value": "1000"}
+  ]
+}
