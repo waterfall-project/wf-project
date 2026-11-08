@@ -1,0 +1,6 @@
+# SPDX-FileCopyrightText: 2026 waterfall-project
+# SPDX-License-Identifier: AGPL-3.0-only
+# The helpers of XlsxWriter on cell references.
+
+def xl_col_to_name(col: int, col_abs: bool = False) -> str: ...
+def xl_rowcol_to_cell(row: int, col: int, row_abs: bool = False, col_abs: bool = False) -> str: ...
