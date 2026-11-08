@@ -31,9 +31,8 @@ from nodes_support import (
 from planning_support import DAY, insert_link
 from project_rows import STAMP
 from projects_support import scene as make_scene
-from sqlalchemy import func, insert, select
+from sqlalchemy import Engine, event, func, insert, select
 
-from waterfall.core.planning import rescheduling, writing
 from waterfall.core.planning.interface import structures
 from waterfall.core.planning.tables import Node, TaskLink, TrackingEntry
 from waterfall.core.revisions.tables import CostStructure
@@ -41,7 +40,6 @@ from waterfall.core.revisions.tables import CostStructure
 if TYPE_CHECKING:
     from projects_support import Person, Scene
     from realm import TestRealm
-    from sqlalchemy import Engine
     from support import ContractClient
 
     from waterfall.platform.database import Database
@@ -559,21 +557,21 @@ def test_a_selection_of_a_summary_and_its_subordinate_moves_the_group_whole(tree
 
 @pytest.mark.requirement("WF-PLA-0040-A")
 def test_a_write_of_the_tree_reads_the_facts_of_its_structure_once(
-    tree: Tree, monkeypatch: pytest.MonkeyPatch
+    tree: Tree, request: pytest.FixtureRequest
 ) -> None:
     # #2492: the facts of the structure, read under its lock, are handed to the replay; a second
     # reading under the lock would lock the structure again.
     calls: list[int] = []
-    real = writing.structure_facts
 
-    def counted(*args: Any, **kwargs: Any) -> Any:
-        if kwargs.get("lock"):
+    # Counted at the database, whichever module asks: a name imported elsewhere and reading the
+    # facts again under the lock would be missed by a patch of a function.
+    def counted(_conn: Any, _cursor: Any, statement: str, *_rest: Any) -> None:
+        text = " ".join(statement.lower().split())
+        if "from cost_structure" in text and " for update" in text:
             calls.append(1)
-        return real(*args, **kwargs)
 
-    monkeypatch.setattr(writing, "structure_facts", counted)
-    monkeypatch.setattr(structures, "structure_facts", counted)
-    monkeypatch.setattr(rescheduling, "structure_facts", counted)
+    event.listen(Engine, "before_cursor_execute", counted)
+    request.addfinalizer(lambda: event.remove(Engine, "before_cursor_execute", counted))
     summary = tree.made("Études")
     assert len(calls) == 1
     calls.clear()
@@ -583,7 +581,14 @@ def test_a_write_of_the_tree_reads_the_facts_of_its_structure_once(
     moved(tree, [tree.node(note["node_id"])], None)
     assert len(calls) == 1
     calls.clear()
-    assert delete(tree, tree.node(note["node_id"])).status_code == 200
+    deleted = delete(tree, tree.node(note["node_id"]))
+    assert deleted.status_code == 200, deleted.text
+    assert len(calls) == 1
+    # The write of the structure itself builds the structure after from what it read (#2513).
+    calls.clear()
+    sent = {"label": "Autre", "lock_version": deleted.json()["structure_lock_version"]}
+    answer = tree.api.patch(tree.path, headers=tree.stage.manager.headers, json=sent)
+    assert answer.status_code == 200, answer.text
     assert len(calls) == 1
 
     # A caller that has read nothing hands the replay no facts: it reads them, once, under the lock.

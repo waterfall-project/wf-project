@@ -49,6 +49,7 @@ from waterfall.core.exchanges.interface import register_format
 from waterfall.core.exchanges.states import AWAITING_DECISION, FILE_ACCEPTED, apply_lacks
 from waterfall.core.exchanges.tables import ImportReport
 from waterfall.core.history.tables import UndoEntry
+from waterfall.core.projects.interface import PROJECT_NOT_TERMINAL
 from waterfall.core.revisions.tables import CostStructure, Revision
 from waterfall.platform.audit import AuditEntry
 from waterfall.platform.keycloak_admin import KeycloakAdmin
@@ -501,7 +502,7 @@ def test_the_passing_conditions_are_among_those_the_judgments_name_and_no_other(
         and isinstance(call.args[0], ast.Name)
     }
     assert state == {
-        judgments.PROJECT_NOT_TERMINAL,
+        PROJECT_NOT_TERMINAL,
         judgments.NO_BACKGROUND_TASK_RUNNING,
         judgments.MAY_CREATE_REVISION,
     }
@@ -509,4 +510,4 @@ def test_the_passing_conditions_are_among_those_the_judgments_name_and_no_other(
     assert lacking == {AWAITING_DECISION, FILE_ACCEPTED}
     assert set(judgments.PASSING) == {"no_background_task_running", "may_create_revision"}
     assert set(judgments.PASSING) <= state
-    assert not set(judgments.PASSING) & ({judgments.PROJECT_NOT_TERMINAL} | lacking)
+    assert not set(judgments.PASSING) & ({PROJECT_NOT_TERMINAL} | lacking)

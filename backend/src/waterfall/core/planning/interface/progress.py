@@ -32,14 +32,13 @@ from waterfall.core.planning.tables import Node, Task
 from waterfall.core.planning.tree import TASK, read_tree
 from waterfall.core.planning.views import COMPLETED, NOT_STARTED, STARTED
 from waterfall.core.planning.writing import (
-    TERMINAL,
     NodesWritten,
     Place,
     Writer,
     facts_of,
     writing,
 )
-from waterfall.core.projects.interface import current_day, project_facts
+from waterfall.core.projects.interface import TERMINAL, current_day, project_facts
 from waterfall.core.revisions.interface import structure_phase_conditions
 from waterfall.platform.errors import (
     ConflictError,

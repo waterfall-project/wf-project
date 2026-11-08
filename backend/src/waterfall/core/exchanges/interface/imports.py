@@ -34,9 +34,7 @@ from waterfall.core.exchanges import running
 from waterfall.core.exchanges.judgments import (
     IMPORT_KEY,
     PASSING,
-    PROJECT_NOT_TERMINAL,
     REVISION_KEY,
-    TERMINAL,
     ImportScope,
     ImportTarget,
     Judge,
@@ -63,7 +61,13 @@ from waterfall.core.exchanges.states import (
     status_read,
 )
 from waterfall.core.exchanges.tables import ImportReport
-from waterfall.core.projects.interface import CommandAvailability, contributor_kind, lock_project
+from waterfall.core.projects.interface import (
+    PROJECT_NOT_TERMINAL,
+    TERMINAL,
+    CommandAvailability,
+    contributor_kind,
+    lock_project,
+)
 from waterfall.core.revisions.interface import aimed_structure, last_marked_revision
 from waterfall.platform.database import unique_violated
 from waterfall.platform.errors import (

@@ -396,14 +396,18 @@ def create_calendar(
     """Create an active calendar, and read it back; a label already held is refused (409).
 
     ``default`` designates it, the previous default retired: how the bootstrap and the loader of
-    the witness give the installation its calendar. ``identifier`` is imposed by the loader of the
-    witness alone (EP-05): the API never passes one, and one already held fails.
+    the witness give the installation its calendar. It is designated as ``set_default_calendar``
+    designates (#2510): refused if it would leave a task without an hour (422), and the structures
+    of the current revisions redated in the transaction once it is written (``recalculate``) —
+    none, at the bootstrap and before the projects of the witness. ``identifier`` is imposed by the
+    loader of the witness alone (EP-05): the API never passes one, and one already held fails.
     """
     _refuse_hours(new.weekly_hours)
     calendar_id = new_id() if identifier is None else identifier
     if default:
         lock_reference(session)
         _lock_designation(session)
+        _refuse_idle_tasks(session, calendar_id, new.weekly_hours, default=True)
         _retire_default(session, act)
     with _unique_label(session, new.label):
         session.execute(
@@ -420,6 +424,8 @@ def create_calendar(
                 updated_by=act.author,
             )
         )
+    if default:
+        recalculate(session, act.at)
     return read_calendar(session, calendar_id)
 
 

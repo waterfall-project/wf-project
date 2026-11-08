@@ -52,7 +52,7 @@ from waterfall.core.planning.shaping import (
 )
 from waterfall.core.planning.tables import Node, Task, TaskLink
 from waterfall.core.planning.tree import TASK, Tree, read_links, read_tree
-from waterfall.core.planning.views import NodeView, Reading, state_of
+from waterfall.core.planning.views import NOT_STARTED, NodeView, Reading, state_of
 from waterfall.core.planning.writing import (
     NodesWritten,
     Place,
@@ -94,7 +94,6 @@ NODE_NOT_SIBLING = "NODE_NOT_SIBLING"
 MILESTONE_HAS_NO_SUBTASK = "MILESTONE_HAS_NO_SUBTASK"
 STATE_FORBIDS_OPERATION = "STATE_FORBIDS_OPERATION"
 TASK_NOT_STARTED = "task_not_started"
-NOT_STARTED = "not_started"
 
 
 @dataclass(frozen=True, slots=True)
