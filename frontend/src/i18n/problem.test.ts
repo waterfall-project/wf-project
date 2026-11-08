@@ -749,11 +749,16 @@ describe("the sentence of a refusal", () => {
     );
   });
 
-  it("says a move that would put a node under itself, in the reader's language", () => {
-    expect(say({ code: "NODE_CYCLE" }, "fr")).toBe(
-      "Ce déplacement mettrait un nœud sous lui-même.",
-    );
-    expect(say({ code: "NODE_CYCLE" }, "en")).toBe("This move would put a node under itself.");
+  it("says a move that would put a node under itself, in the reader's language [WF-PLA-0040-A]", () => {
+    // `nodes_move_node_cycle`, reduced to its field's code as `byField` does: the refusal of a
+    // parent taken among the moved nodes or their subordinates, without a parameter.
+    const refused = example("nodes_move_node_cycle") as {
+      fields: [{ code: ProblemText["code"] }];
+    };
+    const reduced = { code: refused.fields[0].code };
+    expect(reduced.code).toBe("NODE_CYCLE");
+    expect(say(reduced, "fr")).toBe("Ce déplacement mettrait un nœud sous lui-même.");
+    expect(say(reduced, "en")).toBe("This move would put a node under itself.");
   });
 
   it.each([
