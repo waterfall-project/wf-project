@@ -5,11 +5,8 @@
  * and its frieze draws in the browser (`timeline-chart.tsx`): a module without a directive, so that
  * both sides read it.
  *
- * The server selects the tasks of a timeline (`listNodes`, `timeline_id`, #463), in the order of
- * the plan and without their ancestors. The screen applies the same criterion to the answer once
- * more (`inscribedTo`) — a temporary gap of EP-02: the fake back ignores the filters of
- * `listNodes`, and the mock-up must stay right against it; against a server that applies them, it
- * changes nothing. It goes with the back of EP-03.
+ * The service selects the tasks of a timeline (`listNodes`, `timeline_id`, US-1400), in the order
+ * of the plan and without their ancestors; the screen draws them as they come.
  */
 import type { components } from "@/api/generated/schema";
 
@@ -27,19 +24,4 @@ export interface TimelineTask extends GanttRow {
         readonly tracking?: readonly TrackingEntry[];
       })
     | null;
-}
-
-/**
- * The tasks of an answer inscribed to a timeline, in the order of the answer: what a server that
- * applies `timeline_id` renders, kept once more against one that does not (the fake back of EP-02).
- */
-export function inscribedTo<Task extends TimelineTask>(
-  tasks: readonly Task[],
-  timeline: string,
-): Task[] {
-  return tasks.filter((node) =>
-    (node.task?.tracking ?? []).some(
-      (entry) => entry.kind === "timeline" && entry.timeline_id === timeline,
-    ),
-  );
 }

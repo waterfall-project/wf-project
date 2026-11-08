@@ -1181,12 +1181,12 @@ each task, its dates and its lane; they are created by their name and the timeli
 after confirmation, as the project lists `manage_timelines` (`timeline-commands.tsx`, EP-14/L44c).
 The server selects what each one draws (#463): the tree asks for the summary tasks down to the level
 of the address (`summaries_only`, `max_level`), a timeline the tasks inscribed in it
-(`timeline_id`). The fake back ignoring these filters ("What the fake back does not do"), each one
-applies the same criterion again to the response (`summaryTree`, `inscribedTo`): an idempotent
-filter, which changes nothing against a server that honours them, a temporary gap of EP-02 removed
-with the back of EP-03. The tree offers exactly the levels the structure has, from the first to that
-of its deepest summary task, which the server says whatever the filters (`meta.summary_depth`,
-#494), and shows the level asked for, or the deepest when asked for one beyond it (`depthShown`).
+(`timeline_id`). The service honours the latter for the timelines (US-1400): the screen draws what
+it renders, applying no criterion to the response; the tree still applies its own (`summaryTree`)
+against the fake back, a temporary gap of EP-02 removed by US-1440. The tree offers exactly the
+levels the structure has, from the first to that of its deepest summary task, which the server says
+whatever the filters (`meta.summary_depth`, #494), and shows the level asked for, or the deepest
+when asked for one beyond it (`depthShown`).
 
 ### The risks screen
 
@@ -2127,21 +2127,38 @@ only be proved in a path. A grid without `paste` in its configuration, read-only
 
 ### Grids: undo and redo
 
-Undo and Redo are placed, not wired (WF-IHM-0110, US-0140, `undo-commands.tsx`): every grid whose
-loaded structure lists its `edit_*` command as available places them (`undoable` of `DenseGrid`) —
-the estimate by `edit_estimate`, the planning by `edit_planning`, the remaining to commit by
-`edit_remaining` (#115); no grid outside a current revision places them: neither the marking, nor
-an applied import, nor the exclusion of a cost line can be undone. Such a grid shows them as
-buttons in its bar and in the context menu of its cells (right click, Shift+F10, Menu key —
-`CellMenu`, without one more tab stop), with their shortcuts, and takes Ctrl+Z and Ctrl+Shift+Z —
-Cmd on a Mac — in the grid or its bar, outside a menu or a box it opens. Unavailable as long as the
-server does not keep the history of the inputs, they stay reachable by keyboard, `aria-disabled`,
-described by their reason; the shortcut says it in an announced region. A field being entered — the
-editor of a cell, the search — keeps Ctrl+Z for itself: the browser's undo stays there. EP-06 wires
-them to `undoLastChange` and `redoLastUndo`, an undo carried by the server, never a stack in the
-browser; their refusal will be said like any refusal, its condition named by the catalogue — the
-one of an undo that would bring back a subproject deleted since, `restored_subproject_exists`, is
-already there (EP-14/L42p).
+Undo and Redo are placed by every grid whose loaded structure lists its `edit_*` command as
+available (WF-IHM-0110, US-0140, `undo-commands.tsx`; `undoable` of `DenseGrid`) — the estimate by
+`edit_estimate`, the planning by `edit_planning`, the remaining to commit by `edit_remaining`
+(#115); no grid outside a current revision places them: neither the marking, nor an applied import,
+nor the exclusion of a cost line can be undone. Such a grid shows them as buttons in its bar and in
+the context menu of its cells (right click, Shift+F10, Menu key — `CellMenu`, without one more tab
+stop), with their shortcuts, and takes Ctrl+Z and Ctrl+Shift+Z — Cmd on a Mac — in the grid or its
+bar, outside a menu or a box it opens. A field being entered — the editor of a cell, the search —
+keeps Ctrl+Z for itself: the browser's undo stays there.
+
+**Wired (planning, US-1450).** The planning grid wires them to `undoLastChange` and `redoLastUndo`
+(`src/api/actions/history.ts`) through `useUndoRedo` (`undo-run.ts`), which `DenseGrid` receives as
+`undo` (`UndoControl`): an undo is carried by the server, which keeps the stack by revision, by
+account and by sign-in session, never a stack in the browser. The buttons, the menu and the keys are
+then available — neither `aria-disabled`, nor a reason to read. An undo is a write of the structure
+like any other: it is counted in the account of the structure (`useStructureVersion`), the gestures
+and the confirmation of a paste wait for it and it waits for them, the grid says it is busy, and a
+command given during a write has no effect. The action reads the page anew once the server has
+answered — the rows returned, created or deleted are the server's — and the version the structure
+reached (`written.structure_lock_version`) is told to the account for the next write;
+`remaining_depth` is in the answer, the screen having no sentence yet to say it. A refusal is said
+like any refusal, by `OutcomeNotice` above the grid, its sentence taken from the catalogue by its
+code and its parameters: `UNDO_CONFLICT` names the object taken up since (`conflicting_object_label`),
+`STATE_FORBIDS_OPERATION` the condition that is missing (`undo_history_not_empty`,
+`redo_history_not_empty`, `restored_subproject_exists`), `SESSION_ID_MISSING` a token without a
+sign-in session. It stays said until it is closed or the next command leaves. The contract cites no
+example of a successful undo: success is played against the service (`e2e/undo.spec.ts`, fifty inputs
+undone then redone through the grid, `@shared`), refusals on the examples (`undo-wired.dom.test.tsx`).
+
+**Placed only.** The estimate and the remaining to commit receive no `undo`: their inputs, served by EP-07, have no
+history yet, and their commands stay unavailable, `aria-disabled`, described by their
+reason; the shortcut says it in an announced region.
 
 ### Grids: creating and deleting tasks and lines
 

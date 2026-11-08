@@ -6,7 +6,7 @@ Une feuille de la [planification](FBS-4.3.md), atteinte depuis l’en-tête du p
 
 En tête, les chronologies du projet, chacune un lien qui l’affiche ; la première s’affiche quand l’adresse n’en nomme aucune. Dessous, la **frise** de la chronologie affichée, sur l’axe du temps du Gantt : chaque tâche inscrite est un rectangle de son début à sa fin, qui porte son nom, et chaque jalon une ligne verticale, son nom et sa date au pied. Les rectangles se rangent en couloirs, d’eux-mêmes dans l’ordre du plan, ou là où vous les avez placés. Sous la frise, une table lit les mêmes tâches, leurs dates et leurs couloirs.
 
-Les inscriptions se font depuis la [grille de planning](FBS-4.3.2.md), par **Chronologies** dans le menu d’une cellule : rien ne s’inscrit ici. Les tâches lues sont celles de la révision du contexte, restreintes au sous-projet filtré.
+Les inscriptions se font depuis la [grille de planning](FBS-4.3.2.md), par **Chronologies** dans le menu d’une cellule : rien ne s’inscrit ici. Les tâches lues sont celles de la révision du contexte, restreintes au sous-projet filtré. Une tâche inscrite apparaît dans la chronologie et en disparaît dès qu’elle en est retirée ; l’inscription suit la tâche d’une révision à l’autre, et deux chronologies d’un même projet gardent chacune leur sélection. Un jalon peut aussi être inscrit au suivi temps/temps, qui n’est pas une chronologie et n’apparaît pas ici.
 
 ## Ses commandes
 

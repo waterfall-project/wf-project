@@ -617,13 +617,13 @@ ce lot, ou en dépendent par son numéro :
 | `core/planning/interface/{nodes,facets}.py` (lecture, création, `snapshot`) | US-1380/L2 #2335 | tout lot qui crée ou lit une ligne (US-1490/L2 et suivants) |
 | `core/planning` : suppression, déplacement ; `core/projects` (`register_attachments`) | US-1380/L3 #2338 | US-1490/L3, US-1500, US-1540 |
 | `core/planning` : `setPredecessors`, les registres de `resource_settings` (`reschedule_current_structures`) | US-1390/L2 #2339 | US-1500 (la garde des calendriers des rôles) |
-| `core/planning` : le collage (`previewPaste`, `applyPaste`), `api/history.py` | US-1450/L2 #2344 | US-1560 (le jugement des cellules de la ligne) |
+| `core/planning` : le collage (`previewPaste`, `applyPaste`), `api/history.py` | US-1450/L2 #2344, puis US-1450/L5 (le collage qui crée, #2559) | US-1560 (le jugement des cellules de la ligne) |
 | `core/revisions/commands.py` (`export_*`), `api/tasks.py` | US-1430/L2 #2336 | US-1500 (`apply_rate_update`), US-1550 (`export_estimate`) |
 | `core/projects/commands.py` (`manage_timelines`, `generate_skeleton`) | US-1400/L1 #2331, US-1460 #2325 | US-1550 (`import_estimate`), après les deux |
 | `core/exchanges` (la mécanique d'import, les formats) | US-1420/L1 #2332 | US-1550 (la lecture, l'analyse et l'application du classeur ; son écriture, pure, n'en a pas besoin) |
 | `worker/main.py`, les Compose, `production.env.example`, le Makefile | US-1420/L2 #2341 | US-1500 (l'import de l'interface dans le worker) |
 | `REUSE.toml`, `LICENSES/` | US-1440/L1 #2337 | aucun : le logo porte son fichier `.license` |
-| `wftools`, `make mock-data` | US-1480/L1 #2330 | US-1570/L1 |
+| `wftools`, `make mock-data` | US-1480/L1 #2330, US-1450/L4 (le collage qui crée, #2559) | US-1570/L1 |
 | `witness/tasks.py` | US-1480/L2 #2347 | US-1570 (la tranche des lignes, après les tâches) |
 | le guide, la liste des entrées non rejouées | US-1480/L3 #2348 | US-1570/L3 |
 | `app.py`, `pyproject`, `tests/planning_support.py`, `witness/revisions.py`, `chronology.py` | US-1380/L1 #2328, fusionné avant la branche | aucun |
@@ -632,7 +632,8 @@ ce lot, ou en dépendent par son numéro :
 des deux EPIC : une fixture qui manque devient une issue. Les catalogues `messages/*.json` ne
 s'écrivent que par le lot qui ajoute un code d'erreur au contrat, pour sa seule clé
 `errors.<CODE>` et son test (décision du 2026-11-08, EP-06, « Les catalogues du front et le
-collage », #2537) ; toute autre clé manquante devient une issue.
+collage », #2537), et par le lot qui porte un écran, pour les clés non-erreur de ce seul écran
+(amendement du 2026-11-08, #2559, #2563) ; toute autre clé manquante devient une issue.
 
 ### L'ordre de construction
 

@@ -94,6 +94,7 @@ PROJECT_INTERFACES: dict[str, set[str]] = {
         "work_breakdown",
         "lifecycle",
         "attachments",
+        "skeleton",
         "days",
     },
     "revisions": {"revisions", "structures", "marking", "reference", "shared", "closing"},

@@ -216,3 +216,13 @@ def revision_has_tasks_and_lines(session: Session, revision_id: UUID) -> bool:
     if not {part for part, _ in questions} >= REVISION_PARTS:
         return False
     return all(question(session, revision_id) for _, question in questions)
+
+
+def revision_has_tasks(session: Session, revision_id: UUID) -> bool:
+    """Tell whether a revision bears a task, by the questions of its tasks (``tasks`` part).
+
+    What the generation of the planning skeleton asks of the main structure (WF-PRJ-0030); the
+    planning's question covers every structure of the revision until the differentials of EP-08.
+    """
+    questions = [question for part, question in _TASKS_AND_LINES.entries() if part == "tasks"]
+    return any(question(session, revision_id) for question in questions)
