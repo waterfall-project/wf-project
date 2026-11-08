@@ -201,9 +201,12 @@ export function UndoCommands({ control }: { readonly control?: UndoControl | und
             variant="outline"
             size="icon"
             aria-label={t(command)}
-            className={cn("size-7", control === undefined && UNAVAILABLE)}
+            className={cn("size-7", (control === undefined || control.busy) && UNAVAILABLE)}
+            // A write under way: the button is marked inactive, as the inline confirmations are, and
+            // pressed does nothing (`useUndoRedo`).
+            {...(control?.busy === true ? { "aria-disabled": true } : {})}
             onClick={
-              control === undefined
+              control === undefined || control.busy
                 ? undefined
                 : () => {
                     control.press(command);

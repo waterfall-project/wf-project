@@ -12,7 +12,9 @@ import {
   example,
   type FakeAnswers,
   type FakeClient,
+  type FakeTiming,
   fakeClient,
+  held,
   type Problem,
 } from "@/test/fixtures";
 
@@ -67,19 +69,19 @@ function forbidden(name: string) {
 }
 
 /** Serve the fake back, and give it back to read its calls. */
-function serve(answers: FakeAnswers): FakeClient {
-  const client = fakeClient(answers);
+function serve(answers: FakeAnswers, timing: FakeTiming = {}): FakeClient {
+  const client = fakeClient(answers, timing);
   server.client = client;
   return client;
 }
 
 /** The grid of the planning, entered, with undo and redo wired. */
-function grid(locale: "fr" | "en" = "fr") {
+function grid(locale: "fr" | "en" = "fr", structure = STRUCTURE) {
   return (
     <NextIntlClientProvider locale={locale} messages={CATALOGUES[locale]} timeZone="UTC">
       <PlanningGrid
         nodes={planning}
-        structure={STRUCTURE}
+        structure={structure}
         structureVersion={1}
         filters={{ kinds: ["task"] }}
         query={NO_QUERY}
@@ -204,6 +206,54 @@ describe("undo and redo of the grid of the planning, wired on the server's histo
     render(grid("en"));
     await userEvent.click(screen.getByRole("button", { name: "Undo" }));
     expect(await screen.findByRole("alert")).toHaveTextContent("Object changed since");
+  });
+});
+
+describe("undo while its request is under way", () => {
+  it("marks Undo and Redo inactive while the request is held, and a second press, by the button or Ctrl+Z, sends nothing [WF-IHM-0110-A]", async () => {
+    const hold = held();
+    const client = serve({ [UNDO]: refused("undo_history_empty") }, hold.timing);
+    render(grid());
+    const undo = screen.getByRole("button", { name: "Annuler" });
+    const redo = screen.getByRole("button", { name: "Rétablir" });
+    await userEvent.click(undo);
+    await waitFor(() => {
+      expect(undo).toHaveAttribute("aria-disabled", "true");
+    });
+    expect(redo).toHaveAttribute("aria-disabled", "true");
+    await userEvent.click(undo);
+    await userEvent.click(redo);
+    await focusLabel();
+    await userEvent.keyboard("{Control>}z{/Control}");
+    expect(sent(client, UNDO)).toHaveLength(1);
+    expect(sent(client, REDO)).toEqual([]);
+    await act(async () => {
+      hold.release();
+      await hold.until;
+    });
+    expect(await screen.findByRole("alert")).toBeInTheDocument();
+    await waitFor(() => {
+      expect(undo).not.toHaveAttribute("aria-disabled");
+    });
+    expect(redo).not.toHaveAttribute("aria-disabled");
+  });
+
+  it("does not tell the refusal on another structure when the structure changed while the request was held [WF-IHM-0110-A]", async () => {
+    const hold = held();
+    serve({ [UNDO]: refused("undo_later_change") }, hold.timing);
+    const { rerender } = render(grid());
+    await userEvent.click(screen.getByRole("button", { name: "Annuler" }));
+    rerender(
+      grid("fr", { ...STRUCTURE, structure_id: "01926f3a-7c00-7000-8000-000000000202" }),
+    );
+    await act(async () => {
+      hold.release();
+      await hold.until;
+    });
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Annuler" })).not.toHaveAttribute("aria-disabled");
+    });
+    expect(screen.queryByRole("alert")).toBeNull();
   });
 });
 
