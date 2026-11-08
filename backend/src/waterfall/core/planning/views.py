@@ -178,6 +178,13 @@ class Reading:
         self.calendars = calendars
         self.scheduled_on = scheduled_at.date()
         self.links = links
+        # The links by their successor, and by each end, built once: a node asks for its own.
+        self._incoming: dict[UUID, list[TaskLink]] = {}
+        self._ends: dict[UUID, list[TaskLink]] = {}
+        for link in links:
+            self._incoming.setdefault(link.successor_id, []).append(link)
+            for end in {link.predecessor_id, link.successor_id}:
+                self._ends.setdefault(end, []).append(link)
         lineages = {tree.nodes[node_id].lineage_id for node_id in tree.tasks}
         self.tracking = tracking_of(session, project_id, lineages)
         self.states: dict[UUID, State] = {}
@@ -197,11 +204,7 @@ class Reading:
             return ()
         row = self.tree.row_number
         held = sorted(
-            (
-                link
-                for link in self.links
-                if link.in_conflict and node_id in {link.predecessor_id, link.successor_id}
-            ),
+            (link for link in self._ends.get(node_id, []) if link.in_conflict),
             key=lambda link: (row[link.predecessor_id], row[link.successor_id]),
         )
         return tuple(
@@ -288,7 +291,7 @@ class Reading:
         node = tree.nodes[node_id]
         row = tree.row_number
         incoming = sorted(
-            (link for link in self.links if link.successor_id == node_id),
+            self._incoming.get(node_id, []),
             key=lambda link: row[link.predecessor_id],
         )
         computed, editable = self._fields(node_id) if node.kind == TASK else ((), ())

@@ -14,7 +14,6 @@ property refused (``FIELD_NOT_ACCEPTED``).
 """
 
 import re
-from collections.abc import Callable
 from dataclasses import replace
 from datetime import date
 from decimal import Decimal
@@ -45,7 +44,7 @@ from waterfall.api.contract.models import (
     WorkInstantWrite,
 )
 from waterfall.api.evaluation import Acting, RequiresProject
-from waterfall.api.queries import refuse_query
+from waterfall.api.queries import read_list, refuse_query
 from waterfall.core.planning.interface import (
     ConflictView,
     Duration,
@@ -142,18 +141,6 @@ class NodeQuery(BaseModel):
     fields: str | None = None
 
 
-def _list[T](
-    name: str, text: str | None, read: Callable[[str], T]
-) -> tuple[tuple[T, ...] | None, list[FieldError]]:
-    """Read a list of the query, its values separated by commas; its fault, the parameter."""
-    if text is None:
-        return None, []
-    try:
-        return tuple(read(value) for value in text.split(",")), []
-    except ValueError:
-        return None, [FieldError(f"/query/{name}", VALIDATION_FAILED)]
-
-
 def _bound(name: str, text: str | None, form: re.Pattern[str]) -> tuple[Any, list[FieldError]]:
     """Read a bound of the query in its form, a number or a date; its fault, the parameter."""
     if text is None:
@@ -204,13 +191,13 @@ def node_reading(
     """
     raw = dict(request.query_params)
     faults: list[FieldError] = []
-    kinds, wrong = _list("kinds", query.kinds, NodeKind)
+    kinds, wrong = read_list("kinds", query.kinds, NodeKind)
     faults += wrong
-    progress, wrong = _list("progress", query.progress, TaskProgress)
+    progress, wrong = read_list("progress", query.progress, TaskProgress)
     faults += wrong
-    modes, wrong = _list("scheduling_mode", query.scheduling_mode, SchedulingMode)
+    modes, wrong = read_list("scheduling_mode", query.scheduling_mode, SchedulingMode)
     faults += wrong
-    risks, wrong = _list("origin_risk_ids", query.origin_risk_ids, UUID)
+    risks, wrong = read_list("origin_risk_ids", query.origin_risk_ids, UUID)
     faults += wrong
     bounds: dict[str, tuple[Any, Any]] = {}
     for form, columns in (

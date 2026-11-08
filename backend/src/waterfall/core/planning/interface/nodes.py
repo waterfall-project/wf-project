@@ -301,7 +301,7 @@ def _rank(tree: Tree, creation: NodeCreation) -> int:
     parent = creation.parent_id
     siblings = tree.subtasks(parent)
     if not creation.after_given:
-        return len(siblings) + 1
+        return max((tree.nodes[each].rank for each in siblings), default=0) + 1
     after = creation.after_node_id
     if after is None:
         return 1
@@ -335,26 +335,29 @@ def _stamp(node: Node, act: Act) -> None:
     node.updated_by = act.author
 
 
-def _insert(write: Write, creation: NodeCreation, node_id: UUID, facet: Facet) -> None:
-    """Write the node and the facet of a task created, its younger siblings moved down by one.
+def _insert(
+    write: Write, creation: NodeCreation, node_id: UUID, facet: Facet, placed: tuple[int, list[UUID]]
+) -> None:
+    """Write the node and the facet of a task created at its rank, its younger siblings moved down.
 
-    The ranks of the subtasks of a parent run from 1 without a gap: every write keeps them so.
+    The siblings at that rank or after (``placed``) are moved down by one in one statement — the
+    rank is unique, checked at its end — and counted as any write of a node is.
     """
     session, place, act = write.session, write.place, write.writer.act
-    rank = _rank(write.tree, creation)
+    rank, shifted = placed
     parent = creation.parent_id
-    session.execute(
-        update(Node)
-        .where(
-            Node.project_id == place.project_id,
-            Node.structure_id == place.structure_id,
-            Node.kind == TASK,
-            Node.parent_id.is_(None) if parent is None else Node.parent_id == parent,
-            Node.rank >= rank,
+    if shifted:
+        session.execute(
+            update(Node)
+            .where(Node.project_id == place.project_id, Node.id.in_(shifted))
+            .values(
+                rank=Node.rank + 1,
+                lock_version=Node.lock_version + 1,
+                updated_at=act.at,
+                updated_by=act.author,
+            )
+            .execution_options(synchronize_session=False)
         )
-        .values(rank=Node.rank + 1)
-        .execution_options(synchronize_session=False)
-    )
     session.add(
         Node(
             project_id=place.project_id,
@@ -419,18 +422,20 @@ def create_node(
         _judge_parent(tree, parent)
         applicable = calendar_of(session, place.project_id, node_id).calendar
         facet = judged_creation(creation.task, applicable, constants_of(session))
-        _rank(tree, creation)
+        rank = _rank(tree, creation)
+        shifted = [each for each in tree.subtasks(parent) if tree.nodes[each].rank >= rank]
         made_summary = (
             parent is not None
             and not tree.is_summary(parent)
             and tree.tasks[parent].scheduling_mode == MANUAL
         )
-        touched = (node_id, parent) if parent is not None and made_summary else (node_id,)
+        above = (parent,) if parent is not None and made_summary else ()
+        touched = (node_id, *above, *shifted)
         write.before(touched)
         if parent is not None and made_summary:
             tree.tasks[parent].scheduling_mode = AUTOMATIC
             _stamp(tree.nodes[parent], writer.act)
-        _insert(write, creation, node_id, facet)
+        _insert(write, creation, node_id, facet, (rank, shifted))
         redated = write.redate((None, creation.task.label or ""))
         write.after(touched)
         return redated.written((node_id,))

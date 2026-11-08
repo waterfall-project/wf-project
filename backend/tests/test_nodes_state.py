@@ -243,6 +243,25 @@ def test_a_revision_opened_from_a_marked_one_copies_its_tree_its_facets_and_its_
     assert tree.items() == before
 
 
+@pytest.mark.requirement("WF-IHM-0110-A")
+def test_the_siblings_a_creation_moves_down_are_counted_and_kept_in_its_entry(
+    tree: Tree, stage: Scene, realm: TestRealm
+) -> None:
+    writer = signed_in(stage, realm)
+    last = tree.made("Dernier")
+    head = tree.create("Tête", writer, after_node_id=None).json()["nodes"][0]
+    moved = tree.node(last["node_id"])
+    assert (moved["position"], moved["lock_version"]) == (2, 2)
+    [entry] = entries(stage)
+    assert set(entry.node_ids) == {UUID(head["node_id"])}
+    assert [(each["object_id"], each["lock_version"]) for each in entry.before] == [
+        (last["node_id"], 1)
+    ]
+    after = {each["object_id"]: each for each in entry.after}
+    assert after[last["node_id"]]["lock_version"] == 2
+    assert after[last["node_id"]]["rows"]["node"]["rank"] == 2
+
+
 @pytest.mark.requirement("WF-PLA-0080-A")
 def test_two_creations_at_once_in_one_structure_are_both_written_one_after_the_other(
     tree: Tree,
