@@ -14,11 +14,11 @@ import re
 from waterfall.core.planning.msproject.tree import NAMESPACES
 
 PROLOG = re.compile(
-    rb"(?:\xef\xbb\xbf)?(?:\s|<\?.*?\?>|<!--.*?-->)*"
+    rb"(?:\xef\xbb\xbf)?(?:\s++|<\?.*?\?>|<!--.*?-->)*+"
     rb"<(?:(?P<prefix>[\w.-]+):)?Project(?P<attributes>[\s>/][^>]*)",
     re.DOTALL,
 )
-"""What may precede the root, then the root, its prefix and its attributes as far as the head."""
+"""What may precede the root (an atomic run), then the root, its prefix, attributes."""
 
 NAMESPACE_DECLARATION = re.compile(
     rb"""xmlns(?::(?P<prefix>[\w.-]+))?\s*=\s*["'](?P<uri>[^"']*)["']"""

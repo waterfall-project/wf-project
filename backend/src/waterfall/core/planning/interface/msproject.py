@@ -8,8 +8,9 @@ applies its report (US-1430/L3), the exporter writes the planning of a structure
 through the reader and the writer of ``core/planning/msproject/`` (US-1430/L1) and the hardened
 parser of the exchanges (EP-06, "Le format MS Project").
 
-Declared by US-1380/L1; each method raises ``NotImplementedError`` naming the story that fills it,
-so that an import or an export of a planning before it fails, and never passes without effect.
+Declared by US-1380/L1; the exporter still raises ``NotImplementedError`` naming the story that
+fills it (US-1430/L4), so that an export of a planning before it fails, and never passes without
+effect.
 
 The format is filled by US-1430/L3. The head of a file is recognised by its root, a ``Project`` of
 the namespace of MS Project, after the declaration, the comments and the instructions; anything
@@ -68,7 +69,7 @@ class MsProjectFormat:
             raise _unreadable()
 
     def judge(self, session: Session, target: ImportTarget) -> None:
-        """Refuse an import of a planning on the state of its structure: none until US-1430/L3."""
+        """Refuse an import of a planning on the state of its structure: none."""
         del session, target
 
     def analyse(self, session: Session, target: ImportTarget, content: bytes) -> Mapping[str, Any]:

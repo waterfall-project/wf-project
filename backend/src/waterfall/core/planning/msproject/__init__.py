@@ -15,6 +15,9 @@ from waterfall.core.planning.msproject.header import (
 
 # ``model``: the planning in memory, what it carried besides, and the refusal of a file.
 from waterfall.core.planning.msproject.model import (
+    DATE_CONSTRAINTS as DATE_CONSTRAINTS,
+)
+from waterfall.core.planning.msproject.model import (
     LINEAGE_ALIAS as LINEAGE_ALIAS,
 )
 from waterfall.core.planning.msproject.model import (

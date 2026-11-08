@@ -185,10 +185,8 @@ def _update(plan: Plan, row: Row) -> bool:
         changed = True
     task.label, task.description = facet.label, facet.description
     if not plan.is_summary(row.node_id):
-        started = task.progress != NOT_STARTED and facet.duration.value == 0
         task.scheduling_mode = facet.mode
-        if not started:
-            task.duration_value, task.duration_unit = facet.duration.value, facet.duration.unit
+        task.duration_value, task.duration_unit = facet.duration.value, facet.duration.unit
         if facet.mode == MANUAL and facet.start is not None and facet.finish is not None:
             task.start_date, task.start_hours = facet.start.day, facet.start.hours
             task.finish_date, task.finish_hours = facet.finish.day, facet.finish.hours

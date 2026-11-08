@@ -59,7 +59,11 @@ from waterfall.core.planning.dating import (
 )
 from waterfall.core.planning.interface.facets import calendars_of
 from waterfall.core.planning.msproject import (
+    DATE_CONSTRAINTS,
     FileCalendar,
+    MsProject,
+    MsTask,
+    ReadProject,
     calendar_of,
     hours_of,
     lag_of,
@@ -70,7 +74,6 @@ from waterfall.core.planning.msproject import (
 from waterfall.core.planning.msproject import (
     duration_of as file_duration_of,
 )
-from waterfall.core.planning.msproject.model import DATE_CONSTRAINTS
 from waterfall.core.planning.scheduling import (
     Duration,
     Lag,
@@ -101,7 +104,6 @@ if TYPE_CHECKING:
 
     from waterfall.core.exchanges.interface import ImportTarget
     from waterfall.core.planning.calendars import Applicable
-    from waterfall.core.planning.msproject.model import MsProject, MsTask, ReadProject
     from waterfall.core.planning.scheduling import (
         Calendar,
         DurationUnit,
@@ -383,6 +385,14 @@ def _facet(
         duration = Duration(Decimal(0), "d") if row.old is None else duration_of(row.old)
         return Facet(task.name, description, AUTOMATIC, duration)
     duration = file_duration_of(task, constants)
+    if (
+        row.old is not None
+        and not duration.value
+        and state_of(plan.aimed.tree, row.node_id).progress != NOT_STARTED
+    ):
+        # A leaf started or completed does not become a milestone (WF-PLA-0050): it keeps its
+        # duration, which the report, the engine replayed and the application all read.
+        duration = duration_of(row.old)
     manual = task.manual or task.constraint in DATE_CONSTRAINTS
     if not manual or row.file_dates is None or dated_on is None:
         return Facet(task.name, description, AUTOMATIC, duration)
@@ -522,7 +532,21 @@ def plan_import(
         if project.start is not None
         else aimed.planning_start_on or _first_start(project)
     )
-    plan = Plan(aimed, rows, kept, removed, start, {}, {}, [], {}, {}, [], [], [])
+    plan = Plan(
+        aimed=aimed,
+        rows=rows,
+        kept=kept,
+        removed=removed,
+        start=start,
+        by_node={},
+        children={},
+        order=[],
+        links={},
+        calendars={},
+        rejected=[],
+        signals=[],
+        refusals=[],
+    )
     file_children = {uid for uid in project.parents().values() if uid is not None}
     _judge_labels(plan)
     _place(plan, project)

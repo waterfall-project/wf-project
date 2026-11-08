@@ -187,8 +187,10 @@ def test_a_change_of_the_rule_that_dates_the_tasks_fails_the_corpus(
 ) -> None:
     # A link finish to finish counted from the start of its predecessor, as a link start to
     # start: a planning of the corpus no longer dates as MS Project did.
+    # The file 01 carries such a link and is dated right by the rule as it stands.
+    assert mismatches("01-links-and-lags-days.xml") == []
     monkeypatch.setattr(dating_engine, "FROM_FINISH", frozenset({"finish_to_start"}))
-    assert any(mismatches(entry["file"]) for entry in DATED)
+    assert mismatches("01-links-and-lags-days.xml") != []
 
 
 @pytest.mark.requirement("WF-QUA-0080-A")

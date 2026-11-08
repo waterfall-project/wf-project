@@ -8,6 +8,7 @@ reads it —, then applied, and the structure read back. The tests of the corpus
 database, are in ``test_msproject_corpus.py``.
 """
 
+import time
 from dataclasses import dataclass
 from datetime import date, datetime
 from decimal import Decimal
@@ -590,6 +591,51 @@ def test_an_order_item_task_moved_out_of_its_work_package_rejects_the_file_namin
     assert by_label(stage)["Lot"][1].work_package_id == package
 
 
+@pytest.mark.requirement("WF-PLA-0050-A")
+def test_a_started_task_the_file_gives_no_duration_keeps_its_own_in_the_report_and_the_structure(
+    api: ContractClient, stage: Scene, worker: Worker
+) -> None:
+    # A started task does not become a milestone: the report announces no duration the
+    # application will not write, and the structure replayed is the one written.
+    opened(api, stage)
+    imported(api, stage, worker, planning(task(1, "Essais")))
+    set_progress(stage, str(by_label(stage)["Essais"][0].id), "started", date(2026, 11, 2))
+    at_once = Timing(finish=f"{MONDAY}T08:00:00", duration="PT0H0M0S")
+    report = imported(api, stage, worker, planning(task(1, "Essais", timing=at_once)))
+    assert [each["fields"] for each in report["differences"]] == []
+    kept = by_label(stage)["Essais"][1]
+    assert (kept.progress, kept.duration_value, kept.duration_unit) == ("started", Decimal(1), "d")
+
+
+@pytest.mark.requirement("WF-INTF-0040-A")
+def test_an_order_item_task_moved_out_of_its_package_after_the_report_fails_the_application(
+    api: ContractClient, stage: Scene, worker: Worker
+) -> None:
+    # The report accepted, the attachments change before the application: it judges again under
+    # the lock, refuses by the same reason, and leaves the structure as it was.
+    opened(api, stage)
+    content = planning(task(1, "Lot"), task(2, "Poste"))
+    imported(api, stage, worker, content)
+    found = analysed(api, stage, worker, content)
+    assert found["report"]["refusals"] == []
+    package, item = work_breakdown(stage)
+    by_name = by_label(stage)
+    put_facts(stage, str(by_name["Lot"][0].id), work_package_id=package)
+    put_facts(stage, str(by_name["Poste"][0].id), order_item_id=item)
+    before = [(node.id, node.parent_id, dates(each)) for node, each in tasks(stage)]
+    response = api.post(
+        f"{path(stage, found['import_id'])}/apply",
+        headers=stage.manager.headers,
+        json={"confirmed": True},
+    )
+    assert response.status_code == 202, response.text
+    run(worker)
+    failed = read(api, stage, found["import_id"])
+    assert failed["status"] == "failed"
+    assert failed["task"]["problem"]["code"] == "ORDER_ITEM_OUTSIDE_WORK_PACKAGE"
+    assert [(node.id, node.parent_id, dates(each)) for node, each in tasks(stage)] == before
+
+
 @pytest.mark.requirement("WF-PLA-0150-A")
 def test_a_planning_of_sixteen_years_is_rejected_by_the_report_naming_its_task(
     api: ContractClient, stage: Scene, worker: Worker
@@ -706,7 +752,11 @@ def test_a_file_whose_links_close_a_loop_fails_its_analysis(
     response = opening(api, stage, loop)
     assert response.status_code == 202, response.text
     run(worker)
-    assert read(api, stage, response.json()["import_id"])["status"] == "failed"
+    failed = read(api, stage, response.json()["import_id"])
+    assert failed["status"] == "failed"
+    problem = failed["task"]["problem"]
+    assert problem["code"] == "LINK_CYCLE"
+    assert sorted(each["label"] for each in problem["params"]["cycle"]) == ["A", "B"]
 
 
 @pytest.mark.requirement("WF-INTF-0040-A")
@@ -731,7 +781,10 @@ def test_a_file_whose_head_is_read_and_its_body_not_fails_its_analysis(
     response = opening(api, stage, broken)
     assert response.status_code == 202, response.text
     run(worker)
-    assert read(api, stage, response.json()["import_id"])["status"] == "failed"
+    failed = read(api, stage, response.json()["import_id"])
+    assert failed["status"] == "failed"
+    assert failed["task"]["problem"]["code"] == "FILE_FORMAT_UNREADABLE"
+    assert failed["task"]["problem"]["params"] == {"expected_format": "ms_project_schedule"}
 
 
 @pytest.mark.parametrize(
@@ -749,14 +802,21 @@ def test_a_file_whose_head_is_read_and_its_body_not_fails_its_analysis(
         (b'<Project xmlns="urn:other">', False),
         (b"<Projects/>", False),
         (b"PK\x03\x04", False),
+        (b"<!---->" * 500 + b"<x", False),
+        (b"<?a?>" * 800 + b"<x", False),
+        (b"<!---->" * 500 + b'<Project xmlns="http://schemas.microsoft.com/project">', True),
     ],
 )
+@pytest.mark.requirement("WF-INTF-0040-A")
 def test_the_head_of_a_planning_is_a_project_of_the_namespace_of_ms_project(
     head: bytes, known: bool
 ) -> None:
+    started = time.monotonic()
     assert recognised(head) is known
+    assert time.monotonic() - started < 1  # no backtracking on a head of 4 096 bytes
 
 
+@pytest.mark.requirement("WF-PLA-0010-A")
 def test_a_calendar_of_the_file_takes_the_days_it_does_not_list_from_its_base() -> None:
     # A night shift ends at midnight, the twenty-fourth hour; a calendar based on it sets one day.
     night = (
