@@ -60,6 +60,9 @@ def spread_by_month(
     """Share an amount among the months of a task, in the order of the months.
 
     ``as_of`` is the date of calculation: the share then runs on the part of the task after it.
+
+    The parts are not rounded to the cent: they keep ten decimals and the projection takes them
+    as they are; the rounding to the cent is done once, after the projection.
     """
     return _spread(placement, amount, as_of, _month_of, _months)
 
@@ -67,7 +70,11 @@ def spread_by_month(
 def spread_by_year(
     placement: Placement, amount: Decimal, *, as_of: date | None = None
 ) -> dict[int, Decimal]:
-    """Share an amount among the years of a task, in the order of the years."""
+    """Share an amount among the years of a task, in the order of the years.
+
+    The parts are not rounded to the cent: they keep ten decimals and the projection takes them
+    as they are; the rounding to the cent is done once, after the projection.
+    """
     return _spread(placement, amount, as_of, _year_of, _years)
 
 
@@ -110,7 +117,8 @@ def _spread[K](
     week = placement.week
     total = week.worked_between(start, finish)
     if total == 0:
-        return {key(start.day): amount}
+        # No hour worked: the whole falls where the task ends (a milestone: where it stands).
+        return {key(finish.day): amount}
     firsts = list(starts(start.day, finish.day))
     edges = [week.count(min(max(WorkInstant(first), start), finish)) for first in firsts]
     edges.append(week.count(finish))

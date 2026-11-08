@@ -5,13 +5,14 @@
 The planned value at a date is the part of the budget of the reference that should have been
 earned by then: each line counts its budgeted amount, spread over the task as the reference dates
 it in proportion to the hours worked, up to the end of the day of that date. A line of a milestone,
-or of a task that works no hour, counts whole on its date. The lines are given: choosing them (the
-lines of the reference outside the provisions) and reading their budgeted amounts is the caller's.
+or of a task that works no hour, counts whole at the end of the task. The lines are given:
+choosing them (the lines of the reference outside the provisions) and reading their budgeted
+amounts is the caller's.
 """
 
 from dataclasses import dataclass
 from datetime import date, timedelta
-from decimal import ROUND_HALF_EVEN, Decimal
+from decimal import Decimal
 from fractions import Fraction
 from typing import TYPE_CHECKING
 
@@ -21,8 +22,6 @@ if TYPE_CHECKING:
     from collections.abc import Iterable
 
     from waterfall.core.estimate.spreading.spread import Placement
-
-CENT = Decimal("0.01")
 
 
 @dataclass(frozen=True, slots=True)
@@ -39,9 +38,7 @@ def planned_value(lines: Iterable[PlannedLine], at: date) -> Decimal:
     total = Fraction(0)
     for line in lines:
         total += Fraction(line.amount) * _earned(line, end)
-    return (Decimal(total.numerator) / Decimal(total.denominator)).quantize(
-        CENT, rounding=ROUND_HALF_EVEN
-    )
+    return Decimal(round(total * 100)) / 100  # one rounding, to the nearest even, of the exact sum
 
 
 def _earned(line: PlannedLine, end: WorkInstant) -> Fraction:
@@ -50,6 +47,8 @@ def _earned(line: PlannedLine, end: WorkInstant) -> Fraction:
     week, start, finish = placement.week, placement.start, placement.finish
     total = week.worked_between(start, finish)
     if total == 0:
-        return Fraction(int(end > WorkInstant(start.day)))
+        # No hour worked (a milestone, or a task over a weekend): the line counts whole at the
+        # end of the task, the prudent side for the delay index, as ``spreading`` carries it.
+        return Fraction(int(end > WorkInstant(finish.day)))
     reached = min(max(end, start), finish)
     return week.worked_between(start, reached) / total

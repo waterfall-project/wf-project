@@ -42,7 +42,7 @@ def test_a_line_across_two_years_is_in_two_parts_in_the_ratio_of_the_hours_worke
 
 @pytest.mark.requirement("WF-DEV-0040-A")
 def test_two_lines_of_a_task_on_different_calendars_are_spread_on_their_own() -> None:
-    # « Deux lignes d'une même tâche, portées par des rôles aux calendriers différents, sont
+    # « Deux lignes d’une même tâche, portées par des rôles aux calendriers différents, sont
     # réparties entre les années selon leur propre calendrier. »
     dates = (date(2025, 12, 22), date(2026, 1, 9))
     five_days = spread_by_year(task(*dates), Decimal(1500))
@@ -66,7 +66,7 @@ def test_the_parts_of_a_line_add_up_to_its_total_even_when_the_ratio_does_not_di
 
 @pytest.mark.requirement("WF-DEV-0040-A")
 def test_a_task_within_one_year_puts_the_whole_amount_on_it() -> None:
-    # « L'année de consommation d'une ligne est celle de la tâche qui la porte. »
+    # The year of consumption of a line is the one of the task that carries it.
     assert spread_by_year(task(date(2026, 3, 2), date(2026, 3, 13)), Decimal(90)) == {
         2026: Decimal(90)
     }
@@ -74,7 +74,7 @@ def test_a_task_within_one_year_puts_the_whole_amount_on_it() -> None:
 
 @pytest.mark.requirement("WF-DEV-0070-A")
 def test_a_task_over_two_civil_months_is_on_both_in_the_ratio_of_their_hours_worked() -> None:
-    # « La charge d'une ligne portée par une tâche qui couvre exactement deux mois civils
+    # « La charge d’une ligne portée par une tâche qui couvre exactement deux mois civils
     # apparaît sur ces deux mois, au prorata des heures travaillées de la tâche dans chacun. »
     # February 2026: 20 working days, March: 22.
     parts = spread_by_month(task(date(2026, 2, 1), date(2026, 3, 31)), Decimal(420))
@@ -84,7 +84,7 @@ def test_a_task_over_two_civil_months_is_on_both_in_the_ratio_of_their_hours_wor
 
 @pytest.mark.requirement("WF-DEV-0070-A")
 def test_the_load_after_the_date_of_calculation_is_spread_on_the_months_left_only() -> None:
-    # « Sur la seule part de la durée de la tâche postérieure à la date de calcul. »
+    # The load is spread on the part of the task after the date of calculation only.
     # 5 January to 13 March 2026; on 16 February, 10 working days remain in each of the two months.
     parts = spread_by_month(
         task(date(2026, 1, 5), date(2026, 3, 13)), Decimal(100), as_of=date(2026, 2, 16)
@@ -97,7 +97,7 @@ def test_a_task_not_started_before_the_date_of_calculation_shows_nothing_on_the_
     None
 ):
     # « Une tâche non démarrée dont la date de début est antérieure à la date de calcul ne
-    # présente aucune charge sur les mois écoulés. »
+    # présente aucune charge sur les mois écoulés ; »
     parts = spread_by_month(
         task(date(2026, 1, 12), date(2026, 3, 27)), Decimal(70), as_of=date(2026, 3, 2)
     )
@@ -106,7 +106,7 @@ def test_a_task_not_started_before_the_date_of_calculation_shows_nothing_on_the_
 
 @pytest.mark.requirement("WF-DEV-0070-A")
 def test_a_task_over_before_the_date_of_calculation_is_carried_on_the_month_of_that_date() -> None:
-    # « Portée au mois de la date de calcul lorsque la fin de la tâche est dépassée. »
+    # The load is carried on the month of the date of calculation once the task is over.
     parts = spread_by_month(
         task(date(2026, 1, 5), date(2026, 1, 30)), Decimal(64), as_of=date(2026, 3, 10)
     )
@@ -115,7 +115,7 @@ def test_a_task_over_before_the_date_of_calculation_is_carried_on_the_month_of_t
 
 @pytest.mark.requirement("WF-DEV-0070-A")
 def test_a_task_starting_after_the_date_of_calculation_is_spread_whole() -> None:
-    # « Sa charge est la même avant et après son démarrage. »
+    # « sa charge est la même avant et après son démarrage. »
     dated = task(date(2026, 2, 2), date(2026, 3, 31))
     assert spread_by_month(dated, Decimal(420), as_of=date(2026, 1, 1)) == spread_by_month(
         dated, Decimal(420)
@@ -132,7 +132,7 @@ def test_the_remaining_hours_of_a_weekend_left_are_carried_on_the_month_of_the_d
 
 @pytest.mark.requirement("WF-DEV-0080-A")
 def test_a_milestone_is_spread_whole_on_the_month_of_its_date() -> None:
-    # « Une ligne portée par un jalon est comptée entière à la date du jalon. »
+    # A line of a milestone is counted whole on the date of the milestone.
     day = WorkInstant(date(2026, 3, 31))
     assert spread_by_month(Placement(EIGHT_HOURS, day, day), Decimal(5)) == {
         Month(2026, 3): Decimal(5)
@@ -172,3 +172,11 @@ def test_a_week_of_six_days_or_of_a_day_over_twenty_four_hours_is_refused() -> N
 def test_a_task_finishing_before_it_starts_is_refused() -> None:
     with pytest.raises(ValueError, match="before it starts"):
         Placement(EIGHT_HOURS, WorkInstant(date(2026, 3, 3)), WorkInstant(date(2026, 3, 2)))
+
+
+@pytest.mark.requirement("WF-DEV-0080-A")
+def test_a_task_working_no_hour_is_carried_on_the_month_of_its_end() -> None:
+    # The choice, the same as ``planned_value``: a task over a weekend that works no hour counts
+    # whole where it ends.
+    dated = Placement(EIGHT_HOURS, WorkInstant(date(2026, 1, 31)), WorkInstant(date(2026, 2, 2)))
+    assert spread_by_month(dated, Decimal(10)) == {Month(2026, 2): Decimal(10)}

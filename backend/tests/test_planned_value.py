@@ -31,14 +31,14 @@ TWO_MONTHS = line(1000, date(2026, 3, 1), date(2026, 4, 30))
 
 @pytest.mark.requirement("WF-DEV-0080-A")
 def test_a_task_of_two_equal_months_counts_for_half_at_the_end_of_the_first() -> None:
-    # « Une ligne portée par une tâche de deux mois comptant autant d'heures travaillées
+    # « Une ligne portée par une tâche de deux mois comptant autant d’heures travaillées
     # contribue pour moitié à la fin du premier mois. »
     assert planned_value([TWO_MONTHS], date(2026, 3, 31)) == Decimal(500)
 
 
 @pytest.mark.requirement("WF-DEV-0080-A")
 def test_the_planned_value_grows_with_the_hours_worked_and_stops_at_the_amount() -> None:
-    # « Étalé sur la durée de leur tâche au prorata des heures travaillées. »
+    # The amount is spread over the task in proportion to the hours worked (body).
     week_one = date(2026, 3, 6)
     values = [
         planned_value([TWO_MONTHS], at) for at in (date(2026, 2, 28), week_one, date(2026, 4, 30))
@@ -49,7 +49,7 @@ def test_the_planned_value_grows_with_the_hours_worked_and_stops_at_the_amount()
 
 @pytest.mark.requirement("WF-DEV-0080-A")
 def test_a_line_of_a_milestone_counts_whole_on_its_date_and_not_before() -> None:
-    # « Une ligne portée par un jalon est comptée entière à la date du jalon. »
+    # A line of a milestone is counted whole on the date of the milestone (body of the requirement).
     milestone = WorkInstant(date(2026, 3, 20))
     lines = [PlannedLine(Decimal(300), Placement(EIGHT_HOURS, milestone, milestone))]
     assert planned_value(lines, date(2026, 3, 19)) == Decimal(0)
@@ -58,7 +58,7 @@ def test_a_line_of_a_milestone_counts_whole_on_its_date_and_not_before() -> None
 
 @pytest.mark.requirement("WF-DEV-0080-A")
 def test_the_lines_add_up_and_the_sum_is_rounded_once_to_the_cent() -> None:
-    # « Elle doit totaliser exactement le budget de référence en fin de projet. »
+    # The planned value totals the budget exactly at the end (reason of the requirement).
     lines = [line(1, date(2026, 3, 2), date(2026, 3, 6))] * 3
     assert planned_value(lines, date(2026, 3, 4)) == Decimal("1.80")
     assert planned_value(
@@ -71,6 +71,9 @@ def test_delaying_a_task_of_the_current_revision_leaves_the_planned_value_of_the
     None
 ):
     # « Retarder une tâche dans la révision courante ne change pas la valeur planifiée. »
+    # Here the reference is given to the function, so that the delay of the other revision cannot
+    # reach it; the criterion closes fully with US-1520/L2, which chooses the lines, on
+    # ``planned_value`` of the interface of ``estimate`` (the reference revision, not the current).
     reference = [line(400, date(2026, 3, 2), date(2026, 3, 13))]
     delayed = line(400, date(2026, 3, 30), date(2026, 4, 10))
     before = planned_value(reference, date(2026, 3, 13))
@@ -81,3 +84,26 @@ def test_delaying_a_task_of_the_current_revision_leaves_the_planned_value_of_the
 @pytest.mark.requirement("WF-DEV-0080-A")
 def test_without_lines_the_planned_value_is_nil() -> None:
     assert planned_value([], date(2026, 3, 13)) == Decimal(0)
+
+
+@pytest.mark.requirement("WF-DEV-0080-A")
+def test_the_sum_is_rounded_once_from_the_exact_total_not_from_a_quotient() -> None:
+    # Just under a cent and a half, past the 28 digits of a quotient: rounded in two steps it would
+    # reach 0.015 and then the even 0.02; rounded once it is 0.01.
+    just_under = Decimal("0.014999999999999999999999999999999")
+    day = WorkInstant(date(2026, 3, 2))
+    lines = [PlannedLine(just_under, Placement(EIGHT_HOURS, day, day))]
+    assert planned_value(lines, date(2026, 3, 2)) == Decimal("0.01")
+    third = [line(1, date(2026, 3, 2), date(2026, 3, 4))] * 3
+    assert planned_value(third, date(2026, 3, 2)) == Decimal(1)
+
+
+@pytest.mark.requirement("WF-DEV-0080-A")
+def test_a_task_over_a_weekend_counts_whole_at_its_end_not_at_its_start() -> None:
+    # The choice (the design is silent): no hour worked, the line counts whole at the end.
+    weekend = PlannedLine(
+        Decimal(80),
+        Placement(EIGHT_HOURS, WorkInstant(date(2026, 3, 7)), WorkInstant(date(2026, 3, 9))),
+    )
+    assert planned_value([weekend], date(2026, 3, 7)) == Decimal(0)
+    assert planned_value([weekend], date(2026, 3, 9)) == Decimal(80)
