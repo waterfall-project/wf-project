@@ -423,8 +423,8 @@ def test_two_rows_naming_the_same_element_are_judged_by_the_preview_as_the_confi
     assert tree.node(second["node_id"])["task"]["work_package_id"] is None
 
 
-def estimate_line(stage: Scene, tree: Tree, task: dict[str, Any]) -> None:
-    """Write an estimate line under a task around the service, as EP-07 will, its facet aside."""
+def estimate_line(stage: Scene, tree: Tree, task: dict[str, Any]) -> UUID:
+    """Write an estimate line under a task around the service, as EP-07 will; give its id."""
     row = node_row(
         UUID(stage.project["project_id"]),
         UUID(tree.revision["revision_id"]),
@@ -434,6 +434,7 @@ def estimate_line(stage: Scene, tree: Tree, task: dict[str, Any]) -> None:
     )
     with stage.owner.begin() as connection:
         connection.execute(insert(Node).values(**row))
+    return cast("UUID", row["id"])
 
 
 @pytest.mark.requirement("WF-IHM-0050-A")
@@ -531,9 +532,10 @@ def test_a_row_past_the_last_node_without_a_label_is_refused_on_its_label_and_cr
 def test_a_cell_refused_on_a_row_past_the_last_node_refuses_the_row_as_an_entry_would(
     tree: Tree, who: Person
 ) -> None:
-    # Vérif : « Un bloc dont une cellule porte une catégorie inconnue signale cette ligne ;
-    # confirmé, il écrit les autres lignes et non celle-ci. » — critère d'US-1450 : les autres
-    # cellules d'une tâche créée se jugent comme celles d'une tâche qui s'écrit. The anchor's own
+    # Critère propre à US-1450, dans l'esprit du Vérif de WF-IHM-0050-A (« Un bloc dont une cellule
+    # porte une catégorie inconnue signale cette ligne ; confirmé, il écrit les autres lignes et
+    # non celle-ci. ») : les autres cellules d'une tâche créée se jugent comme celles d'une tâche
+    # qui s'écrit — mode inconnu, date calculée, jour non ouvré. The anchor's own
     # row is refused: it is the anchor still, and the task created is its sibling.
     first = tree.made("Étude", who=who)
     anchor = tree.made("Travaux", who=who)
@@ -572,13 +574,96 @@ def test_a_cell_refused_on_a_row_past_the_last_node_refuses_the_row_as_an_entry_
     assert tree.node(first["node_id"])["task"]["label"] == "Étude"
 
 
+@pytest.mark.requirement("WF-IHM-0050-A")
+def test_a_block_aimed_at_a_line_creates_no_task_its_rows_past_the_last_node_being_refused(
+    tree: Tree, stage: Scene, who: Person
+) -> None:
+    # Critère d'US-1450 : une ligne au-delà crée un nœud du genre du nœud visé ; ce service ne crée
+    # que des tâches (la ligne de devis est servie par EP-07, US-1560) — le nœud visé est une
+    # ligne, la ligne au-delà est refusée comme celle de la ligne, FIELD_NOT_ACCEPTED.
+    task = tree.made("Étude", who=who)
+    line = estimate_line(stage, tree, task)
+    plan = planned(tree, {"node_id": str(line)}, "label", [["Une"], ["Deux"]], who)
+    assert (plan["accepted"], plan["created"]) == (0, 0)
+    assert reasons(plan) == [(0, None, "FIELD_NOT_ACCEPTED"), (1, None, "FIELD_NOT_ACCEPTED")]
+    body = applied(tree, plan, who)
+    assert (body["nodes"], reasons(body)) == ([], reasons(plan))
+    assert [each["node_id"] for each in tree.items()] == [task["node_id"], str(line)]
+    assert body["totals"]["task_count"] == 1
+
+
+@pytest.mark.requirement("WF-IHM-0050-A")
+def test_a_row_that_creates_is_judged_again_and_refused_since_it_is_not_created(
+    tree: Tree, stage: Scene, who: Person
+) -> None:
+    # Critère d'US-1450 : à l'application, une ligne qui crée est rejugée ; refusée, elle passe
+    # dans `rejected` et sa tâche n'est pas créée (an element removed since the preview).
+    package, _ = work_breakdown(stage)
+    task = tree.made("Étude", who=who)
+    block = [["Études"], ["Plan", *[""] * 11, "Lot"], ["Recette"]]
+    plan = planned(tree, task, "label", block, who)
+    assert (plan["accepted"], plan["created"], plan["rejected"]) == (3, 2, [])
+    with stage.owner.begin() as connection:
+        connection.execute(
+            update(WorkPackage).where(WorkPackage.id == package).values(deleted_at=utc_now())
+        )
+    body = applied(tree, plan, who)
+    assert reasons(body) == [(1, "work_breakdown", "UNKNOWN_WORK_BREAKDOWN_ITEM")]
+    assert labels_of(tree) == ["Études", "Recette"]
+    assert len(body["nodes"]) == 2
+    assert body["totals"]["task_count"] == 2
+
+
+@pytest.mark.requirement("WF-IHM-0050-A")
+def test_a_plan_that_creates_creates_nothing_abandoned_or_stale(
+    tree: Tree, stage: Scene, who: Person
+) -> None:
+    # Vérif : « abandonné, il ne modifie aucune ligne. » — and a plan stale (412) writes nothing:
+    # the tasks a plan holds are created by its confirmation alone.
+    task = tree.made("Étude", who=who)
+    before = (tree.items(), counter(tree), len(entries(stage)))
+    abandoned = planned(tree, task, "label", [["Étude"], ["Plan"]], who)
+    assert abandoned["created"] == 1
+    assert (tree.items(), counter(tree), len(entries(stage))) == before
+    assert tree.change(tree.node(task["node_id"]), None, description="Repris").status_code == 200
+    assert refusal(apply(tree, abandoned, who))[:2] == (412, "STALE_LOCK_VERSION")
+    assert labels_of(tree) == ["Étude"]
+    assert [each.kind for each in entries(stage)] == ["node_create"]
+
+
+@pytest.mark.requirement("WF-IHM-0050-A")
+def test_the_plan_names_the_node_it_creates_and_the_cell_of_the_work_breakdown_is_judged_on_it(
+    tree: Tree, stage: Scene, who: Person
+) -> None:
+    # Critère d'US-1450 : le plan garde, pour chaque ligne, le nœud qu'elle crée, que la
+    # confirmation crée sous cet identifiant ; la cellule `work_breakdown` d'une ligne créée sous
+    # un parent rattaché se juge comme celle d'une tâche écrite (an order item under its package).
+    package, item = work_breakdown(stage)
+    parent = tree.made("Étude", who=who)
+    child = tree.made("Sous-étude", who=who, parent_id=parent["node_id"])
+    applied(tree, planned(tree, parent, "work_breakdown", [["Lot"]], who), who)
+    assert tree.node(parent["node_id"])["task"]["work_package_id"] == str(package)
+    block = [["Sous-étude"], ["Plan", *[""] * 11, "Poste"]]
+    plan = planned(tree, child, "label", block, who)
+    assert (plan["accepted"], plan["created"], plan["rejected"]) == (2, 1, [])
+    [kept] = plans(stage)
+    [created] = [each["node_id"] for each in kept.rows["rows"] if each["creates"]]
+    body = applied(tree, plan, who)
+    assert [each["node_id"] for each in body["nodes"]] == [child["node_id"], created]
+    made = tree.node(created)
+    assert made["parent_id"] == parent["node_id"]
+    assert made["task"]["order_item_id"] == str(item)
+
+
 @pytest.mark.requirement("WF-IHM-0110-A")
 def test_a_paste_that_creates_is_undone_by_deleting_its_tasks_and_redone_by_creating_them(
     tree: Tree, stage: Scene, who: Person
 ) -> None:
-    # Critère d'US-1450 : annuler le collage supprime les tâches qu'il a créées, le rétablir les
-    # recrée. As the undoing of a creation, it names the nodes it deletes, and gives back none of
-    # them among the nodes written.
+    # Vérif : « Cinquante modifications successives s’annulent une par une, puis se rétablissent
+    # dans l’ordre. » (WF-IHM-0110-A) : ici une seule entrée, celle du collage — critère d'US-1450 :
+    # annuler le collage supprime les tâches qu'il a créées, le rétablir les recrée. As the undoing
+    # of a creation, it names the nodes it deletes, and gives back none of them among the nodes
+    # written.
     task = tree.made("Étude", who=who)
     plan = planned(tree, task, "label", [["Étude 2"], ["Plan", "", "", "2"], ["Recette"]], who)
     body = applied(tree, plan, who)

@@ -10,24 +10,26 @@ moved (412), judges again and writes the rows accepted in one operation and one 
 
 The block fills, from the targeted column, the columns of the facet task — ``label`` to
 ``work_breakdown`` —, each row writing the node at the same distance below the targeted one, in the
-order of the plan, no cell shifted. An empty cell writes nothing. A cell is refused by its reason,
-named by its row and its column: a computed value (``COMPUTED_VALUE``), a column that no write
-carries — the dates of start and completion, which only the Kanban writes, and the predecessors,
-which ``setPredecessors`` writes (``FIELD_NOT_ACCEPTED``) —, a value that is no number, no date, no
-mode, no element of the work breakdown, and what the entry of a cell refuses (a non-working day,
-a summary's dates, an attachment already borne). A row one of whose cells is refused is refused
-whole.
+order of the plan; a row falling past the last node creates one (below). An empty cell writes
+nothing. A cell is refused by its reason, named by its row and its column: a computed value
+(``COMPUTED_VALUE``), a column that no write carries — the dates of start and completion, which
+only the Kanban writes, and the predecessors, which ``setPredecessors`` writes
+(``FIELD_NOT_ACCEPTED``) —, a value that is no number, no date, no mode, no element of the work
+breakdown, and what the entry of a cell refuses (a non-working day, a summary's dates, an
+attachment already borne). A row one of whose cells is refused is refused whole.
 
 A row of the block past the last node of the structure, in the order of the plan, creates a task
 (#2559): a sibling of that last node — the anchor, whether its own row is written or refused —,
 under the same parent, ranked after it in the order of the block, by the function of the creation
 of ``createNode`` (``judge_creation``), which refuses a parent that is a milestone
 (``MILESTONE_HAS_NO_SUBTASK``, the milestone named, #1772). Its label is required
-(``VALIDATION_FAILED`` on ``label``); its other cells take first the values of a creation — an
-automatic task of a day, without predecessor (WF-DEV-0050) —, then are judged on it as those of a
-task written. The plan keeps for each row whether it creates, and the node it creates; the
-confirmation creates them in its one write, and its entry of the history has none of them before:
-undone, they are deleted, redone, created again, as those of ``createNode``.
+(``VALIDATION_FAILED`` on ``label``); a block aimed at a node that is no task (an estimate line,
+EP-07) creates none, its rows past the last node refused whole as its other rows
+(``FIELD_NOT_ACCEPTED``). Its other cells take first the values of a creation — an automatic task
+of a day, without predecessor (WF-DEV-0050) —, then are judged on it as those of a task written.
+The plan keeps for each row whether it creates, and the node it creates; the confirmation creates
+them in its one write, and its entry of the history has none of them before: undone, they are
+deleted, redone, created again, as those of ``createNode``.
 
 Declared by US-1380/L1; filled by US-1450/L2, L5.
 """
@@ -214,13 +216,15 @@ class _Board:
 
     The ground the rows accepted before leave (``traced``), the elements of the work breakdown by
     label, the structure, act and planning start a task is created at, and the node a row past the
-    last node is created after: the anchor, then the task the row before created.
+    last node is created after: the anchor, then the task the row before created; and the node the
+    block is aimed at, whose kind is the kind of what the block creates.
     """
 
     ground: Ground
     items: Mapping[str, list[WorkBreakdownItem]]
     held: tuple[Place, Act, date]
     after: UUID
+    target: UUID
 
 
 class _NothingToWriteError(Exception):
@@ -367,7 +371,12 @@ def _creating(board: _Board, row: _Row) -> _Outcome:
     The task is judged by the function of ``createNode`` with the label of the row, required, and
     the values of a creation (WF-DEV-0050); the other cells, then, as those of a task written. A
     row refused creates nothing; accepted, its task is traced on the board, the next created after.
+    A row creates a node of the kind of the node the block is aimed at: this service creates tasks
+    only (the estimate line's is EP-07's, US-1560), so a block aimed at another kind creates none,
+    its row refused as every row of such a block is (``_judged``).
     """
+    if board.target not in board.ground.tree.tasks:
+        return _Outcome(None, None, (PasteRefusal(row.row, None, FIELD_NOT_ACCEPTED, {}),))
     sent, refusals = _cells(row, ONE_DAY.unit, board.items)
     label = sent.pop("label", None)
     if label is None:
@@ -486,7 +495,9 @@ def preview_paste(
         raise UnprocessableError(PASTE_TOO_WIDE, {"max_columns": len(columns)})
     ground = traced(Ground(session, place.project_id, tree, facts.is_main))
     held = (place, writer.act, facts.planning_start_on)
-    board = _Board(ground, _items(session, place.project_id), held, tree.order[-1])
+    board = _Board(
+        ground, _items(session, place.project_id), held, tree.order[-1], block.target_node_id
+    )
     start = tree.order.index(block.target_node_id)
     accepted: list[_Row] = []
     rejected: list[PasteRefusal] = []
@@ -607,7 +618,9 @@ def apply_paste(
             ground = Ground(session, place.project_id, write.tree, write.facts.is_main)
             held = (place, writer.act, write.facts.planning_start_on)
             items = _items(session, place.project_id)
-            board = _Board(traced(ground), items, held, write.tree.order[-1])
+            board = _Board(
+                traced(ground), items, held, write.tree.order[-1], kept.plan.target_node_id
+            )
             judged = _rejudged(board, rows, refused)
             _some(judged, refused)
             node_ids = tuple(each.node_id for each, _ in judged)
