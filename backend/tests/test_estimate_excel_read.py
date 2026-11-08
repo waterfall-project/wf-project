@@ -365,6 +365,22 @@ def test_a_workbook_whose_xml_is_damaged_is_refused_as_unreadable(part: str) -> 
     assert error.params == {"expected_format": "estimate", "expected_version": "1"}
 
 
+@pytest.mark.requirement("WF-INTF-0070-A")
+def test_a_workbook_whose_deflate_stream_is_altered_is_refused_as_unreadable() -> None:
+    raw = bytearray(PROTOTYPE.read_bytes())
+    with zipfile.ZipFile(PROTOTYPE) as source:
+        info = source.getinfo("xl/worksheets/sheet1.xml")
+    extra_length = int.from_bytes(raw[info.header_offset + 28 : info.header_offset + 30], "little")
+    start = info.header_offset + 30 + len(info.filename.encode()) + extra_length
+    middle = start + info.compress_size // 2
+    raw[middle : middle + 4] = b"\xff\xff\xff\xff"
+
+    error = refusal(bytes(raw))
+
+    assert error.code == "FILE_FORMAT_UNREADABLE"
+    assert error.params == {"expected_format": "estimate", "expected_version": "1"}
+
+
 @pytest.mark.requirement("WF-INTF-0100-A")
 @pytest.mark.parametrize(
     "value",

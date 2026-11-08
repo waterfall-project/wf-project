@@ -12,6 +12,7 @@ by its tab and its Excel row number (WF-INTF-0070, WF-INTF-0080, WF-INTF-0100). 
 
 import math
 import zipfile
+import zlib
 from dataclasses import dataclass
 from decimal import Decimal
 from io import BytesIO
@@ -261,9 +262,15 @@ def _load_sheets(content: bytes) -> list[tuple[str, list[tuple[Any, ...]]]]:
             return [(sheet.title, list(sheet.iter_rows(values_only=True))) for sheet in workbook]
         finally:
             workbook.close()
-    # SyntaxError is the parent of ElementTree.ParseError and of lxml's XMLSyntaxError.
+    # SyntaxError is the parent of ElementTree.ParseError and of lxml's XMLSyntaxError; zlib.error
+    # and EOFError are a cut deflate stream, RuntimeError and NotImplementedError a member that
+    # zipfile cannot decode (encrypted, unknown compression): none of them is an OSError.
     except (
         zipfile.BadZipFile,
+        zlib.error,
+        EOFError,
+        RuntimeError,
+        NotImplementedError,
         InvalidFileException,
         KeyError,
         ValueError,
