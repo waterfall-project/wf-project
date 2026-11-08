@@ -2926,6 +2926,7 @@
     "COMPUTED_VALUE": "Cette valeur est calculée : elle ne se saisit pas.",
     "SUMMARY_TASK_DERIVED": "Une tâche récapitulative tient ses valeurs de ses subordonnées.",
     "LINK_CYCLE": "Cette liaison créerait une boucle.",
+    "NODE_CYCLE": "Ce déplacement mettrait un nœud sous lui-même.",
     "LINK_FORBIDDEN": "Cette liaison n’est pas permise.",
     "RESOURCE_ROLE_REQUIRED": "Un rôle de ressource est requis.",
     "LABOUR_CATEGORY_REQUIRED": "Une catégorie de coût de main-d’œuvre est requise.",

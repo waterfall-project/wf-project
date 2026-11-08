@@ -36,6 +36,10 @@ STATE_FORBIDS_OPERATION = "STATE_FORBIDS_OPERATION"
 PROJECT_NOT_TERMINAL = "project_not_terminal"
 NO_BACKGROUND_TASK_RUNNING = "no_background_task_running"
 MAY_CREATE_REVISION = "may_create_revision"
+# The conditions an application lacks for a while, which refuse it and leave the import awaiting
+# its decision, its file kept: a background task ends, a permission is granted (WF-ARC-0100,
+# #2475). The others refuse it for good.
+PASSING = (NO_BACKGROUND_TASK_RUNNING, MAY_CREATE_REVISION)
 TERMINAL = ("completed", "lost", "abandoned")
 # Who may create the revision an import creates (WF-INTF-0090).
 REVISIONS_WRITE = "revisions.write"

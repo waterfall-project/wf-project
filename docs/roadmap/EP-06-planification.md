@@ -476,8 +476,14 @@ couvre tous : pour chaque processus — l'API (`create_app`), le worker (`handle
   exception typée passe l'import `failed`, le fichier supprimé.
 - **L'application** (`applyImport`) revérifie la permission et la qualité de contributeur de
   l'appelant, l'état de l'import (`import_awaiting_decision`, `import_file_accepted`), puis les
-  conditions de l'ouverture, et dépose `import_apply` ; refusée par l'une d'elles, elle passe
-  l'import `refused` et supprime le fichier (#1790). Le worker, dans la transaction de la tâche,
+  conditions de l'ouverture, et dépose `import_apply`. Refusée par une condition passagère —
+  `no_background_task_running`, une tâche de fond qui finira, ou `may_create_revision`, une
+  permission qui peut être donnée —, elle répond 409 et laisse l'import `analysed`, son compte
+  rendu applicable et son fichier en place : l'application se redemande sans nouveau dépôt
+  (WF-ARC-0100, spécification 1.0.3 ; #2475, amendé par US-1380/L4). Refusée par une autre — le
+  compte rendu, `project_not_terminal`, une condition de la nature, la permission ou la qualité
+  perdue, la structure visée que la révision en cours ne tient plus (404) —, elle passe l'import
+  `refused` et supprime le fichier (#1790). Le worker, dans la transaction de la tâche,
   revérifie de nouveau, crée la révision en cours au besoin par `create_revision` (EP-04),
   applique par le format sous le verrou de la structure, redate, passe `applied`, supprime le
   fichier, et l'historique annulable ne reçoit rien (WF-IHM-0110). Une tâche en file ou en cours
@@ -1121,9 +1127,11 @@ démarré à terminé, **afin que** le planning dise où en est chaque tâche av
   sont pas saisissables. » : la marge et la criticité, par US-1390 et US-1470 ; l'avancement
   physique est d'EP-10, qui clôt ;
 - `WF-PLA-0130-A` — « Une terminaison datée avant le démarrage de la tâche est refusée. » :
-  `setTaskProgress` refuse par 422 `VALUE_OUT_OF_RANGE` sur la date, et le jour par défaut se lit
-  dans le fuseau horaire de l’installation (spécification 1.0.3, #2524), réalisé par US-1380/L4
-  (#2519) ;
+  `setTaskProgress` refuse par 422 `VALUE_OUT_OF_RANGE` sur la date ;
+- écart : `WF-PLA-0130-A` — le jour courant par défaut se lit dans le fuseau horaire de
+  l’installation (spécification 1.0.3, #2524) : le fuseau de l’installation est reporté vers EP-07
+  (#2527) ; d'ici là, le jour courant est calculé en UTC par une seule fonction du noyau (US-1380/L4,
+  #2519), sur laquelle EP-07 branchera le fuseau ;
 - propre à l'US : `setTaskProgress` démarre, termine ou rouvre une tâche feuille, au compteur lu,
   et refuse par 409 — `task_is_milestone`, `task_without_lines` (jamais manquante sans ligne),
   `task_not_milestone`, `completed_milestone`, puis `project_in_progress` et
