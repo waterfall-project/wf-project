@@ -47,8 +47,16 @@ type NodeInflation = components["schemas"]["NodeInflation"];
 /** A column of a grid of a structure, as the contract names it. */
 export type NodeColumn = components["schemas"]["NodeColumn"];
 
-/** The answer of `listNodes`: the nodes, depth first, and their totals. */
-export type NodeList = operations["listNodes"]["responses"][200]["content"]["application/json"];
+/**
+ * The answer of `listNodes`: the nodes, depth first, and their totals. The contract types its
+ * nodes as projections (`NodeProjection`, #2485), a reading with `fields` rendering only the
+ * fields it named; a grid reads them as whole nodes all the same, since it reads only what it
+ * asked for by `fields` (`nodeFieldNames`, `projectNodes`). This is the one place that says so.
+ */
+export type NodeList = Omit<
+  operations["listNodes"]["responses"][200]["content"]["application/json"],
+  "items"
+> & { items: Node[] };
 
 /**
  * The structure a grid reads the nodes of: its project, its revision, the structure itself —
