@@ -32,6 +32,8 @@ from projects_support import put_in_state
 from projects_support import scene as make_scene
 from sqlalchemy import delete as delete_rows
 from sqlalchemy import func, insert, select, update
+from sqlalchemy.orm import Session
+from support import wait_for_a_lock
 
 from waterfall.core.history.interface import RecordedChange, UndoStack, recording
 from waterfall.core.planning import writing
@@ -44,6 +46,7 @@ from waterfall.core.planning.tables import (
     TrackingEntry,
 )
 from waterfall.core.projects.tables import WorkPackage
+from waterfall.core.revisions.tables import CostStructure
 from waterfall.platform.audit import Act
 from waterfall.platform.database import utc_now
 from waterfall.platform.errors import ForbiddenError
@@ -488,6 +491,28 @@ def test_two_undoings_of_one_stack_come_one_after_the_other(
     assert [each.undone for each in entries(stage)] == [True, True]
 
 
+@pytest.mark.requirement("WF-IHM-0110-A")
+def test_an_undoing_waits_for_the_lock_of_its_structure_and_succeeds_only_once_it_is_released(
+    tree: Tree, who: Person, stage: Scene
+) -> None:
+    # #2476 : the frame of the history locks the structure the entry names, so that an undoing
+    # cannot run over a write of another connection that holds it.
+    tree.made("Étude", who=who)
+    with ThreadPoolExecutor(1) as others, Session(stage.database.engine) as holding:
+        holding.execute(
+            select(CostStructure.id)
+            .where(CostStructure.id == UUID(tree.structure_id))
+            .with_for_update()
+        )
+        undoing = others.submit(undo, tree, who)
+        wait_for_a_lock(stage.database)
+        assert not undoing.done()
+        assert tree.labels() == ["Étude"]
+        holding.commit()
+        assert undoing.result(timeout=10).status_code == 200
+    assert tree.labels() == []
+
+
 # --- What others hold since --------------------------------------------------------------------
 
 
@@ -617,6 +642,35 @@ def test_the_undoing_is_a_conflict_when_another_task_bears_the_element_it_would_
         "UNDO_CONFLICT",
         {"conflicting_object_id": second["node_id"], "conflicting_object_label": "Essais"},
     )
+
+
+@pytest.mark.requirement("WF-IHM-0110-A")
+def test_the_undoing_does_not_restore_an_order_item_outside_the_task_of_its_work_package(
+    tree: Tree, stage: Scene, who: Person
+) -> None:
+    # #2501, same rule: the work package moved to another task since, the order item comes back
+    # without its element rather than outside the subtree of the task of its package.
+    package, item = work_breakdown(stage)
+    holder = tree.made("Lot", who=who)
+    task = tree.made("Câblage", who=who, parent_id=holder["node_id"])
+    tree.made("Essais", who=who, parent_id=holder["node_id"])
+    other = tree.made("Ailleurs", who=who)
+    assert (
+        tree.change(tree.node(holder["node_id"]), None, work_package_id=str(package)).status_code
+        == 200
+    )
+    assert tree.change(tree.node(task["node_id"]), None, order_item_id=str(item)).status_code == 200
+    assert delete(tree, tree.node(task["node_id"]), who).status_code == 200
+    assert tree.change(tree.node(holder["node_id"]), None, work_package_id=None).status_code == 200
+    assert (
+        tree.change(tree.node(other["node_id"]), None, work_package_id=str(package)).status_code
+        == 200
+    )
+    body = undone(tree, who)
+    assert body["undone"]["kind"] == "node_delete"
+    read = tree.node(task["node_id"])["task"]
+    assert (read["label"], read["order_item_id"]) == ("Câblage", None)
+    assert tree.node(other["node_id"])["task"]["work_package_id"] == str(package)
 
 
 # --- What the objects of an entry hold, gone or changed since ----------------------------------

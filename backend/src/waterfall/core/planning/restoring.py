@@ -31,7 +31,7 @@ from uuid import UUID
 from sqlalchemy import select
 
 from waterfall.core.history.interface import UNDO_CONFLICT, ObjectState
-from waterfall.core.planning.attachments import ORDER_ITEM_ID, WORK_PACKAGE_ID, carriers
+from waterfall.core.planning.attachments import ORDER_ITEM_ID, WORK_PACKAGE_ID, carriers, strays
 from waterfall.core.planning.dating import conflicts_of
 from waterfall.core.planning.interface.structures import structure_state
 from waterfall.core.planning.shaping import PARKED, deleted
@@ -245,7 +245,59 @@ def _bearing(
                 raise _conflict(holder, _label(tree, holder))
             live.append(item_id)
         kept[node_id] = (live[0], live[1])
+    _unstrayed(session, project_id, tree, restoring, kept)
     return kept
+
+
+def _unstrayed(
+    session: Session,
+    project_id: UUID,
+    tree: Tree,
+    restoring: Restoring,
+    kept: dict[UUID, tuple[UUID | None, UUID | None]],
+) -> None:
+    """Drop the attachment that would put the task of an order item outside that of its package.
+
+    The tree is judged as the restoring leaves it: the nodes brought back at their parent of the
+    snapshot, the attachments ``kept``. A task brought back whose order item lies outside the
+    subtree of the task of its work package — its package moved, or the parent of one of the two
+    changed, since — comes back without the order item, else the package task without its
+    package: the entry is not refused for what it never touched (#2501, same rule).
+    """
+    parents = {
+        each: node.parent_id for each, node in tree.nodes.items() if each not in restoring.removed
+    }
+    for state in restoring.restored:
+        parents[state.object_id] = _id(_row(state, "node"), "parent_id")
+    borne = {
+        item: holder
+        for item, holder in carriers(tree).items()
+        if holder in parents and holder not in kept
+    }
+    for node_id, pair in kept.items():
+        borne.update({item: node_id for item in pair if item is not None})
+    items = work_breakdown_items(session, project_id, shared=list(borne)) if borne else {}
+
+    def is_under(task_id: UUID, summary: UUID) -> bool:
+        above = parents.get(task_id)
+        while above is not None:
+            if above == summary:
+                return True
+            above = parents.get(above)
+        return False
+
+    while True:
+        dropped = False
+        for package_task, item_tasks in strays(items, borne, is_under):
+            for node_id in [each for each in item_tasks if each in kept] or (
+                [package_task] if package_task in kept else []
+            ):
+                for item in filter(None, kept[node_id]):
+                    borne.pop(item, None)
+                kept[node_id] = (None, None)
+                dropped = True
+        if not dropped:
+            return
 
 
 def _park(tree: Tree, changed: tuple[ObjectState, ...]) -> None:
