@@ -10,7 +10,8 @@ constants of the units, the start of the structure (US-1390/L2). ``update_cost_s
 the date the planning of a structure starts on and its label (``updateCostStructure``, #2170;
 US-1390/L2).
 
-Declared by US-1380/L1; ``reschedule`` filled by US-1380/L2.
+Declared by US-1380/L1; ``reschedule`` filled by US-1380/L2, handed what a write already holds by
+US-1380/L3.
 """
 
 from dataclasses import dataclass
@@ -28,9 +29,26 @@ if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
     from waterfall.core.planning.calendars import Applicable
+    from waterfall.core.planning.scheduling import Origin
     from waterfall.core.planning.tables import TaskLink
     from waterfall.core.planning.tree import Tree
+    from waterfall.core.revisions.interface import StructureFacts
     from waterfall.platform.audit import Act
+
+
+@dataclass(frozen=True, slots=True)
+class Holding:
+    """What a write of the tree under the lock of its structure hands the replay of the engine.
+
+    ``facts`` the structure as the write read it under its lock, not read again (#2492);
+    ``blamed`` the task a refusal of the horizon names — its node, none for a task created, and
+    its label —; ``origin`` what a loop of links the write would close is named from, none but
+    for a move.
+    """
+
+    facts: StructureFacts
+    blamed: tuple[UUID | None, str] | None = None
+    origin: Origin = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -49,26 +67,29 @@ def reschedule(
     project_id: UUID,
     structure_id: UUID,
     at: datetime,
-    blamed: tuple[UUID | None, str] | None = None,
+    held: Holding | None = None,
 ) -> Rescheduled:
     """Replay the engine on a structure locked, write what changes; give what it moved.
 
-    The structure is locked, its dates' instant moved on to ``at`` and its counter advanced.
-    Beyond fifteen years (WF-PLA-0150), refused (422 ``PROJECT_HORIZON_EXCEEDED``), nothing
-    written: naming ``blamed`` — the node of the task written, none for a task created, and its
-    label — or, without one, the task that finishes last.
+    The structure is locked, its dates' instant moved on to ``at`` and its counter advanced; a
+    write of the tree that holds the lock already hands what it read (``held``). Beyond fifteen
+    years (WF-PLA-0150), refused (422 ``PROJECT_HORIZON_EXCEEDED``), nothing written: naming the
+    task ``held`` blames or, without one, the task that finishes last. A link between a summary
+    and its subordinate, or a loop of links, is refused (``dated``).
     """
-    facts = structure_facts(session, project_id, structure_id, lock=True)
+    if held is None:
+        held = Holding(structure_facts(session, project_id, structure_id, lock=True))
+    facts = held.facts
     session.flush()
     tree = read_tree(session, project_id, structure_id)
     calendars = calendars_of(session, project_id, tree.tasks)
     replay = replay_of(
         session, (project_id, structure_id, facts.planning_start_on), tree, calendars
     )
-    computed = dated(replay)
+    computed = dated(replay, held.origin)
     beyond = computed.horizon_exceeded_by
     if beyond is not None:
-        node_id, label = blamed or (beyond, tree.tasks[beyond].label)
+        node_id, label = held.blamed or (beyond, tree.tasks[beyond].label)
         raise horizon_exceeded(node_id, label)
     moved = kept(replay, computed)
     session.flush()

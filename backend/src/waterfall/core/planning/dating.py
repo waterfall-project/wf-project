@@ -20,6 +20,8 @@ from waterfall.core.planning.scheduling import (
     Duration,
     Lag,
     Link,
+    LinkCycleError,
+    LinkForbiddenError,
     Schedule,
     Structure,
     UnitConstants,
@@ -43,6 +45,7 @@ if TYPE_CHECKING:
         DurationUnit,
         LagUnit,
         LinkType,
+        Origin,
         ScheduledTask,
     )
     from waterfall.core.planning.tables import Task, TaskLink
@@ -120,8 +123,14 @@ def _planned(replay: Replay, node_id: UUID) -> Planned:
     )
 
 
-def dated(replay: Replay) -> Schedule:
-    """Run the engine on the structure; beyond the horizon, the schedule names the task."""
+def dated(replay: Replay, origin: Origin = None) -> Schedule:
+    """Run the engine on the structure; beyond the horizon, the schedule names the task.
+
+    A link between a summary and its subordinate is refused without a parameter (422
+    ``LINK_FORBIDDEN``), a loop of links naming its tasks by their node and their label, from
+    ``origin`` when it closes one (422 ``LINK_CYCLE``, WF-PLA-0030, WF-PLA-0040): a move under a
+    summary that covers a task linked to it is refused so (``moveNodes``, #1169).
+    """
     tree = replay.tree
     links = tuple(
         Link(
@@ -133,7 +142,14 @@ def dated(replay: Replay) -> Schedule:
         for link in replay.links
     )
     planned = tuple(_planned(replay, node_id) for node_id in tree.order if node_id in tree.tasks)
-    return schedule(Structure(planned, links, replay.planning_start, replay.constants))
+    structure = Structure(planned, links, replay.planning_start, replay.constants)
+    try:
+        return schedule(structure, origin)
+    except LinkForbiddenError:
+        raise UnprocessableError(LinkForbiddenError.code) from None
+    except LinkCycleError as loop:
+        cycle = [{"node_id": str(each), "label": tree.tasks[each].label} for each in loop.cycle]
+        raise UnprocessableError(LinkCycleError.code, {"cycle": cycle}) from None
 
 
 def _conflicts(pairs: Collection[tuple[UUID, UUID]]) -> dict[UUID, set[tuple[UUID, UUID]]]:
