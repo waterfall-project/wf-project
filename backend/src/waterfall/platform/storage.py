@@ -114,9 +114,13 @@ class Bucket:
 
         The media type, when given, is the one the object is served with.
         """
-        extra = {} if media_type is None else {"ContentType": media_type}
         with reached():
-            self.client.put_object(Bucket=self.name, Key=key, Body=content, **extra)
+            if media_type is None:
+                self.client.put_object(Bucket=self.name, Key=key, Body=content)
+            else:
+                self.client.put_object(
+                    Bucket=self.name, Key=key, Body=content, ContentType=media_type
+                )
 
     def remove(self, key: str) -> None:
         """Delete the object of a key; a key that holds none is no fault, S3 says nothing of it."""

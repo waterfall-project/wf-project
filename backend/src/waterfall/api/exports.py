@@ -127,7 +127,7 @@ def get_background_task_result(
 
     def delivered() -> Iterator[bytes]:
         yield from chunks
-        services.backups.delete(found.object_key)
+        services.backups.remove(found.object_key)
         with services.database.transaction() as session:
             consumed(session, task_id)
 
