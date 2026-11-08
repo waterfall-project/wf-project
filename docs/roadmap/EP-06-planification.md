@@ -1499,7 +1499,7 @@ PRJ-001 a la profondeur que `summary_depth` dit.
 
 ## US-1450 — Le collage et l'annulation servis par le serveur
 
-- **statut** : en cours
+- **statut** : fini
 - **exigences** : `WF-IHM-0110-A`
 - **opérations** : `previewPaste`, `applyPaste`, `undoLastChange`, `redoLastUndo`
 - **issue** : 2322
