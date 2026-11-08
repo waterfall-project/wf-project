@@ -262,6 +262,56 @@ def test_two_creations_at_once_in_one_structure_are_both_written_one_after_the_o
     assert Decimal(read[0]["task"]["duration"]["value"]) == 1
 
 
+@pytest.mark.requirement("WF-PLA-0080-A")
+def test_a_reading_made_while_tasks_are_created_answers_a_consistent_state_every_time(
+    tree: Tree, stage: Scene
+) -> None:
+    project_id = UUID(stage.project["project_id"])
+    revision_id, structure_id = UUID(tree.revision["revision_id"]), UUID(tree.structure_id)
+    first = tree.made("Départ")
+    finished = []
+
+    def writing() -> None:
+        previous = first
+        for index in range(12):
+            node = tree.made(f"Tâche {index}")
+            with stage.database.transaction() as session:
+                session.execute(
+                    insert_link(
+                        project_id,
+                        revision_id,
+                        structure_id,
+                        UUID(previous["node_id"]),
+                        UUID(node["node_id"]),
+                    )
+                )
+            previous = node
+        finished.append(True)
+
+    def reading() -> list[int]:
+        found: list[int] = []
+        while not finished:
+            for answer in (
+                tree.read(),
+                tree.api.get(
+                    f"{tree.path}/nodes/{first['node_id']}/dependencies?field=task.start",
+                    headers=stage.manager.headers,
+                ),
+                tree.api.get(f"{tree.path}/rows/1", headers=stage.manager.headers),
+            ):
+                found.append(answer.status_code)
+        return found
+
+    with ThreadPoolExecutor(3) as pool:
+        written = pool.submit(writing)
+        readers = [pool.submit(reading) for _ in range(2)]
+        written.result()
+        statuses = [status for each in readers for status in each.result()]
+    assert statuses
+    assert set(statuses) == {200}
+    assert len(tree.items()) == 13
+
+
 @pytest.mark.requirement("WF-PLA-0010-A")
 def test_a_task_is_on_the_default_calendar_or_on_the_calendars_its_facets_name_intersected(
     tree: Tree, stage: Scene

@@ -258,8 +258,16 @@ def copy_nodes(copy: RevisionCopy) -> None:
 def _reading(
     session: Session, place: Place, tree: Tree, scheduled: tuple[datetime, bool]
 ) -> Reading:
-    """Read what a reading of a structure derives: its links, its calendars, its states."""
-    links = read_links(session, place.project_id, place.structure_id)
+    """Read what a reading of a structure derives: its links, its calendars, its states.
+
+    The links are read after the tree, in their own statement: one whose ends a write committed
+    in between is of a later state than the tree, and left out.
+    """
+    links = [
+        link
+        for link in read_links(session, place.project_id, place.structure_id)
+        if {link.predecessor_id, link.successor_id} <= tree.tasks.keys()
+    ]
     calendars = calendars_of(session, place.project_id, tree.tasks)
     return Reading(session, (place.project_id, *scheduled), tree, links, calendars)
 

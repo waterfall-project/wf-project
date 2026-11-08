@@ -14,7 +14,7 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 from uuid import UUID
 
-from sqlalchemy import or_, select
+from sqlalchemy import and_, or_, select
 
 from waterfall.core.planning.tables import Node, Task, TaskLink, TrackingEntry
 
@@ -96,18 +96,19 @@ class Tree:
 
 
 def read_tree(session: Session, project_id: UUID, structure_id: UUID) -> Tree:
-    """Read the nodes of a structure and their facet task, as they are in the transaction."""
-    nodes = session.scalars(
-        select(Node)
+    """Read the nodes of a structure and their facet task, as they are in the transaction.
+
+    The nodes and their tasks come in one statement, so one snapshot: a task created between two
+    statements would be a node without its task, or a task without its node.
+    """
+    rows = session.execute(
+        select(Node, Task)
+        .outerjoin(Task, and_(Task.project_id == Node.project_id, Task.node_id == Node.id))
         .where(Node.project_id == project_id, Node.structure_id == structure_id)
         .execution_options(populate_existing=True)
     ).all()
-    tasks = session.scalars(
-        select(Task)
-        .where(Task.project_id == project_id, Task.structure_id == structure_id)
-        .execution_options(populate_existing=True)
-    ).all()
-    return Tree({node.id: node for node in nodes}, {task.node_id: task for task in tasks})
+    tasks = {task.node_id: task for _, task in rows if task is not None}
+    return Tree({node.id: node for node, _ in rows}, tasks)
 
 
 def read_links(session: Session, project_id: UUID, structure_id: UUID) -> list[TaskLink]:
