@@ -185,6 +185,46 @@ def list_cost_structures(
     ]
 
 
+def aimed_structure(
+    session: Session, project_id: UUID, revision_id: UUID, structure_id: UUID | None
+) -> UUID | None:
+    """Give the structure of a revision an import aims at: the one named, or the main one.
+
+    ``None`` when the structure named is not one of the revision — unknown, of another revision or
+    of another project —, which the opening of an import refuses (404, EP-06).
+    """
+    criteria = [CostStructure.project_id == project_id, CostStructure.revision_id == revision_id]
+    if structure_id is None:
+        criteria.append(CostStructure.kind == MAIN)
+    else:
+        criteria.append(CostStructure.id == structure_id)
+    return session.scalar(select(CostStructure.id).where(*criteria))
+
+
+def structure_in_revision(
+    session: Session, project_id: UUID, structure_id: UUID, revision_id: UUID
+) -> UUID | None:
+    """Give the structure of a revision that is ``structure_id``, or the copy of its lineage.
+
+    An import analysed on a structure of the last marked revision applies to the copy the current
+    revision holds of it (WF-INTF-0090, EP-06); ``None`` when the revision holds none.
+    """
+    lineage = session.scalar(
+        select(CostStructure.lineage_id).where(
+            CostStructure.project_id == project_id, CostStructure.id == structure_id
+        )
+    )
+    if lineage is None:
+        return None
+    return session.scalar(
+        select(CostStructure.id).where(
+            CostStructure.project_id == project_id,
+            CostStructure.revision_id == revision_id,
+            CostStructure.lineage_id == lineage,
+        )
+    )
+
+
 def structure_commands(
     session: Session, project_id: UUID, revision_id: UUID, structure_id: UUID, viewer: Viewer
 ) -> tuple[CommandAvailability, ...]:

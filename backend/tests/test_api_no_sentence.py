@@ -82,6 +82,21 @@ DATA = {
     # The name of a file deposited, as the person chose it (#350).
     "ChunkedUpload.filename": "a name of a file",
     "FileUpload.filename": "a name of a file",
+    # What the report of an import names as its file or its structure holds it (US-1420/L1): the
+    # file, the labels of its objects, the sheet of a line, the version of its format, the number
+    # of an item of a document, the columns a difference changes, as their grid names them.
+    "Import.filename": "a name of a file",
+    "ImportCompletedTask.label": "a label",
+    "ImportDateMismatch.label": "a label",
+    "ImportDifference.label": "a label",
+    "ImportDifference.predecessor_label": "a label",
+    "ImportDifference.work_breakdown_label": "a label",
+    "ImportDifference.document_item": "a number of an item",
+    "ImportDifference.fields": "names of columns",
+    "ImportIgnored.labels": "labels of the file",
+    "ImportRejection.sheet": "a name of a sheet",
+    "ImportReport.format_version": "a version of a format",
+    "ImportSignal.label": "a label",
     # What the parameters of a refusal name, by the label and the code a person gave it: a role, a
     # project, a task, a line and its structure, a subproject, a risk, and the labels of a column of
     # the extraction of actual costs, as the mapping declares them (``ProblemParams``, #768; the

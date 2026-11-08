@@ -55,12 +55,13 @@ def handlers(settings: WorkerSettings) -> dict[str, TaskHandler]:
     The marking is the first task of the trade (US-0970); the analysis and the application of an
     import and an export are the exchanges' (EP-06).
     """
+    imports = exchanges.ImportTasks.of(settings)
     return {
         "backup": BackupTask.of(settings),
         "identity_sync": IdentitySync.of(settings),
         "revision_mark": mark,
-        "import_analysis": exchanges.analyse,
-        "import_apply": exchanges.apply,
+        "import_analysis": imports.analyse,
+        "import_apply": imports.apply,
         "export": exchanges.export,
     }
 

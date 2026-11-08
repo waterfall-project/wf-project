@@ -70,8 +70,10 @@ from waterfall.core.revisions.interface.revisions import (
     create_project_partitions,
     create_revision,
     current_revision,
+    last_marked_revision,
     list_revisions,
     load_revision,
+    open_revision_by_task,
     read_revision,
     register_copy,
     revision_draft,
@@ -81,8 +83,10 @@ from waterfall.core.revisions.interface.revisions import (
 # ``structures`` (US-0960): the cost structures of a revision.
 from waterfall.core.revisions.interface.structures import (
     StructureView,
+    aimed_structure,
     list_cost_structures,
     structure_commands,
+    structure_in_revision,
 )
 
 __all__ = [
@@ -103,6 +107,7 @@ __all__ = [
     "RevisionView",
     "StructureView",
     "abandon_revision",
+    "aimed_structure",
     "closers",
     "compute_indicators",
     "copy_revision",
@@ -110,11 +115,13 @@ __all__ = [
     "create_revision",
     "current_revision",
     "designate_reference",
+    "last_marked_revision",
     "list_cost_structures",
     "list_revisions",
     "load_marking",
     "load_revision",
     "mark_revision",
+    "open_revision_by_task",
     "read_revision",
     "reference_correctable",
     "register_closing",
@@ -126,5 +133,6 @@ __all__ = [
     "revisions_present",
     "run_marking",
     "structure_commands",
+    "structure_in_revision",
     "submit_marking",
 ]
