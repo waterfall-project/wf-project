@@ -854,7 +854,7 @@ inscriptions (US-1400) ; l'état (US-1410) ; le collage et l'annulation (US-1450
 
 ## US-1390 — Le calcul des dates, des marges et du chemin critique, et les liaisons
 
-- **statut** : en cours
+- **statut** : fini
 - **exigences** : `WF-PLA-0010-A`, `WF-PLA-0020-A`, `WF-PLA-0030-A`, `WF-PLA-0100-A`,
   `WF-PLA-0160-A`
 - **opérations** : `setPredecessors`, `updateCostStructure` ; `listNodes`, `createNode`,

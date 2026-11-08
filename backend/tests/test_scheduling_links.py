@@ -88,7 +88,11 @@ def linked(tree: Tree, node: dict[str, Any], *predecessors: dict[str, Any]) -> d
 def manual(day: Any, hours: tuple[str, str] = ("0", "8")) -> dict[str, Any]:
     """Give the facet of a manual task of a day."""
     start, finish = hours
-    return {"scheduling_mode": "manual", "start": instant(day, start), "finish": instant(day, finish)}
+    return {
+        "scheduling_mode": "manual",
+        "start": instant(day, start),
+        "finish": instant(day, finish),
+    }
 
 
 def days(value: str) -> dict[str, str]:

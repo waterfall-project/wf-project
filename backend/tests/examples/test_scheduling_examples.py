@@ -11,7 +11,7 @@ says otherwise.
 
 from datetime import date, timedelta
 from decimal import Decimal
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING, Any, cast
 from uuid import UUID
 
 import pytest
@@ -195,6 +195,40 @@ def test_two_days_a_week_and_a_month_are_worth_their_hours_by_the_default_consta
     for case in cast("list[dict[str, str]]", units["durations"]):
         duration = Duration(Decimal(case["value"]), cast("DurationUnit", case["unit"]))
         assert duration.hours(by_default) == Decimal(case["hours"])
+
+
+def constants_of(held: dict[str, str]) -> UnitConstants:
+    """Return the constants of the units a fixture writes."""
+    return UnitConstants(
+        Decimal(held["hours_per_day"]),
+        Decimal(held["hours_per_week"]),
+        Decimal(held["days_per_month"]),
+    )
+
+
+@pytest.mark.requirement("WF-PLA-0160-A")
+def test_two_days_after_seven_hours_a_day_are_fourteen_hours_and_redated_the_marked_sixteen(
+    example: Callable[[str], Example],
+) -> None:
+    # « Après passage des heures par jour de 8 à 7, une durée saisie « 2 j » dans une révision en
+    # cours vaut quatorze heures, et ses dates sont recalculées ; dans une révision marquée, elle
+    # vaut toujours seize heures. » The current revision is dated with the constants of the
+    # installation, the marked one keeps what it computed with those of its time (US-1390/L2).
+    changed = example("WF-PLA-0160-A#accda3317067")
+    entered = cast("dict[str, str]", changed["duration"])
+    two_days = Duration(Decimal(entered["value"]), cast("DurationUnit", entered["unit"]))
+    calendar = hours_of_week(*(int(each) for each in cast("list[str]", changed["weekly_hours"])))
+    for revision, held in (("current", "after"), ("marked", "before")):
+        constants = constants_of(cast("dict[str, str]", changed[held]))
+        expected = cast("dict[str, Any]", changed[revision])
+        assert two_days.hours(constants) == Decimal(expected["hours"])
+        planned_task = Task(ident(1), None, "automatic", two_days, calendar)
+        dated = schedule(Structure((planned_task,), (), MONDAY, constants)).tasks[ident(1)]
+        finish = cast("dict[str, str]", expected["finish"])
+        assert (weekday(dated.finish), dated.finish.hours) == (
+            finish["weekday"],
+            Decimal(finish["hours"]),
+        )
 
 
 @pytest.mark.requirement("WF-PLA-0160-A")

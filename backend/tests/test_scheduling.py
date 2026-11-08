@@ -95,8 +95,9 @@ def test_a_manual_task_started_at_the_finish_rendered_of_its_predecessor_is_in_n
 
 
 @pytest.mark.requirement("WF-PLA-0100-A")
-def test_a_predecessor_working_the_saturday_floats_to_its_end_before_the_monday_of_its_successor(
-) -> None:
+def test_a_predecessor_working_the_saturday_floats_to_the_end_of_it_before_a_monday_successor() -> (
+    None
+):
     # #2461: a predecessor on a calendar of six days, linked finish to start to a successor on a
     # calendar from Monday to Friday whose latest start is a Monday: the predecessor may finish as
     # late as the end of its Saturday, the successor not starting before the Monday anyway. From
