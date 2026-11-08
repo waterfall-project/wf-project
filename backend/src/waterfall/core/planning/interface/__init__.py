@@ -144,6 +144,12 @@ from waterfall.core.planning.interface.task_tree import (
 
 # ``timelines`` (US-1380/L1; US-1400/L1): the named timelines of a project.
 from waterfall.core.planning.interface.timelines import (
+    TimelineLoad as TimelineLoad,
+)
+from waterfall.core.planning.interface.timelines import (
+    TimelineView as TimelineView,
+)
+from waterfall.core.planning.interface.timelines import (
     create_timeline as create_timeline,
 )
 from waterfall.core.planning.interface.timelines import (
@@ -154,6 +160,9 @@ from waterfall.core.planning.interface.timelines import (
 )
 from waterfall.core.planning.interface.timelines import (
     load_timeline as load_timeline,
+)
+from waterfall.core.planning.interface.timelines import (
+    timelines_present as timelines_present,
 )
 
 # ``tracking`` (US-1380/L1; US-1400/L2): the inscriptions of a task.
