@@ -370,7 +370,7 @@ async function removeTimeline(page: Page, shown: string, label: string): Promise
   }
   await link.click();
   await page
-    .getByRole("button", { name: `Supprimer la chronologie « ${label} »` })
+    .getByRole("button", { name: `Supprimer la chronologie «\u00a0${label}\u00a0»` })
     .click();
   await page
     .getByRole("dialog", { name: /^Supprimer la chronologie/ })
