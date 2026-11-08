@@ -1693,14 +1693,15 @@ back.
   les mille tâches de PRJ-001 (#620) s'écrit au relevé de livraison ; aucune optimisation sans
   elle.
 
-**Notes de réalisation.** Les écrans sont ceux d'EP-02/L40, d'EP-14 et d'EP-15 (US-0460 à
-US-0530) ; cette US ne les réécrit pas. Un manque que le branchement révèle devient une issue ;
-un manque du contrat, une « Interface contract issue ». Parts reportées, chacune dans son issue :
-FLX-01 du compte « chef de projet » → #2589 (US-1430/L4) ; le geste du report (#1057) fait depuis
-la grille de devis → #2590 (EP-07), le parcours le jouant par les opérations que cette grille
-envoie ; l'étiquetage `@shared` des parcours qui lisent le témoin de PRJ-001 → #2591 (US-1480/L3) ; les états « démarrée » et « terminée » joués contre le service, impossibles sur un
-projet de la course avant EP-07 → #2595 (US-1480/L3, sur le témoin). Les parcours `@shared` du planning
-sont dans `planning-service.spec.ts`, `planning.spec.ts` dépassant la borne de 1 000 lignes.
+**Notes de réalisation.** Les écrans sont ceux d'EP-02/L40, d'EP-14 et d'EP-15 (US-0460 à US-0530) ;
+cette US ne les réécrit pas. Un manque que le branchement révèle devient une issue ; un manque du
+contrat, une « Interface contract issue ». Parts reportées, chacune dans son issue : FLX-01 du
+compte « chef de projet » → #2589 (US-1430/L4) ; le geste du report (#1057) fait depuis la grille de
+devis → #2590 (EP-07), le parcours le jouant par les opérations que cette grille envoie ;
+l'étiquetage `@shared` des parcours qui lisent le témoin de PRJ-001 → #2591 (US-1480/L3) ; les états
+« démarrée » et « terminée » joués contre le service, impossibles sur un projet de la course avant
+EP-07 → #2595 (US-1480/L3, sur le témoin). Les parcours `@shared` du planning sont dans
+`planning-service.spec.ts`, `planning.spec.ts` dépassant la borne de 1 000 lignes.
 
 **Hors périmètre.** La grille de devis et celle du reste à engager (EP-07, EP-09) ; l'avancement
 physique (EP-10).

@@ -375,7 +375,9 @@ test("draws the Gantt of the planning from the service, modifies no task from it
   await page.mouse.up();
   await expect(cell.getByRole("img")).toHaveAttribute("aria-label", barBefore ?? "");
   // No write left with the drag: checked now, not only at the end of the path.
-  await expect.poll(() => sent, { timeout: 1_000 }).toEqual([]);
+  // Wait for the network to settle so that a late write would have left already.
+  await page.waitForLoadState("networkidle", { timeout: 5_000 });
+  expect(sent).toEqual([]);
 
   // Une récapitulative pliée dans la grille l’est dans le Gantt, et réciproquement.
   const summary = grid.getByRole("row", { name: new RegExp(`^1 .*${SEEDED[1]}`) });
