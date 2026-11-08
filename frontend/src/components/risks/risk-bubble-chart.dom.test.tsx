@@ -238,7 +238,7 @@ describe("the risk matrix as a bubble chart", () => {
       { name: "Alert", xAxis: 0.6, yAxis: 0.1 },
       { xAxis: 1, yAxis: axis.max },
     ]);
-    // The axis reaches over the heaviest bubble (18.34 %) and the end of the last level.
+    // The axis reaches over the heaviest bubble of all, the dismissed one included (the automation engineer, 17.07 %), and the end of the last level.
     expect(axis.max).toBeGreaterThan(0.1707);
     expect(zones).toMatchObject({ silent: true, data: [] });
   });

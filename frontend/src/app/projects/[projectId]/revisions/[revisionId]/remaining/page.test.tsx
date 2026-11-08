@@ -217,7 +217,7 @@ describe("the screen of the remaining to commit", () => {
     );
   });
 
-  it("signals the sub-project over its budget in the zone the server classes it in, the others not, the deviations signed [WF-RAE-0020-A]", async () => {
+  it("signals the scope outside the sub-projects over its budget in the zone the server classes it in, the others not, the deviations signed [WF-RAE-0020-A]", async () => {
     // Les écarts sont présents et signés. Un sous-projet dont le coût réel augmenté du reste à
     // engager dépasse son budget est signalé par la couleur, les autres non.
     // The remaining to commit had the risk of rework of the wiring been re-examined today at 60 %
