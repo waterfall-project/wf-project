@@ -131,7 +131,9 @@ projet, l'historique de ses états, ses contributeurs, ses sous-projets, son lot
 un paquet d'un fichier par sujet (`projects`, `contributors`, `subprojects`, `work_breakdown`,
 `lifecycle` ; `revisions`, `structures`, `marking`, `reference`), où chaque fonction de la
 conception est déclarée dès le socle, sans effet, pour qu'aucune US ne rouvre `interface/__init__.py`
-pour remplir la sienne. Le planning (EP-06) en a trois : `waterfall.core.planning` (FBS-4.3) — les
+pour remplir la sienne.
+
+Le planning (EP-06) en a trois : `waterfall.core.planning` (FBS-4.3) — les
 nœuds et leur facette tâche, les liaisons, les chronologies et les inscriptions —,
 `waterfall.core.history` — l'historique annulable et les plans de collage — et
 `waterfall.core.exchanges` (FBS-4.3.4) — les imports, les exports et leurs formats —, dont
@@ -140,7 +142,9 @@ socle (US-1380/L1). Un module du haut étend un module du bas sans que celui-ci 
 registre ordonné (`Registry`, `waterfall.platform.registry`) que l'interface du bas offre de
 remplir et que celle du haut remplit à son import (EP-06, « Les points d'extension ») ; un point
 d'entrée qui en dépend importe l'interface qui enregistre, et `test_registries.py` le vérifie pour
-l'API, le worker et le chargeur (#2180). Une table révisionnée est partitionnée par liste sur `project_id`, une
+l'API, le worker et le chargeur (#2180).
+
+Une table révisionnée est partitionnée par liste sur `project_id`, une
 partition par projet (WF-DAT-0050), que crée dans la transaction de la création du projet la
 fonction `create_project_partitions` du propriétaire des tables (`SECURITY DEFINER`), que le rôle du
 service seul peut exécuter, sans autre droit de DDL ; chaque EPIC qui ajoute une table révisionnée la

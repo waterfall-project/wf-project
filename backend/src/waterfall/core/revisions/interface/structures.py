@@ -16,6 +16,10 @@ derived before: the day of the creation of the origin of its lineage, which is a
 revision it was created in was marked, since a copy takes up only a marked revision's —, or, were
 it missing, the day of its own creation rather than vanish from its list.
 
+What the planning asks of a structure (EP-06, "Modules"): its facts, read or under its lock
+(``structure_facts``), which every write of its nodes takes, and the instant of its dates moved on
+with its counter (``structure_rescheduled``), at each write that redates it (US-1380/L2).
+
 Filled by US-0960. The witness loads no structure of its own: the main one is born with its
 revision, the others are EP-06's and EP-07's.
 """
@@ -23,7 +27,7 @@ revision, the others are EP-06's and EP-07's.
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
-from sqlalchemy import func, select
+from sqlalchemy import func, select, update
 from sqlalchemy.orm import aliased
 
 from waterfall.core.projects.interface import CommandAvailability, contributor_kind, project_facts
@@ -233,3 +237,65 @@ def structure_commands(
         if view.structure_id == structure_id:
             return view.commands
     raise NotFoundError(NOT_FOUND)
+
+
+@dataclass(frozen=True, slots=True)
+class StructureFacts:
+    """What the planning reads of a structure: its revision, its kind, its start, its instant.
+
+    ``planning_start_on`` and ``scheduled_at`` are derived as the list reads them when the
+    migration left them null (#2170); ``lock_version`` is the counter of its writes.
+    """
+
+    structure_id: UUID
+    revision_id: UUID
+    is_main: bool
+    planning_start_on: date
+    scheduled_at: datetime
+    lock_version: int
+
+
+def structure_facts(
+    session: Session, project_id: UUID, structure_id: UUID, *, lock: bool
+) -> StructureFacts:
+    """Read a structure of a project; or refuse (404).
+
+    ``lock`` takes it ``FOR UPDATE`` and reads it under the lock: every write of its nodes does,
+    after the revision and the stack of the history (EP-06, "L'historique annulable").
+    """
+    query = select(CostStructure).where(
+        CostStructure.project_id == project_id, CostStructure.id == structure_id
+    )
+    if lock:
+        query = query.with_for_update().execution_options(populate_existing=True)
+    row = session.scalars(query).first()
+    if row is None:
+        raise NotFoundError(NOT_FOUND)
+    start, at = row.planning_start_on, row.scheduled_at or row.created_at
+    if start is None:
+        origin = session.scalar(
+            select(CostStructure.created_at).where(
+                CostStructure.project_id == project_id, CostStructure.id == row.lineage_id
+            )
+        )
+        start = (origin or row.created_at).date()
+    return StructureFacts(row.id, row.revision_id, row.kind == MAIN, start, at, row.lock_version)
+
+
+def structure_rescheduled(
+    session: Session, project_id: UUID, structure_id: UUID, at: datetime
+) -> int:
+    """Move the instant of the dates of a structure on to ``at``, advance its counter; give it.
+
+    To be called under the lock of the structure (``structure_facts``), by a write that redates it.
+    """
+    counted = session.scalar(
+        update(CostStructure)
+        .where(CostStructure.project_id == project_id, CostStructure.id == structure_id)
+        .values(scheduled_at=at, lock_version=CostStructure.lock_version + 1)
+        .returning(CostStructure.lock_version)
+        .execution_options(synchronize_session=False)
+    )
+    if counted is None:
+        raise NotFoundError(NOT_FOUND)
+    return counted

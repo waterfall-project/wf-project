@@ -80,13 +80,16 @@ from waterfall.core.revisions.interface.revisions import (
     revisions_present,
 )
 
-# ``structures`` (US-0960): the cost structures of a revision.
+# ``structures`` (US-0960; the facts the planning reads, US-1380/L2): the cost structures.
 from waterfall.core.revisions.interface.structures import (
+    StructureFacts,
     StructureView,
     aimed_structure,
     list_cost_structures,
     structure_commands,
+    structure_facts,
     structure_in_revision,
+    structure_rescheduled,
 )
 
 __all__ = [
@@ -105,6 +108,7 @@ __all__ = [
     "RevisionStatus",
     "RevisionToAbandon",
     "RevisionView",
+    "StructureFacts",
     "StructureView",
     "abandon_revision",
     "aimed_structure",
@@ -133,6 +137,8 @@ __all__ = [
     "revisions_present",
     "run_marking",
     "structure_commands",
+    "structure_facts",
     "structure_in_revision",
+    "structure_rescheduled",
     "submit_marking",
 ]

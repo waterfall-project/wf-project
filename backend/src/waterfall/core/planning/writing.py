@@ -1,0 +1,220 @@
+# SPDX-FileCopyrightText: 2026 waterfall-project
+# SPDX-License-Identifier: AGPL-3.0-only
+"""How a write of the tree is framed, private to the module (EP-06, "Modules").
+
+A write of the nodes of a structure judges the state of its revision under the lock of the
+revision, read ``FOR SHARE`` (``revision_draft``): refused on a terminal project
+(``project_not_terminal``), on a marked revision (``revision_draft``), while a background task
+writes in the project (``no_background_task_running``), in that order (409, WF-CYC-0100,
+WF-DAT-0020, WF-IHM-0090). It then opens its entry of the history (``history.recording``), which
+locks the stack of its writer, and only then locks its structure (``cost_structure`` ``FOR
+UPDATE``) and reads the tree under that lock: the locks come in one order — the revision, the
+stack, the structure — whatever the write, an undoing included.
+
+Under the lock, the write hands the history the nodes it touches as they are (``snapshot``),
+writes, replays the engine on the whole structure and keeps what it computes (``dating``), moves
+the instant of the structure's dates on and advances its counter, hands the nodes as they now are,
+and gives back what it wrote (``NodesWritten``) before its transaction commits.
+
+A writer whose token carries no session of sign-in (``sid``) has no stack: its write is made, and
+no entry kept (#2472).
+"""
+
+from contextlib import contextmanager
+from dataclasses import dataclass
+from typing import TYPE_CHECKING
+
+from waterfall.core.history import interface as history
+from waterfall.core.history.interface import RecordedChange, Recording, UndoStack
+from waterfall.core.planning.interface.snapshots import snapshot
+from waterfall.core.planning.interface.structures import reschedule
+from waterfall.core.planning.tree import read_tree
+from waterfall.core.planning.views import NodeView, Reading, ScheduleView
+from waterfall.core.projects.interface import no_background_task_running, project_facts
+from waterfall.core.revisions.interface import (
+    revision_draft,
+    structure_facts,
+)
+from waterfall.platform.errors import ConflictError, NotFoundError
+
+if TYPE_CHECKING:
+    from collections.abc import Collection, Generator
+    from uuid import UUID
+
+    from sqlalchemy.orm import Session
+
+    from waterfall.core.history.interface import UndoneKind
+    from waterfall.core.planning.tree import Tree
+    from waterfall.core.revisions.interface import StructureFacts
+    from waterfall.platform.audit import Act
+
+NOT_FOUND = "NOT_FOUND"
+STATE_FORBIDS_OPERATION = "STATE_FORBIDS_OPERATION"
+PROJECT_NOT_TERMINAL = "project_not_terminal"
+NO_BACKGROUND_TASK_RUNNING = "no_background_task_running"
+# The states that end the cycle of life (WF-CYC-0080), as the projects name them.
+TERMINAL = ("completed", "lost", "abandoned")
+
+
+@dataclass(frozen=True, slots=True)
+class Place:
+    """The structure a request names: its project, its revision, itself."""
+
+    project_id: UUID
+    revision_id: UUID
+    structure_id: UUID
+
+
+@dataclass(frozen=True, slots=True)
+class Writer:
+    """Who writes, and when: the act, and the session of sign-in its stack is kept by."""
+
+    act: Act
+    session_id: str | None
+
+
+@dataclass(frozen=True, slots=True)
+class NodesWritten:
+    """What a write of the tree gives back (``NodesWritten``), the totals of the structure.
+
+    ``nodes`` the nodes written, ``ancestors`` the summaries above them and above the tasks it
+    redated, ``rescheduled`` the other tasks it redated, each in the order of the plan.
+    """
+
+    nodes: tuple[NodeView, ...]
+    ancestors: tuple[NodeView, ...]
+    rescheduled: tuple[ScheduleView, ...]
+    task_count: int
+    structure_lock_version: int
+
+
+def facts_of(session: Session, place: Place, *, lock: bool) -> StructureFacts:
+    """Read the structure a request names, of its revision and its project; or refuse (404)."""
+    facts = structure_facts(session, place.project_id, place.structure_id, lock=lock)
+    if facts.revision_id != place.revision_id:
+        raise NotFoundError(NOT_FOUND)
+    return facts
+
+
+def judge_revision(session: Session, place: Place) -> None:
+    """Refuse a write the state forbids, the first missing condition named (409).
+
+    The revision is read under ``FOR SHARE``: its marking and its abandonment wait for the write,
+    and the project of a current revision cannot leave its cycle meanwhile (``exitProject`` asks
+    it to have none).
+    """
+    try:
+        revision_draft(session, place.revision_id)
+    except ConflictError:
+        if project_facts(session, place.project_id).state in TERMINAL:
+            raise ConflictError(
+                STATE_FORBIDS_OPERATION, {"missing_condition": PROJECT_NOT_TERMINAL}
+            ) from None
+        raise
+    if not no_background_task_running(session, place.project_id):
+        raise ConflictError(
+            STATE_FORBIDS_OPERATION, {"missing_condition": NO_BACKGROUND_TASK_RUNNING}
+        )
+
+
+@contextmanager
+def _recorded(
+    session: Session, place: Place, writer: Writer, change: tuple[UndoneKind, tuple[UUID, ...]]
+) -> Generator[Recording]:
+    """Open the entry of the history of a write, or a frame that keeps nothing without a stack."""
+    author, session_id = writer.act.author, writer.session_id
+    if author is None or session_id is None:
+        yield Recording()
+        return
+    kind, node_ids = change
+    stack = UndoStack(place.revision_id, author, session_id)
+    entry = RecordedChange(place.project_id, stack, kind, node_ids, writer.act.at)
+    # Named through its package: the function bears the name of the file that declares it.
+    with history.recording(session, entry) as frame:
+        yield frame
+
+
+class Write:
+    """A write of the tree under the lock of its structure, the tree read under that lock."""
+
+    def __init__(self, session: Session, place: Place, writer: Writer, frame: Recording) -> None:
+        """Lock the structure, then read it and its tree under the lock."""
+        self.session = session
+        self.place = place
+        self.writer = writer
+        self.frame = frame
+        self.facts = facts_of(session, place, lock=True)
+        self.tree = read_tree(session, place.project_id, place.structure_id)
+
+    def before(self, node_ids: Collection[UUID]) -> None:
+        """Hand the history the nodes the write touches, as they are before it."""
+        self.frame.keep_before(snapshot(self.session, self.place.project_id, node_ids))
+
+    def redate(self, blamed: tuple[UUID | None, str]) -> Redated:
+        """Replay the engine on the structure written, keep what it computes, advance it.
+
+        Beyond the horizon (WF-PLA-0150), refused naming the task written — its node, null for a
+        task created, and its label (422 ``PROJECT_HORIZON_EXCEEDED``); nothing is written.
+        """
+        place = self.place
+        done = reschedule(
+            self.session, place.project_id, place.structure_id, self.writer.act.at, blamed
+        )
+        structure = (place.project_id, self.writer.act.at, self.facts.is_main)
+        reading = Reading(self.session, structure, done.tree, done.links, done.calendars)
+        return Redated(reading, done.moved, done.counter)
+
+    def after(self, node_ids: Collection[UUID]) -> None:
+        """Hand the history the nodes the write touched, as they are after it, redated."""
+        self.frame.keep_after(snapshot(self.session, self.place.project_id, node_ids))
+
+
+@dataclass(frozen=True, slots=True)
+class Redated:
+    """A structure written and redated: its reading, the tasks moved, its counter."""
+
+    reading: Reading
+    moved: frozenset[UUID]
+    counter: int
+
+    def written(self, node_ids: Collection[UUID]) -> NodesWritten:
+        """Give what the write gives back: its nodes, their ancestors and the tasks it moved.
+
+        The ancestors are those of the nodes written and of the tasks moved, but the written; the
+        moved are the tasks, not summaries, it redated without writing them.
+        """
+        tree: Tree = self.reading.tree
+        written = set(node_ids)
+        rescheduled = {
+            each for each in self.moved if each not in written and not tree.is_summary(each)
+        }
+        above = {
+            ancestor
+            for each in written | rescheduled
+            for ancestor in tree.ancestors(each)
+            if ancestor not in written
+        }
+        reading = self.reading
+        return NodesWritten(
+            nodes=tuple(reading.node(each) for each in tree.ordered(written)),
+            ancestors=tuple(reading.node(each) for each in tree.ordered(above)),
+            rescheduled=tuple(reading.schedule(each) for each in tree.ordered(rescheduled)),
+            task_count=len(tree.tasks),
+            structure_lock_version=self.counter,
+        )
+
+
+@contextmanager
+def writing(
+    session: Session, place: Place, writer: Writer, change: tuple[UndoneKind, tuple[UUID, ...]]
+) -> Generator[Write]:
+    """Frame a write of the tree: judged, recorded, under the lock of its structure.
+
+    The structure named is read first (404), the revision judged under its lock (409), the entry
+    of the history opened, then the structure locked and its tree read. The block hands the
+    snapshots (``Write.before``, ``Write.after``); a block that raises keeps nothing.
+    """
+    facts_of(session, place, lock=False)
+    judge_revision(session, place)
+    with _recorded(session, place, writer, change) as frame:
+        yield Write(session, place, writer, frame)

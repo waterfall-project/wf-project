@@ -152,6 +152,21 @@ DATA = {
     "Subproject.label": "a label",
     # The label of a timeline, as the person who named it gave it (US-1400/L1).
     "Timeline.label": "a label",
+    # The label and the description of a task, as the person who wrote it gave them, the identifier
+    # MS Project gave it, the label of what it is attached to; a line of estimate's labels, by
+    # those a person gave its objects (EP-07, which the node reads); and a row named by its label,
+    # what a computed value depends on or what a number designates (US-1380/L2).
+    "TaskFacet.label": "a label",
+    "TaskFacet.description": "a text",
+    "TaskFacet.external_id": "a code",
+    "TaskFacet.work_breakdown_label": "a label",
+    "EstimateLineFacet.label": "a label",
+    "EstimateLineFacet.bearing_task_label": "a label",
+    "EstimateLineFacet.cost_category_label": "a label",
+    "EstimateLineFacet.resource_role_label": "a label",
+    "EstimateLineFacet.subproject_label": "a label",
+    "DependencyRow.label": "a label",
+    "RowNumberResolution.label": "a label",
     # The name of version and the description a revision was marked with, and its source's; the
     # label of a structure, as given — the main one's, as the examples of the contract name it.
     "Revision.version_name": "a name",
