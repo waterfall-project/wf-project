@@ -179,7 +179,7 @@ from waterfall.core.planning.interface.skeleton import (
     generate_skeleton as generate_skeleton,
 )
 from waterfall.core.planning.interface.skeleton import (
-    opening_with_tasks,
+    opening_with_tasks as opening_with_tasks,
 )
 
 # ``snapshots`` (US-1380/L1; US-1380/L2, US-1450/L2): the snapshots the history keeps.
