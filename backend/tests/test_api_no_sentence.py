@@ -165,6 +165,16 @@ DATA = {
     "EstimateLineFacet.cost_category_label": "a label",
     "EstimateLineFacet.resource_role_label": "a label",
     "EstimateLineFacet.subproject_label": "a label",
+    # The same, of the facets of a node that a reading of ``listNodes`` projects (#2485).
+    "ComparedTaskFacet.label": "a label",
+    "ComparedTaskFacet.description": "a text",
+    "ComparedTaskFacet.external_id": "a code",
+    "ComparedTaskFacet.work_breakdown_label": "a label",
+    "ComparedEstimateLineFacet.label": "a label",
+    "ComparedEstimateLineFacet.bearing_task_label": "a label",
+    "ComparedEstimateLineFacet.cost_category_label": "a label",
+    "ComparedEstimateLineFacet.resource_role_label": "a label",
+    "ComparedEstimateLineFacet.subproject_label": "a label",
     "DependencyRow.label": "a label",
     "RowNumberResolution.label": "a label",
     # The name of version and the description a revision was marked with, and its source's; the

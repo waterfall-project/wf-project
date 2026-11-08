@@ -1171,7 +1171,9 @@
       '200':
         description: >-
           Nodes, in depth-first traversal, their totals, and what the read says about the
-          structure itself.
+          structure itself. Without `fields`, each node is whole, as `Node` describes it; with
+          `fields`, it is projected: the four properties always returned and those that `fields`
+          names (`NodeProjection`, #2485).
         content:
           application/json:
             schema:
@@ -1180,7 +1182,7 @@
               properties:
                 items:
                   type: array
-                  items: { $ref: ../components/schemas/revisions.yaml#/Node }
+                  items: { $ref: ../components/schemas/revisions.yaml#/NodeProjection }
                 totals: { $ref: ../components/schemas/revisions.yaml#/NodeTotals }
                 meta: { $ref: ../components/schemas/revisions.yaml#/NodeListMeta }
             examples:

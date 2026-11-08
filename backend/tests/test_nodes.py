@@ -18,6 +18,7 @@ from typing import TYPE_CHECKING, Any
 from uuid import UUID, uuid4
 
 import pytest
+from jsonschema_path import SchemaPath
 from nodes_support import (
     FRIDAY,
     NEXT_MONDAY,
@@ -33,11 +34,13 @@ from nodes_support import (
     set_progress,
     work_breakdown,
 )
+from openapi_core.validation.schemas import oas31_schema_validators_factory
 from planning_support import DAY, insert_link
 from project_rows import STAMP
 from projects_support import PROJECTS, Scene
 from projects_support import scene as make_scene
 from sqlalchemy import insert
+from support import CONTRACT, walk
 
 from waterfall.core.planning.tables import TrackingEntry
 
@@ -59,6 +62,27 @@ def stage(api: ContractClient, owner: Engine, database: Database, realm: TestRea
 def tree(api: ContractClient, stage: Scene) -> Tree:
     """Give the main structure of the revision the manager opened on the project of the stage."""
     return Tree(api, stage, opened(api, stage))
+
+
+# The schemas of the revisions, and that of a node whole, which a reading without ``fields``
+# returns.
+REVISIONS = SchemaPath.from_file_path(
+    str(CONTRACT.parent / "components" / "schemas" / "revisions.yaml")
+)
+WHOLE = REVISIONS / "Node"
+
+
+def assert_whole(api: ContractClient, items: list[dict[str, Any]]) -> None:
+    """Hold each node to ``Node``, every property it requires and none it does not declare.
+
+    A reading of ``listNodes`` is checked against ``NodeProjection``, which requires only the four
+    properties always returned (#2485): the reading without ``fields`` is held here to the node
+    whole, which ``ContractClient`` no longer does.
+    """
+    validator = oas31_schema_validators_factory.create(api.contract.spec, WHOLE)
+    for item in items:
+        validator.validate(item)
+        assert list(walk([WHOLE], item, "")) == []
 
 
 # --- Reading -----------------------------------------------------------------------------------
@@ -85,12 +109,15 @@ def test_an_empty_structure_reads_no_node_nought_totals_and_the_instant_of_its_c
 
 
 @pytest.mark.requirement("WF-PLA-0080-A")
-def test_the_tree_is_read_depth_first_numbered_levelled_and_placed(tree: Tree) -> None:
+def test_the_tree_is_read_depth_first_numbered_levelled_and_placed(
+    api: ContractClient, tree: Tree
+) -> None:
     studies = tree.made("Études")
     detail = tree.made("Études de détail", parent_id=studies["node_id"])
     review = tree.made("Revue de conception", parent_id=studies["node_id"])
     site = tree.made("Installation sur site")
     read = tree.items()
+    assert_whole(api, read)
     assert [item["node_id"] for item in read] == [
         studies["node_id"],
         detail["node_id"],
@@ -301,10 +328,9 @@ def test_fields_returns_what_it_names_and_the_four_always_returned(
     api: ContractClient, tree: Tree, stage: Scene
 ) -> None:
     tree.made("Études")
-    # A reading that names its fields returns less than the schema of a node requires: it is
-    # judged on its own, not by the schema the contract gives a node whole (#2485): the client
-    # of the service, not the ``ContractClient`` that validates every answer.
-    answer = api.client.get(
+    # A reading that names its fields returns a projection of each node, which the contract
+    # describes (``NodeProjection``, #2485): the ``ContractClient`` checks it like any answer.
+    answer = api.get(
         f"{tree.path}/nodes?fields=task.label,task.duration,parent_id",
         headers=stage.manager.headers,
     )
@@ -312,6 +338,9 @@ def test_fields_returns_what_it_names_and_the_four_always_returned(
     item = answer.json()["items"][0]
     assert set(item) == {"node_id", "row_number", "level", "lock_version", "task", "parent_id"}
     assert item["task"] == {"label": "Études", "duration": {"value": "1", "unit": "d"}}
+    label = api.get(f"{tree.path}/nodes?fields=task.label", headers=stage.manager.headers)
+    assert label.status_code == 200, label.text
+    assert label.json()["items"][0]["task"] == {"label": "Études"}
 
 
 @pytest.mark.requirement("WF-PLA-0040-A")

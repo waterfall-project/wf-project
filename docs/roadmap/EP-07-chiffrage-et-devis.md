@@ -236,14 +236,15 @@ Reportés d'EP-17 à sa livraison (rangement du 2026-11-05) :
 
 Relevés par les revues locales d'EP-06 et reportés ici par l'auteur le 2026-11-08 :
 
-- #2485 [EP-06] — contrat : une lecture de `listNodes` avec `fields` rend des nœuds partiels que
-  le schéma `Node` refuse (ses propriétés requises), et le front lit déjà `fields: ["node_id"]`
-  en typant des `Node` entiers. EP-07, qui ajoute la facette ligne à `Node` et reprend la grille,
-  donne à la réponse un schéma de projection (`NodeProjection`, de même pour `compareRevisions`)
-  et aligne les types du front ; jusque-là le test d'US-1380/L2 lit `fields` hors `ContractClient`.
 - #2510, point 3 [EP-06] — `redate_copy` (`core/planning/interface/reference.py`) s'enregistre
   après `copy_nodes` : une facette qu'EP-07 copie à l'ouverture d'une révision s'enregistre
   avant lui, ou se redate elle-même.
+- #2527 [EP-06] — le fuseau horaire de l'installation, dans lequel s'entend le jour courant
+  (WF-EXP-0020-A, WF-PLA-0130-A, spécification 1.0.3), n'existe pas dans le back : le jour d'un
+  changement d'état est pris en UTC. US-1550, qui clôt WF-EXP-0020-A, l'ajoute — une colonne
+  d'`installation` dans la migration du socle, la valeur fixée par `waterfall-api install` avec un
+  défaut livré — et branche dessus la fonction du jour courant qu'US-1380/L4 (#2519) a regroupée,
+  avec un test de borne près de minuit.
 
 ## Conception
 
@@ -332,6 +333,24 @@ Décisions de l'auteur du 2026-11-07, sur les questions du cadrage, chacune avec
   nouvelles de `revision` restent nulles et se lisent comme les valeurs du projet. Aucune migration
   d'EP-07 après le socle ; EP-09 chaîne la sienne sur `0025`. Écarté : une migration par US.
 
+Décision de l'utilisateur du 2026-11-08, sur la question d'US-1490/L1 (#2370) :
+
+- **Le socle enregistre « à vide » de façon neutre, et diffère `register_facet` à US-1490/L3.**
+  `app.py` importe les interfaces qui remplissent les registres et `tests/conftest.py` importe
+  `create_app` : tout enregistrement du socle vaut dans chaque processus de test, et trois d'entre
+  eux heurtaient des tests d'EP-04 et d'EP-06 qui simulent eux-mêmes la part d'EP-07. Le socle
+  enregistre donc `revision_has_lines` répondant oui tant que la ligne n'existe pas (rendue réelle
+  par US-1490/L3, qui adapte alors `test_reference_designation.py`), le format `estimate` refusant
+  toute en-tête par 422 `FILE_FORMAT_UNREADABLE` (rendu réel par US-1550), et les autres registres
+  sans effet ; il n'enregistre pas la facette `estimate_line`, que `test_nodes_state.py` enregistre
+  lui-même par un espion et que `register_facet` refuse en double : US-1490/L3 la crée et adapte
+  ces deux tests. Le socle n'écrit aucun fichier de test d'EP-06 ; le test des points d'entrée
+  (#2180) ne couvre la facette qu'à partir d'US-1490/L3. Écartés : le socle qui enregistre tout
+  réellement et réécrit quatre fichiers de tests d'EP-04 et d'EP-06, dont deux que des lots d'EP-06
+  en cours possèdent ; différer aussi `lines` et le format, qui laissait le test des points d'entrée
+  sans trois registres de plus pour rien ; attendre la fusion des lots d'EP-06 concernés, qui
+  retardait le pivot d'EP-09.
+
 ### Tables et migrations
 
 Régime « révisionné » (§4.4.1), partitionnées par projet comme `node`, pour `estimate_line` et les
@@ -395,7 +414,7 @@ chargeur — s'étend à chacun.
 
 | Module | Registre | Qui le déclare | Qui le remplit | Ce qu'il fait |
 |---|---|---|---|---|
-| `core/planning` | `register_facet` (EP-06) | EP-06 | `estimate` (`estimate_line`) | `listNodes` lit la facette, la copie et la suppression l'emportent, `calendar_of` lit ses rôles ; **complété par EP-07** : `create` (la facette d'un nœud créé, sa charge utile opaque pour `planning`), `snapshot`/`restore` (ses lignes de `estimate_line` pour l'historique), `judge_cell` (une cellule collée, dans l'ordre de `NodeColumn`), `reinflate` (les montants des lignes des nœuds redatés ou déplacés, rendus dans `reinflated`), `filters`/`sort`/`totals` (les colonnes de la ligne) |
+| `core/planning` | `register_facet` (EP-06) | EP-06 | `estimate` (`estimate_line`), dès US-1490/L3 — non le socle (2026-11-08) | `listNodes` lit la facette, la copie et la suppression l'emportent, `calendar_of` lit ses rôles ; **complété par EP-07** : `create` (la facette d'un nœud créé, sa charge utile opaque pour `planning`), `snapshot`/`restore` (ses lignes de `estimate_line` pour l'historique), `judge_cell` (une cellule collée, dans l'ordre de `NodeColumn`), `reinflate` (les montants des lignes des nœuds redatés ou déplacés, rendus dans `reinflated`), `filters`/`sort`/`totals` (les colonnes de la ligne) |
 | `core/revisions` | `register_copy` (EP-04) | EP-04 | `estimate`, après `planning` | la copie des lignes (par les identifiants des nœuds copiés) et des taux conservés, projetés si l'année change |
 | `core/revisions` | `register_tasks_and_lines` (EP-04) | EP-04 | `estimate` (`revision_has_lines`) | la désignation exige une ligne |
 | `core/revisions` | `register_closing` (EP-06) | EP-06 | `estimate` | à l'abandon, les taux conservés supprimés (les lignes suivent les nœuds) |
@@ -609,9 +628,11 @@ ce lot, ou en dépendent par son numéro :
 | le guide, la liste des entrées non rejouées | US-1480/L3 #2348 | US-1570/L3 |
 | `app.py`, `pyproject`, `tests/planning_support.py`, `witness/revisions.py`, `chronology.py` | US-1380/L1 #2328, fusionné avant la branche | aucun |
 
-Les catalogues `messages/*.json`, `conftest.py`, `support.py`, `api/queries.py`, `loader.py` et
-`mode.ts` ne s'écrivent dans aucun des deux EPIC : une clé ou une fixture qui manque devient une
-issue.
+`conftest.py`, `support.py`, `api/queries.py`, `loader.py` et `mode.ts` ne s'écrivent dans aucun
+des deux EPIC : une fixture qui manque devient une issue. Les catalogues `messages/*.json` ne
+s'écrivent que par le lot qui ajoute un code d'erreur au contrat, pour sa seule clé
+`errors.<CODE>` et son test (décision du 2026-11-08, EP-06, « Les catalogues du front et le
+collage », #2537) ; toute autre clé manquante devient une issue.
 
 ### L'ordre de construction
 
@@ -626,9 +647,10 @@ d'ensemble en dernier ; le plan de lots (étape 3) le détaille en vagues.
    d'EP-06 ne créait pas `scheduling/` : l'interface d'`estimate` ne les importe qu'une fois leurs
    lots fusionnés —, les trois registres nouveaux de `core/revisions`
    (`register_marking`, `register_designation`) et de `core/cost_settings` (`register_employment`),
-   l'enregistrement à vide dans ceux d'EP-04 et d'EP-06 (`register_facet`, `register_copy`,
+   l'enregistrement à vide, neutre, dans ceux d'EP-04 et d'EP-06 (`register_copy`,
    `register_tasks_and_lines`, `register_closing`, `register_format`, `register_exporter`,
-   `register_idle_task_guard`, `register_revision_filler`), les cinq routeurs vides dans `app.py` et
+   `register_idle_task_guard`, `register_revision_filler` — hors `register_facet`, différé à
+   US-1490/L3 ; décision du 2026-11-08), les cinq routeurs vides dans `app.py` et
    leurs `asked_*`, XlsxWriter et openpyxl dans `pyproject`, le contrat de couches,
    `tests/estimate_support.py` et les fichiers de tests, `witness/estimate_lines.py` à vide enchaîné
    dans `chronology.py`, le test des points d'entrée étendu. **Lot pivot d'EP-09** : `epic/EP-09` se
