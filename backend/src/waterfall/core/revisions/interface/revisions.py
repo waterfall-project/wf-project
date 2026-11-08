@@ -332,6 +332,17 @@ def last_marked_revision(session: Session, project_id: UUID) -> UUID | None:
     return _last_marked(session, project_id)
 
 
+def last_marked_revisions(session: Session, project_ids: Collection[UUID]) -> dict[UUID, UUID]:
+    """Give the last marked revision of each of the projects that has one, in one statement."""
+    rows = session.execute(
+        select(Revision.project_id, Revision.id)
+        .where(Revision.project_id.in_(project_ids), Revision.status == "marked")
+        .order_by(Revision.marked_at.asc(), Revision.id.asc())
+    )
+    # Ascending: the last row of a project is its latest.
+    return {row[0]: row[1] for row in rows}
+
+
 def _last_marked(session: Session, project_id: UUID) -> UUID | None:
     """Give the last marked revision of a project, the source of the next one, if any."""
     return session.scalar(

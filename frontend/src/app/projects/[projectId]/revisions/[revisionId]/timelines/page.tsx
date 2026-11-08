@@ -8,13 +8,12 @@
  * the revision inscribed to the one shown, drawn as a frieze in the lanes the account keeps for it
  * (`TimelineChart`, `DisplayPreferences.timelines`), exported with the date its dates were
  * calculated at (`meta.scheduled_at`). The timelines are created and deleted as the project lists
- * `manage_timelines` (`TimelineChoice`, EP-14/L44f), the screen saying then that the fake back
- * keeps none of it (`MockupNotice`), and the tasks of a timeline deleted giving way with it
- * (`TimelineBody`); the inscriptions are read, never entered here. The tasks are read
+ * `manage_timelines` (`TimelineChoice`, EP-14/L44f), and the tasks of a timeline deleted giving way
+ * with it (`TimelineBody`); the inscriptions are read, never entered here. The tasks are read
  * as the grid of the planning reads them — the tasks alone, restricted to the filtered sub-project
- * (`grid-screen.ts`) —, the server selecting those inscribed to the timeline shown (`timeline_id`,
- * #463), once the timelines read say which it is, the screen keeping them once more against the
- * fake back (`inscribedTo`); of each the fields the timeline reads, their inscriptions among them.
+ * (`grid-screen.ts`) —, the service selecting those inscribed to the timeline shown (`timeline_id`,
+ * US-1400), once the timelines read say which it is, and the screen drawing what it renders as it
+ * is; of each the fields the timeline reads, their inscriptions among them.
  */
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
@@ -27,7 +26,7 @@ import { serverClient } from "@/api/server";
 import { type CommandOffer, findOffer } from "@/components/commands/offer";
 import { ContextBanner } from "@/components/context/context-banner";
 import { type ProjectReading, readProjectContext } from "@/components/context/reading";
-import { inscribedTo, type TimelineTask } from "@/components/gantt/timeline";
+import type { TimelineTask } from "@/components/gantt/timeline";
 import { TimelineChart } from "@/components/gantt/timeline-chart";
 import {
   TimelineBody,
@@ -35,7 +34,6 @@ import {
   TimelineDeletions,
 } from "@/components/gantt/timeline-commands";
 import { FUNCTION_DENSITY, LEAF_ICONS } from "@/components/shell/function-display";
-import { MockupNotice } from "@/components/shell/mockup-notice";
 import { PageHeader, Screen } from "@/components/shell/page-header";
 import { type PageSearchParams, searchQuery } from "@/navigation/context";
 import { requestSession } from "@/session/request";
@@ -145,7 +143,6 @@ function TimelinesScreen({
             )
           }
         />
-        <MockupNotice lists />
         <TimelineBody timelines={timelines} shown={shown?.timeline.timeline_id}>
           {body}
         </TimelineBody>
@@ -155,9 +152,9 @@ function TimelinesScreen({
 }
 
 /**
- * The tasks of the revision inscribed to the timeline shown, which the server selects
- * (`timeline_id`) and the screen keeps once more (`inscribedTo`), and the reading context they are
- * read in, which shows the filtered sub-project they are read for.
+ * The tasks of the revision inscribed to the timeline shown, which the service selects
+ * (`timeline_id`), and the reading context they are read in, which shows the filtered sub-project
+ * they are read for.
  */
 async function readInscribed(at: GridAddress, shown: Timeline) {
   const screen = await readGridScreen(at, {
@@ -171,7 +168,7 @@ async function readInscribed(at: GridAddress, shown: Timeline) {
     reading: screen.reading,
     shown: {
       timeline: shown,
-      tasks: inscribedTo(screen.nodes.items, shown.timeline_id),
+      tasks: screen.nodes.items,
       scheduledAt: screen.scheduledAt,
     },
   };

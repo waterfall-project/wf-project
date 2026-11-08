@@ -48,6 +48,7 @@ import {
   type EntryKind,
   type GridColumn,
   type GridConfig,
+  type GridPaste,
   type RowsWritten,
   sortColumns,
 } from "./columns";
@@ -375,6 +376,11 @@ export interface PlanningWrites {
   readonly attachment?: PlanningAttachment | undefined;
   /** The predecessors of a task (WF-PLA-0030): what the column names, and how it writes. */
   readonly predecessors: PlanningPredecessors;
+  /**
+   * How a block pasted from a spreadsheet is written on the cells of the tasks (WF-IHM-0050): judged
+   * by the server, the plan applied in one operation. None, and the grid takes no paste.
+   */
+  readonly paste?: GridPaste<PlanningNode, NodeSortColumn, NodeTotals> | undefined;
 }
 
 /**
@@ -602,6 +608,7 @@ export function planningGrid(
   const specs = writes === undefined ? {} : taskColumns(writes);
   return {
     ...PLANNING_GRID,
+    paste: writes?.paste,
     columns: PLANNING_GRID.columns.map((column) => {
       if (column.key === "timelines") {
         return timelinesColumn(column, timelines);

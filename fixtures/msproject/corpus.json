@@ -1,0 +1,50 @@
+{
+  "files": [
+    {
+      "file": "01-links-and-lags-days.xml",
+      "cases": ["link_fs", "link_ss", "link_ff", "link_sf", "lag_positive_d", "lag_negative_d"],
+      "project_start": "2009-11-16",
+      "hours_per_day": 8,
+      "hours_per_week": 40,
+      "days_per_month": 20,
+      "notes": "huit tâches de 1 à 5 j, chaque type de liaison, un décalage FD +2 j, une avance DD −1 j, un FF +3 j ; la tâche liée en DF commence avant la date du projet"
+    },
+    {
+      "file": "02-lags-every-unit.xml",
+      "cases": ["lag_min", "lag_h", "lag_w", "lag_mo", "lag_emin", "lag_eh", "lag_ed", "lag_ew", "lag_emo"],
+      "project_start": "2009-11-16",
+      "hours_per_day": 8,
+      "hours_per_week": 40,
+      "days_per_month": 20,
+      "notes": "une chaîne FD dont chaque liaison porte une unité : 30 min, 4 h, 1 j, 1 sem, 1 m, 90 emin (qui tombe dans la pause), 2 eh, 2 ej après une fin vendredi soir, 2 esem, 1 em"
+    },
+    {
+      "file": "03-durations-every-unit.xml",
+      "cases": ["duration_min", "duration_h", "duration_d", "duration_w", "duration_mo", "duration_elapsed"],
+      "project_start": "2009-11-16",
+      "hours_per_day": 8,
+      "hours_per_week": 40,
+      "days_per_month": 20,
+      "notes": "onze tâches sans liaison, une par unité de durée : 30 min, 4 h, 1 j, 1 sem, 1 m, 90 emin, 2 eh, 2 ej, 2 esem, 1 em, et 1 j estimé"
+    },
+    {
+      "file": "05-summaries-and-milestones.xml",
+      "cases": ["summary", "summary_nested", "milestone", "milestone_linked_ff", "summary_single_milestone"],
+      "project_start": "2009-11-16",
+      "hours_per_day": 8,
+      "hours_per_week": 40,
+      "days_per_month": 20,
+      "notes": "récapitulatives sur quatre niveaux, des liaisons FD vers et depuis des récapitulatives, un jalon de fin lié en FF à deux récapitulatives, une récapitulative dont la seule subordonnée est un jalon, un jalon de départ manuel"
+    },
+    {
+      "file": "13-resource-calendars-not-ignored.xml",
+      "dating": false,
+      "cases": ["resources_ignored", "assignments_ignored", "resource_calendar_ignored"],
+      "project_start": "2009-11-16",
+      "hours_per_day": 8,
+      "hours_per_week": 40,
+      "days_per_month": 20,
+      "notes": "quatre tâches de 16 h, chacune affectée à une ressource dont le calendrier dérive de « 4 heures », « 4x10 », « Vendredi court » ou du Standard, sans « ignorer les calendriers des ressources » : MS Project date par les ressources, Waterfall ne les lit pas — pour les avertissements de l'import, hors du test de datation"
+    }
+  ]
+}

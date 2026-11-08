@@ -283,7 +283,7 @@ describe("undo and redo, placed in the grids", () => {
     expect(told()).toBe(TOLD_UNDO);
   });
 
-  it("places them in the grid of the planning of a revision that may be planned", () => {
+  it("places them in the grid of the planning of a revision that may be planned, wired on the server: available, and the shortcut tells nothing unavailable [WF-IHM-0110-A]", () => {
     render(
       inLanguage(
         <PlanningGrid
@@ -297,12 +297,10 @@ describe("undo and redo, placed in the grids", () => {
         />,
       ),
     );
-    expect(screen.getByRole("button", { name: "Annuler" })).toHaveAttribute(
-      "aria-disabled",
-      "true",
-    );
+    expect(screen.getByRole("button", { name: "Annuler" })).not.toHaveAttribute("aria-disabled");
+    expect(screen.queryByText(REASON)).toBeNull();
     expect(press(focusLabel())).toBe(false);
-    expect(told()).toBe(TOLD_UNDO);
+    expect(told()).toBeNull();
   });
 
   it("is named and told in English too", async () => {

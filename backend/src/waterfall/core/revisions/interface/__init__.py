@@ -59,6 +59,7 @@ from waterfall.core.revisions.interface.reference import (
     reference_correctable,
     register_designation,
     register_tasks_and_lines,
+    revision_has_tasks,
     revision_has_tasks_and_lines,
 )
 
@@ -77,6 +78,7 @@ from waterfall.core.revisions.interface.revisions import (
     create_revision,
     current_revision,
     last_marked_revision,
+    last_marked_revisions,
     list_revisions,
     load_revision,
     open_revision_by_task,
@@ -134,6 +136,7 @@ __all__ = [
     "current_structures",
     "designate_reference",
     "last_marked_revision",
+    "last_marked_revisions",
     "list_cost_structures",
     "list_revisions",
     "load_marking",
@@ -149,6 +152,7 @@ __all__ = [
     "register_marking",
     "register_tasks_and_lines",
     "revision_draft",
+    "revision_has_tasks",
     "revision_has_tasks_and_lines",
     "revisions_present",
     "run_marking",
