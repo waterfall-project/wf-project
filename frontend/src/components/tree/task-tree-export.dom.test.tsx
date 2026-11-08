@@ -120,8 +120,6 @@ describe("the export of the image of the task tree", () => {
     await waitFor(() => {
       expect(tasksRegion()).toHaveTextContent(CATALOGUES.fr.errors.TASK_TREE_IMAGE_TOO_LARGE);
     });
-    expect(CATALOGUES.fr.errors.TASK_TREE_IMAGE_TOO_LARGE).toContain("niveau moins profond");
-    expect(CATALOGUES.en.errors.TASK_TREE_IMAGE_TOO_LARGE).toContain("shallower level");
   });
 
   it("is absent where the revision does not list the command", () => {

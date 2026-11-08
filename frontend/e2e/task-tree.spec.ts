@@ -10,7 +10,7 @@ const PROJECT = "01926f3a-7c00-7000-8000-000000000001";
 const REVISION = "01926f3a-7c00-7000-8000-000000000102";
 const IN_REVISION = `/projects/${PROJECT}/revisions/${REVISION}`;
 
-test("leads from the planning to its task tree, read only, its depth in the address @shared [WF-PLA-0110-A]", async ({
+test("leads from the planning to its task tree, read only, its depth in the address @shared [WF-PLA-0110-A] [WF-PLA-0120-A]", async ({
   page,
 }) => {
   // Three bounds of a screen of grid (`WORKING`): more than the thirty seconds of a test.
