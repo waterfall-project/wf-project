@@ -11414,6 +11414,15 @@ fin au marquage et à l'abandon et ses cinquante niveaux ; l'annulation rend `No
 (« Les révisions et les structures », dans « Le contrat figé »). #1595 demande la correction de la
 spécification.*
 
+**Un jeton sans `sid` n'a pas d'historique, et le dit par un 403 nommé** (`SESSION_ID_MISSING`,
+`undoLastChange` et `redoLastUndo`, #2472). La pile se tient par session de connexion, le `sid`
+du jeton ; un jeton valide qui n'en porte pas — un compte de service, un client dont la portée ne
+le donne pas — n'a donc pas de pile. Les deux opérations de l'historique le refusent ; une écriture
+faite avec ce jeton passe, sans entrée d'historique, et ne change rien aux autres routes. Écarté :
+un 401 `SESSION_REQUIRED`, que le front traite en renvoyant à la connexion, laquelle redonne le
+même jeton, en boucle ; refuser le jeton dès sa validation, ce qui toucherait tous les appels ; une
+pile de repli par compte, qui mêlerait les sessions d'un même compte.
+
 ## Organisation des fichiers
 
 **Les schémas sont groupés par famille**, un fichier par famille, et non un fichier par schéma —

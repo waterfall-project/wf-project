@@ -257,6 +257,20 @@ def test_an_undo_of_a_change_another_contributor_took_up_since_names_the_object_
         assert name in _cited(operation, "409"), name
 
 
+@pytest.mark.requirement("WF-IHM-0110-A")
+def test_an_undo_and_a_redo_without_a_session_of_sign_in_are_refused_by_a_named_403() -> None:
+    # #2472 : un jeton valide sans sid n'a pas de pile ; le refus est nommé, sans paramètre, et
+    # n'est pas un 401 qui renverrait le front à une connexion donnant le même jeton.
+    for operation, name in (
+        ("undoLastChange", "undo_session_id_missing"),
+        ("redoLastUndo", "redo_session_id_missing"),
+    ):
+        refused = fixture(name)
+        assert (refused["status"], refused["code"]) == (403, "SESSION_ID_MISSING"), name
+        assert "params" not in refused, name
+        assert name in _cited(operation, "403"), name
+
+
 def _subordinates(label: str) -> list[str]:
     """Return the direct subordinates of a summary of the witness, found by its label."""
     tasks = [each for each in _core() if each["kind"] == "task"]
