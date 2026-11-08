@@ -596,9 +596,13 @@ entiers, qui pourraient porter la moitié du plan, facettes de devis comprises ;
 portait en entier de jours (`total_float_days`), forme antérieure au planning en heures
 (`WorkInstant`, EP-02/L7) : la même valeur serait arrivée à la grille sous deux formes selon
 qu'elle est lue ou rendue par une écriture, et une marge de quatre heures ne s'y écrivait pas. La
-marge est du temps de travail en jours ouvrés (`unit: d`), décimale, jamais négative — les tâches
-en mode manuel, traitées comme des dates imposées, l'évitent (WF-PLA-0100) —, et nulle pour une
-tâche en mode manuel. La colonne et le champ calculé suivent (`NodeColumn.total_float`,
+marge est du temps de travail en jours ouvrés (`unit: d`), décimale et signée : une tâche en mode
+manuel borne la fin au plus tard de ses prédécesseurs, et celui qui ne peut finir à temps pour elle
+porte une marge négative et est critique (WF-PLA-0100, « La marge totale est signée », #2458). Les
+heures se comptent sur le calendrier de la tâche, et un jour vaut les `hours_per_day` de
+l'installation, comme l'unité « j » (WF-PLA-0160) — non les heures d'un jour de ce calendrier : les
+marges de récapitulatives sur des calendriers différents se comparent ainsi. Une tâche en mode
+manuel n'en porte aucune (`null`). La colonne et le champ calculé suivent (`NodeColumn.total_float`,
 `ComputedValueField` `task.total_float`), et la grille de planning l'écrit comme une durée, par
 sa valeur et son unité.
 
