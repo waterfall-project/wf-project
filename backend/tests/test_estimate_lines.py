@@ -9,8 +9,8 @@ line, on the main structure of the current revision of a project its manager mad
 material beside it (``estimate_support``). Every answer is checked against the contract.
 """
 
-from concurrent.futures import ThreadPoolExecutor
-from concurrent.futures import TimeoutError as FutureTimeout
+import time
+from concurrent.futures import Future, ThreadPoolExecutor
 from decimal import Decimal
 from typing import TYPE_CHECKING, Any
 from uuid import UUID, uuid4
@@ -20,7 +20,7 @@ from estimate_support import YEAR, Costing, Lines, add_role, costing
 from nodes_support import Tree, faults, mark, opened, refusal, set_progress
 from projects_support import PROJECTS, Scene, contribute, person, put_in_state
 from projects_support import scene as make_scene
-from sqlalchemy import select, update
+from sqlalchemy import func, select, text, update
 
 from waterfall.core.cost_settings.interface import (
     CostCategoryDraft,
@@ -113,6 +113,25 @@ def line_of(tree: Tree, label: str) -> dict[str, Any]:
         for item in tree.items()
         if item["kind"] == "estimate_line" and item["estimate_line"]["label"] == label
     )
+
+
+def blocked_by(stage: Scene, holder: int | None, waiting: Future[Any]) -> bool:
+    """Tell whether a session is seen waiting for a lock the session ``holder`` holds.
+
+    Asked of the server (``pg_blocking_pids``) until a session waits, or the request has answered,
+    or thirty seconds have gone: the answer never rests on a delay.
+    """
+    blocked = text(
+        "SELECT count(*) FROM pg_stat_activity WHERE :holder = ANY(pg_blocking_pids(pid))"
+    ).bindparams(holder=holder)
+    deadline = time.monotonic() + 30
+    with stage.owner.connect() as watching:
+        while time.monotonic() < deadline and not waiting.done():
+            if watching.scalar(blocked):
+                return True
+            watching.rollback()
+            time.sleep(0.05)
+    return False
 
 
 def nature_of_labour(stage: Scene) -> UUID:
@@ -560,14 +579,14 @@ def test_a_modification_writes_what_it_sends_at_the_counter_read(
     ] == (404, "NOT_FOUND")
 
 
-@pytest.mark.requirement("WF-IHM-0110-A")
 def test_two_writes_of_one_line_at_once_leave_one_refused_by_its_counter(
     tree: Tree, lines: Lines, costs: Costing
 ) -> None:
     """Two writes at once: one wins, the other is refused (412) by the counter the first advanced.
 
     The test shows the outcome, not which of the lock and the counter produced it; the next test
-    shows that a write waits for the lock of its structure.
+    shows that a write waits for the lock of its structure. A detail of the realization, the
+    serialization under the lock, which reprises no Vérif (#2607).
     """
     task = tree.made("Câblage")
     node = lines.made(task, **labour(costs))["nodes"][0]
@@ -582,13 +601,13 @@ def test_two_writes_of_one_line_at_once_leave_one_refused_by_its_counter(
     assert facet(won)["hours"] == line_of(tree, facet(won)["label"])["estimate_line"]["hours"]
 
 
-@pytest.mark.requirement("WF-IHM-0110-A")
 def test_a_write_of_a_line_waits_for_the_lock_of_its_structure(
     stage: Scene, tree: Tree, lines: Lines, costs: Costing
 ) -> None:
-    # Another transaction holds the structure ``FOR UPDATE``: the write starts, waits, and answers
-    # once the lock is released, at the counter it read; a bare check of the counter would answer
-    # at once.
+    # Another transaction holds the structure ``FOR UPDATE``: the write starts, and a session is
+    # seen blocked by that transaction (``pg_blocking_pids``) before it is released; the write
+    # then answers, at the counter it read. A detail of the realization, which reprises no Vérif
+    # (#2607).
     task = tree.made("Câblage")
     node = lines.made(task, **labour(costs))["nodes"][0]
     with ThreadPoolExecutor(max_workers=1) as pool, stage.owner.begin() as connection:
@@ -597,20 +616,21 @@ def test_a_write_of_a_line_waits_for_the_lock_of_its_structure(
             .where(CostStructure.id == UUID(tree.structure_id))
             .with_for_update()
         )
+        holder = connection.scalar(select(func.pg_backend_pid()))
         waiting = pool.submit(lines.change, node, hours="20")
-        with pytest.raises(FutureTimeout):
-            waiting.result(timeout=1.5)
+        assert blocked_by(stage, holder, waiting)
+        assert not waiting.done()
     answer = waiting.result(timeout=30)
     assert answer.status_code == 200, answer.text
     assert facet(answer.json())["hours"] == "20"
 
 
-@pytest.mark.requirement("WF-IHM-0040-A")
 def test_a_modification_that_sends_nothing_beside_its_counter_is_refused(
     tree: Tree, lines: Lines, costs: Costing
 ) -> None:
     # No field is sent beside ``lock_version`` (``minProperties``): 422 ``VALIDATION_FAILED``,
-    # naming no field, and the line is left as it was.
+    # naming no field, and the line is left as it was. A rule of the contract, which reprises no
+    # Vérif (#2607).
     task = tree.made("Câblage")
     node = lines.made(task, **labour(costs))["nodes"][0]
     answer = lines.change(node)

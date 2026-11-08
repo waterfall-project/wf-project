@@ -15,11 +15,16 @@ inflation of the project prices its current revision again (``reinflate_project`
 ``register_estimate_facts``, which US-1490/L3 declares in ``core/projects``).
 
 Declared by US-1490/L1. What a registry of EP-04 or EP-06 calls is registered without effect —
-nothing to copy or delete while no rate is written —; the rest raises ``NotImplementedError``
-naming the story that fills it, which registers it and gives it its arguments and its result.
+nothing to copy while no rate is written —; the rest raises ``NotImplementedError`` naming the
+story that fills it, which registers it and gives it its arguments and its result. US-1490/L4
+fills the closing: the rates of a revision abandoned are deleted (WF-DAT-0010).
 """
 
 from typing import TYPE_CHECKING
+
+from sqlalchemy import delete
+
+from waterfall.core.estimate.tables import RevisionRate
 
 if TYPE_CHECKING:
     from uuid import UUID
@@ -43,11 +48,20 @@ def copy_rates(copy: RevisionCopy) -> None:
 
 
 def close_rates(closing: RevisionClosing) -> None:
-    """Delete the rates of a revision abandoned: the lines follow their nodes.
+    """Delete the rates of a revision abandoned: the lines follow their nodes (WF-DAT-0010).
 
-    Nothing to delete until US-1500 writes the rates.
+    A revision marked keeps its own; it has no image yet, which only its marking writes.
     """
-    del closing
+    if closing.kind != "abandoned":
+        return
+    closing.session.execute(
+        delete(RevisionRate)
+        .where(
+            RevisionRate.project_id == closing.project_id,
+            RevisionRate.revision_id == closing.revision_id,
+        )
+        .execution_options(synchronize_session=False)
+    )
 
 
 def keep_images(marking: RevisionMarking) -> None:

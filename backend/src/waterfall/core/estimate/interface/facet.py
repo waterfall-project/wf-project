@@ -9,8 +9,10 @@ lines into a revision opened (``copy_lines``), delete them with their nodes (``d
 give the calendars of the roles of the lines of tasks (``line_calendars``), their snapshot and
 their restoration for the history (``snapshot_lines``, ``restore_lines``), price again the lines of
 the tasks redated (``reinflate_lines``), their figures for the totals (``line_totals``), their
-filters and their sort (``line_filters``, ``line_sort``), and what a computed value of a line
-depends on (``line_dependencies``). ``judge_line_cell`` — a cell pasted on a line — is US-1560's.
+filters and their sort (``line_filters``, ``line_sort``), what a computed value of a line depends
+on (``line_dependencies``), and the lines a move gives another task, whose roles must leave it an
+hour (``judge_moved_lines``, WF-PLA-0010; US-1490/L4). ``judge_line_cell`` — a cell pasted on a
+line — is US-1560's.
 
 The copy of a line keeps its figures and its amounts, and takes for its budgeted amount that of the
 line of the same lineage in the reference revision, nought without one; null on a project without a
@@ -25,6 +27,7 @@ from uuid import UUID
 
 from sqlalchemy import delete, insert, inspect, select
 
+from waterfall.core.estimate.costing import judge_working_hours
 from waterfall.core.estimate.pricing import Amount, dependencies_of
 from waterfall.core.estimate.reading import (
     budgeted_of,
@@ -248,6 +251,29 @@ def line_dependencies(
     return None if amount is None else dependencies_of(amount, labour=labour)
 
 
+def judge_moved_lines(
+    session: Session, project_id: UUID, lines: Mapping[UUID, BearingTask]
+) -> None:
+    """Refuse a labour line moved whose role would leave the task receiving it without an hour.
+
+    Judged once placed, on the roles of every labour line the task now bears, the first line
+    concerned in the order given; the roles and the task named (``TASK_WITHOUT_WORKING_HOURS``).
+    """
+    roles = dict(
+        session.execute(
+            select(EstimateLine.node_id, EstimateLine.resource_role_id).where(
+                EstimateLine.project_id == project_id,
+                EstimateLine.node_id.in_(list(lines)),
+                EstimateLine.resource_role_id.is_not(None),
+            )
+        ).all()
+    )
+    for line, bearer in lines.items():
+        role = roles.get(line)
+        if role is not None:
+            judge_working_hours(session, (project_id, bearer, line), role)
+
+
 def judge_line_cell(session: Session, project_id: UUID, node_id: UUID) -> None:
     """Judge a cell pasted on a line, in the order of ``NodeColumn``."""
     msg = "judge_line_cell is filled by US-1560"
@@ -272,4 +298,5 @@ LINE_FACET = FacetHooks(
     filters=filter_lines,
     sort=sort_lines,
     dependencies=line_dependencies,
+    moved=judge_moved_lines,
 )

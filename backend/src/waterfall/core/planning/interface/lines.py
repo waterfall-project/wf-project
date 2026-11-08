@@ -14,12 +14,19 @@ writes its own (``FacetHooks.create``). A write of the facet of a line (``write_
 history opened, its structure locked and read, the line at the counter read (412); the facet
 writes, the node is counted, the structure redated and its lines priced again (``writing``).
 
-On the main structure, a line is neither created nor written under a completed task, which is first
-reopened from the Kanban: 409 ``STATE_FORBIDS_OPERATION``, ``task_not_completed``, after the
-conditions of the revision (WF-RAE-0040, WF-DEV-0050; #1767). In a differential, it is
-(WF-REV-0050, EP-08).
+On the main structure, a line is neither created, written, deleted nor moved under a completed
+task, or from it, which is first reopened from the Kanban: 409 ``STATE_FORBIDS_OPERATION``,
+``task_not_completed``, after the conditions of the revision (WF-RAE-0040, WF-DEV-0050; #1767). In
+a differential, it is (WF-REV-0050, EP-08). A line a move gives another task is judged by the hooks
+of its kind once placed (``FacetHooks.moved``): a role that would leave the task that receives it
+without an hour is refused there (WF-PLA-0010).
 
-Declared by US-1380/L1; filled by US-1490/L3 (EP-07, "Les points d'extension").
+The estimate asks the planning, of the nodes of its lines, their revision (``node_revisions``) and
+their structure with their row number in it (``node_rows``): a subproject that lines bear is named
+by them (WF-DAT-0080).
+
+Declared by US-1380/L1; filled by US-1490/L3 (EP-07, "Les points d'extension"); the deletion, the
+move and the places of the lines by US-1490/L4.
 """
 
 from dataclasses import dataclass
@@ -37,7 +44,7 @@ from waterfall.core.planning.interface.facets import (
 from waterfall.core.planning.scheduling import WorkInstant
 from waterfall.core.planning.shaping import stamp
 from waterfall.core.planning.tables import Node
-from waterfall.core.planning.tree import LINE
+from waterfall.core.planning.tree import LINE, read_tree
 from waterfall.core.planning.views import COMPLETED, state_of
 from waterfall.core.planning.writing import writing
 from waterfall.platform.errors import (
@@ -50,7 +57,7 @@ from waterfall.platform.errors import (
 from waterfall.platform.identifiers import new_id
 
 if TYPE_CHECKING:
-    from collections.abc import Callable, Collection
+    from collections.abc import Callable, Collection, Iterable
     from uuid import UUID
 
     from sqlalchemy.orm import Session
@@ -124,6 +131,55 @@ def revision_bears(session: Session, revision_id: UUID, kind: str) -> bool:
     )
 
 
+@dataclass(frozen=True, slots=True)
+class NodeRow:
+    """Where a node stands: its structure, and its row number in the whole of it (WF-PLA-0080)."""
+
+    structure_id: UUID
+    row_number: int
+
+
+def node_revisions(
+    session: Session, project_id: UUID, node_ids: Collection[UUID]
+) -> dict[UUID, UUID]:
+    """Give the revision of each node named, by node; one absent is left out."""
+    if not node_ids:
+        return {}
+    rows = session.execute(
+        select(Node.id, Node.revision_id).where(
+            Node.project_id == project_id, Node.id.in_(list(node_ids))
+        )
+    )
+    return dict(rows.all())
+
+
+def node_rows(
+    session: Session, project_id: UUID, node_ids: Collection[UUID]
+) -> dict[UUID, NodeRow]:
+    """Give the structure and the row number of each node named; one absent is left out.
+
+    Each structure that holds one is read whole, once: a row number counts every node above.
+    """
+    if not node_ids:
+        return {}
+    held = session.execute(
+        select(Node.id, Node.structure_id).where(
+            Node.project_id == project_id, Node.id.in_(list(node_ids))
+        )
+    ).all()
+    found: dict[UUID, NodeRow] = {}
+    for structure_id in sorted({structure for _, structure in held}):
+        numbers = read_tree(session, project_id, structure_id).row_number
+        found.update(
+            {
+                node_id: NodeRow(structure_id, numbers[node_id])
+                for node_id, structure in held
+                if structure == structure_id
+            }
+        )
+    return found
+
+
 def _bearing(
     session: Session, project_id: UUID, tree: Tree, task_id: UUID, *, is_main: bool
 ) -> BearingTask:
@@ -141,15 +197,58 @@ def _bearing(
     )
 
 
+def refuse_completed(write: Write, task_ids: Iterable[UUID | None]) -> None:
+    """Refuse a write of a line under one of these tasks completed, on the main structure (409)."""
+    tree = write.tree
+    if not write.facts.is_main:
+        return
+    for each in task_ids:
+        if each is not None and each in tree.tasks and state_of(tree, each).progress == COMPLETED:
+            raise ConflictError(STATE_FORBIDS_OPERATION, {"missing_condition": TASK_NOT_COMPLETED})
+
+
 def _judge_bearer(write: Write, parent: UUID | None) -> UUID:
     """Refuse a bearer that is no task of the structure (422), or completed on the main (409)."""
     tree = write.tree
     if parent is None or parent not in tree.tasks:
         fault = FieldError("/parent_id", UNKNOWN_TASK)
         raise UnprocessableError(VALIDATION_FAILED, fields=(fault,))
-    if write.facts.is_main and state_of(tree, parent).progress == COMPLETED:
-        raise ConflictError(STATE_FORBIDS_OPERATION, {"missing_condition": TASK_NOT_COMPLETED})
+    refuse_completed(write, (parent,))
     return parent
+
+
+def judge_lines_moved(write: Write, node_ids: Collection[UUID], parent: UUID | None) -> None:
+    """Refuse a move of lines to a completed task or from one, on the main structure (409).
+
+    ``node_ids`` the nodes the move places, ``parent`` the task that receives them; the tasks moved
+    take their lines with them, which change no bearer.
+    """
+    tree = write.tree
+    lines = [each for each in node_ids if each not in tree.tasks]
+    if lines:
+        refuse_completed(write, (parent, *(tree.nodes[each].parent_id for each in lines)))
+
+
+def judge_facets_moved(write: Write, node_ids: Collection[UUID]) -> None:
+    """Have the hooks of each kind judge the nodes a move gave another task, once placed.
+
+    ``node_ids`` those nodes, under their new task in the tree written: each kind is handed its
+    own, in the order of the plan read, with the task that now bears them.
+    """
+    if not node_ids:
+        return
+    session, tree, project_id = write.session, write.tree, write.place.project_id
+    ordered = sorted(node_ids, key=tree.row_number.__getitem__)
+    for kind, hooks in facets().items():
+        held: dict[UUID, BearingTask] = {}
+        for each in ordered:
+            parent = tree.nodes[each].parent_id
+            if tree.nodes[each].kind == kind and parent is not None:
+                held[each] = _bearing(
+                    session, project_id, tree, parent, is_main=write.facts.is_main
+                )
+        if held:
+            hooks.moved(session, project_id, held)
 
 
 def _rank(tree: Tree, creation: NodeCreation, parent: UUID) -> int:

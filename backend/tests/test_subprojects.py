@@ -457,8 +457,13 @@ def test_a_refusal_of_the_deletion_names_the_first_condition_in_the_order_of_the
     api: ContractClient, stage: Scene, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     created = made(api, stage, "SP-1")
-    # The questions EP-07 and EP-09 will fill, answered as they will when a line bears the code.
-    monkeypatch.setattr(f"{INTERFACE}.subproject_is_estimated", holds)
+
+    # The question EP-09 will fill, answered as it will when a cost is charged; that of EP-07, as
+    # it answers when a line of the current revision bears the subproject.
+    def bearing(_session: object, _project: object, ids: Any) -> dict[Any, tuple[object, ...]]:
+        return {each: (object(),) for each in ids}
+
+    monkeypatch.setattr(f"{INTERFACE}.subprojects_estimated", bearing)
     monkeypatch.setattr(f"{INTERFACE}.subproject_has_actual_costs", holds)
     listed = api.get(path(stage), headers=stage.manager.headers).json()[0]
     assert listed["available_commands"][1] == {

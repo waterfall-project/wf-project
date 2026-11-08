@@ -40,7 +40,12 @@ from waterfall.core.planning.entries import (
 )
 from waterfall.core.planning.filters import NodeFilters, retained
 from waterfall.core.planning.interface.facets import calendar_of, calendars_of, facets
-from waterfall.core.planning.interface.lines import create_line_node
+from waterfall.core.planning.interface.lines import (
+    create_line_node,
+    judge_facets_moved,
+    judge_lines_moved,
+    refuse_completed,
+)
 from waterfall.core.planning.scheduling import Move, WorkInstant
 from waterfall.core.planning.shaping import (
     Placing,
@@ -754,10 +759,13 @@ def delete_node(
 
     Under the lock of the structure: refused if the structure does not hold the node (404), at
     another version than the one read (412), for a task started or completed, or a summary one of
-    whose subordinates is (409 ``task_not_started``, WF-PLA-0070). The subtree goes, its links and
-    the inscriptions of its lineages with it; a summary left without subordinate becomes a leaf in
-    its state (WF-PLA-0040) and is given back among the ancestors, with the tasks the links taken
-    away redate. No provision line moves before EP-08: ``nodes`` is empty.
+    whose subordinates is (409 ``task_not_started``, WF-PLA-0070), for a line of a completed task
+    of the main structure (409 ``task_not_completed``, WF-RAE-0040; #1767). The subtree goes, its
+    lines, its links and the inscriptions of its lineages with it (WF-DAT-0090); a summary left
+    without subordinate becomes a leaf in its state (WF-PLA-0040) and is given back among the
+    ancestors, with the tasks the links taken away redate — and the task a line leaves, whose
+    calendar may change (WF-PLA-0010) — and the totals without them. No provision line moves
+    before EP-08: ``nodes`` is empty.
     """
     with writing(session, place, writer, ("node_delete", (node_id,))) as write:
         tree = write.tree
@@ -771,6 +779,8 @@ def delete_node(
         if node_id in tree.tasks and state_of(tree, node_id).progress != NOT_STARTED:
             raise ConflictError(STATE_FORBIDS_OPERATION, {"missing_condition": TASK_NOT_STARTED})
         parent = node.parent_id
+        if node_id not in tree.tasks:
+            refuse_completed(write, (parent,))
         former = () if parent is None else (parent, *tree.ancestors(parent))
         subtree = list(tree.subtree(node_id))
         left_bare = parent is not None and tree.subtasks(parent) == [node_id]
@@ -860,13 +870,17 @@ def move_nodes(session: Session, place: Place, moving: NodeMoving, writer: Write
 
     Under the lock of the structure, at its counter (412): a node it does not hold is not found
     (404); a node named with one of its ancestors is left to it (``_outermost``); the parent and
-    the place are judged (``_judge_move``), then the tasks of the work breakdown (WF-PLA-0170).
+    the place are judged (``_judge_move``), a line moved to a completed task or from it on the
+    main structure (409 ``task_not_completed``, #1767), then the tasks of the work breakdown
+    (WF-PLA-0170). A line given another task is judged by the hooks of its kind once placed —
+    a role that would leave that task without an hour (WF-PLA-0010) —, and priced again on it.
     Each node takes its subtree with it, unchanged but for its parent and its place
     (WF-PLA-0040); a manual leaf that receives a task becomes an automatic summary; a
     summary that loses its last subordinate a leaf in its state. The engine refuses a link the
     move would make between a summary and its subordinate, or a loop it would close through the
     parent (``LINK_FORBIDDEN``, ``LINK_CYCLE``, #1169), and a project beyond fifteen years, the
-    first task moved named (WF-PLA-0150); nothing is written then. The moved nodes are given back
+    first task moved named, or the task that receives the lines (WF-PLA-0150); nothing is written
+    then. The moved nodes are given back
     with their former and new ancestors.
     """
     node_ids = tuple(dict.fromkeys(moving.node_ids))
@@ -881,6 +895,7 @@ def move_nodes(session: Session, place: Place, moving: NodeMoving, writer: Write
         kept = _outermost(tree, node_ids)
         placing = Placing(kept, moving.parent_id, moving.after_node_id, moving.after_given)
         _judge_move(tree, placing)
+        judge_lines_moved(write, kept, moving.parent_id)
         _judge_package_tasks(write, placing, moving.node_ids)
         return _moved(write, placing)
 
@@ -904,6 +919,9 @@ def _moved(write: Write, placing: Placing) -> NodesWritten:
         and tree.tasks[parent].scheduling_mode == MANUAL
     )
     shifted = [each for each in changes if each not in node_ids]
+    carried = [
+        each for each in node_ids if each not in tree.tasks and tree.nodes[each].parent_id != parent
+    ]
     above = (parent,) if made_summary and parent is not None else ()
     touched = (*node_ids, *shifted, *above, *left_bare)
     write.before(touched)
@@ -914,9 +932,10 @@ def _moved(write: Write, placing: Placing) -> NodesWritten:
         tree.tasks[parent].scheduling_mode = AUTOMATIC
         stamp(tree.nodes[parent], act)
     place(write, changes, (*node_ids, *shifted))
-    first = tasks_moved[0] if tasks_moved else None
+    judge_facets_moved(write, carried)
+    first = tasks_moved[0] if tasks_moved else parent
     blamed = None if first is None else (first, tree.tasks[first].label)
-    origin = None if parent is None or first is None else Move(tuple(tasks_moved), parent)
+    origin = None if parent is None or not tasks_moved else Move(tuple(tasks_moved), parent)
     redated = write.redate(blamed, origin)
     write.after(touched)
     return redated.written(node_ids, former)
