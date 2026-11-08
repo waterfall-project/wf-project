@@ -665,9 +665,13 @@ def rate_update() -> JsonObject:
     """Return the rate update proposed when the revision 101 was created (WF-REV-0060).
 
     Opened on 12 January 2026 by the identification of the risks, its reference year is 2026,
-    where the offer it copied had 2025: each labour category the offer employs is proposed at
-    its rate of 2026 in the grid of the rates, its rate of 2025 beside.
+    where the offer it copied had 2025: created by an entry of a risk, it applied the rates the
+    offer kept, projected to 2026 (WF-REV-0060). Each labour category the offer employs is
+    proposed at its rate of 2026 in the grid of the rates, beside the rate the revision keeps, that
+    of 2025 corrected by a year of inflation as the offer projects its amounts
+    (``OFFER_PROJECTION``) — 78.50 x 1.03, 80.86 for the electrical engineering.
     """
+    projected = mockhistory.offer_pricing().projection
     kept, named, marked = mockhistory.offer_rates(), labels(), offer()
     employed = sorted(
         {cast("str", marked.facet(line)["cost_category_id"]) for line in marked.lines if line.hours}
@@ -678,7 +682,7 @@ def rate_update() -> JsonObject:
             {
                 "cost_category_id": category,
                 "label": named[category],
-                "previous_amount": money(kept[category]),
+                "previous_amount": money(projected(kept[category], REFERENCE_YEAR)),
                 "proposed_amount": money(LABOUR_RATES[category]),
                 "source": "reference_rate",
             }

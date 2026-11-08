@@ -8784,7 +8784,14 @@ spécification, quand le glossaire, WF-RIS-0050 et le budget de référence en d
   engager, avec M-08 (« Le réestimé d'une ligne non réestimée », plus bas), 67 470 133,69. Le
   budget de référence passant au-dessus du reste à engager, la marge du projet devient positive,
   1 405 592,07, et aucun sous-projet n'est plus dépassé : le poste de commande, avec la facture des
-  écrans, 2 400,00, garde une marge de 632 737,10.
+  écrans, 2 400,00, garde une marge de 632 737,10. `remaining_indicators_over_budget`, qui n'était
+  dépassé que par le raccourci, devient une variante contrefactuelle déclarée : le risque de reprise
+  du câblage réexaminé aujourd'hui à 60 % au lieu de 40 %, sa provision de 500 000 à 750 000, au-delà
+  de la marge de l'ensemble hors sous-projet, seul en alerte (− 88 889,09) ; les sous-projets, dont
+  les quelques lignes démarrées ne sauraient consommer plus de 600 000 de marge chacun, restent
+  nominaux, comme le veut le Vérif de WF-RAE-0020 (« les autres non »). `rate_update` donne en
+  `previous_amount` le taux que la révision 101 conserve, celui de 2025 projeté d'une année
+  (80,86 et 75,71), comme le veut la conception d'EP-07 (« L'instantané et les taux »).
   `tools/tests/test_mockinflation.py` tient le Vérif de WF-DEV-0050 (4,04 % à 2 %, deux ans après
   l'année de référence) et celui de la provision de WF-DEV-0030.
 - **Les préférences d'affichage** : une colonne gardée sous `inflated_amount` ne s'applique plus, et
