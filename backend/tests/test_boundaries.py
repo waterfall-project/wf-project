@@ -214,6 +214,7 @@ DESIGNED: dict[str, set[str]] = {
         "consumed",
         "purge",
         "remove_purged",
+        "stored_before",
         "hardened_parser",
     },
 }
@@ -494,7 +495,7 @@ STUB_STATEMENTS = 2
 SILENT = {
     "projects": {"no_background_task_running", "advance"},
     "revisions": {"revision_has_tasks_and_lines", "compute_indicators"},
-    # What a registry of EP-04 or EP-05, or the purge, calls before the story that fills it.
+    # What a registry of EP-04 or EP-05 calls before the story that fills it.
     "planning": {
         "copy_nodes",
         "delete_nodes",
@@ -503,8 +504,7 @@ SILENT = {
         "work_breakdown_item_cited",
         "detach_work_breakdown_item",
     },
-    "history": {"close_history", "purge"},
-    "exchanges": {"purge", "remove_purged"},
+    "history": {"close_history"},
 }
 
 
