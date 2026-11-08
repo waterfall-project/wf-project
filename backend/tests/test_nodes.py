@@ -187,7 +187,12 @@ def test_a_work_package_or_an_order_item_shows_the_task_that_bears_it_its_subtre
         ("?duration_max=1", ["Retard"]),
         ("?total_float_min=1", ["Fini"]),
         ("?total_float_max=0", ["Retard"]),
-        ("?physical_progress_min=0", []),
+        # No physical progress is stored nor computed before EP-07: a bound retains none of the
+        # three tasks, which the unfiltered reading (the last case) shows to exist.
+        ("?physical_progress_min=10", []),
+        ("?physical_progress_max=10", []),
+        ("?physical_progress_min=0&physical_progress_max=100", []),
+        ("", ["Retard", "Fini", "Neuf"]),
         ("?is_from_risk=true", ["Retard", "Neuf"]),
         ("?is_from_risk=false", ["Fini"]),
         ("?origin_risk_ids={first}", ["Retard"]),
@@ -694,6 +699,36 @@ def test_a_finish_entered_fifteen_years_and_a_day_after_the_start_is_refused_nam
         {"task": {"node_id": node["node_id"], "label": "Pupitres"}},
     )
     assert tree.node(node["node_id"])["lock_version"] == 1
+
+
+@pytest.mark.requirement("WF-PLA-0150-A")
+@pytest.mark.parametrize(
+    "duration",
+    [
+        {"value": "99999999999", "unit": "d"},
+        {"value": "9999999", "unit": "mo"},
+        {"value": "5000", "unit": "d"},
+    ],
+    ids=["days-beyond-the-calendar", "months-beyond-the-calendar", "days-beyond-fifteen-years"],
+)
+def test_a_manual_duration_so_long_that_its_finish_is_no_date_is_refused_naming_the_task(
+    tree: Tree, duration: dict[str, str]
+) -> None:
+    node = tree.made(
+        "Pupitres",
+        task={
+            "scheduling_mode": "manual",
+            "start": {"date": DAY.isoformat()},
+            "finish": {"date": DAY.isoformat()},
+        },
+    )
+    answer = tree.change(node, duration=duration)
+    assert refusal(answer) == (
+        422,
+        "PROJECT_HORIZON_EXCEEDED",
+        {"task": {"node_id": node["node_id"], "label": "Pupitres"}},
+    )
+    assert tree.node(node["node_id"])["lock_version"] == node["lock_version"]
 
 
 @pytest.mark.requirement("WF-IHM-0110-A")
