@@ -362,3 +362,30 @@ def test_an_image_beyond_the_ceiling_of_pixels_fails_the_task_with_its_code_and_
     assert backups_bucket.size(f"exports/{task_id}.png") is None
     gone = tree.api.get(f"{TASKS}/{task_id}/result", headers=stage.manager.headers)
     assert gone.status_code == 409
+
+
+@pytest.mark.requirement("WF-PLA-0120-A")
+def test_the_ceiling_of_pixels_is_reached_without_failing_and_one_pixel_less_fails(
+    stage: Scene,
+    tree: Tree,
+    worker: Worker,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    four_levels(tree)
+    laid: list[TreeLayout] = []
+    draw = task_tree.draw_task_tree
+
+    def note_then_draw(layout: TreeLayout) -> bytes:
+        laid.append(layout)
+        return draw(layout)
+
+    monkeypatch.setattr(task_tree, "draw_task_tree", note_then_draw)
+    _, known = exported(tree.api, stage, worker, tree, depth=4)
+    assert known["status"] == "succeeded"
+    pixels = laid[0].width * laid[0].height
+    monkeypatch.setattr(task_tree_image, "MAX_PIXELS", pixels)
+    _, equal = exported(tree.api, stage, worker, tree, depth=4)
+    assert equal["status"] == "succeeded"
+    monkeypatch.setattr(task_tree_image, "MAX_PIXELS", pixels - 1)
+    _, beyond = exported(tree.api, stage, worker, tree, depth=4)
+    assert (beyond["status"], beyond["problem"]["code"]) == ("failed", TOO_LARGE)

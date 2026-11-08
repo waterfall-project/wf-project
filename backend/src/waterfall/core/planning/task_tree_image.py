@@ -125,7 +125,7 @@ def _font_bytes() -> bytes:
     return files("waterfall.core.exchanges").joinpath("fonts", "DejaVuSans.ttf").read_bytes()
 
 
-def _font(size: int) -> FreeTypeFont:
+def own_font(size: int) -> FreeTypeFont:
     """Give a font of its own: Pillow does not promise a ``FreeTypeFont`` safe between threads.
 
     Only the bytes of the file are cached, shared and read-only (#2486).
@@ -157,8 +157,8 @@ def layout_task_tree(
     ``depth`` is the number of levels under the project that are drawn (1 draws the first level
     only); below 1 only the project node is drawn.
     """
-    body_font = _font(FONT_SIZE)
-    head_font = _font(HEADER_FONT_SIZE)
+    body_font = own_font(FONT_SIZE)
+    head_font = own_font(HEADER_FONT_SIZE)
     scratch = ImageDraw.Draw(Image.new("RGB", (1, 1)))
     header = header_lines(language, project.label, revision, computed_on)
 
@@ -225,8 +225,8 @@ def draw_task_tree(layout: TreeLayout) -> bytes:
     """Draw a layout; the PNG's bytes. The size of the layout is the caller's to bound."""
     image = Image.new("RGB", (layout.width, layout.height), _BACKGROUND)
     draw = ImageDraw.Draw(image)
-    head_font = _font(HEADER_FONT_SIZE)
-    body_font = _font(FONT_SIZE)
+    head_font = own_font(HEADER_FONT_SIZE)
+    body_font = own_font(FONT_SIZE)
     for line, line_y in zip(layout.header, layout.header_ys, strict=True):
         draw.text((MARGIN, line_y), line, fill=_INK, font=head_font)
     for parent, child in layout.edges:

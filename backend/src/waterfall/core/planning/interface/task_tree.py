@@ -31,7 +31,7 @@ from waterfall.core.projects.interface import Viewer, project_code, project_labe
 from waterfall.core.revisions.interface import read_revision, structure_facts
 from waterfall.core.users.interface import read_account
 from waterfall.platform.errors import UnprocessableError
-from waterfall.platform.installation import read_settings
+from waterfall.platform.installation import FOLLOWED, read_settings
 
 if TYPE_CHECKING:
     from uuid import UUID
@@ -43,8 +43,6 @@ if TYPE_CHECKING:
 
 TOO_LARGE = "TASK_TREE_IMAGE_TOO_LARGE"
 MEDIA_TYPE = "image/png"
-# What an account that follows the browser, then the installation, asks of the language.
-FOLLOWED = "default"
 _NOT_IN_A_NAME = re.compile(r"[^A-Za-z0-9._-]+")
 
 

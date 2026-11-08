@@ -29,6 +29,7 @@ from waterfall.core.planning.task_tree_image import (
     language_of,
     layout_task_tree,
     one_line,
+    own_font,
     render_task_tree_image,
     revision_label,
 )
@@ -96,6 +97,15 @@ def _ink_in(image: Image.Image, top: int, bottom: int) -> bool:
         image.getpixel((x, y)) != (255, 255, 255)
         for x in range(image.width)
         for y in range(top, bottom)
+    )
+
+
+def _first_ink_row(image: Image.Image, top: int, bottom: int) -> int:
+    """Give the first row from ``top`` to ``bottom`` that holds anything but the background."""
+    return next(
+        y
+        for y in range(top, bottom)
+        if any(image.getpixel((x, y)) != (255, 255, 255) for x in range(image.width))
     )
 
 
@@ -252,6 +262,9 @@ def test_the_three_lines_of_the_header_are_placed_one_under_the_other_each_with_
     # and the first frame.
     for line_y in layout.header_ys:
         assert _ink_in(image, line_y, line_y + step)
+        # The ink of a line begins at its own y: a few rows below at most, never above.
+        top = _first_ink_row(image, line_y - 2, line_y + step)
+        assert line_y <= top <= line_y + 8
     assert not _ink_in(image, layout.header_ys[-1] + step, layout.boxes[0].y)
 
 
@@ -267,6 +280,18 @@ def test_the_label_of_each_frame_is_drawn_inside_it() -> None:
             for y in range(box.y + 1, box.y + box.height)
         ]
         assert any(pixel not in background for pixel in inside), box.label
+        # The ink is that of this label: as wide as the font measures it, from the padding.
+        columns = [
+            x
+            for x in range(box.x + 2, box.x + box.width - 2)
+            if any(
+                image.getpixel((x, y)) not in background
+                for y in range(box.y + 2, box.y + box.height - 2)
+            )
+        ]
+        wanted = round(own_font(FONT_SIZE).getlength(box.label))
+        assert abs((columns[-1] - columns[0] + 1) - wanted) <= 3, box.label
+        assert abs(columns[0] - (box.x + PADDING)) <= 3, box.label
     # The check discriminates: a frame without label has nothing but its fill.
     empty = _layout(TreeNode("", (TreeNode(""),)), depth=1)
     blank = _png(TreeNode("", (TreeNode(""),)), depth=1)
@@ -296,6 +321,7 @@ def test_the_language_and_the_name_of_the_revision_follow_the_catalogue() -> Non
 
 @pytest.mark.requirement("WF-PLA-0120-A")
 def test_renders_in_parallel_threads_give_the_png_of_a_render_alone() -> None:
+    assert own_font(FONT_SIZE) is not own_font(FONT_SIZE)
     # The fonts are not shared between threads (#2486): the same bytes however many render at once.
     projects = [_tree(columns=3 + i % 3, label=f"Lot{i % 3}") for i in range(24)]
 
