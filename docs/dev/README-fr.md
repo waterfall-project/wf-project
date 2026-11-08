@@ -1196,7 +1196,8 @@ contributeur lit le planning et reçoit `NOT_CONTRIBUTOR` à chaque écriture et
 ses tâches dans le service (US-1480), et le compte de la course n'en est pas contributeur (#2193),
 si bien que chacun écrit son propre projet (`e2e/planning-seed.ts` : le projet créé depuis l'accueil,
 sa révision ouverte, six tâches écrites par l'API, et, selon le parcours, leurs liaisons dont une en
-conflit, l'état de deux d'entre elles, un lotissement de deux postes). Le report d'une grille à
+conflit, un lotissement de deux postes ; les états « démarrée » et « terminée » restent joués sur
+le faux back jusqu'à US-1480/L3, #2595). Le report d'une grille à
 l'autre (#1057) se joue par les opérations que la grille de devis envoie, `createNode` puis
 `moveNodes`, sur la structure qu'elle partage avec le planning : l'écran de la grille de devis n'est
 pas servi avant EP-07, et le geste fait depuis lui est reporté à cet EPIC (#2590) ; la tâche ainsi
@@ -1207,8 +1208,9 @@ rejoue pas avant son EPIC reste gardé par `inService` : les lignes, les montant
 le reste à engager (EP-09) ; les risques (EP-08) ; les indicateurs (EP-10) ; les structures
 différentielles (EP-08), si bien que le parcours de `context.spec.ts` qui ouvre l'avenant, celui de
 l'écran des risques et celui des indicateurs restent sur le faux back ; les parcours de
-`planning.spec.ts` et de `keyboard.spec.ts` qui lisent les mille tâches du témoin (US-1480). La mesure d'une validation de cellule (#196) et celle
-du déplacement de la cellule active sur mille tâches (#620) sont au relevé de livraison d'US-1470.
+`planning.spec.ts` et de `keyboard.spec.ts` qui lisent les mille tâches du témoin (US-1480). La
+mesure d'une validation de cellule (#196) et celle du déplacement de la cellule active sur mille
+tâches (#620) sont au relevé de livraison d'US-1470.
 
 ### L'écran des risques
 
