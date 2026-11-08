@@ -26,12 +26,12 @@ from support import ContractClient
 
 from waterfall.api.app import create_app
 from waterfall.api.authentication import Services
-from waterfall.core.planning.interface.msproject import recognised
 from waterfall.core.planning.msproject import (
     calendar_of,
     calendars_of,
     constants_of,
     read_project,
+    recognised,
 )
 from waterfall.core.planning.scheduling import WorkInstant
 from waterfall.core.planning.tree import read_links, read_tree
@@ -646,6 +646,67 @@ def test_a_file_of_other_constants_is_imported_with_the_same_hours(
     cabling = by_label(stage)["Câblage"][1]
     assert (cabling.duration_value, cabling.duration_unit) == (Decimal("1.75"), "d")
     assert links(stage) == {("Câblage", "Essais", "finish_to_start", Decimal("0.875"), "w")}
+
+
+@pytest.mark.requirement("WF-INTF-0080-A")
+def test_a_task_without_a_label_or_with_too_long_a_one_is_rejected_its_subtasks_rising(
+    api: ContractClient, stage: Scene, worker: Worker
+) -> None:
+    # A rejected line is named by its row, the others apply: the subtask of a task the file
+    # would create without a label rises to its parent.
+    opened(api, stage)
+    content = planning(
+        task(1, " "), task(2, "Câblage", level=2), task(3, "x" * 301), task(4, "Essais")
+    )
+    report = imported(api, stage, worker, content)
+    assert report["rejected"] == [
+        {"sheet": None, "row": 1, "code": "VALUE_REQUIRED", "params": {}},
+        {"sheet": None, "row": 3, "code": "VALUE_TOO_LONG", "params": {"max_length": 300}},
+    ]
+    assert (report["read_count"], report["unchanged_count"]) == (4, 0)
+    assert [(node.parent_id, task.label) for node, task in tasks(stage)] == [
+        (None, "Câblage"),
+        (None, "Essais"),
+    ]
+
+
+@pytest.mark.requirement("WF-PLA-0040-A")
+def test_a_summary_the_file_makes_a_leaf_takes_its_duration_and_keeps_its_state(
+    api: ContractClient, stage: Scene, worker: Worker
+) -> None:
+    # « Une récapitulative qui perd sa dernière subordonnée devient une tâche feuille en mode
+    # automatique […], conserve son état. » Its started subtask moves out of it.
+    opened(api, stage)
+    imported(api, stage, worker, planning(task(1, "Études"), task(2, "Conception", level=2)))
+    set_progress(stage, str(by_label(stage)["Conception"][0].id), "started", date(2026, 11, 2))
+    report = imported(
+        api,
+        stage,
+        worker,
+        planning(task(1, "Études", timing=Timing(duration="PT16H0M0S")), task(2, "Conception")),
+    )
+    assert [(each["label"], each["fields"]) for each in report["differences"]] == [
+        ("Études", ["duration"]),
+        ("Conception", ["parent"]),
+    ]
+    studies = by_label(stage)["Études"][1]
+    assert (studies.progress, studies.duration_value, studies.duration_unit) == (
+        "started",
+        Decimal(2),
+        "d",
+    )
+
+
+@pytest.mark.requirement("WF-PLA-0030-A")
+def test_a_file_whose_links_close_a_loop_fails_its_analysis(
+    api: ContractClient, stage: Scene, worker: Worker
+) -> None:
+    opened(api, stage)
+    loop = planning(task(1, "A", besides=link(2)), task(2, "B", besides=link(1)))
+    response = opening(api, stage, loop)
+    assert response.status_code == 202, response.text
+    run(worker)
+    assert read(api, stage, response.json()["import_id"])["status"] == "failed"
 
 
 @pytest.mark.requirement("WF-INTF-0040-A")

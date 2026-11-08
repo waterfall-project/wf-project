@@ -8,6 +8,11 @@ them, the reader by the hardened parser of the exchanges. The names are imported
 from the file that defines them.
 """
 
+# ``header`` (US-1430/L3): the head of a file, recognised.
+from waterfall.core.planning.msproject.header import (
+    recognised as recognised,
+)
+
 # ``model``: the planning in memory, what it carried besides, and the refusal of a file.
 from waterfall.core.planning.msproject.model import (
     LINEAGE_ALIAS as LINEAGE_ALIAS,

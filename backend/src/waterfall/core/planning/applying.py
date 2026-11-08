@@ -20,8 +20,9 @@ from typing import TYPE_CHECKING
 
 from sqlalchemy import insert
 
+# By its module: its own imports reach the interface, which reaches this module again.
+from waterfall.core.planning import importing
 from waterfall.core.planning.dating import MANUAL, conflicts_of
-from waterfall.core.planning.importing import task_fields
 from waterfall.core.planning.rescheduling import Holding, replayed
 from waterfall.core.planning.scheduling import WorkInstant
 from waterfall.core.planning.shaping import PARKED, deleted, emptied, stamp
@@ -177,7 +178,7 @@ def _update(plan: Plan, row: Row) -> bool:
     tree, facet = plan.aimed.tree, row.facet
     if facet is None:
         return False
-    changed = bool(task_fields(plan, row))
+    changed = bool(importing.task_fields(plan, row))
     task = tree.tasks[row.node_id]
     if tree.is_summary(row.node_id) and not plan.is_summary(row.node_id):
         emptied(tree, row.node_id)

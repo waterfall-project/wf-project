@@ -19,12 +19,11 @@ The analysis and the application build the same plan (``importing``), the applic
 lock of the structure, which the task of the exchanges takes after the revision and the project.
 """
 
-import re
 from typing import TYPE_CHECKING, Any
 
-from waterfall.core.planning.applying import apply_plan
-from waterfall.core.planning.importing import plan_import, report_of
-from waterfall.core.planning.msproject import NAMESPACES, UnreadableProjectError, read_project
+# By their modules: their own imports reach this interface again, through the facets of a task.
+from waterfall.core.planning import applying, importing
+from waterfall.core.planning.msproject import UnreadableProjectError, read_project, recognised
 from waterfall.platform.errors import UnprocessableError
 
 if TYPE_CHECKING:
@@ -45,32 +44,11 @@ if TYPE_CHECKING:
 HEADER_LENGTH = 4096
 FILE_FORMAT_UNREADABLE = "FILE_FORMAT_UNREADABLE"
 KIND = "ms_project_schedule"
-# What may precede the root of a file: a mark of its encoding, its declaration, comments,
-# instructions and blanks; then the root, its name and its attributes as far as the head holds.
-PROLOG = re.compile(
-    rb"(?:\xef\xbb\xbf)?(?:\s|<\?.*?\?>|<!--.*?-->)*<(?:(?P<prefix>[\w.-]+):)?Project(?P<attributes>[\s>/][^>]*)",
-    re.DOTALL,
-)
-NAMESPACE_DECLARATION = re.compile(
-    rb"""xmlns(?::(?P<prefix>[\w.-]+))?\s*=\s*["'](?P<uri>[^"']*)["']"""
-)
 
 
 def _unreadable() -> UnprocessableError:
     """Give the refusal of a file that is no planning of MS Project."""
     return UnprocessableError(FILE_FORMAT_UNREADABLE, {"expected_format": KIND})
-
-
-def recognised(head: bytes) -> bool:
-    """Tell whether the head of a file opens a ``Project`` of the namespace of MS Project."""
-    root = PROLOG.match(head)
-    if root is None:
-        return False
-    prefix = root.group("prefix")
-    for declared in NAMESPACE_DECLARATION.finditer(root.group("attributes")):
-        if declared.group("prefix") == prefix:
-            return declared.group("uri").decode(errors="replace") in NAMESPACES
-    return False
 
 
 class MsProjectFormat:
@@ -96,8 +74,8 @@ class MsProjectFormat:
     def analyse(self, session: Session, target: ImportTarget, content: bytes) -> Mapping[str, Any]:
         """Give the report of a planning of MS Project against a structure, writing nothing."""
         read = _read(content)
-        plan, items = plan_import(session, target, read, lock=False)
-        return report_of(plan, read, items)
+        plan, items = importing.plan_import(session, target, read, lock=False)
+        return importing.report_of(plan, read, items)
 
     def apply(
         self,
@@ -113,8 +91,8 @@ class MsProjectFormat:
         is judged as it now stands, and a refusal fails the import.
         """
         del report
-        plan, _ = plan_import(session, target, _read(content), lock=True)
-        apply_plan(session, plan, act)
+        plan, _ = importing.plan_import(session, target, _read(content), lock=True)
+        applying.apply_plan(session, plan, act)
 
 
 def _read(content: bytes) -> ReadProject:

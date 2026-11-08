@@ -514,8 +514,9 @@ def plan_import(
     rows = _matched(project, tree)
     written = {row.node_id for row in rows if row.old is not None}
     absent = [each for each in tree.order if each in tree.tasks and each not in written]
-    kept = [each for each in absent if state_of(tree, each).progress != NOT_STARTED]
-    removed = [each for each in absent if each not in set(kept)]
+    started = {each for each in absent if state_of(tree, each).progress != NOT_STARTED}
+    kept = [each for each in absent if each in started]
+    removed = [each for each in absent if each not in started]
     start = (
         project.start.date()
         if project.start is not None
@@ -531,7 +532,7 @@ def plan_import(
     held: Mapping[UUID, Applicable] = (
         calendars_of(session, aimed.project_id, list(tree.tasks)) if tree.tasks else {}
     )
-    plan.calendars = {each: held.get(each, default).calendar for each in [*plan.order, *removed]}
+    plan.calendars = {each: held.get(each, default).calendar for each in plan.order}
     _facets(plan, project, constants, file_children)
     _links(plan, constants)
     items = work_breakdown_items(session, aimed.project_id)
