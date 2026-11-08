@@ -127,9 +127,12 @@ test("offers the time/time tracking of a milestone beside its timelines, checked
 // the witness holds two rectangles that overlap.
 const MOVED = "01926f3a-7c00-7000-8000-000000000565";
 
-test("lays out the frieze of a timeline by the keyboard and the mouse, and records the lanes", async ({
+test("lays out the frieze of a timeline by the keyboard and the mouse, and records the lanes @shared", async ({
   page,
 }) => {
+  // The fake back renders, whatever the timeline, the whole volume of six thousand nodes: the lanes
+  // and the last rectangle are not those of the timeline, which the service alone filters (#463).
+  test.skip(!inService, "the fake back draws every node, not the tasks inscribed to the timeline");
   // The timelines read the structure of a thousand tasks: the bound of a grid.
   test.slow();
   await openHydrated(page, `${IN_REVISION}/timelines`);
@@ -176,10 +179,14 @@ test("lays out the frieze of a timeline by the keyboard and the mouse, and recor
   await expect(said).toHaveText("« Mise en service » est dans le couloir 1.");
 });
 
-test("keeps the rectangle the keyboard reaches in view on a zoomed axis, and cuts a name the rectangle cannot hold [WF-IHM-0100-A]", async ({
+test("keeps the rectangle the keyboard reaches in view on a zoomed axis, and cuts a name the rectangle cannot hold [WF-IHM-0100-A] @shared", async ({
   page,
 }) => {
   // Le focus reste visible.
+  test.skip(
+    !inService,
+    "the fake back draws every node: the last rectangle is not the commissioning",
+  );
   test.slow();
   await openHydrated(page, `${IN_REVISION}/timelines`);
   const frieze = page.getByRole("group", { name: /^Frise de la chronologie/ });
@@ -244,8 +251,9 @@ test("leads from the planning to the timelines of the project, read only", async
   await expect(page.getByRole("region", { name: "Contexte de lecture" })).toContainText(
     "Modernisation du poste de commande",
   );
-  // The timelines of the project; the screen asks the tasks of the one shown (`timeline_id`), and
-  // keeps those inscribed to it of what the fake back renders (#463): those of the core.
+  // The timelines of the project; the screen asks the tasks of the one shown (`timeline_id`) and
+  // draws what it is given. The fake back answers the same volume whatever the timeline: this path
+  // proves the navigation, not the selection (the paths @shared above prove it against the service).
   // They read the structure of a thousand tasks: the bound of a grid.
   await expect(page.getByRole("link", { name: "Comité de pilotage" })).toHaveAttribute(
     "aria-current",
@@ -259,7 +267,8 @@ test("leads from the planning to the timelines of the project, read only", async
     "true",
     { timeout: WORKING },
   );
-  // The customer follows the two receptions of the core, the structure its first rows (#376).
+  // The fake back's volume is drawn whole, its first rows holding « Réception usine »: the path
+  // holds only because of that order, and says nothing of the customer's own selection.
   await expect(page.getByRole("main")).toContainText("Réception usine");
   await expect(
     page.getByText("Aucune tâche de cette révision n’est inscrite à cette chronologie."),
@@ -325,7 +334,10 @@ test("shows two timelines of a project with distinct selections, found again by 
   await expect(page.getByRole("note")).toHaveCount(0);
   await openHydrated(page, customer);
   await expect(drawn(page, RECEPTION)).toBeAttached({ timeout: WORKING });
-  await expect(drawn(page, STUDIES)).toHaveCount(0);
+  // The selection is the service's: the fake back draws all its nodes, whatever the timeline.
+  if (inService) {
+    await expect(drawn(page, STUDIES)).toHaveCount(0);
+  }
 
   // Another visit — the page opened anew, then reloaded — reads the same two selections.
   await openHydrated(page, steering);
@@ -334,8 +346,29 @@ test("shows two timelines of a project with distinct selections, found again by 
   await expect(drawn(page, STUDIES)).toBeVisible({ timeout: WORKING });
   await openHydrated(page, customer);
   await expect(drawn(page, RECEPTION)).toBeAttached({ timeout: WORKING });
-  await expect(drawn(page, STUDIES)).toHaveCount(0);
+  // The selection is the service's: the fake back draws all its nodes, whatever the timeline.
+  if (inService) {
+    await expect(drawn(page, STUDIES)).toHaveCount(0);
+  }
 });
+
+/** Delete the timeline of the path from the screen, if it was made: the cleanup of a failed path too. */
+async function removeTimeline(page: Page, label: string): Promise<void> {
+  await openHydrated(page, `${IN_REVISION}/timelines`);
+  const link = page.getByRole("link", { name: label });
+  if ((await link.count()) === 0) {
+    return;
+  }
+  await link.click();
+  await page
+    .getByRole("button", { name: `Supprimer la chronologie «\u00a0${label}\u00a0»` })
+    .click();
+  await page
+    .getByRole("dialog", { name: /^Supprimer la chronologie/ })
+    .getByRole("button", { name: "Supprimer" })
+    .click();
+  await expect(page.getByText(`Chronologie « ${label} » supprimée.`)).toBeVisible();
+}
 
 test("shows a task once inscribed to a timeline the path made, and no longer once taken out @shared [WF-PLA-0060-A]", async ({
   page,
@@ -345,60 +378,56 @@ test("shows a task once inscribed to a timeline the path made, and no longer onc
   test.slow();
   const label = `Chronologie de parcours ${String(Date.now())}`;
   const EMPTY = "Aucune tâche de cette révision n’est inscrite à cette chronologie.";
-  await openHydrated(page, `${IN_REVISION}/timelines`);
-  await page.getByRole("button", { name: "Nouvelle chronologie" }).click();
-  const form = page.getByRole("dialog", { name: "Nouvelle chronologie" });
-  await form.getByRole("textbox", { name: "Nom" }).fill(label);
-  await form.getByRole("button", { name: "Créer" }).click();
-  await expect(page.getByText(`Chronologie « ${label} » créée.`)).toBeVisible();
-  await page.getByRole("link", { name: label }).click();
-  await expect(page.getByRole("link", { name: label })).toHaveAttribute("aria-current", "true", {
-    timeout: WORKING,
-  });
-  await expect(page.getByText(EMPTY)).toBeVisible({ timeout: WORKING });
+  try {
+    await openHydrated(page, `${IN_REVISION}/timelines`);
+    await page.getByRole("button", { name: "Nouvelle chronologie" }).click();
+    const form = page.getByRole("dialog", { name: "Nouvelle chronologie" });
+    await form.getByRole("textbox", { name: "Nom" }).fill(label);
+    await form.getByRole("button", { name: "Créer" }).click();
+    await expect(page.getByText(`Chronologie « ${label} » créée.`)).toBeVisible();
+    await page.getByRole("link", { name: label }).click();
+    await expect(page.getByRole("link", { name: label })).toHaveAttribute("aria-current", "true", {
+      timeout: WORKING,
+    });
+    await expect(page.getByText(EMPTY)).toBeVisible({ timeout: WORKING });
 
-  // Inscribed from the menu of the cell of « Revue de conception », not yet inscribed to any.
-  await openHydrated(page, `${IN_REVISION}/planning`);
-  const grid = page.getByRole("treegrid", { name: "Grille de planning" });
-  const at = await columnsOf(grid, { label: "Libellé" });
-  const review = await scrollToPosition(grid, 4);
-  await expect(review).toHaveAccessibleName(/^5 .*Revue de conception/);
-  const boxes = await openTimelines(page, review, at.label);
-  await boxes.getByRole("menuitemcheckbox", { name: label }).click();
-  await expect(page.getByText(SAID)).toBeVisible({ timeout: WORKING });
-  await expect(grid).not.toHaveAttribute("aria-busy", "true", { timeout: WORKING });
+    // Inscribed from the menu of the cell of « Revue de conception », not yet inscribed to any.
+    await openHydrated(page, `${IN_REVISION}/planning`);
+    const grid = page.getByRole("treegrid", { name: "Grille de planning" });
+    const at = await columnsOf(grid, { label: "Libellé" });
+    const review = await scrollToPosition(grid, 4);
+    await expect(review).toHaveAccessibleName(/^5 .*Revue de conception/);
+    const boxes = await openTimelines(page, review, at.label);
+    await boxes.getByRole("menuitemcheckbox", { name: label }).click();
+    await expect(page.getByText(SAID)).toBeVisible({ timeout: WORKING });
+    await expect(grid).not.toHaveAttribute("aria-busy", "true", { timeout: WORKING });
 
-  // It appears in the timeline, and is found again once the page is read anew.
-  const shown = `${IN_REVISION}/timelines`;
-  await openHydrated(page, shown);
-  await page.getByRole("link", { name: label }).click();
-  await expect(drawn(page, /^Revue de conception, du /)).toBeVisible({ timeout: WORKING });
-  await page.reload();
-  await expect(drawn(page, /^Revue de conception, du /)).toBeVisible({ timeout: WORKING });
+    // It appears in the timeline, and is found again once the page is read anew.
+    const shown = `${IN_REVISION}/timelines`;
+    await openHydrated(page, shown);
+    await page.getByRole("link", { name: label }).click();
+    await expect(drawn(page, /^Revue de conception, du /)).toBeVisible({ timeout: WORKING });
+    await page.reload();
+    await expect(drawn(page, /^Revue de conception, du /)).toBeVisible({ timeout: WORKING });
 
-  // Taken out by the same menu, it disappears from the timeline.
-  await openHydrated(page, `${IN_REVISION}/planning`);
-  const again = await scrollToPosition(grid, 4);
-  const menu = await openTimelines(page, again, at.label);
-  await expect(menu.getByRole("menuitemcheckbox", { name: label })).toHaveAttribute(
-    "aria-checked",
-    "true",
-  );
-  await menu.getByRole("menuitemcheckbox", { name: label }).click();
-  await expect(page.getByText(SAID)).toBeVisible({ timeout: WORKING });
-  await expect(grid).not.toHaveAttribute("aria-busy", "true", { timeout: WORKING });
-  await openHydrated(page, shown);
-  await page.getByRole("link", { name: label }).click();
-  await expect(page.getByText(EMPTY)).toBeVisible({ timeout: WORKING });
-  await expect(drawn(page, /^Revue de conception/)).toHaveCount(0);
-
-  // The timeline the path made is deleted with it, the witness left as it was found.
-  await page
-    .getByRole("button", { name: `Supprimer la chronologie «\u00a0${label}\u00a0»` })
-    .click();
-  await page
-    .getByRole("dialog", { name: /^Supprimer la chronologie/ })
-    .getByRole("button", { name: "Supprimer" })
-    .click();
-  await expect(page.getByText(`Chronologie « ${label} » supprimée.`)).toBeVisible();
+    // Taken out by the same menu, it disappears from the timeline.
+    await openHydrated(page, `${IN_REVISION}/planning`);
+    const again = await scrollToPosition(grid, 4);
+    const menu = await openTimelines(page, again, at.label);
+    await expect(menu.getByRole("menuitemcheckbox", { name: label })).toHaveAttribute(
+      "aria-checked",
+      "true",
+    );
+    await menu.getByRole("menuitemcheckbox", { name: label }).click();
+    await expect(page.getByText(SAID)).toBeVisible({ timeout: WORKING });
+    await expect(grid).not.toHaveAttribute("aria-busy", "true", { timeout: WORKING });
+    await openHydrated(page, shown);
+    await page.getByRole("link", { name: label }).click();
+    await expect(page.getByText(EMPTY)).toBeVisible({ timeout: WORKING });
+    await expect(drawn(page, /^Revue de conception/)).toHaveCount(0);
+  } finally {
+    // The timeline the path made is deleted with it, an inscription with it, the witness left as it
+    // was found — even when the path failed.
+    await removeTimeline(page, label);
+  }
 });

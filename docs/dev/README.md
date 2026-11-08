@@ -1179,9 +1179,10 @@ The server selects what each one draws (#463): the tree asks for the summary tas
 of the address (`summaries_only`, `max_level`), a timeline the tasks inscribed in it
 (`timeline_id`). The service honours the latter for the timelines (US-1400): the screen draws what
 it renders, applying no criterion to the response; the tree still applies its own (`summaryTree`)
-against the fake back, a temporary gap of EP-02 removed by US-1440. The tree offers exactly the levels the structure has, from the first to that
-of its deepest summary task, which the server says whatever the filters (`meta.summary_depth`,
-#494), and shows the level asked for, or the deepest when asked for one beyond it (`depthShown`).
+against the fake back, a temporary gap of EP-02 removed by US-1440. The tree offers exactly the
+levels the structure has, from the first to that of its deepest summary task, which the server says
+whatever the filters (`meta.summary_depth`, #494), and shows the level asked for, or the deepest
+when asked for one beyond it (`depthShown`).
 
 ### The risks screen
 
