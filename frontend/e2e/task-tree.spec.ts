@@ -1,17 +1,49 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
-import { expect } from "@playwright/test";
+import { type Browser, expect } from "@playwright/test";
 
 import { compile } from "./compile";
 import { openHydrated, WORKING } from "./hydration";
 import { inService, test } from "./mode";
+import { API, frontToken, type LocalPerson } from "./service/realm";
 
 const PROJECT = "01926f3a-7c00-7000-8000-000000000001";
 const REVISION = "01926f3a-7c00-7000-8000-000000000102";
 const IN_REVISION = `/projects/${PROJECT}/revisions/${REVISION}`;
 
+/** The depth of the summaries of the planning, as the service says it for the request of the tree. */
+async function summaryDepth(browser: Browser, manager: LocalPerson | undefined): Promise<number> {
+  if (manager === undefined) {
+    throw new Error("a path in the service has its manager");
+  }
+  const context = await browser.newContext({ ignoreHTTPSErrors: true });
+  try {
+    const headers = { Authorization: `Bearer ${await frontToken(browser, manager)}` };
+    const revision = `${API}/projects/${PROJECT}/revisions/${REVISION}`;
+    const structures = await context.request.get(`${revision}/structures`, { headers });
+    expect(structures.status(), "GET structures").toBe(200);
+    const main = ((await structures.json()) as { structure_id: string; kind: string }[]).find(
+      ({ kind }) => kind === "main",
+    );
+    expect(main, "a main structure").toBeDefined();
+    const nodes = await context.request.get(
+      `${revision}/structures/${main?.structure_id ?? ""}/nodes`,
+      {
+        headers,
+        params: { kinds: "task", summaries_only: true, max_level: 2, fields: "parent_id" },
+      },
+    );
+    expect(nodes.status(), "GET nodes").toBe(200);
+    return ((await nodes.json()) as { meta: { summary_depth: number } }).meta.summary_depth;
+  } finally {
+    await context.close();
+  }
+}
+
 test("leads from the planning to its task tree, read only, its depth in the address @shared [WF-PLA-0110-A] [WF-PLA-0120-A]", async ({
   page,
+  browser,
+  manager,
 }) => {
   // Three bounds of a screen of grid (`WORKING`): more than the thirty seconds of a test.
   test.slow();
@@ -30,13 +62,15 @@ test("leads from the planning to its task tree, read only, its depth in the addr
   // reads the structure of a thousand tasks: the bound of a grid.
   const tree = page.getByRole("tree", { name: "Arborescence des tâches récapitulatives" });
   const depths = page.getByRole("navigation", { name: "Niveau affiché" });
-  // Against the service the tree has the depth the server says (`meta.summary_depth`, #494): the
-  // witness of PRJ-001 holds no task until US-1480/L2 fills it, and its tree is then the project
-  // alone, with no level to choose; with summaries, nothing deeper than the level asked is drawn.
+  // Against the service the tree has the depth the service says (`meta.summary_depth`, #494), read
+  // from the service itself, with the request the screen makes (the server of Next makes it, out of
+  // reach of the browser): the screen draws as many levels as it says, none being the project alone.
   let summarized = false;
   if (inService) {
+    const says = await summaryDepth(browser, manager);
+    summarized = says > 0;
     await expect(tree.getByRole("treeitem", { level: 1 })).toBeVisible({ timeout: WORKING });
-    summarized = (await depths.getByRole("link").count()) > 0;
+    await expect(depths.getByRole("link")).toHaveCount(says);
     if (summarized) {
       await expect(tree.getByRole("treeitem", { level: 2 }).first()).toBeVisible();
       await expect(tree.getByRole("treeitem", { level: 4 })).toHaveCount(0);
