@@ -1032,7 +1032,7 @@ préférence d'affichage (EP-03, EP-15).
 
 ## US-1410 — L'état des tâches
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-PLA-0130-A`
 - **opérations** : `setTaskProgress`
 - **issue** : 2324

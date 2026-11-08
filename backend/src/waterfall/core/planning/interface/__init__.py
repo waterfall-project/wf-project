@@ -148,6 +148,15 @@ from waterfall.core.planning.interface.predecessors import (
 
 # ``progress`` (US-1380/L1; US-1410): the state of a task.
 from waterfall.core.planning.interface.progress import (
+    ProgressEntry as ProgressEntry,
+)
+from waterfall.core.planning.interface.progress import (
+    ProgressLoad as ProgressLoad,
+)
+from waterfall.core.planning.interface.progress import (
+    load_progress as load_progress,
+)
+from waterfall.core.planning.interface.progress import (
     set_task_progress as set_task_progress,
 )
 

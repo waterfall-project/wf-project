@@ -366,11 +366,11 @@ def _totals(task_count: int) -> dict[str, Any]:
     }
 
 
-def written_of(written: NodesWritten) -> dict[str, Any]:
+def written_of(result: NodesWritten) -> dict[str, Any]:
     """Write what a write of the tree gives back (``NodesWritten``); ``scheduling`` too."""
     return {
-        "nodes": [_node(each) for each in written.nodes],
-        "ancestors": [_node(each) for each in written.ancestors],
+        "nodes": [_node(each) for each in result.nodes],
+        "ancestors": [_node(each) for each in result.ancestors],
         "rescheduled": [
             {
                 "node_id": str(each.node_id),
@@ -381,11 +381,11 @@ def written_of(written: NodesWritten) -> dict[str, Any]:
                 "link_conflicts": _conflicts(each.link_conflicts),
                 "finish_overdue": each.finish_overdue,
             }
-            for each in written.rescheduled
+            for each in result.rescheduled
         ],
         "reinflated": [],
-        "totals": _totals(written.task_count),
-        "structure_lock_version": written.structure_lock_version,
+        "totals": _totals(result.task_count),
+        "structure_lock_version": result.structure_lock_version,
     }
 
 
