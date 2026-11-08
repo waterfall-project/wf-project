@@ -243,9 +243,7 @@ describe("undo while its request is under way", () => {
     serve({ [UNDO]: refused("undo_later_change") }, hold.timing);
     const { rerender } = render(grid());
     await userEvent.click(screen.getByRole("button", { name: "Annuler" }));
-    rerender(
-      grid("fr", { ...STRUCTURE, structure_id: "01926f3a-7c00-7000-8000-000000000202" }),
-    );
+    rerender(grid("fr", { ...STRUCTURE, structure_id: "01926f3a-7c00-7000-8000-000000000202" }));
     await act(async () => {
       hold.release();
       await hold.until;
