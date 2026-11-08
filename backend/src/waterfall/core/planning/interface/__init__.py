@@ -91,6 +91,9 @@ from waterfall.core.planning.interface.nodes import (
     NodeList as NodeList,
 )
 from waterfall.core.planning.interface.nodes import (
+    NodeMoving as NodeMoving,
+)
+from waterfall.core.planning.interface.nodes import (
     RowResolution as RowResolution,
 )
 from waterfall.core.planning.interface.nodes import (
@@ -231,6 +234,9 @@ from waterfall.core.planning.interface.work_breakdown import (
 )
 from waterfall.core.planning.interface.work_breakdown import (
     work_breakdown_item_cited as work_breakdown_item_cited,
+)
+from waterfall.core.planning.rescheduling import (
+    Holding as Holding,
 )
 from waterfall.core.planning.scheduling import (
     Duration as Duration,

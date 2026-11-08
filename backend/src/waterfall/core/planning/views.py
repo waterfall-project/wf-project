@@ -17,6 +17,7 @@ from typing import TYPE_CHECKING
 
 from waterfall.core.planning.scheduling import WorkInstant
 from waterfall.core.planning.tree import TASK, tracking_of
+from waterfall.core.projects.interface import work_breakdown_items
 
 if TYPE_CHECKING:
     from datetime import date, datetime
@@ -98,6 +99,7 @@ class TaskView:
     tracking: tuple[TrackingView, ...]
     order_item_id: UUID | None
     work_package_id: UUID | None
+    work_breakdown_label: str | None
     external_id: str | None
 
 
@@ -157,6 +159,15 @@ def _derived(states: list[State]) -> State:
     return State(NOT_STARTED, None, None)
 
 
+def state_of(tree: Tree, node_id: UUID) -> State:
+    """Give the state of a task of a tree: its own for a leaf, its subordinates' for a summary."""
+    below = tree.subtasks(node_id)
+    if below:
+        return _derived([state_of(tree, child) for child in below])
+    task = tree.tasks[node_id]
+    return State(task.progress, task.started_on, task.completed_on)
+
+
 class Reading:
     """What a reading derives of a structure, once for all its nodes."""
 
@@ -168,7 +179,7 @@ class Reading:
         links: list[TaskLink],
         calendars: dict[UUID, Applicable],
     ) -> None:
-        """Read the inscriptions of the tasks, and derive the states of the summaries.
+        """Read the inscriptions of the tasks and the labels of what they bear; derive the states.
 
         ``structure`` is the project of the structure, the instant of its dates, and whether it is
         the main one.
@@ -187,6 +198,10 @@ class Reading:
                 self._ends.setdefault(end, []).append(link)
         lineages = {tree.nodes[node_id].lineage_id for node_id in tree.tasks}
         self.tracking = tracking_of(session, project_id, lineages)
+        # The label of a work package or an order item borne, one marked deleted included, which
+        # a marked revision still shows (WF-PLA-0170).
+        borne = any(task.work_package_id or task.order_item_id for task in tree.tasks.values())
+        self.items = work_breakdown_items(session, project_id) if borne else {}
         self.states: dict[UUID, State] = {}
         for node_id in reversed(tree.order):
             if node_id not in tree.tasks:
@@ -282,8 +297,13 @@ class Reading:
             ),
             order_item_id=task.order_item_id,
             work_package_id=task.work_package_id,
+            work_breakdown_label=self._borne(task.work_package_id or task.order_item_id),
             external_id=task.external_id,
         )
+
+    def _borne(self, item_id: UUID | None) -> str | None:
+        item = None if item_id is None else self.items.get(item_id)
+        return None if item is None else item.label
 
     def node(self, node_id: UUID) -> NodeView:
         """Give a node as it is read, whole."""

@@ -31,6 +31,7 @@ if TYPE_CHECKING:
     from waterfall.core.planning.scheduling import Origin
     from waterfall.core.planning.tables import TaskLink
     from waterfall.core.planning.tree import Tree
+    from waterfall.core.revisions.interface import StructureFacts
 
 
 @dataclass(frozen=True, slots=True)
@@ -58,14 +59,17 @@ class Blamed:
 
 
 @dataclass(frozen=True, slots=True)
-class Written:
-    """What a write tells the replay: what it names, and the links in conflict before it wrote.
+class Holding:
+    """What a write of the tree under the lock of its structure hands the replay of the engine.
 
-    ``conflicts`` are read under the lock of the structure before the write, each link by its two
-    tasks: a link it deletes in conflict moves its ends that stay (``kept``). ``None`` takes the
-    links of the replay as they are, which a recalculation writes none of.
+    ``facts`` the structure as the write read it under its lock, not read again (#2492), none to
+    read it; ``blamed`` what the write names when the engine refuses it; ``conflicts`` the links
+    in conflict read under the lock before the write, each by its two tasks: a link it deletes in
+    conflict moves its ends that stay (``kept``). ``None`` takes the links of the replay as they
+    are, which a recalculation writes none of.
     """
 
+    facts: StructureFacts | None = None
     blamed: Blamed | None = None
     conflicts: Collection[tuple[UUID, UUID]] | None = None
 
@@ -75,18 +79,20 @@ def replayed(
     project_id: UUID,
     structure_id: UUID,
     at: datetime,
-    written: Written | None = None,
+    held: Holding | None = None,
 ) -> Rescheduled:
     """Replay the engine on a structure locked, write what changes; give what it moved.
 
-    The structure is locked, its dates' instant moved on to ``at`` and its counter advanced.
+    The structure is locked (read under its lock unless ``held`` hands what the write read), its
+    dates' instant moved on to ``at`` and its counter advanced.
     Beyond fifteen years (WF-PLA-0150), refused (422 ``PROJECT_HORIZON_EXCEEDED``), nothing
     written: naming the task the write blames — its node, none for a task created, and its label
     — or, without one, the task that finishes last. A loop of links is named from the origin the
     write gives (422 ``LINK_CYCLE``), a link across the hierarchy refused (``LINK_FORBIDDEN``).
     """
-    blamed = None if written is None else written.blamed
-    facts = structure_facts(session, project_id, structure_id, lock=True)
+    held = held or Holding()
+    blamed = held.blamed
+    facts = held.facts or structure_facts(session, project_id, structure_id, lock=True)
     session.flush()
     tree = read_tree(session, project_id, structure_id)
     calendars = calendars_of(session, project_id, tree.tasks)
@@ -99,7 +105,7 @@ def replayed(
         if blamed is None:
             raise horizon_exceeded(beyond, tree.tasks[beyond].label)
         raise horizon_exceeded(blamed.node_id, blamed.label)
-    moved = kept(replay, computed, None if written is None else written.conflicts)
+    moved = kept(replay, computed, held.conflicts)
     session.flush()
     counter = structure_rescheduled(session, project_id, structure_id, at)
     return Rescheduled(tree, replay.links, calendars, frozenset(moved), counter)

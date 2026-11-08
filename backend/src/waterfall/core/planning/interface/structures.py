@@ -22,16 +22,16 @@ redates are given back (``rescheduled``), and the summaries above them (``ancest
 snapshot the history keeps is the structure's own — its start and its label —, since no node is
 written (``RecordedChange.node_ids`` empty).
 
-Declared by US-1380/L1; ``reschedule`` filled by US-1380/L2, ``update_cost_structure`` by
-US-1390/L2.
+Declared by US-1380/L1; ``reschedule`` filled by US-1380/L2, handed what a write already holds by
+US-1380/L3, ``update_cost_structure`` filled by US-1390/L2.
 """
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import TYPE_CHECKING
 
 from waterfall.core.history.interface import ObjectState
 from waterfall.core.planning.calendars import default_calendar
-from waterfall.core.planning.rescheduling import Written, replayed
+from waterfall.core.planning.rescheduling import Holding, replayed
 from waterfall.core.planning.writing import writing
 from waterfall.core.revisions.interface import structure_facts, write_structure
 from waterfall.platform.errors import FieldError, PreconditionFailedError, UnprocessableError
@@ -43,7 +43,7 @@ if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
     from waterfall.core.history.interface import JsonValue, Snapshot
-    from waterfall.core.planning.rescheduling import Blamed, Rescheduled
+    from waterfall.core.planning.rescheduling import Rescheduled
     from waterfall.core.planning.writing import NodesWritten, Place, Writer
     from waterfall.core.revisions.interface import StructureFacts
 
@@ -57,15 +57,16 @@ def reschedule(
     project_id: UUID,
     structure_id: UUID,
     at: datetime,
-    blamed: Blamed | None = None,
+    held: Holding | None = None,
 ) -> Rescheduled:
     """Replay the engine on a structure locked, write what changes; give what it moved.
 
-    The structure is locked, its dates' instant moved on to ``at`` and its counter advanced.
-    Beyond fifteen years (WF-PLA-0150), refused (422 ``PROJECT_HORIZON_EXCEEDED``), nothing
-    written: naming the task ``blamed`` names or, without one, the task that finishes last.
+    The structure is locked, its dates' instant moved on to ``at`` and its counter advanced; a
+    write of the tree that holds the lock already hands what it read (``held``, #2492). Beyond
+    fifteen years (WF-PLA-0150), refused (422 ``PROJECT_HORIZON_EXCEEDED``), nothing written:
+    naming the task ``held`` blames or, without one, the task that finishes last.
     """
-    return replayed(session, project_id, structure_id, at, Written(blamed))
+    return replayed(session, project_id, structure_id, at, held)
 
 
 @dataclass(frozen=True, slots=True)
@@ -121,6 +122,12 @@ def update_cost_structure(
         project_id, structure_id = place.project_id, place.structure_id
         sent = (change.planning_start_on, change.label)
         write_structure(session, project_id, structure_id, sent, writer.act)
+        # The replay is handed the facts as written: the new start, not the one read (#2492).
+        write.facts = replace(
+            facts,
+            planning_start_on=change.planning_start_on or facts.planning_start_on,
+            label=facts.label if change.label is None else change.label,
+        )
         redated = write.redate(None)
         after = structure_facts(session, project_id, structure_id, lock=True)
         write.frame.keep_after(_snapshot(after))
