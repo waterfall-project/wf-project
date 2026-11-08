@@ -185,7 +185,7 @@ def _read_sheet(
     for number, row in enumerate(rows, start=1):
         if columns is None:
             found = _header_columns(row)
-            columns = found if _KEY_HEADERS <= found.keys() else None
+            columns = found if found.keys() >= _KEY_HEADERS else None
             continue
         texts = {header: _text(_at(row, columns, header)) for header in _TEXT_HEADERS}
         raws = {header: _at(row, columns, header) for header in _NUMBER_HEADERS}

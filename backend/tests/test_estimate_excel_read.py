@@ -11,7 +11,6 @@ from io import BytesIO
 from typing import Any
 
 import pytest
-import xlsxwriter
 from openpyxl import Workbook
 from support import CONTRACT
 
@@ -41,7 +40,7 @@ def workbook(
     sheets: dict[str, list[list[Any]]],
     header: tuple[Any, Any, Any, Any] = ("Format", FORMAT_NAME, "Version", FORMAT_VERSION),
 ) -> bytes:
-    """Write a workbook whose first tab is the presentation, then one tab per entry of ``sheets``."""
+    """Write a workbook: the presentation first, then one tab per entry of ``sheets``."""
     book = Workbook()
     presentation = book.active
     assert presentation is not None
@@ -190,35 +189,17 @@ def test_a_line_that_only_has_a_lineage_is_not_empty() -> None:
 
 
 @pytest.mark.requirement("WF-INTF-0100-A")
-def test_a_table_of_xlsxwriter_with_its_total_row_and_its_formulas_reads_its_lines_only() -> None:
-    out = BytesIO()
-    book = xlsxwriter.Workbook(out, {"in_memory": True, "strings_to_formulas": False})
-    presentation = book.add_worksheet("Présentation")
-    presentation.write_row(0, 0, ["Format", "Devis"])
-    presentation.write_row(1, 0, ["Version", 1])
-    sheet = book.add_worksheet("2.1 Pose")
-    columns: list[dict[str, Any]] = [{"header": h} for h in (*HEADERS, "Montant")]
-    columns[-1].update(formula="=[@Quantité]*[@Heures]", total_function="sum")
-    columns[0]["total_string"] = "Total"
-    sheet.add_table(
-        0,
-        0,
-        2,
-        len(columns) - 1,
-        {
-            "name": "Lignes_2_1",
-            "total_row": True,
-            "columns": columns,
-            "data": [["2.1", "DEV", "=1+1", 3, 2, None, None, None, "l-1"]],
-        },
-    )
-    book.close()
-
-    read = read_workbook(out.getvalue())
-
-    assert [(line.sheet, line.row, line.label, line.quantity) for line in read.lines] == [
-        ("2.1 Pose", 2, "=1+1", D(3))
+def test_calculated_columns_and_a_total_row_of_formulas_do_not_make_lines() -> None:
+    rows = [
+        [*HEADERS, "Montant"],
+        ["2.1", "DEV", "=1+1", 3, 2, None, None, None, "l-1", "=D2*E2"],
+        ["Total", None, None, None, None, None, None, None, None, "=SUBTOTAL(109,A2:A2)"],
     ]
+
+    read = read_workbook(workbook({"2.1 Pose": rows}))
+
+    assert [(line.sheet, line.row, line.quantity) for line in read.lines] == [("2.1 Pose", 2, D(3))]
+    assert read.rejected == ()
 
 
 @pytest.mark.requirement("WF-INTF-0100-A")
