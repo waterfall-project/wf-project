@@ -1177,10 +1177,9 @@ each task, its dates and its lane; they are created by their name and the timeli
 after confirmation, as the project lists `manage_timelines` (`timeline-commands.tsx`, EP-14/L44c).
 The server selects what each one draws (#463): the tree asks for the summary tasks down to the level
 of the address (`summaries_only`, `max_level`), a timeline the tasks inscribed in it
-(`timeline_id`). The fake back ignoring these filters ("What the fake back does not do"), each one
-applies the same criterion again to the response (`summaryTree`, `inscribedTo`): an idempotent
-filter, which changes nothing against a server that honours them, a temporary gap of EP-02 removed
-with the back of EP-03. The tree offers exactly the levels the structure has, from the first to that
+(`timeline_id`). The service honours the latter for the timelines (US-1400): the screen draws what
+it renders, applying no criterion to the response; the tree still applies its own (`summaryTree`)
+against the fake back, a temporary gap of EP-02 removed by US-1440. The tree offers exactly the levels the structure has, from the first to that
 of its deepest summary task, which the server says whatever the filters (`meta.summary_depth`,
 #494), and shows the level asked for, or the deepest when asked for one beyond it (`depthShown`).
 

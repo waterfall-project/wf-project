@@ -984,7 +984,7 @@ répartition de la charge (EP-07).
 
 ## US-1400 — Les chronologies nommées et les inscriptions aux suivis
 
-- **statut** : en cours
+- **statut** : fini
 - **exigences** : `WF-PLA-0140-A`, `WF-PLA-0060-A`
 - **opérations** : `listTimelines`, `createTimeline`, `deleteTimeline`, `setNodeTracking` ;
   `listNodes` avec `timeline_id`

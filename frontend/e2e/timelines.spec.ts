@@ -1,13 +1,18 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
-import { expect, type Locator, type Page, test } from "@playwright/test";
+import { expect, type Locator, type Page } from "@playwright/test";
 
 import { columnsOf } from "./columns";
 import { compile } from "./compile";
 import { openHydrated, WORKING } from "./hydration";
 import { scrollToPosition } from "./scroll";
+import { inService, test } from "./mode";
 import { isServerAction } from "./server-action";
 
+// The timelines screen is served by the service (US-1400): the paths tagged `@shared` play against
+// it, the witness' two timelines read and the one the path makes itself written; the others keep
+// to the fake back, which keeps nothing of what they write.
+//
 // The inscription of a task to a timeline, from the menu of its cell (US-0480, WF-PLA-0060), against
 // the fake back. It keeps nothing: it serves the first example of each read, and the first of
 // `setNodeTracking` whatever was sent, the task « Revue de conception » inscribed to the timeline
@@ -203,7 +208,7 @@ test("keeps the rectangle the keyboard reaches in view on a zoomed axis, and cut
   await expect(commissioning).toBeInViewport({ ratio: 1 });
 });
 
-test("exports the frieze of a timeline as a PNG image, named after the project [WF-PLA-0140-A]", async ({
+test("exports the frieze of a timeline as a PNG image, named after the project @shared [WF-PLA-0140-A]", async ({
   page,
 }) => {
   // L'export produit un fichier PNG de la chronologie affichée.
@@ -269,7 +274,7 @@ test("creates a timeline by its name, and deletes the one shown once confirmed, 
   await openHydrated(page, `${IN_REVISION}/timelines`);
   const steering = page.getByRole("link", { name: "Comité de pilotage" });
   await expect(steering).toHaveAttribute("aria-current", "true", { timeout: WORKING });
-  await expect(page.getByRole("note")).toContainText("Maquette");
+  await expect(page.getByRole("note")).toHaveCount(0);
   await page.getByRole("button", { name: "Nouvelle chronologie" }).click();
   const form = page.getByRole("dialog", { name: "Nouvelle chronologie" });
   await form.getByRole("textbox", { name: "Nom" }).fill("Réunion de chantier");
@@ -294,4 +299,106 @@ test("creates a timeline by its name, and deletes the one shown once confirmed, 
     "true",
     { timeout: WORKING },
   );
+});
+
+// What the service serves of the witness: the steering committee (`…1000`) holds the studies, the
+// two receptions and the commissioning; the customer review (`…1001`), the two receptions alone.
+const STEERING = "01926f3a-7c00-7000-8000-000000001000";
+const CUSTOMER = "01926f3a-7c00-7000-8000-000000001001";
+const STUDIES = /^Études, du /;
+const RECEPTION = /^Réception usine, jalon le /;
+
+/** The rectangle or the line a frieze draws for a task, named by its label. */
+const drawn = (page: Page, name: RegExp) => page.getByRole("img", { name });
+
+test("shows two timelines of a project with distinct selections, found again by another visit @shared [WF-PLA-0140-A]", async ({
+  page,
+}) => {
+  // Deux chronologies d'un même projet portent des sélections distinctes et se retrouvent d'une
+  // session à l'autre.
+  test.slow();
+  const steering = `${IN_REVISION}/timelines?timeline=${STEERING}`;
+  const customer = `${IN_REVISION}/timelines?timeline=${CUSTOMER}`;
+  await openHydrated(page, steering);
+  await expect(drawn(page, STUDIES)).toBeVisible({ timeout: WORKING });
+  await expect(drawn(page, RECEPTION)).toBeAttached();
+  await expect(page.getByRole("note")).toHaveCount(0);
+  await openHydrated(page, customer);
+  await expect(drawn(page, RECEPTION)).toBeAttached({ timeout: WORKING });
+  await expect(drawn(page, STUDIES)).toHaveCount(0);
+
+  // Another visit — the page opened anew, then reloaded — reads the same two selections.
+  await openHydrated(page, steering);
+  await expect(drawn(page, STUDIES)).toBeVisible({ timeout: WORKING });
+  await page.reload();
+  await expect(drawn(page, STUDIES)).toBeVisible({ timeout: WORKING });
+  await openHydrated(page, customer);
+  await expect(drawn(page, RECEPTION)).toBeAttached({ timeout: WORKING });
+  await expect(drawn(page, STUDIES)).toHaveCount(0);
+});
+
+test("shows a task once inscribed to a timeline the path made, and no longer once taken out @shared [WF-PLA-0060-A]", async ({
+  page,
+}) => {
+  // Une tâche inscrite apparaît dans la chronologie et disparaît lorsqu'elle est retirée.
+  test.skip(!inService, "the fake back keeps no inscription: the grid test above proves the menu");
+  test.slow();
+  const label = `Chronologie de parcours ${String(Date.now())}`;
+  const EMPTY = "Aucune tâche de cette révision n’est inscrite à cette chronologie.";
+  await openHydrated(page, `${IN_REVISION}/timelines`);
+  await page.getByRole("button", { name: "Nouvelle chronologie" }).click();
+  const form = page.getByRole("dialog", { name: "Nouvelle chronologie" });
+  await form.getByRole("textbox", { name: "Nom" }).fill(label);
+  await form.getByRole("button", { name: "Créer" }).click();
+  await expect(page.getByText(`Chronologie « ${label} » créée.`)).toBeVisible();
+  await page.getByRole("link", { name: label }).click();
+  await expect(page.getByRole("link", { name: label })).toHaveAttribute("aria-current", "true", {
+    timeout: WORKING,
+  });
+  await expect(page.getByText(EMPTY)).toBeVisible({ timeout: WORKING });
+
+  // Inscribed from the menu of the cell of « Revue de conception », not yet inscribed to any.
+  await openHydrated(page, `${IN_REVISION}/planning`);
+  const grid = page.getByRole("treegrid", { name: "Grille de planning" });
+  const at = await columnsOf(grid, { label: "Libellé" });
+  const review = await scrollToPosition(grid, 4);
+  await expect(review).toHaveAccessibleName(/^5 .*Revue de conception/);
+  const boxes = await openTimelines(page, review, at.label);
+  await boxes.getByRole("menuitemcheckbox", { name: label }).click();
+  await expect(page.getByText(SAID)).toBeVisible({ timeout: WORKING });
+  await expect(grid).not.toHaveAttribute("aria-busy", "true", { timeout: WORKING });
+
+  // It appears in the timeline, and is found again once the page is read anew.
+  const shown = `${IN_REVISION}/timelines`;
+  await openHydrated(page, shown);
+  await page.getByRole("link", { name: label }).click();
+  await expect(drawn(page, /^Revue de conception, du /)).toBeVisible({ timeout: WORKING });
+  await page.reload();
+  await expect(drawn(page, /^Revue de conception, du /)).toBeVisible({ timeout: WORKING });
+
+  // Taken out by the same menu, it disappears from the timeline.
+  await openHydrated(page, `${IN_REVISION}/planning`);
+  const again = await scrollToPosition(grid, 4);
+  const menu = await openTimelines(page, again, at.label);
+  await expect(menu.getByRole("menuitemcheckbox", { name: label })).toHaveAttribute(
+    "aria-checked",
+    "true",
+  );
+  await menu.getByRole("menuitemcheckbox", { name: label }).click();
+  await expect(page.getByText(SAID)).toBeVisible({ timeout: WORKING });
+  await expect(grid).not.toHaveAttribute("aria-busy", "true", { timeout: WORKING });
+  await openHydrated(page, shown);
+  await page.getByRole("link", { name: label }).click();
+  await expect(page.getByText(EMPTY)).toBeVisible({ timeout: WORKING });
+  await expect(drawn(page, /^Revue de conception/)).toHaveCount(0);
+
+  // The timeline the path made is deleted with it, the witness left as it was found.
+  await page
+    .getByRole("button", { name: `Supprimer la chronologie «\u00a0${label}\u00a0»` })
+    .click();
+  await page
+    .getByRole("dialog", { name: /^Supprimer la chronologie/ })
+    .getByRole("button", { name: "Supprimer" })
+    .click();
+  await expect(page.getByText(`Chronologie « ${label} » supprimée.`)).toBeVisible();
 });
