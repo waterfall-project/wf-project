@@ -143,7 +143,7 @@ Relevé par la revue locale d'US-0960 (EP-04, #2061) et reporté au cadrage d'EP
 
 `epic/EP-10` se tire d'`epic/EP-09` dès la fusion de son lot pivot, **US-1580/L1 #2398** — le socle
 d'EP-09, qui pose `cost_line` et `cost_import`, les colonnes `previous_*` et `reestimated_at`
-d'`estimate_line`, la chaîne des migrations arrêtée à `0025`, et l'interface déclarée que les
+d'`estimate_line`, la chaîne des migrations arrêtée à `0026`, et l'interface déclarée que les
 indicateurs liront : `actual_costs_until` et `actual_cost_by_subproject` de `core/costs`,
 `remaining_of_revision` et `startable_tasks` de `core/estimate` —, et non de `main` à la livraison
 d'EP-09 (décision de l'auteur du 2026-11-07, pour toute la série EP-06 → EP-07 → EP-09 → EP-10 →
@@ -276,8 +276,8 @@ Décisions de l'auteur du 2026-11-07, sur les questions du cadrage, chacune avec
   `load_marking` ; ses lectures se comparent aux exemples à la référence près — l'offre 100 reste la
   référence jusqu'à EP-08 (US-1570 d'EP-07) —, les écarts listés. Écarté : désigner la 101 après
   coup, contre WF-REV-0040 et #1402.
-- **Une seule migration, `0026`, dans le socle**, chaînée sur `0025`, aucune donnée à reprendre ;
-  aucune migration d'EP-10 après le socle, EP-08 chaîne la sienne sur `0026`. Écarté : une migration
+- **Une seule migration, `0027`, dans le socle**, chaînée sur `0026`, aucune donnée à reprendre ;
+  aucune migration d'EP-10 après le socle, EP-08 chaîne la sienne sur `0027`. Écarté : une migration
   par US.
 - **Les quatre routes nouvelles sont sous `project_indicators.read`** (le catalogue d'EP-03), un
   routeur par US, créés vides par le socle.
@@ -294,7 +294,7 @@ rien à emporter.
 |---|---|---|
 | `revision_indicator` | `project_id` (clé de partition), `id`, `revision_id`, `kind` (`estimate`, `remaining`, `project`, `cost_curve`, `cost_curve_payment_delays`, `earned_value_curves` ; EP-11 ajoute les siennes), `scope` (`project`, `unassigned`, ou l'identifiant du sous-projet en texte, comme le contrat l'écrit), `document` (`jsonb`, la réponse du contrat de cette nature pour cette maille, `context` compris, `zone` nulle sur chaque indice), `computed_at` (l'instant du marquage), `created_at`, `created_by` | clé primaire (`project_id`, `id`) ; unique (`project_id`, `revision_id`, `kind`, `scope`) ; clé composite (`project_id`, `revision_id`) vers `revision` en refus ; `kind` dans les six natures, `scope` de 1 à 36 non blanc ; `document` objet ; index sur (`project_id`, `revision_id`) ; déclencheur d'immuabilité comme `cost_structure`, et un déclencheur qui refuse l'écriture d'une ligne dont la révision n'est pas en cours de marquage — la révision verrouillée `FOR UPDATE` par le marquage, encore `draft` à l'instant de l'écriture |
 
-- **Une migration, `0026`, dans le socle** (US-1660/L1) : la table, `create_project_partitions`
+- **Une migration, `0027`, dans le socle** (US-1660/L1) : la table, `create_project_partitions`
   remplacée pour qu'elle crée sa partition (`revision_indicator_p_<uuid>`) et celles des projets
   existants, les déclencheurs, les droits du rôle du service — `SELECT`, `INSERT` : rien ne se met à
   jour ni ne se supprime — déclarés dans `SERVICE_RIGHTS`. Aucune migration de données.
@@ -637,7 +637,7 @@ lot des trois autres : EP-10 les écrit (US-1720).
 
 Le socle (US-1660/L1 #2437) est le **lot pivot d'EP-08** : `epic/EP-08` se tire d'`epic/EP-10` dès sa
 fusion. Il lui garantit `revision_indicator` et sa partition, la chaîne des migrations arrêtée à
-`0026`, le module `core/indicators` avec son interface déclarée — `project_indicators`,
+`0027`, le module `core/indicators` avec son interface déclarée — `project_indicators`,
 `cost_curve`, `earned_value_curves`, `index_history`, `milestone_tracking`, `store_indicators`,
 `physical_progress` — et la signature du registre avec l'`Act`. Les lots d'EP-08 qui lisent les
 indicateurs devant un risque survenu, une fusion ou un avenant attendent par leur numéro le calcul
@@ -655,7 +655,7 @@ en largeur quatre ; le calcul du jour avant la conservation, la conservation ava
 historiques, les courbes conservées après les deux ; l'écran et le témoin après tout ce qui sert ; la
 vérification d'ensemble en dernier ; le plan de lots (étape 3) le détaille en vagues.
 
-1. **US-1660/L1**, le socle — dès la fusion d'US-1580/L1 #2398 : la migration `0026`, le module
+1. **US-1660/L1**, le socle — dès la fusion d'US-1580/L1 #2398 : la migration `0027`, le module
    `core/indicators` à vide avec son interface en paquet — hors les sous-paquets `formulas/` et
    `series/`, que leurs lots possèdent entiers, comme `pricing/` et `spreading/` en EP-07 —,
    l'enregistrement à vide dans `register_indicators` et la signature changée dans `marking.py`,
@@ -822,7 +822,7 @@ grandeur manque —, **afin de** savoir où en est mon projet entre deux revues.
   une fois (`ROUND_HALF_EVEN`, WF-DAT-0100) ; sous `project_indicators.read` ; chaque réponse est
   validée contre le contrat dans les tests du service, et `test_access_evaluation.py` reçoit
   l'opération avec ses deux termes ;
-- propre à l'US (lot technique) : la migration d'EP-10, chaînée sur `0025` et seule de l'EPIC —
+- propre à l'US (lot technique) : la migration d'EP-10, chaînée sur `0026` et seule de l'EPIC —
   la table `revision_indicator` du Tableau 10, régime révisionné, partitionnée par projet, son
   déclencheur d'immuabilité, sa partition créée par `create_project_partitions`, les droits du rôle
   du service — ; le module `core/indicators` à vide avec son interface en paquet, enregistré à vide
