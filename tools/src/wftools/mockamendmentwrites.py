@@ -361,7 +361,9 @@ def estimate_line_rebudgeted_amendment() -> JsonObject:
         raise ValueError(message)
 
     def raised(each: Line) -> Line:
-        return replace(each, unit=REBUDGETED_UNIT) if each.number == REBUDGETED_LINE else each
+        # Rebudgeted, the line is budgeted at its amount, no longer at the offer's (#1628).
+        rebudgeted = replace(each, unit=REBUDGETED_UNIT, budgeted=None)
+        return rebudgeted if each.number == REBUDGETED_LINE else each
 
     return amendment_write(amended(mockamendment.amendment(), line=raised), [REBUDGETED_LINE])
 

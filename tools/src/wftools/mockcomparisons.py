@@ -23,7 +23,7 @@ from wftools.mockhistory import (
     moved_offer_rows,
     nature,
     offer,
-    offer_rates,
+    offer_pricing,
     offer_rows,
     reference_rows,
 )
@@ -340,7 +340,7 @@ def comparison_moved(rows: list[mockcore.Row]) -> JsonObject:
 def examples() -> dict[str, JsonObject]:
     """Return the named examples of the comparison of the witness, by file name."""
     rows = reference_rows()
-    core = mockcore.core(offer(CORE), OFFER_MARKED.on, offer_rates())
+    core = mockcore.core(offer(CORE), OFFER_MARKED.on, offer_pricing())
     identical = mocktext.count(len(core))
     return {
         "comparison.json": comparison_example(rows),

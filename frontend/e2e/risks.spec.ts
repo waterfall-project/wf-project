@@ -215,7 +215,7 @@ test("places the risks as bubbles that a hover tells and a click opens, the zone
   expect(heaviest.size).toBeGreaterThan(30);
   await page.mouse.move(heaviest.x, heaviest.y);
   await expect(drawing).toContainText("Risque de reprise du câblage");
-  await expect(drawing).toContainText("Gravité : 1 250 000,00 € (1,83 %)");
+  await expect(drawing).toContainText("Gravité : 1 250 000,00 € (1,78 %)");
   await page.mouse.click(heaviest.x, heaviest.y);
   await expect(page).toHaveURL(`${RISKS}?risk=01926f3a-7c00-7000-8000-000000000751`, {
     timeout: WORKING,

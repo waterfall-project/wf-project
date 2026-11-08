@@ -23,10 +23,10 @@ examples say of them is read from those descriptions (their comparison is said b
   and the whole structure read today, 751 and 753 at its scale (EP-14/L45b).
 
 The formulas are simple and said here, to be replaced by the kernel of EP-07 and EP-08. Each
-marked revision is priced at the rates of its reference year: the reference at those of 2026, the
-core's; the offer, of 2025, at the rates of 2025 of the volume of rates
-(``mockstructure.hourly_rate``), as #232 proposes. What changes of a node is said by
-``mockdiff``: the amount of a task is its lines', said by them and by the deltas.
+marked revision is priced at the rates of its reference year and projected from it: the reference
+at those of 2026, the core's; the offer, of 2025, at the rates of 2025 of the volume of rates
+(``mockstructure.hourly_rate``), as #232 proposes, projected from 2025 (#1628). What changes of a
+node is said by ``mockdiff``: the amount of a task is its lines', said by them and by the deltas.
 """
 
 from dataclasses import replace
@@ -40,9 +40,11 @@ from wftools.mockstructure import (
     LABOR,
     LABOUR_RATES,
     NON_LABOR,
+    OFFER_PROJECTION,
     PROVISION,
     JsonObject,
     JsonValue,
+    Pricing,
     described,
     hourly_rate,
     labels,
@@ -191,9 +193,19 @@ def offer_rates() -> dict[str, Decimal]:
     return {category: hourly_rate(rate, OFFER_YEAR) for category, rate in LABOUR_RATES.items()}
 
 
+def offer_pricing() -> Pricing:
+    """Return what the offer prices its lines with: the rates of 2025, projected from 2025.
+
+    Its reference year is 2025, the year it was created in (WF-REV-0060): its lines are priced at
+    the rates of that year and projected from it onto their year of consumption (WF-DEV-0030), not
+    from 2026 as the reference and the revision in progress project (#1628).
+    """
+    return Pricing(tuple(sorted(offer_rates().items())), OFFER_PROJECTION)
+
+
 def offer_rows() -> list[mockcore.Row]:
     """Return the offer read on the day it was marked, at the rates it kept."""
-    return mockcore.core(offer(), OFFER_MARKED.on, offer_rates())
+    return mockcore.core(offer(), OFFER_MARKED.on, offer_pricing())
 
 
 def moved_offer_rows() -> list[mockcore.Row]:
@@ -214,7 +226,7 @@ def moved_offer_rows() -> list[mockcore.Row]:
             return replace(task, children=(*task.children, *found))
         return task
 
-    return mockcore.core(rewritten(tasks, move), OFFER_MARKED.on, offer_rates())
+    return mockcore.core(rewritten(tasks, move), OFFER_MARKED.on, offer_pricing())
 
 
 def estimate_line(row: mockcore.Row) -> dict[str, JsonValue]:

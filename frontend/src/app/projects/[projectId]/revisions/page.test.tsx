@@ -435,8 +435,8 @@ describe("the parts of the revision the screen reads in", () => {
     );
     expect(table(page, "Mise à jour des taux proposée")).toBe(
       "Catégorie Taux précédent Taux proposé Origine " +
-        "Ingénierie électrique 78,50 80,00 Taux du référentiel " +
-        "Mise en service 73,50 75,00 Taux du référentiel",
+        "Ingénierie électrique 80,86 80,00 Taux du référentiel " +
+        "Mise en service 75,71 75,00 Taux du référentiel",
     );
   });
 
