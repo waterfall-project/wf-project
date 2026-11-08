@@ -331,9 +331,10 @@ Décisions de l'auteur du 2026-11-07, sur les questions du cadrage, chacune avec
   sous `FOR UPDATE` dans un `GET`.
 - **Une seule chaîne de migrations pour EP-06, dans le socle**, `0022` le schéma et `0023` les
   données (`planning_start_on` remplie), aux prochains numéros libres à la création
-  d'`epic/EP-06` — `epic/EP-04` est à `0021` ; aucun lot d'EP-06 n'écrit de migration après le
-  socle, et EP-07 chaîne la sienne sur `0023`, sans révision de fusion. Écarté : une migration par
-  US, qui donnerait deux têtes à la fusion d'EP-07.
+  d'`epic/EP-06` — `epic/EP-04` est à `0021` ; un seul lot d'EP-06 écrit une migration après le
+  socle, `0024` par US-1420/L2, qui accorde à la purge la suppression des dépôts (#2341), et
+  EP-07 chaîne la sienne sur `0024`, sans révision de fusion. Écarté : une migration par US, qui
+  donnerait deux têtes à la fusion d'EP-07.
 - **La tranche des tâches s'insère dans la chronologie d'EP-04 par un registre du chargeur** :
   `witness/revisions.py` offre `register_revision_filler`, et appelle chaque remplisseur
   enregistré après l'ouverture d'une révision et avant l'événement suivant ; la tranche des
@@ -379,7 +380,11 @@ supprime donc ses nœuds avec ses structures, et un test l'éprouve.
   création de l'origine de sa lignée, et `scheduled_at` par la date de création de la structure,
   comme le code les dérive aujourd'hui (règle 3 des migrations, « une donnée change dans sa propre
   migration »). Les deux colonnes restent nullables (règle 1) : le code lit un nul comme la valeur
-  dérivée. **Aucune migration d'EP-06 après le socle** ; EP-07 chaîne la sienne sur `0023`.
+  dérivée. **Une seule migration d'EP-06 après le socle** : `0024` (US-1420/L2, #2341) accorde
+  `DELETE` sur `file_upload` au rôle du service, que la purge des dépôts échus demande
+  (WF-DAT-0120-A) et que `0017` ne donnait pas — `REVOKE` à la descente, `SERVICE_RIGHTS` mis à
+  jour ; EP-07 chaîne la sienne sur `0024`. Écarté : réécrire `0022`, déjà appliquée aux bases des
+  postes et du témoin.
 - **La partition** : `node_p_<uuid>`, `task_p_<uuid>`, `task_link_p_<uuid>`, par la fonction
   remplacée (`CREATE OR REPLACE`), avec leur déclencheur de `TRUNCATE` ; la migration crée les
   partitions des projets existants en lisant `project`.
@@ -634,7 +639,10 @@ remplis (#2180).
 
 ### Le harnais
 
-Chaque US étiquette `@shared` les tests dont l'écran est servi : US-1400 `timelines.spec.ts` ;
+Chaque US étiquette `@shared` les tests dont l'écran est servi : US-1400 le parcours
+d'inscription de `timelines.spec.ts` (WF-PLA-0060-A), sur un projet que la course crée, et
+US-1480/L2 ses quatre parcours qui lisent le témoin — la frise, le focus, l'export PNG, les deux
+sélections —, dont les tâches n'existent qu'avec son remplisseur (#2340) ;
 US-1430 `exchanges.spec.ts` et `tasks.spec.ts` ; US-1440 `task-tree.spec.ts` ;
 US-1450 `undo.spec.ts` et `paste.spec.ts` pour le planning ; US-1460 les étapes du squelette de
 `project-start.spec.ts` (`BEFORE_EP06` levé) ; US-1470 `planning.spec.ts`, `structure.spec.ts`,
@@ -677,7 +685,8 @@ de lots (étape 3) le détaille en vagues.
    `register_tasks_and_lines`, `register_closing` et `register_facet`, l'interface de
    `core/exchanges` (`register_format`, `register_exporter`) et celle de `core/history`, la chaîne
    des migrations arrêtée à `0023` ; EP-07 ajoute par sa migration la table `estimate_line`
-   (clé vers `node`), les tables images de la révision, et chaîne sur `0023` ; ses lots qui créent
+   (clé vers `node`), les tables images de la révision, et chaîne sur `0024`, celle
+   d'US-1420/L2 (#2341) ; ses lots qui créent
    des lignes attendent aussi les deux lots suivants de l'arbre. En parallèle, dès la création de
    la branche : **le moteur pur** (US-1390), sans table ni dépendance nouvelle, qui possède
    `core/planning/scheduling/` entier ; et le lot d'outil d'US-1480 (`witness_tasks.json`).
@@ -1016,7 +1025,8 @@ frise, **afin de** présenter à chaque public les jalons qui le concernent.
   `edit_planning` ;
 - propre à l'US : l'écran des chronologies (`…/timelines`) travaille contre le service, le front
   n'applique plus le critère `timeline_id` à la réponse (#496) et le parcours
-  `timelines.spec.ts` porte `@shared` ; `load-witness` charge les chronologies du témoin et les
+  d'inscription de `timelines.spec.ts` porte `@shared`, ses quatre parcours qui lisent le témoin
+  le portant à US-1480/L2 (#2340) ; `load-witness` charge les chronologies du témoin et les
   inscriptions de ses tâches dans le fichier `timelines` de la tranche ;
 - propre à l'US : chaque réponse est validée contre le contrat dans les tests du service.
 
@@ -1578,6 +1588,9 @@ s'affiche.
   lectures du témoin chargé — `nodes_planning`, `nodes_summaries`, `nodes_timeline`,
   `nodes_milestone`, `volume/nodes_thousand` — sont comparées aux exemples, aux colonnes d'audit
   et aux montants près, listés dans le test ;
+- propre à l'US : les quatre parcours de `timelines.spec.ts` qui lisent le témoin — la frise, le
+  focus, l'export PNG, les deux sélections (WF-PLA-0140-A) — portent `@shared` dès que le
+  remplisseur charge les tâches (US-1480/L2, #2340) ;
 - propre à l'US : tous les parcours du planning, du Gantt, de l'arborescence, des chronologies
   et des échanges étiquetés `@shared` passent contre le service, le témoin chargé ; la définition
   de fini est constatée — cinquante saisies annulées puis rétablies, un collage prévisualisé puis
