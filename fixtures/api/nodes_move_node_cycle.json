@@ -1,0 +1,12 @@
+{
+  "summary": "Le « Poste de commande » déplacé sous le « Câblage des armoires », l'une de ses propres subordonnées : la hiérarchie bouclerait, et le refus le dit sur le parent visé, sans paramètre ; rien ne bouge (WF-PLA-0040, #2500).",
+  "description": "Exemple engendré par `make mock-data` (`wftools.mockdata`) : il ne se retouche pas.",
+  "value": {
+    "code": "VALIDATION_FAILED",
+    "status": 422,
+    "fields": [
+      {"pointer":"/parent_id","code":"NODE_CYCLE"}
+    ],
+    "correlation_id": "01926f3a-7c00-7000-8000-000000001695"
+  }
+}

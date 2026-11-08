@@ -1,0 +1,12 @@
+{
+  "summary": "La « Réception usine » déplacée sous les « Borniers », une ligne : le parent visé n'est pas une tâche de la structure ; refusé sur son champ, sans paramètre, rien ne bouge (#2500).",
+  "description": "Exemple engendré par `make mock-data` (`wftools.mockdata`) : il ne se retouche pas.",
+  "value": {
+    "code": "VALIDATION_FAILED",
+    "status": 422,
+    "fields": [
+      {"pointer":"/parent_id","code":"UNKNOWN_TASK"}
+    ],
+    "correlation_id": "01926f3a-7c00-7000-8000-000000001694"
+  }
+}

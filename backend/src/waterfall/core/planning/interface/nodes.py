@@ -89,6 +89,7 @@ NOT_FOUND = "NOT_FOUND"
 VALIDATION_FAILED = "VALIDATION_FAILED"
 STALE_LOCK_VERSION = "STALE_LOCK_VERSION"
 UNKNOWN_TASK = "UNKNOWN_TASK"
+NODE_CYCLE = "NODE_CYCLE"
 NODE_NOT_SIBLING = "NODE_NOT_SIBLING"
 MILESTONE_HAS_NO_SUBTASK = "MILESTONE_HAS_NO_SUBTASK"
 STATE_FORBIDS_OPERATION = "STATE_FORBIDS_OPERATION"
@@ -700,23 +701,23 @@ def delete_node(
 def _judge_move(tree: Tree, placing: Placing) -> None:
     """Refuse a move the tree forbids: a parent that is no task, in the selection, a milestone.
 
-    A parent among the nodes moved or under one of them would leave no tree (WF-PLA-0040); a
-    line goes under a task; a task moved under a milestone is refused, the milestone named
-    (WF-PLA-0050, #1771); the sibling named is one under the parent (``NODE_NOT_SIBLING``).
+    A parent the structure does not hold as a task — unknown, a line, or none for a line, which
+    goes under a task — is refused (``UNKNOWN_TASK``); one among the nodes moved or under one of
+    them would close a loop in the hierarchy and leave no tree (``NODE_CYCLE``, WF-PLA-0040;
+    #2500); a task moved under a milestone is refused, the milestone named (WF-PLA-0050, #1771);
+    the sibling named is one under the parent (``NODE_NOT_SIBLING``).
     """
     parent = placing.parent_id
     moved = placing.node_ids
     tasks_moved = any(each in tree.tasks for each in moved)
     inside = {each for node_id in moved for each in tree.subtree(node_id)}
     lines_moved = len(moved) > sum(each in tree.tasks for each in moved)
-    if (parent is None and lines_moved) or (
-        parent is not None and (parent not in tree.tasks or parent in inside)
-    ):
-        # 422 ``UNKNOWN_TASK`` on /parent_id for a parent taken in the selection: the contract does
-        # not say it yet (#2500, to settle).
+    if (parent is None and lines_moved) or (parent is not None and parent not in tree.tasks):
         raise UnprocessableError(
             VALIDATION_FAILED, fields=(FieldError("/parent_id", UNKNOWN_TASK),)
         )
+    if parent is not None and parent in inside:
+        raise UnprocessableError(VALIDATION_FAILED, fields=(FieldError("/parent_id", NODE_CYCLE),))
     if parent is not None and tasks_moved and tree.is_milestone(parent):
         named = {"node_id": str(parent), "label": tree.tasks[parent].label}
         fault = FieldError("/parent_id", MILESTONE_HAS_NO_SUBTASK, named)
@@ -757,13 +758,24 @@ def _judge_package_tasks(write: Write, placing: Placing, sent: tuple[UUID, ...])
                 raise UnprocessableError(VALIDATION_FAILED, fields=(fault,))
 
 
+def _outermost(tree: Tree, node_ids: tuple[UUID, ...]) -> tuple[UUID, ...]:
+    """Keep, of a selection, the nodes none of whose ancestors it names, in the order sent.
+
+    A node named with one of its ancestors goes with that ancestor, under it: the group is moved
+    whole, never flattened (WF-PLA-0040, WF-PLA-0080; #2507).
+    """
+    named = set(node_ids)
+    return tuple(each for each in node_ids if named.isdisjoint(tree.ancestors(each)))
+
+
 def move_nodes(session: Session, place: Place, moving: NodeMoving, writer: Writer) -> NodesWritten:
     """Move a selection of nodes under a parent, and give the nodes written (``moveNodes``).
 
     Under the lock of the structure, at its counter (412): a node it does not hold is not found
-    (404); the parent and the place are judged (``_judge_move``), then the tasks of the work
-    breakdown (WF-PLA-0170). Each node takes its subtree with it, unchanged but for its parent and
-    its place (WF-PLA-0040); a manual leaf that receives a task becomes an automatic summary; a
+    (404); a node named with one of its ancestors is left to it (``_outermost``); the parent and
+    the place are judged (``_judge_move``), then the tasks of the work breakdown (WF-PLA-0170).
+    Each node takes its subtree with it, unchanged but for its parent and its place
+    (WF-PLA-0040); a manual leaf that receives a task becomes an automatic summary; a
     summary that loses its last subordinate a leaf in its state. The engine refuses a link the
     move would make between a summary and its subordinate, or a loop it would close through the
     parent (``LINK_FORBIDDEN``, ``LINK_CYCLE``, #1169), and a project beyond fifteen years, the
@@ -779,7 +791,8 @@ def move_nodes(session: Session, place: Place, moving: NodeMoving, writer: Write
             )
         if not all(each in tree.nodes for each in node_ids):
             raise NotFoundError(NOT_FOUND)
-        placing = Placing(node_ids, moving.parent_id, moving.after_node_id, moving.after_given)
+        kept = _outermost(tree, node_ids)
+        placing = Placing(kept, moving.parent_id, moving.after_node_id, moving.after_given)
         _judge_move(tree, placing)
         _judge_package_tasks(write, placing, moving.node_ids)
         return _moved(write, placing)

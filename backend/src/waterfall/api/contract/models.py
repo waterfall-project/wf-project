@@ -61,6 +61,7 @@ class ErrorCode(StrEnum):
     UNKNOWN_TASK = "UNKNOWN_TASK"
     INACTIVE_REFERENCE_OBJECT = "INACTIVE_REFERENCE_OBJECT"
     ORG_NODE_CYCLE = "ORG_NODE_CYCLE"
+    NODE_CYCLE = "NODE_CYCLE"
     NODE_NOT_SIBLING = "NODE_NOT_SIBLING"
     MILESTONE_HAS_NO_SUBTASK = "MILESTONE_HAS_NO_SUBTASK"
     MILESTONE_REQUIRED = "MILESTONE_REQUIRED"
@@ -1999,7 +2000,12 @@ class OrgNodeUpdate(OrgNodeWrite):
 
 
 class Hours(RootModel[Decimal]):
-    root: Annotated[Decimal, Field(description="Number of hours, exact decimal.")]
+    root: Annotated[
+        Decimal,
+        Field(
+            description="Number of hours, exact decimal. The hours, durations and floats the server computes — the instants the engine places a task at, a duration drawn from dates, a total float — are rendered at ten decimals at most, a half to the even, then stored so: a ten-billionth of an hour, finer than any entry, so that an hour read and sent back as the date of a manual task is the one the engine placed (#2460, #2506). An entry keeps the decimals it was sent with."
+        ),
+    ]
 
 
 class RoleCapacity(ContractModel):
@@ -2507,6 +2513,19 @@ class ProjectCode(RootModel[str]):
     ]
 
 
+class ProjectRatio(RootModel[str]):
+    model_config = ConfigDict(
+        regex_engine="python-re",
+    )
+    root: Annotated[
+        str,
+        Field(
+            description="A ratio of a project — its inflation rate, its win probability (WF-PRJ-0040, WF-PRJ-0090) —, kept at four decimals, a hundredth of a percent, as `Money` is kept at two: a fifth significant decimal is refused by `updateProject`, never rounded, with 422 `VALIDATION_FAILED`, `fields` designating the field, without a parameter (WF-DAT-0100; #2305); zeros beyond the fourth decimal change nothing, `0.12340` being `0.1234`. A value outside `0` to `1` is refused first by its bound (`VALUE_OUT_OF_RANGE`).",
+            pattern="(?=^-?\\d+(\\.\\d+)?$)(?=^-?\\d+(\\.\\d{1,4}0*)?$)",
+        ),
+    ]
+
+
 class PlanningDate(RootModel[date_aliased]):
     root: Annotated[
         date_aliased, Field(description="Date without time, in ISO 8601 (WF-DAT-0100).")
@@ -2560,15 +2579,15 @@ class Project(ContractModel):
     ]
     state: ProjectState
     inflation_rate: Annotated[
-        Percent,
+        ProjectRatio,
         Field(
-            description="Annual inflation rate, 0 by default, modifiable at any time (WF-PRJ-0040): a ratio, from `0` to `1` inclusive — `0.03` for 3% —, outside of which `updateProject` refuses the value (`VALUE_OUT_OF_RANGE`)."
+            description="Annual inflation rate, 0 by default, modifiable at any time (WF-PRJ-0040): a ratio, from `0` to `1` inclusive — `0.03` for 3% —, outside of which `updateProject` refuses the value (`VALUE_OUT_OF_RANGE`), at four decimals, a hundredth of a percent (`ProjectRatio`)."
         ),
     ]
     win_probability: Annotated[
-        Percent,
+        ProjectRatio,
         Field(
-            description="Win probability, 0 by default, with no effect on any calculation of the project (WF-PRJ-0090): a ratio, from `0` to `1` inclusive, outside of which `updateProject` refuses the value (`VALUE_OUT_OF_RANGE`). Modifiable in the Created and Pricing states, frozen from In progress onwards: the `update_win_probability` command states it in advance, and a value sent regardless is refused with 409 `STATE_FORBIDS_OPERATION`, `params.missing_condition` at `project_before_in_progress`."
+            description="Win probability, 0 by default, with no effect on any calculation of the project (WF-PRJ-0090): a ratio, from `0` to `1` inclusive, outside of which `updateProject` refuses the value (`VALUE_OUT_OF_RANGE`), at four decimals (`ProjectRatio`). Modifiable in the Created and Pricing states, frozen from In progress onwards: the `update_win_probability` command states it in advance, and a value sent regardless is refused with 409 `STATE_FORBIDS_OPERATION`, `params.missing_condition` at `project_before_in_progress`."
         ),
     ]
     order_received_on: Annotated[
@@ -2632,12 +2651,15 @@ class ProjectUpdate(ContractModel):
     ] = None
     code: ProjectCode | None = None
     inflation_rate: Annotated[
-        Percent | None, Field(description="From `0` to `1` inclusive, a ratio (WF-PRJ-0040).")
+        ProjectRatio | None,
+        Field(
+            description="From `0` to `1` inclusive, a ratio, at four decimals, a hundredth of a percent (`ProjectRatio`, WF-PRJ-0040)."
+        ),
     ] = None
     win_probability: Annotated[
-        Percent | None,
+        ProjectRatio | None,
         Field(
-            description="From `0` to `1` inclusive, a ratio; refused from In progress onwards, 409 `STATE_FORBIDS_OPERATION`, `params.missing_condition` at `project_before_in_progress` (WF-PRJ-0090). Absent, the value does not change."
+            description="From `0` to `1` inclusive, a ratio, at four decimals (`ProjectRatio`); refused from In progress onwards, 409 `STATE_FORBIDS_OPERATION`, `params.missing_condition` at `project_before_in_progress` (WF-PRJ-0090). Absent, the value does not change."
         ),
     ] = None
     order_received_on: Annotated[

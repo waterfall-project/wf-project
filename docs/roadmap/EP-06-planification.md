@@ -476,8 +476,14 @@ couvre tous : pour chaque processus — l'API (`create_app`), le worker (`handle
   exception typée passe l'import `failed`, le fichier supprimé.
 - **L'application** (`applyImport`) revérifie la permission et la qualité de contributeur de
   l'appelant, l'état de l'import (`import_awaiting_decision`, `import_file_accepted`), puis les
-  conditions de l'ouverture, et dépose `import_apply` ; refusée par l'une d'elles, elle passe
-  l'import `refused` et supprime le fichier (#1790). Le worker, dans la transaction de la tâche,
+  conditions de l'ouverture, et dépose `import_apply`. Refusée par une condition passagère —
+  `no_background_task_running`, une tâche de fond qui finira, ou `may_create_revision`, une
+  permission qui peut être donnée —, elle répond 409 et laisse l'import `analysed`, son compte
+  rendu applicable et son fichier en place : l'application se redemande sans nouveau dépôt
+  (WF-ARC-0100, spécification 1.0.3 ; #2475, amendé par US-1380/L4). Refusée par une autre — le
+  compte rendu, `project_not_terminal`, une condition de la nature, la permission ou la qualité
+  perdue, la structure visée que la révision en cours ne tient plus (404) —, elle passe l'import
+  `refused` et supprime le fichier (#1790). Le worker, dans la transaction de la tâche,
   revérifie de nouveau, crée la révision en cours au besoin par `create_revision` (EP-04),
   applique par le format sous le verrou de la structure, redate, passe `applied`, supprime le
   fichier, et l'historique annulable ne reçoit rien (WF-IHM-0110). Une tâche en file ou en cours

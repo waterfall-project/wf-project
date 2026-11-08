@@ -317,7 +317,9 @@ by = "make fixtures"
 # its readings by the quality of its reader and during a marking (wftools.mockproject, held by
 # tools/tests/test_mockexit.py), the refusals of one form each (wftools.mockrefusals, held by
 # tools/tests/test_mockrefusals.py), and those the contract declared without a code, a condition
-# nor an example (wftools.mockdeclared, held by tools/tests/test_mockdeclared.py), and the examples
+# nor an example (wftools.mockdeclared, held by tools/tests/test_mockdeclared.py), and those the
+# service served undeclared (wftools.mockservedrefusals, held by
+# tools/tests/test_mockservedrefusals.py), and the examples
 # of the majors of the review of the 2026-10-31 (wftools.mockreview, held by
 # tools/tests/test_mockreview.py), and the chronology of the witness the loader of the projects
 # reads (wftools.mockchronology, held by tools/tests/test_mockchronology.py), and its tasks the
@@ -671,6 +673,26 @@ paths = [
     "fixtures/api/structure_label_updated.json",
     "fixtures/api/undo_background_running.json",
     "fixtures/api/redo_background_running.json",
+    "fixtures/api/node_create_parent_unknown.json",
+    "fixtures/api/node_create_dates_required.json",
+    "fixtures/api/node_create_finish_before_start.json",
+    "fixtures/api/node_create_kind_not_accepted.json",
+    "fixtures/api/node_create_facet_missing.json",
+    "fixtures/api/task_dates_required.json",
+    "fixtures/api/task_finish_before_start.json",
+    "fixtures/api/task_update_empty.json",
+    "fixtures/api/nodes_move_parent_unknown.json",
+    "fixtures/api/nodes_move_node_cycle.json",
+    "fixtures/api/predecessors_unknown_task.json",
+    "fixtures/api/task_completed_before_start.json",
+    "fixtures/api/import_apply_background_running.json",
+    "fixtures/api/import_apply_may_create_revision.json",
+    "fixtures/api/export_permission_missing.json",
+    "fixtures/api/duration_units_horizon_exceeded.json",
+    "fixtures/api/calendar_update_horizon_exceeded.json",
+    "fixtures/api/calendar_default_horizon_exceeded.json",
+    "fixtures/api/revision_create_horizon_exceeded.json",
+    "fixtures/api/project_rate_precision.json",
     "fixtures/api/revision_completed_project.json",
     "fixtures/api/import_open_terminal.json",
     "fixtures/api/import_open_background_running.json",

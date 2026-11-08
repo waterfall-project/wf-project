@@ -1130,6 +1130,8 @@ les lit sans lire le planning. Les imports sont disponibles sur le projet témoi
 en chiffrage sans révision, indisponibles sur le projet terminé (`project_not_terminal`).
 **Réécrit par US-0702/L3** (#1657) : le projet terminé ne liste aucun import, et le 409 de l'appel
 direct nomme seul `project_not_terminal`.
+**Complété par US-1380/L4** (#2483) : l'export dont la commande est absente est refusé par 403
+`PERMISSION_MISSING`, la permission de consultation de sa nature nommée.
 
 **Le risque porte ses dépendances** (`Risk.computed_fields`, #250). WF-IHM-0030 veut que le refus
 d'une saisie sur une valeur calculée d'un risque nomme ce dont elle dépend, et
@@ -7931,7 +7933,8 @@ calendriers des rôles des lignes de main-d'œuvre de la tâche lui accordent, l
 défaut sans aucune (WF-PLA-0010) ; un jour à 0 heure est un jour chômé, le contrat ne connaissant
 pas de jours fériés (WF-REF-0110). C'est une propriété de `Node` que `fields` nomme
 (`task.calendar_hours`), rendue de toute lecture sans `fields` ; sur une révision marquée, ce sont
-les heures des calendriers qu'elle fige (`EmployedReference`).
+les heures des calendriers qu'elle fige (`EmployedReference`). **Réécrit par US-1380/L4** (#2491) :
+une révision marquée se lit avec les calendriers actuels du projet, comme la révision en cours.
 - *Le nom.* `calendar_hours` se range à côté de `calendar_id` et dit ce qu'il porte, les heures du
   calendrier ; `weekly_hours`, le nom de la même forme dans `CalendarImage`, aurait fait lire un
   calendrier du référentiel là où une tâche à deux rôles porte leur intersection, qui n'en est aucun,
@@ -11387,6 +11390,118 @@ compte chez le fournisseur d'identité, qu'il tire : `dependencies_entered` reç
 (revue du 2026-10-31, V-06 ; décision de l'auteur du 2026-11-07). Les corrélations nouvelles de
 cette passe sont prises du haut de la troisième suite, 1982 à 1999, pour ne pas croiser les autres
 passes qui prennent la première libre (1686 et suivantes).
+
+### Les refus servis et non déclarés, et trois règles tranchées (US-1380/L4, #2519)
+
+Les revues locales des lots d'EP-06 ont relevé des refus que le service rendait sans que le
+contrat les déclare, et trois règles que ni la spécification ni le contrat ne tranchaient.
+L'utilisateur a décidé, le 2026-11-08, de déclarer chacun avec son exemple, et de suivre pour
+chaque règle l'option que le constat recommandait. Les exemples sont engendrés par
+`wftools.mockservedrefusals`, tenu par `tools/tests/test_mockservedrefusals.py` ; leurs corrélations
+sont les premières libres de la troisième suite, 1686 à 1705.
+
+**L'export dont la commande `export_*` est absente : 403 `PERMISSION_MISSING`** (#2483). Un export
+relève de la consultation (plus haut) : sa commande est présente ou absente, selon la permission de
+consulter la fonction de sa nature. Demandé quand elle est absente, il est refusé par 403
+`PERMISSION_MISSING`, `params.missing_permission` nommant cette permission — `planning.read` pour le
+planning et l'image de l'arborescence, `estimate.read` pour le devis, `remaining.read` pour le
+reste à engager —, rien n'étant mis en file (`export_permission_missing`). Écarté : un 404,
+l'appelant lisant le projet.
+
+**Les refus de la création et de la modification d'une tâche** (#2490). `createNode` déclare au
+422 un parent qui n'est pas une tâche (`/parent_id`, `UNKNOWN_TASK`), une tâche manuelle créée sans
+ses dates (`/task/start`, `/task/finish`, `VALUE_REQUIRED`) ou dont la fin précède le début
+(`/task/finish/date`, `VALUE_OUT_OF_RANGE`, `minimum` le début), une tâche envoyée sans sa facette
+(`/task`, `VALUE_REQUIRED`) ou avec celle d'une ligne (`/estimate_line`, `FIELD_NOT_ACCEPTED`), et,
+tant qu'EP-07 ne crée pas les lignes, `kind` `estimate_line` (`/kind`, `FIELD_NOT_ACCEPTED`) ;
+`updateTaskFacet`, une date d'une tâche manuelle envoyée nulle (`/start`, `/finish`,
+`VALUE_REQUIRED`), une fin avant le début (`/finish/date`, `VALUE_OUT_OF_RANGE`), un champ exigé
+envoyé nul, et le corps qui n'envoie que le compteur (`minProperties`), refusé par
+`VALIDATION_FAILED` sans `fields`, rien n'étant à désigner (`task_update_empty`). Les refus
+passagers du rattachement au lotissement, que le constat craignait, ne subsistent pas : US-1380/L3
+le sert, et `editable_fields` le dit déjà.
+
+**Une révision marquée se lit avec le calendrier actuel du projet** (#2491). `listNodes` sur une
+révision marquée rend `calendar_hours` d'après les calendriers que le projet a aujourd'hui, non
+ceux de la révision : « une révision marquée se lit comme la révision en cours ». Ses dates, elles,
+sont celles qu'elle a figées ; les heures affichées peuvent donc s'écarter de celles qui les ont
+calculées, ce que le constat relevait. C'est le comportement livré, que l'utilisateur garde ; il
+réécrit l'entrée de `TaskFacet.calendar_hours` (#1410), qui disait les calendriers figés.
+
+**La phase du projet n'est demandée qu'au geste sur la structure principale** (#2494, option b).
+`setTaskProgress` est une saisie du reste à engager (`edit_remaining`), que seule la structure
+principale porte (WF-RAE-0040) : `project_in_progress` ne lui manque que là, par la règle même de
+`phase_conditions` (`core/revisions/commands.py`), que `core/planning` lit par l'interface des
+révisions (`structure_phase_conditions`) au lieu de la recopier — la liste des commandes et le refus
+disent la même condition. Sur une autre structure, le geste ne manque d'aucune condition de phase.
+Écartée : la condition sur toute structure, le comportement livré, qui ne s'accordait pas aux
+commandes.
+
+**Une terminaison ne se date pas avant le démarrage ; le jour courant** (#2495, option b sans le
+fuseau ; WF-PLA-0130-A, spécification 1.0.3). `setTaskProgress` refuse la terminaison d'une tâche
+démarrée datée avant son démarrage : 422 `VALIDATION_FAILED`, `/occurred_on`, `VALUE_OUT_OF_RANGE`,
+`params.minimum` le démarrage (`task_completed_before_start`). Une tâche terminée sans avoir été
+démarrée prend sa terminaison pour démarrage, et n'a rien à précéder. Le jour par défaut est le jour
+courant, que WF-PLA-0130 et WF-EXP-0020 prennent dans le fuseau de l'installation ; le back n'a pas
+encore ce fuseau : une seule fonction du noyau le calcule (`current_day`,
+`core/projects/interface/days.py`), en temps universel, et EP-07 la branchera sur le fuseau de
+l'installation (#2527). Le geste, la date de revue par défaut d'un export du reste à engager et la
+date de début de planning d'une structure créée la prennent. Ni migration, ni réglage, ni variable
+d'environnement ici.
+
+**Un refus passager laisse l'import applicable** (#2475 ; WF-ARC-0100-A, spécification 1.0.3).
+`applyImport` revérifie les conditions de l'ouverture. Deux sont passagères : une tâche de fond sur
+le projet (`no_background_task_running`), qui finit, et la permission de créer la révision que
+l'import créerait (`may_create_revision`), qui peut être donnée. Elles répondent 409 et laissent
+l'import `analysed`, son compte rendu applicable et son fichier en place : l'application se
+redemande sans nouveau dépôt (`import_apply_background_running`,
+`import_apply_may_create_revision`). Les autres le passent `refused` et suppriment son fichier : le
+compte rendu qui rejette le fichier entier, `project_not_terminal`, une condition de la nature, la
+structure analysée que la révision en cours ne tient plus (404), la permission ou la qualité perdue
+par le demandeur (403). La conception d'EP-06 (« L'import en deux temps et les formats ») est
+amendée de même.
+
+**Le parent d'un nœud : `UNKNOWN_TASK`, et la boucle de la hiérarchie : `NODE_CYCLE`** (#2500). Un
+`parent_id` de `createNode` ou de `moveNodes` qui n'est pas une tâche de la structure — inconnu, une
+ligne, ou nul pour une sélection qui porte une ligne — est refusé par 422 `UNKNOWN_TASK` sur
+`/parent_id`. Celui de `moveNodes` qui est un nœud déplacé ou l'une de ses subordonnées fermerait
+une boucle dans la hiérarchie : `UNKNOWN_TASK` ne disait pas la vraie cause, la tâche étant connue,
+et un motif nouveau, `NODE_CYCLE`, le dit, sans paramètre, comme `ORG_NODE_CYCLE` pour
+l'organisation (`nodes_move_parent_unknown`, `nodes_move_node_cycle`). Écartés : `VALUE_OUT_OF_RANGE`,
+qui n'a pas de borne à nommer, et `UNKNOWN_TASK` confirmé.
+
+**Une sélection qui nomme un nœud et son ancêtre déplace le groupe entier** (#2507 ;
+WF-PLA-0040-A, spécification 1.0.3). `moveNodes` ignore un nœud dont un ancêtre est aussi nommé :
+il suit cet ancêtre, sous lui, avec ses propres subordonnées, et seuls les nœuds dont aucun ancêtre
+n'est nommé prennent place sous `parent_id`, dans l'ordre de `node_ids`, et sont rendus dans
+`nodes`. Une grille qui sélectionne une récapitulative dépliée et ses enfants visibles l'indente
+ainsi sans l'aplatir (WF-PLA-0080). Écartés : le placement individuel, qui aplatissait le groupe, et
+un 422.
+
+**L'horizon de quinze ans au référentiel et à l'ouverture d'une révision** (#2505). Un changement
+des unités de durée, des heures d'un calendrier ou du calendrier par défaut recalcule les révisions
+en cours (WF-PLA-0160) ; s'il porte un projet au-delà de quinze ans (WF-PLA-0150),
+`setDurationUnits`, `updateCalendar` et `setDefaultCalendar` répondent 422
+`PROJECT_HORIZON_EXCEEDED`, `params.projects` nommant chaque projet par son libellé et son code,
+sans tâche ni identifiant, comme `TASK_WITHOUT_WORKING_HOURS` : l'auteur peut ne consulter aucun
+d'eux (WF-ADM-0110). Un seul projet à la limite suffit à refuser le changement. `createRevision`,
+qui date la copie de la dernière révision marquée avec les unités et les calendriers du jour, répond
+de même, `params.task` nommant la tâche de la copie qui finit la dernière, l'appelant consultant le
+projet.
+
+**Le prédécesseur inconnu ; l'échelle des valeurs calculées** (#2506). Un prédécesseur qui n'est pas
+une tâche de la structure est refusé par 422 `UNKNOWN_TASK` à son rang,
+`/predecessors/<n>/predecessor_node_id`, comme `createRisk` le fait pour la tâche d'une provision
+(`predecessors_unknown_task`). Les heures, durées et marges que le moteur calcule sont rendues à dix
+décimales au plus, une moitié au pair, et conservées ainsi (#2460) ; `Hours` le dit. Une date
+manuelle saisie à plus de dix décimales reste exacte : la saisie garde ses décimales.
+
+**La précision des ratios d'un projet** (#2305). Le taux d'inflation et la probabilité de gain
+gardent quatre décimales, un centième de pour cent. `ProjectRatio` le dit par un `pattern`, comme
+`Money` le fait pour deux, et `updateProject` cite le refus : une cinquième décimale significative
+est refusée par 422 `VALIDATION_FAILED` sur son champ, sans paramètre, plutôt qu'arrondie ; des
+zéros au-delà de la quatrième ne changent rien, `0.12340` valant `0.1234` ; une valeur hors de `0`
+à `1` est refusée d'abord par sa borne (`project_rate_precision`). Le service ne change pas.
 
 ## Collage et annulation
 

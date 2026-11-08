@@ -843,15 +843,21 @@
         description: >-
           A zero constant: `VALIDATION_FAILED`, `fields` designating it, `/hours_per_day`,
           `/hours_per_week` or `/days_per_month`, with `DURATION_UNIT_NOT_POSITIVE`, without a
-          parameter — the bound, strictly positive, excludes zero: it has no smallest
-          allowed value that `VALUE_OUT_OF_RANGE` could name. A constant that is not an
-          unsigned decimal, with `VALIDATION_FAILED` at the same pointer (WF-PLA-0160). Nothing
-          is written.
+          parameter — the bound, strictly positive, excludes zero: it has no smallest allowed value
+          that `VALUE_OUT_OF_RANGE` could name. A constant that is not an unsigned decimal, with
+          `VALIDATION_FAILED` at the same pointer (WF-PLA-0160). The ongoing revisions are
+          recalculated (WF-PLA-0160): when that would take a project beyond fifteen years, the write
+          is refused — `PROJECT_HORIZON_EXCEEDED`, without `fields`, `params.projects` naming each
+          project concerned by its label and its code (`project_label`, `project_code`), without
+          identifier or task: the caller may not be allowed to consult it (WF-PLA-0150, WF-ADM-0110;
+          #2505). A single project at the limit is enough to refuse it. Nothing is written.
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
             examples:
               zero: { $ref: ../../../fixtures/api/duration_units_zero.json }
+              horizon_exceeded:
+                $ref: ../../../fixtures/api/duration_units_horizon_exceeded.json
       '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
@@ -1037,26 +1043,32 @@
               stale: { $ref: ../../../fixtures/api/calendar_update_stale.json }
       '422':
         description: >-
-          `VALIDATION_FAILED`, `fields` locating each refusal, as on creation: `/label` empty
-          or too long, the hours of a day outside 0 to 24 with `VALUE_OUT_OF_RANGE`, the only bound
-          crossed (WF-REF-0110). Or else the hours given to the calendar would leave a task
-          of an ongoing revision without any working hour in the week: the calendars of the
-          roles of its labour lines no longer overlapping on any day, or, on a task
-          of which a role is the only one, the calendar of that role no longer having any hour in the
-          week — `params.resource_roles` then naming that single role, like `updateResourceRole`
-          (EP-14/L42s, #795) —; or, for the default calendar, a task without a
-          labour line that would no longer have any hour at all: `TASK_WITHOUT_WORKING_HOURS`,
-          `params.resource_roles` naming the roles concerned, by their identifier, their code and
-          their label (#1684) — empty when only tasks without a labour line lose
-          their hours — and `params.projects` each project concerned, by its label and its code
-          (`project_label`, `project_code`), without identifier or task: the caller may not be
-          allowed to consult it (WF-PLA-0010, WF-ADM-0110). Nothing is written.
+          `VALIDATION_FAILED`, `fields` locating each refusal, as on creation: `/label` empty or too
+          long, the hours of a day outside 0 to 24 with `VALUE_OUT_OF_RANGE`, the only bound crossed
+          (WF-REF-0110). Or else the hours given to the calendar would leave a task of an ongoing
+          revision without any working hour in the week: the calendars of the roles of its labour
+          lines no longer overlapping on any day, or, on a task of which a role is the only one, the
+          calendar of that role no longer having any hour in the week — `params.resource_roles` then
+          naming that single role, like `updateResourceRole` (EP-14/L42s, #795) —; or, for the
+          default calendar, a task without a labour line that would no longer have any hour at all:
+          `TASK_WITHOUT_WORKING_HOURS`, `params.resource_roles` naming the roles concerned, by their
+          identifier, their code and their label (#1684) — empty when only tasks without a labour
+          line lose their hours — and `params.projects` each project concerned, by its label and its
+          code (`project_label`, `project_code`), without identifier or task: the caller may not be
+          allowed to consult it (WF-PLA-0010, WF-ADM-0110). The ongoing revisions are recalculated
+          (WF-PLA-0160): when that would take a project beyond fifteen years, the write is refused —
+          `PROJECT_HORIZON_EXCEEDED`, without `fields`, `params.projects` naming each project
+          concerned by its label and its code (`project_label`, `project_code`), without identifier
+          or task: the caller may not be allowed to consult it (WF-PLA-0150, WF-ADM-0110; #2505). A
+          single project at the limit is enough to refuse it. Nothing is written.
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
             examples:
               hours_out_of_range: { $ref: ../../../fixtures/api/calendar_hours_refused.json }
               task_without_hours: { $ref: ../../../fixtures/api/calendar_update_without_hours.json }
+              horizon_exceeded:
+                $ref: ../../../fixtures/api/calendar_update_horizon_exceeded.json
       '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
@@ -1126,18 +1138,24 @@
               stale: { $ref: ../../../fixtures/api/calendar_default_stale.json }
       '422':
         description: >-
-          The designated calendar has no hour in the week, and tasks without a
-          labour line of an ongoing revision, which would come under it, would no longer have any
-          working hour: `TASK_WITHOUT_WORKING_HOURS`, `params.resource_roles` empty,
-          `params.projects` naming each project concerned by its label and its code
-          (`project_label`, `project_code`), without identifier or task (WF-PLA-0010,
-          WF-ADM-0110). Or a refused body, a lock version absent or of another type:
-          `VALIDATION_FAILED`, `fields` designating `/lock_version`.
+          The designated calendar has no hour in the week, and tasks without a labour line of an
+          ongoing revision, which would come under it, would no longer have any working hour:
+          `TASK_WITHOUT_WORKING_HOURS`, `params.resource_roles` empty, `params.projects` naming each
+          project concerned by its label and its code (`project_label`, `project_code`), without
+          identifier or task (WF-PLA-0010, WF-ADM-0110). The ongoing revisions are recalculated
+          (WF-PLA-0160): when that would take a project beyond fifteen years, the write is refused —
+          `PROJECT_HORIZON_EXCEEDED`, without `fields`, `params.projects` naming each project
+          concerned by its label and its code (`project_label`, `project_code`), without identifier
+          or task: the caller may not be allowed to consult it (WF-PLA-0150, WF-ADM-0110; #2505). A
+          single project at the limit is enough to refuse it. Or a refused body, a lock version
+          absent or of another type: `VALIDATION_FAILED`, `fields` designating `/lock_version`.
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
             examples:
               without_hours: { $ref: ../../../fixtures/api/calendar_default_without_hours.json }
+              horizon_exceeded:
+                $ref: ../../../fixtures/api/calendar_default_horizon_exceeded.json
       '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 

@@ -18,10 +18,12 @@ it missing, the day of its own creation rather than vanish from its list.
 
 What the planning asks of a structure (EP-06, "Modules"): its facts, read or under its lock
 (``structure_facts``), which every write of its nodes takes, and the instant of its dates moved on
-with its counter (``structure_rescheduled``), at each write that redates it (US-1380/L2); its start
-and its label written (``write_structure``, ``updateCostStructure``), and the structures of the
-current revisions, their revisions read ``FOR SHARE`` (``current_structures``), which a change of
-the reference redates (US-1390/L2).
+with its counter (``structure_rescheduled``), at each write that redates it (US-1380/L2); the
+condition of the phase an entry lacks, by the rule its commands state
+(``structure_phase_conditions``, US-1380/L4); its start and its label written
+(``write_structure``, ``updateCostStructure``), and the structures of the current revisions,
+their revisions read ``FOR SHARE`` (``current_structures``), which a change of the reference
+redates (US-1390/L2).
 
 Filled by US-0960. The witness loads no structure of its own: the main one is born with its
 revision, the others are EP-06's and EP-07's.
@@ -33,8 +35,13 @@ from typing import TYPE_CHECKING
 from sqlalchemy import func, select, update
 from sqlalchemy.orm import aliased
 
-from waterfall.core.projects.interface import CommandAvailability, contributor_kind, project_facts
-from waterfall.core.revisions.commands import structure_commands_of
+from waterfall.core.projects.interface import (
+    CommandAvailability,
+    contributor_kind,
+    current_day,
+    project_facts,
+)
+from waterfall.core.revisions.commands import phase_conditions, structure_commands_of
 from waterfall.core.revisions.interface.shared import NOT_FOUND
 from waterfall.core.revisions.states import revision_state
 from waterfall.core.revisions.tables import CostStructure, Revision
@@ -82,7 +89,7 @@ def create_main_structure(session: Session, project_id: UUID, revision_id: UUID,
             label=MAIN_LABEL,
             is_merged=False,
             lineage_id=structure_id,
-            planning_start_on=act.at.date(),
+            planning_start_on=current_day(act.at),
             scheduled_at=act.at,
             created_at=act.at,
             created_by=act.author,
@@ -241,6 +248,17 @@ def structure_commands(
         if view.structure_id == structure_id:
             return view.commands
     raise NotFoundError(NOT_FOUND)
+
+
+def structure_phase_conditions(command: str, state: str, *, main: bool) -> tuple[str, ...]:
+    """Name the condition of the phase of the project an entry of a structure lacks, if any.
+
+    The rule the commands of a structure state in advance (``structure_commands``), for an entry
+    sent in spite of them: on the main structure, ``project_before_in_progress`` for the estimate
+    and ``project_in_progress`` for the remaining to commit; nothing for the planning, nor on
+    another structure (WF-DEV-0050, WF-RAE-0040; #2494). A terminal project is judged before.
+    """
+    return tuple(phase_conditions(command, state, main=main))
 
 
 @dataclass(frozen=True, slots=True)

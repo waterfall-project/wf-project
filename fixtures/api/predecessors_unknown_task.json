@@ -1,0 +1,12 @@
+{
+  "summary": "La « Mise en service » donnée à suivre le « Montage des armoires sur site » et le « Câblage sur site », une ligne de celui-ci, au second rang envoyé : un prédécesseur est une tâche de la structure ; refusé à son rang, rien n'est écrit (WF-PLA-0030, #2506).",
+  "description": "Exemple engendré par `make mock-data` (`wftools.mockdata`) : il ne se retouche pas.",
+  "value": {
+    "code": "VALIDATION_FAILED",
+    "status": 422,
+    "fields": [
+      {"pointer":"/predecessors/1/predecessor_node_id","code":"UNKNOWN_TASK"}
+    ],
+    "correlation_id": "01926f3a-7c00-7000-8000-000000001696"
+  }
+}

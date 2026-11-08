@@ -11,6 +11,7 @@ of the project is put around the service, as EP-04 did (``put_in_state``).
 """
 
 from concurrent.futures import ThreadPoolExecutor
+from dataclasses import replace
 from datetime import UTC, date, datetime
 from typing import TYPE_CHECKING, Any
 from uuid import UUID, uuid4
@@ -30,6 +31,7 @@ from projects_support import PROJECTS, Scene, contribute, person, put_in_state
 from projects_support import scene as make_scene
 from sqlalchemy import insert, select
 
+from waterfall.core.planning import writing
 from waterfall.core.planning.interface import ProgressLoad, load_progress
 from waterfall.core.planning.tables import Node, Task
 from waterfall.platform.audit import Act
@@ -154,6 +156,25 @@ def test_a_started_task_is_completed_then_reopened_and_keeps_its_start(tree: Tre
     assert reopened["task"]["started_on"] == JUNE_THIRD
     assert reopened["task"]["completed_on"] is None
     assert reopened["lock_version"] == node["lock_version"] + 3
+
+
+@pytest.mark.requirement("WF-PLA-0130-A")
+def test_a_completion_dated_before_the_start_of_the_task_is_refused_naming_the_start(
+    tree: Tree,
+) -> None:
+    # « Une terminaison datée avant le démarrage de la tâche est refusée. » : on the date sent,
+    # the start named as the least day accepted (#2495); the day of the start itself is accepted.
+    node = tree.made("Câblage")
+    started = moved(tree, node, "started", occurred_on=JUNE_TENTH)
+    answer = gesture(tree, started, "completed", occurred_on=JUNE_THIRD)
+    assert refusal(answer)[:2] == (422, "VALIDATION_FAILED")
+    assert answer.json()["fields"] == [
+        {"pointer": "/occurred_on", "code": "VALUE_OUT_OF_RANGE", "params": {"minimum": JUNE_TENTH}}
+    ]
+    kept = tree.node(node["node_id"])
+    assert (kept["task"]["progress"], kept["lock_version"]) == ("started", started["lock_version"])
+    done = moved(tree, kept, "completed", occurred_on=JUNE_TENTH)
+    assert (done["task"]["started_on"], done["task"]["completed_on"]) == (JUNE_TENTH, JUNE_TENTH)
 
 
 @pytest.mark.requirement("WF-PLA-0130-A")
@@ -372,6 +393,26 @@ def test_a_gesture_is_an_entry_of_the_remaining_and_asks_the_project_to_be_in_pr
         assert missing(gesture(tree, milestone, "started")) == "task_not_milestone"
     assert tree.node(node["node_id"])["task"]["progress"] == "not_started"
     put_in_state(stage.owner, stage.project["project_id"], IN_PROGRESS)
+    assert moved(tree, node, "started")["task"]["progress"] == "started"
+
+
+@pytest.mark.requirement("WF-RAE-0040-A")
+def test_the_project_in_progress_is_asked_of_a_gesture_on_the_main_structure_alone(
+    tree: Tree, stage: Scene, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # Only the main structure has a remaining to commit (WF-RAE-0040): the phase of the project is
+    # judged by the rule of its commands (``phase_conditions``), nothing on another structure
+    # (#2494). No other structure exists before EP-08: the main one is read as another.
+    node = tree.made("Câblage")
+    put_in_state(stage.owner, stage.project["project_id"], "created")
+    assert missing(gesture(tree, node, "started")) == "project_in_progress"
+    real = writing.structure_facts
+
+    def another(*args: Any, **kwargs: Any) -> Any:
+        return replace(real(*args, **kwargs), is_main=False)
+
+    monkeypatch.setattr(writing, "structure_facts", another)
+    assert missing(gesture(tree, node, "completed")) == "task_is_milestone"
     assert moved(tree, node, "started")["task"]["progress"] == "started"
 
 
