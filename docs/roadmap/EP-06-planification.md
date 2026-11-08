@@ -1082,7 +1082,7 @@ se pose autour du service dans les tests, comme EP-04 l'a fait.
 
 ## US-1420 — L'import en deux temps
 
-- **statut** : à faire
+- **statut** : en cours
 - **exigences** : `WF-ARC-0100-A`, `WF-INTF-0080-A`, `WF-INTF-0090-A`, `WF-ARC-0110-A`,
   `WF-DAT-0120-A`
 - **opérations** : `uploadFile`, `listImports`, `openImport`, `getImport`, `abandonImport`,

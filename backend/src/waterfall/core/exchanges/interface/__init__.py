@@ -46,13 +46,46 @@ from waterfall.core.exchanges.interface.exports import (
 
 # ``imports`` (US-1380/L1; US-1420/L1): the formats, the deposit, the analysis and the application.
 from waterfall.core.exchanges.interface.imports import (
+    LARGEST_FILE as LARGEST_FILE,
+)
+from waterfall.core.exchanges.interface.imports import (
+    Confirmer as Confirmer,
+)
+from waterfall.core.exchanges.interface.imports import (
+    DepositedFile as DepositedFile,
+)
+from waterfall.core.exchanges.interface.imports import (
     ExchangeKind as ExchangeKind,
 )
 from waterfall.core.exchanges.interface.imports import (
     Format as Format,
 )
 from waterfall.core.exchanges.interface.imports import (
+    HeadToRead as HeadToRead,
+)
+from waterfall.core.exchanges.interface.imports import (
+    ImportList as ImportList,
+)
+from waterfall.core.exchanges.interface.imports import (
+    ImportMeans as ImportMeans,
+)
+from waterfall.core.exchanges.interface.imports import (
+    ImportOpening as ImportOpening,
+)
+from waterfall.core.exchanges.interface.imports import (
+    ImportRefused as ImportRefused,
+)
+from waterfall.core.exchanges.interface.imports import (
+    ImportScope as ImportScope,
+)
+from waterfall.core.exchanges.interface.imports import (
     ImportTarget as ImportTarget,
+)
+from waterfall.core.exchanges.interface.imports import (
+    ImportView as ImportView,
+)
+from waterfall.core.exchanges.interface.imports import (
+    Judge as Judge,
 )
 from waterfall.core.exchanges.interface.imports import (
     abandon_import as abandon_import,
@@ -65,6 +98,12 @@ from waterfall.core.exchanges.interface.imports import (
 )
 from waterfall.core.exchanges.interface.imports import (
     formats as formats,
+)
+from waterfall.core.exchanges.interface.imports import (
+    head_to_read as head_to_read,
+)
+from waterfall.core.exchanges.interface.imports import (
+    judge_deposit as judge_deposit,
 )
 from waterfall.core.exchanges.interface.imports import (
     list_imports as list_imports,

@@ -63,6 +63,9 @@ WRITERS = {
     "waterfall.core.access_roles.attributions",
     "waterfall.core.access_roles.roles",
     "waterfall.core.backups.interface",
+    # The application of an import, tried in test_imports_application.py, which applies one by
+    # the worker, its parameters read by the closed model of the contract.
+    "waterfall.core.exchanges.running",
     # The creation of a project, tried in test_projects.py, which creates one through the service.
     "waterfall.core.projects.interface.projects",
     # The marking and the abandonment of a revision inscribe by one function, tried in

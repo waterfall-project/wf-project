@@ -109,6 +109,16 @@ class Bucket:
         with reached():
             self.client.upload_file(str(path), self.name, key)
 
+    def put(self, key: str, content: bytes) -> None:
+        """Write a content held in memory under a key, in one piece; an object there is replaced."""
+        with reached():
+            self.client.put_object(Bucket=self.name, Key=key, Body=content)
+
+    def remove(self, key: str) -> None:
+        """Delete the object of a key; a key that holds none is no fault, S3 says nothing of it."""
+        with reached():
+            self.client.delete_object(Bucket=self.name, Key=key)
+
     def download(self, key: str, path: Path) -> None:
         """Read the object of a key into a file."""
         with reached():

@@ -310,18 +310,25 @@ def read_revision(
     return _views(session, [revision], project_id, viewer)[0]
 
 
-def _judge_opening(session: Session, project_id: UUID, project: ProjectFacts) -> None:
+def _judge_opening(
+    session: Session, project_id: UUID, project: ProjectFacts, running: UUID | None = None
+) -> None:
     """Refuse the opening of a revision as the state of the project, read under its lock, does.
 
     In the order of the contract: a terminal project, then a current revision, then a background
-    task that would create the current revision itself.
+    task that would create the current revision itself — but the task ``running``, which opens it.
     """
     if project.state in TERMINAL:
         raise refuse(PROJECT_NOT_TERMINAL)
     if project.current_revision_id is not None:
         raise refuse(NO_CURRENT_REVISION)
-    if not no_background_task_running(session, project_id):
+    if not no_background_task_running(session, project_id, running):
         raise refuse(NO_BACKGROUND_TASK_RUNNING)
+
+
+def last_marked_revision(session: Session, project_id: UUID) -> UUID | None:
+    """Give the last marked revision of a project, which the next current one copies, if any."""
+    return _last_marked(session, project_id)
 
 
 def _last_marked(session: Session, project_id: UUID) -> UUID | None:
@@ -334,12 +341,20 @@ def _last_marked(session: Session, project_id: UUID) -> UUID | None:
     )
 
 
-def _open(
-    session: Session, project_id: UUID, revision_id: UUID, act: Act, description: str | None = None
-) -> Revision:
+@dataclass(frozen=True, slots=True)
+class _Opening:
+    """A revision to open: its identifier, its description, and the task that opens it, if one."""
+
+    revision_id: UUID
+    description: str | None = None
+    running: UUID | None = None
+
+
+def _open(session: Session, project_id: UUID, act: Act, opening: _Opening) -> Revision:
     """Open the current revision of a project, under the lock of the project the caller takes."""
+    revision_id, description = opening.revision_id, opening.description
     project = lock_project(session, project_id)
-    _judge_opening(session, project_id, project)
+    _judge_opening(session, project_id, project, opening.running)
     source = _last_marked(session, project_id)
     revision = Revision(
         id=revision_id,
@@ -384,8 +399,18 @@ def create_revision(
     current revision exists (409 ``no_current_revision``), and while a background task would
     create it itself (409 ``no_background_task_running``).
     """
-    revision = _open(session, project_id, new_id(), act, description)
+    revision = _open(session, project_id, act, _Opening(new_id(), description))
     return _views(session, [revision], project_id, viewer)[0]
+
+
+def open_revision_by_task(session: Session, project_id: UUID, act: Act, running: UUID) -> UUID:
+    """Open the current revision of a project for the task ``running``, which writes in it.
+
+    By the rules of ``create_revision``, the task that asks apart: the application of an import on
+    a project without a current revision creates it (WF-INTF-0090, EP-06), which no other task
+    may then be writing in.
+    """
+    return _open(session, project_id, act, _Opening(new_id(), running=running)).id
 
 
 def copy_revision(session: Session, source: UUID, target: UUID) -> None:
@@ -464,4 +489,4 @@ def revision_draft(session: Session, revision_id: UUID) -> None:
 
 def load_revision(session: Session, project_id: UUID, revision_id: UUID, act: Act) -> None:
     """Open a revision of the witness under the identifier it imposes, by the rules of opening."""
-    _open(session, project_id, revision_id, act)
+    _open(session, project_id, act, _Opening(revision_id))
