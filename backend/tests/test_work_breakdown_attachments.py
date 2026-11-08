@@ -24,7 +24,7 @@ from sqlalchemy import select, update
 
 from waterfall.core.planning.attachments import Bearer, judged_attachment
 from waterfall.core.planning.tree import Tree as Read
-from waterfall.core.projects.tables import OrderItem
+from waterfall.core.projects.tables import OrderItem, WorkPackage
 from waterfall.core.revisions.tables import CostStructure
 
 if TYPE_CHECKING:
@@ -260,7 +260,16 @@ def test_the_task_of_an_order_item_out_of_that_of_its_work_package_is_refused(
     tree.changed(tree.node(summary["node_id"]), work_package_id=package)
     tree.changed(tree.node(inside["node_id"]), order_item_id=None)
     created = tree.create("Pupitres", task={"order_item_id": item})
-    assert [code for _, code, _ in faults(created)] == ["ORDER_ITEM_OUTSIDE_WORK_PACKAGE"]
+    assert faults(created) == [
+        (
+            "/task/order_item_id",
+            "ORDER_ITEM_OUTSIDE_WORK_PACKAGE",
+            {
+                "work_package_task": {"node_id": summary["node_id"], "label": "Poste de commande"},
+                "order_item_tasks": [{"node_id": None, "label": "Pupitres"}],
+            },
+        )
+    ]
     under = tree.made("Pupitres", parent_id=summary["node_id"], task={"order_item_id": item})
     assert attachment(under) == (None, item, "Poste")
 
@@ -320,3 +329,124 @@ def test_a_revision_opened_after_an_order_item_removed_does_not_take_its_attachm
         (None, None, None),
     ]
     assert attachment(tree.node(task["node_id"])) == (None, item, "Poste")
+
+
+# --- The work packages removed, a selection moved ----------------------------------------------
+
+
+def without_package(api: ContractClient, stage: Scene, package: str) -> None:
+    """Write the work breakdown of the project back without a work package, and its order items."""
+    path = f"{PROJECTS}/{stage.project['project_id']}/work-breakdown"
+    read = api.get(path, headers=stage.manager.headers).json()
+    kept: list[dict[str, Any]] = [
+        {
+            "work_package_id": each["work_package_id"],
+            "label": each["label"],
+            "order_items": [
+                {
+                    "order_item_id": held["order_item_id"],
+                    "label": held["label"],
+                    "deliverables": [],
+                }
+                for held in each["order_items"]
+            ],
+        }
+        for each in read["work_packages"]
+        if each["work_package_id"] != package
+    ]
+    body: dict[str, Any] = {"work_packages": kept, "lock_version": read["lock_version"]}
+    answer = api.put(path, headers=stage.manager.headers, json=body)
+    assert answer.status_code == 200, answer.text
+
+
+def package_row(stage: Scene, package: str) -> WorkPackage | None:
+    """Read the row of a work package, marked deleted or not; none once deleted for good."""
+    with stage.database.transaction() as session:
+        found = session.scalars(select(WorkPackage).where(WorkPackage.id == UUID(package))).first()
+        session.expunge_all()
+        return found
+
+
+def move_sent(tree: Tree, node_ids: list[str], parent: str) -> Any:
+    """Move nodes under a parent at the counter of the structure; give the answer."""
+    with tree.stage.database.transaction() as session:
+        counter = session.scalar(
+            select(CostStructure.lock_version).where(CostStructure.id == UUID(tree.structure_id))
+        )
+    sent = {"node_ids": node_ids, "parent_id": parent, "lock_version": counter}
+    return tree.api.post(f"{tree.path}/nodes/move", headers=tree.stage.manager.headers, json=sent)
+
+
+def test_a_work_package_removed_leaves_the_current_task_and_stays_on_the_marked_one(
+    api: ContractClient, tree: Tree, stage: Scene, elements: tuple[str, str]
+) -> None:
+    # « La suppression d'un lot [...] retire le rattachement des tâches de la révision en cours
+    # qui le portaient ; les révisions marquées le conservent, et le lot est alors marqué
+    # supprimé. »
+    package, _ = elements
+    task = tree.made("Chantier", task={"work_package_id": package})
+    mark(stage, tree.revision)
+    current = Tree(api, stage, opened(api, stage))
+    assert attachment(current.items()[0]) == (package, None, "Lot")
+    without_package(api, stage, package)
+    assert attachment(current.items()[0]) == (None, None, None)
+    assert attachment(tree.node(task["node_id"])) == (package, None, "Lot")
+    row = package_row(stage, package)
+    assert row is not None
+    assert row.deleted_at is not None
+
+
+def test_a_work_package_no_marked_revision_cites_is_deleted_for_good_from_its_task(
+    api: ContractClient, tree: Tree, stage: Scene, elements: tuple[str, str]
+) -> None:
+    package, _ = elements
+    task = tree.made("Chantier", task={"work_package_id": package})
+    without_package(api, stage, package)
+    assert attachment(tree.node(task["node_id"])) == (None, None, None)
+    assert package_row(stage, package) is None
+
+
+def test_a_work_package_over_an_order_item_a_marked_revision_cites_is_marked_deleted(
+    api: ContractClient, tree: Tree, stage: Scene, elements: tuple[str, str]
+) -> None:
+    # The package is cited by no revision, but the order item marked deleted still under it keeps
+    # its key: the package is marked, not deleted.
+    package, item = elements
+    tree.made("Câblage", task={"order_item_id": item})
+    mark(stage, tree.revision)
+    without_package(api, stage, package)
+    row = package_row(stage, package)
+    assert row is not None
+    assert row.deleted_at is not None
+
+
+def test_a_refusal_of_a_selection_names_the_first_node_concerned_at_its_place_sent(
+    tree: Tree, elements: tuple[str, str]
+) -> None:
+    # « Le déplacement de la tâche d'un poste hors du sous-arbre de la tâche de son lot est
+    # refusé. » The pointer is the index among the nodes sent, not the first.
+    package, item = elements
+    summary = tree.made("Poste de commande", task={"work_package_id": package})
+    inside = tree.made("Câblage", parent_id=summary["node_id"], task={"order_item_id": item})
+    free = tree.made("Libre")
+    outside = tree.made("Installation sur site")
+    answer = move_sent(tree, [free["node_id"], inside["node_id"]], outside["node_id"])
+    assert [(pointer, code) for pointer, code, _ in faults(answer)] == [
+        ("/node_ids/1", "ORDER_ITEM_OUTSIDE_WORK_PACKAGE")
+    ]
+
+
+def test_a_selection_that_holds_a_node_and_its_descendant_is_judged_as_the_places_it_gives(
+    tree: Tree, elements: tuple[str, str]
+) -> None:
+    # The task of the package and the task of its order item sent together under another task are
+    # placed side by side: the second is out of the subtree of the first, and refused.
+    package, item = elements
+    summary = tree.made("Poste de commande", task={"work_package_id": package})
+    inside = tree.made("Câblage", parent_id=summary["node_id"], task={"order_item_id": item})
+    outside = tree.made("Installation sur site")
+    answer = move_sent(tree, [summary["node_id"], inside["node_id"]], outside["node_id"])
+    assert [(pointer, code) for pointer, code, _ in faults(answer)] == [
+        ("/node_ids/0", "ORDER_ITEM_OUTSIDE_WORK_PACKAGE")
+    ]
+    assert tree.node(inside["node_id"])["parent_id"] == summary["node_id"]

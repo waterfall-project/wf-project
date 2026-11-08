@@ -43,13 +43,15 @@ class Bearer:
     """The task an attachment is judged for: its node, its label, its ancestors, what it bears.
 
     A task created has its node already, absent from the tree; ``ancestors`` are those it will
-    have, its parent first; ``carried`` its work package and its order item.
+    have, its parent first; ``carried`` its work package and its order item; ``created`` that the
+    node is not yet one, so that a refusal names it by a null node and the label sent.
     """
 
     node_id: UUID
     label: str
     ancestors: tuple[UUID, ...]
     carried: tuple[UUID | None, UUID | None] = (None, None)
+    created: bool = False
 
 
 @dataclass(frozen=True, slots=True)
@@ -61,8 +63,12 @@ class Attached:
     faults: tuple[FieldError, ...] = ()
 
 
-def _named(tree: Tree, node_id: UUID, label: str | None = None) -> dict[str, str]:
-    """Name a task by its node and its label."""
+def _named(
+    tree: Tree, node_id: UUID, label: str | None = None, unborn: UUID | None = None
+) -> dict[str, str | None]:
+    """Name a task by its node and its label; the task in creation (``unborn``) has no node."""
+    if node_id == unborn:
+        return {"node_id": None, "label": label or ""}
     return {"node_id": str(node_id), "label": label or tree.tasks[node_id].label}
 
 
@@ -100,14 +106,18 @@ def strays(
 
 
 def stray_fault(
-    tree: Tree, pointer: str, stray: tuple[UUID, list[UUID]], labels: Mapping[UUID, str]
+    tree: Tree,
+    pointer: str,
+    stray: tuple[UUID, list[UUID]],
+    labels: Mapping[UUID, str],
+    unborn: UUID | None = None,
 ) -> FieldError:
     """Refuse a task of an order item outside the subtree of the task of its work package."""
     package_task, item_tasks = stray
     ordered = sorted(item_tasks, key=lambda each: tree.row_number.get(each, 0))
     params = {
-        "work_package_task": _named(tree, package_task, labels.get(package_task)),
-        "order_item_tasks": [_named(tree, each, labels.get(each)) for each in ordered],
+        "work_package_task": _named(tree, package_task, labels.get(package_task), unborn),
+        "order_item_tasks": [_named(tree, each, labels.get(each), unborn) for each in ordered],
     }
     return FieldError(pointer, OUTSIDE, params)
 
@@ -183,12 +193,13 @@ def _outside(
         return summary in above
 
     labels = {bearer.node_id: bearer.label}
+    unborn = bearer.node_id if bearer.created else None
     faults: list[FieldError] = []
     for stray in strays(items, borne, is_under):
         package_task, item_tasks = stray
         if WORK_PACKAGE_ID in given and package_task == bearer.node_id:
-            faults.append(stray_fault(tree, f"{prefix}/{WORK_PACKAGE_ID}", stray, labels))
+            faults.append(stray_fault(tree, f"{prefix}/{WORK_PACKAGE_ID}", stray, labels, unborn))
         elif ORDER_ITEM_ID in given and bearer.node_id in item_tasks:
             only = (package_task, [bearer.node_id])
-            faults.append(stray_fault(tree, f"{prefix}/{ORDER_ITEM_ID}", only, labels))
+            faults.append(stray_fault(tree, f"{prefix}/{ORDER_ITEM_ID}", only, labels, unborn))
     return faults

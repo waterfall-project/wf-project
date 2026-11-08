@@ -32,6 +32,8 @@ from project_rows import STAMP
 from projects_support import scene as make_scene
 from sqlalchemy import func, insert, select
 
+from waterfall.core.planning import writing
+from waterfall.core.planning.interface import structures
 from waterfall.core.planning.tables import Node, TaskLink, TrackingEntry
 from waterfall.core.revisions.tables import CostStructure
 
@@ -227,9 +229,52 @@ def test_the_only_subordinate_of_a_summary_of_ten_days_deleted_leaves_a_leaf_of_
     assert leaf["task"]["scheduling_mode"] == "automatic"
     assert "task.duration" in leaf["editable_fields"]
     assert leaf["computed_fields"] == ["task.start", "task.finish"]
-    assert leaf["lock_version"] == summary["lock_version"]
+    assert leaf["lock_version"] == summary["lock_version"] + 1
     again = tree.create("Relevés", parent_id=summary["node_id"])
     assert again.status_code == 201, again.text
+
+
+@pytest.mark.requirement("WF-PLA-0040-A")
+def test_the_only_milestone_of_a_summary_deleted_leaves_a_milestone_not_started(
+    tree: Tree,
+) -> None:
+    # « … Si cette durée est nulle, elle devient un jalon, à l'état non démarré. »
+    summary = tree.made("Réception")
+    only = tree.made("Procès-verbal", parent_id=summary["node_id"], task=MILESTONE)
+    body = delete(tree, tree.node(only["node_id"])).json()
+    task = body["ancestors"][0]["task"]
+    assert (task["is_summary"], task["is_milestone"]) == (False, True)
+    assert (task["progress"], task["duration"]) == ("not_started", {"value": "0", "unit": "d"})
+
+
+@pytest.mark.requirement("WF-IHM-0110-A")
+def test_a_summary_left_a_leaf_by_a_deletion_is_refused_at_the_counter_read_before(
+    tree: Tree,
+) -> None:
+    # The summary written (it became a leaf) advances its counter: a facet change at the counter
+    # read before the deletion is refused.
+    summary = tree.made("Études")
+    only = tree.made("Note", parent_id=summary["node_id"])
+    before = tree.node(summary["node_id"])
+    assert delete(tree, tree.node(only["node_id"])).status_code == 200
+    answer = tree.change(before, label="Études détaillées")
+    assert refusal(answer) == (
+        412,
+        "STALE_LOCK_VERSION",
+        {"expected_lock_version": before["lock_version"] + 1},
+    )
+
+
+@pytest.mark.requirement("WF-IHM-0110-A")
+def test_a_summary_left_a_leaf_by_a_move_is_refused_at_the_counter_read_before(
+    tree: Tree,
+) -> None:
+    summary = tree.made("Études")
+    only = tree.made("Note", parent_id=summary["node_id"])
+    before = tree.node(summary["node_id"])
+    moved(tree, [tree.node(only["node_id"])], None)
+    answer = tree.change(before, label="Études détaillées")
+    assert refusal(answer)[:2] == (412, "STALE_LOCK_VERSION")
 
 
 # --- Move --------------------------------------------------------------------------------------
@@ -402,21 +447,41 @@ def test_a_selection_is_placed_in_its_order_after_the_sibling_named_or_at_the_en
     assert [item["position"] for item in tree.items()[1:]] == [1, 2, 3, 4, 5, 6]
 
 
-@pytest.mark.requirement("WF-PLA-0080-A")
-def test_a_place_that_is_no_sibling_or_a_parent_inside_the_selection_is_refused(
-    tree: Tree,
-) -> None:
+@pytest.mark.requirement("WF-PLA-0040-A")
+def test_a_place_after_a_node_that_is_no_sibling_is_refused_and_nothing_moves(tree: Tree) -> None:
+    # No Vérif of the spec states the refusal; the move that carries the subordinates is the
+    # closest, and the contract (``NODE_NOT_SIBLING``) the rule.
     parent = tree.made("Chantier")
     inner = tree.made("Câblage", parent_id=parent["node_id"])
     other = tree.made("Études")
     for after in (inner["node_id"], other["node_id"], str(uuid4())):
         answer = move(tree, [other], None, after_node_id=after)
         assert faults(answer) == [("/after_node_id", "NODE_NOT_SIBLING", {})]
-    for target in (inner, parent, {"node_id": str(uuid4())}):
+    assert tree.labels() == ["Chantier", "Câblage", "Études"]
+
+
+@pytest.mark.requirement("WF-PLA-0040-A")
+def test_a_selection_moved_under_a_node_of_its_own_subtree_is_refused(tree: Tree) -> None:
+    # A summary moved takes its subordinates with it: it cannot go under one of them (#2500 for
+    # the code answered, not in the contract yet).
+    parent = tree.made("Chantier")
+    inner = tree.made("Câblage", parent_id=parent["node_id"])
+    for target in (inner, parent):
         answer = move(tree, [parent], target)
         assert faults(answer) == [("/parent_id", "UNKNOWN_TASK", {})]
+    assert tree.labels() == ["Chantier", "Câblage"]
+
+
+@pytest.mark.requirement("WF-PLA-0040-A")
+def test_a_selection_moved_under_an_unknown_parent_or_of_an_unknown_node_is_refused(
+    tree: Tree,
+) -> None:
+    # The parent unknown is answered as the parent in the selection (#2500).
+    parent = tree.made("Chantier")
+    answer = move(tree, [parent], {"node_id": str(uuid4())})
+    assert faults(answer) == [("/parent_id", "UNKNOWN_TASK", {})]
     assert refusal(move(tree, [{"node_id": str(uuid4())}], None))[:2] == (404, "NOT_FOUND")
-    assert tree.labels() == ["Chantier", "Câblage", "Études"]
+    assert tree.labels() == ["Chantier"]
 
 
 @pytest.mark.requirement("WF-IHM-0110-A")
@@ -460,3 +525,46 @@ def test_a_deletion_and_a_move_keep_their_entry_of_the_history(
     with stage.database.transaction() as session:
         count = session.scalar(select(func.count()).select_from(Node))
     assert count == 1
+
+
+@pytest.mark.requirement("WF-PLA-0040-A")
+def test_a_selection_that_holds_a_node_and_its_descendant_is_placed_as_sent(tree: Tree) -> None:
+    target = tree.made("Chantier")
+    summary = tree.made("Études")
+    child = tree.made("Note", parent_id=summary["node_id"])
+    moved(tree, [tree.node(summary["node_id"]), tree.node(child["node_id"])], target)
+    # Both under the parent, side by side, in the order sent: the descendant leaves its summary.
+    assert [(i["task"]["label"], i["level"]) for i in tree.items()] == [
+        ("Chantier", 1),
+        ("Études", 2),
+        ("Note", 2),
+    ]
+
+
+@pytest.mark.requirement("WF-PLA-0040-A")
+def test_a_write_of_the_tree_reads_the_facts_of_its_structure_once(
+    tree: Tree, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # #2492: the facts of the structure, read under its lock, are handed to the replay; a second
+    # reading under the lock would lock the structure again.
+    calls: list[int] = []
+    real = writing.structure_facts
+
+    def counted(*args: Any, **kwargs: Any) -> Any:
+        if kwargs.get("lock"):
+            calls.append(1)
+        return real(*args, **kwargs)
+
+    monkeypatch.setattr(writing, "structure_facts", counted)
+    monkeypatch.setattr(structures, "structure_facts", counted)
+    summary = tree.made("Études")
+    assert len(calls) == 1
+    calls.clear()
+    note = tree.made("Note", parent_id=summary["node_id"])
+    assert len(calls) == 1
+    calls.clear()
+    moved(tree, [tree.node(note["node_id"])], None)
+    assert len(calls) == 1
+    calls.clear()
+    assert delete(tree, tree.node(note["node_id"])).status_code == 200
+    assert len(calls) == 1

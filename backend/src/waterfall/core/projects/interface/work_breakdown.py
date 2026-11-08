@@ -509,7 +509,7 @@ def _remove(scope: _Scope, items: list[OrderItem], packages: list[WorkPackage]) 
     leaving = [row.id for row in (*items, *packages)]
     if not leaving:
         return
-    for table in (OrderItem, WorkPackage):
+    for table in (WorkPackage, OrderItem):  # the order of ``work_breakdown_items``: no deadlock
         session.execute(select(table.id).where(table.id.in_(leaving)).with_for_update())
     for item_id in leaving:
         detach_item(session, scope.project_id, item_id)

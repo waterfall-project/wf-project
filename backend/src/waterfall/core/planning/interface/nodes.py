@@ -492,7 +492,7 @@ def create_node(
         _judge_parent(tree, parent)
         applicable = calendar_of(session, place.project_id, node_id).calendar
         lineage = () if parent is None else (parent, *tree.ancestors(parent))
-        bearer = Bearer(node_id, creation.task.label or "", lineage)
+        bearer = Bearer(node_id, creation.task.label or "", lineage, created=True)
         attached = _attached(write, bearer, creation.task.attachment(creation=True), "/task")
         facet = _together(
             lambda: judged_creation(creation.task, applicable, constants_of(session)), attached
@@ -690,6 +690,7 @@ def delete_node(
         write.before(touched)
         if left_bare and parent is not None:
             emptied(tree, parent)
+            stamp(tree.nodes[parent], writer.act)
         deleted(write, subtree)
         redated = write.redate(None)
         write.after(touched)
@@ -711,6 +712,8 @@ def _judge_move(tree: Tree, placing: Placing) -> None:
     if (parent is None and lines_moved) or (
         parent is not None and (parent not in tree.tasks or parent in inside)
     ):
+        # 422 ``UNKNOWN_TASK`` on /parent_id for a parent taken in the selection: the contract does
+        # not say it yet (#2500, to settle).
         raise UnprocessableError(
             VALIDATION_FAILED, fields=(FieldError("/parent_id", UNKNOWN_TASK),)
         )
@@ -806,6 +809,7 @@ def _moved(write: Write, placing: Placing) -> NodesWritten:
     write.before(touched)
     for each in left_bare:
         emptied(tree, each)
+        stamp(tree.nodes[each], act)
     if made_summary and parent is not None:
         tree.tasks[parent].scheduling_mode = AUTOMATIC
         stamp(tree.nodes[parent], act)
