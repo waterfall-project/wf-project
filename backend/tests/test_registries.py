@@ -337,7 +337,7 @@ def test_a_recalculation_registered_runs_once_the_reference_is_written(
         install_duration_units(session, act)
         calendar = create_calendar(session, ATELIER, act)
     with ExitStack() as registered:
-        registered.callback(register_recalculation(lambda _session: ran.append("redated")))
+        registered.callback(register_recalculation(lambda _session, _at: ran.append("redated")))
         with database.transaction() as session:
             set_duration_units(
                 session, DEFAULT_UNITS, get_duration_units(session).lock_version, act

@@ -12,10 +12,12 @@ d'extension"), filled by the planning at the import of its interface:
   WF-ADM-0110). EP-06 judges the default calendar (``tasks_left_idle``), EP-07 the roles;
 - ``register_recalculation``: the constants of the units of duration, the hours of a calendar and
   the designation of the default redate, in their transaction, the structures of the current
-  revisions (``reschedule_current_structures``). The reference is locked first — the object
-  written, then the advisory lock of its rule —, the structures after it, by the recalculation.
+  revisions (``reschedule_current_structures``), their dates' instant moved on to that of the
+  change. The reference is locked first — the object written and the advisory lock of its rule —,
+  the structures after it, by the recalculation, in the order of (``project_id``, ``id``).
 
-Declared by US-1380/L1; US-1390/L2 fills what the planning registers.
+Declared by US-1380/L1; US-1390/L2 fills what the planning registers, and gives the recalculation
+the instant of the change.
 """
 
 from dataclasses import dataclass
@@ -25,6 +27,7 @@ from waterfall.platform.registry import Registry
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Mapping
+    from datetime import datetime
     from decimal import Decimal
     from uuid import UUID
 
@@ -53,7 +56,9 @@ _GUARDS: Registry[Callable[[Session, CalendarChange], tuple[IdleProject, ...]]] 
     "resource_settings.idle_task_guard"
 )
 # What redates the structures of the current revisions once the reference changed, in order.
-_RECALCULATIONS: Registry[Callable[[Session], None]] = Registry("resource_settings.recalculation")
+_RECALCULATIONS: Registry[Callable[[Session, datetime], None]] = Registry(
+    "resource_settings.recalculation"
+)
 
 
 def register_idle_task_guard(
@@ -63,8 +68,13 @@ def register_idle_task_guard(
     return _GUARDS.register(guard)
 
 
-def register_recalculation(recalculate: Callable[[Session], None]) -> Callable[[], None]:
-    """Add what redates the current structures after the reference changed; give its withdrawal."""
+def register_recalculation(
+    recalculate: Callable[[Session, datetime], None],
+) -> Callable[[], None]:
+    """Add what redates the current structures after the reference changed; give its withdrawal.
+
+    It is given the transaction of the change and its instant.
+    """
     return _RECALCULATIONS.register(recalculate)
 
 
@@ -73,7 +83,10 @@ def projects_left_idle(session: Session, change: CalendarChange) -> tuple[IdlePr
     return tuple(project for guard in _GUARDS.entries() for project in guard(session, change))
 
 
-def recalculate(session: Session) -> None:
-    """Redate the structures of the current revisions, by every recalculation registered."""
+def recalculate(session: Session, at: datetime) -> None:
+    """Redate the structures of the current revisions at ``at``, by every recalculation registered.
+
+    To be called once the reference is written, in its transaction and under its locks.
+    """
     for recalculation in _RECALCULATIONS.entries():
-        recalculation(session)
+        recalculation(session, at)

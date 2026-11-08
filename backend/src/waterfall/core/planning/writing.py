@@ -27,7 +27,7 @@ from typing import TYPE_CHECKING
 from waterfall.core.history import interface as history
 from waterfall.core.history.interface import RecordedChange, Recording, UndoStack
 from waterfall.core.planning.interface.snapshots import snapshot
-from waterfall.core.planning.interface.structures import reschedule
+from waterfall.core.planning.rescheduling import Blamed, replayed
 from waterfall.core.planning.tree import read_tree
 from waterfall.core.planning.views import NodeView, Reading, ScheduleView
 from waterfall.core.projects.interface import no_background_task_running, project_facts
@@ -44,6 +44,7 @@ if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
     from waterfall.core.history.interface import UndoneKind
+    from waterfall.core.planning.scheduling import Origin
     from waterfall.core.planning.tree import Tree
     from waterfall.core.revisions.interface import StructureFacts
     from waterfall.platform.audit import Act
@@ -150,15 +151,18 @@ class Write:
         """Hand the history the nodes the write touches, as they are before it."""
         self.frame.keep_before(snapshot(self.session, self.place.project_id, node_ids))
 
-    def redate(self, blamed: tuple[UUID | None, str]) -> Redated:
+    def redate(self, blamed: tuple[UUID | None, str] | None, origin: Origin = None) -> Redated:
         """Replay the engine on the structure written, keep what it computes, advance it.
 
         Beyond the horizon (WF-PLA-0150), refused naming the task written — its node, null for a
-        task created, and its label (422 ``PROJECT_HORIZON_EXCEEDED``); nothing is written.
+        task created, and its label (422 ``PROJECT_HORIZON_EXCEEDED``) —, or, for a write that
+        writes no task (``blamed`` none), the task that finishes last; a loop of links named from
+        ``origin`` (422 ``LINK_CYCLE``). Nothing is written.
         """
         place = self.place
-        done = reschedule(
-            self.session, place.project_id, place.structure_id, self.writer.act.at, blamed
+        named = None if blamed is None else Blamed(*blamed, origin)
+        done = replayed(
+            self.session, place.project_id, place.structure_id, self.writer.act.at, named
         )
         structure = (place.project_id, self.writer.act.at, self.facts.is_main)
         reading = Reading(self.session, structure, done.tree, done.links, done.calendars)

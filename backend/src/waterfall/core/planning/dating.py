@@ -13,17 +13,20 @@ days (WF-PLA-0040) — and its mode, always automatic; the links in conflict are
 """
 
 from dataclasses import dataclass
-from decimal import Decimal
+from fractions import Fraction
 from typing import TYPE_CHECKING, cast
 
 from waterfall.core.planning.scheduling import (
     Duration,
     Lag,
     Link,
+    LinkCycleError,
+    LinkForbiddenError,
     Schedule,
     Structure,
     UnitConstants,
     WorkInstant,
+    decimal_of,
     schedule,
 )
 from waterfall.core.planning.scheduling import Task as Planned
@@ -34,6 +37,7 @@ from waterfall.platform.errors import UnprocessableError
 if TYPE_CHECKING:
     from collections.abc import Collection
     from datetime import date
+    from decimal import Decimal
     from uuid import UUID
 
     from sqlalchemy.orm import Session
@@ -43,6 +47,7 @@ if TYPE_CHECKING:
         DurationUnit,
         LagUnit,
         LinkType,
+        Origin,
         ScheduledTask,
     )
     from waterfall.core.planning.tables import Task, TaskLink
@@ -52,6 +57,8 @@ AUTOMATIC = "automatic"
 MANUAL = "manual"
 DAYS = "d"
 PROJECT_HORIZON_EXCEEDED = "PROJECT_HORIZON_EXCEEDED"
+LINK_CYCLE = "LINK_CYCLE"
+LINK_FORBIDDEN = "LINK_FORBIDDEN"
 
 
 def constants_of(session: Session) -> UnitConstants:
@@ -60,15 +67,17 @@ def constants_of(session: Session) -> UnitConstants:
     return UnitConstants(units.hours_per_day, units.hours_per_week, units.days_per_month)
 
 
-def in_days(hours: Decimal, constants: UnitConstants) -> Decimal:
-    """Give hours of work in days of the installation, as the unit ``d`` counts them."""
-    return hours / constants.hours_per_day
+def in_days(hours: Decimal | Fraction, constants: UnitConstants) -> Decimal:
+    """Give hours of work in days of the installation, as the unit ``d`` counts them.
+
+    Rendered as the engine renders its hours, whatever the context of ``decimal`` (#2460).
+    """
+    return decimal_of(Fraction(hours) / Fraction(constants.hours_per_day))
 
 
 def days_of(task: Task, constants: UnitConstants) -> Decimal:
     """Give the duration of a task in days of work of the installation, elapsed units included."""
-    hours = duration_of(task).hours(constants)
-    return in_days(Decimal(hours.numerator) / Decimal(hours.denominator), constants)
+    return in_days(duration_of(task).hours(constants), constants)
 
 
 def duration_of(task: Task) -> Duration:
@@ -120,8 +129,14 @@ def _planned(replay: Replay, node_id: UUID) -> Planned:
     )
 
 
-def dated(replay: Replay) -> Schedule:
-    """Run the engine on the structure; beyond the horizon, the schedule names the task."""
+def dated(replay: Replay, origin: Origin = None) -> Schedule:
+    """Run the engine on the structure; beyond the horizon, the schedule names the task.
+
+    A loop of links is refused naming its tasks, from ``origin`` — the task whose predecessors
+    are entered —, by their node and their label (422 ``LINK_CYCLE``, ``params.cycle``); a link
+    between a summary and its subordinate without a parameter (422 ``LINK_FORBIDDEN``,
+    WF-PLA-0030, WF-PLA-0040).
+    """
     tree = replay.tree
     links = tuple(
         Link(
@@ -133,7 +148,14 @@ def dated(replay: Replay) -> Schedule:
         for link in replay.links
     )
     planned = tuple(_planned(replay, node_id) for node_id in tree.order if node_id in tree.tasks)
-    return schedule(Structure(planned, links, replay.planning_start, replay.constants))
+    structure = Structure(planned, links, replay.planning_start, replay.constants)
+    try:
+        return schedule(structure, origin)
+    except LinkCycleError as loop:
+        cycle = [{"node_id": str(each), "label": tree.tasks[each].label} for each in loop.cycle]
+        raise UnprocessableError(LINK_CYCLE, {"cycle": cycle}) from None
+    except LinkForbiddenError:
+        raise UnprocessableError(LINK_FORBIDDEN) from None
 
 
 def _conflicts(pairs: Collection[tuple[UUID, UUID]]) -> dict[UUID, set[tuple[UUID, UUID]]]:

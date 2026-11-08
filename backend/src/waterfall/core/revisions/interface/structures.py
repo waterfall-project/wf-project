@@ -18,7 +18,10 @@ it missing, the day of its own creation rather than vanish from its list.
 
 What the planning asks of a structure (EP-06, "Modules"): its facts, read or under its lock
 (``structure_facts``), which every write of its nodes takes, and the instant of its dates moved on
-with its counter (``structure_rescheduled``), at each write that redates it (US-1380/L2).
+with its counter (``structure_rescheduled``), at each write that redates it (US-1380/L2); its start
+and its label written (``write_structure``, ``updateCostStructure``), and the structures of the
+current revisions, their revisions read ``FOR SHARE`` (``current_structures``), which a change of
+the reference redates (US-1390/L2).
 
 Filled by US-0960. The witness loads no structure of its own: the main one is born with its
 revision, the others are EP-06's and EP-07's.
@@ -34,7 +37,7 @@ from waterfall.core.projects.interface import CommandAvailability, contributor_k
 from waterfall.core.revisions.commands import structure_commands_of
 from waterfall.core.revisions.interface.shared import NOT_FOUND
 from waterfall.core.revisions.states import revision_state
-from waterfall.core.revisions.tables import CostStructure
+from waterfall.core.revisions.tables import CostStructure, Revision
 from waterfall.platform.errors import NotFoundError
 from waterfall.platform.identifiers import new_id
 
@@ -253,6 +256,7 @@ class StructureFacts:
     planning_start_on: date
     scheduled_at: datetime
     lock_version: int
+    label: str
 
 
 def structure_facts(
@@ -279,7 +283,9 @@ def structure_facts(
             )
         )
         start = (origin or row.created_at).date()
-    return StructureFacts(row.id, row.revision_id, row.kind == MAIN, start, at, row.lock_version)
+    return StructureFacts(
+        row.id, row.revision_id, row.kind == MAIN, start, at, row.lock_version, row.label
+    )
 
 
 def structure_rescheduled(
@@ -299,3 +305,60 @@ def structure_rescheduled(
     if counted is None:
         raise NotFoundError(NOT_FOUND)
     return counted
+
+
+def write_structure(
+    session: Session,
+    project_id: UUID,
+    structure_id: UUID,
+    change: tuple[date | None, str | None],
+    act: Act,
+) -> None:
+    """Write the start and the label of a structure, each when given (``updateCostStructure``).
+
+    To be called under the lock of the structure (``structure_facts``); its counter advances with
+    the redating that follows (``structure_rescheduled``), once per write.
+    """
+    planning_start_on, label = change
+    values: dict[str, object] = {"updated_at": act.at, "updated_by": act.author}
+    if planning_start_on is not None:
+        values["planning_start_on"] = planning_start_on
+    if label is not None:
+        values["label"] = label
+    session.execute(
+        update(CostStructure)
+        .where(CostStructure.project_id == project_id, CostStructure.id == structure_id)
+        .values(**values)
+        .execution_options(synchronize_session=False)
+    )
+
+
+@dataclass(frozen=True, slots=True)
+class CurrentStructure:
+    """A structure of a current revision: its project, its revision, itself."""
+
+    project_id: UUID
+    revision_id: UUID
+    structure_id: UUID
+
+
+def current_structures(session: Session, *, lock: bool) -> tuple[CurrentStructure, ...]:
+    """Give the structures of the current revisions, in the order of (``project_id``, ``id``).
+
+    ``lock`` reads their revisions ``FOR SHARE``: a revision marked or abandoned meanwhile is left
+    out, and none is until the transaction ends — what a change of the reference takes before it
+    locks each structure in this order to redate it (EP-06, "Ce que le cadrage décide").
+    """
+    query = (
+        select(CostStructure.project_id, CostStructure.revision_id, CostStructure.id)
+        .join(
+            Revision,
+            (Revision.project_id == CostStructure.project_id)
+            & (Revision.id == CostStructure.revision_id),
+        )
+        .where(Revision.status == "draft")
+        .order_by(CostStructure.project_id, CostStructure.id)
+    )
+    if lock:
+        query = query.with_for_update(read=True, of=Revision)
+    return tuple(CurrentStructure(*row) for row in session.execute(query))

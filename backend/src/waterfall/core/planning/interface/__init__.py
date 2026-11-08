@@ -137,6 +137,12 @@ from waterfall.core.planning.interface.paste import (
 
 # ``predecessors`` (US-1380/L1; US-1390/L2): the predecessors of a task.
 from waterfall.core.planning.interface.predecessors import (
+    PredecessorSent as PredecessorSent,
+)
+from waterfall.core.planning.interface.predecessors import (
+    PredecessorsEntry as PredecessorsEntry,
+)
+from waterfall.core.planning.interface.predecessors import (
     set_predecessors as set_predecessors,
 )
 
@@ -167,6 +173,9 @@ from waterfall.core.planning.interface.snapshots import (
 )
 
 # ``structures`` (US-1380/L1; US-1380/L2, US-1390/L2): the dates, the start and the label.
+from waterfall.core.planning.interface.structures import (
+    StructureChange as StructureChange,
+)
 from waterfall.core.planning.interface.structures import (
     reschedule as reschedule,
 )

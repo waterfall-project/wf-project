@@ -157,5 +157,5 @@ def set_duration_units(
             updated_by=act.author,
         )
     )
-    recalculate(session)
+    recalculate(session, act.at)
     return get_duration_units(session)

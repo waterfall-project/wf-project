@@ -439,7 +439,7 @@ def update_calendar(
     _refuse_idle_tasks(session, calendar_id, change.weekly_hours, default=calendar.is_default)
     with _unique_label(session, change.label):
         _write(session, calendar, act, label=change.label, **_weekly(change.weekly_hours))
-    recalculate(session)
+    recalculate(session, act.at)
     return read_calendar(session, calendar_id)
 
 
@@ -464,7 +464,7 @@ def set_default_calendar(
         _refuse_idle_tasks(session, calendar_id, _hours_of(calendar), default=True)
         _retire_default(session, act)
         _write(session, calendar, act, is_default=True)
-        recalculate(session)
+        recalculate(session, act.at)
     return read_calendar(session, calendar_id)
 
 
