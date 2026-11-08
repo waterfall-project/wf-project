@@ -175,9 +175,9 @@ exécuté sans lui (décision de l'auteur du 2026-11-07).
   et en arborescence ;
 - cinquante saisies de la grille s'annulent puis se rétablissent, et l'annulation d'une
   modification qu'un autre contributeur a reprise est refusée en nommant l'objet ;
-- un collage depuis un tableur est prévisualisé, puis écrit les lignes collées sur des tâches
-  existantes, sans en créer (contrat, `previewPaste` ; une création au-delà de la dernière ligne
-  suit la décision de #2559) ;
+- un collage depuis un tableur est prévisualisé, puis écrit les lignes collées : sur les tâches
+  existantes, et, au-delà de la dernière, en créant une tâche par ligne du bloc (contrat,
+  `previewPaste`, décision de l'auteur du 2026-11-08, #2559, option B) ;
 - un fichier MS Project s'importe en deux temps dans la révision en cours, créée au besoin, un
   abandon laisse le projet inchangé, et un planning exporté puis réimporté ne présente aucun
   écart ;
@@ -195,9 +195,10 @@ suit une fois figé.
 - #1770 — `createNode` complète les heures d'une tâche datée, comme la modification (F-03 ;
   contrat #1769). US-1380.
 - #1772 — une tâche refusée sous un jalon, à la création, au déplacement, à l'import et au collage
-  (F-04 ; contrat #1771). US-1380 (création, déplacement), US-1430 (import) ; le collage n'a pas de
-  site, le contrat n'écrivant que des lignes existantes : #2559 le tranche (2026-11-08, « Les
-  catalogues du front et le collage »).
+  (F-04 ; contrat #1771). US-1380 (création, déplacement), US-1430 (import), US-1450 (collage) :
+  #2559 tranche pour l'option B (2026-11-08) — le collage crée les tâches des lignes du bloc au-delà
+  de la dernière, par la fonction de création, qui porte le refus ; la preuve par parcours est
+  d'EP-07, US-1560 (« Le collage qui crée »).
 - #1790 — le cycle de vie d'un import : l'état `refused`, les conditions de l'application et de
   l'abandon, le dépôt consommé, et les conditions de l'ouverture (I-01 à I-04 ; contrat #1789,
   #1792). EP-12 ayant été abandonné, EP-06 construit le premier ce cycle. US-1420.
@@ -267,7 +268,7 @@ noyau ; les routes de ses vingt-sept opérations ; trois traitements du worker e
 purge ; le moteur de dates ; la mécanique d'import en deux temps et son premier format ; la
 tranche des tâches du témoin ; et il branche sur le service les écrans du planning. Il **ne
 modifie pas le contrat**, figé en 1.0.0 : un manque devient une « Interface contract issue » que
-l'auteur tranche. Ce qui suit fixe ce que chaque lot devrait sinon décider seul.
+l'auteur tranche — deux l'ont été, #2485 et #2559. Ce qui suit fixe ce que chaque lot devrait sinon décider seul.
 
 ### Ce que le cadrage décide
 
@@ -565,7 +566,8 @@ couvre tous : pour chaque processus — l'API (`create_app`), le worker (`handle
   de `NodeColumn` par les mêmes fonctions que la saisie d'une cellule, garde le plan dans
   `paste_plan` avec le compteur de la structure, et rend `PastePlan` ; `applyPaste` relit le plan,
   refuse par 412 une structure qui a bougé, rejuge, écrit les lignes acceptées en une opération et
-  une seule entrée d'historique (`paste`), et rend `PasteApplied`.
+  une seule entrée d'historique (`paste`), et rend `PasteApplied`. Les lignes du bloc au-delà du dernier nœud créent des tâches (ci-dessous,
+« Le collage qui crée »).
 
 ### La purge
 
@@ -679,19 +681,73 @@ Deux questions d'US-1450/L2 (#2344), tranchées par l'utilisateur sur la recomma
   (#2519, option (a), `NODE_CYCLE`) l'avait déjà levée une fois, US-1450/L2 (`SESSION_ID_MISSING`,
   #2472) la lève la seconde, et la décision vaut pour les suivants. Deux lots qui ajoutent chacun
   un code touchent le même fichier : ils sont « pas avec » l'un l'autre par les fichiers du
-  contrat qu'ils écrivent déjà. Écartés : reporter le code au lot du front de l'US (US-1450/L3), qui
+  contrat qu'ils écrivent déjà. **Amendement du 2026-11-08 (#2559, #2563)** : le lot qui porte un
+  écran écrit aussi les clés non-erreur de ce seul écran dans `fr.json` et `en.json` — le texte qui
+  annonce Annuler et Rétablir, qu'US-1450/L3 a fusionné sans (#2563) et qu'écrit US-1450/L6, celui qui dit combien de tâches un collage crée et le
+  retrait de `grid.paste.beyondRows` (US-1450/L6) —, avec son test ; toute clé d'un autre écran
+  manquante reste une issue. Écartés : reporter le code au lot du front de l'US (US-1450/L3), qui
   laissait les routes refuser sans code déclaré et revenait sur #2472 ; un lot de catalogue par
   clé, une issue, une branche et une fusion pour deux lignes.
-- **Le refus `MILESTONE_HAS_NO_SUBTASK` au collage (#1772) n'a aucun site**, le contrat n'écrivant
-  par `previewPaste` que des cellules de nœuds existants, sans créer ni déplacer de tâche, ce que le
-  front (la garde locale de `paste-dialog.tsx`) et le faux back font déjà ; mais `PasteRejection`
-  nomme ce refus (F-04, #1771) et ne dit rien d'une ligne du bloc au-delà du dernier nœud. Une
-  « Interface contract issue », #2559, le tranche entre A — le collage n'écrit que des lignes
-  existantes, la phrase retirée, la ligne au-delà refusée — et B — le collage crée les tâches des
-  lignes au-delà de la dernière, où le refus trouve son site. En attendant, US-1450/L2 fusionne
-  sans #1772 au collage, le critère d'US-1450 ne le cite plus, la définition de fini dit « écrit les
-  lignes collées », et #1772 se clôt par la création, le déplacement et l'import. Écarté : constater
-  seul que le critère ne vaut pas, sans trancher le contrat, qui aurait gardé une phrase sans site.
+- **Le refus `MILESTONE_HAS_NO_SUBTASK` au collage (#1772) n'avait aucun site**, le contrat n'écrivant
+  par `previewPaste` que des cellules de nœuds existants. #2559 a tranché le 2026-11-08 pour B (la
+  section suivante). Pendant US-1450/L2, le critère d'US-1450 ne le citait pas. Écarté : A — le
+  collage n'écrit que des lignes existantes —, qui aurait retiré la phrase de `PasteRejection`.
+
+### Le collage qui crée (décision de l'utilisateur du 2026-11-08, #2559, option B)
+
+Le collage **crée** les tâches des lignes du bloc qui tombent au-delà du dernier nœud de la
+structure. Trois lots d'US-1450 le construisent après L3 : L4 le contrat et le faux back, L5 le
+service, L6 la grille. Le contrat reste en `1.0.0` : c'est une « Interface contract issue » tranchée,
+la seconde d'EP-06 avec #2485.
+
+- **La règle.** Une ligne du bloc au-delà du dernier nœud de la structure, dans l'ordre du plan,
+  crée un nœud sœur de ce dernier nœud — même parent, rang à la suite, dans l'ordre du bloc —, du
+  genre du nœud visé. Le dernier nœud de la structure est l'ancre, qu'il ait été écrit ou que sa
+  ligne ait été refusée (précision du cadrage : « le dernier nœud écrit » du relais de #2559 ne dit
+  rien d'une ligne refusée). Le libellé est requis : la cellule `label` de la ligne est vide ou
+  absente — le bloc ne commence pas à la colonne `label`, seule à précéder les autres —, la ligne est
+  refusée par `VALIDATION_FAILED`, `column` à `label`, et n'est pas créée. Aucun code nouveau, donc
+  aucune clé de catalogue. Les autres cellules de la ligne prennent d'abord les valeurs par défaut de
+  `createNode` (automatique, un jour, sans prédécesseur : WF-DEV-0050), puis se jugent dans l'ordre
+  de `NodeColumn` par `judge_cell`, avec les mêmes refus qu'à la saisie ; une ligne dont une cellule
+  est refusée l'est entière, comme les lignes existantes. Aucune borne nouvelle : `PASTE_TOO_WIDE` et
+  la taille de la requête (413) suffisent.
+- **Le refus sous un jalon.** La création passe par la fonction de création de `createNode`
+  (`core/planning/interface/nodes.py`), qui refuse déjà `MILESTONE_HAS_NO_SUBTASK`
+  (US-1380/L3) ; le collage la rend ligne par ligne, `params` nommant le jalon (`PasteRejection`,
+  dont la phrase ne change pas). Le site existe, mais EP-06 ne l'atteint pas par un geste : le parent
+  de l'ancre est celui d'une tâche, jamais un jalon ; il ne le devient qu'avec une ligne de devis
+  sous un jalon, dernier nœud de la structure et ancre d'une tâche à créer. Un test unitaire de la
+  fonction l'éprouve ici ; le parcours est d'US-1560 (EP-07), qui clôt la part de #1772 au collage.
+- **Le contrat (L4)** : `PastePreview` énonce la règle, pour les deux genres — la création d'une
+  ligne de devis par collage est servie par EP-07 (US-1560), le service d'EP-06 ne crée que des
+  tâches, le genre ligne n'existant pas encore — et retire la phrase « No cell is shifted » comme
+  seule limite de hauteur ; `PastePlan` gagne `created` (entier ≥ 0, requis ; les lignes qui
+  créent, comptées aussi dans `accepted`), `0` dans tous les exemples existants ; `PasteApplied`
+  n'a pas de champ de plus : les nœuds créés sont dans `nodes` (`NodesWritten`) ; `applyPaste` et
+  `previewPaste` le disent. Deux exemples neufs, `paste_plan_creating` et `paste_applied_creating`,
+  engendrés par `make mock-data` (`mockwrites`, tâches seules : le faux back ne crée que des
+  tâches ; l'écriture de ses lignes de devis reste celle d'aujourd'hui). La décision s'écrit dans
+  `DECISIONS.md` avec ses options écartées ; les modèles du service et le client du front se
+  régénèrent. Le même lot ajoute les exemples 200 d'`undoLastChange` et `redoLastUndo` (#2564).
+- **Le service (L5)** : `paste.py` remplace le refus `NOT_FOUND` d'une ligne au-delà du dernier nœud
+  par la création ; le plan (`paste_plan.rows`) garde pour chaque ligne qu'elle crée ; `applyPaste`
+  rejuge, crée et écrit sous le verrou de la structure, redate une seule fois, et inscrit une seule
+  entrée `paste` dont l'instantané « avant » ignore les nœuds créés : annuler les supprime, rétablir
+  les recrée, comme pour `createNode`. Aucune migration, aucun module nouveau.
+- **Le front (L6)** : la garde locale de `paste-dialog.tsx` ne refuse plus un bloc plus haut que les
+  lignes que la grille montre ; elle garde les colonnes masquées et les lignes pliées. L'aperçu dit
+  combien de lignes créent (`created`), et la grille insère les nœuds créés que `PasteApplied` rend.
+- **Ordre** : L4 avant L5 (les modèles régénérés) ; L6 après L3, L4 et L5. US-1480/L3 les reçoit en
+  dépendances ; US-1480/L2, qui ne rejoue que `timelines.spec.ts`, n'attend pas. Le tableau « Ce
+  qu'EP-06 écrit encore » d'EP-07 nomme L5 pour le collage, que US-1560 attend.
+- **Options écartées** : A (voir ci-dessus) ; une opération `createRows` à part, un appel de plus pour
+  un geste ; un libellé par défaut aux lignes sans libellé, qui écrirait ce que l'utilisateur n'a
+  pas collé ; refuser tout le bloc si une ligne de création est refusée, contre la règle de
+  WF-IHM-0050 (« les lignes valides sont écrites ») ; des sous-tâches de l'ancre plutôt que ses
+  sœurs ; un code `PASTE_LABEL_REQUIRED`, une clé de catalogue pour un refus que
+  `VALIDATION_FAILED` dit déjà ; laisser le dialogue déduire le nombre de créations des lignes
+  au-delà de la grille, qu'il ne connaît que par ce qu'il montre.
 
 ### Le front
 
@@ -1476,12 +1532,23 @@ vite sans craindre une fausse manœuvre.
   l'abandon, ni à la session ;
 - propre à l'US : `previewPaste` juge un bloc collé sur la facette tâche dans l'ordre de
   `NodeColumn` — `COMPUTED_VALUE`, `FIELD_NOT_ACCEPTED`, `NON_WORKING_DAY`, les règles du
-  rattachement ; chaque ligne du bloc écrit un nœud existant, aucune n'en crée, et
-  `MILESTONE_HAS_NO_SUBTASK` (#1772) n'y a pas de site tant que #2559 n'est pas tranchée —,
-  refuse un bloc trop large
-  (422 `PASTE_TOO_WIDE`, `max_columns`), et garde le plan (`paste_plan`) avec le compteur de la
-  structure ; `applyPaste` écrit les lignes acceptées en une opération, rejuge, 412 si la
-  structure a changé, et rend `PasteApplied` ; un plan abandonné n'écrit rien ;
+  rattachement ; chaque ligne du bloc écrit le nœud existant à la même distance sous le nœud visé,
+  et chaque ligne au-delà du dernier nœud de la structure crée une tâche, sœur du dernier nœud
+  écrit (même parent, même genre que le nœud visé), dont le libellé est requis — la ligne dont il
+  manque est refusée, sa colonne nommée — et dont les autres cellules se jugent comme celles d'une
+  tâche qui s'écrit ; le compte rendu dit combien de lignes écrivent et combien créent
+  (`created`) ; il refuse un bloc trop large (422 `PASTE_TOO_WIDE`,
+  `max_columns`), et garde le plan (`paste_plan`) avec le compteur de la structure ;
+- écart : #1772 au collage — une ligne du bloc qui placerait une tâche sous un jalon est refusée
+  par `MILESTONE_HAS_NO_SUBTASK`, `params` nommant le jalon, la ligne n'étant pas écrite : la
+  création du collage passe par la fonction de `createNode`, qui porte déjà ce refus, et un test
+  unitaire l'éprouve ; aucun parcours d'EP-06 ne l'atteint, une tâche créée sœur d'une tâche n'ayant
+  jamais un jalon pour parent, et le cas — la sœur d'une ligne de devis d'un jalon — demande des
+  lignes : la preuve par parcours est d'EP-07, US-1560, qui clôt ;
+- propre à l'US : `applyPaste` écrit les lignes acceptées, existantes et créées, en une opération et
+  une seule entrée d'historique, rejuge, 412 si la structure a changé, et rend `PasteApplied`, dont
+  `nodes` porte les tâches créées ; annuler le collage supprime les tâches qu'il a créées, le
+  rétablir les recrée ; un plan abandonné n'écrit ni ne crée rien ;
 - propre à l'US : Annuler et Rétablir de la grille de planning sont branchées (`undo-commands.tsx`,
   #1057), leur refus dit par le catalogue, le collage de la grille de planning joue contre le
   service, et les parcours `undo.spec.ts` et `paste.spec.ts` portent `@shared` pour ce qu'ils
@@ -1495,7 +1562,9 @@ pile au jeton d'accès lui-même la viderait à chaque rafraîchissement, toutes
 la conception dit où l'API lit `sid` ; un jeton valide sans `sid` est refusé par `undoLastChange`
 et `redoLastUndo` (403 `SESSION_ID_MISSING`, #2472), dont le lot écrit la clé de catalogue (#2537,
 « Les catalogues du front et le collage »). La purge d'US-1420 retire les entrées d'une session
-finie et les plans échus.
+finie et les plans échus. Le collage qui crée les tâches au-delà de la dernière ligne (#2559,
+option B) est décidé après les lots L1 à L3 : les lots suivants le construisent (« Le collage qui
+crée »), et l'US n'est finie qu'à leur fusion.
 
 **Hors périmètre.** Les colonnes de la ligne de devis dans un collage (EP-07) ; l'annulation des
 saisies de risque (EP-08).
