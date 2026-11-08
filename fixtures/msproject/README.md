@@ -81,6 +81,7 @@ facultatif.
 | 10 | `10-other-constants.xml` | `constants_7_35_20` | 7 heures par jour, 35 par semaine, 20 jours par mois ; des durées en jours et semaines : importées avec les mêmes durées en heures, la différence signalée |
 | 11 | `11-horizon-sixteen-years.xml` | `horizon_exceeded` | un planning de seize ans, rejeté au compte rendu (WF-PLA-0150) ; hors du test de datation — le manifeste le marque `"dating": false` |
 | 12 | `12-mixed-large.xml` (facultatif) | — | ≈ 150 tâches, quatre niveaux, un mélange de tout ; pour la recette, aucun test ne l'exige |
+| 13 | `13-resource-calendars-not-ignored.xml` | `resources_ignored`, `assignments_ignored`, `resource_calendar_ignored` | une première version du 04, dont les calendriers passent par des ressources affectées **sans** « ignorer les calendriers des ressources » : MS Project date par les ressources, et l'écart est attendu ; gardé pour les avertissements de l'import, hors du test de datation — `"dating": false` |
 
 ## Les cas critiques — ceux qui départagent deux moteurs
 
