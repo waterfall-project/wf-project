@@ -91,6 +91,9 @@ from waterfall.core.planning.interface.nodes import (
     NodeList as NodeList,
 )
 from waterfall.core.planning.interface.nodes import (
+    NodeMoving as NodeMoving,
+)
+from waterfall.core.planning.interface.nodes import (
     RowResolution as RowResolution,
 )
 from waterfall.core.planning.interface.nodes import (
@@ -167,6 +170,9 @@ from waterfall.core.planning.interface.snapshots import (
 )
 
 # ``structures`` (US-1380/L1; US-1380/L2, US-1390/L2): the dates, the start and the label.
+from waterfall.core.planning.interface.structures import (
+    Holding as Holding,
+)
 from waterfall.core.planning.interface.structures import (
     reschedule as reschedule,
 )

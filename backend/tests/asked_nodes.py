@@ -11,11 +11,13 @@ CHANGE = "planning.write"
 
 # The permissions each operation asks for, in the order they are evaluated: the tree is read by
 # the holder of the permission to consult the planning, written by the holder of that to write it,
-# the command ``edit_planning`` of the structure (US-1380/L2).
+# the command ``edit_planning`` of the structure (US-1380/L2, L3).
 ASKED: dict[str, tuple[str, ...]] = {
     "listNodes": (CONSULT,),
     "createNode": (CONSULT, CHANGE),
     "updateTaskFacet": (CONSULT, CHANGE),
+    "deleteNode": (CONSULT, CHANGE),
+    "moveNodes": (CONSULT, CHANGE),
     "getComputedValueDependencies": (CONSULT,),
     "resolveRowNumber": (CONSULT,),
 }
@@ -25,6 +27,8 @@ ON_PROJECT: dict[str, str] = {
     "listNodes": "consultation",
     "createNode": "contributor",
     "updateTaskFacet": "contributor",
+    "deleteNode": "contributor",
+    "moveNodes": "contributor",
     "getComputedValueDependencies": "consultation",
     "resolveRowNumber": "consultation",
 }
