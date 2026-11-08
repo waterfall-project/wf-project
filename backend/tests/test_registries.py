@@ -7,12 +7,15 @@ never imports it holds a registry without its part, and copies a revision withou
 designates a reference without asking for them, in silence. Each entry point — the API
 (``create_app``), the worker (``handlers``), the loader of the witness (``load_witness``) — is
 imported in a process of its own, and its registries compared with those of a process that imports
-every module of the core and of the witness: none lacks an extension that a module registers. What
-the socle of EP-06 registers is named, so that the comparison is never between two empty lists.
+every module of the core and of the witness: none lacks an extension that a module registers, but
+the worker, which holds those of the estimate from US-1500/L2 on (EP-07, "Le worker"). What the
+socles of EP-06 and EP-07 register is named, so that the comparison is never between two empty
+lists.
 
 Then how each registry acts, details of the realization which reprise no Vérif: the closing of a
-revision, the guard and the recalculation of the reference, the attachments of the work breakdown,
-the facets, the formats and the exporters, the fillers of the witness.
+revision, what its marking keeps and what follows the designation of a reference (EP-07), the guard
+and the recalculation of the reference, the categories a line employs (EP-07), the attachments of
+the work breakdown, the facets, the formats and the exporters, the fillers of the witness.
 """
 
 import json
@@ -25,11 +28,13 @@ from typing import TYPE_CHECKING, Any
 from uuid import UUID, uuid4
 
 import pytest
+from planning_support import give_a_task
 from projects_support import PROJECTS, Scene
 from projects_support import scene as make_scene
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from waterfall.core.cost_settings.interface import category_is_employed, register_employment
 from waterfall.core.exchanges.interface import (
     exporters,
     formats,
@@ -70,10 +75,16 @@ from waterfall.core.resource_settings.interface import (
 )
 from waterfall.core.revisions.interface import (
     CLOSING_STAGES,
+    ReferenceDesignated,
     RevisionClosing,
+    RevisionMarking,
     closers,
     mark_revision,
     register_closing,
+    register_designation,
+    register_indicators,
+    register_marking,
+    register_tasks_and_lines,
 )
 from waterfall.core.revisions.tables import Revision
 from waterfall.platform.audit import Act
@@ -130,11 +141,14 @@ print(json.dumps(held))
 """
 # The registry whose order of registration does not count across its stages (#2470).
 CLOSING = "revisions.closing"
-# Every registry of the core and of the witness EP-04 and EP-06 declare.
+# Every registry of the core and of the witness EP-04, EP-06 and EP-07 declare.
 DECLARED = {
     "revisions.copy",
     "revisions.tasks_and_lines",
     "revisions.indicators",
+    "revisions.marking",
+    "revisions.designation",
+    "cost_settings.employment",
     CLOSING,
     "resource_settings.idle_task_guard",
     "resource_settings.recalculation",
@@ -173,6 +187,21 @@ REGISTERED = {
     ],
     "witness.revision_fillers": ["waterfall.witness.tasks.fill"],
 }
+ESTIMATE = "waterfall.core.estimate.interface"
+# What the socle of EP-07 registers without effect (US-1490/L1), after the planning's: the facet
+# and the question of the lines come with US-1490/L3, the registries of EP-07 with their stories
+# (decisions of 2026-11-08, #2370).
+REGISTERED_BY_EP07 = {
+    "revisions.copy": [f"{ESTIMATE}.rates.copy_rates"],
+    CLOSING: [f"content:{ESTIMATE}.rates.close_rates"],
+    "resource_settings.idle_task_guard": [f"{ESTIMATE}.calendars.idle_tasks_for_role_calendar"],
+    "exchanges.formats": [f"estimate:{ESTIMATE}.excel.EstimateFormat"],
+    "exchanges.exporters": [f"estimate:{ESTIMATE}.excel.EstimateExporter"],
+    "witness.revision_fillers": ["waterfall.witness.estimate_lines.fill"],
+}
+# The entry point that does not import the interface of the estimate yet: the worker, until the
+# story of US-1500 that writes the marking imports it (EP-07, "Le worker"), after #2341.
+WITHOUT_ESTIMATE = {"worker"}
 
 
 def as_run(name: str, entries: list[str]) -> list[str]:
@@ -214,14 +243,37 @@ def test_every_registry_holds_what_the_socle_of_ep06_registers(
         assert everything[name][: len(entries)] == entries, name
 
 
+def test_every_registry_holds_what_the_socle_of_ep07_registers_after_the_planning(
+    everything: dict[str, list[str]],
+) -> None:
+    # The extensions of the estimate, each after those of EP-06 in its registry; nothing yet in the
+    # facets, the questions of the designation, nor the registries EP-07 declares.
+    for name, entries in REGISTERED_BY_EP07.items():
+        held = [entry for entry in everything[name] if entry not in REGISTERED.get(name, [])]
+        assert held == entries, name
+    for name in (
+        "planning.facets",
+        "revisions.tasks_and_lines",
+        "revisions.marking",
+        "revisions.designation",
+        "cost_settings.employment",
+    ):
+        assert not any(ESTIMATE in entry for entry in everything[name]), name
+
+
 @pytest.mark.parametrize("entry_point", sorted(ENTRY_POINTS))
 def test_each_entry_point_holds_every_extension_of_the_registries_it_reads(
     entry_point: str, everything: dict[str, list[str]]
 ) -> None:
-    # The API and the worker read no registry of the witness; the loader reads them all.
+    # The API and the worker read no registry of the witness; the loader reads them all. The
+    # worker holds no extension of the estimate yet, and nothing else lacks.
     held = registered_in(ENTRY_POINTS[entry_point])
     read = {
-        name: entries
+        name: [
+            entry
+            for entry in entries
+            if entry_point not in WITHOUT_ESTIMATE or f"{ESTIMATE}." not in entry
+        ]
         for name, entries in everything.items()
         if entry_point == "loader" or not name.startswith(WITNESS)
     }
@@ -299,6 +351,88 @@ def test_the_closings_run_stage_by_stage_whatever_the_order_of_their_registratio
         ordered = closers()
     assert ordered.index(history) < ordered.index(content)
     assert closers().index(close_history) < closers().index(delete_nodes)
+
+
+def test_a_marking_registered_keeps_its_part_before_the_indicators_of_the_revision(
+    api: ContractClient, stage: Scene
+) -> None:
+    # What EP-07 keeps of a revision being marked — its images, its rates —, in the transaction of
+    # the marking, the revision judged and still current, before its indicators are computed.
+    ran: list[tuple[str, UUID, str]] = []
+
+    def keep(marking: RevisionMarking) -> None:
+        status = marking.session.scalar(
+            select(Revision.status).where(Revision.id == marking.revision_id)
+        )
+        assert (marking.project_id, marking.at) == (UUID(stage.project["project_id"]), at)
+        ran.append(("kept", marking.revision_id, str(status)))
+
+    def compute(_session: Session, revision_id: UUID) -> None:
+        ran.append(("computed", revision_id, "draft"))
+
+    at = utc_now()
+    revision_id = UUID(open_revision(api, stage)["revision_id"])
+    with ExitStack() as registered:
+        registered.callback(register_marking(keep))
+        registered.callback(register_indicators(compute))
+        with (
+            logging_context(correlation_id="marking"),
+            Session(stage.owner) as session,
+            session.begin(),
+        ):
+            mark_revision(session, revision_id, "v1.0", None, Act(None, at))
+    assert ran == [("kept", revision_id, "draft"), ("computed", revision_id, "draft")]
+
+
+def test_a_designation_registered_follows_the_reference_once_it_is_designated(
+    api: ContractClient, stage: Scene
+) -> None:
+    # What EP-07 refreshes once a reference is designated — the budgeted amounts of the current
+    # revision —, in the transaction of the designation, the revision designated already.
+    followed: list[tuple[UUID, UUID, bool]] = []
+
+    def follow(designation: ReferenceDesignated) -> None:
+        designated = designation.session.scalar(
+            select(Revision.is_reference).where(Revision.id == designation.revision_id)
+        )
+        followed.append((designation.project_id, designation.revision_id, bool(designated)))
+
+    project_id = stage.project["project_id"]
+    revision_id = UUID(open_revision(api, stage)["revision_id"])
+    with (
+        logging_context(correlation_id="marking"),
+        Session(stage.owner) as session,
+        session.begin(),
+    ):
+        give_a_task(session.connection(), revision_id)
+        mark_revision(session, revision_id, "v1.0", None, Act(None, utc_now()))
+    path = f"{PROJECTS}/{project_id}"
+    counter = api.get(path, headers=stage.manager.headers).json()["lock_version"]
+    with ExitStack() as registered:
+        registered.callback(register_tasks_and_lines("lines", lambda _session, _revision: True))
+        registered.callback(register_designation(follow))
+        response = api.put(
+            f"{path}/reference-revision",
+            headers=stage.manager.headers,
+            json={"revision_id": str(revision_id), "confirmed": True, "lock_version": counter},
+        )
+    assert response.status_code == 200, response.text
+    assert followed == [(UUID(project_id), revision_id, True)]
+
+
+def test_an_employment_registered_names_the_categories_a_line_employs(
+    session: Session,
+) -> None:
+    # The categories each answer registered names, gathered; none while nothing is registered.
+    first, second, third = uuid4(), uuid4(), uuid4()
+    asked = [first, second, third]
+    assert category_is_employed(session, asked) == frozenset()
+    with ExitStack() as registered:
+        registered.callback(register_employment(lambda _session, _ids: frozenset({first})))
+        registered.callback(
+            register_employment(lambda _session, ids: frozenset(ids) - {first, third})
+        )
+        assert category_is_employed(session, asked) == frozenset({first, second})
 
 
 EIGHT = Decimal(8)
@@ -417,19 +551,19 @@ def test_a_kind_has_one_facet_one_format_and_one_exporter_at_most() -> None:
     )
     with ExitStack() as registered:
         registered.callback(register_facet("estimate_line", hooks))
-        registered.callback(register_format("estimate", MS_PROJECT_FORMAT))
-        registered.callback(register_exporter("estimate", TASK_TREE_EXPORTER))
+        registered.callback(register_format("remaining", MS_PROJECT_FORMAT))
+        registered.callback(register_exporter("remaining", TASK_TREE_EXPORTER))
         assert (list(facets()), list(formats()), list(exporters())) == (
             ["estimate_line"],
-            ["ms_project_schedule", "estimate"],
-            ["ms_project_schedule", "task_tree_image", "estimate"],
+            ["ms_project_schedule", "estimate", "remaining"],
+            ["ms_project_schedule", "task_tree_image", "estimate", "remaining"],
         )
         with pytest.raises(ValueError, match="registered already"):
             register_facet("estimate_line", hooks)
         with pytest.raises(ValueError, match="has a format already"):
-            register_format("estimate", MS_PROJECT_FORMAT)
+            register_format("remaining", MS_PROJECT_FORMAT)
         with pytest.raises(ValueError, match="has an exporter already"):
-            register_exporter("estimate", MS_PROJECT_EXPORTER)
+            register_exporter("remaining", MS_PROJECT_EXPORTER)
     assert (dict(facets()), dict(formats()), dict(exporters())) == held
 
 

@@ -16,6 +16,7 @@ any write — is said by the triggers of the migration, owner included.
 """
 
 from datetime import date, datetime
+from decimal import Decimal
 from uuid import UUID
 
 from sqlalchemy import (
@@ -26,6 +27,7 @@ from sqlalchemy import (
     ForeignKeyConstraint,
     Index,
     Integer,
+    Numeric,
     SmallInteger,
     Text,
     UniqueConstraint,
@@ -137,6 +139,10 @@ class Revision(Audited):
     # The marked revision this one is the copy of; null for the first revision of a project, kept
     # after the marking (``Revision.source_revision_id`` of the contract).
     source_revision_id: Mapped[UUID | None]
+    # The rate of inflation and the probability of winning of the project, kept at the marking
+    # (EP-07); null on a current revision, which follows its project, and on one marked before.
+    inflation_rate: Mapped[Decimal | None] = mapped_column(Numeric(5, 4))
+    win_probability: Mapped[Decimal | None] = mapped_column(Numeric(5, 4))
 
 
 class CostStructure(Audited):

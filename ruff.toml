@@ -91,8 +91,11 @@ convention = "pep257"
 "backend/src/waterfall/api/avatars.py" = ["TC001", "TC002", "TC003"]
 "backend/src/waterfall/api/backups.py" = ["TC001", "TC002", "TC003"]
 "backend/src/waterfall/api/calendars.py" = ["TC001", "TC002", "TC003"]
+"backend/src/waterfall/api/comparison.py" = ["TC001", "TC002", "TC003"]
 "backend/src/waterfall/api/contributors.py" = ["TC001", "TC002", "TC003"]
 "backend/src/waterfall/api/cost_types.py" = ["TC001", "TC002", "TC003"]
+"backend/src/waterfall/api/estimate_indicators.py" = ["TC001", "TC002", "TC003"]
+"backend/src/waterfall/api/estimate_lines.py" = ["TC001", "TC002", "TC003"]
 "backend/src/waterfall/api/evaluation.py" = ["TC001", "TC002", "TC003"]
 "backend/src/waterfall/api/exports.py" = ["TC001", "TC002", "TC003"]
 "backend/src/waterfall/api/history.py" = ["TC001", "TC002", "TC003"]
@@ -105,6 +108,7 @@ convention = "pep257"
 "backend/src/waterfall/api/org_nodes.py" = ["TC001", "TC002", "TC003"]
 "backend/src/waterfall/api/progress.py" = ["TC001", "TC002", "TC003"]
 "backend/src/waterfall/api/projects.py" = ["TC001", "TC002", "TC003"]
+"backend/src/waterfall/api/rate_update.py" = ["TC001", "TC002", "TC003"]
 "backend/src/waterfall/api/reference.py" = ["TC001", "TC002", "TC003"]
 "backend/src/waterfall/api/reference_settings.py" = ["TC001", "TC002", "TC003"]
 "backend/src/waterfall/api/reference_settings_write.py" = ["TC001", "TC002", "TC003"]
@@ -120,6 +124,7 @@ convention = "pep257"
 "backend/src/waterfall/api/uploads.py" = ["TC001", "TC002", "TC003"]
 "backend/src/waterfall/api/users.py" = ["TC001", "TC002", "TC003"]
 "backend/src/waterfall/api/work_breakdown.py" = ["TC001", "TC002", "TC003"]
+"backend/src/waterfall/api/workload.py" = ["TC001", "TC002", "TC003"]
 "tools/src/**" = [
     "T201", # the repository tools speak on the console
     "S603", # they run git and their own commands, never user input

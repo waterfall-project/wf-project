@@ -9,13 +9,15 @@ few the design leaves silent. A name a story adds besides joins the import of it
 comment that names it, in the order Ruff keeps. Another module imports them from here, never from
 the file.
 
-The later epics extend the revisions through four ordered registries, without this module
+The later epics extend the revisions through six ordered registries, without this module
 importing theirs: ``register_copy`` the copy of a revision opened from a marked one (EP-06 the
-tasks and their links, EP-07 the lines and the images, EP-08 the structures it adds),
+tasks and their links, EP-07 the lines and the rates, EP-08 the structures it adds),
 ``register_tasks_and_lines`` the questions the designation asks, the tasks (EP-06) and the lines
-(EP-07), ``register_indicators`` the indicators kept at the marking (EP-10), and
-``register_closing`` what a module does before a revision is marked or abandoned, under its stage
-(EP-06). Each registers its own by a call in the ``__init__`` of its module's interface
+(EP-07), ``register_marking`` what a module keeps of a revision being marked (EP-07, the images
+and the rates), ``register_indicators`` the indicators kept at the marking (EP-10),
+``register_designation`` what follows the designation of a reference (EP-07, the budgeted amounts),
+and ``register_closing`` what a module does before a revision is marked or abandoned, under its
+stage (EP-06). Each registers its own by a call in the ``__init__`` of its module's interface
 (``waterfall.core.<module>.interface``), at its import: that interface imports this one first, so
 its copy comes after the structures', which this module registers itself, and after the copies of
 the modules it imports, whose rows its rows name. A registry holds nothing for a module its process
@@ -34,24 +36,28 @@ from waterfall.core.revisions.interface.closing import (
     register_closing,
 )
 
-# ``marking`` (US-0970; the indicators, EP-10): the marking of a revision.
+# ``marking`` (US-0970; what EP-07 keeps, US-1490/L1; the indicators, EP-10): the marking.
 from waterfall.core.revisions.interface.marking import (
     KEPT,
     MarkingRequest,
+    RevisionMarking,
     compute_indicators,
     load_marking,
     mark_revision,
     register_indicators,
+    register_marking,
     run_marking,
     submit_marking,
 )
 
-# ``reference`` (US-0980/L2): the reference revision of a project.
+# ``reference`` (US-0980/L2; what follows a designation, US-1490/L1): the reference revision.
 from waterfall.core.revisions.interface.reference import (
+    ReferenceDesignated,
     ReferenceToDesignate,
     RevisionPart,
     designate_reference,
     reference_correctable,
+    register_designation,
     register_tasks_and_lines,
     revision_has_tasks_and_lines,
 )
@@ -103,11 +109,13 @@ __all__ = [
     "ClosingStage",
     "CurrentStructure",
     "MarkingRequest",
+    "ReferenceDesignated",
     "ReferenceToDesignate",
     "RevisionClosing",
     "RevisionCopy",
     "RevisionFilters",
     "RevisionList",
+    "RevisionMarking",
     "RevisionPage",
     "RevisionPart",
     "RevisionStatus",
@@ -136,7 +144,9 @@ __all__ = [
     "reference_correctable",
     "register_closing",
     "register_copy",
+    "register_designation",
     "register_indicators",
+    "register_marking",
     "register_tasks_and_lines",
     "revision_draft",
     "revision_has_tasks_and_lines",
