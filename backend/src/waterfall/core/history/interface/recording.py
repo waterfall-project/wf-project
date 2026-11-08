@@ -13,7 +13,8 @@ by the closing of the revision or by the purge.
 The frame locks its stack at its opening, and an undoing or a redoing locks it the same way: a
 write opens its frame before it locks its structure, so that the locks are always taken in one
 order — the revision, the stack, the structure — and an undoing, which reads the stack before it
-knows the structure, never waits for a write that waits for it.
+knows the structure, then locks it before it judges anything, never waits for a write that waits
+for it.
 
 Declared by US-1380/L1; filled by US-1450/L1.
 """

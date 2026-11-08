@@ -8,13 +8,20 @@ the objects to restore (its ``before``), which the planning rewrites and redates
 same with the last entry undone, checking its ``before`` and giving back its ``after``. ``depth``
 tells what each would find (EP-06, "L'historique annulable").
 
-Each is a frame, like ``recording``: it locks the stack, reads and judges the entry, and gives the
-caller what to restore; the caller restores it, under the rules of the entry, and hands back the
-objects as the restoring left them (``keep_present``). Only then is the entry marked, undone or
-redone. A restoring is a write like any other, which moves the versions of what it writes: the
-history carries the versions it left to the entries that will be judged on them next — the nearest
-entry not undone that holds the object in its ``after``, the nearest undone one in its ``before`` —,
-so that fifty entries on the same task undo one by one, then redo in order, and only a change made
+Each is a frame, like ``recording``: it locks the stack, reads the entry, has the caller lock the
+structure the entry wrote (``StructureLocker``), and only then reads the objects as they are now and
+judges the entry, so that no write of another stack slips between the judging and the restoring —
+a judging before that lock would pass on a version a write holding the structure is about to move,
+and the restoring would bring ``before`` back over it. The locks keep the order of a write: the
+revision (the caller's, before the frame), the stack, the structure. The frame then gives the
+caller what to restore; the caller restores it, under the rules of the entry and the lock it took,
+and hands back the objects as the restoring left them (``keep_present``). Only then is the entry
+marked, undone or redone.
+
+A restoring is a write like any other, which moves the versions of what it writes: the history
+carries the versions it left to the entries that will be judged on them next — the nearest entry
+not undone that holds the object in its ``after``, the nearest undone one in its ``before`` —, so
+that fifty entries on the same task undo one by one, then redo in order, and only a change made
 outside the stack is a conflict.
 
 Declared by US-1380/L1; filled by US-1450/L1.
@@ -47,7 +54,14 @@ UNDO_HISTORY_NOT_EMPTY = "undo_history_not_empty"
 REDO_HISTORY_NOT_EMPTY = "redo_history_not_empty"
 
 # What reads the objects named as they are now, absent ones left out: the planning's ``snapshot``.
+# The frame calls it once, under the lock of the structure its ``StructureLocker`` took.
 type SnapshotReader = Callable[[tuple[UUID, ...]], Snapshot]
+
+# What locks, until the end of the transaction, the structure of the objects of an entry — those it
+# left and those it wants back, one side empty for a creation or a deletion —, whose rows name it:
+# the planning's lock of a structure (``cost_structure`` ``FOR UPDATE``), which every write of the
+# structure takes. The frame calls it once, after the lock of the stack and before any reading.
+type StructureLocker = Callable[[Snapshot], None]
 
 
 @dataclass(frozen=True, slots=True)
@@ -97,25 +111,31 @@ class Restoring:
 
 
 @contextmanager
-def undo(session: Session, stack: UndoStack, read: SnapshotReader) -> Generator[Restoring]:
+def undo(
+    session: Session, stack: UndoStack, *, lock: StructureLocker, read: SnapshotReader
+) -> Generator[Restoring]:
     """Undo the last entry not undone of a stack, and give back the objects to restore.
 
-    Refused by 409 ``STATE_FORBIDS_OPERATION``, ``undo_history_not_empty``, on a stack with no
-    entry to undo; by 409 ``UNDO_CONFLICT`` when an object the entry wrote is no longer at the
-    version it left, the first such object of the entry named. Nothing is marked if the block
-    raises.
+    The stack is locked, then the structure of the entry by ``lock``; the objects are read by
+    ``read`` under both, and the block restores them under both. Refused by 409
+    ``STATE_FORBIDS_OPERATION``, ``undo_history_not_empty``, on a stack with no entry to undo; by
+    409 ``UNDO_CONFLICT`` when an object the entry wrote is no longer at the version it left, the
+    first such object of the entry named. Nothing is marked if the block raises.
     """
-    with _turned(session, stack, read, undoing=True) as restoring:
+    with _turned(session, stack, lock, read, undoing=True) as restoring:
         yield restoring
 
 
 @contextmanager
-def redo(session: Session, stack: UndoStack, read: SnapshotReader) -> Generator[Restoring]:
+def redo(
+    session: Session, stack: UndoStack, *, lock: StructureLocker, read: SnapshotReader
+) -> Generator[Restoring]:
     """Redo the last entry undone of a stack, and give back the objects to restore.
 
-    Refused as ``undo`` is, ``redo_history_not_empty`` naming an empty stack of undoings.
+    Locked and refused as ``undo`` is, ``redo_history_not_empty`` naming an empty stack of
+    undoings.
     """
-    with _turned(session, stack, read, undoing=False) as restoring:
+    with _turned(session, stack, lock, read, undoing=False) as restoring:
         yield restoring
 
 
@@ -130,9 +150,20 @@ def depth(session: Session, stack: UndoStack) -> Depth:
 
 @contextmanager
 def _turned(
-    session: Session, stack: UndoStack, read: SnapshotReader, *, undoing: bool
+    session: Session,
+    stack: UndoStack,
+    lock: StructureLocker,
+    read: SnapshotReader,
+    *,
+    undoing: bool,
 ) -> Generator[Restoring]:
-    """Undo or redo the entry on the edge of a stack: judged, restored by the block, marked."""
+    """Undo or redo the entry on the edge of a stack: judged, restored by the block, marked.
+
+    The entry is read under the lock of the stack, which no other writer of the stack passes; the
+    objects it names, under the lock of their structure too, which a write of another stack —
+    another contributor — holds while it moves them: judged there, they stay as judged until the
+    block has restored them.
+    """
     lock_stack(session, stack)
     # The last entry not undone, for an undoing; the last one undone — the lowest — for a redoing.
     edge = UndoEntry.rank.desc() if undoing else UndoEntry.rank.asc()
@@ -147,6 +178,7 @@ def _turned(
         raise ConflictError(STATE_FORBIDS_OPERATION, {"missing_condition": condition})
     left, wanted = (entry.after, entry.before) if undoing else (entry.before, entry.after)
     expected, restored = decoded(left), decoded(wanted)
+    lock(expected + restored)
     _judge(expected, read)
     kept = {state.object_id for state in restored}
     available = depth(session, stack)

@@ -39,6 +39,7 @@ from waterfall.core.history.interface import (
     RecordedChange,
     Restoring,
     Snapshot,
+    StructureLocker,
     UndoneKind,
     UndoStack,
     depth,
@@ -74,6 +75,8 @@ pytestmark = pytest.mark.requirement("WF-IHM-0110-A")
 AT = datetime(2026, 11, 9, 8, tzinfo=UTC)
 OFFICE = "sid-office"
 HOME = "sid-home"
+# The key of the advisory lock that stands, in these tests, for the lock of the structure.
+STRUCTURE_LOCK = 3_700_099
 
 
 @dataclass
@@ -131,6 +134,21 @@ def stage(database: Database, owner: Engine) -> Iterator[Stage]:
         yield Stage(database, project, revision, claire, lucas)
 
 
+def lock_structure(session: Session) -> None:
+    """Lock the structure of the ledger until the end of the transaction, as a write does."""
+    session.execute(select(func.pg_advisory_xact_lock(STRUCTURE_LOCK)))
+
+
+def structure_lock(session: Session) -> StructureLocker:
+    """Give what locks the structure of the objects of an entry, as the planning would."""
+
+    def lock(objects: Snapshot) -> None:
+        assert objects, "an entry names the objects whose structure is locked"
+        lock_structure(session)
+
+    return lock
+
+
 def write(
     ledger: Ledger,
     stack: UndoStack,
@@ -142,6 +160,7 @@ def write(
     touched = tuple(changes)
     change = RecordedChange(ledger.stage.project, stack, kind, touched, at)
     with ledger.stage.database.transaction() as session, recording(session, change) as frame:
+        lock_structure(session)
         frame.keep_before(ledger.read(touched))
         for object_id, label in changes.items():
             ledger.write(object_id, label)
@@ -164,7 +183,7 @@ def undone(ledger: Ledger, stack: UndoStack) -> Restoring:
     """Undo the last entry of a stack in a transaction of its own, restored by the ledger."""
     with (
         ledger.stage.database.transaction() as session,
-        undo(session, stack, ledger.read) as restoring,
+        undo(session, stack, lock=structure_lock(session), read=ledger.read) as restoring,
     ):
         restore(ledger, restoring)
     return restoring
@@ -174,7 +193,7 @@ def redone(ledger: Ledger, stack: UndoStack) -> Restoring:
     """Redo the last entry undone of a stack in a transaction of its own."""
     with (
         ledger.stage.database.transaction() as session,
-        redo(session, stack, ledger.read) as restoring,
+        redo(session, stack, lock=structure_lock(session), read=ledger.read) as restoring,
     ):
         restore(ledger, restoring)
     return restoring
@@ -339,7 +358,7 @@ def test_a_write_or_a_restoring_that_hands_no_snapshot_keeps_nothing(stage: Stag
     with (
         pytest.raises(RuntimeError, match="objects"),
         stage.database.transaction() as session,
-        undo(session, stage.stack(), ledger.read),
+        undo(session, stage.stack(), lock=structure_lock(session), read=ledger.read),
     ):
         pass
     assert depth_of(stage, stage.stack()) == Depth(undoable=1, redoable=0)
@@ -358,7 +377,8 @@ def test_two_undoings_of_one_stack_at_once_undo_two_entries_one_after_the_other(
 
     def first() -> Restoring:
         with stage.database.transaction() as session:
-            with undo(session, stage.stack(), ledger.read) as restoring:
+            locked = structure_lock(session)
+            with undo(session, stage.stack(), lock=locked, read=ledger.read) as restoring:
                 holding.set()
                 assert release.wait(10)
                 restore(ledger, restoring)
@@ -376,6 +396,78 @@ def test_two_undoings_of_one_stack_at_once_undo_two_entries_one_after_the_other(
     assert depth_of(stage, stage.stack()) == Depth(undoable=1, redoable=2)
 
 
+def test_an_undo_waiting_for_a_write_of_another_contributor_judges_what_it_left(
+    stage: Stage,
+) -> None:
+    # « L'annulation d'une modification qu'un autre contributeur a depuis reprise est refusée et le
+    # nomme. » Lucas holds the structure and writes the task Claire would undo: her undoing waits
+    # for the structure before it reads the task, and judges the version Lucas left — never one he
+    # is about to move, over which ``before`` would be restored.
+    ledger, task = Ledger(stage), uuid4()
+    write(ledger, stage.stack(), {task: "Montage"})
+    holding, release = threading.Event(), threading.Event()
+
+    def lucas() -> None:
+        change = RecordedChange(stage.project, stage.stack(stage.lucas), "cell", (task,), AT)
+        with stage.database.transaction() as session, recording(session, change) as frame:
+            lock_structure(session)
+            frame.keep_before(ledger.read((task,)))
+            holding.set()
+            assert release.wait(10)
+            ledger.write(task, "Levage")
+            frame.keep_after(ledger.read((task,)))
+
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        writing = pool.submit(lucas)
+        assert holding.wait(10)
+        undoing = pool.submit(undone, ledger, stage.stack())
+        wait_for_a_lock(stage.database)
+        release.set()
+        writing.result(timeout=10)
+        with pytest.raises(ConflictError) as error:
+            undoing.result(timeout=10)
+    assert refusal(error) == (
+        UNDO_CONFLICT,
+        {"conflicting_object_id": str(task), "conflicting_object_label": "Levage"},
+    )
+    assert ledger.label(task) == "Levage"
+    assert depth_of(stage, stage.stack()) == Depth(undoable=1, redoable=0)
+
+
+def test_two_objects_interleaved_in_the_entries_are_undone_then_redone_to_each_state(
+    stage: Stage,
+) -> None:
+    # « Cinquante modifications successives s'annulent une par une, puis se rétablissent dans
+    # l'ordre », on two objects whose entries interleave: each restoring carries the versions it
+    # left to the next entry holding the object, past those that do not — the second object
+    # created, deleted with a change of the first, then created again by the redoing.
+    ledger, first, second = Ledger(stage), uuid4(), uuid4()
+    changes: list[tuple[UndoneKind, dict[UUID, str | None]]] = [
+        ("node_create", {first: "A0"}),
+        ("node_create", {second: "B0"}),
+        ("cell", {first: "A1", second: "B1"}),
+        ("cell", {second: "B2"}),
+        ("node_delete", {second: None, first: "A2"}),
+        ("cell", {first: "A3"}),
+    ]
+
+    def labels() -> tuple[str | None, str | None]:
+        return ledger.label(first), ledger.label(second)
+
+    states = [labels()]
+    for kind, change in changes:
+        write(ledger, stage.stack(), change, kind=kind)
+        states.append(labels())
+    for rank in reversed(range(len(changes))):
+        assert undone(ledger, stage.stack()).kind == changes[rank][0]
+        assert labels() == states[rank]
+    assert depth_of(stage, stage.stack()) == Depth(undoable=0, redoable=len(changes))
+    for rank in range(len(changes)):
+        assert redone(ledger, stage.stack()).kind == changes[rank][0]
+        assert labels() == states[rank + 1]
+    assert depth_of(stage, stage.stack()) == Depth(undoable=len(changes), redoable=0)
+
+
 def test_the_purge_removes_the_entries_of_the_sessions_over_and_the_plans_expired(
     stage: Stage,
 ) -> None:
@@ -386,7 +478,7 @@ def test_the_purge_removes_the_entries_of_the_sessions_over_and_the_plans_expire
         expired = keep_plan(session, plan(stage), AT - PLAN_LIFETIME)
         alive = keep_plan(session, plan(stage), AT - timedelta(minutes=30))
     with stage.database.transaction() as session:
-        purge(session, AT - timedelta(hours=12), AT)
+        purge(session, before=AT - timedelta(hours=12), now=AT)
     assert depth_of(stage, stage.stack()) == Depth(undoable=0, redoable=0)
     assert depth_of(stage, stage.stack(session_id=HOME)) == Depth(undoable=1, redoable=0)
     with stage.database.transaction() as session:

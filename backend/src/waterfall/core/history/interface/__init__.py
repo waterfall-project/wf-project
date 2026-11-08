@@ -84,6 +84,9 @@ from waterfall.core.history.interface.undo import (
     SnapshotReader as SnapshotReader,
 )
 from waterfall.core.history.interface.undo import (
+    StructureLocker as StructureLocker,
+)
+from waterfall.core.history.interface.undo import (
     depth as depth,
 )
 from waterfall.core.history.interface.undo import (
