@@ -3,21 +3,24 @@
 """The tree of the tasks of a structure (WF-PLA-0040, 0050, 0070, 0150, 0170).
 
 ``listNodes``, ``createNode``, ``updateTaskFacet``, ``getComputedValueDependencies`` and
-``resolveRowNumber`` (US-1380/L2); ``deleteNode`` and ``moveNodes`` (US-1380/L3).
+``resolveRowNumber`` (US-1380/L2); ``deleteNode`` and ``moveNodes`` (US-1380/L3); the lines of
+estimate in them, their facet, their filters, their sort, their totals and the amounts of the tasks
+(US-1490/L3), which the planning reads by the hooks of the facet the estimate registers.
 
 A structure is read by whoever may consult the planning of its project; its tasks are written by
 the contributors of the project who may write the planning (``StructureCommand.edit_planning``).
 The parameters of a reading are judged here, every bound at once (``NUMBER_INVALID``,
-``DATE_INVALID``, ``VALUE_OUT_OF_RANGE``, WF-IHM-0130), those of the line too, which retain
-nothing until EP-07 brings the lines; ``fields`` names what is returned of each node, an unknown
-property refused (``FIELD_NOT_ACCEPTED``).
+``DATE_INVALID``, ``VALUE_OUT_OF_RANGE``, WF-IHM-0130), those of the line too, which retain lines
+(``LineFilters``); ``fields`` names what is returned of each node, an unknown property refused
+(``FIELD_NOT_ACCEPTED``). A line is created from ``EstimateLineWrite``, refused without it.
 """
 
 import re
 from dataclasses import replace
 from datetime import date
 from decimal import Decimal
-from typing import Annotated, Any
+from enum import StrEnum
+from typing import Annotated, Any, cast
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Path, Query, Request
@@ -29,6 +32,8 @@ from waterfall.api.contract.models import (
     ComputedValueDependencies,
     ComputedValueField,
     EstimateLineFacet,
+    EstimateLineUpdate,
+    EstimateLineWrite,
     Node,
     NodeColumn,
     NodeCreate,
@@ -46,16 +51,20 @@ from waterfall.api.contract.models import (
 )
 from waterfall.api.evaluation import Acting, RequiresProject
 from waterfall.api.queries import read_list, refuse_query
+from waterfall.core.estimate.interface import LineEntry, LineFilters, LineView
 from waterfall.core.planning.interface import (
+    Amounts,
     ConflictView,
     Duration,
     InstantSent,
+    LineSort,
     NodeCreation,
     NodeFilters,
     NodeMoving,
     NodesWritten,
     NodeView,
     Place,
+    StructureTotals,
     TaskEntry,
     TaskView,
     Writer,
@@ -84,7 +93,8 @@ VALUE_OUT_OF_RANGE = "VALUE_OUT_OF_RANGE"
 VALUE_REQUIRED = "VALUE_REQUIRED"
 FIELD_NOT_ACCEPTED = "FIELD_NOT_ACCEPTED"
 DAYS = ("monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday")
-NOUGHT = "0.00"
+CENT = Decimal("0.01")
+UNASSIGNED = "unassigned"
 # The forms of a bound of the query: a decimal, an amount, a whole number, a date (README).
 DECIMAL = re.compile(r"-?\d+(\.\d+)?")
 MONEY = re.compile(r"-?\d+(\.\d{1,2})?")
@@ -117,6 +127,12 @@ FACETS = {"task": TaskFacet, "estimate_line": EstimateLineFacet}
 ALWAYS = ("node_id", "row_number", "level", "lock_version")
 
 
+class Unassigned(StrEnum):
+    """What the filter of the subproject names besides a subproject: none (WF-IND-0020)."""
+
+    unassigned = UNASSIGNED
+
+
 class NodeQuery(BaseModel):
     """The parameters of ``listNodes`` the service reads typed; the lists and bounds are text."""
 
@@ -137,6 +153,7 @@ class NodeQuery(BaseModel):
     is_from_risk: bool | None = None
     origin_risk_ids: str | None = None
     uses_inactive_object: bool | None = None
+    subproject_id: Unassigned | UUID | None = None
     cost_type_id: UUID | None = None
     cost_category_id: UUID | None = None
     resource_role_id: UUID | None = None
@@ -241,13 +258,56 @@ def node_reading(
         finish_overdue=query.finish_overdue,
         is_from_risk=query.is_from_risk,
         origin_risk_ids=risks,
+        lines=_line_filters(query, bounds),
+        sort=None if query.sort_by is None else LineSort(query.sort_by.value, _descending(query)),
     )
     return filters, fields
+
+
+def _descending(query: NodeQuery) -> bool:
+    """Tell whether the sort asked goes from the greatest to the least."""
+    return query.sort_order is not None and query.sort_order.value == "desc"
+
+
+def _line_filters(query: NodeQuery, bounds: dict[str, tuple[Any, Any]]) -> LineFilters | None:
+    """Give what a reading asks of the lines, none when it asks nothing of them."""
+    subproject = query.subproject_id
+    asked = LineFilters(
+        subproject_id=subproject if isinstance(subproject, UUID) else None,
+        unassigned=query.subproject_id is Unassigned.unassigned,
+        cost_type_id=query.cost_type_id,
+        cost_category_id=query.cost_category_id,
+        resource_role_id=query.resource_role_id,
+        uses_inactive_object=query.uses_inactive_object,
+        quantity=bounds["quantity"],
+        hours=bounds["hours"],
+        unit_disbursement=bounds["unit_disbursement"],
+        payment_delay_days=bounds["payment_delay_days"],
+        consumption_year=bounds["consumption_year"],
+        base_amount=bounds["base_amount"],
+        budgeted_amount=bounds["budgeted_amount"],
+        reestimated_amount=bounds["reestimated_amount"],
+        previous=tuple(
+            bounds[name]
+            for name in (
+                "previous_quantity",
+                "previous_hours",
+                "previous_unit_disbursement",
+                "previous_reestimated_amount",
+            )
+        ),
+    )
+    return None if asked == LineFilters(previous=((None, None),) * 4) else asked
 
 
 def _text(value: Decimal) -> str:
     """Give a decimal as the contract writes it: without exponent nor trailing zeros."""
     return format(value.normalize(), "f")
+
+
+def _money(value: Decimal) -> str:
+    """Give an amount as the contract writes it: to the cent."""
+    return format(value.quantize(CENT), "f")
 
 
 def _instant(instant: Instant) -> dict[str, Any]:
@@ -278,7 +338,7 @@ def _day(value: date | None) -> str | None:
 
 
 def _task(view: TaskView) -> dict[str, Any]:
-    """Write a facet task as the contract does; its amounts nought until EP-07 brings lines."""
+    """Write a facet task as the contract does; its amounts, those of its lines and subordinates."""
     # A summary's physical progress follows the budgets of its subtree, none without a line.
     progress = (
         {"is_computable": False, "value": None, "reason": "no_budgeted_amount"}
@@ -307,9 +367,9 @@ def _task(view: TaskView) -> dict[str, Any]:
         "is_critical": view.is_critical,
         "link_conflicts": _conflicts(view.link_conflicts),
         "physical_progress": progress,
-        "base_amount": NOUGHT,
-        "budgeted_amount": NOUGHT,
-        "reestimated_amount": NOUGHT,
+        "base_amount": _money(view.amounts.base),
+        "budgeted_amount": _money(view.amounts.budgeted),
+        "reestimated_amount": _money(view.amounts.reestimated),
         "tracking": [
             {"kind": entry.kind, "timeline_id": _id(entry.timeline_id)} for entry in view.tracking
         ],
@@ -318,6 +378,47 @@ def _task(view: TaskView) -> dict[str, Any]:
         "work_breakdown_label": view.work_breakdown_label,
         "external_id": view.external_id,
     }
+
+
+def _optional(value: Decimal | None, write: Any) -> str | None:
+    return None if value is None else write(value)
+
+
+def _line(view: LineView) -> dict[str, Any]:
+    """Write a facet estimate line as the contract does; the previous figures null until EP-09."""
+    return {
+        "label": view.label,
+        "cost_category_id": str(view.cost_category_id),
+        "cost_category_label": view.cost_category_label,
+        "resource_role_id": _id(view.resource_role_id),
+        "resource_role_label": view.resource_role_label,
+        "quantity": _text(view.quantity),
+        "hours": _optional(view.hours, _text),
+        "unit_disbursement": _optional(view.unit_disbursement, _money),
+        "payment_delay_days": view.payment_delay_days,
+        "subproject_id": _id(view.subproject_id),
+        "subproject_label": view.subproject_label,
+        "base_amount": _money(view.base_amount),
+        "budgeted_amount": _money(view.budgeted_amount),
+        "reestimated_amount": _money(view.reestimated_amount),
+        "previous_quantity": None,
+        "previous_hours": None,
+        "previous_unit_disbursement": None,
+        "previous_reestimated_amount": None,
+        "consumption_year": view.consumption_year,
+        "is_computed": False,
+        "uses_inactive_object": view.uses_inactive_object,
+        "remaining_entry": {
+            "is_available": not view.remaining_missing,
+            "missing_conditions": list(view.remaining_missing),
+        },
+    }
+
+
+def _facet(view: NodeView) -> dict[str, Any] | None:
+    """Write the facet of a node of another kind than the task: an estimate line's."""
+    facet = None if view.facet is None else view.facet.view
+    return _line(facet) if isinstance(facet, LineView) else None
 
 
 def _node(view: NodeView, fields: frozenset[str] | None = None) -> dict[str, Any]:
@@ -333,7 +434,7 @@ def _node(view: NodeView, fields: frozenset[str] | None = None) -> dict[str, Any
         "origin_risk_id": _id(view.origin_risk_id),
         "lock_version": view.lock_version,
         "task": None if view.task is None else _task(view.task),
-        "estimate_line": None,
+        "estimate_line": _facet(view),
         "predecessors": [
             {
                 "predecessor_node_id": str(each.predecessor_id),
@@ -359,15 +460,16 @@ def _node(view: NodeView, fields: frozenset[str] | None = None) -> dict[str, Any
     return chosen
 
 
-def _totals(task_count: int) -> dict[str, Any]:
-    """Write the totals of the tasks counted: the lines, their hours and amounts are EP-07's."""
+def _totals(task_count: int, totals: StructureTotals | None) -> dict[str, Any]:
+    """Write the totals of the tasks counted and of the lines retained, their hours and amounts."""
+    amounts = Amounts() if totals is None else totals.amounts
     return {
         "task_count": task_count,
-        "estimate_line_count": 0,
-        "hours": "0",
-        "base_amount": NOUGHT,
-        "budgeted_amount": NOUGHT,
-        "reestimated_amount": NOUGHT,
+        "estimate_line_count": 0 if totals is None else totals.line_count,
+        "hours": _text(amounts.hours),
+        "base_amount": _money(amounts.base),
+        "budgeted_amount": _money(amounts.budgeted),
+        "reestimated_amount": _money(amounts.reestimated),
     }
 
 
@@ -388,8 +490,16 @@ def written_of(result: NodesWritten) -> dict[str, Any]:
             }
             for each in result.rescheduled
         ],
-        "reinflated": [],
-        "totals": _totals(result.task_count),
+        "reinflated": [
+            {
+                "node_id": str(each.node_id),
+                "budgeted_amount": _money(each.budgeted),
+                "reestimated_amount": _money(each.reestimated),
+                "consumption_year": each.consumption_year,
+            }
+            for each in result.reinflated
+        ],
+        "totals": _totals(result.task_count, result.totals),
         "structure_lock_version": result.structure_lock_version,
     }
 
@@ -417,6 +527,60 @@ def _entry(body: TaskFacetWrite | TaskFacetUpdate, sent: frozenset[str] = frozen
         work_package_id=None if body.work_package_id is None else body.work_package_id.root,
         order_item_id=None if body.order_item_id is None else body.order_item_id.root,
     )
+
+
+def _money_of(value: Any) -> Decimal | None:
+    """Read an amount, a figure or hours a body sends, none if null."""
+    if value is None:
+        return None
+    root = value
+    while hasattr(root, "root"):
+        root = root.root
+    return Decimal(str(root))
+
+
+def line_entry(
+    body: EstimateLineWrite | EstimateLineUpdate, sent: frozenset[str], lock_version: int | None
+) -> LineEntry:
+    """Read what a body sends of a line, the fields it holds named, null ones included."""
+    delay = body.payment_delay_days
+    return LineEntry(
+        label=body.label,
+        cost_category_id=None if body.cost_category_id is None else body.cost_category_id.root,
+        quantity=_money_of(body.quantity),
+        resource_role_id=None if body.resource_role_id is None else body.resource_role_id.root,
+        hours=_money_of(body.hours),
+        unit_disbursement=_money_of(body.unit_disbursement),
+        payment_delay_days=None if delay is None else delay.root,
+        subproject_id=None if body.subproject_id is None else body.subproject_id.root,
+        sent=sent,
+        lock_version=lock_version,
+    )
+
+
+async def sent_body(request: Request) -> dict[str, Any]:
+    """Give the body a write sends as it is, to name the fields its schema does not know."""
+    try:
+        body: object = await request.json()
+    except ValueError:
+        return {}
+    return cast("dict[str, Any]", body) if isinstance(body, dict) else {}
+
+
+def unknown_fields(sent: object, known: type[BaseModel], prefix: str) -> list[FieldError]:
+    """Name the fields a body of a line sends that its schema does not know.
+
+    The amounts among them, which no write carries (WF-DEV-0020, WF-IHM-0030).
+    """
+    held = cast("dict[str, Any]", sent) if isinstance(sent, dict) else {}
+    return [
+        FieldError(f"{prefix}/{name}", FIELD_NOT_ACCEPTED)
+        for name in held
+        if name not in known.model_fields
+    ]
+
+
+Sent = Annotated[dict[str, Any], Depends(sent_body)]
 
 
 def writer_of(actor: Acting, account: Caller) -> Writer:
@@ -452,7 +616,7 @@ def get_nodes(
     )
     return {
         "items": [_node(each, fields) for each in read.items],
-        "totals": _totals(read.task_count),
+        "totals": _totals(read.task_count, read.totals),
         "meta": meta.model_dump(mode="json"),
     }
 
@@ -467,24 +631,31 @@ def get_nodes(
 def post_node(
     place: Placed,
     body: NodeCreate,
+    sent: Sent,
     writer: Writing,
     session: Transaction,
 ) -> dict[str, Any]:
-    """Create a task of a structure; an estimate line is EP-07's to create."""
+    """Create a task or an estimate line of a structure, from the facet of its kind."""
+    own, other = (
+        ("task", "estimate_line") if body.kind is NodeKind.task else ("estimate_line", "task")
+    )
     faults: list[FieldError] = []
-    if body.kind is not NodeKind.task:
-        faults.append(FieldError("/kind", FIELD_NOT_ACCEPTED))
-    elif body.task is None:
-        faults.append(FieldError("/task", VALUE_REQUIRED))
-    if body.estimate_line is not None:
-        faults.append(FieldError("/estimate_line", FIELD_NOT_ACCEPTED))
-    if faults or body.task is None:
+    if getattr(body, own) is None:
+        faults.append(FieldError(f"/{own}", VALUE_REQUIRED))
+    if getattr(body, other) is not None:
+        faults.append(FieldError(f"/{other}", FIELD_NOT_ACCEPTED))
+    if body.kind is NodeKind.estimate_line:
+        faults += unknown_fields(sent.get("estimate_line"), EstimateLineWrite, "/estimate_line")
+    if faults:
         raise UnprocessableError(VALIDATION_FAILED, fields=tuple(faults))
+    line = body.estimate_line
     creation = NodeCreation(
         parent_id=None if body.parent_id is None else body.parent_id.root,
         after_node_id=None if body.after_node_id is None else body.after_node_id.root,
         after_given="after_node_id" in body.model_fields_set,
-        task=_entry(body.task),
+        task=None if body.task is None else _entry(body.task),
+        kind=body.kind.value,
+        facet=None if line is None else line_entry(line, frozenset(line.model_fields_set), None),
     )
     return written_of(create_node(session, place, creation, writer))
 

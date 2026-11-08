@@ -22,12 +22,13 @@ import json
 import subprocess
 import sys
 from contextlib import ExitStack
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from decimal import Decimal
 from typing import TYPE_CHECKING, Any
 from uuid import UUID, uuid4
 
 import pytest
+from estimate_support import give_a_line
 from planning_support import give_a_task
 from projects_support import PROJECTS, Scene
 from projects_support import scene as make_scene
@@ -46,7 +47,6 @@ from waterfall.core.planning.interface import (
     MS_PROJECT_EXPORTER,
     MS_PROJECT_FORMAT,
     TASK_TREE_EXPORTER,
-    FacetHooks,
     delete_nodes,
     facets,
     register_facet,
@@ -84,7 +84,6 @@ from waterfall.core.revisions.interface import (
     register_designation,
     register_indicators,
     register_marking,
-    register_tasks_and_lines,
 )
 from waterfall.core.revisions.tables import Revision
 from waterfall.platform.audit import Act
@@ -100,6 +99,7 @@ if TYPE_CHECKING:
     from sqlalchemy import Engine
     from support import ContractClient
 
+    from waterfall.core.revisions.interface import RevisionCopy
     from waterfall.platform.database import Database
     from waterfall.witness.description import Witness
 
@@ -190,10 +190,28 @@ REGISTERED = {
     "witness.revision_fillers": ["waterfall.witness.tasks.fill"],
 }
 ESTIMATE = "waterfall.core.estimate.interface"
-# What the socle of EP-07 registers without effect (US-1490/L1), after the planning's: the facet
-# and the question of the lines come with US-1490/L3, the registries of EP-07 with their stories
-# (decisions of 2026-11-08, #2370).
+CORE = "waterfall.core.estimate"
+# The hooks of the facet of the lines, in the order of ``FacetHooks`` (US-1490/L3).
+LINE_HOOKS = (
+    f"{CORE}.reading.read_lines",
+    f"{ESTIMATE}.facet.copy_lines",
+    f"{ESTIMATE}.facet.delete_lines",
+    f"{ESTIMATE}.facet.line_calendars",
+    f"{CORE}.writing.create_line",
+    f"{ESTIMATE}.facet.snapshot_lines",
+    f"{ESTIMATE}.facet.restore_lines",
+    f"{ESTIMATE}.facet.reinflate_lines",
+    f"{CORE}.reading.totals_of",
+    f"{CORE}.reading.filter_lines",
+    f"{CORE}.reading.sort_lines",
+    f"{ESTIMATE}.facet.line_dependencies",
+)
+# What the socle of EP-07 registers without effect (US-1490/L1), after the planning's, and the
+# facet and the question of the lines US-1490/L3 registers; the registries of EP-07 come with
+# their stories (decisions of 2026-11-08, #2370).
 REGISTERED_BY_EP07 = {
+    "planning.facets": [f"estimate_line:FacetHooks({', '.join(LINE_HOOKS)})"],
+    "revisions.tasks_and_lines": [f"lines:{ESTIMATE}.lines.revision_has_lines"],
     "revisions.copy": [f"{ESTIMATE}.rates.copy_rates"],
     CLOSING: [f"content:{ESTIMATE}.rates.close_rates"],
     "resource_settings.idle_task_guard": [f"{ESTIMATE}.calendars.idle_tasks_for_role_calendar"],
@@ -249,13 +267,11 @@ def test_every_registry_holds_what_the_socle_of_ep07_registers_after_the_plannin
     everything: dict[str, list[str]],
 ) -> None:
     # The extensions of the estimate, each after those of EP-06 in its registry; nothing yet in the
-    # facets, the questions of the designation, nor the registries EP-07 declares.
+    # registries EP-07 declares.
     for name, entries in REGISTERED_BY_EP07.items():
         held = [entry for entry in everything[name] if entry not in REGISTERED.get(name, [])]
         assert held == entries, name
     for name in (
-        "planning.facets",
-        "revisions.tasks_and_lines",
         "revisions.marking",
         "revisions.designation",
         "cost_settings.employment",
@@ -406,12 +422,11 @@ def test_a_designation_registered_follows_the_reference_once_it_is_designated(
         Session(stage.owner) as session,
         session.begin(),
     ):
-        give_a_task(session.connection(), revision_id)
+        give_a_line(session.connection(), give_a_task(session.connection(), revision_id))
         mark_revision(session, revision_id, "v1.0", None, Act(None, utc_now()))
     path = f"{PROJECTS}/{project_id}"
     counter = api.get(path, headers=stage.manager.headers).json()["lock_version"]
     with ExitStack() as registered:
-        registered.callback(register_tasks_and_lines("lines", lambda _session, _revision: True))
         registered.callback(register_designation(follow))
         response = api.put(
             f"{path}/reference-revision",
@@ -543,25 +558,27 @@ def test_the_attachments_registered_tell_and_detach_an_element_of_the_work_break
 
 
 def test_a_kind_has_one_facet_one_format_and_one_exporter_at_most() -> None:
-    # Those of the planning, registered at the import of its interface, serve another kind here.
+    # Those of the planning and of the estimate, registered at the import of their interfaces,
+    # serve another kind here.
     held = (dict(facets()), dict(formats()), dict(exporters()))
-    hooks = FacetHooks(
-        read=lambda _session, _project, _nodes: {},
-        copy=lambda _copy: None,
-        delete=lambda _session, _project, _nodes: None,
-        calendars=lambda _session, _project, _task: (),
-    )
+
+    def copy(copy: RevisionCopy) -> None:
+        del copy
+
+    hooks = replace(facets()["estimate_line"], copy=copy)
     with ExitStack() as registered:
-        registered.callback(register_facet("estimate_line", hooks))
+        registered.callback(register_facet("remaining", hooks))
         registered.callback(register_format("remaining", MS_PROJECT_FORMAT))
         registered.callback(register_exporter("remaining", TASK_TREE_EXPORTER))
         assert (list(facets()), list(formats()), list(exporters())) == (
-            ["estimate_line"],
+            ["estimate_line", "remaining"],
             ["ms_project_schedule", "estimate", "remaining"],
             ["ms_project_schedule", "task_tree_image", "estimate", "remaining"],
         )
         with pytest.raises(ValueError, match="registered already"):
             register_facet("estimate_line", hooks)
+        with pytest.raises(ValueError, match="registered already"):
+            register_facet("remaining", hooks)
         with pytest.raises(ValueError, match="has a format already"):
             register_format("remaining", MS_PROJECT_FORMAT)
         with pytest.raises(ValueError, match="has an exporter already"):

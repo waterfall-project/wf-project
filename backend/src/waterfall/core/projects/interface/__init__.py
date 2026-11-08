@@ -120,6 +120,8 @@ from waterfall.core.projects.interface.subprojects import (
     delete_subproject,
     list_subprojects,
     load_subprojects,
+    subproject_has_actual_costs,
+    subproject_labels,
     subprojects_present,
     update_subproject,
 )
@@ -242,6 +244,8 @@ __all__ = [
     "set_reference_revision",
     "set_work_breakdown",
     "stored_lock_version",
+    "subproject_has_actual_costs",
+    "subproject_labels",
     "subprojects_present",
     "update_project",
     "update_subproject",

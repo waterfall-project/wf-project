@@ -37,9 +37,31 @@ from waterfall.core.planning.interface.closing import (
     delete_nodes as delete_nodes,
 )
 
-# ``facets`` (US-1380/L1; read by US-1380/L2): the facets of a node other than the task (EP-07).
+# ``facets`` (US-1380/L1; read by US-1380/L2; completed by US-1490/L3): the facets of a node
+# other than the task (EP-07).
+from waterfall.core.planning.interface.facets import (
+    Amounts as Amounts,
+)
+from waterfall.core.planning.interface.facets import (
+    BearingTask as BearingTask,
+)
+from waterfall.core.planning.interface.facets import (
+    FacetCreation as FacetCreation,
+)
 from waterfall.core.planning.interface.facets import (
     FacetHooks as FacetHooks,
+)
+from waterfall.core.planning.interface.facets import (
+    FacetRead as FacetRead,
+)
+from waterfall.core.planning.interface.facets import (
+    FacetState as FacetState,
+)
+from waterfall.core.planning.interface.facets import (
+    FacetWrite as FacetWrite,
+)
+from waterfall.core.planning.interface.facets import (
+    LineSort as LineSort,
 )
 from waterfall.core.planning.interface.facets import (
     calendar_of as calendar_of,
@@ -51,15 +73,33 @@ from waterfall.core.planning.interface.facets import (
     facets as facets,
 )
 from waterfall.core.planning.interface.facets import (
+    named_calendars as named_calendars,
+)
+from waterfall.core.planning.interface.facets import (
     register_facet as register_facet,
 )
 
-# ``lines`` (US-1380/L1; US-1380/L2): the lines of a task, and their place, for EP-07.
+# ``lines`` (US-1380/L1; US-1490/L3): the lines of a task, their place, their writes, for EP-07.
+from waterfall.core.planning.interface.lines import (
+    FacetChange as FacetChange,
+)
+from waterfall.core.planning.interface.lines import (
+    create_line_node as create_line_node,
+)
+from waterfall.core.planning.interface.lines import (
+    lineages_of as lineages_of,
+)
 from waterfall.core.planning.interface.lines import (
     lines_of as lines_of,
 )
 from waterfall.core.planning.interface.lines import (
-    place_line as place_line,
+    lines_of_revision as lines_of_revision,
+)
+from waterfall.core.planning.interface.lines import (
+    revision_bears as revision_bears,
+)
+from waterfall.core.planning.interface.lines import (
+    write_facet as write_facet,
 )
 
 # ``msproject`` (US-1380/L1; US-1430/L3, L4): the format and the exporter of MS Project.
@@ -316,10 +356,16 @@ from waterfall.core.planning.views import (
     TrackingView as TrackingView,
 )
 from waterfall.core.planning.writing import (
+    InflationView as InflationView,
+)
+from waterfall.core.planning.writing import (
     NodesWritten as NodesWritten,
 )
 from waterfall.core.planning.writing import (
     Place as Place,
+)
+from waterfall.core.planning.writing import (
+    StructureTotals as StructureTotals,
 )
 from waterfall.core.planning.writing import (
     Writer as Writer,

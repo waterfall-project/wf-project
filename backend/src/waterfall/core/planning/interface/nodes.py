@@ -40,6 +40,7 @@ from waterfall.core.planning.entries import (
 )
 from waterfall.core.planning.filters import NodeFilters, retained
 from waterfall.core.planning.interface.facets import calendar_of, calendars_of, facets
+from waterfall.core.planning.interface.lines import create_line_node
 from waterfall.core.planning.scheduling import Move, WorkInstant
 from waterfall.core.planning.shaping import (
     Placing,
@@ -50,12 +51,14 @@ from waterfall.core.planning.shaping import (
     placed,
     stamp,
 )
+from waterfall.core.planning.snapshotting import taken
 from waterfall.core.planning.tables import Node, Task, TaskLink
 from waterfall.core.planning.tree import TASK, Tree, read_links, read_tree
 from waterfall.core.planning.views import NOT_STARTED, NodeView, Reading, state_of
 from waterfall.core.planning.writing import (
     NodesWritten,
     Place,
+    StructureTotals,
     Write,
     Writer,
     facts_of,
@@ -134,26 +137,33 @@ class TaskEntry:
 
 @dataclass(frozen=True, slots=True)
 class NodeList:
-    """A reading of a structure (``listNodes``): its nodes, its tasks counted, its meta."""
+    """A reading of a structure (``listNodes``): its nodes, its tasks counted, its meta, its totals.
+
+    ``totals`` are those of the lines retained, whatever the kinds returned.
+    """
 
     items: tuple[NodeView, ...]
     task_count: int
     summary_depth: int
     scheduled_at: datetime
+    totals: StructureTotals
 
 
 @dataclass(frozen=True, slots=True)
 class NodeCreation:
-    """A task to create: its parent, the sibling it follows, its facet.
+    """A node to create: its parent, the sibling it follows, its kind and its facet.
 
-    ``after_given`` false places it after the last subtask of its parent; given, ``after_node_id``
-    null places it at their head.
+    ``after_given`` false places it after the last of its kind under its parent; given,
+    ``after_node_id`` null places it at their head. A task is created with ``task``; a node of
+    another kind with ``facet``, what the write sends of it, opaque to the planning (``lines``).
     """
 
     parent_id: UUID | None
     after_node_id: UUID | None
     after_given: bool
-    task: TaskEntry
+    task: TaskEntry | None = None
+    kind: str = TASK
+    facet: object | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -328,12 +338,14 @@ def list_nodes(session: Session, place: Place, filters: NodeFilters) -> NodeList
     tree = read_tree(session, place.project_id, place.structure_id)
     reading = _reading(session, place, tree, (facts.scheduled_at, facts.is_main))
     structure = (place.project_id, place.structure_id)
-    order, count = retained(session, structure, reading, filters, constants_of(session))
+    found = retained(session, structure, reading, filters, constants_of(session))
+    reading.prefetch(found.order)
     return NodeList(
-        tuple(reading.node(each) for each in order),
-        count,
+        tuple(reading.node(each) for each in found.order),
+        found.task_count,
         reading.summary_depth(),
         facts.scheduled_at,
+        StructureTotals(len(found.lines), reading.totals(found.lines)),
     )
 
 
@@ -398,21 +410,22 @@ def _together[Judged](judge: Callable[[], Judged], attached: Attached) -> Judged
 
 def _insert(
     write: Write,
-    creation: NodeCreation,
+    creation: tuple[TaskEntry, UUID | None],
     node_id: UUID,
     judged: tuple[Facet, Attached],
     placed: tuple[int, list[UUID]],
 ) -> None:
     """Write the node and the facet of a task created at its rank, the siblings after it moved.
 
-    ``judged`` is its facet and its attachment as judged. The siblings at that rank or after
+    ``creation`` is its facet as sent and its parent, ``judged`` its facet and its attachment as
+    judged. The siblings at that rank or after
     (``placed``) are moved down by one in one statement — the rank is unique, checked at its end —
     and counted as any write of a node is.
     """
     session, place, act = write.session, write.place, write.writer.act
     rank, shifted = placed
     facet, attached = judged
-    parent = creation.parent_id
+    entry, parent = creation
     if shifted:
         session.execute(
             update(Node)
@@ -447,7 +460,6 @@ def _insert(
     # An automatic task is placed by the engine; it stands at the planning start meanwhile.
     start = facet.start or WorkInstant(write.facts.planning_start_on)
     finish = facet.finish or start
-    entry = creation.task
     session.add(
         Task(
             project_id=place.project_id,
@@ -483,8 +495,12 @@ def create_node(
     its calendar (#1769, WF-PLA-0020), its attachment to the work breakdown under its parent
     (WF-PLA-0170). A manual leaf that receives it becomes a summary, always automatic
     (WF-PLA-0040), and is written with it. Beyond fifteen years, refused naming the task by its
-    label (WF-PLA-0150); nothing is created.
+    label (WF-PLA-0150); nothing is created. A node of another kind is placed and written by
+    ``lines``, its facet by the hooks of its kind.
     """
+    entry = creation.task
+    if creation.kind != TASK or entry is None:
+        return create_line_node(session, place, creation, writer)
     node_id = new_id()
     with writing(session, place, writer, ("node_create", (node_id,))) as write:
         tree = write.tree
@@ -492,10 +508,10 @@ def create_node(
         _judge_parent(tree, parent)
         applicable = calendar_of(session, place.project_id, node_id).calendar
         lineage = () if parent is None else (parent, *tree.ancestors(parent))
-        bearer = Bearer(node_id, creation.task.label or "", lineage, created=True)
-        attached = _attached(write, bearer, creation.task.attachment(creation=True), "/task")
+        bearer = Bearer(node_id, entry.label or "", lineage, created=True)
+        attached = _attached(write, bearer, entry.attachment(creation=True), "/task")
         facet = _together(
-            lambda: judged_creation(creation.task, applicable, constants_of(session)), attached
+            lambda: judged_creation(entry, applicable, constants_of(session)), attached
         )
         rank = _rank(tree, creation)
         shifted = [each for each in tree.subtasks(parent) if tree.nodes[each].rank >= rank]
@@ -510,8 +526,8 @@ def create_node(
         if parent is not None and made_summary:
             tree.tasks[parent].scheduling_mode = AUTOMATIC
             stamp(tree.nodes[parent], writer.act)
-        _insert(write, creation, node_id, (facet, attached), (rank, shifted))
-        redated = write.redate((None, creation.task.label or ""))
+        _insert(write, (entry, parent), node_id, (facet, attached), (rank, shifted))
+        redated = write.redate((None, entry.label or ""))
         write.after(touched)
         return redated.written((node_id,))
 
@@ -658,30 +674,47 @@ def computed_value_dependencies(
     """Name what a computed value of a node depends on (``getComputedValueDependencies``).
 
     The rule, and the rows it reads — the direct subordinates of a summary, the lines and the
-    direct subordinates of a task — in the order of the plan, whatever a reading retains. A field
-    the server does not compute for the node is refused (422, ``params.field``); a node the
+    direct subordinates of a task — in the order of the plan, whatever a reading retains; for a
+    node of another kind, the rules its facet names (``FacetHooks.dependencies``), without a row.
+    A field the server does not compute for the node is refused (422, ``params.field``); a node the
     structure does not hold is not found (404).
     """
     facts_of(session, place, lock=False)
     tree = read_tree(session, place.project_id, place.structure_id)
     if node_id not in tree.nodes:
         raise NotFoundError(NOT_FOUND)
-    found = _rule(tree, node_id, field) if node_id in tree.tasks else None
+    if node_id not in tree.tasks:
+        hooks = facets().get(tree.nodes[node_id].kind)
+        named = (
+            None if hooks is None else hooks.dependencies(session, place.project_id, node_id, field)
+        )
+        if named is None:
+            raise UnprocessableError(VALIDATION_FAILED, {"field": field})
+        return Dependencies(node_id, field, named, ())
+    found = _rule(tree, node_id, field)
     if found is None:
         raise UnprocessableError(VALIDATION_FAILED, {"field": field})
     rule, rows = found
+    labels = _labels(session, place.project_id, tree, rows)
     return Dependencies(
         node_id,
         field,
         (rule,),
-        tuple(DependencyRow(each, tree.row_number[each], _label(tree, each)) for each in rows),
+        tuple(DependencyRow(each, tree.row_number[each], labels[each]) for each in rows),
     )
 
 
-def _label(tree: Tree, node_id: UUID) -> str:
-    """Give the label of a node: its task's; a line's is EP-07's facet."""
-    task = tree.tasks.get(node_id)
-    return "" if task is None else task.label
+def _labels(
+    session: Session, project_id: UUID, tree: Tree, node_ids: list[UUID]
+) -> dict[UUID, str]:
+    """Give the label of each node: its task's, or its facet's as the history names it."""
+    labels = {each: tree.tasks[each].label for each in node_ids if each in tree.tasks}
+    others = [each for each in node_ids if each not in labels]
+    if others:
+        labels.update(
+            {state.object_id: state.label for state in taken(session, project_id, others)}
+        )
+    return {each: labels.get(each, "") for each in node_ids}
 
 
 def resolve_row_number(session: Session, place: Place, row_number: int) -> RowResolution:
@@ -695,7 +728,8 @@ def resolve_row_number(session: Session, place: Place, row_number: int) -> RowRe
     if not 1 <= row_number <= len(tree.order):
         raise NotFoundError(NOT_FOUND)
     node_id = tree.order[row_number - 1]
-    return RowResolution(node_id, row_number, _label(tree, node_id), tree.nodes[node_id].kind)
+    label = _labels(session, place.project_id, tree, [node_id])[node_id]
+    return RowResolution(node_id, row_number, label, tree.nodes[node_id].kind)
 
 
 @dataclass(frozen=True, slots=True)

@@ -204,6 +204,14 @@ def current_revision(session: Session, project_id: UUID) -> UUID | None:
     )
 
 
+def reference_year_of(session: Session, revision_id: UUID) -> int:
+    """Give the year of reference a revision prices its lines at (WF-DEV-0030); or 404."""
+    year = session.scalar(select(Revision.reference_year).where(Revision.id == revision_id))
+    if year is None:
+        raise NotFoundError(NOT_FOUND)
+    return year
+
+
 def revisions_present(session: Session, revision_ids: Collection[UUID]) -> frozenset[UUID]:
     """Keep, of the identifiers given, those of the revisions that exist: the witness's question."""
     if not revision_ids:

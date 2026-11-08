@@ -45,11 +45,13 @@ from waterfall.platform.errors import ConflictError, NotFoundError
 
 if TYPE_CHECKING:
     from collections.abc import Collection, Generator
+    from decimal import Decimal
     from uuid import UUID
 
     from sqlalchemy.orm import Session
 
     from waterfall.core.history.interface import UndoneKind
+    from waterfall.core.planning.interface.facets import Amounts
     from waterfall.core.planning.scheduling import Origin
     from waterfall.core.planning.tree import Tree
     from waterfall.core.revisions.interface import StructureFacts
@@ -78,11 +80,31 @@ class Writer:
 
 
 @dataclass(frozen=True, slots=True)
+class InflationView:
+    """The amounts of a node a write priced again without writing it (``NodeInflation``)."""
+
+    node_id: UUID
+    budgeted: Decimal
+    reestimated: Decimal
+    consumption_year: int | None
+
+
+@dataclass(frozen=True, slots=True)
+class StructureTotals:
+    """The totals of a whole structure (``NodeTotals``): its lines counted, their figures summed."""
+
+    line_count: int
+    amounts: Amounts
+
+
+@dataclass(frozen=True, slots=True)
 class NodesWritten:
     """What a write of the tree gives back (``NodesWritten``), the totals of the structure.
 
     ``nodes`` the nodes written, ``ancestors`` the summaries above them and above the tasks it
-    redated, ``rescheduled`` the other tasks it redated, each in the order of the plan.
+    redated, ``rescheduled`` the other tasks it redated, ``reinflated`` the nodes of the other kinds
+    and the tasks whose amounts it changed without writing them, each in the order of the plan;
+    ``totals`` none for a write that read no structure (a paste that writes nothing).
     """
 
     nodes: tuple[NodeView, ...]
@@ -90,6 +112,8 @@ class NodesWritten:
     rescheduled: tuple[ScheduleView, ...]
     task_count: int
     structure_lock_version: int
+    reinflated: tuple[InflationView, ...] = ()
+    totals: StructureTotals | None = None
 
 
 def facts_of(session: Session, place: Place, *, lock: bool) -> StructureFacts:
@@ -153,6 +177,7 @@ class Write:
         self.frame = frame
         self.facts = facts_of(session, place, lock=True)
         self.tree = read_tree(session, place.project_id, place.structure_id)
+        self.touched: set[UUID] = set()
         self.conflicts = conflicts_of(read_links(session, place.project_id, place.structure_id))
 
     def name(self, node_ids: tuple[UUID, ...]) -> None:
@@ -161,20 +186,29 @@ class Write:
 
     def before(self, node_ids: Collection[UUID]) -> None:
         """Hand the history the nodes the write touches, as they are before it."""
+        self.touched.update(node_ids)
         self.frame.keep_before(taken(self.session, self.place.project_id, node_ids))
 
-    def redate(self, blamed: tuple[UUID | None, str] | None, origin: Origin = None) -> Redated:
+    def redate(
+        self,
+        blamed: tuple[UUID | None, str] | None,
+        origin: Origin = None,
+        repriced: Collection[UUID] = (),
+    ) -> Redated:
         """Replay the engine on the structure written, keep what it computes, advance it.
 
         Beyond the horizon (WF-PLA-0150), refused naming the task written — its node, null for a
         task created, and its label (422 ``PROJECT_HORIZON_EXCEEDED``) —, or, for a write that
         writes no task (``blamed`` none), the task that finishes last; a loop of links named from
         ``origin`` (422 ``LINK_CYCLE``). Nothing is written. The facts of the structure read under
-        its lock are handed to the replay, not read again (#2492).
+        its lock are handed to the replay, not read again (#2492). The nodes of the other kinds the
+        tasks ``repriced`` bear are priced again with those of the tasks redated, and those of the
+        nodes it touches (``before``): a task written, or the task a line written is under.
         """
         named = None if blamed is None else Blamed(*blamed, origin)
         held = (self.facts, named, self.conflicts)
-        return redated_structure(self.session, self.place, self.writer.act, held)
+        priced = (*repriced, *self.touched)
+        return redated_structure(self.session, self.place, self.writer.act, held, priced)
 
     def after(self, node_ids: Collection[UUID]) -> None:
         """Hand the history the nodes the write touched, as they are after it, redated."""
@@ -186,38 +220,45 @@ def redated_structure(
     place: Place,
     act: Act,
     held: tuple[StructureFacts, Blamed | None, Collection[tuple[UUID, UUID]]],
+    repriced: Collection[UUID] = (),
 ) -> Redated:
     """Replay the engine on a structure its caller holds the lock of; give it as it now stands.
 
     What a write of the tree does once it has written (``Write.redate``), and an undoing or a
     redoing, whose frame holds the lock of the structure (``history.undo``). ``held`` is the facts
     of the structure read under that lock, what the caller names if the engine refuses, and the
-    links in conflict read before the write.
+    links in conflict read before the write; ``repriced`` the tasks whose nodes of the other kinds
+    are priced again, whether they moved or not.
     """
     facts, named, conflicts = held
-    done = replayed(
-        session, place.project_id, place.structure_id, act.at, Holding(facts, named, conflicts)
-    )
+    holding = Holding(facts, named, conflicts, repriced)
+    done = replayed(session, place.project_id, place.structure_id, act.at, holding)
     reading = Reading(
         session, (place.project_id, act.at, facts.is_main), done.tree, done.links, done.calendars
     )
-    return Redated(reading, done.moved, done.counter)
+    return Redated(reading, done.moved, done.counter, done.reinflated)
 
 
 @dataclass(frozen=True, slots=True)
 class Redated:
-    """A structure written and redated: its reading, the tasks moved, its counter."""
+    """A structure written and redated: its reading, the tasks moved, its counter, what it priced.
+
+    ``reinflated`` the nodes of the other kinds whose amounts or year their hooks changed.
+    """
 
     reading: Reading
     moved: frozenset[UUID]
     counter: int
+    reinflated: frozenset[UUID] = frozenset()
 
     def written(self, node_ids: Collection[UUID], former: Collection[UUID] = ()) -> NodesWritten:
         """Give what the write gives back: its nodes, their ancestors and the tasks it moved.
 
         The ancestors are those of the nodes written and of the tasks moved, and ``former`` — the
         ancestors a deletion or a move left, still in the structure —, but the written; the moved
-        are the tasks, not summaries nor ancestors, it redated without writing them.
+        are the tasks, not summaries nor ancestors, it redated without writing them. The reinflated
+        are the nodes of the other kinds priced again without being written, and the leaves that
+        bear them, but the written and the ancestors; the totals those of the whole structure.
         """
         tree: Tree = self.reading.tree
         written = set(node_ids)
@@ -232,13 +273,34 @@ class Redated:
             if ancestor not in written
         }
         reading = self.reading
+        priced = {each for each in self.reinflated if each in tree.nodes and each not in written}
+        bearing = {
+            parent
+            for each in priced
+            if (parent := tree.nodes[each].parent_id) is not None
+            and parent not in written | above
+            and not tree.is_summary(parent)
+        }
+        reading.prefetch([*written, *above])
+        lines = [each for each in tree.nodes if each not in tree.tasks]
         return NodesWritten(
             nodes=tuple(reading.node(each) for each in tree.ordered(written)),
             ancestors=tuple(reading.node(each) for each in tree.ordered(above)),
             rescheduled=tuple(reading.schedule(each) for each in tree.ordered(rescheduled)),
             task_count=len(tree.tasks),
             structure_lock_version=self.counter,
+            reinflated=tuple(self._inflation(each) for each in tree.ordered(priced | bearing)),
+            totals=StructureTotals(len(lines), reading.totals(lines)),
         )
+
+    def _inflation(self, node_id: UUID) -> InflationView:
+        """Give the amounts of a node priced again: a line's own, a task's summed."""
+        reading = self.reading
+        if node_id in reading.tree.tasks:
+            summed = reading.sums[node_id]
+            return InflationView(node_id, summed.budgeted, summed.reestimated, None)
+        own = reading.figures[node_id]
+        return InflationView(node_id, own.budgeted, own.reestimated, own.consumption_year)
 
 
 @contextmanager
