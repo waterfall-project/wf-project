@@ -7,6 +7,7 @@
  * its nature and show its label: two configurations of one grid, which differ by their columns
  * alone — and by what they ask of the server, the planning without the lines.
  */
+import type { ListNodesAnswer } from "@/api/client";
 import type { components, operations } from "@/api/generated/schema";
 
 import type { GridColumn, GridConfig, GridTree, RowPart, RowsWritten } from "./columns";
@@ -48,15 +49,11 @@ type NodeInflation = components["schemas"]["NodeInflation"];
 export type NodeColumn = components["schemas"]["NodeColumn"];
 
 /**
- * The answer of `listNodes`: the nodes, depth first, and their totals. The contract types its
- * nodes as projections (`NodeProjection`, #2485), a reading with `fields` rendering only the
- * fields it named; a grid reads them as whole nodes all the same, since it reads only what it
- * asked for by `fields` (`nodeFieldNames`, `projectNodes`). This is the one place that says so.
+ * The answer of `listNodes`: the nodes, depth first, and their totals. As the client types it,
+ * the nodes whole rather than projected, as the client types it (`ClientPaths`, `src/api/client.ts`,
+ * the one place that says so).
  */
-export type NodeList = Omit<
-  operations["listNodes"]["responses"][200]["content"]["application/json"],
-  "items"
-> & { items: Node[] };
+export type NodeList = ListNodesAnswer;
 
 /**
  * The structure a grid reads the nodes of: its project, its revision, the structure itself —

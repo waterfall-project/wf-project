@@ -15,13 +15,47 @@ import createClient, { type Client } from "openapi-fetch";
 
 import { UNREACHABLE_DIGEST } from "@/components/system/failure";
 
-import type { paths } from "./generated/schema";
+import type { components, operations, paths } from "./generated/schema";
 
 /** The path every operation of the contract lives under: the `servers` of the contract. */
 export const API_PREFIX = "/api/v1";
 
+/** The path of `listNodes`. */
+type NodesPath = "/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes";
+
+type ListNodes = operations["listNodes"];
+type ListNodesOk = ListNodes["responses"][200];
+type ListNodesBody = ListNodesOk["content"]["application/json"];
+
+/**
+ * The contract of the API as the client types it: that of `generated/schema.d.ts`, but for the
+ * `items` of the `200` of `listNodes`, read as whole nodes (`Node`). The contract types them as
+ * projections (`NodeProjection`, #2485), a read with `fields` rendering only the fields it named;
+ * a read only ever reads what it asked for by `fields` (`nodeFieldNames`, `projectNodes`), so the
+ * front reads them whole. This is the one place that says so.
+ */
+type ClientPaths = Omit<paths, NodesPath> & {
+  [P in NodesPath]: Omit<paths[P], "get"> & {
+    get: Omit<ListNodes, "responses"> & {
+      responses: Omit<ListNodes["responses"], 200> & {
+        200: Omit<ListNodesOk, "content"> & {
+          content: {
+            "application/json": Omit<ListNodesBody, "items"> & {
+              items: components["schemas"]["Node"][];
+            };
+          };
+        };
+      };
+    };
+  };
+};
+
+/** The `200` of `listNodes` as the client types it: the nodes whole (`ClientPaths`). */
+export type ListNodesAnswer =
+  ClientPaths[NodesPath]["get"]["responses"][200]["content"]["application/json"];
+
 /** A client of the API: what the rest of the front knows of openapi-fetch. */
-export type ApiClient = Client<paths>;
+export type ApiClient = Client<ClientPaths>;
 
 /** What a client needs to know: where the API is, and how to reach it. */
 export interface ApiClientOptions {
@@ -152,7 +186,7 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
   // The platform's fetch is looked up at each call: Next may have replaced it in the meantime.
   const send = options.fetch ?? ((request: Request) => fetch(request));
   const fetching = transport(send, options.connections ?? "kept");
-  const client = createClient<paths>({ baseUrl, fetch: fetching, querySerializer: QUERY });
+  const client = createClient<ClientPaths>({ baseUrl, fetch: fetching, querySerializer: QUERY });
   const { bearer } = options;
   if (bearer !== undefined) {
     // The first middleware: whatever comes after sees the request as it leaves.
