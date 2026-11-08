@@ -103,6 +103,7 @@ tâches, des liaisons et des structures sans ligne ; les phrases qui demandent p
 | `WF-INTF-0090-A` | Imports et révisions marquées | début — close en EP-08 | US-1420 |
 | `WF-ARC-0110-A` | Le texte est rendu au plus près du lecteur | fin — amorcée en EP-03 | US-1420 |
 | `WF-DAT-0120-A` | Contenu et purge du stockage objet | fin — amorcée en EP-03 | US-1420, US-1430 |
+| `WF-DAT-0150-A` | Écritures concurrentes | entière | US-1380 |
 | `WF-INTF-0040-A` | Imports MS Project | début — close en EP-07 | US-1430 |
 | `WF-INTF-0050-A` | Exports MS Project | début — close en EP-07 | US-1430 |
 | `WF-INTF-0060-A` | Réversibilité de l’échange MS Project | début — close en EP-07 | US-1430 |
@@ -331,9 +332,10 @@ Décisions de l'auteur du 2026-11-07, sur les questions du cadrage, chacune avec
   sous `FOR UPDATE` dans un `GET`.
 - **Une seule chaîne de migrations pour EP-06, dans le socle**, `0022` le schéma et `0023` les
   données (`planning_start_on` remplie), aux prochains numéros libres à la création
-  d'`epic/EP-06` — `epic/EP-04` est à `0021` ; aucun lot d'EP-06 n'écrit de migration après le
-  socle, et EP-07 chaîne la sienne sur `0023`, sans révision de fusion. Écarté : une migration par
-  US, qui donnerait deux têtes à la fusion d'EP-07.
+  d'`epic/EP-06` — `epic/EP-04` est à `0021` ; un seul lot d'EP-06 écrit une migration après le
+  socle, `0024` par US-1420/L2, qui accorde à la purge la suppression des dépôts (#2341), et
+  EP-07 chaîne la sienne sur `0024`, sans révision de fusion. Écarté : une migration par US, qui
+  donnerait deux têtes à la fusion d'EP-07.
 - **La tranche des tâches s'insère dans la chronologie d'EP-04 par un registre du chargeur** :
   `witness/revisions.py` offre `register_revision_filler`, et appelle chaque remplisseur
   enregistré après l'ouverture d'une révision et avant l'événement suivant ; la tranche des
@@ -379,7 +381,11 @@ supprime donc ses nœuds avec ses structures, et un test l'éprouve.
   création de l'origine de sa lignée, et `scheduled_at` par la date de création de la structure,
   comme le code les dérive aujourd'hui (règle 3 des migrations, « une donnée change dans sa propre
   migration »). Les deux colonnes restent nullables (règle 1) : le code lit un nul comme la valeur
-  dérivée. **Aucune migration d'EP-06 après le socle** ; EP-07 chaîne la sienne sur `0023`.
+  dérivée. **Une seule migration d'EP-06 après le socle** : `0024` (US-1420/L2, #2341) accorde
+  `DELETE` sur `file_upload` au rôle du service, que la purge des dépôts échus demande
+  (WF-DAT-0120-A) et que `0017` ne donnait pas — `REVOKE` à la descente, `SERVICE_RIGHTS` mis à
+  jour ; EP-07 chaîne la sienne sur `0024`. Écarté : réécrire `0022`, déjà appliquée aux bases des
+  postes et du témoin.
 - **La partition** : `node_p_<uuid>`, `task_p_<uuid>`, `task_link_p_<uuid>`, par la fonction
   remplacée (`CREATE OR REPLACE`), avec leur déclencheur de `TRUNCATE` ; la migration crée les
   partitions des projets existants en lisant `project`.
@@ -634,7 +640,10 @@ remplis (#2180).
 
 ### Le harnais
 
-Chaque US étiquette `@shared` les tests dont l'écran est servi : US-1400 `timelines.spec.ts` ;
+Chaque US étiquette `@shared` les tests dont l'écran est servi : US-1400 le parcours
+d'inscription de `timelines.spec.ts` (WF-PLA-0060-A), sur un projet que la course crée, et
+US-1480/L2 ses quatre parcours qui lisent le témoin — la frise, le focus, l'export PNG, les deux
+sélections —, dont les tâches n'existent qu'avec son remplisseur (#2340) ;
 US-1430 `exchanges.spec.ts` et `tasks.spec.ts` ; US-1440 `task-tree.spec.ts` ;
 US-1450 `undo.spec.ts` et `paste.spec.ts` pour le planning ; US-1460 les étapes du squelette de
 `project-start.spec.ts` (`BEFORE_EP06` levé) ; US-1470 `planning.spec.ts`, `structure.spec.ts`,
@@ -677,7 +686,8 @@ de lots (étape 3) le détaille en vagues.
    `register_tasks_and_lines`, `register_closing` et `register_facet`, l'interface de
    `core/exchanges` (`register_format`, `register_exporter`) et celle de `core/history`, la chaîne
    des migrations arrêtée à `0023` ; EP-07 ajoute par sa migration la table `estimate_line`
-   (clé vers `node`), les tables images de la révision, et chaîne sur `0023` ; ses lots qui créent
+   (clé vers `node`), les tables images de la révision, et chaîne sur `0024`, celle
+   d'US-1420/L2 (#2341) ; ses lots qui créent
    des lignes attendent aussi les deux lots suivants de l'arbre. En parallèle, dès la création de
    la branche : **le moteur pur** (US-1390), sans table ni dépendance nouvelle, qui possède
    `core/planning/scheduling/` entier ; et le lot d'outil d'US-1480 (`witness_tasks.json`).
@@ -704,9 +714,9 @@ de lots (étape 3) le détaille en vagues.
 
 ## US-1380 — L'arbre des tâches de la structure principale
 
-- **statut** : en cours
+- **statut** : fini
 - **exigences** : `WF-PLA-0040-A`, `WF-PLA-0050-A`, `WF-PLA-0070-A`, `WF-PLA-0170-A`,
-  `WF-PLA-0150-A`
+  `WF-PLA-0150-A`, `WF-DAT-0150-A`
 - **opérations** : `listNodes`, `createNode`, `updateTaskFacet`, `deleteNode`, `moveNodes`,
   `resolveRowNumber`, `getComputedValueDependencies`
 - **issue** : 2317
@@ -747,6 +757,14 @@ planning dont le devis portera les lignes.
 - `WF-PLA-0040-A` — « Une récapitulative terminée dont la seule subordonnée, un jalon, est
   déplacée devient un jalon terminé. » : `moveNodes` rend l'ancienne récapitulative dans
   `ancestors`, jalon terminé, états posés par US-1410 ;
+- `WF-PLA-0040-A` — « Le déplacement d’une sélection qui contient une récapitulative et l’une de ses
+  subordonnées laisse la subordonnée sous la récapitulative : le groupe est déplacé entier, sans
+  être aplati. » : `moveNodes` ignore une tâche nommée dont une ancêtre est aussi nommée
+  (spécification 1.0.3, #2521), réalisé par US-1380/L4 (#2519) ;
+- `WF-DAT-0150-A` — « Deux contributeurs lisent la même tâche ; le premier la modifie ; la
+  modification du second, fondée sur sa lecture, est refusée, le refus le dit, et la tâche garde la
+  valeur du premier. Relue, la tâche se modifie. » : 412 `STALE_LOCK_VERSION` sur le `lock_version`
+  des écritures de l’arbre ; les tests du 412 la citent (#2525), redressés par US-1480/L3 (#2348) ;
 - `WF-PLA-0050-A` — « Une tâche feuille de durée nulle ne peut recevoir de sous-tâche. » :
   `createNode` et `moveNodes` refusent par 422 `MILESTONE_HAS_NO_SUBTASK` sur `/parent_id`,
   `node_id` et `label` du jalon (#1772) ; une ligne de devis sous un jalon reste permise (EP-07) ;
@@ -854,7 +872,7 @@ inscriptions (US-1400) ; l'état (US-1410) ; le collage et l'annulation (US-1450
 
 ## US-1390 — Le calcul des dates, des marges et du chemin critique, et les liaisons
 
-- **statut** : en cours
+- **statut** : fini
 - **exigences** : `WF-PLA-0010-A`, `WF-PLA-0020-A`, `WF-PLA-0030-A`, `WF-PLA-0100-A`,
   `WF-PLA-0160-A`
 - **opérations** : `setPredecessors`, `updateCostStructure` ; `listNodes`, `createNode`,
@@ -1016,7 +1034,8 @@ frise, **afin de** présenter à chaque public les jalons qui le concernent.
   `edit_planning` ;
 - propre à l'US : l'écran des chronologies (`…/timelines`) travaille contre le service, le front
   n'applique plus le critère `timeline_id` à la réponse (#496) et le parcours
-  `timelines.spec.ts` porte `@shared` ; `load-witness` charge les chronologies du témoin et les
+  d'inscription de `timelines.spec.ts` porte `@shared`, ses quatre parcours qui lisent le témoin
+  le portant à US-1480/L2 (#2340) ; `load-witness` charge les chronologies du témoin et les
   inscriptions de ses tâches dans le fichier `timelines` de la tranche ;
 - propre à l'US : chaque réponse est validée contre le contrat dans les tests du service.
 
@@ -1032,7 +1051,7 @@ préférence d'affichage (EP-03, EP-15).
 
 ## US-1410 — L'état des tâches
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-PLA-0130-A`
 - **opérations** : `setTaskProgress`
 - **issue** : 2324
@@ -1060,6 +1079,10 @@ démarré à terminé, **afin que** le planning dise où en est chaque tâche av
 - `WF-PLA-0130-A` — « La marge totale, la criticité et l’avancement physique s’affichent et ne
   sont pas saisissables. » : la marge et la criticité, par US-1390 et US-1470 ; l'avancement
   physique est d'EP-10, qui clôt ;
+- `WF-PLA-0130-A` — « Une terminaison datée avant le démarrage de la tâche est refusée. » :
+  `setTaskProgress` refuse par 422 `VALUE_OUT_OF_RANGE` sur la date, et le jour par défaut se lit
+  dans le fuseau horaire de l’installation (spécification 1.0.3, #2524), réalisé par US-1380/L4
+  (#2519) ;
 - propre à l'US : `setTaskProgress` démarre, termine ou rouvre une tâche feuille, au compteur lu,
   et refuse par 409 — `task_is_milestone`, `task_without_lines` (jamais manquante sans ligne),
   `task_not_milestone`, `completed_milestone`, puis `project_in_progress` et
@@ -1112,6 +1135,9 @@ s'importent de la même façon.
   contributeur et l'état ; refusé, l'import passe `refused`, son fichier supprimé (#1790) ;
 - `WF-ARC-0100-A` — « Il en va de même si le projet est passé dans un état terminal
   entre-temps. » : `project_not_terminal` ;
+- `WF-ARC-0100-A` — « Une application refusée parce qu’un marquage est en cours sur le projet peut
+  être redemandée après lui, sans nouveau dépôt. » : un refus passager laisse le compte rendu
+  applicable et son fichier en place (spécification 1.0.3, #2523), réalisé par US-1380/L4 (#2519) ;
 - `WF-INTF-0080-A` — « Pour un fichier qui contient des lignes invalides, le compte rendu les
   liste avec leur motif avant la confirmation. » : `ImportReport.rejected`, par le format
   (US-1430 pour MS Project) ; les lignes d'un devis sont d'EP-07, qui clôt ;
@@ -1330,6 +1356,9 @@ présenter la structure du projet sans ses détails.
   `VALUE_OUT_OF_RANGE` sous 1 ;
 - `WF-PLA-0120-A` — « L’export d’une arborescence trop large pour une page produit une image plus
   large que la page, sans réduction. »
+- `WF-PLA-0120-A` — « L’export d’une arborescence dont l’image dépasserait cent millions de pixels
+  échoue, et l’échec le dit. » : `TASK_TREE_IMAGE_TOO_LARGE`, calculé avant le rendu (spécification
+  1.0.3, #2522), réalisé par US-1440/L2 (#2343) ;
 - propre à l'US : l'image porte le libellé du projet, de la révision et la date de calcul, dans
   la langue du compte demandeur (WF-ARC-0110) ; l'écran de l'arborescence (`…/task-tree`)
   travaille contre le service, offre l'export sous `export_task_tree_image`, et son parcours
@@ -1578,6 +1607,9 @@ s'affiche.
   lectures du témoin chargé — `nodes_planning`, `nodes_summaries`, `nodes_timeline`,
   `nodes_milestone`, `volume/nodes_thousand` — sont comparées aux exemples, aux colonnes d'audit
   et aux montants près, listés dans le test ;
+- propre à l'US : les quatre parcours de `timelines.spec.ts` qui lisent le témoin — la frise, le
+  focus, l'export PNG, les deux sélections (WF-PLA-0140-A) — portent `@shared` dès que le
+  remplisseur charge les tâches (US-1480/L2, #2340) ;
 - propre à l'US : tous les parcours du planning, du Gantt, de l'arborescence, des chronologies
   et des échanges étiquetés `@shared` passent contre le service, le témoin chargé ; la définition
   de fini est constatée — cinquante saisies annulées puis rétablies, un collage prévisualisé puis

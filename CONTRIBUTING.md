@@ -97,7 +97,7 @@ Conventions, each of them dictated by a requirement rather than by taste:
 | Exact decimals carried as strings, planning dates without time, timestamps in UTC | `WF-DAT-0100` |
 | One error envelope, carrying a machine code and its parameters, never a sentence | `WF-ARC-0110` |
 | 404 when the read permission is missing, 403 when it is the write or the contributor status | `WF-ADM-0110` |
-| `lock_version` on concurrent writes, refused with 412 | `WF-IHM-0110` |
+| `lock_version` on concurrent writes, refused with 412 | `WF-DAT-0150` |
 | A long operation returns a background task, never a result | `WF-ARC-0090` |
 
 Every operation cites, in its own summary or description, the requirements it realises — a

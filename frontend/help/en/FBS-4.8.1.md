@@ -8,7 +8,7 @@ The first card of the [project indicators](FBS-4.8.md), with its date of calcula
 - **Budget consumption**: the same actual cost over the [reference budget](notions/budget-de-reference.md), in percent.
 - The quantities they are deduced from: **Actual cost**, **Remaining to commit** and **Reference budget**.
 
-The two percentages are read together: they say whether one spends fast, and whether one spends too much. A financial progress of 50 % with a consumption of 70 % announces an overrun of 40 %. It is the only indicator that does not depend on the earned value.
+The two percentages are read together: they say whether one spends fast, and whether one spends too much. A financial progress of 50 % with a consumption of 70 % announces an overrun of 40 %. It is an indicator that does not depend on the earned value.
 
 ## Its commands
 

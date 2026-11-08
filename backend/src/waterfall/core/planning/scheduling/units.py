@@ -9,11 +9,12 @@ percent is a share of the duration of its predecessor, in that duration's own un
 
 Inside the engine the hours are fractions, exact whatever the division: twenty minutes are a third
 of an hour, and three of them an hour, an equality the critical path and the conflicts rest on
-(WF-PLA-0100). They become decimals again only where the engine renders them.
+(WF-PLA-0100). They become decimals again only where the engine renders them, to a fixed number of
+decimals, and a date read back is compared at that scale (#2460).
 """
 
 from dataclasses import dataclass
-from decimal import Decimal
+from decimal import ROUND_HALF_EVEN, Context, Decimal
 from fractions import Fraction
 from typing import Literal
 
@@ -44,13 +45,34 @@ MINUTES: frozenset[str] = frozenset({"min", "emin"})
 """Minutes, of work or elapsed: a sixtieth of an hour each."""
 
 
-def decimal_of(hours: Fraction) -> Decimal:
-    """Return a fraction as the engine renders it: exact when a decimal of the context holds it.
+PLACES = 10
+"""The decimals an hour, a duration or a float is rendered with, then stored (#2460).
 
-    A third of an hour is rendered to the precision of the context, the engine having compared
-    it exactly before.
+A ten-billionth of an hour, a third of a microsecond: finer than any entry, coarse enough that a
+rendered hour, sent back as the date of a manual task, is read as the engine placed it.
+"""
+
+_SCALE = 10**PLACES
+
+
+def rounded(value: Fraction) -> Fraction:
+    """Return a fraction at the scale of the rendering, a half to the even (#2460).
+
+    What the engine compares with a date it reads back: a third of an hour rendered then sent as
+    the start of a manual task is the end it was rendered from, not a ten-billionth before it.
     """
-    return Decimal(hours.numerator) / Decimal(hours.denominator)
+    return Fraction(round(value * _SCALE), _SCALE)
+
+
+def decimal_of(value: Fraction) -> Decimal:
+    """Return a fraction as the engine renders it: to ``PLACES`` decimals, a half to the even.
+
+    Exact when it holds in them — eight hours are ``8``, a half ``0.5`` —, a third of an hour
+    ``0.3333333333``; whatever the context of the ``decimal`` module, which is not read (#2460).
+    """
+    units = round(value * _SCALE)
+    context = Context(prec=max(1, len(str(abs(units)))), rounding=ROUND_HALF_EVEN)
+    return context.divide(Decimal(units), Decimal(_SCALE))
 
 
 @dataclass(frozen=True, slots=True)

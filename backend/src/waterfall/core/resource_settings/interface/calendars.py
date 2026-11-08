@@ -430,16 +430,20 @@ def update_calendar(
 
     The days are refused first (422), then the version, then the label (409); a change that would
     leave a task without an hour is refused (422), which EP-06 judges. The structures of the current
-    revisions are redated in the transaction, once the calendar is written (``recalculate``).
+    revisions are redated in the transaction, once the calendar is written (``recalculate``), when
+    the hours of the default change: a label, or the hours of another calendar, which no task of
+    EP-06 is on, redate nothing.
     """
     _refuse_hours(change.weekly_hours)
     lock_reference(session)
     calendar = _lock_calendar(session, calendar_id)
     _expect(calendar, lock_version)
     _refuse_idle_tasks(session, calendar_id, change.weekly_hours, default=calendar.is_default)
+    redating = calendar.is_default and _weekly(_hours_of(calendar)) != _weekly(change.weekly_hours)
     with _unique_label(session, change.label):
         _write(session, calendar, act, label=change.label, **_weekly(change.weekly_hours))
-    recalculate(session)
+    if redating:
+        recalculate(session, act.at)
     return read_calendar(session, calendar_id)
 
 
@@ -464,7 +468,7 @@ def set_default_calendar(
         _refuse_idle_tasks(session, calendar_id, _hours_of(calendar), default=True)
         _retire_default(session, act)
         _write(session, calendar, act, is_default=True)
-        recalculate(session)
+        recalculate(session, act.at)
     return read_calendar(session, calendar_id)
 
 

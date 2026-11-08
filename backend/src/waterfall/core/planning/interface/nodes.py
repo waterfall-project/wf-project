@@ -7,10 +7,11 @@ from a marked one (``copy_nodes``, after the structures', whose copies it finds 
 ``RevisionCopy.identifiers``) and the question the designation of the reference asks of its tasks
 (``revision_has_tasks``, WF-CYC-0030). The reading and the writes of the tree — ``listNodes``,
 ``createNode``, ``updateTaskFacet``, ``getComputedValueDependencies``, ``resolveRowNumber`` — are
-US-1380/L2's, the deletion and the move (``deleteNode``, ``moveNodes``) US-1380/L3's; each write
-judges its revision, opens its entry of the history, locks its structure, replays the engine on it
-and gives back what it wrote (``writing``). A marked revision reads as the current one. The
-attachment to the work breakdown is US-1380/L3's: a creation and a modification leave it as it is.
+US-1380/L2's, the deletion, the move and the attachment to the work breakdown (``deleteNode``,
+``moveNodes``, ``work_package_id`` and ``order_item_id`` of a creation and a modification)
+US-1380/L3's; each write judges its revision, opens its entry of the history, locks its structure,
+replays the engine on it and gives back what it wrote (``writing``). A marked revision reads as the
+current one. The copy leaves null the attachment to an element marked deleted (WF-PLA-0170).
 ``load_task`` writes a task of the witness at the identifiers and the instant it imposes
 (US-1480/L2).
 """
@@ -20,6 +21,16 @@ from typing import TYPE_CHECKING
 
 from sqlalchemy import exists, insert, inspect, select, update
 
+from waterfall.core.planning.attachments import (
+    ORDER_ITEM_ID,
+    WORK_PACKAGE_ID,
+    Attached,
+    Bearer,
+    carriers,
+    judged_attachment,
+    stray_fault,
+    strays,
+)
 from waterfall.core.planning.dating import constants_of
 from waterfall.core.planning.entries import (
     AUTOMATIC,
@@ -29,10 +40,19 @@ from waterfall.core.planning.entries import (
 )
 from waterfall.core.planning.filters import NodeFilters, retained
 from waterfall.core.planning.interface.facets import calendar_of, calendars_of, facets
-from waterfall.core.planning.scheduling import WorkInstant
+from waterfall.core.planning.scheduling import Move, WorkInstant
+from waterfall.core.planning.shaping import (
+    Placing,
+    deleted,
+    emptied,
+    judge_place,
+    place,
+    placed,
+    stamp,
+)
 from waterfall.core.planning.tables import Node, Task, TaskLink
 from waterfall.core.planning.tree import TASK, Tree, read_links, read_tree
-from waterfall.core.planning.views import NodeView, Reading
+from waterfall.core.planning.views import NodeView, Reading, state_of
 from waterfall.core.planning.writing import (
     NodesWritten,
     Place,
@@ -41,7 +61,9 @@ from waterfall.core.planning.writing import (
     facts_of,
     writing,
 )
+from waterfall.core.projects.interface import work_breakdown_items
 from waterfall.platform.errors import (
+    ConflictError,
     FieldError,
     NotFoundError,
     PreconditionFailedError,
@@ -50,6 +72,7 @@ from waterfall.platform.errors import (
 from waterfall.platform.identifiers import new_id
 
 if TYPE_CHECKING:
+    from collections.abc import Callable, Mapping
     from datetime import date, datetime
     from decimal import Decimal
     from uuid import UUID
@@ -58,6 +81,7 @@ if TYPE_CHECKING:
 
     from waterfall.core.planning.entries import Facet
     from waterfall.core.planning.scheduling import Duration
+    from waterfall.core.planning.writing import Write
     from waterfall.core.revisions.interface import RevisionCopy
     from waterfall.platform.audit import Act
 
@@ -67,6 +91,8 @@ STALE_LOCK_VERSION = "STALE_LOCK_VERSION"
 UNKNOWN_TASK = "UNKNOWN_TASK"
 NODE_NOT_SIBLING = "NODE_NOT_SIBLING"
 MILESTONE_HAS_NO_SUBTASK = "MILESTONE_HAS_NO_SUBTASK"
+STATE_FORBIDS_OPERATION = "STATE_FORBIDS_OPERATION"
+TASK_NOT_STARTED = "task_not_started"
 NOT_STARTED = "not_started"
 
 
@@ -83,7 +109,8 @@ class TaskEntry:
     """The facet of a task as a write sends it; ``sent`` names what a modification sends.
 
     At a creation, a field absent is ``None``, and neither ``sent`` nor ``lock_version`` — the
-    counter a modification read — is read.
+    counter a modification read — is read. ``work_package_id`` and ``order_item_id`` attach the
+    task to the work breakdown; sent ``None`` at a modification, they remove its attachment.
     """
 
     label: str | None = None
@@ -94,6 +121,15 @@ class TaskEntry:
     finish: InstantSent | None = None
     sent: frozenset[str] = frozenset()
     lock_version: int | None = None
+    work_package_id: UUID | None = None
+    order_item_id: UUID | None = None
+
+    def attachment(self, *, creation: bool) -> dict[str, UUID | None]:
+        """Give the fields of the attachment sent: those not null at a creation."""
+        values = {WORK_PACKAGE_ID: self.work_package_id, ORDER_ITEM_ID: self.order_item_id}
+        if creation:
+            return {name: value for name, value in values.items() if value is not None}
+        return {name: value for name, value in values.items() if name in self.sent}
 
 
 @dataclass(frozen=True, slots=True)
@@ -180,8 +216,10 @@ def copy_nodes(copy: RevisionCopy) -> None:
     """Copy the nodes of the source, their facet task and their links (WF-DAT-0010).
 
     The nodes of each structure copied, under identifiers of their own and their lineage, at their
-    place, at their first version, their dates as computed; the facets the later modules register
-    after them (``register_facet``). The inscriptions follow the lineage, and stay.
+    place, at their first version, their dates as computed, their attachment to the work breakdown
+    but to an element marked deleted, which the revision opened does not take up (WF-PLA-0170); the
+    facets the later modules register after them (``register_facet``). The inscriptions follow the
+    lineage, and stay.
     """
     session, ids = copy.session, copy.identifiers
     nodes = [
@@ -221,6 +259,11 @@ def copy_nodes(copy: RevisionCopy) -> None:
     tasks = session.scalars(
         select(Task).where(Task.project_id == copy.project_id, Task.node_id.in_(list(ids)))
     ).all()
+    gone = {
+        item.item_id
+        for item in work_breakdown_items(session, copy.project_id).values()
+        if item.deleted
+    }
     session.execute(
         insert(Task),
         [
@@ -228,6 +271,8 @@ def copy_nodes(copy: RevisionCopy) -> None:
                 **_columns(task),
                 "node_id": ids[task.node_id],
                 "structure_id": ids[task.structure_id],
+                "work_package_id": None if task.work_package_id in gone else task.work_package_id,
+                "order_item_id": None if task.order_item_id in gone else task.order_item_id,
             }
             for task in tasks
         ],
@@ -328,27 +373,45 @@ def _judge_parent(tree: Tree, parent: UUID | None) -> None:
     raise UnprocessableError(VALIDATION_FAILED, fields=(fault,))
 
 
-def _stamp(node: Node, act: Act) -> None:
-    """Count a write of a node: its version advanced, its author and its instant."""
-    node.lock_version += 1
-    node.updated_at = act.at
-    node.updated_by = act.author
+def _attached(
+    write: Write, bearer: Bearer, sent: Mapping[str, UUID | None], prefix: str
+) -> Attached:
+    """Judge the attachment a write sends for a task, on the tree read under the lock."""
+    held = (write.place.project_id, write.tree, write.facts.is_main)
+    return judged_attachment(write.session, held, bearer, sent, prefix)
+
+
+def _together[Judged](judge: Callable[[], Judged], attached: Attached) -> Judged:
+    """Judge a facet sent, its refusals named with those of its attachment, all at once."""
+    try:
+        judged = judge()
+    except UnprocessableError as refused:
+        if refused.code != VALIDATION_FAILED or not attached.faults:
+            raise
+        raise UnprocessableError(
+            VALIDATION_FAILED, fields=(*refused.fields, *attached.faults)
+        ) from None
+    if attached.faults:
+        raise UnprocessableError(VALIDATION_FAILED, fields=attached.faults)
+    return judged
 
 
 def _insert(
     write: Write,
     creation: NodeCreation,
     node_id: UUID,
-    facet: Facet,
+    judged: tuple[Facet, Attached],
     placed: tuple[int, list[UUID]],
 ) -> None:
     """Write the node and the facet of a task created at its rank, the siblings after it moved.
 
-    The siblings at that rank or after (``placed``) are moved down by one in one statement — the
-    rank is unique, checked at its end — and counted as any write of a node is.
+    ``judged`` is its facet and its attachment as judged. The siblings at that rank or after
+    (``placed``) are moved down by one in one statement — the rank is unique, checked at its end —
+    and counted as any write of a node is.
     """
     session, place, act = write.session, write.place, write.writer.act
     rank, shifted = placed
+    facet, attached = judged
     parent = creation.parent_id
     if shifted:
         session.execute(
@@ -401,6 +464,8 @@ def _insert(
             finish_date=finish.day,
             finish_hours=finish.hours,
             progress=NOT_STARTED,
+            work_package_id=attached.work_package_id,
+            order_item_id=attached.order_item_id,
             total_float_days=None,
             is_critical=False,
         )
@@ -415,9 +480,10 @@ def create_node(
     Judged under the lock of the structure: its parent, a task of the structure and no milestone
     (``MILESTONE_HAS_NO_SUBTASK``, WF-PLA-0050), its place (``NODE_NOT_SIBLING``), its facet — an
     automatic task of a day by default, a manual one at the dates sent, their hours completed on
-    its calendar (#1769, WF-PLA-0020). A manual leaf that receives it becomes a summary, always
-    automatic (WF-PLA-0040), and is written with it. Beyond fifteen years, refused naming the task
-    by its label (WF-PLA-0150); nothing is created.
+    its calendar (#1769, WF-PLA-0020), its attachment to the work breakdown under its parent
+    (WF-PLA-0170). A manual leaf that receives it becomes a summary, always automatic
+    (WF-PLA-0040), and is written with it. Beyond fifteen years, refused naming the task by its
+    label (WF-PLA-0150); nothing is created.
     """
     node_id = new_id()
     with writing(session, place, writer, ("node_create", (node_id,))) as write:
@@ -425,7 +491,12 @@ def create_node(
         parent = creation.parent_id
         _judge_parent(tree, parent)
         applicable = calendar_of(session, place.project_id, node_id).calendar
-        facet = judged_creation(creation.task, applicable, constants_of(session))
+        lineage = () if parent is None else (parent, *tree.ancestors(parent))
+        bearer = Bearer(node_id, creation.task.label or "", lineage, created=True)
+        attached = _attached(write, bearer, creation.task.attachment(creation=True), "/task")
+        facet = _together(
+            lambda: judged_creation(creation.task, applicable, constants_of(session)), attached
+        )
         rank = _rank(tree, creation)
         shifted = [each for each in tree.subtasks(parent) if tree.nodes[each].rank >= rank]
         made_summary = (
@@ -438,8 +509,8 @@ def create_node(
         write.before(touched)
         if parent is not None and made_summary:
             tree.tasks[parent].scheduling_mode = AUTOMATIC
-            _stamp(tree.nodes[parent], writer.act)
-        _insert(write, creation, node_id, facet, (rank, shifted))
+            stamp(tree.nodes[parent], writer.act)
+        _insert(write, creation, node_id, (facet, attached), (rank, shifted))
         redated = write.redate((None, creation.task.label or ""))
         write.after(touched)
         return redated.written((node_id,))
@@ -455,8 +526,9 @@ def update_task_facet(
     """Write what is sent of the facet of a task, at the counter read (``updateTaskFacet``).
 
     Under the lock of the structure: refused if the node is no task of it (404), at another
-    version (412), or for what it computes or does not accept (422, ``entries``). Beyond fifteen
-    years, refused naming the task (WF-PLA-0150); nothing is written.
+    version (412), or for what it computes or does not accept (422, ``entries``), its attachment
+    to the work breakdown with it (``attachments``, WF-PLA-0170). Beyond fifteen years, refused
+    naming the task (WF-PLA-0150); nothing is written.
     """
     with writing(session, place, writer, ("cell", (node_id,))) as write:
         tree = write.tree
@@ -468,7 +540,12 @@ def update_task_facet(
                 STALE_LOCK_VERSION, {"expected_lock_version": node.lock_version}
             )
         applicable = calendar_of(session, place.project_id, node_id).calendar
-        facet = judged_change(tree, task, entry, applicable, constants_of(session))
+        carried = (task.work_package_id, task.order_item_id)
+        bearer = Bearer(node_id, task.label, tuple(tree.ancestors(node_id)), carried)
+        attached = _attached(write, bearer, entry.attachment(creation=False), "")
+        facet = _together(
+            lambda: judged_change(tree, task, entry, applicable, constants_of(session)), attached
+        )
         write.before((node_id,))
         if "label" in entry.sent and entry.label is not None:
             task.label = entry.label
@@ -480,7 +557,9 @@ def update_task_facet(
         if facet.start is not None and facet.finish is not None:
             task.start_date, task.start_hours = facet.start.day, facet.start.hours
             task.finish_date, task.finish_hours = facet.finish.day, facet.finish.hours
-        _stamp(node, writer.act)
+        task.work_package_id = attached.work_package_id
+        task.order_item_id = attached.order_item_id
+        stamp(node, writer.act)
         redated = write.redate((node_id, task.label))
         write.after((node_id,))
         return redated.written((node_id,))
@@ -565,16 +644,182 @@ def resolve_row_number(session: Session, place: Place, row_number: int) -> RowRe
     return RowResolution(node_id, row_number, _label(tree, node_id), tree.nodes[node_id].kind)
 
 
-def delete_node(session: Session, project_id: UUID, node_id: UUID, act: Act) -> None:
-    """Delete a node and its subtree, and give the nodes written (``deleteNode``)."""
-    msg = "delete_node is filled by US-1380/L3"
-    raise NotImplementedError(msg)
+@dataclass(frozen=True, slots=True)
+class NodeMoving:
+    """A selection of nodes moved under a parent (``NodeMove``), at the counter of the structure.
+
+    ``after_given`` false places each kind after its last sibling; given, ``after_node_id`` null
+    places them at the head of their siblings.
+    """
+
+    node_ids: tuple[UUID, ...]
+    parent_id: UUID | None
+    after_node_id: UUID | None
+    after_given: bool
+    lock_version: int
 
 
-def move_nodes(session: Session, project_id: UUID, structure_id: UUID, act: Act) -> None:
-    """Move a selection of nodes under a parent, and give the nodes written (``moveNodes``)."""
-    msg = "move_nodes is filled by US-1380/L3"
-    raise NotImplementedError(msg)
+def delete_node(
+    session: Session, place: Place, node_id: UUID, lock_version: int, writer: Writer
+) -> NodesWritten:
+    """Delete a node and its subtree, and give the nodes written (``deleteNode``).
+
+    Under the lock of the structure: refused if the structure does not hold the node (404), at
+    another version than the one read (412), for a task started or completed, or a summary one of
+    whose subordinates is (409 ``task_not_started``, WF-PLA-0070). The subtree goes, its links and
+    the inscriptions of its lineages with it; a summary left without subordinate becomes a leaf in
+    its state (WF-PLA-0040) and is given back among the ancestors, with the tasks the links taken
+    away redate. No provision line moves before EP-08: ``nodes`` is empty.
+    """
+    with writing(session, place, writer, ("node_delete", (node_id,))) as write:
+        tree = write.tree
+        if node_id not in tree.nodes:
+            raise NotFoundError(NOT_FOUND)
+        node = tree.nodes[node_id]
+        if node.lock_version != lock_version:
+            raise PreconditionFailedError(
+                STALE_LOCK_VERSION, {"expected_lock_version": node.lock_version}
+            )
+        if node_id in tree.tasks and state_of(tree, node_id).progress != NOT_STARTED:
+            raise ConflictError(STATE_FORBIDS_OPERATION, {"missing_condition": TASK_NOT_STARTED})
+        parent = node.parent_id
+        former = () if parent is None else (parent, *tree.ancestors(parent))
+        subtree = list(tree.subtree(node_id))
+        left_bare = parent is not None and tree.subtasks(parent) == [node_id]
+        touched = (*subtree, *((parent,) if left_bare and parent is not None else ()))
+        write.before(touched)
+        if left_bare and parent is not None:
+            emptied(tree, parent)
+            stamp(tree.nodes[parent], writer.act)
+        deleted(write, subtree)
+        redated = write.redate(None)
+        write.after(touched)
+        return redated.written((), former)
+
+
+def _judge_move(tree: Tree, placing: Placing) -> None:
+    """Refuse a move the tree forbids: a parent that is no task, in the selection, a milestone.
+
+    A parent among the nodes moved or under one of them would leave no tree (WF-PLA-0040); a
+    line goes under a task; a task moved under a milestone is refused, the milestone named
+    (WF-PLA-0050, #1771); the sibling named is one under the parent (``NODE_NOT_SIBLING``).
+    """
+    parent = placing.parent_id
+    moved = placing.node_ids
+    tasks_moved = any(each in tree.tasks for each in moved)
+    inside = {each for node_id in moved for each in tree.subtree(node_id)}
+    lines_moved = len(moved) > sum(each in tree.tasks for each in moved)
+    if (parent is None and lines_moved) or (
+        parent is not None and (parent not in tree.tasks or parent in inside)
+    ):
+        # 422 ``UNKNOWN_TASK`` on /parent_id for a parent taken in the selection: the contract does
+        # not say it yet (#2500, to settle).
+        raise UnprocessableError(
+            VALIDATION_FAILED, fields=(FieldError("/parent_id", UNKNOWN_TASK),)
+        )
+    if parent is not None and tasks_moved and tree.is_milestone(parent):
+        named = {"node_id": str(parent), "label": tree.tasks[parent].label}
+        fault = FieldError("/parent_id", MILESTONE_HAS_NO_SUBTASK, named)
+        raise UnprocessableError(VALIDATION_FAILED, fields=(fault,))
+    judge_place(tree, placing)
+
+
+def _judge_package_tasks(write: Write, placing: Placing, sent: tuple[UUID, ...]) -> None:
+    """Refuse a move that takes the task of an order item out of that of its work package.
+
+    Judged on the structure the move would leave; the fault is on the first moved node concerned
+    in the order of the plan read, at its place among those ``sent``, the tasks named by their node
+    and their label (WF-PLA-0170).
+    """
+    tree = write.tree
+    borne = carriers(tree)
+    if not borne:
+        return
+    parents = {node_id: node.parent_id for node_id, node in tree.nodes.items()}
+    parents.update(dict.fromkeys(placing.node_ids, placing.parent_id))
+
+    def is_under(task_id: UUID, summary: UUID) -> bool:
+        above = parents[task_id]
+        while above is not None and above != summary:
+            above = parents[above]
+        return above == summary
+
+    items = work_breakdown_items(write.session, write.place.project_id)
+    found = strays(items, borne, is_under)
+    if not found:
+        return
+    for moved in tree.ordered(placing.node_ids):
+        below = set(tree.subtree(moved))
+        for stray in found:
+            if stray[0] in below or below.intersection(stray[1]):
+                pointer = f"/node_ids/{sent.index(moved)}"
+                fault = stray_fault(tree, pointer, stray, {})
+                raise UnprocessableError(VALIDATION_FAILED, fields=(fault,))
+
+
+def move_nodes(session: Session, place: Place, moving: NodeMoving, writer: Writer) -> NodesWritten:
+    """Move a selection of nodes under a parent, and give the nodes written (``moveNodes``).
+
+    Under the lock of the structure, at its counter (412): a node it does not hold is not found
+    (404); the parent and the place are judged (``_judge_move``), then the tasks of the work
+    breakdown (WF-PLA-0170). Each node takes its subtree with it, unchanged but for its parent and
+    its place (WF-PLA-0040); a manual leaf that receives a task becomes an automatic summary; a
+    summary that loses its last subordinate a leaf in its state. The engine refuses a link the
+    move would make between a summary and its subordinate, or a loop it would close through the
+    parent (``LINK_FORBIDDEN``, ``LINK_CYCLE``, #1169), and a project beyond fifteen years, the
+    first task moved named (WF-PLA-0150); nothing is written then. The moved nodes are given back
+    with their former and new ancestors.
+    """
+    node_ids = tuple(dict.fromkeys(moving.node_ids))
+    with writing(session, place, writer, ("node_move", node_ids)) as write:
+        tree = write.tree
+        if write.facts.lock_version != moving.lock_version:
+            raise PreconditionFailedError(
+                STALE_LOCK_VERSION, {"expected_lock_version": write.facts.lock_version}
+            )
+        if not all(each in tree.nodes for each in node_ids):
+            raise NotFoundError(NOT_FOUND)
+        placing = Placing(node_ids, moving.parent_id, moving.after_node_id, moving.after_given)
+        _judge_move(tree, placing)
+        _judge_package_tasks(write, placing, moving.node_ids)
+        return _moved(write, placing)
+
+
+def _moved(write: Write, placing: Placing) -> NodesWritten:
+    """Write a move judged: the places, the summaries made and left, then redate."""
+    tree, act = write.tree, write.writer.act
+    parent, node_ids = placing.parent_id, placing.node_ids
+    tasks_moved = tree.ordered([each for each in node_ids if each in tree.tasks])
+    changes = placed(tree, placing)
+    former = {above for each in node_ids for above in tree.ancestors(each)}
+    left_bare = [
+        each
+        for each in tree.ordered(former)
+        if each != parent and tree.subtasks(each) and set(tree.subtasks(each)) <= set(node_ids)
+    ]
+    made_summary = (
+        parent is not None
+        and bool(tasks_moved)
+        and not tree.is_summary(parent)
+        and tree.tasks[parent].scheduling_mode == MANUAL
+    )
+    shifted = [each for each in changes if each not in node_ids]
+    above = (parent,) if made_summary and parent is not None else ()
+    touched = (*node_ids, *shifted, *above, *left_bare)
+    write.before(touched)
+    for each in left_bare:
+        emptied(tree, each)
+        stamp(tree.nodes[each], act)
+    if made_summary and parent is not None:
+        tree.tasks[parent].scheduling_mode = AUTOMATIC
+        stamp(tree.nodes[parent], act)
+    place(write, changes, (*node_ids, *shifted))
+    first = tasks_moved[0] if tasks_moved else None
+    blamed = None if first is None else (first, tree.tasks[first].label)
+    origin = None if parent is None or first is None else Move(tuple(tasks_moved), parent)
+    redated = write.redate(blamed, origin)
+    write.after(touched)
+    return redated.written(node_ids, former)
 
 
 def load_task(session: Session, project_id: UUID, structure_id: UUID, act: Act) -> None:

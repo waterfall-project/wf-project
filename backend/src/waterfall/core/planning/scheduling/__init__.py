@@ -96,3 +96,6 @@ from waterfall.core.planning.scheduling.units import (
 from waterfall.core.planning.scheduling.units import (
     UnitConstants as UnitConstants,
 )
+from waterfall.core.planning.scheduling.units import (
+    decimal_of as decimal_of,
+)

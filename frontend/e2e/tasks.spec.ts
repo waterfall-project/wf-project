@@ -3,7 +3,7 @@
 import { expect, type Page, type Route, test } from "@playwright/test";
 
 import { compile } from "./compile";
-import { openHydrated } from "./hydration";
+import { openHydrated, WORKING } from "./hydration";
 
 // The fake back serves the first example of each operation: the current revision, a draft
 // whose marking is available; the marking queued; and, read two seconds later, the marking
@@ -67,11 +67,20 @@ test("marking a revision gives the hand back, shows its progress, and tells on a
   await page.keyboard.press("Escape");
   await expect(panel).toHaveCount(0);
   await expect(button).toBeFocused();
-  // So does a click outside it, on the page its overlay covers, the focus back on its button.
+  // So does a click outside it, on the page its overlay covers, the focus back on its button. The
+  // panel shows before it listens: Radix adds its listener of the presses outside a timer after
+  // the panel mounts, and a click sent as soon as it is visible may come first and miss it (#2467)
+  // — no user clicks that fast. The click is played again until the panel closes, the panel
+  // reopened only if it closed otherwise.
   await button.click();
   await expect(panel).toBeVisible();
-  await page.mouse.click(10, 200);
-  await expect(panel).toHaveCount(0);
+  await expect(async () => {
+    if ((await panel.count()) === 0) {
+      return;
+    }
+    await page.mouse.click(10, 200);
+    await expect(panel).toHaveCount(0, { timeout: 1_000 });
+  }).toPass({ timeout: WORKING });
   await expect(button).toBeFocused();
 
   // The user goes to another screen meanwhile, within the application — the document stays,

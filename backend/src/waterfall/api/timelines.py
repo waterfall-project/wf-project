@@ -20,7 +20,7 @@ from waterfall.api.authentication import Transaction
 from waterfall.api.contract.base import ContractModel
 from waterfall.api.contract.models import LockVersion, Timeline, TimelineCreate, TrackingEntry
 from waterfall.api.evaluation import Acting, RequiresProject
-from waterfall.api.nodes import STRUCTURE, Placed, Writing, written_body
+from waterfall.api.nodes import STRUCTURE, Placed, Writing, written_of
 from waterfall.core.planning.interface import (
     TimelineView,
     TrackingChange,
@@ -109,4 +109,4 @@ def put_tracking(
     """Replace the inscriptions of a task, at the counter read; the nodes written are given back."""
     entries = tuple(TrackingSent(each.kind.value, _uuid(each.timeline_id)) for each in body.entries)
     change = TrackingChange(entries, body.lock_version.root)
-    return written_body(set_node_tracking(session, place, node_id, change, writer))
+    return written_of(set_node_tracking(session, place, node_id, change, writer))

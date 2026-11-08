@@ -34,6 +34,7 @@ from waterfall.api.contract.models import (
     NodeCreate,
     NodeKind,
     NodeListMeta,
+    NodeMove,
     RowNumberResolution,
     SchedulingMode,
     SortOrder,
@@ -51,6 +52,7 @@ from waterfall.core.planning.interface import (
     InstantSent,
     NodeCreation,
     NodeFilters,
+    NodeMoving,
     NodesWritten,
     NodeView,
     Place,
@@ -59,7 +61,9 @@ from waterfall.core.planning.interface import (
     Writer,
     computed_value_dependencies,
     create_node,
+    delete_node,
     list_nodes,
+    move_nodes,
     resolve_row_number,
     update_task_facet,
 )
@@ -311,6 +315,7 @@ def _task(view: TaskView) -> dict[str, Any]:
         ],
         "order_item_id": _id(view.order_item_id),
         "work_package_id": _id(view.work_package_id),
+        "work_breakdown_label": view.work_breakdown_label,
         "external_id": view.external_id,
     }
 
@@ -366,11 +371,11 @@ def _totals(task_count: int) -> dict[str, Any]:
     }
 
 
-def written_body(written: NodesWritten) -> dict[str, Any]:
-    """Write what a write of the tree gives back (``NodesWritten``)."""
+def written_of(result: NodesWritten) -> dict[str, Any]:
+    """Write what a write of the tree gives back (``NodesWritten``); ``scheduling`` too."""
     return {
-        "nodes": [_node(each) for each in written.nodes],
-        "ancestors": [_node(each) for each in written.ancestors],
+        "nodes": [_node(each) for each in result.nodes],
+        "ancestors": [_node(each) for each in result.ancestors],
         "rescheduled": [
             {
                 "node_id": str(each.node_id),
@@ -381,11 +386,11 @@ def written_body(written: NodesWritten) -> dict[str, Any]:
                 "link_conflicts": _conflicts(each.link_conflicts),
                 "finish_overdue": each.finish_overdue,
             }
-            for each in written.rescheduled
+            for each in result.rescheduled
         ],
         "reinflated": [],
-        "totals": _totals(written.task_count),
-        "structure_lock_version": written.structure_lock_version,
+        "totals": _totals(result.task_count),
+        "structure_lock_version": result.structure_lock_version,
     }
 
 
@@ -397,7 +402,7 @@ def _sent_instant(sent: WorkInstantWrite | None) -> InstantSent | None:
 
 
 def _entry(body: TaskFacetWrite | TaskFacetUpdate, sent: frozenset[str] = frozenset()) -> TaskEntry:
-    """Read the facet a body sends; the attachment to the work breakdown is US-1380/L3's."""
+    """Read the facet a body sends, its attachment to the work breakdown with it."""
     duration = body.duration
     return TaskEntry(
         label=body.label,
@@ -409,16 +414,9 @@ def _entry(body: TaskFacetWrite | TaskFacetUpdate, sent: frozenset[str] = frozen
         start=_sent_instant(body.start),
         finish=_sent_instant(body.finish),
         sent=sent,
+        work_package_id=None if body.work_package_id is None else body.work_package_id.root,
+        order_item_id=None if body.order_item_id is None else body.order_item_id.root,
     )
-
-
-def _attachment(body: TaskFacetWrite | TaskFacetUpdate, prefix: str) -> list[FieldError]:
-    """Refuse an attachment to the work breakdown sent: US-1380/L3 serves it, not this lot."""
-    return [
-        FieldError(f"{prefix}/{name}", FIELD_NOT_ACCEPTED)
-        for name in ("work_package_id", "order_item_id")
-        if getattr(body, name) is not None
-    ]
 
 
 def writer_of(actor: Acting, account: Caller) -> Writer:
@@ -480,8 +478,6 @@ def post_node(
         faults.append(FieldError("/task", VALUE_REQUIRED))
     if body.estimate_line is not None:
         faults.append(FieldError("/estimate_line", FIELD_NOT_ACCEPTED))
-    if body.task is not None:
-        faults += _attachment(body.task, "/task")
     if faults or body.task is None:
         raise UnprocessableError(VALIDATION_FAILED, fields=tuple(faults))
     creation = NodeCreation(
@@ -490,7 +486,7 @@ def post_node(
         after_given="after_node_id" in body.model_fields_set,
         task=_entry(body.task),
     )
-    return written_body(create_node(session, place, creation, writer))
+    return written_of(create_node(session, place, creation, writer))
 
 
 @router.patch(
@@ -513,12 +509,51 @@ def patch_task(
         for name in ("label", "scheduling_mode", "duration")
         if name in sent and getattr(body, name) is None
     ]
-    faults += _attachment(body, "")
     # A modification sends one field at least beside its counter (``minProperties``).
     if faults or not sent:
         raise UnprocessableError(VALIDATION_FAILED, fields=tuple(faults))
     change = replace(_entry(body, sent), lock_version=body.lock_version.root)
-    return written_body(update_task_facet(session, place, node_id, change, writer))
+    return written_of(update_task_facet(session, place, node_id, change, writer))
+
+
+@router.delete(
+    f"{STRUCTURE}/nodes/{{node_id}}",
+    operation_id="deleteNode",
+    dependencies=[Depends(RequiresProject(CONSULT, CHANGE))],
+    response_model=None,
+)
+def delete_task(
+    place: Placed,
+    node_id: UUID,
+    lock_version: Annotated[int, Query(ge=0)],
+    writer: Writing,
+    session: Transaction,
+) -> dict[str, Any]:
+    """Delete a node of a structure and its subtree, at the counter of the node read."""
+    return written_of(delete_node(session, place, node_id, lock_version, writer))
+
+
+@router.post(
+    f"{STRUCTURE}/nodes/move",
+    operation_id="moveNodes",
+    dependencies=[Depends(RequiresProject(CONSULT, CHANGE))],
+    response_model=None,
+)
+def post_move(
+    place: Placed,
+    body: NodeMove,
+    writer: Writing,
+    session: Transaction,
+) -> dict[str, Any]:
+    """Move a selection of nodes under a parent, at the counter of the structure read."""
+    moving = NodeMoving(
+        node_ids=tuple(each.root for each in body.node_ids),
+        parent_id=None if body.parent_id is None else body.parent_id.root,
+        after_node_id=None if body.after_node_id is None else body.after_node_id.root,
+        after_given="after_node_id" in body.model_fields_set,
+        lock_version=body.lock_version.root,
+    )
+    return written_of(move_nodes(session, place, moving, writer))
 
 
 @router.get(

@@ -111,13 +111,14 @@ from waterfall.core.projects.interface.subprojects import (
     update_subproject,
 )
 
-# ``work_breakdown`` (US-0950): the work breakdown of a project.
+# ``work_breakdown`` (US-0950; the elements a task bears, US-1380/L3): the work breakdown.
 from waterfall.core.projects.interface.work_breakdown import (
     DeliverableEntry,
     DeliverableView,
     OrderItemEntry,
     OrderItemView,
     WorkBreakdownFilters,
+    WorkBreakdownItem,
     WorkBreakdownLoad,
     WorkBreakdownRead,
     WorkBreakdownToWrite,
@@ -126,6 +127,7 @@ from waterfall.core.projects.interface.work_breakdown import (
     load_work_breakdown,
     read_work_breakdown,
     set_work_breakdown,
+    work_breakdown_items,
     work_breakdown_present,
 )
 
@@ -174,6 +176,7 @@ __all__ = [
     "TransitionView",
     "Viewer",
     "WorkBreakdownFilters",
+    "WorkBreakdownItem",
     "WorkBreakdownLoad",
     "WorkBreakdownRead",
     "WorkBreakdownToWrite",
@@ -224,5 +227,6 @@ __all__ = [
     "subprojects_present",
     "update_project",
     "update_subproject",
+    "work_breakdown_items",
     "work_breakdown_present",
 ]

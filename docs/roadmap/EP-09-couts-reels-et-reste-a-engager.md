@@ -323,10 +323,10 @@ Décisions de l'auteur du 2026-11-07, sur les questions du cadrage, chacune avec
   l'exclusion passe par la fonction de `setActualCostTrackedScope` à son instant. Écarté : rejouer
   cinq classeurs engendrés par le moteur d'import, qui exige le stockage objet et le worker dans
   une commande d'une seule transaction, et des fixtures binaires.
-- **Une seule migration, `0025`, dans le socle**, au prochain numéro libre à la création
-  d'`epic/EP-09` — `epic/EP-07` s'arrête à `0024` —, aucune donnée à reprendre : les colonnes
+- **Une seule migration, `0026`, dans le socle**, au prochain numéro libre à la création
+  d'`epic/EP-09` — `epic/EP-07` s'arrête à `0025` —, aucune donnée à reprendre : les colonnes
   nouvelles d'`estimate_line` naissent nulles. Aucune migration d'EP-09 après le socle ; EP-10
-  chaîne la sienne sur `0025`. Écarté : une migration par US.
+  chaîne la sienne sur `0026`. Écarté : une migration par US.
 - **XlsxWriter écrit, openpyxl lit**, comme EP-07 l'a décidé : le prototype
   `docs/spec/exemples/prototype_rae.py` vaut pour le reste à engager ce que `prototype_devis.py` a
   valu pour le devis ; `sheet_name` d'EP-07 nomme les onglets des sous-projets (#2190, option B).
@@ -369,7 +369,7 @@ révisionné et son déclencheur d'immuabilité d'EP-07, qui les protège sans r
 | `cost_line` | `id`, `project_id`, `subproject_id` (nul hors sous-projet et pour un code inconnu), `subproject_code` (le code lu dans l'OTP, nul sans partie sous-projet), `document_number`, `document_item` (nul sans poste), `document_date` (`date`), `amount` (`numeric(14,2)`, signé), `is_in_tracked_scope`, `excluded_reason`, `passthrough` (`jsonb`, un objet texte → texte), `last_import_id` (le dernier import qui l'a écrite), audit | unique (`project_id`, `document_number`, `document_item`) `NULLS NOT DISTINCT` (WF-DAT-0110) ; `document_number` de 1 à 200 non blanc, `subproject_code` de 50 au plus ; `excluded_reason IS NULL OR NOT is_in_tracked_scope` ; `subproject_id IS NULL OR subproject_code IS NOT NULL` ; clé vers `project` et clé composite (`project_id`, `subproject_id`) vers `subproject` en refus — la suppression d'un sous-projet imputé est refusée par le service avant la base (WF-PRJ-0050) — ; clé vers `cost_import` en refus ; index sur (`project_id`, `document_date`), (`project_id`, `subproject_id`), (`project_id`, `subproject_code`) pour l'imputation à la création d'un sous-projet |
 | `cost_import` | `id`, `project_id`, `import_report_id`, `imported_at`, `requested_by` (le compte qui a confirmé), `period_from`, `period_to`, `created_count`, `updated_count`, `unchanged_count`, `rejected_count`, `passthrough_columns` (`jsonb`, la liste des colonnes conservées du fichier, dans son ordre) | `import_report_id` unique, clé vers `import_report` en refus ; `requested_by` vers `user_account` en refus ; `period_from <= period_to` quand les deux sont donnés ; comptes `≥ 0` ; jamais modifiée : pas de `lock_version`, l'instant et l'auteur tiennent lieu d'audit, comme une transition d'état |
 
-- **Une migration, `0025`, dans le socle** (US-1580/L1) : les six colonnes d'`estimate_line` — par
+- **Une migration, `0026`, dans le socle** (US-1580/L1) : les six colonnes d'`estimate_line` — par
   `ALTER TABLE` sur la table partitionnée, qui les porte à chaque partition —, les deux tables, les
   droits du rôle du service — `SELECT`, `INSERT`, `UPDATE` sur `cost_line` (une ligne se met à jour
   et s'exclut, jamais ne se supprime), `SELECT`, `INSERT` sur `cost_import` — déclarés dans
@@ -715,7 +715,7 @@ une clé ou une fixture qui manque devient une issue.
 
 Le socle (US-1580/L1 #2398) est le **lot pivot d'EP-10** : `epic/EP-10` se tire d'`epic/EP-09` dès sa
 fusion. Il lui garantit `cost_line` et `cost_import`, les colonnes `previous_*` et `reestimated_at`
-d'`estimate_line`, la chaîne des migrations arrêtée à `0025`, et l'interface déclarée que les
+d'`estimate_line`, la chaîne des migrations arrêtée à `0026`, et l'interface déclarée que les
 indicateurs liront : `actual_costs_until(project_id, date, scope)` et `actual_cost_by_subproject`
 de `costs`, `remaining_of_revision(revision_id)` et `startable_tasks` d'`estimate`, à côté de
 `planned_value` d'EP-07 et des états et dates des tâches d'EP-06 ; les lots d'EP-10 qui lisent des
@@ -728,7 +728,7 @@ Le socle d'abord, dès #2373 ; puis ce qui ne dépend que de lui et des lots d'E
 en largeur quatre ; les lectures et les formats après les écritures ; les écrans par l'US qui sert
 leur objet ; la vérification d'ensemble en dernier ; le plan de lots (étape 3) le détaille en vagues.
 
-1. **US-1580/L1**, le socle — dès la fusion d'US-1490/L4 #2373 : la migration `0025`, le sous-paquet
+1. **US-1580/L1**, le socle — dès la fusion d'US-1490/L4 #2373 : la migration `0026`, le sous-paquet
    `remaining/` de `core/estimate` à vide — hors le sous-paquet `remaining/excel/`, qu'US-1630/L1
    possède entier et dont les lots suivants d'US-1630 complètent les fichiers — et ses fichiers
    d'interface réexportés, le module
@@ -895,7 +895,7 @@ tâches démarrées sans attendre un fichier.
   `previous_unit_disbursement` et `previous_reestimated_amount` : les grandeurs et le réestimé
   courants de la ligne source ; depuis une révision marquée en chiffrage, et sur une ligne créée
   après, ils sont nuls ; une révision marquée les garde ;
-- propre à l'US (lot technique) : la migration d'EP-09, chaînée sur `0024` et seule de l'EPIC —
+- propre à l'US (lot technique) : la migration d'EP-09, chaînée sur `0025` et seule de l'EPIC —
   les quatre colonnes `previous_*` et la marque de réestimation de `estimate_line`, les tables
   `cost_line` et `cost_import` du régime « projet » avec l'unicité sur le projet, la pièce et le
   poste, les droits du rôle du service — ; le module `core/costs` à vide avec son interface en
@@ -987,6 +987,9 @@ déclarer ce qui a commencé et clore mes phases depuis la vue qui les répartit
   un reste, et sa carte passe dans `started` sans le signal, qui ne vaut qu'aux récapitulatives ;
 - `WF-PLA-0040-A` — « Une récapitulative terminée dont la seule subordonnée, un jalon, est
   déplacée devient un jalon terminé. » : constaté par EP-06 ;
+- écart : `WF-PLA-0040-A` — « Le déplacement d’une sélection qui contient une récapitulative et
+  l’une de ses subordonnées laisse la subordonnée sous la récapitulative : le groupe est déplacé
+  entier, sans être aplati. » : le déplacement est d’EP-06 (US-1380/L4) ;
 - `WF-PLA-0050-A` — « Une tâche feuille de durée nulle ne peut recevoir de sous-tâche. »
 - `WF-PLA-0050-A` — « Une récapitulative dont la seule subordonnée est un jalon a une durée nulle
   et reste une récapitulative. » : les deux, constatées par EP-06 ;
