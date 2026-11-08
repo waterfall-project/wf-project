@@ -6,9 +6,12 @@ A filter of the task retains the tasks that satisfy it, with the lines they bear
 combine, and the ancestors of what is retained are returned for the tree to stay readable, but
 under ``timeline_id``: a timeline is no tree (WF-PLA-0140). ``kinds`` is no filter: it chooses what
 is returned, and the count of the tasks does not change with it. The filters of the line — its
-category, its role, its figures, its amounts — retain lines, which EP-07 brings: read by the API
-and without effect here. Each bound is inclusive; a task that bears no value — a manual task's
-float, a leaf's physical progress — is not retained by a bound on it.
+category, its role, its figures, its amounts — retain lines, judged by the hooks of their facet
+(``FacetHooks.filters``, EP-07), opaque here: asked, a task is retained only if it bears a line
+they retain, which alone it returns. The lines are sorted under each task by those hooks too
+(``FacetHooks.sort``), the tasks keeping the order of the tree (WF-IHM-0060). Each bound is
+inclusive; a task that bears no value — a manual task's float, a leaf's physical progress — is not
+retained by a bound on it.
 """
 
 from dataclasses import dataclass
@@ -17,6 +20,7 @@ from typing import TYPE_CHECKING
 from sqlalchemy import select
 
 from waterfall.core.planning.dating import days_of
+from waterfall.core.planning.interface.facets import facets
 from waterfall.core.planning.tables import Task
 from waterfall.platform.database import contains
 
@@ -28,6 +32,7 @@ if TYPE_CHECKING:
 
     from sqlalchemy.orm import Session
 
+    from waterfall.core.planning.interface.facets import LineSort
     from waterfall.core.planning.scheduling import UnitConstants
     from waterfall.core.planning.views import Reading
 
@@ -38,7 +43,8 @@ type Bounds[T] = tuple[T | None, T | None]
 class NodeFilters:
     """What a reading of the nodes asks: the kinds it returns, and what it retains of the tasks.
 
-    ``None`` asks nothing; a bound is a pair, either side ``None``.
+    ``None`` asks nothing; a bound is a pair, either side ``None``. ``lines`` is what the reading
+    asks of the facets of the other kinds, opaque here; ``sort`` the order of their nodes.
     """
 
     kinds: tuple[str, ...] | None = None
@@ -64,6 +70,17 @@ class NodeFilters:
     finish_overdue: bool | None = None
     is_from_risk: bool | None = None
     origin_risk_ids: tuple[UUID, ...] | None = None
+    lines: object | None = None
+    sort: LineSort | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class Retained:
+    """What a reading returns: its nodes in order, the tasks it retains, the lines it retains."""
+
+    order: list[UUID]
+    task_count: int
+    lines: frozenset[UUID]
 
 
 def _within[T: (Decimal, date)](value: T | None, bounds: Bounds[T]) -> bool:
@@ -151,8 +168,8 @@ def retained(
     reading: Reading,
     filters: NodeFilters,
     constants: UnitConstants,
-) -> tuple[list[UUID], int]:
-    """Give the nodes a reading returns, in the order of the plan, and the tasks it retains."""
+) -> Retained:
+    """Give the nodes a reading returns, in the order of the plan, the tasks and lines retained."""
     project_id, structure_id = structure
     tree = reading.tree
     kept = set(tree.tasks)
@@ -175,12 +192,61 @@ def retained(
         kept = {each for each in kept if tree.nodes[each].lineage_id in inscribed}
     for test in _predicates(reading, filters, constants):
         kept = {each for each in kept if test(each)}
-    returned = set(kept)
+    lines = _lines(session, project_id, reading, kept, filters.lines)
+    if filters.lines is not None:
+        kept = {each for each in kept if not lines.isdisjoint(tree.lines(each))}
+    returned = set(kept) | lines
     if filters.timeline_id is None:
         returned |= {ancestor for each in kept for ancestor in tree.ancestors(each)}
-    returned |= {line for each in kept for line in tree.lines(each)}
     kinds = filters.kinds
     order = [each for each in tree.order if each in returned]
+    if filters.sort is not None:
+        order = _sorted(session, project_id, reading, order, filters.sort)
     if kinds is not None:
         order = [each for each in order if tree.nodes[each].kind in kinds]
-    return order, len(kept)
+    return Retained(order, len(kept), lines)
+
+
+def _lines(
+    session: Session, project_id: UUID, reading: Reading, kept: set[UUID], asked: object | None
+) -> frozenset[UUID]:
+    """Give the lines the tasks retained bear that the filters of their facets retain."""
+    tree = reading.tree
+    borne = [line for each in kept for line in tree.lines(each)]
+    if asked is None:
+        return frozenset(borne)
+    found: set[UUID] = set()
+    for kind, hooks in facets().items():
+        held = [each for each in borne if tree.nodes[each].kind == kind]
+        if held:
+            found |= hooks.filters(session, project_id, held, asked)
+    return frozenset(found)
+
+
+def _sorted(
+    session: Session, project_id: UUID, reading: Reading, order: list[UUID], sort: LineSort
+) -> list[UUID]:
+    """Sort the lines under each task by the hooks of their facets; the tasks keep their place.
+
+    The lines of a task come together before its subtasks: each run of them is sorted alone.
+    """
+    tree = reading.tree
+    rank: dict[UUID, int] = {}
+    for kind, hooks in facets().items():
+        held = [each for each in order if tree.nodes[each].kind == kind]
+        ordered = hooks.sort(session, project_id, held, sort) if held else None
+        if ordered is not None:
+            rank.update({each: place for place, each in enumerate(ordered)})
+    if not rank:
+        return order
+    result: list[UUID] = []
+    run: list[UUID] = []
+    for each in [*order, None]:
+        if each is not None and each in rank:
+            run.append(each)
+            continue
+        result += sorted(run, key=rank.__getitem__)
+        run = []
+        if each is not None:
+            result.append(each)
+    return result

@@ -12,20 +12,33 @@ helper writes it in its own file.
 
 from dataclasses import dataclass
 from decimal import Decimal
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 from uuid import UUID, uuid4
 
 from planning_support import node_row
 from project_rows import AT, STAMP
-from sqlalchemy import insert
+from sqlalchemy import insert, select
 
+from waterfall.core.cost_settings.interface import (
+    CostCategoryDraft,
+    CostTypeDraft,
+    create_cost_category,
+    create_cost_type,
+    set_hourly_rate,
+)
 from waterfall.core.cost_settings.tables import CostCategory, CostType
 from waterfall.core.estimate.tables import EstimateLine
 from waterfall.core.planning.tables import Node
 from waterfall.core.resource_settings.tables import Calendar, OrgNode, ResourceRole
+from waterfall.platform.audit import Act
+from waterfall.platform.database import utc_now
 
 if TYPE_CHECKING:
+    from nodes_support import Tree
+    from projects_support import Person
     from sqlalchemy.engine import Connection
+
+    from waterfall.platform.database import Database
 
 # The hours of a working day of the calendar of a role, from Monday to Friday.
 WEEK = {
@@ -156,6 +169,23 @@ def insert_line(
     return node_id
 
 
+def give_a_line(connection: Connection, task_id: UUID) -> UUID:
+    """Give a task a line of labour of the role ``ING`` of a scene, around the service; its node.
+
+    What the designation of the reference asks of the estimate (``revision_has_lines``), beside
+    the task the planning asks for (``planning_support.give_a_task``).
+    """
+    task = connection.execute(
+        select(Node.project_id, Node.revision_id, Node.structure_id).where(Node.id == task_id)
+    ).one()
+    role, category = connection.execute(
+        select(ResourceRole.id, ResourceRole.cost_category_id).where(ResourceRole.code == "ING")
+    ).one()
+    reference = LineReference(uuid4(), category, uuid4(), uuid4(), role)
+    bearer = Bearer(task.project_id, task.revision_id, task.structure_id, task_id)
+    return insert_line(connection, bearer, reference)
+
+
 def rate_row(
     project_id: UUID, revision_id: UUID, category_id: UUID, **overrides: object
 ) -> dict[str, object]:
@@ -235,3 +265,117 @@ def category_image_row(
         "accounting_code": "641",
         **overrides,
     }
+
+
+# The year the revisions of the tests are priced at: that of their creation.
+YEAR = utc_now().year
+
+
+@dataclass(frozen=True)
+class Costing:
+    """What the lines of a scene name, their categories rated for ``YEAR``.
+
+    Its role and its category of labour, a category of material, and the category of provision the
+    installation is delivered with.
+    """
+
+    role: UUID
+    labour: UUID
+    material: UUID
+    provision: UUID
+
+
+def costing(database: Database, rate: str = "65.00") -> Costing:
+    """Rate the category of labour of a completed reference, and add a category of material."""
+    act = Act(None, utc_now())
+    with database.transaction() as session:
+        role, labour = session.execute(
+            select(ResourceRole.id, ResourceRole.cost_category_id).where(ResourceRole.code == "ING")
+        ).one()
+        set_hourly_rate(session, (labour, YEAR), Decimal(rate), None, act)
+        nature = create_cost_type(session, CostTypeDraft("MAT", "Matériel", "non_labor"), act)
+        draft = CostCategoryDraft("MAT-001", "Matériel électrique", "606001", nature.cost_type_id)
+        material = create_cost_category(session, draft, act).cost_category_id
+        provision = session.scalars(
+            select(CostCategory.id)
+            .join(CostType, CostType.id == CostCategory.cost_type_id)
+            .where(CostType.kind == "provision")
+        ).first()
+    assert provision is not None
+    return Costing(role, labour, material, provision)
+
+
+def add_role(
+    database: Database, code: str, hours: tuple[int, ...], category: UUID | None = None
+) -> UUID:
+    """Write a role of the category of labour of the scene, on a calendar of its own hours."""
+    calendar = uuid4()
+    days = dict(zip(WEEK, (Decimal(each) for each in hours), strict=True))
+    with database.transaction() as session:
+        held = session.execute(
+            select(ResourceRole.org_node_id, ResourceRole.cost_category_id).where(
+                ResourceRole.code == "ING"
+            )
+        ).one()
+        session.execute(
+            insert(Calendar).values(
+                id=calendar,
+                label=f"Semaine {code}",
+                is_default=False,
+                is_active=True,
+                **days,
+                **STAMP,
+            )
+        )
+        role = uuid4()
+        session.execute(
+            insert(ResourceRole).values(
+                id=role,
+                code=code,
+                label=f"Rôle {code}",
+                org_node_id=held[0],
+                cost_category_id=category or held[1],
+                calendar_id=calendar,
+                monthly_hours=Decimal(140),
+                headcount=Decimal(1),
+                is_active=True,
+                **STAMP,
+            )
+        )
+    return role
+
+
+class Lines:
+    """The lines of the main structure of a tree, written and read through the service."""
+
+    def __init__(self, tree: Tree) -> None:
+        self.tree = tree
+
+    def create(self, task: dict[str, Any] | str, who: Person | None = None, /, **line: Any) -> Any:
+        """Ask for a line under a task, as the manager does by default; give the answer."""
+        place = {key: line.pop(key) for key in ("after_node_id",) if key in line}
+        parent = task if isinstance(task, str) else task["node_id"]
+        sent = {"kind": "estimate_line", "parent_id": parent, "estimate_line": line, **place}
+        headers = (who or self.tree.stage.manager).headers
+        return self.tree.api.post(f"{self.tree.path}/nodes", headers=headers, json=sent)
+
+    def made(
+        self, task: dict[str, Any] | str, who: Person | None = None, /, **line: Any
+    ) -> dict[str, Any]:
+        """Create a line that must be created; give what is answered."""
+        answer = self.create(task, who, **line)
+        assert answer.status_code == 201, answer.text
+        return answer.json()
+
+    def change(self, node: dict[str, Any], who: Person | None = None, /, **body: Any) -> Any:
+        """Change a line at the counter read; give the answer."""
+        sent = {"lock_version": node["lock_version"], **body}
+        headers = (who or self.tree.stage.manager).headers
+        path = f"{self.tree.path}/nodes/{node['node_id']}/estimate-line"
+        return self.tree.api.patch(path, headers=headers, json=sent)
+
+    def changed(self, node: dict[str, Any], **body: Any) -> dict[str, Any]:
+        """Change a line that must be changed; give what is answered."""
+        answer = self.change(node, **body)
+        assert answer.status_code == 200, answer.text
+        return answer.json()

@@ -301,6 +301,7 @@ def test_a_line_of_labour_and_a_line_of_disbursement_of_the_project_are_written(
     ]
 
 
+@pytest.mark.requirement("WF-DAT-0090-A")
 def test_every_named_constraint_of_the_estimate_has_its_refusal_tried() -> None:
     tables = [Base.metadata.tables[table.__tablename__] for table in TABLES]
     named = {
