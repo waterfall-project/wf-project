@@ -670,7 +670,29 @@ def test_the_undoing_does_not_restore_an_order_item_outside_the_task_of_its_work
     assert body["undone"]["kind"] == "node_delete"
     read = tree.node(task["node_id"])["task"]
     assert (read["label"], read["order_item_id"]) == ("Câblage", None)
+    # Only the order item goes: nothing else of the attachment is touched.
+    assert read["work_package_id"] is None
     assert tree.node(other["node_id"])["task"]["work_package_id"] == str(package)
+
+
+@pytest.mark.requirement("WF-IHM-0110-A")
+def test_the_undoing_does_not_restore_the_work_package_whose_order_item_is_borne_outside_it(
+    tree: Tree, stage: Scene, who: Person
+) -> None:
+    # The else of the same rule: the order item is borne by a task that is not brought back, so
+    # the task of the package comes back without the package.
+    package, item = work_breakdown(stage)
+    holder = tree.made("Lot", who=who)
+    other = tree.made("Ailleurs", who=who)
+    attach(tree, holder, who, package)
+    assert delete(tree, tree.node(holder["node_id"]), who).status_code == 200
+    moved = tree.change(tree.node(other["node_id"]), None, order_item_id=str(item))
+    assert moved.status_code == 200
+    body = undone(tree, who)
+    assert body["undone"]["kind"] == "node_delete"
+    read = tree.node(holder["node_id"])["task"]
+    assert (read["work_package_id"], read["order_item_id"]) == (None, None)
+    assert tree.node(other["node_id"])["task"]["order_item_id"] == str(item)
 
 
 # --- What the objects of an entry hold, gone or changed since ----------------------------------

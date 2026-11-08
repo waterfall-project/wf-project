@@ -85,21 +85,37 @@ class RecordedChange:
 class Recording:
     """The frame of a write: the snapshots its caller takes, before the write then after it."""
 
-    __slots__ = ("_after", "_before", "_named")
+    __slots__ = ("_after", "_awaits", "_before", "_named")
 
-    def __init__(self) -> None:
-        """Open the frame: nothing is taken yet."""
+    def __init__(self, *, awaits: bool = False) -> None:
+        """Open the frame: nothing is taken yet; ``awaits`` if the write must name its nodes."""
         self._before: Snapshot | None = None
         self._after: Snapshot | None = None
         self._named: tuple[UUID, ...] | None = None
+        self._awaits = awaits
 
     def name(self, node_ids: tuple[UUID, ...]) -> None:
-        """Name the nodes the entry touches, when the write knows them only once judged."""
+        """Name the nodes the entry touches, when the write knows them only once judged.
+
+        A write names them once: a second naming is a defect of its caller, refused.
+        """
+        if self._named is not None:
+            msg = "a write recorded names the nodes of its entry once"
+            raise RuntimeError(msg)
         self._named = node_ids
 
     def named(self, announced: tuple[UUID, ...]) -> tuple[UUID, ...]:
-        """Give the nodes of the entry: those the write named, else those it announced."""
-        return announced if self._named is None else self._named
+        """Give the nodes of the entry: those the write named, else those it announced.
+
+        A write that announced none and awaits its names (a paste) and gave none is a defect of
+        its caller: no entry without nodes is kept in silence.
+        """
+        if self._named is None:
+            if self._awaits and not announced:
+                msg = "a write recorded that announced no node must name them"
+                raise RuntimeError(msg)
+            return announced
+        return self._named
 
     def keep_before(self, snapshot: Snapshot) -> None:
         """Keep the objects the write touches as they are before it, read under its locks."""
@@ -127,7 +143,7 @@ def recording(session: Session, change: RecordedChange) -> Generator[Recording]:
     """
     stack = change.stack
     lock_stack(session, stack)
-    frame = Recording()
+    frame = Recording(awaits=change.kind == "paste" and not change.node_ids)
     yield frame
     before, after = frame.taken()
     session.execute(delete(UndoEntry).where(of_stack(stack), UndoEntry.undone))

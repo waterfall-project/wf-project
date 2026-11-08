@@ -289,12 +289,15 @@ def _unstrayed(
     while True:
         dropped = False
         for package_task, item_tasks in strays(items, borne, is_under):
-            for node_id in [each for each in item_tasks if each in kept] or (
-                [package_task] if package_task in kept else []
-            ):
-                for item in filter(None, kept[node_id]):
-                    borne.pop(item, None)
-                kept[node_id] = (None, None)
+            of_items = [each for each in item_tasks if each in kept]
+            for node_id in of_items or ([package_task] if package_task in kept else []):
+                package, item = kept[node_id]
+                # Only the attachment that strays goes: the order item of a task of an item, the
+                # work package of the task of the package; the other one stays.
+                gone = item if of_items else package
+                if gone is not None:
+                    borne.pop(gone, None)
+                kept[node_id] = (package, None) if of_items else (None, item)
                 dropped = True
         if not dropped:
             return

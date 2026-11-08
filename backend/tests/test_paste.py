@@ -14,7 +14,8 @@ refusal.
 Laid by US-1380/L1, the socle of EP-06, so that no two stories create the same file.
 """
 
-from typing import TYPE_CHECKING, Any
+from types import SimpleNamespace
+from typing import TYPE_CHECKING, Any, cast
 from uuid import UUID, uuid4
 
 import pytest
@@ -32,10 +33,19 @@ from nodes_support import (
 )
 from planning_support import DAY, node_row
 from projects_support import scene as make_scene
-from sqlalchemy import insert, update
+from sqlalchemy import insert, inspect, update
 
-from waterfall.core.planning.interface import PasteBlock, Place, Writer, preview_paste
-from waterfall.core.planning.tables import Node
+from waterfall.core.planning.interface import (
+    PasteBlock,
+    Place,
+    Writer,
+    apply_cell,
+    preview_paste,
+    traced,
+)
+from waterfall.core.planning.interface.nodes import Ground
+from waterfall.core.planning.tables import Node, Task
+from waterfall.core.planning.tree import Tree as PlanTree
 from waterfall.core.projects.tables import WorkPackage
 from waterfall.platform.audit import Act
 from waterfall.platform.database import utc_now
@@ -572,3 +582,40 @@ def test_a_paste_is_the_act_of_an_account_never_of_the_platform(tree: Tree, stag
     where = Place(project, revision, UUID(tree.structure_id))
     with stage.database.transaction() as session, pytest.raises(RuntimeError):
         preview_paste(session, where, block, Writer(Act(None, utc_now()), None))
+
+
+class _Recorder:
+    """A stand-in for a task that keeps the names of the attributes written on it."""
+
+    written: set[str]
+
+    def __init__(self) -> None:
+        object.__setattr__(self, "written", set())
+
+    def __setattr__(self, name: str, value: object) -> None:
+        self.written.add(name)
+
+
+@pytest.mark.requirement("WF-IHM-0110-A")
+def test_the_copy_of_a_paste_previewed_holds_every_attribute_a_cell_writes() -> None:
+    # The guard of ``traced``: it rebuilds each task from its columns, so that an attribute
+    # ``apply_cell`` wrote beside them would be lost in the preview without a sound.
+    attached = SimpleNamespace(work_package_id=uuid4(), order_item_id=uuid4())
+    entry = SimpleNamespace(sent={"label", "description"}, label="Essais", description="d")
+    day = SimpleNamespace(day=None, hours=None)
+    duration = SimpleNamespace(value=1, unit="d")
+    facet = SimpleNamespace(scheduling_mode="manual", duration=duration, start=day, finish=day)
+    recorder = _Recorder()
+    apply_cell(cast("Any", recorder), cast("Any", entry), cast("Any", (facet, attached)))
+    columns = {attr.key for attr in inspect(Task).column_attrs}
+    assert recorder.written
+    assert recorder.written <= columns
+
+    task = Task(**dict.fromkeys(columns))
+    node_id = uuid4()
+    ground = Ground(cast("Any", None), uuid4(), PlanTree({}, {node_id: task}), is_main=True)
+    copy = traced(ground).tree.tasks[node_id]
+    assert copy is not task
+    assert {column: getattr(copy, column) for column in columns} == {
+        column: getattr(task, column) for column in columns
+    }
