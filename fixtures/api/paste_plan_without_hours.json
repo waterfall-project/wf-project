@@ -4,6 +4,7 @@
   "value": {
     "paste_id": "01926f3a-7c00-7000-8000-000000000997",
     "accepted": 2,
+    "created": 0,
     "rejected": [
       {"row":1,"column":"resource_role","code":"TASK_WITHOUT_WORKING_HOURS","params":{"resource_roles":[{"resource_role_id":"01926f3a-7c00-7000-8000-000000000451","code":"ING-ELEC","label":"Ingénieur électricien"},{"resource_role_id":"01926f3a-7c00-7000-8000-000000000454","code":"MONT-CAB","label":"Monteur câbleur"}],"tasks":[{"project_id":"01926f3a-7c00-7000-8000-000000000001","node_id":"01926f3a-7c00-7000-8000-000100000027","label":"Préparation 1.1.1"}]}}
     ]

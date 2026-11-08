@@ -2679,7 +2679,8 @@ of what it describes, and two generations write the same bytes:
   structure and of the entry of tasks, with their refusals (`wftools.mockgestures`, the place of a
   node and the loops a gesture would close in `wftools.mocktree`, the gestures of the estimate made
   on amendment 2, and the entry and the paste the end-to-end paths make there, in
-  `wftools.mockamendmentwrites`), the gestures of the cards of the Kanban and their responses
+  `wftools.mockamendmentwrites`; the paste that creates the tasks beyond the last row, and the
+  undo and the redo of a renaming, in `wftools.mockundoable`, #2559, #2564), the gestures of the cards of the Kanban and their responses
   (`wftools.mockkanban`), and the refusals of a paste and of an import that a subproject or the
   phase of the project command (`wftools.mockexchanges`), and a manual date on a non-working day,
   refused at entry and flagged at import (`wftools.mocknonworking`, #1271); its history

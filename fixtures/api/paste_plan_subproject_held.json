@@ -4,6 +4,7 @@
   "value": {
     "paste_id": "01926f3a-7c00-7000-8000-000000000993",
     "accepted": 1,
+    "created": 0,
     "rejected": [
       {"row":0,"column":"subproject","code":"SUBPROJECT_HAS_ACTUAL_COSTS","params":{"subproject":{"subproject_id":"01926f3a-7c00-7000-8000-000000000801","label":"Poste de commande"}}}
     ]
