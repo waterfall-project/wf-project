@@ -244,6 +244,12 @@ Relevés par les revues locales d'EP-06 et reportés ici par l'auteur le 2026-11
 - #2510, point 3 [EP-06] — `redate_copy` (`core/planning/interface/reference.py`) s'enregistre
   après `copy_nodes` : une facette qu'EP-07 copie à l'ouverture d'une révision s'enregistre
   avant lui, ou se redate elle-même.
+- #2527 [EP-06] — le fuseau horaire de l'installation, dans lequel s'entend le jour courant
+  (WF-EXP-0020-A, WF-PLA-0130-A, spécification 1.0.3), n'existe pas dans le back : le jour d'un
+  changement d'état est pris en UTC. US-1550, qui clôt WF-EXP-0020-A, l'ajoute — une colonne
+  d'`installation` dans la migration du socle, la valeur fixée par `waterfall-api install` avec un
+  défaut livré — et branche dessus la fonction du jour courant qu'US-1380/L4 (#2519) a regroupée,
+  avec un test de borne près de minuit.
 
 ## Conception
 
