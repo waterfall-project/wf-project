@@ -10,7 +10,7 @@
  * nothing is written. Written, the tasks the server redates take their place in the grid (the page
  * is read anew), the version the structure moved on to is told to the account of the grid, which
  * counts the write among its own so that its gestures wait for it, and the date shown is the one the
- * server answered while the page read is older (the fake back keeps nothing, `MockupNotice`).
+ * server answered while the page read is older.
  */
 "use client";
 

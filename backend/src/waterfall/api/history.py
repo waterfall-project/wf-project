@@ -80,9 +80,11 @@ def post_paste_preview(
         rows=tuple(tuple(cells) for cells in body.rows),
     )
     planned = preview_paste(session, place, block, writer)
+    # The service does not create a node by paste yet: the rows beyond the last node are refused.
     return {
         "paste_id": str(planned.paste_id),
         "accepted": planned.accepted,
+        "created": 0,
         "rejected": [_refused(each) for each in planned.rejected],
     }
 
