@@ -9,13 +9,15 @@ lines, which the calendar applicable to a task intersects (``calendar_of``, WF-P
 planning knows no other facet than its own: it asks the hooks of the kind (EP-06, "Les points
 d'extension").
 
-Declared by US-1380/L1; US-1380/L2 reads it, and fills ``calendar_of``: the default calendar
-here, intersected with the calendars of the roles of the lines by EP-07.
+Declared by US-1380/L1; filled by US-1380/L2: ``calendar_of`` gives the default calendar to a task
+whose facets name no calendar — every task until EP-07 —, the intersection of those they name
+otherwise; ``calendars_of`` gives it to the tasks of a structure, the default read once.
 """
 
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
+from waterfall.core.planning.calendars import applicable_of, default_calendar
 from waterfall.platform.registry import Registry
 
 if TYPE_CHECKING:
@@ -24,6 +26,7 @@ if TYPE_CHECKING:
 
     from sqlalchemy.orm import Session
 
+    from waterfall.core.planning.calendars import Applicable
     from waterfall.core.revisions.interface import RevisionCopy
 
 
@@ -61,7 +64,27 @@ def facets() -> Mapping[str, FacetHooks]:
     return dict(_FACETS.entries())
 
 
-def calendar_of(session: Session, project_id: UUID, task_id: UUID) -> None:
-    """Give the calendar applicable to a task (WF-PLA-0010)."""
-    msg = "calendar_of is filled by US-1380/L2"
-    raise NotImplementedError(msg)
+def calendar_of(
+    session: Session, project_id: UUID, task_id: UUID, *, default: Applicable | None = None
+) -> Applicable:
+    """Give the calendar applicable to a task (WF-PLA-0010).
+
+    The calendars the facets of the kinds registered name under the task, intersected day by day;
+    the default calendar when they name none — read here unless ``default`` gives it.
+    """
+    named = {
+        calendar_id
+        for hooks in facets().values()
+        for calendar_id in hooks.calendars(session, project_id, task_id)
+    }
+    return applicable_of(session, named, default or default_calendar(session))
+
+
+def calendars_of(
+    session: Session, project_id: UUID, task_ids: Collection[UUID]
+) -> dict[UUID, Applicable]:
+    """Give the calendar applicable to each task named, the default calendar read once."""
+    default = default_calendar(session)
+    return {
+        task_id: calendar_of(session, project_id, task_id, default=default) for task_id in task_ids
+    }

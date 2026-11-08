@@ -13,6 +13,9 @@ from waterfall.core.planning.scheduling.calendar import (
     Calendar as Calendar,
 )
 from waterfall.core.planning.scheduling.calendar import (
+    Moment as Moment,
+)
+from waterfall.core.planning.scheduling.calendar import (
     WorkInstant as WorkInstant,
 )
 from waterfall.core.planning.scheduling.calendar import (

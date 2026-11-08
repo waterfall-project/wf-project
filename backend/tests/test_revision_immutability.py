@@ -414,7 +414,8 @@ def test_a_row_of_a_current_revision_never_names_the_structure_or_a_node_of_a_ma
     current = open_revision(api, stage)
     with owner.begin() as connection:
         project_id, structure_id = main_structure(connection, current)
-        mine = insert_task(connection, project_id, current, structure_id)
+        # After the two roots the copy of the marked revision brought (US-1380/L2).
+        mine = insert_task(connection, project_id, current, structure_id, rank=3)
     before = rows_of(owner, marked)
     stray = node_row(project_id, current, marked.structure_id, rank=3)
     refused_by_key(owner, insert(Node).values(**stray), "fk_node_project_id_cost_structure")

@@ -15,7 +15,7 @@ from dataclasses import dataclass
 from datetime import date
 from decimal import Decimal
 from enum import StrEnum
-from typing import TYPE_CHECKING, get_args
+from typing import TYPE_CHECKING, TypeAliasType, get_args
 from uuid import UUID, uuid4
 
 import psycopg
@@ -541,6 +541,6 @@ def test_each_list_of_values_of_the_tables_is_the_enumeration_of_the_contract(
 def test_each_kind_the_interfaces_declare_is_the_enumeration_of_the_contract(
     declared: object, enumeration: type[StrEnum]
 ) -> None:
-    assert list(get_args(getattr(declared, "__value__", None))) == [
-        member.value for member in enumeration
-    ]
+    # A kind declared otherwise than by an alias of a type fails here by name, not by its args.
+    assert isinstance(declared, TypeAliasType), f"{declared!r} is no alias of a type"
+    assert list(get_args(declared.__value__)) == [member.value for member in enumeration]

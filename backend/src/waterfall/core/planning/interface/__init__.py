@@ -28,6 +28,15 @@ from waterfall.core.exchanges.interface import register_exporter, register_forma
 # The history first: it registers its closing stage before the planning's, whichever file of the
 # planning an entry point imports first (the order of ``revisions.closing`` is the import's).
 from waterfall.core.history.interface import close_history as close_history
+
+# Beside the interface (US-1380/L2): the calendar applicable to a task, what a reading of the tree
+# retains, a duration and an instant of the engine, the frame of a write, the nodes as read.
+from waterfall.core.planning.calendars import (
+    Applicable as Applicable,
+)
+from waterfall.core.planning.filters import (
+    NodeFilters as NodeFilters,
+)
 from waterfall.core.planning.interface.closing import (
     delete_nodes as delete_nodes,
 )
@@ -38,6 +47,9 @@ from waterfall.core.planning.interface.facets import (
 )
 from waterfall.core.planning.interface.facets import (
     calendar_of as calendar_of,
+)
+from waterfall.core.planning.interface.facets import (
+    calendars_of as calendars_of,
 )
 from waterfall.core.planning.interface.facets import (
     facets as facets,
@@ -63,6 +75,27 @@ from waterfall.core.planning.interface.msproject import (
 )
 
 # ``nodes`` (US-1380/L1; US-1380/L2, L3; US-1480/L2): the nodes of a structure.
+from waterfall.core.planning.interface.nodes import (
+    Dependencies as Dependencies,
+)
+from waterfall.core.planning.interface.nodes import (
+    DependencyRow as DependencyRow,
+)
+from waterfall.core.planning.interface.nodes import (
+    InstantSent as InstantSent,
+)
+from waterfall.core.planning.interface.nodes import (
+    NodeCreation as NodeCreation,
+)
+from waterfall.core.planning.interface.nodes import (
+    NodeList as NodeList,
+)
+from waterfall.core.planning.interface.nodes import (
+    RowResolution as RowResolution,
+)
+from waterfall.core.planning.interface.nodes import (
+    TaskEntry as TaskEntry,
+)
 from waterfall.core.planning.interface.nodes import (
     computed_value_dependencies as computed_value_dependencies,
 )
@@ -177,6 +210,39 @@ from waterfall.core.planning.interface.work_breakdown import (
 )
 from waterfall.core.planning.interface.work_breakdown import (
     work_breakdown_item_cited as work_breakdown_item_cited,
+)
+from waterfall.core.planning.scheduling import (
+    Duration as Duration,
+)
+from waterfall.core.planning.scheduling import (
+    WorkInstant as WorkInstant,
+)
+from waterfall.core.planning.views import (
+    ConflictView as ConflictView,
+)
+from waterfall.core.planning.views import (
+    NodeView as NodeView,
+)
+from waterfall.core.planning.views import (
+    PredecessorView as PredecessorView,
+)
+from waterfall.core.planning.views import (
+    ScheduleView as ScheduleView,
+)
+from waterfall.core.planning.views import (
+    TaskView as TaskView,
+)
+from waterfall.core.planning.views import (
+    TrackingView as TrackingView,
+)
+from waterfall.core.planning.writing import (
+    NodesWritten as NodesWritten,
+)
+from waterfall.core.planning.writing import (
+    Place as Place,
+)
+from waterfall.core.planning.writing import (
+    Writer as Writer,
 )
 from waterfall.core.projects.interface import Attachments, register_attachments
 from waterfall.core.resource_settings.interface import (

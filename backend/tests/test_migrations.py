@@ -656,12 +656,14 @@ def test_the_migration_of_the_planning_start_fills_each_structure_as_the_code_de
     # #2170: the day of the creation of the origin of the lineage — in universal time, late on the
     # 4th of March —, which a copy in a marked revision keeps; the day of its own creation for a
     # structure whose origin is missing; the instant of its creation for its dates; a value present
-    # is kept, the other filled. The guard of a marked revision is off for the migration alone; the
-    # descent empties the columns again.
+    # is kept, the other filled — the day of the one, the instant of the other (#2466). The guard
+    # of a marked revision is off for the migration alone; the descent empties the columns again.
     upgrade(empty_engine, "0022")
-    project, offer, lost, current, origin = uuid4(), uuid4(), uuid4(), uuid4(), uuid4()
+    project, offer, lost, dated, current = uuid4(), uuid4(), uuid4(), uuid4(), uuid4()
+    origin = uuid4()
     born = datetime(2026, 3, 4, 23, 30, tzinfo=UTC)
     copied_at = datetime(2026, 4, 1, 8, 0, tzinfo=UTC)
+    computed_at = datetime(2026, 4, 2, 17, 45, tzinfo=UTC)
     structures = (
         (offer, {"id": origin, "lineage_id": origin, "label": "Origine", "created_at": born}),
         (
@@ -673,12 +675,22 @@ def test_the_migration_of_the_planning_start_fills_each_structure_as_the_code_de
                 "planning_start_on": date(2026, 1, 15),
             },
         ),
+        (
+            dated,
+            {
+                "lineage_id": uuid4(),
+                "label": "Datée",
+                "created_at": copied_at,
+                "scheduled_at": computed_at,
+            },
+        ),
         (current, {"lineage_id": origin, "label": "Copie", "created_at": copied_at}),
     )
+    names = ("v1.0", "v2.0", "v3.0", None)
     with empty_engine.begin() as connection:
         connection.execute(insert_project(id=project))
         connection.execute(select(func.create_project_partitions(project)))
-        for name, (revision_id, structure) in zip(("v1.0", "v2.0", None), structures, strict=True):
+        for name, (revision_id, structure) in zip(names, structures, strict=True):
             connection.execute(insert_revision(project, id=revision_id))
             connection.execute(insert_structure(project, revision_id, **structure))
             if name is not None:
@@ -692,6 +704,7 @@ def test_the_migration_of_the_planning_start_fills_each_structure_as_the_code_de
         "Origine": (date(2026, 3, 4), born),
         "Copie": (date(2026, 3, 4), copied_at),
         "Orpheline": (date(2026, 1, 15), copied_at),
+        "Datée": (date(2026, 4, 1), computed_at),
     }
     with pytest.raises(DBAPIError, match="never written"), empty_engine.begin() as connection:
         connection.execute(

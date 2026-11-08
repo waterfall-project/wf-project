@@ -15,7 +15,7 @@ from typing import TYPE_CHECKING
 from uuid import UUID, uuid4
 
 from project_rows import STAMP
-from sqlalchemy import insert, select
+from sqlalchemy import func, insert, select
 
 from waterfall.core.planning.tables import Node, Task, TaskLink
 from waterfall.core.revisions.tables import CostStructure
@@ -139,8 +139,13 @@ def main_structure(connection: Connection, revision_id: UUID) -> tuple[UUID, UUI
 def give_a_task(connection: Connection, revision_id: UUID) -> UUID:
     """Give a current revision a task in its main structure, around the service; give its node.
 
-    What the designation of the reference asks of the planning (``revision_has_tasks``), before
-    US-1380/L2 creates tasks through the service.
+    What the designation of the reference asks of the planning (``revision_has_tasks``). Last of
+    the roots: a revision opened from a marked one holds the tasks its copy brought (US-1380/L2).
     """
     project_id, structure_id = main_structure(connection, revision_id)
-    return insert_task(connection, project_id, revision_id, structure_id)
+    last = connection.scalar(
+        select(func.max(Node.rank)).where(
+            Node.structure_id == structure_id, Node.parent_id.is_(None), Node.kind == "task"
+        )
+    )
+    return insert_task(connection, project_id, revision_id, structure_id, rank=(last or 0) + 1)
