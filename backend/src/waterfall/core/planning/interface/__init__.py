@@ -27,7 +27,7 @@ from waterfall.core.exchanges.interface import register_exporter, register_forma
 
 # The history first: it registers its closing stage before the planning's, whichever file of the
 # planning an entry point imports first (the order of ``revisions.closing`` is the import's).
-from waterfall.core.history import interface as _history_interface  # noqa: F401
+from waterfall.core.history.interface import close_history as close_history
 from waterfall.core.planning.interface.closing import (
     delete_nodes as delete_nodes,
 )
