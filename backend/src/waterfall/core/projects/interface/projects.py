@@ -29,11 +29,13 @@ from waterfall.core.cost_settings.interface import missing_prerequisites
 from waterfall.core.projects.commands import (
     PROJECT_NOT_TERMINAL,
     TERMINAL,
+    Running,
     commands_of,
     state_conditions,
 )
 from waterfall.core.projects.interface.contributors import require_project_manager
 from waterfall.core.projects.interface.lifecycle import advance
+from waterfall.core.projects.interface.skeleton import opening_with_tasks
 from waterfall.core.projects.interface.work_breakdown import follow_project_label
 from waterfall.core.projects.tables import (
     STATES,
@@ -325,6 +327,13 @@ def _views(session: Session, projects: Iterable[Project], viewer: Viewer) -> lis
     rows = list(projects)
     kinds = _kinds(session, viewer.user_id, [row.id for row in rows])
     busy = projects_with_task_pending(session, [row.id for row in rows])
+    # Only a project without a current revision judges the skeleton on the revision it would open.
+    asking = (
+        [row.id for row in rows if row.current_revision_id is None and row.state not in TERMINAL]
+        if "planning.write" in viewer.permissions
+        else []
+    )
+    opening: frozenset[UUID] = opening_with_tasks(session, asking) if asking else frozenset()
     return [
         ProjectView(
             project_id=row.id,
@@ -345,7 +354,9 @@ def _views(session: Session, projects: Iterable[Project], viewer: Viewer) -> lis
                     kinds.get(row.id),
                     row.state,
                     row.current_revision_id,
-                    no_task_running=row.id not in busy,
+                    running=Running(
+                        no_task_running=row.id not in busy, opening_has_tasks=row.id in opening
+                    ),
                 )
             ),
             created_at=row.created_at,

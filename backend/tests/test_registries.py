@@ -139,6 +139,7 @@ DECLARED = {
     "resource_settings.idle_task_guard",
     "resource_settings.recalculation",
     "projects.attachments",
+    "projects.opening",
     "planning.facets",
     "exchanges.formats",
     "exchanges.exporters",
@@ -162,6 +163,7 @@ REGISTERED = {
             f"{PLANNING}.work_breakdown.detach_work_breakdown_item)"
         )
     ],
+    "projects.opening": [f"{PLANNING}.skeleton.opening_with_tasks"],
     CLOSING: [
         "history:waterfall.core.history.interface.closing.close_history",
         f"content:{PLANNING}.closing.delete_nodes",
