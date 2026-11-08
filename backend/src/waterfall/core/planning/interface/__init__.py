@@ -153,6 +153,9 @@ from waterfall.core.planning.interface.progress import (
 
 # ``reference`` (US-1380/L1; US-1390/L2): what the planning answers to the reference.
 from waterfall.core.planning.interface.reference import (
+    redate_copy as redate_copy,
+)
+from waterfall.core.planning.interface.reference import (
     reschedule_current_structures as reschedule_current_structures,
 )
 from waterfall.core.planning.interface.reference import (
@@ -265,8 +268,10 @@ from waterfall.core.revisions.interface import (
 )
 
 # The registrations, once, at the import: the copy of the nodes after the structures', whose
-# module this one imports first; the nodes deleted after the history, by the stage of their part.
+# module this one imports first, and their redating after them; the nodes deleted after the
+# history, by the stage of their part.
 register_copy(copy_nodes)
+register_copy(redate_copy)
 register_tasks_and_lines("tasks", revision_has_tasks)
 register_closing("content", delete_nodes)
 register_idle_task_guard(tasks_left_idle)

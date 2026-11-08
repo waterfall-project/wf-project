@@ -99,7 +99,8 @@ def copy_structures(copy: RevisionCopy) -> None:
 
     Each keeps the date its planning starts on and the instant its dates were computed (#2170): a
     null date stays null, read by the lineage the copy keeps; a null instant is the creation of the
-    structure copied.
+    structure copied. The planning then redates, at the opening, those that hold a node, with the
+    reference of the day (``redate_copy``, EP-06).
     """
     rows = copy.session.scalars(
         select(CostStructure)

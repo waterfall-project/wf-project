@@ -6,8 +6,11 @@
 the structures of the current revisions — a marked revision keeps the dates it computed —, and
 refuse a default calendar that would leave a task of a current revision without an hour, naming
 its projects by their label and their code, the author consulting none of them. The recalculation
-waits for the write of the planning that holds a structure, and a structure carried beyond fifteen
-years refuses the change. Every answer of the service is checked against the contract. The
+takes the reference before any structure, waits for the write of the planning that holds a
+structure and for an opening in flight, is waited for by a marking, and a structure carried beyond
+fifteen years refuses the change naming its project alone. A revision opened from a marked one is
+dated with the constants of its opening; a label, or the same constants sent again, redate
+nothing. Every answer of the service is checked against the contract. The
 structures start their planning on Monday the 2nd of November 2026, on the default calendar of
 eight hours from Monday to Friday.
 
@@ -16,10 +19,10 @@ Laid by US-1380/L1, the socle of EP-06, so that no two stories create the same f
 
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import replace
-from datetime import timedelta
+from datetime import datetime, timedelta
 from decimal import Decimal
 from typing import TYPE_CHECKING, Any
-from uuid import UUID
+from uuid import UUID, uuid4
 
 import pytest
 from installed_reference import holding
@@ -28,15 +31,20 @@ from planning_support import DAY
 from projects_support import Scene, create
 from projects_support import scene as make_scene
 from sqlalchemy import select, update
+from sqlalchemy.orm import Session
 from support import wait_for_a_lock
 
+from waterfall.core.projects.interface import Viewer
 from waterfall.core.projects.tables import Project
 from waterfall.core.resource_settings.interface import (
     Units,
     get_duration_units,
+    lock_reference,
     set_duration_units,
 )
-from waterfall.core.revisions.tables import CostStructure
+from waterfall.core.resource_settings.tables import DurationUnit
+from waterfall.core.revisions.interface import create_revision
+from waterfall.core.revisions.tables import CostStructure, Revision
 from waterfall.platform.audit import Act
 from waterfall.platform.database import utc_now
 from waterfall.platform.errors import UnprocessableError
@@ -192,7 +200,11 @@ def test_a_default_left_without_hours_is_refused_naming_each_project_by_label_an
     mark(stage_of(stage, third), marked.revision)
     calendar = default_calendar(api, changing)
     idle = week("0", "0", "0", "0", "0", "0", "0")
-    sent = {"label": calendar["label"], "weekly_hours": idle, "lock_version": 1}
+    sent = {
+        "label": calendar["label"],
+        "weekly_hours": idle,
+        "lock_version": calendar["lock_version"],
+    }
     named = {
         "resource_roles": [],
         "projects": [
@@ -200,11 +212,7 @@ def test_a_default_left_without_hours_is_refused_naming_each_project_by_label_an
             {"project_label": "Modernisation du poste de commande", "project_code": None},
         ],
     }
-    answer = api.patch(
-        f"{CALENDARS}/{calendar['calendar_id']}",
-        headers=changing,
-        json={**sent, "lock_version": calendar["lock_version"]},
-    )
+    answer = api.patch(f"{CALENDARS}/{calendar['calendar_id']}", headers=changing, json=sent)
     assert refusal(answer) == (422, "TASK_WITHOUT_WORKING_HOURS", named)
     created = api.post(CALENDARS, headers=changing, json={"label": "Fermé", "weekly_hours": idle})
     closed = created.json()
@@ -247,7 +255,7 @@ def test_the_recalculation_waits_for_the_write_that_holds_a_structure(
 
 
 @pytest.mark.requirement("WF-PLA-0150-A")
-def test_a_change_carrying_a_current_structure_beyond_fifteen_years_writes_nothing(
+def test_a_change_carrying_a_structure_beyond_fifteen_years_names_its_project_alone(
     tree: Tree, database: Database
 ) -> None:
     # Three thousand days of eight hours lie within fifteen years; of twenty-four, beyond.
@@ -259,10 +267,150 @@ def test_a_change_carrying_a_current_structure_beyond_fifteen_years_writes_nothi
     longer = Units(Decimal(24), Decimal(120), Decimal(20))
     with pytest.raises(UnprocessableError) as refused, database.transaction() as session:
         set_duration_units(session, longer, held, act)
+    # The project named by its label and its code, without anything else: the author of the change
+    # may consult none of them (WF-ADM-0110).
+    named = {"project_label": "Modernisation du poste de commande", "project_code": None}
     assert (refused.value.code, refused.value.params) == (
         "PROJECT_HORIZON_EXCEEDED",
-        {"task": {"node_id": task["node_id"], "label": "Exploitation"}},
+        {"projects": [named]},
     )
+    assert task["node_id"] not in repr(refused.value.params)
+    assert "Exploitation" not in repr(refused.value.params)
     with database.transaction() as session:
         assert get_duration_units(session).units.hours_per_day == Decimal(8)
     assert finish(tree, task) == before
+
+
+def seven_hours(database: Database) -> None:
+    """Set the hours per day at seven, those per week at thirty-five, in a transaction."""
+    act = Act(None, utc_now())
+    with database.transaction() as session:
+        held = get_duration_units(session).lock_version
+        set_duration_units(session, Units(Decimal(7), Decimal(35), Decimal(20)), held, act)
+
+
+def counted(tree: Tree) -> tuple[datetime, int]:
+    """Read the instant the dates of the structure were computed, and its counter."""
+    with tree.stage.owner.connect() as connection:
+        row = connection.execute(
+            select(CostStructure.scheduled_at, CostStructure.lock_version).where(
+                CostStructure.id == UUID(tree.structure_id)
+            )
+        ).one()
+    return row.scheduled_at, row.lock_version
+
+
+@pytest.mark.requirement("WF-PLA-0160-A")
+def test_a_revision_opened_after_the_change_is_dated_with_the_new_constants(
+    api: ContractClient, tree: Tree, stage: Scene, changing: dict[str, str]
+) -> None:
+    # The marked revision keeps its sixteen hours; the current one opened from it after the change
+    # counts fourteen, from its opening, before any write.
+    marked_task = tree.made("Études", task=TWO_DAYS)
+    mark(stage, tree.revision)
+    answer = units(api, changing, "7")
+    assert answer.status_code == 200, answer.text
+    current = Tree(api, stage, opened(api, stage))
+    [current_task] = current.items()
+    assert finish(current, current_task) == instant(TUESDAY, "6")
+    assert scheduled_at(current) > scheduled_at(tree)
+    assert finish(tree, marked_task) == instant(TUESDAY, "8")
+
+
+@pytest.mark.requirement("WF-PLA-0160-A")
+def test_a_change_made_while_a_revision_opens_redates_it_once_opened(
+    api: ContractClient, tree: Tree, stage: Scene, database: Database
+) -> None:
+    # The opening shares the lock of the reference the change takes: the change waits for the
+    # opening, then sees the revision it opened, and redates it.
+    tree.made("Études", task=TWO_DAYS)
+    mark(stage, tree.revision)
+    project_id = UUID(stage.project["project_id"])
+    act = Act(None, utc_now())
+    with ThreadPoolExecutor(max_workers=1) as pool:
+        with database.transaction() as session:
+            revision = create_revision(session, project_id, act, Viewer(uuid4(), ()))
+            changed = pool.submit(seven_hours, database)
+            wait_for_a_lock(database)
+            assert not changed.done()
+        changed.result(timeout=10)
+    current = Tree(api, stage, {"revision_id": str(revision.revision_id)})
+    [current_task] = current.items()
+    assert finish(current, current_task) == instant(TUESDAY, "6")
+
+
+@pytest.mark.requirement("WF-PLA-0160-A")
+def test_the_change_takes_the_reference_before_its_constants_and_any_structure(
+    tree: Tree, stage: Scene, database: Database
+) -> None:
+    # The order of the locks (EP-06, « Ce que le cadrage décide »): the reference first. Waiting
+    # for it, the change holds neither its constants nor a structure.
+    task = tree.made("Études", task=TWO_DAYS)
+    with (
+        Session(stage.owner) as holder,
+        holder.begin(),
+        ThreadPoolExecutor(max_workers=1) as pool,
+    ):
+        lock_reference(holder)
+        changed = pool.submit(seven_hours, database)
+        wait_for_a_lock(database)
+        with stage.owner.connect() as other:
+            other.execute(select(DurationUnit.id).with_for_update(nowait=True))
+            other.execute(select(CostStructure.id).with_for_update(nowait=True))
+            other.rollback()
+        assert not changed.done()
+        holder.commit()
+        changed.result(timeout=10)
+    assert finish(tree, task) == instant(TUESDAY, "6")
+
+
+@pytest.mark.requirement("WF-PLA-0160-A")
+def test_a_marking_asked_during_the_recalculation_marks_the_dates_it_computed(
+    tree: Tree, stage: Scene, database: Database
+) -> None:
+    # The recalculation reads the current revisions FOR SHARE: the marking, which locks its
+    # revision, waits for it, and the marked revision keeps the fourteen hours it computed.
+    task = tree.made("Études", task=TWO_DAYS)
+    with stage.owner.connect() as holder, ThreadPoolExecutor(max_workers=2) as pool:
+        holder.execute(
+            select(CostStructure.id)
+            .where(CostStructure.id == UUID(tree.structure_id))
+            .with_for_update()
+        )
+        changed = pool.submit(seven_hours, database)
+        wait_for_a_lock(database)
+        marking = pool.submit(mark, stage, tree.revision)
+        wait_for_a_lock(database, 2)
+        assert not changed.done()
+        assert not marking.done()
+        holder.commit()
+        changed.result(timeout=10)
+        marking.result(timeout=10)
+    assert finish(tree, task) == instant(TUESDAY, "6")
+    with stage.owner.connect() as connection:
+        status = connection.scalar(
+            select(Revision.status).where(Revision.id == UUID(tree.revision["revision_id"]))
+        )
+    assert status == "marked"
+
+
+@pytest.mark.requirement("WF-PLA-0160-A")
+def test_a_label_or_the_same_constants_written_redate_nothing(
+    api: ContractClient, tree: Tree, changing: dict[str, str]
+) -> None:
+    # Only the constants, the hours of the default or its designation redate the plannings: a
+    # label changed, or the constants sent again, leave the instant and the counter of each
+    # structure as they were.
+    tree.made("Études", task=TWO_DAYS)
+    before = counted(tree)
+    calendar = default_calendar(api, changing)
+    sent = {
+        "label": "Calendrier de l'atelier",
+        "weekly_hours": calendar["weekly_hours"],
+        "lock_version": calendar["lock_version"],
+    }
+    renamed = api.patch(f"{CALENDARS}/{calendar['calendar_id']}", headers=changing, json=sent)
+    assert renamed.status_code == 200, renamed.text
+    again = units(api, changing, "8")
+    assert again.status_code == 200, again.text
+    assert counted(tree) == before

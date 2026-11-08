@@ -20,7 +20,15 @@ SHARE`` — a marking or an abandonment waits for it, and a revision marked befo
 the dates it computed (WF-REF-0130) —, then replays the engine on each, in the order of
 (``project_id``, ``id``), its ``scheduled_at`` moved on to the instant of the change. A write of the
 planning never locks the reference, and locks its one structure: no lock is awaited both ways. It
-keeps no entry of the history: no one wrote the tasks it redates.
+keeps no entry of the history: no one wrote the tasks it redates. Beyond fifteen years, the change
+is refused naming the projects, by their label and their code, as the guard does.
+
+A revision opened from a marked one is redated likewise at its opening, once its nodes are copied
+(``redate_copy``, registered by ``register_copy``): the marked revision kept the dates of the
+reference of its time. The opening shares the lock of the reference (``share_reference``), which
+the change takes: the change sees the revision opened, or the opening the reference changed. The
+recalculation never locks a project: the opening, which may hold the lock of its project when it
+waits for the reference, is never awaited by it.
 
 Filled by US-1390/L2.
 """
@@ -29,6 +37,7 @@ from typing import TYPE_CHECKING
 
 from sqlalchemy import select
 
+from waterfall.core.planning.dating import PROJECT_HORIZON_EXCEEDED
 from waterfall.core.planning.interface.facets import facets
 from waterfall.core.planning.interface.structures import reschedule
 from waterfall.core.planning.tables import Node
@@ -36,6 +45,7 @@ from waterfall.core.planning.tree import TASK
 from waterfall.core.projects.interface import projects_named
 from waterfall.core.resource_settings.interface import IdleProject
 from waterfall.core.revisions.interface import current_structures
+from waterfall.platform.errors import UnprocessableError
 
 if TYPE_CHECKING:
     from datetime import datetime
@@ -44,6 +54,7 @@ if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
     from waterfall.core.resource_settings.interface import CalendarChange
+    from waterfall.core.revisions.interface import RevisionCopy
 
 
 def _on_the_default(session: Session, project_id: UUID, task_ids: list[UUID]) -> bool:
@@ -77,10 +88,7 @@ def tasks_left_idle(session: Session, change: CalendarChange) -> tuple[IdleProje
         if _on_the_default(session, project_id, task_ids)
     ]
     named = projects_named(session, idle)
-    return tuple(
-        IdleProject(label, code)
-        for code, label in sorted(named.values(), key=lambda each: (each[1], each[0] or ""))
-    )
+    return tuple(IdleProject(label, code) for code, label in sorted(named.values(), key=_by_label))
 
 
 def reschedule_current_structures(session: Session, at: datetime) -> None:
@@ -88,7 +96,44 @@ def reschedule_current_structures(session: Session, at: datetime) -> None:
 
     Their revisions read ``FOR SHARE``, then each structure locked and replayed in the order of
     (``project_id``, ``id``), its dates' instant moved on to ``at``. Beyond fifteen years, the
-    change is refused naming the task that finishes last (422 ``PROJECT_HORIZON_EXCEEDED``).
+    change is refused naming each project carried so, by its label and its code, nothing else
+    (422 ``PROJECT_HORIZON_EXCEEDED``, ``params.projects``, WF-ADM-0110): the author of the change
+    may consult none of them.
     """
+    beyond: set[UUID] = set()
     for each in current_structures(session, lock=True):
-        reschedule(session, each.project_id, each.structure_id, at)
+        try:
+            reschedule(session, each.project_id, each.structure_id, at)
+        except UnprocessableError as refused:
+            if refused.code != PROJECT_HORIZON_EXCEEDED:
+                raise
+            beyond.add(each.project_id)
+    if beyond:
+        named = sorted(projects_named(session, beyond).values(), key=_by_label)
+        projects = [{"project_label": label, "project_code": code} for code, label in named]
+        raise UnprocessableError(PROJECT_HORIZON_EXCEEDED, {"projects": projects})
+
+
+def _by_label(named: tuple[str | None, str]) -> tuple[str, str]:
+    """Order a project named by its code and its label: by its label, then its code."""
+    code, label = named
+    return (label, code or "")
+
+
+def redate_copy(copy: RevisionCopy) -> None:
+    """Redate the structures a revision copied from a marked one, at the instant of its opening.
+
+    Registered after the copy of the nodes (``copy_nodes``): the marked revision kept the dates
+    the units of duration and the calendars of its time computed; the copy is dated with those of
+    its opening, as the change of the reference dates the current revisions (WF-PLA-0160). Each
+    structure that holds a node is replayed in the order of its identifier, its dates' instant
+    moved on to the opening.
+    """
+    structures = copy.session.scalars(
+        select(Node.structure_id)
+        .where(Node.project_id == copy.project_id, Node.revision_id == copy.target)
+        .distinct()
+        .order_by(Node.structure_id)
+    ).all()
+    for structure_id in structures:
+        reschedule(copy.session, copy.project_id, structure_id, copy.at)
