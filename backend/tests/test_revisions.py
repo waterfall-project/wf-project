@@ -15,6 +15,7 @@ from typing import TYPE_CHECKING, Any
 from uuid import UUID, uuid4
 
 import pytest
+from planning_support import give_a_task
 from projects_support import MANAGING, PROJECTS, READING, Scene, person, put_in_state
 from projects_support import scene as make_scene
 from sqlalchemy import func, insert, select, update
@@ -31,12 +32,12 @@ from waterfall.core.revisions.interface import (
     register_tasks_and_lines,
     revision_draft,
 )
-from waterfall.core.revisions.registry import Registry
 from waterfall.core.revisions.tables import CostStructure, Revision
 from waterfall.platform.audit import Act, AuditEntry
 from waterfall.platform.database import utc_now
 from waterfall.platform.errors import ConflictError, NotFoundError
 from waterfall.platform.logs import logging_context
+from waterfall.platform.registry import Registry
 
 if TYPE_CHECKING:
     from realm import TestRealm
@@ -683,13 +684,18 @@ def test_a_structure_whose_lineage_lost_its_origin_is_listed_starting_on_its_own
     # The case is written by giving the structure a lineage no row bears, which only holds because
     # ``lineage_id`` bears no foreign key: a lineage is an identifier the copies share, not a
     # reference (EP-04, "Tables et migrations"; #2179). A key added there makes the case impossible,
-    # this ``UPDATE`` refused, and the test is withdrawn with the fallback it proves.
+    # this ``UPDATE`` refused, and the test is withdrawn with the fallback it proves. The date is
+    # read so from a row that the migration ``0023`` did not fill, its column null (#2170).
     revision = open_revision(api, stage)
     with stage.owner.begin() as connection:
         connection.execute(
             update(CostStructure)
             .where(CostStructure.revision_id == UUID(revision["revision_id"]))
-            .values(lineage_id=uuid4(), created_at=datetime(2026, 3, 4, 8, 0, tzinfo=UTC))
+            .values(
+                lineage_id=uuid4(),
+                created_at=datetime(2026, 3, 4, 8, 0, tzinfo=UTC),
+                planning_start_on=None,
+            )
         )
     [main] = structures(api, stage, revision["revision_id"])
     assert (main["kind"], main["planning_start_on"]) == ("main", "2026-03-04")
@@ -728,21 +734,32 @@ def test_a_revision_bears_tasks_and_lines_when_every_question_registered_says_so
     api: ContractClient, stage: Scene
 ) -> None:
     # How EP-06 and EP-07 answer ``revision_has_tasks_and_lines`` (``register_tasks_and_lines``),
-    # a detail of the realization which reprises no Vérif: none registered, a revision bears none.
+    # a detail of the realization which reprises no Vérif: the planning answers whether the revision
+    # bears a task (``revision_has_tasks``, US-1380/L1), EP-07 whether it bears a line; each part
+    # needs its question, and every question registered must say yes.
     offer = open_revision(api, stage)
-    mark_as_the_worker(stage.owner, offer, "v1.0")
     path = f"{revisions_of(stage.project['project_id'])}/{offer['revision_id']}"
 
     def designation() -> list[str]:
         return missing(api.get(path, headers=stage.manager.headers).json())["designate_reference"]
 
     with ExitStack() as registered:
-        registered.callback(register_tasks_and_lines(lambda _session, _revision: True))
-        lines = register_tasks_and_lines(lambda _session, _revision: False)
+        registered.callback(register_tasks_and_lines("lines", lambda _session, _revision: True))
+        mark_as_the_worker(stage.owner, offer, "v1.0")
         assert designation() == ["revision_has_tasks_and_lines"]
-        lines()
-        assert designation() == []
+    offer = open_revision(api, stage)
+    path = f"{revisions_of(stage.project['project_id'])}/{offer['revision_id']}"
+    with stage.owner.begin() as connection:
+        give_a_task(connection, UUID(offer["revision_id"]))
+    mark_as_the_worker(stage.owner, offer, "v2.0")
+    # Its tasks alone: no question of the lines, no designation.
     assert designation() == ["revision_has_tasks_and_lines"]
+    with ExitStack() as registered:
+        registered.callback(register_tasks_and_lines("lines", lambda _session, _revision: True))
+        assert designation() == []
+        lines = register_tasks_and_lines("lines", lambda _session, _revision: False)
+        registered.callback(lines)
+        assert designation() == ["revision_has_tasks_and_lines"]
 
 
 def test_the_indicators_of_a_marking_are_those_of_every_computation_registered(

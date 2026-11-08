@@ -8,11 +8,13 @@ amendment consumed by its merge, the own estimate of a risk that occurred), each
 identifier of its own and the lineage of the one it copies (WF-DAT-0030, #1759). The amendments
 and the risks' own come with EP-08, which adds their kinds.
 
-The date a structure's planning starts on is the day of the first creation of its lineage, which
-a copy keeps (``CostStructure.planning_start_on``): no column holds it until a story lets it be
-entered (``updateCostStructure``), and the structure that started the lineage is always there —
-the revision it was created in was marked, since a copy takes up only a marked revision's. Were it
-missing, the structure would start on the day of its own creation rather than vanish from its list.
+The date a structure's planning starts on is the day of its first creation by default, which a
+copy keeps (``CostStructure.planning_start_on``), and the instant its dates were computed is that
+of its creation until EP-06 schedules it (``scheduled_at``): both are written at the creation and
+taken up by the copy (#2170). A row the migration ``0023`` did not fill reads them as they were
+derived before: the day of the creation of the origin of its lineage, which is always there — the
+revision it was created in was marked, since a copy takes up only a marked revision's —, or, were
+it missing, the day of its own creation rather than vanish from its list.
 
 Filled by US-0960. The witness loads no structure of its own: the main one is born with its
 revision, the others are EP-06's and EP-07's.
@@ -73,6 +75,8 @@ def create_main_structure(session: Session, project_id: UUID, revision_id: UUID,
             label=MAIN_LABEL,
             is_merged=False,
             lineage_id=structure_id,
+            planning_start_on=act.at.date(),
+            scheduled_at=act.at,
             created_at=act.at,
             created_by=act.author,
             updated_at=act.at,
@@ -84,7 +88,12 @@ def create_main_structure(session: Session, project_id: UUID, revision_id: UUID,
 
 
 def copy_structures(copy: RevisionCopy) -> None:
-    """Copy the structures of the source but the merged ones, each keeping its lineage (#1759)."""
+    """Copy the structures of the source but the merged ones, each keeping its lineage (#1759).
+
+    Each keeps the date its planning starts on and the instant its dates were computed (#2170): a
+    null date stays null, read by the lineage the copy keeps; a null instant is the creation of the
+    structure copied.
+    """
     rows = copy.session.scalars(
         select(CostStructure)
         .where(
@@ -106,6 +115,8 @@ def copy_structures(copy: RevisionCopy) -> None:
                 label=row.label,
                 is_merged=False,
                 lineage_id=row.lineage_id,
+                planning_start_on=row.planning_start_on,
+                scheduled_at=row.scheduled_at or row.created_at,
                 created_at=copy.at,
                 created_by=copy.author,
                 updated_at=copy.at,
@@ -160,7 +171,7 @@ def list_cost_structures(
             revision_id=row.revision_id,
             kind=row.kind,
             label=row.label,
-            planning_start_on=born.date(),
+            planning_start_on=row.planning_start_on or born.date(),
             is_merged=row.is_merged,
             commands=tuple(
                 CommandAvailability(command, missing)

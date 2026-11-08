@@ -48,6 +48,7 @@ from waterfall.core.projects.interface import (
     stored_lock_version,
 )
 from waterfall.core.revisions.commands import NO_BACKGROUND_TASK_RUNNING, REVISION_DRAFT
+from waterfall.core.revisions.interface.closing import close_revision
 from waterfall.core.revisions.interface.shared import (
     STALE_LOCK_VERSION,
     found_revision,
@@ -81,7 +82,7 @@ EXIT_REASON = "exit_reason"
 EXIT_LOCK_VERSION = "exit_lock_version"
 
 # What computes and keeps the indicators of a revision being marked, in their order: EP-10's.
-_INDICATORS: Registry[Callable[[Session, UUID], None]] = Registry()
+_INDICATORS: Registry[Callable[[Session, UUID], None]] = Registry("revisions.indicators")
 
 
 class Kept(Enum):
@@ -235,13 +236,15 @@ def mark_revision(
     one current revision, locked here, and a marked one never changes its name, so that no other
     marking races this one for a name — the unique index of the names is the rampart of the base.
     Its indicators are computed before anything is written: a computation that raises leaves the
-    revision current.
+    revision current. The modules registered close it then (``register_closing``), before it is
+    marked.
     """
     revision = found_revision(session, revision_id, lock=True)
     if revision.status != "draft":
         raise refuse(REVISION_DRAFT)
     _judge_name(session, revision, version_name)
     compute_indicators(session, revision_id)
+    close_revision(session, revision.project_id, revision_id, "marked")
     revision.status = "marked"
     revision.version_name = version_name
     if not isinstance(description, Kept):

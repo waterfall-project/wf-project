@@ -4,9 +4,10 @@
 
 A marked revision is designated reference while the project has neither an actual cost (EP-09)
 nor a revision marked since the last designation (``reference_correctable``, WF-REV-0040); it must
-bear tasks and lines (``revision_has_tasks_and_lines``, WF-CYC-0030), a question this module asks
-of those of the planning and of the estimate, which EP-06 and EP-07 register
-(``register_tasks_and_lines``): always false until then.
+bear tasks and lines (``revision_has_tasks_and_lines``, WF-CYC-0030), two questions this module
+asks of the planning (``tasks``, EP-06) and of the estimate (``lines``, EP-07), which each
+registers under its part (``register_tasks_and_lines``): false while a part has no question, so
+that a revision with tasks but no line is refused until EP-07 answers for the lines.
 
 The moment of the last designation is the one of its last inscription in the journal, taken under
 the lock of the project, so that a marking validated meanwhile is judged against it.
@@ -22,7 +23,7 @@ progress if its code is entered (``set_reference_revision``).
 """
 
 from dataclasses import dataclass, replace
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Literal
 
 from sqlalchemy import func, select
 
@@ -58,8 +59,13 @@ if TYPE_CHECKING:
 
     from waterfall.core.projects.interface import Viewer
 
-# The questions a revision answers to bear tasks and lines: EP-06 its tasks, EP-07 its lines.
-_TASKS_AND_LINES: Registry[Callable[[Session, UUID], bool]] = Registry()
+# The two parts of what a designated revision bears: its tasks (EP-06), its lines (EP-07).
+type RevisionPart = Literal["tasks", "lines"]
+REVISION_PARTS: frozenset[RevisionPart] = frozenset(("tasks", "lines"))
+# The questions a revision answers to bear tasks and lines, each under its part.
+_TASKS_AND_LINES: Registry[tuple[RevisionPart, Callable[[Session, UUID], bool]]] = Registry(
+    "revisions.tasks_and_lines"
+)
 
 
 def reference_correctable(session: Session, project_id: UUID) -> bool:
@@ -159,15 +165,24 @@ def designate_reference(
     inscribe_revision(session, revision, "reference_designate", revision.version_name, act)
 
 
-def register_tasks_and_lines(question: Callable[[Session, UUID], bool]) -> Callable[[], None]:
-    """Add a question a revision must answer yes to bear tasks and lines; give its withdrawal."""
-    return _TASKS_AND_LINES.register(question)
+def register_tasks_and_lines(
+    part: RevisionPart, question: Callable[[Session, UUID], bool]
+) -> Callable[[], None]:
+    """Add a question a revision must answer yes for one part it bears; give its withdrawal.
+
+    The planning registers its tasks (``tasks``), the estimate its lines (``lines``).
+    """
+    return _TASKS_AND_LINES.register((part, question))
 
 
 def revision_has_tasks_and_lines(session: Session, revision_id: UUID) -> bool:
-    """Tell whether a revision bears tasks and lines of estimate: every question registered says so.
+    """Tell whether a revision bears tasks and lines of estimate (WF-CYC-0030).
 
-    None registered, the revision bears none: false until EP-06 and EP-07 register theirs.
+    Each part — the tasks, the lines — must have a question registered, and every question
+    registered must say yes: a part without one is a part the revision does not bear, so that the
+    tasks alone never make a designation pass before EP-07 registers the lines.
     """
     questions = _TASKS_AND_LINES.entries()
-    return bool(questions) and all(question(session, revision_id) for question in questions)
+    if not {part for part, _ in questions} >= REVISION_PARTS:
+        return False
+    return all(question(session, revision_id) for _, question in questions)

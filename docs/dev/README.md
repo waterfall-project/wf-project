@@ -129,7 +129,16 @@ contributors, its subprojects, its work breakdown — and `waterfall.core.revisi
 revisions and their cost structures. Their interface is a package of one file per subject
 (`projects`, `contributors`, `subprojects`, `work_breakdown`, `lifecycle`; `revisions`,
 `structures`, `marking`, `reference`), where each function of the design is declared from the
-foundation on, without effect, so that no story reopens `interface/__init__.py` to fill its own. A
+foundation on, without effect, so that no story reopens `interface/__init__.py` to fill its own. The
+planning (EP-06) has three: `waterfall.core.planning` (FBS-4.3) — the nodes and their task facet,
+the links, the timelines and the inscriptions —, `waterfall.core.history` — the undo history and
+the paste plans — and `waterfall.core.exchanges` (FBS-4.3.4) — the imports, the exports and their
+formats —, whose interface is likewise a package of one file per story or subject, each function
+declared by the foundation (US-1380/L1). A module above extends a module below without the latter
+importing it, through an ordered registry (`Registry`, `waterfall.platform.registry`) that the
+interface below offers to fill and that the one above fills at its import (EP-06, "Les points
+d'extension"); an entry point that depends on it imports the interface that registers, and
+`test_registries.py` checks it for the API, the worker and the loader (#2180). A
 revised table is partitioned by list on `project_id`, one partition per project (WF-DAT-0050),
 which the function `create_project_partitions` of the owner of the tables (`SECURITY DEFINER`)
 creates in the transaction of the creation of the project; the role of the service alone may

@@ -14,6 +14,7 @@ from fastapi.testclient import TestClient
 from installations import Installation, Take, installed, taker
 from installed_reference import install
 from openapi_core import Config, OpenAPI
+from project_rows import drop_partitions, unguarded
 from pydantic import SecretStr
 from realm import KEY, TestRealm
 from sqlalchemy import Engine, delete, insert, text
@@ -186,12 +187,6 @@ def client(contract: OpenAPI, services: Services) -> ContractClient:
 
 
 TEST_DATABASE_VARIABLE = "WATERFALL_TEST_DATABASE_URL"
-# The partitions of every partitioned table, which the rows deleted leave in place.
-PARTITIONS = text(
-    "SELECT child.oid::regclass::text FROM pg_inherits "
-    "JOIN pg_class AS parent ON parent.oid = pg_inherits.inhparent "
-    "JOIN pg_class AS child ON child.oid = pg_inherits.inhrelid WHERE parent.relkind = 'p'"
-)
 
 
 @pytest.fixture(scope="session")
@@ -287,11 +282,11 @@ def database(database_url: str, service_database_url: str) -> Iterator[Database]
     db.dispose()
     owner = create_database_engine(database_url)
     with owner.begin() as connection:
-        connection.execute(text("SET LOCAL session_replication_role = replica"))
-        # The partitions a project brings with it (WF-DAT-0050) outlive its rows: the witness
-        # imposes its identifiers, and a creation refuses a project that has its partitions.
-        for partition in list(connection.scalars(PARTITIONS)):
-            connection.execute(text(f"DROP TABLE {partition}"))
+        # The guards of the journal and of the revised tables off for this transaction alone. The
+        # partitions a project brings with it (WF-DAT-0050) outlive its rows: the witness imposes
+        # its identifiers, and a creation refuses a project that has its partitions.
+        unguarded(connection)
+        drop_partitions(connection)
         for table in reversed(Base.metadata.sorted_tables):
             if not table.info.get(WRITTEN_BY_MIGRATION):
                 connection.execute(delete(table))

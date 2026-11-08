@@ -15,6 +15,7 @@ from typing import TYPE_CHECKING
 from sqlalchemy import select, update
 from sqlalchemy.dialects.postgresql import insert
 
+from waterfall.core.resource_settings.interface.extensions import recalculate
 from waterfall.core.resource_settings.tables import SINGLE_ROW, DurationUnit
 from waterfall.platform.errors import (
     FieldError,
@@ -129,7 +130,9 @@ def set_duration_units(
 ) -> DurationUnitsView:
     """Write the three constants, if their version is the one read (412), and read them back.
 
-    The constants are refused first (422), the row is locked before its version is judged.
+    The constants are refused first (422), the row is locked before its version is judged. The
+    structures of the current revisions are redated in the transaction, once the constants are
+    written (``recalculate``, EP-06).
     """
     _refuse_units(units)
     row = session.scalars(
@@ -154,4 +157,5 @@ def set_duration_units(
             updated_by=act.author,
         )
     )
+    recalculate(session)
     return get_duration_units(session)
