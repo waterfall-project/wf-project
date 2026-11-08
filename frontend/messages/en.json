@@ -1296,6 +1296,9 @@
       "declare_risk": {
         "help": "Leads to the screen of the risks of the revision, where « Identify a risk » is offered."
       },
+      "export_task_tree_image": {
+        "help": "Asks for the image of the task tree at the level shown, drawn in the background: the file is downloaded from the follow-up of the tasks."
+      },
       "create_structure": {
         "help": "Prepares an amendment: a differential structure on the revision."
       },
@@ -2993,7 +2996,8 @@
     "PASTE_TARGET_REMOVED": "The target of the paste disappeared in the meantime: nothing was pasted.",
     "WBS_ELEMENT_INVALID": "The WBS element of the line does not have the expected form: a project code, a slash, then a sub-project code.",
     "WBS_ELEMENT_OUTSIDE_PROJECT": "The WBS element of the line belongs to another project.",
-    "AMBIGUOUS_TASK_LABEL": "This label is carried by several tasks: the report does not say which one it targets."
+    "AMBIGUOUS_TASK_LABEL": "This label is carried by several tasks: the report does not say which one it targets.",
+    "TASK_TREE_IMAGE_TOO_LARGE": "The image of the task tree would exceed one hundred million pixels: nothing was drawn. Choose a shallower level."
   },
   "problemDetails": {
     "missing_permission": "Required permission: {permission}.",

@@ -61,9 +61,12 @@ REVISION_RULES: tuple[Rule, ...] = (
 )
 # The exports, listed after the other commands as ``RevisionCommand`` orders them: a matter of
 # consultation, each guarded by the permission to view the function of its kind, lacking no
-# condition (WF-CYC-0110). The planning's is here; the tree image (US-1440), the estimate (EP-07)
-# and the remaining to commit (EP-09) add theirs.
-EXPORT_RULES: tuple[Rule, ...] = (Rule("export_planning", "planning.read"),)
+# condition (WF-CYC-0110). The planning's and the tree image's (US-1440) are here; the estimate
+# (EP-07) and the remaining to commit (EP-09) add theirs.
+EXPORT_RULES: tuple[Rule, ...] = (
+    Rule("export_planning", "planning.read"),
+    Rule("export_task_tree_image", "planning.read"),
+)
 # In the order of ``StructureCommand``: each guarded by the permission of the command of the same
 # name of the revision.
 STRUCTURE_RULES: tuple[Rule, ...] = (

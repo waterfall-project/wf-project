@@ -1296,6 +1296,9 @@
       "declare_risk": {
         "help": "Mène à l’écran des risques de la révision, où « Identifier un risque » s’offre."
       },
+      "export_task_tree_image": {
+        "help": "Demande l’image de l’arborescence de tâches au niveau affiché, dessinée en traitement de fond : le fichier se télécharge depuis le suivi des tâches."
+      },
       "create_structure": {
         "help": "Prépare un avenant : une structure différentielle sur la révision."
       },
@@ -2993,7 +2996,8 @@
     "PASTE_TARGET_REMOVED": "La cible du collage a disparu entre-temps : rien n’a été collé.",
     "WBS_ELEMENT_INVALID": "L’élément d’OTP de la ligne n’a pas la forme attendue : un code projet, une barre oblique, puis un code de sous-projet.",
     "WBS_ELEMENT_OUTSIDE_PROJECT": "L’élément d’OTP de la ligne appartient à un autre projet.",
-    "AMBIGUOUS_TASK_LABEL": "Ce libellé est porté par plusieurs tâches : le compte rendu ne dit pas laquelle il vise."
+    "AMBIGUOUS_TASK_LABEL": "Ce libellé est porté par plusieurs tâches : le compte rendu ne dit pas laquelle il vise.",
+    "TASK_TREE_IMAGE_TOO_LARGE": "L’image de l’arborescence de tâches dépasserait cent millions de pixels : rien n’a été dessiné. Choisissez un niveau moins profond."
   },
   "problemDetails": {
     "missing_permission": "Permission requise : {permission}.",
