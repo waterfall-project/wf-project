@@ -2915,6 +2915,7 @@
     "PERMISSION_MISSING": "Vous n’avez pas la permission nécessaire.",
     "NOT_CONTRIBUTOR": "Seuls les contributeurs du projet peuvent le faire.",
     "NOT_PROJECT_MANAGER": "Seuls les chefs de projet peuvent le faire.",
+    "SESSION_ID_MISSING": "Votre jeton de session ne porte pas d’identifiant de session : reconnectez-vous pour pouvoir annuler ou rétablir une modification.",
     "NOT_FOUND": "Introuvable : cet élément n’existe pas, ou vous n’y avez pas accès.",
     "STATE_FORBIDS_OPERATION": "L’état actuel ne permet pas cette opération.",
     "ALREADY_EXISTS": "Cet élément existe déjà.",

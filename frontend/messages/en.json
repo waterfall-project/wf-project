@@ -2915,6 +2915,7 @@
     "PERMISSION_MISSING": "You do not have the required permission.",
     "NOT_CONTRIBUTOR": "Only the project’s contributors can do this.",
     "NOT_PROJECT_MANAGER": "Only the project’s managers can do this.",
+    "SESSION_ID_MISSING": "Your session token carries no session identifier: sign in again to be able to undo or redo a change.",
     "NOT_FOUND": "Not found: this item does not exist, or you do not have access to it.",
     "STATE_FORBIDS_OPERATION": "The current state does not allow this operation.",
     "ALREADY_EXISTS": "This item already exists.",
