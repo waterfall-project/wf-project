@@ -24,6 +24,10 @@ they serve or explicitly (#2180).
 # ``closing`` (US-1380/L1; US-1380/L2): the nodes of a revision abandoned.
 # The registries the planning fills.
 from waterfall.core.exchanges.interface import register_exporter, register_format
+
+# The history first: it registers its closing stage before the planning's, whichever file of the
+# planning an entry point imports first (the order of ``revisions.closing`` is the import's).
+from waterfall.core.history.interface import close_history as close_history
 from waterfall.core.planning.interface.closing import (
     delete_nodes as delete_nodes,
 )
@@ -144,6 +148,9 @@ from waterfall.core.planning.interface.task_tree import (
 
 # ``timelines`` (US-1380/L1; US-1400/L1): the named timelines of a project.
 from waterfall.core.planning.interface.timelines import (
+    TimelineView as TimelineView,
+)
+from waterfall.core.planning.interface.timelines import (
     create_timeline as create_timeline,
 )
 from waterfall.core.planning.interface.timelines import (
@@ -154,6 +161,9 @@ from waterfall.core.planning.interface.timelines import (
 )
 from waterfall.core.planning.interface.timelines import (
     load_timeline as load_timeline,
+)
+from waterfall.core.planning.interface.timelines import (
+    timelines_present as timelines_present,
 )
 
 # ``tracking`` (US-1380/L1; US-1400/L2): the inscriptions of a task.

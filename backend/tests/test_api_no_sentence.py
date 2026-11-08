@@ -135,6 +135,8 @@ DATA = {
     "Project.client": "a name",
     # The label of a subproject, as its project manager gave it (its code is a value pattern-bound).
     "Subproject.label": "a label",
+    # The label of a timeline, as the person who named it gave it (US-1400/L1).
+    "Timeline.label": "a label",
     # The name of version and the description a revision was marked with, and its source's; the
     # label of a structure, as given — the main one's, as the examples of the contract name it.
     "Revision.version_name": "a name",
