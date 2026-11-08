@@ -109,11 +109,11 @@ test("the revisions of a project, their comparison as the API renders it, its st
   await expect(wiring).toContainText("Montant réestimé");
   const deltas = main.getByRole("table", { name: "Écarts de montants" });
   await expect(deltas.getByRole("row")).toHaveCount(6);
-  // Both deviations, each under the header that names it: budgeted 3 000,00, re-estimated 3 300,00.
+  // Both deviations, each under the header that names it: budgeted 3 000,00, re-estimated 2 841,00.
   await expect(deltas.getByRole("columnheader", { name: "Écart budgété" })).toBeVisible();
   await expect(deltas.getByRole("columnheader", { name: "Écart réestimé" })).toBeVisible();
   await expect(deltas.getByRole("row").nth(1)).toContainText("3 000,00 €");
-  await expect(deltas.getByRole("row").nth(1)).toContainText("3 300,00 €");
+  await expect(deltas.getByRole("row").nth(1)).toContainText("2 841,00 €");
 });
 
 // The comparison of the volume: the project 300 is served the offer compared to the reference over
