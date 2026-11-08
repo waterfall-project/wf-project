@@ -2431,7 +2431,9 @@ PastePreview:
     counts — a sibling of that last node, the anchor, whether its own row is written or refused:
     under the same parent, ranked after it in the order of the block, of the kind of the targeted
     node, a task pasted from a task, an estimate line pasted from a line (decision of the user of
-    2026-11-08, #2559). Its label is required: a row whose `label` cell is empty or absent — the
+    2026-11-08, #2559; the creation of an estimate line by a paste is served once the estimate
+    exists (EP-07), the service creating tasks alone until then). Its label is required: a row
+    whose `label` cell is empty or absent — the
     block not starting at the `label` column, the only one before the others — is refused with
     `VALIDATION_FAILED`, `column` at `label`, and nothing is created for it. Its other cells
     first take the values of a creation (`createNode`: for a task, the automatic mode, one day,

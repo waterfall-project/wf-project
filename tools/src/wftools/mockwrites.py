@@ -489,7 +489,7 @@ def paste_plan(block: Sequence[Sequence[str]], paste_id: str) -> JsonObject:
             rejected.append(
                 {"row": row, "column": "resource_role", "code": "UNKNOWN_RESOURCE_ROLE"}
             )
-    return mockundoable.paste_plan_of(paste_id, len(block) - len(rejected), rejected)
+    return mocktext.paste_plan_of(paste_id, len(block) - len(rejected), rejected)
 
 
 def paste_applied(

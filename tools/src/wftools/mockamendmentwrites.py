@@ -33,7 +33,6 @@ from wftools.mockgestures import added, money_said, network_task, tasks_said
 from wftools.mockids import universe
 from wftools.mockstructure import labels
 from wftools.mocktree import AT_END, LINE, TASK, placed
-from wftools.mockundoable import paste_plan_of
 from wftools.mockwitness import (
     COMMISSIONING,
     COMMISSIONING_TECHNICIAN,
@@ -462,7 +461,8 @@ def paste_plan_amendment(
     rejected: list[JsonValue] = [
         {"row": row, "column": column, "code": code} for row, column, code in refusals
     ]
-    return paste_plan_of(paste_id, len(block) - len({row for row, _, _ in refusals}), rejected)
+    refused = len({row for row, _, _ in refusals})
+    return mocktext.paste_plan_of(paste_id, len(block) - refused, rejected)
 
 
 def paste_applied_amendment(block: Block = AMENDMENT_BLOCK) -> JsonObject:
@@ -491,7 +491,7 @@ def paste_plan_amendment_target_removed() -> JsonObject:
     Reporting the anchor to the next node would write elsewhere than where the user clicked.
     """
     rejected: list[JsonValue] = [{"row": 0, "column": "label", "code": TARGET_REMOVED}]
-    return paste_plan_of(REMOVED_ANCHOR_PASTE, 0, rejected)
+    return mocktext.paste_plan_of(REMOVED_ANCHOR_PASTE, 0, rejected)
 
 
 def paste_applied_amendment_skipping() -> JsonObject:

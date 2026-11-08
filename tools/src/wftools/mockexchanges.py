@@ -28,7 +28,6 @@ from wftools import mockcore, mockcosts, mocktext
 from wftools.mockhistory import stamp
 from wftools.mockids import hex_identifier, universe
 from wftools.mockstructure import charged_subprojects
-from wftools.mockundoable import paste_plan_of
 from wftools.mockwitness import (
     SUBPROJECT_CONTROL,
     SUBPROJECT_TESTS,
@@ -143,7 +142,7 @@ def paste_plan(block: Sequence[str | None]) -> JsonObject:
         refusal = held_refusal(nodes, line, subproject, pasted=True)
         if refusal is not None:
             rejected.append({"row": row, "column": "subproject", **refusal})
-    return paste_plan_of(HELD_PASTE, len(block) - len(rejected), rejected)
+    return mocktext.paste_plan_of(HELD_PASTE, len(block) - len(rejected), rejected)
 
 
 def paste_plan_subproject_held() -> JsonObject:

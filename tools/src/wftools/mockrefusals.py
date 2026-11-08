@@ -79,7 +79,6 @@ from wftools import mockcore, mockexchanges, mockhistory, mocktext, mockwitness,
 from wftools.mockids import hex_identifier, universe
 from wftools.mockproject import PARTICIPANT
 from wftools.mockstructure import REFERENCE_YEAR, labels
-from wftools.mockundoable import paste_plan_of
 from wftools.mockwitness import (
     CABLE_FITTER,
     COMMISSIONING_TECHNICIAN,
@@ -373,7 +372,7 @@ def paste_plan_without_hours() -> JsonObject:
             ],
         },
     }
-    return paste_plan_of(WITHOUT_HOURS_PASTE, len(WITHOUT_HOURS_BLOCK) - 1, [refusal])
+    return mocktext.paste_plan_of(WITHOUT_HOURS_PASTE, len(WITHOUT_HOURS_BLOCK) - 1, [refusal])
 
 
 def next_state_without_code() -> JsonObject:

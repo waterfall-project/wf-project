@@ -36,22 +36,6 @@ if TYPE_CHECKING:
 type Node = dict[str, Any]
 
 
-def paste_plan_of(
-    paste_id: str, accepted: int, rejected: Sequence[JsonValue], created: int = 0
-) -> JsonObject:
-    """Return what previewPaste answers: the rows accepted, those that create, and the refusals.
-
-    The rows that create are counted among the rows accepted too; none, unless the block falls
-    past the last node of the structure (`PastePlan`, #2559).
-    """
-    return {
-        "paste_id": paste_id,
-        "accepted": accepted,
-        "created": created,
-        "rejected": list(rejected),
-    }
-
-
 # --- The paste that creates --------------------------------------------------------------------
 
 CREATING_BLOCK = (
@@ -97,7 +81,7 @@ def creating_refusals(block: Sequence[Sequence[str]] = CREATING_BLOCK) -> list[J
 def paste_plan_creating() -> JsonObject:
     """Return what previewPaste answers to the block pasted on the last node of the structure."""
     rejected = creating_refusals()
-    return paste_plan_of(
+    return mocktext.paste_plan_of(
         CREATING_PASTE,
         len(CREATING_BLOCK) - len(rejected),
         rejected,

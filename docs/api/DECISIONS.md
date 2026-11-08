@@ -11535,6 +11535,41 @@ parcours `@shared` d'US-1400/L2 en faisant la preuve ; laisser le constat à EP-
 sans preuve tous les parcours `@shared` d'EP-06 ; une garde générale dans la vérification des
 réponses du service, selon la requête, plutôt qu'un schéma qui dit la réponse.
 
+## Collage et annulation
+
+**Le collage depuis un tableur suit exactement la forme d'un import** : `paste-preview`
+rend un plan avec les lignes acceptées et rejetées, `paste` l'applique sur confirmation.
+WF-IHM-0050 demande le même contrôle avant écriture que WF-INTF-0080 ; autant la même
+forme.
+
+**Un bloc plus large que la grille est refusé à l'aperçu**, par un 422 `PASTE_TOO_WIDE` dont
+`params.max_columns` dit combien de colonnes la grille offre à partir de la colonne visée
+(EP-02, US-0130). Le code et son paramètre existaient sans qu'aucune réponse de `previewPaste`
+ne les déclare : WF-IHM-0050 veut que ce refus se dise, avant que rien ne soit écrit. Le serveur
+ne connaît ni les colonnes affichées ni leur ordre : `max_columns` compte les colonnes de la facette
+du nœud visé à partir de la colonne visée, dans l'ordre de `NodeColumn` (EP-02/L8, #200), et le
+front garde une garde locale sur ce qu'il montre.
+
+**L'annulation est une opération de la révision**, `POST .../undo` et `POST .../redo`, pas
+un état du client. C'est ce qui rend vraie la phrase de WF-IHM-0110 : une annulation est
+une modification comme une autre, qui passe par l'API et s'inscrit dans l'audit.
+
+*Confirmée et précisée par US-0701/L2 (#1602, E-06, E-08, L-18) : WF-IHM-0110, réécrite le
+2026-10-10, dit l'historique « tenu par le front » ; l'auteur l'a gardé au serveur au recadrage du
+2026-10-28, et le contrat dit désormais sa session, sa pile par révision et par utilisateur, sa
+fin au marquage et à l'abandon et ses cinquante niveaux ; l'annulation rend `NodesWritten`
+(« Les révisions et les structures », dans « Le contrat figé »). #1595 demande la correction de la
+spécification.*
+
+**Un jeton sans `sid` n'a pas d'historique, et le dit par un 403 nommé** (`SESSION_ID_MISSING`,
+`undoLastChange` et `redoLastUndo`, #2472). La pile se tient par session de connexion, le `sid`
+du jeton ; un jeton valide qui n'en porte pas — un compte de service, un client dont la portée ne
+le donne pas — n'a donc pas de pile. Les deux opérations de l'historique le refusent ; une écriture
+faite avec ce jeton passe, sans entrée d'historique, et ne change rien aux autres routes. Écarté :
+un 401 `SESSION_REQUIRED`, que le front traite en renvoyant à la connexion, laquelle redonne le
+même jeton, en boucle ; refuser le jeton dès sa validation, ce qui toucherait tous les appels ; une
+pile de repli par compte, qui mêlerait les sessions d'un même compte.
+
 ### Le collage qui crée les tâches au-delà de la dernière ligne (US-1450/L4, #2559)
 
 Le contrat n'écrivait par `previewPaste` que des cellules de nœuds existants : une ligne du bloc
@@ -11578,41 +11613,6 @@ le bloc si une ligne de création est refusée, contre WF-IHM-0050 (« les ligne
 clé de catalogue pour un refus que `VALIDATION_FAILED` dit déjà ; laisser le dialogue déduire le
 nombre de créations des lignes au-delà de la grille, qu'il ne connaît que par ce qu'il montre ; un
 champ `created` dans `PasteApplied`, que `nodes` dit déjà.
-
-## Collage et annulation
-
-**Le collage depuis un tableur suit exactement la forme d'un import** : `paste-preview`
-rend un plan avec les lignes acceptées et rejetées, `paste` l'applique sur confirmation.
-WF-IHM-0050 demande le même contrôle avant écriture que WF-INTF-0080 ; autant la même
-forme.
-
-**Un bloc plus large que la grille est refusé à l'aperçu**, par un 422 `PASTE_TOO_WIDE` dont
-`params.max_columns` dit combien de colonnes la grille offre à partir de la colonne visée
-(EP-02, US-0130). Le code et son paramètre existaient sans qu'aucune réponse de `previewPaste`
-ne les déclare : WF-IHM-0050 veut que ce refus se dise, avant que rien ne soit écrit. Le serveur
-ne connaît ni les colonnes affichées ni leur ordre : `max_columns` compte les colonnes de la facette
-du nœud visé à partir de la colonne visée, dans l'ordre de `NodeColumn` (EP-02/L8, #200), et le
-front garde une garde locale sur ce qu'il montre.
-
-**L'annulation est une opération de la révision**, `POST .../undo` et `POST .../redo`, pas
-un état du client. C'est ce qui rend vraie la phrase de WF-IHM-0110 : une annulation est
-une modification comme une autre, qui passe par l'API et s'inscrit dans l'audit.
-
-*Confirmée et précisée par US-0701/L2 (#1602, E-06, E-08, L-18) : WF-IHM-0110, réécrite le
-2026-10-10, dit l'historique « tenu par le front » ; l'auteur l'a gardé au serveur au recadrage du
-2026-10-28, et le contrat dit désormais sa session, sa pile par révision et par utilisateur, sa
-fin au marquage et à l'abandon et ses cinquante niveaux ; l'annulation rend `NodesWritten`
-(« Les révisions et les structures », dans « Le contrat figé »). #1595 demande la correction de la
-spécification.*
-
-**Un jeton sans `sid` n'a pas d'historique, et le dit par un 403 nommé** (`SESSION_ID_MISSING`,
-`undoLastChange` et `redoLastUndo`, #2472). La pile se tient par session de connexion, le `sid`
-du jeton ; un jeton valide qui n'en porte pas — un compte de service, un client dont la portée ne
-le donne pas — n'a donc pas de pile. Les deux opérations de l'historique le refusent ; une écriture
-faite avec ce jeton passe, sans entrée d'historique, et ne change rien aux autres routes. Écarté :
-un 401 `SESSION_REQUIRED`, que le front traite en renvoyant à la connexion, laquelle redonne le
-même jeton, en boucle ; refuser le jeton dès sa validation, ce qui toucherait tous les appels ; une
-pile de repli par compte, qui mêlerait les sessions d'un même compte.
 
 ## Organisation des fichiers
 

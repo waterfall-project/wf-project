@@ -2,9 +2,11 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 """Tests of the paste that creates the tasks past the last row, and of the undo and the redo.
 
-The paste cites the Vérif of WF-IHM-0050-A it tries on the examples (a row signalled, confirmed
-the others written and not it); the undo and the redo try the simplifications of the fake back
-against the renaming they undo and redo, not a Vérif, and cite none (WF-QUA-0010).
+The paste cites the Vérif of WF-IHM-0050-A it tries on the examples (confirmed, the other rows
+written and not the refused one), and the values of a task created those of WF-DEV-0050-A; the undo
+and the redo try the simplifications of the fake back against the renaming they undo and redo, not
+a Vérif (the fifty successive undos of WF-IHM-0110-A are not tried here), and cite none
+(WF-QUA-0010).
 """
 
 import json
@@ -21,11 +23,23 @@ type Node = dict[str, Any]
 REFUSED = {"row": 3, "column": "label", "code": "VALIDATION_FAILED"}
 """The refusal of the row past the last node that brings no label (`PastePreview`, #2559)."""
 
+PLANS = {
+    "paste_plan",
+    "paste_plan_amendment",
+    "paste_plan_amendment_skipping",
+    "paste_plan_amendment_target_removed",
+    "paste_plan_creating",
+    "paste_plan_subproject_held",
+    "paste_plan_unknown_category",
+    "paste_plan_without_hours",
+}
+"""The plans the fake back serves: each one says how many of its rows create."""
+
 
 @pytest.mark.requirement("WF-IHM-0050-A")
 def test_the_rows_past_the_last_node_create_tasks_and_the_one_without_a_label_is_refused() -> None:
-    # « Un bloc dont une cellule [...] signale cette ligne ; confirmé, il écrit les autres lignes et
-    # non celle-ci » : the plan says what will be written, created and refused, nothing written.
+    # « confirmé, il écrit les autres lignes et non celle-ci » : the plan says what will be written,
+    # created and refused, nothing written; the row without a label is the one not written.
     assert fixture("paste_plan_creating") == {
         "paste_id": universe(993),
         "accepted": 3,
@@ -44,12 +58,14 @@ def test_the_rows_past_the_last_node_create_tasks_and_the_one_without_a_label_is
     assert applied["rejected"] == [REFUSED]
 
 
+@pytest.mark.requirement("WF-DEV-0050-A")
 def test_the_tasks_created_are_siblings_of_the_last_node_after_it_as_a_creation_gives_them() -> (
     None
 ):
     # The anchor is the last node of the structure the fake back serves first; the tasks created
     # share its parent, ranked after it in the order of the block, at their first version, each a
-    # leaf in automatic mode of one day without a predecessor, not started (`createNode`).
+    # leaf in automatic mode of one day without a predecessor, not started (`createNode`):
+    # « en mode automatique, d’une durée d’un jour et sans prédécesseur ».
     served = json.loads((mockwitness.FIXTURES / "volume" / "nodes_thousand.json").read_text())
     [last] = served["value"]["items"][-1:]
     assert last["task"]["label"] == mockundoable.CREATING_BLOCK[0][0]
@@ -79,7 +95,7 @@ def test_every_plan_counts_its_rows_that_create_among_those_it_accepts() -> None
         path.stem: json.loads(path.read_text(encoding="utf-8"))["value"]
         for path in mockwitness.FIXTURES.glob("paste_plan*.json")
     }
-    assert len(plans) == 8
+    assert set(plans) == PLANS
     assert {name: plan["created"] for name, plan in plans.items() if plan["created"]} == {
         "paste_plan_creating": 2
     }
