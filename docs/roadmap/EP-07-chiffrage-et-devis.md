@@ -1594,7 +1594,7 @@ qui lisent le devis propre d'un risque (`paste.spec.ts`, `entry.spec.ts`) resten
 
 ## US-1570 — Le témoin : la tranche des lignes, PRJ-001 En cours, et les parcours rejoués
 
-- **statut** : à faire
+- **statut** : en cours
 - **exigences** : `WF-QUA-0040-A`, `WF-INTF-0010-A`
 - **opérations** : aucune en propre ; le chargement passe par les interfaces du noyau
 - **issue** : 2369

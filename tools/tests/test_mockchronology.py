@@ -62,8 +62,8 @@ def _written(*kinds: str) -> list[dict[str, Any]]:
 
 def test_the_writes_are_those_of_the_design_in_that_order() -> None:
     # WF-QUA-0040-A: the design of EP-04 lists them: 100 opened (Created to Pricing), marked, 101
-    # opened, 100 designated and refused, the code entered, 101 marked, 102 opened; no abandon. EP-07
-    # adds the update of the rates accepted on 101 (« Le chargeur du témoin »).
+    # opened, 100 designated and refused, the code entered, 101 marked, 102 opened; no abandon.
+    # EP-07 adds the update of the rates accepted on 101 (« Le chargeur du témoin »).
     assert [(w["kind"], w.get("revision")) for w in _writes()] == [
         ("project_created", None),
         ("revision_opened", 100),
