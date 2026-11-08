@@ -19,7 +19,8 @@ order of the contract: the revision unknown (404), the counter of the project re
 terminal project (409 ``project_not_terminal``), then the first condition the command
 ``designate_reference`` lacks (409). It writes ``is_reference`` of the previous reference and of
 the new one, the project, and ``reference_designate`` in the journal; the project moves to In
-progress if its code is entered (``set_reference_revision``).
+progress if its code is entered (``set_reference_revision``). The modules registered then do their
+part (``register_designation``: the budgeted amounts of EP-07), in the same transaction.
 """
 
 from dataclasses import dataclass, replace
@@ -53,6 +54,7 @@ from waterfall.platform.errors import PreconditionFailedError
 
 if TYPE_CHECKING:
     from collections.abc import Callable
+    from datetime import datetime
     from uuid import UUID
 
     from sqlalchemy.orm import Session
@@ -66,6 +68,8 @@ REVISION_PARTS: frozenset[RevisionPart] = frozenset(("tasks", "lines"))
 _TASKS_AND_LINES: Registry[tuple[RevisionPart, Callable[[Session, UUID], bool]]] = Registry(
     "revisions.tasks_and_lines"
 )
+# What a module does once a reference is designated, in the order of registration: EP-07's.
+_DESIGNATIONS: Registry[Callable[[ReferenceDesignated], None]] = Registry("revisions.designation")
 
 
 def reference_correctable(session: Session, project_id: UUID) -> bool:
@@ -101,6 +105,20 @@ def _write(revision: Revision, *, reference: bool, act: Act) -> None:
     revision.updated_at = act.at
     revision.updated_by = act.author
     revision.lock_version += 1
+
+
+@dataclass(frozen=True, slots=True)
+class ReferenceDesignated:
+    """A reference just designated, in the transaction of its designation, under its locks.
+
+    ``at`` is the instant of the designation, ``author`` who designated it.
+    """
+
+    session: Session
+    project_id: UUID
+    revision_id: UUID
+    at: datetime
+    author: UUID | None
 
 
 @dataclass(frozen=True, slots=True)
@@ -162,7 +180,19 @@ def designate_reference(
     _write(revision, reference=True, act=act)
     session.flush()
     set_reference_revision(session, project_id, revision_id, act)
+    designation = ReferenceDesignated(session, project_id, revision_id, act.at, act.author)
+    for follow in _DESIGNATIONS.entries():
+        follow(designation)
     inscribe_revision(session, revision, "reference_designate", revision.version_name, act)
+
+
+def register_designation(follow: Callable[[ReferenceDesignated], None]) -> Callable[[], None]:
+    """Add what a module does once a reference is designated; give its withdrawal.
+
+    The estimate refreshes the budgeted amounts of the lines of the current revision by their
+    lineage (EP-07, US-1500). Nothing runs for a revision designated again, which writes nothing.
+    """
+    return _DESIGNATIONS.register(follow)
 
 
 def register_tasks_and_lines(

@@ -98,8 +98,19 @@ def partition_of(project_id: UUID) -> str:
 
 
 # The revised tables, each before the tables its keys name: the partition of a table that another
-# names is dropped after the other's.
-REVISED = ("task_link", "task", "node", "cost_structure")
+# names is dropped after the other's. The rates and the images of the estimate name a revision
+# alone, which is no partitioned table.
+REVISED = (
+    "estimate_line",
+    "revision_rate",
+    "revision_role",
+    "revision_calendar",
+    "revision_category",
+    "task_link",
+    "task",
+    "node",
+    "cost_structure",
+)
 PARTITIONS_OF = text(
     "SELECT child.relname FROM pg_inherits JOIN pg_class AS child ON child.oid = inhrelid "
     "JOIN pg_class AS parent ON parent.oid = inhparent WHERE parent.relname = :parent "

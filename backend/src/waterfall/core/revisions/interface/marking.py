@@ -12,12 +12,14 @@ the commands that would write in the revision name ``no_background_task_running`
 The worker marks (``run_marking``), in the one transaction of the task, under the lock of the
 revision taken ``FOR UPDATE`` (#2104): the guard of the revised tables reads the revision under
 ``FOR KEY SHARE``, which this lock excludes, so that no row enters a revision once it is judged
-current here. It judges again what the request judged — still current, its name free —, computes
-and keeps its indicators (``compute_indicators``, which EP-10 extends by ``register_indicators``),
-marks it with its moment and its name, takes it from its project as the current revision, and
-inscribes ``revision_mark`` in the journal, its author the requester. A refusal or a computation
-that raises fails the task with nothing written; a worker stopped during it leaves the database as
-it was (WF-DAT-0040, WF-ARC-0090). The locks are taken in one order: the revision, then its project.
+current here. It judges again what the request judged — still current, its name free —, has the
+modules registered keep their part of it (``register_marking``: the images and the rates of EP-07),
+computes and keeps its indicators (``compute_indicators``, which EP-10 extends by
+``register_indicators``), marks it with its moment and its name, takes it from its project as the
+current revision, and inscribes ``revision_mark`` in the journal, its author the requester. A
+refusal or a computation that raises fails the task with nothing written; a worker stopped during it
+leaves the database as it was (WF-DAT-0040, WF-ARC-0090). The locks are taken in one order: the
+revision, then its project.
 
 An exit of the project that marks its current revision (``exitProject``, WF-CYC-0090, #2204) asks
 the same marking, its task carrying the state aimed at and the reason (``exit_state``,
@@ -64,6 +66,7 @@ from waterfall.platform.tasks import PROJECT, submit
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Mapping
+    from datetime import datetime
     from typing import Any
 
     from sqlalchemy.orm import Session
@@ -83,6 +86,8 @@ EXIT_LOCK_VERSION = "exit_lock_version"
 
 # What computes and keeps the indicators of a revision being marked, in their order: EP-10's.
 _INDICATORS: Registry[Callable[[Session, UUID], None]] = Registry("revisions.indicators")
+# What a module keeps of a revision being marked before its indicators, in their order: EP-07's.
+_MARKINGS: Registry[Callable[[RevisionMarking], None]] = Registry("revisions.marking")
 
 
 class Kept(Enum):
@@ -92,6 +97,20 @@ class Kept(Enum):
 
 
 KEPT = Kept.DESCRIPTION
+
+
+@dataclass(frozen=True, slots=True)
+class RevisionMarking:
+    """A revision being marked, in the transaction of its marking, judged and still current.
+
+    ``at`` is the instant of the marking, ``author`` its requester, or the platform when null.
+    """
+
+    session: Session
+    project_id: UUID
+    revision_id: UUID
+    at: datetime
+    author: UUID | None
 
 
 @dataclass(frozen=True, slots=True)
@@ -235,14 +254,15 @@ def mark_revision(
     ``revision_draft``), or under a name of version taken (409 ``ALREADY_EXISTS``): a project has
     one current revision, locked here, and a marked one never changes its name, so that no other
     marking races this one for a name — the unique index of the names is the rampart of the base.
-    Its indicators are computed before anything is written: a computation that raises leaves the
-    revision current. The modules registered close it then (``register_closing``), before it is
-    marked.
+    What the modules registered keep of it (``register_marking``, EP-07), then its indicators, are
+    computed before the revision is written: a computation that raises leaves it current. The
+    modules registered close it then (``register_closing``), before it is marked.
     """
     revision = found_revision(session, revision_id, lock=True)
     if revision.status != "draft":
         raise refuse(REVISION_DRAFT)
     _judge_name(session, revision, version_name)
+    keep_marking(RevisionMarking(session, revision.project_id, revision_id, act.at, act.author))
     compute_indicators(session, revision_id)
     close_revision(session, revision.project_id, revision_id, "marked")
     revision.status = "marked"
@@ -257,6 +277,21 @@ def mark_revision(
     set_current_revision(session, revision.project_id, None, act)
     inscribe_revision(session, revision, "revision_mark", revision.version_name, act)
     session.flush()
+
+
+def register_marking(keep: Callable[[RevisionMarking], None]) -> Callable[[], None]:
+    """Add what a module keeps of a revision being marked; give its withdrawal.
+
+    The estimate keeps the images of the reference its lines employ, the rates it retains, the rate
+    of inflation and the probability of winning of the project (EP-07, US-1500).
+    """
+    return _MARKINGS.register(keep)
+
+
+def keep_marking(marking: RevisionMarking) -> None:
+    """Have each module registered keep its part of a revision being marked: nothing until EP-07."""
+    for keep in _MARKINGS.entries():
+        keep(marking)
 
 
 def register_indicators(compute: Callable[[Session, UUID], None]) -> Callable[[], None]:

@@ -195,6 +195,8 @@ class Subproject(Audited):
     __tablename__ = "subproject"
     __table_args__ = (
         UniqueConstraint("project_id", "code"),
+        # What a line of estimate names: the subproject with its project (EP-07, migration 0025).
+        UniqueConstraint("id", "project_id"),
         *bounded("code", SUBPROJECT_CODE_LENGTH),
         CheckConstraint(f"code !~ '{TAB_FORBIDDEN}'", name="code_form"),
         *bounded("label", LABEL_LENGTH),

@@ -53,9 +53,10 @@ from waterfall.platform.errors import (
     UnprocessableError,
 )
 from waterfall.platform.identifiers import new_id
+from waterfall.platform.registry import Registry
 
 if TYPE_CHECKING:
-    from collections.abc import Collection, Sequence
+    from collections.abc import Callable, Collection, Sequence
     from uuid import UUID
 
     from sqlalchemy.orm import Session
@@ -137,13 +138,30 @@ class CategoryLabel:
     cost_type_is_active: bool
 
 
+# What tells, of the categories given, those a line employs: the estimate's (EP-07), registered at
+# the import of its interface, which this module never imports.
+_EMPLOYMENTS: Registry[Callable[[Session, Collection[UUID]], frozenset[UUID]]] = Registry(
+    "cost_settings.employment"
+)
+
+
+def register_employment(
+    employed: Callable[[Session, Collection[UUID]], frozenset[UUID]],
+) -> Callable[[], None]:
+    """Add what tells, of the categories given, those a line employs; give its withdrawal."""
+    return _EMPLOYMENTS.register(employed)
+
+
 def category_is_employed(session: Session, category_ids: Collection[UUID]) -> frozenset[UUID]:
     """Give, of the categories given, those a line of a quote employs (WF-REF-0030, WF-REF-0040).
 
-    No line exists before EP-07, which fills it: none is employed here.
+    Those each registered answer names (``register_employment``): none while nothing is
+    registered, before EP-07 fills it.
     """
-    del session, category_ids
-    return frozenset()
+    employed: set[UUID] = set()
+    for answer in _EMPLOYMENTS.entries():
+        employed |= answer(session, category_ids)
+    return frozenset(employed)
 
 
 def category_holdings(session: Session, category_ids: Collection[UUID]) -> dict[UUID, Holdings]:

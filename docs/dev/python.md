@@ -222,9 +222,9 @@ partage le même invariant. Un défaut trouvé en revue et qui peut revenir s'aj
     le contrat `independence` laisse passer quand il passe par l'interface. La règle :
     `resource_settings` ne dépend d'aucun autre module du noyau, et les auteurs d'un objet
     se nomment dans `api/`, qui lit les deux. Le contrat `layers` de `backend/pyproject.toml`
-    la tient : le haut importe le bas, jamais l'inverse (`access_roles`, `backups`, `estimate`,
-    `indicator_settings`, `risk_settings` > `planning` > `exchanges`, `history` > `revisions` >
-    `projects` > `cost_settings` > `users` > `resource_settings`),
+    la tient : le haut importe le bas, jamais l'inverse (`access_roles`, `backups`,
+    `indicator_settings`, `risk_settings` > `estimate` > `planning` > `exchanges`, `history` >
+    `revisions` > `projects` > `cost_settings` > `users` > `resource_settings`),
     et `make imports-back` refuse l'import contraire, par l'interface comme autrement. Un
     module nouveau se range dans la couche que ses imports imposent ; un test des outils
     (`tools/tests/test_chain.py`) échoue en le nommant tant qu'il n'est dans aucune.
