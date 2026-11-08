@@ -39,8 +39,10 @@ from wftools.mockstructure import (
     CENT,
     LABOUR_RATES,
     REFERENCE_YEAR,
+    WITNESS_PRICING,
     JsonObject,
     JsonValue,
+    Pricing,
     computable,
     decimal,
     described,
@@ -177,16 +179,16 @@ def read(
     revision: str,
     roots: Iterable[Task],
     at: datetime,
-    rates: Mapping[str, Decimal] = LABOUR_RATES,
+    pricing: Pricing = WITNESS_PRICING,
     previous: Iterable[Task] = (),
 ) -> Reading:
-    """Read a revision described at an instant, its lines at the rates given.
+    """Read a revision described at an instant, its lines priced as given (``Pricing``).
 
     Its lines show their quantities in the previous review described, if any (WF-RAE-0040). A
     revision is read once: the indicators, the curves and the portfolio read the same one again
     and again.
     """
-    return _read(revision, tuple(roots), at, tuple(sorted(rates.items())), tuple(previous))
+    return _read(revision, tuple(roots), at, pricing, tuple(previous))
 
 
 @functools.cache
@@ -194,10 +196,10 @@ def _read(
     revision: str,
     roots: tuple[Task, ...],
     at: datetime,
-    rates: tuple[tuple[str, Decimal], ...],
+    pricing: Pricing,
     previous: tuple[Task, ...],
 ) -> Reading:
-    rows = tuple(mockcore.core(roots, at.date(), dict(rates), previous))
+    rows = tuple(mockcore.core(roots, at.date(), pricing, previous))
     by_number = {row.number: row for row in rows}
     return Reading(revision, at, rows, mockdating.schedule(roots), delays(rows), by_number)
 
@@ -255,13 +257,14 @@ def latest_today(marked: Reading) -> Reading:
 def offer(roots: Iterable[Task] | None = None) -> Reading:
     """Return the offer 100 read on the day it was marked, at the rates of its year, 2025.
 
-    Described from the whole structure of today, or from the roots given (``mockhistory.offer``).
+    Described from the whole structure of today, or from the roots given (``mockhistory.offer``),
+    and projected from 2025, its reference year (``mockhistory.offer_pricing``, #1628).
     """
     return read(
         mockhistory.OFFER,
         mockhistory.offer(roots),
         OFFER_MARKED.instant,
-        mockhistory.offer_rates(),
+        mockhistory.offer_pricing(),
     )
 
 

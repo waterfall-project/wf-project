@@ -8770,20 +8770,21 @@ spécification, quand le glossaire, WF-RIS-0050 et le budget de référence en d
   de la revue sur « l'année des montants du reste à engager », lié à M-08, est levé ainsi).
 - **Le témoin.** `mockdating.price` projette le budgété et le réestimé ; `mockcore` lit l'année de
   consommation que la référence 101, revue précédente de la révision 102, donnait à chaque ligne.
-  Toutes les révisions du témoin sont projetées depuis 2026, l'offre de 2025 comprise : une
-  simplification déclarée, qui garde à la référence le budget que l'offre a fixé aux lignes que
-  l'avenant 1 ne désigne pas (#467). L'auteur l'a tranchée le 2026-10-29 (#1628) : la décision
-  d'appliquer est prise (l'offre et la référence recevront la même année de référence), sa mise
-  en œuvre est en question — WF-REV-0060 oblige à redater l'offre en 2026, ce qui retire au témoin
-  son récit de mise à jour des taux (commentaire de #1628) — et la part détachée US-0701/L2b
-  (#1641) la porte ; le raccourci reste déclaré tant que #1641 n'est pas livré. Le Vérif de
-  WF-REV-0080 (`test_mockcomparison.py`, aujourd'hui 2 768 lignes de main-d'œuvre réestimées
-  seules, aux taux de 2026) et les récits du témoin en dépendent. Le devis du témoin vaut
-  68 923 691,06, son budget de référence 68 241 568,05 ; la valeur planifiée et la valeur acquise
-  ne bougent pas, les tâches terminées étant de 2026. Le reste à engager, d'abord inchangé,
-  change avec M-08 (« Le réestimé d'une ligne non réestimée », plus bas) : 67 470 132,98 dans
-  l'état final, et le poste de commande, qui ne devait plus être dépassé que de la facture des
-  écrans, 2 400,00, l'est de 64 699,97.
+  Chaque révision est projetée depuis son année de référence (WF-DEV-0030, WF-REV-0060) : la
+  référence 101 et la révision en cours 102 depuis 2026, l'offre 100 depuis 2025 (`Pricing`,
+  `mockhistory.offer_pricing`). Les lignes que l'avenant 1 ne désigne pas gardent à la référence le
+  budget que l'offre leur a fixé, à ses taux et projeté depuis 2025 (#467) :
+  `mockstructure.carried` le porte de 2025 à 2026, sans arrondi, pour que la référence, qui projette
+  depuis 2026, retrouve au centime le budgété de l'offre. Le raccourci d'abord déclaré — toutes les
+  révisions projetées depuis 2026, l'offre comprise — est retiré par US-1570/L1 (#1628, décision
+  de l'auteur du 2026-11-07, qui remplace l'option 4 du 2026-10-29). Le Vérif de WF-REV-0080
+  (`test_mockcomparison.py`) le constate entre deux années de référence : 4 995 lignes réestimées
+  seules, la main-d'œuvre aux taux de 2026 et toute ligne projetée depuis 2026 au lieu de 2025.
+  Le devis du témoin vaut 68 923 691,77, son budget de référence 70 288 695,96 ; le reste à
+  engager, avec M-08 (« Le réestimé d'une ligne non réestimée », plus bas), 67 470 133,69. Le
+  budget de référence passant au-dessus du reste à engager, la marge du projet devient positive,
+  1 405 592,07, et aucun sous-projet n'est plus dépassé : le poste de commande, avec la facture des
+  écrans, 2 400,00, garde une marge de 632 737,10.
   `tools/tests/test_mockinflation.py` tient le Vérif de WF-DEV-0050 (4,04 % à 2 %, deux ans après
   l'année de référence) et celui de la provision de WF-DEV-0030.
 - **Les préférences d'affichage** : une colonne gardée sous `inflated_amount` ne s'applique plus, et

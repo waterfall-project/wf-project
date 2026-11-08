@@ -189,9 +189,12 @@ def test_a_line_drawn_is_priced_exactly_and_paid_by_its_nature(items: list[Node]
         if line["hours"] is None:
             expected = Decimal(line["quantity"]) * Decimal(line["unit_disbursement"])
             # The other lines are paid a month after their work, labour as it is worked; their
-            # budget is their amount, projected on the year the reference consumed them, theirs.
+            # budget is the offer's, their amount projected from 2025, the offer's reference year,
+            # on the year the reference consumed them, theirs (#467, #1628).
             assert line["payment_delay_days"] == mockwitness.PAYMENT_DELAY
-            assert line["budgeted_amount"] == line["reestimated_amount"]
+            assert line["budgeted_amount"] == mockstructure.money(
+                mockstructure.OFFER_PROJECTION(expected, line["consumption_year"])
+            )
         else:
             assert line["resource_role_id"] is not None
             rate = mockstructure.LABOUR_RATES[line["cost_category_id"]]
@@ -207,10 +210,12 @@ def test_a_drawn_labour_line_keeps_the_budget_the_offer_fixed_at_the_rates_of_20
     items: list[Node],
 ) -> None:
     # WF-REV-0050, #467: the amendment 1 designated no drawn line, so a labour line keeps in the
-    # reference the budget the offer fixed, its hours at the rate of 2025 of its category, and is
-    # re-estimated at the one rate of 2026 (the offer, projected from 2026 too, is a declared
-    # simplification left to the author, #1628) — as the two lines of the core the amendment did not
-    # designate (EP-14/L45a). The offer, read at its marking, gives that very amount.
+    # reference the budget the offer fixed, its hours at the rate of 2025 of its category projected
+    # from 2025, the offer's reference year (#1628), and is re-estimated at the one rate of 2026 —
+    # as the lines of the core the amendment did not designate (EP-14/L45a). The offer, read at its
+    # marking, gives that very amount. The rate of 2025 projected a year, 78.50 x 1.03 = 80.855 for
+    # the electrical engineering and 73.50 x 1.03 = 75.705 for the commissioning, is above the
+    # rate of 2026, 80.00 and 75.00: the budget is above the re-estimate.
     offered = {
         row.number: row.amounts.base
         for row in mockhistory.offer_rows()
@@ -223,11 +228,12 @@ def test_a_drawn_labour_line_keeps_the_budget_the_offer_fixed_at_the_rates_of_20
         rate = mockstructure.hourly_rate(mockstructure.LABOUR_RATES[line["cost_category_id"]], 2025)
         budgeted = Decimal(line["quantity"]) * Decimal(line["hours"]) * rate
         year = line["consumption_year"]
-        assert Decimal(line["budgeted_amount"]) == mockstructure.inflated(budgeted, year)
-        assert Decimal(line["budgeted_amount"]) < Decimal(line["reestimated_amount"])
+        assert Decimal(line["budgeted_amount"]) == mockstructure.OFFER_PROJECTION(budgeted, year)
+        assert Decimal(line["budgeted_amount"]) > Decimal(line["reestimated_amount"])
         assert offered[GENERATED + int(node["node_id"].removeprefix(PREFIX + "0001"))] == budgeted
+    # Ten hours at 78.50, 785.00 of 2025, carried to 2026: 808.55.
     assert mockstructure.offer_budget(Decimal(10), mockwitness.ELECTRICAL_ENGINEERING) == Decimal(
-        "785.00"
+        "808.55"
     )
 
 
@@ -417,7 +423,7 @@ def test_the_marks_the_journeys_read(answer: dict[str, Any], items: list[Node]) 
         "estimate_line_count": 5_000,
         "hours": "116270",
         "base_amount": "66105223.89",
-        "budgeted_amount": "68491569.21",
+        "budgeted_amount": "70538695.96",
         "reestimated_amount": "68923691.77",
     }
 

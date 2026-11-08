@@ -71,9 +71,10 @@ if TYPE_CHECKING:
 OTHER_AMENDMENT = Decimal("15000.00")
 OTHER_AMENDMENT_ON = date(2026, 3, 10)
 """The counterfactual amendment of ``cost_curve_amendment``: the rework of the detailed studies,
-15,000 more on their line of subcontracting, as if contracted on 10 March 2026. Another amendment
-than the amendment 2 the current revision bears, not merged (``mockamendment``, #791): it is
-named by no number."""
+15,000 more on their line of subcontracting, as if contracted on 10 March 2026, which it budgets at
+its amount of 2026: its budget steps by 12,000, the 103,000 the offer fixed, of 2025 projected on
+2026, giving way to 115,000 (WF-REV-0050, #1628). Another amendment than the amendment 2 the
+current revision bears, not merged (``mockamendment``, #791): it is named by no number."""
 
 UNBORNE_LOT = WorkPackage(universe(718), "Lot 2")
 """The counterfactual lot of ``estimate_indicators_work_package_without_task``: a second lot of the
@@ -164,7 +165,8 @@ def values() -> dict[str, JsonValue]:
         mockwrites.amended(
             mockcore.REFERENCE,
             line=lambda line: (
-                replace(line, unit=cast("Decimal", line.unit) + OTHER_AMENDMENT)
+                # Designated by the amendment, the line is budgeted at its amount (WF-REV-0050).
+                replace(line, unit=cast("Decimal", line.unit) + OTHER_AMENDMENT, budgeted=None)
                 if line.number == STUDIES_LINE
                 else line
             ),
@@ -596,12 +598,15 @@ def _curve_summaries(found: dict[str, JsonValue], read_once: Witness) -> dict[st
         "cost_curve_amendment": (
             f"La même courbe si un autre avenant que l'avenant 2 « reprise des essais », que la "
             f"révision courante porte sans l'avoir fusionné — la reprise des études de détail, "
-            f"{_money(second['amount'])} de plus sur leur ligne de sous-traitance — avait été "
-            f"contractualisé le {_day(OTHER_AMENDMENT_ON)} : une seconde marche, le budget de "
-            f"référence portant deux points à cette date, avant et après — {_money(before)} puis "
-            f"{_money(after)} —, puis cumulé sur la nouvelle référence, jusqu'à "
-            f"{_money(_series(amended, 'reference_budget')[-1]['amount'])} ; les études étant "
-            f"terminées, le reste à engager et la projection ne changent pas (WF-IND-0100)."
+            f"{mocktext.amount(OTHER_AMENDMENT)} de plus sur leur ligne de sous-traitance, que "
+            f"l'avenant budgète à son montant — avait été contractualisé le "
+            f"{_day(OTHER_AMENDMENT_ON)} : une seconde marche, de {_money(second['amount'])} — "
+            f"le budget que l'offre avait fixé, de 2025 projeté sur 2026, cédant la place au "
+            f"montant de 2026 —, le budget de référence portant deux points à cette date, avant "
+            f"et après — {_money(before)} puis {_money(after)} —, puis cumulé sur la nouvelle "
+            f"référence, jusqu'à {_money(_series(amended, 'reference_budget')[-1]['amount'])} ; "
+            f"les études étant terminées, le reste à engager et la projection ne changent pas "
+            f"(WF-IND-0100)."
         ),
         "cost_curve_subproject": (
             f"La courbe de coûts cumulés du seul sous-projet « {labels[SUBPROJECT_CONTROL]} » au "

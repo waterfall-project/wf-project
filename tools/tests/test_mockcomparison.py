@@ -16,14 +16,15 @@ import pytest
 from wftools import mockcomparisons, mockcore, mockdata, mockdiff, mockhistory
 from wftools.mockdating import Amounts
 from wftools.mockids import universe
-from wftools.mockstructure import LABOUR_RATES, money
+from wftools.mockstructure import LABOUR_RATES, OFFER_PROJECTION, WITNESS, money
 from wftools.mockwitness import SCHEDULED_AT, N, fixture
 
 type Node = dict[str, Any]
 
-LINES_REESTIMATED_ALONE = 2_768
-"""The lines from the offer 100 to the reference 101 whose re-estimate alone changes, all of them
-labour lines moved by the rates of 2026: the number the drawn structure gives, fixed by its seed."""
+LINES_REESTIMATED_ALONE = 4_995
+"""The lines from the offer 100 to the reference 101 whose re-estimate alone changes: every line
+drawn and the four of the core the amendment does not designate, labour moved by the rates of 2026,
+every line by its projection from 2026 rather than from 2025 (#1628); fixed by the seed."""
 
 
 @pytest.fixture(scope="module")
@@ -177,7 +178,7 @@ def test_the_deltas_of_the_witness_by_subproject_sum_to_those_by_nature() -> Non
     # under the control station; « Câblage sur site », its budget unchanged, counts its whole
     # amount out of what bears no subproject and into the control station, modified by its
     # subproject. Each key's delta is the difference of its totals, and the deltas by subproject
-    # sum to those by nature: 602 650,00 budgeted in `comparison`.
+    # sum to those by nature: 602 639,50 budgeted in `comparison`.
     compared = cast("Node", mockcomparisons.comparison_example(mockhistory.reference_rows()))
     value = cast("Node", compared["value"])
     [wiring] = [node for node in value["items"] if _label(node) == "Câblage sur site"]
@@ -187,8 +188,8 @@ def test_the_deltas_of_the_witness_by_subproject_sum_to_those_by_nature() -> Non
         by[entry["dimension"]] = by.get(entry["dimension"], Decimal(0)) + Decimal(
             entry["budgeted_delta"]
         )
-    assert by == {"cost_type": Decimal("602650.00"), "subproject": Decimal("602650.00")}
-    assert _summed(value) == {Decimal("602650.00"), Decimal("602950.00")}
+    assert by == {"cost_type": Decimal("602639.50"), "subproject": Decimal("602639.50")}
+    assert _summed(value) == {Decimal("602639.50"), Decimal("602480.50")}
     assert "la somme des écarts par sous-projet égale celle par nature" in str(compared["summary"])
 
 
@@ -231,7 +232,12 @@ def test_the_witness_comparison_moves_the_reestimates_only_of_the_lines_the_amen
     # ne présente aucun écart de montant réestimé ». From the offer 100 to the reference 101, the
     # amendment changes the hours of one line alone, and keeps the budget of the others (#467): a
     # line modified for its re-estimate alone bears the quantities it bore, and moves because its
-    # year of consumption changes or, for labour, because the revision keeps the rates of 2026.
+    # year of consumption changes or because the reference year changes. Vérif : « Entre deux
+    # révisions d'années de référence différentes, les montants réestimés diffèrent en outre sur
+    # chaque ligne dont le taux a été mis à jour ou projeté jusqu'à la nouvelle année de référence
+    # (WF-REV-0060) ; les tâches et les montants budgétés restent ceux du différentiel » — the
+    # offer is of 2025, the reference of 2026: labour moves by the rates of 2026, and every line by
+    # its projection from 2026 rather than from 2025 (WF-DEV-0030, #1628).
     offered = _lines_by_id(mockhistory.offer_rows())
     marked = _lines_by_id(mockhistory.reference_rows())
     # A line that changes its key alone — its subproject, its cost category — changes no amount
@@ -242,20 +248,30 @@ def test_the_witness_comparison_moves_the_reestimates_only_of_the_lines_the_amen
     assert _amounts(budget_changed[0]) == ["budgeted_amount", "reestimated_amount"]
     alone = [node for node in lines if _amounts(node) == ["reestimated_amount"]]
     assert len(alone) == LINES_REESTIMATED_ALONE
-    # A line of disbursement would move by its year of consumption alone: none does, the offer
-    # and the reference dating their lines alike from 2026 (#1628). Every one is a labour line.
-    assert all(marked[node["node_id"]]["hours"] is not None for node in alone)
     rates = {2025: mockhistory.offer_rates(), 2026: LABOUR_RATES}
+    disbursements = 0
     for node in alone:
         before, after = offered[node["node_id"]], marked[node["node_id"]]
-        for key in ("quantity", "hours", "unit_disbursement", "budgeted_amount"):
+        kept = ("quantity", "hours", "unit_disbursement", "budgeted_amount", "consumption_year")
+        for key in kept:
             assert before[key] == after[key]
         assert before["reestimated_amount"] != after["reestimated_amount"]
-        # It moves because the reference keeps the rates of 2026, the offer those of 2025: its
-        # amount at the rates of the reference year says it, whatever its year of consumption.
+        year = after["consumption_year"]
+        if after["hours"] is None:
+            # A line of disbursement keeps its amount, projected on the same year from 2025 in the
+            # offer, from 2026 in the reference.
+            disbursements += 1
+            amount = Decimal(after["base_amount"])
+            assert before["base_amount"] == after["base_amount"]
+            assert before["reestimated_amount"] == money(OFFER_PROJECTION(amount, year))
+            assert after["reestimated_amount"] == money(WITNESS(amount, year))
+            continue
+        # A labour line moves because the reference keeps the rates of 2026, the offer those of
+        # 2025: its amount at the rates of the reference year says it.
         hours = Decimal(after["quantity"]) * Decimal(after["hours"])
-        for facet, year in ((before, 2025), (after, 2026)):
-            assert facet["base_amount"] == money(hours * rates[year][facet["cost_category_id"]])
+        for facet, base in ((before, 2025), (after, 2026)):
+            assert facet["base_amount"] == money(hours * rates[base][facet["cost_category_id"]])
+    assert disbursements == LINES_REESTIMATED_ALONE - 2_768
 
 
 def test_a_reading_with_fields_renders_what_it_names_besides_the_four() -> None:
@@ -305,7 +321,8 @@ def test_the_volume_of_the_comparison_is_the_whole_comparison_read_with_the_fiel
     read = cast("Node", volume["value"])
     assert len(read["items"]) == 5_999
     modified = (node for node in read["items"] if node["difference"] == "modified")
-    assert sum(1 for node in modified if node["changes"]) == 4_251
+    # Modified by their own values: the six of the core and every line drawn (#1628).
+    assert sum(1 for node in modified if node["changes"]) == 6 + 4_991
     kept = {*mockdiff.ALWAYS, "kind", "task", "estimate_line"}
     for node, entire in zip(read["items"], whole["items"], strict=True):
         assert set(node) <= kept
@@ -318,8 +335,8 @@ def test_the_volume_of_the_comparison_is_the_whole_comparison_read_with_the_fiel
     assert {key: read[key] for key in rest} == {key: whole[key] for key in rest}
     summary = str(volume["summary"])
     assert "5 999 nœuds" in summary
-    assert "4 251 modifiés par leurs propres valeurs" in summary
-    assert "852 925,00 et 1 034 847,56 en tout" in summary
+    assert "4 997 modifiés par leurs propres valeurs" in summary
+    assert "852 890,95 et -1 012 313,24 en tout" in summary
 
 
 VOLUME_BOUND = 1_500_000
@@ -416,7 +433,12 @@ def test_the_filter_of_the_differences_retains_the_marks_asked_with_their_ancest
     retained_budget = sum(
         (row.amounts.budgeted for row in reference if row.node["node_id"] in lines), Decimal(0)
     )
-    assert Decimal(read["totals"]["budgeted_amount"]) != retained_budget
+    every = {
+        cast("str", row.node["node_id"]) for row in reference if row.kind == mockcore.ESTIMATE_LINE
+    }
+    # Every line of the reference differs from the offer (#1628): asked every difference, every
+    # line is retained, and its budget is the total's; asked fewer, it is not.
+    assert (Decimal(read["totals"]["budgeted_amount"]) == retained_budget) is (every <= lines)
 
     def delta(dimension: str, field: str, key: str | None = None) -> Decimal:
         kept = [
