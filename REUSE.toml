@@ -68,3 +68,12 @@ path = "CODE_OF_CONDUCT.md"
 precedence = "override"
 SPDX-FileCopyrightText = "Contributor Covenant contributors <https://www.contributor-covenant.org>"
 SPDX-License-Identifier = "CC-BY-4.0"
+
+# The font the image of the task tree is drawn with (EP-06, US-1440/L1): DejaVu Sans, embedded so
+# that the image does not depend on the fonts of the worker's image. Bitstream Vera licence; the
+# changes of DejaVu are in the public domain.
+[[annotations]]
+path = "backend/src/waterfall/core/exchanges/fonts/DejaVuSans.ttf"
+precedence = "override"
+SPDX-FileCopyrightText = "2003 Bitstream, Inc."
+SPDX-License-Identifier = "Bitstream-Vera"
