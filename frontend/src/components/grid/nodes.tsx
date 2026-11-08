@@ -49,9 +49,8 @@ type NodeInflation = components["schemas"]["NodeInflation"];
 export type NodeColumn = components["schemas"]["NodeColumn"];
 
 /**
- * The answer of `listNodes`: the nodes, depth first, and their totals. As the client types it,
- * the nodes whole rather than projected, as the client types it (`ClientPaths`, `src/api/client.ts`,
- * the one place that says so).
+ * The answer of `listNodes`: the nodes, depth first, and their totals. The nodes are read whole,
+ * not projected (`ClientPaths`, `src/api/client.ts`, the one place that says so).
  */
 export type NodeList = ListNodesAnswer;
 

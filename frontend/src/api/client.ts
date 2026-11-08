@@ -32,7 +32,9 @@ type ListNodesBody = ListNodesOk["content"]["application/json"];
  * `items` of the `200` of `listNodes`, read as whole nodes (`Node`). The contract types them as
  * projections (`NodeProjection`, #2485), a read with `fields` rendering only the fields it named;
  * a read only ever reads what it asked for by `fields` (`nodeFieldNames`, `projectNodes`), so the
- * front reads them whole. This is the one place that says so.
+ * front reads them whole. This is the one place that says so. What the type does not say: a
+ * property that a read did not ask for by `fields` is typed present but would be absent at run
+ * time, which is why a read only reads what it asked for.
  */
 type ClientPaths = Omit<paths, NodesPath> & {
   [P in NodesPath]: Omit<paths[P], "get"> & {
