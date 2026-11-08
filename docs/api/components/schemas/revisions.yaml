@@ -1565,8 +1565,9 @@ TaskFacet:
         a summary task does not inherit the calendars of its subordinates, each of which has
         its own, and its dates as well as its duration are counted on its own (WF-PLA-0040). A
         day at 0 hours is a non-working day of the task, which the Gantt distinguishes; the
-        contract knows no public holidays (WF-REF-0110). On a marked revision, the hours of the
-        calendars it freezes (`EmployedReference`).
+        contract knows no public holidays (WF-REF-0110). On a marked revision, read as the
+        current one is, the hours of the calendars of the project today, not of those it froze:
+        they may differ from the hours its frozen dates were counted on (#2491).
     total_float:
       anyOf: [{ $ref: '#/Duration' }, { type: 'null' }]
       description: >-
@@ -1947,7 +1948,10 @@ NodeCreate:
     under a milestone, which carries no subtasks, is refused with 422 `VALIDATION_FAILED`,
     `fields[].pointer` at `/parent_id`, reason `MILESTONE_HAS_NO_SUBTASK`, `fields[].params`
     naming the milestone (`node_id`, `label`), nothing being written; an estimate line under a
-    milestone is allowed (WF-PLA-0050; F-04, #1771).
+    milestone is allowed (WF-PLA-0050; F-04, #1771). A `parent_id` that is not a task of the
+    structure — unknown, or an estimate line — is refused with 422 `VALIDATION_FAILED`,
+    `fields[].pointer` at `/parent_id`, reason `UNKNOWN_TASK`, without a parameter, nothing being
+    written (#2490, #2500).
   properties:
     kind: { $ref: '#/NodeKind' }
     parent_id:
@@ -2205,7 +2209,18 @@ NodeMove:
     which carries no subtasks, is refused with 422 `VALIDATION_FAILED`,
     `fields[].pointer` at `/parent_id`, reason `MILESTONE_HAS_NO_SUBTASK`, `fields[].params`
     naming the milestone (`node_id`, `label`), nothing moving; an estimate line moved under
-    a milestone is allowed (WF-PLA-0050; F-04, #1771).
+    a milestone is allowed (WF-PLA-0050; F-04, #1771). A `parent_id` that is not a task of the
+    structure — unknown, an estimate line, or null for a selection that holds a line — is refused
+    with 422 `VALIDATION_FAILED`, `fields[].pointer` at `/parent_id`, reason `UNKNOWN_TASK`; one
+    that is a moved node or one of their subordinates, the hierarchy then looping, with reason
+    `NODE_CYCLE`; both without a parameter, nothing moving (WF-PLA-0040; #2500).
+
+    A selection that names a node and one of its ancestors leaves the node to that ancestor: it
+    goes with it, under it, at its place, and keeps its own subordinates — the group is moved
+    whole, never flattened (WF-PLA-0040, WF-PLA-0080; #2507). Only the nodes none of whose
+    ancestors the selection names take their place under `parent_id`, in the order of
+    `node_ids`, and only they are returned in `nodes`; a node left to its ancestor is judged and
+    placed with it, whatever its rank in `node_ids`.
   properties:
     node_ids:
       type: array

@@ -355,9 +355,9 @@ SERVICE_RIGHTS: dict[str, set[str]] = {
     "backup": {"SELECT", "INSERT"},
     # The report of a reading of the accounts, kept and read; neither changed nor deleted.
     "identity_sync_report": {"SELECT", "INSERT"},
-    # A deposit opened, read and completed; deleted by none until the purge of the files in
-    # transit (WF-DAT-0120, EP-06).
-    "file_upload": {"SELECT", "INSERT", "UPDATE"},
+    # A deposit opened, read and completed; deleted by the purge of the files in transit, once its
+    # term has passed (WF-DAT-0120, EP-06; migration 0024).
+    "file_upload": {"SELECT", "INSERT", "UPDATE", "DELETE"},
     # The reference (§4.4.1, regime "reference"; EP-05): read, created, changed and deactivated,
     # never deleted. The single rows — the settings shared, the units, the mapping — are the
     # bootstrap's to insert, as the owner; the service writes them through the same rights, but

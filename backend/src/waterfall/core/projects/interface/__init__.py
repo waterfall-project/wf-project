@@ -40,6 +40,9 @@ from waterfall.core.projects.interface.contributors import (
     set_contributors,
 )
 
+# ``days`` (US-1380/L4): the current day of an instant, in the time zone of the installation.
+from waterfall.core.projects.interface.days import current_day
+
 # ``lifecycle`` (US-0980): the cycle of life of a project.
 from waterfall.core.projects.interface.lifecycle import (
     DesignationFacts,
@@ -188,6 +191,7 @@ __all__ = [
     "contributors_present",
     "create_project",
     "create_subproject",
+    "current_day",
     "delete_subproject",
     "detach_item",
     "exit_project",

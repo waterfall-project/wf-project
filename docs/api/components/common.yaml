@@ -28,7 +28,12 @@ Money:
 Hours:
   allOf:
     - $ref: '#/Decimal'
-  description: Number of hours, exact decimal.
+  description: >-
+    Number of hours, exact decimal. The hours, durations and floats the server computes — the
+    instants the engine places a task at, a duration drawn from dates, a total float — are
+    rendered at ten decimals at most, a half to the even, then stored so: a ten-billionth of an
+    hour, finer than any entry, so that an hour read and sent back as the date of a manual task is
+    the one the engine placed (#2460, #2506). An entry keeps the decimals it was sent with.
 
 Percent:
   allOf:
@@ -571,11 +576,20 @@ ErrorCode:
     - UNKNOWN_ORG_NODE
     - FIELD_READ_ONLY
     - UNKNOWN_SUBPROJECT
+    # A node that is not a task of the structure — unknown, or an estimate line —, named where a
+    # task is expected: the parent of a creation or of a move (`/parent_id`, `createNode`,
+    # `moveNodes`; null for a move of lines, which go under a task), a predecessor
+    # (`/predecessors/<n>/predecessor_node_id`, `setPredecessors`), the task of a provision
+    # (`/provision_task_id`, `createRisk`, `updateRiskProvision`), and the reason of an imported or
+    # pasted line (#2490, #2500, #2506).
     - UNKNOWN_TASK
     - INACTIVE_REFERENCE_OBJECT
     # An organisation node moved under itself or under one of its descendants: the tree
     # would have a loop (`/parent_id`, `updateOrgNode`, WF-REF-0070).
     - ORG_NODE_CYCLE
+    # A node moved under itself or under one of its subordinates, or one of the moved nodes': the
+    # hierarchy of the tasks would have a loop (`/parent_id`, `moveNodes`, WF-PLA-0040; #2500).
+    - NODE_CYCLE
     # The node after which a creation or a move is placed, which is not a sibling under the
     # target parent: a node of another parent, one of the moved nodes, or a node that the
     # structure does not have (`/after_node_id`, `createNode`, `moveNodes`; #1183).

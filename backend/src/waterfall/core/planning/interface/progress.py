@@ -9,10 +9,14 @@ named by a 409 ``STATE_FORBIDS_OPERATION``, in the order of the card (``KanbanCo
 (a task that bears a line besides the provisions, completed: the entry of its remaining to commit
 completes it), ``task_not_milestone`` (a milestone, started), ``completed_milestone``
 (``not_started``, for a task that is not a completed milestone); then the conditions of
-``edit_remaining`` the gesture is an entry of: ``project_in_progress``, then those of the
-revision (``revision_draft``, ``no_background_task_running``). A summary is refused by 422
-``SUMMARY_TASK_DERIVED``, naming its direct subordinates: its state and its dates are derived from
-theirs at the reading (``Reading``, WF-PLA-0040), never written. A milestone completed carries
+``edit_remaining`` the gesture is an entry of: the phase of the project, ``project_in_progress`` on
+the main structure alone, by the rule the commands of a structure state
+(``structure_phase_conditions``, #2494), then those of the revision (``revision_draft``,
+``no_background_task_running``). A summary is refused by 422 ``SUMMARY_TASK_DERIVED``, naming its
+direct subordinates: its state and its dates are derived from theirs at the reading (``Reading``,
+WF-PLA-0040), never written. A completion is not dated before the start of its task (422
+``VALUE_OUT_OF_RANGE`` on ``/occurred_on``, the start named; WF-PLA-0130, #2495); the day of the
+gesture is the current day by default (``current_day``). A milestone completed carries
 ``started_on`` equal to ``completed_on``; reopened, it loses both, the only task that returns to
 not started. ``load_progress`` writes the state of a task of the witness at the instant it
 imposes.
@@ -27,8 +31,16 @@ from sqlalchemy import exists, select
 from waterfall.core.planning.tables import Node, Task
 from waterfall.core.planning.tree import TASK, read_tree
 from waterfall.core.planning.views import COMPLETED, NOT_STARTED, STARTED
-from waterfall.core.planning.writing import TERMINAL, NodesWritten, Place, Writer, writing
-from waterfall.core.projects.interface import project_facts
+from waterfall.core.planning.writing import (
+    TERMINAL,
+    NodesWritten,
+    Place,
+    Writer,
+    facts_of,
+    writing,
+)
+from waterfall.core.projects.interface import current_day, project_facts
+from waterfall.core.revisions.interface import structure_phase_conditions
 from waterfall.platform.errors import (
     ConflictError,
     FieldError,
@@ -51,12 +63,13 @@ VALIDATION_FAILED = "VALIDATION_FAILED"
 STALE_LOCK_VERSION = "STALE_LOCK_VERSION"
 STATE_FORBIDS_OPERATION = "STATE_FORBIDS_OPERATION"
 SUMMARY_TASK_DERIVED = "SUMMARY_TASK_DERIVED"
+VALUE_OUT_OF_RANGE = "VALUE_OUT_OF_RANGE"
 TASK_IS_MILESTONE = "task_is_milestone"
 TASK_WITHOUT_LINES = "task_without_lines"
 TASK_NOT_MILESTONE = "task_not_milestone"
 COMPLETED_MILESTONE = "completed_milestone"
-PROJECT_IN_PROGRESS = "project_in_progress"
-IN_PROGRESS = "in_progress"
+# The command of a structure a gesture on the state of a task is an entry of (WF-RAE-0040).
+EDIT_REMAINING = "edit_remaining"
 STATES = (NOT_STARTED, STARTED, COMPLETED)
 
 
@@ -100,13 +113,18 @@ def _missing_gesture(tree: Tree, node_id: UUID, target: str) -> str | None:
     return None if task.progress == COMPLETED and milestone else COMPLETED_MILESTONE
 
 
-def _judge(session: Session, place: Place, tree: Tree, node_id: UUID, entry: ProgressEntry) -> None:
+def _judge(
+    session: Session, where: tuple[Place, bool], tree: Tree, node_id: UUID, entry: ProgressEntry
+) -> None:
     """Refuse a gesture the task, its state or its project forbids; the first reason named.
 
     The task is no task of the structure (404), the counter read is not its own (412), the task is
-    a summary (422), the gesture lacks a condition (409), the project is not in progress (409).
-    A terminal project is left to the judgement of its revision (``project_not_terminal``).
+    a summary (422), the gesture lacks a condition (409), the project is not in progress while the
+    structure is the main one (409, the rule of ``edit_remaining``). ``where`` is the structure
+    and whether it is the main one. A terminal project is left to the judgement of its revision
+    (``project_not_terminal``).
     """
+    place, main = where
     if node_id not in tree.tasks:
         raise NotFoundError(NOT_FOUND)
     node = tree.nodes[node_id]
@@ -121,8 +139,24 @@ def _judge(session: Session, place: Place, tree: Tree, node_id: UUID, entry: Pro
     if missing is not None:
         raise _refuse(missing)
     state = project_facts(session, place.project_id).state
-    if state != IN_PROGRESS and state not in TERMINAL:
-        raise _refuse(PROJECT_IN_PROGRESS)
+    if state in TERMINAL:
+        return
+    phase = structure_phase_conditions(EDIT_REMAINING, state, main=main)
+    if phase:
+        raise _refuse(phase[0])
+
+
+def _dated(tree: Tree, node_id: UUID, target: str, day: date) -> None:
+    """Refuse a completion dated before the start of its task, the start named (WF-PLA-0130).
+
+    A task completed without having been started takes its completion for its start, and one
+    completed already is left as it is: only a task started has a start to precede (#2495).
+    """
+    task = tree.tasks[node_id]
+    started = task.started_on
+    if target == COMPLETED and task.progress == STARTED and started is not None and day < started:
+        fault = FieldError("/occurred_on", VALUE_OUT_OF_RANGE, {"minimum": started.isoformat()})
+        raise UnprocessableError(VALIDATION_FAILED, fields=(fault,))
 
 
 def _apply(task: Task, *, milestone: bool, target: str, day: date) -> None:
@@ -156,23 +190,26 @@ def set_task_progress(
     revision itself refuses the write — marked, or a background task writing in the project —, the
     gesture is judged on the tree as it is first, for it comes before the conditions of the
     revision in the order of the contract: nothing is written either way, the read only chooses
-    the condition named. The dates are not redone: the engine replays on the structure, which
-    counts the write and moves the date of calculation (``finish_overdue``).
+    the condition named. A completion dated before the start is refused then (422). The dates are
+    not redone: the engine replays on the structure, which counts the write and moves the date of
+    calculation (``finish_overdue``).
     """
     stack = ExitStack()
     try:
         write = stack.enter_context(writing(session, place, writer, ("progress", (node_id,))))
     except ConflictError:
+        main = facts_of(session, place, lock=False).is_main
         tree = read_tree(session, place.project_id, place.structure_id)
         if node_id not in tree.tasks:
             raise NotFoundError(NOT_FOUND) from None
-        _judge(session, place, tree, node_id, entry)
+        _judge(session, (place, main), tree, node_id, entry)
         raise
     with stack:
         tree = write.tree
-        _judge(session, place, tree, node_id, entry)
+        _judge(session, (place, write.facts.is_main), tree, node_id, entry)
         act = writer.act
-        day = entry.occurred_on or act.at.date()
+        day = entry.occurred_on or current_day(act.at)
+        _dated(tree, node_id, entry.progress, day)
         write.before((node_id,))
         _apply(
             tree.tasks[node_id],
