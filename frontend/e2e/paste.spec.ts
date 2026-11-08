@@ -1,10 +1,12 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
-import { expect, type Locator, type Page, type Request, test } from "@playwright/test";
+import { expect, type Locator, type Page, type Request } from "@playwright/test";
 
 import { axeViolations } from "./axe";
 import { columnsOf } from "./columns";
-import { openHydrated } from "./hydration";
+import { openHydrated, WORKING } from "./hydration";
+import { inService, test } from "./mode";
+import { createOwnProject, openRevision } from "./own-project";
 import { rowAt, scrollToPosition } from "./scroll";
 import { isServerAction } from "./server-action";
 
@@ -243,4 +245,63 @@ test("a paste wider than the grid is refused, saying so [WF-IHM-0050-A]", async 
   expect(argumentsWith(posted, "target_column")).toBeUndefined();
   expect(await labels(page, OWN)).toEqual(OWN.read);
   await expect(cellAt(grid, OWN.first, at.label)).toBeFocused();
+});
+
+test("a block of two labels pasted on the planning of a project the run creates is reported before writing, written on its two tasks once confirmed, and undone as one entry @shared [WF-IHM-0050-A] [WF-IHM-0110-A]", async ({
+  page,
+}) => {
+  test.skip(!inService, "the fake back keeps nothing of the tasks it is given");
+  test.slow();
+  // The paste writes the cells of the nodes that exist: the two tasks are made first, by the grid.
+  const own = await createOwnProject(page, "Collage");
+  await openRevision(page, own);
+  const revision = new URL(page.url()).searchParams.get("revision_id");
+  expect(revision, "the revision opened").not.toBeNull();
+  await openHydrated(page, `${own.path}/revisions/${revision ?? ""}/planning`);
+  const grid = page.getByRole("treegrid", { name: "Grille de planning" });
+  const idle = () => expect(grid).not.toHaveAttribute("aria-busy", "true", { timeout: WORKING });
+
+  await page.getByRole("button", { name: "Insérer une tâche" }).click();
+  const first = page.getByRole("dialog", { name: "Insérer une tâche" });
+  await first.getByRole("textbox", { name: "Libellé" }).fill("Tâche A");
+  await first.getByRole("button", { name: "Créer" }).click();
+  await expect(page.getByText("« Tâche A » créée.")).toBeVisible({ timeout: WORKING });
+  await idle();
+  const at = await columnsOf(grid, { label: "Libellé" });
+  const one = rowAt(grid, 1).getByRole("gridcell").nth(at.label);
+  await one.click();
+  await one.click({ button: "right" });
+  await page
+    .getByRole("menu", { name: "Menu de la cellule" })
+    .getByRole("menuitem", { name: "Insérer au-dessous" })
+    .click();
+  const second = page.getByRole("dialog", { name: "Insérer au-dessous" });
+  await second.getByRole("textbox", { name: "Libellé" }).fill("Tâche B");
+  await second.getByRole("button", { name: "Créer" }).click();
+  await expect(page.getByText("« Tâche B » créée.")).toBeVisible({ timeout: WORKING });
+  await idle();
+  const two = rowAt(grid, 2).getByRole("gridcell").nth(at.label);
+  await expect(two).toContainText("Tâche B", { timeout: WORKING });
+
+  // Pasted on the first label: the report first, nothing written yet.
+  await one.click();
+  await expect(one).toBeFocused();
+  await paste(page, [["Étude de câblage"], ["Essais de réception"]]);
+  const dialog = page.getByRole("dialog", { name: "Coller depuis un tableur" });
+  await expect(dialog).toBeVisible({ timeout: WORKING });
+  await expect(dialog).toContainText("2 lignes seront écrites.");
+  await expect(dialog).toContainText("Aucune ligne n’est refusée.");
+  await expect(one).toContainText("Tâche A");
+
+  await dialog.getByRole("button", { name: "Appliquer le collage" }).click();
+  await expect(dialog).toHaveCount(0, { timeout: WORKING });
+  await expect(one).toContainText("Étude de câblage", { timeout: WORKING });
+  await expect(two).toContainText("Essais de réception");
+  await idle();
+
+  // The paste is one entry of the history: one Undo returns both labels.
+  await page.getByRole("button", { name: "Annuler", exact: true }).click();
+  await expect(one).toContainText("Tâche A", { timeout: WORKING });
+  await expect(two).toContainText("Tâche B");
+  await expect(page.getByRole("alert")).toHaveCount(0);
 });

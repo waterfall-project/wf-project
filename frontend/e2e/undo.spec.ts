@@ -1,15 +1,19 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
-import { expect, type Locator, type Page, test } from "@playwright/test";
+import { expect, type Locator, type Page } from "@playwright/test";
 
-import { openHydrated } from "./hydration";
+import { columnsOf } from "./columns";
+import { openHydrated, WORKING } from "./hydration";
+import { inService, test } from "./mode";
+import { createOwnProject, openRevision } from "./own-project";
 import { rowAt } from "./scroll";
 
 // The remaining to commit of the current revision of the witness project, which the session may
 // enter — the project is in progress, and its main structure lists the remaining to commit
 // available, where it lists the estimate unavailable (WF-RAE-0040, WF-DEV-0050): undo and redo are
-// placed in its bar, in the menu of its cells and on its keys, unavailable until EP-06 wires them
-// (US-0140). Row 10 is a line of labour, « Raccordement des borniers »
+// placed in its bar, in the menu of its cells and on its keys, unavailable until its entries are
+// recorded (US-0140). EP-06 wires those of the planning (US-1450): the last journey of this file
+// plays them against the service, on a project the run creates. Row 10 is a line of labour, « Raccordement des borniers »
 // (`test_the_marks_the_journeys_read`, tools/tests/test_mockstructure.py).
 const PROJECT = "01926f3a-7c00-7000-8000-000000000001";
 const REVISION = "01926f3a-7c00-7000-8000-000000000102";
@@ -123,4 +127,78 @@ test("closes the menu of a cell opened from the keyboard by Escape, its tooltip 
   await openFromKeyboard(page, cell, menu);
   await page.clock.runFor(REST);
   await escapeMenu(page, cell, menu);
+});
+
+// The history is the server's: the fake back keeps nothing of what is written, and answers an undo
+// by none of the examples of the contract.
+const SERVICE_ONLY = "the history of the entries is the service's, not the fake back's";
+
+// How many entries the journey undoes and redoes (WF-IHM-0110-A, « cinquante modifications »).
+const ENTRIES = 50;
+
+test("fifty entries of the planning are undone one by one by the grid, then redone in order @shared [WF-IHM-0110-A]", async ({
+  page,
+}) => {
+  test.skip(!inService, SERVICE_ONLY);
+  // A task created and fifty entries of its label, each undone and redone: a screen of grid under
+  // load takes its `WORKING` bound for each.
+  test.setTimeout(20 * 60_000);
+  const own = await createOwnProject(page, "Annulation");
+  await openRevision(page, own);
+  const revision = new URL(page.url()).searchParams.get("revision_id");
+  expect(revision, "the revision opened").not.toBeNull();
+  await openHydrated(page, `${own.path}/revisions/${revision ?? ""}/planning`);
+  const grid = page.getByRole("treegrid", { name: "Grille de planning" });
+
+  /** The grid is idle: the command that follows is not held by a write under way. */
+  const idle = () => expect(grid).not.toHaveAttribute("aria-busy", "true", { timeout: WORKING });
+
+  // The first task is created from the empty grid.
+  await page.getByRole("button", { name: "Insérer une tâche" }).click();
+  const dialog = page.getByRole("dialog", { name: "Insérer une tâche" });
+  await dialog.getByRole("textbox", { name: "Libellé" }).fill("Tâche 0");
+  await dialog.getByRole("button", { name: "Créer" }).click();
+  await expect(page.getByText("« Tâche 0 » créée.")).toBeVisible({ timeout: WORKING });
+  await idle();
+
+  const at = await columnsOf(grid, { label: "Libellé" });
+  const label = rowAt(grid, 1).getByRole("gridcell").nth(at.label);
+  await expect(label).toContainText("Tâche 0", { timeout: WORKING });
+
+  // Fifty entries of the label, each a cell entered and validated.
+  for (let entry = 1; entry <= ENTRIES; entry += 1) {
+    await label.click();
+    await page.keyboard.press("F2");
+    const field = page.getByRole("textbox", { name: "Libellé" });
+    await expect(field).toBeFocused();
+    await field.fill(`Tâche ${entry.toString()}`);
+    await page.keyboard.press("Enter");
+    await expect(label).toContainText(`Tâche ${entry.toString()}`, { timeout: WORKING });
+    await idle();
+  }
+
+  // Undone one by one, by the bar of the grid: each returns the label to the one before.
+  const undo = page.getByRole("button", { name: "Annuler", exact: true });
+  const redo = page.getByRole("button", { name: "Rétablir", exact: true });
+  for (let entry = ENTRIES - 1; entry >= 0; entry -= 1) {
+    await undo.click();
+    await expect(label).toContainText(`Tâche ${entry.toString()}`, { timeout: WORKING });
+    await idle();
+  }
+  await expect(page.getByRole("alert")).toHaveCount(0);
+
+  // Redone in order, up to the last.
+  for (let entry = 1; entry <= ENTRIES; entry += 1) {
+    await redo.click();
+    await expect(label).toContainText(`Tâche ${entry.toString()}`, { timeout: WORKING });
+    await idle();
+  }
+  await expect(page.getByRole("alert")).toHaveCount(0);
+
+  // Nothing is left to redo: the refusal is told by the catalogue, naming the condition.
+  await redo.click();
+  await expect(page.getByRole("alert")).toContainText("historique de rétablissement non vide", {
+    timeout: WORKING,
+  });
+  await expect(label).toContainText(`Tâche ${ENTRIES.toString()}`);
 });

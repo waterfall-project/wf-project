@@ -1,11 +1,12 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Undo and redo of the entries of a revision (WF-IHM-0110), placed where they will act — in the
- * bar of a grid that enters a revision in progress, in the menu of its cells, and by Ctrl+Z and
- * Ctrl+Shift+Z on the grid — but not wired: the server keeps no history of the entries yet, and
- * EP-06 wires them on `undoLastChange` and `redoLastUndo`, the undoing being the server's, never a
- * stack in the browser (WF-ARC-0070). Until then they are unavailable, and say why: the buttons and
+ * Undo and redo of the entries of a revision (WF-IHM-0110), placed where they act — in the bar of a
+ * grid that enters a revision in progress, in the menu of its cells, and by Ctrl+Z and Ctrl+Shift+Z
+ * on the grid. The undoing is the server's, never a stack in the browser (WF-ARC-0070): a grid whose
+ * screen wires them (`UndoControl`, `useUndoRedo`) sends `undoLastChange` and `redoLastUndo`, and
+ * tells a refusal as every screen does. One whose screen does not — the estimate and the remaining to
+ * commit, until their entries are recorded — keeps them unavailable, and says why: the buttons and
  * the entries of the menu are reached by the keyboard, marked `aria-disabled` and described by the
  * reason, and the shortcut tells it in a region announced.
  *
@@ -30,6 +31,8 @@ import {
   useState,
 } from "react";
 
+import type { Outcome } from "@/api/problem";
+import { OutcomeNotice } from "@/components/commands/outcome-notice";
 import { CommandTooltip } from "@/components/commands/command-tooltip";
 import { MenuCommand } from "@/components/commands/menu-command";
 import { Button } from "@/components/ui/button";
@@ -60,6 +63,21 @@ const KEYS: Readonly<Record<UndoCommand, string>> = {
 };
 
 const UNAVAILABLE = "aria-disabled:cursor-not-allowed aria-disabled:opacity-50";
+
+/**
+ * What a screen that wires the commands gives its grid: asking the server for one, the grid then
+ * busy, and the refusal it last told.
+ */
+export interface UndoControl {
+  /** Ask the server to undo, or to redo, the last change; nothing while a write waits. */
+  readonly press: (command: UndoCommand) => void;
+  /** Whether a write of the structure, an undo included, is under way. */
+  readonly busy: boolean;
+  /** The outcome of the last command, to tell when it was refused; none before any. */
+  readonly outcome: Outcome<unknown> | undefined;
+  /** Forget the outcome told. */
+  readonly clear: () => void;
+}
 
 /** The command a key asks for: Ctrl+Z undoes, Ctrl+Shift+Z redoes — Cmd on a Mac. */
 export function undoShortcut(event: {
@@ -92,8 +110,11 @@ export interface UndoShortcut {
   readonly told: { readonly command: UndoCommand; readonly count: number } | undefined;
 }
 
-/** Take Ctrl+Z and Ctrl+Shift+Z on a grid that offers the commands; none, and nothing is taken. */
-export function useUndoShortcut(offered: boolean | undefined): UndoShortcut {
+/**
+ * Take Ctrl+Z and Ctrl+Shift+Z on a grid that offers the commands; none, and nothing is taken. Wired,
+ * the key asks the server; unwired, it is told unavailable.
+ */
+export function useUndoShortcut(offered: boolean | undefined, control?: UndoControl): UndoShortcut {
   const [told, setTold] = useState<UndoShortcut["told"]>();
   const onKeyDown = (event: KeyboardEvent<HTMLElement>) => {
     const command = undoShortcut(event);
@@ -109,25 +130,45 @@ export function useUndoShortcut(offered: boolean | undefined): UndoShortcut {
       return;
     }
     event.preventDefault();
+    if (control !== undefined) {
+      control.press(command);
+      return;
+    }
     setTold((before) => ({ command, count: (before?.count ?? 0) + 1 }));
   };
   return { onKeyDown, told };
 }
 
 /**
- * Render the region that tells the shortcut pressed unavailable, present before it is, in a grid
- * that offers the commands; none otherwise.
+ * Render what a grid that offers the commands says of them: wired, the refusal of the server, told
+ * above the grid and dismissed by the user; unwired, the region that tells the shortcut pressed
+ * unavailable, present before it is. None for a grid that offers none.
  */
 export function UndoAnnouncer({
   offered,
+  control,
   told,
+  onDismissed,
 }: {
   readonly offered: boolean | undefined;
+  readonly control: UndoControl | undefined;
   readonly told: UndoShortcut["told"];
+  /** Where the focus goes back to once the notice is dismissed. */
+  readonly onDismissed: () => void;
 }) {
   const t = useTranslations("grid.undo");
   if (offered !== true) {
     return null;
+  }
+  if (control !== undefined) {
+    return (
+      <OutcomeNotice
+        outcome={control.outcome}
+        onClear={control.clear}
+        onDismissed={onDismissed}
+        dismissible
+      />
+    );
   }
   return (
     <div role="status" aria-live="polite" className="sr-only">
@@ -137,8 +178,11 @@ export function UndoAnnouncer({
   );
 }
 
-/** Render the commands in the bar of a grid: their buttons, and why they wait. */
-export function UndoCommands() {
+/**
+ * Render the commands in the bar of a grid: their buttons, and, unwired, why they wait. Wired, a
+ * button asks the server, and is available.
+ */
+export function UndoCommands({ control }: { readonly control?: UndoControl | undefined }) {
   const t = useTranslations("grid.undo");
   const said = useTranslations("commands");
   const reason = useId();
@@ -150,23 +194,31 @@ export function UndoCommands() {
           label={t(command)}
           help={said(`${command}.help`)}
           keys={KEYS[command]}
-          unavailable={t("unavailable")}
-          describedBy={reason}
+          {...(control === undefined ? { unavailable: t("unavailable"), describedBy: reason } : {})}
         >
           <Button
             type="button"
             variant="outline"
             size="icon"
             aria-label={t(command)}
-            className={cn("size-7", UNAVAILABLE)}
+            className={cn("size-7", control === undefined && UNAVAILABLE)}
+            onClick={
+              control === undefined
+                ? undefined
+                : () => {
+                    control.press(command);
+                  }
+            }
           >
             {command === "undo" ? <Undo2 aria-hidden="true" /> : <Redo2 aria-hidden="true" />}
           </Button>
         </CommandTooltip>
       ))}
-      <p id={reason} className="max-w-56 text-xs text-muted-foreground">
-        {t("unavailable")}
-      </p>
+      {control === undefined ? (
+        <p id={reason} className="max-w-56 text-xs text-muted-foreground">
+          {t("unavailable")}
+        </p>
+      ) : null}
     </div>
   );
 }
@@ -368,12 +420,15 @@ function ScreenMenuItems({
  */
 export function CellMenu({
   offered,
+  control,
   folding,
   commands,
   disabled,
   children,
 }: {
   readonly offered: boolean | undefined;
+  /** What wires undo and redo; none, and they are unavailable in the menu. */
+  readonly control?: UndoControl | undefined;
   /** The commands of the screen; none for a grid whose screen gives it none. */
   readonly commands?: MenuCommands | undefined;
   /** The folding of a tree grid; none for a grid that is no tree. */
@@ -464,6 +519,7 @@ export function CellMenu({
         )}
         {offered === true ? (
           <UndoMenuItems
+            control={control}
             reason={reason}
             separated={folding !== undefined || commands !== undefined}
           />
@@ -475,9 +531,11 @@ export function CellMenu({
 
 /** Undo and redo in the menu of a cell, unavailable, and why. */
 function UndoMenuItems({
+  control,
   reason,
   separated,
 }: {
+  readonly control: UndoControl | undefined;
   readonly reason: string;
   /** Whether the folding, or the commands of the screen, come before them. */
   readonly separated: boolean;
@@ -487,10 +545,14 @@ function UndoMenuItems({
   return (
     <>
       {separated ? <ContextMenuSeparator /> : null}
-      <ContextMenuLabel id={reason} className="text-xs font-normal text-muted-foreground">
-        {t("unavailable")}
-      </ContextMenuLabel>
-      <ContextMenuSeparator />
+      {control === undefined ? (
+        <>
+          <ContextMenuLabel id={reason} className="text-xs font-normal text-muted-foreground">
+            {t("unavailable")}
+          </ContextMenuLabel>
+          <ContextMenuSeparator />
+        </>
+      ) : null}
       {COMMANDS.map((command) => (
         <MenuCommand
           key={command}
@@ -498,13 +560,17 @@ function UndoMenuItems({
           label={t(command)}
           help={said(`${command}.help`)}
           keys={KEYS[command]}
-          unavailable={t("unavailable")}
-          describedBy={reason}
+          {...(control === undefined ? { unavailable: t("unavailable"), describedBy: reason } : {})}
           icon={command === "undo" ? <Undo2 aria-hidden="true" /> : <Redo2 aria-hidden="true" />}
-          className={UNAVAILABLE}
-          // Pressed, it does nothing, and the menu stays open on the reason.
+          {...(control === undefined ? { className: UNAVAILABLE } : {})}
+          // Unwired, pressed it does nothing, and the menu stays open on the reason; wired, it asks
+          // the server and the menu closes.
           onSelect={(event) => {
-            event.preventDefault();
+            if (control === undefined) {
+              event.preventDefault();
+            } else {
+              control.press(command);
+            }
           }}
         />
       ))}

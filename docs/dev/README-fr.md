@@ -2124,22 +2124,39 @@ seule, ne prend aucun collage.
 
 ### Les grilles : annuler et rétablir
 
-Annuler et Rétablir sont posées, pas branchées (WF-IHM-0110, US-0140, `undo-commands.tsx`) :
-toute grille dont la structure lue liste sa commande `edit_*` disponible les pose (`undoable`
-de `DenseGrid`) — le devis par `edit_estimate`, le planning par `edit_planning`, le reste à
-engager par `edit_remaining` (#115) ; aucune grille hors d'une révision en cours ne les pose : ni
-le marquage, ni un import appliqué, ni l'exclusion d'une ligne de coût ne s'annulent. Une telle
-grille les montre en boutons dans sa barre et dans le menu contextuel de ses cellules (clic droit,
-Maj+F10, touche Menu — `CellMenu`, sans arrêt de tabulation de plus), avec leurs raccourcis, et
-prend Ctrl+Z et Ctrl+Maj+Z — Cmd sur un Mac — dans la grille ou sa barre, hors d'un menu ou d'une
-boîte qu'elle ouvre. Indisponibles tant que le serveur ne conserve pas l'historique des saisies,
-elles restent atteignables au clavier, `aria-disabled`, décrites par leur raison ; le raccourci la
-dit dans une région annoncée. Un champ en cours de saisie — l'éditeur d'une cellule, la
-recherche — garde Ctrl+Z pour lui : l'annulation du navigateur y reste. EP-06 les branche sur
-`undoLastChange` et `redoLastUndo`, une annulation portée par le serveur, jamais une pile dans le
-navigateur ; leur refus se dira comme tout refus, sa condition nommée par le catalogue — celle d'une
-annulation qui rendrait un sous-projet supprimé depuis, `restored_subproject_exists`, y est déjà
-(EP-14/L42p).
+Annuler et Rétablir sont posées par toute grille dont la structure lue liste sa commande `edit_*`
+disponible (WF-IHM-0110, US-0140, `undo-commands.tsx` ; `undoable` de `DenseGrid`) — le devis par
+`edit_estimate`, le planning par `edit_planning`, le reste à engager par `edit_remaining` (#115) ;
+aucune grille hors d'une révision en cours ne les pose : ni le marquage, ni un import appliqué, ni
+l'exclusion d'une ligne de coût ne s'annulent. Une telle grille les montre en boutons dans sa barre
+et dans le menu contextuel de ses cellules (clic droit, Maj+F10, touche Menu — `CellMenu`, sans
+arrêt de tabulation de plus), avec leurs raccourcis, et prend Ctrl+Z et Ctrl+Maj+Z — Cmd sur un Mac —
+dans la grille ou sa barre, hors d'un menu ou d'une boîte qu'elle ouvre. Un champ en cours de saisie
+— l'éditeur d'une cellule, la recherche — garde Ctrl+Z pour lui : l'annulation du navigateur y reste.
+
+**Branchées (planning, US-1450).** La grille de planning les branche sur `undoLastChange` et
+`redoLastUndo` (`src/api/actions/history.ts`) par `useUndoRedo` (`undo-run.ts`), que `DenseGrid`
+reçoit en `undo` (`UndoControl`) : une annulation est portée par le serveur, qui garde la pile par
+révision, par compte et par session de connexion, jamais une pile dans le navigateur. Les boutons,
+le menu et les touches sont alors disponibles — ni `aria-disabled`, ni raison à lire. Une annulation
+est une écriture de la structure comme les autres : elle se compte dans le compte de la structure
+(`useStructureVersion`), les gestes et la confirmation d'un collage l'attendent et elle les attend,
+la grille se dit occupée, et une commande donnée pendant une écriture est sans effet. L'action lit la
+page à nouveau une fois le serveur répondu — les lignes rendues, créées ou supprimées, sont celles du
+serveur — et la version que la structure a atteinte (`written.structure_lock_version`) est dite au
+compte pour l'écriture suivante ; `remaining_depth` est dans la réponse, sans que l'écran ait encore
+de phrase pour le dire. Un refus se dit comme tout refus, par `OutcomeNotice` au-dessus de la grille,
+sa phrase tirée du catalogue d'après son code et ses paramètres : `UNDO_CONFLICT` nomme l'objet repris
+depuis (`conflicting_object_label`), `STATE_FORBIDS_OPERATION` la condition qui manque
+(`undo_history_not_empty`, `redo_history_not_empty`, `restored_subproject_exists`),
+`SESSION_ID_MISSING` un jeton sans session de connexion. Il reste dit jusqu'à ce qu'on le ferme ou
+que la commande suivante parte. Le contrat ne cite aucun exemple d'annulation réussie : le succès se
+joue contre le service (`e2e/undo.spec.ts`, cinquante saisies annulées puis rétablies par la grille,
+`@shared`), les refus sur les exemples (`undo-wired.dom.test.tsx`).
+
+**Posées seulement.** Le devis et le reste à engager ne reçoivent pas d'`undo` : leurs saisies, servies par EP-07, n'ont
+pas encore d'historique, et leurs commandes restent indisponibles, `aria-disabled`, décrites par
+leur raison ; le raccourci la dit dans une région annoncée.
 
 ### Les grilles : créer et supprimer des tâches et des lignes
 

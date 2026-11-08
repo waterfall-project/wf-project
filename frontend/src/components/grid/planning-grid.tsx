@@ -32,7 +32,9 @@ import { useTranslations } from "next-intl";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 
 import {
+  applyPaste,
   generatePlanningSkeleton,
+  previewPaste,
   resolveRowNumber,
   setPredecessors,
   updateTaskFacet,
@@ -62,6 +64,7 @@ import {
   type NodeSortColumn,
   type NodesWritten,
   nodesWritten,
+  pasteSpan,
   type StructurePath,
   withDifference,
 } from "./nodes";
@@ -79,6 +82,7 @@ import type { ChoiceOption, RowChoices } from "./row-choices";
 import type { GridPreferences } from "./settings";
 import { useStructureGestures } from "./structure-gestures";
 import { useStructureVersion } from "./structure-version";
+import { useUndoRedo } from "./undo-run";
 import type { RowCommands } from "./undo-commands";
 
 /** What the grid of the planning shows. */
@@ -317,6 +321,7 @@ export function PlanningGrid({
 }: PlanningGridProps) {
   const t = useTranslations("planningGrid");
   const kinds = useTranslations("enums.WorkBreakdownKind");
+  const columns = useTranslations("enums.NodeColumn");
   const modes = useTranslations("enums.SchedulingMode");
   const units = useTranslations("enums.DurationUnit");
   const lagUnits = useTranslations("enums.LagUnit");
@@ -328,6 +333,8 @@ export function PlanningGrid({
   // moved it, and those under way, which the gestures wait for.
   const account = useStructureVersion(structure.structure_id, structureVersion);
   const { version, reach } = account;
+  // Undo and redo ask the server's history, where the planning may be entered.
+  const undo = useUndoRedo(structure, account, undoable);
   const filled = ours !== undefined && ours.version > structureVersion ? ours.rows : undefined;
   const shown = filled ?? nodes;
   const names = useRowNames(shown.items, structure, version);
@@ -366,6 +373,36 @@ export function PlanningGrid({
       return { kind: "done" as const, data: nodesWritten(outcome.data, PLANNING_FIELDS, whole) };
     };
     const writes: PlanningWrites = {
+      // The cell of the block, from the node of the active cell and its column (#200): the server
+      // judges it, the grid judges nothing; the plan confirmed carries the version of the structure.
+      paste: {
+        span: pasteSpan,
+        name: (column) => columns(column),
+        preview: (node, column, block) =>
+          previewPaste(structure, {
+            target_node_id: node.node_id,
+            target_column: column,
+            rows: block.map((cells) => [...cells]),
+          }),
+        apply: async (plan) => {
+          const outcome = await applyPaste(structure, {
+            paste_id: plan.paste_id,
+            confirmed: true,
+            lock_version: version,
+          });
+          if (outcome.kind !== "done") {
+            return outcome;
+          }
+          reach(outcome.data.structure_lock_version);
+          return {
+            kind: "done",
+            data: {
+              written: nodesWritten(outcome.data, PLANNING_FIELDS, whole),
+              rejected: outcome.data.rejected,
+            },
+          };
+        },
+      },
       // The field entered and the version of the node read, nothing else (#178).
       task: async (node, change) =>
         answered(
@@ -403,7 +440,9 @@ export function PlanningGrid({
     units,
     lagUnits,
     t,
+    columns,
     structure,
+    version,
     whole,
     reach,
     timelines,
@@ -515,6 +554,7 @@ export function PlanningGrid({
             foldScope={structure.revision_id}
             narrowing={nodeNarrowing(filters)}
             undoable={undoable}
+            undo={undo}
             commands={zoomed}
             around={(rows, table) => (
               <GanttRows
