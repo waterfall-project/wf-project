@@ -4394,7 +4394,7 @@ export interface components {
             /** @description The timeline, required for `timeline`: absent or null, 422 `VALIDATION_FAILED`, `fields` on `/entries/<n>/timeline_id` with `VALUE_REQUIRED`; a timeline that is not the project's, or that the server does not have, with `UNKNOWN_TIMELINE`. Null or absent for `milestone_tracking`, which targets no timeline: sent, with `FIELD_NOT_ACCEPTED`. */
             timeline_id?: components["schemas"]["Uuid"] | null;
         };
-        /** @description The time facet of a node of the comparison (`ComparedNodeRead.task`): the properties of `TaskFacet`, taken over from it, none required — a read with `fields` returns only those it names (`task.label`), a read without `fields` returns them all (#166, #1208). */
+        /** @description The time facet of a node that a read returns, of the comparison (`ComparedNodeRead.task`) or of `listNodes` (`NodeProjection.task`): the properties of `TaskFacet`, taken over from it, none required — a read with `fields` returns only those it names (`task.label`), a read without `fields` returns them all (#166, #1208, #2485). */
         ComparedTaskFacet: {
             label?: string;
             /** @description Null when none is entered. */
@@ -4450,7 +4450,7 @@ export interface components {
             is_available: boolean;
             missing_conditions: components["schemas"]["CommandCondition"][];
         };
-        /** @description The estimate facet of a node of the comparison (`ComparedNodeRead.estimate_line`): the properties of `EstimateLineFacet`, taken over from it, none required — a read with `fields` returns only those it names (`estimate_line.label`), a read without `fields` returns them all (#166, #1208). */
+        /** @description The estimate facet of a node that a read returns, of the comparison (`ComparedNodeRead.estimate_line`) or of `listNodes` (`NodeProjection.estimate_line`): the properties of `EstimateLineFacet`, taken over from it, none required — a read with `fields` returns only those it names (`estimate_line.label`), a read without `fields` returns them all (#166, #1208, #2485). */
         ComparedEstimateLineFacet: {
             /** @description Label, composed by the server at creation when it is not sent (`EstimateLineWrite.label`, WF-DEV-0020), modifiable afterwards. */
             label?: string;
@@ -4540,7 +4540,7 @@ export interface components {
          * @enum {string}
          */
         NodeChange: "dates" | "duration" | "progress" | "budgeted_amount" | "reestimated_amount" | "payment_delay_days" | "subproject" | "cost_category" | "parent";
-        /** @description A node of the comparison (`RevisionComparison.items`), as `compareRevisions` returns it: the properties of `Node`, taken over from it, of which only those that a read always returns are required — `node_id`, `row_number`, `level` and `lock_version`, and the node's mark, `difference` and `changes` —, the others being returned only if `fields` names them, or all of them if it is omitted (#166, #1201, #1208). Its facets are partial likewise. `Node`, which `listNodes` returns, does not change. */
+        /** @description A node of the comparison (`RevisionComparison.items`), as `compareRevisions` returns it: the properties of `Node`, taken over from it, of which only those that a read always returns are required — `node_id`, `row_number`, `level` and `lock_version`, and the node's mark, `difference` and `changes` —, the others being returned only if `fields` names them, or all of them if it is omitted (#166, #1201, #1208). Its facets are partial likewise, those of `NodeProjection`, which `listNodes` returns likewise (#2485). `Node`, which the writes return whole, does not change. */
         ComparedNodeRead: {
             node_id: components["schemas"]["Uuid"];
             lineage_id?: components["schemas"]["Uuid"];
@@ -4894,6 +4894,35 @@ export interface components {
             main_structure_lock_version: components["schemas"]["LockVersion"];
             /** @description The counter of the differential that the report read (`StructureMergeReport.amendment_lock_version`). */
             amendment_lock_version: components["schemas"]["LockVersion"];
+        };
+        /** @description A node as `listNodes` returns it (`items`): the properties of `Node`, taken over from it, of which only those that a read always returns are required — `node_id`, `row_number`, `level` and `lock_version` —, the others being returned only if `fields` names them, or all of them if it is omitted, the node then being whole, as `Node` describes it (#166, #2485). Its facets are partial likewise, those of the comparison (`ComparedTaskFacet`, `ComparedEstimateLineFacet`). `Node`, which the writes return whole, does not change. */
+        NodeProjection: {
+            node_id: components["schemas"]["Uuid"];
+            lineage_id?: components["schemas"]["Uuid"];
+            kind?: components["schemas"]["NodeKind"];
+            /** @description Null for a node of the first level of the structure. */
+            parent_id?: components["schemas"]["Uuid"] | null;
+            /** @description Rank of the node among the siblings under its parent — the lines of a task, then its subtasks, in outline order —, starting from 1. Computed, it is not written: a creation or a move designates its place by the node after which to place itself (`NodeCreate.after_node_id`, `NodeMove.after_node_id`; #1183). On the read of a differential and on a comparison, the removed nodes returned count in it, at the place they had (`NodeDifference`). */
+            readonly position?: number;
+            /** @description Row number, computed on read in the numbering of the whole structure — its tasks and its lines, in outline order —, whatever the read returns, its filters, its search and its sort. On the read of a differential and on a comparison, the removed nodes returned count in it, each occupying its row (`NodeDifference`). */
+            row_number: number;
+            level: number;
+            /** @description The risk whose occurrence merged this node, task or line, into the main structure (WF-RIS-0060); null for any other. Read-only: the occurrence sets it on each task and each line it merges, and no write changes it. The copy of a revision, moves, imports that match the node by its lineage (`lineage_id`) and the merge of an amendment keep it; a creation leaves it null, even under a task that came from a risk. It finds the lines that came from an occurred risk, which the filters `is_from_risk` and `origin_risk_ids` retain, and whose re-estimated amount is compared with the cost at occurrence (`Risk.occurred_reestimated_amount`; #1761). */
+            readonly origin_risk_id?: components["schemas"]["Uuid"] | null;
+            /** @description Null for an estimate line. */
+            task?: components["schemas"]["ComparedTaskFacet"] | null;
+            /** @description Null for a task. */
+            estimate_line?: components["schemas"]["ComparedEstimateLineFacet"] | null;
+            predecessors?: components["schemas"]["Predecessor"][];
+            /** @description Enterable fields — through the write schema or, for progress, through its command — that the server computes for this very node: the dates of an automatic task, the mode — always automatic (WF-PLA-0040) —, the dates, the duration and the progress of a summary task, the category of a labour line, that of its role (WF-DEV-0020), the figures of a provision line and its subproject, the one that its risk designates (WF-RIS-0010). The front presents them as computed and does not offer to enter them (WF-IHM-0030); it deduces nothing from the mode or from the kind of the node. */
+            computed_fields?: components["schemas"]["ComputedField"][];
+            /** @description Fields of the facet that this very node accepts for writing, symmetrical to `computed_fields`: a labour line carries the role and the effort, never its category, which is that of its role (Vérif of WF-DEV-0020), a non-labour line its category and the unit disbursement, both the payment delay — null by default for labour, and "enterable on any line other than a provision line" (WF-DEV-0020, WF-IND-0100; #785) —, a provision line neither the ones nor the others, nor its subproject, which its risk designates and changes only as long as it is identified (`RiskCommand.update_provision`, WF-RIS-0010); a line whose task is started or completed, and whose subproject has received actual costs, does not name it either: it cannot leave that subproject (`SUBPROJECT_HAS_ACTUAL_COSTS`, WF-PRJ-0050); a line of the main structure whose task is completed names none, its label included: it is not modified as long as the task is not reopened from the Kanban (`task_not_completed`, WF-RAE-0040, WF-DEV-0050), its remaining to commit falling under `remaining_entry` — a line of a differential names them whatever the state of its task, the amendment re-budgeting it (WF-REV-0050; F-01, #1766) —; a manual task carries its dates, a milestone has no duration to enter, a summary task neither mode, nor duration, nor dates, nor progress (WF-PLA-0040, WF-PLA-0130). A field computed for this node never appears in it. The grid offers entry of a cell only if its field appears in it, without deducing anything from the kind of the category or from the mode (WF-IHM-0040); what the caller has the right to write falls under the revision's commands, not this list. */
+            editable_fields?: components["schemas"]["EditableField"][];
+            lock_version: components["schemas"]["LockVersion"];
+            /** @description The node's difference, which the server returns and the front does not compute: on the read of a differential, with the main structure of its revision; in a comparison of two revisions (`RevisionComparison`), with the base revision (WF-REV-0080, WF-REV-0100, C-361). Always returned on these two reads, whether `fields` names it or not; null — or omitted — on the main structure and on a risk's own estimate, which are read relative to nothing. */
+            difference?: components["schemas"]["NodeDifference"] | null;
+            /** @description What changes of the node itself, in the order of `NodeChange`, returned with `difference`: empty for a node added, removed or unchanged, and for a task marked modified by its content alone — a line or a subordinate added, removed, modified or moved. */
+            changes?: components["schemas"]["NodeChange"][];
         };
         /** @description Start or finish of a task as entered, at creation as at modification (`TaskFacetWrite`, `TaskFacetUpdate`, WF-PLA-0020; #1769): the date, and optionally the working hours elapsed that day (WF-DAT-0100). The client does not know the applicable calendar (WF-PLA-0010): without `hours`, the server fills them in from that calendar, the start at the beginning of its day (`0`), the finish at the end of the hours the calendar grants that day — `8` on a Friday of an eight-hour calendar. A date on a day with no working hour at all on the applicable calendar is refused, and the refusal names the next working day; nothing is written (WF-PLA-0020; #1271): 422 `VALIDATION_FAILED`, `fields` on `/start/date` or `/finish/date` with `NON_WORKING_DAY` — `/task/start/date` or `/task/finish/date` at creation —, `fields[].params.date` the date sent and `next_working_day` the next working day; hours sent with it are not judged. Sent with a working day, the hours are taken as they are, never clamped: outside `0` to the hours the calendar grants that day, they are refused with 422 `VALIDATION_FAILED`, `fields` on `/start/hours` or `/finish/hours` with `VALUE_OUT_OF_RANGE` — `/task/start/hours` or `/task/finish/hours` at creation —, `fields[].params.minimum` at `0` or `maximum` at the hours of the day, the only bound crossed, never zero. Reading always returns a `WorkInstant`, its hours filled in; a date imported from an MS Project file on a non-working day is kept there, the start and finish at `0`, and the report flags it (`ImportReport.signals`). */
         WorkInstantWrite: {
@@ -11318,14 +11347,14 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Nodes, in depth-first traversal, their totals, and what the read says about the structure itself. */
+            /** @description Nodes, in depth-first traversal, their totals, and what the read says about the structure itself. Without `fields`, each node is whole, as `Node` describes it; with `fields`, it is projected: the four properties always returned and those that `fields` names (`NodeProjection`, #2485). */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
                     "application/json": {
-                        items: components["schemas"]["Node"][];
+                        items: components["schemas"]["NodeProjection"][];
                         totals: components["schemas"]["NodeTotals"];
                         meta: components["schemas"]["NodeListMeta"];
                     };
