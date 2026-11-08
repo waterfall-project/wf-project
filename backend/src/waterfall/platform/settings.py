@@ -94,17 +94,33 @@ class KeycloakSettings(PlatformSettings):
     service_client_secret: SecretStr = Field(min_length=1)
 
 
-class ServiceSettings(Settings, KeycloakSettings):
-    """What a service that reaches Keycloak reads: the API, and the worker after it."""
+class StorageSettings(PlatformSettings):
+    """What a process that reaches the object storage reads (PBS-3.3, WF-ARC-0050).
 
-    # The object storage, reached by the standard operations of S3 (PBS-3.3): its address, its
-    # region, the key of the platform, and the bucket of the backups — settings, so that an operator
-    # plugs in the storage they already run (WF-ARC-0050).
+    Its address, its region, the key of the platform, and the bucket of the backups — settings, so
+    that an operator plugs in the storage they already run. The files in transit and the exports
+    lie in that bucket, under their prefixes (EP-06, "Ce que le cadrage décide").
+    """
+
     storage_address: str = Field(min_length=1, pattern="^https?://")
     storage_region: str = Field(default="us-east-1", min_length=1)
     storage_access_key: str = Field(min_length=1)
     storage_secret: SecretStr = Field(min_length=1)
     backups_bucket: str = Field(default="backups", min_length=1)
+
+
+class ServiceSettings(Settings, KeycloakSettings, StorageSettings):
+    """What a service that reaches Keycloak reads: the API, and the worker after it."""
+
+
+class PurgeSettings(Settings, StorageSettings):
+    """What ``waterfall-worker purge`` reads: the database, Redis and the storage, not Keycloak.
+
+    ``undo_retention_hours`` is how long the history of a session is kept, twelve hours by default:
+    the longest session of the realm (EP-06, "L'historique annulable et le collage").
+    """
+
+    undo_retention_hours: int = Field(default=12, ge=1)
 
 
 class WorkerSettings(ServiceSettings):
@@ -178,6 +194,11 @@ def load_settings() -> Settings:
     The message names the variables and what is wrong with them, never the values they hold.
     """
     return _load(Settings)
+
+
+def load_purge_settings() -> PurgeSettings:
+    """Read the settings of the purge, as ``load_settings`` does."""
+    return _load(PurgeSettings)
 
 
 def load_service_settings() -> ServiceSettings:

@@ -221,23 +221,38 @@ services:
         condition: service_completed_successfully
 
   # Deposits the reading of the accounts at the end of each interval of the installation, in
-  # seconds, a day by default (PBS-5.3); a CronJob does it in EP-13. An interval that sleep refuses
-  # stops the service, with 2. Its process 1 is an init, which passes the stop on to the shell.
+  # seconds, a day by default (PBS-5.3); a CronJob does it in EP-13. A second loop purges what
+  # expired at the end of each purge interval, ten minutes by default (EP-06, "La purge"): imports,
+  # deposits and exports past their term, history, which it deletes from the object storage too. An
+  # interval that is not a positive number stops the service, with 2. Its process 1 is an init,
+  # which passes the stop on to the shell.
   scheduler:
     <<: *back
     environment:
-      <<: *back-environment
+      <<: [*back-environment, *storage-environment]
       WATERFALL_IDENTITY_SYNC_INTERVAL: ${WATERFALL_IDENTITY_SYNC_INTERVAL:-86400}
+      WATERFALL_PURGE_INTERVAL: ${WATERFALL_PURGE_INTERVAL:-600}
+      WATERFALL_UNDO_RETENTION_HOURS: ${WATERFALL_UNDO_RETENTION_HOURS:-12}
     init: true
     command:
       - sh
       - -c
-      - while sleep "$$WATERFALL_IDENTITY_SYNC_INTERVAL"; do waterfall-worker enqueue identity_sync; done; exit 2
+      - |
+        for interval in "$$WATERFALL_IDENTITY_SYNC_INTERVAL" "$$WATERFALL_PURGE_INTERVAL"; do
+          [ "$$interval" -gt 0 ] 2>/dev/null || exit 2
+        done
+        while sleep "$$WATERFALL_PURGE_INTERVAL"; do waterfall-worker purge; done &
+        purging=$$!
+        while sleep "$$WATERFALL_IDENTITY_SYNC_INTERVAL"; do waterfall-worker enqueue identity_sync; done
+        kill "$$purging"
+        exit 2
     depends_on:
       service-database-role:
         condition: service_completed_successfully
       redis:
         condition: service_healthy
+      storage-buckets:
+        condition: service_completed_successfully
 
   # Runs the restorations the API deposits in their stream (WF-ADM-0160, #953), as the owners of
   # both databases, the client of the bootstrap and the service account; it asks keycloak-realm to

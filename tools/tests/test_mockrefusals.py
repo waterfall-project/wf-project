@@ -301,7 +301,10 @@ def test_the_state_of_a_summary_entered_is_refused_by_naming_its_subordinates() 
     assert (refused["status"], refused["code"]) == (422, "SUMMARY_TASK_DERIVED")
     assert refused["params"] == {"subordinate_node_ids": below}
     assert len(below) > 1
-    assert _cited("setTaskProgress", "422") == ["task_progress_summary_refused"]
+    assert _cited("setTaskProgress", "422") == [
+        "task_progress_summary_refused",
+        "task_completed_before_start",
+    ]
 
 
 @pytest.mark.requirement("WF-DEV-0010-A")

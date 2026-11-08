@@ -402,7 +402,7 @@ supprime donc ses nœuds avec ses structures, et un test l'éprouve.
 |---|---|---|
 | `waterfall.core.planning` (FBS-4.3) | `node`, `task`, `task_link`, `timeline`, `tracking_entry` | les nœuds lus (`listNodes` : filtres, `fields`, recherche, `row_number`, `summary_depth`, `scheduled_at`, totaux), une tâche créée, modifiée, supprimée, des nœuds déplacés, un numéro résolu, les dépendances d'une valeur calculée ; les prédécesseurs remplacés ; la date de début et le libellé d'une structure écrits ; l'état d'une tâche ; les chronologies et les inscriptions ; le squelette ; le moteur (`scheduling`, pur) et `reschedule(structure)` ; `revision_has_tasks(revision_id)` ; `copy_nodes(RevisionCopy)` ; `work_breakdown_item_cited(item_id)` et `detach_work_breakdown_item(project_id, item_id)` pour `core/projects` ; `tasks_left_idle(calendar…)` et `reschedule_current_structures()` pour `resource_settings` ; `lines_of(task)` et les règles de placement qu'EP-07 appelle pour une ligne ; `register_facet(kind, FacetHooks)`, par lequel EP-07 enregistre la lecture, la copie et la suppression de sa facette ; `load_*` avec identifiants et instants imposés |
 | `waterfall.core.history` (WF-IHM-0110, WF-IHM-0050) | `undo_entry`, `paste_plan` | `recording(session, change)` — un encadrement de l'écriture : `planning` lui donne, par son interface, l'instantané des nœuds touchés avant l'écriture puis après elle (`snapshot(node_ids)`), et `history` les garde sans lire aucune table d'un autre module — ; `undo(revision, actor)`, `redo(revision, actor)`, chacun rendant les nœuds à restituer que `planning` réécrit et redate ; `depth(revision, actor)` ; `close_history(revision_id)` pour le marquage et l'abandon ; `keep_plan`, `read_plan`, `drop_plan` ; `purge(before)` |
-| `waterfall.core.exchanges` (FBS-4.3.4, FLX-01 à FLX-07) | `import_report` | `register_format(ExchangeKind, Format)` et `register_exporter(ExportKind, Exporter)` ; le dépôt d'un fichier d'import (`deposit`), l'ouverture (`open_import` : l'en-tête par le format, les conditions, la tâche d'analyse), la lecture et la liste, l'abandon, l'application (`apply_import` : la revérification, la tâche) ; `run_analysis(task)`, `run_apply(task)`, `run_export(task)` pour le worker ; `result_of(task)` pour `getBackgroundTaskResult` et `consumed(task)` ; `purge(now)` : imports échus, dépôts expirés, exports échus ; l'analyseur XML durci, pour tout format XML |
+| `waterfall.core.exchanges` (FBS-4.3.4, FLX-01 à FLX-07) | `import_report` | `register_format(ExchangeKind, Format)` et `register_exporter(ExportKind, Exporter)` ; le dépôt d'un fichier d'import (`deposit`), l'ouverture (`open_import` : l'en-tête par le format, les conditions, la tâche d'analyse), la lecture et la liste, l'abandon, l'application (`apply_import` : la revérification, la tâche) ; `run_analysis(task)`, `run_apply(task)`, `run_export(task)` pour le worker ; `result_of(task)` pour `getBackgroundTaskResult` et `consumed(task)` ; `stored_before(bucket, now)` (les vieux objets du stockage, listés hors transaction, rendus en `Stored`), `purge(session, now, stored)` (imports échus, dépôts expirés, exports échus, et ce que le stockage garde sans ligne qui le désigne) et `remove_purged(bucket, purged)` (les suppressions du stockage, après la validation) ; l'analyseur XML durci, pour tout format XML |
 
 - **Le moteur** (`core/planning/scheduling/`) est pur : il reçoit une structure — les tâches
   (identifiant, parent, mode, durée et unité, dates manuelles, heures hebdomadaires de leur
@@ -476,8 +476,14 @@ couvre tous : pour chaque processus — l'API (`create_app`), le worker (`handle
   exception typée passe l'import `failed`, le fichier supprimé.
 - **L'application** (`applyImport`) revérifie la permission et la qualité de contributeur de
   l'appelant, l'état de l'import (`import_awaiting_decision`, `import_file_accepted`), puis les
-  conditions de l'ouverture, et dépose `import_apply` ; refusée par l'une d'elles, elle passe
-  l'import `refused` et supprime le fichier (#1790). Le worker, dans la transaction de la tâche,
+  conditions de l'ouverture, et dépose `import_apply`. Refusée par une condition passagère —
+  `no_background_task_running`, une tâche de fond qui finira, ou `may_create_revision`, une
+  permission qui peut être donnée —, elle répond 409 et laisse l'import `analysed`, son compte
+  rendu applicable et son fichier en place : l'application se redemande sans nouveau dépôt
+  (WF-ARC-0100, spécification 1.0.3 ; #2475, amendé par US-1380/L4). Refusée par une autre — le
+  compte rendu, `project_not_terminal`, une condition de la nature, la permission ou la qualité
+  perdue, la structure visée que la révision en cours ne tient plus (404) —, elle passe l'import
+  `refused` et supprime le fichier (#1790). Le worker, dans la transaction de la tâche,
   revérifie de nouveau, crée la révision en cours au besoin par `create_revision` (EP-04),
   applique par le format sous le verrou de la structure, redate, passe `applied`, supprime le
   fichier, et l'historique annulable ne reçoit rien (WF-IHM-0110). Une tâche en file ou en cours
@@ -577,6 +583,47 @@ Compose de service et de celui de production reçoit une seconde boucle, qui l'a
 l'intervalle de `WATERFALL_PURGE_INTERVAL` (600 s), la variable passée par les deux Compose et
 `production.env.example` ; `make service-purge` pour la main. C'est la seule modification du Compose
 de l'EPIC.
+
+Ce que le lot réalise de plus, et que la phrase ci-dessus ne dit pas :
+
+- **Les fichiers.** Un import `analysed` échu passe `expired`, et un import dont la tâche a échoué
+  sans laisser sa trace (les tentatives épuisées, jamais abandonné) passe `failed` : le fichier de
+  l'un et de l'autre est supprimé. Un dépôt échu est supprimé, mais l'objet d'un dépôt qu'un import
+  garde encore est épargné : il est à l'import, qui le supprime à sa fin. Un dépôt par morceaux
+  inachevé est abandonné (`abort_parts`).
+- **Les balayages des préfixes.** Un objet de `uploads/` de plus d'un jour (la durée d'un dépôt) que
+  ni une ligne `file_upload` ni un import qui garde son fichier ne désigne est supprimé (#2479) —
+  l'objet s'écrit avant sa ligne, et un processus arrêté entre les deux le laisse ; un objet
+  d'`exports/` de plus de vingt-quatre heures qu'aucune tâche `export` au résultat non consommé ne
+  désigne l'est aussi (#2484). Un téléversement par morceaux inachevé n'est pas un objet pour
+  `list_objects_v2` : les dépôts par morceaux ouverts depuis plus d'un jour sous `uploads/` que
+  nulle ligne ne désigne sont donc listés à part (`list_multipart_uploads`) et abandonnés, pour que
+  des morceaux dont l'abandon a échoué après la suppression de la ligne soient libérés au passage
+  suivant. Chaque liste est bornée par `SWEEP_LIMIT` (10 000) : le reste attend le passage suivant.
+  L'âge d'un objet est celui que le stockage dit (`LastModified`), jugé contre l'horloge de
+  l'application : une dérive de quelques minutes décale le terme d'autant, ce qu'un objet d'un jour
+  ne ressent pas, et un objet plus jeune que le terme n'est jamais balayé.
+- **L'ordre.** Les objets sont listés avant la transaction et hors du verrou (le stockage est lent
+  devant un verrou) ; les lignes sont purgées sous le verrou consultatif, avec le balayage des
+  candidats que plus aucune ligne ne désigne ; les suppressions du stockage ont lieu après la
+  validation, jamais avant : un objet n'est pas supprimé pour une ligne qu'une transaction échouée
+  garde. Un objet listé comme vieux ne peut recevoir sa ligne entre la liste et la transaction,
+  l'objet s'écrivant sous un identifiant neuf et sa ligne suivant dans la requête.
+- **Les noms.** `Stored(uploads, exports, parts)` porte les candidats ; `stored_before(bucket, now)`
+  les liste ; `purge(session, now, stored)` rend `Purged(objects, deposits)` ; `remove_purged(bucket,
+  purged)` les supprime. Un stockage hors d'atteinte pendant la liste ne retient pas la purge : le
+  verbe journalise `purge.storage_unlisted`, purge les lignes, et le passage suivant balaie ; hors
+  d'atteinte pendant les suppressions, `purge.storage_unavailable`, et de même.
+- **La course sur le dépôt échu.** `createImport` lit le dépôt sous verrou (`FOR UPDATE`) et la purge
+  le supprime par un `DELETE … RETURNING` qui verrouille la ligne : l'ouverture ne prend pas, juste
+  avant son terme, un dépôt dont la purge va supprimer l'objet ; l'une attend l'autre.
+- **Les réglages.** `PurgeSettings` prend la base, Redis et le stockage, sans Keycloak.
+  `WATERFALL_UNDO_RETENTION_HOURS` (12 par défaut, un entier d'au moins 1, sans borne haute : ni la
+  conception ni la spécification n'en donnent) est passée par les deux Compose, comme
+  `WATERFALL_PURGE_INTERVAL` ; l'intervalle de la purge doit être un entier positif, sinon le
+  service `scheduler` s'arrête avec 2. Un même compartiment porte les trois préfixes
+  (`Bucket.of_backups`), la purge l'ouvre par ce nom aussi.
+- **La migration `0024`** accorde `DELETE` sur `file_upload` au rôle du service (WF-DAT-0120-A).
 
 ### Le service d'API
 
@@ -1080,9 +1127,11 @@ démarré à terminé, **afin que** le planning dise où en est chaque tâche av
   sont pas saisissables. » : la marge et la criticité, par US-1390 et US-1470 ; l'avancement
   physique est d'EP-10, qui clôt ;
 - `WF-PLA-0130-A` — « Une terminaison datée avant le démarrage de la tâche est refusée. » :
-  `setTaskProgress` refuse par 422 `VALUE_OUT_OF_RANGE` sur la date, et le jour par défaut se lit
-  dans le fuseau horaire de l’installation (spécification 1.0.3, #2524), réalisé par US-1380/L4
-  (#2519) ;
+  `setTaskProgress` refuse par 422 `VALUE_OUT_OF_RANGE` sur la date ;
+- écart : `WF-PLA-0130-A` — le jour courant par défaut se lit dans le fuseau horaire de
+  l’installation (spécification 1.0.3, #2524) : le fuseau de l’installation est reporté vers EP-07
+  (#2527) ; d'ici là, le jour courant est calculé en UTC par une seule fonction du noyau (US-1380/L4,
+  #2519), sur laquelle EP-07 branchera le fuseau ;
 - propre à l'US : `setTaskProgress` démarre, termine ou rouvre une tâche feuille, au compteur lu,
   et refuse par 409 — `task_is_milestone`, `task_without_lines` (jamais manquante sans ligne),
   `task_not_milestone`, `completed_milestone`, puis `project_in_progress` et
@@ -1328,7 +1377,7 @@ lignes d'une tâche réimportée (EP-07).
 
 ## US-1440 — L'arborescence de tâches et son export PNG
 
-- **statut** : en cours
+- **statut** : fini
 - **exigences** : `WF-PLA-0110-A`, `WF-PLA-0120-A`
 - **opérations** : `listNodes` (`summaries_only`, `max_level`) ; `requestExport`
   (`task_tree_image`), `getBackgroundTaskResult`

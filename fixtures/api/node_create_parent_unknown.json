@@ -1,0 +1,12 @@
+{
+  "summary": "Une tâche créée sous les « Borniers », une ligne du « Câblage des armoires » : le parent n'est pas une tâche de la structure, comme un nœud inconnu ; refusée sur son champ, sans paramètre, et rien n'est créé (#2490, #2500).",
+  "description": "Exemple engendré par `make mock-data` (`wftools.mockdata`) : il ne se retouche pas.",
+  "value": {
+    "code": "VALIDATION_FAILED",
+    "status": 422,
+    "fields": [
+      {"pointer":"/parent_id","code":"UNKNOWN_TASK"}
+    ],
+    "correlation_id": "01926f3a-7c00-7000-8000-000000001686"
+  }
+}

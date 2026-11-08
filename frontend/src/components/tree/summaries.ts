@@ -8,11 +8,9 @@
  *
  * The server selects the nodes of the tree (`listNodes`, #463): the summaries alone
  * (`summaries_only`), down to the depth asked (`max_level`), in the order of the plan. The tree
- * applies the same criterion to the answer once more (`summaryTree`) — a temporary gap of EP-02:
- * the fake back ignores the filters of `listNodes`, and the mock-up must stay right against it;
- * against a server that applies them, it changes nothing. It goes with the back of EP-03. The tree
- * hangs each summary under its parent, as the API names it, and orders and computes nothing. The
- * depth goes by the address (`depth`), so that a link shared shows the same tree.
+ * applies no criterion of its own to the answer (#496): it hangs each summary under its parent, as
+ * the API names it, and orders and computes nothing. The depth goes by the address (`depth`), so
+ * that a link shared shows the same tree.
  *
  * The server says how deep the summaries of the structure go, whatever it renders
  * (`meta.summary_depth`, #494): the tree offers exactly the depths that exist, from the first to
@@ -51,14 +49,6 @@ export function readDepth(search: SearchParameters): number {
 }
 
 /**
- * The summaries of the answer down to a depth: what a server that applies `summaries_only` and
- * `max_level` renders, kept once more against one that does not (the fake back of EP-02).
- */
-function retained(tasks: readonly TreeTask[], depth: number): readonly TreeTask[] {
-  return tasks.filter((node) => node.task?.is_summary === true && node.level <= depth);
-}
-
-/**
  * The depth the tree shows: the one asked, or the deepest that exists when the structure holds no
  * summary that deep — the tree is then whole —; none for a plan without a summary. `deepest` is
  * the level of the deepest summary of the structure, as the server says it
@@ -69,11 +59,10 @@ export function depthShown(deepest: number, depth: number): number {
 }
 
 /**
- * The summaries of the answer down to a depth, each under its parent, in the order of the answer:
- * those of the first level, or whose parent the tree does not hold, under the root.
+ * The summaries of the answer, each under its parent, in the order of the answer: those of the
+ * first level, or whose parent the tree does not hold, under the root.
  */
-export function summaryTree(tasks: readonly TreeTask[], depth: number): readonly TreeNode[] {
-  const kept = retained(tasks, depth);
+export function hangTree(kept: readonly TreeTask[]): readonly TreeNode[] {
   const children = new Map<string | null, TreeNode[]>();
   const ids = new Set(kept.map((node) => node.node_id));
   for (const node of kept) {

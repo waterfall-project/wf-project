@@ -31,7 +31,12 @@ from waterfall.core.planning.rescheduling import Blamed, Holding, replayed
 from waterfall.core.planning.snapshotting import taken
 from waterfall.core.planning.tree import read_links, read_tree
 from waterfall.core.planning.views import NodeView, Reading, ScheduleView
-from waterfall.core.projects.interface import no_background_task_running, project_facts
+from waterfall.core.projects.interface import (
+    PROJECT_NOT_TERMINAL,
+    TERMINAL,
+    no_background_task_running,
+    project_facts,
+)
 from waterfall.core.revisions.interface import (
     revision_draft,
     structure_facts,
@@ -52,10 +57,7 @@ if TYPE_CHECKING:
 
 NOT_FOUND = "NOT_FOUND"
 STATE_FORBIDS_OPERATION = "STATE_FORBIDS_OPERATION"
-PROJECT_NOT_TERMINAL = "project_not_terminal"
 NO_BACKGROUND_TASK_RUNNING = "no_background_task_running"
-# The states that end the cycle of life (WF-CYC-0080), as the projects name them.
-TERMINAL = ("completed", "lost", "abandoned")
 
 
 @dataclass(frozen=True, slots=True)

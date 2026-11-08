@@ -5,8 +5,9 @@ import type { ReactNode } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import type { NodeList } from "@/components/grid/nodes";
 import { CATALOGUES } from "@/i18n/catalogues";
-import { type FakeAnswers, type FakeClient, fakeClient } from "@/test/fixtures";
+import { example, type FakeAnswers, type FakeClient, fakeClient } from "@/test/fixtures";
 
 import TaskTreePage, { generateMetadata } from "./page";
 
@@ -33,6 +34,7 @@ vi.mock("next/navigation", async (original) => ({
   usePathname: () => SCREEN,
   useSearchParams: () => new URLSearchParams(),
 }));
+vi.mock("@/components/tasks/task-tracker", () => ({ useTrackTask: () => () => undefined }));
 vi.mock("next/headers", () => ({
   headers: () => Promise.resolve(new Headers({ "accept-language": "en-GB" })),
 }));
@@ -161,23 +163,24 @@ describe("the screen of the task tree", () => {
     );
   });
 
-  it("keeps the summaries down to the depth asked of an answer that holds more, as the fake back renders it [WF-PLA-0110-A]", async () => {
-    // Aucun jalon ni aucune tâche feuille n'apparaît, quel que soit le niveau demandé.
-    server.answers = { ...server.answers, [NODES]: "nodes_core" };
-    const page = await treeAt();
-    expect(text(page)).toContain(
-      "Modernisation du poste de commande 1 Études 8 Poste de commande 14 Retard de livraison des armoires",
-    );
-    for (const absent of ["Réception des études", "Câblage des armoires", "Réception usine"]) {
-      expect(text(page)).not.toContain(absent);
-    }
+  it("draws the answer as the server gives it, keeping none aside [WF-PLA-0110-A]", async () => {
+    // Aucun jalon ni aucune tâche feuille n'apparaît, quel que soit le niveau demandé : the server
+    // selects, the screen applies no criterion of its own to the answer (#496).
+    const page = await treeAt({ depth: "2" });
+    const items = (example("nodes_summaries") as NodeList).items;
+    expect(page.match(/role="treeitem"/g)).toHaveLength(items.length + 1);
+  });
+
+  it("offers the export of the image at the level shown, the command the revision lists [WF-PLA-0120-A]", async () => {
+    const page = await treeAt({ depth: "1" });
+    expect(text(page)).toContain("Export the task tree image");
   });
 });
 
-describe("the note of the fake back on the task tree", () => {
-  it("says once, under the header, that the service does not apply filters, search, sort and pages (US-0760)", async () => {
+describe("the screen of the task tree against the service", () => {
+  it("carries no note of the mock-up", async () => {
     const page = await treeAt();
-    expect(page.match(/<p role="note"/g)).toHaveLength(1);
-    expect(page).toContain("Filters, search, sort and pages are ignored");
+    expect(page).not.toContain('role="note"');
+    expect(page).not.toContain("Filters, search, sort and pages are ignored");
   });
 });

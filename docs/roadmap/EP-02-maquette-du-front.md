@@ -571,9 +571,10 @@ consignée dans `docs/api/DECISIONS.md`, « Les constats d'EP-02 tranchés (EP-0
   Corrigé par EP-02/L35 : `summaries_only`, `max_level` et `timeline_id`, une lecture par
   chronologie ne rendant pas les ancêtres ; l'arborescence et les chronologies les demandent
   (EP-02/L36). Écart temporaire, décision de la revue d'EP-02/L36 : le faux back ignore les filtres
-  de `listNodes`, et le front applique encore à la réponse le même critère — récapitulatives seules
-  jusqu'au niveau demandé, tâches inscrites à la chronologie —, filtre idempotent qui ne change rien
-  contre un serveur qui les tient ; il se retire quand le back d'EP-03 les tiendra. Le contrat ne dit
+  de `listNodes`, et le front applique encore à la réponse le même critère — tâches inscrites à la
+  chronologie —, filtre idempotent qui ne change rien contre un serveur qui les tient ; il se retire
+  quand le back d'EP-03 les tiendra. Le repli de l'arborescence (récapitulatives seules jusqu'au
+  niveau demandé) est retiré par EP-06/US-1440 (#496). Le contrat ne dit
   pas jusqu'à quel niveau vont les récapitulatives : l'arborescence offre les niveaux de la réponse,
   et le suivant quand une récapitulative est au niveau demandé — revue d'EP-02/L36, ouvert en #494.
   Corrigé par EP-02/L42 (décision de l'auteur du 2026-10-08) : `listNodes` rend dans son `meta` le

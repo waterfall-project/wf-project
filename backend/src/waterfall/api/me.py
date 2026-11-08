@@ -24,6 +24,7 @@ from waterfall.core.users.interface import (
 )
 from waterfall.platform.database import utc_now
 from waterfall.platform.errors import FieldError, json_pointer
+from waterfall.platform.installation import FOLLOWED
 from waterfall.platform.logs import get_logger
 
 router = APIRouter(tags=["me"])
@@ -34,8 +35,6 @@ VALIDATION_FAILED = "VALIDATION_FAILED"
 LANGUAGE = "language"
 # The origin of an account read from a directory the realm federates.
 DIRECTORY = "directory"
-# The language that follows the browser, then the installation: the realm's own by default.
-FOLLOWED = "default"
 # The fields of the preferences, and of the settings of a grid, that the contract never lets null.
 GRIDS = "grids"
 NEVER_NULL = (

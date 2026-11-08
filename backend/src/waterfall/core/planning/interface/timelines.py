@@ -18,7 +18,12 @@ from typing import TYPE_CHECKING
 from sqlalchemy import delete, select
 
 from waterfall.core.planning.tables import TIMELINE_LABEL_LENGTH, Timeline
-from waterfall.core.projects.interface import lock_project, project_facts
+from waterfall.core.projects.interface import (
+    PROJECT_NOT_TERMINAL,
+    TERMINAL,
+    lock_project,
+    project_facts,
+)
 from waterfall.platform.errors import (
     ConflictError,
     FieldError,
@@ -40,9 +45,6 @@ VALIDATION_FAILED = "VALIDATION_FAILED"
 VALUE_REQUIRED = "VALUE_REQUIRED"
 VALUE_TOO_LONG = "VALUE_TOO_LONG"
 STATE_FORBIDS_OPERATION = "STATE_FORBIDS_OPERATION"
-PROJECT_NOT_TERMINAL = "project_not_terminal"
-# The states that end the cycle of life (WF-CYC-0080), as the projects name them.
-TERMINAL = ("completed", "lost", "abandoned")
 
 
 @dataclass(frozen=True, slots=True)
