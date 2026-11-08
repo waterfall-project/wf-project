@@ -14,6 +14,7 @@ from typing import TYPE_CHECKING
 from sqlalchemy import event, select, update
 
 from waterfall.core.exchanges.tables import ImportReport
+from waterfall.core.revisions.interface import aimed_structure, structure_in_revision
 from waterfall.platform.errors import NotFoundError, UnavailableError
 from waterfall.platform.logs import get_logger
 from waterfall.platform.storage import MissingObjectError
@@ -45,6 +46,21 @@ def found_import(
     return row
 
 
+def aimed_by(session: Session, row: ImportReport, revision_id: UUID) -> UUID:
+    """Give the structure of a revision an import writes: the one its opening aimed at.
+
+    Or its copy, when the opening aimed at the last marked revision; the main one when the
+    project had no revision then. A structure the revision no longer holds is not found (404).
+    """
+    if row.structure_id is None:
+        found = aimed_structure(session, row.project_id, revision_id, None)
+    else:
+        found = structure_in_revision(session, row.project_id, row.structure_id, revision_id)
+    if found is None:
+        raise NotFoundError(NOT_FOUND)
+    return found
+
+
 def locked_import(session: Session, import_id: UUID) -> ImportReport | None:
     """Lock an import a task names, then read it under the lock; ``None`` if it is gone."""
     return session.scalars(
@@ -69,6 +85,17 @@ def remove_once_committed(session: Session, files: Bucket, key: str) -> None:
             logger.warning("import.file_kept", object_key=key)
 
     event.listen(session, "after_commit", remove, once=True)
+
+
+def end_unwritten(session: Session, row: ImportReport, files: Bucket) -> None:
+    """Write ``failed`` an import whose task failed without a trace, its file deleted at the commit.
+
+    The caller holds the lock of the row: its report expires no more, and its file goes.
+    """
+    row.status = "failed"
+    row.expires_at = None
+    session.flush()
+    remove_once_committed(session, files, row.object_key)
 
 
 def end_without_writing(

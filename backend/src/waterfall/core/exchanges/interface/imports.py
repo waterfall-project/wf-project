@@ -43,11 +43,18 @@ from waterfall.core.exchanges.judgments import (
     judge_state,
     refused,
 )
-from waterfall.core.exchanges.records import found_import, remove_once_committed
+from waterfall.core.exchanges.records import (
+    NOT_FOUND,
+    aimed_by,
+    end_unwritten,
+    found_import,
+    remove_once_committed,
+)
 from waterfall.core.exchanges.states import (
     AWAITING_DECISION,
     ENDED_WITHOUT_WRITING,
     NOT_APPLIED,
+    RUNNING,
     abandon_lacks,
     apply_lacks,
     commands_of,
@@ -88,7 +95,6 @@ type ExchangeKind = Literal["ms_project_schedule", "estimate", "remaining", "act
 
 FILE_FORMAT_UNREADABLE = "FILE_FORMAT_UNREADABLE"
 FILE_TOO_LARGE = "FILE_TOO_LARGE"
-NOT_FOUND = "NOT_FOUND"
 UPLOAD_PURPOSE_MISMATCH = "UPLOAD_PURPOSE_MISMATCH"
 VALIDATION_FAILED = "VALIDATION_FAILED"
 VALUE_OUT_OF_RANGE = "VALUE_OUT_OF_RANGE"
@@ -118,6 +124,10 @@ class Format(Protocol):
     (``ImportReport`` as the contract reads it), writing nothing. ``apply`` writes the report into
     the structure, in the transaction of the task — taking the lock of the structure, and redating
     it —, judging again what the analysis accepted: a refusal then fails the import.
+
+    The ``target`` ``judge`` receives is that of the write: at the application, the structure of
+    the current revision — the copy of the one analysed when that was of the last marked revision —,
+    the revision and the structure aimed at when there is no current revision yet.
     """
 
     header_length: int
@@ -552,6 +562,10 @@ def abandon_import(
     read = _read(session, row, act.at)
     if abandon_lacks(read):
         raise refused(NOT_APPLIED)
+    if read == "failed" and row.status in RUNNING:
+        # Its task failed without a trace: the row still runs, the file is still there.
+        end_unwritten(session, row, files)
+        return
     if read in ENDED_WITHOUT_WRITING:
         return
     row.status = "abandoned"
@@ -608,7 +622,7 @@ def apply_import(
             raise refused(lacking[0])
         standing = Standing(project_id, lock_project(session, project_id), form.scope)
         judge_state(session, standing, confirmer.viewer)
-        form.judge(session, _applied_target(row, standing))
+        form.judge(session, _applied_target(session, row, standing))
     except ServiceError as refusal:
         return _refuse(session, row, refusal, files)
     payload = {IMPORT_KEY: str(row.id)}
@@ -621,11 +635,19 @@ def apply_import(
     return task_id
 
 
-def _applied_target(row: ImportReport, standing: Standing) -> ImportTarget:
-    """Give what an application would write: the current revision and the structure aimed at."""
+def _applied_target(session: Session, row: ImportReport, standing: Standing) -> ImportTarget:
+    """Give what an application would write: the current revision and its structure.
+
+    The structure is that of the current revision, the copy of the one aimed at when the opening
+    aimed at the last marked revision, as the task resolves it; the one aimed at when there is no
+    current revision yet, the task then creating it.
+    """
     if standing.scope != "structure":
         return ImportTarget(row.project_id, None, None)
-    return ImportTarget(row.project_id, standing.facts.current_revision_id, row.structure_id)
+    current = standing.facts.current_revision_id
+    if current is None:
+        return ImportTarget(row.project_id, None, row.structure_id)
+    return ImportTarget(row.project_id, current, aimed_by(session, row, current))
 
 
 def run_analysis(session: Session, task: Task, files: Bucket) -> Mapping[str, Any] | None:

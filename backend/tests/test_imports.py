@@ -10,7 +10,7 @@ concurrent and the interrupted applications are in ``test_imports_application.py
 """
 
 from datetime import timedelta
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 from uuid import UUID, uuid4
 
 import pytest
@@ -18,6 +18,7 @@ from fastapi.testclient import TestClient
 from imports_trial import (
     PROJECTS,
     ROWS,
+    UPLOADS,
     TrialFormat,
     analysed,
     apply,
@@ -38,7 +39,7 @@ from imports_trial import (
 )
 from projects_support import Scene, contribute, person, put_in_state
 from projects_support import scene as make_scene
-from sqlalchemy import insert, select, update
+from sqlalchemy import insert, inspect, select, update
 from support import ContractClient
 
 from waterfall.api.app import create_app
@@ -46,6 +47,7 @@ from waterfall.api.authentication import Services
 from waterfall.core.access_roles.predefined import PROJECT_MANAGER
 from waterfall.core.exchanges.interface import register_format
 from waterfall.core.exchanges.tables import ImportReport
+from waterfall.core.revisions.tables import CostStructure, Revision
 from waterfall.platform.database import utc_now
 from waterfall.platform.keycloak_admin import KeycloakAdmin
 from waterfall.platform.logs import logging_context
@@ -156,6 +158,24 @@ def test_a_deposit_refused_writes_nothing(
         assert session.scalars(select(FileUpload)).all() == []
 
 
+def project_rows(database: Database) -> list[list[dict[str, Any]]]:
+    """Read every row of the structures and of the revisions, as the database keeps them."""
+    with database.transaction() as session:
+        return [
+            sorted(
+                (
+                    {
+                        column.key: getattr(row, column.key)
+                        for column in inspect(row).mapper.column_attrs
+                    }
+                    for row in session.scalars(select(table))
+                ),
+                key=lambda each: str(each["id"]),
+            )
+            for table in (CostStructure, Revision)
+        ]
+
+
 @pytest.mark.requirement("WF-ARC-0100-A")
 @pytest.mark.usefixtures("trial")
 def test_between_the_analysis_and_the_confirmation_no_data_of_the_project_changed(
@@ -169,7 +189,7 @@ def test_between_the_analysis_and_the_confirmation_no_data_of_the_project_change
         json={},
     ).json()
     project = api.get(f"{PROJECTS}/{stage.project['project_id']}", headers=stage.manager.headers)
-    before = (nodes(database), project.json()["lock_version"])
+    before = (nodes(database), project_rows(database), project.json()["lock_version"])
     found = opened(api, stage, *ROWS)
     assert (found["status"], found["report"], found["expires_at"]) == ("analysing", None, None)
     assert found["revision_id"] == revision["revision_id"]
@@ -181,7 +201,7 @@ def test_between_the_analysis_and_the_confirmation_no_data_of_the_project_change
     assert found["task"]["status"] == "succeeded"
     assert commands(found) == {"apply": [], "abandon": []}
     after = api.get(f"{PROJECTS}/{stage.project['project_id']}", headers=stage.manager.headers)
-    assert (nodes(database), after.json()["lock_version"]) == before
+    assert (nodes(database), project_rows(database), after.json()["lock_version"]) == before
 
 
 @pytest.mark.requirement("WF-ARC-0110-A")
@@ -190,19 +210,26 @@ def test_the_report_is_kept_in_codes_and_read_the_same_by_every_reader(
     api: ContractClient, stage: Scene, worker: Worker, realm: TestRealm
 ) -> None:
     # « Un import fait par un utilisateur en français, relu par un utilisateur en anglais, présente
-    # son compte rendu en anglais. » : the report is codes and parameters; the screen words them.
+    # son compte rendu en anglais. » : the report is codes and parameters; the screen words them,
+    # whatever the language the reader asks in.
     found = analysed(api, stage, worker)
     reader = person(stage.database, realm, *PROJECT_MANAGER, name="Ava")
     contribute(stage.database, stage.project["project_id"], reader, "contributor")
-    again = api.get(path(stage, found["import_id"]), headers=reader.headers).json()
-    assert again["report"] == found["report"]
-    (rejected,) = found["report"]["rejected"]
+    in_french = {**stage.manager.headers, "Accept-Language": "fr-FR,fr;q=0.9"}
+    in_english = {**reader.headers, "Accept-Language": "en-GB,en;q=0.9"}
+    by_french = api.get(path(stage, found["import_id"]), headers=in_french).json()
+    by_english = api.get(path(stage, found["import_id"]), headers=in_english).json()
+    assert by_english["report"] == by_french["report"] == found["report"]
+    (rejected,) = by_english["report"]["rejected"]
     assert rejected == {
         "sheet": None,
         "row": 2,
         "code": "UNKNOWN_TASK",
         "params": {"value": "Inconnue"},
     }
+    # No sentence in either language: the screen words the codes.
+    assert set(rejected) == {"sheet", "row", "code", "params"}
+    assert not {"message", "text", "description", "title"} & set(by_english["report"])
 
 
 @pytest.mark.usefixtures("trial")
@@ -556,3 +583,56 @@ def test_an_analysis_refused_by_its_format_fails_the_import_its_file_deleted(
     assert (found["status"], found["report"], found["expires_at"]) == ("failed", None, None)
     assert found["task"]["problem"]["params"] == {"missing_condition": "task_not_started"}
     assert backups_bucket.size(key) is None
+
+
+def test_a_deposit_whose_record_fails_leaves_no_object_on_the_storage(
+    api: ContractClient, stage: Scene, backups_bucket: Bucket, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # The file is written before its row: a row that fails to be kept takes the object away.
+    keys: list[str] = []
+
+    def failing(session: Any, upload_id: UUID, *rest: Any) -> None:
+        del session, rest
+        keys.append(f"uploads/{upload_id}")
+        msg = "the record failed"
+        raise RuntimeError(msg)
+
+    monkeypatch.setattr("waterfall.api.imports.deposit", failing)
+    response = upload(api, stage.manager, trial_file(*ROWS))
+    assert response.status_code == 500
+    (key,) = keys
+    assert backups_bucket.size(key) is None
+    with stage.database.transaction() as session:
+        assert session.scalars(select(FileUpload)).all() == []
+
+
+def test_a_file_sent_in_chunks_beyond_the_limit_is_refused_as_it_is_read(
+    api: ContractClient, stage: Scene, database: Database
+) -> None:
+    # Without a length announced, the body is counted as it comes: 413, nothing kept.
+    boundary = "wf-boundary"
+    chunk = b"x" * 1024**2
+
+    def body() -> Iterator[bytes]:
+        head = f'--{boundary}\r\nContent-Disposition: form-data; name="purpose"\r\n\r\nimport\r\n'
+        yield head.encode()
+        yield (
+            f'--{boundary}\r\nContent-Disposition: form-data; name="file"; filename="a.wft"\r\n'
+            "Content-Type: application/octet-stream\r\n\r\n"
+        ).encode()
+        for _ in range(12):
+            yield chunk
+        yield f"\r\n--{boundary}--\r\n".encode()
+
+    response = api.post(
+        UPLOADS,
+        headers={
+            **stage.manager.headers,
+            "Content-Type": f"multipart/form-data; boundary={boundary}",
+        },
+        content=body(),
+    )
+    assert response.status_code == 413, response.text
+    assert response.json()["code"] == "FILE_TOO_LARGE"
+    with database.transaction() as session:
+        assert session.scalars(select(FileUpload)).all() == []

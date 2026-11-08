@@ -36,6 +36,7 @@ from waterfall.core.exchanges.judgments import (
     judge_state,
 )
 from waterfall.core.exchanges.records import (
+    aimed_by,
     end_without_writing,
     locked_import,
     remove_once_committed,
@@ -48,10 +49,8 @@ from waterfall.core.projects.interface import (
     project_label,
 )
 from waterfall.core.revisions.interface import (
-    aimed_structure,
     open_revision_by_task,
     revision_draft,
-    structure_in_revision,
 )
 from waterfall.core.users.interface import inscribed_actor
 from waterfall.platform.audit import (
@@ -63,7 +62,7 @@ from waterfall.platform.audit import (
     record,
 )
 from waterfall.platform.database import utc_now
-from waterfall.platform.errors import NotFoundError, ServiceError
+from waterfall.platform.errors import ServiceError
 from waterfall.platform.tasks import UndoneError
 
 if TYPE_CHECKING:
@@ -78,8 +77,6 @@ if TYPE_CHECKING:
 
     # What finds the format of a kind of import, ``None`` if no module serves the kind.
     type Formats = Callable[[str], Format | None]
-
-NOT_FOUND = "NOT_FOUND"
 
 
 @dataclass(frozen=True, slots=True)
@@ -227,25 +224,9 @@ def _judged(
     if current is None:
         act = Act(task.requested_by, utc_now())
         current = open_revision_by_task(session, project_id, act, task.task_id)
-    target = ImportTarget(project_id, current, _structure(session, row, current))
+    target = ImportTarget(project_id, current, aimed_by(session, row, current))
     form.judge(session, target)
     return target
-
-
-def _structure(session: Session, row: ImportReport, revision_id: UUID) -> UUID:
-    """Give the structure of the current revision an import writes: the one its opening aimed at.
-
-    Or its copy, when the opening aimed at the last marked revision; the main one when the
-    project had no revision then. A structure the revision no longer holds is not found (404).
-    """
-    project_id = row.project_id
-    if row.structure_id is None:
-        found = aimed_structure(session, project_id, revision_id, None)
-    else:
-        found = structure_in_revision(session, project_id, row.structure_id, revision_id)
-    if found is None:
-        raise NotFoundError(NOT_FOUND)
-    return found
 
 
 def _inscribe(session: Session, row: ImportReport, act: Act) -> None:

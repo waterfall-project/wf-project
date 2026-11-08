@@ -19,8 +19,9 @@ for good, ``refused``, its file deleted, which a guard ahead of the route could 
 leaves the import refused is answered once it is committed.
 """
 
+from contextlib import suppress
 from dataclasses import dataclass
-from typing import Annotated, Any
+from typing import TYPE_CHECKING, Annotated, Any
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query, Request, Response
@@ -60,11 +61,14 @@ from waterfall.core.exchanges.interface import (
 from waterfall.core.projects.interface import Viewer
 from waterfall.platform.audit import Act
 from waterfall.platform.database import utc_now
-from waterfall.platform.errors import BadRequestError, PayloadTooLargeError
+from waterfall.platform.errors import BadRequestError, PayloadTooLargeError, UnavailableError
 from waterfall.platform.identifiers import new_id
 from waterfall.platform.storage import MissingObjectError
 from waterfall.platform.tasks import BackgroundTask
 from waterfall.platform.uploads import object_key_of
+
+if TYPE_CHECKING:
+    from starlette.types import Message
 
 router = APIRouter(tags=["exchanges"])
 
@@ -90,17 +94,37 @@ class Sent:
     purpose: str
 
 
+def _bounded(request: Request) -> Request:
+    """Give the request whose body is counted as it is read: beyond the bound, 413.
+
+    A body sent in chunks has no length to judge ahead; it is stopped as it overruns what a
+    deposit may weigh, before it is all written to disk.
+    """
+    received = 0
+
+    async def receive() -> Message:
+        nonlocal received
+        message = await request.receive()
+        received += len(message.get("body", b""))
+        if received > LARGEST_FILE + ENVELOPE:
+            raise PayloadTooLargeError(FILE_TOO_LARGE)
+        return message
+
+    return Request(request.scope, receive)
+
+
 async def sent_file(request: Request) -> Sent:
     """Read the file a deposit carries, and its use; one too large is refused unread (413).
 
     A body that is no form, or a form without the file or its use, is refused by the deposit
-    itself (422); a form that cannot be read, as a request that cannot be (400).
+    itself (422); a form that cannot be read, as a request that cannot be (400). The body is
+    bounded as it is read, with or without a length announced.
     """
     length = request.headers.get("content-length", "")
     if length.isdigit() and int(length) > LARGEST_FILE + ENVELOPE:
         raise PayloadTooLargeError(FILE_TOO_LARGE)
     try:
-        async with request.form(max_files=1, max_fields=1) as form:
+        async with _bounded(request).form(max_files=1, max_fields=1) as form:
             purpose = form.get("purpose")
             sent = form.get("file")
             if not isinstance(sent, UploadFile):
@@ -125,22 +149,30 @@ def post_file_upload(
     judge_deposit(sent.purpose, sent.filename, len(sent.content))
     filename = sent.filename or ""
     upload_id = new_id()
-    services.backups.put(object_key_of(upload_id), sent.content)
-    with services.database.transaction() as session:
-        kept = deposit(
-            session, upload_id, filename, len(sent.content), Act(account.user_id, utc_now())
-        )
-        return FileUpload.model_validate(
-            {
-                "upload_id": kept.upload_id,
-                "purpose": "import",
-                "filename": kept.filename,
-                "size_bytes": kept.size_bytes,
-                "uploaded_at": kept.uploaded_at,
-                "expires_at": kept.expires_at,
-                "backup_taken_at": None,
-            }
-        )
+    key = object_key_of(upload_id)
+    services.backups.put(key, sent.content)
+    try:
+        with services.database.transaction() as session:
+            kept = deposit(
+                session, upload_id, filename, len(sent.content), Act(account.user_id, utc_now())
+            )
+            return FileUpload.model_validate(
+                {
+                    "upload_id": kept.upload_id,
+                    "purpose": "import",
+                    "filename": kept.filename,
+                    "size_bytes": kept.size_bytes,
+                    "uploaded_at": kept.uploaded_at,
+                    "expires_at": kept.expires_at,
+                    "backup_taken_at": None,
+                }
+            )
+    except BaseException:
+        # No row keeps the object: it goes (a process that dies between the two leaves it to the
+        # purge, US-1420/L2).
+        with suppress(UnavailableError, MissingObjectError):
+            services.backups.remove(key)
+        raise
 
 
 def confirmer_of(actor: Actor) -> Confirmer:

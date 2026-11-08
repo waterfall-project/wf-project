@@ -9,6 +9,7 @@ import at once give one task.
 """
 
 from concurrent.futures import ThreadPoolExecutor
+from threading import Event
 from typing import TYPE_CHECKING, Any
 from uuid import UUID
 
@@ -16,12 +17,14 @@ import pytest
 from fastapi.testclient import TestClient
 from imports_trial import (
     PROJECTS,
+    ROWS,
     Stopped,
     TrialFormat,
     analysed,
     apply,
     import_worker,
     nodes,
+    opened,
     path,
     read,
     refusal,
@@ -337,6 +340,113 @@ def test_an_import_whose_task_failed_unwritten_reads_failed(
     assert (again["status"], again["expires_at"]) == ("failed", None)
     listed = api.get(path(stage), headers=stage.manager.headers).json()["items"]
     assert [each["status"] for each in listed] == ["failed"]
+
+
+@pytest.mark.requirement("WF-DAT-0120-A")
+@pytest.mark.parametrize("step", ["analysing", "applying"])
+@pytest.mark.usefixtures("trial")
+def test_abandoning_an_import_whose_task_failed_unwritten_deletes_its_file(
+    api: ContractClient,
+    stage: Scene,
+    worker: Worker,
+    backups_bucket: Bucket,
+    step: str,
+) -> None:
+    # The attempts of the task spent by workers stopped, the row still runs and reads failed: its
+    # file is deleted once it is abandoned, and abandoning again changes nothing.
+    database = stage.database
+    if step == "analysing":
+        import_id = opened(api, stage, *ROWS)["import_id"]
+    else:
+        import_id = analysed(api, stage, worker)["import_id"]
+        assert apply(api, stage, import_id).status_code == 202
+    key = stored(database, import_id).object_key
+    with database.transaction() as session:
+        session.execute(
+            update(BackgroundTask)
+            .where(BackgroundTask.id == stored(database, import_id).task_id)
+            .values(
+                status="failed",
+                problem={"code": "INTERNAL_ERROR", "status": 500},
+                finished_at=BackgroundTask.submitted_at,
+            )
+        )
+    assert stored(database, import_id).status == step
+    assert backups_bucket.size(key) is not None
+    for _ in range(2):
+        assert api.delete(path(stage, import_id), headers=stage.manager.headers).status_code == 204
+        row = stored(database, import_id)
+        assert (row.status, row.expires_at) == ("failed", None)
+        assert backups_bucket.size(key) is None
+    assert read(api, stage, import_id)["status"] == "failed"
+
+
+@pytest.mark.requirement("WF-INTF-0090-A")
+def test_an_application_judges_the_structure_of_the_current_revision_not_the_marked_one(
+    api: ContractClient, stage: Scene, worker: Worker, database: Database, trial: TrialFormat
+) -> None:
+    # Analysed on the last marked revision, then the current one created: the format is asked on
+    # the copy the current revision holds, where the application will write.
+    marked(api, stage, worker, database)
+    found = analysed(api, stage, worker)
+    current = UUID(open_revision(api, stage)["revision_id"])
+    with database.transaction() as session:
+        lineage = session.scalars(
+            select(CostStructure.lineage_id).where(CostStructure.id == UUID(found["structure_id"]))
+        ).one()
+        copy = session.scalars(
+            select(CostStructure.id).where(
+                CostStructure.revision_id == current, CostStructure.lineage_id == lineage
+            )
+        ).one()
+    assert copy != UUID(found["structure_id"])
+    assert apply(api, stage, found["import_id"]).status_code == 202
+    judged = trial.seen[-1]
+    assert (judged.revision_id, judged.structure_id) == (current, copy)
+    run(worker)
+    applied = read(api, stage, found["import_id"])
+    assert (applied["status"], applied["structure_id"]) == ("applied", str(copy))
+
+
+@pytest.mark.requirement("WF-INTF-0080-A")
+def test_an_abandonment_waits_for_the_lock_of_the_import_and_the_analysis_then_writes_nothing(
+    api: ContractClient, stage: Scene, worker: Worker, database: Database, backups_bucket: Bucket
+) -> None:
+    # The lock of the import held while the format analyses: the abandonment waits for it, wins,
+    # and the analysis, resumed, finds the import abandoned and writes no report.
+    entered, release = Event(), Event()
+
+    class Slow(TrialFormat):
+        def analyse(self, session: Session, target: Any, content: bytes) -> Any:
+            entered.set()
+            assert release.wait(20)
+            return super().analyse(session, target, content)
+
+    withdrawn = register_format("remaining", Slow())
+    try:
+        import_id = opened(api, stage, *ROWS)["import_id"]
+        key = stored(database, import_id).object_key
+        with ThreadPoolExecutor(2) as others, Session(database.engine) as holding:
+            analysis = others.submit(run, worker)
+            assert entered.wait(20)
+            holding.execute(
+                select(ImportReport.id).where(ImportReport.id == UUID(import_id)).with_for_update()
+            )
+            abandonment = others.submit(
+                api.delete, path(stage, import_id), headers=stage.manager.headers
+            )
+            wait_for_a_lock(database, 1)
+            assert not abandonment.done()
+            holding.commit()
+            assert abandonment.result(timeout=20).status_code == 204
+            release.set()
+            analysis.result(timeout=20)
+    finally:
+        release.set()
+        withdrawn()
+    row = stored(database, import_id)
+    assert (row.status, row.report, row.analysed_at) == ("abandoned", None, None)
+    assert backups_bucket.size(key) is None
 
 
 @pytest.mark.usefixtures("trial")
