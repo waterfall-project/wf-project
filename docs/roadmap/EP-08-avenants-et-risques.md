@@ -182,3 +182,14 @@ Reportés d'EP-17 à sa livraison (rangement du 2026-11-05) :
   `structure_lock_version` : un écran du risque ouvert en parallèle est refusé par 412 sans
   moyen de reprendre le compteur. Relevé par la revue d'US-0680/L1 (EP-16), rangé ici le
   2026-11-05.
+
+Relevés par la revue locale d'US-1400/L2 (EP-06, #2340) et reportés ici, le cas n'existant
+qu'avec les différentiels :
+
+- #2497 — contrat : `setNodeTracking` ne vérifie pas que le nœud est de la structure principale
+  (`task.tracking` n'est dans `editable_fields` que pour elle) ; une inscription demandée sur un
+  nœud d'un différentiel écrirait la lignée de la principale. Un refus s'ajoute au contrat puis au
+  code. Décision de l'auteur du 2026-11-08.
+- #2499 — back : deux écritures d'inscriptions d'une même lignée sous deux structures ne sont
+  sérialisées que par le verrou de chaque structure ; la violation d'unicité de `tracking_entry`
+  remonterait en 500.

@@ -139,6 +139,13 @@ Relevé par la revue locale d'US-0960 (EP-04, #2061) et reporté au cadrage d'EP
   (WF-DAT-0040), une exception du calcul fait échouer la tâche avec son code, rien n'étant écrit,
   et le test des points d'entrée dit à partir de quel lot le worker porte l'extension.
 
+Relevé par la revue locale d'US-1400/L2 (EP-06, #2340) et reporté ici par l'auteur le
+2026-11-08 :
+
+- #2498 — back : une inscription `milestone_tracking` reste sur une tâche qui cesse d'être un
+  jalon (durée non nulle, sous-tâches), `setNodeTracking` ne refusant `MILESTONE_REQUIRED` qu'à
+  l'entrée ; le diagramme temps/temps ne retient que les inscriptions des jalons.
+
 ## Préalables
 
 `epic/EP-10` se tire d'`epic/EP-09` dès la fusion de son lot pivot, **US-1580/L1 #2398** — le socle
