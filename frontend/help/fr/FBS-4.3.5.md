@@ -11,7 +11,7 @@ Les tâches sont lues comme la grille de planning les lit, restreintes au sous-p
 ## Ses commandes
 
 - **Niveau affiché** : un lien par niveau que la structure compte, **Niveau 1**, **Niveau 2**… Au-delà du niveau choisi, les tâches subordonnées ne sont pas représentées : c’est lui qui règle l’encombrement. Un planning de plusieurs centaines de tâches ne se montre pas ; ses trois premiers niveaux, si.
-- L’image de l’arborescence s’exporte depuis les [imports et exports](FBS-4.3.4.md), par **Image de l’arborescence de tâches**, au niveau que vous donnez. Elle a la taille que son contenu exige, sans pagination ni réduction.
+- **Exporter l’image de l’arborescence de tâches** : l’image se dessine en traitement de fond, au niveau affiché, et se télécharge depuis le suivi des tâches ; elle n’est pas conservée. La commande suit ce que la révision liste et dit, indisponible, la condition qui lui manque. L’image porte le libellé du projet, celui de la révision et la date du calcul. Elle a la taille que son contenu exige, sans pagination ni réduction : au-delà de cent millions de pixels, l’export échoue, le suivi le dit, et il suffit de choisir un niveau moins profond. Les [imports et exports](FBS-4.3.4.md) l’offrent aussi, au niveau que vous y donnez.
 
 ## Ses colonnes et ses valeurs calculées
 
@@ -28,4 +28,4 @@ Aucune valeur calculée : les numéros et les libellés sont ceux du planning, t
 
 - [La planification](FBS-4.3.md) et [la grille de planning](FBS-4.3.2.md), où les récapitulatives se créent ;
 - [les chronologies](FBS-4.3.1.md), l’autre vue destinée à être montrée ;
-- [les imports et exports](FBS-4.3.4.md), d’où l’image s’exporte.
+- [les imports et exports](FBS-4.3.4.md), où l’image se demande aussi.

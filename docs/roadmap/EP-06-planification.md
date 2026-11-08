@@ -1328,7 +1328,7 @@ lignes d'une tâche réimportée (EP-07).
 
 ## US-1440 — L'arborescence de tâches et son export PNG
 
-- **statut** : en cours
+- **statut** : fini
 - **exigences** : `WF-PLA-0110-A`, `WF-PLA-0120-A`
 - **opérations** : `listNodes` (`summaries_only`, `max_level`) ; `requestExport`
   (`task_tree_image`), `getBackgroundTaskResult`
