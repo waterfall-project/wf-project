@@ -33,9 +33,8 @@ from sqlalchemy.exc import IntegrityError
 from waterfall.core.exchanges import running
 from waterfall.core.exchanges.judgments import (
     IMPORT_KEY,
-    PROJECT_NOT_TERMINAL,
+    PASSING,
     REVISION_KEY,
-    TERMINAL,
     ImportScope,
     ImportTarget,
     Judge,
@@ -62,7 +61,13 @@ from waterfall.core.exchanges.states import (
     status_read,
 )
 from waterfall.core.exchanges.tables import ImportReport
-from waterfall.core.projects.interface import CommandAvailability, contributor_kind, lock_project
+from waterfall.core.projects.interface import (
+    PROJECT_NOT_TERMINAL,
+    TERMINAL,
+    CommandAvailability,
+    contributor_kind,
+    lock_project,
+)
 from waterfall.core.revisions.interface import aimed_structure, last_marked_revision
 from waterfall.platform.database import unique_violated
 from waterfall.platform.errors import (
@@ -597,14 +602,18 @@ def apply_import(
     Under the lock of the import, read under it, then the lock of the project: unknown (404); the
     permission of its kind and the quality of contributor (403); an import no longer ``analysed``
     — applied or being applied, abandoned, expired, failed, refused — (409
-    ``import_awaiting_decision``), the import unchanged; then, refusing the import for good, a
-    report that rejects the whole file (409 ``import_file_accepted``), and the conditions of the
-    opening judged again, those of the exchanges then those of the kind (409). The permission or
-    the quality its requester lost since the analysis refuses it as well (403): another account's
-    refusal leaves it as it is, which no one may spoil without the right to apply it. Refused for
-    good, the import is ``refused`` and its file deleted once committed (``ImportRefused``);
-    otherwise it passes ``applying``, its task deposited in the transaction, which suspends the
-    writes of its revision until it ends (``no_background_task_running``, #360).
+    ``import_awaiting_decision``), the import unchanged; then a report that rejects the whole file
+    (409 ``import_file_accepted``), and the conditions of the opening judged again, those of the
+    exchanges then those of the kind (409), and the structure aimed at, which the current revision
+    may no longer hold (404). A condition that passes — a background task of the project, the
+    permission to create the revision the import would create (``PASSING``) — refuses it and
+    leaves it ``analysed``, its file kept: it is applied again once the condition holds, without a
+    new deposit (WF-ARC-0100, #2475). Any other refuses it for good, as the permission or the
+    quality its requester lost since the analysis does (403): another account's refusal leaves it
+    as it is, which no one may spoil without the right to apply it. Refused for good, the import is
+    ``refused`` and its file deleted once committed (``ImportRefused``); otherwise it passes
+    ``applying``, its task deposited in the transaction, which suspends the writes of its revision
+    until it ends (``no_background_task_running``, #360).
     """
     act = confirmer.act
     files = means.files
@@ -627,6 +636,8 @@ def apply_import(
         judge_state(session, standing, confirmer.viewer)
         form.judge(session, _applied_target(session, row, standing))
     except ServiceError as refusal:
+        if refusal.params.get("missing_condition") in PASSING:
+            raise
         return _refuse(session, row, refusal, files)
     payload = {IMPORT_KEY: str(row.id)}
     if form.scope == "structure":

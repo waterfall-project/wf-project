@@ -749,6 +749,27 @@ describe("the sentence of a refusal", () => {
     );
   });
 
+  it("says a token without session identifier refuses an undo or a redo, in the reader's language [WF-IHM-0110-A]", () => {
+    expect(say({ code: "SESSION_ID_MISSING" }, "fr")).toBe(
+      "Votre jeton de session ne porte pas d’identifiant de session : reconnectez-vous pour pouvoir annuler ou rétablir une modification.",
+    );
+    expect(say({ code: "SESSION_ID_MISSING" }, "en")).toBe(
+      "Your session token carries no session identifier: sign in again to be able to undo or redo a change.",
+    );
+  });
+
+  it("says a move that would put a node under itself, in the reader's language [WF-PLA-0040-A]", () => {
+    // `nodes_move_node_cycle`, reduced to its field's code as `byField` does: the refusal of a
+    // parent taken among the moved nodes or their subordinates, without a parameter.
+    const refused = example("nodes_move_node_cycle") as {
+      fields: [{ code: ProblemText["code"] }];
+    };
+    const reduced = { code: refused.fields[0].code };
+    expect(reduced.code).toBe("NODE_CYCLE");
+    expect(say(reduced, "fr")).toBe("Ce déplacement mettrait un nœud sous lui-même.");
+    expect(say(reduced, "en")).toBe("This move would put a node under itself.");
+  });
+
   it.each([
     {
       example: "structure_merge_report_link_forbidden",

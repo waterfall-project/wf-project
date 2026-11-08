@@ -1,0 +1,9 @@
+{
+  "summary": "Une annulation demandée avec le jeton d'un compte de service, sans session (sid) : refusée, rien n'est défait ; son écriture passe, sans entrée (WF-IHM-0110, #2472).",
+  "description": "Exemple engendré par `make mock-data` (`wftools.mockdata`) : il ne se retouche pas.",
+  "value": {
+    "code": "SESSION_ID_MISSING",
+    "status": 403,
+    "correlation_id": "01926f3a-7c00-7000-8000-000000001993"
+  }
+}

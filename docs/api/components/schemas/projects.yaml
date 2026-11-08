@@ -43,20 +43,22 @@ Project:
         required for the passage to In progress (WF-PRJ-0010); null as long as it is not entered.
     state: { $ref: '#/ProjectState' }
     inflation_rate:
-      allOf: [{ $ref: ../common.yaml#/Percent }]
+      allOf: [{ $ref: '#/ProjectRatio' }]
       description: >-
         Annual inflation rate, 0 by default, modifiable at any time (WF-PRJ-0040): a ratio, from
         `0` to `1` inclusive — `0.03` for 3% —, outside of which `updateProject` refuses the
-        value (`VALUE_OUT_OF_RANGE`).
+        value (`VALUE_OUT_OF_RANGE`), at four decimals, a hundredth of a percent
+        (`ProjectRatio`).
     win_probability:
-      allOf: [{ $ref: ../common.yaml#/Percent }]
+      allOf: [{ $ref: '#/ProjectRatio' }]
       description: >-
         Win probability, 0 by default, with no effect on any calculation of the project
         (WF-PRJ-0090): a ratio, from `0` to `1` inclusive, outside of which `updateProject`
-        refuses the value (`VALUE_OUT_OF_RANGE`). Modifiable in the Created and Pricing states,
-        frozen from In progress onwards: the `update_win_probability` command states it in
-        advance, and a value sent regardless is refused with 409 `STATE_FORBIDS_OPERATION`,
-        `params.missing_condition` at `project_before_in_progress`.
+        refuses the value (`VALUE_OUT_OF_RANGE`), at four decimals (`ProjectRatio`). Modifiable
+        in the Created and Pricing states, frozen from In progress onwards: the
+        `update_win_probability` command states it in advance, and a value sent regardless is
+        refused with 409 `STATE_FORBIDS_OPERATION`, `params.missing_condition` at
+        `project_before_in_progress`.
     order_received_on:
       anyOf: [{ $ref: ../common.yaml#/PlanningDate }, { type: 'null' }]
       description: Null as long as it is not entered.
@@ -601,6 +603,18 @@ ProjectClient:
     with `VALUE_REQUIRED`; too long, with `VALUE_TOO_LONG`; made only of whitespace, like every
     label, with `VALIDATION_FAILED` (EP-16/US-0610).
 
+ProjectRatio:
+  allOf:
+    - $ref: ../common.yaml#/Percent
+  pattern: '^-?\d+(\.\d{1,4}0*)?$'
+  description: >-
+    A ratio of a project — its inflation rate, its win probability (WF-PRJ-0040, WF-PRJ-0090) —,
+    kept at four decimals, a hundredth of a percent, as `Money` is kept at two: a fifth
+    significant decimal is refused by `updateProject`, never rounded, with 422
+    `VALIDATION_FAILED`, `fields` designating the field, without a parameter (WF-DAT-0100;
+    #2305); zeros beyond the fourth decimal change nothing, `0.12340` being `0.1234`. A value
+    outside `0` to `1` is refused first by its bound (`VALUE_OUT_OF_RANGE`).
+
 ProjectCreate:
   type: object
   required: [label]
@@ -635,14 +649,16 @@ ProjectUpdate:
     code:
       anyOf: [{ $ref: '#/ProjectCode' }, { type: 'null' }]
     inflation_rate:
-      allOf: [{ $ref: ../common.yaml#/Percent }]
-      description: From `0` to `1` inclusive, a ratio (WF-PRJ-0040).
-    win_probability:
-      allOf: [{ $ref: ../common.yaml#/Percent }]
+      allOf: [{ $ref: '#/ProjectRatio' }]
       description: >-
-        From `0` to `1` inclusive, a ratio; refused from In progress onwards, 409
-        `STATE_FORBIDS_OPERATION`, `params.missing_condition` at `project_before_in_progress`
-        (WF-PRJ-0090). Absent, the value does not change.
+        From `0` to `1` inclusive, a ratio, at four decimals, a hundredth of a percent
+        (`ProjectRatio`, WF-PRJ-0040).
+    win_probability:
+      allOf: [{ $ref: '#/ProjectRatio' }]
+      description: >-
+        From `0` to `1` inclusive, a ratio, at four decimals (`ProjectRatio`); refused from In
+        progress onwards, 409 `STATE_FORBIDS_OPERATION`, `params.missing_condition` at
+        `project_before_in_progress` (WF-PRJ-0090). Absent, the value does not change.
     order_received_on:
       anyOf: [{ $ref: ../common.yaml#/PlanningDate }, { type: 'null' }]
       description: Null clears it; absent, it does not change.

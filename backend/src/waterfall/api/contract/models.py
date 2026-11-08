@@ -22,6 +22,7 @@ class ErrorCode(StrEnum):
     PERMISSION_MISSING = "PERMISSION_MISSING"
     NOT_CONTRIBUTOR = "NOT_CONTRIBUTOR"
     NOT_PROJECT_MANAGER = "NOT_PROJECT_MANAGER"
+    SESSION_ID_MISSING = "SESSION_ID_MISSING"
     NOT_FOUND = "NOT_FOUND"
     STATE_FORBIDS_OPERATION = "STATE_FORBIDS_OPERATION"
     ALREADY_EXISTS = "ALREADY_EXISTS"
@@ -61,6 +62,7 @@ class ErrorCode(StrEnum):
     UNKNOWN_TASK = "UNKNOWN_TASK"
     INACTIVE_REFERENCE_OBJECT = "INACTIVE_REFERENCE_OBJECT"
     ORG_NODE_CYCLE = "ORG_NODE_CYCLE"
+    NODE_CYCLE = "NODE_CYCLE"
     NODE_NOT_SIBLING = "NODE_NOT_SIBLING"
     MILESTONE_HAS_NO_SUBTASK = "MILESTONE_HAS_NO_SUBTASK"
     MILESTONE_REQUIRED = "MILESTONE_REQUIRED"
@@ -70,6 +72,7 @@ class ErrorCode(StrEnum):
     UPLOAD_PURPOSE_MISMATCH = "UPLOAD_PURPOSE_MISMATCH"
     BACKUP_FROM_NEWER_VERSION = "BACKUP_FROM_NEWER_VERSION"
     TASK_INTERRUPTED_BY_RESTORE = "TASK_INTERRUPTED_BY_RESTORE"
+    TASK_TREE_IMAGE_TOO_LARGE = "TASK_TREE_IMAGE_TOO_LARGE"
     PROVISION_CATEGORY_RESERVED = "PROVISION_CATEGORY_RESERVED"
     PROVISION_CATEGORY_REQUIRED = "PROVISION_CATEGORY_REQUIRED"
     PROVISION_LINE_MOVED_BY_RISK = "PROVISION_LINE_MOVED_BY_RISK"
@@ -560,7 +563,7 @@ class BackgroundTaskRef(ContractModel):
     kind: Annotated[
         Kind,
         Field(
-            description="What the task does. `backup` takes the backup of the two databases and verifies it; `restore` follows the whole restore, from entering maintenance to leaving it: it only moves to `succeeded` once maintenance is lifted, and an interrupted restore resumes from the beginning; an archive from a version more recent than the installation is refused before maintenance, the task failing with `BACKUP_FROM_NEWER_VERSION` (WF-ARC-0090, WF-ADM-0160); `identity_sync` reads the accounts of the identity provider (WF-ADM-0070); `revision_mark` freezes the revision and calculates its indicators, and fails without freezing anything with `HOURLY_RATE_MISSING`, `params.missing_rates` naming the labour categories without a rate for the reference year (`markRevision`, WF-DEV-0010); `import_analysis` analyses an imported file before anything is applied (`openImport`); `import_apply` applies an analysed import (`applyImport`); `structure_merge` merges a differential into the main structure (`mergeCostStructure`); `risk_occurrence` merges the own estimate of a risk declared occurred into the main structure (`declareRiskOccurrence`); `export` produces an export file, read through `getBackgroundTaskResult` (`requestExport`)."
+            description="What the task does. `backup` takes the backup of the two databases and verifies it; `restore` follows the whole restore, from entering maintenance to leaving it: it only moves to `succeeded` once maintenance is lifted, and an interrupted restore resumes from the beginning; an archive from a version more recent than the installation is refused before maintenance, the task failing with `BACKUP_FROM_NEWER_VERSION` (WF-ARC-0090, WF-ADM-0160); `identity_sync` reads the accounts of the identity provider (WF-ADM-0070); `revision_mark` freezes the revision and calculates its indicators, and fails without freezing anything with `HOURLY_RATE_MISSING`, `params.missing_rates` naming the labour categories without a rate for the reference year (`markRevision`, WF-DEV-0010); `import_analysis` analyses an imported file before anything is applied (`openImport`); `import_apply` applies an analysed import (`applyImport`); `structure_merge` merges a differential into the main structure (`mergeCostStructure`); `risk_occurrence` merges the own estimate of a risk declared occurred into the main structure (`declareRiskOccurrence`); `export` produces an export file, read through `getBackgroundTaskResult` (`requestExport`); the image of the task tree is not drawn beyond one hundred million pixels, the task then failing with `TASK_TREE_IMAGE_TOO_LARGE` (WF-PLA-0120)."
         ),
     ]
     status: BackgroundTaskStatus
@@ -1999,7 +2002,12 @@ class OrgNodeUpdate(OrgNodeWrite):
 
 
 class Hours(RootModel[Decimal]):
-    root: Annotated[Decimal, Field(description="Number of hours, exact decimal.")]
+    root: Annotated[
+        Decimal,
+        Field(
+            description="Number of hours, exact decimal. The hours, durations and floats the server computes — the instants the engine places a task at, a duration drawn from dates, a total float — are rendered at ten decimals at most, a half to the even, then stored so: a ten-billionth of an hour, finer than any entry, so that an hour read and sent back as the date of a manual task is the one the engine placed (#2460, #2506). An entry keeps the decimals it was sent with."
+        ),
+    ]
 
 
 class RoleCapacity(ContractModel):
@@ -2507,6 +2515,19 @@ class ProjectCode(RootModel[str]):
     ]
 
 
+class ProjectRatio(RootModel[str]):
+    model_config = ConfigDict(
+        regex_engine="python-re",
+    )
+    root: Annotated[
+        str,
+        Field(
+            description="A ratio of a project — its inflation rate, its win probability (WF-PRJ-0040, WF-PRJ-0090) —, kept at four decimals, a hundredth of a percent, as `Money` is kept at two: a fifth significant decimal is refused by `updateProject`, never rounded, with 422 `VALIDATION_FAILED`, `fields` designating the field, without a parameter (WF-DAT-0100; #2305); zeros beyond the fourth decimal change nothing, `0.12340` being `0.1234`. A value outside `0` to `1` is refused first by its bound (`VALUE_OUT_OF_RANGE`).",
+            pattern="(?=^-?\\d+(\\.\\d+)?$)(?=^-?\\d+(\\.\\d{1,4}0*)?$)",
+        ),
+    ]
+
+
 class PlanningDate(RootModel[date_aliased]):
     root: Annotated[
         date_aliased, Field(description="Date without time, in ISO 8601 (WF-DAT-0100).")
@@ -2560,15 +2581,15 @@ class Project(ContractModel):
     ]
     state: ProjectState
     inflation_rate: Annotated[
-        Percent,
+        ProjectRatio,
         Field(
-            description="Annual inflation rate, 0 by default, modifiable at any time (WF-PRJ-0040): a ratio, from `0` to `1` inclusive — `0.03` for 3% —, outside of which `updateProject` refuses the value (`VALUE_OUT_OF_RANGE`)."
+            description="Annual inflation rate, 0 by default, modifiable at any time (WF-PRJ-0040): a ratio, from `0` to `1` inclusive — `0.03` for 3% —, outside of which `updateProject` refuses the value (`VALUE_OUT_OF_RANGE`), at four decimals, a hundredth of a percent (`ProjectRatio`)."
         ),
     ]
     win_probability: Annotated[
-        Percent,
+        ProjectRatio,
         Field(
-            description="Win probability, 0 by default, with no effect on any calculation of the project (WF-PRJ-0090): a ratio, from `0` to `1` inclusive, outside of which `updateProject` refuses the value (`VALUE_OUT_OF_RANGE`). Modifiable in the Created and Pricing states, frozen from In progress onwards: the `update_win_probability` command states it in advance, and a value sent regardless is refused with 409 `STATE_FORBIDS_OPERATION`, `params.missing_condition` at `project_before_in_progress`."
+            description="Win probability, 0 by default, with no effect on any calculation of the project (WF-PRJ-0090): a ratio, from `0` to `1` inclusive, outside of which `updateProject` refuses the value (`VALUE_OUT_OF_RANGE`), at four decimals (`ProjectRatio`). Modifiable in the Created and Pricing states, frozen from In progress onwards: the `update_win_probability` command states it in advance, and a value sent regardless is refused with 409 `STATE_FORBIDS_OPERATION`, `params.missing_condition` at `project_before_in_progress`."
         ),
     ]
     order_received_on: Annotated[
@@ -2632,12 +2653,15 @@ class ProjectUpdate(ContractModel):
     ] = None
     code: ProjectCode | None = None
     inflation_rate: Annotated[
-        Percent | None, Field(description="From `0` to `1` inclusive, a ratio (WF-PRJ-0040).")
+        ProjectRatio | None,
+        Field(
+            description="From `0` to `1` inclusive, a ratio, at four decimals, a hundredth of a percent (`ProjectRatio`, WF-PRJ-0040)."
+        ),
     ] = None
     win_probability: Annotated[
-        Percent | None,
+        ProjectRatio | None,
         Field(
-            description="From `0` to `1` inclusive, a ratio; refused from In progress onwards, 409 `STATE_FORBIDS_OPERATION`, `params.missing_condition` at `project_before_in_progress` (WF-PRJ-0090). Absent, the value does not change."
+            description="From `0` to `1` inclusive, a ratio, at four decimals (`ProjectRatio`); refused from In progress onwards, 409 `STATE_FORBIDS_OPERATION`, `params.missing_condition` at `project_before_in_progress` (WF-PRJ-0090). Absent, the value does not change."
         ),
     ] = None
     order_received_on: Annotated[
@@ -3415,7 +3439,7 @@ class ComparedTaskFacet(ContractModel):
     calendar_hours: Annotated[
         WeeklyHours | None,
         Field(
-            description="Computed, never entered: the hours of each day of the week of the calendar applicable to the task, the one on which its dates and its duration are counted (WF-PLA-0010) — each day, the smallest of the numbers of hours that the calendars of the roles of its labour lines grant it; the default calendar if it carries none. A summary task and a milestone follow the same rule, on only the lines they carry: a summary task does not inherit the calendars of its subordinates, each of which has its own, and its dates as well as its duration are counted on its own (WF-PLA-0040). A day at 0 hours is a non-working day of the task, which the Gantt distinguishes; the contract knows no public holidays (WF-REF-0110). On a marked revision, the hours of the calendars it freezes (`EmployedReference`)."
+            description="Computed, never entered: the hours of each day of the week of the calendar applicable to the task, the one on which its dates and its duration are counted (WF-PLA-0010) — each day, the smallest of the numbers of hours that the calendars of the roles of its labour lines grant it; the default calendar if it carries none. A summary task and a milestone follow the same rule, on only the lines they carry: a summary task does not inherit the calendars of its subordinates, each of which has its own, and its dates as well as its duration are counted on its own (WF-PLA-0040). A day at 0 hours is a non-working day of the task, which the Gantt distinguishes; the contract knows no public holidays (WF-REF-0110). On a marked revision, read as the current one is, the hours of the calendars of the project today, not of those it froze: they may differ from the hours its frozen dates were counted on (#2491)."
         ),
     ] = None
     total_float: Annotated[
@@ -3996,7 +4020,7 @@ class TaskFacet(ContractModel):
     calendar_hours: Annotated[
         WeeklyHours,
         Field(
-            description="Computed, never entered: the hours of each day of the week of the calendar applicable to the task, the one on which its dates and its duration are counted (WF-PLA-0010) — each day, the smallest of the numbers of hours that the calendars of the roles of its labour lines grant it; the default calendar if it carries none. A summary task and a milestone follow the same rule, on only the lines they carry: a summary task does not inherit the calendars of its subordinates, each of which has its own, and its dates as well as its duration are counted on its own (WF-PLA-0040). A day at 0 hours is a non-working day of the task, which the Gantt distinguishes; the contract knows no public holidays (WF-REF-0110). On a marked revision, the hours of the calendars it freezes (`EmployedReference`)."
+            description="Computed, never entered: the hours of each day of the week of the calendar applicable to the task, the one on which its dates and its duration are counted (WF-PLA-0010) — each day, the smallest of the numbers of hours that the calendars of the roles of its labour lines grant it; the default calendar if it carries none. A summary task and a milestone follow the same rule, on only the lines they carry: a summary task does not inherit the calendars of its subordinates, each of which has its own, and its dates as well as its duration are counted on its own (WF-PLA-0040). A day at 0 hours is a non-working day of the task, which the Gantt distinguishes; the contract knows no public holidays (WF-REF-0110). On a marked revision, read as the current one is, the hours of the calendars of the project today, not of those it froze: they may differ from the hours its frozen dates were counted on (#2491)."
         ),
     ]
     total_float: Annotated[
@@ -4525,6 +4549,68 @@ class StructureMerge(ContractModel):
             description="The counter of the differential that the report read (`StructureMergeReport.amendment_lock_version`)."
         ),
     ]
+
+
+class NodeProjection(ContractModel):
+    node_id: Uuid
+    lineage_id: Uuid | None = None
+    kind: NodeKind | None = None
+    parent_id: Annotated[
+        Uuid | None, Field(description="Null for a node of the first level of the structure.")
+    ] = None
+    position: Annotated[
+        int | None,
+        Field(
+            description="Rank of the node among the siblings under its parent — the lines of a task, then its subtasks, in outline order —, starting from 1. Computed, it is not written: a creation or a move designates its place by the node after which to place itself (`NodeCreate.after_node_id`, `NodeMove.after_node_id`; #1183). On the read of a differential and on a comparison, the removed nodes returned count in it, at the place they had (`NodeDifference`).",
+            ge=1,
+        ),
+    ] = None
+    row_number: Annotated[
+        int,
+        Field(
+            description="Row number, computed on read in the numbering of the whole structure — its tasks and its lines, in outline order —, whatever the read returns, its filters, its search and its sort. On the read of a differential and on a comparison, the removed nodes returned count in it, each occupying its row (`NodeDifference`).",
+            ge=1,
+        ),
+    ]
+    level: Annotated[int, Field(ge=1)]
+    origin_risk_id: Annotated[
+        Uuid | None,
+        Field(
+            description="The risk whose occurrence merged this node, task or line, into the main structure (WF-RIS-0060); null for any other. Read-only: the occurrence sets it on each task and each line it merges, and no write changes it. The copy of a revision, moves, imports that match the node by its lineage (`lineage_id`) and the merge of an amendment keep it; a creation leaves it null, even under a task that came from a risk. It finds the lines that came from an occurred risk, which the filters `is_from_risk` and `origin_risk_ids` retain, and whose re-estimated amount is compared with the cost at occurrence (`Risk.occurred_reestimated_amount`; #1761)."
+        ),
+    ] = None
+    task: Annotated[ComparedTaskFacet | None, Field(description="Null for an estimate line.")] = (
+        None
+    )
+    estimate_line: Annotated[
+        ComparedEstimateLineFacet | None, Field(description="Null for a task.")
+    ] = None
+    predecessors: list[Predecessor] | None = None
+    computed_fields: Annotated[
+        list[ComputedField] | None,
+        Field(
+            description="Enterable fields — through the write schema or, for progress, through its command — that the server computes for this very node: the dates of an automatic task, the mode — always automatic (WF-PLA-0040) —, the dates, the duration and the progress of a summary task, the category of a labour line, that of its role (WF-DEV-0020), the figures of a provision line and its subproject, the one that its risk designates (WF-RIS-0010). The front presents them as computed and does not offer to enter them (WF-IHM-0030); it deduces nothing from the mode or from the kind of the node."
+        ),
+    ] = None
+    editable_fields: Annotated[
+        list[EditableField] | None,
+        Field(
+            description='Fields of the facet that this very node accepts for writing, symmetrical to `computed_fields`: a labour line carries the role and the effort, never its category, which is that of its role (Vérif of WF-DEV-0020), a non-labour line its category and the unit disbursement, both the payment delay — null by default for labour, and "enterable on any line other than a provision line" (WF-DEV-0020, WF-IND-0100; #785) —, a provision line neither the ones nor the others, nor its subproject, which its risk designates and changes only as long as it is identified (`RiskCommand.update_provision`, WF-RIS-0010); a line whose task is started or completed, and whose subproject has received actual costs, does not name it either: it cannot leave that subproject (`SUBPROJECT_HAS_ACTUAL_COSTS`, WF-PRJ-0050); a line of the main structure whose task is completed names none, its label included: it is not modified as long as the task is not reopened from the Kanban (`task_not_completed`, WF-RAE-0040, WF-DEV-0050), its remaining to commit falling under `remaining_entry` — a line of a differential names them whatever the state of its task, the amendment re-budgeting it (WF-REV-0050; F-01, #1766) —; a manual task carries its dates, a milestone has no duration to enter, a summary task neither mode, nor duration, nor dates, nor progress (WF-PLA-0040, WF-PLA-0130). A field computed for this node never appears in it. The grid offers entry of a cell only if its field appears in it, without deducing anything from the kind of the category or from the mode (WF-IHM-0040); what the caller has the right to write falls under the revision\'s commands, not this list.'
+        ),
+    ] = None
+    lock_version: LockVersion
+    difference: Annotated[
+        NodeDifference | None,
+        Field(
+            description="The node's difference, which the server returns and the front does not compute: on the read of a differential, with the main structure of its revision; in a comparison of two revisions (`RevisionComparison`), with the base revision (WF-REV-0080, WF-REV-0100, C-361). Always returned on these two reads, whether `fields` names it or not; null — or omitted — on the main structure and on a risk's own estimate, which are read relative to nothing."
+        ),
+    ] = None
+    changes: Annotated[
+        list[NodeChange] | None,
+        Field(
+            description="What changes of the node itself, in the order of `NodeChange`, returned with `difference`: empty for a node added, removed or unchanged, and for a task marked modified by its content alone — a line or a subordinate added, removed, modified or moved."
+        ),
+    ] = None
 
 
 class WorkInstantWrite(ContractModel):

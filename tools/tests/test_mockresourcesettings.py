@@ -352,7 +352,11 @@ def test_a_calendar_emptied_of_its_hours_is_refused_naming_its_roles_and_its_pro
     # Cited after the hours out of range, which stays the first, the fake back's.
     said = _block("updateCalendar").split("'422':", 1)[1].split("\n      '", 1)[0]
     cited = re.findall(r"fixtures/api/([a-z_]+)\.json", said)
-    assert cited == ["calendar_hours_refused", "calendar_update_without_hours"]
+    assert cited == [
+        "calendar_hours_refused",
+        "calendar_update_without_hours",
+        "calendar_update_horizon_exceeded",
+    ]
 
 
 def test_only_a_move_is_refused_under_a_deactivated_node() -> None:

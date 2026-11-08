@@ -91,6 +91,7 @@ from waterfall.core.revisions.interface.structures import (
     structure_commands,
     structure_facts,
     structure_in_revision,
+    structure_phase_conditions,
     structure_rescheduled,
     write_structure,
 )
@@ -144,6 +145,7 @@ __all__ = [
     "structure_commands",
     "structure_facts",
     "structure_in_revision",
+    "structure_phase_conditions",
     "structure_rescheduled",
     "submit_marking",
     "write_structure",

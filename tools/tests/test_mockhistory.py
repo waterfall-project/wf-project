@@ -101,6 +101,7 @@ _SEQUELS = {
     "task_import_succeeded.json",
     "task_export_queued.json",
     "task_export_succeeded.json",
+    "task_export_tree_image_too_large.json",
     "task_merge_outside_work_package.json",
     "task_merge_link_cycle.json",
     "task_merge_link_forbidden.json",

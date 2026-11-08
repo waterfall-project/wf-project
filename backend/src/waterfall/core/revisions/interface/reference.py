@@ -28,14 +28,14 @@ from typing import TYPE_CHECKING, Literal
 from sqlalchemy import func, select
 
 from waterfall.core.projects.interface import (
+    PROJECT_NOT_TERMINAL,
+    TERMINAL,
     lock_for_designation,
     no_background_task_running,
     require_project_manager,
     set_reference_revision,
 )
 from waterfall.core.revisions.commands import (
-    PROJECT_NOT_TERMINAL,
-    TERMINAL,
     RevisionState,
     revision_conditions,
 )

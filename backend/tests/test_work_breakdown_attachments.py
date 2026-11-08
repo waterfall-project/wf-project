@@ -436,17 +436,17 @@ def test_a_refusal_of_a_selection_names_the_first_node_concerned_at_its_place_se
     ]
 
 
-def test_a_selection_that_holds_a_node_and_its_descendant_is_judged_as_the_places_it_gives(
+def test_a_selection_that_holds_a_node_and_its_descendant_keeps_the_item_under_its_package(
     tree: Tree, elements: tuple[str, str]
 ) -> None:
-    # The task of the package and the task of its order item sent together under another task are
-    # placed side by side: the second is out of the subtree of the first, and refused.
+    # The task of the package and the task of its order item sent together under another task: the
+    # descendant is left to its ancestor, the group moved whole (#2507), and the task of the item
+    # stays in the subtree of the task of its package.
     package, item = elements
     summary = tree.made("Poste de commande", task={"work_package_id": package})
     inside = tree.made("Câblage", parent_id=summary["node_id"], task={"order_item_id": item})
     outside = tree.made("Installation sur site")
     answer = move_sent(tree, [summary["node_id"], inside["node_id"]], outside["node_id"])
-    assert [(pointer, code) for pointer, code, _ in faults(answer)] == [
-        ("/node_ids/0", "ORDER_ITEM_OUTSIDE_WORK_PACKAGE")
-    ]
+    assert answer.status_code == 200, answer.text
+    assert tree.node(summary["node_id"])["parent_id"] == outside["node_id"]
     assert tree.node(inside["node_id"])["parent_id"] == summary["node_id"]
