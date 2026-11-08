@@ -451,6 +451,13 @@ ErrorCode:
     - PERMISSION_MISSING
     - NOT_CONTRIBUTOR
     - NOT_PROJECT_MANAGER
+    # Also 403, on the two operations of the history alone (`undoLastChange`, `redoLastUndo`,
+    # WF-IHM-0110): the token of the caller carries no session of sign-in (`sid`), by which the
+    # history keeps its stacks. A named refusal, not a 401: the token is valid, the caller is
+    # known, and the front must not send them back to the sign-in, which gives the same token
+    # (`SESSION_REQUIRED`); a write made with such a token is made all the same, and enters no
+    # history (#2472).
+    - SESSION_ID_MISSING
     # 404 — object nonexistent or invisible, without distinction (WF-ADM-0110).
     - NOT_FOUND
     # 409 — the current state forbids the operation: the refusal of any command that a state makes

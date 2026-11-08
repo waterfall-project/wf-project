@@ -2505,10 +2505,16 @@
           the entry it undoes — `planning.write`, `estimate.write` or `remaining.write` for an
           entry of the corresponding grid, `planning.write` for the planning start date or the
           label of a structure, `risks.write` for a risk entry (WF-ADM-0100). Nothing is
-          undone.
+          undone. Or the token of the caller carries no session of sign-in (`sid`), by which
+          the server keeps the history: `SESSION_ID_MISSING`, without a parameter — the token is
+          valid and the caller known, so it is not a 401, which would send the front back to a
+          sign-in that gives the same token; a write made with such a token is made all the same
+          and enters no history, so nothing is there to undo (WF-IHM-0110; #2472).
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              session_id_missing: { $ref: ../../../fixtures/api/undo_session_id_missing.json }
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '409':
         description: >-
@@ -2581,10 +2587,13 @@
           the entry it redoes — `planning.write`, `estimate.write` or `remaining.write` for an
           entry of the corresponding grid, `planning.write` for the planning start date or the
           label of a structure, `risks.write` for a risk entry (WF-ADM-0100). Nothing is
-          redone.
+          redone. Or the token of the caller carries no session of sign-in (`sid`):
+          `SESSION_ID_MISSING`, as for the undo (`undoLastChange`; #2472).
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              session_id_missing: { $ref: ../../../fixtures/api/redo_session_id_missing.json }
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '409':
         description: >-

@@ -588,6 +588,8 @@ paths = [
     "fixtures/api/risk_update_occurred_refused.json",
     "fixtures/api/project_update_not_manager.json",
     "fixtures/api/next_state_pricing_without_code.json",
+    "fixtures/api/undo_session_id_missing.json",
+    "fixtures/api/redo_session_id_missing.json",
     "fixtures/api/undo_history_empty.json",
     "fixtures/api/redo_history_empty.json",
     "fixtures/api/task_progress_summary_refused.json",

@@ -78,6 +78,9 @@ from waterfall.core.planning.interface.nodes import (
     DependencyRow as DependencyRow,
 )
 from waterfall.core.planning.interface.nodes import (
+    Ground as Ground,
+)
+from waterfall.core.planning.interface.nodes import (
     InstantSent as InstantSent,
 )
 from waterfall.core.planning.interface.nodes import (
@@ -96,6 +99,9 @@ from waterfall.core.planning.interface.nodes import (
     TaskEntry as TaskEntry,
 )
 from waterfall.core.planning.interface.nodes import (
+    apply_cell as apply_cell,
+)
+from waterfall.core.planning.interface.nodes import (
     computed_value_dependencies as computed_value_dependencies,
 )
 from waterfall.core.planning.interface.nodes import (
@@ -106,6 +112,9 @@ from waterfall.core.planning.interface.nodes import (
 )
 from waterfall.core.planning.interface.nodes import (
     delete_node as delete_node,
+)
+from waterfall.core.planning.interface.nodes import (
+    judge_cell as judge_cell,
 )
 from waterfall.core.planning.interface.nodes import (
     list_nodes as list_nodes,
@@ -123,10 +132,31 @@ from waterfall.core.planning.interface.nodes import (
     revision_has_tasks as revision_has_tasks,
 )
 from waterfall.core.planning.interface.nodes import (
+    traced as traced,
+)
+from waterfall.core.planning.interface.nodes import (
     update_task_facet as update_task_facet,
+)
+from waterfall.core.planning.interface.nodes import (
+    write_cell as write_cell,
 )
 
 # ``paste`` (US-1380/L1; US-1450/L2): the paste of a block of cells.
+from waterfall.core.planning.interface.paste import (
+    PasteApplied as PasteApplied,
+)
+from waterfall.core.planning.interface.paste import (
+    PasteBlock as PasteBlock,
+)
+from waterfall.core.planning.interface.paste import (
+    PasteConfirmation as PasteConfirmation,
+)
+from waterfall.core.planning.interface.paste import (
+    PastePlanned as PastePlanned,
+)
+from waterfall.core.planning.interface.paste import (
+    PasteRefusal as PasteRefusal,
+)
 from waterfall.core.planning.interface.paste import (
     apply_paste as apply_paste,
 )
@@ -175,12 +205,21 @@ from waterfall.core.planning.interface.skeleton import (
     generate_skeleton as generate_skeleton,
 )
 
-# ``snapshots`` (US-1380/L1; US-1380/L2, US-1450/L2): the snapshots the history keeps.
+# ``snapshots`` (US-1380/L1; US-1380/L2, US-1450/L2): the snapshots the history keeps, restored.
+from waterfall.core.planning.interface.snapshots import (
+    UndoDone as UndoDone,
+)
+from waterfall.core.planning.interface.snapshots import (
+    redo_last_undo as redo_last_undo,
+)
 from waterfall.core.planning.interface.snapshots import (
     restore as restore,
 )
 from waterfall.core.planning.interface.snapshots import (
     snapshot as snapshot,
+)
+from waterfall.core.planning.interface.snapshots import (
+    undo_last_change as undo_last_change,
 )
 
 # ``structures`` (US-1380/L1; US-1380/L2, US-1390/L2): the dates, the start and the label.
@@ -189,6 +228,9 @@ from waterfall.core.planning.interface.structures import (
 )
 from waterfall.core.planning.interface.structures import (
     reschedule as reschedule,
+)
+from waterfall.core.planning.interface.structures import (
+    structure_state as structure_state,
 )
 from waterfall.core.planning.interface.structures import (
     update_cost_structure as update_cost_structure,

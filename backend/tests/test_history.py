@@ -37,6 +37,7 @@ from waterfall.core.history.interface import (
     ObjectState,
     PlanToKeep,
     RecordedChange,
+    Recording,
     Restoring,
     Snapshot,
     StructureLocker,
@@ -362,6 +363,31 @@ def test_a_write_or_a_restoring_that_hands_no_snapshot_keeps_nothing(stage: Stag
     ):
         pass
     assert depth_of(stage, stage.stack()) == Depth(undoable=1, redoable=0)
+
+
+def test_a_frame_gives_the_nodes_it_was_named_else_those_announced() -> None:
+    announced, named = (uuid4(),), (uuid4(), uuid4())
+    plain = Recording()
+    assert plain.named(announced) == announced
+    awaiting = Recording(awaits=True)
+    awaiting.name(named)
+    assert awaiting.named(()) == named
+    # Naming none is a naming too: the write judged that it touches no node.
+    nothing = Recording(awaits=True)
+    nothing.name(())
+    assert nothing.named(()) == ()
+
+
+def test_a_frame_that_awaits_its_names_refuses_to_give_an_entry_without_nodes() -> None:
+    with pytest.raises(RuntimeError, match="must name them"):
+        Recording(awaits=True).named(())
+
+
+def test_a_frame_refuses_to_be_named_twice() -> None:
+    frame = Recording(awaits=True)
+    frame.name((uuid4(),))
+    with pytest.raises(RuntimeError, match="once"):
+        frame.name((uuid4(),))
 
 
 def test_two_undoings_of_one_stack_at_once_undo_two_entries_one_after_the_other(

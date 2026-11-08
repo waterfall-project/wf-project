@@ -27,8 +27,8 @@ from typing import TYPE_CHECKING
 from waterfall.core.history import interface as history
 from waterfall.core.history.interface import RecordedChange, Recording, UndoStack
 from waterfall.core.planning.dating import conflicts_of
-from waterfall.core.planning.interface.snapshots import snapshot
 from waterfall.core.planning.rescheduling import Blamed, Holding, replayed
+from waterfall.core.planning.snapshotting import taken
 from waterfall.core.planning.tree import read_links, read_tree
 from waterfall.core.planning.views import NodeView, Reading, ScheduleView
 from waterfall.core.projects.interface import (
@@ -100,7 +100,7 @@ def facts_of(session: Session, place: Place, *, lock: bool) -> StructureFacts:
     return facts
 
 
-def judge_revision(session: Session, place: Place) -> None:
+def judge_revision(session: Session, project_id: UUID, revision_id: UUID) -> None:
     """Refuse a write the state forbids, the first missing condition named (409).
 
     The revision is read under ``FOR SHARE``: its marking and its abandonment wait for the write,
@@ -108,14 +108,14 @@ def judge_revision(session: Session, place: Place) -> None:
     it to have none).
     """
     try:
-        revision_draft(session, place.revision_id)
+        revision_draft(session, revision_id)
     except ConflictError:
-        if project_facts(session, place.project_id).state in TERMINAL:
+        if project_facts(session, project_id).state in TERMINAL:
             raise ConflictError(
                 STATE_FORBIDS_OPERATION, {"missing_condition": PROJECT_NOT_TERMINAL}
             ) from None
         raise
-    if not no_background_task_running(session, place.project_id):
+    if not no_background_task_running(session, project_id):
         raise ConflictError(
             STATE_FORBIDS_OPERATION, {"missing_condition": NO_BACKGROUND_TASK_RUNNING}
         )
@@ -155,9 +155,13 @@ class Write:
         self.tree = read_tree(session, place.project_id, place.structure_id)
         self.conflicts = conflicts_of(read_links(session, place.project_id, place.structure_id))
 
+    def name(self, node_ids: tuple[UUID, ...]) -> None:
+        """Name the nodes of the entry when the write knows them only once its rows are judged."""
+        self.frame.name(node_ids)
+
     def before(self, node_ids: Collection[UUID]) -> None:
         """Hand the history the nodes the write touches, as they are before it."""
-        self.frame.keep_before(snapshot(self.session, self.place.project_id, node_ids))
+        self.frame.keep_before(taken(self.session, self.place.project_id, node_ids))
 
     def redate(self, blamed: tuple[UUID | None, str] | None, origin: Origin = None) -> Redated:
         """Replay the engine on the structure written, keep what it computes, advance it.
@@ -168,22 +172,36 @@ class Write:
         ``origin`` (422 ``LINK_CYCLE``). Nothing is written. The facts of the structure read under
         its lock are handed to the replay, not read again (#2492).
         """
-        place = self.place
         named = None if blamed is None else Blamed(*blamed, origin)
-        done = replayed(
-            self.session,
-            place.project_id,
-            place.structure_id,
-            self.writer.act.at,
-            Holding(self.facts, named, self.conflicts),
-        )
-        structure = (place.project_id, self.writer.act.at, self.facts.is_main)
-        reading = Reading(self.session, structure, done.tree, done.links, done.calendars)
-        return Redated(reading, done.moved, done.counter)
+        held = (self.facts, named, self.conflicts)
+        return redated_structure(self.session, self.place, self.writer.act, held)
 
     def after(self, node_ids: Collection[UUID]) -> None:
         """Hand the history the nodes the write touched, as they are after it, redated."""
-        self.frame.keep_after(snapshot(self.session, self.place.project_id, node_ids))
+        self.frame.keep_after(taken(self.session, self.place.project_id, node_ids))
+
+
+def redated_structure(
+    session: Session,
+    place: Place,
+    act: Act,
+    held: tuple[StructureFacts, Blamed | None, Collection[tuple[UUID, UUID]]],
+) -> Redated:
+    """Replay the engine on a structure its caller holds the lock of; give it as it now stands.
+
+    What a write of the tree does once it has written (``Write.redate``), and an undoing or a
+    redoing, whose frame holds the lock of the structure (``history.undo``). ``held`` is the facts
+    of the structure read under that lock, what the caller names if the engine refuses, and the
+    links in conflict read before the write.
+    """
+    facts, named, conflicts = held
+    done = replayed(
+        session, place.project_id, place.structure_id, act.at, Holding(facts, named, conflicts)
+    )
+    reading = Reading(
+        session, (place.project_id, act.at, facts.is_main), done.tree, done.links, done.calendars
+    )
+    return Redated(reading, done.moved, done.counter)
 
 
 @dataclass(frozen=True, slots=True)
@@ -234,6 +252,6 @@ def writing(
     snapshots (``Write.before``, ``Write.after``); a block that raises keeps nothing.
     """
     facts_of(session, place, lock=False)
-    judge_revision(session, place)
+    judge_revision(session, place.project_id, place.revision_id)
     with _recorded(session, place, writer, change) as frame:
         yield Write(session, place, writer, frame)

@@ -516,6 +516,77 @@ def create_node(
         return redated.written((node_id,))
 
 
+@dataclass(frozen=True, slots=True)
+class Ground:
+    """What a cell is judged on: the tree of its structure as read, under its lock or not.
+
+    ``is_main`` tells whether the structure is the main one, the only to bear an attachment.
+    """
+
+    session: Session
+    project_id: UUID
+    tree: Tree
+    is_main: bool
+
+
+def judge_cell(ground: Ground, node_id: UUID, entry: TaskEntry) -> tuple[Facet, Attached]:
+    """Judge what is sent of the facet of a task, and of its attachment, all refusals at once.
+
+    The rules of the entry of a cell, which the paste of a block applies to each of its rows
+    (``UnprocessableError`` when the entry is refused); nothing is written.
+    """
+    session, tree = ground.session, ground.tree
+    task = tree.tasks[node_id]
+    applicable = calendar_of(session, ground.project_id, node_id).calendar
+    carried = (task.work_package_id, task.order_item_id)
+    bearer = Bearer(node_id, task.label, tuple(tree.ancestors(node_id)), carried)
+    held = (ground.project_id, tree, ground.is_main)
+    attached = judged_attachment(session, held, bearer, entry.attachment(creation=False), "")
+    facet = _together(
+        lambda: judged_change(tree, task, entry, applicable, constants_of(session)), attached
+    )
+    return facet, attached
+
+
+def apply_cell(task: Task, entry: TaskEntry, judged: tuple[Facet, Attached]) -> None:
+    """Set what ``judge_cell`` accepted on the facet of a task, its node left as it is."""
+    facet, attached = judged
+    if "label" in entry.sent and entry.label is not None:
+        task.label = entry.label
+    if "description" in entry.sent:
+        task.description = entry.description
+    task.scheduling_mode = facet.scheduling_mode
+    task.duration_value = facet.duration.value
+    task.duration_unit = facet.duration.unit
+    if facet.start is not None and facet.finish is not None:
+        task.start_date, task.start_hours = facet.start.day, facet.start.hours
+        task.finish_date, task.finish_hours = facet.finish.day, facet.finish.hours
+    task.work_package_id = attached.work_package_id
+    task.order_item_id = attached.order_item_id
+
+
+def write_cell(
+    ground: Ground, node_id: UUID, entry: TaskEntry, judged: tuple[Facet, Attached], act: Act
+) -> None:
+    """Write what ``judge_cell`` accepted on the facet of a task; count the write of its node."""
+    apply_cell(ground.tree.tasks[node_id], entry, judged)
+    stamp(ground.tree.nodes[node_id], act)
+
+
+def traced(ground: Ground) -> Ground:
+    """Give a ground whose tasks are copies, so that a write can be traced on it, nothing written.
+
+    A paste previewed judges each row on the ground the writes of the rows before it leave, as the
+    paste applied does; the copies are never added to the session.
+    """
+    tasks = {
+        node_id: Task(**{attr.key: getattr(task, attr.key) for attr in inspect(Task).column_attrs})
+        for node_id, task in ground.tree.tasks.items()
+    }
+    tree = Tree(ground.tree.nodes, tasks)
+    return Ground(ground.session, ground.project_id, tree, ground.is_main)
+
+
 def update_task_facet(
     session: Session,
     place: Place,
@@ -539,27 +610,10 @@ def update_task_facet(
             raise PreconditionFailedError(
                 STALE_LOCK_VERSION, {"expected_lock_version": node.lock_version}
             )
-        applicable = calendar_of(session, place.project_id, node_id).calendar
-        carried = (task.work_package_id, task.order_item_id)
-        bearer = Bearer(node_id, task.label, tuple(tree.ancestors(node_id)), carried)
-        attached = _attached(write, bearer, entry.attachment(creation=False), "")
-        facet = _together(
-            lambda: judged_change(tree, task, entry, applicable, constants_of(session)), attached
-        )
+        ground = Ground(session, place.project_id, tree, write.facts.is_main)
+        judged = judge_cell(ground, node_id, entry)
         write.before((node_id,))
-        if "label" in entry.sent and entry.label is not None:
-            task.label = entry.label
-        if "description" in entry.sent:
-            task.description = entry.description
-        task.scheduling_mode = facet.scheduling_mode
-        task.duration_value = facet.duration.value
-        task.duration_unit = facet.duration.unit
-        if facet.start is not None and facet.finish is not None:
-            task.start_date, task.start_hours = facet.start.day, facet.start.hours
-            task.finish_date, task.finish_hours = facet.finish.day, facet.finish.hours
-        task.work_package_id = attached.work_package_id
-        task.order_item_id = attached.order_item_id
-        stamp(node, writer.act)
+        write_cell(ground, node_id, entry, judged, writer.act)
         redated = write.redate((node_id, task.label))
         write.after((node_id,))
         return redated.written((node_id,))
@@ -691,7 +745,7 @@ def delete_node(
         if left_bare and parent is not None:
             emptied(tree, parent)
             stamp(tree.nodes[parent], writer.act)
-        deleted(write, subtree)
+        deleted(session, place.project_id, tree, subtree)
         redated = write.redate(None)
         write.after(touched)
         return redated.written((), former)

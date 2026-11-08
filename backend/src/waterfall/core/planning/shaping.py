@@ -26,6 +26,8 @@ if TYPE_CHECKING:
     from collections.abc import Collection
     from uuid import UUID
 
+    from sqlalchemy.orm import Session
+
     from waterfall.core.planning.tree import Tree
     from waterfall.core.planning.writing import Write
     from waterfall.platform.audit import Act
@@ -71,14 +73,14 @@ def emptied(tree: Tree, parent_id: UUID) -> None:
         task.duration_value, task.duration_unit = Decimal(1), "d"
 
 
-def deleted(write: Write, node_ids: list[UUID]) -> None:
+def deleted(session: Session, project_id: UUID, tree: Tree, node_ids: list[UUID]) -> None:
     """Delete nodes, their facets, and the inscriptions of lineages no node holds any more.
 
     The facets of the later kinds go by their hooks; the facet task, the links and the children
     follow the nodes by the keys that cascade inside a current revision. An inscription follows
-    its lineage, which a marked revision may still hold (WF-PLA-0060).
+    its lineage, which a marked revision may still hold (WF-PLA-0060). The structure is locked by
+    the caller, which read ``tree`` under that lock.
     """
-    session, project_id, tree = write.session, write.place.project_id, write.tree
     for kind, hooks in facets().items():
         held = [each for each in node_ids if tree.nodes[each].kind == kind]
         if held:
