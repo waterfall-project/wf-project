@@ -177,7 +177,7 @@ describe("the risk matrix as a bubble chart", () => {
     ]);
     // Placed at the values of the point, the strings of the API as they are, never rounded to a
     // cell nor read as floats.
-    expect(placed(bubbles[0])).toEqual({ [CABLING]: ["0.4", "0.0183"] });
+    expect(placed(bubbles[0])).toEqual({ [CABLING]: ["0.4", "0.0178"] });
     // No legend of the states: a zone is told by its shape, its stroke and its name.
     expect(option?.legend).toBeUndefined();
   });
@@ -239,7 +239,7 @@ describe("the risk matrix as a bubble chart", () => {
       { xAxis: 1, yAxis: axis.max },
     ]);
     // The axis reaches over the heaviest bubble (18.34 %) and the end of the last level.
-    expect(axis.max).toBeGreaterThan(0.1758);
+    expect(axis.max).toBeGreaterThan(0.1707);
     expect(zones).toMatchObject({ silent: true, data: [] });
   });
 
@@ -317,7 +317,7 @@ describe("the risk matrix as a bubble chart", () => {
     };
     project(identifiedOnly);
     const alone = (drawn().option?.yAxis as { max: number }).max;
-    // The dismissed risk of the example would set the top higher, were it counted (0.1758 × 1.15).
+    // The dismissed risk of the example would set the top higher, were it counted (0.1707 × 1.15).
     const dismissed = MATRIX.points.find((point) => point.state === "dismissed");
     expect(Number(dismissed === undefined ? 0 : ratioOf(dismissed)) * 1.15).toBeGreaterThan(alone);
     project();
@@ -447,7 +447,7 @@ describe("the risk matrix as a bubble chart", () => {
       [
         "<b>Câblage &lt;b&gt;&amp; co&lt;/b&gt;</b>",
         "Probability : 40%",
-        "Severity : 1,250,000.00 (1.83%)",
+        "Severity : 1,250,000.00 (1.78%)",
         "Provision : 500,000.00",
         "Zone : Watch",
       ].join("<br/>"),

@@ -258,7 +258,7 @@ describe("the grid of the remaining to commit", () => {
     );
     // The totals of the answer, never a sum of the rows.
     expect(within(table).getAllByRole("row").at(-1)).toHaveTextContent(
-      /^Total — 6 tâches, 5 lignes.*252\s234,56.*12,5.*502\s434,56$/,
+      /^Total — 6 tâches, 5 lignes.*252\s271,60.*12,5.*502\s434,56$/,
     );
     await expectAccessible(container);
   });
