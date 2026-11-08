@@ -371,6 +371,14 @@ def test_the_name_of_a_file_is_given_in_ascii_and_in_utf8_without_breaking_the_h
         disposition("日本")
         == "attachment; filename=\"export\"; filename*=UTF-8''%E6%97%A5%E6%9C%AC"
     )
+    assert disposition(".png") == 'attachment; filename="export.png"'
+    assert disposition('日本.a"b') == (
+        "attachment; filename=\"export.a'b\"; filename*=UTF-8''%E6%97%A5%E6%9C%AC.a%22b"
+    )
+    injected = disposition("日本.a\nb\r\n")
+    assert "\n" not in injected
+    assert "\r" not in injected
+    assert injected.startswith('attachment; filename="export.a_b__"')
 
 
 @pytest.mark.requirement("WF-INTF-0050-A")

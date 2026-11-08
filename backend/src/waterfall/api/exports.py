@@ -13,7 +13,6 @@ the result marked consumed; a download that stops before leaves both (WF-DAT-012
 
 import unicodedata
 from collections.abc import Iterator
-from pathlib import PurePosixPath
 from urllib.parse import quote
 from uuid import UUID
 
@@ -55,8 +54,9 @@ def disposition(filename: str) -> str:
     plain = "".join(each if each.isprintable() else "_" for each in stripped).translate(UNQUOTED)
     if not plain or plain.startswith("."):
         # Nothing of the stem is left in ASCII: a hidden file, or no name; keep the extension.
-        suffix = PurePosixPath(filename).suffix.encode("ascii", "ignore").decode()
-        plain = f"export{suffix}"
+        # ``plain`` is already sanitized, so the extension taken from it is too.
+        extension = plain.rpartition(".")[2]
+        plain = f"export.{extension}" if extension else "export"
     quoted = f'attachment; filename="{plain}"'
     if filename.isascii():
         return quoted
