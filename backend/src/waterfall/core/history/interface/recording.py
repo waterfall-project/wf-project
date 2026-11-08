@@ -85,12 +85,21 @@ class RecordedChange:
 class Recording:
     """The frame of a write: the snapshots its caller takes, before the write then after it."""
 
-    __slots__ = ("_after", "_before")
+    __slots__ = ("_after", "_before", "_named")
 
     def __init__(self) -> None:
         """Open the frame: nothing is taken yet."""
         self._before: Snapshot | None = None
         self._after: Snapshot | None = None
+        self._named: tuple[UUID, ...] | None = None
+
+    def name(self, node_ids: tuple[UUID, ...]) -> None:
+        """Name the nodes the entry touches, when the write knows them only once judged."""
+        self._named = node_ids
+
+    def named(self, announced: tuple[UUID, ...]) -> tuple[UUID, ...]:
+        """Give the nodes of the entry: those the write named, else those it announced."""
+        return announced if self._named is None else self._named
 
     def keep_before(self, snapshot: Snapshot) -> None:
         """Keep the objects the write touches as they are before it, read under its locks."""
@@ -132,7 +141,7 @@ def recording(session: Session, change: RecordedChange) -> Generator[Recording]:
             session_id=stack.session_id,
             rank=(top or 0) + 1,
             kind=change.kind,
-            node_ids=list(change.node_ids),
+            node_ids=list(frame.named(change.node_ids)),
             before=encoded(before),
             after=encoded(after),
             undone=False,

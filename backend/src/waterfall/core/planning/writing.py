@@ -153,6 +153,10 @@ class Write:
         self.tree = read_tree(session, place.project_id, place.structure_id)
         self.conflicts = conflicts_of(read_links(session, place.project_id, place.structure_id))
 
+    def name(self, node_ids: tuple[UUID, ...]) -> None:
+        """Name the nodes of the entry when the write knows them only once its rows are judged."""
+        self.frame.name(node_ids)
+
     def before(self, node_ids: Collection[UUID]) -> None:
         """Hand the history the nodes the write touches, as they are before it."""
         self.frame.keep_before(taken(self.session, self.place.project_id, node_ids))

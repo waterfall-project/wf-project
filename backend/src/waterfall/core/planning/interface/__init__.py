@@ -103,6 +103,9 @@ from waterfall.core.planning.interface.nodes import (
     TaskEntry as TaskEntry,
 )
 from waterfall.core.planning.interface.nodes import (
+    apply_cell as apply_cell,
+)
+from waterfall.core.planning.interface.nodes import (
     computed_value_dependencies as computed_value_dependencies,
 )
 from waterfall.core.planning.interface.nodes import (
@@ -131,6 +134,9 @@ from waterfall.core.planning.interface.nodes import (
 )
 from waterfall.core.planning.interface.nodes import (
     revision_has_tasks as revision_has_tasks,
+)
+from waterfall.core.planning.interface.nodes import (
+    traced as traced,
 )
 from waterfall.core.planning.interface.nodes import (
     update_task_facet as update_task_facet,

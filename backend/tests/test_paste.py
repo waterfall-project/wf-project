@@ -371,7 +371,32 @@ def test_the_rules_of_the_attachment_judge_the_cells_of_the_work_breakdown_colum
         "node_id": first["node_id"],
         "label": "Étude",
     }
-    assert item
+    # An order item pasted under the task of its work package is written, and borne by that task.
+    child = tree.made("Sous-étude", who=who, parent_id=first["node_id"])
+    inside = applied(tree, planned(tree, child, "work_breakdown", [["Poste"]], who), who)
+    assert [each["node_id"] for each in inside["nodes"]] == [child["node_id"]]
+    assert tree.node(child["node_id"])["task"]["order_item_id"] == str(item)
+
+
+@pytest.mark.requirement("WF-IHM-0050-A")
+def test_two_rows_naming_the_same_element_are_judged_by_the_preview_as_the_confirmation_does(
+    tree: Tree, stage: Scene, who: Person
+) -> None:
+    # The confirmation writes the rows one after the other, each judged on what the one before
+    # wrote: the preview does the same, so that no refusal is found only once confirmed.
+    package, _ = work_breakdown(stage)
+    first = tree.made("Étude", who=who)
+    second = tree.made("Travaux", who=who)
+    plan = planned(tree, first, "work_breakdown", [["Lot"], ["Lot"]], who)
+    assert (plan["accepted"], reasons(plan)) == (
+        1,
+        [(1, "work_breakdown", "WORK_BREAKDOWN_ITEM_ALREADY_ATTACHED")],
+    )
+    body = applied(tree, plan, who)
+    assert reasons(body) == reasons(plan)
+    assert [each["node_id"] for each in body["nodes"]] == [first["node_id"]]
+    assert tree.node(first["node_id"])["task"]["work_package_id"] == str(package)
+    assert tree.node(second["node_id"])["task"]["work_package_id"] is None
 
 
 @pytest.mark.requirement("WF-IHM-0050-A")
@@ -507,6 +532,8 @@ def test_the_rows_of_a_plan_are_judged_again_and_a_row_refused_since_moves_into_
     assert body["structure_lock_version"] == before + 1
     assert tree.node(second["node_id"])["task"]["work_package_id"] is None
     assert plans(stage) == []
+    # The entry of the history names the nodes written, not those of the plan.
+    assert entries(stage)[-1].node_ids == [UUID(first["node_id"])]
 
 
 @pytest.mark.requirement("WF-IHM-0050-A")

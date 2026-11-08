@@ -35,7 +35,9 @@ from waterfall.core.planning.interface.nodes import (
     Ground,
     InstantSent,
     TaskEntry,
+    apply_cell,
     judge_cell,
+    traced,
     write_cell,
 )
 from waterfall.core.planning.scheduling import Duration
@@ -307,6 +309,19 @@ def _judged(ground: Ground, items: Mapping[str, list[WorkBreakdownItem]], row: _
     return _Outcome(entry, None if refusals else judged, tuple(refusals))
 
 
+def _settled(ground: Ground, items: Mapping[str, list[WorkBreakdownItem]], row: _Row) -> _Outcome:
+    """Judge a row on the ground, and trace it there if accepted, for the rows after it.
+
+    The ground is a copy of the tree (``traced``): the preview and the confirmation judge each row
+    on what the rows accepted before it leave, so that the one never promises what the other
+    refuses (WF-IHM-0050).
+    """
+    outcome = _judged(ground, items, row)
+    if outcome.entry is not None and outcome.judged is not None:
+        apply_cell(ground.tree.tasks[row.node_id], outcome.entry, outcome.judged)
+    return outcome
+
+
 def _encoded(rows: list[_Row], rejected: list[PasteRefusal]) -> JsonValue:
     """Give the accepted rows and the refusals of a preview as the plan keeps them in JSON."""
     return {
@@ -352,7 +367,8 @@ def preview_paste(
     (422 ``FIELD_NOT_ACCEPTED`` on ``/target_column``), or the block is wider than the columns from
     the targeted one (422 ``PASTE_TOO_WIDE``, ``max_columns``); nothing is kept then. The counter
     of the structure is read before its tree: a write between the two makes the plan stale, never
-    the counter newer than the tree it judged.
+    the counter newer than the tree it judged. Each row is judged on the tree the rows accepted
+    before it leave — written on a copy, never in the session —, as the confirmation judges it.
     """
     facts = facts_of(session, place, lock=False)
     tree = read_tree(session, place.project_id, place.structure_id)
@@ -364,7 +380,7 @@ def preview_paste(
     columns: tuple[NodeColumn, ...] = TASK_COLUMNS[TASK_COLUMNS.index(block.target_column) :]
     if max(map(len, block.rows)) > len(columns):
         raise UnprocessableError(PASTE_TOO_WIDE, {"max_columns": len(columns)})
-    ground = Ground(session, place.project_id, tree, facts.is_main)
+    ground = traced(Ground(session, place.project_id, tree, facts.is_main))
     items = _items(session, place.project_id)
     start = tree.order.index(block.target_node_id)
     accepted: list[_Row] = []
@@ -379,7 +395,7 @@ def preview_paste(
             rejected.append(PasteRefusal(index, None, NOT_FOUND, {}))
             continue
         row = _Row(index, tree.order[start + index], given)
-        outcome = _judged(ground, items, row)
+        outcome = _settled(ground, items, row)
         if outcome.refusals:
             rejected += outcome.refusals
         else:
@@ -404,7 +420,28 @@ def _stale(current: int, kept: KeptPlan, confirmation: PasteConfirmation) -> Non
         raise PreconditionFailedError(STALE_LOCK_VERSION, {"expected_lock_version": current})
 
 
-def _some(written: list[UUID], refused: list[PasteRefusal]) -> None:
+def _rejudged(
+    ground: Ground,
+    items: Mapping[str, list[WorkBreakdownItem]],
+    rows: list[_Row],
+    refused: list[PasteRefusal],
+) -> list[tuple[_Row, _Outcome]]:
+    """Judge the rows of a plan again, each on the rows accepted before it; add what is refused.
+
+    Nothing is written: the rows are traced on a copy of the tree of ``ground``.
+    """
+    traced_ground = traced(ground)
+    accepted: list[tuple[_Row, _Outcome]] = []
+    for each in rows:
+        outcome = _settled(traced_ground, items, each)
+        if outcome.refusals:
+            refused += outcome.refusals
+        else:
+            accepted.append((each, outcome))
+    return accepted
+
+
+def _some(written: list[tuple[_Row, _Outcome]], refused: list[PasteRefusal]) -> None:
     """Stop the write of a paste whose rows, judged again, leave none to write."""
     if not written:
         raise _NothingToWriteError(refused)
@@ -431,27 +468,24 @@ def apply_paste(
         raise NotFoundError(NOT_FOUND)
     rows, refused = _decoded(kept.plan.rows)
     _stale(facts.lock_version, kept, confirmation)
-    node_ids = tuple(each.node_id for each in rows)
     result: NodesWritten | None = None
     try:
-        with writing(session, place, writer, ("paste", node_ids)) as write:
+        with writing(session, place, writer, ("paste", ())) as write:
             _stale(write.facts.lock_version, kept, confirmation)
             ground = Ground(session, place.project_id, write.tree, write.facts.is_main)
             items = _items(session, place.project_id)
+            judged = _rejudged(ground, items, rows, refused)
+            _some(judged, refused)
+            node_ids = tuple(each.node_id for each, _ in judged)
+            write.name(node_ids)
             write.before(node_ids)
-            written: list[UUID] = []
-            for each in rows:
-                outcome = _judged(ground, items, each)
-                if outcome.entry is None or outcome.judged is None:
-                    refused += outcome.refusals
-                    continue
-                write_cell(ground, each.node_id, outcome.entry, outcome.judged, writer.act)
-                written.append(each.node_id)
-            _some(written, refused)
-            first = written[0]
+            for each, outcome in judged:
+                if outcome.entry is not None and outcome.judged is not None:
+                    write_cell(ground, each.node_id, outcome.entry, outcome.judged, writer.act)
+            first = node_ids[0]
             redated = write.redate((first, write.tree.tasks[first].label))
             write.after(node_ids)
-            result = redated.written(written)
+            result = redated.written(list(node_ids))
     except _NothingToWriteError as nothing:
         refused = nothing.refusals
     if result is None:

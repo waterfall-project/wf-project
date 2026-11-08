@@ -548,12 +548,9 @@ def judge_cell(ground: Ground, node_id: UUID, entry: TaskEntry) -> tuple[Facet, 
     return facet, attached
 
 
-def write_cell(
-    ground: Ground, node_id: UUID, entry: TaskEntry, judged: tuple[Facet, Attached], act: Act
-) -> None:
-    """Write what ``judge_cell`` accepted on the facet of a task; count the write of its node."""
+def apply_cell(task: Task, entry: TaskEntry, judged: tuple[Facet, Attached]) -> None:
+    """Set what ``judge_cell`` accepted on the facet of a task, its node left as it is."""
     facet, attached = judged
-    node, task = ground.tree.nodes[node_id], ground.tree.tasks[node_id]
     if "label" in entry.sent and entry.label is not None:
         task.label = entry.label
     if "description" in entry.sent:
@@ -566,7 +563,28 @@ def write_cell(
         task.finish_date, task.finish_hours = facet.finish.day, facet.finish.hours
     task.work_package_id = attached.work_package_id
     task.order_item_id = attached.order_item_id
-    stamp(node, act)
+
+
+def write_cell(
+    ground: Ground, node_id: UUID, entry: TaskEntry, judged: tuple[Facet, Attached], act: Act
+) -> None:
+    """Write what ``judge_cell`` accepted on the facet of a task; count the write of its node."""
+    apply_cell(ground.tree.tasks[node_id], entry, judged)
+    stamp(ground.tree.nodes[node_id], act)
+
+
+def traced(ground: Ground) -> Ground:
+    """Give a ground whose tasks are copies, so that a write can be traced on it, nothing written.
+
+    A paste previewed judges each row on the ground the writes of the rows before it leave, as the
+    paste applied does; the copies are never added to the session.
+    """
+    tasks = {
+        node_id: Task(**{attr.key: getattr(task, attr.key) for attr in inspect(Task).column_attrs})
+        for node_id, task in ground.tree.tasks.items()
+    }
+    tree = Tree(ground.tree.nodes, tasks)
+    return Ground(ground.session, ground.project_id, tree, ground.is_main)
 
 
 def update_task_facet(
