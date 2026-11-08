@@ -6,23 +6,31 @@ Laid by US-1490/L1, the socle of EP-07, so that no two stories create the same f
 US-1550 writes its tests here ("Les tests du back"). US-1550/L2: the reading, pure.
 """
 
+import importlib
+import zipfile
+from datetime import date
 from decimal import Decimal
 from io import BytesIO
+from pathlib import Path
 from typing import Any
 
 import pytest
 from openpyxl import Workbook
-from support import CONTRACT
 
 from waterfall.core.estimate.excel.reader import (
     FORMAT_NAME,
     FORMAT_VERSION,
+    Rejection,
+    read_number,
     read_workbook,
 )
 from waterfall.platform.errors import UnprocessableError
 
 D = Decimal
-PROTOTYPE = CONTRACT.parents[1] / "spec" / "exemples" / "devis-prototype.xlsx"
+# XlsxWriter ships no stubs: the module is loaded as Any.
+xlsxwriter: Any = importlib.import_module("xlsxwriter")
+ROOT = Path(__file__).resolve().parents[2]
+PROTOTYPE = ROOT / "docs" / "spec" / "exemples" / "devis-prototype.xlsx"
 HEADERS = [
     "Tâche",
     "Rôle ou catégorie",
@@ -164,6 +172,7 @@ def test_the_headers_may_sit_below_other_rows_and_the_rows_above_are_not_lines()
 
 
 @pytest.mark.requirement("WF-INTF-0100-A")
+@pytest.mark.requirement("WF-INTF-0080-A")
 def test_empty_lines_and_the_line_of_total_are_ignored_and_the_rows_keep_their_excel_number() -> (
     None
 ):
@@ -190,13 +199,21 @@ def test_a_line_that_only_has_a_lineage_is_not_empty() -> None:
 
 @pytest.mark.requirement("WF-INTF-0100-A")
 def test_calculated_columns_and_a_total_row_of_formulas_do_not_make_lines() -> None:
-    rows = [
-        [*HEADERS, "Montant"],
-        ["2.1", "DEV", "=1+1", 3, 2, None, None, None, "l-1", "=D2*E2"],
-        ["Total", None, None, None, None, None, None, None, None, "=SUBTOTAL(109,A2:A2)"],
-    ]
+    """XlsxWriter caches the value of a formula, so ``data_only`` reads a number, not none."""
+    out = BytesIO()
+    book: Any = xlsxwriter.Workbook(out, {"in_memory": True})
+    presentation: Any = book.add_worksheet("Présentation")
+    presentation.write_row(0, 0, ["Format", FORMAT_NAME])
+    presentation.write_row(1, 0, ["Version", FORMAT_VERSION])
+    sheet: Any = book.add_worksheet("2.1 Pose")
+    sheet.write_row(0, 0, [*HEADERS, "Montant"])
+    sheet.write_row(1, 0, ["2.1", "DEV", "Pose", 3, 2, None, None, None, "l-1"])
+    sheet.write_formula(1, 9, "=D2*E2", None, 6)
+    sheet.write(2, 0, "Total")
+    sheet.write_formula(2, 9, "=SUBTOTAL(109,J2:J2)", None, 6)
+    book.close()
 
-    read = read_workbook(workbook({"2.1 Pose": rows}))
+    read = read_workbook(out.getvalue())
 
     assert [(line.sheet, line.row, line.quantity) for line in read.lines] == [("2.1 Pose", 2, D(3))]
     assert read.rejected == ()
@@ -240,6 +257,7 @@ def test_a_number_in_a_numeric_cell_is_read_exactly_with_its_decimals() -> None:
 
 
 @pytest.mark.requirement("WF-INTF-0100-A")
+@pytest.mark.requirement("WF-INTF-0080-A")
 def test_a_number_in_a_text_cell_is_rejected_at_its_tab_and_row_and_the_other_lines_are_read() -> (
     None
 ):
@@ -279,3 +297,102 @@ def test_the_prototype_of_the_specification_is_a_workbook_of_the_format_whose_li
     assert len(read.lines) > 10
     assert all(line.lineage and line.task and line.role_or_category for line in read.lines)
     assert {line.sheet for line in read.lines}.isdisjoint({"Présentation", "Devis", "Tâches"})
+
+
+@pytest.mark.requirement("WF-INTF-0100-A")
+def test_a_rejected_row_carries_the_lineage_of_the_row() -> None:
+    rows = [HEADERS, ["t", "DEV", None, "12", 7.4, None, None, None, "l-1"]]
+
+    read = read_workbook(workbook({"1.1": rows}))
+
+    assert read.lines == ()
+    assert [(r.row, r.lineage) for r in read.rejected] == [(2, "l-1")]
+
+
+def test_the_params_of_a_rejection_cannot_be_changed() -> None:
+    rejection = Rejection("1.1", 2, "NUMBER_INVALID", {"column": "Quantité"}, "l-1")
+
+    params: Any = rejection.params
+    with pytest.raises(TypeError):
+        params["column"] = "x"
+
+
+@pytest.mark.requirement("WF-INTF-0100-A")
+def test_a_tab_without_the_headers_of_lines_is_named_as_unread() -> None:
+    row = ["t", "DEV", None, 1, None, None, None, None, None]
+    read = read_workbook(workbook({"1.1": [HEADERS, row], "Notes": [["a"]], "Autre": [["Tâche"]]}))
+
+    assert read.unread_sheets == ("Notes", "Autre")
+    assert [line.sheet for line in read.lines] == ["1.1"]
+
+
+@pytest.mark.requirement("WF-INTF-0100-A")
+def test_the_headers_of_a_tab_read_that_are_missing_are_named() -> None:
+    complete = [HEADERS, ["t", "DEV", None, 1, None, None, None, None, None]]
+    partial = [["Tâche", "Rôle ou catégorie", "Quantité"], ["t", "DEV", 2]]
+    read = read_workbook(workbook({"1.1": complete, "1.2": partial}))
+
+    assert dict(read.missing_headers) == {
+        "1.2": (
+            "Désignation",
+            "Sous-projet",
+            "ID ligne",
+            "Heures",
+            "Débours unitaire",
+            "Délai de paiement (j)",
+        )
+    }
+    assert read.unread_sheets == ()
+    assert [(line.sheet, line.hours) for line in read.lines] == [("1.1", None), ("1.2", None)]
+
+
+def damaged(part: str) -> bytes:
+    """Write the prototype with a part of its zip truncated (its XML is no longer well formed)."""
+    out = BytesIO()
+    with zipfile.ZipFile(PROTOTYPE) as source, zipfile.ZipFile(out, "w") as target:
+        for item in source.infolist():
+            data = source.read(item.filename)
+            target.writestr(item, data[: len(data) // 2] if item.filename == part else data)
+    return out.getvalue()
+
+
+@pytest.mark.requirement("WF-INTF-0070-A")
+@pytest.mark.parametrize("part", ["xl/worksheets/sheet1.xml", "xl/workbook.xml"])
+def test_a_workbook_whose_xml_is_damaged_is_refused_as_unreadable(part: str) -> None:
+    error = refusal(damaged(part))
+
+    assert error.code == "FILE_FORMAT_UNREADABLE"
+    assert error.params == {"expected_format": "estimate", "expected_version": "1"}
+
+
+@pytest.mark.requirement("WF-INTF-0100-A")
+@pytest.mark.parametrize(
+    "value",
+    [
+        pytest.param(True, id="boolean"),
+        pytest.param(date(2026, 1, 2), id="date"),
+    ],
+)
+def test_a_cell_that_is_no_number_in_a_numeric_column_is_rejected(value: object) -> None:
+    rows = [HEADERS, ["t", "DEV", None, value, None, None, None, None, "l-1"]]
+
+    read = read_workbook(workbook({"1.1": rows}))
+
+    assert read.lines == ()
+    assert [(r.row, r.code, r.params["column"]) for r in read.rejected] == [
+        (2, "NUMBER_INVALID", "Quantité")
+    ]
+
+
+@pytest.mark.requirement("WF-INTF-0070-A")
+def test_a_boolean_is_not_a_version() -> None:
+    assert refusal(workbook({}, ("Format", "Devis", "Version", True))).code == (
+        "FILE_FORMAT_UNREADABLE"
+    )
+
+
+@pytest.mark.requirement("WF-INTF-0100-A")
+@pytest.mark.parametrize("value", [float("inf"), float("-inf"), float("nan")])
+def test_a_non_finite_number_is_not_a_number(value: float) -> None:
+    """Openpyxl does not write them, so the branch is tried on the cell value itself."""
+    assert read_number(value) == (None, False)

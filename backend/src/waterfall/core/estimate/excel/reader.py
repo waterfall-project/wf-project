@@ -15,6 +15,7 @@ import zipfile
 from dataclasses import dataclass
 from decimal import Decimal
 from io import BytesIO
+from types import MappingProxyType
 from typing import TYPE_CHECKING, Any
 
 from openpyxl import load_workbook
@@ -62,7 +63,8 @@ _TEXT_HEADERS = (
     LINEAGE_HEADER,
 )
 _NUMBER_HEADERS = (QUANTITY_HEADER, HOURS_HEADER, DISBURSEMENT_HEADER, PAYMENT_DELAY_HEADER)
-_READ_HEADERS = frozenset(_TEXT_HEADERS + _NUMBER_HEADERS)
+_ALL_HEADERS = _TEXT_HEADERS + _NUMBER_HEADERS
+_READ_HEADERS = frozenset(_ALL_HEADERS)
 # A tab of lines is the one that carries both of these, on whichever row.
 _KEY_HEADERS = frozenset({TASK_HEADER, ROLE_OR_CATEGORY_HEADER})
 
@@ -86,20 +88,35 @@ class ReadLine:
 
 @dataclass(frozen=True, slots=True)
 class Rejection:
-    """A cell the reading refuses, at its tab and its Excel row, with its reason and parameters."""
+    """A cell the reading refuses, at its tab and its Excel row, with its reason and parameters.
+
+    ``lineage`` is the one of the row refused, so that the analysis does not take it for absent.
+    """
 
     sheet: str
     row: int
     code: str
     params: Mapping[str, Any]
+    lineage: str | None = None
+
+    def __post_init__(self) -> None:
+        """Freeze the parameters: a frozen report must not be changed through them."""
+        object.__setattr__(self, "params", MappingProxyType(dict(self.params)))
 
 
 @dataclass(frozen=True, slots=True)
 class WorkbookRead:
-    """What a workbook says: the lines read, tab by tab and row by row, and the rejections."""
+    """What a workbook says: the lines read, tab by tab and row by row, and the rejections.
+
+    ``unread_sheets`` names the tabs that are not tabs of lines and are not fixed ones (no
+    "Tâche" and "Rôle ou catégorie" headers); ``missing_headers`` gives, by tab read, the headers
+    of the columns read that the tab lacks (their cells read as none). The policy is the analysis'.
+    """
 
     lines: tuple[ReadLine, ...]
     rejected: tuple[Rejection, ...]
+    unread_sheets: tuple[str, ...] = ()
+    missing_headers: Mapping[str, tuple[str, ...]] = MappingProxyType({})
 
 
 def _unreadable() -> UnprocessableError:
@@ -127,9 +144,15 @@ def _is_version(value: object) -> bool:
     return isinstance(value, str) and value.strip() == str(FORMAT_VERSION)
 
 
+def _first_two_cells(rows: Sequence[Sequence[object]], rank: int) -> tuple[object, object]:
+    """Give the cells A and B of a row, none where the row or the cell is missing."""
+    cells = tuple(rows[rank]) if rank < len(rows) else ()
+    return (cells[0] if cells else None, cells[1] if len(cells) > 1 else None)
+
+
 def _check_header(rows: Sequence[Sequence[object]]) -> None:
     """Refuse a first tab that does not say "Devis" and a known version in A1, B1, A2, B2."""
-    first, second = ([(*row, None, None)[:2] for row in rows[:2]] + [(None, None)] * 2)[:2]
+    first, second = _first_two_cells(rows, 0), _first_two_cells(rows, 1)
     if (
         _text(first[0]) != FORMAT_LABEL
         or _text(first[1]) != FORMAT_NAME
@@ -139,7 +162,7 @@ def _check_header(rows: Sequence[Sequence[object]]) -> None:
         raise _unreadable()
 
 
-def _number(value: object) -> tuple[Decimal | None, bool]:
+def read_number(value: object) -> tuple[Decimal | None, bool]:
     """Read a cell as a decimal; the flag is false for a text, or any value but a number."""
     if value is None or (isinstance(value, str) and not value.strip()):
         return None, True
@@ -167,7 +190,7 @@ def _at(row: Sequence[object], columns: Mapping[str, int], header: str) -> objec
 
 def _is_ignored(texts: Mapping[str, str | None], raws: Mapping[str, object]) -> bool:
     """Tell an empty line, or the line of total of the table (``Total`` and nothing else read)."""
-    if any(_number(raw) != (None, True) for raw in raws.values()):
+    if any(read_number(raw) != (None, True) for raw in raws.values()):
         return False
     others = [value for header, value in texts.items() if header != TASK_HEADER]
     if any(value is not None for value in others):
@@ -177,8 +200,11 @@ def _is_ignored(texts: Mapping[str, str | None], raws: Mapping[str, object]) -> 
 
 def _read_sheet(
     name: str, rows: Sequence[Sequence[object]]
-) -> tuple[list[ReadLine], list[Rejection]]:
-    """Read the lines of a tab: none if no row carries the headers of a tab of lines."""
+) -> tuple[list[ReadLine], list[Rejection], dict[str, int] | None]:
+    """Read the lines of a tab: none if no row carries the headers of a tab of lines.
+
+    The last item is the columns found, none for a tab that has no headers of lines.
+    """
     lines: list[ReadLine] = []
     rejected: list[Rejection] = []
     columns: dict[str, int] | None = None
@@ -191,9 +217,15 @@ def _read_sheet(
         raws = {header: _at(row, columns, header) for header in _NUMBER_HEADERS}
         if _is_ignored(texts, raws):
             continue
-        numbers = {header: _number(raw) for header, raw in raws.items()}
+        numbers = {header: read_number(raw) for header, raw in raws.items()}
         refusals = [
-            Rejection(name, number, NUMBER_INVALID, {"column": header, "value": str(raws[header])})
+            Rejection(
+                name,
+                number,
+                NUMBER_INVALID,
+                {"column": header, "value": str(raws[header])},
+                texts[LINEAGE_HEADER],
+            )
             for header, (_, valid) in numbers.items()
             if not valid
         ]
@@ -215,32 +247,57 @@ def _read_sheet(
                 lineage=texts[LINEAGE_HEADER],
             )
         )
-    return lines, rejected
+    return lines, rejected, columns
+
+
+def _load_sheets(content: bytes) -> list[tuple[str, list[tuple[Any, ...]]]]:
+    """Open the workbook and read every tab; any damage of the file is ``FILE_FORMAT_UNREADABLE``.
+
+    In ``read_only`` mode the XML of a tab is parsed while iterating, so both steps are guarded.
+    """
+    try:
+        workbook = load_workbook(BytesIO(content), read_only=True, data_only=True)
+        try:
+            return [(sheet.title, list(sheet.iter_rows(values_only=True))) for sheet in workbook]
+        finally:
+            workbook.close()
+    # SyntaxError is the parent of ElementTree.ParseError and of lxml's XMLSyntaxError.
+    except (
+        zipfile.BadZipFile,
+        InvalidFileException,
+        KeyError,
+        ValueError,
+        OSError,
+        SyntaxError,
+    ) as error:
+        raise _unreadable() from error
 
 
 def read_workbook(content: bytes) -> WorkbookRead:
     """Read the workbook of an estimate: its header, then every tab of lines.
 
     Raises ``FILE_FORMAT_UNREADABLE`` (``expected_format``, ``expected_version``) for a file that
-    is no workbook, or whose first tab does not say the format "Devis" and a known version.
+    is no workbook, whose XML is damaged, or whose first tab does not say the format "Devis" and a
+    known version.
     """
-    try:
-        workbook = load_workbook(BytesIO(content), read_only=True, data_only=True)
-    except (zipfile.BadZipFile, InvalidFileException, KeyError, ValueError, OSError) as error:
-        raise _unreadable() from error
-    try:
-        sheets = [(sheet.title, list(sheet.iter_rows(values_only=True))) for sheet in workbook]
-    finally:
-        workbook.close()
+    sheets = _load_sheets(content)
     if not sheets:
         raise _unreadable()
     _check_header(sheets[0][1])
     lines: list[ReadLine] = []
     rejected: list[Rejection] = []
+    unread: list[str] = []
+    missing: dict[str, tuple[str, ...]] = {}
     for name, rows in sheets:
         if name in NOT_LINE_SHEETS:
             continue
-        sheet_lines, sheet_rejected = _read_sheet(name, rows)
+        sheet_lines, sheet_rejected, columns = _read_sheet(name, rows)
         lines += sheet_lines
         rejected += sheet_rejected
-    return WorkbookRead(tuple(lines), tuple(rejected))
+        if columns is None:
+            unread.append(name)
+            continue
+        absent = tuple(header for header in _ALL_HEADERS if header not in columns)
+        if absent:
+            missing[name] = absent
+    return WorkbookRead(tuple(lines), tuple(rejected), tuple(unread), MappingProxyType(missing))
