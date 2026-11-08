@@ -29,6 +29,7 @@ from waterfall.core.planning.scheduling import (
 from waterfall.core.planning.scheduling import Task as Planned
 from waterfall.core.planning.tree import read_links
 from waterfall.core.resource_settings.interface import get_duration_units
+from waterfall.platform.errors import UnprocessableError
 
 if TYPE_CHECKING:
     from collections.abc import Collection
@@ -50,6 +51,7 @@ if TYPE_CHECKING:
 AUTOMATIC = "automatic"
 MANUAL = "manual"
 DAYS = "d"
+PROJECT_HORIZON_EXCEEDED = "PROJECT_HORIZON_EXCEEDED"
 
 
 def constants_of(session: Session) -> UnitConstants:
@@ -83,6 +85,12 @@ class Replay:
     calendars: dict[UUID, Applicable]
     constants: UnitConstants
     planning_start: date
+
+
+def horizon_exceeded(node_id: UUID | None, label: str) -> UnprocessableError:
+    """Give the refusal of a project that would end beyond fifteen years, the task named."""
+    named = {"node_id": None if node_id is None else str(node_id), "label": label}
+    return UnprocessableError(PROJECT_HORIZON_EXCEEDED, {"task": named})
 
 
 def replay_of(

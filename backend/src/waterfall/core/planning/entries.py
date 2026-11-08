@@ -21,7 +21,7 @@ from dataclasses import dataclass, replace
 from decimal import Decimal
 from typing import TYPE_CHECKING
 
-from waterfall.core.planning.dating import duration_of, in_days
+from waterfall.core.planning.dating import duration_of, horizon_exceeded, in_days
 from waterfall.core.planning.scheduling import Duration, Moment, WorkInstant
 from waterfall.platform.errors import FieldError, UnprocessableError
 
@@ -114,6 +114,20 @@ def finish_after(
     if duration.is_elapsed:
         return origin.elapsed(hours).instant()
     return calendar.moment(calendar.count(origin) + hours, finish=True).instant()
+
+
+def _finish_within(
+    task: Task, start: WorkInstant, duration: Duration, calendar: Calendar, constants: UnitConstants
+) -> WorkInstant:
+    """Give the finish a duration entered leads to, or refuse a task that leaves the calendar.
+
+    A duration so long that its finish is no date is beyond the horizon (WF-PLA-0150): refused
+    naming the task (422 ``PROJECT_HORIZON_EXCEEDED``), as the engine does for an automatic one.
+    """
+    try:
+        return finish_after(start, duration, calendar, constants)
+    except (ValueError, ArithmeticError) as error:
+        raise horizon_exceeded(task.node_id, task.label) from error
 
 
 def days_between(
@@ -229,5 +243,6 @@ def judged_change(
         _refuse(_ordered(start, finish, "/finish"))
         return Facet(MANUAL, days_between(start, finish, calendar, constants), start, finish)
     if "duration" in sent:
-        return Facet(MANUAL, duration, start, finish_after(start, duration, calendar, constants))
+        finish = _finish_within(task, start, duration, calendar, constants)
+        return Facet(MANUAL, duration, start, finish)
     return Facet(MANUAL, duration, start, finish)

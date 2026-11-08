@@ -26,18 +26,16 @@ from typing import TYPE_CHECKING
 
 from waterfall.core.history import interface as history
 from waterfall.core.history.interface import RecordedChange, Recording, UndoStack
-from waterfall.core.planning.dating import dated, kept, replay_of
-from waterfall.core.planning.interface.facets import calendars_of
 from waterfall.core.planning.interface.snapshots import snapshot
+from waterfall.core.planning.interface.structures import reschedule
 from waterfall.core.planning.tree import read_tree
 from waterfall.core.planning.views import NodeView, Reading, ScheduleView
 from waterfall.core.projects.interface import no_background_task_running, project_facts
 from waterfall.core.revisions.interface import (
     revision_draft,
     structure_facts,
-    structure_rescheduled,
 )
-from waterfall.platform.errors import ConflictError, NotFoundError, UnprocessableError
+from waterfall.platform.errors import ConflictError, NotFoundError
 
 if TYPE_CHECKING:
     from collections.abc import Collection, Generator
@@ -54,7 +52,6 @@ NOT_FOUND = "NOT_FOUND"
 STATE_FORBIDS_OPERATION = "STATE_FORBIDS_OPERATION"
 PROJECT_NOT_TERMINAL = "project_not_terminal"
 NO_BACKGROUND_TASK_RUNNING = "no_background_task_running"
-PROJECT_HORIZON_EXCEEDED = "PROJECT_HORIZON_EXCEEDED"
 # The states that end the cycle of life (WF-CYC-0080), as the projects name them.
 TERMINAL = ("completed", "lost", "abandoned")
 
@@ -159,24 +156,13 @@ class Write:
         Beyond the horizon (WF-PLA-0150), refused naming the task written — its node, null for a
         task created, and its label (422 ``PROJECT_HORIZON_EXCEEDED``); nothing is written.
         """
-        session, place = self.session, self.place
-        session.flush()
-        tree = read_tree(session, place.project_id, place.structure_id)
-        calendars = calendars_of(session, place.project_id, tree.tasks)
-        structure = (place.project_id, place.structure_id, self.facts.planning_start_on)
-        replay = replay_of(session, structure, tree, calendars)
-        computed = dated(replay)
-        if computed.horizon_exceeded_by is not None:
-            node_id, label = blamed
-            named = {"node_id": None if node_id is None else str(node_id), "label": label}
-            raise UnprocessableError(PROJECT_HORIZON_EXCEEDED, {"task": named})
-        moved = kept(replay, computed)
-        session.flush()
-        at = self.writer.act.at
-        counter = structure_rescheduled(session, place.project_id, place.structure_id, at)
-        structure = (place.project_id, at, self.facts.is_main)
-        reading = Reading(session, structure, tree, replay.links, calendars)
-        return Redated(reading, frozenset(moved), counter)
+        place = self.place
+        done = reschedule(
+            self.session, place.project_id, place.structure_id, self.writer.act.at, blamed
+        )
+        structure = (place.project_id, self.writer.act.at, self.facts.is_main)
+        reading = Reading(self.session, structure, done.tree, done.links, done.calendars)
+        return Redated(reading, done.moved, done.counter)
 
     def after(self, node_ids: Collection[UUID]) -> None:
         """Hand the history the nodes the write touched, as they are after it, redated."""
