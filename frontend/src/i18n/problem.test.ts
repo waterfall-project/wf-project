@@ -749,6 +749,13 @@ describe("the sentence of a refusal", () => {
     );
   });
 
+  it("says a move that would put a node under itself, in the reader's language", () => {
+    expect(say({ code: "NODE_CYCLE" }, "fr")).toBe(
+      "Ce déplacement mettrait un nœud sous lui-même.",
+    );
+    expect(say({ code: "NODE_CYCLE" }, "en")).toBe("This move would put a node under itself.");
+  });
+
   it.each([
     {
       example: "structure_merge_report_link_forbidden",

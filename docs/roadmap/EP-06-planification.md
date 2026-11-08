@@ -1127,9 +1127,11 @@ démarré à terminé, **afin que** le planning dise où en est chaque tâche av
   sont pas saisissables. » : la marge et la criticité, par US-1390 et US-1470 ; l'avancement
   physique est d'EP-10, qui clôt ;
 - `WF-PLA-0130-A` — « Une terminaison datée avant le démarrage de la tâche est refusée. » :
-  `setTaskProgress` refuse par 422 `VALUE_OUT_OF_RANGE` sur la date, et le jour par défaut se lit
-  dans le fuseau horaire de l’installation (spécification 1.0.3, #2524), réalisé par US-1380/L4
-  (#2519) ;
+  `setTaskProgress` refuse par 422 `VALUE_OUT_OF_RANGE` sur la date ;
+- écart : `WF-PLA-0130-A` — le jour courant par défaut se lit dans le fuseau horaire de
+  l’installation (spécification 1.0.3, #2524) : le fuseau de l’installation est reporté vers EP-07
+  (#2527) ; d'ici là, le jour courant est calculé en UTC par une seule fonction du noyau (US-1380/L4,
+  #2519), sur laquelle EP-07 branchera le fuseau ;
 - propre à l'US : `setTaskProgress` démarre, termine ou rouvre une tâche feuille, au compteur lu,
   et refuse par 409 — `task_is_milestone`, `task_without_lines` (jamais manquante sans ligne),
   `task_not_milestone`, `completed_milestone`, puis `project_in_progress` et
