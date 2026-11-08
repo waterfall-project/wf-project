@@ -987,6 +987,9 @@ déclarer ce qui a commencé et clore mes phases depuis la vue qui les répartit
   un reste, et sa carte passe dans `started` sans le signal, qui ne vaut qu'aux récapitulatives ;
 - `WF-PLA-0040-A` — « Une récapitulative terminée dont la seule subordonnée, un jalon, est
   déplacée devient un jalon terminé. » : constaté par EP-06 ;
+- écart : `WF-PLA-0040-A` — « Le déplacement d’une sélection qui contient une récapitulative et
+  l’une de ses subordonnées laisse la subordonnée sous la récapitulative : le groupe est déplacé
+  entier, sans être aplati. » : le déplacement est d’EP-06 (US-1380/L4) ;
 - `WF-PLA-0050-A` — « Une tâche feuille de durée nulle ne peut recevoir de sous-tâche. »
 - `WF-PLA-0050-A` — « Une récapitulative dont la seule subordonnée est un jalon a une durée nulle
   et reste une récapitulative. » : les deux, constatées par EP-06 ;

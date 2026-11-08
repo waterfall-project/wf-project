@@ -8,7 +8,7 @@ La première carte des [indicateurs projets](FBS-4.8.md), avec sa date de calcul
 - **Consommation du budget** : le même coût réel rapporté au [budget de référence](notions/budget-de-reference.md), en pourcentage.
 - Les grandeurs dont ils se déduisent : **Coût réel**, **Reste à engager** et **Budget de référence**.
 
-Les deux pourcentages se lisent ensemble : ils disent si l’on dépense vite, et si l’on dépense trop. Un avancement financier de 50 % avec une consommation de 70 % annonce un dépassement de 40 %. C’est le seul indicateur qui ne dépende pas de la valeur acquise.
+Les deux pourcentages se lisent ensemble : ils disent si l’on dépense vite, et si l’on dépense trop. Un avancement financier de 50 % avec une consommation de 70 % annonce un dépassement de 40 %. C’est un indicateur qui ne dépend pas de la valeur acquise.
 
 ## Ses commandes
 
