@@ -6,8 +6,16 @@
 quality on its project each asks for besides.
 """
 
-# The permissions each operation asks for, in the order they are evaluated.
-ASKED: dict[str, tuple[str, ...]] = {}
+CONSULT = "remaining.read"
+CHANGE = "remaining.write"
+
+# The permissions each operation asks for, in the order they are evaluated: the gesture of the
+# Kanban is an entry of the remaining to commit, the command ``edit_remaining`` (WF-RAE-0030).
+ASKED: dict[str, tuple[str, ...]] = {
+    "setTaskProgress": (CONSULT, CHANGE),
+}
 # The quality on its project each operation that names one asks for, evaluated by
 # ``RequiresProject``: ``consultation``, ``contributor`` or ``project_manager`` (WF-ADM-0110).
-ON_PROJECT: dict[str, str] = {}
+ON_PROJECT: dict[str, str] = {
+    "setTaskProgress": "contributor",
+}
