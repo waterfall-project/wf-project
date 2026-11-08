@@ -109,10 +109,18 @@ class Bucket:
         with reached():
             self.client.upload_file(str(path), self.name, key)
 
-    def put(self, key: str, content: bytes) -> None:
-        """Write a content held in memory under a key, in one piece; an object there is replaced."""
+    def put(self, key: str, content: bytes, media_type: str | None = None) -> None:
+        """Write a content held in memory under a key, in one piece; an object there is replaced.
+
+        The media type, when given, is the one the object is served with.
+        """
         with reached():
-            self.client.put_object(Bucket=self.name, Key=key, Body=content)
+            if media_type is None:
+                self.client.put_object(Bucket=self.name, Key=key, Body=content)
+            else:
+                self.client.put_object(
+                    Bucket=self.name, Key=key, Body=content, ContentType=media_type
+                )
 
     def remove(self, key: str) -> None:
         """Delete the object of a key; a key that holds none is no fault, S3 says nothing of it."""

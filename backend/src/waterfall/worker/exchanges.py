@@ -63,6 +63,20 @@ class ImportTasks:
         return run_apply(session, task, self.files, viewer, judge)
 
 
-def export(session: Session, task: Task) -> Mapping[str, Any] | None:
-    """Write the file of the export a task asks for, and give where it is kept."""
-    return run_export(session, task)
+class ExportTask:
+    """Write the file of an export, as the worker runs a task of the kind ``export``.
+
+    The file goes to the bucket the settings name, under ``exports/``; the task keeps where.
+    """
+
+    def __init__(self, bucket: Bucket) -> None:
+        self.bucket = bucket
+
+    @classmethod
+    def of(cls, settings: ServiceSettings) -> ExportTask:
+        """Write into the bucket the settings name."""
+        return cls(Bucket.of_backups(settings))
+
+    def __call__(self, session: Session, task: Task) -> Mapping[str, Any]:
+        """Write the file of the export a task asks for, and give where it is kept."""
+        return run_export(session, task, self.bucket)

@@ -62,7 +62,7 @@ def handlers(settings: WorkerSettings) -> dict[str, TaskHandler]:
         "revision_mark": mark,
         "import_analysis": imports.analyse,
         "import_apply": imports.apply,
-        "export": exchanges.export,
+        "export": exchanges.ExportTask.of(settings),
     }
 
 
