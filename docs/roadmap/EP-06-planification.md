@@ -175,7 +175,9 @@ exécuté sans lui (décision de l'auteur du 2026-11-07).
   et en arborescence ;
 - cinquante saisies de la grille s'annulent puis se rétablissent, et l'annulation d'une
   modification qu'un autre contributeur a reprise est refusée en nommant l'objet ;
-- un collage depuis un tableur est prévisualisé, puis crée les tâches collées ;
+- un collage depuis un tableur est prévisualisé, puis écrit les lignes collées sur des tâches
+  existantes, sans en créer (contrat, `previewPaste` ; une création au-delà de la dernière ligne
+  suit la décision de #2559) ;
 - un fichier MS Project s'importe en deux temps dans la révision en cours, créée au besoin, un
   abandon laisse le projet inchangé, et un planning exporté puis réimporté ne présente aucun
   écart ;
@@ -193,7 +195,9 @@ suit une fois figé.
 - #1770 — `createNode` complète les heures d'une tâche datée, comme la modification (F-03 ;
   contrat #1769). US-1380.
 - #1772 — une tâche refusée sous un jalon, à la création, au déplacement, à l'import et au collage
-  (F-04 ; contrat #1771). US-1380 (création, déplacement), US-1430 (import), US-1450 (collage).
+  (F-04 ; contrat #1771). US-1380 (création, déplacement), US-1430 (import) ; le collage n'a pas de
+  site, le contrat n'écrivant que des lignes existantes : #2559 le tranche (2026-11-08, « Les
+  catalogues du front et le collage »).
 - #1790 — le cycle de vie d'un import : l'état `refused`, les conditions de l'application et de
   l'abandon, le dépôt consommé, et les conditions de l'ouverture (I-01 à I-04 ; contrat #1789,
   #1792). EP-12 ayant été abandonné, EP-06 construit le premier ce cycle. US-1420.
@@ -225,6 +229,10 @@ suit une fois figé.
   geste de la grille de devis vers la grille de planning (Vérif de WF-DEV-0050, que EP-07 clôt),
   et Annuler et Rétablir branchés. US-1450 (Annuler et Rétablir), US-1470 (le parcours du
   report, joué sur des tâches, les lignes étant d'EP-07).
+
+- #2485 [EP-06] contrat : une lecture de `listNodes` avec `fields` ne se valide pas contre le
+  schéma `Node` — relevé par US-1380/L2 (#2335), reporté vers EP-07 puis ramené ici par
+  l'utilisateur le 2026-11-08 : corrigé par `[US-1400/L3]` (#2535) (« La projection de `listNodes` »).
 
 Reportés d'EP-04 le 2026-11-06 (relevés par la revue d'US-0960, #2061) :
 
@@ -476,8 +484,14 @@ couvre tous : pour chaque processus — l'API (`create_app`), le worker (`handle
   exception typée passe l'import `failed`, le fichier supprimé.
 - **L'application** (`applyImport`) revérifie la permission et la qualité de contributeur de
   l'appelant, l'état de l'import (`import_awaiting_decision`, `import_file_accepted`), puis les
-  conditions de l'ouverture, et dépose `import_apply` ; refusée par l'une d'elles, elle passe
-  l'import `refused` et supprime le fichier (#1790). Le worker, dans la transaction de la tâche,
+  conditions de l'ouverture, et dépose `import_apply`. Refusée par une condition passagère —
+  `no_background_task_running`, une tâche de fond qui finira, ou `may_create_revision`, une
+  permission qui peut être donnée —, elle répond 409 et laisse l'import `analysed`, son compte
+  rendu applicable et son fichier en place : l'application se redemande sans nouveau dépôt
+  (WF-ARC-0100, spécification 1.0.3 ; #2475, amendé par US-1380/L4). Refusée par une autre — le
+  compte rendu, `project_not_terminal`, une condition de la nature, la permission ou la qualité
+  perdue, la structure visée que la révision en cours ne tient plus (404) —, elle passe l'import
+  `refused` et supprime le fichier (#1790). Le worker, dans la transaction de la tâche,
   revérifie de nouveau, crée la révision en cours au besoin par `create_revision` (EP-04),
   applique par le format sous le verrou de la structure, redate, passe `applied`, supprime le
   fichier, et l'historique annulable ne reçoit rien (WF-IHM-0110). Une tâche en file ou en cours
@@ -664,6 +678,73 @@ remplis (#2180).
 - **Dans l'ordre d'EP-04** : la tranche des tâches ne touche ni `loader.py` ni l'ordre des
   tranches des projets ; le socle attend la fusion d'US-0990/L2 (#2069), qui écrit encore
   `witness/revisions.py`, avant d'y déclarer le registre.
+
+### La projection de `listNodes` (décision de l'utilisateur du 2026-11-08, #2485)
+
+La lecture d'`listNodes` avec `fields` ne se validait pas contre le contrat : `items` était `Node`,
+dont les propriétés exigées ne le sont pas d'une lecture qui en nomme (`DECISIONS.md`, « Une lecture
+de `listNodes` choisit les champs qu'elle rend »), et `ContractClient` comme le proxy du contrat
+(Prism) la refusent — les parcours `@shared` de l'arbre, de la grille et des chronologies ne
+passent pas contre le service. Le cadrage l'avait reporté vers EP-07 ; la décision du 2026-11-08 le
+ramène ici, par **un lot technique, `[US-1400/L3]`**, sous US-1400 qu'il prépare en premier
+(numéro suivant, livré avant US-1400/L2), qui ne ferme aucun critère et sert WF-ARC-0060-A. C'est
+une « Interface contract issue » tranchée : la modification du contrat que la conception ne
+prévoyait pas, et la seule d'EP-06. Elle assouplit une réponse, la version reste `1.0.0`.
+
+- **`NodeProjection`** (`docs/api/components/schemas/revisions.yaml`) : les propriétés de `Node`
+  reprises par l'ancre `&node_properties`, comme `ComparedNodeRead`, dont seules `node_id`,
+  `row_number`, `level` et `lock_version` sont exigées ; ses facettes sont `ComparedTaskFacet` et
+  `ComparedEstimateLineFacet`, aucune propriété exigée, leurs descriptions élargies à `listNodes`.
+  Les `items` du `200` de `listNodes` deviennent `NodeProjection`, et sa description dit : sans
+  `fields`, chaque nœud est entier ; avec, il est projeté. `Node` ne change pas : les écritures
+  (`NodesWritten`, `KanbanTask`) le rendent entier. `compareRevisions` n'est pas touché, son
+  `ComparedNodeRead` faisant déjà ce travail (#1208).
+- **`DECISIONS.md`** : l'entrée « Une lecture de `listNodes` choisit les champs qu'elle rend »
+  perd la phrase « la seule réponse du contrat dont le schéma ne dit pas tout », et la décision se
+  note avec les options écartées. Les modèles du service et le client du front se régénèrent
+  (`make generate-client`, `server-models-up-to-date`).
+- **Le back** : `test_fields_returns_what_it_names_and_the_four_always_returned` repasse par
+  `ContractClient`. La garde perdue sur les lectures sans `fields` est compensée dans
+  `test_nodes.py` : le test des lectures entières valide en plus chaque nœud contre `Node`, strict
+  — la compensation est locale à ce test, `ContractClient` ne change pas.
+- **Le front** : `NodeList` (`components/grid/nodes.tsx`) se redéfinit en un seul endroit,
+  `Omit<réponse de listNodes, "items"> & { items: Node[] }`, avec un commentaire : une grille ne
+  lit que ce qu'elle a demandé par `fields`. Les consommateurs ne changent pas.
+- **Options écartées** : des facettes de projection neuves ou le renommage de `Compared*` (un lot
+  de plus pour rien) ; retyper chaque consommateur en `NodeProjection` (plus de 1 000 lignes, et
+  EP-07 reprend la grille) ; un exemple `nodes_fields.json` (le test du back et le parcours
+  `@shared` d'US-1400/L2 en font la preuve) ; laisser le constat à EP-07, qui laissait sans preuve
+  tous les parcours `@shared` d'EP-06 ; une garde générale dans `ContractClient` selon la requête.
+- **Ordre** : le lot précède US-1400/L2 (#2340) et, par elle, US-1470 et US-1480/L2 ; il est
+  « pas avec » US-1380/L4 (#2519), qui écrit les mêmes fichiers du contrat et leurs dérivés.
+
+### Les catalogues du front et le collage (décisions de l'utilisateur du 2026-11-08, #2537, #2559)
+
+Deux questions d'US-1450/L2 (#2344), tranchées par l'utilisateur sur la recommandation du cadrage :
+
+- **Le lot qui ajoute un code d'erreur au contrat écrit sa seule clé `errors.<CODE>` dans les deux
+  catalogues du front**, `frontend/messages/fr.json` et `en.json`, avec son test dans
+  `frontend/src/i18n/problem.test.ts` ; il n'y écrit rien d'autre. La règle du plan de lots
+  « aucun lot n'écrit les catalogues `messages/*.json`, une clé manquante devient une issue »
+  (corps de #2316, repris dans chaque issue de lot et par EP-07, « Ce qu'EP-06 écrit encore ») est
+  amendée en ce sens : `typecheck-front` et `make catalogs` exigent la clé dès que le client
+  engendré porte le code, et la règle rendait infusible tout lot qui déclare un refus — US-1380/L4
+  (#2519, option (a), `NODE_CYCLE`) l'avait déjà levée une fois, US-1450/L2 (`SESSION_ID_MISSING`,
+  #2472) la lève la seconde, et la décision vaut pour les suivants. Deux lots qui ajoutent chacun
+  un code touchent le même fichier : ils sont « pas avec » l'un l'autre par les fichiers du
+  contrat qu'ils écrivent déjà. Écartés : reporter le code au lot du front de l'US (US-1450/L3), qui
+  laissait les routes refuser sans code déclaré et revenait sur #2472 ; un lot de catalogue par
+  clé, une issue, une branche et une fusion pour deux lignes.
+- **Le refus `MILESTONE_HAS_NO_SUBTASK` au collage (#1772) n'a aucun site**, le contrat n'écrivant
+  par `previewPaste` que des cellules de nœuds existants, sans créer ni déplacer de tâche, ce que le
+  front (la garde locale de `paste-dialog.tsx`) et le faux back font déjà ; mais `PasteRejection`
+  nomme ce refus (F-04, #1771) et ne dit rien d'une ligne du bloc au-delà du dernier nœud. Une
+  « Interface contract issue », #2559, le tranche entre A — le collage n'écrit que des lignes
+  existantes, la phrase retirée, la ligne au-delà refusée — et B — le collage crée les tâches des
+  lignes au-delà de la dernière, où le refus trouve son site. En attendant, US-1450/L2 fusionne
+  sans #1772 au collage, le critère d'US-1450 ne le cite plus, la définition de fini dit « écrit les
+  lignes collées », et #1772 se clôt par la création, le déplacement et l'import. Écarté : constater
+  seul que le critère ne vaut pas, sans trancher le contrat, qui aurait gardé une phrase sans site.
 
 ### Le front
 
@@ -1121,9 +1202,11 @@ démarré à terminé, **afin que** le planning dise où en est chaque tâche av
   sont pas saisissables. » : la marge et la criticité, par US-1390 et US-1470 ; l'avancement
   physique est d'EP-10, qui clôt ;
 - `WF-PLA-0130-A` — « Une terminaison datée avant le démarrage de la tâche est refusée. » :
-  `setTaskProgress` refuse par 422 `VALUE_OUT_OF_RANGE` sur la date, et le jour par défaut se lit
-  dans le fuseau horaire de l’installation (spécification 1.0.3, #2524), réalisé par US-1380/L4
-  (#2519) ;
+  `setTaskProgress` refuse par 422 `VALUE_OUT_OF_RANGE` sur la date ;
+- écart : `WF-PLA-0130-A` — le jour courant par défaut se lit dans le fuseau horaire de
+  l’installation (spécification 1.0.3, #2524) : le fuseau de l’installation est reporté vers EP-07
+  (#2527) ; d'ici là, le jour courant est calculé en UTC par une seule fonction du noyau (US-1380/L4,
+  #2519), sur laquelle EP-07 branchera le fuseau ;
 - propre à l'US : `setTaskProgress` démarre, termine ou rouvre une tâche feuille, au compteur lu,
   et refuse par 409 — `task_is_milestone`, `task_without_lines` (jamais manquante sans ligne),
   `task_not_milestone`, `completed_milestone`, puis `project_in_progress` et
@@ -1369,7 +1452,7 @@ lignes d'une tâche réimportée (EP-07).
 
 ## US-1440 — L'arborescence de tâches et son export PNG
 
-- **statut** : en cours
+- **statut** : fini
 - **exigences** : `WF-PLA-0110-A`, `WF-PLA-0120-A`
 - **opérations** : `listNodes` (`summaries_only`, `max_level`) ; `requestExport`
   (`task_tree_image`), `getBackgroundTaskResult`
@@ -1451,8 +1534,10 @@ vite sans craindre une fausse manœuvre.
   au moins cinquante entrées par révision et par utilisateur, et ne survit ni au marquage, ni à
   l'abandon, ni à la session ;
 - propre à l'US : `previewPaste` juge un bloc collé sur la facette tâche dans l'ordre de
-  `NodeColumn` — `COMPUTED_VALUE`, `FIELD_NOT_ACCEPTED`, `NON_WORKING_DAY`,
-  `MILESTONE_HAS_NO_SUBTASK` (#1772), les règles du rattachement —, refuse un bloc trop large
+  `NodeColumn` — `COMPUTED_VALUE`, `FIELD_NOT_ACCEPTED`, `NON_WORKING_DAY`, les règles du
+  rattachement ; chaque ligne du bloc écrit un nœud existant, aucune n'en crée, et
+  `MILESTONE_HAS_NO_SUBTASK` (#1772) n'y a pas de site tant que #2559 n'est pas tranchée —,
+  refuse un bloc trop large
   (422 `PASTE_TOO_WIDE`, `max_columns`), et garde le plan (`paste_plan`) avec le compteur de la
   structure ; `applyPaste` écrit les lignes acceptées en une opération, rejuge, 412 si la
   structure a changé, et rend `PasteApplied` ; un plan abandonné n'écrit rien ;
@@ -1466,8 +1551,10 @@ vite sans craindre une fausse manœuvre.
 que l'issue de spécification de l'EPIC demande de compléter. La session est la session de
 connexion de Keycloak, dont la revendication `sid` du jeton survit à ses rafraîchissements — lier la
 pile au jeton d'accès lui-même la viderait à chaque rafraîchissement, toutes les cinq minutes ;
-la conception dit où l'API lit `sid`. La purge d'US-1420 retire les entrées d'une session finie et
-les plans échus.
+la conception dit où l'API lit `sid` ; un jeton valide sans `sid` est refusé par `undoLastChange`
+et `redoLastUndo` (403 `SESSION_ID_MISSING`, #2472), dont le lot écrit la clé de catalogue (#2537,
+« Les catalogues du front et le collage »). La purge d'US-1420 retire les entrées d'une session
+finie et les plans échus.
 
 **Hors périmètre.** Les colonnes de la ligne de devis dans un collage (EP-07) ; l'annulation des
 saisies de risque (EP-08).

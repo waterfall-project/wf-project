@@ -35,6 +35,8 @@ from sqlalchemy import ColumnElement, func, or_, select
 from sqlalchemy.exc import IntegrityError
 
 from waterfall.core.projects.interface import (
+    PROJECT_NOT_TERMINAL,
+    TERMINAL,
     CommandAvailability,
     advance,
     contributor_kind,
@@ -48,9 +50,7 @@ from waterfall.core.resource_settings.interface import share_reference
 from waterfall.core.revisions.commands import (
     NO_BACKGROUND_TASK_RUNNING,
     NO_CURRENT_REVISION,
-    PROJECT_NOT_TERMINAL,
     REVISION_DRAFT,
-    TERMINAL,
     revision_commands,
 )
 from waterfall.core.revisions.interface.closing import close_revision

@@ -8,6 +8,8 @@ application refused, broken or interrupted writes nothing of the project. Two ap
 import at once give one task.
 """
 
+import ast
+import inspect
 from concurrent.futures import ThreadPoolExecutor
 from threading import Event
 from typing import TYPE_CHECKING, Any
@@ -42,9 +44,12 @@ from support import ContractClient, wait_for_a_lock
 from waterfall.api.app import create_app
 from waterfall.api.authentication import Services
 from waterfall.api.contract.models import AuditParams
+from waterfall.core.exchanges import judgments
 from waterfall.core.exchanges.interface import register_format
+from waterfall.core.exchanges.states import AWAITING_DECISION, FILE_ACCEPTED, apply_lacks
 from waterfall.core.exchanges.tables import ImportReport
 from waterfall.core.history.tables import UndoEntry
+from waterfall.core.projects.interface import PROJECT_NOT_TERMINAL
 from waterfall.core.revisions.tables import CostStructure, Revision
 from waterfall.platform.audit import AuditEntry
 from waterfall.platform.keycloak_admin import KeycloakAdmin
@@ -478,3 +483,31 @@ def test_two_applications_of_one_import_at_once_give_one_task(
         ).all()
     assert len(applying) == 1
     assert stored(database, found["import_id"]).status == "applying"
+
+
+@pytest.mark.requirement("WF-ARC-0100-A")
+def test_the_passing_conditions_are_among_those_the_judgments_name_and_no_other() -> None:
+    # « Une condition passagère laisse l'import applicable » (#2475): ``apply_import`` recognises
+    # the refusal by the name of its condition. The names ``judge_state`` can raise are read from
+    # its source (its ``refused(...)`` calls), those the application of the report adds from
+    # ``apply_lacks``: the passing ones are two of them, the others are refused for good, and a
+    # future condition of the same name as a passing one would be mistaken for it. The kinds
+    # registered judge nothing of the state yet; one that does is to be added here.
+    calls = ast.walk(ast.parse(inspect.getsource(judgments.judge_state)))
+    state = {
+        getattr(judgments, call.args[0].id)
+        for call in calls
+        if isinstance(call, ast.Call)
+        and getattr(call.func, "id", None) == "refused"
+        and isinstance(call.args[0], ast.Name)
+    }
+    assert state == {
+        PROJECT_NOT_TERMINAL,
+        judgments.NO_BACKGROUND_TASK_RUNNING,
+        judgments.MAY_CREATE_REVISION,
+    }
+    lacking = {*apply_lacks("applied", None), *apply_lacks("analysed", {"refusals": [{}]})}
+    assert lacking == {AWAITING_DECISION, FILE_ACCEPTED}
+    assert set(judgments.PASSING) == {"no_background_task_running", "may_create_revision"}
+    assert set(judgments.PASSING) <= state
+    assert not set(judgments.PASSING) & ({PROJECT_NOT_TERMINAL} | lacking)

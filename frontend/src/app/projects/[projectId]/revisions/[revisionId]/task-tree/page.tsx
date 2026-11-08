@@ -7,9 +7,10 @@
  * of the summaries of the main structure under the root of the project, read and never entered
  * (`TaskTree`). The tasks are read as the grid of the planning reads them — the tasks alone,
  * restricted to the filtered sub-project (`grid-screen.ts`) —, the server selecting the summaries
- * down to the depth asked (`summaries_only`, `max_level`, #463), the tree keeping them once more
- * against the fake back (`summaryTree`); of each the fields the tree reads. The levels to choose
- * are those the structure has, as the server says them (`meta.summary_depth`, #494).
+ * down to the depth asked (`summaries_only`, `max_level`, #463) and the screen applying no
+ * criterion to its answer (#496); of each the fields the tree reads. The levels to choose are those
+ * the structure has, as the server says them (`meta.summary_depth`, #494). The image of the tree
+ * is asked from the head, at the level shown (`TaskTreeExport`, WF-PLA-0120).
  */
 import type { Metadata } from "next";
 import Link from "next/link";
@@ -17,16 +18,17 @@ import { useTranslations } from "next-intl";
 
 import { ContextBanner } from "@/components/context/context-banner";
 import { FUNCTION_DENSITY, LEAF_ICONS } from "@/components/shell/function-display";
-import { MockupNotice } from "@/components/shell/mockup-notice";
+import { exportOffers } from "@/components/exchanges/offers";
 import { PageHeader, Screen } from "@/components/shell/page-header";
 import {
   depthHref,
   depthShown,
   readDepth,
-  summaryTree,
+  hangTree,
   type TreeNode,
 } from "@/components/tree/summaries";
 import { TaskTree } from "@/components/tree/task-tree";
+import { TaskTreeExport, type TaskTreeExportProps } from "@/components/tree/task-tree-export";
 import { buttonVariants } from "@/components/ui/button";
 import { type PageSearchParams, searchQuery } from "@/navigation/context";
 
@@ -87,12 +89,14 @@ function TaskTreeScreen({
   levels,
   depth,
   href,
+  exporting,
 }: {
   readonly project: string;
   readonly nodes: readonly TreeNode[];
   readonly levels: number;
   readonly depth: number;
   readonly href: (depth: number) => string;
+  readonly exporting: TaskTreeExportProps;
 }) {
   const t = useTranslations();
   return (
@@ -102,9 +106,13 @@ function TaskTreeScreen({
         icon={LEAF_ICONS["FBS-4.3.5"]}
         density={FUNCTION_DENSITY.planning}
         subtitle={t("taskTree.summary")}
-        actions={<Depths levels={levels} depth={depth} href={href} />}
+        actions={
+          <div className="flex flex-wrap items-start gap-2">
+            <Depths levels={levels} depth={depth} href={href} />
+            <TaskTreeExport {...exporting} />
+          </div>
+        }
       />
-      <MockupNotice lists />
       <TaskTree name={t("taskTree.name")} project={project} nodes={nodes} />
       {levels === 0 ? (
         <p className="text-sm text-muted-foreground">{t("taskTree.noSummary")}</p>
@@ -139,10 +147,16 @@ export default async function TaskTreePage({
       <ContextBanner reading={screen.reading} />
       <TaskTreeScreen
         project={screen.reading.project.label}
-        nodes={summaryTree(screen.nodes.items, depth)}
+        nodes={hangTree(screen.nodes.items)}
         levels={levels}
         depth={depth}
         href={(level) => depthHref(at.pathname, query, level)}
+        exporting={{
+          projectId: revision.projectId,
+          revisionId: revision.revisionId,
+          depth,
+          offer: exportOffers(screen.reading.revision).task_tree_image,
+        }}
       />
     </>
   );

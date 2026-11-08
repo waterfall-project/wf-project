@@ -11,7 +11,7 @@ The tasks are read as the planning grid reads them, restricted to the subproject
 ## Its commands
 
 - **Level shown**: a link per level the structure counts, **Level 1**, **Level 2**… Beyond the level chosen, the subordinate tasks are not represented: it is what sets the bulk. A planning of several hundred tasks is not shown; its first three levels, yes.
-- The image of the tree is exported from the [imports and exports](FBS-4.3.4.md), by **Task tree image**, at the level you give. It has the size its content demands, without pagination nor reduction.
+- **Export the task tree image**: the image is drawn in the background, at the level shown, and downloaded from the follow-up of the tasks; it is not kept. The command follows what the revision lists and, unavailable, says the condition it lacks. The image bears the label of the project, that of the revision and the date of the calculation. It has the size its content demands, without pagination nor reduction: beyond one hundred million pixels the export fails, the follow-up says so, and a shallower level is all it takes. The [imports and exports](FBS-4.3.4.md) offer it too, at the level you give there.
 
 ## Its columns and computed values
 
@@ -28,4 +28,4 @@ No computed value: the numbers and the labels are those of the planning, as the 
 
 - [The planning](FBS-4.3.md) and [the planning grid](FBS-4.3.2.md), where the summary tasks are created;
 - [the timelines](FBS-4.3.1.md), the other view meant to be shown;
-- [the imports and exports](FBS-4.3.4.md), from which the image is exported.
+- [the imports and exports](FBS-4.3.4.md), where the image can be asked too.

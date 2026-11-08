@@ -2,7 +2,8 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 """The structures redated when the reference changes, and the idle tasks (US-1390/L2).
 
-``setDurationUnits``, ``updateCalendar`` and ``setDefaultCalendar`` redate, in their transaction,
+``setDurationUnits``, ``updateCalendar`` and ``setDefaultCalendar`` — and a calendar the bootstrap
+or the witness creates the default (#2510) — redate, in their transaction,
 the structures of the current revisions — a marked revision keeps the dates it computed —, and
 refuse a default calendar that would leave a task of a current revision without an hour, naming
 its projects by their label and their code, the author consulting none of them. The recalculation
@@ -37,7 +38,10 @@ from support import wait_for_a_lock
 from waterfall.core.projects.interface import Viewer
 from waterfall.core.projects.tables import Project
 from waterfall.core.resource_settings.interface import (
+    CalendarContent,
     Units,
+    WeeklyHours,
+    create_calendar,
     get_duration_units,
     lock_reference,
     set_duration_units,
@@ -176,6 +180,30 @@ def test_another_calendar_designated_the_default_redates_the_current_tasks(
     assert designated.status_code == 200, designated.text
     read = tree.node(task["node_id"])["task"]
     assert (read["calendar_id"], read["finish"]) == (half["calendar_id"], instant(THURSDAY, "4"))
+
+
+@pytest.mark.requirement("WF-PLA-0010-A")
+def test_a_calendar_created_the_default_is_judged_and_redates_as_a_designation(
+    tree: Tree, database: Database
+) -> None:
+    # « Une tâche sans ligne de main-d'œuvre est planifiée sur le calendrier par défaut. » The
+    # bootstrap and the loader of the witness create the default by the module, which judges and
+    # redates it as ``setDefaultCalendar`` does (#2510).
+    task = tree.made("Études", task=TWO_DAYS)
+    act = Act(None, utc_now())
+    closed = CalendarContent("Fermé", WeeklyHours(*[Decimal(0)] * 7))
+    with pytest.raises(UnprocessableError) as refused, database.transaction() as session:
+        create_calendar(session, closed, act, default=True)
+    assert refused.value.code == "TASK_WITHOUT_WORKING_HOURS"
+    four, none = Decimal(4), Decimal(0)
+    half = CalendarContent("Mi-temps", WeeklyHours(four, four, four, four, four, none, none))
+    with database.transaction() as session:
+        created = create_calendar(session, half, act, default=True)
+    read = tree.node(task["node_id"])["task"]
+    assert (read["calendar_id"], read["finish"]) == (
+        str(created.calendar_id),
+        instant(THURSDAY, "4"),
+    )
 
 
 @pytest.mark.requirement("WF-PLA-0010-A")

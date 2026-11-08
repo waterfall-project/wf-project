@@ -1,0 +1,10 @@
+{
+  "summary": "Variante contrefactuelle : un calendrier désigné par défaut dont les heures porteraient au-delà de quinze ans le projet « Modernisation du poste de commande », PRJ-001, ses tâches sans ligne de main-d'œuvre en relevant : refusé, le projet nommé par son libellé et son code, sans tâche ni identifiant ; rien n'est écrit (WF-PLA-0150, WF-ADM-0110, #2505).",
+  "description": "Exemple engendré par `make mock-data` (`wftools.mockdata`) : il ne se retouche pas.",
+  "value": {
+    "code": "PROJECT_HORIZON_EXCEEDED",
+    "status": 422,
+    "params": {"projects":[{"project_label":"Modernisation du poste de commande","project_code":"PRJ-001"}]},
+    "correlation_id": "01926f3a-7c00-7000-8000-000000001703"
+  }
+}
