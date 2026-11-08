@@ -10,13 +10,13 @@ import { inService, test } from "./mode";
 import { createOwnProject, openRevision, type OwnProject } from "./own-project";
 import { isServerAction } from "./server-action";
 
-// The timelines screen is served by the service (US-1400), but only the path of the inscription
-// (WF-PLA-0060-A) is tagged `@shared`: it plays against the service on a project the run creates
-// (the account of the run is no contributor of PRJ-001, #2193). The four paths that read the witness
-// — the frieze, the focus, the export, the two selections — keep to the fake back until PRJ-001 holds
-// tasks in the service (the filler of US-1480/L2, #2347): what only the service can answer is kept
-// behind `inService`, which that lot lifts by tagging them `@shared`. The others keep to the fake
-// back, which keeps nothing of what they write.
+// The timelines screen is served by the service (US-1400), and the paths below tagged `@shared` play
+// against it: the frieze, the focus (WF-IHM-0100-A), the PNG export and the two selections
+// (WF-PLA-0140-A) read the witness, which the service holds since the filler of US-1480/L2 loads its
+// tasks (PRJ-001, revisions 100 to 102) and its two timelines; the inscription (WF-PLA-0060-A) plays
+// on a project the run creates (the account of the run is no contributor of PRJ-001, #2193). The
+// inscription from the grid menu, the navigation and the creation/deletion of a timeline keep to the
+// fake back, which keeps nothing of what they write.
 //
 // The inscription of a task to a timeline, from the menu of its cell (US-0480, WF-PLA-0060), against
 // the fake back. It keeps nothing: it serves the first example of each read, and the first of
@@ -132,20 +132,17 @@ test("offers the time/time tracking of a milestone beside its timelines, checked
 // the witness holds two rectangles that overlap.
 const MOVED = "01926f3a-7c00-7000-8000-000000000565";
 
-test("lays out the frieze of a timeline by the keyboard and the mouse, and records the lanes", async ({
+test("lays out the frieze of a timeline by the keyboard and the mouse, and records the lanes @shared", async ({
   page,
 }) => {
+  // The fake back draws the whole volume of its nodes whatever the timeline (#463): the lanes and the
+  // last rectangle are the service's alone, and the skip says so on the fake back.
+  test.skip(!inService, "the fake back draws every node: the lanes are those of the service");
   // The timelines read the structure of a thousand tasks: the bound of a grid.
   test.slow();
   await openHydrated(page, `${IN_REVISION}/timelines`);
   const frieze = page.getByRole("group", { name: /^Frise de la chronologie/ });
   await expect(frieze).toBeVisible({ timeout: WORKING });
-  // The fake back renders, whatever the timeline, the whole volume of six thousand nodes: the lanes
-  // and the last rectangle are not those of the timeline, which the service alone filters (#463).
-  // Only the frieze is proven there; the lanes wait for the witness' tasks in the service.
-  if (!inService) {
-    return;
-  }
   const commissioning = (lane: number) =>
     page.getByRole("img", {
       name: `Mise en service, du 21/12/2026 au 01/01/2027, couloir ${String(lane)}`,
@@ -187,19 +184,15 @@ test("lays out the frieze of a timeline by the keyboard and the mouse, and recor
   await expect(said).toHaveText("« Mise en service » est dans le couloir 1.");
 });
 
-test("keeps the rectangle the keyboard reaches in view on a zoomed axis, and cuts a name the rectangle cannot hold [WF-IHM-0100-A]", async ({
+test("keeps the rectangle the keyboard reaches in view on a zoomed axis, and cuts a name the rectangle cannot hold @shared [WF-IHM-0100-A]", async ({
   page,
 }) => {
   // Le focus reste visible.
+  test.skip(!inService, "the fake back draws every node: the last rectangle is the service's");
   test.slow();
   await openHydrated(page, `${IN_REVISION}/timelines`);
   const frieze = page.getByRole("group", { name: /^Frise de la chronologie/ });
   await expect(frieze).toBeVisible({ timeout: WORKING });
-  // The fake back draws every node: the last rectangle is not the commissioning, which the service
-  // alone draws last. The focus is proven there once the witness' tasks are in the service.
-  if (!inService) {
-    return;
-  }
   const commissioning = page.getByRole("img", { name: /^Mise en service, du 21\/12\/2026/ });
   await expect(commissioning).toBeVisible();
   // Fitted to the project, the rectangle of eleven days is narrow: its name is cut on the screen,
@@ -224,7 +217,7 @@ test("keeps the rectangle the keyboard reaches in view on a zoomed axis, and cut
   await expect(commissioning).toBeInViewport({ ratio: 1 });
 });
 
-test("exports the frieze of a timeline as a PNG image, named after the project [WF-PLA-0140-A]", async ({
+test("exports the frieze of a timeline as a PNG image, named after the project @shared [WF-PLA-0140-A]", async ({
   page,
 }) => {
   // L'export produit un fichier PNG de la chronologie affichée.
@@ -262,7 +255,7 @@ test("leads from the planning to the timelines of the project, read only", async
   );
   // The timelines of the project; the screen asks the tasks of the one shown (`timeline_id`) and
   // draws what it is given. The fake back answers the same volume whatever the timeline: this path
-  // proves the navigation, not the selection (the paths that read the witness prove it against the service once it holds its tasks).
+  // proves the navigation, not the selection (the `@shared` selections path proves it).
   // They read the structure of a thousand tasks: the bound of a grid.
   await expect(page.getByRole("link", { name: "Comité de pilotage" })).toHaveAttribute(
     "aria-current",
@@ -329,7 +322,7 @@ const RECEPTION = /^Réception usine, jalon le /;
 /** The rectangle or the line a frieze draws for a task, named by its label. */
 const drawn = (page: Page, name: RegExp) => page.getByRole("img", { name });
 
-test("shows two timelines of a project with distinct selections, found again by another visit [WF-PLA-0140-A]", async ({
+test("shows two timelines of a project with distinct selections, found again by another visit @shared [WF-PLA-0140-A]", async ({
   page,
 }) => {
   // Deux chronologies d'un même projet portent des sélections distinctes et se retrouvent d'une
@@ -465,8 +458,8 @@ test("shows a task once inscribed to a timeline the path made, and no longer onc
     await expect(page.getByText(EMPTY)).toBeVisible({ timeout: WORKING });
     await expect(drawn(page, /^Revue de conception/)).toHaveCount(0);
   } finally {
-    // The timeline the path made is deleted with it, an inscription with it — even when the path
-    // failed. The project is the run's own, which no other path reads.
-    await removeTimeline(page, shown, label);
+    // The timeline is the run's own project's, which no other path reads: the cleanup is best
+    // effort, and its own failure must not hide the failure of the path.
+    await removeTimeline(page, shown, label).catch(() => undefined);
   }
 });
