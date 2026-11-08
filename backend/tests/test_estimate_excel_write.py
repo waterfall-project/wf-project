@@ -36,7 +36,7 @@ from waterfall.core.estimate.excel.model import (
     Tab,
     Task,
 )
-from waterfall.core.estimate.excel.writer import LINE_HEADERS, write_workbook
+from waterfall.core.estimate.excel.writer import write_workbook
 from waterfall.core.estimate.interface import sheet_name
 
 if TYPE_CHECKING:
@@ -304,25 +304,64 @@ def test_the_presentation_shows_the_project_and_the_breakdown_by_nature() -> Non
     assert "xl/media/image1.png" in zipfile.ZipFile(BytesIO(content)).namelist()
 
 
+# The headers of annex B, as the prototype writes them: typed here, not read from the writer.
+EXPECTED_LINE_HEADERS = [
+    "Tâche",
+    "Description de la tâche",
+    "Rôle ou catégorie",
+    "Désignation",
+    "Quantité",
+    "Heures",
+    "Débours unitaire",
+    "Délai de paiement (j)",
+    "Sous-projet",
+    "Nature",
+    "Code comptable",
+    "Service",
+    "Taux horaire",
+    "Heures totales",
+    "Main-d’œuvre",
+    "Débours",
+    "Montant",
+    "Montant Waterfall",
+    "ID ligne",
+    "Type",
+]
+EXPECTED_PARAMETER_HEADERS = [
+    "Entrée",
+    "Genre",
+    "Code",
+    "Libellé",
+    "Service",
+    "Nature",
+    "Type de nature",
+    "Code comptable",
+    "Taux horaire",
+]
+EXPECTED_TASK_HEADERS = [
+    "Entrée",
+    "ID tâche",
+    "N°",
+    "Libellé",
+    "Onglet",
+    "Début",
+    "Fin",
+    "Description",
+]
+
+
 @pytest.mark.requirement("WF-INTF-0180-A")
-def test_the_headers_of_every_tab_of_lines_are_the_fixed_french_ones() -> None:
+def test_the_headers_of_every_tab_are_the_fixed_french_ones() -> None:
     book = _open(write_workbook(_estimate()))
+    assert len(EXPECTED_LINE_HEADERS) == 20
     for name in ("1.1 Centrale et logiciel", "1 Contrôle d’accès", "Hors lot"):
-        assert [cell.value for cell in book[name][1]] == list(LINE_HEADERS)
-    assert LINE_HEADERS[:9] == (
-        "Tâche",
-        "Description de la tâche",
-        "Rôle ou catégorie",
-        "Désignation",
-        "Quantité",
-        "Heures",
-        "Débours unitaire",
-        "Délai de paiement (j)",
-        "Sous-projet",
-    )
+        assert [cell.value for cell in book[name][1]] == EXPECTED_LINE_HEADERS
+    parameters = [cell.value for cell in book["Paramètres"][3]][:9]
+    assert parameters == EXPECTED_PARAMETER_HEADERS
+    tasks = [cell.value for cell in book["Tâches"][3]][:8]
+    assert tasks == EXPECTED_TASK_HEADERS
 
 
-@pytest.mark.requirement("WF-INTF-0180-A")
 def test_the_same_estimate_gives_the_same_workbook_whoever_exports_it() -> None:
     """The writer takes no language and reads no clock: two exports are the same bytes."""
     assert write_workbook(_estimate()) == write_workbook(_estimate())
@@ -351,7 +390,9 @@ def test_the_calculated_columns_are_formulas_that_name_their_table() -> None:
     assert "Referentiel[[Taux horaire]]" in taux
     assert "Referentiel[[Entrée]]" in taux
     total = {c.name: c.totalsRowFunction for c in sheet.tables["Lignes_1_1"].tableColumns}
-    assert total["Montant"] is None or total["Montant"] == "custom"
+    totalled = {"Heures totales", "Main-d’œuvre", "Débours", "Montant", "Montant Waterfall"}
+    for header, function in total.items():
+        assert function == ("custom" if header in totalled else None), header
 
 
 def test_the_lists_of_choice_cover_the_tasks_the_roles_and_the_subprojects() -> None:
@@ -481,7 +522,7 @@ def test_a_structure_without_a_line_gives_the_blank_model() -> None:
     content = write_workbook(bare)
     book = _open(content)
     assert book.sheetnames == ["Présentation", "Devis", "Hors lot", "Tâches", "Paramètres"]
-    assert [cell.value for cell in book["Hors lot"][1]] == list(LINE_HEADERS)
+    assert [cell.value for cell in book["Hors lot"][1]] == EXPECTED_LINE_HEADERS
     assert _problems(content) == []
 
 
@@ -562,6 +603,17 @@ def test_sheet_name_leaves_room_for_the_suffix_in_31_units() -> None:
     emoji = sheet_name("😀" * 20, ["😀" * 15])
     assert emoji == "😀" * 13 + " (2)"
     assert len(emoji.encode("utf-16-le")) // 2 <= 31
+
+
+def test_sheet_name_suffixed_and_truncated_still_avoids_a_name_taken_in_another_case() -> None:
+    assert sheet_name("x" * 40, ["X" * 31, "x" * 27 + " (2)"]) == "x" * 27 + " (3)"
+    taken = ["😀" * 15, ("😀" * 13 + " (2)").upper()]
+    name = sheet_name("😀" * 20, taken)
+    assert name == "😀" * 13 + " (3)"
+    assert len(name.encode("utf-16-le")) // 2 <= 31
+    # 27 units leave 13 pairs after the « a »; a fourteenth would cut a pair in two.
+    pair_cut = sheet_name("a" + "😀" * 20, ["A" + "😀" * 15, "A" + "😀" * 13 + " (2)"])
+    assert pair_cut == "a" + "😀" * 13 + " (3)"
 
 
 def test_sheet_name_avoids_the_name_excel_reserves() -> None:
