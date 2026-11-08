@@ -1,6 +1,9 @@
 # SPDX-FileCopyrightText: 2026 waterfall-project
 # SPDX-License-Identifier: AGPL-3.0-only
-"""The files deposited on the object storage, in transit (WF-DAT-0120): by parts, for now (#350).
+"""The files deposited on the object storage, in transit (WF-DAT-0120): whole, or by parts (#350).
+
+A file of an import is deposited whole, in one request, under the bound of an import (EP-06):
+recorded completed, as one part (``record_whole``).
 
 A backup copied out of a platform is deposited by parts, each under the bound of a request the
 front carries, which the object storage assembles: a deposit opens — the server says in how many
@@ -24,6 +27,7 @@ from waterfall.platform.database import Base, UtcDateTime
 # The uses of a deposit, as the contract says them (``FileUploadPurpose``).
 PURPOSES = ("import", "external_backup")
 EXTERNAL_BACKUP = "external_backup"
+IMPORT = "import"
 # How long a deposit lives, opened or completed (``ChunkedUpload.expires_at``).
 LIFETIME = timedelta(hours=24)
 # The bounds of a part: the storage assembles no part smaller than 5 MiB, but the last; 10 MiB is
@@ -126,6 +130,40 @@ def record_upload(session: Session, upload_id: UUID, opened: Opened, at: datetim
             uploaded_by=opened.uploaded_by,
             created_at=at,
             expires_at=at + LIFETIME,
+        )
+    )
+    return session.get_one(FileUpload, upload_id)
+
+
+@dataclass(frozen=True, slots=True)
+class Whole:
+    """A file deposited in one piece, for an import: its name, its size, and who deposits it."""
+
+    filename: str
+    size_bytes: int
+    uploaded_by: UUID
+
+
+def record_whole(session: Session, upload_id: UUID, whole: Whole, at: datetime) -> FileUpload:
+    """Record a file deposited in one piece at ``at``, completed then, living ``LIFETIME``.
+
+    A deposit of an import is one part, at the bound of a part, of a file the storage already holds
+    whole (``uploadFile``, EP-06): nothing is assembled, and no deposit in parts stays open.
+    """
+    session.execute(
+        insert(FileUpload).values(
+            id=upload_id,
+            purpose=IMPORT,
+            filename=whole.filename,
+            size_bytes=whole.size_bytes,
+            part_size_bytes=LARGEST_PART,
+            part_count=1,
+            object_key=object_key_of(upload_id),
+            deposit=None,
+            uploaded_by=whole.uploaded_by,
+            created_at=at,
+            expires_at=at + LIFETIME,
+            completed_at=at,
         )
     )
     return session.get_one(FileUpload, upload_id)

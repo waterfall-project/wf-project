@@ -125,6 +125,22 @@ class TaskError(Exception):
     """A task submitted outside a request or a command, without a correlation: a defect."""
 
 
+class UndoneError(Exception):
+    """A task that fails, its work undone, and what it leaves written in its place.
+
+    A handler whose failure must leave a trace on its own rows — the import passed ``failed`` or
+    ``refused``, its file to delete once committed (EP-06) — raises this from the cause of its
+    failure: the worker undoes the handler's work, then writes ``trace`` in the transaction of the
+    task, and fails the task as the cause says, a refusal with its code, anything else as an
+    internal error. The trace is written with the end of the task, or not at all.
+    """
+
+    def __init__(self, cause: Exception, trace: Callable[[Session], None]) -> None:
+        super().__init__(str(cause))
+        self.cause = cause
+        self.trace = trace
+
+
 def submit(
     session: Session,
     queue: TaskQueue,
@@ -172,14 +188,18 @@ def pending_task(session: Session, kind: TaskKind) -> UUID | None:
     return session.scalar(select(BackgroundTask.id).where(pending).limit(1))
 
 
-def project_task_pending(session: Session, project_id: UUID) -> bool:
-    """Tell whether a task that aims at a project is queued or running.
+def project_task_pending(session: Session, project_id: UUID, besides: UUID | None = None) -> bool:
+    """Tell whether a task that aims at a project is queued or running, ``besides`` apart.
 
     A task aims at a project when its payload names it under ``PROJECT``, as the marking of a
-    revision does (US-0970); this module knows no table of the projects.
+    revision does (US-0970); this module knows no table of the projects. ``besides`` is the task
+    that asks, running itself: the application of an import, which opens the current revision it
+    writes in, is not refused by its own run (EP-06, "L'import en deux temps").
     """
     aimed = BackgroundTask.payload[PROJECT].astext == str(project_id)
     pending = select(BackgroundTask.id).where(BackgroundTask.status.in_(PENDING), aimed)
+    if besides is not None:
+        pending = pending.where(BackgroundTask.id != besides)
     return session.scalar(pending.limit(1)) is not None
 
 

@@ -55,12 +55,13 @@ def handlers(settings: WorkerSettings) -> dict[str, TaskHandler]:
     The marking is the first task of the trade (US-0970); the analysis and the application of an
     import and an export are the exchanges' (EP-06).
     """
+    imports = exchanges.ImportTasks.of(settings)
     return {
         "backup": BackupTask.of(settings),
         "identity_sync": IdentitySync.of(settings),
         "revision_mark": mark,
-        "import_analysis": exchanges.analyse,
-        "import_apply": exchanges.apply,
+        "import_analysis": imports.analyse,
+        "import_apply": imports.apply,
         "export": exchanges.ExportTask.of(settings),
     }
 
@@ -182,7 +183,7 @@ def _purge(settings: Settings) -> int:
                     session.execute(select(func.pg_advisory_xact_lock(PURGE_LOCK)))
                     now = utc_now()
                     purged = exchanges_interface.purge(session, now)
-                    history_interface.purge(session, now - UNDO_RETENTION)
+                    history_interface.purge(session, before=now - UNDO_RETENTION, now=now)
             except Exception:
                 logger.exception("purge.failed")
                 return 1

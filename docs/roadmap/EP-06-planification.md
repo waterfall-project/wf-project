@@ -1082,7 +1082,7 @@ se pose autour du service dans les tests, comme EP-04 l'a fait.
 
 ## US-1420 — L'import en deux temps
 
-- **statut** : à faire
+- **statut** : en cours
 - **exigences** : `WF-ARC-0100-A`, `WF-INTF-0080-A`, `WF-INTF-0090-A`, `WF-ARC-0110-A`,
   `WF-DAT-0120-A`
 - **opérations** : `uploadFile`, `listImports`, `openImport`, `getImport`, `abandonImport`,
@@ -1183,7 +1183,7 @@ des échanges, branché par US-1430.
 
 ## US-1430 — Le format MS Project : import, export et aller-retour
 
-- **statut** : à faire
+- **statut** : en cours
 - **exigences** : `WF-INTF-0040-A`, `WF-INTF-0050-A`, `WF-INTF-0060-A`, `WF-QUA-0080-A`,
   `WF-DAT-0120-A`
 - **opérations** : `requestExport` (`ms_project_schedule`), `getBackgroundTaskResult` ;
@@ -1346,7 +1346,7 @@ PRJ-001 a la profondeur que `summary_depth` dit.
 
 ## US-1450 — Le collage et l'annulation servis par le serveur
 
-- **statut** : à faire
+- **statut** : en cours
 - **exigences** : `WF-IHM-0110-A`
 - **opérations** : `previewPaste`, `applyPaste`, `undoLastChange`, `redoLastUndo`
 - **issue** : 2322

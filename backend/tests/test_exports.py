@@ -257,7 +257,7 @@ def test_an_export_whose_object_is_gone_is_a_result_that_does_not_exist(
     api: ContractClient, stage: Scene, worker: Worker, backups_bucket: Bucket
 ) -> None:
     task_id, _ = exported(api, stage, worker)
-    backups_bucket.delete(f"exports/{task_id}.png")
+    backups_bucket.remove(f"exports/{task_id}.png")
     assert refusal(result(api, stage, task_id))[:2] == (404, "NOT_FOUND")
     assert task_of(api, stage, task_id)["result_url"] is None
 
