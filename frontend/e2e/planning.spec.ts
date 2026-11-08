@@ -1,9 +1,10 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
-import { type Download, expect, type Locator, test } from "@playwright/test";
+import { type Download, expect, type Locator } from "@playwright/test";
 
 import { columnsOf } from "./columns";
 import { holdScripts, openHydrated, WORKING } from "./hydration";
+import { test } from "./mode";
 import { rowAt, scrollToPosition, withinBox } from "./scroll";
 import { isServerAction } from "./server-action";
 
@@ -164,7 +165,7 @@ test("holds the totals of the planning in the window as the grid lays out anew o
   }
 });
 
-test("attaches the leaf under the task of « Lot 1 » to its post « Poste 1.1 » from its cell, by the letter typed, which the server answers, and says the fake back keeps nothing [WF-PLA-0170-A]", async ({
+test("attaches the leaf under the task of « Lot 1 » to its post « Poste 1.1 » from its cell, by the letter typed, which the server answers [WF-PLA-0170-A]", async ({
   page,
 }) => {
   // Row 8, the summary task « Poste de commande » — a name of the planning, not a post of the work
@@ -175,7 +176,7 @@ test("attaches the leaf under the task of « Lot 1 » to its post « Poste 1.1 �
   // renamed — what the grid does with an attachment answered is proven on the examples by
   // `planning-writes.dom.test.tsx`.
   await openHydrated(page, `${IN_REVISION}/planning`);
-  await expect(page.getByRole("note")).toContainText("Maquette");
+  await expect(page.getByRole("note")).toHaveCount(0);
   const grid = page.getByRole("treegrid", { name: "Grille de planning" });
   const at = await columnsOf(grid, { attachment: "Rattachement" });
   const lot = grid.getByRole("row", { name: /^8 .*Poste de commande/ });

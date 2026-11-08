@@ -4909,7 +4909,14 @@ class PastePlan(ContractModel):
     accepted: Annotated[
         int,
         Field(
-            description="The number of block rows that the confirmation will write. On a differential, a removed node that the paste skips is not counted in it, and is not refused either: each block row writes the next node that is not removed (`PastePreview`, #1278).",
+            description="The number of block rows that the confirmation will write, those that create a node included (`created`). On a differential, a removed node that the paste skips is not counted in it, and is not refused either: each block row writes the next node that is not removed (`PastePreview`, #1278).",
+            ge=0,
+        ),
+    ]
+    created: Annotated[
+        int,
+        Field(
+            description="The number of accepted block rows (`accepted`) that fall beyond the last node of the structure, and for each of which the confirmation will create a node, a sibling of that last node (`PastePreview`, #2559); `0` when the block ends on the last node or above it. A refused row is counted in neither.",
             ge=0,
         ),
     ]

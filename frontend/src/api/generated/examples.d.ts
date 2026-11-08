@@ -333,6 +333,9 @@ export interface Examples {
   "POST /projects/{project_id}/revisions/{revision_id}/rate-update": {
     200: "rate_update_applied";
   };
+  "POST /projects/{project_id}/revisions/{revision_id}/redo": {
+    200: "redo_task_renamed";
+  };
   "POST /projects/{project_id}/revisions/{revision_id}/skeleton": {
     201: "skeleton_generated";
   };
@@ -349,10 +352,13 @@ export interface Examples {
     200: "nodes_indented" | "nodes_moved";
   };
   "POST /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/paste": {
-    200: "paste_applied" | "paste_applied_amendment" | "paste_applied_amendment_skipping" | "paste_applied_partial" | "paste_applied_rejudged";
+    200: "paste_applied" | "paste_applied_amendment" | "paste_applied_amendment_skipping" | "paste_applied_creating" | "paste_applied_partial" | "paste_applied_rejudged";
   };
   "POST /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/paste-preview": {
-    200: "paste_plan" | "paste_plan_amendment" | "paste_plan_amendment_skipping" | "paste_plan_amendment_target_removed" | "paste_plan_subproject_held" | "paste_plan_unknown_category" | "paste_plan_without_hours";
+    200: "paste_plan" | "paste_plan_amendment" | "paste_plan_amendment_skipping" | "paste_plan_amendment_target_removed" | "paste_plan_creating" | "paste_plan_subproject_held" | "paste_plan_unknown_category" | "paste_plan_without_hours";
+  };
+  "POST /projects/{project_id}/revisions/{revision_id}/undo": {
+    200: "undo_task_renamed";
   };
   "POST /projects/{project_id}/risks": {
     201: "risk_created";

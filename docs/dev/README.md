@@ -1188,6 +1188,34 @@ levels the structure has, from the first to that of its deepest summary task, wh
 whatever the filters (`meta.summary_depth`, #494), and shows the level asked for, or the deepest
 when asked for one beyond it (`depthShown`).
 
+The planning is wired to the service (EP-06, US-1470): the page no longer carries the note of the
+mock-up (`MockupNotice`), each cell is written by `updateTaskFacet`, the predecessors by
+`setPredecessors` (`resolveRowNumber` for a number the search left out), the start date by
+`updateCostStructure`, and the attachment, creation, indentation, move and deletion by the
+operations of the tree; the tasks redated, the links in conflict, the float and the critical path
+are those the server renders. An account that sees the project without being a contributor reads the
+planning and receives `NOT_CONTRIBUTOR` on each write and on `openImport`
+(`e2e/service/planning-readers.spec.ts`, WF-ADM-0110-A). The paths of `planning-service.spec.ts`,
+`structure.spec.ts`, `computed.spec.ts`, `keyboard.spec.ts`, `grid.spec.ts` (the pinned Gantt) and
+`context.spec.ts` that play against the service carry `@shared`: the witness of PRJ-001 has no task
+yet in the service (US-1480), and the account of the run is no contributor of it (#2193), so each
+path writes a project of its own (`e2e/planning-seed.ts`: the project made from the home, its
+revision opened, six tasks written by the API, and, according to the path, their links with one in
+conflict, a work breakdown of two order items; the states « started » and « finished » stay played
+on the fake back until US-1480/L3, #2595). The carry-over from one grid to the other (#1057) is
+played by the operations the estimate grid sends, `createNode` then `moveNodes`, on the structure it
+shares with the planning: the screen of the estimate grid is not served before EP-07, and the
+gesture made from it is postponed to that EPIC (#2590); the task so created is read in the planning,
+and its indentation with it. The path of the account « chef de projet » plays the planning and
+FLX-02; FLX-01 waits for US-1430/L4 (#2589). The paths that read the witness of PRJ-001 wait for
+US-1480: their `@shared` tagging is US-1480/L3's (#2591). What is not replayed before its EPIC stays
+guarded by `inService`: the lines, the amounts and the estimate (EP-07); the remaining to commit
+(EP-09); the risks (EP-08); the indicators (EP-10); the differential structures (EP-08), so the path
+of `context.spec.ts` that opens the amendment, that of the risks screen and that of the indicators
+stay on the fake back; the paths of `planning.spec.ts` and `keyboard.spec.ts` that read the thousand
+tasks of the witness (US-1480). The measure of a cell validation (#196) and that of the move of the
+active cell over a thousand tasks (#620) are in the delivery report of US-1470.
+
 ### The risks screen
 
 The risks screen, `…/revisions/[r]/risks` (`frontend/src/components/risks/`), reads each of its
@@ -2679,7 +2707,8 @@ of what it describes, and two generations write the same bytes:
   structure and of the entry of tasks, with their refusals (`wftools.mockgestures`, the place of a
   node and the loops a gesture would close in `wftools.mocktree`, the gestures of the estimate made
   on amendment 2, and the entry and the paste the end-to-end paths make there, in
-  `wftools.mockamendmentwrites`), the gestures of the cards of the Kanban and their responses
+  `wftools.mockamendmentwrites`; the paste that creates the tasks beyond the last row, and the
+  undo and the redo of a renaming, in `wftools.mockundoable`, #2559, #2564), the gestures of the cards of the Kanban and their responses
   (`wftools.mockkanban`), and the refusals of a paste and of an import that a subproject or the
   phase of the project command (`wftools.mockexchanges`), and a manual date on a non-working day,
   refused at entry and flagged at import (`wftools.mocknonworking`, #1271); its history

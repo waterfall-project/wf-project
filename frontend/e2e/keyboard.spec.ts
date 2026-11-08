@@ -1,9 +1,11 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
-import { expect, type Locator, type Page, test } from "@playwright/test";
+import { expect, type Locator, type Page } from "@playwright/test";
 
 import { columnsOf } from "./columns";
 import { openHydrated, WORKING } from "./hydration";
+import { inService, test } from "./mode";
+import { SEEDED, seedPlanning } from "./planning-seed";
 import { edgesBetween, rowAt, scroller, withinBox } from "./scroll";
 
 // The fake back serves the first example of `listNodes`, the structure of the volumes of §4.6.2
@@ -222,5 +224,57 @@ test.describe("on a window lower than the floor of the grid", () => {
     const active = grid.locator("td:focus");
     await expect(active).toHaveAttribute("data-column", "label");
     await expect(active).toBeInViewport();
+  });
+});
+
+test("moves through the planning of the service by the keys alone, stops on the dates it computes without entering them, and enters a label @shared [WF-IHM-0100-A]", async ({
+  page,
+  browser,
+  request,
+  manager,
+}) => {
+  test.skip(!inService, "the planning the path writes lives in the service alone");
+  test.slow();
+  const seeded = await seedPlanning(page, browser, request, manager, "Clavier");
+  await openHydrated(page, seeded.planning);
+  const grid = page.getByRole("treegrid", { name: "Grille de planning" });
+  const at = await columnsOf(grid, {
+    label: "Libellé",
+    mode: "Mode de planification",
+    start: "Début",
+  });
+  const cell = (row: number, column: number) => rowAt(grid, row).getByRole("gridcell").nth(column);
+  await expect(cell(2, at.label)).toContainText(SEEDED[2], { timeout: WORKING });
+
+  // The grid is one stop of the tabulation: a click gives it its active cell, the arrows move it.
+  await cell(2, at.label).click();
+  await expect(cell(2, at.label)).toBeFocused();
+  await page.keyboard.press("ArrowDown");
+  await expect(cell(3, at.label)).toBeFocused();
+  await press(page, "Control+End");
+  await expect(page.locator(":focus")).toHaveAttribute("data-row", "5");
+  await expect(rowAt(grid, 6)).toContainText(SEEDED[6]);
+  await press(page, "Control+Home");
+  await expect(page.locator(":focus")).toHaveAttribute("data-row", "0");
+  await press(page, ...times("ArrowRight", at.label));
+  await expect(cell(1, at.label)).toBeFocused();
+
+  // The start of a task in automatic mode is computed: the arrows stop on it, which opens no entry,
+  // and a try is refused.
+  await press(page, "ArrowDown", ...times("ArrowRight", at.start - at.label));
+  await expect(cell(2, at.start)).toBeFocused();
+  await expect(cell(2, at.start)).toHaveAttribute("aria-readonly", "true");
+  await page.keyboard.press("Enter");
+  await expect(page.getByRole("dialog", { name: "Valeur calculée" })).toBeVisible();
+  await expect(grid.getByRole("textbox")).toHaveCount(0);
+  await page.keyboard.press("Escape");
+  await expect(cell(2, at.start)).toBeFocused();
+
+  // The label is entered from the keyboard, written by the service and shown as it answered.
+  await press(page, ...times("ArrowLeft", at.start - at.label), "F2");
+  await grid.getByRole("textbox", { name: "Libellé" }).fill("Études détaillées");
+  await page.keyboard.press("Enter");
+  await expect(grid.getByRole("gridcell", { name: "Études détaillées" })).toBeVisible({
+    timeout: WORKING,
   });
 });
