@@ -19,7 +19,12 @@ if TYPE_CHECKING:
 
     from sqlalchemy.orm import Session
 
-    from waterfall.core.exchanges.interface import ExportedFile, ExportOrder, ImportTarget
+    from waterfall.core.exchanges.interface import (
+        ExportedFile,
+        ExportOrder,
+        ImportScope,
+        ImportTarget,
+    )
     from waterfall.platform.audit import Act
 
 # The bytes of the head of a file the header is read in: the declaration and the root of MSPDI.
@@ -27,14 +32,23 @@ HEADER_LENGTH = 4096
 
 
 class MsProjectFormat:
-    """The format of a planning of MS Project, as the exchanges ask it (``Format``)."""
+    """The format of a planning of MS Project, as the exchanges ask it (``Format``).
+
+    It writes a structure of the current revision, under the permission to write the planning.
+    """
 
     header_length = HEADER_LENGTH
+    scope: ImportScope = "structure"
+    permission = "planning.write"
 
-    def read_header(self, head: bytes) -> None:
+    def read_header(self, session: Session, head: bytes) -> None:
         """Refuse the head of a file that is not a planning of MS Project."""
         msg = "read_header is filled by US-1430/L3"
         raise NotImplementedError(msg)
+
+    def judge(self, session: Session, target: ImportTarget) -> None:
+        """Refuse an import of a planning on the state of its structure: none until US-1430/L3."""
+        del session, target
 
     def analyse(self, session: Session, target: ImportTarget, content: bytes) -> Mapping[str, Any]:
         """Give the report of a planning of MS Project against a structure, writing nothing."""

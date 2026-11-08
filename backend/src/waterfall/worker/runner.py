@@ -6,7 +6,9 @@ The handler's work and the end of the task are committed together, under an advi
 task; the attempt that starts is committed before, apart. A worker stopped during a task leaves the
 database as it was, but for that attempt: a worker that claims its entry finds the lock free, and
 runs the task again from the start; while the task runs, the entry is left (WF-ARC-0090). A task
-whose attempts are spent, or that no handler runs, fails without running.
+whose attempts are spent, or that no handler runs, fails without running. A handler that fails is
+undone; one whose failure leaves a trace on its own rows — an import passed ``failed`` or
+``refused`` (EP-06) — raises ``UndoneError``, and the trace is written with the end of the task.
 
 While a restoration holds the platform in maintenance, the worker runs no task: the entries it reads
 are left, unacknowledged, and it claims them again once idle, after the maintenance (WF-ADM-0160).
@@ -29,7 +31,14 @@ from waterfall.platform.errors import FieldError, ServiceError
 from waterfall.platform.logs import PLATFORM, get_logger, logging_context
 from waterfall.platform.maintenance import Maintenance, Restoring
 from waterfall.platform.queue import SWEEP_START, Entry, TaskQueue
-from waterfall.platform.tasks import FINISHED, PENDING, BackgroundTask, Task, TaskHandler
+from waterfall.platform.tasks import (
+    FINISHED,
+    PENDING,
+    BackgroundTask,
+    Task,
+    TaskHandler,
+    UndoneError,
+)
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
@@ -251,23 +260,35 @@ class Worker:
     def execute(self, session: Session, task: Task) -> None:
         """Run the handler of a task and end the task; a failed handler's work is undone.
 
-        A refusal ends the task with its code, anything else with an ``INTERNAL_ERROR``.
+        A refusal ends the task with its code, anything else with an ``INTERNAL_ERROR``. A handler
+        that leaves a trace of its failure (``UndoneError``) has it written once its work is undone.
         """
         try:
             with session.begin_nested():
                 result = self.handlers[task.kind](session, task)
+        except UndoneError as undone:
+            undone.trace(session)
+            self.fail(session, task, undone.cause)
         except ServiceError as refusal:
-            logger.info("task.failed", reason="refused", code=refusal.code)
-            refused = failure(
-                refusal.code, refusal.status, task.correlation_id, refusal.params, refusal.fields
-            )
-            end(session, task.task_id, problem=refused)
+            self.fail(session, task, refusal)
         except Exception:
             logger.exception("task.failed", reason="error")
             end(session, task.task_id, problem=failure(INTERNAL_ERROR, 500, task.correlation_id))
         else:
             end(session, task.task_id, result=result)
             logger.info("task.succeeded")
+
+    def fail(self, session: Session, task: Task, error: Exception) -> None:
+        """End a task that failed: a refusal with its code, anything else as an internal error."""
+        if isinstance(error, ServiceError):
+            logger.info("task.failed", reason="refused", code=error.code)
+            refused = failure(
+                error.code, error.status, task.correlation_id, error.params, error.fields
+            )
+            end(session, task.task_id, problem=refused)
+            return
+        logger.error("task.failed", reason="error", exc_info=error)
+        end(session, task.task_id, problem=failure(INTERNAL_ERROR, 500, task.correlation_id))
 
     def kinds(self) -> ColumnElement[bool]:
         """Say which tasks this consumer deposits again: all but the restorations (#953)."""
