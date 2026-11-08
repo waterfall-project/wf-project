@@ -12,7 +12,8 @@ catalogue below (WF-ARC-0110).
 """
 
 from dataclasses import dataclass
-from importlib.resources import as_file, files
+from functools import cache
+from importlib.resources import files
 from io import BytesIO
 from typing import TYPE_CHECKING, Final
 
@@ -68,12 +69,13 @@ class Box:
 
 @dataclass(frozen=True)
 class TreeLayout:
-    """Where each node goes, the lines of the header and the size of the whole image.
+    """Where each node goes, the lines of the header (and their y) and the size of the whole image.
 
     ``edges`` are (parent, child) indexes into ``boxes``; ``boxes[0]`` is the project node.
     """
 
     header: tuple[str, ...]
+    header_ys: tuple[int, ...]
     boxes: tuple[Box, ...]
     edges: tuple[tuple[int, int], ...]
     width: int
@@ -83,19 +85,29 @@ class TreeLayout:
 def header_lines(language: str, project: str, revision: str, computed_on: date) -> tuple[str, ...]:
     """Return the three lines of the header (project, revision, date of the computation).
 
-    A language the catalogue does not know falls back to English.
+    A language with a region (``fr-FR``, ``fr_FR``) is read as its primary subtag; a language the
+    catalogue does not know falls back to English.
     """
-    lang = language if language in _HEADER else DEFAULT_LANGUAGE
+    primary = language.replace("_", "-").split("-")[0].lower()
+    lang = primary if primary in _HEADER else DEFAULT_LANGUAGE
     day = computed_on.strftime(_DATE_FORMAT[lang])
     return tuple(
         line.format(project=project, revision=revision, date=day) for line in _HEADER[lang]
     )
 
 
+@cache
+def _font_bytes() -> bytes:
+    return files("waterfall.core.exchanges").joinpath("fonts", "DejaVuSans.ttf").read_bytes()
+
+
+@cache
 def _font(size: int) -> FreeTypeFont:
-    resource = files("waterfall.core.exchanges").joinpath("fonts", "DejaVuSans.ttf")
-    with as_file(resource) as path:
-        return ImageFont.truetype(str(path), size)
+    return ImageFont.truetype(BytesIO(_font_bytes()), size)
+
+
+def _header_line_height() -> int:
+    return round(HEADER_FONT_SIZE * 1.3)
 
 
 def _cut(node: TreeNode, depth: int, level: int = 1) -> tuple[TreeNode, ...]:
@@ -130,7 +142,8 @@ def layout_task_tree(
         return text_width(label, body_font) + 2 * PADDING, FONT_SIZE + 2 * PADDING
 
     header_width = max(text_width(line, head_font) for line in header)
-    top = MARGIN + header_height(len(header)) + HEADER_GAP
+    header_ys = tuple(MARGIN + i * _header_line_height() for i in range(len(header)))
+    top = MARGIN + len(header) * _header_line_height() + HEADER_GAP
 
     root_w, root_h = box_size(project.label)
     columns = _cut(project, depth)
@@ -158,12 +171,8 @@ def layout_task_tree(
     content_right = x - GAP if columns else MARGIN + root_w
     width = max(content_right + MARGIN, header_width + 2 * MARGIN, root_w + 2 * MARGIN)
     boxes[0] = Box(project.label, 0, (width - root_w) // 2, top, root_w, root_h)
-    return TreeLayout(header, tuple(boxes), tuple(edges), width, bottom - ROW_GAP + MARGIN)
-
-
-def header_height(lines: int) -> int:
-    """Return the height of a header of ``lines`` lines."""
-    return lines * round(HEADER_FONT_SIZE * 1.3)
+    height = bottom - ROW_GAP + MARGIN
+    return TreeLayout(header, header_ys, tuple(boxes), tuple(edges), width, height)
 
 
 def render_task_tree_image(
@@ -186,10 +195,8 @@ def render_task_tree_image(
     draw = ImageDraw.Draw(image)
     head_font = _font(HEADER_FONT_SIZE)
     body_font = _font(FONT_SIZE)
-    y = MARGIN
-    for line in layout.header:
-        draw.text((MARGIN, y), line, fill=_INK, font=head_font)
-        y += header_height(1)
+    for line, line_y in zip(layout.header, layout.header_ys, strict=True):
+        draw.text((MARGIN, line_y), line, fill=_INK, font=head_font)
     for parent, child in layout.edges:
         p, c = layout.boxes[parent], layout.boxes[child]
         if c.level == 1:
