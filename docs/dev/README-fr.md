@@ -2686,7 +2686,9 @@ et de ce qu'elle décrit, et deux engendrements écrivent les mêmes octets :
   structure et de la saisie des tâches, avec leurs refus (`wftools.mockgestures`, la place d'un nœud
   et les boucles qu'un geste fermerait dans `wftools.mocktree`, les gestes du devis faits sur
   l'avenant 2, et la saisie et le collage qu'y font les parcours, dans
-  `wftools.mockamendmentwrites`), les gestes des cartes du Kanban et leurs réponses
+  `wftools.mockamendmentwrites` ; le collage qui crée les tâches au-delà de la dernière ligne, et
+  l'annulation et le rétablissement d'un renommage, dans `wftools.mockundoable`, #2559, #2564), les
+  gestes des cartes du Kanban et leurs réponses
   (`wftools.mockkanban`), et les refus d'un collage et d'un import qu'un sous-projet ou la phase du
   projet commandent (`wftools.mockexchanges`), et une date manuelle sur un jour chômé, refusée à la
   saisie et signalée à l'import (`wftools.mocknonworking`, #1271) ; son histoire

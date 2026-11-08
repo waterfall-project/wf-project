@@ -11535,6 +11535,50 @@ parcours `@shared` d'US-1400/L2 en faisant la preuve ; laisser le constat à EP-
 sans preuve tous les parcours `@shared` d'EP-06 ; une garde générale dans la vérification des
 réponses du service, selon la requête, plutôt qu'un schéma qui dit la réponse.
 
+### Le collage qui crée les tâches au-delà de la dernière ligne (US-1450/L4, #2559)
+
+Le contrat n'écrivait par `previewPaste` que des cellules de nœuds existants : une ligne du bloc
+au-delà du dernier nœud de la structure n'avait pas de sort dit, et le refus
+`MILESTONE_HAS_NO_SUBTASK` que `PasteRejection` annonce au collage (#1772) n'avait aucun site.
+Décision de l'utilisateur du 2026-11-08 (#2559, option B ; conception d'EP-06, « Le collage qui
+crée ») : une « Interface contract issue » tranchée, la seconde d'EP-06 avec #2485, qui ajoute un
+champ exigé à une réponse ; la version reste `1.0.0`.
+
+- **La règle** (`PastePreview`, `previewPaste`) : une ligne du bloc au-delà du dernier nœud, dans
+  l'ordre du plan, crée un nœud sœur de ce dernier nœud, l'ancre, que sa propre ligne soit écrite
+  ou refusée — même parent, rang à la suite, dans l'ordre du bloc —, du genre du nœud visé : une
+  tâche collée depuis une tâche, une ligne de devis depuis une ligne. Le libellé est requis : une
+  ligne dont la cellule `label` est vide ou absente — le bloc ne commençant pas à cette colonne,
+  seule à précéder les autres — est refusée par `VALIDATION_FAILED`, `column` à `label`, et rien
+  n'est créé pour elle. Les autres cellules prennent d'abord les valeurs de `createNode`
+  (automatique, un jour, sans prédécesseur ; WF-DEV-0050), puis se jugent dans l'ordre de
+  `NodeColumn` avec les refus de la saisie ; une ligne dont une cellule est refusée l'est entière.
+  Sous un jalon, une ligne de tâche est refusée par `MILESTONE_HAS_NO_SUBTASK`. La phrase « No cell
+  is shifted », qu'on lisait comme la seule limite de hauteur du bloc, est retirée : le bloc n'a de
+  limite de hauteur que la taille de la requête (413), et `PASTE_TOO_WIDE` borne sa largeur. Aucun
+  code nouveau, donc aucune clé de catalogue.
+- **`PastePlan.created`**, entier ≥ 0, exigé : les lignes qui créent, comptées aussi dans
+  `accepted`, `0` dans tous les exemples qui précèdent. **`PasteApplied` ne change pas** : les nœuds
+  créés sont dans `nodes` (`NodesWritten`), à leur première version, ce que disent `applyPaste` et
+  `PasteApplied`. Le collage reste une seule entrée d'historique : l'annuler supprime les nœuds
+  qu'il a créés, le rétablir les recrée.
+- **Le faux back ne crée que des tâches** : `paste_plan_creating` et `paste_applied_creating`
+  (`wftools.mockundoable`) collent un bloc sur le dernier nœud de la structure de mille tâches ; la
+  ligne de devis créée par un collage est servie par EP-07 (US-1560). Le même lot donne à
+  `undoLastChange` et `redoLastUndo` leur premier exemple `200` (#2564) : le renommage du câblage
+  des armoires (`task_renamed`) annulé, puis rétabli, chacun une version plus loin.
+- **Le service** accepte `created` à `0` jusqu'à US-1450/L5, qui écrit la création ; il refuse
+  d'ici là la ligne au-delà du dernier nœud comme avant.
+
+Écartés : A, le collage n'écrit que des lignes existantes, qui retirait la phrase de
+`PasteRejection` ; une opération `createRows` à part, un appel de plus pour un geste ; un libellé
+par défaut aux lignes sans libellé, qui écrirait ce que l'utilisateur n'a pas collé ; refuser tout
+le bloc si une ligne de création est refusée, contre WF-IHM-0050 (« les lignes valides sont
+écrites ») ; des sous-tâches de l'ancre plutôt que ses sœurs ; un code `PASTE_LABEL_REQUIRED`, une
+clé de catalogue pour un refus que `VALIDATION_FAILED` dit déjà ; laisser le dialogue déduire le
+nombre de créations des lignes au-delà de la grille, qu'il ne connaît que par ce qu'il montre ; un
+champ `created` dans `PasteApplied`, que `nodes` dit déjà.
+
 ## Collage et annulation
 
 **Le collage depuis un tableur suit exactement la forme d'un import** : `paste-preview`

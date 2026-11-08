@@ -22,7 +22,7 @@ from datetime import date
 from decimal import Decimal
 from typing import TYPE_CHECKING, Any, cast
 
-from wftools import REPOSITORY, mockcore, mockdating, mocktext, mockwitness
+from wftools import REPOSITORY, mockcore, mockdating, mocktext, mockundoable, mockwitness
 from wftools.mockids import universe
 from wftools.mockstructure import (
     CATEGORY_LABELS,
@@ -489,7 +489,7 @@ def paste_plan(block: Sequence[Sequence[str]], paste_id: str) -> JsonObject:
             rejected.append(
                 {"row": row, "column": "resource_role", "code": "UNKNOWN_RESOURCE_ROLE"}
             )
-    return {"paste_id": paste_id, "accepted": len(block) - len(rejected), "rejected": rejected}
+    return mockundoable.paste_plan_of(paste_id, len(block) - len(rejected), rejected)
 
 
 def paste_applied(
@@ -754,7 +754,7 @@ def _which(answer: JsonObject) -> str:
 
 def writes() -> dict[str, JsonObject]:
     """Return the named examples of the writes of the grids, by file name."""
-    return {**_core_writes(), **_volume_writes()}
+    return {**_core_writes(), **_volume_writes(), **mockundoable.examples()}
 
 
 def _core_writes() -> dict[str, JsonObject]:
