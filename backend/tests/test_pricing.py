@@ -85,7 +85,6 @@ def test_sum_does_not_depend_on_the_order() -> None:
     assert sum_amounts(amounts) == D("1261.73")
 
 
-@pytest.mark.requirement("WF-DAT-0100-A")
 def test_an_amount_not_to_the_cent_is_refused_by_the_sum() -> None:
     """A sum of amounts holds amounts already rounded: one that is not is an error, not rounded."""
     with pytest.raises(ValueError, match="not to the cent"):

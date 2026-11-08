@@ -23,6 +23,7 @@ from projects_support import scene as make_scene
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from waterfall.core.estimate import writing
 from waterfall.core.estimate.tables import EstimateLine
 from waterfall.core.planning.interface import facets
 from waterfall.core.revisions.interface import mark_revision
@@ -177,6 +178,29 @@ def test_a_role_that_would_leave_its_task_without_an_hour_is_refused_naming_the_
     assert [after["task"][name] for name in kept] == [before["task"][name] for name in kept]
     assert after["lock_version"] == before["lock_version"]
     assert tree.node(node["node_id"])["estimate_line"]["resource_role_id"] == str(costs.role)
+
+
+@pytest.mark.requirement("WF-PLA-0010-A")
+def test_the_hours_of_a_task_are_judged_when_the_role_of_its_line_changes_only(
+    stage: Scene, tree: Tree, lines: Lines, costs: Costing, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # A modification that keeps the role of its line does not judge the hours of the task again: a
+    # calendar changed since cannot make the judgment refuse it. Counted where the line is written.
+    task = tree.made("Câblage")
+    node = lines.made(task, **worked(costs.role))["nodes"][0]
+    short = add_role(stage.database, "MONT", (4, 4, 4, 4, 4, 0, 0))
+    judged: list[UUID] = []
+    real = writing.judge_working_hours
+
+    def counting(session: Session, held: Any, role_id: UUID) -> None:
+        judged.append(role_id)
+        real(session, held, role_id)
+
+    monkeypatch.setattr(writing, "judge_working_hours", counting)
+    kept = lines.changed(node, quantity="2")
+    assert judged == []
+    lines.changed(kept["nodes"][0], resource_role_id=str(short))
+    assert judged == [short]
 
 
 @pytest.mark.requirement("WF-PLA-0010-A")

@@ -10,6 +10,7 @@ material beside it (``estimate_support``). Every answer is checked against the c
 """
 
 from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import TimeoutError as FutureTimeout
 from decimal import Decimal
 from typing import TYPE_CHECKING, Any
 from uuid import UUID, uuid4
@@ -30,6 +31,7 @@ from waterfall.core.cost_settings.tables import CostCategory, CostType
 from waterfall.core.estimate.tables import EstimateLine
 from waterfall.core.planning.tables import Node
 from waterfall.core.resource_settings.tables import ResourceRole
+from waterfall.core.revisions.tables import CostStructure
 from waterfall.platform.audit import Act
 from waterfall.platform.database import utc_now
 
@@ -562,8 +564,11 @@ def test_a_modification_writes_what_it_sends_at_the_counter_read(
 def test_two_writes_of_one_line_at_once_leave_one_refused_by_its_counter(
     tree: Tree, lines: Lines, costs: Costing
 ) -> None:
-    # Each write locks the structure and reads the line under the lock: the second reads the
-    # counter the first advanced.
+    """Two writes at once: one wins, the other is refused (412) by the counter the first advanced.
+
+    The test shows the outcome, not which of the lock and the counter produced it; the next test
+    shows that a write waits for the lock of its structure.
+    """
     task = tree.made("Câblage")
     node = lines.made(task, **labour(costs))["nodes"][0]
 
@@ -575,6 +580,43 @@ def test_two_writes_of_one_line_at_once_leave_one_refused_by_its_counter(
     assert sorted(answer.status_code for answer in answers) == [200, 412]
     [won] = [answer.json() for answer in answers if answer.status_code == 200]
     assert facet(won)["hours"] == line_of(tree, facet(won)["label"])["estimate_line"]["hours"]
+
+
+@pytest.mark.requirement("WF-IHM-0110-A")
+def test_a_write_of_a_line_waits_for_the_lock_of_its_structure(
+    stage: Scene, tree: Tree, lines: Lines, costs: Costing
+) -> None:
+    # Another transaction holds the structure ``FOR UPDATE``: the write starts, waits, and answers
+    # once the lock is released, at the counter it read; a bare check of the counter would answer
+    # at once.
+    task = tree.made("Câblage")
+    node = lines.made(task, **labour(costs))["nodes"][0]
+    with ThreadPoolExecutor(max_workers=1) as pool, stage.owner.begin() as connection:
+        connection.execute(
+            select(CostStructure.id)
+            .where(CostStructure.id == UUID(tree.structure_id))
+            .with_for_update()
+        )
+        waiting = pool.submit(lines.change, node, hours="20")
+        with pytest.raises(FutureTimeout):
+            waiting.result(timeout=1.5)
+    answer = waiting.result(timeout=30)
+    assert answer.status_code == 200, answer.text
+    assert facet(answer.json())["hours"] == "20"
+
+
+@pytest.mark.requirement("WF-IHM-0040-A")
+def test_a_modification_that_sends_nothing_beside_its_counter_is_refused(
+    tree: Tree, lines: Lines, costs: Costing
+) -> None:
+    # No field is sent beside ``lock_version`` (``minProperties``): 422 ``VALIDATION_FAILED``,
+    # naming no field, and the line is left as it was.
+    task = tree.made("Câblage")
+    node = lines.made(task, **labour(costs))["nodes"][0]
+    answer = lines.change(node)
+    assert refusal(answer) == (422, "VALIDATION_FAILED", {})
+    assert "fields" not in answer.json()
+    assert tree.node(node["node_id"])["lock_version"] == node["lock_version"]
 
 
 # --- The state and the rights ------------------------------------------------------------------
@@ -601,7 +643,7 @@ def test_a_line_of_a_completed_task_of_the_main_structure_is_neither_created_nor
     }
 
 
-@pytest.mark.requirement("WF-DAT-0020-A")
+@pytest.mark.requirement("WF-REV-0020-A")
 def test_a_line_of_a_marked_revision_or_of_a_terminal_project_is_not_written(
     stage: Scene, tree: Tree, lines: Lines, costs: Costing
 ) -> None:

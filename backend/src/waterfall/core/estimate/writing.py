@@ -47,17 +47,25 @@ NOUGHT = CENT * 0
 
 
 def _priced_draft(
-    session: Session, held: tuple[UUID, BearingTask, UUID | None], draft: Draft, basis: Basis
+    session: Session,
+    held: tuple[UUID, BearingTask, UUID | None],
+    draft: Draft,
+    basis: Basis,
+    *,
+    role_changes: bool,
 ) -> Priced:
-    """Judge the hours of the task of a line given a role, find its rate, price it.
+    """Judge the hours of the task of a line whose role changes, find its rate, price it.
 
-    ``held`` is the project, the task that bears the line, and the line, none at its creation.
+    ``held`` is the project, the task that bears the line, and the line, none at its creation;
+    ``role_changes`` is true at the creation of a line given a role, and when a modification gives
+    another role than the line had.
     """
     project_id, bearer, _ = held
     week = None
     rate = None
     if draft.role is not None:
-        judge_working_hours(session, held, draft.role.resource_role_id)
+        if role_changes:
+            judge_working_hours(session, held, draft.role.resource_role_id)
         week = calendar_hours(session, [draft.role.calendar_id])[draft.role.calendar_id]
         rate = rates_of(session, project_id, basis, [draft.cost_category_id]).get(
             draft.cost_category_id
@@ -86,7 +94,9 @@ def create_line(creation: FacetCreation) -> None:
         raise TypeError(msg)
     draft = judged_line(session, (project_id, creation.bearer), entry, None)
     basis = basis_of(session, project_id, creation.revision_id)
-    amounts = _priced_draft(session, (project_id, creation.bearer, None), draft, basis)
+    amounts = _priced_draft(
+        session, (project_id, creation.bearer, None), draft, basis, role_changes=True
+    )
     act = creation.act
     session.add(
         EstimateLine(
@@ -134,7 +144,13 @@ def change_line(write: FacetWrite, entry: LineEntry) -> None:
     line = read_line(session, project_id, write.node_id)
     draft = judged_line(session, (project_id, write.bearer), entry, line)
     basis = basis_of(session, project_id, write.revision_id)
-    amounts = _priced_draft(session, (project_id, write.bearer, write.node_id), draft, basis)
+    amounts = _priced_draft(
+        session,
+        (project_id, write.bearer, write.node_id),
+        draft,
+        basis,
+        role_changes=draft.resource_role_id != line.resource_role_id,
+    )
     line.label = draft.label
     line.cost_category_id = draft.cost_category_id
     line.resource_role_id = draft.resource_role_id

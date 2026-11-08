@@ -20,7 +20,7 @@ from dataclasses import replace
 from datetime import date
 from decimal import Decimal
 from enum import StrEnum
-from typing import Annotated, Any, cast
+from typing import TYPE_CHECKING, Annotated, Any, cast
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Path, Query, Request
@@ -80,6 +80,9 @@ from waterfall.core.planning.interface import WorkInstant as Instant
 from waterfall.platform.audit import Act
 from waterfall.platform.database import utc_now
 from waterfall.platform.errors import FieldError, UnprocessableError
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 router = APIRouter(tags=["revisions"])
 
@@ -380,7 +383,7 @@ def _task(view: TaskView) -> dict[str, Any]:
     }
 
 
-def _optional(value: Decimal | None, write: Any) -> str | None:
+def _optional(value: Decimal | None, write: Callable[[Decimal], str]) -> str | None:
     return None if value is None else write(value)
 
 
