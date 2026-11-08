@@ -182,7 +182,7 @@ def _purge(settings: Settings) -> int:
                     session.execute(select(func.pg_advisory_xact_lock(PURGE_LOCK)))
                     now = utc_now()
                     purged = exchanges_interface.purge(session, now)
-                    history_interface.purge(session, now - UNDO_RETENTION)
+                    history_interface.purge(session, now - UNDO_RETENTION, now)
             except Exception:
                 logger.exception("purge.failed")
                 return 1
