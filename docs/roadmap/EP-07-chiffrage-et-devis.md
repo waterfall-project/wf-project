@@ -170,7 +170,7 @@ que le socle garantit : la table `node` (`kind` à deux valeurs, l'unique `(proj
 que la facette ligne cite), la facette `task`, `task_link`, les registres `register_copy`,
 `register_tasks_and_lines`, `register_closing`, `register_facet`, `register_format`,
 `register_exporter`, `register_idle_task_guard`, `register_revision_filler`, l'interface de
-`core/history`, et la chaîne des migrations arrêtée à `0023`. Les lots d'EP-07 qui créent des
+`core/history`, et la chaîne des migrations arrêtée à `0024`. Les lots d'EP-07 qui créent des
 lignes attendent aussi **US-1380/L2 #2335** (la lecture, la création, la modification des tâches)
 et **US-1380/L3 #2338** (la suppression et le déplacement des nœuds) ; chaque lot nomme les lots
 d'EP-06 qu'il attend par leur numéro.
@@ -233,6 +233,17 @@ Reportés d'EP-17 à sa livraison (rangement du 2026-11-05) :
   l'auteur du 2026-11-07, option B ; reporté d'EP-04. US-1550 écrit la fonction qui nomme un
   onglet, commune aux formats Excel, et l'éprouve sur les onglets des postes et des lots du devis ;
   EP-09 l'applique aux codes des sous-projets du reste à engager.
+
+Relevés par les revues locales d'EP-06 et reportés ici par l'auteur le 2026-11-08 :
+
+- #2485 [EP-06] — contrat : une lecture de `listNodes` avec `fields` rend des nœuds partiels que
+  le schéma `Node` refuse (ses propriétés requises), et le front lit déjà `fields: ["node_id"]`
+  en typant des `Node` entiers. EP-07, qui ajoute la facette ligne à `Node` et reprend la grille,
+  donne à la réponse un schéma de projection (`NodeProjection`, de même pour `compareRevisions`)
+  et aligne les types du front ; jusque-là le test d'US-1380/L2 lit `fields` hors `ContractClient`.
+- #2510, point 3 [EP-06] — `redate_copy` (`core/planning/interface/reference.py`) s'enregistre
+  après `copy_nodes` : une facette qu'EP-07 copie à l'ouverture d'une révision s'enregistre
+  avant lui, ou se redate elle-même.
 
 ## Conception
 
@@ -316,10 +327,10 @@ Décisions de l'auteur du 2026-11-07, sur les questions du cadrage, chacune avec
   onglet Excel (#2190) vit dans son interface, qu'EP-09 importera : `core/exchanges` reste aux
   seuls lots d'EP-06. Écarté : la fonction dans `core/exchanges`, dont l'interface est écrite par
   trois lots d'EP-06.
-- **Une seule migration, `0024`, dans le socle**, au prochain numéro libre à la création
-  d'`epic/EP-07` — `epic/EP-06` s'arrête à `0023` —, aucune donnée à reprendre : les colonnes
+- **Une seule migration, `0025`, dans le socle**, au prochain numéro libre à la création
+  d'`epic/EP-07` — `epic/EP-06` s'arrête à `0024` —, aucune donnée à reprendre : les colonnes
   nouvelles de `revision` restent nulles et se lisent comme les valeurs du projet. Aucune migration
-  d'EP-07 après le socle ; EP-09 chaîne la sienne sur `0024`. Écarté : une migration par US.
+  d'EP-07 après le socle ; EP-09 chaîne la sienne sur `0025`. Écarté : une migration par US.
 
 ### Tables et migrations
 
@@ -339,7 +350,7 @@ avant toute cascade ; une révision marquée ne supprime rien, ses déclencheurs
 | `revision_category` | `project_id`, `id`, `revision_id`, `cost_category_id`, `code`, `label`, `cost_type_id`, `cost_type_label`, `cost_type_kind`, `cost_type_is_active`, `accounting_code`, `is_active`, l'audit et le compteur au marquage (`CostCategoryImage`) | unique (`revision_id`, `cost_category_id`) ; idem |
 | `revision` | reçoit `inflation_rate` et `win_probability` (`numeric(5,4)`, nuls : les valeurs du projet, que le code lit encore ; écrits au marquage) | aucune autre contrainte ; `copy_revision` ne les reprend pas (la révision en cours suit le projet) |
 
-- **Une migration, `0024`, dans le socle** (US-1490/L1) : les cinq tables, les deux colonnes de
+- **Une migration, `0025`, dans le socle** (US-1490/L1) : les cinq tables, les deux colonnes de
   `revision`, `create_project_partitions` remplacée pour qu'elle crée leurs partitions
   (`estimate_line_p_<uuid>`, `revision_rate_p_<uuid>`…) et celles des projets existants, les
   déclencheurs d'immuabilité sur le modèle d'EP-06, les droits du rôle du service — `SELECT`,
@@ -608,7 +619,8 @@ Le socle d'abord, puis ce qui ne dépend que de lui, la ligne dès que l'arbre d
 quatre lectures en une vague large, les écrans par l'US qui sert leur objet, la vérification
 d'ensemble en dernier ; le plan de lots (étape 3) le détaille en vagues.
 
-1. **US-1490/L1**, le socle — dès la fusion d'US-1380/L1 #2328 : la migration `0024`, le module
+1. **US-1490/L1**, le socle — dès la fusion d'US-1380/L1 #2328 et d'US-1420/L2 #2341, dont la
+   migration `0024` porte celle du socle (#2341) : la migration `0025`, le module
    `core/estimate` à vide avec son interface en paquet (un fichier par objet) — hors les
    sous-paquets `pricing/` et `spreading/`, que leurs lots possèdent entiers, comme le socle
    d'EP-06 ne créait pas `scheduling/` : l'interface d'`estimate` ne les importe qu'une fois leurs
@@ -623,7 +635,7 @@ d'ensemble en dernier ; le plan de lots (étape 3) le détaille en vagues.
    tire d'`epic/EP-07` dès sa fusion. Il lui garantit `estimate_line` avec ses grandeurs courantes
    et de référence, ses trois montants, son délai de paiement et son sous-projet, les tables
    images, l'interface d'`estimate` déclarée — dont `update_line`, que `setLineRemaining` étendra,
-   et `revision_has_lines` —, et la chaîne des migrations arrêtée à `0024`. En parallèle, dès la
+   et `revision_has_lines` —, et la chaîne des migrations arrêtée à `0025`. En parallèle, dès la
    branche : **les modules purs** `pricing` et `spreading` (US-1490, US-1520) et **le lot d'outil**
    d'US-1570 (les exemples depuis 2025, la chronologie, `witness_lines.json`, après #2330).
 2. **La ligne** (US-1490 : la facette lue et créée, `updateEstimateLine`, le calcul, après #2335 ;
@@ -857,7 +869,7 @@ sans construire un second arbre.
   sous-projet —, les tables images `revision_role`, `revision_calendar`, `revision_category`,
   `revision_rate`, les colonnes `inflation_rate` et `win_probability` de `revision`, les partitions,
   les déclencheurs d'immuabilité et les droits du rôle du service, en une seule chaîne de
-  migrations sur `0023` ; le module `core/estimate` avec son interface en paquet, enregistré dans
+  migrations sur `0024` ; le module `core/estimate` avec son interface en paquet, enregistré dans
   les registres d'EP-04 et d'EP-06 — la facette (`register_facet`), la copie des lignes et des
   images (`register_copy`), « a des lignes » (`register_tasks_and_lines`), le format et l'exporteur
   `estimate` (`register_format`, `register_exporter`), la garde des calendriers des rôles

@@ -114,7 +114,7 @@ Déjà servies, et reprises ici pour ce que cet EPIC y ajoute (9) :
 ## Préalables
 
 `epic/EP-08` se tire d'`epic/EP-10` dès la fusion de son lot pivot, **US-1660/L1 #2437** — le socle
-d'EP-10, qui pose `revision_indicator`, la chaîne des migrations arrêtée à `0026`, le module
+d'EP-10, qui pose `revision_indicator`, la chaîne des migrations arrêtée à `0027`, le module
 `core/indicators` avec son interface déclarée et la signature du registre `register_indicators` avec
 l'`Act` —, et non de `main` à la livraison d'EP-10 (décision de l'auteur du 2026-11-07, pour toute la
 série EP-06 → EP-07 → EP-09 → EP-10 → EP-08 ; l'exception du README, « Branches ») : elle reprend
@@ -182,3 +182,14 @@ Reportés d'EP-17 à sa livraison (rangement du 2026-11-05) :
   `structure_lock_version` : un écran du risque ouvert en parallèle est refusé par 412 sans
   moyen de reprendre le compteur. Relevé par la revue d'US-0680/L1 (EP-16), rangé ici le
   2026-11-05.
+
+Relevés par la revue locale d'US-1400/L2 (EP-06, #2340) et reportés ici, le cas n'existant
+qu'avec les différentiels :
+
+- #2497 — contrat : `setNodeTracking` ne vérifie pas que le nœud est de la structure principale
+  (`task.tracking` n'est dans `editable_fields` que pour elle) ; une inscription demandée sur un
+  nœud d'un différentiel écrirait la lignée de la principale. Un refus s'ajoute au contrat puis au
+  code. Décision de l'auteur du 2026-11-08.
+- #2499 — back : deux écritures d'inscriptions d'une même lignée sous deux structures ne sont
+  sérialisées que par le verrou de chaque structure ; la violation d'unicité de `tracking_entry`
+  remonterait en 500.
