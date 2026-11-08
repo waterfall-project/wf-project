@@ -42,6 +42,11 @@ SAVE_VERSION = "14"
 BOOLEANS = {False: "0", True: "1"}
 """A boolean as MS Project writes it."""
 
+
+class NegativeDurationError(ValueError):
+    """A duration below nought: ``xsd:duration`` as MS Project reads it has no such value here."""
+
+
 HOUR = timedelta(hours=1)
 MINUTE = timedelta(minutes=1)
 MICROSECOND = timedelta(microseconds=1)
@@ -89,6 +94,8 @@ def _duration(value: timedelta | None) -> str | None:
     """Write an ``xsd:duration`` as MS Project does, hours, minutes and seconds: ``PT16H0M0S``."""
     if value is None:
         return None
+    if value < timedelta(0):
+        raise NegativeDurationError(value)
     hours, rest = divmod(value, HOUR)
     minutes, rest = divmod(rest, MINUTE)
     seconds = Decimal(rest // MICROSECOND).scaleb(-6).normalize()

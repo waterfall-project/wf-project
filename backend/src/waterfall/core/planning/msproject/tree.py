@@ -7,6 +7,7 @@ it; the writer builds it in the order of the schema, then serialises it. Going t
 its own keeps the reader and the writer to names and texts, the namespace being said once here.
 """
 
+import re
 from collections import deque
 from dataclasses import dataclass, field
 
@@ -23,6 +24,10 @@ MS Project writes the one without the year, which the reader takes too (``NAMESP
 
 NAMESPACES: frozenset[str] = frozenset({NAMESPACE, "http://schemas.microsoft.com/project"})
 """The namespaces of a planning the reader takes."""
+
+
+FORBIDDEN = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f\ud800-\udfff\ufffe\uffff]")
+"""The characters XML 1.0 cannot carry."""
 
 
 def _no_children() -> list[Tag]:
@@ -87,12 +92,15 @@ def parse(content: bytes) -> Tag:
 
 
 def serialise(tree: Tag) -> bytes:
-    """Serialise a tree into an MSPDI file, every element in the namespace of the schema."""
+    """Serialise a tree into an MSPDI file, every element in the namespace of the schema.
+
+    The characters XML 1.0 forbids — a vertical tab pasted from Word — are dropped from the texts.
+    """
     root = etree.Element(f"{{{NAMESPACE}}}{tree.name}", nsmap={None: NAMESPACE})
     pending = deque([(root, tree)])
     while pending:
         element, node = pending.popleft()
-        element.text = node.text
+        element.text = None if node.text is None else FORBIDDEN.sub("", node.text)
         for child in node.children:
             pending.append((etree.SubElement(element, f"{{{NAMESPACE}}}{child.name}"), child))
     return etree.tostring(root, xml_declaration=True, encoding="UTF-8", standalone=True)

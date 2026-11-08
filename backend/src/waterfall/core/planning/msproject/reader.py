@@ -22,6 +22,7 @@ from waterfall.core.planning.msproject.model import (
     ESTIMATED,
     FORMAT_UNITS,
     LINEAGE_ALIAS,
+    LINEAGE_FIELD_ID,
     LINK_TYPES,
     NO_FORMAT,
     Ignored,
@@ -45,6 +46,7 @@ DURATION = re.compile(
     r"P(?:(?P<D>\d+(?:\.\d+)?)D)?"
     r"(?:T(?:(?P<H>\d+(?:\.\d+)?)H)?(?:(?P<M>\d+(?:\.\d+)?)M)?(?:(?P<S>\d+(?:\.\d+)?)S)?)?"
 )
+INTEGER = re.compile(r"-?[0-9]+")
 MICROSECONDS = {"D": 86_400_000_000, "H": 3_600_000_000, "M": 60_000_000, "S": 1_000_000}
 
 # The calendar a task does not have: MS Project writes ``-1`` for it, and for a calendar without
@@ -102,10 +104,11 @@ def _integer(element: Tag, name: str) -> int | None:
     value = _value(element, name)
     if value is None:
         return None
-    try:
-        return int(value)
-    except ValueError as error:
-        raise UnreadableProjectError(name) from error
+    # ``int()`` would take ``1_0`` and the digits of other scripts: an integer of the schema is
+    # an optional minus and ASCII digits.
+    if INTEGER.fullmatch(value) is None:
+        raise UnreadableProjectError(name)
+    return int(value)
 
 
 def _required(element: Tag, name: str) -> int:
@@ -127,21 +130,33 @@ def _boolean(element: Tag, name: str) -> bool:
 
 
 def _decimal(element: Tag, name: str) -> Decimal:
-    """Return a child read as a number, nought when absent."""
+    """Return a child read as a finite number, nought when absent (``NaN``, infinity: refused)."""
     value = _value(element, name)
     try:
-        return Decimal(value or 0)
+        number = Decimal(value or 0)
     except InvalidOperation as error:
         raise UnreadableProjectError(name) from error
+    if not number.is_finite():
+        raise UnreadableProjectError(name)
+    return number
 
 
 def _datetime(element: Tag, name: str) -> datetime | None:
-    """Return a child read as a date and an hour of the wall clock of the project."""
+    """Return a child read as a date and an hour of the wall clock of the project.
+
+    The date is naive, as the model promises: one that carries a time zone (``Z``, ``+02:00``) is
+    refused, MSPDI having none.
+    """
     value = _value(element, name)
+    if value is None:
+        return None
     try:
-        return None if value is None else datetime.fromisoformat(value)
+        moment = datetime.fromisoformat(value)
     except ValueError as error:
         raise UnreadableProjectError(name) from error
+    if moment.tzinfo is not None:
+        raise UnreadableProjectError(name)
+    return moment
 
 
 def _time(element: Tag, name: str) -> time:
@@ -212,13 +227,16 @@ def _lineage_field(root: Tag) -> str | None:
 def _lineage(element: Tag, lineage_field: str | None) -> UUID | None:
     """Return the lineage of a task: its custom field of the export, else its ``GUID``.
 
+    The field is found by the alias the file defines, and by the identifier of the export's field
+    too, so that a lineage survives an alias the user renamed in MS Project.
+
     A value that is not an identifier, typed by hand in MS Project, is no lineage: the task is
     matched as one the file creates.
     """
     values = [
         _value(attribute, "Value")
         for attribute in element.every("ExtendedAttribute")
-        if lineage_field is not None and _value(attribute, "FieldID") == lineage_field
+        if _value(attribute, "FieldID") in {lineage_field, LINEAGE_FIELD_ID}
     ]
     for value in [*values, _value(element, "GUID")]:
         if value is not None:
@@ -314,7 +332,9 @@ def _ignored(root: Tag, project: MsProject) -> tuple[Ignored, ...]:
     """Count by kind what the file carries and no import reads, in the order of the contract.
 
     The resources and the calendars are Waterfall's alone; an assignment is of a resource, and
-    goes with it. A custom field is any but the one the lineage travels in.
+    goes with it. A custom field is any but the one the lineage travels in. Progress and costs are
+    counted on the tasks without children only: MS Project accumulates them on a summary from its
+    children, which would count twice what is one.
     """
     resources = _users(root, "Resources", "Resource")
     tasks = _users(root, "Tasks", "Task")
@@ -323,6 +343,8 @@ def _ignored(root: Tag, project: MsProject) -> tuple[Ignored, ...]:
         for element in _every(root, "ExtendedAttributes", "ExtendedAttribute")
         if _value(element, "Alias") != LINEAGE_ALIAS
     ]
+    summaries = {uid for uid in project.parents().values() if uid is not None}
+    leaves = [task for task in tasks if _required(task, "UID") not in summaries]
     constrained = [task for task in project.tasks if task.constraint in DATE_CONSTRAINTS]
     kinds = (
         Ignored("resources", len(resources), _named(*(r.text_of("Name") for r in resources))),
@@ -331,10 +353,10 @@ def _ignored(root: Tag, project: MsProject) -> tuple[Ignored, ...]:
             len(project.calendars),
             _named(*(calendar.name for calendar in project.calendars)),
         ),
-        Ignored("progress", sum(_decimal(task, "PercentComplete") > 0 for task in tasks)),
+        Ignored("progress", sum(_decimal(task, "PercentComplete") > 0 for task in leaves)),
         Ignored(
             "costs",
-            sum(_decimal(task, "FixedCost") != 0 or _decimal(task, "Cost") != 0 for task in tasks),
+            sum(_decimal(task, "FixedCost") != 0 or _decimal(task, "Cost") != 0 for task in leaves),
         ),
         Ignored(
             "custom_fields",

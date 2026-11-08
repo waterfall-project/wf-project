@@ -31,6 +31,7 @@ from waterfall.core.planning.msproject import (
     read_project,
     write_project,
 )
+from waterfall.core.planning.msproject.model import CONSTRAINT_TYPES, DATE_CONSTRAINTS
 
 DESIGN = UUID("01960000-0000-7000-8000-000000000001")
 BUILD = UUID("01960000-0000-7000-8000-000000000002")
@@ -338,6 +339,69 @@ def test_a_planning_written_is_valid_against_the_schema(schema: etree.XMLSchema)
     assert schema.validate(etree.fromstring(written, hardened_parser())), schema.error_log
 
 
+FULL = MsProject(
+    start=at("2026-03-02T08:00:00"),
+    name="Full",
+    calendar_uid=1,
+    minutes_per_day=480,
+    minutes_per_week=2400,
+    days_per_month=20,
+    calendars=(STANDARD,),
+    tasks=(
+        MsTask(uid=1, name="Root", outline_level=1),
+        *(
+            MsTask(
+                uid=10 + index,
+                name=f"Constraint {constraint}",
+                outline_level=2,
+                duration=timedelta(hours=8),
+                duration_unit="d",
+                start=at("2026-03-02T08:00:00"),
+                finish=at("2026-03-02T17:00:00"),
+                constraint=constraint,
+                constraint_date=(
+                    at("2026-03-02T08:00:00") if constraint in DATE_CONSTRAINTS else None
+                ),
+            )
+            for index, constraint in enumerate(CONSTRAINT_TYPES)
+        ),
+        MsTask(
+            uid=30,
+            name="Links",
+            outline_level=2,
+            duration=timedelta(hours=8),
+            duration_unit="d",
+            predecessors=(
+                PredecessorLink(10, "finish_to_finish", 480, "d"),
+                PredecessorLink(11, "finish_to_start", 0, "h"),
+                PredecessorLink(12, "start_to_finish", -60, "min"),
+                PredecessorLink(13, "start_to_start", 25, "percent"),
+            ),
+        ),
+        MsTask(
+            uid=31,
+            name="Done",
+            outline_level=2,
+            duration=timedelta(0),
+            duration_unit="d",
+            milestone=True,
+            start=at("2026-03-02T17:00:00"),
+            finish=at("2026-03-02T17:00:00"),
+        ),
+    ),
+)
+
+
+@pytest.mark.requirement("WF-QUA-0080-A")
+def test_a_planning_with_every_constraint_link_lag_format_and_a_milestone_is_valid(
+    schema: etree.XMLSchema,
+) -> None:
+    written = write_project(FULL)
+
+    assert schema.validate(etree.fromstring(written, hardened_parser())), schema.error_log
+    assert read_project(written).project == FULL
+
+
 @pytest.mark.requirement("WF-QUA-0080-A")
 def test_an_element_out_of_the_order_of_the_schema_makes_the_file_invalid(
     schema: etree.XMLSchema,
@@ -356,6 +420,62 @@ def test_a_planning_without_tasks_nor_calendars_is_read_back_the_same() -> None:
     planning = MsProject(start=None)
 
     assert read_project(write_project(planning)) == ReadProject(planning)
+
+
+@pytest.mark.requirement("WF-QUA-0080-A")
+def test_a_character_xml_forbids_is_dropped_from_a_text_when_written() -> None:
+    planning = MsProject(start=None, tasks=(MsTask(uid=1, name="a\x0bb", outline_level=1),))
+
+    assert read_project(write_project(planning)).project.tasks[0].name == "ab"
+
+
+@pytest.mark.requirement("WF-QUA-0080-A")
+def test_a_negative_duration_is_refused_when_written() -> None:
+    planning = MsProject(
+        start=None,
+        tasks=(MsTask(uid=1, name="A", outline_level=1, duration=timedelta(hours=-1)),),
+    )
+
+    with pytest.raises(ValueError, match="-1 day, 23:00:00"):
+        write_project(planning)
+
+
+def _tasks_file(*tasks: str) -> bytes:
+    return (
+        '<Project xmlns="http://schemas.microsoft.com/project"><Tasks>'
+        + "".join(tasks)
+        + "</Tasks></Project>"
+    ).encode()
+
+
+@pytest.mark.requirement("WF-QUA-0080-A")
+def test_progress_and_costs_count_the_tasks_without_children_only() -> None:
+    content = _tasks_file(
+        "<Task><UID>1</UID><OutlineLevel>1</OutlineLevel><PercentComplete>40</PercentComplete>"
+        "<Cost>500</Cost></Task>",
+        "<Task><UID>2</UID><OutlineLevel>2</OutlineLevel><PercentComplete>40</PercentComplete>"
+        "<Cost>500</Cost></Task>",
+    )
+
+    assert read_project(content).ignored == (Ignored("progress", 1), Ignored("costs", 1))
+
+
+@pytest.mark.requirement("WF-QUA-0080-A")
+def test_a_lineage_is_found_by_the_field_when_its_alias_was_renamed() -> None:
+    content = (
+        '<Project xmlns="http://schemas.microsoft.com/project"><ExtendedAttributes>'
+        "<ExtendedAttribute><FieldID>188743731</FieldID><Alias>Mine</Alias></ExtendedAttribute>"
+        "</ExtendedAttributes><Tasks>"
+        "<Task><UID>1</UID><OutlineLevel>1</OutlineLevel><ExtendedAttribute>"
+        f"<FieldID>188743731</FieldID><Value>{DESIGN}</Value></ExtendedAttribute></Task>"
+        "<Task><UID>2</UID><OutlineLevel>1</OutlineLevel><ExtendedAttribute>"
+        "<FieldID>188743731</FieldID><Value>by hand</Value></ExtendedAttribute></Task>"
+        "</Tasks></Project>"
+    ).encode()
+
+    tasks = read_project(content).project.tasks
+
+    assert [task.lineage for task in tasks] == [DESIGN, None]
 
 
 def test_an_entity_of_the_file_is_never_resolved() -> None:
@@ -398,6 +518,14 @@ LINK = "<PredecessorLink>{}</PredecessorLink>"
         (TASK.format("<DurationFormat>19</DurationFormat>"), "DurationFormat"),
         (TASK.format("<DurationFormat>13</DurationFormat>"), "DurationFormat"),
         (TASK.format("<FixedCost>much</FixedCost>"), "FixedCost"),
+        (TASK.format("<FixedCost>NaN</FixedCost>"), "FixedCost"),
+        (TASK.format("<FixedCost>Infinity</FixedCost>"), "FixedCost"),
+        (TASK.format("<PercentComplete>sNaN</PercentComplete>"), "PercentComplete"),
+        (TASK.format("<PercentComplete>NaN</PercentComplete>"), "PercentComplete"),
+        ("<StartDate>2026-03-02T08:00:00Z</StartDate>", "StartDate"),
+        (TASK.format("<Start>2026-03-02T08:00:00+02:00</Start>"), "Start"),
+        ("<MinutesPerDay>1_0</MinutesPerDay>", "MinutesPerDay"),
+        ("<MinutesPerDay>\u0661\u0662</MinutesPerDay>", "MinutesPerDay"),
         (
             (
                 "<Calendars><Calendar><UID>1</UID><WeekDays><WeekDay><DayType>2</DayType>"
