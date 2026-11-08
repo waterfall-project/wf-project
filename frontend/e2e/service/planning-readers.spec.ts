@@ -16,8 +16,9 @@ import { randomUUID } from "node:crypto";
 
 import { type APIRequestContext, expect, test } from "@playwright/test";
 
+import { openHydrated, WORKING } from "../hydration";
 import { inscribe } from "../own-project";
-import { seedPlanning } from "../planning-seed";
+import { SEEDED, seedPlanning } from "../planning-seed";
 import { heldToTheContract } from "./contract";
 import {
   type Administrator,
@@ -40,12 +41,15 @@ let administrator: Administrator;
 let calls: APIRequestContext;
 let creator: LocalPerson;
 let reader: LocalPerson;
+let outsider: LocalPerson;
 
 test.beforeAll(async ({ browser, playwright }) => {
   calls = await playwright.request.newContext({ ignoreHTTPSErrors: true });
   administrator = await accountAdministrator(browser, calls);
   creator = await localAccount(browser, administrator);
   reader = await localAccount(browser, administrator);
+  // An account that holds no role: it reads no project.
+  outsider = await localAccount(browser, administrator);
   for (const person of [creator, reader]) {
     await administrator.giveAlso(person.id, ROLES);
   }
@@ -107,11 +111,68 @@ test("an account that reads every project and is no contributor reads the planni
     expect(problem.code, operation).toBe("NOT_CONTRIBUTOR");
   }
 
+  // Ni par la grille: the reader opens the grid of the planning, her cells are not enterable, and the
+  // validation of a cell she tries sends no write.
+  const context = await browser.newContext({ ignoreHTTPSErrors: true });
+  try {
+    const screen = await context.newPage();
+    await signIn(screen, reader, "/account");
+    await openHydrated(screen, seeded.planning);
+    const grid = screen.getByRole("treegrid", { name: "Grille de planning" });
+    const label = grid
+      .getByRole("row", { name: new RegExp(`^2 .*${SEEDED[2]}`) })
+      .getByRole("gridcell", { name: new RegExp(SEEDED[2]) })
+      .first();
+    await expect(label).toBeVisible({ timeout: WORKING });
+    const sent: string[] = [];
+    screen.on("request", (request) => {
+      if (request.method() !== "GET") {
+        sent.push(`${request.method()} ${request.url()}`);
+      }
+    });
+    await label.click();
+    await screen.keyboard.press("F2");
+    await expect(label).toHaveAttribute("aria-readonly", "true");
+    await expect(grid.getByRole("textbox")).toHaveCount(0);
+    await screen.keyboard.type("Refusée");
+    await screen.keyboard.press("Enter");
+    await expect(grid.getByRole("textbox")).toHaveCount(0);
+    expect(sent).toEqual([]);
+  } finally {
+    await context.close();
+  }
+
   // The reader sees the planning unchanged, by the grid she cannot write.
   const unchanged = (await (await calls.get(`${base}/nodes`, { headers })).json()) as {
     items: unknown[];
   };
   expect(unchanged.items).toHaveLength(6);
+
+  // Une adresse d’objet inexistant et une adresse d’objet non consultable mènent au même écran: the
+  // same 404 on a structure, a node and a row number, whether the object does not exist or the
+  // account may not read its project.
+  const unknown = randomUUID();
+  const outsiderHeaders = { Authorization: `Bearer ${await frontToken(browser, outsider)}` };
+  const root = `${API}/projects/${project}/revisions/${revision}/structures`;
+  const addresses = {
+    structure: [`${root}/${unknown}/nodes`, `${base}/nodes`],
+    node: [
+      `${base}/nodes/${unknown}/dependencies?field=task.duration`,
+      `${base}/nodes/${node}/dependencies?field=task.duration`,
+    ],
+    row: [`${base}/rows/99999`, `${base}/rows/2`],
+  } as const;
+  for (const [object, [missing, existing]] of Object.entries(addresses)) {
+    const absent = await calls.get(missing, { headers });
+    const hidden = await calls.get(existing, { headers: outsiderHeaders });
+    expect(absent.status(), `${object} that does not exist`).toBe(404);
+    expect(hidden.status(), `${object} of a project not readable`).toBe(404);
+    const [wanted, got] = [
+      (await absent.json()) as { code: string },
+      (await hidden.json()) as { code: string },
+    ];
+    expect(got.code, `${object}: the same refusal`).toBe(wanted.code);
+  }
 
   // Inscrit comme contributeur, il le modifie.
   await inscribe(browser, calls, creator, reader, seeded.own);

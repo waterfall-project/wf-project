@@ -126,7 +126,7 @@ describe("the screen of the planning", () => {
     expect(command).not.toBe("");
     expect(command).not.toContain(" aria-disabled=");
     expect(page).not.toContain("Mock-up");
-    expect(page).not.toContain('<p role="note"');
+    expect(page).not.toContain(CATALOGUES.en.mockup.notKept);
   });
 
   it("enters the attachment from the work breakdown read whole, and offers no skeleton beside the tasks", async () => {
@@ -225,7 +225,7 @@ describe("the screen of the planning", () => {
     const [read] = callsOf(BREAKDOWN);
     expect(read?.query.toString()).toBe("");
     expect(page).toContain(`<option value="${ITEM}">Order item: Poste 1.1</option>`);
-    expect(page).not.toContain('<p role="note"');
+    expect(page).not.toContain(CATALOGUES.en.mockup.notKept);
   });
 });
 

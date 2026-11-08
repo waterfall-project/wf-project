@@ -1190,19 +1190,24 @@ Le planning est branché sur le service (EP-06, US-1470) : la page ne porte plus
 suppression par les opérations de l'arbre ; les tâches redatées, les liaisons en conflit, la marge et
 le chemin critique sont ceux que le serveur rend. Un compte qui voit le projet sans en être
 contributeur lit le planning et reçoit `NOT_CONTRIBUTOR` à chaque écriture et à `openImport`
-(`e2e/service/planning-readers.spec.ts`, WF-ADM-0110-A). Les parcours de `planning.spec.ts`,
+(`e2e/service/planning-readers.spec.ts`, WF-ADM-0110-A). Les parcours de `planning-service.spec.ts`,
 `structure.spec.ts`, `computed.spec.ts`, `keyboard.spec.ts`, `grid.spec.ts` (le Gantt épinglé) et
 `context.spec.ts` qui jouent contre le service portent `@shared` : le témoin de PRJ-001 n'a pas encore
 ses tâches dans le service (US-1480), et le compte de la course n'en est pas contributeur (#2193),
 si bien que chacun écrit son propre projet (`e2e/planning-seed.ts` : le projet créé depuis l'accueil,
-sa révision ouverte, six tâches écrites par l'API). Le report d'une grille à l'autre (#1057) se joue
-ainsi : une tâche créée depuis la grille de devis du projet — avant son démarrage, il se saisit — est
-lue dans le planning, et son indentation avec elle. Ce qui ne se rejoue pas avant son EPIC reste gardé
-par `inService` : les lignes, les montants et le devis (EP-07) ; le reste à engager (EP-09) ; les
-risques (EP-08) ; les indicateurs (EP-10) ; les structures différentielles (EP-08), si bien que le
-parcours de `context.spec.ts` qui ouvre l'avenant, celui de l'écran des risques et celui des
-indicateurs restent sur le faux back ; les parcours de `planning.spec.ts` et de `keyboard.spec.ts`
-qui lisent les mille tâches du témoin (US-1480). La mesure d'une validation de cellule (#196) et celle
+sa révision ouverte, six tâches écrites par l'API, et, selon le parcours, leurs liaisons dont une en
+conflit, l'état de deux d'entre elles, un lotissement de deux postes). Le report d'une grille à
+l'autre (#1057) se joue par les opérations que la grille de devis envoie, `createNode` puis
+`moveNodes`, sur la structure qu'elle partage avec le planning : l'écran de la grille de devis n'est
+pas servi avant EP-07, et le geste fait depuis lui est reporté à cet EPIC (#2590) ; la tâche ainsi
+créée est lue dans le planning, et son indentation avec elle. Le parcours du compte « chef de projet »
+joue la planification et FLX-02 ; FLX-01 attend US-1430/L4 (#2589). Les parcours qui lisent le témoin
+de PRJ-001 attendent US-1480 : leur étiquetage `@shared` est celui d'US-1480/L3 (#2591). Ce qui ne se
+rejoue pas avant son EPIC reste gardé par `inService` : les lignes, les montants et le devis (EP-07) ;
+le reste à engager (EP-09) ; les risques (EP-08) ; les indicateurs (EP-10) ; les structures
+différentielles (EP-08), si bien que le parcours de `context.spec.ts` qui ouvre l'avenant, celui de
+l'écran des risques et celui des indicateurs restent sur le faux back ; les parcours de
+`planning.spec.ts` et de `keyboard.spec.ts` qui lisent les mille tâches du témoin (US-1480). La mesure d'une validation de cellule (#196) et celle
 du déplacement de la cellule active sur mille tâches (#620) sont au relevé de livraison d'US-1470.
 
 ### L'écran des risques

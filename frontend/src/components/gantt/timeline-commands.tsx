@@ -12,10 +12,9 @@
  * What a write did is said in a region of its own; a refusal answered once its dialog is gone, and a
  * refusal of a deletion, above the timelines (`Reactivations`). A creation adds no link: the page read
  * anew lists the timeline where the server keeps it. A deletion answered takes its link away, for as
- * long as the screen stays and the
- * timeline shown deleted, the screen shows the first one the project keeps, as the page does when its
- * address names none it has; an answer that arrives once the screen is left, or another timeline
- * shown, moves nothing (défaut n° 1 de `typescript.md`). The body of the screen, which the server
+ * long as the screen stays; when the timeline shown is the one deleted, the screen shows the first one
+ * the project keeps, as the page does when its address names none it has; an answer that arrives once
+ * the screen is left, or another timeline shown, moves nothing (défaut n° 1 de `typescript.md`). The body of the screen, which the server
  * draws for the timeline shown, gives way with it (`TimelineBody`): to nothing while the first one
  * left is read, to the saying that the project has none once the last is deleted. Neither writes
  * from a version: no command waits for an answer, and an answer closes only the dialog it was sent
