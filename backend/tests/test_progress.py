@@ -399,19 +399,32 @@ def test_a_gesture_while_a_background_task_runs_is_refused_after_the_other_condi
 
 
 @pytest.mark.requirement("WF-DAT-0020-A")
+@pytest.mark.requirement("WF-CYC-0100-A")
 def test_a_marked_revision_and_a_terminal_project_refuse_a_gesture(
     tree: Tree, stage: Scene
 ) -> None:
     node = tree.made("Câblage")
+    studies = tree.made("Études")
+    tree.made("Détail", parent_id=studies["node_id"])
+    summary = tree.node(studies["node_id"])
     mark(stage, tree.revision)
     assert missing(gesture(tree, node, "started")) == "revision_draft"
     assert missing(gesture(tree, node, "completed")) == "task_is_milestone"
+    # The gesture is judged on the tree first: the order of the contract holds on a marked revision.
+    status, code, _ = refusal(gesture(tree, {**node, "lock_version": 9}, "started"))
+    assert (status, code) == (412, "STALE_LOCK_VERSION")
+    assert refusal(gesture(tree, summary, "started"))[:2] == (422, "SUMMARY_TASK_DERIVED")
+    assert refusal(gesture(tree, {"node_id": str(uuid4()), "lock_version": 1}, "started"))[:2] == (
+        404,
+        "NOT_FOUND",
+    )
     put_in_state(stage.owner, stage.project["project_id"], "completed")
     assert missing(gesture(tree, node, "started")) == "project_not_terminal"
+    assert refusal(gesture(tree, summary, "started"))[:2] == (422, "SUMMARY_TASK_DERIVED")
     assert tree.node(node["node_id"])["task"]["progress"] == "not_started"
 
 
-@pytest.mark.requirement("WF-IHM-0040-A")
+@pytest.mark.requirement("WF-PLA-0080-A")
 def test_a_gesture_at_a_stale_counter_is_refused_and_writes_nothing(tree: Tree) -> None:
     node = tree.made("Câblage")
     moved(tree, node, "started", occurred_on=JUNE_THIRD)
@@ -551,6 +564,7 @@ def test_a_state_of_the_witness_that_contradicts_its_dates_or_its_task_is_refuse
         ProgressLoad(UUID(node["node_id"]), "completed", day, None),
         ProgressLoad(UUID(node["node_id"]), "started", day, other),
         ProgressLoad(UUID(node["node_id"]), "finished", day, None),
+        ProgressLoad(UUID(milestone["node_id"]), "started", day, None),
         ProgressLoad(UUID(milestone["node_id"]), "completed", day, other),
         ProgressLoad(UUID(studies["node_id"]), "started", day, None),
     )

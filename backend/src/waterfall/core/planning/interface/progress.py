@@ -164,8 +164,9 @@ def set_task_progress(
         write = stack.enter_context(writing(session, place, writer, ("progress", (node_id,))))
     except ConflictError:
         tree = read_tree(session, place.project_id, place.structure_id)
-        if node_id in tree.tasks:
-            _judge(session, place, tree, node_id, entry)
+        if node_id not in tree.tasks:
+            raise NotFoundError(NOT_FOUND) from None
+        _judge(session, place, tree, node_id, entry)
         raise
     with stack:
         tree = write.tree
@@ -192,8 +193,9 @@ def load_progress(session: Session, project_id: UUID, load: ProgressLoad, act: A
     """Write the state of a task of the witness, at the instant it imposes.
 
     By the rules of the state: a leaf, its dates those of its state — none when not started,
-    a start when started, both when completed, a milestone's equal. No gesture is judged: the
-    witness tells where its tasks stand. The task counts one write.
+    a start when started, both when completed, a milestone's equal and never
+    started. No gesture is judged: the witness tells where its tasks stand. The task counts one
+    write.
     """
     row = session.execute(
         select(Node, Task)
@@ -230,6 +232,8 @@ def _load_faults(load: ProgressLoad, *, summary: bool, milestone: bool) -> list[
         faults.append(FieldError("/progress", VALIDATION_FAILED))
     if summary:
         faults.append(FieldError("/node_id", SUMMARY_TASK_DERIVED))
+    if load.progress == STARTED and milestone:
+        faults.append(FieldError("/progress", VALIDATION_FAILED))
     if (load.progress == NOT_STARTED) != (load.started_on is None):
         faults.append(FieldError("/started_on", VALIDATION_FAILED))
     if (load.progress == COMPLETED) != (load.completed_on is not None):
