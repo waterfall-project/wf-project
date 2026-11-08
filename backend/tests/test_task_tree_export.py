@@ -69,17 +69,22 @@ def stage(api: ContractClient, owner: Engine, database: Database, realm: TestRea
 
 
 @pytest.fixture
-def api(
-    contract: OpenAPI,
+def services(
     database: Database,
     keycloak: Keycloak,
     realm_settings: ServiceSettings,
     queue: TaskQueue,
     backups_bucket: Bucket,
-) -> ContractClient:
-    """Give a client of the application that deposits its tasks and keeps its files for the test."""
+) -> Services:
+    """Give what the application reaches: the queue of the test, and a bucket to keep files in."""
     administration = KeycloakAdmin(keycloak, realm_settings)
-    app = create_app(Services(database, keycloak, administration, queue, backups_bucket))
+    return Services(database, keycloak, administration, queue, backups_bucket)
+
+
+@pytest.fixture
+def api(contract: OpenAPI, services: Services) -> ContractClient:
+    """Give a client of the application that deposits its tasks and keeps its files for the test."""
+    app = create_app(services)
     return ContractClient(TestClient(app, raise_server_exceptions=False), contract)
 
 
@@ -227,15 +232,16 @@ def test_a_plan_of_leaves_alone_has_a_summary_depth_of_nought_and_no_node_in_the
 @pytest.mark.requirement("WF-PLA-0120-A")
 @pytest.mark.parametrize("language", ["fr", "en"])
 def test_the_image_is_drawn_by_the_worker_and_downloaded_as_png_in_the_account_language(
-    api: ContractClient, stage: Scene, tree: Tree, worker: Worker, owner: Engine, language: str
+    api: ContractClient, stage: Scene, tree: Tree, worker: Worker, language: str
 ) -> None:
     four_levels(tree)
-    speak(owner, stage.manager.user_id, language)
+    speak(stage.owner, stage.manager.user_id, language)
     task_id, done = exported(api, stage, worker, tree, depth=2)
     assert (done["kind"], done["status"], done["problem"]) == ("export", "succeeded", None)
     answer = downloaded(api, stage, task_id)
     disposition = answer.headers["content-disposition"]
-    assert disposition.startswith('attachment; filename="task-tree') and disposition.endswith('.png"')
+    assert disposition.startswith('attachment; filename="task-tree')
+    assert disposition.endswith('.png"')
     columns = (
         TreeNode("Études", (TreeNode("Conception"),)),
         TreeNode("Chantier", (TreeNode("Pose"),)),
@@ -249,10 +255,10 @@ def test_the_image_is_drawn_by_the_worker_and_downloaded_as_png_in_the_account_l
 
 @pytest.mark.requirement("WF-PLA-0120-A")
 def test_the_content_depends_only_on_the_depth_and_a_depth_beyond_the_plan_gives_it_whole(
-    api: ContractClient, stage: Scene, tree: Tree, worker: Worker, owner: Engine
+    api: ContractClient, stage: Scene, tree: Tree, worker: Worker
 ) -> None:
     four_levels(tree)
-    speak(owner, stage.manager.user_id, "en")
+    speak(stage.owner, stage.manager.user_id, "en")
     day = scheduled_at(tree).date()
 
     def image(**body: Any) -> bytes:
@@ -270,10 +276,10 @@ def test_the_content_depends_only_on_the_depth_and_a_depth_beyond_the_plan_gives
 
 @pytest.mark.requirement("WF-PLA-0120-A")
 def test_a_plan_without_summary_exports_the_node_of_the_project_alone(
-    api: ContractClient, stage: Scene, tree: Tree, worker: Worker, owner: Engine
+    api: ContractClient, stage: Scene, tree: Tree, worker: Worker
 ) -> None:
     tree.made("Essais")
-    speak(owner, stage.manager.user_id, "fr")
+    speak(stage.owner, stage.manager.user_id, "fr")
     task_id, done = exported(api, stage, worker, tree)
     assert done["status"] == "succeeded"
     answer = downloaded(api, stage, task_id)
@@ -294,11 +300,11 @@ def test_an_account_that_follows_the_default_is_served_in_the_language_of_the_in
 
 @pytest.mark.requirement("WF-PLA-0120-A")
 def test_the_header_names_a_marked_revision_by_its_version_name(
-    api: ContractClient, stage: Scene, tree: Tree, worker: Worker, owner: Engine
+    api: ContractClient, stage: Scene, tree: Tree, worker: Worker
 ) -> None:
     studies = tree.made("Études")
     tree.made("Relevés", parent_id=studies["node_id"])
-    speak(owner, stage.manager.user_id, "en")
+    speak(stage.owner, stage.manager.user_id, "en")
     with (
         logging_context(correlation_id="marking"),
         Session(stage.owner) as session,
@@ -315,11 +321,11 @@ def test_the_header_names_a_marked_revision_by_its_version_name(
 
 @pytest.mark.requirement("WF-PLA-0120-A")
 def test_a_label_with_line_breaks_is_drawn_on_one_line_as_the_same_label_without_them(
-    api: ContractClient, stage: Scene, tree: Tree, worker: Worker, owner: Engine
+    api: ContractClient, stage: Scene, tree: Tree, worker: Worker
 ) -> None:
     # The service lets a break into a label (#2482): the exporter brings it back to one line.
     tree.made("Études\nde  détail\r\n\tfinales")
-    speak(owner, stage.manager.user_id, "en")
+    speak(stage.owner, stage.manager.user_id, "en")
     task_id, done = exported(api, stage, worker, tree)
     assert done["status"] == "succeeded"
     answer = downloaded(api, stage, task_id)
@@ -334,7 +340,6 @@ def test_a_label_with_line_breaks_is_drawn_on_one_line_as_the_same_label_without
 
 @pytest.mark.requirement("WF-PLA-0120-A")
 def test_an_image_beyond_the_ceiling_of_pixels_fails_the_task_with_its_code_and_is_not_drawn(
-    api: ContractClient,
     stage: Scene,
     tree: Tree,
     worker: Worker,
@@ -350,10 +355,10 @@ def test_an_image_beyond_the_ceiling_of_pixels_fails_the_task_with_its_code_and_
 
     monkeypatch.setattr(task_tree_image, "MAX_PIXELS", 10_000)
     monkeypatch.setattr(task_tree, "draw_task_tree", refuse_to_draw)
-    task_id, done = exported(api, stage, worker, tree, depth=4)
+    task_id, done = exported(tree.api, stage, worker, tree, depth=4)
     assert (done["status"], done["result_url"]) == ("failed", None)
     assert (done["problem"]["code"], done["problem"]["status"]) == (TOO_LARGE, 422)
     assert laid == []
     assert backups_bucket.size(f"exports/{task_id}.png") is None
-    gone = api.get(f"{TASKS}/{task_id}/result", headers=stage.manager.headers)
+    gone = tree.api.get(f"{TASKS}/{task_id}/result", headers=stage.manager.headers)
     assert gone.status_code == 409

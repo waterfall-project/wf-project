@@ -16,7 +16,6 @@ Declared by US-1380/L1; filled by US-1440/L2.
 
 import re
 from typing import TYPE_CHECKING
-from uuid import UUID
 
 from waterfall.core.exchanges.interface import ExportedFile
 from waterfall.core.planning import task_tree_image
@@ -35,6 +34,8 @@ from waterfall.platform.errors import UnprocessableError
 from waterfall.platform.installation import read_settings
 
 if TYPE_CHECKING:
+    from uuid import UUID
+
     from sqlalchemy.orm import Session
 
     from waterfall.core.exchanges.interface import ExportOrder

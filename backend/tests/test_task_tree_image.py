@@ -6,8 +6,8 @@ Laid by US-1380/L1, the socle of EP-06, so that no two stories create the same f
 writes its tests here ("Les tests du back").
 """
 
-from datetime import date
 from concurrent.futures import ThreadPoolExecutor
+from datetime import date
 from io import BytesIO
 from itertools import pairwise
 
@@ -91,7 +91,7 @@ def _frame_tops(image: Image.Image, x: int) -> set[int]:
 
 
 def _ink_in(image: Image.Image, top: int, bottom: int) -> bool:
-    """Tell whether anything but the background lies in the rows ``top`` to ``bottom`` (excluded)."""
+    """Tell whether anything but the background lies in the rows from ``top`` to ``bottom``."""
     return any(
         image.getpixel((x, y)) != (255, 255, 255)
         for x in range(image.width)
@@ -311,7 +311,7 @@ def test_renders_in_parallel_threads_give_the_png_of_a_render_alone() -> None:
 
 
 @pytest.mark.requirement("WF-PLA-0120-A")
-def test_a_layout_beyond_the_ceiling_of_one_hundred_million_pixels_is_measured_by_its_size() -> None:
+def test_a_layout_beyond_the_ceiling_of_a_hundred_million_pixels_is_known_from_its_size() -> None:
     assert MAX_PIXELS == 100_000_000
     # 300 columns of 40 nested summaries: about 18,000 by 8,000 pixels, laid out in a blink.
     column = TreeNode("Lot récapitulatif")
