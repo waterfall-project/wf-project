@@ -656,7 +656,7 @@ d'ensemble en dernier ; le plan de lots (étape 3) le détaille en vagues.
 
 ## US-1490 — La ligne de devis : sa facette, ses grandeurs, son montant et son année de consommation
 
-- **statut** : à faire
+- **statut** : en cours
 - **exigences** : `WF-DEV-0020-A`, `WF-DEV-0030-A`, `WF-DEV-0040-A`, `WF-DEV-0010-A`,
   `WF-PLA-0010-A`, `WF-DAT-0090-A`, `WF-DAT-0100-A`, `WF-DAT-0010-A`, `WF-DAT-0020-A`,
   `WF-DAT-0080-A`, `WF-REF-0040-A`, `WF-IHM-0110-A`

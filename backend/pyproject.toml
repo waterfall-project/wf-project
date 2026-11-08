@@ -111,10 +111,10 @@ type = "layers"
 layers = ["waterfall.witness", "waterfall.bootstrap | waterfall.restore", "waterfall.api | waterfall.worker | waterfall.migrations", "waterfall.schema", "waterfall.core", "waterfall.platform"]
 
 [[tool.importlinter.contracts]]
-name = "The modules of the core are ordered: the one above imports the one below, never the reverse (the cycle of #2124); the planning registers in the exchanges, the history, the revisions, the projects and the resource settings; projects and revisions sit between them and cost_settings; resource_settings imports no other module of the core; estimate sits above them all"
+name = "The modules of the core are ordered: the one above imports the one below, never the reverse (the cycle of #2124); the planning registers in the exchanges, the history, the revisions, the projects and the resource settings; projects and revisions sit between them and cost_settings; resource_settings imports no other module of the core"
 type = "layers"
 containers = ["waterfall.core"]
-layers = ["estimate", "access_roles | backups | indicator_settings | risk_settings", "planning", "exchanges | history", "revisions", "projects", "cost_settings", "users", "resource_settings"]
+layers = ["access_roles | backups | estimate | indicator_settings | risk_settings", "planning", "exchanges | history", "revisions", "projects", "cost_settings", "users", "resource_settings"]
 
 [[tool.importlinter.contracts]]
 name = "A module of the core reaches another only through its public interface"

@@ -1,0 +1,13 @@
+{
+  "summary": "Une ligne de main-d'oeuvre de quantité 1, charge 100 et taux 50 consommée deux ans après l'année de référence, avec 3 % d'inflation : son montant vaut son produit fois 1,03 x 1,03 = 1,0609 (WF-DEV-0020, WF-DEV-0030).",
+  "examples": ["WF-DEV-0020-A#4b83e45d65ae", "WF-DEV-0030-A#e6c446928b5b"],
+  "quantity": "1",
+  "effort": "100",
+  "hourly_rate": "50",
+  "inflation_rate": "0.03",
+  "reference_year": 2026,
+  "consumption_year": 2028,
+  "factor": "1.0609",
+  "base_amount": "5000.00",
+  "projected_amount": "5304.50"
+}
