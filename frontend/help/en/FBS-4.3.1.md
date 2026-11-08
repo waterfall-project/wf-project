@@ -6,7 +6,7 @@ A leaf of the [planning](FBS-4.3.md), reached from the header of the planning, i
 
 At the top, the timelines of the project, each a link that shows it; the first one is shown when the address names none. Below, the **frieze** of the timeline shown, on the time axis of the Gantt: each task inscribed is a rectangle from its start to its finish, which bears its name, and each milestone a vertical line, its name and its date at its foot. The rectangles are arranged in lanes, by themselves in the order of the plan, or where you placed them. Under the frieze, a table reads the same tasks, their dates and their lanes.
 
-The inscriptions are made from the [planning grid](FBS-4.3.2.md), by **Timelines** in the menu of a cell: nothing is inscribed here. The tasks read are those of the revision of the context, restricted to the subproject filtered.
+The inscriptions are made from the [planning grid](FBS-4.3.2.md), by **Timelines** in the menu of a cell: nothing is inscribed here. The tasks read are those of the revision of the context, restricted to the subproject filtered. A task inscribed appears in the timeline and disappears from it as soon as it is taken out; the inscription follows the task from one revision to the next, and two timelines of a project each keep their own selection. A milestone may also be inscribed to the time/time tracking, which is not a timeline and does not appear here.
 
 ## Its commands
 

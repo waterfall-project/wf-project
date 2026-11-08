@@ -161,6 +161,7 @@ def test_the_first_revision_is_born_current_with_its_main_structure_alone(
     # Its manager may enter, mark and abandon it; the designation asks it marked, with tasks.
     assert missing(revision) == {
         "edit_planning": [],
+        "generate_skeleton": [],
         "edit_estimate": [],
         "edit_remaining": [],
         "mark": [],

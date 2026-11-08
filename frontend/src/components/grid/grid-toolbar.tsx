@@ -34,7 +34,7 @@ import { useDatedEntry } from "./dated-entry";
 import { MENU_KEYS, useFoldReach } from "./fold";
 import { configColumn, type GridTable } from "./grid-table";
 import { SEARCH_LENGTH } from "./query";
-import { UndoCommands } from "./undo-commands";
+import { UndoCommands, type UndoControl } from "./undo-commands";
 
 /** A column the user may show or hide. */
 export interface ToggledColumn {
@@ -89,6 +89,8 @@ export interface GridToolbarProps {
   readonly onSearch: ((search: string) => void) | undefined;
   /** Whether the grid enters a revision in progress, whose entries undo and redo will act on. */
   readonly undoable: boolean | undefined;
+  /** What wires undo and redo on the server; none, and they are placed, unavailable. */
+  readonly undo?: UndoControl | undefined;
   /** How the tree of the grid folds; none for a grid that is no tree. */
   readonly outline?: GridOutline | undefined;
   /**
@@ -219,6 +221,7 @@ export function GridToolbar({
   search,
   onSearch,
   undoable,
+  undo,
   outline,
   grid,
   width,
@@ -236,7 +239,7 @@ export function GridToolbar({
         <SearchField search={search} onSearch={onSearch} grid={grid} />
       )}
       <div className="flex-1" />
-      {undoable === true ? <UndoCommands /> : null}
+      {undoable === true ? <UndoCommands control={undo} /> : null}
       {outline === undefined ? null : <OutlineMenu outline={outline} />}
       <DropdownMenu>
         <CommandTooltip label={t("open")} help={said("columns.help")}>

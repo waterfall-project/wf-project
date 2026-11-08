@@ -76,7 +76,6 @@ import {
   formatCell,
   type GridColumn,
   type GridConfig,
-  type GridName,
   headingOf,
   ROW_NUMBER_KEY,
 } from "./columns";
@@ -111,6 +110,7 @@ import { GridToolbar, toggledColumns } from "./grid-toolbar";
 import { HeaderCell } from "./header-cell";
 import { type KeptFilters, useKeptFilters } from "./kept-filters";
 import { useKeptPageSize } from "./kept-size";
+import { gridBusy, held, sharedName, Spacer } from "./dense-grid-parts";
 import { useGridPaste } from "./paste";
 import { PasteAppliedNotice, PasteDialog, UnshownNotice } from "./paste-dialog";
 import { PendingAddress, usePendingAddress } from "./pending-address";
@@ -139,6 +139,7 @@ import {
   onRows,
   type RowCommands,
   UndoAnnouncer,
+  type UndoControl,
   useUndoShortcut,
   writingOf,
 } from "./undo-commands";
@@ -179,6 +180,12 @@ export interface DenseGridProps<Row extends RowData, Sort extends string, Totals
    * Ctrl+Z and Ctrl+Shift+Z (WF-IHM-0110) — placed, not wired yet.
    */
   readonly undoable?: boolean | undefined;
+  /**
+   * What wires undo and redo of the grid on the server's history (WF-IHM-0110, `useUndoRedo`): the
+   * buttons, the menu and the keys then ask it, and its refusal is told above the grid. None, and
+   * they are placed, unavailable.
+   */
+  readonly undo?: UndoControl | undefined;
   /**
    * What holds the grid, given the rows it shows — those of the answer, as its writes left them —:
    * the Gantt of the planning lays them out once for all its cells (`GanttRows`). One element
@@ -492,40 +499,6 @@ function TotalsRow<Row extends RowData, Sort extends string, Totals>({
   );
 }
 
-/** A spacer for the rows not rendered, before or after those in view. */
-function Spacer({ height, span }: { readonly height: number; readonly span: number }) {
-  return height > 0 ? (
-    <tr aria-hidden="true">
-      <td colSpan={span} style={{ height }} className="p-0" />
-    </tr>
-  ) : null;
-}
-
-/** Whether the grid is busy: reading a sort or a search anew, or a command of its screen waiting. */
-function gridBusy(reading: boolean, commands: { readonly busy: boolean }): boolean {
-  return reading || commands.busy;
-}
-
-/**
- * The name of a grid among several on its screen — one that writes the address under its own
- * names —, which names its search and its menu of the columns; none for a grid alone.
- */
-function sharedName(
-  config: { readonly address?: unknown; readonly name: GridName },
-  named: (name: GridName) => string,
-): string | undefined {
-  return config.address === undefined ? undefined : named(config.name);
-}
-
-/** The grid, held by what its screen puts around it, if anything. */
-function held<Row>(
-  grid: ReactNode,
-  rows: readonly Row[],
-  around: ((rows: readonly Row[], grid: ReactNode) => ReactNode) | undefined,
-): ReactNode {
-  return around === undefined ? grid : around(rows, grid);
-}
-
 /**
  * Render a dense grid, which shares the address last asked with its bar — and with its screen,
  * when the screen shares one (`PendingAddress`): a search typed on while the one sent is on its
@@ -551,6 +524,7 @@ function SharedGrid<Row extends RowData, Sort extends string, Totals>({
   preferences,
   dependencies,
   undoable,
+  undo: undoControl,
   around,
   foldScope,
   narrowing,
@@ -738,7 +712,7 @@ function SharedGrid<Row extends RowData, Sort extends string, Totals>({
     // The confirmation waits for any other write of the screen, as its gestures do (#1224).
     busy: busyOf(commands),
   });
-  const undo = useUndoShortcut(undoable);
+  const undo = useUndoShortcut(undoable, undoControl);
   const foldReach = useFoldReach();
   const folding = useFoldCommands({
     fold,
@@ -823,6 +797,7 @@ function SharedGrid<Row extends RowData, Sort extends string, Totals>({
         search={query.search}
         onSearch={config.searched ? search : undefined}
         undoable={undoable}
+        undo={undoControl}
         outline={folding.outline}
         commands={screenCommands.bar(cursor.active.row)}
         grid={sharedName(config, (name) => t(`names.${name}`))}
@@ -830,7 +805,12 @@ function SharedGrid<Row extends RowData, Sort extends string, Totals>({
           headingOf(column, (key) => t(`columns.${key}`)),
         )}
       />
-      <UndoAnnouncer offered={undoable} told={undo.told} />
+      <UndoAnnouncer
+        offered={undoable}
+        control={undoControl}
+        told={undo.told}
+        onDismissed={keyboard.refocus}
+      />
       <SelectionNotes hint={hint} count={selection.count} />
       <OutcomeNotice
         outcome={writer.outcome}
@@ -881,7 +861,7 @@ function SharedGrid<Row extends RowData, Sort extends string, Totals>({
         aria-rowcount={bodyRows + 2}
         aria-colcount={columns.length}
         aria-multiselectable={selection.multiselectable}
-        aria-busy={gridBusy(pending, screenCommands)}
+        aria-busy={gridBusy(pending, screenCommands, undoControl)}
         // The grid takes the height its screen leaves it (`Screen`, `fill`), shrinking from that
         // of its rows down to a floor; never taller than the window, so that the rows in view
         // stay a window's worth whatever holds it. The header and the totals stick to its edges,
@@ -928,6 +908,7 @@ function SharedGrid<Row extends RowData, Sort extends string, Totals>({
         </TableHeader>
         <CellMenu
           offered={undoable}
+          control={undoControl}
           commands={screenCommands.menu}
           folding={
             folding.menu === undefined

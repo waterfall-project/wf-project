@@ -1124,7 +1124,7 @@ répartition de la charge (EP-07).
 
 ## US-1400 — Les chronologies nommées et les inscriptions aux suivis
 
-- **statut** : en cours
+- **statut** : fini
 - **exigences** : `WF-PLA-0140-A`, `WF-PLA-0060-A`
 - **opérations** : `listTimelines`, `createTimeline`, `deleteTimeline`, `setNodeTracking` ;
   `listNodes` avec `timeline_id`
@@ -1499,7 +1499,7 @@ PRJ-001 a la profondeur que `summary_depth` dit.
 
 ## US-1450 — Le collage et l'annulation servis par le serveur
 
-- **statut** : en cours
+- **statut** : fini
 - **exigences** : `WF-IHM-0110-A`
 - **opérations** : `previewPaste`, `applyPaste`, `undoLastChange`, `redoLastUndo`
 - **issue** : 2322
@@ -1563,7 +1563,7 @@ saisies de risque (EP-08).
 
 ## US-1460 — Le squelette de planning engendré du lotissement
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-PRJ-0030-A`, `WF-PLA-0170-A`
 - **opérations** : `generatePlanningSkeleton` ; `getWorkBreakdown`, `createRevision`
 - **issue** : 2325

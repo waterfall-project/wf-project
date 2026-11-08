@@ -132,17 +132,17 @@ describe("the screen of the timelines", () => {
     expect(text(page.slice(page.indexOf("<table")))).toContain("6 Réception des études");
   });
 
-  it("keeps the tasks inscribed to the timeline of an answer that holds more, as the fake back renders it [WF-PLA-0140-A]", async () => {
-    // Deux chronologies d'un même projet portent des sélections distinctes: the customer's, the
-    // two receptions alone, the core read whole.
+  it("draws the tasks the service renders for the timeline, selecting none of them itself [WF-PLA-0140-A]", async () => {
+    // Deux chronologies d'un même projet portent des sélections distinctes : the selection is the
+    // service's (`timeline_id`), the screen applies no criterion to the answer — what it renders,
+    // the core read whole, is what is drawn.
     server.answers = { ...server.answers, [NODES]: "nodes_core" };
     const page = await timelinesAt({ timeline: CUSTOMER });
-    // The reading as a table of the frieze, which names every task inscribed.
     const table = text(page.slice(page.indexOf("<table")));
     expect(table).toContain("6 Réception des études");
     expect(table).toContain("13 Réception usine");
-    expect(table).not.toContain("Études 02/03/2026");
-    expect(table).not.toContain("Mise en service");
+    expect(table).toContain("Études 02/03/2026");
+    expect(table).toContain("Mise en service");
   });
 
   it("hands the frieze the lanes the account keeps for the timeline shown [WF-ADM-0040-A]", async () => {
@@ -171,21 +171,20 @@ describe("the screen of the timelines", () => {
     expect(page).toContain(COMMISSIONING.replace("LANE", "2"));
   });
 
-  it("offers the commands of the timelines as the project lists `manage_timelines`, none on a project that ended (US-0702/L3), and says then that the fake back keeps none of what they write (EP-14/L44c)", async () => {
+  it("offers the commands of the timelines as the project lists `manage_timelines`, none on a project that ended (US-0702/L3); the screen carries no note of the mock-up, served by the service (US-1400)", async () => {
     const page = await timelinesAt();
     expect(page).toMatch(/<button[^>]*>.*?New timeline<\/button>/);
     expect(page).toContain('aria-label="Delete the timeline “Comité de pilotage”"');
-    expect(page).toContain('role="note"');
-    // A terminal project lists no command: none presented, it writes nothing to warn of.
+    expect(page).not.toContain('role="note"');
+    // A terminal project lists no command: none presented.
     server.clients = [];
     server.answers = { ...server.answers, "GET /projects/{project_id}": "project_completed" };
     const closed = await timelinesAt();
     expect(closed).not.toContain("New timeline");
-    expect(closed.match(/role="note"/g)).toHaveLength(1);
   });
 
   it("says a timeline holds no task of the revision read", async () => {
-    server.answers = { ...server.answers, [NODES]: "nodes_risk_occurred" };
+    server.answers = { ...server.answers, [NODES]: "nodes_empty" };
     const empty = await timelinesAt({ timeline: CUSTOMER });
     expect(text(empty)).toContain("No task of this revision is inscribed to this timeline.");
   });

@@ -6,8 +6,17 @@
 quality on its project each asks for besides.
 """
 
-# The permissions each operation asks for, in the order they are evaluated.
-ASKED: dict[str, tuple[str, ...]] = {}
+CONSULT = "planning.read"
+CHANGE = "planning.write"
+
+# The permissions each operation asks for, in the order they are evaluated: the skeleton is written
+# by the holder of the permission to write the planning, the command ``generate_skeleton`` of the
+# revision (US-1460).
+ASKED: dict[str, tuple[str, ...]] = {
+    "generatePlanningSkeleton": (CONSULT, CHANGE),
+}
 # The quality on its project each operation that names one asks for, evaluated by
 # ``RequiresProject``: ``consultation``, ``contributor`` or ``project_manager`` (WF-ADM-0110).
-ON_PROJECT: dict[str, str] = {}
+ON_PROJECT: dict[str, str] = {
+    "generatePlanningSkeleton": "contributor",
+}
