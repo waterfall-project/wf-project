@@ -4551,6 +4551,68 @@ class StructureMerge(ContractModel):
     ]
 
 
+class NodeProjection(ContractModel):
+    node_id: Uuid
+    lineage_id: Uuid | None = None
+    kind: NodeKind | None = None
+    parent_id: Annotated[
+        Uuid | None, Field(description="Null for a node of the first level of the structure.")
+    ] = None
+    position: Annotated[
+        int | None,
+        Field(
+            description="Rank of the node among the siblings under its parent — the lines of a task, then its subtasks, in outline order —, starting from 1. Computed, it is not written: a creation or a move designates its place by the node after which to place itself (`NodeCreate.after_node_id`, `NodeMove.after_node_id`; #1183). On the read of a differential and on a comparison, the removed nodes returned count in it, at the place they had (`NodeDifference`).",
+            ge=1,
+        ),
+    ] = None
+    row_number: Annotated[
+        int,
+        Field(
+            description="Row number, computed on read in the numbering of the whole structure — its tasks and its lines, in outline order —, whatever the read returns, its filters, its search and its sort. On the read of a differential and on a comparison, the removed nodes returned count in it, each occupying its row (`NodeDifference`).",
+            ge=1,
+        ),
+    ]
+    level: Annotated[int, Field(ge=1)]
+    origin_risk_id: Annotated[
+        Uuid | None,
+        Field(
+            description="The risk whose occurrence merged this node, task or line, into the main structure (WF-RIS-0060); null for any other. Read-only: the occurrence sets it on each task and each line it merges, and no write changes it. The copy of a revision, moves, imports that match the node by its lineage (`lineage_id`) and the merge of an amendment keep it; a creation leaves it null, even under a task that came from a risk. It finds the lines that came from an occurred risk, which the filters `is_from_risk` and `origin_risk_ids` retain, and whose re-estimated amount is compared with the cost at occurrence (`Risk.occurred_reestimated_amount`; #1761)."
+        ),
+    ] = None
+    task: Annotated[ComparedTaskFacet | None, Field(description="Null for an estimate line.")] = (
+        None
+    )
+    estimate_line: Annotated[
+        ComparedEstimateLineFacet | None, Field(description="Null for a task.")
+    ] = None
+    predecessors: list[Predecessor] | None = None
+    computed_fields: Annotated[
+        list[ComputedField] | None,
+        Field(
+            description="Enterable fields — through the write schema or, for progress, through its command — that the server computes for this very node: the dates of an automatic task, the mode — always automatic (WF-PLA-0040) —, the dates, the duration and the progress of a summary task, the category of a labour line, that of its role (WF-DEV-0020), the figures of a provision line and its subproject, the one that its risk designates (WF-RIS-0010). The front presents them as computed and does not offer to enter them (WF-IHM-0030); it deduces nothing from the mode or from the kind of the node."
+        ),
+    ] = None
+    editable_fields: Annotated[
+        list[EditableField] | None,
+        Field(
+            description='Fields of the facet that this very node accepts for writing, symmetrical to `computed_fields`: a labour line carries the role and the effort, never its category, which is that of its role (Vérif of WF-DEV-0020), a non-labour line its category and the unit disbursement, both the payment delay — null by default for labour, and "enterable on any line other than a provision line" (WF-DEV-0020, WF-IND-0100; #785) —, a provision line neither the ones nor the others, nor its subproject, which its risk designates and changes only as long as it is identified (`RiskCommand.update_provision`, WF-RIS-0010); a line whose task is started or completed, and whose subproject has received actual costs, does not name it either: it cannot leave that subproject (`SUBPROJECT_HAS_ACTUAL_COSTS`, WF-PRJ-0050); a line of the main structure whose task is completed names none, its label included: it is not modified as long as the task is not reopened from the Kanban (`task_not_completed`, WF-RAE-0040, WF-DEV-0050), its remaining to commit falling under `remaining_entry` — a line of a differential names them whatever the state of its task, the amendment re-budgeting it (WF-REV-0050; F-01, #1766) —; a manual task carries its dates, a milestone has no duration to enter, a summary task neither mode, nor duration, nor dates, nor progress (WF-PLA-0040, WF-PLA-0130). A field computed for this node never appears in it. The grid offers entry of a cell only if its field appears in it, without deducing anything from the kind of the category or from the mode (WF-IHM-0040); what the caller has the right to write falls under the revision\'s commands, not this list.'
+        ),
+    ] = None
+    lock_version: LockVersion
+    difference: Annotated[
+        NodeDifference | None,
+        Field(
+            description="The node's difference, which the server returns and the front does not compute: on the read of a differential, with the main structure of its revision; in a comparison of two revisions (`RevisionComparison`), with the base revision (WF-REV-0080, WF-REV-0100, C-361). Always returned on these two reads, whether `fields` names it or not; null — or omitted — on the main structure and on a risk's own estimate, which are read relative to nothing."
+        ),
+    ] = None
+    changes: Annotated[
+        list[NodeChange] | None,
+        Field(
+            description="What changes of the node itself, in the order of `NodeChange`, returned with `difference`: empty for a node added, removed or unchanged, and for a task marked modified by its content alone — a line or a subordinate added, removed, modified or moved."
+        ),
+    ] = None
+
+
 class WorkInstantWrite(ContractModel):
     date: PlanningDate
     hours: Hours | None = None

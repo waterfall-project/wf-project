@@ -2674,8 +2674,9 @@ ComparedNodeRead:
     the properties of `Node`, taken over from it, of which only those that a read always returns
     are required — `node_id`, `row_number`, `level` and `lock_version`, and the node's mark,
     `difference` and `changes` —, the others being returned only if `fields` names them, or all
-    of them if it is omitted (#166, #1201, #1208). Its facets are partial likewise. `Node`, which
-    `listNodes` returns, does not change.
+    of them if it is omitted (#166, #1201, #1208). Its facets are partial likewise, those of
+    `NodeProjection`, which `listNodes` returns likewise (#2485). `Node`, which the writes return
+    whole, does not change.
   properties:
     <<: *node_properties
     task:
@@ -2694,16 +2695,37 @@ ComparedNodeRead:
 ComparedTaskFacet:
   type: object
   description: >-
-    The time facet of a node of the comparison (`ComparedNodeRead.task`): the properties of
-    `TaskFacet`, taken over from it, none required — a read with `fields` returns only those
-    it names (`task.label`), a read without `fields` returns them all (#166, #1208).
+    The time facet of a node that a read returns, of the comparison (`ComparedNodeRead.task`) or
+    of `listNodes` (`NodeProjection.task`): the properties of `TaskFacet`, taken over from it,
+    none required — a read with `fields` returns only those it names (`task.label`), a read
+    without `fields` returns them all (#166, #1208, #2485).
   properties: *task_facet_properties
 
 ComparedEstimateLineFacet:
   type: object
   description: >-
-    The estimate facet of a node of the comparison (`ComparedNodeRead.estimate_line`): the
+    The estimate facet of a node that a read returns, of the comparison
+    (`ComparedNodeRead.estimate_line`) or of `listNodes` (`NodeProjection.estimate_line`): the
     properties of `EstimateLineFacet`, taken over from it, none required — a read with `fields`
     returns only those it names (`estimate_line.label`), a read without `fields` returns them
-    all (#166, #1208).
+    all (#166, #1208, #2485).
   properties: *estimate_line_facet_properties
+
+NodeProjection:
+  type: object
+  required: [node_id, row_number, level, lock_version]
+  description: >-
+    A node as `listNodes` returns it (`items`): the properties of `Node`, taken over from it, of
+    which only those that a read always returns are required — `node_id`, `row_number`, `level`
+    and `lock_version` —, the others being returned only if `fields` names them, or all of them
+    if it is omitted, the node then being whole, as `Node` describes it (#166, #2485). Its facets
+    are partial likewise, those of the comparison (`ComparedTaskFacet`,
+    `ComparedEstimateLineFacet`). `Node`, which the writes return whole, does not change.
+  properties:
+    <<: *node_properties
+    task:
+      anyOf: [{ $ref: '#/ComparedTaskFacet' }, { type: 'null' }]
+      description: Null for an estimate line.
+    estimate_line:
+      anyOf: [{ $ref: '#/ComparedEstimateLineFacet' }, { type: 'null' }]
+      description: Null for a task.

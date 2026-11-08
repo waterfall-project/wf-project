@@ -244,8 +244,7 @@ qu'aucune grille n'affiche ; la seconde du §4.6.2 ne tenait qu'à la marge. `fi
 propriétés de `Node` à rendre, et celles d'une facette sous son nom (`task.label`) ; `node_id`,
 `row_number`, `level` et `lock_version` sont toujours rendus. Les schémas décrivent le nœud
 entier, que rend une lecture sans `fields` : leurs propriétés exigées ne le sont pas d'une
-lecture qui en nomme — c'est la seule réponse du contrat dont le schéma ne dit pas tout, et la
-vérification des réponses du service (WF-ARC-0060) devra le savoir. Un nom est une propriété
+lecture qui en nomme. Un nom est une propriété
 et non une énumération : il n'a pas de phrase à rendre, et une propriété nouvelle de `Node` le
 devient sans toucher au paramètre. Écartés : des vues nommées, qui feraient épouser les écrans
 au contrat ; ne rien changer, qui laisserait le back lourd. `editable_fields` pesait 1,03 Mo sur
@@ -255,6 +254,9 @@ en EP-13 (EP-02/L30).
 *Depuis US-0702/L1 (#1610, J-10, sur la règle des autres majeurs de l'auteur du 2026-10-28), une
 propriété inconnue de `fields` est refusée par 422 `VALIDATION_FAILED`, `/query/fields` par
 `FIELD_NOT_ACCEPTED`, comme tout paramètre de requête (EP-03, #799), et non plus par 400.*
+*Depuis US-1400/L3 (#2485), les nœuds de la réponse sont des `NodeProjection`, dont seules les
+quatre propriétés toujours rendues sont exigées : une lecture avec `fields` se valide contre le
+contrat (« La projection de `listNodes` », plus bas).*
 
 **`row_number` numérote toute la structure** (EP-02/L4, #158) : ses tâches et ses lignes, dans
 l'ordre du plan, quels que soient `kinds`, les filtres, la recherche et le tri. Une liaison
@@ -7033,7 +7035,8 @@ laissait aux schémas le nœud entier, que rend une lecture sans `fields`, et à
 `row_number`, `level`, `lock_version` — et la marque du nœud, `difference`, jamais nul, et
 `changes` ; ses facettes, `ComparedTaskFacet` et `ComparedEstimateLineFacet`, n'exigent rien. Le
 schéma de `listNodes`, `Node` et ses facettes, ne change pas : il reste la seule réponse dont le
-schéma ne dit pas tout d'une lecture avec `fields`. Les propriétés sont reprises de `Node`, de
+schéma ne dit pas tout d'une lecture avec `fields` (*jusqu'à US-1400/L3, #2485, qui lui donne
+`NodeProjection`, « La projection de `listNodes` », plus bas*). Les propriétés sont reprises de `Node`, de
 `TaskFacet` et d'`EstimateLineFacet` par des ancres YAML (`&node_properties`, `<<:`), que le
 bundle résout en copies : une propriété ajoutée au nœud l'est aux deux, et aucune ne dérive.
 Écartés : un `$ref` par propriété (`#/Node/properties/…`), que le bundle hisse en composants
@@ -11504,6 +11507,33 @@ gardent quatre décimales, un centième de pour cent. `ProjectRatio` le dit par 
 est refusée par 422 `VALIDATION_FAILED` sur son champ, sans paramètre, plutôt qu'arrondie ; des
 zéros au-delà de la quatrième ne changent rien, `0.12340` valant `0.1234` ; une valeur hors de `0`
 à `1` est refusée d'abord par sa borne (`project_rate_precision`). Le service ne change pas.
+
+### La projection de `listNodes` (US-1400/L3, #2485)
+
+Une lecture de `listNodes` avec `fields` rend moins que `Node` n'exige — `fields=task.label` ne
+rend que les quatre propriétés toujours rendues et le libellé de la tâche —, et ni la vérification
+des réponses du service (WF-ARC-0060), ni le proxy du contrat (Prism) ne l'acceptaient : les
+parcours `@shared` de l'arbre, de la grille et des chronologies ne passaient pas contre le service.
+Décision de l'utilisateur du 2026-11-08 (conception d'EP-06, « La projection de `listNodes` ») :
+une « Interface contract issue » tranchée, qui assouplit une réponse ; la version reste `1.0.0`.
+
+- **`NodeProjection`** : les propriétés de `Node`, reprises par l'ancre `&node_properties` comme
+  `ComparedNodeRead`, dont seules `node_id`, `row_number`, `level` et `lock_version` sont exigées ;
+  ses facettes sont `ComparedTaskFacet` et `ComparedEstimateLineFacet`, qui n'exigent rien, et
+  dont la description vaut désormais pour les deux lectures. Les `items` du `200` de `listNodes`
+  sont des `NodeProjection` ; sa description dit que, sans `fields`, chaque nœud est entier, tel
+  que `Node` le décrit, et qu'avec, il est projeté.
+- **`Node` ne change pas** : les écritures (`NodesWritten`, `KanbanTask`) le rendent entier.
+  `compareRevisions` ne change pas non plus, son `ComparedNodeRead` faisant déjà ce travail
+  (#1208). Les tests du service jugent une lecture sans `fields` sur `Node` entier.
+
+Écartés : des facettes de projection neuves, ou le renommage des facettes `Compared*`, un lot de
+plus pour rien ; retyper chaque consommateur du front en `NodeProjection`, plus de mille lignes,
+quand EP-07 reprend la grille — le front lit la réponse comme des `Node`, une grille ne lisant que
+ce qu'elle a demandé par `fields` ; un exemple `nodes_fields.json`, le test du service et le
+parcours `@shared` d'US-1400/L2 en faisant la preuve ; laisser le constat à EP-07, qui laissait
+sans preuve tous les parcours `@shared` d'EP-06 ; une garde générale dans la vérification des
+réponses du service, selon la requête, plutôt qu'un schéma qui dit la réponse.
 
 ## Collage et annulation
 
