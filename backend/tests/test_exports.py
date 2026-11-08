@@ -17,9 +17,10 @@ from uuid import UUID
 
 import pytest
 from fastapi.testclient import TestClient
-from projects_support import PROJECTS, Scene, create, put_in_state
+from projects_support import PROJECTS, Scene, contribute, create, person, put_in_state
 from projects_support import scene as make_scene
 from sqlalchemy import select
+from sqlalchemy.orm import Session
 from starlette.requests import ClientDisconnect
 from support import ContractClient
 from task_handlers import deposit
@@ -30,8 +31,12 @@ from waterfall.api.exports import disposition
 from waterfall.core.exchanges.interface import ExportedFile, ExportOrder, exporters
 from waterfall.core.planning.interface import MS_PROJECT_EXPORTER
 from waterfall.core.revisions.commands import RevisionState, revision_commands
+from waterfall.core.revisions.interface import mark_revision
+from waterfall.platform.audit import Act
+from waterfall.platform.database import utc_now
 from waterfall.platform.errors import NotFoundError
 from waterfall.platform.keycloak_admin import KeycloakAdmin
+from waterfall.platform.logs import logging_context
 from waterfall.platform.tasks import BackgroundTask, project_task_pending
 from waterfall.worker.exchanges import ExportTask
 from waterfall.worker.runner import Timing, Worker
@@ -56,7 +61,11 @@ CONTENT = b"\x89PNG\r\n\x1a\n" + b"x" * 100
 
 
 class Trial:
-    """The exporter of a test: it gives a file chosen, keeps the orders it received, may refuse."""
+    """The exporter of a test: it gives a file chosen, keeps the orders it received, may refuse.
+
+    It overrides the stub of the planning under the kind ``ms_project_schedule``, the one exporter
+    registered while the others (EP-07, EP-09, US-1440) are not.
+    """
 
     def __init__(self) -> None:
         self.file = ExportedFile(CONTENT, PNG, "arbre.png")
@@ -250,6 +259,27 @@ def test_an_export_whose_object_is_gone_is_a_result_that_does_not_exist(
     task_id, _ = exported(api, stage, worker)
     backups_bucket.delete(f"exports/{task_id}.png")
     assert refusal(result(api, stage, task_id))[:2] == (404, "NOT_FOUND")
+    assert task_of(api, stage, task_id)["result_url"] is None
+
+
+@pytest.mark.requirement("WF-CYC-0110-A")
+@pytest.mark.usefixtures("trial")
+def test_the_export_of_a_marked_revision_succeeds_and_is_downloaded(
+    api: ContractClient, stage: Scene, worker: Worker
+) -> None:
+    # « Ses exports aboutissent », a revision marked as one in progress.
+    revision_id, _ = opened(api, stage)
+    with (
+        logging_context(correlation_id="marking"),
+        Session(stage.owner) as session,
+        session.begin(),
+    ):
+        mark_revision(session, UUID(revision_id), "v1.0", None, Act(None, utc_now()))
+    task_id = requested(api, stage, revision_id)
+    assert worker.step()
+    assert task_of(api, stage, task_id)["status"] == "succeeded"
+    answer = result(api, stage, task_id)
+    assert (answer.status_code, answer.content) == (200, CONTENT)
 
 
 @pytest.mark.requirement("WF-ARC-0090-A")
@@ -335,7 +365,7 @@ def test_the_name_of_a_file_is_given_in_ascii_and_in_utf8_without_breaking_the_h
     )
     assert (
         disposition("日本.png")
-        == "attachment; filename=\".png\"; filename*=UTF-8''%E6%97%A5%E6%9C%AC.png"
+        == "attachment; filename=\"export.png\"; filename*=UTF-8''%E6%97%A5%E6%9C%AC.png"
     )
     assert (
         disposition("日本")
@@ -438,6 +468,23 @@ def test_the_command_of_the_kind_is_present_without_condition_or_absent_and_refu
     put_in_state(owner, stage.project["project_id"], "completed")
     assert commands() == {"export_planning": []}
     assert ask(api, stage, revision_id).status_code == 202
+
+
+@pytest.mark.requirement("WF-CYC-0110-A")
+def test_the_permission_of_the_kind_is_judged_by_its_command_not_by_the_route(
+    api: ContractClient, stage: Scene, database: Database, realm: TestRealm
+) -> None:
+    # A contributor who holds ``estimate.read`` alone is not refused for ``planning.read``, which
+    # the route no longer asks for: the command ``export_estimate`` is absent (EP-07's), and the
+    # refusal names the permission of its kind.
+    estimating = person(database, realm, "estimate.read", name="Léa")
+    contribute(database, stage.project["project_id"], estimating, "contributor")
+    revision_id, _ = opened(api, stage)
+    path = f"{PROJECTS}/{stage.project['project_id']}/exports"
+    answer = api.post(
+        path, headers=estimating.headers, json={"kind": "estimate", "revision_id": revision_id}
+    )
+    assert refusal(answer) == (403, "PERMISSION_MISSING", {"missing_permission": "estimate.read"})
 
 
 @pytest.mark.requirement("WF-CYC-0110-A")

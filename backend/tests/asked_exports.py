@@ -6,14 +6,13 @@
 serve, with the quality on its project each asks for besides.
 """
 
-CONSULT = "planning.read"
-
 # The permissions each operation asks for, in the order they are evaluated: an export is a matter
-# of consultation, the route asking for the permission to consult the planning and the command
-# ``export_*`` of the kind, judged on the revision, for that of its function (WF-CYC-0110); the
-# result of a task is read by the account that asked for it, with no permission (WF-ARC-0090).
+# of consultation, the route asking for the quality of consultation on the project alone and the
+# command ``export_*`` of the kind, judged on the revision, for the permission of its function
+# (WF-CYC-0110); the result of a task is read by the account that asked for it, with no
+# permission (WF-ARC-0090).
 ASKED: dict[str, tuple[str, ...]] = {
-    "requestExport": (CONSULT,),
+    "requestExport": (),
     "getBackgroundTaskResult": (),
 }
 # The quality on its project each operation that names one asks for, evaluated by

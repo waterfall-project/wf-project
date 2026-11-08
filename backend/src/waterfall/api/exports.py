@@ -13,6 +13,7 @@ the result marked consumed; a download that stops before leaves both (WF-DAT-012
 
 import unicodedata
 from collections.abc import Iterator
+from pathlib import PurePosixPath
 from urllib.parse import quote
 from uuid import UUID
 
@@ -38,7 +39,6 @@ from waterfall.platform.tasks import BackgroundTask
 # ``getBackgroundTaskResult``.
 router = APIRouter()
 
-CONSULT = "planning.read"
 NOT_FOUND = "NOT_FOUND"
 # What a quoted file name may not carry (RFC 6266): the quote and the backslash.
 UNQUOTED = {ord('"'): "'", ord("\\"): "_"}
@@ -53,7 +53,11 @@ def disposition(filename: str) -> str:
     """
     stripped = unicodedata.normalize("NFKD", filename).encode("ascii", "ignore").decode()
     plain = "".join(each if each.isprintable() else "_" for each in stripped).translate(UNQUOTED)
-    quoted = f'attachment; filename="{plain or "export"}"'
+    if not plain or plain.startswith("."):
+        # Nothing of the stem is left in ASCII: a hidden file, or no name; keep the extension.
+        suffix = PurePosixPath(filename).suffix.encode("ascii", "ignore").decode()
+        plain = f"export{suffix}"
+    quoted = f'attachment; filename="{plain}"'
     if filename.isascii():
         return quoted
     return f"{quoted}; filename*=UTF-8''{quote(filename, safe='')}"
@@ -63,7 +67,7 @@ def disposition(filename: str) -> str:
     "/projects/{project_id}/exports",
     operation_id="requestExport",
     tags=["exchanges"],
-    dependencies=[Depends(RequiresProject(CONSULT))],
+    dependencies=[Depends(RequiresProject())],
     status_code=202,
     response_model_exclude_unset=True,
 )
@@ -75,6 +79,9 @@ def post_export(
     services: ServicesOf,
 ) -> BackgroundTaskRef:
     """Deposit the export of a revision for the worker, asked for by the caller; say where it is.
+
+    The route asks for the quality of consultation on the project alone: the permission of the kind
+    is judged by the command ``export_*`` of the revision, which a refusal names (WF-CYC-0110).
 
     The task is written in the transaction of the request, and deposited in the queue once that is
     committed.
@@ -113,6 +120,9 @@ def get_background_task_result(
         chunks = services.backups.stream(found.object_key)
         length = services.backups.size(found.object_key)
     except MissingObjectError:
+        # The file is gone: the result is no more, and the task no longer gives its link.
+        with services.database.transaction() as session:
+            consumed(session, task_id)
         raise NotFoundError(NOT_FOUND) from None
 
     def delivered() -> Iterator[bytes]:
