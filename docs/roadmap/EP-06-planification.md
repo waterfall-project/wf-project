@@ -175,7 +175,9 @@ exécuté sans lui (décision de l'auteur du 2026-11-07).
   et en arborescence ;
 - cinquante saisies de la grille s'annulent puis se rétablissent, et l'annulation d'une
   modification qu'un autre contributeur a reprise est refusée en nommant l'objet ;
-- un collage depuis un tableur est prévisualisé, puis crée les tâches collées ;
+- un collage depuis un tableur est prévisualisé, puis écrit les lignes collées sur des tâches
+  existantes, sans en créer (contrat, `previewPaste` ; une création au-delà de la dernière ligne
+  suit la décision de #2559) ;
 - un fichier MS Project s'importe en deux temps dans la révision en cours, créée au besoin, un
   abandon laisse le projet inchangé, et un planning exporté puis réimporté ne présente aucun
   écart ;
@@ -193,7 +195,9 @@ suit une fois figé.
 - #1770 — `createNode` complète les heures d'une tâche datée, comme la modification (F-03 ;
   contrat #1769). US-1380.
 - #1772 — une tâche refusée sous un jalon, à la création, au déplacement, à l'import et au collage
-  (F-04 ; contrat #1771). US-1380 (création, déplacement), US-1430 (import), US-1450 (collage).
+  (F-04 ; contrat #1771). US-1380 (création, déplacement), US-1430 (import) ; le collage n'a pas de
+  site, le contrat n'écrivant que des lignes existantes : #2559 le tranche (2026-11-08, « Les
+  catalogues du front et le collage »).
 - #1790 — le cycle de vie d'un import : l'état `refused`, les conditions de l'application et de
   l'abandon, le dépôt consommé, et les conditions de l'ouverture (I-01 à I-04 ; contrat #1789,
   #1792). EP-12 ayant été abandonné, EP-06 construit le premier ce cycle. US-1420.
@@ -660,6 +664,34 @@ prévoyait pas, et la seule d'EP-06. Elle assouplit une réponse, la version res
   tous les parcours `@shared` d'EP-06 ; une garde générale dans `ContractClient` selon la requête.
 - **Ordre** : le lot précède US-1400/L2 (#2340) et, par elle, US-1470 et US-1480/L2 ; il est
   « pas avec » US-1380/L4 (#2519), qui écrit les mêmes fichiers du contrat et leurs dérivés.
+
+### Les catalogues du front et le collage (décisions de l'utilisateur du 2026-11-08, #2537, #2559)
+
+Deux questions d'US-1450/L2 (#2344), tranchées par l'utilisateur sur la recommandation du cadrage :
+
+- **Le lot qui ajoute un code d'erreur au contrat écrit sa seule clé `errors.<CODE>` dans les deux
+  catalogues du front**, `frontend/messages/fr.json` et `en.json`, avec son test dans
+  `frontend/src/i18n/problem.test.ts` ; il n'y écrit rien d'autre. La règle du plan de lots
+  « aucun lot n'écrit les catalogues `messages/*.json`, une clé manquante devient une issue »
+  (corps de #2316, repris dans chaque issue de lot et par EP-07, « Ce qu'EP-06 écrit encore ») est
+  amendée en ce sens : `typecheck-front` et `make catalogs` exigent la clé dès que le client
+  engendré porte le code, et la règle rendait infusible tout lot qui déclare un refus — US-1380/L4
+  (#2519, option (a), `NODE_CYCLE`) l'avait déjà levée une fois, US-1450/L2 (`SESSION_ID_MISSING`,
+  #2472) la lève la seconde, et la décision vaut pour les suivants. Deux lots qui ajoutent chacun
+  un code touchent le même fichier : ils sont « pas avec » l'un l'autre par les fichiers du
+  contrat qu'ils écrivent déjà. Écartés : reporter le code au lot du front de l'US (US-1450/L3), qui
+  laissait les routes refuser sans code déclaré et revenait sur #2472 ; un lot de catalogue par
+  clé, une issue, une branche et une fusion pour deux lignes.
+- **Le refus `MILESTONE_HAS_NO_SUBTASK` au collage (#1772) n'a aucun site**, le contrat n'écrivant
+  par `previewPaste` que des cellules de nœuds existants, sans créer ni déplacer de tâche, ce que le
+  front (la garde locale de `paste-dialog.tsx`) et le faux back font déjà ; mais `PasteRejection`
+  nomme ce refus (F-04, #1771) et ne dit rien d'une ligne du bloc au-delà du dernier nœud. Une
+  « Interface contract issue », #2559, le tranche entre A — le collage n'écrit que des lignes
+  existantes, la phrase retirée, la ligne au-delà refusée — et B — le collage crée les tâches des
+  lignes au-delà de la dernière, où le refus trouve son site. En attendant, US-1450/L2 fusionne
+  sans #1772 au collage, le critère d'US-1450 ne le cite plus, la définition de fini dit « écrit les
+  lignes collées », et #1772 se clôt par la création, le déplacement et l'import. Écarté : constater
+  seul que le critère ne vaut pas, sans trancher le contrat, qui aurait gardé une phrase sans site.
 
 ### Le front
 
@@ -1443,8 +1475,10 @@ vite sans craindre une fausse manœuvre.
   au moins cinquante entrées par révision et par utilisateur, et ne survit ni au marquage, ni à
   l'abandon, ni à la session ;
 - propre à l'US : `previewPaste` juge un bloc collé sur la facette tâche dans l'ordre de
-  `NodeColumn` — `COMPUTED_VALUE`, `FIELD_NOT_ACCEPTED`, `NON_WORKING_DAY`,
-  `MILESTONE_HAS_NO_SUBTASK` (#1772), les règles du rattachement —, refuse un bloc trop large
+  `NodeColumn` — `COMPUTED_VALUE`, `FIELD_NOT_ACCEPTED`, `NON_WORKING_DAY`, les règles du
+  rattachement ; chaque ligne du bloc écrit un nœud existant, aucune n'en crée, et
+  `MILESTONE_HAS_NO_SUBTASK` (#1772) n'y a pas de site tant que #2559 n'est pas tranchée —,
+  refuse un bloc trop large
   (422 `PASTE_TOO_WIDE`, `max_columns`), et garde le plan (`paste_plan`) avec le compteur de la
   structure ; `applyPaste` écrit les lignes acceptées en une opération, rejuge, 412 si la
   structure a changé, et rend `PasteApplied` ; un plan abandonné n'écrit rien ;
@@ -1458,8 +1492,10 @@ vite sans craindre une fausse manœuvre.
 que l'issue de spécification de l'EPIC demande de compléter. La session est la session de
 connexion de Keycloak, dont la revendication `sid` du jeton survit à ses rafraîchissements — lier la
 pile au jeton d'accès lui-même la viderait à chaque rafraîchissement, toutes les cinq minutes ;
-la conception dit où l'API lit `sid`. La purge d'US-1420 retire les entrées d'une session finie et
-les plans échus.
+la conception dit où l'API lit `sid` ; un jeton valide sans `sid` est refusé par `undoLastChange`
+et `redoLastUndo` (403 `SESSION_ID_MISSING`, #2472), dont le lot écrit la clé de catalogue (#2537,
+« Les catalogues du front et le collage »). La purge d'US-1420 retire les entrées d'une session
+finie et les plans échus.
 
 **Hors périmètre.** Les colonnes de la ligne de devis dans un collage (EP-07) ; l'annulation des
 saisies de risque (EP-08).
