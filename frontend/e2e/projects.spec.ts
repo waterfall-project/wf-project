@@ -842,24 +842,33 @@ test("a labour line of a role of a service proposes the accounts of the service 
     await expect(proposed).toContainText(other.name);
     await expect(grid.getByRole("row").last()).toHaveText("1 contributeur");
 
-    // The proposal names the node and the role; confirmed, and the list saved, it is written.
+    // The proposal names the node and the role; confirmed, and the list saved, it is written. The
+    // shared installation holds other accounts of that name attached to the service, which the
+    // screen does not tell apart: the proposal is read by its count and its first entry, never by an
+    // exact account.
     await contributors.getByRole("button", { name: "Modifier les contributeurs" }).click();
     const list = page.getByRole("dialog", { name: "Modifier les contributeurs" });
     const offered = list
       .getByRole("region", { name: "Contributeurs proposés" })
       .getByRole("listitem")
       .filter({ hasText: other.name });
-    await expect(offered).toContainText(service.node.label);
-    await expect(offered).toContainText(service.role.label);
-    await offered.getByRole("button", { name: `Inscrire ${other.name}` }).click();
+    await expect(offered.first()).toBeVisible({ timeout: WORKING });
+    const before = await offered.count();
+    await expect(offered.first()).toContainText(service.node.label);
+    await expect(offered.first()).toContainText(service.role.label);
+    await offered
+      .first()
+      .getByRole("button", { name: `Inscrire ${other.name}` })
+      .click();
     await list.getByRole("button", { name: "Enregistrer" }).click();
     await expect(list).toHaveCount(0);
     await expect(grid.getByRole("row").last()).toHaveText("2 contributeurs");
 
-    // Read anew, the service kept both and proposes this account no more.
+    // Read anew, the service kept both, and one account of that name is proposed the less.
     await page.reload();
     await expect(grid.getByRole("row").last()).toHaveText("2 contributeurs", { timeout: WORKING });
-    await expect(proposed.filter({ hasText: other.name })).toHaveCount(0);
+    await contributors.getByRole("button", { name: "Modifier les contributeurs" }).click();
+    await expect(offered).toHaveCount(before - 1, { timeout: WORKING });
   } finally {
     await calls.dispose();
   }
