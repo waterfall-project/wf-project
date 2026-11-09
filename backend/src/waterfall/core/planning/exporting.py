@@ -7,7 +7,11 @@ writer of ``msproject/`` turns into the file, in the order of the schema, and th
 back to the same plan (WF-INTF-0060):
 
 - **The project.** Its label, its start the day of ``planning_start_on`` at the opening hour, the
-  constants of the units of the installation, and the calendars.
+  constants of the units of the installation, and the calendars. The schema writes the constants
+  as integers, so ``days_per_month`` (a free number in the installation: 21.67) is rounded in the
+  file (22): a limit of the schema, not of the export. The durations and the lags travel in
+  hours, so they are read back unchanged on the same installation, which the import does not
+  take the constants of the file for.
 - **The calendars.** The default calendar is the calendar of the project (unique identifier 1);
   each other calendar applicable to a task, distinct by its hours, is a calendar of its own, after
   it. A calendar is a base calendar that lists its seven days, a day of work being a single period
@@ -36,7 +40,6 @@ from waterfall.core.planning.msproject import (
     PredecessorLink,
     WorkingDay,
 )
-from waterfall.core.planning.msproject.model import LINK_TYPES
 from waterfall.core.planning.scheduling import Duration, WorkInstant
 from waterfall.core.planning.tree import read_links, read_tree
 from waterfall.core.projects.interface import project_label
@@ -78,7 +81,7 @@ class Calendars:
     periods: dict[int, tuple[Period | None, ...]]
 
 
-def _period(hours: Decimal) -> Period | None:
+def period_of(hours: Decimal) -> Period | None:
     """Give the period a day of as many hours of work is written as: none for a day off."""
     length = min(round(Fraction(hours) * SECONDS_PER_HOUR), SECONDS_PER_DAY)
     if length <= 0:
@@ -87,7 +90,7 @@ def _period(hours: Decimal) -> Period | None:
     return opening, opening + timedelta(seconds=length)
 
 
-def _clock(offset: timedelta) -> time:
+def hour_of_clock(offset: timedelta) -> time:
     """Give the hour of the clock an offset after midnight falls on: midnight for a day's end."""
     seconds = round(offset.total_seconds())
     if seconds >= SECONDS_PER_DAY:
@@ -102,7 +105,7 @@ def _calendars(default: Applicable, applicable: dict[UUID, Applicable]) -> Calen
     for each in applicable.values():
         uids.setdefault(each.calendar.week, len(uids) + 1)
     return Calendars(
-        uids, {uid: tuple(_period(hours) for hours in week) for week, uid in uids.items()}
+        uids, {uid: tuple(period_of(hours) for hours in week) for week, uid in uids.items()}
     )
 
 
@@ -112,7 +115,7 @@ def _ms_calendar(uid: int, week: tuple[Period | None, ...]) -> MsCalendar:
         DAY_TYPES[number]: WorkingDay(
             DAY_TYPES[number],
             period is not None,
-            () if period is None else ((_clock(period[0]), _clock(period[1])),),
+            () if period is None else ((hour_of_clock(period[0]), hour_of_clock(period[1])),),
         )
         for number, period in enumerate(week)
     }
@@ -122,7 +125,7 @@ def _ms_calendar(uid: int, week: tuple[Period | None, ...]) -> MsCalendar:
     )
 
 
-def _clock_of(moment: WorkInstant, week: tuple[Period | None, ...]) -> datetime:
+def date_on_clock(moment: WorkInstant, week: tuple[Period | None, ...]) -> datetime:
     """Give the date of the clock of an instant of work on a calendar: its hours after opening."""
     day = datetime.combine(moment.day, time(0))
     period = week[moment.day.weekday()]
@@ -140,8 +143,7 @@ def _link(link: TaskLink, uids: dict[UUID, int], constants: UnitConstants) -> Pr
     else:
         hours = Duration(link.lag_value, unit).hours(constants)
         lag = round(hours * MINUTES_PER_HOUR * TENTHS)
-    link_type = LINK_TYPES[LINK_TYPES.index(cast("LinkType", link.link_type))]
-    return PredecessorLink(uids[link.predecessor_id], link_type, lag, unit)
+    return PredecessorLink(uids[link.predecessor_id], cast("LinkType", link.link_type), lag, unit)
 
 
 def _task(
@@ -165,8 +167,8 @@ def _task(
         manual=task.scheduling_mode == MANUAL and not tree.is_summary(node_id),
         duration=timedelta(microseconds=round(duration.hours(constants) * MICROSECONDS_PER_HOUR)),
         duration_unit=duration.unit,
-        start=_clock_of(WorkInstant(task.start_date, task.start_hours), week),
-        finish=_clock_of(WorkInstant(task.finish_date, task.finish_hours), week),
+        start=date_on_clock(WorkInstant(task.start_date, task.start_hours), week),
+        finish=date_on_clock(WorkInstant(task.finish_date, task.finish_hours), week),
         milestone=tree.is_milestone(node_id),
         calendar_uid=calendar_uid,
         notes=task.description,

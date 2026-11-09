@@ -22,16 +22,18 @@ from lxml import etree
 from nodes_support import mark, opened
 from projects_support import PROJECTS, Scene
 from projects_support import scene as make_scene
-from sqlalchemy import select
+from sqlalchemy import select, update
 from support import ContractClient
-from test_msproject_import import Timing, link, planning, task
+from test_msproject_import import Timing, link, links, planning, task
 
 from waterfall.api.app import create_app
 from waterfall.api.authentication import Services
 from waterfall.core.planning.interface import FacetHooks, register_facet
 from waterfall.core.planning.msproject import read_project
 from waterfall.core.planning.tree import read_tree
+from waterfall.core.projects.tables import Project
 from waterfall.core.resource_settings.interface import CalendarContent, WeeklyHours, create_calendar
+from waterfall.core.resource_settings.tables import DurationUnit
 from waterfall.core.revisions.tables import CostStructure
 from waterfall.platform.audit import Act
 from waterfall.platform.database import utc_now
@@ -207,15 +209,20 @@ def download(api: ContractClient, stage: Scene, task_id: str) -> Any:
     return api.client.get(f"{TASKS}/{task_id}/result", headers=stage.manager.headers)
 
 
-def exported(api: ContractClient, stage: Scene, worker: Worker, revision_id: str) -> bytes:
-    """Export the planning of a revision and download its file; give its content."""
+def exported_answer(api: ContractClient, stage: Scene, worker: Worker, revision_id: str) -> Any:
+    """Export the planning of a revision and download its file; give the answer."""
     asked = request_export(api, stage, revision_id)
     assert asked.status_code == 202, asked.text
     assert worker.step()
     answer = download(api, stage, asked.json()["task_id"])
     assert answer.status_code == 200, answer.text
     assert answer.headers["content-type"].startswith("application/xml")
-    return answer.content
+    return answer
+
+
+def exported(api: ContractClient, stage: Scene, worker: Worker, revision_id: str) -> bytes:
+    """Export the planning of a revision and download its file; give its content."""
+    return bytes(exported_answer(api, stage, worker, revision_id).content)
 
 
 def exported_planning(api: ContractClient, stage: Scene, worker: Worker) -> tuple[bytes, MsProject]:
@@ -459,3 +466,115 @@ def test_a_task_on_a_calendar_of_other_hours_gets_a_calendar_of_its_own_after_th
     worked = [day for day in project.calendars[1].days if day.working]
     assert [day.day_type for day in worked] == [2, 3, 4, 5]
     assert {day.times[0][1].hour - day.times[0][0].hour for day in worked} == {10}
+
+
+def lagged_planning(month_lag: int = 96000, month: str = "PT160H0M0S") -> bytes:
+    """Write a chain of six tasks, each linked to the one before by a lag of another unit.
+
+    Finish to start with a lag of minus two days, of a week, of a month (``month_lag`` tenths of a
+    minute) and of an elapsed day, then start to finish by a percent; the last lasts a month,
+    which is ``month`` of hours.
+    """
+    return planning(
+        task(1, "A"),
+        task(2, "B", besides=link(1, 1, -9600, 7)),
+        task(3, "C", besides=link(2, 1, 24000, 9)),
+        task(4, "D", besides=link(3, 1, month_lag, 11)),
+        task(5, "E", besides=link(4, 1, 14400, 8)),
+        task(6, "F", timing=Timing(duration=month, unit="11"), besides=link(5, 2, 500, PERCENT)),
+    )
+
+
+def lags_of(project: MsProject) -> dict[str, list[tuple[int, str | None]]]:
+    """Give the lag and the unit of each link of a project, by task."""
+    return {
+        each.name: [(one.lag, one.lag_unit) for one in each.predecessors] for each in project.tasks
+    }
+
+
+CHAIN = {
+    ("A", "B", "finish_to_start", Decimal(-2), "d"),
+    ("B", "C", "finish_to_start", Decimal(1), "w"),
+    ("C", "D", "finish_to_start", Decimal(1), "mo"),
+    ("D", "E", "finish_to_start", Decimal(1), "ed"),
+    ("E", "F", "start_to_finish", Decimal(50), "percent"),
+}
+
+
+@pytest.mark.requirement("WF-PLA-0030-A")
+def test_a_negative_lag_a_lag_in_weeks_in_months_and_an_elapsed_one_are_exported_without_loss(
+    api: ContractClient, stage: Scene, worker: Worker
+) -> None:
+    # « Un décalage négatif exporté sans perte. » « Exportés sans perte : […] liaisons : type et
+    # décalage dans son unité. » The hours of a lag are the file's tenths of a minute.
+    revision = opened(api, stage)
+    import_file(api, stage, worker, lagged_planning(), apply=True)
+    content = exported(api, stage, worker, revision["revision_id"])
+    assert lags_of(read_project(content).project) == {
+        "A": [],
+        "B": [(-9600, "d")],
+        "C": [(24000, "w")],
+        "D": [(96000, "mo")],
+        "E": [(14400, "ed")],
+        "F": [(500, "percent")],
+    }
+    found = import_file(api, stage, worker, content, apply=False)
+    assert found["report"]["differences"] == []
+
+
+@pytest.mark.requirement("WF-PLA-0160-A")
+def test_a_lag_entered_in_weeks_or_months_is_exported_then_imported_again_in_its_unit(
+    api: ContractClient, stage: Scene, worker: Worker
+) -> None:
+    # « Un décalage saisi 1 sem est exporté puis réimporté sans changer d'unité. »
+    revision = opened(api, stage)
+    import_file(api, stage, worker, lagged_planning(), apply=True)
+    assert links(stage) == CHAIN
+    content = exported(api, stage, worker, revision["revision_id"])
+    import_file(api, stage, worker, content, apply=True)
+    assert links(stage) == CHAIN
+
+
+@pytest.mark.requirement("WF-PLA-0160-A")
+def test_a_days_per_month_that_is_not_whole_is_written_whole_and_the_months_are_kept(
+    api: ContractClient, stage: Scene, worker: Worker
+) -> None:
+    # The schema writes the constants as integers: 21.67 days a month is written 22. The durations
+    # and the lags travel in hours, and the import takes no constant of the file, so the months
+    # entered come back as they were, the report presenting no difference.
+    with stage.owner.begin() as connection:
+        connection.execute(update(DurationUnit).values(days_per_month=Decimal("21.67")))
+    revision = opened(api, stage)
+    # A month is 21.67 days of 8 hours: 173.36 hours, 173 h 21 min 36 s, 104016 tenths of a minute.
+    import_file(api, stage, worker, lagged_planning(104016, "PT173H21M36S"), apply=True)
+    before = (links(stage), [(each.duration_value, each.duration_unit) for _, each in nodes(stage)])
+    assert ("C", "D", "finish_to_start", Decimal(1), "mo") in before[0]
+    content = exported(api, stage, worker, revision["revision_id"])
+    assert read_project(content).project.days_per_month == 22
+    found = import_file(api, stage, worker, content, apply=False)
+    assert found["report"]["differences"] == []
+    import_file(api, stage, worker, content, apply=True)
+    after = (links(stage), [(each.duration_value, each.duration_unit) for _, each in nodes(stage)])
+    assert after == before
+
+
+@pytest.mark.requirement("WF-INTF-0050-A")
+def test_the_file_is_named_after_the_code_of_the_project_cleaned_or_not_at_all(
+    api: ContractClient, stage: Scene, worker: Worker
+) -> None:
+    # A project without a code (the stage's) is served as ``ms-project.xml``, one with a code as
+    # ``ms-project-<code>.xml``, each run of characters that are no name's turned into an
+    # underscore, and a code of such characters alone is no code.
+    revision = opened(api, stage)
+    import_file(api, stage, worker, the_planning(), apply=True)
+    project_id = UUID(stage.project["project_id"])
+
+    def named(code: str | None) -> str:
+        with stage.owner.begin() as connection:
+            connection.execute(update(Project).where(Project.id == project_id).values(code=code))
+        answer = exported_answer(api, stage, worker, revision["revision_id"])
+        return str(answer.headers["content-disposition"])
+
+    assert named(None) == 'attachment; filename="ms-project.xml"'
+    assert named("PRJ é-1") == 'attachment; filename="ms-project-PRJ_-1.xml"'
+    assert named("é é") == 'attachment; filename="ms-project.xml"'

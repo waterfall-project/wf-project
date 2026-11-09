@@ -3,13 +3,15 @@
 """The command ``import_planning`` of a project and the refusal of ``openImport`` say the same.
 
 Against the service: the project lists the import of a planning to whoever holds ``planning.write``,
-names ``may_create_revision`` without a current revision to whoever cannot create one, and the
-opening of the import refuses by that very condition (US-1430/L4, WF-INTF-0090). Every answer is
-checked against the contract.
+names ``is_contributor`` to whoever holds the permission without contributing,
+``no_background_task_running`` while a task runs, ``may_create_revision`` without a current
+revision to whoever cannot create one, and the opening of the import refuses by that very
+condition (US-1430/L4, WF-INTF-0090-A). Every answer is checked against the contract.
 """
 
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
+from uuid import UUID
 
 import pytest
 from fastapi.testclient import TestClient
@@ -22,6 +24,8 @@ from support import ContractClient
 from waterfall.api.app import create_app
 from waterfall.api.authentication import Services
 from waterfall.platform.keycloak_admin import KeycloakAdmin
+from waterfall.platform.logs import logging_context
+from waterfall.platform.tasks import submit
 
 if TYPE_CHECKING:
     from openapi_core import OpenAPI
@@ -71,7 +75,7 @@ def commands(body: dict[str, Any]) -> dict[str, list[str]]:
     return {each["command"]: each["missing_conditions"] for each in body["available_commands"]}
 
 
-@pytest.mark.requirement("WF-INTF-0090")
+@pytest.mark.requirement("WF-INTF-0090-A")
 def test_the_project_lists_the_import_of_a_planning_to_whoever_holds_the_planning_permission(
     api: ContractClient, stage: Scene
 ) -> None:
@@ -86,7 +90,7 @@ def test_the_project_lists_the_import_of_a_planning_to_whoever_holds_the_plannin
     assert commands(api.get(path, headers=stage.manager.headers).json())[COMMAND] == []
 
 
-@pytest.mark.requirement("WF-INTF-0090")
+@pytest.mark.requirement("WF-INTF-0090-A")
 def test_the_command_names_may_create_revision_and_the_opening_refuses_by_the_same_condition(
     api: ContractClient, stage: Scene, database: Database, realm: TestRealm
 ) -> None:
@@ -102,4 +106,54 @@ def test_the_command_names_may_create_revision_and_the_opening_refuses_by_the_sa
         409,
         "STATE_FORBIDS_OPERATION",
         {"missing_condition": "may_create_revision"},
+    )
+
+
+@pytest.mark.requirement("WF-INTF-0090-A")
+def test_the_command_names_is_contributor_and_the_opening_refuses_by_the_same_condition(
+    api: ContractClient, stage: Scene, database: Database, realm: TestRealm
+) -> None:
+    project_id = stage.project["project_id"]
+    outsider = person(
+        database,
+        realm,
+        "all_projects_read",
+        "planning.read",
+        "planning.write",
+        "project_settings.read",
+        "revisions.write",
+    )
+    seen = api.get(f"{PROJECTS}/{project_id}", headers=outsider.headers).json()
+    assert commands(seen)[COMMAND] == ["is_contributor"]
+    content = (CORPUS / "01-links-and-lags-days.xml").read_bytes()
+    response = open_import(api, outsider, project_id, deposited(api, outsider, content), kind=KIND)
+    assert refusal(response) == (
+        403,
+        "NOT_CONTRIBUTOR",
+        {"missing_condition": "is_contributor"},
+    )
+
+
+@pytest.mark.requirement("WF-INTF-0090-A")
+def test_the_command_names_no_background_task_running_while_a_task_runs_and_the_opening_refuses(
+    api: ContractClient, stage: Scene, database: Database, queue: TaskQueue
+) -> None:
+    project_id = stage.project["project_id"]
+    content = (CORPUS / "01-links-and-lags-days.xml").read_bytes()
+    upload_id = deposited(api, stage.manager, content)
+    payload = {
+        "project_id": project_id,
+        "revision_id": str(UUID(int=1)),
+        "version_name": "v1.0",
+        "description": None,
+    }
+    with logging_context(correlation_id="queued-around"), database.transaction() as session:
+        submit(session, queue, "revision_mark", stage.manager.user_id, payload)
+    seen = api.get(f"{PROJECTS}/{project_id}", headers=stage.manager.headers).json()
+    assert commands(seen)[COMMAND] == ["no_background_task_running"]
+    response = open_import(api, stage.manager, project_id, upload_id, kind=KIND)
+    assert refusal(response) == (
+        409,
+        "STATE_FORBIDS_OPERATION",
+        {"missing_condition": "no_background_task_running"},
     )
