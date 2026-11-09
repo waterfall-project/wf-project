@@ -158,11 +158,12 @@ def test_the_next_state_names_the_lines_condition_until_a_marked_revision_bears_
     api: ContractClient, stage: Scene, costs: Costing
 ) -> None:
     # « Pour un projet dans chacun des états Créé et Chiffrage, l'utilisateur consulte le prochain
-    # état, son déclencheur et les conditions restantes » : `revision_has_tasks_and_lines` tant
+    # état, son déclencheur et les conditions restantes » : sous Créé, aucune (le passage à
+    # Chiffrage n'a que son fait, #2634) ; en Chiffrage, `revision_has_tasks_and_lines` tant
     # qu'aucune révision marquée ne porte de ligne.
     lines_condition = "revision_has_tasks_and_lines"
     assert next_of(api, stage)["current_state"] == "created"
-    assert next_of(api, stage)["missing_conditions"] == [lines_condition]
+    assert next_of(api, stage)["missing_conditions"] == []
     tree = Tree(api, stage, opened(api, stage))
     assert next_of(api, stage)["current_state"] == "pricing"
     assert next_of(api, stage)["missing_conditions"] == [

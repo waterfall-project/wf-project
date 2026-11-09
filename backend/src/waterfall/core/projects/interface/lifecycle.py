@@ -132,18 +132,20 @@ def next_state(
 ) -> NextState:
     """Give the next state of a project, its trigger and the conditions that remain (WF-CYC-0050).
 
-    Created leads to Pricing at the first revision, and names, as Pricing does, the revision marked
-    that bears a line while none does (``has_lines``, EP-07/US-1540: the estimate answers it, so
-    that ``advance`` does not ask it); Pricing leads to In progress when the reference is designated
+    Created leads to Pricing at the first revision and names no condition: the passage has none
+    beyond its fact (#2634); Pricing leads to In progress when the reference is designated
     and the code entered, whichever comes second, and names what is lacking, the code first, then
-    the lines the reference is chosen among, the reference last; In progress and the terminal states
-    lead nowhere by a fact (their exits are commands). ``has_revision`` is the first fact itself: it
-    names no condition, the state is moved by ``advance`` when the fact is realised.
+    the lines the reference is chosen among (``has_lines``, EP-07/US-1540: the revision marked that
+    bears a line, which the estimate answers, so that ``advance`` does not ask it), the reference
+    last — the conditions of the passage to In progress, named only in Pricing (#2634); In progress
+    and the terminal states lead nowhere by a fact (their exits are commands). ``has_revision`` is
+    the first fact itself: it names no condition, the state is moved by ``advance`` when the fact
+    is realised.
     """
     del has_revision
     lines: tuple[str, ...] = () if has_lines else (LINES_REQUIRED,)
     if state == "created":
-        return NextState(state, "pricing", "first_revision_created", lines)
+        return NextState(state, "pricing", "first_revision_created")
     if state == "pricing":
         lacking = (
             *(() if has_code else (PROJECT_CODE_SET,)),
@@ -169,8 +171,8 @@ def read_next_state(session: Session, project_id: UUID) -> NextState:
     project = session.get(Project, project_id)
     if project is None:
         raise NotFoundError(NOT_FOUND)
-    # The estimate answers whether a marked revision bears a line; asked of the states that name it.
-    asked = project.state in {"created", "pricing"}
+    # The estimate answers whether a marked revision bears a line; asked of the state that names it.
+    asked = project.state == "pricing"
     return _next_of(project, has_lines=not asked or marked_revision_has_lines(session, project_id))
 
 

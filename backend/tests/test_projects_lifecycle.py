@@ -221,8 +221,8 @@ def test_the_next_state_is_read_in_each_state_without_trying_an_action(
         "current_state": CREATED,
         "next_state": PRICING,
         "trigger": "first_revision_created",
-        # No revision marked bears a line yet (EP-07/US-1540, the estimate answers it).
-        "missing_conditions": ["revision_has_tasks_and_lines"],
+        # The passage to Pricing has no condition beyond its fact (#2634, option B).
+        "missing_conditions": [],
     }
     open_revision(api, stage)
     assert next_of(api, stage) == {
@@ -258,7 +258,7 @@ def test_the_next_state_is_read_in_each_state_without_trying_an_action(
 @pytest.mark.parametrize(
     ("state", "has_code", "has_reference", "expected"),
     [
-        (CREATED, False, False, ("revision_has_tasks_and_lines",)),
+        (CREATED, False, False, ()),
         (
             PRICING,
             False,
@@ -274,7 +274,8 @@ def test_the_lines_condition_is_named_between_the_code_and_the_reference(
     state: str, has_code: bool, has_reference: bool, expected: tuple[str, ...]
 ) -> None:
     # No revision marked bears a line: the code, then the lines the reference is chosen among, then
-    # the reference itself; the states after Pricing name nothing of it.
+    # the reference itself; Created, whose passage to Pricing has no condition, and the states
+    # after Pricing name nothing of it (#2634).
     got = next_state(
         state, has_revision=True, has_reference=has_reference, has_code=has_code, has_lines=False
     )
