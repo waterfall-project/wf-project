@@ -55,6 +55,11 @@ DATA = {
     "ContributorSuggestion.display_name": "a name",
     "ContributorSuggestion.org_node_label": "a label",
     "ContributorSuggestion.resource_role_labels": "labels",
+    # What the workload of a project names: the label of a role and of the node asked, and the
+    # scope of a calculation (``project``, ``unassigned`` or the identifier of a subproject).
+    "WorkloadPlan.roles.label": "a label",
+    "WorkloadPlan.org_node_label": "a label",
+    "CalculationContext.scope": "a scope",
     # The label a person gave an element of the work breakdown, and that of the task that bears it.
     "WorkPackageReading.label": "a label",
     "OrderItemReading.label": "a label",

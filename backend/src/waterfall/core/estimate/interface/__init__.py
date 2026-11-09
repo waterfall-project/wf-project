@@ -159,7 +159,10 @@ from waterfall.core.estimate.interface.rates import (
     reinflate_project as reinflate_project,
 )
 
-# ``workload`` (US-1490/L1; US-1520): the workload of an estimate.
+# ``workload`` (US-1490/L1; US-1520): the workload of an estimate, the planned value.
+from waterfall.core.estimate.interface.workload import (
+    planned_value as planned_value,
+)
 from waterfall.core.estimate.interface.workload import (
     workload as workload,
 )
@@ -172,12 +175,26 @@ from waterfall.core.estimate.reading import (
     LineView as LineView,
 )
 
-# ``spreading`` (US-1520/L1): the planned value, which EP-10 reads.
+# ``spreading`` (US-1520/L1): the line the planned value is computed on, which EP-10 reads.
 from waterfall.core.estimate.spreading import (
     PlannedLine as PlannedLine,
 )
-from waterfall.core.estimate.spreading import (
-    planned_value as planned_value,
+
+# ``workloading`` (US-1520): what a plan of workload is asked and gives.
+from waterfall.core.estimate.workloading import (
+    RoleLoad as RoleLoad,
+)
+from waterfall.core.estimate.workloading import (
+    RoleMonth as RoleMonth,
+)
+from waterfall.core.estimate.workloading import (
+    WorkloadAsked as WorkloadAsked,
+)
+from waterfall.core.estimate.workloading import (
+    WorkloadBasis as WorkloadBasis,
+)
+from waterfall.core.estimate.workloading import (
+    WorkloadView as WorkloadView,
 )
 
 # The registries the estimate fills.
