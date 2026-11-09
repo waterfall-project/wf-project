@@ -126,8 +126,9 @@ def workbook(
     tasks: dict[str, str] | None = None,
     header: tuple[Any, ...] = ("Format", "Devis", "Version", 1),
     sheet: list[Any] | None = None,
+    notes: list[list[Any]] | None = None,
 ) -> bytes:
-    """Write a workbook of the format: its header, « Tâches », and a tab of lines."""
+    """Write a workbook of the format: its header, « Tâches », a tab of lines, maybe notes."""
     book = Workbook()
     first = book.active
     assert first is not None
@@ -143,12 +144,16 @@ def workbook(
     lines.append(sheet or HEADERS)
     for row in rows:
         lines.append(row)
+    if notes is not None:
+        written = book.create_sheet("Notes")
+        for each in notes:
+            written.append(each)
     out = BytesIO()
     book.save(out)
     return out.getvalue()
 
 
-def row(task: str, entry: str, cells: dict[str, Any] | None = None) -> list[Any]:
+def row(task: str | None, entry: str | None, cells: dict[str, Any] | None = None) -> list[Any]:
     """Give a row of a tab of lines, by the headers of ``HEADERS``."""
     named = {"Tâche": task, "Rôle ou catégorie": entry, **(cells or {})}
     return [named.get(header) for header in HEADERS]
@@ -513,7 +518,8 @@ def test_a_missing_header_reads_its_cells_empty_and_an_unknown_tab_is_ignored(
     # Without « ID ligne », each line is new and those of the structure are absent; nothing refuses
     # the file: the user reads it before confirming (WF-INTF-0080).
     rows = [each[:-1] for each in as_exported(held)]
-    content = workbook(rows, held["tasks"], sheet=HEADERS[:-1])
+    notes = [["Remarque", "Quantité"], ["à revoir", "beaucoup"]]
+    content = workbook(rows, held["tasks"], sheet=HEADERS[:-1], notes=notes)
     report = analysed(api, stage, worker, content)
     assert [each["change"] for each in report["differences"]] == [
         "added",
@@ -535,3 +541,45 @@ def test_a_project_whose_revisions_are_all_marked_is_analysed_on_the_last_marked
     report = analysed(api, stage, worker, workbook(as_exported(held), held["tasks"]))
     assert (report["differences"], report["rejected"]) == ([], [])
     assert nodes(stage.database) == before
+
+
+@pytest.mark.requirement("WF-INTF-0080-A")
+def test_a_line_without_its_task_or_its_role_or_with_too_long_a_label_is_rejected(
+    api: ContractClient, stage: Scene, worker: Worker, held: dict[str, Any]
+) -> None:
+    rows = [
+        *as_exported(held),
+        row(None, held["stuff"], {"Débours unitaire": 2}),
+        row("2 Essais", None, {"Heures": 2}),
+        row("2 Essais", held["stuff"], {"Désignation": "x" * 301}),
+    ]
+    report = analysed(api, stage, worker, workbook(rows, held["tasks"]))
+    assert [(each["row"], each["code"], each["params"]) for each in report["rejected"]] == [
+        (4, "VALUE_REQUIRED", {"header": "Tâche"}),
+        (5, "VALUE_REQUIRED", {"header": "Rôle ou catégorie"}),
+        (6, "VALUE_TOO_LONG", {"max_length": 300, "header": "Désignation"}),
+    ]
+
+
+@pytest.mark.requirement("WF-INTF-0100-A")
+def test_a_line_moved_to_another_task_is_updated_and_a_repeated_lineage_is_a_new_line(
+    api: ContractClient, stage: Scene, worker: Worker, held: dict[str, Any]
+) -> None:
+    # A row copied in Excel keeps the hidden lineage: the first row updates the line, the copy is
+    # created; a lineage the structure does not hold is a new line too.
+    labour, stuff = as_exported(held, {"Tâche": "2 Essais"})
+    unknown = row("2 Essais", held["stuff"], {"Débours unitaire": 5, "ID ligne": "not-a-lineage"})
+    rows = [labour, stuff, list(stuff), unknown]
+    report = analysed(api, stage, worker, workbook(rows, held["tasks"]))
+    assert [(each["change"], each["fields"]) for each in report["differences"]] == [
+        ("updated", ["parent"]),
+        ("added", []),
+        ("added", []),
+    ]
+    assert (report["read_count"], report["unchanged_count"]) == (4, 1)
+    # From a completed task of the main structure, the line does not move: rejected as its entry.
+    set_progress(stage, held["first"]["node_id"], "completed", date(2026, 1, 5))
+    report = analysed(api, stage, worker, workbook([labour, stuff], held["tasks"]), kept=True)
+    assert [(each["row"], each["params"]["missing_condition"]) for each in report["rejected"]] == [
+        (2, "task_not_completed")
+    ]
