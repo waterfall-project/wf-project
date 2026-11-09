@@ -107,7 +107,7 @@ tâches, des liaisons et des structures sans ligne ; les phrases qui demandent p
 | `WF-INTF-0040-A` | Imports MS Project | début — close en EP-07 | US-1430 |
 | `WF-INTF-0050-A` | Exports MS Project | début — close en EP-07 | US-1430 |
 | `WF-INTF-0060-A` | Réversibilité de l’échange MS Project | début — close en EP-07 | US-1430 |
-| `WF-QUA-0080-A` | Corpus de plannings de référence et schéma d’échange | début — close au dépôt du corpus complet (#2645) | US-1430 |
+| `WF-QUA-0080-A` | Corpus de plannings de référence et schéma d’échange | entière | US-1430 |
 | `WF-PLA-0110-A` | Vue en arborescence de tâches | entière | US-1440 |
 | `WF-PLA-0120-A` | Export de l’arborescence de tâches | entière | US-1440 |
 | `WF-IHM-0110-A` | Annulation et rétablissement des saisies | début — close en EP-08, amorcée aussi en EP-02 | US-1450 |
@@ -757,9 +757,10 @@ d'EP-07 jusqu'à l'aller-retour Excel (US-1550/L4) passe par US-1430/L3 puis L4 
 
 - **US-1430/L3 fusionne sur le corpus partiel** : les fichiers 01, 02, 03, 05 et 13 et leur
   manifeste (#2568). Le test des cas marque non exécutés, en citant #2645, ceux qu'aucun fichier
-  ne déclare encore, et les nomme au rapport. WF-QUA-0080-A passe en portée « début » : elle se
-  clôt au dépôt des fichiers manquants (#2645), par un lot de suite qui lève ces marques et
-  corrige le moteur si un fichier révèle un écart. US-1480/L3, qui clôt l'EPIC, l'attend.
+  ne déclare encore, et les nomme au rapport. WF-QUA-0080-A reste entière en EP-06, mais n'est
+  pas close par US-1430/L3 : elle se clôt au dépôt des fichiers manquants (#2645), par un lot de
+  suite d'US-1430 qui lève ces marques et corrige le moteur si un fichier révèle un écart.
+  US-1480/L3, qui clôt l'EPIC, l'attend.
   Écartés : un corpus engendré d'après le schéma et daté par le moteur de Waterfall, déjà écarté
   au cadrage (« Ce que le cadrage décide »), qui rendrait le test vrai par construction ;
   attendre le corpus complet, qui bloquait aussi EP-07.
