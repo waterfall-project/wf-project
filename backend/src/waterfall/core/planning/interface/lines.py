@@ -34,21 +34,17 @@ from typing import TYPE_CHECKING
 
 from sqlalchemy import exists, select, update
 
+from waterfall.core.planning.carrying import bearing, refuse_completed
 from waterfall.core.planning.interface.facets import (
-    BearingTask,
     FacetCreation,
     FacetWrite,
-    calendar_of,
     facets,
 )
-from waterfall.core.planning.scheduling import WorkInstant
 from waterfall.core.planning.shaping import stamp
 from waterfall.core.planning.tables import Node
 from waterfall.core.planning.tree import LINE, read_tree
-from waterfall.core.planning.views import COMPLETED, state_of
 from waterfall.core.planning.writing import writing
 from waterfall.platform.errors import (
-    ConflictError,
     FieldError,
     NotFoundError,
     PreconditionFailedError,
@@ -57,7 +53,7 @@ from waterfall.platform.errors import (
 from waterfall.platform.identifiers import new_id
 
 if TYPE_CHECKING:
-    from collections.abc import Callable, Collection, Iterable
+    from collections.abc import Callable, Collection
     from uuid import UUID
 
     from sqlalchemy.orm import Session
@@ -71,8 +67,6 @@ VALIDATION_FAILED = "VALIDATION_FAILED"
 STALE_LOCK_VERSION = "STALE_LOCK_VERSION"
 UNKNOWN_TASK = "UNKNOWN_TASK"
 NODE_NOT_SIBLING = "NODE_NOT_SIBLING"
-STATE_FORBIDS_OPERATION = "STATE_FORBIDS_OPERATION"
-TASK_NOT_COMPLETED = "task_not_completed"
 
 
 @dataclass(frozen=True, slots=True)
@@ -180,33 +174,6 @@ def node_rows(
     return found
 
 
-def _bearing(
-    session: Session, project_id: UUID, tree: Tree, task_id: UUID, *, is_main: bool
-) -> BearingTask:
-    """Give a task of a tree as the facet of a node it bears is told of it."""
-    task = tree.tasks[task_id]
-    return BearingTask(
-        task_id,
-        tree.nodes[task_id].revision_id,
-        task.label,
-        WorkInstant(task.start_date, task.start_hours),
-        WorkInstant(task.finish_date, task.finish_hours),
-        calendar_of(session, project_id, task_id).calendar.week,
-        state_of(tree, task_id).progress,
-        is_main,
-    )
-
-
-def refuse_completed(write: Write, task_ids: Iterable[UUID | None]) -> None:
-    """Refuse a write of a line under one of these tasks completed, on the main structure (409)."""
-    tree = write.tree
-    if not write.facts.is_main:
-        return
-    for each in task_ids:
-        if each is not None and each in tree.tasks and state_of(tree, each).progress == COMPLETED:
-            raise ConflictError(STATE_FORBIDS_OPERATION, {"missing_condition": TASK_NOT_COMPLETED})
-
-
 def _judge_bearer(write: Write, parent: UUID | None) -> UUID:
     """Refuse a bearer that is no task of the structure (422), or completed on the main (409)."""
     tree = write.tree
@@ -215,40 +182,6 @@ def _judge_bearer(write: Write, parent: UUID | None) -> UUID:
         raise UnprocessableError(VALIDATION_FAILED, fields=(fault,))
     refuse_completed(write, (parent,))
     return parent
-
-
-def judge_lines_moved(write: Write, node_ids: Collection[UUID], parent: UUID | None) -> None:
-    """Refuse a move of lines to a completed task or from one, on the main structure (409).
-
-    ``node_ids`` the nodes the move places, ``parent`` the task that receives them; the tasks moved
-    take their lines with them, which change no bearer.
-    """
-    tree = write.tree
-    lines = [each for each in node_ids if each not in tree.tasks]
-    if lines:
-        refuse_completed(write, (parent, *(tree.nodes[each].parent_id for each in lines)))
-
-
-def judge_facets_moved(write: Write, node_ids: Collection[UUID]) -> None:
-    """Have the hooks of each kind judge the nodes a move gave another task, once placed.
-
-    ``node_ids`` those nodes, under their new task in the tree written: each kind is handed its
-    own, in the order of the plan read, with the task that now bears them.
-    """
-    if not node_ids:
-        return
-    session, tree, project_id = write.session, write.tree, write.place.project_id
-    ordered = sorted(node_ids, key=tree.row_number.__getitem__)
-    for kind, hooks in facets().items():
-        held: dict[UUID, BearingTask] = {}
-        for each in ordered:
-            parent = tree.nodes[each].parent_id
-            if tree.nodes[each].kind == kind and parent is not None:
-                held[each] = _bearing(
-                    session, project_id, tree, parent, is_main=write.facts.is_main
-                )
-        if held:
-            hooks.moved(session, project_id, held)
 
 
 def _rank(tree: Tree, creation: NodeCreation, parent: UUID) -> int:
@@ -293,7 +226,7 @@ def create_line_node(
         shifted = [each for each in tree.lines(parent) if tree.nodes[each].rank >= rank]
         touched = (node_id, *shifted)
         write.before(touched)
-        bearer = _bearing(session, place.project_id, tree, parent, is_main=write.facts.is_main)
+        bearer = bearing(session, place.project_id, tree, parent, is_main=write.facts.is_main)
         if shifted:
             session.execute(
                 update(Node)
@@ -356,7 +289,7 @@ def write_facet(
                 STALE_LOCK_VERSION, {"expected_lock_version": node.lock_version}
             )
         parent = _judge_bearer(write, node.parent_id)
-        bearer = _bearing(session, place.project_id, tree, parent, is_main=write.facts.is_main)
+        bearer = bearing(session, place.project_id, tree, parent, is_main=write.facts.is_main)
         write.before((node_id,))
         change.apply(
             FacetWrite(session, place.project_id, place.revision_id, node_id, bearer, writer.act)

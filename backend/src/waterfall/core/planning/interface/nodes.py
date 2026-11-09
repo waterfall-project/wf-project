@@ -31,6 +31,11 @@ from waterfall.core.planning.attachments import (
     stray_fault,
     strays,
 )
+from waterfall.core.planning.carrying import (
+    judge_facets_moved,
+    judge_lines_moved,
+    refuse_completed,
+)
 from waterfall.core.planning.dating import constants_of
 from waterfall.core.planning.entries import (
     AUTOMATIC,
@@ -40,12 +45,7 @@ from waterfall.core.planning.entries import (
 )
 from waterfall.core.planning.filters import NodeFilters, retained
 from waterfall.core.planning.interface.facets import calendar_of, calendars_of, facets
-from waterfall.core.planning.interface.lines import (
-    create_line_node,
-    judge_facets_moved,
-    judge_lines_moved,
-    refuse_completed,
-)
+from waterfall.core.planning.interface.lines import create_line_node
 from waterfall.core.planning.scheduling import Move, WorkInstant
 from waterfall.core.planning.shaping import (
     Placing,
