@@ -5,6 +5,7 @@ import { expect, type Locator, type Page } from "@playwright/test";
 import { columnsOf } from "./columns";
 import { openHydrated, WORKING } from "./hydration";
 import { inService, test } from "./mode";
+import { idle, PHASE, seedEstimate, TASK } from "./estimate-seed";
 import { SEEDED, seedPlanning } from "./planning-seed";
 
 // The fake back serves the first example of `listNodes`, the structure of the witness at the sizes
@@ -159,4 +160,73 @@ test("refuses to change the finish date of a summary task against the service, w
   await page.keyboard.press("Escape");
   await expect(dialog).toHaveCount(0);
   await expect(finish).toBeFocused();
+});
+
+test("recalculates the amount of a summary task at each write of a line and refuses to enter it, naming its lines and subordinates, against the service; the grid proposes neither the duration nor the predecessors of a task @shared [WF-DEV-0050-A]", async ({
+  page,
+  browser,
+  request,
+  manager,
+}) => {
+  test.skip(!inService, "the service computes the amounts from the lines it keeps");
+  test.slow();
+  const seeded = await seedEstimate(page, browser, request, manager, "Montant récapitulatif");
+  await openHydrated(page, seeded.estimate);
+  const grid = page.getByRole("treegrid", { name: "Grille de devis" });
+  const at = await columnsOf(grid, { quantity: "Qté", reference: "Montant (année de réf.)" });
+  const summary = grid.getByRole("row", { name: new RegExp(`^1 .*${PHASE}`) });
+  await expect(summary.getByRole("img", { name: "Tâche récapitulative" })).toBeVisible({
+    timeout: WORKING,
+  });
+  const amount = cellOf(summary, at.reference);
+  await expect(amount).toHaveText(/1\s000,00\s€/);
+
+  // The quantity of the line entered: the amount of the summary follows, as the service recalculates it.
+  const quantity = cellOf(grid.getByRole("row", { name: /^3 / }), at.quantity);
+  await quantity.click();
+  await page.keyboard.press("F2");
+  await page.getByRole("textbox", { name: "Qté" }).fill("3");
+  await page.keyboard.press("Enter");
+  await expect(amount).toHaveText(/3\s000,00\s€/, { timeout: WORKING });
+  await idle(grid);
+
+  // The amount of the summary is not entered: the refusal names what the service says it depends on.
+  await amount.click();
+  await page.keyboard.press("7");
+  await expect(refusal(page)).toContainText("Montant (année de réf.) ne se saisit pas");
+  await expect(refusal(page)).toContainText(
+    "Le montant d’une tâche est celui des lignes qu’elle porte et de ses subordonnées.",
+  );
+  await page.keyboard.press("Escape");
+  await expect(refusal(page)).toHaveCount(0);
+
+  // Neither the duration nor the predecessors of a task are entered in the estimate: they are the planning's.
+  await expect(grid.getByRole("columnheader", { name: "Durée" })).toHaveCount(0);
+  await expect(grid.getByRole("columnheader", { name: "Prédécesseurs" })).toHaveCount(0);
+  await expect(grid.getByRole("row", { name: new RegExp(TASK) }).first()).toBeVisible();
+});
+
+test("shows a line whose task is dated two years after the year of reference, with an inflation of 2 %, 4,04 % above its amount at the rates of the year of reference, and no budgeted amount @shared [WF-DEV-0050-A]", async ({
+  page,
+  browser,
+  request,
+  manager,
+}) => {
+  test.skip(!inService, "the service computes the re-estimated amount from the planning it keeps");
+  test.slow();
+  const seeded = await seedEstimate(page, browser, request, manager, "Inflation", {
+    inflation: "0.02",
+    dated: true,
+  });
+  await openHydrated(page, seeded.estimate);
+  const grid = page.getByRole("treegrid", { name: "Grille de devis" });
+  const at = await columnsOf(grid, {
+    reference: "Montant (année de réf.)",
+    reestimated: "Montant réestimé",
+  });
+  const line = grid.getByRole("row", { name: /^3 / });
+  await expect(cellOf(line, at.reference)).toHaveText(/1\s000,00\s€/, { timeout: WORKING });
+  // 1 000,00 x 1,02 x 1,02: 4,04 % above.
+  await expect(cellOf(line, at.reestimated)).toHaveText(/1\s040,40\s€/);
+  await expect(grid.getByRole("columnheader", { name: /Montant budgété/ })).toHaveCount(0);
 });

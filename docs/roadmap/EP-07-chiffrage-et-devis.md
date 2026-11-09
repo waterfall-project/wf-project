@@ -1524,7 +1524,7 @@ différentiel ou un devis propre, les lignes de provision (EP-08) ; l'écran des
 
 ## US-1560 — La grille de devis branchée sur le service
 
-- **statut** : en cours
+- **statut** : fini
 - **exigences** : `WF-DEV-0050-A`, `WF-IHM-0060-A`, `WF-IHM-0110-A`
 - **opérations** : `previewPaste`, `applyPaste`, `undoLastChange`, `redoLastUndo` ; toutes celles
   de l'EPIC que la grille de devis lit et écrit

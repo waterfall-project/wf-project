@@ -3,6 +3,7 @@
 import { expect, type Locator, type Page } from "@playwright/test";
 
 import { columnsOf } from "./columns";
+import { idle, seedEstimate } from "./estimate-seed";
 import { openHydrated, WORKING } from "./hydration";
 import { inService, test } from "./mode";
 import { createOwnProject, openRevision } from "./own-project";
@@ -204,4 +205,92 @@ test("fifty entries of the planning are undone one by one by the grid, then redo
     },
   );
   await expect(label).toContainText(`Tâche ${ENTRIES.toString()}`);
+});
+
+test("fifty entries of a line of the estimate are undone one by one by the grid, then redone in order @shared [WF-IHM-0110-A]", async ({
+  page,
+  browser,
+  request,
+  manager,
+}) => {
+  test.skip(!inService, SERVICE_ONLY);
+  // A line seeded and fifty entries of its label, each undone and redone: a screen of grid under
+  // load takes its `WORKING` bound for each.
+  test.setTimeout(20 * 60_000);
+  const seeded = await seedEstimate(page, browser, request, manager, "Annulation du devis");
+  await openHydrated(page, seeded.estimate);
+  const grid = page.getByRole("treegrid", { name: "Grille de devis" });
+  const at = await columnsOf(grid, { label: "Libellé" });
+  const label = rowAt(grid, 3).getByRole("gridcell").nth(at.label);
+  await expect(label).toContainText("Tâche du devis", { timeout: WORKING });
+
+  // Fifty entries of the label of the line, each a cell entered and validated.
+  for (let entry = 1; entry <= ENTRIES; entry += 1) {
+    await label.click();
+    await page.keyboard.press("F2");
+    const field = page.getByRole("textbox", { name: "Libellé" });
+    await expect(field).toBeFocused();
+    await field.fill(`Ligne ${entry.toString()}`);
+    await page.keyboard.press("Enter");
+    await expect(label).toContainText(`Ligne ${entry.toString()}`, { timeout: WORKING });
+    await idle(grid);
+  }
+
+  // Undone one by one, by the bar of the grid: each returns the label to the one before.
+  const undo = page.getByRole("button", { name: "Annuler", exact: true });
+  const redo = page.getByRole("button", { name: "Rétablir", exact: true });
+  for (let entry = ENTRIES - 1; entry >= 1; entry -= 1) {
+    await undo.click();
+    await expect(label).toContainText(`Ligne ${entry.toString()}`, { timeout: WORKING });
+    await idle(grid);
+  }
+  await undo.click();
+  await expect(label).toContainText("Tâche du devis", { timeout: WORKING });
+  await idle(grid);
+  await expect(page.getByRole("main").getByRole("alert")).toHaveCount(0);
+
+  // Redone in order, up to the last.
+  for (let entry = 1; entry <= ENTRIES; entry += 1) {
+    await redo.click();
+    await expect(label).toContainText(`Ligne ${entry.toString()}`, { timeout: WORKING });
+    await idle(grid);
+  }
+  await expect(page.getByRole("main").getByRole("alert")).toHaveCount(0);
+});
+
+test("a task deleted from the estimate grid comes back with its line once the deletion is undone @shared [WF-IHM-0110-A]", async ({
+  page,
+  browser,
+  request,
+  manager,
+}) => {
+  test.skip(!inService, SERVICE_ONLY);
+  test.slow();
+  const seeded = await seedEstimate(page, browser, request, manager, "Suppression du devis");
+  await openHydrated(page, seeded.estimate);
+  const grid = page.getByRole("treegrid", { name: "Grille de devis" });
+  const at = await columnsOf(grid, { label: "Libellé" });
+  const task = rowAt(grid, 2).getByRole("gridcell").nth(at.label);
+  await expect(task).toContainText("Tâche du devis", { timeout: WORKING });
+  await expect(grid.getByRole("gridcell", { name: /^Total — 2 tâches, 1 ligne$/ })).toBeVisible();
+
+  // The task goes with its line, once confirmed.
+  await task.click();
+  await page.keyboard.press("Control+Delete");
+  const confirm = page.getByRole("dialog", { name: "Supprimer « Tâche du devis » ?" });
+  await expect(confirm).toContainText("leurs lignes et leurs liaisons");
+  await confirm.getByRole("button", { name: "Supprimer" }).click();
+  await expect(grid.getByRole("gridcell", { name: /^Total — 1 tâche, 0 ligne$/ })).toBeVisible({
+    timeout: WORKING,
+  });
+  await idle(grid);
+
+  // Undone, the task and its line are back, as the totals say.
+  await page.getByRole("button", { name: "Annuler", exact: true }).click();
+  await expect(grid.getByRole("gridcell", { name: /^Total — 2 tâches, 1 ligne$/ })).toBeVisible({
+    timeout: WORKING,
+  });
+  await expect(rowAt(grid, 2)).toContainText("Tâche du devis");
+  await expect(rowAt(grid, 3)).toContainText("Tâche du devis");
+  await expect(page.getByRole("main").getByRole("alert")).toHaveCount(0);
 });

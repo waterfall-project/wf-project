@@ -114,27 +114,45 @@ describe("the report of a paste that creates tasks", () => {
     unmount();
   });
 
-  it("lists the rows past the last node that the service refuses as a field the line does not accept, creating nothing [WF-IHM-0050-A]", () => {
-    const base = example("paste_plan_unknown_category") as PastePlan;
-    const plan: PastePlan = {
-      ...base,
-      accepted: 1,
-      created: 0,
-      rejected: [{ row: 1, column: "label", code: "FIELD_NOT_ACCEPTED" }],
-    };
+  it("reports a block past the last node as the service plans it: the lines it creates counted with the rows written, the rows it refuses listed with their reason [WF-IHM-0050-A]", () => {
+    // `paste_plan_creating_lines`: five rows, two columns, pasted on the last line of the estimate —
+    // the first writes it, the next two create sibling lines, the fourth has no label, the fifth an
+    // unknown category.
+    const plan = example("paste_plan_creating_lines") as PastePlan;
+    expect([plan.accepted, plan.created, plan.rejected.length]).toEqual([3, 2, 2]);
+    const block = [
+      ["Câblage", "Main-d’œuvre"],
+      ["Essais", "Main-d’œuvre"],
+      ["Recette", "Main-d’œuvre"],
+      ["", "Main-d’œuvre"],
+      ["Réglages", "Essais"],
+    ];
     inLanguage(
       <PasteDialog
-        pasting={{ block: UNKNOWN, width: 1, target: report.target, plan, applying: false }}
+        pasting={{ block, width: 2, target: report.target, plan, applying: false }}
         onApply={vi.fn()}
         onAbandon={vi.fn()}
         onClosed={vi.fn()}
       />,
     );
-    const status = within(screen.getByRole("dialog")).getByRole("status");
-    expect(status).toHaveTextContent(
-      "Ligne 2 du bloc — Ce champ ne se saisit pas sur cette ligne.",
-    );
-    expect(status).not.toHaveTextContent(/créée/);
+    const dialog = screen.getByRole("dialog", { name: "Coller depuis un tableur" });
+    const status = within(dialog).getByRole("status");
+    expect(status).toHaveTextContent("3 lignes seront écrites.");
+    expect(status).toHaveTextContent(`${plan.created.toString()} tâches seront créées`);
+    expect(status).toHaveTextContent("2 lignes sont refusées :");
+    expect(
+      within(dialog)
+        .getAllByRole("listitem")
+        .map((item) => item.firstElementChild?.textContent),
+    ).toEqual([
+      expect.stringMatching(/^Ligne 4 du bloc — /),
+      "Ligne 5 du bloc — Catégorie de coût inconnue.",
+    ]);
+    expect(
+      within(dialog)
+        .getAllByRole("button")
+        .map((button) => button.textContent),
+    ).toContain("Appliquer le collage");
   });
 
   it("tells nothing of creation for a plan that creates none [WF-IHM-0050-A]", () => {

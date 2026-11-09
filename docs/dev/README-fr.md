@@ -1206,10 +1206,9 @@ encore ses tâches dans le service (US-1480), et le compte de la course n'en est
 l'accueil, sa révision ouverte, six tâches écrites par l'API, et, selon le parcours, leurs liaisons
 dont une en conflit, un lotissement de deux postes ; les états « démarrée » et « terminée » restent
 joués sur le faux back jusqu'à US-1480/L3, #2595). Le report d'une grille à l'autre (#1057) se joue
-par les opérations que la grille de devis envoie, `createNode` puis `moveNodes`, sur la structure
-qu'elle partage avec le planning : l'écran de la grille de devis n'est pas servi avant EP-07, et le
-geste fait depuis lui est reporté à cet EPIC (#2590) ; la tâche ainsi créée est lue dans le
-planning, et son indentation avec elle. Le parcours du compte « chef de projet » joue la
+depuis la grille de devis (EP-07, US-1560, `structure.spec.ts`) : la tâche créée dans le devis, et
+une ligne sous elle, sont lues dans le planning — automatique, d'un jour, sans prédécesseur —, et
+son indentation depuis le devis avec elle. Le parcours du compte « chef de projet » joue la
 planification et FLX-02 ; FLX-01 attend US-1430/L4 (#2589). Les parcours qui lisent le témoin de
 PRJ-001 attendent US-1480 : leur étiquetage `@shared` est celui d'US-1480/L3 (#2591). Ce qui ne se
 rejoue pas avant son EPIC reste gardé par `inService` : les lignes, les montants et le devis (EP-07)
@@ -2173,9 +2172,11 @@ confirmation rend les tâches créées dans `nodes` (`PasteApplied`, `NodesWritt
 planning, qui ne sait pas où ces lignes se rangent, lit sa page à nouveau quand le plan en créait
 (`router.refresh`, comme après la création d'une tâche) ; les lignes écrites prennent la place des
 lignes lues, comme à l'ordinaire. Un bloc dont la cible est une ligne de devis voit ses lignes
-au-delà du dernier nœud refusées en `FIELD_NOT_ACCEPTED` sans qu'aucune tâche soit créée (EP-07
-servira les lignes) : le refus se lit dans la liste des lignes refusées de l'aperçu, comme tout
-refus. Annuler le collage supprime les tâches qu'il a créées, le rétablir les recrée : une seule
+au-delà du dernier nœud créées comme des lignes de devis, sœurs de ce nœud, sous la tâche qui le
+porte (le libellé requis, les autres cellules jugées comme celles d'une ligne écrite) ; sans tâche
+pour les porter — le dernier nœud est une tâche à la racine —, la ligne entière est refusée en
+`UNKNOWN_TASK`, sur aucune colonne (`paste_plan_creating_lines`) : le refus se lit dans la liste
+des lignes refusées de l'aperçu, comme tout refus. Annuler le collage supprime les tâches qu'il a créées, le rétablir les recrée : une seule
 entrée d'historique (`undone.kind` reste `paste`, `undone.node_ids` nomme les nœuds écrits et
 créés). Le parcours `paste.spec.ts` le joue contre le service (`@shared`), les tests de la grille
 sur les exemples `paste_plan_creating` et `paste_applied_creating`.
@@ -2213,9 +2214,13 @@ que la commande suivante parte. Le succès se joue contre le service (`e2e/undo.
 rétablies par la grille, `@shared`), les refus et l'annonce du succès sur les exemples
 (`undo-wired.dom.test.tsx`).
 
-**Posées seulement.** Le devis et le reste à engager ne reçoivent pas d'`undo` : leurs saisies, servies par EP-07, n'ont
-pas encore d'historique, et leurs commandes restent indisponibles, `aria-disabled`, décrites par
-leur raison ; le raccourci la dit dans une région annoncée.
+**Le devis.** La grille de devis reçoit `undoable` comme celle du planning, là où la structure lue liste
+`edit_estimate` disponible (EP-07, US-1450/L3) : cinquante saisies d'une ligne s'annulent puis se
+rétablissent par la grille contre le service, et la suppression d'une tâche s'annule avec ses
+lignes (`e2e/undo.spec.ts`, `@shared`). **Posées seulement.** Le reste à engager ne reçoit pas
+d'`undo` : ses saisies, servies par EP-09, n'ont pas encore d'historique, et ses commandes restent
+indisponibles, `aria-disabled`, décrites par leur raison ; le raccourci la dit dans une région
+annoncée.
 
 ### Les grilles : créer et supprimer des tâches et des lignes
 
@@ -2869,7 +2874,8 @@ qui en dépend se juge mal en maquette (#1399) : juger ces gestes revient aux te
 par `MockupNotice` avec `lists` (`mockup.notFiltered`), en une seule note sous l'en-tête. Les écrans
 dont le service est livré ne portent pas la note, même si `make dev` les sert par Prism et que les
 mêmes limites s'y appliquent : l'administration (EP-03), le référentiel (EP-05) et, d'EP-04, l'accueil
-connecté (US-0920/L2), les révisions (US-0960, US-0970) et les paramètres du projet (US-1000) ; un
+connecté (US-0920/L2), les révisions (US-0960, US-0970) et les paramètres du projet (US-1000), et,
+d'EP-07, le plan de charge (US-1520) et le devis (US-1560) ; un
 succès y est ce que le service a gardé, relu.
 
 _Contrôles_ : `make lint-openapi` (exemples conformes aux schémas, volumes compris),
@@ -4058,9 +4064,20 @@ chaque entrée nommant l'EPIC qui la lève ; cet EPIC retire la garde et son ent
   (parcours jumeau, `SERVICE_ONLY`).
 - `context.spec.ts` — le bandeau du contexte sur les écrans des données, le planning, le reste à
   engager, les risques et les indicateurs, et sur une structure différentielle (`BEFORE_THE_DATA`) :
-  levée écran par écran par **EP-06** (le planning, les structures), **EP-07** (le reste à engager),
-  **EP-08** (les risques) et **EP-10** (les indicateurs). Le bandeau des écrans d'un projet créé,
+  levée écran par écran par **EP-06** (le planning, les structures), **EP-07** (le devis d'une
+  structure principale que la course crée, US-1560 ; le devis propre d'un risque et les
+  différentiels sont d'**EP-08**, le reste à engager d'**EP-09**), **EP-08** (les risques) et
+  **EP-10** (les indicateurs). Le bandeau des écrans d'un projet créé,
   ses paramètres et ses révisions, se joue dès US-1000.
+- `entry.spec.ts`, `computed.spec.ts`, `keyboard.spec.ts`, `paste.spec.ts`, `undo.spec.ts`,
+  `grid.spec.ts` (le tri par montant), `structure.spec.ts` — le devis (US-1560, EP-07) : les parcours
+  qui écrivent se jouent contre le service sur un projet que la course crée, une phase, une tâche et
+  une ligne écrites par l'API (`e2e/estimate-seed.ts`), et portent `@shared` ; ceux qui lisent les
+  six mille nœuds du témoin attendent US-1570, et ceux du devis propre d'un risque (`paste.spec.ts`,
+  `entry.spec.ts`), étiquetés, sont gardés par `inService` jusqu'à **EP-08**. Le passage d'un projet
+  En cours (le devis de la structure principale en lecture seule, une ligne sous une tâche terminée
+  refusée) ne se rejoue qu'avec le témoin d'US-1570 : les tâches « démarrée » et « terminée » ne
+  s'écrivent pas avant qu'un projet soit En cours.
 - `projects.spec.ts` — les parcours qui écrivent sur PRJ-001 ou y mènent par son planning : l'écran
   du projet, ses paramètres et son cycle de vie, la sortie, les sous-projets et les contributeurs,
   le lotissement (`FAKE_BACK_ONLY`) : le compte de la course n'est pas chef de projet de PRJ-001,

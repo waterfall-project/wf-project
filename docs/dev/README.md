@@ -1212,10 +1212,9 @@ path writes a project of its own (`e2e/planning-seed.ts`: the project made from 
 revision opened, six tasks written by the API, and, according to the path, their links with one in
 conflict, a work breakdown of two order items; the states « started » and « finished » stay played
 on the fake back until US-1480/L3, #2595). The carry-over from one grid to the other (#1057) is
-played by the operations the estimate grid sends, `createNode` then `moveNodes`, on the structure it
-shares with the planning: the screen of the estimate grid is not served before EP-07, and the
-gesture made from it is postponed to that EPIC (#2590); the task so created is read in the planning,
-and its indentation with it. The path of the account « chef de projet » plays the planning and
+played from the estimate grid (EP-07, US-1560, `structure.spec.ts`): the task created in the
+estimate, and a line under it, are read in the planning — automatic, of one day, with no
+predecessor —, and its indentation from the estimate with it. The path of the account « chef de projet » plays the planning and
 FLX-02; FLX-01 waits for US-1430/L4 (#2589). The paths that read the witness of PRJ-001 wait for
 US-1480: their `@shared` tagging is US-1480/L3's (#2591). What is not replayed before its EPIC stays
 guarded by `inService`: the lines, the amounts and the estimate (EP-07); the remaining to commit
@@ -2176,9 +2175,12 @@ written, in one more sentence of the same announced region, `grid.paste.created`
 returns the tasks created in `nodes` (`PasteApplied`, `NodesWritten`), and the planning grid, which
 does not know where those rows are placed, reads its page anew when the plan created some
 (`router.refresh`, as after the creation of a task); the rows written take the place of the rows
-read, as usual. A block whose target is an estimate line has its rows beyond the last node refused
-as `FIELD_NOT_ACCEPTED` without any task being created (EP-07 will serve the lines): the refusal
-reads in the list of refused rows of the preview, like any refusal. Undoing the paste deletes the
+read, as usual. A block whose target is an estimate line has its rows beyond the last node created
+as estimate lines, siblings of that node, under the task that bears it (the label required, the
+other cells judged as those of a line written); with no task to bear them — the last node being a
+task at the root — the whole row is refused as `UNKNOWN_TASK`, on no column
+(`paste_plan_creating_lines`): the refusal reads in the list of refused rows of the preview, like
+any refusal. Undoing the paste deletes the
 tasks it created, redoing it recreates them: a single history entry (`undone.kind` stays `paste`,
 `undone.node_ids` names the nodes written and created). The path `paste.spec.ts` plays it against
 the service (`@shared`), the tests of the grid on the examples `paste_plan_creating` and
@@ -2216,9 +2218,12 @@ sign-in session. It stays said until it is closed or the next command leaves. Su
 service (`e2e/undo.spec.ts`, fifty inputs undone then redone through the grid, `@shared`), refusals
 and the announcement of success on the examples (`undo-wired.dom.test.tsx`).
 
-**Placed only.** The estimate and the remaining to commit receive no `undo`: their inputs, served by EP-07, have no
-history yet, and their commands stay unavailable, `aria-disabled`, described by their
-reason; the shortcut says it in an announced region.
+**The estimate.** The estimate grid receives `undoable` like the planning grid, where the structure read
+lists `edit_estimate` available (EP-07, US-1450/L3): fifty inputs of a line are undone then redone
+through the grid against the service, and the deletion of a task is undone with its lines
+(`e2e/undo.spec.ts`, `@shared`). **Placed only.** The remaining to commit receives no `undo`: its
+inputs, served by EP-09, have no history yet, and its commands stay unavailable, `aria-disabled`,
+described by their reason; the shortcut says it in an announced region.
 
 ### Grids: creating and deleting tasks and lines
 
@@ -2864,7 +2869,8 @@ through `MockupNotice` with `lists` (`mockup.notFiltered`), in a single note und
 screens whose service is delivered do not show the note, even though `make dev` serves them through
 Prism and the same limits apply: administration (EP-03), the reference data (EP-05) and, from EP-04,
 the connected home (US-0920/L2), the revisions (US-0960, US-0970) and the settings of the project
-(US-1000); a success there is what the service kept, read anew.
+(US-1000), and, from EP-07, the workload (US-1520) and the estimate (US-1560); a success there is
+what the service kept, read anew.
 
 _Checks_: `make lint-openapi` (examples conforming to the schemas, volumes included),
 `make mock-data-up-to-date` (the versioned volumes are those the tool writes, in the
@@ -4027,8 +4033,19 @@ the epic that lifts it; that epic removes the guard and its entry:
 - `context.spec.ts` — the banner of the context on the screens of the data, the planning, the
   remaining to commit, the risks and the indicators, and on a differential structure
   (`BEFORE_THE_DATA`): lifted screen by screen by **EP-06** (the planning, the structures),
-  **EP-07** (the remaining to commit), **EP-08** (the risks) and **EP-10** (the indicators). The
+  **EP-07** (the estimate of a main structure the run creates, US-1560; the own estimate of a risk
+  and the differentials are **EP-08**'s, the remaining to commit **EP-09**'s), **EP-08** (the risks)
+  and **EP-10** (the indicators). The
   banner of the screens of a project created, its settings and its revisions, plays since US-1000.
+- `entry.spec.ts`, `computed.spec.ts`, `keyboard.spec.ts`, `paste.spec.ts`, `undo.spec.ts`,
+  `grid.spec.ts` (the sort by amount), `structure.spec.ts` — the estimate (US-1560, EP-07): the
+  paths that write play against the service on a project the run creates, a phase, a task and a line
+  written by the API (`e2e/estimate-seed.ts`), and carry `@shared`; those that read the six thousand
+  nodes of the witness wait for US-1570, and those of the own estimate of a risk (`paste.spec.ts`,
+  `entry.spec.ts`), tagged, are guarded by `inService` until **EP-08**. The passage of a project to
+  In progress (the estimate of the main structure read only, a line under a completed task refused)
+  is replayed only with the witness of US-1570: the tasks « started » and « completed » cannot be
+  written before a project is In progress.
 - `projects.spec.ts` — the paths that write to PRJ-001 or reach it through its planning: the screen
   of the project, its settings and its lifecycle, the exit, the sub-projects and the contributors,
   the work breakdown (`FAKE_BACK_ONLY`): the account of the run is not a project manager of PRJ-001,
