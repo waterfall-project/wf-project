@@ -106,3 +106,11 @@ def subproject_estimate_lines(
             ).items():
                 found[each] = (*found.get(each, ()), *lines)
     return found
+
+
+def roles_employed(session: Session, project_id: UUID) -> frozenset[UUID]:
+    """Give the roles of resources the labour lines of a project employ; none while unregistered."""
+    employed: set[UUID] = set()
+    for facts in _FACTS.entries():
+        employed |= facts.roles_employed(session, project_id)
+    return frozenset(employed)

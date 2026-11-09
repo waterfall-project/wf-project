@@ -129,6 +129,7 @@ __all__ = [
     "AccountPage",
     "AccountSort",
     "AccountState",
+    "AttachedAccount",
     "Author",
     "Avatar",
     "CommandAvailability",
@@ -147,6 +148,7 @@ __all__ = [
     "SyncReport",
     "account_commands",
     "active_accounts",
+    "active_accounts_in_nodes",
     "add_account_of_provider",
     "address_holder",
     "address_taken",
@@ -217,6 +219,15 @@ class Author:
 
     user_id: UUID
     display_name: str | None
+
+
+@dataclass(frozen=True, slots=True)
+class AttachedAccount:
+    """An active account and the node of the organisation it is attached to (WF-ADM-0030)."""
+
+    user_id: UUID
+    display_name: str | None
+    org_node_id: UUID
 
 
 @dataclass(frozen=True, slots=True)
@@ -324,6 +335,30 @@ def read_installation_administrator(session: Session, installed_at: datetime) ->
 def active_accounts(session: Session, user_ids: Collection[UUID]) -> frozenset[UUID]:
     """Keep, of the accounts given, those that are active."""
     return frozenset(find_active_accounts(session, user_ids)) if user_ids else frozenset()
+
+
+def active_accounts_in_nodes(
+    session: Session, node_ids: Collection[UUID]
+) -> tuple[AttachedAccount, ...]:
+    """Give the active accounts attached to one of the nodes given, by name then identifier.
+
+    Attached to the node itself, not to one of its descendants: a service is the node a role is
+    under (WF-PRJ-0070). An account attached to none is left out.
+    """
+    if not node_ids:
+        return ()
+    rows = session.execute(
+        select(
+            UserAccount.id, UserAccount.first_name, UserAccount.last_name, UserAccount.org_node_id
+        )
+        .where(UserAccount.org_node_id.in_(set(node_ids)), UserAccount.state == "active")
+        .order_by(UserAccount.last_name, UserAccount.first_name, UserAccount.id)
+    )
+    return tuple(
+        AttachedAccount(user_id, display_name(first_name, last_name), node_id)
+        for user_id, first_name, last_name, node_id in rows
+        if node_id is not None
+    )
 
 
 def read_account_of_subject(session: Session, subject: str) -> Account | None:
