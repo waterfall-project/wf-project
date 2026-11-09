@@ -232,6 +232,9 @@ from waterfall.core.resource_settings.interface.resource_roles import (
     role_calendars as role_calendars,
 )
 from waterfall.core.resource_settings.interface.resource_roles import (
+    roles_named as roles_named,
+)
+from waterfall.core.resource_settings.interface.resource_roles import (
     roles_of_categories as roles_of_categories,
 )
 from waterfall.core.resource_settings.interface.resource_roles import (
