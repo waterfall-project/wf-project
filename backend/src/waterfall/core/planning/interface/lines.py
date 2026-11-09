@@ -27,7 +27,8 @@ their structure with their row number in it (``node_rows``): a subproject that l
 by them (WF-DAT-0080).
 
 Declared by US-1380/L1; filled by US-1490/L3 (EP-07, "Les points d'extension"); the deletion, the
-move and the places of the lines by US-1490/L4.
+move and the places of the lines by US-1490/L4; the counters of nodes an import reads before each
+of its writes (``node_versions``) by US-1550/L3.
 """
 
 from dataclasses import dataclass
@@ -103,6 +104,24 @@ def lineages_of(session: Session, project_id: UUID, node_ids: Collection[UUID]) 
         return {}
     rows = session.execute(
         select(Node.id, Node.lineage_id).where(
+            Node.project_id == project_id, Node.id.in_(list(node_ids))
+        )
+    )
+    return dict(rows.all())
+
+
+def node_versions(
+    session: Session, project_id: UUID, node_ids: Collection[UUID]
+) -> dict[UUID, int]:
+    """Give the counter of each node named, as it is now, by node; one absent is left out.
+
+    What a write of a line of an import sends, read again before each: a write of the tree moves
+    the counters of the lines whose place it changes (US-1550).
+    """
+    if not node_ids:
+        return {}
+    rows = session.execute(
+        select(Node.id, Node.lock_version).where(
             Node.project_id == project_id, Node.id.in_(list(node_ids))
         )
     )

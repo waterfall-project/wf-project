@@ -9,16 +9,16 @@ openpyxl reads (EP-07, "Le format Excel du devis"). ``sheet_name`` names a tab o
 a subproject (#2190), which EP-09 imports too.
 
 Declared by US-1490/L1 and registered without effect (decision of 2026-11-08, #2370); the format
-reads the header and analyses a workbook from US-1550/L3: the header is read in the whole file — a
-workbook is a zip, whose header no head of bytes holds —, by the reader of US-1550/L2
-(``excel/reader.py``), and the analysis is ``importing``'s. The application and the export raise
-``NotImplementedError`` naming the story that fills them. ``sheet_name`` is written by US-1550/L1
-(``excel/names.py``), as the workbook (``excel/writer.py``).
+reads the header, analyses and applies a workbook from US-1550/L3: the header is read in the whole
+file — a workbook is a zip, whose header no head of bytes holds —, by the reader of US-1550/L2
+(``excel/reader.py``), the analysis is ``importing``'s, the application ``applying``'s. The export
+raises ``NotImplementedError`` naming the story that fills it. ``sheet_name`` is written by
+US-1550/L1 (``excel/names.py``), as the workbook (``excel/writer.py``).
 """
 
 from typing import TYPE_CHECKING, Any
 
-from waterfall.core.estimate import importing
+from waterfall.core.estimate import applying, importing
 from waterfall.core.estimate.excel.names import sheet_name as named_sheet
 from waterfall.core.estimate.excel.reader import check_header, read_workbook
 from waterfall.core.exchanges.interface import LARGEST_FILE
@@ -96,9 +96,8 @@ class EstimateFormat:
         report: Mapping[str, Any],
         act: Act,
     ) -> None:
-        """Write the report of a workbook into a structure."""
-        msg = "apply is filled by US-1550/L3"
-        raise NotImplementedError(msg)
+        """Write the report of a workbook into a structure, judged again (``applying``)."""
+        applying.apply(session, target, content, report, act)
 
 
 class EstimateExporter:

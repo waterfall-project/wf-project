@@ -457,7 +457,7 @@ def _judge_hours(session: Session, held: Aimed, reference: Reference, found: Ana
     lines accepted before; a line rejected keeps its task and its role.
     """
     moving = {each.current.node_id for each in found.planned if each.current is not None}
-    moving |= {node for node in found.left if not _started(held, node)}
+    moving |= {node for node in found.left if not started(held, node)}
     kept: dict[UUID, set[UUID]] = {}
     for line in held.lines.values():
         role = line.resource_role_id
@@ -486,7 +486,7 @@ def _judge_hours(session: Session, held: Aimed, reference: Reference, found: Ana
     found.planned = accepted
 
 
-def _started(held: Aimed, node: UUID) -> bool:
+def started(held: Aimed, node: UUID) -> bool:
     """Tell whether the task that bears a line of the structure is started or completed."""
     return held.tasks[held.bearers[node]].progress != NOT_STARTED
 
@@ -541,7 +541,7 @@ def report_of(held: Aimed, read: WorkbookRead, found: Analysis) -> Report:
             lineage = lineages[each.current.node_id]
             differences.append(_difference("updated", lineage, each.label, each.fields))
     for node in found.left:
-        change = "kept" if _started(held, node) else "removed"
+        change = "kept" if started(held, node) else "removed"
         differences.append(_difference(change, lineages[node], held.lines[lineages[node]].label))
     rejected_rows = {(each["sheet"], each["row"]) for each in rejected}
     written = sum(1 for each in found.planned if each.current is None or each.fields)

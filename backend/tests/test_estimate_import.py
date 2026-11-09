@@ -4,44 +4,54 @@
 
 Laid by US-1490/L1, the socle of EP-07, so that no two stories create the same file;
 US-1550 writes its tests here ("Les tests du back"). US-1550/L3: the format ``estimate`` — its
-header read at the opening, its condition on the main structure of a project In progress, and the
-analysis of a workbook against the main structure of the current revision, through the service
-and its worker, each report read through ``getImport`` and checked against the contract.
+header read at the opening, its condition on the main structure of a project In progress, at the
+opening and at the application, the analysis of a workbook against the main structure of the
+current revision, and its application by the worker —, through the service and its worker, each
+answer checked against the contract; and the command of the project that states the import.
 """
 
-from datetime import date
+from datetime import UTC, date, datetime
+from decimal import Decimal
 from io import BytesIO
 from typing import TYPE_CHECKING, Any
+from uuid import UUID
 
 import pytest
-from estimate_support import Costing, Lines, add_role, costing
+from estimate_support import YEAR, Costing, Lines, add_role, costing
 from fastapi.testclient import TestClient
 from imports_trial import (
+    Stopped,
+    apply,
     deposited,
     import_worker,
     nodes,
+    path,
     read,
     refusal,
     run,
     stored,
+    withdraw,
 )
-from nodes_support import Tree, mark, opened, set_progress
+from nodes_support import Tree, entries, mark, opened, set_progress
 from openpyxl import Workbook
 from projects_support import PROJECTS, Scene, put_in_state
 from projects_support import scene as make_scene
-from sqlalchemy import select
+from sqlalchemy import select, update
 from support import ContractClient
 
 from waterfall.api.app import create_app
 from waterfall.api.authentication import Services
 from waterfall.core.cost_settings.tables import CostCategory
+from waterfall.core.estimate.interface.excel import EstimateFormat
+from waterfall.core.estimate.tables import RevisionRate
 from waterfall.core.exchanges.tables import ImportReport
+from waterfall.core.projects.tables import Project
 from waterfall.core.resource_settings.tables import ResourceRole
 from waterfall.platform.keycloak_admin import KeycloakAdmin
+from waterfall.platform.logs import logging_context
+from waterfall.platform.tasks import submit
 
 if TYPE_CHECKING:
-    from uuid import UUID
-
     from openapi_core import OpenAPI
     from realm import TestRealm
     from sqlalchemy import Engine
@@ -169,19 +179,22 @@ def opening(api: ContractClient, stage: Scene, content: bytes) -> Any:
     )
 
 
+def analysed_import(api: ContractClient, stage: Scene, worker: Worker, content: bytes) -> str:
+    """Open the import of a workbook and run its analysis; give the import."""
+    response = opening(api, stage, content)
+    assert response.status_code == 202, response.text
+    run(worker)
+    return response.json()["import_id"]
+
+
 def analysed(
     api: ContractClient, stage: Scene, worker: Worker, content: bytes, *, kept: bool = False
 ) -> dict[str, Any]:
     """Open the import of a workbook, run its analysis; give its report, read by ``getImport``.
 
-    ``kept`` reads it as the database keeps it: ``ContractClient`` refuses a report whose
-    rejections name tasks, ``ProblemParams.tasks`` composing two shapes of object (``anyOf``),
-    which its check of the properties declared does not tell apart.
+    ``kept`` reads it as the database keeps it.
     """
-    response = opening(api, stage, content)
-    assert response.status_code == 202, response.text
-    run(worker)
-    import_id = response.json()["import_id"]
+    import_id = analysed_import(api, stage, worker, content)
     if kept:
         row = stored(stage.database, import_id)
         assert row.status == "analysed"
@@ -198,7 +211,10 @@ def by_lineage(tree: Tree) -> dict[str, dict[str, Any]]:
 
 @pytest.fixture
 def held(tree: Tree, costs: Costing, stage: Scene) -> dict[str, Any]:
-    """Give a structure of two tasks, a labour line and a line of material under the first."""
+    """Give a structure of two tasks, a labour line and a line of material under the first.
+
+    ``tree`` and ``costs`` are the structure and the categories it is written with.
+    """
     first, second = tree.made("Câblage"), tree.made("Essais")
     lines = Lines(tree)
     labour = lines.made(first, quantity="2", resource_role_id=str(costs.role), hours="10")
@@ -213,6 +229,8 @@ def held(tree: Tree, costs: Costing, stage: Scene) -> dict[str, Any]:
         "role": entry_of(stage.database, ResourceRole, costs.role),
         "stuff": entry_of(stage.database, CostCategory, costs.material),
         "tasks": {"1 Câblage": first["lineage_id"], "2 Essais": second["lineage_id"]},
+        "tree": tree,
+        "costs": costs,
     }
 
 
@@ -255,20 +273,21 @@ def as_exported(held: dict[str, Any], changes: dict[str, Any] | None = None) -> 
         pytest.param(("Format", "Reste", "Version", 1), id="another-format"),
     ],
 )
-@pytest.mark.usefixtures("tree")
 def test_a_workbook_without_a_version_or_of_an_unknown_one_is_refused_at_the_opening(
-    api: ContractClient, stage: Scene, header: tuple[Any, ...]
+    api: ContractClient, stage: Scene, tree: Tree, held: dict[str, Any], header: tuple[Any, ...]
 ) -> None:
     # "Un fichier de devis sans version, ou d'une version non reconnue, est refusé avec un message
-    # qui nomme le format et la version attendus." — "Le projet est inchangé."
-    before = nodes(stage.database)
-    response = opening(api, stage, workbook([], header=header))
+    # qui nomme le format et la version attendus." — "Le projet est inchangé." : its tasks and its
+    # lines, amounts included.
+    before = (nodes(stage.database), tree.items())
+    changed = workbook(as_exported(held, {"Heures": 12}), held["tasks"], header=header)
+    response = opening(api, stage, changed)
     assert refusal(response) == (
         422,
         "FILE_FORMAT_UNREADABLE",
         {"expected_format": "estimate", "expected_version": "1"},
     )
-    assert nodes(stage.database) == before
+    assert (nodes(stage.database), tree.items()) == before
     with stage.database.transaction() as session:
         assert session.scalars(select(ImportReport)).all() == []
 
@@ -583,3 +602,364 @@ def test_a_line_moved_to_another_task_is_updated_and_a_repeated_lineage_is_a_new
     assert [(each["row"], each["params"]["missing_condition"]) for each in report["rejected"]] == [
         (2, "task_not_completed")
     ]
+
+
+# --- The application ---------------------------------------------------------------------------
+
+# An instant of the year after the one the revisions of the tests are priced at.
+LATER = datetime(YEAR + 1, 1, 12, 10, tzinfo=UTC)
+
+
+def applied_now(api: ContractClient, stage: Scene, worker: Worker, import_id: str) -> None:
+    """Confirm the application of an import analysed and run it by the worker; it is applied."""
+    answer = apply(api, stage, import_id)
+    assert answer.status_code == 202, answer.text
+    run(worker)
+    assert read(api, stage, import_id)["status"] == "applied"
+
+
+def applied(api: ContractClient, stage: Scene, worker: Worker, content: bytes) -> str:
+    """Open, analyse and apply the import of a workbook; give the import applied."""
+    import_id = analysed_import(api, stage, worker, content)
+    applied_now(api, stage, worker, import_id)
+    return import_id
+
+
+def estimate_lines(items: list[dict[str, Any]]) -> dict[str, tuple[str, dict[str, Any]]]:
+    """Give the lines of a structure read by lineage: the lineage of their task, their facet."""
+    tasks = {item["node_id"]: item["lineage_id"] for item in items if item["kind"] == "task"}
+    return {
+        item["lineage_id"]: (tasks[item["parent_id"]], item["estimate_line"])
+        for item in items
+        if item["kind"] == "estimate_line"
+    }
+
+
+def figure(facet: dict[str, Any], name: str) -> Decimal | None:
+    """Read a figure of a line as a number, none when the line has none."""
+    value = facet[name]
+    return None if value is None else Decimal(value)
+
+
+def project_of(api: ContractClient, stage: Scene) -> dict[str, Any]:
+    """Read the project of the stage as its manager does."""
+    answer = api.get(f"{PROJECTS}/{stage.project['project_id']}", headers=stage.manager.headers)
+    assert answer.status_code == 200, answer.text
+    return answer.json()
+
+
+def current_items(api: ContractClient, stage: Scene) -> list[dict[str, Any]]:
+    """Read the nodes of the main structure of the current revision, writing nothing."""
+    revision = project_of(api, stage)["current_revision_id"]
+    base = f"{PROJECTS}/{stage.project['project_id']}/revisions/{revision}/structures"
+    listed = api.get(base, headers=stage.manager.headers)
+    assert listed.status_code == 200, listed.text
+    structure = listed.json()[0]["structure_id"]
+    answer = api.get(f"{base}/{structure}/nodes", headers=stage.manager.headers)
+    assert answer.status_code == 200, answer.text
+    return answer.json()["items"]
+
+
+def designate(api: ContractClient, stage: Scene, revision: dict[str, Any]) -> None:
+    """Designate a marked revision the reference, as the manager does, confirmed."""
+    counter = project_of(api, stage)["lock_version"]
+    sent = {"revision_id": revision["revision_id"], "confirmed": True, "lock_version": counter}
+    answer = api.put(
+        f"{PROJECTS}/{stage.project['project_id']}/reference-revision",
+        headers=stage.manager.headers,
+        json=sent,
+    )
+    assert answer.status_code == 200, answer.text
+
+
+@pytest.mark.requirement("WF-DAT-0110-A")
+@pytest.mark.requirement("WF-INTF-0100-A")
+@pytest.mark.requirement("WF-INTF-0110-A")
+def test_two_imports_of_one_workbook_give_the_same_estimate_the_second_without_difference(
+    api: ContractClient, stage: Scene, worker: Worker, tree: Tree, held: dict[str, Any]
+) -> None:
+    # « Deux imports successifs du même fichier de devis donnent une révision en cours au contenu
+    # identique. » ; « Un second import du même fichier donne un devis identique. » ; « Le compte
+    # rendu […] ne signale aucun écart, et les lignes obtenues sont identiques. »
+    content = workbook(as_exported(held, {"Heures": 12, "Quantité": 3}), held["tasks"])
+    applied(api, stage, worker, content)
+    first = tree.items()
+    line = estimate_lines(first)[held["labour"]["lineage_id"]][1]
+    assert (figure(line, "hours"), figure(line, "quantity")) == (12, 3)
+    again = analysed_import(api, stage, worker, content)
+    report = read(api, stage, again)["report"]
+    assert (report["differences"], report["rejected"]) == ([], [])
+    assert report["unchanged_count"] == report["read_count"] == 2
+    applied_now(api, stage, worker, again)
+    assert tree.items() == first
+
+
+@pytest.mark.requirement("WF-INTF-0100-A")
+def test_lines_of_labour_and_of_material_are_written_under_their_tasks_and_absent_ones_removed(
+    api: ContractClient, stage: Scene, worker: Worker, held: dict[str, Any]
+) -> None:
+    # « On importe un fichier qui comporte des lignes de main-d'œuvre et des lignes hors
+    # main-d'œuvre. » ; « Chaque ligne se retrouve sous la tâche désignée, avec sa quantité, ses
+    # heures ou son débours, son rôle et, le cas échéant, son sous-projet. » The import enters
+    # nothing in the undo history.
+    tree, costs = held["tree"], held["costs"]
+    answer = api.post(
+        f"{PROJECTS}/{stage.project['project_id']}/subprojects",
+        headers=stage.manager.headers,
+        json={"code": "SP-CMD", "label": "Poste de commande"},
+    )
+    assert answer.status_code == 201, answer.text
+    subproject = answer.json()["subproject_id"]
+    history = len(entries(stage))
+    material = {"Désignation": "Câbles", "Quantité": 3, "Débours unitaire": 20}
+    rows = [
+        as_exported(held, {"Heures": 12})[0],
+        row("2 Essais", held["role"], {"Quantité": 2, "Heures": 4, "Sous-projet": "SP-CMD"}),
+        row("Essais", held["stuff"], material),
+    ]
+    applied(api, stage, worker, workbook(rows, held["tasks"]))
+    lines = estimate_lines(tree.items())
+    first, second = held["first"]["lineage_id"], held["second"]["lineage_id"]
+    task, kept = lines.pop(held["labour"]["lineage_id"])
+    assert (task, figure(kept, "hours")) == (first, 12)
+    assert held["material"]["lineage_id"] not in lines
+    created = {
+        facet["label"]: (
+            task,
+            facet["resource_role_id"],
+            facet["cost_category_id"],
+            figure(facet, "quantity"),
+            figure(facet, "hours") if facet["resource_role_id"] else None,
+            None if facet["resource_role_id"] else figure(facet, "unit_disbursement"),
+            facet["subproject_id"],
+        )
+        for task, facet in lines.values()
+    }
+    role = held["role"].split(" (")[0]
+    assert created == {
+        f"Essais — {role}": (second, str(costs.role), str(costs.labour), 2, 4, None, subproject),
+        "Câbles": (second, None, str(costs.material), 3, None, 20, None),
+    }
+    assert len(entries(stage)) == history
+
+
+@pytest.mark.requirement("WF-INTF-0100-A")
+def test_on_a_project_with_a_reference_a_line_keeps_its_budget_and_lineage_a_new_one_has_none(
+    api: ContractClient, stage: Scene, worker: Worker, tree: Tree, held: dict[str, Any]
+) -> None:
+    # « Un fichier exporté, dont une charge a été modifiée, réimporté sur un projet qui porte une
+    # révision de référence sans être encore En cours met à jour cette ligne sans changer son
+    # montant budgété ni sa lignée. » A line created has a budgeted amount of nought (WF-DEV-0020).
+    mark(stage, tree.revision)
+    designate(api, stage, tree.revision)
+    current = Tree(api, stage, opened(api, stage))
+    before = estimate_lines(current.items())
+    rows = [
+        *as_exported(held, {"Heures": 12}),
+        row("2 Essais", held["stuff"], {"Quantité": 1, "Débours unitaire": 20}),
+    ]
+    applied(api, stage, worker, workbook(rows, held["tasks"]))
+    assert project_of(api, stage)["state"] == "pricing"
+    after = estimate_lines(current.items())
+    lineage = held["labour"]["lineage_id"]
+    was, now = before[lineage][1], after[lineage][1]
+    assert figure(now, "hours") == 12
+    assert now["budgeted_amount"] == was["budgeted_amount"] != "0.00"
+    assert now["reestimated_amount"] != was["reestimated_amount"]
+    [added] = [facet for key, (_, facet) in after.items() if key not in before]
+    assert (added["budgeted_amount"], added["reestimated_amount"]) == ("0.00", "20.00")
+
+
+@pytest.mark.requirement("WF-INTF-0080-A")
+def test_a_worker_stopped_during_the_application_leaves_the_estimate_as_it_was(
+    api: ContractClient,
+    stage: Scene,
+    worker: Worker,
+    held: dict[str, Any],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # « Si l'import est interrompu pendant son application, le projet revient à son état
+    # antérieur. » : the worker is stopped once the format has written; nothing is kept, and the
+    # task runs again from the start.
+    tree = held["tree"]
+    rows = [as_exported(held, {"Heures": 12})[0], row("2 Essais", held["stuff"], {"Quantité": 1})]
+    import_id = analysed_import(api, stage, worker, workbook(rows, held["tasks"]))
+    before = (nodes(stage.database), tree.items())
+    written = EstimateFormat.apply
+
+    def stopped(self: EstimateFormat, *arguments: Any) -> None:
+        written(self, *arguments)
+        raise Stopped
+
+    monkeypatch.setattr(EstimateFormat, "apply", stopped)
+    assert apply(api, stage, import_id).status_code == 202
+    with pytest.raises(Stopped):
+        run(worker)
+    assert (nodes(stage.database), tree.items()) == before
+    assert read(api, stage, import_id)["status"] == "applying"
+    monkeypatch.undo()
+    run(worker)
+    assert read(api, stage, import_id)["status"] == "applied"
+    lines = estimate_lines(tree.items())
+    assert held["material"]["lineage_id"] not in lines
+    assert len(lines) == 2
+
+
+@pytest.mark.requirement("WF-INTF-0080-A")
+def test_an_estimate_import_abandoned_at_its_report_leaves_the_project_unchanged(
+    api: ContractClient, stage: Scene, worker: Worker, tree: Tree, held: dict[str, Any]
+) -> None:
+    # « Si l'utilisateur abandonne à cette étape, le projet reste inchangé. »
+    import_id = analysed_import(api, stage, worker, workbook([], held["tasks"]))
+    assert len(read(api, stage, import_id)["report"]["differences"]) == 2
+    before = (nodes(stage.database), tree.items())
+    abandoned = api.delete(path(stage, import_id), headers=stage.manager.headers)
+    assert abandoned.status_code == 204, abandoned.text
+    run(worker)
+    assert (nodes(stage.database), tree.items()) == before
+
+
+@pytest.mark.requirement("WF-INTF-0090-A")
+def test_an_estimate_on_a_project_whose_revisions_are_all_marked_creates_one_at_projected_rates(
+    api: ContractClient,
+    stage: Scene,
+    worker: Worker,
+    held: dict[str, Any],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # « Un import sur un projet dont toutes les révisions sont marquées crée une révision en cours
+    # d'élaboration et s'y applique ; les révisions marquées sont inchangées. » ; « Seule la
+    # révision en cours est modifiée : […] les montants de la révision marquée sont identiques
+    # avant et après chaque import. » The revision is created the next year: it keeps the rate of
+    # its source projected by the inflation of the project, 65.00 times 1.03 (US-1500).
+    tree, costs = held["tree"], held["costs"]
+    mark(stage, tree.revision)
+    with stage.owner.begin() as connection:
+        connection.execute(
+            update(Project)
+            .where(Project.id == UUID(stage.project["project_id"]))
+            .values(inflation_rate=Decimal("0.03"))
+        )
+    marked = tree.items()
+    content = workbook(as_exported(held, {"Heures": 12}), held["tasks"])
+    import_id = analysed_import(api, stage, worker, content)
+    monkeypatch.setattr("waterfall.core.exchanges.running.utc_now", lambda: LATER)
+    applied_now(api, stage, worker, import_id)
+    assert tree.items() == marked
+    created = project_of(api, stage)["current_revision_id"]
+    assert created not in {None, tree.revision["revision_id"]}
+    assert read(api, stage, import_id)["revision_id"] == created
+    with stage.database.transaction() as session:
+        kept = session.execute(
+            select(RevisionRate.cost_category_id, RevisionRate.amount, RevisionRate.origin).where(
+                RevisionRate.revision_id == UUID(created)
+            )
+        ).all()
+    assert [tuple(each) for each in kept] == [(costs.labour, Decimal("66.95"), "projected")]
+    line = estimate_lines(current_items(api, stage))[held["labour"]["lineage_id"]][1]
+    assert figure(line, "hours") == 12
+
+
+@pytest.mark.requirement("WF-INTF-0100-A")
+def test_an_estimate_analysed_before_the_project_is_in_progress_is_refused_at_its_application(
+    api: ContractClient, stage: Scene, worker: Worker, tree: Tree, held: dict[str, Any]
+) -> None:
+    # « Sur un projet En cours, l'import d'un devis sur la structure principale est refusé et nomme
+    # la condition » (C-358), at the application as at the opening: the import is refused for good.
+    content = workbook(as_exported(held, {"Heures": 12}), held["tasks"])
+    import_id = analysed_import(api, stage, worker, content)
+    put_in_state(stage.owner, stage.project["project_id"], "in_progress")
+    before = tree.items()
+    answer = apply(api, stage, import_id)
+    assert refusal(answer) == (409, STATE, {"missing_condition": "project_before_in_progress"})
+    assert stored(stage.database, import_id).status == "refused"
+    run(worker)
+    assert tree.items() == before
+
+
+@pytest.mark.requirement("WF-INTF-0080-A")
+def test_a_line_the_structure_refuses_since_the_analysis_fails_the_application_writing_nothing(
+    api: ContractClient, stage: Scene, worker: Worker, tree: Tree, held: dict[str, Any]
+) -> None:
+    # The report the user confirmed is judged again: a line it accepted under a task completed
+    # since is refused, and nothing of the file is written (#1767).
+    rows = [
+        *as_exported(held, {"Heures": 12}),
+        row("2 Essais", held["stuff"], {"Débours unitaire": 9}),
+    ]
+    import_id = analysed_import(api, stage, worker, workbook(rows, held["tasks"]))
+    assert read(api, stage, import_id)["report"]["rejected"] == []
+    set_progress(stage, held["second"]["node_id"], "completed", date(2026, 1, 5))
+    before = tree.items()
+    assert apply(api, stage, import_id).status_code == 202
+    run(worker)
+    assert stored(stage.database, import_id).status == "failed"
+    assert tree.items() == before
+
+
+@pytest.mark.requirement("WF-INTF-0080-A")
+def test_a_line_entered_since_the_analysis_is_not_removed_by_the_application(
+    api: ContractClient, stage: Scene, worker: Worker, held: dict[str, Any]
+) -> None:
+    # What is applied is the report the user read before confirming: a line entered since, absent
+    # from the file, was not announced removed, and stays.
+    tree, costs = held["tree"], held["costs"]
+    import_id = analysed_import(api, stage, worker, workbook(as_exported(held), held["tasks"]))
+    assert read(api, stage, import_id)["report"]["differences"] == []
+    entered = Lines(tree).made(
+        held["second"], quantity="1", cost_category_id=str(costs.material), unit_disbursement="5"
+    )
+    applied_now(api, stage, worker, import_id)
+    assert entered["nodes"][0]["lineage_id"] in estimate_lines(tree.items())
+
+
+@pytest.mark.requirement("WF-INTF-0080-A")
+def test_a_line_the_report_rejected_is_not_written_though_accepted_since(
+    api: ContractClient, stage: Scene, worker: Worker, tree: Tree, held: dict[str, Any]
+) -> None:
+    # « le compte rendu les liste avec leur motif avant la confirmation » : the user confirmed the
+    # file without the line rejected, whose subproject is created since; it is not written.
+    rows = [*as_exported(held), row("2 Essais", held["role"], {"Heures": 2, "Sous-projet": "SP"})]
+    import_id = analysed_import(api, stage, worker, workbook(rows, held["tasks"]))
+    rejected = read(api, stage, import_id)["report"]["rejected"]
+    assert [each["code"] for each in rejected] == ["UNKNOWN_SUBPROJECT"]
+    answer = api.post(
+        f"{PROJECTS}/{stage.project['project_id']}/subprojects",
+        headers=stage.manager.headers,
+        json={"code": "SP", "label": "Poste"},
+    )
+    assert answer.status_code == 201, answer.text
+    applied_now(api, stage, worker, import_id)
+    assert set(estimate_lines(tree.items())) == {
+        held["labour"]["lineage_id"],
+        held["material"]["lineage_id"],
+    }
+
+
+@pytest.mark.requirement("WF-INTF-0100-A")
+def test_the_import_of_an_estimate_is_a_command_of_the_project_that_stays_in_progress(
+    api: ContractClient, stage: Scene, queue: TaskQueue
+) -> None:
+    # « Sur un projet En cours, l'import d'un devis sur la structure principale est refusé » : the
+    # import, not the command, which stays available for a differential (C-358); it names what a
+    # task of the background, and the revision it would create, ask.
+    def lacking() -> list[str]:
+        commands = project_of(api, stage)["available_commands"]
+        return next(
+            each["missing_conditions"] for each in commands if each["command"] == "import_estimate"
+        )
+
+    assert lacking() == []
+    put_in_state(stage.owner, stage.project["project_id"], "in_progress")
+    assert lacking() == []
+    withdraw(stage.database, stage.manager, "revisions.write")
+    assert lacking() == ["may_create_revision"]
+    payload = {
+        "project_id": stage.project["project_id"],
+        "revision_id": str(UUID(int=1)),
+        "version_name": "v1.0",
+        "description": None,
+    }
+    with logging_context(correlation_id="queued-around"), stage.database.transaction() as session:
+        submit(session, queue, "revision_mark", stage.manager.user_id, payload)
+    assert lacking() == ["no_background_task_running", "may_create_revision"]
