@@ -129,7 +129,7 @@ from waterfall.core.planning.interface.msproject import (
     MS_PROJECT_FORMAT as MS_PROJECT_FORMAT,
 )
 
-# ``nodes`` (US-1380/L1; US-1380/L2, L3; US-1480/L2; US-1450/L5; US-1530): a structure's nodes.
+# ``nodes`` (US-1380/L1; US-1380/L2, L3; US-1480/L2; US-1450/L5): the nodes of a structure.
 from waterfall.core.planning.interface.nodes import (
     CreationJudged as CreationJudged,
 )
@@ -156,9 +156,6 @@ from waterfall.core.planning.interface.nodes import (
 )
 from waterfall.core.planning.interface.nodes import (
     RowResolution as RowResolution,
-)
-from waterfall.core.planning.interface.nodes import (
-    StructureRead as StructureRead,
 )
 from waterfall.core.planning.interface.nodes import (
     TaskEntry as TaskEntry,
@@ -192,9 +189,6 @@ from waterfall.core.planning.interface.nodes import (
 )
 from waterfall.core.planning.interface.nodes import (
     move_nodes as move_nodes,
-)
-from waterfall.core.planning.interface.nodes import (
-    read_structure as read_structure,
 )
 from waterfall.core.planning.interface.nodes import (
     resolve_row_number as resolve_row_number,
@@ -264,6 +258,14 @@ from waterfall.core.planning.interface.progress import (
 )
 from waterfall.core.planning.interface.progress import (
     set_task_progress as set_task_progress,
+)
+
+# ``reading`` (US-1530): a structure read whole, and what the filters of a reading retain of it.
+from waterfall.core.planning.interface.reading import (
+    StructureRead as StructureRead,
+)
+from waterfall.core.planning.interface.reading import (
+    read_structure as read_structure,
 )
 
 # ``reference`` (US-1380/L1; US-1390/L2): what the planning answers to the reference.
