@@ -161,7 +161,6 @@ test("the comparison of the whole structure, 5 999 nodes, shows its grid with it
 test("retains the differences alone in the comparison: pressed, in the address and the banner, kept through the choice of the pair @shared [WF-REV-0080-A]", async ({
   page,
 }) => {
-  test.skip(inService, BEFORE_EP07);
   // The fake back serves the same comparison whatever the address names: what the server retains is
   // proven on `comparison_differences` by the test of the page (`revisions/page.test.tsx`).
   await openHydrated(
