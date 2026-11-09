@@ -26,7 +26,8 @@ if TYPE_CHECKING:
 # The key of the advisory lock of the minimal reference. A fixed number, distinct from every other
 # advisory key of the service (the installation, the migrations, the natures, the tree, the
 # default calendar, the administrators, the restoration, the witness, the forgetting, the
-# scheduler and the runs of the worker).
+# partitions of a project, the scheduler and the runs of the worker; ``test_partitions.py`` reads
+# them in the sources and checks it).
 REFERENCE_LOCK = 4_200_830
 
 

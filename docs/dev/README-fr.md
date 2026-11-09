@@ -147,14 +147,16 @@ l'API, le worker et le chargeur (#2180).
 Une table révisionnée est partitionnée par liste sur `project_id`, une
 partition par projet (WF-DAT-0050), que crée dans la transaction de la création du projet la
 fonction `create_project_partitions` du propriétaire des tables (`SECURITY DEFINER`), que le rôle du
-service seul peut exécuter, sans autre droit de DDL ; chaque EPIC qui ajoute une table révisionnée la
-remplace. Deux déclencheurs du module des révisions refusent, propriétaire compris, ce qu'une
-révision marquée interdit (migration `0020`). Celui d'une table révisionnée verrouille la révision
-de la ligne `FOR KEY SHARE` quel que soit son état, puis la lit, et le marquage verrouille la
-révision `FOR UPDATE` avant de la marquer : un écrivain venu pendant le marquage l'attend, puis se
-voit refusé, et le marquage attend l'écrivain commencé avant lui (#2104). Chaque EPIC qui ajoute
-une table révisionnée lui donne un déclencheur de cette forme. Les verrous se prennent dans un seul
-ordre : la révision, puis son projet, jamais le projet avant la révision.
+service seul peut exécuter, sans autre droit de DDL. Elle lit les tables révisionnées dans le
+catalogue (migration `0026`) : une table qu'un EPIC ajoute, avec sa fonction
+`<table>_refuse_truncate`, y entre sans la remplacer ; elle s'appelle avant toute écriture de la
+transaction ([sql.md](sql.md), « Verrous »). Deux déclencheurs du module des révisions refusent,
+propriétaire compris, ce qu'une révision marquée interdit (migration `0020`). Celui d'une table
+révisionnée verrouille la révision de la ligne `FOR KEY SHARE` quel que soit son état, puis la lit,
+et le marquage verrouille la révision `FOR UPDATE` avant de la marquer : un écrivain venu pendant le
+marquage l'attend, puis se voit refusé, et le marquage attend l'écrivain commencé avant lui (#2104).
+Chaque EPIC qui ajoute une table révisionnée lui donne un déclencheur de cette forme. Les verrous se
+prennent dans un seul ordre : la révision, puis son projet, jamais le projet avant la révision.
 Un module en importe un autre par `waterfall.core.<module>.interface`, jamais par ses
 tables. Le noyau n'importe ni l'API ni le worker, qui ne s'importent pas l'un l'autre.
 
