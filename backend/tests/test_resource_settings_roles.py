@@ -28,14 +28,16 @@ from waterfall.core.cost_settings.interface import (
 )
 from waterfall.core.cost_settings.tables import CostCategory
 from waterfall.core.resource_settings.interface import (
+    CalendarChange,
+    IdleProject,
     active_role_exists,
     category_has_roles,
     read_node,
+    register_idle_task_guard,
     role_calendars,
     roles_of_categories,
     set_activation,
 )
-from waterfall.core.resource_settings.interface import resource_roles as roles_module
 from waterfall.core.resource_settings.tables import Calendar, OrgNode, ResourceRole
 from waterfall.platform.audit import Act
 from waterfall.platform.database import utc_now
@@ -503,25 +505,47 @@ def test_a_change_at_another_version_or_of_an_unknown_role_is_refused(
     assert absent.status_code == 404
 
 
-@pytest.mark.requirement("WF-REF-0090-A")
-def test_a_calendar_that_would_leave_a_task_without_an_hour_is_refused_as_epic_06_will_say(
-    api: ContractClient, sessions: PartSessions, monkeypatch: pytest.MonkeyPatch
+@pytest.mark.requirement("WF-PLA-0010-A")
+def test_a_calendar_that_would_leave_a_task_without_an_hour_is_refused_naming_roles_and_projects(
+    api: ContractClient, sessions: PartSessions
 ) -> None:
-    # No task exists before EP-06, which answers the question; the refusal is ready for it.
-    def refusing(*_: object) -> bool:
-        return False
+    # The guards registered answer (``register_idle_task_guard``; the estimate's, US-1500): asked
+    # for the role and the calendar it would take, they name the projects and the roles; the role
+    # is named by its code and its label, each project once, by its label. A change that keeps the
+    # calendar does not ask.
+    asked: list[CalendarChange] = []
 
-    monkeypatch.setattr(roles_module, "role_calendar_change_is_admissible", refusing)
+    def guard(_session: object, change: CalendarChange) -> tuple[IdleProject, ...]:
+        asked.append(change)
+        return (
+            IdleProject("Ligne de convoyage", "PRJ-001", (UUID(TECH_MES),)),
+            IdleProject("Ligne de convoyage", "PRJ-001", (UUID(TECH_MES),)),
+        )
+
     headers = sessions.changing
     read = role(api, headers, "TECH-MES")
-    refused = api.patch(
-        f"{ROLES}/{TECH_MES}", headers=headers, json=change_of(read, calendar_id=FOUR_DAYS)
-    )
+    withdraw = register_idle_task_guard(guard)
+    try:
+        refused = api.patch(
+            f"{ROLES}/{TECH_MES}", headers=headers, json=change_of(read, calendar_id=FOUR_DAYS)
+        )
+        kept = api.patch(f"{ROLES}/{TECH_MES}", headers=headers, json=change_of(read))
+    finally:
+        withdraw()
     assert refusal(refused) == (422, "TASK_WITHOUT_WORKING_HOURS", [])
-    # A change that keeps the calendar does not ask.
-    assert (
-        api.patch(f"{ROLES}/{TECH_MES}", headers=headers, json=change_of(read)).status_code == 200
+    assert refused.json()["params"] == {
+        "resource_roles": [
+            {"resource_role_id": TECH_MES, "code": "TECH-MES", "label": read["label"]}
+        ],
+        "projects": [{"project_label": "Ligne de convoyage", "project_code": "PRJ-001"}],
+    }
+    [change] = asked
+    assert (change.calendar_id, change.resource_role_id, change.default) == (
+        UUID(FOUR_DAYS),
+        UUID(TECH_MES),
+        False,
     )
+    assert kept.status_code == 200, kept.text
 
 
 # What a role binds in the cost settings (WF-REF-0030, WF-REF-0040).
