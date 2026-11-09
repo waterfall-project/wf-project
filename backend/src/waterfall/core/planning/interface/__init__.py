@@ -80,9 +80,12 @@ from waterfall.core.planning.interface.facets import (
 )
 
 # ``lines`` (US-1380/L1; US-1490/L3, L4; US-1550/L3): the lines of a task, their place, their
-# writes, where they stand, their counters, for EP-07.
+# writes, where they stand, their counters, the write of an import, for EP-07.
 from waterfall.core.planning.interface.lines import (
     FacetChange as FacetChange,
+)
+from waterfall.core.planning.interface.lines import (
+    LinesWrite as LinesWrite,
 )
 from waterfall.core.planning.interface.lines import (
     NodeRow as NodeRow,
@@ -116,6 +119,9 @@ from waterfall.core.planning.interface.lines import (
 )
 from waterfall.core.planning.interface.lines import (
     write_facet as write_facet,
+)
+from waterfall.core.planning.interface.lines import (
+    write_lines as write_lines,
 )
 
 # ``msproject`` (US-1380/L1; US-1430/L3, L4): the format and the exporter of MS Project.

@@ -16,9 +16,11 @@ rejects nothing before EP-09 (``SUBPROJECT_HAS_ACTUAL_COSTS``). On the main stru
 under a completed task, or a line changed or moved under or from one, is rejected as its entry is
 refused (``STATE_FORBIDS_OPERATION``, ``task_not_completed``, #1767). A labour line whose role would
 leave its task without an hour in its week, the roles of the lines its task keeps intersected day
-by day in the order of the file, is rejected (``TASK_WITHOUT_WORKING_HOURS``, WF-PLA-0010). The
-lines of the structure the file no longer carries are removed, but kept under a started or
-completed task (``kept``, WF-INTF-0100). A cell empty reads as nought for a figure — the default of
+by day in the order of the file, is rejected (``TASK_WITHOUT_WORKING_HOURS``, WF-PLA-0010): judged
+on the structure the import leaves, every write of the file made, so that its application, which
+writes them in one write of the tree, finds what the report says. The lines of the structure the
+file no longer carries are removed, but kept under a started or completed task (``kept``,
+WF-INTF-0100). A cell empty reads as nought for a figure — the default of
 a creation —, as no subproject, and as the label left as it is, composed at a creation.
 
 What the workbook does not give is no refusal: a tab without the headers of lines is ignored, as an
@@ -170,11 +172,29 @@ class Planned:
 
 @dataclass(slots=True)
 class Analysis:
-    """What the analysis finds: the lines accepted, the rejections, the lines left behind."""
+    """What the analysis finds: the lines accepted, the rejections, the lines left behind.
+
+    ``removed`` the lines left behind the import removes, those of ``left`` under a task unstarted
+    — and, at the application, that the report confirmed announced removed.
+    """
 
     planned: list[Planned] = field(default_factory=list[Planned])
     rejected: list[dict[str, Any]] = field(default_factory=list[dict[str, Any]])
     left: list[UUID] = field(default_factory=list[UUID])
+    removed: list[UUID] = field(default_factory=list[UUID])
+
+
+@dataclass(frozen=True, slots=True)
+class Confirmed:
+    """What the report a user confirmed holds back, which its application analyses again with.
+
+    ``rejected`` the rows it rejected, by tab and row, which the application leaves as they are
+    whatever the analysis now finds; ``removed`` the lineages of the lines it announced removed,
+    the others left as they are — one entered since the analysis among them (WF-INTF-0080).
+    """
+
+    rejected: frozenset[tuple[str, int]]
+    removed: frozenset[str]
 
 
 def aimed(session: Session, target: ImportTarget) -> Aimed:
@@ -391,8 +411,15 @@ def _completed(held: Aimed, tasks: Iterable[UUID]) -> UUID | None:
     return next((each for each in tasks if held.tasks[each].progress == COMPLETED), None)
 
 
-def analyse(session: Session, held: Aimed, read: WorkbookRead) -> Analysis:
-    """Match and judge every line read against the structure; nothing is written."""
+def analyse(
+    session: Session, held: Aimed, read: WorkbookRead, confirmed: Confirmed | None = None
+) -> Analysis:
+    """Match and judge every line read against the structure; nothing is written.
+
+    ``confirmed`` the report the application writes, none for the analysis: a row it rejected is
+    left out before the hours of the tasks are judged, and only the lines it announced removed go,
+    so that the hours are judged on what the application writes.
+    """
     reference = reference_of(session, held.project_id)
     named = designations(held, read.tasks)
     found = Analysis(rejected=[_reader_rejection(each) for each in read.rejected])
@@ -408,6 +435,18 @@ def analyse(session: Session, held: Aimed, read: WorkbookRead) -> Analysis:
             taken.add(lineage)
         _plan(session, (line, current), held, (reference, named), found)
     found.left = [line.node_id for lineage, line in held.lines.items() if lineage not in taken]
+    lineages = {line.node_id: str(lineage) for lineage, line in held.lines.items()}
+    found.removed = [
+        node
+        for node in found.left
+        if not started(held, node) and (confirmed is None or lineages[node] in confirmed.removed)
+    ]
+    if confirmed is not None:
+        found.planned = [
+            each
+            for each in found.planned
+            if (each.line.sheet, each.line.row) not in confirmed.rejected
+        ]
     _judge_hours(session, held, reference, found)
     return found
 
@@ -451,39 +490,77 @@ def _plan(
 
 
 def _judge_hours(session: Session, held: Aimed, reference: Reference, found: Analysis) -> None:
-    """Reject, in the order of the file, a labour line that would leave its task without an hour.
+    """Reject a labour line that would leave its task without an hour, on the structure written.
 
-    The roles a task keeps are those of its lines the import leaves as they are, then those of the
-    lines accepted before; a line rejected keeps its task and its role.
+    A line whose role arrives in a task — created, given another role, or moved — is judged on
+    the roles its task bears once the import is written: those of its lines the import leaves as
+    they are, those of the lines it keeps the role and the task of, then those of the lines
+    accepted before it in the order of the file. A line rejected stays as it is, its role in its
+    task: the lines are judged again until no rejection follows, so that every task the import
+    leaves has an hour in its week (WF-PLA-0010) — which its application, a single write of the
+    tree, does not judge line by line.
     """
-    moving = {each.current.node_id for each in found.planned if each.current is not None}
-    moving |= {node for node in found.left if not started(held, node)}
-    kept: dict[UUID, set[UUID]] = {}
-    for line in held.lines.values():
-        role = line.resource_role_id
-        if line.node_id not in moving and role is not None:
-            kept.setdefault(held.bearers[line.node_id], set()).add(role)
-    employed = {role for roles in kept.values() for role in roles}
+    arriving = [_arrives(held, each) for each in found.planned]
+    employed = {
+        line.resource_role_id for line in held.lines.values() if line.resource_role_id is not None
+    }
     employed |= {each.role_id for each in found.planned if each.role_id is not None}
     calendars = role_calendars(session, employed)
     weeks = calendar_hours(session, calendars.values())
-    accepted: list[Planned] = []
-    for each in found.planned:
-        roles = kept.setdefault(each.task_id, set())
-        if each.role_id is None or _works({*roles, each.role_id}, calendars, weeks):
-            if each.role_id is not None:
+    refused: dict[int, dict[str, Any]] = {}
+    while True:
+        kept = _kept_roles(held, found, refused, arriving)
+        now: dict[int, dict[str, Any]] = {}
+        for rank, each in enumerate(found.planned):
+            if rank in refused or not arriving[rank] or each.role_id is None:
+                continue
+            roles = kept.setdefault(each.task_id, set())
+            if _works({*roles, each.role_id}, calendars, weeks):
                 roles.add(each.role_id)
-            accepted.append(each)
-            continue
-        named = [_named_role(reference, role) for role in sorted({*roles, each.role_id})]
-        task = _named_task(held, each.task_id)
-        params = {"resource_roles": named, "tasks": [task]}
-        found.rejected.append(_rejection(each.line, TASK_WITHOUT_WORKING_HOURS, params))
-        if each.current is not None and each.current.resource_role_id is not None:
-            kept.setdefault(held.bearers[each.current.node_id], set()).add(
-                each.current.resource_role_id
-            )
-    found.planned = accepted
+                continue
+            named = [_named_role(reference, role) for role in sorted({*roles, each.role_id})]
+            params = {"resource_roles": named, "tasks": [_named_task(held, each.task_id)]}
+            now[rank] = _rejection(each.line, TASK_WITHOUT_WORKING_HOURS, params)
+        if not now:
+            break
+        refused.update(now)
+    found.rejected.extend(refused[rank] for rank in sorted(refused))
+    found.planned = [each for rank, each in enumerate(found.planned) if rank not in refused]
+
+
+def _arrives(held: Aimed, planned: Planned) -> bool:
+    """Tell whether the role of a line accepted arrives in its task: created, changed or moved."""
+    current = planned.current
+    return (
+        current is None
+        or held.bearers[current.node_id] != planned.task_id
+        or current.resource_role_id != planned.role_id
+    )
+
+
+def _kept_roles(
+    held: Aimed, found: Analysis, refused: Mapping[int, Any], arriving: list[bool]
+) -> dict[UUID, set[UUID]]:
+    """Give the roles each task bears before the roles that arrive: those that stay in it.
+
+    The lines the import leaves as they are, a line rejected among them, under their task; the
+    lines accepted whose role does not arrive, under theirs; neither those removed nor those
+    written.
+    """
+    written = {
+        each.current.node_id
+        for rank, each in enumerate(found.planned)
+        if rank not in refused and each.current is not None
+    }
+    gone = written | set(found.removed)
+    kept: dict[UUID, set[UUID]] = {}
+    for line in held.lines.values():
+        if line.node_id not in gone and line.resource_role_id is not None:
+            kept.setdefault(held.bearers[line.node_id], set()).add(line.resource_role_id)
+    for rank, each in enumerate(found.planned):
+        if rank not in refused and not arriving[rank] and each.role_id is not None:
+            kept.setdefault(each.task_id, set()).add(each.role_id)
+    return kept
 
 
 def started(held: Aimed, node: UUID) -> bool:
@@ -540,8 +617,9 @@ def report_of(held: Aimed, read: WorkbookRead, found: Analysis) -> Report:
         elif each.fields:
             lineage = lineages[each.current.node_id]
             differences.append(_difference("updated", lineage, each.label, each.fields))
+    removed = set(found.removed)
     for node in found.left:
-        change = "kept" if started(held, node) else "removed"
+        change = "removed" if node in removed else "kept"
         differences.append(_difference(change, lineages[node], held.lines[lineages[node]].label))
     rejected_rows = {(each["sheet"], each["row"]) for each in rejected}
     written = sum(1 for each in found.planned if each.current is None or each.fields)

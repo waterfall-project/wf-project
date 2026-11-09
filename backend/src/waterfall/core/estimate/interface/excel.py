@@ -10,7 +10,8 @@ a subproject (#2190), which EP-09 imports too.
 
 Declared by US-1490/L1 and registered without effect (decision of 2026-11-08, #2370); the format
 reads the header, analyses and applies a workbook from US-1550/L3: the header is read in the whole
-file — a workbook is a zip, whose header no head of bytes holds —, by the reader of US-1550/L2
+file — a workbook is a zip, whose header no head of bytes holds; the opening holds it in memory
+whole, 10 MiB at most (``HEADER_LENGTH``) —, by the reader of US-1550/L2
 (``excel/reader.py``), the analysis is ``importing``'s, the application ``applying``'s. The export
 raises ``NotImplementedError`` naming the story that fills it. ``sheet_name`` is written by
 US-1550/L1 (``excel/names.py``), as the workbook (``excel/writer.py``).
@@ -39,7 +40,10 @@ if TYPE_CHECKING:
     )
     from waterfall.platform.audit import Act
 
-# The bytes of a file the header is read in: the whole file, at most what a deposit holds.
+# The bytes of a file the header is read in: the whole file, at most what a deposit holds. A
+# workbook is a zip, whose directory is at its end: no head of bytes holds the header. The opening
+# holds the file whole in memory, up to 10 MiB (``LARGEST_FILE``), and openpyxl, which reads it
+# in read-only mode, inflates only the first rows of the first tab.
 HEADER_LENGTH = LARGEST_FILE
 # The states of a project whose main structure an estimate is imported in (WF-INTF-0100; C-358).
 BEFORE_IN_PROGRESS = ("created", "pricing")
