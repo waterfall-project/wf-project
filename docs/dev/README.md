@@ -1188,6 +1188,34 @@ levels the structure has, from the first to that of its deepest summary task, wh
 whatever the filters (`meta.summary_depth`, #494), and shows the level asked for, or the deepest
 when asked for one beyond it (`depthShown`).
 
+The planning is wired to the service (EP-06, US-1470): the page no longer carries the note of the
+mock-up (`MockupNotice`), each cell is written by `updateTaskFacet`, the predecessors by
+`setPredecessors` (`resolveRowNumber` for a number the search left out), the start date by
+`updateCostStructure`, and the attachment, creation, indentation, move and deletion by the
+operations of the tree; the tasks redated, the links in conflict, the float and the critical path
+are those the server renders. An account that sees the project without being a contributor reads the
+planning and receives `NOT_CONTRIBUTOR` on each write and on `openImport`
+(`e2e/service/planning-readers.spec.ts`, WF-ADM-0110-A). The paths of `planning-service.spec.ts`,
+`structure.spec.ts`, `computed.spec.ts`, `keyboard.spec.ts`, `grid.spec.ts` (the pinned Gantt) and
+`context.spec.ts` that play against the service carry `@shared`: the witness of PRJ-001 has no task
+yet in the service (US-1480), and the account of the run is no contributor of it (#2193), so each
+path writes a project of its own (`e2e/planning-seed.ts`: the project made from the home, its
+revision opened, six tasks written by the API, and, according to the path, their links with one in
+conflict, a work breakdown of two order items; the states « started » and « finished » stay played
+on the fake back until US-1480/L3, #2595). The carry-over from one grid to the other (#1057) is
+played by the operations the estimate grid sends, `createNode` then `moveNodes`, on the structure it
+shares with the planning: the screen of the estimate grid is not served before EP-07, and the
+gesture made from it is postponed to that EPIC (#2590); the task so created is read in the planning,
+and its indentation with it. The path of the account « chef de projet » plays the planning and
+FLX-02; FLX-01 waits for US-1430/L4 (#2589). The paths that read the witness of PRJ-001 wait for
+US-1480: their `@shared` tagging is US-1480/L3's (#2591). What is not replayed before its EPIC stays
+guarded by `inService`: the lines, the amounts and the estimate (EP-07); the remaining to commit
+(EP-09); the risks (EP-08); the indicators (EP-10); the differential structures (EP-08), so the path
+of `context.spec.ts` that opens the amendment, that of the risks screen and that of the indicators
+stay on the fake back; the paths of `planning.spec.ts` and `keyboard.spec.ts` that read the thousand
+tasks of the witness (US-1480). The measure of a cell validation (#196) and that of the move of the
+active cell over a thousand tasks (#620) are in the delivery report of US-1470.
+
 ### The risks screen
 
 The risks screen, `…/revisions/[r]/risks` (`frontend/src/components/risks/`), reads each of its
@@ -2091,10 +2119,12 @@ target to the last row of the block, the number of each displayed row to the one
 the order of the plan (on a differential, the server skips the nodes the amendment removes and
 fills the next ones: the guard counts neither their rank nor their row, like the preview, #1278) —
 a grid that pastes reads all the kinds of node, and its numbers follow one another —; folded
-(`fold.tsx`), moved by a sort, hidden by the search or a filter, or beyond the last row shown, the
-cause said is the one the user lifts first (L40, #527). Otherwise `previewPaste` returns the plan,
+(`fold.tsx`), moved by a sort, or hidden by the search or a filter, the cause said is the one the
+user lifts first (L40, #527); a block taller than the rows shown is no longer refused: its rows
+beyond the last node of the structure create tasks (see below). Otherwise `previewPaste` returns the plan,
 which a shadcn dialog box shows (`PasteDialog`, `ui/dialog.tsx`), in a single announced region —
-how many rows will be written, each refused row by its place in the block, its cells as copied and
+how many rows will be written, how many tasks will be created (`created`, when there are any), each
+refused row by its place in the block, its cells as copied and
 its reason, a row refused for several cells counted once —, and `applyPaste` applies it on
 confirmation, in a single operation: the valid rows are written, the refused rows are not
 (WF-IHM-0050, EP-14/L42q). A plan that refuses rows and writes others says so, and is confirmed; a
@@ -2125,6 +2155,26 @@ operation, the plan that refuses nothing: the partial paste is only tested by th
 (`paste-applied.dom.test.tsx`, `paste-dialog.dom.test.tsx`), and the real height of the notice will
 only be proved in a path. A grid without `paste` in its configuration, read-only, takes no paste.
 
+**The paste that creates (planning, US-1450/L6, #2559).** The planning service creates a task for
+each row of the block that falls beyond the last node of the structure: a sibling of that node, of
+the kind of the targeted node, in the order of the block, its label required (a row without a label
+is refused, `VALIDATION_FAILED` on the `label` column). The local guard therefore no longer compares
+the block to the height of the grid: it keeps its refusals for hidden or absent columns, folded
+rows, the sort, the search and the filter — a reading narrowed by the search or a filter refuses a
+block that passes its last row, the front being unable to tell whether hidden rows follow it. The
+preview says how many tasks will be created (`PastePlan.created`, also counted among the rows
+written, in one more sentence of the same announced region, `grid.paste.created`); the confirmation
+returns the tasks created in `nodes` (`PasteApplied`, `NodesWritten`), and the planning grid, which
+does not know where those rows are placed, reads its page anew when the plan created some
+(`router.refresh`, as after the creation of a task); the rows written take the place of the rows
+read, as usual. A block whose target is an estimate line has its rows beyond the last node refused
+as `FIELD_NOT_ACCEPTED` without any task being created (EP-07 will serve the lines): the refusal
+reads in the list of refused rows of the preview, like any refusal. Undoing the paste deletes the
+tasks it created, redoing it recreates them: a single history entry (`undone.kind` stays `paste`,
+`undone.node_ids` names the nodes written and created). The path `paste.spec.ts` plays it against
+the service (`@shared`), the tests of the grid on the examples `paste_plan_creating` and
+`paste_applied_creating`.
+
 ### Grids: undo and redo
 
 Undo and Redo are placed by every grid whose loaded structure lists its `edit_*` command as
@@ -2147,14 +2197,15 @@ and the confirmation of a paste wait for it and it waits for them, the grid says
 command given during a write has no effect. The action reads the page anew once the server has
 answered — the rows returned, created or deleted are the server's — and the version the structure
 reached (`written.structure_lock_version`) is told to the account for the next write;
-`remaining_depth` is in the answer, the screen having no sentence yet to say it. A refusal is said
+`remaining_depth` is said with the success, in an announced region (`grid.undo.done.undo` and
+`grid.undo.done.redo`: « Change undone. 3 changes left to undo. »). A refusal is said
 like any refusal, by `OutcomeNotice` above the grid, its sentence taken from the catalogue by its
 code and its parameters: `UNDO_CONFLICT` names the object taken up since (`conflicting_object_label`),
 `STATE_FORBIDS_OPERATION` the condition that is missing (`undo_history_not_empty`,
 `redo_history_not_empty`, `restored_subproject_exists`), `SESSION_ID_MISSING` a token without a
-sign-in session. It stays said until it is closed or the next command leaves. The contract cites no
-example of a successful undo: success is played against the service (`e2e/undo.spec.ts`, fifty inputs
-undone then redone through the grid, `@shared`), refusals on the examples (`undo-wired.dom.test.tsx`).
+sign-in session. It stays said until it is closed or the next command leaves. Success is played against the
+service (`e2e/undo.spec.ts`, fifty inputs undone then redone through the grid, `@shared`), refusals
+and the announcement of success on the examples (`undo-wired.dom.test.tsx`).
 
 **Placed only.** The estimate and the remaining to commit receive no `undo`: their inputs, served by EP-07, have no
 history yet, and their commands stay unavailable, `aria-disabled`, described by their
@@ -2679,7 +2730,8 @@ of what it describes, and two generations write the same bytes:
   structure and of the entry of tasks, with their refusals (`wftools.mockgestures`, the place of a
   node and the loops a gesture would close in `wftools.mocktree`, the gestures of the estimate made
   on amendment 2, and the entry and the paste the end-to-end paths make there, in
-  `wftools.mockamendmentwrites`), the gestures of the cards of the Kanban and their responses
+  `wftools.mockamendmentwrites`; the paste that creates the tasks beyond the last row, and the
+  undo and the redo of a renaming, in `wftools.mockundoable`, #2559, #2564), the gestures of the cards of the Kanban and their responses
   (`wftools.mockkanban`), and the refusals of a paste and of an import that a subproject or the
   phase of the project command (`wftools.mockexchanges`), and a manual date on a non-working day,
   refused at entry and flagged at import (`wftools.mocknonworking`, #1271); its history

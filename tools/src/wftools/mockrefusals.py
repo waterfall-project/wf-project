@@ -372,11 +372,7 @@ def paste_plan_without_hours() -> JsonObject:
             ],
         },
     }
-    return {
-        "paste_id": WITHOUT_HOURS_PASTE,
-        "accepted": len(WITHOUT_HOURS_BLOCK) - 1,
-        "rejected": [refusal],
-    }
+    return mocktext.paste_plan_of(WITHOUT_HOURS_PASTE, len(WITHOUT_HOURS_BLOCK) - 1, [refusal])
 
 
 def next_state_without_code() -> JsonObject:

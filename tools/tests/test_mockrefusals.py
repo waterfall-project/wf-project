@@ -438,6 +438,7 @@ def test_a_pasted_row_leaving_its_task_without_hours_is_refused_naming_roles_and
     assert plan == {
         "paste_id": universe(997),
         "accepted": 2,
+        "created": 0,
         "rejected": [
             {
                 "row": 1,

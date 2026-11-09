@@ -112,7 +112,7 @@ beforeEach(() => {
 });
 
 describe("the screen of the planning", () => {
-  it("offers the skeleton in the empty grid of a revision that lists it available, and says the fake back keeps nothing", async () => {
+  it("offers the skeleton in the empty grid of a revision that lists it available, and shows no note of the mock-up", async () => {
     server.answers = {
       ...server.answers,
       "GET /projects/{project_id}": "project_pricing",
@@ -125,7 +125,8 @@ describe("the screen of the planning", () => {
     const command = SKELETON.exec(page)?.[0] ?? "";
     expect(command).not.toBe("");
     expect(command).not.toContain(" aria-disabled=");
-    expect(page).toContain("Mock-up: the simulated service keeps no write");
+    expect(page).not.toContain("Mock-up");
+    expect(page).not.toContain(CATALOGUES.en.mockup.notKept);
   });
 
   it("enters the attachment from the work breakdown read whole, and offers no skeleton beside the tasks", async () => {
@@ -214,7 +215,7 @@ describe("the screen of the planning", () => {
     expect(page).toMatch(/<th(?:(?!<\/th>).)*>Attached to</);
   });
 
-  it("reads the work breakdown whole for its filter alone on a revision that may not be planned, and says the fake back applies no filter", async () => {
+  it("reads the work breakdown whole for its filter alone on a revision that may not be planned, and shows no note of the mock-up", async () => {
     server.answers = {
       ...server.answers,
       "GET /projects/{project_id}/revisions/{revision_id}": "revision_marked",
@@ -224,7 +225,7 @@ describe("the screen of the planning", () => {
     const [read] = callsOf(BREAKDOWN);
     expect(read?.query.toString()).toBe("");
     expect(page).toContain(`<option value="${ITEM}">Order item: Poste 1.1</option>`);
-    expect(page.match(/<p role="note"/g)).toHaveLength(1);
+    expect(page).not.toContain(CATALOGUES.en.mockup.notKept);
   });
 });
 

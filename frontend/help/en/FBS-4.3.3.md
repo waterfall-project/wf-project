@@ -19,7 +19,7 @@ The zoom and the export are also found in the menu of a cell of the Gantt. On a 
 
 ## Its columns and computed values
 
-The dates the Gantt draws are those the grid shows, calculated by the server for a task in automatic mode.
+The dates the Gantt draws are those the grid shows, calculated by the server for a task in automatic mode. The critical path and the links in conflict are those the service renders: the Gantt draws them, it does not compute them.
 
 ## Keyboard gestures
 
