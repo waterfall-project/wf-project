@@ -354,9 +354,13 @@ test("a block of three labels pasted on the only task of the planning of a proje
   // Redo creates them again.
   await page.getByRole("button", { name: "Annuler", exact: true }).click();
   await expect(label(1)).toContainText("Tâche A", { timeout: WORKING });
-  await expect(rowAt(grid, 2)).toHaveCount(0, { timeout: WORKING });
+  await expect(grid.getByRole("gridcell", { name: "Total — 1 tâche" })).toBeVisible({
+    timeout: WORKING,
+  });
+  await expect(grid.getByRole("gridcell", { name: "Essais" })).toHaveCount(0);
   await idle();
   await page.getByRole("button", { name: "Rétablir", exact: true }).click();
   await expect(label(3)).toContainText("Recette", { timeout: WORKING });
+  await expect(grid.getByRole("gridcell", { name: "Total — 3 tâches" })).toBeVisible();
   await expect(page.getByRole("main").getByRole("alert")).toHaveCount(0);
 });
