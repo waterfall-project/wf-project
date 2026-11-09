@@ -10,10 +10,10 @@ function, then dropped, so that the database of the tests keeps none of them.
 from contextlib import contextmanager
 from datetime import UTC, datetime
 from decimal import Decimal
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 from uuid import UUID, uuid4
 
-from sqlalchemy import delete, func, insert, select, table, text
+from sqlalchemy import CheckConstraint, delete, func, insert, select, table, text
 
 from waterfall.core.projects.tables import Project
 from waterfall.core.revisions.tables import CostStructure, Revision
@@ -21,7 +21,7 @@ from waterfall.core.revisions.tables import CostStructure, Revision
 if TYPE_CHECKING:
     from collections.abc import Generator
 
-    from sqlalchemy import Engine
+    from sqlalchemy import Engine, Table
     from sqlalchemy.engine import Connection
     from sqlalchemy.sql import Executable
 
@@ -144,6 +144,40 @@ def drop_partitions(connection: Connection, project_id: UUID | None = None) -> N
                 connection.execute(delete(table(name)))
                 connection.execute(text(f'ALTER TABLE "{parent}" DETACH PARTITION "{name}"'))
                 connection.execute(text(f'DROP TABLE "{name}"'))
+
+
+KIND_CHECK = "ck_cost_structure_kind_known"
+
+
+def _kind_predicate() -> str:
+    """Give the predicate of the check on the kind of a structure, as the model says."""
+    structures = cast("Table", CostStructure.__table__)
+    for constraint in structures.constraints:
+        if isinstance(constraint, CheckConstraint) and constraint.name == KIND_CHECK:
+            return str(constraint.sqltext)
+    message = f"{KIND_CHECK} is not on the model of the cost structures"
+    raise LookupError(message)
+
+
+@contextmanager
+def lifted_kind_check(owner: Engine) -> Generator[None]:
+    """Lift the check on the kind of a structure, as the owner, and restore it whatever happens.
+
+    No differential is written before EP-08, and the kind is checked: a test that needs one lifts
+    the check and removes the rows it wrote in the body's own ``finally``. The check is restored
+    in an outer ``finally`` and a transaction of its own, so that a deletion that fails cannot
+    leave it off for the rest of the session.
+    """
+    predicate = _kind_predicate()
+    with owner.begin() as connection:
+        connection.execute(text(f"ALTER TABLE cost_structure DROP CONSTRAINT {KIND_CHECK}"))
+    try:
+        yield
+    finally:
+        with owner.begin() as connection:
+            connection.execute(
+                text(f"ALTER TABLE cost_structure ADD CONSTRAINT {KIND_CHECK} CHECK ({predicate})")
+            )
 
 
 @contextmanager

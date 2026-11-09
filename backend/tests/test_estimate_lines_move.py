@@ -24,11 +24,11 @@ from estimate_support import YEAR, Costing, Lines, add_role, costing, give_a_lin
 from nodes_support import Tree, faults, mark, opened, refusal, set_progress
 from openapi_core.testing import MockRequest, MockResponse
 from planning_support import insert_link, insert_task
-from project_rows import structure_row
+from project_rows import lifted_kind_check, structure_row
 from projects_support import PROJECTS, Scene, person
 from projects_support import scene as make_scene
 from sqlalchemy import delete as sql_delete
-from sqlalchemy import func, insert, select, text, update
+from sqlalchemy import func, insert, select, update
 
 from waterfall.core.cost_settings.interface import CostCategoryDraft, create_cost_category
 from waterfall.core.cost_settings.tables import CostCategory, CostType
@@ -527,39 +527,38 @@ def test_the_lines_a_refusal_names_come_main_structure_first_then_by_structure_l
     row = structure_row(project_id, revision_id, kind="differential", label="Alpha")
     structure_id = row["id"]
     assert isinstance(structure_id, UUID)
-    check = "ALTER TABLE cost_structure {} CONSTRAINT ck_cost_structure_kind_known {}"
-    with owner.begin() as connection:
-        connection.execute(text(check.format("DROP", "")))
-    try:
-        with owner.begin() as connection:
-            connection.execute(insert(CostStructure).values(**row))
-            bearer = insert_task(connection, project_id, revision_id, structure_id)
-            node_id = give_a_line(connection, bearer)
-            connection.execute(
-                update(EstimateLine)
-                .where(EstimateLine.node_id == node_id)
-                .values(label="Alpha 1", subproject_id=UUID(named))
-            )
-        refused = delete_subproject(api, stage, named)
-        found = refusal(refused)[2]["estimate_lines"]
-        assert [(line["structure_label"], line["label"]) for line in found] == [
-            ("Structure principale", "Borniers"),
-            ("Alpha", "Alpha 1"),
-        ]
-        assert found[0]["node_id"] == written["nodes"][0]["node_id"]
-    finally:
-        with owner.begin() as connection:
-            nodes = select(Node.id).where(Node.structure_id == structure_id)
-            connection.execute(sql_delete(EstimateLine).where(EstimateLine.node_id.in_(nodes)))
-            connection.execute(
-                sql_delete(Node).where(
-                    Node.structure_id == structure_id, Node.kind == "estimate_line"
+    with lifted_kind_check(owner):
+        try:
+            with owner.begin() as connection:
+                connection.execute(insert(CostStructure).values(**row))
+                bearer = insert_task(connection, project_id, revision_id, structure_id)
+                node_id = give_a_line(connection, bearer)
+                connection.execute(
+                    update(EstimateLine)
+                    .where(EstimateLine.node_id == node_id)
+                    .values(label="Alpha 1", subproject_id=UUID(named))
                 )
-            )
-            connection.execute(sql_delete(Task).where(Task.node_id.in_(nodes)))
-            connection.execute(sql_delete(Node).where(Node.structure_id == structure_id))
-            connection.execute(sql_delete(CostStructure).where(CostStructure.id == structure_id))
-            connection.execute(text(check.format("ADD", "CHECK (kind IN ('main'))")))
+            refused = delete_subproject(api, stage, named)
+            found = refusal(refused)[2]["estimate_lines"]
+            assert [(line["structure_label"], line["label"]) for line in found] == [
+                ("Structure principale", "Borniers"),
+                ("Alpha", "Alpha 1"),
+            ]
+            assert found[0]["node_id"] == written["nodes"][0]["node_id"]
+        finally:
+            with owner.begin() as connection:
+                nodes = select(Node.id).where(Node.structure_id == structure_id)
+                connection.execute(sql_delete(EstimateLine).where(EstimateLine.node_id.in_(nodes)))
+                connection.execute(
+                    sql_delete(Node).where(
+                        Node.structure_id == structure_id, Node.kind == "estimate_line"
+                    )
+                )
+                connection.execute(sql_delete(Task).where(Task.node_id.in_(nodes)))
+                connection.execute(sql_delete(Node).where(Node.structure_id == structure_id))
+                connection.execute(
+                    sql_delete(CostStructure).where(CostStructure.id == structure_id)
+                )
 
 
 @pytest.mark.requirement("WF-DAT-0080-A")
