@@ -5,8 +5,9 @@
 A write of the nodes of a structure judges the state of its revision under the lock of the
 revision, read ``FOR SHARE`` (``revision_draft``): refused on a terminal project
 (``project_not_terminal``), on a marked revision (``revision_draft``), while a background task
-writes in the project (``no_background_task_running``), in that order (409, WF-CYC-0100,
-WF-DAT-0020, WF-IHM-0090). It then opens its entry of the history (``history.recording``), which
+other than the writer's own — the application of an import — writes in the project
+(``no_background_task_running``), in that order (409, WF-CYC-0100, WF-DAT-0020, WF-IHM-0090).
+It then opens its entry of the history (``history.recording``), which
 locks the stack of its writer, and only then locks its structure (``cost_structure`` ``FOR
 UPDATE``) and reads the tree under that lock: the locks come in one order — the revision, the
 stack, the structure — whatever the write, an undoing included.
@@ -73,10 +74,15 @@ class Place:
 
 @dataclass(frozen=True, slots=True)
 class Writer:
-    """Who writes, and when: the act, and the session of sign-in its stack is kept by."""
+    """Who writes, and when: the act, and the session of sign-in its stack is kept by.
+
+    ``running`` is the background task that writes, the application of an import, which does not
+    suspend its own writes; none for a write of a request.
+    """
 
     act: Act
     session_id: str | None
+    running: UUID | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -124,12 +130,14 @@ def facts_of(session: Session, place: Place, *, lock: bool) -> StructureFacts:
     return facts
 
 
-def judge_revision(session: Session, project_id: UUID, revision_id: UUID) -> None:
+def judge_revision(
+    session: Session, project_id: UUID, revision_id: UUID, running: UUID | None = None
+) -> None:
     """Refuse a write the state forbids, the first missing condition named (409).
 
     The revision is read under ``FOR SHARE``: its marking and its abandonment wait for the write,
     and the project of a current revision cannot leave its cycle meanwhile (``exitProject`` asks
-    it to have none).
+    it to have none). ``running`` is the background task that writes, which is not counted.
     """
     try:
         revision_draft(session, revision_id)
@@ -139,7 +147,7 @@ def judge_revision(session: Session, project_id: UUID, revision_id: UUID) -> Non
                 STATE_FORBIDS_OPERATION, {"missing_condition": PROJECT_NOT_TERMINAL}
             ) from None
         raise
-    if not no_background_task_running(session, project_id):
+    if not no_background_task_running(session, project_id, running):
         raise ConflictError(
             STATE_FORBIDS_OPERATION, {"missing_condition": NO_BACKGROUND_TASK_RUNNING}
         )
@@ -314,6 +322,6 @@ def writing(
     snapshots (``Write.before``, ``Write.after``); a block that raises keeps nothing.
     """
     facts_of(session, place, lock=False)
-    judge_revision(session, place.project_id, place.revision_id)
+    judge_revision(session, place.project_id, place.revision_id, writer.running)
     with _recorded(session, place, writer, change) as frame:
         yield Write(session, place, writer, frame)
