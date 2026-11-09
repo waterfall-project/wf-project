@@ -547,6 +547,11 @@ CHECKED_BY_THE_ROUTE: dict[tuple[str, str, str], str] = {
     # The lists of ``listNodes`` the route reads, each value and the list judged there (US-1380/L2).
     ("listNodes", "query", "fields"): "declared nothing, contract min_items=1",
     ("listNodes", "query", "origin_risk_ids"): "declared nothing, contract min_items=1",
+    # The same of ``compareRevisions``, which reads them as ``listNodes`` does, and the marks of
+    # ``difference``, each judged by the route (US-1530).
+    ("compareRevisions", "query", "fields"): "declared nothing, contract min_items=1",
+    ("compareRevisions", "query", "origin_risk_ids"): "declared nothing, contract min_items=1",
+    ("compareRevisions", "query", "difference"): "declared nothing, contract min_items=1",
     # The scope of the indicators of an estimate: ``project``, ``unassigned`` or a subproject, read
     # as text and judged by the route, whose refusal the contract names in 422, on the parameter
     # (``UNKNOWN_SUBPROJECT``, ``getEstimateIndicators``, US-1510).

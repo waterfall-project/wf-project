@@ -362,6 +362,16 @@ from waterfall.core.planning.interface.work_breakdown import (
 from waterfall.core.planning.interface.work_breakdown import (
     work_package_lines as work_package_lines,
 )
+
+# Beside the interface (US-1530): a structure read whole, and what a reading's filters retain of it.
+from waterfall.core.planning.reading import (
+    StructureRead as StructureRead,
+)
+from waterfall.core.planning.reading import (
+    read_structure as read_structure,
+)
+
+# Beside the interface: what a write of the tree hands the replay of the engine (#2492).
 from waterfall.core.planning.rescheduling import (
     Holding as Holding,
 )
