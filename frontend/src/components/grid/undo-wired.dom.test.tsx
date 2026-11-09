@@ -323,6 +323,9 @@ describe("a block pasted on the grid of the planning, judged by the server", () 
     await waitFor(() => {
       expect(client.calls.filter((call) => call.route === APPLY)).toHaveLength(1);
     });
+    await waitFor(() => {
+      expect(screen.queryByRole("dialog", { name: "Coller depuis un tableur" })).toBeNull();
+    });
     expect(router.refresh).not.toHaveBeenCalled();
   });
 
