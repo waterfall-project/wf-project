@@ -96,6 +96,7 @@ PROJECT_INTERFACES: dict[str, set[str]] = {
         "attachments",
         "skeleton",
         "days",
+        "estimate_facts",
     },
     # ``rates``: the update of the rates a revision frames (US-1500/L1).
     "revisions": {

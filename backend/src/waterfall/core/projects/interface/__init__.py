@@ -47,6 +47,13 @@ from waterfall.core.projects.interface.contributors import (
 # ``days`` (US-1380/L4): the current day of an instant, in the time zone of the installation.
 from waterfall.core.projects.interface.days import current_day
 
+# ``estimate_facts`` (US-1490/L4): what the estimate tells of its lines, by its registry.
+from waterfall.core.projects.interface.estimate_facts import (
+    EstimatedLine,
+    EstimateFacts,
+    register_estimate_facts,
+)
+
 # ``lifecycle`` (US-0980): the cycle of life of a project.
 from waterfall.core.projects.interface.lifecycle import (
     DesignationFacts,
@@ -164,6 +171,8 @@ __all__ = [
     "DeliverableEntry",
     "DeliverableView",
     "DesignationFacts",
+    "EstimateFacts",
+    "EstimatedLine",
     "ExitRequest",
     "ExitState",
     "LifecycleTrigger",
@@ -237,6 +246,7 @@ __all__ = [
     "read_project",
     "read_work_breakdown",
     "register_attachments",
+    "register_estimate_facts",
     "register_opening_question",
     "require_project_manager",
     "set_contributors",

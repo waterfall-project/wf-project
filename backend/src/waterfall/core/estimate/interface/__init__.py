@@ -21,11 +21,16 @@ creates, copies, snapshots, restores and redates, and the question of the lines
 (``register_tasks_and_lines``); US-1500/L1 fills the copy and the closing of the rates, and
 registers the question of their proposal (``register_rate_update``); the registries EP-07
 declares (``register_marking``, ``register_designation``, ``register_employment``,
-``register_estimate_facts``) by the stories that fill them (decisions of 2026-11-08, #2370). The
-entry points that copy, mark, designate or close a revision, change the
-reference or run an exchange — the API, the worker from US-1500 on, the loader of the witness —
+``register_estimate_facts``) by the stories that fill them (decisions of 2026-11-08, #2370):
+US-1490/L4 the employment of the categories and the facts of the lines the projects ask, whose
+roles employed and pricing again of a project come with US-1540 and US-1500. The entry points that
+copy, mark, designate or close a revision, change the reference or run an exchange — the API, the
+worker from US-1500 on, the loader of the witness —
 import it, by what they serve or explicitly (#2180).
 """
+
+# The registry of the cost settings the estimate fills (US-1490/L4); the others below.
+from waterfall.core.cost_settings.interface import register_employment
 
 # ``calendars`` (US-1490/L1; US-1500): the calendars of the roles, which a change must not idle.
 # ``entries`` (US-1490/L3): what a write sends of a line.
@@ -49,6 +54,9 @@ from waterfall.core.estimate.interface.contributors import (
 # ``employment`` (US-1490/L1; US-1490/L4): what the lines employ of the reference and the project.
 from waterfall.core.estimate.interface.employment import (
     category_is_employed as category_is_employed,
+)
+from waterfall.core.estimate.interface.employment import (
+    subproject_estimate_lines as subproject_estimate_lines,
 )
 from waterfall.core.estimate.interface.employment import (
     subproject_is_cited as subproject_is_cited,
@@ -89,6 +97,9 @@ from waterfall.core.estimate.interface.facet import (
 )
 from waterfall.core.estimate.interface.facet import (
     judge_line_cell as judge_line_cell,
+)
+from waterfall.core.estimate.interface.facet import (
+    judge_moved_lines as judge_moved_lines,
 )
 from waterfall.core.estimate.interface.facet import (
     line_calendars as line_calendars,
@@ -195,6 +206,7 @@ from waterfall.core.estimate.spreading import (
 # The registries the estimate fills.
 from waterfall.core.exchanges.interface import register_exporter, register_format
 from waterfall.core.planning.interface import register_facet
+from waterfall.core.projects.interface import EstimateFacts, register_estimate_facts
 from waterfall.core.resource_settings.interface import register_idle_task_guard
 from waterfall.core.revisions.interface import (
     register_closing,
@@ -207,12 +219,23 @@ from waterfall.core.revisions.interface import (
 # lines, whose copy the planning makes with its nodes; the copy of the rates after the planning's,
 # whose interface the facet imports first, then the lines priced at them; the rates of a revision
 # abandoned deleted after its nodes, in the stage of its content; whether the proposal of the
-# rates of a revision presents a category (US-1500/L1).
+# rates of a revision presents a category (US-1500/L1); the categories and the subprojects the
+# lines employ.
 register_facet("estimate_line", LINE_FACET)
 register_tasks_and_lines("lines", revision_has_lines)
 register_copy(copy_rates)
 register_rate_update(rate_update_offered)
 register_closing("content", close_rates)
+register_employment(category_is_employed)
+register_estimate_facts(
+    EstimateFacts(
+        subproject_is_cited,
+        subproject_is_estimated,
+        subproject_estimate_lines,
+        roles_employed,
+        reinflate_project,
+    )
+)
 register_idle_task_guard(idle_tasks_for_role_calendar)
 register_format("estimate", ESTIMATE_FORMAT)
 register_exporter("estimate", ESTIMATE_EXPORTER)
