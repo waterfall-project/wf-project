@@ -24,9 +24,10 @@ from uuid import UUID, uuid4
 import pytest
 from estimate_support import YEAR, Costing, Lines, costing
 from nodes_support import Tree, opened, refusal, set_progress
+from project_rows import STAMP
 from projects_support import PROJECTS, Scene, create
 from projects_support import scene as make_scene
-from sqlalchemy import select, update
+from sqlalchemy import insert, select, update
 from sqlalchemy.orm import Session
 
 from waterfall.core.cost_settings.interface import (
@@ -36,6 +37,7 @@ from waterfall.core.cost_settings.interface import (
     create_cost_type,
 )
 from waterfall.core.cost_settings.tables import CostType
+from waterfall.core.planning.tables import TrackingEntry
 from waterfall.core.projects.tables import Project
 from waterfall.core.revisions.interface import mark_revision
 from waterfall.core.revisions.tables import CostStructure
@@ -667,6 +669,117 @@ def test_the_sort_orders_the_lines_under_each_task_a_removed_one_among_them(
         "Armoire",
         "Câbles",
         "Borniers",
+    ]
+
+
+@pytest.mark.requirement(REQUIREMENT)
+def test_the_sort_of_an_identical_pair_is_the_order_list_nodes_gives_of_the_compared_revision(
+    api: ContractClient, stage: Scene, costs: Costing
+) -> None:
+    # The comparison sorts the lines as ``listNodes`` does: on a pair of identical revisions, the
+    # same order of the same nodes.
+    offer = opened(api, stage)
+    tree = Tree(api, stage, offer)
+    lines = Lines(tree)
+    first = tree.made("Fourniture")
+    lines.made(first, **material(costs, "Armoire", "500.00"))
+    lines.made(first, **material(costs, "Borniers", "50.00"))
+    second = tree.made("Câblage", parent_id=first["node_id"])
+    lines.made(second, **material(costs, "Câbles", "200.00"))
+    lines.made(second, **labour(costs, "Pose — Ingénieur", "2"))
+    lines.made(second, **material(costs, "Goulottes", "80.00"))
+    mark(stage, offer, "v1.0")
+    amendment = opened(api, stage)
+    following = Tree(api, stage, amendment)
+    mark(stage, amendment, "v2.0")
+    for order in ("asc", "desc"):
+        query = f"sort_by=reestimated_amount&sort_order={order}"
+        found = compared(api, stage, (offer, amendment), f"&{query}")
+        assert all(each["difference"] == "unchanged" for each in found["items"])
+        assert [label_of(each) for each in found["items"]] == [
+            label_of(each) for each in following.items(f"?{query}")
+        ]
+
+
+@pytest.mark.requirement(REQUIREMENT)
+def test_a_line_whose_payment_delay_alone_changes_is_modified_without_any_amount_difference(
+    api: ContractClient, stage: Scene, costs: Costing
+) -> None:
+    # « pour une ligne, ses champs d'estimation » : the delay of payment, which moves no amount.
+    offer = opened(api, stage)
+    tree = Tree(api, stage, offer)
+    Lines(tree).made(tree.made("Fourniture"), **material(costs, "Armoire", "500.00"))
+    mark(stage, offer, "v1.0")
+    amendment = opened(api, stage)
+    following = Tree(api, stage, amendment)
+    Lines(following).changed(by_label(following.items())["Armoire"], payment_delay_days=30)
+    mark(stage, amendment, "v2.0")
+    found = compared(api, stage, (offer, amendment))
+    assert marks(found) == [
+        ("Fourniture", 1, "modified", []),
+        ("Armoire", 2, "modified", ["payment_delay_days"]),
+    ]
+    assert found["amount_deltas"] == []
+
+
+@pytest.mark.requirement(REQUIREMENT)
+def test_a_timeline_brings_no_ancestors(api: ContractClient, stage: Scene, pair: Pair) -> None:
+    # ``timeline_id`` retains the tasks it tracks alone, their ancestors not coming back.
+    nodes = by_label(compared(api, stage, revisions(pair))["items"])
+    created = api.post(
+        f"{PROJECTS}/{stage.project['project_id']}/timelines",
+        headers=stage.manager.headers,
+        json={"label": "Comité de pilotage"},
+    ).json()["timeline_id"]
+    with stage.database.transaction() as session:
+        session.execute(
+            insert(TrackingEntry).values(
+                id=uuid4(),
+                project_id=UUID(stage.project["project_id"]),
+                lineage_id=UUID(nodes["Conception"]["lineage_id"]),
+                kind="timeline",
+                timeline_id=UUID(created),
+                **STAMP,
+            )
+        )
+    tracked = compared(api, stage, revisions(pair), f"&kinds=task&timeline_id={created}")
+    assert [label_of(each) for each in tracked["items"]] == ["Conception"]
+
+
+@pytest.mark.requirement(REQUIREMENT)
+def test_max_level_leaves_out_a_removed_task_below_it(api: ContractClient, stage: Scene) -> None:
+    # ``max_level`` judges a removed task on its level in the base revision.
+    offer = opened(api, stage)
+    tree = Tree(api, stage, offer)
+    studies = tree.made("Études")
+    tree.made("Conception", parent_id=studies["node_id"])
+    tree.made("Plans", parent_id=studies["node_id"])
+    mark(stage, offer, "v1.0")
+    amendment = opened(api, stage)
+    following = Tree(api, stage, amendment)
+    gone = by_label(following.items())["Conception"]
+    path = f"{following.path}/nodes/{gone['node_id']}?lock_version={gone['lock_version']}"
+    assert api.delete(path, headers=stage.manager.headers).status_code == 200
+    mark(stage, amendment, "v2.0")
+    whole = compared(api, stage, (offer, amendment), "&kinds=task")
+    assert ("Conception", 2, "removed", []) in marks(whole)
+    shallow = compared(api, stage, (offer, amendment), "&kinds=task&max_level=1")
+    assert [label_of(each) for each in shallow["items"]] == ["Études"]
+
+
+@pytest.mark.requirement(REQUIREMENT)
+def test_summaries_only_and_a_subtree_combined_with_difference_read_the_union(
+    api: ContractClient, stage: Scene, pair: Pair
+) -> None:
+    summaries = compared(api, stage, revisions(pair), "&summaries_only=true")
+    assert [label_of(each) for each in summaries["items"]] == ["Études", "Installation"]
+    nodes = by_label(compared(api, stage, revisions(pair))["items"])
+    site = nodes["Installation"]["node_id"]
+    added = compared(api, stage, revisions(pair), f"&subtree_of={site}&difference=added")
+    assert marks(added) == [
+        ("Installation", 1, "modified", []),
+        ("Câblage", 2, "added", []),
+        ("Câbles", 3, "added", []),
     ]
 
 
