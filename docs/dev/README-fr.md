@@ -2115,11 +2115,12 @@ garde compare, de la cible à la dernière ligne du bloc, le numéro de chaque l
 qu'elle aurait dans l'ordre du plan (sur un différentiel, le serveur saute les nœuds que l'avenant
 retire et remplit les suivants : la garde ne compte ni leur rang ni leur ligne, comme l'aperçu,
 #1278) — une grille qui colle lit tous les genres de nœud, et ses numéros se suivent — ; pliée
-(`fold.tsx`), déplacée par un tri, cachée par la recherche ou un filtre, ou au-delà de la dernière
-ligne montrée, la cause dite est celle que l'utilisateur lève d'abord (L40, #527). Sinon
+(`fold.tsx`), déplacée par un tri, ou cachée par la recherche ou un filtre, la cause dite est celle que
+l'utilisateur lève d'abord (L40, #527) ; un bloc plus haut que les lignes montrées n'est plus refusé :
+ses lignes au-delà du dernier nœud de la structure créent des tâches (voir plus bas). Sinon
 `previewPaste` rend le plan, que montre une boîte de dialogue de shadcn (`PasteDialog`,
-`ui/dialog.tsx`), dans une seule région annoncée — combien de lignes seront écrites, chaque ligne
-refusée par sa place dans le bloc, ses cellules telles que copiées et son motif, une ligne refusée
+`ui/dialog.tsx`), dans une seule région annoncée — combien de lignes seront écrites, combien de tâches seront créées (`created`, quand il y en a),
+chaque ligne refusée par sa place dans le bloc, ses cellules telles que copiées et son motif, une ligne refusée
 pour plusieurs cellules comptée une fois —, et `applyPaste` l'applique sur confirmation, en une
 seule opération : les lignes valides sont écrites, les lignes refusées ne le sont pas (WF-IHM-0050,
 EP-14/L42q). Un plan qui refuse des lignes et en écrit d'autres le dit, et se confirme ; un plan qui
@@ -2151,6 +2152,26 @@ la grille (`paste-applied.dom.test.tsx`, `paste-dialog.dom.test.tsx`), et la hau
 l'avis ne se prouvera qu'en parcours. Une grille sans `paste` dans sa configuration, en lecture
 seule, ne prend aucun collage.
 
+**Le collage qui crée (planning, US-1450/L6, #2559).** Le service du planning crée une tâche pour
+chaque ligne du bloc qui tombe au-delà du dernier nœud de la structure : sœur de ce nœud, du genre
+du nœud visé, dans l'ordre du bloc, son libellé requis (la ligne sans libellé est refusée,
+`VALIDATION_FAILED` sur la colonne `label`). La garde locale ne compare donc plus le bloc à la
+hauteur de la grille : elle garde ses refus pour les colonnes masquées ou absentes, les lignes
+pliées, le tri, la recherche et le filtre — une lecture restreinte par la recherche ou un filtre
+refuse un bloc qui dépasse sa dernière ligne, le front ne pouvant dire si des lignes cachées la
+suivent. L'aperçu dit combien de tâches seront créées (`PastePlan.created`, comptées aussi parmi les
+lignes écrites, en une phrase de plus de la même région annoncée, `grid.paste.created`) ; la
+confirmation rend les tâches créées dans `nodes` (`PasteApplied`, `NodesWritten`), et la grille du
+planning, qui ne sait pas où ces lignes se rangent, lit sa page à nouveau quand le plan en créait
+(`router.refresh`, comme après la création d'une tâche) ; les lignes écrites prennent la place des
+lignes lues, comme à l'ordinaire. Un bloc dont la cible est une ligne de devis voit ses lignes
+au-delà du dernier nœud refusées en `FIELD_NOT_ACCEPTED` sans qu'aucune tâche soit créée (EP-07
+servira les lignes) : le refus se lit dans la liste des lignes refusées de l'aperçu, comme tout
+refus. Annuler le collage supprime les tâches qu'il a créées, le rétablir les recrée : une seule
+entrée d'historique (`undone.kind` reste `paste`, `undone.node_ids` nomme les nœuds écrits et
+créés). Le parcours `paste.spec.ts` le joue contre le service (`@shared`), les tests de la grille
+sur les exemples `paste_plan_creating` et `paste_applied_creating`.
+
 ### Les grilles : annuler et rétablir
 
 Annuler et Rétablir sont posées par toute grille dont la structure lue liste sa commande `edit_*`
@@ -2173,15 +2194,16 @@ est une écriture de la structure comme les autres : elle se compte dans le comp
 la grille se dit occupée, et une commande donnée pendant une écriture est sans effet. L'action lit la
 page à nouveau une fois le serveur répondu — les lignes rendues, créées ou supprimées, sont celles du
 serveur — et la version que la structure a atteinte (`written.structure_lock_version`) est dite au
-compte pour l'écriture suivante ; `remaining_depth` est dans la réponse, sans que l'écran ait encore
-de phrase pour le dire. Un refus se dit comme tout refus, par `OutcomeNotice` au-dessus de la grille,
+compte pour l'écriture suivante ; `remaining_depth` est dit avec le succès, dans une région annoncée
+(`grid.undo.done.undo` et `grid.undo.done.redo` : « Modification annulée. 3 modifications restent à
+annuler. »). Un refus se dit comme tout refus, par `OutcomeNotice` au-dessus de la grille,
 sa phrase tirée du catalogue d'après son code et ses paramètres : `UNDO_CONFLICT` nomme l'objet repris
 depuis (`conflicting_object_label`), `STATE_FORBIDS_OPERATION` la condition qui manque
 (`undo_history_not_empty`, `redo_history_not_empty`, `restored_subproject_exists`),
 `SESSION_ID_MISSING` un jeton sans session de connexion. Il reste dit jusqu'à ce qu'on le ferme ou
-que la commande suivante parte. Le contrat ne cite aucun exemple d'annulation réussie : le succès se
-joue contre le service (`e2e/undo.spec.ts`, cinquante saisies annulées puis rétablies par la grille,
-`@shared`), les refus sur les exemples (`undo-wired.dom.test.tsx`).
+que la commande suivante parte. Le succès se joue contre le service (`e2e/undo.spec.ts`, cinquante saisies annulées puis
+rétablies par la grille, `@shared`), les refus et l'annonce du succès sur les exemples
+(`undo-wired.dom.test.tsx`).
 
 **Posées seulement.** Le devis et le reste à engager ne reçoivent pas d'`undo` : leurs saisies, servies par EP-07, n'ont
 pas encore d'historique, et leurs commandes restent indisponibles, `aria-disabled`, décrites par

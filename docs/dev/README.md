@@ -2119,10 +2119,12 @@ target to the last row of the block, the number of each displayed row to the one
 the order of the plan (on a differential, the server skips the nodes the amendment removes and
 fills the next ones: the guard counts neither their rank nor their row, like the preview, #1278) —
 a grid that pastes reads all the kinds of node, and its numbers follow one another —; folded
-(`fold.tsx`), moved by a sort, hidden by the search or a filter, or beyond the last row shown, the
-cause said is the one the user lifts first (L40, #527). Otherwise `previewPaste` returns the plan,
+(`fold.tsx`), moved by a sort, or hidden by the search or a filter, the cause said is the one the
+user lifts first (L40, #527); a block taller than the rows shown is no longer refused: its rows
+beyond the last node of the structure create tasks (see below). Otherwise `previewPaste` returns the plan,
 which a shadcn dialog box shows (`PasteDialog`, `ui/dialog.tsx`), in a single announced region —
-how many rows will be written, each refused row by its place in the block, its cells as copied and
+how many rows will be written, how many tasks will be created (`created`, when there are any), each
+refused row by its place in the block, its cells as copied and
 its reason, a row refused for several cells counted once —, and `applyPaste` applies it on
 confirmation, in a single operation: the valid rows are written, the refused rows are not
 (WF-IHM-0050, EP-14/L42q). A plan that refuses rows and writes others says so, and is confirmed; a
@@ -2153,6 +2155,26 @@ operation, the plan that refuses nothing: the partial paste is only tested by th
 (`paste-applied.dom.test.tsx`, `paste-dialog.dom.test.tsx`), and the real height of the notice will
 only be proved in a path. A grid without `paste` in its configuration, read-only, takes no paste.
 
+**The paste that creates (planning, US-1450/L6, #2559).** The planning service creates a task for
+each row of the block that falls beyond the last node of the structure: a sibling of that node, of
+the kind of the targeted node, in the order of the block, its label required (a row without a label
+is refused, `VALIDATION_FAILED` on the `label` column). The local guard therefore no longer compares
+the block to the height of the grid: it keeps its refusals for hidden or absent columns, folded
+rows, the sort, the search and the filter — a reading narrowed by the search or a filter refuses a
+block that passes its last row, the front being unable to tell whether hidden rows follow it. The
+preview says how many tasks will be created (`PastePlan.created`, also counted among the rows
+written, in one more sentence of the same announced region, `grid.paste.created`); the confirmation
+returns the tasks created in `nodes` (`PasteApplied`, `NodesWritten`), and the planning grid, which
+does not know where those rows are placed, reads its page anew when the plan created some
+(`router.refresh`, as after the creation of a task); the rows written take the place of the rows
+read, as usual. A block whose target is an estimate line has its rows beyond the last node refused
+as `FIELD_NOT_ACCEPTED` without any task being created (EP-07 will serve the lines): the refusal
+reads in the list of refused rows of the preview, like any refusal. Undoing the paste deletes the
+tasks it created, redoing it recreates them: a single history entry (`undone.kind` stays `paste`,
+`undone.node_ids` names the nodes written and created). The path `paste.spec.ts` plays it against
+the service (`@shared`), the tests of the grid on the examples `paste_plan_creating` and
+`paste_applied_creating`.
+
 ### Grids: undo and redo
 
 Undo and Redo are placed by every grid whose loaded structure lists its `edit_*` command as
@@ -2175,14 +2197,15 @@ and the confirmation of a paste wait for it and it waits for them, the grid says
 command given during a write has no effect. The action reads the page anew once the server has
 answered — the rows returned, created or deleted are the server's — and the version the structure
 reached (`written.structure_lock_version`) is told to the account for the next write;
-`remaining_depth` is in the answer, the screen having no sentence yet to say it. A refusal is said
+`remaining_depth` is said with the success, in an announced region (`grid.undo.done.undo` and
+`grid.undo.done.redo`: « Change undone. 3 changes left to undo. »). A refusal is said
 like any refusal, by `OutcomeNotice` above the grid, its sentence taken from the catalogue by its
 code and its parameters: `UNDO_CONFLICT` names the object taken up since (`conflicting_object_label`),
 `STATE_FORBIDS_OPERATION` the condition that is missing (`undo_history_not_empty`,
 `redo_history_not_empty`, `restored_subproject_exists`), `SESSION_ID_MISSING` a token without a
-sign-in session. It stays said until it is closed or the next command leaves. The contract cites no
-example of a successful undo: success is played against the service (`e2e/undo.spec.ts`, fifty inputs
-undone then redone through the grid, `@shared`), refusals on the examples (`undo-wired.dom.test.tsx`).
+sign-in session. It stays said until it is closed or the next command leaves. Success is played against the
+service (`e2e/undo.spec.ts`, fifty inputs undone then redone through the grid, `@shared`), refusals
+and the announcement of success on the examples (`undo-wired.dom.test.tsx`).
 
 **Placed only.** The estimate and the remaining to commit receive no `undo`: their inputs, served by EP-07, have no
 history yet, and their commands stay unavailable, `aria-disabled`, described by their

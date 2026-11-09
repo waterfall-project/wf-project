@@ -64,6 +64,15 @@ const KEYS: Readonly<Record<UndoCommand, string>> = {
 
 const UNAVAILABLE = "aria-disabled:cursor-not-allowed aria-disabled:opacity-50";
 
+/** A command the server did: which, how many changes remain to undo or to redo, and how often. */
+export interface UndoneCommand {
+  readonly command: UndoCommand;
+  /** The modifications that remain after it (`UndoResult.remaining_depth`). */
+  readonly remaining: number;
+  /** A new value each time, so that the same command done again is announced again. */
+  readonly count: number;
+}
+
 /**
  * What a screen that wires the commands gives its grid: asking the server for one, the grid then
  * busy, and the refusal it last told.
@@ -75,6 +84,8 @@ export interface UndoControl {
   readonly busy: boolean;
   /** The outcome of the last command, to tell when it was refused; none before any. */
   readonly outcome: Outcome<unknown> | undefined;
+  /** The last command the server did, to announce; none before any, or once forgotten. */
+  readonly done: UndoneCommand | undefined;
   /** Forget the outcome told. */
   readonly clear: () => void;
 }
@@ -161,13 +172,21 @@ export function UndoAnnouncer({
     return null;
   }
   if (control !== undefined) {
+    const { done } = control;
     return (
-      <OutcomeNotice
-        outcome={control.outcome}
-        onClear={control.clear}
-        onDismissed={onDismissed}
-        dismissible
-      />
+      <>
+        <OutcomeNotice
+          outcome={control.outcome}
+          onClear={control.clear}
+          onDismissed={onDismissed}
+          dismissible
+        />
+        <div role="status" aria-live="polite" className="sr-only">
+          {done === undefined ? null : (
+            <p key={done.count}>{t(`done.${done.command}`, { count: done.remaining })}</p>
+          )}
+        </div>
+      </>
     );
   }
   return (
