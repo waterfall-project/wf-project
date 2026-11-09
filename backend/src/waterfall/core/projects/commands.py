@@ -63,6 +63,7 @@ RULES: tuple[Rule, ...] = (
     Rule("lose", "project_exit", manager=True),
     Rule("abandon", "project_exit", manager=True),
     Rule("generate_skeleton", "planning.write"),
+    Rule("import_planning", "planning.write"),
 )
 
 
@@ -133,6 +134,8 @@ def commands_of(
 
     The skeleton is listed only while the project has no current revision, to whoever holds the
     planning permission, ``may_create_revision`` missing to whoever cannot open one (WF-PRJ-0030).
+    The import of a planning is always listed to the same holder, with the conditions ``openImport``
+    refuses by, in its order (WF-INTF-0090).
     """
     if state in TERMINAL:
         return []
@@ -146,6 +149,10 @@ def commands_of(
         if rule.command == "generate_skeleton":
             if current_revision_id is None:
                 listed.append((rule.command, _skeleton_lacks(permissions, kind, running)))
+            continue
+        if rule.command == "import_planning":
+            lacks = _import_lacks(permissions, kind, current_revision_id, running)
+            listed.append((rule.command, lacks))
             continue
         missing = quality_conditions(kind, manager=rule.manager)
         missing += state_conditions(
@@ -161,5 +168,20 @@ def _skeleton_lacks(
     """Name what the skeleton of a project without a current revision lacks (WF-IHM-0090)."""
     missing = [*quality_conditions(kind, manager=False), *skeleton_conditions(running)]
     if "revisions.write" not in permissions:
+        missing.append(MAY_CREATE_REVISION)
+    return tuple(missing)
+
+
+def _import_lacks(
+    permissions: Collection[str],
+    kind: str | None,
+    current_revision_id: UUID | None,
+    running: Running,
+) -> tuple[str, ...]:
+    """Name what the import of a planning lacks, as ``openImport`` refuses it (WF-INTF-0090)."""
+    missing = quality_conditions(kind, manager=False)
+    if not running.no_task_running:
+        missing.append(NO_BACKGROUND_TASK_RUNNING)
+    if current_revision_id is None and "revisions.write" not in permissions:
         missing.append(MAY_CREATE_REVISION)
     return tuple(missing)
