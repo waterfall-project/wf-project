@@ -273,6 +273,10 @@
       "redo": "Redo",
       "menu": "Cell menu",
       "unavailable": "Unavailable until the server keeps the history of the entries.",
+      "done": {
+        "undo": "Change undone. {count, plural, =0 {No more changes to undo.} one {# change left to undo.} other {# changes left to undo.}}",
+        "redo": "Change redone. {count, plural, =0 {No more changes to redo.} one {# change left to redo.} other {# changes left to redo.}}"
+      },
       "told": {
         "undo": "Undo is unavailable: the server does not keep the history of the entries yet.",
         "redo": "Redo is unavailable: the server does not keep the history of the entries yet."
@@ -353,6 +357,7 @@
       "block": "Block of {rows, plural, one {# row} other {# rows}} by {columns, plural, one {# column} other {# columns}}, from row {row}, column “{column}”: nothing is written before you confirm.",
       "reading": "Reading the report…",
       "accepted": "{count, plural, =0 {No row will be written.} one {# row will be written.} other {# rows will be written.}}",
+      "created": "{count, plural, one {# task will be created} other {# tasks will be created}} after the last task.",
       "noneRejected": "No row is refused.",
       "partial": "Confirmed, the paste writes the valid rows, and not the refused ones; abandoned, it changes no row.",
       "rejected": "{count, plural, one {# row is refused:} other {# rows are refused:}}",
@@ -368,8 +373,7 @@
       "absentColumn": "The pasted block would reach the column “{column}”, which this grid does not present: paste a narrower block.",
       "foldedRows": "The pasted block would reach folded rows: unfold them before pasting, or paste a shorter block.",
       "sortedRows": "The pasted block would write the rows that follow the cell in the order of the plan, which the sort has moved: lift the sort before pasting, or paste a shorter block.",
-      "unretainedRows": "The pasted block would write rows of the plan that the search or the filter hides: lift the search or the filter before pasting, or paste a shorter block.",
-      "beyondRows": "The pasted block would reach past the rows the grid shows under the cell: paste a shorter block."
+      "unretainedRows": "The pasted block would write rows of the plan that the search or the filter hides: lift the search or the filter before pasting, or paste a shorter block."
     },
     "range": {
       "min": "{column}, min",

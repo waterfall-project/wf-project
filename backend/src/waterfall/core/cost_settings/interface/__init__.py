@@ -118,6 +118,9 @@ from waterfall.core.cost_settings.interface.cost_types import (
     Page as Page,
 )
 from waterfall.core.cost_settings.interface.cost_types import (
+    cost_type_labels as cost_type_labels,
+)
+from waterfall.core.cost_settings.interface.cost_types import (
     create_cost_type as create_cost_type,
 )
 from waterfall.core.cost_settings.interface.cost_types import (

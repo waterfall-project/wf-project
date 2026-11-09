@@ -6,13 +6,13 @@ Une feuille du [chiffrage](FBS-4.4.md), que l’écran du devis ouvre dans le m�
 
 La **Charge par rôle et par mois** : une barre par mois, empilée par rôle de ressource, le total du mois à son sommet ; la légende nomme les rôles, et l’infobulle d’un mois les liste avec leurs heures. Seules les lignes de main-d’œuvre chargent. La charge d’une ligne se répartit sur la durée de sa tâche, au prorata des heures travaillées du calendrier de son rôle. Sur une base de reste à engager, la charge restante d’une tâche non terminée se répartit sur la seule part de sa durée qui suit la date de calcul, et se porte au mois de la date de calcul quand la fin de la tâche est dépassée.
 
-Sous le choix, la base et la révision que le serveur dit avoir lues.
+Sous le choix, la base et la révision que le serveur dit avoir lues. Le service calcule tout le plan — la charge de chaque rôle et de chaque mois, la capacité de chaque rôle, les totaux sans trou et la zone — depuis le devis de la révision ; l’écran ne fait que le montrer. Une tâche terminée ne charge rien sur le reste à engager d’une révision.
 
 ## Ses commandes
 
 En tête du plan, puis **Afficher** :
 
-- **Base** : **Budget de la révision de référence**, **Reste à engager d’une révision marquée** ou **Reste à engager de la révision en cours**. Seules les bases que le projet admet sont offertes : sans révision de référence, la révision en cours seule ; les révisions marquées, quand le projet en a une.
+- **Base** : **Budget de la révision de référence**, **Reste à engager d’une révision marquée** ou **Reste à engager de la révision en cours**. Seules les bases que le projet admet sont offertes : le budget de la référence quand le projet a une révision de référence, le reste d’une révision marquée quand il en a une, la révision en cours toujours — seule, sans l’un ni l’autre.
 - **Révision marquée**, pour la base d’une révision marquée : chacune de celles du projet.
 - **Nœud d’organisation et ses descendants** restreint le plan aux rôles qui en relèvent ; **Tous les nœuds** le lève.
 

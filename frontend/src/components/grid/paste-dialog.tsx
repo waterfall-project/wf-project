@@ -12,8 +12,9 @@
  * write — the refusals of the preview, and those it adds judging the accepted rows again — is told
  * above the grid with the cell the block was pasted from and the number of rows written, the
  * refusals in a region of their own whose height is bounded, out of the alert, until the user
- * dismisses it (`PasteAppliedNotice`). A block refused before the server is asked — it would fill a
- * column hidden or absent, or rows the grid does not show — says why (`UnshownNotice`).
+ * dismisses it (`PasteAppliedNotice`). The preview says how many of the rows create a task (`created`,
+ * #2559). A block refused before the server is asked — it would fill a column hidden or absent, or
+ * rows the grid folds, sorts or filters away — says why (`UnshownNotice`).
  */
 "use client";
 
@@ -116,6 +117,7 @@ function Report({ plan, block }: { readonly plan: PastePlan; readonly block: Pas
   return (
     <>
       <p>{t("accepted", { count: plan.accepted })}</p>
+      {plan.created > 0 ? <p>{t("created", { count: plan.created })}</p> : null}
       {refused ? (
         <>
           <RefusedCount rejected={plan.rejected} />
@@ -295,7 +297,6 @@ const ROWS_REFUSAL = {
   folded: "foldedRows",
   sorted: "sortedRows",
   unretained: "unretainedRows",
-  beyond: "beyondRows",
 } as const satisfies Record<UnshownRows, string>;
 
 /**

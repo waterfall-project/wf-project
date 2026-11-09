@@ -31,7 +31,7 @@ opens a revision of the witness under the identifier it imposes, by the very rul
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Literal
 
-from sqlalchemy import ColumnElement, func, or_, select
+from sqlalchemy import ColumnElement, and_, func, or_, select
 from sqlalchemy.exc import IntegrityError
 
 from waterfall.core.projects.interface import (
@@ -127,6 +127,21 @@ class RevisionFilters:
 
     statuses: frozenset[str] | None = None
     search: str | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class RevisionRead:
+    """What an indicator reads of a revision: its status, its year, and the revisions to compare.
+
+    ``reference_revision_id`` is the reference of the project, none without one;
+    ``previous_marked_id`` the marked revision before this one, none without one.
+    """
+
+    revision_id: UUID
+    marked: bool
+    reference_year: int
+    reference_revision_id: UUID | None
+    previous_marked_id: UUID | None
 
 
 @dataclass(frozen=True, slots=True)
@@ -336,6 +351,39 @@ def read_revision(
     """Read a revision of a project, with its commands for the reader (``getRevision``); or 404."""
     revision = found_revision(session, revision_id, project_id, lock=False)
     return _views(session, [revision], project_id, viewer)[0]
+
+
+def read_revision_for(session: Session, project_id: UUID, revision_id: UUID | None) -> RevisionRead:
+    """Read the revision named, else the current one, else the last one marked; or refuse (404).
+
+    What the indicators of an estimate read (EP-07, US-1510): its year of reference, whether it is
+    marked, the reference of its project, and the marked revision before it.
+    """
+    if revision_id is None:
+        revision_id = current_revision(session, project_id) or _last_marked(session, project_id)
+        if revision_id is None:
+            raise NotFoundError(NOT_FOUND)
+    revision = found_revision(session, revision_id, project_id, lock=False)
+    earlier = select(Revision.id).where(
+        Revision.project_id == project_id, Revision.status == "marked"
+    )
+    if revision.marked_at is not None:
+        earlier = earlier.where(
+            or_(
+                Revision.marked_at < revision.marked_at,
+                and_(Revision.marked_at == revision.marked_at, Revision.id < revision.id),
+            )
+        )
+    previous = session.scalar(
+        earlier.order_by(Revision.marked_at.desc(), Revision.id.desc()).limit(1)
+    )
+    return RevisionRead(
+        revision.id,
+        revision.status == "marked",
+        revision.reference_year,
+        project_facts(session, project_id).reference_revision_id,
+        previous,
+    )
 
 
 def _judge_opening(

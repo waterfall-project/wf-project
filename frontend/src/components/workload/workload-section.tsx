@@ -9,9 +9,9 @@
  * A choice is an address: the basis, the marked revision and the node are parameters of the address
  * of the screen, which the server reads and sends to the API — the front filters nothing and
  * computes nothing (WF-ARC-0020); the choice keeps the other parameters of the address, the
- * filters of the context among them. Only the bases the project admits are offered: on a project
- * without a reference revision, the revision under way alone; the marked revisions, only when the
- * project has one. A basis the API refuses all the same is said unavailable, and why.
+ * filters of the context among them. Only the bases the project admits are offered: the reference
+ * budget with a reference revision, the remaining of a marked revision when the project has one, the
+ * revision under way always. A basis the API refuses all the same is said unavailable, and why.
  *
  * The section is named by `aria-label`, and each field by an identifier of its own: an identifier
  * of `useId` in a server component may meet one of a client component of the shell (#251).

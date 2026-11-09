@@ -273,6 +273,10 @@
       "redo": "Rétablir",
       "menu": "Menu de la cellule",
       "unavailable": "Indisponibles tant que le serveur ne conserve pas l’historique des saisies.",
+      "done": {
+        "undo": "Modification annulée. {count, plural, =0 {Aucune autre modification à annuler.} one {# modification reste à annuler.} other {# modifications restent à annuler.}}",
+        "redo": "Modification rétablie. {count, plural, =0 {Aucune autre modification à rétablir.} one {# modification reste à rétablir.} other {# modifications restent à rétablir.}}"
+      },
       "told": {
         "undo": "Annuler est indisponible : le serveur ne conserve pas encore l’historique des saisies.",
         "redo": "Rétablir est indisponible : le serveur ne conserve pas encore l’historique des saisies."
@@ -353,6 +357,7 @@
       "block": "Bloc de {rows, plural, one {# ligne} other {# lignes}} sur {columns, plural, one {# colonne} other {# colonnes}}, à partir de la ligne {row}, colonne « {column} » : rien n’est écrit avant votre confirmation.",
       "reading": "Lecture du compte rendu…",
       "accepted": "{count, plural, =0 {Aucune ligne ne sera écrite.} one {# ligne sera écrite.} other {# lignes seront écrites.}}",
+      "created": "{count, plural, one {# tâche sera créée} other {# tâches seront créées}} à la suite de la dernière tâche.",
       "noneRejected": "Aucune ligne n’est refusée.",
       "partial": "Confirmé, le collage écrit les lignes valides, et non les lignes refusées ; abandonné, il ne modifie aucune ligne.",
       "rejected": "{count, plural, one {# ligne est refusée :} other {# lignes sont refusées :}}",
@@ -368,8 +373,7 @@
       "absentColumn": "Le bloc collé s’étendrait sur la colonne « {column} », que cette grille ne présente pas : collez un bloc plus étroit.",
       "foldedRows": "Le bloc collé s’étendrait sur des lignes pliées : dépliez-les avant de coller, ou collez un bloc moins haut.",
       "sortedRows": "Le bloc collé écrirait les lignes qui suivent la cellule dans l’ordre du plan, que le tri a déplacées : levez le tri avant de coller, ou collez un bloc moins haut.",
-      "unretainedRows": "Le bloc collé écrirait dans des lignes du plan que la recherche ou le filtre cache : levez la recherche ou le filtre avant de coller, ou collez un bloc moins haut.",
-      "beyondRows": "Le bloc collé s’étendrait au-delà des lignes que la grille montre sous la cellule : collez un bloc moins haut."
+      "unretainedRows": "Le bloc collé écrirait dans des lignes du plan que la recherche ou le filtre cache : levez la recherche ou le filtre avant de coller, ou collez un bloc moins haut."
     },
     "range": {
       "min": "{column}, min.",
