@@ -18,14 +18,14 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from decimal import Decimal
 from typing import TYPE_CHECKING, Any
-from uuid import UUID
+from uuid import UUID, uuid4
 
 import pytest
-from estimate_support import YEAR, Costing, Lines, add_role, costing
+from estimate_support import YEAR, Costing, Lines, add_role, costing, rate_row
 from nodes_support import Tree, faults, mark, opened, refusal
-from projects_support import PROJECTS, Scene
+from projects_support import PROJECTS, Scene, create
 from projects_support import scene as make_scene
-from sqlalchemy import select, update
+from sqlalchemy import insert, select, update
 
 from waterfall.core.cost_settings.interface import (
     CostCategoryDraft,
@@ -33,16 +33,20 @@ from waterfall.core.cost_settings.interface import (
     set_hourly_rate,
 )
 from waterfall.core.cost_settings.tables import CostType
+from waterfall.core.estimate.keeping import reprice_revision
 from waterfall.core.estimate.tables import EstimateLine, RevisionRate
+from waterfall.core.planning.interface import lines_of_revision, structures_of
 from waterfall.core.planning.tables import Node
 from waterfall.core.projects.tables import Project
-from waterfall.core.revisions.tables import Revision
+from waterfall.core.revisions.interface import revision_structures
+from waterfall.core.revisions.tables import CostStructure, Revision
 from waterfall.platform.audit import Act
 from waterfall.platform.database import utc_now
 
 if TYPE_CHECKING:
     from realm import TestRealm
     from sqlalchemy import Engine
+    from sqlalchemy.orm import Session
     from support import ContractClient
 
     from waterfall.platform.database import Database
@@ -212,6 +216,16 @@ def counter(stage: Scene, revision: dict[str, Any]) -> int:
         )
     assert found is not None
     return found
+
+
+def structure_counters(session: Session, revision_id: UUID) -> list[tuple[int, datetime | None]]:
+    """Read the counter and the instant of the dates of the structures of a revision."""
+    rows = session.execute(
+        select(CostStructure.lock_version, CostStructure.scheduled_at)
+        .where(CostStructure.revision_id == revision_id)
+        .order_by(CostStructure.id)
+    ).all()
+    return [(row[0], row[1]) for row in rows]
 
 
 # --- The rates kept at the creation -----------------------------------------------------------
@@ -388,13 +402,12 @@ def test_an_update_at_a_stale_counter_or_of_a_category_not_proposed_writes_nothi
 
 
 @pytest.mark.requirement("WF-REV-0060-A")
-def test_an_update_is_refused_on_a_marked_revision_without_proposal_or_during_a_task(
+def test_an_update_is_refused_on_a_marked_revision_or_without_a_category_proposed(
     api: ContractClient, stage: Scene, offer: Offer
 ) -> None:
     # The conditions of ``apply_rate_update``, in the order of the contract (#1351): a marked
     # revision keeps its rates (``revision_draft``), a proposal without a category refuses
-    # (``rate_update_available``), a background task writing in the revision too
-    # (``no_background_task_running``); nothing is written.
+    # (``rate_update_available``); nothing is written.
     marked = read(api, stage, offer.revision)
     assert missing(marked) == ["revision_draft"]
     assert refusal(apply(api, stage, marked, offer.engineering)) == (
@@ -431,6 +444,56 @@ def test_an_update_is_refused_while_the_revision_is_being_marked(
         {"missing_condition": "no_background_task_running"},
     )
     assert kept(stage, revision)[offer.engineering] == (Decimal("66.95"), "projected")
+
+
+@pytest.mark.requirement("WF-REV-0060-A")
+def test_a_rate_projected_of_a_category_no_line_employs_offers_no_update(
+    api: ContractClient, stage: Scene, offer: Offer
+) -> None:
+    # The command and the proposal ask the same question (#1351): a rate projected that no line of
+    # the revision employs, of a category without a label, presents nothing and offers nothing.
+    revision = open_next(api, stage)
+    with stage.owner.begin() as connection:
+        connection.execute(
+            insert(RevisionRate).values(
+                **rate_row(
+                    UUID(stage.project["project_id"]),
+                    UUID(revision["revision_id"]),
+                    uuid4(),
+                    origin="projected",
+                )
+            )
+        )
+    assert proposal(api, stage, revision)["categories"] == []
+    assert missing(read(api, stage, revision)) == ["rate_update_available"]
+    del offer
+
+
+@pytest.mark.requirement("WF-REV-0060-A")
+def test_only_the_structures_that_hold_a_line_priced_again_are_replayed(
+    api: ContractClient, stage: Scene, offer: Offer, next_year: datetime
+) -> None:
+    # A structure replayed has its counter and its instant moved: the update replays those that
+    # hold a line of a category accepted, not the others of the revision. A revision holds one
+    # structure for now (EP-08 adds the differentials), so the choice is asked of the planning on
+    # the nodes of two revisions, then the replay on a category no line employs.
+    first, second = (UUID(each["revision_id"]) for each in (offer.revision, open_next(api, stage)))
+    with stage.database.transaction() as session:
+        project_id = UUID(stage.project["project_id"])
+        nodes = {
+            revision: list(lines_of_revision(session, project_id, revision).values())[:1]
+            for revision in (first, second)
+        }
+        assert structures_of(session, project_id, []) == ()
+        for revision, held in nodes.items():
+            assert structures_of(session, project_id, held) == revision_structures(
+                session, project_id, revision
+            )
+        before = structure_counters(session, second)
+        reprice_revision(session, (project_id, second), next_year, {uuid4()})
+        assert structure_counters(session, second) == before
+        reprice_revision(session, (project_id, second), next_year, {offer.engineering})
+        assert structure_counters(session, second) != before
 
 
 # --- Two updates at once -------------------------------------------------------------------------
@@ -476,3 +539,30 @@ def test_an_update_of_the_rates_waits_for_the_lock_of_its_revision(
     answer = waiting.result(timeout=30)
     assert answer.status_code == 200, answer.text
     assert amounts(stage, revision)[offer.engineering][0] == Decimal("700.00")
+
+
+# --- A revision unknown, or of another project --------------------------------------------------
+
+
+@pytest.mark.requirement("WF-REV-0060-A")
+def test_the_proposal_and_the_update_of_an_unknown_revision_or_of_another_project_are_not_found(
+    api: ContractClient, stage: Scene, offer: Offer, next_year: datetime
+) -> None:
+    # The revision is looked for in the project of the path (404, never a revision of another):
+    # an identifier no revision bears, and a revision of the project of the stage named under
+    # another project of the same manager; the reading and the update alike, nothing written.
+    del next_year
+    revision = open_next(api, stage)
+    other = create(api, stage.manager, label="Autre projet")["project_id"]
+    before = (kept(stage, revision), counter(stage, revision))
+    paths = [
+        f"{base(stage)}/{uuid4()}/rate-update",
+        f"{PROJECTS}/{other}/revisions/{revision['revision_id']}/rate-update",
+    ]
+    body = {"cost_category_ids": [str(offer.engineering)], "lock_version": revision["lock_version"]}
+    for path in paths:
+        read_it = api.get(path, headers=stage.manager.headers)
+        assert (read_it.status_code, read_it.json()["code"]) == (404, "NOT_FOUND")
+        sent = api.post(path, headers=stage.manager.headers, json=body)
+        assert (sent.status_code, sent.json()["code"]) == (404, "NOT_FOUND")
+    assert (kept(stage, revision), counter(stage, revision)) == before

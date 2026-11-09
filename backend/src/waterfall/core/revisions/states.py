@@ -42,12 +42,14 @@ def revision_state(session: Session, project_id: UUID, revision_id: UUID) -> Rev
         raise NotFoundError(NOT_FOUND)
     idle = no_background_task_running(session, project_id)
     correctable = reference_correctable(session, project_id)
-    return state_of(session, revision_id, status, no_task_running=idle, correctable=correctable)
+    return state_of(
+        session, (project_id, revision_id), status, no_task_running=idle, correctable=correctable
+    )
 
 
 def state_of(
     session: Session,
-    revision_id: UUID,
+    revision: tuple[UUID, UUID],
     status: str,
     *,
     no_task_running: bool,
@@ -56,13 +58,15 @@ def state_of(
     """Give the state of a revision whose status, and its project's facts, are read.
 
     Whether a task writes in the project, and whether its reference is still correctable, are the
-    project's, read once for all its revisions.
+    project's, read once for all its revisions. ``revision`` is its project and itself.
     """
+    project_id, revision_id = revision
     return RevisionState(
         marked=status == "marked",
         no_task_running=no_task_running,
         has_tasks_and_lines=revision_has_tasks_and_lines(session, revision_id),
         reference_correctable=correctable,
         has_tasks=revision_has_tasks(session, revision_id),
-        rate_update_available=status == "draft" and rate_update_available(session, revision_id),
+        rate_update_available=status == "draft"
+        and rate_update_available(session, project_id, revision_id),
     )

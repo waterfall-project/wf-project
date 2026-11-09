@@ -285,7 +285,11 @@ def _views(
                     kind,
                     project.state,
                     state_of(
-                        session, row.id, row.status, no_task_running=idle, correctable=correctable
+                        session,
+                        (project_id, row.id),
+                        row.status,
+                        no_task_running=idle,
+                        correctable=correctable,
                     ),
                 )
             ),

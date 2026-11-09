@@ -34,13 +34,12 @@ from waterfall.core.cost_settings.interface import category_labels
 from waterfall.core.estimate.costing import held_rates, reference_rates
 from waterfall.core.estimate.pricing import CENT, inflation_factor
 from waterfall.core.estimate.tables import EstimateLine, RevisionRate
-from waterfall.core.planning.interface import Holding, lines_of_revision, reschedule
+from waterfall.core.planning.interface import Holding, lines_of_revision, reschedule, structures_of
 from waterfall.core.projects.interface import project_facts
 from waterfall.core.revisions.interface import (
     RatesToUpdate,
     reference_year_of,
     revision_rating,
-    revision_structures,
     update_rates,
 )
 from waterfall.platform.errors import FieldError, UnprocessableError
@@ -61,7 +60,6 @@ PROJECTED = "projected"
 REFERENCE_RATE = "reference_rate"
 INFLATED_PREVIOUS = "inflated_previous"
 VALIDATION_FAILED = "VALIDATION_FAILED"
-VALUE_REQUIRED = "VALUE_REQUIRED"
 UNKNOWN_COST_CATEGORY = "UNKNOWN_COST_CATEGORY"
 # The precision a projection is computed at, before its rounding to the cent.
 PRECISION = 60
@@ -139,6 +137,7 @@ def reprice_revision(
     ``revision`` is its project and itself. Each structure is replayed in the order of its
     identifier, its dates' instant moved on to ``at``, the lines named priced again on the dates of
     their tasks, whether these moved or not (``Holding.repriced``), as a write of the tree does.
+    Only the structures that hold such a line are replayed: another keeps its counter and dates.
     """
     project_id, revision_id = revision
     nodes = list(lines_of_revision(session, project_id, revision_id).values())
@@ -155,7 +154,7 @@ def reprice_revision(
     if not nodes:
         return
     held = Holding(repriced=tuple(nodes))
-    for structure_id in revision_structures(session, project_id, revision_id):
+    for structure_id in structures_of(session, project_id, nodes):
         reschedule(session, project_id, structure_id, at, held)
 
 
@@ -268,23 +267,16 @@ def rate_proposal(session: Session, project_id: UUID, revision_id: UUID) -> Rate
     return proposal_of(session, revision_rating(session, project_id, revision_id))
 
 
-def rate_update_offered(session: Session, revision_id: UUID) -> bool:
-    """Tell whether the proposal of a current revision presents a category (#1351)."""
-    rows = session.execute(
-        select(RevisionRate.project_id, RevisionRate.cost_category_id).where(
-            RevisionRate.revision_id == revision_id, RevisionRate.origin == PROJECTED
-        )
-    ).all()
-    if not rows:
-        return False
-    employed = labour_categories(session, rows[0][0], revision_id)
-    return any(category in employed for _, category in rows)
+def rate_update_offered(session: Session, project_id: UUID, revision_id: UUID) -> bool:
+    """Tell whether the proposal of a current revision presents a category (#1351).
+
+    The question is the proposal's own, so that the command and the proposal never diverge.
+    """
+    return bool(rate_proposal(session, project_id, revision_id).categories)
 
 
 def _faults(sent: tuple[UUID, ...], proposal: RateProposal) -> list[FieldError]:
     """Name the categories sent the proposal does not present, by their rank, and a repeated one."""
-    if not sent:
-        return [FieldError("/cost_category_ids", VALUE_REQUIRED)]
     shown = {each.cost_category_id for each in proposal.categories}
     faults: list[FieldError] = []
     seen: set[UUID] = set()
@@ -303,7 +295,7 @@ def apply_update(session: Session, project_id: UUID, update: RateUpdate, act: Ac
     """Keep the rate proposed for each category accepted, and price again the lines that employ it.
 
     Framed by the revision (``update_rates``): 404, 412, 409 first; then a category the proposal
-    does not present, or none, is refused (422), nothing written.
+    does not present is refused (422), nothing written; the contract asks one at least.
     """
 
     def write(rating: RevisionRating) -> None:

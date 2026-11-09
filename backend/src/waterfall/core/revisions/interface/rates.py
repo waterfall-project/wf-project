@@ -34,7 +34,7 @@ if TYPE_CHECKING:
 
 # Whether the proposal of a revision presents a category: the estimate's, registered at the import
 # of its interface, which this module never imports.
-_PROPOSALS: Registry[Callable[[Session, UUID], bool]] = Registry("revisions.rate_update")
+_PROPOSALS: Registry[Callable[[Session, UUID, UUID], bool]] = Registry("revisions.rate_update")
 
 
 @dataclass(frozen=True, slots=True)
@@ -55,7 +55,7 @@ class RatesToUpdate:
     lock_version: int
 
 
-def register_rate_update(question: Callable[[Session, UUID], bool]) -> Callable[[], None]:
+def register_rate_update(question: Callable[[Session, UUID, UUID], bool]) -> Callable[[], None]:
     """Add the question whether the proposal of a revision presents a category; give its withdrawal.
 
     The estimate registers it (US-1500): without it, no revision has an update to apply.
@@ -63,9 +63,9 @@ def register_rate_update(question: Callable[[Session, UUID], bool]) -> Callable[
     return _PROPOSALS.register(question)
 
 
-def rate_update_available(session: Session, revision_id: UUID) -> bool:
+def rate_update_available(session: Session, project_id: UUID, revision_id: UUID) -> bool:
     """Tell whether the proposal of the rates of a revision presents a category (#1351)."""
-    return any(question(session, revision_id) for question in _PROPOSALS.entries())
+    return any(question(session, project_id, revision_id) for question in _PROPOSALS.entries())
 
 
 def revision_rating(session: Session, project_id: UUID, revision_id: UUID) -> RevisionRating:
@@ -100,7 +100,7 @@ def update_rates(
         no_task_running=no_background_task_running(session, project_id),
         has_tasks_and_lines=False,
         reference_correctable=False,
-        rate_update_available=draft and rate_update_available(session, revision.id),
+        rate_update_available=draft and rate_update_available(session, project_id, revision.id),
     )
     lacking = revision_conditions("apply_rate_update", state)
     if lacking:
