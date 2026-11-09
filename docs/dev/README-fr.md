@@ -147,14 +147,16 @@ l'API, le worker et le chargeur (#2180).
 Une table révisionnée est partitionnée par liste sur `project_id`, une
 partition par projet (WF-DAT-0050), que crée dans la transaction de la création du projet la
 fonction `create_project_partitions` du propriétaire des tables (`SECURITY DEFINER`), que le rôle du
-service seul peut exécuter, sans autre droit de DDL ; chaque EPIC qui ajoute une table révisionnée la
-remplace. Deux déclencheurs du module des révisions refusent, propriétaire compris, ce qu'une
-révision marquée interdit (migration `0020`). Celui d'une table révisionnée verrouille la révision
-de la ligne `FOR KEY SHARE` quel que soit son état, puis la lit, et le marquage verrouille la
-révision `FOR UPDATE` avant de la marquer : un écrivain venu pendant le marquage l'attend, puis se
-voit refusé, et le marquage attend l'écrivain commencé avant lui (#2104). Chaque EPIC qui ajoute
-une table révisionnée lui donne un déclencheur de cette forme. Les verrous se prennent dans un seul
-ordre : la révision, puis son projet, jamais le projet avant la révision.
+service seul peut exécuter, sans autre droit de DDL. Elle lit les tables révisionnées dans le
+catalogue (migration `0026`) : une table qu'un EPIC ajoute, avec sa fonction
+`<table>_refuse_truncate`, y entre sans la remplacer ; elle s'appelle avant toute écriture de la
+transaction ([sql.md](sql.md), « Verrous »). Deux déclencheurs du module des révisions refusent,
+propriétaire compris, ce qu'une révision marquée interdit (migration `0020`). Celui d'une table
+révisionnée verrouille la révision de la ligne `FOR KEY SHARE` quel que soit son état, puis la lit,
+et le marquage verrouille la révision `FOR UPDATE` avant de la marquer : un écrivain venu pendant le
+marquage l'attend, puis se voit refusé, et le marquage attend l'écrivain commencé avant lui (#2104).
+Chaque EPIC qui ajoute une table révisionnée lui donne un déclencheur de cette forme. Les verrous se
+prennent dans un seul ordre : la révision, puis son projet, jamais le projet avant la révision.
 Un module en importe un autre par `waterfall.core.<module>.interface`, jamais par ses
 tables. Le noyau n'importe ni l'API ni le worker, qui ne s'importent pas l'un l'autre.
 
@@ -2049,8 +2051,13 @@ L'écran est branché sur le service (EP-06, US-1430) : la page ne porte plus la
 nul, 404 ensuite, que la route rend par son refus). Le parcours de `exchanges.spec.ts` qui exporte le
 planning d'un projet que la course crée, le télécharge, puis le réimporte sans écart (FLX-01 et FLX-02
 du compte « chef de projet », WF-INTF-0010-A), et ceux de `tasks.spec.ts` qui jouent la route et le
-refus d'un résultat sur l'export qu'elle a fait, portent `@shared` ; le devis, le reste à engager et
-les coûts réels (EP-07, EP-09) et le parcours du marquage restent sur le faux back.
+refus d'un résultat sur l'export qu'elle a fait, portent `@shared`. Le devis s'importe (`kind:
+estimate`) et s'exporte (`kind: estimate`, fichier `…-devis.xlsx`) par le même écran ; son parcours
+`@shared` exporte et télécharge le devis d'un projet que la course crée, et voit refuser à l'analyse
+un fichier qui n'en est pas un (format et version attendus nommés). Le proxy du contrat (Prism)
+altère les octets d'un classeur (#973) : le classeur n'est ni inspecté ni réimporté par ce parcours,
+et l'import en deux temps reste sur le faux back ; le reste à engager et les coûts réels (EP-09) et
+le parcours du marquage restent sur le faux back.
 
 La page d'un projet propose de démarrer son planning par l'encart « Démarrer le projet »
 (`ProjectStart`, `components/projects/project-start.tsx`, US-0490) tant que la structure principale

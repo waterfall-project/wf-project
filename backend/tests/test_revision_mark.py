@@ -439,6 +439,7 @@ def test_while_the_marking_is_pending_the_writes_of_the_revision_name_the_task(
         "abandon": running,
         # An export reads: it lacks no condition during a marking either (WF-CYC-0110).
         "export_planning": [],
+        "export_estimate": [],
         "export_task_tree_image": [],
     }
     again = ask_marking(api, stage, during, version_name="v2.0")

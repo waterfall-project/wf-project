@@ -519,8 +519,13 @@ def _create(session: Session, draft: ProjectDraft, act: Act, project_id: UUID | 
 
     The lock of the reference is shared before the four questions are asked, and held until the
     commit: a write that could empty the reference waits for the project, or is waited for (#2154).
+    The partitions of the project are created right after, before any write of the transaction:
+    their function waits for no lock while it holds one, and the transaction holds none yet that a
+    writer or another creation waits for (#2603, #2667).
     """
     share_reference(session)
+    identifier = new_id() if project_id is None else project_id
+    session.execute(select(func.create_project_partitions(identifier)))
     missing = missing_prerequisites(session)
     if missing:
         raise ConflictError(REFERENCE_INCOMPLETE, {"missing_prerequisites": list(missing)})
@@ -530,7 +535,6 @@ def _create(session: Session, draft: ProjectDraft, act: Act, project_id: UUID | 
         "updated_at": act.at,
         "updated_by": act.author,
     }
-    identifier = new_id() if project_id is None else project_id
     project = Project(
         id=identifier,
         label=draft.label,
@@ -576,7 +580,6 @@ def _create(session: Session, draft: ProjectDraft, act: Act, project_id: UUID | 
         )
     )
     session.flush()
-    session.execute(select(func.create_project_partitions(project.id)))
     _inscribe_creation(session, project, act)
     return project
 

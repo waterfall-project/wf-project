@@ -7,8 +7,9 @@ A revision of a project — at most one current (``draft``) per project, marked 
 partitioned by list on ``project_id``, one partition per project, created with it by the function
 ``create_project_partitions`` of the owner of the tables (migration ``0020``, WF-DAT-0050): its
 key holds the key of the partition, and its row names its revision with its project, so that it
-lives in the partition of its revision's project. Each epic that adds a revised table replaces
-that function in its migration.
+lives in the partition of its revision's project. The function reads the revised tables in the
+catalogue since ``0026``: a table that an epic adds, partitioned by list on ``project_id``, has its
+partitions created without replacing it, given its trigger ``<table>_refuse_truncate``.
 
 What the database itself refuses of a marked revision — going back to ``draft``, any change but
 its designation as reference, its counter and its audit — and of a row of a marked revision —
