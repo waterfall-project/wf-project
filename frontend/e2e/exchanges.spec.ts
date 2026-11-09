@@ -144,12 +144,14 @@ test("the estimate and the remaining to commit lead to the one screen of the imp
   ).toHaveAttribute("href", `/projects/${PROJECT}/revisions/${REVISION}/exchanges`);
 });
 
-test("exports the planning as MS Project XML, downloads it once, and imports it back with no difference, as the project manager of the run @shared [WF-DAT-0120-A]", async ({
+test("exports the planning as MS Project XML, downloads it once, and imports it back with no difference, as the project manager of the run @shared [WF-DAT-0120-A] [WF-INTF-0010-A]", async ({
   page,
   browser,
   request,
   manager,
 }) => {
+  // WF-INTF-0010-A (FLX-01): the account of the run, holding « Chef de projet » beside « Manager », exports
+  // the planning and imports the MS Project file back, to the report, on a project it created.
   // The project manager account reaches the exchange screen; an export downloaded to the end is no
   // longer available (WF-DAT-0120-A); the report of the analysis of the planning imported back shows no
   // difference of dates or durations. The full round trip is proved by the back's `test_msproject_export.py`.
