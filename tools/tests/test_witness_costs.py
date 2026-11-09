@@ -285,3 +285,18 @@ def test_no_address_and_only_the_fictitious_suppliers_of_the_witness() -> None:
     suppliers = {value for line in _lines() for value in line["passthrough"].values()}
     described = {value for line in mockcosts.lines() for value in (line.supplier, line.text)}
     assert suppliers <= described
+
+
+def test_no_real_text_in_the_whole_file_the_filenames_and_the_reports_included() -> None:
+    # The same promise for every string of the file: the filenames are those of the exchanges
+    # of the witness, the labels of the reports are documents of the witness, and no string is
+    # an address or a link.
+    exchanges = {item["filename"] for item in _read("imports.json")["items"]}
+    documents = {line.document for line in mockcosts.lines()}
+    for entry in _imports():
+        assert entry["filename"] in exchanges
+        for difference in entry["report"].get("differences", []):
+            assert difference["label"] in documents, difference["label"]
+    text = FILE.read_text(encoding="utf-8")
+    assert "@" not in text
+    assert "://" not in text
