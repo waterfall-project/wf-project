@@ -13,16 +13,18 @@ reads the header, analyses and applies a workbook from US-1550/L3: the header is
 file — a workbook is a zip, whose header no head of bytes holds; the opening holds it in memory
 whole, 10 MiB at most (``HEADER_LENGTH``) —, by the reader of US-1550/L2
 (``excel/reader.py``), the analysis is ``importing``'s, the application ``applying``'s. The export
-raises ``NotImplementedError`` naming the story that fills it. ``sheet_name`` is written by
-US-1550/L1 (``excel/names.py``), as the workbook (``excel/writer.py``).
+is filled by US-1550/L4: ``exporting`` reads the estimate of the structure of the order, the writer
+of US-1550/L1 (``excel/writer.py``) turns it into the workbook. ``sheet_name`` is written by
+US-1550/L1 (``excel/names.py``).
 """
 
 from typing import TYPE_CHECKING, Any
 
-from waterfall.core.estimate import applying, importing
+from waterfall.core.estimate import applying, exporting, importing
 from waterfall.core.estimate.excel.names import sheet_name as named_sheet
 from waterfall.core.estimate.excel.reader import check_header, read_workbook
-from waterfall.core.exchanges.interface import LARGEST_FILE
+from waterfall.core.estimate.excel.writer import write_workbook
+from waterfall.core.exchanges.interface import LARGEST_FILE, ExportedFile
 from waterfall.core.projects.interface import project_facts
 from waterfall.core.revisions.interface import structure_facts
 from waterfall.platform.errors import ConflictError
@@ -33,7 +35,6 @@ if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
     from waterfall.core.exchanges.interface import (
-        ExportedFile,
         ExportOrder,
         ImportScope,
         ImportTarget,
@@ -49,6 +50,7 @@ HEADER_LENGTH = LARGEST_FILE
 BEFORE_IN_PROGRESS = ("created", "pricing")
 PROJECT_BEFORE_IN_PROGRESS = "project_before_in_progress"
 STATE_FORBIDS_OPERATION = "STATE_FORBIDS_OPERATION"
+MEDIA_TYPE = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 
 
 class EstimateFormat:
@@ -108,9 +110,13 @@ class EstimateExporter:
     """The exporter of the workbook of an estimate, as the exchanges ask it (``Exporter``)."""
 
     def export(self, session: Session, order: ExportOrder) -> ExportedFile:
-        """Write the estimate of a structure in a workbook."""
-        msg = "export is filled by US-1550"
-        raise NotImplementedError(msg)
+        """Write the estimate of a structure in a workbook, reading it in the task's transaction.
+
+        The estimate of a current revision is the reference's; a marked one's is read on its images
+        (``exporting``). The file is named after the project and the version of the revision.
+        """
+        estimate, name = exporting.estimate_of(session, order)
+        return ExportedFile(write_workbook(estimate), MEDIA_TYPE, name)
 
 
 def sheet_name(label: str, taken: Iterable[str] = ()) -> str:

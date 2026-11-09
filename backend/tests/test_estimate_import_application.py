@@ -12,7 +12,7 @@ and its analysis are ``test_estimate_import``'s.
 from datetime import UTC, date, datetime
 from decimal import Decimal
 from typing import TYPE_CHECKING, Any
-from uuid import UUID
+from uuid import UUID, uuid4
 
 import pytest
 from estimate_import_support import (
@@ -46,10 +46,15 @@ from support import ContractClient
 
 from waterfall.api.app import create_app
 from waterfall.api.authentication import Services
+from waterfall.core.estimate.entries import LineEntry
 from waterfall.core.estimate.interface.excel import EstimateFormat
 from waterfall.core.estimate.tables import RevisionRate
+from waterfall.core.planning.interface import LinesWrite, Place, Writer, write_lines
 from waterfall.core.projects.tables import Project
 from waterfall.core.resource_settings.tables import ResourceRole
+from waterfall.platform.audit import Act
+from waterfall.platform.database import utc_now
+from waterfall.platform.errors import ConflictError, NotFoundError, UnprocessableError
 from waterfall.platform.keycloak_admin import KeycloakAdmin
 
 if TYPE_CHECKING:
@@ -561,3 +566,98 @@ def test_a_line_rejected_for_the_hours_of_its_task_keeps_its_role_which_rejects_
     run(worker)
     assert stored(stage.database, import_id).status == "applied"
     assert estimate_lines(tree.items()) == before
+
+
+@pytest.mark.requirement("WF-INTF-0080-A")
+@pytest.mark.parametrize("completed", ["second", "first"], ids=["arrival", "origin"])
+def test_a_line_moved_to_or_from_a_task_completed_since_the_analysis_fails_the_application(
+    api: ContractClient,
+    stage: Scene,
+    worker: Worker,
+    held: dict[str, Any],
+    completed: str,
+) -> None:
+    # « Si l'import est interrompu pendant son application, le projet revient à son état
+    # antérieur. » : the report moves the labour line from the first task to the second, a move the
+    # structure accepted; the task it comes from, or the one it goes to, is completed before the
+    # application (#1767): the import fails, and nothing of the file is written (#2640).
+    tree = held["tree"]
+    moving = as_exported(held, {"Heures": 12})
+    moving[0][0] = "2 Essais"
+    import_id = analysed_import(api, stage, worker, workbook(moving, held["tasks"]))
+    report = read(api, stage, import_id)["report"]
+    assert report["rejected"] == []
+    assert [(each["change"], each["fields"]) for each in report["differences"]] == [
+        ("updated", ["hours", "parent"])
+    ]
+    set_progress(stage, held[completed]["node_id"], "completed", date(2026, 1, 5))
+    before = (nodes(stage.database), tree.items())
+    assert apply(api, stage, import_id).status_code == 202
+    run(worker)
+    assert stored(stage.database, import_id).status == "failed"
+    assert (nodes(stage.database), tree.items()) == before
+
+
+def written_directly(stage: Scene, tree: Tree, lines: LinesWrite) -> None:
+    """Write lines by the interface of the planning, as the application of an import does."""
+    place = Place(
+        UUID(stage.project["project_id"]),
+        UUID(tree.revision["revision_id"]),
+        UUID(tree.structure_id),
+    )
+    with stage.database.transaction() as session:
+        write_lines(session, place, lines, Writer(Act(None, utc_now()), None))
+
+
+@pytest.mark.requirement("WF-INTF-0080-A")
+@pytest.mark.parametrize("completed", ["second", "first"], ids=["arrival", "origin"])
+def test_the_write_of_the_lines_refuses_a_task_completed_it_moves_to_or_from_and_writes_nothing(
+    stage: Scene, tree: Tree, held: dict[str, Any], completed: str
+) -> None:
+    # « task_not_completed » (#1767), judged by the write itself under the lock of the structure,
+    # whatever the caller judged: a line moved under a completed task of the main structure, or
+    # out of one, is refused (409), and the transaction leaves the structure as it was (#2640).
+    set_progress(stage, held[completed]["node_id"], "completed", date(2026, 1, 5))
+    before = (nodes(stage.database), tree.items())
+    task, line = UUID(held["second"]["node_id"]), UUID(held["labour"]["node_id"])
+    with pytest.raises(ConflictError) as raised:
+        written_directly(stage, tree, LinesWrite({task: (line,)}, {}, ()))
+    assert (raised.value.status, raised.value.code) == (409, STATE)
+    assert raised.value.params == {"missing_condition": "task_not_completed"}
+    assert (nodes(stage.database), tree.items()) == before
+
+
+@pytest.mark.requirement("WF-INTF-0080-A")
+def test_the_write_of_the_lines_refuses_a_line_created_under_a_task_completed(
+    stage: Scene, tree: Tree, held: dict[str, Any]
+) -> None:
+    # The same refusal for a line created: under a completed task of the main structure (#1767).
+    set_progress(stage, held["second"]["node_id"], "completed", date(2026, 1, 5))
+    before = (nodes(stage.database), tree.items())
+    created = LinesWrite({}, {}, ((UUID(held["second"]["node_id"]), LineEntry(label="Ajout")),))
+    with pytest.raises(ConflictError) as raised:
+        written_directly(stage, tree, created)
+    assert (raised.value.status, raised.value.code) == (409, STATE)
+    assert raised.value.params == {"missing_condition": "task_not_completed"}
+    assert (nodes(stage.database), tree.items()) == before
+
+
+@pytest.mark.requirement("WF-INTF-0080-A")
+def test_the_write_of_the_lines_refuses_an_unknown_task_and_an_unknown_line_writing_nothing(
+    stage: Scene, tree: Tree, held: dict[str, Any]
+) -> None:
+    # A task the structure does not hold is refused (422 ``VALIDATION_FAILED`` on ``/parent_id``,
+    # ``UNKNOWN_TASK``), a line it does not hold is not found (404): nothing is written (#2640).
+    before = (nodes(stage.database), tree.items())
+    labour = UUID(held["labour"]["node_id"])
+    with pytest.raises(UnprocessableError) as raised:
+        written_directly(stage, tree, LinesWrite({uuid4(): (labour,)}, {}, ()))
+    assert (raised.value.status, raised.value.code) == (422, "VALIDATION_FAILED")
+    assert [(each.pointer, each.code) for each in raised.value.fields] == [
+        ("/parent_id", "UNKNOWN_TASK")
+    ]
+    lost = LinesWrite({UUID(held["second"]["node_id"]): (uuid4(),)}, {}, ())
+    with pytest.raises(NotFoundError) as missing:
+        written_directly(stage, tree, lost)
+    assert (missing.value.status, missing.value.code) == (404, "NOT_FOUND")
+    assert (nodes(stage.database), tree.items()) == before

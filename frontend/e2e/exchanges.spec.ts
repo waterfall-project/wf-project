@@ -10,9 +10,12 @@ import { inService, test } from "./mode";
 import { seedPlanning } from "./planning-seed";
 import { API } from "./service/realm";
 
-// The last path below is the service's, tagged `@shared` (US-1430): the export of the planning in MS
-// Project XML, downloaded once, and imported back, on a project the run creates. The others keep to the
-// fake back, which is the only one to serve the estimate and its examples.
+// The last two paths below are the service's, tagged `@shared`: the export of the planning in MS
+// Project XML, downloaded once, and imported back (US-1430), and the estimate exported in Excel and
+// downloaded, then a file that is no estimate refused at the analysis (US-1550), on a project the
+// run creates. The import of an estimate in two steps stays on the fake back above: the proxy of
+// the contract (Prism) spoils the bytes of a workbook (#973, #2687). The others keep to the fake
+// back, which serves the examples of the operations without keeping any state.
 //
 // The fake back serves the first example of each operation: the file deposited, its import
 // opened, its analysis under way; the report the address then names, the estimate analysed this
@@ -234,4 +237,69 @@ test("exports the planning as MS Project XML, downloads it once, and imports it 
   await expect(
     report.getByRole("table", { name: "Tâches datées autrement par le fichier" }),
   ).toHaveCount(0);
+});
+
+test("exports the estimate as an Excel file, downloads it, and sees a file that is no estimate refused at the analysis with the format and version expected, as the project manager of the run @shared [WF-INTF-0070-A] [WF-INTF-0110-A]", async ({
+  page,
+  browser,
+  request,
+  manager,
+}) => {
+  // WF-INTF-0110-A: the export of the estimate is a task of the shell, its file named after the
+  // revision; this test carries only that name of 0110-A. The project holds no line of estimate:
+  // the export is of an empty estimate. The proxy of the contract (Prism) reads every body as
+  // text and spoils the bytes of a workbook (#973), so the file is neither inspected nor imported
+  // back here: the round trip, the report and the application are proved by the back
+  // (`backend/tests/test_estimate_export.py`).
+  test.skip(
+    !inService,
+    "the service keeps the file made and the import applied, the fake back not",
+  );
+  test.slow();
+  const seeded = await seedPlanning(page, browser, request, manager, "Devis");
+  await openHydrated(page, `${seeded.revision}/exchanges`);
+
+  // The export of the estimate: chosen in the list of the files, followed in the shell.
+  const exports = page.getByRole("region", { name: "Demander un export" });
+  const kinds = exports.getByRole("combobox", { name: "Fichier à exporter" });
+  await expect(kinds.getByRole("option", { name: "Devis" })).toHaveCount(1, { timeout: WORKING });
+  await kinds.selectOption({ label: "Devis" });
+  await exports.getByRole("button", { name: "Demander l’export" }).click();
+  await page.getByRole("button", { name: /^Tâches et messages\s:/ }).click();
+  const panel = page.getByRole("dialog", { name: "Tâches et messages" });
+  const link = panel
+    .getByRole("region", { name: "Tâches de fond" })
+    .getByRole("link", { name: /^Télécharger le résultat/ });
+  await expect(link).toBeVisible({ timeout: WORKING });
+  const [download] = await Promise.all([page.waitForEvent("download"), link.click()]);
+  expect(download.suggestedFilename()).toMatch(/-devis\.xlsx$/);
+  expect((await readFile(await download.path())).length).toBeGreaterThan(0);
+  await page.keyboard.press("Escape");
+  await expect(panel).toHaveCount(0);
+
+  // A file that is no estimate is refused at the analysis, under the form, with the format and the
+  // version the service expects (WF-INTF-0070-A); the project is untouched, the screen as it was.
+  const imports = page.getByRole("region", { name: "Importer un fichier" });
+  await imports.getByRole("button", { name: "Importer un devis" }).click();
+  const form = imports.getByRole("form", { name: "Importer un devis" });
+  await form.getByLabel("Fichier à importer").setInputFiles({
+    name: "pas-un-devis.xlsx",
+    mimeType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    buffer: Buffer.from("pas un classeur"),
+  });
+  await form.getByRole("button", { name: "Analyser le fichier" }).click();
+  await expect(form.getByRole("alert")).toHaveText(
+    "Le format du fichier est illisible. Format attendu : Devis. Version attendue : 1.",
+    { timeout: WORKING },
+  );
+  await expect(page).not.toHaveURL(/[?&]import=/);
+  // The project is unchanged: the form stays open, no report is shown, and the service holds no
+  // import for the project.
+  await expect(form).toBeVisible();
+  await expect(page.getByRole("region", { name: /^Compte rendu/ })).toHaveCount(0);
+  const listed = await request.get(`${API}/projects/${seeded.ids.project}/imports`, {
+    headers: seeded.headers,
+  });
+  expect(listed.status(), "GET imports").toBe(200);
+  expect(((await listed.json()) as { items: unknown[] }).items).toEqual([]);
 });
