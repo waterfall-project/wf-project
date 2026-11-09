@@ -164,9 +164,10 @@ def lifted_kind_check(owner: Engine) -> Generator[None]:
     """Lift the check on the kind of a structure, as the owner, and restore it whatever happens.
 
     No differential is written before EP-08, and the kind is checked: a test that needs one lifts
-    the check and removes the rows it wrote in the body's own ``finally``. The check is restored
-    in an outer ``finally`` and a transaction of its own, so that a deletion that fails cannot
-    leave it off for the rest of the session.
+    the check and removes the rows it wrote in the body's own ``finally``. The check comes back
+    ``NOT VALID`` in a ``finally`` and a transaction of its own, which no row left can refuse: it
+    holds for every row written after, and the error of the body comes up as it was. Only a body
+    that ends well has the rows it left validated, so that one it forgot fails the test.
     """
     predicate = _kind_predicate()
     with owner.begin() as connection:
@@ -176,8 +177,13 @@ def lifted_kind_check(owner: Engine) -> Generator[None]:
     finally:
         with owner.begin() as connection:
             connection.execute(
-                text(f"ALTER TABLE cost_structure ADD CONSTRAINT {KIND_CHECK} CHECK ({predicate})")
+                text(
+                    f"ALTER TABLE cost_structure ADD CONSTRAINT {KIND_CHECK} "
+                    f"CHECK ({predicate}) NOT VALID"
+                )
             )
+    with owner.begin() as connection:
+        connection.execute(text(f"ALTER TABLE cost_structure VALIDATE CONSTRAINT {KIND_CHECK}"))
 
 
 @contextmanager

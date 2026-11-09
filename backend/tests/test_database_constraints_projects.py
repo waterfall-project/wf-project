@@ -352,23 +352,25 @@ def test_the_database_refuses_a_second_main_structure_in_a_revision(
     assert parent == MAIN
 
 
-@pytest.mark.requirement("WF-DAT-0090-A")
 def test_the_check_on_the_kind_of_a_structure_is_restored_when_the_body_that_lifted_it_fails(
     database: Database, owner: Engine, parents: Parents
 ) -> None:
+    # A test of the tool that lifts the check, which covers no requirement. The body leaves its
+    # structure in place and fails: the check is back all the same, and the error is the body's.
     kind = "ck_cost_structure_kind_known"
-    differential = insert_structure(parents.project, parents.revision, kind="amendment")
 
     def fail_in_the_body() -> None:
         with lifted_kind_check(owner):
             with owner.begin() as connection:
-                connection.execute(differential)
-                connection.execute(delete(CostStructure).where(CostStructure.kind == "amendment"))
+                connection.execute(
+                    insert_structure(parents.project, parents.revision, kind="amendment")
+                )
             message = "forced"
             raise RuntimeError(message)
 
     with pytest.raises(RuntimeError, match="forced"):
         fail_in_the_body()
+    differential = insert_structure(parents.project, parents.revision, kind="amendment")
     assert refusal(database.engine, differential) == kind
 
 
