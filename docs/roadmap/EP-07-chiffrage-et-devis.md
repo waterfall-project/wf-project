@@ -351,6 +351,38 @@ Décision de l'utilisateur du 2026-11-08, sur la question d'US-1490/L1 (#2370) :
   sans trois registres de plus pour rien ; attendre la fusion des lots d'EP-06 concernés, qui
   retardait le pivot d'EP-09.
 
+Décisions de l'utilisateur du 2026-11-09, sur les constats d'US-1540 (#2366), d'US-1550/L3
+(#2380) et d'US-1560/L1 (#2382) :
+
+- **Les conditions restantes sont celles du passage au prochain état (#2634, option B).**
+  WF-CYC-0050-A dit « le prochain état, son fait déclencheur et […] les conditions qui restent à
+  satisfaire » : sous Créé, le prochain état est Chiffrage, déclenché par `first_revision_created`
+  sans autre condition, et `missing_conditions` reste vide, comme l'exemple
+  `next_state_created` ; `revision_has_tasks_and_lines` n'est nommée qu'en Chiffrage, avec
+  `project_code_set` et `reference_revision_designated`. US-1540 retouche le back en ce sens ; la
+  description de `CommandCondition` cite `revision_has_tasks_and_lines` parmi les conditions du
+  passage à En cours. Écarté : l'option A, la condition nommée aussi sous Créé, qui ne nommait
+  qu'une des trois conditions d'En cours, et une condition que l'utilisateur ne peut lever avant
+  d'avoir une révision. Montrer dès Créé tout le chemin jusqu'à En cours demanderait un autre
+  champ du contrat.
+- **Une composition `anyOf` ambiguë se corrige au contrat, non dans l'outil (#2635).**
+  `ProblemParams.tasks` (rapport d'import) et `PasteRejection.params.tasks` (collage, relevé par
+  US-1560/L1) sont des `anyOf` qu'une même valeur satisfait par deux branches : le contrat les
+  rend discriminables, puis `ContractClient` (`backend/tests/support.py`) les valide et les tests
+  du rapport d'import et du collage lisent la réponse par lui au lieu de la base. Un lot
+  technique dédié, contrat puis outil, après la fusion d'US-1550/L3 et d'US-1560/L1, qu'il ne
+  retarde pas. Écarté : un `ContractClient` qui admet plusieurs branches valides, qui affaiblissait
+  la validation de tous les tests pour masquer un défaut que tout client du contrat subit.
+- **L'application d'un devis importé se mesure avant de s'optimiser (#2637).** US-1550/L4 (#2381)
+  mesure l'application du devis de PRJ-001 dans la tâche de fond `import_apply` ; si la durée
+  dépasse ce qu'une tâche de fond admet, l'écriture groupée dans `core/planning` (un rejeu de la
+  structure à la fin, partagé avec la saisie et le collage) devient un lot à part. Écarté :
+  l'optimiser dans US-1550/L3, qui touchait sans mesure le cœur de la saisie.
+- **`import_estimate` suit le contrat (C-358).** La commande reste disponible En cours, un
+  différentiel s'important encore ; `openImport` et `applyImport` refusent l'import sur la
+  structure principale par 409 `project_before_in_progress`. Le critère d'US-1550 qui la disait
+  « indisponible dès En cours » est corrigé.
+
 ### Tables et migrations
 
 Régime « révisionné » (§4.4.1), partitionnées par projet comme `node`, pour `estimate_line` et les
@@ -1281,8 +1313,10 @@ l'exécution avec l'équipe que le chiffrage appelle.
   désignation. » : les deux ordres, contre le service, avec une référence qui porte des lignes ;
 - `WF-CYC-0050-A` — « Pour un projet dans chacun des états Créé et Chiffrage, l’utilisateur
   consulte le prochain état, son déclencheur et les conditions restantes, sans avoir tenté
-  d’action. » : `getProjectNextState` d'EP-04 nomme `revision_has_tasks_and_lines` parmi les
-  conditions restantes tant qu'aucune révision marquée ne porte de ligne ;
+  d’action. » : en Chiffrage, `getProjectNextState` d'EP-04 nomme `revision_has_tasks_and_lines`
+  parmi les conditions restantes tant qu'aucune révision marquée ne porte de ligne ; en Créé, il
+  ne nomme que le déclencheur `first_revision_created`, sans condition, celles d'En cours n'étant
+  pas celles du passage à Chiffrage (décision du 2026-11-09, #2634) ;
 - `WF-PRJ-0010-A` — « Un projet se crée et se chiffre sans code projet. » : des lignes se créent
   sur un projet sans code ;
 - `WF-PRJ-0010-A` — « Le projet ne passe pas à En cours tant qu’il n’est pas renseigné, et la
@@ -1379,8 +1413,10 @@ connaissent et de revenir sans écart.
   (`kept`, `provision_lines`) est d'EP-08, qui clôt ;
 - écart : `WF-INTF-0100-A` — « Sur un projet En cours, l’import d’un devis sur la structure
   principale est refusé et nomme la condition ; sur une structure différentielle, il aboutit. » :
-  le refus, ici — `ProjectCommand.import_estimate` indisponible dès En cours,
-  `project_before_in_progress`, et `openImport` refusé par 409 — ; la structure différentielle est
+  le refus, ici — `ProjectCommand.import_estimate` reste disponible En cours, un différentiel
+  s'important encore, et `openImport` comme `applyImport` refusent par 409
+  `project_before_in_progress` l'import sur la structure principale (C-358 ; décision du
+  2026-11-09) — ; la structure différentielle est
   d'EP-08, qui clôt ;
 - `WF-INTF-0110-A` — « On exporte un devis, puis on le réimporte sans modification dans la révision
   en cours. »
@@ -1500,7 +1536,8 @@ connaissent et de revenir sans écart.
   supprime les lignes absentes du fichier sauf sous une tâche démarrée ou terminée (`kept`),
   rejette une ligne nouvelle sous une tâche terminée de la structure principale
   (`task_not_completed`, #1767) et présente ses écarts (`differences`) ; `ProjectCommand.import_estimate`
-  sous `estimate.write`, indisponible dès En cours ; l'import appliqué n'entre pas dans l'historique
+  sous `estimate.write`, disponible En cours, le refus de la structure principale étant celui
+  d'`openImport` et d'`applyImport` (C-358) ; l'import appliqué n'entre pas dans l'historique
   annulable ;
 - propre à l'US : l'écran des échanges, branché par EP-06, importe et exporte un devis contre le
   service, et le parcours de l'import en deux temps d'`exchanges.spec.ts` porte `@shared`, joué sur
