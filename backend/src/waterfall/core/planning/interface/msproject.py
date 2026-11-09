@@ -8,9 +8,9 @@ applies its report (US-1430/L3), the exporter writes the planning of a structure
 through the reader and the writer of ``core/planning/msproject/`` (US-1430/L1) and the hardened
 parser of the exchanges (EP-06, "Le format MS Project").
 
-Declared by US-1380/L1; the exporter still raises ``NotImplementedError`` naming the story that
-fills it (US-1430/L4), so that an export of a planning before it fails, and never passes without
-effect.
+Declared by US-1380/L1; the exporter is filled by US-1430/L4: it reads the structure of the order
+(``exporting``), the writer turns it into the file, an XML named after the project
+(``ms-project-<code>.xml``) that the worker deposits under ``exports/<task_id>.xml``.
 
 The format is filled by US-1430/L3. The head of a file is recognised by its root, a ``Project`` of
 the namespace of MS Project, after the declaration, the comments and the instructions; anything
@@ -20,11 +20,19 @@ The analysis and the application build the same plan (``importing``), the applic
 lock of the structure, which the task of the exchanges takes after the revision and the project.
 """
 
+import re
 from typing import TYPE_CHECKING, Any
 
 # By their modules: their own imports reach this interface again, through the facets of a task.
-from waterfall.core.planning import applying, importing
-from waterfall.core.planning.msproject import UnreadableProjectError, read_project, recognised
+from waterfall.core.exchanges.interface import ExportedFile
+from waterfall.core.planning import applying, exporting, importing
+from waterfall.core.planning.msproject import (
+    UnreadableProjectError,
+    read_project,
+    recognised,
+    write_project,
+)
+from waterfall.core.projects.interface import project_code
 from waterfall.platform.errors import UnprocessableError
 
 if TYPE_CHECKING:
@@ -33,7 +41,6 @@ if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
     from waterfall.core.exchanges.interface import (
-        ExportedFile,
         ExportOrder,
         ImportScope,
         ImportTarget,
@@ -45,6 +52,8 @@ if TYPE_CHECKING:
 HEADER_LENGTH = 4096
 FILE_FORMAT_UNREADABLE = "FILE_FORMAT_UNREADABLE"
 KIND = "ms_project_schedule"
+MEDIA_TYPE = "application/xml"
+_NOT_IN_A_NAME = re.compile(r"[^A-Za-z0-9._-]+")
 
 
 def _unreadable() -> UnprocessableError:
@@ -108,9 +117,11 @@ class MsProjectExporter:
     """The exporter of a planning in MSPDI, as the exchanges ask it (``Exporter``)."""
 
     def export(self, session: Session, order: ExportOrder) -> ExportedFile:
-        """Write the planning of a structure in MSPDI."""
-        msg = "export is filled by US-1430/L4"
-        raise NotImplementedError(msg)
+        """Write the planning of a structure in MSPDI, reading it in the transaction of the task."""
+        project = exporting.project_of(session, order.project_id, order.structure_id)
+        code = _NOT_IN_A_NAME.sub("_", project_code(session, order.project_id) or "")
+        name = f"ms-project-{code}.xml" if code.strip("_") else "ms-project.xml"
+        return ExportedFile(write_project(project), MEDIA_TYPE, name)
 
 
 MS_PROJECT_FORMAT = MsProjectFormat()
