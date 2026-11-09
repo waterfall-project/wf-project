@@ -4,16 +4,17 @@
 
 A line of estimate is a node of the structure, under the task that bears it (EP-06, "Ce que le
 cadrage décide"): the planning owns ``node``, and gives the estimate the lines of tasks
-(``lines_of``), the lineages of lines (``lineages_of``, ``lines_of_revision``), the structures that
-hold nodes (``structures_of``) and whether a revision bears one (``revision_bears``). It places a
-line it creates (``create_line_node``, from
-``createNode``): under a task of the structure, a milestone included (``UNKNOWN_TASK`` otherwise,
-WF-PLA-0050), among its lines before its subtasks, after ``after_node_id`` or after the last line —
-after the last line too when the sibling named is a subtask (#1187) —; then the facet of its kind
-writes its own (``FacetHooks.create``). A write of the facet of a line (``write_facet``,
-``updateEstimateLine``) is framed as any write of the tree: its revision judged, its entry of the
-history opened, its structure locked and read, the line at the counter read (412); the facet
-writes, the node is counted, the structure redated and its lines priced again (``writing``).
+(``lines_of``) and the task of lines (``bearers_of``, US-1500), the lineages of lines
+(``lineages_of``, ``lines_of_revision``), the structures that hold nodes (``structures_of``) and
+whether a revision bears one (``revision_bears``). It places a line it creates
+(``create_line_node``, from ``createNode``): under a task of the structure, a milestone included
+(``UNKNOWN_TASK`` otherwise, WF-PLA-0050), among its lines before its subtasks, after
+``after_node_id`` or after the last line — after the last line too when the sibling named is a
+subtask (#1187) —; then the facet of its kind writes its own (``FacetHooks.create``). A write of
+the facet of a line (``write_facet``, ``updateEstimateLine``) is framed as any write of the tree:
+its revision judged, its entry of the history opened, its structure locked and read, the line at
+the counter read (412); the facet writes, the node is counted, the structure redated and its lines
+priced again (``writing``).
 
 On the main structure, a line is neither created, written, deleted nor moved under a completed
 task, or from it, which is first reopened from the Kanban: 409 ``STATE_FORBIDS_OPERATION``,
@@ -95,6 +96,18 @@ def lines_of(
         if parent is not None:
             found[parent].append(node_id)
     return {task_id: tuple(lines) for task_id, lines in found.items()}
+
+
+def bearers_of(session: Session, project_id: UUID, node_ids: Collection[UUID]) -> dict[UUID, UUID]:
+    """Give the task that bears each line named, by line; one absent is left out (US-1500)."""
+    if not node_ids:
+        return {}
+    rows = session.execute(
+        select(Node.id, Node.parent_id).where(
+            Node.project_id == project_id, Node.id.in_(list(node_ids)), Node.kind == LINE
+        )
+    )
+    return {node_id: parent for node_id, parent in rows if parent is not None}
 
 
 def lineages_of(session: Session, project_id: UUID, node_ids: Collection[UUID]) -> dict[UUID, UUID]:

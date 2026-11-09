@@ -8,6 +8,15 @@ that two stories filling two files write two places of this one. Another module 
 from here, never from the file.
 """
 
+# ``employment`` (US-1490/L1; the rates written, US-1500/L2): what the lines of an estimate tell,
+# a private module the files of the categories and of the rates both read.
+from waterfall.core.cost_settings.employment import (
+    RateWritten as RateWritten,
+)
+from waterfall.core.cost_settings.employment import (
+    register_employment as register_employment,
+)
+
 # ``actual_cost_mapping`` (US-0870): the mapping of the extraction of the actual costs.
 from waterfall.core.cost_settings.interface.actual_cost_mapping import (
     DUPLICATE_COLUMN_LABEL as DUPLICATE_COLUMN_LABEL,
@@ -82,7 +91,7 @@ from waterfall.core.cost_settings.interface.cost_categories import (
     present_cost_categories as present_cost_categories,
 )
 from waterfall.core.cost_settings.interface.cost_categories import (
-    register_employment as register_employment,
+    read_cost_categories as read_cost_categories,
 )
 from waterfall.core.cost_settings.interface.cost_categories import (
     set_cost_category_activation as set_cost_category_activation,

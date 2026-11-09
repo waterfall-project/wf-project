@@ -88,6 +88,9 @@ from waterfall.core.planning.interface.lines import (
     NodeRow as NodeRow,
 )
 from waterfall.core.planning.interface.lines import (
+    bearers_of as bearers_of,
+)
+from waterfall.core.planning.interface.lines import (
     create_line_node as create_line_node,
 )
 from waterfall.core.planning.interface.lines import (

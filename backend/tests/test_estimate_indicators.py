@@ -14,11 +14,11 @@ from typing import TYPE_CHECKING, Any
 from uuid import UUID, uuid4
 
 import pytest
-from estimate_support import YEAR, Costing, Lines, costing, imaged
+from estimate_support import YEAR, Costing, Lines, costing
 from nodes_support import Tree, faults, mark, opened, put_facts, refusal, work_breakdown
 from projects_support import PROJECTS, Scene
 from projects_support import scene as make_scene
-from sqlalchemy import delete, insert, select, update
+from sqlalchemy import delete, select, update
 
 from waterfall.core.cost_settings.interface import (
     CostCategoryDraft,
@@ -29,7 +29,6 @@ from waterfall.core.cost_settings.interface import (
 )
 from waterfall.core.cost_settings.tables import CostCategory, HourlyRate
 from waterfall.core.estimate.shares import distribution, share_of, shown
-from waterfall.core.estimate.tables import RevisionCategory
 from waterfall.core.projects.tables import WorkPackage
 from waterfall.platform.audit import Act
 from waterfall.platform.database import utc_now
@@ -592,29 +591,12 @@ def test_a_marked_revision_is_read_on_the_natures_it_kept(
     api: ContractClient, stage: Scene, tree: Tree, lines: Lines, costs: Costing
 ) -> None:
     # The nature of a category is read on the images of the revision marked: changed afterwards
-    # in the settings, it stays what it was at the marking. The marking writes no image yet
-    #: the image a marking keeps is written around the service, before it.
+    # in the settings, it stays what it was at the marking, which writes the image.
     lines.made(tree.made("Fourniture"), **material(costs))
-    project_id, revision_id = UUID(stage.project["project_id"]), UUID(tree.revision["revision_id"])
     with stage.owner.begin() as connection:
         labour_type = connection.scalar(
             select(CostCategory.cost_type_id).where(CostCategory.id == costs.labour)
         )
-        material_type = connection.scalar(
-            select(CostCategory.cost_type_id).where(CostCategory.id == costs.material)
-        )
-        image = {
-            **imaged(project_id, revision_id),
-            "cost_category_id": costs.material,
-            "code": "MAT-001",
-            "label": "Matériel électrique",
-            "cost_type_id": material_type,
-            "cost_type_label": "Matériel",
-            "cost_type_kind": "non_labor",
-            "cost_type_is_active": True,
-            "accounting_code": "606001",
-        }
-        connection.execute(insert(RevisionCategory).values(**image))
     mark(stage, tree.revision)
     with stage.owner.begin() as connection:
         connection.execute(
