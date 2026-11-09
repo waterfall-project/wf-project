@@ -90,57 +90,22 @@ export async function inscribe(
   expect(written.status(), "PUT contributors").toBe(200);
 }
 
-/** A service of the organisation and a labour role of it, made for a path that employs the role. */
+/** A service of the organisation and a labour role of it, which a path employs. */
 export interface EmployedService {
   readonly node: { readonly id: string; readonly label: string };
   readonly role: { readonly id: string; readonly label: string };
 }
 
 /**
- * The category of labour and the calendar of the witness, which every installation of the paths
- * holds (`reference-manager.spec.ts`): a role made here is of them.
+ * The service and the labour role of the witness that every installation of the paths holds
+ * (`fixtures/api`: the workshop of wiring and the cable fitter, active, whom no line employs). The
+ * paths create nothing in the reference: a node or a role made here would stay in the installation
+ * and change what the paths of the reference of the resources count (`reference-resources.spec.ts`).
  */
-const WITNESS_LABOUR = {
-  category: "01926f3a-7c00-7000-8000-000000000402",
-  calendar: "01926f3a-7c00-7000-8000-000000000481",
-} as const;
-
-/**
- * Make a service of its own and a labour role of it, by the API, under the token of the manager of
- * the worker: the accounts attached to the node of a role the estimate employs are the ones the
- * project proposes (WF-PRJ-0070), and a node of its own keeps those of the other paths out of the
- * proposal.
- */
-export async function createService(
-  browser: Browser,
-  calls: APIRequestContext,
-  manager: LocalPerson,
-  prefix: string,
-): Promise<EmployedService> {
-  const headers = { Authorization: `Bearer ${await frontToken(browser, manager)}` };
-  const stamp = randomBytes(4).toString("hex");
-  const made = await calls.post(`${API}/reference/org-nodes`, {
-    headers,
-    data: { code: `SV-${stamp}`, label: `${prefix} service ${stamp}` },
-  });
-  expect(made.status(), "POST org-nodes").toBe(201);
-  const node = (await made.json()) as { org_node_id: string; label: string };
-  const role = await calls.post(`${API}/reference/resource-roles`, {
-    headers,
-    data: {
-      code: `RL-${stamp}`,
-      label: `${prefix} rôle ${stamp}`,
-      org_node_id: node.org_node_id,
-      cost_category_id: WITNESS_LABOUR.category,
-      calendar_id: WITNESS_LABOUR.calendar,
-      capacity: { monthly_hours: "140.00", headcount: "1" },
-    },
-  });
-  expect(role.status(), "POST resource-roles").toBe(201);
-  const created = (await role.json()) as { resource_role_id: string; label: string };
+export function wiringService(): EmployedService {
   return {
-    node: { id: node.org_node_id, label: node.label },
-    role: { id: created.resource_role_id, label: created.label },
+    node: { id: "01926f3a-7c00-7000-8000-000000000472", label: "Atelier de câblage" },
+    role: { id: "01926f3a-7c00-7000-8000-000000000454", label: "Monteur câbleur" },
   };
 }
 

@@ -4,7 +4,7 @@ import { expect } from "@playwright/test";
 
 import { openHydrated, WORKING } from "./hydration";
 import { inService, test } from "./mode";
-import { createOwnProject, createService, employRole, openRevision } from "./own-project";
+import { createOwnProject, employRole, openRevision, wiringService } from "./own-project";
 import { seedPlanning } from "./planning-seed";
 
 // The cycle of the revisions, against the fake back and, tagged `@shared`, against the service.
@@ -233,10 +233,10 @@ test("a reference that bears a task and a line is designated, the project stays 
   const calls = await playwright.request.newContext({ ignoreHTTPSErrors: true });
   try {
     // A project of its own, its revision opened and its tasks written, and a line under one of
-    // them, which employs the role of a service of its own (a project is chiffré without a code,
+    // them, which employs the role of the service of the witness (a project is chiffré without a code,
     // WF-PRJ-0010).
     const seeded = await seedPlanning(page, browser, calls, manager, "Passage En cours");
-    const service = await createService(browser, calls, manager, "Passage");
+    const service = wiringService();
     await employRole(calls, seeded.headers, seeded.ids, seeded.nodes[6] ?? "", service);
 
     // In pricing, the next state names what the project lacks, the line included (WF-CYC-0050).

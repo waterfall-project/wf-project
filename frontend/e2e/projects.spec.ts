@@ -8,10 +8,10 @@ import { inService, test } from "./mode";
 import {
   attachToService,
   createOwnProject,
-  createService,
   employRole,
   inscribe,
   openRevision,
+  wiringService,
 } from "./own-project";
 import { seedPlanning } from "./planning-seed";
 import { withinBox } from "./scroll";
@@ -817,11 +817,12 @@ test("a labour line of a role of a service proposes the accounts of the service 
   test.slow();
   const calls = await playwright.request.newContext({ ignoreHTTPSErrors: true });
   try {
-    // A project of its own with its tasks, a service of its own with an account attached to it.
+    // A project of its own with its tasks, and an account of its own attached to the service of the
+    // witness: it is the one the proposal is read for, the witness holding accounts of that service.
     const seeded = await seedPlanning(page, browser, calls, manager, "Proposition");
     const administrator = await accountAdministrator(browser, calls);
     const other = await localAccount(browser, administrator);
-    const service = await createService(browser, calls, manager, "Proposition");
+    const service = wiringService();
     await attachToService(browser, calls, other, service);
     const settings = `${seeded.own.path}/settings`;
     const contributors = page.getByRole("main").getByRole("region", { name: "Contributeurs" });
@@ -847,17 +848,18 @@ test("a labour line of a role of a service proposes the accounts of the service 
     const offered = list
       .getByRole("region", { name: "Contributeurs proposés" })
       .getByRole("listitem")
-      .filter({ hasText: service.node.label });
+      .filter({ hasText: other.name });
+    await expect(offered).toContainText(service.node.label);
     await expect(offered).toContainText(service.role.label);
     await offered.getByRole("button", { name: `Inscrire ${other.name}` }).click();
     await list.getByRole("button", { name: "Enregistrer" }).click();
     await expect(list).toHaveCount(0);
     await expect(grid.getByRole("row").last()).toHaveText("2 contributeurs");
 
-    // Read anew, the service kept both and proposes the account no more.
+    // Read anew, the service kept both and proposes this account no more.
     await page.reload();
     await expect(grid.getByRole("row").last()).toHaveText("2 contributeurs", { timeout: WORKING });
-    await expect(proposed).toHaveCount(0);
+    await expect(proposed.filter({ hasText: other.name })).toHaveCount(0);
   } finally {
     await calls.dispose();
   }
