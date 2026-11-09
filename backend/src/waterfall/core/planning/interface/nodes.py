@@ -409,8 +409,8 @@ class Ground:
 class CreationJudged:
     """A task to create as judged on a tree: its node, its facet and attachment, its place.
 
-    ``shifted`` are the siblings its rank moves down; ``made_summary`` tells that its parent, a
-    manual leaf, becomes an automatic summary (WF-PLA-0040).
+    ``shifted`` are the siblings its rank moves down; ``made_summary``: its parent, a manual leaf,
+    becomes an automatic summary (WF-PLA-0040).
     """
 
     node_id: UUID
@@ -443,17 +443,22 @@ def _together[Judged](judge: Callable[[], Judged], attached: Attached) -> Judged
     return judged
 
 
+def _entry(creation: NodeCreation) -> TaskEntry:
+    """Give the entry of a task to create; a node of another kind has none."""
+    if creation.task is None:
+        msg = "a task is created with its entry"
+        raise ValueError(msg)
+    return creation.task
+
+
 def judge_creation(ground: Ground, creation: NodeCreation, node_id: UUID) -> CreationJudged:
     """Judge a task to create on the tree of a ground, as ``createNode`` does; nothing is written.
 
-    Its parent, a task and no milestone (``MILESTONE_HAS_NO_SUBTASK``, WF-PLA-0050), its facet
-    with its attachment, all refusals at once, then its place (``NODE_NOT_SIBLING``). A paste calls
-    it for each row past the last node (#2559); a task alone, whose entry must be given.
+    Its parent (``MILESTONE_HAS_NO_SUBTASK``, WF-PLA-0050), its facet and attachment, all refusals
+    at once, then its place (``NODE_NOT_SIBLING``). A paste calls it for rows past the last node.
     """
     session, tree = ground.session, ground.tree
-    parent, entry = creation.parent_id, creation.task
-    if entry is None:
-        raise ValueError("a task is created with its entry")
+    parent, entry = creation.parent_id, _entry(creation)
     _judge_parent(tree, parent)
     applicable = calendar_of(session, ground.project_id, node_id).calendar
     lineage = () if parent is None else (parent, *tree.ancestors(parent))
@@ -478,9 +483,7 @@ def _made(
     place: Place, act: Act, judged: CreationJudged, planning_start: date
 ) -> tuple[Node, Task]:
     """Give the node and the facet of a task created, at its first version; nothing written."""
-    node_id, entry = judged.node_id, judged.creation.task
-    if entry is None:
-        raise ValueError("a task is created with its entry")
+    node_id, entry = judged.node_id, _entry(judged.creation)
     facet, attached = judged.judged
     node = Node(
         project_id=place.project_id,
@@ -528,8 +531,7 @@ def write_creation(write: Write, judged: CreationJudged) -> Task:
     """Write a task ``judge_creation`` judged on the tree of a write; give its facet written.
 
     A manual leaf that receives it becomes a summary, always automatic (WF-PLA-0040). The siblings
-    at its rank or after are moved down by one in one statement — the rank is unique, checked at
-    its end — and counted as any write of a node is.
+    at its rank or after move down by one in one statement (the rank is unique, checked at its end).
     """
     session, place, act = write.session, write.place, write.writer.act
     parent = judged.creation.parent_id
@@ -560,13 +562,11 @@ def create_node(
 ) -> NodesWritten:
     """Create a task of a structure, and give the nodes written (``createNode``).
 
-    Judged under the lock of the structure (``judge_creation``): its parent, a task of the
-    structure and no milestone (``MILESTONE_HAS_NO_SUBTASK``, WF-PLA-0050), its place
-    (``NODE_NOT_SIBLING``), its facet — an automatic task of a day by default, a manual one at the
-    dates sent, their hours completed on its calendar (#1769, WF-PLA-0020), its attachment to the
-    work breakdown under its parent (WF-PLA-0170). A manual leaf that receives it becomes a
-    summary, always automatic (WF-PLA-0040). Beyond fifteen years, refused naming the task by its
-    label (WF-PLA-0150). Another kind goes to ``lines``.
+    Judged under the lock of the structure (``judge_creation``): its parent, its place, its
+    facet — an automatic task of a day by default, a manual one at the dates sent, their hours
+    completed on its calendar (#1769, WF-PLA-0020) — its attachment to the work breakdown
+    (WF-PLA-0170). A manual leaf that receives it becomes a summary, always automatic
+    (WF-PLA-0040). Beyond fifteen years, refused (WF-PLA-0150). Another kind goes to ``lines``.
     """
     entry = creation.task
     if creation.kind != TASK or entry is None:
