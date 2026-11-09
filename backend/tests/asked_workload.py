@@ -6,8 +6,13 @@
 quality on its project each asks for besides.
 """
 
-# The permissions each operation asks for, in the order they are evaluated.
-ASKED: dict[str, tuple[str, ...]] = {}
+# The permissions each operation asks for, in the order they are evaluated: the plan is read under
+# the permission to consult the estimate (US-1520).
+ASKED: dict[str, tuple[str, ...]] = {
+    "getProjectWorkload": ("estimate.read",),
+}
 # The quality on its project each operation that names one asks for, evaluated by
 # ``RequiresProject``: ``consultation``, ``contributor`` or ``project_manager`` (WF-ADM-0110).
-ON_PROJECT: dict[str, str] = {}
+ON_PROJECT: dict[str, str] = {
+    "getProjectWorkload": "consultation",
+}

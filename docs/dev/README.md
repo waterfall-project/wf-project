@@ -827,6 +827,15 @@ visual identity, then releases the instance. A choice that changes what a curve 
 payment terms, the basis and the organisation node of the workload plan — is a parameter of the
 address, which the server sends to the API: the front neither filters nor shifts anything.
 
+The workload plan of the project (`…/workload`, FBS-4.4.4) is wired to the service (EP-07,
+US-1520): the page no longer carries the notice of the mock-up (`MockupNotice`), `getProjectWorkload`
+returns the load, the capacity of each role, the totals without gaps and the zone of each month, and
+the screen offers only the bases the project admits — that of the reference when it has a reference
+revision, that of a marked revision when it has one, the revision under way always, alone with
+neither; the spreading and the calculation date are the service's, the front computes
+nothing. The paths of `workload.spec.ts` carry `@shared`, and `frontend/help/fr/FBS-4.4.4.md` says
+what the service does.
+
 ### The indicators screen
 
 The indicators screen of a project reads its indicators and its curves in the revision of its
