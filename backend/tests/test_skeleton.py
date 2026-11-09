@@ -528,9 +528,11 @@ def test_the_project_without_a_revision_lists_the_skeleton_judged_on_the_revisio
 ) -> None:
     path = f"{PROJECTS}/{stage.project['project_id']}"
     listed = api.get(path, headers=stage.manager.headers).json()
-    assert [each["command"] for each in listed["available_commands"]][-2:] == [
+    # Listed just before the imports (``ProjectCommand``).
+    assert [each["command"] for each in listed["available_commands"]][-3:] == [
         "abandon",
         "generate_skeleton",
+        "import_estimate",
     ]
     assert commands(listed)["generate_skeleton"] == (True, [])
     # Listed to whoever holds the planning permission, unavailable to who cannot open a revision.

@@ -27,8 +27,14 @@ The estimate asks the planning, of the nodes of its lines, their revision (``nod
 their structure with their row number in it (``node_rows``): a subproject that lines bear is named
 by them (WF-DAT-0080).
 
+An import of an estimate writes the lines it moves, changes and creates in one write of the tree
+(``write_lines``): a write a line at a time would pass through structures the file does not give —
+two lines of a task that exchange their roles leave it, between the two writes, without an hour —,
+which the engine refuses (WF-PLA-0010).
+
 Declared by US-1380/L1; filled by US-1490/L3 (EP-07, "Les points d'extension"); the deletion, the
-move and the places of the lines by US-1490/L4.
+move and the places of the lines by US-1490/L4; the counters of nodes an import reads before each
+of its deletions (``node_versions``) and the write of its lines (``write_lines``) by US-1550/L3.
 """
 
 from dataclasses import dataclass
@@ -42,6 +48,7 @@ from waterfall.core.planning.interface.facets import (
     FacetWrite,
     facets,
 )
+from waterfall.core.planning.shaping import place as put_in_place
 from waterfall.core.planning.shaping import stamp
 from waterfall.core.planning.tables import Node
 from waterfall.core.planning.tree import LINE, read_tree
@@ -55,11 +62,12 @@ from waterfall.platform.errors import (
 from waterfall.platform.identifiers import new_id
 
 if TYPE_CHECKING:
-    from collections.abc import Callable, Collection
+    from collections.abc import Callable, Collection, Mapping
     from uuid import UUID
 
     from sqlalchemy.orm import Session
 
+    from waterfall.core.planning.interface.facets import FacetHooks
     from waterfall.core.planning.interface.nodes import NodeCreation
     from waterfall.core.planning.tree import Tree
     from waterfall.core.planning.writing import NodesWritten, Place, Write, Writer
@@ -79,6 +87,20 @@ class FacetChange:
     node_id: UUID
     lock_version: int
     apply: Callable[[FacetWrite], None]
+
+
+@dataclass(frozen=True, slots=True)
+class LinesWrite:
+    """The lines an import writes in one write of the tree (``write_lines``, US-1550).
+
+    ``moved`` the lines given another task, by the task that receives them, in their order;
+    ``changed`` the lines whose facet is written, each with what writes it; ``created`` the lines
+    created, each by its task and what its facet sends (``FacetCreation.entry``), in their order.
+    """
+
+    moved: Mapping[UUID, tuple[UUID, ...]]
+    changed: Mapping[UUID, Callable[[FacetWrite], None]]
+    created: tuple[tuple[UUID, object], ...]
 
 
 def lines_of(
@@ -117,6 +139,24 @@ def lineages_of(session: Session, project_id: UUID, node_ids: Collection[UUID]) 
         return {}
     rows = session.execute(
         select(Node.id, Node.lineage_id).where(
+            Node.project_id == project_id, Node.id.in_(list(node_ids))
+        )
+    )
+    return dict(rows.all())
+
+
+def node_versions(
+    session: Session, project_id: UUID, node_ids: Collection[UUID]
+) -> dict[UUID, int]:
+    """Give the counter of each node named, as it is now, by node; one absent is left out.
+
+    What an import sends to delete a line, read again before each deletion: a deletion moves the
+    counters of the lines whose place it changes (US-1550).
+    """
+    if not node_ids:
+        return {}
+    rows = session.execute(
+        select(Node.id, Node.lock_version).where(
             Node.project_id == project_id, Node.id.in_(list(node_ids))
         )
     )
@@ -394,3 +434,102 @@ def write_facet(
         redated = write.redate((parent, tree.tasks[parent].label), None, (parent,))
         write.after((node_id,))
         return redated.written((node_id,))
+
+
+def write_lines(session: Session, place: Place, lines: LinesWrite, writer: Writer) -> NodesWritten:
+    """Write the lines of an import, moved, changed and created, in one write of the tree.
+
+    Under the lock of the structure: a line it does not hold is not found (404), a task that is
+    none refused (``UNKNOWN_TASK``), a line moved from a completed task of the main structure or
+    written under one refused (409 ``task_not_completed``). The lines moved go after those that
+    stay under the task that receives them, in the order given, the lines created after them; the
+    facet of each line changed, then created, writes what it sends under its task as the moves
+    leave it. Nothing is judged across lines before the end — the hooks of the kind do not judge
+    the lines moved (``FacetHooks.moved``) —: the caller has judged, under the lock of the
+    structure, the structure the whole write leaves, which the engine replays once (WF-PLA-0010).
+    The counters are not read: the caller holds that lock since it read the structure. The entry
+    of the history is named a paste, which writes several lines; an import keeps none (WF-IHM-0110).
+    """
+    hooks = facets()[LINE]
+    created = [(new_id(), task_id, entry) for task_id, entry in lines.created]
+    moving = [node for nodes in lines.moved.values() for node in nodes]
+    named = tuple(dict.fromkeys((*moving, *lines.changed, *(node for node, _, _ in created))))
+    with writing(session, place, writer, ("paste", named)) as write:
+        tree, act = write.tree, writer.act
+        lined = [*moving, *lines.changed]
+        if not all(each in tree.nodes and each not in tree.tasks for each in lined):
+            raise NotFoundError(NOT_FOUND)
+        former = {parent for each in lined if (parent := tree.nodes[each].parent_id) is not None}
+        receiving = {*lines.moved, *(task_id for _, task_id, _ in created)}
+        for task_id in receiving:
+            _judge_bearer(write, task_id)
+        refuse_completed(write, former)
+        places = _places(tree, lines.moved)
+        ranks = {task_id: _last_rank(tree, task_id, places) for task_id in receiving}
+        write.before(named)
+        put_in_place(write, places, places)
+        for node_id, apply in lines.changed.items():
+            parent = tree.nodes[node_id].parent_id
+            if parent is None:
+                raise NotFoundError(NOT_FOUND)
+            bearer = bearing(session, place.project_id, tree, parent, is_main=write.facts.is_main)
+            apply(FacetWrite(session, place.project_id, place.revision_id, node_id, bearer, act))
+            if node_id not in places:
+                stamp(tree.nodes[node_id], act)
+        for node_id, task_id, entry in created:
+            ranks[task_id] += 1
+            _created(write, (node_id, task_id, ranks[task_id]), hooks, entry)
+        redated = write.redate(None, None, (*former, *receiving))
+        write.after(named)
+        return redated.written(named, former)
+
+
+def _places(
+    tree: Tree, moved: Mapping[UUID, tuple[UUID, ...]]
+) -> dict[UUID, tuple[UUID | None, int]]:
+    """Give the parent and the rank of each line moved, after the lines that stay under its task."""
+    leaving = {node for nodes in moved.values() for node in nodes}
+    places: dict[UUID, tuple[UUID | None, int]] = {}
+    for task_id, nodes in moved.items():
+        staying = [tree.nodes[each].rank for each in tree.lines(task_id) if each not in leaving]
+        rank = max(staying, default=0)
+        for node in nodes:
+            rank += 1
+            places[node] = (task_id, rank)
+    return places
+
+
+def _last_rank(tree: Tree, task_id: UUID, places: Mapping[UUID, tuple[UUID | None, int]]) -> int:
+    """Give the last rank of the lines a task bears once the lines moved are placed."""
+    staying = (tree.nodes[each].rank for each in tree.lines(task_id) if each not in places)
+    arrived = (rank for parent, rank in places.values() if parent == task_id)
+    return max((*staying, *arrived), default=0)
+
+
+def _created(write: Write, made: tuple[UUID, UUID, int], hooks: FacetHooks, entry: object) -> None:
+    """Create a line under its task at its rank, and have the hooks of its kind write its facet."""
+    session, place, tree, act = write.session, write.place, write.tree, write.writer.act
+    node_id, task_id, rank = made
+    session.add(
+        Node(
+            project_id=place.project_id,
+            id=node_id,
+            revision_id=place.revision_id,
+            structure_id=place.structure_id,
+            lineage_id=node_id,
+            kind=LINE,
+            parent_id=task_id,
+            rank=rank,
+            origin_risk_id=None,
+            lock_version=1,
+            created_at=act.at,
+            created_by=act.author,
+            updated_at=act.at,
+            updated_by=act.author,
+        )
+    )
+    session.flush()
+    bearer = bearing(session, place.project_id, tree, task_id, is_main=write.facts.is_main)
+    hooks.create(
+        FacetCreation(session, place.project_id, place.revision_id, node_id, bearer, entry, act)
+    )

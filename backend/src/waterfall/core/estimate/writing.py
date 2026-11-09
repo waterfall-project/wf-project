@@ -12,6 +12,11 @@ lines of the tasks it moved and of the task the line is written under (``reprice
 
 The budgeted amount of a line created is nought on a project that has a reference revision — a new
 line has no lineage in it — and null otherwise, read as the re-estimated one (WF-DEV-0020).
+
+What an import sends of a line comes as ``HoursJudged``: the hours of the tasks were judged on the
+structure the whole import leaves (``importing``), which writes its lines in one write of the tree;
+judged again line by line, against a structure half written, a role given before another could be
+refused that the end accepts (US-1550).
 """
 
 from dataclasses import dataclass
@@ -45,6 +50,23 @@ if TYPE_CHECKING:
     from waterfall.core.planning.interface import BearingTask, FacetCreation, FacetWrite
 
 NOUGHT = CENT * 0
+
+
+@dataclass(frozen=True, slots=True)
+class HoursJudged:
+    """What an import sends of a line, the hours of its task judged already (US-1550)."""
+
+    entry: LineEntry
+
+
+def _sent(entry: object) -> tuple[LineEntry, bool]:
+    """Give the entry of a line, and whether the hours of its task are judged already."""
+    judged = isinstance(entry, HoursJudged)
+    sent = entry.entry if isinstance(entry, HoursJudged) else entry
+    if not isinstance(sent, LineEntry):
+        msg = "a line is written from what the API or an import read of its facet"
+        raise TypeError(msg)
+    return sent, judged
 
 
 @dataclass(frozen=True, slots=True)
@@ -123,14 +145,15 @@ def judged_priced(
 def create_line(creation: FacetCreation) -> None:
     """Write the facet of a line created under its task, priced (``createNode``); or refuse."""
     session, project_id = creation.session, creation.project_id
-    entry = creation.entry
-    if not isinstance(entry, LineEntry):
-        msg = "a line is created from what the API read of its facet"
-        raise TypeError(msg)
+    entry, judged = _sent(creation.entry)
     draft = judged_line(session, (project_id, creation.bearer), entry, None)
     basis = basis_of(session, project_id, creation.revision_id)
     amounts = _priced_draft(
-        session, (project_id, creation.bearer, None), draft, basis, Judging(role_changes=True)
+        session,
+        (project_id, creation.bearer, None),
+        draft,
+        basis,
+        Judging(role_changes=not judged),
     )
     act = creation.act
     session.add(
@@ -169,13 +192,14 @@ def read_line(session: Session, project_id: UUID, node_id: UUID) -> EstimateLine
     ).one()
 
 
-def change_line(write: FacetWrite, entry: LineEntry) -> None:
+def change_line(write: FacetWrite, sent: LineEntry | HoursJudged) -> None:
     """Write what is sent of the facet of a line, priced again (``updateEstimateLine``); or refuse.
 
     The budgeted amount is left as it is (WF-DEV-0020); the hours of the task are judged only when
-    the role changes.
+    the role changes, and not for an import, which judged them (``HoursJudged``).
     """
     session, project_id = write.session, write.project_id
+    entry, judged = _sent(sent)
     line = read_line(session, project_id, write.node_id)
     draft = judged_line(session, (project_id, write.bearer), entry, line)
     basis = basis_of(session, project_id, write.revision_id)
@@ -184,7 +208,7 @@ def change_line(write: FacetWrite, entry: LineEntry) -> None:
         (project_id, write.bearer, write.node_id),
         draft,
         basis,
-        Judging(role_changes=draft.resource_role_id != line.resource_role_id),
+        Judging(role_changes=not judged and draft.resource_role_id != line.resource_role_id),
     )
     line.label = draft.label
     line.cost_category_id = draft.cost_category_id
