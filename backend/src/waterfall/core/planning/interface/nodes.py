@@ -46,8 +46,9 @@ from waterfall.core.planning.entries import (
     judged_creation,
 )
 from waterfall.core.planning.filters import NodeFilters, retained
-from waterfall.core.planning.interface.facets import calendar_of, calendars_of, facets
+from waterfall.core.planning.interface.facets import calendar_of, facets
 from waterfall.core.planning.interface.lines import create_line_node
+from waterfall.core.planning.reading import reading_of
 from waterfall.core.planning.scheduling import Move, WorkInstant
 from waterfall.core.planning.shaping import (
     Placing,
@@ -60,8 +61,8 @@ from waterfall.core.planning.shaping import (
 )
 from waterfall.core.planning.snapshotting import taken
 from waterfall.core.planning.tables import Node, Task, TaskLink
-from waterfall.core.planning.tree import TASK, Tree, read_links, read_tree
-from waterfall.core.planning.views import NOT_STARTED, NodeView, Reading, state_of
+from waterfall.core.planning.tree import TASK, Tree, read_tree
+from waterfall.core.planning.views import NOT_STARTED, NodeView, state_of
 from waterfall.core.planning.writing import (
     NodesWritten,
     Place,
@@ -317,23 +318,6 @@ def copy_nodes(copy: RevisionCopy) -> None:
         hooks.copy(copy)
 
 
-def _reading(
-    session: Session, place: Place, tree: Tree, scheduled: tuple[datetime, bool]
-) -> Reading:
-    """Read what a reading of a structure derives: its links, its calendars, its states.
-
-    The links are read after the tree, in their own statement: one whose ends a write committed
-    in between is of a later state than the tree, and left out.
-    """
-    links = [
-        link
-        for link in read_links(session, place.project_id, place.structure_id)
-        if {link.predecessor_id, link.successor_id} <= tree.tasks.keys()
-    ]
-    calendars = calendars_of(session, place.project_id, tree.tasks)
-    return Reading(session, (place.project_id, *scheduled), tree, links, calendars)
-
-
 def list_nodes(session: Session, place: Place, filters: NodeFilters) -> NodeList:
     """Read the nodes of a structure, depth first, numbered and filtered (``listNodes``).
 
@@ -343,7 +327,7 @@ def list_nodes(session: Session, place: Place, filters: NodeFilters) -> NodeList
     """
     facts = facts_of(session, place, lock=False)
     tree = read_tree(session, place.project_id, place.structure_id)
-    reading = _reading(session, place, tree, (facts.scheduled_at, facts.is_main))
+    reading = reading_of(session, place, tree, (facts.scheduled_at, facts.is_main))
     structure = (place.project_id, place.structure_id)
     found = retained(session, structure, reading, filters, constants_of(session))
     reading.prefetch(found.order)

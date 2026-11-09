@@ -9,7 +9,9 @@ d'extension"), filled by the planning at the import of its interface:
   default, is refused when a task of a current revision would be left without any hour in its week
   (``TASK_WITHOUT_WORKING_HOURS``, WF-PLA-0010), the projects concerned named by their label and
   their code, without anything else, since the author may not read them (``params.projects``,
-  WF-ADM-0110). EP-06 judges the default calendar (``tasks_left_idle``), EP-07 the roles;
+  WF-ADM-0110), and the roles whose calendars leave them so (``params.resource_roles``). EP-06
+  judges the default calendar (``tasks_left_idle``), EP-07 the roles of the lines — a calendar
+  changed, and a role given another calendar (``updateResourceRole``, US-1500);
 - ``register_recalculation``: the constants of the units of duration, the hours of a calendar and
   the designation of the default redate, in their transaction, the structures of the current
   revisions (``reschedule_current_structures``), their dates' instant moved on to that of the
@@ -36,19 +38,29 @@ if TYPE_CHECKING:
 
 @dataclass(frozen=True, slots=True)
 class CalendarChange:
-    """A calendar about to change: its hours of each day after the change, default or not after."""
+    """A calendar about to change: its hours of each day after the change, default or not after.
+
+    ``resource_role_id`` names the role given this calendar (``updateResourceRole``), none for a
+    change of the calendar itself (``updateCalendar``, ``setDefaultCalendar``; US-1500).
+    """
 
     calendar_id: UUID
     weekly_hours: Mapping[str, Decimal]
     default: bool
+    resource_role_id: UUID | None = None
 
 
 @dataclass(frozen=True, slots=True)
 class IdleProject:
-    """A project a change would leave with a task without an hour: its label and its code."""
+    """A project a change would leave with a task without an hour: its label and its code.
+
+    ``resource_role_ids`` the roles whose calendars leave a task of it idle, none when a task
+    without a labour line loses its hours (``params.resource_roles``; US-1500).
+    """
 
     label: str
     code: str | None
+    resource_role_ids: tuple[UUID, ...] = ()
 
 
 # What names the projects a change of a calendar would leave with an idle task, in order.

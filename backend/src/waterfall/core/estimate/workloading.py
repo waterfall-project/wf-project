@@ -16,21 +16,22 @@ restricted to the node asked and its descendants; each with its capacity in the 
 whose hours exceed the capacity of its role is in alert (``WorkloadZone``). The hours of a role
 and a month are rounded once, to the hundredth, from the exact sum of the parts of its lines.
 
-The roles, the calendars and the capacities of a marked revision are read from the reference
-tables as they stand, as long as the revision does not keep their images (#2627, corrected by
-US-1500/L2).
+The roles, the calendars and the capacities of a marked revision are read on its images, which a
+revision marked before US-1500 lacks: it reads the reference as it stands (#2627).
 """
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from decimal import ROUND_HALF_EVEN, Decimal
 from enum import StrEnum
 from typing import TYPE_CHECKING
 
 from waterfall.core.cost_settings.interface import category_label_of
+from waterfall.core.estimate.imaging import KeptReference, KeptRole, kept_reference
 from waterfall.core.estimate.placing import Placed, placed_lines, placement_of, role_weeks
 from waterfall.core.estimate.spreading import Month, Placement, spread_by_month
 from waterfall.core.projects.interface import project_facts
 from waterfall.core.resource_settings.interface import (
+    Capacity,
     RoleFilters,
     RoleSort,
     RoleView,
@@ -261,11 +262,29 @@ def loads_of(
     return loads
 
 
-def _roles(session: Session, node_id: UUID | None, employed: Collection[UUID]) -> list[RoleView]:
-    """Give the active roles and those employed, under the node asked and its descendants."""
+def _roles(
+    session: Session,
+    node_id: UUID | None,
+    employed: Collection[UUID],
+    kept: KeptReference | None = None,
+) -> list[RoleView]:
+    """Give the active roles and those employed, under the node asked and its descendants.
+
+    A marked revision gives its ``kept`` images: the label and the capacity a role had at marking.
+    """
     asked = RoleFilters(org_node_id=node_id, states=frozenset({True, False}))
     page = list_roles(session, asked, RoleSort(category_label_of), EVERY_ROLE, may_change=False)
-    return [role for role in page.roles if role.is_active or role.resource_role_id in employed]
+    images = {} if kept is None else {each.resource_role_id: each for each in kept.resource_roles}
+    roles = [role for role in page.roles if role.is_active or role.resource_role_id in employed]
+    return [_as_kept(role, images.get(role.resource_role_id)) for role in roles]
+
+
+def _as_kept(role: RoleView, image: KeptRole | None) -> RoleView:
+    """Give a role with the label and the capacity its image keeps; as it stands without one."""
+    if image is None:
+        return role
+    capacity = Capacity(image.monthly_hours, image.headcount)
+    return replace(role, label=image.label, capacity=capacity)
 
 
 def _load_of(role: RoleView, months: Mapping[Month, Decimal]) -> RoleLoad:
@@ -296,8 +315,9 @@ def read_workload(session: Session, project_id: UUID, asked: WorkloadAsked) -> W
         raise UnprocessableError(VALIDATION_FAILED, fields=named)
     placed = placed_lines(session, project_id, reading.revision_id)
     employed = {each.line.resource_role_id for each in placed if each.line.resource_role_id}
-    roles = _roles(session, node_id, employed)
-    weeks = role_weeks(session, employed)
+    kept = kept_reference(session, project_id, reading.revision_id) if reading.is_stored else None
+    roles = _roles(session, node_id, employed, kept)
+    weeks = role_weeks(session, employed, kept)
     placements = {
         each.line.node_id: placement_of(each, weeks)
         for each in placed

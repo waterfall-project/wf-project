@@ -16,13 +16,14 @@ d'extension").
 Declared by US-1380/L1; filled by US-1380/L2: ``calendar_of`` gives the default calendar to a task
 whose facets name no calendar, the intersection of those they name otherwise; ``calendars_of``
 gives it to the tasks of a structure, the default read once, the calendars of the facets asked
-once. Completed by US-1490/L3 (EP-07, "Les points d'extension"), and by US-1490/L4 with the
-judgement of the nodes a move gives another task (``moved``).
+once. Completed by US-1490/L3 (EP-07, "Les points d'extension"), by US-1490/L4 with the
+judgement of the nodes a move gives another task (``moved``), and by US-1560/L1 with the judgement
+and the write of the cells a paste gives a node of the kind (``judge_cell``, ``write_cell``).
 """
 
 from dataclasses import dataclass
 from decimal import Decimal
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from waterfall.core.planning.calendars import applicable_of, default_calendar
 from waterfall.platform.registry import Registry
@@ -130,6 +131,46 @@ class FacetWrite:
 
 
 @dataclass(frozen=True, slots=True)
+class CellsPasted:
+    """The cells a paste gives a node of the kind, in the order of ``NodeColumn``, to be judged.
+
+    ``node_id`` the node they fall on, none for a node the paste creates; ``bearer`` the task that
+    bears it; ``cells`` the column of each cell, as ``NodeColumn`` names it, and its text. An empty
+    cell is never given: it writes nothing. ``earlier`` is, node by node, what the entry judged of
+    the rows of the same block accepted before this one under the same task: the node, written or
+    created, and the entry its hook gave (``CellsJudged.entry``), opaque to the planning.
+    """
+
+    session: Session
+    project_id: UUID
+    node_id: UUID | None
+    bearer: BearingTask
+    cells: tuple[tuple[str, str], ...]
+    earlier: tuple[tuple[UUID, object], ...] = ()
+
+
+@dataclass(frozen=True, slots=True)
+class CellRefusal:
+    """The refusal of a cell a paste gives a node, or of its whole row (``column`` none)."""
+
+    column: str | None
+    code: str
+    params: Mapping[str, Any]
+
+
+@dataclass(frozen=True, slots=True)
+class CellsJudged:
+    """What the hook of a kind judged of the cells of a row: its refusals, and what it would write.
+
+    ``entry`` is opaque to the planning, which hands it back to ``write_cell`` for a node written,
+    to ``create`` (``FacetCreation.entry``) for a node created; none when a cell is refused.
+    """
+
+    refusals: tuple[CellRefusal, ...]
+    entry: object = None
+
+
+@dataclass(frozen=True, slots=True)
 class LineSort:
     """The sort of the nodes of a kind under each task: a column and its direction."""
 
@@ -151,7 +192,9 @@ class FacetHooks:
     nodes named, those a filter asked of the kind retains; ``sort`` orders them, or gives none for a
     column it does not sort; ``dependencies`` names what a computed value of a node depends on,
     none for a field it does not compute; ``moved`` judges the nodes a move gives another task,
-    placed under it already, in the order of the plan, and refuses what it does not accept (422).
+    placed under it already, in the order of the plan, and refuses what it does not accept (422);
+    ``judge_cell`` judges the cells a paste gives a node, by the very functions of the entry of a
+    cell, naming every refusal at once; ``write_cell`` writes the entry it judged.
     """
 
     read: Callable[[Session, UUID, Mapping[UUID, BearingTask]], Mapping[UUID, FacetRead]]
@@ -167,6 +210,8 @@ class FacetHooks:
     sort: Callable[[Session, UUID, Collection[UUID], LineSort], list[UUID] | None]
     dependencies: Callable[[Session, UUID, UUID, str], tuple[str, ...] | None]
     moved: Callable[[Session, UUID, Mapping[UUID, BearingTask]], None]
+    judge_cell: Callable[[CellsPasted], CellsJudged]
+    write_cell: Callable[[FacetWrite, object], None]
 
 
 # The hooks of each kind of node other than the task, in the order of their registration.

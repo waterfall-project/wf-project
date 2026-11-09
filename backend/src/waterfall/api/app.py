@@ -114,6 +114,9 @@ def create_app(services: Services) -> FastAPI:
         actual_cost_mapping.router,
     ):
         app.include_router(reference_router, prefix=PREFIX)
+    # The comparison of two revisions (US-1530) before the revisions: its path, ``/comparison``,
+    # would else be read as the identifier of a revision by ``getRevision``.
+    app.include_router(comparison.router, prefix=PREFIX)
     # The projects and their revisions (EP-04): a router per story, each registered here from the
     # start.
     for project_router in (
@@ -138,13 +141,13 @@ def create_app(services: Services) -> FastAPI:
         skeleton.router,
     ):
         app.include_router(planning_router, prefix=PREFIX)
-    # The estimate (EP-07): a router per story, each registered here from the start.
+    # The estimate (EP-07): a router per story, each registered here from the start, the comparison
+    # above.
     for estimate_router in (
         estimate_lines.router,
         rate_update.router,
         estimate_indicators.router,
         workload.router,
-        comparison.router,
     ):
         app.include_router(estimate_router, prefix=PREFIX)
     return app

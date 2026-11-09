@@ -40,7 +40,7 @@ from waterfall.core.revisions.interface import reference_year_of
 from waterfall.platform.errors import UnprocessableError
 
 if TYPE_CHECKING:
-    from collections.abc import Collection
+    from collections.abc import Collection, Mapping
     from uuid import UUID
 
     from sqlalchemy.orm import Session
@@ -195,13 +195,18 @@ def calendar_hours(
 
 
 def judge_working_hours(
-    session: Session, held: tuple[UUID, BearingTask, UUID | None], role_id: UUID
+    session: Session,
+    held: tuple[UUID, BearingTask, UUID | None],
+    role_id: UUID,
+    earlier: Mapping[UUID, UUID | None] | None = None,
 ) -> None:
     """Refuse a role that would leave the task of a line without an hour in its week (0010).
 
     ``held`` is the project, the task that bears the line, and the line itself, none at its
     creation: the roles of the other labour lines of the task and this one are intersected day by
-    day; none left, the roles are named by their label, and the task.
+    day; none left, the roles are named by their label, and the task. ``earlier`` gives the role a
+    paste has left, or gives, to lines of the task (a line created included) before this one is
+    judged: it takes the place of the role they have in the base.
     """
     project_id, bearer, line_id = held
     others = [
@@ -209,19 +214,17 @@ def judge_working_hours(
         for each in lines_of(session, project_id, (bearer.task_id,)).get(bearer.task_id, ())
         if each != line_id
     ]
-    roles = {role_id}
+    held_roles: dict[UUID, UUID | None] = {}
     if others:
-        roles |= {
-            each
-            for each in session.scalars(
-                select(EstimateLine.resource_role_id).where(
-                    EstimateLine.project_id == project_id,
-                    EstimateLine.node_id.in_(others),
-                    EstimateLine.resource_role_id.is_not(None),
+        held_roles = dict(
+            session.execute(
+                select(EstimateLine.node_id, EstimateLine.resource_role_id).where(
+                    EstimateLine.project_id == project_id, EstimateLine.node_id.in_(others)
                 )
-            )
-            if each is not None
-        }
+            ).all()
+        )
+    held_roles.update({node: role for node, role in (earlier or {}).items() if node != line_id})
+    roles = {role_id} | {each for each in held_roles.values() if each is not None}
     calendars = role_calendars(session, roles)
     weeks = calendar_hours(session, calendars.values()).values()
     if any(min(day) > 0 for day in zip(*weeks, strict=True)):

@@ -4,16 +4,17 @@
 
 A line of estimate is a node of the structure, under the task that bears it (EP-06, "Ce que le
 cadrage décide"): the planning owns ``node``, and gives the estimate the lines of tasks
-(``lines_of``), the lineages of lines (``lineages_of``, ``lines_of_revision``), the structures that
-hold nodes (``structures_of``) and whether a revision bears one (``revision_bears``). It places a
-line it creates (``create_line_node``, from
-``createNode``): under a task of the structure, a milestone included (``UNKNOWN_TASK`` otherwise,
-WF-PLA-0050), among its lines before its subtasks, after ``after_node_id`` or after the last line —
-after the last line too when the sibling named is a subtask (#1187) —; then the facet of its kind
-writes its own (``FacetHooks.create``). A write of the facet of a line (``write_facet``,
-``updateEstimateLine``) is framed as any write of the tree: its revision judged, its entry of the
-history opened, its structure locked and read, the line at the counter read (412); the facet
-writes, the node is counted, the structure redated and its lines priced again (``writing``).
+(``lines_of``) and the task of lines (``bearers_of``, US-1500), the lineages of lines
+(``lineages_of``, ``lines_of_revision``), the structures that hold nodes (``structures_of``) and
+whether a revision bears one (``revision_bears``). It places a line it creates
+(``create_line_node``, from ``createNode``): under a task of the structure, a milestone included
+(``UNKNOWN_TASK`` otherwise, WF-PLA-0050), among its lines before its subtasks, after
+``after_node_id`` or after the last line — after the last line too when the sibling named is a
+subtask (#1187) —; then the facet of its kind writes its own (``FacetHooks.create``). A write of
+the facet of a line (``write_facet``, ``updateEstimateLine``) is framed as any write of the tree:
+its revision judged, its entry of the history opened, its structure locked and read, the line at
+the counter read (412); the facet writes, the node is counted, the structure redated and its lines
+priced again (``writing``).
 
 On the main structure, a line is neither created, written, deleted nor moved under a completed
 task, or from it, which is first reopened from the Kanban: 409 ``STATE_FORBIDS_OPERATION``,
@@ -70,6 +71,7 @@ if TYPE_CHECKING:
     from waterfall.core.planning.interface.nodes import NodeCreation
     from waterfall.core.planning.tree import Tree
     from waterfall.core.planning.writing import NodesWritten, Place, Write, Writer
+    from waterfall.platform.audit import Act
 
 NOT_FOUND = "NOT_FOUND"
 VALIDATION_FAILED = "VALIDATION_FAILED"
@@ -117,6 +119,18 @@ def lines_of(
         if parent is not None:
             found[parent].append(node_id)
     return {task_id: tuple(lines) for task_id, lines in found.items()}
+
+
+def bearers_of(session: Session, project_id: UUID, node_ids: Collection[UUID]) -> dict[UUID, UUID]:
+    """Give the task that bears each line named, by line; one absent is left out (US-1500)."""
+    if not node_ids:
+        return {}
+    rows = session.execute(
+        select(Node.id, Node.parent_id).where(
+            Node.project_id == project_id, Node.id.in_(list(node_ids)), Node.kind == LINE
+        )
+    )
+    return {node_id: parent for node_id, parent in rows if parent is not None}
 
 
 def lineages_of(session: Session, project_id: UUID, node_ids: Collection[UUID]) -> dict[UUID, UUID]:
@@ -246,14 +260,19 @@ def node_rows(
     return found
 
 
-def _judge_bearer(write: Write, parent: UUID | None) -> UUID:
-    """Refuse a bearer that is no task of the structure (422), or completed on the main (409)."""
-    tree = write.tree
+def judge_bearer(tree: Tree, parent: UUID | None) -> UUID:
+    """Refuse a bearer that is no task of the structure (422); give it."""
     if parent is None or parent not in tree.tasks:
         fault = FieldError("/parent_id", UNKNOWN_TASK)
         raise UnprocessableError(VALIDATION_FAILED, fields=(fault,))
-    refuse_completed(write, (parent,))
     return parent
+
+
+def _judge_bearer(write: Write, parent: UUID | None) -> UUID:
+    """Refuse a bearer that is no task of the structure (422), or completed on the main (409)."""
+    bearer = judge_bearer(write.tree, parent)
+    refuse_completed(write, (bearer,))
+    return bearer
 
 
 def _rank(tree: Tree, creation: NodeCreation, parent: UUID) -> int:
@@ -278,6 +297,88 @@ def _rank(tree: Tree, creation: NodeCreation, parent: UUID) -> int:
     )
 
 
+@dataclass(frozen=True, slots=True)
+class LineJudged:
+    """A node of another kind than the task to create, as judged on a tree: its place.
+
+    ``parent_id`` the task that bears it, ``rank`` its rank among that task's lines, ``shifted`` the
+    lines its rank moves down.
+    """
+
+    node_id: UUID
+    kind: str
+    parent_id: UUID
+    rank: int
+    shifted: tuple[UUID, ...]
+
+    @property
+    def touched(self) -> tuple[UUID, ...]:
+        """Give the nodes its write touches: itself and the lines it moves down."""
+        return (self.node_id, *self.shifted)
+
+
+def judge_line_creation(tree: Tree, creation: NodeCreation, node_id: UUID) -> LineJudged:
+    """Judge the place of a node of another kind to create on a tree: its bearer and its rank.
+
+    Refused if its bearer is no task of the structure (``UNKNOWN_TASK``) or its place is no sibling
+    (``NODE_NOT_SIBLING``); nothing is written. A paste calls it for the rows past the last node.
+    """
+    parent = judge_bearer(tree, creation.parent_id)
+    rank = _rank(tree, creation, parent)
+    shifted = tuple(each for each in tree.lines(parent) if tree.nodes[each].rank >= rank)
+    return LineJudged(node_id, creation.kind, parent, rank, shifted)
+
+
+def new_line_node(place: Place, act: Act, judged: LineJudged) -> Node:
+    """Give the node of a line created, at its first version; nothing is written."""
+    return Node(
+        project_id=place.project_id,
+        id=judged.node_id,
+        revision_id=place.revision_id,
+        structure_id=place.structure_id,
+        lineage_id=judged.node_id,
+        kind=judged.kind,
+        parent_id=judged.parent_id,
+        rank=judged.rank,
+        origin_risk_id=None,
+        lock_version=1,
+        created_at=act.at,
+        created_by=act.author,
+        updated_at=act.at,
+        updated_by=act.author,
+    )
+
+
+def write_line_node(write: Write, judged: LineJudged, facet: object) -> None:
+    """Write a node ``judge_line_creation`` judged, then its facet by the hooks of its kind.
+
+    The lines at its rank or after move down by one in one statement; the node is flushed before
+    its facet is written. The facet refuses what it does not accept (422).
+    """
+    session, place, act = write.session, write.place, write.writer.act
+    if judged.shifted:
+        session.execute(
+            update(Node)
+            .where(Node.project_id == place.project_id, Node.id.in_(judged.shifted))
+            .values(
+                rank=Node.rank + 1,
+                lock_version=Node.lock_version + 1,
+                updated_at=act.at,
+                updated_by=act.author,
+            )
+            .execution_options(synchronize_session=False)
+        )
+    session.add(new_line_node(place, act, judged))
+    session.flush()
+    bearer = bearing(
+        session, place.project_id, write.tree, judged.parent_id, is_main=write.facts.is_main
+    )
+    made = FacetCreation(
+        session, place.project_id, place.revision_id, judged.node_id, bearer, facet, act
+    )
+    facets()[judged.kind].create(made)
+
+
 def create_line_node(
     session: Session, place: Place, creation: NodeCreation, writer: Writer
 ) -> NodesWritten:
@@ -289,53 +390,16 @@ def create_line_node(
     a line of a role changes the calendar of its task (WF-PLA-0010) — and the lines of its task
     priced again.
     """
-    hooks = facets()[creation.kind]
     node_id = new_id()
     with writing(session, place, writer, ("node_create", (node_id,))) as write:
-        tree, act = write.tree, writer.act
-        parent = _judge_bearer(write, creation.parent_id)
-        rank = _rank(tree, creation, parent)
-        shifted = [each for each in tree.lines(parent) if tree.nodes[each].rank >= rank]
-        touched = (node_id, *shifted)
-        write.before(touched)
-        bearer = bearing(session, place.project_id, tree, parent, is_main=write.facts.is_main)
-        if shifted:
-            session.execute(
-                update(Node)
-                .where(Node.project_id == place.project_id, Node.id.in_(shifted))
-                .values(
-                    rank=Node.rank + 1,
-                    lock_version=Node.lock_version + 1,
-                    updated_at=act.at,
-                    updated_by=act.author,
-                )
-                .execution_options(synchronize_session=False)
-            )
-        session.add(
-            Node(
-                project_id=place.project_id,
-                id=node_id,
-                revision_id=place.revision_id,
-                structure_id=place.structure_id,
-                lineage_id=node_id,
-                kind=creation.kind,
-                parent_id=parent,
-                rank=rank,
-                origin_risk_id=None,
-                lock_version=1,
-                created_at=act.at,
-                created_by=act.author,
-                updated_at=act.at,
-                updated_by=act.author,
-            )
-        )
-        session.flush()
-        made = FacetCreation(
-            session, place.project_id, place.revision_id, node_id, bearer, creation.facet, act
-        )
-        hooks.create(made)
+        tree = write.tree
+        refuse_completed(write, (judge_bearer(tree, creation.parent_id),))
+        judged = judge_line_creation(tree, creation, node_id)
+        write.before(judged.touched)
+        write_line_node(write, judged, creation.facet)
+        parent = judged.parent_id
         redated = write.redate((parent, tree.tasks[parent].label), None, (parent,))
-        write.after(touched)
+        write.after(judged.touched)
         return redated.written((node_id,))
 
 

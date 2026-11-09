@@ -3,7 +3,8 @@
 /*
  * The screen of the revisions of a project (`/projects/{id}/revisions`), against the fake back and,
  * tagged `@shared`, against the service, which serves the history, the revision and its structures
- * (US-0960).
+ * (US-0960); the « Écarts seulement » path plays against it too, the service serving the
+ * comparison and the rate update proposal (US-1530).
  *
  * The fake back serves the first example of each operation: the history of three revisions —
  * the reference, the draft, the offer v1.0 —, the draft read whatever the address names, its
@@ -28,9 +29,11 @@ const REVISION = "01926f3a-7c00-7000-8000-000000000102";
 // the run of the test: a four-digit year only is asserted there.
 const CURRENT_YEAR: string | RegExp = inService ? /^\d{4}$/ : "2026";
 
-// What the service does not replay before EP-07, which serves the comparison and the rate update:
-// skipped in it, as the guide lists (« Un parcours de bout en bout »).
-const BEFORE_EP07 = "EP-07 serves the comparison and the rate update";
+// What the service does not replay yet: the comparison of PRJ-001 100 to 101 and its volume, the
+// witness' tasks and lines not being in these revisions; skipped in it, as the guide lists
+// (« Un parcours de bout en bout »), until US-1570/L2 (#2385) lifts it.
+const BEFORE_EP07 =
+  "the witness' tasks and lines are not yet in revisions 100 and 101 (US-1570/L2, #2385)";
 
 test("the history of the revisions of a project, each attribute of a revision in it, no note of the mock-up (US-0960) @shared [WF-REV-0070-A] [WF-REV-0090-A]", async ({
   page,
@@ -161,7 +164,6 @@ test("the comparison of the whole structure, 5 999 nodes, shows its grid with it
 test("retains the differences alone in the comparison: pressed, in the address and the banner, kept through the choice of the pair @shared [WF-REV-0080-A]", async ({
   page,
 }) => {
-  test.skip(inService, BEFORE_EP07);
   // The fake back serves the same comparison whatever the address names: what the server retains is
   // proven on `comparison_differences` by the test of the page (`revisions/page.test.tsx`).
   await openHydrated(

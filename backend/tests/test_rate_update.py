@@ -450,8 +450,8 @@ def test_an_update_is_refused_while_the_revision_is_being_marked(
 def test_a_rate_projected_of_a_category_no_line_employs_offers_no_update(
     api: ContractClient, stage: Scene, offer: Offer
 ) -> None:
-    # The command and the proposal ask the same question (#1351): a rate projected that no line of
-    # the revision employs, of a category without a label, presents nothing and offers nothing.
+    # The command and the proposal ask the same question (#1351): a rate projected of a category no
+    # line of the revision employs presents nothing and offers nothing (#2621).
     revision = open_next(api, stage)
     with stage.owner.begin() as connection:
         connection.execute(
@@ -470,13 +470,14 @@ def test_a_rate_projected_of_a_category_no_line_employs_offers_no_update(
 
 
 @pytest.mark.requirement("WF-REV-0060-A")
-def test_only_the_structures_that_hold_a_line_priced_again_are_replayed(
+def test_the_structures_replayed_are_those_the_planning_names_for_the_lines_priced_again(
     api: ContractClient, stage: Scene, offer: Offer, next_year: datetime
 ) -> None:
-    # A structure replayed has its counter and its instant moved: the update replays those that
-    # hold a line of a category accepted, not the others of the revision. A revision holds one
-    # structure for now (EP-08 adds the differentials), so the choice is asked of the planning on
-    # the nodes of two revisions, then the replay on a category no line employs.
+    # A structure replayed has its counter and its instant moved: the update replays those the
+    # planning names for the lines of a category accepted (``structures_of``). A revision holds
+    # one structure for now: the choice between two of one revision waits for the differentials of
+    # EP-08 (#2621), so the planning is asked here on the nodes of two revisions, each naming its
+    # own, then the structure of the lines priced again is replayed.
     first, second = (UUID(each["revision_id"]) for each in (offer.revision, open_next(api, stage)))
     with stage.database.transaction() as session:
         project_id = UUID(stage.project["project_id"])
@@ -490,8 +491,6 @@ def test_only_the_structures_that_hold_a_line_priced_again_are_replayed(
                 session, project_id, revision
             )
         before = structure_counters(session, second)
-        reprice_revision(session, (project_id, second), next_year, {uuid4()})
-        assert structure_counters(session, second) == before
         reprice_revision(session, (project_id, second), next_year, {offer.engineering})
         assert structure_counters(session, second) != before
 

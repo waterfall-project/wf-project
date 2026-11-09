@@ -129,6 +129,7 @@ from waterfall.core.projects.interface.subprojects import (
     load_subprojects,
     subproject_has_actual_costs,
     subproject_labels,
+    subprojects_named,
     subprojects_present,
     update_subproject,
 )
@@ -256,6 +257,7 @@ __all__ = [
     "stored_lock_version",
     "subproject_has_actual_costs",
     "subproject_labels",
+    "subprojects_named",
     "subprojects_present",
     "update_project",
     "update_subproject",

@@ -192,9 +192,9 @@ def test_the_hours_of_a_task_are_judged_when_the_role_of_its_line_changes_only(
     judged: list[UUID] = []
     real = writing.judge_working_hours
 
-    def counting(session: Session, held: Any, role_id: UUID) -> None:
+    def counting(session: Session, held: Any, role_id: UUID, earlier: Any = None) -> None:
         judged.append(role_id)
-        real(session, held, role_id)
+        real(session, held, role_id, earlier)
 
     monkeypatch.setattr(writing, "judge_working_hours", counting)
     kept = lines.changed(node, quantity="2")

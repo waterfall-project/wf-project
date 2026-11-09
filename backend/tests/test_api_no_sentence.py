@@ -138,6 +138,9 @@ DATA = {
     # it (``getEstimateIndicators``, US-1510; the scope asked is ``CalculationContext.scope``).
     "ComputableAmountByKey.key": "an identifier, or a key of the ventilation",
     "ComputableAmountByKey.label": "a label",
+    # The same of the differences of amounts of a comparison of two revisions (US-1530).
+    "RevisionComparison.amount_deltas.key": "an identifier, or a key of the ventilation",
+    "RevisionComparison.amount_deltas.label": "a label",
     # The category of a row of the grid of the hourly rates, by the code and the label a person
     # gave it (``getHourlyRateGrid``, US-0830).
     "HourlyRateRow.code": "a code",

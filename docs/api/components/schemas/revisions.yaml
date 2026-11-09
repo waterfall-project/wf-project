@@ -2416,9 +2416,10 @@ PastePreview:
     elsewhere than where the user clicked (decision of the author, reframing of EP-16, #1361).
     A cell that falls on a column that its row
     does not accept is refused, the row and the column named (`PastePlan.rejected`), unless
-    it is empty, which writes nothing — a field computed for this node with `COMPUTED_VALUE`, a
-    field that its kind refuses or a column that no write carries, like the amounts,
-    with `FIELD_NOT_ACCEPTED` (EP-14/L42s); the subproject of a line that cannot leave it,
+    it is empty, which writes nothing — a field computed for this node with `COMPUTED_VALUE`, like
+    the amounts and the year of consumption of an estimate line, a field that its kind refuses
+    or a column that no write carries, like the `previous_*` columns of a line, with
+    `FIELD_NOT_ACCEPTED` (EP-14/L42s); the subproject of a line that cannot leave it,
     with `SUBPROJECT_HAS_ACTUAL_COSTS` (`PasteRejection`); any column of a line of
     the main structure whose task is completed, which accepts none, with
     `STATE_FORBIDS_OPERATION`, `params.missing_condition` at `task_not_completed`, the line not
@@ -2439,7 +2440,10 @@ PastePreview:
     first take the values of a creation (`createNode`: for a task, the automatic mode, one day,
     no predecessor; WF-DEV-0050), then are judged in the order of `NodeColumn` with the refusals
     of an entry, as the cells of an existing node are; a row one of whose cells is refused is
-    refused whole, and nothing is created for it. A task row whose anchor is under a milestone is
+    refused whole, and nothing is created for it. An estimate line created is placed under the task
+    that bears the last node (its parent): with no task to bear it, as when the last node is a
+    task at the root, the whole row is refused with `UNKNOWN_TASK`, `column` null
+    (`PasteRejection`). A task row whose anchor is under a milestone is
     refused with `MILESTONE_HAS_NO_SUBTASK` (`PasteRejection`).
   properties:
     target_node_id: { $ref: ../common.yaml#/Uuid }
