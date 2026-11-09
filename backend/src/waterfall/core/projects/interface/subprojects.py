@@ -41,6 +41,7 @@ from waterfall.core.projects.interface.contributors import (
     require_project_manager,
 )
 from waterfall.core.projects.interface.estimate_facts import (
+    subproject_estimate_lines,
     subprojects_cited,
     subprojects_estimated,
 )
@@ -203,23 +204,26 @@ class _Deletion:
 
 
 def _deletions(
-    session: Session, project_id: UUID, subproject_ids: Collection[UUID]
+    session: Session, project_id: UUID, subproject_ids: Collection[UUID], *, naming: bool = False
 ) -> dict[UUID, _Deletion]:
-    """Name what the deletion of each subproject of a project lacks, and the lines that bear it.
+    """Name what the deletion of each subproject of a project lacks.
 
-    The estimate is asked once for them all.
+    The estimate is asked once for them all whether a line bears each; the lines themselves, which
+    only the refusal of a deletion shows, are read when ``naming``.
     """
     cited = subprojects_cited(session, project_id, subproject_ids)
     estimated = subprojects_estimated(session, project_id, subproject_ids)
+    named = subproject_estimate_lines(session, project_id, subproject_ids) if naming else {}
     found: dict[UUID, _Deletion] = {}
     for each in subproject_ids:
-        lines = estimated.get(each, ())
         missing = (
             (NOT_CITED, each in cited),
             (WITHOUT_ACTUAL_COSTS, subproject_has_actual_costs(session, each)),
-            (WITHOUT_ESTIMATE_LINES, bool(lines)),
+            (WITHOUT_ESTIMATE_LINES, each in estimated),
         )
-        found[each] = _Deletion(tuple(name for name, lacks in missing if lacks), lines)
+        found[each] = _Deletion(
+            tuple(name for name, lacks in missing if lacks), named.get(each, ())
+        )
     return found
 
 
@@ -455,7 +459,7 @@ def delete_subproject(
     _, row = _locked(session, project_id, subproject_id, lock_version, viewer)
     # ``_locked`` has judged the project writable (``_writable``): the manager under the lock, and
     # not terminal. The subproject is locked: a line that names it meanwhile waits on its key.
-    deletion = _deletions(session, project_id, [row.id])[row.id]
+    deletion = _deletions(session, project_id, [row.id], naming=True)[row.id]
     if deletion.missing:
         params: dict[str, object] = {"missing_condition": deletion.missing[0]}
         if deletion.missing[0] == WITHOUT_ESTIMATE_LINES:

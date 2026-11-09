@@ -20,18 +20,20 @@ from typing import TYPE_CHECKING, Any
 from uuid import UUID
 
 import pytest
-from estimate_support import YEAR, Costing, Lines, add_role, costing, rate_row
+from estimate_support import YEAR, Costing, Lines, add_role, costing, give_a_line, rate_row
 from nodes_support import Tree, faults, mark, opened, refusal, set_progress
 from openapi_core.testing import MockRequest, MockResponse
-from planning_support import insert_link
+from planning_support import insert_link, insert_task
+from project_rows import structure_row
 from projects_support import PROJECTS, Scene, person
 from projects_support import scene as make_scene
-from sqlalchemy import func, insert, select
+from sqlalchemy import delete as sql_delete
+from sqlalchemy import func, insert, select, text, update
 
 from waterfall.core.cost_settings.interface import CostCategoryDraft, create_cost_category
 from waterfall.core.cost_settings.tables import CostCategory, CostType
 from waterfall.core.estimate.tables import EstimateLine, RevisionRate
-from waterfall.core.planning.tables import Node, TaskLink
+from waterfall.core.planning.tables import Node, Task, TaskLink
 from waterfall.core.revisions.tables import CostStructure
 from waterfall.platform.audit import Act
 from waterfall.platform.database import utc_now
@@ -246,6 +248,33 @@ def test_a_line_of_a_completed_task_is_neither_deleted_nor_moved_on_the_main_str
     marked = (409, STATE_FORBIDS, {"missing_condition": "revision_draft"})
     assert refusal(delete(tree, line)) == marked
     assert refusal(move(tree, [line], open_task["node_id"])) == marked
+
+
+@pytest.mark.requirement("WF-DEV-0050-A")
+def test_a_line_reordered_under_its_own_completed_task_is_refused_on_the_main_structure(
+    tree: Tree, lines: Lines, costs: Costing, stage: Scene
+) -> None:
+    # A completed task freezes its lines on the main structure, their rank included: a move to the
+    # task that already bears them is refused as a move to another (``task_not_completed``), and
+    # nothing moves.
+    done = tree.made("Câblage")
+    first = lines.made(done, **material(costs, label="Câbles"))["nodes"][0]
+    second = lines.made(done, **material(costs, label="Banc"))["nodes"][0]
+    set_progress(stage, done["node_id"], "completed", tree.created_at.date())
+
+    def labels() -> list[str]:
+        return [
+            item["estimate_line"]["label"]
+            for item in tree.items()
+            if item["parent_id"] == done["node_id"]
+        ]
+
+    before = counter(tree)
+    assert labels() == ["Câbles", "Banc"]
+    answer = move(tree, [first], done["node_id"], after_node_id=second["node_id"])
+    assert refusal(answer) == COMPLETED
+    assert counter(tree) == before
+    assert labels() == ["Câbles", "Banc"]
 
 
 # --- The move ----------------------------------------------------------------------------------
@@ -481,6 +510,56 @@ def test_a_subproject_the_lines_of_the_current_revision_bear_is_kept_naming_them
     assert refusal(delete_subproject(api, stage, other))[2]["estimate_lines"][0]["label"] == (
         "Raccordement"
     )
+
+
+@pytest.mark.requirement("WF-DAT-0080-A")
+def test_the_lines_a_refusal_names_come_main_structure_first_then_by_structure_label(
+    tree: Tree, lines: Lines, costs: Costing, stage: Scene, owner: Engine
+) -> None:
+    api = tree.api
+    # The main structure first, whatever the label of the others: a differential whose label sorts
+    # before "Structure principale" is named after it. No differential is written before EP-08 and
+    # the kind of a structure is checked: the check is lifted for this test alone, and restored.
+    named = subproject(api, stage, "SP-CMD")
+    task = tree.made("Câblage")
+    written = lines.made(task, **material(costs, label="Borniers", subproject_id=named))
+    project_id, revision_id = UUID(stage.project["project_id"]), UUID(tree.revision["revision_id"])
+    row = structure_row(project_id, revision_id, kind="differential", label="Alpha")
+    structure_id = row["id"]
+    assert isinstance(structure_id, UUID)
+    check = "ALTER TABLE cost_structure {} CONSTRAINT ck_cost_structure_kind_known {}"
+    with owner.begin() as connection:
+        connection.execute(text(check.format("DROP", "")))
+    try:
+        with owner.begin() as connection:
+            connection.execute(insert(CostStructure).values(**row))
+            bearer = insert_task(connection, project_id, revision_id, structure_id)
+            node_id = give_a_line(connection, bearer)
+            connection.execute(
+                update(EstimateLine)
+                .where(EstimateLine.node_id == node_id)
+                .values(label="Alpha 1", subproject_id=UUID(named))
+            )
+        refused = delete_subproject(api, stage, named)
+        found = refusal(refused)[2]["estimate_lines"]
+        assert [(line["structure_label"], line["label"]) for line in found] == [
+            ("Structure principale", "Borniers"),
+            ("Alpha", "Alpha 1"),
+        ]
+        assert found[0]["node_id"] == written["nodes"][0]["node_id"]
+    finally:
+        with owner.begin() as connection:
+            nodes = select(Node.id).where(Node.structure_id == structure_id)
+            connection.execute(sql_delete(EstimateLine).where(EstimateLine.node_id.in_(nodes)))
+            connection.execute(
+                sql_delete(Node).where(
+                    Node.structure_id == structure_id, Node.kind == "estimate_line"
+                )
+            )
+            connection.execute(sql_delete(Task).where(Task.node_id.in_(nodes)))
+            connection.execute(sql_delete(Node).where(Node.structure_id == structure_id))
+            connection.execute(sql_delete(CostStructure).where(CostStructure.id == structure_id))
+            connection.execute(text(check.format("ADD", "CHECK (kind IN ('main'))")))
 
 
 @pytest.mark.requirement("WF-DAT-0080-A")

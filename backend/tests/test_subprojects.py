@@ -460,10 +460,14 @@ def test_a_refusal_of_the_deletion_names_the_first_condition_in_the_order_of_the
 
     # The question EP-09 will fill, answered as it will when a cost is charged; that of EP-07, as
     # it answers when a line of the current revision bears the subproject.
-    def bearing(_session: object, _project: object, ids: Any) -> dict[Any, tuple[object, ...]]:
+    def bearing(_session: object, _project: object, ids: Any) -> frozenset[Any]:
+        return frozenset(ids)
+
+    def named(_session: object, _project: object, ids: Any) -> dict[Any, tuple[object, ...]]:
         return {each: (object(),) for each in ids}
 
     monkeypatch.setattr(f"{INTERFACE}.subprojects_estimated", bearing)
+    monkeypatch.setattr(f"{INTERFACE}.subproject_estimate_lines", named)
     monkeypatch.setattr(f"{INTERFACE}.subproject_has_actual_costs", holds)
     listed = api.get(path(stage), headers=stage.manager.headers).json()[0]
     assert listed["available_commands"][1] == {

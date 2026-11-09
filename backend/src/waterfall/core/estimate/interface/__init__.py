@@ -54,6 +54,9 @@ from waterfall.core.estimate.interface.employment import (
     category_is_employed as category_is_employed,
 )
 from waterfall.core.estimate.interface.employment import (
+    subproject_estimate_lines as subproject_estimate_lines,
+)
+from waterfall.core.estimate.interface.employment import (
     subproject_is_cited as subproject_is_cited,
 )
 from waterfall.core.estimate.interface.employment import (
@@ -208,7 +211,13 @@ register_copy(copy_rates)
 register_closing("content", close_rates)
 register_employment(category_is_employed)
 register_estimate_facts(
-    EstimateFacts(subproject_is_cited, subproject_is_estimated, roles_employed, reinflate_project)
+    EstimateFacts(
+        subproject_is_cited,
+        subproject_is_estimated,
+        subproject_estimate_lines,
+        roles_employed,
+        reinflate_project,
+    )
 )
 register_idle_task_guard(idle_tasks_for_role_calendar)
 register_format("estimate", ESTIMATE_FORMAT)

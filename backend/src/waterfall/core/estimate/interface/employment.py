@@ -6,11 +6,11 @@
 revision, current or marked: an abandoned one keeps none —, which a change of the kind of a nature
 or of a category refuses (``register_employment``, WF-REF-0030, WF-REF-0040).
 ``subproject_is_cited`` and ``subproject_is_estimated`` tell the projects the subprojects a line of
-a marked revision bears, and the lines of the current revision that bear each, which the deletion
-of a subproject refuses, naming those lines (``register_estimate_facts``, WF-DAT-0080,
-WF-PRJ-0050): each by its structure and the label of it, its node, its row number and its label,
-the main structure first, then the others in the order of ``listCostStructures``, each in the order
-of the plan.
+a marked revision, and of the current one, bears; ``subproject_estimate_lines`` the lines of the
+current revision that bear each, which the deletion of a subproject names when it refuses
+(``register_estimate_facts``, WF-DAT-0080, WF-PRJ-0050): each by its structure and the label of it,
+its node, its row number and its label, the main structure first, then the others in the order of
+``listCostStructures``, each in the order of the plan.
 
 Declared by US-1490/L1; filled and registered by US-1490/L4.
 """
@@ -73,7 +73,31 @@ def subproject_is_cited(
     )
 
 
+def _current_bearing(
+    session: Session, project_id: UUID, subproject_ids: Collection[UUID]
+) -> list[tuple[UUID, UUID, str]]:
+    """Give the lines of the current revision of a project that bear one of the subprojects."""
+    current = project_facts(session, project_id).current_revision_id
+    held = _bearing(session, project_id, subproject_ids)
+    if current is None or not held:
+        return []
+    revisions = node_revisions(session, project_id, [node for node, _, _ in held])
+    return [each for each in held if revisions.get(each[0]) == current]
+
+
 def subproject_is_estimated(
+    session: Session, project_id: UUID, subproject_ids: Collection[UUID]
+) -> frozenset[UUID]:
+    """Give, of the subprojects of a project given, those a line of its current revision bears.
+
+    Without the lines: the list of subprojects asks no more, and reads no tree for it.
+    """
+    return frozenset(
+        subproject for _, subproject, _ in _current_bearing(session, project_id, subproject_ids)
+    )
+
+
+def subproject_estimate_lines(
     session: Session, project_id: UUID, subproject_ids: Collection[UUID]
 ) -> dict[UUID, tuple[EstimatedLine, ...]]:
     """Give the lines of the current revision of a project that bear each subproject given.
@@ -81,12 +105,9 @@ def subproject_is_estimated(
     A subproject none bears is left out. The lines named in the order a refusal names them: the
     main structure first, then the others by their label, each in the order of the plan.
     """
-    current = project_facts(session, project_id).current_revision_id
-    held = _bearing(session, project_id, subproject_ids)
-    if current is None or not held:
+    held = _current_bearing(session, project_id, subproject_ids)
+    if not held:
         return {}
-    revisions = node_revisions(session, project_id, [node for node, _, _ in held])
-    held = [each for each in held if revisions.get(each[0]) == current]
     rows = node_rows(session, project_id, [node for node, _, _ in held])
     structures = {
         each: structure_facts(session, project_id, each, lock=False)

@@ -213,6 +213,7 @@ LINE_HOOKS = (
 FACTS = (
     f"{ESTIMATE}.employment.subproject_is_cited",
     f"{ESTIMATE}.employment.subproject_is_estimated",
+    f"{ESTIMATE}.employment.subproject_estimate_lines",
     f"{ESTIMATE}.contributors.roles_employed",
     f"{ESTIMATE}.rates.reinflate_project",
 )

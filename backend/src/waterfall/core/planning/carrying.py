@@ -69,6 +69,8 @@ def judge_lines_moved(write: Write, node_ids: Collection[UUID], parent: UUID | N
     tree = write.tree
     lines = [each for each in node_ids if each not in tree.tasks]
     if lines:
+        # A completed task freezes its lines on the main structure, their rank included: a line
+        # reordered under its own completed task is refused as one moved to it.
         refuse_completed(write, (parent, *(tree.nodes[each].parent_id for each in lines)))
 
 

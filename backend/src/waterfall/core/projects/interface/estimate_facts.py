@@ -3,10 +3,11 @@
 """What the estimate tells the projects of its lines: subprojects they bear, roles they employ.
 
 A registry of this module (EP-07, "Les points d'extension"), filled by the estimate at the import of
-its interface, which this module never imports: one entry holds the four questions the projects
+its interface, which this module never imports: one entry holds the five questions the projects
 ask of the lines — the subprojects a marked revision cites by its lines
-(``subproject_is_cited``) and those the lines of the current revision bear, each named
-(``subproject_is_estimated``), which the deletion of a subproject asks (WF-DAT-0080,
+(``subproject_is_cited``), those the lines of the current revision bear
+(``subproject_is_estimated``, which the list of subprojects asks), and those lines, named
+(``subproject_estimate_lines``, which the deletion of a subproject asks alone; WF-DAT-0080,
 WF-PRJ-0050); the roles the labour lines of a project employ (``roles_employed``,
 ``listContributorSuggestions``, US-1540); the current revision priced again when the inflation of
 its project changes (``reinflate_project``, ``updateProject``, US-1500). Each story that asks a
@@ -46,14 +47,16 @@ class EstimateFacts:
     """What the estimate answers the projects, each question given its session and its project.
 
     ``subproject_is_cited`` gives, of the subprojects named, those a line of a marked revision
-    bears; ``subproject_is_estimated`` the lines of the current revision that bear each subproject
+    bears; ``subproject_is_estimated`` those a line of the current revision bears;
+    ``subproject_estimate_lines`` the lines of the current revision that bear each subproject
     named, a subproject that none bears left out, in the order a refusal names them;
     ``roles_employed`` the roles of resources the labour lines of the project employ;
     ``reinflate_project`` prices the current revision of the project again.
     """
 
     subproject_is_cited: Callable[[Session, UUID, Collection[UUID]], frozenset[UUID]]
-    subproject_is_estimated: Callable[
+    subproject_is_estimated: Callable[[Session, UUID, Collection[UUID]], frozenset[UUID]]
+    subproject_estimate_lines: Callable[
         [Session, UUID, Collection[UUID]], Mapping[UUID, tuple[EstimatedLine, ...]]
     ]
     roles_employed: Callable[[Session, UUID], frozenset[UUID]]
@@ -82,12 +85,23 @@ def subprojects_cited(
 
 def subprojects_estimated(
     session: Session, project_id: UUID, subproject_ids: Collection[UUID]
+) -> frozenset[UUID]:
+    """Give, of the subprojects of a project named, those a line of the current revision bears."""
+    found: set[UUID] = set()
+    if subproject_ids:
+        for facts in _FACTS.entries():
+            found |= facts.subproject_is_estimated(session, project_id, subproject_ids)
+    return frozenset(found)
+
+
+def subproject_estimate_lines(
+    session: Session, project_id: UUID, subproject_ids: Collection[UUID]
 ) -> dict[UUID, tuple[EstimatedLine, ...]]:
     """Give the lines of the current revision that bear each subproject named; none left out."""
     found: dict[UUID, tuple[EstimatedLine, ...]] = {}
     if subproject_ids:
         for facts in _FACTS.entries():
-            for each, lines in facts.subproject_is_estimated(
+            for each, lines in facts.subproject_estimate_lines(
                 session, project_id, subproject_ids
             ).items():
                 found[each] = (*found.get(each, ()), *lines)
