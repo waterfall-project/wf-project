@@ -513,8 +513,9 @@ test("reads in the planning a task created in the estimate grid, automatic, of o
   await expect(cells.nth(columns.mode)).toHaveText("Automatique");
   await expect(cells.nth(columns.duration)).toHaveText(/^1\s?j/);
   await expect(cells.nth(columns.predecessors)).toHaveText("");
-  const second = planning.getByRole("row", { name: /^2 .*Sous-tâche du devis/ });
-  await expect(second).toHaveAttribute("aria-level", "2");
+  // The numbers are those of the estimate, where the line of the first task is the second row.
+  const second = planning.getByRole("row", { name: /^3 .*Sous-tâche du devis/ });
+  await expect(second).toHaveAttribute("aria-level", "1");
 
   // Indented under the first task from the estimate grid, the move is read in the planning.
   await openHydrated(page, `${revision}/estimate`);
@@ -528,7 +529,7 @@ test("reads in the planning a task created in the estimate grid, automatic, of o
   await openHydrated(page, `${revision}/planning`);
   await expect(
     page.getByRole("treegrid", { name: "Grille de planning" }).getByRole("row", {
-      name: /^2 .*Sous-tâche du devis/,
+      name: /^3 .*Sous-tâche du devis/,
     }),
-  ).toHaveAttribute("aria-level", "3", { timeout: WORKING });
+  ).toHaveAttribute("aria-level", "2", { timeout: WORKING });
 });

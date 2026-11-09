@@ -305,6 +305,9 @@ test("moves through the estimate of the service by the keys alone, stops on the 
   await expect(page.locator(":focus")).toHaveAttribute("data-row", "2");
   await press(page, "Control+Home");
   await expect(page.locator(":focus")).toHaveAttribute("data-row", "0");
+  // Control+Home reaches the first column of the grid: the arrows count from there to the label.
+  await press(page, ...times("ArrowRight", at.label));
+  await expect(cellAt(grid, 1, at.label)).toBeFocused();
 
   // The amount of the line is computed: the arrows stop on it, which opens no entry, a try is refused.
   await press(page, "ArrowDown", "ArrowDown", ...times("ArrowRight", at.reference - at.label));

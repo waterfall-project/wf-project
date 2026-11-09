@@ -19,8 +19,9 @@
  */
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
-import { useMemo } from "react";
+import { useMemo, useTransition } from "react";
 
 import {
   applyPaste,
@@ -59,7 +60,8 @@ import type { GridQuery } from "./query";
 import type { RowChoices } from "./row-choices";
 import type { GridPreferences } from "./settings";
 import { useStructureGestures } from "./structure-gestures";
-import { useStructureVersion } from "./structure-version";
+import { type StructureAccount, useStructureVersion } from "./structure-version";
+import { useUndoRedo } from "./undo-run";
 
 /** What the grid of the estimate shows. */
 export interface EstimateGridProps {
@@ -118,6 +120,11 @@ export interface EstimateGridProps {
 interface Moved {
   readonly to: (version: number) => void;
   readonly whole: boolean;
+  /**
+   * Read the page anew, for the rows a paste created, which take their place among the server's:
+   * only while the grid still shows the structure pasted in.
+   */
+  readonly readAnew: () => void;
 }
 
 /**
@@ -163,12 +170,18 @@ function structurePaste(
         confirmed: true,
         lock_version: version,
       });
-      return outcome.kind === "done"
-        ? {
-            kind: "done",
-            data: { written: readWritten(outcome.data, moved), rejected: outcome.data.rejected },
-          }
-        : outcome;
+      if (outcome.kind !== "done") {
+        return outcome;
+      }
+      // The tasks and the lines the paste created are in the answer, but the rows they take their
+      // place among are the server's: the grid reads its page anew, as after any creation (#2559).
+      if (plan.created > 0) {
+        moved.readAnew();
+      }
+      return {
+        kind: "done",
+        data: { written: readWritten(outcome.data, moved), rejected: outcome.data.rejected },
+      };
     },
   };
 }
@@ -233,8 +246,18 @@ export function EstimateGrid({
   // The version of the structure moves with each write answered: the highest one told — writes
   // of different rows leave together, and an answer may come back after a later one —, or the
   // one read with the page when a new reading is more recent.
-  const account = useStructureVersion(structure.structure_id, structureVersion);
-  const { version, reach } = account;
+  const router = useRouter();
+  // The reading anew that follows a paste which created rows: the grid is busy until it arrives, so
+  // that no gesture, no undo starts from the neighbours of before it.
+  const [reading, refresh] = useTransition();
+  const counted = useStructureVersion(structure.structure_id, structureVersion);
+  const account = useMemo<StructureAccount>(
+    () => ({ ...counted, busy: counted.busy || reading }),
+    [counted, reading],
+  );
+  const { version, reach, shows } = account;
+  // Undo and redo ask the server's history, where the estimate may be entered.
+  const undo = useUndoRedo(structure, account, editable);
   // A reader for each reading: an answer names rows a new reading may have renumbered.
   const dependencies = useMemo(
     () => nodeDependencies(structure, nodes.items),
@@ -278,6 +301,13 @@ export function EstimateGrid({
     const told: Moved = {
       to: reach,
       whole,
+      readAnew: () => {
+        if (shows(structure.structure_id)) {
+          refresh(() => {
+            router.refresh();
+          });
+        }
+      },
     };
     const name = (column: NodeColumn) => columns(column);
     return estimateGrid(
@@ -296,6 +326,8 @@ export function EstimateGrid({
     structure,
     version,
     reach,
+    shows,
+    router,
     filters,
     whole,
     columns,
@@ -318,6 +350,7 @@ export function EstimateGrid({
         foldScope={structure.revision_id}
         narrowing={nodeNarrowing(filters)}
         undoable={editable}
+        undo={undo}
         commands={gestures}
       />
     </OriginRisksProvider>

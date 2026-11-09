@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
-import { NextIntlClientProvider } from "next-intl";
-import type { ReactNode } from "react";
+import { NextIntlClientProvider, useTranslations } from "next-intl";
+import { type ReactNode, useMemo } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { components } from "@/api/generated/schema";
@@ -17,6 +17,8 @@ import { expectAccessible } from "@/test/axe";
 import { example, type FakeClient, fakeClient } from "@/test/fixtures";
 import { estimateReference } from "@/test/reference";
 
+import { DenseGrid } from "./dense-grid";
+import { estimateGrid as estimateConfig } from "./estimate";
 import { EstimateGrid } from "./estimate-grid";
 import type { NodeList, NodeSortColumn } from "./nodes";
 import { PlanningGrid } from "./planning-grid";
@@ -75,6 +77,36 @@ function estimateGrid(editable = true, locale: Locale = "fr") {
   );
 }
 
+/**
+ * A grid that offers undo and redo and is wired on no history: the commands are placed, unavailable.
+ * The grids of the screens are all wired on the server's history; this is the state a grid not yet
+ * wired stays in (`DenseGrid`, `undo`).
+ */
+function UnwiredGrid() {
+  const t = useTranslations("estimateGrid");
+  const config = useMemo(() => estimateConfig(estimateReference()), []);
+  const nodes = example("nodes_estimate") as NodeList;
+  return (
+    <DenseGrid
+      config={config}
+      rows={nodes.items}
+      totals={nodes.totals}
+      totalsCaption={(totals) =>
+        t("totals", { tasks: totals.task_count, lines: totals.estimate_line_count })
+      }
+      query={NO_QUERY}
+      preferences={undefined}
+      foldScope={STRUCTURE.revision_id}
+      undoable
+    />
+  );
+}
+
+/** The grid placed, unavailable, in a language. */
+function unwiredGrid(locale: Locale = "fr") {
+  return inLanguage(<UnwiredGrid />, locale);
+}
+
 /** The first cell of the labels, given the focus as a click on it would. */
 function focusLabel(): HTMLElement {
   const found = screen
@@ -125,7 +157,7 @@ afterEach(() => {
 
 describe("undo and redo, placed in the grids", () => {
   it("places Undo and Redo in the bar of a grid that enters a revision in progress, unavailable, saying why, and doing nothing", async () => {
-    render(estimateGrid());
+    render(unwiredGrid());
     for (const [name, keys] of [
       ["Annuler", "Control+Z Meta+Z"],
       ["Rétablir", "Control+Shift+Z Meta+Shift+Z"],
@@ -151,7 +183,7 @@ describe("undo and redo, placed in the grids", () => {
   });
 
   it("places them in the menu of a cell, opened by Shift+F10, with their shortcuts, unavailable and saying why", async () => {
-    render(estimateGrid());
+    render(unwiredGrid());
     const cell = focusLabel();
     await userEvent.keyboard("{Shift>}{F10}{/Shift}");
     const menu = cellMenu();
@@ -240,7 +272,7 @@ describe("undo and redo, placed in the grids", () => {
   });
 
   it("takes Ctrl+Z and Ctrl+Shift+Z on the grid, and tells each unavailable", () => {
-    render(estimateGrid());
+    render(unwiredGrid());
     expect(told()).toBeNull();
     const cell = focusLabel();
     expect(press(cell)).toBe(false);
@@ -276,7 +308,7 @@ describe("undo and redo, placed in the grids", () => {
   });
 
   it("takes the shortcut in the bar of the grid too, on the button Undo itself", () => {
-    render(estimateGrid());
+    render(unwiredGrid());
     const button = screen.getByRole("button", { name: "Annuler" });
     button.focus();
     expect(press(button)).toBe(false);
@@ -303,8 +335,16 @@ describe("undo and redo, placed in the grids", () => {
     expect(told()).toBeNull();
   });
 
+  it("places them in the grid of the estimate of a revision that may be entered, wired on the server: available, and the shortcut tells nothing unavailable [WF-IHM-0110-A]", () => {
+    render(estimateGrid());
+    expect(screen.getByRole("button", { name: "Annuler" })).not.toHaveAttribute("aria-disabled");
+    expect(screen.queryByText(REASON)).toBeNull();
+    expect(press(focusLabel())).toBe(false);
+    expect(told()).toBeNull();
+  });
+
   it("is named and told in English too", async () => {
-    render(estimateGrid(true, "en"));
+    render(unwiredGrid("en"));
     expect(screen.getByRole("button", { name: "Undo" })).toHaveAccessibleDescription(
       "Unavailable until the server keeps the history of the entries.",
     );

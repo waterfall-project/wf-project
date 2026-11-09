@@ -274,15 +274,14 @@ test("a task deleted from the estimate grid comes back with its line once the de
   await expect(task).toContainText("Tâche du devis", { timeout: WORKING });
   await expect(grid.getByRole("gridcell", { name: /^Total — 2 tâches, 1 ligne$/ })).toBeVisible();
 
-  // The task goes with its line, once confirmed.
+  // The task goes with its line at once: only a summary asks to be confirmed.
   await task.click();
   await page.keyboard.press("Control+Delete");
-  const confirm = page.getByRole("dialog", { name: "Supprimer « Tâche du devis » ?" });
-  await expect(confirm).toContainText("leurs lignes et leurs liaisons");
-  await confirm.getByRole("button", { name: "Supprimer" }).click();
-  await expect(grid.getByRole("gridcell", { name: /^Total — 1 tâche, 0 ligne$/ })).toBeVisible({
-    timeout: WORKING,
-  });
+  await expect(grid.getByRole("gridcell", { name: /^Total — 1 tâche, aucune ligne$/ })).toBeVisible(
+    {
+      timeout: WORKING,
+    },
+  );
   await idle(grid);
 
   // Undone, the task and its line are back, as the totals say.
