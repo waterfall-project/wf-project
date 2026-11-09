@@ -14,7 +14,8 @@
  * told as every screen tells one (`OutcomeNotice`), by the sentence of the catalogue its code and its
  * parameters name — the object a later change took up, the condition the history lacks, a session
  * of sign-in that carries no identifier — and stays told until it is dismissed or the next command
- * is given. What is answered belongs to the structure it was sent in (défaut n° 1 de `typescript.md`).
+ * is given. A command done is announced with the depth left to undo or to redo (`remaining_depth`).
+ * What is answered belongs to the structure it was sent in (défaut n° 1 de `typescript.md`).
  */
 "use client";
 
@@ -25,7 +26,7 @@ import type { Outcome } from "@/api/problem";
 import { useHeldCommand } from "@/components/commands/held";
 
 import type { StructureAccount } from "./structure-version";
-import type { UndoCommand, UndoControl } from "./undo-commands";
+import type { UndoCommand, UndoControl, UndoneCommand } from "./undo-commands";
 
 /** The structure a grid shows: its project, its revision, the structure itself. */
 interface UndoScope {
@@ -40,6 +41,11 @@ interface Told {
   readonly outcome: Outcome<unknown>;
 }
 
+/** A command done, and the structure it was done in; `count` tells the same command done again. */
+interface Done extends UndoneCommand {
+  readonly structure: string;
+}
+
 /**
  * Wire undo and redo on the history of the revision of a structure, whose writes `account` counts;
  * none for a grid that does not offer them (`offered`).
@@ -51,6 +57,7 @@ export function useUndoRedo(
 ): UndoControl | undefined {
   const held = useHeldCommand();
   const [told, setTold] = useState<Told>();
+  const [done, setDone] = useState<Done>();
   const structure = scope.structure_id;
   const press = (command: UndoCommand) => {
     // One command at a time, and none while the structure is being written: the history the server
@@ -60,10 +67,17 @@ export function useUndoRedo(
     }
     const ask = command === "undo" ? undoLastChange : redoLastUndo;
     setTold(undefined);
+    setDone(undefined);
     const sent = held(ask(scope.project_id, scope.revision_id));
     account.writing(sent);
     void sent.then((outcome) => {
       if (outcome.kind === "done") {
+        setDone((before) => ({
+          structure,
+          command,
+          remaining: outcome.data.remaining_depth,
+          count: (before?.count ?? 0) + 1,
+        }));
         // The version the structure moved on to; a write of the structure itself (its start date,
         // its label) moves no node, and the page read anew tells its counter.
         if (outcome.data.written !== null) {
@@ -81,8 +95,10 @@ export function useUndoRedo(
     press,
     busy: account.busy,
     outcome: told?.structure === structure ? told.outcome : undefined,
+    done: done?.structure === structure ? done : undefined,
     clear: () => {
       setTold(undefined);
+      setDone(undefined);
     },
   };
 }

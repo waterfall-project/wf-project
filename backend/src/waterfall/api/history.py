@@ -83,6 +83,7 @@ def post_paste_preview(
     return {
         "paste_id": str(planned.paste_id),
         "accepted": planned.accepted,
+        "created": planned.created,
         "rejected": [_refused(each) for each in planned.rejected],
     }
 

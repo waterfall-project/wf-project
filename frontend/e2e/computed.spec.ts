@@ -1,9 +1,11 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
-import { expect, type Locator, type Page, test } from "@playwright/test";
+import { expect, type Locator, type Page } from "@playwright/test";
 
 import { columnsOf } from "./columns";
-import { openHydrated } from "./hydration";
+import { openHydrated, WORKING } from "./hydration";
+import { inService, test } from "./mode";
+import { SEEDED, seedPlanning } from "./planning-seed";
 
 // The fake back serves the first example of `listNodes`, the structure of the witness at the sizes
 // of §4.6.2, its core first (#376). The journeys read it by marks the generator writes, which
@@ -113,6 +115,46 @@ test("refuses to change the finish date of a summary task, from the keyboard, na
     /^5\s*Revue de conception$/,
     /^6\s*Réception des études$/,
     /^7\s*Dossier de conception$/,
+  ]);
+  await page.keyboard.press("Escape");
+  await expect(dialog).toHaveCount(0);
+  await expect(finish).toBeFocused();
+});
+
+test("refuses to change the finish date of a summary task against the service, which names its subordinates @shared [WF-IHM-0030-A]", async ({
+  page,
+  browser,
+  request,
+  manager,
+}) => {
+  test.skip(
+    !inService,
+    "the service answers getComputedValueDependencies from the structure it keeps",
+  );
+  test.slow();
+  const seeded = await seedPlanning(page, browser, request, manager, "Valeur calculée");
+  await openHydrated(page, seeded.planning);
+  const grid = page.getByRole("treegrid", { name: "Grille de planning" });
+  const summary = grid.getByRole("row", { name: new RegExp(`^1 .*${SEEDED[1]}`) });
+  await expect(summary.getByRole("img", { name: "Tâche récapitulative" })).toBeVisible({
+    timeout: WORKING,
+  });
+  const at = await columnsOf(grid, { finish: "Fin" });
+  const finish = cellOf(summary, at.finish);
+  await expect(finish).toHaveAccessibleName(/^Calculé \d\d\/\d\d\/\d{4}$/);
+
+  await finish.focus();
+  await page.keyboard.press("Enter");
+  const dialog = refusal(page);
+  await expect(dialog).toBeInViewport();
+  await expect(dialog).toContainText("Fin ne se saisit pas");
+  const subordinates = dialog
+    .getByRole("list", { name: /^Elle dépend de\s:$/ })
+    .getByRole("listitem");
+  await expect(subordinates).toHaveText([
+    new RegExp(`^2\\s*${SEEDED[2]}$`),
+    new RegExp(`^3\\s*${SEEDED[3]}$`),
+    new RegExp(`^4\\s*${SEEDED[4]}$`),
   ]);
   await page.keyboard.press("Escape");
   await expect(dialog).toHaveCount(0);
