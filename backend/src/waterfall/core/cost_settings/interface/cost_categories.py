@@ -322,6 +322,25 @@ def category_labels(
     }
 
 
+def categories_named(session: Session, labels: Collection[str]) -> dict[str, list[UUID]]:
+    """Give the categories each label names, deactivated ones too; a label with none is absent.
+
+    What a cell pasted into the estimate names its category by (EP-07, US-1560); two categories may
+    bear one label, which the caller refuses as unknown.
+    """
+    found: dict[str, list[UUID]] = {}
+    if not labels:
+        return found
+    rows = session.execute(
+        select(CostCategory.label, CostCategory.id)
+        .where(CostCategory.label.in_(list(labels)))
+        .order_by(CostCategory.code)
+    )
+    for label, category_id in rows:
+        found.setdefault(label, []).append(category_id)
+    return found
+
+
 def category_label_of(
     held: SQLColumnExpression[UUID],
 ) -> SQLColumnExpression[str | None]:

@@ -128,6 +128,9 @@ from waterfall.core.estimate.interface.facet import (
 from waterfall.core.estimate.interface.facet import (
     snapshot_lines as snapshot_lines,
 )
+from waterfall.core.estimate.interface.facet import (
+    write_line_cell as write_line_cell,
+)
 
 # ``indicators`` (US-1490/L1; US-1510): the indicators of an estimate and the rates it lacks.
 from waterfall.core.estimate.interface.indicators import (

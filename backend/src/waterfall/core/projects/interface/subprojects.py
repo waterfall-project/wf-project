@@ -495,6 +495,27 @@ def subproject_labels(
     return dict(rows.all())
 
 
+def subprojects_named(
+    session: Session, project_id: UUID, labels: Collection[str]
+) -> dict[str, list[UUID]]:
+    """Give the subprojects of a project each label names; a label with none is absent.
+
+    What a cell pasted into the estimate names its subproject by (EP-07, US-1560); the label is not
+    unique, and the caller refuses a label of several as unknown.
+    """
+    found: dict[str, list[UUID]] = {}
+    if not labels:
+        return found
+    rows = session.execute(
+        select(Subproject.label, Subproject.id)
+        .where(Subproject.project_id == project_id, Subproject.label.in_(list(labels)))
+        .order_by(Subproject.code)
+    )
+    for label, subproject_id in rows:
+        found.setdefault(label, []).append(subproject_id)
+    return found
+
+
 def subprojects_present(session: Session, subproject_ids: Collection[UUID]) -> frozenset[UUID]:
     """Keep, of the identifiers given, those of the subprojects that exist (the witness's)."""
     if not subproject_ids:

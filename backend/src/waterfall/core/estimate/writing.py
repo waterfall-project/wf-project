@@ -85,6 +85,27 @@ def _priced_draft(
     return priced(product, bearer, basis, week)
 
 
+def judged_priced(
+    session: Session,
+    project_id: UUID,
+    bearer: BearingTask,
+    entry: LineEntry,
+    current: EstimateLine | None,
+) -> Draft:
+    """Judge what is sent of a line, created or changed, as far as its price; nothing is written.
+
+    What ``create_line`` and ``change_line`` refuse before they write: the entry (``entries``), the
+    hours of the task when the role is new, the rate of the category. A paste judges its cells so,
+    at its preview and again at its confirmation.
+    """
+    draft = judged_line(session, (project_id, bearer), entry, current)
+    basis = basis_of(session, project_id, bearer.revision_id)
+    held = (project_id, bearer, None if current is None else current.node_id)
+    new_role = current is None or draft.resource_role_id != current.resource_role_id
+    _priced_draft(session, held, draft, basis, role_changes=new_role)
+    return draft
+
+
 def create_line(creation: FacetCreation) -> None:
     """Write the facet of a line created under its task, priced (``createNode``); or refuse."""
     session, project_id = creation.session, creation.project_id

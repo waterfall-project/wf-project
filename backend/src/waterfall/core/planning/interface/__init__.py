@@ -46,6 +46,15 @@ from waterfall.core.planning.interface.facets import (
     BearingTask as BearingTask,
 )
 from waterfall.core.planning.interface.facets import (
+    CellRefusal as CellRefusal,
+)
+from waterfall.core.planning.interface.facets import (
+    CellsJudged as CellsJudged,
+)
+from waterfall.core.planning.interface.facets import (
+    CellsPasted as CellsPasted,
+)
+from waterfall.core.planning.interface.facets import (
     FacetCreation as FacetCreation,
 )
 from waterfall.core.planning.interface.facets import (
@@ -85,10 +94,19 @@ from waterfall.core.planning.interface.lines import (
     FacetChange as FacetChange,
 )
 from waterfall.core.planning.interface.lines import (
+    LineJudged as LineJudged,
+)
+from waterfall.core.planning.interface.lines import (
     NodeRow as NodeRow,
 )
 from waterfall.core.planning.interface.lines import (
     create_line_node as create_line_node,
+)
+from waterfall.core.planning.interface.lines import (
+    judge_bearer as judge_bearer,
+)
+from waterfall.core.planning.interface.lines import (
+    judge_line_creation as judge_line_creation,
 )
 from waterfall.core.planning.interface.lines import (
     lineages_of as lineages_of,
@@ -101,6 +119,9 @@ from waterfall.core.planning.interface.lines import (
 )
 from waterfall.core.planning.interface.lines import (
     lines_of_structure as lines_of_structure,
+)
+from waterfall.core.planning.interface.lines import (
+    new_line_node as new_line_node,
 )
 from waterfall.core.planning.interface.lines import (
     node_revisions as node_revisions,
@@ -116,6 +137,9 @@ from waterfall.core.planning.interface.lines import (
 )
 from waterfall.core.planning.interface.lines import (
     write_facet as write_facet,
+)
+from waterfall.core.planning.interface.lines import (
+    write_line_node as write_line_node,
 )
 
 # ``msproject`` (US-1380/L1; US-1430/L3, L4): the format and the exporter of MS Project.

@@ -11959,7 +11959,7 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Paste plan. The `unknown_category` example shows a refused category cell, `without_hours` a role cell that would leave the task of its line without any worked hour (`TASK_WITHOUT_WORKING_HOURS`, WF-PLA-0010; #779), `creating` a block of tasks whose lines beyond the last node create tasks, the one without a label refused (#2559). */
+            /** @description Paste plan. The `unknown_category` example shows a refused category cell, `without_hours` a role cell that would leave the task of its line without any worked hour (`TASK_WITHOUT_WORKING_HOURS`, WF-PLA-0010; #779), `creating` a block of tasks whose lines beyond the last node create tasks, the one without a label refused (#2559), `creating_lines` a block of estimate lines whose lines beyond the last node create estimate lines, siblings of the last line: the one without a label and the one whose category is unknown are refused, each by its column (#2559, #2624; a counterfactual variant, the structure of the witness ending on a milestone). */
             200: {
                 headers: {
                     [name: string]: unknown;

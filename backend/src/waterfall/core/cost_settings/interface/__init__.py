@@ -64,6 +64,9 @@ from waterfall.core.cost_settings.interface.cost_categories import (
     CostCategoryView as CostCategoryView,
 )
 from waterfall.core.cost_settings.interface.cost_categories import (
+    categories_named as categories_named,
+)
+from waterfall.core.cost_settings.interface.cost_categories import (
     category_is_employed as category_is_employed,
 )
 from waterfall.core.cost_settings.interface.cost_categories import (
