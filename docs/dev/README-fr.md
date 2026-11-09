@@ -2153,24 +2153,24 @@ l'avis ne se prouvera qu'en parcours. Une grille sans `paste` dans sa configurat
 seule, ne prend aucun collage.
 
 **Le collage qui crée (planning, US-1450/L6, #2559).** Le service du planning crée une tâche pour
-chaque ligne du bloc qui tombe au-delà du dernier nœud de la structure : sœur de ce nœud, du genre du
-nœud visé, dans l'ordre du bloc, son libellé requis (la ligne sans libellé est refusée,
-`VALIDATION_FAILED` sur la colonne `label`). La garde locale ne compare donc plus le bloc à la hauteur
-de la grille : elle garde ses refus pour les colonnes masquées ou absentes, les lignes pliées, le tri,
-la recherche et le filtre — une lecture restreinte par la recherche ou un filtre refuse un bloc qui
-dépasse sa dernière ligne, le front ne pouvant dire si des lignes cachées la suivent. L'aperçu dit
-combien de tâches seront créées (`PastePlan.created`, comptées aussi parmi les lignes écrites, en
-une phrase de plus de la même région annoncée, `grid.paste.created`) ; la confirmation rend les
-tâches créées dans `nodes` (`PasteApplied`, `NodesWritten`), et la grille du planning, qui ne sait
-pas où ces lignes se rangent, lit sa page à nouveau quand le plan en créait (`router.refresh`, comme
-après la création d'une tâche) ; les lignes écrites prennent la place des lignes lues, comme à
-l'ordinaire. Un bloc dont la cible est une ligne de devis voit ses lignes au-delà du dernier nœud
-refusées en `FIELD_NOT_ACCEPTED` sans qu'aucune tâche soit créée (EP-07 servira les lignes) : le
-refus se lit dans la liste des lignes refusées de l'aperçu, comme tout refus. Annuler le collage
-supprime les tâches qu'il a créées, le rétablir les recrée : une seule entrée d'historique
-(`undone.kind` reste `paste`, `undone.node_ids` nomme les nœuds écrits et créés). Le parcours
-`paste.spec.ts` le joue contre le service (`@shared`), les tests de la grille sur les exemples
-`paste_plan_creating` et `paste_applied_creating`.
+chaque ligne du bloc qui tombe au-delà du dernier nœud de la structure : sœur de ce nœud, du genre
+du nœud visé, dans l'ordre du bloc, son libellé requis (la ligne sans libellé est refusée,
+`VALIDATION_FAILED` sur la colonne `label`). La garde locale ne compare donc plus le bloc à la
+hauteur de la grille : elle garde ses refus pour les colonnes masquées ou absentes, les lignes
+pliées, le tri, la recherche et le filtre — une lecture restreinte par la recherche ou un filtre
+refuse un bloc qui dépasse sa dernière ligne, le front ne pouvant dire si des lignes cachées la
+suivent. L'aperçu dit combien de tâches seront créées (`PastePlan.created`, comptées aussi parmi les
+lignes écrites, en une phrase de plus de la même région annoncée, `grid.paste.created`) ; la
+confirmation rend les tâches créées dans `nodes` (`PasteApplied`, `NodesWritten`), et la grille du
+planning, qui ne sait pas où ces lignes se rangent, lit sa page à nouveau quand le plan en créait
+(`router.refresh`, comme après la création d'une tâche) ; les lignes écrites prennent la place des
+lignes lues, comme à l'ordinaire. Un bloc dont la cible est une ligne de devis voit ses lignes
+au-delà du dernier nœud refusées en `FIELD_NOT_ACCEPTED` sans qu'aucune tâche soit créée (EP-07
+servira les lignes) : le refus se lit dans la liste des lignes refusées de l'aperçu, comme tout
+refus. Annuler le collage supprime les tâches qu'il a créées, le rétablir les recrée : une seule
+entrée d'historique (`undone.kind` reste `paste`, `undone.node_ids` nomme les nœuds écrits et
+créés). Le parcours `paste.spec.ts` le joue contre le service (`@shared`), les tests de la grille
+sur les exemples `paste_plan_creating` et `paste_applied_creating`.
 
 ### Les grilles : annuler et rétablir
 

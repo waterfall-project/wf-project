@@ -2156,23 +2156,24 @@ operation, the plan that refuses nothing: the partial paste is only tested by th
 only be proved in a path. A grid without `paste` in its configuration, read-only, takes no paste.
 
 **The paste that creates (planning, US-1450/L6, #2559).** The planning service creates a task for
-each row of the block that falls beyond the last node of the structure: a sibling of that node, of the
-kind of the targeted node, in the order of the block, its label required (a row without a label is
-refused, `VALIDATION_FAILED` on the `label` column). The local guard therefore no longer compares the
-block to the height of the grid: it keeps its refusals for hidden or absent columns, folded rows, the
-sort, the search and the filter — a reading narrowed by the search or a filter refuses a block that
-passes its last row, the front being unable to tell whether hidden rows follow it. The preview says
-how many tasks will be created (`PastePlan.created`, also counted among the rows written, in one more
-sentence of the same announced region, `grid.paste.created`); the confirmation returns the tasks
-created in `nodes` (`PasteApplied`, `NodesWritten`), and the planning grid, which does not know where
-those rows are placed, reads its page anew when the plan created some (`router.refresh`, as after the
-creation of a task); the rows written take the place of the rows read, as usual. A block whose target
-is an estimate line has its rows beyond the last node refused as `FIELD_NOT_ACCEPTED` without any
-task being created (EP-07 will serve the lines): the refusal reads in the list of refused rows of the
-preview, like any refusal. Undoing the paste deletes the tasks it created, redoing it recreates them:
-a single history entry (`undone.kind` stays `paste`, `undone.node_ids` names the nodes written and
-created). The path `paste.spec.ts` plays it against the service (`@shared`), the tests of the grid on
-the examples `paste_plan_creating` and `paste_applied_creating`.
+each row of the block that falls beyond the last node of the structure: a sibling of that node, of
+the kind of the targeted node, in the order of the block, its label required (a row without a label
+is refused, `VALIDATION_FAILED` on the `label` column). The local guard therefore no longer compares
+the block to the height of the grid: it keeps its refusals for hidden or absent columns, folded
+rows, the sort, the search and the filter — a reading narrowed by the search or a filter refuses a
+block that passes its last row, the front being unable to tell whether hidden rows follow it. The
+preview says how many tasks will be created (`PastePlan.created`, also counted among the rows
+written, in one more sentence of the same announced region, `grid.paste.created`); the confirmation
+returns the tasks created in `nodes` (`PasteApplied`, `NodesWritten`), and the planning grid, which
+does not know where those rows are placed, reads its page anew when the plan created some
+(`router.refresh`, as after the creation of a task); the rows written take the place of the rows
+read, as usual. A block whose target is an estimate line has its rows beyond the last node refused
+as `FIELD_NOT_ACCEPTED` without any task being created (EP-07 will serve the lines): the refusal
+reads in the list of refused rows of the preview, like any refusal. Undoing the paste deletes the
+tasks it created, redoing it recreates them: a single history entry (`undone.kind` stays `paste`,
+`undone.node_ids` names the nodes written and created). The path `paste.spec.ts` plays it against
+the service (`@shared`), the tests of the grid on the examples `paste_plan_creating` and
+`paste_applied_creating`.
 
 ### Grids: undo and redo
 

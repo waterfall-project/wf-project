@@ -361,6 +361,9 @@ test("a block of three labels pasted on the only task of the planning of a proje
   await idle();
   await page.getByRole("button", { name: "Rétablir", exact: true }).click();
   await expect(label(3)).toContainText("Recette", { timeout: WORKING });
-  await expect(grid.getByRole("gridcell", { name: "Total — 3 tâches" })).toBeVisible();
+  await expect(grid.getByRole("gridcell", { name: "Total — 3 tâches" })).toBeVisible({
+    timeout: WORKING,
+  });
+  await idle();
   await expect(page.getByRole("main").getByRole("alert")).toHaveCount(0);
 });

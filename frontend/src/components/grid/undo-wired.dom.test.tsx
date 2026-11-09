@@ -17,6 +17,7 @@ import {
   held,
   type Problem,
 } from "@/test/fixtures";
+import { holdReading, Reading, releaseReading } from "@/test/held-reading";
 
 import type { NodeList, NodeSortColumn } from "./nodes";
 import { PLANNING_GRID } from "./planning";
@@ -297,7 +298,7 @@ describe("a block pasted on the grid of the planning, judged by the server", () 
     });
   });
 
-  it("reads the page anew when the plan applied creates tasks, which the answer carries, and not otherwise [WF-IHM-0050-A]", async () => {
+  it("reads the page anew when the plan applied creates tasks, which the answer carries [WF-IHM-0050-A]", async () => {
     serve({ [PREVIEW]: "paste_plan_creating", [APPLY]: "paste_applied_creating" });
     router.refresh.mockClear();
     render(grid());
@@ -308,6 +309,41 @@ describe("a block pasted on the grid of the planning, judged by the server", () 
     await userEvent.click(within(dialog).getByRole("button", { name: "Appliquer le collage" }));
     await waitFor(() => {
       expect(router.refresh).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  it("does not read the page anew when the plan applied creates no task [WF-IHM-0050-A]", async () => {
+    const client = serve({ [PREVIEW]: "paste_plan", [APPLY]: "paste_applied" });
+    router.refresh.mockClear();
+    render(grid());
+    await focusLabel();
+    await userEvent.paste("Étude préliminaire\nRevue de câblage\n");
+    const dialog = await screen.findByRole("dialog", { name: "Coller depuis un tableur" });
+    await userEvent.click(within(dialog).getByRole("button", { name: "Appliquer le collage" }));
+    await waitFor(() => {
+      expect(client.calls.filter((call) => call.route === APPLY)).toHaveLength(1);
+    });
+    expect(router.refresh).not.toHaveBeenCalled();
+  });
+
+  it("keeps the grid busy until the page read anew arrives, so that no gesture starts from the rows of before [WF-IHM-0050-A]", async () => {
+    serve({ [PREVIEW]: "paste_plan_creating", [APPLY]: "paste_applied_creating" });
+    router.refresh.mockClear();
+    holdReading(router.refresh);
+    render(grid(), { wrapper: Reading });
+    await focusLabel();
+    await userEvent.paste("Étude\nEssais\nRecette\n");
+    const dialog = await screen.findByRole("dialog", { name: "Coller depuis un tableur" });
+    await userEvent.click(within(dialog).getByRole("button", { name: "Appliquer le collage" }));
+    await waitFor(() => {
+      expect(router.refresh).toHaveBeenCalledTimes(1);
+    });
+    expect(screen.getByRole("treegrid")).toHaveAttribute("aria-busy", "true");
+    act(() => {
+      releaseReading();
+    });
+    await waitFor(() => {
+      expect(screen.getByRole("treegrid")).not.toHaveAttribute("aria-busy", "true");
     });
   });
 });
