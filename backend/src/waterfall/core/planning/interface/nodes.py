@@ -466,9 +466,7 @@ def judge_creation(ground: Ground, creation: NodeCreation, node_id: UUID) -> Cre
     held = (ground.project_id, tree, ground.is_main)
     sent = entry.attachment(creation=True)
     attached = judged_attachment(session, held, bearer, sent, "/task")
-    facet = _together(
-        lambda: judged_creation(entry, applicable, constants_of(session)), attached
-    )
+    facet = _together(lambda: judged_creation(entry, applicable, constants_of(session)), attached)
     rank = _rank(tree, creation)
     shifted = tuple(each for each in tree.subtasks(parent) if tree.nodes[each].rank >= rank)
     made_summary = (
