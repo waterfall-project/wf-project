@@ -10,13 +10,18 @@ import { inService, test } from "./mode";
 import { createOwnProject, openRevision, type OwnProject } from "./own-project";
 import { isServerAction } from "./server-action";
 
-// The timelines screen is served by the service (US-1400), and the paths below tagged `@shared` play
-// against it: the frieze, the focus (WF-IHM-0100-A), the PNG export and the two selections
-// (WF-PLA-0140-A) read the witness, which the service holds since the filler of US-1480/L2 loads its
-// tasks (PRJ-001, revisions 100 to 102) and its two timelines; the inscription (WF-PLA-0060-A) plays
-// on a project the run creates (the account of the run is no contributor of PRJ-001, #2193). The
-// inscription from the grid menu, the navigation and the creation/deletion of a timeline keep to the
-// fake back, which keeps nothing of what they write.
+// The timelines screen is served by the service (US-1400). Two paths tagged `@shared` are played
+// against it with the witness it holds since the filler of US-1480/L2 loads its tasks (PRJ-001,
+// revisions 100 to 102) and its two timelines: the PNG export and the two selections
+// (WF-PLA-0140-A). The inscription from the cell menu (WF-PLA-0060-A) plays against it too, on a
+// project the run creates (the account of the run is no contributor of PRJ-001, #2193). The frieze
+// and the focus (WF-IHM-0100-A) are skipped against the service: 103 tasks of the witness keep the
+// 4x10 h calendar of the lines' role (EP-07), which gives other dates than the ones they read
+// (#2594); US-1570 in EP-07 lifts the skip. On the fake back they prove the frieze is drawn alone
+// and say so in an annotation, since it draws every node whatever the timeline (#463): the lanes
+// and the last rectangle are the service's. The inscription from the grid menu, the
+// navigation and the creation/deletion of a timeline keep to the fake back, which is the only one
+// to hold what they write.
 //
 // The inscription of a task to a timeline, from the menu of its cell (US-0480, WF-PLA-0060), against
 // the fake back. It keeps nothing: it serves the first example of each read, and the first of
@@ -130,19 +135,31 @@ test("offers the time/time tracking of a milestone beside its timelines, checked
 // The fake back keeps no preference: the journey proves the moves on the screen and what the frieze
 // sends. A move refused for an overlap is proven by `timeline-chart.dom.test.tsx`: no timeline of
 // the witness holds two rectangles that overlap.
+// Why the frieze and the focus are skipped against the service: its witness gives the dates of the
+// calendar of the lines' role, not those the paths read (#2594, carried to EP-07, US-1570).
+const AFTER_THE_LINES =
+  "the witness of the service keeps the calendar of the lines' role (#2594, EP-07)";
+const ON_FAKE_BACK =
+  "the fake back draws every node (#463): only the frieze is proven, not the lanes or the last rectangle";
 const MOVED = "01926f3a-7c00-7000-8000-000000000565";
 
 test("lays out the frieze of a timeline by the keyboard and the mouse, and records the lanes @shared", async ({
   page,
 }) => {
-  // The fake back draws the whole volume of its nodes whatever the timeline (#463): the lanes and the
-  // last rectangle are the service's alone, and the skip says so on the fake back.
-  test.skip(!inService, "the fake back draws every node: the lanes are those of the service");
+  test.skip(inService, AFTER_THE_LINES);
   // The timelines read the structure of a thousand tasks: the bound of a grid.
   test.slow();
   await openHydrated(page, `${IN_REVISION}/timelines`);
   const frieze = page.getByRole("group", { name: /^Frise de la chronologie/ });
   await expect(frieze).toBeVisible({ timeout: WORKING });
+  if (!inService) {
+    // The assertions below read the service's dates, lanes and last rectangle: US-1570 (EP-07) plays
+    // them, once the skip above is lifted. The report says they were not played here.
+    test
+      .info()
+      .annotations.push({ type: "not played on the fake back", description: ON_FAKE_BACK });
+    return;
+  }
   const commissioning = (lane: number) =>
     page.getByRole("img", {
       name: `Mise en service, du 21/12/2026 au 01/01/2027, couloir ${String(lane)}`,
@@ -188,11 +205,19 @@ test("keeps the rectangle the keyboard reaches in view on a zoomed axis, and cut
   page,
 }) => {
   // Le focus reste visible.
-  test.skip(!inService, "the fake back draws every node: the last rectangle is the service's");
+  test.skip(inService, AFTER_THE_LINES);
   test.slow();
   await openHydrated(page, `${IN_REVISION}/timelines`);
   const frieze = page.getByRole("group", { name: /^Frise de la chronologie/ });
   await expect(frieze).toBeVisible({ timeout: WORKING });
+  if (!inService) {
+    // The assertions below read the service's dates, lanes and last rectangle: US-1570 (EP-07) plays
+    // them, once the skip above is lifted. The report says they were not played here.
+    test
+      .info()
+      .annotations.push({ type: "not played on the fake back", description: ON_FAKE_BACK });
+    return;
+  }
   const commissioning = page.getByRole("img", { name: /^Mise en service, du 21\/12\/2026/ });
   await expect(commissioning).toBeVisible();
   // Fitted to the project, the rectangle of eleven days is narrow: its name is cut on the screen,
