@@ -19,9 +19,10 @@ const BEFORE_THE_ESTIMATE = "US-1560 serves the estimate, US-1570 the lines of t
 
 test.use({ colorScheme: "light" });
 
-test("leads from the estimate to the workload on the reference budget, drawn in stacked bars, the capacity in its table, which a node of organisation filters at the server's [WF-DEV-0070-A]", async ({
+test("leads from the estimate to the workload on the reference budget, drawn in stacked bars, the capacity in its table, which a node of organisation filters at the server's @shared [WF-DEV-0070-A]", async ({
   page,
 }) => {
+  test.skip(inService, BEFORE_THE_ESTIMATE);
   await compile(page.request, SCREEN);
   await openHydrated(page, `${ESTIMATE}?as_of=2026-03-16`);
   await page.getByRole("main").getByRole("link", { name: "Plan de charge" }).click();
@@ -59,7 +60,9 @@ test("leads from the estimate to the workload on the reference budget, drawn in 
   );
 });
 
-test("reads the workload of the revision under way from its address, the server filtering it on the node of organisation chosen, the context kept @shared [WF-DEV-0070-A]", async ({
+// That the server filters the load on the node chosen is checked against the service once the lines
+// of the witness exist to be filtered (US-1570); here the context is kept and the node read again.
+test("reads the workload of the revision under way from its address, the context kept, the node of organisation chosen read again @shared [WF-DEV-0070-A]", async ({
   page,
 }) => {
   await openHydrated(page, `${SCREEN}?as_of=2026-03-16`);
@@ -113,10 +116,14 @@ test("offers the revision under way and only the other bases the project admits,
     .getByLabel("Base", { exact: true })
     .locator("option")
     .evaluateAll((options) => options.map((option) => (option as HTMLOptionElement).value));
-  // A basis the project does not admit is absent, never offered to be refused (409, 422): the
-  // revision under way alone is offered to a project without a reference or a marked revision.
-  expect(bases).toContain("current_remaining");
-  await expect(region.getByLabel("Révision marquée")).toHaveCount(
-    bases.includes("marked_remaining") ? 1 : 0,
+  // A basis the project does not admit is absent, never offered to be refused (409, 422). The
+  // witness PRJ-001 has no reference revision but marked ones (100, 101): the service offers the
+  // marked remaining and the revision under way; the fake back's project has a reference revision
+  // and marked ones, so it offers the three, the reference budget first.
+  expect(bases).toEqual(
+    inService
+      ? ["marked_remaining", "current_remaining"]
+      : ["reference_budget", "marked_remaining", "current_remaining"],
   );
+  await expect(region.getByLabel("Révision marquée")).toHaveCount(1);
 });

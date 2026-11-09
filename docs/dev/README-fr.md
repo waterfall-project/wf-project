@@ -820,7 +820,8 @@ ni ne décale rien.
 Le plan de charge du projet (`…/workload`, FBS-4.4.4) est branché sur le service (EP-07, US-1520) :
 la page ne porte plus la note de la maquette (`MockupNotice`), `getProjectWorkload` rend la charge, la
 capacité de chaque rôle, les totaux sans trou et la zone de chaque mois, et l'écran n'offre que les
-bases que le projet admet — sans révision de référence, la révision en cours seule ; l'étalement et la
+bases que le projet admet — celle de la référence quand il a une révision de référence, celle d’une
+révision marquée quand il en a une, la révision en cours toujours, seule sans l’un ni l’autre ; l'étalement et la
 date de calcul sont ceux du service, le front ne calcule rien. Les parcours de `workload.spec.ts`
 portent `@shared`, et `frontend/help/fr/FBS-4.4.4.md` dit ce que le service fait.
 
