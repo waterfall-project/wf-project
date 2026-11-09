@@ -46,9 +46,12 @@ from waterfall.core.estimate.excel.reader import (
     read_workbook,
 )
 from waterfall.core.estimate.excel.writer import (
+    FIXED_TABS,
     FORMAT_NAME,
     FORMAT_VERSION,
     LINE_HEADERS,
+    PRESENTATION,
+    TOTAL_HEADERS,
     write_workbook,
 )
 from waterfall.core.estimate.interface import sheet_name
@@ -591,9 +594,14 @@ def test_the_blank_model_of_a_structure_without_a_line_is_read_without_a_line() 
 
 
 def test_the_headers_and_labels_the_reader_expects_are_the_ones_the_writer_writes() -> None:
-    """WF-INTF-0070-A: the reader and the writer share one header, one version, one set of tabs."""
-    book = load_workbook(BytesIO(write_workbook(_round_trip_model())))
-    first = book.worksheets[0]
+    """WF-INTF-0070-A: the reader and the writer share one header, one version, one set of tabs.
+
+    The tabs are taken by their names, as the reader identifies them; the totals the writer declares
+    are the headers it names (``TOTAL_HEADERS``), on the row of the label the reader skips.
+    """
+    estimate = _round_trip_model()
+    book = load_workbook(BytesIO(write_workbook(estimate)))
+    first = book[PRESENTATION]
     assert [first["A1"].value, first["B1"].value, first["A2"].value, first["B2"].value] == [
         FORMAT_LABEL,
         FORMAT_NAME,
@@ -612,5 +620,15 @@ def test_the_headers_and_labels_the_reader_expects_are_the_ones_the_writer_write
         LINEAGE_HEADER,
     ):
         assert header in LINE_HEADERS
-    lines_tab = book.worksheets[2]
-    assert TOTAL_LABEL in {cell.value for cell in lines_tab["A"]}
+    tab = estimate.lots[0].tabs[0]
+    lines_tab = book[sheet_name(f"{tab.number} {tab.task_label}".strip(), FIXED_TABS)]
+    headers = [cell.value for cell in lines_tab[1]]
+    assert headers[: len(LINE_HEADERS)] == list(LINE_HEADERS)
+    [total] = [row for row in lines_tab.iter_rows() if row[0].value == TOTAL_LABEL]
+    totalled = {
+        header: total[headers.index(header)].value
+        for header in LINE_HEADERS
+        if header != TASK_HEADER and total[headers.index(header)].value is not None
+    }
+    assert set(totalled) == set(TOTAL_HEADERS)
+    assert all(str(value).startswith("=SUBTOTAL(109,") for value in totalled.values())
