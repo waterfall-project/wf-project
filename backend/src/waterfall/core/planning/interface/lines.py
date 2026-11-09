@@ -135,7 +135,7 @@ def lines_of_revision(session: Session, project_id: UUID, revision_id: UUID) -> 
 
 
 def lines_of_structure(session: Session, project_id: UUID, structure_id: UUID) -> tuple[UUID, ...]:
-    """Give the lines of a structure, tasks and subtasks together, in the order of their nodes."""
+    """Give the estimate lines of a structure, whichever task bears them, in node order."""
     return tuple(
         session.scalars(
             select(Node.id)

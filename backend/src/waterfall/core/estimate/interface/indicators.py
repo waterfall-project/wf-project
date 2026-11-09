@@ -26,6 +26,7 @@ if TYPE_CHECKING:
 
     from sqlalchemy.orm import Session
 
+# The types are the interface's own to give: only a name in ``__all__`` is re-exported.
 __all__ = [
     "AmountByKey",
     "EstimateIndicators",

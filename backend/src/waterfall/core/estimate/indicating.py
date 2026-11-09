@@ -50,8 +50,8 @@ VALIDATION_FAILED = "VALIDATION_FAILED"
 UNKNOWN_SUBPROJECT = "UNKNOWN_SUBPROJECT"
 PROJECT = "project"
 UNASSIGNED = "unassigned"
-# The kinds of the natures of cost, in the order the ventilation by nature presents them.
-KINDS = {"labor": 0, "non_labor": 1, "provision": 2}
+# An empty sum is written to the cent, as every amount is.
+ZERO = Decimal("0.00")
 
 
 @dataclass(frozen=True, slots=True)
@@ -237,7 +237,7 @@ def _amount(rows: Sequence[Row], lacking: dict[UUID, MissingRate]) -> Figure:
     }
     if named:
         return _not_computed(named.values())
-    return Figure(sum((each.amount for each in rows), NOUGHT))
+    return Figure(sum((each.amount for each in rows), ZERO))
 
 
 def _shares(amounts: Sequence[Figure], total: Figure) -> list[Figure]:
@@ -270,13 +270,12 @@ def _by_cost_type(
     total: Figure,
     lacking: dict[UUID, MissingRate],
 ) -> tuple[AmountByKey, ...]:
-    """Ventilate the lines by the nature of their category: labour, others, provision."""
+    """Ventilate the lines by the nature of their category, in the order of its identifiers."""
     held: dict[UUID, list[Row]] = {}
     for each in rows:
         held.setdefault(natures[each.cost_category_id].cost_type_id, []).append(each)
     types = {each.cost_type_id: each for each in natures.values()}
-    order = sorted(held, key=lambda each: (KINDS[types[each].kind], types[each].label, each))
-    groups = [(str(each), types[each].label, held[each]) for each in order]
+    groups = [(str(each), types[each].label, held[each]) for each in sorted(held)]
     return _distributed(groups, total, lacking)
 
 
@@ -286,7 +285,7 @@ def _by_subproject(
     rows: Sequence[Row],
     scope: UUID | str,
 ) -> list[tuple[str, str | None, list[Row]]]:
-    """Group the lines by subproject, by label, the set out of any subproject last."""
+    """Group the lines by subproject, by identifier, the set out of any subproject last."""
     held: dict[UUID | None, list[Row]] = {}
     if isinstance(scope, UUID):
         held[scope] = []
@@ -294,10 +293,8 @@ def _by_subproject(
         held.setdefault(each.subproject_id, []).append(each)
     if scope == UNASSIGNED:
         held.setdefault(None, [])
-    labels = subproject_labels(session, project_id, [each for each in held if each is not None])
-    named = sorted(
-        (each for each in held if each is not None), key=lambda each: (labels.get(each, ""), each)
-    )
+    named = sorted(each for each in held if each is not None)
+    labels = subproject_labels(session, project_id, named)
     groups: list[tuple[str, str | None, list[Row]]] = [
         (str(each), labels.get(each), held[each]) for each in named
     ]
@@ -350,23 +347,26 @@ def _part(amount: Figure, total: Figure) -> Figure:
     return Figure(share_of(amount.value, total.value))
 
 
-def _difference(total: Figure, other: Decimal | None) -> Figure | None:
-    """Give the estimate read minus another, none without the other; not computed with the total."""
+def _difference(total: Figure, other: Figure | None) -> Figure | None:
+    """Give the estimate read minus another, none without it; not computed if either is not."""
     if other is None:
         return None
     if total.value is None:
         return _not_computed(total.missing)
-    return Figure(total.value - other)
+    if other.value is None:
+        return _not_computed(other.missing)
+    return Figure(total.value - other.value)
 
 
 def _total_of(
     session: Session, project_id: UUID, revision_id: UUID | None, scope: UUID | str
-) -> Decimal | None:
-    """Give the re-estimated total of the main structure of a revision, none without a revision."""
+) -> Figure | None:
+    """Give the total of the main structure of another revision, on its own rates; none without."""
     if revision_id is None:
         return None
-    rows = rows_of(session, project_id, revision_id, scope)
-    return sum((each.amount for each in rows), NOUGHT)
+    other = read_revision_for(session, project_id, revision_id)
+    lacking = {each.cost_category_id: each for each in missing_rates_of(session, project_id, other)}
+    return _amount(rows_of(session, project_id, revision_id, scope), lacking)
 
 
 def estimate_indicators_of(

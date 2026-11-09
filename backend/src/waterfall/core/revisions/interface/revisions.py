@@ -139,7 +139,6 @@ class RevisionRead:
 
     revision_id: UUID
     marked: bool
-    marked_at: datetime | None
     reference_year: int
     reference_revision_id: UUID | None
     previous_marked_id: UUID | None
@@ -357,14 +356,7 @@ def read_revision_for(session: Session, project_id: UUID, revision_id: UUID | No
     marked, the reference of its project, and the marked revision before it.
     """
     if revision_id is None:
-        revision_id = session.scalar(
-            select(Revision.id)
-            .where(Revision.project_id == project_id)
-            .order_by(
-                (Revision.status == "draft").desc(), Revision.marked_at.desc(), Revision.id.desc()
-            )
-            .limit(1)
-        )
+        revision_id = current_revision(session, project_id) or _last_marked(session, project_id)
         if revision_id is None:
             raise NotFoundError(NOT_FOUND)
     revision = found_revision(session, revision_id, project_id, lock=False)
@@ -384,7 +376,6 @@ def read_revision_for(session: Session, project_id: UUID, revision_id: UUID | No
     return RevisionRead(
         revision.id,
         revision.status == "marked",
-        revision.marked_at,
         revision.reference_year,
         project_facts(session, project_id).reference_revision_id,
         previous,

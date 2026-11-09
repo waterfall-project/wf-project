@@ -17,6 +17,7 @@ from typing import TYPE_CHECKING
 from sqlalchemy import or_, select, update
 
 from waterfall.core.planning.tables import Node, Task
+from waterfall.core.planning.tree import LINE
 from waterfall.core.revisions.interface import current_revision
 
 if TYPE_CHECKING:
@@ -57,7 +58,7 @@ def work_package_lines(
         pending = [task_id]
         while pending:
             for node_id, kind in children.get(pending.pop(), ()):
-                if kind == "estimate_line":
+                if kind == LINE:
                     lines.add(node_id)
                 else:
                     pending.append(node_id)

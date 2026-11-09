@@ -14,15 +14,23 @@ from typing import TYPE_CHECKING, Any
 from uuid import UUID, uuid4
 
 import pytest
-from estimate_support import YEAR, Costing, Lines, costing
+from estimate_support import YEAR, Costing, Lines, costing, imaged
 from nodes_support import Tree, faults, mark, opened, put_facts, refusal, work_breakdown
 from projects_support import PROJECTS, Scene
 from projects_support import scene as make_scene
-from sqlalchemy import delete
+from sqlalchemy import delete, insert, select, update
 
-from waterfall.core.cost_settings.interface import set_hourly_rate
-from waterfall.core.cost_settings.tables import HourlyRate
+from waterfall.core.cost_settings.interface import (
+    CostCategoryDraft,
+    CostTypeDraft,
+    create_cost_category,
+    create_cost_type,
+    set_hourly_rate,
+)
+from waterfall.core.cost_settings.tables import CostCategory, HourlyRate
 from waterfall.core.estimate.shares import distribution, share_of, shown
+from waterfall.core.estimate.tables import RevisionCategory
+from waterfall.core.projects.tables import WorkPackage
 from waterfall.platform.audit import Act
 from waterfall.platform.database import utc_now
 
@@ -281,13 +289,15 @@ def test_the_work_packages_are_absent_until_a_task_bears_them_then_total_their_s
         assert each["amount"]["is_computable"] is False
     first = before["by_work_package"][0]["key"]
     assert before["by_work_package"][1]["key"] == str(package)
-    put_facts(stage, summary["node_id"], work_package_id=UUID(first))
+    # The import of EP-06 does not write `work_package_id`: the attachment is the one `updateNode`
+    # makes, and it is the property proven here.
+    tree.changed(tree.node(summary["node_id"]), work_package_id=first)
     after = by_label(read(api, stage)["by_work_package"])
     attached = next(each for each in after.values() if each["key"] == first)
     assert (value(attached["amount"]), value(attached["share"])) == ("1000.00", "0.9524")
     other = next(each for each in after.values() if each["key"] == str(package))
     assert other["amount"]["reason"] == "work_package_without_task"
-    put_facts(stage, apart["node_id"], work_package_id=package)
+    tree.changed(tree.node(apart["node_id"]), work_package_id=str(package))
     leaves = {each["key"]: each for each in read(api, stage)["by_work_package"]}
     assert value(leaves[first]["amount"]) == "1000.00"
     assert (value(leaves[str(package)]["amount"]), value(leaves[str(package)]["share"])) == (
@@ -461,3 +471,212 @@ def test_a_revision_that_is_not_the_projects_is_refused_by_both_operations(
     for target in (path(stage), path(stage, "/missing-rates")):
         answer = api.get(f"{target}?revision_id={uuid4()}", headers=stage.manager.headers)
         assert refusal(answer)[:2] == (404, "NOT_FOUND")
+
+
+# --- The order of the ventilations, the empty sums, the paths a rate or a nature changes ---------
+
+
+@pytest.mark.requirement("WF-DEV-0060-A")
+def test_the_ventilations_follow_the_order_of_the_identifiers_the_contract_shows(
+    api: ContractClient, stage: Scene, tree: Tree, lines: Lines, costs: Costing
+) -> None:
+    # The example of the contract lists the subprojects in the order of their identifiers — the
+    # order of their creation — then `unassigned`, and the natures by their identifiers: not by
+    # label. A nature created last whose label comes first, and a subproject likewise.
+    act = Act(None, utc_now())
+    with stage.database.transaction() as session:
+        nature = create_cost_type(session, CostTypeDraft("ACH", "Achats", "non_labor"), act)
+        draft = CostCategoryDraft("ACH-001", "Achats divers", "606002", nature.cost_type_id)
+        purchase = create_cost_category(session, draft, act).cost_category_id
+    task = tree.made("Fourniture")
+    for code, label in (("Z", "Zèbre"), ("A", "Alpha")):
+        sent = subproject(api, stage, code, label)
+        lines.made(task, **material(costs, "100.00", subproject_id=sent))
+    lines.made(task, **material(costs, "10.00", cost_category_id=str(purchase)))
+    lines.made(task, **labour(costs))
+    found = read(api, stage)
+    assert [each["label"] for each in found["by_subproject"]] == ["Zèbre", "Alpha", None]
+    assert found["by_subproject"][-1]["key"] == "unassigned"
+    assert [each["label"] for each in found["by_cost_type"]] == [
+        "Main-d'œuvre",
+        "Matériel",
+        "Achats",
+    ]
+
+
+@pytest.mark.requirement("WF-DEV-0060-A")
+def test_an_empty_sum_is_written_to_the_cent_and_a_nil_total_has_no_share(
+    api: ContractClient, stage: Scene, tree: Tree, lines: Lines, costs: Costing
+) -> None:
+    # An estimate without a line totals "0.00"; a work package whose task bears no line too, its
+    # share without a total; a total nil leaves its parts without a share (`no_total`).
+    task = tree.made("Câblage")
+    empty = read(api, stage)
+    assert empty["total"] == {"is_computable": True, "value": "0.00", "reason": None}
+    assert empty["by_cost_type"] == []
+    tree.changed(tree.node(task["node_id"]), work_package_id=empty["by_work_package"][0]["key"])
+    bare = read(api, stage)["by_work_package"][0]
+    assert bare["amount"] == {"is_computable": True, "value": "0.00", "reason": None}
+    assert bare["share"]["reason"] == "no_total"
+    lines.made(task, **material(costs, "0.00"))
+    nil = read(api, stage)
+    assert value(nil["total"]) == "0.00"
+    part = nil["by_cost_type"][0]
+    assert value(part["amount"]) == "0.00"
+    assert (part["share"]["value"], part["share"]["reason"]) == (None, "no_total")
+    assert nil["by_subproject"][0]["share"]["reason"] == "no_total"
+
+
+def missing_of(tree: Tree, costs: Costing) -> list[dict[str, Any]]:
+    """Give the rate of the labour as the indicators name it when it is missing."""
+    return [
+        {
+            "cost_category_id": str(costs.labour),
+            "label": "Ingénierie",
+            "year": tree.revision["reference_year"],
+        }
+    ]
+
+
+@pytest.mark.requirement("WF-DEV-0010-A")
+def test_the_differences_are_not_computed_while_a_rate_is_missing(
+    api: ContractClient, stage: Scene, tree: Tree, lines: Lines, costs: Costing
+) -> None:
+    # Never a budget wrongly priced: with a reference and a marked revision before, the estimate
+    # read lacking the rate of its labour has neither difference.
+    task = tree.made("Câblage")
+    lines.made(task, **material(costs))
+    mark(stage, tree.revision)
+    designate(api, stage, tree.revision)
+    following = Tree(api, stage, opened(api, stage))
+    bearer = next(item for item in following.items() if item["kind"] == "task")
+    Lines(following).made(bearer, **labour(costs))
+    unrate(stage, costs.labour)
+    found = read(api, stage)
+    expected = {"is_computable": False, "value": None, "reason": MISSING}
+    params = {"params": {"missing_rates": missing_of(following, costs)}}
+    assert found["delta_to_reference"] == {**expected, **params}
+    assert found["delta_to_previous_revision"] == {**expected, **params}
+
+
+@pytest.mark.requirement("WF-DEV-0010-A")
+def test_a_difference_with_a_revision_that_lacks_a_rate_is_not_computed(
+    api: ContractClient, stage: Scene, tree: Tree, lines: Lines, costs: Costing
+) -> None:
+    # The other revision of a difference is judged on its rates too: the reference, marked with
+    # a labour line whose rate is gone, makes the difference not computable though the estimate
+    # read, which bears no labour, is.
+    task = tree.made("Câblage")
+    lines.made(task, **labour(costs))
+    unrate(stage, costs.labour)
+    mark(stage, tree.revision)
+    designate(api, stage, tree.revision)
+    following = Tree(api, stage, opened(api, stage))
+    for item in following.items():
+        if item["kind"] == "estimate_line":
+            path_ = f"{following.path}/nodes/{item['node_id']}?lock_version={item['lock_version']}"
+            gone = api.delete(path_, headers=stage.manager.headers)
+            assert gone.status_code == 200, gone.text
+    bearer = next(item for item in following.items() if item["kind"] == "task")
+    Lines(following).made(bearer, **material(costs))
+    found = read(api, stage)
+    assert found["total"] == {"is_computable": True, "value": "350.00", "reason": None}
+    expected = {"is_computable": False, "value": None, "reason": MISSING}
+    params = {"params": {"missing_rates": missing_of(following, costs)}}
+    assert found["delta_to_reference"] == {**expected, **params}
+    assert found["delta_to_previous_revision"] == {**expected, **params}
+
+
+@pytest.mark.requirement("WF-DEV-0060-A")
+def test_a_marked_revision_is_read_on_the_natures_it_kept(
+    api: ContractClient, stage: Scene, tree: Tree, lines: Lines, costs: Costing
+) -> None:
+    # The nature of a category is read on the images of the revision marked: changed afterwards
+    # in the settings, it stays what it was at the marking. The marking writes no image yet
+    #: the image a marking keeps is written around the service, before it.
+    lines.made(tree.made("Fourniture"), **material(costs))
+    project_id, revision_id = UUID(stage.project["project_id"]), UUID(tree.revision["revision_id"])
+    with stage.owner.begin() as connection:
+        labour_type = connection.scalar(
+            select(CostCategory.cost_type_id).where(CostCategory.id == costs.labour)
+        )
+        material_type = connection.scalar(
+            select(CostCategory.cost_type_id).where(CostCategory.id == costs.material)
+        )
+        image = {
+            **imaged(project_id, revision_id),
+            "cost_category_id": costs.material,
+            "code": "MAT-001",
+            "label": "Matériel électrique",
+            "cost_type_id": material_type,
+            "cost_type_label": "Matériel",
+            "cost_type_kind": "non_labor",
+            "cost_type_is_active": True,
+            "accounting_code": "606001",
+        }
+        connection.execute(insert(RevisionCategory).values(**image))
+    mark(stage, tree.revision)
+    with stage.owner.begin() as connection:
+        connection.execute(
+            update(CostCategory)
+            .where(CostCategory.id == costs.material)
+            .values(cost_type_id=labour_type)
+        )
+    marked = read(api, stage)
+    assert [(each["label"], value(each["amount"])) for each in marked["by_cost_type"]] == [
+        ("Matériel", "350.00")
+    ]
+
+
+@pytest.mark.requirement("WF-DEV-0060-A")
+def test_a_work_package_left_out_of_the_work_breakdown_is_totalled_if_a_marked_task_bears_it(
+    api: ContractClient, stage: Scene, tree: Tree, lines: Lines, costs: Costing
+) -> None:
+    # A lot taken out of the work breakdown that a task of a revision marked still bears is
+    # presented after those entered, under its label, with its total.
+    task = tree.made("Câblage")
+    lines.made(task, **material(costs))
+    package, _ = work_breakdown(stage)
+    tree.changed(tree.node(task["node_id"]), work_package_id=str(package))
+    mark(stage, tree.revision)
+    with stage.owner.begin() as connection:
+        connection.execute(
+            update(WorkPackage)
+            .where(WorkPackage.id == package)
+            .values(deleted_at=WorkPackage.created_at)
+        )
+    packages = read(api, stage)["by_work_package"]
+    assert packages[-1]["key"] == str(package)
+    assert (packages[-1]["label"], value(packages[-1]["amount"])) == ("Lot", "350.00")
+    assert all(each["key"] != str(package) for each in packages[:-1])
+
+
+@pytest.mark.requirement("WF-IND-0020-A")
+def test_a_scope_restricts_the_work_packages_and_the_differences(
+    api: ContractClient, stage: Scene, tree: Tree, lines: Lines, costs: Costing
+) -> None:
+    # The scope retains the lines of a subproject for the work packages as for the differences:
+    # the reference carries 650.00 of the subproject and 350.00 outside; the revision read adds
+    # 100.00 in the subproject and 40.00 outside, so +100.00 in the scope, +140.00 over all.
+    task = tree.made("Câblage")
+    sent = subproject(api, stage, "CMD", "Poste de commande")
+    lines.made(task, **labour(costs, subproject_id=sent))
+    lines.made(task, **material(costs))
+    package = read(api, stage)["by_work_package"][0]["key"]
+    tree.changed(tree.node(task["node_id"]), work_package_id=package)
+    mark(stage, tree.revision)
+    designate(api, stage, tree.revision)
+    following = Tree(api, stage, opened(api, stage))
+    added = Lines(following)
+    bearer = next(item for item in following.items() if item["kind"] == "task")
+    added.made(bearer, **material(costs, "100.00", subproject_id=sent))
+    added.made(bearer, **material(costs, "40.00"))
+    inside = read(api, stage, f"?scope={sent}")
+    assert value(inside["total"]) == "750.00"
+    assert value(inside["delta_to_reference"]) == "100.00"
+    assert value(inside["delta_to_previous_revision"]) == "100.00"
+    assert value(read(api, stage)["delta_to_reference"]) == "140.00"
+    held = {each["key"]: each for each in inside["by_work_package"]}
+    assert (value(held[package]["amount"]), value(held[package]["share"])) == ("750.00", "1")
+    outside = read(api, stage, "?scope=unassigned")
+    assert value(outside["by_work_package"][0]["amount"]) == "390.00"
