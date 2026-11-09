@@ -277,7 +277,9 @@ test("proposes no entry and no command of writing in the estimate of the main st
   test.slow();
   // Sur un projet En cours, la grille de devis de la structure principale ne propose aucune saisie
   // : the structure lists the estimate unavailable (`project_before_in_progress`), and the grid is
-  // read only whatever the planning lists.
+  // read only whatever the planning lists. This journey stays on the fake back: its project In
+  // progress (PRJ-001) is played against the service by US-1570 (« tous les parcours du devis
+  // étiquetés `@shared` passent contre le service, le témoin chargé »).
   const { table, cell } = await focusRow(
     page,
     "estimate",
@@ -301,6 +303,7 @@ test("inserts a line in the remaining to commit of a project in progress, named,
   test.slow();
   // Sur un projet En cours, la grille de reste à engager propose la création d'une ligne et d'une
   // tâche : the structure lists `edit_remaining` available. The categories come from the reference.
+  // Played against the service by US-1570 with the loaded witness, not here.
   const { cell } = await focusRow(
     page,
     "remaining",

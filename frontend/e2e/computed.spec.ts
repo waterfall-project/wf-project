@@ -3,9 +3,9 @@
 import { expect, type Locator, type Page } from "@playwright/test";
 
 import { columnsOf } from "./columns";
+import { idle, PHASE, seedEstimate, TASK } from "./estimate-seed";
 import { openHydrated, WORKING } from "./hydration";
 import { inService, test } from "./mode";
-import { idle, PHASE, seedEstimate, TASK } from "./estimate-seed";
 import { SEEDED, seedPlanning } from "./planning-seed";
 
 // The fake back serves the first example of `listNodes`, the structure of the witness at the sizes

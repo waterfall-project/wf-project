@@ -60,7 +60,7 @@ import type { GridQuery } from "./query";
 import type { RowChoices } from "./row-choices";
 import type { GridPreferences } from "./settings";
 import { useStructureGestures } from "./structure-gestures";
-import { type StructureAccount, useStructureVersion } from "./structure-version";
+import { useStructureVersion, waiting } from "./structure-version";
 import { useUndoRedo } from "./undo-run";
 
 /** What the grid of the estimate shows. */
@@ -251,10 +251,7 @@ export function EstimateGrid({
   // that no gesture, no undo starts from the neighbours of before it.
   const [reading, refresh] = useTransition();
   const counted = useStructureVersion(structure.structure_id, structureVersion);
-  const account = useMemo<StructureAccount>(
-    () => ({ ...counted, busy: counted.busy || reading }),
-    [counted, reading],
-  );
+  const account = waiting(counted, reading);
   const { version, reach, shows } = account;
   // Undo and redo ask the server's history, where the estimate may be entered.
   const undo = useUndoRedo(structure, account, editable);

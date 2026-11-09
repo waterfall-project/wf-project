@@ -1,6 +1,6 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
 import { NextIntlClientProvider, useTranslations } from "next-intl";
 import { type ReactNode, useMemo } from "react";
@@ -14,7 +14,7 @@ import { ContextMenuItem } from "@/components/ui/context-menu";
 import { CATALOGUES } from "@/i18n/catalogues";
 import type { Locale } from "@/i18n/locale";
 import { expectAccessible } from "@/test/axe";
-import { example, type FakeClient, fakeClient } from "@/test/fixtures";
+import { example, type FakeClient, fakeClient, type Problem } from "@/test/fixtures";
 import { estimateReference } from "@/test/reference";
 
 import { DenseGrid } from "./dense-grid";
@@ -341,6 +341,22 @@ describe("undo and redo, placed in the grids", () => {
     expect(screen.queryByText(REASON)).toBeNull();
     expect(press(focusLabel())).toBe(false);
     expect(told()).toBeNull();
+  });
+
+  it("sends the undo of the revision when Undo is pressed in the grid of the estimate [WF-IHM-0110-A]", async () => {
+    // The contract cites no change undone; the empty history it does cite is enough to see the call.
+    const route = "POST /projects/{project_id}/revisions/{revision_id}/undo";
+    client = fakeClient({
+      [route]: { problem: example("undo_history_empty") as Problem & { readonly status: 409 } },
+    });
+    server.client = client;
+    render(estimateGrid());
+    await userEvent.click(screen.getByRole("button", { name: "Annuler" }));
+    await waitFor(() => {
+      expect(client.calls.filter((call) => call.route === route).map((call) => call.path)).toEqual([
+        `/projects/${STRUCTURE.project_id}/revisions/${STRUCTURE.revision_id}/undo`,
+      ]);
+    });
   });
 
   it("is named and told in English too", async () => {

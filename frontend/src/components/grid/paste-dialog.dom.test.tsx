@@ -138,14 +138,15 @@ describe("the report of a paste that creates tasks", () => {
     const dialog = screen.getByRole("dialog", { name: "Coller depuis un tableur" });
     const status = within(dialog).getByRole("status");
     expect(status).toHaveTextContent("3 lignes seront écrites.");
-    expect(status).toHaveTextContent(`${plan.created.toString()} tâches seront créées`);
+    // The count only, not the noun: the catalogue says « tâches » of lines it creates too (#2668).
+    expect(status).toHaveTextContent(plan.created.toString());
     expect(status).toHaveTextContent("2 lignes sont refusées :");
     expect(
       within(dialog)
         .getAllByRole("listitem")
         .map((item) => item.firstElementChild?.textContent),
     ).toEqual([
-      expect.stringMatching(/^Ligne 4 du bloc — /),
+      "Ligne 4 du bloc — Les données saisies ne sont pas valides.",
       "Ligne 5 du bloc — Catégorie de coût inconnue.",
     ]);
     expect(
