@@ -308,3 +308,55 @@ test("a block of two labels pasted on the planning of a project the run creates 
   await expect(two).toContainText("Tâche B");
   await expect(page.getByRole("main").getByRole("alert")).toHaveCount(0);
 });
+
+test("a block of three labels pasted on the only task of the planning of a project the run creates is reported with the tasks it creates, writes the first and creates the other two once confirmed, and is undone as one entry @shared [WF-IHM-0050-A] [WF-IHM-0110-A]", async ({
+  page,
+}) => {
+  test.skip(!inService, "the fake back creates no task by a paste");
+  test.slow();
+  const own = await createOwnProject(page, "Collage qui crée");
+  await openRevision(page, own);
+  const revision = new URL(page.url()).searchParams.get("revision_id");
+  expect(revision, "the revision opened").not.toBeNull();
+  await openHydrated(page, `${own.path}/revisions/${revision ?? ""}/planning`);
+  const grid = page.getByRole("treegrid", { name: "Grille de planning" });
+  const idle = () => expect(grid).not.toHaveAttribute("aria-busy", "true", { timeout: WORKING });
+
+  await page.getByRole("button", { name: "Insérer une tâche" }).click();
+  const creation = page.getByRole("dialog", { name: "Insérer une tâche" });
+  await creation.getByRole("textbox", { name: "Libellé" }).fill("Tâche A");
+  await creation.getByRole("button", { name: "Créer" }).click();
+  await expect(page.getByText("« Tâche A » créée.")).toBeVisible({ timeout: WORKING });
+  await idle();
+  const at = await columnsOf(grid, { label: "Libellé" });
+  const label = (row: number) => rowAt(grid, row).getByRole("gridcell").nth(at.label);
+  await expect(label(1)).toContainText("Tâche A", { timeout: WORKING });
+
+  // The block is taller than the one row shown: it is no longer refused, the report counts the
+  // tasks it creates and writes nothing yet.
+  await label(1).click();
+  await expect(label(1)).toBeFocused();
+  await paste(page, [["Étude"], ["Essais"], ["Recette"]]);
+  const dialog = page.getByRole("dialog", { name: "Coller depuis un tableur" });
+  await expect(dialog).toBeVisible({ timeout: WORKING });
+  await expect(dialog).toContainText("3 lignes seront écrites.");
+  await expect(dialog).toContainText("2 tâches seront créées à la suite de la dernière tâche.");
+  await expect(dialog).toContainText("Aucune ligne n’est refusée.");
+
+  await dialog.getByRole("button", { name: "Appliquer le collage" }).click();
+  await expect(dialog).toHaveCount(0, { timeout: WORKING });
+  await expect(label(1)).toContainText("Étude", { timeout: WORKING });
+  await expect(label(2)).toContainText("Essais", { timeout: WORKING });
+  await expect(label(3)).toContainText("Recette", { timeout: WORKING });
+  await idle();
+
+  // One entry of the history: one Undo returns the label and removes the two tasks created, one
+  // Redo creates them again.
+  await page.getByRole("button", { name: "Annuler", exact: true }).click();
+  await expect(label(1)).toContainText("Tâche A", { timeout: WORKING });
+  await expect(rowAt(grid, 2)).toHaveCount(0, { timeout: WORKING });
+  await idle();
+  await page.getByRole("button", { name: "Rétablir", exact: true }).click();
+  await expect(label(3)).toContainText("Recette", { timeout: WORKING });
+  await expect(page.getByRole("main").getByRole("alert")).toHaveCount(0);
+});

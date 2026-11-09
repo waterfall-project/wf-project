@@ -28,6 +28,7 @@
  */
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 
@@ -327,6 +328,7 @@ export function PlanningGrid({
   const lagUnits = useTranslations("enums.LagUnit");
   // The skeleton generated, for the structure it was generated on: a grid of another structure — a
   // revision left while it was generated — never shows it.
+  const router = useRouter();
   const [generated, setGenerated] = useState<Generated>();
   const ours = generated?.structure === structure.structure_id ? generated : undefined;
   // One account of the writes of the structure: the version they moved it on to, whichever write
@@ -394,6 +396,11 @@ export function PlanningGrid({
             return outcome;
           }
           reach(outcome.data.structure_lock_version);
+          // The tasks the paste created are in the answer, but the rows they take their place
+          // among are the server's: the grid reads its page anew, as after any creation (#2559).
+          if (plan.created > 0) {
+            router.refresh();
+          }
           return {
             kind: "done",
             data: {
@@ -445,6 +452,7 @@ export function PlanningGrid({
     version,
     whole,
     reach,
+    router,
     timelines,
     names,
   ]);

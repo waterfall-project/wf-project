@@ -101,8 +101,6 @@ const UNSHOWN_ROWS = {
     "Le bloc collé écrirait les lignes qui suivent la cellule dans l’ordre du plan, que le tri a déplacées : levez le tri avant de coller, ou collez un bloc moins haut.",
   unretained:
     "Le bloc collé écrirait dans des lignes du plan que la recherche ou le filtre cache : levez la recherche ou le filtre avant de coller, ou collez un bloc moins haut.",
-  beyond:
-    "Le bloc collé s’étendrait au-delà des lignes que la grille montre sous la cellule : collez un bloc moins haut.",
 };
 
 /**
@@ -496,20 +494,21 @@ describe("a block pasted from a spreadsheet", () => {
     ]);
   });
 
-  it("reaching past the last row shown is refused alike, with a search or without", async () => {
-    // Without a search, from the last row of the answer.
+  it("asks the plan of a block taller than the rows shown, which creates, unless a search narrows the rows [WF-IHM-0050-A]", async () => {
+    // Without a search, from the last row of the answer: the lines past it create tasks (#2559).
     const client = serve();
     const { unmount } = renderGrid();
-    await expectRefused(client, cell(nodes.items.length - 1, "label"), "a\nb", UNSHOWN_ROWS.beyond);
+    await pasteOn(cell(nodes.items.length - 1, "label"), "a\nb");
+    await screen.findByRole("dialog", { name: "Coller depuis un tableur" });
+    expect(bodies(client, PREVIEW)).toHaveLength(1);
     unmount();
-    // Under the search, from the last row it retains: the end of the plan, or rows the search left
-    // out — the grid cannot tell which, and says neither.
+    // Under the search, from the last row it retains: the search may have left rows out after it.
     renderGrid(true, undefined, { search: SEARCH, nodes: retained });
     await expectRefused(
-      client,
+      serve(),
       cell(retained.items.length - 1, "label"),
       "a\nb",
-      UNSHOWN_ROWS.beyond,
+      UNSHOWN_ROWS.unretained,
     );
   });
 

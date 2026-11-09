@@ -31,6 +31,8 @@ const server = vi.hoisted((): { client: ApiClient | undefined } => ({ client: un
 const router = vi.hoisted(() => ({ push: vi.fn(), refresh: vi.fn() }));
 
 vi.mock("@/api/server", () => ({ serverClient: () => server.client }));
+// A change undone reads the page anew from the server action (`history.ts`).
+vi.mock("next/cache", () => ({ refresh: vi.fn() }));
 vi.mock("next/navigation", async (original) => ({
   ...(await original<typeof import("next/navigation")>()),
   useRouter: () => router,
@@ -140,6 +142,20 @@ describe("undo and redo of the grid of the planning, wired on the server's histo
       ]);
     });
     expect(sent(client, REDO)).toEqual([]);
+  });
+
+  it("announces an undo done, and a redo done, with how many changes remain [WF-IHM-0110-A]", async () => {
+    serve({ [UNDO]: "undo_task_renamed", [REDO]: "redo_task_renamed" });
+    render(grid());
+    await userEvent.click(screen.getByRole("button", { name: "Annuler" }));
+    expect(
+      await screen.findByText("Modification annulée. Aucune autre modification à annuler."),
+    ).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Rétablir" }));
+    expect(
+      await screen.findByText("Modification rétablie. Aucune autre modification à rétablir."),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("alert")).toBeNull();
   });
 
   it("tells the refusal of an undo by the catalogue, naming the object a later change took up [WF-IHM-0110-A]", async () => {
@@ -278,6 +294,20 @@ describe("a block pasted on the grid of the planning, judged by the server", () 
       expect(client.calls.filter((call) => call.route === APPLY).map((call) => call.body)).toEqual([
         { paste_id: "01926f3a-7c00-7000-8000-000000000991", confirmed: true, lock_version: 1 },
       ]);
+    });
+  });
+
+  it("reads the page anew when the plan applied creates tasks, which the answer carries, and not otherwise [WF-IHM-0050-A]", async () => {
+    serve({ [PREVIEW]: "paste_plan_creating", [APPLY]: "paste_applied_creating" });
+    router.refresh.mockClear();
+    render(grid());
+    await focusLabel();
+    await userEvent.paste("Étude\nEssais\nRecette\n");
+    const dialog = await screen.findByRole("dialog", { name: "Coller depuis un tableur" });
+    expect(dialog).toHaveTextContent("tâches seront créées");
+    await userEvent.click(within(dialog).getByRole("button", { name: "Appliquer le collage" }));
+    await waitFor(() => {
+      expect(router.refresh).toHaveBeenCalledTimes(1);
     });
   });
 });
