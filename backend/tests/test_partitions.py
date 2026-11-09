@@ -186,9 +186,11 @@ ASLEEP = text(
     "AND creating.locktype = 'advisory' AND creating.granted "
     "AND (creating.classid::bigint << 32) | creating.objid::bigint = :key"
 )
-# How many creations wait for the advisory lock of the partitions, held by another.
+# How many creations wait for the advisory lock of the partitions, held by another — in this
+# database only: the xdist workers share the instance.
 WAITING_FOR_PARTITIONS = text(
     "SELECT count(*) FROM pg_locks WHERE locktype = 'advisory' AND NOT granted "
+    "AND database = (SELECT oid FROM pg_database WHERE datname = current_database()) "
     "AND (classid::bigint << 32) | objid::bigint = :key"
 )
 NINE = [
