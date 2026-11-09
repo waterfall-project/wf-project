@@ -13,8 +13,10 @@ and eight creations at once meet no deadlock. Where a state of the locks is awai
 and ``pg_stat_activity`` are read until it comes, never a fixed pause.
 """
 
+import re
 import time
 from concurrent.futures import ThreadPoolExecutor
+from pathlib import Path
 from threading import Barrier
 from typing import TYPE_CHECKING, Any
 from uuid import uuid4
@@ -31,32 +33,23 @@ from project_rows import (
     projects_with_partitions,
 )
 from projects_support import complete_reference
-from sqlalchemy import func, insert, select, text, update
+from sqlalchemy import event, func, insert, select, text, update
 from sqlalchemy.exc import DBAPIError, IntegrityError
 from sqlalchemy.orm import Session
 
-from waterfall.api.restores import RESTORE_LOCK
-from waterfall.bootstrap import INSTALL_LOCK
-from waterfall.core.access_roles.administrators import ADMINISTRATORS_LOCK
-from waterfall.core.cost_settings.records import NATURES_LOCK
-from waterfall.core.history.stacks import STACK_LOCK
+import waterfall
 from waterfall.core.planning.tables import Node
 from waterfall.core.projects.interface import ProjectDraft, Viewer, create_project
 from waterfall.core.projects.tables import Project
-from waterfall.core.resource_settings.interface.calendars import DEFAULT_LOCK
-from waterfall.core.resource_settings.interface.org_nodes import TREE_LOCK
-from waterfall.core.resource_settings.interface.readiness import REFERENCE_LOCK
 from waterfall.core.revisions.interface import create_project_partitions
 from waterfall.core.revisions.interface.revisions import PARTITIONS_LOCK
 from waterfall.core.revisions.tables import CostStructure
-from waterfall.platform.audit import FORGETTING_LOCK, Act
+from waterfall.platform.audit import Act
 from waterfall.platform.database import utc_now
 from waterfall.platform.logs import logging_context
-from waterfall.witness.main import WITNESS_LOCK
-from waterfall.worker.main import PURGE_LOCK, SCHEDULE_LOCK
-from waterfall.worker.runner import RUN_LOCK
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
     from uuid import UUID
 
     from sqlalchemy import Engine
@@ -168,14 +161,14 @@ REVISED_TABLES = text(
     "AND partitioned.partstrat = 'l' AND partitioned.partnatts = 1 "
     "AND key.attname = 'project_id' ORDER BY parent.relname"
 )
-# The tables the function locks, by name: the revised, and those their keys bind, both ways.
-LOCKED_TABLES = text(
-    "SELECT relname FROM pg_class WHERE relname = ANY (:revised) "
-    "AND relnamespace = 'public'::regnamespace "
-    "UNION SELECT confrelid::regclass::text FROM pg_constraint "
+# The tables the keys of the revised tables bind, both ways, by name: the function locks them
+# ``SHARE ROW EXCLUSIVE``, and the other revised tables ``SHARE UPDATE EXCLUSIVE``.
+BOUND_TABLES = text(
+    "SELECT confrelid::regclass::text FROM pg_constraint "
     "WHERE contype = 'f' AND conparentid = 0 AND conrelid::regclass::text = ANY (:revised) "
     "UNION SELECT conrelid::regclass::text FROM pg_constraint "
-    "WHERE contype = 'f' AND conparentid = 0 AND confrelid::regclass::text = ANY (:revised)"
+    "WHERE contype = 'f' AND conparentid = 0 AND confrelid::regclass::text = ANY (:revised) "
+    "ORDER BY 1"
 )
 # The keys of the advisory locks the transaction holds.
 ADVISORY_KEYS = text(
@@ -193,6 +186,11 @@ ASLEEP = text(
     "AND creating.locktype = 'advisory' AND creating.granted "
     "AND (creating.classid::bigint << 32) | creating.objid::bigint = :key"
 )
+# How many creations wait for the advisory lock of the partitions, held by another.
+WAITING_FOR_PARTITIONS = text(
+    "SELECT count(*) FROM pg_locks WHERE locktype = 'advisory' AND NOT granted "
+    "AND (classid::bigint << 32) | objid::bigint = :key"
+)
 NINE = [
     "cost_structure",
     "estimate_line",
@@ -204,7 +202,39 @@ NINE = [
     "task",
     "task_link",
 ]
+TWELVE = [
+    "cost_category",
+    "cost_structure",
+    "estimate_line",
+    "node",
+    "order_item",
+    "resource_role",
+    "revision",
+    "subproject",
+    "task",
+    "task_link",
+    "user_account",
+    "work_package",
+]
 ACT = Act(None, utc_now())
+
+
+def locked_tables(connection: Connection) -> list[str]:
+    """Name the tables the function locks: the revised, and those their keys bind."""
+    revised = connection.scalars(REVISED_TABLES).all()
+    return sorted({*revised, *connection.scalars(BOUND_TABLES, {"revised": revised})})
+
+
+def until(owner: Engine, seen: Callable[[Connection], bool], what: str) -> None:
+    """Read the catalogue until ``seen`` holds, ten seconds at most, never by a fixed pause."""
+    deadline = time.monotonic() + 10
+    with owner.connect() as watching:
+        while time.monotonic() < deadline:
+            if seen(watching):
+                return
+            watching.rollback()
+            time.sleep(0.01)
+    pytest.fail(f"never seen: {what}")
 
 
 def asleep_holding_nothing(owner: Engine) -> None:
@@ -213,19 +243,14 @@ def asleep_holding_nothing(owner: Engine) -> None:
     A creation that kept its locks while it waits for another would never be seen so; one that
     gives them back is seen so at its first pause, or at the next if it was caught between two.
     """
-    deadline = time.monotonic() + 10
-    seen: list[list[str]] = []
-    with owner.connect() as watching:
-        revised = watching.scalars(REVISED_TABLES).all()
-        locked = watching.scalars(LOCKED_TABLES, {"revised": revised}).all()
-        assert len(locked) > len(revised)
-        while time.monotonic() < deadline:
-            seen = list(watching.scalars(ASLEEP, {"locked": locked, "key": PARTITIONS_LOCK}))
-            if [] in seen:
-                return
-            watching.rollback()
-            time.sleep(0.01)
-    pytest.fail(f"no creation asleep without a lock on the tables it locks: {seen}")
+    with owner.connect() as connection:
+        locked = locked_tables(connection)
+    values = {"locked": locked, "key": PARTITIONS_LOCK}
+    until(
+        owner,
+        lambda watching: [] in watching.scalars(ASLEEP, values).all(),
+        "a creation asleep without a lock on the tables it locks",
+    )
 
 
 def created_alone(database: Database, project_id: UUID) -> None:
@@ -238,9 +263,12 @@ def test_the_revised_tables_the_catalogue_partitions_by_project_are_the_nine_exp
     owner: Engine,
 ) -> None:
     # What the function reads at each call: a table partitioned by another column, or by range,
-    # would not be one; a table an epic adds enters by itself, and this list with it.
+    # would not be one; a table an epic adds enters by itself, and this list with it. The keys of
+    # the nine bind twelve tables, which it locks besides; a key an epic adds enters too.
     with owner.connect() as connection:
         assert connection.scalars(REVISED_TABLES).all() == NINE
+        assert connection.scalars(BOUND_TABLES, {"revised": NINE}).all() == TWELVE
+        assert locked_tables(connection) == sorted({*NINE, *TWELVE})
 
 
 def test_the_creation_takes_the_advisory_lock_of_the_revisions_distinct_from_the_others(
@@ -253,22 +281,23 @@ def test_the_creation_takes_the_advisory_lock_of_the_revisions_distinct_from_the
         held = session.scalars(ADVISORY_KEYS).all()
         session.rollback()
     assert held == [PARTITIONS_LOCK]
-    others = [
-        INSTALL_LOCK,
-        WITNESS_LOCK,
-        REFERENCE_LOCK,
-        NATURES_LOCK,
-        RESTORE_LOCK,
-        SCHEDULE_LOCK,
-        PURGE_LOCK,
-        RUN_LOCK,
-        STACK_LOCK,
-        TREE_LOCK,
-        DEFAULT_LOCK,
-        ADMINISTRATORS_LOCK,
-        FORGETTING_LOCK,
-    ]
-    assert PARTITIONS_LOCK not in others
+
+
+# A key of an advisory lock, as the modules of the service name it: ``<NAME>_LOCK = <number>``.
+LOCK_KEY = re.compile(r"^([A-Z_]+_LOCK) = ([0-9_]+)$", re.MULTILINE)
+
+
+def test_the_keys_of_the_advisory_locks_of_the_service_are_distinct() -> None:
+    # Read in the sources, so that a key a lot adds is checked without a list to keep: the key of
+    # the partitions among them, the migrations' too.
+    keys: dict[str, int] = {}
+    for module in Path(waterfall.__file__).parent.rglob("*.py"):
+        for name, number in LOCK_KEY.findall(module.read_text(encoding="utf-8")):
+            assert name not in keys, name
+            keys[name] = int(number)
+    assert keys["PARTITIONS_LOCK"] == PARTITIONS_LOCK
+    assert "MIGRATION_LOCK" in keys
+    assert len(set(keys.values())) == len(keys), keys
 
 
 def test_the_creation_holds_no_access_exclusive_lock_on_a_relation_that_existed_before_it(
@@ -335,24 +364,45 @@ def test_a_creation_holds_nothing_while_a_write_holds_the_nodes_which_writes_the
             assert partition_of(project_id) in partitions(connection)
 
 
-def test_a_creation_that_finds_a_lock_held_ten_seconds_long_gives_up_holding_nothing(
-    database: Database,
+def test_a_creation_held_ten_seconds_gives_up_and_the_one_that_waited_for_it_tries_again(
+    database: Database, owner: Engine
 ) -> None:
     # The attempts are bounded: past about ten seconds, ``lock_not_available`` (``55P03``), which
     # the service answers by a 500 it logs; the creation leaves no partition, and the write that
-    # held the lock goes on.
-    project_id = uuid4()
-    with database.engine.connect() as writing, writing.begin():
-        writing.execute(text("LOCK TABLE ONLY node IN ROW EXCLUSIVE MODE"))
-        started = time.monotonic()
-        with pytest.raises(DBAPIError) as refused:
-            created_alone(database, project_id)
-        waited = time.monotonic() - started
-        writing.execute(select(Node.id).limit(1)).all()
+    # held the lock goes on. A second creation, which waited for the first at the advisory lock all
+    # that time, counts its ten seconds from that lock: it tries again, and ends once the write
+    # commits.
+    given_up, following = uuid4(), uuid4()
+    with owner.connect() as connection:
+        values = {"locked": locked_tables(connection), "key": PARTITIONS_LOCK}
+    with ThreadPoolExecutor(2) as pool:
+        with database.engine.connect() as writing, writing.begin():
+            writing.execute(text("LOCK TABLE ONLY node IN ROW EXCLUSIVE MODE"))
+            started = time.monotonic()
+            first = pool.submit(created_alone, database, given_up)
+            until(owner, lambda watching: bool(watching.scalars(ASLEEP, values).all()), "first")
+            second = pool.submit(created_alone, database, following)
+            queued = time.monotonic()
+            until(
+                owner,
+                lambda watching: watching.scalar(WAITING_FOR_PARTITIONS, values) == 1,
+                "the second waiting for the first",
+            )
+            with pytest.raises(DBAPIError) as refused:
+                first.result(timeout=30)
+            waited = time.monotonic() - started
+            # Past ten seconds from its call, and not the lock, a second counting from its call
+            # would have given up: it is still asleep, holding the advisory lock.
+            time.sleep(max(0, queued + 11 - time.monotonic()))
+            assert not second.done()
+            until(owner, lambda watching: bool(watching.scalars(ASLEEP, values).all()), "second")
+            writing.execute(select(Node.id).limit(1)).all()
+        second.result(timeout=15)
     assert getattr(refused.value.orig, "sqlstate", None) == "55P03"
-    assert 9 < waited < 15
+    assert 9 < waited < 30
     with database.engine.connect() as connection:
-        assert partition_of(project_id) not in partitions(connection)
+        assert partition_of(given_up) not in partitions(connection)
+        assert partition_of(following) in partitions(connection)
 
 
 def test_eight_creations_of_a_project_at_once_meet_no_deadlock(
@@ -376,3 +426,32 @@ def test_eight_creations_of_a_project_at_once_meet_no_deadlock(
         assert connection.scalar(select(func.count()).select_from(Project)) == 8
         assert {partition_of(project_id) for project_id in created} <= partitions(connection)
     assert len(set(created)) == 8
+
+
+# A statement that writes, as the cursor receives it.
+WRITES = re.compile(r"^\s*(INSERT|UPDATE|DELETE|MERGE)\b", re.IGNORECASE)
+
+
+def test_the_creation_of_a_project_creates_its_partitions_before_any_write(
+    database: Database, owner: Engine
+) -> None:
+    # Before any write of its transaction (``docs/dev/sql.md``, "Verrous"): written first, a row
+    # would hold a lock another creation, or a writer, waits for while this one waits for it.
+    install(owner)
+    complete_reference(database)
+    statements: list[str] = []
+
+    def heard(*arguments: Any) -> None:
+        statements.append(arguments[2])
+
+    event.listen(database.engine, "before_cursor_execute", heard)
+    try:
+        viewer = Viewer(uuid4(), ("all_projects_read",))
+        with logging_context(correlation_id="ordre"), Session(database.engine) as session:
+            create_project(session, ProjectDraft("Ordre"), ACT, viewer)
+            session.rollback()
+    finally:
+        event.remove(database.engine, "before_cursor_execute", heard)
+    called = next(rank for rank, sent in enumerate(statements) if "project_partitions" in sent)
+    assert [statement for statement in statements[:called] if WRITES.match(statement)] == []
+    assert any(WRITES.match(statement) for statement in statements[called:])

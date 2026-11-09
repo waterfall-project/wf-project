@@ -254,12 +254,14 @@ séparerait plus.
   interbloquait avec elle. `create_project_partitions` (migration `0026`) prend donc le verrou
   consultatif `PARTITIONS_LOCK` de `core/revisions`, qui range les créations l'une après
   l'autre, puis tous ses verrous d'un coup, `LOCK TABLE ONLY … NOWAIT` ; s'il en manque un, elle
-  les rend tous et réessaie après une courte pause, une dizaine de secondes au plus, avant de
-  lever `lock_not_available`, une 500. Elle lit dans le catalogue les tables partitionnées par
-  `project_id` et celles que leurs clés relient : une table révisionnée nouvelle, ou une clé
-  nouvelle, y entre sans qu'aucune migration la remplace. Une création qui aurait déjà écrit
-  tiendrait, en attendant le verrou consultatif, un verrou que la création en cours ne peut
-  prendre : celle-ci réessaierait en vain, puis échouerait.
+  les rend tous et réessaie après une courte pause, une dizaine de secondes au plus comptées
+  depuis le verrou consultatif, avant de lever `lock_not_available`, une 500. `NOWAIT` n'annule
+  jamais un autovacuum, qui tient `SHARE UPDATE EXCLUSIVE` : un autovacuum de plus de dix
+  secondes sur l'une de ces tables fait échouer la création ainsi. Elle lit dans le catalogue
+  les tables partitionnées par `project_id` et celles que leurs clés relient : une table
+  révisionnée nouvelle, ou une clé nouvelle, y entre sans qu'aucune migration la remplace. Une
+  création qui aurait déjà écrit tiendrait, en attendant le verrou consultatif, un verrou que la
+  création en cours ne peut prendre : celle-ci réessaierait en vain, puis échouerait.
 - Les migrations d'une même base s'appliquent l'une après l'autre : l'environnement d'Alembic
   prend un verrou consultatif de session, pour que deux instances qui démarrent ensemble
   n'appliquent pas la même migration deux fois.

@@ -18,7 +18,9 @@ project. The attachment locks besides the partitions of a partitioned table a ke
 ``cost_structure``), but a writer locks the parent before its partition, and the parent held keeps
 it out: the creation waits for none of them, unless a DDL of the owner holds one. A lock missing
 undoes the block that took the others, and the attempt is made again after a short pause, at
-random, for about ten seconds; past them ``lock_not_available`` is raised, a 500 the service logs.
+random, for about ten seconds counted from the advisory lock — a creation that waited for the one
+before it keeps its whole time —; past them ``lock_not_available`` is raised, a 500 the service
+logs.
 Each partition is then created alone (``CREATE TABLE … (LIKE <parent> …)``) and attached
 (``ATTACH PARTITION``), which takes no more than ``SHARE UPDATE EXCLUSIVE`` on its parent: readings
 and writes go on. The partition has the trigger that refuses its truncation, as before; what the
@@ -49,7 +51,7 @@ CREATE OR REPLACE FUNCTION create_project_partitions(project uuid) RETURNS void
 LANGUAGE plpgsql SECURITY DEFINER SET search_path = pg_catalog, pg_temp AS $$
 DECLARE
     suffix text := '_p_' || replace(project::text, '-', '');
-    deadline timestamptz := clock_timestamp() + interval '10 seconds';
+    deadline timestamptz;
     parents oid[];
     related oid[];
     bound text;
@@ -61,6 +63,7 @@ BEGIN
             USING ERRCODE = 'null_value_not_allowed';
     END IF;
     PERFORM pg_advisory_xact_lock(4100010);
+    deadline := clock_timestamp() + interval '10 seconds';
     SELECT array_agg(partitioned.partrelid) INTO parents
     FROM pg_partitioned_table AS partitioned
     JOIN pg_class AS parent ON parent.oid = partitioned.partrelid
