@@ -1060,8 +1060,8 @@ the number, the level, the version and the mark. For lack of a parent among thos
 does not fold; nothing sorts or searches, the order is that of the plan. The 5,999 nodes of the
 volume example (`volume/comparison_volume.json`, 2,770 of them modified) mount only one window of
 rows, and the screen keeps the bound of a grid screen (`WORKING`, 15 s, `revisions.spec.ts`); the
-path plays the example of the window, the fake back serving the first example of the operation.
-The amount gaps remain a table under the grid, and the screen is one of those of the accessibility
+path plays the example of the window against the fake back, which serves the first example of the
+operation, and the whole structure against the service. The amount gaps remain a table under the grid, and the screen is one of those of the accessibility
 harness (`DIFFERENTIAL_SCREENS`).
 
 ### The planning grid and the Gantt

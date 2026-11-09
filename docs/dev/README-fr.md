@@ -1050,8 +1050,8 @@ numéro, le niveau, la version et la marque. Faute de parent dans ces champs, l'
 pas ; rien ne se trie ni ne se cherche, l'ordre est celui du plan. Les 5 999 nœuds de l'exemple de
 volume (`volume/comparison_volume.json`, dont 2 770 modifiés) ne montent qu'une fenêtre de lignes,
 et l'écran garde la borne d'un écran de grille (`WORKING`, 15 s, `revisions.spec.ts`) ; le parcours
-joue l'exemple de la fenêtre, le faux back servant le premier exemple de l'opération. Les écarts
-de montants restent une table sous la grille, et l'écran est l'un de ceux du harnais
+joue l'exemple de la fenêtre contre le faux back, qui sert le premier exemple de l'opération, et
+toute la structure contre le service. Les écarts de montants restent une table sous la grille, et l'écran est l'un de ceux du harnais
 d'accessibilité (`DIFFERENTIAL_SCREENS`).
 
 ### La grille de planning et le Gantt
