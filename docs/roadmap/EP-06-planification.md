@@ -802,6 +802,39 @@ la seconde d'EP-06 avec #2485.
   `VALIDATION_FAILED` dit déjà ; laisser le dialogue déduire le nombre de créations des lignes
   au-delà de la grille, qu'il ne connaît que par ce qu'il montre.
 
+### Le corpus partiel, les durées écoulées, la frise du témoin (décisions du 2026-11-09)
+
+Trois questions d'US-1430/L3 (#2342) et d'US-1480/L2 (#2347), tranchées par l'utilisateur sur la
+recommandation du pilote. Le corpus complet ne sera pas déposé tout de suite, et le chemin
+d'EP-07 jusqu'à l'aller-retour Excel (US-1550/L4) passe par US-1430/L3 puis L4 :
+
+- **US-1430/L3 fusionne sur le corpus partiel** : les fichiers 01, 02, 03, 05 et 13 et leur
+  manifeste (#2568). Le test des cas marque non exécutés, en citant #2645, ceux qu'aucun fichier
+  ne déclare encore, et les nomme au rapport. WF-QUA-0080-A reste entière en EP-06, mais n'est
+  pas close par US-1430/L3 : elle se clôt au dépôt des fichiers manquants (#2645), par un lot de
+  suite d'US-1430 qui lève ces marques et corrige le moteur si un fichier révèle un écart.
+  US-1480/L3, qui clôt l'EPIC, l'attend.
+  Écartés : un corpus engendré d'après le schéma et daté par le moteur de Waterfall, déjà écarté
+  au cadrage (« Ce que le cadrage décide »), qui rendrait le test vrai par construction ;
+  attendre le corpus complet, qui bloquait aussi EP-07.
+- **La fin d'une durée écoulée garde le jour atteint (#2342, point 2, option A).** Le fichier 03
+  le montre : MS Project finit 2 ej, 2 esem et 1 em commencées un lundi à 09:00 au jour atteint, à
+  09:00 ; le moteur d'US-1390 rendait la fin de la veille ouvrée. Le moteur est retouché dans
+  US-1430/L3, ses heures bornées à celles du jour atteint, et le test d'exemple
+  `test_an_elapsed_duration_runs_over_the_days_without_hours_of_work` change avec lui. Écarté :
+  comparer des instants de travail (option B), qui afficherait un autre jour que MS Project et
+  ferait rendre à l'aller-retour d'US-1430/L4 des `date_mismatches` sur ces tâches.
+- **La frise et le focus de `timelines.spec.ts` passent `@shared` en EP-07 (#2347, option A ;
+  #2594 reporté).** Les 103 tâches à calendrier 4×10 h du témoin tiennent ce calendrier du rôle de
+  leurs lignes, qui sont d'EP-07 : avant elles, le moteur date autrement 401 tâches par révision,
+  et les parcours de la frise et du focus ne concordent pas contre le service. US-1480/L2
+  fusionne avec l'export PNG et les sélections `@shared` ; la frise et le focus restent sur le
+  faux back, sautés contre le service par un `test.skip` qui cite #2594, et US-1570 (EP-07) les
+  étiquette `@shared` quand les lignes donnent leurs calendriers. Le critère d'US-1480 est amendé
+  en ce sens. Écartés : corriger les générateurs dès EP-06 (option B), un lot d'outil de plus qui
+  touchait `docs/api` ; charger dès EP-06 les calendriers des tâches (option C), hors de la
+  conception.
+
 ### Le front
 
 - Les écrans sont ceux d'EP-02, d'EP-14 et d'EP-15 ; chaque US branche le sien et retire
@@ -1451,7 +1484,9 @@ un planning avec l'outil que mes interlocuteurs connaissent.
 - `WF-INTF-0060-A` — « La description de chaque tâche est identique avant et après
   l’aller-retour. » (#1339) ;
 - `WF-QUA-0080-A` — « Chaque cas cité par le corps figure dans au moins un planning du corpus. » :
-  un test lit le corpus et nomme le cas qui manque ;
+  un test lit le corpus et nomme le cas qui manque ; sur le corpus partiel, il marque non
+  exécutés, en citant #2645, les cas qu'aucun fichier ne déclare encore, et le lot de suite du
+  dépôt les lève (décision du 2026-11-09) ;
 - `WF-QUA-0080-A` — « La modification de la règle de calcul des dates fait échouer au moins un
   test du corpus. »
 - `WF-QUA-0080-A` — « Leur exécution ne demande ni MS Project, ni base de données, ni
@@ -1814,7 +1849,9 @@ s'affiche.
   focus, l'export PNG, les deux sélections (WF-PLA-0140-A) — portent `@shared` dès que le
   remplisseur charge les tâches (US-1480/L2, #2340) ;
 - propre à l'US : tous les parcours du planning, du Gantt, de l'arborescence, des chronologies
-  et des échanges étiquetés `@shared` passent contre le service, le témoin chargé ; la définition
+  et des échanges étiquetés `@shared` passent contre le service, le témoin chargé — la frise et le
+  focus de `timelines.spec.ts`, dont les dates dépendent des calendriers des lignes, sont
+  étiquetés `@shared` par US-1570 en EP-07 (#2594, décision du 2026-11-09) — ; la définition
   de fini est constatée — cinquante saisies annulées puis rétablies, un collage prévisualisé puis
   appliqué, un import MS Project appliqué, un aller-retour sans écart, les exports produits — ;
   les entrées du guide que `BEFORE_EP06` et `BEFORE_THE_DATA` (le planning) gardaient sont
