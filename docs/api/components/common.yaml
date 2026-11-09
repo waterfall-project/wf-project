@@ -385,7 +385,12 @@ Problem:
         `WBS_ELEMENT_OUTSIDE_PROJECT`, `ImportRejection.params`, WF-CRE-0020); `value`, the
         value of the cell as the file carries it, of a line of an estimate or of a remaining to
         commit that cites an unknown task, role or subproject (`UNKNOWN_TASK`,
-        `UNKNOWN_RESOURCE_ROLE`, `UNKNOWN_SUBPROJECT`, `ImportRejection.params`, WF-INTF-0100);
+        `UNKNOWN_RESOURCE_ROLE`, `UNKNOWN_SUBPROJECT`, `ImportRejection.params`, WF-INTF-0100),
+        and of a cell of a column of numbers of an estimate that carries a text (`NUMBER_INVALID`,
+        `ImportRejection.params`); `header`, the header of the column of the workbook of an
+        estimate that carries the refused cell, as the workbook carries it, for `NUMBER_INVALID`
+        and the reason of a field of an imported line (`ImportRejection.params`, annex B; #2609)
+        — not `column`, which names a column of an actual cost extraction by its identifier;
         `label`, the label of a task that several tasks carry, with `tasks` those that carry it
         (`AMBIGUOUS_TASK_LABEL`, `ImportRejection.params`, annex B); `start` and `finish`, the
         dates that an MS Project planning gives to a summary task in manual mode, imported in
