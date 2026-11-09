@@ -1,6 +1,6 @@
 # SPDX-FileCopyrightText: 2026 waterfall-project
 # SPDX-License-Identifier: AGPL-3.0-only
-"""The slice of the lines of the witness (US-1570/L2; WF-QUA-0040, WF-CYC-0030): loaded and read.
+"""The slice of the lines of the witness (US-1570/L2; WF-QUA-0040, WF-CYC-0030): loaded.
 
 ``load-witness`` fills each revision of PRJ-001 once the slice of the revisions has opened it, after
 its tasks and before it is marked (``witness.estimate_lines``): the lines the copy gave it
@@ -9,30 +9,15 @@ through the interface of the estimate, at the identifiers and the instants the w
 slice of the revisions then accepts the update of the rates on the 101 (event 6) and designates the
 offer 100 the reference (event 7), the project passing In progress when its code is entered.
 
-What the service reads of the loaded witness is compared with the examples of the contract
-(``nodes_estimate*``, ``volume/nodes_thousand``, ``estimate_indicators``, ``workload*``,
-``contributor_suggestions``, ``revisions``, ``project``, ``comparison*``), amounts and audit columns
-included, but for what the witness does not reach, each listed here, with its cause:
-
-- the reference is the offer 100 until the merge of the amendment 1 (EP-08): the budgeted amount of
-  a line is that of its lineage in the 100, where the examples read the 101's (``BUDGETS``), the
-  indicators and the comparisons are measured to it, the project and the revisions name it;
-- the provisions are EP-08's, the risks' lines (``PROVISIONS``): a line of provision is absent, with
-  the row numbers it shifts and the amounts it adds to the tasks above it, the totals, the
-  indicators and the comparisons;
-- the figures of the previous revision (``previous_*``), the actual costs that lock the subproject
-  of a line (``editable_fields``) are EP-09's;
-- a line whose task straddles two years is spread over them by the service, by the hours of each
-  (WF-DEV-0040), where the generator of the examples kept the first year (``STRADDLING``);
-- the accounts of the witness are not attached to their node of the organisation, so that no
-  contributor is suggested (``contributor_suggestions``); the authors are the platform's, and the
-  commands of a reader are those of its rights, not of the example's.
+What the service reads of the loaded witness is compared with the examples in
+``test_witness_lines_reads``, which names what the witness does not reach.
 """
 
 from collections import Counter
 from dataclasses import replace
 from datetime import UTC, date, datetime
 from decimal import Decimal
+from functools import cache
 from typing import TYPE_CHECKING, Any
 from uuid import UUID
 
@@ -76,8 +61,6 @@ RATED = {
     UUID("01926f3a-7c00-7000-8000-000000000405"),
 }
 INSTALLATION = UUID("01926f3a-7c00-7000-8000-000000000661")
-# The day of the reading of the examples: the 3 June 2026, 14:05.
-READ_AT = datetime(2026, 6, 3, 14, 5, tzinfo=UTC)
 ENTERED = frozenset(
     {
         "label",
@@ -91,22 +74,14 @@ ENTERED = frozenset(
     }
 )
 CABLER = UUID("01926f3a-7c00-7000-8000-000000000454")
-# What a line of the examples carries that the witness does not (EP-09): the previous figures.
-PREVIOUS = {
-    "previous_quantity",
-    "previous_hours",
-    "previous_unit_disbursement",
-    "previous_reestimated_amount",
-}
-# What the service computes otherwise than the examples, compared apart, line by line.
-APART = PREVIOUS | {"budgeted_amount", "reestimated_amount", "consumption_year"}
 # The line of provision the examples read under the core (EP-08).
 PROVISION = "01926f3a-7c00-7000-8000-000000000555"
 CENT = Decimal("0.01")
 
 
+@cache
 def described() -> dict[str, Any]:
-    """Read the value of ``witness_lines.json``."""
+    """Read the value of ``witness_lines.json`` once (6.6 MB); the callers leave it as read."""
     return example(LINES)
 
 
@@ -351,6 +326,7 @@ def test_the_budgeted_amounts_are_those_of_the_lineage_in_the_reference_the_offe
 
 def identifying(session: Session) -> dict[int, dict[UUID, dict[str, object]]]:
     """Give what the identifying data of the lines of a revision are, the platform drawing none."""
+    columns = list(facet_of(file_lines(100)[0]))
     return {
         number: {
             lineage: {
@@ -359,7 +335,7 @@ def identifying(session: Session) -> dict[int, dict[UUID, dict[str, object]]]:
                 "rank": node.rank,
                 "created_at": node.created_at,
                 "updated_at": node.updated_at,
-                **{column: getattr(facet, column) for column in facet_of(file_lines(number)[0])},
+                **{column: getattr(facet, column) for column in columns},
                 "base": facet.base_amount,
                 "budgeted": facet.budgeted_amount,
                 "reestimated": facet.reestimated_amount,

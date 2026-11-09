@@ -26,7 +26,7 @@ named with its cause where the test stands:
 
 import copy
 from bisect import bisect_left
-from collections import Counter
+from collections import Counter, defaultdict
 from datetime import UTC, datetime
 from decimal import Decimal, InvalidOperation
 from typing import TYPE_CHECKING, Any, cast
@@ -45,10 +45,12 @@ from test_witness_projects import (
     instant,
     read,
 )
-from test_witness_tasks import difference, structure_of
+from test_witness_tasks import REVISIONS, difference, structure_of
 
 from waterfall.core.estimate.interface import roles_employed
+from waterfall.core.estimate.tables import RevisionCategory
 from waterfall.core.planning.tables import Node
+from waterfall.core.revisions.interface import reference_year_of
 
 if TYPE_CHECKING:
     from realm import TestRealm
@@ -176,6 +178,12 @@ def the_day(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr("waterfall.api.estimate_indicators.utc_now", lambda: READ_AT)
 
 
+def inflated(base_amount: Decimal, basis: tuple[int, Decimal], year: int) -> Decimal:
+    """Give an amount inflated to a year: once per year since the reference year, never deflated."""
+    reference_year, rate = basis
+    return base_amount * (1 + rate) ** max(year - reference_year, 0)
+
+
 def year_of(instant_: dict[str, Any]) -> str:
     """Give the year of a start or a finish of a task as a reading writes it."""
     return str(instant_["date"])[:4]
@@ -230,6 +238,44 @@ LINES_APART = {
 }
 
 
+def projection_apart(
+    sheet: dict[str, Any],
+    example_sheet: dict[str, Any],
+    task: dict[str, Any],
+    basis: tuple[int, Decimal],
+) -> list[str]:
+    """Check how a line is projected otherwise than the example, and name what differs.
+
+    On a task straddling two years the line is spread by the hours of each (WF-DEV-0040): it costs
+    between its base amount inflated to the year the task starts and to the year it ends, where the
+    example kept the first, and its year of consumption is one of the two. Elsewhere only an exact
+    half cent differs: the service rounds it to the even cent (``ROUND_HALF_EVEN``, EP-07, "L'année
+    de consommation et la projection"), the generator up, to the odd one above.
+    """
+    label = sheet["label"]
+    starts, ends = int(year_of(task["start"])), int(year_of(task["finish"]))
+    ours, theirs = (
+        Decimal(sheet["reestimated_amount"]),
+        Decimal(example_sheet["reestimated_amount"]),
+    )
+    found: list[str] = []
+    if starts != ends:
+        low = inflated(Decimal(sheet["base_amount"]), basis, starts)
+        high = inflated(Decimal(sheet["base_amount"]), basis, ends)
+        assert abs(theirs - low) <= CENT, label
+        assert low - CENT <= ours <= high + CENT, label
+        assert int(sheet["consumption_year"]) in {starts, ends}, label
+        found += ["reestimated"] * (ours != theirs)
+        found += ["year"] * (sheet["consumption_year"] != example_sheet["consumption_year"])
+        return found
+    assert sheet["consumption_year"] == example_sheet["consumption_year"], label
+    if ours != theirs:
+        assert theirs - ours == CENT, label
+        assert (ours / CENT) % 2 == 0, label
+        found.append("rounding")
+    return found
+
+
 def sums_hold(
     name: str,
     reads: tuple[dict[str, Any], dict[str, Any]],
@@ -263,7 +309,7 @@ def sums_hold(
     assert totals["hours"] == wanted_totals["hours"]
     assert totals["estimate_line_count"] == wanted_totals["estimate_line_count"] - len(absent)
     # The tasks the filters retain: one under the lines of the amounts asked, where the example
-    # counts none of those it renders for the sake of the tree (finding of the lot, planning).
+    # counts none of those it renders for the sake of the tree (#2699, left to US-1570/L3).
     assert totals["task_count"] == wanted_totals["task_count"] + (name == "nodes_estimate_filtered")
     assert body["meta"]["summary_depth"] == expected["meta"]["summary_depth"]
     assert body["meta"]["scheduled_at"] == instant(OPENED[102]).isoformat().replace("+00:00", "Z")
@@ -276,6 +322,10 @@ def test_the_estimate_read_of_the_loaded_witness_is_the_example_but_for_what_it_
     with witness.transaction() as session:
         structure = structure_of(session, REVISION_102)
         offer = line_rows(session, REVISION_100)
+        basis = (
+            reference_year_of(session, REVISION_102),
+            Decimal(example("project")["inflation_rate"]),
+        )
     base = f"{PROJECTS}/{PRJ_001}/revisions/{REVISION_102}/structures/{structure}/nodes"
     body = read(api, witness, realm, f"{base}{READS[name]}")
     expected = example(name)
@@ -310,21 +360,8 @@ def test_the_estimate_read_of_the_loaded_witness_is_the_example_but_for_what_it_
         ), sheet["label"]
         found["budgeted"] += sheet["budgeted_amount"] != example_sheet["budgeted_amount"]
         # The re-estimated amount and the year: the same but where the task straddles two years.
-        straddling = year_of(task["start"]) != year_of(task["finish"])
-        if sheet["reestimated_amount"] != example_sheet["reestimated_amount"]:
-            if straddling:
-                found["reestimated"] += 1
-            else:
-                # An exact half cent: the service rounds to the even cent (``ROUND_HALF_EVEN``,
-                # EP-07, "L'année de consommation et la projection"), the generator up.
-                difference_ = Decimal(sheet["reestimated_amount"]) - Decimal(
-                    example_sheet["reestimated_amount"]
-                )
-                assert abs(difference_) == CENT, sheet["label"]
-                found["rounding"] += 1
-        if sheet["consumption_year"] != example_sheet["consumption_year"]:
-            assert straddling, sheet["label"]
-            found["year"] += 1
+        for each in projection_apart(sheet, example_sheet, task, basis):
+            found[each] += 1
         # The risk that originates a line is EP-08's.
         assert item["origin_risk_id"] is None
         # The previous figures are EP-09's; the subproject of a line of a started task is locked
@@ -447,7 +484,8 @@ def test_the_contributors_the_lines_employ_are_proposed_but_for_the_accounts_not
 ) -> None:
     # The lines of the revision in progress employ the role of the cable fitter, whose node holds
     # the account of Sacha Lefèvre; the example proposes it. The accounts of the witness are created
-    # without their node (``witness.projects``), so that none is proposed: the proposal is empty.
+    # without their node (``witness.projects``), so that none is proposed: the proposal is empty
+    # (#2698, left to US-1570/L3).
     with witness.transaction() as session:
         employed = roles_employed(session, PRJ_001)
     assert CABLER in employed
@@ -637,3 +675,77 @@ def test_the_comparison_of_the_whole_structure_marks_the_nodes_of_the_example_bu
     assert [item["level"] for item in body["items"] if item["kind"] == "task"] == [
         item["level"] for item in expected["items"] if item["kind"] == "task"
     ]
+
+
+def test_the_amount_deltas_of_the_whole_comparison_are_the_lines_of_the_two_revisions_summed(
+    api: ContractClient, witness: Database, realm: TestRealm
+) -> None:
+    # US-1530 (#1752): each line counts under the key it bears in each revision, the keys at two
+    # nought deltas left out, the sum by subproject equal to the sum by nature. Read whole, the
+    # deltas are the amounts of the lines of the 101 less those of the 100, summed by key straight
+    # from the rows; the example's differ by the lines on two years (re-estimated), the reference
+    # (budgeted) and the provision the witness lacks (EP-08), the nature of which is absent. The
+    # budgeted deltas are held to the sum by subproject equal to the sum by nature (#1752).
+    url = (
+        f"{PROJECTS}/{PRJ_001}/revisions/comparison?from_revision_id={REVISION_100}"
+        f"&to_revision_id={REVISION_101}"
+    )
+    body = read(api, witness, realm, url)
+    expected = example("volume/comparison_volume")
+    with witness.transaction() as session:
+        lines = {number: line_rows(session, REVISIONS[number]) for number in (100, 101)}
+        natures = {
+            number: dict(
+                session.execute(
+                    select(RevisionCategory.cost_category_id, RevisionCategory.cost_type_id).where(
+                        RevisionCategory.revision_id == REVISIONS[number]
+                    )
+                ).all()
+            )
+            for number in (100, 101)
+        }
+    summed: defaultdict[tuple[str, str, str], Decimal] = defaultdict(Decimal)
+    for number, sign in ((101, 1), (100, -1)):
+        for _, facet in lines[number].values():
+            subproject = "unassigned" if facet.subproject_id is None else str(facet.subproject_id)
+            keys = {
+                "cost_type": str(natures[number][facet.cost_category_id]),
+                "subproject": subproject,
+            }
+            for dimension, key in keys.items():
+                summed[dimension, key, "reestimated_delta"] += sign * facet.reestimated_amount
+    found = {
+        (each["dimension"], each["key"], name): Decimal(each[name])
+        for each in body["amount_deltas"]
+        for name in ("budgeted_delta", "reestimated_delta")
+    }
+    # The re-estimated deltas, key by key, from the rows; the budgeted ones are the reference's
+    # (the offer), their keys those of the re-estimated deltas or one more at most.
+    assert {k: a for k, a in found.items() if k[2] == "reestimated_delta" and a} == {
+        key: amount for key, amount in summed.items() if amount
+    }
+    for name in ("budgeted_delta", "reestimated_delta"):
+        by = {
+            dimension: sum(
+                (
+                    amount
+                    for (kind, _, each), amount in found.items()
+                    if (kind, each) == (dimension, name)
+                ),
+                Decimal(0),
+            )
+            for dimension in ("cost_type", "subproject")
+        }
+        assert by["cost_type"] == by["subproject"], name
+    # The keys are the example's but for the nature of the provision; the budgeted delta of the
+    # disbursements, which the offer and the 101 do not budget differently, is the example's.
+    ours = {(each["dimension"], each["key"]) for each in body["amount_deltas"]}
+    theirs = {(each["dimension"], each["key"]) for each in expected["amount_deltas"]}
+    assert theirs - ours == {("cost_type", "01926f3a-7c00-7000-8000-000000000463")}
+    assert ours <= theirs
+    disbursements = ("cost_type", "01926f3a-7c00-7000-8000-000000000462", "budgeted_delta")
+    assert found[disbursements] == next(
+        Decimal(each["budgeted_delta"])
+        for each in expected["amount_deltas"]
+        if (each["dimension"], each["key"]) == disbursements[:2]
+    )
