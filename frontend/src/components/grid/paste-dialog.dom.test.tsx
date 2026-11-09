@@ -91,6 +91,67 @@ describe("the report of a paste", () => {
   });
 });
 
+describe("the report of a paste that creates tasks", () => {
+  it("says how many tasks will be created, beside the rows written, and nothing for a plan that creates none [WF-IHM-0050-A]", () => {
+    const plan = example("paste_plan_creating") as PastePlan;
+    expect(plan.created).toBeGreaterThan(0);
+    const pasting = {
+      block: UNKNOWN,
+      width: 1,
+      target: report.target,
+      plan,
+      applying: false,
+    };
+    const props = { onApply: vi.fn(), onAbandon: vi.fn(), onClosed: vi.fn() };
+    const { unmount } = inLanguage(<PasteDialog pasting={pasting} {...props} />);
+    const status = within(screen.getByRole("dialog")).getByRole("status");
+    expect(status).toHaveTextContent(`${plan.created.toString()} tâches seront créées à la suite`);
+    unmount();
+    inLanguage(<PasteDialog pasting={pasting} {...props} />, "en");
+    expect(within(screen.getByRole("dialog")).getByRole("status")).toHaveTextContent(
+      `${plan.created.toString()} tasks will be created after the last task.`,
+    );
+    unmount();
+  });
+
+  it("lists the rows past the last node that the service refuses as a field the line does not accept, creating nothing [WF-IHM-0050-A]", () => {
+    const base = example("paste_plan_unknown_category") as PastePlan;
+    const plan: PastePlan = {
+      ...base,
+      accepted: 1,
+      created: 0,
+      rejected: [{ row: 1, column: "label", code: "FIELD_NOT_ACCEPTED" }],
+    };
+    inLanguage(
+      <PasteDialog
+        pasting={{ block: UNKNOWN, width: 1, target: report.target, plan, applying: false }}
+        onApply={vi.fn()}
+        onAbandon={vi.fn()}
+        onClosed={vi.fn()}
+      />,
+    );
+    const status = within(screen.getByRole("dialog")).getByRole("status");
+    expect(status).toHaveTextContent(
+      "Ligne 2 du bloc — Ce champ ne se saisit pas sur cette ligne.",
+    );
+    expect(status).not.toHaveTextContent(/créée/);
+  });
+
+  it("tells nothing of creation for a plan that creates none [WF-IHM-0050-A]", () => {
+    const plan = example("paste_plan") as PastePlan;
+    expect(plan.created).toBe(0);
+    inLanguage(
+      <PasteDialog
+        pasting={{ block: UNKNOWN, width: 1, target: report.target, plan, applying: false }}
+        onApply={vi.fn()}
+        onAbandon={vi.fn()}
+        onClosed={vi.fn()}
+      />,
+    );
+    expect(within(screen.getByRole("dialog")).getByRole("status")).not.toHaveTextContent(/créée/);
+  });
+});
+
 describe("the notice of a paste applied", () => {
   it.each([
     [
