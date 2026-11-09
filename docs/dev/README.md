@@ -2054,8 +2054,13 @@ mock-up (`MockupNotice`). The MS Project planning is imported in two steps (`ope
 `exchanges.spec.ts` that exports the planning of a project the run creates, downloads it, then
 imports it back with no difference (FLX-01 and FLX-02 of the « project manager » account,
 WF-INTF-0010-A), and those of `tasks.spec.ts` that play the route and the refusal of a result on the
-export it made, carry `@shared`; the estimate, the remaining to commit and the actual costs (EP-07,
-EP-09) and the path of the marking stay on the fake back.
+export it made, carry `@shared`. The estimate is imported (`kind: estimate`) and exported (`kind:
+estimate`, file `…-devis.xlsx`) through the same screen; its `@shared` path exports and downloads the
+estimate of a project the run creates, and sees a file that is no estimate refused at the analysis
+(format and version expected named). The proxy of the contract (Prism) spoils the bytes of a
+workbook (#973): the workbook is neither inspected nor imported back by this path, and the import in
+two steps stays on the fake back; the remaining to commit and the actual costs (EP-09) and the path
+of the marking stay on the fake back.
 
 The page of a project proposes to start its planning through the « Start the project » insert
 (`ProjectStart`, `components/projects/project-start.tsx`, US-0490) as long as the main structure of

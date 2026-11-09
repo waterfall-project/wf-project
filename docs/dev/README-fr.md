@@ -2049,8 +2049,13 @@ L'écran est branché sur le service (EP-06, US-1430) : la page ne porte plus la
 nul, 404 ensuite, que la route rend par son refus). Le parcours de `exchanges.spec.ts` qui exporte le
 planning d'un projet que la course crée, le télécharge, puis le réimporte sans écart (FLX-01 et FLX-02
 du compte « chef de projet », WF-INTF-0010-A), et ceux de `tasks.spec.ts` qui jouent la route et le
-refus d'un résultat sur l'export qu'elle a fait, portent `@shared` ; le devis, le reste à engager et
-les coûts réels (EP-07, EP-09) et le parcours du marquage restent sur le faux back.
+refus d'un résultat sur l'export qu'elle a fait, portent `@shared`. Le devis s'importe (`kind:
+estimate`) et s'exporte (`kind: estimate`, fichier `…-devis.xlsx`) par le même écran ; son parcours
+`@shared` exporte et télécharge le devis d'un projet que la course crée, et voit refuser à l'analyse
+un fichier qui n'en est pas un (format et version attendus nommés). Le proxy du contrat (Prism)
+altère les octets d'un classeur (#973) : le classeur n'est ni inspecté ni réimporté par ce parcours,
+et l'import en deux temps reste sur le faux back ; le reste à engager et les coûts réels (EP-09) et
+le parcours du marquage restent sur le faux back.
 
 La page d'un projet propose de démarrer son planning par l'encart « Démarrer le projet »
 (`ProjectStart`, `components/projects/project-start.tsx`, US-0490) tant que la structure principale
