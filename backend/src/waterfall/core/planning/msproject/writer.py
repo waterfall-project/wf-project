@@ -60,7 +60,8 @@ def write_project(project: MsProject) -> bytes:
             Tag("SaveVersion", SAVE_VERSION),
             leaf("Name", project.name),
             leaf("StartDate", _datetime(project.start)),
-            # The schema requires a currency; an empty one is valid, and MS Project takes its own.
+            # The schema requires a currency: the export gives the one of the installation; a model
+            # without one writes it empty, which is valid, and MS Project takes its own.
             Tag("CurrencyCode", project.currency_code or ""),
             leaf("CalendarUID", _integer(project.calendar_uid)),
             leaf("MinutesPerDay", _integer(project.minutes_per_day)),

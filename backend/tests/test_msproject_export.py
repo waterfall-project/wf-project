@@ -28,6 +28,7 @@ from test_msproject_import import Timing, link, links, planning, task
 
 from waterfall.api.app import create_app
 from waterfall.api.authentication import Services
+from waterfall.core.cost_settings.interface import read_reference_settings
 from waterfall.core.planning.interface import FacetHooks, register_facet
 from waterfall.core.planning.msproject import read_project
 from waterfall.core.planning.tree import read_tree
@@ -578,3 +579,17 @@ def test_the_file_is_named_after_the_code_of_the_project_cleaned_or_not_at_all(
     assert named(None) == 'attachment; filename="ms-project.xml"'
     assert named("PRJ é-1") == 'attachment; filename="ms-project-PRJ_-1.xml"'
     assert named("é é") == 'attachment; filename="ms-project.xml"'
+
+
+@pytest.mark.requirement("WF-INTF-0050-A")
+def test_the_currency_code_written_is_the_one_of_the_installation(
+    api: ContractClient, stage: Scene, worker: Worker
+) -> None:
+    # « Le fichier exporté valide contre le schéma » : CurrencyCode, exigé, porte la devise de
+    # l'installation et non une valeur vide (#2469).
+    with stage.database.transaction() as session:
+        currency = read_reference_settings(session).currency_code
+    content, project = exported_planning(api, stage, worker)
+    assert currency
+    assert project.currency_code == currency
+    assert f"<CurrencyCode>{currency}</CurrencyCode>" in content.decode()

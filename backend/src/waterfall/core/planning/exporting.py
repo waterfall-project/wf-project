@@ -30,6 +30,7 @@ from datetime import datetime, time, timedelta
 from fractions import Fraction
 from typing import TYPE_CHECKING, cast
 
+from waterfall.core.cost_settings.interface import read_reference_settings
 from waterfall.core.planning.calendars import default_calendar
 from waterfall.core.planning.dating import MANUAL, constants_of, duration_of
 from waterfall.core.planning.interface.facets import calendars_of
@@ -202,6 +203,7 @@ def project_of(session: Session, project_id: UUID, structure_id: UUID) -> MsProj
     return MsProject(
         start=datetime.combine(facts.planning_start_on, OPENING),
         name=project_label(session, project_id),
+        currency_code=read_reference_settings(session).currency_code,
         calendar_uid=PROJECT_CALENDAR,
         minutes_per_day=round(constants.hours_per_day * MINUTES_PER_HOUR),
         minutes_per_week=round(constants.hours_per_week * MINUTES_PER_HOUR),
