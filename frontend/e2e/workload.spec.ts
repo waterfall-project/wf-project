@@ -1,9 +1,10 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
-import { expect, test } from "@playwright/test";
+import { expect } from "@playwright/test";
 
 import { compile } from "./compile";
 import { openHydrated, WORKING } from "./hydration";
+import { inService, test } from "./mode";
 
 const PROJECT = "01926f3a-7c00-7000-8000-000000000001";
 const REVISION = "01926f3a-7c00-7000-8000-000000000102";
@@ -11,9 +12,14 @@ const ESTIMATE = `/projects/${PROJECT}/revisions/${REVISION}/estimate`;
 const SCREEN = `/projects/${PROJECT}/revisions/${REVISION}/workload`;
 const ORG_NODE = "01926f3a-7c00-7000-8000-000000000471";
 
+// The service serves the workload; the estimate it leads from and the lines that load it come with
+// the grid of the estimate (US-1560) and the witness (US-1570): the paths that need them stay on
+// the fake back until then.
+const BEFORE_THE_ESTIMATE = "US-1560 serves the estimate, US-1570 the lines of the witness";
+
 test.use({ colorScheme: "light" });
 
-test("leads from the estimate to the workload on the reference budget, drawn in stacked bars, the capacity in its table, which a node of organisation filters at the server's", async ({
+test("leads from the estimate to the workload on the reference budget, drawn in stacked bars, the capacity in its table, which a node of organisation filters at the server's [WF-DEV-0070-A]", async ({
   page,
 }) => {
   await compile(page.request, SCREEN);
@@ -53,9 +59,27 @@ test("leads from the estimate to the workload on the reference budget, drawn in 
   );
 });
 
-test("exports the workload, at the keyboard, as a PNG image drawn on a canvas, named after the project [WF-IHM-0130-A]", async ({
+test("reads the workload of the revision under way from its address, the server filtering it on the node of organisation chosen, the context kept @shared [WF-DEV-0070-A]", async ({
   page,
 }) => {
+  await openHydrated(page, `${SCREEN}?as_of=2026-03-16`);
+  const region = page.getByRole("region", { name: "Plan de charge du projet" });
+  await expect(page.getByRole("heading", { level: 1, name: "Plan de charge" })).toBeVisible({
+    timeout: WORKING,
+  });
+  await expect(region.getByText(/^Base : /)).toBeVisible();
+  await region.getByLabel("Nœud d’organisation").selectOption(ORG_NODE);
+  await region.getByRole("button", { name: "Afficher" }).click();
+  await expect(page).toHaveURL(new RegExp(`as_of=2026-03-16&.*org_node_id=${ORG_NODE}$`));
+  // The node is read again by the server, which names it: the reading follows the filter.
+  await expect(region.getByLabel("Nœud d’organisation")).toHaveValue(ORG_NODE);
+  await expect(region.getByText(/^Base : /)).toBeVisible();
+});
+
+test("exports the workload, at the keyboard, as a PNG image drawn on a canvas, named after the project @shared [WF-IHM-0130-A]", async ({
+  page,
+}) => {
+  test.skip(inService, BEFORE_THE_ESTIMATE);
   await openHydrated(page, SCREEN);
   const figure = page.getByRole("figure", { name: "Charge par rôle et par mois" });
   const command = figure.getByRole("button", { name: "Exporter en PNG" });
@@ -78,4 +102,21 @@ test("exports the workload, at the keyboard, as a PNG image drawn on a canvas, n
   expect([image.readUInt32BE(16), image.readUInt32BE(20)]).toEqual([2560, 1440]);
   // The instance out of the screen is gone with its canvas.
   await expect(page.locator("canvas")).toHaveCount(0);
+});
+
+test("offers the revision under way and only the other bases the project admits, the marked revision chosen with its basis alone @shared [WF-DEV-0070-A]", async ({
+  page,
+}) => {
+  await openHydrated(page, `${SCREEN}?basis=current_remaining`);
+  const region = page.getByRole("region", { name: "Plan de charge du projet" });
+  const bases = await region
+    .getByLabel("Base", { exact: true })
+    .locator("option")
+    .evaluateAll((options) => options.map((option) => (option as HTMLOptionElement).value));
+  // A basis the project does not admit is absent, never offered to be refused (409, 422): the
+  // revision under way alone is offered to a project without a reference or a marked revision.
+  expect(bases).toContain("current_remaining");
+  await expect(region.getByLabel("Révision marquée")).toHaveCount(
+    bases.includes("marked_remaining") ? 1 : 0,
+  );
 });
