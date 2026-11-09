@@ -11,6 +11,7 @@ answer is checked against the contract, the download of the file excepted (see `
 writer without a database is ``test_estimate_excel_write``, the reader ``test_estimate_excel_read``.
 """
 
+from datetime import UTC, datetime
 from decimal import Decimal
 from io import BytesIO
 from typing import TYPE_CHECKING, Any
@@ -34,8 +35,9 @@ from waterfall.api.app import create_app
 from waterfall.api.authentication import Services
 from waterfall.core.access_roles.predefined import PROJECT_MANAGER
 from waterfall.core.cost_settings.tables import HourlyRate, ReferenceSetting
+from waterfall.core.estimate.exporting import file_name
 from waterfall.core.planning.msproject import read_project
-from waterfall.core.projects.tables import Project
+from waterfall.core.projects.tables import OrderItem, Project, WorkPackage
 from waterfall.core.resource_settings.tables import ResourceRole
 from waterfall.core.users.tables import UserAccount
 from waterfall.platform.keycloak_admin import KeycloakAdmin
@@ -66,6 +68,7 @@ IN_ENGLISH = "en-GB,en;q=0.9"
 IN_FRENCH = "fr-FR,fr;q=0.9"
 LINES_HEADER = 20
 FIXED = ["Présentation", "Devis"]
+NOW = datetime(2026, 1, 5, tzinfo=UTC)
 TAIL = ["Tâches", "Paramètres"]
 
 
@@ -633,3 +636,77 @@ def test_a_planning_with_lines_of_roles_of_different_calendars_is_exported_to_ms
         for node, task in nodes(stage)
     ] == snapshot
     assert items_of(lines.tree) == before
+
+
+@pytest.mark.requirement("WF-REF-0130-A")
+def test_the_roles_offered_are_the_active_ones_and_those_a_line_employs(
+    api: ContractClient, stage: Scene, worker: Worker, tree: Tree, costs: Costing
+) -> None:
+    # Les rôles de la liste de validation sont ceux du référentiel actifs : un rôle désactivé et
+    # inemployé n'est plus offert (sa catégorie, active, n'y change rien), un rôle désactivé
+    # qu'une ligne emploie reste listé pour que le devis se relise.
+    unused = add_role(stage.database, "ARC", (8, 8, 8, 8, 8, 0, 0))
+    task = tree.made("Câblage")
+    Lines(tree).made(task, quantity="1", resource_role_id=str(costs.role), hours="3")
+    with stage.owner.begin() as connection:
+        connection.execute(update(ResourceRole).values(is_active=False))
+    content = exported(api, stage, worker, tree.revision["revision_id"])
+    rows = book_of(content)["Paramètres"].iter_rows(min_row=4, values_only=True)
+    offered = [row[0] for row in rows if row[1] == "Rôle"]
+    assert offered == ["Ingénieur (ING)"]
+    assert unused != costs.role
+
+
+def lot_of_a_poste(stage: Scene, tree: Tree, role: UUID, *, poste_only: bool) -> None:
+    """Put a task with a line on a poste, mark, then delete the poste, or the poste and its lot."""
+    package, item = work_breakdown(stage)
+    task = tree.made("Câblage")
+    put_facts(stage, task["node_id"], order_item_id=item)
+    Lines(tree).made(task, quantity="1", resource_role_id=str(role), hours="3")
+    mark(stage, tree.revision)
+    with stage.owner.begin() as connection:
+        connection.execute(update(OrderItem).where(OrderItem.id == item).values(deleted_at=NOW))
+        if not poste_only:
+            connection.execute(
+                update(WorkPackage).where(WorkPackage.id == package).values(deleted_at=NOW)
+            )
+
+
+@pytest.mark.requirement("WF-INTF-0100-A")
+def test_a_poste_deleted_with_its_lot_after_the_marking_keeps_its_numbers_and_its_names(
+    api: ContractClient, stage: Scene, worker: Worker, tree: Tree, costs: Costing
+) -> None:
+    # Un poste porté par une tâche de la révision marquée, supprimé avec son lot : le lot garde
+    # son numéro et son libellé (« 2 Lot »), le poste « 2.1 » en dépend ; ni l'un ni l'autre ne
+    # prend « 1 », que le lot vivant du projet porte.
+    lot_of_a_poste(stage, tree, costs.role, poste_only=False)
+    content = exported(api, stage, worker, tree.revision["revision_id"])
+    book = book_of(content)
+    assert book.sheetnames == [*FIXED, "2.1 Poste", *TAIL]
+    listed = list(book["Tâches"].iter_rows(min_row=4, values_only=True))
+    assert [(each[0], each[4]) for each in listed] == [("1 Câblage", "2.1 Poste")]
+    summary = [row[:4] for row in book["Devis"].iter_rows(min_row=6, max_row=8, values_only=True)]
+    assert summary[:2] == [("2", "Lot", None, "lot"), ("2.1", "Poste", "Oui", "onglet")]
+
+
+@pytest.mark.requirement("WF-INTF-0100-A")
+def test_a_poste_deleted_after_the_marking_while_its_lot_lives_is_numbered_under_its_lot(
+    api: ContractClient, stage: Scene, worker: Worker, tree: Tree, costs: Costing
+) -> None:
+    # Le poste supprimé, son lot vivant : il garde son rang sous le lot.
+    lot_of_a_poste(stage, tree, costs.role, poste_only=True)
+    content = exported(api, stage, worker, tree.revision["revision_id"])
+    book = book_of(content)
+    assert book.sheetnames == [*FIXED, "2.1 Poste", *TAIL]
+    listed = list(book["Tâches"].iter_rows(min_row=4, values_only=True))
+    assert [(each[0], each[4]) for each in listed] == [("1 Câblage", "2.1 Poste")]
+
+
+@pytest.mark.requirement("WF-INTF-0100-A")
+def test_a_version_named_like_the_current_revision_or_nothing_is_named_by_its_identifier() -> None:
+    # Le nom du fichier ne confond pas une version avec la révision en cours.
+    revision = UUID(int=7)
+    assert file_name("P", "Projet", (None, revision)) == "P-en-cours-devis.xlsx"
+    assert file_name("P", "Projet", ("En-cours", revision)) == f"P-{revision}-devis.xlsx"
+    assert file_name("P", "Projet", ("§§", revision)) == f"P-{revision}-devis.xlsx"
+    assert file_name("P", "Projet", ("v1.0", revision)) == "P-v1.0-devis.xlsx"

@@ -106,6 +106,7 @@ class _RoleInfo:
     label: str
     department: str
     category_id: UUID
+    is_active: bool = True
 
 
 @dataclass(frozen=True, slots=True)
@@ -141,10 +142,22 @@ def _slug(text: str) -> str:
     return _NOT_IN_A_NAME.sub("_", plain).strip("_")
 
 
-def file_name(code: str | None, label: str, version: str | None) -> str:
-    """Name the file of an export: ``<code or label of the project>-<version>-devis.xlsx``."""
+def file_name(code: str | None, label: str, version: tuple[str | None, UUID]) -> str:
+    """Name the file of an export: ``<code or label of the project>-<version>-devis.xlsx``.
+
+    ``version`` is the name of the version of the revision, none if it is the current one, and the
+    identifier of the revision: a version whose name leaves nothing in a file name, or reads as the
+    current revision's, is named by the identifier, so that no two revisions share a file name.
+    """
     project = _slug(code or "") or _slug(label) or "projet"
-    return f"{project}-{_slug(version or '') or IN_PROGRESS_FILE}-devis.xlsx"
+    name, revision_id = version
+    if name is None:
+        part = IN_PROGRESS_FILE
+    else:
+        part = _slug(name)
+        if not part or part.casefold() == IN_PROGRESS_FILE:
+            part = str(revision_id)
+    return f"{project}-{part}-devis.xlsx"
 
 
 def _category(
@@ -190,7 +203,9 @@ def _reference(session: Session, order: ExportOrder, year: int, *, marked: bool)
     else:
         held = reference_of(session, project_id)
         roles = {
-            key: _RoleInfo(each.code, each.label, each.org_node_label, each.cost_category_id)
+            key: _RoleInfo(
+                each.code, each.label, each.org_node_label, each.cost_category_id, each.is_active
+            )
             for key, each in held.roles_by_id.items()
         }
         categories = {
@@ -222,11 +237,11 @@ def _numbering(session: Session, project_id: UUID, borne: Collection[UUID]) -> _
             numbers[item.order_item_id] = f"{rank}.{count}"
             labels[item.order_item_id] = item.label
             lots[item.order_item_id] = key
-    gone = {
-        key: each
-        for key, each in work_breakdown_items(session, project_id).items()
-        if key in borne and key not in numbers
-    }
+    every = work_breakdown_items(session, project_id)
+    # An element is read when a task bears it, or bears one of its order items: a poste deleted
+    # with its lot keeps the lot it was numbered under.
+    wanted = {*borne, *(every[key].work_package_id for key in borne if key in every)} - {None}
+    gone = {key: each for key, each in every.items() if key in wanted and key not in numbers}
     last = len(read.work_packages)
     for key, each in gone.items():
         labels[key], lots[key] = each.label, each.work_package_id
@@ -388,7 +403,7 @@ def estimate_of(
     roles = {
         key: each
         for key, each in reference.roles.items()
-        if key in employed_roles or reference.categories[each.category_id].is_active
+        if key in employed_roles or each.is_active
     }
     categories = {
         key: each
@@ -399,7 +414,7 @@ def estimate_of(
         {Nature(each.nature, each.kind) for each in categories.values()},
         key=lambda nature: (KIND_ORDER[nature.kind], nature.name),
     )
-    name = file_name(project.code, project.label, revision.version_name)
+    name = file_name(project.code, project.label, (revision.version_name, revision_id))
     estimate = Estimate(
         company=settings.company_name,
         client=project.client or "",

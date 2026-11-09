@@ -46,6 +46,7 @@ from support import ContractClient
 
 from waterfall.api.app import create_app
 from waterfall.api.authentication import Services
+from waterfall.core.estimate.entries import LineEntry
 from waterfall.core.estimate.interface.excel import EstimateFormat
 from waterfall.core.estimate.tables import RevisionRate
 from waterfall.core.planning.interface import LinesWrite, Place, Writer, write_lines
@@ -633,7 +634,7 @@ def test_the_write_of_the_lines_refuses_a_line_created_under_a_task_completed(
     # The same refusal for a line created: under a completed task of the main structure (#1767).
     set_progress(stage, held["second"]["node_id"], "completed", date(2026, 1, 5))
     before = (nodes(stage.database), tree.items())
-    created = LinesWrite({}, {}, ((UUID(held["second"]["node_id"]), object()),))
+    created = LinesWrite({}, {}, ((UUID(held["second"]["node_id"]), LineEntry(label="Ajout")),))
     with pytest.raises(ConflictError) as raised:
         written_directly(stage, tree, created)
     assert (raised.value.status, raised.value.code) == (409, STATE)
