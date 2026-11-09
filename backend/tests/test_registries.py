@@ -218,6 +218,7 @@ FACTS = (
     f"{ESTIMATE}.employment.subproject_is_estimated",
     f"{ESTIMATE}.employment.subproject_estimate_lines",
     f"{ESTIMATE}.contributors.roles_employed",
+    f"{ESTIMATE}.contributors.marked_revision_has_lines",
     f"{ESTIMATE}.rates.reinflate_project",
     f"{ESTIMATE}.rates.hold_revision",
 )

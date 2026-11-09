@@ -10,7 +10,7 @@ import { randomBytes } from "node:crypto";
 import { type APIRequestContext, type Browser, expect, type Page } from "@playwright/test";
 
 import { openHydrated, WORKING } from "./hydration";
-import { API, frontToken, type LocalPerson } from "./service/realm";
+import { ADMINISTRATOR, API, frontToken, type LocalPerson } from "./service/realm";
 
 /** What a path keeps of the project it created: the address of its screen, and its label. */
 export interface OwnProject {
@@ -88,4 +88,91 @@ export async function inscribe(
     },
   });
   expect(written.status(), "PUT contributors").toBe(200);
+}
+
+/** A service of the organisation and a labour role of it, which a path employs. */
+export interface EmployedService {
+  readonly node: { readonly id: string; readonly label: string };
+  readonly role: { readonly id: string; readonly label: string };
+}
+
+/**
+ * The service and the labour role of the witness that every installation of the paths holds
+ * (`fixtures/api`: the workshop of wiring and the cable fitter, active, whom no line employs). The
+ * paths create nothing in the reference: a node or a role made here would stay in the installation
+ * and change what the paths of the reference of the resources count (`reference-resources.spec.ts`).
+ */
+export function wiringService(): EmployedService {
+  return {
+    node: { id: "01926f3a-7c00-7000-8000-000000000472", label: "Atelier de câblage" },
+    role: { id: "01926f3a-7c00-7000-8000-000000000454", label: "Monteur câbleur" },
+  };
+}
+
+/** Attach an account to a node of the organisation, as the administrator does (WF-ADM-0030). */
+export async function attachToService(
+  browser: Browser,
+  calls: APIRequestContext,
+  account: LocalPerson,
+  service: EmployedService,
+): Promise<void> {
+  const headers = { Authorization: `Bearer ${await frontToken(browser, ADMINISTRATOR)}` };
+  const read = await calls.get(`${API}/users/${account.id}`, { headers });
+  expect(read.status(), "GET user").toBe(200);
+  const { lock_version } = (await read.json()) as { lock_version: number };
+  const attached = await calls.patch(`${API}/users/${account.id}`, {
+    headers,
+    data: { org_node_id: service.node.id, lock_version },
+  });
+  expect(attached.status(), "PATCH user").toBe(200);
+}
+
+/**
+ * Give an account a family name of its own, as the administrator does: the local accounts all bear
+ * the same name, and a screen that lists the accounts of a service cannot tell them apart. The
+ * account returned is the same, under its new display name (first name, then last name).
+ */
+export async function renameAccount(
+  browser: Browser,
+  calls: APIRequestContext,
+  account: LocalPerson,
+): Promise<LocalPerson> {
+  const headers = { Authorization: `Bearer ${await frontToken(browser, ADMINISTRATOR)}` };
+  const read = await calls.get(`${API}/users/${account.id}`, { headers });
+  expect(read.status(), "GET user").toBe(200);
+  const { lock_version, first_name, last_name } = (await read.json()) as {
+    lock_version: number;
+    first_name: string;
+    last_name: string;
+  };
+  const renamed = `${last_name}-${randomBytes(4).toString("hex")}`;
+  const written = await calls.patch(`${API}/users/${account.id}`, {
+    headers,
+    data: { last_name: renamed, lock_version },
+  });
+  expect(written.status(), "PATCH user name").toBe(200);
+  return { ...account, name: `${first_name} ${renamed}` };
+}
+
+/**
+ * Create a labour line of the role under a task of the main structure of a revision, by the API,
+ * under the token of the creator of the project: the line the estimate employs the role by.
+ */
+export async function employRole(
+  calls: APIRequestContext,
+  headers: { readonly Authorization: string },
+  revision: { project: string; revision: string; structure: string },
+  task: string,
+  service: EmployedService,
+): Promise<void> {
+  const base = `${API}/projects/${revision.project}/revisions/${revision.revision}/structures/${revision.structure}`;
+  const line = await calls.post(`${base}/nodes`, {
+    headers,
+    data: {
+      kind: "estimate_line",
+      parent_id: task,
+      estimate_line: { quantity: "1", resource_role_id: service.role.id, hours: "10" },
+    },
+  });
+  expect(line.status(), "POST nodes estimate line").toBe(201);
 }

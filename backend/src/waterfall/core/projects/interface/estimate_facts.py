@@ -3,16 +3,18 @@
 """What the estimate tells the projects of its lines: subprojects they bear, roles they employ.
 
 A registry of this module (EP-07, "Les points d'extension"), filled by the estimate at the import of
-its interface, which this module never imports: one entry holds the five questions the projects
-ask of the lines, and two acts — the subprojects a marked revision cites by its lines
+its interface, which this module never imports: one entry holds the questions the projects ask
+of the lines, and two acts — the subprojects a marked revision cites by its lines
 (``subproject_is_cited``), those the lines of the current revision bear
 (``subproject_is_estimated``, which the list of subprojects asks), and those lines, named
 (``subproject_estimate_lines``, which the deletion of a subproject asks alone; WF-DAT-0080,
 WF-PRJ-0050); the roles the labour lines of a project employ (``roles_employed``,
-``listContributorSuggestions``, US-1540); the current revision priced again when the inflation of
-its project changes (``reinflate_project``, ``updateProject``, US-1500), its lock shared before the
-project is locked (``hold_revision``). Each story that asks a
-question reads it here; while nothing is registered, no subproject is cited nor estimated.
+``listContributorSuggestions``, US-1540); whether a marked revision bears a line
+(``marked_revision_has_lines``, ``getProjectNextState``, US-1540); the current revision priced
+again when the inflation of its project changes (``reinflate_project``, ``updateProject``,
+US-1500), its lock shared before the project is locked (``hold_revision``). Each story that asks a
+question reads it here; while nothing is registered, no subproject is cited nor estimated, and no
+marked revision bears a line.
 
 Declared by US-1490/L4, which fills the questions of the subprojects; US-1500/L2 asks the
 inflation (``hold_estimate``, ``reinflate_estimate``).
@@ -54,6 +56,7 @@ class EstimateFacts:
     ``subproject_estimate_lines`` the lines of the current revision that bear each subproject
     named, a subproject that none bears left out, in the order a refusal names them;
     ``roles_employed`` the roles of resources the labour lines of the project employ;
+    ``marked_revision_has_lines`` whether a marked revision of the project bears a line;
     ``reinflate_project`` prices the current revision of the project again, under the lock of the
     project, at the instant given; ``hold_revision`` shares the lock of its current revision,
     before the project is locked — the order of the marking, which locks the revision, then the
@@ -66,6 +69,7 @@ class EstimateFacts:
         [Session, UUID, Collection[UUID]], Mapping[UUID, tuple[EstimatedLine, ...]]
     ]
     roles_employed: Callable[[Session, UUID], frozenset[UUID]]
+    marked_revision_has_lines: Callable[[Session, UUID], bool]
     reinflate_project: Callable[[Session, UUID, datetime], None]
     hold_revision: Callable[[Session, UUID], None]
 
@@ -113,6 +117,19 @@ def subproject_estimate_lines(
             ).items():
                 found[each] = (*found.get(each, ()), *lines)
     return found
+
+
+def roles_employed(session: Session, project_id: UUID) -> frozenset[UUID]:
+    """Give the roles of resources the labour lines of a project employ; none while unregistered."""
+    employed: set[UUID] = set()
+    for facts in _FACTS.entries():
+        employed |= facts.roles_employed(session, project_id)
+    return frozenset(employed)
+
+
+def marked_revision_has_lines(session: Session, project_id: UUID) -> bool:
+    """Tell whether a marked revision of a project bears a line; no while unregistered."""
+    return any(facts.marked_revision_has_lines(session, project_id) for facts in _FACTS.entries())
 
 
 def hold_estimate(session: Session, project_id: UUID) -> None:

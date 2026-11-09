@@ -407,6 +407,17 @@ def last_marked_revision(session: Session, project_id: UUID) -> UUID | None:
     return _last_marked(session, project_id)
 
 
+def marked_revisions(session: Session, project_id: UUID) -> frozenset[UUID]:
+    """Give the marked revisions of a project (WF-CYC-0050)."""
+    return frozenset(
+        session.scalars(
+            select(Revision.id).where(
+                Revision.project_id == project_id, Revision.status == "marked"
+            )
+        )
+    )
+
+
 def last_marked_revisions(session: Session, project_ids: Collection[UUID]) -> dict[UUID, UUID]:
     """Give the last marked revision of each of the projects that has one, in one statement."""
     rows = session.execute(
