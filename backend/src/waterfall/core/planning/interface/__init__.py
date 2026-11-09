@@ -109,6 +109,9 @@ from waterfall.core.planning.interface.lines import (
     revision_bears as revision_bears,
 )
 from waterfall.core.planning.interface.lines import (
+    structures_of as structures_of,
+)
+from waterfall.core.planning.interface.lines import (
     write_facet as write_facet,
 )
 

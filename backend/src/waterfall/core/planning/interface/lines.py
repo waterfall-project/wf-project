@@ -4,8 +4,9 @@
 
 A line of estimate is a node of the structure, under the task that bears it (EP-06, "Ce que le
 cadrage décide"): the planning owns ``node``, and gives the estimate the lines of tasks
-(``lines_of``), the lineages of lines (``lineages_of``, ``lines_of_revision``) and whether a
-revision bears one (``revision_bears``). It places a line it creates (``create_line_node``, from
+(``lines_of``), the lineages of lines (``lineages_of``, ``lines_of_revision``), the structures that
+hold nodes (``structures_of``) and whether a revision bears one (``revision_bears``). It places a
+line it creates (``create_line_node``, from
 ``createNode``): under a task of the structure, a milestone included (``UNKNOWN_TASK`` otherwise,
 WF-PLA-0050), among its lines before its subtasks, after ``after_node_id`` or after the last line —
 after the last line too when the sibling named is a subtask (#1187) —; then the facet of its kind
@@ -106,6 +107,22 @@ def lineages_of(session: Session, project_id: UUID, node_ids: Collection[UUID]) 
         )
     )
     return dict(rows.all())
+
+
+def structures_of(
+    session: Session, project_id: UUID, node_ids: Collection[UUID]
+) -> tuple[UUID, ...]:
+    """Give the structures that hold nodes, in the order of their identifiers, which locks them."""
+    if not node_ids:
+        return ()
+    return tuple(
+        session.scalars(
+            select(Node.structure_id)
+            .where(Node.project_id == project_id, Node.id.in_(list(node_ids)))
+            .distinct()
+            .order_by(Node.structure_id)
+        )
+    )
 
 
 def lines_of_revision(session: Session, project_id: UUID, revision_id: UUID) -> dict[UUID, UUID]:

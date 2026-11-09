@@ -148,6 +148,7 @@ DECLARED = {
     "revisions.indicators",
     "revisions.marking",
     "revisions.designation",
+    "revisions.rate_update",
     "cost_settings.employment",
     CLOSING,
     "resource_settings.idle_task_guard",
@@ -224,8 +225,9 @@ FACTS = (
 REGISTERED_BY_EP07 = {
     "planning.facets": [f"estimate_line:FacetHooks({', '.join(LINE_HOOKS)})"],
     "revisions.tasks_and_lines": [f"lines:{ESTIMATE}.lines.revision_has_lines"],
-    "revisions.copy": [f"{ESTIMATE}.rates.copy_rates"],
-    CLOSING: [f"content:{ESTIMATE}.rates.close_rates"],
+    "revisions.copy": [f"{CORE}.keeping.copy_rates"],
+    "revisions.rate_update": [f"{CORE}.keeping.rate_update_offered"],
+    CLOSING: [f"content:{CORE}.keeping.close_rates"],
     "resource_settings.idle_task_guard": [f"{ESTIMATE}.calendars.idle_tasks_for_role_calendar"],
     "exchanges.formats": [f"estimate:{ESTIMATE}.excel.EstimateFormat"],
     "exchanges.exporters": [f"estimate:{ESTIMATE}.excel.EstimateExporter"],
@@ -289,7 +291,7 @@ def test_every_registry_holds_what_the_socle_of_ep07_registers_after_the_plannin
         "revisions.marking",
         "revisions.designation",
     ):
-        assert not any(ESTIMATE in entry for entry in everything[name]), name
+        assert not any(CORE in entry for entry in everything[name]), name
 
 
 @pytest.mark.parametrize("entry_point", sorted(ENTRY_POINTS))
@@ -303,7 +305,7 @@ def test_each_entry_point_holds_every_extension_of_the_registries_it_reads(
         name: [
             entry
             for entry in entries
-            if entry_point not in WITHOUT_ESTIMATE or f"{ESTIMATE}." not in entry
+            if entry_point not in WITHOUT_ESTIMATE or f"{CORE}." not in entry
         ]
         for name, entries in everything.items()
         if entry_point == "loader" or not name.startswith(WITNESS)

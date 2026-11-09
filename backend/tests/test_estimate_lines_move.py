@@ -20,7 +20,7 @@ from typing import TYPE_CHECKING, Any
 from uuid import UUID
 
 import pytest
-from estimate_support import YEAR, Costing, Lines, add_role, costing, give_a_line, rate_row
+from estimate_support import YEAR, Costing, Lines, add_role, costing, give_a_line
 from nodes_support import Tree, faults, mark, opened, refusal, set_progress
 from openapi_core.testing import MockRequest, MockResponse
 from planning_support import insert_link, insert_task
@@ -398,7 +398,7 @@ def test_the_abandonment_of_the_current_revision_leaves_none_of_its_lines_nor_it
 ) -> None:
     # « L'abandon d'une révision en cours ne laisse aucune ligne portant son identifiant. » The
     # lines follow their nodes, the rates it keeps go by ``register_closing``; the marked
-    # revision keeps its own. The rate is written around the service, as US-1500 will.
+    # revision keeps its own. The opening copies the rates of the reference (US-1500/L1).
     task = tree.made("Câblage")
     lines.made(task, **labour(costs.role))
     mark(stage, tree.revision)
@@ -406,8 +406,6 @@ def test_the_abandonment_of_the_current_revision_leaves_none_of_its_lines_nor_it
     current = opened(api, stage)
     revision = UUID(current["revision_id"])
     project = UUID(stage.project["project_id"])
-    with stage.owner.begin() as connection:
-        connection.execute(insert(RevisionRate).values(**rate_row(project, revision, costs.labour)))
 
     def held() -> dict[UUID, tuple[int, int]]:
         with stage.database.transaction() as session:

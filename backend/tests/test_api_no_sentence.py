@@ -175,6 +175,8 @@ DATA = {
     "ComparedEstimateLineFacet.cost_category_label": "a label",
     "ComparedEstimateLineFacet.resource_role_label": "a label",
     "ComparedEstimateLineFacet.subproject_label": "a label",
+    # The label of a category whose rate the update of the rates proposes (US-1500/L1).
+    "RateUpdateProposal.categories.label": "a label",
     "DependencyRow.label": "a label",
     "RowNumberResolution.label": "a label",
     # The name of version and the description a revision was marked with, and its source's; the

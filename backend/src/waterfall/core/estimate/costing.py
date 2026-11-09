@@ -110,22 +110,42 @@ def rates_of(
     The rate the revision keeps, that of the reference for the year otherwise; a category without
     either is left out.
     """
+    return held_rates(session, (project_id, basis.revision_id, basis.reference_year), category_ids)
+
+
+def held_rates(
+    session: Session, revision: tuple[UUID, UUID, int], category_ids: Collection[UUID]
+) -> dict[UUID, Decimal]:
+    """Give the rate each category named is priced at in a revision, of its year of reference.
+
+    ``revision`` is its project, itself and its year: the rate it keeps (``revision_rate``), that
+    of the reference for the year otherwise (EP-07, "Le calcul des montants").
+    """
+    project_id, revision_id, year = revision
     if not category_ids:
         return {}
     kept: dict[UUID, Decimal] = dict(
         session.execute(
             select(RevisionRate.cost_category_id, RevisionRate.amount).where(
                 RevisionRate.project_id == project_id,
-                RevisionRate.revision_id == basis.revision_id,
+                RevisionRate.revision_id == revision_id,
                 RevisionRate.cost_category_id.in_(category_ids),
             )
         ).all()
     )
-    for category_id in set(category_ids) - kept.keys():
+    return {**reference_rates(session, set(category_ids) - kept.keys(), year), **kept}
+
+
+def reference_rates(
+    session: Session, category_ids: Collection[UUID], year: int
+) -> dict[UUID, Decimal]:
+    """Give the hourly rate of the reference for a year of each category named that has one."""
+    found: dict[UUID, Decimal] = {}
+    for category_id in category_ids:
         for rate in list_hourly_rates(session, category_id):
-            if rate.year == basis.reference_year:
-                kept[category_id] = rate.amount
-    return kept
+            if rate.year == year:
+                found[category_id] = rate.amount
+    return found
 
 
 def refuse_missing_rate(category: tuple[UUID, str], basis: Basis) -> UnprocessableError:

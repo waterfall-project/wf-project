@@ -38,6 +38,7 @@ from waterfall.core.projects.interface import CommandAvailability, Viewer
 from waterfall.core.revisions.interface import (
     KEPT,
     MarkingRequest,
+    RevisionAsked,
     RevisionFilters,
     RevisionPage,
     RevisionToAbandon,
@@ -186,11 +187,13 @@ def post_revision(
 ) -> Revision:
     """Open the current revision of a project, a copy of its last marked one (WF-REV-0010).
 
-    The body's ``apply_rate_update`` has nothing to apply until EP-07 keeps the rates; its
-    ``description`` is kept on the revision, which its marking takes up (#2171).
+    The body's ``apply_rate_update`` accepts the update of the rates the proposal would present at
+    the rate of the reference (WF-REV-0060, #1764); its ``description`` is kept on the revision,
+    which its marking takes up (#2171).
     """
     act = Act(account.user_id, utc_now())
-    opened = create_revision(session, project_id, act, viewer_of(actor), body.description)
+    asked = RevisionAsked(body.description, apply_rate_update=bool(body.apply_rate_update))
+    opened = create_revision(session, project_id, act, viewer_of(actor), asked)
     return described(session, [opened])[0]
 
 
