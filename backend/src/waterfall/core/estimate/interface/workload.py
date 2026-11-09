@@ -39,6 +39,7 @@ def planned_value(session: Session, project_id: UUID, reference: UUID, at: date)
     """Give the planned value of the reference revision at the end of a day, to the cent.
 
     The lines of the reference outside the provisions, at their budgeted amount, spread over their
-    tasks as the reference dates them; a line of a milestone counts whole on its date.
+    tasks as the reference dates them; a line of a milestone counts whole on its date. Refused 422
+    on a revision that is not the reference the project designates.
     """
     return value_of_reference(session, project_id, reference, at)

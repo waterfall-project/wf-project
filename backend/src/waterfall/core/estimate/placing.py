@@ -12,7 +12,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 from waterfall.core.estimate.costing import calendar_hours
-from waterfall.core.estimate.reading import rows_of
+from waterfall.core.estimate.reading import COMPLETED, rows_of
 from waterfall.core.estimate.spreading import Placement, WorkWeek
 from waterfall.core.planning.interface import NodeFilters, Place, lines_of, list_nodes
 from waterfall.core.resource_settings.interface import role_calendars
@@ -28,7 +28,6 @@ if TYPE_CHECKING:
     from waterfall.core.planning.interface import TaskView
 
 TASK = "task"
-COMPLETED = "completed"
 
 
 @dataclass(frozen=True, slots=True)

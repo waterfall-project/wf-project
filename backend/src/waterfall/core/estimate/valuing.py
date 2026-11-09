@@ -11,10 +11,13 @@ milestone counts whole on its date (``spreading``). EP-10 reads it for its curve
 from typing import TYPE_CHECKING
 
 from waterfall.core.cost_settings.interface import category_labels
+from waterfall.core.estimate.entries import PROVISION, VALIDATION_FAILED
 from waterfall.core.estimate.placing import placed_lines, placement_of, role_weeks
 from waterfall.core.estimate.reading import budgeted_of
 from waterfall.core.estimate.spreading import PlannedLine
 from waterfall.core.estimate.spreading import planned_value as value_of
+from waterfall.core.projects.interface import project_facts
+from waterfall.platform.errors import FieldError, UnprocessableError
 
 if TYPE_CHECKING:
     from datetime import date
@@ -23,15 +26,20 @@ if TYPE_CHECKING:
 
     from sqlalchemy.orm import Session
 
-PROVISION = "provision"
+REFERENCE_POINTER = "/reference"
 
 
 def value_of_reference(session: Session, project_id: UUID, reference: UUID, at: date) -> Decimal:
     """Give the planned value of the reference revision at the end of a day, to the cent.
 
     The reference is the revision designated as such, marked: its lines count at their budgeted
-    amount, a line of a provision not at all (WF-REV-0070).
+    amount, a line of a provision not at all (WF-REV-0070). Refused 422 on a revision that is not
+    the reference the project designates, the current one included: its lines are not the baseline.
     """
+    if project_facts(session, project_id).reference_revision_id != reference:
+        raise UnprocessableError(
+            VALIDATION_FAILED, fields=(FieldError(REFERENCE_POINTER, VALIDATION_FAILED),)
+        )
     placed = placed_lines(session, project_id, reference)
     natures = category_labels(session, {each.line.cost_category_id for each in placed})
     weeks = role_weeks(

@@ -15,6 +15,10 @@ The roles listed are the active ones, with the roles the revision employs, deact
 restricted to the node asked and its descendants; each with its capacity in the reference. A month
 whose hours exceed the capacity of its role is in alert (``WorkloadZone``). The hours of a role
 and a month are rounded once, to the hundredth, from the exact sum of the parts of its lines.
+
+The roles, the calendars and the capacities of a marked revision are read from the reference
+tables as they stand, as long as the revision does not keep their images (#2627, corrected by
+US-1500/L2).
 """
 
 from dataclasses import dataclass
