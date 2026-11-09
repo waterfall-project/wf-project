@@ -128,6 +128,12 @@ DATA = {
     # A category of labour without an hourly rate, by its label, as the reference names it
     # (``ProblemParams.missing_rates``, ``MissingRate``, HOURLY_RATE_MISSING; US-0702/L1).
     "MissingRate.label": "a label",
+    # What the ventilations of the indicators of an estimate name: the key of a part — a nature, a
+    # subproject, a work package, by its identifier, or ``unassigned`` — and the label a person gave
+    # it, and the scope asked, as the query writes it (``getEstimateIndicators``, US-1510).
+    "ComputableAmountByKey.key": "an identifier, or a key of the ventilation",
+    "ComputableAmountByKey.label": "a label",
+    "CalculationContext.scope": "the scope asked, as the query writes it",
     # The category of a row of the grid of the hourly rates, by the code and the label a person
     # gave it (``getHourlyRateGrid``, US-0830).
     "HourlyRateRow.code": "a code",

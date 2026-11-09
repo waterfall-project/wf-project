@@ -1076,7 +1076,7 @@ l'import de reste à engager (EP-09) ; l'indice de coût (EP-10).
 
 ## US-1510 — Les indicateurs de devis et les taux manquants
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-DEV-0060-A`, `WF-DEV-0010-A`
 - **opérations** : `getEstimateIndicators`, `getMissingRates`
 - **issue** : 2363

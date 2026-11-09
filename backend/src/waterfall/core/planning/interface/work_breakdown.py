@@ -25,6 +25,46 @@ if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
 
+def work_package_lines(
+    session: Session, project_id: UUID, structure_id: UUID
+) -> dict[UUID, frozenset[UUID]]:
+    """Give, for each work package a task of a structure bears, the lines of that task's subtree.
+
+    The task, summary or leaf, and every task under it: a work package whose task bears no line
+    maps to none, a work package no task bears is left out (WF-PLA-0170, WF-DEV-0060).
+    """
+    nodes = session.execute(
+        select(Node.id, Node.parent_id, Node.kind).where(
+            Node.project_id == project_id, Node.structure_id == structure_id
+        )
+    ).all()
+    children: dict[UUID, list[tuple[UUID, str]]] = {}
+    for node_id, parent_id, kind in nodes:
+        if parent_id is not None:
+            children.setdefault(parent_id, []).append((node_id, kind))
+    bearers = session.execute(
+        select(Task.work_package_id, Task.node_id).where(
+            Task.project_id == project_id,
+            Task.structure_id == structure_id,
+            Task.work_package_id.is_not(None),
+        )
+    ).all()
+    found: dict[UUID, frozenset[UUID]] = {}
+    for package_id, task_id in bearers:
+        if package_id is None:
+            continue
+        lines: set[UUID] = set()
+        pending = [task_id]
+        while pending:
+            for node_id, kind in children.get(pending.pop(), ()):
+                if kind == "estimate_line":
+                    lines.add(node_id)
+                else:
+                    pending.append(node_id)
+        found[package_id] = frozenset(lines)
+    return found
+
+
 def work_breakdown_item_cited(session: Session, item_id: UUID) -> bool:
     """Tell whether a task of a marked revision bears an element of the work breakdown."""
     bearing = session.execute(

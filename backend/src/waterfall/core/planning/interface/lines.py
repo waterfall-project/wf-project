@@ -134,6 +134,21 @@ def lines_of_revision(session: Session, project_id: UUID, revision_id: UUID) -> 
     return dict(rows.all())
 
 
+def lines_of_structure(session: Session, project_id: UUID, structure_id: UUID) -> tuple[UUID, ...]:
+    """Give the lines of a structure, tasks and subtasks together, in the order of their nodes."""
+    return tuple(
+        session.scalars(
+            select(Node.id)
+            .where(
+                Node.project_id == project_id,
+                Node.structure_id == structure_id,
+                Node.kind == LINE,
+            )
+            .order_by(Node.id)
+        )
+    )
+
+
 def revision_bears(session: Session, revision_id: UUID, kind: str) -> bool:
     """Tell whether a structure of a revision holds a node of a kind."""
     return bool(
