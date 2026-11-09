@@ -11,9 +11,11 @@ import { seedPlanning } from "./planning-seed";
 import { API } from "./service/realm";
 
 // The last two paths below are the service's, tagged `@shared`: the export of the planning in MS
-// Project XML, downloaded once, and imported back (US-1430), and the estimate exported in Excel,
-// imported back in two steps, applied, on a project the run creates (US-1550). The others keep to
-// the fake back, which serves the examples of the operations without keeping any state.
+// Project XML, downloaded once, and imported back (US-1430), and the estimate exported in Excel and
+// downloaded, then a file that is no estimate refused at the analysis (US-1550), on a project the
+// run creates. The import of an estimate in two steps stays on the fake back above: the proxy of
+// the contract (Prism) spoils the bytes of a workbook (#973, #2687). The others keep to the fake
+// back, which serves the examples of the operations without keeping any state.
 //
 // The fake back serves the first example of each operation: the file deposited, its import
 // opened, its analysis under way; the report the address then names, the estimate analysed this
@@ -244,7 +246,9 @@ test("exports the estimate as an Excel file, downloads it, and sees a file that 
   manager,
 }) => {
   // WF-INTF-0110-A: the export of the estimate is a task of the shell, its file named after the
-  // revision. The proxy of the contract (Prism) reads every body as text and spoils the bytes of a
+  // revision; this test carries only that name of 0110-A, the round trip being proved by the back
+  // (`backend/tests/test_estimate_export.py`). The project holds no line of estimate: the export
+  // is of an empty estimate. The proxy of the contract (Prism) reads every body as text and spoils the bytes of a
   // workbook (#973), so the file is neither inspected nor imported back here: the round trip, the
   // report and the application are proved by the back (`test_estimate_export.py`).
   test.skip(
@@ -269,6 +273,7 @@ test("exports the estimate as an Excel file, downloads it, and sees a file that 
   await expect(link).toBeVisible({ timeout: WORKING });
   const [download] = await Promise.all([page.waitForEvent("download"), link.click()]);
   expect(download.suggestedFilename()).toMatch(/-devis\.xlsx$/);
+  expect((await readFile(await download.path())).length).toBeGreaterThan(0);
   await page.keyboard.press("Escape");
   await expect(panel).toHaveCount(0);
 
@@ -288,4 +293,13 @@ test("exports the estimate as an Excel file, downloads it, and sees a file that 
     { timeout: WORKING },
   );
   await expect(page).not.toHaveURL(/[?&]import=/);
+  // The project is unchanged: the form stays open, no report is shown, and the service holds no
+  // import for the project.
+  await expect(form).toBeVisible();
+  await expect(page.getByRole("region", { name: /^Compte rendu/ })).toHaveCount(0);
+  const listed = await request.get(`${API}/projects/${seeded.ids.project}/imports`, {
+    headers: seeded.headers,
+  });
+  expect(listed.status(), "GET imports").toBe(200);
+  expect(((await listed.json()) as { items: unknown[] }).items).toEqual([]);
 });
