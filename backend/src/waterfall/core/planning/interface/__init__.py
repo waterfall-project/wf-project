@@ -123,7 +123,10 @@ from waterfall.core.planning.interface.msproject import (
     MS_PROJECT_FORMAT as MS_PROJECT_FORMAT,
 )
 
-# ``nodes`` (US-1380/L1; US-1380/L2, L3; US-1480/L2): the nodes of a structure.
+# ``nodes`` (US-1380/L1; US-1380/L2, L3; US-1480/L2; US-1450/L5): the nodes of a structure.
+from waterfall.core.planning.interface.nodes import (
+    CreationJudged as CreationJudged,
+)
 from waterfall.core.planning.interface.nodes import (
     Dependencies as Dependencies,
 )
@@ -170,6 +173,9 @@ from waterfall.core.planning.interface.nodes import (
     judge_cell as judge_cell,
 )
 from waterfall.core.planning.interface.nodes import (
+    judge_creation as judge_creation,
+)
+from waterfall.core.planning.interface.nodes import (
     list_nodes as list_nodes,
 )
 from waterfall.core.planning.interface.nodes import (
@@ -188,10 +194,16 @@ from waterfall.core.planning.interface.nodes import (
     traced as traced,
 )
 from waterfall.core.planning.interface.nodes import (
+    traced_creation as traced_creation,
+)
+from waterfall.core.planning.interface.nodes import (
     update_task_facet as update_task_facet,
 )
 from waterfall.core.planning.interface.nodes import (
     write_cell as write_cell,
+)
+from waterfall.core.planning.interface.nodes import (
+    write_creation as write_creation,
 )
 
 # ``paste`` (US-1380/L1; US-1450/L2): the paste of a block of cells.
