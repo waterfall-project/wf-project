@@ -336,8 +336,10 @@ Décisions de l'auteur du 2026-11-07, sur les questions du cadrage, chacune avec
   trois lots d'EP-06.
 - **Une seule migration, `0025`, dans le socle**, au prochain numéro libre à la création
   d'`epic/EP-07` — `epic/EP-06` s'arrête à `0024` —, aucune donnée à reprendre : les colonnes
-  nouvelles de `revision` restent nulles et se lisent comme les valeurs du projet. Aucune migration
-  d'EP-07 après le socle ; EP-09 chaîne la sienne sur `0025`. Écarté : une migration par US.
+  nouvelles de `revision` restent nulles et se lisent comme les valeurs du projet. Aucune autre
+  migration de domaine dans EP-07 ; une seconde, `0026`, sérialise la création des partitions
+  (décisions du 2026-11-09, sur #2603 et #2667, ci-dessous), et EP-09 chaîne la sienne sur `0026`.
+  Écarté : une migration par US.
 
 Décision de l'utilisateur du 2026-11-08, sur la question d'US-1490/L1 (#2370) :
 
@@ -389,6 +391,63 @@ Décisions de l'utilisateur du 2026-11-09, sur les constats d'US-1540 (#2366), d
   structure principale par 409 `project_before_in_progress`. Le critère d'US-1550 qui la disait
   « indisponible dès En cours » est corrigé.
 
+Décisions de l'utilisateur du 2026-11-09, sur les verrous mortels de la création d'un projet
+(#2603, relevé par la file d'EP-06 et reporté ici ; #2667) :
+
+- **La création des partitions d'un projet n'attend jamais en tenant un verrou.**
+  `create_project_partitions` créait chaque partition par `CREATE TABLE … PARTITION OF`, qui
+  verrouille la table parente en `AccessExclusiveLock` (PostgreSQL 18, `DefineRelation`), neuf
+  parentes l'une après l'autre : une lecture qui tient `node` et demande `cost_structure`
+  interbloque avec la création qui tient `cost_structure` et demande `node` (#2603). Le clonage des
+  clés étrangères de la parente sur la partition prend en outre `ShareRowExclusiveLock` sur chaque
+  table que ces clés relient, dans les deux sens (`CloneFkReferencing`, `CloneFkReferenced`) —
+  `revision`, `node`, `task`, `task_link`, `cost_structure`, `estimate_line`, `order_item`,
+  `work_package`, `cost_category`, `resource_role`, `subproject`, `user_account` —, en conflit avec
+  toute écriture : la création qui en tient une et en attend une autre interbloque avec une
+  écriture qui les prend dans l'autre ordre, et deux créations s'attendent sur `order_item` et
+  `work_package`, que `_create` écrivait avant d'appeler la fonction (#2667). La fonction, remplacée
+  par la migration `0026` (US-1560/L3, lot technique), prend donc d'abord un verrou consultatif de
+  transaction, `pg_advisory_xact_lock(4100010)` (`PARTITIONS_LOCK` de `core/revisions`, distinct
+  des autres clés du service, un test vérifiant que la constante et la fonction concordent), qui
+  sérialise les créations ; puis **tous** les verrous dont elle aura besoin, d'un seul coup et sans
+  attendre — `LOCK TABLE … NOWAIT`, `SHARE ROW EXCLUSIVE` sur les tables que les clés relient,
+  `SHARE UPDATE EXCLUSIVE` sur les parentes —, dans un sous-bloc qui se défait en entier et se
+  reprend après une pause courte et aléatoire si l'un manque, les reprises bornées à dix secondes
+  environ, au-delà desquelles l'erreur `lock_not_available` donne une 500 journalisée. Chaque
+  partition se crée ensuite seule (`CREATE TABLE … (LIKE <parente> …)`) et s'attache
+  (`ALTER TABLE … ATTACH PARTITION … FOR VALUES IN (…)`), qui ne prend que `ShareUpdateExclusiveLock`
+  sur la parente, compatible avec les lectures et les écritures ; le déclencheur qui refuse la
+  troncature reste. Les tables partitionnées par `project_id` et celles que leurs clés relient se
+  lisent dans le catalogue (`pg_partitioned_table`, `pg_constraint`) à chaque appel : une table
+  révisionnée ou une clé qu'EP-09, EP-10 ou EP-08 ajoute entre d'elle-même dans la création et dans
+  le verrouillage, aucune migration ultérieure ne remplace la fonction, et un test affirme les neuf
+  tables attendues aujourd'hui. `_create` (`core/projects`) l'appelle **avant toute écriture** de sa
+  transaction, juste après `share_reference`. La règle entre dans `docs/dev/sql.md`, « Verrous ».
+  Écartés : le verrou consultatif seul, qui ne sérialise que les créations entre elles et laisse
+  #2603 et les écritures ; un ordre fixe des verrous, ou un `LOCK` des parentes qui attend, que les
+  lecteurs et les écrivains ne suivent pas ; `PARTITION OF` gardé avec ses `AccessExclusiveLock`
+  pris sans attendre, qui arrête toutes les lectures de tous les projets et affame la création sous
+  charge ; la reprise sur `40P01`, dont la victime peut être la lecture ou l'écriture ; la liste des
+  tables écrite en dur, qu'une clé ajoutée plus tard laisserait hors du verrouillage sans que rien
+  ne le dise ; `0025` modifiée sur place, contre une chaîne appliquée une fois (`docs/dev/sql.md`) ;
+  le lot porté dans EP-06, dont la `0025` heurterait celle d'EP-07 et à qui ne reste qu'US-1480/L3,
+  sa file se relançant en attendant.
+- **Ce que la vérification éprouve.** Les tests du back citent WF-DAT-0050 : la lecture de #2603
+  rejouée pas à pas (une transaction lit `node`, une création aboutit sous `lock_timeout`, la
+  lecture lit ensuite `cost_structure`) ; une écriture ouverte sur un nœud d'un autre projet, pendant
+  laquelle la création ne tient, d'après `pg_locks`, aucun verrou accordé sur les tables du
+  verrouillage, puis écrit `cost_structure` sans attendre ; huit créations simultanées, sans
+  `DeadlockDetected` ; aucun `AccessExclusiveLock` tenu par la création sur une relation qui
+  existait avant elle ; les contraintes, index, déclencheurs et clés d'une partition attachée
+  identiques, au nom près, à ceux d'une partition créée par la fonction de `0025`. Le relevé de
+  livraison passe `make e2e-service` à seize workers, compte les `DeadlockDetected` des journaux de
+  l'API, et dit si les parcours que #2667 liste restent instables ; s'ils le restent, c'est un
+  constat à part.
+- **La chaîne des migrations se décale d'un cran** : `0026` est celle d'US-1560/L3,
+  EP-09 chaîne la sienne sur elle (`0027`), EP-10 sur celle d'EP-09 (`0028`), EP-08 sur
+  celle d'EP-10 ; le socle d'EP-09, US-1580/L1 (#2398), attend ce lot. Écarté : un autre numéro pour
+  la migration d'EP-07, la chaîne d'Alembic étant linéaire.
+
 ### Tables et migrations
 
 Régime « révisionné » (§4.4.1), partitionnées par projet comme `node`, pour `estimate_line` et les
@@ -414,6 +473,10 @@ avant toute cascade ; une révision marquée ne supprime rien, ses déclencheurs
   `INSERT`, `UPDATE`, `DELETE` : une ligne et un taux conservé d'une révision en cours se modifient
   et se suppriment, une image s'écrit une fois — déclarés dans `SERVICE_RIGHTS`. Aucune migration de
   données : rien n'existe à reprendre.
+- **Une migration, `0026`, par US-1560/L3** (décisions du 2026-11-09, #2603 et #2667) :
+  `create_project_partitions` remplacée une dernière fois — verrou consultatif, verrous pris d'un
+  coup sans attendre, partitions attachées, tables lues dans le catalogue ; sa descente remet la
+  fonction de `0025`. Aucune donnée, aucun droit nouveau.
 - **L'immuabilité** : une fonction de déclencheur par table, dans le module `estimate`, qui lit
   l'état de la révision par `revision_id` sous `FOR KEY SHARE`, comme `cost_structure` et `task`.
   Elle protège les montants conservés (WF-REF-0130, WF-REV-0070) autant que les grandeurs.
@@ -709,7 +772,10 @@ d'ensemble en dernier ; le plan de lots (étape 3) le détaille en vagues.
    `core/exchanges`).
 3. **Les quatre lectures** (US-1510, US-1520, US-1530, US-1540) et **la lecture et l'analyse du
    classeur** (US-1550), après la ligne.
-4. **La grille de devis** (US-1560, le collage après #2344), **l'export et l'import branchés**
+4. **La création des partitions sans verrou mortel** (US-1560/L3, la migration `0026`), avant la
+   grille branchée qui multiplie les parcours créant leur projet, et avant le socle d'EP-09 qui
+   chaîne sa migration sur elle ;
+   **la grille de devis** (US-1560, le collage après #2344), **l'export et l'import branchés**
    (US-1550, après #2336 et #2325), **la tranche des lignes** (US-1570, après #2347), après tout ce
    qui écrit ; puis **la vérification d'ensemble** (US-1570, après #2348), seule.
 
