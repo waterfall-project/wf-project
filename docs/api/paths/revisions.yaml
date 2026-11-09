@@ -2346,10 +2346,10 @@
       sibling of that last node, of the kind of the target node, whose label is required — the
       line without one is refused with `VALIDATION_FAILED`, `column` at `label` — and whose other
       cells are judged as those of a node written; the plan counts these lines in `created`, and
-      in `accepted` too (`PastePreview`, `PastePlan`; decision of the user of 2026-11-08, #2559). An estimate line so created is placed under the
-      task that bears the last node, its parent; with no task to bear it — the last node being a
-      task at the root — the whole line is refused with `UNKNOWN_TASK`, `column` null
-      (`PasteRejection`).
+      in `accepted` too (`PastePreview`, `PastePlan`; decision of the user of 2026-11-08, #2559).
+      An estimate line so created is placed under the task that bears the last node, its parent;
+      with no task to bear it — the last node being a task at the root — the whole line is
+      refused with `UNKNOWN_TASK`, `column` null (`PasteRejection`).
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
       - $ref: ../components/parameters.yaml#/RevisionId
