@@ -114,11 +114,13 @@ def test_the_slices_are_loaded_in_the_order_of_their_dependencies(
 
 
 def test_the_slices_of_the_projects_are_loaded_in_their_order_after_the_reference(
-    session: Session, monkeypatch: pytest.MonkeyPatch
+    session: Session, owner: Engine, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     # One entry for the slices of the projects, last of the loader (EP-04): each slice called, in
     # the order of their dependencies, and the entry tells whether one of them wrote.
     called: list[str] = []
+    # The tasks of the revisions are dated by the engine, which reads the units of the installation.
+    install(owner)
 
     def slice_of(name: str, *, writes: bool) -> loader.Slice:
         def load(_: Session, witness: Witness) -> bool:
@@ -236,10 +238,13 @@ def test_an_example_is_read_in_the_form_of_the_contract(tmp_path: Path) -> None:
 def test_the_command_loads_the_witness_its_settings_given(
     service_database_url: str,
     database: Database,
+    owner: Engine,
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
 ) -> None:
     del database
+    # The command runs on an installed platform: the tasks are dated with its units.
+    install(owner)
     monkeypatch.setenv("WATERFALL_DATABASE_URL", service_database_url)
     monkeypatch.setenv("WATERFALL_WITNESS_PATH", str(WITNESS))
     assert main(["load-witness"]) == 0
