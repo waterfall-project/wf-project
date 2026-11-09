@@ -6,7 +6,9 @@ The constraints of the five tables of US-1490/L1 (migration 0025), one refusal e
 ``test_database_constraints_planning.py`` tries those of EP-06; the cascade the design decides, a
 line with its node; and the guards of the five tables, which refuse, owner included, any write of a
 row of a marked revision and any truncation, as ``test_revision_immutability.py`` tries those of the
-planning. Every row is written around the services of the modules, by the owner of the tables.
+planning. Every row is written around the services of the modules, by the owner of the tables; the
+guards are tried under the role of the service too, which reads the revision under their lock
+(#2586, US-1500/L1).
 """
 
 import re
@@ -463,3 +465,38 @@ def test_a_line_and_a_rate_of_a_current_revision_are_changed_and_deleted(
         connection.execute(delete(EstimateLine))
         connection.execute(delete(RevisionRate))
     assert (count(owner, EstimateLine), count(owner, RevisionRate)) == (0, 0)
+
+
+@pytest.mark.requirement("WF-DAT-0020-A")
+def test_the_role_of_the_service_writes_the_estimate_of_a_current_revision_not_of_a_marked_one(
+    database: Database, owner: Engine, parents: Parents
+) -> None:
+    # #2586: the guards read the revision ``FOR KEY SHARE``, which the role of the service may
+    # take. Under it, a line, a rate and an image of each object are written in a current
+    # revision, a line and a rate changed and deleted; once the revision is marked, the guards
+    # refuse every insertion, and the change and the deletion of a line and of a rate.
+    service = database.engine
+    with service.begin() as connection:
+        for table in TABLES:
+            connection.execute(row(table, parents))
+        connection.execute(update(EstimateLine).values(label="Changée"))
+        connection.execute(update(RevisionRate).values(amount=Decimal("70.00")))
+        connection.execute(delete(RevisionRate))
+        connection.execute(row(RevisionRate, parents))
+    assert [count(owner, table) for table in TABLES] == [1] * len(TABLES)
+    bare = uuid4()
+    with owner.begin() as connection:
+        node = node_row(parents.project, parents.revision, parents.structure, id=bare, rank=2)
+        connection.execute(
+            insert(Node).values({**node, "kind": "estimate_line", "parent_id": parents.task})
+        )
+        connection.execute(update(Revision).where(Revision.id == parents.revision).values(**MARKED))
+    before = rows_of(owner, parents.project)
+    marked = Marked(parents, bare)
+    for table in TABLES:
+        updating, deleting, adding = writes_of(table, marked)
+        refused = [adding] if table in IMAGES else [updating, deleting, adding]
+        for statement in refused:
+            with pytest.raises(DBAPIError, match=ROW_REFUSED), service.begin() as connection:
+                connection.execute(statement)
+    assert rows_of(owner, parents.project) == before

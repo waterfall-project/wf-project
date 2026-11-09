@@ -919,7 +919,7 @@ la mise à jour des taux (US-1500).
 
 ## US-1500 — L'instantané du référentiel conservé par la révision, et la mise à jour des taux
 
-- **statut** : à faire
+- **statut** : en cours
 - **exigences** : `WF-REV-0030-A`, `WF-REV-0060-A`, `WF-REV-0010-A`, `WF-REV-0020-A`,
   `WF-REV-0070-A`, `WF-REF-0020-A`, `WF-REF-0130-A`, `WF-REF-0030-A`, `WF-REF-0010-A`,
   `WF-PRJ-0040-A`

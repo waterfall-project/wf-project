@@ -433,6 +433,7 @@ def test_while_the_marking_is_pending_the_writes_of_the_revision_name_the_task(
         "generate_skeleton": running,
         "edit_estimate": running,
         "edit_remaining": running,
+        "apply_rate_update": ["rate_update_available", *running],
         "mark": running,
         "designate_reference": ["revision_marked", "revision_has_tasks_and_lines", *running],
         "abandon": running,

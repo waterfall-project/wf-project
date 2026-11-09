@@ -173,6 +173,17 @@ def _structures(
     return [(row[0], row[1]) for row in rows]
 
 
+def revision_structures(session: Session, project_id: UUID, revision_id: UUID) -> tuple[UUID, ...]:
+    """Give the structures of a revision, in the order of their identifiers, which locks them."""
+    return tuple(
+        session.scalars(
+            select(CostStructure.id)
+            .where(CostStructure.project_id == project_id, CostStructure.revision_id == revision_id)
+            .order_by(CostStructure.id)
+        )
+    )
+
+
 def list_cost_structures(
     session: Session, project_id: UUID, revision_id: UUID, viewer: Viewer
 ) -> list[StructureView]:

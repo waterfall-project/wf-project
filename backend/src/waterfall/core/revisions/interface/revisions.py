@@ -146,6 +146,14 @@ class RevisionList:
 
 
 @dataclass(frozen=True, slots=True)
+class RevisionAsked:
+    """What a creation of a revision asks: its description, and whether it accepts the new rates."""
+
+    description: str | None = None
+    apply_rate_update: bool = False
+
+
+@dataclass(frozen=True, slots=True)
 class RevisionToAbandon:
     """The revision an abandonment names, and the counter its caller read."""
 
@@ -160,6 +168,8 @@ class RevisionCopy:
     ``identifiers`` maps the identifier of each row copied to that of its copy, table after
     table: a table copied later finds there the copy of the row it names (a task, its structure).
     The copies bear the stamp of the creation of the revision, its author and its instant.
+    ``apply_rate_update`` tells whether the creation accepts the update of the rates the proposal
+    would present at the rate of the reference (``RevisionCreate.apply_rate_update``, WF-REV-0060).
     """
 
     session: Session
@@ -169,6 +179,7 @@ class RevisionCopy:
     at: datetime
     author: UUID | None
     identifiers: dict[UUID, UUID]
+    apply_rate_update: bool = False
 
 
 # The copies a revision opened from a marked one makes, table after table, in the order of their
@@ -363,11 +374,15 @@ def _last_marked(session: Session, project_id: UUID) -> UUID | None:
 
 @dataclass(frozen=True, slots=True)
 class _Opening:
-    """A revision to open: its identifier, its description, and the task that opens it, if one."""
+    """A revision to open: its identifier, its description, and the task that opens it, if one.
+
+    ``apply_rate_update`` whether its creation accepts the update of the rates (WF-REV-0060).
+    """
 
     revision_id: UUID
     description: str | None = None
     running: UUID | None = None
+    apply_rate_update: bool = False
 
 
 def _open(session: Session, project_id: UUID, act: Act, opening: _Opening) -> Revision:
@@ -410,23 +425,31 @@ def _open(session: Session, project_id: UUID, act: Act, opening: _Opening) -> Re
     if source is None:
         create_main_structure(session, project_id, revision_id, act)
     else:
-        copy_revision(session, source, revision_id)
+        copy_revision(session, source, revision_id, apply_rate_update=opening.apply_rate_update)
     set_current_revision(session, project_id, revision_id, act)
     advance(session, project_id, "first_revision_created", act)
     return revision
 
 
 def create_revision(
-    session: Session, project_id: UUID, act: Act, viewer: Viewer, description: str | None = None
+    session: Session,
+    project_id: UUID,
+    act: Act,
+    viewer: Viewer,
+    asked: RevisionAsked | None = None,
 ) -> RevisionView:
     """Open the current revision of a project, a copy of its last marked (``createRevision``).
 
-    The description given is kept on the current revision, which its marking takes up (#2171).
+    The description asked is kept on the current revision, which its marking takes up (#2171);
+    ``asked.apply_rate_update`` accepts the update of the rates the proposal would present at the
+    rate of the reference, its copy of the rates told so (WF-REV-0060, #1764).
     Refused, nothing written, on a terminal project (409 ``project_not_terminal``), while a
     current revision exists (409 ``no_current_revision``), and while a background task would
     create it itself (409 ``no_background_task_running``).
     """
-    revision = _open(session, project_id, act, _Opening(new_id(), description))
+    asked = asked or RevisionAsked()
+    opening = _Opening(new_id(), asked.description, apply_rate_update=asked.apply_rate_update)
+    revision = _open(session, project_id, act, opening)
     return _views(session, [revision], project_id, viewer)[0]
 
 
@@ -440,12 +463,15 @@ def open_revision_by_task(session: Session, project_id: UUID, act: Act, running:
     return _open(session, project_id, act, _Opening(new_id(), running=running)).id
 
 
-def copy_revision(session: Session, source: UUID, target: UUID) -> None:
+def copy_revision(
+    session: Session, source: UUID, target: UUID, *, apply_rate_update: bool = False
+) -> None:
     """Copy what a marked revision holds into the new current one, table after table (WF-DAT-0010).
 
     The structures here, but the merged ones, each under an identifier of its own and the lineage
     of the one it copies (#1759); the copies bear the stamp of the creation of ``target``, which is
-    written already. Each epic adds its tables by ``register_copy``.
+    written already. Each epic adds its tables by ``register_copy``; ``apply_rate_update`` tells the
+    copy of the rates whether the update is accepted (EP-07).
     """
     revision = session.get_one(Revision, target)
     copy = RevisionCopy(
@@ -456,6 +482,7 @@ def copy_revision(session: Session, source: UUID, target: UUID) -> None:
         at=revision.created_at,
         author=revision.created_by,
         identifiers={},
+        apply_rate_update=apply_rate_update,
     )
     for copier in _COPIES.entries():
         copier(copy)
