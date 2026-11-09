@@ -37,6 +37,7 @@ from waterfall.core.cost_settings.interface import (
     set_hourly_rate,
 )
 from waterfall.core.cost_settings.tables import CostCategory, CostType
+from waterfall.core.estimate import keeping
 from waterfall.core.estimate.tables import EstimateLine, RevisionRate
 from waterfall.core.projects.tables import Project
 from waterfall.core.resource_settings.interface import set_role_activation
@@ -706,6 +707,35 @@ def test_a_line_created_during_a_rate_written_is_priced_at_the_new_rate(
             select(EstimateLine.base_amount).where(EstimateLine.node_id == added)
         ).one()
     assert priced == Decimal("1600.00")
+
+
+@pytest.mark.requirement("WF-REF-0050-A")
+def test_a_structure_created_after_the_first_read_of_the_revision_is_locked_before_its_lines(
+    stage: Scene, offer: Offer, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # A structure committed between the list of the structures and the read of the lines is not in
+    # the list: the first read is made to miss every one, as a creation meanwhile would make it.
+    # The rechiffrage reads the list again and locks the structure missed before it reads its lines.
+    structure_id = UUID(offer.tree.structure_id)
+    project_id, revision_id = UUID(stage.project["project_id"]), UUID(offer.revision["revision_id"])
+    reads: list[int] = []
+    locked: list[UUID] = []
+    real_list, real_lock = keeping.revision_structures, keeping.structure_facts
+
+    def list_missing_first(*args: Any) -> tuple[UUID, ...]:
+        reads.append(1)
+        return () if len(reads) == 1 else real_list(*args)
+
+    def lock_spy(session: Any, project: UUID, structure: UUID, **kwargs: Any) -> Any:
+        locked.append(structure)
+        return real_lock(session, project, structure, **kwargs)
+
+    monkeypatch.setattr(keeping, "revision_structures", list_missing_first)
+    monkeypatch.setattr(keeping, "structure_facts", lock_spy)
+    with stage.database.transaction() as session:
+        keeping.reprice_revision(session, (project_id, revision_id), utc_now())
+    assert structure_id in locked
+    assert len(reads) >= 2
 
 
 @pytest.mark.requirement("WF-PRJ-0040-A")

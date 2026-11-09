@@ -117,7 +117,10 @@ def reprice_after_rate(session: Session, written: RateWritten) -> None:
     the year alone are read ``FOR SHARE`` (the year is judged in the query) after the lock of the
     natures, then priced under the lock of each structure. The employment of the category is
     judged under the locks, not before: a line created meanwhile would escape a judgement made
-    without them.
+    without them. The rates kept (``RevisionRate``) are read once the revision is shared: they are
+    inserted by the copy that opens a revision (``copy_rates``, not seen before its commit) and by
+    the marking, deleted at its abandon (``close_rates``): the last two hold it ``FOR UPDATE``,
+    which the share waits for; the acceptance of a proposal changes an amount, never the presence.
     """
     revisions: dict[UUID, UUID] = {}
     for each in current_structures(session, lock=True, reference_year=written.year):

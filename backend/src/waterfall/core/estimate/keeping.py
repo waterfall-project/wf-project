@@ -142,12 +142,25 @@ def reprice_revision(
     Only the structures that hold such a line are replayed: another keeps its counter and dates.
     Every structure of the revision is locked first, in the order of its identifier, and the lines
     are read under the locks: a line a write of the tree created meanwhile, under a task that had
-    none of the category, is priced again with the others.
+    none of the category, is priced again with the others. The structures are read again after the
+    locks, and those a ``createCostStructure`` (which holds the revision ``FOR SHARE`` alone) added
+    meanwhile locked in their turn, until the list and the structures that bear the lines read are
+    all held: ``reschedule`` locks the structures of the lines, but after they are read.
     """
     project_id, revision_id = revision
-    for structure_id in revision_structures(session, project_id, revision_id):
-        structure_facts(session, project_id, structure_id, lock=True)
-    nodes = list(lines_of_revision(session, project_id, revision_id).values())
+    held_structures: set[UUID] = set()
+    while True:
+        missing = [
+            each
+            for each in revision_structures(session, project_id, revision_id)
+            if each not in held_structures
+        ]
+        for structure_id in missing:
+            structure_facts(session, project_id, structure_id, lock=True)
+            held_structures.add(structure_id)
+        nodes = list(lines_of_revision(session, project_id, revision_id).values())
+        if not missing and held_structures.issuperset(structures_of(session, project_id, nodes)):
+            break
     if nodes and categories is not None:
         nodes = list(
             session.scalars(
