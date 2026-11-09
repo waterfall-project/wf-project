@@ -6,7 +6,8 @@ Its file is a head, ``WF-TRIAL``, then one label of a task per line. Its analysi
 as a task added, and a line that reads ``REFUSE`` rejects the whole file; its application writes
 each task, at the root of the structure aimed at, after the tasks there. What it does besides — a
 condition of its kind refused, an analysis or an application that refuses, breaks, or is stopped
-— a test asks of it by its attributes (#1790, EP-06, "Les tests du back"). And what the tests of
+— a test asks of it by its attributes (#1790, EP-06, "Les tests du back"). It stands in for the
+format a module registered for a kind (``stand_in``). And what the tests of
 the imports share: the platform, its client, its worker, the deposit and the opening of a file.
 """
 
@@ -18,6 +19,7 @@ from planning_support import insert_task
 from sqlalchemy import delete, func, select
 
 from waterfall.core.access_roles.tables import AccessRolePermission, Permission, UserAccessRole
+from waterfall.core.exchanges.interface import formats
 from waterfall.core.exchanges.tables import ImportReport
 from waterfall.core.planning.tables import Node
 from waterfall.platform.errors import ConflictError, UnprocessableError
@@ -28,11 +30,12 @@ from waterfall.worker.runner import Timing, Worker
 if TYPE_CHECKING:
     from collections.abc import Mapping
 
+    import pytest
     from projects_support import Person, Scene
     from sqlalchemy.orm import Session
     from support import ContractClient
 
-    from waterfall.core.exchanges.interface import ImportScope, ImportTarget
+    from waterfall.core.exchanges.interface import ExchangeKind, ImportScope, ImportTarget
     from waterfall.platform.audit import Act
     from waterfall.platform.database import Database
     from waterfall.platform.queue import TaskQueue
@@ -153,6 +156,25 @@ class TrialFormat:
             raise RuntimeError(msg)
         if what == "stop":
             raise Stopped
+
+
+# What the exchanges read of a format (``Format``), which the format of the tests stands in for.
+FORMAT_PARTS = ("header_length", "scope", "permission", "read_header", "judge", "analyse", "apply")
+
+
+def stand_in[Trial: TrialFormat](
+    monkeypatch: pytest.MonkeyPatch, kind: ExchangeKind, form: Trial
+) -> Trial:
+    """Make the format a module registered for a kind act as ``form`` for the test; give ``form``.
+
+    Every kind has its format from the socle of EP-09 on (US-1580/L1), and a kind holds one at most:
+    the format of the tests takes the place of the one registered — what the exchanges read of it —,
+    the end of the test giving it back, as ``test_exports.py`` stands in for an exporter.
+    """
+    held = formats()[kind]
+    for part in FORMAT_PARTS:
+        monkeypatch.setattr(held, part, getattr(form, part))
+    return form
 
 
 def labels_of(content: bytes) -> list[str]:

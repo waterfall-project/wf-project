@@ -4,7 +4,9 @@
 
 One table, one trigger: ``revision`` and ``cost_structure``, each guarded by a trigger of the
 module of the revisions (migration 0020); ``node``, ``task`` and ``task_link``, by a trigger of the
-module of the planning of the same form (migration 0022). The rows are written around the service,
+module of the planning of the same form (migration 0022); what a review writes on a line of
+estimate (migration 0027), by the guard of the estimate (migration 0025), whose other writes
+``test_database_constraints_estimate.py`` tries. The rows are written around the service,
 by the owner of the tables, whom the triggers refuse as they refuse the service. A revision is
 opened through the service, and marked by the transaction of the worker (``mark_revision``).
 """
@@ -15,14 +17,17 @@ from typing import TYPE_CHECKING, Any
 from uuid import UUID
 
 import pytest
+from estimate_support import give_a_line
 from planning_support import insert_link, insert_task, main_structure, node_row, task_row
 from projects_support import PROJECTS, Scene
 from projects_support import scene as make_scene
+from remaining_support import reviewed
 from sqlalchemy import delete, insert, select, text, update
 from sqlalchemy.exc import DBAPIError, IntegrityError
 from sqlalchemy.orm import Session
 from support import wait_for_a_lock
 
+from waterfall.core.estimate.tables import EstimateLine
 from waterfall.core.planning.tables import Node, Task, TaskLink
 from waterfall.core.revisions.interface import mark_revision
 from waterfall.core.revisions.tables import CostStructure, Revision
@@ -355,6 +360,37 @@ def test_a_task_or_a_link_of_a_marked_revision_written_directly_in_the_base_is_r
     for statement in writes_of(table, planned):
         refused_by_owner(owner, statement, ROW_REFUSED)
     assert rows_of(owner, planned) == before
+
+
+def line_of(owner: Engine, node_id: UUID) -> tuple[object, ...]:
+    """Read a line of estimate, every column."""
+    with owner.connect() as connection:
+        return tuple(
+            connection.execute(select(EstimateLine).where(EstimateLine.node_id == node_id)).one()
+        )
+
+
+@pytest.mark.requirement("WF-DAT-0020-A")
+def test_what_a_review_writes_on_a_line_of_a_marked_revision_written_directly_is_refused(
+    api: ContractClient, stage: Scene, owner: Engine
+) -> None:
+    # « Une mise à jour ou une suppression exécutée directement en base sur une tâche, une ligne de
+    # devis ou une valeur de référentiel d'une révision marquée est rejetée par la base. » : each of
+    # the six columns EP-09 adds to a line (migration 0027) — its remaining to commit before the
+    # review, the mark of its re-estimation, its reason —, written by the owner around the service,
+    # is refused by the guard of the estimate (migration 0025), which they did not change.
+    planned = planned_revision(api, stage, marked=False)
+    with owner.begin() as connection:
+        node_id = give_a_line(connection, planned.first)
+    with stage.database.transaction() as session:
+        mark(session, planned.revision_id)
+    before = line_of(owner, node_id)
+    for column, value in reviewed().items():
+        written = (
+            update(EstimateLine).where(EstimateLine.node_id == node_id).values({column: value})
+        )
+        refused_by_owner(owner, written, ROW_REFUSED)
+    assert line_of(owner, node_id) == before
 
 
 @pytest.mark.requirement("WF-DAT-0020-A")

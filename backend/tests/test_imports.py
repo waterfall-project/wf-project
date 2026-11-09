@@ -32,6 +32,7 @@ from imports_trial import (
     read,
     refusal,
     run,
+    stand_in,
     stored,
     trial_file,
     upload,
@@ -45,7 +46,6 @@ from support import ContractClient
 from waterfall.api.app import create_app
 from waterfall.api.authentication import Services
 from waterfall.core.access_roles.predefined import PROJECT_MANAGER
-from waterfall.core.exchanges.interface import register_format
 from waterfall.core.exchanges.tables import ImportReport
 from waterfall.core.revisions.tables import CostStructure, Revision
 from waterfall.platform.database import utc_now
@@ -96,12 +96,9 @@ def stage(api: ContractClient, owner: Engine, database: Database, realm: TestRea
 
 
 @pytest.fixture
-def trial() -> Iterator[TrialFormat]:
-    """Register the format of the tests for the remaining to commit, withdrawn after the test."""
-    form = TrialFormat()
-    withdrawn = register_format("remaining", form)
-    yield form
-    withdrawn()
+def trial(monkeypatch: pytest.MonkeyPatch) -> TrialFormat:
+    """Make the format of the remaining to commit act as the format of the tests, for the test."""
+    return stand_in(monkeypatch, "remaining", TrialFormat())
 
 
 @pytest.fixture
@@ -278,11 +275,13 @@ def test_an_opening_is_refused_for_a_head_its_format_does_not_recognise(
         assert session.scalars(select(ImportReport)).all() == []
 
 
-def test_an_opening_of_a_kind_no_format_serves_names_the_format_expected(
+def test_an_opening_of_a_kind_whose_format_reads_no_head_yet_names_the_format_expected(
     api: ContractClient, stage: Scene
 ) -> None:
     upload_id = deposited(api, stage.manager, trial_file(*ROWS))
-    # The actual costs are served from EP-09; the estimate is from US-1550/L3.
+    # Every kind has its format from the socle of EP-09 on: that of the actual costs, registered
+    # without effect (US-1580/L1), refuses every head as when no format served the kind, until
+    # US-1610/L1 reads the header of an extraction.
     response = open_import(
         api, stage.manager, stage.project["project_id"], upload_id, kind="actual_costs"
     )
@@ -396,23 +395,20 @@ def test_an_opening_is_refused_for_a_condition_of_its_kind(
 
 
 def test_an_import_of_the_project_keeps_its_period_and_aims_at_no_structure(
-    api: ContractClient, stage: Scene
+    api: ContractClient, stage: Scene, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     form = TrialFormat(scope="project", permission="actual_costs.write")
-    withdrawn = register_format("actual_costs", form)
-    try:
-        upload_id = deposited(api, stage.manager, trial_file(*ROWS))
-        response = open_import(
-            api,
-            stage.manager,
-            stage.project["project_id"],
-            upload_id,
-            kind="actual_costs",
-            period_from="2026-04-01",
-            period_to="2026-04-30",
-        )
-    finally:
-        withdrawn()
+    stand_in(monkeypatch, "actual_costs", form)
+    upload_id = deposited(api, stage.manager, trial_file(*ROWS))
+    response = open_import(
+        api,
+        stage.manager,
+        stage.project["project_id"],
+        upload_id,
+        kind="actual_costs",
+        period_from="2026-04-01",
+        period_to="2026-04-30",
+    )
     assert response.status_code == 202, response.text
     found = response.json()
     assert (found["period_from"], found["period_to"]) == ("2026-04-01", "2026-04-30")

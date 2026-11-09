@@ -25,6 +25,7 @@ from imports_trial import (
     opened,
     read,
     refusal,
+    stand_in,
     stored,
 )
 from projects_support import Scene
@@ -38,7 +39,6 @@ from waterfall.core.exchanges.interface import (
     Purged,
     head_to_read,
     purge,
-    register_format,
     remove_purged,
     stored_before,
 )
@@ -60,8 +60,6 @@ from waterfall.platform.uploads import (
 )
 
 if TYPE_CHECKING:
-    from collections.abc import Iterator
-
     from openapi_core import OpenAPI
     from realm import TestRealm
     from sqlalchemy import Engine
@@ -103,12 +101,9 @@ def stage(api: ContractClient, owner: Engine, database: Database, realm: TestRea
 
 
 @pytest.fixture
-def trial() -> Iterator[TrialFormat]:
-    """Register the format of the tests for the remaining to commit, withdrawn after the test."""
-    form = TrialFormat()
-    withdrawn = register_format("remaining", form)
-    yield form
-    withdrawn()
+def trial(monkeypatch: pytest.MonkeyPatch) -> TrialFormat:
+    """Make the format of the remaining to commit act as the format of the tests, for the test."""
+    return stand_in(monkeypatch, "remaining", TrialFormat())
 
 
 @pytest.fixture

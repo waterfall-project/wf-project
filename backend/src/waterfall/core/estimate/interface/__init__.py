@@ -25,7 +25,10 @@ declares (``register_marking``, ``register_designation``, ``register_employment`
 US-1490/L4 the employment of the categories and the facts of the lines the projects ask, whose
 roles employed come with US-1540; US-1500/L2 what a revision keeps at its marking, the budgeted
 amounts a designation refreshes, the current revisions priced again after a rate of the reference or
-a rate of inflation written, and the guard of the calendars of the roles. The entry points that
+a rate of inflation written, and the guard of the calendars of the roles. The socle of EP-09
+(US-1580/L1) registers without effect the copy of the remaining to commit of the review before,
+after the lines, and the format and the exporter ``remaining``; it declares ``register_coverage``,
+which the risks fill (EP-08). The entry points that
 copy, mark, designate or close a revision, change the reference or run an exchange — the API, the
 worker, the loader of the witness —
 import it, by what they serve or explicitly (#2180).
@@ -197,6 +200,14 @@ from waterfall.core.estimate.interface.indicators import (
     missing_rates as missing_rates,
 )
 
+# ``kanban`` (US-1580/L1; US-1590): the lines that hold a task open, the board of the tasks.
+from waterfall.core.estimate.interface.kanban import (
+    open_lines as open_lines,
+)
+from waterfall.core.estimate.interface.kanban import (
+    startable_tasks as startable_tasks,
+)
+
 # ``lines`` (US-1490/L1; US-1490/L3, US-1570): a line changed, the question of the designation.
 from waterfall.core.estimate.interface.lines import (
     load_lines as load_lines,
@@ -226,6 +237,52 @@ from waterfall.core.estimate.interface.rates import (
 )
 from waterfall.core.estimate.interface.rates import (
     reinflate_project as reinflate_project,
+)
+
+# ``remaining`` (US-1580/L1; US-1580/L2): a line reestimated, the remaining of the review before.
+from waterfall.core.estimate.interface.remaining import (
+    copy_previous as copy_previous,
+)
+from waterfall.core.estimate.interface.remaining import (
+    set_line_remaining as set_line_remaining,
+)
+
+# ``remaining_excel`` (US-1580/L1; US-1630): the format and the exporter of a remaining to commit.
+from waterfall.core.estimate.interface.remaining_excel import (
+    REMAINING_EXPORTER as REMAINING_EXPORTER,
+)
+from waterfall.core.estimate.interface.remaining_excel import (
+    REMAINING_FORMAT as REMAINING_FORMAT,
+)
+from waterfall.core.estimate.interface.remaining_excel import (
+    RemainingExporter as RemainingExporter,
+)
+from waterfall.core.estimate.interface.remaining_excel import (
+    RemainingFormat as RemainingFormat,
+)
+
+# ``remaining_indicators`` (US-1580/L1; US-1600): the indicators of the remaining to commit, the
+# remaining of a revision EP-10 reads, and the coverage of the risks EP-08 answers.
+from waterfall.core.estimate.interface.remaining_indicators import (
+    NO_COVERAGE as NO_COVERAGE,
+)
+from waterfall.core.estimate.interface.remaining_indicators import (
+    Coverage as Coverage,
+)
+from waterfall.core.estimate.interface.remaining_indicators import (
+    RevisionRemaining as RevisionRemaining,
+)
+from waterfall.core.estimate.interface.remaining_indicators import (
+    register_coverage as register_coverage,
+)
+from waterfall.core.estimate.interface.remaining_indicators import (
+    remaining_indicators as remaining_indicators,
+)
+from waterfall.core.estimate.interface.remaining_indicators import (
+    remaining_of_revision as remaining_of_revision,
+)
+from waterfall.core.estimate.interface.remaining_indicators import (
+    risk_coverage as risk_coverage,
 )
 
 # ``workload`` (US-1490/L1; US-1520): the workload of an estimate, the planned value.
@@ -308,10 +365,13 @@ from waterfall.core.revisions.interface import (
 # abandoned deleted after its nodes, in the stage of its content; whether the proposal of the
 # rates of a revision presents a category (US-1500/L1); the categories and the subprojects the
 # lines employ, and the current revisions a rate of the reference written prices again; what a
-# revision keeps at its marking, and the budgeted amounts a designation refreshes (US-1500/L2).
+# revision keeps at its marking, and the budgeted amounts a designation refreshes (US-1500/L2). The
+# remaining to commit (EP-09): the remaining of the review before, copied after the rates, and the
+# format and the exporter of its workbook, each without effect until its story (US-1580/L1).
 register_facet("estimate_line", LINE_FACET)
 register_tasks_and_lines("lines", revision_has_lines)
 register_copy(copy_rates)
+register_copy(copy_previous)
 register_rate_update(rate_update_offered)
 register_closing("content", close_rates)
 register_employment(category_is_employed, reprice_after_rate)
@@ -331,3 +391,5 @@ register_estimate_facts(
 register_idle_task_guard(idle_tasks_for_role_calendar)
 register_format("estimate", ESTIMATE_FORMAT)
 register_exporter("estimate", ESTIMATE_EXPORTER)
+register_format("remaining", REMAINING_FORMAT)
+register_exporter("remaining", REMAINING_EXPORTER)
