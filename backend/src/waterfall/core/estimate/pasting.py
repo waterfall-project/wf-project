@@ -95,6 +95,15 @@ def _days(text: str) -> int | None:
     return None
 
 
+def _roles(pasted: CellsPasted) -> dict[UUID, UUID | None]:
+    """Give the role the rows accepted before this one leave their lines, where they send one."""
+    return {
+        node_id: each.resource_role_id
+        for node_id, each in pasted.earlier
+        if isinstance(each, LineEntry) and each.given("resource_role_id")
+    }
+
+
 def _lookups(pasted: CellsPasted) -> dict[str, Mapping[str, list[UUID]]]:
     """Look up, once, the objects the labels of the cells name: categories, roles, subprojects."""
     session = pasted.session
@@ -177,7 +186,8 @@ def judge_line_cell(pasted: CellsPasted) -> CellsJudged:
             else read_line(pasted.session, pasted.project_id, pasted.node_id)
         )
         try:
-            judged_priced(pasted.session, pasted.project_id, pasted.bearer, entry, current)
+            held = (pasted.project_id, pasted.bearer)
+            judged_priced(pasted.session, held, entry, current, _roles(pasted))
         except UnprocessableError as refused:
             refused_columns = {each.column for each in refusals}
             refusals += [

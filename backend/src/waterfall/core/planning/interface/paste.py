@@ -36,13 +36,15 @@ very functions of the entry of a cell, and write them (``write_cell``), or creat
 (``write_line_node``, the hook ``create``). A cell on a column the node does not bear is refused
 (``FIELD_NOT_ACCEPTED``); on the main structure, every non-empty cell of a line of a completed
 task is refused (``STATE_FORBIDS_OPERATION``, ``task_not_completed``, #1767), a line created under
-one too. A row for a line judges against the base, not against the rows accepted before it.
+one too. A row for a line is judged on the base and on the rows accepted before it under the same
+task: the entries of those rows are handed to the hook (``CellsPasted.earlier``), so that the
+preview and the confirmation reach the same verdict.
 
 Declared by US-1380/L1; filled by US-1450/L2, L5; the lines by US-1560/L1.
 """
 
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import date
 from decimal import Decimal
 from typing import TYPE_CHECKING, Any, cast
@@ -276,6 +278,7 @@ class _Board:
     held: tuple[Place, Act, date]
     after: UUID
     target: UUID
+    lines: dict[UUID, dict[UUID, object]] = field(default_factory=dict[UUID, dict[UUID, object]])
 
 
 class _NothingToWriteError(Exception):
@@ -404,14 +407,16 @@ def _forbidden(row: _Row) -> list[PasteRefusal]:
 
 
 def _line_cells(
-    ground: Ground, held: tuple[str, UUID | None, UUID], row: _Row
+    board: _Board, held: tuple[str, UUID | None, UUID], row: _Row
 ) -> tuple[CellsJudged | None, list[PasteRefusal]]:
     """Judge the cells of a row on a node of another kind than the task, by the hooks of its kind.
 
     ``held`` is the kind, the node, none if the row creates it, and the task that bears it. A line
     of a completed task refuses every cell; a cell on a column the kind does not bear is refused;
-    the others are judged by ``judge_cell``, every refusal at once.
+    the others are judged by ``judge_cell``, every refusal at once, on the entries of the lines of
+    the same task that the rows before it were accepted with.
     """
+    ground = board.ground
     kind, node_id, parent = held
     hooks = facets().get(kind)
     if hooks is None:
@@ -426,7 +431,8 @@ def _line_cells(
     ]
     given = tuple((column, text) for column, text in row.cells if column in borne)
     bearer = bearing(ground.session, ground.project_id, ground.tree, parent, is_main=ground.is_main)
-    pasted = CellsPasted(ground.session, ground.project_id, node_id, bearer, given)
+    earlier = tuple(board.lines.get(parent, {}).items())
+    pasted = CellsPasted(ground.session, ground.project_id, node_id, bearer, given, earlier)
     judged = hooks.judge_cell(pasted)
     refusals += [
         PasteRefusal(row.row, cast("NodeColumn | None", each.column), each.code, each.params)
@@ -435,13 +441,15 @@ def _line_cells(
     return judged, refusals
 
 
-def _judged_line(ground: Ground, row: _Row) -> _Outcome:
+def _judged_line(board: _Board, row: _Row) -> _Outcome:
     """Judge a row on a node that is no task: a line of the estimate, by the hooks of its kind."""
-    node = ground.tree.nodes[row.node_id]
+    node = board.ground.tree.nodes[row.node_id]
     if node.parent_id is None:
         return _Outcome(None, None, (PasteRefusal(row.row, None, FIELD_NOT_ACCEPTED, {}),))
-    judged, refusals = _line_cells(ground, (node.kind, row.node_id, node.parent_id), row)
+    judged, refusals = _line_cells(board, (node.kind, row.node_id, node.parent_id), row)
     refusals.sort(key=_order)
+    if not refusals and judged is not None:
+        board.lines.setdefault(node.parent_id, {})[row.node_id] = judged.entry
     return _Outcome(None, None, tuple(refusals), cells=None if refusals else judged)
 
 
@@ -488,25 +496,28 @@ def _creating_line(board: _Board, row: _Row, kind: str) -> _Outcome:
     except UnprocessableError as refused:
         refusals += _mapped(row.row, refused)
     if placed is not None:
-        judged, refusals = _line_cells(board.ground, (kind, None, placed.parent_id), row)
+        judged, refusals = _line_cells(board, (kind, None, placed.parent_id), row)
     if all(column != "label" for column, _ in row.cells):
         refusals.append(PasteRefusal(row.row, "label", VALIDATION_FAILED, {}))
     if refusals or placed is None:
         return _Outcome(None, None, tuple(sorted(refusals, key=_order)))
     board.ground, board.after = _traced_line(board.ground, board.held, placed), row.node_id
+    if judged is not None:
+        board.lines.setdefault(placed.parent_id, {})[row.node_id] = judged.entry
     return _Outcome(None, None, (), cells=judged, placed=placed)
 
 
-def _judged(ground: Ground, items: Mapping[str, list[WorkBreakdownItem]], row: _Row) -> _Outcome:
+def _judged(board: _Board, row: _Row) -> _Outcome:
     """Judge a row of the block on its node: each cell read, then what they send by the entry.
 
     The refusals of every cell are named at once. A node that is no task is judged by the hooks of
     its kind (``_judged_line``).
     """
+    ground = board.ground
     task = ground.tree.tasks.get(row.node_id)
     if task is None:
-        return _judged_line(ground, row)
-    sent, refusals = _cells(row, task.duration_unit, items)
+        return _judged_line(board, row)
+    sent, refusals = _cells(row, task.duration_unit, board.items)
     entry = _entry(sent) if sent else None
     judged = None
     if entry is not None:
@@ -570,7 +581,7 @@ def _settled(board: _Board, row: _Row) -> _Outcome:
     """
     if row.creates:
         return _creating(board, row)
-    outcome = _judged(board.ground, board.items, row)
+    outcome = _judged(board, row)
     if outcome.entry is not None and outcome.judged is not None:
         apply_cell(board.ground.tree.tasks[row.node_id], outcome.entry, outcome.judged)
     return outcome

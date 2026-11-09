@@ -398,6 +398,95 @@ def test_a_line_created_under_a_completed_task_is_refused_on_the_main_structure(
     assert line_labels(tree) == ["Figée"]
 
 
+def roles_of_week(stage: Scene) -> tuple[UUID, UUID, UUID]:
+    """Add the roles Z (Monday, Tuesday), R1 (Monday) and R2 (Tuesday); R1 and R2 share no day."""
+    database = stage.database
+    return (
+        add_role(database, "Z", (8, 8, 0, 0, 0, 0, 0)),
+        add_role(database, "R1", (8, 0, 0, 0, 0, 0, 0)),
+        add_role(database, "R2", (0, 8, 0, 0, 0, 0, 0)),
+    )
+
+
+def previewed_raw(tree: Tree, body: dict[str, Any], who: Person) -> dict[str, Any]:
+    """Preview a block whose refusals compose objects, the contract checking the answer."""
+    path = f"{tree.path}/nodes/paste-preview"
+    answer = tree.api.client.post(path, headers=who.headers, json=body)
+    assert answer.status_code == 200, answer.text
+    return answer.json()
+
+
+def settled(tree: Tree, plan: dict[str, Any], who: Person) -> dict[str, Any]:
+    """Confirm a plan whose refusals compose objects, the contract checking the answer; give it."""
+    sent = {"paste_id": plan["paste_id"], "confirmed": True, "lock_version": counter(tree)}
+    answer = tree.api.client.post(f"{tree.path}/nodes/paste", headers=who.headers, json=sent)
+    assert answer.status_code == 200, answer.text
+    return answer.json()
+
+
+@pytest.mark.requirement("WF-IHM-0050-A")
+def test_the_lines_of_a_block_under_a_task_are_judged_on_the_rows_accepted_before_them(
+    tree: Tree, lines: Lines, costs: Costing, who: Person, stage: Scene
+) -> None:
+    # Vérif de WF-IHM-0050-A : la confirmation écrit les lignes valides et ajoute au plan celles
+    # nouvellement refusées. A passe à R1 (lundi), B à R2 (mardi) sous une tâche dont C est Z
+    # (lundi, mardi) : chacune passe contre la base, les deux ensemble ne laissent aucune heure ; la
+    # seconde est refusée à l'aperçu comme à l'application, sans 422.
+    zed, first, second = roles_of_week(stage)
+    task = tree.made("Étude", who=who)
+    a = lines.made(task, who, **labour(costs, label="A"))["nodes"][0]
+    lines.made(task, who, **labour(costs, label="B"))
+    lines.made(task, who, **labour(costs, label="C", resource_role_id=str(zed)))
+    sent = {"target_node_id": a["node_id"], "target_column": "resource_role"}
+    plan = previewed_raw(tree, {**sent, "rows": [["Rôle R1"], ["Rôle R2"]]}, who)
+    wanted = [(1, "resource_role", "TASK_WITHOUT_WORKING_HOURS")]
+    assert (plan["accepted"], reasons(plan)) == (1, wanted)
+    body = settled(tree, plan, who)
+    assert reasons(body) == wanted
+    held = {each["label"]: each["resource_role_id"] for each in estimate_lines(tree)}
+    assert held == {"A": str(first), "B": str(costs.role), "C": str(zed)}
+    assert str(second) not in held.values()
+
+
+@pytest.mark.requirement("WF-IHM-0050-A")
+def test_two_lines_created_under_a_task_are_judged_on_each_other(
+    tree: Tree, lines: Lines, costs: Costing, who: Person, stage: Scene
+) -> None:
+    # Vérif de WF-IHM-0050-A : deux lignes créées sous une même tâche, de rôles R1 et R2, avec Z de
+    # la ligne qui est là, ne laissent aucune heure : la seconde est refusée, aperçu et application
+    # au même verdict, sans 422.
+    zed, first, second = roles_of_week(stage)
+    task = tree.made("Étude", who=who)
+    held = labour(costs, label="C", resource_role_id=str(zed))
+    anchor = lines.made(task, who, **held)["nodes"][0]
+    rows = [["C bis"], ["Une", "", "Rôle R1", "1", "10"], ["Deux", "", "Rôle R2", "1", "10"]]
+    sent = {"target_node_id": anchor["node_id"], "target_column": "label", "rows": rows}
+    plan = previewed_raw(tree, sent, who)
+    assert (plan["accepted"], plan["created"]) == (2, 1)
+    wanted = [(2, "resource_role", "TASK_WITHOUT_WORKING_HOURS")]
+    assert reasons(plan) == wanted
+    body = settled(tree, plan, who)
+    assert reasons(body) == wanted
+    assert line_labels(tree) == ["C bis", "Une"]
+    assert estimate_lines(tree)[1]["resource_role_id"] == str(first)
+    assert str(second) not in {each["resource_role_id"] for each in estimate_lines(tree)}
+
+
+@pytest.mark.requirement("WF-IHM-0050-A")
+def test_a_number_a_spreadsheet_writes_with_a_space_and_a_comma_is_read_on_a_line(
+    tree: Tree, lines: Lines, costs: Costing, who: Person
+) -> None:
+    # Vérif de WF-IHM-0050-A : un nombre de tableur (« 1 234,5 », espace insécable) se lit 1234.5.
+    # La durée d'une tâche est un autre texte (un nombre et son unité), lu par son propre motif :
+    # la lecture n'est pas partagée.
+    task = tree.made("Étude", who=who)
+    target = lines.made(task, who, **material(costs))["nodes"][0]
+    plan = planned(tree, target, "quantity", [["1\u00a0234,5"]], who)
+    assert (plan["accepted"], plan["rejected"]) == (1, [])
+    body = applied(tree, plan, who)
+    assert body["nodes"][0]["estimate_line"]["quantity"] == "1234.5"
+
+
 @pytest.mark.requirement("WF-IHM-0050-A")
 def test_the_rows_past_the_last_node_create_lines_in_one_entry_of_the_history(
     tree: Tree, lines: Lines, costs: Costing, who: Person, stage: Scene

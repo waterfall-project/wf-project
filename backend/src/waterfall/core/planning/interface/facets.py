@@ -136,7 +136,9 @@ class CellsPasted:
 
     ``node_id`` the node they fall on, none for a node the paste creates; ``bearer`` the task that
     bears it; ``cells`` the column of each cell, as ``NodeColumn`` names it, and its text. An empty
-    cell is never given: it writes nothing.
+    cell is never given: it writes nothing. ``earlier`` is, node by node, what the entry judged of
+    the rows of the same block accepted before this one under the same task: the node, written or
+    created, and the entry its hook gave (``CellsJudged.entry``), opaque to the planning.
     """
 
     session: Session
@@ -144,6 +146,7 @@ class CellsPasted:
     node_id: UUID | None
     bearer: BearingTask
     cells: tuple[tuple[str, str], ...]
+    earlier: tuple[tuple[UUID, object], ...] = ()
 
 
 @dataclass(frozen=True, slots=True)
