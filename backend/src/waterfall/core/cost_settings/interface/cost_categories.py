@@ -25,6 +25,7 @@ from waterfall.core.cost_settings.commands import (
     cost_category_commands,
     kind_change_missing,
 )
+from waterfall.core.cost_settings.employment import category_is_employed
 from waterfall.core.cost_settings.interface.hourly_rates import category_is_rated
 from waterfall.core.cost_settings.records import (
     STATE_FORBIDS_OPERATION,
@@ -53,10 +54,9 @@ from waterfall.platform.errors import (
     UnprocessableError,
 )
 from waterfall.platform.identifiers import new_id
-from waterfall.platform.registry import Registry
 
 if TYPE_CHECKING:
-    from collections.abc import Callable, Collection, Sequence
+    from collections.abc import Collection, Sequence
     from uuid import UUID
 
     from sqlalchemy.orm import Session
@@ -140,32 +140,6 @@ class CategoryLabel:
     is_active: bool
     cost_type_is_active: bool
     cost_type_id: UUID | None = None
-
-
-# What tells, of the categories given, those a line employs: the estimate's (EP-07), registered at
-# the import of its interface, which this module never imports.
-_EMPLOYMENTS: Registry[Callable[[Session, Collection[UUID]], frozenset[UUID]]] = Registry(
-    "cost_settings.employment"
-)
-
-
-def register_employment(
-    employed: Callable[[Session, Collection[UUID]], frozenset[UUID]],
-) -> Callable[[], None]:
-    """Add what tells, of the categories given, those a line employs; give its withdrawal."""
-    return _EMPLOYMENTS.register(employed)
-
-
-def category_is_employed(session: Session, category_ids: Collection[UUID]) -> frozenset[UUID]:
-    """Give, of the categories given, those a line of a quote employs (WF-REF-0030, WF-REF-0040).
-
-    Those each registered answer names (``register_employment``): none while nothing is
-    registered, before EP-07 fills it.
-    """
-    employed: set[UUID] = set()
-    for answer in _EMPLOYMENTS.entries():
-        employed |= answer(session, category_ids)
-    return frozenset(employed)
 
 
 def category_holdings(session: Session, category_ids: Collection[UUID]) -> dict[UUID, Holdings]:
@@ -280,6 +254,26 @@ def _read_view(session: Session, category_id: UUID) -> CostCategoryView:
         .execution_options(populate_existing=True)
     ).one()
     return _views(session, [row], may_change=True)[0]
+
+
+def read_cost_categories(
+    session: Session, category_ids: Collection[UUID]
+) -> list[CostCategoryView]:
+    """Read the categories given, deactivated or not, without their commands, by code.
+
+    What a marked revision keeps of those its lines employ (EP-07, US-1500). An identifier no
+    category bears is left out.
+    """
+    if not category_ids:
+        return []
+    rows = session.execute(
+        select(CostCategory, CostType)
+        .join(CostType, CostType.id == CostCategory.cost_type_id)
+        .where(CostCategory.id.in_(list(category_ids)))
+        .order_by(CostCategory.code, CostCategory.id)
+        .execution_options(populate_existing=True)
+    ).all()
+    return _views(session, [(category, nature) for category, nature in rows], may_change=False)
 
 
 def present_cost_categories(session: Session, category_ids: Collection[UUID]) -> frozenset[UUID]:

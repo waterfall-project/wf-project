@@ -76,11 +76,15 @@ class NodeFilters:
 
 @dataclass(frozen=True, slots=True)
 class Retained:
-    """What a reading returns: its nodes in order, the tasks it retains, the lines it retains."""
+    """What a reading returns: its nodes in order, the tasks it retains, the lines it retains.
+
+    ``kept`` the tasks the filters retain themselves, without the ancestors ``order`` adds.
+    """
 
     order: list[UUID]
     task_count: int
     lines: frozenset[UUID]
+    kept: frozenset[UUID] = frozenset()
 
 
 def _within[T: (Decimal, date)](value: T | None, bounds: Bounds[T]) -> bool:
@@ -204,7 +208,7 @@ def retained(
         order = _sorted(session, project_id, reading, order, filters.sort)
     if kinds is not None:
         order = [each for each in order if tree.nodes[each].kind in kinds]
-    return Retained(order, len(kept), lines)
+    return Retained(order, len(kept), lines, frozenset(kept))
 
 
 def _lines(

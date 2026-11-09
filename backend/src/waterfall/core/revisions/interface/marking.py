@@ -45,6 +45,7 @@ from waterfall.core.projects.interface import (
     lock_counter,
     lock_project,
     no_background_task_running,
+    project_facts,
     require_project_manager,
     set_current_revision,
     stored_lock_version,
@@ -292,6 +293,20 @@ def keep_marking(marking: RevisionMarking) -> None:
     """Have each module registered keep its part of a revision being marked: nothing until EP-07."""
     for keep in _MARKINGS.entries():
         keep(marking)
+
+
+def keep_project_ratios(marking: RevisionMarking) -> None:
+    """Keep on a revision being marked the rate of inflation and the probability of its project.
+
+    Read as the project holds them in the transaction of the marking, under its lock (WF-REV-0030,
+    WF-REV-0070): the revision presents them from then on, whatever its project becomes. What the
+    estimate keeps at the marking asks it (``register_marking``, EP-07, US-1500).
+    """
+    facts = project_facts(marking.session, marking.project_id)
+    revision = found_revision(marking.session, marking.revision_id, marking.project_id, lock=True)
+    revision.inflation_rate = facts.inflation_rate
+    revision.win_probability = facts.win_probability
+    marking.session.flush()
 
 
 def register_indicators(compute: Callable[[Session, UUID], None]) -> Callable[[], None]:

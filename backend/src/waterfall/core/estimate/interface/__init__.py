@@ -23,19 +23,58 @@ registers the question of their proposal (``register_rate_update``); the registr
 declares (``register_marking``, ``register_designation``, ``register_employment``,
 ``register_estimate_facts``) by the stories that fill them (decisions of 2026-11-08, #2370):
 US-1490/L4 the employment of the categories and the facts of the lines the projects ask, whose
-roles employed and pricing again of a project come with US-1540 and US-1500. The entry points that
+roles employed come with US-1540; US-1500/L2 what a revision keeps at its marking, the budgeted
+amounts a designation refreshes, the current revisions priced again after a rate of the reference or
+a rate of inflation written, and the guard of the calendars of the roles. The entry points that
 copy, mark, designate or close a revision, change the reference or run an exchange — the API, the
-worker from US-1500 on, the loader of the witness —
+worker, the loader of the witness —
 import it, by what they serve or explicitly (#2180).
 """
 
 # The registry of the cost settings the estimate fills (US-1490/L4); the others below.
 from waterfall.core.cost_settings.interface import register_employment
 
+# ``comparing`` (US-1530): what a comparison of two revisions asks and gives.
+from waterfall.core.estimate.comparing import (
+    AmountDelta as AmountDelta,
+)
+from waterfall.core.estimate.comparing import (
+    ComparedNode as ComparedNode,
+)
+from waterfall.core.estimate.comparing import (
+    Comparison as Comparison,
+)
+from waterfall.core.estimate.comparing import (
+    ComparisonAsked as ComparisonAsked,
+)
+
 # ``calendars`` (US-1490/L1; US-1500): the calendars of the roles, which a change must not idle.
 # ``entries`` (US-1490/L3): what a write sends of a line.
 from waterfall.core.estimate.entries import (
     LineEntry as LineEntry,
+)
+
+# ``imaging`` (US-1500/L2): what a marked revision keeps of the reference, as it is read since.
+from waterfall.core.estimate.imaging import (
+    KeptCalendar as KeptCalendar,
+)
+from waterfall.core.estimate.imaging import (
+    KeptCategory as KeptCategory,
+)
+from waterfall.core.estimate.imaging import (
+    KeptRate as KeptRate,
+)
+from waterfall.core.estimate.imaging import (
+    KeptReference as KeptReference,
+)
+from waterfall.core.estimate.imaging import (
+    KeptRole as KeptRole,
+)
+from waterfall.core.estimate.imaging import (
+    Stamp as Stamp,
+)
+from waterfall.core.estimate.imaging import (
+    kept_reference as kept_reference,
 )
 from waterfall.core.estimate.interface.calendars import (
     idle_tasks_for_role_calendar as idle_tasks_for_role_calendar,
@@ -171,6 +210,9 @@ from waterfall.core.estimate.interface.rates import (
     apply_rate_update as apply_rate_update,
 )
 from waterfall.core.estimate.interface.rates import (
+    hold_revision as hold_revision,
+)
+from waterfall.core.estimate.interface.rates import (
     keep_images as keep_images,
 )
 from waterfall.core.estimate.interface.rates import (
@@ -216,6 +258,11 @@ from waterfall.core.estimate.reading import (
     LineView as LineView,
 )
 
+# ``repricing`` (US-1500/L2): a current revision priced again after a rate of the reference.
+from waterfall.core.estimate.repricing import (
+    reprice_after_rate as reprice_after_rate,
+)
+
 # ``spreading`` (US-1520/L1): the line the planned value is computed on, which EP-10 reads.
 from waterfall.core.estimate.spreading import (
     PlannedLine as PlannedLine,
@@ -246,6 +293,8 @@ from waterfall.core.resource_settings.interface import register_idle_task_guard
 from waterfall.core.revisions.interface import (
     register_closing,
     register_copy,
+    register_designation,
+    register_marking,
     register_rate_update,
     register_tasks_and_lines,
 )
@@ -255,13 +304,16 @@ from waterfall.core.revisions.interface import (
 # whose interface the facet imports first, then the lines priced at them; the rates of a revision
 # abandoned deleted after its nodes, in the stage of its content; whether the proposal of the
 # rates of a revision presents a category (US-1500/L1); the categories and the subprojects the
-# lines employ.
+# lines employ, and the current revisions a rate of the reference written prices again; what a
+# revision keeps at its marking, and the budgeted amounts a designation refreshes (US-1500/L2).
 register_facet("estimate_line", LINE_FACET)
 register_tasks_and_lines("lines", revision_has_lines)
 register_copy(copy_rates)
 register_rate_update(rate_update_offered)
 register_closing("content", close_rates)
-register_employment(category_is_employed)
+register_employment(category_is_employed, reprice_after_rate)
+register_marking(keep_images)
+register_designation(refresh_budgeted)
 register_estimate_facts(
     EstimateFacts(
         subproject_is_cited,
@@ -270,6 +322,7 @@ register_estimate_facts(
         roles_employed,
         marked_revision_has_lines,
         reinflate_project,
+        hold_revision,
     )
 )
 register_idle_task_guard(idle_tasks_for_role_calendar)

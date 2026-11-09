@@ -18,15 +18,18 @@ amounts of the lines of the current revision by their lineage (``refresh_budgete
 revision again (``reinflate_project``, by ``register_estimate_facts``, which US-1490/L3 declares in
 ``core/projects``).
 
-Declared by US-1490/L1. What is not filled yet raises ``NotImplementedError`` naming the story that
-fills it, which registers it and gives it its arguments and its result.
+Declared by US-1490/L1; the copy, the closing and the proposal filled by US-1500/L1, the marking,
+the designation and the inflation by US-1500/L2, which take them from ``imaging`` and
+``repricing``, where they are written, the order of the locks with them.
 """
 
 from typing import TYPE_CHECKING
 
+from waterfall.core.estimate import imaging, repricing
 from waterfall.core.estimate.keeping import apply_update, rate_proposal
 
 if TYPE_CHECKING:
+    from datetime import datetime
     from uuid import UUID
 
     from sqlalchemy.orm import Session
@@ -38,14 +41,12 @@ if TYPE_CHECKING:
 
 def keep_images(marking: RevisionMarking) -> None:
     """Keep the images and the rates of a revision being marked, and the values of its project."""
-    msg = "keep_images is filled by US-1500"
-    raise NotImplementedError(msg)
+    imaging.keep_images(marking)
 
 
 def refresh_budgeted(designation: ReferenceDesignated) -> None:
     """Refresh the budgeted amounts of the lines of the current revision, by their lineage."""
-    msg = "refresh_budgeted is filled by US-1500"
-    raise NotImplementedError(msg)
+    repricing.refresh_budgeted(designation)
 
 
 def rate_update_proposal(session: Session, project_id: UUID, revision_id: UUID) -> RateProposal:
@@ -63,7 +64,11 @@ def apply_rate_update(session: Session, project_id: UUID, update: RateUpdate, ac
     apply_update(session, project_id, update, act)
 
 
-def reinflate_project(session: Session, project_id: UUID) -> None:
+def reinflate_project(session: Session, project_id: UUID, at: datetime) -> None:
     """Price the current revision of a project again, its rate of inflation changed."""
-    msg = "reinflate_project is filled by US-1500"
-    raise NotImplementedError(msg)
+    repricing.reinflate_project(session, project_id, at)
+
+
+def hold_revision(session: Session, project_id: UUID) -> None:
+    """Share the lock of the current revision of a project, before its project is locked."""
+    repricing.hold_revision(session, project_id)

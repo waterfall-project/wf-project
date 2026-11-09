@@ -287,8 +287,12 @@ def _views(
             marked_at=row.marked_at,
             reference_year=row.reference_year,
             is_reference=row.is_reference,
-            inflation_rate=project.inflation_rate,
-            win_probability=project.win_probability,
+            inflation_rate=(
+                project.inflation_rate if row.inflation_rate is None else row.inflation_rate
+            ),
+            win_probability=(
+                project.win_probability if row.win_probability is None else row.win_probability
+            ),
             source_revision_id=row.source_revision_id,
             source_version_name=(
                 None if row.source_revision_id is None else names.get(row.source_revision_id)

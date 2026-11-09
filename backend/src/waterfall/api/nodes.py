@@ -424,7 +424,7 @@ def _facet(view: NodeView) -> dict[str, Any] | None:
     return _line(facet) if isinstance(facet, LineView) else None
 
 
-def _node(view: NodeView, fields: frozenset[str] | None = None) -> dict[str, Any]:
+def node_body(view: NodeView, fields: frozenset[str] | None = None) -> dict[str, Any]:
     """Write a node as the contract does: whole, or what ``fields`` names and the four."""
     whole: dict[str, Any] = {
         "node_id": str(view.node_id),
@@ -463,7 +463,7 @@ def _node(view: NodeView, fields: frozenset[str] | None = None) -> dict[str, Any
     return chosen
 
 
-def _totals(task_count: int, totals: StructureTotals | None) -> dict[str, Any]:
+def totals_body(task_count: int, totals: StructureTotals | None) -> dict[str, Any]:
     """Write the totals of the tasks counted and of the lines retained, their hours and amounts."""
     amounts = Amounts() if totals is None else totals.amounts
     return {
@@ -479,8 +479,8 @@ def _totals(task_count: int, totals: StructureTotals | None) -> dict[str, Any]:
 def written_of(result: NodesWritten) -> dict[str, Any]:
     """Write what a write of the tree gives back (``NodesWritten``); ``scheduling`` too."""
     return {
-        "nodes": [_node(each) for each in result.nodes],
-        "ancestors": [_node(each) for each in result.ancestors],
+        "nodes": [node_body(each) for each in result.nodes],
+        "ancestors": [node_body(each) for each in result.ancestors],
         "rescheduled": [
             {
                 "node_id": str(each.node_id),
@@ -502,7 +502,7 @@ def written_of(result: NodesWritten) -> dict[str, Any]:
             }
             for each in result.reinflated
         ],
-        "totals": _totals(result.task_count, result.totals),
+        "totals": totals_body(result.task_count, result.totals),
         "structure_lock_version": result.structure_lock_version,
     }
 
@@ -618,8 +618,8 @@ def get_nodes(
         {"summary_depth": read.summary_depth, "scheduled_at": read.scheduled_at}
     )
     return {
-        "items": [_node(each, fields) for each in read.items],
-        "totals": _totals(read.task_count, read.totals),
+        "items": [node_body(each, fields) for each in read.items],
+        "totals": totals_body(read.task_count, read.totals),
         "meta": meta.model_dump(mode="json"),
     }
 

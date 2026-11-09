@@ -34,6 +34,7 @@ from waterfall.core.projects.commands import (
     state_conditions,
 )
 from waterfall.core.projects.interface.contributors import require_project_manager
+from waterfall.core.projects.interface.estimate_facts import hold_estimate, reinflate_estimate
 from waterfall.core.projects.interface.lifecycle import advance
 from waterfall.core.projects.interface.skeleton import opening_with_tasks
 from waterfall.core.projects.interface.work_breakdown import follow_project_label
@@ -651,12 +652,18 @@ def update_project(
     terminal project has reached In progress, and the condition of the probability is the one its
     own command names, where a terminal project lists no command at all. A code entered calls
     ``advance`` under the lock, which moves a Pricing project to In progress when the reference is
-    designated already (WF-PRJ-0010, WF-CYC-0030).
+    designated already (WF-PRJ-0010, WF-CYC-0030). A new rate of inflation prices the current
+    revision again (WF-PRJ-0040, US-1500): its lock is shared before the project is locked, the
+    order of the marking, and its lines priced under the lock of each structure; a marked revision
+    keeps the rate of its marking.
     """
     values = change.values
     faults = _ratio_faults(values)
     if faults:
         raise UnprocessableError(VALIDATION_FAILED, fields=tuple(faults))
+    if "inflation_rate" in values:
+        # The current revision, which a new rate prices again, is locked before the project.
+        hold_estimate(session, project_id)
     project = _locked(session, project_id)
     require_project_manager(session, project_id, viewer)
     if project.lock_version != change.lock_version:
@@ -686,4 +693,6 @@ def update_project(
             follow_project_label(session, project, project.label, act)
         if changed.get("code") is not None:
             advance(session, project.id, "reference_designated_and_code_set", act)
+        if "inflation_rate" in changed:
+            reinflate_estimate(session, project.id, act.at)
     return _views(session, [project], viewer)[0]

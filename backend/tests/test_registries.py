@@ -7,10 +7,10 @@ never imports it holds a registry without its part, and copies a revision withou
 designates a reference without asking for them, in silence. Each entry point — the API
 (``create_app``), the worker (``handlers``), the loader of the witness (``load_witness``) — is
 imported in a process of its own, and its registries compared with those of a process that imports
-every module of the core and of the witness: none lacks an extension that a module registers, but
-the worker, which holds those of the estimate from US-1500/L2 on (EP-07, "Le worker"). What the
-socles of EP-06 and EP-07 register is named, so that the comparison is never between two empty
-lists.
+every module of the core and of the witness: none lacks an extension that a module registers — the
+worker those of the estimate included, which it imports from US-1500/L2 on (EP-07, "Le worker").
+What the socles of EP-06 and EP-07 register is named, so that the comparison is never between two
+empty lists.
 
 Then how each registry acts, details of the realization which reprise no Vérif: the closing of a
 revision, what its marking keeps and what follows the designation of a reference (EP-07), the guard
@@ -218,11 +218,12 @@ FACTS = (
     f"{ESTIMATE}.contributors.roles_employed",
     f"{ESTIMATE}.contributors.marked_revision_has_lines",
     f"{ESTIMATE}.rates.reinflate_project",
+    f"{ESTIMATE}.rates.hold_revision",
 )
 # What the socle of EP-07 registers without effect (US-1490/L1), after the planning's, and the
 # facet and the question of the lines US-1490/L3 registers; the registries of EP-07 come with
 # their stories (decisions of 2026-11-08, #2370): the employment and the facts of the lines with
-# US-1490/L4.
+# US-1490/L4, the marking, the designation and the rates written with US-1500/L2.
 REGISTERED_BY_EP07 = {
     "planning.facets": [f"estimate_line:FacetHooks({', '.join(LINE_HOOKS)})"],
     "revisions.tasks_and_lines": [f"lines:{ESTIMATE}.lines.revision_has_lines"],
@@ -233,12 +234,13 @@ REGISTERED_BY_EP07 = {
     "exchanges.formats": [f"estimate:{ESTIMATE}.excel.EstimateFormat"],
     "exchanges.exporters": [f"estimate:{ESTIMATE}.excel.EstimateExporter"],
     "witness.revision_fillers": ["waterfall.witness.estimate_lines.fill"],
-    "cost_settings.employment": [f"{ESTIMATE}.employment.category_is_employed"],
+    "cost_settings.employment": [
+        f"{ESTIMATE}.employment.category_is_employed:{CORE}.repricing.reprice_after_rate"
+    ],
     "projects.estimate_facts": [f"EstimateFacts({', '.join(FACTS)})"],
+    "revisions.marking": [f"{ESTIMATE}.rates.keep_images"],
+    "revisions.designation": [f"{ESTIMATE}.rates.refresh_budgeted"],
 }
-# The entry point that does not import the interface of the estimate yet: the worker, until the
-# story of US-1500 that writes the marking imports it (EP-07, "Le worker"), after #2341.
-WITHOUT_ESTIMATE = {"worker"}
 
 
 def as_run(name: str, entries: list[str]) -> list[str]:
@@ -283,31 +285,22 @@ def test_every_registry_holds_what_the_socle_of_ep06_registers(
 def test_every_registry_holds_what_the_socle_of_ep07_registers_after_the_planning(
     everything: dict[str, list[str]],
 ) -> None:
-    # The extensions of the estimate, each after those of EP-06 in its registry; nothing yet in the
-    # registries of the marking and the designation, which US-1500 fills.
+    # The extensions of the estimate, each after those of EP-06 in its registry; the marking and the
+    # designation filled by US-1500/L2.
     for name, entries in REGISTERED_BY_EP07.items():
         held = [entry for entry in everything[name] if entry not in REGISTERED.get(name, [])]
         assert held == entries, name
-    for name in (
-        "revisions.marking",
-        "revisions.designation",
-    ):
-        assert not any(CORE in entry for entry in everything[name]), name
 
 
 @pytest.mark.parametrize("entry_point", sorted(ENTRY_POINTS))
 def test_each_entry_point_holds_every_extension_of_the_registries_it_reads(
     entry_point: str, everything: dict[str, list[str]]
 ) -> None:
-    # The API and the worker read no registry of the witness; the loader reads them all. The
-    # worker holds no extension of the estimate yet, and nothing else lacks.
+    # The API and the worker read no registry of the witness; the loader reads them all. The worker
+    # imports the interface of the estimate (US-1500/L2): nothing lacks, its marking keeps images.
     held = registered_in(ENTRY_POINTS[entry_point])
     read = {
-        name: [
-            entry
-            for entry in entries
-            if entry_point not in WITHOUT_ESTIMATE or f"{CORE}." not in entry
-        ]
+        name: entries
         for name, entries in everything.items()
         if entry_point == "loader" or not name.startswith(WITNESS)
     }

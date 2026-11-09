@@ -1198,7 +1198,7 @@ et de valeur planifiée (EP-10) ; le plan de charge agrégé du portefeuille (EP
 
 ## US-1530 — La comparaison de deux révisions
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-REV-0080-A`
 - **opérations** : `compareRevisions`
 - **issue** : 2365

@@ -38,12 +38,13 @@ from waterfall.core.revisions.interface.closing import (
     register_closing,
 )
 
-# ``marking`` (US-0970; what EP-07 keeps, US-1490/L1; the indicators, EP-10): the marking.
+# ``marking`` (US-0970; what EP-07 keeps, US-1490/L1, US-1500/L2; the indicators, EP-10).
 from waterfall.core.revisions.interface.marking import (
     KEPT,
     MarkingRequest,
     RevisionMarking,
     compute_indicators,
+    keep_project_ratios,
     load_marking,
     mark_revision,
     register_indicators,
@@ -105,6 +106,9 @@ from waterfall.core.revisions.interface.revisions import (
     revisions_present,
 )
 
+# ``shared`` (US-1500/L2): the current revision held before its project is locked.
+from waterfall.core.revisions.interface.shared import hold_current_revision
+
 # ``structures`` (US-0960; the facts the planning reads, US-1380/L2; written, US-1390/L2).
 from waterfall.core.revisions.interface.structures import (
     CurrentStructure,
@@ -157,6 +161,8 @@ __all__ = [
     "current_revision",
     "current_structures",
     "designate_reference",
+    "hold_current_revision",
+    "keep_project_ratios",
     "last_marked_revision",
     "last_marked_revisions",
     "list_cost_structures",

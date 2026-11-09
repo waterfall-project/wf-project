@@ -12,9 +12,11 @@ that a revision with tasks but no line is refused until EP-07 answers for the li
 The moment of the last designation is the one of its last inscription in the journal, taken under
 the lock of the project, so that a marking validated meanwhile is judged against it.
 
-The designation locks the project, then reads and writes the revisions it names, all marked: the
-marking and the abandonment lock a current revision, then the project, and never a marked
-revision, so that no two locks are taken in opposite orders. It judges under the lock, in the
+The designation shares the lock of the current revision of the project first, if it has one
+(``hold_current_revision``), then locks the project, then reads and writes the revisions it names,
+all marked: the marking and the abandonment lock a current revision, then the project, and never a
+marked revision, so that no two locks are taken in opposite orders — what follows the designation
+writes in the current revision (US-1500). It judges under the lock, in the
 order of the contract: the revision unknown (404), the counter of the project read (412), a
 terminal project (409 ``project_not_terminal``), then the first condition the command
 ``designate_reference`` lacks (409). It writes ``is_reference`` of the previous reference and of
@@ -43,6 +45,7 @@ from waterfall.core.revisions.commands import (
 from waterfall.core.revisions.interface.shared import (
     STALE_LOCK_VERSION,
     found_revision,
+    hold_current_revision,
     inscribe_revision,
     refuse,
 )
@@ -139,6 +142,7 @@ def designate_reference(
     revision that is the reference already is designated again without a write: no counter, no
     inscription, no transition. The moment of the designation is taken under the lock.
     """
+    hold_current_revision(session, project_id)
     project = lock_for_designation(session, project_id)
     require_project_manager(session, project_id, viewer)
     act = replace(act, at=utc_now())
@@ -181,6 +185,8 @@ def designate_reference(
     session.flush()
     set_reference_revision(session, project_id, revision_id, act)
     designation = ReferenceDesignated(session, project_id, revision_id, act.at, act.author)
+    # The current revision, opened or marked since it was held, is held under the lock now.
+    hold_current_revision(session, project_id)
     for follow in _DESIGNATIONS.entries():
         follow(designation)
     inscribe_revision(session, revision, "reference_designate", revision.version_name, act)
