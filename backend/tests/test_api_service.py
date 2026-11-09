@@ -443,7 +443,7 @@ def test_an_object_of_closed_branches_apart_follows_the_one_whose_own_properties
     assert rejected.value.pointers == ["/1/node/hint"]
 
 
-@pytest.mark.requirement("WF-ARC-0110-A")
+@pytest.mark.requirement("WF-ARC-0060-A")
 @pytest.mark.parametrize(
     ("objects", "body"),
     [
@@ -478,6 +478,31 @@ def test_closed_branches_an_object_may_follow_both_of_are_refused(
 
     with pytest.raises(AmbiguousCompositionError):
         ContractClient(TestClient(app), minimal_contract({"anyOf": objects})).get("/api/v1/health")
+
+
+@pytest.mark.requirement("WF-ARC-0060-A")
+@pytest.mark.parametrize(
+    "body",
+    [{"a": "x", "b": "y"}, {}],
+    ids=["the own properties of both branches", "the own properties of none"],
+)
+def test_an_object_of_closed_branches_apart_that_fits_not_exactly_one_is_refused_by_the_schema(
+    body: dict[str, str],
+) -> None:
+    # ``apart`` follows the one branch whose own properties a value carries; a value carrying those
+    # of both, or of none, is refused before the walk, by the validation of the answer against the
+    # schema. Were that validation skipped, the walk would follow both branches.
+    schema: dict[str, object] = {
+        "oneOf": [closed_object(["a"], a=TEXT), closed_object(["b"], b=TEXT)]
+    }
+    app = FastAPI()
+
+    @app.get("/api/v1/health")
+    def health() -> JSONResponse:
+        return JSONResponse(body)
+
+    with pytest.raises(InvalidData):
+        ContractClient(TestClient(app), minimal_contract(schema)).get("/api/v1/health")
 
 
 @pytest.mark.requirement("WF-ARC-0060-A")
