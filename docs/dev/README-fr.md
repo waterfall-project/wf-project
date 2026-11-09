@@ -4055,10 +4055,11 @@ chaque entrée nommant l'EPIC qui la lève ; cet EPIC retire la garde et son ent
   laisse un compte et un projet de plus, la restauration reprenant tout le reste.
 - `project-start.spec.ts` — le départ vers le planning : l'ouverture de PRJ-001 qui mène à son
   planning, l'écran du lotissement qui engendre le planning, et l'encart « Démarrer le projet » d'un
-  projet créé, que le service n'offre pas au compte de la course avant les structures
-  (`BEFORE_EP06`) : levée par **EP-06**, qui sert les structures, l'import d'un planning et
-  `generatePlanningSkeleton`. Le lotissement d'un projet créé, écrit puis relu, se joue dès US-0950
-  (parcours jumeau, `SERVICE_ONLY`).
+  projet créé, qui se jouent contre le service sur un projet que le compte de la course crée : il
+  liste `import_planning` (US-1430) et sert les structures et `generatePlanningSkeleton`, si bien
+  qu'aucune garde `BEFORE_EP06` ne reste. Le lotissement d'un projet créé, écrit puis relu, se joue
+  dès US-0950 (parcours jumeau, `SERVICE_ONLY`), le fond mémoire ne gardant rien du lotissement
+  qu'on lui donne (`FAKE_BACK_FORGETS`).
 - `context.spec.ts` — le bandeau du contexte sur les écrans des données, le planning, le reste à
   engager, les risques et les indicateurs, et sur une structure différentielle (`BEFORE_THE_DATA`) :
   levée écran par écran par **EP-06** (le planning, les structures), **EP-07** (le reste à engager),

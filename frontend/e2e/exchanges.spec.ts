@@ -8,6 +8,7 @@ import { compile } from "./compile";
 import { openHydrated, WORKING } from "./hydration";
 import { inService, test } from "./mode";
 import { seedPlanning } from "./planning-seed";
+import { API } from "./service/realm";
 
 // The last path below is the service's, tagged `@shared` (US-1430): the export of the planning in MS
 // Project XML, downloaded once, and imported back, on a project the run creates. The others keep to the
@@ -143,14 +144,15 @@ test("the estimate and the remaining to commit lead to the one screen of the imp
   ).toHaveAttribute("href", `/projects/${PROJECT}/revisions/${REVISION}/exchanges`);
 });
 
-test("exports the planning as MS Project XML, downloads it once, and imports it back with no difference, as the project manager of the run @shared [WF-INTF-0010-A] [WF-INTF-0060-A] [WF-DAT-0120-A]", async ({
+test("exports the planning as MS Project XML, downloads it once, and imports it back with no difference, as the project manager of the run @shared [WF-DAT-0120-A]", async ({
   page,
   browser,
   request,
   manager,
 }) => {
-  // Le compte « chef de projet » atteint l’échange des fichiers FLX-01 et FLX-02 ; un export téléchargé
-  // jusqu’au bout n’est plus disponible ; un planning exporté puis réimporté ne présente aucun écart.
+  // The project manager account reaches the exchange screen; an export downloaded to the end is no
+  // longer available (WF-DAT-0120-A); the report of the analysis of the planning imported back shows no
+  // difference of dates or durations. The full round trip is proved by the back's `test_msproject_export.py`.
   test.skip(
     !inService,
     "the service keeps the file made and the import applied, the fake back not",
@@ -183,6 +185,15 @@ test("exports the planning as MS Project XML, downloads it once, and imports it 
   for (const label of ["Études de détail", "Revue de conception", "Mise en service"]) {
     expect(text).toContain(label);
   }
+
+  // The service deletes the object and marks the result consumed after the last byte: wait for it
+  // (`result_url` null) before the second navigation, or it could download again.
+  const task = /^\/tasks\/([0-9a-f-]{36})\/result\?/.exec(result ?? "")?.[1] ?? "";
+  await expect(async () => {
+    const read = await request.get(`${API}/tasks/${task}`, { headers: seeded.headers });
+    expect(read.status(), "GET task").toBe(200);
+    expect(((await read.json()) as { result_url: string | null }).result_url).toBeNull();
+  }).toPass({ timeout: WORKING });
 
   // The result is gone once downloaded to the end: the route follows to the screen it left, and the
   // task tells the refusal.

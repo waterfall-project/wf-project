@@ -226,7 +226,7 @@ describe("the screen of the imports and exports", () => {
     expect(text(page)).toContain("planning-poste-de-commande.xml MS Project planning Abandoned");
   });
 
-  it("shows no note of the mock-up: the screen is served, its writes kept by the service [WF-INTF-0040-A]", async () => {
+  it("shows no note of the mock-up: the screen is served, its writes kept by the service", async () => {
     const page = await exchangesAt();
     expect(page).not.toContain("Mock-up");
     expect(page).not.toContain(CATALOGUES.en.mockup.notKept);

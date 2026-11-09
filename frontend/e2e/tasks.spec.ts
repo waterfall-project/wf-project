@@ -40,6 +40,7 @@ function said(page: Page, text: RegExp) {
 interface Exported {
   readonly screen: string;
   readonly task: string;
+  readonly headers: { readonly Authorization: string };
 }
 
 /**
@@ -64,7 +65,7 @@ async function exportedByTheApi(
     expect(read.status(), "GET task").toBe(200);
     expect(((await read.json()) as { status: string }).status).toBe("succeeded");
   }).toPass({ timeout: WORKING });
-  return { screen: `${seeded.revision}/exchanges`, task };
+  return { screen: `${seeded.revision}/exchanges`, task, headers: seeded.headers };
 }
 
 test("marking a revision gives the hand back, shows its progress, and tells on another screen its end, which comes after the change, kept in the history with a link back [WF-IHM-0080-A]", async ({
@@ -199,16 +200,17 @@ test("the route of a result hands on the file, as the attachment it names, the b
   request,
   manager,
 }) => {
-  // Un export téléchargé jusqu’au bout n’est plus disponible. The fake back serves the result of the
+  // An export downloaded to the end is no longer available (WF-DAT-0120-A). The fake back serves the result of the
   // export of the estimate, whatever the task asked, and as many times as it is asked. The route is
   // followed from the address alone: the read of a task the fake back serves first is a marking, which
   // made no result, so no entry offers the link — the component tests prove the link of the entry and
   // the screen it leaves from (`task-result.dom.test.tsx`).
   let screen = `/projects/${PROJECT}/revisions?revision_id=${REVISION}`;
   let task = "01926f3a-7c00-7000-8000-000000000935";
+  let headers: Exported["headers"] | undefined;
   if (inService) {
     test.slow();
-    ({ screen, task } = await exportedByTheApi(page, browser, request, manager));
+    ({ screen, task, headers } = await exportedByTheApi(page, browser, request, manager));
   }
   await openHydrated(page, screen);
   const result = `/tasks/${task}/result?from=${encodeURIComponent(screen)}`;
@@ -226,6 +228,13 @@ test("the route of a result hands on the file, as the attachment it names, the b
   }
   await expect(page).toHaveURL(screen);
   if (inService) {
+    // The service deletes the object and marks the result consumed after the last byte: wait for
+    // `result_url` to be null before the second navigation, or it could download again.
+    await expect(async () => {
+      const read = await request.get(`${API}/tasks/${task}`, { headers: headers ?? {} });
+      expect(read.status(), "GET task").toBe(200);
+      expect(((await read.json()) as { result_url: string | null }).result_url).toBeNull();
+    }).toPass({ timeout: WORKING });
     // The file is gone with the end of the first download: the route sends the browser back to its
     // screen, and the entry of the task says the result is refused.
     await page.evaluate((address) => {
