@@ -17,6 +17,7 @@ one of its tasks without an hour is refused. Every answer is checked against the
 from concurrent.futures import ThreadPoolExecutor
 from concurrent.futures import TimeoutError as FutureTimeout
 from dataclasses import dataclass
+from datetime import date
 from decimal import Decimal
 from typing import TYPE_CHECKING, Any
 from uuid import UUID, uuid4
@@ -28,6 +29,7 @@ from nodes_support import Tree, mark, opened, refusal
 from projects_support import PROJECTS, Scene, person
 from projects_support import scene as make_scene
 from sqlalchemy import select, update
+from workload_support import NOV_DEC, Clock, Site, day_setter, make_site
 
 from waterfall.core.cost_settings.interface import (
     CostCategoryDraft,
@@ -240,6 +242,41 @@ def test_a_marked_revision_shows_the_role_and_the_amounts_of_its_marking_after_t
     assert (line["resource_role_label"], line["uses_inactive_object"]) == ("Ingénieur", False)
     assert line["base_amount"] == "650.00"
     assert amounts(offer.tree) == before
+
+
+@pytest.mark.requirement("WF-REV-0030-A")
+def test_the_workload_of_a_marked_revision_keeps_the_calendar_the_capacity_and_the_label_of_roles(
+    api: ContractClient,
+    owner: Engine,
+    database: Database,
+    realm: TestRealm,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # Closes #2627: the plan of workload on ``marked_remaining`` reads the images of the marking,
+    # not the reference as it stands: the calendar of the role (the hours of its months), its
+    # capacity and its label (the roles keep the order of the reference as it stands).
+    site: Site = make_site(api, owner, database, realm)
+    clock: Clock = day_setter(monkeypatch)
+    clock(date(2026, 10, 15))
+    site.labour(site.task("Câblage", NOV_DEC), "352")
+    mark(site.stage, site.tree.revision)
+    asked = {"revision_id": site.tree.revision["revision_id"]}
+    before = site.plan("marked_remaining", **asked)
+    kept = next(each for each in before["roles"] if each["resource_role_id"] == str(site.worker))
+    assert kept["months"]
+    with database.transaction() as session:
+        calendar = session.scalars(
+            select(ResourceRole.calendar_id).where(ResourceRole.id == site.worker)
+        ).one()
+        session.execute(
+            update(Calendar).where(Calendar.id == calendar).values(dict.fromkeys(DAYS[:5], 4))
+        )
+        session.execute(
+            update(ResourceRole)
+            .where(ResourceRole.id == site.worker)
+            .values(label="Rôle WRK bis", monthly_hours=Decimal(1), headcount=Decimal(9))
+        )
+    assert site.plan("marked_remaining", **asked) == before
 
 
 @pytest.mark.requirement("WF-REV-0030-A")
