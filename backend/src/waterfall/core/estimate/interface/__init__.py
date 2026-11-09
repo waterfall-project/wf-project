@@ -131,6 +131,21 @@ from waterfall.core.estimate.interface.facet import (
 
 # ``indicators`` (US-1490/L1; US-1510): the indicators of an estimate and the rates it lacks.
 from waterfall.core.estimate.interface.indicators import (
+    AmountByKey as AmountByKey,
+)
+from waterfall.core.estimate.interface.indicators import (
+    EstimateIndicators as EstimateIndicators,
+)
+from waterfall.core.estimate.interface.indicators import (
+    Figure as Figure,
+)
+from waterfall.core.estimate.interface.indicators import (
+    IndicatorsAsked as IndicatorsAsked,
+)
+from waterfall.core.estimate.interface.indicators import (
+    MissingRate as MissingRate,
+)
+from waterfall.core.estimate.interface.indicators import (
     estimate_indicators as estimate_indicators,
 )
 from waterfall.core.estimate.interface.indicators import (
