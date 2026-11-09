@@ -48,6 +48,9 @@ from waterfall.core.estimate.interface.comparison import (
 
 # ``contributors`` (US-1490/L1; US-1540): the roles the lines employ.
 from waterfall.core.estimate.interface.contributors import (
+    marked_revision_has_lines as marked_revision_has_lines,
+)
+from waterfall.core.estimate.interface.contributors import (
     roles_employed as roles_employed,
 )
 
@@ -233,6 +236,7 @@ register_estimate_facts(
         subproject_is_estimated,
         subproject_estimate_lines,
         roles_employed,
+        marked_revision_has_lines,
         reinflate_project,
     )
 )

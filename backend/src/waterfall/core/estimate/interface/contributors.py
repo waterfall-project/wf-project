@@ -17,7 +17,7 @@ from sqlalchemy import select
 from waterfall.core.estimate.tables import EstimateLine
 from waterfall.core.planning.interface import node_revisions
 from waterfall.core.projects.interface import project_facts
-from waterfall.core.revisions.interface import last_marked_revision
+from waterfall.core.revisions.interface import last_marked_revision, marked_revisions
 
 if TYPE_CHECKING:
     from uuid import UUID
@@ -47,3 +47,20 @@ def roles_employed(session: Session, project_id: UUID) -> frozenset[UUID]:
     ]
     revisions = node_revisions(session, project_id, [node for node, _ in held])
     return frozenset(role for node, role in held if revisions.get(node) == revision)
+
+
+def marked_revision_has_lines(session: Session, project_id: UUID) -> bool:
+    """Tell whether a marked revision of a project bears a line of estimate (WF-CYC-0050).
+
+    The condition ``revision_has_tasks_and_lines`` of the designation, which the next state names
+    as long as no revision marked bears one: a line hangs from a task, so a line is enough.
+    """
+    marked = marked_revisions(session, project_id)
+    if not marked:
+        return False
+    nodes = list(
+        session.scalars(select(EstimateLine.node_id).where(EstimateLine.project_id == project_id))
+    )
+    return any(
+        revision in marked for revision in node_revisions(session, project_id, nodes).values()
+    )

@@ -146,7 +146,38 @@ def test_a_marked_revision_with_tasks_and_no_line_is_not_designated_naming_the_l
     )
     assert project_of(api, stage)["reference_revision_id"] is None
     assert enter_code(api, stage, "PRJ-1542").json()["state"] == "pricing"
-    assert next_of(api, stage)["missing_conditions"] == ["reference_revision_designated"]
+    # The lines condition stays named: the marked revision bears none.
+    assert next_of(api, stage)["missing_conditions"] == [
+        "revision_has_tasks_and_lines",
+        "reference_revision_designated",
+    ]
+
+
+@pytest.mark.requirement("WF-CYC-0050-A")
+def test_the_next_state_names_the_lines_condition_until_a_marked_revision_bears_a_line(
+    api: ContractClient, stage: Scene, costs: Costing
+) -> None:
+    # « Pour un projet dans chacun des états Créé et Chiffrage, l'utilisateur consulte le prochain
+    # état, son déclencheur et les conditions restantes » : `revision_has_tasks_and_lines` tant
+    # qu'aucune révision marquée ne porte de ligne.
+    lines_condition = "revision_has_tasks_and_lines"
+    assert next_of(api, stage)["current_state"] == "created"
+    assert next_of(api, stage)["missing_conditions"] == [lines_condition]
+    tree = Tree(api, stage, opened(api, stage))
+    assert next_of(api, stage)["current_state"] == "pricing"
+    assert next_of(api, stage)["missing_conditions"] == [
+        "project_code_set",
+        lines_condition,
+        "reference_revision_designated",
+    ]
+    # A line of the current revision, not marked, changes nothing.
+    estimated(tree, Lines(tree), costs)
+    assert lines_condition in next_of(api, stage)["missing_conditions"]
+    mark(stage, tree.revision)
+    assert next_of(api, stage)["missing_conditions"] == [
+        "project_code_set",
+        "reference_revision_designated",
+    ]
 
 
 @pytest.mark.requirement("WF-PRJ-0010-A")

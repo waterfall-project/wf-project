@@ -216,6 +216,7 @@ FACTS = (
     f"{ESTIMATE}.employment.subproject_is_estimated",
     f"{ESTIMATE}.employment.subproject_estimate_lines",
     f"{ESTIMATE}.contributors.roles_employed",
+    f"{ESTIMATE}.contributors.marked_revision_has_lines",
     f"{ESTIMATE}.rates.reinflate_project",
 )
 # What the socle of EP-07 registers without effect (US-1490/L1), after the planning's, and the
