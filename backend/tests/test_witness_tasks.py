@@ -9,16 +9,18 @@ the planning start of the structure —, at the identifiers and the instants the
 
 What the service reads of the loaded witness is compared with the examples of the contract
 (``nodes_planning``, ``nodes_summaries``, ``nodes_timeline``, ``nodes_milestone`` and
-``volume/nodes_thousand``), but for what the slice does not reach, listed here (``UNREACHED``):
-each entry names the EPIC that lifts it. The dates the engine computes are the expected; those of
-the file and of the volume example differ where the calendar of a task comes from the lines
-EP-07 loads, and the tests say which tasks (``test_the_dates_differ_only_...``).
+``volume/nodes_thousand``), but for what the slice does not reach (``AMOUNTS``, ``BESIDE``, the
+inscriptions and the links read as sets). The dates the engine computes are the expected; those of
+the file and of the volume example differ, for ``TASKS_OF_2594`` tasks by revision, where the
+calendar of a task comes from the lines EP-07 loads (decision of 2026-11-09, issue #2347; finding
+#2594, carried to EP-07 / US-1570). The tests name those tasks and only them (``EXCUSED``).
 """
 
+import copy
 import json
 from collections import defaultdict
 from dataclasses import replace
-from datetime import date
+from datetime import date, timedelta
 from decimal import Decimal
 from typing import TYPE_CHECKING, Any
 from uuid import UUID
@@ -67,24 +69,26 @@ OPENED = {100: 3, 101: 5, 102: 9}
 PLANNING_START = date(2026, 3, 2)
 CORE = "01926f3a-7c00-7000-8000-000000000521"
 POPULAR_TIMELINE = "01926f3a-7c00-7000-8000-000000001000"
-# What the service reads of a task that the slice does not reach, and the EPIC that lifts it.
-UNREACHED = {
-    "amounts": "the amounts, the budget and the physical progress come from the lines (EP-07)",
-    "lines": "the row numbers count the lines of the examples (EP-07)",
-    "calendar_id": "the example names no calendar for a task on the default one",
-    "reading_date": "finish_overdue is read at the day of the reading: the example's, 3 June 2026",
-    "lock_version": "a state laid counts one write of the task (US-1410)",
-    "empties": "the examples omit an empty list of predecessors or of inscriptions",
-    "risk": "the origin risk of a provision task is posed by EP-08",
-}
+# The amounts, the budget and the physical progress come from the lines (EP-07).
 AMOUNTS = {"base_amount", "budgeted_amount", "reestimated_amount", "physical_progress"}
-# The float is measured to the end of the project, which the calendars of the lines move (EP-07).
-FLOAT = {"total_float"}
-# What an example of the service answers beside the tasks, by the lines or the reading.
+# What an example of the service answers beside the tasks, by the lines or the reading: the origin
+# risk of a provision task (EP-08), the row numbers of the lines (EP-07), a state laid counting one
+# write of the task (US-1410).
 BESIDE = {"origin_risk_id", "row_number", "lock_version"}
-# The tasks the calendar of a line reaches: dates, durations and floats the engine computes on the
-# default calendar (EP-07 lifts it with the lines).
-CALENDAR = {"start", "finish", "duration", "total_float", "calendar_hours", "is_critical"}
+# What every task differs in, the core too, by the way the example is written, not by the dates:
+# the example names no calendar for a task on the default one, which the service names (DEFAULT);
+# finish_overdue is read at the day of the reading, the example's being 3 June 2026; total_float is
+# measured to the end of the project, which the tasks of #2594 move, and differs on tasks of the
+# core whose dates are the file's ("Dossier de conception", "Mise en service").
+DEFAULT = "01926f3a-7c00-7000-8000-000000000481"
+READING = {"calendar_id", "finish_overdue", "total_float"}
+# Decision of 2026-11-09 (issue #2347, finding #2594, carried to EP-07 / US-1570): TASKS_OF_2594
+# tasks by revision are dated by the engine otherwise than the file and the volume example do,
+# because 103 of them hold the 4x10 calendar of the roles of their lines, which EP-07 loads, and
+# their successors and summaries follow. What the engine computes of those tasks, and of no other,
+# may differ in these fields.
+EXCUSED = {"start", "finish", "duration", "calendar_hours", "is_critical"}
+TASKS_OF_2594 = 401
 
 
 def described() -> dict[str, Any]:
@@ -333,37 +337,46 @@ def closure(volume: list[dict[str, Any]]) -> set[str]:
     return reached
 
 
+def dated_otherwise(session: Session, number: int) -> list[str]:
+    """Give the lineages of a revision whose dates the engine computed other than the file's."""
+    held = rows(session, REVISIONS[number])
+    found: list[str] = []
+    for task in file_tasks(number):
+        facet = held[UUID(task["lineage_id"])][1]
+        computed = (
+            (facet.start_date, facet.start_hours),
+            (facet.finish_date, facet.finish_hours),
+        )
+        if computed != (instants(task["start"]), instants(task["finish"])):
+            found.append(task["lineage_id"])
+    return found
+
+
 def test_the_dates_differ_from_the_file_only_for_the_tasks_a_calendar_of_a_line_reaches(
-    witness: Database, logs: Logs
+    logs: Logs, witness_loaded: Database
 ) -> None:
     # The computed is the expected: on the three revisions, the engine dates every task as the file
-    # does but those the 4x10 calendars of the lines reach (EP-07), their successors and their
-    # summaries; the core of the examples is not among them.
+    # does but TASKS_OF_2594 of them, the decision of 2026-11-09 (#2347; finding #2594, carried to
+    # EP-07 / US-1570): all among the tasks the 4x10 calendars of the lines reach, their successors
+    # and their summaries; none in the core of the examples. The count is exact on every revision.
     volume = example("volume/nodes_thousand")["items"]
     reached = closure(volume)
-    node_of_lineage = {
-        item["lineage_id"]: item["node_id"] for item in volume if item["kind"] == "task"
-    }
+    lineages_reached = {item["lineage_id"] for item in volume if item["node_id"] in reached}
+    core = {each["node_id"] for each in core_items()}
+    core_lineages = {item["lineage_id"] for item in volume if item["node_id"] in core}
+    assert core_lineages
     differing_counts: dict[int, int] = {}
-    with witness.transaction() as session:
-        for number, revision in REVISIONS.items():
-            held = rows(session, revision)
-            differing: list[str | None] = []
-            for task in file_tasks(number):
-                facet = held[UUID(task["lineage_id"])][1]
-                computed = (
-                    (facet.start_date, facet.start_hours),
-                    (facet.finish_date, facet.finish_hours),
-                )
-                if computed != (instants(task["start"]), instants(task["finish"])):
-                    differing.append(node_of_lineage.get(task["lineage_id"]))
-            assert set(differing) <= reached
-            assert not set(differing) & {each["node_id"] for each in core_items()}
+    with witness_loaded.transaction() as session:
+        for number in REVISIONS:
+            differing = dated_otherwise(session, number)
+            assert len(set(differing)) == len(differing)
+            assert set(differing) <= lineages_reached
+            assert not set(differing) & core_lineages
             differing_counts[number] = len(differing)
-    assert all(differing_counts.values())
+    assert differing_counts == dict.fromkeys(REVISIONS, TASKS_OF_2594)
     # The loader notes how many, revision after revision.
     noted = {r["revision"]: r["tasks"] for r in logs.named("witness.tasks_dated_by_the_engine")}
-    assert noted in ({}, differing_counts)
+    assert noted == differing_counts
 
 
 def core_items() -> list[dict[str, Any]]:
@@ -381,7 +394,7 @@ def test_the_loading_notes_for_each_revision_how_many_tasks_the_engine_dated_oth
     del witness_loaded
     noted = logs.named("witness.tasks_dated_by_the_engine")
     assert sorted(record["revision"] for record in noted) == [100, 101, 102]
-    assert all(record["tasks"] > 0 for record in noted)
+    assert [record["tasks"] for record in noted] == [TASKS_OF_2594] * 3
 
 
 READS = {
@@ -405,8 +418,14 @@ def normal(entries: list[dict[str, Any]] | None, dropped: str = "") -> list[str]
     )
 
 
-def difference(read_node: dict[str, Any], expected: dict[str, Any], *, calendar: bool) -> list[str]:
-    """Name what a node read differs in from the example, but for what the slice does not reach."""
+def difference(
+    read_node: dict[str, Any], expected: dict[str, Any], *, excused: bool = False
+) -> list[str]:
+    """Name what a node read differs in from the example, but for what the slice does not reach.
+
+    A task of #2594 (``excused``) may differ in ``EXCUSED``, and those fields are not compared; any
+    other task is compared on them too.
+    """
     found: list[str] = []
     for key in set(read_node) | set(expected):
         if key in BESIDE | {"task", "predecessors"}:
@@ -415,9 +434,14 @@ def difference(read_node: dict[str, Any], expected: dict[str, Any], *, calendar:
             found.append(key)
     ours, theirs = read_node["task"], expected["task"]
     for key in set(ours) | set(theirs):
-        if key in AMOUNTS | FLOAT | {"calendar_id", "finish_overdue", "tracking", "origin_risk_id"}:
+        if key in AMOUNTS | {"tracking", "origin_risk_id"}:
             continue
-        if key in CALENDAR and calendar:
+        if key in READING:
+            # Not a matter of #2594: the cause is named with READING, for every task.
+            if key == "calendar_id" and theirs.get(key) is None and ours.get(key) != DEFAULT:
+                found.append(f"task.{key}")
+            continue
+        if excused and key in EXCUSED:
             continue
         if ours.get(key) != theirs.get(key):
             found.append(f"task.{key}")
@@ -442,7 +466,19 @@ def test_the_readings_of_the_loaded_witness_are_the_examples_but_for_what_it_doe
     expected = example(name)
     wanted = {item["node_id"]: item for item in expected["items"] if item["kind"] == "task"}
     got = {item["node_id"]: item for item in body["items"]}
-    reached = closure(example("volume/nodes_thousand")["items"])
+    with witness.transaction() as session:
+        dated = set(dated_otherwise(session, 102))
+    # The tasks of #2594: those the engine dates otherwise, and the 103 that hold the calendar of
+    # ten hours, whose calendar_hours differ even where their dates, by chance, do not.
+    holders = {
+        item["node_id"]
+        for item in example("volume/nodes_thousand")["items"]
+        if item["kind"] == "task" and item["task"]["calendar_hours"]["monday"] == "10"
+    }
+    excused = {each["node_id"] for each in file_tasks(102) if each["lineage_id"] in dated}
+    assert len(excused) == TASKS_OF_2594
+    assert len(holders) == 103
+    excused |= holders
     if name == "nodes_summaries":
         # The reading answers the three summaries and every one the filter keeps of the tree.
         assert wanted.keys() <= got.keys()
@@ -450,7 +486,7 @@ def test_the_readings_of_the_loaded_witness_are_the_examples_but_for_what_it_doe
     assert got.keys() == wanted.keys()
     assert len(got) == len(wanted)
     for node_id, item in wanted.items():
-        found = difference(got[node_id], item, calendar=node_id in reached)
+        found = difference(got[node_id], item, excused=node_id in excused)
         if name == "nodes_summaries":
             found = [each for each in found if each not in VARIANT_KEYS]
             if node_id == VARIANT:
@@ -471,6 +507,21 @@ def test_the_readings_of_the_loaded_witness_are_the_examples_but_for_what_it_doe
         assert all(i["origin_risk_id"] is None for i in body["items"])
         ten = [i for i in wanted.values() if i["task"]["calendar_hours"]["monday"] == "10"]
         assert len(ten) == 103
+
+
+def test_the_comparison_fails_on_a_date_of_the_core_moved_by_a_day() -> None:
+    # The comparison bites: a task of the core, outside the tasks of #2594, whose start is one day
+    # off is a difference; the same difference is excused only when the task is one of #2594.
+    item = next(each for each in example("nodes_planning")["items"] if each["kind"] == "task")
+    moved = copy.deepcopy(item)
+    start = date.fromisoformat(item["task"]["start"]["date"])
+    moved["task"]["start"]["date"] = (start + timedelta(days=1)).isoformat()
+    assert difference(item, item) == []
+    assert difference(moved, item) == ["task.start"]
+    assert difference(moved, item, excused=True) == []
+    # What is excused is not the amounts nor the row numbers: a label off is a difference anyway.
+    moved["task"]["label"] = "Autre"
+    assert difference(moved, item, excused=True) == ["task.label"]
 
 
 def test_two_platforms_loaded_with_the_witness_hold_the_same_tasks(
@@ -517,9 +568,8 @@ def test_a_second_loading_finds_the_tasks_there_and_writes_nothing(
     assert before[0] == 997 + 997 + 1000
 
 
-def loaded_tasks(number: int, current: int = 102) -> tuple[TaskLoad, ...]:
+def loaded_tasks(number: int) -> tuple[TaskLoad, ...]:
     """Give the tasks of a revision as the planning loads them, at the identifiers of the file."""
-    del current
     return tuple(
         TaskLoad(
             node_id=UUID(task["node_id"]),
@@ -610,3 +660,99 @@ def test_a_copy_under_other_identifiers_is_written_again_under_the_ones_of_the_f
     common = offer.keys() & reference.keys()
     assert len(common) == 996
     assert all(offer[each] != reference[each] for each in common)
+
+
+def test_a_kept_task_moved_under_a_created_one_is_written_after_its_parent(
+    witness: Database,
+) -> None:
+    # The created are inserted before the changes of the kept are flushed: a task of the revision in
+    # progress, kept at its identifier, is described again under a task the revision does not hold.
+    tasks = loaded_tasks(102)
+    leaves = [each for each in tasks if each.lineage_id not in {t.parent_lineage_id for t in tasks}]
+    created = replace(
+        leaves[2],
+        node_id=UUID("01926f3a-7c00-7000-8000-00000000f001"),
+        lineage_id=UUID("01926f3a-7c00-7000-8000-00000000f101"),
+        label="Tâche créée",
+        position=900,
+        links=(),
+    )
+    moved = leaves[0]
+    reparented = tuple(
+        replace(each, parent_lineage_id=created.lineage_id, position=1) if each is moved else each
+        for each in tasks
+    )
+    with witness.transaction() as session:
+        place = Place(PRJ_001, REVISION_102, structure_of(session, REVISION_102))
+        before = {node.id for node, _ in rows(session, REVISION_102).values()}
+        act = Act(author=None, at=instant(OPENED[102]))
+        load_tasks(session, place, TasksLoad(PLANNING_START, (*reparented, created)), act)
+        after = rows(session, REVISION_102)
+        assert len(after) == 1001
+        node = after[moved.lineage_id][0]
+        assert (node.id, node.parent_id, node.rank) == (moved.node_id, created.node_id, 1)
+        assert node.id in before
+        assert after[created.lineage_id][0].id == created.node_id
+
+
+def test_a_task_kept_under_another_identifier_is_written_again_with_its_lineage_its_links_and_state(
+    witness: Database,
+) -> None:
+    # The lineage, the links (read by lineage, so by the identifier of their other end) and the
+    # state of a task the revision holds under another identifier than the file's survive its being
+    # written again. The test of the links above covers the loaded witness, not this reconciling.
+    tasks = loaded_tasks(102)
+    summaries = {each.parent_lineage_id for each in tasks}
+    successors = {link.predecessor_lineage_id for each in tasks for link in each.links}
+    again = next(
+        each
+        for each in tasks
+        if each.lineage_id not in summaries
+        and each.lineage_id in successors
+        and each.links
+        and each.progress != "not_started"
+    )
+    other = UUID("01926f3a-7c00-7000-8000-00000000f002")
+    renamed = tuple(replace(each, node_id=other) if each is again else each for each in tasks)
+    with witness.transaction() as session:
+        place = Place(PRJ_001, REVISION_102, structure_of(session, REVISION_102))
+        act = Act(author=None, at=instant(OPENED[102]))
+        load_tasks(session, place, TasksLoad(PLANNING_START, renamed), act)
+        after = rows(session, REVISION_102)
+        assert len(after) == 1000
+        node, facet = after[again.lineage_id]
+        assert node.id == other
+        assert again.node_id not in {each.id for each, _ in after.values()}
+        assert (facet.progress, facet.started_on, facet.completed_on) == (
+            again.progress,
+            again.started_on,
+            again.completed_on,
+        )
+        by_id = {each.id: lineage for lineage, (each, _) in after.items()}
+        found = {
+            (
+                by_id[link.successor_id],
+                by_id[link.predecessor_id],
+                link.link_type,
+                link.lag_value,
+                link.lag_unit,
+            )
+            for link in session.scalars(
+                select(TaskLink).where(TaskLink.revision_id == REVISION_102)
+            )
+        }
+        expected = {
+            (
+                each.lineage_id,
+                link.predecessor_lineage_id,
+                link.link_type,
+                link.lag_value,
+                link.lag_unit,
+            )
+            for each in tasks
+            for link in each.links
+        }
+        assert found == expected
+        # The task is the end of links on both sides, and they now name the new identifier.
+        assert any(each.successor_id == other for each in session.scalars(select(TaskLink)))
+        assert any(each.predecessor_id == other for each in session.scalars(select(TaskLink)))

@@ -8,6 +8,8 @@ from collections import Counter
 from datetime import date
 from typing import TYPE_CHECKING, Any
 
+import pytest
+
 from wftools import (
     REPOSITORY,
     mockchronology,
@@ -21,6 +23,8 @@ from wftools import mockwitnesstasks as module
 
 if TYPE_CHECKING:
     from wftools.mockwitness import Task
+
+pytestmark = pytest.mark.requirement("WF-QUA-0040-A")
 
 FILE = REPOSITORY / "fixtures" / "api" / module.NAME
 

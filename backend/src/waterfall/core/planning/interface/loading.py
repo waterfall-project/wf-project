@@ -213,10 +213,13 @@ def _reconciled(session: Session, place: Place, load: TasksLoad, act: Act) -> No
                 "is_critical": False,
             }
         )
-    session.flush()
+    # The created are inserted before the changes of the kept are flushed: a kept task moved under
+    # a created one would otherwise be written before its parent exists.
     if created:
-        session.execute(insert(Node), created)
-        session.execute(insert(Task), task_rows)
+        with session.no_autoflush:
+            session.execute(insert(Node), created)
+            session.execute(insert(Task), task_rows)
+    session.flush()
 
 
 def _linked(session: Session, place: Place, load: TasksLoad) -> None:
