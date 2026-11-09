@@ -11,7 +11,7 @@ A revision is read as it stands: a marked one keeps the dates its marking froze.
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
-from waterfall.core.estimate.costing import calendar_hours
+from waterfall.core.estimate.costing import calendar_hours, week_of
 from waterfall.core.estimate.reading import COMPLETED, rows_of
 from waterfall.core.estimate.spreading import Placement, WorkWeek
 from waterfall.core.planning.interface import NodeFilters, Place, lines_of, list_nodes
@@ -24,6 +24,7 @@ if TYPE_CHECKING:
 
     from sqlalchemy.orm import Session
 
+    from waterfall.core.estimate.imaging import KeptReference
     from waterfall.core.estimate.tables import EstimateLine
     from waterfall.core.planning.interface import TaskView
 
@@ -65,10 +66,20 @@ def placed_lines(session: Session, project_id: UUID, revision_id: UUID) -> list[
     ]
 
 
-def role_weeks(session: Session, role_ids: Collection[UUID]) -> dict[UUID, WorkWeek]:
-    """Give the week of work of each role named: the calendar of the reference it names."""
-    calendars = role_calendars(session, role_ids)
-    weeks = calendar_hours(session, calendars.values())
+def role_weeks(
+    session: Session, role_ids: Collection[UUID], kept: KeptReference | None = None
+) -> dict[UUID, WorkWeek]:
+    """Give the week of work of each role named: the calendar of the reference it names.
+
+    A marked revision gives its ``kept`` images, which a role or a calendar they lack leaves to
+    the reference as it stands (a revision marked before US-1500 keeps none).
+    """
+    images = {} if kept is None else {each.resource_role_id: each for each in kept.resource_roles}
+    held = {} if kept is None else {each.calendar_id: each for each in kept.calendars}
+    calendars = role_calendars(session, [each for each in role_ids if each not in images])
+    calendars.update({each: images[each].calendar_id for each in role_ids if each in images})
+    live = calendar_hours(session, [each for each in calendars.values() if each not in held])
+    weeks = {each: week_of(held[each].weekly_hours) for each in held} | live
     return {role_id: WorkWeek(weeks[calendar_id]) for role_id, calendar_id in calendars.items()}
 
 

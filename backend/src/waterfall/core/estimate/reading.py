@@ -3,8 +3,9 @@
 """The lines as ``listNodes`` reads them, private to the module (WF-DEV-0020, WF-DEV-0050).
 
 The facet of a line (``EstimateLineFacet``): its figures and its kept amounts, the labels of its
-category, its role and its subproject resolved, the object active or deactivated (WF-REF-0150),
-whether it uses a deactivated one (``uses_inactive_object``, WF-REF-0010), whether it accepts a
+category, its role and its subproject resolved, the object active or deactivated (WF-REF-0150) —
+those its marked revision keeps, as they were at its marking (US-1500) —, whether it uses a
+deactivated one (``uses_inactive_object``, WF-REF-0010), whether it accepts a
 re-estimate (``remaining_entry``, ``task_not_completed``) — the previous figures null until EP-09,
 ``is_computed`` false until the provision lines of EP-08 —, its budgeted amount read as its
 re-estimated one when the project had no reference at its creation; and the fields it computes and
@@ -22,9 +23,10 @@ from typing import TYPE_CHECKING
 
 from sqlalchemy import select
 
-from waterfall.core.cost_settings.interface import category_labels
+from waterfall.core.cost_settings.interface import CategoryLabel, category_labels
+from waterfall.core.estimate.imaging import kept_labels
 from waterfall.core.estimate.tables import EstimateLine
-from waterfall.core.planning.interface import Amounts, FacetRead
+from waterfall.core.planning.interface import Amounts, FacetRead, node_revisions
 from waterfall.core.projects.interface import subproject_has_actual_costs, subproject_labels
 from waterfall.core.resource_settings.interface import read_roles
 
@@ -140,37 +142,74 @@ def totals_of(
     }
 
 
-def _views(
-    session: Session, project_id: UUID, rows: list[EstimateLine]
-) -> dict[UUID, tuple[LineView, bool]]:
-    """Give the view of each line, and whether its subproject received actual costs."""
+@dataclass(frozen=True, slots=True)
+class _Named:
+    """The category and the role of a line as it reads them: on its revision's images, if any."""
+
+    category: CategoryLabel | None
+    role: tuple[str, bool] | None
+
+
+def _named(session: Session, project_id: UUID, rows: list[EstimateLine]) -> dict[UUID, _Named]:
+    """Give, by line, its category and its role: kept by its marked revision, or of the reference.
+
+    A marked revision is read on its images (WF-REV-0030, WF-REF-0130): the labels and the states
+    of its roles and its categories at its marking; a current one, or one marked before US-1500,
+    on the reference.
+    """
+    revisions = node_revisions(session, project_id, [row.node_id for row in rows])
+    kept = kept_labels(session, project_id, set(revisions.values()))
     categories = category_labels(session, {row.cost_category_id for row in rows})
     roles = {
-        role.resource_role_id: role
+        role.resource_role_id: (role.label, role.is_active)
         for role in read_roles(
             session,
             {row.resource_role_id for row in rows if row.resource_role_id is not None},
             may_change=False,
         )
     }
+    found: dict[UUID, _Named] = {}
+    for row in rows:
+        revision = revisions.get(row.node_id)
+        held = None if revision is None else kept.get(revision)
+        category = categories.get(row.cost_category_id)
+        role = None if row.resource_role_id is None else roles.get(row.resource_role_id)
+        if held is not None:
+            category = held.categories.get(row.cost_category_id, category)
+            if row.resource_role_id is not None:
+                role = held.roles.get(row.resource_role_id, role)
+        found[row.node_id] = _Named(category, role)
+    return found
+
+
+def _views(
+    session: Session,
+    project_id: UUID,
+    rows: list[EstimateLine],
+    named: Mapping[UUID, _Named] | None = None,
+) -> dict[UUID, tuple[LineView, bool]]:
+    """Give the view of each line, and whether its subproject received actual costs.
+
+    ``named`` the category and the role of each line, if its caller read them already.
+    """
+    named = _named(session, project_id, rows) if named is None else named
     subprojects = {row.subproject_id for row in rows if row.subproject_id is not None}
     labels = subproject_labels(session, project_id, subprojects)
     costs = {each for each in subprojects if subproject_has_actual_costs(session, each)}
     found: dict[UUID, tuple[LineView, bool]] = {}
     for row in rows:
-        category = categories.get(row.cost_category_id)
-        role = None if row.resource_role_id is None else roles.get(row.resource_role_id)
+        category, role = named[row.node_id].category, named[row.node_id].role
         inactive = (
             category is None
             or not (category.is_active and category.cost_type_is_active)
-            or (role is not None and not role.is_active)
+            or (role is not None and not role[1])
         )
         view = LineView(
             label=row.label,
             cost_category_id=row.cost_category_id,
             cost_category_label="" if category is None else category.label,
             resource_role_id=row.resource_role_id,
-            resource_role_label=None if role is None else role.label,
+            resource_role_label=None if role is None else role[0],
             quantity=row.quantity,
             hours=row.hours,
             unit_disbursement=row.unit_disbursement,
@@ -226,9 +265,14 @@ def _within(value: Decimal | int | None, bounds: Bounds[Decimal]) -> bool:
     return (low is None or low <= value) and (high is None or value <= high)
 
 
-def _tests(
-    asked: LineFilters, cost_types: Mapping[UUID, UUID | None]
-) -> list[Callable[[LineView], bool]]:
+def _of_type(category: CategoryLabel | None, cost_type_id: UUID | None) -> bool:
+    """Tell whether a line's category is of the nature a filter asks, if it asks one."""
+    if cost_type_id is None:
+        return True
+    return category is not None and category.cost_type_id == cost_type_id
+
+
+def _tests(asked: LineFilters) -> list[Callable[[LineView], bool]]:
     """Give the tests of a line the filters ask for, each on the line alone."""
     tests: list[Callable[[LineView], bool]] = [
         lambda line: _within(line.quantity, asked.quantity),
@@ -249,8 +293,6 @@ def _tests(
         tests.append(lambda line: line.cost_category_id == asked.cost_category_id)
     if asked.resource_role_id is not None:
         tests.append(lambda line: line.resource_role_id == asked.resource_role_id)
-    if asked.cost_type_id is not None:
-        tests.append(lambda line: cost_types.get(line.cost_category_id) == asked.cost_type_id)
     if asked.uses_inactive_object is not None:
         tests.append(lambda line: line.uses_inactive_object is asked.uses_inactive_object)
     return tests
@@ -263,14 +305,14 @@ def filter_lines(
     if not isinstance(asked, LineFilters):
         return frozenset(node_ids)
     rows = rows_of(session, project_id, node_ids)
-    views = _views(session, project_id, rows)
-    cost_types = {
-        each: label.cost_type_id
-        for each, label in category_labels(session, {row.cost_category_id for row in rows}).items()
-    }
-    tests = _tests(asked, cost_types)
+    named = _named(session, project_id, rows)
+    views = _views(session, project_id, rows, named)
+    tests = _tests(asked)
     return frozenset(
-        node_id for node_id, (view, _) in views.items() if all(test(view) for test in tests)
+        node_id
+        for node_id, (view, _) in views.items()
+        if all(test(view) for test in tests)
+        and _of_type(named[node_id].category, asked.cost_type_id)
     )
 
 

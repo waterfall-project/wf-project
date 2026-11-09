@@ -451,24 +451,22 @@ describe("the parts of the revision the screen reads in", () => {
       "Mise à jour des taux proposée Le référentiel n’a pas changé : aucune mise à jour des taux n’est proposée.",
     );
     expect(text(page)).not.toContain("Taux de l’année");
+    // Without a proposal, the structures and the abandon are still rendered.
+    expect(text(page)).toContain("Structures de coûts");
+    expect(offered(page, "Abandonner la révision en cours")).toBe("available");
   });
 
-  it("renders without a rate update when getRateUpdateProposal answers 404, the service serving none before EP-07, its commands and structures shown, the abandon included (WF-REV-0010-A, #2173)", async () => {
+  it("fails as any read does when getRateUpdateProposal answers 404, the service serving the proposal (US-1530) [WF-REV-0060-A]", async () => {
     server.answers = {
       ...server.answers,
       "GET /projects/{project_id}/revisions/{revision_id}/rate-update": NOT_FOUND,
     };
-    const page = html(await RevisionsPage(at({ revision_id: DRAFT })));
-    expect(callTo("GET /projects/{project_id}/revisions/{revision_id}/rate-update")?.path).toBe(
-      `${REVISIONS}/${DRAFT}/rate-update`,
-    );
-    expect(text(page)).not.toContain("Mise à jour des taux");
-    expect(offered(page, "Appliquer la mise à jour des taux")).toBe("absent");
-    expect(offered(page, "Abandonner la révision en cours")).toBe("available");
-    expect(table(page, "Structures de coûts")).toContain("Structure principale");
+    await expect(RevisionsPage(at({ revision_id: DRAFT }))).rejects.toMatchObject({
+      digest: "NEXT_HTTP_ERROR_FALLBACK;404",
+    });
   });
 
-  it("fails as any read does when getRateUpdateProposal answers other than 404", async () => {
+  it("fails as any read does when getRateUpdateProposal answers an error", async () => {
     server.answers = {
       ...server.answers,
       "GET /projects/{project_id}/revisions/{revision_id}/rate-update": {
