@@ -128,6 +128,33 @@ export async function attachToService(
 }
 
 /**
+ * Give an account a family name of its own, as the administrator does: the local accounts all bear
+ * the same name, and a screen that lists the accounts of a service cannot tell them apart. The
+ * account returned is the same, under its new display name (first name, then last name).
+ */
+export async function renameAccount(
+  browser: Browser,
+  calls: APIRequestContext,
+  account: LocalPerson,
+): Promise<LocalPerson> {
+  const headers = { Authorization: `Bearer ${await frontToken(browser, ADMINISTRATOR)}` };
+  const read = await calls.get(`${API}/users/${account.id}`, { headers });
+  expect(read.status(), "GET user").toBe(200);
+  const { lock_version, first_name, last_name } = (await read.json()) as {
+    lock_version: number;
+    first_name: string;
+    last_name: string;
+  };
+  const renamed = `${last_name}-${randomBytes(4).toString("hex")}`;
+  const written = await calls.patch(`${API}/users/${account.id}`, {
+    headers,
+    data: { last_name: renamed, lock_version },
+  });
+  expect(written.status(), "PATCH user name").toBe(200);
+  return { ...account, name: `${first_name} ${renamed}` };
+}
+
+/**
  * Create a labour line of the role under a task of the main structure of a revision, by the API,
  * under the token of the creator of the project: the line the estimate employs the role by.
  */
