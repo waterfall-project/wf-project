@@ -245,6 +245,12 @@ Relevés par les revues locales d'EP-06 et reportés ici par l'auteur le 2026-11
   d'`installation` dans la migration du socle, la valeur fixée par `waterfall-api install` avec un
   défaut livré — et branche dessus la fonction du jour courant qu'US-1380/L4 (#2519) a regroupée,
   avec un test de borne près de minuit.
+- #2594 [EP-06] — les dates du témoin chargé : les 103 tâches à calendrier 4×10 h tiennent ce
+  calendrier du rôle de leurs lignes, et le moteur date autrement 401 tâches par révision avant
+  elles. La frise et le focus de `timelines.spec.ts` restent sur le faux back en EP-06, sautés
+  contre le service en citant #2594 ; US-1570 les étiquette `@shared` une fois la tranche des
+  lignes chargée, et la comparaison de `nodes_timeline` du test du chargeur cesse d'ignorer ces
+  dates (décision de l'utilisateur du 2026-11-09, EP-06, #2347, option A).
 
 ## Conception
 
