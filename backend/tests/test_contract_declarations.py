@@ -506,7 +506,8 @@ def test_an_operation_that_lacks_either_is_found(tmp_path: Path) -> None:
 #
 # The same holds of the parameters read as text by a model of the query or by a route, whose
 # refusal the contract names (#2185): the decimal bounds of the grid of the hourly rates and of the
-# roles of resource (``pattern``), the actions of the journal (``minItems``). The correlation of
+# roles of resource (``pattern``), the actions of the journal (``minItems``), the scope of the
+# indicators of an estimate (``getEstimateIndicators``). The correlation of
 # the journal is declared by its model (``Field(pattern=CORRELATION)``, ``api/audit.py``), which
 # FastAPI does not describe: a blind spot of this comparison, which reads the application
 # description. The decision on these drifts is still to take (#2303).
@@ -546,6 +547,12 @@ CHECKED_BY_THE_ROUTE: dict[tuple[str, str, str], str] = {
     # The lists of ``listNodes`` the route reads, each value and the list judged there (US-1380/L2).
     ("listNodes", "query", "fields"): "declared nothing, contract min_items=1",
     ("listNodes", "query", "origin_risk_ids"): "declared nothing, contract min_items=1",
+    # The scope of the indicators of an estimate: ``project``, ``unassigned`` or a subproject, read
+    # as text and judged by the route, whose refusal the contract names in 422, on the parameter
+    # (``UNKNOWN_SUBPROJECT``, ``getEstimateIndicators``, US-1510).
+    ("getEstimateIndicators", "query", "scope"): (
+        "declared nothing, contract either=(enum={'project', 'unassigned'} | nothing)"
+    ),
     ("listContributors", "query", "sort_by"): (
         "declared pattern='^(display_name|kind|is_active)$', "
         "contract enum={'display_name', 'is_active', 'kind'}"

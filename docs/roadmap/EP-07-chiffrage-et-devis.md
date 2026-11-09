@@ -1076,7 +1076,7 @@ l'import de reste à engager (EP-09) ; l'indice de coût (EP-10).
 
 ## US-1510 — Les indicateurs de devis et les taux manquants
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-DEV-0060-A`, `WF-DEV-0010-A`
 - **opérations** : `getEstimateIndicators`, `getMissingRates`
 - **issue** : 2363
@@ -1127,7 +1127,7 @@ de totaux sert `NodeTotals` de `listNodes` (US-1490) et les ventilations.
 
 ## US-1520 — Le plan de charge sur le devis, et la valeur planifiée
 
-- **statut** : en cours
+- **statut** : fini
 - **exigences** : `WF-DEV-0070-A`, `WF-DEV-0080-A`
 - **opérations** : `getProjectWorkload` ; `listRevisions`, `listOrgNodes` que l'écran lit
 - **issue** : 2364

@@ -16,13 +16,16 @@
  * of the cell to the last one filled in that order, reaches a column the grid does not show —
  * hidden, or that the grid does not present at all —, which would write what the user cannot see
  * (`hidden`), named; and a block whose rows would fill a row of the plan the grid does not show at
- * the same distance under the cell — folded away, left out by a search or a filter, moved by a sort,
- * or past the last row shown —: the server fills the rows of the plan under the cell's, which the
- * grid knows by their numbers in the whole structure (`row_number`), not the rows shown after it
- * (`unshownRows`, L40, #527). Otherwise the server says what it
- * would write and refuse, with the reason of each refusal, and writes nothing (`GridPaste.preview`);
+ * the same distance under the cell — folded away, left out by a search or a filter, or moved by a
+ * sort —: the server fills the rows of the plan under the cell's, which the grid knows by their
+ * numbers in the whole structure (`row_number`), not the rows shown after it (`unshownRows`, L40,
+ * #527). A block taller than the rows shown is no longer refused: the lines past the last node of
+ * the structure create tasks, which the server says in the plan (`created`, #2559). Otherwise the
+ * server says what it would write, create and refuse, with the reason of each refusal, and writes
+ * nothing (`GridPaste.preview`);
  * the grid shows that plan, and applies it once confirmed, in one operation (`GridPaste.apply`), what
- * the server wrote taking the place of what was read (`CellWrites.applied`), the navigations of the
+ * the server wrote taking the place of what was read (`CellWrites.applied`) and the tasks it created
+ * entering the grid, which is read anew for them (`GridPaste.apply`), the navigations of the
  * page held until it answers, and dropped when it is refused (`useHeldCommand`, #688) — its valid
  * rows, a plan that refuses some applied all the same, the refused rows left as they were
  * (EP-14/L42q). The confirmation waits for any other write of the grid under way — a cell entered,
@@ -185,9 +188,10 @@ export type UnshownColumn =
 /**
  * Why the rows of the plan a refused block would fill are not those the grid shows under the cell,
  * by the cause the user may lift first: a row folded away (`folded`), the sort (`sorted`), the
- * search or a filter (`unretained`); or the block reaches past the rows shown (`beyond`).
+ * search or a filter (`unretained`). A block that reaches past the rows shown is not refused: it
+ * creates tasks (#2559).
  */
-export type UnshownRows = "folded" | "sorted" | "unretained" | "beyond";
+export type UnshownRows = "folded" | "sorted" | "unretained";
 
 /** What a refused block would fill that the grid does not show: a column, or rows. */
 export type Unshown = UnshownColumn | { readonly shown: UnshownRows };
@@ -312,7 +316,9 @@ function walkPlan<Row extends RowData, Sort extends string, Totals>(
  * the first row out of place should have shown: a row of the span folded away, sought first over the
  * whole span; that row shown elsewhere, moved by the sort; that row past the last one the answer
  * holds — the end of the plan, or rows the reading left out after it, which the grid cannot tell
- * apart, told alike with a search or without —; that row left out by a search or a filter. Nothing
+ * apart —; that row left out by a search or a filter. Past the last row of the answer, a reading
+ * that is not narrowed refuses nothing, the lines past the last node creating tasks, and a narrowed
+ * one is refused as left out by the search or the filter, which may hide rows after it. Nothing
  * for a grid that does not number its rows.
  */
 function unshownRows<Row extends RowData, Sort extends string, Totals>(
@@ -343,8 +349,8 @@ function unshownRows<Row extends RowData, Sort extends string, Totals>(
   if (shown.has(expected)) {
     return "sorted";
   }
-  const last = answered.reduce((highest, number) => Math.max(highest, number), first);
-  return read.narrowed && expected < last ? "unretained" : "beyond";
+  // Past the last row of the plan the lines create tasks; a search or a filter may hide rows there.
+  return read.narrowed ? "unretained" : undefined;
 }
 
 /** What a paste works on. */
