@@ -246,11 +246,11 @@ test("exports the estimate as an Excel file, downloads it, and sees a file that 
   manager,
 }) => {
   // WF-INTF-0110-A: the export of the estimate is a task of the shell, its file named after the
-  // revision; this test carries only that name of 0110-A, the round trip being proved by the back
-  // (`backend/tests/test_estimate_export.py`). The project holds no line of estimate: the export
-  // is of an empty estimate. The proxy of the contract (Prism) reads every body as text and spoils the bytes of a
-  // workbook (#973), so the file is neither inspected nor imported back here: the round trip, the
-  // report and the application are proved by the back (`test_estimate_export.py`).
+  // revision; this test carries only that name of 0110-A. The project holds no line of estimate:
+  // the export is of an empty estimate. The proxy of the contract (Prism) reads every body as
+  // text and spoils the bytes of a workbook (#973), so the file is neither inspected nor imported
+  // back here: the round trip, the report and the application are proved by the back
+  // (`backend/tests/test_estimate_export.py`).
   test.skip(
     !inService,
     "the service keeps the file made and the import applied, the fake back not",
