@@ -48,7 +48,7 @@ from waterfall.core.planning.entries import (
 from waterfall.core.planning.filters import NodeFilters, retained
 from waterfall.core.planning.interface.facets import calendar_of, facets
 from waterfall.core.planning.interface.lines import create_line_node
-from waterfall.core.planning.interface.reading import reading_of
+from waterfall.core.planning.reading import reading_of
 from waterfall.core.planning.scheduling import Move, WorkInstant
 from waterfall.core.planning.shaping import (
     Placing,

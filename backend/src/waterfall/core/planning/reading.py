@@ -1,12 +1,13 @@
 # SPDX-FileCopyrightText: 2026 waterfall-project
 # SPDX-License-Identifier: AGPL-3.0-only
-"""What a reading of a structure derives, and a structure read whole (US-1380/L2; US-1530).
+"""What a reading derives of a structure, and a structure read whole, private to the module.
 
 ``reading_of`` reads what a reading of a structure derives once for all its nodes — its links, its
 calendars, its states —, which ``listNodes`` reads by (``nodes``). ``read_structure`` reads a
 structure whole and what the filters of a reading retain of it, without the ancestors a reading
 adds and whatever its kinds and its sort: what the comparison of two revisions reads of each
-(``compareRevisions``, US-1530), which numbers and orders their union itself.
+(``compareRevisions``, US-1530), which numbers and orders their union itself; the interface
+re-exports it beside its files, whose list the socle of EP-06 laid.
 """
 
 from dataclasses import dataclass, replace

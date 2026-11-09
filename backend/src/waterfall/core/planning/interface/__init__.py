@@ -260,14 +260,6 @@ from waterfall.core.planning.interface.progress import (
     set_task_progress as set_task_progress,
 )
 
-# ``reading`` (US-1530): a structure read whole, and what the filters of a reading retain of it.
-from waterfall.core.planning.interface.reading import (
-    StructureRead as StructureRead,
-)
-from waterfall.core.planning.interface.reading import (
-    read_structure as read_structure,
-)
-
 # ``reference`` (US-1380/L1; US-1390/L2): what the planning answers to the reference.
 from waterfall.core.planning.interface.reference import (
     redate_copy as redate_copy,
@@ -370,6 +362,16 @@ from waterfall.core.planning.interface.work_breakdown import (
 from waterfall.core.planning.interface.work_breakdown import (
     work_package_lines as work_package_lines,
 )
+
+# Beside the interface (US-1530): a structure read whole, and what a reading's filters retain of it.
+from waterfall.core.planning.reading import (
+    StructureRead as StructureRead,
+)
+from waterfall.core.planning.reading import (
+    read_structure as read_structure,
+)
+
+# Beside the interface: what a write of the tree hands the replay of the engine (#2492).
 from waterfall.core.planning.rescheduling import (
     Holding as Holding,
 )
