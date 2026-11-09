@@ -16,7 +16,8 @@ d'extension").
 Declared by US-1380/L1; filled by US-1380/L2: ``calendar_of`` gives the default calendar to a task
 whose facets name no calendar, the intersection of those they name otherwise; ``calendars_of``
 gives it to the tasks of a structure, the default read once, the calendars of the facets asked
-once. Completed by US-1490/L3 (EP-07, "Les points d'extension").
+once. Completed by US-1490/L3 (EP-07, "Les points d'extension"), and by US-1490/L4 with the
+judgement of the nodes a move gives another task (``moved``).
 """
 
 from dataclasses import dataclass
@@ -149,7 +150,8 @@ class FacetHooks:
     or year moved; ``totals`` gives the figures of each node named; ``filters`` keeps, of the
     nodes named, those a filter asked of the kind retains; ``sort`` orders them, or gives none for a
     column it does not sort; ``dependencies`` names what a computed value of a node depends on,
-    none for a field it does not compute.
+    none for a field it does not compute; ``moved`` judges the nodes a move gives another task,
+    placed under it already, in the order of the plan, and refuses what it does not accept (422).
     """
 
     read: Callable[[Session, UUID, Mapping[UUID, BearingTask]], Mapping[UUID, FacetRead]]
@@ -164,6 +166,7 @@ class FacetHooks:
     filters: Callable[[Session, UUID, Collection[UUID], object], frozenset[UUID]]
     sort: Callable[[Session, UUID, Collection[UUID], LineSort], list[UUID] | None]
     dependencies: Callable[[Session, UUID, UUID, str], tuple[str, ...] | None]
+    moved: Callable[[Session, UUID, Mapping[UUID, BearingTask]], None]
 
 
 # The hooks of each kind of node other than the task, in the order of their registration.

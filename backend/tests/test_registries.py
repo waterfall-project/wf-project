@@ -148,12 +148,14 @@ DECLARED = {
     "revisions.indicators",
     "revisions.marking",
     "revisions.designation",
+    "revisions.rate_update",
     "cost_settings.employment",
     CLOSING,
     "resource_settings.idle_task_guard",
     "resource_settings.recalculation",
     "projects.attachments",
     "projects.opening",
+    "projects.estimate_facts",
     "planning.facets",
     "exchanges.formats",
     "exchanges.exporters",
@@ -205,19 +207,33 @@ LINE_HOOKS = (
     f"{CORE}.reading.filter_lines",
     f"{CORE}.reading.sort_lines",
     f"{ESTIMATE}.facet.line_dependencies",
+    f"{ESTIMATE}.facet.judge_moved_lines",
+)
+# What the estimate answers the projects of its lines (US-1490/L4), in the order of
+# ``EstimateFacts``.
+FACTS = (
+    f"{ESTIMATE}.employment.subproject_is_cited",
+    f"{ESTIMATE}.employment.subproject_is_estimated",
+    f"{ESTIMATE}.employment.subproject_estimate_lines",
+    f"{ESTIMATE}.contributors.roles_employed",
+    f"{ESTIMATE}.rates.reinflate_project",
 )
 # What the socle of EP-07 registers without effect (US-1490/L1), after the planning's, and the
 # facet and the question of the lines US-1490/L3 registers; the registries of EP-07 come with
-# their stories (decisions of 2026-11-08, #2370).
+# their stories (decisions of 2026-11-08, #2370): the employment and the facts of the lines with
+# US-1490/L4.
 REGISTERED_BY_EP07 = {
     "planning.facets": [f"estimate_line:FacetHooks({', '.join(LINE_HOOKS)})"],
     "revisions.tasks_and_lines": [f"lines:{ESTIMATE}.lines.revision_has_lines"],
-    "revisions.copy": [f"{ESTIMATE}.rates.copy_rates"],
-    CLOSING: [f"content:{ESTIMATE}.rates.close_rates"],
+    "revisions.copy": [f"{CORE}.keeping.copy_rates"],
+    "revisions.rate_update": [f"{CORE}.keeping.rate_update_offered"],
+    CLOSING: [f"content:{CORE}.keeping.close_rates"],
     "resource_settings.idle_task_guard": [f"{ESTIMATE}.calendars.idle_tasks_for_role_calendar"],
     "exchanges.formats": [f"estimate:{ESTIMATE}.excel.EstimateFormat"],
     "exchanges.exporters": [f"estimate:{ESTIMATE}.excel.EstimateExporter"],
     "witness.revision_fillers": ["waterfall.witness.estimate_lines.fill"],
+    "cost_settings.employment": [f"{ESTIMATE}.employment.category_is_employed"],
+    "projects.estimate_facts": [f"EstimateFacts({', '.join(FACTS)})"],
 }
 # The entry point that does not import the interface of the estimate yet: the worker, until the
 # story of US-1500 that writes the marking imports it (EP-07, "Le worker"), after #2341.
@@ -267,16 +283,15 @@ def test_every_registry_holds_what_the_socle_of_ep07_registers_after_the_plannin
     everything: dict[str, list[str]],
 ) -> None:
     # The extensions of the estimate, each after those of EP-06 in its registry; nothing yet in the
-    # registries EP-07 declares.
+    # registries of the marking and the designation, which US-1500 fills.
     for name, entries in REGISTERED_BY_EP07.items():
         held = [entry for entry in everything[name] if entry not in REGISTERED.get(name, [])]
         assert held == entries, name
     for name in (
         "revisions.marking",
         "revisions.designation",
-        "cost_settings.employment",
     ):
-        assert not any(ESTIMATE in entry for entry in everything[name]), name
+        assert not any(CORE in entry for entry in everything[name]), name
 
 
 @pytest.mark.parametrize("entry_point", sorted(ENTRY_POINTS))
@@ -290,7 +305,7 @@ def test_each_entry_point_holds_every_extension_of_the_registries_it_reads(
         name: [
             entry
             for entry in entries
-            if entry_point not in WITHOUT_ESTIMATE or f"{ESTIMATE}." not in entry
+            if entry_point not in WITHOUT_ESTIMATE or f"{CORE}." not in entry
         ]
         for name, entries in everything.items()
         if entry_point == "loader" or not name.startswith(WITNESS)

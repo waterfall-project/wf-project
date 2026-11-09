@@ -79,9 +79,13 @@ from waterfall.core.planning.interface.facets import (
     register_facet as register_facet,
 )
 
-# ``lines`` (US-1380/L1; US-1490/L3): the lines of a task, their place, their writes, for EP-07.
+# ``lines`` (US-1380/L1; US-1490/L3, L4): the lines of a task, their place, their writes, where
+# they stand, for EP-07.
 from waterfall.core.planning.interface.lines import (
     FacetChange as FacetChange,
+)
+from waterfall.core.planning.interface.lines import (
+    NodeRow as NodeRow,
 )
 from waterfall.core.planning.interface.lines import (
     create_line_node as create_line_node,
@@ -96,7 +100,16 @@ from waterfall.core.planning.interface.lines import (
     lines_of_revision as lines_of_revision,
 )
 from waterfall.core.planning.interface.lines import (
+    node_revisions as node_revisions,
+)
+from waterfall.core.planning.interface.lines import (
+    node_rows as node_rows,
+)
+from waterfall.core.planning.interface.lines import (
     revision_bears as revision_bears,
+)
+from waterfall.core.planning.interface.lines import (
+    structures_of as structures_of,
 )
 from waterfall.core.planning.interface.lines import (
     write_facet as write_facet,
