@@ -446,15 +446,14 @@ def _together[Judged](judge: Callable[[], Judged], attached: Attached) -> Judged
 def judge_creation(ground: Ground, creation: NodeCreation, node_id: UUID) -> CreationJudged:
     """Judge a task to create on the tree of a ground, as ``createNode`` does; nothing is written.
 
-    Its parent, a task of the structure and no milestone (``MILESTONE_HAS_NO_SUBTASK``, the
-    milestone named, WF-PLA-0050), its facet with its attachment, all refusals at once, then its
-    place (``NODE_NOT_SIBLING``). A paste calls it for each row past the last node (#2559).
+    Its parent, a task and no milestone (``MILESTONE_HAS_NO_SUBTASK``, WF-PLA-0050), its facet
+    with its attachment, all refusals at once, then its place (``NODE_NOT_SIBLING``). A paste calls
+    it for each row past the last node (#2559); a task alone, whose entry must be given.
     """
     session, tree = ground.session, ground.tree
-    entry = creation.task
+    parent, entry = creation.parent_id, creation.task
     if entry is None:
         raise ValueError("a task is created with its entry")
-    parent = creation.parent_id
     _judge_parent(tree, parent)
     applicable = calendar_of(session, ground.project_id, node_id).calendar
     lineage = () if parent is None else (parent, *tree.ancestors(parent))
@@ -566,9 +565,8 @@ def create_node(
     (``NODE_NOT_SIBLING``), its facet — an automatic task of a day by default, a manual one at the
     dates sent, their hours completed on its calendar (#1769, WF-PLA-0020), its attachment to the
     work breakdown under its parent (WF-PLA-0170). A manual leaf that receives it becomes a
-    summary, always automatic (WF-PLA-0040), and is written with it. Beyond fifteen years, refused
-    naming the task by its label (WF-PLA-0150); nothing is created. A node of another kind is placed
-    and written by ``lines``, its facet by the hooks of its kind.
+    summary, always automatic (WF-PLA-0040). Beyond fifteen years, refused naming the task by its
+    label (WF-PLA-0150). Another kind goes to ``lines``.
     """
     entry = creation.task
     if creation.kind != TASK or entry is None:
