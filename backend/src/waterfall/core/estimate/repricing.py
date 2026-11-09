@@ -43,12 +43,12 @@ from sqlalchemy import select
 from waterfall.core.estimate.keeping import reprice_revision
 from waterfall.core.estimate.reading import budgeted_of, rows_of
 from waterfall.core.estimate.tables import RevisionRate
-from waterfall.core.planning.interface import lines_of_revision, structures_of
+from waterfall.core.planning.interface import lines_of_revision
 from waterfall.core.projects.interface import project_facts
 from waterfall.core.revisions.interface import (
     current_structures,
     hold_current_revision,
-    reference_year_of,
+    revision_structures,
     structure_facts,
 )
 
@@ -75,8 +75,7 @@ def refresh_budgeted(designation: ReferenceDesignated) -> None:
     current = project_facts(session, project_id).current_revision_id
     if current is None:
         return
-    held = lines_of_revision(session, project_id, current)
-    for structure_id in structures_of(session, project_id, list(held.values())):
+    for structure_id in revision_structures(session, project_id, current):
         structure_facts(session, project_id, structure_id, lock=True)
     # Read under the locks: a line created meanwhile is there, a line deleted is not.
     held = lines_of_revision(session, project_id, current)
@@ -114,15 +113,16 @@ def reinflate_project(session: Session, project_id: UUID, at: datetime) -> None:
 def reprice_after_rate(session: Session, written: RateWritten) -> None:
     """Price again the current revisions a rate of the reference just written changes.
 
-    Those of the year of the rate whose lines of the category keep no rate of their own: read
-    ``FOR SHARE`` after the lock of the natures, then priced under the lock of each structure.
+    Those of the year of the rate whose lines of the category keep no rate of their own: those of
+    the year alone are read ``FOR SHARE`` (the year is judged in the query) after the lock of the
+    natures, then priced under the lock of each structure. The employment of the category is
+    judged under the locks, not before: a line created meanwhile would escape a judgement made
+    without them.
     """
     revisions: dict[UUID, UUID] = {}
-    for each in current_structures(session, lock=True):
+    for each in current_structures(session, lock=True, reference_year=written.year):
         revisions.setdefault(each.revision_id, each.project_id)
     for revision_id, project_id in revisions.items():
-        if reference_year_of(session, revision_id) != written.year:
-            continue
         kept = session.scalar(
             select(RevisionRate.id).where(
                 RevisionRate.project_id == project_id,

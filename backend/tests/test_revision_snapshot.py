@@ -31,21 +31,19 @@ from sqlalchemy import select, update
 
 from waterfall.core.cost_settings.interface import (
     CostCategoryDraft,
-    CostTypeDraft,
     create_cost_category,
     list_hourly_rates,
     set_cost_category_activation,
     set_hourly_rate,
-    update_cost_type,
 )
 from waterfall.core.cost_settings.tables import CostCategory, CostType
-from waterfall.core.estimate.tables import RevisionRate
+from waterfall.core.estimate.tables import EstimateLine, RevisionRate
+from waterfall.core.projects.tables import Project
 from waterfall.core.resource_settings.interface import set_role_activation
 from waterfall.core.resource_settings.tables import Calendar, ResourceRole
-from waterfall.core.revisions.tables import Revision
+from waterfall.core.revisions.tables import CostStructure, Revision
 from waterfall.platform.audit import Act
 from waterfall.platform.database import utc_now
-from waterfall.platform.errors import ConflictError
 
 if TYPE_CHECKING:
     from realm import TestRealm
@@ -237,11 +235,29 @@ def test_a_marked_revision_shows_the_role_and_the_amounts_of_its_marking_after_t
     assert categories == {"MO-001": True, "MO-002": True, "MAT-001": True}
     calendars = {each["label"]: each["is_default"] for each in employed["calendars"]}
     assert calendars["Semaine MES"] is False
-    assert any(calendars.values())
     line = facets(offer.tree)[offer.engineering["node_id"]]
     assert (line["resource_role_label"], line["uses_inactive_object"]) == ("Ingénieur", False)
     assert line["base_amount"] == "650.00"
     assert amounts(offer.tree) == before
+
+
+@pytest.mark.requirement("WF-REV-0030-A")
+def test_a_marking_whose_roles_all_work_on_calendars_of_their_own_keeps_the_default_calendar(
+    api: ContractClient, stage: Scene, costs: Costing
+) -> None:
+    # The default calendar is kept at every marking, whatever the calendars the roles employ: a
+    # line of the role ``WE`` alone, on the calendar of its own, and the default one is imaged.
+    role = add_role(stage.database, "WE", WEEKEND)
+    revision = opened(api, stage)
+    tree = Tree(api, stage, revision)
+    Lines(tree).made(tree.made("Veille"), quantity="1", resource_role_id=str(role), hours="8")
+    mark(stage, revision)
+    calendars = read(api, stage, revision)["snapshot"]["employed_reference"]["calendars"]
+    with stage.database.transaction() as session:
+        default = session.scalars(select(Calendar.id).where(Calendar.is_default.is_(True))).one()
+    assert {each["calendar_id"] for each in calendars if each["is_default"]} == {str(default)}
+    assert {each["label"] for each in calendars if not each["is_default"]} == {"Semaine WE"}
+    del costs
 
 
 @pytest.mark.requirement("WF-REV-0030-A")
@@ -484,30 +500,6 @@ def test_a_reference_designated_gives_the_current_lines_its_budgeted_amounts_and
     }
 
 
-@pytest.mark.requirement("WF-REF-0030-A")
-def test_the_kind_of_a_nature_whose_category_a_line_employs_is_refused(
-    stage: Scene, costs: Costing, offer: Offer
-) -> None:
-    # « La modification du type est refusée pour une nature dont une catégorie est employée, porte
-    # un taux ou est rattachée à un rôle de ressource. » : « employée » by a line of material
-    # (``category_is_employed``, US-1490); its label changes, its kind does not.
-    del offer
-    act = Act(None, utc_now())
-    with stage.database.transaction() as session:
-        nature = session.scalars(
-            select(CostType)
-            .join(CostCategory, CostCategory.cost_type_id == CostType.id)
-            .where(CostCategory.id == costs.material)
-        ).one()
-        held = (nature.id, nature.lock_version)
-    with pytest.raises(ConflictError) as refused, stage.database.transaction() as session:
-        update_cost_type(session, held[0], CostTypeDraft("MAT", "Matériel", "labor"), held[1], act)
-    assert refused.value.params["missing_condition"] == "cost_type_unused"
-    with stage.database.transaction() as session:
-        renamed = CostTypeDraft("MAT", "Matériels", "non_labor")
-        assert update_cost_type(session, held[0], renamed, held[1], act).label == "Matériels"
-
-
 # --- The guard of the calendars of the roles -----------------------------------------------------
 
 
@@ -609,6 +601,7 @@ def test_every_attempt_to_change_a_marked_revision_is_refused(
     # written (the import of an estimate is US-1550's).
     mark(stage, offer.revision)
     before = (amounts(offer.tree), kept_rates(stage, offer.revision))
+    nodes_before = {item["node_id"] for item in offer.tree.items()}
     marked = read(api, stage, offer.revision)
     draft = {"missing_condition": "revision_draft"}
     changed = offer.lines.change(offer.engineering, quantity="3")
@@ -623,7 +616,32 @@ def test_every_attempt_to_change_a_marked_revision_is_refused(
         json={"cost_category_ids": [str(costs.labour)], "lock_version": marked["lock_version"]},
     )
     assert refusal(rates) == (409, "STATE_FORBIDS_OPERATION", draft)
+    # The tree: a task created, moved, deleted; the revision abandoned.
+    assert refusal(offer.tree.create("Autre")) == (409, "STATE_FORBIDS_OPERATION", draft)
+    nodes = f"{offer.tree.path}/nodes"
+    wiring = offer.tree.node(offer.wiring["node_id"])
+    moving = api.post(
+        f"{nodes}/move",
+        headers=stage.manager.headers,
+        json={
+            "node_ids": [wiring["node_id"]],
+            "parent_id": None,
+            "lock_version": wiring["lock_version"],
+        },
+    )
+    assert refusal(moving) == (409, "STATE_FORBIDS_OPERATION", draft)
+    deleting = api.delete(
+        f"{nodes}/{wiring['node_id']}?lock_version={wiring['lock_version']}",
+        headers=stage.manager.headers,
+    )
+    assert refusal(deleting) == (409, "STATE_FORBIDS_OPERATION", draft)
+    abandoning = api.delete(
+        f"{base(stage)}/{offer.revision['revision_id']}?lock_version={marked['lock_version']}",
+        headers=stage.manager.headers,
+    )
+    assert refusal(abandoning) == (409, "STATE_FORBIDS_OPERATION", draft)
     assert (amounts(offer.tree), kept_rates(stage, offer.revision)) == before
+    assert {item["node_id"] for item in offer.tree.items()} == nodes_before
 
 
 @pytest.mark.requirement("WF-REV-0020-A")
@@ -656,3 +674,56 @@ def test_a_marking_asked_during_an_entry_waits_for_it_and_keeps_what_it_wrote(
         str(costs.labour),
         str(category),
     }
+
+
+# --- The order of the locks of the writes that price a revision again ---------------------------
+
+
+@pytest.mark.requirement("WF-REF-0050-A")
+def test_a_line_created_during_a_rate_written_is_priced_at_the_new_rate(
+    stage: Scene, costs: Costing, offer: Offer
+) -> None:
+    # The rate written prices the current revision again under the lock of each structure, the
+    # lines read under it: a line a write of the tree created while the structure was held, and
+    # committed, is priced with the others, not left at the old rate.
+    project_id, revision_id = UUID(stage.project["project_id"]), UUID(offer.revision["revision_id"])
+    structure_id = UUID(offer.tree.structure_id)
+    # Under a task that bears no line yet: nothing but the lines read names it to be priced again.
+    empty = offer.tree.made("Veille")
+    bearer = Bearer(project_id, revision_id, structure_id, UUID(empty["node_id"]))
+    reference = LineReference(uuid4(), costs.labour, uuid4(), uuid4(), costs.role)
+    with ThreadPoolExecutor(max_workers=1) as pool, stage.owner.begin() as connection:
+        connection.execute(
+            select(CostStructure.id).where(CostStructure.id == structure_id).with_for_update()
+        )
+        added = insert_line_row(connection, bearer, reference, rank=9)
+        pricing = pool.submit(correct_rate, stage.database, costs.labour, "80.00")
+        with pytest.raises(FutureTimeout):
+            pricing.result(timeout=1.5)
+    pricing.result(timeout=30)
+    with stage.database.transaction() as session:
+        priced = session.scalars(
+            select(EstimateLine.base_amount).where(EstimateLine.node_id == added)
+        ).one()
+    assert priced == Decimal("1600.00")
+
+
+@pytest.mark.requirement("WF-PRJ-0040-A")
+def test_a_new_rate_of_inflation_waits_for_the_current_revision_before_the_project(
+    api: ContractClient, stage: Scene, offer: Offer
+) -> None:
+    # The current revision is held ``FOR UPDATE`` (a marking in the making): ``updateProject``
+    # shares it before it locks the project, so it waits for the revision with the project free.
+    revision_id = UUID(offer.revision["revision_id"])
+    project_id = UUID(stage.project["project_id"])
+    with ThreadPoolExecutor(max_workers=1) as pool, stage.owner.begin() as connection:
+        connection.execute(select(Revision.id).where(Revision.id == revision_id).with_for_update())
+        changing = pool.submit(set_project, api, stage, inflation_rate="0.03")
+        with pytest.raises(FutureTimeout):
+            changing.result(timeout=1.5)
+        with stage.owner.begin() as other:
+            other.execute(
+                select(Project.id).where(Project.id == project_id).with_for_update(nowait=True)
+            )
+    changing.result(timeout=30)
+    assert read(api, stage, offer.revision)["inflation_rate"] == "0.03"

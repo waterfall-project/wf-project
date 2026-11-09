@@ -16,10 +16,15 @@ revision first (``FOR SHARE``, which the guard of the revised tables, ``FOR KEY 
 writes of the tree, ``FOR SHARE``, both admit, and which a marking or an abandonment, ``FOR
 UPDATE``, waits for), then locks the project: no two locks are ever awaited both ways.
 
-The current revision is read before the project is locked: a revision opened or marked between the
-two is held under the lock of the project, by the same call, which a held revision answers at
-once. Such a revision cannot be being marked: its marking would have to be asked meanwhile, under
-the lock of the project.
+The current revision is read before the project is locked, and read again under its lock. A
+revision held by the first call is held again by the second at once (a share taken twice does not
+wait). A revision opened between the two reads (``createRevision`` committed after the first read
+found no current revision, or a current one marked or abandoned since) is shared only under the
+lock of the project, which is the order the marking never takes: a ``markRevision`` that locked
+that revision meanwhile waits for the project while this write waits for the revision, and
+PostgreSQL aborts one of the two as a deadlock. The window is the time between two reads of one
+transaction and needs an opening committed in it; it is not closed here, closing it would take a
+refusal (a new code) the contract does not have.
 """
 
 from typing import TYPE_CHECKING

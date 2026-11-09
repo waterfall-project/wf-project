@@ -40,6 +40,8 @@ from waterfall.core.revisions.interface import (
     RatesToUpdate,
     reference_year_of,
     revision_rating,
+    revision_structures,
+    structure_facts,
     update_rates,
 )
 from waterfall.platform.errors import FieldError, UnprocessableError
@@ -138,8 +140,13 @@ def reprice_revision(
     identifier, its dates' instant moved on to ``at``, the lines named priced again on the dates of
     their tasks, whether these moved or not (``Holding.repriced``), as a write of the tree does.
     Only the structures that hold such a line are replayed: another keeps its counter and dates.
+    Every structure of the revision is locked first, in the order of its identifier, and the lines
+    are read under the locks: a line a write of the tree created meanwhile, under a task that had
+    none of the category, is priced again with the others.
     """
     project_id, revision_id = revision
+    for structure_id in revision_structures(session, project_id, revision_id):
+        structure_facts(session, project_id, structure_id, lock=True)
     nodes = list(lines_of_revision(session, project_id, revision_id).values())
     if nodes and categories is not None:
         nodes = list(
