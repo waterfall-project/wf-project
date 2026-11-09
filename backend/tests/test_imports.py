@@ -282,10 +282,15 @@ def test_an_opening_of_a_kind_no_format_serves_names_the_format_expected(
     api: ContractClient, stage: Scene
 ) -> None:
     upload_id = deposited(api, stage.manager, trial_file(*ROWS))
+    # The actual costs are served from EP-09; the estimate is from US-1550/L3.
     response = open_import(
-        api, stage.manager, stage.project["project_id"], upload_id, kind="estimate"
+        api, stage.manager, stage.project["project_id"], upload_id, kind="actual_costs"
     )
-    assert refusal(response) == (422, "FILE_FORMAT_UNREADABLE", {"expected_format": "estimate"})
+    assert refusal(response) == (
+        422,
+        "FILE_FORMAT_UNREADABLE",
+        {"expected_format": "actual_costs"},
+    )
 
 
 @pytest.mark.usefixtures("trial")

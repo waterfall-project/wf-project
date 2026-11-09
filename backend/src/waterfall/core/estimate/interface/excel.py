@@ -8,17 +8,23 @@ and applies its report, the exporter writes the estimate of a structure — Xlsx
 openpyxl reads (EP-07, "Le format Excel du devis"). ``sheet_name`` names a tab of a workbook from
 a subproject (#2190), which EP-09 imports too.
 
-Declared by US-1490/L1 and registered without effect (decision of 2026-11-08, #2370): the format
-refuses every head as a file it does not recognise (422 ``FILE_FORMAT_UNREADABLE``), as when no
-format served the kind, so that an import of an estimate never passes before US-1550; the methods
-it never reaches and the export raise ``NotImplementedError`` naming US-1550. ``sheet_name`` is
-written by US-1550/L1 (``excel/names.py``), as the workbook (``excel/writer.py``).
+Declared by US-1490/L1 and registered without effect (decision of 2026-11-08, #2370); the format
+reads the header and analyses a workbook from US-1550/L3: the header is read in the whole file — a
+workbook is a zip, whose header no head of bytes holds —, by the reader of US-1550/L2
+(``excel/reader.py``), and the analysis is ``importing``'s. The application and the export raise
+``NotImplementedError`` naming the story that fills them. ``sheet_name`` is written by US-1550/L1
+(``excel/names.py``), as the workbook (``excel/writer.py``).
 """
 
 from typing import TYPE_CHECKING, Any
 
+from waterfall.core.estimate import importing
 from waterfall.core.estimate.excel.names import sheet_name as named_sheet
-from waterfall.platform.errors import UnprocessableError
+from waterfall.core.estimate.excel.reader import check_header, read_workbook
+from waterfall.core.exchanges.interface import LARGEST_FILE
+from waterfall.core.projects.interface import project_facts
+from waterfall.core.revisions.interface import structure_facts
+from waterfall.platform.errors import ConflictError
 
 if TYPE_CHECKING:
     from collections.abc import Iterable, Mapping
@@ -33,9 +39,12 @@ if TYPE_CHECKING:
     )
     from waterfall.platform.audit import Act
 
-FILE_FORMAT_UNREADABLE = "FILE_FORMAT_UNREADABLE"
-# The bytes of the head of a file the header is read in, which US-1550 fixes.
-HEADER_LENGTH = 4096
+# The bytes of a file the header is read in: the whole file, at most what a deposit holds.
+HEADER_LENGTH = LARGEST_FILE
+# The states of a project whose main structure an estimate is imported in (WF-INTF-0100; C-358).
+BEFORE_IN_PROGRESS = ("created", "pricing")
+PROJECT_BEFORE_IN_PROGRESS = "project_before_in_progress"
+STATE_FORBIDS_OPERATION = "STATE_FORBIDS_OPERATION"
 
 
 class EstimateFormat:
@@ -49,18 +58,35 @@ class EstimateFormat:
     permission = "estimate.write"
 
     def read_header(self, session: Session, head: bytes) -> None:
-        """Refuse the head of a file that is not the workbook of an estimate: every one yet."""
-        del session, head
-        raise UnprocessableError(FILE_FORMAT_UNREADABLE, {"expected_format": "estimate"})
+        """Refuse a file that is not the workbook of an estimate of a known version (422).
+
+        ``FILE_FORMAT_UNREADABLE``, ``expected_format`` and ``expected_version`` (WF-INTF-0070).
+        """
+        del session
+        check_header(head)
 
     def judge(self, session: Session, target: ImportTarget) -> None:
-        """Refuse an import of an estimate on the state of its project: none until US-1550."""
-        del session, target
+        """Refuse an estimate imported on the main structure of a project In progress (409).
+
+        ``project_before_in_progress``, the condition the main structure names at the entry of its
+        estimate (WF-INTF-0100; C-358); the project read under the lock its caller holds. A
+        project without a revision yet aims at the main structure its import creates.
+        """
+        project_id, structure_id = target.project_id, target.structure_id
+        if (
+            structure_id is not None
+            and not structure_facts(session, project_id, structure_id, lock=False).is_main
+        ):
+            return
+        if project_facts(session, project_id).state not in BEFORE_IN_PROGRESS:
+            missing = {"missing_condition": PROJECT_BEFORE_IN_PROGRESS}
+            raise ConflictError(STATE_FORBIDS_OPERATION, missing)
 
     def analyse(self, session: Session, target: ImportTarget, content: bytes) -> Mapping[str, Any]:
-        """Give the report of a workbook against a structure, writing nothing."""
-        msg = "analyse is filled by US-1550"
-        raise NotImplementedError(msg)
+        """Give the report of a workbook against a structure, writing nothing (``importing``)."""
+        read = read_workbook(content)
+        held = importing.aimed(session, target)
+        return importing.report_of(held, read, importing.analyse(session, held, read))
 
     def apply(
         self,
@@ -71,7 +97,7 @@ class EstimateFormat:
         act: Act,
     ) -> None:
         """Write the report of a workbook into a structure."""
-        msg = "apply is filled by US-1550"
+        msg = "apply is filled by US-1550/L3"
         raise NotImplementedError(msg)
 
 
