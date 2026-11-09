@@ -299,9 +299,9 @@ def test_a_number_in_a_text_cell_is_rejected_at_its_tab_and_row_and_the_other_li
 
     assert [line.lineage for line in read.lines] == ["l-3"]
     assert [(r.sheet, r.row, r.code, dict(r.params)) for r in read.rejected] == [
-        ("1.1", 2, "NUMBER_INVALID", {"column": "Quantité", "value": "12"}),
-        ("1.1", 3, "NUMBER_INVALID", {"column": "Heures", "value": "7,4"}),
-        ("1.1", 3, "NUMBER_INVALID", {"column": "Débours unitaire", "value": "20"}),
+        ("1.1", 2, "NUMBER_INVALID", {"header": "Quantité", "value": "12"}),
+        ("1.1", 3, "NUMBER_INVALID", {"header": "Heures", "value": "7,4"}),
+        ("1.1", 3, "NUMBER_INVALID", {"header": "Débours unitaire", "value": "20"}),
     ]
 
 
@@ -338,11 +338,11 @@ def test_a_rejected_row_carries_the_lineage_of_the_row() -> None:
 
 
 def test_the_params_of_a_rejection_cannot_be_changed() -> None:
-    rejection = Rejection("1.1", 2, "NUMBER_INVALID", {"column": "Quantité"}, "l-1")
+    rejection = Rejection("1.1", 2, "NUMBER_INVALID", {"header": "Quantité"}, "l-1")
 
     params: Any = rejection.params
     with pytest.raises(TypeError):
-        params["column"] = "x"
+        params["header"] = "x"
 
 
 @pytest.mark.requirement("WF-INTF-0100-A")
@@ -423,7 +423,7 @@ def test_a_cell_that_is_no_number_in_a_numeric_column_is_rejected(value: object)
     read = read_workbook(workbook({"1.1": rows}))
 
     assert read.lines == ()
-    assert [(r.row, r.code, r.params["column"]) for r in read.rejected] == [
+    assert [(r.row, r.code, r.params["header"]) for r in read.rejected] == [
         (2, "NUMBER_INVALID", "Quantité")
     ]
 

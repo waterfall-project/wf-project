@@ -11,8 +11,9 @@ state after (WF-PRJ-0060). A terminal project lists none: nothing modifies it an
 the 409 of a direct call names ``project_not_terminal`` (WF-CYC-0100).
 
 This module knows the commands of EP-04; the later EPICs add theirs — the risks, the imports, the
-skeleton of the planning — to ``RULES`` with their conditions. The rescue of ``manage_contributors``
-for a caller who is no contributor is the story of the contributors (US-0930).
+skeleton of the planning — to ``RULES`` with their conditions: the import of an estimate from
+US-1550/L3. The rescue of ``manage_contributors`` for a caller who is no contributor is the story
+of the contributors (US-0930).
 """
 
 from dataclasses import dataclass
@@ -63,7 +64,10 @@ RULES: tuple[Rule, ...] = (
     Rule("lose", "project_exit", manager=True),
     Rule("abandon", "project_exit", manager=True),
     Rule("generate_skeleton", "planning.write"),
+    Rule("import_estimate", "estimate.write"),
 )
+# The imports a project carries, which create the current revision if it has none (WF-INTF-0090).
+IMPORTS = ("import_estimate",)
 
 
 def state_conditions(
@@ -85,7 +89,10 @@ def state_conditions(
         missing.append(PROJECT_IN_PRICING)
     # A task of the background that writes in the current revision, or freezes it, suspends what
     # would move the project or its work breakdown (EP-04, "Le worker").
-    if command in {"update_work_breakdown", "complete", "lose", "abandon"} and not no_task_running:
+    if (
+        command in {"update_work_breakdown", "complete", "lose", "abandon", *IMPORTS}
+        and not no_task_running
+    ):
         missing.append(NO_BACKGROUND_TASK_RUNNING)
     return missing
 
@@ -133,6 +140,10 @@ def commands_of(
 
     The skeleton is listed only while the project has no current revision, to whoever holds the
     planning permission, ``may_create_revision`` missing to whoever cannot open one (WF-PRJ-0030).
+    An import is listed whatever the revision, to whoever holds the permission of its kind; without
+    a current revision, ``may_create_revision`` missing to whoever cannot create the one it would
+    (WF-INTF-0090). An estimate stays available In progress: its import on the main structure is
+    refused by the import itself, which the structure states (``edit_estimate``; C-358).
     """
     if state in TERMINAL:
         return []
@@ -151,6 +162,13 @@ def commands_of(
         missing += state_conditions(
             rule.command, state, current_revision_id, no_task_running=running.no_task_running
         )
+        # An import creates the current revision when there is none: who cannot is told so.
+        if (
+            rule.command in IMPORTS
+            and current_revision_id is None
+            and "revisions.write" not in permissions
+        ):
+            missing.append(MAY_CREATE_REVISION)
         listed.append((rule.command, tuple(missing)))
     return listed
 

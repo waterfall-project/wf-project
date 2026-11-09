@@ -6,7 +6,9 @@ The header first (A1, B1, A2, B2 of the first tab: the format "Devis" and a know
 every tab of lines by its headers, whatever their rank: the columns the format does not read, the
 empty lines and the line of total of the table are ignored, a number is read in a numeric cell and
 a number written as text is rejected (``NUMBER_INVALID``), each line read and each rejection named
-by its tab and its Excel row number (WF-INTF-0070, WF-INTF-0080, WF-INTF-0100). openpyxl reads, in
+by its tab and its Excel row number (WF-INTF-0070, WF-INTF-0080, WF-INTF-0100); « Tâches » gives
+the lineage of the task each entry names, and the header alone is read at the opening of an import
+(``check_header``, US-1550/L3). openpyxl reads, in
 ``read_only`` mode and by values; nothing here touches a database or a session.
 """
 
@@ -26,6 +28,7 @@ from waterfall.core.estimate.excel.writer import (
     FIXED_TABS,
     FORMAT_NAME,
     FORMAT_VERSION,
+    TASKS,
 )
 from waterfall.platform.errors import UnprocessableError
 
@@ -56,6 +59,9 @@ PAYMENT_DELAY_HEADER = "Délai de paiement (j)"
 SUBPROJECT_HEADER = "Sous-projet"
 LINEAGE_HEADER = "ID ligne"
 TOTAL_LABEL = "Total"
+# The headers of « Tâches » the reading knows a task by: the entry a line names, and its lineage.
+ENTRY_HEADER = "Entrée"
+TASK_LINEAGE_HEADER = "ID tâche"
 
 _TEXT_HEADERS = (
     TASK_HEADER,
@@ -113,12 +119,33 @@ class WorkbookRead:
     ``unread_sheets`` names the tabs that are not tabs of lines and are not fixed ones (no
     "Tâche" and "Rôle ou catégorie" headers); ``missing_headers`` gives, by tab read, the headers
     of the columns read that the tab lacks (their cells read as none). The policy is the analysis'.
+    ``tasks`` gives, by the entry « Tâches » lists, the lineage of its task, as the workbook
+    writes them (US-1550/L3): the analysis designates the task of a line by it.
     """
 
     lines: tuple[ReadLine, ...]
     rejected: tuple[Rejection, ...]
     unread_sheets: tuple[str, ...] = ()
     missing_headers: Mapping[str, tuple[str, ...]] = MappingProxyType({})
+    tasks: Mapping[str, str] = MappingProxyType({})
+
+
+# What a damaged file raises as openpyxl opens or reads it. SyntaxError is the parent of
+# ElementTree.ParseError and of lxml's XMLSyntaxError; zlib.error and EOFError are a cut deflate
+# stream, RuntimeError and NotImplementedError a member that zipfile cannot decode (encrypted,
+# unknown compression): none of them is an OSError.
+_DAMAGES = (
+    zipfile.BadZipFile,
+    zlib.error,
+    EOFError,
+    RuntimeError,
+    NotImplementedError,
+    InvalidFileException,
+    KeyError,
+    ValueError,
+    OSError,
+    SyntaxError,
+)
 
 
 def _unreadable() -> UnprocessableError:
@@ -162,6 +189,42 @@ def _check_header(rows: Sequence[Sequence[object]]) -> None:
         or not _is_version(second[1])
     ):
         raise _unreadable()
+
+
+def check_header(content: bytes) -> None:
+    """Refuse a file that is not a workbook saying "Devis" and a known version (US-1550/L3).
+
+    What the opening of an import reads, before any analysis: only the first two rows of the first
+    tab, the file opened as ``read_workbook`` opens it.
+    """
+    try:
+        workbook = load_workbook(BytesIO(content), read_only=True, data_only=True)
+        try:
+            sheets = workbook.worksheets
+            rows = list(sheets[0].iter_rows(max_row=2, values_only=True)) if sheets else None
+        finally:
+            workbook.close()
+    except _DAMAGES as error:
+        raise _unreadable() from error
+    if rows is None:
+        raise _unreadable()
+    _check_header(rows)
+
+
+def _task_entries(rows: Sequence[Sequence[object]]) -> dict[str, str]:
+    """Read « Tâches »: the lineage of each entry, below the row of its headers; none without it."""
+    entries: dict[str, str] = {}
+    columns: tuple[int, int] | None = None
+    for row in rows:
+        texts = [_text(cell) for cell in row]
+        if columns is None:
+            if ENTRY_HEADER in texts and TASK_LINEAGE_HEADER in texts:
+                columns = (texts.index(ENTRY_HEADER), texts.index(TASK_LINEAGE_HEADER))
+            continue
+        entry, lineage = (texts[rank] if rank < len(texts) else None for rank in columns)
+        if entry is not None and lineage is not None:
+            entries.setdefault(entry, lineage)
+    return entries
 
 
 def read_number(value: object) -> tuple[Decimal | None, bool]:
@@ -225,7 +288,7 @@ def _read_sheet(
                 name,
                 number,
                 NUMBER_INVALID,
-                {"column": header, "value": str(raws[header])},
+                {"header": header, "value": str(raws[header])},
                 texts[LINEAGE_HEADER],
             )
             for header, (_, valid) in numbers.items()
@@ -263,21 +326,7 @@ def _load_sheets(content: bytes) -> list[tuple[str, list[tuple[Any, ...]]]]:
             return [(sheet.title, list(sheet.iter_rows(values_only=True))) for sheet in workbook]
         finally:
             workbook.close()
-    # SyntaxError is the parent of ElementTree.ParseError and of lxml's XMLSyntaxError; zlib.error
-    # and EOFError are a cut deflate stream, RuntimeError and NotImplementedError a member that
-    # zipfile cannot decode (encrypted, unknown compression): none of them is an OSError.
-    except (
-        zipfile.BadZipFile,
-        zlib.error,
-        EOFError,
-        RuntimeError,
-        NotImplementedError,
-        InvalidFileException,
-        KeyError,
-        ValueError,
-        OSError,
-        SyntaxError,
-    ) as error:
+    except _DAMAGES as error:
         raise _unreadable() from error
 
 
@@ -296,7 +345,10 @@ def read_workbook(content: bytes) -> WorkbookRead:
     rejected: list[Rejection] = []
     unread: list[str] = []
     missing: dict[str, tuple[str, ...]] = {}
+    tasks: dict[str, str] = {}
     for name, rows in sheets:
+        if name == TASKS:
+            tasks = _task_entries(rows)
         if name in NOT_LINE_SHEETS:
             continue
         sheet_lines, sheet_rejected, columns = _read_sheet(name, rows)
@@ -308,4 +360,10 @@ def read_workbook(content: bytes) -> WorkbookRead:
         absent = tuple(header for header in _ALL_HEADERS if header not in columns)
         if absent:
             missing[name] = absent
-    return WorkbookRead(tuple(lines), tuple(rejected), tuple(unread), MappingProxyType(missing))
+    return WorkbookRead(
+        tuple(lines),
+        tuple(rejected),
+        tuple(unread),
+        MappingProxyType(missing),
+        MappingProxyType(tasks),
+    )

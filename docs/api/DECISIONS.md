@@ -11557,6 +11557,21 @@ parcours `@shared` d'US-1400/L2 en faisant la preuve ; laisser le constat à EP-
 sans preuve tous les parcours `@shared` d'EP-06 ; une garde générale dans la vérification des
 réponses du service, selon la requête, plutôt qu'un schéma qui dit la réponse.
 
+### Le nombre en texte d'un devis importé, et la colonne d'une ligne rejetée (US-1550/L3, #2609)
+
+La conception d'EP-07 (« Le format Excel du devis ») rejette une ligne dont un nombre est écrit en
+texte (`NUMBER_INVALID`), chaque rejet par son onglet et son numéro de ligne Excel ; `ImportRejection`
+ne citait pas ce motif, et le lecteur d'US-1550/L2 le rendait avec `params.column`, l'en-tête du
+classeur, quand `column` nomme ailleurs une colonne d'une extraction de coûts réels par son
+identifiant (`ProblemMissingColumn`). Décision du 2026-11-09 (#2609) : `NUMBER_INVALID` est un motif
+d'une ligne rejetée d'un devis, `params.value` la valeur de la cellule telle que le fichier la porte,
+comme pour `UNKNOWN_TASK`, et `params.header` l'en-tête de sa colonne tel que le classeur le porte,
+une clé distincte de `column` ; un délai de paiement qui n'est pas un nombre entier de jours l'est de
+même. Une ligne que sa saisie refuserait sur un champ est rejetée par le motif de ce champ, ses
+paramètres et `params.header` la colonne qui porte le champ : l'utilisateur retrouve la cellule.
+La version reste `1.0.0` : un motif et un paramètre de plus, que `ProblemParams` laissait ouverts.
+Écarté : `params.column`, qui aurait donné deux types à une même clé.
+
 ## Collage et annulation
 
 **Le collage depuis un tableur suit exactement la forme d'un import** : `paste-preview`

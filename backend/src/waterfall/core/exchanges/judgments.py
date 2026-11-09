@@ -58,12 +58,15 @@ class ImportTarget:
 
     For the analysis, the revision is the current one, or the last marked one, whose copy the
     application creates; ``None`` both when the project has no revision yet, the application
-    creating its first. For the application, the current revision, and its structure.
+    creating its first. For the application, the current revision, and its structure, and
+    ``running``, the task that applies: the writes of the format name it, so that it does not
+    suspend them (``no_background_task_running``); none at the opening and the analysis.
     """
 
     project_id: UUID
     revision_id: UUID | None
     structure_id: UUID | None
+    running: UUID | None = None
 
 
 def refused(condition: str) -> ConflictError:
