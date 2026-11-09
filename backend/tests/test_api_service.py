@@ -397,6 +397,89 @@ def test_a_nullable_object_stays_closed() -> None:
     assert rejected.value.pointers == ["/c/hint"]
 
 
+TEXT = {"type": "string"}
+
+
+def closed_object(required: list[str], **properties: object) -> dict[str, object]:
+    """Give an object that declares every property it may hold, requiring some of them."""
+    return {
+        "type": "object",
+        "additionalProperties": False,
+        "required": required,
+        "properties": properties,
+    }
+
+
+@pytest.mark.requirement("WF-ARC-0110-A")
+def test_an_object_of_closed_branches_apart_follows_the_one_whose_own_properties_it_carries() -> (
+    None
+):
+    # ``ProblemParams.tasks`` (#2635): a task of an entry requires its node, a task of an import
+    # its lineage, and neither declares the other's. Each element is held to its branch alone, so
+    # a sentence below it is still found.
+    node = {"type": "object", "properties": {"id": {"type": "string"}}}
+    schema: dict[str, object] = {
+        "type": "array",
+        "items": {
+            "oneOf": [
+                closed_object(["node", "label"], node=node, label=TEXT),
+                closed_object(["lineage", "label"], lineage=TEXT, label=TEXT),
+            ]
+        },
+    }
+    app = FastAPI()
+
+    @app.get("/api/v1/health")
+    def health() -> JSONResponse:
+        return JSONResponse(
+            [
+                {"lineage": "l", "label": "Essais"},
+                {"node": {"id": "n", "hint": "Phrase"}, "label": "Câblage"},
+            ]
+        )
+
+    with pytest.raises(UndeclaredPropertyError) as rejected:
+        ContractClient(TestClient(app), minimal_contract(schema)).get("/api/v1/health")
+    assert rejected.value.pointers == ["/1/node/hint"]
+
+
+@pytest.mark.requirement("WF-ARC-0110-A")
+@pytest.mark.parametrize(
+    ("objects", "body"),
+    [
+        (
+            [closed_object(["a"], a=TEXT), closed_object(["a"], a=TEXT)],
+            {"a": "x"},
+        ),
+        (
+            [
+                closed_object(["a"], a=TEXT),
+                {"type": "object", "required": ["b"], "properties": {"b": TEXT}},
+            ],
+            {"b": "y"},
+        ),
+        (
+            [closed_object(["a"], a=TEXT, b=TEXT), closed_object(["b"], b=TEXT)],
+            {"a": "x", "b": "y"},
+        ),
+    ],
+    ids=["closed, the same required", "one closed, one open", "a required the other declares"],
+)
+def test_closed_branches_an_object_may_follow_both_of_are_refused(
+    objects: list[dict[str, object]], body: dict[str, str]
+) -> None:
+    # Closing is not enough: each branch must be closed and require what no other declares, or a
+    # value of one would be read as both.
+    app = FastAPI()
+
+    @app.get("/api/v1/health")
+    def health() -> JSONResponse:
+        return JSONResponse(body)
+
+    with pytest.raises(AmbiguousCompositionError):
+        ContractClient(TestClient(app), minimal_contract({"anyOf": objects})).get("/api/v1/health")
+
+
 @pytest.mark.requirement("WF-ARC-0060-A")
 def test_an_answer_to_an_operation_the_contract_does_not_declare_is_rejected(
     contract: OpenAPI,

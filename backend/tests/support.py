@@ -192,7 +192,8 @@ class AmbiguousCompositionError(AssertionError):
 
     The client holds a value to every branch at once: one branch would declare the properties
     of another, or open them all. It reads no such composition rather than reading it too wide;
-    the nullable one, a schema and ``{type: null}``, has a single branch of each shape.
+    the nullable one, a schema and ``{type: null}``, has a single branch of each shape, and the
+    one whose objects are each closed and apart (``apart``) gives an object a single branch.
     """
 
     def __init__(self, schema: SchemaPath, part: str, shape: str) -> None:
@@ -203,27 +204,86 @@ class AmbiguousCompositionError(AssertionError):
 SHAPES = {"an object": ("properties", "additionalProperties"), "a list": ("items",)}
 
 
-def branches(schemas: list[SchemaPath]) -> list[SchemaPath]:
+def apart(objects: list[list[SchemaPath]]) -> list[frozenset[str]] | None:
+    """Give what each object branch alone requires, when the branches are closed and apart.
+
+    A branch is closed when its single object schema says ``additionalProperties: false``; apart,
+    when it requires a property that no other branch declares. An object then follows the one
+    branch whose own properties it carries, and no other: none would declare what it holds
+    (``ProblemParams.tasks``, #2635). Otherwise there is nothing to give.
+    """
+    schemas: list[SchemaPath] = []
+    for branch in objects:
+        shaped = [each for each in branch if any(key in each for key in SHAPES["an object"])]
+        if len(shaped) != 1 or not closed(shaped[0]):
+            return None
+        schemas.extend(shaped)
+    named = [properties(schema) for schema in schemas]
+    own: list[frozenset[str]] = []
+    for index, schema in enumerate(schemas):
+        others = set[str]().union(*named[:index], *named[index + 1 :])
+        required = (
+            cast("list[str]", (schema / "required").read_value()) if "required" in schema else []
+        )
+        if not set(required) - others:
+            return None
+        own.append(frozenset(required) - others)
+    return own
+
+
+def properties(schema: SchemaPath) -> set[str]:
+    """Give the names of the properties an object schema declares."""
+    return (
+        {name for name, _ in (schema / "properties").str_items()}
+        if "properties" in schema
+        else set()
+    )
+
+
+def names(value: object) -> set[str]:
+    """Give the names of the properties an object holds; none for any other value."""
+    return set(cast("dict[str, object]", value)) if isinstance(value, dict) else set()
+
+
+def closed(schema: SchemaPath) -> bool:
+    """Say whether an object schema declares every property its objects may hold."""
+    return (
+        "additionalProperties" in schema and (schema / "additionalProperties").read_value() is False
+    )
+
+
+def branches(schemas: list[SchemaPath], value: object = None) -> list[SchemaPath]:
     """Give the schemas and each schema they compose, the composed ones' in turn.
 
     The schemas of an ``allOf`` all hold at once; of the branches of an ``anyOf`` or a
-    ``oneOf``, a single one may describe an object, and a single one a list.
+    ``oneOf``, a single one may describe an object, and a single one a list — or the objects
+    are closed and apart, and the value follows the one whose own properties it carries.
     """
+    held = names(value)
     found: list[SchemaPath] = []
     for schema in schemas:
         found.append(schema)
         if "allOf" in schema:
-            found.extend(branches(list(schema / "allOf")))
+            found.extend(branches(list(schema / "allOf"), value))
         for part in ("anyOf", "oneOf"):
             if part not in schema:
                 continue
-            composed = [branches([each]) for each in schema / part]
+            composed = [branches([each], value) for each in schema / part]
+            followed = set(range(len(composed)))
             for shape, keys in SHAPES.items():
-                shaped = [b for b in composed if any(key in each for each in b for key in keys)]
-                if len(shaped) > 1:
+                shaped = [
+                    index
+                    for index, branch in enumerate(composed)
+                    if any(key in each for each in branch for key in keys)
+                ]
+                if len(shaped) <= 1:
+                    continue
+                own = apart([composed[index] for index in shaped]) if shape == "an object" else None
+                if own is None:
                     raise AmbiguousCompositionError(schema, part, shape)
-            for each in composed:
-                found.extend(each)
+                followed -= {index for index, mine in zip(shaped, own, strict=True) if mine - held}
+            for index in sorted(followed):
+                found.extend(composed[index])
     return found
 
 
@@ -236,12 +296,12 @@ def walk(schemas: list[SchemaPath], value: object, pointer: str) -> Iterator[str
     """Point at each property of the value that none of its schemas declares.
 
     A value is held to its schemas and to all they compose together, a single branch of a
-    composition describing an object or a list (``AmbiguousCompositionError``). An object
-    whose schema says ``additionalProperties`` — ``true``, or the schema of its values — is
-    open to properties it does not name, ``Problem.params`` and ``FieldProblem.params`` among
-    them.
+    composition describing an object or a list (``AmbiguousCompositionError``), or the one closed
+    object branch whose own properties the value carries (``apart``). An object whose schema says
+    ``additionalProperties`` — ``true``, or the schema of its values — is open to properties it
+    does not name, ``Problem.params`` and ``FieldProblem.params`` among them.
     """
-    every = branches(schemas)
+    every = branches(schemas, value)
     if isinstance(value, list):
         items = [schema / "items" for schema in every if "items" in schema]
         for index, each in enumerate(cast("list[object]", value)):

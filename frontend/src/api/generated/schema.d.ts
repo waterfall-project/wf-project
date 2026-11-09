@@ -2828,13 +2828,13 @@ export interface components {
             /** @description Null for a project without a code. */
             project_code: string | null;
         };
-        /** @description A task named by the refusal of an entry, a paste or a merge, the author consulting its project (`ProblemParams.tasks`). */
+        /** @description A task named by the refusal of an entry, a paste or a merge, the author consulting its project (`ProblemParams.tasks`). Closed: no lineage beside its node, which would make it an imported task as well (`ProblemImportedTask`, #2635). */
         ProblemTask: {
             project_id: components["schemas"]["Uuid"];
             node_id: components["schemas"]["Uuid"];
             label: string;
         };
-        /** @description A task named by the reason for an imported line (`ImportRejection.params.tasks`), by its lineage, as `ImportDifference` names the objects of an import (#768, point 2). */
+        /** @description A task named by the reason for an imported line (`ImportRejection.params.tasks`), by its lineage, as `ImportDifference` names the objects of an import (#768, point 2). Closed: no project nor node beside its lineage, which would make it a task of an entry as well (`ProblemTask`, #2635). */
         ProblemImportedTask: {
             lineage_id: components["schemas"]["Uuid"];
             label: string;
@@ -2880,7 +2880,7 @@ export interface components {
             cost_categories?: components["schemas"]["ProblemCostCategory"][];
             /** @description The projects that a modification of the reference data would leave with a task without a working hour, each by its label and its code, without identifier or task (`TASK_WITHOUT_WORKING_HOURS`, `updateCalendar`, `setDefaultCalendar`, `updateResourceRole`, WF-PLA-0010, WF-ADM-0110). */
             projects?: components["schemas"]["ProblemProject"][];
-            /** @description The tasks that an entry in a revision, a merge, a pasted or imported line would leave without a working hour (`TASK_WITHOUT_WORKING_HOURS`, WF-PLA-0010): by their project, their node and their label for an entry, a paste or a merge; by their lineage and their label in the report of an import, which names its objects this way (`ImportDifference`) and may concern a project without a current revision, of which no node exists yet (WF-INTF-0090; #768, point 2). Likewise, by their lineage and their label, the tasks that carry the ambiguous label an imported line cites (`AMBIGUOUS_TASK_LABEL`, annex B). */
+            /** @description The tasks that an entry in a revision, a merge, a pasted or imported line would leave without a working hour (`TASK_WITHOUT_WORKING_HOURS`, WF-PLA-0010): by their project, their node and their label for an entry, a paste or a merge; by their lineage and their label in the report of an import, which names its objects this way (`ImportDifference`) and may concern a project without a current revision, of which no node exists yet (WF-INTF-0090; #768, point 2). Likewise, by their lineage and their label, the tasks that carry the ambiguous label an imported line cites (`AMBIGUOUS_TASK_LABEL`, annex B). Each task follows one form only: both are closed, and each requires what the other does not declare — `project_id` and `node_id`, or `lineage_id` (#2635). */
             tasks?: (components["schemas"]["ProblemTask"] | components["schemas"]["ProblemImportedTask"])[];
             /** @description The estimate lines of the current revision that carry a subproject whose deletion is refused (`STATE_FORBIDS_OPERATION`, `subproject_without_estimate_lines`, WF-DAT-0080). */
             estimate_lines?: components["schemas"]["ProblemEstimateLine"][];
