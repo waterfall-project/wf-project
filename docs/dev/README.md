@@ -4007,12 +4007,15 @@ The consolidated list of what a path does not replay against the service yet is 
 skipped by `inService` (`test.skip(inService, …)`) when tagged, or stays untagged, each entry naming
 the epic that lifts it; that epic removes the guard and its entry:
 
-- `revisions.spec.ts` — the current revision and its parts, and the comparison, the volume's
-  included, and « Écarts seulement » (`BEFORE_EP07`): lifted by **EP-07**, which serves the
-  comparison (`compareRevisions`) and the rate update (`getRateUpdateProposal`). The screen of a
-  current revision reads the proposal by `readUnlessRefused` and renders without it on the 404 of
-  the service (#2173), its commands playable. The history plays against the service from US-0960,
-  with the revisions 100 and 101 of the witness marked from US-0970.
+- `revisions.spec.ts` — the volume (5,999 nodes) alone (`NO_VOLUME_IN_SERVICE`): the volume project
+  exists in the fake back only, until the volumes of EP-13 (#2696); **EP-13** removes the guard.
+  The current revision and its parts, the comparison and « Écarts seulement » play against the
+  service from US-1570/L2 (#2385), whose loader gives the witness its tasks and lines (the service
+  serves `compareRevisions` and `getRateUpdateProposal`); the comparison there is of the whole
+  structure, where the fake back renders the window of its example. The screen of a current
+  revision reads the proposal by `readUnlessRefused` and renders without it on the 404 of the
+  service (#2173), its commands playable. The history plays against the service from US-0960, with
+  the revisions 100 and 101 of the witness marked from US-0970.
 - `revision-cycle.spec.ts` — the commands of the revision 102 of PRJ-001 and the opening unavailable
   (`NOT_REPLAYED_IN_SERVICE`): the account of the run is not enrolled as project manager of the
   projects of the witness, by decision (#2193, option A), so the service lists it no command of

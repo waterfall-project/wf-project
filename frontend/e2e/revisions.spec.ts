@@ -29,12 +29,6 @@ const REVISION = "01926f3a-7c00-7000-8000-000000000102";
 // the run of the test: a four-digit year only is asserted there.
 const CURRENT_YEAR: string | RegExp = inService ? /^\d{4}$/ : "2026";
 
-// What the service does not replay yet: the comparison of PRJ-001 100 to 101 and its volume, the
-// witness' tasks and lines not being in these revisions; skipped in it, as the guide lists
-// (« Un parcours de bout en bout »), until US-1570/L2 (#2385) lifts it.
-const BEFORE_EP07 =
-  "the witness' tasks and lines are not yet in revisions 100 and 101 (US-1570/L2, #2385)";
-
 test("the history of the revisions of a project, each attribute of a revision in it, no note of the mock-up (US-0960) @shared [WF-REV-0070-A] [WF-REV-0090-A]", async ({
   page,
 }) => {
@@ -68,7 +62,6 @@ test("the history of the revisions of a project, each attribute of a revision in
 test("the revisions of a project, their comparison as the API renders it, its structures and the rates proposed @shared [WF-ARC-0020-A]", async ({
   page,
 }) => {
-  test.skip(inService, BEFORE_EP07);
   // Les montants, dates et indices affichés sont ceux que l'API renvoie, sans recalcul.
   await openHydrated(page, `/projects/${PROJECT}/revisions?revision_id=${REVISION}`);
   const main = page.getByRole("main");
@@ -100,7 +93,8 @@ test("the revisions of a project, their comparison as the API renders it, its st
   await main.getByRole("button", { name: "Comparer" }).click();
   await expect(page).toHaveURL(/from_revision_id=.+&to_revision_id=.+/, { timeout: WORKING });
   const nodes = main.getByRole("grid", { name: "Nœuds comparés" });
-  await expect(nodes.getByRole("row")).toHaveCount(11);
+  // The window of the fake back is 11 rows; the service compares the whole structure, 39.
+  await expect(nodes.getByRole("row")).toHaveCount(inService ? 39 : 11);
   await expect(nodes.getByRole("row", { name: /Assistance aux essais de câblage/ })).toContainText(
     "Ajouté",
   );
@@ -112,18 +106,28 @@ test("the revisions of a project, their comparison as the API renders it, its st
   await expect(wiring).toContainText("Montant réestimé");
   const deltas = main.getByRole("table", { name: "Écarts de montants" });
   await expect(deltas.getByRole("row")).toHaveCount(6);
-  // Both deviations, each under the header that names it: budgeted 3 000,00, re-estimated 2 841,00.
+  // Both deviations, each under the header that names it. The fake back's window: budgeted
+  // 3 000,00, re-estimated 2 841,00; the service's, over the whole structure, the first nature
+  // of cost (labour): budgeted 0,00, re-estimated -95 208,79 (the witness' lines at the rates
+  // of the loader, US-1570/L2).
   await expect(deltas.getByRole("columnheader", { name: "Écart budgété" })).toBeVisible();
   await expect(deltas.getByRole("columnheader", { name: "Écart réestimé" })).toBeVisible();
-  await expect(deltas.getByRole("row").nth(1)).toContainText("3 000,00 €");
-  await expect(deltas.getByRole("row").nth(1)).toContainText("2 841,00 €");
+  await expect(deltas.getByRole("row").nth(1)).toContainText(inService ? "0,00 €" : "3 000,00 €");
+  await expect(deltas.getByRole("row").nth(1)).toContainText(
+    inService ? "-95 208,79 €" : "2 841,00 €",
+  );
 });
+
+// The project of the volume exists in the fake back only, until the volumes of EP-13 give the
+// witness its own (#2696): the path is skipped against the service.
+const NO_VOLUME_IN_SERVICE =
+  "the volume project exists in the fake back only until the volumes of EP-13 (#2696)";
 
 // The comparison of the volume: the project 300 is served the offer compared to the reference over
 // the whole structure of the witness, 5 999 nodes read unfiltered, with `fields` reduced to what the
 // screen shows (`comparison_volume`, #1201). The bound of 15 seconds of the criterion of US-0500 is
 // proven on it: the grid is up with its marks, from the address opened, under `WORKING`.
-const VOLUME_PROJECT = "01926f3a-7c00-7000-8000-000300000300";
+const VOLUME_PROJECT_IN_FAKE_BACK_ONLY = "01926f3a-7c00-7000-8000-000300000300";
 const FROM = "01926f3a-7c00-7000-8000-000000000100";
 const TO = "01926f3a-7c00-7000-8000-000000000101";
 // The nodes of the example of the volume, the header and the totals besides making the rows.
@@ -139,12 +143,12 @@ const VOLUME_NODES = (
 test("the comparison of the whole structure, 5 999 nodes, shows its grid with its marks under the bound of a screen of grid @shared [WF-REV-0080-A]", async ({
   page,
 }) => {
-  test.skip(inService, BEFORE_EP07);
+  test.skip(inService, NO_VOLUME_IN_SERVICE);
   test.slow();
   const started = Date.now();
   await openHydrated(
     page,
-    `/projects/${VOLUME_PROJECT}/revisions?from_revision_id=${FROM}&to_revision_id=${TO}`,
+    `/projects/${VOLUME_PROJECT_IN_FAKE_BACK_ONLY}/revisions?from_revision_id=${FROM}&to_revision_id=${TO}`,
   );
   const nodes = page.getByRole("main").getByRole("grid", { name: "Nœuds comparés" });
   // The first rows of the plan, each with the mark the server gives it.
