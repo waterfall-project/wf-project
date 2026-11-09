@@ -279,12 +279,16 @@ test("a reference that bears a task and a line is designated, the project stays 
     await expect(states.getByRole("row").last()).toContainText("Chiffrage");
     await expect(next).toContainText("code projet renseigné");
     await expect(next).not.toContainText("révision de référence désignée");
+    // The revision now bears a task and a line: the condition is no longer named (WF-CYC-0050-A).
+    await expect(next).not.toContainText(
+      "révision portant au moins une tâche et une ligne de devis",
+    );
 
     // The code entered takes the project In progress, without another action (WF-CYC-0020).
     await openHydrated(page, `${seeded.own.path}/settings`);
     await main.getByRole("button", { name: "Modifier le projet" }).click();
     const identity = page.getByRole("dialog", { name: /^Modifier/ });
-    const code = `ENC-${seeded.own.label.slice(-4).toUpperCase()}`;
+    const code = `ENC-${seeded.own.label.slice(-8).toUpperCase()}`;
     await identity.getByRole("textbox", { name: /^Code projet/ }).fill(code);
     await identity.getByRole("button", { name: "Enregistrer" }).click();
     await expect(identity).toBeHidden({ timeout: WORKING });

@@ -15,8 +15,8 @@
  * breakdown with two order items (`breakdown`) — each by the operations of the service, under the
  * token of the creator. The states of the tasks cannot be seeded: `setTaskProgress` needs a project in
  * progress (`project_in_progress`), which a project reaches by designating a reference revision that
- * bears tasks and lines (WF-CYC-0030), and no question about the lines is registered before EP-07
- * (`revision_has_tasks_and_lines`).
+ * bears tasks and lines (WF-CYC-0030), the question about the lines (`revision_has_tasks_and_lines`) being answered
+ * by the service since EP-07.
  */
 import { type APIRequestContext, type Browser, expect, type Page } from "@playwright/test";
 
