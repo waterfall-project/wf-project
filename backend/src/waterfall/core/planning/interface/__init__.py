@@ -100,6 +100,9 @@ from waterfall.core.planning.interface.lines import (
     lines_of_revision as lines_of_revision,
 )
 from waterfall.core.planning.interface.lines import (
+    lines_of_structure as lines_of_structure,
+)
+from waterfall.core.planning.interface.lines import (
     node_revisions as node_revisions,
 )
 from waterfall.core.planning.interface.lines import (
@@ -352,6 +355,9 @@ from waterfall.core.planning.interface.work_breakdown import (
 )
 from waterfall.core.planning.interface.work_breakdown import (
     work_breakdown_item_cited as work_breakdown_item_cited,
+)
+from waterfall.core.planning.interface.work_breakdown import (
+    work_package_lines as work_package_lines,
 )
 from waterfall.core.planning.rescheduling import (
     Holding as Holding,
