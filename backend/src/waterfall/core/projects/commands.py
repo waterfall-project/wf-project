@@ -183,4 +183,3 @@ def _skeleton_lacks(
     if "revisions.write" not in permissions:
         missing.append(MAY_CREATE_REVISION)
     return tuple(missing)
-
