@@ -15,10 +15,11 @@ current one. The copy leaves null the attachment to an element marked deleted (W
 The creation of ``createNode``, judged then written (``judge_creation``, ``write_creation``), is
 also that of the rows of a paste past the last node, in the paste's one write (US-1450/L5).
 ``load_task`` writes a task of the witness at the identifiers and the instant it imposes
-(US-1480/L2).
+(US-1480/L2). ``read_structure`` reads a structure whole and what the filters of a reading retain
+of it, which the comparison of two revisions orders itself (US-1530).
 """
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import TYPE_CHECKING
 
 from sqlalchemy import exists, insert, inspect, select, update
@@ -350,6 +351,44 @@ def list_nodes(session: Session, place: Place, filters: NodeFilters) -> NodeList
     return NodeList(
         tuple(reading.node(each) for each in found.order),
         found.task_count,
+        reading.summary_depth(),
+        facts.scheduled_at,
+        StructureTotals(len(found.lines), reading.totals(found.lines)),
+    )
+
+
+@dataclass(frozen=True, slots=True)
+class StructureRead:
+    """A structure read whole, and what the filters of a reading retain of it (US-1530).
+
+    ``nodes`` every node, whole, in the order of the plan, numbered on the whole structure;
+    ``kept`` the tasks the filters retain and ``lines`` the nodes of the other kinds, without the
+    ancestors a reading adds and whatever its kinds and its sort; the meta and the totals as
+    ``list_nodes`` gives them. What a comparison of two revisions reads of each
+    (``compareRevisions``), which numbers and orders their union itself.
+    """
+
+    nodes: tuple[NodeView, ...]
+    kept: frozenset[UUID]
+    lines: frozenset[UUID]
+    summary_depth: int
+    scheduled_at: datetime
+    totals: StructureTotals
+
+
+def read_structure(session: Session, place: Place, filters: NodeFilters) -> StructureRead:
+    """Read a structure whole, and what the filters retain of it; or refuse (404)."""
+    facts = facts_of(session, place, lock=False)
+    tree = read_tree(session, place.project_id, place.structure_id)
+    reading = _reading(session, place, tree, (facts.scheduled_at, facts.is_main))
+    structure = (place.project_id, place.structure_id)
+    asked = replace(filters, kinds=None, sort=None)
+    found = retained(session, structure, reading, asked, constants_of(session))
+    reading.prefetch(tree.order)
+    return StructureRead(
+        tuple(reading.node(each) for each in tree.order),
+        found.kept,
+        found.lines,
         reading.summary_depth(),
         facts.scheduled_at,
         StructureTotals(len(found.lines), reading.totals(found.lines)),

@@ -34,6 +34,20 @@ import it, by what they serve or explicitly (#2180).
 # The registry of the cost settings the estimate fills (US-1490/L4); the others below.
 from waterfall.core.cost_settings.interface import register_employment
 
+# ``comparing`` (US-1530): what a comparison of two revisions asks and gives.
+from waterfall.core.estimate.comparing import (
+    AmountDelta as AmountDelta,
+)
+from waterfall.core.estimate.comparing import (
+    ComparedNode as ComparedNode,
+)
+from waterfall.core.estimate.comparing import (
+    Comparison as Comparison,
+)
+from waterfall.core.estimate.comparing import (
+    ComparisonAsked as ComparisonAsked,
+)
+
 # ``calendars`` (US-1490/L1; US-1500): the calendars of the roles, which a change must not idle.
 # ``entries`` (US-1490/L3): what a write sends of a line.
 from waterfall.core.estimate.entries import (

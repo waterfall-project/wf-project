@@ -129,7 +129,7 @@ from waterfall.core.planning.interface.msproject import (
     MS_PROJECT_FORMAT as MS_PROJECT_FORMAT,
 )
 
-# ``nodes`` (US-1380/L1; US-1380/L2, L3; US-1480/L2; US-1450/L5): the nodes of a structure.
+# ``nodes`` (US-1380/L1; US-1380/L2, L3; US-1480/L2; US-1450/L5; US-1530): a structure's nodes.
 from waterfall.core.planning.interface.nodes import (
     CreationJudged as CreationJudged,
 )
@@ -156,6 +156,9 @@ from waterfall.core.planning.interface.nodes import (
 )
 from waterfall.core.planning.interface.nodes import (
     RowResolution as RowResolution,
+)
+from waterfall.core.planning.interface.nodes import (
+    StructureRead as StructureRead,
 )
 from waterfall.core.planning.interface.nodes import (
     TaskEntry as TaskEntry,
@@ -189,6 +192,9 @@ from waterfall.core.planning.interface.nodes import (
 )
 from waterfall.core.planning.interface.nodes import (
     move_nodes as move_nodes,
+)
+from waterfall.core.planning.interface.nodes import (
+    read_structure as read_structure,
 )
 from waterfall.core.planning.interface.nodes import (
     resolve_row_number as resolve_row_number,
