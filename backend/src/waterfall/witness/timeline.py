@@ -88,6 +88,41 @@ class RateUpdateApplied(_Strict):
     cost_category_ids: list[UUID]
 
 
+class CostImportApplied(_Strict):
+    """An import of actual costs applied, by the identifier of its entry of the journal.
+
+    Read and passed over by the loader until the slice of the costs applies it (US-1650/L2).
+    """
+
+    kind: Literal["cost_import_applied"]
+    project: str
+    cost_import_id: UUID
+
+
+class CostLineExcluded(_Strict):
+    """A line of cost excluded from the tracked scope, by its document, its item and its reason.
+
+    Read and passed over by the loader until the slice of the costs applies it (US-1650/L2).
+    """
+
+    kind: Literal["cost_line_excluded"]
+    project: str
+    document: str
+    item: str | None
+    reason: str
+
+
+class ImportExpired(_Strict):
+    """An import of the exchanges, analysed, that expired without being applied.
+
+    Read and passed over by the loader until the slice of the costs applies it (US-1650/L2).
+    """
+
+    kind: Literal["import_expired"]
+    project: str
+    import_id: UUID
+
+
 class StateTransition(_Strict):
     """The project moved from a state to another, by what is written before it."""
 
@@ -104,6 +139,9 @@ type Write = Annotated[
     | DesignationAttempted
     | CodeEntered
     | RateUpdateApplied
+    | CostImportApplied
+    | CostLineExcluded
+    | ImportExpired
     | StateTransition,
     Field(discriminator="kind"),
 ]
