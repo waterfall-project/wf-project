@@ -26,6 +26,7 @@ from sqlalchemy import select
 
 from waterfall.core.projects.commands import EXITS, state_conditions
 from waterfall.core.projects.interface.contributors import require_project_manager
+from waterfall.core.projects.interface.estimate_facts import marked_revision_has_lines
 from waterfall.core.projects.tables import STATES, Project, ProjectStateTransition
 from waterfall.core.users.interface import inscribed_actor
 from waterfall.platform.audit import AuditObject, AuditProject, Inscription, record
@@ -65,6 +66,7 @@ STATE_FORBIDS_OPERATION = "STATE_FORBIDS_OPERATION"
 NO_CURRENT_REVISION = "no_current_revision"
 PROJECT_CODE_SET = "project_code_set"
 REFERENCE_DESIGNATED = "reference_revision_designated"
+LINES_REQUIRED = "revision_has_tasks_and_lines"
 
 
 @dataclass(frozen=True, slots=True)
@@ -120,33 +122,47 @@ class TransitionView:
     reason: str | None
 
 
-def next_state(state: str, *, has_revision: bool, has_reference: bool, has_code: bool) -> NextState:
+def next_state(
+    state: str,
+    *,
+    has_revision: bool,
+    has_reference: bool,
+    has_code: bool,
+    has_lines: bool,
+) -> NextState:
     """Give the next state of a project, its trigger and the conditions that remain (WF-CYC-0050).
 
-    Created leads to Pricing at the first revision, with nothing else to ask; Pricing leads to In
-    progress when the reference is designated and the code entered, whichever comes second, and
-    names what is lacking, the code first; In progress and the terminal states lead nowhere by a
-    fact (their exits are commands). ``has_revision`` is the first fact itself: it names no
-    condition, the state is moved by ``advance`` when the fact is realised.
+    Created leads to Pricing at the first revision and names no condition: the passage has none
+    beyond its fact (#2634); Pricing leads to In progress when the reference is designated
+    and the code entered, whichever comes second, and names what is lacking, the code first, then
+    the lines the reference is chosen among (``has_lines``, EP-07/US-1540: the revision marked that
+    bears a line, which the estimate answers, so that ``advance`` does not ask it), the reference
+    last — the conditions of the passage to In progress, named only in Pricing (#2634); In progress
+    and the terminal states lead nowhere by a fact (their exits are commands). ``has_revision`` is
+    the first fact itself: it names no condition, the state is moved by ``advance`` when the fact
+    is realised.
     """
     del has_revision
+    lines: tuple[str, ...] = () if has_lines else (LINES_REQUIRED,)
     if state == "created":
         return NextState(state, "pricing", "first_revision_created")
     if state == "pricing":
         lacking = (
             *(() if has_code else (PROJECT_CODE_SET,)),
+            *lines,
             *(() if has_reference else (REFERENCE_DESIGNATED,)),
         )
         return NextState(state, "in_progress", "reference_designated_and_code_set", lacking)
     return NextState(state)
 
 
-def _next_of(project: Project) -> NextState:
+def _next_of(project: Project, *, has_lines: bool) -> NextState:
     return next_state(
         project.state,
         has_revision=project.current_revision_id is not None,
         has_reference=project.reference_revision_id is not None,
         has_code=project.code is not None,
+        has_lines=has_lines,
     )
 
 
@@ -155,7 +171,9 @@ def read_next_state(session: Session, project_id: UUID) -> NextState:
     project = session.get(Project, project_id)
     if project is None:
         raise NotFoundError(NOT_FOUND)
-    return _next_of(project)
+    # The estimate answers whether a marked revision bears a line; asked of the state that names it.
+    asked = project.state == "pricing"
+    return _next_of(project, has_lines=not asked or marked_revision_has_lines(session, project_id))
 
 
 def _move(session: Session, project: Project, to_state: str, reason: str | None, act: Act) -> None:
@@ -182,7 +200,8 @@ def advance(session: Session, project_id: UUID, trigger: LifecycleTrigger, act: 
     written the project to realise the fact (the current revision, the code) and moved it already.
     """
     project = session.get_one(Project, project_id)
-    following = _next_of(project)
+    # The designation has already required the lines: nothing left to ask of the estimate.
+    following = _next_of(project, has_lines=True)
     if following.next_state is None or following.trigger != trigger or following.missing_conditions:
         return
     _move(session, project, following.next_state, None, act)

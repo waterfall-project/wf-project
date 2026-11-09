@@ -413,9 +413,10 @@ test("presents fixed the type of a nature whose category is employed, with its c
   await expect(deactivation).not.toHaveAttribute("aria-disabled", "true");
 
   // The type of the labour, whose categories the estimate employs, bear rates and serve roles, is
-  // fixed with its conditions (EP-14/L42r). The service plays two of the three, those of the rates
-  // and of the roles; the one of the estimates, which holds no category in its data, is carried by
-  // the fake back and by the unit tests.
+  // fixed with its conditions (EP-14/L42r). The service plays two of the three with certainty, those
+  // of the rates and of the roles; the one of the estimates may be present or absent there, the
+  // journeys of EP-07 writing labour lines into the shared installation in an order not fixed. The
+  // fake back and the unit tests carry it.
   // Une commande momentanément impossible est présentée indisponible, avec la condition qui manque.
   // Its modification is opened from its row, pressed again until React opens it.
   const form = page.getByRole("dialog", { name: "Modifier « Main-d'œuvre »" });
@@ -429,11 +430,11 @@ test("presents fixed the type of a nature whose category is employed, with its c
   await expect(type).toHaveAttribute("readonly", "");
   await expect(type).toHaveValue("Main-d’œuvre");
   // The conditions the service lacks are those of its data: the witness holds rates and roles of
-  // resource attached to its categories (US-0850), and no estimate employing a category of the
-  // nature.
+  // resource attached to its categories (US-0850); whether an estimate employs a category of the
+  // nature depends on the journeys already played, so that condition is optional in service.
   await expect(type).toHaveAccessibleDescription(
     inService
-      ? /^Le type ne se modifie pas\. Conditions non remplies\s:\saucune catégorie de la nature portant un taux horaire et aucune catégorie de la nature rattachée à un rôle de ressource\.$/
+      ? /^Le type ne se modifie pas\. Conditions non remplies\s:\s(?:aucune catégorie de la nature employée, )?aucune catégorie de la nature portant un taux horaire et aucune catégorie de la nature rattachée à un rôle de ressource\.$/
       : /^Le type ne se modifie pas\. Conditions non remplies\s:\saucune catégorie de la nature employée, aucune catégorie de la nature portant un taux horaire et aucune catégorie de la nature rattachée à un rôle de ressource\.$/,
   );
   await expect(form.getByRole("combobox", { name: "Type" })).toHaveCount(0);

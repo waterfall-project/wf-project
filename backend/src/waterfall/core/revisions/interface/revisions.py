@@ -21,7 +21,10 @@ are taken in one order: the revision, then its project — never the project bef
 
 The partitions of the revised tables are created in the transaction of the creation of the
 project, by the function of the owner of the tables (``create_project_partitions``, WF-DAT-0050):
-the role of the service may execute it, and holds no other right of DDL.
+the role of the service may execute it, and holds no other right of DDL. The function takes the
+advisory lock ``PARTITIONS_LOCK``, then every lock it needs at once, without waiting, and tries
+again a little later while one is held elsewhere (migration ``0026``, #2603, #2667): called before
+any write of its transaction, it never waits while its transaction holds a lock another waits for.
 
 Declared by US-0910/L1, which fills the partitions; US-0960 fills the rest. ``load_revision``
 opens a revision of the witness under the identifier it imposes, by the very rules of the opening
@@ -215,10 +218,17 @@ def register_copy(copier: Callable[[RevisionCopy], None]) -> Callable[[], None]:
 register_copy(copy_structures)
 
 
+# The key of the advisory lock of the transaction under which the function of the database creates
+# the partitions of a project (migration ``0026``), distinct from the other keys of the service.
+PARTITIONS_LOCK = 4_100_010
+
+
 def create_project_partitions(session: Session, project_id: UUID) -> None:
     """Create the partitions of a project in each revised table, in the transaction of ``session``.
 
-    A project that has them already is refused by the database, which raises.
+    Called before any write of the transaction (``docs/dev/sql.md``, "Verrous"). A project that has
+    them already is refused by the database, which raises; a lock held elsewhere for about ten
+    seconds too (``lock_not_available``).
     """
     session.execute(select(func.create_project_partitions(project_id)))
 
@@ -405,6 +415,17 @@ def _judge_opening(
 def last_marked_revision(session: Session, project_id: UUID) -> UUID | None:
     """Give the last marked revision of a project, which the next current one copies, if any."""
     return _last_marked(session, project_id)
+
+
+def marked_revisions(session: Session, project_id: UUID) -> frozenset[UUID]:
+    """Give the marked revisions of a project (WF-CYC-0050)."""
+    return frozenset(
+        session.scalars(
+            select(Revision.id).where(
+                Revision.project_id == project_id, Revision.status == "marked"
+            )
+        )
+    )
 
 
 def last_marked_revisions(session: Session, project_ids: Collection[UUID]) -> dict[UUID, UUID]:

@@ -10,7 +10,7 @@ from io import BytesIO
 from typing import TYPE_CHECKING, Any
 
 from estimate_support import Costing, Lines
-from imports_trial import deposited, read, run, stored
+from imports_trial import deposited, read, run
 from openpyxl import Workbook
 from projects_support import PROJECTS, Scene
 from sqlalchemy import select
@@ -108,18 +108,9 @@ def analysed_import(api: ContractClient, stage: Scene, worker: Worker, content: 
     return response.json()["import_id"]
 
 
-def analysed(
-    api: ContractClient, stage: Scene, worker: Worker, content: bytes, *, kept: bool = False
-) -> dict[str, Any]:
-    """Open the import of a workbook, run its analysis; give its report, read by ``getImport``.
-
-    ``kept`` reads it as the database keeps it.
-    """
+def analysed(api: ContractClient, stage: Scene, worker: Worker, content: bytes) -> dict[str, Any]:
+    """Open the import of a workbook, run its analysis; give its report, read by ``getImport``."""
     import_id = analysed_import(api, stage, worker, content)
-    if kept:
-        row = stored(stage.database, import_id)
-        assert row.status == "analysed"
-        return dict(row.report or {})
     found = read(api, stage, import_id)
     assert found["status"] == "analysed", found
     return found["report"]

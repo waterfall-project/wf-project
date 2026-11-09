@@ -5,7 +5,16 @@ import { expect, type Locator, type Page } from "@playwright/test";
 import { compile } from "./compile";
 import { openHydrated, sortUntilAddress, WORKING } from "./hydration";
 import { inService, test } from "./mode";
-import { createOwnProject, inscribe, openRevision } from "./own-project";
+import {
+  attachToService,
+  createOwnProject,
+  employRole,
+  inscribe,
+  openRevision,
+  renameAccount,
+  wiringService,
+} from "./own-project";
+import { seedPlanning } from "./planning-seed";
 import { withinBox } from "./scroll";
 import {
   accountAdministrator,
@@ -800,6 +809,71 @@ test("the contributors of a project created are written on the screen, the quali
     });
     await expect(grid.getByRole("row", { name: /Contributeur/ })).toHaveCount(0);
     await expect(grid.getByRole("row").last()).toHaveText("2 contributeurs");
+  } finally {
+    await calls.dispose();
+  }
+});
+
+test("a labour line of a role of a service proposes the accounts of the service on the settings, the list unchanged until the proposal is confirmed and saved @shared [WF-PRJ-0070-A] [WF-PRJ-0060-A]", async ({
+  browser,
+  page,
+  playwright,
+  manager,
+}) => {
+  if (!inService || manager === undefined) {
+    test.skip(true, SERVICE_ONLY);
+    return;
+  }
+  test.slow();
+  const calls = await playwright.request.newContext({ ignoreHTTPSErrors: true });
+  try {
+    // A project of its own with its tasks, and an account of its own attached to the service of the
+    // witness: it is the one the proposal is read for, the witness holding accounts of that service.
+    const seeded = await seedPlanning(page, browser, calls, manager, "Proposition");
+    const administrator = await accountAdministrator(browser, calls);
+    // The local accounts all bear one name, and the installation is shared: this one is renamed
+    // with a token of its own, so that the screen tells it from every other of the service.
+    const created = await localAccount(browser, administrator);
+    const other = await renameAccount(browser, calls, created);
+    const service = wiringService();
+    await attachToService(browser, calls, other, service);
+    const settings = `${seeded.own.path}/settings`;
+    const contributors = page.getByRole("main").getByRole("region", { name: "Contributeurs" });
+    const grid = contributors.getByRole("grid", { name: "Contributeurs" });
+    const proposed = contributors.getByText(/^Proposés? d’après les rôles du devis, à confirmer/);
+
+    // No line employs a role yet: nobody is proposed.
+    await openHydrated(page, settings);
+    await expect(grid.getByRole("row").last()).toHaveText("1 contributeur", { timeout: WORKING });
+    await expect(proposed).toHaveCount(0);
+
+    // A labour line of the role of the service is created: its account is proposed, with the list
+    // unchanged (WF-PRJ-0070).
+    await employRole(calls, seeded.headers, seeded.ids, seeded.nodes[6] ?? "", service);
+    await openHydrated(page, settings);
+    await expect(proposed).toBeVisible({ timeout: WORKING });
+    await expect(proposed).toContainText(other.name);
+    await expect(grid.getByRole("row").last()).toHaveText("1 contributeur");
+
+    // The proposal names the node and the role; confirmed, and the list saved, it is written.
+    await contributors.getByRole("button", { name: "Modifier les contributeurs" }).click();
+    const list = page.getByRole("dialog", { name: "Modifier les contributeurs" });
+    const offered = list
+      .getByRole("region", { name: "Contributeurs proposés" })
+      .getByRole("listitem")
+      .filter({ hasText: other.name });
+    await expect(offered).toHaveCount(1, { timeout: WORKING });
+    await expect(offered).toContainText(service.node.label);
+    await expect(offered).toContainText(service.role.label);
+    await offered.getByRole("button", { name: `Inscrire ${other.name}` }).click();
+    await list.getByRole("button", { name: "Enregistrer" }).click();
+    await expect(list).toHaveCount(0);
+    await expect(grid.getByRole("row").last()).toHaveText("2 contributeurs");
+
+    // Read anew, the service kept both and proposes this account no more.
+    await page.reload();
+    await expect(grid.getByRole("row").last()).toHaveText("2 contributeurs", { timeout: WORKING });
+    await expect(proposed.filter({ hasText: other.name })).toHaveCount(0);
   } finally {
     await calls.dispose();
   }

@@ -11572,6 +11572,35 @@ paramètres et `params.header` la colonne qui porte le champ : l'utilisateur ret
 La version reste `1.0.0` : un motif et un paramètre de plus, que `ProblemParams` laissait ouverts.
 Écarté : `params.column`, qui aurait donné deux types à une même clé.
 
+### Les tâches d'un refus, d'une forme ou de l'autre (US-1550/L5, #2635)
+
+`ProblemParams.tasks` — le rapport d'un import, et le refus d'un collage par
+`PasteRejection.params` — était un `anyOf` de `ProblemTask` (`project_id`, `node_id`, `label`) et
+de `ProblemImportedTask` (`lineage_id`, `label`), deux objets ouverts : une tâche qui aurait porté
+son nœud et sa lignée les satisfaisait toutes deux, et la vérification des réponses du service
+(`ContractClient`, WF-ARC-0060) refusait de la lire (`AmbiguousCompositionError`). Les tests du
+rapport d'import lisaient le rapport en base, ceux du collage la réponse brute. Décision de
+l'utilisateur du 2026-11-09 (conception d'EP-07, « Une composition `anyOf` ambiguë se corrige au
+contrat, non dans l'outil ») : le contrat rend la composition discriminable.
+
+- **Des propriétés exclusives.** Les deux formes sont fermées (`additionalProperties: false`), et
+  chacune exige ce que l'autre ne déclare pas : `project_id` et `node_id`, ou `lineage_id`. Aucune
+  valeur ne les satisfait donc toutes deux, et la composition devient un `oneOf`, qui le dit. Rien
+  ne change sur le fil : le service et les exemples rendent déjà l'une ou l'autre forme ; les
+  modèles du service ferment les deux (`extra="forbid"`), le client du front ne change que ses
+  descriptions. La version reste `1.0.0`.
+- **`ContractClient` reconnaît cette forme, et elle seule.** Une composition dont plusieurs
+  branches décrivent un objet reste refusée, sauf quand chacune est fermée et exige une propriété
+  qu'aucune autre ne déclare : un objet suit alors la seule branche dont il porte les propriétés
+  propres. Deux objets ouverts, un ouvert et un fermé, ou deux fermés qui n'exigent rien en propre
+  restent ambigus.
+
+Écartés : un `oneOf` à discriminant (`discriminator`, comme `CurrentRevisionFate`), qui ajoutait à
+chaque tâche nommée une propriété de plus sur le fil — le service, sept exemples et le front à
+reprendre — pour dire ce que `lineage_id` dit déjà ; un `ContractClient` qui admet plusieurs branches
+valides, qui affaiblissait la vérification de tous les tests pour masquer un défaut que tout client
+du contrat subit.
+
 ## Collage et annulation
 
 **Le collage depuis un tableur suit exactement la forme d'un import** : `paste-preview`

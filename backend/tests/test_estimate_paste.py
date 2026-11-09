@@ -327,16 +327,8 @@ def test_a_role_that_leaves_the_task_without_a_worked_hour_is_refused_on_its_cel
     lines.made(task, who, **labour(costs))
     cable = lines.made(task, who, **material(costs))["nodes"][0]
     blocked = lines.made(task, who, **labour(costs))["nodes"][0]
-    # The client of the tests reads no `PasteRejection.params`, whose `tasks` compose two objects
-    # (`AmbiguousCompositionError`): the answer is validated by the contract, and read as it comes.
-    sent = {"target_node_id": blocked["node_id"], "target_column": "resource_role"}
-    answer = tree.api.client.post(
-        f"{tree.path}/nodes/paste-preview",
-        headers=who.headers,
-        json={**sent, "rows": [["Rôle NUIT"]]},
-    )
-    assert answer.status_code == 200, answer.text
-    plan = answer.json()
+    # `PasteRejection.params.tasks` names the task by its project and its node (#2635).
+    plan = planned(tree, blocked, "resource_role", [["Rôle NUIT"]], who)
     assert (plan["accepted"], reasons(plan)) == (
         0,
         [(0, "resource_role", "TASK_WITHOUT_WORKING_HOURS")],
@@ -408,22 +400,6 @@ def roles_of_week(stage: Scene) -> tuple[UUID, UUID, UUID]:
     )
 
 
-def previewed_raw(tree: Tree, body: dict[str, Any], who: Person) -> dict[str, Any]:
-    """Preview a block whose refusals compose objects, the contract checking the answer."""
-    path = f"{tree.path}/nodes/paste-preview"
-    answer = tree.api.client.post(path, headers=who.headers, json=body)
-    assert answer.status_code == 200, answer.text
-    return answer.json()
-
-
-def settled(tree: Tree, plan: dict[str, Any], who: Person) -> dict[str, Any]:
-    """Confirm a plan whose refusals compose objects, the contract checking the answer; give it."""
-    sent = {"paste_id": plan["paste_id"], "confirmed": True, "lock_version": counter(tree)}
-    answer = tree.api.client.post(f"{tree.path}/nodes/paste", headers=who.headers, json=sent)
-    assert answer.status_code == 200, answer.text
-    return answer.json()
-
-
 @pytest.mark.requirement("WF-IHM-0050-A")
 def test_the_lines_of_a_block_under_a_task_are_judged_on_the_rows_accepted_before_them(
     tree: Tree, lines: Lines, costs: Costing, who: Person, stage: Scene
@@ -437,11 +413,10 @@ def test_the_lines_of_a_block_under_a_task_are_judged_on_the_rows_accepted_befor
     a = lines.made(task, who, **labour(costs, label="A"))["nodes"][0]
     lines.made(task, who, **labour(costs, label="B"))
     lines.made(task, who, **labour(costs, label="C", resource_role_id=str(zed)))
-    sent = {"target_node_id": a["node_id"], "target_column": "resource_role"}
-    plan = previewed_raw(tree, {**sent, "rows": [["Rôle R1"], ["Rôle R2"]]}, who)
+    plan = planned(tree, a, "resource_role", [["Rôle R1"], ["Rôle R2"]], who)
     wanted = [(1, "resource_role", "TASK_WITHOUT_WORKING_HOURS")]
     assert (plan["accepted"], reasons(plan)) == (1, wanted)
-    body = settled(tree, plan, who)
+    body = applied(tree, plan, who)
     assert reasons(body) == wanted
     held = {each["label"]: each["resource_role_id"] for each in estimate_lines(tree)}
     assert held == {"A": str(first), "B": str(costs.role), "C": str(zed)}
@@ -460,12 +435,11 @@ def test_two_lines_created_under_a_task_are_judged_on_each_other(
     held = labour(costs, label="C", resource_role_id=str(zed))
     anchor = lines.made(task, who, **held)["nodes"][0]
     rows = [["C bis"], ["Une", "", "Rôle R1", "1", "10"], ["Deux", "", "Rôle R2", "1", "10"]]
-    sent = {"target_node_id": anchor["node_id"], "target_column": "label", "rows": rows}
-    plan = previewed_raw(tree, sent, who)
+    plan = planned(tree, anchor, "label", rows, who)
     assert (plan["accepted"], plan["created"]) == (2, 1)
     wanted = [(2, "resource_role", "TASK_WITHOUT_WORKING_HOURS")]
     assert reasons(plan) == wanted
-    body = settled(tree, plan, who)
+    body = applied(tree, plan, who)
     assert reasons(body) == wanted
     assert line_labels(tree) == ["C bis", "Une"]
     assert estimate_lines(tree)[1]["resource_role_id"] == str(first)

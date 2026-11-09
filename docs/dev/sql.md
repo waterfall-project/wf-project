@@ -247,6 +247,21 @@ séparerait plus.
 - Une modification qui porte un `lock_version` le teste **dans l'écriture même** :
   `UPDATE … WHERE id = :id AND lock_version = :lu RETURNING …`, qui n'écrit rien si la version
   n'est plus la bonne (412) — jamais une lecture suivie d'une comparaison en Python.
+- **La création des partitions d'un projet s'appelle avant toute écriture** de sa transaction
+  (`_create` de `core/projects`, juste après `share_reference`), et **n'attend jamais en tenant
+  un verrou** (#2603, #2667). Ses DDL verrouillent les tables révisionnées et toutes celles que
+  leurs clés relient ; une lecture ou une écriture qui tient l'une et demande l'autre
+  interbloquait avec elle. `create_project_partitions` (migration `0026`) prend donc le verrou
+  consultatif `PARTITIONS_LOCK` de `core/revisions`, qui range les créations l'une après
+  l'autre, puis tous ses verrous d'un coup, `LOCK TABLE ONLY … NOWAIT` ; s'il en manque un, elle
+  les rend tous et réessaie après une courte pause, une dizaine de secondes au plus comptées
+  depuis le verrou consultatif, avant de lever `lock_not_available`, une 500. `NOWAIT` n'annule
+  jamais un autovacuum, qui tient `SHARE UPDATE EXCLUSIVE` : un autovacuum de plus de dix
+  secondes sur l'une de ces tables fait échouer la création ainsi. Elle lit dans le catalogue
+  les tables partitionnées par `project_id` et celles que leurs clés relient : une table
+  révisionnée nouvelle, ou une clé nouvelle, y entre sans qu'aucune migration la remplace. Une
+  création qui aurait déjà écrit tiendrait, en attendant le verrou consultatif, un verrou que la
+  création en cours ne peut prendre : celle-ci réessaierait en vain, puis échouerait.
 - Les migrations d'une même base s'appliquent l'une après l'autre : l'environnement d'Alembic
   prend un verrou consultatif de session, pour que deux instances qui démarrent ensemble
   n'appliquent pas la même migration deux fois.

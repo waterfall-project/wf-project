@@ -144,7 +144,9 @@ d'extension"); an entry point that depends on it imports the interface that regi
 A revised table is partitioned by list on `project_id`, one partition per project (WF-DAT-0050),
 which the function `create_project_partitions` of the owner of the tables (`SECURITY DEFINER`)
 creates in the transaction of the creation of the project; the role of the service alone may
-execute it, with no other right of DDL; each epic that adds a revised table replaces it. Two
+execute it, with no other right of DDL. It reads the revised tables in the catalogue (migration
+`0026`): a table an epic adds, with its function `<table>_refuse_truncate`, enters it without
+replacing it; it is called before any write of the transaction ([sql.md](sql.md), "Verrous"). Two
 triggers of the module of the revisions refuse, owner included, what a marked revision forbids
 (migration `0020`). The one of a revised table locks the revision of the row `FOR KEY SHARE`
 whatever its status, then reads it, and the marking locks the revision `FOR UPDATE` before marking
@@ -2043,6 +2045,23 @@ address naming the task and the refusal (`refused_task`, `refusal`, `result-refu
 tracking reloads the task, follows it and says the refusal in its entry (`OutcomeNotice`) — or, the
 task unreadable, in a notice of its panel —, and removes it from the address once the page is
 revealed, Next's router rendering afresh a page whose address changes (#416).
+
+The screen is wired to the service (EP-06, US-1430): the page no longer carries the note of the
+mock-up (`MockupNotice`). The MS Project planning is imported in two steps (`openImport`, `getImport`,
+`applyImport`, `expected_format` set to `ms_project_schedule`) and exported (`requestExport`,
+`kind: ms_project_schedule`); the file of the export is downloaded through the route
+`/tasks/[taskId]/result`, which the service empties at the end of the first complete download
+(`result_url` null, 404 afterwards, which the route renders as its refusal). The path of
+`exchanges.spec.ts` that exports the planning of a project the run creates, downloads it, then
+imports it back with no difference (FLX-01 and FLX-02 of the « project manager » account,
+WF-INTF-0010-A), and those of `tasks.spec.ts` that play the route and the refusal of a result on the
+export it made, carry `@shared`. The estimate is imported (`kind: estimate`) and exported (`kind:
+estimate`, file `…-devis.xlsx`) through the same screen; its `@shared` path exports and downloads the
+estimate of a project the run creates, and sees a file that is no estimate refused at the analysis
+(format and version expected named). The proxy of the contract (Prism) spoils the bytes of a
+workbook (#973): the workbook is neither inspected nor imported back by this path, and the import in
+two steps stays on the fake back; the remaining to commit and the actual costs (EP-09) and the path
+of the marking stay on the fake back.
 
 The page of a project proposes to start its planning through the « Start the project » insert
 (`ProjectStart`, `components/projects/project-start.tsx`, US-0490) as long as the main structure of
@@ -4026,10 +4045,11 @@ the epic that lifts it; that epic removes the guard and its entry:
   all the rest.
 - `project-start.spec.ts` — the start towards the planning: the opening of PRJ-001 that leads to its
   planning, the screen of the work breakdown that generates the planning, and the encart « Démarrer
-  le projet » of a project created, which the service does not offer to the account of the run
-  before the structures (`BEFORE_EP06`): lifted by **EP-06**, which serves the structures, the
-  import of a planning and `generatePlanningSkeleton`. The work breakdown of a project created,
-  written then read anew, plays since US-0950 (twin path, `SERVICE_ONLY`).
+  le projet » of a project created, which play against the service on a project the account of the
+  run creates: it lists `import_planning` (US-1430) and serves the structures and
+  `generatePlanningSkeleton`, so no `BEFORE_EP06` guard remains. The work breakdown of a project
+  created, written then read anew, plays since US-0950 (twin path, `SERVICE_ONLY`), the fake back
+  keeping nothing of the work breakdown it is given (`FAKE_BACK_FORGETS`).
 - `context.spec.ts` — the banner of the context on the screens of the data, the planning, the
   remaining to commit, the risks and the indicators, and on a differential structure
   (`BEFORE_THE_DATA`): lifted screen by screen by **EP-06** (the planning, the structures),

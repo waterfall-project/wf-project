@@ -152,12 +152,18 @@ class ProblemProject(ContractModel):
 
 
 class ProblemTask(ContractModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
     project_id: Uuid
     node_id: Uuid
     label: str
 
 
 class ProblemImportedTask(ContractModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
     lineage_id: Uuid
     label: str
 
@@ -233,7 +239,7 @@ class ProblemParams(ContractModel):
     tasks: Annotated[
         list[ProblemTask | ProblemImportedTask] | None,
         Field(
-            description="The tasks that an entry in a revision, a merge, a pasted or imported line would leave without a working hour (`TASK_WITHOUT_WORKING_HOURS`, WF-PLA-0010): by their project, their node and their label for an entry, a paste or a merge; by their lineage and their label in the report of an import, which names its objects this way (`ImportDifference`) and may concern a project without a current revision, of which no node exists yet (WF-INTF-0090; #768, point 2). Likewise, by their lineage and their label, the tasks that carry the ambiguous label an imported line cites (`AMBIGUOUS_TASK_LABEL`, annex B)."
+            description="The tasks that an entry in a revision, a merge, a pasted or imported line would leave without a working hour (`TASK_WITHOUT_WORKING_HOURS`, WF-PLA-0010): by their project, their node and their label for an entry, a paste or a merge; by their lineage and their label in the report of an import, which names its objects this way (`ImportDifference`) and may concern a project without a current revision, of which no node exists yet (WF-INTF-0090; #768, point 2). Likewise, by their lineage and their label, the tasks that carry the ambiguous label an imported line cites (`AMBIGUOUS_TASK_LABEL`, annex B). Each task follows one form only: both are closed, and each requires what the other does not declare — `project_id` and `node_id`, or `lineage_id` (#2635)."
         ),
     ] = None
     estimate_lines: Annotated[

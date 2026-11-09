@@ -284,7 +284,7 @@ def test_a_task_designated_by_a_label_several_tasks_carry_is_rejected_naming_the
 ) -> None:
     twin = tree.made("Essais")
     rows = [*as_exported(held), row("Essais", held["stuff"], {"Débours unitaire": 2})]
-    report = analysed(api, stage, worker, workbook(rows, held["tasks"]), kept=True)
+    report = analysed(api, stage, worker, workbook(rows, held["tasks"]))
     second = held["second"]
     assert report["rejected"] == [
         {
@@ -312,7 +312,7 @@ def test_a_line_that_would_leave_its_task_without_hours_is_rejected_naming_roles
     weekend = add_role(stage.database, "WE", (0, 0, 0, 0, 0, 8, 8))
     entry = entry_of(stage.database, ResourceRole, weekend)
     rows = [*as_exported(held), row("1 Câblage", entry, {"Quantité": 1, "Heures": 2})]
-    report = analysed(api, stage, worker, workbook(rows, held["tasks"]), kept=True)
+    report = analysed(api, stage, worker, workbook(rows, held["tasks"]))
     [rejected] = report["rejected"]
     assert (rejected["row"], rejected["code"]) == (4, "TASK_WITHOUT_WORKING_HOURS")
     params = rejected["params"]
@@ -347,7 +347,7 @@ def test_a_new_line_under_a_completed_task_of_the_main_structure_is_rejected(
     second = held["second"]
     set_progress(stage, second["node_id"], "completed", date(2026, 1, 5))
     rows = [*as_exported(held), row("2 Essais", held["stuff"], {"Débours unitaire": 9})]
-    report = analysed(api, stage, worker, workbook(rows, held["tasks"]), kept=True)
+    report = analysed(api, stage, worker, workbook(rows, held["tasks"]))
     assert report["rejected"] == [
         {
             "sheet": SHEET,
@@ -448,7 +448,7 @@ def test_a_line_moved_to_another_task_is_updated_and_a_repeated_lineage_is_a_new
     assert (report["read_count"], report["unchanged_count"]) == (4, 1)
     # From a completed task of the main structure, the line does not move: rejected as its entry.
     set_progress(stage, held["first"]["node_id"], "completed", date(2026, 1, 5))
-    report = analysed(api, stage, worker, workbook([labour, stuff], held["tasks"]), kept=True)
+    report = analysed(api, stage, worker, workbook([labour, stuff], held["tasks"]))
     assert [(each["row"], each["params"]["missing_condition"]) for each in report["rejected"]] == [
         (2, "task_not_completed")
     ]
