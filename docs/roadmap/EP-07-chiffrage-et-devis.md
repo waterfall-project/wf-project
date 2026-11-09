@@ -1255,7 +1255,7 @@ conservés (US-1500) : rien n'est recalculé sur le référentiel du jour. L'éc
 
 ## US-1540 — Le passage à En cours, le code projet et la proposition des contributeurs
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-CYC-0020-A`, `WF-CYC-0030-A`, `WF-CYC-0050-A`, `WF-PRJ-0010-A`,
   `WF-PRJ-0060-A`, `WF-PRJ-0070-A`
 - **opérations** : `listContributorSuggestions`, `designateReferenceRevision`,
