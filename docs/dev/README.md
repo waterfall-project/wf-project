@@ -144,7 +144,9 @@ d'extension"); an entry point that depends on it imports the interface that regi
 A revised table is partitioned by list on `project_id`, one partition per project (WF-DAT-0050),
 which the function `create_project_partitions` of the owner of the tables (`SECURITY DEFINER`)
 creates in the transaction of the creation of the project; the role of the service alone may
-execute it, with no other right of DDL; each epic that adds a revised table replaces it. Two
+execute it, with no other right of DDL. It reads the revised tables in the catalogue (migration
+`0026`): a table an epic adds, with its function `<table>_refuse_truncate`, enters it without
+replacing it; it is called before any write of the transaction ([sql.md](sql.md), "Verrous"). Two
 triggers of the module of the revisions refuse, owner included, what a marked revision forbids
 (migration `0020`). The one of a revised table locks the revision of the row `FOR KEY SHARE`
 whatever its status, then reads it, and the marking locks the revision `FOR UPDATE` before marking
