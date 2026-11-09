@@ -2036,6 +2036,18 @@ tracking reloads the task, follows it and says the refusal in its entry (`Outcom
 task unreadable, in a notice of its panel —, and removes it from the address once the page is
 revealed, Next's router rendering afresh a page whose address changes (#416).
 
+The screen is wired to the service (EP-06, US-1430): the page no longer carries the note of the
+mock-up (`MockupNotice`). The MS Project planning is imported in two steps (`openImport`, `getImport`,
+`applyImport`, `expected_format` set to `ms_project_schedule`) and exported (`requestExport`,
+`kind: ms_project_schedule`); the file of the export is downloaded through the route
+`/tasks/[taskId]/result`, which the service empties at the end of the first complete download
+(`result_url` null, 404 afterwards, which the route renders as its refusal). The path of
+`exchanges.spec.ts` that exports the planning of a project the run creates, downloads it, then
+imports it back with no difference (FLX-01 and FLX-02 of the « project manager » account,
+WF-INTF-0010-A), and those of `tasks.spec.ts` that play the route and the refusal of a result on the
+export it made, carry `@shared`; the estimate, the remaining to commit and the actual costs (EP-07,
+EP-09) and the path of the marking stay on the fake back.
+
 The page of a project proposes to start its planning through the « Start the project » insert
 (`ProjectStart`, `components/projects/project-start.tsx`, US-0490) as long as the main structure of
 the current revision has no task. The condition is read at the server (`startOffers`,

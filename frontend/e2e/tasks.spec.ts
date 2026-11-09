@@ -1,10 +1,24 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
-import { expect, type Page, type Route, test } from "@playwright/test";
+import {
+  type APIRequestContext,
+  type Browser,
+  expect,
+  type Page,
+  type Route,
+} from "@playwright/test";
 
 import { compile } from "./compile";
 import { openHydrated, WORKING } from "./hydration";
+import { inService, test } from "./mode";
+import { seedPlanning } from "./planning-seed";
+import { API, type LocalPerson } from "./service/realm";
 
+// The two last paths are the service's too, tagged `@shared` (US-1430): the route of a result and the
+// refusal it carries back to the tracker play against the export of a project the run creates, asked by the
+// API and made by the worker. The marking keeps to the fake back, whose read the first path holds to
+// follow the task.
+//
 // The fake back serves the first example of each operation: the current revision, a draft
 // whose marking is available; the marking queued; and, read two seconds later, the marking
 // succeeded. A marking still running, then failed, is an example it does not serve first: the
@@ -20,6 +34,37 @@ const TASK = "01926f3a-7c00-7000-8000-000000000931";
  */
 function said(page: Page, text: RegExp) {
   return page.locator("p:not([role=log] p)", { hasText: text });
+}
+
+/** What an export asked by the API leaves to the paths: the screen it leaves from, and its task. */
+interface Exported {
+  readonly screen: string;
+  readonly task: string;
+}
+
+/**
+ * Seed a planning in the service, ask for its export as the creator does, and wait for the worker
+ * to make it. The account of the run is no contributor of PRJ-001 (#2193): the path writes its own.
+ */
+async function exportedByTheApi(
+  page: Page,
+  browser: Browser,
+  calls: APIRequestContext,
+  manager: LocalPerson | undefined,
+): Promise<Exported> {
+  const seeded = await seedPlanning(page, browser, calls, manager, "Résultat");
+  const asked = await calls.post(`${API}/projects/${seeded.ids.project}/exports`, {
+    headers: seeded.headers,
+    data: { kind: "ms_project_schedule", revision_id: seeded.ids.revision },
+  });
+  expect(asked.status(), "POST exports").toBe(202);
+  const task = ((await asked.json()) as { task_id: string }).task_id;
+  await expect(async () => {
+    const read = await calls.get(`${API}/tasks/${task}`, { headers: seeded.headers });
+    expect(read.status(), "GET task").toBe(200);
+    expect(((await read.json()) as { status: string }).status).toBe("succeeded");
+  }).toPass({ timeout: WORKING });
+  return { screen: `${seeded.revision}/exchanges`, task };
 }
 
 test("marking a revision gives the hand back, shows its progress, and tells on another screen its end, which comes after the change, kept in the history with a link back [WF-IHM-0080-A]", async ({
@@ -122,13 +167,25 @@ test("marking a revision gives the hand back, shows its progress, and tells on a
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("Gestion des révisions");
 });
 
-test("tells, by the entry of its task, the refusal of a result the browser came back with from its route, and takes it away from the address (#416)", async ({
+test("tells, by the entry of its task, the refusal of a result the browser came back with from its route, and takes it away from the address (#416) @shared", async ({
   page,
+  browser,
+  request,
+  manager,
 }) => {
   // The route of the result sent the browser back to the screen it left: the result expired. The
-  // fake back serves the first example of the read of a task, whatever the task asked.
-  const screen = `/projects/${PROJECT}/revisions?revision_id=${REVISION}`;
-  await openHydrated(page, `${screen}&refused_task=${TASK}&refusal=409%3ASTATE_FORBIDS_OPERATION`);
+  // fake back serves the first example of the read of a task, whatever the task asked; the service
+  // reads the export it made.
+  let screen = `/projects/${PROJECT}/revisions?revision_id=${REVISION}`;
+  let task = TASK;
+  if (inService) {
+    test.slow();
+    ({ screen, task } = await exportedByTheApi(page, browser, request, manager));
+  }
+  await openHydrated(
+    page,
+    `${screen}${screen.includes("?") ? "&" : "?"}refused_task=${task}&refusal=409%3ASTATE_FORBIDS_OPERATION`,
+  );
   const panel = page.getByRole("region", { name: "Tâches de fond" });
   await expect(panel.getByRole("alert")).toContainText(
     "L’état actuel ne permet pas cette opération.",
@@ -136,22 +193,47 @@ test("tells, by the entry of its task, the refusal of a result the browser came 
   await expect(page).toHaveURL(screen);
 });
 
-test("the route of a result hands on the file the fake back serves, as the attachment it names, the browser kept on its screen (#416)", async ({
+test("the route of a result hands on the file, as the attachment it names, the browser kept on its screen; once downloaded to the end, it hands on no more (#416) @shared [WF-DAT-0120-A]", async ({
   page,
+  browser,
+  request,
+  manager,
 }) => {
-  // The fake back serves the result of the export of the estimate, whatever the task asked. The
-  // route is followed from the address alone: the read of a task the fake back serves first is a
-  // marking, which made no result, so no entry offers the link — the component tests prove the
-  // link of the entry and the screen it leaves from (`task-result.dom.test.tsx`).
-  const screen = `/projects/${PROJECT}/revisions?revision_id=${REVISION}`;
+  // Un export téléchargé jusqu’au bout n’est plus disponible. The fake back serves the result of the
+  // export of the estimate, whatever the task asked, and as many times as it is asked. The route is
+  // followed from the address alone: the read of a task the fake back serves first is a marking, which
+  // made no result, so no entry offers the link — the component tests prove the link of the entry and
+  // the screen it leaves from (`task-result.dom.test.tsx`).
+  let screen = `/projects/${PROJECT}/revisions?revision_id=${REVISION}`;
+  let task = "01926f3a-7c00-7000-8000-000000000935";
+  if (inService) {
+    test.slow();
+    ({ screen, task } = await exportedByTheApi(page, browser, request, manager));
+  }
   await openHydrated(page, screen);
-  const result = `/tasks/01926f3a-7c00-7000-8000-000000000935/result?from=${encodeURIComponent(screen)}`;
+  const result = `/tasks/${task}/result?from=${encodeURIComponent(screen)}`;
   const [download] = await Promise.all([
     page.waitForEvent("download"),
     page.evaluate((address) => {
       window.location.assign(address);
     }, result),
   ]);
-  expect(download.suggestedFilename()).toBe("devis-poste-de-commande.xlsx");
+  if (inService) {
+    expect(download.suggestedFilename()).toMatch(/^ms-project(-.+)?\.xml$/);
+    expect(await download.failure()).toBeNull();
+  } else {
+    expect(download.suggestedFilename()).toBe("devis-poste-de-commande.xlsx");
+  }
   await expect(page).toHaveURL(screen);
+  if (inService) {
+    // The file is gone with the end of the first download: the route sends the browser back to its
+    // screen, and the entry of the task says the result is refused.
+    await page.evaluate((address) => {
+      window.location.assign(address);
+    }, result);
+    await expect(
+      page.getByRole("region", { name: "Tâches de fond" }).getByRole("alert"),
+    ).toBeVisible({ timeout: WORKING });
+    await expect(page).toHaveURL(screen);
+  }
 });

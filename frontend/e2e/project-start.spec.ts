@@ -150,9 +150,9 @@ test("starts the planning of the project created from its encart: the work break
     path = own.path;
     planning = new RegExp(`${own.path}/revisions/[^/]+/planning`);
   }
-  // Two proofs of the fake back alone, either side of `openHydrated` (the compiled route must exist before
-  // the page opens, the encart can be read only after): the service neither compiles the planning nor lists
-  // `import_planning` with the import of the schedule (US-1430) yet.
+  // A proof of the fake back alone before `openHydrated` (the compiled route must exist before the page
+  // opens): the service compiles nothing. The encart offers the import of a schedule to both, since the
+  // service lists `import_planning` (US-1430).
   if (!inService) {
     await compile(
       page.request,
@@ -163,11 +163,9 @@ test("starts the planning of the project created from its encart: the work break
   await openHydrated(page, path);
   const encart = page.getByRole("region", { name: "Démarrer le projet" });
   await expect(encart).toBeVisible({ timeout: WORKING });
-  if (!inService) {
-    await expect(
-      encart.getByRole("button", { name: "Importer un fichier MS Project" }),
-    ).toBeVisible();
-  }
+  await expect(
+    encart.getByRole("button", { name: "Importer un fichier MS Project" }),
+  ).toBeVisible();
   await encart.getByRole("link", { name: "Planning automatique depuis le lotissement" }).click();
   await expect(page).toHaveURL(/\/settings\?start=skeleton$/, { timeout: WORKING });
   const generate = page

@@ -1,10 +1,18 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
-import { expect, type Route, test } from "@playwright/test";
+import { readFile } from "node:fs/promises";
+
+import { expect, type Route } from "@playwright/test";
 
 import { compile } from "./compile";
-import { openHydrated } from "./hydration";
+import { openHydrated, WORKING } from "./hydration";
+import { inService, test } from "./mode";
+import { seedPlanning } from "./planning-seed";
 
+// The last path below is the service's, tagged `@shared` (US-1430): the export of the planning in MS
+// Project XML, downloaded once, and imported back, on a project the run creates. The others keep to the
+// fake back, which is the only one to serve the estimate and its examples.
+//
 // The fake back serves the first example of each operation: the file deposited, its import
 // opened, its analysis under way; the report the address then names, the estimate analysed this
 // morning and applicable until tomorrow — two lines rejected —; the application queued; the
@@ -133,4 +141,84 @@ test("the estimate and the remaining to commit lead to the one screen of the imp
   await expect(
     page.getByRole("main").getByRole("link", { name: "Imports et exports" }),
   ).toHaveAttribute("href", `/projects/${PROJECT}/revisions/${REVISION}/exchanges`);
+});
+
+test("exports the planning as MS Project XML, downloads it once, and imports it back with no difference, as the project manager of the run @shared [WF-INTF-0010-A] [WF-INTF-0060-A] [WF-DAT-0120-A]", async ({
+  page,
+  browser,
+  request,
+  manager,
+}) => {
+  // Le compte « chef de projet » atteint l’échange des fichiers FLX-01 et FLX-02 ; un export téléchargé
+  // jusqu’au bout n’est plus disponible ; un planning exporté puis réimporté ne présente aucun écart.
+  test.skip(
+    !inService,
+    "the service keeps the file made and the import applied, the fake back not",
+  );
+  test.slow();
+  const seeded = await seedPlanning(page, browser, request, manager, "Échanges", { links: true });
+  const screen = `${seeded.revision}/exchanges`;
+  await openHydrated(page, screen);
+
+  // The export of the schedule, the first the revision offers: a task followed in the shell.
+  const exports = page.getByRole("region", { name: "Demander un export" });
+  await expect(
+    exports.getByRole("combobox", { name: "Fichier à exporter" }).getByRole("option").first(),
+  ).toHaveText("Planning MS Project", { timeout: WORKING });
+  await exports.getByRole("button", { name: "Demander l’export" }).click();
+  await page.getByRole("button", { name: /^Tâches et messages\s:/ }).click();
+  const panel = page.getByRole("dialog", { name: "Tâches et messages" });
+  const tasks = panel.getByRole("region", { name: "Tâches de fond" });
+  const link = tasks.getByRole("link", { name: /^Télécharger le résultat/ });
+  await expect(link).toBeVisible({ timeout: WORKING });
+  const result = await link.getAttribute("href");
+  expect(result).toMatch(/^\/tasks\/[0-9a-f-]{36}\/result\?/);
+
+  // Downloaded: a file named after the project, which is the XML of MS Project.
+  const [download] = await Promise.all([page.waitForEvent("download"), link.click()]);
+  expect(download.suggestedFilename()).toMatch(/^ms-project(-.+)?\.xml$/);
+  const xml = await readFile(await download.path());
+  const text = xml.toString("utf8");
+  expect(text).toContain("<Project");
+  for (const label of ["Études de détail", "Revue de conception", "Mise en service"]) {
+    expect(text).toContain(label);
+  }
+
+  // The result is gone once downloaded to the end: the route follows to the screen it left, and the
+  // task tells the refusal.
+  await page.evaluate((address) => {
+    window.location.assign(address);
+  }, result ?? "");
+  await expect(page).toHaveURL(screen, { timeout: WORKING });
+  await expect(page.getByRole("region", { name: "Tâches de fond" }).getByRole("alert")).toBeVisible(
+    { timeout: WORKING },
+  );
+  await page.keyboard.press("Escape");
+
+  // Imported back: analysed, the report reads every task, with no difference to the planning.
+  const imports = page.getByRole("region", { name: "Importer un fichier" });
+  await imports.getByRole("button", { name: "Importer un planning MS Project" }).click();
+  const form = imports.getByRole("form", { name: "Importer un planning MS Project" });
+  await form.getByLabel("Fichier à importer").setInputFiles({
+    name: download.suggestedFilename(),
+    mimeType: "application/xml",
+    buffer: xml,
+  });
+  await form.getByRole("button", { name: "Analyser le fichier" }).click();
+  await expect(page).toHaveURL(/[?&]import=[0-9a-f-]{36}/, { timeout: WORKING });
+  const report = page.getByRole("region", {
+    name: `Compte rendu de l’import « ${download.suggestedFilename()} »`,
+  });
+  // The analysis is a task of the background: the report comes when the screen is read anew.
+  await expect(async () => {
+    if ((await report.getByText(/lignes lues\./).count()) === 0) {
+      await page.reload();
+    }
+    await expect(report.getByText(/lignes lues\./)).toBeVisible({ timeout: 1_000 });
+  }).toPass({ timeout: WORKING });
+  await expect(report.getByText("Aucun écart avec les données existantes")).toBeVisible();
+  await expect(report.getByRole("table", { name: "Lignes rejetées" })).toHaveCount(0);
+  await expect(
+    report.getByRole("table", { name: "Tâches datées autrement par le fichier" }),
+  ).toHaveCount(0);
 });

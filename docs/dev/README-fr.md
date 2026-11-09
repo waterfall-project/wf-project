@@ -2033,6 +2033,17 @@ dans son entrée (`OutcomeNotice`) — ou, la tâche illisible, dans un avis de 
 de l'adresse une fois la page révélée, le routeur de Next rendant à neuf une page dont l'adresse
 change (#416).
 
+L'écran est branché sur le service (EP-06, US-1430) : la page ne porte plus la note de la maquette
+(`MockupNotice`). Le planning MS Project s'importe en deux temps (`openImport`, `getImport`,
+`applyImport`, `expected_format` à `ms_project_schedule`) et s'exporte (`requestExport`,
+`kind: ms_project_schedule`) ; le fichier de l'export se télécharge par la route
+`/tasks/[taskId]/result`, que le service vide à la fin du premier téléchargement complet (`result_url`
+nul, 404 ensuite, que la route rend par son refus). Le parcours de `exchanges.spec.ts` qui exporte le
+planning d'un projet que la course crée, le télécharge, puis le réimporte sans écart (FLX-01 et FLX-02
+du compte « chef de projet », WF-INTF-0010-A), et ceux de `tasks.spec.ts` qui jouent la route et le
+refus d'un résultat sur l'export qu'elle a fait, portent `@shared` ; le devis, le reste à engager et
+les coûts réels (EP-07, EP-09) et le parcours du marquage restent sur le faux back.
+
 La page d'un projet propose de démarrer son planning par l'encart « Démarrer le projet »
 (`ProjectStart`, `components/projects/project-start.tsx`, US-0490) tant que la structure principale
 de la révision en cours n'a aucune tâche. La condition est lue au serveur (`startOffers`,
