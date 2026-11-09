@@ -585,7 +585,8 @@ def _blamed(write: Write, first: tuple[_Row, _Outcome]) -> tuple[UUID | None, st
     """Name the task a paste beyond the horizon is refused for: its first row, null if created."""
     row, outcome = first
     if outcome.creation is not None:
-        return None, outcome.creation.creation.task.label or ""
+        task = outcome.creation.creation.task
+        return None, "" if task is None else task.label or ""
     return row.node_id, write.tree.tasks[row.node_id].label
 
 
