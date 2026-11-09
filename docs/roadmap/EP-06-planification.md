@@ -527,8 +527,8 @@ couvre tous : pour chaque processus — l'API (`create_app`), le worker (`handle
   d'unités, un calendrier de projet et un calendrier de tâche par calendrier applicable distinct
   (`calendar_hours`), chaque tâche avec `UID`, `OutlineLevel`, `Name`, `Notes` (la description),
   `Manual`, `Duration` dans son unité, `Start`, `Finish`, `Milestone`, `CalendarUID`, sa lignée
-  en `GUID`, les `PredecessorLink` avec `Type`, `LinkLag`, `LagFormat` —, dans l'ordre du schéma,
-  et le dépose sous `exports/<task_id>.xml`.
+  dans le champ étendu `Text1`, alias `Waterfall.lineage`, les `PredecessorLink` avec `Type`, `LinkLag`, `LagFormat` —,
+  dans l'ordre du schéma, et le dépose sous `exports/<task_id>.xml`.
 - **Le corpus** : `fixtures/msproject/*.xml`, un test par fichier qui le lit, donne au moteur
   les calendriers du fichier, et compare chaque début et chaque fin à ceux du fichier ; un test
   qui liste les cas du corps et nomme ceux qu'aucun fichier ne porte ; un test de validation de

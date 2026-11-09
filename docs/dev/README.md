@@ -2036,6 +2036,18 @@ tracking reloads the task, follows it and says the refusal in its entry (`Outcom
 task unreadable, in a notice of its panel —, and removes it from the address once the page is
 revealed, Next's router rendering afresh a page whose address changes (#416).
 
+The screen is wired to the service (EP-06, US-1430): the page no longer carries the note of the
+mock-up (`MockupNotice`). The MS Project planning is imported in two steps (`openImport`, `getImport`,
+`applyImport`, `expected_format` set to `ms_project_schedule`) and exported (`requestExport`,
+`kind: ms_project_schedule`); the file of the export is downloaded through the route
+`/tasks/[taskId]/result`, which the service empties at the end of the first complete download
+(`result_url` null, 404 afterwards, which the route renders as its refusal). The path of
+`exchanges.spec.ts` that exports the planning of a project the run creates, downloads it, then
+imports it back with no difference (FLX-01 and FLX-02 of the « project manager » account,
+WF-INTF-0010-A), and those of `tasks.spec.ts` that play the route and the refusal of a result on the
+export it made, carry `@shared`; the estimate, the remaining to commit and the actual costs (EP-07,
+EP-09) and the path of the marking stay on the fake back.
+
 The page of a project proposes to start its planning through the « Start the project » insert
 (`ProjectStart`, `components/projects/project-start.tsx`, US-0490) as long as the main structure of
 the current revision has no task. The condition is read at the server (`startOffers`,
@@ -4011,10 +4023,11 @@ the epic that lifts it; that epic removes the guard and its entry:
   all the rest.
 - `project-start.spec.ts` — the start towards the planning: the opening of PRJ-001 that leads to its
   planning, the screen of the work breakdown that generates the planning, and the encart « Démarrer
-  le projet » of a project created, which the service does not offer to the account of the run
-  before the structures (`BEFORE_EP06`): lifted by **EP-06**, which serves the structures, the
-  import of a planning and `generatePlanningSkeleton`. The work breakdown of a project created,
-  written then read anew, plays since US-0950 (twin path, `SERVICE_ONLY`).
+  le projet » of a project created, which play against the service on a project the account of the
+  run creates: it lists `import_planning` (US-1430) and serves the structures and
+  `generatePlanningSkeleton`, so no `BEFORE_EP06` guard remains. The work breakdown of a project
+  created, written then read anew, plays since US-0950 (twin path, `SERVICE_ONLY`), the fake back
+  keeping nothing of the work breakdown it is given (`FAKE_BACK_FORGETS`).
 - `context.spec.ts` — the banner of the context on the screens of the data, the planning, the
   remaining to commit, the risks and the indicators, and on a differential structure
   (`BEFORE_THE_DATA`): lifted screen by screen by **EP-06** (the planning, the structures),

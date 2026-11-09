@@ -2033,6 +2033,17 @@ dans son entrée (`OutcomeNotice`) — ou, la tâche illisible, dans un avis de 
 de l'adresse une fois la page révélée, le routeur de Next rendant à neuf une page dont l'adresse
 change (#416).
 
+L'écran est branché sur le service (EP-06, US-1430) : la page ne porte plus la note de la maquette
+(`MockupNotice`). Le planning MS Project s'importe en deux temps (`openImport`, `getImport`,
+`applyImport`, `expected_format` à `ms_project_schedule`) et s'exporte (`requestExport`,
+`kind: ms_project_schedule`) ; le fichier de l'export se télécharge par la route
+`/tasks/[taskId]/result`, que le service vide à la fin du premier téléchargement complet (`result_url`
+nul, 404 ensuite, que la route rend par son refus). Le parcours de `exchanges.spec.ts` qui exporte le
+planning d'un projet que la course crée, le télécharge, puis le réimporte sans écart (FLX-01 et FLX-02
+du compte « chef de projet », WF-INTF-0010-A), et ceux de `tasks.spec.ts` qui jouent la route et le
+refus d'un résultat sur l'export qu'elle a fait, portent `@shared` ; le devis, le reste à engager et
+les coûts réels (EP-07, EP-09) et le parcours du marquage restent sur le faux back.
+
 La page d'un projet propose de démarrer son planning par l'encart « Démarrer le projet »
 (`ProjectStart`, `components/projects/project-start.tsx`, US-0490) tant que la structure principale
 de la révision en cours n'a aucune tâche. La condition est lue au serveur (`startOffers`,
@@ -4044,10 +4055,11 @@ chaque entrée nommant l'EPIC qui la lève ; cet EPIC retire la garde et son ent
   laisse un compte et un projet de plus, la restauration reprenant tout le reste.
 - `project-start.spec.ts` — le départ vers le planning : l'ouverture de PRJ-001 qui mène à son
   planning, l'écran du lotissement qui engendre le planning, et l'encart « Démarrer le projet » d'un
-  projet créé, que le service n'offre pas au compte de la course avant les structures
-  (`BEFORE_EP06`) : levée par **EP-06**, qui sert les structures, l'import d'un planning et
-  `generatePlanningSkeleton`. Le lotissement d'un projet créé, écrit puis relu, se joue dès US-0950
-  (parcours jumeau, `SERVICE_ONLY`).
+  projet créé, qui se jouent contre le service sur un projet que le compte de la course crée : il
+  liste `import_planning` (US-1430) et sert les structures et `generatePlanningSkeleton`, si bien
+  qu'aucune garde `BEFORE_EP06` ne reste. Le lotissement d'un projet créé, écrit puis relu, se joue
+  dès US-0950 (parcours jumeau, `SERVICE_ONLY`), le fond mémoire ne gardant rien du lotissement
+  qu'on lui donne (`FAKE_BACK_FORGETS`).
 - `context.spec.ts` — le bandeau du contexte sur les écrans des données, le planning, le reste à
   engager, les risques et les indicateurs, et sur une structure différentielle (`BEFORE_THE_DATA`) :
   levée écran par écran par **EP-06** (le planning, les structures), **EP-07** (le reste à engager),
