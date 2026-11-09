@@ -167,6 +167,42 @@ def test_the_accounts_of_the_service_of_a_role_employed_are_proposed_with_their_
     assert sorted(first["resource_role_ids"]) == sorted([str(costs.role), str(second_role)])
 
 
+@pytest.mark.requirement("WF-PRJ-0070-A")
+def test_an_account_attached_to_a_child_node_of_the_service_of_a_role_is_not_proposed(
+    api: ContractClient, stage: Scene, tree: Tree, lines: Lines, costs: Costing
+) -> None:
+    # The account is read where it is attached: the node of the role itself, not its descendants.
+    direction = node_of(stage, "DIR")
+    child = uuid4()
+    with stage.database.transaction() as session:
+        session.execute(
+            insert(OrgNode).values(
+                id=child,
+                code="DIR-SUB",
+                label="Sous-direction",
+                parent_id=direction,
+                is_active=True,
+                **STAMP,
+            )
+        )
+    clara = attached(stage, direction, "Clara", "Durand")
+    attached(stage, child, "Denis", "Dessous")
+    lines.made(a_task(tree), **labour(costs.role))
+    assert [item["user_id"] for item in suggestions(api, stage)] == [str(clara)]
+
+
+@pytest.mark.requirement("WF-PRJ-0070-A")
+def test_the_accounts_of_the_service_of_a_deactivated_role_are_proposed_if_a_line_employs_it(
+    api: ContractClient, stage: Scene, tree: Tree, lines: Lines, costs: Costing
+) -> None:
+    other, role = service(stage, "ATE", "TECH", costs)
+    octave = attached(stage, other, "Octave", "Ailleurs")
+    lines.made(a_task(tree), **labour(role))
+    with stage.database.transaction() as session:
+        session.execute(update(ResourceRole).where(ResourceRole.id == role).values(is_active=False))
+    assert [item["user_id"] for item in suggestions(api, stage)] == [str(octave)]
+
+
 def add_role_in(stage: Scene, node: UUID, code: str, costs: Costing) -> UUID:
     """Write a role of the labour category under a node, on the default calendar."""
     role = uuid4()

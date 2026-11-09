@@ -199,7 +199,13 @@ def test_the_next_state_is_a_function_of_the_facts_alone(
     # état, son déclencheur et les conditions restantes » ; nothing after In progress: no fact.
     state, has_revision, has_reference, has_code = facts
     assert (
-        next_state(state, has_revision=has_revision, has_reference=has_reference, has_code=has_code)
+        next_state(
+            state,
+            has_revision=has_revision,
+            has_reference=has_reference,
+            has_code=has_code,
+            has_lines=True,
+        )
         == expected
     )
 

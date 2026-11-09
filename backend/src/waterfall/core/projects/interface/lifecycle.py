@@ -128,7 +128,7 @@ def next_state(
     has_revision: bool,
     has_reference: bool,
     has_code: bool,
-    has_lines: bool = True,
+    has_lines: bool,
 ) -> NextState:
     """Give the next state of a project, its trigger and the conditions that remain (WF-CYC-0050).
 
@@ -154,7 +154,7 @@ def next_state(
     return NextState(state)
 
 
-def _next_of(project: Project, *, has_lines: bool = True) -> NextState:
+def _next_of(project: Project, *, has_lines: bool) -> NextState:
     return next_state(
         project.state,
         has_revision=project.current_revision_id is not None,
@@ -198,7 +198,8 @@ def advance(session: Session, project_id: UUID, trigger: LifecycleTrigger, act: 
     written the project to realise the fact (the current revision, the code) and moved it already.
     """
     project = session.get_one(Project, project_id)
-    following = _next_of(project)
+    # The designation has already required the lines: nothing left to ask of the estimate.
+    following = _next_of(project, has_lines=True)
     if following.next_state is None or following.trigger != trigger or following.missing_conditions:
         return
     _move(session, project, following.next_state, None, act)
