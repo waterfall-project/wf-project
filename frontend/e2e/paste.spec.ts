@@ -4,6 +4,7 @@ import { expect, type Locator, type Page, type Request } from "@playwright/test"
 
 import { axeViolations } from "./axe";
 import { columnsOf } from "./columns";
+import { seedEstimate } from "./estimate-seed";
 import { openHydrated, WORKING } from "./hydration";
 import { inService, test } from "./mode";
 import { createOwnProject, openRevision } from "./own-project";
@@ -202,9 +203,13 @@ test("a block of three rows and four columns pasted from a spreadsheet produces 
   await expect(page.getByRole("main").getByRole("alert")).toHaveCount(0);
 });
 
-test("a block whose cell names an unknown category is sent as copied for the server to judge, and modifies no row once abandoned [WF-IHM-0050-A]", async ({
+// The own estimate of a risk is EP-08's: played against the fake back until then.
+const BEFORE_EP08 = "EP-08 serves the own estimate of a risk";
+
+test("a block whose cell names an unknown category is sent as copied for the server to judge, and modifies no row once abandoned @shared [WF-IHM-0050-A]", async ({
   page,
 }) => {
+  test.skip(inService, BEFORE_EP08);
   const posted = actions(page);
   const { grid, at } = await openOnFirstLine(page, OWN);
   const unknown = [BLOCK[0] ?? [], ["Heures d'essais", "Essais", "", "1"], BLOCK[2] ?? []];
@@ -227,7 +232,10 @@ test("a block whose cell names an unknown category is sent as copied for the ser
   await expect(cellAt(grid, OWN.first + 2, at.quantity)).toHaveText("2");
 });
 
-test("a paste wider than the grid is refused, saying so [WF-IHM-0050-A]", async ({ page }) => {
+test("a paste wider than the grid is refused, saying so @shared [WF-IHM-0050-A]", async ({
+  page,
+}) => {
+  test.skip(inService, BEFORE_EP08);
   const posted = actions(page);
   const { grid, at } = await openOnFirstLine(page, OWN);
   // Eighteen columns from the label, where a line has seventeen in the contract (#223, #424).
@@ -366,4 +374,55 @@ test("a block of three labels pasted on the only task of the planning of a proje
   });
   await idle();
   await expect(page.getByRole("main").getByRole("alert")).toHaveCount(0);
+});
+
+test("a block pasted on the last line of the estimate of a project the run creates is reported with the lines it creates and the rows it refuses, writes the valid rows once confirmed, and is undone as one entry @shared [WF-IHM-0050-A] [WF-IHM-0110-A] [WF-DEV-0050-A]", async ({
+  page,
+  browser,
+  request,
+  manager,
+}) => {
+  test.skip(!inService, "the fake back creates no line by a paste");
+  test.slow();
+  const seeded = await seedEstimate(page, browser, request, manager, "Collage du devis");
+  await openHydrated(page, seeded.estimate);
+  const grid = page.getByRole("treegrid", { name: "Grille de devis" });
+  const idle = () => expect(grid).not.toHaveAttribute("aria-busy", "true", { timeout: WORKING });
+  const at = await columnsOf(grid, COLUMNS);
+  const label = (row: number) => cellAt(grid, row, at.label);
+  await expect(label(3)).toContainText("Tâche du devis", { timeout: WORKING });
+
+  // Past the last node: the first row writes the line, the second creates a sibling line under the
+  // same task, the third has no label, the fourth an unknown category.
+  await label(3).click();
+  await expect(label(3)).toBeFocused();
+  await paste(page, [
+    ["Câbles A", "Matériel électrique", "", "2"],
+    ["Câbles B", "Matériel électrique", "", "3"],
+    ["", "Matériel électrique", "", "1"],
+    ["Câbles D", "Essais", "", "1"],
+  ]);
+  const dialog = page.getByRole("dialog", { name: "Coller depuis un tableur" });
+  await expect(dialog).toBeVisible({ timeout: WORKING });
+  await expect(dialog).toContainText("2 lignes seront écrites.");
+  await expect(dialog).toContainText("2 lignes sont refusées");
+  await expect(dialog).toContainText("Catégorie de coût inconnue.");
+
+  await dialog.getByRole("button", { name: "Appliquer le collage" }).click();
+  await expect(dialog).toHaveCount(0, { timeout: WORKING });
+  await idle();
+  await expect(label(3)).toContainText("Câbles A", { timeout: WORKING });
+  await expect(label(4)).toContainText("Câbles B", { timeout: WORKING });
+  await expect(grid.getByRole("gridcell", { name: "Câbles D" })).toHaveCount(0);
+
+  // One entry of the history: one Undo returns the line and removes the one the paste created.
+  await page.getByRole("button", { name: "Annuler", exact: true }).click();
+  await expect(grid.getByRole("gridcell", { name: "Câbles B" })).toHaveCount(0, {
+    timeout: WORKING,
+  });
+  await expect(label(3)).toContainText("Tâche du devis", { timeout: WORKING });
+  await idle();
+  await page.getByRole("button", { name: "Rétablir", exact: true }).click();
+  await expect(label(4)).toContainText("Câbles B", { timeout: WORKING });
+  await idle();
 });

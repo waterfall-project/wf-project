@@ -127,13 +127,22 @@ test("the home lists the projects the user contributes to, a filter shown and li
   if (!inService) {
     await expect(list.getByRole("row")).toHaveCount(4);
   }
-  await expect(
-    list.getByRole("link", { name: "Modernisation du poste de commande" }),
-  ).toBeVisible();
   if (inService) {
     // The loader writes PRJ-001 in pricing and PRJ-002 created, neither with a code yet (US-0990).
-    await expect(list.getByRole("row", { name: /Extension de la ligne d.essais/ })).toBeVisible();
+    // The other paths create projects of their own, which a page of the list may no longer leave
+    // room for the two of the witness: each is reached by the search of the screen, on its label.
+    for (const [search, name] of [
+      ["Modernisation", /Modernisation du poste de commande/],
+      ["Extension", /Extension de la ligne d.essais/],
+    ] as const) {
+      await page.goto(`/?is_contributor=false&search=${search}`);
+      await expect(list.getByRole("row", { name })).toBeVisible();
+    }
+    await page.goto("/?is_contributor=false");
   } else {
+    await expect(
+      list.getByRole("link", { name: "Modernisation du poste de commande" }),
+    ).toBeVisible();
     await expect(list.getByRole("row", { name: /PRJ-002/ })).toContainText("Chiffrage");
   }
   await expect(list.getByRole("row").last()).toContainText(

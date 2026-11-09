@@ -20,7 +20,7 @@ Above the grid:
 - **Work package or order item** filters the grid on a work package or an order item of the work breakdown; the indicators stay those of the project, or of the subproject filtered.
 - **Origin** retains the tasks and the lines that came of the occurrence of a risk — **Coming from a risk** — or of a risk occurred that you choose; the server filters, and the address keeps the choice. A task or a line that came of a risk bears, after the icon of its nature, a discreet mark that names that risk. The register of the risks leads to this grid, filtered on a risk occurred.
 - **Search a label**, **Columns**, **Tree**;
-- **Undo** (`Ctrl+Z`) and **Redo** (`Ctrl+Shift+Z`), where the structure is entered. They stay unavailable as long as the server does not keep the history of the entries.
+- **Undo** (`Ctrl+Z`) and **Redo** (`Ctrl+Shift+Z`), where the structure is entered. Each entry, each gesture of structure and each paste is one entry of the history the server keeps: a paste is undone at once. Undoing an entry that another contributor has since taken over is refused, naming the object in conflict.
 - **Enter the hourly rates**, in the notice of the missing rates, leads to the reference data of the costs for whoever may modify it; **See the hourly rates** for whoever reads it.
 
 In the menu of a cell (right click, `Shift+F10` or the Menu key): the gestures of structure — among them **Insert a line** (`Ctrl+Insert`) —, the folding, **Undo** and **Redo**, and the submenu **Subproject**, which carries the line, or the selection, to a subproject. Their detail is in the help of the [estimate grid](FBS-4.4.2.md).

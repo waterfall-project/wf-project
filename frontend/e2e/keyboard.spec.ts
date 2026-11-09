@@ -3,6 +3,7 @@
 import { expect, type Locator, type Page } from "@playwright/test";
 
 import { columnsOf } from "./columns";
+import { seedEstimate } from "./estimate-seed";
 import { openHydrated, WORKING } from "./hydration";
 import { inService, test } from "./mode";
 import { SEEDED, seedPlanning } from "./planning-seed";
@@ -277,4 +278,50 @@ test("moves through the planning of the service by the keys alone, stops on the 
   await expect(grid.getByRole("gridcell", { name: "Études détaillées" })).toBeVisible({
     timeout: WORKING,
   });
+});
+
+test("moves through the estimate of the service by the keys alone, stops on the amounts it computes without entering them, and enters a label @shared [WF-IHM-0100-A]", async ({
+  page,
+  browser,
+  request,
+  manager,
+}) => {
+  test.skip(!inService, "the estimate the path writes lives in the service alone");
+  test.slow();
+  const seeded = await seedEstimate(page, browser, request, manager, "Clavier devis");
+  await openHydrated(page, seeded.estimate);
+  const grid = page.getByRole("treegrid", { name: "Grille de devis" });
+  const at = await columnsOf(grid, COLUMNS);
+  await expect(cellAt(grid, 3, at.label)).toContainText("Tâche du devis", {
+    timeout: WORKING,
+  });
+
+  // A click gives the grid its active cell, the arrows move it, Control+End reaches the last row.
+  await cellAt(grid, 1, at.label).click();
+  await expect(cellAt(grid, 1, at.label)).toBeFocused();
+  await page.keyboard.press("ArrowDown");
+  await expect(cellAt(grid, 2, at.label)).toBeFocused();
+  await press(page, "Control+End");
+  await expect(page.locator(":focus")).toHaveAttribute("data-row", "2");
+  await press(page, "Control+Home");
+  await expect(page.locator(":focus")).toHaveAttribute("data-row", "0");
+  // Control+Home reaches the first column of the grid: the arrows count from there to the label.
+  await press(page, ...times("ArrowRight", at.label));
+  await expect(cellAt(grid, 1, at.label)).toBeFocused();
+
+  // The amount of the line is computed: the arrows stop on it, which opens no entry, a try is refused.
+  await press(page, "ArrowDown", "ArrowDown", ...times("ArrowRight", at.reference - at.label));
+  await expect(cellAt(grid, 3, at.reference)).toBeFocused();
+  await expect(cellAt(grid, 3, at.reference)).toHaveAttribute("aria-readonly", "true");
+  await page.keyboard.press("Enter");
+  await expect(page.getByRole("dialog", { name: "Valeur calculée" })).toBeVisible();
+  await expect(grid.getByRole("textbox")).toHaveCount(0);
+  await page.keyboard.press("Escape");
+  await expect(cellAt(grid, 3, at.reference)).toBeFocused();
+
+  // The label is entered from the keyboard, written by the service and shown as it answered.
+  await press(page, ...times("ArrowLeft", at.reference - at.label), "F2");
+  await grid.getByRole("textbox", { name: "Libellé" }).fill("Câbles");
+  await page.keyboard.press("Enter");
+  await expect(grid.getByRole("gridcell", { name: "Câbles" })).toBeVisible({ timeout: WORKING });
 });

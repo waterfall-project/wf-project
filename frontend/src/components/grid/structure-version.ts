@@ -84,3 +84,8 @@ export function useStructureVersion(structure: string, read: number): StructureA
     shows,
   };
 }
+
+/** The account of the writes, busy as long as the reading anew that follows a paste is under way. */
+export function waiting(account: StructureAccount, reading: boolean): StructureAccount {
+  return { ...account, busy: account.busy || reading };
+}
