@@ -208,6 +208,8 @@ LINE_HOOKS = (
     f"{CORE}.reading.sort_lines",
     f"{ESTIMATE}.facet.line_dependencies",
     f"{ESTIMATE}.facet.judge_moved_lines",
+    f"{CORE}.pasting.judge_line_cell",
+    f"{CORE}.pasting.write_line_cell",
 )
 # What the estimate answers the projects of its lines (US-1490/L4), in the order of
 # ``EstimateFacts``.

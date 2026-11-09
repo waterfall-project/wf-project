@@ -14,6 +14,7 @@ The budgeted amount of a line created is nought on a project that has a referenc
 line has no lineage in it — and null otherwise, read as the re-estimated one (WF-DEV-0020).
 """
 
+from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 from sqlalchemy import select
@@ -46,26 +47,37 @@ if TYPE_CHECKING:
 NOUGHT = CENT * 0
 
 
+@dataclass(frozen=True, slots=True)
+class Judging:
+    """How the hours of the task of a line are judged.
+
+    ``role_changes`` is true at the creation of a line given a role, and when a modification gives
+    another role than the line had; ``earlier`` is the role the rows of a paste accepted before
+    leave the lines of the task.
+    """
+
+    role_changes: bool
+    earlier: Mapping[UUID, UUID | None] | None = None
+
+
 def _priced_draft(
     session: Session,
     held: tuple[UUID, BearingTask, UUID | None],
     draft: Draft,
     basis: Basis,
-    *,
-    role_changes: bool,
+    judging: Judging,
 ) -> Priced:
     """Judge the hours of the task of a line whose role changes, find its rate, price it.
 
     ``held`` is the project, the task that bears the line, and the line, none at its creation;
-    ``role_changes`` is true at the creation of a line given a role, and when a modification gives
-    another role than the line had.
+    ``judging`` says whether the role changes and what the paste has left the other lines.
     """
     project_id, bearer, _ = held
     week = None
     rate = None
     if draft.role is not None:
-        if role_changes:
-            judge_working_hours(session, held, draft.role.resource_role_id)
+        if judging.role_changes:
+            judge_working_hours(session, held, draft.role.resource_role_id, judging.earlier)
         week = calendar_hours(session, [draft.role.calendar_id])[draft.role.calendar_id]
         rate = rates_of(session, project_id, basis, [draft.cost_category_id]).get(
             draft.cost_category_id
@@ -85,6 +97,29 @@ def _priced_draft(
     return priced(product, bearer, basis, week)
 
 
+def judged_priced(
+    session: Session,
+    held: tuple[UUID, BearingTask],
+    entry: LineEntry,
+    current: EstimateLine | None,
+    earlier: Mapping[UUID, UUID | None] | None = None,
+) -> Draft:
+    """Judge what is sent of a line, created or changed, as far as its price; nothing is written.
+
+    What ``create_line`` and ``change_line`` refuse before they write: the entry (``entries``), the
+    hours of the task when the role is new, the rate of the category. A paste judges its cells so,
+    at its preview and again at its confirmation. ``earlier`` is the role the lines of the task that
+    the cells before it were accepted with leave them: the hours of the task are judged on them.
+    """
+    project_id, bearer = held
+    draft = judged_line(session, held, entry, current)
+    basis = basis_of(session, project_id, bearer.revision_id)
+    line = None if current is None else current.node_id
+    new_role = current is None or draft.resource_role_id != current.resource_role_id
+    _priced_draft(session, (project_id, bearer, line), draft, basis, Judging(new_role, earlier))
+    return draft
+
+
 def create_line(creation: FacetCreation) -> None:
     """Write the facet of a line created under its task, priced (``createNode``); or refuse."""
     session, project_id = creation.session, creation.project_id
@@ -95,7 +130,7 @@ def create_line(creation: FacetCreation) -> None:
     draft = judged_line(session, (project_id, creation.bearer), entry, None)
     basis = basis_of(session, project_id, creation.revision_id)
     amounts = _priced_draft(
-        session, (project_id, creation.bearer, None), draft, basis, role_changes=True
+        session, (project_id, creation.bearer, None), draft, basis, Judging(role_changes=True)
     )
     act = creation.act
     session.add(
@@ -149,7 +184,7 @@ def change_line(write: FacetWrite, entry: LineEntry) -> None:
         (project_id, write.bearer, write.node_id),
         draft,
         basis,
-        role_changes=draft.resource_role_id != line.resource_role_id,
+        Judging(role_changes=draft.resource_role_id != line.resource_role_id),
     )
     line.label = draft.label
     line.cost_category_id = draft.cost_category_id

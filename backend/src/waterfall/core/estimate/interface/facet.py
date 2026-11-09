@@ -11,8 +11,8 @@ their restoration for the history (``snapshot_lines``, ``restore_lines``), price
 the tasks redated (``reinflate_lines``), their figures for the totals (``line_totals``), their
 filters and their sort (``line_filters``, ``line_sort``), what a computed value of a line depends
 on (``line_dependencies``), and the lines a move gives another task, whose roles must leave it an
-hour (``judge_moved_lines``, WF-PLA-0010; US-1490/L4). ``judge_line_cell`` — a cell pasted on a
-line — is US-1560's.
+hour (``judge_moved_lines``, WF-PLA-0010; US-1490/L4), and the cells a paste gives a line, judged
+and written (``judge_line_cell``, ``write_line_cell``, ``pasting``; US-1560/L1).
 
 The copy of a line keeps its figures and its amounts, and takes for its budgeted amount that of the
 line of the same lineage in the reference revision, nought without one; null on a project without a
@@ -28,6 +28,7 @@ from uuid import UUID
 from sqlalchemy import delete, insert, inspect, select
 
 from waterfall.core.estimate.costing import judge_working_hours
+from waterfall.core.estimate.pasting import judge_line_cell, write_line_cell
 from waterfall.core.estimate.pricing import Amount, dependencies_of
 from waterfall.core.estimate.reading import (
     budgeted_of,
@@ -274,12 +275,6 @@ def judge_moved_lines(
             judge_working_hours(session, (project_id, bearer, line), role)
 
 
-def judge_line_cell(session: Session, project_id: UUID, node_id: UUID) -> None:
-    """Judge a cell pasted on a line, in the order of ``NodeColumn``."""
-    msg = "judge_line_cell is filled by US-1560"
-    raise NotImplementedError(msg)
-
-
 line_filters = filter_lines
 line_sort = sort_lines
 line_totals = totals_of
@@ -299,4 +294,6 @@ LINE_FACET = FacetHooks(
     sort=sort_lines,
     dependencies=line_dependencies,
     moved=judge_moved_lines,
+    judge_cell=judge_line_cell,
+    write_cell=write_line_cell,
 )

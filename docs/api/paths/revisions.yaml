@@ -2346,7 +2346,10 @@
       sibling of that last node, of the kind of the target node, whose label is required — the
       line without one is refused with `VALIDATION_FAILED`, `column` at `label` — and whose other
       cells are judged as those of a node written; the plan counts these lines in `created`, and
-      in `accepted` too (`PastePreview`, `PastePlan`; decision of the user of 2026-11-08, #2559).
+      in `accepted` too (`PastePreview`, `PastePlan`; decision of the user of 2026-11-08, #2559). An estimate line so created is placed under the
+      task that bears the last node, its parent; with no task to bear it — the last node being a
+      task at the root — the whole line is refused with `UNKNOWN_TASK`, `column` null
+      (`PasteRejection`).
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
       - $ref: ../components/parameters.yaml#/RevisionId
@@ -2362,7 +2365,11 @@
           Paste plan. The `unknown_category` example shows a refused category cell,
           `without_hours` a role cell that would leave the task of its line without any worked
           hour (`TASK_WITHOUT_WORKING_HOURS`, WF-PLA-0010; #779), `creating` a block of tasks
-          whose lines beyond the last node create tasks, the one without a label refused (#2559).
+          whose lines beyond the last node create tasks, the one without a label refused (#2559),
+          `creating_lines` a block of estimate lines whose lines beyond the last node create
+          estimate lines, siblings of the last line: the one without a label and the one whose
+          category is unknown are refused, each by its column (#2559, #2624; a counterfactual
+          variant, the structure of the witness ending on a milestone).
         content:
           application/json:
             schema: { $ref: ../components/schemas/revisions.yaml#/PastePlan }
@@ -2376,6 +2383,7 @@
               amendment_target_removed:
                 $ref: ../../../fixtures/api/paste_plan_amendment_target_removed.json
               creating: { $ref: ../../../fixtures/api/paste_plan_creating.json }
+              creating_lines: { $ref: ../../../fixtures/api/paste_plan_creating_lines.json }
       '400': { $ref: ../components/responses.yaml#/BadRequest }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }

@@ -293,6 +293,25 @@ def read_roles(session: Session, role_ids: Collection[UUID], *, may_change: bool
     return [_view(row, may_change=may_change) for row in rows]
 
 
+def roles_named(session: Session, labels: Collection[str]) -> dict[str, list[UUID]]:
+    """Give the roles each label names, deactivated ones too; a label with none is absent.
+
+    What a cell pasted into the estimate names its role by (EP-07, US-1560); two roles may bear one
+    label, which the caller refuses as unknown.
+    """
+    found: dict[str, list[UUID]] = {}
+    if not labels:
+        return found
+    rows = session.execute(
+        select(ResourceRole.label, ResourceRole.id)
+        .where(ResourceRole.label.in_(list(labels)))
+        .order_by(ResourceRole.code)
+    )
+    for label, role_id in rows:
+        found.setdefault(label, []).append(role_id)
+    return found
+
+
 def read_role(session: Session, role_id: UUID, *, may_change: bool) -> RoleView:
     """Read a role, deactivated or not, or refuse (404)."""
     found = read_roles(session, [role_id], may_change=may_change)

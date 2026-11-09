@@ -89,6 +89,41 @@ def paste_plan_creating() -> JsonObject:
     )
 
 
+CREATING_LINES_BLOCK = (
+    ("Borniers à vis", "Matériel électrique"),
+    ("Goulottes", "Matériel électrique"),
+    ("Repères de câbles", "Matériel électrique"),
+    ("", "Matériel électrique"),
+    ("Essais de mise en service", "Essais"),
+)
+"""A block of five rows and two columns — label, category —, pasted on the label of a line of the
+estimate that would be the last node of the structure: its first row writes the line, the next two
+create two lines after it, the fourth, without a label, and the fifth, whose category the reference
+does not know, are refused (`PastePreview`, US-1560, #2559, #2624)."""
+
+CREATING_LINES_PASTE = universe(998)
+
+
+def creating_lines_refusals() -> list[JsonValue]:
+    """Return the refusals of the block of lines, each by its column.
+
+    A row past the last node without a label, a row whose category no object of the reference
+    bears (`UNKNOWN_COST_CATEGORY`).
+    """
+    return [
+        {"row": 3, "column": "label", "code": "VALIDATION_FAILED"},
+        {"row": 4, "column": "cost_category", "code": "UNKNOWN_COST_CATEGORY"},
+    ]
+
+
+def paste_plan_creating_lines() -> JsonObject:
+    """Return what previewPaste answers to the block of lines pasted on the last line."""
+    rejected = creating_lines_refusals()
+    return mocktext.paste_plan_of(
+        CREATING_LINES_PASTE, len(CREATING_LINES_BLOCK) - len(rejected), rejected, created=2
+    )
+
+
 def creating_roots() -> tuple[Task, ...]:
     """Return the structure the block leaves: the anchor described, its new siblings after it.
 
@@ -194,6 +229,19 @@ def examples() -> dict[str, JsonObject]:
             f"sur sa colonne label, et rien ne sera créé pour elle ; rien n'est encore écrit "
             f"(WF-IHM-0050).",
             paste_plan_creating(),
+        ),
+        "paste_plan_creating_lines.json": mocktext.example(
+            "Variante contrefactuelle déclarée : un bloc de cinq lignes et deux colonnes — "
+            "libellé, catégorie — collé sur le libellé de la dernière ligne de devis d'une "
+            "structure dont elle serait le dernier nœud (celle du témoin se termine par le jalon "
+            f"« {last.label} », aucune de ses données ne le produit) : la première ligne écrira "
+            "cette ligne, les deux suivantes, au-delà du dernier nœud, créeront deux lignes de "
+            "devis sœurs de la dernière, à sa suite, sous la même tâche (created), comptées aussi "
+            "parmi les lignes acceptées ; la quatrième, sans libellé, est refusée sur sa colonne "
+            "label, la cinquième, dont la catégorie « Essais » n'est celle d'aucun objet du "
+            "référentiel, sur sa colonne cost_category, et rien ne sera créé pour elles ; rien "
+            "n'est encore écrit (WF-IHM-0050, WF-DEV-0050).",
+            paste_plan_creating_lines(),
         ),
         "paste_applied_creating.json": mocktext.example(
             f"Le bloc de paste_plan_creating confirmé : le jalon « {last.label} » reçoit la "
