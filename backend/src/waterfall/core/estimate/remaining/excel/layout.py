@@ -34,7 +34,8 @@ PARAMETERS = "Paramètres"
 OUTSIDE = "Hors sous-projet"
 FIXED_TABS = (SUMMARY, TASKS, PARAMETERS)
 # The cell of the summary that holds the date of the review, which the import reads.
-REVIEW_DATE_CELL = "B6"
+REVIEW_DATE_ROW = 5  # its row, from 0; the other facts of the project follow it
+REVIEW_DATE_CELL = f"B{REVIEW_DATE_ROW + 1}"
 # The cell of « Paramètres » that holds the hours per day, which the formulas of the tabs read.
 HOURS_PER_DAY_CELL = "'Paramètres'!$B$2"
 # The columns of the summary: the progress, then the breakdown of the remaining.
@@ -166,11 +167,11 @@ def line_formulas(table: str) -> dict[str, str]:
     def cell(column: str) -> str:
         return this(table, column)
 
-    def lookup(column: str) -> str:
+    def lookup(column: str, suffix: str = "") -> str:
         key = cell("Rôle ou catégorie")
         return (
             f'=IF({key}="","",IFERROR(INDEX(Referentiel[[{column}]],'
-            f'MATCH({key},Referentiel[[Entrée]],0)),"?"))'
+            f'MATCH({key},Referentiel[[Entrée]],0)){suffix},"?"))'
         )
 
     def of_task(column: str, default: str) -> str:
@@ -187,7 +188,7 @@ def line_formulas(table: str) -> dict[str, str]:
         "Nature": lookup("Nature"),
         "Code comptable": lookup("Code comptable"),
         # An empty text stays empty, not 0.
-        "Service": lookup("Service")[:-1] + '&"")',
+        "Service": lookup("Service", suffix='&""'),
         "Taux horaire": lookup("Taux horaire"),
         "Type": lookup("Type de nature"),
         "Coefficient": f"={of_task('Coefficient', '1')}",

@@ -20,6 +20,7 @@ from typing import TYPE_CHECKING, Any
 import pytest
 from openpyxl import Workbook, load_workbook
 
+from waterfall.core.estimate.remaining.excel.layout import line_formulas
 from waterfall.core.estimate.remaining.excel.model import (
     Category,
     Nature,
@@ -311,7 +312,7 @@ def test_a_tab_of_lines_lists_the_columns_of_the_annex_in_order(content: bytes) 
     ]
 
 
-@pytest.mark.requirement("WF-INTF-0120-A")
+@pytest.mark.requirement("WF-INTF-0130-A")
 def test_a_line_of_labour_carries_the_days_left_quantity_times_effort_over_hours_per_day(
     content: bytes,
 ) -> None:
@@ -325,7 +326,7 @@ def test_a_line_of_labour_carries_the_days_left_quantity_times_effort_over_hours
     assert second["Reste précédent"] is None
 
 
-@pytest.mark.requirement("WF-INTF-0120-A")
+@pytest.mark.requirement("WF-INTF-0130-A")
 def test_the_days_follow_the_hours_per_day_of_the_installation() -> None:
     assert remaining_days(D(3), D(8), D(8)) == D(3)
     assert remaining_days(D(1), D(24), D(8)) == D(3)
@@ -518,6 +519,16 @@ def test_a_currency_is_the_installations_in_the_amount_format() -> None:
     assert sheet["B4"].number_format == '#,##0.00 "$"'
 
 
+@pytest.mark.requirement("WF-INTF-0130-A")
 def test_hours_per_day_that_is_not_positive_is_refused() -> None:
     with pytest.raises(ValueError, match="hours per day"):
         write_workbook(_book(hours_per_day=D(0)))
+
+
+@pytest.mark.requirement("WF-INTF-0130-A")
+def test_the_service_column_turns_an_empty_text_into_an_empty_text() -> None:
+    key = "T[[#This Row],[Rôle ou catégorie]]"
+    assert line_formulas("T")["Service"] == (
+        f'=IF({key}="","",IFERROR(INDEX(Referentiel[[Service]],'
+        f'MATCH({key},Referentiel[[Entrée]],0))&"","?"))'
+    )
