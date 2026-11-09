@@ -418,6 +418,7 @@ chargeur — s'étend à chacun.
 | `core/revisions` | `register_copy` (EP-04) | EP-04 | `estimate`, après `planning` | la copie des lignes (par les identifiants des nœuds copiés) et des taux conservés, projetés si l'année change |
 | `core/revisions` | `register_tasks_and_lines` (EP-04) | EP-04 | `estimate` (`revision_has_lines`) | la désignation exige une ligne |
 | `core/revisions` | `register_closing` (EP-06) | EP-06 | `estimate` | à l'abandon, les taux conservés supprimés (les lignes suivent les nœuds) |
+| `core/revisions` | `revisions.rate_update` (`register_rate_update`) | US-1500/L1 | `estimate` (`rate_update_offered`) | la condition `rate_update_available` de `apply_rate_update` : la proposition des taux d'une révision en cours présente une catégorie |
 | `core/revisions` | `register_marking` (nouveau) | socle d'EP-07 | `estimate` | dans la transaction du marquage, avant `compute_indicators` : les images des rôles, calendriers et catégories employés et des taux retenus, `revision.inflation_rate` et `win_probability` |
 | `core/revisions` | `register_designation` (nouveau) | socle d'EP-07 | `estimate` | après la désignation d'une référence : le budgété des lignes de la révision en cours rafraîchi par la lignée |
 | `core/cost_settings` | `register_employment` (nouveau) | socle d'EP-07 | `estimate` | `category_is_employed` d'EP-05 rempli ; la modification du type d'une nature et le rattachement d'une catégorie employée refusés |
@@ -534,7 +535,9 @@ chargeur — s'étend à chacun.
   d'EP-06, qui appellent les registres.
 - Chaque route déclare `RequiresProject(...)` : `estimate.read` pour les lectures, la qualité de
   contributeur et `estimate.write` pour `updateEstimateLine`, `revisions.write` pour
-  `applyRateUpdate` ; les refus sont ceux du contrat, dans l'ordre que chaque opération écrit ;
+  `applyRateUpdate`, la proposition `getRateUpdateProposal` se lisant sous `revisions.read`, comme
+  le contrat la range sous `revisions` à côté de `getRevision`, qui sert déjà l'instantané des
+  taux ; les refus sont ceux du contrat, dans l'ordre que chaque opération écrit ;
   chaque réponse d'un test passe par `ContractClient` ; `test_access_evaluation.py` reçoit chaque
   opération avec ses deux termes.
 
@@ -919,7 +922,7 @@ la mise à jour des taux (US-1500).
 
 ## US-1500 — L'instantané du référentiel conservé par la révision, et la mise à jour des taux
 
-- **statut** : à faire
+- **statut** : en cours
 - **exigences** : `WF-REV-0030-A`, `WF-REV-0060-A`, `WF-REV-0010-A`, `WF-REV-0020-A`,
   `WF-REV-0070-A`, `WF-REF-0020-A`, `WF-REF-0130-A`, `WF-REF-0030-A`, `WF-REF-0010-A`,
   `WF-PRJ-0040-A`

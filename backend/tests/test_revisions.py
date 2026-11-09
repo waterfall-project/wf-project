@@ -165,6 +165,8 @@ def test_the_first_revision_is_born_current_with_its_main_structure_alone(
         "generate_skeleton": [],
         "edit_estimate": [],
         "edit_remaining": [],
+        # A first revision keeps no rate: no update to propose (WF-REV-0060, US-1500).
+        "apply_rate_update": ["rate_update_available"],
         "mark": [],
         "designate_reference": ["revision_marked", "revision_has_tasks_and_lines"],
         "abandon": [],
