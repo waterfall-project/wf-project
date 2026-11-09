@@ -8,22 +8,50 @@ US-1550 writes its tests here ("Les tests du back"). US-1550/L2: the reading, pu
 
 import importlib
 import zipfile
-from datetime import date
+from datetime import UTC, date, datetime
 from decimal import Decimal
 from io import BytesIO
 from pathlib import Path
 from typing import Any
 
 import pytest
-from openpyxl import Workbook
+from openpyxl import Workbook, load_workbook
 
+from waterfall.core.estimate.excel.model import (
+    Category,
+    Estimate,
+    Line,
+    Lot,
+    Nature,
+    Role,
+    Subproject,
+    Tab,
+    Task,
+)
 from waterfall.core.estimate.excel.reader import (
-    FORMAT_NAME,
-    FORMAT_VERSION,
+    DISBURSEMENT_HEADER,
+    FORMAT_LABEL,
+    HOURS_HEADER,
+    LABEL_HEADER,
+    LINEAGE_HEADER,
+    PAYMENT_DELAY_HEADER,
+    QUANTITY_HEADER,
+    ROLE_OR_CATEGORY_HEADER,
+    SUBPROJECT_HEADER,
+    TASK_HEADER,
+    TOTAL_LABEL,
+    VERSION_LABEL,
     Rejection,
     read_number,
     read_workbook,
 )
+from waterfall.core.estimate.excel.writer import (
+    FORMAT_NAME,
+    FORMAT_VERSION,
+    LINE_HEADERS,
+    write_workbook,
+)
+from waterfall.core.estimate.interface import sheet_name
 from waterfall.platform.errors import UnprocessableError
 
 D = Decimal
@@ -412,3 +440,177 @@ def test_a_boolean_is_not_a_version() -> None:
 def test_a_non_finite_number_is_not_a_number(value: float) -> None:
     """Openpyxl does not write them, so the branch is tried on the cell value itself."""
     assert read_number(value) == (None, False)
+
+
+# --- The round trip: the workbook the writer of US-1550/L1 writes, read back ----------------------
+
+
+def _line(lineage: str, **fields: Any) -> Line:
+    values: dict[str, Any] = {"role": None, "category": None, "label": "", "quantity": D(1)}
+    return Line(lineage, **{**values, **fields})
+
+
+def _task(number: str, label: str, *lines: Line) -> Task:
+    return Task(f"t-{number}", number, label, date(2026, 11, 2), date(2027, 3, 26), "", lines)
+
+
+def _model(*, lots: tuple[Lot, ...], outside: Tab | None) -> Estimate:
+    return Estimate(
+        company="Exemple Industrie",
+        client="Client Exemple",
+        project="AFF-2026-014",
+        revision="Chiffrage v2",
+        structure="Structure principale",
+        reference_year=2026,
+        currency="EUR",
+        exported_at=datetime(2026, 10, 22, 14, 5, tzinfo=UTC),
+        natures=(Nature("Main-d’œuvre", "labour"), Nature("Fournitures", "disbursement")),
+        categories=(
+            Category("I810", "Gestion d’affaires", "Main-d’œuvre", D(100)),
+            Category("fo-AINT", "Anti-intrusion", "Fournitures"),
+        ),
+        roles=(Role("RA-A1", "Responsable d’affaire A1", "Affaires > Activité 1", "I810"),),
+        subprojects=(Subproject("SP-MAT", "Matériel"), Subproject("SP-PRE", "Prestations")),
+        lots=lots,
+        outside_lot=outside,
+    )
+
+
+def _round_trip_model() -> Estimate:
+    package = Tab(
+        "1.1",
+        "Centrale",
+        "Centrale",
+        (
+            _task("1.1", "Centrale"),
+            _task(
+                "1.1.1",
+                "Management",
+                _line("l-1", role="RA-A1", quantity=D(5), hours=D("7.4"), subproject="SP-PRE"),
+                _line("l-2", role="RA-A1", quantity=D("2.5"), hours=D("0.1"), label="Suivi"),
+            ),
+            _task(
+                "1.1.3",
+                "Carte d’interface",
+                _line(
+                    "l-3",
+                    category="fo-AINT",
+                    quantity=D(5),
+                    disbursement=D("20.35"),
+                    payment_delay=30,
+                    subproject="SP-MAT",
+                    label="Détecteurs",
+                ),
+            ),
+        ),
+    )
+    own = Tab(
+        "1",
+        "Contrôle d’accès",
+        "Hors postes",
+        (_task("1.3", "Revue", _line("l-4", role="RA-A1", quantity=D(3), hours=D("7.4"))),),
+    )
+    outside = Tab(
+        "",
+        "Hors lot",
+        "Hors lot",
+        (
+            _task(
+                "3",
+                "Gestion",
+                _line("l-5", category="fo-AINT", disbursement=D(1500), label="=1+1 reste du texte"),
+            ),
+        ),
+    )
+    return _model(lots=(Lot("1", "Contrôle d’accès", (package, own)),), outside=outside)
+
+
+def test_the_workbook_the_writer_writes_is_read_back_identical_line_by_line() -> None:
+    """WF-INTF-0070-A, WF-INTF-0100-A: the export read by the import loses and adds nothing."""
+    estimate = _round_trip_model()
+    labels = {role.code: role.label for role in estimate.roles}
+    labels.update({category.code: category.label for category in estimate.categories})
+    tabs = [tab for lot in estimate.lots for tab in lot.tabs]
+    assert estimate.outside_lot is not None
+    tabs.append(estimate.outside_lot)
+    taken = ["Présentation", "Devis", "Tâches", "Paramètres"]
+    expected: list[tuple[Any, ...]] = []
+    for tab in tabs:
+        name = sheet_name(f"{tab.number} {tab.task_label}".strip(), taken)
+        taken.append(name)
+        for task in tab.tasks:
+            for line in task.lines:
+                code = line.role or line.category
+                expected.append(
+                    (
+                        name,
+                        f"{task.number} {task.label}",
+                        f"{labels[code or '']} ({code})",
+                        line.label or None,
+                        line.quantity,
+                        line.hours,
+                        line.disbursement,
+                        None if line.payment_delay is None else D(line.payment_delay),
+                        line.subproject,
+                        line.lineage,
+                    )
+                )
+
+    read = read_workbook(write_workbook(estimate))
+
+    assert read.rejected == ()
+    assert read.unread_sheets == ()
+    assert dict(read.missing_headers) == {}
+    assert [
+        (
+            line.sheet,
+            line.task,
+            line.role_or_category,
+            line.label,
+            line.quantity,
+            line.hours,
+            line.disbursement,
+            line.payment_delay,
+            line.subproject,
+            line.lineage,
+        )
+        for line in read.lines
+    ] == expected
+    assert len(expected) == 5
+    assert len({line.sheet for line in read.lines}) == 3
+
+
+def test_the_blank_model_of_a_structure_without_a_line_is_read_without_a_line() -> None:
+    """WF-INTF-0070-A: the model to fill in is a workbook of the format with its table empty."""
+    read = read_workbook(write_workbook(_model(lots=(), outside=None)))
+
+    assert read.lines == ()
+    assert read.rejected == ()
+    assert read.unread_sheets == ()
+    assert dict(read.missing_headers) == {}
+
+
+def test_the_headers_and_labels_the_reader_expects_are_the_ones_the_writer_writes() -> None:
+    """WF-INTF-0070-A: the reader and the writer share one header, one version, one set of tabs."""
+    book = load_workbook(BytesIO(write_workbook(_round_trip_model())))
+    first = book.worksheets[0]
+    assert [first["A1"].value, first["B1"].value, first["A2"].value, first["B2"].value] == [
+        FORMAT_LABEL,
+        FORMAT_NAME,
+        VERSION_LABEL,
+        FORMAT_VERSION,
+    ]
+    for header in (
+        TASK_HEADER,
+        ROLE_OR_CATEGORY_HEADER,
+        LABEL_HEADER,
+        QUANTITY_HEADER,
+        HOURS_HEADER,
+        DISBURSEMENT_HEADER,
+        PAYMENT_DELAY_HEADER,
+        SUBPROJECT_HEADER,
+        LINEAGE_HEADER,
+    ):
+        assert header in LINE_HEADERS
+    lines_tab = book.worksheets[2]
+    assert TOTAL_LABEL in {cell.value for cell in lines_tab["A"]}

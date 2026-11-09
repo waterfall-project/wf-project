@@ -22,6 +22,11 @@ from typing import TYPE_CHECKING, Any
 from openpyxl import load_workbook
 from openpyxl.utils.exceptions import InvalidFileException
 
+from waterfall.core.estimate.excel.writer import (
+    FIXED_TABS,
+    FORMAT_NAME,
+    FORMAT_VERSION,
+)
 from waterfall.platform.errors import UnprocessableError
 
 if TYPE_CHECKING:
@@ -30,19 +35,15 @@ if TYPE_CHECKING:
 FILE_FORMAT_UNREADABLE = "FILE_FORMAT_UNREADABLE"
 NUMBER_INVALID = "NUMBER_INVALID"
 
-# What the header of the workbook says (appendix B); the exporter writes the same.
+# What the header of the workbook says (appendix B): the name and the version are the writer's
+# (US-1550/L1), which exports no constant for the two labels of A1 and A2.
 FORMAT_KIND = "estimate"
-FORMAT_NAME = "Devis"
-FORMAT_VERSION = 1
 FORMAT_LABEL = "Format"
 VERSION_LABEL = "Version"
 
-# The tabs that are not tabs of lines: written for the reading, never read as lines.
-PRESENTATION_SHEET = "Présentation"
-SUMMARY_SHEET = "Devis"
-TASKS_SHEET = "Tâches"
-PARAMETERS_SHEET = "Paramètres"
-NOT_LINE_SHEETS = frozenset({PRESENTATION_SHEET, SUMMARY_SHEET, TASKS_SHEET, PARAMETERS_SHEET})
+# The tabs that are not tabs of lines are the writer's fixed tabs: written for the reading, never
+# read as lines.
+NOT_LINE_SHEETS = frozenset(FIXED_TABS)
 
 # The headers of the columns read; the other columns are written for the reader and ignored.
 TASK_HEADER = "Tâche"
