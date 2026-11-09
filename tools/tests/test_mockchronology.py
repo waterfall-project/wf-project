@@ -63,8 +63,11 @@ def _written(*kinds: str) -> list[dict[str, Any]]:
 def test_the_writes_are_those_of_the_design_in_that_order() -> None:
     # WF-QUA-0040-A: the design of EP-04 lists them: 100 opened (Created to Pricing), marked, 101
     # opened, 100 designated and refused, the code entered, 101 marked, 102 opened; no abandon.
-    # EP-07 adds the update of the rates accepted on 101 (« Le chargeur du témoin »).
-    assert [(w["kind"], w.get("revision")) for w in _writes()] == [
+    # EP-07 adds the update of the rates accepted on 101 (« Le chargeur du témoin »); EP-09 the
+    # imports of costs, the exclusion of the reception of the customer and the expiry of the
+    # extraction of April replayed (see tools/tests/test_witness_costs.py).
+    costs = {"cost_import_applied", "cost_line_excluded", "import_expired"}
+    assert [(w["kind"], w.get("revision")) for w in _writes() if w["kind"] not in costs] == [
         ("project_created", None),
         ("revision_opened", 100),
         ("state_transition", None),
@@ -88,6 +91,9 @@ def test_each_write_has_the_fields_of_its_kind() -> None:
         "code_entered": {"kind", "project", "code"},
         "rate_update_applied": {"kind", "project", "revision", "cost_category_ids"},
         "state_transition": {"kind", "project", "from", "to"},
+        "cost_import_applied": {"kind", "project", "cost_import_id"},
+        "cost_line_excluded": {"kind", "project", "document", "item", "reason"},
+        "import_expired": {"kind", "project", "import_id"},
     }
     assert all(set(write) == fields[write["kind"]] for write in _writes())
     assert [(w["revision"], w["version_name"]) for w in _written("revision_marked")] == [

@@ -1550,7 +1550,7 @@ valeur acquise (EP-10) ; les écrans des coûts réels (US-1620).
 
 ## US-1650 — Le témoin : la tranche des coûts réels et du reste à engager, et les parcours rejoués
 
-- **statut** : à faire
+- **statut** : en cours
 - **exigences** : `WF-QUA-0040-A`, `WF-INTF-0010-A`
 - **opérations** : aucune en propre ; le chargement passe par les interfaces du noyau
 - **issue** : 2397

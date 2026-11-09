@@ -62,8 +62,8 @@ and its exit, its code refused and its readings by the quality of its reader, by
 ``wftools.mockrefusals`` (US-0702/L1); and the refusals the contract declared without a code,
 a condition nor an example, by ``wftools.mockdeclared`` (US-0702/L2); and the examples of the
 majors of the review of the 2026-10-31, by ``wftools.mockreview`` (US-0704), with the Kanban of
-the summary that awaits its own lines (US-1240); and the chronology, the tasks and the lines of the
-witness, by ``wftools.mockchronology``, ``mockwitnesstasks`` and ``mockwitnesslines``.
+the summary that awaits its own lines (US-1240); and the chronology, the tasks, the lines and the
+costs of the witness, by ``wftools.mockchronology`` and ``mockwitness*``.
 
 They live in the universe of the other examples: identifiers are kept, and what the
 witness project, the offer and the labels of the universe say is read from their fixtures,
@@ -120,6 +120,7 @@ from wftools import (
     mocktext,
     mocktoday,
     mockwitness,
+    mockwitnesscostfile,
     mockwitnesslines,
     mockwitnesstasks,
     mockwrites,
@@ -192,9 +193,7 @@ entry. The named examples of the witness are written beside it, file by file."""
 RATE_YEARS = range(2012, 2027)
 """Fifteen years of rates, up to the reference year of the witness estimate."""
 
-
 USER = "01926f3a-7c00-7000-8000-000000000301"
-
 
 _AUDIT: JsonObject = {
     "created_at": mockhistory.stamp(INSTALLED.instant),
@@ -328,7 +327,7 @@ def named() -> dict[str, JsonObject]:
     form each (``mockrefusals``), those the contract declared without a code, a condition nor an
     example (``mockdeclared``), those of the administration (``mockadminrefusals``), those served
     undeclared (``mockservedrefusals``); the majors of the review (``mockreview``); the loaders'
-    (``mockchronology``, ``mockwitnesstasks``, ``mockwitnesslines``).
+    (``mockwitness*``, ``mockchronology``).
     """
     marked = mocksnapshot.revisions(categories())
     return {
@@ -363,6 +362,7 @@ def named() -> dict[str, JsonObject]:
         **mockchronology.examples(),
         **mockwitnesstasks.examples(),
         **mockwitnesslines.examples(),
+        **mockwitnesscostfile.examples(),
     }
 
 
