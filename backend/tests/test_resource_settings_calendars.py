@@ -15,6 +15,7 @@ from typing import TYPE_CHECKING, Any
 from uuid import UUID, uuid4
 
 import pytest
+from installed_reference import install
 from pydantic import SecretStr
 from sqlalchemy import select, update
 from support import WITNESS
@@ -43,6 +44,7 @@ from waterfall.platform.settings import WitnessSettings
 from waterfall.witness.main import load_witness
 
 if TYPE_CHECKING:
+    from sqlalchemy import Engine
     from support import ContractClient, PartSessions, ReferenceSessions
 
     from waterfall.platform.database import Database
@@ -745,12 +747,17 @@ def without_audit(items: list[dict[str, Any]]) -> list[dict[str, Any]]:
 
 @pytest.mark.requirement("WF-QUA-0040-A")
 def test_the_witness_loads_the_calendars_and_designates_its_default_one(
-    api: ContractClient, database: Database, sessions: PartSessions, service_database_url: str
+    api: ContractClient,
+    database: Database,
+    owner: Engine,
+    sessions: PartSessions,
+    service_database_url: str,
 ) -> None:
     # `load-witness` writes `calendars_with_inactive.json` with its identifiers and its default
     # calendar, the one the platform held losing the designation, then deactivates the one it says
     # deactivated (#2131); the list reads back the example of the contract, the audit columns
     # apart. A second loading writes nothing.
+    install(owner)
     held = seed(database, "Installé", default=True)
     assert load(service_database_url) == 0
     example = example_items()
