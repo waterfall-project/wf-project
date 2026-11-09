@@ -709,7 +709,7 @@ def test_a_line_created_during_a_rate_written_is_priced_at_the_new_rate(
     assert priced == Decimal("1600.00")
 
 
-@pytest.mark.requirement("WF-REF-0050-A")
+@pytest.mark.requirement("WF-REF-0130-A")
 def test_a_structure_created_after_the_first_read_of_the_revision_is_locked_before_its_lines(
     stage: Scene, offer: Offer, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -719,23 +719,31 @@ def test_a_structure_created_after_the_first_read_of_the_revision_is_locked_befo
     structure_id = UUID(offer.tree.structure_id)
     project_id, revision_id = UUID(stage.project["project_id"]), UUID(offer.revision["revision_id"])
     reads: list[int] = []
-    locked: list[UUID] = []
+    events: list[tuple[str, UUID | None]] = []
     real_list, real_lock = keeping.revision_structures, keeping.structure_facts
+    real_lines = keeping.lines_of_revision
 
     def list_missing_first(*args: Any) -> tuple[UUID, ...]:
         reads.append(1)
         return () if len(reads) == 1 else real_list(*args)
 
     def lock_spy(session: Any, project: UUID, structure: UUID, **kwargs: Any) -> Any:
-        locked.append(structure)
+        events.append(("lock", structure))
         return real_lock(session, project, structure, **kwargs)
+
+    def lines_spy(*args: Any) -> Any:
+        events.append(("lines", None))
+        return real_lines(*args)
 
     monkeypatch.setattr(keeping, "revision_structures", list_missing_first)
     monkeypatch.setattr(keeping, "structure_facts", lock_spy)
+    monkeypatch.setattr(keeping, "lines_of_revision", lines_spy)
     with stage.database.transaction() as session:
         keeping.reprice_revision(session, (project_id, revision_id), utc_now())
-    assert structure_id in locked
     assert len(reads) >= 2
+    last_read = max(i for i, event in enumerate(events) if event[0] == "lines")
+    last_lock = max(i for i, event in enumerate(events) if event == ("lock", structure_id))
+    assert last_lock < last_read
 
 
 @pytest.mark.requirement("WF-PRJ-0040-A")

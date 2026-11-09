@@ -145,7 +145,11 @@ def reprice_revision(
     none of the category, is priced again with the others. The structures are read again after the
     locks, and those a ``createCostStructure`` (which holds the revision ``FOR SHARE`` alone) added
     meanwhile locked in their turn, until the list and the structures that bear the lines read are
-    all held: ``reschedule`` locks the structures of the lines, but after they are read.
+    all held: ``reschedule`` locks the structures of the lines, but after they are read. A structure
+    of a line that the list lacks is locked too, so that each pass progresses or stops. The order of
+    the identifiers holds within a pass only: a structure created between two passes may bear a
+    lower identifier than one held, so a deadlock is possible only with a writer that locks several
+    structures, and PostgreSQL detects it.
     """
     project_id, revision_id = revision
     held_structures: set[UUID] = set()
@@ -159,7 +163,11 @@ def reprice_revision(
             structure_facts(session, project_id, structure_id, lock=True)
             held_structures.add(structure_id)
         nodes = list(lines_of_revision(session, project_id, revision_id).values())
-        if not missing and held_structures.issuperset(structures_of(session, project_id, nodes)):
+        strangers = sorted(set(structures_of(session, project_id, nodes)) - held_structures)
+        for structure_id in strangers:
+            structure_facts(session, project_id, structure_id, lock=True)
+            held_structures.add(structure_id)
+        if not missing and not strangers:
             break
     if nodes and categories is not None:
         nodes = list(
