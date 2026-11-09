@@ -123,6 +123,15 @@ class Calendar:
         worked = min(moment.hours, self._week[weekday])
         return weeks * self.weekly + self._before[weekday] + worked
 
+    def bounded(self, moment: Moment) -> Moment:
+        """Return a moment on its own day, its hours bounded to the hours of work of that day.
+
+        Where an elapsed duration finishes: on the day it reaches, as MS Project finishes it, even a
+        day without hours of work, rather than at the end of the last hours of work before.
+        """
+        weekday = (moment.ordinal - 1) % DAYS_PER_WEEK
+        return Moment(moment.ordinal, min(moment.hours, self._week[weekday]))
+
     def moment(self, count: Fraction, *, finish: bool) -> Moment:
         """Return where a count of hours of work from the origin is reached.
 

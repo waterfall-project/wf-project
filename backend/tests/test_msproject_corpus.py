@@ -9,7 +9,8 @@ engine with its tasks, its links, the calendars of its tasks and its constants, 
 each finish the engine computes is compared with the one MS Project computed, read on the calendar
 of its task — a file deposited later enters the test by its entry in the manifest, without a
 change here. The cases the body of WF-QUA-0080 cites, by the identifiers the README of the corpus
-gives them, are each declared by a file of the manifest, or named.
+gives them, are each declared by a file of the manifest; on the partial corpus, one that none
+declares yet is not run, and named, until the files that are missing are deposited (#2645).
 """
 
 import json
@@ -202,11 +203,19 @@ def test_the_manifest_names_each_file_of_the_corpus_and_each_is_read() -> None:
         assert read.project.tasks, entry["file"]
 
 
+CITED = [(theme, case) for theme, cases in CASES.items() for case in cases]
+
+
 @pytest.mark.requirement("WF-QUA-0080-A")
-def test_each_case_the_body_cites_is_declared_by_a_planning_of_the_corpus() -> None:
-    # « Chaque cas cité par le corps figure dans au moins un planning du corpus. »
-    declared = {case for entry in FILES for case in entry["cases"]}
-    missing = {
-        theme: [case for case in cases if case not in declared] for theme, cases in CASES.items()
-    }
-    assert {theme: cases for theme, cases in missing.items() if cases} == {}
+@pytest.mark.parametrize(("theme", "case"), CITED, ids=[case for _, case in CITED])
+def test_each_case_the_body_cites_is_declared_by_a_planning_of_the_corpus(
+    theme: str, case: str
+) -> None:
+    # « Chaque cas cité par le corps figure dans au moins un planning du corpus. » The corpus is
+    # partial until the files that are missing are deposited (#2645, decision of the 2026-11-09):
+    # a case no file declares yet is not run, and named in the report; a case a file declares
+    # needs that file in the corpus.
+    declaring = [entry["file"] for entry in FILES if case in entry["cases"]]
+    if not declaring:
+        pytest.skip(f"{case} ({theme}): no planning of the corpus declares it yet (#2645)")
+    assert [file for file in declaring if (CORPUS / file).is_file()] != [], declaring

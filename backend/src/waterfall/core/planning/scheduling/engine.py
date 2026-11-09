@@ -150,7 +150,11 @@ class _Engine:
         """Return the span of a task of a duration started at a count.
 
         A milestone sits at one moment (WF-PLA-0050): where its predecessor finishes when a link
-        from a finish drives it, the first hour of work of its day otherwise.
+        from a finish drives it, the first hour of work of its day otherwise. An elapsed duration
+        finishes on the day it reaches, its hours bounded to those of that day, as MS Project
+        finishes it (decision of the 2026-11-09, #2342): two elapsed days from a Monday's first
+        hour of work finish at the Wednesday's, not at the end of the Tuesday's work — the same
+        count of work, a successor starting at the same hour.
         """
         span = self.span(duration)
         if span.hours == 0:
@@ -158,10 +162,7 @@ class _Engine:
             return _Span(at, at)
         first = calendar.moment(start, finish=False)
         if span.is_elapsed:
-            # The first moment lies within the hours of work of its day: an elapsed span always
-            # reaches further.
-            last = calendar.count(first.elapsed(span.hours))
-            return _Span(first, calendar.moment(last, finish=True))
+            return _Span(first, calendar.bounded(first.elapsed(span.hours)))
         return _Span(first, calendar.moment(start + span.hours, finish=True))
 
     def span_of_lag(self, link: Link) -> Span:
