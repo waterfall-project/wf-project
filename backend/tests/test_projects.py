@@ -112,6 +112,7 @@ def test_a_project_is_born_created_without_a_code_and_its_creator_manages_it(
         "lose": ["project_in_pricing"],
         "abandon": [],
         "generate_skeleton": [],
+        "import_planning": [],
         "import_estimate": [],
     }
     read = api.get(f"{PROJECTS}/{project['project_id']}", headers=stage.manager.headers)

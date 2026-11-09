@@ -287,22 +287,24 @@ def test_each_unit_converts_by_its_constant_or_without_a_calendar(
 
 @pytest.mark.requirement("WF-PLA-0030-A")
 def test_a_percent_of_an_elapsed_predecessor_is_an_elapsed_lag() -> None:
-    # Ten elapsed days from the Monday finish on the Wednesday after, at its eighth hour; half of
-    # them, five elapsed days, reach the Monday's eighth hour, where a successor working every
-    # hour starts. Five days of work would have reached the Friday.
+    # Ten elapsed days from the Monday finish on the Thursday after, at its first hour of work, as
+    # MS Project finishes them; half of them, five elapsed days, reach the Tuesday's first hour,
+    # where a successor working every hour starts. Five days of work would have reached the Friday.
     tasks = [task(1, "10 ed"), task(2, calendar=EVERY_HOUR)]
     dated = planned(tasks, [link(1, 2, lag="50", unit="percent")])
-    assert of(dated, 1).finish == day(9, 8)
-    assert of(dated, 2).start == day(14, 8)
+    assert of(dated, 1).finish == day(10)
+    assert of(dated, 2).start == day(15)
 
 
 @pytest.mark.requirement("WF-PLA-0160-A")
 def test_an_elapsed_duration_runs_over_the_days_without_hours_of_work() -> None:
-    # Two elapsed days from a Friday morning end on the Sunday: the task finishes at the end of
-    # the Friday's work, its last hours of work.
-    dated = planned([task(1, "4"), task(2, "2 ed")], [link(1, 2)])
-    assert (of(dated, 2).start, of(dated, 2).finish) == (day(4), day(4, 8))
+    # Two elapsed days from a Friday morning end on the Sunday: the task finishes on the day it
+    # reaches, as MS Project finishes it, its hours bounded to the none of that day (#2342); its
+    # work is the Friday's eight hours, and its successor starts on the Monday.
+    dated = planned([task(1, "4"), task(2, "2 ed"), task(3)], [link(1, 2), link(2, 3)])
+    assert (of(dated, 2).start, of(dated, 2).finish) == (day(4), day(6))
     assert of(dated, 2).work_hours == Decimal(8)
+    assert of(dated, 3).start == day(7)
 
 
 # --- WF-PLA-0030: the links --------------------------------------------------------------------

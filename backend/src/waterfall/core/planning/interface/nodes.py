@@ -14,8 +14,7 @@ replays the engine on it and gives back what it wrote (``writing``). A marked re
 current one. The copy leaves null the attachment to an element marked deleted (WF-PLA-0170).
 The creation of ``createNode``, judged then written (``judge_creation``, ``write_creation``), is
 also that of the rows of a paste past the last node, in the paste's one write (US-1450/L5).
-``load_task`` writes a task of the witness at the identifiers and the instant it imposes
-(US-1480/L2).
+The tasks of the witness are written by ``loading`` (US-1480/L2).
 """
 
 from dataclasses import dataclass
@@ -974,9 +973,3 @@ def _moved(write: Write, placing: Placing) -> NodesWritten:
     redated = write.redate(blamed, origin)
     write.after(touched)
     return redated.written(node_ids, former)
-
-
-def load_task(session: Session, project_id: UUID, structure_id: UUID, act: Act) -> None:
-    """Write a task of the witness, at the identifiers and the instant it imposes."""
-    msg = "load_task is filled by US-1480/L2"
-    raise NotImplementedError(msg)

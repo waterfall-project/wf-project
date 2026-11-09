@@ -11,9 +11,9 @@ state after (WF-PRJ-0060). A terminal project lists none: nothing modifies it an
 the 409 of a direct call names ``project_not_terminal`` (WF-CYC-0100).
 
 This module knows the commands of EP-04; the later EPICs add theirs — the risks, the imports, the
-skeleton of the planning — to ``RULES`` with their conditions: the import of an estimate from
-US-1550/L3. The rescue of ``manage_contributors`` for a caller who is no contributor is the story
-of the contributors (US-0930).
+skeleton of the planning — to ``RULES`` with their conditions: the imports of a planning
+(US-1430/L4) and of an estimate (US-1550/L3). The rescue of ``manage_contributors`` for a caller
+who is no contributor is the story of the contributors (US-0930).
 """
 
 from dataclasses import dataclass
@@ -64,10 +64,11 @@ RULES: tuple[Rule, ...] = (
     Rule("lose", "project_exit", manager=True),
     Rule("abandon", "project_exit", manager=True),
     Rule("generate_skeleton", "planning.write"),
+    Rule("import_planning", "planning.write"),
     Rule("import_estimate", "estimate.write"),
 )
 # The imports a project carries, which create the current revision if it has none (WF-INTF-0090).
-IMPORTS = ("import_estimate",)
+IMPORTS = ("import_planning", "import_estimate")
 
 
 def state_conditions(
@@ -143,7 +144,8 @@ def commands_of(
     An import is listed whatever the revision, to whoever holds the permission of its kind; without
     a current revision, ``may_create_revision`` missing to whoever cannot create the one it would
     (WF-INTF-0090). An estimate stays available In progress: its import on the main structure is
-    refused by the import itself, which the structure states (``edit_estimate``; C-358).
+    refused by the import itself, which the structure states (``edit_estimate``; C-358). The
+    conditions of an import are those ``openImport`` refuses by, in its order.
     """
     if state in TERMINAL:
         return []
