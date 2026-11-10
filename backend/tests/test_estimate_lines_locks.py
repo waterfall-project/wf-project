@@ -9,12 +9,13 @@ transaction that holds the lock (``pg_blocking_pids``), never on a delay.
 """
 
 from concurrent.futures import ThreadPoolExecutor
-from typing import TYPE_CHECKING, Any
-from uuid import UUID
+from typing import TYPE_CHECKING, Any, cast
+from uuid import UUID, uuid4
 
 import pytest
 from estimate_support import Costing, Lines, costing
-from nodes_support import Tree, faults, opened
+from history_support import undo
+from nodes_support import Tree, faults, opened, signed_in
 from projects_support import PROJECTS
 from projects_support import scene as make_scene
 from sqlalchemy import delete, func, select
@@ -22,6 +23,8 @@ from sqlalchemy.exc import OperationalError
 from test_estimate_lines import blocked_by
 
 from waterfall.core.cost_settings.records import NATURES_LOCK
+from waterfall.core.estimate import applying
+from waterfall.core.exchanges.judgments import ImportTarget
 from waterfall.core.projects.tables import Subproject
 from waterfall.core.revisions.tables import CostStructure
 
@@ -29,8 +32,10 @@ if TYPE_CHECKING:
     from projects_support import Scene
     from realm import TestRealm
     from sqlalchemy import Connection, Engine
+    from sqlalchemy.orm import Session
     from support import ContractClient
 
+    from waterfall.platform.audit import Act
     from waterfall.platform.database import Database
 
 
@@ -85,32 +90,64 @@ def natures_locked(connection: Connection) -> int | None:
 
 
 @pytest.mark.requirement("WF-REF-0040-A")
-@pytest.mark.parametrize("write", ["create", "change", "move"])
+@pytest.mark.parametrize("write", ["create", "change", "move", "delete", "paste", "undo"])
 def test_a_write_of_a_line_waits_for_a_change_of_a_nature_before_it_locks_its_structure(
-    stage: Scene, tree: Tree, lines: Lines, costs: Costing, write: str
+    stage: Scene,
+    tree: Tree,
+    costs: Costing,
+    realm: TestRealm,
+    write: str,
 ) -> None:
     # « Une catégorie employée par une ligne de devis [...] ne se rattache qu'à une nature du même
     # type que la sienne » : a change of a nature takes the lock of the natures, then the
     # structures it prices again; a write of a line shares that lock first, and waits for the
     # change without holding its structure — the change would wait for it otherwise (#2615).
+    lines = Lines(tree)
     task = tree.made("Câblage")
     other = tree.made("Essais")
     node = lines.made(task, **material(costs))["nodes"][0]
     counter = lines.made(task, **material(costs, label="Câbles"))["structure_lock_version"]
+
+    plan: dict[str, Any] = {}
+    who = signed_in(stage, realm)
+    if write == "undo":
+        # The history is that of an account in a session: the change to undo is this one's.
+        assert lines.create(task, who, **material(costs, label="Fils")).status_code == 201
+    if write == "paste":
+        # The preview writes nothing and locks nothing; only the confirmation is held back.
+        previewed = tree.api.post(
+            f"{tree.path}/nodes/paste-preview",
+            headers=stage.manager.headers,
+            json={"target_node_id": node["node_id"], "target_column": "label", "rows": [["Fils"]]},
+        )
+        assert previewed.status_code == 200, previewed.text
+        plan = previewed.json()
 
     def run() -> Any:
         if write == "create":
             return lines.create(task, **material(costs, label="Borniers"))
         if write == "change":
             return lines.change(node, quantity="2")
+        headers = tree.stage.manager.headers
+        if write == "delete":
+            held = tree.node(node["node_id"])["lock_version"]
+            return tree.api.delete(
+                f"{tree.path}/nodes/{node['node_id']}?lock_version={held}", headers=headers
+            )
+        if write == "paste":
+            return tree.api.post(
+                f"{tree.path}/nodes/paste",
+                headers=headers,
+                json={"paste_id": plan["paste_id"], "confirmed": True, "lock_version": counter},
+            )
+        if write == "undo":
+            return undo(tree, who)
         sent = {
             "node_ids": [node["node_id"]],
             "parent_id": other["node_id"],
             "lock_version": counter,
         }
-        return tree.api.post(
-            f"{tree.path}/nodes/move", headers=tree.stage.manager.headers, json=sent
-        )
+        return tree.api.post(f"{tree.path}/nodes/move", headers=headers, json=sent)
 
     with ThreadPoolExecutor(max_workers=1) as pool, stage.owner.begin() as connection:
         holder = natures_locked(connection)
@@ -145,3 +182,31 @@ def test_a_line_naming_a_subproject_a_deletion_takes_away_meanwhile_is_refused_a
     refused = waiting.result(timeout=30)
     assert faults(refused) == [("/estimate_line/subproject_id", "UNKNOWN_SUBPROJECT", {})]
     assert tree.items("?kinds=estimate_line") == []
+
+
+@pytest.mark.requirement("WF-REF-0040-A")
+def test_the_application_of_an_import_shares_the_lock_of_the_natures_before_it_locks_its_structure(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # The import writes lines as every write of the tree does: the natures first, then the
+    # structure (#2615). Seen on the order of the two takes, the workbook and the rest stubbed.
+    taken: list[str] = []
+
+    def locked(*_: object, **kwargs: object) -> None:
+        taken.append("structure" if kwargs.get("lock") else "read")
+        msg = "stopped once the structure is locked"
+        raise LookupError(msg)
+
+    def read(_content: bytes) -> object:
+        return object()
+
+    def shared(_session: object) -> None:
+        taken.append("natures")
+
+    monkeypatch.setattr(applying, "read_workbook", read)
+    monkeypatch.setattr(applying, "share_natures", shared)
+    monkeypatch.setattr(applying, "structure_facts", locked)
+    target = ImportTarget(uuid4(), uuid4(), uuid4(), None)
+    with pytest.raises(LookupError, match="stopped"):
+        applying.apply(cast("Session", None), target, b"", {}, cast("Act", None))
+    assert taken == ["natures", "structure"]

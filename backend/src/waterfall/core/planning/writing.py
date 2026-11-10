@@ -316,7 +316,12 @@ class Redated:
 
 
 def hold_before_lock(session: Session) -> None:
-    """Take what the facets of the other kinds hold before the lock of a structure (#2615)."""
+    """Take what the facets of the other kinds hold before the lock of a structure (#2615).
+
+    Taken by every write of the tree, not only by those of a line: the lock is shared, so cheap
+    when nothing changes a nature, and a single order of locks (the natures, then the structure)
+    leaves no write to guess whether it may reach a line — a deletion of a task does.
+    """
     for hooks in facets().values():
         hooks.before_lock(session)
 

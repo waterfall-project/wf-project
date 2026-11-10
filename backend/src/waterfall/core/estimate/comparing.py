@@ -191,6 +191,9 @@ def _amount_deltas(
     for read, lines, sign in ((base_read, before, -1), (compared_read, after, 1)):
         natures = natures_of(session, project_id, read, {each.cost_category_id for each in lines})
         for line in lines:
+            # Never a ``KeyError``: ``natures_of`` finds the category of every line, on the images
+            # or on the reference; proved by ``test_comparison.py``,
+            # ``test_a_category_a_line_bears_lacks_never_both_its_image_and_the_reference``.
             nature = natures[line.cost_category_id]
             # The label of the compared revision prevails: it is added after the base one.
             deltas.labels[(COST_TYPE, nature.cost_type_id)] = nature.label
