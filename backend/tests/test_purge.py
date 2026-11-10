@@ -9,6 +9,7 @@ that a day goes by without waiting for it. The verb of the worker, its lock and 
 ``test_worker_main.py``.
 """
 
+import importlib
 import threading
 from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Any
@@ -610,6 +611,50 @@ def test_the_listing_of_the_purge_leaves_out_the_old_objects_a_row_names(
     assert stray in listed
     assert named not in listed
     backups_bucket.remove(stray)
+
+
+@pytest.mark.requirement("WF-DAT-0120-A")
+def test_the_orphan_behind_more_named_objects_than_the_limit_is_listed_and_swept(
+    stage: Scene,
+    database: Database,
+    backups_bucket: Bucket,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # « Un fichier déposé et jamais confirmé disparaît au terme du délai d'expiration. » : with
+    # the limit at 2, three old objects a deposit names come first in the order of the keys and
+    # would spend it; the orphan behind them is listed all the same, and the purge deletes it
+    # (#2533).
+    monkeypatch.setattr(importlib.import_module(stored_before.__module__), "SWEEP_LIMIT", 2)
+    named = [object_key_of(UUID(int=each)) for each in (1, 2, 3)]
+    orphan = object_key_of(UUID(int=4))
+    for key in [*named, orphan]:
+        backups_bucket.put(key, b"WF")
+    with database.transaction() as session:
+        for key in named:
+            record_upload(
+                session,
+                UUID(key.removeprefix("uploads/")),
+                Opened(
+                    "import",
+                    "nomme.wft",
+                    2,
+                    Cut(SMALLEST_PART, 1),
+                    key,
+                    "open",
+                    stage.manager.user_id,
+                ),
+                utc_now() + timedelta(hours=48),
+            )
+    later = utc_now() + LATER
+    with database.transaction() as session:
+        listed = stored_before(backups_bucket, later, session).uploads
+    assert listed == (orphan,)
+    purged = purged_at(database, backups_bucket, later)
+    assert orphan in purged.objects
+    assert backups_bucket.size(orphan) is None
+    for key in named:
+        assert backups_bucket.size(key) is not None
+        backups_bucket.remove(key)
 
 
 @pytest.mark.requirement("WF-DAT-0120-A")
