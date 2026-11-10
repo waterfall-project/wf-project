@@ -33,7 +33,7 @@ from waterfall.core.estimate.excel.writer import (
 from waterfall.platform.errors import UnprocessableError
 
 if TYPE_CHECKING:
-    from collections.abc import Mapping, Sequence
+    from collections.abc import Collection, Mapping, Sequence
 
 FILE_FORMAT_UNREADABLE = "FILE_FORMAT_UNREADABLE"
 NUMBER_INVALID = "NUMBER_INVALID"
@@ -134,7 +134,7 @@ class WorkbookRead:
 # ElementTree.ParseError and of lxml's XMLSyntaxError; zlib.error and EOFError are a cut deflate
 # stream, RuntimeError and NotImplementedError a member that zipfile cannot decode (encrypted,
 # unknown compression): none of them is an OSError.
-_DAMAGES = (
+DAMAGES = (
     zipfile.BadZipFile,
     zlib.error,
     EOFError,
@@ -148,47 +148,59 @@ _DAMAGES = (
 )
 
 
-def _unreadable() -> UnprocessableError:
+def unreadable(
+    expected_format: str = FORMAT_KIND, expected_version: int = FORMAT_VERSION
+) -> UnprocessableError:
+    """Build the refusal of a file that is no workbook of the format: the format is the slot's."""
     return UnprocessableError(
         FILE_FORMAT_UNREADABLE,
-        {"expected_format": FORMAT_KIND, "expected_version": str(FORMAT_VERSION)},
+        {"expected_format": expected_format, "expected_version": str(expected_version)},
     )
 
 
-def _text(value: object) -> str | None:
+def text(value: object) -> str | None:
     """Read a cell as text: blank is none, a whole number loses its ``.0``."""
     if value is None:
         return None
     if isinstance(value, float) and value.is_integer():
         return str(int(value))
-    text = str(value).strip()
-    return text or None
+    stripped = str(value).strip()
+    return stripped or None
 
 
-def _is_version(value: object) -> bool:
+def is_version(value: object, version: int = FORMAT_VERSION) -> bool:
+    """Tell a cell that says the version of the format: a number or its text."""
     if isinstance(value, bool):
         return False
     if isinstance(value, int | float):
-        return value == FORMAT_VERSION
-    return isinstance(value, str) and value.strip() == str(FORMAT_VERSION)
+        return value == version
+    return isinstance(value, str) and value.strip() == str(version)
 
 
-def _first_two_cells(rows: Sequence[Sequence[object]], rank: int) -> tuple[object, object]:
+def cells_of(rows: Sequence[Sequence[object]], rank: int) -> tuple[object, object]:
     """Give the cells A and B of a row, none where the row or the cell is missing."""
     cells = tuple(rows[rank]) if rank < len(rows) else ()
     return (cells[0] if cells else None, cells[1] if len(cells) > 1 else None)
 
 
-def _check_header(rows: Sequence[Sequence[object]]) -> None:
-    """Refuse a first tab that does not say "Devis" and a known version in A1, B1, A2, B2."""
-    first, second = _first_two_cells(rows, 0), _first_two_cells(rows, 1)
+def check_header_rows(
+    rows: Sequence[Sequence[object]],
+    format_name: str = FORMAT_NAME,
+    version: int = FORMAT_VERSION,
+    expected_format: str = FORMAT_KIND,
+) -> None:
+    """Refuse a first tab that does not say the format and a known version in A1, B1, A2, B2.
+
+    The name and the version are the slot's; ``expected_format`` is the kind the refusal names.
+    """
+    first, second = cells_of(rows, 0), cells_of(rows, 1)
     if (
-        _text(first[0]) != FORMAT_LABEL
-        or _text(first[1]) != FORMAT_NAME
-        or _text(second[0]) != VERSION_LABEL
-        or not _is_version(second[1])
+        text(first[0]) != FORMAT_LABEL
+        or text(first[1]) != format_name
+        or text(second[0]) != VERSION_LABEL
+        or not is_version(second[1], version)
     ):
-        raise _unreadable()
+        raise unreadable(expected_format, version)
 
 
 def check_header(content: bytes) -> None:
@@ -204,19 +216,19 @@ def check_header(content: bytes) -> None:
             rows = list(sheets[0].iter_rows(max_row=2, values_only=True)) if sheets else None
         finally:
             workbook.close()
-    except _DAMAGES as error:
-        raise _unreadable() from error
+    except DAMAGES as error:
+        raise unreadable() from error
     if rows is None:
-        raise _unreadable()
-    _check_header(rows)
+        raise unreadable()
+    check_header_rows(rows)
 
 
-def _task_entries(rows: Sequence[Sequence[object]]) -> dict[str, str]:
+def task_entries(rows: Sequence[Sequence[object]]) -> dict[str, str]:
     """Read « Tâches »: the lineage of each entry, below the row of its headers; none without it."""
     entries: dict[str, str] = {}
     columns: tuple[int, int] | None = None
     for row in rows:
-        texts = [_text(cell) for cell in row]
+        texts = [text(cell) for cell in row]
         if columns is None:
             if ENTRY_HEADER in texts and TASK_LINEAGE_HEADER in texts:
                 columns = (texts.index(ENTRY_HEADER), texts.index(TASK_LINEAGE_HEADER))
@@ -238,17 +250,18 @@ def read_number(value: object) -> tuple[Decimal | None, bool]:
     return Decimal(repr(value)), True
 
 
-def _header_columns(row: Sequence[object]) -> dict[str, int]:
-    """Give the rank of each column read, by its header (the first of two equal headers)."""
+def header_columns(row: Sequence[object], wanted: Collection[str]) -> dict[str, int]:
+    """Give the rank of each column wanted, by its header (the first of two equal headers)."""
     columns: dict[str, int] = {}
     for rank, cell in enumerate(row):
-        header = _text(cell)
-        if header in _READ_HEADERS and header not in columns:
+        header = text(cell)
+        if header is not None and header in wanted and header not in columns:
             columns[header] = rank
     return columns
 
 
-def _at(row: Sequence[object], columns: Mapping[str, int], header: str) -> object:
+def at(row: Sequence[object], columns: Mapping[str, int], header: str) -> object:
+    """Give the cell of a row under a header, none where the column or the cell is missing."""
     rank = columns.get(header)
     return row[rank] if rank is not None and rank < len(row) else None
 
@@ -275,11 +288,11 @@ def _read_sheet(
     columns: dict[str, int] | None = None
     for number, row in enumerate(rows, start=1):
         if columns is None:
-            found = _header_columns(row)
+            found = header_columns(row, _READ_HEADERS)
             columns = found if found.keys() >= _KEY_HEADERS else None
             continue
-        texts = {header: _text(_at(row, columns, header)) for header in _TEXT_HEADERS}
-        raws = {header: _at(row, columns, header) for header in _NUMBER_HEADERS}
+        texts = {header: text(at(row, columns, header)) for header in _TEXT_HEADERS}
+        raws = {header: at(row, columns, header) for header in _NUMBER_HEADERS}
         if _is_ignored(texts, raws):
             continue
         numbers = {header: read_number(raw) for header, raw in raws.items()}
@@ -315,7 +328,9 @@ def _read_sheet(
     return lines, rejected, columns
 
 
-def _load_sheets(content: bytes) -> list[tuple[str, list[tuple[Any, ...]]]]:
+def load_sheets(
+    content: bytes, expected_format: str = FORMAT_KIND, expected_version: int = FORMAT_VERSION
+) -> list[tuple[str, list[tuple[Any, ...]]]]:
     """Open the workbook and read every tab; any damage of the file is ``FILE_FORMAT_UNREADABLE``.
 
     In ``read_only`` mode the XML of a tab is parsed while iterating, so both steps are guarded.
@@ -326,8 +341,8 @@ def _load_sheets(content: bytes) -> list[tuple[str, list[tuple[Any, ...]]]]:
             return [(sheet.title, list(sheet.iter_rows(values_only=True))) for sheet in workbook]
         finally:
             workbook.close()
-    except _DAMAGES as error:
-        raise _unreadable() from error
+    except DAMAGES as error:
+        raise unreadable(expected_format, expected_version) from error
 
 
 def read_workbook(content: bytes) -> WorkbookRead:
@@ -337,10 +352,10 @@ def read_workbook(content: bytes) -> WorkbookRead:
     is no workbook, whose XML is damaged, or whose first tab does not say the format "Devis" and a
     known version.
     """
-    sheets = _load_sheets(content)
+    sheets = load_sheets(content)
     if not sheets:
-        raise _unreadable()
-    _check_header(sheets[0][1])
+        raise unreadable()
+    check_header_rows(sheets[0][1])
     lines: list[ReadLine] = []
     rejected: list[Rejection] = []
     unread: list[str] = []
@@ -348,7 +363,7 @@ def read_workbook(content: bytes) -> WorkbookRead:
     tasks: dict[str, str] = {}
     for name, rows in sheets:
         if name == TASKS:
-            tasks = _task_entries(rows)
+            tasks = task_entries(rows)
         if name in NOT_LINE_SHEETS:
             continue
         sheet_lines, sheet_rejected, columns = _read_sheet(name, rows)
