@@ -386,7 +386,7 @@ révisionné et son déclencheur d'immuabilité d'EP-07, qui les protège sans r
 
 | Module | Tables | Interface offerte |
 |---|---|---|
-| `waterfall.core.estimate`, sous-paquet `remaining/` (FBS-4.5) | les six colonnes nouvelles d'`estimate_line` | `set_line_remaining` (la réestimation, la mise à zéro qui termine) ; `copy_previous` (le second enregistrement de `register_copy`) ; `open_lines(task_ids)` pour le registre de `planning` ; `startable_tasks(project_id)` (le Kanban) ; `remaining_indicators(project_id, revision_id)` et `register_coverage` ; `remaining_of_revision(revision_id)` — le total et le reste par ligne des tâches non terminées, à l'état des tâches de la révision — pour les indicateurs et EP-10 ; le format et l'exporteur `remaining` ; `remaining_entry` et `previous_*` rendus par la lecture de la facette d'EP-07, que le lot de la réestimation complète après #2372 |
+| `waterfall.core.estimate`, sous-paquet `remaining/` (FBS-4.5) | les six colonnes nouvelles d'`estimate_line` | `set_line_remaining` (la réestimation, la mise à zéro qui termine) ; `copy_previous` (le second enregistrement de `register_copy`) ; `open_lines(task_ids)` pour le registre de `planning` ; `startable_tasks(project_id)` (le Kanban) ; `remaining_indicators(project_id, revision_id, at)` et `register_coverage` ; `remaining_of_revision(revision_id)` — le total et le reste par ligne des tâches non terminées, à l'état des tâches de la révision — pour les indicateurs et EP-10 ; le format et l'exporteur `remaining` ; `remaining_entry` et `previous_*` rendus par la lecture de la facette d'EP-07, que le lot de la réestimation complète après #2372 |
 | `waterfall.core.costs` (FBS-4.7) | `cost_line`, `cost_import` | le format `actual_costs` (l'en-tête selon la correspondance, l'analyse, l'application) ; `list_actual_costs` (filtres, tri, totaux, colonnes conservées, dernier import), `set_tracked_scope`, `list_cost_imports` ; `actual_cost_by_subproject(project_id)` et `actual_costs_until(project_id, date, scope)` — les lignes suivies, pour les indicateurs du reste à engager et pour EP-10 — ; `subproject_has_actual_costs` et `impute_waiting_lines(project_id, subproject_id, code)` pour le registre de `projects` ; `load_cost_import`, `load_cost_lines` et `load_exclusion` avec identifiants et instants imposés |
 
 - **La couche** : `estimate` importe l'interface de `costs` (le coût réel par sous-projet des
@@ -512,7 +512,10 @@ worker, le chargeur — s'étend à chacun.
   sans référence), `actual_cost` par `actual_cost_by_subproject` de `costs` (les lignes suivies,
   `subproject_id` nul vers `unassigned`), `remaining` par `remaining_of_revision`, `variance` =
   budget − coût réel − reste, `is_over_budget` quand elle est négative, `zone` `alert` ou `nominal`
-  — ; `delta_to_reference` = budget de référence − (coût réel + reste), nul sans référence ;
+  — ; « nul sans référence » dit un montant zéro (`0.00`) et non un budget absent, puisque le contrat
+  exige un `Money` pour `budget` et `variance` : sans référence, la marge d'un sous-projet est
+  l'opposé de ce qu'il a engagé (#2715) ; `delta_to_reference` = budget de référence − (coût réel
+  + reste), nul sans référence ;
   `delta_to_previous_revision` = reste courant − `remaining_of_revision` de la dernière révision
   marquée après le passage En cours, nul sans elle ; `coverage` par `register_coverage` ;
   `context` avec `is_stored` faux. Tout se calcule à la lecture ; la conservation au marquage et le
@@ -1046,7 +1049,7 @@ provision (EP-08) ; la valeur acquise (EP-10).
 
 ## US-1600 — Les indicateurs de reste à engager
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-RAE-0020-A`
 - **opérations** : `getRemainingIndicators`
 - **issue** : 2392

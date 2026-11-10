@@ -12,27 +12,53 @@ The coverage is a registry the estimate declares and the risks fill (``register_
 until then none is registered, and the coverage is zero — no reserve, no provision left, no cost of
 a risk occurred, no variance —, what is true of a project without risk.
 
-Declared by US-1580/L1 with their arguments and their results, the coverage served from then on;
+Declared by US-1580/L1 with their results, the coverage served from then on;
 ``remaining_of_revision`` filled by US-1580/L2 (EP-09, "Ce que le cadrage laisse à EP-10"; #2708),
-``remaining_indicators`` raising ``NotImplementedError`` naming US-1600, which fills it.
+``remaining_indicators`` by US-1600, which reads the clock from its caller (``at``), as the
+indicators of the estimate do. The margins are ``Decimal``, never absent: a subproject without a
+reference has a budget of nought (#2715).
 """
 
 from dataclasses import dataclass
-from decimal import Decimal
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Literal
+from uuid import UUID
 
-from waterfall.core.estimate.remaining.reviewing import revision_remaining
+from waterfall.core.costs.interface import UNASSIGNED, actual_cost_by_subproject
+from waterfall.core.estimate.indicating import natures_of
+from waterfall.core.estimate.placing import placed_lines
+from waterfall.core.estimate.reading import rows_of
+from waterfall.core.estimate.remaining.balancing import (
+    balances,
+    delta_to_previous,
+    delta_to_reference,
+    distributed,
+)
+from waterfall.core.estimate.remaining.comparing import (
+    previous_review,
+    reference_budgets,
+    summed_by_subproject,
+)
+from waterfall.core.estimate.remaining.reviewing import provisions_of, revision_remaining
+from waterfall.core.estimate.remaining.summing import NOUGHT
+from waterfall.core.projects.interface import subproject_labels
+from waterfall.core.revisions.interface import read_revision_for
 from waterfall.platform.registry import Registry
 
 if TYPE_CHECKING:
-    from collections.abc import Callable, Mapping
+    from collections.abc import Callable, Mapping, Sequence
     from datetime import datetime
-    from uuid import UUID
+    from decimal import Decimal
 
     from sqlalchemy.orm import Session
 
     from waterfall.core.costs.interface import CostScope
     from waterfall.core.estimate.indicating import AmountByKey
+    from waterfall.core.estimate.tables import EstimateLine
+    from waterfall.core.revisions.interface import RevisionRead
+
+
+# The zones a subproject is classified in: the contract's ``AlertZone`` without ``watch``.
+type AlertZone = Literal["alert", "nominal"]
 
 
 @dataclass(frozen=True, slots=True)
@@ -59,18 +85,19 @@ class SubprojectBalance:
     """The margin of a subproject, or of the lines of the project alone (``SubprojectBalance``).
 
     ``key`` is the identifier of the subproject, or ``unassigned``; ``budget`` the budgeted amounts
-    of the reference, none without one; ``variance`` the budget minus the actual cost and the
-    remaining, none with the budget; ``zone`` ``alert`` or ``nominal``.
+    of the reference, nought without one — the amount, not the absence, as the contract's ``Money``
+    asks; ``variance`` the budget minus the actual cost and the remaining, negative beyond the
+    budget; ``zone`` ``alert`` when it is, ``nominal`` otherwise, never ``watch``.
     """
 
     key: str
     label: str | None
-    budget: Decimal | None
+    budget: Decimal
     actual_cost: Decimal
     remaining: Decimal
-    variance: Decimal | None
+    variance: Decimal
     is_over_budget: bool
-    zone: str
+    zone: AlertZone
 
 
 @dataclass(frozen=True, slots=True)
@@ -106,7 +133,7 @@ class RemainingIndicators:
     delta_to_previous_revision: Decimal | None
 
 
-ZERO = Decimal("0.00")
+ZERO = NOUGHT
 NO_COVERAGE = Coverage(ZERO, ZERO, ZERO, ZERO, ZERO)
 
 # What answers the coverage of the risks of a revision of a project: one at most, the risks'.
@@ -140,9 +167,84 @@ def remaining_of_revision(
     return RevisionRemaining(total, by_line)
 
 
+def _ventilated(
+    session: Session,
+    project_id: UUID,
+    read: RevisionRead,
+    lines: Sequence[EstimateLine],
+    remaining: RevisionRemaining,
+) -> tuple[AmountByKey, ...]:
+    """Ventilate the remaining by the nature of cost of the category of each line that counts.
+
+    The nature provision is served at nought: each type of cost of the provision kind the lines of
+    the main structure bear, whatever the state of their task, figures with nothing, its share
+    nought (WF-RAE-0020).
+    """
+    placed = [each.line for each in placed_lines(session, project_id, read.revision_id)]
+    provisions = provisions_of(session, placed)
+    kept = [*lines, *(line for line in placed if line.node_id in provisions)]
+    natures = natures_of(session, project_id, read, {line.cost_category_id for line in kept})
+    amounts: dict[str, Decimal] = {}
+    labels: dict[str, str | None] = {}
+    for line in kept:
+        nature = natures[line.cost_category_id]
+        key = str(nature.cost_type_id)
+        amounts[key] = amounts.get(key, NOUGHT) + remaining.by_line.get(line.node_id, NOUGHT)
+        labels[key] = nature.label
+    return distributed(amounts, labels)
+
+
 def remaining_indicators(
-    session: Session, project_id: UUID, revision_id: UUID
+    session: Session, project_id: UUID, revision_id: UUID, at: datetime
 ) -> RemainingIndicators:
-    """Give the indicators of the remaining to commit of a revision (``getRemainingIndicators``)."""
-    msg = "remaining_indicators is filled by US-1600"
-    raise NotImplementedError(msg)
+    """Give the indicators of the remaining to commit of a revision (``getRemainingIndicators``).
+
+    Computed at ``at``, never stored. The total and its ventilation by nature are the remaining of
+    the revision; each subproject — the lines out of any, and the cost imputed to the project
+    alone, as ``unassigned`` — compares its budget in the reference with its actual cost and its
+    remaining; the margin on the reference is none without one, the difference with the review
+    before none without a revision marked In progress before this one. A revision unknown is 404.
+    """
+    read = read_revision_for(session, project_id, revision_id)
+    held = remaining_of_revision(session, project_id, read.revision_id)
+    lines = rows_of(session, project_id, list(held.by_line))
+    remainings = summed_by_subproject(lines, held.by_line)
+    actual_costs = {
+        str(key): amount for key, amount in actual_cost_by_subproject(session, project_id).items()
+    }
+    budgets = (
+        None
+        if read.reference_revision_id is None
+        else reference_budgets(session, project_id, read.reference_revision_id)
+    )
+    found = balances(budgets or {}, actual_costs, remainings)
+    labels = subproject_labels(
+        session, project_id, [UUID(each.key) for each in found if each.key != UNASSIGNED]
+    )
+    earlier = previous_review(session, project_id, read.revision_id)
+    return RemainingIndicators(
+        context=CalculationContext(
+            read.revision_id, "marked" if read.marked else "draft", at, "project", is_stored=False
+        ),
+        total=held.total,
+        by_cost_type=_ventilated(session, project_id, read, lines, held),
+        by_subproject=tuple(
+            SubprojectBalance(
+                each.key,
+                labels.get(UUID(each.key)) if each.key != UNASSIGNED else None,
+                each.budget,
+                each.actual_cost,
+                each.remaining,
+                each.variance,
+                each.is_over_budget,
+                "alert" if each.is_over_budget else "nominal",
+            )
+            for each in found
+        ),
+        coverage=risk_coverage(session, project_id, read.revision_id),
+        delta_to_reference=delta_to_reference(budgets, actual_costs, remainings),
+        delta_to_previous_revision=delta_to_previous(
+            held.total,
+            None if earlier is None else remaining_of_revision(session, project_id, earlier).total,
+        ),
+    )

@@ -9,9 +9,8 @@ scope whose document is dated on or before a day, as known at the reading: the i
 project read it (EP-10), served by US-1610/L2, which applies the imports (EP-09, "Ce que le cadrage
 laisse à EP-10"). An excluded line enters neither (WF-CRE-0030).
 
-Declared by US-1580/L1 with their arguments and their results, which EP-10 reads; each raises
-``NotImplementedError`` naming the story that fills it, until it does: ``actual_costs_until`` is
-filled by US-1610/L2.
+Declared by US-1580/L1 with their arguments and their results, which EP-10 reads:
+``actual_costs_until`` is filled by US-1610/L2, ``actual_cost_by_subproject`` by US-1600.
 """
 
 from decimal import Decimal
@@ -42,9 +41,17 @@ type CostKey = UUID | Literal["unassigned"]
 
 
 def actual_cost_by_subproject(session: Session, project_id: UUID) -> Mapping[CostKey, Decimal]:
-    """Give the sum of the tracked lines of a project by subproject, or under ``UNASSIGNED``."""
-    msg = "actual_cost_by_subproject is filled by US-1600"
-    raise NotImplementedError(msg)
+    """Give the sum of the tracked lines of a project by subproject, or under ``UNASSIGNED``.
+
+    A subproject or the project alone without a tracked line is absent; an excluded line enters
+    nothing (WF-CRE-0030), a credit diminishes its sum (WF-CRE-0010).
+    """
+    rows = session.execute(
+        select(CostLine.subproject_id, func.sum(CostLine.amount))
+        .where(CostLine.project_id == project_id, CostLine.is_in_tracked_scope)
+        .group_by(CostLine.subproject_id)
+    )
+    return {UNASSIGNED if key is None else key: total for key, total in rows}
 
 
 def actual_costs_until(
