@@ -269,16 +269,25 @@ from waterfall.core.planning.interface.nodes import (
     write_creation as write_creation,
 )
 
-# ``open_lines`` (US-1590/L1): the own lines that hold a summary task open, which the estimate
-# tells.
+# ``open_lines`` (US-1590/L1; US-1650/L2): the own lines that hold a summary task open, and when
+# they were set to nought, which the estimate tells.
 from waterfall.core.planning.interface.open_lines import (
     OpenLines as OpenLines,
+)
+from waterfall.core.planning.interface.open_lines import (
+    ZeroedAt as ZeroedAt,
 )
 from waterfall.core.planning.interface.open_lines import (
     held_open as held_open,
 )
 from waterfall.core.planning.interface.open_lines import (
     register_open_lines as register_open_lines,
+)
+from waterfall.core.planning.interface.open_lines import (
+    register_zeroed_at as register_zeroed_at,
+)
+from waterfall.core.planning.interface.open_lines import (
+    zeroed_at as zeroed_at,
 )
 
 # ``paste`` (US-1380/L1; US-1450/L2): the paste of a block of cells.

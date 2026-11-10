@@ -247,6 +247,11 @@ describe("the screen of the actual costs", () => {
     expect(page).toContain('<option value="unassigned">No subproject</option>');
   });
 
+  it("asks the service for the lines charged to no subproject when the address names `unassigned` [WF-CRE-0040-A]", async () => {
+    await costsAt({ subproject_id: "unassigned" });
+    expect(queryOf(COSTS)).toEqual({ subproject_id: "unassigned" });
+  });
+
   it("shows the way to the next page when the server holds more lines than the page [WF-CRE-0040-A]", async () => {
     server.answers = { ...server.answers, [COSTS]: { example: "actual_costs_page", status: 200 } };
     const page = await costsAt({ offset: "1" });
@@ -427,10 +432,23 @@ describe("the journal of the imports, the size of the pages", () => {
   });
 });
 
-describe("the note of the fake back on the actual costs", () => {
-  it("says once, under the header, that the service does not apply filters, search, sort and pages (US-0760)", async () => {
+describe("the screen served by the service, not by the fake back", () => {
+  it("shows no note of the mock-up: its reads are filtered, sorted and paged by the service, its writes kept [WF-CRE-0040-A]", async () => {
     const page = await costsAt();
-    expect(page.match(/<p role="note"/g)).toHaveLength(1);
-    expect(page).toContain("Filters, search, sort and pages are ignored");
+    expect(page).not.toContain('role="note"');
+    expect(page).not.toContain(CATALOGUES.en.mockup.notKept);
+    expect(page).not.toContain(CATALOGUES.en.mockup.notFiltered);
+  });
+
+  it("reads the date of the last import from the answer of the actual costs, not from the journal, which the service answers apart [WF-CRE-0050-A]", async () => {
+    // The journal is empty: only the answer of the actual costs holds a last import.
+    server.answers = {
+      ...server.answers,
+      [IMPORTS]: { example: "cost_imports_empty", status: 200 },
+    };
+    const page = await costsAt();
+    expect(page).toContain('<time dateTime="2026-06-03T08:30:00Z">');
+    expect(text(page)).toContain("Actual costs Help 28 lines retained");
+    expect(text(page)).toContain("No actual cost has been imported yet.");
   });
 });

@@ -61,7 +61,6 @@ import { CONTRACT_ADDRESS, type GridQuery, readGridQuery } from "@/components/gr
 import type { GridPreferences } from "@/components/grid/settings";
 import { FUNCTION_DENSITY, FUNCTION_ICONS, LEAF_ICONS } from "@/components/shell/function-display";
 import { PageHeader, Screen } from "@/components/shell/page-header";
-import { MockupNotice } from "@/components/shell/mockup-notice";
 import { buttonVariants } from "@/components/ui/button";
 import type { PageSearchParams } from "@/navigation/context";
 import { functionHref, leafOf } from "@/navigation/functions";
@@ -273,7 +272,6 @@ export default async function ActualCostsPage({
             count={"refused" in costs ? undefined : costs.page.total}
             exchanges={functionHref(EXCHANGES, at.context)}
           />
-          <MockupNotice lists />
           {"refused" in costs ? null : (
             <CostSummary totals={costs.costs.totals} lastImport={costs.lastImport} />
           )}

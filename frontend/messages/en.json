@@ -316,6 +316,7 @@
       "refusedAt": "Refused at row {number}, “{label}”:",
       "refusedAtRow": "Refused at row {number}:",
       "refusedCreating": "Creation of “{label}” refused:",
+      "toRemaining": "Bring its remaining to commit to zero",
       "onRow": "Row {number}, “{label}”",
       "timelines": "Timelines",
       "milestoneTracking": "Time/time tracking",
@@ -480,6 +481,12 @@
     }
   },
   "remainingGrid": {
+    "completionTitle": "Complete the task",
+    "completionHint": "This entry brings the remaining to commit of the last open line of the task to zero: it completes the task. Give the date of its completion.",
+    "completionDate": "Completion date",
+    "completionRequired": "Give the completion date.",
+    "completionCancel": "Give up the entry",
+    "completionConfirm": "Complete the task",
     "finishOverdue": "Started task past its finish",
     "ownLinesOpen": "Own lines open",
     "showNotStarted": "Show the tasks not started too",
@@ -1491,6 +1498,9 @@
       "ownLinesOpen": {
         "help": "Marks a summary task whose subordinates are all completed and which waits only for its own lines, and those lines, provisions excepted, that still hold a remaining to commit."
       },
+      "inactiveObject": {
+        "help": "Marks a line that uses a deactivated object of the reference data, still readable."
+      },
       "budgetedAmount": {
         "help": "Budgeted amount of the line, as the reference budget froze it."
       },
@@ -2501,7 +2511,7 @@
     "actualCostMapping": {
       "form": "Mapping of the actual cost extraction",
       "summary": "The labels under which the ERP extraction names the columns Waterfall reads, and the columns it keeps for information. A label is compared with the header of the file, and with the other labels, regardless of case, accents and spaces at the ends.",
-      "complete": "The mapping is complete: an actual cost extraction can be imported.",
+      "complete": "The mapping is complete: the import of actual costs is no longer refused for it, and it reads the columns of the extraction under these labels.",
       "missing": "{count, plural, one {Required column without a label} other {Required columns without a label}}: {columns}. The import of actual costs is refused while the mapping is incomplete.",
       "required": "(required)",
       "optional": "(optional)",

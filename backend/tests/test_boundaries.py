@@ -133,7 +133,7 @@ PLANNING_INTERFACES: dict[str, set[str]] = {
         "work_breakdown",
     },
     "history": {"closing", "plans", "purge", "recording", "undo"},
-    "exchanges": {"exports", "imports", "purge", "xml"},
+    "exchanges": {"exports", "imports", "loading", "purge", "xml"},
 }
 # What the design names of each (EP-04, "Modules"), declared from US-0910/L1 on, which the other
 # stories call before theirs fill them.

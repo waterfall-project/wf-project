@@ -14,8 +14,8 @@ named with its cause where the test stands:
 - the provisions are EP-08's, the lines of the risks: a line of provision is absent, with the row
   numbers it shifts and the amounts it adds to the tasks above it, to the totals, to the indicators
   and to the comparisons;
-- the previous figures (``previous_*``) and the actual costs that lock the subproject of a line
-  (``editable_fields``) are EP-09's;
+- the previous figures (``previous_*``) are EP-09's; the actual costs, which lock the subproject of
+  a line (``editable_fields``), are loaded since US-1650/L2;
 - a line whose task straddles two years is spread over them by the service, by the hours of each
   (WF-DEV-0040), where the generator of the examples kept the first year;
 - the accounts of the witness are not attached to their node of the organisation, so that no
@@ -203,32 +203,28 @@ def amounts_under(items: dict[str, dict[str, Any]], name: str) -> dict[str, Deci
 
 # How many lines of each read differ from the example in what is read apart: the budgeted amount
 # (the reference is the 100, the example's the 101), the re-estimated one and the year (a task on
-# two years), the fields editable (an actual cost, EP-09).
+# two years).
 LINES_APART = {
-    "nodes_estimate": {"budgeted": 1, "reestimated": 0, "year": 0, "editable": 2},
+    "nodes_estimate": {"budgeted": 1, "reestimated": 0, "year": 0},
     "nodes_estimate_sorted": {
         "budgeted": 1,
         "reestimated": 0,
         "year": 0,
-        "editable": 2,
     },
     "nodes_estimate_filtered": {
         "budgeted": 1,
         "reestimated": 0,
         "year": 0,
-        "editable": 2,
     },
     "nodes_estimate_hours": {
         "budgeted": 1,
         "reestimated": 0,
         "year": 0,
-        "editable": 2,
     },
     "volume/nodes_thousand": {
         "budgeted": 120,
         "reestimated": 118,
         "year": 48,
-        "editable": 18,
     },
 }
 
@@ -339,7 +335,7 @@ def test_the_estimate_read_of_the_loaded_witness_is_the_example_but_for_what_it_
     # The lines: everything the file enters, the base amount and the place are the example's; what
     # is read apart is counted, and each difference has its cause.
     lines = {key: item for key, item in got.items() if item["kind"] == "estimate_line"}
-    found = {"budgeted": 0, "reestimated": 0, "year": 0, "editable": 0}
+    found = {"budgeted": 0, "reestimated": 0, "year": 0}
     for key, item in lines.items():
         theirs = wanted[key]
         assert not line_differences(item, theirs), (name, item["estimate_line"]["label"])
@@ -357,15 +353,9 @@ def test_the_estimate_read_of_the_loaded_witness_is_the_example_but_for_what_it_
         # The risk that originates a line is EP-08's.
         assert item["origin_risk_id"] is None
         # The previous figures are EP-09's; the subproject of a line of a started task is locked
-        # by the actual costs the example holds (EP-09).
+        # by the actual costs the witness loads (US-1650/L2), as in the example.
         assert all(sheet[each] is None for each in PREVIOUS)
-        if item["editable_fields"] != theirs["editable_fields"]:
-            assert set(item["editable_fields"]) - set(theirs["editable_fields"]) == {
-                "estimate_line.subproject_id"
-            }
-            assert set(theirs["editable_fields"]) <= set(item["editable_fields"])
-            assert task["progress"] != "not_started"
-            found["editable"] += 1
+        assert item["editable_fields"] == theirs["editable_fields"], sheet["label"]
     assert found == LINES_APART[name]
     sums_hold(name, (body, expected), got, absent)
 

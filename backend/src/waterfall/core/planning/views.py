@@ -25,7 +25,7 @@ from waterfall.core.planning.tree import TASK, tracking_of
 from waterfall.core.projects.interface import work_breakdown_items
 
 if TYPE_CHECKING:
-    from collections.abc import Collection
+    from collections.abc import Collection, Mapping
     from datetime import date, datetime
     from decimal import Decimal
     from uuid import UUID
@@ -202,6 +202,29 @@ def state_of(tree: Tree, node_id: UUID) -> State:
         return _derived([state_of(tree, child) for child in below], own_lines(tree, node_id))
     task = tree.tasks[node_id]
     return State(task.progress, task.started_on, task.completed_on)
+
+
+def states_without(
+    tree: Tree, gone: Collection[UUID], own: Mapping[UUID, tuple[bool, date | None]]
+) -> dict[UUID, State]:
+    """Give the state each ancestor of tasks will have once they and their subtrees are gone.
+
+    Derived from the subordinates left (WF-PLA-0040), and from what ``own`` tells of the own lines
+    of a summary — held open, and the day they closed it —, ``own_lines`` for one it does not name.
+    A summary left without subordinate becomes a leaf in the state it had (``emptied``). The
+    deepest first, so that a summary reads the state its subordinates will have.
+    """
+    left = set(gone)
+    above = {each for node_id in left for each in tree.ancestors(node_id)}
+    found: dict[UUID, State] = {}
+    for each in sorted(above, key=tree.level.__getitem__, reverse=True):
+        below = [sub for sub in tree.subtasks(each) if sub not in left]
+        if not below:
+            found[each] = state_of(tree, each)
+            continue
+        states = [found[sub] if sub in found else state_of(tree, sub) for sub in below]
+        found[each] = _derived(states, own.get(each, own_lines(tree, each)))
+    return found
 
 
 def awaits(tree: Tree, node_id: UUID, states: list[State]) -> bool:

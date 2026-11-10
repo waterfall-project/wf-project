@@ -1298,7 +1298,15 @@ requête) ne sont lus que là où la structure liste `edit_remaining` disponible
 donnent pas le sous-menu « Sous-projet » ; la colonne et le sous-menu sont ceux du devis, décrits
 avec le menu contextuel des cellules (`choice-menu.tsx`). Son bandeau ne montre que le
 sous-projet, seul paramètre de contexte que ses lectures prennent, et dit qu'il ne restreint que la
-grille, ses indicateurs étant ceux du projet entier (`gridOnly` de `ContextBanner`, #459). Le
+grille, ses indicateurs étant ceux du projet entier (`gridOnly` de `ContextBanner`, #459). Une ligne
+qui emploie un objet du référentiel désactivé depuis (`uses_inactive_object`) porte la marque du
+devis et reste lisible (WF-REF-0010). Une saisie qui termine la tâche — le reste nul de sa dernière
+ligne ouverte — est refusée par le service sans la date (422, `COMPLETION_DATE_REQUIRED` sur
+`/completed_on`) : la grille demande alors la date de terminaison dans un dialogue (`completion-date.tsx`,
+le jour du poste proposé), rejoue la saisie à la même version avec `completed_on`, et, le dialogue
+quitté, dit le refus à la cellule. La suppression d'une tâche démarrée, refusée `task_not_started`,
+se dit dans les grilles de planning, de devis et de reste à engager avec un lien vers la ligne de la
+tâche dans la grille de reste à engager de la même révision (`taskRemainingHref`, WF-PLA-0070). Le
 Kanban du démarrage des tâches, FBS-4.5.3, est une feuille de la fonction,
 `…/revisions/[r]/kanban`, où l'en-tête de la grille mène : toutes les tâches non démarrées, les
 démarrées et les terminées avec leur date, telles que les rend
@@ -1362,6 +1370,18 @@ les filtres gardés pour être changés. Un tri ou une recherche changés ramèn
 sa première page (`sortHref`, `searchHref`). Un lien de page, comme le libellé d'un risque, part de
 la dernière adresse demandée (`usePendingLink`) ; quand elle lit les coûts autrement que la page
 montrée — un filtre ou un tri en attente —, il mène à leur première page.
+
+L'écran est servi par le service (EP-09, US-1620) : il ne porte plus de note de maquette
+(`MockupNotice`), et le filtre des lignes imputées au seul projet passe par `unassigned`, que le
+contrat accepte comme `SubprojectFilter`. `last_import_at` est la date du dernier import du projet,
+quels que soient les filtres, nulle sans import ; les trois totaux, la date et les colonnes conservées
+(`meta.passthrough_columns`) sont ceux du service, l'écran n'en calcule aucun. Le parcours
+`e2e/actual-costs.spec.ts` porte `@shared` : il se joue contre le service sur un projet que la course
+crée (#2193), les lignes que sert le faux back étant celles du témoin, que le service charge à
+US-1650. L'aide de la correspondance de l'extraction (FBS-3.1.3) dit ce que l'import en fait : refusé
+par 409 `actual_cost_mapping_complete` tant qu'elle est incomplète, 422 `FILE_FORMAT_UNREADABLE` pour
+une colonne exigée que le fichier n'a pas, les colonnes ni lues ni conservées comptées comme ignorées
+au compte rendu.
 
 ### Les écrans du référentiel
 
@@ -2894,7 +2914,7 @@ par `MockupNotice` avec `lists` (`mockup.notFiltered`), en une seule note sous l
 dont le service est livré ne portent pas la note, même si `make dev` les sert par Prism et que les
 mêmes limites s'y appliquent : l'administration (EP-03), le référentiel (EP-05) et, d'EP-04, l'accueil
 connecté (US-0920/L2), les révisions (US-0960, US-0970) et les paramètres du projet (US-1000), et,
-d'EP-07, le plan de charge (US-1520) et le devis (US-1560) ; un
+d'EP-07, le plan de charge (US-1520) et le devis (US-1560), et, d'EP-09, les coûts réels (US-1620) ; un
 succès y est ce que le service a gardé, relu.
 
 _Contrôles_ : `make lint-openapi` (exemples conformes aux schémas, volumes compris),

@@ -1303,7 +1303,15 @@ lists `edit_remaining` available, and refused they do not give the « Subproject
 column and the submenu are those of the estimate, described with the context menu of the cells
 (`choice-menu.tsx`). Its banner shows only the subproject, the only context parameter its readings
 take, and says that it restricts only the grid, its indicators being those of the whole project
-(`gridOnly` of `ContextBanner`, #459). The Kanban of task starts, FBS-4.5.3, is a leaf of the
+(`gridOnly` of `ContextBanner`, #459). A line that employs a reference object deactivated since
+(`uses_inactive_object`) bears the estimate's mark and stays readable (WF-REF-0010). An entry that
+completes the task — the zero remaining of its last open line — is refused by the service without
+the date (422, `COMPLETION_DATE_REQUIRED` on `/completed_on`): the grid then asks the completion date
+in a dialog (`completion-date.tsx`, the day of the workstation proposed), replays the entry at the
+same version with `completed_on`, and, the dialog left, tells the refusal at the cell. The deletion
+of a task started, refused `task_not_started`, is told in the planning, estimate and remaining
+grids with a link to the task's line in the remaining-to-commit grid of the same revision
+(`taskRemainingHref`, WF-PLA-0070). The Kanban of task starts, FBS-4.5.3, is a leaf of the
 function, `…/revisions/[r]/kanban`, where the header of the grid leads: all the non-started tasks,
 the started and the completed ones with their date, as `listStartableTasks` renders them, each a
 card, a non-started milestone whose predecessors are completed flagged to be completed
@@ -1364,6 +1372,17 @@ search brings every paginated list back to its first page (`sortHref`, `searchHr
 like the label of a risk, starts from the last address requested (`usePendingLink`); when it reads
 the costs otherwise than the page shown — a pending filter or sort —, it leads to their first
 page.
+
+The screen is served by the service (EP-09, US-1620): it carries no note of the mock-up
+(`MockupNotice`), and the filter of the lines charged to the project alone goes by `unassigned`, which
+the contract accepts as `SubprojectFilter`. `last_import_at` is the date of the last import of the
+project, whatever the filters, null with no import; the three totals, the date and the kept columns
+(`meta.passthrough_columns`) are the service's, the screen computes none. The path
+`e2e/actual-costs.spec.ts` is tagged `@shared`: it plays against the service on a project the run
+creates (#2193), the lines the fake back serves being the witness's, which the service loads at US-1650.
+The help of the mapping of the extraction (FBS-3.1.3) says what the import does with it: refused with
+409 `actual_cost_mapping_complete` while it is incomplete, 422 `FILE_FORMAT_UNREADABLE` for a required
+column the file lacks, the columns neither read nor kept counted as ignored in the report.
 
 ### The reference data screens
 
@@ -2889,7 +2908,7 @@ through `MockupNotice` with `lists` (`mockup.notFiltered`), in a single note und
 screens whose service is delivered do not show the note, even though `make dev` serves them through
 Prism and the same limits apply: administration (EP-03), the reference data (EP-05) and, from EP-04,
 the connected home (US-0920/L2), the revisions (US-0960, US-0970) and the settings of the project
-(US-1000), and, from EP-07, the workload (US-1520) and the estimate (US-1560); a success there is
+(US-1000), and, from EP-07, the workload (US-1520) and the estimate (US-1560), and, from EP-09, the actual costs (US-1620); a success there is
 what the service kept, read anew.
 
 _Checks_: `make lint-openapi` (examples conforming to the schemas, volumes included),

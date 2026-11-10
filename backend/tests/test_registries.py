@@ -173,6 +173,7 @@ DECLARED = {
     "projects.cost_facts",
     "planning.facets",
     "planning.open_lines",
+    "planning.zeroed_at",
     "exchanges.formats",
     "exchanges.exporters",
     "witness.revision_fillers",
@@ -266,7 +267,8 @@ COSTS = "waterfall.core.costs.interface"
 # of the remaining to commit of the review before, after the lines and the rates; the formats and
 # the exporter of the remaining to commit and of the actual costs, by their kind; and what the
 # actual costs answer the projects of a subproject (US-1610/L3), in the order of ``CostFacts``; and
-# the own lines that hold a summary task open, which the estimate tells the planning (US-1590/L1).
+# the own lines that hold a summary task open, which the estimate tells the planning (US-1590/L1),
+# and when they were set to nought (US-1650/L2, #2803).
 REGISTERED_BY_EP09 = {
     "revisions.copy": [f"{ESTIMATE}.remaining.copy_previous"],
     "projects.cost_facts": [
@@ -281,6 +283,7 @@ REGISTERED_BY_EP09 = {
     ],
     "exchanges.exporters": [f"remaining:{ESTIMATE}.remaining_excel.RemainingExporter"],
     "planning.open_lines": [f"{ESTIMATE}.kanban.open_lines"],
+    "planning.zeroed_at": [f"{ESTIMATE}.kanban.zeroed_lines"],
 }
 
 

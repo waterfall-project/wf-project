@@ -62,15 +62,16 @@ import {
 } from "./nodes";
 
 /**
- * What the columns of the estimate read of a node, beyond what every grid reads: the amounts of a
- * task, the figures of a line, its amounts, the labels of its category, its role and its
- * sub-project, the identifiers of its category and its sub-project, which an entry starts from,
- * its payment delay, and whether it employs a deactivated object. The page asks for these alone
- * (`fields`) and hands the grid these alone (`projectNodes`).
+ * What the columns of the estimate read of a node, beyond what every grid reads: the state of a
+ * task, which a refusal to delete it reads (WF-PLA-0070), the amounts of a task, the figures of a
+ * line, its amounts, the labels of its category, its role and its sub-project, the identifiers of
+ * its category and its sub-project, which an entry starts from, its payment delay, and whether it
+ * employs a deactivated object. The page asks for these alone (`fields`) and hands the grid these
+ * alone (`projectNodes`).
  */
 export const ESTIMATE_FIELDS = {
   node: ["origin_risk_id"],
-  task: ["base_amount", "reestimated_amount"],
+  task: ["progress", "base_amount", "reestimated_amount"],
   line: [
     "cost_category_id",
     "cost_category_label",
@@ -95,6 +96,7 @@ export const ESTIMATE_GRID: GridConfig<EstimateNode, NodeSortColumn, NodeTotals>
   key: "estimate",
   searched: true,
   name: "estimate",
+  creates: "lines",
   rowKey: nodeKey,
   fresher: nodeFresher,
   rowNumber: nodeNumber,
