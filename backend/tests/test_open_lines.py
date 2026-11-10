@@ -525,6 +525,36 @@ def test_a_subordinate_deleted_under_a_summary_that_was_closed_reads_the_zeroing
     assert kept(stage, tree, "Phase") == ("completed", zeroed.isoformat())
 
 
+@pytest.mark.requirement("WF-PLA-0130-A")
+def test_a_subordinate_deleted_under_a_started_summary_takes_the_later_of_done_and_zeroing(
+    review: Review, stage: Scene, realm: TestRealm
+) -> None:
+    # « … pour date de terminaison la plus tardive de celles de ses subordonnées et de la mise à
+    # zéro de ses lignes propres. » The phase never closed: its study done on Tuesday, a second
+    # subordinate open, its own line set to nought afterwards (nothing completes it, a subordinate
+    # is open). Deleting the open one completes the phase on the later of the two, the day of the
+    # zeroing (``reestimated_at``), not on the study's Tuesday.
+    tree = review.tree
+    writer = signed_in(stage, realm)
+    done(tree, "Étude")
+    phase = task_named(tree, "Phase")
+    created = tree.create("Contrôle", parent_id=phase["node_id"])
+    assert created.status_code == 201, created.text
+    answer = zero(tree, "Pilotage")
+    assert answer.status_code == 200, answer.text
+    assert state(task_named(tree, "Phase"))[0] == "started"
+    zeroed = zeroing_day(stage, tree, "Pilotage")
+    assert zeroed > TUESDAY
+    answer = delete(tree, task_named(tree, "Contrôle"), writer)
+    assert answer.status_code == 200, answer.text
+    assert state(task_named(tree, "Phase")) == (
+        "completed",
+        DAY.isoformat(),
+        zeroed.isoformat(),
+        False,
+    )
+
+
 @pytest.mark.requirement("WF-PLA-0040-A")
 @pytest.mark.requirement("WF-PLA-0130-A")
 def test_a_subordinate_moved_out_of_a_summary_that_was_closed_reads_the_zeroing_of_its_line(

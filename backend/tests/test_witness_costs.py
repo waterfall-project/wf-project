@@ -390,7 +390,8 @@ def spread(witness: Database) -> Decimal:
     """Give how much more the lines of the revision in progress cost than the example's.
 
     The lines on two years, which the service spreads by the hours of each (WF-DEV-0040), the
-    provision the witness lacks apart (EP-08).
+    provision the witness lacks apart (EP-08). The difference is a known one, tolerated until the
+    witness spreads as the service does (#2838).
     """
     wanted = keyed(example("volume/nodes_thousand")["items"], "node_id")
     return volume_excess(witness) + Decimal(
