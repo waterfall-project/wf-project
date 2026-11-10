@@ -168,7 +168,9 @@ def _subproject(
 ) -> UUID | None:
     """Judge the subproject a write leaves the line in, of its project (WF-PRJ-0050).
 
-    ``held`` is the project, the task that bears the line and its subproject before the write.
+    ``held`` is the project, the task that bears the line and its subproject before the write. The
+    subproject named is read ``FOR KEY SHARE`` (#2616): one a concurrent deletion took away is
+    unknown, as one that never was.
     """
     project_id, bearer, before = held
     if not entry.given("subproject_id"):
@@ -177,7 +179,7 @@ def _subproject(
     if after is not None and not recalled(
         session,
         ("subproject", project_id, after),
-        lambda: subproject_labels(session, project_id, [after]),
+        lambda: subproject_labels(session, project_id, [after], held=True),
     ):
         faults.add("subproject_id", UNKNOWN_SUBPROJECT)
     if (
