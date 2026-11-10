@@ -14,16 +14,21 @@ is a zip, whose directory is at its end — by the reader of US-1630/L2 (``remai
 the analysis is ``remaining/analysing``'s, the application ``remaining/applying``'s, on the workbook
 the preparation read before any lock (#2582). An import of a remaining to commit writes the main
 structure of a project In progress (``ProjectCommand.import_remaining``, ``project_in_progress``).
-The export is filled by US-1630/L4 and raises ``NotImplementedError`` until then.
+The export is filled by US-1630/L4: ``exporting`` reads the remaining to commit of the structure of
+the order, the writer of US-1630/L1 (``remaining/excel/writer``) turns it into the workbook, under
+the tab names the analysis reads them by (``layout.tab_names``).
 """
 
 from typing import TYPE_CHECKING, Any
 
 from waterfall.core.estimate import importing
-from waterfall.core.estimate.remaining import analysing, applying
+from waterfall.core.estimate.interface.remaining_indicators import remaining_indicators
+from waterfall.core.estimate.remaining import analysing, applying, exporting
 from waterfall.core.estimate.remaining.excel.reader import check_header, read_remaining_workbook
-from waterfall.core.exchanges.interface import LARGEST_FILE
+from waterfall.core.estimate.remaining.excel.writer import write_workbook
+from waterfall.core.exchanges.interface import LARGEST_FILE, ExportedFile
 from waterfall.core.projects.interface import project_facts
+from waterfall.platform.database import utc_now
 from waterfall.platform.errors import STATE_FORBIDS_OPERATION, ConflictError
 
 if TYPE_CHECKING:
@@ -33,7 +38,6 @@ if TYPE_CHECKING:
 
     from waterfall.core.estimate.remaining.excel.reader import RemainingRead
     from waterfall.core.exchanges.interface import (
-        ExportedFile,
         ExportOrder,
         ImportScope,
         ImportTarget,
@@ -46,6 +50,7 @@ HEADER_LENGTH = LARGEST_FILE
 # The phase a remaining to commit is imported in (WF-RAE-0040; ``ProjectCommand.import_remaining``).
 IN_PROGRESS = "in_progress"
 PROJECT_IN_PROGRESS = "project_in_progress"
+MEDIA_TYPE = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 
 
 class RemainingFormat:
@@ -105,9 +110,17 @@ class RemainingExporter:
     """The exporter of the workbook of a remaining to commit, as the exchanges ask it."""
 
     def export(self, session: Session, order: ExportOrder) -> ExportedFile:
-        """Write the remaining to commit of a revision in a workbook."""
-        msg = "export is filled by US-1630/L4"
-        raise NotImplementedError(msg)
+        """Write the remaining to commit of a structure in a workbook, in the task's transaction.
+
+        The amounts of the headers are the indicators' of the revision at the instant of the
+        export (``remaining_indicators``); the review date is the order's, the day of the request
+        when it names none. The file is named after the project and the version of the revision.
+        """
+        at = utc_now()
+        indicators = remaining_indicators(session, order.project_id, order.revision_id, at)
+        balances = {each.key: (each.budget, each.actual_cost) for each in indicators.by_subproject}
+        book, name = exporting.remaining_of(session, order, balances, at)
+        return ExportedFile(write_workbook(book), MEDIA_TYPE, name)
 
 
 REMAINING_FORMAT = RemainingFormat()

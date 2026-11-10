@@ -22,7 +22,7 @@ from waterfall.core.estimate.excel.writer import (
 )
 
 if TYPE_CHECKING:
-    from collections.abc import Mapping
+    from collections.abc import Iterable, Mapping
     from uuid import UUID
 
     from xlsxwriter import Workbook
@@ -39,22 +39,30 @@ OUTSIDE = "Hors sous-projet"
 FIXED_TABS = (SUMMARY, TASKS, PARAMETERS)
 
 
-def tab_subprojects(subprojects: Mapping[str, UUID]) -> dict[str, UUID | None]:
-    """Name the tab of each subproject, by the order of their codes: the rule of the export.
+def tab_names(codes: Iterable[str]) -> dict[str, str]:
+    """Name the tab of each code of a subproject, by the order of the codes: the rule of the export.
 
     The fixed tabs taken first, then each code brought to the rules of Excel (``sheet_name``),
     unique without regard to case — two codes that come to the same name get distinct tabs, the
-    first in the order of the codes keeping the name —; « Hors sous-projet » last, for the lines
-    of none. The import reads the tab of a line with it; the export (US-1630/L4) names its tabs
-    with it, so that the one reads where the other writes.
+    first in the order of the codes keeping the name —; the lines of none, under the key ``""``,
+    last, « Hors sous-projet ». The writer names its tabs with it and the import reads them with
+    ``tab_subprojects``, so that the one reads where the other writes.
     """
     taken: list[str] = list(FIXED_TABS)
-    tabs: dict[str, UUID | None] = {}
-    for code in sorted(subprojects):
+    names: dict[str, str] = {}
+    for code in sorted(codes):
         name = sheet_name(code, taken)
         taken.append(name)
-        tabs[name] = subprojects[code]
-    tabs[sheet_name(OUTSIDE, taken)] = None
+        names[code] = name
+    names[""] = sheet_name(OUTSIDE, taken)
+    return names
+
+
+def tab_subprojects(subprojects: Mapping[str, UUID]) -> dict[str, UUID | None]:
+    """Give the subproject of each tab by its name (``tab_names``); none for the outside."""
+    names = tab_names(subprojects)
+    tabs: dict[str, UUID | None] = {names[code]: subprojects[code] for code in sorted(subprojects)}
+    tabs[names[""]] = None
     return tabs
 
 

@@ -185,7 +185,7 @@ def _coefficient(scale: Scale, year: int) -> Decimal:
     return inflation_factor(basis.inflation_rate, basis.reference_year, year)
 
 
-def _consumed_in(bearer: BearingTask, fallback: int) -> int:
+def consumption_year_of(bearer: BearingTask, fallback: int) -> int:
     """Give the year a task consumes most of a line in, on its own calendar."""
     placement = Placement(weekly_calendar(bearer.week), bearer.start, bearer.finish)
     shares = spread_by_year(placement, ONE)
@@ -289,7 +289,7 @@ def _create(
     task = importing.designated_task(_placed(line), held, designations)
     basis = scale.basis
     if role is None and disbursement is not None and basis is not None and isinstance(task, UUID):
-        year = _consumed_in(held.bearer(task), basis.reference_year)
+        year = consumption_year_of(held.bearer(task), basis.reference_year)
         disbursement = unit_disbursement(disbursement, ONE, _coefficient(scale, year))
     subproject = scale.tabs[line.sheet]
     placed = _placed(

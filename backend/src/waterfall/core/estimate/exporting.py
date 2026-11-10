@@ -120,7 +120,7 @@ class _CategoryInfo:
 
 
 @dataclass(frozen=True, slots=True)
-class _Reference:
+class Reference:
     """The roles and the categories a revision is read on, by identifier, and the rates it holds."""
 
     roles: dict[UUID, _RoleInfo]
@@ -143,8 +143,12 @@ def _slug(text: str) -> str:
     return _NOT_IN_A_NAME.sub("_", plain).strip("_")
 
 
-def file_name(code: str | None, label: str, version: tuple[str | None, UUID]) -> str:
-    """Name the file of an export: ``<code or label of the project>-<version>-devis.xlsx``.
+def file_name(
+    code: str | None, label: str, version: tuple[str | None, UUID], kind: str = "devis"
+) -> str:
+    """Name the file of an export: ``<code or label of the project>-<version>-<kind>.xlsx``.
+
+    ``kind`` is ``devis`` for the estimate, ``reste-a-engager`` for the remaining to commit.
 
     ``version`` is the name of the version of the revision, none if it is the current one, and the
     identifier of the revision: a version whose name leaves nothing in a file name, or reads as the
@@ -158,7 +162,7 @@ def file_name(code: str | None, label: str, version: tuple[str | None, UUID]) ->
         part = _slug(name)
         if not part or part.casefold() == IN_PROGRESS_FILE:
             part = str(revision_id)
-    return f"{project}-{part}-devis.xlsx"
+    return f"{project}-{part}-{kind}.xlsx"
 
 
 def _category(
@@ -182,7 +186,7 @@ def _categories_of(session: Session, category_ids: Iterable[UUID]) -> dict[UUID,
     }
 
 
-def _reference(session: Session, order: ExportOrder, year: int, *, marked: bool) -> _Reference:
+def read_reference(session: Session, order: ExportOrder, year: int, *, marked: bool) -> Reference:
     """Read the roles, the categories and the rates the revision of the order is read on."""
     project_id, revision_id = order.project_id, order.revision_id
     kept = kept_reference(session, project_id, revision_id) if marked else None
@@ -220,7 +224,7 @@ def _reference(session: Session, order: ExportOrder, year: int, *, marked: bool)
         }
     labour = [key for key, each in categories.items() if each.kind == "labour"]
     rates = held_rates(session, (project_id, revision_id, year), labour)
-    return _Reference(roles, categories, rates)
+    return Reference(roles, categories, rates)
 
 
 def _numbering(session: Session, project_id: UUID, borne: Collection[UUID]) -> _Numbering:
@@ -257,7 +261,7 @@ def _numbering(session: Session, project_id: UUID, borne: Collection[UUID]) -> _
     return _Numbering(numbers, labels, lots)
 
 
-def _outline(items: list[NodeView]) -> dict[UUID, str]:
+def outline(items: list[NodeView]) -> dict[UUID, str]:
     """Give the number of each task by its place in the outline, « 1 », « 1.2 »…, in plan order."""
     numbers: dict[UUID, str] = {}
     counts: dict[UUID | None, int] = {}
@@ -289,7 +293,7 @@ def _placed(items: list[NodeView]) -> dict[UUID, Under]:
 
 
 def _line(
-    row: EstimateLine, lineage: UUID, reference: _Reference, subprojects: Mapping[UUID, str]
+    row: EstimateLine, lineage: UUID, reference: Reference, subprojects: Mapping[UUID, str]
 ) -> Line:
     """Give a line of the structure as the workbook says it."""
     role = None if row.resource_role_id is None else reference.roles[row.resource_role_id].code
@@ -340,6 +344,58 @@ def _tabs(
     return tuple(lots), None if not outside else Tab("", NO_LOT, NO_LOT, tuple(outside))
 
 
+@dataclass(frozen=True, slots=True)
+class Referential:
+    """The reference a workbook writes: its natures, its categories with their rates, its roles."""
+
+    natures: tuple[Nature, ...]
+    categories: tuple[Category, ...]
+    roles: tuple[Role, ...]
+
+
+def referential(reference: Reference, rows: Iterable[EstimateLine]) -> Referential:
+    """Give the reference a revision is exported on: what its lines employ and what is active.
+
+    ``reference`` as ``read_reference`` reads it, ``rows`` the lines of the structure exported; the
+    rate of a category of labour is the revision's.
+    """
+    rows = list(rows)
+    employed_roles = {row.resource_role_id for row in rows} - {None}
+    employed = {row.cost_category_id for row in rows}
+    roles = {
+        key: each
+        for key, each in reference.roles.items()
+        if key in employed_roles or each.is_active
+    }
+    categories = {
+        key: each
+        for key, each in reference.categories.items()
+        if key in employed or each.is_active or key in {role.category_id for role in roles.values()}
+    }
+    natures = sorted(
+        {Nature(each.nature, each.kind) for each in categories.values()},
+        key=lambda nature: (KIND_ORDER[nature.kind], nature.name),
+    )
+    return Referential(
+        natures=tuple(natures),
+        categories=tuple(
+            Category(
+                each.code,
+                each.label,
+                each.nature,
+                reference.rates.get(key) if each.kind == "labour" else None,
+            )
+            for key, each in sorted(categories.items(), key=lambda pair: pair[1].code)
+        ),
+        roles=tuple(
+            Role(
+                each.code, each.label, each.department, reference.categories[each.category_id].code
+            )
+            for each in sorted(roles.values(), key=lambda role: role.code)
+        ),
+    )
+
+
 def estimate_of(
     session: Session, order: ExportOrder, *, now: datetime | None = None
 ) -> tuple[Estimate, str]:
@@ -353,7 +409,7 @@ def estimate_of(
     revision = read_revision(session, project_id, revision_id, viewer)
     structure = structure_facts(session, project_id, structure_id, lock=False)
     settings = read_reference_settings(session)
-    reference = _reference(
+    reference = read_reference(
         session, order, revision.reference_year, marked=revision.status == "marked"
     )
     subprojects = list_subprojects(
@@ -373,11 +429,11 @@ def estimate_of(
         )
     }
     lineages = lineages_of(session, project_id, list(rows))
-    outline = _outline(items)
+    numbers = outline(items)
     tasks = {
         item.node_id: Task(
             lineage=str(item.lineage_id),
-            number=outline[item.node_id],
+            number=numbers[item.node_id],
             label=item.task.label,
             start=item.task.start.day,
             end=item.task.finish.day,
@@ -399,22 +455,7 @@ def estimate_of(
         if key is not None
     }
     lots, outside = _tabs(items, tasks, _numbering(session, project_id, borne))
-    employed_roles = {row.resource_role_id for row in rows.values()} - {None}
-    employed = {row.cost_category_id for row in rows.values()}
-    roles = {
-        key: each
-        for key, each in reference.roles.items()
-        if key in employed_roles or each.is_active
-    }
-    categories = {
-        key: each
-        for key, each in reference.categories.items()
-        if key in employed or each.is_active or key in {role.category_id for role in roles.values()}
-    }
-    natures = sorted(
-        {Nature(each.nature, each.kind) for each in categories.values()},
-        key=lambda nature: (KIND_ORDER[nature.kind], nature.name),
-    )
+    held = referential(reference, rows.values())
     name = file_name(project.code, project.label, (revision.version_name, revision_id))
     estimate = Estimate(
         company=settings.company_name,
@@ -425,22 +466,9 @@ def estimate_of(
         reference_year=revision.reference_year,
         currency=settings.currency_code,
         exported_at=now or utc_now(),
-        natures=tuple(natures),
-        categories=tuple(
-            Category(
-                each.code,
-                each.label,
-                each.nature,
-                reference.rates.get(key) if each.kind == "labour" else None,
-            )
-            for key, each in sorted(categories.items(), key=lambda pair: pair[1].code)
-        ),
-        roles=tuple(
-            Role(
-                each.code, each.label, each.department, reference.categories[each.category_id].code
-            )
-            for each in sorted(roles.values(), key=lambda role: role.code)
-        ),
+        natures=held.natures,
+        categories=held.categories,
+        roles=held.roles,
         subprojects=tuple(Subproject(each.code, each.label) for each in subprojects),
         lots=lots,
         outside_lot=outside,
