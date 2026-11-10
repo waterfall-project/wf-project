@@ -18,17 +18,32 @@ An undoing is a write like any other (WF-IHM-0110): its revision judged under it
 stack of the caller locked by the frame of the history (``history.undo``), then the structure of the
 entry, found from the objects the entry names — the nodes it created or the ones it deleted, a
 structure for the planning start —, and locked by that frame and by it alone (``lock``, #2476).
-The entry is then judged on the objects as they are (409 ``UNDO_CONFLICT``), the permission of its
-kind checked (403 ``PERMISSION_MISSING``), and its objects restored (``restoring``), the structure
-redated. A caller whose token carries no session of sign-in has no stack: refused by 403
+The entry is then judged on the objects as they are (409 ``UNDO_CONFLICT``), the permission the
+write it turns asked for checked (403 ``PERMISSION_MISSING``, ``_asked``), and its objects restored
+(``restoring``), the structure redated.
+
+An undoing asks for the permission the write it undoes asked for, a redoing likewise (#2774): the
+history being that of the three grids, a node created, deleted, moved or pasted by the holder of
+one of their permissions (#2601) is undone by the holder of one of them, the first it holds judged,
+``planning.write`` named when it holds none. A write of the columns of a task's own — a cell of a
+task, a task created with more than its label, a row of a paste on a task — asks for
+``planning.write`` (#2775), a cell of a line for ``estimate.write`` (``updateEstimateLine``), the
+state of a task and its remaining for ``remaining.write``, the other entries — a link, a tracking,
+the planning start date — for ``planning.write``. It is read from the entry as the write kept it
+(``Restoring.written``): a task among the nodes it names, present before it, or created without
+the values a creation by its label alone gives it (WF-DEV-0050).
+
+A caller whose token carries no session of sign-in has no stack: refused by 403
 ``SESSION_ID_MISSING`` (#2472), whereas a write it makes passes, without an entry.
 """
 
 from dataclasses import dataclass
+from decimal import Decimal
 from typing import TYPE_CHECKING
 
 from waterfall.core.history import interface as history
 from waterfall.core.history.interface import UndoStack
+from waterfall.core.planning.entries import ONE_DAY
 from waterfall.core.planning.restoring import bring_back, read_objects, structure_of
 from waterfall.core.planning.snapshotting import taken
 from waterfall.core.planning.writing import Place, facts_of, hold_before_lock, judge_revision
@@ -40,16 +55,38 @@ if TYPE_CHECKING:
 
     from sqlalchemy.orm import Session
 
-    from waterfall.core.history.interface import Restoring, Snapshot, UndoneKind
+    from waterfall.core.history.interface import JsonValue, Restoring, Snapshot, UndoneKind
     from waterfall.core.planning.writing import NodesWritten, Writer
     from waterfall.core.revisions.interface import StructureFacts
 
 PERMISSION_MISSING = "PERMISSION_MISSING"
 SESSION_ID_MISSING = "SESSION_ID_MISSING"
 PLANNING_WRITE = "planning.write"
-# The permission an entry of each kind asks for, beyond the planning (WF-ADM-0100): the state of
-# a task is an entry of the remaining to commit.
-ASKS = {"progress": "remaining.write", "remaining": "remaining.write"}
+ESTIMATE_WRITE = "estimate.write"
+REMAINING_WRITE = "remaining.write"
+# The permissions of the three grids, in the order of ``StructureCommand``: a write of the tree
+# they make alike asks for one at least of them (#2601), the first named when none is held.
+ENTRIES = (PLANNING_WRITE, ESTIMATE_WRITE, REMAINING_WRITE)
+# The permissions an entry of each kind asks for, one at least of them, beyond those it reads from
+# the nodes it wrote (``_asked``) and the planning's for the others (WF-ADM-0100): the state of a
+# task is an entry of the remaining to commit; a deletion and a move, writes of the three grids.
+ASKS: dict[str, tuple[str, ...]] = {
+    "progress": (REMAINING_WRITE,),
+    "remaining": (REMAINING_WRITE,),
+    "node_delete": ENTRIES,
+    "node_move": ENTRIES,
+}
+# The kinds whose permission depends on the nodes they wrote: tasks or lines.
+BY_NODES = frozenset({"node_create", "paste", "cell"})
+# The columns of a task a creation by its label alone leaves as a creation sets them (WF-DEV-0050):
+# no description, the automatic mode, a day, no attachment.
+CREATED: dict[str, object] = {
+    "description": None,
+    "scheduling_mode": "automatic",
+    "duration_unit": ONE_DAY.unit,
+    "order_item_id": None,
+    "work_package_id": None,
+}
 
 
 def snapshot(session: Session, project_id: UUID, node_ids: Collection[UUID]) -> Snapshot:
@@ -82,6 +119,41 @@ class UndoDone:
     node_ids: tuple[UUID, ...]
     written: NodesWritten
     remaining_depth: int
+
+
+def _writes_task(task: dict[str, JsonValue] | None, *, existed: bool) -> bool:
+    """Tell whether a write of a node wrote the columns of a task's own (#2775).
+
+    A task written that existed before, whatever was written; a task created, if it bears another
+    value than a creation by its label alone gives it.
+    """
+    if task is None:
+        return False
+    if existed:
+        return True
+    duration = task.get("duration_value")
+    return any(task.get(name) != value for name, value in CREATED.items()) or (
+        not isinstance(duration, str) or Decimal(duration) != ONE_DAY.value
+    )
+
+
+def _asked(restoring: Restoring) -> tuple[str, ...]:
+    """Give the permissions the write of an entry asked for, one at least of which is held.
+
+    Read from the kind of the entry and, for a creation, a paste or a cell, from the nodes it names
+    as the write kept them: a task written asks for the planning, a cell of a line for the
+    estimate, a line created or pasted for one of the three grids.
+    """
+    kind = restoring.kind
+    if kind not in BY_NODES:
+        return ASKS.get(kind, (PLANNING_WRITE,))
+    before, after = ({state.object_id: state for state in states} for states in restoring.written)
+    for node_id in restoring.node_ids:
+        state = after.get(node_id) or before.get(node_id)
+        task = None if state is None else state.rows.get("task")
+        if _writes_task(task if isinstance(task, dict) else None, existed=node_id in before):
+            return (PLANNING_WRITE,)
+    return (ESTIMATE_WRITE,) if kind == "cell" else ENTRIES
 
 
 def _stack(revision_id: UUID, writer: Writer) -> UndoStack:
@@ -121,9 +193,9 @@ def _turned(
 
     frame = history.undo if undoing else history.redo
     with frame(session, stack, lock=lock, read=read) as restoring:
-        asked = ASKS.get(restoring.kind, PLANNING_WRITE)
-        if asked not in permissions:
-            raise ForbiddenError(PERMISSION_MISSING, {"missing_permission": asked})
+        asking = _asked(restoring)
+        if not any(each in permissions for each in asking):
+            raise ForbiddenError(PERMISSION_MISSING, {"missing_permission": asking[0]})
         place, facts = held[0]
         written = restore(session, place, facts, restoring, writer)
     return UndoDone(restoring.kind, restoring.node_ids, written, restoring.remaining_depth)

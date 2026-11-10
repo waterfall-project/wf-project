@@ -6,14 +6,16 @@
 ``undoLastChange`` and ``redoLastUndo`` (the last change of the caller undone or redone,
 WF-IHM-0110) — US-1450/L2.
 
-They write the planning, as the caller who may write it does (``planning.write``, the quality of
-contributor of the project); a paste, which the three grids make alike, by the caller who may
-write one at least of them (``planning.write``, ``estimate.write`` or ``remaining.write``, #2601),
-is judged at its preview and again at its confirmation. The
-history is kept per revision, per account and per session of sign-in: a token without one is
-refused by 403 ``SESSION_ID_MISSING``. An undoing is refused for the permission of the entry it
-undoes, which the planning judges once it knows the entry (``remaining.write`` for the state of a
-task).
+They are asked for by a contributor of the project who may write one at least of the three grids
+(``planning.write``, ``estimate.write`` or ``remaining.write``, #2601), which share the tree and its
+history. A paste is judged so at its preview and again at its confirmation, and refused besides,
+by the planning, to whoever does not hold ``planning.write`` when it writes the columns of a task's
+own (#2775). The history is kept per revision, per account and per session of sign-in: a token
+without one is refused by 403 ``SESSION_ID_MISSING``. An undoing or a redoing asks for the
+permission the write it turns asked for, which the planning judges once it knows the entry
+(#2774): one at least of the three for a node created, deleted, moved or pasted that writes no
+column of a task, ``planning.write`` for one that does, ``estimate.write`` for a cell of a line,
+``remaining.write`` for the state of a task.
 """
 
 from typing import Any
@@ -39,7 +41,6 @@ from waterfall.core.planning.interface import (
 router = APIRouter(tags=["revisions"])
 
 CONSULT = "planning.read"
-CHANGE = "planning.write"
 REVISION = "/projects/{project_id}/revisions/{revision_id}"
 
 
@@ -73,7 +74,7 @@ def _undone(done: UndoDone) -> dict[str, Any]:
     response_model=None,
 )
 def post_paste_preview(
-    place: Placed, body: PastePreview, writer: Writing, session: Transaction
+    place: Placed, body: PastePreview, actor: Acting, writer: Writing, session: Transaction
 ) -> dict[str, Any]:
     """Judge a block pasted from a spreadsheet, and keep its plan; nothing is written."""
     block = PasteBlock(
@@ -81,7 +82,7 @@ def post_paste_preview(
         target_column=body.target_column.value,
         rows=tuple(tuple(cells) for cells in body.rows),
     )
-    planned = preview_paste(session, place, block, writer)
+    planned = preview_paste(session, place, block, writer, actor.permissions)
     return {
         "paste_id": str(planned.paste_id),
         "accepted": planned.accepted,
@@ -97,11 +98,11 @@ def post_paste_preview(
     response_model=None,
 )
 def post_paste(
-    place: Placed, body: PasteApply, writer: Writing, session: Transaction
+    place: Placed, body: PasteApply, actor: Acting, writer: Writing, session: Transaction
 ) -> dict[str, Any]:
     """Write the accepted rows of a plan in one operation, at the counter of the structure read."""
     confirmation = PasteConfirmation(body.paste_id.root, body.lock_version.root)
-    applied = apply_paste(session, place, confirmation, writer)
+    applied = apply_paste(session, place, confirmation, writer, actor.permissions)
     return {
         **written_of(applied.written),
         "rejected": [_refused(each) for each in applied.rejected],
@@ -111,7 +112,7 @@ def post_paste(
 @router.post(
     f"{REVISION}/undo",
     operation_id="undoLastChange",
-    dependencies=[Depends(RequiresProject(CONSULT, CHANGE))],
+    dependencies=[Depends(RequiresProject(CONSULT, one_of=ENTRIES))],
     response_model=None,
 )
 def post_undo(
@@ -125,7 +126,7 @@ def post_undo(
 @router.post(
     f"{REVISION}/redo",
     operation_id="redoLastUndo",
-    dependencies=[Depends(RequiresProject(CONSULT, CHANGE))],
+    dependencies=[Depends(RequiresProject(CONSULT, one_of=ENTRIES))],
     response_model=None,
 )
 def post_redo(
