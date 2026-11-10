@@ -1240,7 +1240,7 @@ d'engagements et d'heures (PO-01) ; les indicateurs (EP-10).
 
 ## US-1620 — La consultation des coûts réels, l'exclusion du périmètre suivi et l'écran branché
 
-- **statut** : à faire
+- **statut** : en cours
 - **exigences** : `WF-CRE-0030-A`, `WF-CRE-0040-A`, `WF-PRJ-0050-A`, `WF-CYC-0100-A`,
   `WF-CYC-0110-A`
 - **opérations** : `listActualCosts`, `setActualCostTrackedScope`, `listCostImports`,

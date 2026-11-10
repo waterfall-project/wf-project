@@ -12,13 +12,14 @@ lines an import of the witness creates or updates, at the identifiers and the in
 its exclusion kept, another inserted —, each imputed by its code to the subproject of the project
 that bears it, or to the project alone (WF-CRE-0020, WF-INTF-0140).
 
-Declared by US-1580/L1; each raises ``NotImplementedError`` naming the story that fills it, which
-gives it its arguments and its result.
+Declared by US-1580/L1; filled by US-1620/L1 and US-1610/L3.
 """
 
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
+from waterfall.core.costs.reading import read_lines
+from waterfall.core.costs.scoping import ScopeChange, judge_exclusion, set_scope
 from waterfall.core.costs.writing import Placed, held_lines, write_line
 from waterfall.core.projects.interface import lock_project, subprojects_coded
 
@@ -30,6 +31,13 @@ if TYPE_CHECKING:
 
     from sqlalchemy.orm import Session
 
+    from waterfall.core.costs.reading import (
+        CostLineFilters,
+        CostLineList,
+        CostLinePage,
+        CostLineSort,
+        CostLineView,
+    )
     from waterfall.platform.audit import Act
 
 
@@ -51,16 +59,35 @@ class CostLineLoad:
     passthrough: Mapping[str, str] = field(default_factory=dict[str, str])
 
 
-def list_actual_costs(session: Session, project_id: UUID) -> None:
-    """Give a page of the lines of the actual costs of a project, and their totals."""
-    msg = "list_actual_costs is filled by US-1620/L1"
-    raise NotImplementedError(msg)
+def list_actual_costs(
+    session: Session,
+    project_id: UUID,
+    filters: CostLineFilters,
+    sort: CostLineSort,
+    page: CostLinePage,
+) -> CostLineList:
+    """Give a page of the lines of the actual costs of a project, and the totals of all retained.
+
+    Filtered by subproject, by period on the date of the document and by scope; the totals, the
+    instant of the last import and the columns kept are those of the whole set retained, not of the
+    page (``listActualCosts``, WF-CRE-0040). A period reversed or a subproject the project does not
+    have is refused (422).
+    """
+    return read_lines(session, project_id, filters, sort, page)
 
 
-def set_tracked_scope(session: Session, project_id: UUID, cost_line_id: UUID) -> None:
-    """Exclude a line from the scope tracked, or reinstate it (``setActualCostTrackedScope``)."""
-    msg = "set_tracked_scope is filled by US-1620/L1"
-    raise NotImplementedError(msg)
+def set_tracked_scope(
+    session: Session, project_id: UUID, cost_line_id: UUID, change: ScopeChange, act: Act
+) -> CostLineView:
+    """Exclude a line from the scope tracked, or reinstate it (``setActualCostTrackedScope``).
+
+    Idempotent, under the lock of the project, once its command ``exclude_cost_lines`` is judged:
+    409 ``project_not_terminal``, then ``project_in_progress``. The change is inscribed in the
+    journal of audit (``cost_line_exclude``, ``cost_line_reinstate``); a line already in the state
+    aimed at, with the same reason, is left as it is and inscribes nothing (WF-CRE-0030).
+    """
+    judge_exclusion(session, project_id)
+    return set_scope(session, project_id, cost_line_id, change, act)
 
 
 def load_cost_lines(
@@ -97,7 +124,13 @@ def load_cost_lines(
     session.flush()
 
 
-def load_exclusion(session: Session, project_id: UUID, cost_line_id: UUID) -> None:
-    """Exclude a line of the witness at the instant its chronology imposes."""
-    msg = "load_exclusion is filled by US-1620/L1"
-    raise NotImplementedError(msg)
+def load_exclusion(
+    session: Session, project_id: UUID, cost_line_id: UUID, reason: str | None, act: Act
+) -> None:
+    """Exclude a line of the witness at the instant its chronology imposes, for ``reason``.
+
+    As the service excludes it, the journal of audit included, but for the conditions of the
+    command: the witness writes the past, whatever the state of the project it reaches.
+    """
+    change = ScopeChange(is_in_tracked_scope=False, reason=reason)
+    set_scope(session, project_id, cost_line_id, change, act)

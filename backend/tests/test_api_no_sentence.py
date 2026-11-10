@@ -163,6 +163,16 @@ DATA = {
     "Project.client": "a name",
     # The label of a subproject, as its project manager gave it (its code is a value pattern-bound).
     "Subproject.label": "a label",
+    # What a line of the actual costs holds as the ERP gave it, and the reason a person gave when
+    # she excluded it: the document and its item, the code read in the WBS element, the label of the
+    # subproject it names, the columns kept of the file and their values (US-1620/L1).
+    "ActualCostLine.document_number": "a number of a document",
+    "ActualCostLine.document_item": "a number of an item",
+    "ActualCostLine.subproject_code": "a code",
+    "ActualCostLine.subproject_label": "a label",
+    "ActualCostLine.excluded_reason": "a reason",
+    "ActualCostLine.passthrough[*]": "values of the file",
+    "ActualCostListMeta.passthrough_columns": "names of the columns of the file",
     # The label of a timeline, as the person who named it gave it (US-1400/L1).
     "Timeline.label": "a label",
     # The label and the description of a task, as the person who wrote it gave them, the identifier
