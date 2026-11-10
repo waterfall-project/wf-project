@@ -131,7 +131,7 @@ in two days.</Notes>
       <PredecessorLink><PredecessorUID>3</PredecessorUID><Type>0</Type>
         <LinkLag>-4800</LinkLag><LagFormat>7</LagFormat></PredecessorLink>
       <PredecessorLink><PredecessorUID>2</PredecessorUID><Type>3</Type>
-        <LinkLag>500</LinkLag><LagFormat>19</LagFormat></PredecessorLink>
+        <LinkLag>50</LinkLag><LagFormat>19</LagFormat></PredecessorLink>
       <ExtendedAttribute><FieldID>188743731</FieldID><Value>by hand</Value></ExtendedAttribute>
       <Manual>1</Manual>
     </Task>
@@ -227,7 +227,7 @@ PLANNING = MsProject(
             milestone=True,
             predecessors=(
                 PredecessorLink(3, "finish_to_finish", -4800, "d"),
-                PredecessorLink(2, "start_to_start", 500, "percent"),
+                PredecessorLink(2, "start_to_start", 50, "percent"),
             ),
         ),
     ),
