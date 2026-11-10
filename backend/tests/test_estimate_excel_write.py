@@ -356,9 +356,11 @@ def test_the_headers_of_every_tab_are_the_fixed_french_ones() -> None:
     assert len(EXPECTED_LINE_HEADERS) == 20
     for name in ("1.1 Centrale et logiciel", "1 Contrôle d’accès", "Hors lot"):
         assert [cell.value for cell in book[name][1]] == EXPECTED_LINE_HEADERS
-    parameters = [cell.value for cell in book["Paramètres"][3]][:9]
-    assert parameters == EXPECTED_PARAMETER_HEADERS
-    tasks = [cell.value for cell in book["Tâches"][3]][:8]
+    # The whole row, read to the last column of the sheet: a column too many would be seen (#2602).
+    # Beside the reference, after an empty column, the subprojects (``SUBPROJECT_HEADERS``).
+    parameters = [cell.value for cell in book["Paramètres"][3]]
+    assert parameters == [*EXPECTED_PARAMETER_HEADERS, None, "Code", "Libellé"]
+    tasks = [cell.value for cell in book["Tâches"][3]]
     assert tasks == EXPECTED_TASK_HEADERS
 
 

@@ -14,7 +14,7 @@ import re
 from dataclasses import dataclass, replace
 from importlib.resources import files
 from io import BytesIO
-from typing import TYPE_CHECKING, Any, Literal
+from typing import TYPE_CHECKING, Any
 
 import xlsxwriter
 from xlsxwriter.utility import xl_col_to_name, xl_rowcol_to_cell
@@ -176,14 +176,21 @@ class _Lists:
 
 
 @dataclass(frozen=True)
-class _Row:
-    """A row of the breakdown: a lot (with its count of tabs) or a tab (with its table)."""
+class _LotRow:
+    """A row of the breakdown for a lot, with the count of its tabs, whose rows follow it."""
 
-    level: Literal["lot", "tab"]
     number: str
     label: str
-    tabs: int = 0
-    table: str = ""
+    tabs: int
+
+
+@dataclass(frozen=True)
+class _TabRow:
+    """A row of the breakdown for a tab of lines, with the name of its table (#2602)."""
+
+    number: str
+    label: str
+    table: str
 
 
 @dataclass(frozen=True)
@@ -576,20 +583,20 @@ def _write_summary(sheet: Worksheet, ctx: _Context) -> tuple[int, list[tuple[str
     top = 4
     sheet.write_row(top, 0, header, fmt["head"])
     sheet.set_row(top, 32)
-    plan: list[_Row] = []
+    plan: list[_LotRow | _TabRow] = []
     tables = iter(ctx.tables)  # in the order of the tabs: the lots', then the one outside
     for lot in estimate.lots:
-        plan.append(_Row("lot", lot.number, lot.label, tabs=len(lot.tabs)))
-        plan += [_Row("tab", tab.number, tab.label, table=next(tables)) for tab in lot.tabs]
+        plan.append(_LotRow(lot.number, lot.label, len(lot.tabs)))
+        plan += [_TabRow(tab.number, tab.label, next(tables)) for tab in lot.tabs]
     if estimate.outside_lot is not None:
         outside = estimate.outside_lot
-        plan.append(_Row("tab", outside.number, outside.label, table=next(tables)))
+        plan.append(_TabRow(outside.number, outside.label, next(tables)))
     first = top + 1
     last = top + len(plan)
     for offset, entry in enumerate(plan):
         row = first + offset
         number, label = entry.number, entry.label
-        if entry.level == "lot":
+        if isinstance(entry, _LotRow):
             count = entry.tabs
             sheet.write_string(row, 0, number, fmt["lot"])
             sheet.write(row, 1, label, fmt["lot"])
