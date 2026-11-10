@@ -12,14 +12,14 @@ the imports share: the platform, its client, its worker, the deposit and the ope
 """
 
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, get_protocol_members
 from uuid import UUID
 
 from planning_support import insert_task
 from sqlalchemy import delete, func, select
 
 from waterfall.core.access_roles.tables import AccessRolePermission, Permission, UserAccessRole
-from waterfall.core.exchanges.interface import formats
+from waterfall.core.exchanges.interface import Format, formats
 from waterfall.core.exchanges.tables import ImportReport
 from waterfall.core.planning.tables import Node
 from waterfall.platform.errors import ConflictError, UnprocessableError
@@ -158,8 +158,9 @@ class TrialFormat:
             raise Stopped
 
 
-# What the exchanges read of a format (``Format``), which the format of the tests stands in for.
-FORMAT_PARTS = ("header_length", "scope", "permission", "read_header", "judge", "analyse", "apply")
+# What the exchanges read of a format, which the format of the tests stands in for: every member of
+# the protocol, so that one added to ``Format`` leaves no part of the real format acting.
+FORMAT_PARTS = tuple(sorted(get_protocol_members(Format)))
 
 
 def stand_in[Trial: TrialFormat](

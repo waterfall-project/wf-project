@@ -202,6 +202,18 @@ from waterfall.core.estimate.interface.indicators import (
 
 # ``kanban`` (US-1580/L1; US-1590): the lines that hold a task open, the board of the tasks.
 from waterfall.core.estimate.interface.kanban import (
+    KanbanCommandAvailability as KanbanCommandAvailability,
+)
+from waterfall.core.estimate.interface.kanban import (
+    KanbanTask as KanbanTask,
+)
+from waterfall.core.estimate.interface.kanban import (
+    NotStartedTask as NotStartedTask,
+)
+from waterfall.core.estimate.interface.kanban import (
+    StartableTasks as StartableTasks,
+)
+from waterfall.core.estimate.interface.kanban import (
     open_lines as open_lines,
 )
 from waterfall.core.estimate.interface.kanban import (
@@ -270,7 +282,13 @@ from waterfall.core.estimate.interface.remaining_indicators import (
     Coverage as Coverage,
 )
 from waterfall.core.estimate.interface.remaining_indicators import (
+    RemainingIndicators as RemainingIndicators,
+)
+from waterfall.core.estimate.interface.remaining_indicators import (
     RevisionRemaining as RevisionRemaining,
+)
+from waterfall.core.estimate.interface.remaining_indicators import (
+    SubprojectBalance as SubprojectBalance,
 )
 from waterfall.core.estimate.interface.remaining_indicators import (
     register_coverage as register_coverage,

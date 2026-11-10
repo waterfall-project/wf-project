@@ -3,8 +3,8 @@
 """The actual cost of a project: the sums of its tracked lines, which the indicators read.
 
 ``actual_cost_by_subproject`` sums the tracked lines of a project by the subproject they are
-imputed to, the lines imputed to the project alone under ``None`` (``unassigned``): the indicators
-of the remaining to commit read it (US-1600). ``actual_costs_until`` sums the tracked lines of a
+imputed to, the lines imputed to the project alone under ``UNASSIGNED``: the indicators of the
+remaining to commit read it (US-1600). ``actual_costs_until`` sums the tracked lines of a
 scope whose document is dated on or before a day, as known at the reading: the indicators of the
 project read it (EP-10), served by US-1610/L2, which applies the imports (EP-09, "Ce que le cadrage
 laisse à EP-10"). An excluded line enters neither (WF-CRE-0030).
@@ -23,16 +23,21 @@ if TYPE_CHECKING:
 
     from sqlalchemy.orm import Session
 
-# The lines imputed to the project alone: without a subproject part in their WBS element, or with a
-# code no subproject bears (WF-CRE-0020).
+# The two scopes a sum names by a word, as the contract does (``CalculationContext.scope``,
+# WF-IND-0020), never by ``None``: every line of the project, whatever its imputation; the lines
+# imputed to the project alone — without a subproject part in their WBS element, or with a code no
+# subproject bears (WF-CRE-0020).
+PROJECT = "project"
 UNASSIGNED = "unassigned"
-# The lines a sum keeps: those of the whole project (``None``), of a subproject (its identifier),
-# or of the project alone (``UNASSIGNED``).
-type CostScope = UUID | Literal["unassigned"] | None
+# The lines a sum keeps: those of the whole project, of a subproject (its identifier), or of the
+# project alone.
+type CostScope = UUID | Literal["project", "unassigned"]
+# What a sum by subproject is keyed by: a subproject, or the project alone.
+type CostKey = UUID | Literal["unassigned"]
 
 
-def actual_cost_by_subproject(session: Session, project_id: UUID) -> Mapping[UUID | None, Decimal]:
-    """Give the sum of the tracked lines of a project by subproject, ``None`` the project alone."""
+def actual_cost_by_subproject(session: Session, project_id: UUID) -> Mapping[CostKey, Decimal]:
+    """Give the sum of the tracked lines of a project by subproject, or under ``UNASSIGNED``."""
     msg = "actual_cost_by_subproject is filled by US-1600"
     raise NotImplementedError(msg)
 

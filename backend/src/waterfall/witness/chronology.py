@@ -23,7 +23,6 @@ from typing import TYPE_CHECKING
 
 from waterfall.witness import (
     contributors,
-    costs,
     estimate_lines,
     projects,
     revisions,
@@ -55,9 +54,6 @@ SLICES: tuple[tuple[str, Slice], ...] = (
 # marking.
 revisions.register_revision_filler(tasks.fill)
 revisions.register_revision_filler(estimate_lines.fill)
-# The actual costs, after the lines, which the march of the events writes at their instants from
-# US-1650/L2 on (EP-09): their slice, and the extensions of their module, held from the socle on.
-EXTENDING = costs.EXTENDING
 
 
 def load(session: Session, witness: Witness) -> bool:
