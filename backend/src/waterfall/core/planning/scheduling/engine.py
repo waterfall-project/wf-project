@@ -137,24 +137,38 @@ class _Engine:
             return calendar.count(at.elapsed(span.hours))
         return calendar.count(at) + span.hours
 
-    def start_for(
-        self, calendar: Calendar, finish: Fraction, duration: Duration, *, latest: bool = False
-    ) -> Fraction:
-        """Return the count a task of a duration starts at to finish at a count.
+    def start_for(self, calendar: Calendar, finish: Fraction, duration: Duration) -> Fraction:
+        """Return the earliest count a task of a duration starts at to finish at a count.
 
-        An elapsed duration goes back from a moment of the clock that holds that count. Forward,
-        the earliest start that finishes there: from the end of the hours of work that reach it.
-        Backward (``latest``), the latest start that finishes no later: from the last moment that
-        still holds it, the first hour of work that follows — the night and the days without
-        hours of work between —, as the forward pass finishes on the day it reaches (#2648): two
-        elapsed days that may finish by the end of a Friday may start until then, finishing on
-        the Sunday, and not from the Wednesday.
+        An elapsed duration goes back from the end of the hours of work that reach it.
         """
         span = self.span(duration)
         if span.is_elapsed:
-            reached = calendar.moment(finish, finish=not latest)
-            return calendar.count(reached.elapsed(-span.hours))
+            return calendar.count(calendar.moment(finish, finish=True).elapsed(-span.hours))
         return finish - span.hours
+
+    def latest_start(self, calendar: Calendar, finish: Fraction, duration: Duration) -> Fraction:
+        """Return the latest count a task of a duration starts at to finish by a count.
+
+        The mirror of ``placed``: the task placed forward from it finishes no later (#2648). An
+        elapsed duration finishes on the day it reaches, even without hours of work: it goes back
+        from the last moment that still holds the count, the first hour of work that follows. A
+        start reached outside the hours of work would be placed at the first hour of work after
+        it, and finish too late: it starts then at the first hour of work of the last working day
+        before — the latest start of that day, as near as a whole day goes. Two elapsed days that
+        may finish by the end of a Friday start on the Friday's first hour of work and finish on
+        the Sunday; started at the end of the Friday's work, they would be placed on the Monday
+        and finish on the Wednesday.
+        """
+        span = self.span(duration)
+        if not span.is_elapsed:
+            return finish - span.hours
+        start = calendar.count(calendar.moment(finish, finish=False).elapsed(-span.hours))
+        reached = self.placed(calendar, start, duration, finish_reading=False).finish
+        if calendar.count(reached) <= finish:
+            return start
+        day = calendar.moment(start, finish=True).ordinal
+        return calendar.count(Moment(day))
 
     def placed(
         self, calendar: Calendar, start: Fraction, duration: Duration, *, finish_reading: bool
@@ -281,7 +295,7 @@ class _Engine:
         if self.span(task.duration).hours == 0:
             return _Span(finish, finish)
         count = task.calendar.count(finish)
-        start = self.start_for(task.calendar, count, task.duration, latest=True)
+        start = self.latest_start(task.calendar, count, task.duration)
         return _Span(task.calendar.moment(start, finish=False), finish)
 
     def bound(self, task_id: UUID, link: Link, span: Span, successor_id: UUID) -> Moment:

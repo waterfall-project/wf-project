@@ -615,6 +615,29 @@ def test_a_manual_task_bounds_its_predecessor_by_the_type_of_their_link(
     assert bool(dated.link_conflicts) is (floats < 0)
 
 
+def elapsed_chain(lead: str | None, shifted: int = 0, by: int = 0) -> Schedule:
+    """Return A (one day) start to start before B (two elapsed days), B before C (one day).
+
+    After a leading task of ``lead`` days when given; the link into task ``shifted`` lagged by
+    ``by`` days.
+    """
+    tasks = [task(1), task(2, "2 ed"), task(3)]
+    pairs: list[tuple[int, int, LinkType]] = [(1, 2, "start_to_start"), (2, 3, "finish_to_start")]
+    if lead is not None:
+        tasks.append(task(4, lead))
+        pairs.insert(0, (4, 1, "finish_to_start"))
+    links = [
+        link(first, then, link_type, str(by if then == shifted else 0))
+        for first, then, link_type in pairs
+    ]
+    return planned(tasks, links)
+
+
+def project_finish(dated: Schedule) -> WorkInstant:
+    """Return the latest finish of a schedule."""
+    return max(each.finish for each in dated.tasks.values())
+
+
 @pytest.mark.requirement("WF-PLA-0100-A")
 @pytest.mark.requirement("WF-PLA-0160-A")
 @pytest.mark.parametrize(
@@ -623,30 +646,41 @@ def test_a_manual_task_bounds_its_predecessor_by_the_type_of_their_link(
         # From the Monday, B finishes on the Wednesday at its first hour of work, where C starts:
         # the chain is tight, the three critical.
         (None, (Decimal(0), Decimal(0), Decimal(0))),
+        # After three days, A and B start on the Thursday, B finishing on the Saturday: A may
+        # slip one day, B then starting on the Friday and finishing on the Sunday, before C on the
+        # Monday. One more day, and B would start on the Monday and push C to the Wednesday.
+        ("3", (Decimal(1), Decimal(0), Decimal(0))),
         # After four days, B starts on the Friday and finishes on the Sunday, where no hour of work
-        # is: it may start until the end of the Friday's work and still finish before C, on the
-        # Monday. A, before it start to start, floats by that day; B and C stay critical. The
-        # latest start of B gone back from the end of the Friday's work, the Wednesday's, gave A
-        # a float of minus one day, and no conflict (#2648).
-        ("4", (Decimal(1), Decimal(0), Decimal(0))),
+        # is: started on the Monday, it would finish on the Wednesday, and C with it. A, before it
+        # start to start, may not slip a day: the three critical. Gone back from the end of the
+        # Friday's work, the Wednesday's, the latest start of B gave A a float of minus one day
+        # (#2648); from the last moment holding that end, the Monday, it gave A one day — a start
+        # the forward pass places on the Monday.
+        ("4", (Decimal(0), Decimal(0), Decimal(0))),
     ],
-    ids=["finishing-on-a-working-day", "finishing-on-a-sunday"],
+    ids=["finishing-on-a-working-day", "finishing-on-a-saturday", "finishing-on-a-sunday"],
 )
 def test_the_latest_start_of_an_elapsed_duration_goes_back_from_the_day_it_may_reach(
     lead: str | None, floats: tuple[Decimal, Decimal, Decimal]
 ) -> None:
-    # A (one day) start to start before B (two elapsed days), B before C (one day): the backward
-    # pass is the mirror of the forward one, which finishes an elapsed duration on the day it
-    # reaches (decision of the 2026-11-09).
-    tasks = [task(1), task(2, "2 ed"), task(3)]
-    links = [link(1, 2, "start_to_start"), link(2, 3)]
-    if lead is not None:
-        tasks, links = [task(4, lead), *tasks], [link(4, 1), *links]
-    dated = planned(tasks, links)
+    # The backward pass is the mirror of the forward one, which finishes an elapsed duration on
+    # the day it reaches (decision of the 2026-11-09): « Le chemin critique : les tâches dont tout
+    # retard retarde la fin du projet. »
+    dated = elapsed_chain(lead)
     assert dated.link_conflicts == ()
     found = tuple(of(dated, n).total_float for n in (1, 2, 3))
     assert found == floats
     assert [of(dated, n).is_critical for n in (1, 2, 3)] == [each <= 0 for each in floats]
+    if lead is None:
+        return
+    # Each task slipped by its float, replanned, leaves the finish of the project; A slipped one
+    # day more moves it. B's float is read at its finish, as for any task: started a day later
+    # after three days, it finishes on the Sunday, the same work as the Saturday, and C does not
+    # move — a float of nil, short of the day its start may slip, and never more than it may.
+    finish = project_finish(dated)
+    for n, each in zip((1, 2, 3), floats, strict=True):
+        assert project_finish(elapsed_chain(lead, n, int(each))) == finish
+    assert project_finish(elapsed_chain(lead, 1, int(floats[0]) + 1)) > finish
 
 
 # --- The horizon, the calendar, what the engine is given ---------------------------------------
