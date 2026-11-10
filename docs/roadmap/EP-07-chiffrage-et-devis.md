@@ -483,7 +483,7 @@ service, chacune avec l'option écartée :
   service** (#2671) : le mécanisme des réglages est commun aux grilles et aux tables, éprouvé
   contre le service par `service/account.spec.ts` ; le critère d'US-1560 le dit « constaté par
   EP-03 », sans rejeu. Écarté : un parcours `@shared` du devis de plus pour le même mécanisme.
-- **Le banc du service laisse passer les corps non JSON** (#2687, #2695, #973) : Prism, mandataire
+- **Le banc du service laisse passer les corps non JSON** (#2687, #2695, #973, #1025) : Prism, mandataire
   du contrat dans `make e2e-service`, lit tout corps comme du texte et réécrit chaque octet au-delà
   de 0x7f ; un classeur exporté ou déposé, une archive de sauvegarde coupée en parts, une image
   d'avatar en sortaient corrompus. Les corps non JSON (`application/octet-stream`, `.xlsx`,

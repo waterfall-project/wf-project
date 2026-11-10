@@ -391,9 +391,9 @@ l'option écartée :
   oblique est invalide** (#2721) : les choix d'US-1610/L1 sont gardés — un montant à plus de deux
   décimales arrondi au centime, `ROUND_HALF_UP` (au plus loin de zéro : −0,005 donne −0,01) ;
   `A.ABC.26001/` rejeté `WBS_ELEMENT_INVALID`. La spécification les reçoit (WF-CRE-0010,
-  WF-CRE-0020) par `docs/spec/TODO.md`, que l'auteur intègre au Word ; US-1610/L2 les écrit dans la
-  description d'`ImportRejection`. Écartés : rejeter la ligne d'un montant à plus de deux
-  décimales ; imputer `A.ABC.26001/` au seul projet.
+  WF-CRE-0020) par l'issue de spécification #2735, que l'auteur intègre au Word ; US-1610/L2 les
+  écrit dans la description d'`ImportRejection`. Écartés : rejeter la ligne d'un montant à plus de
+  deux décimales ; imputer `A.ABC.26001/` au seul projet.
 - **Les paramètres des rejets par cellule d'une ligne de coût réel se décrivent par `column`**
   (#2722), l'identifiant de la colonne dans la correspondance : US-1610/L2 les décrit au contrat
   (`ProblemParams` ou la description d'`ImportRejection`), avec les autres paramètres que chaque
