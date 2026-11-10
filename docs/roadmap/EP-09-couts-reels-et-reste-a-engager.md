@@ -1102,7 +1102,7 @@ portefeuille (EP-11).
 
 ## US-1610 — L'import des coûts réels (FLX-07) : la correspondance, l'imputation, l'idempotence et le journal
 
-- **statut** : à faire
+- **statut** : en cours
 - **exigences** : `WF-INTF-0140-A`, `WF-REF-0190-A`, `WF-CRE-0010-A`, `WF-CRE-0020-A`,
   `WF-CRE-0050-A`, `WF-DAT-0110-A`, `WF-DAT-0070-A`, `WF-INTF-0070-A`
 - **opérations** : `uploadFile`, `openImport`, `getImport`, `abandonImport`, `applyImport`,
