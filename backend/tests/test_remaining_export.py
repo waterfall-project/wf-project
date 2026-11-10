@@ -17,15 +17,17 @@ from uuid import UUID
 
 import pytest
 from costs_support import cost, load_import
-from estimate_support import Costing, costing
+from estimate_support import Costing, costing, give_a_line
 from fastapi.testclient import TestClient
 from imports_trial import AT_ONCE, read
 from nodes_support import set_progress
 from openpyxl import load_workbook
+from planning_support import DAY, insert_task
+from project_rows import lifted_kind_check, structure_row
 from projects_support import PROJECTS, Scene, put_in_state
 from projects_support import scene as make_scene
 from remaining_support import Review, in_progress, line_named, task_named
-from sqlalchemy import update
+from sqlalchemy import delete, insert, select, update
 from support import ContractClient
 from test_remaining_import import (
     OUTSIDE,
@@ -42,6 +44,8 @@ from test_remaining_import import (
 from waterfall.api.app import create_app
 from waterfall.api.authentication import Services
 from waterfall.core.estimate.tables import EstimateLine
+from waterfall.core.planning.tables import Node, Task
+from waterfall.core.revisions.tables import CostStructure
 from waterfall.platform.keycloak_admin import KeycloakAdmin
 from waterfall.worker.exchanges import ExportTask, ImportTasks
 from waterfall.worker.marking import mark as marking
@@ -296,6 +300,92 @@ def test_the_amounts_of_the_header_of_a_tab_are_those_of_the_indicators_of_the_r
     assert [each["Désignation"] for each in lines_of(content, "SP-1")] == ["Fournitures"]
     assert Decimal(str(book["SP-1"]["B5"].value)) == Decimal("70.00")
     assert Decimal(str(book[OUTSIDE]["B5"].value)) == Decimal("30.00")
+
+
+@pytest.mark.requirement("WF-INTF-0130-A")
+def test_a_provision_line_is_not_exported_and_is_summed_in_the_provisions_of_its_tab(
+    api: ContractClient, stage: Scene, worker: Worker, scene: Rows
+) -> None:
+    # « Les provisions des risques identifiés » of a header are the remaining of the provision lines
+    # of the tab, which are no line of the table (EP-08's): the bench, of the nature provision.
+    bench = UUID(line_named(scene.tree, "Banc")["node_id"])
+    with stage.owner.begin() as connection:
+        connection.execute(
+            update(EstimateLine)
+            .where(EstimateLine.node_id == bench)
+            .values(cost_category_id=scene.costs.provision)
+        )
+    content = exported(api, stage, worker, scene.tree.revision["revision_id"])
+    labels = [each["Désignation"] for each in lines_of(content, OUTSIDE)]
+    assert labels == ["Raccordement", "Fournitures", "Câbles", "Procès-verbal"]
+    kept = row_of(stage, str(bench)).reestimated_amount
+    assert Decimal(str(book_of(content)[OUTSIDE]["B7"].value)) == kept
+
+
+@pytest.mark.requirement("WF-INTF-0130-A")
+def test_a_task_bearing_lines_in_two_subprojects_is_listed_in_the_tasks_of_each_tab(
+    api: ContractClient, stage: Scene, worker: Worker, scene: Rows
+) -> None:
+    # A task is listed in each tab it bears a line in (the choice put to the author, #2834): the
+    # wiring, whose supplies are in SP-1 and whose connection is in no subproject, is in the list
+    # of both tabs of « Tâches ».
+    made = api.post(
+        f"{PROJECTS}/{stage.project['project_id']}/subprojects",
+        headers=stage.manager.headers,
+        json={"code": "SP-1", "label": "Lot 1"},
+    )
+    assert made.status_code == 201, made.text
+    with stage.owner.begin() as connection:
+        connection.execute(
+            update(EstimateLine)
+            .where(EstimateLine.node_id == UUID(line_named(scene.tree, "Fournitures")["node_id"]))
+            .values(subproject_id=UUID(made.json()["subproject_id"]))
+        )
+    content = exported(api, stage, worker, scene.tree.revision["revision_id"])
+    listed = [
+        (str(row[0]), str(row[2] or ""))
+        for row in book_of(content)["Tâches"].iter_rows(min_row=5, values_only=True)
+        if row[0] is not None
+    ]
+    assert sorted(tab for entry, tab in listed if entry == "1 Câblage") == ["", "SP-1"]
+    assert [each["Tâche"] for each in lines_of(content, "SP-1")] == ["1 Câblage"]
+
+
+@pytest.mark.requirement("WF-INTF-0130-A")
+def test_the_export_of_a_structure_that_is_not_the_main_one_keeps_the_tasks_completed(
+    api: ContractClient, stage: Scene, worker: Worker, scene: Rows
+) -> None:
+    # « Les tâches non terminées » only of a main structure: on a differential, where the lines of a
+    # completed task are still re-estimated (``is_main``), a task completed is exported with its
+    # line.
+    project_id = UUID(stage.project["project_id"])
+    revision_id = UUID(scene.tree.revision["revision_id"])
+    row = structure_row(project_id, revision_id, kind="differential", label="Avenant")
+    structure_id = row["id"]
+    assert isinstance(structure_id, UUID)
+    with lifted_kind_check(stage.owner):
+        try:
+            with stage.owner.begin() as connection:
+                connection.execute(insert(CostStructure).values(**row))
+                bearer = insert_task(
+                    connection,
+                    project_id,
+                    revision_id,
+                    structure_id,
+                    progress="completed",
+                    started_on=DAY,
+                    completed_on=DAY,
+                )
+                give_a_line(connection, bearer)
+            content = exported(api, stage, worker, str(revision_id), structure_id=str(structure_id))
+            assert len(lines_of(content, OUTSIDE)) == 1
+        finally:
+            with stage.owner.begin() as connection:
+                nodes = select(Node.id).where(Node.structure_id == structure_id)
+                connection.execute(delete(EstimateLine).where(EstimateLine.node_id.in_(nodes)))
+                connection.execute(delete(Task).where(Task.node_id.in_(nodes)))
+                connection.execute(delete(Node).where(Node.structure_id == structure_id))
+                connection.execute(delete(CostStructure).where(CostStructure.id == structure_id))
 
 
 # --- The command of the revision, the project that ended ------------------------------------------

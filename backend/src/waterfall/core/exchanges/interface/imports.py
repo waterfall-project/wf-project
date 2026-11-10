@@ -131,7 +131,11 @@ class Format[Prepared](Protocol):
     is set — ``project_in_progress`` of a remaining to commit, which
     ``ProjectCommand.import_remaining`` names first (US-1630; #2796) —, at the opening, at the
     application and again when its task runs: refused after the analysis, the import is
-    ``refused``. ``analyse`` gives the report of the file against the structure aimed at, in codes
+    ``refused``. A format that is ``judged_first`` is judged, when its task runs, on a target whose
+    structure may be missing — the revision is not opened yet, nor the structure aimed at known —:
+    its ``judge`` reads the project and the revision only.
+
+    ``analyse`` gives the report of the file against the structure aimed at, in codes
     and parameters (``ImportReport`` as the contract reads it), writing nothing, in a transaction
     frozen at its first read (``REPEATABLE READ``, read only; #2679).
 

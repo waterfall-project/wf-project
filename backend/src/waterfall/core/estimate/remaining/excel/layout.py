@@ -36,6 +36,8 @@ SUMMARY = "Synthèse"
 TASKS = "Tâches"
 PARAMETERS = "Paramètres"
 OUTSIDE = "Hors sous-projet"
+# The key of the lines of no subproject among the codes of the subprojects, and their code as a tab.
+OUTSIDE_KEY = ""
 FIXED_TABS = (SUMMARY, TASKS, PARAMETERS)
 
 
@@ -44,7 +46,7 @@ def tab_names(codes: Iterable[str]) -> dict[str, str]:
 
     The fixed tabs taken first, then each code brought to the rules of Excel (``sheet_name``),
     unique without regard to case — two codes that come to the same name get distinct tabs, the
-    first in the order of the codes keeping the name —; the lines of none, under the key ``""``,
+    first in the order of the codes keeping the name —; the lines of none, under ``OUTSIDE_KEY``,
     last, « Hors sous-projet ». The writer names its tabs with it and the import reads them with
     ``tab_subprojects``, so that the one reads where the other writes.
     """
@@ -54,7 +56,7 @@ def tab_names(codes: Iterable[str]) -> dict[str, str]:
         name = sheet_name(code, taken)
         taken.append(name)
         names[code] = name
-    names[""] = sheet_name(OUTSIDE, taken)
+    names[OUTSIDE_KEY] = sheet_name(OUTSIDE, taken)
     return names
 
 
@@ -62,7 +64,7 @@ def tab_subprojects(subprojects: Mapping[str, UUID]) -> dict[str, UUID | None]:
     """Give the subproject of each tab by its name (``tab_names``); none for the outside."""
     names = tab_names(subprojects)
     tabs: dict[str, UUID | None] = {names[code]: subprojects[code] for code in sorted(subprojects)}
-    tabs[names[""]] = None
+    tabs[names[OUTSIDE_KEY]] = None
     return tabs
 
 

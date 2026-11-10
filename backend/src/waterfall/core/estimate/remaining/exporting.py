@@ -39,6 +39,7 @@ from waterfall.core.estimate.costing import basis_of
 from waterfall.core.estimate.pricing import inflation_factor
 from waterfall.core.estimate.reading import COMPLETED, budgeted_of, rows_of
 from waterfall.core.estimate.remaining.analysing import consumption_year_of
+from waterfall.core.estimate.remaining.excel.layout import OUTSIDE_KEY
 from waterfall.core.estimate.remaining.excel.model import (
     RemainingLine,
     RemainingTab,
@@ -75,14 +76,20 @@ if TYPE_CHECKING:
     from waterfall.core.estimate.remaining.excel.model import TaskState
     from waterfall.core.estimate.tables import EstimateLine
     from waterfall.core.exchanges.interface import ExportOrder
-    from waterfall.core.planning.interface import NodeView
+    from waterfall.core.planning.interface import NodeView, TaskView
 
 TASK = "task"
 STARTED = "started"
 FILE_KIND = "reste-a-engager"
 ZERO = Decimal(0)
-# The tab of the lines of no subproject, by its place among the keys of the balances.
-OUTSIDE_KEY = ""
+
+
+@dataclass(frozen=True, slots=True)
+class _Pricing:
+    """What prices the tasks of a tab: the basis of the revision, and the kind of the structure."""
+
+    basis: Basis
+    is_main: bool
 
 
 @dataclass(slots=True)
@@ -95,9 +102,9 @@ class _Bucket:
 
 def _line(row: EstimateLine, lineage: UUID, codes: Mapping[UUID, str | None]) -> RemainingLine:
     """Give a line as the workbook says it: its role or its category by code, its figures."""
-    role, category = codes[row.node_id], None
-    if row.resource_role_id is None:
-        role, category = None, codes[row.node_id]
+    code = codes[row.node_id]
+    role = code if row.resource_role_id is not None else None
+    category = code if row.resource_role_id is None else None
     return RemainingLine(
         lineage=str(lineage),
         role=role,
@@ -140,12 +147,13 @@ def remaining_of(
         session, Place(project_id, revision_id, structure_id), NodeFilters(kinds=(TASK,))
     )
     items = [item for item in read.items if item.task is not None]
+    facets = {item.node_id: item.task for item in items if item.task is not None}
     bearing = lines_of(session, project_id, [item.node_id for item in items])
     rows = rows_of(session, project_id, [node for held in bearing.values() for node in held])
     by_node = {row.node_id: row for row in rows}
     lineages = lineages_of(session, project_id, list(by_node))
     held_provisions = provisions_of(session, rows)
-    basis = basis_of(session, project_id, revision_id)
+    pricing = _Pricing(basis_of(session, project_id, revision_id), structure.is_main)
     number = exporting.outline(items)
     codes = {
         node: (
@@ -158,8 +166,7 @@ def remaining_of(
     buckets: dict[UUID | None, _Bucket] = {}
     tasks_by_id = {item.node_id: item for item in items}
     for item in items:
-        task = item.task
-        if task is None or (structure.is_main and task.progress == COMPLETED):
+        if structure.is_main and facets[item.node_id].progress == COMPLETED:
             continue
         listed: set[UUID | None] = set()
         for node in bearing.get(item.node_id, ()):
@@ -185,7 +192,7 @@ def remaining_of(
             actual,
             bucket.provisions,
             tuple(
-                _task(tasks_by_id[node], number[node], lines, (basis, structure.is_main))
+                _task(tasks_by_id[node], facets[node], number[node], lines, pricing)
                 for node, lines in bucket.lines.items()
             ),
         )
@@ -205,7 +212,7 @@ def remaining_of(
         categories=held.categories,
         roles=held.roles,
         subprojects=tuple(tab(each.code, each.label, each.subproject_id) for each in subprojects),
-        outside=tab("", "", None),
+        outside=tab(OUTSIDE_KEY, "", None),
     )
     name = exporting.file_name(
         project.code, project.label, (revision.version_name, revision_id), FILE_KIND
@@ -214,13 +221,10 @@ def remaining_of(
 
 
 def _task(
-    item: NodeView, number: str, lines: list[RemainingLine], priced: tuple[Basis, bool]
+    item: NodeView, task: TaskView, number: str, lines: list[RemainingLine], pricing: _Pricing
 ) -> RemainingTask:
     """Give a task of a tab: its state, the inflation of the year it consumes in, its lines."""
-    task, (basis, is_main) = item.task, priced
-    if task is None:
-        message = "a task is the facet of a node of the kind task"
-        raise LookupError(message)
+    basis = pricing.basis
     bearer = BearingTask(
         item.node_id,
         basis.revision_id,
@@ -229,7 +233,7 @@ def _task(
         task.finish,
         task.calendar_hours,
         task.progress,
-        is_main,
+        pricing.is_main,
     )
     year = consumption_year_of(bearer, basis.reference_year)
     state: TaskState = STARTED if task.progress == STARTED else "not_started"

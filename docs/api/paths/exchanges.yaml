@@ -500,7 +500,9 @@
           (`import_apply_expired`). Then `import_file_accepted`, a report that rejects the whole
           file (`ImportReport.refusals`, WF-INTF-0040, WF-PLA-0150; EP-14/L42s). Then the state
           conditions checked again when the task is submitted, those the opening judged
-          (`openImport`): `project_not_terminal`, `no_background_task_running` (I-04, #1792),
+          (`openImport`): `project_not_terminal`, then, for a remaining to commit,
+          `project_in_progress` first, when the project is not In progress (WF-RAE-0040; US-1630,
+          #2796), ahead of the two that follow; `no_background_task_running` (I-04, #1792),
           `may_create_revision` — the import would create the current revision, and the caller
           may not —, `project_before_in_progress`. A condition that passes refuses the
           application and leaves the import `analysed`, its report applicable and its file in
@@ -508,8 +510,9 @@
           `no_background_task_running`, a background task of the project that ends, and
           `may_create_revision`, a permission that can be granted (`background_running`,
           `may_create_revision`; WF-ARC-0100, #2475). Refused for good — the report,
-          `project_not_terminal`, a condition of the kind, the structure analysed that the
-          current revision no longer holds (404 `NOT_FOUND`), or a permission or a contributor
+          `project_not_terminal`, `project_in_progress` of a remaining to commit, a condition of
+          the kind, the structure analysed that the current revision no longer holds (404
+          `NOT_FOUND`), or a permission or a contributor
           status withdrawn since the analysis (403) —, the import becomes `refused` and its file
           is deleted (WF-ARC-0100): it no longer applies, and abandoning returns 204 without
           effect (`import_apply_refused_permission`). Refusals are judged again at execution: a file
