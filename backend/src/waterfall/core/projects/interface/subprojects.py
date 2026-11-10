@@ -42,7 +42,6 @@ from waterfall.core.projects.interface.projects import (
     ALREADY_EXISTS,
     NOT_FOUND,
     STALE_LOCK_VERSION,
-    STATE_FORBIDS_OPERATION,
     VALIDATION_FAILED,
     Viewer,
     lock_project,
@@ -50,6 +49,7 @@ from waterfall.core.projects.interface.projects import (
 from waterfall.core.projects.tables import Project, Subproject
 from waterfall.platform.database import contains, unique_violated
 from waterfall.platform.errors import (
+    STATE_FORBIDS_OPERATION,
     ConflictError,
     FieldError,
     NotFoundError,

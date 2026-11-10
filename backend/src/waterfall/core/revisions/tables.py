@@ -60,6 +60,9 @@ class Audited(Base):
 
     __abstract__ = True
 
+    # The database default stays 0, as in every other table of the platform: a resource is born at
+    # ``FIRST_VERSION`` (1), which the code of the module writes on insert and never leaves to this
+    # default. Moving it to 1 here alone would split the schema; #2762 settles it for all tables.
     lock_version: Mapped[int] = mapped_column(Integer, server_default="0")
     created_at: Mapped[datetime] = mapped_column(UtcDateTime)
     created_by: Mapped[UUID | None] = mapped_column(

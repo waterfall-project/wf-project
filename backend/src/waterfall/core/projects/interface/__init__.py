@@ -10,9 +10,16 @@ comment that names it, in the order Ruff keeps. Another module imports them from
 the file.
 """
 
-# ``commands`` (US-0920; exported by US-1380/L5): the states that end the cycle of life, and the
-# condition a terminal project lacks, which the other modules judge by these names, never a copy.
-from waterfall.core.projects.commands import PROJECT_NOT_TERMINAL, TERMINAL
+# ``commands`` (US-0920; exported by US-1380/L5 and US-1480/L4): the states that end the cycle of
+# life and those before In progress, the condition a terminal project lacks and the one a running
+# background task takes away, which the other modules judge by these names, never a copy (#2555).
+from waterfall.core.projects.commands import (
+    BEFORE_IN_PROGRESS,
+    NO_BACKGROUND_TASK_RUNNING,
+    PROJECT_BEFORE_IN_PROGRESS,
+    PROJECT_NOT_TERMINAL,
+    TERMINAL,
+)
 
 # ``attachments`` (US-1380/L1, filled by US-1380/L3): the tasks attached to the work breakdown.
 from waterfall.core.projects.interface.attachments import (
@@ -85,6 +92,7 @@ from waterfall.core.projects.interface.projects import (
     ProjectView,
     Viewer,
     create_project,
+    first_project,
     list_projects,
     load_project,
     lock_project,
@@ -145,6 +153,9 @@ from waterfall.core.projects.interface.work_breakdown import (
 )
 
 __all__ = [
+    "BEFORE_IN_PROGRESS",
+    "NO_BACKGROUND_TASK_RUNNING",
+    "PROJECT_BEFORE_IN_PROGRESS",
     "PROJECT_NOT_TERMINAL",
     "TERMINAL",
     "Attachments",
@@ -207,6 +218,7 @@ __all__ = [
     "delete_subproject",
     "detach_item",
     "exit_project",
+    "first_project",
     "item_cited",
     "judge_exit_unlocked",
     "list_contributor_suggestions",
