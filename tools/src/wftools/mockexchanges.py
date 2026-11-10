@@ -34,7 +34,7 @@ from wftools.mockwitness import (
     N,
     fixture,
 )
-from wftools.mockwitnesscosts import APRIL, CostLine
+from wftools.mockwitnesscosts import APRIL, CostImport, CostLine
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -506,52 +506,68 @@ def other_project() -> str:
     return next(each["code"] for each in fixture("projects")["items"] if each["code"] != witness)
 
 
+def brought(entry: CostImport, *, created: bool) -> list[CostLine]:
+    """Return the lines an import created, or updated, in the order of their documents."""
+    found = [
+        line
+        for line in mockcosts.lines()
+        if (line.imports[0] is entry) == created and entry in line.imports
+    ]
+    return sorted(found, key=lambda line: (line.document, line.item or ""))
+
+
 def april_added() -> list[CostLine]:
     """Return the lines the extraction of April created, in the order of their documents."""
-    created = [line for line in mockcosts.lines() if line.imports[0] is APRIL]
-    return sorted(created, key=lambda line: (line.document, line.item or ""))
+    return brought(APRIL, created=True)
 
 
-def april_report() -> JsonObject:
-    """Return the report of the extraction of April, as its analysis presented it.
+def _difference(line: CostLine, change: str) -> JsonObject:
+    return {
+        "change": change,
+        "target": "actual_cost_line",
+        "lineage_id": None,
+        "label": line.document,
+        "document_item": line.item,
+        "predecessor_label": None,
+        "fields": [],
+    }
 
-    Each line whose document and item were not yet imported is added, named by its document and
-    its item (WF-INTF-0140, D-4); each line of another project the journal counts is rejected, its
-    element named as the file carries it, with the code of project read (WF-CRE-0020), last in the
-    file. A code of subproject no subproject of the project carries is kept, and asks for an
-    explicit confirmation, as the lines of another project do.
+
+def cost_report(entry: CostImport) -> JsonObject:
+    """Return the report of an extraction of costs, as its analysis presented it.
+
+    Each line whose document and item were not yet imported is added, each one already imported
+    and brought back updated, both named by their document and their item (WF-INTF-0140, D-4);
+    the lines it brings back as they were are counted unchanged; each line of another project the
+    journal counts is rejected, its element named as the file carries it, with the code of project
+    read (WF-CRE-0020), last in the file. The witness does not say which columns an update
+    changes: an updated line names none. A code of subproject no subproject of the project
+    carries is kept, and asks for an explicit confirmation, as the lines of another project do.
     """
-    added = april_added()
+    added = brought(entry, created=True)
+    updated = brought(entry, created=False)
     code = other_project()
+    first = FIRST_ROW + len(added) + len(updated) + entry.unchanged
     rejected: list[JsonValue] = [
         {
             "sheet": None,
-            "row": FIRST_ROW + len(added) + offset,
+            "row": first + offset,
             "code": "WBS_ELEMENT_OUTSIDE_PROJECT",
             "params": {"wbs_element": f"{code}/{OUTSIDE_SUBPROJECT}", "project_code": code},
         }
-        for offset in range(APRIL.rejected)
+        for offset in range(entry.rejected)
     ]
     differences: list[JsonValue] = [
-        {
-            "change": "added",
-            "target": "actual_cost_line",
-            "lineage_id": None,
-            "label": line.document,
-            "document_item": line.item,
-            "predecessor_label": None,
-            "fields": [],
-        }
-        for line in added
+        *(_difference(line, "added") for line in added),
+        *(_difference(line, "updated") for line in updated),
     ]
     reasons: list[JsonValue] = ["lines_outside_project"] if rejected else []
-    if unknown_codes(added):
+    if unknown_codes([*added, *updated]):
         reasons.append("unknown_subproject")
-    read = len(added) + len(rejected)
     return {
         "format_version": None,
-        "read_count": read,
-        "unchanged_count": read - len(rejected) - len(differences),
+        "read_count": len(differences) + entry.unchanged + len(rejected),
+        "unchanged_count": entry.unchanged,
         "rejected": rejected,
         "refusals": [],
         "differences": differences,
@@ -561,6 +577,11 @@ def april_report() -> JsonObject:
         "signals": [],
         "requires_confirmation_reasons": reasons,
     }
+
+
+def april_report() -> JsonObject:
+    """Return the report of the extraction of April, as its analysis presented it."""
+    return cost_report(APRIL)
 
 
 def unknown_codes(added: Sequence[CostLine]) -> list[str]:

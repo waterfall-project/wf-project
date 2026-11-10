@@ -48,8 +48,10 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from wftools import mocktext, mockwitness
+from wftools import mocktext, mockwitness, mockwitnesscostfile
+from wftools.mockids import hex_identifier
 from wftools.mockstructure import LABOUR_RATES
+from wftools.mockwitnesscosts import COSTS, JOURNAL
 
 if TYPE_CHECKING:
     from wftools.mockstructure import JsonObject, JsonValue
@@ -112,6 +114,34 @@ def _writes() -> dict[Event, list[JsonObject]]:
             }
         ],
         mockwitness.RISK_751_REVIEWED: [{"kind": "revision_opened", **into, "revision": CURRENT}],
+        mockwitness.RECEPTION_EXCLUDED: [
+            {
+                "kind": "cost_line_excluded",
+                **into,
+                "document": line.document,
+                "item": line.item,
+                "reason": line.excluded[1],
+            }
+            for line in COSTS
+            if line.excluded is not None
+        ],
+        mockwitness.APRIL_EXTRACTION_REPLAYED: [
+            {
+                "kind": "import_expired",
+                **into,
+                "import_id": mockwitnesscostfile.expired_exchange_id(),
+            }
+        ],
+        **{
+            entry.event: [
+                {
+                    "kind": "cost_import_applied",
+                    **into,
+                    "cost_import_id": hex_identifier(entry.number),
+                }
+            ]
+            for entry in JOURNAL
+        },
     }
 
 

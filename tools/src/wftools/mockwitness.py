@@ -135,6 +135,10 @@ COST_IMPORTS = tuple(
         (date(2026, 6, 3), time(8, 30)),
     )
 )
+RECEPTION_EXCLUDED = Event(date(2026, 4, 6), "Exclusion de la réception du client", time(9, 15))
+"""The line of the reception of the customer, imported on 3 April, is excluded from the tracked
+scope three days later (WF-CRE-0030): the event of the exclusion, which the loader of the costs
+writes (EP-09, « Le chargeur du témoin »)."""
 PLANNING_IMPORT_ABANDONED = Event(date(2026, 5, 20), "Import de planning, abandonné")
 APRIL_EXTRACTION_REPLAYED = Event(
     date(2026, 6, 2), "Extraction d'avril rejouée et analysée ; expirée le lendemain", time(9, 1)
@@ -161,6 +165,7 @@ CHRONOLOGY = tuple(
             RISK_752_OCCURRED,
             STUDIES_STARTED,
             *COST_IMPORTS,
+            RECEPTION_EXCLUDED,
             PLANNING_IMPORT_ABANDONED,
             ESTIMATE_IMPORT_ANALYSED,
             APRIL_EXTRACTION_REPLAYED,
