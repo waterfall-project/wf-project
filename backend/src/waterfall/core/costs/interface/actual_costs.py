@@ -61,28 +61,34 @@ class ActualCostsFormat:
 
         ``FILE_FORMAT_UNREADABLE``, ``expected_format`` ``actual_costs``, and ``missing_columns``
         for the columns the headers of its first tab do not name (WF-INTF-0070, WF-REF-0190).
+
+        Before the header, a mapping whose required columns lack a label is refused (409
+        ``actual_cost_mapping_complete``, ``params.columns`` those, in the order of the mapping;
+        WF-REF-0190): the exchanges ask ``read_header`` at the opening only, after ``judge``, so
+        that the order of the conditions stays that of ``ProjectCommand.import_actual_costs``.
+        An import analysed is applied as it was analysed, whatever the mapping became.
         """
+        missing = read_actual_cost_mapping(session).missing_columns
+        if missing:
+            raise _refused(ACTUAL_COST_MAPPING_COMPLETE, columns=list(missing))
         rows = sheet_rows(head, max_row=HEADER_ROW)
         read_header(session, rows[0] if rows else ())
 
     def judge(self, session: Session, target: ImportTarget) -> None:
-        """Refuse an import of the actual costs on its project or on the mapping (409).
+        """Refuse an import of the actual costs on its project or its tasks (409).
 
         In the order of ``ProjectCommand.import_actual_costs``, after the terminal project the
-        exchanges refuse: a project not In progress (``project_in_progress``), a task of the
+        exchanges refuse: a project not In progress (``project_in_progress``), then a task of the
         background that writes in it, but the application that asks
-        (``no_background_task_running``), then a mapping whose required columns lack a label
-        (``actual_cost_mapping_complete``, ``params.columns`` those, in the order of the mapping;
-        WF-REF-0190). The project is read under the lock its caller holds.
+        (``no_background_task_running``). The mapping is not judged here, which the application
+        replays: an import analysed is applied as it was analysed (``read_header`` judges it at the
+        opening; WF-REF-0190). The project is read under the lock its caller holds.
         """
         project_id = target.project_id
         if project_facts(session, project_id).state != IN_PROGRESS:
             raise _refused(PROJECT_IN_PROGRESS)
         if not no_background_task_running(session, project_id, target.running):
             raise _refused(NO_BACKGROUND_TASK_RUNNING)
-        missing = read_actual_cost_mapping(session).missing_columns
-        if missing:
-            raise _refused(ACTUAL_COST_MAPPING_COMPLETE, columns=list(missing))
 
     def analyse(self, session: Session, target: ImportTarget, content: bytes) -> Mapping[str, Any]:
         """Give the report of an extraction against the lines of the project, writing nothing."""

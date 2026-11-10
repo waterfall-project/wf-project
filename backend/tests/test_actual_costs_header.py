@@ -10,6 +10,7 @@ answer checked against the contract.
 """
 
 from typing import TYPE_CHECKING, Any
+from uuid import UUID
 
 import pytest
 from actual_costs_import_support import (
@@ -35,6 +36,9 @@ from support import ContractClient
 from waterfall.api.app import create_app
 from waterfall.api.authentication import Services
 from waterfall.core.costs.extraction import Kept, Reading
+from waterfall.core.costs.interface import ACTUAL_COSTS_FORMAT
+from waterfall.core.exchanges.interface import ImportTarget
+from waterfall.platform.errors import ConflictError
 from waterfall.platform.keycloak_admin import KeycloakAdmin
 from waterfall.platform.logs import logging_context
 from waterfall.platform.tasks import submit
@@ -144,6 +148,47 @@ def test_a_task_of_the_background_writing_in_the_project_is_judged_before_the_ma
         submit(session, queue, "revision_mark", stage.manager.user_id, payload)
     response = opening(api, stage, extraction([line()]))
     assert refusal(response) == (409, STATE, {"missing_condition": "no_background_task_running"})
+
+
+@pytest.mark.requirement("WF-REF-0190-A")
+def test_the_mapping_is_judged_at_the_opening_after_the_project_and_before_the_header(
+    api: ContractClient, stage: Scene
+) -> None:
+    # « … un import déjà analysé est appliqué tel qu'il a été analysé » (setActualCostMapping) : the
+    # opening refuses an incomplete mapping, in ``read_header`` and before the header is read;
+    # ``judge``, which the application replays, no longer judges the mapping.
+    declare(stage.database, {**DECLARED, "document_date": []})
+    target = ImportTarget(UUID(stage.project["project_id"]), None, None)
+    with stage.database.transaction() as session:
+        ACTUAL_COSTS_FORMAT.judge(session, target)
+        with pytest.raises(ConflictError) as incomplete:
+            ACTUAL_COSTS_FORMAT.read_header(session, b"no workbook")
+    assert incomplete.value.params == {
+        "missing_condition": "actual_cost_mapping_complete",
+        "columns": ["document_date"],
+    }
+    response = opening(api, stage, b"no workbook")
+    assert refusal(response)[2]["missing_condition"] == "actual_cost_mapping_complete"
+    declare(stage.database)
+    assert refusal(opening(api, stage, b"no workbook"))[:2] == (422, UNREADABLE)
+
+
+@pytest.mark.requirement("WF-REF-0190-A")
+def test_an_import_analysed_is_judged_as_analysed_when_a_label_of_the_mapping_is_then_emptied(
+    api: ContractClient, stage: Scene, worker: Worker
+) -> None:
+    # The report keeps the reading of the header the analysis made; the mapping emptied after it
+    # changes neither it nor the judgment the application replays.
+    declare(stage.database)
+    found = analysed(api, stage, worker, extraction([line()]))
+    kept = stored(stage.database, found["import_id"]).report
+    assert kept is not None
+    declare(stage.database, {**DECLARED, "amount": []})
+    target = ImportTarget(UUID(stage.project["project_id"]), None, None)
+    with stage.database.transaction() as session:
+        ACTUAL_COSTS_FORMAT.judge(session, target)
+    assert stored(stage.database, found["import_id"]).report == kept
+    assert kept["actual_cost_reading"]["columns"]["amount"] == 4
 
 
 @pytest.mark.requirement("WF-REF-0190-A")

@@ -20,10 +20,13 @@ empty or beginning with a slash, ``WBS_ELEMENT_INVALID`` —, whose part before 
 code of the project, dots included, and the part after it the code of a subproject (C-373); a code
 of project that is not that of the project is ``WBS_ELEMENT_OUTSIDE_PROJECT``. The document is a
 text or a whole number read as text; its item a text, or none; the date a cell of date or a text
-``AAAA-MM-JJ`` (``DATE_INVALID``); the amount a number, signed, rounded to the cent — a number
-written as a text is ``NUMBER_INVALID``. A required cell empty is ``VALUE_REQUIRED``. A line is
-rejected for its first fault, in the order of its columns, ``params.column`` naming the column by
-its identifier (``ActualCostSourceColumn``), and ``params.value`` the cell as the file carries it.
+``AAAA-MM-JJ`` (``DATE_INVALID``); the amount a number, signed, rounded to the cent — half a cent
+away from zero, ``ROUND_HALF_UP`` of ``decimal`` (0.005 gives 0.01 and -0.005 gives -0.01), a
+choice the spec leaves to settle (#2721) — a number written as a text is ``NUMBER_INVALID``, one
+beyond the bound of the column ``VALUE_OUT_OF_RANGE``. A required cell empty is
+``VALUE_REQUIRED``. A line is rejected for its first fault, in the order of its columns,
+``params.column`` naming the column by its identifier (``ActualCostSourceColumn``), and
+``params.value`` the cell as the file carries it.
 The columns kept are read as texts, an empty one left out.
 """
 
@@ -75,6 +78,7 @@ HEADER_ROW = 1
 # An amount is kept to the cent, below the bound of its column (``numeric(14,2)``).
 CENT = Decimal("0.01")
 LARGEST_AMOUNT = Decimal("999999999999.99")
+_BOUNDS = {"column": "amount", "minimum": str(-LARGEST_AMOUNT), "maximum": str(LARGEST_AMOUNT)}
 ISO_DATE = re.compile(r"\d{4}-\d{2}-\d{2}")
 
 # What a damaged file raises as openpyxl opens or reads it, as the reader of an estimate names it:
@@ -228,11 +232,16 @@ class Line:
 
 @dataclass(frozen=True, slots=True)
 class Rejection:
-    """A line of an extraction rejected, by its row, its reason and the parameters of it."""
+    """A line of an extraction rejected, by its row, its reason and the parameters of it.
+
+    ``key`` its document and its item when the file gives a document that can be read: the
+    analysis rejects a line another of the file shares them with, whatever else it lacks.
+    """
 
     row: int
     code: str
     params: Mapping[str, Any] = field(default_factory=dict[str, Any])
+    key: tuple[str, str | None] | None = None
 
     def reported(self) -> dict[str, Any]:
         """Give the rejection as the report gives it (``ImportRejection``): one tab, no sheet."""
@@ -266,17 +275,27 @@ def _shown(value: object) -> str:
     return text_of(value) or ""
 
 
+def _raw(value: object) -> str:
+    """Give a cell as the file carries it, spaces included (``params.wbs_element``)."""
+    return "" if value is None else str(value)
+
+
 def _subproject_code(value: object, project_code: str | None) -> str | None:
-    """Read the WBS element: the code of the subproject it names after the slash, or none."""
+    """Read the WBS element: the code of the subproject it names after the slash, or none.
+
+    The element is read without its spaces at the ends, and reported as the file carries it. A
+    slash with nothing after it (``A.ABC.26001/``) is ``WBS_ELEMENT_INVALID`` (#2721).
+    """
     element = text_of(value) or ""
+    carried = _raw(value)
     if not element or element.startswith(SLASH):
-        raise _LineRejectedError(WBS_ELEMENT_INVALID, {"wbs_element": element})
+        raise _LineRejectedError(WBS_ELEMENT_INVALID, {"wbs_element": carried})
     code, slash, subproject = element.partition(SLASH)
     if slash and not subproject:
-        raise _LineRejectedError(WBS_ELEMENT_INVALID, {"wbs_element": element})
+        raise _LineRejectedError(WBS_ELEMENT_INVALID, {"wbs_element": carried})
     if code != project_code:
         raise _LineRejectedError(
-            WBS_ELEMENT_OUTSIDE_PROJECT, {"wbs_element": element, "project_code": code}
+            WBS_ELEMENT_OUTSIDE_PROJECT, {"wbs_element": carried, "project_code": code}
         )
     if len(subproject) > SUBPROJECT_CODE_LENGTH:
         too_long = {"column": WBS_ELEMENT, "max_length": SUBPROJECT_CODE_LENGTH}
@@ -311,6 +330,7 @@ def _document_date(value: object) -> date:
 
 
 def _amount(value: object) -> Decimal:
+    """Read the amount: a signed number, to the cent, half a cent away from zero (#2721)."""
     if text_of(value) is None:
         raise _LineRejectedError(VALUE_REQUIRED, {"column": AMOUNT})
     if (
@@ -319,10 +339,13 @@ def _amount(value: object) -> Decimal:
         or (isinstance(value, float) and not math.isfinite(value))
     ):
         raise _LineRejectedError(NUMBER_INVALID, {"column": AMOUNT, "value": _shown(value)})
-    amount = Decimal(repr(value)).quantize(CENT, rounding=ROUND_HALF_UP)
+    exact = Decimal(repr(value))
+    # Before the rounding: a quantize beyond the precision of the context raises.
+    if abs(exact) > LARGEST_AMOUNT + CENT:
+        raise _LineRejectedError(VALUE_OUT_OF_RANGE, _BOUNDS)
+    amount = exact.quantize(CENT, rounding=ROUND_HALF_UP)
     if abs(amount) > LARGEST_AMOUNT:
-        bounds = {"column": AMOUNT, "minimum": str(-LARGEST_AMOUNT), "maximum": str(LARGEST_AMOUNT)}
-        raise _LineRejectedError(VALUE_OUT_OF_RANGE, bounds)
+        raise _LineRejectedError(VALUE_OUT_OF_RANGE, _BOUNDS)
     return amount
 
 
@@ -344,6 +367,16 @@ def _line(row: Sequence[object], number: int, reading: Reading, project_code: st
     )
 
 
+def _key(row: Sequence[object], reading: Reading) -> tuple[str, str | None] | None:
+    """Read the document and the item of a row, or none when its document cannot be read."""
+    columns = reading.columns
+    try:
+        number = _document_number(_cell(row, columns.get(DOCUMENT_NUMBER)))
+    except _LineRejectedError:
+        return None
+    return number, text_of(_cell(row, columns.get(DOCUMENT_ITEM)))
+
+
 def read_lines(
     rows: Sequence[Sequence[object]], reading: Reading, project_code: str | None
 ) -> LinesRead:
@@ -361,5 +394,5 @@ def read_lines(
         try:
             lines.append(_line(row, number, reading, project_code))
         except _LineRejectedError as fault:
-            rejected.append(Rejection(number, fault.code, fault.params))
+            rejected.append(Rejection(number, fault.code, fault.params, _key(row, reading)))
     return LinesRead(tuple(lines), tuple(rejected), read_count)

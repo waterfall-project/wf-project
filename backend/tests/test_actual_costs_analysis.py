@@ -94,7 +94,7 @@ def rejection(**named: Any) -> tuple[str, dict[str, Any]]:
     ("element", "expected"),
     [
         pytest.param(None, ("WBS_ELEMENT_INVALID", {"wbs_element": ""}), id="empty"),
-        pytest.param("   ", ("WBS_ELEMENT_INVALID", {"wbs_element": ""}), id="blank"),
+        pytest.param("   ", ("WBS_ELEMENT_INVALID", {"wbs_element": "   "}), id="blank"),
         pytest.param("/10001", ("WBS_ELEMENT_INVALID", {"wbs_element": "/10001"}), id="slash"),
         pytest.param(f"{CODE}/", ("WBS_ELEMENT_INVALID", {"wbs_element": f"{CODE}/"}), id="no-sub"),
         pytest.param(
@@ -230,6 +230,43 @@ def test_a_line_is_rejected_for_the_first_fault_of_its_cells(
 
 
 @pytest.mark.requirement("WF-CRE-0010-A")
+@pytest.mark.parametrize(
+    ("amount", "expected"),
+    [
+        pytest.param(0.005, "0.01", id="half-cent"),
+        pytest.param(-0.005, "-0.01", id="negative-half-cent-away-from-zero"),
+        pytest.param(2.675, "2.68", id="written-as-seen"),
+        pytest.param(-2.675, "-2.68", id="negative-written-as-seen"),
+        pytest.param(0.004, "0.00", id="below-half"),
+        pytest.param(-0.004, "0.00", id="negative-below-half"),
+    ],
+)
+def test_an_amount_is_rounded_half_a_cent_away_from_zero(amount: float, expected: str) -> None:
+    # ROUND_HALF_UP of ``decimal``: away from zero, not toward plus infinity; the rule is left to
+    # settle by the spec (#2721).
+    (only,) = lines_of(line(amount=amount))
+    assert only[5] == Decimal(expected)
+
+
+@pytest.mark.requirement("WF-CRE-0010-A")
+@pytest.mark.parametrize("amount", [1e30, -1e30, 1e300, 1e28])
+def test_an_amount_far_beyond_the_column_is_rejected_out_of_range(amount: float) -> None:
+    code, params = rejection(amount=amount)
+    assert code == "VALUE_OUT_OF_RANGE"
+    assert params["column"] == "amount"
+
+
+@pytest.mark.requirement("WF-CRE-0020-A")
+def test_the_wbs_element_is_reported_as_the_file_carries_it() -> None:
+    # « tel que le fichier le porte » : spaces at its ends kept; a slash with nothing after it is
+    # rejected as invalid (#2721).
+    carried = f"  {CODE}/ "
+    assert rejection(element=carried) == ("WBS_ELEMENT_INVALID", {"wbs_element": carried})
+    code, params = rejection(element=" A.ABC.26002/1 ")
+    assert (code, params["wbs_element"]) == ("WBS_ELEMENT_OUTSIDE_PROJECT", " A.ABC.26002/1 ")
+
+
+@pytest.mark.requirement("WF-CRE-0010-A")
 def test_a_date_is_a_cell_of_date_or_a_text_and_an_amount_is_signed_to_the_cent() -> None:
     # « Une ligne de montant négatif est acceptée et diminue le coût réel. » : an amount signed,
     # in a numeric cell, kept to the cent.
@@ -337,6 +374,38 @@ def test_the_report_rejects_the_lines_of_another_project_and_keeps_an_unknown_su
 
 @pytest.mark.requirement("WF-INTF-0140-A")
 @pytest.mark.usefixtures("lot")
+def test_two_lines_of_the_same_document_and_item_are_doubled_whatever_else_they_lack(
+    api: ContractClient, stage: Scene, worker: Worker
+) -> None:
+    # « … une ligne pour laquelle une autre ligne du fichier porte la même pièce et le même poste »
+    # (ImportRejection), without condition: the amount of one in text, both are rejected doubled; a
+    # line of another project doubled likewise; a document unreadable doubles nothing.
+    content = extraction(
+        [
+            line(number="9100", amount="12,50"),
+            line(number="9100"),
+            line(number="9200", element="A.ABC.26002/1"),
+            line(number="9200"),
+            line(number=None),
+            line(number=None),
+        ]
+    )
+    report = analysed(api, stage, worker, content)["report"]
+    assert report["differences"] == []
+    required = {"column": "document_number"}
+    assert report["rejected"] == [
+        {"sheet": None, "row": 2, "code": "DUPLICATE_COST_LINE", "params": {"rows": [3]}},
+        {"sheet": None, "row": 3, "code": "DUPLICATE_COST_LINE", "params": {"rows": [2]}},
+        {"sheet": None, "row": 4, "code": "DUPLICATE_COST_LINE", "params": {"rows": [5]}},
+        {"sheet": None, "row": 5, "code": "DUPLICATE_COST_LINE", "params": {"rows": [4]}},
+        {"sheet": None, "row": 6, "code": "VALUE_REQUIRED", "params": required},
+        {"sheet": None, "row": 7, "code": "VALUE_REQUIRED", "params": required},
+    ]
+    assert report["requires_confirmation_reasons"] == []
+
+
+@pytest.mark.requirement("WF-INTF-0140-A")
+@pytest.mark.usefixtures("lot")
 def test_an_invoice_split_in_two_items_gives_two_lines_and_doubled_lines_are_rejected_each(
     api: ContractClient, stage: Scene, worker: Worker
 ) -> None:
@@ -354,11 +423,11 @@ def test_an_invoice_split_in_two_items_gives_two_lines_and_doubled_lines_are_rej
             line(number="9200", item="10"),
             line(number="9200", item=10),
             line(number="9300", element="A.ABC.26002/1"),
-            line(number="9300"),
+            line(number="9301"),
         ]
     )
     report = analysed(api, stage, worker, content)["report"]
-    assert report["differences"] == [added("9000", "1"), added("9000", "2"), added("9300")]
+    assert report["differences"] == [added("9000", "1"), added("9000", "2"), added("9301")]
     assert report["rejected"] == [
         {"sheet": None, "row": row, "code": "DUPLICATE_COST_LINE", "params": {"rows": rows}}
         for row, rows in ((4, [5, 6]), (5, [4, 6]), (6, [4, 5]), (8, [9]), (9, [8]))
@@ -405,6 +474,7 @@ def _held(stage: Scene, subproject_id: str) -> None:
 
 @pytest.mark.requirement("WF-INTF-0140-A")
 @pytest.mark.requirement("WF-REF-0190-A")
+@pytest.mark.requirement("WF-CRE-0010-A")
 def test_the_report_presents_the_lines_added_updated_unchanged_and_rejected_before_confirming(
     api: ContractClient, stage: Scene, worker: Worker, lot: str
 ) -> None:

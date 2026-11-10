@@ -8,8 +8,8 @@ analysis; its lines are then judged together and against those of the project, w
 
 - two lines of the file of the same document and the same item, no item included, are rejected
   each (``DUPLICATE_COST_LINE``, ``params.rows`` the rows of the others, in the order of the file):
-  neither can be told from the other (WF-INTF-0140, D-4). Only the lines accepted otherwise are
-  compared: a line rejected for another reason is not imported, and doubles none;
+  neither can be told from the other (WF-INTF-0140, D-4). Every line whose document can be read is
+  compared, whatever else it lacks — the contract's letter: that reason replaces its others;
 - a line accepted is imputed to the subproject of its project whose code its WBS element names,
   or to the project alone — without a subproject part, or with a code no subproject bears, which
   it keeps and which asks for confirmation (``unknown_subproject``, WF-CRE-0020);
@@ -72,23 +72,29 @@ PASSTHROUGH = "passthrough."
 NOBODY = Viewer(UUID(int=0), frozenset())
 
 
-def _doubled(lines: Iterable[Line]) -> tuple[list[Line], list[Rejection]]:
-    """Split the lines into those alone on their document and item, and the rejections of others."""
+def _doubled(read: LinesRead) -> tuple[list[Line], list[Rejection], list[Rejection]]:
+    """Split the rows: the lines alone on their key, the other rejections, the doubled.
+
+    Every row whose document and item can be read is compared, accepted or not: a line another
+    of the file shares them with is rejected, whatever else either lacks.
+    """
     rows: dict[tuple[str, str | None], list[int]] = defaultdict(list)
-    held = list(lines)
-    for line in held:
-        rows[line.key].append(line.row)
-    alone = [line for line in held if len(rows[line.key]) == 1]
+    for each in sorted((*read.lines, *read.rejected), key=lambda each: each.row):
+        if each.key is not None:
+            rows[each.key].append(each.row)
     doubled = [
         Rejection(
-            line.row,
+            each.row,
             DUPLICATE_COST_LINE,
-            {"rows": [row for row in rows[line.key] if row != line.row]},
+            {"rows": [row for row in rows[each.key] if row != each.row]},
         )
-        for line in held
-        if len(rows[line.key]) > 1
+        for each in sorted((*read.lines, *read.rejected), key=lambda each: each.row)
+        if each.key is not None and len(rows[each.key]) > 1
     ]
-    return alone, doubled
+    taken = {each.row for each in doubled}
+    alone = [line for line in read.lines if line.row not in taken]
+    others = [each for each in read.rejected if each.row not in taken]
+    return alone, others, doubled
 
 
 @dataclass(frozen=True, slots=True)
@@ -167,10 +173,12 @@ def _imputed(line: Line, codes: Mapping[str, UUID]) -> UUID | None:
     return None if line.subproject_code is None else codes.get(line.subproject_code)
 
 
-def _reasons(read: LinesRead, lines: Iterable[Line], codes: Mapping[str, UUID]) -> list[str]:
+def _reasons(
+    others: Iterable[Rejection], lines: Iterable[Line], codes: Mapping[str, UUID]
+) -> list[str]:
     """Name what asks for confirmation, in the order of the contract."""
     reasons: list[str] = []
-    if any(each.code == WBS_ELEMENT_OUTSIDE_PROJECT for each in read.rejected):
+    if any(each.code == WBS_ELEMENT_OUTSIDE_PROJECT for each in others):
         reasons.append(LINES_OUTSIDE_PROJECT)
     if any(
         line.subproject_code is not None and line.subproject_code not in codes for line in lines
@@ -184,7 +192,7 @@ def analyse(session: Session, project_id: UUID, content: bytes) -> dict[str, Any
     rows = sheet_rows(content)
     reading = read_header(session, rows[0] if rows else ())
     read = read_lines(rows[HEADER_ROW:], reading, project_code(session, project_id))
-    lines, doubled = _doubled(read.lines)
+    lines, others, doubled = _doubled(read)
     codes = _subprojects(session, project_id)
     held = _held_lines(session, project_id)
     differences: list[dict[str, Any]] = []
@@ -194,7 +202,7 @@ def analyse(session: Session, project_id: UUID, content: bytes) -> dict[str, Any
             differences.append(_difference("added", line, []))
         elif fields := _changed(before, line, _imputed(line, codes)):
             differences.append(_difference("updated", line, fields))
-    rejected = sorted((*read.rejected, *doubled), key=lambda each: each.row)
+    rejected = sorted((*others, *doubled), key=lambda each: each.row)
     ignored = reading.ignored
     return {
         "format_version": None,
@@ -209,6 +217,6 @@ def analyse(session: Session, project_id: UUID, content: bytes) -> dict[str, Any
         "completed_tasks": [],
         "date_mismatches": [],
         "signals": [],
-        "requires_confirmation_reasons": _reasons(read, lines, codes),
+        "requires_confirmation_reasons": _reasons(others, lines, codes),
         READING: reading.kept_with_report(),
     }
