@@ -50,8 +50,12 @@ def test_a_line_budgeted_at_100_reestimated_at_120_moves_the_remaining_from_100_
     # la grille, porte le reste à engager de 100 à 120. »
     data = example("WF-RAE-0010-A#05923b0a3a8f")
     node = uuid4()
-    before, _ = remaining_sum([LineAmount(node, _decimal(data, "budgeted_amount"), False)])
-    after, by_line = remaining_sum([LineAmount(node, _decimal(data, "reestimated_amount"), False)])
+    before, _ = remaining_sum(
+        [LineAmount(node, _decimal(data, "budgeted_amount"), is_completed=False)]
+    )
+    after, by_line = remaining_sum(
+        [LineAmount(node, _decimal(data, "reestimated_amount"), is_completed=False)]
+    )
     assert before == _decimal(data, "remaining_before")
     assert after == _decimal(data, "remaining_after")
     assert by_line == {node: _decimal(data, "remaining_after")}
@@ -85,7 +89,7 @@ def test_a_line_counts_at_the_rate_its_revision_accepted_not_the_previous_one_in
     data = example("WF-RAE-0010-A#0d404554bc50")
     effort = _decimal(data, "effort")
     accepted = _reestimated(data, effort, _decimal(data, "rate_of_2027"))
-    total, _ = remaining_sum([LineAmount(uuid4(), accepted, False)])
+    total, _ = remaining_sum([LineAmount(uuid4(), accepted, is_completed=False)])
     assert total == _decimal(data, "remaining")
     inflated = _decimal(data, "rate_of_2026") * (1 + _decimal(data, "inflation_rate"))
     assert _reestimated(data, effort, inflated) == _decimal(data, "remaining_at_2026_projected")
