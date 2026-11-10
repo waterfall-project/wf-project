@@ -181,6 +181,8 @@ paths = [
     "deploy/compose/keycloak-database.sql",
     "deploy/compose/service-database-role.sql",
     "deploy/compose/backup-database-role.sql",
+    # The two legs around Prism, which carry the bytes of a body that is not JSON (US-1550/L7).
+    "deploy/compose/contract-proxy.mjs",
     "deploy/keycloak/**",
     "deploy/openldap/**",
     ".github/workflows/service.yml",

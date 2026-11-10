@@ -520,23 +520,35 @@ services:
   # which asks for no token: the service authenticates, and its refusal passes as it answers it,
   # held to the contract, where Prism would answer one of its own. At the version the Makefile
   # pins, in the node image of the development platform; started by `make e2e-service` alone.
+  # Prism rewrites every body that is not JSON as text, each byte past 0x7f into U+FFFD (#973,
+  # #1025, #2687, #2695): two legs of contract-proxy.mjs, around it in the same container, carry the
+  # bytes of such a body past it, both ways — an upload, a download —, while every exchange still
+  # goes through Prism, held to the contract and written to its log (US-1550/L7). Kept: the two
+  # legs, which the Node of the image runs. Set aside: sending those exchanges straight to the API,
+  # which a GET cannot be sorted for before its answer and which would leave them unchecked; a patch
+  # of Prism's compiled sources, to redo at each version. The front reaches the entrance on 4010;
+  # Prism listens on 4011, and forwards to the exit on 4012, which sends to the API.
   contract-proxy:
     profiles: [e2e]
     image: node:26-alpine@sha256:c6ad9e9c1d80f6eb607c26b4b0a132ff7a2344fad1c78ea3baa2a7d4c8de6d94
     command:
+      - node
+      - /bench/contract-proxy.mjs
+      - http://api:8000
       - npx
       - --yes
       - "@stoplight/prism-cli@${PRISM_VERSION:?run make e2e-service}"
       - proxy
       - /contract/waterfall.proxy.json
-      - http://api:8000
+      - http://127.0.0.1:4012
       - --errors
       - --host
-      - 0.0.0.0
+      - 127.0.0.1
       - --port
-      - "4010"
+      - "4011"
     volumes:
       - ../../docs/api/waterfall.proxy.json:/contract/waterfall.proxy.json:ro
+      - ./contract-proxy.mjs:/bench/contract-proxy.mjs:ro
       # npx keeps Prism in the npm cache, in a named volume: downloaded once, not at every start.
       - contract-proxy-npm:/home/node
     user: "1000:1000"

@@ -173,10 +173,10 @@ test("an account without an avatar shows its initials without one [WF-ADM-0080-A
   await page.context().close();
 });
 
-// TODO(#973): leave the fixme once the bench passes a binary body — Prism, the proxy of the
-// contract on the service platform, reads any body that is not JSON as UTF-8 text and spoils the
-// image.
-test.fixme("a user puts, replaces and withdraws the avatar of the account herself [WF-ADM-0080-A]", async ({
+// The image goes to the API and comes back byte for byte: the proxy of the contract carries the
+// bytes of a body that is not JSON past Prism, which would spoil them
+// (`deploy/compose/contract-proxy.mjs`, #973).
+test("a user puts, replaces and withdraws the avatar of the account herself [WF-ADM-0080-A]", async ({
   browser,
 }) => {
   const page = await workstation(browser, "fr-FR");

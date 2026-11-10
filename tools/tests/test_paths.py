@@ -226,6 +226,8 @@ def test_a_change_of_the_contract_alone_wakes_the_tests_that_hold_the_service_to
         "fixtures/api/cost_types.json",
         "deploy/compose/compose.service.yaml",
         "deploy/compose/Caddyfile.service",
+        # The legs around Prism that carry the bytes of a body that is not JSON (US-1550/L7).
+        "deploy/compose/contract-proxy.mjs",
         "deploy/keycloak/realm/waterfall.yaml",
     ],
 )
