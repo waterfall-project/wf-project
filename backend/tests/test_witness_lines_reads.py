@@ -315,18 +315,6 @@ def sums_hold(
     assert body["meta"]["scheduled_at"] == instant(OPENED[102]).isoformat().replace("+00:00", "Z")
 
 
-def whole_read(api: ContractClient, witness: Database, realm: TestRealm) -> Any:
-    """Read the nodes of the structure of the revision in progress, all of them."""
-    with witness.transaction() as session:
-        structure = structure_of(session, REVISION_102)
-    base = f"{PROJECTS}/{PRJ_001}/revisions/{REVISION_102}/structures/{structure}/nodes"
-    # A small read first (#2711): the validation of the answer against the contract takes some
-    # twenty seconds on the 5 999 nodes once the schemas of a node have been resolved by an earlier
-    # answer of the process, and fifteen times as much (306 s measured) on the first.
-    read(api, witness, realm, f"{base}{READS['nodes_estimate']}")
-    return read(api, witness, realm, base)
-
-
 @pytest.mark.parametrize("name", list(READS))
 def test_the_estimate_read_of_the_loaded_witness_is_the_example_but_for_what_it_does_not_reach(
     api: ContractClient, witness: Database, realm: TestRealm, name: str
@@ -339,10 +327,7 @@ def test_the_estimate_read_of_the_loaded_witness_is_the_example_but_for_what_it_
             Decimal(example("project")["inflation_rate"]),
         )
     base = f"{PROJECTS}/{PRJ_001}/revisions/{REVISION_102}/structures/{structure}/nodes"
-    if READS[name]:
-        body = read(api, witness, realm, f"{base}{READS[name]}")
-    else:
-        body = whole_read(api, witness, realm)
+    body = read(api, witness, realm, f"{base}{READS[name]}")
     expected = example(name)
     got, wanted = keyed(body["items"]), keyed(expected["items"])
     # The only node the witness lacks is the line of provision of the risk of the core (EP-08).

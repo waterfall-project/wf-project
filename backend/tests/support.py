@@ -7,19 +7,25 @@ import json
 import logging
 import time
 from contextlib import contextmanager
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, cast
-from urllib.parse import parse_qs, urlsplit
+from urllib.parse import parse_qs, urljoin, urlsplit
 from uuid import uuid4
+from weakref import WeakKeyDictionary
 
 import pytest
 import structlog
+from jsonschema_path import SchemaAccessor, SchemaPath, default_handlers
+from jsonschema_path.paths import SPEC_SEPARATOR
+from openapi_core import OpenAPI
 from openapi_core.templating.media_types.finders import MediaTypeFinder
 from openapi_core.templating.paths.finders import APICallPathFinder
 from openapi_core.templating.responses.finders import ResponseFinder
 from openapi_core.testing import MockRequest, MockResponse
+from referencing import Registry, Resource
+from referencing.jsonschema import DRAFT202012
 from sqlalchemy import URL, QueuePool, text
 
 from waterfall.platform.database import Database, engine_url
@@ -39,8 +45,6 @@ if TYPE_CHECKING:
 
     from fastapi.testclient import TestClient
     from httpx2 import Response
-    from jsonschema_path import SchemaPath
-    from openapi_core import OpenAPI
 
     from waterfall.platform.keycloak import Keycloak
     from waterfall.platform.settings import ServiceSettings
@@ -346,12 +350,99 @@ def captured_logs(secrets: Iterable[str] = ()) -> Generator[Logs]:
         structlog.reset_defaults()
 
 
+# What a validation never resolves: the examples, some eight hundred files of the witness.
+UNRESOLVED = {"example", "examples"}
+
+
+def references(node: object) -> Iterator[str]:
+    """Give each ``$ref`` a document holds, at any depth, but in its examples."""
+    # A schema property named ``example`` is skipped too: its references are not preloaded, and
+    # ``retrieved`` reads them when asked, slower but right.
+    if isinstance(node, dict):
+        for key, value in cast("dict[str, object]", node).items():
+            if key == "$ref" and isinstance(value, str):
+                yield value
+            elif key not in UNRESOLVED:
+                yield from references(value)
+    elif isinstance(node, list):
+        for each in cast("list[object]", node):
+            yield from references(each)
+
+
+def document(address: str) -> Any:
+    """Read a document of the contract by its address, as openapi-core reads it."""
+    return default_handlers[urlsplit(address).scheme](address)
+
+
+def documents(root: str, contents: Any) -> dict[str, Any]:
+    """Read each document the contract reaches by its references, once, by its address."""
+    found = {root: contents}
+    pending = [root]
+    while pending:
+        address = pending.pop()
+        for reference in references(found[address]):
+            target = urljoin(address, reference).partition("#")[0]
+            if target not in found:
+                found[target] = document(target)
+                pending.append(target)
+    return found
+
+
+def retrieved(uri: str) -> Resource[Any]:
+    """Read a document the registry does not hold, an example, as openapi-core retrieves it."""
+    return DRAFT202012.create_resource(document(uri))
+
+
+def binary_text(content: bytes) -> str:
+    """Read a binary body as the string its schema declares, each byte one character."""
+    return content.decode("latin-1")
+
+
+# The bodies the contract declares a binary string and openapi-core reads otherwise: an MS Project
+# file, which it would parse into a tree of XML, then refuse as no string (#2675). It applies to
+# every ``application/xml``, though only the binary body of ``docs/api/paths/system.yaml`` needs
+# it: a test of the contract fails on any other (``test_api_service.py``).
+BINARY_TYPES = {"application/xml": binary_text}
+# The paths of the contract whose resolution is kept: the walk of an answer asks each of its values
+# what its schema holds, and a schema is reached again from the root at each question.
+RESOLVED_PATHS = 1 << 16
+
+
+def resolved_once(contract: OpenAPI) -> OpenAPI:
+    """Give the contract with every document it references read once, in a single registry.
+
+    openapi-core resolves a reference to another document by retrieving it: the validation of an
+    answer read again the YAML of that document at each ``$ref`` it followed, 129 181 times for
+    the 5 999 nodes of the witness, 306 seconds (#2720). The registry holds them all from the
+    start, and a reference is a lookup. The contract was validated when it was read.
+    """
+    root = contract.spec.base_uri
+    found = documents(root, contract.spec.read_value())
+    registry = Registry[Any](retrieve=retrieved).with_resources(
+        (address, DRAFT202012.create_resource(each)) for address, each in found.items()
+    )
+    resolver = registry.crawl().resolver(base_uri=root)
+    accessor = SchemaAccessor(found[root], resolver, resolved_cache_maxsize=RESOLVED_PATHS)
+    spec = SchemaPath(accessor, separator=SPEC_SEPARATOR)
+    deserializers = {**BINARY_TYPES, **(contract.config.extra_media_type_deserializers or {})}
+    config = replace(
+        contract.config, spec_validator_cls=None, extra_media_type_deserializers=deserializers
+    )
+    return OpenAPI(spec, config=config)
+
+
+# The contracts resolved once, by the contract they come from: a session reads it once.
+RESOLVED: WeakKeyDictionary[OpenAPI, OpenAPI] = WeakKeyDictionary()
+
+
 class ContractClient:
     """A client of the application whose every answer is checked against the contract."""
 
     def __init__(self, client: TestClient, contract: OpenAPI) -> None:
         self.client = client
-        self.contract = contract
+        if contract not in RESOLVED:
+            RESOLVED[contract] = resolved_once(contract)
+        self.contract = RESOLVED[contract]
 
     def request(self, method: str, path: str, **kwargs: Any) -> Response:
         """Send the request; fail if the answer is not the one the contract describes."""
