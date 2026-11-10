@@ -1226,7 +1226,8 @@ NodeTotals:
     `base_amount`, inflation included for the budgeted and re-estimated amounts (WF-DEV-0020,
     WF-DEV-0050). `budgeted_amount` sums the budgeted amounts of the retained lines, provision
     lines included: it is not the reference budget, reduced by the provisions according to
-    WF-RIS-0050.
+    WF-RIS-0050. Under a filter of the line, `task_count` is 0: the tasks that bear the retained
+    lines are not counted (#2699).
   properties:
     task_count: { type: integer, minimum: 0 }
     estimate_line_count: { type: integer, minimum: 0 }

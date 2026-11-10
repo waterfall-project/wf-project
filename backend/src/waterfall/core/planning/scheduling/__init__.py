@@ -21,6 +21,9 @@ from waterfall.core.planning.scheduling.calendar import (
 from waterfall.core.planning.scheduling.calendar import (
     applicable_calendar as applicable_calendar,
 )
+from waterfall.core.planning.scheduling.calendar import (
+    weekly_calendar as weekly_calendar,
+)
 
 # ``engine``: the calculation of a structure.
 from waterfall.core.planning.scheduling.engine import (

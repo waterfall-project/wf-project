@@ -374,6 +374,27 @@ def test_the_check_on_the_kind_of_a_structure_is_restored_when_the_body_that_lif
     assert refusal(database.engine, differential) == kind
 
 
+def test_a_body_that_succeeds_leaving_a_structure_of_another_kind_fails_at_the_validation(
+    database: Database, owner: Engine, parents: Parents
+) -> None:
+    # A test of the tool that lifts the check, which covers no requirement (#2622). The body ends
+    # well but forgets its differential: the check comes back ``NOT VALID``, and its validation
+    # refuses the row left, failing the test; the check holds meanwhile for every row written.
+    kind = "ck_cost_structure_kind_known"
+    forgotten = insert_structure(parents.project, parents.revision, kind="amendment")
+    with (
+        pytest.raises(IntegrityError, match=kind),
+        lifted_kind_check(owner),
+        owner.begin() as connection,
+    ):
+        connection.execute(forgotten)
+    differential = insert_structure(parents.project, parents.revision, kind="amendment")
+    assert refusal(database.engine, differential) == kind
+    with owner.begin() as connection:
+        connection.execute(delete(CostStructure).where(CostStructure.kind == "amendment"))
+        connection.execute(text(f"ALTER TABLE cost_structure VALIDATE CONSTRAINT {kind}"))
+
+
 @pytest.mark.requirement("WF-DAT-0090-A")
 def test_every_named_constraint_of_the_projects_and_revisions_has_its_refusal_tried() -> None:
     # The unique indexes count, as the constraints do; what a key names — a revision with its

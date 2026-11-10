@@ -753,9 +753,11 @@ def test_the_filters_of_the_line_retain_lines_with_their_tasks_and_the_totals_fo
     ]
     assert len(labels("?subproject_id=unassigned")) == 5
     assert labels("?previous_quantity_min=0") == []
+    # The tasks that bear the lines retained are rendered for the tree alone, and not counted, as
+    # in ``nodes_estimate_filtered`` (``NodeTotals``, #2699).
     read = tree.read(f"?cost_category_id={costs.material}").json()
     assert read["totals"] == {
-        "task_count": 2,
+        "task_count": 0,
         "estimate_line_count": 2,
         "hours": "0",
         "base_amount": "470.00",

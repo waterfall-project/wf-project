@@ -18,8 +18,12 @@ from dataclasses import dataclass, field
 from datetime import date, timedelta
 from decimal import Decimal
 from fractions import Fraction
+from typing import TYPE_CHECKING
 
 from waterfall.core.planning.scheduling.units import HOURS_PER_ELAPSED_DAY, decimal_of
+
+if TYPE_CHECKING:
+    from collections.abc import Sequence
 
 DAYS_PER_WEEK = 7
 
@@ -113,6 +117,14 @@ class Calendar:
         """Return the hours of work from one instant to another, negative when it comes first."""
         return decimal_of(self.count(Moment.of(last)) - self.count(Moment.of(first)))
 
+    def worked(self, instant: WorkInstant) -> Fraction:
+        """Return the hours of work from the origin to an instant, exactly, as ``count`` does.
+
+        What the estimate spreads the load and the amount of a line by, on the calendar it is
+        worked on (EP-07, #2549): one count of the hours of work, the engine's.
+        """
+        return self.count(Moment.of(instant))
+
     def count(self, moment: Moment) -> Fraction:
         """Return the hours of work from the origin to a moment; hours past the day's are not.
 
@@ -162,3 +174,19 @@ def applicable_calendar(calendars: list[Calendar], default: Calendar) -> Calenda
     days = zip(*(calendar.week for calendar in calendars), strict=True)
     fewest = tuple(min(hours) for hours in days)
     return Calendar((fewest[0], fewest[1], fewest[2], fewest[3], fewest[4], fewest[5], fewest[6]))
+
+
+def weekly_calendar(hours: Sequence[Decimal]) -> Calendar:
+    """Return the calendar of the hours worked on each day of a week, Monday first.
+
+    Refuses, by ``ValueError``, a week that does not hold seven days of zero to twenty-four hours:
+    what the estimate reads of a calendar of the reference, or of the applicable calendar of a task,
+    to spread a line on (EP-07, #2549).
+    """
+    if len(hours) != DAYS_PER_WEEK:
+        message = f"a week has {DAYS_PER_WEEK} days, not {len(hours)}"
+        raise ValueError(message)
+    if any(not 0 <= day <= HOURS_PER_ELAPSED_DAY for day in hours):
+        message = f"a day holds from 0 to {HOURS_PER_ELAPSED_DAY} hours of work"
+        raise ValueError(message)
+    return Calendar((hours[0], hours[1], hours[2], hours[3], hours[4], hours[5], hours[6]))

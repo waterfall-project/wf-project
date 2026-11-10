@@ -47,7 +47,7 @@ from waterfall.core.planning.shaping import deleted
 from waterfall.core.planning.tables import Node, Task, TaskLink
 from waterfall.core.planning.tree import LINE, TASK, read_tree
 from waterfall.core.planning.views import NOT_STARTED
-from waterfall.core.planning.writing import facts_of, judge_revision
+from waterfall.core.planning.writing import facts_of, hold_before_lock, judge_revision
 from waterfall.core.revisions.interface import write_structure
 
 if TYPE_CHECKING:
@@ -350,6 +350,8 @@ def load_line_nodes(
     """
     project_id = place.project_id
     judge_revision(session, project_id, place.revision_id)
+    # It writes lines: the locks in the order of every such write, the natures first (#2615).
+    hold_before_lock(session)
     facts = facts_of(session, place, lock=True)
     tree = read_tree(session, project_id, place.structure_id)
     tasks = {tree.nodes[each].lineage_id: each for each in tree.tasks}

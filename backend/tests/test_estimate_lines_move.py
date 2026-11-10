@@ -15,7 +15,7 @@ US-1490/L4 ("Les tests du back").
 """
 
 from datetime import date, timedelta
-from decimal import ROUND_HALF_EVEN, Decimal
+from decimal import ROUND_HALF_UP, Decimal
 from typing import TYPE_CHECKING, Any
 from uuid import UUID
 
@@ -290,9 +290,7 @@ def test_a_line_moved_to_a_task_two_years_later_is_priced_on_it_and_given_back(
     assert line["estimate_line"]["reestimated_amount"] == "650.00"
     body = moved(tree, [line], later["node_id"])
     [written] = body["nodes"]
-    expected = (Decimal("650.00") * Decimal("1.03") * Decimal("1.03")).quantize(
-        CENT, ROUND_HALF_EVEN
-    )
+    expected = (Decimal("650.00") * Decimal("1.03") * Decimal("1.03")).quantize(CENT, ROUND_HALF_UP)
     assert written["parent_id"] == later["node_id"]
     assert (
         written["estimate_line"]["base_amount"],

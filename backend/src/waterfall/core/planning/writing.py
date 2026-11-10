@@ -10,7 +10,10 @@ other than the writer's own — the application of an import — writes in the p
 It then opens its entry of the history (``history.recording``), which
 locks the stack of its writer, and only then locks its structure (``cost_structure`` ``FOR
 UPDATE``) and reads the tree under that lock: the locks come in one order — the revision, the
-stack, the structure — whatever the write, an undoing included.
+stack, the structure — whatever the write, an undoing included. Before them all, the facets of the
+other kinds take what they must hold first (``FacetHooks.before_lock``): the estimate shares the
+lock of the natures of cost, which a change of a nature takes before the structures it prices again
+(#2615).
 
 Under the lock, the write hands the history the nodes it touches as they are (``snapshot``),
 writes, replays the engine on the whole structure and keeps what it computes (``dating``), moves
@@ -28,6 +31,7 @@ from typing import TYPE_CHECKING
 from waterfall.core.history import interface as history
 from waterfall.core.history.interface import RecordedChange, Recording, UndoStack
 from waterfall.core.planning.dating import conflicts_of
+from waterfall.core.planning.interface.facets import facets
 from waterfall.core.planning.rescheduling import Blamed, Holding, replayed
 from waterfall.core.planning.snapshotting import taken
 from waterfall.core.planning.tree import read_links, read_tree
@@ -311,6 +315,17 @@ class Redated:
         return InflationView(node_id, own.budgeted, own.reestimated, own.consumption_year)
 
 
+def hold_before_lock(session: Session) -> None:
+    """Take what the facets of the other kinds hold before the lock of a structure (#2615).
+
+    Taken by every write of the tree, not only by those of a line: the lock is shared, so cheap
+    when nothing changes a nature, and a single order of locks (the natures, then the structure)
+    leaves no write to guess whether it may reach a line — a deletion of a task does.
+    """
+    for hooks in facets().values():
+        hooks.before_lock(session)
+
+
 @contextmanager
 def writing(
     session: Session, place: Place, writer: Writer, change: tuple[UndoneKind, tuple[UUID, ...]]
@@ -318,9 +333,11 @@ def writing(
     """Frame a write of the tree: judged, recorded, under the lock of its structure.
 
     The structure named is read first (404), the revision judged under its lock (409), the entry
-    of the history opened, then the structure locked and its tree read. The block hands the
+    of the history opened, then the structure locked and its tree read; what the facets hold
+    before the structure is taken first (``FacetHooks.before_lock``, #2615). The block hands the
     snapshots (``Write.before``, ``Write.after``); a block that raises keeps nothing.
     """
+    hold_before_lock(session)
     facts_of(session, place, lock=False)
     judge_revision(session, place.project_id, place.revision_id, writer.running)
     with _recorded(session, place, writer, change) as frame:

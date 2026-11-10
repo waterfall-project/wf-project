@@ -3,15 +3,16 @@
 """The amount of an estimate line and its projection onto the years it is consumed (US-1490/L2).
 
 Pure: numbers in, numbers out, without a database, a setting or a clock. Every amount is a
-``Decimal`` rounded to the cent once, half to even, so that a sum of amounts does not depend on
-the order it is made in (WF-DAT-0100); a share is never rounded before it is summed.
+``Decimal`` rounded to the cent once, half away from zero as ``Money`` of the contract says (#2618),
+so that a sum of amounts does not depend on the order it is made in (WF-DAT-0100); a share is never
+rounded before it is summed.
 
 The re-estimated amount starts from the unrounded products, not from the rounded base amount: it
 may therefore differ by one cent from the rounded base amount times the inflation factor.
 """
 
 from dataclasses import dataclass
-from decimal import ROUND_HALF_EVEN, Decimal, localcontext
+from decimal import ROUND_HALF_UP, Decimal, localcontext
 from enum import StrEnum
 from typing import TYPE_CHECKING
 
@@ -45,10 +46,14 @@ class Share:
 
 
 def round_to_cent(value: Decimal) -> Decimal:
-    """Round to the cent, half to even: the only rounding of an amount."""
+    """Round to the cent, half away from zero: the only rounding of an amount.
+
+    ``Money`` of the contract rounds so, and the generator of the witness with it (#2618): 75.705
+    gives 75.71.
+    """
     with localcontext() as context:
         context.prec = _PRECISION
-        return value.quantize(CENT, rounding=ROUND_HALF_EVEN)
+        return value.quantize(CENT, rounding=ROUND_HALF_UP)
 
 
 def labour_base_amount(quantity: Decimal, effort: Decimal, hourly_rate: Decimal) -> Decimal:

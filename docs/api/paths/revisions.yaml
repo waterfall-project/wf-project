@@ -1239,6 +1239,11 @@
     tags: [revisions]
     summary: Create a task or an estimate line
     description: >-
+      Asked for by a contributor who holds one at least of `planning.write`, `estimate.write`
+      and `remaining.write`, the permissions of the three grids that make this write alike, a
+      task's as a line's (`StructureCommand`, WF-DEV-0050); refused otherwise with 403
+      `PERMISSION_MISSING`, `params.missing_permission` naming `planning.write`, the first of
+      them (#2601).
       Refused on a marked revision (WF-DAT-0020) — every revision of a terminal project is one
       (WF-CYC-0100) — with 409, like any write of the revision. The same write from the
       three grids: the phase of the project refuses nothing here, it is the
@@ -1450,6 +1455,11 @@
     tags: [revisions]
     summary: Delete a node
     description: >-
+      Asked for by a contributor who holds one at least of `planning.write`, `estimate.write`
+      and `remaining.write`, the permissions of the three grids that make this write alike, a
+      task's as a line's (`StructureCommand`, WF-DEV-0050); refused otherwise with 403
+      `PERMISSION_MISSING`, `params.missing_permission` naming `planning.write`, the first of
+      them (#2601).
       The deletion of a task takes its lines and its links with it (WF-PLA-0070, WF-DAT-0090);
       that of a summary task also takes its subordinates, their lines and their links, and the
       estimate decreases by as much (Vérif of WF-PLA-0070). "A started or completed task
@@ -2190,6 +2200,11 @@
     tags: [revisions]
     summary: Move nodes in the tree
     description: >-
+      Asked for by a contributor who holds one at least of `planning.write`, `estimate.write`
+      and `remaining.write`, the permissions of the three grids that make this write alike, a
+      task's as a line's (`StructureCommand`, WF-DEV-0050); refused otherwise with 403
+      `PERMISSION_MISSING`, `params.missing_permission` naming `planning.write`, the first of
+      them (#2601).
       Moving a line, or the task above it, changes its carrying task, which
       is resolved on read (§3.5.1). The resulting hierarchy remains that of a tree of
       tasks and summary tasks (WF-PLA-0040). A move changes the structure of
@@ -2321,6 +2336,11 @@
     tags: [revisions]
     summary: Preview of a paste from a spreadsheet
     description: >-
+      Asked for by a contributor who holds one at least of `planning.write`, `estimate.write`
+      and `remaining.write`, the permissions of the three grids that make this write alike, a
+      task's as a line's (`StructureCommand`, WF-DEV-0050); refused otherwise with 403
+      `PERMISSION_MISSING`, `params.missing_permission` naming `planning.write`, the first of
+      them (#2601).
       States what will be written and what will be refused, with the reason for each refusal;
       nothing is written at this stage (WF-IHM-0050). Once confirmed, the paste will write the
       accepted lines and not the refused lines (`applyPaste`). The block fills, starting from
@@ -2408,6 +2428,11 @@
     tags: [revisions]
     summary: Apply a paste
     description: >-
+      Asked for by a contributor who holds one at least of `planning.write`, `estimate.write`
+      and `remaining.write`, the permissions of the three grids that make this write alike, a
+      task's as a line's (`StructureCommand`, WF-DEV-0050); refused otherwise with 403
+      `PERMISSION_MISSING`, `params.missing_permission` naming `planning.write`, the first of
+      them (#2601).
       The valid lines of the plan are written in a single operation, and the refused lines are
       not; an abandoned paste leaves the grid unchanged (WF-IHM-0050; EP-14/L42q). Carries
       the counter of the structure, refused with 412 if it is stale; the plan also retains the

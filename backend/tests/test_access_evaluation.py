@@ -532,12 +532,18 @@ BY_COMMAND = {"requestExport"}
 
 
 def asked(route: APIRoute) -> tuple[str, ...]:
-    """Give the permissions a route asks for, by its dependencies, on a project or not."""
+    """Give the permissions a route asks for, by its dependencies, on a project or not.
+
+    Those one at least of which it asks for (``RequiresProject.one_of``) follow, in their order.
+    """
     return tuple(
         permission
         for depends in route.dependencies
         if isinstance(depends.dependency, Requires | RequiresProject)
-        for permission in depends.dependency.permissions
+        for permission in (
+            *depends.dependency.permissions,
+            *getattr(depends.dependency, "one_of", ()),
+        )
     )
 
 
@@ -548,7 +554,8 @@ def on_project(route: APIRoute) -> str | None:
         if isinstance(guard, RequiresProject):
             if guard.manager:
                 return "project_manager"
-            writes = any(not CONSULTATION[permission] for permission in guard.permissions)
+            held = (*guard.permissions, *guard.one_of)
+            writes = any(not CONSULTATION[permission] for permission in held)
             return "contributor" if writes else "consultation"
     return None
 

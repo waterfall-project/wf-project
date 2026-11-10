@@ -429,11 +429,20 @@ from waterfall.core.planning.reading import (
 from waterfall.core.planning.rescheduling import (
     Holding as Holding,
 )
+
+# Beside the interface (US-1570/L5, #2549): a calendar of a week and its count of the hours of work,
+# which the estimate spreads a line on.
+from waterfall.core.planning.scheduling import (
+    Calendar as Calendar,
+)
 from waterfall.core.planning.scheduling import (
     Duration as Duration,
 )
 from waterfall.core.planning.scheduling import (
     WorkInstant as WorkInstant,
+)
+from waterfall.core.planning.scheduling import (
+    weekly_calendar as weekly_calendar,
 )
 from waterfall.core.planning.views import (
     ConflictView as ConflictView,

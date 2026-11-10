@@ -27,7 +27,8 @@ from nodes_support import Tree, opened, refusal, set_progress
 from project_rows import STAMP
 from projects_support import PROJECTS, Scene, create
 from projects_support import scene as make_scene
-from sqlalchemy import insert, select, update
+from sqlalchemy import delete, insert, select, update
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from waterfall.core.cost_settings.interface import (
@@ -36,7 +37,8 @@ from waterfall.core.cost_settings.interface import (
     create_cost_category,
     create_cost_type,
 )
-from waterfall.core.cost_settings.tables import CostType
+from waterfall.core.cost_settings.tables import CostCategory, CostType
+from waterfall.core.estimate.tables import EstimateLine, RevisionCategory
 from waterfall.core.planning.tables import TrackingEntry
 from waterfall.core.projects.tables import Project
 from waterfall.core.revisions.interface import mark_revision
@@ -460,6 +462,30 @@ def test_the_revisions_are_read_on_the_natures_they_kept(
     found = compared(api, stage, revisions(pair))
     assert ("cost_type", "Matériel") in deltas(found)
     assert ("cost_type", "Fournitures") not in deltas(found)
+
+
+@pytest.mark.requirement(REQUIREMENT)
+def test_a_category_a_line_bears_lacks_never_both_its_image_and_the_reference(
+    api: ContractClient, stage: Scene, costs: Costing, pair: Pair
+) -> None:
+    # #2656, established: a category a line of a marked revision bears is never missing from both
+    # its images and the reference, so ``natures_of`` always finds it. The marking images every
+    # category the lines employ, and the images of a marked revision are never written again (a
+    # trigger refuses it); a revision marked before US-1500 kept none, and is read on the
+    # reference, where the line holds its category by a key that restricts its deletion
+    # (``estimate_line``, ``ON DELETE RESTRICT``, never null) — the reference never deletes a
+    # category, it deactivates it (WF-DAT-0080). The comparison names the nature: no ``KeyError``.
+    with stage.database.transaction() as session:
+        bearing = set(session.scalars(select(EstimateLine.cost_category_id)))
+        imaged = set(session.scalars(select(RevisionCategory.cost_category_id)))
+    assert costs.material in bearing <= imaged
+    with pytest.raises(IntegrityError, match="marked revision"), stage.owner.begin() as connection:
+        connection.execute(delete(RevisionCategory))
+    for category in bearing:
+        with pytest.raises(IntegrityError), stage.owner.begin() as connection:
+            connection.execute(delete(CostCategory).where(CostCategory.id == category))
+    found = compared(api, stage, revisions(pair))
+    assert ("cost_type", "Matériel") in deltas(found)
 
 
 @pytest.mark.requirement(REQUIREMENT)

@@ -18,7 +18,7 @@ from concurrent.futures import ThreadPoolExecutor
 from concurrent.futures import TimeoutError as FutureTimeout
 from dataclasses import dataclass
 from datetime import date
-from decimal import Decimal
+from decimal import ROUND_HALF_UP, Decimal
 from typing import TYPE_CHECKING, Any
 from uuid import UUID, uuid4
 
@@ -485,7 +485,8 @@ def test_a_new_rate_of_inflation_prices_the_current_revision_again_and_no_marked
     before = amounts(offer.tree)
     set_project(api, stage, inflation_rate="0.03")
     after = amounts(offer.tree)
-    projected = (Decimal("650.00") * Decimal("1.0609")).quantize(Decimal("0.01"))
+    # 689.585, a half cent away from zero as ``Money`` says (#2618).
+    projected = (Decimal("650.00") * Decimal("1.0609")).quantize(Decimal("0.01"), ROUND_HALF_UP)
     assert Decimal(after[future["node_id"]][2]) == projected
     assert after[future["node_id"]][0] == "650.00"
     assert after[offer.engineering["node_id"]] == before[offer.engineering["node_id"]]
