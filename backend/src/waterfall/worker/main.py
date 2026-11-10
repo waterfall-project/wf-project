@@ -178,6 +178,11 @@ def _stored(database: Database, bucket: Bucket, now: datetime) -> exchanges_inte
     lock (#2533). The rows are purged all the same: what the storage keeps, the next pass sweeps.
     """
     try:
+        # This transaction stays open during the whole pagination of the storage. That is harmless:
+        # it only reads, takes no lock, and the rows are read again under the lock in the purge.
+        # It would matter if the listing began to write or to lock, or if a pagination took longer
+        # than the idle-transaction timeout of the database: the listing would then be cut in
+        # pages, one transaction each.
         with database.transaction() as session:
             return exchanges_interface.stored_before(bucket, now, session)
     except UnavailableError:
