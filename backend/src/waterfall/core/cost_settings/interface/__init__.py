@@ -17,12 +17,6 @@ from waterfall.core.cost_settings.employment import (
     register_employment as register_employment,
 )
 
-# ``records`` (US-1570/L5, #2615): the lock of the natures, which a write of a line of estimate
-# shares before it locks its structure, in the order the rechiffrage takes them.
-from waterfall.core.cost_settings.records import (
-    share_natures as share_natures,
-)
-
 # ``actual_cost_mapping`` (US-0870): the mapping of the extraction of the actual costs.
 from waterfall.core.cost_settings.interface.actual_cost_mapping import (
     DUPLICATE_COLUMN_LABEL as DUPLICATE_COLUMN_LABEL,
@@ -230,4 +224,10 @@ from waterfall.core.cost_settings.interface.reference_settings import (
 )
 from waterfall.core.cost_settings.interface.reference_settings import (
     write_reference_settings as write_reference_settings,
+)
+
+# ``records`` (US-1570/L5, #2615): the lock of the natures, which a write of a line of estimate
+# shares before it locks its structure, in the order the rechiffrage takes them.
+from waterfall.core.cost_settings.records import (
+    share_natures as share_natures,
 )

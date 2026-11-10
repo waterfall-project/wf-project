@@ -21,7 +21,7 @@ from waterfall.core.planning.interface import WorkInstant
 if TYPE_CHECKING:
     from collections.abc import Callable, Iterator
 
-    from waterfall.core.estimate.spreading.week import WorkWeek
+    from waterfall.core.planning.interface import Calendar
 
 MONTHS_PER_YEAR = 12
 EXACT = Context(prec=34, rounding=ROUND_HALF_EVEN)
@@ -43,7 +43,7 @@ class Month:
 class Placement:
     """A task as a line sees it: the calendar it is worked on, and its start and finish."""
 
-    week: WorkWeek
+    week: Calendar
     start: WorkInstant
     finish: WorkInstant
 
@@ -115,13 +115,13 @@ def _spread[K](
             return {key(as_of): amount}
         start = max(start, cut)
     week = placement.week
-    total = week.worked_between(start, finish)
+    total = week.worked(finish) - week.worked(start)
     if total == 0:
         # No hour worked: the whole falls where the task ends (a milestone: where it stands).
         return {key(finish.day): amount}
     firsts = list(starts(start.day, finish.day))
-    edges = [week.count(min(max(WorkInstant(first), start), finish)) for first in firsts]
-    edges.append(week.count(finish))
+    edges = [week.worked(min(max(WorkInstant(first), start), finish)) for first in firsts]
+    edges.append(week.worked(finish))
     hours = [(key(first), edges[i + 1] - edges[i]) for i, first in enumerate(firsts)]
     return _shares(amount, total, [(period, worked) for period, worked in hours if worked > 0])
 

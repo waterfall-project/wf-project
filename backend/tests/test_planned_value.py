@@ -17,9 +17,9 @@ import pytest
 from sqlalchemy import update
 from workload_support import NOVEMBER, Site, make_site
 
-from waterfall.core.estimate.spreading import Placement, PlannedLine, WorkWeek, planned_value
+from waterfall.core.estimate.spreading import Placement, PlannedLine, planned_value
 from waterfall.core.estimate.tables import EstimateLine
-from waterfall.core.planning.interface import WorkInstant
+from waterfall.core.planning.interface import WorkInstant, weekly_calendar
 from waterfall.platform.errors import UnprocessableError
 
 if TYPE_CHECKING:
@@ -31,7 +31,7 @@ if TYPE_CHECKING:
 
 EIGHT = Decimal(8)
 ZERO = Decimal(0)
-EIGHT_HOURS = WorkWeek((EIGHT, EIGHT, EIGHT, EIGHT, EIGHT, ZERO, ZERO))
+EIGHT_HOURS = weekly_calendar((EIGHT, EIGHT, EIGHT, EIGHT, EIGHT, ZERO, ZERO))
 
 
 def line(amount: int, start: date, finish: date) -> PlannedLine:

@@ -103,8 +103,14 @@ def test_a_write_of_a_line_waits_for_a_change_of_a_nature_before_it_locks_its_st
             return lines.create(task, **material(costs, label="Borniers"))
         if write == "change":
             return lines.change(node, quantity="2")
-        sent = {"node_ids": [node["node_id"]], "parent_id": other["node_id"], "lock_version": counter}
-        return tree.api.post(f"{tree.path}/nodes/move", headers=tree.stage.manager.headers, json=sent)
+        sent = {
+            "node_ids": [node["node_id"]],
+            "parent_id": other["node_id"],
+            "lock_version": counter,
+        }
+        return tree.api.post(
+            f"{tree.path}/nodes/move", headers=tree.stage.manager.headers, json=sent
+        )
 
     with ThreadPoolExecutor(max_workers=1) as pool, stage.owner.begin() as connection:
         holder = natures_locked(connection)

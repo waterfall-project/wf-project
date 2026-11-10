@@ -14,19 +14,18 @@ import pytest
 from waterfall.core.estimate.spreading import (
     Month,
     Placement,
-    WorkWeek,
     spread_by_month,
     spread_by_year,
 )
-from waterfall.core.planning.interface import WorkInstant
+from waterfall.core.planning.interface import Calendar, WorkInstant, weekly_calendar
 
 EIGHT = Decimal(8)
 ZERO = Decimal(0)
-EIGHT_HOURS = WorkWeek((EIGHT, EIGHT, EIGHT, EIGHT, EIGHT, ZERO, ZERO))
-THREE_DAYS = WorkWeek((EIGHT, EIGHT, EIGHT, ZERO, ZERO, ZERO, ZERO))
+EIGHT_HOURS = weekly_calendar((EIGHT, EIGHT, EIGHT, EIGHT, EIGHT, ZERO, ZERO))
+THREE_DAYS = weekly_calendar((EIGHT, EIGHT, EIGHT, ZERO, ZERO, ZERO, ZERO))
 
 
-def task(start: date, finish: date, week: WorkWeek = EIGHT_HOURS) -> Placement:
+def task(start: date, finish: date, week: Calendar = EIGHT_HOURS) -> Placement:
     """Return a task from the first hour of its first day to the end of the work of its last."""
     return Placement(week, WorkInstant(start), WorkInstant(finish, EIGHT))
 
@@ -146,7 +145,7 @@ def test_the_hours_of_a_long_task_are_counted_by_weeks_whatever_its_length() -> 
     weeks = 260_000
     first = WorkInstant(monday)
     last = WorkInstant(monday + timedelta(days=7 * weeks - 1), EIGHT)
-    assert EIGHT_HOURS.worked_between(first, last) == 40 * weeks
+    assert EIGHT_HOURS.worked(last) - EIGHT_HOURS.worked(first) == 40 * weeks
     spread = spread_by_year(Placement(EIGHT_HOURS, first, last), Decimal(1000))
     assert sum(spread.values()) == 1000
     assert len(spread) == last.day.year - first.day.year + 1
@@ -156,16 +155,16 @@ def test_the_hours_of_a_long_task_are_counted_by_weeks_whatever_its_length() -> 
 def test_an_instant_past_the_hours_of_its_day_counts_the_whole_day() -> None:
     saturday = WorkInstant(date(2026, 3, 7), Decimal(5))
     monday = WorkInstant(date(2026, 3, 2))
-    assert EIGHT_HOURS.worked_between(monday, saturday) == 40
+    assert EIGHT_HOURS.worked(saturday) - EIGHT_HOURS.worked(monday) == 40
     assert EIGHT_HOURS.weekly == 40
 
 
 @pytest.mark.requirement("WF-DEV-0040-A")
 def test_a_week_of_six_days_or_of_a_day_over_twenty_four_hours_is_refused() -> None:
     with pytest.raises(ValueError, match="7 days"):
-        WorkWeek((EIGHT,) * 6)
+        weekly_calendar((EIGHT,) * 6)
     with pytest.raises(ValueError, match="24 hours"):
-        WorkWeek((Decimal(25), ZERO, ZERO, ZERO, ZERO, ZERO, ZERO))
+        weekly_calendar((Decimal(25), ZERO, ZERO, ZERO, ZERO, ZERO, ZERO))
 
 
 @pytest.mark.requirement("WF-DEV-0040-A")

@@ -74,8 +74,9 @@ class RequiresProject:
     caller's quality are read in a transaction of their own, as the caller is; a route that writes
     decides on the state of the project under its own lock. ``manager`` reserves the operation to
     the project managers of the project (WF-PRJ-0060). ``one_of`` asks, after ``permissions``, for
-    one at least of its own, a write of the tree that the three grids make alike (``StructureCommand``,
-    #2601): the first the caller holds is judged, the first of all named when it holds none.
+    one at least of its own, a write of the tree that the three grids make alike
+    (``StructureCommand``, #2601): the first the caller holds is judged, the first of all named
+    when it holds none.
     """
 
     __slots__ = ("manager", "one_of", "permissions")
