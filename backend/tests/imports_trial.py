@@ -62,7 +62,7 @@ class TrialFormat:
     ``condition`` a condition of the kind the import lacks (409); ``analysis`` and ``application``
     what their step does besides: ``None``, nothing; ``refuse``, a refusal; ``break``, an error;
     ``stop``, the worker stopped once its writes are done (``application`` alone). ``preparation``
-    ``refuse`` refuses the file as unreadable (422).
+    ``refuse`` refuses the file as unreadable (422), ``break`` breaks on it (``ValueError``).
     """
 
     scope: ImportScope = "structure"
@@ -125,6 +125,9 @@ class TrialFormat:
         if self.preparation == "refuse":
             expected = {"expected_format": "remaining", "expected_version": "1"}
             raise UnprocessableError(UNREADABLE, expected)
+        if self.preparation == "break":
+            msg = "the preparation breaks"
+            raise ValueError(msg)
         return labels_of(content)
 
     def apply(

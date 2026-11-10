@@ -31,7 +31,7 @@ from test_msproject_import import Timing, link, links, planning, task
 from waterfall.api.app import create_app
 from waterfall.api.authentication import Services
 from waterfall.core.cost_settings.interface import read_reference_settings
-from waterfall.core.planning import exporting
+from waterfall.core.planning import exporting, importing
 from waterfall.core.planning.msproject import read_project
 from waterfall.core.planning.tree import read_tree
 from waterfall.core.projects.tables import Project
@@ -605,3 +605,28 @@ def test_a_link_created_while_the_planning_is_exported_is_not_read_and_the_expor
     assert len(exported_project.tasks) == len(read_project(the_planning()).project.tasks)
     again = read_project(exported(api, stage, worker, revision["revision_id"])).project
     assert len(again.tasks) == len(exported_project.tasks) + 1
+
+
+def test_a_link_created_while_the_planning_is_analysed_is_not_read_and_the_analysis_succeeds(
+    api: ContractClient, stage: Scene, worker: Worker, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # The analysis reads in a transaction frozen at its first read (#2679), as the export does: a
+    # task and a link from it, committed between the reading of the tree and that of the links,
+    # are not read — the link would name a task the tree read has not.
+    revision = opened(api, stage)
+    revision_id = UUID(revision["revision_id"])
+    import_file(api, stage, worker, the_planning(), apply=True)
+    successor = nodes(stage)[-1][0].id
+    reading = importing.read_links
+
+    def meanwhile(session: Session, project_id: UUID, structure_id: UUID) -> list[TaskLink]:
+        with stage.database.engine.begin() as connection:
+            created = give_a_task(connection, revision_id)
+            connection.execute(
+                insert_link(project_id, revision_id, structure_id, created, successor)
+            )
+        return reading(session, project_id, structure_id)
+
+    monkeypatch.setattr(importing, "read_links", meanwhile)
+    found = import_file(api, stage, worker, the_planning(), apply=False)
+    assert found["status"] == "analysed"

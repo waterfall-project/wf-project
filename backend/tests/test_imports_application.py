@@ -540,6 +540,26 @@ def test_a_file_refused_at_the_preparation_of_an_import_refused_again_leaves_it_
     assert read(api, stage, found["import_id"])["status"] == "refused"
 
 
+def test_a_preparation_that_breaks_waits_for_the_import_judged_again_then_fails_it(
+    api: ContractClient, stage: Scene, worker: Worker, trial: TrialFormat
+) -> None:
+    # Whatever the preparation raises waits for the judgment: an error that is not a refusal of the
+    # file, on a project turned terminal meanwhile, leaves the import refused as before (#2582);
+    # on a project that stands, it fails the import.
+    standing = analysed(api, stage, worker)
+    assert apply(api, stage, standing["import_id"]).status_code == 202
+    trial.preparation = "break"
+    run(worker)
+    assert read(api, stage, standing["import_id"])["status"] == "failed"
+    trial.preparation = None
+    found = analysed(api, stage, worker)
+    assert apply(api, stage, found["import_id"]).status_code == 202
+    put_in_state(stage.owner, stage.project["project_id"], "lost")
+    trial.preparation = "break"
+    run(worker)
+    assert read(api, stage, found["import_id"])["status"] == "refused"
+
+
 @pytest.mark.usefixtures("trial")
 def test_two_applications_of_one_import_at_once_give_one_task(
     api: ContractClient, stage: Scene, worker: Worker, database: Database

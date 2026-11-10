@@ -111,10 +111,13 @@ def analyse(
 
     An import that no longer awaits this analysis — abandoned meanwhile, or of a later task — is
     left as it stands, nothing written. The format reads in a transaction of its own, frozen at its
-    first read: the structure, its tree and its links as they stood together (#2679). The report is
-    written under the lock of the import, read again under it: an abandonment that came during the
-    analysis wins. An analysis that fails — the file gone, the format refusing or breaking — fails
-    the import, its file deleted.
+    first read: the structure, its tree and its links as they stood together (#2679). What is read
+    before the block — the row of the import, its revision and structure aimed at — is the import's
+    own, not the project's: it is read in the session of the task, which the block cannot see, to
+    decide whether to analyse at all, and the format reads the project only inside the block. The
+    report is written under the lock of the import, read again under it: an abandonment that came
+    during the analysis wins. An analysis that fails — the file gone, the format refusing or
+    breaking — fails the import, its file deleted.
     """
     import_id = UUID(task.payload[IMPORT_KEY])
     row = session.get(ImportReport, import_id)
@@ -202,30 +205,42 @@ def apply(
     return None
 
 
+class _BrokenError(Exception):
+    """An error of the preparation on its way to be held, never raised out of the module."""
+
+    def __init__(self, error: Exception) -> None:
+        super().__init__(str(error))
+        self.error = error
+
+
 @dataclass(frozen=True, slots=True)
 class _Prepared:
-    """The model a format read a file into, or the refusal of the file it read instead."""
+    """The model a format read a file into, or the error it raised instead."""
 
     read: Any
-    refusal: ServiceError | None
+    error: Exception | None
 
     @classmethod
     def of(cls, form: Format[Any], content: bytes) -> _Prepared:
-        """Have a format read a file, holding no lock; keep its refusal for the application.
+        """Have a format read a file, holding no lock; keep its error for the application.
 
-        A file the format refuses (``FILE_FORMAT_UNREADABLE``) fails the import where applying it
-        failed it before the preparation: once the import is judged again, which may refuse it.
-        A format that breaks fails it at once, as the reading of the file from the storage does.
+        Whatever the preparation raises — a refusal (``FILE_FORMAT_UNREADABLE``) or a break —
+        waits for the import to be judged again, as when applying read the file under the locks
+        (#2582): the project turned terminal refuses the import, else the error fails it. Only
+        the reading of the file from the storage fails the import at once.
         """
         try:
-            return cls(form.prepare(content), None)
-        except ServiceError as refusal:
-            return cls(None, refusal)
+            try:
+                return cls(form.prepare(content), None)
+            except Exception as error:
+                raise _BrokenError(error) from error
+        except _BrokenError as broken:
+            return cls(None, broken.error)
 
     def model(self) -> Any:
-        """Give the model read, or raise again the refusal of the file."""
-        if self.refusal is not None:
-            raise self.refusal
+        """Give the model read, or raise again the error of the preparation."""
+        if self.error is not None:
+            raise self.error
         return self.read
 
 
