@@ -58,6 +58,7 @@ from waterfall.api.queries import read_list, refuse_query
 from waterfall.core.access_roles.interface import PERMISSION_MISSING
 from waterfall.core.estimate.interface import LineEntry, LineFilters, LineView
 from waterfall.core.planning.interface import (
+    ENTRIES,
     Amounts,
     ConflictView,
     Duration,
@@ -93,9 +94,6 @@ router = APIRouter(tags=["revisions"])
 
 CONSULT = "planning.read"
 CHANGE = "planning.write"
-# The permissions of the three grids, one of which a write they make alike asks for (#2601), in the
-# order of ``StructureCommand``: the first named when the caller holds none.
-ENTRIES = ("planning.write", "estimate.write", "remaining.write")
 STRUCTURE = "/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}"
 VALIDATION_FAILED = "VALIDATION_FAILED"
 NUMBER_INVALID = "NUMBER_INVALID"

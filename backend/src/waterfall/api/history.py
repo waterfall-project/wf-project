@@ -26,8 +26,9 @@ from fastapi import APIRouter, Depends
 from waterfall.api.authentication import Transaction
 from waterfall.api.contract.models import PasteApply, PastePreview
 from waterfall.api.evaluation import Acting, RequiresProject
-from waterfall.api.nodes import ENTRIES, STRUCTURE, Placed, Writing, written_of
+from waterfall.api.nodes import STRUCTURE, Placed, Writing, written_of
 from waterfall.core.planning.interface import (
+    ENTRIES,
     PasteBlock,
     PasteConfirmation,
     PasteRefusal,

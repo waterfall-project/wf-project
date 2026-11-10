@@ -43,7 +43,14 @@ from typing import TYPE_CHECKING
 
 from waterfall.core.history import interface as history
 from waterfall.core.history.interface import UndoStack
-from waterfall.core.planning.entries import ONE_DAY
+from waterfall.core.planning.entries import (
+    ENTRIES,
+    ESTIMATE_WRITE,
+    ONE_DAY,
+    PERMISSION_MISSING,
+    PLANNING_WRITE,
+    REMAINING_WRITE,
+)
 from waterfall.core.planning.restoring import bring_back, read_objects, structure_of
 from waterfall.core.planning.snapshotting import taken
 from waterfall.core.planning.writing import Place, facts_of, hold_before_lock, judge_revision
@@ -59,14 +66,7 @@ if TYPE_CHECKING:
     from waterfall.core.planning.writing import NodesWritten, Writer
     from waterfall.core.revisions.interface import StructureFacts
 
-PERMISSION_MISSING = "PERMISSION_MISSING"
 SESSION_ID_MISSING = "SESSION_ID_MISSING"
-PLANNING_WRITE = "planning.write"
-ESTIMATE_WRITE = "estimate.write"
-REMAINING_WRITE = "remaining.write"
-# The permissions of the three grids, in the order of ``StructureCommand``: a write of the tree
-# they make alike asks for one at least of them (#2601), the first named when none is held.
-ENTRIES = (PLANNING_WRITE, ESTIMATE_WRITE, REMAINING_WRITE)
 # The permissions an entry of each kind asks for, one at least of them, beyond those it reads from
 # the nodes it wrote (``_asked``) and the planning's for the others (WF-ADM-0100): the state of a
 # task is an entry of the remaining to commit; a deletion and a move, writes of the three grids.

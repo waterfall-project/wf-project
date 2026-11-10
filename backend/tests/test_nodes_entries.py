@@ -368,3 +368,81 @@ def test_a_write_of_a_task_is_not_undone_nor_redone_without_planning_write(
     regrant(stage, who, "remaining.write")
     assert refusal(redo(tree, who)) == PLANNING_MISSING
     assert "Essais" not in labels(tree)
+
+
+@pytest.mark.requirement("WF-IHM-0110-A")
+@pytest.mark.requirement("WF-ADM-0100-A")
+def test_a_paste_of_lines_alone_is_undone_and_redone_under_estimate_write_alone(
+    stage: Scene, tree: Tree, costs: Costing, realm: TestRealm
+) -> None:
+    # A paste whose rows write lines only asks for one of the three grids at its undoing (#2774):
+    # the branch of ``_asked`` that reads the nodes the paste wrote.
+    who = contributor(stage, realm, "estimate.write")
+    task = tree.made("Câblage")
+    made = Lines(tree).made(task, quantity="1", resource_role_id=str(costs.role), hours="10")
+    line = made["nodes"][0]
+    plan = pasted(tree, line, "label", [["Câbles"]], who)
+    assert plan.status_code == 200, plan.text
+    assert apply(tree, plan.json(), who).status_code == 200
+    assert undone(tree, who)["undone"]["kind"] == "paste"
+    assert redone(tree, who)["undone"]["kind"] == "paste"
+
+
+@pytest.mark.requirement("WF-IHM-0110-A")
+@pytest.mark.requirement("WF-ADM-0100-A")
+def test_a_paste_that_wrote_a_cell_of_a_task_is_not_undone_under_estimate_write_alone(
+    stage: Scene, tree: Tree, realm: TestRealm
+) -> None:
+    # A paste that wrote the duration of a task, or created a task with a duration, was made under
+    # ``planning.write`` (#2775): its undoing asks for it, and nothing is undone (#2774).
+    who = contributor(stage, realm, "planning.write", "estimate.write")
+    task = tree.made("Câblage")
+    last = tree.made("Essais")
+    for target, column, rows in (
+        (task, "duration", [["3"]]),
+        (last, "label", [[""], ["Recette", "", "", "3"]]),
+    ):
+        plan = pasted(tree, target, column, rows, who)
+        assert plan.status_code == 200, plan.text
+        assert apply(tree, plan.json(), who).status_code == 200
+        regrant(stage, who, "estimate.write")
+        before = (counter(tree), tree.items())
+        assert refusal(undo(tree, who)) == PLANNING_MISSING
+        assert (counter(tree), tree.items()) == before
+        regrant(stage, who, "planning.write", "estimate.write")
+
+
+@pytest.mark.requirement("WF-IHM-0110-A")
+@pytest.mark.requirement("WF-ADM-0100-A")
+def test_a_task_created_with_its_default_values_is_undone_under_estimate_write_alone(
+    stage: Scene, tree: Tree, realm: TestRealm
+) -> None:
+    # A task is recognised by its values, not by the body that created it (#2774): created under
+    # ``planning.write`` with the mode it has by default, it is a task of its label alone.
+    who = contributor(stage, realm, "planning.write")
+    created = tree.create("Étude", who, task={"scheduling_mode": "automatic"})
+    assert created.status_code == 201, created.text
+    regrant(stage, who, "estimate.write")
+    assert undone(tree, who)["undone"]["kind"] == "node_create"
+    assert "Étude" not in labels(tree)
+    assert redone(tree, who)["undone"]["kind"] == "node_create"
+    assert "Étude" in labels(tree)
+
+
+@pytest.mark.requirement("WF-IHM-0110-A")
+@pytest.mark.requirement("WF-ADM-0100-A")
+def test_the_deletion_and_the_move_of_a_task_are_undone_under_estimate_write_alone(
+    stage: Scene, tree: Tree, realm: TestRealm
+) -> None:
+    # A deletion and a move are writes of the three grids (#2601): their undoing asks for one of
+    # them, a task or a line (#2774).
+    who = contributor(stage, realm, "estimate.write")
+    task = tree.made("Câblage")
+    other = tree.made("Essais")
+    parent = tree.made("Études")
+    assert move(tree, [tree.node(other["node_id"])], parent, who).status_code == 200
+    assert delete(tree, tree.node(task["node_id"]), who).status_code == 200
+    assert undone(tree, who)["undone"]["kind"] == "node_delete"
+    assert undone(tree, who)["undone"]["kind"] == "node_move"
+    assert tree.node(other["node_id"])["parent_id"] != parent["node_id"]
+    assert "Câblage" in labels(tree)

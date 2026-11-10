@@ -66,7 +66,7 @@ from waterfall.core.planning.carrying import (
     TASK_NOT_COMPLETED,
     bearing,
 )
-from waterfall.core.planning.entries import ONE_DAY
+from waterfall.core.planning.entries import ONE_DAY, PERMISSION_MISSING, PLANNING_WRITE
 from waterfall.core.planning.interface.facets import CellsPasted, FacetWrite, facets
 from waterfall.core.planning.interface.lines import (
     judge_line_creation,
@@ -127,9 +127,6 @@ NUMBER_INVALID = "NUMBER_INVALID"
 DATE_INVALID = "DATE_INVALID"
 VALUE_TOO_LONG = "VALUE_TOO_LONG"
 UNKNOWN_WORK_BREAKDOWN_ITEM = "UNKNOWN_WORK_BREAKDOWN_ITEM"
-PERMISSION_MISSING = "PERMISSION_MISSING"
-# The permission the columns of a task's own ask for, whatever grid pastes them (#2775).
-PLANNING_WRITE = "planning.write"
 LABEL_LENGTH = 300
 # The columns of the facet task, in the order of ``NodeColumn``: the others are the estimate line's.
 TASK_COLUMNS: tuple[NodeColumn, ...] = (
