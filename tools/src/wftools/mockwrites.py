@@ -268,15 +268,19 @@ def estimate_line_updated() -> JsonObject:
     return core_write(amended(CORE, line=on_line(LABOUR, hours=LABOUR_HOURS)), [LABOUR])
 
 
+REESTIMATE_REASON = "Revue de juin : borniers précâblés en usine"
+
+
 def remaining_reestimated() -> JsonObject:
     """Return what setLineRemaining answers when the labour of the wiring is re-estimated at 10 h.
 
     The re-estimate follows the figures entered, the budget the reference fixed does not
     (WF-RAE-0040, WF-DEV-0020). It follows the 14 hours entered (`estimate_line_updated`):
-    the line is read at the version that write left (#421).
+    the line is read at the version that write left (#421). The reason sent is kept with the line
+    and read back (`remaining_reason`, #2420).
     """
     return core_write(
-        amended(CORE, line=on_line(LABOUR, hours=REESTIMATED_HOURS)),
+        amended(CORE, line=on_line(LABOUR, hours=REESTIMATED_HOURS, reason=REESTIMATE_REASON)),
         [LABOUR],
         following=amended(CORE, line=on_line(LABOUR, hours=LABOUR_HOURS)),
     )
@@ -811,7 +815,7 @@ def _core_writes() -> dict[str, JsonObject]:
             f"{_money(reestimated_line['estimate_line']['reestimated_amount'])}, recalculé "
             f"depuis ses grandeurs et jamais saisi, le budgété inchangé, "
             f"{_money(reestimated_line['estimate_line']['budgeted_amount'])}, fixé par la "
-            f"référence ; une version de plus que celle que la saisie de {LABOUR_HOURS} h "
+            f"référence, le motif envoyé conservé (« {REESTIMATE_REASON} ») ; une version de plus que celle que la saisie de {LABOUR_HOURS} h "
             f"(estimate_line_updated) lui laissait, et la structure à "
             f"{reestimated['structure_lock_version']}. Avec elle, sa tâche "
             f"« {before[WIRING].label} », "

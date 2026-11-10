@@ -3638,6 +3638,12 @@ class ComparedEstimateLineFacet(ContractModel):
             description="Re-estimated amount at the previous remaining to commit, inflation included, which the remaining-to-commit grid presents next to the current one (WF-RAE-0040), with the figures from which it was computed (`previous_quantity`, `previous_hours`, `previous_unit_disbursement`); null before the first review."
         ),
     ] = None
+    remaining_reason: Annotated[
+        str | None,
+        Field(
+            description="Reason sent with the last re-estimate of the line (`RemainingUpdate.reason`), which the remaining-to-commit grid can present next to the previous remaining to commit (WF-RAE-0040); overwritten by each re-estimate, null when the last one sent none, and before the first."
+        ),
+    ] = None
     consumption_year: Annotated[
         Year | None,
         Field(
@@ -4202,6 +4208,12 @@ class EstimateLineFacet(ContractModel):
         Money | None,
         Field(
             description="Re-estimated amount at the previous remaining to commit, inflation included, which the remaining-to-commit grid presents next to the current one (WF-RAE-0040), with the figures from which it was computed (`previous_quantity`, `previous_hours`, `previous_unit_disbursement`); null before the first review."
+        ),
+    ] = None
+    remaining_reason: Annotated[
+        str | None,
+        Field(
+            description="Reason sent with the last re-estimate of the line (`RemainingUpdate.reason`), which the remaining-to-commit grid can present next to the previous remaining to commit (WF-RAE-0040); overwritten by each re-estimate, null when the last one sent none, and before the first."
         ),
     ] = None
     consumption_year: Annotated[
@@ -4855,7 +4867,7 @@ class RemainingUpdate(ContractModel):
     reason: Annotated[
         str | None,
         Field(
-            description="Free text accepted and ignored: no requirement reads it, the server keeps nothing of it and returns it nowhere. A client need not send it."
+            description="Free reason of the re-estimate, kept with the line and returned by its reading (`EstimateLineFacet.remaining_reason`), overwritten by the next re-estimate; absent or null, the line keeps none. A client need not send it."
         ),
     ] = None
     completed_on: Annotated[

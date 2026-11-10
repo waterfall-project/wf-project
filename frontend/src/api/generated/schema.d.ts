@@ -4487,6 +4487,8 @@ export interface components {
             previous_unit_disbursement?: components["schemas"]["Money"] | null;
             /** @description Re-estimated amount at the previous remaining to commit, inflation included, which the remaining-to-commit grid presents next to the current one (WF-RAE-0040), with the figures from which it was computed (`previous_quantity`, `previous_hours`, `previous_unit_disbursement`); null before the first review. */
             previous_reestimated_amount?: components["schemas"]["Money"] | null;
+            /** @description Reason sent with the last re-estimate of the line (`RemainingUpdate.reason`), which the remaining-to-commit grid can present next to the previous remaining to commit (WF-RAE-0040); overwritten by each re-estimate, null when the last one sent none, and before the first. */
+            remaining_reason?: string | null;
             /** @description Consumption year, deduced from the planning: that of the start of the task that carries the line. For a task spanning several years, the year of the first part of the line, its amounts being projected part by part (`reestimated_amount`, WF-DEV-0040); the filters `consumption_year_min` and `consumption_year_max` retain the line on that year. */
             consumption_year?: components["schemas"]["Year"] | null;
             /** @description True for a provision line, whose amount is computed from the risk and never entered (WF-RIS-0010). */
@@ -4744,6 +4746,8 @@ export interface components {
             previous_unit_disbursement?: components["schemas"]["Money"] | null;
             /** @description Re-estimated amount at the previous remaining to commit, inflation included, which the remaining-to-commit grid presents next to the current one (WF-RAE-0040), with the figures from which it was computed (`previous_quantity`, `previous_hours`, `previous_unit_disbursement`); null before the first review. */
             previous_reestimated_amount?: components["schemas"]["Money"] | null;
+            /** @description Reason sent with the last re-estimate of the line (`RemainingUpdate.reason`), which the remaining-to-commit grid can present next to the previous remaining to commit (WF-RAE-0040); overwritten by each re-estimate, null when the last one sent none, and before the first. */
+            remaining_reason?: string | null;
             /** @description Consumption year, deduced from the planning: that of the start of the task that carries the line. For a task spanning several years, the year of the first part of the line, its amounts being projected part by part (`reestimated_amount`, WF-DEV-0040); the filters `consumption_year_min` and `consumption_year_max` retain the line on that year. */
             consumption_year?: components["schemas"]["Year"] | null;
             /** @description True for a provision line, whose amount is computed from the risk and never entered (WF-RIS-0010). */
@@ -5054,7 +5058,7 @@ export interface components {
                 hours?: components["schemas"]["Hours"] | null;
                 unit_disbursement?: components["schemas"]["Money"] | null;
             };
-            /** @description Free text accepted and ignored: no requirement reads it, the server keeps nothing of it and returns it nowhere. A client need not send it. */
+            /** @description Free reason of the re-estimate, kept with the line and returned by its reading (`EstimateLineFacet.remaining_reason`), overwritten by the next re-estimate; absent or null, the line keeps none. A client need not send it. */
             reason?: string | null;
             /** @description Completion date of the task, asked for at validation when the entry completes it — the last of its still-open lines set to zero —, proposed by the screen as the current day and modifiable (WF-RAE-0040, WF-PLA-0130). Required in that case: without it, the entry is refused with a reason `COMPLETION_DATE_REQUIRED` on `/completed_on`, `fields[].params.task_node_id` naming the task, and nothing is written; the screen asks for the date and replays the entry. For a not-started task, milestone included, the same date is also that of its start (`started_on`, WF-PLA-0130); a task that is not a milestone goes through the started state (WF-RAE-0030). Ignored when the entry does not complete the task. Null or absent when the entry does not complete the task. */
             completed_on?: components["schemas"]["PlanningDate"] | null;

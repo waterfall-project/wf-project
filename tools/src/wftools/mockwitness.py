@@ -301,6 +301,8 @@ class Line:
     knew, counted to the reserve, never to the budget (WF-RIS-0050); the offer's for a line the
     amendment 1 did not designate (#467). Its payment delay, nought unless said (WF-IND-0100).
     ``origin_risk``, the risk whose occurrence merged it (`Node.origin_risk_id`, #1761).
+    ``reason``, the reason sent with its last re-estimate (`EstimateLineFacet.remaining_reason`,
+    #2420), none unless said.
     """
 
     number: int
@@ -315,6 +317,7 @@ class Line:
     payment_delay_days: int = 0
     quantity: Decimal = Decimal(1)
     origin_risk: int | None = None
+    reason: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
