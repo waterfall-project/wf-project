@@ -2900,7 +2900,7 @@ through `MockupNotice` with `lists` (`mockup.notFiltered`), in a single note und
 screens whose service is delivered do not show the note, even though `make dev` serves them through
 Prism and the same limits apply: administration (EP-03), the reference data (EP-05) and, from EP-04,
 the connected home (US-0920/L2), the revisions (US-0960, US-0970) and the settings of the project
-(US-1000), and, from EP-07, the workload (US-1520) and the estimate (US-1560); a success there is
+(US-1000), and, from EP-07, the workload (US-1520) and the estimate (US-1560), and, from EP-09, the actual costs (US-1620); a success there is
 what the service kept, read anew.
 
 _Checks_: `make lint-openapi` (examples conforming to the schemas, volumes included),

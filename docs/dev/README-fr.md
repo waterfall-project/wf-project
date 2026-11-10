@@ -2906,7 +2906,7 @@ par `MockupNotice` avec `lists` (`mockup.notFiltered`), en une seule note sous l
 dont le service est livré ne portent pas la note, même si `make dev` les sert par Prism et que les
 mêmes limites s'y appliquent : l'administration (EP-03), le référentiel (EP-05) et, d'EP-04, l'accueil
 connecté (US-0920/L2), les révisions (US-0960, US-0970) et les paramètres du projet (US-1000), et,
-d'EP-07, le plan de charge (US-1520) et le devis (US-1560) ; un
+d'EP-07, le plan de charge (US-1520) et le devis (US-1560), et, d'EP-09, les coûts réels (US-1620) ; un
 succès y est ce que le service a gardé, relu.
 
 _Contrôles_ : `make lint-openapi` (exemples conformes aux schémas, volumes compris),
