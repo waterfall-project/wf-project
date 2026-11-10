@@ -522,6 +522,7 @@ export function PlanningGrid({
           tasks: true,
           lines: false,
           categories: undefined,
+          roles: undefined,
           rows: shown.items,
           version,
         }

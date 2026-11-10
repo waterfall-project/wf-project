@@ -287,6 +287,7 @@ export function EstimateGrid({
           tasks: tasksEditable,
           lines: true,
           categories: reference.categories,
+          roles: reference.roles,
           rows: nodes.items,
           version,
         }

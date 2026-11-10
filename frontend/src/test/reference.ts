@@ -36,6 +36,7 @@ export function estimateReference(): EstimateReference {
       id: category.cost_category_id,
       label: category.label,
       active: category.is_active,
+      kind: category.cost_type_kind,
     })),
     roles: roles.map((role) => ({
       id: role.resource_role_id,
