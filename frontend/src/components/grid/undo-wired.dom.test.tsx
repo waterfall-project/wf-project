@@ -150,21 +150,27 @@ describe("undo and redo of the grid of the planning, wired on the server's histo
       locale: "fr" as const,
       undo: "Annuler",
       redo: "Rétablir",
-      none: [
-        "Modification annulée. Aucune autre modification à annuler.",
-        "Modification rétablie. Aucune autre modification à rétablir.",
-      ],
-      some: [
-        "Modification annulée. 1 modification reste à annuler.",
-        "Modification rétablie. 2 modifications restent à rétablir.",
-      ],
+      none: {
+        undone: "Modification annulée. Aucune autre modification à annuler.",
+        redone: "Modification rétablie. Aucune autre modification à rétablir.",
+      },
+      some: {
+        undone: "Modification annulée. 1 modification reste à annuler.",
+        redone: "Modification rétablie. 2 modifications restent à rétablir.",
+      },
     },
     {
       locale: "en" as const,
       undo: "Undo",
       redo: "Redo",
-      none: ["Change undone. No more changes to undo.", "Change redone. No more changes to redo."],
-      some: ["Change undone. 1 change left to undo.", "Change redone. 2 changes left to redo."],
+      none: {
+        undone: "Change undone. No more changes to undo.",
+        redone: "Change redone. No more changes to redo.",
+      },
+      some: {
+        undone: "Change undone. 1 change left to undo.",
+        redone: "Change redone. 2 changes left to redo.",
+      },
     },
   ])(
     "announces an undo done, and a redo done, with how many changes remain: none, one, or several, in $locale [WF-IHM-0110-A]",
@@ -173,9 +179,9 @@ describe("undo and redo of the grid of the planning, wired on the server's histo
       serve({ [UNDO]: "undo_task_renamed", [REDO]: "redo_task_renamed" });
       const first = render(grid(locale));
       await userEvent.click(screen.getByRole("button", { name: undo }));
-      expect(await screen.findByText(none[0] as string)).toBeInTheDocument();
+      expect(await screen.findByText(none.undone)).toBeInTheDocument();
       await userEvent.click(screen.getByRole("button", { name: redo }));
-      expect(await screen.findByText(none[1] as string)).toBeInTheDocument();
+      expect(await screen.findByText(none.redone)).toBeInTheDocument();
       expect(screen.queryByRole("alert")).toBeNull();
       first.unmount();
       forgetMessages();
@@ -184,9 +190,9 @@ describe("undo and redo of the grid of the planning, wired on the server's histo
       serve({ [UNDO]: "undo_task_renamed_one_left", [REDO]: "redo_task_renamed_two_left" });
       render(grid(locale));
       await userEvent.click(screen.getByRole("button", { name: undo }));
-      expect(await screen.findByText(some[0] as string)).toBeInTheDocument();
+      expect(await screen.findByText(some.undone)).toBeInTheDocument();
       await userEvent.click(screen.getByRole("button", { name: redo }));
-      expect(await screen.findByText(some[1] as string)).toBeInTheDocument();
+      expect(await screen.findByText(some.redone)).toBeInTheDocument();
       expect(screen.queryByRole("alert")).toBeNull();
     },
   );
