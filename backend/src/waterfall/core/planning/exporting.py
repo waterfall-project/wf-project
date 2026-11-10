@@ -28,6 +28,7 @@ back to the same plan (WF-INTF-0060):
 from dataclasses import dataclass, replace
 from datetime import datetime, time, timedelta
 from fractions import Fraction
+from math import floor
 from typing import TYPE_CHECKING, cast
 
 from waterfall.core.cost_settings.interface import read_reference_settings
@@ -64,8 +65,10 @@ SECONDS_PER_DAY = 24 * SECONDS_PER_HOUR
 MINUTES_PER_HOUR = 60
 MICROSECONDS_PER_HOUR = 3_600_000_000
 # A lag is written in tenths of a minute, a lag in percent in whole percents, as MS Project reads
-# them (``LinkLag``, an integer: a fraction of a percent is rounded to the nearest).
+# them (``LinkLag``, an integer: a fraction is rounded to the nearest, a half up — 12.5 % is
+# written 13 %, and comes back so).
 TENTHS = 10
+HALF = Fraction(1, 2)
 # The ``DayType`` of a day of the week, Monday first: Monday is 2, Sunday 1.
 DAY_TYPES = (2, 3, 4, 5, 6, 7, 1)
 CALENDAR_NAME = "Waterfall"
@@ -141,10 +144,10 @@ def _link(link: TaskLink, uids: dict[UUID, int], constants: UnitConstants) -> Pr
     """Give a link as the file carries it, its lag in tenths of a minute or in whole percents."""
     unit = cast("LagUnit", link.lag_unit)
     if unit == "percent":
-        lag = round(Fraction(link.lag_value))
+        lag = floor(Fraction(link.lag_value) + HALF)
     else:
         hours = Duration(link.lag_value, unit).hours(constants)
-        lag = round(hours * MINUTES_PER_HOUR * TENTHS)
+        lag = floor(hours * MINUTES_PER_HOUR * TENTHS + HALF)
     return PredecessorLink(uids[link.predecessor_id], cast("LinkType", link.link_type), lag, unit)
 
 

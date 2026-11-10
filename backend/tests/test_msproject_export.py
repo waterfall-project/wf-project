@@ -31,6 +31,7 @@ from waterfall.api.authentication import Services
 from waterfall.core.cost_settings.interface import read_reference_settings
 from waterfall.core.planning.interface import FacetHooks, register_facet
 from waterfall.core.planning.msproject import read_project
+from waterfall.core.planning.tables import TaskLink
 from waterfall.core.planning.tree import read_tree
 from waterfall.core.projects.tables import Project
 from waterfall.core.resource_settings.interface import CalendarContent, WeeklyHours, create_calendar
@@ -522,6 +523,25 @@ def test_a_negative_lag_a_lag_in_weeks_in_months_and_an_elapsed_one_are_exported
     }
     found = import_file(api, stage, worker, content, apply=False)
     assert found["report"]["differences"] == []
+
+
+@pytest.mark.requirement("WF-PLA-0030-A")
+def test_a_lag_of_a_fraction_of_a_percent_is_exported_rounded_half_up_and_comes_back_so(
+    api: ContractClient, stage: Scene, worker: Worker
+) -> None:
+    # MS Project carries a lag in percent in whole percents (``LinkLag``): 12.5 % entered is
+    # written 13 % — a half up, not to the even 12 — and comes back 13 %, the loss of the round
+    # trip.
+    revision = opened(api, stage)
+    import_file(api, stage, worker, lagged_planning(), apply=True)
+    with stage.owner.begin() as connection:
+        connection.execute(
+            update(TaskLink).where(TaskLink.lag_unit == "percent").values(lag_value=Decimal("12.5"))
+        )
+    content = exported(api, stage, worker, revision["revision_id"])
+    assert lags_of(read_project(content).project)["F"] == [(13, "percent")]
+    import_file(api, stage, worker, content, apply=True)
+    assert ("E", "F", "start_to_finish", Decimal(13), "percent") in links(stage)
 
 
 @pytest.mark.requirement("WF-PLA-0160-A")
