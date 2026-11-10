@@ -648,7 +648,9 @@ def test_the_orphan_behind_more_named_objects_than_the_limit_is_listed_and_swept
     later = utc_now() + LATER
     with database.transaction() as session:
         listed = stored_before(backups_bucket, later, session).uploads
-    assert listed == (orphan,)
+    # The bucket is shared: objects of other tests may be listed beside the orphan.
+    assert orphan in listed
+    assert not set(named) & set(listed)
     purged = purged_at(database, backups_bucket, later)
     assert orphan in purged.objects
     assert backups_bucket.size(orphan) is None
