@@ -275,23 +275,6 @@ def test_an_opening_is_refused_for_a_head_its_format_does_not_recognise(
         assert session.scalars(select(ImportReport)).all() == []
 
 
-def test_an_opening_of_a_kind_whose_format_reads_no_head_yet_names_the_format_expected(
-    api: ContractClient, stage: Scene
-) -> None:
-    upload_id = deposited(api, stage.manager, trial_file(*ROWS))
-    # Every kind has its format from the socle of EP-09 on: that of the actual costs, registered
-    # without effect (US-1580/L1), refuses every head as when no format served the kind, until
-    # US-1610/L1 reads the header of an extraction.
-    response = open_import(
-        api, stage.manager, stage.project["project_id"], upload_id, kind="actual_costs"
-    )
-    assert refusal(response) == (
-        422,
-        "FILE_FORMAT_UNREADABLE",
-        {"expected_format": "actual_costs"},
-    )
-
-
 @pytest.mark.usefixtures("trial")
 def test_an_opening_on_a_backup_deposit_names_the_deposit(
     api: ContractClient, stage: Scene, database: Database

@@ -11,7 +11,8 @@ adds besides joins the import of its file, below the comment that names it. Anot
 them from here, never from the file.
 
 The actual costs fill, at the import of this interface, the registry of the formats of the
-exchanges: the format ``actual_costs``, registered without effect by the socle. US-1610/L3 declares
+exchanges: the format ``actual_costs``, registered by the socle, which reads and analyses an
+extraction from US-1610/L1 and applies it from US-1610/L2. US-1610/L3 declares
 ``register_cost_facts`` in the interface of the projects and registers there what they ask of a
 subproject. The entry points that run an import of the actual costs, or load the witness — the API,
 the loader of the witness, and the worker from US-1610/L2 on (EP-09, "Le worker") — import it
@@ -80,6 +81,5 @@ from waterfall.core.costs.interface.tracked_costs import (
 # The registry the actual costs fill.
 from waterfall.core.exchanges.interface import register_format
 
-# The registration, once, at the import: the format of an extraction, without effect until
-# US-1610/L1.
+# The registration, once, at the import: the format of an extraction.
 register_format("actual_costs", ACTUAL_COSTS_FORMAT)
