@@ -145,7 +145,7 @@ describe("undo and redo of the grid of the planning, wired on the server's histo
     expect(sent(client, REDO)).toEqual([]);
   });
 
-  it.each([
+  const ANNOUNCEMENTS = [
     {
       locale: "fr" as const,
       undo: "Annuler",
@@ -172,21 +172,24 @@ describe("undo and redo of the grid of the planning, wired on the server's histo
         redone: "Change redone. 2 changes left to redo.",
       },
     },
-  ])(
-    "announces an undo done, and a redo done, with how many changes remain: none, one, or several, in $locale [WF-IHM-0110-A]",
-    async ({ locale, undo, redo, none, some }) => {
-      // Undo with nothing left (`=0`) and redo with nothing left.
+  ];
+
+  it.each(ANNOUNCEMENTS)(
+    "announces an undo done, and a redo done, with no change left to undo or redo (`=0`), in $locale [WF-IHM-0110-A]",
+    async ({ locale, undo, redo, none }) => {
       serve({ [UNDO]: "undo_task_renamed", [REDO]: "redo_task_renamed" });
-      const first = render(grid(locale));
+      render(grid(locale));
       await userEvent.click(screen.getByRole("button", { name: undo }));
       expect(await screen.findByText(none.undone)).toBeInTheDocument();
       await userEvent.click(screen.getByRole("button", { name: redo }));
       expect(await screen.findByText(none.redone)).toBeInTheDocument();
       expect(screen.queryByRole("alert")).toBeNull();
-      first.unmount();
-      forgetMessages();
+    },
+  );
 
-      // Undo with one left (`one`) and redo with two left (`other`).
+  it.each(ANNOUNCEMENTS)(
+    "announces an undo done with one change left (`one`), and a redo done with two left (`other`), in $locale [WF-IHM-0110-A]",
+    async ({ locale, undo, redo, some }) => {
       serve({ [UNDO]: "undo_task_renamed_one_left", [REDO]: "redo_task_renamed_two_left" });
       render(grid(locale));
       await userEvent.click(screen.getByRole("button", { name: undo }));
