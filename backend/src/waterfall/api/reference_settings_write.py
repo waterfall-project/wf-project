@@ -24,9 +24,12 @@ from waterfall.core.indicator_settings.interface import (
     read_thresholds,
 )
 from waterfall.core.risk_settings.interface import matrix_faults
-from waterfall.platform.errors import FieldError, UnprocessableError, json_pointer
-
-VALIDATION_FAILED = "VALIDATION_FAILED"
+from waterfall.platform.errors import (
+    VALIDATION_FAILED,
+    FieldError,
+    UnprocessableError,
+    json_pointer,
+)
 
 
 class ThresholdsWrite(ContractModel):

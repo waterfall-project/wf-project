@@ -42,7 +42,12 @@ from waterfall.core.revisions.interface import (
     revision_draft,
     structure_facts,
 )
-from waterfall.platform.errors import STATE_FORBIDS_OPERATION, ConflictError, NotFoundError
+from waterfall.platform.errors import (
+    NOT_FOUND,
+    STATE_FORBIDS_OPERATION,
+    ConflictError,
+    NotFoundError,
+)
 
 if TYPE_CHECKING:
     from collections.abc import Collection, Generator
@@ -55,8 +60,6 @@ if TYPE_CHECKING:
     from waterfall.core.planning.tree import Tree
     from waterfall.core.revisions.interface import StructureFacts
     from waterfall.platform.audit import Act
-
-NOT_FOUND = "NOT_FOUND"
 
 
 @dataclass(frozen=True, slots=True)

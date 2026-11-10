@@ -40,7 +40,6 @@ from waterfall.core.revisions.commands import (
     revision_conditions,
 )
 from waterfall.core.revisions.interface.shared import (
-    STALE_LOCK_VERSION,
     found_revision,
     inscribe_revision,
     refuse,
@@ -49,7 +48,7 @@ from waterfall.core.revisions.registry import Registry
 from waterfall.core.revisions.tables import Revision
 from waterfall.platform.audit import Act, AuditEntry
 from waterfall.platform.database import utc_now
-from waterfall.platform.errors import PreconditionFailedError
+from waterfall.platform.errors import STALE_LOCK_VERSION, PreconditionFailedError
 
 if TYPE_CHECKING:
     from collections.abc import Callable

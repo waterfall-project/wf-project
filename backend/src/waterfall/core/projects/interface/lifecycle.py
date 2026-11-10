@@ -30,7 +30,10 @@ from waterfall.core.projects.tables import STATES, Project, ProjectStateTransiti
 from waterfall.core.users.interface import inscribed_actor
 from waterfall.platform.audit import AuditObject, AuditProject, Inscription, record
 from waterfall.platform.errors import (
+    NOT_FOUND,
+    STALE_LOCK_VERSION,
     STATE_FORBIDS_OPERATION,
+    VALIDATION_FAILED,
     ConflictError,
     FieldError,
     NotFoundError,
@@ -58,10 +61,7 @@ type RevisionFate = Literal["mark", "abandon"]
 # Created, Pricing and In progress: the states before a terminal one.
 BEFORE_TERMINAL = STATES[:3]
 
-NOT_FOUND = "NOT_FOUND"
-VALIDATION_FAILED = "VALIDATION_FAILED"
 VALUE_REQUIRED = "VALUE_REQUIRED"
-STALE_LOCK_VERSION = "STALE_LOCK_VERSION"
 NO_CURRENT_REVISION = "no_current_revision"
 PROJECT_CODE_SET = "project_code_set"
 REFERENCE_DESIGNATED = "reference_revision_designated"

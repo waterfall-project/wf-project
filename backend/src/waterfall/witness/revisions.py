@@ -48,6 +48,7 @@ from waterfall.core.revisions.interface import (
 )
 from waterfall.platform.errors import (
     STATE_FORBIDS_OPERATION,
+    VALIDATION_FAILED,
     ConflictError,
     FieldError,
     UnprocessableError,
@@ -78,7 +79,6 @@ REVISIONS_FILE = "revisions.json"
 PROJECTS_FILE = "projects.json"
 CONTRIBUTORS_FILE = "contributors.json"
 MANAGER = "project_manager"
-VALIDATION_FAILED = "VALIDATION_FAILED"
 VALUE_REQUIRED = "VALUE_REQUIRED"
 NO_TASKS_AND_LINES = "revision_has_tasks_and_lines"
 

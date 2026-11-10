@@ -34,7 +34,10 @@ from waterfall.core.projects.interface.lifecycle import no_background_task_runni
 from waterfall.core.projects.tables import Deliverable, OrderItem, Project, WorkPackage
 from waterfall.platform.database import contains
 from waterfall.platform.errors import (
+    NOT_FOUND,
+    STALE_LOCK_VERSION,
     STATE_FORBIDS_OPERATION,
+    VALIDATION_FAILED,
     ConflictError,
     FieldError,
     NotFoundError,
@@ -54,9 +57,6 @@ if TYPE_CHECKING:
     from waterfall.core.projects.interface.projects import Viewer
     from waterfall.platform.audit import Act
 
-NOT_FOUND = "NOT_FOUND"
-STALE_LOCK_VERSION = "STALE_LOCK_VERSION"
-VALIDATION_FAILED = "VALIDATION_FAILED"
 UNKNOWN_WORK_BREAKDOWN_ITEM = "UNKNOWN_WORK_BREAKDOWN_ITEM"
 DUPLICATE_WORK_BREAKDOWN_ITEM = "DUPLICATE_WORK_BREAKDOWN_ITEM"
 ALREADY_EXISTS = "ALREADY_EXISTS"
@@ -621,8 +621,8 @@ def follow_project_label(session: Session, project: Project, label: str, act: Ac
     """Make the work package and the order item of the birth bear a new label of the project.
 
     They follow the label of the project (D-11) while no writing has set the work breakdown, that
-    is while its counter is the one of its birth; written once, they are the writing's and stay as it set them. To be
-    called under the lock of the project, which ``update_project`` holds.
+    is while its counter is the one of its birth; written once, they are the writing's and stay as
+    it set them. To be called under the lock of the project, which ``update_project`` holds.
     """
     if project.work_breakdown_lock_version != BORN_LOCK_VERSION:
         return

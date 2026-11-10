@@ -24,6 +24,9 @@ from waterfall.core.planning.scheduling import Entry
 from waterfall.core.planning.tables import TaskLink
 from waterfall.core.planning.writing import writing
 from waterfall.platform.errors import (
+    NOT_FOUND,
+    STALE_LOCK_VERSION,
+    VALIDATION_FAILED,
     FieldError,
     NotFoundError,
     PreconditionFailedError,
@@ -40,9 +43,6 @@ if TYPE_CHECKING:
     from waterfall.core.planning.tree import Tree
     from waterfall.core.planning.writing import NodesWritten, Place, Writer
 
-NOT_FOUND = "NOT_FOUND"
-STALE_LOCK_VERSION = "STALE_LOCK_VERSION"
-VALIDATION_FAILED = "VALIDATION_FAILED"
 DUPLICATE_PREDECESSOR = "DUPLICATE_PREDECESSOR"
 UNKNOWN_TASK = "UNKNOWN_TASK"
 

@@ -29,6 +29,7 @@ from waterfall.core.backups.interface import NOT_FOUND, read_backup
 from waterfall.platform.database import utc_now
 from waterfall.platform.errors import (
     STATE_FORBIDS_OPERATION,
+    VALIDATION_FAILED,
     BadRequestError,
     ConflictError,
     FieldError,
@@ -41,7 +42,6 @@ from waterfall.platform.uploads import EXTERNAL_BACKUP, completed_upload
 router = APIRouter(tags=["platform"])
 
 CONFIRMATION_REQUIRED = "CONFIRMATION_REQUIRED"
-VALIDATION_FAILED = "VALIDATION_FAILED"
 UPLOAD_PURPOSE_MISMATCH = "UPLOAD_PURPOSE_MISMATCH"
 RESTORE = [Depends(Requires("platform_restore"))]
 # The permission without which a backup of the list does not exist for the caller (WF-ADM-0110).

@@ -792,9 +792,12 @@ def test_the_package_itself_keeps_its_contracts() -> None:
 
 # A code, a condition or a set of states several modules judge by, and the one module that declares
 # it: the others import it from that module (its interface, for a module of the core), never copy
-# it (#2471, #2555).
+# it (#2471, #2555, #2763).
 SHARED = {
     "STATE_FORBIDS_OPERATION": "platform/errors.py",
+    "NOT_FOUND": "platform/errors.py",
+    "STALE_LOCK_VERSION": "platform/errors.py",
+    "VALIDATION_FAILED": "platform/errors.py",
     "BEFORE_IN_PROGRESS": "core/projects/commands.py",
     "NO_BACKGROUND_TASK_RUNNING": "core/projects/commands.py",
     "PROJECT_BEFORE_IN_PROGRESS": "core/projects/commands.py",

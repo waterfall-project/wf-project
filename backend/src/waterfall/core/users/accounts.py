@@ -18,6 +18,8 @@ from sqlalchemy.exc import IntegrityError
 from waterfall.core.users.tables import ADDRESS_INDEX, UserAccount
 from waterfall.platform.database import EVERY_LETTER, unique_violated
 from waterfall.platform.errors import (
+    NOT_FOUND,
+    STALE_LOCK_VERSION,
     ConflictError,
     FieldError,
     NotFoundError,
@@ -32,8 +34,6 @@ if TYPE_CHECKING:
 
     from sqlalchemy.orm import Session
 
-NOT_FOUND = "NOT_FOUND"
-STALE_LOCK_VERSION = "STALE_LOCK_VERSION"
 ALREADY_EXISTS = "ALREADY_EXISTS"
 
 

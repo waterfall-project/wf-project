@@ -33,6 +33,9 @@ from sqlalchemy.exc import IntegrityError
 from waterfall.core.planning.tables import Timeline, TrackingEntry
 from waterfall.core.planning.writing import NodesWritten, Place, Writer, writing
 from waterfall.platform.errors import (
+    NOT_FOUND,
+    STALE_LOCK_VERSION,
+    VALIDATION_FAILED,
     FieldError,
     NotFoundError,
     PreconditionFailedError,
@@ -48,9 +51,6 @@ if TYPE_CHECKING:
 
     from waterfall.platform.audit import Act
 
-NOT_FOUND = "NOT_FOUND"
-VALIDATION_FAILED = "VALIDATION_FAILED"
-STALE_LOCK_VERSION = "STALE_LOCK_VERSION"
 VALUE_REQUIRED = "VALUE_REQUIRED"
 MILESTONE_REQUIRED = "MILESTONE_REQUIRED"
 UNKNOWN_TIMELINE = "UNKNOWN_TIMELINE"

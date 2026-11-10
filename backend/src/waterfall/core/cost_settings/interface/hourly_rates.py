@@ -18,9 +18,6 @@ from sqlalchemy import ColumnElement, SQLColumnExpression, exists, func, insert,
 
 from waterfall.core.cost_settings.records import (
     ALREADY_EXISTS,
-    NOT_FOUND,
-    STALE_LOCK_VERSION,
-    VALIDATION_FAILED,
     Audit,
     Page,
     lock_natures,
@@ -29,6 +26,9 @@ from waterfall.core.cost_settings.tables import CostCategory, CostType, HourlyRa
 from waterfall.core.users.interface import read_authors
 from waterfall.platform.database import contains
 from waterfall.platform.errors import (
+    NOT_FOUND,
+    STALE_LOCK_VERSION,
+    VALIDATION_FAILED,
     ConflictError,
     FieldError,
     NotFoundError,

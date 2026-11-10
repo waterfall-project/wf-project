@@ -27,12 +27,10 @@ from waterfall.core.users.interface import (
     latest_report,
     read_account_label,
 )
-from waterfall.platform.errors import NotFoundError
+from waterfall.platform.errors import NOT_FOUND, NotFoundError
 from waterfall.platform.tasks import BackgroundTask, submit
 
 router = APIRouter(tags=["users"])
-
-NOT_FOUND = "NOT_FOUND"
 
 
 @router.post(

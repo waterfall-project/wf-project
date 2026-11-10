@@ -50,7 +50,10 @@ from waterfall.core.users.interface import inscribed_actor
 from waterfall.platform.audit import AuditObject, AuditProject, Inscription, record
 from waterfall.platform.database import contains, unique_violated
 from waterfall.platform.errors import (
+    NOT_FOUND,
+    STALE_LOCK_VERSION,
     STATE_FORBIDS_OPERATION,
+    VALIDATION_FAILED,
     ConflictError,
     FieldError,
     NotFoundError,
@@ -72,11 +75,8 @@ if TYPE_CHECKING:
 # The six states of the cycle of life, as the contract says them (``ProjectState``).
 type ProjectState = Literal["created", "pricing", "in_progress", "completed", "lost", "abandoned"]
 
-NOT_FOUND = "NOT_FOUND"
-VALIDATION_FAILED = "VALIDATION_FAILED"
 VALUE_OUT_OF_RANGE = "VALUE_OUT_OF_RANGE"
 ALREADY_EXISTS = "ALREADY_EXISTS"
-STALE_LOCK_VERSION = "STALE_LOCK_VERSION"
 REFERENCE_INCOMPLETE = "REFERENCE_INCOMPLETE"
 # The unique index of the code of a project (migration of the tables of the projects).
 CODE_INDEX = "uq_project_code"

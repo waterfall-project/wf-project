@@ -22,6 +22,8 @@ from waterfall.core.users.interface import (
     withdraw_avatar,
 )
 from waterfall.platform.errors import (
+    NOT_FOUND,
+    VALIDATION_FAILED,
     BadRequestError,
     FieldError,
     NotFoundError,
@@ -34,8 +36,6 @@ router = APIRouter()
 
 MALFORMED_REQUEST = "MALFORMED_REQUEST"
 FILE_TOO_LARGE = "FILE_TOO_LARGE"
-VALIDATION_FAILED = "VALIDATION_FAILED"
-NOT_FOUND = "NOT_FOUND"
 # The types of image the contract lets a request say it sends.
 SENT_TYPES = frozenset({"image/png", "image/jpeg"})
 

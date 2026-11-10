@@ -48,6 +48,9 @@ from waterfall.platform.audit import Act, AuditObject, AuditValue, Inscription, 
 from waterfall.platform.audit_columns import AuditColumnFilters, AuditColumns, audit_criteria
 from waterfall.platform.database import contains
 from waterfall.platform.errors import (
+    NOT_FOUND,
+    STALE_LOCK_VERSION,
+    VALIDATION_FAILED,
     ConflictError,
     FieldError,
     NotFoundError,
@@ -63,10 +66,7 @@ if TYPE_CHECKING:
 
     from sqlalchemy.orm import Session
 
-NOT_FOUND = "NOT_FOUND"
-STALE_LOCK_VERSION = "STALE_LOCK_VERSION"
 ACCESS_ROLE_IN_USE = "ACCESS_ROLE_IN_USE"
-VALIDATION_FAILED = "VALIDATION_FAILED"
 
 type SortColumn = Literal[
     "label",

@@ -25,7 +25,7 @@ from waterfall.core.users.interface import (
     note_account_change,
 )
 from waterfall.platform.audit import Act, AuditObject, AuditValue, Inscription, record
-from waterfall.platform.errors import FieldError, UnprocessableError
+from waterfall.platform.errors import VALIDATION_FAILED, FieldError, UnprocessableError
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -34,7 +34,6 @@ if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
 UNKNOWN_ACCESS_ROLE = "UNKNOWN_ACCESS_ROLE"
-VALIDATION_FAILED = "VALIDATION_FAILED"
 
 
 @dataclass(frozen=True, slots=True)

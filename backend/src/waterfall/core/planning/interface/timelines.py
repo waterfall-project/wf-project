@@ -25,7 +25,9 @@ from waterfall.core.projects.interface import (
     project_facts,
 )
 from waterfall.platform.errors import (
+    NOT_FOUND,
     STATE_FORBIDS_OPERATION,
+    VALIDATION_FAILED,
     ConflictError,
     FieldError,
     NotFoundError,
@@ -41,8 +43,6 @@ if TYPE_CHECKING:
 
     from waterfall.platform.audit import Act
 
-NOT_FOUND = "NOT_FOUND"
-VALIDATION_FAILED = "VALIDATION_FAILED"
 VALUE_REQUIRED = "VALUE_REQUIRED"
 VALUE_TOO_LONG = "VALUE_TOO_LONG"
 
