@@ -357,7 +357,7 @@ def _task(view: TaskView) -> dict[str, Any]:
         "finish": _instant(view.finish),
         "progress": view.progress,
         "finish_overdue": view.finish_overdue,
-        "awaiting_own_lines": False,
+        "awaiting_own_lines": view.awaiting_own_lines,
         "started_on": _day(view.started_on),
         "completed_on": _day(view.completed_on),
         "is_summary": view.is_summary,

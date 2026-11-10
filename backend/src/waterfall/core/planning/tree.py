@@ -7,7 +7,11 @@ under each parent, its lines first, then its subtasks, each kind by its rank (``
 the whole depth first. ``row_number``, ``level`` and ``position`` are computed here, on the whole
 structure, whatever a reading returns of it (``Node.row_number``, WF-PLA-0080). A task is a
 summary when it bears a subtask (WF-PLA-0040), a milestone when it is a leaf of nought duration
-(WF-PLA-0050); its lines do not make it a summary.
+(WF-PLA-0050); its lines do not make it a summary. The summaries an own line holds open are read
+with the tree (``held``, US-1590/L1): those whose subordinates are all completed and one of whose
+lines, the provisions left out, keeps a remaining to commit, which the estimate tells
+(``register_open_lines``); a summary is completed only once none does (WF-PLA-0040), on every path
+that derives its state.
 """
 
 from dataclasses import dataclass, field
@@ -16,6 +20,7 @@ from uuid import UUID
 
 from sqlalchemy import and_, or_, select
 
+from waterfall.core.planning.interface.open_lines import held_open
 from waterfall.core.planning.tables import Node, Task, TaskLink, TrackingEntry
 
 if TYPE_CHECKING:
@@ -25,11 +30,16 @@ if TYPE_CHECKING:
 
 TASK = "task"
 LINE = "estimate_line"
+COMPLETED = "completed"
 
 
 @dataclass(slots=True)
 class Tree:
-    """A structure read whole: its nodes, their facet task, and the order of the plan."""
+    """A structure read whole: its nodes, their facet task, and the order of the plan.
+
+    ``held`` the summaries an own line holds open as the tree is read (``read_tree``); a tree built
+    from another's nodes carries that one's.
+    """
 
     nodes: dict[UUID, Node]
     tasks: dict[UUID, Task]
@@ -38,6 +48,7 @@ class Tree:
     row_number: dict[UUID, int] = field(default_factory=dict[UUID, int])
     level: dict[UUID, int] = field(default_factory=dict[UUID, int])
     position: dict[UUID, int] = field(default_factory=dict[UUID, int])
+    held: frozenset[UUID] = frozenset()
 
     def __post_init__(self) -> None:
         """Order the nodes: under each parent, the lines then the subtasks, each by its rank."""
@@ -108,7 +119,31 @@ def read_tree(session: Session, project_id: UUID, structure_id: UUID) -> Tree:
         .execution_options(populate_existing=True)
     ).all()
     tasks = {node.id: task for node, task in rows if node.kind == TASK}
-    return Tree({node.id: node for node, _ in rows}, tasks)
+    tree = Tree({node.id: node for node, _ in rows}, tasks)
+    tree.held = held_open(session, project_id, _closing(tree))
+    return tree
+
+
+def _closing(tree: Tree) -> dict[UUID, list[UUID]]:
+    """Give the summaries whose subtasks are all completed, each with its own lines to ask.
+
+    Their leaves completed, whatever the lines of the summaries between hold; the lines a risk
+    provides for left out (WF-RIS-0010), and a summary without another line too: nothing holds it.
+    """
+    done: dict[UUID, bool] = {}
+    found: dict[UUID, list[UUID]] = {}
+    for node_id in reversed(tree.order):
+        if node_id not in tree.tasks:
+            continue
+        below = tree.subtasks(node_id)
+        if not below:
+            done[node_id] = tree.tasks[node_id].progress == COMPLETED
+            continue
+        done[node_id] = all(done[each] for each in below)
+        lines = [each for each in tree.lines(node_id) if tree.nodes[each].origin_risk_id is None]
+        if done[node_id] and lines:
+            found[node_id] = lines
+    return found
 
 
 def read_links(session: Session, project_id: UUID, structure_id: UUID) -> list[TaskLink]:

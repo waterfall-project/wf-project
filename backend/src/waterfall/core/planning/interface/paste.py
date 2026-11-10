@@ -468,7 +468,7 @@ def _traced_line(ground: Ground, held: tuple[Place, Act, date], judged: LineJudg
     for each in judged.shifted:
         nodes[each] = _copied(nodes[each], rank=nodes[each].rank + 1)
     nodes[judged.node_id] = new_line_node(held[0], held[1], judged)
-    tree = Tree(nodes, ground.tree.tasks)
+    tree = Tree(nodes, ground.tree.tasks, held=ground.tree.held)
     return Ground(ground.session, ground.project_id, tree, ground.is_main)
 
 

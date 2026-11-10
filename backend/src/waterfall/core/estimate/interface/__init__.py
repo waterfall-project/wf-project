@@ -28,7 +28,8 @@ amounts a designation refreshes, the current revisions priced again after a rate
 a rate of inflation written, and the guard of the calendars of the roles. The socle of EP-09
 (US-1580/L1) registers without effect the copy of the remaining to commit of the review before,
 after the lines, and the format and the exporter ``remaining``; it declares ``register_coverage``,
-which the risks fill (EP-08). The entry points that
+which the risks fill (EP-08). US-1590/L1 answers the question of the open own lines of the planning
+(``register_open_lines``). The entry points that
 copy, mark, designate or close a revision, change the reference or run an exchange — the API, the
 worker, the loader of the witness —
 import it, by what they serve or explicitly (#2180).
@@ -202,9 +203,6 @@ from waterfall.core.estimate.interface.indicators import (
 
 # ``kanban`` (US-1580/L1; US-1590): the lines that hold a task open, the board of the tasks.
 from waterfall.core.estimate.interface.kanban import (
-    KanbanCommandAvailability as KanbanCommandAvailability,
-)
-from waterfall.core.estimate.interface.kanban import (
     KanbanTask as KanbanTask,
 )
 from waterfall.core.estimate.interface.kanban import (
@@ -371,7 +369,7 @@ from waterfall.core.estimate.workloading import (
 
 # The registries the estimate fills.
 from waterfall.core.exchanges.interface import register_exporter, register_format
-from waterfall.core.planning.interface import register_facet
+from waterfall.core.planning.interface import register_facet, register_open_lines
 from waterfall.core.projects.interface import EstimateFacts, register_estimate_facts
 from waterfall.core.resource_settings.interface import register_idle_task_guard
 from waterfall.core.revisions.interface import (
@@ -391,7 +389,8 @@ from waterfall.core.revisions.interface import (
 # lines employ, and the current revisions a rate of the reference written prices again; what a
 # revision keeps at its marking, and the budgeted amounts a designation refreshes (US-1500/L2). The
 # remaining to commit (EP-09): the remaining of the review before, copied after the rates, and the
-# format and the exporter of its workbook, each without effect until its story (US-1580/L1).
+# format and the exporter of its workbook, each without effect until its story (US-1580/L1); the
+# own lines that hold a summary task open, which the planning asks at the reading (US-1590/L1).
 register_facet("estimate_line", LINE_FACET)
 register_tasks_and_lines("lines", revision_has_lines)
 register_copy(copy_rates)
@@ -417,3 +416,4 @@ register_format("estimate", ESTIMATE_FORMAT)
 register_exporter("estimate", ESTIMATE_EXPORTER)
 register_format("remaining", REMAINING_FORMAT)
 register_exporter("remaining", REMAINING_EXPORTER)
+register_open_lines(open_lines)
