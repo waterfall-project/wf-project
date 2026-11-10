@@ -390,8 +390,10 @@ importe l'interface (US-1670/L1).
 - **La date de calcul** D : le jour courant en temps universel pour le calcul du jour (`computed_at`
   l'instant), le jour de `marked_at` pour le marquage ; la révision de référence Ref est celle du
   projet à l'instant du calcul (la lecture du projet, sous son verrou au marquage).
-- **Les grandeurs d'une maille S**, en `Decimal`, arrondies une fois (`ROUND_HALF_EVEN`,
-  WF-DAT-0100) — les montants au centime, les ratios et les indices à quatre décimales :
+- **Les grandeurs d'une maille S**, en `Decimal`, arrondies une fois (WF-DAT-0100) — les montants
+  au centime, au plus proche, un demi loin de zéro (`ROUND_HALF_UP`), comme `Money` du contrat, qui
+  fait foi (#2618, décision de l'auteur du 2026-11-10) ; les ratios et les indices à quatre
+  décimales (`ROUND_HALF_EVEN`) :
   - le budget de référence : la somme des budgétés des lignes de Ref hors provision dont le
     sous-projet dans Ref est S (`unassigned` : nul) ;
   - la valeur planifiée à D : chaque ligne de Ref de la maille étalée sur les dates de sa tâche dans
@@ -403,8 +405,8 @@ importe l'interface (US-1670/L1).
     survenance (`origin_risk_id`, EP-08) sont exclues par construction ;
   - le coût réel à D : `actual_costs_until(project_id, D, S)` d'EP-09, les lignes suivies connues au
     moment du calcul dont la date de pièce ≤ D, `unassigned` les lignes au `subproject_id` nul ;
-  - le reste à engager : `remaining_of_revision(R)` par ligne, filtré par le sous-projet de la ligne
-    dans R ;
+  - le reste à engager : `remaining_of_revision(session, project_id, R)` par ligne (#2743), filtré
+    par le sous-projet de la ligne dans R ;
   - puis `financial_progress` = CR ÷ (CR + RAE) (`no_actual_or_remaining`), `budget_consumption` =
     CR ÷ BR et `physical_progress` = VA ÷ BR (`no_reference_budget`), `cost_index` = VA ÷ CR
     (`no_actual_cost`), `schedule_index` = VA ÷ VP (`no_planned_value`), `cost_variance` = VA − CR,
@@ -645,9 +647,10 @@ ce lot, ou en dépendent par son numéro :
 | `app.py`, `pyproject`, `tests/planning_support.py`, `test_registries.py`, `chronology.py`, `witness/revisions.py` (`register_revision_filler`) | US-1380/L1 #2328, fusionné avant la branche | aucun |
 
 Les catalogues `messages/*.json`, `conftest.py`, `support.py`, `api/queries.py`, `loader.py` et
-`mode.ts` ne s'écrivent dans aucun des quatre EPIC : une clé ou une fixture qui manque devient une
-issue. `platform/settings.py` (le réglage du cache) et `platform/cache.py` ne sont nommés par aucun
-lot des trois autres : EP-10 les écrit (US-1720).
+`mode.ts` ne s'écrivent dans aucun des quatre EPIC — sauf `support.py` par le lot d'outillage des
+tests d'EP-07, qui le possède (décision de l'auteur du 2026-11-10) — : une clé ou une fixture qui
+manque devient une issue. `platform/settings.py` (le réglage du cache) et `platform/cache.py` ne
+sont nommés par aucun lot des trois autres : EP-10 les écrit (US-1720).
 
 ### Ce que le cadrage laisse à EP-08
 
@@ -827,17 +830,17 @@ grandeur manque —, **afin de** savoir où en est mon projet entre deux revues.
   0,8 en vigilance. » : `zone` `nominal` à 0,9, `watch` à 0,8 ;
 - propre à l'US : `getProjectIndicators` lit la révision en cours — `revision_id` absent, ou celui
   de la révision en cours — au jour courant, ou la dernière révision marquée sans elle ; pour le
-  projet, un sous-projet ou « hors sous-projet » (`scope` ; un sous-projet que le projet n'a pas
-  ou un identifiant mal formé, 422 `VALIDATION_FAILED`, `UNKNOWN_SUBPROJECT` sur `/query/scope` ;
+  projet, un sous-projet ou « hors sous-projet » (`scope` ; un sous-projet que le projet n'a pas ou
+  un identifiant mal formé, 422 `VALIDATION_FAILED`, `UNKNOWN_SUBPROJECT` sur `/query/scope` ;
   `revision_id` et `as_of` ensemble, 422 sur `/query/revision_id`) ; `context` dit la révision, son
   état, `computed_at` l'instant du calcul, `scope`, `is_stored` faux ; `reference_budget` est la
   somme des montants budgétés des lignes de la référence de la maille, hors provision ;
   `planned_value` leur étalement sur les dates de la référence au prorata des heures travaillées,
-  par le module pur d'EP-07 (`spreading`), à la date du calcul ; `earned_value` et `remaining`
-  comme ci-dessus ; les montants au centime, les ratios et les indices à quatre décimales, arrondis
-  une fois (`ROUND_HALF_EVEN`, WF-DAT-0100) ; sous `project_indicators.read` ; chaque réponse est
-  validée contre le contrat dans les tests du service, et `test_access_evaluation.py` reçoit
-  l'opération avec ses deux termes ;
+  par le module pur d'EP-07 (`spreading`), à la date du calcul ; `earned_value` et `remaining` comme
+  ci-dessus ; arrondis une fois (WF-DAT-0100), les montants au centime (`ROUND_HALF_UP`, #2618), les
+  ratios et les indices à quatre décimales (`ROUND_HALF_EVEN`) ; sous `project_indicators.read` ;
+  chaque réponse est validée contre le contrat dans les tests du service, et
+  `test_access_evaluation.py` reçoit l'opération avec ses deux termes ;
 - propre à l'US (lot technique) : la migration d'EP-10, `0028`, chaînée sur `0027` et seule de
   l'EPIC —
   la table `revision_indicator` du Tableau 10, régime révisionné, partitionnée par projet, son
