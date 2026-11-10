@@ -52,12 +52,9 @@ import type { LineCategory } from "./structure-rules";
  */
 const SCOPE = ["progress"] as const;
 
-/** How many dates were asked, which numbers each. */
-let asked = 0;
-
 /** A date asked of the user, which the entry that asked it waits for; `null` gives the entry up. */
 interface Dating {
-  readonly id: number;
+  readonly id: string;
   readonly resolve: (date: string | null) => void;
 }
 
@@ -186,8 +183,7 @@ export function RemainingGrid({
   const askDate = useCallback(
     () =>
       new Promise<string | null>((resolve) => {
-        asked += 1;
-        setAsking((before) => [...before, { id: asked, resolve }]);
+        setAsking((before) => [...before, { id: crypto.randomUUID(), resolve }]);
       }),
     [],
   );

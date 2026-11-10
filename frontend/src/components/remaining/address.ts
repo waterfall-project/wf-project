@@ -123,13 +123,21 @@ export function kanbanFilterHref(
 }
 
 /**
- * The address of the grid of the remaining to commit of a revision on a task, found by its label
- * (`search`): where the refusal to delete a task started leads, to bring its remaining to commit to
- * zero (WF-PLA-0070). The grid shows the tasks started by default, which is the task refused.
+ * The address of the grid of the remaining to commit of a revision where a task refused to be
+ * deleted because it is started is brought to zero (WF-PLA-0070): a leaf task, found by its label
+ * (`search`); a summary task, none — its label is no line's, and the tasks started under it are
+ * what the grid shows by default. The grid shows the tasks started by default.
  */
-export function taskRemainingHref(projectId: string, revisionId: string, label: string): string {
-  const query = new URLSearchParams({ [SEARCH]: label.slice(0, SEARCH_LENGTH) });
-  return `/projects/${projectId}/revisions/${revisionId}/remaining?${query.toString()}`;
+export function taskRemainingHref(
+  projectId: string,
+  revisionId: string,
+  label: string | undefined,
+): string {
+  const path = `/projects/${projectId}/revisions/${revisionId}/remaining`;
+  if (label === undefined) {
+    return path;
+  }
+  return `${path}?${new URLSearchParams({ [SEARCH]: label.slice(0, SEARCH_LENGTH) }).toString()}`;
 }
 
 /** The day, as a date of the planning, in the time of the workstation: what a date asked proposes. */

@@ -300,7 +300,9 @@ export function needsCompletionDate(outcome: Outcome<unknown>): boolean {
   return (
     "problem" in outcome &&
     outcome.problem.status === 422 &&
-    (outcome.problem.fields ?? []).some((field) => field.code === "COMPLETION_DATE_REQUIRED")
+    (outcome.problem.fields ?? []).some(
+      (field) => field.code === "COMPLETION_DATE_REQUIRED" && field.pointer === "/completed_on",
+    )
   );
 }
 

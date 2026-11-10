@@ -377,6 +377,52 @@ describe("the grid of the remaining to commit", () => {
     expect(written(client)).toHaveLength(1);
   });
 
+  it("tells at the cell the second refusal, a date before the start of the task, and asks no second date [WF-PLA-0130-A]", async () => {
+    // A completion never precedes the start of its task: the service refuses the date given on
+    // `/completed_on` (`VALUE_OUT_OF_RANGE`, `minimum` the start), which is not a missing date.
+    const missing = example("remaining_completion_date_required") as Problem & {
+      readonly status: 422;
+    };
+    const before: Problem & { readonly status: 422 } = {
+      ...missing,
+      fields: [
+        { pointer: "/completed_on", code: "VALUE_OUT_OF_RANGE", params: { minimum: "2026-06-15" } },
+      ],
+    };
+    const client = serve([{ problem: missing }, { problem: before }]);
+    render(grid());
+    cell(LABOUR, "hours").focus();
+    await userEvent.keyboard("{Enter}");
+    await userEvent.clear(screen.getByRole("textbox", { name: "Charge (h)" }));
+    await userEvent.keyboard("0{Enter}");
+    const dialog = await screen.findByRole("dialog", { name: "Terminer la tâche" });
+    const date = within(dialog).getByLabelText("Date de terminaison");
+    await userEvent.clear(date);
+    await userEvent.type(date, "2026-06-01");
+    await userEvent.click(within(dialog).getByRole("button", { name: "Terminer la tâche" }));
+    expect(await screen.findByRole("alert")).toBeInTheDocument();
+    expect(written(client)).toHaveLength(2);
+    expect(screen.queryByRole("dialog")).toBeNull();
+  });
+
+  it("resolves the entry waiting for a date when the grid goes while the dialog is open, without a call nor an alert [WF-RAE-0040-A]", async () => {
+    const problem = example("remaining_completion_date_required") as Problem & {
+      readonly status: 422;
+    };
+    const client = serve({ problem });
+    const { unmount } = render(grid());
+    cell(LABOUR, "hours").focus();
+    await userEvent.keyboard("{Enter}");
+    await userEvent.clear(screen.getByRole("textbox", { name: "Charge (h)" }));
+    await userEvent.keyboard("0{Enter}");
+    await screen.findByRole("dialog", { name: "Terminer la tâche" });
+    unmount();
+    await Promise.resolve();
+    expect(written(client)).toHaveLength(1);
+    expect(screen.queryByRole("alert")).toBeNull();
+    expect(screen.queryByRole("dialog")).toBeNull();
+  });
+
   it("re-estimates a quantity, and a unit disbursement emptied, each figure alone", async () => {
     const client = serve();
     render(grid());
