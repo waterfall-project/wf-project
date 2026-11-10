@@ -253,6 +253,9 @@ from waterfall.core.estimate.interface.rates import (
 
 # ``remaining`` (US-1580/L1; US-1580/L2): a line reestimated, the remaining of the review before.
 from waterfall.core.estimate.interface.remaining import (
+    LineRemaining as LineRemaining,
+)
+from waterfall.core.estimate.interface.remaining import (
     copy_previous as copy_previous,
 )
 from waterfall.core.estimate.interface.remaining import (

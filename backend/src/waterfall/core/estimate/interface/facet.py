@@ -180,8 +180,8 @@ _UUIDS = frozenset(
     {"project_id", "node_id", "cost_category_id", "resource_role_id", "subproject_id"}
     | {"created_by", "updated_by"}
 )
-_INSTANTS = frozenset({"created_at", "updated_at"})
-_TEXTS = frozenset({"kind", "label"})
+_INSTANTS = frozenset({"created_at", "updated_at", "reestimated_at"})
+_TEXTS = frozenset({"kind", "label", "remaining_reason"})
 
 
 def _typed(name: str, value: JsonValue) -> object:

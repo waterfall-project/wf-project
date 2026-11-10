@@ -388,7 +388,7 @@ def _optional(value: Decimal | None, write: Callable[[Decimal], str]) -> str | N
 
 
 def _line(view: LineView) -> dict[str, Any]:
-    """Write a facet estimate line as the contract does; the previous figures null until EP-09."""
+    """Write a facet estimate line as the contract does, its review before and its reason."""
     return {
         "label": view.label,
         "cost_category_id": str(view.cost_category_id),
@@ -404,10 +404,11 @@ def _line(view: LineView) -> dict[str, Any]:
         "base_amount": _money(view.base_amount),
         "budgeted_amount": _money(view.budgeted_amount),
         "reestimated_amount": _money(view.reestimated_amount),
-        "previous_quantity": None,
-        "previous_hours": None,
-        "previous_unit_disbursement": None,
-        "previous_reestimated_amount": None,
+        "previous_quantity": _optional(view.previous_quantity, _text),
+        "previous_hours": _optional(view.previous_hours, _text),
+        "previous_unit_disbursement": _optional(view.previous_unit_disbursement, _money),
+        "previous_reestimated_amount": _optional(view.previous_reestimated_amount, _money),
+        "remaining_reason": view.remaining_reason,
         "consumption_year": view.consumption_year,
         "is_computed": False,
         "uses_inactive_object": view.uses_inactive_object,
