@@ -267,22 +267,29 @@ test(
     // none, on a new installation: the row of the path is the one that is none of them, whatever
     // its date, so that a backup of a run played minutes before is never taken for it (#2751).
     // Read once the screen is hydrated and its grid holds its rows: read before, the list held
-    // nothing, and the row of a backup taken an hour before was taken for that of the path.
+    // nothing, and the row of a backup taken an hour before was taken for that of the path. A list
+    // without any backup shows no grid, only its count: the screen is served whole, so the grid is
+    // there or is not once the command that starts a backup is, and none held is the empty set.
     const grid = page.getByRole("grid", { name: "Sauvegardes" });
-    await expect(grid).toBeVisible();
+    await expect(page.getByRole("button", { name: "Sauvegarder maintenant" })).toBeVisible();
     await untilHydrated(page);
     const downloads = grid.getByRole("link", { name: /^Télécharger la sauvegarde du / });
-    const rowsListed = async () => Number((await grid.getAttribute("aria-rowcount")) ?? "0") - 2;
-    // More than one row listed, the first is a backup whose download the grid offers; one row
-    // alone may be the notice of a list without any.
-    await expect
-      .poll(async () => (await rowsListed()) <= 1 || (await downloads.count()) > 0, {
-        timeout: WORKING,
-      })
-      .toBe(true);
     const listed = async (): Promise<string[]> =>
       Promise.all((await downloads.all()).map(async (link) => backupOf(link)));
-    const held = new Set(await listed());
+    const held = new Set<string>();
+    if ((await grid.count()) > 0) {
+      const rowsListed = async () => Number((await grid.getAttribute("aria-rowcount")) ?? "0") - 2;
+      // More than one row listed, the first is a backup whose download the grid offers; one row
+      // alone may be the notice of a list without any.
+      await expect
+        .poll(async () => (await rowsListed()) <= 1 || (await downloads.count()) > 0, {
+          timeout: WORKING,
+        })
+        .toBe(true);
+      for (const backup of await listed()) {
+        held.add(backup);
+      }
+    }
 
     // The backup, followed by the tracker until the worker has taken and verified it.
     const followed = page.getByRole("button", { name: /^Tâches et messages\s: 1 tâche suivie/ });
@@ -293,7 +300,8 @@ test(
     await expect(entries.getByText("Réussie")).toBeVisible({ timeout: 180_000 });
     await entries.getByRole("button", { name: "Recharger l’écran" }).click();
     // Listed once the screen is read anew, with its date, the instant it was taken, which the
-    // browser writes in its local time, and with its size.
+    // browser writes in its local time, and with its size. The grid is there once a backup is.
+    await expect(grid).toBeVisible();
     let taken = "";
     await expect
       .poll(async () => {
