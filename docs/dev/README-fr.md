@@ -3786,7 +3786,10 @@ jusqu'à ce que React y réponde, sans défaire celui qu'il a déjà reçu (`set
 la borne des écrans de grille, quinze secondes (`WORKING`, #315, #419), qu'un clic l'atteigne ou le
 relise (un tri, un filtre, une recherche, le détail d'une ligne). Un écran de grille est une grille
 dense — devis, planning, reste à engager, risques, coûts réels, portefeuille —, ou un écran qui lit
-la structure de mille tâches (`listNodes`) : le Kanban, l'arborescence, les chronologies. La
+la structure de mille tâches : l'arborescence et les chronologies, par `listNodes`, et le Kanban,
+par `listStartableTasks` — la mesure de #646 sur PRJ-001, contre le service : environ 1,3 seconde
+pour les 960 cartes et leurs 1,8 mégaoctet, et deux secondes du clic ou de l'adresse à la première
+carte, loin sous cette borne. La
 comparaison de deux révisions s'y ajoute, le temps d'une décision : elle rend ses 2 770
 modifications en une table simple, rendue au serveur, qui dépasse cinq secondes en développement
 (constat #624 d'EP-14/L45a, à trancher — admise, ou portée sur la grille dense) : du clic à
