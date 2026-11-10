@@ -66,6 +66,9 @@ ORDER_ITEM = "order_item"
 DELIVERABLE = "deliverable"
 # Where a position is parked while the slots are exchanged: above any position a project may hold.
 PARKED = 1_000_000_000
+# The counter a project is born with, its work breakdown included: a work breakdown that still
+# reads it has not been written (#2762).
+BORN_LOCK_VERSION = 1
 
 type Row = WorkPackage | OrderItem | Deliverable
 
@@ -618,10 +621,10 @@ def follow_project_label(session: Session, project: Project, label: str, act: Ac
     """Make the work package and the order item of the birth bear a new label of the project.
 
     They follow the label of the project (D-11) while no writing has set the work breakdown, that
-    is while its counter is 0; written once, they are the writing's and stay as it set them. To be
+    is while its counter is the one of its birth; written once, they are the writing's and stay as it set them. To be
     called under the lock of the project, which ``update_project`` holds.
     """
-    if project.work_breakdown_lock_version != 0:
+    if project.work_breakdown_lock_version != BORN_LOCK_VERSION:
         return
     packages, items, _ = _held(session, project.id)
     for row in (*packages.values(), *items.values()):
@@ -639,7 +642,7 @@ def load_work_breakdown(session: Session, load: WorkBreakdownLoad, act: Act) -> 
     overwrites what a platform holds. The identifiers the witness imposes are kept.
     """
     project = _locked(session, load.project_id)
-    if project.work_breakdown_lock_version != 0:
+    if project.work_breakdown_lock_version != BORN_LOCK_VERSION:
         raise ConflictError(ALREADY_EXISTS, {"conflicting_object_id": str(project.id)})
     _replace(session, project, load.work_packages, act)
     project.work_breakdown_lock_version = load.lock_version

@@ -36,7 +36,7 @@ from waterfall.core.projects.commands import (
 from waterfall.core.projects.interface.contributors import require_project_manager
 from waterfall.core.projects.interface.lifecycle import advance
 from waterfall.core.projects.interface.skeleton import opening_with_tasks
-from waterfall.core.projects.interface.work_breakdown import follow_project_label
+from waterfall.core.projects.interface.work_breakdown import BORN_LOCK_VERSION, follow_project_label
 from waterfall.core.projects.tables import (
     STATES,
     Contributor,
@@ -544,6 +544,8 @@ def _create(session: Session, draft: ProjectDraft, act: Act, project_id: UUID | 
         client=draft.client,
         code=draft.code,
         state="created",
+        lock_version=BORN_LOCK_VERSION,
+        work_breakdown_lock_version=BORN_LOCK_VERSION,
         inflation_rate=Decimal(0),
         win_probability=Decimal(0),
         **stamp,
