@@ -4011,7 +4011,7 @@
       "sheet": "Tab",
       "dateMismatches": "{count, plural, one {# task the file dates otherwise: what Waterfall computes prevails} other {# tasks the file dates otherwise: what Waterfall computes prevails}}",
       "dateMismatchesTable": "Tasks the file dates otherwise",
-      "unitConstants": "The file counts {fileDay} hours a day, {fileWeek} a week and {fileMonth} days a month, the installation {installationDay}, {installationWeek} and {installationMonth}: the durations and the lags keep their hours, read at the constants of the installation.",
+      "unitConstants": "File constants: hours per day {fileDay}, hours per week {fileWeek}, days per month {fileMonth}; installation constants: hours per day {installationDay}, hours per week {installationWeek}, days per month {installationMonth} — the durations and the lags keep their hours, read at the constants of the installation.",
       "unchanged": "Of these, {count, plural, =0 {none is unchanged} one {# is unchanged} other {# are unchanged}}.",
       "signals": "{count, plural, one {# value of the file kept and signalled} other {# values of the file kept and signalled}}",
       "signalsTable": "Values of the file kept and signalled",

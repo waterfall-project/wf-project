@@ -4,6 +4,7 @@ import { readFile } from "node:fs/promises";
 
 import { expect, type Route } from "@playwright/test";
 
+import catalogue from "../messages/fr.json" with { type: "json" };
 import { compile } from "./compile";
 import { openHydrated, WORKING } from "./hydration";
 import { inService, test } from "./mode";
@@ -235,5 +236,7 @@ test("exports the planning as MS Project XML, downloads it once, and imports it 
     report.getByRole("table", { name: "Tâches datées autrement par le fichier" }),
   ).toHaveCount(0);
   // Exported and imported by the same installation, the file bears its constants: nothing to signal.
-  await expect(report.getByText(/^Le fichier compte/)).toHaveCount(0);
+  await expect(
+    report.getByText(catalogue.exchanges.report.unitConstants.split("{", 1).join("").trim()),
+  ).toHaveCount(0);
 });

@@ -62,14 +62,19 @@ describe("the report of an import, what the file dates otherwise", () => {
   });
 });
 
+// The head of the sentence, read from the catalogue: a wording that changes moves it along, so that
+// the absence asserted below cannot pass for want of a phrase to find.
+const FILE_CONSTANTS = CATALOGUES.fr.exchanges.report.unitConstants.split("{", 1).join("").trim();
+
 describe("the report of an import, the unit constants of the file", () => {
   it("signals the constants of an MS Project file that differ from those of the installation, the file's and the installation's [WF-PLA-0160-A]", () => {
     open(example("import_planning_other_constants") as Import);
     expect(
       screen.getByText(
-        "Le fichier compte 7 heures par jour, 35 par semaine et 20 jours par mois, l’installation 8, 40 et 20 : les durées et les décalages gardent leurs heures, lues aux constantes de l’installation.",
+        "Constantes du fichier : heures par jour 7, heures par semaine 35, jours par mois 20 ; constantes de l’installation : heures par jour 8, heures par semaine 40, jours par mois 20 — les durées et les décalages gardent leurs heures, lues aux constantes de l’installation.",
       ),
     ).toBeVisible();
+    expect(screen.getByText(new RegExp(FILE_CONSTANTS))).toBeVisible();
     expect(screen.queryByText("Confirmation explicite demandée")).toBeNull();
   });
 
@@ -77,7 +82,7 @@ describe("the report of an import, the unit constants of the file", () => {
     open(example("import_planning_other_constants") as Import, "en");
     expect(
       screen.getByText(
-        "The file counts 7 hours a day, 35 a week and 20 days a month, the installation 8, 40 and 20: the durations and the lags keep their hours, read at the constants of the installation.",
+        "File constants: hours per day 7, hours per week 35, days per month 20; installation constants: hours per day 8, hours per week 40, days per month 20 — the durations and the lags keep their hours, read at the constants of the installation.",
       ),
     ).toBeVisible();
   });
@@ -86,7 +91,7 @@ describe("the report of an import, the unit constants of the file", () => {
     "signals nothing when the report bears no constants, %s",
     (name) => {
       open(example(name) as Import);
-      expect(screen.queryByText(/^Le fichier compte/)).toBeNull();
+      expect(screen.queryByText(new RegExp(FILE_CONSTANTS))).toBeNull();
     },
   );
 });
