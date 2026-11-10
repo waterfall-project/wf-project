@@ -804,7 +804,7 @@ SHARED = {
 
 
 def _shared_names_declared(source: str) -> set[str]:
-    """The shared names a module declares at its top level, plainly or with an annotation."""
+    """Return the shared names a module declares at its top level, annotated or not."""
     names: set[str] = set()
     for statement in ast.parse(source).body:
         if isinstance(statement, ast.Assign):
