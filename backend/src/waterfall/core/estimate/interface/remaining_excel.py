@@ -61,6 +61,7 @@ class RemainingFormat:
     """
 
     header_length = HEADER_LENGTH
+    judged_first = True
     scope: ImportScope = "structure"
     permission = "remaining.write"
 

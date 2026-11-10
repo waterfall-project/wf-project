@@ -305,7 +305,9 @@
           condition, and nothing is analysed. A terminal project, `project_not_terminal`
           (WF-CYC-0100) — it then lists no command, and this 409 is the only place where the
           condition is named (I-03, #1789). For a schedule, an estimate or a remaining to commit,
-          in the order in which `ProjectCommand.import_*` names them: `no_background_task_running`
+          in the order in which `ProjectCommand.import_*` names them: for a remaining to commit,
+          `project_in_progress` first, when the project is not In progress (WF-RAE-0040;
+          US-1630, #2796); then `no_background_task_running`
           while a background task writes to the current revision or freezes it, then
           `may_create_revision` for whoever lacks `revisions.write` when the import would create the
           current revision — a 409 and not a 403, as for the merge (`mergeCostStructure`)

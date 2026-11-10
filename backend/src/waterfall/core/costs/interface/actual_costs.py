@@ -57,6 +57,7 @@ class ActualCostsFormat:
     """
 
     header_length = HEADER_LENGTH
+    judged_first = False
     scope: ImportScope = "project"
     permission = "actual_costs.write"
 

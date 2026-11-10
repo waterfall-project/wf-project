@@ -63,6 +63,7 @@ class EstimateFormat:
     """
 
     header_length = HEADER_LENGTH
+    judged_first = False
     scope: ImportScope = "structure"
     permission = "estimate.write"
 

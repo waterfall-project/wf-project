@@ -43,6 +43,8 @@ from waterfall.core.revisions.tables import CostStructure
 from waterfall.platform.audit import Act
 from waterfall.platform.database import utc_now
 from waterfall.platform.keycloak_admin import KeycloakAdmin
+from waterfall.platform.logs import logging_context
+from waterfall.platform.tasks import submit
 
 if TYPE_CHECKING:
     from openapi_core import OpenAPI
@@ -533,6 +535,33 @@ def test_a_remaining_is_imported_on_a_project_in_progress_only(
     assert refusal(answer) == (409, STATE, {"missing_condition": "project_in_progress"})
     assert refusal(apply(api, stage, import_id)) == refusal(answer)
     assert stored(stage.database, import_id).status == "refused"
+
+
+@pytest.mark.requirement("WF-INTF-0120-A")
+def test_a_project_not_in_progress_with_a_task_running_is_refused_by_project_in_progress_first(
+    api: ContractClient,
+    stage: Scene,
+    database: Database,
+    queue: TaskQueue,
+    scene: Rows,
+) -> None:
+    # The order of ``ProjectCommand.import_remaining`` (US-1630; #2796): ``project_in_progress``,
+    # then ``no_background_task_running`` and ``may_create_revision``. Not In progress and a task
+    # writing in the revision: the opening names the phase, and the task alone once In progress.
+    content = workbook({OUTSIDE: scene.exported()}, scene.tasks())
+    payload = {
+        "project_id": stage.project["project_id"],
+        "revision_id": str(UUID(int=1)),
+        "version_name": "v1.0",
+        "description": None,
+    }
+    with logging_context(correlation_id="queued-around"), database.transaction() as session:
+        submit(session, queue, "revision_mark", stage.manager.user_id, payload)
+    answer = opening(api, stage, content)
+    assert refusal(answer) == (409, STATE, {"missing_condition": "no_background_task_running"})
+    put_in_state(stage.owner, stage.project["project_id"], "pricing")
+    answer = opening(api, stage, content)
+    assert refusal(answer) == (409, STATE, {"missing_condition": "project_in_progress"})
 
 
 # --- The revision an import creates -------------------------------------------------------------
