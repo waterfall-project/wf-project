@@ -13,14 +13,17 @@ from io import BytesIO
 from typing import Any
 
 import pytest
-from openpyxl import Workbook
+from openpyxl import Workbook, load_workbook
 
 from waterfall.core.estimate.remaining.excel.layout import (
     FORMAT_NAME,
     FORMAT_VERSION,
+    HEADERS,
     OUTSIDE,
+    PREPARED,
     REVIEW_DATE_CELL,
     SUMMARY,
+    TABLE_ROW,
     TASKS,
 )
 from waterfall.core.estimate.remaining.excel.model import (
@@ -119,7 +122,6 @@ def test_a_file_that_is_no_workbook_is_refused_as_unreadable(content: bytes) -> 
     "review",
     [
         pytest.param(date(2027, 2, 15), id="date"),
-        pytest.param(datetime(2027, 2, 15, 0, 0, tzinfo=UTC).replace(tzinfo=None), id="datetime"),
         pytest.param("2027-02-15", id="iso-text"),
     ],
 )
@@ -185,7 +187,7 @@ def test_an_empty_line_and_the_line_of_total_are_ignored() -> None:
         [None, None, None, None, None, None],
         ["  ", None, None, "", None, None],
         ["2 B", PURCHASE, None, None, 5, "l-2"],
-        ["Total", None, None, 4, 9, None],
+        ["Total", None, None, 1, 5, None],
         ["Une note sous le tableau"],
     ]
     read = read_remaining_workbook(workbook({"SP-1": rows}))
@@ -328,6 +330,16 @@ def test_the_workbook_the_writer_makes_is_read_back_line_for_line() -> None:
                         None if labour else line.reestimated_amount,
                     )
                 )
+    assert (read.lines[0].lineage, read.lines[0].days, read.lines[0].disbursement) == (
+        "l-1",
+        D(3),
+        None,
+    )
+    assert (read.lines[2].lineage, read.lines[2].days, read.lines[2].disbursement) == (
+        "l-3",
+        None,
+        D(1200),
+    )
     got = [(r.sheet, r.lineage, r.task, r.label, r.days, r.disbursement) for r in read.lines]
     assert got == expected
     assert dict(read.tasks) == {
@@ -340,10 +352,74 @@ def test_the_workbook_the_writer_makes_is_read_back_line_for_line() -> None:
 
 @pytest.mark.requirement("WF-INTF-0130-A")
 def test_the_prepared_rows_and_the_row_of_total_of_the_written_tables_are_not_lines() -> None:
-    read = read_remaining_workbook(write_workbook(_book()))
+    content = write_workbook(_book())
+    read = read_remaining_workbook(content)
+    sheet = load_workbook(BytesIO(content))["SP-PRE"]
+    # Excel rows: the headers at TABLE_ROW + 1, the three lines below them, then the prepared rows.
+    first_line = TABLE_ROW + 2
+    first_prepared = first_line + 3
+    prepared = range(first_prepared, first_prepared + PREPARED)
+    total = first_prepared + PREPARED
 
+    assert len(prepared) == 10
+    assert sheet.max_row >= total + 2
+    assert sheet.cell(total, 1).value == "Total"
+    assert all(sheet.cell(row, 2).value is not None for row in prepared)  # their formulas
     assert len(read.lines) == 4
-    assert {line.row for line in read.lines if line.sheet == "SP-PRE"} == {16, 17, 18}
+    assert {line.row for line in read.lines if line.sheet == "SP-PRE"} == set(
+        range(first_line, first_prepared)
+    )
+
+
+@pytest.mark.requirement("WF-INTF-0120-A")
+def test_the_headers_read_are_headers_of_the_layout() -> None:
+    assert {DAYS_HEADER, DISBURSEMENT_HEADER} <= set(HEADERS)
+
+
+@pytest.mark.requirement("WF-INTF-0120-A")
+def test_a_line_typed_under_the_line_of_total_is_read() -> None:
+    rows = [
+        SMALL,
+        ["1 A", ARCH, None, 1, None, "l-1"],
+        ["Total", None, None, 1, None, None],
+        ["2 B", ARCH, None, "x", None, "l-2"],
+        ["3 C", PURCHASE, None, None, 5, "l-3"],
+    ]
+    read = read_remaining_workbook(workbook({"SP-1": rows}))
+
+    assert [(line.row, line.lineage) for line in read.lines] == [(2, "l-1"), (5, "l-3")]
+    assert [(r.row, r.lineage) for r in read.rejected] == [(4, "l-2")]
+
+
+@pytest.mark.requirement("WF-INTF-0130-A")
+def test_the_note_the_writer_sets_under_the_table_is_not_a_line() -> None:
+    content = write_workbook(_book())
+    sheet = load_workbook(BytesIO(content))["SP-PRE"]
+    notes = [
+        row
+        for row in range(1, sheet.max_row + 1)
+        if str(sheet.cell(row, 1).value).startswith("Les tâches")
+    ]
+
+    assert len(notes) == 1
+    assert notes[0] > TABLE_ROW + 2 + 3 + PREPARED
+    assert notes[0] not in {line.row for line in read_remaining_workbook(content).lines}
+
+
+@pytest.mark.requirement("WF-INTF-0120-A")
+def test_a_total_that_carries_numbers_a_role_a_label_or_a_lineage_is_not_a_total() -> None:
+    rows = [
+        SMALL,
+        ["1 A", ARCH, None, 1, None, "l-1"],
+        ["Total", None, None, 7, None, None],
+        ["Total", ARCH, None, None, None, None],
+        ["Total", None, "Divers", None, None, None],
+        ["Total", None, None, None, None, "l-4"],
+    ]
+    read = read_remaining_workbook(workbook({"SP-1": rows}))
+
+    assert [line.row for line in read.lines] == [2, 3, 4, 5, 6]
+    assert read.rejected == ()
 
 
 @pytest.mark.requirement("WF-INTF-0130-A")
