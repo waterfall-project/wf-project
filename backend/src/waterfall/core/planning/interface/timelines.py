@@ -25,6 +25,7 @@ from waterfall.core.projects.interface import (
     project_facts,
 )
 from waterfall.platform.errors import (
+    STATE_FORBIDS_OPERATION,
     ConflictError,
     FieldError,
     NotFoundError,
@@ -44,7 +45,6 @@ NOT_FOUND = "NOT_FOUND"
 VALIDATION_FAILED = "VALIDATION_FAILED"
 VALUE_REQUIRED = "VALUE_REQUIRED"
 VALUE_TOO_LONG = "VALUE_TOO_LONG"
-STATE_FORBIDS_OPERATION = "STATE_FORBIDS_OPERATION"
 
 
 @dataclass(frozen=True, slots=True)

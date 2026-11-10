@@ -127,13 +127,22 @@ test("the home lists the projects the user contributes to, a filter shown and li
   if (!inService) {
     await expect(list.getByRole("row")).toHaveCount(4);
   }
-  await expect(
-    list.getByRole("link", { name: "Modernisation du poste de commande" }),
-  ).toBeVisible();
   if (inService) {
     // The loader writes PRJ-001 in pricing and PRJ-002 created, neither with a code yet (US-0990).
-    await expect(list.getByRole("row", { name: /Extension de la ligne d.essais/ })).toBeVisible();
+    // The other paths create projects of their own, which a page of the list may no longer leave
+    // room for the two of the witness: each is reached by the search of the screen, on its label.
+    for (const [search, name] of [
+      ["Modernisation", /Modernisation du poste de commande/],
+      ["Extension", /Extension de la ligne d.essais/],
+    ] as const) {
+      await page.goto(`/?is_contributor=false&search=${search}`);
+      await expect(list.getByRole("row", { name })).toBeVisible();
+    }
+    await page.goto("/?is_contributor=false");
   } else {
+    await expect(
+      list.getByRole("link", { name: "Modernisation du poste de commande" }),
+    ).toBeVisible();
     await expect(list.getByRole("row", { name: /PRJ-002/ })).toContainText("Chiffrage");
   }
   await expect(list.getByRole("row").last()).toContainText(
@@ -864,6 +873,9 @@ test("a labour line of a role of a service proposes the accounts of the service 
     // Read anew, the service kept both and proposes this account no more.
     await page.reload();
     await expect(grid.getByRole("row").last()).toHaveText("2 contributeurs", { timeout: WORKING });
+    // The account is inscribed — in the grid of the contributors, drawn once the list is read — and
+    // no longer proposed; the absence alone would also hold before the proposals are drawn (#2673).
+    await expect(grid.getByRole("row").filter({ hasText: other.name })).toHaveCount(1);
     await expect(proposed.filter({ hasText: other.name })).toHaveCount(0);
   } finally {
     await calls.dispose();

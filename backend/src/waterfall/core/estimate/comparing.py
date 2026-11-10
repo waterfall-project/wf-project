@@ -31,7 +31,7 @@ from waterfall.core.estimate.uniting import TASK, Union, unite
 from waterfall.core.planning.interface import Place, read_structure
 from waterfall.core.projects.interface import subproject_labels
 from waterfall.core.revisions.interface import aimed_structure, read_revision_for
-from waterfall.platform.errors import ConflictError, NotFoundError
+from waterfall.platform.errors import STATE_FORBIDS_OPERATION, ConflictError, NotFoundError
 
 if TYPE_CHECKING:
     from collections.abc import Collection, Sequence
@@ -50,7 +50,6 @@ if TYPE_CHECKING:
     from waterfall.core.revisions.interface import RevisionRead
 
 NOT_FOUND = "NOT_FOUND"
-STATE_FORBIDS_OPERATION = "STATE_FORBIDS_OPERATION"
 REVISION_MARKED = "revision_marked"
 COST_TYPE = "cost_type"
 SUBPROJECT = "subproject"
@@ -191,6 +190,9 @@ def _amount_deltas(
     for read, lines, sign in ((base_read, before, -1), (compared_read, after, 1)):
         natures = natures_of(session, project_id, read, {each.cost_category_id for each in lines})
         for line in lines:
+            # Never a ``KeyError``: ``natures_of`` finds the category of every line, on the images
+            # or on the reference; proved by ``test_comparison.py``,
+            # ``test_a_category_a_line_bears_lacks_never_both_its_image_and_the_reference``.
             nature = natures[line.cost_category_id]
             # The label of the compared revision prevails: it is added after the base one.
             deltas.labels[(COST_TYPE, nature.cost_type_id)] = nature.label
@@ -265,7 +267,7 @@ def compare(session: Session, project_id: UUID, asked: ComparisonAsked) -> Compa
             ComparedNode(union.views[each], union.difference[each], union.changes[each])
             for each in order
         ),
-        task_count=len(compared.kept),
+        task_count=compared.task_count,
         totals=compared.totals,
         summary_depth=compared.summary_depth,
         scheduled_at=compared.scheduled_at,

@@ -18,7 +18,7 @@ from typing import TYPE_CHECKING
 from waterfall.core.planning.interface.facets import BearingTask, calendar_of, facets
 from waterfall.core.planning.scheduling import WorkInstant
 from waterfall.core.planning.views import COMPLETED, state_of
-from waterfall.platform.errors import ConflictError
+from waterfall.platform.errors import STATE_FORBIDS_OPERATION, ConflictError
 
 if TYPE_CHECKING:
     from collections.abc import Collection, Iterable
@@ -26,10 +26,10 @@ if TYPE_CHECKING:
 
     from sqlalchemy.orm import Session
 
+    from waterfall.core.planning.calendars import Applicable
     from waterfall.core.planning.tree import Tree
     from waterfall.core.planning.writing import Write
 
-STATE_FORBIDS_OPERATION = "STATE_FORBIDS_OPERATION"
 TASK_NOT_COMPLETED = "task_not_completed"
 
 
@@ -37,6 +37,14 @@ def bearing(
     session: Session, project_id: UUID, tree: Tree, task_id: UUID, *, is_main: bool
 ) -> BearingTask:
     """Give a task of a tree as the facet of a node it bears is told of it."""
+    return borne(tree, task_id, calendar_of(session, project_id, task_id), is_main=is_main)
+
+
+def borne(tree: Tree, task_id: UUID, calendar: Applicable, *, is_main: bool) -> BearingTask:
+    """Give a task of a tree as ``bearing`` does, its applicable calendar read already.
+
+    For a write that tells many tasks at once, their calendars read together (``calendars_of``).
+    """
     task = tree.tasks[task_id]
     return BearingTask(
         task_id,
@@ -44,7 +52,7 @@ def bearing(
         task.label,
         WorkInstant(task.start_date, task.start_hours),
         WorkInstant(task.finish_date, task.finish_hours),
-        calendar_of(session, project_id, task_id).calendar.week,
+        calendar.calendar.week,
         state_of(tree, task_id).progress,
         is_main,
     )

@@ -200,13 +200,8 @@ def request_export(api: ContractClient, stage: Scene, revision_id: str, **body: 
 
 
 def download(api: ContractClient, stage: Scene, task_id: str) -> Any:
-    """Download the result of an export as the manager does, past the check of the contract.
-
-    The contract declares the file ``application/xml`` as a binary string, and the validator of
-    the answers parses such a body into a tree, which it then refuses as no string: the answer is
-    read here by the client of the application itself, its type and its name checked by the tests.
-    """
-    return api.client.get(f"{TASKS}/{task_id}/result", headers=stage.manager.headers)
+    """Download the result of an export as the manager does; give the answer."""
+    return api.get(f"{TASKS}/{task_id}/result", headers=stage.manager.headers)
 
 
 def exported_answer(api: ContractClient, stage: Scene, worker: Worker, revision_id: str) -> Any:
@@ -565,12 +560,14 @@ def test_the_file_is_named_after_the_code_of_the_project_cleaned_or_not_at_all(
     assert named("é é") == 'attachment; filename="ms-project.xml"'
 
 
-@pytest.mark.requirement("WF-INTF-0050-A")
 def test_the_currency_code_written_is_the_one_of_the_installation(
     api: ContractClient, stage: Scene, worker: Worker
 ) -> None:
-    # « Le fichier exporté valide contre le schéma » : CurrencyCode, exigé, porte la devise de
-    # l'installation et non une valeur vide (#2469).
+    # CurrencyCode, that the schema requires, bears the currency of the installation, not an empty
+    # value (#2469). It cites no requirement: the Vérif of WF-QUA-0080-A (the corpus imported then
+    # exported, valid against the schema) is not what it tries, the corpus tries it whole; nor is
+    # the opening in MS Project of WF-INTF-0050-A, checked at acceptance (#2682). A detail of the
+    # code, as WF-QUA-0010 admits.
     with stage.database.transaction() as session:
         currency = read_reference_settings(session).currency_code
     content, project = exported_planning(api, stage, worker)

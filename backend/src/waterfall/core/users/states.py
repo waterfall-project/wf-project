@@ -19,11 +19,7 @@ from typing import TYPE_CHECKING
 from sqlalchemy import func, select
 
 from waterfall.core.users.accounts import Stamp, change_columns, lock_account_at
-from waterfall.core.users.commands import (
-    DEACTIVATED_CONDITION,
-    STATE_FORBIDS_OPERATION,
-    anonymized,
-)
+from waterfall.core.users.commands import DEACTIVATED_CONDITION, anonymized
 from waterfall.core.users.identity import LOCAL, inscribe, inscribed_actor
 from waterfall.core.users.tables import UserAccount
 from waterfall.platform.audit import (
@@ -34,7 +30,7 @@ from waterfall.platform.audit import (
     forget_account,
     record,
 )
-from waterfall.platform.errors import ConflictError
+from waterfall.platform.errors import STATE_FORBIDS_OPERATION, ConflictError
 
 if TYPE_CHECKING:
     from uuid import UUID

@@ -11,6 +11,8 @@ import {
   scrollToPosition,
   withinBox,
 } from "./scroll";
+import { columnsOf } from "./columns";
+import { seedEstimate } from "./estimate-seed";
 import { holdRoute, openHydrated, openMenu, pause, WORKING } from "./hydration";
 import { inService, test } from "./mode";
 import { seedPlanning } from "./planning-seed";
@@ -524,4 +526,48 @@ test("folds a task over its lines and the tree down to a level, the keyboard goi
   await menu.getByRole("menuitem", { name: "Tout déplier" }).click();
   await expect(grid(page)).toHaveAttribute("aria-rowcount", ROW_COUNT);
   await expect(line).toBeVisible();
+});
+
+test("sorts the lines under each task of the estimate by their amount, in both ways, by the service, without moving the tasks @shared [WF-IHM-0060-A]", async ({
+  page,
+  browser,
+  request,
+  manager,
+}) => {
+  test.skip(!inService, "the service sorts the lines it keeps, which the fake back does not");
+  test.slow();
+  const seeded = await seedEstimate(page, browser, request, manager, "Tri", {
+    lines: ["3000.00", "1000.00", "2000.00"],
+  });
+  await openHydrated(page, seeded.estimate);
+  const table = grid(page);
+  const header = table.getByRole("columnheader", { name: "Calculé Montant (année de réf.)" });
+  await expect(header).not.toHaveAttribute("aria-sort");
+  const at = await columnsOf(table, { reference: "Montant (année de réf.)", label: "Libellé" });
+  const amounts = () =>
+    Promise.all(
+      [3, 4, 5].map((row) => rowAt(table, row).getByRole("gridcell").nth(at.reference).innerText()),
+    );
+  const plain = (text: string) => text.replace(/\s/g, " ");
+  await expect(async () => {
+    expect((await amounts()).map(plain)).toEqual(["3 000,00 €", "1 000,00 €", "2 000,00 €"]);
+  }).toPass({ timeout: WORKING });
+
+  // Ascending: the lines are reordered under their task, the two tasks stay where the plan puts them.
+  await header.getByRole("button").click();
+  await expect(header).toHaveAttribute("aria-sort", "ascending", { timeout: WORKING });
+  await expect(async () => {
+    expect((await amounts()).map(plain)).toEqual(["1 000,00 €", "2 000,00 €", "3 000,00 €"]);
+  }).toPass({ timeout: WORKING });
+  await expect(rowAt(table, 1)).toContainText("Phase");
+  await expect(rowAt(table, 2)).toContainText("Tâche du devis");
+
+  // Descending.
+  await header.getByRole("button").click();
+  await expect(header).toHaveAttribute("aria-sort", "descending", { timeout: WORKING });
+  await expect(async () => {
+    expect((await amounts()).map(plain)).toEqual(["3 000,00 €", "2 000,00 €", "1 000,00 €"]);
+  }).toPass({ timeout: WORKING });
+  await expect(rowAt(table, 1)).toContainText("Phase");
+  await expect(rowAt(table, 2)).toContainText("Tâche du devis");
 });

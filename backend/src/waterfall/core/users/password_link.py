@@ -15,7 +15,7 @@ from waterfall.core.users.accounts import lock_account
 from waterfall.core.users.commands import IS_ACTIVE_ACCOUNT, anonymized
 from waterfall.core.users.identity import LOCAL, inscribe
 from waterfall.core.users.states import ACTIVE
-from waterfall.platform.errors import ConflictError
+from waterfall.platform.errors import STATE_FORBIDS_OPERATION, ConflictError
 
 if TYPE_CHECKING:
     from uuid import UUID
@@ -25,7 +25,6 @@ if TYPE_CHECKING:
     from waterfall.core.users.tables import UserAccount
     from waterfall.platform.audit import Act
 
-STATE_FORBIDS_OPERATION = "STATE_FORBIDS_OPERATION"
 # The conditions a link lacks, named by the 409 of ``createPasswordSetupLink`` (CommandCondition).
 IS_LOCAL_ACCOUNT = "is_local_account"
 

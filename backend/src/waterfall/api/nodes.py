@@ -9,6 +9,9 @@ estimate in them, their facet, their filters, their sort, their totals and the a
 
 A structure is read by whoever may consult the planning of its project; its tasks are written by
 the contributors of the project who may write the planning (``StructureCommand.edit_planning``).
+A node is created, deleted and moved alike from the three grids, by a contributor who may write
+one at least of the planning, the estimate and the remaining to commit, as ``StructureCommand``
+says (#2601).
 The parameters of a reading are judged here, every bound at once (``NUMBER_INVALID``,
 ``DATE_INVALID``, ``VALUE_OUT_OF_RANGE``, WF-IHM-0130), those of the line too, which retain lines
 (``LineFilters``); ``fields`` names what is returned of each node, an unknown property refused
@@ -88,6 +91,9 @@ router = APIRouter(tags=["revisions"])
 
 CONSULT = "planning.read"
 CHANGE = "planning.write"
+# The permissions of the three grids, one of which a write they make alike asks for (#2601), in the
+# order of ``StructureCommand``: the first named when the caller holds none.
+ENTRIES = ("planning.write", "estimate.write", "remaining.write")
 STRUCTURE = "/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}"
 VALIDATION_FAILED = "VALIDATION_FAILED"
 NUMBER_INVALID = "NUMBER_INVALID"
@@ -628,7 +634,7 @@ def get_nodes(
 @router.post(
     f"{STRUCTURE}/nodes",
     operation_id="createNode",
-    dependencies=[Depends(RequiresProject(CONSULT, CHANGE))],
+    dependencies=[Depends(RequiresProject(CONSULT, one_of=ENTRIES))],
     status_code=201,
     response_model=None,
 )
@@ -694,7 +700,7 @@ def patch_task(
 @router.delete(
     f"{STRUCTURE}/nodes/{{node_id}}",
     operation_id="deleteNode",
-    dependencies=[Depends(RequiresProject(CONSULT, CHANGE))],
+    dependencies=[Depends(RequiresProject(CONSULT, one_of=ENTRIES))],
     response_model=None,
 )
 def delete_task(
@@ -711,7 +717,7 @@ def delete_task(
 @router.post(
     f"{STRUCTURE}/nodes/move",
     operation_id="moveNodes",
-    dependencies=[Depends(RequiresProject(CONSULT, CHANGE))],
+    dependencies=[Depends(RequiresProject(CONSULT, one_of=ENTRIES))],
     response_model=None,
 )
 def post_move(

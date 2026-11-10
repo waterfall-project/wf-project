@@ -7,7 +7,9 @@
 WF-IHM-0110) — US-1450/L2.
 
 They write the planning, as the caller who may write it does (``planning.write``, the quality of
-contributor of the project); a paste is judged at its preview and again at its confirmation. The
+contributor of the project); a paste, which the three grids make alike, by the caller who may
+write one at least of them (``planning.write``, ``estimate.write`` or ``remaining.write``, #2601),
+is judged at its preview and again at its confirmation. The
 history is kept per revision, per account and per session of sign-in: a token without one is
 refused by 403 ``SESSION_ID_MISSING``. An undoing is refused for the permission of the entry it
 undoes, which the planning judges once it knows the entry (``remaining.write`` for the state of a
@@ -22,7 +24,7 @@ from fastapi import APIRouter, Depends
 from waterfall.api.authentication import Transaction
 from waterfall.api.contract.models import PasteApply, PastePreview
 from waterfall.api.evaluation import Acting, RequiresProject
-from waterfall.api.nodes import STRUCTURE, Placed, Writing, written_of
+from waterfall.api.nodes import ENTRIES, STRUCTURE, Placed, Writing, written_of
 from waterfall.core.planning.interface import (
     PasteBlock,
     PasteConfirmation,
@@ -67,7 +69,7 @@ def _undone(done: UndoDone) -> dict[str, Any]:
 @router.post(
     f"{STRUCTURE}/nodes/paste-preview",
     operation_id="previewPaste",
-    dependencies=[Depends(RequiresProject(CONSULT, CHANGE))],
+    dependencies=[Depends(RequiresProject(CONSULT, one_of=ENTRIES))],
     response_model=None,
 )
 def post_paste_preview(
@@ -91,7 +93,7 @@ def post_paste_preview(
 @router.post(
     f"{STRUCTURE}/nodes/paste",
     operation_id="applyPaste",
-    dependencies=[Depends(RequiresProject(CONSULT, CHANGE))],
+    dependencies=[Depends(RequiresProject(CONSULT, one_of=ENTRIES))],
     response_model=None,
 )
 def post_paste(

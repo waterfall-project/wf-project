@@ -33,6 +33,7 @@ from waterfall.core.planning.msproject import (
     recognised,
     write_project,
 )
+from waterfall.core.planning.writing import hold_before_lock
 from waterfall.core.projects.interface import project_code
 from waterfall.platform.errors import UnprocessableError
 
@@ -106,6 +107,8 @@ class MsProjectFormat:
         changed since the analysis is judged as it now stands, and a refusal fails the import.
         """
         del report
+        # Removing a task removes the lines under it: the natures are locked before the structure.
+        hold_before_lock(session)
         plan, _ = importing.plan_import(session, target, prepared, lock=True)
         applying.apply_plan(session, plan, act)
 

@@ -24,6 +24,7 @@ from decimal import Decimal
 from typing import TYPE_CHECKING
 
 from waterfall.core.cost_settings.interface import category_labels
+from waterfall.core.estimate.recalling import recalled
 from waterfall.core.estimate.tables import LABEL_LENGTH
 from waterfall.core.projects.interface import subproject_has_actual_costs, subproject_labels
 from waterfall.core.resource_settings.interface import read_roles
@@ -129,7 +130,9 @@ def _role(
     """Read the role a line names; refuse it unknown, or deactivated when the write gives it."""
     if role_id is None:
         return None
-    found = read_roles(session, [role_id], may_change=False)
+    found = recalled(
+        session, ("role", role_id), lambda: read_roles(session, [role_id], may_change=False)
+    )
     if not found:
         faults.add("resource_role_id", UNKNOWN_RESOURCE_ROLE)
         return None
@@ -144,7 +147,10 @@ def _category(
     """Read the category a line names; refuse it unknown, the risk's, or deactivated if given."""
     if category_id is None:
         return None
-    category = category_labels(session, [category_id]).get(category_id)
+    labels = recalled(
+        session, ("category", category_id), lambda: category_labels(session, [category_id])
+    )
+    category = labels.get(category_id)
     if category is None:
         faults.add("cost_category_id", UNKNOWN_COST_CATEGORY)
     elif category.cost_type_kind == PROVISION:
@@ -159,16 +165,25 @@ def _subproject(
     faults: _Faults,
     held: tuple[UUID, BearingTask, UUID | None],
     entry: LineEntry,
+    *,
+    locking: bool = True,
 ) -> UUID | None:
     """Judge the subproject a write leaves the line in, of its project (WF-PRJ-0050).
 
-    ``held`` is the project, the task that bears the line and its subproject before the write.
+    ``held`` is the project, the task that bears the line and its subproject before the write. The
+    subproject named is read ``FOR KEY SHARE`` (#2616): one a concurrent deletion took away is
+    unknown, as one that never was. The analysis of an import writes nothing, in a transaction
+    that cannot lock: it reads them as they are (``locking`` false).
     """
     project_id, bearer, before = held
     if not entry.given("subproject_id"):
         return before
     after = entry.subproject_id
-    if after is not None and not subproject_labels(session, project_id, [after]):
+    if after is not None and not recalled(
+        session,
+        ("subproject", project_id, after),
+        lambda: subproject_labels(session, project_id, [after], held=locking),
+    ):
         faults.add("subproject_id", UNKNOWN_SUBPROJECT)
     if (
         before is not None
@@ -258,10 +273,13 @@ def judged_line(
     held: tuple[UUID, BearingTask],
     entry: LineEntry,
     current: EstimateLine | None,
+    *,
+    locking: bool = True,
 ) -> Draft:
     """Judge what a write sends of a line, created (``current`` none) or changed; or refuse (422).
 
-    ``held`` is the project and the task that bears the line.
+    ``held`` is the project and the task that bears the line. ``locking`` false for the analysis
+    of an import, which cannot lock what it reads.
     """
     project_id, bearer = held
     faults = _Faults("/estimate_line" if current is None else "")
@@ -272,7 +290,9 @@ def judged_line(
     disbursement = _figure(faults, entry, "unit_disbursement", (before_disbursement, not labour))
     quantity, delay = _scalars(faults, entry, current)
     before_subproject = None if current is None else current.subproject_id
-    subproject = _subproject(session, faults, (project_id, bearer, before_subproject), entry)
+    subproject = _subproject(
+        session, faults, (project_id, bearer, before_subproject), entry, locking=locking
+    )
     faults.raise_any()
     if category is None or category_id is None:
         msg = "a line judged names its category"

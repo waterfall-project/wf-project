@@ -16,7 +16,7 @@ async function summaryDepth(browser: Browser, manager: LocalPerson | undefined):
   if (manager === undefined) {
     throw new Error("a path in the service has its manager");
   }
-  const context = await browser.newContext({ ignoreHTTPSErrors: true });
+  const context = await browser.newContext();
   try {
     const headers = { Authorization: `Bearer ${await frontToken(browser, manager)}` };
     const revision = `${API}/projects/${PROJECT}/revisions/${REVISION}`;

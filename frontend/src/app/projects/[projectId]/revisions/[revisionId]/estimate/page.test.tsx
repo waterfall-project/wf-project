@@ -347,11 +347,11 @@ describe("« Écarts seulement » on the grid of the estimate [WF-REV-0100-A]", 
   });
 });
 
-describe("the note of the fake back on the estimate", () => {
-  it("says once, under the header, that the service does not apply filters, search, sort and pages (US-0760)", async () => {
+describe("the estimate served by the service", () => {
+  it("shows no note of the mock-up: what the grid writes is kept, and its reads are filtered by the server (US-1560)", async () => {
     const page = await estimatePage("me");
-    expect(page.match(/<p role="note"/g)).toHaveLength(1);
-    expect(page).toContain("Filters, search, sort and pages are ignored");
+    expect(page).not.toContain('role="note"');
+    expect(page).not.toContain("Filters, search, sort and pages are ignored");
   });
 });
 
@@ -446,7 +446,7 @@ describe("the filter of the estimate on the rows a risk occurred merged", () => 
 
   it("reads the rows with the risks occurred, not after them, when the address names no risk [WF-RIS-0060-A]", async () => {
     // #1955: the list of the risks is held; the rows are asked for all the same.
-    const NODES = "/nodes";
+    const NODES_ROUTE_END = "/nodes";
     const answer = held();
     server.hold = (route) => (route === RISKS ? answer.until : undefined);
     const loaded = estimatePage("me");
@@ -455,7 +455,7 @@ describe("the filter of the estimate on the rows a risk occurred merged", () => 
         expect(queryOf("/risks")).toBeDefined();
       });
       await vi.waitFor(() => {
-        expect(queryOf(NODES)).toBeDefined();
+        expect(queryOf(NODES_ROUTE_END)).toBeDefined();
       });
     } finally {
       answer.release();

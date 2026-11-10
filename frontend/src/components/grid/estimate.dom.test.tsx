@@ -1,6 +1,6 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
-import { render, screen, within } from "@testing-library/react";
+import { act, render, screen, waitFor, within } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
 import { NextIntlClientProvider } from "next-intl";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -8,7 +8,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ApiClient } from "@/api/client";
 import { CATALOGUES } from "@/i18n/catalogues";
 import { expectAccessible } from "@/test/axe";
-import { example, type FakeClient, fakeClient, type Problem } from "@/test/fixtures";
+import { example, type FakeClient, fakeClient, held, type Problem } from "@/test/fixtures";
+import { holdReading, Reading, releaseReading } from "@/test/held-reading";
 import { estimateReference } from "@/test/reference";
 import { SHOWN } from "@/test/grid-preferences";
 
@@ -29,6 +30,9 @@ vi.mock("next/navigation", async (original) => ({
 }));
 
 const NO_QUERY: GridQuery<NodeSortColumn> = { sort: undefined, search: undefined, size: undefined };
+const NODES = "/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes";
+const PREVIEW = `POST ${NODES}/paste-preview` as const;
+const APPLY = `POST ${NODES}/paste` as const;
 const LINE =
   "PATCH /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}/estimate-line";
 const STRUCTURE = {
@@ -56,12 +60,12 @@ function serve(): FakeClient {
 }
 
 /** The grid of the estimate on an answer, in French, open to entry. */
-function grid(nodes: NodeList) {
+function grid(nodes: NodeList, structure = STRUCTURE) {
   return (
     <NextIntlClientProvider locale="fr" messages={CATALOGUES.fr} timeZone="UTC">
       <EstimateGrid
         nodes={nodes}
-        structure={STRUCTURE}
+        structure={structure}
         structureVersion={1}
         reference={estimateReference()}
         editable
@@ -96,7 +100,9 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  releaseReading();
   vi.restoreAllMocks();
+  router.refresh.mockReset();
 });
 
 describe("the refusal of a cell that would leave a task without a working hour (#779)", () => {
@@ -251,5 +257,126 @@ describe("the sub-project, the payment delay and the deactivated object of a lin
     expect(cell(LABOUR, "resource_role")).toHaveTextContent(/^Automaticien$/);
     expect(cell(LABOUR, "label")).toHaveTextContent("Raccordement des borniers");
     await expectAccessible(container);
+  });
+});
+
+describe("the reading anew that follows a block pasted on the estimate (#2559)", () => {
+  /** Paste a line on the label of the line of labour, and confirm the plan the server answered. */
+  async function pasteAndApply(): Promise<void> {
+    cell(LABOUR, "label").focus();
+    await userEvent.paste("Étude\n");
+    const dialog = await screen.findByRole("dialog", { name: "Coller depuis un tableur" });
+    await userEvent.click(
+      await within(dialog).findByRole("button", { name: "Appliquer le collage" }),
+    );
+  }
+
+  it("reads the page anew once when the plan applied creates rows, and keeps the grid busy until the reading arrives [WF-DEV-0050-A]", async () => {
+    // `paste_plan_creating` creates two rows (`created`): the rows they take their place among are
+    // the server's, so the grid reads its page anew, and no gesture starts from the rows of before.
+    server.client = fakeClient({
+      [PREVIEW]: "paste_plan_creating",
+      [APPLY]: "paste_applied_creating",
+    });
+    holdReading(router.refresh);
+    render(grid(estimate), { wrapper: Reading });
+    await pasteAndApply();
+    await waitFor(() => {
+      expect(router.refresh).toHaveBeenCalledTimes(1);
+    });
+    expect(screen.getByRole("treegrid")).toHaveAttribute("aria-busy", "true");
+    act(() => {
+      releaseReading();
+    });
+    await waitFor(() => {
+      expect(screen.getByRole("treegrid")).not.toHaveAttribute("aria-busy", "true");
+    });
+    expect(router.refresh).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not read the page anew when the plan applied creates no row [WF-DEV-0050-A]", async () => {
+    const client = fakeClient({ [PREVIEW]: "paste_plan", [APPLY]: "paste_applied" });
+    server.client = client;
+    render(grid(estimate));
+    await pasteAndApply();
+    await waitFor(() => {
+      expect(client.calls.filter((call) => call.route === APPLY)).toHaveLength(1);
+    });
+    await waitFor(() => {
+      expect(screen.queryByRole("dialog", { name: "Coller depuis un tableur" })).toBeNull();
+    });
+    expect(router.refresh).not.toHaveBeenCalled();
+  });
+
+  it("does not read the page anew when the grid shows another structure by the time the answer comes [WF-DEV-0050-A]", async () => {
+    const hold = held();
+    const client = fakeClient(
+      { [PREVIEW]: "paste_plan_creating", [APPLY]: "paste_applied_creating" },
+      { hold: (route) => (route === APPLY ? hold.until : undefined) },
+    );
+    server.client = client;
+    const view = render(grid(estimate));
+    await pasteAndApply();
+    await waitFor(() => {
+      expect(client.calls.filter((call) => call.route === APPLY)).toHaveLength(1);
+    });
+    // The grid shows another structure before the server has answered.
+    view.rerender(
+      grid(estimate, { ...STRUCTURE, structure_id: "01926f3a-7c00-7000-8000-000000000203" }),
+    );
+    hold.release();
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    });
+    expect(router.refresh).not.toHaveBeenCalled();
+  });
+});
+
+describe("the estimate of a project in progress, read only", () => {
+  it("offers no entry and no command of writing on the main structure whose `edit_estimate` is unavailable (`project_before_in_progress`) [WF-DEV-0050-A]", async () => {
+    // The structure of the contract lists `edit_estimate` unavailable for the project in progress;
+    // the page hands the grid read only from it (`estimate/page.test.tsx`).
+    const main = (
+      example("structures") as {
+        structure_id: string;
+        available_commands: {
+          command: string;
+          is_available: boolean;
+          missing_conditions: string[];
+        }[];
+      }[]
+    ).find((structure) => structure.structure_id === STRUCTURE.structure_id);
+    expect(main?.available_commands).toContainEqual({
+      command: "edit_estimate",
+      is_available: false,
+      missing_conditions: ["project_before_in_progress"],
+    });
+    const client = serve();
+    render(
+      <NextIntlClientProvider locale="fr" messages={CATALOGUES.fr} timeZone="UTC">
+        <EstimateGrid
+          nodes={estimate}
+          structure={STRUCTURE}
+          structureVersion={1}
+          reference={estimateReference()}
+          editable={false}
+          tasksEditable={false}
+          query={NO_QUERY}
+          filters={{}}
+          preferences={SHOWN}
+        />
+      </NextIntlClientProvider>,
+    );
+    expect(screen.queryByRole("button", { name: "Annuler" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Rétablir" })).toBeNull();
+    expect(screen.queryByRole("button", { name: /^Insérer/ })).toBeNull();
+    cell(LABOUR, "label").focus();
+    await userEvent.keyboard("{Enter}{F2}{Insert}");
+    await userEvent.paste("Étude\n");
+    expect(screen.queryByRole("textbox", { name: "Libellé" })).toBeNull();
+    expect(screen.queryByRole("combobox")).toBeNull();
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(cell(LABOUR, "quantity")).toHaveAttribute("aria-readonly", "true");
+    expect(client.calls).toEqual([]);
   });
 });

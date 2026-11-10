@@ -46,10 +46,10 @@ def _earned(line: PlannedLine, end: WorkInstant) -> Fraction:
     """Return the share of a line earned before an instant, from 0 to 1."""
     placement = line.placement
     week, start, finish = placement.week, placement.start, placement.finish
-    total = week.worked_between(start, finish)
+    total = week.worked(finish) - week.worked(start)
     if total == 0:
         # No hour worked (a milestone, or a task over a weekend): the line counts whole at the
         # end of the task, the prudent side for the delay index, as ``spreading`` carries it.
         return Fraction(int(end > WorkInstant(finish.day)))
     reached = min(max(end, start), finish)
-    return week.worked_between(start, reached) / total
+    return (week.worked(reached) - week.worked(start)) / total

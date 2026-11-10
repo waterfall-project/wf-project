@@ -46,10 +46,14 @@ STATE = "STATE_FORBIDS_OPERATION"
 
 
 def entry_of(database: Database, model: type[ResourceRole | CostCategory], key: UUID) -> str:
-    """Give the entry « label (code) » the list of « Paramètres » shows of a role or a category."""
+    """Give the entry « label (code) » the list of « Paramètres » shows of a role or a category.
+
+    A category is designated by its accounting code (WF-REF-0040, #2688), a role by its code.
+    """
+    code = CostCategory.accounting_code if model is CostCategory else ResourceRole.code
     with database.transaction() as session:
-        label, code = session.execute(select(model.label, model.code).where(model.id == key)).one()
-    return f"{label} ({code})"
+        label, held = session.execute(select(model.label, code).where(model.id == key)).one()
+    return f"{label} ({held})"
 
 
 def workbook(

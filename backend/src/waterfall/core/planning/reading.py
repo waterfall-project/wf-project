@@ -37,13 +37,14 @@ class StructureRead:
     """A structure read whole, and what the filters of a reading retain of it.
 
     ``nodes`` every node, whole, in the order of the plan, numbered on the whole structure;
-    ``kept`` the tasks the filters retain and ``lines`` the nodes of the other kinds; the meta and
-    the totals as ``list_nodes`` gives them.
+    ``kept`` the tasks the filters retain and ``lines`` the nodes of the other kinds; the meta,
+    the count of the tasks and the totals as ``list_nodes`` gives them.
     """
 
     nodes: tuple[NodeView, ...]
     kept: frozenset[UUID]
     lines: frozenset[UUID]
+    task_count: int
     summary_depth: int
     scheduled_at: datetime
     totals: StructureTotals
@@ -79,6 +80,7 @@ def read_structure(session: Session, place: Place, filters: NodeFilters) -> Stru
         tuple(reading.node(each) for each in tree.order),
         found.kept,
         found.lines,
+        found.task_count,
         reading.summary_depth(),
         facts.scheduled_at,
         StructureTotals(len(found.lines), reading.totals(found.lines)),

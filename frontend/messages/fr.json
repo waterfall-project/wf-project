@@ -358,6 +358,7 @@
       "reading": "Lecture du compte rendu…",
       "accepted": "{count, plural, =0 {Aucune ligne ne sera écrite.} one {# ligne sera écrite.} other {# lignes seront écrites.}}",
       "created": "{count, plural, one {# tâche sera créée} other {# tâches seront créées}} à la suite de la dernière tâche.",
+      "createdLines": "{count, plural, one {# ligne sera créée} other {# lignes seront créées}} sous la dernière tâche.",
       "noneRejected": "Aucune ligne n’est refusée.",
       "partial": "Confirmé, le collage écrit les lignes valides, et non les lignes refusées ; abandonné, il ne modifie aucune ligne.",
       "rejected": "{count, plural, one {# ligne est refusée :} other {# lignes sont refusées :}}",

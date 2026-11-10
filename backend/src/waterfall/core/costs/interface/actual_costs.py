@@ -21,8 +21,12 @@ from waterfall.core.costs import analysing, applying
 from waterfall.core.costs.applying import Applied
 from waterfall.core.costs.extraction import HEADER_ROW, read_header, sheet_rows
 from waterfall.core.exchanges.interface import LARGEST_FILE
-from waterfall.core.projects.interface import no_background_task_running, project_facts
-from waterfall.platform.errors import ConflictError
+from waterfall.core.projects.interface import (
+    NO_BACKGROUND_TASK_RUNNING,
+    no_background_task_running,
+    project_facts,
+)
+from waterfall.platform.errors import STATE_FORBIDS_OPERATION, ConflictError
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
@@ -32,10 +36,8 @@ if TYPE_CHECKING:
     from waterfall.core.exchanges.interface import ImportScope, ImportTarget
     from waterfall.platform.audit import Act
 
-STATE_FORBIDS_OPERATION = "STATE_FORBIDS_OPERATION"
 # The conditions of ``ProjectCommand.import_actual_costs``, in its order (WF-REF-0190; D-04).
 PROJECT_IN_PROGRESS = "project_in_progress"
-NO_BACKGROUND_TASK_RUNNING = "no_background_task_running"
 ACTUAL_COST_MAPPING_COMPLETE = "actual_cost_mapping_complete"
 IN_PROGRESS = "in_progress"
 # The bytes of a file the header is read in: the whole file, at most what a deposit holds. A

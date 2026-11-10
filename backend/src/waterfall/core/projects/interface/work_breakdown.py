@@ -34,6 +34,7 @@ from waterfall.core.projects.interface.lifecycle import no_background_task_runni
 from waterfall.core.projects.tables import Deliverable, OrderItem, Project, WorkPackage
 from waterfall.platform.database import contains
 from waterfall.platform.errors import (
+    STATE_FORBIDS_OPERATION,
     ConflictError,
     FieldError,
     NotFoundError,
@@ -55,7 +56,6 @@ if TYPE_CHECKING:
 
 NOT_FOUND = "NOT_FOUND"
 STALE_LOCK_VERSION = "STALE_LOCK_VERSION"
-STATE_FORBIDS_OPERATION = "STATE_FORBIDS_OPERATION"
 VALIDATION_FAILED = "VALIDATION_FAILED"
 UNKNOWN_WORK_BREAKDOWN_ITEM = "UNKNOWN_WORK_BREAKDOWN_ITEM"
 DUPLICATE_WORK_BREAKDOWN_ITEM = "DUPLICATE_WORK_BREAKDOWN_ITEM"

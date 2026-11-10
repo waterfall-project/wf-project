@@ -126,18 +126,34 @@ def test_the_commands_of_a_category_are_those_of_a_caller_who_changes_the_cost_s
     ]
     # The witness rates every category of labour and attaches roles to two of them (US-0850): the
     # labour categories keep their kind for their rates, MO-001 and MO-002 for their roles too, the
-    # others can leave it.
+    # others can leave it. Its lines (US-1570) employ some categories, which keep their kind too.
+    employed = {line["cost_category_id"] for line in example("witness_lines")["lines"]}
+    unused = "cost_category_unused"
     rated = [available[0], ("change_cost_type", False, ["cost_category_unrated"])]
     bound = [
         available[0],
         ("change_cost_type", False, ["cost_category_unrated", "cost_category_without_role"]),
     ]
     assert len(managed) == 201
+    held = 0
     for item in managed:
+        used = item["cost_category_id"] in employed
+        held += used
         if item["code"] in {"MO-001", "MO-002"}:
-            assert commands(item) == bound
+            assert commands(item) == [
+                bound[0],
+                ("change_cost_type", False, [*([unused] if used else []), *bound[1][2]]),
+            ]
+        elif item["cost_type_kind"] == "labor":
+            assert commands(item) == [
+                rated[0],
+                ("change_cost_type", False, [*([unused] if used else []), *rated[1][2]]),
+            ]
         else:
-            assert commands(item) == (rated if item["cost_type_kind"] == "labor" else available)
+            assert commands(item) == (
+                [available[0], ("change_cost_type", False, [unused])] if used else available
+            )
+    assert held == len(employed) > 0
     assert sum(item["cost_type_kind"] == "labor" for item in managed) == 150
 
 

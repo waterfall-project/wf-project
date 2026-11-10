@@ -44,7 +44,14 @@ class Worksheet:
     def write_row(
         self, row: int, col: int, data: Iterable[object], cell_format: Format | None = None
     ) -> int: ...
-    def write_comment(self, *args: object) -> int: ...
+    @overload
+    def write_comment(
+        self, row: int, col: int, comment: str, options: dict[str, object] | None = None
+    ) -> int: ...
+    @overload
+    def write_comment(
+        self, cell: str, comment: str, options: dict[str, object] | None = None
+    ) -> int: ...
     @overload
     def add_table(
         self,

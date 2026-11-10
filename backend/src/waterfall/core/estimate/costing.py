@@ -31,9 +31,9 @@ from waterfall.core.estimate.pricing import (
     unrounded_disbursement_amount,
     unrounded_labour_amount,
 )
-from waterfall.core.estimate.spreading import Placement, WorkWeek, spread_by_year
+from waterfall.core.estimate.spreading import Placement, spread_by_year
 from waterfall.core.estimate.tables import EstimateLine, RevisionRate
-from waterfall.core.planning.interface import lines_of
+from waterfall.core.planning.interface import lines_of, weekly_calendar
 from waterfall.core.projects.interface import project_facts
 from waterfall.core.resource_settings.interface import read_calendar, read_roles, role_calendars
 from waterfall.core.revisions.interface import reference_year_of
@@ -176,7 +176,7 @@ def priced(
 
     ``week`` the hours of the calendar the line is worked on — its role's —, the task's if none.
     """
-    placement = Placement(WorkWeek(week or bearer.week), bearer.start, bearer.finish)
+    placement = Placement(weekly_calendar(week or bearer.week), bearer.start, bearer.finish)
     shares = spread_by_year(placement, product)
     reestimated = projected_amount(
         [Share(year, amount) for year, amount in shares.items()],
