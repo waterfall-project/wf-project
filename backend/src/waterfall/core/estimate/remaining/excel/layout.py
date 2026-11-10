@@ -33,9 +33,11 @@ TASKS = "Tâches"
 PARAMETERS = "Paramètres"
 OUTSIDE = "Hors sous-projet"
 FIXED_TABS = (SUMMARY, TASKS, PARAMETERS)
-# The cell of the summary that holds the date of the review, which the import reads.
-REVIEW_DATE_ROW = 5  # its row, from 0; the other facts of the project follow it
-REVIEW_DATE_CELL = f"B{REVIEW_DATE_ROW + 1}"
+# The row (from 0) of the first fact of the project in the summary: the company, the client, the
+# revision, the date of the review, the structure, the currency (annex B, rows 6 to 11).
+FACTS_ROW = 5
+# The cell of the summary that holds the date of the review, which the import reads (#2702).
+REVIEW_DATE_CELL = f"B{FACTS_ROW + 3 + 1}"
 # The cell of « Paramètres » that holds the hours per day, which the formulas of the tabs read.
 HOURS_PER_DAY_CELL = "'Paramètres'!$B$2"
 # The columns of the summary: the progress, then the breakdown of the remaining.

@@ -82,7 +82,7 @@ def apply(
     held = importing.aimed(session, target)
     confirmed = confirmed_by(report)
     found = importing.analyse(session, held, read, confirmed)
-    _judged_again(found, confirmed)
+    judged_again(found, confirmed)
     place = Place(project_id, revision_id, structure_id)
     writer = Writer(act, None, target.running)
     for node in found.removed:
@@ -105,7 +105,7 @@ def confirmed_by(report: Mapping[str, Any]) -> importing.Confirmed:
     )
 
 
-def _judged_again(found: Analysis, confirmed: importing.Confirmed) -> None:
+def judged_again(found: Analysis, confirmed: importing.Confirmed) -> None:
     """Refuse a line the report accepted that is now rejected, the first by its reason (422)."""
     for each in found.rejected:
         if (each["sheet"], each["row"]) not in confirmed.rejected:

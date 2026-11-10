@@ -9,22 +9,29 @@ re-estimation; the exporter writes the remaining to commit of a revision (FLX-06
 writes, openpyxl reads, in ``remaining/excel/`` (EP-09, "Le format Excel du reste à engager").
 
 Declared by US-1580/L1 and registered without effect, as the socle of EP-07 registered the format
-``estimate`` (#2370): the format refuses every head as a file it does not recognise (422
-``FILE_FORMAT_UNREADABLE``, ``expected_format`` ``remaining``), as when no format served the kind,
-so that an import of a remaining to commit never passes before US-1630/L3; the methods it never
-reaches and the export raise ``NotImplementedError`` naming the story that fills them.
+``estimate`` (#2370). US-1630/L3 fills the format: the header is read in the whole file — a workbook
+is a zip, whose directory is at its end — by the reader of US-1630/L2 (``remaining/excel/reader``),
+the analysis is ``remaining/analysing``'s, the application ``remaining/applying``'s, on the workbook
+the preparation read before any lock (#2582). An import of a remaining to commit writes the main
+structure of a project In progress (``ProjectCommand.import_remaining``, ``project_in_progress``).
+The export is filled by US-1630/L4 and raises ``NotImplementedError`` until then.
 """
 
 from typing import TYPE_CHECKING, Any
 
+from waterfall.core.estimate import importing
+from waterfall.core.estimate.remaining import analysing, applying
+from waterfall.core.estimate.remaining.excel.reader import check_header, read_remaining_workbook
 from waterfall.core.exchanges.interface import LARGEST_FILE
-from waterfall.platform.errors import UnprocessableError
+from waterfall.core.projects.interface import project_facts
+from waterfall.platform.errors import STATE_FORBIDS_OPERATION, ConflictError
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
 
     from sqlalchemy.orm import Session
 
+    from waterfall.core.estimate.remaining.excel.reader import RemainingRead
     from waterfall.core.exchanges.interface import (
         ExportedFile,
         ExportOrder,
@@ -33,10 +40,12 @@ if TYPE_CHECKING:
     )
     from waterfall.platform.audit import Act
 
-FILE_FORMAT_UNREADABLE = "FILE_FORMAT_UNREADABLE"
 # The bytes of a file the header is read in: the whole file, at most what a deposit holds — a
-# workbook is a zip, whose directory is at its end —, which US-1630 reads.
+# workbook is a zip, whose directory is at its end.
 HEADER_LENGTH = LARGEST_FILE
+# The phase a remaining to commit is imported in (WF-RAE-0040; ``ProjectCommand.import_remaining``).
+IN_PROGRESS = "in_progress"
+PROJECT_IN_PROGRESS = "project_in_progress"
 
 
 class RemainingFormat:
@@ -51,35 +60,45 @@ class RemainingFormat:
     permission = "remaining.write"
 
     def read_header(self, session: Session, head: bytes) -> None:
-        """Refuse the head of a file that is not the workbook of a remaining: every one yet."""
-        del session, head
-        raise UnprocessableError(FILE_FORMAT_UNREADABLE, {"expected_format": "remaining"})
+        """Refuse a file that is not the workbook of a remaining of a known version (422).
+
+        ``FILE_FORMAT_UNREADABLE``, ``expected_format`` ``remaining`` and ``expected_version``
+        (WF-INTF-0070).
+        """
+        del session
+        check_header(head)
 
     def judge(self, session: Session, target: ImportTarget) -> None:
-        """Refuse an import of a remaining to commit on the state of its project: none yet."""
-        del session, target
+        """Refuse a remaining to commit imported on a project not In progress (409).
+
+        ``project_in_progress``, the phase of ``ProjectCommand.import_remaining`` (WF-RAE-0040), at
+        the opening, at the application and when its task runs; the project read under the lock
+        its caller holds.
+        """
+        if project_facts(session, target.project_id).state != IN_PROGRESS:
+            missing = {"missing_condition": PROJECT_IN_PROGRESS}
+            raise ConflictError(STATE_FORBIDS_OPERATION, missing)
 
     def analyse(self, session: Session, target: ImportTarget, content: bytes) -> Mapping[str, Any]:
         """Give the report of a workbook against the main structure, writing nothing."""
-        msg = "analyse is filled by US-1630/L3"
-        raise NotImplementedError(msg)
+        read = read_remaining_workbook(content)
+        held = importing.aimed(session, target)
+        return analysing.report_of(held, read, analysing.analyse(session, held, read))
 
-    def prepare(self, content: bytes) -> object:
+    def prepare(self, content: bytes) -> RemainingRead:
         """Read a whole workbook of a remaining to commit, before any lock."""
-        msg = "prepare is filled by US-1630/L3"
-        raise NotImplementedError(msg)
+        return read_remaining_workbook(content)
 
     def apply(
         self,
         session: Session,
         target: ImportTarget,
-        prepared: object,
+        prepared: RemainingRead,
         report: Mapping[str, Any],
         act: Act,
     ) -> None:
-        """Write the report of a workbook into the main structure, through the re-estimation."""
-        msg = "apply is filled by US-1630/L3"
-        raise NotImplementedError(msg)
+        """Write the report of a workbook read into the main structure, through the re-estimate."""
+        applying.apply(session, target, prepared, report, act)
 
 
 class RemainingExporter:

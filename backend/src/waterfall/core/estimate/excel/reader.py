@@ -203,11 +203,17 @@ def check_header_rows(
         raise unreadable(expected_format, version)
 
 
-def check_header(content: bytes) -> None:
+def check_header(
+    content: bytes,
+    format_name: str = FORMAT_NAME,
+    version: int = FORMAT_VERSION,
+    expected_format: str = FORMAT_KIND,
+) -> None:
     """Refuse a file that is not a workbook saying "Devis" and a known version (US-1550/L3).
 
     What the opening of an import reads, before any analysis: only the first two rows of the first
-    tab, the file opened as ``read_workbook`` opens it.
+    tab, the file opened as ``read_workbook`` opens it. The name, the version and the kind are the
+    slot's, as ``check_header_rows`` has them: the remaining to commit reads its header so too.
     """
     try:
         workbook = load_workbook(BytesIO(content), read_only=True, data_only=True)
@@ -217,10 +223,10 @@ def check_header(content: bytes) -> None:
         finally:
             workbook.close()
     except DAMAGES as error:
-        raise unreadable() from error
+        raise unreadable(expected_format, version) from error
     if rows is None:
-        raise unreadable()
-    check_header_rows(rows)
+        raise unreadable(expected_format, version)
+    check_header_rows(rows, format_name, version, expected_format)
 
 
 def task_entries(rows: Sequence[Sequence[object]]) -> dict[str, str]:

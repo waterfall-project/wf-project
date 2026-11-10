@@ -42,6 +42,9 @@ from waterfall.core.estimate.excel.reader import (
     text,
     unreadable,
 )
+from waterfall.core.estimate.excel.reader import (
+    check_header as check_any_header,
+)
 from waterfall.core.estimate.remaining.excel.layout import (
     FIXED_TABS,
     FORMAT_NAME,
@@ -61,6 +64,7 @@ __all__ = [
     "ReadRemainingLine",
     "Rejection",
     "RemainingRead",
+    "check_header",
     "read_remaining_workbook",
 ]
 
@@ -122,6 +126,15 @@ class RemainingRead:
 def _check_header(rows: Sequence[Sequence[object]]) -> None:
     """Refuse a first tab that does not say « Reste à engager » and a known version."""
     check_header_rows(rows, FORMAT_NAME, FORMAT_VERSION, FORMAT_KIND)
+
+
+def check_header(content: bytes) -> None:
+    """Refuse a file that is not a workbook saying « Reste à engager » and a known version.
+
+    What the opening of an import reads (US-1630/L3): the first two rows of the first tab alone,
+    ``FILE_FORMAT_UNREADABLE`` with ``expected_format`` at ``remaining`` and ``expected_version``.
+    """
+    check_any_header(content, FORMAT_NAME, FORMAT_VERSION, FORMAT_KIND)
 
 
 def _review_date(rows: Sequence[Sequence[object]]) -> date | None:

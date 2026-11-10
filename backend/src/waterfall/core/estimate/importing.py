@@ -244,6 +244,19 @@ class Analysis:
 
 
 @dataclass(frozen=True, slots=True)
+class Judging:
+    """How the lines of a file are judged.
+
+    ``locking`` as the application writes, not as the analysis, which cannot lock; ``headers`` the
+    column of each field in the workbook read — a field no column carries, the subproject of a tab
+    of a remaining to commit, is named by none.
+    """
+
+    locking: bool
+    headers: Mapping[str, str] = field(default_factory=lambda: HEADERS)
+
+
+@dataclass(frozen=True, slots=True)
 class Confirmed:
     """What the report a user confirmed holds back, which its application analyses again with.
 
@@ -318,9 +331,8 @@ def reference_of(session: Session, project_id: UUID) -> Reference:
     )
 
 
-def _rejection(
-    line: ReadLine, code: str, params: Mapping[str, Any] | None = None
-) -> dict[str, Any]:
+def rejection(line: ReadLine, code: str, params: Mapping[str, Any] | None = None) -> dict[str, Any]:
+    """Give the rejection of a line by its tab and its row, its reason and its parameters."""
     return {"sheet": line.sheet, "row": line.row, "code": code, "params": dict(params or {})}
 
 
@@ -342,25 +354,26 @@ def designations(held: Aimed, entries: Mapping[str, str]) -> Designations:
     return Designations(entries, by_lineage, by_label)
 
 
-def _task(line: ReadLine, held: Aimed, named: Designations) -> UUID | dict[str, Any]:
+def designated_task(line: ReadLine, held: Aimed, named: Designations) -> UUID | dict[str, Any]:
     """Designate the task of a line: by « Tâches », else by its label; or give its rejection."""
     text = line.task
     if text is None:
-        return _rejection(line, VALUE_REQUIRED, {"header": reader.TASK_HEADER})
+        return rejection(line, VALUE_REQUIRED, {"header": reader.TASK_HEADER})
     lineage = named.entries.get(text)
     if lineage is not None:
         found = named.by_lineage.get(lineage)
-        return _rejection(line, UNKNOWN_TASK, {"value": text}) if found is None else found
+        return rejection(line, UNKNOWN_TASK, {"value": text}) if found is None else found
     same = named.by_label.get(text, [])
     if len(same) == 1:
         return same[0]
     if not same:
-        return _rejection(line, UNKNOWN_TASK, {"value": text})
-    tasks = [_named_task(held, node) for node in same]
-    return _rejection(line, AMBIGUOUS_TASK_LABEL, {"label": text, "tasks": tasks})
+        return rejection(line, UNKNOWN_TASK, {"value": text})
+    tasks = [named_task(held, node) for node in same]
+    return rejection(line, AMBIGUOUS_TASK_LABEL, {"label": text, "tasks": tasks})
 
 
-def _named_task(held: Aimed, task_id: UUID) -> dict[str, str]:
+def named_task(held: Aimed, task_id: UUID) -> dict[str, str]:
+    """Name a task of the structure as a report does: by its lineage and its label."""
     return {"lineage_id": str(held.task_lineages[task_id]), "label": held.tasks[task_id].label}
 
 
@@ -368,7 +381,7 @@ def _figure(value: Decimal | None) -> Decimal:
     return NOUGHT if value is None else value
 
 
-def _entry(
+def entry_of(
     line: ReadLine,
     reference: Reference,
     rejected: list[dict[str, Any]],
@@ -379,26 +392,24 @@ def _entry(
     role = category = None
     text = line.role_or_category
     if text is None:
-        rejected.append(
-            _rejection(line, VALUE_REQUIRED, {"header": reader.ROLE_OR_CATEGORY_HEADER})
-        )
+        rejected.append(rejection(line, VALUE_REQUIRED, {"header": reader.ROLE_OR_CATEGORY_HEADER}))
     else:
         labour = None if current is None else current.resource_role_id is not None
         role, category = reference.named(text, labour=labour)
         if role is None and category is None:
-            rejected.append(_rejection(line, UNKNOWN_RESOURCE_ROLE, {"value": text}))
+            rejected.append(rejection(line, UNKNOWN_RESOURCE_ROLE, {"value": text}))
     subproject = None
     if line.subproject is not None:
         subproject = reference.subprojects.get(line.subproject)
         if subproject is None:
-            rejected.append(_rejection(line, UNKNOWN_SUBPROJECT, {"value": line.subproject}))
+            rejected.append(rejection(line, UNKNOWN_SUBPROJECT, {"value": line.subproject}))
     delay = _figure(line.payment_delay)
     if delay != delay.to_integral_value():
         header = reader.PAYMENT_DELAY_HEADER
-        rejected.append(_rejection(line, NUMBER_INVALID, {"value": str(delay), "header": header}))
+        rejected.append(rejection(line, NUMBER_INVALID, {"value": str(delay), "header": header}))
     if line.label is not None and len(line.label) > LABEL_LENGTH:
         params = {"max_length": LABEL_LENGTH, "header": reader.LABEL_HEADER}
-        rejected.append(_rejection(line, VALUE_TOO_LONG, params))
+        rejected.append(rejection(line, VALUE_TOO_LONG, params))
     if len(rejected) > before:
         return None
     # A labour line sends its role and its hours, another its category and its disbursement; the
@@ -424,7 +435,7 @@ def _entry(
     return entry, None if role is None else role.resource_role_id
 
 
-def _changed(draft: Draft, current: EstimateLine, *, moved: bool) -> tuple[str, ...]:
+def changed_columns(draft: Draft, current: EstimateLine, *, moved: bool) -> tuple[str, ...]:
     """Name the columns a line changes, in the order of ``NodeColumn``, then ``parent``."""
     pairs = (
         ("label", draft.label, current.label),
@@ -440,32 +451,31 @@ def _changed(draft: Draft, current: EstimateLine, *, moved: bool) -> tuple[str, 
     return (*changed, "parent") if moved else tuple(changed)
 
 
-def _judged(
+def judged(
     session: Session,
     line: ReadLine,
     held: Aimed,
     sent: tuple[UUID, LineEntry, EstimateLine | None],
-    *,
-    locking: bool,
+    judging: Judging,
 ) -> Draft | list[dict[str, Any]]:
-    """Judge a line as its entry is; give its draft, or the rejections of its fields.
-
-    ``locking`` as the application writes, not as the analysis, which cannot lock.
-    """
+    """Judge a line as its entry is; give its draft, or the rejections of its fields."""
     task_id, entry, current = sent
+    headers = judging.headers
     try:
         return judged_line(
-            session, (held.project_id, held.bearer(task_id)), entry, current, locking=locking
+            session,
+            (held.project_id, held.bearer(task_id)),
+            entry,
+            current,
+            locking=judging.locking,
         )
     except UnprocessableError as refusal:
-        return [
-            _rejection(
-                line,
-                fault.code,
-                {**fault.params, "header": HEADERS[fault.pointer.rsplit("/", 1)[-1]]},
-            )
-            for fault in refusal.fields
-        ]
+        found: list[dict[str, Any]] = []
+        for fault in refusal.fields:
+            header = headers.get(fault.pointer.rsplit("/", 1)[-1])
+            named = {} if header is None else {"header": header}
+            found.append(rejection(line, fault.code, {**fault.params, **named}))
+        return found
 
 
 def _completed(held: Aimed, tasks: Iterable[UUID]) -> UUID | None:
@@ -486,18 +496,19 @@ def analyse(
     """
     reference = reference_of(session, held.project_id)
     named = designations(held, read.tasks)
-    found = Analysis(rejected=[_reader_rejection(each) for each in read.rejected])
+    found = Analysis(rejected=[reader_rejection(each) for each in read.rejected])
     taken: set[UUID] = {
         lineage
         for each in read.rejected
-        if (lineage := _lineage(each.lineage)) is not None and lineage in held.lines
+        if (lineage := lineage_of(each.lineage)) is not None and lineage in held.lines
     }
     for line in read.lines:
-        lineage = _lineage(line.lineage)
+        lineage = lineage_of(line.lineage)
         current = held.lines.get(lineage) if lineage is not None and lineage not in taken else None
         if current is not None and lineage is not None:
             taken.add(lineage)
-        _plan(session, (line, current), held, (reference, named), (found, confirmed is not None))
+        judging = Judging(locking=confirmed is not None)
+        plan(session, (line, current), held, (reference, named), (found, judging))
     found.left = [line.node_id for lineage, line in held.lines.items() if lineage not in taken]
     lineages = {line.node_id: str(lineage) for lineage, line in held.lines.items()}
     found.removed = [
@@ -511,50 +522,50 @@ def analyse(
             for each in found.planned
             if (each.line.sheet, each.line.row) not in confirmed.rejected
         ]
-    _judge_hours(session, held, reference, found)
+    judge_hours(session, held, reference, found)
     return found
 
 
-def _plan(
+def plan(
     session: Session,
     read: tuple[ReadLine, EstimateLine | None],
     held: Aimed,
     named: tuple[Reference, Designations],
-    outcome: tuple[Analysis, bool],
+    outcome: tuple[Analysis, Judging],
 ) -> None:
     """Plan a line read, or reject it; a line rejected that exists is left as it is."""
     line, current = read
     reference, designated = named
-    found, locking = outcome
-    task = _task(line, held, designated)
+    found, judging = outcome
+    task = designated_task(line, held, designated)
     if isinstance(task, dict):
         found.rejected.append(task)
-        _entry(line, reference, found.rejected, current)
+        entry_of(line, reference, found.rejected, current)
         return
-    sent = _entry(line, reference, found.rejected, current)
+    sent = entry_of(line, reference, found.rejected, current)
     if sent is None:
         return
     entry, role_id = sent
-    draft = _judged(session, line, held, (task, entry, current), locking=locking)
+    draft = judged(session, line, held, (task, entry, current), judging)
     if isinstance(draft, list):
         found.rejected.extend(draft)
         return
     fields: tuple[str, ...] = ()
     if current is not None:
         before = held.bearers[current.node_id]
-        fields = _changed(draft, current, moved=before != task)
+        fields = changed_columns(draft, current, moved=before != task)
         concerned = (before, task) if fields else ()
     else:
         concerned = (task,)
     completed = _completed(held, concerned)
     if completed is not None:
-        params = {"missing_condition": TASK_NOT_COMPLETED, "tasks": [_named_task(held, completed)]}
-        found.rejected.append(_rejection(line, STATE_FORBIDS_OPERATION, params))
+        params = {"missing_condition": TASK_NOT_COMPLETED, "tasks": [named_task(held, completed)]}
+        found.rejected.append(rejection(line, STATE_FORBIDS_OPERATION, params))
         return
     found.planned.append(Planned(line, task, entry, current, role_id, draft.label, fields))
 
 
-def _judge_hours(session: Session, held: Aimed, reference: Reference, found: Analysis) -> None:
+def judge_hours(session: Session, held: Aimed, reference: Reference, found: Analysis) -> None:
     """Reject a labour line that would leave its task without an hour, on the structure written.
 
     A line whose role arrives in a task — created, given another role, or moved — is judged on
@@ -584,8 +595,8 @@ def _judge_hours(session: Session, held: Aimed, reference: Reference, found: Ana
                 roles.add(each.role_id)
                 continue
             named = [_named_role(reference, role) for role in sorted({*roles, each.role_id})]
-            params = {"resource_roles": named, "tasks": [_named_task(held, each.task_id)]}
-            now[rank] = _rejection(each.line, TASK_WITHOUT_WORKING_HOURS, params)
+            params = {"resource_roles": named, "tasks": [named_task(held, each.task_id)]}
+            now[rank] = rejection(each.line, TASK_WITHOUT_WORKING_HOURS, params)
         if not now:
             break
         refused.update(now)
@@ -646,7 +657,8 @@ def _named_role(reference: Reference, role_id: UUID) -> dict[str, str]:
     return {"resource_role_id": str(role_id), "code": role.code, "label": role.label}
 
 
-def _lineage(text: str | None) -> UUID | None:
+def lineage_of(text: str | None) -> UUID | None:
+    """Read the lineage a cell carries; none for an empty cell or a text no identifier."""
     if text is None:
         return None
     try:
@@ -655,7 +667,8 @@ def _lineage(text: str | None) -> UUID | None:
         return None
 
 
-def _reader_rejection(rejection: reader.Rejection) -> dict[str, Any]:
+def reader_rejection(rejection: reader.Rejection) -> dict[str, Any]:
+    """Give a cell the reading refused as the report rejects a line."""
     return {
         "sheet": rejection.sheet,
         "row": rejection.row,
@@ -678,14 +691,14 @@ def report_of(held: Aimed, read: WorkbookRead, found: Analysis) -> Report:
     differences: list[dict[str, Any]] = []
     for each in found.planned:
         if each.current is None:
-            differences.append(_difference("added", None, each.label))
+            differences.append(difference("added", None, each.label))
         elif each.fields:
             lineage = lineages[each.current.node_id]
-            differences.append(_difference("updated", lineage, each.label, each.fields))
+            differences.append(difference("updated", lineage, each.label, each.fields))
     removed = set(found.removed)
     for node in found.left:
         change = "removed" if node in removed else "kept"
-        differences.append(_difference(change, lineages[node], held.lines[lineages[node]].label))
+        differences.append(difference(change, lineages[node], held.lines[lineages[node]].label))
     rejected_rows = {(each["sheet"], each["row"]) for each in rejected}
     written = sum(1 for each in found.planned if each.current is None or each.fields)
     read_count = len(set(rows))
@@ -704,9 +717,10 @@ def report_of(held: Aimed, read: WorkbookRead, found: Analysis) -> Report:
     }
 
 
-def _difference(
+def difference(
     change: str, lineage: UUID | None, label: str, fields: tuple[str, ...] = ()
 ) -> dict[str, Any]:
+    """Give a difference of the file with the structure, on a line (``ImportDifference``)."""
     return {
         "change": change,
         "target": LINE,
