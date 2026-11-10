@@ -13,11 +13,10 @@ gestures — those the planning gives (``progress_commands``, of the type it dec
 propres").
 
 Declared by US-1580/L1 with their arguments and their results, which EP-10 reads; ``open_lines``
-filled by US-1590/L1, ``startable_tasks`` raises ``NotImplementedError`` naming the story that fills
-it.
+filled by US-1590/L1, ``startable_tasks`` by US-1590/L2, which lives in ``remaining.kanban`` with
+the types of its result, and which this interface re-exports.
 """
 
-from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 from waterfall.core.estimate.remaining import reviewing
@@ -27,32 +26,6 @@ if TYPE_CHECKING:
     from uuid import UUID
 
     from sqlalchemy.orm import Session
-
-    from waterfall.core.planning.interface import KanbanCommandAvailability, NodeView
-
-
-@dataclass(frozen=True, slots=True)
-class KanbanTask:
-    """A task of the board (``KanbanTask``): the whole node, and the gestures of its card."""
-
-    node: NodeView
-    available_commands: tuple[KanbanCommandAvailability, ...]
-
-
-@dataclass(frozen=True, slots=True)
-class NotStartedTask(KanbanTask):
-    """A task not started (``NotStartedTask``): whether all its predecessors are completed."""
-
-    predecessors_completed: bool
-
-
-@dataclass(frozen=True, slots=True)
-class StartableTasks:
-    """The tasks of a project in execution, three columns each in the order of the plan."""
-
-    not_started: tuple[NotStartedTask, ...]
-    started: tuple[KanbanTask, ...]
-    completed: tuple[KanbanTask, ...]
 
 
 def open_lines(
@@ -65,9 +38,3 @@ def open_lines(
     (WF-PLA-0040).
     """
     return reviewing.open_tasks(session, project_id, lines_by_task)
-
-
-def startable_tasks(session: Session, project_id: UUID) -> StartableTasks:
-    """Give the tasks of a project in execution, by column (``listStartableTasks``)."""
-    msg = "startable_tasks is filled by US-1590/L2"
-    raise NotImplementedError(msg)

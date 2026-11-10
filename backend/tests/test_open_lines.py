@@ -20,7 +20,7 @@ from uuid import UUID
 
 import pytest
 from estimate_support import Costing, Lines, costing
-from history_support import undone
+from history_support import delete, redone, undone
 from nodes_support import Tree, entries, faults, refusal, signed_in
 from planning_support import DAY
 from projects_support import Scene
@@ -44,6 +44,7 @@ from waterfall.core.planning.interface import (
     list_nodes,
     progress_commands,
 )
+from waterfall.core.planning.tables import Task
 from waterfall.core.revisions.tables import CostStructure
 
 if TYPE_CHECKING:
@@ -121,12 +122,12 @@ def material(costs: Costing, label: str, amount: str) -> dict[str, Any]:
     }
 
 
-def gesture(tree: Tree, label: str, state: str, **body: Any) -> Any:
+def gesture(tree: Tree, label: str, state: str, who: Any = None, **body: Any) -> Any:
     """Send the state of the card of a task at the counter read; give the answer."""
     node = task_named(tree, label)
     sent = {"progress": state, "lock_version": node["lock_version"], **body}
     path = f"{tree.path}/nodes/{node['node_id']}/progress"
-    return tree.api.put(path, headers=tree.stage.manager.headers, json=sent)
+    return tree.api.put(path, headers=(who or tree.stage.manager).headers, json=sent)
 
 
 def moved(tree: Tree, label: str, state: str, on: Any) -> dict[str, Any]:
@@ -322,22 +323,200 @@ def test_the_completion_of_a_summary_by_its_line_is_undone_whole_and_signals_it_
 
 @pytest.mark.requirement("WF-PLA-0130-A")
 def test_a_summary_closed_by_its_line_then_reopened_below_loses_the_day_it_was_closed_at(
-    review: Review,
+    review: Review, stage: Scene, realm: TestRealm
 ) -> None:
     # « … pour date de terminaison la plus tardive de celles de ses subordonnées et de la mise à
     # zéro de ses lignes propres. » Closed on Friday by its line, a subordinate reopened then
-    # completed on Tuesday again: the Friday is stale, the summary is completed on Tuesday.
+    # completed on Tuesday again: the Friday is stale, the summary is completed on Tuesday. The
+    # reopening is one entry of the history with the summary above: undone, the summary is
+    # completed again on its Friday; redone, it is started again and the Friday is gone (#2768).
     tree = review.tree
+    writer = signed_in(stage, realm)
     done(tree, "Étude")
     answer = zero(tree, "Pilotage", completed_on=FRIDAY.isoformat())
     assert answer.status_code == 200, answer.text
     closed = ("completed", DAY.isoformat(), FRIDAY.isoformat(), False)
     assert state(task_named(tree, "Phase")) == closed
-    [reopened] = moved(tree, "Étude", "started", DAY)["ancestors"]
-    assert state(reopened) == ("started", DAY.isoformat(), None, False)
+    reopening = gesture(tree, "Étude", "started", writer, occurred_on=DAY.isoformat())
+    assert reopening.status_code == 200, reopening.text
+    [reopened] = reopening.json()["ancestors"]
+    stale = ("started", DAY.isoformat(), None, False)
+    assert state(reopened) == stale
+    undone(tree, writer)
+    assert state(task_named(tree, "Phase")) == closed
+    assert state(task_named(tree, "Étude"))[0] == "completed"
+    redone(tree, writer)
+    assert state(task_named(tree, "Phase")) == stale
+    assert state(task_named(tree, "Étude"))[0] == "started"
     [again] = moved(tree, "Étude", "completed", TUESDAY)["ancestors"]
     assert state(again) == ("completed", DAY.isoformat(), TUESDAY.isoformat(), False)
     assert state(task_named(tree, "Phase")) == state(again)
+
+
+def kept(stage: Scene, tree: Tree, label: str) -> tuple[str, str | None]:
+    """Read what the facet of a task keeps of its state, as the base holds it: state and day."""
+    node_id = UUID(task_named(tree, label)["node_id"])
+    with stage.database.transaction() as session:
+        row = session.execute(
+            select(Task.progress, Task.completed_on).where(Task.node_id == node_id)
+        ).one()
+    return row.progress, None if row.completed_on is None else row.completed_on.isoformat()
+
+
+@pytest.fixture
+def closed_phase(review: Review, stage: Scene) -> Review:
+    """Give the phase completed by its own line on Friday, its study done on Tuesday."""
+    tree = review.tree
+    done(tree, "Étude")
+    answer = zero(tree, "Pilotage", completed_on=FRIDAY.isoformat())
+    assert answer.status_code == 200, answer.text
+    assert state(task_named(tree, "Phase")) == (
+        "completed",
+        DAY.isoformat(),
+        FRIDAY.isoformat(),
+        False,
+    )
+    assert kept(stage, tree, "Phase") == ("completed", FRIDAY.isoformat())
+    return review
+
+
+@pytest.mark.requirement("WF-PLA-0040-A")
+@pytest.mark.requirement("WF-PLA-0130-A")
+def test_a_task_created_under_a_summary_closed_by_its_line_reopens_it_and_clears_the_day(
+    closed_phase: Review, stage: Scene, realm: TestRealm
+) -> None:
+    # « … elle n'est terminée qu'après la dernière » : a subordinate created under the phase
+    # completed by its line leaves it started, and the facet keeps no state and no day of the
+    # closure (#2769); the new one completed on Tuesday completes it then, not on the stale
+    # Friday. The creation is undone whole — the phase is closed on Friday again —, then redone.
+    tree = closed_phase.tree
+    writer = signed_in(stage, realm)
+    phase = task_named(tree, "Phase")
+    created = tree.create("Contrôle", writer, parent_id=phase["node_id"])
+    assert created.status_code == 201, created.text
+    [above] = created.json()["ancestors"]
+    assert state(above) == ("started", DAY.isoformat(), None, False)
+    assert kept(stage, tree, "Phase") == ("started", None)
+    undone(tree, writer)
+    assert state(task_named(tree, "Phase")) == (
+        "completed",
+        DAY.isoformat(),
+        FRIDAY.isoformat(),
+        False,
+    )
+    assert kept(stage, tree, "Phase") == ("completed", FRIDAY.isoformat())
+    redone(tree, writer)
+    assert kept(stage, tree, "Phase") == ("started", None)
+    done(tree, "Contrôle")
+    assert state(task_named(tree, "Phase")) == (
+        "completed",
+        DAY.isoformat(),
+        TUESDAY.isoformat(),
+        False,
+    )
+
+
+@pytest.mark.requirement("WF-PLA-0040-A")
+@pytest.mark.requirement("WF-PLA-0130-A")
+def test_a_task_created_under_a_summary_closed_by_its_subordinates_alone_reopens_it(
+    review: Review, stage: Scene
+) -> None:
+    # The hazards, whose only own line is a provision, are completed by their trial alone: nothing
+    # of a closure is kept on their facet, and a task created under them leaves them started.
+    tree = review.tree
+    done(tree, "Essai")
+    assert state(task_named(tree, "Aléas"))[0] == "completed"
+    assert kept(stage, tree, "Aléas") == ("not_started", None)
+    hazards = task_named(tree, "Aléas")
+    created = tree.create("Relevé", parent_id=hazards["node_id"])
+    assert created.status_code == 201, created.text
+    assert state(task_named(tree, "Aléas")) == ("started", DAY.isoformat(), None, False)
+    assert kept(stage, tree, "Aléas") == ("not_started", None)
+
+
+def moved_under(tree: Tree, label: str, parent: str, who: Any = None) -> Any:
+    """Move a task under another, after its last subordinate; give the answer."""
+    sent = {
+        "node_ids": [task_named(tree, label)["node_id"]],
+        "parent_id": task_named(tree, parent)["node_id"],
+        "lock_version": counter(tree),
+    }
+    headers = (who or tree.stage.manager).headers
+    return tree.api.post(f"{tree.path}/nodes/move", headers=headers, json=sent)
+
+
+@pytest.mark.requirement("WF-PLA-0040-A")
+@pytest.mark.requirement("WF-PLA-0130-A")
+def test_a_task_moved_under_a_summary_closed_by_its_line_reopens_it_and_clears_the_day(
+    closed_phase: Review, stage: Scene, realm: TestRealm
+) -> None:
+    # A task not completed moved under the phase completed by its line: as a task created there,
+    # it leaves the phase started and the facet without a closure; the move is undone whole, then
+    # redone, and the task completed on Tuesday completes the phase then, not on the stale Friday.
+    tree = closed_phase.tree
+    writer = signed_in(stage, realm)
+    answer = moved_under(tree, "Montage", "Phase", writer)
+    assert answer.status_code == 200, answer.text
+    assert state(task_named(tree, "Phase")) == ("started", DAY.isoformat(), None, False)
+    assert kept(stage, tree, "Phase") == ("started", None)
+    undone(tree, writer)
+    assert kept(stage, tree, "Phase") == ("completed", FRIDAY.isoformat())
+    assert task_named(tree, "Montage")["parent_id"] is None
+    redone(tree, writer)
+    assert kept(stage, tree, "Phase") == ("started", None)
+    zero(tree, "Fixations", completed_on=TUESDAY.isoformat())
+    assert state(task_named(tree, "Phase"))[1:3] == (DAY.isoformat(), TUESDAY.isoformat())
+
+
+@pytest.mark.requirement("WF-PLA-0040-A")
+@pytest.mark.requirement("WF-PLA-0130-A")
+def test_a_task_completed_moved_under_a_summary_closed_by_its_line_leaves_it_closed(
+    closed_phase: Review, stage: Scene
+) -> None:
+    # Only a task not completed reopens the summary: the milestone completed on Tuesday by its
+    # remaining, moved under the phase, leaves it completed on its Friday.
+    tree = closed_phase.tree
+    zero(tree, "Acompte", completed_on=TUESDAY.isoformat())
+    answer = moved_under(tree, "Livraison", "Phase")
+    assert answer.status_code == 200, answer.text
+    assert state(task_named(tree, "Phase")) == (
+        "completed",
+        DAY.isoformat(),
+        FRIDAY.isoformat(),
+        False,
+    )
+    assert kept(stage, tree, "Phase") == ("completed", FRIDAY.isoformat())
+
+
+@pytest.mark.requirement("WF-PLA-0040-A")
+@pytest.mark.requirement("WF-PLA-0130-A")
+def test_a_subordinate_deleted_under_a_summary_that_was_closed_leaves_no_stale_day(
+    closed_phase: Review, stage: Scene, realm: TestRealm
+) -> None:
+    # The phase closed on Friday by its line, a subordinate created under it then deleted: the
+    # phase is completed again by its subordinates, on the day of the last of them, Tuesday — the
+    # closure of Friday was cleared when the subordinate came (#2769). The deletion is undone
+    # (the phase is started again), then redone.
+    tree = closed_phase.tree
+    writer = signed_in(stage, realm)
+    phase = task_named(tree, "Phase")
+    created = tree.create("Contrôle", parent_id=phase["node_id"])
+    assert created.status_code == 201, created.text
+    node = task_named(tree, "Contrôle")
+    answer = delete(tree, node, writer)
+    assert answer.status_code == 200, answer.text
+    assert state(task_named(tree, "Phase")) == (
+        "completed",
+        DAY.isoformat(),
+        TUESDAY.isoformat(),
+        False,
+    )
+    assert kept(stage, tree, "Phase")[1] is None
+    undone(tree, writer)
+    assert state(task_named(tree, "Phase")) == ("started", DAY.isoformat(), None, False)
+    redone(tree, writer)
+    assert state(task_named(tree, "Phase"))[1:3] == (DAY.isoformat(), TUESDAY.isoformat())
+    assert kept(stage, tree, "Phase")[1] is None
 
 
 @pytest.fixture
