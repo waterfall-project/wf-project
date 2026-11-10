@@ -46,16 +46,13 @@ def _figure(value: Any) -> Decimal | None:
     """Read a figure a body sends, none if null."""
     if value is None:
         return None
-    # A figure of the basis is a decimal (the quantity) or a root model of a decimal or of a string
-    # (hours, money), the hours wrapping the decimal in a root of their own: at most two levels
-    # are peeled, and a type that is none of these is refused, never looped on.
+    # In the body received, the quantity is the contract's `Decimal`, a root model of a string (one
+    # level); `Hours` is a root model of that `Decimal` (two levels); `Money` is a root model of a
+    # string (one). Two levels are peeled; a third would be no figure, and `Decimal` refuses it.
     root: object = value
     for _ in range(MAX_ROOTS):
         if isinstance(root, RootModel):
             root = cast("RootModel[Any]", root).root
-    if isinstance(root, RootModel):
-        message = f"A figure of the basis nests more than {MAX_ROOTS} roots."
-        raise TypeError(message)
     return Decimal(str(root))
 
 

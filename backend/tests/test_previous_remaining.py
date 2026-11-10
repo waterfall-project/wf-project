@@ -10,7 +10,6 @@ a marked revision keeps its own. Every answer is checked against the contract.
 """
 
 from datetime import UTC, datetime, timedelta
-from types import SimpleNamespace
 from typing import TYPE_CHECKING, Any
 from unittest.mock import MagicMock
 from uuid import uuid4
@@ -23,6 +22,7 @@ from projects_support import scene as make_scene
 from remaining_support import Review, in_progress, line_named, review_marked
 
 from waterfall.core.estimate.remaining import reviewing
+from waterfall.core.projects.interface import TransitionView
 
 if TYPE_CHECKING:
     from realm import TestRealm
@@ -147,12 +147,12 @@ def test_a_revision_marked_at_the_very_instant_of_the_passage_is_a_review(
     # « celle de la dernière révision marquée à l'état En cours » : the limit case, the source
     # marked at the very instant the project passed In progress, is a review (comparison <=).
     passage = datetime(2026, 11, 3, 9, 0, 0, tzinfo=UTC)
-    transitions = [SimpleNamespace(to_state="in_progress", occurred_at=passage)]
+    transitions = [TransitionView(None, "in_progress", passage, None, None)]
 
     def marked_at(*_: object) -> datetime:
         return passage + offset
 
-    def passages(*_: object) -> list[SimpleNamespace]:
+    def passages(*_: object) -> list[TransitionView]:
         return transitions
 
     monkeypatch.setattr(reviewing, "revision_marked_at", marked_at)
