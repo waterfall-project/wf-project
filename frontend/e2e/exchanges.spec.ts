@@ -234,4 +234,6 @@ test("exports the planning as MS Project XML, downloads it once, and imports it 
   await expect(
     report.getByRole("table", { name: "Tâches datées autrement par le fichier" }),
   ).toHaveCount(0);
+  // Exported and imported by the same installation, the file bears its constants: nothing to signal.
+  await expect(report.getByText(/^Le fichier compte/)).toHaveCount(0);
 });
