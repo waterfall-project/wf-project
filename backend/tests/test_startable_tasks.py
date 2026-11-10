@@ -14,6 +14,7 @@ statements the reading takes, which no task changes.
 from annotationlib import Format, get_annotations
 from dataclasses import fields
 from datetime import timedelta
+from itertools import product
 from typing import TYPE_CHECKING, Any
 from uuid import UUID
 
@@ -24,7 +25,7 @@ from nodes_support import Tree, put_risk, refusal
 from planning_support import DAY
 from projects_support import PROJECTS, READING, Scene, person, put_in_state
 from projects_support import scene as make_scene
-from remaining_support import Review, in_progress, line_named, task_named
+from remaining_support import Review, in_progress, line_named, review_marked, task_named
 from sqlalchemy import event, update
 
 from waterfall.core.estimate.interface import (
@@ -33,7 +34,11 @@ from waterfall.core.estimate.interface import (
     StartableTasks,
     startable_tasks,
 )
+from waterfall.core.estimate.remaining.kanban import ENTRY_CONDITIONS
 from waterfall.core.estimate.tables import EstimateLine
+from waterfall.core.revisions.commands import RevisionState, structure_commands_of
+from waterfall.platform.logs import logging_context
+from waterfall.platform.tasks import submit
 
 if TYPE_CHECKING:
     from realm import TestRealm
@@ -41,6 +46,7 @@ if TYPE_CHECKING:
     from support import ContractClient
 
     from waterfall.platform.database import Database
+    from waterfall.platform.queue import TaskQueue
 
 MILESTONE = {"duration": {"value": "0", "unit": "d"}}
 BASIS = "reestimated_amount_basis"
@@ -49,6 +55,8 @@ FRIDAY = DAY + timedelta(days=4)
 TERMINAL = ["completed", "lost", "abandoned"]
 # The conditions, in the order of the contract, a task not started that is no milestone lacks.
 NOT_STARTED = ["task_is_milestone", "task_without_lines"]
+# The statements the Kanban takes, measured at 33; tight enough to catch one more a task.
+BOUND = 35
 
 
 @pytest.fixture
@@ -415,6 +423,86 @@ def test_the_conditions_of_the_entry_of_the_remaining_follow_those_of_the_gestur
     ]
 
 
+def entry_lacks(tree: Tree, who: Any = None) -> list[str]:
+    """Give what the card of a task with a line lacks to enter its remaining, as the Kanban says."""
+    card = card_of(board(tree, who), "Montage")
+    (entry,) = [each for each in gestures(card) if each[0] == "enter_remaining"]
+    return entry[3]
+
+
+@pytest.mark.requirement("WF-RAE-0030-A")
+def test_the_card_of_a_marked_current_revision_lacks_revision_draft(
+    review: Review, stage: Scene
+) -> None:
+    # « … les conditions dans l'ordre du contrat » : with no revision in progress, the current
+    # one is the last marked, and nothing modifies it: ``revision_draft``, as the 409 names it.
+    review_marked(stage, review.tree.revision, "v2.0")
+    assert entry_lacks(review.tree) == ["revision_draft"]
+
+
+@pytest.mark.requirement("WF-RAE-0030-A")
+def test_the_card_lacks_no_background_task_running_while_a_task_runs(
+    review: Review, stage: Scene, queue: TaskQueue
+) -> None:
+    # « … les conditions dans l'ordre du contrat » : a background task of the project is queued.
+    payload = {
+        "project_id": stage.project["project_id"],
+        "revision_id": str(UUID(int=1)),
+        "version_name": "v1.0",
+        "description": None,
+    }
+    with logging_context(correlation_id="queued-around"), stage.database.transaction() as session:
+        submit(session, queue, "revision_mark", stage.manager.user_id, payload)
+    assert entry_lacks(review.tree) == ["no_background_task_running"]
+
+
+@pytest.mark.requirement("WF-RAE-0030-A")
+def test_the_card_of_a_project_out_of_progress_lacks_project_in_progress(
+    review: Review, stage: Scene
+) -> None:
+    # « … les conditions dans l'ordre du contrat » : a project not In progress.
+    put_in_state(stage.owner, stage.project["project_id"], "pricing")
+    assert entry_lacks(review.tree) == ["project_in_progress"]
+
+
+@pytest.mark.requirement("WF-RAE-0030-A")
+def test_the_card_names_the_quality_then_the_phase_then_the_revision_in_that_order(
+    review: Review, stage: Scene, realm: TestRealm
+) -> None:
+    # « … les conditions dans l'ordre du contrat » : a caller who is no contributor, on a project
+    # not In progress, whose current revision is marked, lacks the three, in the order the
+    # structure lists them.
+    viewer = person(stage.database, realm, *READING, "remaining.write", name="Zoé")
+    put_in_state(stage.owner, stage.project["project_id"], "pricing")
+    review_marked(stage, review.tree.revision, "v2.0")
+    assert entry_lacks(review.tree, viewer) == [
+        "is_contributor",
+        "project_in_progress",
+        "revision_draft",
+    ]
+
+
+def test_the_conditions_a_card_names_are_those_the_entry_of_the_remaining_can_lack() -> None:
+    # What ``edit_remaining`` of the main structure can lack, over every caller, phase and
+    # revision, is what ``ENTRY_CONDITIONS`` types: a condition added there must be added here.
+    found: set[str] = set()
+    for kind in (None, "project_manager"):
+        for state in ("pricing", "in_progress"):
+            for marked, quiet in product((False, True), repeat=2):
+                revision = RevisionState(
+                    marked=marked,
+                    no_task_running=quiet,
+                    has_tasks_and_lines=True,
+                    reference_correctable=True,
+                )
+                for command, lacking in structure_commands_of(
+                    {"remaining.write"}, kind, state, revision, main=True
+                ):
+                    if command == "edit_remaining":
+                        found.update(lacking)
+    assert found == set(ENTRY_CONDITIONS)
+
+
 @pytest.mark.requirement("WF-CYC-0110-A")
 @pytest.mark.parametrize("state", TERMINAL)
 def test_the_kanban_is_read_on_a_terminal_project_its_cards_without_a_gesture(
@@ -447,24 +535,71 @@ def test_the_kanban_of_a_project_that_does_not_exist_is_not_found(
     assert answer.status_code == 404, answer.text
 
 
-@pytest.mark.requirement("WF-RAE-0030-A")
 def test_the_kanban_reads_the_tasks_in_a_number_of_statements_that_no_task_changes(
     api: ContractClient, stage: Scene, costs: Costing
 ) -> None:
-    # « Une requête par table, jamais une par tâche » : the same number of statements for three
-    # tasks and for thirty-three, each with a line and a predecessor.
-    counts: list[int] = []
+    # Criterion of US-1590 of its own: « le temps de réponse de `listStartableTasks` sur les mille
+    # tâches de PRJ-001 est mesuré contre le service » — a constant number of statements, whatever
+    # the tasks, with their lines, their links, their summaries and their risks, is what keeps
+    # that time bounded; the measure is the pull request's.
 
     def build(tree: Tree, lines: Lines) -> None:
-        for index in range(3):
-            lines.made(tree.made(f"Tâche {index}"), **material(costs, f"Ligne {index}", "10"))
+        lines.made(tree.made("Départ"), **material(costs, "Ligne de départ", "10"))
 
     held = in_progress(api, stage, build)
-    counts.append(statements(held.tree))
-    for index in range(30):
-        held.tree.made(f"Autre {index}")
-    counts.append(statements(held.tree))
-    assert counts[0] == counts[1], counts
+    grow(held, costs, 0, 1)
+    small = statements(held.tree)
+    grow(held, costs, 1, 12)
+    large = statements(held.tree)
+    assert large == small, (small, large)
+    assert large <= BOUND, large
+
+
+def grow(held: Review, costs: Costing, first: int, count: int) -> None:
+    """Add groups to the tree: a summary of two tasks, each with a line, linked, one a risk's."""
+    tree = held.tree
+    for index in range(first, first + count):
+        summary = tree.made(f"Récapitulative {index}")
+        before = tree.made(f"Avant {index}", parent_id=summary["node_id"])
+        after = tree.made(f"Après {index}", parent_id=summary["node_id"])
+        held.lines.made(before, **material(costs, f"Ligne avant {index}", "10"))
+        held.lines.made(after, **material(costs, f"Ligne après {index}", "10"))
+        risk = line_named(tree, f"Ligne après {index}")
+        put_risk(tree.stage, risk["node_id"], UUID(int=index + 1))
+        answer = link(tree, task_named(tree, f"Après {index}"), tree.stage.manager, before)
+        assert answer.status_code == 200, answer.text
+
+
+@pytest.mark.requirement("WF-RAE-0030-A")
+def test_a_line_is_a_provision_for_the_card_by_its_risk_not_by_its_category(
+    api: ContractClient, stage: Scene, costs: Costing
+) -> None:
+    # « Une tâche feuille démarrée sans ligne de devis est terminée depuis le Kanban. » : the card
+    # and the refusal of ``setTaskProgress`` judge a line a provision by ``origin_risk_id``
+    # (``open_lines`` judges by the category, and meets them once EP-08 gives each its risk): a
+    # line of the category of provisions without a risk holds its task, the line of a risk of an
+    # ordinary category does not.
+    def build(tree: Tree, lines: Lines) -> None:
+        lines.made(tree.made("Départ"), **material(costs, "Ligne de départ", "10"))
+
+    held = in_progress(api, stage, build)
+    for label in ("Catégorie seule", "Risque seul"):
+        held.tree.made(label)
+        held.lines.made(task_named(held.tree, label), **material(costs, f"Ligne {label}", "10"))
+    categorized = line_named(held.tree, "Ligne Catégorie seule")
+    with stage.owner.begin() as connection:
+        connection.execute(
+            update(EstimateLine)
+            .where(EstimateLine.node_id == UUID(categorized["node_id"]))
+            .values(cost_category_id=costs.provision)
+        )
+    put_risk(stage, line_named(held.tree, "Ligne Risque seul")["node_id"], UUID(int=3))
+    columns = board(held.tree)
+    assert gestures(card_of(columns, "Catégorie seule"))[-1] == ("enter_remaining", None, True, [])
+    assert gestures(card_of(columns, "Risque seul")) == [
+        ("start", "started", True, []),
+        ("complete", "completed", False, ["task_is_milestone"]),
+    ]
 
 
 def statements(tree: Tree) -> int:

@@ -17,7 +17,7 @@ Two readings, never one a task: the nodes of the structure with their links, by 
 """
 
 from dataclasses import dataclass, replace
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING, Final
 
 from waterfall.core.planning.interface import (
     NodeFilters,
@@ -52,6 +52,15 @@ NOT_STARTED = "not_started"
 STARTED = "started"
 COMPLETED = "completed"
 EDIT_REMAINING = "edit_remaining"
+# What ``edit_remaining`` of the main structure can lack, each as the contract's enumeration
+# names it (``CommandCondition``): a structure's conditions are plain strings, a card names them
+# typed. A condition the structure adds without a place here is refused (KeyError), not passed on.
+ENTRY_CONDITIONS: Final[dict[str, KanbanCondition]] = {
+    "is_contributor": "is_contributor",
+    "project_in_progress": "project_in_progress",
+    "revision_draft": "revision_draft",
+    "no_background_task_running": "no_background_task_running",
+}
 
 
 @dataclass(frozen=True, slots=True)
@@ -91,8 +100,7 @@ def _entry_conditions(
         session, place.project_id, place.revision_id, place.structure_id, viewer
     ):
         if each.command == EDIT_REMAINING:
-            # The conditions of a structure's command are the contract's, one enumeration.
-            return cast("tuple[KanbanCondition, ...]", each.missing_conditions)
+            return tuple(ENTRY_CONDITIONS[lacking] for lacking in each.missing_conditions)
     return None
 
 
@@ -117,6 +125,14 @@ def startable_tasks(session: Session, project_id: UUID, viewer: Viewer) -> Start
     The main structure of the revision in progress, else of the last one marked, is read as a
     whole — the state a task derives, whatever the column that retains it —, and its links tell
     the tasks not started whose predecessors are all completed.
+
+    A card holds, after the condition of its gesture, every condition of ``edit_remaining`` of the
+    main structure, in the order of ``structure_commands`` (``is_contributor``,
+    ``project_in_progress``, ``revision_draft``, ``no_background_task_running``): the gesture
+    moves the remaining to commit as that entry does, and the 409 of ``setTaskProgress`` names the
+    condition the entry names, so that a card and its refusal agree. ``viewer`` is required: the
+    structure lists ``edit_remaining`` to the caller who holds ``remaining.write`` alone, so
+    without it no card would hold a gesture (the core empties them).
     """
     revision_id = read_revision_for(session, project_id, None).revision_id
     structure_id = aimed_structure(session, project_id, revision_id, None)
