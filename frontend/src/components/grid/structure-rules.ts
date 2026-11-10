@@ -64,7 +64,10 @@ export interface StructureGestures {
   readonly tasks: boolean;
   /** Whether lines are created and deleted. */
   readonly lines: boolean;
-  /** The categories of expense a line is created from, with the roles: neither, and no line is created. */
+  /**
+   * The categories of expense a line is created from, with the roles: neither, and no line is
+   * created.
+   */
   readonly categories: readonly LineCategory[] | undefined;
   /** The roles a line of labour is created from. */
   readonly roles: readonly LineCategory[] | undefined;
@@ -108,7 +111,10 @@ export function labelOf(row: GridNode): string {
   return row.task?.label ?? row.estimate_line?.label ?? "";
 }
 
-/** Whether a line may be created: the grid lists it, and a role or a category of expense may be chosen. */
+/**
+ * Whether a line may be created: the grid lists it, and a role or a category of expense may be
+ * chosen.
+ */
 function linesOffered(scope: StructureGestures): boolean {
   return (
     scope.lines &&

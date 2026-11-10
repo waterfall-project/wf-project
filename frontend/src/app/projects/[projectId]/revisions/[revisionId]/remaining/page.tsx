@@ -12,8 +12,9 @@
  * work breakdown read whole, above it, as the estimate's (WF-RAE-0040). The grid is entered from
  * the keyboard, its tasks and its lines created and deleted, and places undo and redo, when the
  * structure lists `edit_remaining` available to the caller (US-0140, WF-RAE-0040): before the
- * project is in progress it lists it unavailable, and the grid is read only. The categories and the roles a line
- * is created from, and the sub-projects its lines are carried to (US-0480), are read then. Its head
+ * project is in progress it lists it unavailable, and the grid is read only. The categories and
+ * the roles a line is created from, and the sub-projects its lines are carried to (US-0480), are
+ * read then. Its head
  * leads to the Kanban of the start of the tasks, a leaf with a screen of its own (FBS-4.5.3), in the
  * same context, and, when the project lists the import of a remaining to commit, to the imports and
  * exports, where it is exercised (#521). Indicators the API does not find are said unavailable, the

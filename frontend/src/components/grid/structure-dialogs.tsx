@@ -96,13 +96,6 @@ function entryValue(entry: LineEntry): string {
   return `${entry.kind}:${entry.id}`;
 }
 
-/** What an option of the list of a line chooses, if it names one. */
-function entryOf(value: string): LineEntry | undefined {
-  const [kind, ...rest] = value.split(":");
-  const id = rest.join(":");
-  return (kind === "role" || kind === "category") && id !== "" ? { kind, id } : undefined;
-}
-
 /** A group of the list of a line — the roles, or the categories of expense —; none when empty. */
 function EntryGroup({
   label,
@@ -125,8 +118,9 @@ function EntryGroup({
 }
 
 /**
- * The dialog that names a node about to be created: its label, and for a line its role or its category of expense and its
- * quantity, read in the format of the language. Hands what was entered when it is valid.
+ * The dialog that names a node about to be created: its label, and for a line its role or its
+ * category of expense and its quantity, read in the format of the language. Hands what was
+ * entered when it is valid.
  */
 export function CreateForm({
   created,
@@ -159,13 +153,14 @@ export function CreateForm({
   const offeredRoles = activeRoles(roles);
   const expenses = activeExpenses(categories);
   const [label, setLabel] = useState("");
-  const [picked, setPicked] = useState(
-    offeredRoles[0] === undefined
-      ? expenses[0] === undefined
-        ? ""
-        : entryValue({ kind: "category", id: expenses[0].id })
-      : entryValue({ kind: "role", id: offeredRoles[0].id }),
+  // The options of the list, by value: the form holds the entry they name, never a parsed string.
+  const options = new Map<string, LineEntry>(
+    [
+      ...offeredRoles.map((role): LineEntry => ({ kind: "role", id: role.id })),
+      ...expenses.map((expense): LineEntry => ({ kind: "category", id: expense.id })),
+    ].map((offered) => [entryValue(offered), offered]),
   );
+  const [picked, setPicked] = useState<LineEntry | undefined>([...options.values()][0]);
   const [quantity, setQuantity] = useState(formatDecimal(QUANTITY, locale));
   const [problem, setProblem] = useState<Problem>();
   const labelInput = useRef<HTMLInputElement>(null);
@@ -194,11 +189,11 @@ export function CreateForm({
       return;
     }
     setProblem(undefined);
-    const chosen = entryOf(picked);
-    if (chosen === undefined) {
+    // Nothing is picked only when the list is empty, and then the dialog is not offered.
+    if (picked === undefined) {
       return;
     }
-    onCreate({ label: typed, line: { entry: chosen, quantity: parsed } });
+    onCreate({ label: typed, line: { entry: picked, quantity: parsed } });
   };
   const hint = t(created === "task" ? "taskHint" : "lineHint");
   return (
@@ -224,9 +219,9 @@ export function CreateForm({
               <Label htmlFor={`${id}-entry`}>{t("entryField")}</Label>
               <NativeSelect
                 id={`${id}-entry`}
-                value={picked}
+                value={picked === undefined ? "" : entryValue(picked)}
                 onChange={(event) => {
-                  setPicked(event.target.value);
+                  setPicked(options.get(event.target.value));
                 }}
               >
                 <EntryGroup label={t("rolesGroup")} kind="role" choices={offeredRoles} />
