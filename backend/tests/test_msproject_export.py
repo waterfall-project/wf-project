@@ -581,12 +581,14 @@ def test_the_file_is_named_after_the_code_of_the_project_cleaned_or_not_at_all(
     assert named("é é") == 'attachment; filename="ms-project.xml"'
 
 
-@pytest.mark.requirement("WF-INTF-0050-A")
+@pytest.mark.requirement("WF-QUA-0080-A")
 def test_the_currency_code_written_is_the_one_of_the_installation(
     api: ContractClient, stage: Scene, worker: Worker
 ) -> None:
-    # « Le fichier exporté valide contre le schéma » : CurrencyCode, exigé, porte la devise de
-    # l'installation et non une valeur vide (#2469).
+    # « … exporté par Waterfall est valide contre le schéma » : CurrencyCode, that the schema
+    # requires, bears the currency of the installation, not an empty value (#2469). The validity
+    # against the schema is the Vérif of WF-QUA-0080-A, which the corpus tries whole, not the
+    # opening in MS Project of WF-INTF-0050-A, checked at acceptance (#2682).
     with stage.database.transaction() as session:
         currency = read_reference_settings(session).currency_code
     content, project = exported_planning(api, stage, worker)
