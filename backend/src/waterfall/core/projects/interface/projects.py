@@ -473,6 +473,15 @@ def projects_present(session: Session, project_ids: Collection[UUID]) -> frozens
     return frozenset(session.scalars(select(Project.id).where(Project.id.in_(project_ids))))
 
 
+def first_project(session: Session) -> UUID | None:
+    """Give a project of the installation, the first by identifier; none, ``None`` (#2556).
+
+    The witness's question too: its calendars are loaded before any project, which the default
+    one would judge and redate.
+    """
+    return session.scalars(select(Project.id).order_by(Project.id).limit(1)).first()
+
+
 def _code_taken(session: Session, code: str, own: UUID) -> ConflictError:
     """Refuse a code another project bears, naming that project (409, WF-PRJ-0010)."""
     holder = session.execute(
