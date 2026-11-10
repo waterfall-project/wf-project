@@ -7,7 +7,7 @@ les réponses en citent d'autres, comptées dans la couverture ci-dessous mais p
 dans le tableau.
 
 **169 opérations sur 131 chemins, dans 13 familles.**
-Le contrat cite **190 des 212 exigences** de la spécification.
+Le contrat cite **190 des 213 exigences** de la spécification.
 
 ## Système, métriques et traitements de fond
 
@@ -271,14 +271,14 @@ Le contrat cite **190 des 212 exigences** de la spécification.
 
 ## Exigences que le contrat ne cite pas
 
-22 sur 212. Aucune n'est un oubli : ce sont celles qui n'ont pas de
+23 sur 213. Aucune n'est un oubli : ce sont celles qui n'ont pas de
 surface d'interface, et il vaut mieux qu'elles n'en aient pas.
 
 | Domaine | Exigences | Pourquoi aucune surface d'API |
 |---|---|---|
 | ARC | WF-ARC-0010, WF-ARC-0070, WF-ARC-0080 | Choix d'architecture interne : noyau unique, rôles des composants de données, empaquetage, autorité du serveur, absence d'état. Ils se vérifient sur le dépôt et le déploiement. |
 | CMP | WF-CMP-0010 | Compatibilité des navigateurs et largeurs d'affichage : propriété du front. |
-| DAT | WF-DAT-0050, WF-DAT-0140 | Partitionnement et migrations : propriétés du schéma, invisibles du contrat. |
+| DAT | WF-DAT-0050, WF-DAT-0140, WF-DAT-0150 | Partitionnement et migrations : propriétés du schéma, invisibles du contrat. |
 | EXP | WF-EXP-0010 | Exploitation : environnements, amorçage, mise à jour, perte maximale. Aucune n'est une opération d'API. |
 | IHM | WF-IHM-0010, WF-IHM-0100, WF-IHM-0140 | Invariants d'interface : navigation, accessibilité, aide en ligne. Ils vivent dans le front. |
 | INTF | WF-INTF-0010, WF-INTF-0020, WF-INTF-0030, WF-INTF-0170 | Les trois usages d'acteurs décrivent le contenu des rôles prédéfinis, servi par le catalogue des permissions ; la règle de traduction vit dans le front. |
