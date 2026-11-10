@@ -12,11 +12,11 @@ them from here, never from the file.
 
 The actual costs fill, at the import of this interface, the registry of the formats of the
 exchanges: the format ``actual_costs``, registered by the socle, which reads and analyses an
-extraction from US-1610/L1 and applies it from US-1610/L2. US-1610/L3 declares
-``register_cost_facts`` in the interface of the projects and registers there what they ask of a
-subproject. The entry points that run an import of the actual costs, or load the witness — the API,
-the loader of the witness, and the worker from US-1610/L2 on (EP-09, "Le worker") — import it
-(#2180).
+extraction from US-1610/L1 and applies it from US-1610/L2; and ``register_cost_facts``, which
+US-1610/L3 declares in the interface of the projects: what they ask of a subproject, and what its
+creation imputes. The entry points that run an import of the actual costs, or load the witness —
+the API, the loader of the witness, and the worker from US-1610/L2 on (EP-09, "Le worker") — import
+it (#2180).
 """
 
 # ``actual_costs`` (US-1580/L1; US-1610/L1, US-1610/L2): the format of an extraction of the ERP.
@@ -29,6 +29,9 @@ from waterfall.core.costs.interface.actual_costs import (
 
 # ``cost_imports`` (US-1580/L1; US-1610/L2, US-1610/L3): the log of the imports.
 from waterfall.core.costs.interface.cost_imports import (
+    CostImportLoad as CostImportLoad,
+)
+from waterfall.core.costs.interface.cost_imports import (
     list_cost_imports as list_cost_imports,
 )
 from waterfall.core.costs.interface.cost_imports import (
@@ -36,6 +39,9 @@ from waterfall.core.costs.interface.cost_imports import (
 )
 
 # ``cost_lines`` (US-1580/L1; US-1620/L1, US-1610/L3): the lines read, excluded, loaded.
+from waterfall.core.costs.interface.cost_lines import (
+    CostLineLoad as CostLineLoad,
+)
 from waterfall.core.costs.interface.cost_lines import (
     list_actual_costs as list_actual_costs,
 )
@@ -78,8 +84,11 @@ from waterfall.core.costs.interface.tracked_costs import (
     actual_costs_until as actual_costs_until,
 )
 
-# The registry the actual costs fill.
+# The registries the actual costs fill.
 from waterfall.core.exchanges.interface import register_format
+from waterfall.core.projects.interface import CostFacts, register_cost_facts
 
-# The registration, once, at the import: the format of an extraction.
+# The registrations, once, at the import: the format of an extraction; what the projects ask of a
+# subproject and what its creation imputes (US-1610/L3).
 register_format("actual_costs", ACTUAL_COSTS_FORMAT)
+register_cost_facts(CostFacts(subproject_has_actual_costs, impute_waiting_lines))
