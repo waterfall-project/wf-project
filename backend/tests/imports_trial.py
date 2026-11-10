@@ -2,13 +2,14 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 """A format of the tests, which tries the whole mechanics of the imports before any real format.
 
-Its file is a head, ``WF-TRIAL``, then one label of a task per line. Its analysis reports each line
-as a task added, and a line that reads ``REFUSE`` rejects the whole file; its application writes
-each task, at the root of the structure aimed at, after the tasks there. What it does besides — a
-condition of its kind refused, an analysis or an application that refuses, breaks, or is stopped
-— a test asks of it by its attributes (#1790, EP-06, "Les tests du back"). It stands in for the
-format a module registered for a kind (``stand_in``). And what the tests of
-the imports share: the platform, its client, its worker, the deposit and the opening of a file.
+Its file is a head, ``WF-TRIAL``, then one label of a task per line, which its preparation reads.
+Its analysis reports each line as a task added, and a line that reads ``REFUSE`` rejects the whole
+file; its application writes each task, at the root of the structure aimed at, after the tasks
+there. What it does besides — a condition of its kind refused, an analysis or an application that
+refuses, breaks, or is stopped — a test asks of it by its attributes (#1790, EP-06, "Les tests du
+back"). It stands in for the format a module registered for a kind (``stand_in``). And what the
+tests of the imports share: the platform, its client, its worker, the deposit and the opening of a
+file.
 """
 
 from dataclasses import dataclass, field
@@ -60,7 +61,8 @@ class TrialFormat:
 
     ``condition`` a condition of the kind the import lacks (409); ``analysis`` and ``application``
     what their step does besides: ``None``, nothing; ``refuse``, a refusal; ``break``, an error;
-    ``stop``, the worker stopped once its writes are done (``application`` alone).
+    ``stop``, the worker stopped once its writes are done (``application`` alone). ``preparation``
+    ``refuse`` refuses the file as unreadable (422), ``break`` breaks on it (``ValueError``).
     """
 
     scope: ImportScope = "structure"
@@ -68,6 +70,7 @@ class TrialFormat:
     header_length: int = len(HEAD)
     condition: str | None = None
     analysis: str | None = None
+    preparation: str | None = None
     application: str | None = None
     seen: list[ImportTarget] = field(default_factory=list[Any])
 
@@ -117,11 +120,21 @@ class TrialFormat:
             "requires_confirmation_reasons": [],
         }
 
+    def prepare(self, content: bytes) -> list[str]:
+        """Read the labels of a trial file, before the application takes any lock."""
+        if self.preparation == "refuse":
+            expected = {"expected_format": "remaining", "expected_version": "1"}
+            raise UnprocessableError(UNREADABLE, expected)
+        if self.preparation == "break":
+            msg = "the preparation breaks"
+            raise ValueError(msg)
+        return labels_of(content)
+
     def apply(
         self,
         session: Session,
         target: ImportTarget,
-        content: bytes,
+        prepared: list[str],
         report: Mapping[str, Any],
         act: Act,
     ) -> None:
@@ -148,7 +161,7 @@ class TrialFormat:
                 rank=offset,
                 label=difference["label"],
             )
-        assert labels_of(content)
+        assert prepared
         self._besides(self.application)
 
     @staticmethod

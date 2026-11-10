@@ -11,7 +11,7 @@ in the project, under the permission to write its actual costs; it aims at no st
 
 Declared by US-1580/L1; US-1610/L1 judges an import on the state of its project and the mapping,
 reads the header at the opening (``extraction``) and analyses (``analysing``); US-1610/L2 applies
-(``applying``).
+(``applying``), on the rows the preparation read before any lock (US-1610/L4, #2739).
 """
 
 from typing import TYPE_CHECKING, Any
@@ -96,11 +96,19 @@ class ActualCostsFormat:
         """Give the report of an extraction against the lines of the project, writing nothing."""
         return analysing.analyse(session, target.project_id, content)
 
+    def prepare(self, content: bytes) -> list[tuple[Any, ...]]:
+        """Read the rows of the first tab of an extraction, before any lock (#2739).
+
+        Every row, the headers with them: the application reads them by the header the report
+        keeps. A file openpyxl cannot read is ``FILE_FORMAT_UNREADABLE``.
+        """
+        return sheet_rows(content)
+
     def apply(
         self,
         session: Session,
         target: ImportTarget,
-        content: bytes,
+        prepared: list[tuple[Any, ...]],
         report: Mapping[str, Any],
         act: Act,
     ) -> None:
@@ -116,7 +124,7 @@ class ActualCostsFormat:
         applied = Applied(
             target.project_id, target.import_id, act.author, target.period_from, target.period_to
         )
-        applying.apply(session, applied, content, report, act)
+        applying.apply(session, applied, prepared, report, act)
 
 
 ACTUAL_COSTS_FORMAT = ActualCostsFormat()

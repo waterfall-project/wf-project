@@ -12,7 +12,8 @@ Declared by US-1490/L1 and registered without effect (decision of 2026-11-08, #2
 reads the header, analyses and applies a workbook from US-1550/L3: the header is read in the whole
 file — a workbook is a zip, whose header no head of bytes holds; the opening holds it in memory
 whole, 10 MiB at most (``HEADER_LENGTH``) —, by the reader of US-1550/L2
-(``excel/reader.py``), the analysis is ``importing``'s, the application ``applying``'s. The export
+(``excel/reader.py``), the analysis is ``importing``'s, the application ``applying``'s, on the
+workbook the preparation read before any lock (#2582). The export
 is filled by US-1550/L4: ``exporting`` reads the estimate of the structure of the order, the writer
 of US-1550/L1 (``excel/writer.py``) turns it into the workbook. ``sheet_name`` is written by
 US-1550/L1 (``excel/names.py``).
@@ -34,6 +35,7 @@ if TYPE_CHECKING:
 
     from sqlalchemy.orm import Session
 
+    from waterfall.core.estimate.excel.reader import WorkbookRead
     from waterfall.core.exchanges.interface import (
         ExportOrder,
         ImportScope,
@@ -94,16 +96,20 @@ class EstimateFormat:
         held = importing.aimed(session, target)
         return importing.report_of(held, read, importing.analyse(session, held, read))
 
+    def prepare(self, content: bytes) -> WorkbookRead:
+        """Read a whole workbook of an estimate, before any lock (``FILE_FORMAT_UNREADABLE``)."""
+        return read_workbook(content)
+
     def apply(
         self,
         session: Session,
         target: ImportTarget,
-        content: bytes,
+        prepared: WorkbookRead,
         report: Mapping[str, Any],
         act: Act,
     ) -> None:
-        """Write the report of a workbook into a structure, judged again (``applying``)."""
-        applying.apply(session, target, content, report, act)
+        """Write the report of a workbook read into a structure, judged again (``applying``)."""
+        applying.apply(session, target, prepared, report, act)
 
 
 class EstimateExporter:

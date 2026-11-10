@@ -2,10 +2,11 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 """The application of an extraction of the actual costs to a project, private to the module.
 
-In the transaction of the task of the exchanges, under the lock of the project, once they judged
-the import again (EP-09, "Les coûts réels"): the file is read as the analysis read it — by the
-reading of its header the report keeps, whatever the mapping became —, its lines judged together
-again, then against those of the project as they stand under the lock:
+In the transaction of the task of the exchanges, under the lock of the project, once they judged the
+import again (EP-09, "Les coûts réels"): the rows of the file, which the format read before any lock
+(``ActualCostsFormat.prepare``, #2739), are read as the analysis read them — by the reading of its
+header the report keeps, whatever the mapping became —, their lines judged together again, then
+against those of the project as they stand under the lock:
 
 - a line accepted whose document and item no line of the project bears is inserted, tracked;
 - one that matches a line of the project and changes its date, its amount, its subproject or a
@@ -33,14 +34,14 @@ from waterfall.core.costs.analysing import (
     imputed,
     subprojects_of,
 )
-from waterfall.core.costs.extraction import HEADER_ROW, Reading, read_lines, sheet_rows
+from waterfall.core.costs.extraction import HEADER_ROW, Reading, read_lines
 from waterfall.core.costs.tables import CostImport
 from waterfall.core.costs.writing import Placed, held_lines, write_line
 from waterfall.core.projects.interface import project_code
 from waterfall.platform.identifiers import new_id
 
 if TYPE_CHECKING:
-    from collections.abc import Mapping
+    from collections.abc import Mapping, Sequence
     from datetime import date
     from uuid import UUID
 
@@ -63,12 +64,18 @@ class Applied:
 
 
 def apply(
-    session: Session, applied: Applied, content: bytes, report: Mapping[str, Any], act: Act
+    session: Session,
+    applied: Applied,
+    rows: Sequence[Sequence[object]],
+    report: Mapping[str, Any],
+    act: Act,
 ) -> UUID:
-    """Write an extraction into its project: the entry of the log, then the lines; give it."""
+    """Write the rows of an extraction into its project: the entry of the log, then the lines.
+
+    ``rows`` are those of its first tab, headers included; the entry of the log is given.
+    """
     project_id = applied.project_id
     reading = Reading.from_report(report[READING])
-    rows = sheet_rows(content)
     read = read_lines(rows[HEADER_ROW:], reading, project_code(session, project_id))
     lines, others, doubled = doubled_lines(read)
     codes = subprojects_of(session, project_id, lines)
