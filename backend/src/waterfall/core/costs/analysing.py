@@ -29,9 +29,6 @@ does not return it.
 from collections import defaultdict
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
-from uuid import UUID
-
-from sqlalchemy import select
 
 from waterfall.core.costs.extraction import (
     HEADER_ROW,
@@ -43,21 +40,18 @@ from waterfall.core.costs.extraction import (
     read_lines,
     sheet_rows,
 )
-from waterfall.core.costs.tables import CostLine
-from waterfall.core.projects.interface import (
-    SubprojectFilters,
-    SubprojectSort,
-    Viewer,
-    list_subprojects,
-    project_code,
-)
+from waterfall.core.costs.writing import held_lines
+from waterfall.core.projects.interface import project_code, subprojects_coded
 
 if TYPE_CHECKING:
     from collections.abc import Iterable, Mapping
     from datetime import date
     from decimal import Decimal
+    from uuid import UUID
 
     from sqlalchemy.orm import Session
+
+    from waterfall.core.costs.tables import CostLine
 
 DUPLICATE_COST_LINE = "DUPLICATE_COST_LINE"
 LINES_OUTSIDE_PROJECT = "lines_outside_project"
@@ -68,28 +62,27 @@ ACTUAL_COST_LINE = "actual_cost_line"
 READING = "actual_cost_reading"
 # The prefix of a column kept, among the fields of a difference (``ActualCostColumn``).
 PASSTHROUGH = "passthrough."
-# Who reads the subprojects: no account, whose commands on them are not read.
-NOBODY = Viewer(UUID(int=0), frozenset())
 
 
-def _doubled(read: LinesRead) -> tuple[list[Line], list[Rejection], list[Rejection]]:
+def doubled_lines(read: LinesRead) -> tuple[list[Line], list[Rejection], list[Rejection]]:
     """Split the rows: the lines alone on their key, the other rejections, the doubled.
 
     Every row whose document and item can be read is compared, accepted or not: a line another
     of the file shares them with is rejected, whatever else either lacks.
     """
+    keyed = sorted(
+        ((each.row, each.key) for each in (*read.lines, *read.rejected) if each.key is not None),
+        key=lambda pair: pair[0],
+    )
     rows: dict[tuple[str, str | None], list[int]] = defaultdict(list)
-    for each in sorted((*read.lines, *read.rejected), key=lambda each: each.row):
-        if each.key is not None:
-            rows[each.key].append(each.row)
+    for row, key in keyed:
+        rows[key].append(row)
     doubled = [
         Rejection(
-            each.row,
-            DUPLICATE_COST_LINE,
-            {"rows": [row for row in rows[each.key] if row != each.row]},
+            row, DUPLICATE_COST_LINE, {"rows": [other for other in rows[key] if other != row]}
         )
-        for each in sorted((*read.lines, *read.rejected), key=lambda each: each.row)
-        if each.key is not None and len(rows[each.key]) > 1
+        for row, key in keyed
+        if len(rows[key]) > 1
     ]
     taken = {each.row for each in doubled}
     alone = [line for line in read.lines if line.row not in taken]
@@ -98,40 +91,29 @@ def _doubled(read: LinesRead) -> tuple[list[Line], list[Rejection], list[Rejecti
 
 
 @dataclass(frozen=True, slots=True)
-class _Held:
-    """A line of the project as the analysis compares it: its subproject by its code and its own."""
+class Held:
+    """A line of the project as a line of the file is compared to it.
+
+    Its subproject by its code and its own: a line imputed again changes its subproject.
+    """
 
     document_date: date
     amount: Decimal
     subproject: tuple[str | None, UUID | None]
     passthrough: Mapping[str, Any]
 
-
-def _held_lines(session: Session, project_id: UUID) -> dict[tuple[str, str | None], _Held]:
-    """Read the lines of a project, by their document and their item, in one read."""
-    rows = session.execute(
-        select(
-            CostLine.document_number,
-            CostLine.document_item,
-            CostLine.document_date,
-            CostLine.amount,
-            CostLine.subproject_code,
-            CostLine.subproject_id,
-            CostLine.passthrough,
-        ).where(CostLine.project_id == project_id)
-    )
-    return {
-        (row.document_number, row.document_item): _Held(
+    @staticmethod
+    def of(row: CostLine) -> Held:
+        """Give a line of the project, as it is held, to compare."""
+        return Held(
             row.document_date,
             row.amount,
             (row.subproject_code, row.subproject_id),
             row.passthrough,
         )
-        for row in rows
-    }
 
 
-def _changed(held: _Held, line: Line, subproject_id: UUID | None) -> list[str]:
+def changed(held: Held, line: Line, subproject_id: UUID | None) -> list[str]:
     """Name the columns a line of the file changes of the line of the project, in their order."""
     fields: list[str] = []
     if held.document_date != line.document_date:
@@ -162,23 +144,29 @@ def _difference(change: str, line: Line, fields: list[str]) -> dict[str, Any]:
     }
 
 
-def _subprojects(session: Session, project_id: UUID) -> dict[str, UUID]:
-    """Give the subproject of a project each code names."""
-    views = list_subprojects(session, project_id, NOBODY, SubprojectFilters(), SubprojectSort())
-    return {view.code: view.subproject_id for view in views}
+def subprojects_of(session: Session, project_id: UUID, lines: Iterable[Line]) -> dict[str, UUID]:
+    """Give the subproject of a project each code of these lines names, compared as stored."""
+    return subprojects_coded(
+        session, project_id, {line.subproject_code for line in lines if line.subproject_code}
+    )
 
 
-def _imputed(line: Line, codes: Mapping[str, UUID]) -> UUID | None:
+def imputed(line: Line, codes: Mapping[str, UUID]) -> UUID | None:
     """Give the subproject a line is imputed to: the one its code names, or none."""
     return None if line.subproject_code is None else codes.get(line.subproject_code)
 
 
 def _reasons(
-    others: Iterable[Rejection], lines: Iterable[Line], codes: Mapping[str, UUID]
+    read: Iterable[Rejection], lines: Iterable[Line], codes: Mapping[str, UUID]
 ) -> list[str]:
-    """Name what asks for confirmation, in the order of the contract."""
+    """Name what asks for confirmation, in the order of the contract.
+
+    A line of another project asks for it as its fault was read, even when it is rejected doubled
+    (#2724): the confirmation guards against a file of the wrong project, which a double does not
+    excuse.
+    """
     reasons: list[str] = []
-    if any(each.code == WBS_ELEMENT_OUTSIDE_PROJECT for each in others):
+    if any(each.code == WBS_ELEMENT_OUTSIDE_PROJECT for each in read):
         reasons.append(LINES_OUTSIDE_PROJECT)
     if any(
         line.subproject_code is not None and line.subproject_code not in codes for line in lines
@@ -192,15 +180,15 @@ def analyse(session: Session, project_id: UUID, content: bytes) -> dict[str, Any
     rows = sheet_rows(content)
     reading = read_header(session, rows[0] if rows else ())
     read = read_lines(rows[HEADER_ROW:], reading, project_code(session, project_id))
-    lines, others, doubled = _doubled(read)
-    codes = _subprojects(session, project_id)
-    held = _held_lines(session, project_id)
+    lines, others, doubled = doubled_lines(read)
+    codes = subprojects_of(session, project_id, lines)
+    held = held_lines(session, project_id, {line.document_number for line in lines})
     differences: list[dict[str, Any]] = []
     for line in lines:
         before = held.get(line.key)
         if before is None:
             differences.append(_difference("added", line, []))
-        elif fields := _changed(before, line, _imputed(line, codes)):
+        elif fields := changed(Held.of(before), line, imputed(line, codes)):
             differences.append(_difference("updated", line, fields))
     rejected = sorted((*others, *doubled), key=lambda each: each.row)
     ignored = reading.ignored
@@ -217,6 +205,6 @@ def analyse(session: Session, project_id: UUID, content: bytes) -> dict[str, Any
         "completed_tasks": [],
         "date_mismatches": [],
         "signals": [],
-        "requires_confirmation_reasons": _reasons(others, lines, codes),
+        "requires_confirmation_reasons": _reasons(read.rejected, lines, codes),
         READING: reading.kept_with_report(),
     }

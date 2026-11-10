@@ -22,6 +22,7 @@ from waterfall.platform.errors import ConflictError
 
 if TYPE_CHECKING:
     from collections.abc import Callable
+    from datetime import date
     from uuid import UUID
 
     from sqlalchemy.orm import Session
@@ -60,13 +61,20 @@ class ImportTarget:
     application creates; ``None`` both when the project has no revision yet, the application
     creating its first. For the application, the current revision, and its structure, and
     ``running``, the task that applies: the writes of the format name it, so that it does not
-    suspend them (``no_background_task_running``); none at the opening and the analysis.
+    suspend them (``no_background_task_running``); none at the opening and the analysis. For the
+    application, ``import_id`` the import applied and, for an import of the project, ``period_from``
+    and ``period_to`` the period its opening declared, which its format may keep; none at the
+    opening and the analysis. For the scope ``structure``, only ``import_id`` is set at the
+    application, the period being left unset.
     """
 
     project_id: UUID
     revision_id: UUID | None
     structure_id: UUID | None
     running: UUID | None = None
+    import_id: UUID | None = None
+    period_from: date | None = None
+    period_to: date | None = None
 
 
 def refused(condition: str) -> ConflictError:

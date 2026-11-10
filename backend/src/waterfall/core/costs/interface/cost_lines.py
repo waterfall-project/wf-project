@@ -19,9 +19,7 @@ gives it its arguments and its result.
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
-from sqlalchemy import select
-
-from waterfall.core.costs.tables import CostLine
+from waterfall.core.costs.writing import Placed, held_lines, write_line
 from waterfall.core.projects.interface import lock_project, subprojects_coded
 
 if TYPE_CHECKING:
@@ -85,37 +83,17 @@ def load_cost_lines(
     codes = subprojects_coded(
         session, project_id, {line.subproject_code for line in lines if line.subproject_code}
     )
-    held = session.scalars(
-        select(CostLine).where(
-            CostLine.project_id == project_id,
-            CostLine.document_number.in_({line.document_number for line in lines}),
-        )
-    ).all()
-    by_document = {(row.document_number, row.document_item): row for row in held}
+    by_document = held_lines(session, project_id, {line.document_number for line in lines})
     for line in lines:
-        row = by_document.get((line.document_number, line.document_item))
-        if row is None:
-            row = CostLine(
-                id=line.cost_line_id,
-                project_id=project_id,
-                document_number=line.document_number,
-                document_item=line.document_item,
-                is_in_tracked_scope=True,
-                excluded_reason=None,
-                created_at=act.at,
-                created_by=act.author,
-            )
-            session.add(row)
-            by_document[line.document_number, line.document_item] = row
-        row.document_date = line.document_date
-        row.amount = line.amount
-        row.subproject_code = line.subproject_code
+        key = (line.document_number, line.document_item)
         code = line.subproject_code
-        row.subproject_id = None if code is None else codes.get(code)
-        row.passthrough = dict(line.passthrough)
-        row.last_import_id = cost_import_id
-        row.updated_at = act.at
-        row.updated_by = act.author
+        placed = Placed(
+            project_id,
+            line.cost_line_id,
+            None if code is None else codes.get(code),
+            cost_import_id,
+        )
+        by_document[key] = write_line(session, by_document.get(key), line, placed, act)
     session.flush()
 
 

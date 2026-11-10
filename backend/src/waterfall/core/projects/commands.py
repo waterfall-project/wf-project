@@ -12,8 +12,10 @@ the 409 of a direct call names ``project_not_terminal`` (WF-CYC-0100).
 
 This module knows the commands of EP-04; the later EPICs add theirs — the risks, the imports, the
 skeleton of the planning — to ``RULES`` with their conditions: the imports of a planning
-(US-1430/L4) and of an estimate (US-1550/L3). The rescue of ``manage_contributors`` for a caller
-who is no contributor is the story of the contributors (US-0930).
+(US-1430/L4) and of an estimate (US-1550/L3); the import of the actual costs, the exclusion of a
+line of cost and the import of the remaining to commit (US-1610/L2, for EP-09). The rescue of
+``manage_contributors`` for a caller who is no contributor is the story of the contributors
+(US-0930).
 """
 
 from dataclasses import dataclass
@@ -40,6 +42,7 @@ NO_CURRENT_REVISION = "no_current_revision"
 NO_BACKGROUND_TASK_RUNNING = "no_background_task_running"
 MAIN_STRUCTURE_WITHOUT_TASKS = "main_structure_without_tasks"
 MAY_CREATE_REVISION = "may_create_revision"
+ACTUAL_COST_MAPPING_COMPLETE = "actual_cost_mapping_complete"
 
 
 @dataclass(frozen=True, slots=True)
@@ -63,12 +66,17 @@ RULES: tuple[Rule, ...] = (
     Rule("complete", "project_exit", manager=True),
     Rule("lose", "project_exit", manager=True),
     Rule("abandon", "project_exit", manager=True),
+    Rule("import_actual_costs", "actual_costs.write"),
+    Rule("exclude_cost_lines", "cost_line_exclude"),
     Rule("generate_skeleton", "planning.write"),
     Rule("import_planning", "planning.write"),
     Rule("import_estimate", "estimate.write"),
+    Rule("import_remaining", "remaining.write"),
 )
 # The imports a project carries, which create the current revision if it has none (WF-INTF-0090).
-IMPORTS = ("import_planning", "import_estimate")
+IMPORTS = ("import_planning", "import_estimate", "import_remaining")
+# What writes the actual costs of a project, In progress only (WF-CRE-0010, WF-CRE-0030; D-04).
+IN_PROGRESS_ONLY = ("import_actual_costs", "exclude_cost_lines", "import_remaining")
 
 
 def state_conditions(
@@ -83,7 +91,7 @@ def state_conditions(
         missing.append(PROJECT_BEFORE_IN_PROGRESS)
     if command == "create_revision" and current_revision_id is not None:
         missing.append(NO_CURRENT_REVISION)
-    if command == "complete" and state != "in_progress":
+    if (command == "complete" or command in IN_PROGRESS_ONLY) and state != "in_progress":
         missing.append(PROJECT_IN_PROGRESS)
     # Created or In progress: the list omits the command from the second, the 409 names it.
     if command == "lose" and state != "pricing":
@@ -91,7 +99,8 @@ def state_conditions(
     # A task of the background that writes in the current revision, or freezes it, suspends what
     # would move the project or its work breakdown (EP-04, "Le worker").
     if (
-        command in {"update_work_breakdown", "complete", "lose", "abandon", *IMPORTS}
+        command
+        in {"update_work_breakdown", "complete", "lose", "abandon", "import_actual_costs", *IMPORTS}
         and not no_task_running
     ):
         missing.append(NO_BACKGROUND_TASK_RUNNING)
@@ -103,10 +112,13 @@ class Running:
     """What the commands read of the background and of the revision an opening would create.
 
     ``no_task_running`` tells that no task of the background writes in the project;
-    ``opening_has_tasks`` that the revision its opening would create carries a task.
+    ``opening_has_tasks`` that the revision its opening would create carries a task;
+    ``mapping_complete`` that the mapping of an extraction of the actual costs declares a label for
+    each column it requires (WF-REF-0190), true by the callers that do not read it.
     """
 
     no_task_running: bool
+    mapping_complete: bool
     opening_has_tasks: bool = False
 
 
@@ -145,7 +157,8 @@ def commands_of(
     a current revision, ``may_create_revision`` missing to whoever cannot create the one it would
     (WF-INTF-0090). An estimate stays available In progress: its import on the main structure is
     refused by the import itself, which the structure states (``edit_estimate``; C-358). The
-    conditions of an import are those ``openImport`` refuses by, in its order.
+    conditions of an import are those ``openImport`` refuses by, in its order: the import of the
+    actual costs, which writes no revision, names the mapping incomplete last (WF-REF-0190).
     """
     if state in TERMINAL:
         return []
@@ -171,6 +184,8 @@ def commands_of(
             and "revisions.write" not in permissions
         ):
             missing.append(MAY_CREATE_REVISION)
+        if rule.command == "import_actual_costs" and not running.mapping_complete:
+            missing.append(ACTUAL_COST_MAPPING_COMPLETE)
         listed.append((rule.command, tuple(missing)))
     return listed
 

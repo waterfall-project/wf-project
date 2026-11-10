@@ -25,7 +25,10 @@ from typing import TYPE_CHECKING, Literal
 from sqlalchemy import ColumnElement, SQLColumnExpression, case, func, or_, select
 from sqlalchemy.exc import IntegrityError
 
-from waterfall.core.cost_settings.interface import missing_prerequisites
+from waterfall.core.cost_settings.interface import (
+    missing_prerequisites,
+    read_actual_cost_mapping,
+)
 from waterfall.core.projects.commands import (
     PROJECT_NOT_TERMINAL,
     TERMINAL,
@@ -79,6 +82,8 @@ ALREADY_EXISTS = "ALREADY_EXISTS"
 STALE_LOCK_VERSION = "STALE_LOCK_VERSION"
 STATE_FORBIDS_OPERATION = "STATE_FORBIDS_OPERATION"
 REFERENCE_INCOMPLETE = "REFERENCE_INCOMPLETE"
+# Who may import the actual costs of a project: its mapping is read for the command (WF-REF-0190).
+ACTUAL_COSTS_WRITE = "actual_costs.write"
 # The unique index of the code of a project (migration of the tables of the projects).
 CODE_INDEX = "uq_project_code"
 RATIOS = ("win_probability", "inflation_rate")
@@ -337,6 +342,14 @@ def _views(session: Session, projects: Iterable[Project], viewer: Viewer) -> lis
         else []
     )
     opening: frozenset[UUID] = opening_with_tasks(session, asking) if asking else frozenset()
+    # The mapping of the installation is read once, for who may import the actual costs of a
+    # project that lists its commands (WF-REF-0190).
+    mapping_complete = (
+        read_actual_cost_mapping(session).is_complete
+        if ACTUAL_COSTS_WRITE in viewer.permissions
+        and any(row.state not in TERMINAL for row in rows)
+        else True
+    )
     return [
         ProjectView(
             project_id=row.id,
@@ -358,7 +371,9 @@ def _views(session: Session, projects: Iterable[Project], viewer: Viewer) -> lis
                     row.state,
                     row.current_revision_id,
                     running=Running(
-                        no_task_running=row.id not in busy, opening_has_tasks=row.id in opening
+                        no_task_running=row.id not in busy,
+                        opening_has_tasks=row.id in opening,
+                        mapping_complete=mapping_complete,
                     ),
                 )
             ),

@@ -117,7 +117,7 @@ def test_the_ten_lines_that_bore_its_code_are_imputed_to_a_subproject_at_its_cre
 
 
 @pytest.mark.requirement("WF-CRE-0020-A")
-def test_a_creation_imputes_an_excluded_line_keeping_its_exclusion_not_those_of_another_project(
+def test_a_creation_imputes_an_excluded_line_of_its_project_and_none_of_another_project(
     api: ContractClient, stage: Scene
 ) -> None:
     # The lines of another project that bear the same code wait for its own subproject; an
@@ -192,9 +192,8 @@ def test_a_line_imported_again_with_another_wbs_element_changes_its_imputation(
     # « Une ligne réimportée avec un autre élément d'OTP change d'imputation. » The line is found by
     # its document and its item: it keeps its identifier and its exclusion, its imputation is
     # computed again from its code — another subproject, a code no subproject bears, none.
-    # The loader (`load_cost_lines`) is what is tried here: the phrase of the Vérif is proved at its
-    # level, and the real application of an import, that of US-1610/L2 (not merged yet), will be
-    # proved by US-1610/L2 (finding #2728).
+    # The loader of the witness (`load_cost_lines`) is tried here; the application of an extraction,
+    # which writes its lines by the same function, in `test_actual_costs_apply.py`.
     cabling, automation = made(api, stage, WAITED), made(api, stage, OTHER)
     project = project_of(stage)
     first = cost("FA-2026-0412", WAITED, "1800.00", item="10")
