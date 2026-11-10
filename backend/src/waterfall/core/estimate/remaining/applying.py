@@ -29,6 +29,7 @@ from sqlalchemy import update
 
 from waterfall.core.cost_settings.interface import share_natures
 from waterfall.core.estimate import importing
+from waterfall.core.estimate.applying import confirmed_by as confirmed_rows
 from waterfall.core.estimate.applying import judged_again
 from waterfall.core.estimate.interface.remaining import LineRemaining, set_line_remaining
 from waterfall.core.estimate.remaining import analysing
@@ -82,10 +83,15 @@ def apply(
     held = importing.aimed(session, target)
     confirmed = confirmed_by(report)
     reviewed = analysing.analyse(session, held, read, confirmed)
-    judged_again(reviewed.found, importing.Confirmed(confirmed.rejected, frozenset()))
+    judged_again(reviewed.found, confirmed.rejected)
     place = Place(project_id, revision_id, structure_id)
     writer = Writer(act, None, target.running)
-    closing = set(reviewed.closing.values())
+    # Only a task the report announced completed is: the others, whatever the analysis now finds.
+    closing = {
+        node
+        for task_id, node in reviewed.closing.items()
+        if str(held.task_lineages[task_id]) in confirmed.completed
+    }
     lines = _lines(reviewed.found.planned, closing)
     if lines.changed or lines.created:
         written = write_lines(session, place, lines, writer)
@@ -103,14 +109,17 @@ def apply(
 
 
 def confirmed_by(report: Mapping[str, Any]) -> analysing.Confirmed:
-    """Read what the report confirmed holds back: the rows it rejected, the lines it updates."""
+    """Read what the report confirmed holds back: rejected rows, updated lines, completed tasks."""
+    rows = confirmed_rows(report)
     return analysing.Confirmed(
-        frozenset((each["sheet"], each["row"]) for each in report.get("rejected", [])),
+        rows.rejected,
+        rows.removed,
         frozenset(
             each["lineage_id"]
             for each in report.get("differences", [])
             if each["change"] == UPDATED and each["target"] == importing.LINE
         ),
+        frozenset(each["lineage_id"] for each in report.get("completed_tasks", [])),
     )
 
 

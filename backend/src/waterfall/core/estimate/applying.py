@@ -82,7 +82,7 @@ def apply(
     held = importing.aimed(session, target)
     confirmed = confirmed_by(report)
     found = importing.analyse(session, held, read, confirmed)
-    judged_again(found, confirmed)
+    judged_again(found, confirmed.rejected)
     place = Place(project_id, revision_id, structure_id)
     writer = Writer(act, None, target.running)
     for node in found.removed:
@@ -105,10 +105,13 @@ def confirmed_by(report: Mapping[str, Any]) -> importing.Confirmed:
     )
 
 
-def judged_again(found: Analysis, confirmed: importing.Confirmed) -> None:
-    """Refuse a line the report accepted that is now rejected, the first by its reason (422)."""
+def judged_again(found: Analysis, rejected: frozenset[tuple[str, int]]) -> None:
+    """Refuse a line the report accepted that is now rejected, the first by its reason (422).
+
+    ``rejected`` the rows, by tab and row, the report rejected: those are left as they are.
+    """
     for each in found.rejected:
-        if (each["sheet"], each["row"]) not in confirmed.rejected:
+        if (each["sheet"], each["row"]) not in rejected:
             raise UnprocessableError(each["code"], each["params"])
 
 

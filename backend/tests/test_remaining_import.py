@@ -18,10 +18,10 @@ from uuid import UUID
 import pytest
 from costs_support import cost, load_import
 from estimate_import_support import entry_of, project_of
-from estimate_support import YEAR, Costing, Lines, costing
+from estimate_support import YEAR, Costing, Lines, add_role, costing
 from fastapi.testclient import TestClient
 from imports_trial import apply, deposited, import_worker, read, refusal, run, stored
-from nodes_support import Tree, set_progress
+from nodes_support import Tree, entries, put_facts, set_progress
 from openpyxl import Workbook
 from projects_support import PROJECTS, Scene, put_in_state
 from projects_support import scene as make_scene
@@ -33,12 +33,13 @@ from waterfall.api.app import create_app
 from waterfall.api.authentication import Services
 from waterfall.core.cost_settings.interface import set_hourly_rate
 from waterfall.core.cost_settings.tables import CostCategory
-from waterfall.core.estimate.remaining.analysing import same_cell, tab_subprojects
-from waterfall.core.estimate.remaining.excel.layout import REVIEW_DATE_CELL
+from waterfall.core.estimate.remaining.analysing import same_cell
+from waterfall.core.estimate.remaining.excel.layout import REVIEW_DATE_CELL, tab_subprojects
 from waterfall.core.estimate.tables import EstimateLine, RevisionRate
 from waterfall.core.planning.tables import Node, Task
 from waterfall.core.projects.tables import Project
 from waterfall.core.resource_settings.tables import ResourceRole
+from waterfall.core.revisions.tables import CostStructure
 from waterfall.platform.audit import Act
 from waterfall.platform.database import utc_now
 from waterfall.platform.keycloak_admin import KeycloakAdmin
@@ -297,6 +298,17 @@ def test_the_tabs_are_named_by_the_codes_of_the_subprojects_as_the_writer_names_
     assert tabs == {"SP_1": first, "sp-2": second, "Hors sous-projet": None}
 
 
+@pytest.mark.requirement("WF-INTF-0120-A")
+def test_two_codes_that_come_to_one_tab_name_get_distinct_tabs_in_the_order_of_the_codes() -> None:
+    # ``SP/1`` is written ``SP_1``, which is the code of another subproject: the rule is the
+    # writer's (``layout``), which the export names its tabs with (US-1630/L4).
+    slash, underscore = UUID(int=1), UUID(int=2)
+    tabs = tab_subprojects({"SP_1": underscore, "SP/1": slash})
+    assert list(tabs.values()) == [slash, underscore, None]
+    assert len({name.casefold() for name in tabs}) == 3
+    assert tabs["SP_1"] == slash
+
+
 # --- The lines known, absent, created -------------------------------------------------------------
 
 
@@ -308,13 +320,16 @@ def test_a_remaining_reimported_updates_the_lines_of_its_lineage_and_creates_non
     # met à jour les lignes de même lignée sans en créer aucune. » ; « Avec huit heures par jour,
     # une ligne de main-d'œuvre dont le fichier porte trois jours a un reste de vingt-quatre
     # heures. » ; « les montants budgétés et les lignées de toutes les lignes sont inchangés
-    # après l'import, et une ligne absente du fichier conserve son reste à engager. » The rows of
+    # après l'import, et une ligne absente du fichier conserve son reste à engager. » The workbook
+    # is written by hand, as the export writes it, until the export is (US-1630/L4): the rows of
     # the lines of the marked reference, the connection at three days, the bench absent.
     tree = scene.tree
     rows = [each for each in scene.exported() if each[2] != "Banc"]
     rows[0][3] = 3
     connection, bench = line_named(tree, "Raccordement"), line_named(tree, "Banc")
-    before = row_of(stage, bench["node_id"])
+    labels = ("Raccordement", "Fournitures", "Banc", "Câbles", "Procès-verbal")
+    before = {label: line_named(tree, label) for label in labels}
+    held = row_of(stage, bench["node_id"])
     import_id = analysed(api, stage, worker, workbook({OUTSIDE: rows}, scene.tasks()))
     found = report(api, stage, import_id)
     assert found["differences"] == [
@@ -332,11 +347,15 @@ def test_a_remaining_reimported_updates_the_lines_of_its_lineage_and_creates_non
     written = row_of(stage, connection["node_id"])
     assert (written.quantity, written.hours) == (Decimal(2), Decimal(12))
     assert written.quantity * (written.hours or 0) == Decimal(24)
-    assert written.budgeted_amount == Decimal(connection["estimate_line"]["budgeted_amount"])
     assert written.reestimated_at is not None
-    assert line_named(tree, "Raccordement")["lineage_id"] == connection["lineage_id"]
+    for label, line in before.items():
+        after = line_named(tree, label)
+        assert after["lineage_id"] == line["lineage_id"], label
+        budgeted = row_of(stage, line["node_id"]).budgeted_amount
+        assert budgeted == Decimal(line["estimate_line"]["budgeted_amount"]), label
+        assert after["estimate_line"]["budgeted_amount"] == line["estimate_line"]["budgeted_amount"]
     left = row_of(stage, bench["node_id"])
-    assert (left.reestimated_amount, left.reestimated_at) == (before.reestimated_amount, None)
+    assert (left.reestimated_amount, left.reestimated_at) == (held.reestimated_amount, None)
     assert row_of(stage, line_named(tree, "Fournitures")["node_id"]).reestimated_at is None
 
 
@@ -586,3 +605,286 @@ def kept(stage: Scene, revision_id: str) -> dict[UUID, tuple[Decimal, str]]:
             )
         ).all()
     return {row[0]: (row[1], row[2]) for row in rows}
+
+
+# --- The rejections of the lines and of the date --------------------------------------------------
+
+
+@pytest.mark.requirement("WF-INTF-0120-A")
+def test_lines_without_a_lineage_citing_an_ambiguous_unknown_or_hourless_designation_are_rejected(
+    api: ContractClient, stage: Scene, worker: Worker, scene: Rows
+) -> None:
+    # « une tâche ou un rôle inconnu, ou un libellé de tâche ambigu, rejetés comme au devis » ;
+    # « une ligne qui laisserait une tâche sans aucune heure travaillée […] rejetée ». The label
+    # « Essais » carried by two tasks, a role and a task no one knows, a role of the week-end
+    # beside the engineering of the wiring.
+    twin = scene.tree.made("Essais")
+    weekend = add_role(stage.database, "WE", (0, 0, 0, 0, 0, 8, 8))
+    entry = entry_of(stage.database, ResourceRole, weekend)
+    rows = [
+        *scene.exported(),
+        ["Essais", scene.stuff, "Rallonge", None, 80, None],
+        [scene.task("Essais"), "Inconnu", "Plan", None, 5, None],
+        [scene.task("Câblage"), entry, "Astreinte", 2, None, None],
+        ["Absente", scene.stuff, "Autre", None, 5, None],
+    ]
+    import_id = analysed(api, stage, worker, workbook({OUTSIDE: rows}, scene.tasks()))
+    found = report(api, stage, import_id)
+    assert codes(found) == [
+        (7, "AMBIGUOUS_TASK_LABEL"),
+        (8, "UNKNOWN_RESOURCE_ROLE"),
+        (9, "TASK_WITHOUT_WORKING_HOURS"),
+        (10, "UNKNOWN_TASK"),
+    ]
+    by_row = {each["row"]: each["params"] for each in found["rejected"]}
+    tests = task_named(scene.tree, "Essais")
+    assert by_row[7] == {
+        "label": "Essais",
+        "tasks": [
+            {"lineage_id": tests["lineage_id"], "label": "Essais"},
+            {"lineage_id": twin["lineage_id"], "label": "Essais"},
+        ],
+    }
+    assert by_row[8] == {"value": "Inconnu"}
+    wiring = task_named(scene.tree, "Câblage")
+    assert by_row[9]["tasks"] == [{"lineage_id": wiring["lineage_id"], "label": "Câblage"}]
+    assert {each["code"] for each in by_row[9]["resource_roles"]} == {"ING", "WE"}
+    assert by_row[10] == {"value": "Absente"}
+    assert found["differences"] == []
+
+
+@pytest.mark.requirement("WF-INTF-0120-A")
+def test_a_line_in_a_tab_that_is_no_subproject_is_rejected_naming_the_tab(
+    api: ContractClient, stage: Scene, worker: Worker, scene: Rows
+) -> None:
+    # « un onglet […] de sous-projet inconnu rejette ses lignes » (UNKNOWN_SUBPROJECT, params.value)
+    rows = scene.exported()
+    import_id = analysed(
+        api, stage, worker, workbook({OUTSIDE: rows[:3], "Lot fantôme": rows[3:]}, scene.tasks())
+    )
+    found = report(api, stage, import_id)
+    assert [(each["sheet"], each["row"], each["code"]) for each in found["rejected"]] == [
+        ("Lot fantôme", 2, "UNKNOWN_SUBPROJECT"),
+        ("Lot fantôme", 3, "UNKNOWN_SUBPROJECT"),
+    ]
+    assert found["rejected"][0]["params"] == {"value": "Lot fantôme"}
+    assert (found["read_count"], found["unchanged_count"]) == (5, 3)
+
+
+@pytest.mark.requirement("WF-INTF-0120-A")
+def test_a_figure_in_the_column_of_the_other_kind_is_refused_as_its_entry_refuses_it(
+    api: ContractClient, stage: Scene, worker: Worker, scene: Rows
+) -> None:
+    # « Même critère que WF-INTF-0100 » : days on a line of disbursement, an amount on a line of
+    # labour (FIELD_NOT_ACCEPTED, the header of the column).
+    rows = scene.exported()
+    rows[0][4], rows[1][3] = 5, 3
+    import_id = analysed(api, stage, worker, workbook({OUTSIDE: rows}, scene.tasks()))
+    found = report(api, stage, import_id)
+    assert codes(found) == [(2, "FIELD_NOT_ACCEPTED"), (3, "FIELD_NOT_ACCEPTED")]
+    assert [each["params"] for each in found["rejected"]] == [
+        {"header": "Débours restant"},
+        {"header": "Jours restants"},
+    ]
+    assert found["differences"] == []
+
+
+@pytest.mark.requirement("WF-INTF-0120-A")
+def test_a_line_known_of_a_completed_task_is_rejected_though_unchanged_and_left_as_it_is(
+    api: ContractClient, stage: Scene, worker: Worker, scene: Rows
+) -> None:
+    # « une ligne […] d'une tâche terminée […] rejetée (task_not_completed, params.tasks, #1794) » :
+    # the line of the acceptance as the export wrote it, the task completed since.
+    acceptance = task_named(scene.tree, "Réception")
+    set_progress(stage, acceptance["node_id"], "completed", STARTED_ON)
+    import_id = analysed(api, stage, worker, workbook({OUTSIDE: scene.exported()}, scene.tasks()))
+    found = report(api, stage, import_id)
+    assert codes(found) == [(6, STATE)]
+    assert found["rejected"][0]["params"] == {
+        "missing_condition": "task_not_completed",
+        "tasks": [{"lineage_id": acceptance["lineage_id"], "label": "Réception"}],
+    }
+    assert (found["differences"], found["unchanged_count"]) == ([], 4)
+    applied(api, stage, worker, import_id)
+    left = row_of(stage, line_named(scene.tree, "Procès-verbal")["node_id"])
+    assert left.reestimated_at is None
+
+
+@pytest.mark.requirement("WF-INTF-0120-A")
+def test_a_cell_left_empty_on_a_line_known_reads_nought(
+    api: ContractClient, stage: Scene, worker: Worker, scene: Rows
+) -> None:
+    # Pinned until the author settles it (#2410): « Débours restant » left blank on a line the
+    # structure holds is a remaining of nought, as a 0 typed is.
+    rows = scene.exported()
+    rows[1][4] = None
+    import_id = analysed(api, stage, worker, workbook({OUTSIDE: rows}, scene.tasks()))
+    [difference] = report(api, stage, import_id)["differences"]
+    assert (difference["label"], difference["fields"]) == ("Fournitures", ["unit_disbursement"])
+    applied(api, stage, worker, import_id)
+    supplies = row_of(stage, line_named(scene.tree, "Fournitures")["node_id"])
+    assert (supplies.reestimated_amount, supplies.unit_disbursement) == (0, 0)
+
+
+@pytest.mark.requirement("WF-INTF-0120-A")
+def test_the_application_writes_nothing_in_the_undo_history(
+    api: ContractClient, stage: Scene, worker: Worker, scene: Rows
+) -> None:
+    # « sans entrée d'historique » : lines changed, created, and a task completed by the file.
+    wiring = task_named(scene.tree, "Câblage")
+    set_progress(stage, wiring["node_id"], "started", STARTED_ON)
+    rows = scene.exported()
+    rows[0][3], rows[1][4] = 0, 0
+    rows.append([scene.task("Essais"), scene.stuff, "Rallonge", None, 80, None])
+    history = len(entries(stage))
+    import_id = analysed(api, stage, worker, workbook({OUTSIDE: rows}, scene.tasks()))
+    found = report(api, stage, import_id)
+    assert [each["change"] for each in found["differences"]] == ["updated", "updated", "added"]
+    assert [each["label"] for each in found["completed_tasks"]] == ["Câblage"]
+    applied(api, stage, worker, import_id)
+    assert task_row(stage, wiring["node_id"]).progress == "completed"
+    assert len(entries(stage)) == history
+
+
+@pytest.mark.requirement("WF-INTF-0120-A")
+def test_a_review_date_before_the_start_of_a_task_started_rejects_the_lines_that_would_complete_it(
+    api: ContractClient, stage: Scene, worker: Worker, scene: Rows
+) -> None:
+    # « la date de complétion ne précède jamais le début » (WF-PLA-0130): VALUE_OUT_OF_RANGE, the
+    # start in params.minimum, as the entry says it.
+    wiring = task_named(scene.tree, "Câblage")
+    set_progress(stage, wiring["node_id"], "started", STARTED_ON)
+    rows = scene.exported()
+    rows[0][3], rows[1][4] = 0, 0
+    early = date(YEAR - 1, 12, 31)
+    import_id = analysed(api, stage, worker, workbook({OUTSIDE: rows}, scene.tasks(), early))
+    found = report(api, stage, import_id)
+    assert codes(found) == [(2, "VALUE_OUT_OF_RANGE"), (3, "VALUE_OUT_OF_RANGE")]
+    for each in found["rejected"]:
+        assert each["params"] == {
+            "minimum": str(STARTED_ON),
+            "tasks": [{"lineage_id": wiring["lineage_id"], "label": "Câblage"}],
+        }
+    assert (found["completed_tasks"], found["differences"]) == ([], [])
+
+
+@pytest.mark.requirement("WF-INTF-0120-A")
+@pytest.mark.parametrize("written", ["demain", "2027-02-30", 45000], ids=["text", "day", "number"])
+def test_a_review_date_that_is_no_date_is_rejected_as_such_and_not_read_as_absent(
+    api: ContractClient, stage: Scene, worker: Worker, scene: Rows, written: Any
+) -> None:
+    # A cell typed in « Synthèse » that is no date is not an absent date: DATE_INVALID, the value
+    # as the file carries it, on the lines that would complete their task (the code the extraction
+    # of actual costs says a date badly formed with).
+    rows = scene.exported()
+    rows[2][4] = 0
+    import_id = analysed(api, stage, worker, workbook({OUTSIDE: rows}, scene.tasks(), written))
+    found = report(api, stage, import_id)
+    assert codes(found) == [(4, "DATE_INVALID")]
+    assert found["rejected"][0]["params"]["value"] == str(written)
+    assert (found["completed_tasks"], found["differences"]) == ([], [])
+
+
+# --- The tasks completed: only those the report announced ----------------------------------------
+
+
+@pytest.mark.requirement("WF-RAE-0040-A")
+def test_a_task_the_report_did_not_announce_completed_is_not_completed_by_the_application(
+    api: ContractClient, stage: Scene, worker: Worker, scene: Rows
+) -> None:
+    # The supplies are left at 100 by the file, so the wiring is not completed by the analysis; one
+    # set to nought around the service since would complete it by the application, which the
+    # report did not say: the connection is written at nought, the task is left as it was.
+    wiring = task_named(scene.tree, "Câblage")
+    supplies = line_named(scene.tree, "Fournitures")
+    rows = scene.exported()
+    rows[0][3] = 0
+    import_id = analysed(api, stage, worker, workbook({OUTSIDE: rows}, scene.tasks()))
+    found = report(api, stage, import_id)
+    assert [each["label"] for each in found["differences"]] == ["Raccordement"]
+    assert found["completed_tasks"] == []
+    with stage.owner.begin() as connection:
+        connection.execute(
+            update(EstimateLine)
+            .where(EstimateLine.node_id == UUID(supplies["node_id"]))
+            .values(unit_disbursement=0, reestimated_amount=0)
+        )
+    applied(api, stage, worker, import_id)
+    connection_row = row_of(stage, line_named(scene.tree, "Raccordement")["node_id"])
+    assert (connection_row.hours, connection_row.reestimated_amount) == (0, 0)
+    assert connection_row.reestimated_at is not None
+    assert task_row(stage, wiring["node_id"]).progress == "not_started"
+
+
+# --- The disbursements converted at the inflation of the project ---------------------------------
+
+
+def inflating(stage: Scene, tree: Tree, start: date, finish: date, days: int = 1) -> None:
+    """Make the project inflate at 3 % and its tasks start on a day, the tests lasting some days.
+
+    The planning starts on the day, so that the engine, which places the tasks again whenever a
+    line is written, keeps them in the year; the lines that exist consume in the year of the tests.
+    """
+    with stage.owner.begin() as connection:
+        connection.execute(
+            update(Project)
+            .where(Project.id == UUID(stage.project["project_id"]))
+            .values(inflation_rate=Decimal("0.03"))
+        )
+        connection.execute(
+            update(CostStructure)
+            .where(CostStructure.id == UUID(tree.structure_id))
+            .values(planning_start_on=start)
+        )
+    tests = task_named(tree, "Essais")
+    put_facts(
+        stage,
+        tests["node_id"],
+        start_date=start,
+        finish_date=finish,
+        duration_value=Decimal(days),
+    )
+
+
+@pytest.mark.requirement("WF-INTF-0120-A")
+def test_an_amount_left_is_converted_at_the_inflation_of_the_year_the_task_is_consumed_in(
+    api: ContractClient, stage: Scene, worker: Worker, scene: Rows
+) -> None:
+    # « Même critère que WF-INTF-0100, appliqué aux grandeurs réestimées » : the project inflating
+    # at 3 % from the year of the reference, the tests consumed the year after: 103.00 left on the
+    # bench, known — its line consumed that year —, and on a line created, is a unit disbursement
+    # of 100.00 that the projection gives 103.00 again.
+    inflating(stage, scene.tree, date(NEXT, 3, 1), date(NEXT, 3, 1))
+    bench = line_named(scene.tree, "Banc")
+    with stage.owner.begin() as connection:
+        connection.execute(
+            update(EstimateLine)
+            .where(EstimateLine.node_id == UUID(bench["node_id"]))
+            .values(consumption_year=NEXT)
+        )
+    rows = scene.exported()
+    rows[2][4] = 103
+    rows.append([scene.task("Essais"), scene.stuff, "Rallonge", None, 103, None])
+    import_id = analysed(api, stage, worker, workbook({OUTSIDE: rows}, scene.tasks()))
+    applied(api, stage, worker, import_id)
+    known = row_of(stage, bench["node_id"])
+    created = row_of(stage, line_named(scene.tree, "Rallonge")["node_id"])
+    assert (known.unit_disbursement, known.reestimated_amount) == (100, Decimal("103.00"))
+    assert (created.unit_disbursement, created.reestimated_amount) == (100, Decimal("103.00"))
+
+
+@pytest.mark.requirement("WF-INTF-0120-A")
+def test_an_amount_left_on_a_task_over_two_years_is_converted_at_the_year_it_consumes_most_in(
+    api: ContractClient, stage: Scene, worker: Worker, scene: Rows
+) -> None:
+    # Characterisation, not a requirement: the unit disbursement of a line created is the amount
+    # over the coefficient of the year its task consumes most in — the next one, six days of ten —
+    # while the re-estimate shares the unit over the two years: the amount re-estimated is not the
+    # one typed. The difference is a question to the author (#2410); this pins what is written.
+    inflating(stage, scene.tree, date(YEAR, 12, 28), date(NEXT, 1, 8), days=10)
+    rows = [*scene.exported(), [scene.task("Essais"), scene.stuff, "Rallonge", None, 103, None]]
+    import_id = analysed(api, stage, worker, workbook({OUTSIDE: rows}, scene.tasks()))
+    applied(api, stage, worker, import_id)
+    created = row_of(stage, line_named(scene.tree, "Rallonge")["node_id"])
+    assert created.unit_disbursement == Decimal("100.00")
+    assert created.reestimated_amount == Decimal("101.80")

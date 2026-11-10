@@ -40,8 +40,9 @@ nought, none of its other lines holding a remaining, a provision never — is co
 re-estimate of its last line written, at the date of the review « Synthèse » carries
 (``completed_tasks``, WF-RAE-0040): a summary only when its subordinates are all completed, as the
 planning completes it. Without a date, its lines set to nought are rejected
-(``COMPLETION_DATE_REQUIRED``), as the entry refuses them; before the start of a task started, too
-(``VALUE_OUT_OF_RANGE``, ``params.minimum`` the start), the completion never preceding it
+(``COMPLETION_DATE_REQUIRED``), as the entry refuses them — ``DATE_INVALID``, ``params.value`` the
+cell, when « Synthèse » holds something that is not a date —; before the start of a task started,
+too (``VALUE_OUT_OF_RANGE``, ``params.minimum`` the start), the completion never preceding it
 (WF-PLA-0130). A task whose lines the file leaves as they are is not re-estimated.
 
 The report is the contract's (``ImportReport``): nothing is written by the analysis.
@@ -56,11 +57,10 @@ from waterfall.core.estimate import importing
 from waterfall.core.estimate.costing import basis_of
 from waterfall.core.estimate.entries import FIELD_NOT_ACCEPTED, LineEntry
 from waterfall.core.estimate.excel import reader as estimate_reader
-from waterfall.core.estimate.excel.names import sheet_name
 from waterfall.core.estimate.excel.reader import ReadLine
 from waterfall.core.estimate.pricing import inflation_factor, round_to_cent
 from waterfall.core.estimate.reading import COMPLETED, TASK_NOT_COMPLETED
-from waterfall.core.estimate.remaining.excel.layout import FIXED_TABS, FORMAT_VERSION, OUTSIDE
+from waterfall.core.estimate.remaining.excel.layout import FORMAT_VERSION, tab_subprojects
 from waterfall.core.estimate.remaining.excel.model import remaining_days
 from waterfall.core.estimate.remaining.excel.reader import DAYS_HEADER, DISBURSEMENT_HEADER
 from waterfall.core.estimate.remaining.reviewing import provisions_of
@@ -86,9 +86,10 @@ if TYPE_CHECKING:
     )
     from waterfall.core.estimate.remaining.excel.reader import ReadRemainingLine, RemainingRead
     from waterfall.core.estimate.tables import EstimateLine
-    from waterfall.core.planning.interface import BearingTask
+    from waterfall.core.planning.interface import BearingTask, TaskView
 
 COMPLETION_DATE_REQUIRED = "COMPLETION_DATE_REQUIRED"
+DATE_INVALID = "DATE_INVALID"
 UNKNOWN_SUBPROJECT = "UNKNOWN_SUBPROJECT"
 VALUE_OUT_OF_RANGE = "VALUE_OUT_OF_RANGE"
 STARTED = "started"
@@ -109,16 +110,18 @@ HEADERS = {
 
 
 @dataclass(frozen=True, slots=True)
-class Confirmed:
+class Confirmed(importing.Confirmed):
     """What the report a user confirmed holds back, which its application analyses again with.
 
-    ``rejected`` the rows it rejected, left as they are whatever the analysis now finds;
-    ``updated`` the lineages of the lines it announced updated: a line it counted unchanged is
-    not written, whatever the structure became since (WF-INTF-0080).
+    ``rejected`` the rows it rejected, left as they are whatever the analysis now finds (the
+    estimate's, whose ``removed`` stays empty: a remaining removes no line); ``updated`` the
+    lineages of the lines it announced updated: a line it counted unchanged is not written,
+    whatever the structure became since (WF-INTF-0080); ``completed`` the lineages of the tasks
+    it announced completed: no other is.
     """
 
-    rejected: frozenset[tuple[str, int]]
     updated: frozenset[str]
+    completed: frozenset[str]
 
 
 @dataclass(frozen=True, slots=True)
@@ -145,6 +148,7 @@ class Reviewed:
 
     found: Analysis
     review_date: date | None
+    unreadable_date: str | None = None
     closing: dict[UUID, UUID] = field(default_factory=dict[UUID, UUID])
 
 
@@ -161,22 +165,6 @@ def effort(days: Decimal, hours_per_day: Decimal, quantity: Decimal) -> Decimal:
 def unit_disbursement(amount: Decimal, quantity: Decimal, coefficient: Decimal) -> Decimal:
     """Give the unit disbursement of a line: amount ÷ (quantity x coefficient), to the cent."""
     return round_to_cent(amount / (quantity * coefficient))
-
-
-def tab_subprojects(subprojects: Mapping[str, UUID]) -> dict[str, UUID | None]:
-    """Name the tab of each subproject as the writer does, by the order of their codes.
-
-    The fixed tabs taken first, then each code brought to the rules of Excel (``sheet_name``),
-    unique without regard to case; « Hors sous-projet » last, for the lines of none.
-    """
-    taken: list[str] = list(FIXED_TABS)
-    tabs: dict[str, UUID | None] = {}
-    for code in sorted(subprojects):
-        name = sheet_name(code, taken)
-        taken.append(name)
-        tabs[name] = subprojects[code]
-    tabs[sheet_name(OUTSIDE, taken)] = None
-    return tabs
 
 
 def scale_of(session: Session, held: Aimed, reference: Reference) -> Scale:
@@ -267,7 +255,7 @@ def analyse(
         lineages = lineages_by_node(held)
         found.planned = [each for each in found.planned if _confirmed(lineages, each, confirmed)]
     importing.judge_hours(session, held, reference, found)
-    reviewed = Reviewed(found, read.review_date)
+    reviewed = Reviewed(found, read.review_date, read.unreadable_review)
     _close(session, held, reviewed)
     return reviewed
 
@@ -352,8 +340,10 @@ def _known(
 def _figures(current: EstimateLine, line: ReadRemainingLine, scale: Scale) -> LineEntry | None:
     """Give what a line known sends: its changed figures, its tab's subproject; none if neither.
 
-    The cell is compared to what the export would have written of the line; an empty one reads
-    nought. The quantity is kept, brought to one when nought.
+    The cell is compared to what the export would have written of the line; an empty cell of a
+    line the structure holds reads nought — « Jours restants » or « Débours restant » left blank
+    sets the remaining to nought, as typing 0 does (to be settled by the author, #2410). The
+    quantity is kept, brought to one when nought.
     """
     labour = current.resource_role_id is not None
     typed = (line.days if labour else line.disbursement) or NOUGHT
@@ -438,7 +428,7 @@ def _close(session: Session, held: Aimed, reviewed: Reviewed) -> None:
             or (task.is_summary and not task.awaiting_own_lines)
         ):
             continue
-        refusal = _refusal(task.progress, task.started_on, reviewed.review_date)
+        refusal = _refusal(task, reviewed)
         if refusal is None:
             node = lines[-1].current
             if node is not None:
@@ -451,13 +441,19 @@ def _close(session: Session, held: Aimed, reviewed: Reviewed) -> None:
         found.planned = [each for each in found.planned if id(each) not in refused]
 
 
-def _refusal(
-    progress: str, started_on: date | None, review_date: date | None
-) -> tuple[str, dict[str, Any]] | None:
-    """Give why a task cannot be completed at the date of the review: none, or before its start."""
+def _refusal(task: TaskView, reviewed: Reviewed) -> tuple[str, dict[str, Any]] | None:
+    """Give why a task cannot be completed at the date of the review: none, or the reason.
+
+    No date, or one that is none: ``COMPLETION_DATE_REQUIRED``, or ``DATE_INVALID`` when the cell
+    holds something that is not a date; a date before the start of a task started,
+    ``VALUE_OUT_OF_RANGE``.
+    """
+    review_date, started_on = reviewed.review_date, task.started_on
     if review_date is None:
-        return COMPLETION_DATE_REQUIRED, {}
-    if progress == STARTED and started_on is not None and review_date < started_on:
+        if reviewed.unreadable_date is None:
+            return COMPLETION_DATE_REQUIRED, {}
+        return DATE_INVALID, {"value": reviewed.unreadable_date}
+    if task.progress == STARTED and started_on is not None and review_date < started_on:
         return VALUE_OUT_OF_RANGE, {"minimum": started_on.isoformat()}
     return None
 
