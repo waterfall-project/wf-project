@@ -535,6 +535,29 @@ def test_a_structure_of_tasks_without_a_line_keeps_its_tabs_and_tasks() -> None:
     assert sheet["A4"].value == "1.1 Centrale"
 
 
+@pytest.mark.requirement("WF-INTF-0110-A")
+def test_a_code_shared_by_a_role_and_a_category_writes_each_line_with_its_own_label() -> None:
+    # A code of a role is unique among the roles, an accounting code among the categories, not
+    # between them (#2690): the role ARCH-LOG and the category of supplies accounted ARCH-LOG keep
+    # their labels apart, so that the import reads each line back as of its own kind.
+    shared = Category("ARCH-LOG", "Licences logicielles", "Fournitures")
+    lines = (
+        _line("l-1", role="ARCH-LOG", hours=D(7)),
+        _line("l-2", category="ARCH-LOG", disbursement=D(40)),
+    )
+    outside = Tab("", "Hors lot", "Hors lot", (_task("1", "Études", *lines),))
+    estimate = _estimate(
+        lots=(),
+        outside_lot=outside,
+        categories=(*_estimate().categories, shared),
+    )
+    sheet = _open(write_workbook(estimate))["Hors lot"]
+    assert [sheet["C2"].value, sheet["C3"].value] == [
+        "Architecte logiciel (ARCH-LOG)",
+        "Licences logicielles (ARCH-LOG)",
+    ]
+
+
 def test_a_lot_without_a_tab_sums_to_zero() -> None:
     sheet = _open(write_workbook(_estimate(lots=(Lot("1", "Lot vide", ()),))))["Devis"]
     assert sheet["E6"].value == "=0"

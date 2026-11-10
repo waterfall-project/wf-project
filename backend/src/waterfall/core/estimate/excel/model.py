@@ -30,7 +30,13 @@ class Nature:
 
 @dataclass(frozen=True)
 class Category:
-    """A category of cost: its accounting code, its label, its nature and, for labour, its rate."""
+    """A category of cost: its code, its label, its nature and, for labour, its rate.
+
+    ``code`` is the code that designates the category in the workbook: its accounting code
+    (``CostCategory.accounting_code``, WF-REF-0040, #2688), never its technical code. It is the
+    one the entry « label (code) », the column « Code comptable » and the hours by accounting code
+    write, the one a role and a line name their category by, and the one the import reads back.
+    """
 
     code: str
     label: str
@@ -40,7 +46,10 @@ class Category:
 
 @dataclass(frozen=True)
 class Role:
-    """A role of resource, with its department (a path) and the category of labour it costs by."""
+    """A role of resource, with its department (a path) and the category of labour it costs by.
+
+    ``category`` is the ``code`` of that category: its accounting code.
+    """
 
     code: str
     label: str
@@ -60,9 +69,10 @@ class Subproject:
 class Line:
     """A line of the estimate, under a task.
 
-    Exactly one of ``role`` and ``category`` is given (their codes); a line of labour has hours, a
-    line of disbursement has a disbursement. ``amount`` is the amount of the line, inflation
-    included, that the service computed: empty for a line the service has not priced.
+    Exactly one of ``role`` and ``category`` is given (their codes, the accounting code for a
+    category); a line of labour has hours, a line of disbursement has a disbursement. ``amount``
+    is the amount of the line, inflation included, that the service computed: empty for a line the
+    service has not priced.
     """
 
     lineage: str
