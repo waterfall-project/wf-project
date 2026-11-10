@@ -144,13 +144,16 @@ export async function renameAccount(
   const read = await calls.get(`${API}/users/${account.id}`, { headers });
   expect(read.status(), "GET user").toBe(200);
   const { lock_version, first_name, last_name } = (await read.json()) as Schemas["User"];
-  const renamed = `${last_name ?? ""}-${randomBytes(4).toString("hex")}`;
+  if (!first_name || !last_name) {
+    throw new Error("the account read has no first name or no last name");
+  }
+  const renamed = `${last_name}-${randomBytes(4).toString("hex")}`;
   const written = await calls.patch(`${API}/users/${account.id}`, {
     headers,
     data: { last_name: renamed, lock_version },
   });
   expect(written.status(), "PATCH user name").toBe(200);
-  return { ...account, name: `${first_name ?? ""} ${renamed}` };
+  return { ...account, name: `${first_name} ${renamed}` };
 }
 
 /**

@@ -14,7 +14,6 @@
 import { type APIRequestContext, type Browser, expect, type Page, test } from "@playwright/test";
 
 import { compileAnswered } from "../compile";
-import { freshContext } from "../fresh-context";
 import { openMenu, setExpanded } from "../hydration";
 import { heldToTheContract } from "./contract";
 import {
@@ -69,7 +68,7 @@ test.beforeEach(async ({ request }) => {
 
 /** A page of a workstation of its own, its browser asking for a language. */
 async function workstation(browser: Browser, locale: string): Promise<Page> {
-  const context = await freshContext(browser, { locale });
+  const context = await browser.newContext({ locale });
   return context.newPage();
 }
 

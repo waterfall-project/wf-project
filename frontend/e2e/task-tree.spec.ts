@@ -3,7 +3,6 @@
 import { type Browser, expect } from "@playwright/test";
 
 import { compile } from "./compile";
-import { freshContext } from "./fresh-context";
 import { openHydrated, WORKING } from "./hydration";
 import { inService, test } from "./mode";
 import { API, frontToken, type LocalPerson } from "./service/realm";
@@ -17,7 +16,7 @@ async function summaryDepth(browser: Browser, manager: LocalPerson | undefined):
   if (manager === undefined) {
     throw new Error("a path in the service has its manager");
   }
-  const context = await freshContext(browser);
+  const context = await browser.newContext();
   try {
     const headers = { Authorization: `Bearer ${await frontToken(browser, manager)}` };
     const revision = `${API}/projects/${PROJECT}/revisions/${REVISION}`;

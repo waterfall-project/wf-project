@@ -2,8 +2,15 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { readFile } from "node:fs/promises";
 
-import { expect, type Route } from "@playwright/test";
+import {
+  type APIRequestContext,
+  expect,
+  type Locator,
+  type Page,
+  type Route,
+} from "@playwright/test";
 
+import type { components } from "../src/api/generated/schema";
 import { compile } from "./compile";
 import { seedEstimate } from "./estimate-seed";
 import { openHydrated, WORKING } from "./hydration";
@@ -30,6 +37,38 @@ const PLANNING = `/projects/${PROJECT}/revisions/${REVISION}/planning?as_of=2026
 const START = `/projects/${PROJECT}/revisions/${REVISION}/exchanges?as_of=2026-05-31`;
 // The task of the application queued (`task_import_queued`), which the tracker reads by its id.
 const APPLICATION = "01926f3a-7c00-7000-8000-000000000932";
+
+type Imported = components["schemas"]["ImportDetail"];
+
+/**
+ * Apply the import of a report and confirm it, follow the application as a task of the shell to its
+ * success, and wait for the service to hold the import applied.
+ */
+async function applyAndFollow(
+  page: Page,
+  report: Locator,
+  tasks: Locator,
+  filename: string,
+  request: APIRequestContext,
+  address: string,
+  headers: Record<string, string>,
+): Promise<void> {
+  await report.getByRole("button", { name: "Appliquer l’import" }).click();
+  const confirmation = report.getByRole("form", { name: "Confirmation de l’application" });
+  await confirmation.getByRole("button", { name: "Confirmer l’application" }).click();
+  await expect(confirmation).toHaveCount(0);
+  await page.getByRole("button", { name: /^Tâches et messages\s:/ }).click();
+  const application = tasks
+    .getByRole("listitem")
+    .filter({ hasText: `Application d’un import « ${filename} »` });
+  await expect(application.getByText("Réussie")).toBeVisible({ timeout: WORKING });
+  await page.keyboard.press("Escape");
+  await expect(async () => {
+    const applied = await request.get(address, { headers });
+    expect(applied.status(), "GET import").toBe(200);
+    expect(((await applied.json()) as Imported).status).toBe("applied");
+  }).toPass({ timeout: WORKING });
+}
 
 test("imports a file in two steps: the report lists the lines rejected with their motive before any confirmation, the application confirmed is followed in the shell, and the abandonment leads back to the screen as it was [WF-INTF-0080-A]", async ({
   page,
@@ -243,22 +282,16 @@ test("exports the planning as MS Project XML, downloads it once, and imports it 
 
   // Confirmed, the application is a task followed in the shell, to its success (WF-INTF-0010-A: the
   // account leads the flow to its end, #2683), and the service holds the import applied.
-  await report.getByRole("button", { name: "Appliquer l’import" }).click();
-  const confirmation = report.getByRole("form", { name: "Confirmation de l’application" });
-  await confirmation.getByRole("button", { name: "Confirmer l’application" }).click();
-  await expect(confirmation).toHaveCount(0);
-  await page.getByRole("button", { name: /^Tâches et messages\s:/ }).click();
-  const application = tasks
-    .getByRole("listitem")
-    .filter({ hasText: `Application d’un import « ${download.suggestedFilename()} »` });
-  await expect(application.getByText("Réussie")).toBeVisible({ timeout: WORKING });
-  await page.keyboard.press("Escape");
   const address = `${API}/projects/${seeded.ids.project}/imports/${opened}`;
-  await expect(async () => {
-    const applied = await request.get(address, { headers: seeded.headers });
-    expect(applied.status(), "GET import").toBe(200);
-    expect(((await applied.json()) as { status: string }).status).toBe("applied");
-  }).toPass({ timeout: WORKING });
+  await applyAndFollow(
+    page,
+    report,
+    tasks,
+    download.suggestedFilename(),
+    request,
+    address,
+    seeded.headers,
+  );
 });
 
 test("exports the estimate as an Excel file, downloads it, sees a file that is no estimate refused, then imports the file back in two steps — the report without a difference, the application confirmed and followed in the shell, the lines identical — as the project manager of the run @shared [WF-INTF-0070-A] [WF-INTF-0110-A]", async ({
@@ -375,21 +408,7 @@ test("exports the estimate as an Excel file, downloads it, sees a file that is n
   expect(await lines()).toEqual(before);
 
   // Confirmed, the application is a task followed in the shell, to its success.
-  await report.getByRole("button", { name: "Appliquer l’import" }).click();
-  const confirmation = report.getByRole("form", { name: "Confirmation de l’application" });
-  await confirmation.getByRole("button", { name: "Confirmer l’application" }).click();
-  await expect(confirmation).toHaveCount(0);
-  await page.getByRole("button", { name: /^Tâches et messages\s:/ }).click();
-  const application = tasks
-    .getByRole("listitem")
-    .filter({ hasText: `Application d’un import « ${filename} »` });
-  await expect(application.getByText("Réussie")).toBeVisible({ timeout: WORKING });
-  await page.keyboard.press("Escape");
-  await expect(async () => {
-    const applied = await request.get(address, { headers: seeded.headers });
-    expect(applied.status(), "GET import").toBe(200);
-    expect(((await applied.json()) as { status: string }).status).toBe("applied");
-  }).toPass({ timeout: WORKING });
+  await applyAndFollow(page, report, tasks, filename, request, address, seeded.headers);
 
   // The lines obtained are the lines exported: the same, lineage and amounts.
   expect(await lines()).toEqual(before);

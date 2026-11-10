@@ -401,6 +401,9 @@ export default defineConfig({
   // it (#2015). The measure keeps its own bounds (`opening.spec.ts`, `departure.spec.ts`).
   expect: { timeout: onWorkstation ? 5_000 : 10_000 },
   use: { baseURL: FRONT, trace: "retain-on-failure" },
+  // `browser.newContext()` inherits the options of the project and the `test.use()` of the file:
+  // a path that opens a context of its own (a second session, an account apart) names only what
+  // it changes, and does not copy the configuration.
   // A French browser by default, the language of the reference catalogue: a path that needs
   // another language sets its own (`test.use({ locale })`).
   projects: [...pathProjects(), ...serviceProjects(), ...measureProjects()],
