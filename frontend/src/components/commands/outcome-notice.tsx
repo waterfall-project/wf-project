@@ -26,7 +26,7 @@
 import { CircleAlert, LogIn, RefreshCw, WifiOff, X } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useLocale, useMessages, useTranslations } from "next-intl";
-import { useCallback, useId, useMemo } from "react";
+import { type ReactNode, useCallback, useId, useMemo } from "react";
 
 import type { components } from "@/api/generated/schema";
 import type { Outcome } from "@/api/problem";
@@ -102,6 +102,11 @@ export interface OutcomeNoticeProps {
    * refused at —, so that the alert is read whole.
    */
   readonly lead?: string | undefined;
+  /**
+   * Where the screen sends the user to settle the refusal — a link, told after its sentence, inside
+   * the alert: the deletion of a task started leads to its remaining to commit (WF-PLA-0070).
+   */
+  readonly follow?: ReactNode;
 }
 
 /**
@@ -414,6 +419,7 @@ export function OutcomeNotice({
   subject,
   reread,
   lead,
+  follow,
 }: OutcomeNoticeProps) {
   const t = useTranslations("outcome");
   const failure = useTranslations("failure");
@@ -458,6 +464,7 @@ export function OutcomeNotice({
         {name === undefined ? null : (
           <p id={conflictId(sentenceId)}>{t("conflictingObject", { name })}</p>
         )}
+        {follow}
         {kind === "signed_out" ? <SignIn reauthenticate={asksIdentifiers(problem.code)} /> : null}
         {/* Reloading forgets the outcome as dismissing it does, the focus given back the same way. */}
         {kind === "stale" ? (

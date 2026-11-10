@@ -710,6 +710,14 @@ describe("the refusal of a gesture, said to the row in cause", () => {
     expect(router.refresh).not.toHaveBeenCalled();
   });
 
+  it("refers no other refusal to the remaining to commit [WF-PLA-0070-A]", async () => {
+    serve({ [DELETE]: COMPLETED_REFUSED });
+    render(estimateGrid());
+    await choose(LINE, "Supprimer");
+    const alert = await screen.findByRole("alert");
+    expect(within(alert).queryByRole("link")).toBeNull();
+  });
+
   it("names the risks whose provision a deletion would leave without a task, from the refusal of the contract (H-05)", async () => {
     // The refusal is the main structure's; the row it is told at is the one the deletion was asked from.
     serve({
