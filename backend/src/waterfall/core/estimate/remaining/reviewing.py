@@ -21,7 +21,6 @@ out, of the tasks not completed of its main structure, at the state of its tasks
 indicateurs du reste à engager").
 """
 
-from decimal import Decimal
 from typing import TYPE_CHECKING
 
 from sqlalchemy import update
@@ -29,6 +28,7 @@ from sqlalchemy import update
 from waterfall.core.cost_settings.interface import category_labels
 from waterfall.core.estimate.placing import placed_lines
 from waterfall.core.estimate.reading import rows_of
+from waterfall.core.estimate.remaining.summing import LineAmount, remaining_sum
 from waterfall.core.estimate.tables import EstimateLine
 from waterfall.core.estimate.writing import change_line, read_line
 from waterfall.core.projects.interface import list_state_transitions
@@ -37,6 +37,7 @@ from waterfall.platform.errors import FieldError, UnprocessableError
 
 if TYPE_CHECKING:
     from collections.abc import Collection, Sequence
+    from decimal import Decimal
     from uuid import UUID
 
     from sqlalchemy.orm import Session
@@ -49,7 +50,6 @@ BASIS = "/reestimated_amount_basis"
 FIGURES = frozenset({"/quantity", "/hours", "/unit_disbursement"})
 PROVISION = "provision"
 IN_PROGRESS = "in_progress"
-NOUGHT = Decimal("0.00")
 
 
 def _pointed(refused: UnprocessableError) -> UnprocessableError:
@@ -140,9 +140,12 @@ def revision_remaining(
     """Give the remaining to commit of a revision, and each line's, at the state of its tasks."""
     placed = placed_lines(session, project_id, revision_id)
     provisions = provisions_of(session, [each.line for each in placed])
-    by_line = {
-        each.line.node_id: each.line.reestimated_amount
+    return remaining_sum(
+        LineAmount(
+            each.line.node_id,
+            each.line.reestimated_amount,
+            each.is_completed,
+            each.line.node_id in provisions,
+        )
         for each in placed
-        if not each.is_completed and each.line.node_id not in provisions
-    }
-    return sum(by_line.values(), NOUGHT), by_line
+    )

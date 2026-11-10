@@ -1,0 +1,8 @@
+{
+  "summary": "Une ligne budgétée à 100 sur une tâche non démarrée, réestimée à 120 depuis la grille : le reste à engager passe de 100 à 120 (WF-RAE-0010).",
+  "examples": ["WF-RAE-0010-A#05923b0a3a8f"],
+  "budgeted_amount": "100.00",
+  "reestimated_amount": "120.00",
+  "remaining_before": "100.00",
+  "remaining_after": "120.00"
+}
