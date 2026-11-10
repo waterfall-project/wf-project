@@ -170,6 +170,7 @@ DECLARED = {
     "projects.attachments",
     "projects.opening",
     "projects.estimate_facts",
+    "projects.cost_facts",
     "planning.facets",
     "exchanges.formats",
     "exchanges.exporters",
@@ -261,9 +262,16 @@ REGISTERED_BY_EP07 = {
 COSTS = "waterfall.core.costs.interface"
 # What the socle of EP-09 registers without effect (US-1580/L1), each in the order it acts: the copy
 # of the remaining to commit of the review before, after the lines and the rates; the formats and
-# the exporter of the remaining to commit and of the actual costs, by their kind.
+# the exporter of the remaining to commit and of the actual costs, by their kind; and what the
+# actual costs answer the projects of a subproject (US-1610/L3), in the order of ``CostFacts``.
 REGISTERED_BY_EP09 = {
     "revisions.copy": [f"{ESTIMATE}.remaining.copy_previous"],
+    "projects.cost_facts": [
+        (
+            f"CostFacts({COSTS}.subprojects.subproject_has_actual_costs, "
+            f"{COSTS}.subprojects.impute_waiting_lines)"
+        )
+    ],
     "exchanges.formats": [
         f"actual_costs:{COSTS}.actual_costs.ActualCostsFormat",
         f"remaining:{ESTIMATE}.remaining_excel.RemainingFormat",

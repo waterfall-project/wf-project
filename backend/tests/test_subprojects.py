@@ -39,12 +39,6 @@ def stage(api: ContractClient, owner: Engine, database: Database, realm: TestRea
     return make_scene(api, owner, database, realm)
 
 
-def holds(session: object, subproject_id: object) -> bool:
-    """Answer a question of the commands of a subproject as EP-07 and EP-09 will when it holds."""
-    del session, subproject_id
-    return True
-
-
 def path(stage: Scene, *more: str) -> str:
     """Give the path of the subprojects of the project of the scene, or of one of them."""
     return "/".join([f"{PROJECTS}/{stage.project['project_id']}/subprojects", *more])
@@ -458,8 +452,11 @@ def test_a_refusal_of_the_deletion_names_the_first_condition_in_the_order_of_the
 ) -> None:
     created = made(api, stage, "SP-1")
 
-    # The question EP-09 will fill, answered as it will when a cost is charged; that of EP-07, as
-    # it answers when a line of the current revision bears the subproject.
+    # The question of the actual costs, answered as when a cost is charged (US-1610/L3); that of
+    # EP-07, as it answers when a line of the current revision bears the subproject.
+    def charged(_session: object, ids: Any) -> frozenset[Any]:
+        return frozenset(ids)
+
     def bearing(_session: object, _project: object, ids: Any) -> frozenset[Any]:
         return frozenset(ids)
 
@@ -468,7 +465,7 @@ def test_a_refusal_of_the_deletion_names_the_first_condition_in_the_order_of_the
 
     monkeypatch.setattr(f"{INTERFACE}.subprojects_estimated", bearing)
     monkeypatch.setattr(f"{INTERFACE}.subproject_estimate_lines", named)
-    monkeypatch.setattr(f"{INTERFACE}.subproject_has_actual_costs", holds)
+    monkeypatch.setattr(f"{INTERFACE}.subprojects_with_actual_costs", charged)
     listed = api.get(path(stage), headers=stage.manager.headers).json()[0]
     assert listed["available_commands"][1] == {
         "command": "delete",

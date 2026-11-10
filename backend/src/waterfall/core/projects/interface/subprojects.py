@@ -15,10 +15,15 @@ folded into one space and trimmed, the case ignored): "Synthèse " and the decom
 
 The three conditions of the deletion — no marked revision that cites it, no actual cost, no line
 of the current revision that bears it — are asked of the later modules: the estimate answers the
-first and the last by its lines (``estimate_facts``, US-1490/L4), the actual costs are EP-09's;
-none is ever lacking before ``project_not_terminal``. A deletion refused for the lines of the
-current revision names them (WF-DAT-0080). ``load_subprojects`` writes those of the witness, by the
-very rules of the creation.
+first and the last by its lines (``estimate_facts``, US-1490/L4), the actual costs the second, by
+the registry declared here (``register_cost_facts``, US-1610/L3), which also says
+``has_actual_costs`` of the list, its filter and its sort; none is ever lacking before
+``project_not_terminal``. A deletion refused for the lines of the current revision names them
+(WF-DAT-0080). ``load_subprojects`` writes those of the witness, by the very rules of the creation.
+
+A subproject created imputes at once, in its transaction and under the lock of its project, the
+lines of cost of the project that waited for its code (``impute_waiting_lines``, WF-CRE-0020); a
+change of its code imputes nothing, and leaves every line where it is (EP-09, D-10).
 """
 
 import unicodedata
@@ -26,7 +31,7 @@ from contextlib import contextmanager
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Literal
 
-from sqlalchemy import ColumnElement, SQLColumnExpression, false, select
+from sqlalchemy import ColumnElement, SQLColumnExpression, select
 from sqlalchemy.exc import IntegrityError
 
 from waterfall.core.projects.commands import (
@@ -64,9 +69,10 @@ from waterfall.platform.errors import (
     UnprocessableError,
 )
 from waterfall.platform.identifiers import new_id
+from waterfall.platform.registry import Registry
 
 if TYPE_CHECKING:
-    from collections.abc import Collection, Generator
+    from collections.abc import Callable, Collection, Generator
     from datetime import datetime
     from uuid import UUID
 
@@ -189,10 +195,43 @@ def _refuse_code(write: SubprojectWrite) -> None:
         raise UnprocessableError(VALIDATION_FAILED, fields=tuple(faults))
 
 
+@dataclass(frozen=True, slots=True)
+class CostFacts:
+    """What the actual costs answer the projects of their lines, and what they do at a creation.
+
+    ``subproject_has_actual_costs`` gives, of the subprojects named, those a line of cost is
+    imputed to, tracked or excluded; ``impute_waiting_lines`` imputes to a subproject just created,
+    of its project and of its code, the lines of the project that bear the code and no subproject,
+    the act of the creation their author (WF-CRE-0020).
+    """
+
+    subproject_has_actual_costs: Callable[[Session, Collection[UUID]], frozenset[UUID]]
+    impute_waiting_lines: Callable[[Session, UUID, UUID, str, Act], None]
+
+
+# What the actual costs answer of their lines, registered at the import of their interface.
+_COSTS: Registry[CostFacts] = Registry("projects.cost_facts")
+
+
+def register_cost_facts(facts: CostFacts) -> Callable[[], None]:
+    """Add what the actual costs answer the projects of their lines; give its withdrawal."""
+    return _COSTS.register(facts)
+
+
+def subprojects_with_actual_costs(
+    session: Session, subproject_ids: Collection[UUID]
+) -> frozenset[UUID]:
+    """Give, of the subprojects named, those an actual cost is imputed to; none if unregistered."""
+    found: set[UUID] = set()
+    if subproject_ids:
+        for facts in _COSTS.entries():
+            found |= facts.subproject_has_actual_costs(session, subproject_ids)
+    return frozenset(found)
+
+
 def subproject_has_actual_costs(session: Session, subproject_id: UUID) -> bool:
-    """Tell whether an actual cost is imputed to the subproject; none is before EP-09."""
-    del session, subproject_id
-    return False
+    """Tell whether an actual cost is imputed to the subproject, tracked or excluded."""
+    return subproject_id in subprojects_with_actual_costs(session, [subproject_id])
 
 
 @dataclass(frozen=True, slots=True)
@@ -204,21 +243,29 @@ class _Deletion:
 
 
 def _deletions(
-    session: Session, project_id: UUID, subproject_ids: Collection[UUID], *, naming: bool = False
+    session: Session,
+    project_id: UUID,
+    subproject_ids: Collection[UUID],
+    *,
+    naming: bool = False,
+    costs: frozenset[UUID] | None = None,
 ) -> dict[UUID, _Deletion]:
     """Name what the deletion of each subproject of a project lacks.
 
-    The estimate is asked once for them all whether a line bears each; the lines themselves, which
-    only the refusal of a deletion shows, are read when ``naming``.
+    The estimate and the actual costs are asked once for them all whether a line bears each; the
+    lines of the estimate themselves, which only the refusal of a deletion shows, are read when
+    ``naming``; ``costs``, the subprojects an actual cost is imputed to, if its caller read them.
     """
     cited = subprojects_cited(session, project_id, subproject_ids)
+    if costs is None:
+        costs = subprojects_with_actual_costs(session, subproject_ids)
     estimated = subprojects_estimated(session, project_id, subproject_ids)
     named = subproject_estimate_lines(session, project_id, subproject_ids) if naming else {}
     found: dict[UUID, _Deletion] = {}
     for each in subproject_ids:
         missing = (
             (NOT_CITED, each in cited),
-            (WITHOUT_ACTUAL_COSTS, subproject_has_actual_costs(session, each)),
+            (WITHOUT_ACTUAL_COSTS, each in costs),
             (WITHOUT_ESTIMATE_LINES, each in estimated),
         )
         found[each] = _Deletion(
@@ -245,8 +292,13 @@ def _commands(
 
 
 def _views(
-    session: Session, project: Project, rows: Collection[Subproject], viewer: Viewer
+    session: Session,
+    project: Project,
+    rows: Collection[Subproject],
+    viewer: Viewer,
+    costs: frozenset[UUID] | None = None,
 ) -> list[SubprojectView]:
+    """Give the view of each subproject; ``costs`` those an actual cost is imputed to, if read."""
     kind = contributor_kind(session, project.id, viewer.user_id)
     held = dict(
         commands_of(
@@ -258,14 +310,16 @@ def _views(
         )
     )
     quality = tuple(quality_conditions(kind, manager=True))
+    if costs is None:
+        costs = subprojects_with_actual_costs(session, [row.id for row in rows])
     asked = [row.id for row in rows] if "update" in held else []
-    deletions = _deletions(session, project.id, asked)
+    deletions = _deletions(session, project.id, asked, costs=costs)
     return [
         SubprojectView(
             subproject_id=row.id,
             code=row.code,
             label=row.label,
-            has_actual_costs=subproject_has_actual_costs(session, row.id),
+            has_actual_costs=row.id in costs,
             commands=_commands(held, quality, deletions.get(row.id, _Deletion())),
             created_at=row.created_at,
             created_by=row.created_by,
@@ -283,9 +337,6 @@ def _criteria(project_id: UUID, filters: SubprojectFilters) -> list[ColumnElemen
         criteria.append(
             contains(Subproject.code, filters.search) | contains(Subproject.label, filters.search)
         )
-    # No actual cost is imputed before EP-09: a filter on those that bear some keeps none.
-    if filters.has_actual_costs:
-        criteria.append(false())
     return criteria
 
 
@@ -298,8 +349,9 @@ def list_subprojects(
 ) -> list[SubprojectView]:
     """List the subprojects of a project, with their commands, whole (``listSubprojects``).
 
-    By the code unless a column is asked, then by the code and the identifier on a tie; the column
-    of the actual costs is the same for all of them before EP-09, so it orders nothing.
+    By the code unless a column is asked, then by the code and the identifier on a tie. Whether an
+    actual cost is imputed is asked of the actual costs once for the subprojects searched: the
+    filter keeps those it answers as asked, the sort puts those without any first ascending.
     """
     project = session.get(Project, project_id)
     if project is None:
@@ -312,7 +364,16 @@ def list_subprojects(
     rows = session.scalars(
         select(Subproject).where(*_criteria(project_id, filters)).order_by(*order)
     ).all()
-    return _views(session, project, rows, viewer)
+    costs = subprojects_with_actual_costs(session, [row.id for row in rows])
+    kept = [
+        row
+        for row in rows
+        if filters.has_actual_costs is None or (row.id in costs) == filters.has_actual_costs
+    ]
+    if sort.key == "has_actual_costs":
+        # A stable sort: the code and the identifier order the ties, ascending in either direction.
+        kept.sort(key=lambda row: row.id in costs, reverse=sort.descending)
+    return _views(session, project, kept, viewer, costs)
 
 
 def _unterminated(session: Session, project_id: UUID) -> Project:
@@ -375,7 +436,8 @@ def create_subproject(
     The code is judged first (422); then the project is locked and read under the lock: refused if
     unknown (404), if the writer is no project manager of it any more (403), if terminal (409
     ``project_not_terminal``), or if the code is borne by another subproject of the project (409
-    ``ALREADY_EXISTS`` on ``/code``).
+    ``ALREADY_EXISTS`` on ``/code``). Created, it receives the lines of cost that waited for its
+    code (WF-CRE-0020), before the answer is built.
     """
     _refuse_code(write)
     project = _writable(session, project_id, viewer)
@@ -399,6 +461,10 @@ def _insert(
     )
     with _unique_code(session, project_id, write.code, subproject_id):
         session.add(row)
+    # Under the lock of the project, which the application of an import of the actual costs holds
+    # too: no line waits for the code once the subproject is created.
+    for facts in _COSTS.entries():
+        facts.impute_waiting_lines(session, project_id, subproject_id, write.code, act)
     return row
 
 
@@ -430,7 +496,8 @@ def update_subproject(
     The code is judged first (422). Then the project is locked and the subproject read under the
     lock: refused if unknown (404), at another version (412), if the project is terminal (409), or
     if the new code is borne by another subproject (409). A change that changes nothing writes
-    nothing.
+    nothing. A new code imputes no line of cost, and takes none from the subproject: a line moves
+    at its next import alone (EP-09, D-10; WF-DAT-0060).
     """
     write = change.write
     _refuse_code(write)
@@ -514,6 +581,23 @@ def subprojects_named(
     for label, subproject_id in rows:
         found.setdefault(label, []).append(subproject_id)
     return found
+
+
+def subprojects_coded(
+    session: Session, project_id: UUID, codes: Collection[str]
+) -> dict[str, UUID]:
+    """Give the subproject of a project each code names, as stored; a code of none is absent.
+
+    What a line of cost is imputed by, its code read in its WBS element (WF-CRE-0020, EP-09).
+    """
+    if not codes:
+        return {}
+    rows = session.execute(
+        select(Subproject.code, Subproject.id).where(
+            Subproject.project_id == project_id, Subproject.code.in_(list(codes))
+        )
+    )
+    return dict(rows.all())
 
 
 def subprojects_present(session: Session, subproject_ids: Collection[UUID]) -> frozenset[UUID]:

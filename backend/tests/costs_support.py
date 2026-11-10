@@ -6,12 +6,12 @@ The rows of the actual costs written around the service — the import of the ex
 the log names, the entry, a line of cost —, each valid unless a test changes it, as
 ``estimate_support`` writes those of the estimate; and an import applied on a project, with the
 account that confirmed it. The stories of EP-09 add here the lines of cost loaded through the
-interface of the actual costs (``load_cost_import``, ``load_cost_lines``, US-1610/L3) and the clock
-set; a story that needs another helper writes it in its own file.
+interface of the actual costs (``load_cost_import``, ``load_cost_lines``: ``cost``, ``load_import``,
+US-1610/L3) and the clock set; a story that needs another helper writes it in its own file.
 """
 
 from dataclasses import dataclass
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 from decimal import Decimal
 from typing import TYPE_CHECKING
 from uuid import UUID, uuid4
@@ -20,11 +20,21 @@ from project_rows import AT, STAMP
 from sqlalchemy import insert
 from support import raw_account
 
+from waterfall.core.costs.interface import (
+    CostImportLoad,
+    CostLineLoad,
+    load_cost_import,
+    load_cost_lines,
+)
 from waterfall.core.costs.tables import CostImport, CostLine
 from waterfall.core.exchanges.tables import ImportReport
 from waterfall.core.users.tables import UserAccount
+from waterfall.platform.audit import Act
 
 if TYPE_CHECKING:
+    from collections.abc import Sequence
+
+    from projects_support import Scene
     from sqlalchemy.engine import Connection
 
 
@@ -118,3 +128,54 @@ def insert_cost_line(connection: Connection, imported: Imported, **overrides: ob
     line_id = row["id"]
     assert isinstance(line_id, UUID)
     return line_id
+
+
+def cost(
+    number: str, code: str | None, amount: str = "100.00", item: str | None = None
+) -> CostLineLoad:
+    """Give a line an import loads: its document, its code of subproject, its amount, its item."""
+    return CostLineLoad(
+        cost_line_id=uuid4(),
+        document_number=number,
+        document_item=item,
+        document_date=date(2026, 4, 2),
+        amount=Decimal(amount),
+        subproject_code=code,
+        passthrough={"Fournisseur": "Câbles du Rhône"},
+    )
+
+
+def load_import(
+    stage: Scene,
+    project_id: UUID,
+    lines: Sequence[CostLineLoad],
+    *,
+    at: datetime = AT,
+    author: UUID | None = None,
+) -> UUID:
+    """Load an import applied on a project by the interface: its entry, then its lines; give it.
+
+    The import of the exchanges it names written around the service, applied; the entry confirmed
+    by ``author``, the manager of the stage unless said, at ``at``, its lines all counted created.
+    """
+    author = author or stage.manager.user_id
+    report = uuid4()
+    with stage.owner.begin() as connection:
+        connection.execute(insert(ImportReport).values(**report_row(project_id, id=report)))
+    entry = CostImportLoad(
+        cost_import_id=uuid4(),
+        import_report_id=report,
+        imported_at=at,
+        requested_by=author,
+        period_from=date(2026, 4, 1),
+        period_to=date(2026, 4, 30),
+        created_count=len(lines),
+        updated_count=0,
+        unchanged_count=0,
+        rejected_count=0,
+        passthrough_columns=("Fournisseur",),
+    )
+    with stage.database.transaction() as session:
+        load_cost_import(session, project_id, entry)
+        load_cost_lines(session, project_id, entry.cost_import_id, lines, Act(author, at))
+    return entry.cost_import_id
