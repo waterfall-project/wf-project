@@ -617,7 +617,7 @@ def traced(ground: Ground) -> Ground:
         node_id: Task(**{attr.key: getattr(task, attr.key) for attr in inspect(Task).column_attrs})
         for node_id, task in ground.tree.tasks.items()
     }
-    tree = Tree(ground.tree.nodes, tasks)
+    tree = ground.tree.with_nodes(ground.tree.nodes, tasks)
     return Ground(ground.session, ground.project_id, tree, ground.is_main)
 
 
@@ -639,7 +639,8 @@ def traced_creation(
         tasks[parent] = Task(**{**_columns(tasks[parent]), "scheduling_mode": AUTOMATIC})
     node, task = _made(place, act, judged, planning_start)
     nodes[node.id], tasks[node.id] = node, task
-    return Ground(ground.session, ground.project_id, Tree(nodes, tasks), ground.is_main)
+    tree = ground.tree.with_nodes(nodes, tasks)
+    return Ground(ground.session, ground.project_id, tree, ground.is_main)
 
 
 def update_task_facet(

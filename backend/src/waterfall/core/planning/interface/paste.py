@@ -81,7 +81,7 @@ from waterfall.core.planning.interface.nodes import (
 from waterfall.core.planning.scheduling import Duration
 from waterfall.core.planning.shaping import stamp
 from waterfall.core.planning.tables import DURATION_UNITS, Node
-from waterfall.core.planning.tree import LINE, TASK, Tree, read_tree
+from waterfall.core.planning.tree import LINE, TASK, read_tree
 from waterfall.core.planning.views import COMPLETED, state_of
 from waterfall.core.planning.writing import NodesWritten, facts_of, judge_revision, writing
 from waterfall.core.projects.interface import work_breakdown_items
@@ -468,7 +468,7 @@ def _traced_line(ground: Ground, held: tuple[Place, Act, date], judged: LineJudg
     for each in judged.shifted:
         nodes[each] = _copied(nodes[each], rank=nodes[each].rank + 1)
     nodes[judged.node_id] = new_line_node(held[0], held[1], judged)
-    tree = Tree(nodes, ground.tree.tasks)
+    tree = ground.tree.with_nodes(nodes, ground.tree.tasks)
     return Ground(ground.session, ground.project_id, tree, ground.is_main)
 
 

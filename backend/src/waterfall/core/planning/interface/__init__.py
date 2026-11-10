@@ -259,6 +259,18 @@ from waterfall.core.planning.interface.nodes import (
     write_creation as write_creation,
 )
 
+# ``open_lines`` (US-1590/L1): the own lines that hold a summary task open, which the estimate
+# tells.
+from waterfall.core.planning.interface.open_lines import (
+    OpenLines as OpenLines,
+)
+from waterfall.core.planning.interface.open_lines import (
+    held_open as held_open,
+)
+from waterfall.core.planning.interface.open_lines import (
+    register_open_lines as register_open_lines,
+)
+
 # ``paste`` (US-1380/L1; US-1450/L2): the paste of a block of cells.
 from waterfall.core.planning.interface.paste import (
     PasteApplied as PasteApplied,
@@ -293,8 +305,18 @@ from waterfall.core.planning.interface.predecessors import (
     set_predecessors as set_predecessors,
 )
 
-# ``progress`` (US-1380/L1; US-1410; US-1580/L2): the state of a task, and its completion by the
-# re-estimate that sets its last open line to nought (``write_remaining``).
+# ``progress`` (US-1380/L1; US-1410; US-1580/L2; US-1590/L1): the state of a task, its completion
+# by the re-estimate that sets its last open line to nought (``write_remaining``), the gestures of
+# a card of the Kanban (``progress_commands``).
+from waterfall.core.planning.interface.progress import (
+    KanbanCommand as KanbanCommand,
+)
+from waterfall.core.planning.interface.progress import (
+    KanbanCommandAvailability as KanbanCommandAvailability,
+)
+from waterfall.core.planning.interface.progress import (
+    KanbanCondition as KanbanCondition,
+)
 from waterfall.core.planning.interface.progress import (
     ProgressEntry as ProgressEntry,
 )
@@ -305,7 +327,13 @@ from waterfall.core.planning.interface.progress import (
     RemainingChange as RemainingChange,
 )
 from waterfall.core.planning.interface.progress import (
+    TaskProgress as TaskProgress,
+)
+from waterfall.core.planning.interface.progress import (
     load_progress as load_progress,
+)
+from waterfall.core.planning.interface.progress import (
+    progress_commands as progress_commands,
 )
 from waterfall.core.planning.interface.progress import (
     set_task_progress as set_task_progress,

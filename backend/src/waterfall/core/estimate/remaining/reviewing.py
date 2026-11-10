@@ -23,7 +23,7 @@ indicateurs du reste à engager").
 
 from typing import TYPE_CHECKING
 
-from sqlalchemy import update
+from sqlalchemy import select, update
 
 from waterfall.core.cost_settings.interface import category_labels
 from waterfall.core.estimate.placing import placed_lines
@@ -36,7 +36,7 @@ from waterfall.core.revisions.interface import revision_marked_at
 from waterfall.platform.errors import FieldError, UnprocessableError
 
 if TYPE_CHECKING:
-    from collections.abc import Collection, Sequence
+    from collections.abc import Collection, Mapping, Sequence
     from decimal import Decimal
     from uuid import UUID
 
@@ -93,9 +93,33 @@ def provisions_of(session: Session, rows: Collection[EstimateLine]) -> frozenset
 
 def keeps_open(session: Session, project_id: UUID, line_ids: Sequence[UUID]) -> bool:
     """Tell whether one of the lines named keeps a remaining to commit, a provision never."""
-    rows = rows_of(session, project_id, line_ids)
+    return bool(open_tasks(session, project_id, {project_id: line_ids}))
+
+
+def open_tasks(
+    session: Session, project_id: UUID, lines_by_task: Mapping[UUID, Sequence[UUID]]
+) -> frozenset[UUID]:
+    """Give the tasks one of whose lines named keeps a remaining to commit, a provision never.
+
+    The lines whose re-estimated amount is not nought read in one statement, then their categories.
+    """
+    named = [line for lines in lines_by_task.values() for line in lines]
+    if not named:
+        return frozenset()
+    rows = list(
+        session.scalars(
+            select(EstimateLine).where(
+                EstimateLine.project_id == project_id,
+                EstimateLine.node_id.in_(named),
+                EstimateLine.reestimated_amount != 0,
+            )
+        )
+    )
+    if not rows:
+        return frozenset()
     provisions = provisions_of(session, rows)
-    return any(row.reestimated_amount != 0 for row in rows if row.node_id not in provisions)
+    held = {row.node_id for row in rows if row.node_id not in provisions}
+    return frozenset(task for task, lines in lines_by_task.items() if held.intersection(lines))
 
 
 def was_reviewed(session: Session, project_id: UUID, revision_id: UUID) -> bool:
