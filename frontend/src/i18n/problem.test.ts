@@ -759,13 +759,130 @@ describe("the sentence of a refusal", () => {
   });
 
   it("says a move that would put a node under itself, in the reader's language [WF-PLA-0040-A]", () => {
+    // `nodes_move_node_cycle`: the refusal of a parent taken among the moved nodes or their
+    // subordinates, without a parameter. The example is read by what it must say, not by a shape
+    // assumed for it: if the generated example changes, the assertion fails here.
+    expect(example("nodes_move_node_cycle")).toMatchObject({ fields: [{ code: "NODE_CYCLE" }] });
+    const reduced: ProblemText = { code: "NODE_CYCLE" };
+    expect(say(reduced, "fr")).toBe(
+      "Une tâche porte un lot ou un poste, jamais les deux. Ce lot ou ce poste est déjà porté par une autre tâche.",
+    );
+  });
+
+  it("says why a code cannot name the tab of a sub-project: the characters it bears, or its reserved name [WF-PRJ-0050-A]", () => {
+    // La création d'un sous-projet de code « SP/01 » ou « Synthèse » est refusée.
+    const forbidden = example("subproject_code_invalid") as {
+      fields: NonNullable<ProblemText["fields"]>;
+    };
+    expect(say({ code: "SUBPROJECT_CODE_INVALID", fields: forbidden.fields }, "fr")).toBe(
+      "Ce code ne peut pas nommer l’onglet du sous-projet dans le fichier de reste à engager. Caractères interdits dans le code\u00A0: /.",
+    );
+    const reserved = example("subproject_code_reserved") as ProblemText;
+    expect(say(reserved, "fr")).toMatch(/ «\u00A0Synthèse\u00A0» est un nom réservé/);
+    expect(say(reserved, "en")).toMatch(/ “Synthèse” is a reserved name/);
+    // Neither a list of characters that is empty, nor a name that is no text, says anything.
+    expect(
+      say(
+        { code: "SUBPROJECT_CODE_INVALID", params: { forbidden_characters: [], reserved_name: 3 } },
+        "en",
+      ),
+    ).toBe("This code cannot name the tab of the subproject in the estimate-to-complete file.");
+  });
+
+  it("says the minimum a value falls short of", () => {
+    // The retention of the copies outside the platform, at least that of the platform (#488).
+    const problem: ProblemText = { code: "VALUE_OUT_OF_RANGE", params: { minimum: 7 } };
+    expect(say(problem, "fr")).toBe(
+      "La valeur sort des limites admises. Valeur minimale\u00A0: 7.",
+    );
+    expect(say(problem, "en")).toMatch(/ Minimum value: 7\.$/);
+  });
+
+  it("says the minimum of a refusal by field, with the refusal and at the field, written in the language of the reader", () => {
+    // The retention of the copies outside the platform refused at its field (#293, #488), and a
+    // rate under the smallest amount the service takes, an amount of the contract.
+    const problem: ProblemText = {
+      code: "VALIDATION_FAILED",
+      fields: [
+        { params: { minimum: 7 } },
+        { params: { minimum: "1234.5" } },
+        { params: { minimum: "not a number" } },
+        {},
+      ],
+    };
+    expect(say(problem, "fr")).toBe(
+      "Les données saisies ne sont pas valides. Valeur minimale\u00A0: 7. Valeur minimale\u00A0: 1\u202F234,5.",
+    );
+    expect(say(problem, "en")).toBe(
+      "The data entered is not valid. Minimum value: 7. Minimum value: 1,234.5.",
+    );
+    // A refusal by field is a code and its parameters: a form says it at the field so.
+    const field = { code: "VALUE_OUT_OF_RANGE", params: { minimum: 7 } } as const;
+    expect(say(field, "fr")).toBe("La valeur sort des limites admises. Valeur minimale\u00A0: 7.");
+  });
+
+  it("says the bound each field crosses, the largest as the smallest, written in the language of the reader", () => {
+    // The two rates of a project, ratios from 0 to 1 (EP-14/L42i): the probability of winning
+    // above the largest, the inflation rate under the smallest; a date bound is the period's to say.
+    const problem: ProblemText = {
+      code: "VALIDATION_FAILED",
+      fields: [
+        { params: { maximum: "1" } },
+        { params: { minimum: "0" } },
+        { params: { maximum: "0.75" } },
+        { params: { maximum: "2026-06-03" } },
+      ],
+    };
+    expect(say(problem, "fr")).toBe(
+      "Les données saisies ne sont pas valides. Valeur maximale\u00A0: 1. Valeur minimale\u00A0: 0. Valeur maximale\u00A0: 0,75.",
+    );
+    expect(say({ code: "VALUE_OUT_OF_RANGE", params: { maximum: 100 } }, "en")).toBe(
+      "The value is outside the allowed range. Maximum value: 100.",
+    );
+  });
+
+  it("names the unavailable component", () => {
+    const problem: ProblemText = {
+      code: "COMPONENT_UNAVAILABLE",
+      params: { component: "database" },
+    };
+    expect(say(problem, "fr")).toBe(
+      "Un composant du service est indisponible. Composant indisponible\u00A0: Base de données.",
+    );
+  });
+
+  it("names the loop a link would close, its tasks in the order of the links, in the reader's language [WF-PLA-0030-A]", () => {
+    const refused = example("predecessors_cycle_refused") as ProblemText;
+    expect(say(refused, "fr")).toBe(
+      "Cette liaison créerait une boucle. Boucle de liaisons, dans l’ordre : «\u00A0Réception usine\u00A0», " +
+        "«\u00A0Montage des armoires sur site\u00A0» et «\u00A0Mise en service\u00A0».",
+    );
+    expect(say(refused, "en")).toBe(
+      "This link would create a loop. Loop of links, in order: “Réception usine”, " +
+        "“Montage des armoires sur site” and “Mise en service”.",
+    );
+    // A loop without its labels names nothing.
+    expect(say({ code: "LINK_CYCLE", params: { cycle: [{ node_id: "n" }] } }, "en")).toBe(
+      "This link would create a loop.",
+    );
+  });
+
+  it("says a token without session identifier refuses an undo or a redo, in the reader's language [WF-IHM-0110-A]", () => {
+    expect(say({ code: "SESSION_ID_MISSING" }, "fr")).toBe(
+      "Votre jeton de session ne porte pas d’identifiant de session : reconnectez-vous pour pouvoir annuler ou rétablir une modification.",
+    );
+    expect(say({ code: "SESSION_ID_MISSING" }, "en")).toBe(
+      "Your session token carries no session identifier: sign in again to be able to undo or redo a change.",
+    );
+  });
+
+  it("says a move that would put a node under itself, in the reader's language [WF-PLA-0040-A]", () => {
     // `nodes_move_node_cycle`, reduced to its field's code as `byField` does: the refusal of a
     // parent taken among the moved nodes or their subordinates, without a parameter.
     const refused = example("nodes_move_node_cycle") as {
       fields: [{ code: ProblemText["code"] }];
     };
     const reduced = { code: refused.fields[0].code };
-    expect(reduced.code).toBe("NODE_CYCLE");
     expect(say(reduced, "fr")).toBe("Ce déplacement mettrait un nœud sous lui-même.");
     expect(say(reduced, "en")).toBe("This move would put a node under itself.");
   });

@@ -145,19 +145,51 @@ describe("undo and redo of the grid of the planning, wired on the server's histo
     expect(sent(client, REDO)).toEqual([]);
   });
 
-  it("announces an undo done, and a redo done, with how many changes remain [WF-IHM-0110-A]", async () => {
-    serve({ [UNDO]: "undo_task_renamed", [REDO]: "redo_task_renamed" });
-    render(grid());
-    await userEvent.click(screen.getByRole("button", { name: "Annuler" }));
-    expect(
-      await screen.findByText("Modification annulée. Aucune autre modification à annuler."),
-    ).toBeInTheDocument();
-    await userEvent.click(screen.getByRole("button", { name: "Rétablir" }));
-    expect(
-      await screen.findByText("Modification rétablie. Aucune autre modification à rétablir."),
-    ).toBeInTheDocument();
-    expect(screen.queryByRole("alert")).toBeNull();
-  });
+  it.each([
+    {
+      locale: "fr" as const,
+      undo: "Annuler",
+      redo: "Rétablir",
+      none: [
+        "Modification annulée. Aucune autre modification à annuler.",
+        "Modification rétablie. Aucune autre modification à rétablir.",
+      ],
+      some: [
+        "Modification annulée. 1 modification reste à annuler.",
+        "Modification rétablie. 2 modifications restent à rétablir.",
+      ],
+    },
+    {
+      locale: "en" as const,
+      undo: "Undo",
+      redo: "Redo",
+      none: ["Change undone. No more changes to undo.", "Change redone. No more changes to redo."],
+      some: ["Change undone. 1 change left to undo.", "Change redone. 2 changes left to redo."],
+    },
+  ])(
+    "announces an undo done, and a redo done, with how many changes remain: none, one, or several, in $locale [WF-IHM-0110-A]",
+    async ({ locale, undo, redo, none, some }) => {
+      // Undo with nothing left (`=0`) and redo with nothing left.
+      serve({ [UNDO]: "undo_task_renamed", [REDO]: "redo_task_renamed" });
+      const first = render(grid(locale));
+      await userEvent.click(screen.getByRole("button", { name: undo }));
+      expect(await screen.findByText(none[0] as string)).toBeInTheDocument();
+      await userEvent.click(screen.getByRole("button", { name: redo }));
+      expect(await screen.findByText(none[1] as string)).toBeInTheDocument();
+      expect(screen.queryByRole("alert")).toBeNull();
+      first.unmount();
+      forgetMessages();
+
+      // Undo with one left (`one`) and redo with two left (`other`).
+      serve({ [UNDO]: "undo_task_renamed_one_left", [REDO]: "redo_task_renamed_two_left" });
+      render(grid(locale));
+      await userEvent.click(screen.getByRole("button", { name: undo }));
+      expect(await screen.findByText(some[0] as string)).toBeInTheDocument();
+      await userEvent.click(screen.getByRole("button", { name: redo }));
+      expect(await screen.findByText(some[1] as string)).toBeInTheDocument();
+      expect(screen.queryByRole("alert")).toBeNull();
+    },
+  );
 
   it("tells the refusal of an undo by the catalogue, naming the object a later change took up [WF-IHM-0110-A]", async () => {
     serve({ [UNDO]: refused("undo_later_change") });
