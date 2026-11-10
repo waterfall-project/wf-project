@@ -21,7 +21,7 @@ from waterfall.core.access_roles.tables import (
     UserAccessRole,
 )
 from waterfall.core.users.interface import LAST_ADMINISTRATOR_CONDITION, active_accounts
-from waterfall.platform.errors import ConflictError
+from waterfall.platform.errors import STATE_FORBIDS_OPERATION, ConflictError
 
 if TYPE_CHECKING:
     from collections.abc import Generator, Mapping
@@ -30,7 +30,6 @@ if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
 LAST_ADMINISTRATOR = "LAST_ADMINISTRATOR"
-STATE_FORBIDS_OPERATION = "STATE_FORBIDS_OPERATION"
 ADMINISTRATION = ("users.write", "access_roles.write")
 
 # The key of the advisory lock of the rule, distinct from that of the migrations.

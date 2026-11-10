@@ -1,7 +1,7 @@
 ---
 id: EP-21
 titre: Combler ce que deux jours à quatre livreurs ont révélé de l'outillage — tableau de suivi, arrêt d'un créneau, garde, contrôles de la chaîne, harnais des parcours
-statut: en cours
+statut: livré
 depend_de: EP-19, EP-05
 famille: plateforme
 issue: 2225

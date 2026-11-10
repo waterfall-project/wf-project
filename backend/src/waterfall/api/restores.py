@@ -28,6 +28,7 @@ from waterfall.core.access_roles.interface import require
 from waterfall.core.backups.interface import NOT_FOUND, read_backup
 from waterfall.platform.database import utc_now
 from waterfall.platform.errors import (
+    STATE_FORBIDS_OPERATION,
     BadRequestError,
     ConflictError,
     FieldError,
@@ -40,7 +41,6 @@ from waterfall.platform.uploads import EXTERNAL_BACKUP, completed_upload
 router = APIRouter(tags=["platform"])
 
 CONFIRMATION_REQUIRED = "CONFIRMATION_REQUIRED"
-STATE_FORBIDS_OPERATION = "STATE_FORBIDS_OPERATION"
 VALIDATION_FAILED = "VALIDATION_FAILED"
 UPLOAD_PURPOSE_MISMATCH = "UPLOAD_PURPOSE_MISMATCH"
 RESTORE = [Depends(Requires("platform_restore"))]

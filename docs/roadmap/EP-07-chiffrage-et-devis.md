@@ -336,8 +336,10 @@ Décisions de l'auteur du 2026-11-07, sur les questions du cadrage, chacune avec
   trois lots d'EP-06.
 - **Une seule migration, `0025`, dans le socle**, au prochain numéro libre à la création
   d'`epic/EP-07` — `epic/EP-06` s'arrête à `0024` —, aucune donnée à reprendre : les colonnes
-  nouvelles de `revision` restent nulles et se lisent comme les valeurs du projet. Aucune migration
-  d'EP-07 après le socle ; EP-09 chaîne la sienne sur `0025`. Écarté : une migration par US.
+  nouvelles de `revision` restent nulles et se lisent comme les valeurs du projet. Aucune autre
+  migration de domaine dans EP-07 ; une seconde, `0026`, sérialise la création des partitions
+  (décisions du 2026-11-09, sur #2603 et #2667, ci-dessous), et EP-09 chaîne la sienne sur `0026`.
+  Écarté : une migration par US.
 
 Décision de l'utilisateur du 2026-11-08, sur la question d'US-1490/L1 (#2370) :
 
@@ -383,11 +385,114 @@ Décisions de l'utilisateur du 2026-11-09, sur les constats d'US-1540 (#2366), d
   mesure l'application du devis de PRJ-001 dans la tâche de fond `import_apply` ; si la durée
   dépasse ce qu'une tâche de fond admet, l'écriture groupée dans `core/planning` (un rejeu de la
   structure à la fin, partagé avec la saisie et le collage) devient un lot à part. Écarté :
-  l'optimiser dans US-1550/L3, qui touchait sans mesure le cœur de la saisie.
+  l'optimiser dans US-1550/L3, qui touchait sans mesure le cœur de la saisie. Mesuré par
+  US-1550/L4 (#2693) : les 4 999 lignes du devis de PRJ-001 lues, 4 883 créées, appliquées en 23 à
+  29 s dans la tâche de fond, 5 à 6 ms par ligne ; durée acceptée en l'état (décision de l'auteur
+  du 2026-11-10), à rouvrir si des devis plus gros ou un collage de masse lent apparaissent.
 - **`import_estimate` suit le contrat (C-358).** La commande reste disponible En cours, un
   différentiel s'important encore ; `openImport` et `applyImport` refusent l'import sur la
   structure principale par 409 `project_before_in_progress`. Le critère d'US-1550 qui la disait
   « indisponible dès En cours » est corrigé.
+
+Décisions de l'utilisateur du 2026-11-09, sur les verrous mortels de la création d'un projet
+(#2603, relevé par la file d'EP-06 et reporté ici ; #2667) :
+
+- **La création des partitions d'un projet n'attend jamais en tenant un verrou.**
+  `create_project_partitions` créait chaque partition par `CREATE TABLE … PARTITION OF`, qui
+  verrouille la table parente en `AccessExclusiveLock` (PostgreSQL 18, `DefineRelation`), neuf
+  parentes l'une après l'autre : une lecture qui tient `node` et demande `cost_structure`
+  interbloque avec la création qui tient `cost_structure` et demande `node` (#2603). Le clonage des
+  clés étrangères de la parente sur la partition prend en outre `ShareRowExclusiveLock` sur chaque
+  table que ces clés relient, dans les deux sens (`CloneFkReferencing`, `CloneFkReferenced`) —
+  `revision`, `node`, `task`, `task_link`, `cost_structure`, `estimate_line`, `order_item`,
+  `work_package`, `cost_category`, `resource_role`, `subproject`, `user_account` —, en conflit avec
+  toute écriture : la création qui en tient une et en attend une autre interbloque avec une
+  écriture qui les prend dans l'autre ordre, et deux créations s'attendent sur `order_item` et
+  `work_package`, que `_create` écrivait avant d'appeler la fonction (#2667). La fonction, remplacée
+  par la migration `0026` (US-1560/L3, lot technique), prend donc d'abord un verrou consultatif de
+  transaction, `pg_advisory_xact_lock(4100010)` (`PARTITIONS_LOCK` de `core/revisions`, distinct
+  des autres clés du service, un test vérifiant que la constante et la fonction concordent), qui
+  sérialise les créations ; puis **tous** les verrous dont elle aura besoin, d'un seul coup et sans
+  attendre — `LOCK TABLE … NOWAIT`, `SHARE ROW EXCLUSIVE` sur les tables que les clés relient,
+  `SHARE UPDATE EXCLUSIVE` sur les parentes —, dans un sous-bloc qui se défait en entier et se
+  reprend après une pause courte et aléatoire si l'un manque, les reprises bornées à dix secondes
+  environ, au-delà desquelles l'erreur `lock_not_available` donne une 500 journalisée. Chaque
+  partition se crée ensuite seule (`CREATE TABLE … (LIKE <parente> …)`) et s'attache
+  (`ALTER TABLE … ATTACH PARTITION … FOR VALUES IN (…)`), qui ne prend que `ShareUpdateExclusiveLock`
+  sur la parente, compatible avec les lectures et les écritures ; le déclencheur qui refuse la
+  troncature reste. Les tables partitionnées par `project_id` et celles que leurs clés relient se
+  lisent dans le catalogue (`pg_partitioned_table`, `pg_constraint`) à chaque appel : une table
+  révisionnée ou une clé qu'EP-09, EP-10 ou EP-08 ajoute entre d'elle-même dans la création et dans
+  le verrouillage, aucune migration ultérieure ne remplace la fonction, et un test affirme les neuf
+  tables attendues aujourd'hui. `_create` (`core/projects`) l'appelle **avant toute écriture** de sa
+  transaction, juste après `share_reference`. La règle entre dans `docs/dev/sql.md`, « Verrous ».
+  Écartés : le verrou consultatif seul, qui ne sérialise que les créations entre elles et laisse
+  #2603 et les écritures ; un ordre fixe des verrous, ou un `LOCK` des parentes qui attend, que les
+  lecteurs et les écrivains ne suivent pas ; `PARTITION OF` gardé avec ses `AccessExclusiveLock`
+  pris sans attendre, qui arrête toutes les lectures de tous les projets et affame la création sous
+  charge ; la reprise sur `40P01`, dont la victime peut être la lecture ou l'écriture ; la liste des
+  tables écrite en dur, qu'une clé ajoutée plus tard laisserait hors du verrouillage sans que rien
+  ne le dise ; `0025` modifiée sur place, contre une chaîne appliquée une fois (`docs/dev/sql.md`) ;
+  le lot porté dans EP-06, dont la `0025` heurterait celle d'EP-07 et à qui ne reste qu'US-1480/L3,
+  sa file se relançant en attendant.
+- **Ce que la vérification éprouve.** Les tests du back citent WF-DAT-0050 : la lecture de #2603
+  rejouée pas à pas (une transaction lit `node`, une création aboutit sous `lock_timeout`, la
+  lecture lit ensuite `cost_structure`) ; une écriture ouverte sur un nœud d'un autre projet, pendant
+  laquelle la création ne tient, d'après `pg_locks`, aucun verrou accordé sur les tables du
+  verrouillage, puis écrit `cost_structure` sans attendre ; huit créations simultanées, sans
+  `DeadlockDetected` ; aucun `AccessExclusiveLock` tenu par la création sur une relation qui
+  existait avant elle ; les contraintes, index, déclencheurs et clés d'une partition attachée
+  identiques, au nom près, à ceux d'une partition créée par la fonction de `0025`. Le relevé de
+  livraison passe `make e2e-service` à seize workers, compte les `DeadlockDetected` des journaux de
+  l'API, et dit si les parcours que #2667 liste restent instables ; s'ils le restent, c'est un
+  constat à part.
+- **La chaîne des migrations se décale d'un cran** : `0026` est celle d'US-1560/L3,
+  EP-09 chaîne la sienne sur elle (`0027`), EP-10 sur celle d'EP-09 (`0028`), EP-08 sur
+  celle d'EP-10 ; le socle d'EP-09, US-1580/L1 (#2398), attend ce lot. Écarté : un autre numéro pour
+  la migration d'EP-07, la chaîne d'Alembic étant linéaire.
+
+Décisions de l'auteur du 2026-11-10, sur les constats de la revue d'US-1550/L4 et du banc du
+service, chacune avec l'option écartée :
+
+- **Une catégorie se désigne dans le devis par son code comptable** (#2688) : la colonne « Code
+  comptable » et le sous-total « Heures par code comptable » du classeur « Devis » portent
+  `CostCategory.accounting_code`, non son `code` technique (WF-REF-0040, annexe B), et l'import
+  retrouve la catégorie par ce code. Le modèle `Category` de l'écriture le porte, l'écrivain,
+  l'exporteur et l'index de `reference_of` le suivent ; la preuve est une catégorie dont `code` et
+  `accounting_code` diffèrent, exportée puis réimportée sans écart. Écarté : garder le code
+  technique, cohérent à l'aller-retour mais hors de l'annexe B. Le classeur du reste à engager
+  d'EP-09, qui réemploie ce modèle, en hérite.
+- **L'import retrouve un rôle ou une catégorie par le code entre les dernières parenthèses**
+  (#2689) : « libellé (code) » se lit par son code, le libellé n'étant qu'indicatif, si bien qu'un
+  rôle renommé depuis l'export, ou le devis d'une révision marquée réimporté dans la révision en
+  cours (WF-INTF-0100-A), ne fait rejeter aucune ligne. Écarté : la chaîne exacte « libellé
+  (code) », qui rejetait toutes les lignes d'un rôle renommé.
+- **Les libellés des rôles et des catégories ne partagent pas d'index** (#2690) : deux
+  dictionnaires, un code pouvant être celui d'un rôle et d'une catégorie à la fois. Écartée : une
+  clé `(sorte, code)` dans un seul dictionnaire, l'autre forme que le constat proposait.
+- **`export_estimate` entre dans `EXPORT_RULES`**, avec `export_planning` et
+  `export_task_tree_image` (#2691) : dans `REVISION_RULES`, une révision marquée recevrait
+  `revision_draft`, contre WF-CYC-0110 et le contrat (`RevisionCommand` : tout export gardé par sa
+  seule permission). « Modules » le dit.
+- **L'aperçu du collage sur la grille de devis dit les lignes qu'il crée** (#2668) : une clé
+  `grid.paste.createdLines` de `messages/fr.json` et `en.json` (« {count, plural, one {# ligne
+  sera créée} other {# lignes seront créées}} sous la dernière tâche »), que la grille de devis
+  choisit, écrite par le lot de correction du devis (« Ce qu'EP-06 écrit encore », les catalogues).
+  Écarté : déduire le libellé de `PastePlan.created`, qui ne dit pas ce qu'il crée.
+- **Les colonnes masquées et les largeurs de la grille de devis ne se rejouent pas contre le
+  service** (#2671) : le mécanisme des réglages est commun aux grilles et aux tables, éprouvé
+  contre le service par `service/account.spec.ts` ; le critère d'US-1560 le dit « constaté par
+  EP-03 », sans rejeu. Écarté : un parcours `@shared` du devis de plus pour le même mécanisme.
+- **Le banc du service laisse passer les corps non JSON** (#2687, #2695, #973, #1025) : Prism, mandataire
+  du contrat dans `make e2e-service`, lit tout corps comme du texte et réécrit chaque octet au-delà
+  de 0x7f ; un classeur exporté ou déposé, une archive de sauvegarde coupée en parts, une image
+  d'avatar en sortaient corrompus. Les corps non JSON (`application/octet-stream`, `.xlsx`,
+  archives, images) passent à l'API sans être réécrits, la vérification des réponses JSON par le
+  contrat gardée ; le parcours de l'import en deux temps d'`exchanges.spec.ts` porte alors `@shared`
+  (critère d'US-1550, qui reste en cours jusque-là), `backups.spec.ts` ne casse plus sur une coupure
+  de part, et le parcours de l'avatar quitte son `test.fixme`. Le correctif est un lot d'outil
+  d'EP-07, qui débloque la clôture d'US-1550. Écartée : l'option B de #2687, le critère reporté en
+  écart et US-1550 passée `fini` sans l'aller-retour par le front.
 
 ### Tables et migrations
 
@@ -400,7 +505,7 @@ avant toute cascade ; une révision marquée ne supprime rien, ses déclencheurs
 
 | Table | Contenu | Contraintes |
 |---|---|---|
-| `estimate_line` | `project_id`, `node_id` (clé primaire avec lui), `kind` (`CHECK (kind = 'estimate_line')`, clé composite (`project_id`, `node_id`, `kind`) vers `node` en cascade, sur le modèle de `task`), `label`, `cost_category_id`, `resource_role_id` (nul hors main-d'œuvre), `quantity` (`numeric(14,4)`), `hours` (`numeric(12,2)`, nul hors main-d'œuvre), `unit_disbursement` (`numeric(14,2)`, nul en main-d'œuvre), `payment_delay_days`, `subproject_id` (nul hors sous-projet), `reference_quantity`, `reference_hours`, `reference_unit_disbursement` (nuls : écrits par la fusion d'un avenant, EP-08), `base_amount`, `budgeted_amount`, `reestimated_amount` (`numeric(14,2)`), `consumption_year`, audit, `lock_version` | `label` de 1 à 300 non blanc ; `quantity ≥ 0`, `hours ≥ 0`, `unit_disbursement ≥ 0`, `payment_delay_days ≥ 0` ; `(resource_role_id IS NULL) = (hours IS NULL)` et `(resource_role_id IS NULL) = (unit_disbursement IS NOT NULL)` — EP-08 les assouplit pour la ligne de provision — ; clés vers `cost_category`, `resource_role` et `(project_id, subproject_id)` vers `subproject` en refus ; index sur (`project_id`, `cost_category_id`), (`project_id`, `resource_role_id`), (`project_id`, `subproject_id`) pour les questions du référentiel ; déclencheur d'immuabilité comme `task` |
+| `estimate_line` | `project_id`, `node_id` (clé primaire avec lui), `kind` (`CHECK (kind = 'estimate_line')`, clé composite (`project_id`, `node_id`, `kind`) vers `node` en cascade, sur le modèle de `task`), `label`, `cost_category_id`, `resource_role_id` (nul hors main-d'œuvre), `quantity` (`numeric(14,4)`), `hours` (`numeric(12,2)`, nul hors main-d'œuvre), `unit_disbursement` (`numeric(14,2)`, nul en main-d'œuvre), `payment_delay_days`, `subproject_id` (nul hors sous-projet), `reference_quantity`, `reference_hours`, `reference_unit_disbursement` (nuls : écrits par la fusion d'un avenant, EP-08), `base_amount`, `budgeted_amount`, `reestimated_amount` (`numeric(14,2)`), `consumption_year`, audit, `lock_version` | `label` de 1 à 300 non blanc ; `quantity ≥ 0`, `hours ≥ 0`, `unit_disbursement ≥ 0`, `payment_delay_days ≥ 0` ; `(resource_role_id IS NULL) = (hours IS NULL)` et `(resource_role_id IS NULL) = (unit_disbursement IS NOT NULL)` — EP-08 les assouplit pour la ligne de provision — ; clés vers `cost_category`, `resource_role` et `(project_id, subproject_id)` vers `subproject` en refus ; index sur `cost_category_id`, `resource_role_id` et `subproject_id`, chacun sur sa seule colonne — une partition ne tient qu'un projet, `project_id` n'y ajoute rien (#2585) —, pour les questions du référentiel ; déclencheur d'immuabilité comme `task` |
 | `revision_rate` | `project_id`, `id`, `revision_id`, `cost_category_id`, `amount` (`numeric(12,2)`), `origin` (`reference`, `projected`) | unique (`revision_id`, `cost_category_id`) ; clé composite vers `revision` en refus ; `amount ≥ 0.01` ; déclencheur d'immuabilité |
 | `revision_role` | `project_id`, `id`, `revision_id`, `resource_role_id`, et les colonnes de `ResourceRoleImage` : `code`, `label`, `org_node_id`, `org_node_label`, `cost_category_id`, `cost_category_label`, `calendar_id`, `calendar_label`, la capacité, `is_active`, l'audit et le compteur de l'objet au marquage | unique (`revision_id`, `resource_role_id`) ; clé composite vers `revision` en refus ; déclencheur d'immuabilité |
 | `revision_calendar` | `project_id`, `id`, `revision_id`, `calendar_id`, `label`, les sept heures de `WeeklyHours`, `is_default`, `is_active`, l'audit et le compteur au marquage (`CalendarImage`) | unique (`revision_id`, `calendar_id`) ; idem |
@@ -414,6 +519,10 @@ avant toute cascade ; une révision marquée ne supprime rien, ses déclencheurs
   `INSERT`, `UPDATE`, `DELETE` : une ligne et un taux conservé d'une révision en cours se modifient
   et se suppriment, une image s'écrit une fois — déclarés dans `SERVICE_RIGHTS`. Aucune migration de
   données : rien n'existe à reprendre.
+- **Une migration, `0026`, par US-1560/L3** (décisions du 2026-11-09, #2603 et #2667) :
+  `create_project_partitions` remplacée une dernière fois — verrou consultatif, verrous pris d'un
+  coup sans attendre, partitions attachées, tables lues dans le catalogue ; sa descente remet la
+  fonction de `0025`. Aucune donnée, aucun droit nouveau.
 - **L'immuabilité** : une fonction de déclencheur par table, dans le module `estimate`, qui lit
   l'état de la révision par `revision_id` sous `FOR KEY SHARE`, comme `cost_structure` et `task`.
   Elle protège les montants conservés (WF-REF-0130, WF-REV-0070) autant que les grandeurs.
@@ -437,9 +546,10 @@ avant toute cascade ; une révision marquée ne supprime rien, ses déclencheurs
   aucune heure est refusée (`TASK_WITHOUT_WORKING_HOURS`), et la garde
   `register_idle_task_guard` juge aussi les calendriers des rôles (`updateCalendar`,
   `updateResourceRole`).
-- **Les commandes** : `apply_rate_update` et `export_estimate` entrent dans `REVISION_RULES` de
-  `core/revisions/commands.py` — `revisions.write` et `rate_update_available` ; `estimate.read`,
-  présente ou absente —, `import_estimate` dans celles de `core/projects/commands.py`
+- **Les commandes** : `apply_rate_update` entre dans `REVISION_RULES` de
+  `core/revisions/commands.py` — `revisions.write` et `rate_update_available` —, `export_estimate`
+  dans `EXPORT_RULES` du même fichier, avec les exports d'EP-06 — `estimate.read`, présente ou
+  absente, sans condition, révision marquée comprise (#2691) —, `import_estimate` dans celles de `core/projects/commands.py`
   (`estimate.write`, `project_before_in_progress` dès En cours, puis `no_background_task_running`,
   `may_create_revision`) ; les deux fichiers sont encore écrits par EP-06 (« Ce qu'EP-06 écrit
   encore »).
@@ -470,20 +580,30 @@ chargeur — s'étend à chacun.
 - **Le montant de base** d'une ligne (`base_amount`) : quantité × charge × taux horaire de sa
   catégorie pour l'année de référence de la révision — le taux conservé (`revision_rate`) s'il
   existe, celui du référentiel (`hourly_rate`) sinon — pour une ligne de main-d'œuvre ; quantité ×
-  débours sinon ; en `Decimal`, arrondi au centime (`ROUND_HALF_EVEN`) une fois par ligne, pour que
-  la somme ne dépende pas de l'ordre (WF-DAT-0100). Sans taux ni conservé ni du référentiel, la
-  ligne n'a pas de montant : la saisie est refusée (`HOURLY_RATE_MISSING`) ; une ligne existante
-  dont le taux manque après une correction du référentiel garde ses montants et `getMissingRates`
-  la nomme — ce cas ne se produit que si un taux est retiré, ce que le référentiel ne fait pas.
-- **L'année de consommation et la projection** : `spreading` répartit les heures travaillées de
-  la tâche porteuse entre les années, sur le calendrier du rôle de la ligne (celui de la tâche
-  hors main-d'œuvre), par arithmétique sur les semaines pleines et les jours restants, sans boucle
-  sur les jours ; chaque part est projetée d'une fois le taux d'inflation par année écoulée depuis
+  débours sinon ; en `Decimal`, arrondi au centime une fois par ligne, pour que la somme ne dépende
+  pas de l'ordre (WF-DAT-0100) — au plus proche, un demi loin de zéro (`ROUND_HALF_UP`), comme le
+  dit `Money` du contrat, qui fait foi (#2618) : 75,705 donne 75,71. Sans taux ni conservé ni du
+  référentiel, la ligne n'a pas de montant : la saisie est refusée (`HOURLY_RATE_MISSING`) ; une
+  ligne existante dont le taux manque après une correction du référentiel garde ses montants et
+  `getMissingRates` la nomme — ce cas ne se produit que si un taux est retiré, ce que le référentiel
+  ne fait pas.
+- **L'année de consommation et la projection** : `spreading` répartit les heures travaillées de la
+  tâche porteuse entre les années, sur le calendrier du rôle de la ligne (celui de la tâche hors
+  main-d'œuvre), par arithmétique sur les semaines pleines et les jours restants, sans boucle sur
+  les jours ; chaque part est projetée d'une fois le taux d'inflation par année écoulée depuis
   l'année de référence, et le réestimé est la somme des parts projetées, arrondie une fois au
   centime — jamais une somme de parts arrondies, pour que WF-DAT-0100 tienne sur une ligne à cheval
-  sur deux années — ; `consumption_year` est l'année de la part la plus lourde, la première à
-  égalité. Le taux d'inflation est celui du
-  projet pour la révision en cours, celui conservé pour une révision marquée.
+  sur deux années — ; une part consommée dans une année antérieure à l'année de référence garde le
+  facteur 1, aucune année ne s'étant « écoulée depuis » elle (#2545, option a ; la phrase de
+  WF-DEV-0030 proposée à la spécification par #2745) ; `consumption_year` est l'année de la part la
+  plus lourde, la première à égalité. Le taux d'inflation est celui du projet pour la révision en
+  cours, celui conservé pour une révision marquée.
+- **Une tâche sans heure travaillée** — non jalon, de plusieurs jours, dont le calendrier ne
+  travaille aucune heure (du samedi au dimanche, par exemple) — n'a pas de prorata : ses lignes
+  comptent entières à sa **fin**, dans la valeur planifiée comme dans l'étalement par mois, sauf fin
+  dépassée à la date de calcul, portée au mois de cette date comme toute ligne (#2553, option a) ;
+  le jalon, lui, compte à sa date (WF-DEV-0080). Prudent pour l'indice de délai, la valeur n'étant
+  planifiée qu'à la fin. Écartés : la compter à son début ; une autre règle.
 - **Le budgété** suit « Ce que le cadrage décide » : fixé par la lignée à la création et à la copie,
   rafraîchi à la désignation ; la projection du budgété est celle de la référence, conservée avec
   lui — il ne suit pas les dates de la révision courante (`NodeInflation`).
@@ -515,7 +635,9 @@ chargeur — s'étend à chacun.
   dont le taux conservé est `projected` : `previous_amount` le taux projeté, `proposed_amount` et
   `source` le taux du référentiel pour `target_year` (`reference_rate`) ou, sans lui, le taux
   projeté (`inflated_previous`) ; `applyRateUpdate` écrit `reference` sur les catégories retenues
-  et rechiffre.
+  dont la source est `reference_rate`, et rechiffre ; une catégorie `inflated_previous` acceptée
+  reste `projected`, et reste proposée, pour que le taux de l'année, une fois entré au référentiel,
+  le soit encore (#2619, option 2). Écarté : figer le taux projeté accepté en `reference`.
 - **Au marquage**, `register_marking` écrit les images des rôles, calendriers et catégories que les
   lignes emploient — un calendrier par rôle employé, le calendrier par défaut compris —, un
   `revision_rate` pour chaque catégorie de main-d'œuvre employée sans taux conservé (celui du
@@ -523,6 +645,73 @@ chargeur — s'étend à chacun.
   `snapshot` d'une révision marquée seule.
 - **Une révision marquée se lit sur ses images** : les libellés de `EstimateLineFacet`, les
   calendriers de l'export MS Project, la comparaison ; une révision en cours sur le référentiel.
+
+### Les constats des lots livrés (décisions de l'auteur du 2026-11-10)
+
+Les constats que les lots d'EP-07 ont laissés « à trancher », tranchés le 2026-11-10, chacun avec
+l'option écartée. Ceux qui ne changent qu'un texte sont écrits à leur place : les index
+d'`estimate_line` (#2585, « Tables et migrations »), le logo du classeur (#2600, « Le format Excel
+du devis »), la tâche sans heure travaillée (#2553, « Le calcul des montants »), `moveNodes` (#2614)
+et `compareRevisions` (#2650) dans les critères d'US-1490 et d'US-1530, le report des parcours de
+la comparaison à US-1570/L2 et de la volumétrie à EP-13 (#2657, #2696). Les autres se corrigent par
+deux lots ajoutés à l'EPIC, avant la vérification d'ensemble US-1570/L3, qui en dépend :
+
+- **Le lot d'outillage des tests du back** (US-1570/L4 #2746) possède `backend/tests/support.py` —
+  qu'aucun lot n'écrivait, hors le lot technique de #2635 (US-1550/L5), et qu'aucun autre lot des
+  EPIC en cours n'écrit (« Ce qu'EP-06 écrit encore ») — et passe en tête : les tests du back durent
+  14 à 15 minutes sous un plafond de 20. `ContractClient` construit une seule fois le registre
+  `referencing` du contrat, et la validation d'une grosse réponse ne réanalyse plus le YAML à chaque
+  `$ref` ; l'amorce de `whole_read` de `test_witness_lines_reads.py` se retire (#2720). `walk()`
+  accepte une composition dont les branches objet ont des propriétés disjointes, la valeur suivant
+  la branche dont elle porte les propriétés — ce qu'US-1550/L5 a fait pour les branches fermées de
+  `ProblemParams.tasks`, que le contrat a rendues discriminables (#2635) — ;
+  `test_estimate_hooks.py` et `test_estimate_lines_move.py`, qui contournaient `ContractClient`,
+  repassent par lui (#2597). Un corps `application/xml` déclaré `binary` est rendu au validateur
+  comme des octets, et `test_msproject_export.py` repasse par `ContractClient` (#2675). Le test de
+  l'ambiguïté de `test_api_service.py` cite WF-ARC-0110-A (#2677). `make service-logs` recueille
+  aussi les journaux de `restore` et de `worker` dans `.github/workflows/service.yml` (#2666).
+  `docs/dev/python.md` reçoit la règle des stubs locaux (#2599) : une bibliothèque sans stubs reçoit
+  des stubs locaux dans `backend/typings/<paquet>/`, aux signatures réelles des fonctions appelées,
+  sauf si un paquet `types-…` publié existe, qui se préfère — par ce lot, `backend/typings/`
+  n'existant que sur `epic/EP-07`.
+- **Le lot de corrections du devis**, coupé en deux : le back (US-1570/L5 #2747), puis les
+  parcours et le front (US-1570/L6 #2748) :
+  - **l'arrondi au centime suit le contrat** (#2618, option 1) : `pricing.round_to_cent` passe à
+    `ROUND_HALF_UP`, les exemples chiffrés relus ; écarté : `Money` réécrit au demi pair, une
+    version du contrat pour un défaut de la conception ;
+  - **`createNode` d'une ligne exige l'une de `planning.write`, `estimate.write` et
+    `remaining.write`** (#2601, option 1), la commande de la structure disant laquelle est
+    disponible, comme le contrat le dit des trois grilles (`StructureCommand`) ; `deleteNode`,
+    `moveNodes` et `applyPaste` d'une ligne se vérifient et suivent la même règle ; le lot écrit
+    `api/nodes.py` d'EP-06 pour ce seul point, et la description des opérations si elle le tait ;
+    écartés : la permission selon le genre du nœud, et `planning.write` seul, qui refusait la ligne
+    à la grille du devis ;
+  - **le verrou partagé des natures se prend avant celui de la structure, partout** (#2615, option
+    a) : l'écriture d'une ligne — création, modification, déplacement, collage, import — prend
+    `share_natures` avant le verrou de la structure, dans l'ordre que
+    `core/cost_settings/records.py` fixe déjà pour le rechiffrage d'US-1500/L2 ; écartée : la
+    fenêtre laissée et documentée ;
+  - **la ligne qui nomme un sous-projet le lit sous `FOR KEY SHARE`** et refuse proprement, comme
+    un sous-projet inexistant, celui qu'une suppression concurrente a emporté (#2616) ; écartée : la
+    violation de clé étrangère traduite après coup ;
+  - **une catégorie `inflated_previous` acceptée reste `projected`** et proposable (#2619, option
+    2 ; « L'instantané et les taux ») ;
+  - **la comparaison et une catégorie absente** (#2656) : le lot établit si une catégorie portée par
+    une ligne d'une révision marquée peut manquer à ses images et au référentiel ; si oui, la
+    catégorie se lit sur l'image, et un test le fixe ; sinon, le lot le dit et le test le prouve ;
+  - **`nodes_estimate_filtered`** (#2699) : le lot établit qui fait foi entre l'exemple
+    (`task_count` 0) et le service (1), corrige l'autre, et retire le terme de tolérance de
+    `test_witness_lines_reads.py` ;
+  - **l'étalement lit le calendrier de `planning`** (#2549) : l'interface de `core/planning`
+    exporte le comptage des heures travaillées du calendrier, `spreading` le lit, et `WorkWeek` est
+    supprimé ; écartées : deux sources de vérité des heures ;
+  - les mineurs : les en-têtes entiers, `write_comment` et `_Row` de l'écriture du devis (#2602) ;
+    le `VALIDATE` d'une structure oubliée par un corps qui réussit, éprouvé (#2622) ; l'inscription
+    affirmée après rechargement dans le parcours des contributeurs (#2673) ; `Schemas["User"]`
+    dans les assistants e2e (#2674) ; le parcours FLX-01 du chef de projet confirme l'import et lit
+    sa tâche d'application (#2683, d'EP-06) ; un assistant e2e partagé ouvre un contexte neuf avec
+    la configuration du projet Playwright, et les quatre parcours qui la recopiaient s'en servent
+    (#2653, d'EP-06).
 
 ### Le format Excel du devis
 
@@ -535,8 +724,11 @@ chargeur — s'étend à chacun.
   « Tâches » et « Paramètres », colonnes calculées par formule qui nomme son tableau, lignée dans une
   colonne masquée ; « Tâches » (lignée, numéro, libellé, onglet, dates, description) et
   « Paramètres » (rôles, catégories hors main-d'œuvre, taux retenus, sous-projets), protégés ; le
-  logo et le pied de page sur chaque onglet ; aucun texte saisi écrit comme formule
-  (`strings_to_formulas` faux). `sheet_name` ramène un nom aux règles d'Excel : caractères refusés
+  logo sur « Présentation » seule, comme le prototype de la spécification, et le pied de page sur
+  chaque onglet (#2600) ; aucun texte saisi écrit comme formule (`strings_to_formulas` faux). Une
+  catégorie y est désignée par son code comptable, colonne « Code comptable » comprise (#2688) ; les
+  libellés des rôles et des catégories sont indexés à part (#2690). `sheet_name` ramène un nom aux
+  règles d'Excel : caractères refusés
   remplacés, 31 unités UTF-16, unicité sans égard à la casse par un suffixe ` (2)` ; EP-09
   l'importe pour les codes des sous-projets (#2190).
 - **La lecture** (openpyxl, `read_only`, valeurs) : l'en-tête d'abord — format « Devis », version
@@ -545,7 +737,9 @@ chargeur — s'étend à chacun.
   désignation, la quantité, les heures, le débours unitaire, le délai de paiement, le sous-projet et
   la lignée ; une ligne vide ou de total ignorée, une colonne inconnue ignorée, un nombre en texte
   rejeté (`NUMBER_INVALID`), chaque rejet par son onglet et son numéro de ligne Excel.
-- **L'analyse** rapproche par la lignée, puis désigne la tâche par « Tâches » ou par son libellé
+- **L'analyse** rapproche par la lignée, retrouve un rôle ou une catégorie par le code entre les
+  dernières parenthèses de « libellé (code) », le libellé n'étant qu'indicatif (#2689), puis désigne
+  la tâche par « Tâches » ou par son libellé
   (`AMBIGUOUS_TASK_LABEL`, `UNKNOWN_TASK`), crée les lignes sans lignée, met à jour les autres sans
   toucher leur budgété, supprime les absentes sauf sous une tâche démarrée ou terminée (`kept`),
   rejette une ligne nouvelle sous une tâche terminée de la structure principale
@@ -625,7 +819,8 @@ attendent dès le socle —, pour qu'il ne soit pas rouge entre les deux.
 Chaque US étiquette `@shared` les tests dont l'écran est servi : US-1520 `workload.spec.ts` ;
 US-1530 `revisions.spec.ts` (`BEFORE_EP07` levé, la proposition des taux comprise, après US-1500) ;
 US-1540 le jumeau des contributeurs et le cycle (`revision-cycle.spec.ts`) ; US-1550 l'import en
-deux temps d'`exchanges.spec.ts` ; US-1560 `entry.spec.ts`, `computed.spec.ts`, `keyboard.spec.ts`,
+deux temps d'`exchanges.spec.ts`, une fois que le banc du service laisse passer les corps non JSON
+(« Ce que le cadrage décide », #2687) ; US-1560 `entry.spec.ts`, `computed.spec.ts`, `keyboard.spec.ts`,
 `paste.spec.ts`, `undo.spec.ts`, la part du devis de `grid.spec.ts`, `structure.spec.ts` et
 `context.spec.ts` (`BEFORE_THE_DATA` levé pour le devis). Les parcours qui écrivent le font sur un
 projet que la course crée (#2193) ; ceux qui lisent le devis propre d'un risque restent gardés par
@@ -669,12 +864,15 @@ ce lot, ou en dépendent par son numéro :
 | le guide, la liste des entrées non rejouées | US-1480/L3 #2348 | US-1570/L3 |
 | `app.py`, `pyproject`, `tests/planning_support.py`, `witness/revisions.py`, `chronology.py` | US-1380/L1 #2328, fusionné avant la branche | aucun |
 
-`conftest.py`, `support.py`, `api/queries.py`, `loader.py` et `mode.ts` ne s'écrivent dans aucun
+`conftest.py`, `api/queries.py`, `loader.py`, `mode.ts` et — hors du lot d'outillage des tests
+(« Les constats des lots livrés ») — `support.py` ne s'écrivent dans aucun
 des deux EPIC : une fixture qui manque devient une issue. Les catalogues `messages/*.json` ne
 s'écrivent que par le lot qui ajoute un code d'erreur au contrat, pour sa seule clé
 `errors.<CODE>` et son test (décision du 2026-11-08, EP-06, « Les catalogues du front et le
-collage », #2537), et par le lot qui porte un écran, pour les clés non-erreur de ce seul écran
-(amendement du 2026-11-08, #2559, #2563) ; toute autre clé manquante devient une issue.
+collage », #2537), par le lot qui porte un écran, pour les clés non-erreur de ce seul écran
+(amendement du 2026-11-08, #2559, #2563), et par le lot de correction du devis, pour la seule clé
+`grid.paste.createdLines` (décision du 2026-11-10, #2668) ; toute autre clé manquante devient une
+issue.
 
 ### L'ordre de construction
 
@@ -712,7 +910,10 @@ d'ensemble en dernier ; le plan de lots (étape 3) le détaille en vagues.
    `core/exchanges`).
 3. **Les quatre lectures** (US-1510, US-1520, US-1530, US-1540) et **la lecture et l'analyse du
    classeur** (US-1550), après la ligne.
-4. **La grille de devis** (US-1560, le collage après #2344), **l'export et l'import branchés**
+4. **La création des partitions sans verrou mortel** (US-1560/L3, la migration `0026`), avant la
+   grille branchée qui multiplie les parcours créant leur projet, et avant le socle d'EP-09 qui
+   chaîne sa migration sur elle ;
+   **la grille de devis** (US-1560, le collage après #2344), **l'export et l'import branchés**
    (US-1550, après #2336 et #2325), **la tranche des lignes** (US-1570, après #2347), après tout ce
    qui écrit ; puis **la vérification d'ensemble** (US-1570, après #2348), seule.
 
@@ -913,7 +1114,9 @@ sans construire un second arbre.
   apporte les coûts réels ;
 - propre à l'US : `deleteNode` d'une ligne la supprime physiquement et rend ses ancêtres et les
   totaux ; `moveNodes` déplace une ligne ou une sélection de lignes sous une autre tâche, un jalon
-  compris, et refuse `after_node_id` d'un autre genre que la ligne (`NODE_NOT_SIBLING`) ; `listNodes`
+  compris, et refuse un `after_node_id` qui n'est pas frère sous le parent visé (`NODE_NOT_SIBLING`)
+  — un `after_node_id` d'un autre genre que la ligne retombe à la frontière entre les lignes et les
+  sous-tâches, comme le dit le contrat (#1187, #2614) — ; `listNodes`
   rend la facette ligne entière — libellés de la catégorie, du rôle et du sous-projet résolus,
   `uses_inactive_object`, les trois montants, `consumption_year` —, les totaux (`hours`,
   `base_amount`, `budgeted_amount`, `reestimated_amount`) des lignes retenues, les filtres de la
@@ -1275,12 +1478,17 @@ changé d'une offre à la suivante.
   le tri), `totals` de la révision comparée, `meta`, et `amount_deltas` par nature et par
   sous-projet, chaque ligne comptant sous la clé qu'elle porte dans chaque révision, les clés aux
   deux écarts nuls omises, la somme par sous-projet égale à la somme par nature (#1752) ; une paire
-  identique rend chaque nœud inchangé ; une révision en cours ou d'un autre projet refusée par 422
-  et 404 ;
+  identique rend chaque nœud inchangé ; une révision en cours refusée par 409
+  `STATE_FORBIDS_OPERATION`, `params.missing_condition` à `revision_marked`, une révision d'un
+  autre projet par 404, comme le dit le contrat (#2650) ;
 - propre à l'US : la comparaison de l'écran des révisions travaille contre le service,
   `revisions.spec.ts` perd `BEFORE_EP07` et ses parcours de la comparaison portent `@shared`, la
   volumétrie des 5 999 nœuds du témoin tenue sous la borne d'un écran de grille ; chaque réponse est
-  validée contre le contrat dans les tests du service.
+  validée contre le contrat dans les tests du service — les deux parcours de la comparaison de
+  PRJ-001 100→101 sont portés par US-1570/L2 #2385 (décision de l'auteur du 2026-11-09, option A,
+  #2657), qui les joue contre le service ; la volumétrie reste jouée sur le faux back, et sa
+  borne contre le service est reportée à EP-13, qui charge les volumes entiers : le projet de
+  volume n'existe qu'aux fixtures du faux back (#2696, décision de l'auteur du 2026-11-10).
 
 **Notes de réalisation.** La comparaison lit deux révisions marquées sur leurs images et leurs taux
 conservés (US-1500) : rien n'est recalculé sur le référentiel du jour. L'écran est celui d'EP-15
@@ -1531,7 +1739,8 @@ connaissent et de revenir sans écart.
   « Devis » (une ligne par lot, par poste, par lot hors de ses postes, « Hors lot », les montants
   par nature, les heures par code comptable, la case « Inclus »), un onglet par poste, par lot et
   « Hors lot » dont les lignes forment un tableau Excel aux listes, formules et mise en forme
-  étendues à la saisie, « Tâches » et « Paramètres » protégés, le logo et le pied de page, la lignée
+  étendues à la saisie, « Tâches » et « Paramètres » protégés, le logo sur « Présentation » et le
+  pied de page sur chaque onglet (#2600), la lignée
   dans une colonne masquée — avec les seules fonctions que toutes les versions d'Excel et de
   LibreOffice connaissent, et un texte saisi écrit comme texte ; le nom d'un onglet suit les règles
   d'Excel — caractères refusés, 31 unités UTF-16, unicité sans égard à la casse par suffixe —, par
@@ -1616,7 +1825,8 @@ annulation, tri, filtres, indicateurs —, **afin de** chiffrer mon projet sans 
   contre le service sur les six mille nœuds de PRJ-001 ;
 - `WF-IHM-0060-A` — « Les colonnes masquées et les largeurs choisies sont retrouvées à la
   réouverture, et un autre utilisateur ouvrant la même grille voit ses propres réglages. » :
-  constaté par EP-03 ;
+  constaté par EP-03, sans rejeu contre le service : le mécanisme des réglages est commun aux
+  grilles et aux tables, éprouvé contre le service par `service/account.spec.ts` (#2671) ;
 - `WF-IHM-0060-A` — « Le nombre de lignes par page choisi pour une table est retrouvé à sa
   réouverture, sans changer celui des autres tables ; une grille arborescente n’offre pas ce
   choix. » : constaté par EP-15 ;
@@ -1724,7 +1934,11 @@ plus gros devis.
   marquées « levées par EP-07 » (PRJ-001 En cours, sa référence, ses lignes) et qu'EP-06 laisse
   (« les lignes, les montants, le devis »), sont levées, le guide disant ce que la tranche charge et
   ce qu'EP-08 et EP-09 y ajoutent ; le statut de cette US est passé `fini` dans le fichier — chaque
-  autre US l'est par le lot qui la termine.
+  autre US l'est par le lot qui la termine ;
+- propre à l'US (repris d'US-1530, #2657) : les deux parcours de la comparaison de PRJ-001 100→101
+  de `revisions.spec.ts` perdent `BEFORE_EP07`, portent `@shared` et passent contre le service, le
+  témoin chargé (US-1570/L2 #2385) ; la volumétrie des 5 999 nœuds n'est pas rejouée contre le
+  service avant EP-13 (#2696).
 
 **Notes de réalisation.** La tranche suit la chronologie d'EP-04 (`Act.at`) et le registre d'EP-06
 (`register_revision_filler`) : les lignes de chaque révision s'écrivent après ses tâches et avant

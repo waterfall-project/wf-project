@@ -18,7 +18,7 @@ from typing import TYPE_CHECKING
 from waterfall.core.planning.interface.facets import BearingTask, calendar_of, facets
 from waterfall.core.planning.scheduling import WorkInstant
 from waterfall.core.planning.views import COMPLETED, state_of
-from waterfall.platform.errors import ConflictError
+from waterfall.platform.errors import STATE_FORBIDS_OPERATION, ConflictError
 
 if TYPE_CHECKING:
     from collections.abc import Collection, Iterable
@@ -30,7 +30,6 @@ if TYPE_CHECKING:
     from waterfall.core.planning.tree import Tree
     from waterfall.core.planning.writing import Write
 
-STATE_FORBIDS_OPERATION = "STATE_FORBIDS_OPERATION"
 TASK_NOT_COMPLETED = "task_not_completed"
 
 

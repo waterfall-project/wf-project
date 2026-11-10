@@ -8,9 +8,8 @@ which is the last administrator (WF-ARC-0020): the account says it.
 
 from dataclasses import dataclass
 
-from waterfall.platform.errors import ConflictError
+from waterfall.platform.errors import STATE_FORBIDS_OPERATION, ConflictError
 
-STATE_FORBIDS_OPERATION = "STATE_FORBIDS_OPERATION"
 # The condition the deactivation of the last administrator lacks (WF-ADM-0120).
 LAST_ADMINISTRATOR_CONDITION = "last_administrator"
 # The condition the reactivation of an anonymised account lacks, and the change of its names: the

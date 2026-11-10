@@ -23,7 +23,12 @@ from uuid import UUID
 from waterfall.core.projects.interface import current_day
 from waterfall.core.revisions.interface import list_cost_structures, read_revision
 from waterfall.platform.database import utc_now
-from waterfall.platform.errors import ConflictError, ForbiddenError, NotFoundError
+from waterfall.platform.errors import (
+    STATE_FORBIDS_OPERATION,
+    ConflictError,
+    ForbiddenError,
+    NotFoundError,
+)
 from waterfall.platform.registry import Registry
 from waterfall.platform.tasks import BackgroundTask, read_task, submit
 
@@ -57,7 +62,6 @@ CONSUMED = "consumed"
 MAIN = "main"
 NOT_FOUND = "NOT_FOUND"
 PERMISSION_MISSING = "PERMISSION_MISSING"
-STATE_FORBIDS_OPERATION = "STATE_FORBIDS_OPERATION"
 TASK_SUCCEEDED = "task_succeeded"
 # The key of the payload that names the project: not ``project_id``, which makes the project wait
 # for the task (``project_task_pending``) — an export reads, and blocks no write.

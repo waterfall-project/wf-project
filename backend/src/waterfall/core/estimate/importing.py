@@ -76,7 +76,7 @@ from waterfall.core.resource_settings.interface import (
     role_calendars,
 )
 from waterfall.core.revisions.interface import structure_facts
-from waterfall.platform.errors import UnprocessableError
+from waterfall.platform.errors import STATE_FORBIDS_OPERATION, UnprocessableError
 
 if TYPE_CHECKING:
     from collections.abc import Iterable, Mapping
@@ -100,7 +100,6 @@ UNKNOWN_TASK = "UNKNOWN_TASK"
 UNKNOWN_RESOURCE_ROLE = "UNKNOWN_RESOURCE_ROLE"
 UNKNOWN_SUBPROJECT = "UNKNOWN_SUBPROJECT"
 AMBIGUOUS_TASK_LABEL = "AMBIGUOUS_TASK_LABEL"
-STATE_FORBIDS_OPERATION = "STATE_FORBIDS_OPERATION"
 NOUGHT = Decimal(0)
 EVERY = 10**9
 NOBODY = UUID(int=0)

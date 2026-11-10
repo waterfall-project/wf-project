@@ -181,6 +181,8 @@ def test_the_first_revision_is_born_current_with_its_main_structure_alone(
         False,
     )
     assert main["planning_start_on"] == revision["audit"]["created_at"][:10]
+    # Born at 1, as every resource (``LockVersion`` of the contract; E-16, #2542).
+    assert main["lock_version"] == 1
     # Before In progress, the main structure is estimated, its remaining not yet entered.
     assert missing(main) == {
         "edit_planning": [],
@@ -378,6 +380,8 @@ def test_a_revision_opened_from_a_marked_one_copies_its_structures_keeping_their
     # The planning of a structure taken up starts on the day its lineage was born.
     [main] = structures(api, stage, current["revision_id"])
     assert main["planning_start_on"] == offer["audit"]["created_at"][:10]
+    # A copy is a structure born, at 1 as well (E-16, #2542).
+    assert main["lock_version"] == copied[0][5] == 1
 
 
 @pytest.mark.requirement("WF-DAT-0010-A")

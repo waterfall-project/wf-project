@@ -14,11 +14,12 @@ from datetime import timedelta
 from typing import TYPE_CHECKING, Literal
 
 from waterfall.core.projects.interface import (
+    NO_BACKGROUND_TASK_RUNNING,
     PROJECT_NOT_TERMINAL,
     TERMINAL,
     no_background_task_running,
 )
-from waterfall.platform.errors import ConflictError
+from waterfall.platform.errors import STATE_FORBIDS_OPERATION, ConflictError
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -36,8 +37,6 @@ type ImportScope = Literal["structure", "project"]
 # of contributor a write asks for besides: it lets pass, or raises the refusal (403, 404).
 type Judge = Callable[[Session, UUID, str], None]
 
-STATE_FORBIDS_OPERATION = "STATE_FORBIDS_OPERATION"
-NO_BACKGROUND_TASK_RUNNING = "no_background_task_running"
 MAY_CREATE_REVISION = "may_create_revision"
 # The conditions an application lacks for a while, which refuse it and leave the import awaiting
 # its decision, its file kept: a background task ends, a permission is granted (WF-ARC-0100,

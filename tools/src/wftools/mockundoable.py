@@ -12,7 +12,10 @@ it writes. The fake back creates tasks alone: a line of the estimate created by 
 The undo of an entry, and its redo, answer what a write answers (`UndoResult`, WF-IHM-0110): here,
 the renaming of the wiring of the cabinets (``mockwrites.task_renamed``) undone, then redone, each
 one version further, so that no two answers render the wiring at one version with two contents
-(#421, #2564).
+(#421, #2564). Two variants of them say a history that does not end with them, so that the
+announcement of the front reads its forms `one` and `other` (#2626): the undo with one change left
+to undo, the redo with two left to redo — changes of the caller in the estimate of the amendment 2,
+which write nothing of the main structure, its answers unchanged.
 
 Each answer is, as every write of the grids, the difference between two readings of one structure
 (``mockwrites.written``), never written by hand. ``mockwrites.writes`` calls this module, and this
@@ -158,6 +161,15 @@ def paste_applied_creating() -> JsonObject:
 
 # --- The undo and the redo ---------------------------------------------------------------------
 
+ONE_LEFT = 1
+"""What remains to undo once the renaming is undone, when the caller changed the estimate of the
+amendment 2 once before it (``undo_task_renamed_one_left``)."""
+
+TWO_LEFT = 2
+"""What remains to redo once the renaming is redone, when the caller changed the estimate of the
+amendment 2 twice after it, then undid the three (``redo_task_renamed_two_left``): the renaming,
+the first of them, is the first redone."""
+
 
 def _bumped(reading: JsonObject, number: int, by: int) -> JsonObject:
     """Return a reading with the node of a number some versions further, as writes left it."""
@@ -192,6 +204,24 @@ def redo_task_renamed() -> JsonObject:
     """
     before = _bumped(mockcore.whole(mockcore.current()), WIRING, 2)
     return _undone(mockwrites.written(before, _renamed(), [universe(WIRING)], structure_version=4))
+
+
+def undo_task_renamed_one_left() -> JsonObject:
+    """Return the undo of the renaming when one change of the caller remains to undo before it.
+
+    The change left is in the estimate of the amendment 2: the main structure, and the answer of
+    the undo with it, are those of ``undo_task_renamed``; only ``remaining_depth`` differs.
+    """
+    return {**undo_task_renamed(), "remaining_depth": ONE_LEFT}
+
+
+def redo_task_renamed_two_left() -> JsonObject:
+    """Return the redo of the renaming when two changes of the caller remain to redo after it.
+
+    The two are in the estimate of the amendment 2, made after the renaming and undone before it:
+    the answer of the redo is that of ``redo_task_renamed``, but for ``remaining_depth``.
+    """
+    return {**redo_task_renamed(), "remaining_depth": TWO_LEFT}
 
 
 def _undone(written: JsonObject) -> JsonObject:
@@ -272,5 +302,20 @@ def examples() -> dict[str, JsonObject]:
             f"le compteur de la structure passé à {redone_written['structure_lock_version']}. "
             f"Plus rien à rétablir (WF-IHM-0110).",
             redone,
+        ),
+        "undo_task_renamed_one_left.json": mocktext.example(
+            f"Variante de undo_task_renamed : l'appelant avait modifié une fois le devis de "
+            f"l'avenant 2 avant de renommer la tâche « {wiring} ». L'annulation du renommage "
+            f"écrit la même chose, la structure principale n'ayant rien reçu de cette saisie ; "
+            f"il reste {ONE_LEFT} modification à annuler, la saisie de l'avenant (WF-IHM-0110).",
+            undo_task_renamed_one_left(),
+        ),
+        "redo_task_renamed_two_left.json": mocktext.example(
+            f"Variante de redo_task_renamed : l'appelant avait, après le renommage de la tâche "
+            f"« {wiring} », modifié deux fois le devis de l'avenant 2, puis annulé ces trois "
+            f"modifications. Le rétablissement rend d'abord le renommage, et écrit la même chose "
+            f"que redo_task_renamed ; il reste {TWO_LEFT} modifications à rétablir, les deux "
+            f"saisies de l'avenant (WF-IHM-0110).",
+            redo_task_renamed_two_left(),
         ),
     }
