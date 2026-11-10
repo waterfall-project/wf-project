@@ -12,7 +12,7 @@ subproject. Every answer of the service is checked against the contract.
 """
 
 from concurrent.futures import ThreadPoolExecutor
-from datetime import date
+from datetime import date, datetime
 from decimal import Decimal
 from typing import TYPE_CHECKING, Any
 from uuid import UUID
@@ -221,6 +221,7 @@ def test_two_imports_of_the_same_file_give_the_same_total_and_keep_an_exclusion(
     # « Deux imports successifs du même fichier donnent le même total de coûts réels. » : the second
     # counts all its lines unchanged, none created. « Deux imports du même fichier de coûts réels
     # laissent le même nombre de lignes et les mêmes montants, et une ligne exclue le reste. »
+    # A line accepted and unchanged takes the last import as its own, and nothing else changes.
     imported(api, stage, worker, APRIL)
     exclude(stage, "5100001300", "Avoir hors contrat")
     first, before = lines(stage), total(stage)
@@ -236,8 +237,12 @@ def test_two_imports_of_the_same_file_give_the_same_total_and_keep_an_exclusion(
     assert [row.id for row in again] == [row.id for row in first]
     assert (again[1].is_in_tracked_scope, again[1].excluded_reason) == (False, "Avoir hors contrat")
     assert total(stage) == before
-    # A line the second import does not change is not written again: its last import is the first.
-    assert {row.last_import_id for row in again} == {UUID(entries[1]["cost_import_id"])}
+    # A line the second import does not change is not written again — its audit is as it was — but
+    # it names the second import as its last, the date of the last import the consultation reads.
+    assert {row.last_import_id for row in again} == {UUID(entries[0]["cost_import_id"])}
+    assert [(row.updated_at, row.updated_by) for row in again] == [
+        (row.updated_at, row.updated_by) for row in first
+    ]
     assert all(row.updated_at == row.created_at for row in again)
 
 
@@ -314,6 +319,57 @@ def test_a_line_whose_amount_changed_is_updated_and_keeps_its_exclusion(
     )
     assert again.updated_at > held.updated_at
     assert counts(latest) == (0, 1, 0, 0)
+
+
+@pytest.mark.requirement("WF-INTF-0140-A")
+def test_two_lines_of_a_file_on_the_same_document_and_item_are_written_nowhere(
+    api: ContractClient, stage: Scene, worker: Worker
+) -> None:
+    # « Deux lignes d'un même fichier de même pièce et de même poste sont rejetées toutes deux » :
+    # nothing written for either, both counted rejected, the line alone written.
+    content = extraction(
+        [
+            line(element=CODE, number="FA-D", amount=10),
+            line(element=CODE, number="FA-1", amount=20),
+            line(element=CODE, number="FA-D", amount=30),
+        ]
+    )
+    report = imported(api, stage, worker, content)
+
+    assert [row.document_number for row in lines(stage)] == ["FA-1"]
+    assert [each["code"] for each in report["rejected"]] == ["DUPLICATE_COST_LINE"] * 2
+    assert counts(log(api, stage)["items"][0]) == (1, 0, 0, 2)
+    assert total(stage) == Decimal("20.00")
+
+
+@pytest.mark.requirement("WF-INTF-0140-A")
+def test_a_line_whose_only_a_column_kept_changed_is_updated_with_the_column_replaced(
+    api: ContractClient, stage: Scene, worker: Worker
+) -> None:
+    # A line imported again whose supplier alone changed: updated, its columns kept replaced.
+    imported(api, stage, worker, extraction([line(element=CODE, number="FA-5")]))
+    [first] = lines(stage)
+
+    report = imported(
+        api, stage, worker, extraction([line(element=CODE, number="FA-5", supplier="Autre")])
+    )
+
+    assert [each["fields"] for each in report["differences"]] == [["passthrough.Fournisseur"]]
+    [again] = lines(stage)
+    assert (again.id, again.passthrough) == (first.id, {"Fournisseur": "Autre"})
+    assert again.updated_at > first.updated_at
+    assert counts(log(api, stage)["items"][0]) == (0, 1, 0, 0)
+
+
+@pytest.mark.requirement("WF-CRE-0050-A")
+def test_the_log_refuses_a_page_size_out_of_its_bounds(api: ContractClient, stage: Scene) -> None:
+    for size in (0, 501):
+        response = api.get(
+            f"/api/v1/projects/{stage.project['project_id']}/cost-imports",
+            headers=stage.reader.headers,
+            params={"limit": size},
+        )
+        assert response.status_code == 422, response.text
 
 
 @pytest.mark.requirement("WF-CRE-0020-A")
@@ -429,7 +485,7 @@ def test_the_log_presents_each_import_dated_with_its_author_and_its_counts_lates
         None,
         (1, 0, 0, 0),
     )
-    assert before.isoformat()[:10] == latest["imported_at"][:10]
+    assert before <= datetime.fromisoformat(latest["imported_at"])
     assert latest["imported_at"] >= oldest["imported_at"]
 
 

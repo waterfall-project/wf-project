@@ -62,9 +62,10 @@ class ImportTarget:
     creating its first. For the application, the current revision, and its structure, and
     ``running``, the task that applies: the writes of the format name it, so that it does not
     suspend them (``no_background_task_running``); none at the opening and the analysis. For the
-    application, ``import_id`` the import applied and ``period_from`` and ``period_to`` the period
-    its opening declared, which an import of the project keeps in its log (the actual costs,
-    WF-CRE-0050); none at the opening and the analysis.
+    application, ``import_id`` the import applied and, for an import of the project, ``period_from``
+    and ``period_to`` the period its opening declared, which its format may keep; none at the
+    opening and the analysis. For the scope ``structure``, only ``import_id`` is set at the
+    application, the period being left unset.
     """
 
     project_id: UUID

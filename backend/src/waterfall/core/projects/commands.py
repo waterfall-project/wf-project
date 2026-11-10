@@ -114,12 +114,12 @@ class Running:
     ``no_task_running`` tells that no task of the background writes in the project;
     ``opening_has_tasks`` that the revision its opening would create carries a task;
     ``mapping_complete`` that the mapping of an extraction of the actual costs declares a label for
-    each column it requires (WF-REF-0190), true when it is not read.
+    each column it requires (WF-REF-0190), true by the callers that do not read it.
     """
 
     no_task_running: bool
+    mapping_complete: bool
     opening_has_tasks: bool = False
-    mapping_complete: bool = True
 
 
 def skeleton_conditions(running: Running) -> list[str]:

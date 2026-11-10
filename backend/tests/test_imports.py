@@ -9,7 +9,7 @@ refusals, the analysis, the report read, the application judged again, the aband
 concurrent and the interrupted applications are in ``test_imports_application.py``.
 """
 
-from datetime import timedelta
+from datetime import date, timedelta
 from typing import TYPE_CHECKING, Any
 from uuid import UUID, uuid4
 
@@ -378,7 +378,7 @@ def test_an_opening_is_refused_for_a_condition_of_its_kind(
 
 
 def test_an_import_of_the_project_keeps_its_period_and_aims_at_no_structure(
-    api: ContractClient, stage: Scene, monkeypatch: pytest.MonkeyPatch
+    api: ContractClient, stage: Scene, worker: Worker, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     form = TrialFormat(scope="project", permission="actual_costs.write")
     stand_in(monkeypatch, "actual_costs", form)
@@ -396,6 +396,16 @@ def test_an_import_of_the_project_keeps_its_period_and_aims_at_no_structure(
     found = response.json()
     assert (found["period_from"], found["period_to"]) == ("2026-04-01", "2026-04-30")
     assert (found["structure_id"], found["revision_id"]) == (None, None)
+    run(worker)
+    assert apply(api, stage, found["import_id"]).status_code == 202
+    run(worker)
+    # The target the application gives the format: the import applied, the period it declared, and
+    # no revision nor structure.
+    target = form.seen[-1]
+    assert target.import_id == UUID(found["import_id"])
+    assert (target.period_from, target.period_to) == (date(2026, 4, 1), date(2026, 4, 30))
+    assert (target.revision_id, target.structure_id) == (None, None)
+    assert read(api, stage, found["import_id"])["status"] == "applied"
 
 
 @pytest.mark.requirement("WF-ARC-0100-A")

@@ -11,9 +11,10 @@ again, then against those of the project as they stand under the lock:
 - one that matches a line of the project and changes its date, its amount, its subproject or a
   column kept updates it — its imputation computed again from its WBS element, its columns kept
   replaced, its exclusion intact (WF-INTF-0140, WF-CRE-0020) —; one that changes nothing leaves it
-  as it is, written by the import that last changed it;
-- each line written names the import, and the account that confirmed it as its author
-  (WF-DAT-0070).
+  as it is, counted unchanged, but for the import it names: ``last_import_id`` only, neither
+  ``updated_at`` nor ``updated_by``;
+- each line accepted names the import (``last_import_id``, WF-CRE-0050), and each line written the
+  account that confirmed it as its author (WF-DAT-0070).
 
 The entry of the log is written first, the lines name it: the author who confirmed, the period of
 the opening, the columns kept of the file in its order, and the four counts of what the application
@@ -35,7 +36,7 @@ from waterfall.core.costs.analysing import (
 from waterfall.core.costs.extraction import HEADER_ROW, Reading, read_lines, sheet_rows
 from waterfall.core.costs.tables import CostImport
 from waterfall.core.costs.writing import Placed, held_lines, write_line
-from waterfall.core.projects.interface import lock_project, project_code
+from waterfall.core.projects.interface import project_code
 from waterfall.platform.identifiers import new_id
 
 if TYPE_CHECKING:
@@ -66,21 +67,22 @@ def apply(
 ) -> UUID:
     """Write an extraction into its project: the entry of the log, then the lines; give it."""
     project_id = applied.project_id
-    lock_project(session, project_id)
     reading = Reading.from_report(report[READING])
     rows = sheet_rows(content)
     read = read_lines(rows[HEADER_ROW:], reading, project_code(session, project_id))
     lines, others, doubled = doubled_lines(read)
     codes = subprojects_of(session, project_id, lines)
-    held = held_lines(session, project_id)
+    held = held_lines(session, project_id, {line.document_number for line in lines})
     written: list[tuple[Line, CostLine | None]] = []
     unchanged = 0
+    unchanged_rows: list[CostLine] = []
     for line in lines:
         before = held.get(line.key)
         if before is None or changed(Held.of(before), line, imputed(line, codes)):
             written.append((line, before))
         else:
             unchanged += 1
+            unchanged_rows.append(before)
     created = sum(1 for _, before in written if before is None)
     entry = CostImport(
         id=new_id(),
@@ -101,5 +103,8 @@ def apply(
     for line, before in written:
         placed = Placed(project_id, new_id(), imputed(line, codes), entry.id)
         write_line(session, before, line, placed, act)
+    for row in unchanged_rows:
+        # Named by the import, nothing else touched: the last import is of the whole retained set.
+        row.last_import_id = entry.id
     session.flush()
     return entry.id

@@ -127,6 +127,10 @@ class TrialFormat:
     ) -> None:
         """Write each task the report adds at the root of the structure, then do what is asked."""
         del act
+        if self.scope == "project":
+            # An import of the project writes no node: what it was given is on ``seen``.
+            self._besides(self.application)
+            return
         assert target.revision_id is not None
         assert target.structure_id is not None
         connection = session.connection()

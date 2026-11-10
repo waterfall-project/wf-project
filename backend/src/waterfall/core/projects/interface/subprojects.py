@@ -306,7 +306,7 @@ def _views(
             kind,
             project.state,
             project.current_revision_id,
-            running=Running(no_task_running=True),
+            running=Running(no_task_running=True, mapping_complete=True),
         )
     )
     quality = tuple(quality_conditions(kind, manager=True))

@@ -83,7 +83,7 @@ def load_cost_lines(
     codes = subprojects_coded(
         session, project_id, {line.subproject_code for line in lines if line.subproject_code}
     )
-    by_document = held_lines(session, project_id)
+    by_document = held_lines(session, project_id, {line.document_number for line in lines})
     for line in lines:
         key = (line.document_number, line.document_item)
         code = line.subproject_code

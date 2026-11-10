@@ -382,7 +382,7 @@ def test_the_commands_of_the_actual_costs_and_of_the_remaining_name_their_condit
     # import of the remaining to commit, as the other imports of a revision, asks besides that no
     # task writes and that who imports may create the revision it would create.
     held = {"actual_costs.write", "cost_line_exclude", "remaining.write"}
-    idle = Running(no_task_running=True)
+    idle = Running(no_task_running=True, mapping_complete=True)
     busy = Running(no_task_running=False, mapping_complete=False)
     assert dict(commands_of(held, "contributor", "pricing", None, running=busy)) == {
         "import_actual_costs": (

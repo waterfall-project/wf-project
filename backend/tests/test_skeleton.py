@@ -619,14 +619,14 @@ def test_the_links_and_the_nodes_are_those_of_the_main_structure_of_the_revision
 @pytest.mark.requirement("WF-PRJ-0030-A")
 def test_the_project_names_the_background_task_before_the_tasks_of_the_revision_to_open() -> None:
     held = {"planning.write", "revisions.write"}
-    busy = Running(no_task_running=False, opening_has_tasks=True)
+    busy = Running(no_task_running=False, mapping_complete=True, opening_has_tasks=True)
     listed = dict(commands_of(held, "contributor", "pricing", None, running=busy))
     assert listed["generate_skeleton"] == (
         "no_background_task_running",
         "main_structure_without_tasks",
     )
     # Nothing is listed to who cannot write the planning, nor on a project with a revision.
-    idle = Running(no_task_running=True)
+    idle = Running(no_task_running=True, mapping_complete=True)
     assert "generate_skeleton" not in dict(
         commands_of({"revisions.write"}, "contributor", "pricing", None, running=idle)
     )

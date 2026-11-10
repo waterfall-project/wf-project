@@ -18,7 +18,7 @@ from sqlalchemy import select
 from waterfall.core.costs.tables import CostLine
 
 if TYPE_CHECKING:
-    from collections.abc import Mapping
+    from collections.abc import Collection, Mapping
     from datetime import date
     from decimal import Decimal
     from uuid import UUID
@@ -26,6 +26,9 @@ if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
     from waterfall.platform.audit import Act
+
+# The most document numbers one read asks for.
+_READ_BY = 10_000
 
 # What identifies a line in its project: its document and its item, none included.
 type DocumentKey = tuple[str, str | None]
@@ -65,10 +68,25 @@ class Written(Protocol):
         ...
 
 
-def held_lines(session: Session, project_id: UUID) -> dict[DocumentKey, CostLine]:
-    """Read the lines of a project, by their document and their item, in one read."""
-    rows = session.scalars(select(CostLine).where(CostLine.project_id == project_id))
-    return {(row.document_number, row.document_item): row for row in rows}
+def held_lines(
+    session: Session, project_id: UUID, numbers: Collection[str]
+) -> dict[DocumentKey, CostLine]:
+    """Read the lines of a project bearing one of these document numbers, by document and item.
+
+    Only the documents of the file are read, not the whole project, in reads of at most
+    ``_READ_BY`` numbers so that no read carries more parameters than the driver allows.
+    """
+    found: dict[DocumentKey, CostLine] = {}
+    asked = sorted(set(numbers))
+    for start in range(0, len(asked), _READ_BY):
+        rows = session.scalars(
+            select(CostLine).where(
+                CostLine.project_id == project_id,
+                CostLine.document_number.in_(asked[start : start + _READ_BY]),
+            )
+        )
+        found.update({(row.document_number, row.document_item): row for row in rows})
+    return found
 
 
 @dataclass(frozen=True, slots=True)

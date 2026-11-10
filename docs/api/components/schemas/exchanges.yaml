@@ -438,8 +438,12 @@ ImportReport:
       type: array
       description: >-
         Reasons for an explicit confirmation, specific to actual costs: lines of another
-        project, rejected, or an unknown subproject, kept by its code (WF-CRE-0020). A
-        difference in dates or durations is no longer one: it is stated by `date_mismatches`.
+        project, rejected, or an unknown subproject, kept by its code (WF-CRE-0020). A line of
+        another project counts for `lines_outside_project` even when it is rejected
+        `DUPLICATE_COST_LINE`, another line of the file bearing its document and its item
+        (#2724): the confirmation guards against a file of the wrong project, which a double does
+        not excuse. A difference in dates or durations is no longer one: it is stated by
+        `date_mismatches`.
       items:
         type: string
         enum: [lines_outside_project, unknown_subproject]
@@ -607,9 +611,14 @@ ImportRejection:
     `WBS_ELEMENT_INVALID`, an element that does not have the form of a project code optionally
     followed by a slash and a subproject code — empty, or with nothing before the slash —, only
     the slash separating the two codes, and the project code possibly containing dots
-    (`A.ABC.26001/10001`, WF-PRJ-0010);
+    (`A.ABC.26001/10001`, WF-PRJ-0010) — an element with nothing after the slash,
+    `A.ABC.26001/`, is one as well (#2721);
     `WBS_ELEMENT_OUTSIDE_PROJECT`, an element of another project, `params.project_code` the
-    project code read, which is not that of the imported project. A line whose subproject code
+    project code read, which is not that of the imported project. The amount of a line is
+    rounded to the cent, half away from zero — `-0.005` gives `-0.01` — before it is judged
+    against its bounds (#2721). A cell of a line of an actual cost extraction that is refused
+    (`VALUE_REQUIRED`, `VALUE_TOO_LONG`, `VALUE_OUT_OF_RANGE`, `NUMBER_INVALID`, `DATE_INVALID`)
+    names its column in `params.column`, by the identifier of the mapping (#2722). A line whose subproject code
     is that of no subproject is not rejected: imported and charged to the project alone, it
     requires confirmation (`unknown_subproject`). For an estimate or a remaining to commit, a
     line that cites a task, a role or a subproject that the revision does not have

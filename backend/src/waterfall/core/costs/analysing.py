@@ -30,8 +30,6 @@ from collections import defaultdict
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
-from sqlalchemy import select
-
 from waterfall.core.costs.extraction import (
     HEADER_ROW,
     WBS_ELEMENT_OUTSIDE_PROJECT,
@@ -42,7 +40,7 @@ from waterfall.core.costs.extraction import (
     read_lines,
     sheet_rows,
 )
-from waterfall.core.costs.tables import CostLine
+from waterfall.core.costs.writing import held_lines
 from waterfall.core.projects.interface import project_code, subprojects_coded
 
 if TYPE_CHECKING:
@@ -52,6 +50,8 @@ if TYPE_CHECKING:
     from uuid import UUID
 
     from sqlalchemy.orm import Session
+
+    from waterfall.core.costs.tables import CostLine
 
 DUPLICATE_COST_LINE = "DUPLICATE_COST_LINE"
 LINES_OUTSIDE_PROJECT = "lines_outside_project"
@@ -111,30 +111,6 @@ class Held:
             (row.subproject_code, row.subproject_id),
             row.passthrough,
         )
-
-
-def _held_lines(session: Session, project_id: UUID) -> dict[tuple[str, str | None], Held]:
-    """Read the lines of a project, by their document and their item, in one read."""
-    rows = session.execute(
-        select(
-            CostLine.document_number,
-            CostLine.document_item,
-            CostLine.document_date,
-            CostLine.amount,
-            CostLine.subproject_code,
-            CostLine.subproject_id,
-            CostLine.passthrough,
-        ).where(CostLine.project_id == project_id)
-    )
-    return {
-        (row.document_number, row.document_item): Held(
-            row.document_date,
-            row.amount,
-            (row.subproject_code, row.subproject_id),
-            row.passthrough,
-        )
-        for row in rows
-    }
 
 
 def changed(held: Held, line: Line, subproject_id: UUID | None) -> list[str]:
@@ -206,13 +182,13 @@ def analyse(session: Session, project_id: UUID, content: bytes) -> dict[str, Any
     read = read_lines(rows[HEADER_ROW:], reading, project_code(session, project_id))
     lines, others, doubled = doubled_lines(read)
     codes = subprojects_of(session, project_id, lines)
-    held = _held_lines(session, project_id)
+    held = held_lines(session, project_id, {line.document_number for line in lines})
     differences: list[dict[str, Any]] = []
     for line in lines:
         before = held.get(line.key)
         if before is None:
             differences.append(_difference("added", line, []))
-        elif fields := changed(before, line, imputed(line, codes)):
+        elif fields := changed(Held.of(before), line, imputed(line, codes)):
             differences.append(_difference("updated", line, fields))
     rejected = sorted((*others, *doubled), key=lambda each: each.row)
     ignored = reading.ignored
