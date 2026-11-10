@@ -413,6 +413,22 @@ l'option écartée :
   refonte, facultative, revient à un lot qui touche `core/exchanges`.
 - **`_doubled` ne trie ses lignes qu'une fois** (#2725), par US-1610/L2.
 
+### Les décisions du 2026-11-10 (soir)
+
+- **`open_lines` garde la signature réalisée par US-1590/L1** (#2766) :
+  `open_lines(session, project_id, lines_by_task)`, que la conception écrit désormais (« Les modules »,
+  « Les points d'extension », « Le Kanban et les lignes propres ») ; la date d'une mise à zéro d'une
+  récapitulative n'est gardée que si la saisie la termine. Écartée : `open_lines(task_ids)`, qui
+  aurait relu dans `estimate` les lignes que `planning` connaît déjà, risques compris.
+- **La date de clôture d'une récapitulative s'efface dès qu'elle n'est plus terminée** (#2769) :
+  US-1590/L2 vérifie la création et le déplacement d'une tâche sous une récapitulative et la
+  suppression d'une subordonnée, et y efface la date comme US-1590/L1 le fait à la réouverture
+  (WF-PLA-0040, WF-PLA-0130). Écartée : garder la date et ne la lire que si la récapitulative est
+  encore terminée, qui laisse en base une date périmée.
+- **Le libellé de l'aperçu du collage se lit dans la configuration de la grille** (#2753, EP-07) :
+  un champ déclaratif `GridConfig.creates: "tasks" | "lines"`, posé par US-1640/L1, la grille de
+  reste à engager étant la deuxième à créer des lignes. Écarté : `config.name === "estimate"`.
+
 ### Tables et migrations
 
 Régime « projet » (§4.4.1) pour `cost_line` et `cost_import`, non partitionnées — seul le
@@ -444,7 +460,7 @@ révisionné et son déclencheur d'immuabilité d'EP-07, qui les protège sans r
 
 | Module | Tables | Interface offerte |
 |---|---|---|
-| `waterfall.core.estimate`, sous-paquet `remaining/` (FBS-4.5) | les six colonnes nouvelles d'`estimate_line` | `set_line_remaining` (la réestimation, la mise à zéro qui termine) ; `copy_previous` (le second enregistrement de `register_copy`) ; `open_lines(task_ids)` pour le registre de `planning` ; `startable_tasks(project_id)` (le Kanban) ; `remaining_indicators(project_id, revision_id, at)` et `register_coverage` ; `remaining_of_revision(session, project_id, revision_id)` — le total et le reste par ligne des tâches non terminées, à l'état des tâches de la révision — pour les indicateurs et EP-10 ; le format et l'exporteur `remaining` ; `remaining_entry` et `previous_*` rendus par la lecture de la facette d'EP-07, que le lot de la réestimation complète après #2372 |
+| `waterfall.core.estimate`, sous-paquet `remaining/` (FBS-4.5) | les six colonnes nouvelles d'`estimate_line` | `set_line_remaining` (la réestimation, la mise à zéro qui termine) ; `copy_previous` (le second enregistrement de `register_copy`) ; `open_lines(session, project_id, lines_by_task)` pour le registre de `planning` ; `startable_tasks(project_id)` (le Kanban) ; `remaining_indicators(project_id, revision_id, at)` et `register_coverage` ; `remaining_of_revision(session, project_id, revision_id)` — le total et le reste par ligne des tâches non terminées, à l'état des tâches de la révision — pour les indicateurs et EP-10 ; le format et l'exporteur `remaining` ; `remaining_entry` et `previous_*` rendus par la lecture de la facette d'EP-07, que le lot de la réestimation complète après #2372 |
 | `waterfall.core.costs` (FBS-4.7) | `cost_line`, `cost_import` | le format `actual_costs` (l'en-tête selon la correspondance, l'analyse, l'application) ; `list_actual_costs` (filtres, tri, totaux, colonnes conservées, dernier import), `set_tracked_scope`, `list_cost_imports` ; `actual_cost_by_subproject(project_id)` et `actual_costs_until(project_id, date, scope)` — les lignes suivies, pour les indicateurs du reste à engager et pour EP-10 — ; `subproject_has_actual_costs` et `impute_waiting_lines(project_id, subproject_id, code)` pour le registre de `projects` ; `load_cost_import`, `load_cost_lines` et `load_exclusion` avec identifiants et instants imposés |
 
 - **La couche** : `estimate` importe l'interface de `costs` (le coût réel par sous-projet des
@@ -480,7 +496,7 @@ worker, le chargeur — s'étend à chacun.
 
 | Module | Registre | Qui le déclare | Qui le remplit | Ce qu'il fait |
 |---|---|---|---|---|
-| `core/planning` | `register_open_lines` (nouveau) | US-1590, après #2324, #2338 et #2339 | `estimate` (`open_lines`) | la dernière subordonnée terminée ne termine la récapitulative que si aucune ligne propre hors provision ne garde un reste ; `awaiting_own_lines` est vrai pour une récapitulative démarrée dont toutes les subordonnées sont terminées et qu'une ligne propre retient ; la feuille qu'une récapitulative devient reste démarrée si une ligne propre retient (WF-PLA-0040) |
+| `core/planning` | `register_open_lines` (nouveau) | US-1590, après #2324, #2338 et #2339 | `estimate` (`open_lines(session, project_id, lines_by_task)`) | la dernière subordonnée terminée ne termine la récapitulative que si aucune ligne propre hors provision ne garde un reste ; `awaiting_own_lines` est vrai pour une récapitulative démarrée dont toutes les subordonnées sont terminées et qu'une ligne propre retient ; la feuille qu'une récapitulative devient reste démarrée si une ligne propre retient (WF-PLA-0040) |
 | `core/planning` | `progress_commands(task, bears_lines)` (fonction nouvelle, pas un registre) | US-1590, après #2324 | — | les gestes d'une carte du Kanban et l'état que chacun envoie, par la fonction qui juge le 409 de `setTaskProgress` (US-1410), pour que la carte et le refus nomment la même condition |
 | `core/revisions` | `register_copy` (EP-04) | EP-04 | `estimate`, second enregistrement (`copy_previous`), après la copie des lignes | `previous_*` des lignes copiées depuis une révision marquée En cours |
 | `core/projects` | `register_cost_facts` (nouveau) | US-1610, après #2373 | `costs` | `subproject_has_actual_costs` (la suppression refusée, `has_actual_costs` de la liste et son filtre), `impute_waiting_lines` dans la transaction de `createSubproject` ; `updateSubproject` ne l'appelle pas |
@@ -501,11 +517,20 @@ worker, le chargeur — s'étend à chacun.
   principale, vides sans `remaining.write`, et le nœud entier (`KanbanTask`, `NotStartedTask`). Une
   requête par table, jamais une par tâche : la liste se tient en deux lectures (nœuds et liaisons,
   lignes porteuses).
-- `open_lines(task_ids)` répond par une requête sur `estimate_line` : les tâches parmi celles
-  nommées qui portent une ligne propre, hors provision (EP-08 : `origin_risk_id` du nœud ou la
-  catégorie de type provision, jamais vrai ici), dont `reestimated_amount` n'est pas nul ;
+- `open_lines(session, project_id, lines_by_task)` répond par une requête sur `estimate_line` :
+  parmi les tâches nommées, chacune avec les lignes qu'elle porte — `planning` les connaît déjà et
+  en écarte les lignes d'un risque (EP-08 : `origin_risk_id` du nœud) —, celles qui portent une
+  ligne propre hors provision (la catégorie de type provision, jamais vrai ici) dont
+  `reestimated_amount` n'est pas nul ; `project_id` borne la lecture à la partition du projet.
   `planning` la pose à la terminaison d'une subordonnée, à chaque lecture de `TaskFacet` pour les
-  récapitulatives démarrées rendues, et à la transformation d'une récapitulative en feuille.
+  récapitulatives démarrées rendues, et à la transformation d'une récapitulative en feuille
+  (décision du 2026-11-10, #2766 : la signature réalisée par US-1590/L1, non `open_lines(task_ids)`).
+- La date d'une mise à zéro d'une récapitulative n'est gardée que si la saisie la termine ;
+  `completed_on` reste la plus tardive de ses subordonnées et de la mise à zéro qui l'a terminée.
+  Dès que la récapitulative n'est plus terminée, sa date de clôture s'efface : à la réouverture
+  d'une subordonnée (US-1590/L1), et sur les chemins qu'US-1590/L2 vérifie — une tâche créée ou
+  déplacée sous la récapitulative, la suppression d'une subordonnée (WF-PLA-0040, WF-PLA-0130 ;
+  #2769).
 - La mesure (#646) : `listStartableTasks` sur PRJ-001 chargé, et l'ouverture de l'écran du Kanban
   par son adresse et par un clic, relevées sur la pull request d'US-1590 ; la raison donnée dans
   `docs/dev/README-fr.md` et `README.md` pour la présence du Kanban parmi les écrans à `WORKING`
