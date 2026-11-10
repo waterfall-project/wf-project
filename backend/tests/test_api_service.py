@@ -8,13 +8,14 @@ the test, and the chain with it (WF-ARC-0060). The paths played against the serv
 answers they traverse to the same contract, by Prism as a proxy (``make e2e-service``).
 """
 
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING, Any, cast
 
 import pytest
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, Response
 from fastapi.responses import JSONResponse, PlainTextResponse
 from fastapi.routing import APIRoute
 from fastapi.testclient import TestClient
+from jsonschema_path import default_handlers
 from openapi_core import OpenAPI
 from openapi_core.templating.paths.exceptions import PathNotFound
 from openapi_core.templating.responses.exceptions import ResponseNotFound
@@ -443,7 +444,7 @@ def test_an_object_of_closed_branches_apart_follows_the_one_whose_own_properties
     assert rejected.value.pointers == ["/1/node/hint"]
 
 
-@pytest.mark.requirement("WF-ARC-0060-A")
+@pytest.mark.requirement("WF-ARC-0110-A")
 @pytest.mark.parametrize(
     ("objects", "body"),
     [
@@ -524,3 +525,55 @@ def test_a_path_with_a_query_string_is_validated_as_the_application_serves_it(
 ) -> None:
     response = client.get("/api/v1/health?x=1&x=2")
     assert (response.status_code, response.json()) == (200, {"status": "ok"})
+
+
+@pytest.mark.requirement("WF-ARC-0060-A")
+def test_an_xml_answer_the_contract_declares_binary_is_validated_as_its_bytes() -> None:
+    # The file of MS Project (#2675): openapi-core would parse it into a tree of XML, then refuse
+    # the tree as no string; its bytes are the string the contract declares.
+    content = "<?xml version='1.0'?><Project><Name>Études</Name></Project>".encode()
+    schema: dict[str, object] = {"type": "string", "format": "binary"}
+    declared = cast("dict[str, Any]", minimal_contract(schema).spec.read_value())
+    answer = declared["paths"]["/health"]["get"]["responses"]["200"]
+    answer["content"] = {"application/xml": {"schema": schema}}
+    app = FastAPI()
+
+    @app.get("/api/v1/health")
+    def health() -> Response:
+        return Response(content, media_type="application/xml")
+
+    response = ContractClient(TestClient(app), OpenAPI.from_dict(declared)).get("/api/v1/health")
+    assert (response.status_code, response.content) == (200, content)
+
+
+def test_an_answer_is_validated_without_reading_a_document_of_the_contract_again(
+    contract: OpenAPI, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # The documents the schemas of the contract reach are read once, when a client is first given
+    # it (#2720): the validation of a refusal, held to ``common.yaml#/Problem`` through
+    # ``responses.yaml``, reads none of them again, nor does a second client.
+    app = FastAPI()
+
+    @app.get("/api/v1/health")
+    def health() -> JSONResponse:
+        refusal = {"code": "COMPONENT_UNAVAILABLE", "status": 503, "correlation_id": "front-7f3a"}
+        return JSONResponse(refusal, status_code=503, media_type="application/problem+json")
+
+    first = ContractClient(TestClient(app), contract)
+    read: list[str] = []
+    reading = default_handlers["file"]
+
+    def counted(address: str) -> object:
+        read.append(address)
+        return reading(address)
+
+    monkeypatch.setitem(default_handlers, "file", counted)
+    second = ContractClient(TestClient(app), contract)
+    assert second.get("/api/v1/health").status_code == 503
+    assert read == []
+    assert second.contract is first.contract
+    # An example, which no validation resolves, is not held: it is read when it is asked for.
+    examples = second.contract.spec / "paths" / "/health" / "get" / "responses" / "200"
+    examples = examples / "content" / "application/json" / "examples"
+    assert (examples / "ok" / "value").read_value() == {"status": "ok"}
+    assert [address.rpartition("/")[2] for address in read] == ["liveness.json"]

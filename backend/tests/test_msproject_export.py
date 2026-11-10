@@ -197,13 +197,8 @@ def request_export(api: ContractClient, stage: Scene, revision_id: str, **body: 
 
 
 def download(api: ContractClient, stage: Scene, task_id: str) -> Any:
-    """Download the result of an export as the manager does, past the check of the contract.
-
-    The contract declares the file ``application/xml`` as a binary string, and the validator of
-    the answers parses such a body into a tree, which it then refuses as no string: the answer is
-    read here by the client of the application itself, its type and its name checked by the tests.
-    """
-    return api.client.get(f"{TASKS}/{task_id}/result", headers=stage.manager.headers)
+    """Download the result of an export as the manager does; give the answer."""
+    return api.get(f"{TASKS}/{task_id}/result", headers=stage.manager.headers)
 
 
 def exported_answer(api: ContractClient, stage: Scene, worker: Worker, revision_id: str) -> Any:
