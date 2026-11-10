@@ -315,6 +315,26 @@ def sums_hold(
     assert body["meta"]["scheduled_at"] == instant(OPENED[102]).isoformat().replace("+00:00", "Z")
 
 
+# The whole structure of the revision in progress, read once by each process: the 5 999 nodes cost
+# the contract client some twenty seconds of validation of the answer, and three tests read them.
+# These tests only read the witness, and the day does not enter that read.
+WHOLE: dict[str, Any] = {}
+
+
+def whole_read(api: ContractClient, witness: Database, realm: TestRealm) -> Any:
+    """Read the nodes of the structure of the revision in progress, all of them, once a process."""
+    if not WHOLE:
+        with witness.transaction() as session:
+            structure = structure_of(session, REVISION_102)
+        base = f"{PROJECTS}/{PRJ_001}/revisions/{REVISION_102}/structures/{structure}/nodes"
+        # A small read first (#2711): the validation of the answer against the contract takes some
+        # twenty seconds on the 5 999 nodes once the schemas of a node have been resolved by an
+        # earlier answer of the process, and fifteen times as much (306 s measured) on the first.
+        read(api, witness, realm, f"{base}{READS['nodes_estimate']}")
+        WHOLE["body"] = read(api, witness, realm, base)
+    return WHOLE["body"]
+
+
 @pytest.mark.parametrize("name", list(READS))
 def test_the_estimate_read_of_the_loaded_witness_is_the_example_but_for_what_it_does_not_reach(
     api: ContractClient, witness: Database, realm: TestRealm, name: str
@@ -327,7 +347,10 @@ def test_the_estimate_read_of_the_loaded_witness_is_the_example_but_for_what_it_
             Decimal(example("project")["inflation_rate"]),
         )
     base = f"{PROJECTS}/{PRJ_001}/revisions/{REVISION_102}/structures/{structure}/nodes"
-    body = read(api, witness, realm, f"{base}{READS[name]}")
+    if READS[name]:
+        body = read(api, witness, realm, f"{base}{READS[name]}")
+    else:
+        body = whole_read(api, witness, realm)
     expected = example(name)
     got, wanted = keyed(body["items"]), keyed(expected["items"])
     # The only node the witness lacks is the line of provision of the risk of the core (EP-08).
@@ -399,10 +422,7 @@ def volume_excess(api: ContractClient, witness: Database, realm: TestRealm) -> D
     The lines on two years, spread by the service, and the provision the witness lacks (EP-08),
     which the example sums: the difference of the re-estimated amounts of the lines they share.
     """
-    with witness.transaction() as session:
-        structure = structure_of(session, REVISION_102)
-    base = f"{PROJECTS}/{PRJ_001}/revisions/{REVISION_102}/structures/{structure}/nodes"
-    got = keyed(read(api, witness, realm, base)["items"])
+    got = keyed(whole_read(api, witness, realm)["items"])
     wanted = keyed(example("volume/nodes_thousand")["items"])
     return sum(
         (

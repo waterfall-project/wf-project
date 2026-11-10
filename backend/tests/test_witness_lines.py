@@ -266,7 +266,6 @@ def test_the_offer_is_designated_the_reference_at_the_order_and_the_project_pass
     # A project whose reference is designated before its code is entered passes In progress at the
     # entry of the code: the designation is made at the instant of event 7 and succeeds, the
     # revision 100 bearing tasks and lines; the transitions say the passage.
-    del logs
     with witness_loaded.transaction() as session:
         project = session.get(Project, PRJ_001)
         assert project is not None
@@ -295,10 +294,8 @@ def test_the_offer_is_designated_the_reference_at_the_order_and_the_project_pass
         ("created", "pricing", instant(OPENED[100])),
         ("pricing", "in_progress", order),
     ]
-
-
-def test_the_loader_notes_the_designation_it_made(logs: Logs, witness_loaded: Database) -> None:
-    del witness_loaded
+    # The loader notes the designation it made: the same loading, so the same test (a loading
+    # costs a minute and more, and the log is that of the loading this test asked for).
     noted = logs.named("witness.reference_designated")
     assert [(each["project"], each["revision"]) for each in noted] == [("PRJ-001", 100)]
     assert not logs.named("witness.designation_refused")
