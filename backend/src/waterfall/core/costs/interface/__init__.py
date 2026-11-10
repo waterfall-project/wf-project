@@ -15,8 +15,8 @@ exchanges: the format ``actual_costs``, registered by the socle, which reads and
 extraction from US-1610/L1 and applies it from US-1610/L2; and ``register_cost_facts``, which
 US-1610/L3 declares in the interface of the projects: what they ask of a subproject, and what its
 creation imputes. The entry points that run an import of the actual costs, or load the witness —
-the API, the loader of the witness, and the worker from US-1610/L2 on (EP-09, "Le worker") — import
-it (#2180).
+the API, the loader of the witness, and the worker, which applies an extraction (US-1610/L2; EP-09,
+"Le worker") — import it (#2180).
 """
 
 # ``actual_costs`` (US-1580/L1; US-1610/L1, US-1610/L2): the format of an extraction of the ERP.
@@ -29,7 +29,13 @@ from waterfall.core.costs.interface.actual_costs import (
 
 # ``cost_imports`` (US-1580/L1; US-1610/L2, US-1610/L3): the log of the imports.
 from waterfall.core.costs.interface.cost_imports import (
+    CostImportList as CostImportList,
+)
+from waterfall.core.costs.interface.cost_imports import (
     CostImportLoad as CostImportLoad,
+)
+from waterfall.core.costs.interface.cost_imports import (
+    CostImportView as CostImportView,
 )
 from waterfall.core.costs.interface.cost_imports import (
     list_cost_imports as list_cost_imports,

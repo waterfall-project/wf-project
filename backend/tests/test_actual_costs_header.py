@@ -28,8 +28,8 @@ from actual_costs_import_support import (
     untouched,
 )
 from fastapi.testclient import TestClient
-from imports_trial import import_worker, refusal, stored
-from projects_support import Scene, put_in_state
+from imports_trial import PROJECTS, import_worker, refusal, stored
+from projects_support import Person, Scene, put_in_state
 from projects_support import scene as make_scene
 from support import ContractClient
 
@@ -38,6 +38,7 @@ from waterfall.api.authentication import Services
 from waterfall.core.costs.extraction import Kept, Reading
 from waterfall.core.costs.interface import ACTUAL_COSTS_FORMAT
 from waterfall.core.exchanges.interface import ImportTarget
+from waterfall.core.projects.commands import Running, commands_of
 from waterfall.platform.errors import ConflictError
 from waterfall.platform.keycloak_admin import KeycloakAdmin
 from waterfall.platform.logs import logging_context
@@ -56,6 +57,7 @@ if TYPE_CHECKING:
     from waterfall.worker.runner import Worker
 
 FOUR = ["wbs_element", "document_number", "document_date", "amount"]
+COMMAND = "import_actual_costs"
 
 
 @pytest.fixture
@@ -336,3 +338,68 @@ def test_a_second_header_naming_a_column_already_named_is_ignored_and_named(
     assert kept is not None
     reading = Reading.from_report(kept["actual_cost_reading"])
     assert (reading.columns["wbs_element"], reading.kept) == (0, (Kept(5, "Fournisseur"),))
+
+
+def lacking(api: ContractClient, stage: Scene, who: Person | None = None) -> list[str] | None:
+    """Give the conditions the import of the actual costs lacks on the project, or none unlisted."""
+    response = api.get(
+        f"{PROJECTS}/{stage.project['project_id']}", headers=(who or stage.manager).headers
+    )
+    assert response.status_code == 200, response.text
+    commands = response.json()["available_commands"]
+    return next(
+        (each["missing_conditions"] for each in commands if each["command"] == COMMAND), None
+    )
+
+
+@pytest.mark.requirement("WF-REF-0190-A")
+def test_the_command_of_the_project_states_in_advance_what_the_opening_refuses_by(
+    api: ContractClient, stage: Scene, queue: TaskQueue
+) -> None:
+    # « … la commande `import_actual_costs` du projet le dit d'avance » : listed under
+    # `actual_costs.write`, unavailable out of In progress, then while a task of the background
+    # writes in the project, then while the mapping lacks a label — in the order of the opening.
+    assert lacking(api, stage) == ["actual_cost_mapping_complete"]
+    declare(stage.database)
+    assert lacking(api, stage) == []
+    assert lacking(api, stage, stage.reader) is None
+    put_in_state(stage.owner, stage.project["project_id"], "pricing")
+    declare(stage.database, {**DECLARED, "amount": []})
+    payload = {"project_id": stage.project["project_id"]}
+    with logging_context(correlation_id="queued-around"), stage.database.transaction() as session:
+        submit(session, queue, "revision_mark", stage.manager.user_id, payload)
+    assert lacking(api, stage) == [
+        "project_in_progress",
+        "no_background_task_running",
+        "actual_cost_mapping_complete",
+    ]
+
+
+@pytest.mark.requirement("WF-IHM-0090-A")
+def test_the_commands_of_the_actual_costs_and_of_the_remaining_name_their_conditions() -> None:
+    # Each listed under its permission, the quality of contributor first, then the conditions of
+    # the state in the order of the contract: the exclusion of a line asks In progress alone; the
+    # import of the remaining to commit, as the other imports of a revision, asks besides that no
+    # task writes and that who imports may create the revision it would create.
+    held = {"actual_costs.write", "cost_line_exclude", "remaining.write"}
+    idle = Running(no_task_running=True)
+    busy = Running(no_task_running=False, mapping_complete=False)
+    assert dict(commands_of(held, "contributor", "pricing", None, running=busy)) == {
+        "import_actual_costs": (
+            "project_in_progress",
+            "no_background_task_running",
+            "actual_cost_mapping_complete",
+        ),
+        "exclude_cost_lines": ("project_in_progress",),
+        "import_remaining": (
+            "project_in_progress",
+            "no_background_task_running",
+            "may_create_revision",
+        ),
+    }
+    assert dict(commands_of(held, None, "in_progress", UUID(int=1), running=idle)) == {
+        "import_actual_costs": ("is_contributor",),
+        "exclude_cost_lines": ("is_contributor",),
+        "import_remaining": ("is_contributor",),
+    }
+    assert commands_of({"remaining.write"}, "contributor", "completed", None, running=idle) == []

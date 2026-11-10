@@ -10,13 +10,15 @@ updated on their document and item (EP-09, "Les coûts réels"). An import of th
 in the project, under the permission to write its actual costs; it aims at no structure.
 
 Declared by US-1580/L1; US-1610/L1 judges an import on the state of its project and the mapping,
-reads the header at the opening (``extraction``) and analyses (``analysing``); US-1610/L2 applies.
+reads the header at the opening (``extraction``) and analyses (``analysing``); US-1610/L2 applies
+(``applying``).
 """
 
 from typing import TYPE_CHECKING, Any
 
 from waterfall.core.cost_settings.interface import read_actual_cost_mapping
-from waterfall.core.costs import analysing
+from waterfall.core.costs import analysing, applying
+from waterfall.core.costs.applying import Applied
 from waterfall.core.costs.extraction import HEADER_ROW, read_header, sheet_rows
 from waterfall.core.exchanges.interface import LARGEST_FILE
 from waterfall.core.projects.interface import no_background_task_running, project_facts
@@ -102,9 +104,19 @@ class ActualCostsFormat:
         report: Mapping[str, Any],
         act: Act,
     ) -> None:
-        """Write the report of an extraction: the entry of the log, then the lines."""
-        msg = "apply is filled by US-1610/L2"
-        raise NotImplementedError(msg)
+        """Write the report of an extraction: the entry of the log, then the lines (``applying``).
+
+        Under the lock of the project, in the transaction of the task, for the account that
+        confirmed the import: an application without an import or without an account is a defect
+        of its caller, never an import of the platform (WF-DAT-0070).
+        """
+        if target.import_id is None or act.author is None:
+            msg = "an extraction is applied by the task of its import, for an account"
+            raise ValueError(msg)
+        applied = Applied(
+            target.project_id, target.import_id, act.author, target.period_from, target.period_to
+        )
+        applying.apply(session, applied, content, report, act)
 
 
 ACTUAL_COSTS_FORMAT = ActualCostsFormat()

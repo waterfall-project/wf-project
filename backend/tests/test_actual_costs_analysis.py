@@ -379,7 +379,8 @@ def test_two_lines_of_the_same_document_and_item_are_doubled_whatever_else_they_
 ) -> None:
     # « … une ligne pour laquelle une autre ligne du fichier porte la même pièce et le même poste »
     # (ImportRejection), without condition: the amount of one in text, both are rejected doubled; a
-    # line of another project doubled likewise; a document unreadable doubles nothing.
+    # line of another project doubled likewise, which asks for confirmation all the same; a
+    # document unreadable doubles nothing.
     content = extraction(
         [
             line(number="9100", amount="12,50"),
@@ -401,7 +402,25 @@ def test_two_lines_of_the_same_document_and_item_are_doubled_whatever_else_they_
         {"sheet": None, "row": 6, "code": "VALUE_REQUIRED", "params": required},
         {"sheet": None, "row": 7, "code": "VALUE_REQUIRED", "params": required},
     ]
-    assert report["requires_confirmation_reasons"] == []
+    assert report["requires_confirmation_reasons"] == ["lines_outside_project"]
+
+
+@pytest.mark.requirement("WF-CRE-0020-A")
+@pytest.mark.usefixtures("lot")
+def test_lines_of_another_project_ask_for_confirmation_even_when_they_are_doubled(
+    api: ContractClient, stage: Scene, worker: Worker
+) -> None:
+    # « Une ligne d'un autre projet est rejetée et signalée. » : `lines_outside_project` among the
+    # reasons to confirm, as its fault was read, though the double replaces it in the report — a
+    # file of the wrong project, two lines of one document, asks for confirmation.
+    other = "A.ABC.26002/10001"
+    content = extraction([line(element=other, number="9200"), line(element=other, number="9200")])
+    report = analysed(api, stage, worker, content)["report"]
+    assert [(each["row"], each["code"]) for each in report["rejected"]] == [
+        (2, "DUPLICATE_COST_LINE"),
+        (3, "DUPLICATE_COST_LINE"),
+    ]
+    assert report["requires_confirmation_reasons"] == ["lines_outside_project"]
 
 
 @pytest.mark.requirement("WF-INTF-0140-A")

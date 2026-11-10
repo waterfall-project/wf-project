@@ -8,7 +8,7 @@ designates a reference without asking for them, in silence. Each entry point —
 (``create_app``), the worker (``handlers``), the loader of the witness (``load_witness``) — is
 imported in a process of its own, and its registries compared with those of a process that imports
 every module of the core and of the witness: none lacks an extension that a module registers — the
-worker those of the estimate included, which it imports from US-1500/L2 on (EP-07, "Le worker"), but
+worker those of the estimate included, which it imports from US-1500/L2 on (EP-07, "Le worker"), and
 those of the actual costs, which it imports from US-1610/L2 on (EP-09, "Le worker"). What the socles
 of EP-06, EP-07 and EP-09 register is named, so that the comparison is never between two empty
 lists.
@@ -278,9 +278,6 @@ REGISTERED_BY_EP09 = {
     ],
     "exchanges.exporters": [f"remaining:{ESTIMATE}.remaining_excel.RemainingExporter"],
 }
-# The entry point that does not import the interface of the actual costs yet: the worker, until
-# US-1610/L2 applies an extraction (EP-09, "Le worker").
-WITHOUT_COSTS = {"worker"}
 
 
 def before(*socles: dict[str, list[str]]) -> dict[str, set[str]]:
@@ -368,18 +365,17 @@ def test_each_entry_point_holds_every_extension_of_the_registries_it_reads(
 ) -> None:
     # The API and the worker read no registry of the witness; the loader reads them all. The worker
     # imports the interface of the estimate (US-1500/L2): nothing lacks, its marking keeps images;
-    # it holds no extension of the actual costs yet, and nothing else lacks.
+    # and that of the actual costs (US-1610/L2): it analyses and applies an extraction, and the
+    # import of an estimate it applies asks whether a subproject bears costs.
     held = registered_in(ENTRY_POINTS[entry_point])
     read = {
-        name: [
-            entry
-            for entry in entries
-            if entry_point not in WITHOUT_COSTS or f"{COSTS}." not in entry
-        ]
+        name: entries
         for name, entries in everything.items()
         if entry_point == "loader" or not name.startswith(WITNESS)
     }
     assert {name: held.get(name) for name in read} == read
+    assert held["projects.cost_facts"] == REGISTERED_BY_EP09["projects.cost_facts"]
+    assert f"actual_costs:{COSTS}.actual_costs.ActualCostsFormat" in held["exchanges.formats"]
 
 
 @pytest.fixture
