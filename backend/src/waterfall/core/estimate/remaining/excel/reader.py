@@ -42,6 +42,9 @@ from waterfall.core.estimate.excel.reader import (
     text,
     unreadable,
 )
+from waterfall.core.estimate.excel.reader import (
+    check_header as check_any_header,
+)
 from waterfall.core.estimate.remaining.excel.layout import (
     FIXED_TABS,
     FORMAT_NAME,
@@ -61,6 +64,7 @@ __all__ = [
     "ReadRemainingLine",
     "Rejection",
     "RemainingRead",
+    "check_header",
     "read_remaining_workbook",
 ]
 
@@ -102,18 +106,19 @@ class ReadRemainingLine:
 class RemainingRead:
     """What a workbook says: the date of the review, the lines read, and the rejections.
 
-    ``review_date`` is none when « Synthèse » holds no date the reading understands: an absent
-    date and an unreadable one are not told apart here. The policy is US-1630/L3's (#2410): the
-    date of completion is never null, so it decides their fate, and it reads the raw cell again
-    if it must name the value read. ``unread_sheets`` names the tabs that are not fixed ones and
-    carry no headers of lines; ``missing_headers`` gives, by tab read, the headers of the columns
-    read that the tab lacks (their cells read as none). ``tasks`` gives, by the entry « Tâches »
-    lists, the lineage of its task: the analysis designates the task of a line by it.
+    ``review_date`` is none when « Synthèse » holds no date the reading understands; then
+    ``unreadable_review`` tells an absent date (none) from a cell that holds something else, by
+    the value as the file carries it (``DATE_INVALID``, #2410). ``unread_sheets`` names the tabs
+    that are not fixed ones and carry no headers of lines; ``missing_headers`` gives, by tab read,
+    the headers of the columns read that the tab lacks (their cells read as none). ``tasks`` gives,
+    by the entry « Tâches » lists, the lineage of its task: the analysis designates the task of a
+    line by it.
     """
 
     review_date: date | None
     lines: tuple[ReadRemainingLine, ...]
     rejected: tuple[Rejection, ...]
+    unreadable_review: str | None = None
     unread_sheets: tuple[str, ...] = ()
     missing_headers: Mapping[str, tuple[str, ...]] = MappingProxyType({})
     tasks: Mapping[str, str] = MappingProxyType({})
@@ -124,25 +129,34 @@ def _check_header(rows: Sequence[Sequence[object]]) -> None:
     check_header_rows(rows, FORMAT_NAME, FORMAT_VERSION, FORMAT_KIND)
 
 
-def _review_date(rows: Sequence[Sequence[object]]) -> date | None:
+def check_header(content: bytes) -> None:
+    """Refuse a file that is not a workbook saying « Reste à engager » and a known version.
+
+    What the opening of an import reads (US-1630/L3): the first two rows of the first tab alone,
+    ``FILE_FORMAT_UNREADABLE`` with ``expected_format`` at ``remaining`` and ``expected_version``.
+    """
+    check_any_header(content, FORMAT_NAME, FORMAT_VERSION, FORMAT_KIND)
+
+
+def _review_date(rows: Sequence[Sequence[object]]) -> tuple[date | None, str | None]:
     """Read the date of the review in the cell of « Synthèse » the writer holds it in.
 
     A date cell (openpyxl reads it as a ``datetime``) and the ISO text the writer writes are
-    understood; anything else is none.
+    understood; an empty cell gives none, anything else none and the value as the file carries it.
     """
     column, row = coordinate_from_string(REVIEW_DATE_CELL)
     cells = tuple(rows[row - 1]) if row <= len(rows) else ()
     rank = column_index_from_string(column) - 1
     value = cells[rank] if rank < len(cells) else None
     if isinstance(value, datetime):
-        return value.date()
+        return value.date(), None
     written = text(value)
     if written is None:
-        return None
+        return None, None
     try:
-        return date.fromisoformat(written)
+        return date.fromisoformat(written), None
     except ValueError:
-        return None
+        return None, written
 
 
 def _is_total(texts: Mapping[str, str | None]) -> bool:
@@ -238,6 +252,7 @@ def read_remaining_workbook(content: bytes) -> RemainingRead:
         raise unreadable(FORMAT_KIND, FORMAT_VERSION)
     _check_header(sheets[0][1])
     review_date: date | None = None
+    unparsed: str | None = None
     lines: list[ReadRemainingLine] = []
     rejected: list[Rejection] = []
     unread: list[str] = []
@@ -245,7 +260,7 @@ def read_remaining_workbook(content: bytes) -> RemainingRead:
     tasks: dict[str, str] = {}
     for name, rows in sheets:
         if name == SUMMARY:
-            review_date = _review_date(rows)
+            review_date, unparsed = _review_date(rows)
         elif name == TASKS:
             tasks = task_entries(rows)
         if name in _NOT_LINE_SHEETS:
@@ -263,6 +278,7 @@ def read_remaining_workbook(content: bytes) -> RemainingRead:
         review_date,
         tuple(lines),
         tuple(rejected),
+        unparsed,
         tuple(unread),
         MappingProxyType(missing),
         MappingProxyType(tasks),

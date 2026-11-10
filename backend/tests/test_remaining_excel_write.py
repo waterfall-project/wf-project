@@ -206,7 +206,7 @@ def test_the_tabs_are_the_summary_the_subprojects_the_outside_tab_the_tasks_and_
 
 
 @pytest.mark.requirement("WF-INTF-0130-A")
-def test_the_summary_opens_with_the_format_and_the_version_then_the_review() -> None:
+def test_the_summary_opens_with_the_format_then_the_facts_the_review_in_b9() -> None:
     sheet = _open(write_workbook(_book()))["Synthèse"]
     assert [sheet[cell].value for cell in ("A1", "B1", "A2", "B2")] == [
         "Format",
@@ -214,13 +214,14 @@ def test_the_summary_opens_with_the_format_and_the_version_then_the_review() -> 
         "Version",
         1,
     ]
-    assert (sheet["A6"].value, sheet["B6"].value) == ("Revue du", "2027-02-15")
-    assert [sheet[f"B{row}"].value for row in range(7, 12)] == [
-        "Exemple Industrie",
-        "Client Exemple",
-        "Revue de février (en cours)",
-        "Structure principale",
-        "EUR",
+    # The facts of annex B, rows 6 to 11; the date of the review in B9, where the import reads it.
+    assert [(sheet[f"A{row}"].value, sheet[f"B{row}"].value) for row in range(6, 12)] == [
+        ("Entreprise", "Exemple Industrie"),
+        ("Client", "Client Exemple"),
+        ("Révision", "Revue de février (en cours)"),
+        ("Revue du", "2027-02-15"),
+        ("Structure", "Structure principale"),
+        ("Devise", "EUR"),
     ]
     assert sheet["A4"].value == "A.ABC.26001 Contrôle d’accès du site de Lyon"
 

@@ -448,21 +448,20 @@ def _write_summary(sheet: Worksheet, ctx: _Context, cells: list[_Cells], mention
         },
     )
     sheet.write("A4", book.project, fmt["title"])
-    # The date of the review sits in the cell the import reads; the other facts follow it.
-    review_row = layout.REVIEW_DATE_ROW
-    sheet.write(review_row, 0, "Revue du", fmt["bold"])
-    sheet.write(layout.REVIEW_DATE_CELL, book.review_date.isoformat(), fmt["left"])
-    infos = (
+    # The facts of the project, in the order of annex B: the date of the review falls in the
+    # cell the import reads (B9, #2702).
+    facts = (
         ("Entreprise", book.company),
         ("Client", book.client),
         ("Révision", book.revision),
+        ("Revue du", book.review_date.isoformat()),
         ("Structure", book.structure),
         ("Devise", book.currency),
     )
-    for offset, (key, value) in enumerate(infos):
-        sheet.write(review_row + 1 + offset, 0, key, fmt["bold"])
-        sheet.write(review_row + 1 + offset, 1, value, fmt["left"])
-    top = review_row + 1 + len(infos) + 1 + 2
+    for offset, (key, value) in enumerate(facts):
+        sheet.write(layout.FACTS_ROW + offset, 0, key, fmt["bold"])
+        sheet.write(layout.FACTS_ROW + offset, 1, value, fmt["left"])
+    top = layout.FACTS_ROW + len(facts) + 1 + 2
     natures = [nature.name for nature in book.natures]
     headers = [
         "Sous-projet",

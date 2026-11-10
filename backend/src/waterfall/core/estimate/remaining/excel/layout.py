@@ -8,6 +8,7 @@ the tabs of lines by these headers.
 
 from typing import TYPE_CHECKING, Any
 
+from waterfall.core.estimate.excel.names import sheet_name
 from waterfall.core.estimate.excel.writer import (
     DISBURSEMENT,
     FOOTER_LIMIT,
@@ -21,6 +22,9 @@ from waterfall.core.estimate.excel.writer import (
 )
 
 if TYPE_CHECKING:
+    from collections.abc import Mapping
+    from uuid import UUID
+
     from xlsxwriter import Workbook
     from xlsxwriter.format import Format
 
@@ -33,9 +37,32 @@ TASKS = "Tâches"
 PARAMETERS = "Paramètres"
 OUTSIDE = "Hors sous-projet"
 FIXED_TABS = (SUMMARY, TASKS, PARAMETERS)
-# The cell of the summary that holds the date of the review, which the import reads.
-REVIEW_DATE_ROW = 5  # its row, from 0; the other facts of the project follow it
-REVIEW_DATE_CELL = f"B{REVIEW_DATE_ROW + 1}"
+
+
+def tab_subprojects(subprojects: Mapping[str, UUID]) -> dict[str, UUID | None]:
+    """Name the tab of each subproject, by the order of their codes: the rule of the export.
+
+    The fixed tabs taken first, then each code brought to the rules of Excel (``sheet_name``),
+    unique without regard to case — two codes that come to the same name get distinct tabs, the
+    first in the order of the codes keeping the name —; « Hors sous-projet » last, for the lines
+    of none. The import reads the tab of a line with it; the export (US-1630/L4) names its tabs
+    with it, so that the one reads where the other writes.
+    """
+    taken: list[str] = list(FIXED_TABS)
+    tabs: dict[str, UUID | None] = {}
+    for code in sorted(subprojects):
+        name = sheet_name(code, taken)
+        taken.append(name)
+        tabs[name] = subprojects[code]
+    tabs[sheet_name(OUTSIDE, taken)] = None
+    return tabs
+
+
+# The row (from 0) of the first fact of the project in the summary: the company, the client, the
+# revision, the date of the review, the structure, the currency (annex B, rows 6 to 11).
+FACTS_ROW = 5
+# The cell of the summary that holds the date of the review, which the import reads (#2702).
+REVIEW_DATE_CELL = f"B{FACTS_ROW + 3 + 1}"
 # The cell of « Paramètres » that holds the hours per day, which the formulas of the tabs read.
 HOURS_PER_DAY_CELL = "'Paramètres'!$B$2"
 # The columns of the summary: the progress, then the breakdown of the remaining.
