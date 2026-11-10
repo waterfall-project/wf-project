@@ -353,7 +353,6 @@ const drawn = (page: Page, name: RegExp) => page.getByRole("img", { name });
 test("shows two timelines of a project with distinct selections, found again by another visit and another session @shared [WF-PLA-0140-A]", async ({
   page,
   browser,
-  baseURL,
   manager,
 }) => {
   // Deux chronologies d'un même projet portent des sélections distinctes et se retrouvent d'une
@@ -388,11 +387,7 @@ test("shows two timelines of a project with distinct selections, found again by 
   // nothing with the first (cookies, storage), reads the two selections the service holds. The fake
   // back keeps no session, and the visits above are what it plays.
   if (inService && manager !== undefined) {
-    const context = await browser.newContext({
-      ...(baseURL === undefined ? {} : { baseURL }),
-      locale: "fr-FR",
-      ignoreHTTPSErrors: true,
-    });
+    const context = await browser.newContext();
     try {
       const other = await context.newPage();
       await signIn(other, manager, steering);

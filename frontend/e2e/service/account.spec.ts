@@ -68,7 +68,7 @@ test.beforeEach(async ({ request }) => {
 
 /** A page of a workstation of its own, its browser asking for a language. */
 async function workstation(browser: Browser, locale: string): Promise<Page> {
-  const context = await browser.newContext({ locale, ignoreHTTPSErrors: true });
+  const context = await browser.newContext({ locale });
   return context.newPage();
 }
 
