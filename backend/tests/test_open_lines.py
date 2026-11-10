@@ -14,7 +14,7 @@ is checked against the contract.
 """
 
 from annotationlib import Format, get_annotations
-from datetime import timedelta
+from datetime import date, timedelta
 from typing import TYPE_CHECKING, Any, Literal, TypeAliasType, get_args, get_origin
 from uuid import UUID
 
@@ -490,33 +490,98 @@ def test_a_task_completed_moved_under_a_summary_closed_by_its_line_leaves_it_clo
 
 @pytest.mark.requirement("WF-PLA-0040-A")
 @pytest.mark.requirement("WF-PLA-0130-A")
-def test_a_subordinate_deleted_under_a_summary_that_was_closed_leaves_no_stale_day(
+def test_a_subordinate_deleted_under_a_summary_that_was_closed_reads_the_zeroing_of_its_line(
     closed_phase: Review, stage: Scene, realm: TestRealm
 ) -> None:
-    # The phase closed on Friday by its line, a subordinate created under it then deleted: the
-    # phase is completed again by its subordinates, on the day of the last of them, Tuesday — the
-    # closure of Friday was cleared when the subordinate came (#2769). The deletion is undone
-    # (the phase is started again), then redone.
+    # « … pour date de terminaison la plus tardive de celles de ses subordonnées et de la mise à
+    # zéro de ses lignes propres » : the phase closed by its line, a subordinate created under it
+    # (which clears the day, #2769) then deleted, the phase is completed again by its study and its
+    # line, on the day of the zeroing read on the line (``reestimated_at``, option B of #2803),
+    # later than the study's Tuesday — the day of the entry, not the Friday it declared, which the
+    # reopening cleared. The deletion is undone (the phase is started again), then redone.
     tree = closed_phase.tree
     writer = signed_in(stage, realm)
     phase = task_named(tree, "Phase")
+    zeroed = zeroing_day(stage, tree, "Pilotage")
+    assert zeroed > TUESDAY
     created = tree.create("Contrôle", parent_id=phase["node_id"])
     assert created.status_code == 201, created.text
+    assert kept(stage, tree, "Phase") == ("started", None)
     node = task_named(tree, "Contrôle")
     answer = delete(tree, node, writer)
     assert answer.status_code == 200, answer.text
     assert state(task_named(tree, "Phase")) == (
         "completed",
         DAY.isoformat(),
-        TUESDAY.isoformat(),
+        zeroed.isoformat(),
         False,
     )
-    assert kept(stage, tree, "Phase")[1] is None
+    assert kept(stage, tree, "Phase") == ("completed", zeroed.isoformat())
     undone(tree, writer)
     assert state(task_named(tree, "Phase")) == ("started", DAY.isoformat(), None, False)
+    assert kept(stage, tree, "Phase") == ("started", None)
     redone(tree, writer)
-    assert state(task_named(tree, "Phase"))[1:3] == (DAY.isoformat(), TUESDAY.isoformat())
+    assert state(task_named(tree, "Phase"))[1:3] == (DAY.isoformat(), zeroed.isoformat())
+    assert kept(stage, tree, "Phase") == ("completed", zeroed.isoformat())
+
+
+@pytest.mark.requirement("WF-PLA-0040-A")
+@pytest.mark.requirement("WF-PLA-0130-A")
+def test_a_subordinate_moved_out_of_a_summary_that_was_closed_reads_the_zeroing_of_its_line(
+    closed_phase: Review, stage: Scene, realm: TestRealm
+) -> None:
+    # The same path by a move: the assembly, not started, moved under the phase reopens it; moved
+    # back to the first level, it leaves the phase completed by its study and its line, on the day
+    # of the zeroing read on the line (option B of #2803). Undone, the phase is started again.
+    tree = closed_phase.tree
+    writer = signed_in(stage, realm)
+    zeroed = zeroing_day(stage, tree, "Pilotage")
+    answer = moved_under(tree, "Montage", "Phase", writer)
+    assert answer.status_code == 200, answer.text
+    assert kept(stage, tree, "Phase") == ("started", None)
+    assembly = task_named(tree, "Montage")
+    sent = {"node_ids": [assembly["node_id"]], "parent_id": None, "lock_version": counter(tree)}
+    answer = tree.api.post(f"{tree.path}/nodes/move", headers=writer.headers, json=sent)
+    assert answer.status_code == 200, answer.text
+    assert state(task_named(tree, "Phase")) == (
+        "completed",
+        DAY.isoformat(),
+        zeroed.isoformat(),
+        False,
+    )
+    assert kept(stage, tree, "Phase") == ("completed", zeroed.isoformat())
+    undone(tree, writer)
+    assert kept(stage, tree, "Phase") == ("started", None)
+
+
+@pytest.mark.requirement("WF-PLA-0040-A")
+@pytest.mark.requirement("WF-PLA-0130-A")
+def test_a_subordinate_deleted_under_a_summary_whose_line_keeps_a_remaining_leaves_it_held(
+    review: Review, stage: Scene, realm: TestRealm
+) -> None:
+    # The line of the phase never set to nought: its study done, the phase awaits its line; a
+    # subordinate created then deleted leaves it so, started, its facet untouched.
+    tree = review.tree
+    writer = signed_in(stage, realm)
+    done(tree, "Étude")
+    phase = task_named(tree, "Phase")
+    created = tree.create("Contrôle", parent_id=phase["node_id"])
+    assert created.status_code == 201, created.text
+    answer = delete(tree, task_named(tree, "Contrôle"), writer)
+    assert answer.status_code == 200, answer.text
+    assert state(task_named(tree, "Phase")) == ("started", DAY.isoformat(), None, True)
     assert kept(stage, tree, "Phase")[1] is None
+
+
+def zeroing_day(stage: Scene, tree: Tree, label: str) -> date:
+    """Read the day a line of a label was last re-estimated, as the base holds it."""
+    node_id = UUID(line_named(tree, label)["node_id"])
+    with stage.database.transaction() as session:
+        instant = session.scalar(
+            select(EstimateLine.reestimated_at).where(EstimateLine.node_id == node_id)
+        )
+    assert instant is not None
+    return instant.date()
 
 
 @pytest.fixture

@@ -52,6 +52,8 @@ from waterfall.core.planning.scheduling import Move, WorkInstant
 from waterfall.core.planning.shaping import (
     Placing,
     closed_above,
+    closed_again,
+    completed_again,
     deleted,
     emptied,
     judge_place,
@@ -809,8 +811,10 @@ def delete_node(
     lines, its links and the inscriptions of its lineages with it (WF-DAT-0090); a summary left
     without subordinate becomes a leaf in its state (WF-PLA-0040) and is given back among the
     ancestors, with the tasks the links taken away redate — and the task a line leaves, whose
-    calendar may change (WF-PLA-0010) — and the totals without them. No provision line moves
-    before EP-08: ``nodes`` is empty.
+    calendar may change (WF-PLA-0010) — and the totals without them; a summary the subordinate
+    deleted had reopened is completed again, at the day its own lines were set to nought if that is
+    the latest (``closed_again``, WF-PLA-0130, #2803). No provision line moves before EP-08:
+    ``nodes`` is empty.
     """
     with writing(session, place, writer, ("node_delete", (node_id,))) as write:
         tree = write.tree
@@ -829,11 +833,18 @@ def delete_node(
         former = () if parent is None else (parent, *tree.ancestors(parent))
         subtree = list(tree.subtree(node_id))
         left_bare = parent is not None and tree.subtasks(parent) == [node_id]
-        touched = (*subtree, *((parent,) if left_bare and parent is not None else ()))
+        again = (
+            closed_again(session, place.project_id, tree, (node_id,))
+            if node_id in tree.tasks
+            else {}
+        )
+        bare = (parent,) if left_bare and parent is not None else ()
+        touched = (*subtree, *bare, *again)
         write.before(touched)
         if left_bare and parent is not None:
             emptied(tree, parent)
             stamp(tree.nodes[parent], writer.act)
+        completed_again(tree, again, writer.act)
         deleted(session, place.project_id, tree, subtree)
         redated = write.redate(None)
         write.after(touched)
@@ -971,12 +982,16 @@ def _moved(write: Write, placing: Placing) -> NodesWritten:
     # A task not completed placed under a parent makes it and the summaries above not completed.
     open_below = any(state_of(tree, each).progress != COMPLETED for each in tasks_moved)
     closed = closed_above(tree, parent) if open_below else ()
-    touched = tuple(dict.fromkeys((*node_ids, *shifted, *above, *left_bare, *closed)))
+    # A summary the tasks leave may be completed again by the others (#2803).
+    receiving = () if parent is None else (parent, *tree.ancestors(parent))
+    again = closed_again(write.session, write.place.project_id, tree, tasks_moved, receiving)
+    touched = tuple(dict.fromkeys((*node_ids, *shifted, *above, *left_bare, *closed, *again)))
     write.before(touched)
     reopened(tree, closed, act)
     for each in left_bare:
         emptied(tree, each)
         stamp(tree.nodes[each], act)
+    completed_again(tree, again, act)
     if made_summary and parent is not None:
         tree.tasks[parent].scheduling_mode = AUTOMATIC
         stamp(tree.nodes[parent], act)

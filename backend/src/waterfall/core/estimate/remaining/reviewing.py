@@ -8,7 +8,9 @@ the lineage left as they are, the previous figures too; it marks the line (``ree
 keeps the reason sent, overwritten by each re-estimate (``remaining_reason``). A figure of
 ``reestimated_amount_basis`` refused is named under that object (``/reestimated_amount_basis/…``).
 A line keeps a task open while its re-estimated amount is not nought, a provision line never: its
-amount is the one its risk computes (WF-RIS-0010), none before EP-08.
+amount is the one its risk computes (WF-RIS-0010), none before EP-08. A task none of whose lines
+keeps one was set to nought at the latest mark of its lines (``zeroed_tasks``), which a summary
+completed again reads (WF-PLA-0130, #2803).
 
 The copy of a revision gives each line copied, after the copy of the lines, the figures and the
 re-estimated amount its source holds as its remaining to commit before the review (``previous_*``)
@@ -121,6 +123,36 @@ def open_tasks(
     provisions = provisions_of(session, rows)
     held = {row.node_id for row in rows if row.node_id not in provisions}
     return frozenset(task for task, lines in lines_by_task.items() if held.intersection(lines))
+
+
+def zeroed_tasks(
+    session: Session, project_id: UUID, lines_by_task: Mapping[UUID, Sequence[UUID]]
+) -> dict[UUID, datetime]:
+    """Give, of the tasks named, those none of whose lines keeps a remaining, a provision never.
+
+    Each with the latest instant one of its lines was re-estimated (``reestimated_at``); a task
+    none of whose lines was re-estimated, or bearing none but provisions, is left out. The lines
+    read in one statement, then their categories.
+    """
+    named = [line for lines in lines_by_task.values() for line in lines]
+    if not named:
+        return {}
+    rows = list(
+        session.scalars(
+            select(EstimateLine).where(
+                EstimateLine.project_id == project_id, EstimateLine.node_id.in_(named)
+            )
+        )
+    )
+    provisions = provisions_of(session, rows)
+    kept = {row.node_id: row for row in rows if row.node_id not in provisions}
+    found: dict[UUID, datetime] = {}
+    for task, lines in lines_by_task.items():
+        own = [kept[line] for line in lines if line in kept]
+        marks = [row.reestimated_at for row in own if row.reestimated_at is not None]
+        if marks and all(row.reestimated_amount == 0 for row in own):
+            found[task] = max(marks)
+    return found
 
 
 def first_passage(session: Session, project_id: UUID) -> datetime | None:

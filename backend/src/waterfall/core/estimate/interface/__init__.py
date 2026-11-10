@@ -218,6 +218,9 @@ from waterfall.core.estimate.interface.kanban import (
 from waterfall.core.estimate.interface.kanban import (
     startable_tasks as startable_tasks,
 )
+from waterfall.core.estimate.interface.kanban import (
+    zeroed_lines as zeroed_lines,
+)
 
 # ``lines`` (US-1490/L1; US-1490/L3, US-1570): a line changed, the question of the designation.
 from waterfall.core.estimate.interface.lines import (
@@ -375,7 +378,11 @@ from waterfall.core.estimate.workloading import (
 
 # The registries the estimate fills.
 from waterfall.core.exchanges.interface import register_exporter, register_format
-from waterfall.core.planning.interface import register_facet, register_open_lines
+from waterfall.core.planning.interface import (
+    register_facet,
+    register_open_lines,
+    register_zeroed_at,
+)
 from waterfall.core.projects.interface import EstimateFacts, register_estimate_facts
 from waterfall.core.resource_settings.interface import register_idle_task_guard
 from waterfall.core.revisions.interface import (
@@ -396,7 +403,8 @@ from waterfall.core.revisions.interface import (
 # revision keeps at its marking, and the budgeted amounts a designation refreshes (US-1500/L2). The
 # remaining to commit (EP-09): the remaining of the review before, copied after the rates, and the
 # format and the exporter of its workbook, each without effect until its story (US-1580/L1); the
-# own lines that hold a summary task open, which the planning asks at the reading (US-1590/L1).
+# own lines that hold a summary task open, which the planning asks at the reading (US-1590/L1), and
+# when they were set to nought, which a summary completed again reads (US-1650/L2, #2803).
 register_facet("estimate_line", LINE_FACET)
 register_tasks_and_lines("lines", revision_has_lines)
 register_copy(copy_rates)
@@ -423,3 +431,4 @@ register_exporter("estimate", ESTIMATE_EXPORTER)
 register_format("remaining", REMAINING_FORMAT)
 register_exporter("remaining", REMAINING_EXPORTER)
 register_open_lines(open_lines)
+register_zeroed_at(zeroed_lines)
