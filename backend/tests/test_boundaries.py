@@ -797,9 +797,31 @@ SHARED = {
     "STATE_FORBIDS_OPERATION": "platform/errors.py",
     "BEFORE_IN_PROGRESS": "core/projects/commands.py",
     "NO_BACKGROUND_TASK_RUNNING": "core/projects/commands.py",
+    "PROJECT_BEFORE_IN_PROGRESS": "core/projects/commands.py",
     "PROJECT_NOT_TERMINAL": "core/projects/commands.py",
     "TERMINAL": "core/projects/commands.py",
 }
+
+
+def _shared_names_declared(source: str) -> set[str]:
+    """The shared names a module declares at its top level, plainly or with an annotation."""
+    names: set[str] = set()
+    for statement in ast.parse(source).body:
+        if isinstance(statement, ast.Assign):
+            targets = statement.targets
+        elif isinstance(statement, ast.AnnAssign):
+            targets = [statement.target]
+        else:
+            targets = []
+        names |= {t.id for t in targets if isinstance(t, ast.Name) and t.id in SHARED}
+    return names
+
+
+def test_a_copy_of_a_shared_name_is_seen_annotated_or_not() -> None:
+    # A detail of the code, which reprises no Vérif: it cites no requirement.
+    assert _shared_names_declared('TERMINAL = ("lost",)') == {"TERMINAL"}
+    assert _shared_names_declared('TERMINAL: Final = ("lost",)') == {"TERMINAL"}
+    assert _shared_names_declared("from x import TERMINAL\nOTHER = 1") == set()
 
 
 def test_a_name_several_modules_judge_by_is_declared_by_the_one_that_owns_it() -> None:
@@ -807,9 +829,6 @@ def test_a_name_several_modules_judge_by_is_declared_by_the_one_that_owns_it() -
     package = Path(cast("str", importlib.import_module("waterfall").__file__)).parent
     declared: dict[str, set[str]] = {name: set() for name in SHARED}
     for path in sorted(package.rglob("*.py")):
-        for statement in ast.parse(path.read_text(encoding="utf-8")).body:
-            targets = statement.targets if isinstance(statement, ast.Assign) else []
-            for target in targets:
-                if isinstance(target, ast.Name) and target.id in SHARED:
-                    declared[target.id].add(path.relative_to(package).as_posix())
+        for name in _shared_names_declared(path.read_text(encoding="utf-8")):
+            declared[name].add(path.relative_to(package).as_posix())
     assert declared == {name: {owner} for name, owner in SHARED.items()}

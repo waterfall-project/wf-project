@@ -16,6 +16,7 @@ the file.
 from waterfall.core.projects.commands import (
     BEFORE_IN_PROGRESS,
     NO_BACKGROUND_TASK_RUNNING,
+    PROJECT_BEFORE_IN_PROGRESS,
     PROJECT_NOT_TERMINAL,
     TERMINAL,
 )
@@ -154,6 +155,7 @@ from waterfall.core.projects.interface.work_breakdown import (
 __all__ = [
     "BEFORE_IN_PROGRESS",
     "NO_BACKGROUND_TASK_RUNNING",
+    "PROJECT_BEFORE_IN_PROGRESS",
     "PROJECT_NOT_TERMINAL",
     "TERMINAL",
     "Attachments",
