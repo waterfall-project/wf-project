@@ -540,12 +540,11 @@ def test_a_file_refused_at_the_preparation_of_an_import_refused_again_leaves_it_
     assert read(api, stage, found["import_id"])["status"] == "refused"
 
 
-def test_a_preparation_that_breaks_waits_for_the_import_judged_again_then_fails_it(
+def test_a_preparation_that_breaks_fails_the_import_at_once(
     api: ContractClient, stage: Scene, worker: Worker, trial: TrialFormat
 ) -> None:
-    # Whatever the preparation raises waits for the judgment: an error that is not a refusal of the
-    # file, on a project turned terminal meanwhile, leaves the import refused as before (#2582);
-    # on a project that stands, it fails the import.
+    # An error that is not a refusal of the file is a defect of the format: it fails the import,
+    # the project standing or turned terminal meanwhile (#2582).
     standing = analysed(api, stage, worker)
     assert apply(api, stage, standing["import_id"]).status_code == 202
     trial.preparation = "break"
@@ -557,7 +556,7 @@ def test_a_preparation_that_breaks_waits_for_the_import_judged_again_then_fails_
     put_in_state(stage.owner, stage.project["project_id"], "lost")
     trial.preparation = "break"
     run(worker)
-    assert read(api, stage, found["import_id"])["status"] == "refused"
+    assert read(api, stage, found["import_id"])["status"] == "failed"
 
 
 @pytest.mark.usefixtures("trial")

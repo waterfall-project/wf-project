@@ -205,42 +205,31 @@ def apply(
     return None
 
 
-class _BrokenError(Exception):
-    """An error of the preparation on its way to be held, never raised out of the module."""
-
-    def __init__(self, error: Exception) -> None:
-        super().__init__(str(error))
-        self.error = error
-
-
 @dataclass(frozen=True, slots=True)
 class _Prepared:
     """The model a format read a file into, or the error it raised instead."""
 
     read: Any
-    error: Exception | None
+    refusal: ServiceError | None
 
     @classmethod
     def of(cls, form: Format[Any], content: bytes) -> _Prepared:
-        """Have a format read a file, holding no lock; keep its error for the application.
+        """Have a format read a file, holding no lock; keep its refusal for the application.
 
-        Whatever the preparation raises — a refusal (``FILE_FORMAT_UNREADABLE``) or a break —
-        waits for the import to be judged again, as when applying read the file under the locks
-        (#2582): the project turned terminal refuses the import, else the error fails it. Only
-        the reading of the file from the storage fails the import at once.
+        A refusal of the file (``FILE_FORMAT_UNREADABLE``, a ``ServiceError``) waits for the
+        import to be judged again, as when applying read the file under the locks (#2582): the
+        project turned terminal refuses the import. Any other error is a defect of the format: it
+        fails the import at once, as the reading of the file from the storage does.
         """
         try:
-            try:
-                return cls(form.prepare(content), None)
-            except Exception as error:
-                raise _BrokenError(error) from error
-        except _BrokenError as broken:
-            return cls(None, broken.error)
+            return cls(form.prepare(content), None)
+        except ServiceError as refusal:
+            return cls(None, refusal)
 
     def model(self) -> Any:
-        """Give the model read, or raise again the error of the preparation."""
-        if self.error is not None:
-            raise self.error
+        """Give the model read, or raise again the refusal of the preparation."""
+        if self.refusal is not None:
+            raise self.refusal
         return self.read
 
 
