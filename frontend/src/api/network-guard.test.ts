@@ -299,6 +299,24 @@ describe("the network guard", { timeout: 60_000 }, () => {
     }
   });
 
+  it("lets the proxy of the bench reach node:http, and nothing else of the network", async () => {
+    const BENCH = "bench/contract-proxy.ts";
+    expect(await lint('import * as http from "node:http";\nexport default http;', BENCH)).toEqual(
+      [],
+    );
+    await refused(GLOBALS[0]?.[1] ?? "", "no-restricted-globals", BENCH);
+    await refused(
+      'import * as client from "axios";\nexport default client;',
+      "no-restricted-imports",
+      BENCH,
+    );
+    await refused(
+      'import * as client from "node:https";\nexport default client;',
+      "no-restricted-imports",
+      BENCH,
+    );
+  });
+
   it.each(SESSION_CLIENTS)(
     "refuses %s outside the modules of the session that wrap it, statically or not",
     async (name) => {

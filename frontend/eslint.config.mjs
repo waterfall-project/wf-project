@@ -415,15 +415,23 @@ export default defineConfig([
   {
     // The bench of the paths against the service, around Prism (bench/contract-proxy.ts,
     // US-1550/L7): no code of the front, which Next never loads, but a proxy that Node runs in the
-    // container of Prism, and its test, which stands up the servers it sits between. A proxy calls
-    // the network by its nature: the network guard, which keeps the front to the generated client
-    // (WF-ARC-0020), does not apply here. It writes no text to a user, so neither does TEXT_SYNTAX.
-    files: ["bench/**"],
+    // container of Prism, and its test, which stands up the servers it sits between. A proxy
+    // speaks HTTP by its nature: node:http passes, and no other module of the network — not fetch,
+    // nor a client of npm. It writes only a log, no text of the interface, and the other rules of
+    // the guard stay as they are.
+    files: ["bench/contract-proxy.ts", "bench/contract-proxy.test.ts"],
     rules: {
-      "no-restricted-globals": "off",
-      "no-restricted-properties": "off",
-      "no-restricted-imports": "off",
-      "no-restricted-syntax": "off",
+      "no-restricted-imports": [
+        "error",
+        {
+          patterns: [
+            {
+              regex: modulePattern(NETWORK_MODULES.filter((m) => m !== "node:http")),
+              message: NETWORK,
+            },
+          ],
+        },
+      ],
     },
   },
   {
