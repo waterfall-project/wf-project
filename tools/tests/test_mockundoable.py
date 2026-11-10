@@ -3,10 +3,10 @@
 """Tests of the paste that creates the tasks past the last row, and of the undo and the redo.
 
 The paste cites the Vérif of WF-IHM-0050-A it tries on the examples (confirmed, the other rows
-written and not the refused one), and the values of a task created those of WF-DEV-0050-A; the undo
-and the redo try the simplifications of the fake back against the renaming they undo and redo, not
-a Vérif (the fifty successive undos of WF-IHM-0110-A are not tried here), and cite none
-(WF-QUA-0010).
+written and not the refused one); the tasks it creates, the undo and the redo try the
+simplifications of the fake back — the values a creation gives, the renaming undone and redone, the
+history left behind them —, not a Vérif (the fifty successive undos of WF-IHM-0110-A are not tried
+here), and cite none (WF-QUA-0010).
 """
 
 import json
@@ -58,14 +58,13 @@ def test_the_rows_past_the_last_node_create_tasks_and_the_one_without_a_label_is
     assert applied["rejected"] == [REFUSED]
 
 
-@pytest.mark.requirement("WF-DEV-0050-A")
 def test_the_tasks_created_are_siblings_of_the_last_node_after_it_as_a_creation_gives_them() -> (
     None
 ):
     # The anchor is the last node of the structure the fake back serves first; the tasks created
     # share its parent, ranked after it in the order of the block, at their first version, each a
-    # leaf in automatic mode of one day without a predecessor, not started (`createNode`):
-    # « en mode automatique, d’une durée d’un jour et sans prédécesseur ».
+    # leaf in automatic mode of one day without a predecessor, not started, as `createNode` gives
+    # it.
     served = json.loads((mockwitness.FIXTURES / "volume" / "nodes_thousand.json").read_text())
     [last] = served["value"]["items"][-1:]
     assert last["task"]["label"] == mockundoable.CREATING_BLOCK[0][0]
@@ -131,3 +130,15 @@ def test_a_redo_renames_again_one_version_further_than_the_undo() -> None:
     assert node == {**renamed, "lock_version": before["lock_version"] + 1}
     assert node["task"]["label"] == mockwrites.RENAMED
     assert redone["written"]["structure_lock_version"] == 4
+
+
+def test_the_variants_of_the_undo_and_the_redo_differ_by_the_history_left_alone() -> None:
+    # The forms `one` and `other` of the announcement of the front (#2626): the changes left are
+    # in the estimate of the amendment 2, and write nothing of the main structure.
+    for variant, base, left in (
+        ("undo_task_renamed_one_left", "undo_task_renamed", 1),
+        ("redo_task_renamed_two_left", "redo_task_renamed", 2),
+    ):
+        served = fixture(variant)
+        assert served["remaining_depth"] == left
+        assert {**served, "remaining_depth": 0} == fixture(base)
