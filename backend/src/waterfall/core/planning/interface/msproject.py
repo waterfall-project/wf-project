@@ -17,7 +17,8 @@ the namespace of MS Project, after the declaration, the comments and the instruc
 else is refused (422 ``FILE_FORMAT_UNREADABLE``, ``expected_format``: MSPDI has no version). The
 whole file is read by the reader at the analysis, which fails the import on a file it cannot read.
 The analysis and the application build the same plan (``importing``), the application under the
-lock of the structure, which the task of the exchanges takes after the revision and the project.
+lock of the structure, which the task of the exchanges takes after the revision and the project:
+the file is read before, by the preparation, holding no lock (#2582).
 """
 
 import re
@@ -87,21 +88,25 @@ class MsProjectFormat:
         plan, items = importing.plan_import(session, target, read, lock=False)
         return importing.report_of(plan, read, items)
 
+    def prepare(self, content: bytes) -> ReadProject:
+        """Read a whole planning of MS Project, before any lock; refused as its head would be."""
+        return _read(content)
+
     def apply(
         self,
         session: Session,
         target: ImportTarget,
-        content: bytes,
+        prepared: ReadProject,
         report: Mapping[str, Any],
         act: Act,
     ) -> None:
         """Write the report of a planning of MS Project into a structure, judged again.
 
-        The plan is built again under the lock of the structure: what changed since the analysis
-        is judged as it now stands, and a refusal fails the import.
+        The plan is built again, from the planning prepared, under the lock of the structure: what
+        changed since the analysis is judged as it now stands, and a refusal fails the import.
         """
         del report
-        plan, _ = importing.plan_import(session, target, _read(content), lock=True)
+        plan, _ = importing.plan_import(session, target, prepared, lock=True)
         applying.apply_plan(session, plan, act)
 
 

@@ -2,7 +2,8 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 """The application of the workbook of an estimate to a structure, private to the module (US-1550).
 
-The task of the application (``import_apply``) reads the file again, locks the structure, and
+The task of the application (``import_apply``) reads the file again — the format prepares it,
+before any lock (``read_workbook``) —, locks the structure, and
 analyses it again against the structure as it stands under that lock (``importing``), with what
 the report the user confirmed holds back (``Confirmed``): a line the report rejected is left out,
 as the user read it before confirming (WF-INTF-0080), and a line of the structure absent from the
@@ -34,7 +35,6 @@ its own writes (``no_background_task_running``).
 from typing import TYPE_CHECKING, Any
 
 from waterfall.core.estimate import importing
-from waterfall.core.estimate.excel.reader import read_workbook
 from waterfall.core.estimate.writing import HoursJudged, change_line
 from waterfall.core.planning.interface import (
     LinesWrite,
@@ -53,6 +53,7 @@ if TYPE_CHECKING:
 
     from sqlalchemy.orm import Session
 
+    from waterfall.core.estimate.excel.reader import WorkbookRead
     from waterfall.core.estimate.importing import Aimed, Analysis, Planned
     from waterfall.core.exchanges.interface import ImportTarget
     from waterfall.core.planning.interface import FacetWrite
@@ -63,7 +64,7 @@ PARENT = "parent"
 
 
 def apply(
-    session: Session, target: ImportTarget, content: bytes, report: Mapping[str, Any], act: Act
+    session: Session, target: ImportTarget, read: WorkbookRead, report: Mapping[str, Any], act: Act
 ) -> None:
     """Write the report of a workbook into the structure of the current revision, judged again."""
     project_id, revision_id, structure_id = (
@@ -74,7 +75,6 @@ def apply(
     if revision_id is None or structure_id is None:
         msg = "an estimate is applied to a structure of the current revision"
         raise LookupError(msg)
-    read = read_workbook(content)
     structure_facts(session, project_id, structure_id, lock=True)
     held = importing.aimed(session, target)
     confirmed = confirmed_by(report)

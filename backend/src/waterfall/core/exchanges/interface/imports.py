@@ -2,13 +2,15 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 """The imports in two steps: the formats a module registers, the deposit, the analysis, the apply.
 
-A format knows three things: read the header of a file deposited and say whether it recognises it,
-analyse the file against the structure aimed at and give a report in codes without writing
-anything, and apply a report in the transaction of the task, judging again what the analysis
-accepted (EP-06, "L'import en deux temps"). The exchanges know no format: they find the one of a
-kind (``ExchangeKind``) in their registry, filled by the module that serves it at the import of
-its interface — the planning for ``ms_project_schedule`` (US-1430), EP-07 and EP-09 for theirs —,
-and read of the file only the header the format asks for (``Format.header_length``).
+A format knows four things: read the header of a file deposited and say whether it recognises it,
+analyse the file against the structure aimed at and give a report in codes without writing anything,
+read the file into its model before the application takes a lock, and apply a report with that model
+in the transaction of the task, judging again what the analysis accepted (EP-06, "L'import en deux
+temps"; EP-09, "La préparation des imports hors verrou et la lecture figée"). The exchanges know no
+format: they find the one of a kind (``ExchangeKind``) in their registry, filled by the module that
+serves it at the import of its interface — the planning for ``ms_project_schedule`` (US-1430), EP-07
+and EP-09 for theirs —, and read of the file only the header the format asks for
+(``Format.header_length``).
 
 The deposit of a file (``uploadFile``: ``deposit``), the opening of an import (``open_import``:
 the header by the format, the conditions, the task of the analysis), its reading and its list
@@ -112,8 +114,8 @@ LONGEST_NAME = 255
 UPLOAD_INDEX = "uq_import_report_upload_id"
 
 
-class Format(Protocol):
-    """What reads, analyses and applies a file of a kind of import.
+class Format[Prepared](Protocol):
+    """What reads, analyses, prepares and applies a file of a kind of import.
 
     ``header_length`` is the number of bytes of the head of the file ``read_header`` receives;
     ``scope`` what an import of the kind writes; ``permission`` the permission it asks of who opens,
@@ -126,9 +128,15 @@ class Format(Protocol):
     ``actual_cost_mapping_complete`` for the actual costs), at the opening, at the application and
     again when its task runs: refused after the analysis, the import is ``refused``. ``analyse``
     gives the report of the file against the structure aimed at, in codes and parameters
-    (``ImportReport`` as the contract reads it), writing nothing. ``apply`` writes the report into
-    the structure, in the transaction of the task — taking the lock of the structure, and redating
-    it —, judging again what the analysis accepted: a refusal then fails the import.
+    (``ImportReport`` as the contract reads it), writing nothing, in a transaction frozen at its
+    first read (``REPEATABLE READ``, read only; #2679).
+
+    The application comes in two steps (#2582, #2739). ``prepare`` reads the file and gives its
+    model in memory — the slow part: a workbook, a planning of 10 MiB —, before the task takes any
+    lock, reading nothing of the database; a file it cannot read fails the import as the
+    application would have. ``apply`` writes the report into the structure with that model, in the
+    transaction of the task — taking the lock of the structure, and redating it —, judging again
+    what the analysis accepted: a refusal then fails the import. It only judges again and writes.
 
     The ``target`` ``judge`` receives is that of the write: at the application, the structure of
     the current revision — the copy of the one analysed when that was of the last marked revision —,
@@ -151,11 +159,15 @@ class Format(Protocol):
         """Give the report of a file against the structure aimed at, writing nothing."""
         ...
 
+    def prepare(self, content: bytes) -> Prepared:
+        """Read a file into its model, before any lock: nothing of the database is read."""
+        ...
+
     def apply(
         self,
         session: Session,
         target: ImportTarget,
-        content: bytes,
+        prepared: Prepared,
         report: Mapping[str, Any],
         act: Act,
     ) -> None:
@@ -252,10 +264,10 @@ class ImportRefused:
 
 
 # The format of each kind of import, in the order of their registration.
-_FORMATS: Registry[tuple[ExchangeKind, Format]] = Registry("exchanges.formats")
+_FORMATS: Registry[tuple[ExchangeKind, Format[Any]]] = Registry("exchanges.formats")
 
 
-def register_format(kind: ExchangeKind, form: Format) -> Callable[[], None]:
+def register_format(kind: ExchangeKind, form: Format[Any]) -> Callable[[], None]:
     """Add the format of a kind of import; give its withdrawal; refused if the kind has one."""
     if kind in formats():
         msg = f"the kind {kind} has a format already"
@@ -263,17 +275,17 @@ def register_format(kind: ExchangeKind, form: Format) -> Callable[[], None]:
     return _FORMATS.register((kind, form))
 
 
-def formats() -> Mapping[ExchangeKind, Format]:
+def formats() -> Mapping[ExchangeKind, Format[Any]]:
     """Give the format of each kind of import registered, by kind."""
     return dict(_FORMATS.entries())
 
 
-def _format_named(kind: str) -> Format | None:
+def _format_named(kind: str) -> Format[Any] | None:
     """Give the format of a kind read from a row or a request, ``None`` if no module serves it."""
     return next((form for named, form in _FORMATS.entries() if named == kind), None)
 
 
-def _format_of(kind: str) -> Format:
+def _format_of(kind: str) -> Format[Any]:
     """Give the format of a kind; a kind no module serves is a file no format recognises (422)."""
     form = _format_named(kind)
     if form is None:

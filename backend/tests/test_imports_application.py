@@ -20,6 +20,7 @@ from fastapi.testclient import TestClient
 from imports_trial import (
     PROJECTS,
     ROWS,
+    UNREADABLE,
     Stopped,
     TrialFormat,
     analysed,
@@ -50,6 +51,7 @@ from waterfall.core.exchanges.states import AWAITING_DECISION, FILE_ACCEPTED, ap
 from waterfall.core.exchanges.tables import ImportReport
 from waterfall.core.history.tables import UndoEntry
 from waterfall.core.projects.interface import PROJECT_NOT_TERMINAL
+from waterfall.core.projects.tables import Project
 from waterfall.core.revisions.tables import CostStructure, Revision
 from waterfall.platform.audit import AuditEntry
 from waterfall.platform.keycloak_admin import KeycloakAdmin
@@ -449,6 +451,93 @@ def test_an_abandonment_waits_for_the_lock_of_the_import_and_the_analysis_then_w
     row = stored(database, import_id)
     assert (row.status, row.report, row.analysed_at) == ("abandoned", None, None)
     assert backups_bucket.size(key) is None
+
+
+def test_the_file_is_read_before_the_application_takes_a_lock_then_applied_under_them(
+    api: ContractClient,
+    stage: Scene,
+    worker: Worker,
+    database: Database,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # The format prepares the file holding no lock (#2582, #2739): while it reads, another
+    # transaction takes at once the locks the application takes after — of the import, of the
+    # project —, and the application, resumed, writes what the file brings.
+    entered, release = Event(), Event()
+
+    class Slow(TrialFormat):
+        def prepare(self, content: bytes) -> list[str]:
+            entered.set()
+            assert release.wait(20)
+            return super().prepare(content)
+
+    stand_in(monkeypatch, "remaining", Slow())
+    found = analysed(api, stage, worker)
+    before = len(nodes(database))
+    assert apply(api, stage, found["import_id"]).status_code == 202
+    try:
+        with ThreadPoolExecutor(1) as others:
+            application = others.submit(run, worker)
+            assert entered.wait(20)
+            with Session(database.engine) as holding:
+                held = [
+                    holding.scalar(
+                        select(ImportReport.id)
+                        .where(ImportReport.id == UUID(found["import_id"]))
+                        .with_for_update(nowait=True)
+                    ),
+                    holding.scalar(
+                        select(Project.id)
+                        .where(Project.id == UUID(stage.project["project_id"]))
+                        .with_for_update(nowait=True)
+                    ),
+                ]
+                holding.commit()
+            release.set()
+            application.result(timeout=20)
+    finally:
+        release.set()
+    assert held == [UUID(found["import_id"]), UUID(stage.project["project_id"])]
+    assert read(api, stage, found["import_id"])["status"] == "applied"
+    assert len(nodes(database)) == before + len(ROWS)
+
+
+@pytest.mark.requirement("WF-INTF-0080-A")
+def test_a_file_the_format_refuses_at_the_preparation_fails_the_import_unwritten(
+    api: ContractClient, stage: Scene, worker: Worker, backups_bucket: Bucket, trial: TrialFormat
+) -> None:
+    # A file the format no longer reads at the application fails the import as its application
+    # did before the preparation (#2582): nothing written, its file deleted, the task naming why.
+    database = stage.database
+    found = analysed(api, stage, worker)
+    key = stored(database, found["import_id"]).object_key
+    before = (nodes(database), revisions(database))
+    assert apply(api, stage, found["import_id"]).status_code == 202
+    trial.preparation = "refuse"
+    run(worker)
+    applied = read(api, stage, found["import_id"])
+    assert (applied["status"], applied["expires_at"]) == ("failed", None)
+    assert applied["task"]["problem"]["code"] == UNREADABLE
+    assert (nodes(database), revisions(database)) == before
+    assert backups_bucket.size(key) is None
+
+
+@pytest.mark.requirement("WF-ARC-0100-A")
+def test_a_file_refused_at_the_preparation_of_an_import_refused_again_leaves_it_refused(
+    api: ContractClient, stage: Scene, worker: Worker, trial: TrialFormat
+) -> None:
+    # « Il en va de même si le projet est passé dans un état terminal entre-temps. » The refusal
+    # of the file waits for the import to be judged again, as when its application read the file
+    # under the locks: the project turned terminal refuses the import.
+    found = analysed(api, stage, worker)
+    assert apply(api, stage, found["import_id"]).status_code == 202
+    put_in_state(stage.owner, stage.project["project_id"], "lost")
+    trial.preparation = "refuse"
+    run(worker)
+    task = task_of(stage.database, found["import_id"])
+    assert task.problem is not None
+    assert task.problem["params"] == {"missing_condition": "project_not_terminal"}
+    assert read(api, stage, found["import_id"])["status"] == "refused"
 
 
 @pytest.mark.usefixtures("trial")

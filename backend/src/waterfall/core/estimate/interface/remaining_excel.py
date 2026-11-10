@@ -64,11 +64,16 @@ class RemainingFormat:
         msg = "analyse is filled by US-1630/L3"
         raise NotImplementedError(msg)
 
+    def prepare(self, content: bytes) -> object:
+        """Read a whole workbook of a remaining to commit, before any lock."""
+        msg = "prepare is filled by US-1630/L3"
+        raise NotImplementedError(msg)
+
     def apply(
         self,
         session: Session,
         target: ImportTarget,
-        content: bytes,
+        prepared: object,
         report: Mapping[str, Any],
         act: Act,
     ) -> None:

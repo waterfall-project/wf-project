@@ -563,13 +563,14 @@ def test_an_application_without_its_import_or_its_account_is_a_defect(
     # The exchanges give the application its import and the account that confirmed it: without
     # either, nothing is written, rather than an entry of the log without its import or author.
     target = ImportTarget(project_of(stage), None, None)
+    rows = ACTUAL_COSTS_FORMAT.prepare(APRIL)
     with stage.database.transaction() as session, pytest.raises(ValueError, match="for an account"):
-        ACTUAL_COSTS_FORMAT.apply(session, target, APRIL, {}, Act(stage.manager.user_id, utc_now()))
+        ACTUAL_COSTS_FORMAT.apply(session, target, rows, {}, Act(stage.manager.user_id, utc_now()))
     with stage.database.transaction() as session, pytest.raises(ValueError, match="for an account"):
         ACTUAL_COSTS_FORMAT.apply(
             session,
             ImportTarget(project_of(stage), None, None, import_id=project_of(stage)),
-            APRIL,
+            rows,
             {},
             Act(None, utc_now()),
         )

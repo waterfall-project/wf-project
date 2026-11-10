@@ -21,6 +21,7 @@ from fastapi.testclient import TestClient
 from imports_trial import deposited, path, read, run
 from lxml import etree
 from nodes_support import Tree, mark, opened
+from planning_support import give_a_task, insert_link
 from projects_support import PROJECTS, Scene
 from projects_support import scene as make_scene
 from sqlalchemy import select, update
@@ -30,6 +31,7 @@ from test_msproject_import import Timing, link, links, planning, task
 from waterfall.api.app import create_app
 from waterfall.api.authentication import Services
 from waterfall.core.cost_settings.interface import read_reference_settings
+from waterfall.core.planning import exporting
 from waterfall.core.planning.msproject import read_project
 from waterfall.core.planning.tree import read_tree
 from waterfall.core.projects.tables import Project
@@ -47,9 +49,10 @@ if TYPE_CHECKING:
     from openapi_core import OpenAPI
     from realm import TestRealm
     from sqlalchemy import Engine
+    from sqlalchemy.orm import Session
 
     from waterfall.core.planning.msproject import MsProject
-    from waterfall.core.planning.tables import Node, Task
+    from waterfall.core.planning.tables import Node, Task, TaskLink
     from waterfall.platform.database import Database
     from waterfall.platform.keycloak import Keycloak
     from waterfall.platform.queue import TaskQueue
@@ -574,3 +577,31 @@ def test_the_currency_code_written_is_the_one_of_the_installation(
     assert currency
     assert project.currency_code == currency
     assert f"<CurrencyCode>{currency}</CurrencyCode>" in content.decode()
+
+
+def test_a_link_created_while_the_planning_is_exported_is_not_read_and_the_export_succeeds(
+    api: ContractClient, stage: Scene, worker: Worker, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # The export reads in a transaction frozen at its first read (#2679): a task and a link from
+    # it, committed between the reading of the tree and that of the links, are not read — the link
+    # would name a task the tree read has not —, and the planning is exported as it stood.
+    revision = opened(api, stage)
+    revision_id = UUID(revision["revision_id"])
+    import_file(api, stage, worker, the_planning(), apply=True)
+    successor = nodes(stage)[-1][0].id
+    reading = exporting.read_links
+
+    def meanwhile(session: Session, project_id: UUID, structure_id: UUID) -> list[TaskLink]:
+        with stage.database.engine.begin() as connection:
+            created = give_a_task(connection, revision_id)
+            connection.execute(
+                insert_link(project_id, revision_id, structure_id, created, successor)
+            )
+        return reading(session, project_id, structure_id)
+
+    monkeypatch.setattr(exporting, "read_links", meanwhile)
+    exported_project = read_project(exported(api, stage, worker, revision["revision_id"])).project
+    monkeypatch.undo()
+    assert len(exported_project.tasks) == len(read_project(the_planning()).project.tasks)
+    again = read_project(exported(api, stage, worker, revision["revision_id"])).project
+    assert len(again.tasks) == len(exported_project.tasks) + 1

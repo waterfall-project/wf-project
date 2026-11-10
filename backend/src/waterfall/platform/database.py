@@ -3,7 +3,9 @@
 """The database: the naming of constraints, the types every table shares, the sessions.
 
 SQLAlchemy 2 with synchronous sessions, over psycopg 3. A request is one transaction
-(``Database.transaction``): it commits when the block ends and rolls back when it raises. A text
+(``Database.transaction``): it commits when the block ends and rolls back when it raises. A task
+that reads a whole structure to turn it into a file or a report reads it in a transaction of its
+own, frozen (``frozen_reading``). A text
 a table sorts is compared code point by code point, and a search ignores case and accents
 (contract, README; sql.md, "Trier et chercher un texte"): both are said here once.
 """
@@ -135,6 +137,26 @@ def create_database_engine(address: str) -> Engine:
     return create_engine(
         engine_url(address), connect_args={"options": "-c timezone=UTC"}, pool_pre_ping=True
     )
+
+
+@contextmanager
+def frozen_reading(session: Session) -> Generator[Session]:
+    """Read beside ``session`` in a transaction of its own, frozen at its first read, read only.
+
+    ``REPEATABLE READ``: every read sees the database as it stood at the first, whatever commits
+    meanwhile — a link created between the reading of a tree and that of its links is not seen
+    (#2679). A transaction already begun cannot change its isolation, and the worker's, which ends
+    the task, writes a row the attempt committed after its first read, which a frozen one would
+    refuse: the reading takes a connection of its own, rolled back at the end of the block. It
+    sees nothing ``session`` has not committed.
+    """
+    bind = session.get_bind()
+    engine = bind if isinstance(bind, Engine) else bind.engine
+    frozen = engine.connect().execution_options(
+        isolation_level="REPEATABLE READ", postgresql_readonly=True
+    )
+    with frozen, Session(frozen) as reading:
+        yield reading
 
 
 class Database:
