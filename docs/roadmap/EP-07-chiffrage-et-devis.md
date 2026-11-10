@@ -385,7 +385,10 @@ Décisions de l'utilisateur du 2026-11-09, sur les constats d'US-1540 (#2366), d
   mesure l'application du devis de PRJ-001 dans la tâche de fond `import_apply` ; si la durée
   dépasse ce qu'une tâche de fond admet, l'écriture groupée dans `core/planning` (un rejeu de la
   structure à la fin, partagé avec la saisie et le collage) devient un lot à part. Écarté :
-  l'optimiser dans US-1550/L3, qui touchait sans mesure le cœur de la saisie.
+  l'optimiser dans US-1550/L3, qui touchait sans mesure le cœur de la saisie. Mesuré par
+  US-1550/L4 (#2693) : les 4 999 lignes du devis de PRJ-001 lues, 4 883 créées, appliquées en 23 à
+  29 s dans la tâche de fond, 5 à 6 ms par ligne ; durée acceptée en l'état (décision de l'auteur
+  du 2026-11-10), à rouvrir si des devis plus gros ou un collage de masse lent apparaissent.
 - **`import_estimate` suit le contrat (C-358).** La commande reste disponible En cours, un
   différentiel s'important encore ; `openImport` et `applyImport` refusent l'import sur la
   structure principale par 409 `project_before_in_progress`. Le critère d'US-1550 qui la disait
@@ -448,6 +451,49 @@ Décisions de l'utilisateur du 2026-11-09, sur les verrous mortels de la créati
   celle d'EP-10 ; le socle d'EP-09, US-1580/L1 (#2398), attend ce lot. Écarté : un autre numéro pour
   la migration d'EP-07, la chaîne d'Alembic étant linéaire.
 
+Décisions de l'auteur du 2026-11-10, sur les constats de la revue d'US-1550/L4 et du banc du
+service, chacune avec l'option écartée :
+
+- **Une catégorie se désigne dans le devis par son code comptable** (#2688) : la colonne « Code
+  comptable » et le sous-total « Heures par code comptable » du classeur « Devis » portent
+  `CostCategory.accounting_code`, non son `code` technique (WF-REF-0040, annexe B), et l'import
+  retrouve la catégorie par ce code. Le modèle `Category` de l'écriture le porte, l'écrivain,
+  l'exporteur et l'index de `reference_of` le suivent ; la preuve est une catégorie dont `code` et
+  `accounting_code` diffèrent, exportée puis réimportée sans écart. Écarté : garder le code
+  technique, cohérent à l'aller-retour mais hors de l'annexe B. Le classeur du reste à engager
+  d'EP-09, qui réemploie ce modèle, en hérite.
+- **L'import retrouve un rôle ou une catégorie par le code entre les dernières parenthèses**
+  (#2689) : « libellé (code) » se lit par son code, le libellé n'étant qu'indicatif, si bien qu'un
+  rôle renommé depuis l'export, ou le devis d'une révision marquée réimporté dans la révision en
+  cours (WF-INTF-0100-A), ne fait rejeter aucune ligne. Écarté : la chaîne exacte « libellé
+  (code) », qui rejetait toutes les lignes d'un rôle renommé.
+- **Les libellés des rôles et des catégories ne partagent pas d'index** (#2690) : deux
+  dictionnaires, un code pouvant être celui d'un rôle et d'une catégorie à la fois. Écartée : une
+  clé `(sorte, code)` dans un seul dictionnaire, l'autre forme que le constat proposait.
+- **`export_estimate` entre dans `EXPORT_RULES`**, avec `export_planning` et
+  `export_task_tree_image` (#2691) : dans `REVISION_RULES`, une révision marquée recevrait
+  `revision_draft`, contre WF-CYC-0110 et le contrat (`RevisionCommand` : tout export gardé par sa
+  seule permission). « Modules » le dit.
+- **L'aperçu du collage sur la grille de devis dit les lignes qu'il crée** (#2668) : une clé
+  `grid.paste.createdLines` de `messages/fr.json` et `en.json` (« {count, plural, one {# ligne
+  sera créée} other {# lignes seront créées}} sous la dernière tâche »), que la grille de devis
+  choisit, écrite par le lot de correction du devis (« Ce qu'EP-06 écrit encore », les catalogues).
+  Écarté : déduire le libellé de `PastePlan.created`, qui ne dit pas ce qu'il crée.
+- **Les colonnes masquées et les largeurs de la grille de devis ne se rejouent pas contre le
+  service** (#2671) : le mécanisme des réglages est commun aux grilles et aux tables, éprouvé
+  contre le service par `service/account.spec.ts` ; le critère d'US-1560 le dit « constaté par
+  EP-03 », sans rejeu. Écarté : un parcours `@shared` du devis de plus pour le même mécanisme.
+- **Le banc du service laisse passer les corps non JSON** (#2687, #2695, #973) : Prism, mandataire
+  du contrat dans `make e2e-service`, lit tout corps comme du texte et réécrit chaque octet au-delà
+  de 0x7f ; un classeur exporté ou déposé, une archive de sauvegarde coupée en parts, une image
+  d'avatar en sortaient corrompus. Les corps non JSON (`application/octet-stream`, `.xlsx`,
+  archives, images) passent à l'API sans être réécrits, la vérification des réponses JSON par le
+  contrat gardée ; le parcours de l'import en deux temps d'`exchanges.spec.ts` porte alors `@shared`
+  (critère d'US-1550, qui reste en cours jusque-là), `backups.spec.ts` ne casse plus sur une coupure
+  de part, et le parcours de l'avatar quitte son `test.fixme`. Le correctif est un lot d'outil
+  d'EP-07, qui débloque la clôture d'US-1550. Écartée : l'option B de #2687, le critère reporté en
+  écart et US-1550 passée `fini` sans l'aller-retour par le front.
+
 ### Tables et migrations
 
 Régime « révisionné » (§4.4.1), partitionnées par projet comme `node`, pour `estimate_line` et les
@@ -500,9 +546,10 @@ avant toute cascade ; une révision marquée ne supprime rien, ses déclencheurs
   aucune heure est refusée (`TASK_WITHOUT_WORKING_HOURS`), et la garde
   `register_idle_task_guard` juge aussi les calendriers des rôles (`updateCalendar`,
   `updateResourceRole`).
-- **Les commandes** : `apply_rate_update` et `export_estimate` entrent dans `REVISION_RULES` de
-  `core/revisions/commands.py` — `revisions.write` et `rate_update_available` ; `estimate.read`,
-  présente ou absente —, `import_estimate` dans celles de `core/projects/commands.py`
+- **Les commandes** : `apply_rate_update` entre dans `REVISION_RULES` de
+  `core/revisions/commands.py` — `revisions.write` et `rate_update_available` —, `export_estimate`
+  dans `EXPORT_RULES` du même fichier, avec les exports d'EP-06 — `estimate.read`, présente ou
+  absente, sans condition, révision marquée comprise (#2691) —, `import_estimate` dans celles de `core/projects/commands.py`
   (`estimate.write`, `project_before_in_progress` dès En cours, puis `no_background_task_running`,
   `may_create_revision`) ; les deux fichiers sont encore écrits par EP-06 (« Ce qu'EP-06 écrit
   encore »).
@@ -598,7 +645,9 @@ chargeur — s'étend à chacun.
   colonne masquée ; « Tâches » (lignée, numéro, libellé, onglet, dates, description) et
   « Paramètres » (rôles, catégories hors main-d'œuvre, taux retenus, sous-projets), protégés ; le
   logo et le pied de page sur chaque onglet ; aucun texte saisi écrit comme formule
-  (`strings_to_formulas` faux). `sheet_name` ramène un nom aux règles d'Excel : caractères refusés
+  (`strings_to_formulas` faux). Une catégorie y est désignée par son code comptable, colonne
+  « Code comptable » comprise (#2688) ; les libellés des rôles et des catégories sont indexés à
+  part (#2690). `sheet_name` ramène un nom aux règles d'Excel : caractères refusés
   remplacés, 31 unités UTF-16, unicité sans égard à la casse par un suffixe ` (2)` ; EP-09
   l'importe pour les codes des sous-projets (#2190).
 - **La lecture** (openpyxl, `read_only`, valeurs) : l'en-tête d'abord — format « Devis », version
@@ -607,7 +656,9 @@ chargeur — s'étend à chacun.
   désignation, la quantité, les heures, le débours unitaire, le délai de paiement, le sous-projet et
   la lignée ; une ligne vide ou de total ignorée, une colonne inconnue ignorée, un nombre en texte
   rejeté (`NUMBER_INVALID`), chaque rejet par son onglet et son numéro de ligne Excel.
-- **L'analyse** rapproche par la lignée, puis désigne la tâche par « Tâches » ou par son libellé
+- **L'analyse** rapproche par la lignée, retrouve un rôle ou une catégorie par le code entre les
+  dernières parenthèses de « libellé (code) », le libellé n'étant qu'indicatif (#2689), puis désigne
+  la tâche par « Tâches » ou par son libellé
   (`AMBIGUOUS_TASK_LABEL`, `UNKNOWN_TASK`), crée les lignes sans lignée, met à jour les autres sans
   toucher leur budgété, supprime les absentes sauf sous une tâche démarrée ou terminée (`kept`),
   rejette une ligne nouvelle sous une tâche terminée de la structure principale
@@ -685,7 +736,8 @@ attendent dès le socle —, pour qu'il ne soit pas rouge entre les deux.
 Chaque US étiquette `@shared` les tests dont l'écran est servi : US-1520 `workload.spec.ts` ;
 US-1530 `revisions.spec.ts` (`BEFORE_EP07` levé, la proposition des taux comprise, après US-1500) ;
 US-1540 le jumeau des contributeurs et le cycle (`revision-cycle.spec.ts`) ; US-1550 l'import en
-deux temps d'`exchanges.spec.ts` ; US-1560 `entry.spec.ts`, `computed.spec.ts`, `keyboard.spec.ts`,
+deux temps d'`exchanges.spec.ts`, une fois que le banc du service laisse passer les corps non JSON
+(« Ce que le cadrage décide », #2687) ; US-1560 `entry.spec.ts`, `computed.spec.ts`, `keyboard.spec.ts`,
 `paste.spec.ts`, `undo.spec.ts`, la part du devis de `grid.spec.ts`, `structure.spec.ts` et
 `context.spec.ts` (`BEFORE_THE_DATA` levé pour le devis). Les parcours qui écrivent le font sur un
 projet que la course crée (#2193) ; ceux qui lisent le devis propre d'un risque restent gardés par
@@ -733,8 +785,10 @@ ce lot, ou en dépendent par son numéro :
 des deux EPIC : une fixture qui manque devient une issue. Les catalogues `messages/*.json` ne
 s'écrivent que par le lot qui ajoute un code d'erreur au contrat, pour sa seule clé
 `errors.<CODE>` et son test (décision du 2026-11-08, EP-06, « Les catalogues du front et le
-collage », #2537), et par le lot qui porte un écran, pour les clés non-erreur de ce seul écran
-(amendement du 2026-11-08, #2559, #2563) ; toute autre clé manquante devient une issue.
+collage », #2537), par le lot qui porte un écran, pour les clés non-erreur de ce seul écran
+(amendement du 2026-11-08, #2559, #2563), et par le lot de correction du devis, pour la seule clé
+`grid.paste.createdLines` (décision du 2026-11-10, #2668) ; toute autre clé manquante devient une
+issue.
 
 ### L'ordre de construction
 
@@ -1679,7 +1733,8 @@ annulation, tri, filtres, indicateurs —, **afin de** chiffrer mon projet sans 
   contre le service sur les six mille nœuds de PRJ-001 ;
 - `WF-IHM-0060-A` — « Les colonnes masquées et les largeurs choisies sont retrouvées à la
   réouverture, et un autre utilisateur ouvrant la même grille voit ses propres réglages. » :
-  constaté par EP-03 ;
+  constaté par EP-03, sans rejeu contre le service : le mécanisme des réglages est commun aux
+  grilles et aux tables, éprouvé contre le service par `service/account.spec.ts` (#2671) ;
 - `WF-IHM-0060-A` — « Le nombre de lignes par page choisi pour une table est retrouvé à sa
   réouverture, sans changer celui des autres tables ; une grille arborescente n’offre pas ce
   choix. » : constaté par EP-15 ;
