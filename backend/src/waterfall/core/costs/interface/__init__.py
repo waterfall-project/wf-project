@@ -43,8 +43,6 @@ from waterfall.core.costs.interface.cost_imports import (
 from waterfall.core.costs.interface.cost_imports import (
     load_cost_import as load_cost_import,
 )
-
-# ``cost_lines`` (US-1580/L1; US-1620/L1, US-1610/L3): the lines read, excluded, loaded.
 from waterfall.core.costs.interface.cost_lines import (
     CostLineLoad as CostLineLoad,
 )
@@ -88,6 +86,30 @@ from waterfall.core.costs.interface.tracked_costs import (
 )
 from waterfall.core.costs.interface.tracked_costs import (
     actual_costs_until as actual_costs_until,
+)
+
+# ``cost_lines`` (US-1580/L1; US-1620/L1, US-1610/L3): the lines read, excluded, loaded; the
+# objects of the reading and of the exclusion are those of ``reading`` and ``scoping`` (US-1620/L1).
+from waterfall.core.costs.reading import (
+    CostLineFilters as CostLineFilters,
+)
+from waterfall.core.costs.reading import (
+    CostLineList as CostLineList,
+)
+from waterfall.core.costs.reading import (
+    CostLinePage as CostLinePage,
+)
+from waterfall.core.costs.reading import (
+    CostLineSort as CostLineSort,
+)
+from waterfall.core.costs.reading import (
+    CostLineView as CostLineView,
+)
+from waterfall.core.costs.reading import (
+    CostTotals as CostTotals,
+)
+from waterfall.core.costs.scoping import (
+    ScopeChange as ScopeChange,
 )
 
 # The registries the actual costs fill.
