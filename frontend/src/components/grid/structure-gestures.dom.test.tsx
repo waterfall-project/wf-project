@@ -710,6 +710,46 @@ describe("the refusal of a gesture, said to the row in cause", () => {
     expect(router.refresh).not.toHaveBeenCalled();
   });
 
+  it.each([
+    ["estimate", () => estimateGrid(), estimate],
+    ["remaining to commit", () => remainingGrid(true), estimate],
+    ["planning", () => planningGrid(planning, true), planning],
+  ] as const)(
+    "refers the refusal to delete a task started, in the grid of the %s, to its line in the remaining to commit [WF-PLA-0070-A]",
+    async (_, grid, nodes) => {
+      // La suppression d'une tâche démarrée est refusée, et l'utilisateur est renvoyé vers la mise à
+      // zéro de son reste à engager: the refusal `task_not_started` leads to the task found by its label.
+      serve({
+        [DELETE]: {
+          problem: example("node_delete_started_refused") as Problem & { status: 409 },
+        },
+      });
+      render(grid());
+      const at = nodes.items.findIndex((item) => item.kind === "task");
+      const label = nodes.items[at]?.task?.label ?? "";
+      await choose(at, "Supprimer");
+      // A summary asks its confirmation first.
+      const dialog = screen.queryByRole("dialog");
+      if (dialog !== null) {
+        await userEvent.click(within(dialog).getByRole("button", { name: "Supprimer" }));
+      }
+      const alert = await screen.findByRole("alert");
+      const link = within(alert).getByRole("link", { name: "Mettre son reste à engager à zéro" });
+      expect(link).toHaveAttribute(
+        "href",
+        `/projects/${STRUCTURE.project_id}/revisions/${STRUCTURE.revision_id}/remaining?${new URLSearchParams({ search: label }).toString()}`,
+      );
+    },
+  );
+
+  it("refers no other refusal to the remaining to commit [WF-PLA-0070-A]", async () => {
+    serve({ [DELETE]: COMPLETED_REFUSED });
+    render(estimateGrid());
+    await choose(LINE, "Supprimer");
+    const alert = await screen.findByRole("alert");
+    expect(within(alert).queryByRole("link")).toBeNull();
+  });
+
   it("names the risks whose provision a deletion would leave without a task, from the refusal of the contract (H-05)", async () => {
     // The refusal is the main structure's; the row it is told at is the one the deletion was asked from.
     serve({

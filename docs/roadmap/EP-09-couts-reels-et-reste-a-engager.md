@@ -1572,7 +1572,7 @@ provision et l'import sur un différentiel (EP-08) ; l'écran des échanges lui-
 
 ## US-1640 — La grille de reste à engager et le Kanban branchés sur le service
 
-- **statut** : à faire
+- **statut** : en cours
 - **exigences** : `WF-RAE-0040-A`, `WF-RAE-0030-A`, `WF-REF-0010-A`
 - **opérations** : `listNodes`, `setLineRemaining`, `createNode`, `deleteNode`, `moveNodes`,
   `updateEstimateLine`, `listStartableTasks`, `setTaskProgress`, `getRemainingIndicators`,

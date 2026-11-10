@@ -17,7 +17,7 @@
  * Pure, and neither server nor client.
  */
 import type { components } from "@/api/generated/schema";
-import { SEARCH_LENGTH } from "@/components/grid/query";
+import { SEARCH, SEARCH_LENGTH } from "@/components/grid/query";
 import type { SearchParameters } from "@/navigation/context";
 
 /** The state of a task, as the contract names it. */
@@ -120,4 +120,21 @@ export function kanbanFilterHref(
   }
   const text = next.toString();
   return text === "" ? pathname : `${pathname}?${text}`;
+}
+
+/**
+ * The address of the grid of the remaining to commit of a revision on a task, found by its label
+ * (`search`): where the refusal to delete a task started leads, to bring its remaining to commit to
+ * zero (WF-PLA-0070). The grid shows the tasks started by default, which is the task refused.
+ */
+export function taskRemainingHref(projectId: string, revisionId: string, label: string): string {
+  const query = new URLSearchParams({ [SEARCH]: label.slice(0, SEARCH_LENGTH) });
+  return `/projects/${projectId}/revisions/${revisionId}/remaining?${query.toString()}`;
+}
+
+/** The day, as a date of the planning, in the time of the workstation: what a date asked proposes. */
+export function today(): string {
+  const now = new Date();
+  const two = (value: number) => value.toString().padStart(2, "0");
+  return `${now.getFullYear().toString()}-${two(now.getMonth() + 1)}-${two(now.getDate())}`;
 }

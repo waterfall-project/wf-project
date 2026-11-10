@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The cells of the grid of the estimate that show more than a value formatted: the mark of a line
+ * The cells of the grids of the estimate and of the remaining to commit that show more than a value formatted: the mark of a line
  * that employs a deactivated object of the reference data — a category, a role or a nature
  * deactivated since (WF-REF-0010) —, which the server says (`uses_inactive_object`). It is a mark
  * of its own, an icon named by the catalogue, never a zone of the scale of signals, which the
@@ -13,10 +13,12 @@
 import { ToggleLeft } from "lucide-react";
 import { useTranslations } from "next-intl";
 
-import type { EstimateNode } from "./estimate";
-
 /** Render the mark of a line that employs a deactivated object; nothing for the others. */
-export function InactiveObjectCell({ node }: { readonly node: EstimateNode }) {
+export function InactiveObjectCell({
+  node,
+}: {
+  readonly node: { readonly estimate_line?: { readonly uses_inactive_object?: boolean } | null };
+}) {
   const t = useTranslations("estimateGrid");
   if (node.estimate_line?.uses_inactive_object !== true) {
     return null;

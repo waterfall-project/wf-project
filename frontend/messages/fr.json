@@ -316,6 +316,7 @@
       "refusedAt": "Refusé à la ligne {number}, « {label} » :",
       "refusedAtRow": "Refusé à la ligne {number} :",
       "refusedCreating": "Création de « {label} » refusée :",
+      "toRemaining": "Mettre son reste à engager à zéro",
       "onRow": "Ligne {number}, « {label} »",
       "timelines": "Chronologies",
       "milestoneTracking": "Suivi temps/temps",
@@ -480,6 +481,12 @@
     }
   },
   "remainingGrid": {
+    "completionTitle": "Terminer la tâche",
+    "completionHint": "Cette saisie met à zéro le reste à engager de la dernière ligne ouverte de la tâche : elle la termine. Indiquez la date de sa terminaison.",
+    "completionDate": "Date de terminaison",
+    "completionRequired": "Indiquez la date de terminaison.",
+    "completionCancel": "Abandonner la saisie",
+    "completionConfirm": "Terminer la tâche",
     "finishOverdue": "Tâche démarrée dont la fin est dépassée",
     "ownLinesOpen": "Lignes propres ouvertes",
     "showNotStarted": "Montrer aussi les tâches non démarrées",
@@ -1490,6 +1497,9 @@
       },
       "ownLinesOpen": {
         "help": "Marque une récapitulative dont toutes les subordonnées sont terminées et qui attend ses seules lignes propres, et ces lignes, hors provision, qui gardent un reste à engager."
+      },
+      "inactiveObject": {
+        "help": "Marque une ligne qui emploie un objet désactivé du référentiel, resté lisible."
       },
       "budgetedAmount": {
         "help": "Montant budgété de la ligne, tel que le budget de référence l’a figé."

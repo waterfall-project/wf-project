@@ -6,6 +6,7 @@ import { NextIntlClientProvider } from "next-intl";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { ApiClient } from "@/api/client";
+import type { Problem } from "@/api/problem";
 import { CATALOGUES } from "@/i18n/catalogues";
 import { expectAccessible } from "@/test/axe";
 import { example, type FakeClient, fakeClient } from "@/test/fixtures";
@@ -55,9 +56,11 @@ const DESKS = 3;
 const TASK_ALONE = ["progress", "finish"];
 
 /** Serve the fake back, and give it back to read its calls. */
-function serve(): FakeClient {
+function serve(
+  answer: Parameters<typeof fakeClient>[0][typeof REMAINING] = "remaining_reestimated",
+): FakeClient {
   const client = fakeClient({
-    [REMAINING]: "remaining_reestimated",
+    [REMAINING]: answer,
     [NODES]: "nodes_estimate",
     // A header that sorts keeps the sort in the preferences of the account.
     "PATCH /me/preferences": "preferences",
@@ -301,6 +304,77 @@ describe("the grid of the remaining to commit", () => {
     expect(screen.getByRole("treegrid").querySelector("tfoot")).not.toHaveTextContent(
       /121\s334,56/,
     );
+  });
+
+  it("marks the lines that bear a deactivated object, as the server says it, and keeps them readable [WF-REF-0010-A]", () => {
+    // Après désactivation d'un rôle de ressource, les lignes qui le portent sont signalées dans la
+    // grille de reste à engager, et restent lisibles.
+    serve();
+    const read = structuredClone(example("nodes_estimate") as NodeList);
+    const labour = read.items[LABOUR]?.estimate_line;
+    if (labour !== undefined && labour !== null) {
+      labour.uses_inactive_object = true;
+    }
+    render(grid(read));
+    expect(screen.getByRole("columnheader", { name: "Objet désactivé" })).toBeInTheDocument();
+    expect(
+      within(cell(LABOUR, "inactive_object")).getByRole("img", {
+        name: "Emploie un objet désactivé",
+      }),
+    ).toBeInTheDocument();
+    expect(cell(DISBURSEMENT, "inactive_object")).toBeEmptyDOMElement();
+    expect(cell(LABOUR, "hours")).toHaveTextContent(/^12,5$/);
+  });
+
+  it("asks the date when the entry completes the task, and replays it with the date given [WF-RAE-0040-A]", async () => {
+    // La saisie d'un reste à engager nul sur toutes les lignes d'une tâche non démarrée la termine :
+    // the service refuses it without the date (`COMPLETION_DATE_REQUIRED`), nothing written; the grid
+    // asks the date and replays the entry from the same version.
+    const problem = example("remaining_completion_date_required") as Problem & {
+      readonly status: 422;
+    };
+    const client = serve([{ problem }, "remaining_reestimated"]);
+    render(grid());
+    cell(LABOUR, "hours").focus();
+    await userEvent.keyboard("{Enter}");
+    await userEvent.clear(screen.getByRole("textbox", { name: "Charge (h)" }));
+    await userEvent.keyboard("0{Enter}");
+    const dialog = await screen.findByRole("dialog", { name: "Terminer la tâche" });
+    const date = within(dialog).getByLabelText("Date de terminaison");
+    await userEvent.clear(date);
+    await userEvent.type(date, "2026-07-02");
+    await userEvent.click(within(dialog).getByRole("button", { name: "Terminer la tâche" }));
+    await vi.waitFor(() => {
+      expect(written(client)).toHaveLength(2);
+    });
+    expect(written(client)).toEqual([
+      { reestimated_amount_basis: { hours: "0" }, lock_version: 1 },
+      {
+        reestimated_amount_basis: { hours: "0" },
+        lock_version: 1,
+        completed_on: "2026-07-02",
+      },
+    ]);
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(screen.queryByRole("alert")).toBeNull();
+  });
+
+  it("gives the entry up when the date is not given, and tells the refusal at the cell [WF-RAE-0040-A]", async () => {
+    const problem = example("remaining_completion_date_required") as Problem & {
+      readonly status: 422;
+    };
+    const client = serve({ problem });
+    render(grid());
+    cell(LABOUR, "hours").focus();
+    await userEvent.keyboard("{Enter}");
+    await userEvent.clear(screen.getByRole("textbox", { name: "Charge (h)" }));
+    await userEvent.keyboard("0{Enter}");
+    const dialog = await screen.findByRole("dialog", { name: "Terminer la tâche" });
+    await userEvent.click(within(dialog).getByRole("button", { name: "Abandonner la saisie" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Cette saisie termine la tâche : indiquez la date de sa terminaison.",
+    );
+    expect(written(client)).toHaveLength(1);
   });
 
   it("re-estimates a quantity, and a unit disbursement emptied, each figure alone", async () => {

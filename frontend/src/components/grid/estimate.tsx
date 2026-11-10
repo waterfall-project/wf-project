@@ -95,6 +95,7 @@ export const ESTIMATE_GRID: GridConfig<EstimateNode, NodeSortColumn, NodeTotals>
   key: "estimate",
   searched: true,
   name: "estimate",
+  creates: "lines",
   rowKey: nodeKey,
   fresher: nodeFresher,
   rowNumber: nodeNumber,

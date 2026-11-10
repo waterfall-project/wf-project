@@ -10,6 +10,7 @@ import { example } from "@/test/fixtures";
 import { alignment, formatCell, sortColumns } from "./columns";
 import { ESTIMATE_GRID } from "./estimate";
 import { NODE_COLUMNS, type NodeList, pasteSpan } from "./nodes";
+import { PLANNING_GRID } from "./planning";
 import { REMAINING_GRID } from "./remaining";
 
 // The schemas of the contract the nodes of a structure are written in.
@@ -53,6 +54,19 @@ describe("a cell of a grid", () => {
     expect(alignment({ format: "money" })).toBe("end");
     expect(alignment({ format: "date", align: "start" })).toBe("start");
   });
+});
+
+describe("what a grid creates", () => {
+  it.each([
+    ["planning", PLANNING_GRID, "tasks"],
+    ["estimate", ESTIMATE_GRID, "lines"],
+    ["remaining to commit", REMAINING_GRID, "lines"],
+  ] as const)(
+    "the %s says it creates %s, the preview of a paste reads it (#2753)",
+    (_, grid, creates) => {
+      expect(grid.creates).toBe(creates);
+    },
+  );
 });
 
 describe("the sort of a grid of the tree", () => {
