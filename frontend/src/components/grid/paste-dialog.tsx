@@ -13,7 +13,7 @@
  * above the grid with the cell the block was pasted from and the number of rows written, the
  * refusals in a region of their own whose height is bounded, out of the alert, until the user
  * dismisses it (`PasteAppliedNotice`). The preview says how many of the rows create a task (`created`,
- * #2559). A block refused before the server is asked — it would fill a column hidden or absent, or
+ * #2559), as lines under the last task on the estimate's grid (`createdLines`, #2668). A block refused before the server is asked — it would fill a column hidden or absent, or
  * rows the grid folds, sorts or filters away — says why (`UnshownNotice`).
  */
 "use client";
@@ -111,13 +111,23 @@ function RefusedRows({
  * What the server would write and refuse of the block: the rows to be written, the rows refused,
  * and, when it refuses some and writes others, that the confirmation writes the valid rows alone.
  */
-function Report({ plan, block }: { readonly plan: PastePlan; readonly block: PastedBlock }) {
+function Report({
+  plan,
+  block,
+  lines,
+}: {
+  readonly plan: PastePlan;
+  readonly block: PastedBlock;
+  readonly lines: boolean;
+}) {
   const t = useTranslations("grid.paste");
   const refused = plan.rejected.length > 0;
   return (
     <>
       <p>{t("accepted", { count: plan.accepted })}</p>
-      {plan.created > 0 ? <p>{t("created", { count: plan.created })}</p> : null}
+      {plan.created > 0 ? (
+        <p>{t(lines ? "createdLines" : "created", { count: plan.created })}</p>
+      ) : null}
       {refused ? (
         <>
           <RefusedCount rejected={plan.rejected} />
@@ -218,6 +228,11 @@ export interface PasteDialogProps {
    * inactive and saying so, until it answered (#1224).
    */
   readonly waiting?: boolean | undefined;
+  /**
+   * Whether the grid is the estimate's: what the plan creates are lines under the last task, not
+   * tasks after the last one (#2668).
+   */
+  readonly lines?: boolean | undefined;
   readonly onApply: () => void;
   readonly onAbandon: () => void;
   /** Give the focus back to the cell the block was pasted on: the dialog has no trigger. */
@@ -228,6 +243,7 @@ export interface PasteDialogProps {
 export function PasteDialog({
   pasting,
   waiting = false,
+  lines = false,
   onApply,
   onAbandon,
   onClosed,
@@ -264,7 +280,11 @@ export function PasteDialog({
           </DialogDescription>
         </DialogHeader>
         <div role="status" className="space-y-2 text-sm">
-          {plan === undefined ? t("paste.reading") : <Report plan={plan} block={block} />}
+          {plan === undefined ? (
+            t("paste.reading")
+          ) : (
+            <Report plan={plan} block={block} lines={lines} />
+          )}
           {applicable && waiting ? <p id={why}>{t("paste.waiting")}</p> : null}
         </div>
         <DialogFooter>

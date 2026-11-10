@@ -130,6 +130,7 @@ describe("the report of a paste that creates tasks", () => {
     inLanguage(
       <PasteDialog
         pasting={{ block, width: 2, target: report.target, plan, applying: false }}
+        lines
         onApply={vi.fn()}
         onAbandon={vi.fn()}
         onClosed={vi.fn()}
@@ -138,8 +139,11 @@ describe("the report of a paste that creates tasks", () => {
     const dialog = screen.getByRole("dialog", { name: "Coller depuis un tableur" });
     const status = within(dialog).getByRole("status");
     expect(status).toHaveTextContent("3 lignes seront écrites.");
-    // The count only, not the noun: the catalogue says « tâches » of lines it creates too (#2668).
-    expect(status).toHaveTextContent(plan.created.toString());
+    // The estimate's grid says lines under the last task, not the tasks of the planning (#2668).
+    expect(status).toHaveTextContent(
+      `${plan.created.toString()} lignes seront créées sous la dernière tâche.`,
+    );
+    expect(status).not.toHaveTextContent(/tâches seront/);
     expect(status).toHaveTextContent("2 lignes sont refusées :");
     expect(
       within(dialog)
