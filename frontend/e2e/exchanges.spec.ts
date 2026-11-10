@@ -7,6 +7,7 @@ import {
   expect,
   type Locator,
   type Page,
+  type Request,
   type Route,
 } from "@playwright/test";
 
@@ -393,9 +394,10 @@ test("exports the estimate as an Excel file, downloads it, sees a file that is n
   await expect(async () => {
     if ((await report.getByText(/lues?\./).count()) === 0) {
       await page.reload();
+      await page.waitForLoadState("domcontentloaded");
     }
     await expect(report.getByText(/lues?\./)).toBeVisible({ timeout: 1_000 });
-  }).toPass({ timeout: WORKING });
+  }).toPass({ timeout: WORKING, intervals: [500, 1_000, 2_000] });
   await expect(report.getByText("Aucun écart avec les données existantes")).toBeVisible();
   await expect(report.getByRole("table", { name: "Lignes rejetées" })).toHaveCount(0);
   const address = `${API}/projects/${seeded.ids.project}/imports/${opened}`;
@@ -435,7 +437,11 @@ test("exports the remaining to commit as an Excel file, imports it back in two s
   // The import of a remaining to commit is offered to a project in progress: the project of the
   // run is taken there, by the operations a user leads it by, and its current revision opened.
   const seeded = await seedPlanning(page, browser, request, manager, "Reste");
-  await employRole(request, seeded.headers, seeded.ids, seeded.nodes[6] ?? "", wiringService());
+  const employed = seeded.nodes[6];
+  if (employed === undefined) {
+    throw new Error("the planning seeded has no task 6, which the line of labour is attached to");
+  }
+  await employRole(request, seeded.headers, seeded.ids, employed, wiringService());
   const current = await takeInProgress(
     request,
     seeded,
@@ -482,17 +488,36 @@ test("exports the remaining to commit as an Excel file, imports it back in two s
   await expect(async () => {
     if ((await report.getByText(/lues?\./).count()) === 0) {
       await page.reload();
+      await page.waitForLoadState("domcontentloaded");
     }
     await expect(report.getByText(/lues?\./)).toBeVisible({ timeout: 1_000 });
-  }).toPass({ timeout: WORKING });
+  }).toPass({ timeout: WORKING, intervals: [500, 1_000, 2_000] });
   await expect(report.getByText("Aucun écart avec les données existantes")).toBeVisible();
   await expect(report.getByRole("table", { name: "Lignes rejetées" })).toHaveCount(0);
 
-  // Confirmed, the application is a task; the user leaves the screen of the exchanges at once.
+  // Confirmed, the application is a task; the user leaves the screen of the exchanges at once. The
+  // read of a task by the shell (a server action carrying the sole identifier of the task) waits
+  // for the test to let it, in the browser: the application is then still followed when the screen
+  // is left, however small the file, and the service itself is left to its own pace.
+  let release!: () => void;
+  const released = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  const reading = (request: Request) =>
+    /^\["[0-9a-f-]{36}"\]$/.test(request.postData() ?? "") &&
+    request.headers()["next-action"] !== undefined;
+  await page.route("**/*", async (route: Route) => {
+    if (reading(route.request())) {
+      await released;
+    }
+    await route.fallback();
+  });
+  const held = page.waitForRequest(reading);
   await report.getByRole("button", { name: "Appliquer l’import" }).click();
   const confirmation = report.getByRole("form", { name: "Confirmation de l’application" });
   await confirmation.getByRole("button", { name: "Confirmer l’application" }).click();
   await expect(confirmation).toHaveCount(0);
+  await held;
   await page
     .getByRole("navigation", { name: "Fonctions" })
     .getByRole("link", { name: "Projets", exact: true })
@@ -500,11 +525,16 @@ test("exports the remaining to commit as an Excel file, imports it back in two s
   await expect(page).not.toHaveURL(/\/exchanges/);
   await expect(report).toHaveCount(0);
 
-  // From the other screen, the shell tells the outcome of the application.
+  // From the other screen, the shell shows the application still followed, its read held.
   await page.getByRole("button", { name: /^Tâches et messages\s:/ }).click();
   const application = tasks
     .getByRole("listitem")
     .filter({ hasText: `Application d’un import « ${filename} »` });
+  await expect(application.getByText(/^(En cours|En attente)$/)).toBeVisible();
+  await expect(application.getByText("Réussie")).toHaveCount(0);
+
+  // The read let go, the shell tells the outcome of the application.
+  release();
   await expect(application.getByText("Réussie")).toBeVisible({ timeout: WORKING });
   await page.keyboard.press("Escape");
   const address = `${API}/projects/${seeded.ids.project}/imports/${opened}`;

@@ -13,13 +13,15 @@ import { type APIRequestContext, expect } from "@playwright/test";
 import { WORKING } from "./hydration";
 import { API } from "./service/realm";
 import type { Seeded } from "./planning-seed";
+import type { components } from "../src/api/generated/schema";
+
+type Schemas = components["schemas"];
 
 type Headers = Readonly<Record<string, string>>;
 
-/** The identifiers of the current revision a project In progress opens, and of its main structure. */
+/** The identifier of the current revision a project In progress opens. */
 export interface Successor {
   readonly revision: string;
-  readonly structure: string;
 }
 
 /** How long the worker is given to mark: a task taken from the queue, one transaction. */
@@ -33,7 +35,7 @@ async function lockOf(
 ): Promise<number> {
   const read = await calls.get(address, { headers });
   expect(read.status(), `GET ${address}`).toBe(200);
-  return ((await read.json()) as { lock_version: number }).lock_version;
+  return ((await read.json()) as Pick<Schemas["Revision"], "lock_version">).lock_version;
 }
 
 /**
@@ -50,17 +52,26 @@ export async function takeInProgress(
   const project = `${API}/projects/${seeded.ids.project}`;
   const revision = `${project}/revisions/${seeded.ids.revision}`;
 
-  const marked = await calls.post(`${revision}/mark`, {
-    headers,
-    data: { version_name: "v1.0", lock_version: await lockOf(calls, headers, revision) },
-  });
+  const marking: Schemas["RevisionMark"] = {
+    version_name: "v1.0",
+    lock_version: await lockOf(calls, headers, revision),
+  };
+  const marked = await calls.post(`${revision}/mark`, { headers, data: marking });
   expect(marked.status(), "POST mark").toBe(202);
-  const task = ((await marked.json()) as { task_id: string }).task_id;
-  await expect(async () => {
+  const { task_id: task } = (await marked.json()) as Schemas["BackgroundTaskRef"];
+  // The wait ends with the task, whatever its end: a task that failed ends it at once, and its
+  // problem is what the path fails on, not the whole delay given to the worker.
+  let ended: Schemas["BackgroundTaskRef"] | undefined;
+  const finished = async (): Promise<boolean> => {
     const read = await calls.get(`${API}/tasks/${task}`, { headers });
     expect(read.status(), "GET task").toBe(200);
-    expect(((await read.json()) as { status: string }).status).toBe("succeeded");
-  }).toPass({ timeout: MARKING });
+    const body = (await read.json()) as Schemas["BackgroundTaskRef"];
+    const over = body.status === "succeeded" || body.status === "failed";
+    ended = over ? body : undefined;
+    return over;
+  };
+  await expect.poll(finished, { timeout: MARKING }).toBe(true);
+  expect(ended?.status, JSON.stringify(ended?.problem)).toBe("succeeded");
 
   const designated = await calls.put(`${project}/reference-revision`, {
     headers,
@@ -76,22 +87,17 @@ export async function takeInProgress(
     data: { code, lock_version: await lockOf(calls, headers, project) },
   });
   expect(coded.status(), "PATCH project").toBe(200);
-  expect(((await coded.json()) as { state: string }).state).toBe("in_progress");
+  expect(((await coded.json()) as Schemas["Project"]).state).toBe("in_progress");
 
   const opened = await calls.post(`${project}/revisions`, { headers, data: {} });
   expect(opened.status(), "POST revisions").toBe(201);
-  const successor = ((await opened.json()) as { revision_id: string }).revision_id;
+  const successor = ((await opened.json()) as Schemas["Revision"]).revision_id;
+  // The main structure is made by the worker as the revision opens.
   await expect(async () => {
     const structures = await calls.get(`${project}/revisions/${successor}/structures`, { headers });
     expect(structures.status(), "GET structures").toBe(200);
-    const main = ((await structures.json()) as { structure_id: string; kind: string }[]).find(
-      ({ kind }) => kind === "main",
-    );
-    expect(main).toBeDefined();
+    const listed = (await structures.json()) as Schemas["CostStructure"][];
+    expect(listed.some(({ kind }) => kind === "main")).toBe(true);
   }).toPass({ timeout: WORKING });
-  const structures = await calls.get(`${project}/revisions/${successor}/structures`, { headers });
-  const main = ((await structures.json()) as { structure_id: string; kind: string }[]).find(
-    ({ kind }) => kind === "main",
-  );
-  return { revision: successor, structure: main?.structure_id ?? "" };
+  return { revision: successor };
 }
