@@ -14,14 +14,15 @@
       {"sequence":9,"occurred_at":"2026-02-02T09:00:00Z","what":"Réexamen de 751 : gravité portée à 1 250 000 ; la saisie ouvre la révision courante 102 ; 753 écarté","writes":[{"kind":"revision_opened","project":"PRJ-001","revision":102}]},
       {"sequence":10,"occurred_at":"2026-02-20T16:00:00Z","what":"Survenance de 752 : son devis propre fusionné dans la révision en cours, 102, la référence 101 inchangée","writes":[]},
       {"sequence":11,"occurred_at":"2026-03-02T09:15:00Z","what":"Réexamen de 751 à 40 % ; début des études","writes":[]},
-      {"sequence":12,"occurred_at":"2026-04-03T08:30:00Z","what":"Import de coûts réels","writes":[]},
-      {"sequence":13,"occurred_at":"2026-05-04T08:30:00Z","what":"Import de coûts réels","writes":[]},
-      {"sequence":14,"occurred_at":"2026-05-06T14:00:00Z","what":"Import de coûts réels","writes":[]},
-      {"sequence":15,"occurred_at":"2026-05-11T09:00:00Z","what":"Import de coûts réels","writes":[]},
-      {"sequence":16,"occurred_at":"2026-05-20T00:00:00Z","what":"Import de planning, abandonné","writes":[]},
-      {"sequence":17,"occurred_at":"2026-06-02T09:01:00Z","what":"Extraction d'avril rejouée et analysée ; expirée le lendemain","writes":[]},
-      {"sequence":18,"occurred_at":"2026-06-03T08:30:00Z","what":"Import de coûts réels","writes":[]},
-      {"sequence":19,"occurred_at":"2026-06-03T08:41:00Z","what":"Import du devis analysé, applicable jusqu'au lendemain","writes":[]}
+      {"sequence":12,"occurred_at":"2026-04-03T08:30:00Z","what":"Import de coûts réels","writes":[{"kind":"cost_import_applied","project":"PRJ-001","cost_import_id":"01926f3a-7c00-7000-8000-000000000c11"}]},
+      {"sequence":13,"occurred_at":"2026-04-06T09:15:00Z","what":"Exclusion de la réception du client","writes":[{"kind":"cost_line_excluded","project":"PRJ-001","document":"FA-2026-0295","item":"10","reason":"Réception du client, non budgétée"}]},
+      {"sequence":14,"occurred_at":"2026-05-04T08:30:00Z","what":"Import de coûts réels","writes":[{"kind":"cost_import_applied","project":"PRJ-001","cost_import_id":"01926f3a-7c00-7000-8000-000000000c12"}]},
+      {"sequence":15,"occurred_at":"2026-05-06T14:00:00Z","what":"Import de coûts réels","writes":[{"kind":"cost_import_applied","project":"PRJ-001","cost_import_id":"01926f3a-7c00-7000-8000-000000000c13"}]},
+      {"sequence":16,"occurred_at":"2026-05-11T09:00:00Z","what":"Import de coûts réels","writes":[{"kind":"cost_import_applied","project":"PRJ-001","cost_import_id":"01926f3a-7c00-7000-8000-000000000c14"}]},
+      {"sequence":17,"occurred_at":"2026-05-20T00:00:00Z","what":"Import de planning, abandonné","writes":[]},
+      {"sequence":18,"occurred_at":"2026-06-02T09:01:00Z","what":"Extraction d'avril rejouée et analysée ; expirée le lendemain","writes":[{"kind":"import_expired","project":"PRJ-001","import_id":"01926f3a-7c00-7000-8000-000000000a12"}]},
+      {"sequence":19,"occurred_at":"2026-06-03T08:30:00Z","what":"Import de coûts réels","writes":[{"kind":"cost_import_applied","project":"PRJ-001","cost_import_id":"01926f3a-7c00-7000-8000-000000000c15"}]},
+      {"sequence":20,"occurred_at":"2026-06-03T08:41:00Z","what":"Import du devis analysé, applicable jusqu'au lendemain","writes":[]}
     ]
   }
 }

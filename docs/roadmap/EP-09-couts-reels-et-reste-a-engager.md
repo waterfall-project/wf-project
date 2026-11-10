@@ -761,7 +761,7 @@ leur objet ; la vérification d'ensemble en dernier ; le plan de lots (étape 3)
 
 ## US-1580 — La réestimation d'une ligne, le reste à engager précédent et le plan de charge sur le reste
 
-- **statut** : à faire
+- **statut** : en cours
 - **exigences** : `WF-RAE-0010-A`, `WF-RAE-0040-A`, `WF-RAE-0050-A`, `WF-DEV-0070-A`
 - **opérations** : `setLineRemaining`, `listNodes`, `createRevision`, `getProjectWorkload` ;
   `createNode`, `updateEstimateLine` pour la ligne ajoutée après la référence
@@ -1550,7 +1550,7 @@ valeur acquise (EP-10) ; les écrans des coûts réels (US-1620).
 
 ## US-1650 — Le témoin : la tranche des coûts réels et du reste à engager, et les parcours rejoués
 
-- **statut** : à faire
+- **statut** : en cours
 - **exigences** : `WF-QUA-0040-A`, `WF-INTF-0010-A`
 - **opérations** : aucune en propre ; le chargement passe par les interfaces du noyau
 - **issue** : 2397

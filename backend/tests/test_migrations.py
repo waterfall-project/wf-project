@@ -40,6 +40,7 @@ from waterfall.core.cost_settings.tables import (
     HourlyRate,
     ReferenceSetting,
 )
+from waterfall.core.costs.tables import CostImport, CostLine
 from waterfall.core.estimate.tables import (
     EstimateLine,
     RevisionCalendar,
@@ -290,6 +291,8 @@ def test_the_migrations_build_the_schema_the_tables_of_the_code_declare(
         RevisionRole.__tablename__,
         RevisionCalendar.__tablename__,
         RevisionCategory.__tablename__,
+        CostLine.__tablename__,
+        CostImport.__tablename__,
     }
     upgrade(empty_engine)
     with empty_engine.connect() as connection:
@@ -422,6 +425,11 @@ SERVICE_RIGHTS: dict[str, set[str]] = {
     "revision_role": {"SELECT", "INSERT"},
     "revision_calendar": {"SELECT", "INSERT"},
     "revision_category": {"SELECT", "INSERT"},
+    # The actual costs (EP-09): a line inserted, then updated by a later import or an exclusion,
+    # never deleted; an entry of the log of the imports inserted once, never changed nor deleted
+    # (migration 0027).
+    "cost_line": {"SELECT", "INSERT", "UPDATE"},
+    "cost_import": {"SELECT", "INSERT"},
 }
 
 
