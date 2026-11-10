@@ -30,7 +30,7 @@ from imports_trial import (
 from projects_support import Scene
 from projects_support import scene as make_scene
 from sqlalchemy import insert, select, update
-from support import ContractClient
+from support import ContractClient, wait_for_a_lock
 
 from waterfall.api.app import create_app
 from waterfall.api.authentication import Services
@@ -60,7 +60,7 @@ from waterfall.platform.uploads import (
 )
 
 if TYPE_CHECKING:
-    from collections.abc import Iterator
+    from collections.abc import Iterator, Sequence
 
     from openapi_core import OpenAPI
     from realm import TestRealm
@@ -122,9 +122,11 @@ def purged_at(
 ) -> Purged:
     """Run the purge as the verb of the worker does at ``moment``, the storage listed first.
 
+    The listing leaves out what a row names, read in a transaction of its own, as the worker does.
     The storage loses what it gave through ``removing`` when it is named: another door on it.
     """
-    swept = stored_before(bucket, moment)
+    with database.transaction() as session:
+        swept = stored_before(bucket, moment, session)
     with database.transaction() as session:
         gone = purge(session, moment, swept)
     remove_purged(removing or bucket, gone)
@@ -531,6 +533,86 @@ def test_the_sweep_lists_no_more_than_its_limit_and_leaves_the_rest_to_the_next_
 
 
 @pytest.mark.requirement("WF-DAT-0120-A")
+def test_the_sweep_lists_no_more_deposits_in_parts_than_its_limit(backups_bucket: Bucket) -> None:
+    # « Un fichier déposé et jamais confirmé disparaît au terme du délai d'expiration. » : the
+    # deposits in parts are listed under the same bound as the objects, the rest left to the next
+    # pass, which lists them (#2533).
+    prefix = f"uploads/{uuid4()}/"
+    opened = {(key, backups_bucket.open_parts(key)) for key in (f"{prefix}a", f"{prefix}b")}
+    later = utc_now() + LATER
+    [listed] = backups_bucket.deposits_before(prefix, later, 1)
+    assert listed in opened
+    assert set(backups_bucket.deposits_before(prefix, later)) == opened
+    for key, deposit in opened:
+        backups_bucket.abort_parts(key, deposit)
+
+
+@pytest.mark.requirement("WF-DAT-0120-A")
+def test_the_sweep_goes_past_the_keys_a_row_names_to_reach_its_limit(
+    backups_bucket: Bucket,
+) -> None:
+    # « Un fichier déposé et jamais confirmé disparaît au terme du délai d'expiration. » : old
+    # objects a row still names — an import keeps its file past a day —, first in the order of the
+    # keys and as many as the limit, do not hide the stray beyond them (#2533); nor do deposits in
+    # parts a row names.
+    prefix = f"uploads/{uuid4()}/"
+    named, stray = [f"{prefix}a", f"{prefix}b"], f"{prefix}c"
+    for key in [*named, stray]:
+        backups_bucket.put(key, b"WF")
+    later = utc_now() + LATER
+
+    def kept(keys: Sequence[str]) -> set[str]:
+        return {key for key in keys if key in named}
+
+    assert backups_bucket.keys_before(prefix, later, 2) == named
+    assert backups_bucket.keys_before(prefix, later, 1, kept) == [stray]
+    opened = [(key, backups_bucket.open_parts(key)) for key in [*named, stray]]
+
+    def kept_parts(parts: Sequence[tuple[str, str]]) -> set[tuple[str, str]]:
+        return {each for each in parts if each[0] in named}
+
+    assert backups_bucket.deposits_before(prefix, later, 1, kept_parts) == [opened[-1]]
+    for key, deposit in opened:
+        backups_bucket.abort_parts(key, deposit)
+    for key in [*named, stray]:
+        backups_bucket.remove(key)
+
+
+@pytest.mark.requirement("WF-DAT-0120-A")
+def test_the_listing_of_the_purge_leaves_out_the_old_objects_a_row_names(
+    stage: Scene, database: Database, backups_bucket: Bucket
+) -> None:
+    # « Un fichier déposé et jamais confirmé disparaît au terme du délai d'expiration. » : listed
+    # with a session, as the worker lists, an old object a deposit names is not among the
+    # candidates, and spends nothing of the bound; the stray is (#2533).
+    stray, named = object_key_of(uuid4()), object_key_of(uuid4())
+    for key in (stray, named):
+        backups_bucket.put(key, b"WF")
+    with database.transaction() as session:
+        record_upload(
+            session,
+            UUID(named.removeprefix("uploads/")),
+            Opened(
+                "import",
+                "nomme.wft",
+                2,
+                Cut(SMALLEST_PART, 1),
+                named,
+                "open",
+                stage.manager.user_id,
+            ),
+            utc_now() + timedelta(hours=48),
+        )
+    later = utc_now() + LATER
+    assert {stray, named} <= set(stored_before(backups_bucket, later).uploads)
+    with database.transaction() as session:
+        listed = stored_before(backups_bucket, later, session).uploads
+    assert stray in listed
+    assert named not in listed
+    backups_bucket.remove(stray)
+
+
+@pytest.mark.requirement("WF-DAT-0120-A")
 def test_an_import_opened_on_a_deposit_at_its_term_waits_for_the_purge_that_deletes_it(
     api: ContractClient, stage: Scene, database: Database, backups_bucket: Bucket
 ) -> None:
@@ -541,18 +623,27 @@ def test_an_import_opened_on_a_deposit_at_its_term_waits_for_the_purge_that_dele
     upload_id = UUID(deposited(api, stage.manager, b"WF"))
     reading = Act(stage.manager.user_id, utc_now())
     outcome: list[object] = []
+    failures: list[BaseException] = []
 
     def open_import() -> None:
-        with database.transaction() as session:
-            outcome.append(head_to_read(session, upload_id, "remaining", reading))
+        try:
+            with database.transaction() as session:
+                outcome.append(head_to_read(session, upload_id, "remaining", reading))
+        except BaseException as error:
+            failures.append(error)
+            raise
 
     swept = stored_before(backups_bucket, utc_now() + LATER)
     with database.transaction() as session:
         gone = purge(session, utc_now() + LATER, swept)
         opening = threading.Thread(target=open_import)
         opening.start()
-        opening.join(timeout=1)
+        # The opening waits for the lock of the purge, seen waiting by the database, not by a
+        # thread still alive that may not have asked yet (#2533).
+        wait_for_a_lock(database)
         assert opening.is_alive()
     opening.join(timeout=30)
+    if failures:
+        raise failures[0]
     assert outcome == [None]
     remove_purged(backups_bucket, gone)

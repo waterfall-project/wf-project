@@ -17,7 +17,10 @@ never deleted for a row a failed transaction keeps.
 A storage that cannot be cleaned leaves what it holds to the next pass: the sweep of the prefixes
 finds again every object, and every deposit in parts, whose row is gone — the deposit in parts
 not completed is no object, so it is listed apart. The sweep is bounded by ``SWEEP_LIMIT`` for
-each kind, the rest going to the next pass.
+each kind, the rest going to the next pass. The bound counts only what no row designates: the
+listing passes over the old objects a row still names — those of the imports that keep their file,
+which may be older than a day (#2533) —, so that a great many of them, first in the order of the
+keys, never hide the strays beyond them.
 
 The storage tells the age of an object by its own clock, the purge judges by that of the
 application: a drift of a few minutes between them moves the term of a sweep by as much, which no
@@ -26,6 +29,7 @@ object of a day needs to mind; an object younger than the term is never swept.
 
 from dataclasses import dataclass
 from datetime import timedelta
+from functools import partial
 from typing import TYPE_CHECKING, Any
 
 from sqlalchemy import ARRAY, Text, Uuid, any_, bindparam, delete, select, update
@@ -41,7 +45,7 @@ from waterfall.platform.uploads import LIFETIME, FileUpload
 from waterfall.platform.uploads import PREFIX as UPLOADS_PREFIX
 
 if TYPE_CHECKING:
-    from collections.abc import Iterable
+    from collections.abc import Iterable, Sequence
     from datetime import datetime
 
     from sqlalchemy import ColumnElement
@@ -85,18 +89,28 @@ class Stored:
     parts: tuple[tuple[str, str], ...] = ()
 
 
-def stored_before(bucket: Bucket, now: datetime) -> Stored:
+def stored_before(bucket: Bucket, now: datetime, session: Session | None = None) -> Stored:
     """List the objects of ``uploads/`` and of ``exports/`` old enough to be swept at ``now``.
 
     Listed before the transaction of the purge, never under its lock: an object is written before
     its row, under an identifier that is new, so an object listed as more than a day old cannot be
     named by a row created between the listing and the transaction; and one a request writes
-    later is younger than the term. A storage out of reach raises ``UnavailableError``.
+    later is younger than the term. With a ``session``, read without a lock, what a row names at
+    the listing is left out of it, and ``SWEEP_LIMIT`` counts the rest alone (#2533). A deposit
+    expired at ``now`` names nothing; an import or an export the pass ends gives its file itself,
+    and what a row named and no longer does is swept by the next pass. A storage out of reach
+    raises ``UnavailableError``.
     """
+    if session is None:
+        uploads = exports = parts = None
+    else:
+        uploads, exports = partial(_named_uploads, session, now), partial(_named_exports, session)
+        parts = partial(_named_parts, session)
+    upload_term, export_term = now - LIFETIME, now - EXPORT_LIFETIME
     return Stored(
-        uploads=tuple(bucket.keys_before(UPLOADS_PREFIX, now - LIFETIME, SWEEP_LIMIT)),
-        exports=tuple(bucket.keys_before(EXPORTS_PREFIX, now - EXPORT_LIFETIME, SWEEP_LIMIT)),
-        parts=tuple(bucket.deposits_before(UPLOADS_PREFIX, now - LIFETIME, SWEEP_LIMIT)),
+        uploads=tuple(bucket.keys_before(UPLOADS_PREFIX, upload_term, SWEEP_LIMIT, uploads)),
+        exports=tuple(bucket.keys_before(EXPORTS_PREFIX, export_term, SWEEP_LIMIT, exports)),
+        parts=tuple(bucket.deposits_before(UPLOADS_PREFIX, upload_term, SWEEP_LIMIT, parts)),
     )
 
 
@@ -109,7 +123,7 @@ def purge(session: Session, now: datetime, stored: Stored | None = None) -> Purg
     swept = stored or Stored()
     objects = [*_imports_ended(session, now), *_exports_old(session, now)]
     deposited, parts = _deposits_expired(session, now)
-    strays, stray_parts = _strays(session, swept)
+    strays, stray_parts = _strays(session, now, swept)
     objects += [*deposited, *strays]
     parts += stray_parts
     return Purged(tuple(dict.fromkeys(objects)), tuple(dict.fromkeys(parts)))
@@ -196,7 +210,9 @@ def _among(
     return column == any_(bindparam("values", list(values), type_=ARRAY(kind)))
 
 
-def _strays(session: Session, stored: Stored) -> tuple[list[str], list[tuple[str, str]]]:
+def _strays(
+    session: Session, now: datetime, stored: Stored
+) -> tuple[list[str], list[tuple[str, str]]]:
     """Give the old objects and the deposits in parts that no row designates (#2479, #2484).
 
     Left by a process that stopped mid-way, or by a storage out of reach at the last pass. Under
@@ -204,48 +220,67 @@ def _strays(session: Session, stored: Stored) -> tuple[list[str], list[tuple[str
     parts that no deposit names; under ``exports/``, an object that no task whose result is not
     consumed names.
     """
-    strays: list[str] = []
     left: list[tuple[str, str]] = []
     if stored.parts:
-        kept = {
-            (each.object_key, each.deposit)
-            for each in session.execute(
-                select(FileUpload.object_key, FileUpload.deposit).where(
-                    _among(FileUpload.object_key, [key for key, _ in stored.parts], Text())
-                )
-            )
-        }
+        kept = _named_parts(session, stored.parts)
         left = [each for each in stored.parts if each not in kept]
+    strays: list[str] = []
     if stored.uploads:
-        named = set(
-            session.scalars(
-                select(FileUpload.object_key).where(
-                    _among(FileUpload.object_key, stored.uploads, Text())
-                )
-            )
-        )
-        named |= set(
-            session.scalars(
-                select(ImportReport.object_key).where(
-                    _among(ImportReport.object_key, stored.uploads, Text()),
-                    ImportReport.status.in_(FILE_KEPT),
-                )
-            )
-        )
+        named = _named_uploads(session, now, stored.uploads)
         strays += [key for key in stored.uploads if key not in named]
     if stored.exports:
-        key = BackgroundTask.result["object_key"].astext
-        named = set(
-            session.scalars(
-                select(key).where(
-                    BackgroundTask.kind == "export",
-                    _among(key, stored.exports, Text()),
-                    BackgroundTask.result["consumed"].astext.is_distinct_from("true"),
-                )
-            )
-        )
+        named = _named_exports(session, stored.exports)
         strays += [each for each in stored.exports if each not in named]
     return strays, left
+
+
+def _named_parts(session: Session, parts: Sequence[tuple[str, str]]) -> set[tuple[str, str]]:
+    """Give, among deposits in parts of ``uploads/``, those a deposit names."""
+    return {
+        (each.object_key, each.deposit)
+        for each in session.execute(
+            select(FileUpload.object_key, FileUpload.deposit).where(
+                _among(FileUpload.object_key, [key for key, _ in parts], Text())
+            )
+        )
+    }
+
+
+def _named_uploads(session: Session, now: datetime, keys: Sequence[str]) -> set[str]:
+    """Give, among keys of ``uploads/``, those a deposit or an import keeping its file names.
+
+    A deposit expired at ``now`` names nothing: the purge deletes it, and one left open gives no
+    object of its own, but an object its storage may have completed all the same.
+    """
+    named = set(
+        session.scalars(
+            select(FileUpload.object_key).where(
+                _among(FileUpload.object_key, keys, Text()), FileUpload.expires_at > now
+            )
+        )
+    )
+    return named | set(
+        session.scalars(
+            select(ImportReport.object_key).where(
+                _among(ImportReport.object_key, keys, Text()),
+                ImportReport.status.in_(FILE_KEPT),
+            )
+        )
+    )
+
+
+def _named_exports(session: Session, keys: Sequence[str]) -> set[str]:
+    """Give, among keys of ``exports/``, those a task whose result is not consumed names."""
+    key = BackgroundTask.result["object_key"].astext
+    return set(
+        session.scalars(
+            select(key).where(
+                BackgroundTask.kind == "export",
+                _among(key, keys, Text()),
+                BackgroundTask.result["consumed"].astext.is_distinct_from("true"),
+            )
+        )
+    )
 
 
 def remove_purged(bucket: Bucket, purged: Purged) -> None:
