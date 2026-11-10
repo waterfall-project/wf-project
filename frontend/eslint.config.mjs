@@ -413,6 +413,20 @@ export default defineConfig([
     },
   },
   {
+    // The bench of the paths against the service, around Prism (bench/contract-proxy.ts,
+    // US-1550/L7): no code of the front, which Next never loads, but a proxy that Node runs in the
+    // container of Prism, and its test, which stands up the servers it sits between. A proxy calls
+    // the network by its nature: the network guard, which keeps the front to the generated client
+    // (WF-ARC-0020), does not apply here. It writes no text to a user, so neither does TEXT_SYNTAX.
+    files: ["bench/**"],
+    rules: {
+      "no-restricted-globals": "off",
+      "no-restricted-properties": "off",
+      "no-restricted-imports": "off",
+      "no-restricted-syntax": "off",
+    },
+  },
+  {
     // A non-breaking space written as itself is invisible in a test, and an expectation with one
     // cannot be told from one with an ordinary space: a test writes it as its escape, and the
     // rule, which skips strings by default, reads strings and templates too (#905).

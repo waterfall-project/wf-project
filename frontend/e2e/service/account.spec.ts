@@ -175,7 +175,7 @@ test("an account without an avatar shows its initials without one [WF-ADM-0080-A
 
 // The image goes to the API and comes back byte for byte: the proxy of the contract carries the
 // bytes of a body that is not JSON past Prism, which would spoil them
-// (`deploy/compose/contract-proxy.mjs`, #973).
+// (`bench/contract-proxy.ts`, #973).
 test("a user puts, replaces and withdraws the avatar of the account herself [WF-ADM-0080-A]", async ({
   browser,
 }) => {
