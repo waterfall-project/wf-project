@@ -442,6 +442,8 @@ paths = [
     "fixtures/api/paste_applied_creating.json",
     "fixtures/api/undo_task_renamed.json",
     "fixtures/api/redo_task_renamed.json",
+    "fixtures/api/undo_task_renamed_one_left.json",
+    "fixtures/api/redo_task_renamed_two_left.json",
     "fixtures/api/paste_plan_subproject_held.json",
     "fixtures/api/import_remaining_subproject_held.json",
     "fixtures/api/import_remaining_completed_tasks.json",

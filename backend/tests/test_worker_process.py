@@ -177,21 +177,24 @@ def test_the_platform_purges_what_expired_at_its_interval_by_the_second_loop_of_
     }
 
     def purged() -> bool:
+        # The row and the object go each in its own step of the purge: both are waited for (#2566).
         with database.transaction() as session:
-            return session.get(FileUpload, upload_id) is None
+            if session.get(FileUpload, upload_id) is not None:
+                return False
+        return backups_bucket.size(key) is None
 
     with started(shell, environment):
         wait_for(purged)
     assert backups_bucket.size(key) is None
 
 
-@pytest.mark.requirement("WF-DAT-0120-A")
 @pytest.mark.parametrize("interval", ["0", "soon", ""])
 def test_a_schedule_whose_purge_interval_is_no_positive_number_stops_with_two(
     interval: str, service_environment: dict[str, str]
 ) -> None:
-    # « Un fichier déposé et jamais confirmé disparaît au terme du délai d'expiration. » : a purge
-    # that is scheduled at no interval would never come, so the schedule refuses to start.
+    # A purge scheduled at no interval would never come, so the schedule refuses to start. It
+    # guards the purge of WF-DAT-0120 without trying its Vérif, which the test above tries: it
+    # cites no requirement (#2533).
     _, shell = scheduler()
     environment = {
         **service_environment,
@@ -202,10 +205,10 @@ def test_a_schedule_whose_purge_interval_is_no_positive_number_stops_with_two(
         assert process.wait(timeout=PATIENCE) == 2
 
 
-@pytest.mark.requirement("WF-DAT-0120-A")
 def test_the_two_compose_files_schedule_the_same_loops_with_the_same_settings() -> None:
     # The purge that makes a deposit never confirmed disappear must run in production as the tests
-    # run it: the same script of loops, the same intervals and retention by default.
+    # run it: the same script of loops, the same intervals and retention by default. A comparison
+    # of two files, not the Vérif of WF-DAT-0120: it cites no requirement (#2533).
     service_settings, service_shell = scheduler(COMPOSE)
     production_settings, production_shell = scheduler(PRODUCTION)
     assert production_shell == service_shell

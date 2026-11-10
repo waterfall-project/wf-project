@@ -29,6 +29,7 @@ from waterfall.core.resource_settings.interface.resource_roles import idle_tasks
 from waterfall.core.resource_settings.tables import DAYS, Calendar
 from waterfall.platform.database import contains, unique_violated
 from waterfall.platform.errors import (
+    STATE_FORBIDS_OPERATION,
     ConflictError,
     FieldError,
     NotFoundError,
@@ -51,7 +52,6 @@ if TYPE_CHECKING:
 NOT_FOUND = "NOT_FOUND"
 STALE_LOCK_VERSION = "STALE_LOCK_VERSION"
 ALREADY_EXISTS = "ALREADY_EXISTS"
-STATE_FORBIDS_OPERATION = "STATE_FORBIDS_OPERATION"
 VALIDATION_FAILED = "VALIDATION_FAILED"
 VALUE_OUT_OF_RANGE = "VALUE_OUT_OF_RANGE"
 TASK_WITHOUT_WORKING_HOURS = "TASK_WITHOUT_WORKING_HOURS"

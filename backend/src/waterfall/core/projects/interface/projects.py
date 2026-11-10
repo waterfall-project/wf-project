@@ -51,6 +51,7 @@ from waterfall.core.users.interface import inscribed_actor
 from waterfall.platform.audit import AuditObject, AuditProject, Inscription, record
 from waterfall.platform.database import contains, unique_violated
 from waterfall.platform.errors import (
+    STATE_FORBIDS_OPERATION,
     ConflictError,
     FieldError,
     NotFoundError,
@@ -77,7 +78,6 @@ VALIDATION_FAILED = "VALIDATION_FAILED"
 VALUE_OUT_OF_RANGE = "VALUE_OUT_OF_RANGE"
 ALREADY_EXISTS = "ALREADY_EXISTS"
 STALE_LOCK_VERSION = "STALE_LOCK_VERSION"
-STATE_FORBIDS_OPERATION = "STATE_FORBIDS_OPERATION"
 REFERENCE_INCOMPLETE = "REFERENCE_INCOMPLETE"
 # The unique index of the code of a project (migration of the tables of the projects).
 CODE_INDEX = "uq_project_code"
@@ -474,6 +474,15 @@ def projects_present(session: Session, project_ids: Collection[UUID]) -> frozens
     if not project_ids:
         return frozenset()
     return frozenset(session.scalars(select(Project.id).where(Project.id.in_(project_ids))))
+
+
+def first_project(session: Session) -> UUID | None:
+    """Give a project of the installation, the first by identifier; none, ``None`` (#2556).
+
+    The witness's question too: its calendars are loaded before any project, which the default
+    one would judge and redate.
+    """
+    return session.scalars(select(Project.id).order_by(Project.id).limit(1)).first()
 
 
 def _code_taken(session: Session, code: str, own: UUID) -> ConflictError:

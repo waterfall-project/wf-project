@@ -28,6 +28,7 @@ from waterfall.core.resource_settings.org_tree import (
 from waterfall.core.resource_settings.tables import OrgNode, ResourceRole
 from waterfall.platform.database import contains
 from waterfall.platform.errors import (
+    STATE_FORBIDS_OPERATION,
     ConflictError,
     FieldError,
     NotFoundError,
@@ -51,7 +52,6 @@ NOT_FOUND = "NOT_FOUND"
 VALIDATION_FAILED = "VALIDATION_FAILED"
 ALREADY_EXISTS = "ALREADY_EXISTS"
 STALE_LOCK_VERSION = "STALE_LOCK_VERSION"
-STATE_FORBIDS_OPERATION = "STATE_FORBIDS_OPERATION"
 UNKNOWN_ORG_NODE = "UNKNOWN_ORG_NODE"
 ORG_NODE_CYCLE = "ORG_NODE_CYCLE"
 INACTIVE_REFERENCE_OBJECT = "INACTIVE_REFERENCE_OBJECT"

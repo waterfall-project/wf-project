@@ -36,7 +36,7 @@ from waterfall.core.projects.interface import (
     work_breakdown_items,
 )
 from waterfall.core.revisions.interface import last_marked_revisions, revision_draft
-from waterfall.platform.errors import ConflictError
+from waterfall.platform.errors import STATE_FORBIDS_OPERATION, ConflictError
 from waterfall.platform.identifiers import new_id
 
 if TYPE_CHECKING:
@@ -47,7 +47,6 @@ if TYPE_CHECKING:
 
     from waterfall.core.planning.writing import NodesWritten, Place, Write, Writer
 
-STATE_FORBIDS_OPERATION = "STATE_FORBIDS_OPERATION"
 MAIN_STRUCTURE_WITHOUT_TASKS = "main_structure_without_tasks"
 NOT_STARTED = "not_started"
 AUTOMATIC = "automatic"

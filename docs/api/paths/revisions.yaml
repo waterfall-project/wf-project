@@ -2546,6 +2546,7 @@
             schema: { $ref: ../components/schemas/revisions.yaml#/UndoResult }
             examples:
               undone: { $ref: ../../../fixtures/api/undo_task_renamed.json }
+              undone_one_left: { $ref: ../../../fixtures/api/undo_task_renamed_one_left.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403':
         description: >-
@@ -2630,6 +2631,7 @@
             schema: { $ref: ../components/schemas/revisions.yaml#/UndoResult }
             examples:
               redone: { $ref: ../../../fixtures/api/redo_task_renamed.json }
+              redone_two_left: { $ref: ../../../fixtures/api/redo_task_renamed_two_left.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403':
         description: >-

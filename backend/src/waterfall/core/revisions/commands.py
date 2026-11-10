@@ -20,20 +20,20 @@ rates — US-1500 —), with their conditions, and the exports to ``EXPORT_RULES
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
-from waterfall.core.projects.interface import TERMINAL
+from waterfall.core.projects.interface import (
+    BEFORE_IN_PROGRESS,
+    NO_BACKGROUND_TASK_RUNNING,
+    PROJECT_BEFORE_IN_PROGRESS,
+    TERMINAL,
+)
 
 if TYPE_CHECKING:
     from collections.abc import Collection
 
-# The states before the project is in progress; those that end its cycle are the projects'.
-BEFORE_IN_PROGRESS = ("created", "pricing")
-
 IS_CONTRIBUTOR = "is_contributor"
 IS_PROJECT_MANAGER = "is_project_manager"
 PROJECT_IN_PROGRESS = "project_in_progress"
-PROJECT_BEFORE_IN_PROGRESS = "project_before_in_progress"
 NO_CURRENT_REVISION = "no_current_revision"
-NO_BACKGROUND_TASK_RUNNING = "no_background_task_running"
 REVISION_DRAFT = "revision_draft"
 MAIN_STRUCTURE_WITHOUT_TASKS = "main_structure_without_tasks"
 REVISION_MARKED = "revision_marked"

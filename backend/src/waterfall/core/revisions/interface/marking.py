@@ -39,6 +39,7 @@ from uuid import UUID
 from sqlalchemy import select
 
 from waterfall.core.projects.interface import (
+    NO_BACKGROUND_TASK_RUNNING,
     ExitRequest,
     Viewer,
     exit_project,
@@ -50,7 +51,7 @@ from waterfall.core.projects.interface import (
     set_current_revision,
     stored_lock_version,
 )
-from waterfall.core.revisions.commands import NO_BACKGROUND_TASK_RUNNING, REVISION_DRAFT
+from waterfall.core.revisions.commands import REVISION_DRAFT
 from waterfall.core.revisions.interface.closing import close_revision
 from waterfall.core.revisions.interface.shared import (
     STALE_LOCK_VERSION,

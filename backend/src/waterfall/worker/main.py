@@ -172,13 +172,20 @@ def _schedule(database: Database, queue: TaskQueue, kind: TaskKind) -> int:
     return 0
 
 
-def _stored(bucket: Bucket, now: datetime) -> exchanges_interface.Stored:
+def _stored(database: Database, bucket: Bucket, now: datetime) -> exchanges_interface.Stored:
     """List the old objects of the prefixes the purge sweeps; a storage out of reach lists none.
 
-    The rows are purged all the same: what the storage keeps, the next pass sweeps.
+    Those a row names are left out of the listing, read in a transaction of its own, without a
+    lock (#2533). The rows are purged all the same: what the storage keeps, the next pass sweeps.
     """
     try:
-        return exchanges_interface.stored_before(bucket, now)
+        # This transaction stays open during the whole pagination of the storage. That is harmless:
+        # it only reads, takes no lock, and the rows are read again under the lock in the purge.
+        # It would matter if the listing began to write or to lock, or if a pagination took longer
+        # than the idle-transaction timeout of the database: the listing would then be cut in
+        # pages, one transaction each.
+        with database.transaction() as session:
+            return exchanges_interface.stored_before(bucket, now, session)
     except UnavailableError:
         logger.warning("purge.storage_unlisted")
         return exchanges_interface.Stored()
@@ -196,7 +203,7 @@ def _purge(settings: PurgeSettings) -> int:
     try:
         with logging_context(correlation_id=correlation_id_from(None), actor=PLATFORM):
             now = utc_now()
-            stored = _stored(bucket, now)
+            stored = _stored(database, bucket, now)
             try:
                 with database.transaction() as session:
                     session.execute(select(func.pg_advisory_xact_lock(PURGE_LOCK)))

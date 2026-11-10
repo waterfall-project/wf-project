@@ -36,7 +36,7 @@ from sqlalchemy import func, select
 from waterfall.core.history.snapshots import decoded, encoded, with_versions
 from waterfall.core.history.stacks import lock_stack, of_stack
 from waterfall.core.history.tables import UndoEntry
-from waterfall.platform.errors import ConflictError
+from waterfall.platform.errors import STATE_FORBIDS_OPERATION, ConflictError
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Generator
@@ -47,7 +47,6 @@ if TYPE_CHECKING:
     from waterfall.core.history.interface.recording import UndoneKind, UndoStack
     from waterfall.core.history.snapshots import Snapshot
 
-STATE_FORBIDS_OPERATION = "STATE_FORBIDS_OPERATION"
 UNDO_CONFLICT = "UNDO_CONFLICT"
 # The conditions of ``CommandCondition`` an empty stack misses.
 UNDO_HISTORY_NOT_EMPTY = "undo_history_not_empty"
