@@ -5,7 +5,7 @@
 	<Title>01-links-and-lags-days.</Title>
 	<Company>Microsoft</Company>
 	<CreationDate>2009-11-16T09:00:00</CreationDate>
-	<LastSaved>2026-11-08T18:19:00</LastSaved>
+	<LastSaved>2026-11-09T17:03:00</LastSaved>
 	<ScheduleFromStart>1</ScheduleFromStart>
 	<StartDate>2009-11-16T09:00:00</StartDate>
 	<FinishDate>2009-12-04T17:00:00</FinishDate>
@@ -45,7 +45,7 @@
 	<MoveCompletedEndsForward>0</MoveCompletedEndsForward>
 	<BaselineForEarnedValue>0</BaselineForEarnedValue>
 	<AutoAddNewResourcesAndTasks>1</AutoAddNewResourcesAndTasks>
-	<CurrentDate>2026-11-08T08:00:00</CurrentDate>
+	<CurrentDate>2026-11-09T08:00:00</CurrentDate>
 	<MicrosoftProjectServerURL>1</MicrosoftProjectServerURL>
 	<Autolink>0</Autolink>
 	<NewTaskStartDate>0</NewTaskStartDate>
@@ -154,7 +154,7 @@
 		<Task>
 			<UID>0</UID>
 			<ID>0</ID>
-			<Name>msproj11</Name>
+			<Name>01-links-and-lags-days.</Name>
 			<Active>1</Active>
 			<Manual>0</Manual>
 			<Type>1</Type>
@@ -382,6 +382,7 @@
 			<LevelingDelay>0</LevelingDelay>
 			<LevelingDelayFormat>8</LevelingDelayFormat>
 			<IgnoreResourceCalendar>0</IgnoreResourceCalendar>
+			<Notes>Commentaire de la 2eme tache</Notes>
 			<HideBar>0</HideBar>
 			<Rollup>0</Rollup>
 			<BCWS>0.00</BCWS>
@@ -730,6 +731,7 @@
 			<LevelingDelay>0</LevelingDelay>
 			<LevelingDelayFormat>8</LevelingDelayFormat>
 			<IgnoreResourceCalendar>0</IgnoreResourceCalendar>
+			<Notes>Commentaire de la 6eme tache</Notes>
 			<HideBar>0</HideBar>
 			<Rollup>0</Rollup>
 			<BCWS>0.00</BCWS>
