@@ -55,7 +55,7 @@ class Plant:
         self.stage = stage
         self.worker = worker
         self.monkeypatch = monkeypatch
-        self.review: Review
+        self.opened: Review | None = None
 
     def clock(self, day: date) -> None:
         """Set the day the service reads as today, and the day the markings are made on."""
@@ -66,10 +66,16 @@ class Plant:
 
     def open(self, build: Build) -> Review:
         """Write the reference through the service, move the project In progress."""
-        self.review = in_progress(
+        self.opened = in_progress(
             self.api, self.stage, lambda tree, lines: build(tree, lines, self.worker)
         )
-        return self.review
+        return self.opened
+
+    @property
+    def review(self) -> Review:
+        """Give the revision opened, which `open` must have made first."""
+        assert self.opened is not None, "open the project before reading its revision"
+        return self.opened
 
     @property
     def path(self) -> str:
@@ -77,7 +83,7 @@ class Plant:
         return f"{PROJECTS}/{self.stage.project['project_id']}"
 
     def plan(self, basis: str, **query: Any) -> dict[str, Any]:
-        """Ask for the workload on a basis, which must be given; give it."""
+        """Read the workload on a basis."""
         text = "&".join(f"{name}={value}" for name, value in {"basis": basis, **query}.items())
         answer = self.api.get(f"{self.path}/workload?{text}", headers=self.stage.manager.headers)
         assert answer.status_code == 200, answer.text
@@ -123,7 +129,7 @@ def plant(
     stage = make_scene(api, owner, database, realm)
     costing(database)
     made = Plant(api, stage, add_role(database, "WRK", WORKED_DAYS), monkeypatch)
-    made.clock(date(2026, 1, 2))
+    made.clock(STARTED_ON)
     return made
 
 
