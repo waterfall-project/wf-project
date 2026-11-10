@@ -37,6 +37,7 @@ from waterfall.platform.errors import FieldError, UnprocessableError
 
 if TYPE_CHECKING:
     from collections.abc import Collection, Mapping, Sequence
+    from datetime import datetime
     from decimal import Decimal
     from uuid import UUID
 
@@ -122,17 +123,26 @@ def open_tasks(
     return frozenset(task for task, lines in lines_by_task.items() if held.intersection(lines))
 
 
-def was_reviewed(session: Session, project_id: UUID, revision_id: UUID) -> bool:
-    """Tell whether a revision was marked once its project was In progress (a review)."""
-    marked = revision_marked_at(session, revision_id)
-    if marked is None:
-        return False
+def first_passage(session: Session, project_id: UUID) -> datetime | None:
+    """Give the instant a project first passed to In progress; none if it never did."""
     passages = [
         each.occurred_at
         for each in list_state_transitions(session, project_id)
         if each.to_state == IN_PROGRESS
     ]
-    return bool(passages) and min(passages) <= marked
+    return min(passages, default=None)
+
+
+def was_reviewed_at(passage: datetime | None, marked: datetime | None) -> bool:
+    """Tell whether a marking at ``marked`` came once the project had passed In progress."""
+    return passage is not None and marked is not None and passage <= marked
+
+
+def was_reviewed(session: Session, project_id: UUID, revision_id: UUID) -> bool:
+    """Tell whether a revision was marked once its project was In progress (a review)."""
+    return was_reviewed_at(
+        first_passage(session, project_id), revision_marked_at(session, revision_id)
+    )
 
 
 def copy_previous(copy: RevisionCopy) -> None:

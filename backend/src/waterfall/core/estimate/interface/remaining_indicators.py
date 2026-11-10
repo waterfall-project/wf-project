@@ -25,9 +25,9 @@ from uuid import UUID
 
 from waterfall.core.costs.interface import UNASSIGNED, actual_cost_by_subproject
 from waterfall.core.estimate.indicating import natures_of
+from waterfall.core.estimate.placing import placed_lines
 from waterfall.core.estimate.reading import rows_of
 from waterfall.core.estimate.remaining.balancing import (
-    NOUGHT,
     balances,
     delta_to_previous,
     delta_to_reference,
@@ -38,7 +38,8 @@ from waterfall.core.estimate.remaining.comparing import (
     reference_budgets,
     summed_by_subproject,
 )
-from waterfall.core.estimate.remaining.reviewing import revision_remaining
+from waterfall.core.estimate.remaining.reviewing import provisions_of, revision_remaining
+from waterfall.core.estimate.remaining.summing import NOUGHT
 from waterfall.core.projects.interface import subproject_labels
 from waterfall.core.revisions.interface import read_revision_for
 from waterfall.platform.registry import Registry
@@ -173,14 +174,22 @@ def _ventilated(
     lines: Sequence[EstimateLine],
     remaining: RevisionRemaining,
 ) -> tuple[AmountByKey, ...]:
-    """Ventilate the remaining by the nature of cost of the category of each line that counts."""
-    natures = natures_of(session, project_id, read, {line.cost_category_id for line in lines})
+    """Ventilate the remaining by the nature of cost of the category of each line that counts.
+
+    The nature provision is served at nought: each type of cost of the provision kind the lines of
+    the main structure bear, whatever the state of their task, figures with nothing, its share
+    nought (WF-RAE-0020).
+    """
+    placed = [each.line for each in placed_lines(session, project_id, read.revision_id)]
+    provisions = provisions_of(session, placed)
+    kept = [*lines, *(line for line in placed if line.node_id in provisions)]
+    natures = natures_of(session, project_id, read, {line.cost_category_id for line in kept})
     amounts: dict[str, Decimal] = {}
     labels: dict[str, str | None] = {}
-    for line in lines:
+    for line in kept:
         nature = natures[line.cost_category_id]
         key = str(nature.cost_type_id)
-        amounts[key] = amounts.get(key, NOUGHT) + remaining.by_line[line.node_id]
+        amounts[key] = amounts.get(key, NOUGHT) + remaining.by_line.get(line.node_id, NOUGHT)
         labels[key] = nature.label
     return distributed(amounts, labels)
 

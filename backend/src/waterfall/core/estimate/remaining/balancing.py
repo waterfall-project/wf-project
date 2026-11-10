@@ -12,17 +12,16 @@ numeric examples run on it alone.
 """
 
 from dataclasses import dataclass
-from decimal import Decimal
 from typing import TYPE_CHECKING
 
+from waterfall.core.costs.interface import UNASSIGNED
 from waterfall.core.estimate.indicating import NO_TOTAL, AmountByKey, Figure
+from waterfall.core.estimate.remaining.summing import NOUGHT
 from waterfall.core.estimate.shares import distribution
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
-
-UNASSIGNED = "unassigned"
-NOUGHT = Decimal("0.00")
+    from decimal import Decimal
 
 
 @dataclass(frozen=True, slots=True)
@@ -49,7 +48,8 @@ def balances(
 ) -> tuple[Balance, ...]:
     """Give the balance of each key any of the three names, the subprojects by key, then the rest.
 
-    ``unassigned`` is always given, last. A key a sum does not name has nought in it.
+    ``unassigned`` is always given, last. A key a sum does not name has nought in it. A subproject
+    with no line, no budget and no actual cost is named by none of them and does not appear.
     """
     keys = sorted({*budgets, *actual_costs, *remainings} - {UNASSIGNED})
     found: list[Balance] = []

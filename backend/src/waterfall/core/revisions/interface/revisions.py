@@ -437,6 +437,16 @@ def marked_revisions(session: Session, project_id: UUID) -> frozenset[UUID]:
     )
 
 
+def marked_revisions_at(session: Session, project_id: UUID) -> dict[UUID, datetime]:
+    """Give the instant each marked revision of a project was marked at, in one statement."""
+    rows = session.execute(
+        select(Revision.id, Revision.marked_at).where(
+            Revision.project_id == project_id, Revision.status == "marked"
+        )
+    )
+    return {identifier: at for identifier, at in rows if at is not None}
+
+
 def last_marked_revisions(session: Session, project_ids: Collection[UUID]) -> dict[UUID, UUID]:
     """Give the last marked revision of each of the projects that has one, in one statement."""
     rows = session.execute(

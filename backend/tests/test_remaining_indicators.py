@@ -25,7 +25,9 @@ from nodes_support import Tree, opened
 from projects_support import PROJECTS, Scene, create
 from projects_support import scene as make_scene
 from remaining_support import Review, in_progress, line_named, review_marked
+from sqlalchemy import update
 
+from waterfall.core.costs.interface import UNASSIGNED
 from waterfall.core.estimate.interface import (
     CalculationContext,
     Coverage,
@@ -37,12 +39,12 @@ from waterfall.core.estimate.interface import (
     remaining_of_revision,
 )
 from waterfall.core.estimate.remaining.balancing import (
-    UNASSIGNED,
     balances,
     delta_to_previous,
     delta_to_reference,
     distributed,
 )
+from waterfall.core.estimate.tables import EstimateLine
 
 if TYPE_CHECKING:
     from realm import TestRealm
@@ -424,6 +426,84 @@ def test_the_total_is_ventilated_by_nature_of_cost_in_shares_that_sum_to_one(
     ) == D(1)
     assert sum(D(each["amount"]) for each in body["by_cost_type"]) == D(body["total"])
     assert all(each["share"]["is_computable"] for each in body["by_cost_type"])
+
+
+def reference_with(
+    api: ContractClient, stage: Scene, costs: Costing, cabling: str, **values: Any
+) -> Review:
+    """Give the project In progress, its reference built as ``review`` is, a line of it written.
+
+    The line "Fournitures" (cabling, 400) of the reference gets the columns said, written around
+    the service before the reference is marked: no reference writes a budgeted amount of its own.
+    """
+
+    def build(tree: Tree, lines: Lines) -> None:
+        lines.made(tree.made("Câblage"), **supplies(costs, "Fournitures", "400", cabling))
+        lines.made(tree.made("Divers"), **supplies(costs, "Outillage", "300", None))
+        node_id = UUID(line_named(tree, values.pop("label"))["node_id"])
+        with stage.owner.begin() as connection:
+            connection.execute(
+                update(EstimateLine).where(EstimateLine.node_id == node_id).values(**values)
+            )
+
+    return in_progress(api, stage, build)
+
+
+@pytest.mark.requirement("WF-RAE-0020-A")
+def test_the_nature_provision_is_served_at_nought_and_left_out_of_the_total(
+    api: ContractClient, stage: Scene, reviewed: Tree, costs: Costing
+) -> None:
+    # « … la nature provision à zéro » : a provision line of the revision (its category of the
+    # provision kind, put around the service as the risks of EP-08 will), in a task started or not,
+    # figures with an amount of nought and a share of nought, and the total leaves it out.
+    Lines(reviewed).made(reviewed.made("Risques"), **supplies(costs, "Aléa", "900", None))
+    provision = line_named(reviewed, "Aléa")
+    with stage.owner.begin() as connection:
+        connection.execute(
+            update(EstimateLine)
+            .where(EstimateLine.node_id == UUID(provision["node_id"]))
+            .values(cost_category_id=costs.provision)
+        )
+    body = indicators(api, stage)
+    assert body["total"] == "550.00"
+    by_type = {each["label"]: each for each in body["by_cost_type"]}
+    assert len(by_type) == 2
+    held = next(each for label, each in by_type.items() if label != "Matériel")
+    assert held["amount"] == "0.00"
+    assert (D(held["share"]["value"]), D(by_type["Matériel"]["share"]["value"])) == (D(0), D(1))
+    assert sum(D(each["amount"]) for each in body["by_cost_type"]) == D(body["total"])
+
+
+@pytest.mark.requirement("WF-RAE-0020-A")
+def test_the_budget_of_the_reference_reads_its_budgeted_amounts_not_its_reestimated(
+    api: ContractClient, stage: Scene, costs: Costing, cabling: str
+) -> None:
+    # « … le budget de la référence … » : a line of the reference budgeted 450 and reestimated 999
+    # counts 450; with the 300 of the other line, the budget is 750 and the cabling holds 450.
+    reference_with(
+        api,
+        stage,
+        costs,
+        cabling,
+        label="Fournitures",
+        budgeted_amount=D("450.00"),
+        reestimated_amount=D(999),
+    )
+    body = indicators(api, stage)
+    assert balance(body, cabling)["budget"] == "450.00"
+    assert sum(D(each["budget"]) for each in body["by_subproject"]) == D("750.00")
+
+
+@pytest.mark.requirement("WF-RAE-0020-A")
+def test_a_provision_line_of_the_reference_is_left_out_of_its_budget(
+    api: ContractClient, stage: Scene, costs: Costing, cabling: str
+) -> None:
+    # « … provisions exclues » (WF-IND-0020) : the outlay line of the reference, put in the
+    # provision kind, leaves a budget of 400 and none to what no subproject bears.
+    reference_with(api, stage, costs, cabling, label="Outillage", cost_category_id=costs.provision)
+    body = indicators(api, stage)
+    assert balance(body, "unassigned")["budget"] == "0.00"
+    assert sum(D(each["budget"]) for each in body["by_subproject"]) == D("400.00")
 
 
 @pytest.mark.requirement("WF-RAE-0020-A")

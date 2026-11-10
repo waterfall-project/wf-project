@@ -12,11 +12,16 @@ that bears them.
 
 from typing import TYPE_CHECKING
 
+from waterfall.core.costs.interface import UNASSIGNED
 from waterfall.core.estimate.reading import budgeted_of, rows_of
-from waterfall.core.estimate.remaining.balancing import NOUGHT, UNASSIGNED
-from waterfall.core.estimate.remaining.reviewing import provisions_of, was_reviewed
+from waterfall.core.estimate.remaining.reviewing import (
+    first_passage,
+    provisions_of,
+    was_reviewed_at,
+)
+from waterfall.core.estimate.remaining.summing import NOUGHT
 from waterfall.core.planning.interface import lines_of_structure
-from waterfall.core.revisions.interface import aimed_structure, marked_revisions, revision_marked_at
+from waterfall.core.revisions.interface import aimed_structure, marked_revisions_at
 
 if TYPE_CHECKING:
     from collections.abc import Iterable, Mapping
@@ -61,18 +66,11 @@ def previous_review(session: Session, project_id: UUID, revision_id: UUID) -> UU
     Those marked at or after the one read, if it is marked, are not before it; a revision still in
     progress is read after every marked one.
     """
-    own = revision_marked_at(session, revision_id)
-    marked = sorted(
-        (
-            (at, each)
-            for each in marked_revisions(session, project_id)
-            if each != revision_id and (at := revision_marked_at(session, each)) is not None
-        ),
-        reverse=True,
-    )
-    for at, each in marked:
-        if (own is None or (at, each) < (own, revision_id)) and was_reviewed(
-            session, project_id, each
-        ):
+    marks = marked_revisions_at(session, project_id)
+    own = marks.get(revision_id)
+    passage = first_passage(session, project_id)
+    later = sorted(((at, each) for each, at in marks.items() if each != revision_id), reverse=True)
+    for at, each in later:
+        if (own is None or (at, each) < (own, revision_id)) and was_reviewed_at(passage, at):
             return each
     return None
