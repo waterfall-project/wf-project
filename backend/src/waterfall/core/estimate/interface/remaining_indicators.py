@@ -29,6 +29,7 @@ if TYPE_CHECKING:
 
     from sqlalchemy.orm import Session
 
+    from waterfall.core.costs.interface import CostScope
     from waterfall.core.estimate.indicating import AmountByKey
 
 
@@ -71,17 +72,30 @@ class SubprojectBalance:
 
 
 @dataclass(frozen=True, slots=True)
-class RemainingIndicators:
-    """The indicators of the remaining to commit of a revision (``RemainingIndicators``).
+class CalculationContext:
+    """The context of a computation, as the screens display it (``CalculationContext``).
 
-    Computed at the reading, never stored (``is_stored`` false until EP-10 keeps them); the deltas
-    none without a reference, or without a revision marked after the passage In progress.
+    ``revision_status`` is the status of the revision as the contract writes it; ``scope`` is
+    ``project``, ``unassigned`` or a subproject, the ``CostScope`` of the actual
+    costs; ``is_stored`` is false until EP-10 keeps the indicators.
     """
 
     revision_id: UUID
-    marked: bool
+    revision_status: str
     computed_at: datetime
+    scope: CostScope
     is_stored: bool
+
+
+@dataclass(frozen=True, slots=True)
+class RemainingIndicators:
+    """The indicators of the remaining to commit of a revision (``RemainingIndicators``).
+
+    Computed at the reading, never stored (``context.is_stored`` false until EP-10 keeps them);
+    the deltas none without a reference, or without a revision marked after the passage In progress.
+    """
+
+    context: CalculationContext
     total: Decimal
     by_cost_type: tuple[AmountByKey, ...]
     by_subproject: tuple[SubprojectBalance, ...]

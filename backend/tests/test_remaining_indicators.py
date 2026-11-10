@@ -10,8 +10,10 @@ from annotationlib import Format, get_annotations
 from dataclasses import fields
 
 from waterfall.core.estimate.interface import (
+    CalculationContext,
     RemainingIndicators,
     RevisionRemaining,
+    SubprojectBalance,
     remaining_indicators,
     remaining_of_revision,
 )
@@ -29,3 +31,29 @@ def test_the_indicators_and_the_remaining_of_a_revision_answer_their_results() -
         is RevisionRemaining
     )
     assert [field.name for field in fields(RevisionRemaining)] == ["total", "by_line"]
+    assert [field.name for field in fields(CalculationContext)] == [
+        "revision_id",
+        "revision_status",
+        "computed_at",
+        "scope",
+        "is_stored",
+    ]
+    assert [field.name for field in fields(RemainingIndicators)] == [
+        "context",
+        "total",
+        "by_cost_type",
+        "by_subproject",
+        "coverage",
+        "delta_to_reference",
+        "delta_to_previous_revision",
+    ]
+    assert [field.name for field in fields(SubprojectBalance)] == [
+        "key",
+        "label",
+        "budget",
+        "actual_cost",
+        "remaining",
+        "variance",
+        "is_over_budget",
+        "zone",
+    ]
