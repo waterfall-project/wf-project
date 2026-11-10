@@ -140,6 +140,10 @@ def bearing_tasks(session: Session, project_id: UUID, structure_id: UUID) -> fro
     A provision is the line of a risk (``origin_risk_id``, EP-08): it holds a task back from
     nothing, and does not send it to the entry of its remaining to commit (WF-PLA-0050). The
     judgement of ``setTaskProgress`` is the same, so that a card and the refusal agree (US-1590).
+
+    "Besides the provisions" is judged here by ``origin_risk_id`` null, as ``setTaskProgress``
+    does; ``open_lines`` (``estimate``) judges by the category of provision of the line. The two
+    meet once EP-08 gives every provision line its risk.
     """
     parents = session.scalars(
         select(Node.parent_id)
