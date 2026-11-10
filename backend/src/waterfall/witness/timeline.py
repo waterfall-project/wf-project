@@ -91,7 +91,8 @@ class RateUpdateApplied(_Strict):
 class CostImportApplied(_Strict):
     """An import of actual costs applied, by the identifier of its entry of the journal.
 
-    Read and passed over by the loader until the slice of the costs applies it (US-1650/L2).
+    Written by the slice of the costs (``witness.costs``), at the instant of its event: its import
+    of the exchanges, its entry of the journal and the lines it brought.
     """
 
     kind: Literal["cost_import_applied"]
@@ -102,7 +103,7 @@ class CostImportApplied(_Strict):
 class CostLineExcluded(_Strict):
     """A line of cost excluded from the tracked scope, by its document, its item and its reason.
 
-    Read and passed over by the loader until the slice of the costs applies it (US-1650/L2).
+    Excluded by the slice of the costs (``witness.costs``), at the instant of its event.
     """
 
     kind: Literal["cost_line_excluded"]
@@ -115,7 +116,8 @@ class CostLineExcluded(_Strict):
 class ImportExpired(_Strict):
     """An import of the exchanges, analysed, that expired without being applied.
 
-    Read and passed over by the loader until the slice of the costs applies it (US-1650/L2).
+    Written by the slice of the costs (``witness.costs``): analysed at the instant of its event,
+    expired the day after.
     """
 
     kind: Literal["import_expired"]

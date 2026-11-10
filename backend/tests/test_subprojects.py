@@ -513,4 +513,9 @@ def test_the_witness_loads_the_subprojects_of_its_project_under_the_identifiers_
     assert [(item["subproject_id"], item["code"], item["label"]) for item in answer.json()] == [
         (item["subproject_id"], item["code"], item["label"]) for item in value
     ]
-    assert all(item["has_actual_costs"] is False for item in answer.json())
+    # The actual costs of the witness are imputed to both (US-1650/L2), as the example says.
+    assert (
+        [item["has_actual_costs"] for item in answer.json()]
+        == [item["has_actual_costs"] for item in value]
+        == [True, True]
+    )
