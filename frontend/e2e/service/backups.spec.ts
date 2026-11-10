@@ -19,9 +19,10 @@
  * (#2751). The archive downloaded comes through the proxy of the contract byte for byte — Prism,
  * which would spoil the bytes of a body that is not JSON, is passed them by the two legs around it
  * (`bench/contract-proxy.ts`, #1025) —, and is compared with the digests its manifest gives of each
- * dump. Deposited back, it is accepted and says its date; whether its dumps reach the API whole
- * only a restoration of the deposit would say, which the path leaves to the service's own test
- * (`test_uploads.py`): the bytes of an upload cross the legs as those of a download do. The archive
+ * dump. Once the platform is restored from the list, the archive is deposited back, accepted with
+ * its date, and restored in its turn (WF-ADM-0160, « ou depuis une sauvegarde copiée hors de la
+ * plateforme »): the service checks the digests of a deposit only then, so that the restoration
+ * succeeding proves the upload crossed the legs byte for byte. The archive
  * of a new installation, about half a mebibyte, is deposited in one part: the cut of an archive in
  * parts of 5 MiB, on a byte inside a character (#2695), is proven by the test of the legs
  * (`bench/contract-proxy.test.ts`), not here. The restoration replaces the whole platform and
@@ -31,7 +32,7 @@
 import { createHash, randomBytes } from "node:crypto";
 import { readFile } from "node:fs/promises";
 
-import { type APIRequestContext, expect, type Locator, test } from "@playwright/test";
+import { type APIRequestContext, expect, type Locator, type Page, test } from "@playwright/test";
 
 import type { components } from "../../src/api/generated/schema";
 import { compileAnswered } from "../compile";
@@ -208,6 +209,34 @@ async function handOver(command: Locator, followed: Locator): Promise<void> {
   }).toPass({ timeout: WORKING });
 }
 
+/**
+ * Follow a restoration confirmed to its end: the screen says it waiting, then done once the probe
+ * said the maintenance — every user signed out — and its end. A restoration this small may hold the
+ * maintenance between two reads of the probe: the screen then sees the session closed and nothing
+ * more, and says that alone, without affirming the restoration done: the journal of audit says it,
+ * after the sign-in. The administrator then signs in again and finds the screen.
+ */
+async function untilRestored(page: Page): Promise<void> {
+  const maintenance = page.getByRole("status", {
+    name: "Restauration de la plateforme en cours",
+  });
+  await expect(maintenance).toContainText("La restauration est en attente");
+  const signedOut = page.getByRole("status", { name: "Session terminée" });
+  // Its title is the whole text of its element: the paragraph of the maintenance names the
+  // restoration « terminée » too, as what the users wait for (#2219).
+  const ended = maintenance.getByText("Restauration terminée", { exact: true }).or(signedOut);
+  // A restoration refused before the maintenance gives the page back with its motive: said at
+  // once, rather than waited for until the end of the path.
+  const refused = page.getByRole("main").getByRole("alert");
+  await expect(ended.or(refused)).toBeVisible({ timeout: 420_000 });
+  await expect(refused).toHaveCount(0);
+
+  await page.getByRole("link", { name: "Se connecter" }).click();
+  await giveIdentifiers(page, ADMINISTRATOR);
+  await expect(page).toHaveURL(BACKUPS);
+  await expect(page.getByRole("grid", { name: "Sauvegardes" })).toBeVisible();
+}
+
 test(
   "a backup taken, downloaded, deposited and restored: the screen says the restoration waiting, then its end, and the administrator signs in again [WF-ADM-0150-A] [WF-ADM-0160-A]",
   { tag: "@platform-wide" },
@@ -298,22 +327,9 @@ test(
     await download.saveAs(archive);
     expectWhole(await readFile(archive));
 
-    // Deposited as the archive of another installation, which says the date of its backup.
-    const deposit = page.getByRole("region", {
-      name: "Restaurer une sauvegarde d’une autre installation",
-    });
-    await deposit.getByLabel("Archive de la sauvegarde").setInputFiles(archive);
-    await deposit.getByRole("button", { name: "Déposer" }).click();
-    await expect(deposit.getByRole("button", { name: "Restaurer cette sauvegarde" })).toBeVisible({
-      timeout: 60_000,
-    });
-    const deposited = await deposit.getByRole("time").getAttribute("datetime");
-    expect(Date.parse(deposited ?? "")).toBe(takenAt);
-
     // The backup of the list restored once its identifier is typed, the confirmation naming its
-    // date: first the restoration waiting, no one signed out yet. The deposit is left as it is,
-    // never confirmed (WF-ADM-0160: from a backup of the list, or from one copied out of the
-    // platform).
+    // date: first the restoration waiting, no one signed out yet. The deposit follows, restored in
+    // its turn (WF-ADM-0160: from a backup of the list, or from one copied out of the platform).
     // The date as the list writes it, read before the dialog opens: modal, it hides the page
     // behind it, the grid with it.
     const takenText = await date.innerText();
@@ -328,29 +344,7 @@ test(
       .getByRole("textbox", { name: "Pour confirmer, saisissez l’identifiant de la sauvegarde" })
       .fill(identifier);
     await dialog.getByRole("button", { name: "Restaurer", exact: true }).click();
-    const maintenance = page.getByRole("status", {
-      name: "Restauration de la plateforme en cours",
-    });
-    await expect(maintenance).toContainText("La restauration est en attente");
-    // Then its end: done, once the probe said the maintenance — every user signed out — and its
-    // end. A restoration this small may hold the maintenance between two reads of the probe: the
-    // screen then sees the session closed and nothing more, and says that alone, without
-    // affirming the restoration done: the journal of audit says it, after the sign-in.
-    const signedOut = page.getByRole("status", { name: "Session terminée" });
-    // Its title is the whole text of its element: the paragraph of the maintenance names the
-    // restoration « terminée » too, as what the users wait for (#2219).
-    const ended = maintenance.getByText("Restauration terminée", { exact: true }).or(signedOut);
-    // A restoration refused before the maintenance gives the page back with its motive: said at
-    // once, rather than waited for until the end of the path.
-    const refused = page.getByRole("main").getByRole("alert");
-    await expect(ended.or(refused)).toBeVisible({ timeout: 420_000 });
-    await expect(refused).toHaveCount(0);
-
-    // Signed out by the restoration, the administrator signs in again, and finds the screen.
-    await page.getByRole("link", { name: "Se connecter" }).click();
-    await giveIdentifiers(page, ADMINISTRATOR);
-    await expect(page).toHaveURL(BACKUPS);
-    await expect(page.getByRole("grid", { name: "Sauvegardes" })).toBeVisible();
+    await untilRestored(page);
 
     // Whatever end the screen saw, the restoration took place and succeeded: the last inscription
     // of the journal of audit is the restoration itself, of the backup, which the service writes
@@ -372,5 +366,36 @@ test(
       [kept.revision.revision_id, "draft", null],
     ]);
     await restored.notFound(later);
+
+    // Deposited as the archive of another installation, which says the date of its backup, and
+    // restored in its turn: the service checks the digests of a deposit only then, so that the
+    // archive sent byte for byte is proven by the restoration succeeding (#1025).
+    await page.goto(BACKUPS);
+    const deposit = page.getByRole("region", {
+      name: "Restaurer une sauvegarde d’une autre installation",
+    });
+    await deposit.getByLabel("Archive de la sauvegarde").setInputFiles(archive);
+    await deposit.getByRole("button", { name: "Déposer" }).click();
+    await expect(deposit.getByRole("button", { name: "Restaurer cette sauvegarde" })).toBeVisible({
+      timeout: 60_000,
+    });
+    const deposited = await deposit.getByRole("time").getAttribute("datetime");
+    expect(Date.parse(deposited ?? "")).toBe(takenAt);
+    const confirmedDeposit = Date.now();
+    await deposit.getByRole("button", { name: "Restaurer cette sauvegarde" }).click();
+    const depositDialog = page.getByRole("dialog", { name: "Restaurer la plateforme" });
+    await depositDialog
+      .getByRole("textbox", { name: "Pour confirmer, saisissez l’identifiant de la sauvegarde" })
+      .fill(await depositDialog.locator("code").innerText());
+    await depositDialog.getByRole("button", { name: "Restaurer", exact: true }).click();
+    await untilRestored(page);
+    await page.goto(JOURNAL);
+    const lastDeposit = page.getByRole("grid", { name: "Journal d’audit" }).getByRole("row").nth(1);
+    await expect(lastDeposit).toContainText("Restauration", { timeout: WORKING });
+    await expect(lastDeposit).toContainText("Sauvegarde déposée");
+    const restoredDepositAt = Date.parse(
+      (await lastDeposit.locator("time").getAttribute("datetime")) ?? "",
+    );
+    expect(restoredDepositAt).toBeGreaterThanOrEqual(confirmedDeposit - 60_000);
   },
 );
