@@ -356,6 +356,8 @@ UNRESOLVED = {"example", "examples"}
 
 def references(node: object) -> Iterator[str]:
     """Give each ``$ref`` a document holds, at any depth, but in its examples."""
+    # A schema property named ``example`` is skipped too: its references are not preloaded, and
+    # ``retrieved`` reads them when asked, slower but right.
     if isinstance(node, dict):
         for key, value in cast("dict[str, object]", node).items():
             if key == "$ref" and isinstance(value, str):
@@ -397,7 +399,9 @@ def binary_text(content: bytes) -> str:
 
 
 # The bodies the contract declares a binary string and openapi-core reads otherwise: an MS Project
-# file, which it would parse into a tree of XML, then refuse as no string (#2675).
+# file, which it would parse into a tree of XML, then refuse as no string (#2675). It applies to
+# every ``application/xml``, though only the binary body of ``docs/api/paths/system.yaml`` needs
+# it: a test of the contract fails on any other (``test_api_service.py``).
 BINARY_TYPES = {"application/xml": binary_text}
 # The paths of the contract whose resolution is kept: the walk of an answer asks each of its values
 # what its schema holds, and a schema is reached again from the root at each question.

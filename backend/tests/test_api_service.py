@@ -28,6 +28,7 @@ from support import (
     ContractClient,
     Logs,
     UndeclaredPropertyError,
+    documents,
     found_in,
     operations,
 )
@@ -36,9 +37,24 @@ from waterfall.api.app import create_app
 from waterfall.platform.correlation import FORM
 
 if TYPE_CHECKING:
+    from collections.abc import Iterator
+
     from starlette.routing import BaseRoute
 
     from waterfall.api.authentication import Services
+
+
+def xml_bodies(node: object) -> Iterator[dict[str, Any]]:
+    """Give each ``application/xml`` body a document declares, at any depth."""
+    if isinstance(node, dict):
+        for key, value in cast("dict[str, Any]", node).items():
+            if key == "application/xml" and isinstance(value, dict):
+                yield cast("dict[str, Any]", value)
+            else:
+                yield from xml_bodies(value)
+    elif isinstance(node, list):
+        for each in cast("list[object]", node):
+            yield from xml_bodies(each)
 
 
 def test_the_liveness_probe_answers_ok_as_the_contract_says(client: ContractClient) -> None:
@@ -546,6 +562,22 @@ def test_an_xml_answer_the_contract_declares_binary_is_validated_as_its_bytes() 
     assert (response.status_code, response.content) == (200, content)
 
 
+def test_the_only_xml_body_of_the_contract_is_a_binary_string(contract: OpenAPI) -> None:
+    # ``BINARY_TYPES`` reads every ``application/xml`` body as the text of its bytes: that holds
+    # while the contract declares no such body but a binary string (the MS Project export).
+    declared = cast("dict[str, Any]", contract.spec.read_value())
+    root = contract.spec.base_uri
+    found = documents(root, declared)
+    binary = {"type": "string", "format": "binary"}
+    xml = [
+        address
+        for address, each in found.items()
+        for node in xml_bodies(each)
+        if node.get("schema") != binary
+    ]
+    assert xml == []
+
+
 def test_an_answer_is_validated_without_reading_a_document_of_the_contract_again(
     contract: OpenAPI, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -572,6 +604,12 @@ def test_an_answer_is_validated_without_reading_a_document_of_the_contract_again
     assert second.get("/api/v1/health").status_code == 503
     assert read == []
     assert second.contract is first.contract
+    # The other way round, to prove the listener hears what it should: the contract as it was
+    # given, not resolved, reads the documents it reaches when it is asked for them.
+    asked = contract.spec / "paths" / "/health" / "get" / "responses" / "503" / "content"
+    assert asked.exists()
+    assert any(address.endswith("responses.yaml") for address in read)
+    read.clear()
     # An example, which no validation resolves, is not held: it is read when it is asked for.
     examples = second.contract.spec / "paths" / "/health" / "get" / "responses" / "200"
     examples = examples / "content" / "application/json" / "examples"
