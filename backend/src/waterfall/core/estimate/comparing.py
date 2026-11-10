@@ -265,7 +265,7 @@ def compare(session: Session, project_id: UUID, asked: ComparisonAsked) -> Compa
             ComparedNode(union.views[each], union.difference[each], union.changes[each])
             for each in order
         ),
-        task_count=len(compared.kept),
+        task_count=compared.task_count,
         totals=compared.totals,
         summary_depth=compared.summary_depth,
         scheduled_at=compared.scheduled_at,

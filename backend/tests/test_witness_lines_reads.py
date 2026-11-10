@@ -17,8 +17,7 @@ named with its cause where the test stands:
 - the previous figures (``previous_*``) and the actual costs that lock the subproject of a line
   (``editable_fields``) are EP-09's;
 - a line whose task straddles two years is spread over them by the service, by the hours of each
-  (WF-DEV-0040), where the generator of the examples kept the first year; a re-estimated amount
-  that falls on an exact half cent is rounded to the even cent by the service, up by the generator;
+  (WF-DEV-0040), where the generator of the examples kept the first year;
 - the accounts of the witness are not attached to their node of the organisation, so that no
   contributor is suggested; the authors are the platform's, and the commands of a reader are those
   of its rights, not of the example's.
@@ -206,32 +205,28 @@ def amounts_under(items: dict[str, dict[str, Any]], name: str) -> dict[str, Deci
 # (the reference is the 100, the example's the 101), the re-estimated one and the year (a task on
 # two years), the fields editable (an actual cost, EP-09).
 LINES_APART = {
-    "nodes_estimate": {"budgeted": 1, "reestimated": 0, "rounding": 0, "year": 0, "editable": 2},
+    "nodes_estimate": {"budgeted": 1, "reestimated": 0, "year": 0, "editable": 2},
     "nodes_estimate_sorted": {
         "budgeted": 1,
         "reestimated": 0,
-        "rounding": 0,
         "year": 0,
         "editable": 2,
     },
     "nodes_estimate_filtered": {
         "budgeted": 1,
         "reestimated": 0,
-        "rounding": 0,
         "year": 0,
         "editable": 2,
     },
     "nodes_estimate_hours": {
         "budgeted": 1,
         "reestimated": 0,
-        "rounding": 0,
         "year": 0,
         "editable": 2,
     },
     "volume/nodes_thousand": {
         "budgeted": 200,
         "reestimated": 118,
-        "rounding": 70,
         "year": 48,
         "editable": 18,
     },
@@ -248,9 +243,9 @@ def projection_apart(
 
     On a task straddling two years the line is spread by the hours of each (WF-DEV-0040): it costs
     between its base amount inflated to the year the task starts and to the year it ends, where the
-    example kept the first, and its year of consumption is one of the two. Elsewhere only an exact
-    half cent differs: the service rounds it to the even cent (``ROUND_HALF_EVEN``, EP-07, "L'année
-    de consommation et la projection"), the generator up, to the odd one above.
+    example kept the first, and its year of consumption is one of the two. Elsewhere nothing
+    differs: the service rounds a half cent away from zero, as ``Money`` and the generator do
+    (#2618).
     """
     label = sheet["label"]
     starts, ends = int(year_of(task["start"])), int(year_of(task["finish"]))
@@ -269,10 +264,7 @@ def projection_apart(
         found += ["year"] * (sheet["consumption_year"] != example_sheet["consumption_year"])
         return found
     assert sheet["consumption_year"] == example_sheet["consumption_year"], label
-    if ours != theirs:
-        assert theirs - ours == CENT, label
-        assert (ours / CENT) % 2 == 0, label
-        found.append("rounding")
+    assert ours == theirs, label
     return found
 
 
@@ -308,9 +300,9 @@ def sums_hold(
     assert Decimal(totals["base_amount"]) == Decimal(wanted_totals["base_amount"]) - provision
     assert totals["hours"] == wanted_totals["hours"]
     assert totals["estimate_line_count"] == wanted_totals["estimate_line_count"] - len(absent)
-    # The tasks the filters retain: one under the lines of the amounts asked, where the example
-    # counts none of those it renders for the sake of the tree (#2699, left to US-1570/L3).
-    assert totals["task_count"] == wanted_totals["task_count"] + (name == "nodes_estimate_filtered")
+    # A filter of the line retains lines, and the tasks above them are rendered for the tree alone:
+    # the filtered read counts none, as the example and ``NodeTotals`` say (#2699).
+    assert totals["task_count"] == wanted_totals["task_count"]
     assert body["meta"]["summary_depth"] == expected["meta"]["summary_depth"]
     assert body["meta"]["scheduled_at"] == instant(OPENED[102]).isoformat().replace("+00:00", "Z")
 
@@ -347,7 +339,7 @@ def test_the_estimate_read_of_the_loaded_witness_is_the_example_but_for_what_it_
     # The lines: everything the file enters, the base amount and the place are the example's; what
     # is read apart is counted, and each difference has its cause.
     lines = {key: item for key, item in got.items() if item["kind"] == "estimate_line"}
-    found = {"budgeted": 0, "reestimated": 0, "rounding": 0, "year": 0, "editable": 0}
+    found = {"budgeted": 0, "reestimated": 0, "year": 0, "editable": 0}
     for key, item in lines.items():
         theirs = wanted[key]
         assert not line_differences(item, theirs), (name, item["estimate_line"]["label"])

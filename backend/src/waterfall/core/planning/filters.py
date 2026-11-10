@@ -8,7 +8,8 @@ under ``timeline_id``: a timeline is no tree (WF-PLA-0140). ``kinds`` is no filt
 is returned, and the count of the tasks does not change with it. The filters of the line — its
 category, its role, its figures, its amounts — retain lines, judged by the hooks of their facet
 (``FacetHooks.filters``, EP-07), opaque here: asked, a task is retained only if it bears a line
-they retain, which alone it returns. The lines are sorted under each task by those hooks too
+they retain, which alone it returns, and the task is then rendered for the tree alone: the count
+of the tasks is nought, as ``NodeTotals`` says of the ancestors (#2699). The lines are sorted under each task by those hooks too
 (``FacetHooks.sort``), the tasks keeping the order of the tree (WF-IHM-0060). Each bound is
 inclusive; a task that bears no value — a manual task's float, a leaf's physical progress — is not
 retained by a bound on it.
@@ -78,7 +79,8 @@ class NodeFilters:
 class Retained:
     """What a reading returns: its nodes in order, the tasks it retains, the lines it retains.
 
-    ``kept`` the tasks the filters retain themselves, without the ancestors ``order`` adds.
+    ``kept`` the tasks the filters retain themselves, without the ancestors ``order`` adds;
+    ``task_count`` those of them counted, none under a filter of the line (#2699).
     """
 
     order: list[UUID]
@@ -208,7 +210,9 @@ def retained(
         order = _sorted(session, project_id, reading, order, filters.sort)
     if kinds is not None:
         order = [each for each in order if tree.nodes[each].kind in kinds]
-    return Retained(order, len(kept), lines, frozenset(kept))
+    # Under a filter of the line, the tasks bear the lines retained and are not counted (#2699).
+    counted = 0 if filters.lines is not None else len(kept)
+    return Retained(order, counted, lines, frozenset(kept))
 
 
 def _lines(
