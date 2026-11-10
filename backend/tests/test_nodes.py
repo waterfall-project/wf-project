@@ -759,7 +759,7 @@ def test_a_manual_duration_so_long_that_its_finish_is_no_date_is_refused_naming_
     assert tree.node(node["node_id"])["lock_version"] == node["lock_version"]
 
 
-@pytest.mark.requirement("WF-IHM-0110-A")
+@pytest.mark.requirement("WF-DAT-0150-A")
 def test_a_modification_at_a_stale_version_or_of_an_unknown_node_is_refused(tree: Tree) -> None:
     node = tree.made("Études")
     tree.changed(node, label="Études détaillées")

@@ -476,7 +476,6 @@ def test_a_project_not_in_progress_is_named_before_the_background_task_that_mark
     assert missing(gesture(tree, node, "started")) == "project_in_progress"
 
 
-@pytest.mark.requirement("WF-DAT-0020-A")
 @pytest.mark.requirement("WF-CYC-0100-A")
 def test_a_marked_revision_and_a_terminal_project_refuse_a_gesture(
     tree: Tree, stage: Scene
@@ -502,7 +501,7 @@ def test_a_marked_revision_and_a_terminal_project_refuse_a_gesture(
     assert tree.node(node["node_id"])["task"]["progress"] == "not_started"
 
 
-@pytest.mark.requirement("WF-PLA-0080-A")
+@pytest.mark.requirement("WF-DAT-0150-A")
 def test_a_gesture_at_a_stale_counter_is_refused_and_writes_nothing(tree: Tree) -> None:
     node = tree.made("Câblage")
     moved(tree, node, "started", occurred_on=JUNE_THIRD)
@@ -511,7 +510,7 @@ def test_a_gesture_at_a_stale_counter_is_refused_and_writes_nothing(tree: Tree) 
     assert tree.node(node["node_id"])["task"]["started_on"] == JUNE_THIRD
 
 
-@pytest.mark.requirement("WF-PLA-0080-A")
+@pytest.mark.requirement("WF-PLA-0130-A")
 def test_a_node_the_structure_does_not_hold_or_that_is_no_task_is_not_found(
     tree: Tree, stage: Scene
 ) -> None:
