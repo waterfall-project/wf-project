@@ -35,7 +35,11 @@ named, and nothing is written. The state of a summary is derived (WF-PLA-0040), 
 included (US-1590/L1): one of them set to nought, the last that held open a summary whose
 subordinates are all completed, completes it at the date sent — kept on its facet, the latest of
 which and of its subordinates' it is completed at (WF-PLA-0130) —, refused as a leaf's is without
-a date or before its start. The line is judged before the revision, in the order of its
+a date or before its start. Reopening or restarting a leaf puts back to started the summaries above
+it that their own line completed, and clears the day they were completed at (``_closed_above``): a
+completion kept on their facet would be stale, and read by the next one (WF-PLA-0130, #2768); the
+history keeps them in the entry of the gesture, which undone completes them again at that day. The
+line is judged before the revision, in the order of its
 ``remaining_entry``: ``task_not_completed`` — ``line_not_provision`` is never missing before EP-08
 —, then the phase of the project (``project_in_progress``), then ``revision_draft``,
 ``project_not_terminal`` and ``no_background_task_running``.
@@ -104,7 +108,10 @@ type GestureCondition = Literal[
     "task_is_milestone", "task_without_lines", "task_not_milestone", "completed_milestone"
 ]
 type KanbanCondition = (
-    GestureCondition | Literal["project_in_progress", "no_background_task_running"]
+    GestureCondition
+    | Literal[
+        "is_contributor", "project_in_progress", "revision_draft", "no_background_task_running"
+    ]
 )
 
 

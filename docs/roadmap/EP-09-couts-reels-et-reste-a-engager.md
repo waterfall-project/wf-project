@@ -1042,7 +1042,7 @@ provision et la fusion (EP-08) ; les projections et l'indice de coût (EP-10).
 
 ## US-1590 — Les tâches en exécution : le Kanban servi, la récapitulative qui n'attend que ses lignes, la suppression renvoyée
 
-- **statut** : en cours
+- **statut** : fini
 - **exigences** : `WF-RAE-0030-A`, `WF-PLA-0040-A`, `WF-PLA-0050-A`, `WF-PLA-0070-A`
 - **opérations** : `listStartableTasks`, `setTaskProgress`, `setLineRemaining`, `deleteNode`,
   `listNodes`

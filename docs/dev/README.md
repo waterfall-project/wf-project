@@ -3762,8 +3762,11 @@ undoing the one it has already received (`setExpanded`, `openMenu`, and `sortUnt
 sort, which never hurries blindly). A grid screen is waited for up to the bound of grid screens,
 fifteen seconds (`WORKING`, #315, #419), whether a click reaches it or reloads it (a sort, a filter,
 a search, the detail of a line). A grid screen is a dense grid — estimate, planning, remaining to
-commit, risks, actual costs, portfolio —, or a screen that reads the structure of a thousand tasks
-(`listNodes`): the Kanban, the tree, the timelines. The comparison of two revisions joins them, for
+commit, risks, actual costs, portfolio —, or a screen that reads the structure of a thousand tasks:
+the tree and the timelines, by `listNodes`, and the Kanban, by `listStartableTasks` — the
+measure of #646 on PRJ-001, against the service: about 1.3 seconds for the 960 cards and their
+1.8 megabytes, and two seconds from the click or the address to the first card, far below this
+bound. The comparison of two revisions joins them, for
 the time of a decision: it renders its 2,770 modifications in a plain table, rendered on the server,
 which exceeds five seconds in development (finding #624 of EP-14/L45a, to be decided — accepted, or
 moved onto the dense grid): from the click to the address, for five megabytes of response, about

@@ -19,7 +19,7 @@ from sqlalchemy import delete, select
 from waterfall.core.planning.interface.facets import facets
 from waterfall.core.planning.tables import Node, TrackingEntry
 from waterfall.core.planning.tree import LINE, TASK
-from waterfall.core.planning.views import STARTED, state_of
+from waterfall.core.planning.views import COMPLETED, STARTED, state_of
 from waterfall.platform.errors import FieldError, UnprocessableError
 
 if TYPE_CHECKING:
@@ -71,6 +71,35 @@ def emptied(tree: Tree, parent_id: UUID) -> None:
     task.scheduling_mode = AUTOMATIC
     if task.duration_value == 0 and state.progress == STARTED:
         task.duration_value, task.duration_unit = Decimal(1), "d"
+
+
+def closed_above(tree: Tree, parent_id: UUID | None) -> tuple[UUID, ...]:
+    """Give the tasks, a task and the summaries above it, whose facet keeps a completion.
+
+    A task not completed under ``parent_id`` — created or moved there — makes it and every
+    summary above it not completed: what their facet keeps of the completion — the state and the
+    day the last own line set to nought gave (``own_lines``) — is stale, and a later completion
+    must not read it (WF-PLA-0040, WF-PLA-0130; #2769).
+    """
+    if parent_id is None:
+        return ()
+    return tuple(
+        each
+        for each in (parent_id, *tree.ancestors(parent_id))
+        if tree.tasks[each].progress == COMPLETED
+    )
+
+
+def reopened(tree: Tree, node_ids: Collection[UUID], act: Act) -> None:
+    """Put back to started the tasks whose completion is stale, and clear the day they closed at.
+
+    Written once: a task whose facet keeps no completion any more is left as it is.
+    """
+    for each in node_ids:
+        task = tree.tasks[each]
+        if task.progress == COMPLETED:
+            task.progress, task.completed_on = STARTED, None
+            stamp(tree.nodes[each], act)
 
 
 def deleted(session: Session, project_id: UUID, tree: Tree, node_ids: list[UUID]) -> None:
