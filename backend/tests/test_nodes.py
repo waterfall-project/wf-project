@@ -770,6 +770,9 @@ def test_a_modification_at_a_stale_version_or_of_an_unknown_node_is_refused(tree
     alone = tree.change(node)
     assert refusal(alone)[:2] == (422, "VALIDATION_FAILED")
     assert tree.node(node["node_id"])["task"]["label"] == "Études détaillées"
+    reread = tree.node(node["node_id"])
+    tree.changed(reread, label="Études reprises")
+    assert tree.node(node["node_id"])["task"]["label"] == "Études reprises"
 
 
 # --- Dependencies and row numbers ---------------------------------------------------------------

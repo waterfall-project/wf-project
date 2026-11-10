@@ -43,7 +43,6 @@ from waterfall.core.exchanges.judgments import (
     refused,
 )
 from waterfall.core.exchanges.records import (
-    NOT_FOUND,
     aimed_by,
     end_unwritten,
     found_import,
@@ -71,6 +70,7 @@ from waterfall.core.projects.interface import (
 from waterfall.core.revisions.interface import aimed_structure, last_marked_revision
 from waterfall.platform.database import unique_violated
 from waterfall.platform.errors import (
+    NOT_FOUND,
     VALIDATION_FAILED,
     FieldError,
     NotFoundError,

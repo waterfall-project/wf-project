@@ -25,9 +25,10 @@ from waterfall.api.contract.models import BackgroundTaskRef, RestoreRequest
 from waterfall.api.evaluation import Acting, Requires
 from waterfall.api.tasks import task_ref
 from waterfall.core.access_roles.interface import require
-from waterfall.core.backups.interface import NOT_FOUND, read_backup
+from waterfall.core.backups.interface import read_backup
 from waterfall.platform.database import utc_now
 from waterfall.platform.errors import (
+    NOT_FOUND,
     STATE_FORBIDS_OPERATION,
     VALIDATION_FAILED,
     BadRequestError,

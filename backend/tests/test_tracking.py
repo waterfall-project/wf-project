@@ -328,7 +328,7 @@ def test_a_stale_version_and_an_unknown_node_are_refused(
     assert len(rows(stage)) == 1
 
 
-@pytest.mark.requirement("WF-DAT-0020-A")
+@pytest.mark.requirement("WF-CYC-0100-A")
 def test_a_marked_revision_and_a_terminal_project_refuse_the_inscription(
     api: ContractClient, tree: Tree, stage: Scene
 ) -> None:
