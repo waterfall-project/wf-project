@@ -157,8 +157,11 @@ d'EP-09 (décision de l'auteur du 2026-11-07, pour toute la série EP-06 → EP-
 EP-08 ; l'exception du README, « Branches ») : elle reprend `epic/EP-09` à chaque lot que celui-ci
 fusionne — qui reprend elle-même `epic/EP-07`, qui reprend `epic/EP-06` — et se fusionne dans
 `main` après elle. Les lots d'EP-10 qui lisent des coûts attendent aussi US-1610/L2 #2404
-(l'application d'une extraction, le journal), ceux qui lisent un reste US-1580/L2 #2399 (la
-réestimation, `previous_*`), ceux qui lisent l'avancement des tâches US-1410 #2324 d'EP-06, ceux
+(l'application d'une extraction, le journal, `actual_costs_until`), ceux qui lisent un reste
+US-1580/L2 #2399 (la réestimation, `previous_*`, `remaining_of_revision`) — et non US-1600 #2392,
+qui lit `remaining_of_revision` sans l'écrire (décision de l'auteur du 2026-11-10, #2708) ;
+`CalculationContext`, le contexte de calcul du contrat, s'importe de l'interface d'`estimate`
+(`remaining_indicators.py`) —, ceux qui lisent l'avancement des tâches US-1410 #2324 d'EP-06, ceux
 qui lisent la valeur planifiée US-1520/L1 #2376 et L2 #2377 d'EP-07, ceux qui lisent les jalons
 inscrits US-1400/L2 #2340 d'EP-06, ceux qui remplissent le marquage US-1500/L2 #2375 d'EP-07
 (`register_marking`, avant `compute_indicators`) ; chaque lot nomme ceux qu'il attend par leur
