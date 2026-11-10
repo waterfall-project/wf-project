@@ -1052,8 +1052,8 @@ numéro, le niveau, la version et la marque. Faute de parent dans ces champs, l'
 pas ; rien ne se trie ni ne se cherche, l'ordre est celui du plan. Les 5 999 nœuds de l'exemple de
 volume (`volume/comparison_volume.json`, dont 2 770 modifiés) ne montent qu'une fenêtre de lignes,
 et l'écran garde la borne d'un écran de grille (`WORKING`, 15 s, `revisions.spec.ts`) ; le parcours
-joue l'exemple de la fenêtre, le faux back servant le premier exemple de l'opération. Les écarts
-de montants restent une table sous la grille, et l'écran est l'un de ceux du harnais
+joue l'exemple de la fenêtre contre le faux back, qui sert le premier exemple de l'opération, et
+toute la structure contre le service. Les écarts de montants restent une table sous la grille, et l'écran est l'un de ceux du harnais
 d'accessibilité (`DIFFERENTIAL_SCREENS`).
 
 ### La grille de planning et le Gantt
@@ -4052,9 +4052,12 @@ La liste consolidée de ce qu'un parcours ne rejoue pas encore contre le service
 saute par `inService` (`test.skip(inService, …)`) quand il est étiqueté, ou reste sans étiquette,
 chaque entrée nommant l'EPIC qui la lève ; cet EPIC retire la garde et son entrée :
 
-- `revisions.spec.ts` — la révision en cours et ses parties, et la comparaison, de la volumétrie
-  comprise, et « Écarts seulement » (`BEFORE_EP07`) : levée par **EP-07**, qui sert la comparaison
-  (`compareRevisions`) et la mise à jour des taux (`getRateUpdateProposal`). L'écran d'une révision
+- `revisions.spec.ts` — la volumétrie (5 999 nœuds) seule (`NO_VOLUME_IN_SERVICE`) : le projet de
+  volume n'existe qu'au faux back, jusqu'aux volumes d'EP-13 (#2696) ; **EP-13** retire la garde.
+  La révision en cours et ses parties, la comparaison et « Écarts seulement » se jouent contre le
+  service depuis US-1570/L2 (#2385), dont le chargeur donne au témoin ses tâches et ses lignes
+  (le service sert `compareRevisions` et `getRateUpdateProposal`) ; la comparaison y est celle de
+  toute la structure, là où le faux back rend la fenêtre de son exemple. L'écran d'une révision
   en cours lit la proposition par `readUnlessRefused` et se rend sans elle sur le 404 du service
   (#2173), ses commandes jouables. L'historique se joue contre le service dès US-0960, avec les
   révisions 100 et 101 du témoin marquées dès US-0970.

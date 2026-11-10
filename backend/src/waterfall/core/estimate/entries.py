@@ -24,6 +24,7 @@ from decimal import Decimal
 from typing import TYPE_CHECKING
 
 from waterfall.core.cost_settings.interface import category_labels
+from waterfall.core.estimate.recalling import recalled
 from waterfall.core.estimate.tables import LABEL_LENGTH
 from waterfall.core.projects.interface import subproject_has_actual_costs, subproject_labels
 from waterfall.core.resource_settings.interface import read_roles
@@ -129,7 +130,9 @@ def _role(
     """Read the role a line names; refuse it unknown, or deactivated when the write gives it."""
     if role_id is None:
         return None
-    found = read_roles(session, [role_id], may_change=False)
+    found = recalled(
+        session, ("role", role_id), lambda: read_roles(session, [role_id], may_change=False)
+    )
     if not found:
         faults.add("resource_role_id", UNKNOWN_RESOURCE_ROLE)
         return None
@@ -144,7 +147,10 @@ def _category(
     """Read the category a line names; refuse it unknown, the risk's, or deactivated if given."""
     if category_id is None:
         return None
-    category = category_labels(session, [category_id]).get(category_id)
+    labels = recalled(
+        session, ("category", category_id), lambda: category_labels(session, [category_id])
+    )
+    category = labels.get(category_id)
     if category is None:
         faults.add("cost_category_id", UNKNOWN_COST_CATEGORY)
     elif category.cost_type_kind == PROVISION:
@@ -168,7 +174,11 @@ def _subproject(
     if not entry.given("subproject_id"):
         return before
     after = entry.subproject_id
-    if after is not None and not subproject_labels(session, project_id, [after]):
+    if after is not None and not recalled(
+        session,
+        ("subproject", project_id, after),
+        lambda: subproject_labels(session, project_id, [after]),
+    ):
         faults.add("subproject_id", UNKNOWN_SUBPROJECT)
     if (
         before is not None

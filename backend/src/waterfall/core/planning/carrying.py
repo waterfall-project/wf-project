@@ -26,6 +26,7 @@ if TYPE_CHECKING:
 
     from sqlalchemy.orm import Session
 
+    from waterfall.core.planning.calendars import Applicable
     from waterfall.core.planning.tree import Tree
     from waterfall.core.planning.writing import Write
 
@@ -37,6 +38,14 @@ def bearing(
     session: Session, project_id: UUID, tree: Tree, task_id: UUID, *, is_main: bool
 ) -> BearingTask:
     """Give a task of a tree as the facet of a node it bears is told of it."""
+    return borne(tree, task_id, calendar_of(session, project_id, task_id), is_main=is_main)
+
+
+def borne(tree: Tree, task_id: UUID, calendar: Applicable, *, is_main: bool) -> BearingTask:
+    """Give a task of a tree as ``bearing`` does, its applicable calendar read already.
+
+    For a write that tells many tasks at once, their calendars read together (``calendars_of``).
+    """
     task = tree.tasks[task_id]
     return BearingTask(
         task_id,
@@ -44,7 +53,7 @@ def bearing(
         task.label,
         WorkInstant(task.start_date, task.start_hours),
         WorkInstant(task.finish_date, task.finish_hours),
-        calendar_of(session, project_id, task_id).calendar.week,
+        calendar.calendar.week,
         state_of(tree, task_id).progress,
         is_main,
     )

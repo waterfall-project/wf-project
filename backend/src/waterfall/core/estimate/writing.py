@@ -37,6 +37,7 @@ from waterfall.core.estimate.costing import (
 )
 from waterfall.core.estimate.entries import Draft, LineEntry, judged_line
 from waterfall.core.estimate.pricing import CENT
+from waterfall.core.estimate.recalling import recalled, remembers
 from waterfall.core.estimate.tables import EstimateLine
 from waterfall.core.resource_settings.interface import role_calendars
 
@@ -100,10 +101,15 @@ def _priced_draft(
     if draft.role is not None:
         if judging.role_changes:
             judge_working_hours(session, held, draft.role.resource_role_id, judging.earlier)
-        week = calendar_hours(session, [draft.role.calendar_id])[draft.role.calendar_id]
-        rate = rates_of(session, project_id, basis, [draft.cost_category_id]).get(
-            draft.cost_category_id
-        )
+        calendar_id, category_id = draft.role.calendar_id, draft.cost_category_id
+        week = recalled(
+            session, ("calendar", calendar_id), lambda: calendar_hours(session, [calendar_id])
+        )[calendar_id]
+        rate = recalled(
+            session,
+            ("rate", basis, category_id),
+            lambda: rates_of(session, project_id, basis, [category_id]),
+        ).get(category_id)
         if rate is None:
             raise refuse_missing_rate((draft.cost_category_id, draft.category.label), basis)
     figures = Figures(
@@ -147,7 +153,12 @@ def create_line(creation: FacetCreation) -> None:
     session, project_id = creation.session, creation.project_id
     entry, judged = _sent(creation.entry)
     draft = judged_line(session, (project_id, creation.bearer), entry, None)
-    basis = basis_of(session, project_id, creation.revision_id)
+    revision_id = creation.revision_id
+    basis = recalled(
+        session,
+        ("basis", project_id, revision_id),
+        lambda: basis_of(session, project_id, revision_id),
+    )
     amounts = _priced_draft(
         session,
         (project_id, creation.bearer, None),
@@ -180,7 +191,9 @@ def create_line(creation: FacetCreation) -> None:
             updated_by=act.author,
         )
     )
-    session.flush()
+    # A load of lines flushes them together, by the next statement or at its end (``recalling``).
+    if not remembers(session):
+        session.flush()
 
 
 def read_line(session: Session, project_id: UUID, node_id: UUID) -> EstimateLine:

@@ -18,6 +18,11 @@ leaf at a time (``load_progress``). The reconciliation gives back the tasks whos
 are not the ones described. Every row bears the act that is given, whose instant the witness
 imposes (``Act.at``).
 
+``load_line_nodes`` does the same for the lines of the revision (EP-07, "Le chargeur du témoin"),
+once the tasks are written: the lines the copy gave are deleted, kept or created by lineage, at the
+identifiers the witness imposes, their facets written by the hooks of the kind ``estimate_line``;
+the engine is replayed once and the lines of the tasks priced again on the dates it computes.
+
 A file of its own: ``nodes`` holds the reading and the writes of the tree, and a source file stops
 at a thousand lines.
 """
@@ -28,12 +33,19 @@ from uuid import NAMESPACE_URL, UUID, uuid5
 
 from sqlalchemy import delete, insert
 
+from waterfall.core.planning.carrying import borne
+from waterfall.core.planning.interface.facets import (
+    FacetCreation,
+    FacetWrite,
+    calendars_of,
+    facets,
+)
 from waterfall.core.planning.interface.progress import ProgressLoad, load_progress
-from waterfall.core.planning.rescheduling import replayed
+from waterfall.core.planning.rescheduling import Holding, replayed
 from waterfall.core.planning.scheduling import WorkInstant
 from waterfall.core.planning.shaping import deleted
 from waterfall.core.planning.tables import Node, Task, TaskLink
-from waterfall.core.planning.tree import TASK, read_tree
+from waterfall.core.planning.tree import LINE, TASK, read_tree
 from waterfall.core.planning.views import NOT_STARTED
 from waterfall.core.planning.writing import facts_of, judge_revision
 from waterfall.core.revisions.interface import write_structure
@@ -44,6 +56,7 @@ if TYPE_CHECKING:
 
     from sqlalchemy.orm import Session
 
+    from waterfall.core.planning.interface.facets import BearingTask
     from waterfall.core.planning.scheduling import Duration
     from waterfall.core.planning.tree import Tree
     from waterfall.core.planning.writing import Place
@@ -294,3 +307,137 @@ def load_tasks(
             state = ProgressLoad(each.node_id, each.progress, each.started_on, each.completed_on)
             load_progress(session, place.project_id, state, act)
     return _disagreeing(session, place, load)
+
+
+@dataclass(frozen=True, slots=True)
+class LineNodeLoad:
+    """A line as the witness describes it: its identifiers, its task, its rank, its facet.
+
+    ``position`` orders the lines of a task; ``created`` is what the hooks of its kind create the
+    facet from (``FacetCreation.entry``), ``changed`` what they write it from when the line is kept
+    (``FacetHooks.write_cell``), both opaque to the planning.
+    """
+
+    node_id: UUID
+    lineage_id: UUID
+    task_lineage_id: UUID
+    position: int
+    created: object
+    changed: object
+
+
+def _laid(lines: tuple[LineNodeLoad, ...]) -> list[tuple[LineNodeLoad, int]]:
+    """Give each line with its rank among those of its task: the order of their positions."""
+    by_task: dict[UUID, list[LineNodeLoad]] = {}
+    for line in lines:
+        by_task.setdefault(line.task_lineage_id, []).append(line)
+    return [
+        (line, rank)
+        for found in by_task.values()
+        for rank, line in enumerate(sorted(found, key=lambda each: each.position), start=1)
+    ]
+
+
+def load_line_nodes(
+    session: Session, place: Place, lines: tuple[LineNodeLoad, ...], act: Act
+) -> frozenset[UUID]:
+    """Reconcile the structure of a revision with the lines the witness describes, by lineage.
+
+    The structure is judged as any write of its tree is (a revision still a draft), then locked.
+    The lines are deleted, kept and created, the engine replayed once — a role changes the
+    calendar of its task — and the lines priced again. Gives the tasks that bear a line. A line
+    that names a task the structure does not hold is a defect of the description: it raises.
+    """
+    project_id = place.project_id
+    judge_revision(session, project_id, place.revision_id)
+    facts = facts_of(session, place, lock=True)
+    tree = read_tree(session, project_id, place.structure_id)
+    tasks = {tree.nodes[each].lineage_id: each for each in tree.tasks}
+    unknown = {each.task_lineage_id for each in lines} - set(tasks)
+    if unknown:
+        message = f"lines name {len(unknown)} tasks the structure does not hold"
+        raise ValueError(message)
+    described = {each.lineage_id: each for each in lines}
+    stale = [
+        node_id
+        for node_id in tree.order
+        if tree.nodes[node_id].kind == LINE
+        and (
+            tree.nodes[node_id].lineage_id not in described
+            or described[tree.nodes[node_id].lineage_id].node_id != node_id
+        )
+    ]
+    if stale:
+        deleted(session, project_id, tree, stale)
+        session.flush()
+        tree = read_tree(session, project_id, place.structure_id)
+    held = {node_id for node_id, node in tree.nodes.items() if node.kind == LINE}
+    for node_id in held:
+        tree.nodes[node_id].rank += _ASIDE
+    session.flush()
+    laid = _laid(lines)
+    made = [
+        {
+            "project_id": project_id,
+            "id": each.node_id,
+            "revision_id": place.revision_id,
+            "structure_id": place.structure_id,
+            "lineage_id": each.lineage_id,
+            "kind": LINE,
+            "parent_id": tasks[each.task_lineage_id],
+            "rank": rank,
+            "origin_risk_id": None,
+            "lock_version": 1,
+            "created_at": act.at,
+            "created_by": act.author,
+            "updated_at": act.at,
+            "updated_by": act.author,
+        }
+        for each, rank in laid
+        if each.node_id not in held
+    ]
+    if made:
+        with session.no_autoflush:
+            session.execute(insert(Node), made)
+    session.flush()
+    hooks = facets()[LINE]
+    # The tasks that bear a line, told of once, before any facet is written: their calendars read
+    # together, which, read task by task, were a third of the loading of the lines (#2716).
+    borne_by = {tasks[each.task_lineage_id] for each, _ in laid}
+    calendars = calendars_of(session, project_id, borne_by)
+    bearers: dict[UUID, BearingTask] = {
+        task_id: borne(tree, task_id, calendars[task_id], is_main=facts.is_main)
+        for task_id in borne_by
+    }
+    for each, rank in laid:
+        task_id = tasks[each.task_lineage_id]
+        if each.node_id in held:
+            node = tree.nodes[each.node_id]
+            node.parent_id, node.rank = task_id, rank
+            node.lock_version += 1
+            node.updated_at, node.updated_by = act.at, act.author
+            write = FacetWrite(
+                session, project_id, place.revision_id, each.node_id, bearers[task_id], act
+            )
+            hooks.write_cell(write, each.changed)
+        else:
+            creation = FacetCreation(
+                session,
+                project_id,
+                place.revision_id,
+                each.node_id,
+                bearers[task_id],
+                each.created,
+                act,
+            )
+            hooks.create(creation)
+    session.flush()
+    bearing_tasks = frozenset(bearers)
+    replayed(
+        session,
+        project_id,
+        place.structure_id,
+        act.at,
+        Holding(facts=facts, repriced=bearing_tasks),
+    )
+    return bearing_tasks

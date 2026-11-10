@@ -253,6 +253,11 @@ from waterfall.core.estimate.keeping import (
     rate_update_offered as rate_update_offered,
 )
 
+# ``loading`` (US-1570/L2): what the loader of the witness describes of a line.
+from waterfall.core.estimate.loading import (
+    LineLoad as LineLoad,
+)
+
 # ``reading`` (US-1490/L3): the lines as ``listNodes`` reads them, and what it filters.
 from waterfall.core.estimate.reading import (
     LineFilters as LineFilters,

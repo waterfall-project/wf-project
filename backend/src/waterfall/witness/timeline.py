@@ -79,7 +79,7 @@ class CodeEntered(_Strict):
 class RateUpdateApplied(_Strict):
     """The update of the rates accepted from a revision in progress, for the categories named.
 
-    Read and passed over by the loader until the slice of the lines applies it (US-1570/L2).
+    Applied by the slice of the revisions (``apply_rate_update``), at the instant of its event.
     """
 
     kind: Literal["rate_update_applied"]

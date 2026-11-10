@@ -14,6 +14,7 @@ imposes (US-1570).
 
 from typing import TYPE_CHECKING
 
+from waterfall.core.estimate import loading
 from waterfall.core.estimate.writing import change_line
 from waterfall.core.planning.interface import FacetChange, revision_bears, write_facet
 
@@ -23,7 +24,9 @@ if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
     from waterfall.core.estimate.entries import LineEntry
+    from waterfall.core.estimate.loading import LineLoad
     from waterfall.core.planning.interface import NodesWritten, Place, Writer
+    from waterfall.platform.audit import Act
 
 LINE = "estimate_line"
 
@@ -51,7 +54,10 @@ def revision_has_lines(session: Session, revision_id: UUID) -> bool:
     return revision_bears(session, revision_id, LINE)
 
 
-def load_lines(session: Session, revision_id: UUID) -> None:
-    """Write the lines of a revision of the witness, at the identifiers and the instant imposed."""
-    msg = "load_lines is filled by US-1570"
-    raise NotImplementedError(msg)
+def load_lines(session: Session, place: Place, lines: tuple[LineLoad, ...], act: Act) -> None:
+    """Reconcile a revision just opened with the lines the witness describes, by lineage (US-1570).
+
+    Lines deleted, changed and created at the identifiers and the instant the witness imposes
+    (``Act.at``), priced at the rates of the revision on the dates the engine computes.
+    """
+    loading.load_lines(session, place, lines, act)

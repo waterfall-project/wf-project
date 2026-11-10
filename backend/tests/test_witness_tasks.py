@@ -66,6 +66,8 @@ pytestmark = pytest.mark.requirement("WF-QUA-0040-A")
 REVISIONS = {100: REVISION_100, 101: REVISION_101, 102: REVISION_102}
 # The events that open the revisions in the chronology (sequence numbers), and the planning start.
 OPENED = {100: 3, 101: 5, 102: 9}
+# The events the engine last replays the structure at: the opening, the update of the rates for 101.
+REPLAYED = {100: 3, 101: 6, 102: 9}
 PLANNING_START = date(2026, 3, 2)
 CORE = "01926f3a-7c00-7000-8000-000000000521"
 POPULAR_TIMELINE = "01926f3a-7c00-7000-8000-000000001000"
@@ -82,11 +84,12 @@ BESIDE = {"origin_risk_id", "row_number", "lock_version"}
 # core whose dates are the file's ("Dossier de conception", "Mise en service").
 DEFAULT = "01926f3a-7c00-7000-8000-000000000481"
 READING = {"calendar_id", "finish_overdue", "total_float"}
-# Decision of 2026-11-09 (issue #2347, finding #2594, carried to EP-07 / US-1570): TASKS_OF_2594
-# tasks by revision are dated by the engine otherwise than the file and the volume example do,
-# because 103 of them hold the 4x10 calendar of the roles of their lines, which EP-07 loads, and
-# their successors and summaries follow. What the engine computes of those tasks, and of no other,
-# may differ in these fields.
+# Decision of 2026-11-09 (issue #2347, finding #2594, carried to EP-07 / US-1570): until the lines
+# are loaded, TASKS_OF_2594 tasks by revision are dated by the engine otherwise than the file and
+# the volume example do, because 103 of them hold the 4x10 calendar of the roles of their lines, and
+# their successors and summaries follow. The slice of the lines (US-1570/L2) loads them: no task is
+# dated otherwise any more once the revision is filled, and the loader notes the 401 of the stage of
+# the tasks. What the engine computes of a task excused may differ in these fields.
 EXCUSED = {"start", "finish", "duration", "calendar_hours", "is_critical"}
 TASKS_OF_2594 = 401
 
@@ -283,8 +286,9 @@ def test_the_planning_start_of_each_structure_is_that_of_the_file_and_its_dates_
             expected = next(e for e in described()["revisions"] if e["revision"] == number)
             assert structure.planning_start_on == date.fromisoformat(expected["planning_start_on"])
             assert structure.planning_start_on == PLANNING_START
-            # The engine replayed at the instant of the event that opens the revision.
-            assert structure.scheduled_at == instant(OPENED[number])
+            # The engine replayed at the instant of the event that opens the revision, and of the
+            # one that accepts the rates on the 101 (the lines are priced again).
+            assert structure.scheduled_at == instant(REPLAYED[number])
 
 
 def test_the_inscriptions_follow_each_lineage_as_the_file_says_for_the_revision_in_progress(
@@ -355,10 +359,10 @@ def dated_otherwise(session: Session, number: int) -> list[str]:
 def test_the_dates_differ_from_the_file_only_for_the_tasks_a_calendar_of_a_line_reaches(
     logs: Logs, witness_loaded: Database
 ) -> None:
-    # The computed is the expected: on the three revisions, the engine dates every task as the file
-    # does but TASKS_OF_2594 of them, the decision of 2026-11-09 (#2347; finding #2594, carried to
-    # EP-07 / US-1570): all among the tasks the 4x10 calendars of the lines reach, their successors
-    # and their summaries; none in the core of the examples. The count is exact on every revision.
+    # The computed is the expected: once the lines are loaded (US-1570/L2), the engine dates every
+    # task of the three revisions as the file does, the tasks the 4x10 calendars of the lines reach,
+    # their successors and their summaries included (#2594). Before them, at the stage of the
+    # tasks, TASKS_OF_2594 of them were dated otherwise, which the loader notes.
     volume = example("volume/nodes_thousand")["items"]
     reached = closure(volume)
     lineages_reached = {item["lineage_id"] for item in volume if item["node_id"] in reached}
@@ -373,10 +377,10 @@ def test_the_dates_differ_from_the_file_only_for_the_tasks_a_calendar_of_a_line_
             assert set(differing) <= lineages_reached
             assert not set(differing) & core_lineages
             differing_counts[number] = len(differing)
-    assert differing_counts == dict.fromkeys(REVISIONS, TASKS_OF_2594)
+    assert differing_counts == dict.fromkeys(REVISIONS, 0)
     # The loader notes how many, revision after revision.
     noted = {r["revision"]: r["tasks"] for r in logs.named("witness.tasks_dated_by_the_engine")}
-    assert noted == differing_counts
+    assert noted == dict.fromkeys(REVISIONS, TASKS_OF_2594)
 
 
 def core_items() -> list[dict[str, Any]]:
@@ -437,8 +441,15 @@ def difference(
         if key in AMOUNTS | {"tracking", "origin_risk_id"}:
             continue
         if key in READING:
-            # Not a matter of #2594: the cause is named with READING, for every task.
-            if key == "calendar_id" and theirs.get(key) is None and ours.get(key) != DEFAULT:
+            # The example names no calendar for a task on the default one, which the service names
+            # (DEFAULT); a task on the calendar of ten hours of its roles' lines (EP-07) names it.
+            ten = ours["calendar_hours"]["monday"] == "10"
+            if (
+                key == "calendar_id"
+                and theirs.get(key) is None
+                and ours.get(key) != DEFAULT
+                and not ten
+            ):
                 found.append(f"task.{key}")
             continue
         if excused and key in EXCUSED:
@@ -468,17 +479,16 @@ def test_the_readings_of_the_loaded_witness_are_the_examples_but_for_what_it_doe
     got = {item["node_id"]: item for item in body["items"]}
     with witness.transaction() as session:
         dated = set(dated_otherwise(session, 102))
-    # The tasks of #2594: those the engine dates otherwise, and the 103 that hold the calendar of
-    # ten hours, whose calendar_hours differ even where their dates, by chance, do not.
+    # The tasks of #2594, dated otherwise before the lines: none once they are loaded, the 103 that
+    # hold the calendar of ten hours included.
     holders = {
         item["node_id"]
         for item in example("volume/nodes_thousand")["items"]
         if item["kind"] == "task" and item["task"]["calendar_hours"]["monday"] == "10"
     }
     excused = {each["node_id"] for each in file_tasks(102) if each["lineage_id"] in dated}
-    assert len(excused) == TASKS_OF_2594
+    assert not excused
     assert len(holders) == 103
-    excused |= holders
     if name == "nodes_summaries":
         # The reading answers the three summaries and every one the filter keeps of the tree.
         assert wanted.keys() <= got.keys()
@@ -565,7 +575,8 @@ def test_a_second_loading_finds_the_tasks_there_and_writes_nothing(
     before = counts()
     assert load(service_database_url) == 0
     assert counts() == before
-    assert before[0] == 997 + 997 + 1000
+    # The nodes of the tasks and, since the slice of the lines, those of the lines.
+    assert before[0] == (997 + 997 + 1000) + (4997 + 4997 + 4999)
 
 
 def loaded_tasks(number: int) -> tuple[TaskLoad, ...]:

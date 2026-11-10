@@ -154,9 +154,13 @@ from waterfall.core.planning.interface.lines import (
     write_lines as write_lines,
 )
 
-# ``loading`` (US-1480/L2): the tasks of the witness, a revision's tree reconciled with them.
+# ``loading`` (US-1480/L2; US-1570/L2): the tasks and the lines of the witness, a revision's tree
+# reconciled with them.
 from waterfall.core.planning.interface.loading import (
     DatesDisagreeing as DatesDisagreeing,
+)
+from waterfall.core.planning.interface.loading import (
+    LineNodeLoad as LineNodeLoad,
 )
 from waterfall.core.planning.interface.loading import (
     LinkLoad as LinkLoad,
@@ -166,6 +170,9 @@ from waterfall.core.planning.interface.loading import (
 )
 from waterfall.core.planning.interface.loading import (
     TasksLoad as TasksLoad,
+)
+from waterfall.core.planning.interface.loading import (
+    load_line_nodes as load_line_nodes,
 )
 from waterfall.core.planning.interface.loading import (
     load_tasks as load_tasks,
