@@ -10,7 +10,13 @@ lines created or updated through the interface of the actual costs, at the ident
 exclusion at its instant (EP-09, "Le chargeur du témoin"). Nothing is loaded for the remaining to
 commit: the copy of the revision 102 from the reference 101 gives it.
 
-Declared by US-1580/L1, it writes nothing yet; US-1650/L2 fills it and the march that calls it. The
-loader holds the extensions of the actual costs from the socle of EP-09 on by its own import of
-their interface (``loader.EXTENDING``, #2180).
+Declared by US-1580/L1, it writes nothing yet; US-1650/L2 fills it and the march that calls it. Its
+import, chained by the slice of the projects after the lines (``chronology``), gives the loader the
+extensions of the actual costs from the socle of EP-09 on (#2180).
 """
+
+from waterfall.core.costs import interface as costs_interface
+
+# The module whose interface the slice writes through, which registers the format of the actual
+# costs at its import.
+EXTENDING = (costs_interface,)
