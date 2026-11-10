@@ -117,13 +117,9 @@ test("offers the revision under way and only the other bases the project admits,
     .locator("option")
     .evaluateAll((options) => options.map((option) => (option as HTMLOptionElement).value));
   // A basis the project does not admit is absent, never offered to be refused (409, 422). The
-  // witness PRJ-001 has no reference revision but marked ones (100, 101): the service offers the
-  // marked remaining and the revision under way; the fake back's project has a reference revision
-  // and marked ones, so it offers the three, the reference budget first.
-  expect(bases).toEqual(
-    inService
-      ? ["marked_remaining", "current_remaining"]
-      : ["reference_budget", "marked_remaining", "current_remaining"],
-  );
+  // witness PRJ-001 has a reference revision (the offer 100, designated by the loader) and marked
+  // ones (100, 101), as the fake back's project does: both offer the three bases, the reference
+  // budget first.
+  expect(bases).toEqual(["reference_budget", "marked_remaining", "current_remaining"]);
   await expect(region.getByLabel("Révision marquée")).toHaveCount(1);
 });

@@ -240,6 +240,9 @@ test("retains the differences alone in the comparison: pressed, in the address a
   browser,
   manager,
 }) => {
+  // Against the service the comparison spans the whole structure of PRJ-001 (some 6,000 nodes) and
+  // the path reads it in full several times: more than the thirty seconds of a test.
+  test.slow();
   // The fake back serves the same comparison whatever the address names: what the server retains is
   // proven on `comparison_differences` by the test of the page (`revisions/page.test.tsx`).
   await openHydrated(
