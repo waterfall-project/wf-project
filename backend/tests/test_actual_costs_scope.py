@@ -11,13 +11,12 @@ answer is checked against the contract.
 """
 
 from concurrent.futures import ThreadPoolExecutor
-from datetime import date
 from typing import TYPE_CHECKING, Any
 from uuid import UUID, uuid4
 
 import pytest
 from costs_support import cost, load_import
-from nodes_support import refusal
+from nodes_support import faults, refusal
 from projects_support import PROJECTS, Scene, contribute, person, put_in_state
 from projects_support import scene as make_scene
 from sqlalchemy import select, update
@@ -268,16 +267,16 @@ def test_the_exclusion_asks_for_its_permission_and_the_quality_of_contributor(
 @pytest.mark.requirement("WF-CRE-0030-A")
 def test_a_body_without_the_state_aimed_at_is_refused(api: ContractClient, stage: Scene) -> None:
     answer = put(api, stage, "FA-1", reason=REASON)
-    assert answer.status_code in {400, 422}, answer.text
+    assert [pointer for pointer, _, _ in faults(answer)] == ["/is_in_tracked_scope"]
     assert stored(stage, "FA-1").is_in_tracked_scope
 
 
 @pytest.mark.requirement("WF-CRE-0030-A")
-def test_two_exclusions_of_a_line_at_once_are_written_one_after_the_other(
+def test_two_exclusions_of_a_line_at_once_leave_one_inscription_and_a_coherent_state(
     api: ContractClient, stage: Scene
 ) -> None:
-    # Under the lock of the project, the second request finds the line excluded: one inscription,
-    # not two, and the totals are those of one exclusion.
+    # Proves the outcome, not the lock (the threads may simply follow one another; the next test
+    # proves the wait for the lock): one inscription, not two, the totals those of one exclusion.
     with ThreadPoolExecutor(2) as pool:
         pending = [
             pool.submit(put, api, stage, "FA-1", is_in_tracked_scope=False, reason=REASON)
@@ -333,4 +332,3 @@ def test_the_witness_excludes_a_line_at_its_instant_whatever_the_state_of_the_pr
     assert (loaded.updated_at, loaded.updated_by) == (at, stage.manager.user_id)
     [entry] = journal(stage)
     assert (entry.action, entry.occurred_at) == ("cost_line_exclude", at)
-    assert date(2026, 4, 6) == loaded.updated_at.date()

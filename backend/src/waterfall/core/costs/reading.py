@@ -251,12 +251,13 @@ def read_lines(
     conditions = _retaining(project_id, filters, subproject_id)
     tracked = func.sum(case((CostLine.is_in_tracked_scope, CostLine.amount), else_=0))
     excluded = func.sum(case((CostLine.is_in_tracked_scope, 0), else_=CostLine.amount))
-    count, tracked_sum, excluded_sum, last_import_at = session.execute(
-        select(func.count(), tracked, excluded, func.max(CostImport.imported_at))
-        .select_from(CostLine)
-        .join(CostImport, CostImport.id == CostLine.last_import_id)
-        .where(*conditions)
+    count, tracked_sum, excluded_sum = session.execute(
+        select(func.count(), tracked, excluded).where(*conditions)
     ).one()
+    # The last import of the project, as the head of ``listCostImports``: not of the lines retained.
+    last_import_at = session.scalar(
+        select(func.max(CostImport.imported_at)).where(CostImport.project_id == project_id)
+    )
     rows = session.scalars(
         select(CostLine)
         .where(*conditions)

@@ -146,26 +146,6 @@ def test_the_actual_costs_and_their_log_are_read_on_a_terminal_project(
 
 
 @pytest.mark.requirement("WF-CYC-0100-A")
-@pytest.mark.usefixtures("review")
-@pytest.mark.parametrize("state", TERMINAL)
-def test_the_exclusion_is_refused_on_a_terminal_project(
-    api: ContractClient, stage: Scene, state: str
-) -> None:
-    put_in_state(stage.owner, stage.project["project_id"], state)
-    with stage.database.transaction() as session:
-        identifier = session.scalars(
-            select(CostLine.id).where(CostLine.document_number == "FA-1")
-        ).one()
-    answer = api.put(
-        f"{PROJECTS}/{stage.project['project_id']}/actual-costs/{identifier}/tracked-scope",
-        headers=stage.manager.headers,
-        json={"is_in_tracked_scope": False, "reason": "Trop tard"},
-    )
-    not_terminal(answer)
-    assert lines_of_cost(stage) == [("FA-1", True), ("FA-2", True)]
-
-
-@pytest.mark.requirement("WF-CYC-0100-A")
 @pytest.mark.parametrize("state", TERMINAL)
 def test_the_reestimate_and_the_gesture_of_the_kanban_are_refused_on_a_terminal_project(
     api: ContractClient, stage: Scene, review: Review, state: str

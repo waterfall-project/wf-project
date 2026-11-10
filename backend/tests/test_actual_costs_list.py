@@ -226,7 +226,7 @@ def test_a_filter_by_subproject_by_period_or_by_scope_applies_to_the_three_total
 
 
 @pytest.mark.requirement("WF-CRE-0040-A")
-def test_the_columns_kept_and_the_last_import_follow_the_filters(
+def test_the_columns_kept_follow_the_filters_and_the_last_import_does_not(
     api: ContractClient, stage: Scene
 ) -> None:
     # The union of the columns kept, like the totals, is the one of the lines retained: the two
@@ -244,8 +244,35 @@ def test_the_columns_kept_and_the_last_import_follow_the_filters(
     older = read(api, stage, to="2026-04-30")
     assert numbers(older) == ["FA-1"]
     assert older["meta"]["passthrough_columns"] == ["Fournisseur"]
-    assert older["last_import_at"] == "2026-05-04T08:30:00Z"
+    # The last import is the project's, whatever the filters retain.
+    assert older["last_import_at"] == "2026-06-03T08:30:00Z"
     assert older["items"][0]["passthrough"] == {"Fournisseur": "Durand"}
+
+
+@pytest.mark.requirement("WF-CRE-0050-A")
+def test_the_last_import_is_the_last_of_the_project_whatever_the_filters_retain(
+    api: ContractClient, stage: Scene
+) -> None:
+    # "null" says only that the project has no import (DECISIONS.md): a filter that retains
+    # nothing, or only a line of an older import, still reads the date of the last import.
+    assert read(api, stage, to="2026-04-30")["last_import_at"] is None
+    bring(stage, [line("FA-1", "SP-CAB", Fournisseur="Durand")], ("Fournisseur",), FIRST)
+    bring(stage, [line("FA-2", None, "20.00", date(2026, 5, 20))], ("Fournisseur",), SECOND)
+    nothing = read(api, stage, **{"from": "2030-01-01"})
+    assert numbers(nothing) == []
+    assert nothing["last_import_at"] == "2026-06-03T08:30:00Z"
+    only_older = read(api, stage, to="2026-04-30")
+    assert numbers(only_older) == ["FA-1"]
+    assert only_older["last_import_at"] == "2026-06-03T08:30:00Z"
+
+
+@pytest.mark.requirement("WF-CRE-0040-A")
+@pytest.mark.parametrize(("name", "value"), [("limit", 0), ("limit", 501), ("offset", -1)])
+def test_a_page_out_of_bounds_is_refused_on_its_parameter(
+    api: ContractClient, stage: Scene, name: str, value: int
+) -> None:
+    answer = api.get(path(stage), headers=stage.manager.headers, params={name: value})
+    assert [pointer for pointer, _, _ in faults(answer)] == [f"/query/{name}"]
 
 
 @pytest.mark.requirement("WF-CRE-0010-A")
@@ -411,13 +438,18 @@ def test_each_column_sorts_in_code_point_order_the_absent_values_after_in_ascend
     # after.
     assert order("passthrough.Fournisseur") == ["FA-2", "FA-4", "FA-1", "FA-3"]
     assert order("passthrough.Fournisseur", "desc") == ["FA-3", "FA-1", "FA-4", "FA-2"]
-    assert sorted(order("passthrough.Absente")) == ["FA-1", "FA-2", "FA-3", "FA-4"]
+    # No line has the column: all tied, so the identifiers alone order them.
+    items = read(api, stage)["items"]
+    by_identifier = [
+        each["document_number"] for each in sorted(items, key=lambda i: i["cost_line_id"])
+    ]
+    assert order("passthrough.Absente") == by_identifier
 
 
 @pytest.mark.requirement("WF-IHM-0060-A")
 def test_a_sort_by_a_column_that_is_none_is_refused(api: ContractClient, stage: Scene) -> None:
     answer = api.get(path(stage), headers=stage.manager.headers, params={"sort_by": "colour"})
-    assert answer.status_code in {400, 422}, answer.text
+    assert [pointer for pointer, _, _ in faults(answer)] == ["/query/sort_by"]
 
 
 @pytest.mark.requirement("WF-CYC-0110-A")
