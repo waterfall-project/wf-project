@@ -441,12 +441,22 @@ def _changed(draft: Draft, current: EstimateLine, *, moved: bool) -> tuple[str, 
 
 
 def _judged(
-    session: Session, line: ReadLine, held: Aimed, sent: tuple[UUID, LineEntry, EstimateLine | None]
+    session: Session,
+    line: ReadLine,
+    held: Aimed,
+    sent: tuple[UUID, LineEntry, EstimateLine | None],
+    *,
+    locking: bool,
 ) -> Draft | list[dict[str, Any]]:
-    """Judge a line as its entry is; give its draft, or the rejections of its fields."""
+    """Judge a line as its entry is; give its draft, or the rejections of its fields.
+
+    ``locking`` as the application writes, not as the analysis, which cannot lock.
+    """
     task_id, entry, current = sent
     try:
-        return judged_line(session, (held.project_id, held.bearer(task_id)), entry, current)
+        return judged_line(
+            session, (held.project_id, held.bearer(task_id)), entry, current, locking=locking
+        )
     except UnprocessableError as refusal:
         return [
             _rejection(
@@ -487,7 +497,7 @@ def analyse(
         current = held.lines.get(lineage) if lineage is not None and lineage not in taken else None
         if current is not None and lineage is not None:
             taken.add(lineage)
-        _plan(session, (line, current), held, (reference, named), found)
+        _plan(session, (line, current), held, (reference, named), (found, confirmed is not None))
     found.left = [line.node_id for lineage, line in held.lines.items() if lineage not in taken]
     lineages = {line.node_id: str(lineage) for lineage, line in held.lines.items()}
     found.removed = [
@@ -510,11 +520,12 @@ def _plan(
     read: tuple[ReadLine, EstimateLine | None],
     held: Aimed,
     named: tuple[Reference, Designations],
-    found: Analysis,
+    outcome: tuple[Analysis, bool],
 ) -> None:
     """Plan a line read, or reject it; a line rejected that exists is left as it is."""
     line, current = read
     reference, designated = named
+    found, locking = outcome
     task = _task(line, held, designated)
     if isinstance(task, dict):
         found.rejected.append(task)
@@ -524,7 +535,7 @@ def _plan(
     if sent is None:
         return
     entry, role_id = sent
-    draft = _judged(session, line, held, (task, entry, current))
+    draft = _judged(session, line, held, (task, entry, current), locking=locking)
     if isinstance(draft, list):
         found.rejected.extend(draft)
         return

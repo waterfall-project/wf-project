@@ -35,6 +35,7 @@ if TYPE_CHECKING:
     from sqlalchemy.orm import Session
     from support import ContractClient
 
+    from waterfall.core.estimate.excel.reader import WorkbookRead
     from waterfall.platform.audit import Act
     from waterfall.platform.database import Database
 
@@ -197,16 +198,14 @@ def test_the_application_of_an_import_shares_the_lock_of_the_natures_before_it_l
         msg = "stopped once the structure is locked"
         raise LookupError(msg)
 
-    def read(_content: bytes) -> object:
-        return object()
-
     def shared(_session: object) -> None:
         taken.append("natures")
 
-    monkeypatch.setattr(applying, "read_workbook", read)
     monkeypatch.setattr(applying, "share_natures", shared)
     monkeypatch.setattr(applying, "structure_facts", locked)
     target = ImportTarget(uuid4(), uuid4(), uuid4(), None)
     with pytest.raises(LookupError, match="stopped"):
-        applying.apply(cast("Session", None), target, b"", {}, cast("Act", None))
+        applying.apply(
+            cast("Session", None), target, cast("WorkbookRead", None), {}, cast("Act", None)
+        )
     assert taken == ["natures", "structure"]
