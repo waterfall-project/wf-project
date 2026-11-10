@@ -20,7 +20,13 @@ import { Label } from "@/components/ui/label";
 import { NativeSelect } from "@/components/ui/native-select";
 import { formatDecimal, parseDecimal } from "@/i18n/format";
 
-import type { Entered, LineCategory } from "./structure-rules";
+import {
+  activeExpenses,
+  activeRoles,
+  type Entered,
+  type LineCategory,
+  type LineEntry,
+} from "./structure-rules";
 
 /** The longest label of a node the contract takes. */
 const LABEL_LENGTH = 300;
@@ -85,8 +91,41 @@ function LabelField({
   );
 }
 
+/** The value of an option of the list of a line: its kind, then its identifier. */
+function entryValue(entry: LineEntry): string {
+  return `${entry.kind}:${entry.id}`;
+}
+
+/** What an option of the list of a line chooses, if it names one. */
+function entryOf(value: string): LineEntry | undefined {
+  const [kind, ...rest] = value.split(":");
+  const id = rest.join(":");
+  return (kind === "role" || kind === "category") && id !== "" ? { kind, id } : undefined;
+}
+
+/** A group of the list of a line — the roles, or the categories of expense —; none when empty. */
+function EntryGroup({
+  label,
+  kind,
+  choices,
+}: {
+  readonly label: string;
+  readonly kind: LineEntry["kind"];
+  readonly choices: readonly LineCategory[];
+}) {
+  return choices.length === 0 ? null : (
+    <optgroup label={label}>
+      {choices.map((choice) => (
+        <option key={choice.id} value={entryValue({ kind, id: choice.id })}>
+          {choice.label}
+        </option>
+      ))}
+    </optgroup>
+  );
+}
+
 /**
- * The dialog that names a node about to be created: its label, and for a line its category and its
+ * The dialog that names a node about to be created: its label, and for a line its role or its category of expense and its
  * quantity, read in the format of the language. Hands what was entered when it is valid.
  */
 export function CreateForm({
@@ -94,6 +133,7 @@ export function CreateForm({
   title,
   under,
   categories,
+  roles,
   pending,
   onCreate,
   onCancel,
@@ -103,8 +143,10 @@ export function CreateForm({
   readonly title: string;
   /** The row the dialog acts on, named; none for the first task of a grid with no row. */
   readonly under: string | undefined;
-  /** The categories a line is created from, the active ones. */
-  readonly categories: readonly LineCategory[];
+  /** The categories of expense a line is created from; the active ones are offered. */
+  readonly categories: readonly LineCategory[] | undefined;
+  /** The roles a line of labour is created from; the active ones are offered. */
+  readonly roles: readonly LineCategory[] | undefined;
   readonly pending: boolean;
   readonly onCreate: (entered: Entered) => void;
   readonly onCancel: () => void;
@@ -114,9 +156,16 @@ export function CreateForm({
   const form = useTranslations("reference.form");
   const locale = useLocale();
   const id = useId();
-  const active = categories.filter((category) => category.active);
+  const offeredRoles = activeRoles(roles);
+  const expenses = activeExpenses(categories);
   const [label, setLabel] = useState("");
-  const [category, setCategory] = useState(active[0]?.id ?? "");
+  const [picked, setPicked] = useState(
+    offeredRoles[0] === undefined
+      ? expenses[0] === undefined
+        ? ""
+        : entryValue({ kind: "category", id: expenses[0].id })
+      : entryValue({ kind: "role", id: offeredRoles[0].id }),
+  );
   const [quantity, setQuantity] = useState(formatDecimal(QUANTITY, locale));
   const [problem, setProblem] = useState<Problem>();
   const labelInput = useRef<HTMLInputElement>(null);
@@ -145,7 +194,11 @@ export function CreateForm({
       return;
     }
     setProblem(undefined);
-    onCreate({ label: typed, line: { category, quantity: parsed } });
+    const chosen = entryOf(picked);
+    if (chosen === undefined) {
+      return;
+    }
+    onCreate({ label: typed, line: { entry: chosen, quantity: parsed } });
   };
   const hint = t(created === "task" ? "taskHint" : "lineHint");
   return (
@@ -168,19 +221,16 @@ export function CreateForm({
         {created === "line" ? (
           <>
             <div className="grid gap-1">
-              <Label htmlFor={`${id}-category`}>{t("categoryField")}</Label>
+              <Label htmlFor={`${id}-entry`}>{t("entryField")}</Label>
               <NativeSelect
-                id={`${id}-category`}
-                value={category}
+                id={`${id}-entry`}
+                value={picked}
                 onChange={(event) => {
-                  setCategory(event.target.value);
+                  setPicked(event.target.value);
                 }}
               >
-                {active.map((choice) => (
-                  <option key={choice.id} value={choice.id}>
-                    {choice.label}
-                  </option>
-                ))}
+                <EntryGroup label={t("rolesGroup")} kind="role" choices={offeredRoles} />
+                <EntryGroup label={t("expensesGroup")} kind="category" choices={expenses} />
               </NativeSelect>
             </div>
             <div className="grid gap-1">
