@@ -17,8 +17,9 @@ Declared by US-1380/L1; filled by US-1380/L2: ``calendar_of`` gives the default 
 whose facets name no calendar, the intersection of those they name otherwise; ``calendars_of``
 gives it to the tasks of a structure, the default read once, the calendars of the facets asked
 once. Completed by US-1490/L3 (EP-07, "Les points d'extension"), by US-1490/L4 with the
-judgement of the nodes a move gives another task (``moved``), and by US-1560/L1 with the judgement
-and the write of the cells a paste gives a node of the kind (``judge_cell``, ``write_cell``).
+judgement of the nodes a move gives another task (``moved``), by US-1560/L1 with the judgement
+and the write of the cells a paste gives a node of the kind (``judge_cell``, ``write_cell``), and by
+US-1570/L5 with what a write takes before the lock of its structure (``before_lock``, #2615).
 """
 
 from dataclasses import dataclass
@@ -194,7 +195,9 @@ class FacetHooks:
     none for a field it does not compute; ``moved`` judges the nodes a move gives another task,
     placed under it already, in the order of the plan, and refuses what it does not accept (422);
     ``judge_cell`` judges the cells a paste gives a node, by the very functions of the entry of a
-    cell, naming every refusal at once; ``write_cell`` writes the entry it judged.
+    cell, naming every refusal at once; ``write_cell`` writes the entry it judged; ``before_lock``
+    takes what a write of the tree must hold before the lock of its structure — the estimate shares
+    the lock of the natures (#2615) —, called first by every write of the tree.
     """
 
     read: Callable[[Session, UUID, Mapping[UUID, BearingTask]], Mapping[UUID, FacetRead]]
@@ -212,6 +215,7 @@ class FacetHooks:
     moved: Callable[[Session, UUID, Mapping[UUID, BearingTask]], None]
     judge_cell: Callable[[CellsPasted], CellsJudged]
     write_cell: Callable[[FacetWrite, object], None]
+    before_lock: Callable[[Session], None]
 
 
 # The hooks of each kind of node other than the task, in the order of their registration.

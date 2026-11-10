@@ -27,6 +27,7 @@ from uuid import UUID
 
 from sqlalchemy import delete, insert, inspect, select
 
+from waterfall.core.cost_settings.interface import share_natures
 from waterfall.core.estimate.costing import judge_working_hours
 from waterfall.core.estimate.pasting import judge_line_cell, write_line_cell
 from waterfall.core.estimate.pricing import Amount, dependencies_of
@@ -296,4 +297,5 @@ LINE_FACET = FacetHooks(
     moved=judge_moved_lines,
     judge_cell=judge_line_cell,
     write_cell=write_line_cell,
+    before_lock=share_natures,
 )
