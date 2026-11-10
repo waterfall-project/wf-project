@@ -5,10 +5,10 @@
 	<Title>02-lags-every-unit</Title>
 	<Company>Microsoft</Company>
 	<CreationDate>2009-11-16T09:00:00</CreationDate>
-	<LastSaved>2026-11-08T18:36:00</LastSaved>
+	<LastSaved>2026-11-10T19:27:00</LastSaved>
 	<ScheduleFromStart>1</ScheduleFromStart>
 	<StartDate>2009-11-16T09:00:00</StartDate>
-	<FinishDate>2010-03-01T12:00:00</FinishDate>
+	<FinishDate>2010-03-02T15:48:00</FinishDate>
 	<FYStartDate>1</FYStartDate>
 	<CriticalSlackLimit>0</CriticalSlackLimit>
 	<CurrencyDigits>2</CurrencyDigits>
@@ -45,7 +45,7 @@
 	<MoveCompletedEndsForward>0</MoveCompletedEndsForward>
 	<BaselineForEarnedValue>0</BaselineForEarnedValue>
 	<AutoAddNewResourcesAndTasks>1</AutoAddNewResourcesAndTasks>
-	<CurrentDate>2026-11-08T08:00:00</CurrentDate>
+	<CurrentDate>2026-11-10T08:00:00</CurrentDate>
 	<MicrosoftProjectServerURL>1</MicrosoftProjectServerURL>
 	<Autolink>0</Autolink>
 	<NewTaskStartDate>0</NewTaskStartDate>
@@ -165,11 +165,11 @@
 			<OutlineLevel>0</OutlineLevel>
 			<Priority>500</Priority>
 			<Start>2009-11-16T09:00:00</Start>
-			<Finish>2010-03-01T12:00:00</Finish>
-			<Duration>PT528H0M0S</Duration>
+			<Finish>2010-03-02T15:48:00</Finish>
+			<Duration>PT536H48M0S</Duration>
 			<ManualStart>2009-11-16T09:00:00</ManualStart>
-			<ManualFinish>2010-03-01T12:00:00</ManualFinish>
-			<ManualDuration>PT528H0M0S</ManualDuration>
+			<ManualFinish>2010-03-02T15:48:00</ManualFinish>
+			<ManualDuration>PT536H48M0S</ManualDuration>
 			<DurationFormat>21</DurationFormat>
 			<Work>PT0H0M0S</Work>
 			<ResumeValid>0</ResumeValid>
@@ -185,9 +185,9 @@
 			<IsSubprojectReadOnly>0</IsSubprojectReadOnly>
 			<ExternalTask>0</ExternalTask>
 			<EarlyStart>2009-11-16T09:00:00</EarlyStart>
-			<EarlyFinish>2010-03-01T12:00:00</EarlyFinish>
+			<EarlyFinish>2010-03-02T15:48:00</EarlyFinish>
 			<LateStart>2009-11-16T10:30:00</LateStart>
-			<LateFinish>2010-03-01T12:00:00</LateFinish>
+			<LateFinish>2010-03-02T15:48:00</LateFinish>
 			<StartVariance>0</StartVariance>
 			<FinishVariance>0</FinishVariance>
 			<WorkVariance>0.00</WorkVariance>
@@ -208,7 +208,7 @@
 			<ActualWork>PT0H0M0S</ActualWork>
 			<ActualOvertimeWork>PT0H0M0S</ActualOvertimeWork>
 			<RegularWork>PT0H0M0S</RegularWork>
-			<RemainingDuration>PT528H0M0S</RemainingDuration>
+			<RemainingDuration>PT536H48M0S</RemainingDuration>
 			<RemainingCost>0</RemainingCost>
 			<RemainingWork>PT0H0M0S</RemainingWork>
 			<RemainingOvertimeCost>0</RemainingOvertimeCost>
@@ -817,6 +817,7 @@
 			<LevelingDelay>0</LevelingDelay>
 			<LevelingDelayFormat>8</LevelingDelayFormat>
 			<IgnoreResourceCalendar>0</IgnoreResourceCalendar>
+			<Notes>Commentaire T7</Notes>
 			<HideBar>0</HideBar>
 			<Rollup>0</Rollup>
 			<BCWS>0.00</BCWS>
@@ -1177,6 +1178,180 @@
 				<CrossProject>0</CrossProject>
 				<LinkLag>432000</LinkLag>
 				<LagFormat>12</LagFormat>
+			</PredecessorLink>
+			<IsPublished>1</IsPublished>
+			<CommitmentType>0</CommitmentType>
+		</Task>
+		<Task>
+			<UID>12</UID>
+			<ID>12</ID>
+			<Name>T12</Name>
+			<Active>1</Active>
+			<Manual>0</Manual>
+			<Type>0</Type>
+			<IsNull>0</IsNull>
+			<CreateDate>2026-11-10T19:26:00</CreateDate>
+			<WBS>12</WBS>
+			<OutlineNumber>12</OutlineNumber>
+			<OutlineLevel>1</OutlineLevel>
+			<Priority>500</Priority>
+			<Start>2010-03-01T14:48:00</Start>
+			<Finish>2010-03-02T15:48:00</Finish>
+			<Duration>PT8H0M0S</Duration>
+			<ManualStart>2010-03-01T14:48:00</ManualStart>
+			<ManualFinish>2010-03-02T15:48:00</ManualFinish>
+			<ManualDuration>PT8H0M0S</ManualDuration>
+			<DurationFormat>7</DurationFormat>
+			<Work>PT0H0M0S</Work>
+			<ResumeValid>0</ResumeValid>
+			<EffortDriven>0</EffortDriven>
+			<Recurring>0</Recurring>
+			<OverAllocated>0</OverAllocated>
+			<Estimated>0</Estimated>
+			<Milestone>0</Milestone>
+			<Summary>0</Summary>
+			<DisplayAsSummary>0</DisplayAsSummary>
+			<Critical>1</Critical>
+			<IsSubproject>0</IsSubproject>
+			<IsSubprojectReadOnly>0</IsSubprojectReadOnly>
+			<ExternalTask>0</ExternalTask>
+			<EarlyStart>2010-03-01T14:48:00</EarlyStart>
+			<EarlyFinish>2010-03-02T15:48:00</EarlyFinish>
+			<LateStart>2010-03-01T14:48:00</LateStart>
+			<LateFinish>2010-03-02T15:48:00</LateFinish>
+			<StartVariance>0</StartVariance>
+			<FinishVariance>0</FinishVariance>
+			<WorkVariance>0.00</WorkVariance>
+			<FreeSlack>0</FreeSlack>
+			<TotalSlack>0</TotalSlack>
+			<StartSlack>0</StartSlack>
+			<FinishSlack>0</FinishSlack>
+			<FixedCost>0</FixedCost>
+			<FixedCostAccrual>3</FixedCostAccrual>
+			<PercentComplete>0</PercentComplete>
+			<PercentWorkComplete>0</PercentWorkComplete>
+			<Cost>0</Cost>
+			<OvertimeCost>0</OvertimeCost>
+			<OvertimeWork>PT0H0M0S</OvertimeWork>
+			<ActualDuration>PT0H0M0S</ActualDuration>
+			<ActualCost>0</ActualCost>
+			<ActualOvertimeCost>0</ActualOvertimeCost>
+			<ActualWork>PT0H0M0S</ActualWork>
+			<ActualOvertimeWork>PT0H0M0S</ActualOvertimeWork>
+			<RegularWork>PT0H0M0S</RegularWork>
+			<RemainingDuration>PT8H0M0S</RemainingDuration>
+			<RemainingCost>0</RemainingCost>
+			<RemainingWork>PT0H0M0S</RemainingWork>
+			<RemainingOvertimeCost>0</RemainingOvertimeCost>
+			<RemainingOvertimeWork>PT0H0M0S</RemainingOvertimeWork>
+			<ACWP>0.00</ACWP>
+			<CV>0.00</CV>
+			<ConstraintType>0</ConstraintType>
+			<CalendarUID>-1</CalendarUID>
+			<LevelAssignments>1</LevelAssignments>
+			<LevelingCanSplit>1</LevelingCanSplit>
+			<LevelingDelay>0</LevelingDelay>
+			<LevelingDelayFormat>8</LevelingDelayFormat>
+			<IgnoreResourceCalendar>0</IgnoreResourceCalendar>
+			<HideBar>0</HideBar>
+			<Rollup>0</Rollup>
+			<BCWS>0.00</BCWS>
+			<BCWP>0.00</BCWP>
+			<PhysicalPercentComplete>0</PhysicalPercentComplete>
+			<EarnedValueMethod>0</EarnedValueMethod>
+			<PredecessorLink>
+				<PredecessorUID>11</PredecessorUID>
+				<Type>1</Type>
+				<CrossProject>0</CrossProject>
+				<LinkLag>10</LinkLag>
+				<LagFormat>19</LagFormat>
+			</PredecessorLink>
+			<IsPublished>1</IsPublished>
+			<CommitmentType>0</CommitmentType>
+		</Task>
+		<Task>
+			<UID>13</UID>
+			<ID>13</ID>
+			<Name>T13</Name>
+			<Active>1</Active>
+			<Manual>0</Manual>
+			<Type>0</Type>
+			<IsNull>0</IsNull>
+			<CreateDate>2026-11-10T19:27:00</CreateDate>
+			<WBS>13</WBS>
+			<OutlineNumber>13</OutlineNumber>
+			<OutlineLevel>1</OutlineLevel>
+			<Priority>500</Priority>
+			<Start>2010-02-25T10:48:00</Start>
+			<Finish>2010-02-26T11:48:00</Finish>
+			<Duration>PT8H0M0S</Duration>
+			<ManualStart>2010-02-25T10:48:00</ManualStart>
+			<ManualFinish>2010-02-26T11:48:00</ManualFinish>
+			<ManualDuration>PT8H0M0S</ManualDuration>
+			<DurationFormat>7</DurationFormat>
+			<Work>PT0H0M0S</Work>
+			<ResumeValid>0</ResumeValid>
+			<EffortDriven>0</EffortDriven>
+			<Recurring>0</Recurring>
+			<OverAllocated>0</OverAllocated>
+			<Estimated>0</Estimated>
+			<Milestone>0</Milestone>
+			<Summary>0</Summary>
+			<DisplayAsSummary>0</DisplayAsSummary>
+			<Critical>0</Critical>
+			<IsSubproject>0</IsSubproject>
+			<IsSubprojectReadOnly>0</IsSubprojectReadOnly>
+			<ExternalTask>0</ExternalTask>
+			<EarlyStart>2010-02-25T10:48:00</EarlyStart>
+			<EarlyFinish>2010-02-26T11:48:00</EarlyFinish>
+			<LateStart>2010-03-01T14:48:00</LateStart>
+			<LateFinish>2010-03-02T15:48:00</LateFinish>
+			<StartVariance>0</StartVariance>
+			<FinishVariance>0</FinishVariance>
+			<WorkVariance>0.00</WorkVariance>
+			<FreeSlack>9600</FreeSlack>
+			<TotalSlack>9600</TotalSlack>
+			<StartSlack>9600</StartSlack>
+			<FinishSlack>9600</FinishSlack>
+			<FixedCost>0</FixedCost>
+			<FixedCostAccrual>3</FixedCostAccrual>
+			<PercentComplete>0</PercentComplete>
+			<PercentWorkComplete>0</PercentWorkComplete>
+			<Cost>0</Cost>
+			<OvertimeCost>0</OvertimeCost>
+			<OvertimeWork>PT0H0M0S</OvertimeWork>
+			<ActualDuration>PT0H0M0S</ActualDuration>
+			<ActualCost>0</ActualCost>
+			<ActualOvertimeCost>0</ActualOvertimeCost>
+			<ActualWork>PT0H0M0S</ActualWork>
+			<ActualOvertimeWork>PT0H0M0S</ActualOvertimeWork>
+			<RegularWork>PT0H0M0S</RegularWork>
+			<RemainingDuration>PT8H0M0S</RemainingDuration>
+			<RemainingCost>0</RemainingCost>
+			<RemainingWork>PT0H0M0S</RemainingWork>
+			<RemainingOvertimeCost>0</RemainingOvertimeCost>
+			<RemainingOvertimeWork>PT0H0M0S</RemainingOvertimeWork>
+			<ACWP>0.00</ACWP>
+			<CV>0.00</CV>
+			<ConstraintType>0</ConstraintType>
+			<CalendarUID>-1</CalendarUID>
+			<LevelAssignments>1</LevelAssignments>
+			<LevelingCanSplit>1</LevelingCanSplit>
+			<LevelingDelay>0</LevelingDelay>
+			<LevelingDelayFormat>8</LevelingDelayFormat>
+			<IgnoreResourceCalendar>0</IgnoreResourceCalendar>
+			<HideBar>0</HideBar>
+			<Rollup>0</Rollup>
+			<BCWS>0.00</BCWS>
+			<BCWP>0.00</BCWP>
+			<PhysicalPercentComplete>0</PhysicalPercentComplete>
+			<EarnedValueMethod>0</EarnedValueMethod>
+			<PredecessorLink>
+				<PredecessorUID>12</PredecessorUID>
+				<Type>1</Type>
+				<CrossProject>0</CrossProject>
+				<LinkLag>-14400</LinkLag>
+				<LagFormat>7</LagFormat>
 			</PredecessorLink>
 			<IsPublished>1</IsPublished>
 			<CommitmentType>0</CommitmentType>
@@ -2078,6 +2253,136 @@
 				<UID>11</UID>
 				<Start>2010-03-01T11:00:00</Start>
 				<Finish>2010-03-01T12:00:00</Finish>
+				<Unit>1</Unit>
+				<Value>PT1H0M0S</Value>
+			</TimephasedData>
+		</Assignment>
+		<Assignment>
+			<UID>12</UID>
+			<TaskUID>12</TaskUID>
+			<ResourceUID>-65535</ResourceUID>
+			<PercentWorkComplete>0</PercentWorkComplete>
+			<ActualCost>0</ActualCost>
+			<ActualOvertimeCost>0</ActualOvertimeCost>
+			<ActualOvertimeWork>PT0H0M0S</ActualOvertimeWork>
+			<ActualWork>PT0H0M0S</ActualWork>
+			<ACWP>0.00</ACWP>
+			<Confirmed>0</Confirmed>
+			<Cost>0</Cost>
+			<CostRateTable>0</CostRateTable>
+			<RateScale>0</RateScale>
+			<CostVariance>0</CostVariance>
+			<CV>0.00</CV>
+			<Delay>0</Delay>
+			<Finish>2010-03-02T15:48:00</Finish>
+			<FinishVariance>0</FinishVariance>
+			<WorkVariance>0.00</WorkVariance>
+			<HasFixedRateUnits>1</HasFixedRateUnits>
+			<FixedMaterial>0</FixedMaterial>
+			<LevelingDelay>0</LevelingDelay>
+			<LevelingDelayFormat>7</LevelingDelayFormat>
+			<LinkedFields>0</LinkedFields>
+			<Milestone>0</Milestone>
+			<Overallocated>0</Overallocated>
+			<OvertimeCost>0</OvertimeCost>
+			<OvertimeWork>PT0H0M0S</OvertimeWork>
+			<RegularWork>PT8H0M0S</RegularWork>
+			<RemainingCost>0</RemainingCost>
+			<RemainingOvertimeCost>0</RemainingOvertimeCost>
+			<RemainingOvertimeWork>PT0H0M0S</RemainingOvertimeWork>
+			<RemainingWork>PT8H0M0S</RemainingWork>
+			<ResponsePending>0</ResponsePending>
+			<Start>2010-03-01T14:48:00</Start>
+			<StartVariance>0</StartVariance>
+			<Units>1</Units>
+			<UpdateNeeded>0</UpdateNeeded>
+			<VAC>0.00</VAC>
+			<Work>PT8H0M0S</Work>
+			<WorkContour>0</WorkContour>
+			<BCWS>0.00</BCWS>
+			<BCWP>0.00</BCWP>
+			<BookingType>0</BookingType>
+			<CreationDate>2026-11-10T19:26:00</CreationDate>
+			<BudgetCost>0</BudgetCost>
+			<BudgetWork>PT0H0M0S</BudgetWork>
+			<TimephasedData>
+				<Type>1</Type>
+				<UID>12</UID>
+				<Start>2010-03-01T14:48:00</Start>
+				<Finish>2010-03-02T14:48:00</Finish>
+				<Unit>2</Unit>
+				<Value>PT7H0M0S</Value>
+			</TimephasedData>
+			<TimephasedData>
+				<Type>1</Type>
+				<UID>12</UID>
+				<Start>2010-03-02T14:48:00</Start>
+				<Finish>2010-03-02T15:48:00</Finish>
+				<Unit>1</Unit>
+				<Value>PT1H0M0S</Value>
+			</TimephasedData>
+		</Assignment>
+		<Assignment>
+			<UID>13</UID>
+			<TaskUID>13</TaskUID>
+			<ResourceUID>-65535</ResourceUID>
+			<PercentWorkComplete>0</PercentWorkComplete>
+			<ActualCost>0</ActualCost>
+			<ActualOvertimeCost>0</ActualOvertimeCost>
+			<ActualOvertimeWork>PT0H0M0S</ActualOvertimeWork>
+			<ActualWork>PT0H0M0S</ActualWork>
+			<ACWP>0.00</ACWP>
+			<Confirmed>0</Confirmed>
+			<Cost>0</Cost>
+			<CostRateTable>0</CostRateTable>
+			<RateScale>0</RateScale>
+			<CostVariance>0</CostVariance>
+			<CV>0.00</CV>
+			<Delay>0</Delay>
+			<Finish>2010-02-26T11:48:00</Finish>
+			<FinishVariance>0</FinishVariance>
+			<WorkVariance>0.00</WorkVariance>
+			<HasFixedRateUnits>1</HasFixedRateUnits>
+			<FixedMaterial>0</FixedMaterial>
+			<LevelingDelay>0</LevelingDelay>
+			<LevelingDelayFormat>7</LevelingDelayFormat>
+			<LinkedFields>0</LinkedFields>
+			<Milestone>0</Milestone>
+			<Overallocated>0</Overallocated>
+			<OvertimeCost>0</OvertimeCost>
+			<OvertimeWork>PT0H0M0S</OvertimeWork>
+			<RegularWork>PT8H0M0S</RegularWork>
+			<RemainingCost>0</RemainingCost>
+			<RemainingOvertimeCost>0</RemainingOvertimeCost>
+			<RemainingOvertimeWork>PT0H0M0S</RemainingOvertimeWork>
+			<RemainingWork>PT8H0M0S</RemainingWork>
+			<ResponsePending>0</ResponsePending>
+			<Start>2010-02-25T10:48:00</Start>
+			<StartVariance>0</StartVariance>
+			<Units>1</Units>
+			<UpdateNeeded>0</UpdateNeeded>
+			<VAC>0.00</VAC>
+			<Work>PT8H0M0S</Work>
+			<WorkContour>0</WorkContour>
+			<BCWS>0.00</BCWS>
+			<BCWP>0.00</BCWP>
+			<BookingType>0</BookingType>
+			<CreationDate>2026-11-10T19:27:00</CreationDate>
+			<BudgetCost>0</BudgetCost>
+			<BudgetWork>PT0H0M0S</BudgetWork>
+			<TimephasedData>
+				<Type>1</Type>
+				<UID>13</UID>
+				<Start>2010-02-25T10:48:00</Start>
+				<Finish>2010-02-26T10:48:00</Finish>
+				<Unit>2</Unit>
+				<Value>PT7H0M0S</Value>
+			</TimephasedData>
+			<TimephasedData>
+				<Type>1</Type>
+				<UID>13</UID>
+				<Start>2010-02-26T10:48:00</Start>
+				<Finish>2010-02-26T11:48:00</Finish>
 				<Unit>1</Unit>
 				<Value>PT1H0M0S</Value>
 			</TimephasedData>
