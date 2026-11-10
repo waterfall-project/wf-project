@@ -360,11 +360,26 @@ def test_an_update_refused_at_the_creation_is_accepted_later_and_prices_the_revi
     presented = proposal(api, stage, revision)["categories"]
     assert [each["cost_category_id"] for each in presented] == [str(offer.commissioning)]
     assert missing(updated) == []
-    # Accepted without a rate of the year, the commissioning keeps its rate, as of the reference:
-    # nothing remains to propose.
-    last = apply(api, stage, updated, offer.commissioning)
+    # Accepted without a rate of the year, the commissioning keeps its rate projected, and is
+    # proposed still (#2619, option 2): the rate of the year, once entered in the reference, is
+    # proposed and accepted in its turn, as of the reference; nothing remains to propose then.
+    again = apply(api, stage, updated, offer.commissioning)
+    assert again.status_code == 200, again.text
+    assert kept(stage, revision)[offer.commissioning] == (Decimal("61.80"), "projected")
+    assert amounts(stage, revision)[offer.commissioning][0] == Decimal("618.00")
+    [still] = proposal(api, stage, revision)["categories"]
+    assert (still["cost_category_id"], still["source"]) == (
+        str(offer.commissioning),
+        "inflated_previous",
+    )
+    assert missing(again.json()) == []
+    rate_next_year(stage.database, offer.commissioning, "63.00")
+    [rated] = proposal(api, stage, revision)["categories"]
+    assert (rated["proposed_amount"], rated["source"]) == ("63.00", "reference_rate")
+    last = apply(api, stage, again.json(), offer.commissioning)
     assert last.status_code == 200, last.text
-    assert kept(stage, revision)[offer.commissioning] == (Decimal("61.80"), "reference")
+    assert kept(stage, revision)[offer.commissioning] == (Decimal("63.00"), "reference")
+    assert amounts(stage, revision)[offer.commissioning][0] == Decimal("630.00")
     assert proposal(api, stage, revision)["categories"] == []
     assert missing(last.json()) == ["rate_update_available"]
 

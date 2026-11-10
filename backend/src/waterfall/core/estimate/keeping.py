@@ -15,9 +15,12 @@ are then priced again (WF-REV-0010, WF-REV-0060).
 The proposal of a current revision (``getRateUpdateProposal``) lists each category of labour its
 lines employ whose rate is projected: the rate projected, beside the rate of the reference for the
 year of the revision (``reference_rate``) or, without one, the rate projected again
-(``inflated_previous``). The update (``applyRateUpdate``) keeps the rate proposed for each category
-accepted, as of the reference, and prices again the lines that employ it; a category the proposal
-does not present is refused (422 ``UNKNOWN_COST_CATEGORY`` on its rank, #1756). A marked revision
+(``inflated_previous``). The update (``applyRateUpdate``) keeps the rate of the reference for each
+category accepted that has one (``reference_rate``), as of the reference, and prices again the
+lines that employ it; a category accepted without one keeps its rate projected, and stays proposed,
+so that the rate of the year, once entered in the reference, is proposed still (#2619, option 2); a
+category the proposal does not present is refused (422 ``UNKNOWN_COST_CATEGORY`` on its rank,
+#1756). A marked revision
 proposes nothing: it keeps the rates it was priced at (WF-REF-0130).
 
 A rate projected is rounded to the cent, a half going away from zero, as the contract rounds every
@@ -320,10 +323,12 @@ def _faults(sent: tuple[UUID, ...], proposal: RateProposal) -> list[FieldError]:
 
 
 def apply_update(session: Session, project_id: UUID, update: RateUpdate, act: Act) -> None:
-    """Keep the rate proposed for each category accepted, and price again the lines that employ it.
+    """Keep the rate of the reference for each category accepted, and price again its lines.
 
     Framed by the revision (``update_rates``): 404, 412, 409 first; then a category the proposal
-    does not present is refused (422), nothing written; the contract asks one at least.
+    does not present is refused (422), nothing written; the contract asks one at least. A category
+    accepted whose rate proposed is the rate projected (``inflated_previous``) is left as it is:
+    projected, and proposed still (#2619).
     """
 
     def write(rating: RevisionRating) -> None:
@@ -331,13 +336,17 @@ def apply_update(session: Session, project_id: UUID, update: RateUpdate, act: Ac
         faults = _faults(update.cost_category_ids, proposal)
         if faults:
             raise UnprocessableError(VALIDATION_FAILED, fields=tuple(faults))
-        proposed = {each.cost_category_id: each.proposed_amount for each in proposal.categories}
         accepted = set(update.cost_category_ids)
+        proposed = {
+            each.cost_category_id: each.proposed_amount
+            for each in proposal.categories
+            if each.source == REFERENCE_RATE and each.cost_category_id in accepted
+        }
         for category, row in _projected(session, project_id, rating.revision_id).items():
-            if category in accepted:
+            if category in proposed:
                 row.amount, row.origin = proposed[category], REFERENCE
         session.flush()
-        reprice_revision(session, (project_id, rating.revision_id), act.at, accepted)
+        reprice_revision(session, (project_id, rating.revision_id), act.at, frozenset(proposed))
 
     update_rates(
         session, project_id, RatesToUpdate(update.revision_id, update.lock_version), act, write
