@@ -147,7 +147,8 @@ class EstimateLine(Base):
     previous_reestimated_amount: Mapped[Decimal | None] = mapped_column(Numeric(14, 2))
     # The mark of a re-estimation, its instant: written by ``setLineRemaining`` and the import of a
     # remaining to commit, never by the entry of the estimate nor by a copy; an amendment spares a
-    # line that bears it (EP-08). The reason sent with it, kept and served by no reading.
+    # line that bears it (EP-08). The reason sent with it, overwritten by each re-estimate and read
+    # with the line (``EstimateLineFacet.remaining_reason``, #2420).
     reestimated_at: Mapped[datetime | None] = mapped_column(UtcDateTime)
     remaining_reason: Mapped[str | None] = mapped_column(Text)
     lock_version: Mapped[int] = mapped_column(Integer, server_default="0")

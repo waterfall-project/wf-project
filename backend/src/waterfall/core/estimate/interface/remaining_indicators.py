@@ -13,13 +13,15 @@ until then none is registered, and the coverage is zero — no reserve, no provi
 a risk occurred, no variance —, what is true of a project without risk.
 
 Declared by US-1580/L1 with their arguments and their results, the coverage served from then on;
-the two functions raise ``NotImplementedError`` naming US-1600, which fills them.
+``remaining_of_revision`` filled by US-1580/L2 (EP-09, "Ce que le cadrage laisse à EP-10"; #2708),
+``remaining_indicators`` raising ``NotImplementedError`` naming US-1600, which fills it.
 """
 
 from dataclasses import dataclass
 from decimal import Decimal
 from typing import TYPE_CHECKING
 
+from waterfall.core.estimate.remaining.reviewing import revision_remaining
 from waterfall.platform.registry import Registry
 
 if TYPE_CHECKING:
@@ -125,10 +127,17 @@ def risk_coverage(session: Session, project_id: UUID, revision_id: UUID) -> Cove
     return held[0](session, project_id, revision_id) if held else NO_COVERAGE
 
 
-def remaining_of_revision(session: Session, revision_id: UUID) -> RevisionRemaining:
-    """Give the remaining to commit of a revision, total and by line, at the state of its tasks."""
-    msg = "remaining_of_revision is filled by US-1600"
-    raise NotImplementedError(msg)
+def remaining_of_revision(
+    session: Session, project_id: UUID, revision_id: UUID
+) -> RevisionRemaining:
+    """Give the remaining to commit of a revision, total and by line, at the state of its tasks.
+
+    The re-estimated amounts of the lines, provisions left out, of the tasks not completed of its
+    main structure — started or not, re-estimated or not —, the current revision or a marked one,
+    as its tasks stand in it (WF-RAE-0010); none for a revision without a main structure.
+    """
+    total, by_line = revision_remaining(session, project_id, revision_id)
+    return RevisionRemaining(total, by_line)
 
 
 def remaining_indicators(

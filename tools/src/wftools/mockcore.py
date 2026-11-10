@@ -233,6 +233,7 @@ class _Emitter:
             "subproject_label": None if line.subproject is None else self.labels[line.subproject],
             **amounts.rendered(),
             **self._previous(line.number, year),
+            "remaining_reason": line.reason,
             "consumption_year": year,
             "is_computed": line.is_provision,
             "uses_inactive_object": False,

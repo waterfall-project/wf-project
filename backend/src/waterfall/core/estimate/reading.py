@@ -6,7 +6,8 @@ The facet of a line (``EstimateLineFacet``): its figures and its kept amounts, t
 category, its role and its subproject resolved, the object active or deactivated (WF-REF-0150) —
 those its marked revision keeps, as they were at its marking (US-1500) —, whether it uses a
 deactivated one (``uses_inactive_object``, WF-REF-0010), whether it accepts a
-re-estimate (``remaining_entry``, ``task_not_completed``) — the previous figures null until EP-09,
+re-estimate (``remaining_entry``, ``task_not_completed``), its remaining to commit before the review
+and the reason of its last re-estimate (``previous_*``, ``remaining_reason``, EP-09) —
 ``is_computed`` false until the provision lines of EP-08 —, its budgeted amount read as its
 re-estimated one when the project had no reference at its creation; and the fields it computes and
 accepts: a labour line computes its category, and accepts its role and its hours, another its
@@ -27,7 +28,7 @@ from waterfall.core.cost_settings.interface import CategoryLabel, category_label
 from waterfall.core.estimate.imaging import kept_labels
 from waterfall.core.estimate.tables import EstimateLine
 from waterfall.core.planning.interface import Amounts, FacetRead, node_revisions
-from waterfall.core.projects.interface import subproject_has_actual_costs, subproject_labels
+from waterfall.core.projects.interface import subproject_labels, subprojects_with_actual_costs
 from waterfall.core.resource_settings.interface import read_roles
 
 if TYPE_CHECKING:
@@ -61,7 +62,8 @@ EDITABLE = (
 class LineView:
     """The facet of a line as it is read (``EstimateLineFacet``), its labels resolved.
 
-    ``remaining_missing`` the conditions a re-estimate lacks, none when it is open.
+    ``remaining_missing`` the conditions a re-estimate lacks, none when it is open; the previous
+    figures those of the review before, none before the first (EP-09).
     """
 
     label: str
@@ -81,14 +83,30 @@ class LineView:
     consumption_year: int
     uses_inactive_object: bool
     remaining_missing: tuple[str, ...]
+    previous_quantity: Decimal | None = None
+    previous_hours: Decimal | None = None
+    previous_unit_disbursement: Decimal | None = None
+    previous_reestimated_amount: Decimal | None = None
+    remaining_reason: str | None = None
+
+    @property
+    def previous(self) -> tuple[Decimal | None, ...]:
+        """Give the four figures of the review before, in the order of the filters."""
+        return (
+            self.previous_quantity,
+            self.previous_hours,
+            self.previous_unit_disbursement,
+            self.previous_reestimated_amount,
+        )
 
 
 @dataclass(frozen=True, slots=True)
 class LineFilters:
     """What a reading retains of the lines (``listNodes``); a filter ``None`` asks nothing.
 
-    ``unassigned`` retains the lines under no subproject (WF-IND-0020). The previous figures are
-    null before EP-09: a bound on them retains no line.
+    ``unassigned`` retains the lines under no subproject (WF-IND-0020); ``previous`` the bounds of
+    the four previous figures, in their order, none when no bound is asked: a line without the
+    figure is retained by no bound on it.
     """
 
     subproject_id: UUID | None = None
@@ -195,7 +213,8 @@ def _views(
     named = _named(session, project_id, rows) if named is None else named
     subprojects = {row.subproject_id for row in rows if row.subproject_id is not None}
     labels = subproject_labels(session, project_id, subprojects)
-    costs = {each for each in subprojects if subproject_has_actual_costs(session, each)}
+    # One question for every subproject of the lines read, not one by subproject (#2730).
+    costs = subprojects_with_actual_costs(session, subprojects)
     found: dict[UUID, tuple[LineView, bool]] = {}
     for row in rows:
         category, role = named[row.node_id].category, named[row.node_id].role
@@ -222,6 +241,11 @@ def _views(
             consumption_year=row.consumption_year,
             uses_inactive_object=inactive,
             remaining_missing=(),
+            previous_quantity=row.previous_quantity,
+            previous_hours=row.previous_hours,
+            previous_unit_disbursement=row.previous_unit_disbursement,
+            previous_reestimated_amount=row.previous_reestimated_amount,
+            remaining_reason=row.remaining_reason,
         )
         found[row.node_id] = (view, row.subproject_id in costs)
     return found
@@ -283,7 +307,11 @@ def _tests(asked: LineFilters) -> list[Callable[[LineView], bool]]:
         lambda line: _within(line.base_amount, asked.base_amount),
         lambda line: _within(line.budgeted_amount, asked.budgeted_amount),
         lambda line: _within(line.reestimated_amount, asked.reestimated_amount),
-        lambda _line: all(_within(None, bounds) for bounds in asked.previous),
+        # No bound asked of the previous figures is an empty ``previous``, which retains all.
+        lambda line: all(
+            _within(value, bounds)
+            for value, bounds in zip(line.previous, asked.previous, strict=False)
+        ),
     ]
     if asked.unassigned:
         tests.append(lambda line: line.subproject_id is None)
@@ -320,8 +348,7 @@ def _number(value: Decimal | int | None) -> Decimal | None:
     return None if value is None else Decimal(value)
 
 
-# The value of a line each column of the sort reads (``NodeColumn``): a text, or a number; the
-# previous figures are none before EP-09.
+# The value of a line each column of the sort reads (``NodeColumn``): a text, or a number.
 _TEXTS: dict[str, Callable[[LineView], str | None]] = {
     "label": lambda line: line.label,
     "cost_category": lambda line: line.cost_category_label,
@@ -337,10 +364,10 @@ _NUMBERS: dict[str, Callable[[LineView], Decimal | None]] = {
     "base_amount": lambda line: line.base_amount,
     "budgeted_amount": lambda line: line.budgeted_amount,
     "reestimated_amount": lambda line: line.reestimated_amount,
-    "previous_quantity": lambda _line: None,
-    "previous_hours": lambda _line: None,
-    "previous_unit_disbursement": lambda _line: None,
-    "previous_reestimated_amount": lambda _line: None,
+    "previous_quantity": lambda line: line.previous_quantity,
+    "previous_hours": lambda line: line.previous_hours,
+    "previous_unit_disbursement": lambda line: line.previous_unit_disbursement,
+    "previous_reestimated_amount": lambda line: line.previous_reestimated_amount,
 }
 
 

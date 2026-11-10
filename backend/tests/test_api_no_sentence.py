@@ -178,6 +178,8 @@ DATA = {
     "EstimateLineFacet.cost_category_label": "a label",
     "EstimateLineFacet.resource_role_label": "a label",
     "EstimateLineFacet.subproject_label": "a label",
+    # The reason a person sent with the last re-estimate of a line, kept as she wrote it (#2420).
+    "EstimateLineFacet.remaining_reason": "a reason",
     # The same, of the facets of a node that a reading of ``listNodes`` projects (#2485).
     "ComparedTaskFacet.label": "a label",
     "ComparedTaskFacet.description": "a text",
@@ -188,6 +190,7 @@ DATA = {
     "ComparedEstimateLineFacet.cost_category_label": "a label",
     "ComparedEstimateLineFacet.resource_role_label": "a label",
     "ComparedEstimateLineFacet.subproject_label": "a label",
+    "ComparedEstimateLineFacet.remaining_reason": "a reason",
     # The label of a category whose rate the update of the rates proposes (US-1500/L1).
     "RateUpdateProposal.categories.label": "a label",
     "DependencyRow.label": "a label",

@@ -293,7 +293,8 @@ from waterfall.core.planning.interface.predecessors import (
     set_predecessors as set_predecessors,
 )
 
-# ``progress`` (US-1380/L1; US-1410): the state of a task.
+# ``progress`` (US-1380/L1; US-1410; US-1580/L2): the state of a task, and its completion by the
+# re-estimate that sets its last open line to nought (``write_remaining``).
 from waterfall.core.planning.interface.progress import (
     ProgressEntry as ProgressEntry,
 )
@@ -301,10 +302,16 @@ from waterfall.core.planning.interface.progress import (
     ProgressLoad as ProgressLoad,
 )
 from waterfall.core.planning.interface.progress import (
+    RemainingChange as RemainingChange,
+)
+from waterfall.core.planning.interface.progress import (
     load_progress as load_progress,
 )
 from waterfall.core.planning.interface.progress import (
     set_task_progress as set_task_progress,
+)
+from waterfall.core.planning.interface.progress import (
+    write_remaining as write_remaining,
 )
 
 # ``reference`` (US-1380/L1; US-1390/L2): what the planning answers to the reference.

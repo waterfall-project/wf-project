@@ -20,6 +20,21 @@ gesture is the current day by default (``current_day``). A milestone completed c
 ``started_on`` equal to ``completed_on``; reopened, it loses both, the only task that returns to
 not started. ``load_progress`` writes the state of a task of the witness at the instant it
 imposes.
+
+A task bearing a line besides the provisions is completed by its remaining to commit instead
+(US-1580/L2): ``write_remaining`` frames the re-estimate of a line (``setLineRemaining``), whose
+facet the estimate writes, and completes its task when the last of its open lines is set to nought
+— none of its lines keeps a remaining, the estimate tells (``RemainingChange.keeps_open``) —, in
+the same write, at the date the entry sends (``completed_on``, WF-RAE-0040, WF-PLA-0130). A task
+not started is started and completed that day, a milestone too, which never goes through the
+started state: both carry ``started_on`` equal to ``completed_on`` (WF-RAE-0030); a task started
+keeps its start, which the completion may not precede (422 ``VALUE_OUT_OF_RANGE`` on
+``/completed_on``). Without a date, 422 ``COMPLETION_DATE_REQUIRED`` on ``/completed_on``, the task
+named, and nothing is written. The state of a summary is derived (WF-PLA-0040): its own lines set
+to nought complete nothing here (US-1590). The line is judged before the revision, in the order of
+its ``remaining_entry``: ``task_not_completed`` — ``line_not_provision`` is never missing before
+EP-08 —, then the phase of the project (``project_in_progress``), then ``revision_draft``,
+``project_not_terminal`` and ``no_background_task_running``.
 """
 
 from contextlib import ExitStack
@@ -28,9 +43,13 @@ from typing import TYPE_CHECKING
 
 from sqlalchemy import exists, select
 
+from waterfall.core.planning.carrying import bearing
+from waterfall.core.planning.interface.facets import FacetWrite
+from waterfall.core.planning.shaping import stamp
+from waterfall.core.planning.snapshotting import taken
 from waterfall.core.planning.tables import Node, Task
 from waterfall.core.planning.tree import TASK, read_tree
-from waterfall.core.planning.views import COMPLETED, NOT_STARTED, STARTED
+from waterfall.core.planning.views import COMPLETED, NOT_STARTED, STARTED, state_of
 from waterfall.core.planning.writing import (
     NodesWritten,
     Place,
@@ -49,6 +68,7 @@ from waterfall.platform.errors import (
 )
 
 if TYPE_CHECKING:
+    from collections.abc import Callable, Sequence
     from datetime import date
     from uuid import UUID
 
@@ -67,6 +87,9 @@ TASK_IS_MILESTONE = "task_is_milestone"
 TASK_WITHOUT_LINES = "task_without_lines"
 TASK_NOT_MILESTONE = "task_not_milestone"
 COMPLETED_MILESTONE = "completed_milestone"
+TASK_NOT_COMPLETED = "task_not_completed"
+COMPLETION_DATE_REQUIRED = "COMPLETION_DATE_REQUIRED"
+COMPLETED_ON = "/completed_on"
 # The command of a structure a gesture on the state of a task is an entry of (WF-RAE-0040).
 EDIT_REMAINING = "edit_remaining"
 STATES = (NOT_STARTED, STARTED, COMPLETED)
@@ -79,6 +102,23 @@ class ProgressEntry:
     progress: str
     lock_version: int
     occurred_on: date | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class RemainingChange:
+    """A re-estimate of a line: the line, the counter read, what writes it, the date it completes.
+
+    ``apply`` writes the facet of the line, the estimate's (``FacetWrite``); ``keeps_open`` tells,
+    of the lines a task bears, in their order, whether one still holds a remaining to commit — a
+    line besides the provisions whose re-estimated amount is not nought —, read once the facet is
+    written; ``completed_on`` the date of the completion of the task, if the entry completes it.
+    """
+
+    node_id: UUID
+    lock_version: int
+    apply: Callable[[FacetWrite], None]
+    keeps_open: Callable[[Session, UUID, Sequence[UUID]], bool]
+    completed_on: date | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -145,17 +185,23 @@ def _judge(
         raise _refuse(phase[0])
 
 
-def _dated(tree: Tree, node_id: UUID, target: str, day: date) -> None:
+def _not_before_start(task: Task, day: date, pointer: str) -> None:
     """Refuse a completion dated before the start of its task, the start named (WF-PLA-0130).
 
     A task completed without having been started takes its completion for its start, and one
-    completed already is left as it is: only a task started has a start to precede (#2495).
+    completed already is left as it is: only a task started has a start to precede (#2495). The
+    refusal (422) designates the field of the date, ``pointer``.
     """
-    task = tree.tasks[node_id]
     started = task.started_on
-    if target == COMPLETED and task.progress == STARTED and started is not None and day < started:
-        fault = FieldError("/occurred_on", VALUE_OUT_OF_RANGE, {"minimum": started.isoformat()})
+    if task.progress == STARTED and started is not None and day < started:
+        fault = FieldError(pointer, VALUE_OUT_OF_RANGE, {"minimum": started.isoformat()})
         raise UnprocessableError(VALIDATION_FAILED, fields=(fault,))
+
+
+def _dated(tree: Tree, node_id: UUID, target: str, day: date) -> None:
+    """Refuse a completion dated before the start of its task (``/occurred_on``, WF-PLA-0130)."""
+    if target == COMPLETED:
+        _not_before_start(tree.tasks[node_id], day, "/occurred_on")
 
 
 def _apply(task: Task, *, milestone: bool, target: str, day: date) -> None:
@@ -223,6 +269,111 @@ def set_task_progress(
         redated = write.redate((node_id, tree.tasks[node_id].label))
         write.after((node_id,))
         return redated.written((node_id,))
+
+
+def _bearer_of(tree: Tree, node_id: UUID) -> UUID:
+    """Give the task that bears a line of the structure; refuse a node that is none (404)."""
+    node = tree.nodes.get(node_id)
+    if node is None or node_id in tree.tasks or node.parent_id is None:
+        raise NotFoundError(NOT_FOUND)
+    return node.parent_id
+
+
+def _judge_entry(session: Session, where: tuple[Place, bool], tree: Tree, task_id: UUID) -> None:
+    """Refuse a re-estimate the line, then the phase of its project, forbid; the first named.
+
+    The lines of a completed task of the main structure are not re-estimated
+    (``task_not_completed``, WF-RAE-0040); a provision line never is (``line_not_provision``), none
+    before EP-08. Then the rule of ``edit_remaining``: the project in progress, on the main
+    structure. A terminal project is left to the judgement of its revision
+    (``project_not_terminal``).
+    """
+    place, main = where
+    if main and state_of(tree, task_id).progress == COMPLETED:
+        raise _refuse(TASK_NOT_COMPLETED)
+    state = project_facts(session, place.project_id).state
+    if state in TERMINAL:
+        return
+    phase = structure_phase_conditions(EDIT_REMAINING, state, main=main)
+    if phase:
+        raise _refuse(phase[0])
+
+
+def _complete(tree: Tree, task_id: UUID, day: date | None, act: Act) -> bool:
+    """Complete a leaf whose last open line is set to nought, on the day sent; or refuse (422).
+
+    Not started, it is started and completed that day, a milestone without going through the
+    started state (WF-RAE-0030); started, it keeps its start, which the day may not precede
+    (``_not_before_start``). A leaf completed already, as on a differential structure where the
+    lines of a completed task are still re-estimated, asks for no date and is left as it is
+    (WF-RAE-0040): none is written, and the answer is false.
+    """
+    task = tree.tasks[task_id]
+    if task.progress == COMPLETED:
+        return False
+    if day is None:
+        named = {"task_node_id": str(task_id)}
+        fault = FieldError(COMPLETED_ON, COMPLETION_DATE_REQUIRED, named)
+        raise UnprocessableError(VALIDATION_FAILED, fields=(fault,))
+    _not_before_start(task, day, COMPLETED_ON)
+    _apply(task, milestone=tree.is_milestone(task_id), target=COMPLETED, day=day)
+    stamp(tree.nodes[task_id], act)
+    return True
+
+
+def write_remaining(
+    session: Session, place: Place, change: RemainingChange, writer: Writer
+) -> NodesWritten:
+    """Re-estimate a line at the counter read, and complete its task by it; the nodes written.
+
+    The completion of a task by its remaining to commit (``setLineRemaining``, US-1580/L2), which
+    the estimate calls with what writes the facet of the line. Under the lock of the structure: the
+    line is no line of the structure (404), the counter read is not its own (412), then its entry
+    lacks a condition (409, ``_judge_entry``). The facet is written, refusing what it does not
+    accept (422); then, when none of the lines of a leaf keeps a remaining to commit, the leaf is
+    completed in the same write (``_complete``): the line and the task written, and both kept by
+    the entry of the history, the task only when it is completed. When the revision itself refuses
+    the write, the entry is judged on the tree as it is first, as a gesture is. The structure is
+    replayed, its lines priced again.
+    """
+    node_id = change.node_id
+    stack = ExitStack()
+    try:
+        write = stack.enter_context(writing(session, place, writer, ("remaining", (node_id,))))
+    except ConflictError:
+        main = facts_of(session, place, lock=False).is_main
+        tree = read_tree(session, place.project_id, place.structure_id)
+        _judge_entry(session, (place, main), tree, _bearer_of(tree, node_id))
+        raise
+    with stack:
+        tree, act = write.tree, writer.act
+        task_id = _bearer_of(tree, node_id)
+        node = tree.nodes[node_id]
+        if node.lock_version != change.lock_version:
+            raise PreconditionFailedError(
+                STALE_LOCK_VERSION, {"expected_lock_version": node.lock_version}
+            )
+        main = write.facts.is_main
+        _judge_entry(session, (place, main), tree, task_id)
+        before = taken(session, place.project_id, (node_id, task_id))
+        bearer = bearing(session, place.project_id, tree, task_id, is_main=main)
+        change.apply(FacetWrite(session, place.project_id, place.revision_id, node_id, bearer, act))
+        stamp(node, act)
+        written: tuple[UUID, ...] = (node_id,)
+        lines = tree.lines(task_id)
+        closes = not tree.is_summary(task_id) and not change.keeps_open(
+            session, place.project_id, lines
+        )
+        if closes and _complete(tree, task_id, change.completed_on, act):
+            written = (node_id, task_id)
+        # The task enters the entry of the history only when it is written: kept unchanged, it
+        # would refuse the undoing of the line after another write of the task (UNDO_CONFLICT).
+        write.touched.update(written)
+        write.frame.keep_before(tuple(state for state in before if state.object_id in written))
+        write.name(written)
+        redated = write.redate((task_id, tree.tasks[task_id].label), None, (task_id,))
+        write.after(written)
+        return redated.written(written)
 
 
 def load_progress(session: Session, project_id: UUID, load: ProgressLoad, act: Act) -> None:
