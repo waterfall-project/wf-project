@@ -119,6 +119,7 @@ PLANNING_INTERFACES: dict[str, set[str]] = {
         "loading",
         "msproject",
         "nodes",
+        "open_lines",
         "paste",
         "predecessors",
         "progress",

@@ -265,6 +265,9 @@ from waterfall.core.planning.interface.open_lines import (
     OpenLines as OpenLines,
 )
 from waterfall.core.planning.interface.open_lines import (
+    held_open as held_open,
+)
+from waterfall.core.planning.interface.open_lines import (
     register_open_lines as register_open_lines,
 )
 
