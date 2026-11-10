@@ -712,6 +712,15 @@ deux lots ajoutés à l'EPIC, avant la vérification d'ensemble US-1570/L3, qui 
     sa tâche d'application (#2683, d'EP-06) ; un assistant e2e partagé ouvre un contexte neuf avec
     la configuration du projet Playwright, et les quatre parcours qui la recopiaient s'en servent
     (#2653, d'EP-06).
+- **Les constats du soir** (décisions de l'auteur du 2026-11-10) : les resserrements du mandataire du
+  banc et de ses parcours (#2758, sept points relevés par US-1550/L7 — le retrait des types éprouvé
+  hors de `make e2e-service`, le keep-alive du test, le commentaire de compose, la ligne trop longue
+  d'`eslint.config.mjs`, le message `NETWORK` du refus de `node:http`, la ligne de sauvegarde
+  distinguée de la notice et le délai `WORKING` de `backups.spec.ts`) vont à la vérification
+  d'ensemble US-1570/L3 #2386, au titre de l'outillage des tests et du banc du service ; le libellé
+  de l'aperçu du collage lu dans la configuration de la grille, `GridConfig.creates: "tasks" |
+  "lines"` (#2753), va à US-1640/L1 #2412 d'EP-09, la grille de reste à engager étant la deuxième à
+  créer des lignes. Écarté pour #2753 : US-1570/L3, qui n'écrit ni `columns.ts` ni `estimate.tsx`.
 
 ### Le format Excel du devis
 
