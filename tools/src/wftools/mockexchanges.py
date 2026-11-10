@@ -273,6 +273,42 @@ def import_remaining_subproject_held() -> JsonObject:
     }
 
 
+# --- A remaining to commit whose lines carry one lineage ----------------------------------------
+
+LINEAGE_IMPORT, LINEAGE_IMPORT_TASK = hex_identifier(0xA32), universe(951)
+LINEAGE_SUBMITTED, LINEAGE_ANALYSED, LINEAGE_EXPIRES = (
+    "2026-06-03T10:42:05Z",
+    "2026-06-03T10:43:00Z",
+    "2026-06-04T10:43:00Z",
+)
+"""The import and its task, and when it was opened today, analysed, and until when it applies."""
+
+
+def import_remaining_duplicate_lineage() -> JsonObject:
+    """Return the remaining of IMPORTED whose two last lines carry one lineage (#2798)."""
+    imported = import_remaining_subproject_held()
+    task = cast("JsonObject", imported["task"])
+    report = cast("JsonObject", imported["report"])
+    imported["import_id"], task["task_id"] = LINEAGE_IMPORT, LINEAGE_IMPORT_TASK
+    imported["created_at"], task["submitted_at"] = LINEAGE_SUBMITTED, LINEAGE_SUBMITTED
+    task["finished_at"], imported["expires_at"] = LINEAGE_ANALYSED, LINEAGE_EXPIRES
+    sheet = tab_name(TAB)
+    first, second = FIRST_ROW + 1, FIRST_ROW + 2
+    rejected: list[JsonValue] = [
+        {
+            "sheet": sheet,
+            "row": row,
+            "code": "DUPLICATE_LINEAGE",
+            "params": {"lines": [{"sheet": sheet, "row": other}]},
+        }
+        for row, other in ((first, second), (second, first))
+    ]
+    report["rejected"] = rejected
+    report["read_count"] = len(cast("list[JsonValue]", report["differences"])) + len(rejected)
+    report["unchanged_count"] = 0
+    return imported
+
+
 # --- A remaining to commit imported, that completes tasks --------------------------------------
 
 REVIEW_ON = date(2026, 6, 1)
@@ -701,6 +737,14 @@ def examples() -> dict[str, JsonObject]:
             f"nomme le « {_subproject(imported_refusal)} », qui a reçu des coûts réels "
             f"(WF-INTF-0120, WF-PRJ-0050, WF-INTF-0080).",
             imported,
+        ),
+        "import_remaining_duplicate_lineage.json": mocktext.example(
+            f"Une variante du reste à engager importé aujourd'hui : les lignes {FIRST_ROW + 1} et "
+            f"{FIRST_ROW + 2} de l'onglet « {tab_name(TAB)} » portent la même lignée, une ligne "
+            f"copiée dans le tableur : toutes deux rejetées, aucune préférée, chacune nommant "
+            f"l'autre ; la ligne de la révision que cette lignée désigne est laissée telle quelle "
+            f"(WF-INTF-0100, WF-INTF-0120, #2798).",
+            import_remaining_duplicate_lineage(),
         ),
         "import_actual_costs_first.json": mocktext.example(
             _april_said(), import_actual_costs_first()

@@ -395,7 +395,7 @@ def test_the_calculated_columns_are_formulas_that_name_their_table(content: byte
     for header in ("Description de la tâche", "État", "Nature", "Code comptable", "Taux horaire"):
         assert row[header].startswith("=IF(")
     assert "RAE_SP_PRE[[#This Row],[Jours restants]]" in row["Main-d’œuvre"]
-    assert "'Paramètres'!$B$2" in row["Main-d’œuvre"]
+    assert "*HeuresParJour*" in row["Main-d’œuvre"]
     assert "RAE_SP_PRE[[#This Row],[Coefficient]]" in row["Main-d’œuvre"]
     assert "RAE_SP_PRE[[#This Row],[Débours restant]]" in row["Débours"]
     assert row["Reste à engager"].endswith("[Main-d’œuvre]]+RAE_SP_PRE[[#This Row],[Débours]])")
@@ -533,3 +533,28 @@ def test_the_service_column_turns_an_empty_text_into_an_empty_text() -> None:
         f'=IF({key}="","",IFERROR(INDEX(Referentiel[[Service]],'
         f'MATCH({key},Referentiel[[Entrée]],0))&"","?"))'
     )
+
+
+@pytest.mark.requirement("WF-INTF-0130-A")
+def test_the_summary_and_the_tabs_of_lines_are_printed_in_landscape(content: bytes) -> None:
+    book = _open(content)
+    for name in ("Synthèse", "SP-PRE", "sp-pre (2)", "Hors sous-projet"):
+        assert book[name].page_setup.orientation == "landscape", name
+
+
+@pytest.mark.requirement("WF-INTF-0130-A")
+def test_the_hours_per_day_is_a_defined_name_the_formulas_use(content: bytes) -> None:
+    book = _open(content)
+    assert book.defined_names["HeuresParJour"].attr_text == "'Paramètres'!$B$2"
+    formula = line_formulas("T")["Main-d’œuvre"]
+    assert "HeuresParJour" in formula
+    assert "$B$2" not in formula
+    archive = zipfile.ZipFile(BytesIO(content))
+    assert '<definedName name="HeuresParJour">' in archive.read("xl/workbook.xml").decode()
+
+
+@pytest.mark.requirement("WF-INTF-0130-A")
+def test_the_bands_are_merged_across_their_columns(content: bytes) -> None:
+    book = _open(content)
+    assert {str(r) for r in book["SP-PRE"].merged_cells.ranges} == {"H14:I14"}
+    assert any(str(r).startswith("H") for r in book["Synthèse"].merged_cells.ranges)

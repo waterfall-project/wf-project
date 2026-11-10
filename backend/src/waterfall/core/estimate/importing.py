@@ -36,9 +36,10 @@ unknown column; a header of a column read that a tab lacks reads its cells empty
 The report is the contract's (``ImportReport``): nothing is written by the analysis.
 """
 
+from collections import defaultdict
 from dataclasses import dataclass, field
 from decimal import Decimal
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Protocol
 from uuid import UUID
 
 from waterfall.core.cost_settings.interface import (
@@ -79,7 +80,7 @@ from waterfall.core.revisions.interface import structure_facts
 from waterfall.platform.errors import STATE_FORBIDS_OPERATION, UnprocessableError
 
 if TYPE_CHECKING:
-    from collections.abc import Iterable, Mapping
+    from collections.abc import Iterable, Mapping, Sequence
 
     from sqlalchemy.orm import Session
 
@@ -100,6 +101,7 @@ UNKNOWN_TASK = "UNKNOWN_TASK"
 UNKNOWN_RESOURCE_ROLE = "UNKNOWN_RESOURCE_ROLE"
 UNKNOWN_SUBPROJECT = "UNKNOWN_SUBPROJECT"
 AMBIGUOUS_TASK_LABEL = "AMBIGUOUS_TASK_LABEL"
+DUPLICATE_LINEAGE = "DUPLICATE_LINEAGE"
 NOUGHT = Decimal(0)
 EVERY = 10**9
 NOBODY = UUID(int=0)
@@ -502,7 +504,10 @@ def analyse(
         for each in read.rejected
         if (lineage := lineage_of(each.lineage)) is not None and lineage in held.lines
     }
-    for line in read.lines:
+    alone, doubled, twice = alone_on_lineage(read.lines)
+    found.rejected += doubled
+    taken |= twice & held.lines.keys()
+    for line in alone:
         lineage = lineage_of(line.lineage)
         current = held.lines.get(lineage) if lineage is not None and lineage not in taken else None
         if current is not None and lineage is not None:
@@ -655,6 +660,62 @@ def _works(
 def _named_role(reference: Reference, role_id: UUID) -> dict[str, str]:
     role = reference.roles_by_id[role_id]
     return {"resource_role_id": str(role_id), "code": role.code, "label": role.label}
+
+
+class Lineaged(Protocol):
+    """A line read, at its tab and its row, with the lineage its cell carries."""
+
+    @property
+    def sheet(self) -> str:
+        """Give the tab the line is read on."""
+        ...
+
+    @property
+    def row(self) -> int:
+        """Give the Excel row of the line."""
+        ...
+
+    @property
+    def lineage(self) -> str | None:
+        """Give the lineage the cell carries, as typed."""
+        ...
+
+
+def alone_on_lineage[Line: Lineaged](
+    lines: Sequence[Line],
+) -> tuple[list[Line], list[dict[str, Any]], set[UUID]]:
+    """Split the lines read: those alone on their lineage, the rejections of the others, and theirs.
+
+    A lineage that two lines of the file carry — on a tab or on two — cannot say which of them is
+    the line it names, and none is preferred (as the actual costs do, ``DUPLICATE_COST_LINE``):
+    each of them is rejected, ``DUPLICATE_LINEAGE``, ``params.lines`` the tab and the row of the
+    others in the order of the file (#2798). The lineages of the doubled lines are given so that
+    the analysis leaves the lines of the structure that carry them as they are.
+    """
+    by_lineage: dict[UUID, list[Line]] = defaultdict(list)
+    for line in lines:
+        if (lineage := lineage_of(line.lineage)) is not None:
+            by_lineage[lineage].append(line)
+    doubled = {lineage for lineage, carried in by_lineage.items() if len(carried) > 1}
+    rejected: list[dict[str, Any]] = []
+    for line in lines:
+        lineage = lineage_of(line.lineage)
+        if lineage is not None and lineage in doubled:
+            others = [
+                {"sheet": other.sheet, "row": other.row}
+                for other in by_lineage[lineage]
+                if other is not line
+            ]
+            rejected.append(
+                {
+                    "sheet": line.sheet,
+                    "row": line.row,
+                    "code": DUPLICATE_LINEAGE,
+                    "params": {"lines": others},
+                }
+            )
+    alone = [line for line in lines if lineage_of(line.lineage) not in doubled]
+    return alone, rejected, doubled
 
 
 def lineage_of(text: str | None) -> UUID | None:

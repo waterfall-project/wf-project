@@ -276,11 +276,12 @@ def _column_specs(ctx: _Context, table: str) -> list[dict[str, Any]]:
 def _write_band(
     sheet: Worksheet, row: int, columns: tuple[int, int], text: str, style: Format
 ) -> None:
-    """Write a title centred across columns: the text in the first, the others blank."""
+    """Write a title over columns: merged when it spans several, as the prototype does."""
     first, last = columns
-    sheet.write(row, first, text, style)
-    for column in range(first + 1, last + 1):
-        sheet.write(row, column, None, style)
+    if last > first:
+        sheet.merge_range(row, first, row, last, text, style)
+    else:
+        sheet.write(row, first, text, style)
 
 
 def _write_header(sheet: Worksheet, ctx: _Context, tab: RemainingTab, table: str) -> dict[str, str]:
@@ -387,6 +388,7 @@ def _write_tab(
         else:
             sheet.set_column(index, index, width)
     sheet.freeze_panes(top + 1, 1)
+    sheet.set_landscape()
     sheet.fit_to_pages(1, 0)
     sheet.write(
         top + len(data) + 3,
@@ -483,7 +485,7 @@ def _write_summary(sheet: Worksheet, ctx: _Context, cells: list[_Cells], mention
         fmt["band"],
     )
     sheet.write_row(top, 0, headers, fmt["head"])
-    sheet.set_row(top, 30)
+    sheet.set_row(top, 30, fmt["head"])
     for offset, (tab, read) in enumerate(zip(ctx.tabs, cells, strict=True)):
         row = top + 1 + offset
         sheet.write(row, 0, _title(tab))
@@ -521,6 +523,7 @@ def _write_summary(sheet: Worksheet, ctx: _Context, cells: list[_Cells], mention
     sheet.set_column(0, 0, 30)
     sheet.set_column(1, last, 15)
     sheet.print_area(0, 0, total + 4, last)
+    sheet.set_landscape()
     sheet.fit_to_pages(1, 1)
 
 
@@ -575,6 +578,7 @@ def write_workbook(book: RemainingWorkbook) -> bytes:
         }
     )
     workbook.set_calc_mode("auto")
+    workbook.define_name(layout.HOURS_PER_DAY, f"={layout.HOURS_PER_DAY_CELL}")
     ctx = _context(book, workbook)
     summary = workbook.add_worksheet(SUMMARY)
     sheets = [workbook.add_worksheet(name) for name in ctx.sheets]

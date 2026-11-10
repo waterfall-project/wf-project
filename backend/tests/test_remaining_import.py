@@ -874,17 +874,48 @@ def test_an_amount_left_is_converted_at_the_inflation_of_the_year_the_task_is_co
 
 
 @pytest.mark.requirement("WF-INTF-0120-A")
-def test_an_amount_left_on_a_task_over_two_years_is_converted_at_the_year_it_consumes_most_in(
+def test_an_amount_left_on_a_task_over_two_years_is_given_back_as_typed(
     api: ContractClient, stage: Scene, worker: Worker, scene: Rows
 ) -> None:
-    # Characterisation, not a requirement: the unit disbursement of a line created is the amount
-    # over the coefficient of the year its task consumes most in — the next one, six days of ten —
-    # while the re-estimate shares the unit over the two years: the amount re-estimated is not the
-    # one typed. The difference is a question to the author (#2410); this pins what is written.
+    # #2797, case 4: the unit disbursement is the amount over the mean of the coefficients of the
+    # years of the task, weighted by their shares (the next year six days of ten: 1.018), as the
+    # projection shares the unit over the two years — the amount re-estimated is the one typed,
+    # on a line created as on a line known (103 typed, never 101.80).
     inflating(stage, scene.tree, date(YEAR, 12, 28), date(NEXT, 1, 8), days=10)
-    rows = [*scene.exported(), [scene.task("Essais"), scene.stuff, "Rallonge", None, 103, None]]
+    rows = scene.exported()
+    rows[2][4] = 103
+    rows.append([scene.task("Essais"), scene.stuff, "Rallonge", None, 103, None])
     import_id = analysed(api, stage, worker, workbook({OUTSIDE: rows}, scene.tasks()))
     applied(api, stage, worker, import_id)
+    known = row_of(stage, line_named(scene.tree, "Banc")["node_id"])
     created = row_of(stage, line_named(scene.tree, "Rallonge")["node_id"])
-    assert created.unit_disbursement == Decimal("100.00")
-    assert created.reestimated_amount == Decimal("101.80")
+    assert known.reestimated_amount == Decimal("103.00")
+    assert created.unit_disbursement == Decimal("101.18")
+    assert created.reestimated_amount == Decimal("103.00")
+
+
+@pytest.mark.requirement("WF-INTF-0120-A")
+def test_a_lineage_that_two_rows_carry_rejects_both_and_leaves_its_line_as_it_is(
+    api: ContractClient, stage: Scene, worker: Worker, scene: Rows
+) -> None:
+    # #2798: a row copied in Excel keeps the hidden lineage; neither row is the line, none is
+    # preferred, and the line of the structure is neither updated nor removed.
+    rows = scene.exported()
+    copied = list(rows[1])
+    copied[4] = 77
+    rows.append(copied)
+    last = len(rows) + 1
+    node = line_named(scene.tree, "Fournitures")["node_id"]
+    before = row_of(stage, node)
+    import_id = analysed(api, stage, worker, workbook({OUTSIDE: rows}, scene.tasks()))
+    found = report(api, stage, import_id)
+    assert codes(found) == [(3, "DUPLICATE_LINEAGE"), (last, "DUPLICATE_LINEAGE")]
+    assert found["rejected"][0]["params"] == {"lines": [{"sheet": OUTSIDE, "row": last}]}
+    assert found["rejected"][1]["params"] == {"lines": [{"sheet": OUTSIDE, "row": 3}]}
+    assert found["differences"] == []
+    applied(api, stage, worker, import_id)
+    after = row_of(stage, node)
+    assert (after.unit_disbursement, after.reestimated_amount) == (
+        before.unit_disbursement,
+        before.reestimated_amount,
+    )

@@ -606,7 +606,12 @@ ImportRejection:
     extraction, a line for which another line of the file carries the same document and the same
     item, null included: `DUPLICATE_COST_LINE`, each of these lines rejected, `params.rows`
     naming the rows of the others in the order of the file — the line cannot be identified, and
-    none is preferred to the other (WF-INTF-0140, D-4; EP-16/US-0630). And a line rejected for
+    none is preferred to the other (WF-INTF-0140, D-4; EP-16/US-0630). For an estimate or a
+    remaining to commit, likewise a line whose lineage — the « ID ligne » column — another line of
+    the file carries, on the same tab or on another: `DUPLICATE_LINEAGE`, each of these lines
+    rejected, `params.lines` naming the tab and the row of the others in the order of the file,
+    and the line of the revision that the lineage names left as it is (WF-INTF-0100,
+    WF-INTF-0120; #2798). And a line rejected for
     its WBS element (WF-CRE-0020), `params.wbs_element` the element as the file carries it:
     `WBS_ELEMENT_INVALID`, an element that does not have the form of a project code optionally
     followed by a slash and a subproject code — empty, or with nothing before the slash —, only

@@ -457,3 +457,30 @@ def test_a_second_total_is_read_as_a_line() -> None:
     read = read_remaining_workbook(workbook({"SP-1": rows}))
 
     assert [(line.row, line.days) for line in read.lines] == [(2, D(1)), (4, D(2))]
+
+
+@pytest.mark.requirement("WF-INTF-0120-A")
+def test_a_second_total_with_nothing_else_right_after_the_total_is_not_the_note() -> None:
+    rows = [
+        SMALL,
+        ["1 A", ARCH, None, 1, None, "l-1"],
+        ["Total", None, None, 1, None, None],
+        ["Total", None, None, None, None, None],
+    ]
+    read = read_remaining_workbook(workbook({"SP-1": rows}))
+
+    assert [(line.row, line.task) for line in read.lines] == [(2, "1 A"), (4, "Total")]
+
+
+@pytest.mark.requirement("WF-INTF-0120-A")
+def test_a_second_row_with_the_task_column_alone_after_the_note_is_read() -> None:
+    rows = [
+        SMALL,
+        ["1 A", ARCH, None, 1, None, "l-1"],
+        ["Total", None, None, 1, None, None],
+        ["Une note sous le tableau"],
+        ["3 C"],
+    ]
+    read = read_remaining_workbook(workbook({"SP-1": rows}))
+
+    assert [(line.row, line.task) for line in read.lines] == [(2, "1 A"), (5, "3 C")]

@@ -635,6 +635,7 @@ paths = [
     "fixtures/api/resource_role_calendar_unknown.json",
     "fixtures/api/import_actual_costs_wbs_invalid.json",
     "fixtures/api/import_remaining_ambiguous_label.json",
+    "fixtures/api/import_remaining_duplicate_lineage.json",
     "fixtures/api/project_exit_terminal.json",
     "fixtures/api/project_exit_lost_in_progress.json",
     "fixtures/api/project_exit_unconfirmed.json",

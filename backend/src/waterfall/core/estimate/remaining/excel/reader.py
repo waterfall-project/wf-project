@@ -170,10 +170,11 @@ def _is_total(texts: Mapping[str, str | None]) -> bool:
 
 
 def _is_note(texts: Mapping[str, str | None], raws: Mapping[str, object]) -> bool:
-    """Tell a row of which nothing is read outside the task column: the note under the table."""
+    """Tell the note under the table: the task column alone, and not a second « Total »."""
     others = [value for header, value in texts.items() if header != TASK_HEADER]
     return (
         texts[TASK_HEADER] is not None
+        and texts[TASK_HEADER] != TOTAL_LABEL
         and all(value is None for value in others)
         and all(read_number(raw) == (None, True) for raw in raws.values())
     )
