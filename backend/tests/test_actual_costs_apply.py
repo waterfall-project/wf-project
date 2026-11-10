@@ -38,6 +38,7 @@ from support import ContractClient, wait_for_a_lock
 
 from waterfall.api.app import create_app
 from waterfall.api.authentication import Services
+from waterfall.core.costs import writing
 from waterfall.core.costs.interface import ACTUAL_COSTS_FORMAT, PROJECT, actual_costs_until
 from waterfall.core.costs.tables import CostImport, CostLine
 from waterfall.core.exchanges.interface import ImportTarget
@@ -573,3 +574,26 @@ def test_an_application_without_its_import_or_its_account_is_a_defect(
             Act(None, utc_now()),
         )
     assert lines(stage) == []
+
+
+@pytest.mark.requirement("WF-INTF-0140-A")
+@pytest.mark.usefixtures("lot")
+def test_the_lines_held_are_read_in_batches_of_documents_and_all_found(
+    api: ContractClient, stage: Scene, worker: Worker, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # The read of the lines held is cut in batches of document numbers: five documents read two by
+    # two (three reads) give the five lines, as one read would.
+    numbers = [f"51000020{n}" for n in range(5)]
+    imported(
+        api,
+        stage,
+        worker,
+        extraction([line(element=ELEMENT, number=number) for number in numbers]),
+    )
+    monkeypatch.setattr(writing, "_READ_BY", 2)
+
+    with stage.database.transaction() as session:
+        held = writing.held_lines(session, project_of(stage), set(numbers))
+        found = sorted(key for key in held)
+
+    assert [number for number, _item in found] == numbers
