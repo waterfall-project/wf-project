@@ -36,13 +36,16 @@ from waterfall.core.cost_settings.tables import CostCategory
 from waterfall.core.estimate.remaining.analysing import same_cell
 from waterfall.core.estimate.remaining.excel.layout import REVIEW_DATE_CELL, tab_subprojects
 from waterfall.core.estimate.tables import EstimateLine, RevisionRate
+from waterfall.core.exchanges.tables import ImportReport
 from waterfall.core.planning.tables import Node, Task
 from waterfall.core.projects.tables import Project
 from waterfall.core.resource_settings.tables import ResourceRole
-from waterfall.core.revisions.tables import CostStructure
+from waterfall.core.revisions.tables import CostStructure, Revision
 from waterfall.platform.audit import Act
 from waterfall.platform.database import utc_now
 from waterfall.platform.keycloak_admin import KeycloakAdmin
+from waterfall.platform.logs import logging_context
+from waterfall.platform.tasks import BackgroundTask, submit
 
 if TYPE_CHECKING:
     from openapi_core import OpenAPI
@@ -533,6 +536,94 @@ def test_a_remaining_is_imported_on_a_project_in_progress_only(
     assert refusal(answer) == (409, STATE, {"missing_condition": "project_in_progress"})
     assert refusal(apply(api, stage, import_id)) == refusal(answer)
     assert stored(stage.database, import_id).status == "refused"
+
+
+@pytest.mark.requirement("WF-INTF-0120-A")
+def test_a_project_not_in_progress_with_a_task_running_is_refused_by_project_in_progress_first(
+    api: ContractClient,
+    stage: Scene,
+    database: Database,
+    queue: TaskQueue,
+    scene: Rows,
+) -> None:
+    # The order of ``ProjectCommand.import_remaining`` (US-1630; #2796): ``project_in_progress``,
+    # then ``no_background_task_running`` and ``may_create_revision``. Not In progress and a task
+    # writing in the revision: the opening names the phase, and the task alone once In progress.
+    content = workbook({OUTSIDE: scene.exported()}, scene.tasks())
+    payload = {
+        "project_id": stage.project["project_id"],
+        "revision_id": str(UUID(int=1)),
+        "version_name": "v1.0",
+        "description": None,
+    }
+    with logging_context(correlation_id="queued-around"), database.transaction() as session:
+        submit(session, queue, "revision_mark", stage.manager.user_id, payload)
+    answer = opening(api, stage, content)
+    assert refusal(answer) == (409, STATE, {"missing_condition": "no_background_task_running"})
+    put_in_state(stage.owner, stage.project["project_id"], "pricing")
+    answer = opening(api, stage, content)
+    assert refusal(answer) == (409, STATE, {"missing_condition": "project_in_progress"})
+
+
+def task_problem(database: Database, import_id: str) -> tuple[str, dict[str, Any]]:
+    """Give the code and the parameters of the problem the task of an import failed on."""
+    with database.transaction() as session:
+        row = session.get_one(ImportReport, UUID(import_id))
+        task = session.get_one(BackgroundTask, row.task_id)
+        assert task.problem is not None
+        return task.problem["code"], task.problem["params"]
+
+
+def revision_count(database: Database) -> int:
+    """Count the revisions of the platform."""
+    with database.transaction() as session:
+        return len(session.scalars(select(Revision.id)).all())
+
+
+@pytest.mark.requirement("WF-INTF-0120-A")
+def test_a_project_left_in_progress_before_the_task_runs_refuses_the_import_opening_no_revision(
+    api: ContractClient, stage: Scene, worker: Worker, database: Database, scene: Rows
+) -> None:
+    # The phase is judged again when the task runs, and before the revision the import would open
+    # (#2796): with every revision marked the application would create one, and the refusal
+    # leaves none.
+    review_marked(stage, scene.tree.revision, "Revue 1")
+    content = workbook({OUTSIDE: scene.exported()}, scene.tasks())
+    import_id = analysed(api, stage, worker, content)
+    assert apply(api, stage, import_id).status_code == 202
+    put_in_state(stage.owner, stage.project["project_id"], "pricing")
+    before = revision_count(database)
+    run(worker)
+    problem = task_problem(database, import_id)
+    assert problem == (STATE, {"missing_condition": "project_in_progress"})
+    assert stored(database, import_id).status == "refused"
+    assert revision_count(database) == before
+    assert project_of(api, stage)["current_revision_id"] is None
+
+
+@pytest.mark.requirement("WF-INTF-0120-A")
+def test_a_project_left_in_progress_with_a_task_writing_is_refused_by_the_phase_first(
+    api: ContractClient, stage: Scene, worker: Worker, queue: TaskQueue, scene: Rows
+) -> None:
+    # The order of ``ProjectCommand.import_remaining`` holds at execution: ``project_in_progress``
+    # before ``no_background_task_running`` (#2796), a marking of the revision queued behind.
+    database = stage.database
+    content = workbook({OUTSIDE: scene.exported()}, scene.tasks())
+    import_id = analysed(api, stage, worker, content)
+    assert apply(api, stage, import_id).status_code == 202
+    put_in_state(stage.owner, stage.project["project_id"], "pricing")
+    payload = {
+        "project_id": stage.project["project_id"],
+        "revision_id": scene.tree.revision["revision_id"],
+        "version_name": "v1.0",
+        "description": None,
+    }
+    with logging_context(correlation_id="queued-behind"), database.transaction() as session:
+        submit(session, queue, "revision_mark", stage.manager.user_id, payload)
+    assert worker.step()
+    problem = task_problem(database, import_id)
+    assert problem == (STATE, {"missing_condition": "project_in_progress"})
+    assert stored(database, import_id).status == "refused"
 
 
 # --- The revision an import creates -------------------------------------------------------------
