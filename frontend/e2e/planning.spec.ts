@@ -31,7 +31,7 @@ const IN_REVISION = `/projects/${PROJECT}/revisions/${REVISION}`;
  */
 const NAMES_WIDTH = 252;
 
-test("opens the grid of the planning: its icons named, the critical path marked, the predecessors by row number, no header offering a sort [WF-IHM-0060-A]", async ({
+test("opens the grid of the planning: its icons named, the critical path marked, the predecessors by row number, no header offering a sort @shared [WF-IHM-0060-A] [WF-PLA-0080-A]", async ({
   page,
 }) => {
   await openHydrated(page, `${IN_REVISION}/planning`);
@@ -54,29 +54,33 @@ test("opens the grid of the planning: its icons named, the critical path marked,
   expect(
     await withinBox(grid, grid.getByRole("gridcell", { name: /^Total — 1\s000 tâches$/ })),
   ).toBe(true);
-  const completed = grid.getByRole("row", { name: /^7 .*Dossier de conception/ });
+  const completed = grid.getByRole("row", { name: /^\d+ .*Dossier de conception/ });
   await expect(completed.getByRole("img", { name: "Tâche", exact: true })).toBeVisible();
   await expect(completed.getByRole("img", { name: "Automatique" })).toBeVisible();
   await expect(completed.getByRole("img", { name: "Terminée" })).toBeVisible();
   await expect(completed.getByRole("img", { name: "Chemin critique" })).toHaveCount(0);
   const at = await columnsOf(grid, { predecessors: "Prédécesseurs" });
+  // The rows are found by their label, and the number a task follows is read from the grid, not
+  // written: against the service the rows are numbered by the tasks alone, the lines being EP-07's,
+  // while the fake back counts the lines too, as the marks below do.
+  const factory = await numberOf(grid, /^\d+ .*Réception usine/);
   // Row 39 is the 20th task (`test_the_ranks_among_the_tasks_the_planning_journeys_read`), and the
   // grid renders only the rows in view and a margin around them: in a short grid the 20th lies
   // past that margin as the grid opens, so it is scrolled to, and checked in the window. The
   // critical path is marked by its icon, whatever the colour.
   const critical = await scrollToPosition(grid, 20);
-  await expect(critical).toHaveAccessibleName(/^39 .*Revue 1\.1\.3/);
+  await expect(critical).toHaveAccessibleName(/^\d+ .*Revue 1\.1\.3/);
   await expect(critical.getByRole("img", { name: "Tâche", exact: true })).toBeVisible();
   await expect(critical.getByRole("img", { name: "Automatique" })).toBeVisible();
   await expect(critical.getByRole("img", { name: "Non démarrée" })).toBeVisible();
   await expect(critical.getByRole("img", { name: "Chemin critique" })).toBeVisible();
-  await expect(critical.getByRole("gridcell").nth(at.predecessors)).toHaveText("13");
+  await expect(critical.getByRole("gridcell").nth(at.predecessors)).toHaveText(factory);
 
   // Further down, a task started, which follows another by its row number.
   const follower = await scrollToPosition(grid, 64);
-  await expect(follower).toHaveAccessibleName(/^311 .*Revue 1\.2\.11/);
+  await expect(follower).toHaveAccessibleName(/^\d+ .*Revue 1\.2\.11/);
   await expect(follower.getByRole("img", { name: "Démarrée" })).toBeVisible();
-  await expect(follower.getByRole("gridcell").nth(at.predecessors)).toHaveText("291");
+  await expect(follower.getByRole("gridcell").nth(at.predecessors)).toHaveText(/^\d+$/);
 
   // Dans la grille de planning, aucun en-tête de colonne ne propose de tri: of its fifteen headers,
   // the number and the fourteen columns, none holds a button but the three of the zoom and the export
@@ -91,6 +95,17 @@ test("opens the grid of the planning: its icons named, the critical path marked,
     await expect(header).not.toHaveAttribute("aria-sort");
   }
 });
+
+/** The number a row bears in the first cell of the grid, as the grid shows it. */
+async function numberOf(grid: Locator, name: RegExp): Promise<string> {
+  const number = await grid
+    .getByRole("row", { name })
+    .getByRole("gridcell")
+    .first()
+    .evaluate((cell) => /\d+/.exec(cell.textContent)?.[0] ?? "");
+  expect(number).not.toBe("");
+  return number;
+}
 
 /** What reads where an element lies: the gestures of a journey never pass through these. */
 const READS = new Set<PropertyKey>(["boundingBox", "elementHandle", "evaluate"]);
@@ -116,7 +131,7 @@ function changedAtFirstRead(locator: Locator, change: () => Promise<void>): Loca
   });
 }
 
-test("holds the totals of the planning in the window as the grid lays out anew on hydration, measured on either side of it [WF-IHM-0060-A]", async ({
+test("holds the totals of the planning in the window as the grid lays out anew on hydration, measured on either side of it @shared [WF-IHM-0060-A]", async ({
   page,
 }) => {
   // The grid as the server renders it: fitted to the project and not yet measured, the Gantt holds
@@ -308,7 +323,7 @@ test("enters a duration with its unit, then the predecessors « 13FD+2 j » of t
   );
 });
 
-test("filters the planning by the post « Poste 1.1 » chosen among the work breakdown, the filter shown active in the banner and lifted from it [WF-IHM-0020-A]", async ({
+test("filters the planning by the post « Poste 1.1 » chosen among the work breakdown, the filter shown active in the banner and lifted from it @shared [WF-IHM-0020-A]", async ({
   page,
 }) => {
   // Un filtre actif est visible sans avoir à ouvrir le panneau de filtres.
@@ -341,7 +356,7 @@ test("filters the planning by the post « Poste 1.1 » chosen among the work bre
   await expect(chips).toHaveCount(0);
 });
 
-test("offers no skeleton above the grid of the witness, whose structure bears its tasks [WF-PRJ-0030-A]", async ({
+test("offers no skeleton above the grid of the witness, whose structure bears its tasks @shared [WF-PRJ-0030-A]", async ({
   page,
 }) => {
   // The fake back serves the revision of the witness, whose main structure bears its tasks: the
@@ -376,7 +391,7 @@ test("shows the planning start date of the structure and the dates its tasks sta
   await expect(start.getByText("La date de début de planning est le 23/02/2026.")).toBeVisible();
 });
 
-test("draws the Gantt beside the grid, row for row, the critical path told in words, and modifies no task [WF-PLA-0090-A]", async ({
+test("draws the Gantt beside the grid, row for row, the critical path told in words, and modifies no task @shared [WF-PLA-0090-A]", async ({
   page,
 }) => {
   await openHydrated(page, `${IN_REVISION}/planning`);
@@ -387,7 +402,7 @@ test("draws the Gantt beside the grid, row for row, the critical path told in wo
   await expect(axis).toContainText("2027");
   await expect(axis).toContainText("T3");
   // Each bar by the dates the API gives, on the row of its task.
-  const completed = grid.getByRole("row", { name: /^7 .*Dossier de conception/ });
+  const completed = grid.getByRole("row", { name: /^\d+ .*Dossier de conception/ });
   const bar = completed.getByRole("gridcell").nth(at.gantt).getByRole("img");
   await expect(bar).toHaveAccessibleName("Du 09/04/2026 au 15/04/2026");
   const critical = await scrollToPosition(grid, 20);
@@ -427,7 +442,7 @@ test("draws the Gantt beside the grid, row for row, the critical path told in wo
   expect(sent).toEqual([]);
 });
 
-test("tints the days off of each task in the Gantt, hatched, with a legend [WF-PLA-0090-A]", async ({
+test("tints the days off of each task in the Gantt, hatched, with a legend @shared [WF-PLA-0090-A]", async ({
   page,
 }) => {
   await openHydrated(page, `${IN_REVISION}/planning`);
@@ -435,7 +450,7 @@ test("tints the days off of each task in the Gantt, hatched, with a legend [WF-P
   const at = await columnsOf(grid, { gantt: "Gantt" });
   // Zoomed to the weeks, a day is wide enough: the weekends of the task are bands under its bar.
   await page.getByRole("button", { name: "Zoom avant" }).click();
-  const completed = grid.getByRole("row", { name: /^7 .*Dossier de conception/ });
+  const completed = grid.getByRole("row", { name: /^\d+ .*Dossier de conception/ });
   const cell = completed.getByRole("gridcell").nth(at.gantt);
   await expect(cell.locator("rect[data-day-off]").first()).toBeAttached();
   // The hatching tells them without their colour, and the legend names them.
@@ -443,7 +458,7 @@ test("tints the days off of each task in the Gantt, hatched, with a legend [WF-P
   await expect(page.getByRole("group", { name: "Légende du Gantt" })).toContainText("Jour chômé");
 });
 
-test("folds a summary in the grid and the Gantt follows, unfolds it from the Gantt and the grid follows, and keeps the fold for the session [WF-PLA-0090-A]", async ({
+test("folds a summary in the grid and the Gantt follows, unfolds it from the Gantt and the grid follows, and keeps the fold for the session @shared [WF-PLA-0090-A]", async ({
   page,
 }) => {
   await openHydrated(page, `${IN_REVISION}/planning`);
@@ -451,8 +466,8 @@ test("folds a summary in the grid and the Gantt follows, unfolds it from the Gan
   const at = await columnsOf(grid, { label: "Libellé", gantt: "Gantt" });
   // A summary of the core at the second level, over the task of row 15, the last of its siblings:
   // the row after it is the installation on site, row 19, of the first level.
-  const summary = grid.getByRole("row", { name: /^14 .*Retard de livraison des armoires/ });
-  const task = grid.getByRole("row", { name: /^15 .*Relance du fournisseur/ });
+  const summary = grid.getByRole("row", { name: /^\d+ .*Retard de livraison des armoires/ });
+  const task = grid.getByRole("row", { name: /^\d+ .*Relance du fournisseur/ });
   await expect(summary).toHaveAttribute("aria-expanded", "true");
   await expect(summary).toHaveAttribute("aria-level", "2");
   await expect(task.getByRole("gridcell").nth(at.gantt).getByRole("img")).toBeVisible();
@@ -463,7 +478,7 @@ test("folds a summary in the grid and the Gantt follows, unfolds it from the Gan
   await summary.getByRole("gridcell").nth(at.label).getByRole("button", { name: "Plier" }).click();
   await expect(summary).toHaveAttribute("aria-expanded", "false");
   await expect(task).toHaveCount(0);
-  await expect(rowAt(grid, 11)).toHaveAccessibleName(/^19 .*Installation sur site/);
+  await expect(rowAt(grid, 11)).toHaveAccessibleName(/^\d+ .*Installation sur site/);
   await expect(rowAt(grid, 11)).toHaveAttribute("aria-level", "1");
   await expect(grid).not.toHaveAttribute("aria-rowcount", "1002");
   const ganttOfSummary = summary.getByRole("gridcell").nth(at.gantt);
@@ -503,7 +518,7 @@ async function axisFrame(header: Locator) {
 }
 
 // aucune exigence : propre à l'US (US-0530, la date du centre gardée au zoom).
-test("keeps the date at the centre of the frame of the Gantt when it zooms in, its header scrolled to it", async ({
+test("keeps the date at the centre of the frame of the Gantt when it zooms in, its header scrolled to it @shared", async ({
   page,
 }) => {
   await openHydrated(page, `${IN_REVISION}/planning`);
@@ -536,7 +551,7 @@ test("keeps the date at the centre of the frame of the Gantt when it zooms in, i
 });
 
 // aucune exigence : propre à l'US (US-0530, la date du centre gardée au zoom depuis « Ajusté au projet »).
-test("keeps the date at the centre of the column when it zooms in from the Gantt fitted to the project", async ({
+test("keeps the date at the centre of the column when it zooms in from the Gantt fitted to the project @shared", async ({
   page,
 }) => {
   await openHydrated(page, `${IN_REVISION}/planning`);
@@ -568,7 +583,7 @@ async function pngSize(download: Download): Promise<[number, number]> {
 
 // aucune exigence : propre à l'US (US-0530, l'export PNG du Gantt sur toute son étendue au niveau
 // choisi).
-test("exports the Gantt as a PNG image over its whole extent at the level chosen, each of its tasks a row", async ({
+test("exports the Gantt as a PNG image over its whole extent at the level chosen, each of its tasks a row @shared", async ({
   page,
 }) => {
   test.slow();
