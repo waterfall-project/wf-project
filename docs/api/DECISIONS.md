@@ -11384,6 +11384,56 @@ compte chez le fournisseur d'identité, qu'il tire : `dependencies_entered` reç
 cette passe sont prises du haut de la troisième suite, 1982 à 1999, pour ne pas croiser les autres
 passes qui prennent la première libre (1686 et suivantes).
 
+### Les constats de contrat d'EP-06, d'EP-07 et d'EP-09 (décisions de l'auteur du 2026-11-10)
+
+Décisions de l'auteur du 2026-11-10, par « La règle d'après le gel », sur les constats que les lots
+d'EP-06, d'EP-07 et d'EP-09 avaient laissés « à trancher ». Chacun s'écrit au contrat par le lot
+que la conception de son EPIC nomme ; `info.version` reste `1.0.0` : aucun ne retire ni ne change
+une forme.
+
+- **Le compte rendu d'un import MS Project dit les constantes d'unités du fichier** (#2580 ;
+  WF-PLA-0160, WF-INTF-0040). `ImportReport.unit_constants`, toujours rendu et nullable, porte,
+  pour un planning MS Project dont les constantes diffèrent de celles de l'installation, les trois
+  constantes du fichier et celles de l'installation (`hours_per_day`, `hours_per_week`,
+  `days_per_month`, sans audit ni compteur) ; il est nul quand elles sont égales et pour les autres
+  formats. Les durées et les décalages sont importés avec leurs heures, convertis aux constantes de
+  l'installation (« le compte rendu signale la différence »). Le catalogue du front reçoit la
+  phrase, le faux back un exemple (`import_planning_other_constants`), et les exemples existants
+  du compte rendu portent le champ à nul. Écartés : un `ImportSignal`, qui nomme une tâche et une
+  colonne quand les constantes sont du fichier ; une nature d'élément ignoré, qui compterait les
+  constantes sans dire leurs valeurs. Écrit par le lot de suite d'US-1430 (EP-06), au dépôt du
+  corpus complet (#2645).
+- **Toute ressource naît à `lock_version` 1** (#2542, E-16). La règle est celle du 2026-11-07
+  (« Un objet naît à la version 1, et la révision n'avance que par ses propres écritures ») : le
+  contrat ne change pas, le service s'aligne — la structure principale d'une révision naît à 1, et
+  le squelette la fait passer de 1 à 2 (`skeleton_generated`), ce que le test du squelette compare
+  en absolu. Par le lot de finitions d'EP-06.
+- **Deux exemples d'`UndoResult` à `remaining_depth` non nul** (#2626 ; WF-IHM-0110) : l'un à 1,
+  l'autre à 2 ou 3, pour que l'annonce d'Annuler et de Rétablir soit éprouvée sous ses trois
+  formes (`=0`, `one`, `other`), en français et en anglais. Par le lot de finitions d'EP-06.
+- **L'arrondi au centime de `Money` fait foi** (#2618 ; WF-DAT-0100) : un montant que le serveur
+  calcule s'arrondit au plus proche, un demi loin de zéro ; le module `pricing` du service, qui
+  arrondissait au demi pair, s'aligne (EP-07, lot de corrections du devis). Écarté : `Money` réécrit
+  au demi pair, et le témoin avec lui.
+- **Une ligne de devis s'écrit sous l'une des trois permissions de saisie** (#2601 ; WF-ADM-0100,
+  WF-DEV-0050). `createNode` d'une ligne exige l'une de `planning.write`, `estimate.write` et
+  `remaining.write`, comme `StructureCommand` le dit des trois grilles, la commande de la structure
+  disant laquelle est disponible ; `deleteNode`, `moveNodes` et `applyPaste` d'une ligne suivent la
+  même règle. Les descriptions de ces opérations le disent si elles le taisent. Écartés : la
+  permission selon le genre du nœud ; `planning.write` seul, qui refusait la ligne à la grille du
+  devis. Par le lot de corrections du devis d'EP-07.
+- **`moveNodes` : le contrat fait foi** (#2614) : un `after_node_id` d'un autre genre que le nœud
+  déplacé retombe à la frontière entre les lignes et les sous-tâches (#1187), `NODE_NOT_SIBLING` ne
+  refusant qu'un nœud qui n'est pas frère sous le parent visé (#1183). Le critère d'US-1490 est
+  corrigé ; le contrat ne change pas.
+- **Un recodage ne change l'imputation d'aucune ligne de coût** (#2421, D-10 de la revue du
+  2026-10-31 ; WF-CRE-0020, WF-DAT-0060, WF-PRJ-0050). La description d'`updateSubproject` le dit,
+  sans changement de forme : « A recoding changes the imputation of no actual cost line: the lines
+  imputed to the subproject stay imputed to it (WF-DAT-0060); those that awaited the former code or
+  the new one move only at their reimport (WF-CRE-0020, WF-INTF-0140). » Écarté : réimputer par le
+  code au recodage, qui capterait des lignes sans réimport. Le service tient la règle depuis
+  US-1610/L3 (#2405) ; la phrase s'écrit par le lot de la préparation des imports d'EP-09.
+
 ## Collage et annulation
 
 **Le collage depuis un tableur suit exactement la forme d'un import** : `paste-preview`

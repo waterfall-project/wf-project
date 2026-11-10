@@ -507,7 +507,8 @@ couvre tous : pour chaque processus — l'API (`create_app`), le worker (`handle
   automatique (`SUMMARY_TASK_DERIVED` dans `signals`) ; une date manuelle chômée gardée et
   signalée (`NON_WORKING_DAY`) ; une tâche sous un jalon rejetée (`MILESTONE_HAS_NO_SUBTASK`) ;
   la date de début du projet comparée à `planning_start_on` (écart `cost_structure`) ; les
-  constantes d'unités du fichier converties en heures et leur différence signalée ; le moteur
+  constantes d'unités du fichier converties en heures et leur différence signalée par
+  `ImportReport.unit_constants` (#2580, « Les constats des lots livrés ») ; le moteur
   rejoué sur la structure résultante pour `date_mismatches`, `PROJECT_HORIZON_EXCEEDED` et
   `ORDER_ITEM_OUTSIDE_WORK_PACKAGE` (`refusals`) ; les ressources, calendriers, avancement, coûts,
   champs personnalisés et contraintes ignorés et nommés.
@@ -781,6 +782,51 @@ d'EP-07 jusqu'à l'aller-retour Excel (US-1550/L4) passe par US-1430/L3 puis L4 
   en ce sens. Écartés : corriger les générateurs dès EP-06 (option B), un lot d'outil de plus qui
   touchait `docs/api` ; charger dès EP-06 les calendriers des tâches (option C), hors de la
   conception.
+
+### Les constats des lots livrés (décisions de l'auteur du 2026-11-10)
+
+Les constats qu'EP-06 laissait « à trancher », tranchés le 2026-11-10, chacun avec l'option
+écartée :
+
+- **Le compte rendu d'un import MS Project signale des constantes d'unités autres que celles de
+  l'installation par un champ** (#2580, option A) : `ImportReport.unit_constants`, toujours rendu,
+  nul sans objet et pour les autres formats, porte les constantes du fichier et celles de
+  l'installation (`hours_per_day`, `hours_per_week`, `days_per_month`) ; le catalogue du front
+  reçoit sa phrase, le faux back un exemple (`DECISIONS.md`). Écartés : un `ImportSignal`, qui
+  nomme une tâche et une colonne, et une nature d'élément ignoré, qui compte sans dire les valeurs
+  que l'écran doit montrer. Le contrat le reçoit par le lot de
+  suite d'US-1430, ouvert au dépôt du corpus complet (#2645), qui prend aussi la docstring de la fin
+  d'une durée écoulée (#2647) et sonde la passe arrière d'une tâche écoulée, corrigée s'il y a écart
+  (#2648) ; le Vérif de WF-PLA-0160-A se clôt avec lui.
+- **Toute ressource naît à `lock_version` 1** (#2542, E-16 ; la règle est déjà celle du contrat,
+  `DECISIONS.md`, « Un objet naît à la version 1 », 2026-11-07) : le service s'aligne pour la
+  structure principale d'une révision, qu'il créait à 0, et `test_skeleton.py` compare le compteur
+  de l'exemple `skeleton_generated` en absolu. Écartée : la naissance à 0, déjà écartée le
+  2026-11-07.
+- **Les formes `one` et `other` de l'annonce d'Annuler et de Rétablir s'éprouvent** (#2626) : le
+  contrat reçoit deux exemples d'`UndoResult`, l'un à `remaining_depth` 1, l'autre à 2 ou 3, et
+  `undo-wired.dom.test.tsx` lit les trois formes, en français et en anglais.
+- **Un lot de finitions d'EP-06**, avant la vérification d'ensemble US-1480/L3, porte ces deux
+  points de contrat et les mineurs : le test de la purge du worker attend aussi la disparition de
+  l'objet du compartiment (#2566) ; les quatre points de la purge (#2533), dont les orphelins que
+  `SWEEP_LIMIT` laisse derrière des clés désignées — balayés au-delà d'elles, ou, si le lot établit
+  que le cas ne peut se produire, la docstring le dit et un test le prouve — et le plafond de
+  `deposits_before` éprouvé ; `NO_BACKGROUND_TASK_RUNNING`, `STATE_FORBIDS_OPERATION` et
+  `BEFORE_IN_PROGRESS` exportées une fois par l'interface du module qui les possède (#2555) ; une
+  garde du chargeur du témoin qui refuse une installation qui a déjà des projets sans ses
+  calendriers (#2556) ; les deux tests à forme supposée (#2547) ; le marqueur WF-DEV-0050-A retiré
+  de `test_mockundoable.py` et de sa docstring (#2593) ; la citation du test de `CurrencyCode` et la
+  ligne trop longue de « Le format MS Project » (#2682).
+- **Reportés** : la préparation d'un fichier importé hors du verrou de l'application (#2582) et la
+  lecture figée des tâches d'export et d'analyse (#2679) passent à un lot d'EP-09, après
+  l'application des coûts réels (US-1610/L2), avec #2739, pour tous les formats ; le parcours FLX-01
+  qui confirme l'import (#2683) et l'assistant e2e d'un contexte neuf (#2653) au lot de corrections
+  d'EP-07 ; le validateur du corps `application/xml` (#2675) au lot d'outillage des tests d'EP-07,
+  qui possède `support.py`. La borne en temps réel du test de l'en-tête MS Project (#2583) reste :
+  risque accepté, sa marge est d'environ mille fois la mesure, et l'issue se rouvre si la chaîne la
+  voit échouer.
+- **La spécification** : WF-DAT-0080-A nomme les cinq lignes techniques (#2529, porté par #2740) ;
+  le Vérif de WF-PLA-0040-A nomme le refus d'un déplacement sous soi-même (#2546, porté par #2741).
 
 ### Le front
 

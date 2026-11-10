@@ -348,8 +348,10 @@ Décisions de l'auteur du 2026-11-07, sur les questions du cadrage, chacune avec
 - **Le recodage d'un sous-projet ne change l'imputation d'aucune ligne** (D-10 de la revue) : les
   lignes imputées le restent par leur identifiant (WF-DAT-0060), celles qui attendaient l'ancien ou
   le nouveau code ne bougent qu'à leur réimport ; la création d'un sous-projet impute aussitôt les
-  lignes de son code (WF-CRE-0020). Un constat « contrat », « à trancher », propose la phrase pour
-  la description d'`updateSubproject`, sans changement de forme. Écarté : réimputer par le code au
+  lignes de son code (WF-CRE-0020). Le constat « contrat » #2421 est tranché le 2026-11-10 : la
+  règle est acceptée, `DECISIONS.md` l'inscrit, et la phrase entre dans la description
+  d'`updateSubproject`, sans changement de forme, par le lot de la préparation des imports (« La
+  préparation des imports hors verrou et la lecture figée »). Écarté : réimputer par le code au
   recodage, qui capterait des lignes sans réimport et contredirait le Vérif de WF-DAT-0060.
 - **Le Kanban se mesure avant de se fenêtrer** (#646) : `listStartableTasks` et l'écran sur les
   mille tâches de PRJ-001, contre le service, relevés sur la pull request ; sous la borne `WORKING`,
@@ -666,6 +668,27 @@ tâches et ses lignes par l'interface, des lignes de coût chargées, l'horloge 
 par règle d'ensemble : deux réestimations d'une même ligne, deux exclusions d'une même ligne, une
 application d'extraction pendant une saisie.
 
+### La préparation des imports hors verrou et la lecture figée (décisions du 2026-11-10)
+
+Trois constats sur la mécanique des échanges d'EP-06 (#2582, #2679, relevés par US-1430/L3 et L4 ;
+#2739, relevé par US-1610/L2), tranchés par l'auteur le 2026-11-10 et réalisés par un lot d'EP-09,
+après l'application des coûts réels (US-1610/L2 #2404), pour tous les formats :
+
+- **Un fichier importé se prépare hors du verrou, puis s'applique sous lui** (#2582, #2739). Le
+  protocole des formats d'US-1420 gagne une étape : `Format.prepare(content)`, appelée par la tâche
+  d'application avant tout verrou, lit le fichier et rend son modèle en mémoire ; `Format.apply`
+  reçoit ce modèle, sous les verrous du projet et de la structure, et ne fait que rejuger et
+  écrire. Les formats existants — `ms_project_schedule`, `estimate`, `actual_costs`, et `remaining`
+  s'il est déjà écrit — suivent ; un format écrit après le lot naît sous ce protocole. Écartés :
+  garder la lecture sous verrou, le défaut « travail long sous verrou » de `docs/dev/python.md` ;
+  ne préparer que les formats volumineux, deux protocoles pour une mécanique.
+- **Les tâches d'export et d'analyse lisent dans une transaction figée** (#2679) : `REPEATABLE
+  READ`, pour qu'une liaison créée entre la lecture de l'arbre et celle des liaisons ne fasse pas
+  échouer l'export ; écarté : un export qui ignore les liaisons dont une tâche manque, qui
+  rendrait un fichier incohérent sans le dire.
+- **La description d'`updateSubproject` dit le recodage** (#2421) : ce lot l'écrit au contrat,
+  sans changement de forme (« Ce que le cadrage décide »).
+
 ### Ce qu'EP-07 écrit encore
 
 Les lots d'EP-09 se livrent pendant ceux d'EP-07, et `epic/EP-09` reprend `epic/EP-07` à chaque
@@ -709,8 +732,9 @@ ce lot, ou en dépendent par son numéro :
 | le guide, la liste des entrées non rejouées | US-1480/L3 #2348 | aucun : US-1650/L3 attend #2386 d'EP-07, qui vient après |
 
 Les catalogues `messages/*.json` (hors les deux clés de #2093, qu'US-1620 corrige), `conftest.py`,
-`support.py`, `api/queries.py`, `loader.py` et `mode.ts` ne s'écrivent dans aucun des trois EPIC :
-une clé ou une fixture qui manque devient une issue.
+`support.py`, `api/queries.py`, `loader.py` et `mode.ts` ne s'écrivent dans aucun des trois EPIC —
+sauf `support.py` par le lot d'outillage des tests d'EP-07, qui le possède (décision de l'auteur du
+2026-11-10) — : une clé ou une fixture qui manque devient une issue.
 
 ### Ce que le cadrage laisse à EP-10
 

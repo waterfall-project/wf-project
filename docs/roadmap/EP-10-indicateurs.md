@@ -642,9 +642,10 @@ ce lot, ou en dépendent par son numéro :
 | `app.py`, `pyproject`, `tests/planning_support.py`, `test_registries.py`, `chronology.py`, `witness/revisions.py` (`register_revision_filler`) | US-1380/L1 #2328, fusionné avant la branche | aucun |
 
 Les catalogues `messages/*.json`, `conftest.py`, `support.py`, `api/queries.py`, `loader.py` et
-`mode.ts` ne s'écrivent dans aucun des quatre EPIC : une clé ou une fixture qui manque devient une
-issue. `platform/settings.py` (le réglage du cache) et `platform/cache.py` ne sont nommés par aucun
-lot des trois autres : EP-10 les écrit (US-1720).
+`mode.ts` ne s'écrivent dans aucun des quatre EPIC — sauf `support.py` par le lot d'outillage des
+tests d'EP-07, qui le possède (décision de l'auteur du 2026-11-10) — : une clé ou une fixture qui
+manque devient une issue. `platform/settings.py` (le réglage du cache) et `platform/cache.py` ne
+sont nommés par aucun lot des trois autres : EP-10 les écrit (US-1720).
 
 ### Ce que le cadrage laisse à EP-08
 
