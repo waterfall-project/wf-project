@@ -2,8 +2,9 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 """The database refuses what the tables of the estimate forbid, and any write of a marked revision.
 
-The constraints of the five tables of US-1490/L1 (migration 0025), one refusal each, as
-``test_database_constraints_planning.py`` tries those of EP-06; the cascade the design decides, a
+The constraints of the five tables of US-1490/L1 (migration 0025) and of the columns of a line
+US-1580/L1 adds (migration 0027), one refusal each, as ``test_database_constraints_planning.py``
+tries those of EP-06; the cascade the design decides, a
 line with its node; and the guards of the five tables, which refuse, owner included, any write of a
 row of a marked revision and any truncation, as ``test_revision_immutability.py`` tries those of the
 planning. Every row is written around the services of the modules, by the owner of the tables; the
@@ -34,6 +35,7 @@ from estimate_support import (
 from planning_support import insert_task, node_row
 from project_rows import MARKED, STAMP, insert_project, insert_revision, insert_structure
 from project_rows import projects_with_partitions as with_partitions
+from remaining_support import REVIEWED, reviewed
 from sqlalchemy import Engine, delete, func, insert, select, text, update
 from sqlalchemy.exc import DBAPIError, IntegrityError
 
@@ -190,6 +192,13 @@ TAKEN = "TAKEN"
 TASK = "TASK"
 OWN = "OWN"
 FOREIGN = "FOREIGN"
+# The remaining to commit of a line before the review (EP-09, migration 0027).
+PREVIOUS = (
+    "previous_quantity",
+    "previous_hours",
+    "previous_unit_disbursement",
+    "previous_reestimated_amount",
+)
 # A line of another kind than labour: a disbursement, neither role nor hours.
 DISBURSEMENT = {"resource_role_id": None, "hours": None, "unit_disbursement": Decimal("120.00")}
 
@@ -219,6 +228,10 @@ REFUSALS: list[Refusal] = [
     ),
     (EstimateLine, {"consumption_year": 1999}, "ck_estimate_line_consumption_year_bound"),
     (EstimateLine, {"consumption_year": 2101}, "ck_estimate_line_consumption_year_bound"),
+    *(
+        (EstimateLine, {column: Decimal(-1)}, f"ck_estimate_line_{column}_not_negative")
+        for column in PREVIOUS
+    ),
     (EstimateLine, {"lock_version": -1}, "ck_estimate_line_lock_version_not_negative"),
     (
         EstimateLine,
@@ -301,6 +314,21 @@ def test_a_line_of_labour_and_a_line_of_disbursement_of_the_project_are_written(
         (parents.reference.role, None),
         (None, parents.subproject),
     ]
+
+
+@pytest.mark.requirement("WF-DAT-0090-A")
+def test_a_line_reviewed_keeps_what_the_review_wrote_and_a_line_never_reviewed_none(
+    owner: Engine, parents: Parents
+) -> None:
+    # The six columns of EP-09 are born null, and keep what a review writes, the figures of the
+    # source copied as they were: a line of labour before the review held no disbursement.
+    bearer = Bearer(parents.project, parents.revision, parents.structure, parents.task)
+    columns = [EstimateLine.node_id, *(getattr(EstimateLine, name) for name in REVIEWED)]
+    with owner.begin() as connection:
+        never = insert_line(connection, bearer, parents.reference, rank=2)
+        connection.execute(row(EstimateLine, parents, **reviewed()))
+        held = {found[0]: tuple(found[1:]) for found in connection.execute(select(*columns))}
+    assert held == {never: (None,) * len(REVIEWED), parents.line: tuple(REVIEWED.values())}
 
 
 @pytest.mark.requirement("WF-DAT-0090-A")

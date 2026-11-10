@@ -15,7 +15,8 @@ row of a marked revision, owner included, as they do for the tasks.
 The amounts and the year of consumption of a line are kept, computed by the service in the
 transaction of what changes them (EP-07, "Ce que le cadrage décide"); its budgeted amount is null
 while the project has no reference. Its reference figures are null until the merge of an amendment
-writes them (EP-08).
+writes them (EP-08). What a review of the project writes on a line — its remaining to commit before
+it, the mark of its re-estimation and the reason sent — is null until then (EP-09).
 """
 
 from datetime import datetime
@@ -98,6 +99,12 @@ class EstimateLine(Base):
         CheckConstraint(
             f"consumption_year BETWEEN {YEARS[0]} AND {YEARS[1]}", name="consumption_year_bound"
         ),
+        # The remaining to commit before the review (EP-09, migration 0027): the source line's
+        # figures, copied as they were, which their own consistency holds.
+        _not_negative("previous_quantity"),
+        _not_negative("previous_hours"),
+        _not_negative("previous_unit_disbursement"),
+        _not_negative("previous_reestimated_amount"),
         # The questions of the reference: is a category, a role, a subproject employed? A partition
         # holds one project: its index needs the object alone.
         Index(None, "cost_category_id"),
@@ -131,6 +138,18 @@ class EstimateLine(Base):
     budgeted_amount: Mapped[Decimal | None] = mapped_column(Numeric(14, 2))
     reestimated_amount: Mapped[Decimal] = mapped_column(Numeric(14, 2))
     consumption_year: Mapped[int] = mapped_column(SmallInteger)
+    # The remaining to commit of the line in the last revision marked in the state In progress,
+    # copied at the opening of the revision (EP-09); null before the first review, and for a line
+    # created since.
+    previous_quantity: Mapped[Decimal | None] = mapped_column(Numeric(14, 4))
+    previous_hours: Mapped[Decimal | None] = mapped_column(Numeric(12, 2))
+    previous_unit_disbursement: Mapped[Decimal | None] = mapped_column(Numeric(14, 2))
+    previous_reestimated_amount: Mapped[Decimal | None] = mapped_column(Numeric(14, 2))
+    # The mark of a re-estimation, its instant: written by ``setLineRemaining`` and the import of a
+    # remaining to commit, never by the entry of the estimate nor by a copy; an amendment spares a
+    # line that bears it (EP-08). The reason sent with it, kept and served by no reading.
+    reestimated_at: Mapped[datetime | None] = mapped_column(UtcDateTime)
+    remaining_reason: Mapped[str | None] = mapped_column(Text)
     lock_version: Mapped[int] = mapped_column(Integer, server_default="0")
     created_at: Mapped[datetime] = mapped_column(UtcDateTime)
     created_by: Mapped[UUID | None] = mapped_column(

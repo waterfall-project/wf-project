@@ -31,6 +31,7 @@ from imports_trial import (
     read,
     refusal,
     run,
+    stand_in,
     stored,
     withdraw,
 )
@@ -45,7 +46,6 @@ from waterfall.api.app import create_app
 from waterfall.api.authentication import Services
 from waterfall.api.contract.models import AuditParams
 from waterfall.core.exchanges import judgments
-from waterfall.core.exchanges.interface import register_format
 from waterfall.core.exchanges.states import AWAITING_DECISION, FILE_ACCEPTED, apply_lacks
 from waterfall.core.exchanges.tables import ImportReport
 from waterfall.core.history.tables import UndoEntry
@@ -56,8 +56,6 @@ from waterfall.platform.keycloak_admin import KeycloakAdmin
 from waterfall.platform.tasks import BackgroundTask
 
 if TYPE_CHECKING:
-    from collections.abc import Iterator
-
     from openapi_core import OpenAPI
     from realm import TestRealm
     from sqlalchemy import Engine
@@ -97,12 +95,9 @@ def stage(api: ContractClient, owner: Engine, database: Database, realm: TestRea
 
 
 @pytest.fixture
-def trial() -> Iterator[TrialFormat]:
-    """Register the format of the tests for the remaining to commit, withdrawn after the test."""
-    form = TrialFormat()
-    withdrawn = register_format("remaining", form)
-    yield form
-    withdrawn()
+def trial(monkeypatch: pytest.MonkeyPatch) -> TrialFormat:
+    """Make the format of the remaining to commit act as the format of the tests, for the test."""
+    return stand_in(monkeypatch, "remaining", TrialFormat())
 
 
 @pytest.fixture
@@ -428,7 +423,8 @@ def test_an_abandonment_waits_for_the_lock_of_the_import_and_the_analysis_then_w
             assert release.wait(20)
             return super().analyse(session, target, content)
 
-    withdrawn = register_format("remaining", Slow())
+    patched = pytest.MonkeyPatch()
+    stand_in(patched, "remaining", Slow())
     try:
         import_id = opened(api, stage, *ROWS)["import_id"]
         key = stored(database, import_id).object_key
@@ -449,7 +445,7 @@ def test_an_abandonment_waits_for_the_lock_of_the_import_and_the_analysis_then_w
             analysis.result(timeout=20)
     finally:
         release.set()
-        withdrawn()
+        patched.undo()
     row = stored(database, import_id)
     assert (row.status, row.report, row.analysed_at) == ("abandoned", None, None)
     assert backups_bucket.size(key) is None
