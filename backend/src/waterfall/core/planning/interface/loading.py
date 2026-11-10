@@ -33,8 +33,13 @@ from uuid import NAMESPACE_URL, UUID, uuid5
 
 from sqlalchemy import delete, insert
 
-from waterfall.core.planning.carrying import bearing
-from waterfall.core.planning.interface.facets import FacetCreation, FacetWrite, facets
+from waterfall.core.planning.carrying import borne
+from waterfall.core.planning.interface.facets import (
+    FacetCreation,
+    FacetWrite,
+    calendars_of,
+    facets,
+)
 from waterfall.core.planning.interface.progress import ProgressLoad, load_progress
 from waterfall.core.planning.rescheduling import Holding, replayed
 from waterfall.core.planning.scheduling import WorkInstant
@@ -396,11 +401,16 @@ def load_line_nodes(
             session.execute(insert(Node), made)
     session.flush()
     hooks = facets()[LINE]
-    bearers: dict[UUID, BearingTask] = {}
+    # The tasks that bear a line, told of once, before any facet is written: their calendars read
+    # together, which, read task by task, were a third of the loading of the lines (#2716).
+    borne_by = {tasks[each.task_lineage_id] for each, _ in laid}
+    calendars = calendars_of(session, project_id, borne_by)
+    bearers: dict[UUID, BearingTask] = {
+        task_id: borne(tree, task_id, calendars[task_id], is_main=facts.is_main)
+        for task_id in borne_by
+    }
     for each, rank in laid:
         task_id = tasks[each.task_lineage_id]
-        if task_id not in bearers:
-            bearers[task_id] = bearing(session, project_id, tree, task_id, is_main=facts.is_main)
         if each.node_id in held:
             node = tree.nodes[each.node_id]
             node.parent_id, node.rank = task_id, rank

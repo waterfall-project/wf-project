@@ -24,6 +24,7 @@ from uuid import UUID
 import pytest
 from installed_reference import install
 from sqlalchemy import func, select
+from sqlalchemy.orm import Session
 from test_witness import load, wipe
 from test_witness_projects import (
     PRJ_001,
@@ -36,6 +37,7 @@ from test_witness_projects import (
 from test_witness_tasks import REVISIONS, structure_of
 
 from waterfall.core.estimate.interface import LineEntry, LineLoad, load_lines
+from waterfall.core.estimate.recalling import recalled, remembering, remembers
 from waterfall.core.estimate.tables import EstimateLine, RevisionRate
 from waterfall.core.planning.interface import Place
 from waterfall.core.planning.tables import Node
@@ -45,7 +47,6 @@ from waterfall.platform.audit import Act
 
 if TYPE_CHECKING:
     from sqlalchemy import Engine
-    from sqlalchemy.orm import Session
     from support import Logs
 
     from waterfall.platform.database import Database
@@ -503,3 +504,22 @@ def test_a_line_that_names_a_task_the_structure_does_not_hold_stops_the_loading(
         stray = replace(load_of(line), task_lineage_id=UUID(int=7))
         with pytest.raises(ValueError, match="tasks the structure does not hold"):
             load_lines(session, Place(PRJ_001, REVISION_102, structure), (stray,), Act(None, LATER))
+
+
+def test_a_load_of_lines_reads_the_reference_once_and_the_api_every_time() -> None:
+    # What the lines of a load name of the reference is read once for them all (#2716); outside a
+    # load, as the API writes a line, it is read afresh each time, and nothing is left behind.
+    reads: list[str] = []
+
+    def read() -> str:
+        reads.append("read")
+        return f"rate {len(reads)}"
+
+    with Session() as session:
+        assert [recalled(session, "rate", read) for _ in range(2)] == ["rate 1", "rate 2"]
+        with remembering(session):
+            assert remembers(session)
+            assert [recalled(session, "rate", read) for _ in range(3)] == ["rate 3"] * 3
+            assert recalled(session, "other", read) == "rate 4"
+        assert not remembers(session)
+        assert recalled(session, "rate", read) == "rate 5"

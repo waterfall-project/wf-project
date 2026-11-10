@@ -315,24 +315,16 @@ def sums_hold(
     assert body["meta"]["scheduled_at"] == instant(OPENED[102]).isoformat().replace("+00:00", "Z")
 
 
-# The whole structure of the revision in progress, read once by each process: the 5 999 nodes cost
-# the contract client some twenty seconds of validation of the answer, and three tests read them.
-# These tests only read the witness, and the day does not enter that read.
-WHOLE: dict[str, Any] = {}
-
-
 def whole_read(api: ContractClient, witness: Database, realm: TestRealm) -> Any:
-    """Read the nodes of the structure of the revision in progress, all of them, once a process."""
-    if not WHOLE:
-        with witness.transaction() as session:
-            structure = structure_of(session, REVISION_102)
-        base = f"{PROJECTS}/{PRJ_001}/revisions/{REVISION_102}/structures/{structure}/nodes"
-        # A small read first (#2711): the validation of the answer against the contract takes some
-        # twenty seconds on the 5 999 nodes once the schemas of a node have been resolved by an
-        # earlier answer of the process, and fifteen times as much (306 s measured) on the first.
-        read(api, witness, realm, f"{base}{READS['nodes_estimate']}")
-        WHOLE["body"] = read(api, witness, realm, base)
-    return WHOLE["body"]
+    """Read the nodes of the structure of the revision in progress, all of them."""
+    with witness.transaction() as session:
+        structure = structure_of(session, REVISION_102)
+    base = f"{PROJECTS}/{PRJ_001}/revisions/{REVISION_102}/structures/{structure}/nodes"
+    # A small read first (#2711): the validation of the answer against the contract takes some
+    # twenty seconds on the 5 999 nodes once the schemas of a node have been resolved by an earlier
+    # answer of the process, and fifteen times as much (306 s measured) on the first.
+    read(api, witness, realm, f"{base}{READS['nodes_estimate']}")
+    return read(api, witness, realm, base)
 
 
 @pytest.mark.parametrize("name", list(READS))
@@ -416,20 +408,22 @@ INDICATORS = {
 }
 
 
-def volume_excess(api: ContractClient, witness: Database, realm: TestRealm) -> Decimal:
+def volume_excess(witness: Database) -> Decimal:
     """Give how much more the lines of the revision in progress cost than the example's, in all.
 
     The lines on two years, spread by the service, and the provision the witness lacks (EP-08),
-    which the example sums: the difference of the re-estimated amounts of the lines they share.
+    which the example sums: the difference of the re-estimated amounts of the lines they share. The
+    lines are those the database holds, which the read of the structure compares with the example
+    (``test_the_estimate_read_of_the_loaded_witness_is_the_example_but_for_what_it_does_not_reach``):
+    read through the API, their 5 999 nodes would cost each process some twenty seconds (#2716).
     """
-    got = keyed(whole_read(api, witness, realm)["items"])
+    with witness.transaction() as session:
+        ours = {str(node.id): facet for node, facet in line_rows(session, REVISION_102).values()}
     wanted = keyed(example("volume/nodes_thousand")["items"])
     return sum(
         (
-            Decimal(item["estimate_line"]["reestimated_amount"])
-            - Decimal(wanted[key]["estimate_line"]["reestimated_amount"])
-            for key, item in got.items()
-            if item["kind"] == "estimate_line"
+            facet.reestimated_amount - Decimal(wanted[key]["estimate_line"]["reestimated_amount"])
+            for key, facet in ours.items()
         ),
         Decimal(0),
     ) - Decimal(wanted[PROVISION]["estimate_line"]["reestimated_amount"])
@@ -451,7 +445,7 @@ def test_the_indicators_are_the_example_but_for_the_provisions_and_the_reference
     # The total is the lines', the example's but for its provision and the lines on two years: the
     # difference is exactly that of the lines read.
     ours, theirs = Decimal(body["total"]["value"]), Decimal(expected["total"]["value"])
-    assert ours - theirs == volume_excess(api, witness, realm)
+    assert ours - theirs == volume_excess(witness)
     assert body["by_work_package"][0]["amount"]["value"] == "2434.56"
     for dimension in ("by_cost_type", "by_subproject"):
         assert sum(Decimal(each["amount"]["value"]) for each in body[dimension]) == ours
@@ -705,10 +699,12 @@ def test_the_amount_deltas_of_the_whole_comparison_are_the_lines_of_the_two_revi
     # deltas are the amounts of the lines of the 101 less those of the 100, summed by key straight
     # from the rows; the example's differ by the lines on two years (re-estimated), the reference
     # (budgeted) and the provision the witness lacks (EP-08), the nature of which is absent. The
-    # budgeted deltas are held to the sum by subproject equal to the sum by nature (#1752).
+    # budgeted deltas are held to the sum by subproject equal to the sum by nature (#1752). The
+    # nodes reduced to their kind: the deltas are those of the whole comparison, which the fields
+    # do not reduce, and its 10 000 nodes in full cost some twenty seconds of validation (#2716).
     url = (
         f"{PROJECTS}/{PRJ_001}/revisions/comparison?from_revision_id={REVISION_100}"
-        f"&to_revision_id={REVISION_101}"
+        f"&to_revision_id={REVISION_101}&fields=kind"
     )
     body = read(api, witness, realm, url)
     expected = example("volume/comparison_volume")

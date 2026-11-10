@@ -20,6 +20,7 @@ from decimal import Decimal
 from typing import TYPE_CHECKING
 
 from waterfall.core.estimate.reading import budgeted_of, rows_of
+from waterfall.core.estimate.recalling import remembering
 from waterfall.core.estimate.writing import HoursJudged
 from waterfall.core.planning.interface import LineNodeLoad, lines_of_revision, load_line_nodes
 from waterfall.core.projects.interface import project_facts
@@ -77,8 +78,9 @@ def load_lines(session: Session, place: Place, lines: tuple[LineLoad, ...], act:
 
     A line created is judged as a creation is, but for the hours of its task, judged by the
     engine on the structure the whole description leaves (``HoursJudged``): the roles of a task
-    given one by one would be refused against a structure half written. A line kept is changed in
-    place. The budgeted amounts are then those of the lineage in the reference revision.
+    given one by one would be refused against a structure half written. What the lines name of the
+    reference is read once for them all (``remembering``). A line kept is changed in place. The
+    budgeted amounts are then those of the lineage in the reference revision.
     """
     nodes = tuple(
         LineNodeLoad(
@@ -91,5 +93,6 @@ def load_lines(session: Session, place: Place, lines: tuple[LineLoad, ...], act:
         )
         for each in lines
     )
-    load_line_nodes(session, place, nodes, act)
+    with remembering(session):
+        load_line_nodes(session, place, nodes, act)
     _budgeted(session, place.project_id, place.revision_id)
