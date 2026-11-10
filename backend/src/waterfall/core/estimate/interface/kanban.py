@@ -5,21 +5,28 @@
 ``open_lines`` answers the question the planning asks when it reads a tree — before it completes a
 summary task, reads one, or makes a leaf of it —: which of these tasks bear an own line, not a
 provision, whose remaining is not zero (``register_open_lines``, which US-1590/L1 declares in the
-planning and fills with it at the import of this interface). ``startable_tasks`` reads the tasks of
-the main structure of the current revision of a project in three columns, each card with its
-gestures — those the planning gives (``progress_commands``, of the type it declares,
-``KanbanCommandAvailability``, #2714) — and the conditions of the re-estimation
-(``listStartableTasks``, US-1590/L2), which EP-10 reads too (EP-09, "Le Kanban et les lignes
-propres").
+planning and fills with it at the import of this interface). ``startable_tasks``
+(``listStartableTasks``, US-1590/L2) reads the tasks of the main structure of the current revision
+of a project in three columns, each card with its gestures (``progress_commands``, #2714) and the
+conditions of the entry of the remaining to commit, which EP-10 reads too (EP-09, "Le Kanban et
+les lignes propres").
 
 Declared by US-1580/L1 with their arguments and their results, which EP-10 reads; ``open_lines``
-filled by US-1590/L1, ``startable_tasks`` by US-1590/L2, which lives in ``remaining.kanban`` with
-the types of its result, and which this interface re-exports.
+filled by US-1590/L1; ``startable_tasks`` and the types of its result are computed in
+``remaining/kanban.py`` (US-1590/L2), which this interface re-exports.
 """
 
 from typing import TYPE_CHECKING
 
 from waterfall.core.estimate.remaining import reviewing
+from waterfall.core.estimate.remaining.kanban import (
+    KanbanTask,
+    NotStartedTask,
+    StartableTasks,
+    startable_tasks,
+)
+
+__all__ = ["KanbanTask", "NotStartedTask", "StartableTasks", "open_lines", "startable_tasks"]
 
 if TYPE_CHECKING:
     from collections.abc import Mapping, Sequence

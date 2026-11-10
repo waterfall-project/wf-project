@@ -201,9 +201,22 @@ from waterfall.core.estimate.interface.indicators import (
     missing_rates as missing_rates,
 )
 
-# ``kanban`` (US-1580/L1; US-1590): the lines that hold a task open, the board of the tasks.
+# ``kanban`` (US-1580/L1; US-1590/L1, US-1590/L2): the lines that hold a task open, and the board
+# of the tasks, which ``remaining/kanban.py`` computes and this module re-exports.
+from waterfall.core.estimate.interface.kanban import (
+    KanbanTask as KanbanTask,
+)
+from waterfall.core.estimate.interface.kanban import (
+    NotStartedTask as NotStartedTask,
+)
+from waterfall.core.estimate.interface.kanban import (
+    StartableTasks as StartableTasks,
+)
 from waterfall.core.estimate.interface.kanban import (
     open_lines as open_lines,
+)
+from waterfall.core.estimate.interface.kanban import (
+    startable_tasks as startable_tasks,
 )
 
 # ``lines`` (US-1490/L1; US-1490/L3, US-1570): a line changed, the question of the designation.
@@ -331,18 +344,6 @@ from waterfall.core.estimate.reading import (
 )
 from waterfall.core.estimate.reading import (
     LineView as LineView,
-)
-from waterfall.core.estimate.remaining.kanban import (
-    KanbanTask as KanbanTask,
-)
-from waterfall.core.estimate.remaining.kanban import (
-    NotStartedTask as NotStartedTask,
-)
-from waterfall.core.estimate.remaining.kanban import (
-    StartableTasks as StartableTasks,
-)
-from waterfall.core.estimate.remaining.kanban import (
-    startable_tasks as startable_tasks,
 )
 
 # ``repricing`` (US-1500/L2): a current revision priced again after a rate of the reference.
