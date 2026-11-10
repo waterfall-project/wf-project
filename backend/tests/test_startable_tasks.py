@@ -22,7 +22,7 @@ import pytest
 from estimate_support import Costing, Lines, costing
 from history_support import link
 from nodes_support import Tree, put_risk, refusal
-from planning_support import DAY
+from planning_support import DAY, give_a_task
 from projects_support import PROJECTS, READING, Scene, person, put_in_state
 from projects_support import scene as make_scene
 from remaining_support import Review, in_progress, line_named, review_marked, task_named
@@ -34,6 +34,7 @@ from waterfall.core.estimate.interface import (
     StartableTasks,
     startable_tasks,
 )
+from waterfall.core.estimate.remaining import kanban
 from waterfall.core.estimate.remaining.kanban import ENTRY_CONDITIONS
 from waterfall.core.estimate.tables import EstimateLine
 from waterfall.core.revisions.commands import RevisionState, structure_commands_of
@@ -43,6 +44,7 @@ from waterfall.platform.tasks import submit
 if TYPE_CHECKING:
     from realm import TestRealm
     from sqlalchemy import Engine
+    from sqlalchemy.orm import Session
     from support import ContractClient
 
     from waterfall.platform.database import Database
@@ -553,6 +555,38 @@ def test_the_kanban_reads_the_tasks_in_a_number_of_statements_that_no_task_chang
     large = statements(held.tree)
     assert large == small, (small, large)
     assert large <= BOUND, large
+
+
+@pytest.mark.requirement("WF-RAE-0030-A")
+def test_a_task_created_while_the_kanban_is_read_is_not_read_and_the_next_reading_has_it(
+    api: ContractClient, stage: Scene, costs: Costing, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # The Kanban reads the nodes, the tasks that bear a line and the gestures in a transaction
+    # frozen at its first read (#2800, #2679): a task committed between the reading of the nodes
+    # and that of the lines is in none of them, so no card is made of two moments.
+
+    def build(tree: Tree, lines: Lines) -> None:
+        lines.made(tree.made("Départ"), **material(costs, "Ligne de départ", "10"))
+
+    held = in_progress(api, stage, build)
+    revision_id = UUID(held.tree.revision["revision_id"])
+    before = labels(board(held.tree))
+    reading = kanban.bearing_tasks
+    created: list[UUID] = []
+
+    def meanwhile(session: Session, project_id: UUID, structure_id: UUID) -> Any:
+        with stage.database.engine.begin() as connection:
+            created.append(give_a_task(connection, revision_id))
+        return reading(session, project_id, structure_id)
+
+    monkeypatch.setattr(kanban, "bearing_tasks", meanwhile)
+    during = board(held.tree)
+    monkeypatch.undo()
+    assert created
+    assert labels(during) == before
+    after = board(held.tree)
+    assert len(after["not_started"]) == len(before["not_started"]) + 1
+    assert str(created[0]) in {card["node_id"] for card in after["not_started"]}
 
 
 def grow(held: Review, costs: Costing, first: int, count: int) -> None:
