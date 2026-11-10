@@ -9,8 +9,11 @@ import { randomBytes } from "node:crypto";
 
 import { type APIRequestContext, type Browser, expect, type Page } from "@playwright/test";
 
+import type { components } from "../src/api/generated/schema";
 import { openHydrated, WORKING } from "./hydration";
 import { ADMINISTRATOR, API, frontToken, type LocalPerson } from "./service/realm";
+
+type Schemas = components["schemas"];
 
 /** What a path keeps of the project it created: the address of its screen, and its label. */
 export interface OwnProject {
@@ -119,7 +122,7 @@ export async function attachToService(
   const headers = { Authorization: `Bearer ${await frontToken(browser, ADMINISTRATOR)}` };
   const read = await calls.get(`${API}/users/${account.id}`, { headers });
   expect(read.status(), "GET user").toBe(200);
-  const { lock_version } = (await read.json()) as { lock_version: number };
+  const { lock_version } = (await read.json()) as Schemas["User"];
   const attached = await calls.patch(`${API}/users/${account.id}`, {
     headers,
     data: { org_node_id: service.node.id, lock_version },
@@ -140,18 +143,14 @@ export async function renameAccount(
   const headers = { Authorization: `Bearer ${await frontToken(browser, ADMINISTRATOR)}` };
   const read = await calls.get(`${API}/users/${account.id}`, { headers });
   expect(read.status(), "GET user").toBe(200);
-  const { lock_version, first_name, last_name } = (await read.json()) as {
-    lock_version: number;
-    first_name: string;
-    last_name: string;
-  };
-  const renamed = `${last_name}-${randomBytes(4).toString("hex")}`;
+  const { lock_version, first_name, last_name } = (await read.json()) as Schemas["User"];
+  const renamed = `${last_name ?? ""}-${randomBytes(4).toString("hex")}`;
   const written = await calls.patch(`${API}/users/${account.id}`, {
     headers,
     data: { last_name: renamed, lock_version },
   });
   expect(written.status(), "PATCH user name").toBe(200);
-  return { ...account, name: `${first_name} ${renamed}` };
+  return { ...account, name: `${first_name ?? ""} ${renamed}` };
 }
 
 /**

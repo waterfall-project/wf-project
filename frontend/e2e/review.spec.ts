@@ -17,6 +17,7 @@ import catalogue from "../messages/fr.json" with { type: "json" };
 import type { Locale } from "../src/i18n/locale";
 import { columnsOf } from "./columns";
 import { compile } from "./compile";
+import { freshContext } from "./fresh-context";
 import { WORKING } from "./hydration";
 import { rowAt } from "./scroll";
 
@@ -295,7 +296,7 @@ for (const language of [FRENCH, ENGLISH]) {
 
 /** A page of a browser of its own, asking for a language. */
 async function pageIn(browser: Browser, language: Language): Promise<Page> {
-  const context = await browser.newContext({
+  const context = await freshContext(browser, {
     locale: language.locale,
     timezoneId: language.timezoneId,
   });

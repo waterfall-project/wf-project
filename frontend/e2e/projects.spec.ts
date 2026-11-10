@@ -873,6 +873,9 @@ test("a labour line of a role of a service proposes the accounts of the service 
     // Read anew, the service kept both and proposes this account no more.
     await page.reload();
     await expect(grid.getByRole("row").last()).toHaveText("2 contributeurs", { timeout: WORKING });
+    // The account is inscribed — in the grid of the contributors, drawn once the list is read — and
+    // no longer proposed; the absence alone would also hold before the proposals are drawn (#2673).
+    await expect(grid.getByRole("row").filter({ hasText: other.name })).toHaveCount(1);
     await expect(proposed.filter({ hasText: other.name })).toHaveCount(0);
   } finally {
     await calls.dispose();

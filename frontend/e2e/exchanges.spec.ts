@@ -158,7 +158,8 @@ test("exports the planning as MS Project XML, downloads it once, and imports it 
   // the planning and imports the MS Project file back, to the report, on a project it created.
   // The project manager account reaches the exchange screen; an export downloaded to the end is no
   // longer available (WF-DAT-0120-A); the report of the analysis of the planning imported back shows no
-  // difference of dates or durations. The full round trip is proved by the back's `test_msproject_export.py`.
+  // difference of dates or durations; the import confirmed is applied, its task followed in the shell.
+  // The full round trip is proved by the back's `test_msproject_export.py`.
   test.skip(
     !inService,
     "the service keeps the file made and the import applied, the fake back not",
@@ -223,6 +224,7 @@ test("exports the planning as MS Project XML, downloads it once, and imports it 
   });
   await form.getByRole("button", { name: "Analyser le fichier" }).click();
   await expect(page).toHaveURL(/[?&]import=[0-9a-f-]{36}/, { timeout: WORKING });
+  const opened = new URL(page.url()).searchParams.get("import") ?? "";
   const report = page.getByRole("region", {
     name: `Compte rendu de l’import « ${download.suggestedFilename()} »`,
   });
@@ -238,6 +240,25 @@ test("exports the planning as MS Project XML, downloads it once, and imports it 
   await expect(
     report.getByRole("table", { name: "Tâches datées autrement par le fichier" }),
   ).toHaveCount(0);
+
+  // Confirmed, the application is a task followed in the shell, to its success (WF-INTF-0010-A: the
+  // account leads the flow to its end, #2683), and the service holds the import applied.
+  await report.getByRole("button", { name: "Appliquer l’import" }).click();
+  const confirmation = report.getByRole("form", { name: "Confirmation de l’application" });
+  await confirmation.getByRole("button", { name: "Confirmer l’application" }).click();
+  await expect(confirmation).toHaveCount(0);
+  await page.getByRole("button", { name: /^Tâches et messages\s:/ }).click();
+  const application = tasks
+    .getByRole("listitem")
+    .filter({ hasText: `Application d’un import « ${download.suggestedFilename()} »` });
+  await expect(application.getByText("Réussie")).toBeVisible({ timeout: WORKING });
+  await page.keyboard.press("Escape");
+  const address = `${API}/projects/${seeded.ids.project}/imports/${opened}`;
+  await expect(async () => {
+    const applied = await request.get(address, { headers: seeded.headers });
+    expect(applied.status(), "GET import").toBe(200);
+    expect(((await applied.json()) as { status: string }).status).toBe("applied");
+  }).toPass({ timeout: WORKING });
 });
 
 test("exports the estimate as an Excel file, downloads it, sees a file that is no estimate refused, then imports the file back in two steps — the report without a difference, the application confirmed and followed in the shell, the lines identical — as the project manager of the run @shared [WF-INTF-0070-A] [WF-INTF-0110-A]", async ({
