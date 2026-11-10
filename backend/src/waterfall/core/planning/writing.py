@@ -32,6 +32,7 @@ from waterfall.core.planning.snapshotting import taken
 from waterfall.core.planning.tree import read_links, read_tree
 from waterfall.core.planning.views import NodeView, Reading, ScheduleView
 from waterfall.core.projects.interface import (
+    NO_BACKGROUND_TASK_RUNNING,
     PROJECT_NOT_TERMINAL,
     TERMINAL,
     no_background_task_running,
@@ -41,7 +42,7 @@ from waterfall.core.revisions.interface import (
     revision_draft,
     structure_facts,
 )
-from waterfall.platform.errors import ConflictError, NotFoundError
+from waterfall.platform.errors import STATE_FORBIDS_OPERATION, ConflictError, NotFoundError
 
 if TYPE_CHECKING:
     from collections.abc import Collection, Generator
@@ -56,8 +57,6 @@ if TYPE_CHECKING:
     from waterfall.platform.audit import Act
 
 NOT_FOUND = "NOT_FOUND"
-STATE_FORBIDS_OPERATION = "STATE_FORBIDS_OPERATION"
-NO_BACKGROUND_TASK_RUNNING = "no_background_task_running"
 
 
 @dataclass(frozen=True, slots=True)

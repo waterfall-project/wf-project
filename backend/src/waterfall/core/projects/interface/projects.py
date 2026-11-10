@@ -50,6 +50,7 @@ from waterfall.core.users.interface import inscribed_actor
 from waterfall.platform.audit import AuditObject, AuditProject, Inscription, record
 from waterfall.platform.database import contains, unique_violated
 from waterfall.platform.errors import (
+    STATE_FORBIDS_OPERATION,
     ConflictError,
     FieldError,
     NotFoundError,
@@ -76,7 +77,6 @@ VALIDATION_FAILED = "VALIDATION_FAILED"
 VALUE_OUT_OF_RANGE = "VALUE_OUT_OF_RANGE"
 ALREADY_EXISTS = "ALREADY_EXISTS"
 STALE_LOCK_VERSION = "STALE_LOCK_VERSION"
-STATE_FORBIDS_OPERATION = "STATE_FORBIDS_OPERATION"
 REFERENCE_INCOMPLETE = "REFERENCE_INCOMPLETE"
 # The unique index of the code of a project (migration of the tables of the projects).
 CODE_INDEX = "uq_project_code"

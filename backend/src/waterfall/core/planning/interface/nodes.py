@@ -64,6 +64,7 @@ from waterfall.core.planning.writing import (
 )
 from waterfall.core.projects.interface import work_breakdown_items
 from waterfall.platform.errors import (
+    STATE_FORBIDS_OPERATION,
     ConflictError,
     FieldError,
     NotFoundError,
@@ -93,7 +94,6 @@ UNKNOWN_TASK = "UNKNOWN_TASK"
 NODE_CYCLE = "NODE_CYCLE"
 NODE_NOT_SIBLING = "NODE_NOT_SIBLING"
 MILESTONE_HAS_NO_SUBTASK = "MILESTONE_HAS_NO_SUBTASK"
-STATE_FORBIDS_OPERATION = "STATE_FORBIDS_OPERATION"
 TASK_NOT_STARTED = "task_not_started"
 
 

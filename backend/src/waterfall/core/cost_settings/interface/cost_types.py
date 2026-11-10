@@ -30,7 +30,6 @@ from waterfall.core.cost_settings.interface.cost_categories import (
     role_refusal,
 )
 from waterfall.core.cost_settings.records import (
-    STATE_FORBIDS_OPERATION,
     Audit,
     Page,
     already_exists,
@@ -44,7 +43,7 @@ from waterfall.core.cost_settings.records import (
 from waterfall.core.cost_settings.tables import CostCategory, CostType
 from waterfall.core.resource_settings.interface import lock_reference
 from waterfall.platform.database import contains, unique_violated
-from waterfall.platform.errors import ConflictError
+from waterfall.platform.errors import STATE_FORBIDS_OPERATION, ConflictError
 from waterfall.platform.identifiers import new_id
 
 if TYPE_CHECKING:

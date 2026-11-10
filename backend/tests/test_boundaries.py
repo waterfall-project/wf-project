@@ -788,3 +788,28 @@ def test_the_package_itself_keeps_its_contracts() -> None:
         check=False,
     )
     assert result.returncode == 0, result.stdout
+
+
+# A code, a condition or a set of states several modules judge by, and the one module that declares
+# it: the others import it from that module (its interface, for a module of the core), never copy
+# it (#2471, #2555).
+SHARED = {
+    "STATE_FORBIDS_OPERATION": "platform/errors.py",
+    "BEFORE_IN_PROGRESS": "core/projects/commands.py",
+    "NO_BACKGROUND_TASK_RUNNING": "core/projects/commands.py",
+    "PROJECT_NOT_TERMINAL": "core/projects/commands.py",
+    "TERMINAL": "core/projects/commands.py",
+}
+
+
+def test_a_name_several_modules_judge_by_is_declared_by_the_one_that_owns_it() -> None:
+    # A detail of the code, which reprises no Vérif: it cites no requirement.
+    package = Path(cast("str", importlib.import_module("waterfall").__file__)).parent
+    declared: dict[str, set[str]] = {name: set() for name in SHARED}
+    for path in sorted(package.rglob("*.py")):
+        for statement in ast.parse(path.read_text(encoding="utf-8")).body:
+            targets = statement.targets if isinstance(statement, ast.Assign) else []
+            for target in targets:
+                if isinstance(target, ast.Name) and target.id in SHARED:
+                    declared[target.id].add(path.relative_to(package).as_posix())
+    assert declared == {name: {owner} for name, owner in SHARED.items()}

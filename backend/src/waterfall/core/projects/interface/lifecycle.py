@@ -30,6 +30,7 @@ from waterfall.core.projects.tables import STATES, Project, ProjectStateTransiti
 from waterfall.core.users.interface import inscribed_actor
 from waterfall.platform.audit import AuditObject, AuditProject, Inscription, record
 from waterfall.platform.errors import (
+    STATE_FORBIDS_OPERATION,
     ConflictError,
     FieldError,
     NotFoundError,
@@ -61,7 +62,6 @@ NOT_FOUND = "NOT_FOUND"
 VALIDATION_FAILED = "VALIDATION_FAILED"
 VALUE_REQUIRED = "VALUE_REQUIRED"
 STALE_LOCK_VERSION = "STALE_LOCK_VERSION"
-STATE_FORBIDS_OPERATION = "STATE_FORBIDS_OPERATION"
 NO_CURRENT_REVISION = "no_current_revision"
 PROJECT_CODE_SET = "project_code_set"
 REFERENCE_DESIGNATED = "reference_revision_designated"

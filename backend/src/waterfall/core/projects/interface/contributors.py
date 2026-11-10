@@ -37,6 +37,7 @@ from waterfall.core.projects.tables import Contributor, Project
 from waterfall.core.users.interface import AccountLabel, active_accounts, read_account_labels
 from waterfall.platform.database import contains
 from waterfall.platform.errors import (
+    STATE_FORBIDS_OPERATION,
     ConflictError,
     FieldError,
     ForbiddenError,
@@ -61,7 +62,6 @@ NOT_FOUND = "NOT_FOUND"
 NOT_CONTRIBUTOR = "NOT_CONTRIBUTOR"
 NOT_PROJECT_MANAGER = "NOT_PROJECT_MANAGER"
 STALE_LOCK_VERSION = "STALE_LOCK_VERSION"
-STATE_FORBIDS_OPERATION = "STATE_FORBIDS_OPERATION"
 LAST_PROJECT_MANAGER = "LAST_PROJECT_MANAGER"
 VALIDATION_FAILED = "VALIDATION_FAILED"
 UNKNOWN_USER = "UNKNOWN_USER"

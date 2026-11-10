@@ -27,7 +27,6 @@ from waterfall.core.cost_settings.commands import (
 )
 from waterfall.core.cost_settings.interface.hourly_rates import category_is_rated
 from waterfall.core.cost_settings.records import (
-    STATE_FORBIDS_OPERATION,
     VALIDATION_FAILED,
     Audit,
     Page,
@@ -48,6 +47,7 @@ from waterfall.core.resource_settings.interface import (
 )
 from waterfall.platform.database import contains, unique_violated
 from waterfall.platform.errors import (
+    STATE_FORBIDS_OPERATION,
     ConflictError,
     FieldError,
     UnprocessableError,
