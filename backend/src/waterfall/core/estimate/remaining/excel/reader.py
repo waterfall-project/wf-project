@@ -5,10 +5,11 @@
 The header first (A1, B1, A2, B2 of the first tab: the format « Reste à engager » and a known
 version), then the date of the review in « Synthèse », then every tab of a subproject and
 « Hors sous-projet » — the tabs that are not the fixed ones — by its headers, whatever their rank:
-the columns the format does not read and the empty lines are ignored, so are the line of total
-and the note the writer sets under the table, and whatever else is typed under them is read as a
-line; a number is read in a numeric cell and a number written as text is rejected, each line read
-and each rejection named by its tab and its Excel row number (WF-INTF-0070, WF-INTF-0120,
+the columns the format does not read and the empty lines are ignored, so are the first line of
+total and the note the writer sets under the table (the first row under the total with the task
+column alone); whatever else is typed under them, a second « Total » included, is read as a line.
+A number is read in a numeric cell and a number written as text is rejected; each line read and
+each rejection is named by its tab and its Excel row number (WF-INTF-0070, WF-INTF-0120,
 WF-INTF-0130).
 The reading of the cells is the estimate's (``waterfall.core.estimate.excel.reader``); the layout
 is the writer's (``layout``), so that the workbook is read where it is written. openpyxl reads, in
@@ -18,7 +19,6 @@ lineage, the analysis and the application are US-1630/L3.
 
 from dataclasses import dataclass
 from datetime import date, datetime
-from decimal import Decimal
 from types import MappingProxyType
 from typing import TYPE_CHECKING
 
@@ -53,6 +53,7 @@ from waterfall.core.estimate.remaining.excel.layout import (
 
 if TYPE_CHECKING:
     from collections.abc import Mapping, Sequence
+    from decimal import Decimal
 
 __all__ = [
     "FILE_FORMAT_UNREADABLE",
@@ -144,24 +145,14 @@ def _review_date(rows: Sequence[Sequence[object]]) -> date | None:
         return None
 
 
-def _is_total(
-    texts: Mapping[str, str | None],
-    numbers: Mapping[str, tuple[Decimal | None, bool]],
-    sums: Mapping[str, Decimal],
-) -> bool:
-    """Tell the line of total of the table: ``Total`` under the task, nothing else read.
+def _is_total(texts: Mapping[str, str | None]) -> bool:
+    """Tell the line of total of the table: ``Total`` under the task, no role, label or lineage.
 
-    A role, a label or a lineage make it a line. Its numbers are the sums of the columns, empty,
-    zero (the sums the writer leaves uncomputed) or the sums of the lines above; any other number
-    is a line a person typed.
+    Its numbers are not looked at: the writer writes a formula whose cached value depends on the
+    filter, on the floats and on the last recalculation, so no arithmetic decides here.
     """
     others = [value for header, value in texts.items() if header != TASK_HEADER]
-    if texts[TASK_HEADER] != TOTAL_LABEL or any(value is not None for value in others):
-        return False
-    return all(
-        valid and value in {None, Decimal(0), sums[header]}
-        for header, (value, valid) in numbers.items()
-    )
+    return texts[TASK_HEADER] == TOTAL_LABEL and all(value is None for value in others)
 
 
 def _is_note(texts: Mapping[str, str | None], raws: Mapping[str, object]) -> bool:
@@ -188,7 +179,6 @@ def _read_sheet(
     lines: list[ReadRemainingLine] = []
     rejected: list[Rejection] = []
     columns: dict[str, int] | None = None
-    sums = {header: Decimal(0) for header in _NUMBER_HEADERS}
     total_seen = note_seen = False
     for number, row in enumerate(rows, start=1):
         if columns is None:
@@ -200,7 +190,7 @@ def _read_sheet(
         numbers = {header: read_number(raw) for header, raw in raws.items()}
         if _is_empty(texts, raws):
             continue
-        if _is_total(texts, numbers, sums):
+        if not total_seen and _is_total(texts):
             total_seen = True
             continue
         if total_seen and not note_seen and _is_note(texts, raws):
@@ -221,8 +211,6 @@ def _read_sheet(
         if refusals:
             rejected += refusals
             continue
-        for header, (value, _) in numbers.items():
-            sums[header] += value or Decimal(0)
         lines.append(
             ReadRemainingLine(
                 sheet=name,

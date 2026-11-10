@@ -411,14 +411,13 @@ def test_a_total_that_carries_numbers_a_role_a_label_or_a_lineage_is_not_a_total
     rows = [
         SMALL,
         ["1 A", ARCH, None, 1, None, "l-1"],
-        ["Total", None, None, 7, None, None],
         ["Total", ARCH, None, None, None, None],
         ["Total", None, "Divers", None, None, None],
         ["Total", None, None, None, None, "l-4"],
     ]
     read = read_remaining_workbook(workbook({"SP-1": rows}))
 
-    assert [line.row for line in read.lines] == [2, 3, 4, 5, 6]
+    assert [line.row for line in read.lines] == [2, 3, 4, 5]
     assert read.rejected == ()
 
 
@@ -429,3 +428,32 @@ def test_a_workbook_without_any_tab_of_lines_is_read_empty() -> None:
 
     assert read.lines == ()
     assert read.rejected == ()
+
+
+@pytest.mark.requirement("WF-INTF-0120-A")
+@pytest.mark.parametrize("cached", [Decimal(0), Decimal("1.5"), Decimal("0.30000000000000004")])
+def test_a_total_is_ignored_whatever_its_numbers(cached: Decimal) -> None:
+    """Filtered lines, a float sum or a stale cache make the cached total differ from the sum."""
+    rows = [
+        SMALL,
+        ["1 A", ARCH, None, Decimal("0.1"), None, "l-1"],
+        ["1 A", ARCH, None, Decimal("0.2"), None, "l-2"],
+        ["Total", None, None, float(cached), 99, None],
+    ]
+    read = read_remaining_workbook(workbook({"SP-1": rows}))
+
+    assert [line.row for line in read.lines] == [2, 3]
+    assert read.rejected == ()
+
+
+@pytest.mark.requirement("WF-INTF-0120-A")
+def test_a_second_total_is_read_as_a_line() -> None:
+    rows = [
+        SMALL,
+        ["1 A", ARCH, None, 1, None, "l-1"],
+        ["Total", None, None, 1, None, None],
+        ["Total", None, None, 2, None, None],
+    ]
+    read = read_remaining_workbook(workbook({"SP-1": rows}))
+
+    assert [(line.row, line.days) for line in read.lines] == [(2, D(1)), (4, D(2))]
