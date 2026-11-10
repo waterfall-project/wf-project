@@ -4109,20 +4109,30 @@ test: its message says the lock and the number of workers queued behind it (#221
 
 The bodies that are not JSON cross the proxy of the contract byte for byte (US-1550/L7, #973, #1025,
 #2687, #2695). Prism reads every body as text and rewrites every byte beyond `0x7f` as U+FFFD; two
-legs of `deploy/compose/contract-proxy.mjs`, in its container, surround it: the entrance, on the
-published port, keeps the bytes of a request whose body is not JSON and gives Prism a copy without
-the high bit, of the same length; the exit, where Prism forwards, sends the API the bytes kept, and
-keeps those of an answer that is not JSON, which the entrance gives the front in place of those Prism
-rewrote. Every exchange thus still goes through Prism, held to the contract and written to its log;
-the Content-Type of the request and that of the answer each decide for their own body, the download
-of a workbook being a GET without a body. An upload (`application/octet-stream`, a workbook, the
-parts of an archive, an image) and a download (an exported workbook, a backup archive, an avatar)
-arrive intact: `backups.spec.ts` compares each dump of the downloaded archive with the digest its
-manifest gives, then deposits it in parts of 5 MiB and restores the deposit, which the service
-verifies against the same digests; the avatar path of `service/account.spec.ts` compares the image
-read back with the one put. Set aside: sending those exchanges straight to the API, which a GET does
-not allow to decide before its answer and which would take them out of the contract; a patch of the
-compiled sources of Prism, to redo at each version.
+legs of `frontend/bench/contract-proxy.ts`, which the Node of its container runs, surround it: the
+entrance, on the published port, keeps the bytes of a request whose body is not JSON and gives Prism
+a copy without the high bit, of the same length; the exit, where Prism forwards, sends the API the
+bytes kept, and keeps those of an answer that is not JSON, which the entrance gives the front in
+place of those Prism rewrote. An answer of Prism in JSON — its refusal — passes as it is; an answer
+that is not JSON and no longer names bytes kept is refused with a 502, never given rewritten. Every
+exchange thus still goes through Prism, held to the contract and written to its log; the
+Content-Type of the request and that of the answer each decide for their own body, the download of a
+workbook being a GET without a body. The file lives in the front so that its lint, its type check
+and its tests hold it; the network guard of ESLint lets `frontend/bench/` alone call the network
+outside the generated client. Its test, `frontend/bench/contract-proxy.test.ts`, puts it between
+real `node:http` servers — a fake Prism that rewrites the bodies as Prism does and a fake API — and
+proves the round trip byte for byte, JSON and Prism's refusals given as they are, the failure of
+bytes kept too long or whose name does not come back, twenty exchanges at once, and an archive of
+more than 5 MiB cut into parts on a continuation byte (#2695). Against the service, the exported
+workbook is imported back as it is (`exchanges.spec.ts`), the avatar path of
+`service/account.spec.ts` compares the image read back with the one put, and `backups.spec.ts`
+compares each dump of the downloaded archive with the digest its manifest gives, deposits it, sees
+the service accept it with its date, then restores the backup of the list (WF-ADM-0160); the archive
+of a new installation (about 0.5 MiB) goes in a single part, and the cut into parts is proven by the
+test of the legs alone. The restoration of a deposit remains proven by the tests of the service
+(`backend/tests/test_uploads.py`). Set aside: sending those exchanges straight to the API, which a
+GET does not allow to decide before its answer and which would take them out of the contract; a
+patch of the compiled sources of Prism, to redo at each version.
 
 The second of §4.6.2 — opening a grid of a thousand tasks — is measured in
 `frontend/e2e/opening.spec.ts` (US-0110, US-0220), on the volume structure the fake back serves, for

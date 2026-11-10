@@ -1,25 +1,32 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
 /*
- * A backup taken from the screen, downloaded, deposited again and restored, against the service
+ * A backup taken from the screen, downloaded, deposited and restored, against the service
  * (US-0440): the administrator of the installation presses « Sauvegarder maintenant »; the worker
  * backs the platform up and the tracker follows the task to its end (WF-ADM-0150); the screen read
  * anew lists the backup, which the administrator downloads, then deposits as the archive of another
- * installation would be (#350), and the deposit says the date its manifest says. The deposit is then
- * restored, its identifier typed, the confirmation naming its date (WF-ADM-0160). The screen gives
- * way to that of the maintenance, every user signed out, until the restoration is done; the administrator signs in again, with the password of the backup, and finds the screen.
+ * installation would be (#350), and the deposit says the date its manifest says. The backup of the
+ * list is then restored, its identifier typed, the confirmation naming its date (WF-ADM-0160). The
+ * screen gives way to that of the maintenance, every user signed out, until the restoration is
+ * done; the administrator signs in again, with the password of the backup, and finds the screen.
  * What was written after the backup is not found any more (US-0970): a project manager of the
  * path, whose account the backup holds, marks by the worker the revision of a project it had opened
  * before the backup, and creates another project, after it; once restored, the revision is current
  * again, the version name gone, and the other project is not found.
  *
- * The archive goes through the proxy of the contract both ways byte for byte: Prism, which would
- * spoil the bytes of a body that is not JSON, is passed them by the two legs around it
- * (`deploy/compose/contract-proxy.mjs`, #1025, #2695). The archive downloaded is compared with the
- * digests its manifest gives of each dump; deposited in parts of 5 MiB, wherever a part is cut, it
- * is restored, the service verifying each dump against the same digests before any maintenance. The
- * restoration replaces the whole platform and closes every session: the path plays alone, last
- * (`playwright.config.ts`, the project `restoration`).
+ * The backup of the path is the row the list did not hold before « Sauvegarder maintenant », known
+ * by the backup its download names: a backup of a run played minutes before is never taken for it
+ * (#2751). The archive downloaded comes through the proxy of the contract byte for byte — Prism,
+ * which would spoil the bytes of a body that is not JSON, is passed them by the two legs around it
+ * (`bench/contract-proxy.ts`, #1025) —, and is compared with the digests its manifest gives of each
+ * dump. Deposited back, it is accepted and says its date; whether its dumps reach the API whole
+ * only a restoration of the deposit would say, which the path leaves to the service's own test
+ * (`test_uploads.py`): the bytes of an upload cross the legs as those of a download do. The archive
+ * of a new installation, about half a mebibyte, is deposited in one part: the cut of an archive in
+ * parts of 5 MiB, on a byte inside a character (#2695), is proven by the test of the legs
+ * (`bench/contract-proxy.test.ts`), not here. The restoration replaces the whole platform and
+ * closes every session: the path plays alone, last (`playwright.config.ts`, the project
+ * `restoration`).
  */
 import { createHash, randomBytes } from "node:crypto";
 import { readFile } from "node:fs/promises";
@@ -28,7 +35,7 @@ import { type APIRequestContext, expect, type Locator, test } from "@playwright/
 
 import type { components } from "../../src/api/generated/schema";
 import { compileAnswered } from "../compile";
-import { WORKING } from "../hydration";
+import { untilHydrated, WORKING } from "../hydration";
 import { heldToTheContract } from "./contract";
 import {
   accountAdministrator,
@@ -175,6 +182,12 @@ function expectWhole(archive: Buffer): void {
   }
 }
 
+/** The backup a link of download names, by the address it leaves for. */
+async function backupOf(link: Locator): Promise<string> {
+  const address = (await link.getAttribute("href")) ?? "";
+  return new RegExp(`^${BACKUPS}/([^/?]+)/content`).exec(address)?.[1] ?? address;
+}
+
 /**
  * Press a command that hands a task over to the tracker, on a page that may not be hydrated yet:
  * again until React answered — a press answered is never repeated, which would ask a second task.
@@ -221,6 +234,26 @@ test(
     const kept = await before.projectWithRevision(`Avant la sauvegarde ${suffix}`);
 
     await signIn(page, ADMINISTRATOR, BACKUPS);
+    // The backups the list holds before the one of the path, by the backup their download names —
+    // none, on a new installation: the row of the path is the one that is none of them, whatever
+    // its date, so that a backup of a run played minutes before is never taken for it (#2751).
+    // Read once the screen is hydrated and its grid holds its rows: read before, the list held
+    // nothing, and the row of a backup taken an hour before was taken for that of the path.
+    const grid = page.getByRole("grid", { name: "Sauvegardes" });
+    await expect(grid).toBeVisible();
+    await untilHydrated(page);
+    const downloads = grid.getByRole("link", { name: /^Télécharger la sauvegarde du / });
+    const rowsListed = async () => Number((await grid.getAttribute("aria-rowcount")) ?? "0") - 2;
+    // More than one row listed, the first is a backup whose download the grid offers; one row
+    // alone may be the notice of a list without any.
+    await expect
+      .poll(async () => (await rowsListed()) <= 1 || (await downloads.count()) > 0, {
+        timeout: WORKING,
+      })
+      .toBe(true);
+    const listed = async (): Promise<string[]> =>
+      Promise.all((await downloads.all()).map(async (link) => backupOf(link)));
+    const held = new Set(await listed());
 
     // The backup, followed by the tracker until the worker has taken and verified it.
     const followed = page.getByRole("button", { name: /^Tâches et messages\s: 1 tâche suivie/ });
@@ -230,17 +263,23 @@ test(
     await followed.click();
     await expect(entries.getByText("Réussie")).toBeVisible({ timeout: 180_000 });
     await entries.getByRole("button", { name: "Recharger l’écran" }).click();
-    const newest = page.getByRole("grid", { name: "Sauvegardes" }).getByRole("row").nth(1);
-    // Listed first, once the screen is read anew, with its date, the instant it was taken, which
-    // the browser writes in its local time — a backup of a run before may be listed until then —,
-    // and with its size.
-    const taken = newest.locator("time");
-    const instant = async () => Date.parse((await taken.getAttribute("datetime")) ?? "");
-    await expect.poll(async () => Math.abs(Date.now() - (await instant()))).toBeLessThan(240_000);
+    // Listed once the screen is read anew, with its date, the instant it was taken, which the
+    // browser writes in its local time, and with its size.
+    let taken = "";
+    await expect
+      .poll(async () => {
+        taken = (await listed()).find((backup) => !held.has(backup)) ?? "";
+        return taken;
+      })
+      .not.toBe("");
+    const newest = grid
+      .getByRole("row")
+      .filter({ has: page.locator(`a[href^="${BACKUPS}/${taken}/content"]`) });
+    await expect(newest).toHaveCount(1);
     await expect(newest).toContainText("Vérifiée");
-    await expect(taken).not.toBeEmpty();
-    const takenIso = (await taken.getAttribute("datetime")) ?? "";
-    const takenAt = Date.parse(takenIso);
+    const date = newest.locator("time");
+    await expect(date).not.toBeEmpty();
+    const takenAt = Date.parse((await date.getAttribute("datetime")) ?? "");
 
     // After the backup, the revision of the project is marked by the worker, and another project
     // is created.
@@ -265,20 +304,23 @@ test(
     });
     await deposit.getByLabel("Archive de la sauvegarde").setInputFiles(archive);
     await deposit.getByRole("button", { name: "Déposer" }).click();
-    const restore = deposit.getByRole("button", { name: "Restaurer cette sauvegarde" });
-    await expect(restore).toBeVisible({ timeout: 60_000 });
+    await expect(deposit.getByRole("button", { name: "Restaurer cette sauvegarde" })).toBeVisible({
+      timeout: 60_000,
+    });
     const deposited = await deposit.getByRole("time").getAttribute("datetime");
     expect(Date.parse(deposited ?? "")).toBe(takenAt);
 
-    // The deposit restored once its identifier is typed, the confirmation naming the date of its
-    // backup: first the restoration waiting, no one signed out yet. The service verifies each dump
-    // of the deposit against its digest before the maintenance: a byte spoiled on the way, and the
-    // restoration is refused, which the page says (`refused`, below).
+    // The backup of the list restored once its identifier is typed, the confirmation naming its
+    // date: first the restoration waiting, no one signed out yet. The deposit is left as it is,
+    // never confirmed (WF-ADM-0160: from a backup of the list, or from one copied out of the
+    // platform).
     // The date as the list writes it, read before the dialog opens: modal, it hides the page
     // behind it, the grid with it.
-    const takenText = await taken.innerText();
+    const takenText = await date.innerText();
     const confirmed = Date.now();
-    await restore.click();
+    await newest
+      .getByRole("button", { name: /^Restaurer la plateforme depuis la sauvegarde du / })
+      .click();
     const dialog = page.getByRole("dialog", { name: "Restaurer la plateforme" });
     await expect(dialog).toContainText(`sauvegarde du ${takenText}`);
     const identifier = await dialog.locator("code").innerText();
@@ -311,13 +353,14 @@ test(
     await expect(page.getByRole("grid", { name: "Sauvegardes" })).toBeVisible();
 
     // Whatever end the screen saw, the restoration took place and succeeded: the last inscription
-    // of the journal of audit is the restoration itself, of the deposit, which the service writes
+    // of the journal of audit is the restoration itself, of the backup, which the service writes
     // only once the task succeeded, the maintenance lifted after it (WF-ADM-0160). The
     // administrator, « Administrateur », reads the journal.
     await page.goto(JOURNAL);
     const last = page.getByRole("grid", { name: "Journal d’audit" }).getByRole("row").nth(1);
     await expect(last).toContainText("Restauration", { timeout: WORKING });
-    await expect(last).toContainText("Sauvegarde déposée");
+    await expect(last).toContainText("Sauvegarde");
+    await expect(last).not.toContainText("Sauvegarde déposée");
     const restoredAt = Date.parse((await last.locator("time").getAttribute("datetime")) ?? "");
     expect(restoredAt).toBeGreaterThanOrEqual(confirmed - 60_000);
 

@@ -240,18 +240,22 @@ test("exports the planning as MS Project XML, downloads it once, and imports it 
   ).toHaveCount(0);
 });
 
-test("exports the estimate as an Excel file, downloads it, sees a file that is no estimate refused, then imports the file back in two steps — the report without a difference, the application confirmed and followed in the shell, the lines identical — as the project manager of the run @shared [WF-INTF-0070-A] [WF-INTF-0080-A] [WF-INTF-0110-A]", async ({
+test("exports the estimate as an Excel file, downloads it, sees a file that is no estimate refused, then imports the file back in two steps — the report without a difference, the application confirmed and followed in the shell, the lines identical — as the project manager of the run @shared [WF-INTF-0070-A] [WF-INTF-0110-A]", async ({
   page,
   browser,
   request,
   manager,
 }) => {
+  // The criterion proper to US-1550: the screen of the exchanges imports and exports an estimate
+  // against the service, and the import in two steps is played on a project the run creates.
   // WF-INTF-0110-A: the export of the estimate is a task of the shell, its file named after the
   // revision; exported, then imported back without a change into the revision in progress, the
-  // report says no difference, and the lines are the same. WF-INTF-0080-A: the report comes before
-  // any confirmation, and the application confirmed is followed in the shell. The workbook goes to
-  // the browser and back to the API byte for byte: the proxy of the contract carries the bytes of a
-  // body that is not JSON past Prism (`deploy/compose/contract-proxy.mjs`, #2687).
+  // report says no difference, and the lines are the same. The report comes before any
+  // confirmation, and the application confirmed is followed in the shell; the lines a report
+  // rejects and the abandonment, which WF-INTF-0080-A verifies, stay with the fake back (« imports
+  // a file in two steps », above), the exported workbook having no line to reject. The workbook
+  // goes to the browser and back to the API byte for byte: the proxy of the contract carries the
+  // bytes of a body that is not JSON past Prism (`bench/contract-proxy.ts`, #2687).
   test.skip(
     !inService,
     "the service keeps the file made and the import applied, the fake back not",
