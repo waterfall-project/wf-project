@@ -114,14 +114,14 @@ def closed_again(
     """Give the summaries tasks taken away leave completed again, each in the state to keep.
 
     A summary reopened by a subordinate created or moved under it (``reopened``) lost the day its
-    own lines closed it. That subordinate deleted or moved away (``gone``), the others completed
-    and none of its own lines keeping a remaining, it is completed again at the latest of their
-    days and of the zeroing of its lines, read on the lines (``zeroed_at``; WF-PLA-0130, #2803),
-    and its facet keeps that completion as the entry that closed it did. A summary whose facet
-    keeps its completion, left without subordinate (``emptied``), or ``receiving`` the tasks moved
-    — their new parent and the summaries above it —, is not among them.
+    own lines closed it. That subordinate deleted or moved away (``gone``, a line left out), the
+    others completed and none of its own lines keeping a remaining, it is completed again at the
+    latest of their days and of the zeroing of its lines, read on them (``zeroed_at``; WF-PLA-0130,
+    #2803), and its facet keeps that completion as the entry that closed it did. A summary whose
+    facet keeps its completion, left without subordinate (``emptied``), or ``receiving`` the tasks
+    moved — their new parent and the summaries above it —, is not among them.
     """
-    left = set(gone)
+    left = {each for each in gone if each in tree.tasks}
     asked = {
         each: lines
         for each in {above for node_id in left for above in tree.ancestors(node_id)}
