@@ -512,7 +512,9 @@ worker, le chargeur — s'étend à chacun.
   sans référence), `actual_cost` par `actual_cost_by_subproject` de `costs` (les lignes suivies,
   `subproject_id` nul vers `unassigned`), `remaining` par `remaining_of_revision`, `variance` =
   budget − coût réel − reste, `is_over_budget` quand elle est négative, `zone` `alert` ou `nominal`
-  — ; `delta_to_reference` = budget de référence − (coût réel + reste), nul sans référence ;
+  — ; « nul sans référence » dit un montant zéro (`0.00`) et non un budget absent, puisque le contrat
+  exige un `Money` pour `budget` et `variance` : sans référence, la marge d'un sous-projet est
+  l'opposé de ce qu'il a engagé (#2715) ; `delta_to_reference` = budget de référence − (coût réel + reste), nul sans référence ;
   `delta_to_previous_revision` = reste courant − `remaining_of_revision` de la dernière révision
   marquée après le passage En cours, nul sans elle ; `coverage` par `register_coverage` ;
   `context` avec `is_stored` faux. Tout se calcule à la lecture ; la conservation au marquage et le
@@ -1046,7 +1048,7 @@ provision (EP-08) ; la valeur acquise (EP-10).
 
 ## US-1600 — Les indicateurs de reste à engager
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-RAE-0020-A`
 - **opérations** : `getRemainingIndicators`
 - **issue** : 2392

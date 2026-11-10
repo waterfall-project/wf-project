@@ -138,6 +138,12 @@ DATA = {
     # it (``getEstimateIndicators``, US-1510; the scope asked is ``CalculationContext.scope``).
     "ComputableAmountByKey.key": "an identifier, or a key of the ventilation",
     "ComputableAmountByKey.label": "a label",
+    # The same of the ventilations of the indicators of the remaining to commit, by nature and by
+    # subproject (``getRemainingIndicators``, US-1600).
+    "AmountByKey.key": "an identifier, or a key of the ventilation",
+    "AmountByKey.label": "a label",
+    "SubprojectBalance.key": "an identifier, or a key of the ventilation",
+    "SubprojectBalance.label": "a label",
     # The same of the differences of amounts of a comparison of two revisions (US-1530).
     "RevisionComparison.amount_deltas.key": "an identifier, or a key of the ventilation",
     "RevisionComparison.amount_deltas.label": "a label",

@@ -13,7 +13,7 @@ from dataclasses import replace
 from datetime import date
 from decimal import Decimal
 from typing import TYPE_CHECKING
-from uuid import UUID
+from uuid import UUID, uuid4
 
 import pytest
 from costs_support import cost, load_import
@@ -120,3 +120,49 @@ def test_the_actual_costs_until_a_day_sum_the_tracked_lines_of_a_scope_dated_by_
     assert until(stage, date(2026, 4, 14), PROJECT) == Decimal("1300.00")
     assert until(stage, date(2026, 3, 30), PROJECT) == Decimal(0)
     assert until(stage, april, PROJECT, elsewhere) == Decimal("9999.00")
+
+
+@pytest.mark.requirement("WF-RAE-0020-A")
+def test_the_actual_cost_by_subproject_sums_the_tracked_lines_the_project_alone_under_unassigned(
+    api: ContractClient, stage: Scene
+) -> None:
+    # « Les lignes de coût imputées au seul projet forment un ensemble hors sous-projet » : a line
+    # without a code, or with one no subproject bears, is under ``unassigned``; an excluded line
+    # enters nothing, a credit diminishes, a subproject without a line is absent, and the lines of
+    # another project are not counted.
+    project = UUID(stage.project["project_id"])
+    response = api.post(
+        f"{PROJECTS}/{project}/subprojects",
+        headers=stage.manager.headers,
+        json={"code": "SP-1", "label": "Câblage"},
+    )
+    cabling = UUID(response.json()["subproject_id"])
+    api.post(
+        f"{PROJECTS}/{project}/subprojects",
+        headers=stage.manager.headers,
+        json={"code": "SP-2", "label": "Essais"},
+    )
+    elsewhere = UUID(create(api, stage.manager, label="Autre projet")["project_id"])
+    load_import(
+        stage,
+        project,
+        [
+            dated("A", "SP-1", "1000.00", date(2026, 3, 31)),
+            dated("B", "SP-1", "-200.00", date(2026, 4, 15)),
+            dated("C", None, "300.00", date(2026, 4, 1)),
+            dated("D", "SP-9", "50.00", date(2026, 4, 30)),
+            dated("E", "SP-1", "700.00", date(2026, 4, 2)),
+        ],
+    )
+    load_import(stage, elsewhere, [dated("A", "SP-1", "9999.00", date(2026, 3, 1))])
+    with stage.owner.begin() as connection:
+        connection.execute(
+            update(CostLine)
+            .where(CostLine.project_id == project, CostLine.document_number == "E")
+            .values(is_in_tracked_scope=False, excluded_reason="Hors contrat")
+        )
+    with stage.database.transaction() as session:
+        found = actual_cost_by_subproject(session, project)
+        nothing = actual_cost_by_subproject(session, uuid4())
+    assert found == {cabling: Decimal("800.00"), UNASSIGNED: Decimal("350.00")}
+    assert nothing == {}
