@@ -827,6 +827,19 @@ Les constats qu'EP-06 laissait « à trancher », tranchés le 2026-11-10, chacu
   voit échouer.
 - **La spécification** : WF-DAT-0080-A nomme les cinq lignes techniques (#2529, porté par #2740) ;
   le Vérif de WF-PLA-0040-A nomme le refus d'un déplacement sous soi-même (#2546, porté par #2741).
+- **Les constats du lot de finitions** (décisions de l'auteur du 2026-11-10, soir), portés par la
+  vérification d'ensemble US-1480/L3 #2348 :
+  - **le projet et son lotissement naissent à `lock_version` 1** (#2762, part de `core/projects`) :
+    la création d'un projet pose 1, et le lotissement par défaut aussi, « jamais écrit » se lisant
+    alors à 1 ou par un drapeau propre ; les tests qui affirment 0 passent à 1. Les rôles
+    d'habilitation et les comptes (EP-03), qui naissent encore à 0, sont une dette hors EP-06, hors
+    de la livraison du 2026-11-13 (#2779). Écarté : un lot d'EP-04, livré, pour le projet ;
+  - **`STALE_LOCK_VERSION`, `NOT_FOUND` et `VALIDATION_FAILED` sont déclarés une seule fois**
+    (#2763), par le module qui les possède — vraisemblablement `platform/errors.py`, ces codes étant
+    transverses —, les copies remplacées par des imports, et les trois ajoutés à l'ensemble `SHARED`
+    de `test_boundaries.py` ;
+  - **`problem.test.ts` lit ses exemples sans cast** (#2764), comme celui de `NODE_CYCLE` :
+    `toMatchObject` sur ce que le test lit de l'exemple, puis un `ProblemText` littéral.
 
 ### Le front
 
