@@ -225,7 +225,7 @@ LINES_APART = {
         "editable": 2,
     },
     "volume/nodes_thousand": {
-        "budgeted": 200,
+        "budgeted": 120,
         "reestimated": 118,
         "year": 48,
         "editable": 18,

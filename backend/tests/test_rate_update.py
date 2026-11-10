@@ -525,8 +525,10 @@ def test_two_updates_of_the_rates_at_once_leave_one_refused_by_its_counter(
     def send(category: UUID) -> Any:
         return apply(api, stage, revision, category)
 
+    # Both the engineering: whichever wins writes the rate of the year, the commissioning, without
+    # one, staying projected (#2619).
     with ThreadPoolExecutor(max_workers=2) as pool:
-        answers = list(pool.map(send, [offer.engineering, offer.commissioning]))
+        answers = list(pool.map(send, [offer.engineering, offer.engineering]))
     assert sorted(answer.status_code for answer in answers) == [200, 412]
     assert counter(stage, revision) == revision["lock_version"] + 1
     origins = sorted(origin for _, origin in kept(stage, revision).values())
