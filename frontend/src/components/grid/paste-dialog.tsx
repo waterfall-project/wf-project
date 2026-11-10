@@ -12,8 +12,9 @@
  * write — the refusals of the preview, and those it adds judging the accepted rows again — is told
  * above the grid with the cell the block was pasted from and the number of rows written, the
  * refusals in a region of their own whose height is bounded, out of the alert, until the user
- * dismisses it (`PasteAppliedNotice`). The preview says how many of the rows create a task (`created`,
- * #2559), as lines under the last task on the estimate's grid (`createdLines`, #2668). A block refused before the server is asked — it would fill a column hidden or absent, or
+ * dismisses it (`PasteAppliedNotice`). The preview says how many of the rows create a task
+ * (`created`, #2559), as lines under the last task on the estimate's grid (`createdLines`,
+ * #2668). A block refused before the server is asked — it would fill a column hidden or absent, or
  * rows the grid folds, sorts or filters away — says why (`UnshownNotice`).
  */
 "use client";

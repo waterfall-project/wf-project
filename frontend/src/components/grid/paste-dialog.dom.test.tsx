@@ -160,6 +160,22 @@ describe("the report of a paste that creates tasks", () => {
     ).toContain("Appliquer le collage");
   });
 
+  it("counts the lines it creates in the singular and in English, as the estimate's grid says them [WF-IHM-0050-A]", () => {
+    const plan = { ...(example("paste_plan_creating_lines") as PastePlan), created: 1 };
+    const pasting = { block: UNKNOWN, width: 1, target: report.target, plan, applying: false };
+    const props = { onApply: vi.fn(), onAbandon: vi.fn(), onClosed: vi.fn() };
+    const { unmount } = inLanguage(<PasteDialog pasting={pasting} lines {...props} />);
+    expect(within(screen.getByRole("dialog")).getByRole("status")).toHaveTextContent(
+      "1 ligne sera créée sous la dernière tâche.",
+    );
+    unmount();
+    inLanguage(<PasteDialog pasting={pasting} lines {...props} />, "en");
+    const status = within(screen.getByRole("dialog")).getByRole("status");
+    expect(status).toHaveTextContent(/1 line will be created/);
+    expect(status).not.toHaveTextContent(/tasks? will/);
+    unmount();
+  });
+
   it("tells nothing of creation for a plan that creates none [WF-IHM-0050-A]", () => {
     const plan = example("paste_plan") as PastePlan;
     expect(plan.created).toBe(0);
