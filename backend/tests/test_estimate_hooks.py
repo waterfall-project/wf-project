@@ -17,7 +17,6 @@ import pytest
 from estimate_support import YEAR, Costing, Lines, add_role, costing
 from history_support import delete, redone, undo, undone
 from nodes_support import Tree, entries, faults, opened, refusal, signed_in
-from openapi_core.testing import MockRequest, MockResponse
 from projects_support import PROJECTS, Person, Scene
 from projects_support import scene as make_scene
 from sqlalchemy import func, select
@@ -72,25 +71,6 @@ def who(stage: Scene, realm: TestRealm) -> Person:
 def worked(role: UUID, **line: Any) -> dict[str, Any]:
     """Give a labour line of a role: one person for ten hours, unless said."""
     return {"quantity": "1", "resource_role_id": str(role), "hours": "10", **line}
-
-
-def unwalked(tree: Tree, method: str, path: str, sent: dict[str, Any]) -> Any:
-    """Send a write whose refusal names tasks, its answer validated against the contract.
-
-    ``ContractClient`` cannot walk ``Problem.params.tasks``, two objects in an ``anyOf`` (#2597):
-    the answer is validated by openapi-core, as the client does first, without that walk.
-    """
-    answer = tree.api.client.request(method, path, headers=tree.stage.manager.headers, json=sent)
-    conforming = MockResponse(
-        answer.content,
-        status_code=answer.status_code,
-        headers=dict(answer.headers),
-        content_type=answer.headers.get("content-type", "").split(";")[0],
-    )
-    tree.api.contract.validate_response(
-        MockRequest("http://testserver", method.lower(), path), conforming
-    )
-    return answer
 
 
 def marked(stage: Scene, revision: dict[str, Any], name: str) -> None:
@@ -168,11 +148,12 @@ def test_a_role_that_would_leave_its_task_without_an_hour_is_refused_naming_the_
     )
     created = {"kind": "estimate_line", "parent_id": task["node_id"]}
     sent = {**created, "estimate_line": worked(weekend)}
-    assert refusal(unwalked(tree, "POST", f"{tree.path}/nodes", sent)) == idle
+    headers = tree.stage.manager.headers
+    assert refusal(tree.api.post(f"{tree.path}/nodes", headers=headers, json=sent)) == idle
     second = lines.made(task, **worked(costs.role, label="Second"))["nodes"][0]
     path = f"{tree.path}/nodes/{second['node_id']}/estimate-line"
     changed = {"lock_version": second["lock_version"], "resource_role_id": str(weekend)}
-    assert refusal(unwalked(tree, "PATCH", path, changed)) == idle
+    assert refusal(tree.api.patch(path, headers=headers, json=changed)) == idle
     after = tree.node(task["node_id"])
     kept = ("start", "finish", "calendar_id", "calendar_hours")
     assert [after["task"][name] for name in kept] == [before["task"][name] for name in kept]
