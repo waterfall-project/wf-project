@@ -10796,6 +10796,25 @@ pour un contenu rendu qui ne change aucune forme. Le service le suit en EP-09, q
 `listStartableTasks` (WF-RAE-0030), l'état des récapitulatives en EP-06 (WF-PLA-0040) ; la carte du
 Kanban le lit sur le nouvel exemple par US-1240/L2.
 
+### Le motif d'une réestimation est rendu par la facette de la ligne (EP-09, #2420)
+
+Décision de l'auteur du 2026-11-10, par « La règle d'après le gel ». Le contrat prenait
+`RemainingUpdate.reason`, le motif libre d'une réestimation, sans qu'aucune lecture le rende : la
+revue du 2026-10-31 (F-09) l'avait laissé « accepté et ignoré », à reconsidérer en 2.0 (« Les
+mineurs de la revue du 2026-10-31 »), et la conception d'EP-09 le conserve sur la ligne
+(`estimate_line.remaining_reason`, écrasé à chaque réestimation). La décision remplace celle du
+2026-11-07 : **`EstimateLineFacet.remaining_reason`**, facultatif et nullable comme les `previous_*`
+de la même facette, rend le motif de la dernière réestimation de la ligne — nul pour une ligne
+jamais réestimée, ou réestimée sans motif —, que la grille de reste à engager peut montrer à côté
+du reste précédent (WF-RAE-0040). La description de
+`RemainingUpdate.reason` dit désormais qu'il est conservé et rendu par la facette. La version reste
+`1.0.0` : un champ facultatif ajouté à une réponse ne rompt aucune forme.
+
+Le contrat le reçoit sur `epic/EP-09`, par le lot qui écrit la réestimation, US-1580/L2 (#2399),
+avec la lecture de la facette et un test validé contre le contrat ; aucun exemple existant ne
+change, le champ facultatif y étant absent. Écarté : le retrait de `RemainingUpdate.reason`, qui
+casserait un client qui l'envoie, et la colonne avec lui.
+
 ### La liste des contributeurs bornée, la description de la révision en cours, le projet sans code du journal, les permissions de la sortie, la description de la sortie qui marque, la licence du contrat (EP-04, #2196)
 
 Décisions de l'auteur du 2026-11-07, par « La règle d'après le gel » : les revues des lots d'EP-04
