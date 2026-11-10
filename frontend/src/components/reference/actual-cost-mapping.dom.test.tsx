@@ -81,7 +81,9 @@ describe("the correspondence of the extraction of the actual costs, read", () =>
         .getAllByRole("listitem")
         .map((item) => item.textContent),
     ).toEqual(["Fournisseur", "Texte de commande"]);
-    expect(screen.getAllByRole("status")[0]).toHaveTextContent("La correspondance est complète");
+    expect(screen.getAllByRole("status")[0]).toHaveTextContent(
+      "La correspondance est complète : l’import des coûts réels n’est plus refusé pour elle, il lit les colonnes de l’extraction sous ces intitulés.",
+    );
     expect(screen.queryByRole("button")).toBeNull();
     expect(screen.queryByRole("textbox")).toBeNull();
     await expectAccessible(container);
@@ -90,7 +92,7 @@ describe("the correspondence of the extraction of the actual costs, read", () =>
   it("names, on an empty correspondence, the four columns required that have no label, the post left out, as the server computes them [WF-REF-0190-A]", () => {
     shown(empty, false);
     expect(screen.getByText(/Colonnes exigées sans intitulé/)).toHaveTextContent(
-      "Colonnes exigées sans intitulé : Élément d’OTP, N° de pièce, Date de pièce, Montant. L’import des coûts réels est refusé",
+      "Colonnes exigées sans intitulé : Élément d’OTP, N° de pièce, Date de pièce, Montant. L’import des coûts réels est refusé tant que la correspondance est incomplète.",
     );
     expect(screen.getByText("Aucune colonne conservée.")).toBeInTheDocument();
   });

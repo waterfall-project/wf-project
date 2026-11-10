@@ -1363,6 +1363,18 @@ sa première page (`sortHref`, `searchHref`). Un lien de page, comme le libellé
 la dernière adresse demandée (`usePendingLink`) ; quand elle lit les coûts autrement que la page
 montrée — un filtre ou un tri en attente —, il mène à leur première page.
 
+L'écran est servi par le service (EP-09, US-1620) : il ne porte plus de note de maquette
+(`MockupNotice`), et le filtre des lignes imputées au seul projet passe par `unassigned`, que le
+contrat accepte comme `SubprojectFilter`. `last_import_at` est la date du dernier import du projet,
+quels que soient les filtres, nulle sans import ; les trois totaux, la date et les colonnes conservées
+(`meta.passthrough_columns`) sont ceux du service, l'écran n'en calcule aucun. Le parcours
+`e2e/actual-costs.spec.ts` porte `@shared` : il se joue contre le service sur un projet que la course
+crée (#2193), les lignes que sert le faux back étant celles du témoin, que le service charge à
+US-1650. L'aide de la correspondance de l'extraction (FBS-3.1.3) dit ce que l'import en fait : refusé
+par 409 `actual_cost_mapping_complete` tant qu'elle est incomplète, 422 `FILE_FORMAT_UNREADABLE` pour
+une colonne exigée que le fichier n'a pas, les colonnes ni lues ni conservées comptées comme ignorées
+au compte rendu.
+
 ### Les écrans du référentiel
 
 Les écrans du référentiel (`frontend/src/app/reference/`, `frontend/src/components/reference/`,

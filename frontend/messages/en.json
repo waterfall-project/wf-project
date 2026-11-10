@@ -2501,7 +2501,7 @@
     "actualCostMapping": {
       "form": "Mapping of the actual cost extraction",
       "summary": "The labels under which the ERP extraction names the columns Waterfall reads, and the columns it keeps for information. A label is compared with the header of the file, and with the other labels, regardless of case, accents and spaces at the ends.",
-      "complete": "The mapping is complete: an actual cost extraction can be imported.",
+      "complete": "The mapping is complete: the import of actual costs is no longer refused for it, and it reads the columns of the extraction under these labels.",
       "missing": "{count, plural, one {Required column without a label} other {Required columns without a label}}: {columns}. The import of actual costs is refused while the mapping is incomplete.",
       "required": "(required)",
       "optional": "(optional)",

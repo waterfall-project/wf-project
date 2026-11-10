@@ -1,8 +1,10 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
-import { expect, test } from "@playwright/test";
+import { expect } from "@playwright/test";
 
 import { openHydrated, WORKING } from "./hydration";
+import { inService, test } from "./mode";
+import { createOwnProject, openRevision } from "./own-project";
 import { scrollToFoot, scrollToPosition, withinBox } from "./scroll";
 
 // The fake back serves the first example of each read: the actual costs of the project at 3 June
@@ -10,16 +12,21 @@ import { scrollToFoot, scrollToPosition, withinBox } from "./scroll";
 // them excluded, one to its sub-project, and the invoices of the twenty-one tasks drawn around
 // the core and completed (EP-14/L45a) — and the journal of its five imports, whatever the
 // filters, the sort or the page asked: the component and page tests prove what the screen asks
-// of each.
+// of each. Tagged `@shared`, the paths play against the service too (EP-09, US-1620): the lines
+// above are the witness's, whose costs the service loads at US-1650 and which no path writes
+// (#2193), so that they wait for it there, and a path of the service alone reads the screen of a
+// project the run creates.
+const BEFORE_THE_WITNESS_COSTS = "US-1650 loads the actual costs of the witness into the service";
 const PROJECT = "01926f3a-7c00-7000-8000-000000000001";
 const REVISION = "01926f3a-7c00-7000-8000-000000000102";
 const COSTS = `/projects/${PROJECT}/revisions/${REVISION}/actual-costs`;
 
-test("reads the actual costs of a project: the lines and their three totals, the last import, its journal, the sort and the filter asked of the server [WF-CRE-0040-A]", async ({
+test("reads the actual costs of a project: the lines and their three totals, the last import, its journal, the sort and the filter asked of the server @shared [WF-CRE-0040-A]", async ({
   page,
 }) => {
   // The opening and the dense grid read anew by each click, each in the bound of a grid
   // (`WORKING`): more than the thirty seconds of a test.
+  test.skip(inService, BEFORE_THE_WITNESS_COSTS);
   test.slow();
   await openHydrated(page, COSTS);
   await expect(page).toHaveTitle("Coûts réels · Modernisation du poste de commande — Waterfall");
@@ -77,9 +84,10 @@ test("reads the actual costs of a project: the lines and their three totals, the
   await expect(apply).toBeFocused();
 });
 
-test("chooses the number of rows per page of the actual costs, carried by the address and back to the first page, the rest of the query kept [WF-IHM-0060-A]", async ({
+test("chooses the number of rows per page of the actual costs, carried by the address and back to the first page, the rest of the query kept @shared [WF-IHM-0060-A]", async ({
   page,
 }) => {
+  test.skip(inService, BEFORE_THE_WITNESS_COSTS);
   test.slow();
   await openHydrated(page, `${COSTS}?in_tracked_scope=false&offset=50`);
   const size = page.getByRole("combobox", { name: "Lignes par page", exact: true });
@@ -93,9 +101,10 @@ test("chooses the number of rows per page of the actual costs, carried by the ad
   await expect(page).toHaveURL(`${COSTS}?in_tracked_scope=false&limit=100`, { timeout: WORKING });
 });
 
-test("shows a line from the list to exclude it from the tracked scope with a reason, the page read anew once the server has written it (#291) [WF-CRE-0040-A]", async ({
+test("shows a line from the list to exclude it from the tracked scope with a reason, the page read anew once the server has written it (#291) @shared [WF-CRE-0040-A]", async ({
   page,
 }) => {
+  test.skip(inService, BEFORE_THE_WITNESS_COSTS);
   test.slow();
   await openHydrated(page, COSTS);
   const grid = page.getByRole("grid", { name: "Coûts réels" });
@@ -130,4 +139,27 @@ test("shows a line from the list to exclude it from the tracked scope with a rea
   await expect(
     reception.getByRole("button", { name: "Réintégrer dans le périmètre suivi" }),
   ).toBeVisible();
+});
+
+test("reads the actual costs of a project the run creates, none imported yet: no line, null totals, no last import, an empty journal, no note of the mock-up, as the service answers @shared [WF-CRE-0040-A] [WF-CRE-0050-A]", async ({
+  page,
+}) => {
+  test.skip(!inService, "the fake back keeps nothing of the project it is asked to create");
+  test.slow();
+  const own = await createOwnProject(page, "Coûts réels");
+  await openRevision(page, own);
+  await page.goto(own.path);
+  await expect(page).toHaveURL(new RegExp(`${own.path}/revisions/[^/]+/planning$`), {
+    timeout: WORKING,
+  });
+  const revision = new URL(page.url()).pathname.replace(/\/planning$/, "");
+  await openHydrated(page, `${revision}/actual-costs`);
+  await expect(page.getByRole("region", { name: "Totaux des lignes retenues" })).toContainText(
+    "Aucun import",
+    { timeout: WORKING },
+  );
+  await expect(page.getByRole("region", { name: "Journal des imports" })).toContainText(
+    "Aucun coût réel n’a encore été importé.",
+  );
+  await expect(page.getByRole("note")).toHaveCount(0);
 });

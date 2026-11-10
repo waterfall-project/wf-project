@@ -2501,7 +2501,7 @@
     "actualCostMapping": {
       "form": "Correspondance de l’extraction des coûts réels",
       "summary": "Les intitulés sous lesquels l’extraction de l’ERP nomme les colonnes que Waterfall lit, et les colonnes qu’il conserve à titre d’information. Un intitulé se compare à l’en-tête du fichier, et aux autres intitulés, sans égard à la casse, aux accents ni aux espaces en bout.",
-      "complete": "La correspondance est complète : une extraction de coûts réels peut être importée.",
+      "complete": "La correspondance est complète : l’import des coûts réels n’est plus refusé pour elle, il lit les colonnes de l’extraction sous ces intitulés.",
       "missing": "{count, plural, one {Colonne exigée sans intitulé} other {Colonnes exigées sans intitulé}} : {columns}. L’import des coûts réels est refusé tant que la correspondance est incomplète.",
       "required": "(exigée)",
       "optional": "(facultative)",

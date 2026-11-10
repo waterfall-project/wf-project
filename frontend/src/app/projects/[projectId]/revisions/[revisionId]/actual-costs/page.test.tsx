@@ -427,10 +427,11 @@ describe("the journal of the imports, the size of the pages", () => {
   });
 });
 
-describe("the note of the fake back on the actual costs", () => {
-  it("says once, under the header, that the service does not apply filters, search, sort and pages (US-0760)", async () => {
+describe("the screen served by the service, not by the fake back", () => {
+  it("shows no note of the mock-up: its reads are filtered, sorted and paged by the service, its writes kept [WF-CRE-0040-A]", async () => {
     const page = await costsAt();
-    expect(page.match(/<p role="note"/g)).toHaveLength(1);
-    expect(page).toContain("Filters, search, sort and pages are ignored");
+    expect(page).not.toContain('role="note"');
+    expect(page).not.toContain(CATALOGUES.en.mockup.notKept);
+    expect(page).not.toContain(CATALOGUES.en.mockup.notFiltered);
   });
 });
