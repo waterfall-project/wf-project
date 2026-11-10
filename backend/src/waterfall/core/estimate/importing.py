@@ -11,8 +11,9 @@ its role or its category is read by the code between the last parentheses of the
 of « Paramètres », « label (code) », or by its code alone, the label being only indicative (#2689):
 a role renamed since the export, or the file of a marked revision imported into the current one, is
 read as it was; a category by its accounting code (WF-REF-0040, #2688); a code a role and a category
-share by the label the entry gives, else the role's (``UNKNOWN_RESOURCE_ROLE`` for none); its
-subproject by its code (``UNKNOWN_SUBPROJECT``). Each line
+share by the label the entry gives when it is that of one kind only, else by the kind of the line
+it replaces, and a new line then is rejected (``UNKNOWN_RESOURCE_ROLE``), as an entry of no
+known code is; its subproject by its code (``UNKNOWN_SUBPROJECT``). Each line
 is then judged as its entry is (``entries.judged_line``): its refusals on a field reject it, by the
 code of the field and the header of its column (``params.header``), a provision category among them
 (``PROVISION_CATEGORY_RESERVED``), and the rule of a subproject that received actual costs, which
@@ -151,17 +152,30 @@ class Aimed:
         )
 
 
+def readings(text: str) -> list[tuple[str, str | None]]:
+    """Give the ways an entry « label (code) » can be read, as (code, label), the likeliest first.
+
+    The code is the one between the parentheses that end the text (#2689): each « ( » of the text
+    from the right opens one reading, so that a code which holds parentheses is found too
+    (« Pièce (A(B)) », code « A(B) »); the text whole, as a code alone, comes last.
+    """
+    stripped = text.strip()
+    found: list[tuple[str, str | None]] = []
+    if stripped.endswith(")"):
+        openings = [at for at, each in enumerate(stripped) if each == "("]
+        found = [
+            (stripped[at + 1 : -1].strip(), stripped[:at].strip()) for at in reversed(openings)
+        ]
+    return [*found, (stripped, None)]
+
+
 def designation(text: str) -> tuple[str, str | None]:
     """Give the code an entry « label (code) » designates, and its label; a text alone, as code.
 
     The code is the one between the last parentheses that end the text (#2689); a text that does
     not end so is a code alone, without a label.
     """
-    stripped = text.strip()
-    opening = stripped.rfind("(")
-    if not stripped.endswith(")") or opening < 0:
-        return stripped, None
-    return stripped[opening + 1 : -1].strip(), stripped[:opening].strip()
+    return readings(text)[0]
 
 
 @dataclass(frozen=True, slots=True)
@@ -177,21 +191,27 @@ class Reference:
     subprojects: dict[str, UUID]
     roles_by_id: dict[UUID, RoleView]
 
-    def named(self, text: str) -> tuple[RoleView | None, CostCategoryView | None]:
+    def named(
+        self, text: str, *, labour: bool | None = None
+    ) -> tuple[RoleView | None, CostCategoryView | None]:
         """Give the role or the category a cell names, by its code; neither when none bears it.
 
-        A code a role and a category share is the category's when the label of the entry is
-        the category's and not the role's, the role's otherwise. A text that ends in parentheses
-        but whose code is none is read whole as a code, which may hold parentheses.
+        A code a role and a category share is read by the label of the entry when it is the label
+        of one of the two kinds and not of the other; else by ``labour``, the kind of the line the
+        entry replaces (true for a labour line), and for a new line, or an entry without a label
+        or with one of neither, it is neither: the entry is ambiguous. A code is looked for by
+        each reading of the text (``readings``), so that it may hold parentheses.
         """
-        code, label = designation(text)
-        codes = (code,) if label is None else (code, text.strip())
-        for each in codes:
-            role, category = self.roles.get(each), self.categories.get(each)
+        for code, label in readings(text):
+            role, category = self.roles.get(code), self.categories.get(code)
             if role is not None and category is not None:
                 if label == category.label and label != role.label:
                     return None, category
-                return role, None
+                if label == role.label and label != category.label:
+                    return role, None
+                if labour is None:
+                    return None, None
+                return (role, None) if labour else (None, category)
             if role is not None or category is not None:
                 return role, category
         return None, None
@@ -350,7 +370,10 @@ def _figure(value: Decimal | None) -> Decimal:
 
 
 def _entry(
-    line: ReadLine, reference: Reference, rejected: list[dict[str, Any]]
+    line: ReadLine,
+    reference: Reference,
+    rejected: list[dict[str, Any]],
+    current: EstimateLine | None,
 ) -> tuple[LineEntry, UUID | None] | None:
     """Give what a line sends, as its entry would; or none, its rejections added."""
     before = len(rejected)
@@ -361,7 +384,8 @@ def _entry(
             _rejection(line, VALUE_REQUIRED, {"header": reader.ROLE_OR_CATEGORY_HEADER})
         )
     else:
-        role, category = reference.named(text)
+        labour = None if current is None else current.resource_role_id is not None
+        role, category = reference.named(text, labour=labour)
         if role is None and category is None:
             rejected.append(_rejection(line, UNKNOWN_RESOURCE_ROLE, {"value": text}))
     subproject = None
@@ -495,9 +519,9 @@ def _plan(
     task = _task(line, held, designated)
     if isinstance(task, dict):
         found.rejected.append(task)
-        _entry(line, reference, found.rejected)
+        _entry(line, reference, found.rejected, current)
         return
-    sent = _entry(line, reference, found.rejected)
+    sent = _entry(line, reference, found.rejected, current)
     if sent is None:
         return
     entry, role_id = sent

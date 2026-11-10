@@ -484,6 +484,7 @@ def test_the_import_of_an_estimate_is_a_command_of_the_project_that_stays_in_pro
     assert lacking() == ["no_background_task_running", "may_create_revision"]
 
 
+@pytest.mark.requirement("WF-INTF-0100-A")
 @pytest.mark.parametrize(
     ("text", "designated"),
     [

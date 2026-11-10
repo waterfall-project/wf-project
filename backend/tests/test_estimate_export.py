@@ -829,6 +829,86 @@ def test_a_code_shared_by_a_role_and_a_category_keeps_each_line_of_its_kind(
     assert items_of(tree) == before
 
 
+def with_entry(content: bytes, lineage: str, text: str, *, lineage_kept: bool = True) -> bytes:
+    """Change the « Rôle ou catégorie » cell of a line of « Hors lot », found by its lineage.
+
+    With ``lineage_kept`` false the line loses its lineage, so that the file gives a new line.
+    """
+    book = book_of(content)
+    sheet = book["Hors lot"]
+    headers = [cell.value for cell in sheet[1]]
+    for number, row in enumerate(sheet.iter_rows(min_row=2, values_only=True), start=2):
+        if row[headers.index("ID ligne")] == lineage:
+            sheet.cell(number, headers.index("Rôle ou catégorie") + 1, text)
+            if not lineage_kept:
+                sheet.cell(number, headers.index("ID ligne") + 1).value = None
+    out = BytesIO()
+    book.save(out)
+    return out.getvalue()
+
+
+def a_tools_line(stage: Scene, held: dict[str, Any]) -> str:
+    """Add a line of the category « Outillage », accounted ING as the role is coded; its lineage."""
+    with stage.database.transaction() as session:
+        nature = session.scalars(select(CostType.id).where(CostType.code == "MAT")).one()
+        draft = CostCategoryDraft("OUT-001", "Outillage", "ING", nature)
+        tools = create_cost_category(session, draft, Act(None, utc_now())).cost_category_id
+    made = Lines(held["tree"]).made(
+        held["first"], quantity="1", cost_category_id=str(tools), unit_disbursement="12.00"
+    )
+    return str(made["nodes"][0]["lineage_id"])
+
+
+@pytest.mark.requirement("WF-INTF-0110-A")
+@pytest.mark.parametrize("text", ["Outillage (ING)", "ING"], ids=["renamed", "code-alone"])
+def test_a_shared_code_of_no_label_keeps_the_kind_of_the_line_it_replaces_or_rejects_a_new_one(
+    api: ContractClient, stage: Scene, worker: Worker, held: dict[str, Any], text: str
+) -> None:
+    # A code the role ING and the category « Outillage » share, whose label is neither the role's
+    # nor, since the category was renamed « Outils » after the export, the category's: or no label
+    # at all. The line that exists keeps its kind, a category, and is never turned into a labour
+    # line; a new line is rejected, for it gives no way to tell (#2690).
+    tools = a_tools_line(stage, held)
+    content = exported(api, stage, worker, held["tree"].revision["revision_id"])
+    with stage.owner.begin() as connection:
+        connection.execute(
+            update(CostCategory).where(CostCategory.code == "OUT-001").values(label="Outils")
+        )
+    no_difference(analysed(api, stage, worker, with_entry(content, tools, text)), 3)
+    report = analysed(api, stage, worker, with_entry(content, tools, text, lineage_kept=False))
+    assert [(each["code"], each["params"]) for each in report["rejected"]] == [
+        ("UNKNOWN_RESOURCE_ROLE", {"value": text})
+    ]
+
+
+@pytest.mark.requirement("WF-INTF-0110-A")
+def test_a_code_that_holds_parentheses_is_imported_back_by_the_export_that_wrote_it(
+    api: ContractClient, stage: Scene, worker: Worker, held: dict[str, Any]
+) -> None:
+    # The accounting code takes any character that is not blank: « 606(1) » for a category, and a
+    # role may be coded « R(1) ». The export writes « Rôle R(1) (R(1)) » and « Pièces (606(1)) »;
+    # the import finds their codes by the end of the text, and presents no difference.
+    role = add_role(stage.database, "R(1)", (8, 8, 8, 8, 8, 0, 0))
+    with stage.database.transaction() as session:
+        nature = session.scalars(select(CostType.id).where(CostType.code == "MAT")).one()
+        draft = CostCategoryDraft("PIE-001", "Pièces", "606(1)", nature)
+        parts = create_cost_category(session, draft, Act(None, utc_now())).cost_category_id
+    tree, lines = held["tree"], Lines(held["tree"])
+    lines.made(held["first"], quantity="1", resource_role_id=str(role), hours="3")
+    lines.made(held["first"], quantity="2", cost_category_id=str(parts), unit_disbursement="9.00")
+    before = items_of(tree)
+    content = exported(api, stage, worker, tree.revision["revision_id"])
+    assert [each["Rôle ou catégorie"] for each in lines_of(content, "Hors lot")][2:] == [
+        "Rôle R(1) (R(1))",
+        "Pièces (606(1))",
+    ]
+    import_id = analysed_import(api, stage, worker, content)
+    no_difference(read(api, stage, import_id)["report"], 4)
+    assert apply(api, stage, import_id).status_code == 202
+    run(worker)
+    assert items_of(tree) == before
+
+
 @pytest.mark.requirement("WF-INTF-0100-A")
 def test_an_estimate_exported_from_a_marked_revision_updates_the_current_one_creating_no_line(
     api: ContractClient, stage: Scene, worker: Worker, held: dict[str, Any], costs: Costing

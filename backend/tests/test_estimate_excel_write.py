@@ -535,6 +535,7 @@ def test_a_structure_of_tasks_without_a_line_keeps_its_tabs_and_tasks() -> None:
     assert sheet["A4"].value == "1.1 Centrale"
 
 
+@pytest.mark.requirement("WF-INTF-0110-A")
 def test_a_code_shared_by_a_role_and_a_category_writes_each_line_with_its_own_label() -> None:
     # A code of a role is unique among the roles, an accounting code among the categories, not
     # between them (#2690): the role ARCH-LOG and the category of supplies accounted ARCH-LOG keep
