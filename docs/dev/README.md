@@ -1303,7 +1303,15 @@ lists `edit_remaining` available, and refused they do not give the « Subproject
 column and the submenu are those of the estimate, described with the context menu of the cells
 (`choice-menu.tsx`). Its banner shows only the subproject, the only context parameter its readings
 take, and says that it restricts only the grid, its indicators being those of the whole project
-(`gridOnly` of `ContextBanner`, #459). The Kanban of task starts, FBS-4.5.3, is a leaf of the
+(`gridOnly` of `ContextBanner`, #459). A line that employs a reference object deactivated since
+(`uses_inactive_object`) bears the estimate's mark and stays readable (WF-REF-0010). An entry that
+completes the task — the zero remaining of its last open line — is refused by the service without
+the date (422, `COMPLETION_DATE_REQUIRED` on `/completed_on`): the grid then asks the completion date
+in a dialog (`completion-date.tsx`, the day of the workstation proposed), replays the entry at the
+same version with `completed_on`, and, the dialog left, tells the refusal at the cell. The deletion
+of a task started, refused `task_not_started`, is told in the planning, estimate and remaining
+grids with a link to the task's line in the remaining-to-commit grid of the same revision
+(`taskRemainingHref`, WF-PLA-0070). The Kanban of task starts, FBS-4.5.3, is a leaf of the
 function, `…/revisions/[r]/kanban`, where the header of the grid leads: all the non-started tasks,
 the started and the completed ones with their date, as `listStartableTasks` renders them, each a
 card, a non-started milestone whose predecessors are completed flagged to be completed

@@ -17,7 +17,7 @@
  * Pure, and neither server nor client.
  */
 import type { components } from "@/api/generated/schema";
-import { SEARCH_LENGTH } from "@/components/grid/query";
+import { SEARCH, SEARCH_LENGTH } from "@/components/grid/query";
 import type { SearchParameters } from "@/navigation/context";
 
 /** The state of a task, as the contract names it. */
@@ -120,4 +120,29 @@ export function kanbanFilterHref(
   }
   const text = next.toString();
   return text === "" ? pathname : `${pathname}?${text}`;
+}
+
+/**
+ * The address of the grid of the remaining to commit of a revision where a task refused to be
+ * deleted because it is started is brought to zero (WF-PLA-0070): a leaf task, found by its label
+ * (`search`); a summary task, none — its label is no line's, and the tasks started under it are
+ * what the grid shows by default. The grid shows the tasks started by default.
+ */
+export function taskRemainingHref(
+  projectId: string,
+  revisionId: string,
+  label: string | undefined,
+): string {
+  const path = `/projects/${projectId}/revisions/${revisionId}/remaining`;
+  if (label === undefined) {
+    return path;
+  }
+  return `${path}?${new URLSearchParams({ [SEARCH]: label.slice(0, SEARCH_LENGTH) }).toString()}`;
+}
+
+/** The day, as a date of the planning, in the time of the workstation: what a date asked proposes. */
+export function today(): string {
+  const now = new Date();
+  const two = (value: number) => value.toString().padStart(2, "0");
+  return `${now.getFullYear().toString()}-${two(now.getMonth() + 1)}-${two(now.getDate())}`;
 }

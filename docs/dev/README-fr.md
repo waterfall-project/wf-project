@@ -1298,7 +1298,15 @@ requête) ne sont lus que là où la structure liste `edit_remaining` disponible
 donnent pas le sous-menu « Sous-projet » ; la colonne et le sous-menu sont ceux du devis, décrits
 avec le menu contextuel des cellules (`choice-menu.tsx`). Son bandeau ne montre que le
 sous-projet, seul paramètre de contexte que ses lectures prennent, et dit qu'il ne restreint que la
-grille, ses indicateurs étant ceux du projet entier (`gridOnly` de `ContextBanner`, #459). Le
+grille, ses indicateurs étant ceux du projet entier (`gridOnly` de `ContextBanner`, #459). Une ligne
+qui emploie un objet du référentiel désactivé depuis (`uses_inactive_object`) porte la marque du
+devis et reste lisible (WF-REF-0010). Une saisie qui termine la tâche — le reste nul de sa dernière
+ligne ouverte — est refusée par le service sans la date (422, `COMPLETION_DATE_REQUIRED` sur
+`/completed_on`) : la grille demande alors la date de terminaison dans un dialogue (`completion-date.tsx`,
+le jour du poste proposé), rejoue la saisie à la même version avec `completed_on`, et, le dialogue
+quitté, dit le refus à la cellule. La suppression d'une tâche démarrée, refusée `task_not_started`,
+se dit dans les grilles de planning, de devis et de reste à engager avec un lien vers la ligne de la
+tâche dans la grille de reste à engager de la même révision (`taskRemainingHref`, WF-PLA-0070). Le
 Kanban du démarrage des tâches, FBS-4.5.3, est une feuille de la fonction,
 `…/revisions/[r]/kanban`, où l'en-tête de la grille mène : toutes les tâches non démarrées, les
 démarrées et les terminées avec leur date, telles que les rend

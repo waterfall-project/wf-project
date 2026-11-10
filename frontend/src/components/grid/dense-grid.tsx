@@ -845,7 +845,7 @@ function SharedGrid<Row extends RowData, Sort extends string, Totals>({
         <PasteDialog
           pasting={paste.pasting}
           waiting={paste.waiting}
-          lines={config.name === "estimate"}
+          lines={config.creates === "lines"}
           onApply={paste.apply}
           onAbandon={paste.abandon}
           onClosed={paste.refocus}
