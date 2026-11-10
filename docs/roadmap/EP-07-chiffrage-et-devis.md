@@ -586,15 +586,17 @@ chargeur — s'étend à chacun.
   ligne existante dont le taux manque après une correction du référentiel garde ses montants et
   `getMissingRates` la nomme — ce cas ne se produit que si un taux est retiré, ce que le référentiel
   ne fait pas.
-- **L'année de consommation et la projection** : `spreading` répartit les heures travaillées de
-  la tâche porteuse entre les années, sur le calendrier du rôle de la ligne (celui de la tâche
-  hors main-d'œuvre), par arithmétique sur les semaines pleines et les jours restants, sans boucle
-  sur les jours ; chaque part est projetée d'une fois le taux d'inflation par année écoulée depuis
+- **L'année de consommation et la projection** : `spreading` répartit les heures travaillées de la
+  tâche porteuse entre les années, sur le calendrier du rôle de la ligne (celui de la tâche hors
+  main-d'œuvre), par arithmétique sur les semaines pleines et les jours restants, sans boucle sur
+  les jours ; chaque part est projetée d'une fois le taux d'inflation par année écoulée depuis
   l'année de référence, et le réestimé est la somme des parts projetées, arrondie une fois au
   centime — jamais une somme de parts arrondies, pour que WF-DAT-0100 tienne sur une ligne à cheval
-  sur deux années — ; `consumption_year` est l'année de la part la plus lourde, la première à
-  égalité. Le taux d'inflation est celui du
-  projet pour la révision en cours, celui conservé pour une révision marquée.
+  sur deux années — ; une part consommée dans une année antérieure à l'année de référence garde le
+  facteur 1, aucune année ne s'étant « écoulée depuis » elle (#2545, option a ; la phrase de
+  WF-DEV-0030 proposée à la spécification par #2745) ; `consumption_year` est l'année de la part la
+  plus lourde, la première à égalité. Le taux d'inflation est celui du projet pour la révision en
+  cours, celui conservé pour une révision marquée.
 - **Une tâche sans heure travaillée** — non jalon, de plusieurs jours, dont le calendrier ne
   travaille aucune heure (du samedi au dimanche, par exemple) — n'a pas de prorata : ses lignes
   comptent entières à sa **fin**, dans la valeur planifiée comme dans l'étalement par mois, sauf fin
@@ -653,27 +655,26 @@ et `compareRevisions` (#2650) dans les critères d'US-1490 et d'US-1530, le repo
 la comparaison à US-1570/L2 et de la volumétrie à EP-13 (#2657, #2696). Les autres se corrigent par
 deux lots ajoutés à l'EPIC, avant la vérification d'ensemble US-1570/L3, qui en dépend :
 
-- **Le lot d'outillage des tests du back** possède `backend/tests/support.py` — qu'aucun lot
-  n'écrivait, hors le lot technique de #2635 (US-1550/L5), et qu'aucun autre lot des EPIC en cours
-  n'écrit (« Ce qu'EP-06 écrit encore ») — et passe en tête : les tests du back durent 14 à 15
-  minutes sous un plafond de 20.
-  `ContractClient` construit une seule fois le registre `referencing` du contrat, et la validation
-  d'une grosse réponse ne réanalyse plus le YAML à chaque `$ref` ; l'amorce de `whole_read` de
-  `test_witness_lines_reads.py` se retire (#2720). `walk()` accepte une composition dont les
-  branches objet ont des propriétés disjointes, la valeur suivant la branche dont elle porte les
-  propriétés — ce qu'US-1550/L5 a fait pour les branches fermées de `ProblemParams.tasks`, que le
-  contrat a rendues discriminables (#2635) — ; `test_estimate_hooks.py` et
-  `test_estimate_lines_move.py`, qui contournaient `ContractClient`, repassent par lui (#2597).
-  Un corps `application/xml` déclaré `binary` est
-  rendu au validateur comme des octets, et `test_msproject_export.py` repasse par `ContractClient`
-  (#2675). Le test de l'ambiguïté de `test_api_service.py` cite WF-ARC-0110-A (#2677). `make
-  service-logs` recueille aussi les journaux de `restore` et de `worker` dans
-  `.github/workflows/service.yml` (#2666). `docs/dev/python.md` reçoit la règle des stubs locaux
-  (#2599) : une bibliothèque sans stubs reçoit des stubs locaux dans `backend/typings/<paquet>/`,
-  aux signatures réelles des fonctions appelées, sauf si un paquet `types-…` publié existe, qui se
-  préfère — par ce lot, `backend/typings/` n'existant que sur `epic/EP-07`.
-- **Le lot de corrections du devis**, coupé en deux s'il dépasse la taille d'un lot (le back,
-  puis les parcours et le front) :
+- **Le lot d'outillage des tests du back** (US-1570/L4 #2746) possède `backend/tests/support.py` —
+  qu'aucun lot n'écrivait, hors le lot technique de #2635 (US-1550/L5), et qu'aucun autre lot des
+  EPIC en cours n'écrit (« Ce qu'EP-06 écrit encore ») — et passe en tête : les tests du back durent
+  14 à 15 minutes sous un plafond de 20. `ContractClient` construit une seule fois le registre
+  `referencing` du contrat, et la validation d'une grosse réponse ne réanalyse plus le YAML à chaque
+  `$ref` ; l'amorce de `whole_read` de `test_witness_lines_reads.py` se retire (#2720). `walk()`
+  accepte une composition dont les branches objet ont des propriétés disjointes, la valeur suivant
+  la branche dont elle porte les propriétés — ce qu'US-1550/L5 a fait pour les branches fermées de
+  `ProblemParams.tasks`, que le contrat a rendues discriminables (#2635) — ;
+  `test_estimate_hooks.py` et `test_estimate_lines_move.py`, qui contournaient `ContractClient`,
+  repassent par lui (#2597). Un corps `application/xml` déclaré `binary` est rendu au validateur
+  comme des octets, et `test_msproject_export.py` repasse par `ContractClient` (#2675). Le test de
+  l'ambiguïté de `test_api_service.py` cite WF-ARC-0110-A (#2677). `make service-logs` recueille
+  aussi les journaux de `restore` et de `worker` dans `.github/workflows/service.yml` (#2666).
+  `docs/dev/python.md` reçoit la règle des stubs locaux (#2599) : une bibliothèque sans stubs reçoit
+  des stubs locaux dans `backend/typings/<paquet>/`, aux signatures réelles des fonctions appelées,
+  sauf si un paquet `types-…` publié existe, qui se préfère — par ce lot, `backend/typings/`
+  n'existant que sur `epic/EP-07`.
+- **Le lot de corrections du devis**, coupé en deux : le back (US-1570/L5 #2747), puis les
+  parcours et le front (US-1570/L6 #2748) :
   - **l'arrondi au centime suit le contrat** (#2618, option 1) : `pricing.round_to_cent` passe à
     `ROUND_HALF_UP`, les exemples chiffrés relus ; écarté : `Money` réécrit au demi pair, une
     version du contrat pour un défaut de la conception ;

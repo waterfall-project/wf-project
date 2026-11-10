@@ -444,7 +444,7 @@ révisionné et son déclencheur d'immuabilité d'EP-07, qui les protège sans r
 
 | Module | Tables | Interface offerte |
 |---|---|---|
-| `waterfall.core.estimate`, sous-paquet `remaining/` (FBS-4.5) | les six colonnes nouvelles d'`estimate_line` | `set_line_remaining` (la réestimation, la mise à zéro qui termine) ; `copy_previous` (le second enregistrement de `register_copy`) ; `open_lines(task_ids)` pour le registre de `planning` ; `startable_tasks(project_id)` (le Kanban) ; `remaining_indicators(project_id, revision_id)` et `register_coverage` ; `remaining_of_revision(revision_id)` — le total et le reste par ligne des tâches non terminées, à l'état des tâches de la révision — pour les indicateurs et EP-10 ; le format et l'exporteur `remaining` ; `remaining_entry` et `previous_*` rendus par la lecture de la facette d'EP-07, que le lot de la réestimation complète après #2372 |
+| `waterfall.core.estimate`, sous-paquet `remaining/` (FBS-4.5) | les six colonnes nouvelles d'`estimate_line` | `set_line_remaining` (la réestimation, la mise à zéro qui termine) ; `copy_previous` (le second enregistrement de `register_copy`) ; `open_lines(task_ids)` pour le registre de `planning` ; `startable_tasks(project_id)` (le Kanban) ; `remaining_indicators(project_id, revision_id)` et `register_coverage` ; `remaining_of_revision(session, project_id, revision_id)` — le total et le reste par ligne des tâches non terminées, à l'état des tâches de la révision — pour les indicateurs et EP-10 ; le format et l'exporteur `remaining` ; `remaining_entry` et `previous_*` rendus par la lecture de la facette d'EP-07, que le lot de la réestimation complète après #2372 |
 | `waterfall.core.costs` (FBS-4.7) | `cost_line`, `cost_import` | le format `actual_costs` (l'en-tête selon la correspondance, l'analyse, l'application) ; `list_actual_costs` (filtres, tri, totaux, colonnes conservées, dernier import), `set_tracked_scope`, `list_cost_imports` ; `actual_cost_by_subproject(project_id)` et `actual_costs_until(project_id, date, scope)` — les lignes suivies, pour les indicateurs du reste à engager et pour EP-10 — ; `subproject_has_actual_costs` et `impute_waiting_lines(project_id, subproject_id, code)` pour le registre de `projects` ; `load_cost_import`, `load_cost_lines` et `load_exclusion` avec identifiants et instants imposés |
 
 - **La couche** : `estimate` importe l'interface de `costs` (le coût réel par sous-projet des
@@ -564,10 +564,12 @@ worker, le chargeur — s'étend à chacun.
 
 ### Les indicateurs du reste à engager
 
-- `remaining_of_revision(revision_id)` : la somme des `reestimated_amount` des lignes hors provision
-  des tâches non terminées de la structure principale, et la même par ligne — l'état des tâches de
-  cette révision, en cours ou marquée ; c'est la fonction qu'EP-10 lira pour la projection du chef
-  de projet et l'indice de coût, et le marquage (EP-10) pour conserver.
+- `remaining_of_revision(session, project_id, revision_id)` : la somme des `reestimated_amount` des
+  lignes hors provision des tâches non terminées de la structure principale, et la même par ligne —
+  l'état des tâches de cette révision, en cours ou marquée ; le projet est passé avec la révision,
+  la lecture des lignes placées l'exigeant (signature réalisée par US-1580/L2, #2743) ; c'est la
+  fonction qu'EP-10 lira pour la projection du chef de projet et l'indice de coût, et le marquage
+  (EP-10) pour conserver.
 - `remaining_indicators` : `total` et `by_cost_type` (le même module de parts qu'EP-07, la nature
   provision à zéro) sur la révision lue ; `by_subproject` par sous-projet et `unassigned` — `budget`
   la somme des budgétés hors provision des lignes de la révision de référence par sous-projet (nul
@@ -731,15 +733,16 @@ application d'extraction pendant une saisie.
 ### La préparation des imports hors verrou et la lecture figée (décisions du 2026-11-10)
 
 Trois constats sur la mécanique des échanges d'EP-06 (#2582, #2679, relevés par US-1430/L3 et L4 ;
-#2739, relevé par US-1610/L2), tranchés par l'auteur le 2026-11-10 et réalisés par un lot d'EP-09,
-après l'application des coûts réels (US-1610/L2 #2404), pour tous les formats :
+#2739, relevé par US-1610/L2), tranchés par l'auteur le 2026-11-10 et réalisés par un lot d'EP-09
+(US-1610/L4 #2749), après l'application des coûts réels (US-1610/L2 #2404), pour tous les formats :
 
 - **Un fichier importé se prépare hors du verrou, puis s'applique sous lui** (#2582, #2739). Le
   protocole des formats d'US-1420 gagne une étape : `Format.prepare(content)`, appelée par la tâche
   d'application avant tout verrou, lit le fichier et rend son modèle en mémoire ; `Format.apply`
   reçoit ce modèle, sous les verrous du projet et de la structure, et ne fait que rejuger et
   écrire. Les formats existants — `ms_project_schedule`, `estimate`, `actual_costs`, et `remaining`
-  s'il est déjà écrit — suivent ; un format écrit après le lot naît sous ce protocole. Écartés :
+  s'il est déjà écrit — suivent ; un format écrit après le lot naît sous ce protocole : US-1630/L3
+  #2410 en dépend. Écartés :
   garder la lecture sous verrou, le défaut « travail long sous verrou » de `docs/dev/python.md` ;
   ne préparer que les formats volumineux, deux protocoles pour une mécanique.
 - **Les tâches d'export et d'analyse lisent dans une transaction figée** (#2679) : `REPEATABLE
@@ -798,16 +801,17 @@ sauf `support.py` par le lot d'outillage des tests d'EP-07, qui le possède (dé
 
 ### Ce que le cadrage laisse à EP-10
 
-Le socle (US-1580/L1 #2398) est le **lot pivot d'EP-10** : `epic/EP-10` se tire d'`epic/EP-09` dès sa
-fusion. Il lui garantit `cost_line` et `cost_import`, les colonnes `previous_*` et `reestimated_at`
-d'`estimate_line`, la chaîne des migrations arrêtée à `0027`, et l'interface déclarée que les
-indicateurs liront : `actual_costs_until(project_id, date, scope)` et `actual_cost_by_subproject`
-de `costs`, `remaining_of_revision(revision_id)` et `startable_tasks` d'`estimate`, à côté de
-`planned_value` d'EP-07 et des états et dates des tâches d'EP-06 ; les lots d'EP-10 qui lisent des
-coûts attendent US-1610/L2 #2404, qui sert `actual_costs_until`, ceux qui lisent un reste
-US-1580/L2 #2399, qui sert `remaining_of_revision` (#2708, « Les décisions du 2026-11-10 ») ;
-`CalculationContext` s'importe de l'interface d'`estimate`. EP-10 remplit `register_indicators` de `core/revisions` (EP-04) pour conserver au marquage
-ce que ces fonctions calculent, et pose le cache (WF-DAT-0130).
+Le socle (US-1580/L1 #2398) est le **lot pivot d'EP-10** : `epic/EP-10` se tire d'`epic/EP-09` dès
+sa fusion. Il lui garantit `cost_line` et `cost_import`, les colonnes `previous_*` et
+`reestimated_at` d'`estimate_line`, la chaîne des migrations arrêtée à `0027`, et l'interface
+déclarée que les indicateurs liront : `actual_costs_until(project_id, date, scope)` et
+`actual_cost_by_subproject` de `costs`, `remaining_of_revision(session, project_id, revision_id)` et
+`startable_tasks` d'`estimate`, à côté de `planned_value` d'EP-07 et des états et dates des tâches
+d'EP-06 ; les lots d'EP-10 qui lisent des coûts attendent US-1610/L2 #2404, qui sert
+`actual_costs_until`, ceux qui lisent un reste US-1580/L2 #2399, qui sert `remaining_of_revision`
+(#2708, « Les décisions du 2026-11-10 ») ; `CalculationContext` s'importe de l'interface
+d'`estimate`. EP-10 remplit `register_indicators` de `core/revisions` (EP-04) pour conserver au
+marquage ce que ces fonctions calculent, et pose le cache (WF-DAT-0130).
 
 ### L'ordre de construction
 

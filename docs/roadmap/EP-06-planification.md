@@ -806,12 +806,12 @@ Les constats qu'EP-06 laissait « à trancher », tranchés le 2026-11-10, chacu
 - **Les formes `one` et `other` de l'annonce d'Annuler et de Rétablir s'éprouvent** (#2626) : le
   contrat reçoit deux exemples d'`UndoResult`, l'un à `remaining_depth` 1, l'autre à 2 ou 3, et
   `undo-wired.dom.test.tsx` lit les trois formes, en français et en anglais.
-- **Un lot de finitions d'EP-06**, avant la vérification d'ensemble US-1480/L3, porte ces deux
-  points de contrat et les mineurs : le test de la purge du worker attend aussi la disparition de
-  l'objet du compartiment (#2566) ; les quatre points de la purge (#2533), dont les orphelins que
-  `SWEEP_LIMIT` laisse derrière des clés désignées — balayés au-delà d'elles, ou, si le lot établit
-  que le cas ne peut se produire, la docstring le dit et un test le prouve — et le plafond de
-  `deposits_before` éprouvé ; `NO_BACKGROUND_TASK_RUNNING`, `STATE_FORBIDS_OPERATION` et
+- **Un lot de finitions d'EP-06** (US-1480/L4 #2750), avant la vérification d'ensemble US-1480/L3,
+  porte ces deux points de contrat et les mineurs : le test de la purge du worker attend aussi la
+  disparition de l'objet du compartiment (#2566) ; les quatre points de la purge (#2533), dont les
+  orphelins que `SWEEP_LIMIT` laisse derrière des clés désignées — balayés au-delà d'elles, ou, si
+  le lot établit que le cas ne peut se produire, la docstring le dit et un test le prouve — et le
+  plafond de `deposits_before` éprouvé ; `NO_BACKGROUND_TASK_RUNNING`, `STATE_FORBIDS_OPERATION` et
   `BEFORE_IN_PROGRESS` exportées une fois par l'interface du module qui les possède (#2555) ; une
   garde du chargeur du témoin qui refuse une installation qui a déjà des projets sans ses
   calendriers (#2556) ; les deux tests à forme supposée (#2547) ; le marqueur WF-DEV-0050-A retiré
