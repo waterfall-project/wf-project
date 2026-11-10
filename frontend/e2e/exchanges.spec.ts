@@ -5,17 +5,18 @@ import { readFile } from "node:fs/promises";
 import { expect, type Route } from "@playwright/test";
 
 import { compile } from "./compile";
+import { seedEstimate } from "./estimate-seed";
 import { openHydrated, WORKING } from "./hydration";
 import { inService, test } from "./mode";
 import { seedPlanning } from "./planning-seed";
 import { API } from "./service/realm";
 
-// The last two paths below are the service's, tagged `@shared`: the export of the planning in MS
-// Project XML, downloaded once, and imported back (US-1430), and the estimate exported in Excel and
-// downloaded, then a file that is no estimate refused at the analysis (US-1550), on a project the
-// run creates. The import of an estimate in two steps stays on the fake back above: the proxy of
-// the contract (Prism) spoils the bytes of a workbook (#973, #2687). The others keep to the fake
-// back, which serves the examples of the operations without keeping any state.
+// The last two paths below are the service's, tagged `@shared`, on a project the run creates: the
+// export of the planning in MS Project XML, downloaded once, and imported back (US-1430); and the
+// import of an estimate in two steps (US-1550) — exported in Excel, downloaded, imported back, its
+// report read, its application confirmed —, a file that is no estimate refused before it. The
+// others keep to the fake back, which serves the examples of the operations without keeping any
+// state: the first, the lines rejected by the report of an import in two steps, and its abandonment.
 //
 // The fake back serves the first example of each operation: the file deposited, its import
 // opened, its analysis under way; the report the address then names, the estimate analysed this
@@ -239,25 +240,40 @@ test("exports the planning as MS Project XML, downloads it once, and imports it 
   ).toHaveCount(0);
 });
 
-test("exports the estimate as an Excel file, downloads it, and sees a file that is no estimate refused at the analysis with the format and version expected, as the project manager of the run @shared [WF-INTF-0070-A] [WF-INTF-0110-A]", async ({
+test("exports the estimate as an Excel file, downloads it, sees a file that is no estimate refused, then imports the file back in two steps — the report without a difference, the application confirmed and followed in the shell, the lines identical — as the project manager of the run @shared [WF-INTF-0070-A] [WF-INTF-0110-A]", async ({
   page,
   browser,
   request,
   manager,
 }) => {
+  // The criterion proper to US-1550: the screen of the exchanges imports and exports an estimate
+  // against the service, and the import in two steps is played on a project the run creates.
   // WF-INTF-0110-A: the export of the estimate is a task of the shell, its file named after the
-  // revision; this test carries only that name of 0110-A. The project holds no line of estimate:
-  // the export is of an empty estimate. The proxy of the contract (Prism) reads every body as
-  // text and spoils the bytes of a workbook (#973), so the file is neither inspected nor imported
-  // back here: the round trip, the report and the application are proved by the back
-  // (`backend/tests/test_estimate_export.py`).
+  // revision; exported, then imported back without a change into the revision in progress, the
+  // report says no difference, and the lines are the same. The report comes before any
+  // confirmation, and the application confirmed is followed in the shell; the lines a report
+  // rejects and the abandonment, which WF-INTF-0080-A verifies, stay with the fake back (« imports
+  // a file in two steps », above), the exported workbook having no line to reject. The workbook
+  // goes to the browser and back to the API byte for byte: the proxy of the contract carries the
+  // bytes of a body that is not JSON past Prism (`bench/contract-proxy.ts`, #2687).
   test.skip(
     !inService,
     "the service keeps the file made and the import applied, the fake back not",
   );
   test.slow();
-  const seeded = await seedPlanning(page, browser, request, manager, "Devis");
-  await openHydrated(page, `${seeded.revision}/exchanges`);
+  const seeded = await seedEstimate(page, browser, request, manager, "Devis");
+  const screen = `${seeded.revision}/exchanges`;
+  const nodes = `${API}/projects/${seeded.ids.project}/revisions/${seeded.ids.revision}/structures/${seeded.ids.structure}/nodes`;
+  const lines = async (): Promise<unknown[]> => {
+    const read = await request.get(nodes, { headers: seeded.headers });
+    expect(read.status(), "GET nodes").toBe(200);
+    return ((await read.json()) as { items: { kind: string }[] }).items.filter(
+      ({ kind }) => kind === "estimate_line",
+    );
+  };
+  const before = await lines();
+  expect(before).toHaveLength(1);
+  await openHydrated(page, screen);
 
   // The export of the estimate: chosen in the list of the files, followed in the shell.
   const exports = page.getByRole("region", { name: "Demander un export" });
@@ -267,13 +283,15 @@ test("exports the estimate as an Excel file, downloads it, and sees a file that 
   await exports.getByRole("button", { name: "Demander l’export" }).click();
   await page.getByRole("button", { name: /^Tâches et messages\s:/ }).click();
   const panel = page.getByRole("dialog", { name: "Tâches et messages" });
-  const link = panel
-    .getByRole("region", { name: "Tâches de fond" })
-    .getByRole("link", { name: /^Télécharger le résultat/ });
+  const tasks = panel.getByRole("region", { name: "Tâches de fond" });
+  const link = tasks.getByRole("link", { name: /^Télécharger le résultat/ });
   await expect(link).toBeVisible({ timeout: WORKING });
   const [download] = await Promise.all([page.waitForEvent("download"), link.click()]);
-  expect(download.suggestedFilename()).toMatch(/-devis\.xlsx$/);
-  expect((await readFile(await download.path())).length).toBeGreaterThan(0);
+  const filename = download.suggestedFilename();
+  expect(filename).toMatch(/-devis\.xlsx$/);
+  // A workbook is a zip archive, whose bytes past 0x7f Prism would have rewritten.
+  const workbook = await readFile(await download.path());
+  expect(workbook.subarray(0, 4)).toEqual(Buffer.from([0x50, 0x4b, 0x03, 0x04]));
   await page.keyboard.press("Escape");
   await expect(panel).toHaveCount(0);
 
@@ -282,7 +300,8 @@ test("exports the estimate as an Excel file, downloads it, and sees a file that 
   const imports = page.getByRole("region", { name: "Importer un fichier" });
   await imports.getByRole("button", { name: "Importer un devis" }).click();
   const form = imports.getByRole("form", { name: "Importer un devis" });
-  await form.getByLabel("Fichier à importer").setInputFiles({
+  const field = form.getByLabel("Fichier à importer");
+  await field.setInputFiles({
     name: "pas-un-devis.xlsx",
     mimeType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     buffer: Buffer.from("pas un classeur"),
@@ -302,4 +321,55 @@ test("exports the estimate as an Excel file, downloads it, and sees a file that 
   });
   expect(listed.status(), "GET imports").toBe(200);
   expect(((await listed.json()) as { items: unknown[] }).items).toEqual([]);
+
+  // The workbook exported, imported back as it is: analysed, the report reads its lines, every one
+  // unchanged, with no difference and no line rejected — before anything is applied.
+  await field.setInputFiles({
+    name: filename,
+    mimeType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    buffer: workbook,
+  });
+  await form.getByRole("button", { name: "Analyser le fichier" }).click();
+  await expect(page).toHaveURL(/[?&]import=[0-9a-f-]{36}/, { timeout: WORKING });
+  const opened = new URL(page.url()).searchParams.get("import") ?? "";
+  const report = page.getByRole("region", { name: `Compte rendu de l’import « ${filename} »` });
+  // The analysis is a task of the background: the report comes when the screen is read anew.
+  await expect(async () => {
+    if ((await report.getByText(/lues?\./).count()) === 0) {
+      await page.reload();
+    }
+    await expect(report.getByText(/lues?\./)).toBeVisible({ timeout: 1_000 });
+  }).toPass({ timeout: WORKING });
+  await expect(report.getByText("Aucun écart avec les données existantes")).toBeVisible();
+  await expect(report.getByRole("table", { name: "Lignes rejetées" })).toHaveCount(0);
+  const address = `${API}/projects/${seeded.ids.project}/imports/${opened}`;
+  const analysed = await request.get(address, { headers: seeded.headers });
+  expect(analysed.status(), "GET import").toBe(200);
+  const { report: read } = (await analysed.json()) as {
+    report: { read_count: number; unchanged_count: number; differences: unknown[] };
+  };
+  expect(read.read_count).toBeGreaterThan(0);
+  expect(read.unchanged_count).toBe(read.read_count);
+  expect(read.differences).toEqual([]);
+  expect(await lines()).toEqual(before);
+
+  // Confirmed, the application is a task followed in the shell, to its success.
+  await report.getByRole("button", { name: "Appliquer l’import" }).click();
+  const confirmation = report.getByRole("form", { name: "Confirmation de l’application" });
+  await confirmation.getByRole("button", { name: "Confirmer l’application" }).click();
+  await expect(confirmation).toHaveCount(0);
+  await page.getByRole("button", { name: /^Tâches et messages\s:/ }).click();
+  const application = tasks
+    .getByRole("listitem")
+    .filter({ hasText: `Application d’un import « ${filename} »` });
+  await expect(application.getByText("Réussie")).toBeVisible({ timeout: WORKING });
+  await page.keyboard.press("Escape");
+  await expect(async () => {
+    const applied = await request.get(address, { headers: seeded.headers });
+    expect(applied.status(), "GET import").toBe(200);
+    expect(((await applied.json()) as { status: string }).status).toBe("applied");
+  }).toPass({ timeout: WORKING });
+
+  // The lines obtained are the lines exported: the same, lineage and amounts.
+  expect(await lines()).toEqual(before);
 });

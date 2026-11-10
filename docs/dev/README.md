@@ -2056,12 +2056,13 @@ mock-up (`MockupNotice`). The MS Project planning is imported in two steps (`ope
 imports it back with no difference (FLX-01 and FLX-02 of the « project manager » account,
 WF-INTF-0010-A), and those of `tasks.spec.ts` that play the route and the refusal of a result on the
 export it made, carry `@shared`. The estimate is imported (`kind: estimate`) and exported (`kind:
-estimate`, file `…-devis.xlsx`) through the same screen; its `@shared` path exports and downloads the
-estimate of a project the run creates, and sees a file that is no estimate refused at the analysis
-(format and version expected named). The proxy of the contract (Prism) spoils the bytes of a
-workbook (#973): the workbook is neither inspected nor imported back by this path, and the import in
-two steps stays on the fake back; the remaining to commit and the actual costs (EP-09) and the path
-of the marking stay on the fake back.
+estimate`, file `…-devis.xlsx`) through the same screen; its `@shared` path, on a project the run
+creates, imports it in two steps (US-1550, #2687): it exports and downloads the estimate, sees a file
+that is no estimate refused at the analysis (format and version expected named), then imports the
+downloaded workbook back, reads the report without a difference, confirms the application, which it
+follows in the shell to its success, and finds the same lines. The lines rejected by a report and the
+abandonment stay on the fake back, as do the remaining to commit and the actual costs (EP-09) and the
+path of the marking.
 
 The page of a project proposes to start its planning through the « Start the project » insert
 (`ProjectStart`, `components/projects/project-start.tsx`, US-0490) as long as the main structure of
@@ -4106,14 +4107,32 @@ of duration, the correspondence of the actual costs — carry the `@serial` tag 
 The wait for the lock of the composed roles (`giveRoles`, `ROLES_WAIT`) is 25 s, under the 30 s of a
 test: its message says the lock and the number of workers queued behind it (#2214).
 
-A limit of the paths against the service: Prism, as a proxy of the contract, reads every body as
-text and alters binary bodies — every byte beyond `0x7f` of an `application/octet-stream` request or
-response becomes U+FFFD (#973, #1025). The paths therefore exercise neither
-the download nor the upload of an archive byte for byte: `backups.spec.ts` checks of
-the downloaded archive only its name and its non-zero size, and restores the backup of the list,
-not an upload. The restoration of an upload is proven by the tests of the service
-(`backend/tests/test_uploads.py`). Moving the binary operations out of Prism is deferred to
-EP-13.
+The bodies that are not JSON cross the proxy of the contract byte for byte (US-1550/L7, #973, #1025,
+#2687, #2695). Prism reads every body as text and rewrites every byte beyond `0x7f` as U+FFFD; two
+legs of `frontend/bench/contract-proxy.ts`, which the Node of its container runs, surround it: the
+entrance, on the published port, keeps the bytes of a request whose body is not JSON and gives Prism
+a copy without the high bit, of the same length; the exit, where Prism forwards, sends the API the
+bytes kept, and keeps those of an answer that is not JSON, which the entrance gives the front in
+place of those Prism rewrote. An answer of Prism in JSON — its refusal — passes as it is; an answer
+that is not JSON and no longer names bytes kept is refused with a 502, never given rewritten. Every
+exchange thus still goes through Prism, held to the contract and written to its log; the
+Content-Type of the request and that of the answer each decide for their own body, the download of a
+workbook being a GET without a body. The file lives in the front so that its lint, its type check
+and its tests hold it; the network guard of ESLint lets `frontend/bench/` alone call the network
+outside the generated client. Its test, `frontend/bench/contract-proxy.test.ts`, puts it between
+real `node:http` servers — a fake Prism that rewrites the bodies as Prism does and a fake API — and
+proves the round trip byte for byte, JSON and Prism's refusals given as they are, the failure of
+bytes kept too long or whose name does not come back, twenty exchanges at once, and an archive of
+more than 5 MiB cut into parts on a continuation byte (#2695). Against the service, the exported
+workbook is imported back as it is (`exchanges.spec.ts`), the avatar path of
+`service/account.spec.ts` compares the image read back with the one put, and `backups.spec.ts`
+compares each dump of the downloaded archive with the digest its manifest gives, deposits it, sees
+the service accept it with its date, then restores the backup of the list (WF-ADM-0160); the archive
+of a new installation (about 0.5 MiB) goes in a single part, and the cut into parts is proven by the
+test of the legs alone. The restoration of a deposit remains proven by the tests of the service
+(`backend/tests/test_uploads.py`). Set aside: sending those exchanges straight to the API, which a
+GET does not allow to decide before its answer and which would take them out of the contract; a
+patch of the compiled sources of Prism, to redo at each version.
 
 The second of §4.6.2 — opening a grid of a thousand tasks — is measured in
 `frontend/e2e/opening.spec.ts` (US-0110, US-0220), on the volume structure the fake back serves, for

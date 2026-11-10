@@ -2052,11 +2052,12 @@ planning d'un projet que la course crée, le télécharge, puis le réimporte sa
 du compte « chef de projet », WF-INTF-0010-A), et ceux de `tasks.spec.ts` qui jouent la route et le
 refus d'un résultat sur l'export qu'elle a fait, portent `@shared`. Le devis s'importe (`kind:
 estimate`) et s'exporte (`kind: estimate`, fichier `…-devis.xlsx`) par le même écran ; son parcours
-`@shared` exporte et télécharge le devis d'un projet que la course crée, et voit refuser à l'analyse
-un fichier qui n'en est pas un (format et version attendus nommés). Le proxy du contrat (Prism)
-altère les octets d'un classeur (#973) : le classeur n'est ni inspecté ni réimporté par ce parcours,
-et l'import en deux temps reste sur le faux back ; le reste à engager et les coûts réels (EP-09) et
-le parcours du marquage restent sur le faux back.
+`@shared`, sur un projet que la course crée, l'importe en deux temps (US-1550, #2687) : il exporte et
+télécharge le devis, voit refuser à l'analyse un fichier qui n'en est pas un (format et version
+attendus nommés), puis réimporte le classeur téléchargé, lit le compte rendu sans écart, confirme
+l'application, qu'il suit dans la coquille jusqu'à sa réussite, et retrouve les mêmes lignes. Les
+lignes rejetées d'un compte rendu et l'abandon restent sur le faux back, comme le reste à engager et
+les coûts réels (EP-09) et le parcours du marquage.
 
 La page d'un projet propose de démarrer son planning par l'encart « Démarrer le projet »
 (`ProjectStart`, `components/projects/project-start.tsx`, US-0490) tant que la structure principale
@@ -4162,14 +4163,33 @@ non la règle.
 L'attente du verrou des rôles composés (`giveRoles`, `ROLES_WAIT`) est de 25 s, sous les 30 s d'un
 test : son message dit le verrou et le nombre de workers qui font la queue derrière lui (#2214).
 
-Une limite des parcours contre le service : Prism, en mandataire du contrat, lit tout corps comme
-du texte et altère les corps binaires — chaque octet au-delà de `0x7f` d'une requête ou d'une
-réponse `application/octet-stream` devient U+FFFD (#973, #1025). Les parcours n'éprouvent donc ni
-le téléchargement ni le dépôt d'une archive octet pour octet : `backups.spec.ts` ne vérifie de
-l'archive téléchargée que son nom et sa taille non nulle, et restaure la sauvegarde de la liste,
-non un dépôt. La restauration d'un dépôt est prouvée par les tests du service
-(`backend/tests/test_uploads.py`). Le passage des opérations binaires hors de Prism est reporté à
-EP-13.
+Les corps qui ne sont pas du JSON traversent le mandataire du contrat octet pour octet (US-1550/L7,
+#973, #1025, #2687, #2695). Prism lit tout corps comme du texte et réécrit chaque octet au-delà de
+`0x7f` en U+FFFD ; deux jambes de `frontend/bench/contract-proxy.ts`, que le Node de son conteneur
+lance, l'entourent : l'entrée, sur le port publié, garde les octets d'une requête dont le corps
+n'est pas du JSON et en donne à Prism une copie sans le bit de poids fort, de même longueur ; la
+sortie, où Prism transmet, envoie à l'API les octets gardés, et garde ceux d'une réponse qui n'est
+pas du JSON, que l'entrée rend au front à la place de ceux que Prism a réécrits. Une réponse de
+Prism en JSON — son refus — passe telle quelle ; une réponse qui n'est pas du JSON et ne nomme plus
+d'octets gardés est refusée par un 502, jamais rendue réécrite. Chaque échange passe donc encore par
+Prism, confronté au contrat et écrit à son journal ; le Content-Type de la requête et celui de la
+réponse décident chacun pour leur corps, le téléchargement d'un classeur étant un GET sans corps. Le
+fichier vit dans le front pour que son lint, son typage et ses tests le tiennent ; la garde du
+réseau d'ESLint laisse `frontend/bench/` seul appeler le réseau hors du client engendré. Son test,
+`frontend/bench/contract-proxy.test.ts`, le place entre de vrais serveurs `node:http` — un faux
+Prism qui réécrit les corps comme Prism et une fausse API — et prouve l'aller-retour octet pour
+octet, le JSON et les refus de Prism rendus tels quels, l'échec des octets gardés trop longtemps ou
+dont le nom ne revient pas, vingt échanges à la fois, et une archive de plus de 5 Mio coupée en
+parts sur un octet de continuation (#2695). Sur le service, le classeur exporté se réimporte tel
+quel (`exchanges.spec.ts`), le parcours de l'avatar de `service/account.spec.ts` compare l'image
+relue à celle déposée, et `backups.spec.ts` compare chaque vidage de l'archive téléchargée à
+l'empreinte que donne son manifeste, la dépose, voit le service l'accepter avec sa date, puis
+restaure la sauvegarde de la liste (WF-ADM-0160) ; l'archive d'une installation neuve (environ 0,5
+Mio) part en une seule part, et la coupure en parts n'est prouvée que par le test des jambes. La
+restauration d'un dépôt reste prouvée par les tests du service (`backend/tests/test_uploads.py`).
+Écartés : envoyer ces échanges directement à l'API, ce qu'un GET ne permet pas de décider avant sa
+réponse et qui les soustrairait au contrat ; un correctif des sources compilées de Prism, à refaire
+à chaque version.
 
 La seconde du §4.6.2 — ouvrir une grille de mille tâches — se mesure dans
 `frontend/e2e/opening.spec.ts` (US-0110, US-0220), sur la structure de volume que sert le faux back,

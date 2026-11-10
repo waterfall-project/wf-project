@@ -81,7 +81,8 @@ export default defineConfig({
         extends: true,
         test: {
           name: "node",
-          include: ["src/**/*.test.{ts,tsx}"],
+          // The legs of the bench around Prism (bench/contract-proxy.ts) are tried with the logic.
+          include: ["src/**/*.test.{ts,tsx}", "bench/**/*.test.ts"],
           exclude: [DOM, ...LINT],
           environment: "node",
           setupFiles: [SERVER_ONLY],
