@@ -34,6 +34,7 @@ its own writes (``no_background_task_running``).
 
 from typing import TYPE_CHECKING, Any
 
+from waterfall.core.cost_settings.interface import share_natures
 from waterfall.core.estimate import importing
 from waterfall.core.estimate.writing import HoursJudged, change_line
 from waterfall.core.planning.interface import (
@@ -75,6 +76,8 @@ def apply(
     if revision_id is None or structure_id is None:
         msg = "an estimate is applied to a structure of the current revision"
         raise LookupError(msg)
+    # The lock of the natures before that of the structure, as every write of a line (#2615).
+    share_natures(session)
     structure_facts(session, project_id, structure_id, lock=True)
     held = importing.aimed(session, target)
     confirmed = confirmed_by(report)

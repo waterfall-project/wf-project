@@ -40,7 +40,13 @@ from waterfall.core.resource_settings.interface import (
     node_labels,
 )
 from waterfall.core.revisions.interface import read_revision
-from waterfall.platform.errors import ConflictError, FieldError, NotFoundError, UnprocessableError
+from waterfall.platform.errors import (
+    STATE_FORBIDS_OPERATION,
+    ConflictError,
+    FieldError,
+    NotFoundError,
+    UnprocessableError,
+)
 
 if TYPE_CHECKING:
     from collections.abc import Collection, Iterable, Mapping
@@ -51,7 +57,6 @@ if TYPE_CHECKING:
 
     from waterfall.core.projects.interface import Viewer
 
-STATE_FORBIDS_OPERATION = "STATE_FORBIDS_OPERATION"
 VALIDATION_FAILED = "VALIDATION_FAILED"
 UNKNOWN_ORG_NODE = "UNKNOWN_ORG_NODE"
 PROJECT_STATE = "ProjectState"

@@ -17,11 +17,10 @@ from waterfall.core.estimate.spreading import (
     Month,
     Placement,
     PlannedLine,
-    WorkWeek,
     planned_value,
     spread_by_month,
 )
-from waterfall.core.planning.interface import WorkInstant
+from waterfall.core.planning.interface import Calendar, WorkInstant, weekly_calendar
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -31,13 +30,13 @@ Example = dict[str, object]
 DAYS = ("monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday")
 
 
-def week_of(example: Example) -> WorkWeek:
+def week_of(example: Example) -> Calendar:
     """Return the calendar an example gives."""
     hours = cast("dict[str, str]", example["weekly_hours"])
-    return WorkWeek(tuple(Decimal(hours[day]) for day in DAYS))
+    return weekly_calendar(tuple(Decimal(hours[day]) for day in DAYS))
 
 
-def placement_of(week: WorkWeek, task: dict[str, str]) -> Placement:
+def placement_of(week: Calendar, task: dict[str, str]) -> Placement:
     """Return a task of an example: it starts at the first hour of its day, and finishes at its."""
     return Placement(
         week,

@@ -76,4 +76,4 @@ jobs:
           E2E_BUILT: "1"
       # What the platform said, when a path failed or the platform did not start.
       - if: failure()
-        run: make service-logs SERVICES="api keycloak keycloak-front-end contract-proxy"
+        run: make service-logs SERVICES="api worker restore keycloak keycloak-front-end contract-proxy"

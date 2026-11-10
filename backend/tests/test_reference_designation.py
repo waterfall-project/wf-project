@@ -26,8 +26,13 @@ from support import ContractClient, nowhere, wait_for_a_lock
 
 from waterfall.api.app import create_app
 from waterfall.api.authentication import Services
+from waterfall.core.projects.interface import Viewer
 from waterfall.core.projects.tables import Project, ProjectStateTransition
-from waterfall.core.revisions.interface import mark_revision
+from waterfall.core.revisions.interface import (
+    ReferenceToDesignate,
+    designate_reference,
+    mark_revision,
+)
 from waterfall.core.revisions.tables import Revision
 from waterfall.platform.audit import Act, AuditEntry
 from waterfall.platform.database import utc_now
@@ -324,6 +329,47 @@ def test_the_code_then_the_designation_move_the_project_to_in_progress_at_the_de
     assert last["occurred_at"] == designated.json()["audit"]["updated_at"]
     assert last["actor"]["user_id"] == str(stage.manager.user_id)
     assert [item["to_state"] for item in transitions(api, stage)].count("in_progress") == 1
+
+
+@pytest.mark.requirement("WF-CYC-0130-A")
+@pytest.mark.requirement("WF-REV-0040-A")
+def test_the_designation_is_inscribed_at_the_instant_imposed_or_else_the_one_taken_under_the_lock(
+    api: ContractClient, stage: Scene
+) -> None:
+    # ``ReferenceToDesignate.at``: the loader of the witness imposes the instant of the event, a
+    # request leaves it to the service, which takes it under the lock of the project.
+    first = marked(api, stage, "v1.0")
+    second = marked(api, stage, "v2.0", EARLY + timedelta(days=1))
+    imposed = EARLY + timedelta(days=30)
+    project_id = UUID(stage.project["project_id"])
+
+    def designated(revision: dict[str, Any], at: datetime | None) -> None:
+        counter = project_of(api, stage)["lock_version"]
+        to_designate = ReferenceToDesignate(UUID(revision["revision_id"]), counter, at)
+        with (
+            logging_context(correlation_id="designation"),
+            stage.database.transaction() as session,
+        ):
+            designate_reference(
+                session,
+                project_id,
+                to_designate,
+                Act(None, EARLY),
+                Viewer(stage.manager.user_id, ()),
+            )
+
+    designated(first, imposed)
+    [entry] = journal(stage)
+    assert entry.occurred_at == imposed
+    assert read(api, stage, first["revision_id"])["audit"]["updated_at"] == (
+        imposed.isoformat().replace("+00:00", "Z")
+    )
+    before = utc_now()
+    designated(second, None)
+    after = utc_now()
+    taken = max(journal(stage), key=lambda each: each.occurred_at)
+    assert before <= taken.occurred_at <= after
+    assert taken.object_label == "v2.0"
 
 
 def transitions(api: ContractClient, stage: Scene) -> list[dict[str, Any]]:

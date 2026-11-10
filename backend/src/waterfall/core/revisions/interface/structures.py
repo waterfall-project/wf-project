@@ -61,6 +61,9 @@ if TYPE_CHECKING:
 MAIN = "main"
 # The label of the main structure at its creation, as the examples of the contract name it.
 MAIN_LABEL = "Structure principale"
+# The counter of a structure at its creation, its own or a copy's: every resource is born at 1
+# (``LockVersion`` of the contract; E-16, #2542).
+FIRST_VERSION = 1
 
 
 @dataclass(frozen=True, slots=True)
@@ -91,6 +94,7 @@ def create_main_structure(session: Session, project_id: UUID, revision_id: UUID,
             lineage_id=structure_id,
             planning_start_on=current_day(act.at),
             scheduled_at=act.at,
+            lock_version=FIRST_VERSION,
             created_at=act.at,
             created_by=act.author,
             updated_at=act.at,
@@ -132,6 +136,7 @@ def copy_structures(copy: RevisionCopy) -> None:
                 lineage_id=row.lineage_id,
                 planning_start_on=row.planning_start_on,
                 scheduled_at=row.scheduled_at or row.created_at,
+                lock_version=FIRST_VERSION,
                 created_at=copy.at,
                 created_by=copy.author,
                 updated_at=copy.at,

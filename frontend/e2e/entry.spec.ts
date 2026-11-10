@@ -1,9 +1,11 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
-import { expect, type Locator, type Page, test } from "@playwright/test";
+import { expect, type Locator, type Page } from "@playwright/test";
 
 import { columnsOf } from "./columns";
-import { openHydrated } from "./hydration";
+import { idle, seedEstimate } from "./estimate-seed";
+import { openHydrated, WORKING } from "./hydration";
+import { inService, test } from "./mode";
 import { rowAt } from "./scroll";
 import { isServerAction } from "./server-action";
 
@@ -232,9 +234,13 @@ test("traverses the cells of a summary that its node does not accept or the serv
   await expect(grid.getByRole("textbox")).toHaveCount(0);
 });
 
-test("traverses the computed cells of a line entered along its row, without entering them [WF-IHM-0040-A]", async ({
+// The own estimate of a risk is EP-08's: played against the fake back until then.
+const BEFORE_EP08 = "EP-08 serves the own estimate of a risk";
+
+test("traverses the computed cells of a line entered along its row, without entering them @shared [WF-IHM-0040-A]", async ({
   page,
 }) => {
+  test.skip(inService, BEFORE_EP08);
   const { grid, at } = await tabIntoGrid(page, OWN_SCREEN);
   await press(page, ...times("ArrowDown", PROVISION - 1));
   await expect(rowAt(grid, PROVISION)).toContainText("Provision");
@@ -337,4 +343,35 @@ test("re-estimates the figures of a line of the remaining to commit from the key
   // And only one: a second write would come later, from the entry validated.
   await settle(page);
   expect(writes).toHaveLength(1);
+});
+
+test("enters the cells of a line of the estimate against the service, the amount recalculated and kept when the page is read anew @shared [WF-IHM-0040-A] [WF-DEV-0050-A]", async ({
+  page,
+  browser,
+  request,
+  manager,
+}) => {
+  test.skip(!inService, "the service keeps what is written, which the fake back does not");
+  test.slow();
+  const seeded = await seedEstimate(page, browser, request, manager, "Saisie");
+  const { grid, at } = await tabIntoGrid(page, { ...OWN_SCREEN, path: seeded.estimate });
+  // Row 3 is the line seeded, 1 000,00 a unit: the label, then the quantity, by the keys alone.
+  await press(page, ...times("ArrowDown", 2));
+  await expect(cellAt(grid, 3, at.label)).toBeFocused();
+  await page.keyboard.type("Câbles de puissance");
+  await page.keyboard.press("Tab");
+  await expect(cellAt(grid, 3, at.category)).toBeFocused();
+  await press(page, ...times("ArrowRight", at.quantity - at.category));
+  await page.keyboard.type("4");
+  await page.keyboard.press("Enter");
+  await idle(grid);
+  await expect(cellAt(grid, 3, at.reference)).toHaveText(/4\s000,00\s€/, { timeout: WORKING });
+  await expect(page.getByRole("main").getByRole("alert")).toHaveCount(0);
+
+  // Kept by the service: read anew, the line is as it was entered.
+  await openHydrated(page, seeded.estimate);
+  const again = page.getByRole("treegrid", { name: "Grille de devis" });
+  await expect(cellAt(again, 3, at.label)).toHaveText("Câbles de puissance", { timeout: WORKING });
+  await expect(cellAt(again, 3, at.quantity)).toHaveText("4");
+  await expect(cellAt(again, 1, at.reference)).toHaveText(/4\s000,00\s€/);
 });

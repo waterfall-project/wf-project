@@ -26,9 +26,13 @@ from waterfall.core.estimate.excel.names import sheet_name as named_sheet
 from waterfall.core.estimate.excel.reader import check_header, read_workbook
 from waterfall.core.estimate.excel.writer import write_workbook
 from waterfall.core.exchanges.interface import LARGEST_FILE, ExportedFile
-from waterfall.core.projects.interface import project_facts
+from waterfall.core.projects.interface import (
+    BEFORE_IN_PROGRESS,
+    PROJECT_BEFORE_IN_PROGRESS,
+    project_facts,
+)
 from waterfall.core.revisions.interface import structure_facts
-from waterfall.platform.errors import ConflictError
+from waterfall.platform.errors import STATE_FORBIDS_OPERATION, ConflictError
 
 if TYPE_CHECKING:
     from collections.abc import Iterable, Mapping
@@ -49,9 +53,6 @@ if TYPE_CHECKING:
 # in read-only mode, inflates only the first rows of the first tab.
 HEADER_LENGTH = LARGEST_FILE
 # The states of a project whose main structure an estimate is imported in (WF-INTF-0100; C-358).
-BEFORE_IN_PROGRESS = ("created", "pricing")
-PROJECT_BEFORE_IN_PROGRESS = "project_before_in_progress"
-STATE_FORBIDS_OPERATION = "STATE_FORBIDS_OPERATION"
 MEDIA_TYPE = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 
 

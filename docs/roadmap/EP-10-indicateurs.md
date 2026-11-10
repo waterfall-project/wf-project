@@ -150,15 +150,18 @@ Relevé par la revue locale d'US-1400/L2 (EP-06, #2340) et reporté ici par l'au
 
 `epic/EP-10` se tire d'`epic/EP-09` dès la fusion de son lot pivot, **US-1580/L1 #2398** — le socle
 d'EP-09, qui pose `cost_line` et `cost_import`, les colonnes `previous_*` et `reestimated_at`
-d'`estimate_line`, la chaîne des migrations arrêtée à `0026`, et l'interface déclarée que les
+d'`estimate_line`, la chaîne des migrations arrêtée à `0027`, et l'interface déclarée que les
 indicateurs liront : `actual_costs_until` et `actual_cost_by_subproject` de `core/costs`,
 `remaining_of_revision` et `startable_tasks` de `core/estimate` —, et non de `main` à la livraison
 d'EP-09 (décision de l'auteur du 2026-11-07, pour toute la série EP-06 → EP-07 → EP-09 → EP-10 →
 EP-08 ; l'exception du README, « Branches ») : elle reprend `epic/EP-09` à chaque lot que celui-ci
 fusionne — qui reprend elle-même `epic/EP-07`, qui reprend `epic/EP-06` — et se fusionne dans
 `main` après elle. Les lots d'EP-10 qui lisent des coûts attendent aussi US-1610/L2 #2404
-(l'application d'une extraction, le journal), ceux qui lisent un reste US-1580/L2 #2399 (la
-réestimation, `previous_*`), ceux qui lisent l'avancement des tâches US-1410 #2324 d'EP-06, ceux
+(l'application d'une extraction, le journal, `actual_costs_until`), ceux qui lisent un reste
+US-1580/L2 #2399 (la réestimation, `previous_*`, `remaining_of_revision`) — et non US-1600 #2392,
+qui lit `remaining_of_revision` sans l'écrire (décision de l'auteur du 2026-11-10, #2708) ;
+`CalculationContext`, le contexte de calcul du contrat, s'importe de l'interface d'`estimate`
+(`remaining_indicators.py`) —, ceux qui lisent l'avancement des tâches US-1410 #2324 d'EP-06, ceux
 qui lisent la valeur planifiée US-1520/L1 #2376 et L2 #2377 d'EP-07, ceux qui lisent les jalons
 inscrits US-1400/L2 #2340 d'EP-06, ceux qui remplissent le marquage US-1500/L2 #2375 d'EP-07
 (`register_marking`, avant `compute_indicators`) ; chaque lot nomme ceux qu'il attend par leur
@@ -283,9 +286,10 @@ Décisions de l'auteur du 2026-11-07, sur les questions du cadrage, chacune avec
   `load_marking` ; ses lectures se comparent aux exemples à la référence près — l'offre 100 reste la
   référence jusqu'à EP-08 (US-1570 d'EP-07) —, les écarts listés. Écarté : désigner la 101 après
   coup, contre WF-REV-0040 et #1402.
-- **Une seule migration, `0027`, dans le socle**, chaînée sur `0026`, aucune donnée à reprendre ;
-  aucune migration d'EP-10 après le socle, EP-08 chaîne la sienne sur `0027`. Écarté : une migration
-  par US.
+- **Une seule migration, `0028`, dans le socle**, chaînée sur `0027` (celle d'EP-09 ; EP-07 en a
+  ajouté une, `0026`, décision du 2026-11-09 sur #2603 et #2667), aucune donnée à reprendre ; aucune
+  migration d'EP-10 après le socle, EP-08 chaîne la sienne sur `0028`. Écarté : une migration par
+  US.
 - **Les quatre routes nouvelles sont sous `project_indicators.read`** (le catalogue d'EP-03), un
   routeur par US, créés vides par le socle.
 
@@ -301,14 +305,19 @@ rien à emporter.
 |---|---|---|
 | `revision_indicator` | `project_id` (clé de partition), `id`, `revision_id`, `kind` (`estimate`, `remaining`, `project`, `cost_curve`, `cost_curve_payment_delays`, `earned_value_curves` ; EP-11 ajoute les siennes), `scope` (`project`, `unassigned`, ou l'identifiant du sous-projet en texte, comme le contrat l'écrit), `document` (`jsonb`, la réponse du contrat de cette nature pour cette maille, `context` compris, `zone` nulle sur chaque indice), `computed_at` (l'instant du marquage), `created_at`, `created_by` | clé primaire (`project_id`, `id`) ; unique (`project_id`, `revision_id`, `kind`, `scope`) ; clé composite (`project_id`, `revision_id`) vers `revision` en refus ; `kind` dans les six natures, `scope` de 1 à 36 non blanc ; `document` objet ; index sur (`project_id`, `revision_id`) ; déclencheur d'immuabilité comme `cost_structure`, et un déclencheur qui refuse l'écriture d'une ligne dont la révision n'est pas en cours de marquage — la révision verrouillée `FOR UPDATE` par le marquage, encore `draft` à l'instant de l'écriture |
 
-- **Une migration, `0027`, dans le socle** (US-1660/L1) : la table, `create_project_partitions`
-  remplacée pour qu'elle crée sa partition (`revision_indicator_p_<uuid>`) et celles des projets
-  existants, les déclencheurs, les droits du rôle du service — `SELECT`, `INSERT` : rien ne se met à
+- **Une migration, `0028`, dans le socle** (US-1660/L1) : la table, sa partition
+  (`revision_indicator_p_<uuid>`) créée à chaque projet nouveau par `create_project_partitions`, qui
+  lit dans le catalogue les tables partitionnées par `project_id` et que la migration ne remplace
+  donc pas (EP-07, décision du 2026-11-09 sur #2603 et #2667), et celles des projets existants,
+  attachées comme la fonction le fait, avec la fonction `revision_indicator_refuse_truncate` que la
+  fonction attend, les déclencheurs, les droits du rôle du service — `SELECT`, `INSERT` : rien ne se met à
   jour ni ne se supprime — déclarés dans `SERVICE_RIGHTS`. Aucune migration de données.
 - **La nature `project` n'existe que pour une révision marquée à l'état En cours** : c'est ce que
   l'évolution des indices, le temps/temps et le 409 de l'offre lisent.
-- Les tests : `test_migrations.py` (schéma, droits, partition d'un projet créé),
-  `test_database_constraints.py` (une contrainte, un test), `test_revision_immutability.py` étendu.
+- Les tests : `test_migrations.py` (schéma, droits, partition d'un projet créé ; la liste des
+  tables partitionnées par projet qu'affirme le test d'US-1560/L3 d'EP-07 reçoit
+  `revision_indicator`), `test_database_constraints.py` (une contrainte, un test),
+  `test_revision_immutability.py` étendu.
 
 ### Modules
 
@@ -381,8 +390,10 @@ importe l'interface (US-1670/L1).
 - **La date de calcul** D : le jour courant en temps universel pour le calcul du jour (`computed_at`
   l'instant), le jour de `marked_at` pour le marquage ; la révision de référence Ref est celle du
   projet à l'instant du calcul (la lecture du projet, sous son verrou au marquage).
-- **Les grandeurs d'une maille S**, en `Decimal`, arrondies une fois (`ROUND_HALF_EVEN`,
-  WF-DAT-0100) — les montants au centime, les ratios et les indices à quatre décimales :
+- **Les grandeurs d'une maille S**, en `Decimal`, arrondies une fois (WF-DAT-0100) — les montants
+  au centime, au plus proche, un demi loin de zéro (`ROUND_HALF_UP`), comme `Money` du contrat, qui
+  fait foi (#2618, décision de l'auteur du 2026-11-10) ; les ratios et les indices à quatre
+  décimales (`ROUND_HALF_EVEN`) :
   - le budget de référence : la somme des budgétés des lignes de Ref hors provision dont le
     sous-projet dans Ref est S (`unassigned` : nul) ;
   - la valeur planifiée à D : chaque ligne de Ref de la maille étalée sur les dates de sa tâche dans
@@ -394,8 +405,8 @@ importe l'interface (US-1670/L1).
     survenance (`origin_risk_id`, EP-08) sont exclues par construction ;
   - le coût réel à D : `actual_costs_until(project_id, D, S)` d'EP-09, les lignes suivies connues au
     moment du calcul dont la date de pièce ≤ D, `unassigned` les lignes au `subproject_id` nul ;
-  - le reste à engager : `remaining_of_revision(R)` par ligne, filtré par le sous-projet de la ligne
-    dans R ;
+  - le reste à engager : `remaining_of_revision(session, project_id, R)` par ligne (#2743), filtré
+    par le sous-projet de la ligne dans R ;
   - puis `financial_progress` = CR ÷ (CR + RAE) (`no_actual_or_remaining`), `budget_consumption` =
     CR ÷ BR et `physical_progress` = VA ÷ BR (`no_reference_budget`), `cost_index` = VA ÷ CR
     (`no_actual_cost`), `schedule_index` = VA ÷ VP (`no_planned_value`), `cost_variance` = VA − CR,
@@ -636,15 +647,16 @@ ce lot, ou en dépendent par son numéro :
 | `app.py`, `pyproject`, `tests/planning_support.py`, `test_registries.py`, `chronology.py`, `witness/revisions.py` (`register_revision_filler`) | US-1380/L1 #2328, fusionné avant la branche | aucun |
 
 Les catalogues `messages/*.json`, `conftest.py`, `support.py`, `api/queries.py`, `loader.py` et
-`mode.ts` ne s'écrivent dans aucun des quatre EPIC : une clé ou une fixture qui manque devient une
-issue. `platform/settings.py` (le réglage du cache) et `platform/cache.py` ne sont nommés par aucun
-lot des trois autres : EP-10 les écrit (US-1720).
+`mode.ts` ne s'écrivent dans aucun des quatre EPIC — sauf `support.py` par le lot d'outillage des
+tests d'EP-07, qui le possède (décision de l'auteur du 2026-11-10) — : une clé ou une fixture qui
+manque devient une issue. `platform/settings.py` (le réglage du cache) et `platform/cache.py` ne
+sont nommés par aucun lot des trois autres : EP-10 les écrit (US-1720).
 
 ### Ce que le cadrage laisse à EP-08
 
 Le socle (US-1660/L1 #2437) est le **lot pivot d'EP-08** : `epic/EP-08` se tire d'`epic/EP-10` dès sa
 fusion. Il lui garantit `revision_indicator` et sa partition, la chaîne des migrations arrêtée à
-`0027`, le module `core/indicators` avec son interface déclarée — `project_indicators`,
+`0028`, le module `core/indicators` avec son interface déclarée — `project_indicators`,
 `cost_curve`, `earned_value_curves`, `index_history`, `milestone_tracking`, `store_indicators`,
 `physical_progress` — et la signature du registre avec l'`Act`. Les lots d'EP-08 qui lisent les
 indicateurs devant un risque survenu, une fusion ou un avenant attendent par leur numéro le calcul
@@ -662,7 +674,7 @@ en largeur quatre ; le calcul du jour avant la conservation, la conservation ava
 historiques, les courbes conservées après les deux ; l'écran et le témoin après tout ce qui sert ; la
 vérification d'ensemble en dernier ; le plan de lots (étape 3) le détaille en vagues.
 
-1. **US-1660/L1**, le socle — dès la fusion d'US-1580/L1 #2398 : la migration `0027`, le module
+1. **US-1660/L1**, le socle — dès la fusion d'US-1580/L1 #2398 : la migration `0028`, le module
    `core/indicators` à vide avec son interface en paquet — hors les sous-paquets `formulas/` et
    `series/`, que leurs lots possèdent entiers, comme `pricing/` et `spreading/` en EP-07 —,
    l'enregistrement à vide dans `register_indicators` et la signature changée dans `marking.py`,
@@ -818,18 +830,19 @@ grandeur manque —, **afin de** savoir où en est mon projet entre deux revues.
   0,8 en vigilance. » : `zone` `nominal` à 0,9, `watch` à 0,8 ;
 - propre à l'US : `getProjectIndicators` lit la révision en cours — `revision_id` absent, ou celui
   de la révision en cours — au jour courant, ou la dernière révision marquée sans elle ; pour le
-  projet, un sous-projet ou « hors sous-projet » (`scope` ; un sous-projet que le projet n'a pas
-  ou un identifiant mal formé, 422 `VALIDATION_FAILED`, `UNKNOWN_SUBPROJECT` sur `/query/scope` ;
+  projet, un sous-projet ou « hors sous-projet » (`scope` ; un sous-projet que le projet n'a pas ou
+  un identifiant mal formé, 422 `VALIDATION_FAILED`, `UNKNOWN_SUBPROJECT` sur `/query/scope` ;
   `revision_id` et `as_of` ensemble, 422 sur `/query/revision_id`) ; `context` dit la révision, son
   état, `computed_at` l'instant du calcul, `scope`, `is_stored` faux ; `reference_budget` est la
   somme des montants budgétés des lignes de la référence de la maille, hors provision ;
   `planned_value` leur étalement sur les dates de la référence au prorata des heures travaillées,
-  par le module pur d'EP-07 (`spreading`), à la date du calcul ; `earned_value` et `remaining`
-  comme ci-dessus ; les montants au centime, les ratios et les indices à quatre décimales, arrondis
-  une fois (`ROUND_HALF_EVEN`, WF-DAT-0100) ; sous `project_indicators.read` ; chaque réponse est
-  validée contre le contrat dans les tests du service, et `test_access_evaluation.py` reçoit
-  l'opération avec ses deux termes ;
-- propre à l'US (lot technique) : la migration d'EP-10, chaînée sur `0026` et seule de l'EPIC —
+  par le module pur d'EP-07 (`spreading`), à la date du calcul ; `earned_value` et `remaining` comme
+  ci-dessus ; arrondis une fois (WF-DAT-0100), les montants au centime (`ROUND_HALF_UP`, #2618), les
+  ratios et les indices à quatre décimales (`ROUND_HALF_EVEN`) ; sous `project_indicators.read` ;
+  chaque réponse est validée contre le contrat dans les tests du service, et
+  `test_access_evaluation.py` reçoit l'opération avec ses deux termes ;
+- propre à l'US (lot technique) : la migration d'EP-10, `0028`, chaînée sur `0027` et seule de
+  l'EPIC —
   la table `revision_indicator` du Tableau 10, régime révisionné, partitionnée par projet, son
   déclencheur d'immuabilité, sa partition créée par `create_project_partitions`, les droits du rôle
   du service — ; le module `core/indicators` à vide avec son interface en paquet, enregistré à vide

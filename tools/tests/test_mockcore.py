@@ -361,7 +361,11 @@ _STRUCTURE_LINEAGES = next(f for f in mockids.IDENTIFIERS if f.first == 600)
 _RENAMED = {
     *(
         (name, identifier)
-        for name in ("task_renamed.json", "redo_task_renamed.json")
+        for name in (
+            "task_renamed.json",
+            "redo_task_renamed.json",
+            "redo_task_renamed_two_left.json",
+        )
         for identifier in (universe(WIRING), mockcore.lineage(WIRING))
     ),
     *(

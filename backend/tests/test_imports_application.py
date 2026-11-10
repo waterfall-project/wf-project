@@ -597,14 +597,20 @@ def test_the_passing_conditions_are_among_those_the_judgments_name_and_no_other(
     # ``apply_lacks``: the passing ones are two of them, the others are refused for good, and a
     # future condition of the same name as a passing one would be mistaken for it. The kinds
     # registered judge nothing of the state yet; one that does is to be added here.
-    calls = ast.walk(ast.parse(inspect.getsource(judgments.judge_state)))
-    state = {
-        getattr(judgments, call.args[0].id)
-        for call in calls
-        if isinstance(call, ast.Call)
-        and getattr(call.func, "id", None) == "refused"
-        and isinstance(call.args[0], ast.Name)
-    }
+    calls = [
+        call
+        for call in ast.walk(ast.parse(inspect.getsource(judgments.judge_state)))
+        if isinstance(call, ast.Call) and getattr(call.func, "id", None) == "refused"
+    ]
+    # Each call names its condition by a name of the module, its one argument: a call of another
+    # form — no argument, a string written out — is said here, not read wrong or passed over
+    # (#2547).
+    named: list[str] = []
+    for call in calls:
+        argument = call.args[0] if len(call.args) == 1 and not call.keywords else None
+        assert isinstance(argument, ast.Name), ast.unparse(call)
+        named.append(argument.id)
+    state = {getattr(judgments, name) for name in named}
     assert state == {
         PROJECT_NOT_TERMINAL,
         judgments.NO_BACKGROUND_TASK_RUNNING,

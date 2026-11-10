@@ -69,13 +69,17 @@ def test_reestimated_amount_sums_the_projected_shares_then_rounds_once() -> None
     assert sum_amounts(apart) == D("0.00")
     halves = [Share(2026, D("0.045")), Share(2026, D("0.045"))]
     assert projected_amount(halves, 2026, RATE) == D("0.09")
-    assert sum_amounts(round_to_cent(share.amount) for share in halves) == D("0.08")
+    assert sum_amounts(round_to_cent(share.amount) for share in halves) == D("0.10")
 
 
 @pytest.mark.requirement("WF-DAT-0100-A")
-def test_rounding_is_half_to_even() -> None:
-    assert round_to_cent(D("0.125")) == D("0.12")
+def test_rounding_is_half_away_from_zero_as_money_of_the_contract_says() -> None:
+    # ``Money``: "rounded to the cent, to nearest, a half going away from zero" (#2618); the
+    # projected rate of the contract's ``rate_update``, 73.50 x 1.03 = 75.705, gives 75.71.
+    assert round_to_cent(D("0.125")) == D("0.13")
     assert round_to_cent(D("0.135")) == D("0.14")
+    assert round_to_cent(D("-0.125")) == D("-0.13")
+    assert round_to_cent(D("73.50") * D("1.03")) == D("75.71")
 
 
 @pytest.mark.requirement("WF-DAT-0100-A")

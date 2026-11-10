@@ -31,7 +31,7 @@ from waterfall.core.history import interface as history
 from waterfall.core.history.interface import UndoStack
 from waterfall.core.planning.restoring import bring_back, read_objects, structure_of
 from waterfall.core.planning.snapshotting import taken
-from waterfall.core.planning.writing import Place, facts_of, judge_revision
+from waterfall.core.planning.writing import Place, facts_of, hold_before_lock, judge_revision
 from waterfall.platform.errors import ForbiddenError
 
 if TYPE_CHECKING:
@@ -106,6 +106,8 @@ def _turned(
     """
     project_id, revision_id = revision
     stack = _stack(revision_id, writer)
+    # What the facets hold before any structure, as every write of the tree (#2615).
+    hold_before_lock(session)
     judge_revision(session, project_id, revision_id)
     held: list[tuple[Place, StructureFacts]] = []
 

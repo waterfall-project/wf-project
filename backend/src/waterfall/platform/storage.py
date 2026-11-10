@@ -19,7 +19,7 @@ from botocore.exceptions import BotoCoreError, ClientError
 from waterfall.platform.errors import UnavailableError
 
 if TYPE_CHECKING:
-    from collections.abc import Generator, Iterator
+    from collections.abc import Callable, Collection, Generator, Iterator, Sequence
     from datetime import datetime
     from pathlib import Path
 
@@ -58,6 +58,14 @@ def reached() -> Generator[None]:
         raise unavailable() from error
     except BotoCoreError as error:
         raise unavailable() from error
+
+
+def _left[T](listed: list[T], kept: Callable[[Sequence[T]], Collection[T]] | None) -> list[T]:
+    """Give what a page of a listing holds, but what ``kept`` leaves out of it."""
+    if kept is None or not listed:
+        return listed
+    out = set(kept(listed))
+    return [each for each in listed if each not in out]
 
 
 class Bucket:
@@ -133,11 +141,19 @@ class Bucket:
         with reached():
             self.client.delete_object(Bucket=self.name, Key=key)
 
-    def keys_before(self, prefix: str, before: datetime, limit: int | None = None) -> list[str]:
+    def keys_before(
+        self,
+        prefix: str,
+        before: datetime,
+        limit: int | None = None,
+        kept: Callable[[Sequence[str]], Collection[str]] | None = None,
+    ) -> list[str]:
         """List the keys under a prefix of the objects last modified before an instant.
 
         ``limit`` bounds the list: the keys beyond it are left to a later call, so that a bucket
-        with a great many old objects is not held in memory.
+        with a great many old objects is not held in memory. ``kept`` gives, among the old keys
+        of a page of the listing, those to leave out: they count for nothing, and the listing goes
+        on past them, so that a limit is never spent on keys the caller would not take (#2533).
         """
         keys: list[str] = []
         with reached():
@@ -145,21 +161,27 @@ class Bucket:
                 Bucket=self.name, Prefix=prefix
             )
             for page in pages:
-                for listed in page.get("Contents", []):
-                    modified = listed.get("LastModified")
-                    if modified is not None and modified < before:
-                        keys.append(listed.get("Key", ""))
-                        if limit is not None and len(keys) >= limit:
-                            return keys
+                old = [
+                    listed.get("Key", "")
+                    for listed in page.get("Contents", [])
+                    if (modified := listed.get("LastModified")) is not None and modified < before
+                ]
+                keys += _left(old, kept)
+                if limit is not None and len(keys) >= limit:
+                    return keys[:limit]
         return keys
 
     def deposits_before(
-        self, prefix: str, before: datetime, limit: int | None = None
+        self,
+        prefix: str,
+        before: datetime,
+        limit: int | None = None,
+        kept: Callable[[Sequence[tuple[str, str]]], Collection[tuple[str, str]]] | None = None,
     ) -> list[tuple[str, str]]:
         """List the deposits in parts under a prefix opened before an instant, by key and deposit.
 
         A deposit in parts not completed is not an object: ``keys_before`` never lists it.
-        ``limit`` bounds the list, as for the keys.
+        ``limit`` bounds the list, and ``kept`` leaves deposits out of it, as for the keys.
         """
         found: list[tuple[str, str]] = []
         with reached():
@@ -167,12 +189,14 @@ class Bucket:
                 Bucket=self.name, Prefix=prefix
             )
             for page in pages:
-                for listed in page.get("Uploads", []):
-                    opened = listed.get("Initiated")
-                    if opened is not None and opened < before:
-                        found.append((listed.get("Key", ""), listed.get("UploadId", "")))
-                        if limit is not None and len(found) >= limit:
-                            return found
+                old = [
+                    (listed.get("Key", ""), listed.get("UploadId", ""))
+                    for listed in page.get("Uploads", [])
+                    if (opened := listed.get("Initiated")) is not None and opened < before
+                ]
+                found += _left(old, kept)
+                if limit is not None and len(found) >= limit:
+                    return found[:limit]
         return found
 
     def abort_parts(self, key: str, deposit: str) -> None:

@@ -14,8 +14,9 @@ writing nothing.
   numbered after those that remain.
 - **The reference.** A current revision follows the reference for its roles and its categories — the
   active ones and those its lines employ —; a marked one reads its images (``kept_reference``), or
-  the reference when it keeps none (marked before US-1500). The rate of a category of labour is the
-  one the revision is priced at (``held_rates``): its own, else the reference's for its year.
+  the reference when it keeps none (marked before US-1500). A category is designated by its
+  accounting code, not its technical code (WF-REF-0040, #2688). The rate of a category of labour is
+  the one the revision is priced at (``held_rates``): its own, else the reference's for its year.
 - **The lines.** Each as the facet keeps it, in the order of the plan; « Montant Waterfall » is its
   re-estimated amount, inflation included (WF-DEV-0050). The designation is the label stored, so
   that the import finds the line as it was; the role of a line of labour, the category of any
@@ -111,7 +112,7 @@ class _RoleInfo:
 
 @dataclass(frozen=True, slots=True)
 class _CategoryInfo:
-    code: str
+    code: str  # the accounting code, which designates the category in the workbook (#2688)
     label: str
     nature: str
     kind: NatureKind
@@ -163,7 +164,7 @@ def file_name(code: str | None, label: str, version: tuple[str | None, UUID]) ->
 def _category(
     nature: str, kind: str, names: tuple[str, str], *, active: bool = True
 ) -> _CategoryInfo:
-    """Give a category as it is read: its code and its label, its nature, whether it is active."""
+    """Give a category as it is read: its accounting code, its label, its nature, if active."""
     code, label = names
     return _CategoryInfo(code, label, nature, KINDS[kind], active)
 
@@ -174,7 +175,7 @@ def _categories_of(session: Session, category_ids: Iterable[UUID]) -> dict[UUID,
         each.cost_category_id: _category(
             each.cost_type_label,
             each.cost_type_kind,
-            (each.code, each.label),
+            (each.accounting_code, each.label),
             active=each.is_active,
         )
         for each in read_cost_categories(session, list(category_ids))
@@ -194,7 +195,7 @@ def _reference(session: Session, order: ExportOrder, year: int, *, marked: bool)
         }
         categories = {
             each.cost_category_id: _category(
-                each.cost_type_label, each.cost_type_kind, (each.code, each.label)
+                each.cost_type_label, each.cost_type_kind, (each.accounting_code, each.label)
             )
             for each in kept.cost_categories
         }
@@ -212,7 +213,7 @@ def _reference(session: Session, order: ExportOrder, year: int, *, marked: bool)
             each.cost_category_id: _category(
                 each.cost_type_label,
                 each.cost_type_kind,
-                (each.code, each.label),
+                (each.accounting_code, each.label),
                 active=each.is_active,
             )
             for each in held.categories.values()

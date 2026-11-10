@@ -7,8 +7,13 @@ The lines read (``excel/reader``) are matched with those of the structure by the
 hold — or one an earlier row of the file took already —, is a new line. Its task is the one
 « Tâches » gives its entry the lineage of, or else the one task of the structure that carries its
 label (``AMBIGUOUS_TASK_LABEL`` for several, ``UNKNOWN_TASK`` for none, ``params.value`` the cell);
-its role or its category is read by the entry of the list of « Paramètres », « label (code) », or by
-its code (``UNKNOWN_RESOURCE_ROLE``); its subproject by its code (``UNKNOWN_SUBPROJECT``). Each line
+its role or its category is read by the code between the last parentheses of the entry of the list
+of « Paramètres », « label (code) », or by its code alone, the label being only indicative (#2689):
+a role renamed since the export, or the file of a marked revision imported into the current one, is
+read as it was; a category by its accounting code (WF-REF-0040, #2688); a code a role and a category
+share by the label the entry gives when it is that of one kind only, else by the kind of the line
+it replaces, and a new line then is rejected (``UNKNOWN_RESOURCE_ROLE``), as an entry of no
+known code is; its subproject by its code (``UNKNOWN_SUBPROJECT``). Each line
 is then judged as its entry is (``entries.judged_line``): its refusals on a field reject it, by the
 code of the field and the header of its column (``params.header``), a provision category among them
 (``PROVISION_CATEGORY_RESERVED``), and the rule of a subproject that received actual costs, which
@@ -71,7 +76,7 @@ from waterfall.core.resource_settings.interface import (
     role_calendars,
 )
 from waterfall.core.revisions.interface import structure_facts
-from waterfall.platform.errors import UnprocessableError
+from waterfall.platform.errors import STATE_FORBIDS_OPERATION, UnprocessableError
 
 if TYPE_CHECKING:
     from collections.abc import Iterable, Mapping
@@ -95,7 +100,6 @@ UNKNOWN_TASK = "UNKNOWN_TASK"
 UNKNOWN_RESOURCE_ROLE = "UNKNOWN_RESOURCE_ROLE"
 UNKNOWN_SUBPROJECT = "UNKNOWN_SUBPROJECT"
 AMBIGUOUS_TASK_LABEL = "AMBIGUOUS_TASK_LABEL"
-STATE_FORBIDS_OPERATION = "STATE_FORBIDS_OPERATION"
 NOUGHT = Decimal(0)
 EVERY = 10**9
 NOBODY = UUID(int=0)
@@ -147,14 +151,69 @@ class Aimed:
         )
 
 
+def readings(text: str) -> list[tuple[str, str | None]]:
+    """Give the ways an entry « label (code) » can be read, as (code, label), the likeliest first.
+
+    The code is the one between the parentheses that end the text (#2689): each « ( » of the text
+    from the right opens one reading, so that a code which holds parentheses is found too
+    (« Pièce (A(B)) », code « A(B) »); the text whole, as a code alone, comes last.
+    """
+    stripped = text.strip()
+    found: list[tuple[str, str | None]] = []
+    if stripped.endswith(")"):
+        openings = [at for at, each in enumerate(stripped) if each == "("]
+        found = [
+            (stripped[at + 1 : -1].strip(), stripped[:at].strip()) for at in reversed(openings)
+        ]
+    return [*found, (stripped, None)]
+
+
+def designation(text: str) -> tuple[str, str | None]:
+    """Give the code an entry « label (code) » designates, and its label; a text alone, as code.
+
+    The code is the one between the last parentheses that end the text (#2689); a text that does
+    not end so is a code alone, without a label.
+    """
+    return readings(text)[0]
+
+
 @dataclass(frozen=True, slots=True)
 class Reference:
-    """What a line names of the reference and the project: roles, categories, subprojects."""
+    """What a line names of the reference and the project: roles, categories, subprojects.
+
+    ``roles`` by their code, ``categories`` by their accounting code (#2688), ``subprojects`` by
+    their code.
+    """
 
     roles: dict[str, RoleView]
     categories: dict[str, CostCategoryView]
     subprojects: dict[str, UUID]
     roles_by_id: dict[UUID, RoleView]
+
+    def named(
+        self, text: str, *, labour: bool | None = None
+    ) -> tuple[RoleView | None, CostCategoryView | None]:
+        """Give the role or the category a cell names, by its code; neither when none bears it.
+
+        A code a role and a category share is read by the label of the entry when it is the label
+        of one of the two kinds and not of the other; else by ``labour``, the kind of the line the
+        entry replaces (true for a labour line), and for a new line, or an entry without a label
+        or with one of neither, it is neither: the entry is ambiguous. A code is looked for by
+        each reading of the text (``readings``), so that it may hold parentheses.
+        """
+        for code, label in readings(text):
+            role, category = self.roles.get(code), self.categories.get(code)
+            if role is not None and category is not None:
+                if label == category.label and label != role.label:
+                    return None, category
+                if label == role.label and label != category.label:
+                    return role, None
+                if labour is None:
+                    return None, None
+                return (role, None) if labour else (None, category)
+            if role is not None or category is not None:
+                return role, category
+        return None, None
 
 
 @dataclass(frozen=True, slots=True)
@@ -228,7 +287,7 @@ def aimed(session: Session, target: ImportTarget) -> Aimed:
 
 
 def reference_of(session: Session, project_id: UUID) -> Reference:
-    """Read the roles and the categories by their entry and their code, the subprojects by code."""
+    """Read the roles by code, the categories by accounting code, the subprojects by code."""
     every = frozenset({True, False})
     roles = list_roles(
         session,
@@ -244,16 +303,8 @@ def reference_of(session: Session, project_id: UUID) -> Reference:
         Page(EVERY, 0),
         may_change=False,
     ).categories
-    named_roles: dict[str, RoleView] = {}
-    for role in roles:
-        named_roles.setdefault(f"{role.label} ({role.code})", role)
-    named_categories: dict[str, CostCategoryView] = {}
-    for category in categories:
-        named_categories.setdefault(f"{category.label} ({category.code})", category)
-    for role in roles:
-        named_roles.setdefault(role.code, role)
-    for category in categories:
-        named_categories.setdefault(category.code, category)
+    named_roles = {role.code: role for role in roles}
+    named_categories = {category.accounting_code: category for category in categories}
     # The commands of the subprojects are not read: an account that holds no permission lists them.
     viewer = Viewer(NOBODY, frozenset())
     subprojects = list_subprojects(
@@ -318,7 +369,10 @@ def _figure(value: Decimal | None) -> Decimal:
 
 
 def _entry(
-    line: ReadLine, reference: Reference, rejected: list[dict[str, Any]]
+    line: ReadLine,
+    reference: Reference,
+    rejected: list[dict[str, Any]],
+    current: EstimateLine | None,
 ) -> tuple[LineEntry, UUID | None] | None:
     """Give what a line sends, as its entry would; or none, its rejections added."""
     before = len(rejected)
@@ -329,8 +383,8 @@ def _entry(
             _rejection(line, VALUE_REQUIRED, {"header": reader.ROLE_OR_CATEGORY_HEADER})
         )
     else:
-        role = reference.roles.get(text)
-        category = None if role is not None else reference.categories.get(text)
+        labour = None if current is None else current.resource_role_id is not None
+        role, category = reference.named(text, labour=labour)
         if role is None and category is None:
             rejected.append(_rejection(line, UNKNOWN_RESOURCE_ROLE, {"value": text}))
     subproject = None
@@ -464,9 +518,9 @@ def _plan(
     task = _task(line, held, designated)
     if isinstance(task, dict):
         found.rejected.append(task)
-        _entry(line, reference, found.rejected)
+        _entry(line, reference, found.rejected, current)
         return
-    sent = _entry(line, reference, found.rejected)
+    sent = _entry(line, reference, found.rejected, current)
     if sent is None:
         return
     entry, role_id = sent

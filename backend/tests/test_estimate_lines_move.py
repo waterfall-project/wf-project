@@ -15,14 +15,13 @@ US-1490/L4 ("Les tests du back").
 """
 
 from datetime import date, timedelta
-from decimal import ROUND_HALF_EVEN, Decimal
+from decimal import ROUND_HALF_UP, Decimal
 from typing import TYPE_CHECKING, Any
 from uuid import UUID
 
 import pytest
 from estimate_support import YEAR, Costing, Lines, add_role, costing, give_a_line
 from nodes_support import Tree, faults, mark, opened, refusal, set_progress
-from openapi_core.testing import MockRequest, MockResponse
 from planning_support import insert_link, insert_task
 from project_rows import lifted_kind_check, structure_row
 from projects_support import PROJECTS, Scene, person
@@ -123,24 +122,6 @@ def moved(tree: Tree, nodes: list[dict[str, Any]], parent: str, **body: Any) -> 
     answer = move(tree, nodes, parent, **body)
     assert answer.status_code == 200, answer.text
     return answer.json()
-
-
-def unwalked(tree: Tree, sent: dict[str, Any]) -> Any:
-    """Move nodes whose refusal names tasks, the answer validated against the contract.
-
-    ``ContractClient`` cannot walk ``Problem.params.tasks``, two objects in an ``anyOf`` (#2597):
-    the answer is validated by openapi-core, as the client does first, without that walk.
-    """
-    path = f"{tree.path}/nodes/move"
-    answer = tree.api.client.post(path, headers=tree.stage.manager.headers, json=sent)
-    conforming = MockResponse(
-        answer.content,
-        status_code=answer.status_code,
-        headers=dict(answer.headers),
-        content_type=answer.headers.get("content-type", "").split(";")[0],
-    )
-    tree.api.contract.validate_response(MockRequest("http://testserver", "post", path), conforming)
-    return answer
 
 
 def stored(stage: Scene) -> int:
@@ -309,9 +290,7 @@ def test_a_line_moved_to_a_task_two_years_later_is_priced_on_it_and_given_back(
     assert line["estimate_line"]["reestimated_amount"] == "650.00"
     body = moved(tree, [line], later["node_id"])
     [written] = body["nodes"]
-    expected = (Decimal("650.00") * Decimal("1.03") * Decimal("1.03")).quantize(
-        CENT, ROUND_HALF_EVEN
-    )
+    expected = (Decimal("650.00") * Decimal("1.03") * Decimal("1.03")).quantize(CENT, ROUND_HALF_UP)
     assert written["parent_id"] == later["node_id"]
     assert (
         written["estimate_line"]["base_amount"],
@@ -365,7 +344,7 @@ def test_a_labour_line_moved_to_a_task_whose_role_never_meets_it_is_refused_nami
     elsewhere = tree.made("Astreinte")
     line = lines.made(elsewhere, **labour(weekend))["nodes"][0]
     before = tree.node(weekdays["node_id"])
-    answer = unwalked(tree, move_body(tree, [line], weekdays["node_id"]))
+    answer = move(tree, [line], weekdays["node_id"])
     assert refusal(answer) == (
         422,
         "TASK_WITHOUT_WORKING_HOURS",

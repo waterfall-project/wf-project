@@ -37,7 +37,6 @@ if TYPE_CHECKING:
 NOT_FOUND = "NOT_FOUND"
 STALE_LOCK_VERSION = "STALE_LOCK_VERSION"
 ALREADY_EXISTS = "ALREADY_EXISTS"
-STATE_FORBIDS_OPERATION = "STATE_FORBIDS_OPERATION"
 VALIDATION_FAILED = "VALIDATION_FAILED"
 # The key of the advisory lock of the rule that binds a nature and its categories: a category is
 # never active under a nature that is not. Distinct from the other ones of the service.

@@ -20,7 +20,7 @@ Au-dessus de la grille :
 - **Lot ou poste** filtre la grille sur un lot ou un poste du lotissement ; les indicateurs restent ceux du projet, ou du sous-projet filtré.
 - **Origine** retient les tâches et les lignes issues de la survenance d’un risque — **Issues d’un risque** — ou de celle d’un risque survenu que vous choisissez ; le serveur filtre, et l’adresse garde le choix. Une tâche ou une ligne issue d’un risque porte, après l’icône de sa nature, une marque discrète qui nomme ce risque. Le registre des risques mène à cette grille, filtrée sur un risque survenu.
 - **Rechercher un libellé**, **Colonnes**, **Arbre** ;
-- **Annuler** (`Ctrl+Z`) et **Rétablir** (`Ctrl+Maj+Z`), là où la structure se saisit. Elles restent indisponibles tant que le serveur ne conserve pas l’historique des saisies.
+- **Annuler** (`Ctrl+Z`) et **Rétablir** (`Ctrl+Maj+Z`), là où la structure se saisit. Chaque saisie, chaque geste de structure et chaque collage est une entrée de l’historique que le serveur conserve : un collage s’annule d’un coup. Annuler une saisie qu’un autre contributeur a reprise depuis est refusé, en nommant l’objet en conflit.
 - **Renseigner les taux horaires**, dans l’avis des taux manquants, mène au référentiel des coûts pour qui peut le modifier ; **Voir les taux horaires** pour qui le lit.
 
 Dans le menu d’une cellule (clic droit, `Maj+F10` ou la touche Menu) : les gestes de structure — dont **Insérer une ligne** (`Ctrl+Inser`) —, le pliage, **Annuler** et **Rétablir**, et le sous-menu **Sous-projet**, qui porte la ligne, ou la sélection, à un sous-projet. Leur détail est dans l’aide de la [grille de devis](FBS-4.4.2.md).

@@ -54,7 +54,6 @@ from waterfall.core.projects.interface.projects import (
     ALREADY_EXISTS,
     NOT_FOUND,
     STALE_LOCK_VERSION,
-    STATE_FORBIDS_OPERATION,
     VALIDATION_FAILED,
     Viewer,
     lock_project,
@@ -62,6 +61,7 @@ from waterfall.core.projects.interface.projects import (
 from waterfall.core.projects.tables import Project, Subproject
 from waterfall.platform.database import contains, unique_violated
 from waterfall.platform.errors import (
+    STATE_FORBIDS_OPERATION,
     ConflictError,
     FieldError,
     NotFoundError,
@@ -546,20 +546,24 @@ def delete_subproject(
 
 
 def subproject_labels(
-    session: Session, project_id: UUID, subproject_ids: Collection[UUID]
+    session: Session, project_id: UUID, subproject_ids: Collection[UUID], *, held: bool = False
 ) -> dict[UUID, str]:
     """Give the label of each subproject of a project named; one of another project is left out.
 
-    What a line of estimate shows of its subproject, and what it may name (EP-07).
+    What a line of estimate shows of its subproject, and what it may name (EP-07). ``held`` reads
+    them ``FOR KEY SHARE``, for a write that names them: a deletion under way is waited for, and a
+    subproject it took away is left out, as one that never was, instead of failing the key of the
+    line the write inserts (#2616); a deletion that comes after waits for the write, and sees the
+    line it then refuses (``subproject_without_estimate_lines``).
     """
     if not subproject_ids:
         return {}
-    rows = session.execute(
-        select(Subproject.id, Subproject.label).where(
-            Subproject.project_id == project_id, Subproject.id.in_(subproject_ids)
-        )
+    query = select(Subproject.id, Subproject.label).where(
+        Subproject.project_id == project_id, Subproject.id.in_(subproject_ids)
     )
-    return dict(rows.all())
+    if held:
+        query = query.with_for_update(key_share=True, of=Subproject)
+    return dict(session.execute(query).all())
 
 
 def subprojects_named(

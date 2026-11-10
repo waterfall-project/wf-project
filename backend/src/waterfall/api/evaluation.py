@@ -73,13 +73,19 @@ class RequiresProject:
     not exist (404), refused as one the caller may not consult. The project's existence and the
     caller's quality are read in a transaction of their own, as the caller is; a route that writes
     decides on the state of the project under its own lock. ``manager`` reserves the operation to
-    the project managers of the project (WF-PRJ-0060).
+    the project managers of the project (WF-PRJ-0060). ``one_of`` asks, after ``permissions``, for
+    one at least of its own, a write of the tree that the three grids make alike
+    (``StructureCommand``, #2601): the first the caller holds is judged, the first of all named
+    when it holds none.
     """
 
-    __slots__ = ("manager", "permissions")
+    __slots__ = ("manager", "one_of", "permissions")
 
-    def __init__(self, *permissions: str, manager: bool = False) -> None:
+    def __init__(
+        self, *permissions: str, one_of: tuple[str, ...] = (), manager: bool = False
+    ) -> None:
         self.permissions = permissions
+        self.one_of = one_of
         self.manager = manager
 
     def __call__(self, request: Request, actor: Acting, services: ServicesOf) -> None:
@@ -88,8 +94,12 @@ class RequiresProject:
             project_id = IDENTIFIER.validate_python(request.path_params.get("project_id"))
         except ValidationError:
             raise NotFoundError(NOT_FOUND) from None
+        asked = self.permissions
+        if self.one_of:
+            held = (each for each in self.one_of if each in actor.permissions)
+            asked = (*asked, next(held, self.one_of[0]))
         with services.database.transaction() as session:
-            require_project(session, actor, project_id, *self.permissions, manager=self.manager)
+            require_project(session, actor, project_id, *asked, manager=self.manager)
 
 
 def _flag(value: str | None) -> bool | None:

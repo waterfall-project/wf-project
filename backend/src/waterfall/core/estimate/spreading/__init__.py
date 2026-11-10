@@ -3,9 +3,10 @@
 """The spreading of a load or an amount over the years and months of a task (US-1520).
 
 Pure: dates, a weekly calendar and an amount in, the shares by period out, without a database or a
-clock (WF-DEV-0040-A, WF-DEV-0070-A, WF-DEV-0080-A). The year of consumption of a line, the
-workload and the planned value share this module. The names are imported from here, never from the
-file that defines them.
+clock (WF-DEV-0040-A, WF-DEV-0070-A, WF-DEV-0080-A). The hours of work are counted by the calendar
+of the planning (``Calendar.worked``, #2549), one count for the engine and the estimate. The year of
+consumption of a line, the workload and the planned value share this module. The names are imported
+from here, never from the file that defines them.
 """
 
 # ``planned``: the planned value on given lines and dates.
@@ -28,9 +29,4 @@ from waterfall.core.estimate.spreading.spread import (
 )
 from waterfall.core.estimate.spreading.spread import (
     spread_by_year as spread_by_year,
-)
-
-# ``week``: the hours worked by a weekly calendar between two instants.
-from waterfall.core.estimate.spreading.week import (
-    WorkWeek as WorkWeek,
 )

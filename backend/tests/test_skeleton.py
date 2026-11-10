@@ -309,10 +309,10 @@ def test_the_default_work_breakdown_gives_what_the_contract_example_says(tree: T
     assert written["rescheduled"] == example["rescheduled"] == []
     assert written["reinflated"] == example["reinflated"] == []
     assert written["totals"] == example["totals"]
-    # The counter of the structure goes up by one, as the example says of its own: the fixture
-    # reads 1 at the creation of the structure, the service 0 (EP-04), the step is the same.
-    assert written["structure_lock_version"] == read_counter + 1
-    assert example["structure_lock_version"] == 2
+    # The structure is born at 1, as every resource (E-16, #2542), and the generation takes it to
+    # 2, the counter the example writes.
+    assert read_counter == 1
+    assert written["structure_lock_version"] == example["structure_lock_version"] == 2
 
 
 @pytest.mark.requirement("WF-PRJ-0030-A")

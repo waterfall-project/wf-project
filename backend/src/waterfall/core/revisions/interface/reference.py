@@ -126,10 +126,15 @@ class ReferenceDesignated:
 
 @dataclass(frozen=True, slots=True)
 class ReferenceToDesignate:
-    """The revision a designation names, and the counter of the project its caller read."""
+    """The revision a designation names, and the counter of the project its caller read.
+
+    ``at`` is the instant the loader of the witness imposes (WF-CYC-0130); none for a request,
+    whose designation takes the moment under the lock.
+    """
 
     revision_id: UUID
     lock_version: int
+    at: datetime | None = None
 
 
 def designate_reference(
@@ -140,12 +145,13 @@ def designate_reference(
     Judged under the lock of the project, where the writer is judged again as a project manager of
     it (403, 404; #2207), then at the counter read; nothing is written if refused. The
     revision that is the reference already is designated again without a write: no counter, no
-    inscription, no transition. The moment of the designation is taken under the lock.
+    inscription, no transition. The moment of the designation is taken under the lock, unless the
+    witness imposes it.
     """
     hold_current_revision(session, project_id)
     project = lock_for_designation(session, project_id)
     require_project_manager(session, project_id, viewer)
-    act = replace(act, at=utc_now())
+    act = replace(act, at=utc_now() if designated.at is None else designated.at)
     revision_id = designated.revision_id
     target = found_revision(session, revision_id, project_id, lock=False)
     if project.lock_version != designated.lock_version:

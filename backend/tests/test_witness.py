@@ -16,7 +16,7 @@ from uuid import UUID, uuid4
 import pytest
 from cost_settings_examples import LABOUR, NON_LABOUR, PROVISION, UNSHARED
 from installed_reference import install
-from project_rows import drop_partitions, unguarded
+from project_rows import drop_partitions, projects_with_partitions, unguarded
 from pydantic import SecretStr, ValidationError
 from sqlalchemy import delete, insert, select, text
 from support import WITNESS
@@ -602,3 +602,19 @@ def test_the_command_stops_saying_so_on_a_witness_the_rules_refuse_and_writes_no
     with database.transaction() as session:
         for model, column in OBJECTS:
             assert rows_of(session, model, column) == [], model
+
+
+def test_the_witness_is_refused_on_an_installation_that_holds_a_project_without_its_calendars(
+    database: Database, owner: Engine, service_database_url: str, logs: Logs
+) -> None:
+    # Its default calendar, designated, would judge the tasks of a project already there, and
+    # redate them: the loader refuses such an installation, naming the project, and writes nothing
+    # of the slices before the calendars (#2556).
+    install(owner)
+    with projects_with_partitions(owner) as [project_id]:
+        assert load(service_database_url) == 1
+        refusals = [(record["code"], record["params"]) for record in logs.named("witness.refused")]
+        assert refusals == [(ALREADY_EXISTS, {"conflicting_object_id": str(project_id)})]
+        with database.transaction() as session:
+            for model, column in OBJECTS:
+                assert rows_of(session, model, column) == [], model

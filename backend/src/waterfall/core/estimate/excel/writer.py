@@ -14,7 +14,7 @@ import re
 from dataclasses import dataclass, replace
 from importlib.resources import files
 from io import BytesIO
-from typing import TYPE_CHECKING, Any, Literal
+from typing import TYPE_CHECKING, Any
 
 import xlsxwriter
 from xlsxwriter.utility import xl_col_to_name, xl_rowcol_to_cell
@@ -176,14 +176,33 @@ class _Lists:
 
 
 @dataclass(frozen=True)
-class _Row:
-    """A row of the breakdown: a lot (with its count of tabs) or a tab (with its table)."""
+class _LotRow:
+    """A row of the breakdown for a lot, with the count of its tabs, whose rows follow it."""
 
-    level: Literal["lot", "tab"]
     number: str
     label: str
-    tabs: int = 0
-    table: str = ""
+    tabs: int
+
+
+@dataclass(frozen=True)
+class _TabRow:
+    """A row of the breakdown for a tab of lines, with the name of its table (#2602)."""
+
+    number: str
+    label: str
+    table: str
+
+
+@dataclass(frozen=True)
+class _Labels:
+    """The label of every role and of every category, by code, each kind apart (#2690).
+
+    A code of a role is unique among the roles, an accounting code among the categories, not
+    between them: one index would give a role the label of a category of the same code.
+    """
+
+    roles: dict[str, str]
+    categories: dict[str, str]
 
 
 @dataclass(frozen=True)
@@ -195,14 +214,15 @@ class _Context:
     sheets: tuple[str, ...]
     tables: tuple[str, ...]
     fmt: dict[str, Format]
-    labels: dict[str, str]  # the label of a role or of a category, by code
+    labels: _Labels
 
 
-def _labels(estimate: Estimate) -> dict[str, str]:
-    """Give the label of every role and category, by code, once for the whole workbook."""
-    labels = {role.code: role.label for role in estimate.roles}
-    labels.update({category.code: category.label for category in estimate.categories})
-    return labels
+def _labels(estimate: Estimate) -> _Labels:
+    """Give the labels of the roles and of the categories, once for the whole workbook."""
+    return _Labels(
+        {role.code: role.label for role in estimate.roles},
+        {category.code: category.label for category in estimate.categories},
+    )
 
 
 def _name_tabs(estimate: Estimate) -> tuple[tuple[Tab, ...], tuple[str, ...]]:
@@ -417,12 +437,16 @@ def _table_names(tabs: tuple[Tab, ...]) -> tuple[str, ...]:
     return tuple(names)
 
 
-def _line_row(labels: dict[str, str], task: Task, line: Line) -> list[Any]:
+def _line_row(labels: _Labels, task: Task, line: Line) -> list[Any]:
     """Give the cells a line writes; the calculated columns stay empty."""
-    code = line.role if line.role is not None else line.category
+    if line.role is not None:
+        entry = _entry(labels.roles[line.role], line.role)
+    else:
+        code = line.category or ""
+        entry = _entry(labels.categories[code], code)
     values: dict[str, Any] = {
         "Tâche": _task_entry(task),
-        "Rôle ou catégorie": _entry(labels[code or ""], code or ""),
+        "Rôle ou catégorie": entry,
         "Désignation": line.label,
         "Quantité": line.quantity,
         "Heures": line.hours,
@@ -559,20 +583,20 @@ def _write_summary(sheet: Worksheet, ctx: _Context) -> tuple[int, list[tuple[str
     top = 4
     sheet.write_row(top, 0, header, fmt["head"])
     sheet.set_row(top, 32)
-    plan: list[_Row] = []
+    plan: list[_LotRow | _TabRow] = []
     tables = iter(ctx.tables)  # in the order of the tabs: the lots', then the one outside
     for lot in estimate.lots:
-        plan.append(_Row("lot", lot.number, lot.label, tabs=len(lot.tabs)))
-        plan += [_Row("tab", tab.number, tab.label, table=next(tables)) for tab in lot.tabs]
+        plan.append(_LotRow(lot.number, lot.label, len(lot.tabs)))
+        plan += [_TabRow(tab.number, tab.label, next(tables)) for tab in lot.tabs]
     if estimate.outside_lot is not None:
         outside = estimate.outside_lot
-        plan.append(_Row("tab", outside.number, outside.label, table=next(tables)))
+        plan.append(_TabRow(outside.number, outside.label, next(tables)))
     first = top + 1
     last = top + len(plan)
     for offset, entry in enumerate(plan):
         row = first + offset
         number, label = entry.number, entry.label
-        if entry.level == "lot":
+        if isinstance(entry, _LotRow):
             count = entry.tabs
             sheet.write_string(row, 0, number, fmt["lot"])
             sheet.write(row, 1, label, fmt["lot"])

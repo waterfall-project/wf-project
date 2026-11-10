@@ -9,13 +9,17 @@ quality on its project each asks for besides.
 CONSULT = "planning.read"
 CHANGE = "planning.write"
 
-# The permissions each operation asks for, in the order they are evaluated: a paste, an undoing and
-# a redoing write the planning, the command ``edit_planning`` of the structure. An undoing is
-# refused besides for the permission of the entry it undoes, which the planning judges once it
-# knows the entry (``remaining.write`` for the state of a task).
+# The permissions of the three grids, one at least of which a paste asks for (#2601).
+ENTRIES = ("planning.write", "estimate.write", "remaining.write")
+
+# The permissions each operation asks for, in the order they are evaluated: an undoing and a
+# redoing write the planning, the command ``edit_planning`` of the structure; a paste, which the
+# three grids make alike, one at least of their permissions (#2601). An undoing is refused besides
+# for the permission of the entry it undoes, which the planning judges once it knows the entry
+# (``remaining.write`` for the state of a task).
 ASKED: dict[str, tuple[str, ...]] = {
-    "previewPaste": (CONSULT, CHANGE),
-    "applyPaste": (CONSULT, CHANGE),
+    "previewPaste": (CONSULT, *ENTRIES),
+    "applyPaste": (CONSULT, *ENTRIES),
     "undoLastChange": (CONSULT, CHANGE),
     "redoLastUndo": (CONSULT, CHANGE),
 }

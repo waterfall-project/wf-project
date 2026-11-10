@@ -9,15 +9,19 @@ quality on its project each asks for besides.
 CONSULT = "planning.read"
 CHANGE = "planning.write"
 
+# The permissions of the three grids, one at least of which a write they make alike asks for.
+ENTRIES = ("planning.write", "estimate.write", "remaining.write")
+
 # The permissions each operation asks for, in the order they are evaluated: the tree is read by
 # the holder of the permission to consult the planning, written by the holder of that to write it,
-# the command ``edit_planning`` of the structure (US-1380/L2, L3).
+# the command ``edit_planning`` of the structure (US-1380/L2, L3); a node is created, deleted and
+# moved by the holder of one at least of the permissions of the three grids (#2601).
 ASKED: dict[str, tuple[str, ...]] = {
     "listNodes": (CONSULT,),
-    "createNode": (CONSULT, CHANGE),
+    "createNode": (CONSULT, *ENTRIES),
     "updateTaskFacet": (CONSULT, CHANGE),
-    "deleteNode": (CONSULT, CHANGE),
-    "moveNodes": (CONSULT, CHANGE),
+    "deleteNode": (CONSULT, *ENTRIES),
+    "moveNodes": (CONSULT, *ENTRIES),
     "getComputedValueDependencies": (CONSULT,),
     "resolveRowNumber": (CONSULT,),
 }

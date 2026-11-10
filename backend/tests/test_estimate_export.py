@@ -18,7 +18,7 @@ from typing import TYPE_CHECKING, Any
 from uuid import UUID
 
 import pytest
-from estimate_import_support import analysed_import, two_tasks
+from estimate_import_support import analysed, analysed_import, two_tasks
 from estimate_support import YEAR, Costing, Lines, add_role, costing
 from fastapi.testclient import TestClient
 from imports_trial import apply, deposited, path, read, run
@@ -26,7 +26,7 @@ from nodes_support import Tree, mark, opened, put_facts, work_breakdown
 from openpyxl import load_workbook
 from projects_support import PROJECTS, Scene, contribute, person
 from projects_support import scene as make_scene
-from sqlalchemy import update
+from sqlalchemy import select, update
 from support import ContractClient
 from test_msproject_export import exported as exported_planning
 from test_msproject_export import import_file, nodes, the_planning
@@ -34,12 +34,20 @@ from test_msproject_export import import_file, nodes, the_planning
 from waterfall.api.app import create_app
 from waterfall.api.authentication import Services
 from waterfall.core.access_roles.predefined import PROJECT_MANAGER
-from waterfall.core.cost_settings.tables import HourlyRate, ReferenceSetting
+from waterfall.core.cost_settings.interface import CostCategoryDraft, create_cost_category
+from waterfall.core.cost_settings.tables import (
+    CostCategory,
+    CostType,
+    HourlyRate,
+    ReferenceSetting,
+)
 from waterfall.core.estimate.exporting import file_name
 from waterfall.core.planning.msproject import read_project
 from waterfall.core.projects.tables import OrderItem, Project, WorkPackage
 from waterfall.core.resource_settings.tables import ResourceRole
 from waterfall.core.users.tables import UserAccount
+from waterfall.platform.audit import Act
+from waterfall.platform.database import utc_now
 from waterfall.platform.keycloak_admin import KeycloakAdmin
 from waterfall.worker.exchanges import ExportTask, ImportTasks
 from waterfall.worker.marking import mark as marking
@@ -710,3 +718,228 @@ def test_a_version_named_like_the_current_revision_or_nothing_is_named_by_its_id
     assert file_name("P", "Projet", ("En-cours", revision)) == f"P-{revision}-devis.xlsx"
     assert file_name("P", "Projet", ("§§", revision)) == f"P-{revision}-devis.xlsx"
     assert file_name("P", "Projet", ("v1.0", revision)) == "P-v1.0-devis.xlsx"
+
+
+def with_quantity(content: bytes, lineage: str, quantity: int) -> bytes:
+    """Change the quantity of a line of « Hors lot », found by its lineage, as a user does."""
+    book = book_of(content)
+    sheet = book["Hors lot"]
+    headers = [cell.value for cell in sheet[1]]
+    column = headers.index("Quantité") + 1
+    for number, row in enumerate(sheet.iter_rows(min_row=2, values_only=True), start=2):
+        if row[headers.index("ID ligne")] == lineage:
+            sheet.cell(number, column, quantity)
+    out = BytesIO()
+    book.save(out)
+    return out.getvalue()
+
+
+def no_difference(report: dict[str, Any], count: int) -> None:
+    """Affirm that an analysis finds no difference, no rejection, and reads ``count`` lines."""
+    assert (report["differences"], report["rejected"], report["refusals"]) == ([], [], [])
+    assert report["unchanged_count"] == report["read_count"] == count
+
+
+@pytest.mark.requirement("WF-INTF-0110-A")
+def test_a_category_is_written_by_its_accounting_code_and_imported_back_by_it(
+    api: ContractClient, stage: Scene, worker: Worker, held: dict[str, Any]
+) -> None:
+    # Annex B: « une catégorie est désignée par son code comptable (WF-REF-0040) », and « Devis »
+    # gives « les heures par code comptable de main-d'œuvre » (#2688). The category of material is
+    # MAT-001 for the reference, 606001 for the accounting; the one of labour ING and 641001: the
+    # workbook says 606001 and 641001, never their technical codes, and imported again presents
+    # no difference and changes no line.
+    tree = held["tree"]
+    before = items_of(tree)
+    content = exported(api, stage, worker, tree.revision["revision_id"])
+    material = lines_of(content, "Hors lot")[1]
+    assert material["Rôle ou catégorie"] == "Matériel électrique (606001)"
+    book = book_of(content)
+    rows = list(book["Paramètres"].iter_rows(min_row=4, max_col=9, values_only=True))
+    assert [(row[2], row[7]) for row in rows if row[1] == "Rôle"] == [("ING", "641001")]
+    assert ("Matériel électrique (606001)", "Catégorie", "606001") in [
+        (row[0], row[1], row[7]) for row in rows
+    ]
+    assert all("MAT-001" not in str(cell) for row in rows for cell in row)
+    summary = [cell.value for cell in book["Devis"][5]]
+    assert "Heures 641001" in summary
+    assert "Heures ING" not in summary
+    hours = str(book["Devis"].cell(6, summary.index("Heures 641001") + 1).value)
+    assert '[[Code comptable]],"641001")' in hours
+    import_id = analysed_import(api, stage, worker, content)
+    no_difference(read(api, stage, import_id)["report"], 2)
+    assert apply(api, stage, import_id).status_code == 202
+    run(worker)
+    assert read(api, stage, import_id)["status"] == "applied"
+    assert items_of(tree) == before
+
+
+@pytest.mark.requirement("WF-INTF-0110-A")
+def test_a_role_and_a_category_renamed_after_the_export_are_imported_back_by_their_code(
+    api: ContractClient, stage: Scene, worker: Worker, held: dict[str, Any], costs: Costing
+) -> None:
+    # « Libellé (code) » is read by its code, the label being only indicative (#2689): the role
+    # and the category renamed in the reference since the export, the file imported again presents
+    # no difference and rejects no line.
+    content = exported(api, stage, worker, held["tree"].revision["revision_id"])
+    with stage.owner.begin() as connection:
+        connection.execute(
+            update(ResourceRole)
+            .where(ResourceRole.id == costs.role)
+            .values(label="Ingénieur senior")
+        )
+        connection.execute(
+            update(CostCategory)
+            .where(CostCategory.id == costs.material)
+            .values(label="Matériel courant")
+        )
+    assert [each["Rôle ou catégorie"] for each in lines_of(content, "Hors lot")] == [
+        "Ingénieur (ING)",
+        "Matériel électrique (606001)",
+    ]
+    no_difference(analysed(api, stage, worker, content), 2)
+
+
+@pytest.mark.requirement("WF-INTF-0110-A")
+def test_a_code_shared_by_a_role_and_a_category_keeps_each_line_of_its_kind(
+    api: ContractClient, stage: Scene, worker: Worker, held: dict[str, Any]
+) -> None:
+    # A code of a role is unique among the roles, an accounting code among the categories, not
+    # between them (#2690): the category « Outillage », accounted under ING as the role is coded,
+    # keeps its label in the workbook, and its line comes back a line of that category.
+    with stage.database.transaction() as session:
+        nature = session.scalars(select(CostType.id).where(CostType.code == "MAT")).one()
+        draft = CostCategoryDraft("OUT-001", "Outillage", "ING", nature)
+        tools = create_cost_category(session, draft, Act(None, utc_now())).cost_category_id
+    tree = held["tree"]
+    Lines(tree).made(
+        held["first"], quantity="1", cost_category_id=str(tools), unit_disbursement="12.00"
+    )
+    before = items_of(tree)
+    content = exported(api, stage, worker, tree.revision["revision_id"])
+    assert [each["Rôle ou catégorie"] for each in lines_of(content, "Hors lot")] == [
+        "Ingénieur (ING)",
+        "Matériel électrique (606001)",
+        "Outillage (ING)",
+    ]
+    import_id = analysed_import(api, stage, worker, content)
+    no_difference(read(api, stage, import_id)["report"], 3)
+    assert apply(api, stage, import_id).status_code == 202
+    run(worker)
+    assert items_of(tree) == before
+
+
+def with_entry(content: bytes, lineage: str, text: str, *, lineage_kept: bool = True) -> bytes:
+    """Change the « Rôle ou catégorie » cell of a line of « Hors lot », found by its lineage.
+
+    With ``lineage_kept`` false the line loses its lineage, so that the file gives a new line.
+    """
+    book = book_of(content)
+    sheet = book["Hors lot"]
+    headers = [cell.value for cell in sheet[1]]
+    for number, row in enumerate(sheet.iter_rows(min_row=2, values_only=True), start=2):
+        if row[headers.index("ID ligne")] == lineage:
+            sheet.cell(number, headers.index("Rôle ou catégorie") + 1, text)
+            if not lineage_kept:
+                sheet.cell(number, headers.index("ID ligne") + 1).value = None
+    out = BytesIO()
+    book.save(out)
+    return out.getvalue()
+
+
+def a_tools_line(stage: Scene, held: dict[str, Any]) -> str:
+    """Add a line of the category « Outillage », accounted ING as the role is coded; its lineage."""
+    with stage.database.transaction() as session:
+        nature = session.scalars(select(CostType.id).where(CostType.code == "MAT")).one()
+        draft = CostCategoryDraft("OUT-001", "Outillage", "ING", nature)
+        tools = create_cost_category(session, draft, Act(None, utc_now())).cost_category_id
+    made = Lines(held["tree"]).made(
+        held["first"], quantity="1", cost_category_id=str(tools), unit_disbursement="12.00"
+    )
+    return str(made["nodes"][0]["lineage_id"])
+
+
+@pytest.mark.requirement("WF-INTF-0110-A")
+@pytest.mark.parametrize("text", ["Outillage (ING)", "ING"], ids=["renamed", "code-alone"])
+def test_a_shared_code_of_no_label_keeps_the_kind_of_the_line_it_replaces_or_rejects_a_new_one(
+    api: ContractClient, stage: Scene, worker: Worker, held: dict[str, Any], text: str
+) -> None:
+    # A code the role ING and the category « Outillage » share, whose label is neither the role's
+    # nor, since the category was renamed « Outils » after the export, the category's: or no label
+    # at all. The line that exists keeps its kind, a category, and is never turned into a labour
+    # line; a new line is rejected, for it gives no way to tell (#2690).
+    tools = a_tools_line(stage, held)
+    content = exported(api, stage, worker, held["tree"].revision["revision_id"])
+    with stage.owner.begin() as connection:
+        connection.execute(
+            update(CostCategory).where(CostCategory.code == "OUT-001").values(label="Outils")
+        )
+    no_difference(analysed(api, stage, worker, with_entry(content, tools, text)), 3)
+    report = analysed(api, stage, worker, with_entry(content, tools, text, lineage_kept=False))
+    assert [(each["code"], each["params"]) for each in report["rejected"]] == [
+        ("UNKNOWN_RESOURCE_ROLE", {"value": text})
+    ]
+
+
+@pytest.mark.requirement("WF-INTF-0110-A")
+def test_a_code_that_holds_parentheses_is_imported_back_by_the_export_that_wrote_it(
+    api: ContractClient, stage: Scene, worker: Worker, held: dict[str, Any]
+) -> None:
+    # The accounting code takes any character that is not blank: « 606(1) » for a category, and a
+    # role may be coded « R(1) ». The export writes « Rôle R(1) (R(1)) » and « Pièces (606(1)) »;
+    # the import finds their codes by the end of the text, and presents no difference.
+    role = add_role(stage.database, "R(1)", (8, 8, 8, 8, 8, 0, 0))
+    with stage.database.transaction() as session:
+        nature = session.scalars(select(CostType.id).where(CostType.code == "MAT")).one()
+        draft = CostCategoryDraft("PIE-001", "Pièces", "606(1)", nature)
+        parts = create_cost_category(session, draft, Act(None, utc_now())).cost_category_id
+    tree, lines = held["tree"], Lines(held["tree"])
+    lines.made(held["first"], quantity="1", resource_role_id=str(role), hours="3")
+    lines.made(held["first"], quantity="2", cost_category_id=str(parts), unit_disbursement="9.00")
+    before = items_of(tree)
+    content = exported(api, stage, worker, tree.revision["revision_id"])
+    assert [each["Rôle ou catégorie"] for each in lines_of(content, "Hors lot")][2:] == [
+        "Rôle R(1) (R(1))",
+        "Pièces (606(1))",
+    ]
+    import_id = analysed_import(api, stage, worker, content)
+    no_difference(read(api, stage, import_id)["report"], 4)
+    assert apply(api, stage, import_id).status_code == 202
+    run(worker)
+    assert items_of(tree) == before
+
+
+@pytest.mark.requirement("WF-INTF-0100-A")
+def test_an_estimate_exported_from_a_marked_revision_updates_the_current_one_creating_no_line(
+    api: ContractClient, stage: Scene, worker: Worker, held: dict[str, Any], costs: Costing
+) -> None:
+    # « Un devis exporté d'une révision marquée puis réimporté dans la révision en cours met à jour
+    # les lignes de même lignée sans en créer aucune. » The marked revision is exported on its
+    # images, « Ingénieur (ING) », after the role was renamed « Ingénieur senior » (#2689); the
+    # quantity of its labour line changed, the file updates that line of the current revision,
+    # rejects none, creates none.
+    marked = held["tree"].revision
+    mark(stage, marked)
+    with stage.owner.begin() as connection:
+        connection.execute(
+            update(ResourceRole)
+            .where(ResourceRole.id == costs.role)
+            .values(label="Ingénieur senior")
+        )
+    current = Tree(api, stage, opened(api, stage))
+    lineages = sorted(each["lineage_id"] for each in items_of(current))
+    content = exported(api, stage, worker, marked["revision_id"])
+    assert lines_of(content, "Hors lot")[0]["Rôle ou catégorie"] == "Ingénieur (ING)"
+    labour = held["labour"]["lineage_id"]
+    import_id = analysed_import(api, stage, worker, with_quantity(content, labour, 3))
+    report = read(api, stage, import_id)["report"]
+    assert (report["rejected"], report["refusals"]) == ([], [])
+    changes = [(each["change"], each["lineage_id"]) for each in report["differences"]]
+    assert changes == [("updated", labour)]
+    assert report["differences"][0]["fields"] == ["quantity"]
+    assert apply(api, stage, import_id).status_code == 202
+    run(worker)
+    assert read(api, stage, import_id)["status"] == "applied"
+    after = {each["lineage_id"]: each for each in items_of(current)}
+    assert sorted(after) == lineages
+    assert after[labour]["estimate_line"]["quantity"] == "3"
