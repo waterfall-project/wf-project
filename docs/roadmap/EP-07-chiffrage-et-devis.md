@@ -741,6 +741,24 @@ deux lots ajoutés à l'EPIC, avant la vérification d'ensemble US-1570/L3, qui 
   `task-tree.spec.ts`, `exchanges.spec.ts`, `project-start.spec.ts`), par la vérification
   d'ensemble US-1570/L3 #2386, qui rejoue ces parcours ; ces fichiers s'ajoutent à ceux qu'elle
   écrit.
+- **La fenêtre « Insérer une ligne » propose le rôle** (#2821, majeur ; US-1570/L8 #2822, décision
+  de l'auteur du 2026-11-10), après les lots déjà fusionnés, « pas avec » US-1570/L3 #2386, qui
+  rejoue `frontend/e2e/structure.spec.ts` : la fenêtre de `structure-dialogs.tsx`, ouverte par
+  `structure-gestures.tsx`, demandait la catégorie et jamais le rôle, et le serveur refusait toute
+  ligne de main-d'œuvre (`RESOURCE_ROLE_REQUIRED`). Elle propose, dans une liste à deux groupes, un
+  **rôle actif** — la ligne est de main-d'œuvre, sa catégorie calculée du rôle (WF-DEV-0020) ; le
+  corps envoie `resource_role_id` sans `cost_category_id` — ou une **catégorie active hors
+  main-d'œuvre** (`cost_type_kind` `non_labor`, le débours ; le corps envoie `cost_category_id` sans
+  rôle), comme le décrit `EstimateLineWrite` ; ni les catégories de provision, réservées aux risques
+  (`PROVISION_CATEGORY_RESERVED`, WF-RIS-0010), ni celles de main-d'œuvre, qui passent par le rôle.
+  `cost_type_kind` est déjà rendu par `listCostCategories` : le contrat ne change pas. La même
+  fenêtre sert la grille de reste à engager (`remaining-grid.tsx`) : la correction vaut pour les
+  deux, et `remaining/page.tsx` lit aussi les rôles actifs. Un parcours e2e crée depuis la grille de
+  devis une ligne de main-d'œuvre et une ligne de débours. Le lot ajoute les seules clés de la
+  fenêtre aux catalogues `messages/*.json` (`grid.structure`), par exception à la règle qui les
+  réserve : aucun autre lot ouvert d'EP-07 ne les écrit. Écartées : la catégorie de main-d'œuvre
+  laissée au choix, le rôle s'en déduisant — une catégorie porte plusieurs rôles — ; deux champs,
+  rôle et catégorie, dont un seul doit être rempli, qui laissent saisir les deux.
 
 ### Le format Excel du devis
 
