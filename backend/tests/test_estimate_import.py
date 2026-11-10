@@ -45,6 +45,7 @@ from support import ContractClient
 from waterfall.api.app import create_app
 from waterfall.api.authentication import Services
 from waterfall.core.cost_settings.tables import CostCategory
+from waterfall.core.estimate.importing import designation
 from waterfall.core.exchanges.tables import ImportReport
 from waterfall.core.resource_settings.tables import ResourceRole
 from waterfall.platform.keycloak_admin import KeycloakAdmin
@@ -481,3 +482,21 @@ def test_the_import_of_an_estimate_is_a_command_of_the_project_that_stays_in_pro
     with logging_context(correlation_id="queued-around"), stage.database.transaction() as session:
         submit(session, queue, "revision_mark", stage.manager.user_id, payload)
     assert lacking() == ["no_background_task_running", "may_create_revision"]
+
+
+@pytest.mark.parametrize(
+    ("text", "designated"),
+    [
+        ("Ingénieur (ING)", ("ING", "Ingénieur")),
+        ("Ingénieur (senior) (ING)", ("ING", "Ingénieur (senior)")),
+        (" Matériel électrique ( 606001 ) ", ("606001", "Matériel électrique")),
+        ("ING", ("ING", None)),
+        ("Ingénieur (ING) bis", ("Ingénieur (ING) bis", None)),
+    ],
+)
+def test_an_entry_designates_the_code_between_its_last_parentheses(
+    text: str, designated: tuple[str, str | None]
+) -> None:
+    # « Libellé (code) » is read by the code between its last parentheses, the label being only
+    # indicative (#2689); a text that does not end in parentheses is a code alone.
+    assert designation(text) == designated

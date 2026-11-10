@@ -187,6 +187,18 @@ class _Row:
 
 
 @dataclass(frozen=True)
+class _Labels:
+    """The label of every role and of every category, by code, each kind apart (#2690).
+
+    A code of a role is unique among the roles, an accounting code among the categories, not
+    between them: one index would give a role the label of a category of the same code.
+    """
+
+    roles: dict[str, str]
+    categories: dict[str, str]
+
+
+@dataclass(frozen=True)
 class _Context:
     """What the sheets share: the estimate, its tabs of lines with their names, the formats."""
 
@@ -195,14 +207,15 @@ class _Context:
     sheets: tuple[str, ...]
     tables: tuple[str, ...]
     fmt: dict[str, Format]
-    labels: dict[str, str]  # the label of a role or of a category, by code
+    labels: _Labels
 
 
-def _labels(estimate: Estimate) -> dict[str, str]:
-    """Give the label of every role and category, by code, once for the whole workbook."""
-    labels = {role.code: role.label for role in estimate.roles}
-    labels.update({category.code: category.label for category in estimate.categories})
-    return labels
+def _labels(estimate: Estimate) -> _Labels:
+    """Give the labels of the roles and of the categories, once for the whole workbook."""
+    return _Labels(
+        {role.code: role.label for role in estimate.roles},
+        {category.code: category.label for category in estimate.categories},
+    )
 
 
 def _name_tabs(estimate: Estimate) -> tuple[tuple[Tab, ...], tuple[str, ...]]:
@@ -417,12 +430,16 @@ def _table_names(tabs: tuple[Tab, ...]) -> tuple[str, ...]:
     return tuple(names)
 
 
-def _line_row(labels: dict[str, str], task: Task, line: Line) -> list[Any]:
+def _line_row(labels: _Labels, task: Task, line: Line) -> list[Any]:
     """Give the cells a line writes; the calculated columns stay empty."""
-    code = line.role if line.role is not None else line.category
+    if line.role is not None:
+        entry = _entry(labels.roles[line.role], line.role)
+    else:
+        code = line.category or ""
+        entry = _entry(labels.categories[code], code)
     values: dict[str, Any] = {
         "Tâche": _task_entry(task),
-        "Rôle ou catégorie": _entry(labels[code or ""], code or ""),
+        "Rôle ou catégorie": entry,
         "Désignation": line.label,
         "Quantité": line.quantity,
         "Heures": line.hours,

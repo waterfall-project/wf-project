@@ -7,8 +7,12 @@ The lines read (``excel/reader``) are matched with those of the structure by the
 hold — or one an earlier row of the file took already —, is a new line. Its task is the one
 « Tâches » gives its entry the lineage of, or else the one task of the structure that carries its
 label (``AMBIGUOUS_TASK_LABEL`` for several, ``UNKNOWN_TASK`` for none, ``params.value`` the cell);
-its role or its category is read by the entry of the list of « Paramètres », « label (code) », or by
-its code (``UNKNOWN_RESOURCE_ROLE``); its subproject by its code (``UNKNOWN_SUBPROJECT``). Each line
+its role or its category is read by the code between the last parentheses of the entry of the list
+of « Paramètres », « label (code) », or by its code alone, the label being only indicative (#2689):
+a role renamed since the export, or the file of a marked revision imported into the current one, is
+read as it was; a category by its accounting code (WF-REF-0040, #2688); a code a role and a category
+share by the label the entry gives, else the role's (``UNKNOWN_RESOURCE_ROLE`` for none); its
+subproject by its code (``UNKNOWN_SUBPROJECT``). Each line
 is then judged as its entry is (``entries.judged_line``): its refusals on a field reject it, by the
 code of the field and the header of its column (``params.header``), a provision category among them
 (``PROVISION_CATEGORY_RESERVED``), and the rule of a subproject that received actual costs, which
@@ -147,14 +151,50 @@ class Aimed:
         )
 
 
+def designation(text: str) -> tuple[str, str | None]:
+    """Give the code an entry « label (code) » designates, and its label; a text alone, as code.
+
+    The code is the one between the last parentheses that end the text (#2689); a text that does
+    not end so is a code alone, without a label.
+    """
+    stripped = text.strip()
+    opening = stripped.rfind("(")
+    if not stripped.endswith(")") or opening < 0:
+        return stripped, None
+    return stripped[opening + 1 : -1].strip(), stripped[:opening].strip()
+
+
 @dataclass(frozen=True, slots=True)
 class Reference:
-    """What a line names of the reference and the project: roles, categories, subprojects."""
+    """What a line names of the reference and the project: roles, categories, subprojects.
+
+    ``roles`` by their code, ``categories`` by their accounting code (#2688), ``subprojects`` by
+    their code.
+    """
 
     roles: dict[str, RoleView]
     categories: dict[str, CostCategoryView]
     subprojects: dict[str, UUID]
     roles_by_id: dict[UUID, RoleView]
+
+    def named(self, text: str) -> tuple[RoleView | None, CostCategoryView | None]:
+        """Give the role or the category a cell names, by its code; neither when none bears it.
+
+        A code a role and a category share is the category's when the label of the entry is
+        the category's and not the role's, the role's otherwise. A text that ends in parentheses
+        but whose code is none is read whole as a code, which may hold parentheses.
+        """
+        code, label = designation(text)
+        codes = (code,) if label is None else (code, text.strip())
+        for each in codes:
+            role, category = self.roles.get(each), self.categories.get(each)
+            if role is not None and category is not None:
+                if label == category.label and label != role.label:
+                    return None, category
+                return role, None
+            if role is not None or category is not None:
+                return role, category
+        return None, None
 
 
 @dataclass(frozen=True, slots=True)
@@ -228,7 +268,7 @@ def aimed(session: Session, target: ImportTarget) -> Aimed:
 
 
 def reference_of(session: Session, project_id: UUID) -> Reference:
-    """Read the roles and the categories by their entry and their code, the subprojects by code."""
+    """Read the roles by code, the categories by accounting code, the subprojects by code."""
     every = frozenset({True, False})
     roles = list_roles(
         session,
@@ -244,16 +284,8 @@ def reference_of(session: Session, project_id: UUID) -> Reference:
         Page(EVERY, 0),
         may_change=False,
     ).categories
-    named_roles: dict[str, RoleView] = {}
-    for role in roles:
-        named_roles.setdefault(f"{role.label} ({role.code})", role)
-    named_categories: dict[str, CostCategoryView] = {}
-    for category in categories:
-        named_categories.setdefault(f"{category.label} ({category.code})", category)
-    for role in roles:
-        named_roles.setdefault(role.code, role)
-    for category in categories:
-        named_categories.setdefault(category.code, category)
+    named_roles = {role.code: role for role in roles}
+    named_categories = {category.accounting_code: category for category in categories}
     # The commands of the subprojects are not read: an account that holds no permission lists them.
     viewer = Viewer(NOBODY, frozenset())
     subprojects = list_subprojects(
@@ -329,8 +361,7 @@ def _entry(
             _rejection(line, VALUE_REQUIRED, {"header": reader.ROLE_OR_CATEGORY_HEADER})
         )
     else:
-        role = reference.roles.get(text)
-        category = None if role is not None else reference.categories.get(text)
+        role, category = reference.named(text)
         if role is None and category is None:
             rejected.append(_rejection(line, UNKNOWN_RESOURCE_ROLE, {"value": text}))
     subproject = None
