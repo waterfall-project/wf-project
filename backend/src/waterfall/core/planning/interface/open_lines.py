@@ -38,12 +38,12 @@ def register_open_lines(question: OpenLines) -> Callable[[], None]:
 
 
 def held_open(
-    session: Session, project_id: UUID, borne: Mapping[UUID, Sequence[UUID]]
+    session: Session, project_id: UUID, lines_by_task: Mapping[UUID, Sequence[UUID]]
 ) -> frozenset[UUID]:
     """Tell which of these tasks a line holds open, by any module; none while nothing answers."""
-    if not borne:
+    if not lines_by_task:
         return frozenset()
     found: set[UUID] = set()
     for question in _OPEN_LINES.entries():
-        found |= question(session, project_id, borne)
+        found |= question(session, project_id, lines_by_task)
     return frozenset(found)

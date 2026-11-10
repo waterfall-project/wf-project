@@ -43,7 +43,7 @@ a date or before its start. The line is judged before the revision, in the order
 
 from contextlib import ExitStack
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Literal
+from typing import TYPE_CHECKING, Literal, cast
 
 from sqlalchemy import exists, select
 
@@ -169,7 +169,7 @@ def _refuse(missing: str) -> ConflictError:
 
 
 def _lacking(
-    progress: str, target: str, *, milestone: bool, bears_lines: bool
+    progress: str, target: TaskProgress, *, milestone: bool, bears_lines: bool
 ) -> tuple[GestureCondition, ...]:
     """Name the conditions a gesture to ``target`` lacks on a task, in the order of the card.
 
@@ -201,14 +201,14 @@ def progress_commands(
     """
     progress, milestone = task.progress, task.is_milestone
 
-    def lacking(target: str) -> tuple[KanbanCondition, ...]:
+    def lacking(target: TaskProgress) -> tuple[KanbanCondition, ...]:
         return _lacking(progress, target, milestone=milestone, bears_lines=bears_lines)
 
     found: list[KanbanCommandAvailability] = []
     if progress == NOT_STARTED and not milestone:
-        found.append(KanbanCommandAvailability("start", "started", lacking(STARTED)))
+        found.append(KanbanCommandAvailability("start", "started", lacking("started")))
     if progress != COMPLETED:
-        found.append(KanbanCommandAvailability("complete", "completed", lacking(COMPLETED)))
+        found.append(KanbanCommandAvailability("complete", "completed", lacking("completed")))
     else:
         back: TaskProgress = "not_started" if milestone else "started"
         found.append(KanbanCommandAvailability("reopen", back, lacking(back)))
@@ -221,9 +221,10 @@ def _missing_gesture(tree: Tree, node_id: UUID, target: str) -> str | None:
     """Name the first condition a gesture on a leaf lacks, as the card of the Kanban states it."""
     # A provision is written for information (WF-PLA-0050): it holds a task back from nothing.
     bears = any(tree.nodes[each].origin_risk_id is None for each in tree.lines(node_id))
+    # ``ProgressEntry.progress`` is the contract's ``TaskProgress``, validated at the edge.
     found = _lacking(
         tree.tasks[node_id].progress,
-        target,
+        cast("TaskProgress", target),
         milestone=tree.is_milestone(node_id),
         bears_lines=bears,
     )
@@ -337,20 +338,36 @@ def set_task_progress(
         act = writer.act
         day = entry.occurred_on or current_day(act.at)
         _dated(tree, node_id, entry.progress, day)
-        write.before((node_id,))
+        reopened = _closed_above(tree, node_id) if entry.progress != COMPLETED else ()
+        kept = (node_id, *reopened)
+        write.before(kept)
         _apply(
             tree.tasks[node_id],
             milestone=tree.is_milestone(node_id),
             target=entry.progress,
             day=day,
         )
+        for each in reopened:
+            tree.tasks[each].progress, tree.tasks[each].completed_on = STARTED, None
+            stamp(tree.nodes[each], act)
         node = tree.nodes[node_id]
         node.lock_version += 1
         node.updated_at = act.at
         node.updated_by = act.author
         redated = write.redate((node_id, tree.tasks[node_id].label))
-        write.after((node_id,))
+        write.after(kept)
         return redated.written((node_id,))
+
+
+def _closed_above(tree: Tree, node_id: UUID) -> tuple[UUID, ...]:
+    """Give the summaries above a completed task that a reopening of it reopens.
+
+    Their facet keeps the state and the day the last line set to nought gave (``_close``); a
+    subordinate reopened makes both stale, and a later completion must not read the old day.
+    """
+    if tree.tasks[node_id].progress != COMPLETED:
+        return ()
+    return tuple(each for each in tree.ancestors(node_id) if tree.tasks[each].progress == COMPLETED)
 
 
 def _bearer_of(tree: Tree, node_id: UUID) -> UUID:

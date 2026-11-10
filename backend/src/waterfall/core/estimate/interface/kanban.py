@@ -56,14 +56,15 @@ class StartableTasks:
 
 
 def open_lines(
-    session: Session, project_id: UUID, borne: Mapping[UUID, Sequence[UUID]]
+    session: Session, project_id: UUID, lines_by_task: Mapping[UUID, Sequence[UUID]]
 ) -> frozenset[UUID]:
     """Give the tasks among these that bear an own line, not a provision, with a remaining.
 
-    ``borne`` the lines each task of a project bears, those of a risk left out by the planning;
-    read in one statement, a provision line by its category never holding a task (WF-PLA-0040).
+    ``lines_by_task`` the lines each task of a project bears, those of a risk left out by the
+    planning; read in one statement, a provision line by its category never holding a task
+    (WF-PLA-0040).
     """
-    return reviewing.open_tasks(session, project_id, borne)
+    return reviewing.open_tasks(session, project_id, lines_by_task)
 
 
 def startable_tasks(session: Session, project_id: UUID) -> StartableTasks:

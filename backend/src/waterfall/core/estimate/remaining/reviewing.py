@@ -93,19 +93,17 @@ def provisions_of(session: Session, rows: Collection[EstimateLine]) -> frozenset
 
 def keeps_open(session: Session, project_id: UUID, line_ids: Sequence[UUID]) -> bool:
     """Tell whether one of the lines named keeps a remaining to commit, a provision never."""
-    rows = rows_of(session, project_id, line_ids)
-    provisions = provisions_of(session, rows)
-    return any(row.reestimated_amount != 0 for row in rows if row.node_id not in provisions)
+    return bool(open_tasks(session, project_id, {project_id: line_ids}))
 
 
 def open_tasks(
-    session: Session, project_id: UUID, borne: Mapping[UUID, Sequence[UUID]]
+    session: Session, project_id: UUID, lines_by_task: Mapping[UUID, Sequence[UUID]]
 ) -> frozenset[UUID]:
     """Give the tasks one of whose lines named keeps a remaining to commit, a provision never.
 
     The lines whose re-estimated amount is not nought read in one statement, then their categories.
     """
-    named = [line for lines in borne.values() for line in lines]
+    named = [line for lines in lines_by_task.values() for line in lines]
     if not named:
         return frozenset()
     rows = list(
@@ -121,7 +119,7 @@ def open_tasks(
         return frozenset()
     provisions = provisions_of(session, rows)
     held = {row.node_id for row in rows if row.node_id not in provisions}
-    return frozenset(task for task, lines in borne.items() if held.intersection(lines))
+    return frozenset(task for task, lines in lines_by_task.items() if held.intersection(lines))
 
 
 def was_reviewed(session: Session, project_id: UUID, revision_id: UUID) -> bool:

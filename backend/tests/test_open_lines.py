@@ -15,7 +15,7 @@ is checked against the contract.
 
 from annotationlib import Format, get_annotations
 from datetime import timedelta
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Literal, TypeAliasType, get_args, get_origin
 from uuid import UUID
 
 import pytest
@@ -29,12 +29,18 @@ from remaining_support import Review, in_progress, line_named, task_named
 from sqlalchemy import select, update
 
 import waterfall.core.estimate.interface as estimate_interface
+from waterfall.api.contract.models import CommandCondition
+from waterfall.api.contract.models import KanbanCommand as ContractCommand
+from waterfall.api.contract.models import TaskProgress as ContractProgress
 from waterfall.core.estimate.interface import KanbanTask
 from waterfall.core.estimate.tables import EstimateLine
 from waterfall.core.planning.interface import (
+    KanbanCommand,
     KanbanCommandAvailability,
+    KanbanCondition,
     NodeFilters,
     Place,
+    TaskProgress,
     list_nodes,
     progress_commands,
 )
@@ -251,11 +257,12 @@ def test_the_last_own_line_set_to_nought_completes_the_summary_and_puts_out_its_
 
 
 @pytest.mark.requirement("WF-PLA-0130-A")
-def test_a_summary_set_to_nought_before_its_subordinate_completed_takes_the_later_date(
+def test_a_summary_set_to_nought_dated_before_its_last_subordinate_takes_the_later_date(
     review: Review,
 ) -> None:
     # « … pour date de terminaison la plus tardive de celles de ses subordonnées et de la mise à
-    # zéro de ses lignes propres. » Set to nought on Monday, its subordinate completed on Tuesday.
+    # zéro de ses lignes propres. » The subordinate completed on Tuesday, then the line set to
+    # nought, dated Monday, before it: the summary is completed on the later, Tuesday.
     tree = review.tree
     done(tree, "Étude")
     answer = zero(tree, "Pilotage", completed_on=DAY.isoformat())
@@ -311,6 +318,94 @@ def test_the_completion_of_a_summary_by_its_line_is_undone_whole_and_signals_it_
     undone(tree, writer)
     assert state(task_named(tree, "Phase")) == ("started", DAY.isoformat(), None, True)
     assert line_named(tree, "Pilotage")["estimate_line"]["reestimated_amount"] == "500.00"
+
+
+@pytest.mark.requirement("WF-PLA-0130-A")
+def test_a_summary_closed_by_its_line_then_reopened_below_loses_the_day_it_was_closed_at(
+    review: Review,
+) -> None:
+    # « … pour date de terminaison la plus tardive de celles de ses subordonnées et de la mise à
+    # zéro de ses lignes propres. » Closed on Friday by its line, a subordinate reopened then
+    # completed on Tuesday again: the Friday is stale, the summary is completed on Tuesday.
+    tree = review.tree
+    done(tree, "Étude")
+    answer = zero(tree, "Pilotage", completed_on=FRIDAY.isoformat())
+    assert answer.status_code == 200, answer.text
+    closed = ("completed", DAY.isoformat(), FRIDAY.isoformat(), False)
+    assert state(task_named(tree, "Phase")) == closed
+    [reopened] = moved(tree, "Étude", "started", DAY)["ancestors"]
+    assert state(reopened) == ("started", DAY.isoformat(), None, False)
+    [again] = moved(tree, "Étude", "completed", TUESDAY)["ancestors"]
+    assert state(again) == ("completed", DAY.isoformat(), TUESDAY.isoformat(), False)
+    assert state(task_named(tree, "Phase")) == state(again)
+
+
+@pytest.fixture
+def held_phase(api: ContractClient, stage: Scene, costs: Costing) -> Review:
+    """Give a project In progress whose phase is held open by its line, its only subtask done.
+
+    The phase bears its own line of steering at 500 and its subtask, the last node of the structure.
+    """
+
+    def build(tree: Tree, lines: Lines) -> None:
+        phase = tree.made("Phase")
+        lines.made(phase, **material(costs, "Pilotage", "500"))
+        tree.made("Étude", parent_id=phase["node_id"])
+
+    held = in_progress(api, stage, build)
+    done(held.tree, "Étude")
+    assert state(task_named(held.tree, "Phase")) == ("started", DAY.isoformat(), None, True)
+    return held
+
+
+def pasted(tree: Tree, target: dict[str, Any], rows: list[list[str]]) -> dict[str, Any]:
+    """Preview then confirm a block pasted from the label of a node; give what is answered."""
+    headers = tree.stage.manager.headers
+    sent = {"target_node_id": target["node_id"], "target_column": "label", "rows": rows}
+    previewed = tree.api.post(f"{tree.path}/nodes/paste-preview", headers=headers, json=sent)
+    assert previewed.status_code == 200, previewed.text
+    plan = previewed.json()
+    assert plan["rejected"] == [], plan
+    confirmed = {"paste_id": plan["paste_id"], "confirmed": True, "lock_version": counter(tree)}
+    answer = tree.api.post(f"{tree.path}/nodes/paste", headers=headers, json=confirmed)
+    assert answer.status_code == 200, answer.text
+    assert answer.json()["rejected"] == []
+    return plan
+
+
+@pytest.mark.requirement("WF-PLA-0040-A")
+def test_two_lines_pasted_under_a_summary_held_open_by_its_line_are_both_accepted(
+    held_phase: Review,
+) -> None:
+    # « … est démarrée » : the summary is not completed, so a line is accepted under it on the
+    # main structure; the second row is judged on the ground the first leaves, which keeps the
+    # summaries the tree holds open (``Tree.held``) as the first did.
+    tree = held_phase.tree
+    rows = [
+        ["Pilotage"],
+        ["Étude"],
+        ["Suivi", "Matériel électrique", "", "1", "", "10"],
+        ["Revue", "Matériel électrique", "", "1", "", "10"],
+    ]
+    plan = pasted(tree, line_named(tree, "Pilotage"), rows)
+    assert (plan["accepted"], plan["created"]) == (4, 2)
+    lines = [each for each in tree.items() if each["kind"] == "estimate_line"]
+    assert [each["estimate_line"]["label"] for each in lines] == ["Pilotage", "Suivi", "Revue"]
+
+
+@pytest.mark.requirement("WF-PLA-0040-A")
+def test_a_subtask_created_by_a_paste_under_a_summary_held_open_by_its_line_is_accepted(
+    held_phase: Review,
+) -> None:
+    # The block is aimed at the last node, the subtask: the rows past it create tasks beside it,
+    # under the summary the tree holds open. Nothing a creation judges reads ``Tree.held`` — the
+    # tree a creation traces (``traced_creation``) carries it for the rows that do, the lines —,
+    # so that this test holds the acceptance, and removing that carry is seen by the one above.
+    tree = held_phase.tree
+    plan = pasted(tree, task_named(tree, "Étude"), [["Étude"], ["Essais"]])
+    assert (plan["accepted"], plan["created"]) == (2, 1)
+    assert state(task_named(tree, "Phase"))[0] == "started"
+    assert task_named(tree, "Essais")["parent_id"] == task_named(tree, "Phase")["node_id"]
 
 
 # --- The leaf a summary becomes ------------------------------------------------------------------
@@ -395,10 +490,26 @@ def test_a_task_not_started_goes_straight_to_completed_by_its_remaining_set_to_n
     assert card(tree, "Étude", bears_lines=False) == [("complete", "completed", [])]
 
 
+def literals(alias: Any) -> tuple[Any, ...]:
+    """Give the values of a type alias of literals, through the aliases and unions it names."""
+    if isinstance(alias, TypeAliasType):
+        return literals(alias.__value__)
+    if get_origin(alias) is Literal:
+        return get_args(alias)
+    return tuple(value for member in get_args(alias) for value in literals(member))
+
+
 @pytest.mark.requirement("WF-RAE-0030-A")
 def test_the_gestures_of_a_card_have_one_type_the_planning_s_which_the_board_reads() -> None:
-    # #2714: the gestures, the states and the conditions are those the contract enumerates, typed so
-    # by the planning, and the board of the estimate holds no type of its own.
+    # #2714, no criterion of its own: the card of WF-RAE-0030 names its gestures, the states they
+    # send and the conditions they lack by the enumerations of the contract; the planning types
+    # them once, in ``Literal``, and the board of the estimate holds no type of its own.
+    assert literals(KanbanCommand) == tuple(each.value for each in ContractCommand)
+    assert literals(TaskProgress) == tuple(each.value for each in ContractProgress)
+    conditions = {each.value for each in CommandCondition}
+    kanban = set(literals(KanbanCondition))
+    assert kanban <= conditions
+    assert {"project_in_progress", "no_background_task_running"} <= kanban
     annotations = get_annotations(KanbanTask, format=Format.STRING)
     assert annotations["available_commands"] == "tuple[KanbanCommandAvailability, ...]"
     assert not hasattr(estimate_interface, "KanbanCommandAvailability")

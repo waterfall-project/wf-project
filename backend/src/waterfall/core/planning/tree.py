@@ -50,6 +50,10 @@ class Tree:
     position: dict[UUID, int] = field(default_factory=dict[UUID, int])
     held: frozenset[UUID] = frozenset()
 
+    def with_nodes(self, nodes: dict[UUID, Node], tasks: dict[UUID, Task]) -> Tree:
+        """Give the tree of other nodes and tasks, which holds open the summaries this one does."""
+        return Tree(nodes, tasks, held=self.held)
+
     def __post_init__(self) -> None:
         """Order the nodes: under each parent, the lines then the subtasks, each by its rank."""
         for node in sorted(self.nodes.values(), key=lambda each: (each.kind == TASK, each.rank)):
