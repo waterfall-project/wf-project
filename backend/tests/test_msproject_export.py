@@ -133,7 +133,7 @@ def the_planning() -> bytes:
         task(
             8,
             "Recette",
-            besides="<Manual>1</Manual>" + link(7, 2, 500, PERCENT),
+            besides="<Manual>1</Manual>" + link(7, 2, 50, PERCENT),
             timing=wednesday,
         ),
     )
@@ -353,7 +353,7 @@ def test_the_modes_the_types_and_the_lags_of_the_links_are_exported_without_loss
         "Pose": [(uids["Revue"], "finish_to_start", 4800, "d")],
         "Câblage": [(uids["Pose"], "start_to_start", 600, "h")],
         "Essais": [(uids["Câblage"], "finish_to_finish", 0, "d")],
-        "Recette": [(uids["Essais"], "start_to_finish", 500, "percent")],
+        "Recette": [(uids["Essais"], "start_to_finish", 50, "percent")],
         "Études": [],
     }
     for name, expected in wanted.items():
@@ -482,7 +482,7 @@ def lagged_planning(month_lag: int = 96000, month: str = "PT160H0M0S") -> bytes:
         task(3, "C", besides=link(2, 1, 24000, 9)),
         task(4, "D", besides=link(3, 1, month_lag, 11)),
         task(5, "E", besides=link(4, 1, 14400, 8)),
-        task(6, "F", timing=Timing(duration=month, unit="11"), besides=link(5, 2, 500, PERCENT)),
+        task(6, "F", timing=Timing(duration=month, unit="11"), besides=link(5, 2, 50, PERCENT)),
     )
 
 
@@ -507,7 +507,8 @@ def test_a_negative_lag_a_lag_in_weeks_in_months_and_an_elapsed_one_are_exported
     api: ContractClient, stage: Scene, worker: Worker
 ) -> None:
     # « Un décalage négatif exporté sans perte. » « Exportés sans perte : […] liaisons : type et
-    # décalage dans son unité. » The hours of a lag are the file's tenths of a minute.
+    # décalage dans son unité. » The hours of a lag are the file's tenths of a minute, a percent its
+    # whole percents.
     revision = opened(api, stage)
     import_file(api, stage, worker, lagged_planning(), apply=True)
     content = exported(api, stage, worker, revision["revision_id"])
@@ -517,7 +518,7 @@ def test_a_negative_lag_a_lag_in_weeks_in_months_and_an_elapsed_one_are_exported
         "C": [(24000, "w")],
         "D": [(96000, "mo")],
         "E": [(14400, "ed")],
-        "F": [(500, "percent")],
+        "F": [(50, "percent")],
     }
     found = import_file(api, stage, worker, content, apply=False)
     assert found["report"]["differences"] == []

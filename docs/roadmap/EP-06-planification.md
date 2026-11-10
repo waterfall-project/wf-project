@@ -1510,7 +1510,7 @@ des échanges, branché par US-1430.
 
 ## US-1430 — Le format MS Project : import, export et aller-retour
 
-- **statut** : en cours
+- **statut** : fini
 - **exigences** : `WF-INTF-0040-A`, `WF-INTF-0050-A`, `WF-INTF-0060-A`, `WF-QUA-0080-A`,
   `WF-DAT-0120-A`
 - **opérations** : `requestExport` (`ms_project_schedule`), `getBackgroundTaskResult` ;

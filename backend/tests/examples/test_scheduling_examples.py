@@ -615,6 +615,40 @@ def test_a_manual_task_bounds_its_predecessor_by_the_type_of_their_link(
     assert bool(dated.link_conflicts) is (floats < 0)
 
 
+@pytest.mark.requirement("WF-PLA-0100-A")
+@pytest.mark.requirement("WF-PLA-0160-A")
+@pytest.mark.parametrize(
+    ("lead", "floats"),
+    [
+        # From the Monday, B finishes on the Wednesday at its first hour of work, where C starts:
+        # the chain is tight, the three critical.
+        (None, (Decimal(0), Decimal(0), Decimal(0))),
+        # After four days, B starts on the Friday and finishes on the Sunday, where no hour of work
+        # is: it may start until the end of the Friday's work and still finish before C, on the
+        # Monday. A, before it start to start, floats by that day; B and C stay critical. The
+        # latest start of B gone back from the end of the Friday's work, the Wednesday's, gave A
+        # a float of minus one day, and no conflict (#2648).
+        ("4", (Decimal(1), Decimal(0), Decimal(0))),
+    ],
+    ids=["finishing-on-a-working-day", "finishing-on-a-sunday"],
+)
+def test_the_latest_start_of_an_elapsed_duration_goes_back_from_the_day_it_may_reach(
+    lead: str | None, floats: tuple[Decimal, Decimal, Decimal]
+) -> None:
+    # A (one day) start to start before B (two elapsed days), B before C (one day): the backward
+    # pass is the mirror of the forward one, which finishes an elapsed duration on the day it
+    # reaches (decision of the 2026-11-09).
+    tasks = [task(1), task(2, "2 ed"), task(3)]
+    links = [link(1, 2, "start_to_start"), link(2, 3)]
+    if lead is not None:
+        tasks, links = [task(4, lead), *tasks], [link(4, 1), *links]
+    dated = planned(tasks, links)
+    assert dated.link_conflicts == ()
+    found = tuple(of(dated, n).total_float for n in (1, 2, 3))
+    assert found == floats
+    assert [of(dated, n).is_critical for n in (1, 2, 3)] == [each <= 0 for each in floats]
+
+
 # --- The horizon, the calendar, what the engine is given ---------------------------------------
 
 

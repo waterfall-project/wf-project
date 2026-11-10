@@ -112,6 +112,7 @@ class TrialFormat:
             "date_mismatches": [],
             "signals": [],
             "requires_confirmation_reasons": [],
+            "unit_constants": None,
         }
 
     def apply(

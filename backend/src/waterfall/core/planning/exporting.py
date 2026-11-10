@@ -63,7 +63,8 @@ SECONDS_PER_HOUR = 3600
 SECONDS_PER_DAY = 24 * SECONDS_PER_HOUR
 MINUTES_PER_HOUR = 60
 MICROSECONDS_PER_HOUR = 3_600_000_000
-# A lag is written in tenths of a minute, a lag in percent in tenths of a percent.
+# A lag is written in tenths of a minute, a lag in percent in whole percents, as MS Project reads
+# them (``LinkLag``, an integer: a fraction of a percent is rounded to the nearest).
 TENTHS = 10
 # The ``DayType`` of a day of the week, Monday first: Monday is 2, Sunday 1.
 DAY_TYPES = (2, 3, 4, 5, 6, 7, 1)
@@ -137,10 +138,10 @@ def date_on_clock(moment: WorkInstant, week: tuple[Period | None, ...]) -> datet
 
 
 def _link(link: TaskLink, uids: dict[UUID, int], constants: UnitConstants) -> PredecessorLink:
-    """Give a link of the structure as the file carries it, its lag in tenths of its unit."""
+    """Give a link as the file carries it, its lag in tenths of a minute or in whole percents."""
     unit = cast("LagUnit", link.lag_unit)
     if unit == "percent":
-        lag = round(Fraction(link.lag_value) * TENTHS)
+        lag = round(Fraction(link.lag_value))
     else:
         hours = Duration(link.lag_value, unit).hours(constants)
         lag = round(hours * MINUTES_PER_HOUR * TENTHS)

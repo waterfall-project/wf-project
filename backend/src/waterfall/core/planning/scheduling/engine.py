@@ -137,11 +137,23 @@ class _Engine:
             return calendar.count(at.elapsed(span.hours))
         return calendar.count(at) + span.hours
 
-    def start_for(self, calendar: Calendar, finish: Fraction, duration: Duration) -> Fraction:
-        """Return the count a task of a duration starts at to finish at a count."""
+    def start_for(
+        self, calendar: Calendar, finish: Fraction, duration: Duration, *, latest: bool = False
+    ) -> Fraction:
+        """Return the count a task of a duration starts at to finish at a count.
+
+        An elapsed duration goes back from a moment of the clock that holds that count. Forward,
+        the earliest start that finishes there: from the end of the hours of work that reach it.
+        Backward (``latest``), the latest start that finishes no later: from the last moment that
+        still holds it, the first hour of work that follows — the night and the days without
+        hours of work between —, as the forward pass finishes on the day it reaches (#2648): two
+        elapsed days that may finish by the end of a Friday may start until then, finishing on
+        the Sunday, and not from the Wednesday.
+        """
         span = self.span(duration)
         if span.is_elapsed:
-            return calendar.count(calendar.moment(finish, finish=True).elapsed(-span.hours))
+            reached = calendar.moment(finish, finish=not latest)
+            return calendar.count(reached.elapsed(-span.hours))
         return finish - span.hours
 
     def placed(
@@ -154,7 +166,7 @@ class _Engine:
         finishes on the day it reaches, its hours bounded to those of that day, as MS Project
         finishes it (decision of the 2026-11-09, #2342): two elapsed days from a Monday's first
         hour of work finish at the Wednesday's, not at the end of the Tuesday's work — the same
-        count of work, a successor starting at the same hour.
+        count of work, a successor without an elapsed lag starting at the same hour.
         """
         span = self.span(duration)
         if span.hours == 0:
@@ -268,7 +280,8 @@ class _Engine:
         task, finish = self.tasks[task_id], self.late[task_id]
         if self.span(task.duration).hours == 0:
             return _Span(finish, finish)
-        start = self.start_for(task.calendar, task.calendar.count(finish), task.duration)
+        count = task.calendar.count(finish)
+        start = self.start_for(task.calendar, count, task.duration, latest=True)
         return _Span(task.calendar.moment(start, finish=False), finish)
 
     def bound(self, task_id: UUID, link: Link, span: Span, successor_id: UUID) -> Moment:

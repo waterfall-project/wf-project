@@ -5,7 +5,7 @@
 What the reader gives and the writer takes (EP-06, "Le format MS Project"): the project, its unit
 constants and its calendars, its tasks in the order of the file — the tree by their outline
 level —, their links. The values stay those of the file: a duration as its ``xsd:duration``, a
-lag in tenths of a minute or of a percent, a date at the hour of the day MS Project placed it;
+lag in tenths of a minute or in whole percents, a date at the hour of the day MS Project placed it;
 converting them into the units, the work instants and the calendars of Waterfall is the
 analysis's (US-1430/L3), which knows the constants of the installation. What the file carries
 besides, and that no import reads, is counted by kind (``Ignored``), as ``ImportReport.ignored``
@@ -143,7 +143,7 @@ class PredecessorLink:
     """A link of a task to its predecessor, its lag in the unit of its format.
 
     ``lag`` is ``LinkLag`` as the file carries it: tenths of a minute, of work or elapsed, or
-    tenths of a percent; ``lag_unit`` is its format, ``None`` when the file says none.
+    whole percents; ``lag_unit`` is its format, ``None`` when the file says none.
     """
 
     predecessor_uid: int

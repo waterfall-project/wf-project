@@ -275,6 +275,7 @@ def import_report() -> JsonObject:
         "date_mismatches": [],
         "signals": signals(lineage, label, (first, last)),
         "requires_confirmation_reasons": [],
+        "unit_constants": None,
     }
 
 

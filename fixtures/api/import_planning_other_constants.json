@@ -1,0 +1,71 @@
+{
+  "summary": "L'import d'un planning MS Project lu aujourd'hui à 12 h 20 et analysé à 12 h 21, une variante qu'imports ne reprend pas : le planning de la structure principale du projet témoin exporté aujourd'hui, rouvert puis enregistré dans un MS Project réglé à 7 heures par jour, 35 par semaine et 20 jours par mois, quand l'installation compte 8, 40 et 20. Un aller-retour sur les identifiants que l'export a écrits : les durées et les décalages gardent leurs heures, « 2 j » du fichier, quatorze heures, valant 1,75 j à l'installation ; aucune tâche ne diffère, et le compte rendu signale la différence des constantes, celles du fichier et celles de l'installation ; les 2 calendriers du fichier sont ignorés et dits (WF-PLA-0160, WF-INTF-0040, WF-INTF-0080, #2580).",
+  "value": {
+    "import_id": "01926f3a-7c00-7000-8000-000000000a2a",
+    "kind": "ms_project_schedule",
+    "filename": "planning-poste-de-commande.xml",
+    "structure_id": "01926f3a-7c00-7000-8000-000000000201",
+    "revision_id": "01926f3a-7c00-7000-8000-000000000102",
+    "period_from": null,
+    "period_to": null,
+    "status": "analysed",
+    "created_at": "2026-06-03T12:20:00Z",
+    "expires_at": "2026-06-04T12:21:00Z",
+    "report": {
+      "format_version": null,
+      "read_count": 1000,
+      "unchanged_count": 1000,
+      "rejected": [],
+      "refusals": [],
+      "differences": [],
+      "ignored": [
+        {
+          "kind": "calendars",
+          "count": 2,
+          "labels": [
+            "Semaine de quatre jours",
+            "Semaine standard"
+          ]
+        }
+      ],
+      "completed_tasks": [],
+      "date_mismatches": [],
+      "signals": [],
+      "requires_confirmation_reasons": [],
+      "unit_constants": {
+        "file": {
+          "hours_per_day": "7",
+          "hours_per_week": "35",
+          "days_per_month": "20"
+        },
+        "installation": {
+          "hours_per_day": "8",
+          "hours_per_week": "40",
+          "days_per_month": "20"
+        }
+      }
+    },
+    "task": {
+      "task_id": "01926f3a-7c00-7000-8000-000000000928",
+      "kind": "import_analysis",
+      "status": "succeeded",
+      "progress": 100,
+      "submitted_at": "2026-06-03T12:20:00Z",
+      "finished_at": "2026-06-03T12:21:00Z",
+      "problem": null,
+      "result_url": null
+    },
+    "available_commands": [
+      {
+        "command": "apply",
+        "is_available": true,
+        "missing_conditions": []
+      },
+      {
+        "command": "abandon",
+        "is_available": true,
+        "missing_conditions": []
+      }
+    ]
+  }
+}
