@@ -185,17 +185,23 @@ def _judge(
         raise _refuse(phase[0])
 
 
-def _dated(tree: Tree, node_id: UUID, target: str, day: date) -> None:
+def _not_before_start(task: Task, day: date, pointer: str) -> None:
     """Refuse a completion dated before the start of its task, the start named (WF-PLA-0130).
 
     A task completed without having been started takes its completion for its start, and one
-    completed already is left as it is: only a task started has a start to precede (#2495).
+    completed already is left as it is: only a task started has a start to precede (#2495). The
+    refusal (422) designates the field of the date, ``pointer``.
     """
-    task = tree.tasks[node_id]
     started = task.started_on
-    if target == COMPLETED and task.progress == STARTED and started is not None and day < started:
-        fault = FieldError("/occurred_on", VALUE_OUT_OF_RANGE, {"minimum": started.isoformat()})
+    if task.progress == STARTED and started is not None and day < started:
+        fault = FieldError(pointer, VALUE_OUT_OF_RANGE, {"minimum": started.isoformat()})
         raise UnprocessableError(VALIDATION_FAILED, fields=(fault,))
+
+
+def _dated(tree: Tree, node_id: UUID, target: str, day: date) -> None:
+    """Refuse a completion dated before the start of its task (``/occurred_on``, WF-PLA-0130)."""
+    if target == COMPLETED:
+        _not_before_start(tree.tasks[node_id], day, "/occurred_on")
 
 
 def _apply(task: Task, *, milestone: bool, target: str, day: date) -> None:
@@ -293,23 +299,26 @@ def _judge_entry(session: Session, where: tuple[Place, bool], tree: Tree, task_i
         raise _refuse(phase[0])
 
 
-def _complete(tree: Tree, task_id: UUID, day: date | None, act: Act) -> None:
+def _complete(tree: Tree, task_id: UUID, day: date | None, act: Act) -> bool:
     """Complete a leaf whose last open line is set to nought, on the day sent; or refuse (422).
 
     Not started, it is started and completed that day, a milestone without going through the
-    started state (WF-RAE-0030); started, it keeps its start, which the day may not precede.
+    started state (WF-RAE-0030); started, it keeps its start, which the day may not precede
+    (``_not_before_start``). A leaf completed already, as on a differential structure where the
+    lines of a completed task are still re-estimated, asks for no date and is left as it is
+    (WF-RAE-0040): none is written, and the answer is false.
     """
+    task = tree.tasks[task_id]
+    if task.progress == COMPLETED:
+        return False
     if day is None:
         named = {"task_node_id": str(task_id)}
         fault = FieldError(COMPLETED_ON, COMPLETION_DATE_REQUIRED, named)
         raise UnprocessableError(VALIDATION_FAILED, fields=(fault,))
-    task = tree.tasks[task_id]
-    started = task.started_on
-    if task.progress == STARTED and started is not None and day < started:
-        fault = FieldError(COMPLETED_ON, VALUE_OUT_OF_RANGE, {"minimum": started.isoformat()})
-        raise UnprocessableError(VALIDATION_FAILED, fields=(fault,))
+    _not_before_start(task, day, COMPLETED_ON)
     _apply(task, milestone=tree.is_milestone(task_id), target=COMPLETED, day=day)
     stamp(tree.nodes[task_id], act)
+    return True
 
 
 def write_remaining(
@@ -352,8 +361,10 @@ def write_remaining(
         stamp(node, act)
         written: tuple[UUID, ...] = (node_id,)
         lines = tree.lines(task_id)
-        if not tree.is_summary(task_id) and not change.keeps_open(session, place.project_id, lines):
-            _complete(tree, task_id, change.completed_on, act)
+        closes = not tree.is_summary(task_id) and not change.keeps_open(
+            session, place.project_id, lines
+        )
+        if closes and _complete(tree, task_id, change.completed_on, act):
             written = (node_id, task_id)
         # The task enters the entry of the history only when it is written: kept unchanged, it
         # would refuse the undoing of the line after another write of the task (UNDO_CONFLICT).

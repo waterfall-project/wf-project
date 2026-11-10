@@ -13,10 +13,11 @@ line, and its task when the entry completes it, the ancestors recomputed.
 """
 
 from decimal import Decimal
-from typing import Annotated, Any
+from typing import Annotated, Any, cast
 from uuid import UUID
 
 from fastapi import APIRouter, Depends
+from pydantic import RootModel
 
 from waterfall.api.authentication import Transaction
 from waterfall.api.contract.models import ReestimatedAmountBasis, RemainingUpdate
@@ -38,15 +39,23 @@ CONSULT = "remaining.read"
 CHANGE = "remaining.write"
 VALIDATION_FAILED = "VALIDATION_FAILED"
 BASIS = "reestimated_amount_basis"
+MAX_ROOTS = 2
 
 
 def _figure(value: Any) -> Decimal | None:
     """Read a figure a body sends, none if null."""
     if value is None:
         return None
-    root = value
-    while hasattr(root, "root"):
-        root = root.root
+    # A figure of the basis is a decimal (the quantity) or a root model of a decimal or of a string
+    # (hours, money), the hours wrapping the decimal in a root of their own: at most two levels
+    # are peeled, and a type that is none of these is refused, never looped on.
+    root: object = value
+    for _ in range(MAX_ROOTS):
+        if isinstance(root, RootModel):
+            root = cast("RootModel[Any]", root).root
+    if isinstance(root, RootModel):
+        message = f"A figure of the basis nests more than {MAX_ROOTS} roots."
+        raise TypeError(message)
     return Decimal(str(root))
 
 

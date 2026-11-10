@@ -19,20 +19,23 @@ from typing import TYPE_CHECKING, Any
 from uuid import UUID, uuid4
 
 import pytest
-from estimate_support import YEAR, Costing, Lines, costing
+from estimate_support import YEAR, Costing, Lines, costing, give_a_line
 from history_support import undo
 from nodes_support import Tree, entries, faults, mark, opened, refusal, set_progress, signed_in
-from planning_support import DAY
+from planning_support import DAY, insert_task
+from project_rows import lifted_kind_check, structure_row
 from projects_support import PROJECTS, Scene, contribute, person, put_in_state
 from projects_support import scene as make_scene
 from remaining_support import Review, in_progress, line_named, review_marked, task_named
-from sqlalchemy import delete, select, update
+from sqlalchemy import delete, insert, select, update
 
 from waterfall.core.cost_settings.interface import set_hourly_rate
 from waterfall.core.cost_settings.tables import HourlyRate
 from waterfall.core.estimate.interface import remaining_of_revision
 from waterfall.core.estimate.tables import EstimateLine, RevisionRate
+from waterfall.core.planning.tables import Node, Task
 from waterfall.core.projects.tables import Project
+from waterfall.core.revisions.tables import CostStructure
 from waterfall.platform.audit import Act
 from waterfall.platform.database import utc_now
 
@@ -554,3 +557,52 @@ def test_a_line_not_reestimated_counts_its_amount_at_the_rate_of_the_year_its_re
     assert line["base_amount"] == "700.00"
     total, _ = remaining_of(stage, answer.json())
     assert total == Decimal(line["reestimated_amount"])
+
+
+@pytest.mark.requirement("WF-RAE-0040-A")
+def test_the_last_line_set_to_nought_of_a_completed_task_of_a_differential_completes_nothing(
+    review: Review, stage: Scene, owner: Engine
+) -> None:
+    # « La saisie d'un reste à engager nul sur toutes les lignes d'une tâche non démarrée la
+    # termine » : only a task not yet completed. On a differential structure (an amendment), where
+    # the lines of a completed task are still re-estimated, the last open line set to nought asks
+    # for no date, and the task, completed already, is neither stamped nor written.
+    tree = review.tree
+    project_id, revision_id = UUID(stage.project["project_id"]), UUID(tree.revision["revision_id"])
+    row = structure_row(project_id, revision_id, kind="differential", label="Avenant")
+    structure_id = row["id"]
+    assert isinstance(structure_id, UUID)
+    with lifted_kind_check(owner):
+        try:
+            with owner.begin() as connection:
+                connection.execute(insert(CostStructure).values(**row))
+                bearer = insert_task(
+                    connection,
+                    project_id,
+                    revision_id,
+                    structure_id,
+                    progress="completed",
+                    started_on=DAY,
+                    completed_on=DAY,
+                )
+                node_id = give_a_line(connection, bearer)
+                counters = select(Node.lock_version)
+                counter = connection.execute(counters.where(Node.id == node_id)).scalar_one()
+                task_counter = connection.execute(counters.where(Node.id == bearer)).scalar_one()
+            path = f"{PROJECTS}/{project_id}/revisions/{revision_id}/structures/{structure_id}"
+            sent = {BASIS: {"quantity": "0"}, "lock_version": counter}
+            answer = tree.api.put(
+                f"{path}/nodes/{node_id}/remaining", headers=stage.manager.headers, json=sent
+            )
+            assert answer.status_code == 200, answer.text
+            assert [node["kind"] for node in answer.json()["nodes"]] == ["estimate_line"]
+            with owner.begin() as connection:
+                after = connection.execute(select(Node.lock_version).where(Node.id == bearer))
+                assert after.scalar_one() == task_counter
+        finally:
+            with owner.begin() as connection:
+                nodes = select(Node.id).where(Node.structure_id == structure_id)
+                connection.execute(delete(EstimateLine).where(EstimateLine.node_id.in_(nodes)))
+                connection.execute(delete(Task).where(Task.node_id.in_(nodes)))
+                connection.execute(delete(Node).where(Node.structure_id == structure_id))
+                connection.execute(delete(CostStructure).where(CostStructure.id == structure_id))

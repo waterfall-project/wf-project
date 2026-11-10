@@ -9,7 +9,11 @@ revision opened from it the figures and the re-estimated amount of each of its l
 a marked revision keeps its own. Every answer is checked against the contract.
 """
 
+from datetime import UTC, datetime, timedelta
+from types import SimpleNamespace
 from typing import TYPE_CHECKING, Any
+from unittest.mock import MagicMock
+from uuid import uuid4
 
 import pytest
 from estimate_support import Costing, Lines, costing
@@ -17,6 +21,8 @@ from nodes_support import Tree, opened
 from projects_support import Scene
 from projects_support import scene as make_scene
 from remaining_support import Review, in_progress, line_named, review_marked
+
+from waterfall.core.estimate.remaining import reviewing
 
 if TYPE_CHECKING:
     from realm import TestRealm
@@ -127,3 +133,28 @@ def test_a_revision_opened_from_a_review_reads_the_figures_of_each_line_before_b
     labels = [item["estimate_line"]["label"] for item in following.items(query)]
     # Under each task: the wiring's lines by their amount before, the line added under its own.
     assert labels == ["Raccordement", "Fournitures", "Borniers"]
+
+
+@pytest.mark.requirement("WF-RAE-0040-A")
+@pytest.mark.parametrize(
+    ("offset", "reviewed"),
+    [(timedelta(0), True), (timedelta(seconds=-1), False), (timedelta(seconds=1), True)],
+    ids=["at-the-passage", "just-before", "just-after"],
+)
+def test_a_revision_marked_at_the_very_instant_of_the_passage_is_a_review(
+    monkeypatch: pytest.MonkeyPatch, offset: timedelta, reviewed: bool
+) -> None:
+    # « celle de la dernière révision marquée à l'état En cours » : the limit case, the source
+    # marked at the very instant the project passed In progress, is a review (comparison <=).
+    passage = datetime(2026, 11, 3, 9, 0, 0, tzinfo=UTC)
+    transitions = [SimpleNamespace(to_state="in_progress", occurred_at=passage)]
+
+    def marked_at(*_: object) -> datetime:
+        return passage + offset
+
+    def passages(*_: object) -> list[SimpleNamespace]:
+        return transitions
+
+    monkeypatch.setattr(reviewing, "revision_marked_at", marked_at)
+    monkeypatch.setattr(reviewing, "list_state_transitions", passages)
+    assert reviewing.was_reviewed(MagicMock(), uuid4(), uuid4()) is reviewed

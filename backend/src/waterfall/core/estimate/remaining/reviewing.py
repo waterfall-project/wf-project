@@ -98,7 +98,7 @@ def keeps_open(session: Session, project_id: UUID, line_ids: Sequence[UUID]) -> 
     return any(row.reestimated_amount != 0 for row in rows if row.node_id not in provisions)
 
 
-def _reviewed(session: Session, project_id: UUID, revision_id: UUID) -> bool:
+def was_reviewed(session: Session, project_id: UUID, revision_id: UUID) -> bool:
     """Tell whether a revision was marked once its project was In progress (a review)."""
     marked = revision_marked_at(session, revision_id)
     if marked is None:
@@ -117,7 +117,7 @@ def copy_previous(copy: RevisionCopy) -> None:
     sources = rows_of(session, copy.project_id, list(copy.identifiers))
     if not sources:
         return
-    reviewed = _reviewed(session, copy.project_id, copy.source)
+    reviewed = was_reviewed(session, copy.project_id, copy.source)
     session.execute(
         update(EstimateLine),
         [
