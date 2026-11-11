@@ -212,7 +212,8 @@ def _keys(column: CategoryColumn) -> tuple[SQLColumnExpression[object], ...]:
     keys: dict[CategoryColumn, tuple[SQLColumnExpression[object], ...]] = {
         "code": (CostCategory.code,),
         "label": (CostCategory.label,),
-        # The nature by its label alone: equals come in the order of the table, then by identifier.
+        # The nature by its label alone: equals are told apart by the code of the category,
+        # then by identifier.
         "cost_type": (CostType.label,),
         "accounting_code": (CostCategory.accounting_code,),
         # False before true: the active categories first in the ascending order.

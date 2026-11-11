@@ -840,7 +840,7 @@ def test_two_creations_of_one_code_at_once_write_one_node_and_refuse_the_other(
 
 
 @pytest.mark.requirement("WF-REF-0070-A")
-def test_the_tree_is_read_whole_while_a_node_is_created_and_validated_between_two_steps(
+def test_the_tree_is_read_whole_while_a_node_is_created_and_validated_held_after_its_read(
     api: ContractClient,
     sessions: PartSessions,
     database: Database,
@@ -869,7 +869,8 @@ def test_the_tree_is_read_whole_while_a_node_is_created_and_validated_between_tw
         written.wait(timeout=10)
         read = answer.result(timeout=30)
     assert read.status_code == 200
-    assert codes(read.json()) in (["DT"], ["DT", "NEW"])
+    # The reader is held after its only read and NEW is validated after: one snapshot, without NEW.
+    assert codes(read.json()) == ["DT"]
 
 
 @pytest.mark.requirement("WF-REF-0070-A")

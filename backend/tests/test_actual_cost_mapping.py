@@ -23,6 +23,11 @@ from waterfall.core.cost_settings.interface import (
     read_folded_labels,
     replace_actual_cost_mapping,
 )
+from waterfall.core.cost_settings.refusals import (
+    ACTUAL_COST_MAPPING,
+    REFERENCE_SETTINGS,
+    not_bootstrapped,
+)
 from waterfall.core.cost_settings.tables import ActualCostMapping
 from waterfall.platform.audit import Act
 from waterfall.platform.database import utc_now
@@ -408,3 +413,19 @@ def test_an_installation_without_the_row_of_the_mapping_refuses_to_read_and_to_r
     assert "missing=actual_cost_mapping" in capsys.readouterr().out
     with database.transaction() as session:
         assert session.scalar(select(func.count()).select_from(ActualCostMapping)) == 0
+
+
+@pytest.mark.requirement("WF-EXP-0040-A")
+def test_the_refusal_of_a_row_not_written_names_it_in_the_log_for_each_of_the_two_rows(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    for name, row in (
+        ("reference_settings", REFERENCE_SETTINGS),
+        ("actual_cost_mapping", ACTUAL_COST_MAPPING),
+    ):
+        refusal = not_bootstrapped(row)
+        assert (refusal.code, dict(refusal.params)) == (
+            "COMPONENT_UNAVAILABLE",
+            {"component": "database"},
+        )
+        assert f"missing={name}" in capsys.readouterr().out

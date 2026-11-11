@@ -13,7 +13,7 @@ read so asked, without it, is refused by 403 before it reads.
 
 import re
 from decimal import Decimal
-from typing import Annotated, cast
+from typing import Annotated, NamedTuple, cast
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Path, Query
@@ -97,20 +97,26 @@ def _bound(name: str, text: str | None) -> tuple[Decimal | None, FieldError | No
     return Decimal(text), None
 
 
-def kept_scope(
-    *, include_inactive: bool = False, is_active: bool | None = None
-) -> tuple[frozenset[bool], bool]:
+class KeptScope(NamedTuple):
+    """The states the grid keeps, and whether its years count the deactivated categories."""
+
+    states: frozenset[bool]
+    with_inactive_years: bool
+
+
+def kept_scope(*, include_inactive: bool = False, is_active: bool | None = None) -> KeptScope:
     """Read the states the grid keeps, and whether its years count the deactivated categories.
 
     The years do not follow the states: ``is_active`` true narrows the rows, never the columns.
     """
-    return kept_states(include_inactive=include_inactive, is_active=is_active), (
-        include_inactive or is_active is False
+    return KeptScope(
+        kept_states(include_inactive=include_inactive, is_active=is_active),
+        include_inactive or is_active is False,
     )
 
 
 def grid_filters(
-    scope: Annotated[tuple[frozenset[bool], bool], Depends(kept_scope)],
+    scope: Annotated[KeptScope, Depends(kept_scope)],
     search: Search = None,
     rate_year: Annotated[int, Query(ge=2000, le=2100)] | None = None,
     rate_min: Annotated[str, Query()] | None = None,
@@ -130,7 +136,7 @@ def grid_filters(
     if rate_year is None and (rate_min is not None or rate_max is not None):
         faults.append(FieldError("/query/rate_year", VALUE_REQUIRED))
     refuse_query(faults)
-    states, with_inactive_years = scope
+    states, with_inactive_years = scope.states, scope.with_inactive_years
     return HourlyRateFilters(
         search, states, rate_year, low, high, with_inactive_years=with_inactive_years
     )
