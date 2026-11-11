@@ -4,7 +4,7 @@ import { expect } from "@playwright/test";
 
 import { compile } from "./compile";
 import { openHydrated, WORKING } from "./hydration";
-import { inService, test } from "./mode";
+import { test } from "./mode";
 
 const PROJECT = "01926f3a-7c00-7000-8000-000000000001";
 const REVISION = "01926f3a-7c00-7000-8000-000000000102";
@@ -12,17 +12,15 @@ const ESTIMATE = `/projects/${PROJECT}/revisions/${REVISION}/estimate`;
 const SCREEN = `/projects/${PROJECT}/revisions/${REVISION}/workload`;
 const ORG_NODE = "01926f3a-7c00-7000-8000-000000000471";
 
-// The service serves the workload; the estimate it leads from and the lines that load it come with
-// the grid of the estimate (US-1560) and the witness (US-1570): the paths that need them stay on
-// the fake back until then.
-const BEFORE_THE_ESTIMATE = "US-1560 serves the estimate, US-1570 the lines of the witness";
-
 test.use({ colorScheme: "light" });
 
 test("leads from the estimate to the workload on the reference budget, drawn in stacked bars, the capacity in its table, which a node of organisation filters at the server's @shared [WF-DEV-0070-A]", async ({
   page,
 }) => {
-  test.skip(inService, BEFORE_THE_ESTIMATE);
+  // Three bounds of a screen of grid (`WORKING`): the estimate of the witness, the workload read
+  // from its lines, and the workload read again for the node chosen — more than the thirty seconds
+  // of a test.
+  test.slow();
   await compile(page.request, SCREEN);
   await openHydrated(page, `${ESTIMATE}?as_of=2026-03-16`);
   await page.getByRole("main").getByRole("link", { name: "Plan de charge" }).click();
@@ -57,11 +55,12 @@ test("leads from the estimate to the workload on the reference budget, drawn in 
     new RegExp(
       `^[^?]*${SCREEN}\\?as_of=2026-03-16&basis=reference_budget&.*org_node_id=${ORG_NODE}$`,
     ),
+    { timeout: WORKING },
   );
 });
 
-// That the server filters the load on the node chosen is checked against the service once the lines
-// of the witness exist to be filtered (US-1570); here the context is kept and the node read again.
+// The load of the lines of the witness, filtered by the node chosen, is read again by the server:
+// here the context is kept and the node read again.
 test("reads the workload of the revision under way from its address, the context kept, the node of organisation chosen read again @shared [WF-DEV-0070-A]", async ({
   page,
 }) => {
@@ -73,7 +72,9 @@ test("reads the workload of the revision under way from its address, the context
   await expect(region.getByText(/^Base : /)).toBeVisible();
   await region.getByLabel("Nœud d’organisation").selectOption(ORG_NODE);
   await region.getByRole("button", { name: "Afficher" }).click();
-  await expect(page).toHaveURL(new RegExp(`as_of=2026-03-16&.*org_node_id=${ORG_NODE}$`));
+  await expect(page).toHaveURL(new RegExp(`as_of=2026-03-16&.*org_node_id=${ORG_NODE}$`), {
+    timeout: WORKING,
+  });
   // The node is read again by the server, which names it: the reading follows the filter.
   await expect(region.getByLabel("Nœud d’organisation")).toHaveValue(ORG_NODE);
   await expect(region.getByText(/^Base : /)).toBeVisible();
@@ -82,7 +83,6 @@ test("reads the workload of the revision under way from its address, the context
 test("exports the workload, at the keyboard, as a PNG image drawn on a canvas, named after the project @shared [WF-IHM-0130-A]", async ({
   page,
 }) => {
-  test.skip(inService, BEFORE_THE_ESTIMATE);
   await openHydrated(page, SCREEN);
   const figure = page.getByRole("figure", { name: "Charge par rôle et par mois" });
   const command = figure.getByRole("button", { name: "Exporter en PNG" });

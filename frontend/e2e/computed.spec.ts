@@ -36,7 +36,7 @@ function refusal(page: Page): Locator {
   return page.getByRole("dialog", { name: "Valeur calculée" });
 }
 
-test("shows the amount of a line of labour as computed, apart from its effort in hours, and refuses to enter it [WF-IHM-0030-A]", async ({
+test("shows the amount of a line of labour as computed, apart from its effort in hours, and refuses to enter it @shared [WF-IHM-0030-A]", async ({
   page,
 }) => {
   await openHydrated(page, `${REVISION_PATH}/estimate`);
@@ -88,7 +88,7 @@ test("shows the amount of a line of labour as computed, apart from its effort in
   await expect(amount.getByRole("textbox")).toHaveCount(0);
 });
 
-test("refuses to change the finish date of a summary task, from the keyboard, naming its subordinates [WF-IHM-0030-A]", async ({
+test("refuses to change the finish date of a summary task, from the keyboard, naming its subordinates @shared [WF-IHM-0030-A]", async ({
   page,
 }) => {
   await openHydrated(page, `${REVISION_PATH}/planning`);

@@ -271,15 +271,14 @@ test("adds a task from the remaining to commit of a project in progress, below a
   await expect(cell).toBeFocused();
 });
 
-test("proposes no entry and no command of writing in the estimate of the main structure of a project in progress [WF-DEV-0050-A]", async ({
+test("proposes no entry and no command of writing in the estimate of the main structure of a project in progress @shared [WF-DEV-0050-A]", async ({
   page,
 }) => {
   test.slow();
   // Sur un projet En cours, la grille de devis de la structure principale ne propose aucune saisie
   // : the structure lists the estimate unavailable (`project_before_in_progress`), and the grid is
-  // read only whatever the planning lists. This journey stays on the fake back: its project In
-  // progress (PRJ-001) is played against the service by US-1570 (« tous les parcours du devis
-  // étiquetés `@shared` passent contre le service, le témoin chargé »).
+  // read only whatever the planning lists. The witness of the service is In progress too (PRJ-001,
+  // US-1570): the path is played against it as against the fake back.
   const { table, cell } = await focusRow(
     page,
     "estimate",
@@ -303,7 +302,7 @@ test("inserts a line in the remaining to commit of a project in progress, named,
   test.slow();
   // Sur un projet En cours, la grille de reste à engager propose la création d'une ligne et d'une
   // tâche : the structure lists `edit_remaining` available. The categories come from the reference.
-  // Played against the service by US-1570 with the loaded witness, not here.
+  // Not played against the service before EP-09, which serves the remaining to commit.
   const { cell } = await focusRow(
     page,
     "remaining",

@@ -3,7 +3,7 @@
 import { expect, type Page } from "@playwright/test";
 
 import { compile } from "./compile";
-import { setExpanded } from "./hydration";
+import { setExpanded, WORKING } from "./hydration";
 import { inService, test } from "./mode";
 
 // The session of the fake back grants the whole catalogue of permissions: every function
@@ -120,7 +120,11 @@ test("the address of a project leads to its revision, the reading context and it
   await compile(page.request, `${IN_PROJECT}/planning`);
   await page.goto(`/projects/${PROJECT}${CONTEXT}`);
   await expect(page).toHaveURL(`${IN_PROJECT}/planning${CONTEXT}`);
-  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Planification");
+  // The planning of the thousand tasks of the witness is read from the service: the bound of a
+  // screen of grid, which five seconds of an assertion do not give it under several workers.
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Planification", {
+    timeout: WORKING,
+  });
 });
 
 // Played in service too (`@shared`, EP-04): the settings and the lifecycle of PRJ-001 are served,
