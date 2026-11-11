@@ -1306,7 +1306,15 @@ ligne ouverte — est refusée par le service sans la date (422, `COMPLETION_DAT
 le jour du poste proposé), rejoue la saisie à la même version avec `completed_on`, et, le dialogue
 quitté, dit le refus à la cellule. La suppression d'une tâche démarrée, refusée `task_not_started`,
 se dit dans les grilles de planning, de devis et de reste à engager avec un lien vers la ligne de la
-tâche dans la grille de reste à engager de la même révision (`taskRemainingHref`, WF-PLA-0070). Le
+tâche dans la grille de reste à engager de la même révision (`taskRemainingHref`, WF-PLA-0070) ; pour une
+récapitulative, que le refus ne dit pas quelle subordonnée cause, le lien porte `progress=started,completed`
+(jamais les non démarrées, qui ne causent aucun refus), et le front ne déduit rien de ce que le service sait
+(#2819). Le dialogue de la date de terminaison se nomme par un compteur, non par `crypto.randomUUID()`, que
+ne fournit pas une page servie en HTTP hors localhost (#2818). L'écran ne porte plus `MockupNotice` : la
+grille, les indicateurs et le Kanban sont ceux du service. `e2e/remaining.spec.ts` entier porte `@shared`
+(la grille et le Kanban) ; le parcours qui écrit se joue sur un projet que la course crée
+(`seedPlanning`, `bringInProgress`, #2193), et ceux qui lisent le témoin de volume ou la couverture des
+risques (une provision, un risque) restent gardés par `inService` jusqu'à **EP-08** (volumes : **EP-13**). Le
 Kanban du démarrage des tâches, FBS-4.5.3, est une feuille de la fonction,
 `…/revisions/[r]/kanban`, où l'en-tête de la grille mène : toutes les tâches non démarrées, les
 démarrées et les terminées avec leur date, telles que les rend
@@ -2914,7 +2922,7 @@ par `MockupNotice` avec `lists` (`mockup.notFiltered`), en une seule note sous l
 dont le service est livré ne portent pas la note, même si `make dev` les sert par Prism et que les
 mêmes limites s'y appliquent : l'administration (EP-03), le référentiel (EP-05) et, d'EP-04, l'accueil
 connecté (US-0920/L2), les révisions (US-0960, US-0970) et les paramètres du projet (US-1000), et,
-d'EP-07, le plan de charge (US-1520) et le devis (US-1560), et, d'EP-09, les coûts réels (US-1620) ; un
+d'EP-07, le plan de charge (US-1520) et le devis (US-1560), et, d'EP-09, les coûts réels (US-1620), la grille du reste à engager et le Kanban (US-1640, qui en retire `MockupNotice`) ; un
 succès y est ce que le service a gardé, relu.
 
 _Contrôles_ : `make lint-openapi` (exemples conformes aux schémas, volumes compris),
@@ -4124,6 +4132,14 @@ chaque entrée nommant l'EPIC qui la lève ; cet EPIC retire la garde et son ent
   En cours (le devis de la structure principale en lecture seule, une ligne sous une tâche terminée
   refusée) ne se rejoue qu'avec le témoin d'US-1570 : les tâches « démarrée » et « terminée » ne
   s'écrivent pas avant qu'un projet soit En cours.
+- `remaining.spec.ts` — la grille du reste à engager et le Kanban (US-1640) : le fichier entier porte
+  `@shared`. Le parcours qui écrit — une tâche démarrée et un jalon terminé au Kanban, les lignes de la
+  tâche démarrée dans la grille, les non démarrées à la demande — se joue contre le service sur un projet
+  que la course crée (`seedPlanning`, `bringInProgress`, #2193). Ceux qui lisent le témoin de volume
+  (mille tâches, `NO_VOLUME_IN_SERVICE`, levé par **EP-13**) ou la couverture des risques, une provision
+  ou un risque (levé par **EP-08**), restent gardés par `inService` ; les gestes sur le Kanban du faux
+  back, qui ne garde rien, et le sous-menu « Sous-projet » (`FAKE_BACK_KEEPS_NOTHING`) ne se rejouent
+  qu'en faux back, leur équivalent contre le service étant le parcours qui écrit.
 - `projects.spec.ts` — les parcours qui écrivent sur PRJ-001 ou y mènent par son planning : l'écran
   du projet, ses paramètres et son cycle de vie, la sortie, les sous-projets et les contributeurs,
   le lotissement (`FAKE_BACK_ONLY`) : le compte de la course n'est pas chef de projet de PRJ-001,

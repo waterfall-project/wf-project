@@ -1,19 +1,34 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
-import { expect, type Locator, type Page, test } from "@playwright/test";
+import { expect, type Locator, type Page } from "@playwright/test";
 
 import { columnsOf } from "./columns";
 import { compile } from "./compile";
 import { openHydrated, WORKING } from "./hydration";
+import { inService, test } from "./mode";
+import { bringInProgress } from "./in-progress";
+import { createOwnProject, openRevision } from "./own-project";
+import { seedPlanning } from "./planning-seed";
 import { scrollToPosition, withinBox } from "./scroll";
 import { isServerAction } from "./server-action";
 
-// The fake back serves the first example of each read, whatever it asks: the structure of the
-// volumes of §4.6.2 for the nodes — its lines show here whatever `progress` asks, where the service
+// Every path is tagged `@shared` (EP-09, US-1640): it plays against the fake back, and against the
+// service when the service serves what it reads. The paths below that read the witness's own
+// structure — the volumes of §4.6.2, which only the fake back holds (`NO_VOLUME_IN_SERVICE`), and
+// the risk coverage of the indicators, a provision or a risk, served at zero until EP-08 — stay
+// guarded by `inService`; a short path, not guarded, reads the cards of the indicators and the
+// link to the workload on a project the run creates; the paths that write play against the
+// service on a project the run creates (`seedPlanning`, `bringInProgress`, #2193), the last of the
+// file. The fake back serves the first example of each read, whatever it asks: the structure of
+// the volumes of §4.6.2 for the nodes — its lines show here whatever `progress` asks, where the service
 // renders the lines of the tasks started alone; the page tests prove what the screen asks —, the
 // indicators of the remaining to commit of the witness, and its Kanban on 3 June 2026. The journey
 // reads the structure by marks the generator writes (`test_the_marks_the_journeys_read`): row 3, a
 // task completed; row 22, started.
+const NO_VOLUME_IN_SERVICE =
+  "the structure of volumes of §4.6.2, its risk coverage and its Kanban count exist only in the fake back (EP-08, EP-13)";
+const FAKE_BACK_KEEPS_NOTHING =
+  "the fake back keeps nothing of what a gesture writes; the path of the run below plays it against the service";
 const PROJECT = "01926f3a-7c00-7000-8000-000000000001";
 const REVISION = "01926f3a-7c00-7000-8000-000000000102";
 const IN_REVISION = `/projects/${PROJECT}/revisions/${REVISION}`;
@@ -47,9 +62,10 @@ async function expectCards(column: Locator, count: number, first: readonly RegEx
   }
 }
 
-test("reads the remaining to commit of a revision: its indicators, its grid, the tasks not started on demand, and the Kanban of the three states without any percentage to enter [WF-RAE-0030-A]", async ({
+test("reads the remaining to commit of a revision: its indicators, its grid, the tasks not started on demand, and the Kanban of the three states without any percentage to enter @shared [WF-RAE-0030-A]", async ({
   page,
 }) => {
+  test.skip(inService, NO_VOLUME_IN_SERVICE);
   // Three bounds of a screen of grid (`WORKING`): more than the thirty seconds of a test.
   test.slow();
   // The Kanban, a screen of its own reached by a click, compiled first (`e2e/compile.ts`).
@@ -194,9 +210,10 @@ test("reads the remaining to commit of a revision: its indicators, its grid, the
   await expect(page.getByRole("heading", { name: "Terminées", exact: true })).toBeVisible();
 });
 
-test("completes a milestone without a line from the Kanban, from its menu, at a date entered [WF-RAE-0030-A]", async ({
+test("completes a milestone without a line from the Kanban, from its menu, at a date entered @shared [WF-RAE-0030-A]", async ({
   page,
 }) => {
+  test.skip(inService, FAKE_BACK_KEEPS_NOTHING);
   // Un jalon sans ligne de devis est terminé depuis le Kanban, à une date saisie. The fake back
   // keeps nothing and answers the example of its first gesture, the start of another task: what the
   // server action carries — the state the card names, the date typed, the version read — is read on
@@ -234,9 +251,10 @@ test("completes a milestone without a line from the Kanban, from its menu, at a 
   await expect(card).toBeFocused();
 });
 
-test("carries a card by a drag and by the keys, the arrows choosing the cards from column to column, and says on the card a gesture it does not list [WF-RAE-0030-A] [WF-IHM-0100-A]", async ({
+test("carries a card by a drag and by the keys, the arrows choosing the cards from column to column, and says on the card a gesture it does not list @shared [WF-RAE-0030-A] [WF-IHM-0100-A]", async ({
   page,
 }) => {
+  test.skip(inService, FAKE_BACK_KEEPS_NOTHING);
   // Aucune commande ne fait passer une tâche démarrée à l'état non démarré: the cards of the
   // tasks started list no gesture to that state, and say so when one is asked. The fake back
   // answers the start of « Montage des armoires sur site », which the drag carries to the tasks
@@ -278,7 +296,40 @@ test("carries a card by a drag and by the keys, the arrows choosing the cards fr
   ).toHaveCount(0);
 });
 
-test("leads from the remaining to commit to the workload of the project, on the remaining of the revision under way, in the same context [WF-DEV-0070-A]", async ({
+test("reads the cards of the remaining to commit as the service answers, the remaining by sub-project and its margin, and leads to the workload on the remaining under way @shared [WF-RAE-0020-A] [WF-DEV-0070-A]", async ({
+  page,
+}) => {
+  // Not guarded: the cards play against the service on a project the run creates, which holds
+  // nothing yet, and against the fake back on the witness; the front computes none of the figures.
+  test.slow();
+  let revision = IN_REVISION;
+  let query = `?subproject_id=${SUBPROJECT}`;
+  if (inService) {
+    const own = await createOwnProject(page, "Reste lu");
+    await openRevision(page, own);
+    revision = `${own.path}/revisions/${new URL(page.url()).searchParams.get("revision_id") ?? ""}`;
+    query = "";
+  }
+  await compile(page.request, `${revision}/workload`);
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await openHydrated(page, `${revision}/remaining${query}`);
+  const indicators = page.getByRole("region", { name: "Indicateurs du reste à engager" });
+  await expect(indicators).toContainText(
+    inService ? /Reste à engager\s*0,00\s€/ : /Reste à engager\s*67\s470\s133,69\s€/,
+    { timeout: WORKING },
+  );
+  await expect(indicators).toContainText("Calculé le");
+  const balances = page.getByRole("region", {
+    name: "Reste à engager par sous-projet, et marge sur le budget",
+  });
+  await expect(balances).toBeVisible();
+  await expect(balances.getByRole("img", { name: "Alerte" })).toHaveCount(0);
+  await page.getByRole("main").getByRole("link", { name: "Plan de charge" }).click();
+  await expect(page.getByLabel("Base")).toHaveValue("current_remaining", { timeout: WORKING });
+  expect(new URL(page.url()).searchParams.get("basis")).toBe("current_remaining");
+});
+
+test("leads from the remaining to commit to the workload of the project, on the remaining of the revision under way, in the same context @shared [WF-DEV-0070-A]", async ({
   page,
 }) => {
   test.slow();
@@ -302,9 +353,10 @@ test("leads from the remaining to commit to the workload of the project, on the 
   await expect(page.getByLabel("Base")).toHaveValue("current_remaining", { timeout: WORKING });
 });
 
-test("carries a line to a sub-project from the menu of its cell, and takes it out of any, the column being shown [WF-PRJ-0050-A] [WF-RAE-0040-A]", async ({
+test("carries a line to a sub-project from the menu of its cell, and takes it out of any, the column being shown @shared [WF-PRJ-0050-A] [WF-RAE-0040-A]", async ({
   page,
 }) => {
+  test.skip(inService, FAKE_BACK_KEEPS_NOTHING);
   // Le passage à un autre sous-projet d'une ligne d'une tâche non démarrée aboutit. The fake back
   // keeps nothing, and serves the first example of `updateEstimateLine` whatever was sent, the entry
   // of a figure of another line: what the grid sends, and the line answered shown in the column,
@@ -370,4 +422,77 @@ test("carries a line to a sub-project from the menu of its cell, and takes it ou
   await expect(said).toBeVisible({ timeout: WORKING });
   await expect(grid).not.toHaveAttribute("aria-busy", "true", { timeout: WORKING });
   await expect(page.getByRole("alert")).toBeEmpty();
+});
+
+test("starts a task from the Kanban and completes a milestone, on a project the run creates: the lines of the task started appear in the grid, the tasks not started on demand, each as the service answers @shared [WF-RAE-0030-A] [WF-RAE-0040-A]", async ({
+  page,
+  browser,
+  playwright,
+  manager,
+}) => {
+  // Une tâche passée à l'état démarré voit ses lignes apparaître dans la grille de reste à
+  // engager ; une tâche non démarrée n'y apparaît qu'à la demande ; un jalon sans ligne de devis
+  // est terminé depuis le Kanban, à une date saisie. The project is the run's own, taken In
+  // progress (`bringInProgress`): the witness is never written by a path (#2193).
+  test.skip(!inService, "the fake back keeps nothing: the paths above play the gestures on it");
+  test.slow();
+  const calls = await playwright.request.newContext({ ignoreHTTPSErrors: true });
+  try {
+    const seeded = await seedPlanning(page, browser, calls, manager, "Reste lancé");
+    await bringInProgress(page, calls, seeded);
+    await openRevision(page, seeded.own);
+    const open = new URL(page.url()).searchParams.get("revision_id") ?? "";
+    const revision = `${seeded.own.path}/revisions/${open}`;
+    await openHydrated(page, `${revision}/kanban`);
+    await expect(page.getByRole("note")).toHaveCount(0);
+    const notStarted = page.getByRole("region", { name: "Non démarrées" });
+    const started = page.getByRole("region", { name: "Démarrées", exact: true });
+    const completed = page.getByRole("region", { name: "Terminées" });
+    const card = (name: string) => notStarted.getByRole("listitem").filter({ hasText: name });
+    // The gestures a card lists, and no other: a milestone is never started; a task with a line
+    // in the plan is started.
+    const gestures = async (name: string) => {
+      await card(name).click();
+      await card(name)
+        .getByRole("button", { name: `Gestes de la tâche ${name}` })
+        .click();
+      return page.getByRole("menu", { name: `Gestes de la tâche ${name}` });
+    };
+    const menu = await gestures("Réception des études");
+    await expect(menu.getByRole("menuitem", { name: "Terminer" })).toBeVisible();
+    await expect(menu.getByRole("menuitem", { name: "Démarrer" })).toHaveCount(0);
+    await menu.getByRole("menuitem", { name: "Terminer" }).click();
+    const done = card("Réception des études");
+    await done.getByLabel("Date de l’événement").fill("2026-06-02");
+    await done.getByRole("button", { name: "Terminer" }).click();
+    await expect(
+      completed.getByRole("listitem").filter({ hasText: "Réception des études" }),
+    ).toContainText("Terminée le 02/06/2026", { timeout: WORKING });
+    expect(await notStarted.getByText("Réception des études").count()).toBe(0);
+    await expect(page.getByRole("note")).toHaveCount(0);
+
+    // Started, the task with a line is in the column of the tasks started, and its line is in the
+    // grid; the tasks not started are there on demand alone.
+    const starting = await gestures("Mise en service");
+    await starting.getByRole("menuitem", { name: "Démarrer" }).click();
+    await card("Mise en service").getByLabel("Date de l’événement").press("Enter");
+    await expect(started.getByRole("listitem").filter({ hasText: "Mise en service" })).toBeVisible({
+      timeout: WORKING,
+    });
+    await openHydrated(page, `${revision}/remaining`);
+    const grid = page.getByRole("treegrid", { name: "Grille de reste à engager" });
+    // The task and its line.
+    await expect(grid.getByRole("row", { name: /Mise en service/ })).toHaveCount(2, {
+      timeout: WORKING,
+    });
+    await expect(grid.getByRole("row", { name: /Études de détail/ })).toHaveCount(0);
+    await page.getByRole("link", { name: "Montrer aussi les tâches non démarrées" }).click();
+    await expect(page).toHaveURL(/progress=not_started%2Cstarted$/, { timeout: WORKING });
+    await expect(grid.getByRole("row", { name: /Études de détail/ })).toBeVisible({
+      timeout: WORKING,
+    });
+    await expect(page.getByRole("note")).toHaveCount(0);
+  } finally {
+    await calls.dispose();
+  }
 });

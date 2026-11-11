@@ -136,10 +136,13 @@ describe("the refusal to delete a task started, in the grids of the structure [W
   );
 
   it.each(GRIDS)(
-    "refers a summary task of the grid of the %s to the tasks started, none searched",
+    "refers a summary task of the grid of the %s to the tasks started and completed, none searched, whichever subordinate caused the refusal",
     async (name, _, summary) => {
       const alert = await refused(name, summary);
-      expect(within(alert).getByRole("link", REMAINING_LINK)).toHaveAttribute("href", REMAINING);
+      expect(within(alert).getByRole("link", REMAINING_LINK)).toHaveAttribute(
+        "href",
+        `${REMAINING}?${new URLSearchParams({ progress: "started,completed" }).toString()}`,
+      );
     },
   );
 

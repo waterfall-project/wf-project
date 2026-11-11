@@ -399,9 +399,9 @@ describe("the screen of the remaining to commit", () => {
 });
 
 describe("the note of the fake back on the remaining to commit", () => {
-  it("says once, under the header, that the service does not apply filters, search, sort and pages (US-0760)", async () => {
+  it("shows none: the service serves the screen, its grid and its indicators", async () => {
     const page = await remainingAt();
-    expect(page.match(/<p role="note"/g)).toHaveLength(1);
-    expect(page).toContain("Filters, search, sort and pages are ignored");
+    expect(page).not.toContain('role="note"');
+    expect(page).not.toContain("Filters, search, sort and pages are ignored");
   });
 });
