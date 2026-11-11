@@ -147,7 +147,143 @@ l'auteur le 2026-11-11 ; renommés `[EP-23]` et passés au label `EP-23` à l'ou
 
 ## Conception
 
-À écrire après la validation des US.
+Écrite le 2026-11-11 sur `main` (d421d4e2, EP-06 fusionné), après la validation des US par
+l'auteur le même jour. Courte, comme celle d'EP-18 : chaque issue porte sa proposition, ses
+fichiers et ses tests, et fait foi pour le détail ; ce qui suit ne dit que ce qu'elles laissent
+ouvert, ce qui s'en écarte, et ce que les décisions de l'auteur du 2026-11-11 y changent.
+
+**Tables et migrations.** Aucune. Les colonnes `lock_version` sont toutes en `Integer`, que la
+borne de US-1810 couvre exactement.
+
+**Modules touchés, et ce que chacun expose.**
+
+- *Front, suivi des tâches* (`components/tasks/tracking.ts`, US-1750) : `refused` ne passe une
+  tâche `interrupted` que sur une relecture refusée par 401 ou par 404 ; tout autre refus d'une
+  relecture — 500, 503, ou un statut que `getBackgroundTask` ne déclare pas — est traité comme
+  `unreachable` : l'entrée garde la tâche, la relit plus tard, et son avis n'est dit qu'une fois, le
+  même refus répété ne changeant pas l'entrée. `found` écarte toute tâche de genre `restore`, par une
+  table des genres tenue par le typage de `TaskKind` (comme `FILE_RESULT`) ; `running()` du layout
+  et `listRunningTasks` passent tous deux par `found`. Aucune autre pièce du suivi ne change.
+- *Front, décodeur des refus* (`api/problem.ts`, `components/system/failure.ts`, l'écran de panne,
+  le catalogue, US-1760) : `refusalOf`, que partagent `readOrFail` et `readUnlessRefused`, lève une
+  nouvelle erreur, `ComponentUnavailable`, sur un 503 dont l'enveloppe porte `COMPONENT_UNAVAILABLE`
+  et un `params.component` de `PlatformComponent` ; son `digest` est
+  `WATERFALL_COMPONENT_UNAVAILABLE;<composant>`, sur le modèle de `correlationDigest`, et
+  `failureOf` en tire une panne `component_unavailable` qui nomme le composant par
+  `enums.PlatformComponent`, déjà au catalogue. Une enveloppe 503 sans composant reconnu reste
+  `UnexpectedAnswer`. `envelope` garde le `correlation_id` d'un corps dont le code manque au
+  catalogue quand il est une chaîne non vide. `session/request.ts` ne change pas : une session
+  illisible reste `unreadable`, et la navigation garde l'écran d'état ; c'est la lecture de l'écran
+  qui nomme le composant. Le guide (« Les pages système : lecture, panne et « introuvable » ») suit,
+  dans ses deux langues.
+- *Front, actions rejetées* (`components/shell/account-menu.tsx`, `components/grid/settings.ts`,
+  `components/reference/address.ts`, US-1770) : `apply()` et `signOut()` du menu, et `write` de
+  `useKeptWriter.send`, passent leur rejet à `rejected` (`components/commands/rejection.ts`) ;
+  `identifierOf` n'accepte qu'un UUID (`isUuid` de `navigation/context.ts`), et ses appelants —
+  le référentiel, les ressources, les comptes, l'audit — n'ont rien à changer. La copie privée
+  d'`identifierOf` dans `components/portfolio/address.ts` reste hors du lot : le portefeuille n'est
+  pas dans le constat.
+- *Front, administration* (`components/admin/role-answers.tsx`, `admin-grids.tsx`,
+  `permission-matrix.tsx`, `role-commands.tsx`, `user-cells.tsx`, US-1780) : `RoleAnswers` tient,
+  à côté des rôles répondus, l'ensemble des rôles en écriture, avec deux gestes — marquer un rôle en
+  écriture, le libérer à la réponse, quelle qu'elle soit —, que la cellule du libellé, les cases de
+  la matrice et « Supprimer » lisent pour se dire occupés (`aria-busy` sur la ligne,
+  `aria-disabled` sur chaque commande) et n'envoyer rien. Le garde `writing` propre à la matrice
+  disparaît dans ce mécanisme commun. `RolesCell` lit `offer.is_available` et passe par `useUnmet`
+  et `CommandTooltip unavailable`, comme `StateSwitch`. Le guide (« Les écrans de
+  l'administration ») remplace « part de la version répondue » par la ligne occupée.
+- *Back, comptes* (US-1790) :
+  - `platform/keycloak_admin.py` : `send_invitation` rend `"not_local"` sur le 409
+    `{"error":"not_local"}` de l'extension ; `post_invitation` lève alors `password_link_not_local()`
+    sans rien inscrire ; `post_user`, qui crée un compte local, le traite comme une invitation non
+    partie ;
+  - `api/users.py` : `patch_user`, `post_user_anonymization`, `post_password_link`,
+    `post_invitation` et `post_user` prennent `lock_administrators` (interface de
+    `core/access_roles`) en tête de leur transaction, avant toute ligne de compte ; la docstring de
+    `worker/identity_sync.py` est alors vraie telle quelle, et le reste ;
+  - `core/users` : `add_account_of_provider` rend, avec le compte, ce que l'admission a fait — sa
+    valeur `Followed` (`created`, `updated` pour un rattachement, `unchanged`) — ; `api/authentication.py`
+    journalise `account.created`, `account.attached`, ou rien ; c'est le seul appelant ;
+  - les tests : le marqueur `WF-ADM-0120-A` sur les trois tests de #2244.
+- *Back, sauvegardes* (US-1800) : `core/backups` réécrit les sauvegardes par
+  `replace_by_kept(connection, Backup)`, comme les dépôts ; `worker/backup.py` retire l'archive
+  (`Bucket.remove`, déjà dans `main` par EP-06) sur toute exception levée après son écriture, puis
+  relève l'exception d'origine ; un retrait qui échoue à son tour se journalise sans la masquer.
+- *Contrat et service, compteur* (US-1810) : voir « Modifications du contrat ». Les quatre
+  paramètres de requête servis (`api/access_roles.py`, `api/subprojects.py`, `api/revisions.py`,
+  `api/nodes.py`) passent à `Query(ge=0, le=2147483647)`, que `test_contract_declarations.py`
+  confronte au contrat ; `deleteRisk` le prendra d'EP-08.
+
+**Modifications du contrat.** Une seule, faite par US-1810 avant son code : `LockVersion` gagne
+`maximum: 2147483647` (`docs/api/components/common.yaml`) ; la description de `LockVersionInvalid`
+(`components/responses.yaml`) dit « missing, not a non-negative integer, or beyond 2147483647 » ;
+la liste des `maximum` de `Problem.params` nomme le compteur. Entrée dans `docs/api/DECISIONS.md`,
+à côté de « `412` pour un `lock_version` périmé », qui cite #2232 — requalifiée issue `contract` —
+et la décision de l'auteur du 2026-11-11. Le client du front et les modèles du service sont
+régénérés (`make generate-client`, `make generate-server-models`), ce que `make client-up-to-date`
+et `make server-models-up-to-date` vérifient.
+Tout `lock_version` du contrat référence `LockVersion` (vérifié : corps, réponses et les cinq
+paramètres de requête) : la borne les couvre tous.
+
+**Ordre de construction.** Aucune US n'en attend une autre : les sept lots se livrent en
+parallèle, à deux contraintes près.
+
+- US-1760 et US-1780 écrivent toutes deux le guide (`docs/dev/README-fr.md`, `README.md`), dans
+  deux sections différentes : elles ne se livrent pas en même temps (« pas avec »).
+- US-1810 change le contrat et régénère le client : aucun autre lot ne touche `docs/api` ni les
+  fichiers engendrés, et ses tests ne vont pas dans `test_access_roles.py`, que US-1790 écrit.
+
+`epic/EP-23` se tire de `main` au premier lot, EP-06 y étant fusionné. Vérifié sur
+`origin/epic/EP-09` le 2026-11-11 : EP-07 et EP-09 ne touchent ni les sections du guide qu'écrivent
+US-1760 et US-1780 (« Les pages système », « Les écrans de l'administration »), ni celles d'US-1650/L3
+(#2416, les entrées non rejouées de l'e2e), ni `LockVersion` ni l'endroit de `DECISIONS.md` où
+s'écrit l'entrée ; ils ne changent dans les fichiers du back d'EP-23 que des imports (#2763). Aucun
+lot d'EP-23 n'attend donc #2416, et EP-23 se fusionne dans `main` avant ou après EP-07 et EP-09,
+celui qui vient second reprenant `main`.
+
+**Décisions.**
+
+- **La ligne d'un rôle occupée, plutôt que des écritures chaînées par rôle** (#2261 ; décision de
+  l'auteur du 2026-11-11). Écarté : une file par rôle, comme `UserCommands.reserve` pour les
+  comptes, qui ferait partir un renommage après une case sans que l'administrateur le voie attendre,
+  et rejouer une suppression sur un rôle que la case vient de changer.
+- **Le cas indisponible de `set_access_roles` se construit dans le test** (#2262, option A ;
+  décision de l'auteur du 2026-11-11). Le contrat la dit toujours disponible (`UserCommand`,
+  `DECISIONS.md`, EP-02/L42d) : un exemple de `fixtures/api` qui la dirait indisponible contredirait
+  le contrat. Le test modifie l'exemple `users` sur place, comme celui qui retire déjà toutes les
+  commandes d'un compte. Écarté : un exemple nouveau et une issue « contrat ». La proposition
+  acceptée de #2262 s'en écarte sur ce seul point.
+- **Le verrou de la règle du dernier administrateur se prend dans les routes** (#2227 ; décision de
+  l'auteur du 2026-11-11). La décision disait « dans `change`, `anonymize` et `inscribe_link` »,
+  mais les couches du noyau (`backend/pyproject.toml`, `access_roles` au-dessus de `users`)
+  interdisent à `core/users` d'appeler `core/access_roles`. Les routes qui appellent ces fonctions le
+  prennent avant toute ligne de compte, comme `put_user_activation` par `guard_deactivation` : même
+  ordre des verrous que la lecture, même effet. Écartés : un import montant de `core/users`, refusé
+  par import-linter ; corriger la seule docstring de `identity_sync.py`.
+- **Le compteur borné au contrat, refusé par 422** (#2232 ; décision de l'auteur du 2026-11-11). Une
+  modification du contrat figé, passée par l'issue `contract` que devient #2232 et inscrite à
+  `DECISIONS.md` (« La règle d'après le gel »). Écarté : la comparaison en Python du compteur, ligne
+  verrouillée, dans chaque module qui le compare en SQL (`access_roles`, `resource_settings`,
+  `cost_settings`, `users`), que proposait l'issue et qui rendait un 412 : huit modules à corriger un
+  par un, et le prochain à oublier.
+- **Seuls 401 et 404 interrompent le suivi d'une tâche** (#2257 ; décision de l'auteur du
+  2026-11-11). Tout autre refus d'une relecture se relit, son avis dit une fois. Écarté :
+  n'ajouter que 500 et 503, qui laisserait un statut non déclaré — celui d'un mandataire —
+  interrompre pour de bon une tâche qui court.
+- **Un 503 `COMPONENT_UNAVAILABLE` d'une lecture est une panne du composant** (#2265, option a ;
+  décision de l'auteur du 2026-11-11), dite par l'écran de panne. Écartés : une note au guide qui
+  dirait l'erreur inattendue voulue (option b) ; un nouvel état de la session pour `getMe`, quand la
+  navigation réagit de même à toute session illisible et que la lecture de l'écran nomme déjà le
+  composant.
+- **L'admission journalise ce qu'elle a fait** (#2243) : le `Followed` de `core/users/provider.py`
+  sort par l'interface, plutôt qu'une seconde lecture du compte par la route. Écarté : un nom
+  d'enregistrement unique, `account.admitted`, qui ne dirait plus la création.
+- **Une archive écrite et non enregistrée est retirée par la tâche** (#2242), sur toute exception
+  levée par elle après l'écriture. Un échec du `commit` qui suit la tâche, dans le runner, n'est pas
+  couvert : la rotation d'EP-13 le reprendra, qui liste le compartiment. Écarté : une ligne `backup`
+  écrite avant l'archive, qui listerait une sauvegarde qui n'existe pas.
+- **Les reports** : #2229, #2231, #2241 et #2258 vont à EP-13 (ses « Constats reçus »), #2779 attend
+  la v1, et le fichier d'EP-03, livré, n'est pas touché (décisions de l'auteur du 2026-11-11).
 
 ---
 
