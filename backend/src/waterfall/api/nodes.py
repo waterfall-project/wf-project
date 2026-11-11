@@ -524,7 +524,7 @@ def patch_task(
 def delete_task(
     place: Placed,
     node_id: UUID,
-    lock_version: Annotated[int, Query(ge=0)],
+    lock_version: Annotated[int, Query(ge=0, le=2147483647)],
     writer: Writing,
     session: Transaction,
 ) -> dict[str, Any]:

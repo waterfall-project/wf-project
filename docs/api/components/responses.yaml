@@ -78,9 +78,10 @@ PreconditionFailed:
 
 LockVersionInvalid:
   description: >-
-    A deletion without a body whose counter, passed as a parameter, is missing or is not a
-    non-negative integer: `VALIDATION_FAILED`, `fields` on `/query/lock_version`, and nothing is
-    deleted (WF-IHM-0110; US-0702/L2).
+    A deletion without a body whose counter, passed as a parameter, is missing, not a
+    non-negative integer, or beyond 2147483647: `VALIDATION_FAILED`, `fields` on
+    `/query/lock_version` (`VALUE_OUT_OF_RANGE` and `params.maximum` at `2147483647` beyond the
+    bound, #2232), and nothing is deleted (WF-IHM-0110; US-0702/L2).
   content:
     application/problem+json:
       schema: { $ref: common.yaml#/Problem }

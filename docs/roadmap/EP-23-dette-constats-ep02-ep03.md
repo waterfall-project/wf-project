@@ -612,7 +612,7 @@ sauvegarde absente, et que la rotation voie tout ce qui est gardé (#2230, #2242
 
 ## US-1810 — Le compteur d'écriture borné par le contrat
 
-- **statut** : à faire
+- **statut** : en cours
 - **exigences** : aucune — correction du contrat et du service
 - **opérations** : toute écriture qui porte un `lock_version`, dans son corps ou en paramètre de
   requête (`deleteAccessRole`, `deleteSubproject`, `abandonRevision`, `deleteNode` ; `deleteRisk`,
