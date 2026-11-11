@@ -75,7 +75,7 @@ export async function inscribe(
   const id = own.path.split("/").at(-1) ?? "";
   const read = await calls.get(`${API}/projects/${id}/contributors`, { headers });
   expect(read.status(), "GET contributors").toBe(200);
-  const body = (await read.json()) as { lock_version: unknown };
+  const body = (await read.json()) as Schemas["ContributorList"];
   // A list read whole carries its counter; a null one is a filtered read, which the write refuses.
   if (typeof body.lock_version !== "number") {
     throw new Error("the contributors read whole carry no lock_version");

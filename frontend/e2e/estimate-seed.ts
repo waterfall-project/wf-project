@@ -21,6 +21,7 @@ import {
   type Page,
 } from "@playwright/test";
 
+import type { components } from "../src/api/generated/schema";
 import { WORKING } from "./hydration";
 import { createOwnProject, openRevision, type OwnProject } from "./own-project";
 import { API, frontToken, type LocalPerson } from "./service/realm";
@@ -60,9 +61,7 @@ export interface EstimateOptions {
   readonly lines?: readonly string[];
 }
 
-interface Created {
-  nodes: { node_id: string }[];
-}
+type Schemas = components["schemas"];
 
 type Headers = Readonly<Record<string, string>>;
 
@@ -94,8 +93,7 @@ async function categoryOf(
       },
     );
     expect(read.status(), "GET cost-categories").toBe(200);
-    const items = ((await read.json()) as { items: { cost_category_id: string; label: string }[] })
-      .items;
+    const items = ((await read.json()) as { items: Schemas["CostCategory"][] }).items;
     const found = items.find((item) => item.label === label);
     if (found !== undefined) {
       return found.cost_category_id;
@@ -115,7 +113,7 @@ async function createNode(
 ): Promise<string> {
   const created = await calls.post(`${base}/nodes`, { headers, data });
   expect(created.status(), "POST nodes").toBe(201);
-  const node = ((await created.json()) as Created).nodes[0];
+  const node = ((await created.json()) as Schemas["NodesWritten"]).nodes[0];
   if (node === undefined) {
     throw new Error("a node created is answered");
   }
@@ -131,9 +129,9 @@ async function lockOf(
 ): Promise<number> {
   const read = await calls.get(`${base}/nodes`, { headers });
   expect(read.status(), "GET nodes").toBe(200);
-  const found = (
-    (await read.json()) as { items: { node_id: string; lock_version: number }[] }
-  ).items.find((item) => item.node_id === node);
+  const found = ((await read.json()) as { items: Schemas["Node"][] }).items.find(
+    (item) => item.node_id === node,
+  );
   if (found === undefined) {
     throw new Error("a node seeded is read");
   }
@@ -162,7 +160,7 @@ export async function seedEstimate(
     // Before the revision opens: it keeps the inflation rate of the project it is opened on.
     const read = await calls.get(`${API}/projects/${project}`, { headers });
     expect(read.status(), "GET project").toBe(200);
-    const { lock_version } = (await read.json()) as { lock_version: number };
+    const { lock_version } = (await read.json()) as Schemas["Project"];
     const updated = await calls.patch(`${API}/projects/${project}`, {
       headers,
       data: { inflation_rate: options.inflation, lock_version },
@@ -179,7 +177,7 @@ export async function seedEstimate(
   const at = `${API}/projects/${project}/revisions/${opened}`;
   const structures = await calls.get(`${at}/structures`, { headers });
   expect(structures.status(), "GET structures").toBe(200);
-  const main = ((await structures.json()) as { structure_id: string; kind: string }[]).find(
+  const main = ((await structures.json()) as Schemas["CostStructure"][]).find(
     ({ kind }) => kind === "main",
   );
   if (main === undefined) {
@@ -188,7 +186,7 @@ export async function seedEstimate(
   const base = `${at}/structures/${main.structure_id}`;
   const read = await calls.get(at, { headers });
   expect(read.status(), "GET revision").toBe(200);
-  const { reference_year } = (await read.json()) as { reference_year: number };
+  const { reference_year } = (await read.json()) as Schemas["Revision"];
 
   const phase = await createNode(calls, headers, base, {
     kind: "task",

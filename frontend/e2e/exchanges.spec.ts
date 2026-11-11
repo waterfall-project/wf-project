@@ -39,21 +39,36 @@ const START = `/projects/${PROJECT}/revisions/${REVISION}/exchanges?as_of=2026-0
 // The task of the application queued (`task_import_queued`), which the tracker reads by its id.
 const APPLICATION = "01926f3a-7c00-7000-8000-000000000932";
 
-type Imported = components["schemas"]["ImportDetail"];
+type Schemas = components["schemas"];
+
+/** What `applyAndFollow` is given: the screen it acts on, and the import it reads back. */
+interface Application {
+  readonly page: Page;
+  /** The report of the import, which carries the command that applies it. */
+  readonly report: Locator;
+  /** The background tasks of the shell, where the application is followed. */
+  readonly tasks: Locator;
+  /** The name of the file imported, as the task names it. */
+  readonly filename: string;
+  /** The context that reads the import back, at `address`, under `headers`. */
+  readonly request: APIRequestContext;
+  readonly address: string;
+  readonly headers: Readonly<Record<string, string>>;
+}
 
 /**
  * Apply the import of a report and confirm it, follow the application as a task of the shell to its
  * success, and wait for the service to hold the import applied.
  */
-async function applyAndFollow(
-  page: Page,
-  report: Locator,
-  tasks: Locator,
-  filename: string,
-  request: APIRequestContext,
-  address: string,
-  headers: Record<string, string>,
-): Promise<void> {
+async function applyAndFollow({
+  page,
+  report,
+  tasks,
+  filename,
+  request,
+  address,
+  headers,
+}: Application): Promise<void> {
   await report.getByRole("button", { name: "Appliquer l’import" }).click();
   const confirmation = report.getByRole("form", { name: "Confirmation de l’application" });
   await confirmation.getByRole("button", { name: "Confirmer l’application" }).click();
@@ -67,7 +82,7 @@ async function applyAndFollow(
   await expect(async () => {
     const applied = await request.get(address, { headers });
     expect(applied.status(), "GET import").toBe(200);
-    expect(((await applied.json()) as Imported).status).toBe("applied");
+    expect(((await applied.json()) as Schemas["ImportDetail"]).status).toBe("applied");
   }).toPass({ timeout: WORKING });
 }
 
@@ -239,7 +254,7 @@ test("exports the planning as MS Project XML, downloads it once, and imports it 
   await expect(async () => {
     const read = await request.get(`${API}/tasks/${task}`, { headers: seeded.headers });
     expect(read.status(), "GET task").toBe(200);
-    expect(((await read.json()) as { result_url: string | null }).result_url).toBeNull();
+    expect(((await read.json()) as Schemas["BackgroundTaskRef"]).result_url).toBeNull();
   }).toPass({ timeout: WORKING });
 
   // The result is gone once downloaded to the end: the route follows to the screen it left, and the
@@ -288,15 +303,15 @@ test("exports the planning as MS Project XML, downloads it once, and imports it 
   // Confirmed, the application is a task followed in the shell, to its success (WF-INTF-0010-A: the
   // account leads the flow to its end, #2683), and the service holds the import applied.
   const address = `${API}/projects/${seeded.ids.project}/imports/${opened}`;
-  await applyAndFollow(
+  await applyAndFollow({
     page,
     report,
     tasks,
-    download.suggestedFilename(),
+    filename: download.suggestedFilename(),
     request,
     address,
-    seeded.headers,
-  );
+    headers: seeded.headers,
+  });
 });
 
 test("exports the estimate as an Excel file, downloads it, sees a file that is no estimate refused, then imports the file back in two steps — the report without a difference, the application confirmed and followed in the shell, the lines identical — as the project manager of the run @shared [WF-INTF-0070-A] [WF-INTF-0110-A]", async ({
@@ -326,7 +341,7 @@ test("exports the estimate as an Excel file, downloads it, sees a file that is n
   const lines = async (): Promise<unknown[]> => {
     const read = await request.get(nodes, { headers: seeded.headers });
     expect(read.status(), "GET nodes").toBe(200);
-    return ((await read.json()) as { items: { kind: string }[] }).items.filter(
+    return ((await read.json()) as { items: Schemas["Node"][] }).items.filter(
       ({ kind }) => kind === "estimate_line",
     );
   };
@@ -379,7 +394,7 @@ test("exports the estimate as an Excel file, downloads it, sees a file that is n
     headers: seeded.headers,
   });
   expect(listed.status(), "GET imports").toBe(200);
-  expect(((await listed.json()) as { items: unknown[] }).items).toEqual([]);
+  expect(((await listed.json()) as { items: Schemas["Import"][] }).items).toEqual([]);
 
   // The workbook exported, imported back as it is: analysed, the report reads its lines, every one
   // unchanged, with no difference and no line rejected — before anything is applied.
@@ -404,16 +419,25 @@ test("exports the estimate as an Excel file, downloads it, sees a file that is n
   const address = `${API}/projects/${seeded.ids.project}/imports/${opened}`;
   const analysed = await request.get(address, { headers: seeded.headers });
   expect(analysed.status(), "GET import").toBe(200);
-  const { report: read } = (await analysed.json()) as {
-    report: { read_count: number; unchanged_count: number; differences: unknown[] };
-  };
+  const { report: read } = (await analysed.json()) as Schemas["ImportDetail"];
+  if (read === null) {
+    throw new Error("the import analysed carries its report");
+  }
   expect(read.read_count).toBeGreaterThan(0);
   expect(read.unchanged_count).toBe(read.read_count);
   expect(read.differences).toEqual([]);
   expect(await lines()).toEqual(before);
 
   // Confirmed, the application is a task followed in the shell, to its success.
-  await applyAndFollow(page, report, tasks, filename, request, address, seeded.headers);
+  await applyAndFollow({
+    page,
+    report,
+    tasks,
+    filename,
+    request,
+    address,
+    headers: seeded.headers,
+  });
 
   // The lines obtained are the lines exported: the same, lineage and amounts.
   expect(await lines()).toEqual(before);
