@@ -9,6 +9,10 @@ checked against the contract: the three columns in the order of the plan, the su
 no card but the one that awaits only its own lines, the gestures of each card and what each lacks,
 the cards of a caller that may not write, the readings of a terminal project, and the number of
 statements the reading takes, which no task changes.
+
+A test cites the requirement whose Vérif it exercises, and none when it exercises a detail of the
+realisation: the shape EP-10 reads, the conditions the cards name in the order of the contract (a
+criterion of the story US-1590, which no Vérif holds), the number of statements.
 """
 
 from annotationlib import Format, get_annotations
@@ -190,7 +194,8 @@ def missing(answer: Any) -> str:
 
 def test_the_board_answers_three_columns_of_whole_nodes_with_their_gestures() -> None:
     # What EP-10 reads from the socle on (EP-09, "Ce que le cadrage laisse à EP-10"): the result is
-    # fixed before US-1590/L2 fills it.
+    # fixed before US-1590/L2 fills it. It cites no requirement: the Vérif of WF-RAE-0030-A says
+    # what the Kanban does, not the types it answers, and no test of US-1590/L2 fixes these.
     assert get_annotations(startable_tasks, format=Format.FORWARDREF)["return"] is StartableTasks
     assert [field.name for field in fields(StartableTasks)] == [
         "not_started",
@@ -409,7 +414,6 @@ def test_the_cards_of_a_caller_without_remaining_write_hold_no_gesture(
     ]
 
 
-@pytest.mark.requirement("WF-RAE-0030-A")
 def test_the_conditions_of_the_entry_of_the_remaining_follow_those_of_the_gesture(
     review: Review, stage: Scene
 ) -> None:
@@ -432,7 +436,6 @@ def entry_lacks(tree: Tree, who: Any = None) -> list[str]:
     return entry[3]
 
 
-@pytest.mark.requirement("WF-RAE-0030-A")
 def test_the_card_of_a_marked_current_revision_lacks_revision_draft(
     review: Review, stage: Scene
 ) -> None:
@@ -442,7 +445,6 @@ def test_the_card_of_a_marked_current_revision_lacks_revision_draft(
     assert entry_lacks(review.tree) == ["revision_draft"]
 
 
-@pytest.mark.requirement("WF-RAE-0030-A")
 def test_the_card_lacks_no_background_task_running_while_a_task_runs(
     review: Review, stage: Scene, queue: TaskQueue
 ) -> None:
@@ -458,7 +460,6 @@ def test_the_card_lacks_no_background_task_running_while_a_task_runs(
     assert entry_lacks(review.tree) == ["no_background_task_running"]
 
 
-@pytest.mark.requirement("WF-RAE-0030-A")
 def test_the_card_of_a_project_out_of_progress_lacks_project_in_progress(
     review: Review, stage: Scene
 ) -> None:
@@ -467,7 +468,6 @@ def test_the_card_of_a_project_out_of_progress_lacks_project_in_progress(
     assert entry_lacks(review.tree) == ["project_in_progress"]
 
 
-@pytest.mark.requirement("WF-RAE-0030-A")
 def test_the_card_names_the_quality_then_the_phase_then_the_revision_in_that_order(
     review: Review, stage: Scene, realm: TestRealm
 ) -> None:
