@@ -22,6 +22,7 @@ from project_rows import (
     insert_project,
     insert_revision,
     insert_structure,
+    lifted_kind_check,
     projects_with_partitions,
     revision_row,
     structure_row,
@@ -351,11 +352,54 @@ def test_the_database_refuses_a_second_main_structure_in_a_revision(
     assert parent == MAIN
 
 
+def test_the_check_on_the_kind_of_a_structure_is_restored_when_the_body_that_lifted_it_fails(
+    database: Database, owner: Engine, parents: Parents
+) -> None:
+    # A test of the tool that lifts the check, which covers no requirement. The body leaves its
+    # structure in place and fails: the check is back all the same, and the error is the body's.
+    kind = "ck_cost_structure_kind_known"
+
+    def fail_in_the_body() -> None:
+        with lifted_kind_check(owner):
+            with owner.begin() as connection:
+                connection.execute(
+                    insert_structure(parents.project, parents.revision, kind="amendment")
+                )
+            message = "forced"
+            raise RuntimeError(message)
+
+    with pytest.raises(RuntimeError, match="forced"):
+        fail_in_the_body()
+    differential = insert_structure(parents.project, parents.revision, kind="amendment")
+    assert refusal(database.engine, differential) == kind
+
+
+def test_a_body_that_succeeds_leaving_a_structure_of_another_kind_fails_at_the_validation(
+    database: Database, owner: Engine, parents: Parents
+) -> None:
+    # A test of the tool that lifts the check, which covers no requirement (#2622). The body ends
+    # well but forgets its differential: the check comes back ``NOT VALID``, and its validation
+    # refuses the row left, failing the test; the check holds meanwhile for every row written.
+    kind = "ck_cost_structure_kind_known"
+    forgotten = insert_structure(parents.project, parents.revision, kind="amendment")
+    with (
+        pytest.raises(IntegrityError, match=kind),
+        lifted_kind_check(owner),
+        owner.begin() as connection,
+    ):
+        connection.execute(forgotten)
+    differential = insert_structure(parents.project, parents.revision, kind="amendment")
+    assert refusal(database.engine, differential) == kind
+    with owner.begin() as connection:
+        connection.execute(delete(CostStructure).where(CostStructure.kind == "amendment"))
+        connection.execute(text(f"ALTER TABLE cost_structure VALIDATE CONSTRAINT {kind}"))
+
+
 @pytest.mark.requirement("WF-DAT-0090-A")
 def test_every_named_constraint_of_the_projects_and_revisions_has_its_refusal_tried() -> None:
     # The unique indexes count, as the constraints do; what a key names — a revision with its
-    # project, a structure with its revision (EP-06) — is unique as its key is, and is never broken
-    # without it.
+    # project, a structure with its revision (EP-06), a subproject with its project (EP-07) — is
+    # unique as its key is, and is never broken without it.
     tables = [Base.metadata.tables[table.__tablename__] for table in TABLES]
     named = {
         str(constraint.name)
@@ -364,7 +408,8 @@ def test_every_named_constraint_of_the_projects_and_revisions_has_its_refusal_tr
         if constraint.name is not None and not str(constraint.name).startswith("pk_")
     } | {str(index.name) for table in tables for index in table.indexes if index.unique}
     tried = {MAIN} | {constraint for _, _, constraint in (*REFUSALS, *audit_refusals())}
-    assert named - {"uq_revision_project_id", "uq_cost_structure_project_id"} == tried
+    named_by_a_key = {"uq_revision_project_id", "uq_cost_structure_project_id", "uq_subproject_id"}
+    assert named - named_by_a_key == tried
 
 
 @pytest.mark.requirement("WF-DAT-0090-A")

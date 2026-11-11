@@ -166,11 +166,28 @@ describe("the screen of the workload of a project", () => {
     expect(page).toMatch(/<select[^>]*id="workload-basis"/);
   });
 
-  it("offers only the revision under way on a project without a reference revision [WF-DEV-0070-A]", async () => {
+  it("offers the marked revisions without the reference on a project that has marked revisions and no reference revision [WF-DEV-0070-A]", async () => {
     server.answers = { ...server.answers, "GET /projects/{project_id}": "project_pricing" };
     const page = html(await WorkloadPage(at()));
+    expect(options(page, "basis")).toEqual([
+      "Remaining of a marked revision",
+      "Remaining of the current revision",
+    ]);
+  });
+
+  it("offers the revision under way alone on a project with neither a reference nor a marked revision [WF-DEV-0070-A]", async () => {
+    server.answers = {
+      ...server.answers,
+      "GET /projects/{project_id}": "project_pricing",
+      "GET /projects/{project_id}/revisions": "revisions_empty",
+    };
+    const page = html(await WorkloadPage(at()));
     expect(options(page, "basis")).toEqual(["Remaining of the current revision"]);
-    expect(page).not.toContain('name="workload_revision"');
+  });
+
+  it("carries no note of the mock-up, the service being wired [WF-DEV-0070-A]", async () => {
+    const page = text(html(await WorkloadPage(at())));
+    expect(page).not.toContain("Mock-up");
   });
 
   it("does not offer the marked revisions as a basis when the project has none", async () => {
@@ -272,9 +289,9 @@ describe("the screen of the workload of a project", () => {
 });
 
 describe("the note of the fake back on the workload", () => {
-  it("says once, under the header, that the service does not apply filters, search, sort and pages (US-0760)", async () => {
+  it("carries none, the service being wired (US-1520) [WF-DEV-0070-A]", async () => {
     const page = html(await WorkloadPage(at()));
-    expect(page.match(/<p role="note"/g)).toHaveLength(1);
-    expect(page).toContain("Filters, search, sort and pages are ignored");
+    expect(page).not.toContain('role="note"');
+    expect(page).not.toContain("Filters, search, sort and pages are ignored");
   });
 });

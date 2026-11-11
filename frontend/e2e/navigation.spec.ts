@@ -3,7 +3,7 @@
 import { expect, type Page } from "@playwright/test";
 
 import { compile } from "./compile";
-import { setExpanded } from "./hydration";
+import { setExpanded, WORKING } from "./hydration";
 import { inService, test } from "./mode";
 
 // The session of the fake back grants the whole catalogue of permissions: every function
@@ -88,7 +88,7 @@ test("a user who opened no project reaches the administration and the status scr
 });
 
 // Against the fake back only: it leads to the remaining and to the risks of PRJ-001, screens the
-// service serves with EP-07 and EP-08 (listed as not replayed in the guide).
+// service serves with EP-09 and EP-08 (listed as not replayed in the guide).
 test("the way back to the previous project from a function outside any project finds the same context [WF-IHM-0010-A]", async ({
   page,
 }) => {
@@ -120,7 +120,11 @@ test("the address of a project leads to its revision, the reading context and it
   await compile(page.request, `${IN_PROJECT}/planning`);
   await page.goto(`/projects/${PROJECT}${CONTEXT}`);
   await expect(page).toHaveURL(`${IN_PROJECT}/planning${CONTEXT}`);
-  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Planification");
+  // The planning of the thousand tasks of the witness is read from the service: the bound of a
+  // screen of grid, which five seconds of an assertion do not give it under several workers.
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Planification", {
+    timeout: WORKING,
+  });
 });
 
 // Played in service too (`@shared`, EP-04): the settings and the lifecycle of PRJ-001 are served,

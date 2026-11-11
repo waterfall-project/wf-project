@@ -96,8 +96,18 @@ PROJECT_INTERFACES: dict[str, set[str]] = {
         "attachments",
         "skeleton",
         "days",
+        "estimate_facts",
     },
-    "revisions": {"revisions", "structures", "marking", "reference", "shared", "closing"},
+    # ``rates``: the update of the rates a revision frames (US-1500/L1).
+    "revisions": {
+        "revisions",
+        "structures",
+        "marking",
+        "reference",
+        "shared",
+        "closing",
+        "rates",
+    },
 }
 # The modules of the planning, the history and the exchanges (EP-06), one file per story or
 # subject, laid by the socle (US-1380/L1) so that no later story opens their ``__init__``.

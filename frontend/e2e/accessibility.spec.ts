@@ -229,23 +229,21 @@ for (const screen of WALKED_SCREENS) {
       test.describe(`a workstation in ${mode} mode, a tooltip open`, () => {
         test.use({ colorScheme: mode });
 
-        test(`${screen.code} ${screen.route}, in ${mode} mode, the tooltip of Undo open on its focus, its keys and its condition shown: no contrast measured below AA, nor any other breach of axe's rules for WCAG A and AA [WF-IHM-0100-A]`, async ({
+        test(`${screen.code} ${screen.route}, in ${mode} mode, the tooltip of Undo open on its focus, its keys shown, its condition gone with the history kept: no contrast measured below AA, nor any other breach of axe's rules for WCAG A and AA [WF-IHM-0100-A]`, async ({
           page,
         }) => {
           await open(page, screen);
           await expect(page.locator("body")).toHaveCSS("background-color", BACKGROUNDS[mode]);
-          // The tooltip of Undo opens on its focus, with its keys in `<kbd>` and the condition it
-          // lacks, and describes it by both (US-0580): the contrast of each is measured.
+          // The tooltip of Undo opens on its focus, with its keys in `<kbd>`, and no condition now that
+          // the service keeps the history of the entries (US-1560): the contrast is measured.
           const undo = page.getByRole("button", { name: "Annuler", exact: true });
           await undo.focus();
           const tooltip = page.locator("[data-slot=tooltip-content]");
           await expect(tooltip).toContainText("Annule la dernière saisie de la révision.");
-          await expect(tooltip).toContainText(
-            "Indisponibles tant que le serveur ne conserve pas l’historique des saisies.",
-          );
+          await expect(tooltip).not.toContainText("Indisponibles");
           await expect(tooltip.locator("kbd")).toHaveText(["Ctrl+Z"]);
           await expect(undo).toHaveAccessibleDescription(
-            "Indisponibles tant que le serveur ne conserve pas l’historique des saisies. Annule la dernière saisie de la révision.",
+            "Annule la dernière saisie de la révision.",
           );
           const { breaches } = await axeAudit(page);
           expect.soft(breaches, "axe's rules for WCAG A and AA").toEqual([]);

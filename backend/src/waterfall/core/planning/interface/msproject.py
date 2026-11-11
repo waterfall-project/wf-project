@@ -26,12 +26,14 @@ from typing import TYPE_CHECKING, Any
 # By their modules: their own imports reach this interface again, through the facets of a task.
 from waterfall.core.exchanges.interface import ExportedFile
 from waterfall.core.planning import applying, exporting, importing
+from waterfall.core.planning.entries import PLANNING_WRITE
 from waterfall.core.planning.msproject import (
     UnreadableProjectError,
     read_project,
     recognised,
     write_project,
 )
+from waterfall.core.planning.writing import hold_before_lock
 from waterfall.core.projects.interface import project_code
 from waterfall.platform.errors import UnprocessableError
 
@@ -69,7 +71,7 @@ class MsProjectFormat:
 
     header_length = HEADER_LENGTH
     scope: ImportScope = "structure"
-    permission = "planning.write"
+    permission = PLANNING_WRITE
 
     def read_header(self, session: Session, head: bytes) -> None:
         """Refuse the head of a file that is not a planning of MS Project."""
@@ -101,6 +103,8 @@ class MsProjectFormat:
         is judged as it now stands, and a refusal fails the import.
         """
         del report
+        # Removing a task removes the lines under it: the natures are locked before the structure.
+        hold_before_lock(session)
         plan, _ = importing.plan_import(session, target, _read(content), lock=True)
         applying.apply_plan(session, plan, act)
 

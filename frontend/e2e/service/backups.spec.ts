@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
 /*
- * A backup taken from the screen, downloaded, deposited again and restored, against the service
+ * A backup taken from the screen, downloaded, deposited and restored, against the service
  * (US-0440): the administrator of the installation presses « Sauvegarder maintenant »; the worker
  * backs the platform up and the tracker follows the task to its end (WF-ADM-0150); the screen read
  * anew lists the backup, which the administrator downloads, then deposits as the archive of another
@@ -14,25 +14,29 @@
  * before the backup, and creates another project, after it; once restored, the revision is current
  * again, the version name gone, and the other project is not found.
  *
- * The proxy of the contract between the front and the API, Prism, reads every body as text: the
- * bytes of the archive past 0x7f reach the browser, and the deposit the API, each replaced by
- * U+FFFD. Its manifest, the first member and plain JSON, comes through, and with it the date the
- * deposit says; the dumps do not, and a deposit restored here would be refused as unreadable
- * (`FILE_FORMAT_UNREADABLE`) before any maintenance. The path restores the backup of the list,
- * whose bytes never leave the service; the restoration of a deposit, its bytes intact, is the
- * service's own proof, on a second installation
- * (`test_uploads.py::test_a_backup_copied_deposited_and_restored_on_another_installation_makes_it_a_copy`).
- * The restoration replaces the whole platform and closes every session: the path plays alone, last
- * (`playwright.config.ts`, the project `restoration`).
+ * The backup of the path is the row the list did not hold before « Sauvegarder maintenant », known
+ * by the backup its download names: a backup of a run played minutes before is never taken for it
+ * (#2751). The archive downloaded comes through the proxy of the contract byte for byte — Prism,
+ * which would spoil the bytes of a body that is not JSON, is passed them by the two legs around it
+ * (`bench/contract-proxy.ts`, #1025) —, and is compared with the digests its manifest gives of each
+ * dump. Once the platform is restored from the list, the archive is deposited back, accepted with
+ * its date, and restored in its turn (WF-ADM-0160, « ou depuis une sauvegarde copiée hors de la
+ * plateforme »): the service checks the digests of a deposit only then, so that the restoration
+ * succeeding proves the upload crossed the legs byte for byte. The archive
+ * of a new installation, about half a mebibyte, is deposited in one part: the cut of an archive in
+ * parts of 5 MiB, on a byte inside a character (#2695), is proven by the test of the legs
+ * (`bench/contract-proxy.test.ts`), not here. The restoration replaces the whole platform and
+ * closes every session: the path plays alone, last (`playwright.config.ts`, the project
+ * `restoration`).
  */
-import { randomBytes } from "node:crypto";
-import { stat } from "node:fs/promises";
+import { createHash, randomBytes } from "node:crypto";
+import { readFile } from "node:fs/promises";
 
-import { type APIRequestContext, expect, type Locator, test } from "@playwright/test";
+import { type APIRequestContext, expect, type Locator, type Page, test } from "@playwright/test";
 
 import type { components } from "../../src/api/generated/schema";
 import { compileAnswered } from "../compile";
-import { WORKING } from "../hydration";
+import { untilHydrated, WORKING } from "../hydration";
 import { heldToTheContract } from "./contract";
 import {
   accountAdministrator,
@@ -132,6 +136,59 @@ function projectManagerAt(request: APIRequestContext, token: string) {
   };
 }
 
+// A block of a tar archive, which the archive of a backup is, uncompressed.
+const BLOCK = 512;
+
+/**
+ * The members of a tar archive, by their names: each header block, then the data, to the end of its
+ * last block; an extended header (PAX) may give the name of the member that follows it.
+ */
+function members(archive: Buffer): Map<string, Buffer> {
+  const found = new Map<string, Buffer>();
+  let at = 0;
+  let named: string | undefined;
+  while (at + BLOCK <= archive.length && archive[at] !== 0) {
+    const field = (from: number, length: number) =>
+      archive.toString("latin1", at + from, at + from + length).split("\0")[0] ?? "";
+    const size = Number.parseInt(field(124, 12).trim(), 8);
+    const kind = field(156, 1);
+    const data = archive.subarray(at + BLOCK, at + BLOCK + size);
+    if (kind === "x") {
+      named = /\d+ path=([^\n]*)\n/.exec(data.toString("utf8"))?.[1] ?? named;
+    } else if (kind !== "g") {
+      found.set(named ?? field(0, 100), data);
+      named = undefined;
+    }
+    at += BLOCK + Math.ceil(size / BLOCK) * BLOCK;
+  }
+  return found;
+}
+
+/**
+ * Assert that an archive downloaded is the backup the service took, byte for byte: each dump of the
+ * length and of the digest its manifest gives — a byte rewritten on the way, and the digest differs.
+ */
+function expectWhole(archive: Buffer): void {
+  const read = members(archive);
+  const manifest = read.get("manifest.json");
+  expect(manifest, "the manifest of the archive").toBeDefined();
+  const { databases } = JSON.parse(manifest?.toString("utf8") ?? "{}") as {
+    databases: { file: string; size_bytes: number; sha256: string }[];
+  };
+  expect(databases.length, "the dumps the manifest lists").toBeGreaterThan(0);
+  for (const { file, size_bytes, sha256 } of databases) {
+    const dump = read.get(file) ?? Buffer.alloc(0);
+    expect(dump.length, `the length of ${file}`).toBe(size_bytes);
+    expect(createHash("sha256").update(dump).digest("hex"), `the digest of ${file}`).toBe(sha256);
+  }
+}
+
+/** The backup a link of download names, by the address it leaves for. */
+async function backupOf(link: Locator): Promise<string> {
+  const address = (await link.getAttribute("href")) ?? "";
+  return new RegExp(`^${BACKUPS}/([^/?]+)/content`).exec(address)?.[1] ?? address;
+}
+
 /**
  * Press a command that hands a task over to the tracker, on a page that may not be hydrated yet:
  * again until React answered — a press answered is never repeated, which would ask a second task.
@@ -150,6 +207,34 @@ async function handOver(command: Locator, followed: Locator): Promise<void> {
       )
       .toBe(true);
   }).toPass({ timeout: WORKING });
+}
+
+/**
+ * Follow a restoration confirmed to its end: the screen says it waiting, then done once the probe
+ * said the maintenance — every user signed out — and its end. A restoration this small may hold the
+ * maintenance between two reads of the probe: the screen then sees the session closed and nothing
+ * more, and says that alone, without affirming the restoration done: the journal of audit says it,
+ * after the sign-in. The administrator then signs in again and finds the screen.
+ */
+async function untilRestored(page: Page): Promise<void> {
+  const maintenance = page.getByRole("status", {
+    name: "Restauration de la plateforme en cours",
+  });
+  await expect(maintenance).toContainText("La restauration est en attente");
+  const signedOut = page.getByRole("status", { name: "Session terminée" });
+  // Its title is the whole text of its element: the paragraph of the maintenance names the
+  // restoration « terminée » too, as what the users wait for (#2219).
+  const ended = maintenance.getByText("Restauration terminée", { exact: true }).or(signedOut);
+  // A restoration refused before the maintenance gives the page back with its motive: said at
+  // once, rather than waited for until the end of the path.
+  const refused = page.getByRole("main").getByRole("alert");
+  await expect(ended.or(refused)).toBeVisible({ timeout: 420_000 });
+  await expect(refused).toHaveCount(0);
+
+  await page.getByRole("link", { name: "Se connecter" }).click();
+  await giveIdentifiers(page, ADMINISTRATOR);
+  await expect(page).toHaveURL(BACKUPS);
+  await expect(page.getByRole("grid", { name: "Sauvegardes" })).toBeVisible();
 }
 
 test(
@@ -178,6 +263,38 @@ test(
     const kept = await before.projectWithRevision(`Avant la sauvegarde ${suffix}`);
 
     await signIn(page, ADMINISTRATOR, BACKUPS);
+    // The backups the list holds before the one of the path, by the backup their download names —
+    // none, on a new installation: the row of the path is the one that is none of them, whatever
+    // its date, so that a backup of a run played minutes before is never taken for it (#2751).
+    // Read once the screen is hydrated and its grid holds its rows: read before, the list held
+    // nothing, and the row of a backup taken an hour before was taken for that of the path. A list
+    // without any backup shows no grid, only its count: the screen is served whole, so the grid is
+    // there or is not once the command that starts a backup is, and none held is the empty set.
+    const grid = page.getByRole("grid", { name: "Sauvegardes" });
+    await expect(page.getByRole("button", { name: "Sauvegarder maintenant" })).toBeVisible();
+    await untilHydrated(page);
+    const downloads = grid.getByRole("link", { name: /^Télécharger la sauvegarde du / });
+    const listed = async (): Promise<string[]> =>
+      Promise.all((await downloads.all()).map(async (link) => backupOf(link)));
+    const held = new Set<string>();
+    if ((await grid.count()) > 0) {
+      const rowsListed = async () => Number((await grid.getAttribute("aria-rowcount")) ?? "0") - 2;
+      // A row is a backup or the notice of a list without any (« Aucune sauvegarde. »): the rows
+      // are all read once the grid offers the download of every row that is a backup — a single
+      // row, whose link is not rendered yet, is never taken for the notice.
+      const notices = grid.getByText("Aucune sauvegarde.", { exact: true });
+      await expect
+        .poll(
+          async () => (await rowsListed()) - (await notices.count()) === (await downloads.count()),
+          {
+            timeout: WORKING,
+          },
+        )
+        .toBe(true);
+      for (const backup of await listed()) {
+        held.add(backup);
+      }
+    }
 
     // The backup, followed by the tracker until the worker has taken and verified it.
     const followed = page.getByRole("button", { name: /^Tâches et messages\s: 1 tâche suivie/ });
@@ -187,17 +304,24 @@ test(
     await followed.click();
     await expect(entries.getByText("Réussie")).toBeVisible({ timeout: 180_000 });
     await entries.getByRole("button", { name: "Recharger l’écran" }).click();
-    const newest = page.getByRole("grid", { name: "Sauvegardes" }).getByRole("row").nth(1);
-    // Listed first, once the screen is read anew, with its date, the instant it was taken, which
-    // the browser writes in its local time — a backup of a run before may be listed until then —,
-    // and with its size.
-    const taken = newest.locator("time");
-    const instant = async () => Date.parse((await taken.getAttribute("datetime")) ?? "");
-    await expect.poll(async () => Math.abs(Date.now() - (await instant()))).toBeLessThan(240_000);
+    // Listed once the screen is read anew, with its date, the instant it was taken, which the
+    // browser writes in its local time, and with its size. The grid is there once a backup is.
+    await expect(grid).toBeVisible({ timeout: WORKING });
+    let taken = "";
+    await expect
+      .poll(async () => {
+        taken = (await listed()).find((backup) => !held.has(backup)) ?? "";
+        return taken;
+      })
+      .not.toBe("");
+    const newest = grid
+      .getByRole("row")
+      .filter({ has: page.locator(`a[href^="${BACKUPS}/${taken}/content"]`) });
+    await expect(newest).toHaveCount(1);
     await expect(newest).toContainText("Vérifiée");
-    await expect(taken).not.toBeEmpty();
-    const takenIso = (await taken.getAttribute("datetime")) ?? "";
-    const takenAt = Date.parse(takenIso);
+    const date = newest.locator("time");
+    await expect(date).not.toBeEmpty();
+    const takenAt = Date.parse((await date.getAttribute("datetime")) ?? "");
 
     // After the backup, the revision of the project is marked by the worker, and another project
     // is created.
@@ -214,25 +338,14 @@ test(
     expect(download.suggestedFilename()).not.toBe("");
     const archive = testInfo.outputPath(download.suggestedFilename());
     await download.saveAs(archive);
-    expect((await stat(archive)).size).toBeGreaterThan(0);
-
-    // Deposited as the archive of another installation, which says the date of its backup.
-    const deposit = page.getByRole("region", {
-      name: "Restaurer une sauvegarde d’une autre installation",
-    });
-    await deposit.getByLabel("Archive de la sauvegarde").setInputFiles(archive);
-    await deposit.getByRole("button", { name: "Déposer" }).click();
-    const restore = deposit.getByRole("button", { name: "Restaurer cette sauvegarde" });
-    await expect(restore).toBeVisible({ timeout: 60_000 });
-    const deposited = await deposit.getByRole("time").getAttribute("datetime");
-    expect(Date.parse(deposited ?? "")).toBe(takenAt);
+    expectWhole(await readFile(archive));
 
     // The backup of the list restored once its identifier is typed, the confirmation naming its
-    // date — not the deposit, whose dumps Prism altered —: first the restoration waiting, no one
-    // signed out yet.
+    // date: first the restoration waiting, no one signed out yet. The deposit follows, restored in
+    // its turn (WF-ADM-0160: from a backup of the list, or from one copied out of the platform).
     // The date as the list writes it, read before the dialog opens: modal, it hides the page
     // behind it, the grid with it.
-    const takenText = await taken.innerText();
+    const takenText = await date.innerText();
     const confirmed = Date.now();
     await newest
       .getByRole("button", { name: /^Restaurer la plateforme depuis la sauvegarde du / })
@@ -244,29 +357,7 @@ test(
       .getByRole("textbox", { name: "Pour confirmer, saisissez l’identifiant de la sauvegarde" })
       .fill(identifier);
     await dialog.getByRole("button", { name: "Restaurer", exact: true }).click();
-    const maintenance = page.getByRole("status", {
-      name: "Restauration de la plateforme en cours",
-    });
-    await expect(maintenance).toContainText("La restauration est en attente");
-    // Then its end: done, once the probe said the maintenance — every user signed out — and its
-    // end. A restoration this small may hold the maintenance between two reads of the probe: the
-    // screen then sees the session closed and nothing more, and says that alone, without
-    // affirming the restoration done: the journal of audit says it, after the sign-in.
-    const signedOut = page.getByRole("status", { name: "Session terminée" });
-    // Its title is the whole text of its element: the paragraph of the maintenance names the
-    // restoration « terminée » too, as what the users wait for (#2219).
-    const ended = maintenance.getByText("Restauration terminée", { exact: true }).or(signedOut);
-    // A restoration refused before the maintenance gives the page back with its motive: said at
-    // once, rather than waited for until the end of the path.
-    const refused = page.getByRole("main").getByRole("alert");
-    await expect(ended.or(refused)).toBeVisible({ timeout: 420_000 });
-    await expect(refused).toHaveCount(0);
-
-    // Signed out by the restoration, the administrator signs in again, and finds the screen.
-    await page.getByRole("link", { name: "Se connecter" }).click();
-    await giveIdentifiers(page, ADMINISTRATOR);
-    await expect(page).toHaveURL(BACKUPS);
-    await expect(page.getByRole("grid", { name: "Sauvegardes" })).toBeVisible();
+    await untilRestored(page);
 
     // Whatever end the screen saw, the restoration took place and succeeded: the last inscription
     // of the journal of audit is the restoration itself, of the backup, which the service writes
@@ -288,5 +379,36 @@ test(
       [kept.revision.revision_id, "draft", null],
     ]);
     await restored.notFound(later);
+
+    // Deposited as the archive of another installation, which says the date of its backup, and
+    // restored in its turn: the service checks the digests of a deposit only then, so that the
+    // archive sent byte for byte is proven by the restoration succeeding (#1025).
+    await page.goto(BACKUPS);
+    const deposit = page.getByRole("region", {
+      name: "Restaurer une sauvegarde d’une autre installation",
+    });
+    await deposit.getByLabel("Archive de la sauvegarde").setInputFiles(archive);
+    await deposit.getByRole("button", { name: "Déposer" }).click();
+    await expect(deposit.getByRole("button", { name: "Restaurer cette sauvegarde" })).toBeVisible({
+      timeout: 60_000,
+    });
+    const deposited = await deposit.getByRole("time").getAttribute("datetime");
+    expect(Date.parse(deposited ?? "")).toBe(takenAt);
+    const confirmedDeposit = Date.now();
+    await deposit.getByRole("button", { name: "Restaurer cette sauvegarde" }).click();
+    const depositDialog = page.getByRole("dialog", { name: "Restaurer la plateforme" });
+    await depositDialog
+      .getByRole("textbox", { name: "Pour confirmer, saisissez l’identifiant de la sauvegarde" })
+      .fill(await depositDialog.locator("code").innerText());
+    await depositDialog.getByRole("button", { name: "Restaurer", exact: true }).click();
+    await untilRestored(page);
+    await page.goto(JOURNAL);
+    const lastDeposit = page.getByRole("grid", { name: "Journal d’audit" }).getByRole("row").nth(1);
+    await expect(lastDeposit).toContainText("Restauration", { timeout: WORKING });
+    await expect(lastDeposit).toContainText("Sauvegarde déposée");
+    const restoredDepositAt = Date.parse(
+      (await lastDeposit.locator("time").getAttribute("datetime")) ?? "",
+    );
+    expect(restoredDepositAt).toBeGreaterThanOrEqual(confirmedDeposit - 60_000);
   },
 );

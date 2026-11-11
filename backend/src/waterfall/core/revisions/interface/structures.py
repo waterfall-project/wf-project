@@ -177,6 +177,17 @@ def _structures(
     return [(row[0], row[1]) for row in rows]
 
 
+def revision_structures(session: Session, project_id: UUID, revision_id: UUID) -> tuple[UUID, ...]:
+    """Give the structures of a revision, in the order of their identifiers, which locks them."""
+    return tuple(
+        session.scalars(
+            select(CostStructure.id)
+            .where(CostStructure.project_id == project_id, CostStructure.revision_id == revision_id)
+            .order_by(CostStructure.id)
+        )
+    )
+
+
 def list_cost_structures(
     session: Session, project_id: UUID, revision_id: UUID, viewer: Viewer
 ) -> list[StructureView]:
@@ -365,8 +376,13 @@ class CurrentStructure:
     structure_id: UUID
 
 
-def current_structures(session: Session, *, lock: bool) -> tuple[CurrentStructure, ...]:
+def current_structures(
+    session: Session, *, lock: bool, reference_year: int | None = None
+) -> tuple[CurrentStructure, ...]:
     """Give the structures of the current revisions, in the order of (``project_id``, ``id``).
+
+    ``reference_year`` keeps the revisions of that year of reference alone, before the lock: the
+    others are not shared (US-1500/L2).
 
     ``lock`` reads their revisions ``FOR SHARE``: a revision marked or abandoned meanwhile is left
     out, and none is until the transaction ends — what a change of the reference takes before it
@@ -382,6 +398,8 @@ def current_structures(session: Session, *, lock: bool) -> tuple[CurrentStructur
         .where(Revision.status == "draft")
         .order_by(CostStructure.project_id, CostStructure.id)
     )
+    if reference_year is not None:
+        query = query.where(Revision.reference_year == reference_year)
     if lock:
         query = query.with_for_update(read=True, of=Revision)
     return tuple(CurrentStructure(*row) for row in session.execute(query))

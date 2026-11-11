@@ -19,12 +19,41 @@ type NodeCreate = components["schemas"]["NodeCreate"];
 /** The body of nodes moved. */
 type NodeMove = components["schemas"]["NodeMove"];
 
-/** A category of cost a line is created from. */
+/** The type of the cost of a category (`CostTypeKind`): labour, expense or provision for risks. */
+type CostTypeKind = components["schemas"]["CostTypeKind"];
+
+/** A role or a category of cost a line is created from. */
 export interface LineCategory {
   readonly id: string;
   readonly label: string;
   /** Whether it may still be chosen. */
   readonly active: boolean;
+  /** The type of the cost of a category; a role has none. A category of unknown type is not offered. */
+  readonly kind?: CostTypeKind | undefined;
+}
+
+/**
+ * What a line is created from: a role, which makes it a line of labour whose category the server
+ * computes, or a category of expense (WF-DEV-0020).
+ */
+export interface LineEntry {
+  readonly kind: "role" | "category";
+  readonly id: string;
+}
+
+/** The active roles a line is created from. */
+export function activeRoles(roles: readonly LineCategory[] | undefined): readonly LineCategory[] {
+  return (roles ?? []).filter((role) => role.active);
+}
+
+/**
+ * The active categories of expense (`non_labor`) a line is created from: neither the provision for
+ * risks, which the risks alone create (WF-RIS-0010), nor labour, which goes by the role.
+ */
+export function activeExpenses(
+  categories: readonly LineCategory[] | undefined,
+): readonly LineCategory[] {
+  return (categories ?? []).filter((category) => category.active && category.kind === "non_labor");
 }
 
 /** What a grid offers of the gestures of structure, as the structure it reads lists its commands. */
@@ -35,8 +64,13 @@ export interface StructureGestures {
   readonly tasks: boolean;
   /** Whether lines are created and deleted. */
   readonly lines: boolean;
-  /** The categories a line is created from; none, and no line is created. */
+  /**
+   * The categories of expense a line is created from, with the roles: neither, and no line is
+   * created.
+   */
   readonly categories: readonly LineCategory[] | undefined;
+  /** The roles a line of labour is created from. */
+  readonly roles: readonly LineCategory[] | undefined;
   /**
    * The rows the grid shows, in the order of the tree, those a search or a filter leaves out
    * missing: what precedes a task among its siblings, and what bears it, only when shown.
@@ -65,11 +99,11 @@ export function moves(gesture: Gesture): gesture is Moving {
 
 /**
  * What a dialog of creation gathered: the label — empty for a line, which the server then names —,
- * and for a line its category and its quantity.
+ * and for a line its role or its category and its quantity.
  */
 export interface Entered {
   readonly label: string;
-  readonly line: { readonly category: string; readonly quantity: string } | undefined;
+  readonly line: { readonly entry: LineEntry; readonly quantity: string } | undefined;
 }
 
 /** The label of a row, task or line. */
@@ -77,9 +111,15 @@ export function labelOf(row: GridNode): string {
   return row.task?.label ?? row.estimate_line?.label ?? "";
 }
 
-/** Whether a line may be created: the grid lists it, and a category may be chosen. */
+/**
+ * Whether a line may be created: the grid lists it, and a role or a category of expense may be
+ * chosen.
+ */
 function linesOffered(scope: StructureGestures): boolean {
-  return scope.lines && (scope.categories ?? []).some((category) => category.active);
+  return (
+    scope.lines &&
+    (activeRoles(scope.roles).length > 0 || activeExpenses(scope.categories).length > 0)
+  );
 }
 
 /**
@@ -417,7 +457,11 @@ export function bodyOf(gesture: Gesture, row: GridNode | undefined, entered: Ent
     const line = {
       // A label left out is composed by the server (WF-DEV-0020).
       ...(entered.label === "" ? {} : { label: entered.label }),
-      cost_category_id: entered.line.category,
+      // A role makes the line one of labour, whose category the server computes and would refuse
+      // another; a category is of expense alone (WF-DEV-0020).
+      ...(entered.line.entry.kind === "role"
+        ? { resource_role_id: entered.line.entry.id }
+        : { cost_category_id: entered.line.entry.id }),
       quantity: entered.line.quantity,
     };
     return row?.kind === "estimate_line"

@@ -118,10 +118,10 @@ describe("the summary of the estimate", () => {
     // The estimate the offer v1.0 kept at its marking, before any risk: no provision.
     const html = text(summary("estimate_indicators_breakdown", "missing_rates_none", all, "en"));
     expect(html).toContain(
-      "By cost type Main-d'œuvre 9,343,750.68 (13.69%) Débours 58,894,953.53 (86.31%) By subproject",
+      "By cost type Main-d'œuvre 9,624,062.86 (13.69%) Débours 60,661,802.15 (86.31%) By subproject",
     );
-    expect(html).toContain("By subproject No subproject 68,238,704.21 (100%)");
-    expect(html).toContain("Estimate total 68,238,704.21 Identified provisions 0.00");
+    expect(html).toContain("By subproject No subproject 70,285,865.01 (100%)");
+    expect(html).toContain("Estimate total 70,285,865.01 Identified provisions 0.00");
   });
 
   it("says an amount the API could not compute for want of an hourly rate, with its reason, never a figure [WF-DEV-0010-A]", () => {
@@ -222,7 +222,7 @@ describe("the summary of the estimate", () => {
       ),
     );
     expect(html).toContain("Sans libellé — 2026");
-    expect(html).toContain("Par nature de coût Sans libellé 9 343 750,68 (13,69 %) Sans libellé");
+    expect(html).toContain("Par nature de coût Sans libellé 9 624 062,86 (13,69 %) Sans libellé");
     expect(html).not.toMatch(/01926f3a-/);
   });
 

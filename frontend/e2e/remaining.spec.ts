@@ -72,13 +72,13 @@ test("reads the remaining to commit of a revision: its indicators, its grid, the
     /Réserve pour risques\s*850\s060,00\s€\s*Provisions restantes\s*500\s000,00\s€\s*Coût des risques survenus\s*200,00\s€\s*réestimé\s*Réestimé des risques survenus \(information\)\s*200,00\s€\s*Écart de couverture\s*349\s860,00\s€/,
   );
   // Each sub-project in the zone the server classes it in, named, never by its colour alone.
-  // The control station, the tests and commissioning and the whole without sub-project all over
-  // their budget, in alert: the tasks drawn around the core count their projected budget.
+  // The control station, the tests and commissioning and the whole without sub-project all
+  // within their budget, in nominal: the offer is projected from 2025, its margins are positive.
   const balances = page.getByRole("region", {
     name: "Reste à engager par sous-projet, et marge sur le budget",
   });
-  await expect(balances.getByRole("img", { name: "Alerte" })).toHaveCount(3);
-  await expect(balances.getByRole("img", { name: "Nominal" })).toHaveCount(0);
+  await expect(balances.getByRole("img", { name: "Alerte" })).toHaveCount(0);
+  await expect(balances.getByRole("img", { name: "Nominal" })).toHaveCount(3);
 
   // The grid, its amounts computed, its totals those of the answer, in the window.
   const grid = page.getByRole("treegrid", { name: "Grille de reste à engager" });

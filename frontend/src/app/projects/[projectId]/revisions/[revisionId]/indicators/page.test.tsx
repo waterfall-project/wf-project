@@ -172,7 +172,7 @@ describe("the screen of the indicators of a project", () => {
     // chart below: the milestones, the cumulative costs, the earned value.
     expect(page.match(/Computed on/g)).toHaveLength(5 + 2 + 3);
     expect(page).toContain(
-      "Financial progress Computed on Financial progress 2.05% Budget consumption 2.07% Actual cost",
+      "Financial progress Computed on Financial progress 2.05% Budget consumption 2.01% Actual cost",
     );
     expect(page).toContain("Evolution of the cost index Computed on");
     expect(page).toContain("Evolution of the schedule index Computed on");
@@ -181,13 +181,13 @@ describe("the screen of the indicators of a project", () => {
   it("shows the amounts as the API gives them, nothing summed nor divided", async () => {
     const page = text(html(await IndicatorsPage(at())));
     expect(page).toContain(
-      "Actual cost €1,412,970.20 Remaining to commit €67,470,133.69 Reference budget €68,241,569.21",
+      "Actual cost €1,412,970.20 Remaining to commit €67,470,133.69 Reference budget €70,288,695.96",
     );
     expect(page).toContain(
-      "At budget €68,204,681.08 -€36,888.13 Project manager’s €68,883,103.89 €641,534.68",
+      "At budget €70,208,311.97 -€80,383.99 Project manager’s €68,883,103.89 -€1,405,592.07",
     );
     expect(page).toContain(
-      "Schedule variance -€221,599.80 Earned value €1,449,858.33 Planned value €1,671,458.13",
+      "Schedule variance -€228,231.37 Earned value €1,493,354.19 Planned value €1,721,585.56",
     );
   });
 

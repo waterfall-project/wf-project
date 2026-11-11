@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { type APIRequestContext, type Browser, expect, type Page } from "@playwright/test";
 
+import type { components } from "../src/api/generated/schema";
 import { compile } from "./compile";
 import { openHydrated, WORKING } from "./hydration";
 import { inService, test } from "./mode";
@@ -20,6 +21,8 @@ import { API, frontToken, type LocalPerson } from "./service/realm";
 // reached, and its generation played to the planning. The rest is proved on the examples of the
 // contract by the tests of the components (`project-start.dom.test.tsx`) and of the pages
 // (`page.test.tsx`, `screens.test.tsx`).
+type Schemas = components["schemas"];
+
 const PROJECT = "01926f3a-7c00-7000-8000-000000000001";
 
 // What the fake back does not replay: it keeps nothing of the work breakdown it is given.
@@ -55,7 +58,7 @@ async function generateByTheApi(
     data: { apply_rate_update: false },
   });
   expect(opened.status(), "POST revisions").toBe(201);
-  const revision = (await opened.json()) as { revision_id: string };
+  const revision = (await opened.json()) as Schemas["Revision"];
   const generated = await calls.post(
     `${API}/projects/${project}/revisions/${revision.revision_id}/skeleton`,
     { headers },

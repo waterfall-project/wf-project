@@ -17,6 +17,7 @@ from typing import TYPE_CHECKING
 from sqlalchemy import func, select
 
 from waterfall import __version__, schema
+from waterfall.core.estimate import interface as estimate_interface
 from waterfall.core.exchanges import interface as exchanges_interface
 from waterfall.core.history import interface as history_interface
 from waterfall.core.planning import interface as planning_interface
@@ -49,8 +50,8 @@ NAME = "waterfall-worker"
 USAGE = f"usage: {NAME} [--version | enqueue <kind> | purge]\n"
 # The modules that fill the registries of the others at the import of their interface (#2180):
 # imported here, so that no revision the worker marks or creates, no import it applies, lacks
-# their part.
-EXTENDING = (exchanges_interface, history_interface, planning_interface)
+# their part — the estimate keeps its images and its rates at the marking (US-1500/L2).
+EXTENDING = (estimate_interface, exchanges_interface, history_interface, planning_interface)
 
 
 def handlers(settings: WorkerSettings) -> dict[str, TaskHandler]:

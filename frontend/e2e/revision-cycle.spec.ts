@@ -4,7 +4,8 @@ import { expect } from "@playwright/test";
 
 import { openHydrated, WORKING } from "./hydration";
 import { inService, test } from "./mode";
-import { createOwnProject, openRevision } from "./own-project";
+import { createOwnProject, employRole, openRevision, wiringService } from "./own-project";
+import { seedPlanning } from "./planning-seed";
 
 // The cycle of the revisions, against the fake back and, tagged `@shared`, against the service.
 //
@@ -21,16 +22,16 @@ import { createOwnProject, openRevision } from "./own-project";
 // creates (`own-project.ts`), and manages as its creator, never on the witness, whose revisions
 // every other path reads — created, a revision opened, marked by the worker, the designation
 // refused for the lack of tasks, another opened and abandoned (US-0970), opened again, the code
-// entered, the project left (US-0990/L2). EP-07 reverses the refusal: with tasks and lines the
-// designation succeeds, and the code entered then takes the project to In progress.
+// entered, the project left (US-0990/L2). A reference that bears a task and a line is designated
+// by the next path (US-1540), and the code entered then takes the project to In progress.
 const PROJECT = "01926f3a-7c00-7000-8000-000000000001";
 const REVISION = "01926f3a-7c00-7000-8000-000000000102";
 
-// What the service does not replay of the witness yet, as the guide lists it (« Un parcours de bout
-// en bout »): the commands of PRJ-001 are listed to its project managers alone, and its reference
-// stays undesignated until its tasks and lines are served (EP-07).
+// What the service does not replay of the witness, as the guide lists it (« Un parcours de bout en
+// bout »): the commands of PRJ-001 are listed to its project managers alone, and the account of the
+// run is none of them.
 const NOT_REPLAYED_IN_SERVICE =
-  "by decision the account of the run is not a project manager of PRJ-001 (#2193, option A), and its reference waits for its tasks and lines (EP-07)";
+  "by decision the account of the run is not a project manager of PRJ-001 (#2193, option A), which no EPIC reverses";
 
 // The abandon of the witness's current revision would take it from every other path: the service
 // plays the abandon on the project the cycle creates.
@@ -139,7 +140,8 @@ test("a project created, a revision opened, marked by the worker, the designatio
   await expect(open).not.toHaveAttribute("aria-disabled", "true");
 
   // The designation of the marked revision is refused for the lack of tasks and lines, and says so
-  // (WF-CYC-0030): pressed from the keyboard, it opens nothing. EP-07 reverses it.
+  // (WF-CYC-0030): pressed from the keyboard, it opens nothing. A reference that bears them is
+  // designated by the next path.
   const designation = main.getByRole("region", { name: "Désignation de la référence" });
   const designate = designation
     .getByRole("listitem")
@@ -213,4 +215,85 @@ test("a project created, a revision opened, marked by the worker, the designatio
   await expect(history.getByRole("row").nth(1)).toContainText("v1.0");
   await expect(history.getByRole("row").nth(1)).toContainText("Marquée");
   await expect(history).not.toContainText("En cours d’élaboration");
+});
+
+test("a reference that bears a task and a line is designated, the project stays in pricing until the code is entered and then passes In progress (US-1540) @shared [WF-CYC-0020-A] [WF-CYC-0030-A] [WF-CYC-0050-A] [WF-PRJ-0010-A]", async ({
+  browser,
+  page,
+  playwright,
+  manager,
+}) => {
+  if (!inService || manager === undefined) {
+    test.skip(true, SERVICE_ONLY);
+    return;
+  }
+  test.slow();
+  const main = page.getByRole("main");
+  const calls = await playwright.request.newContext({ ignoreHTTPSErrors: true });
+  try {
+    // A project of its own, its revision opened and its tasks written, and a line under one of
+    // them, which employs the role of the service of the witness (a project is chiffré without a code,
+    // WF-PRJ-0010).
+    const seeded = await seedPlanning(page, browser, calls, manager, "Passage En cours");
+    const service = wiringService();
+    await employRole(calls, seeded.headers, seeded.ids, seeded.nodes[6] ?? "", service);
+
+    // In pricing, the next state names what the project lacks, the line included (WF-CYC-0050).
+    await openHydrated(page, `${seeded.own.path}/lifecycle`);
+    const next = main.getByRole("region", { name: "Prochain état" });
+    await expect(next).toContainText("révision portant au moins une tâche et une ligne de devis");
+    await expect(next).toContainText("code projet renseigné");
+    await expect(next).toContainText("révision de référence désignée");
+
+    // The revision is marked by the worker.
+    await openHydrated(page, `${seeded.own.path}/revisions?revision_id=${seeded.ids.revision}`);
+    const commands = main.getByRole("region", { name: "Commandes" });
+    await commands.getByRole("button", { name: "Marquer la révision" }).click();
+    const marking = commands.getByRole("form");
+    await marking.getByRole("textbox", { name: "Nom de version" }).fill("v1.0");
+    await marking.getByRole("button", { name: "Marquer", exact: true }).click();
+    await expect(commands.getByRole("form")).toHaveCount(0);
+    await page.getByRole("button", { name: /^Tâches et messages\s: 1 tâche suivie/ }).click();
+    const task = page
+      .getByRole("dialog", { name: "Tâches et messages" })
+      .getByRole("region", { name: "Tâches de fond" })
+      .getByRole("listitem")
+      .filter({ hasText: "Marquage d’une révision « v1.0 »" });
+    await expect(task.getByText("Réussie")).toBeVisible({ timeout: MARKING });
+    await task.getByRole("button", { name: "Recharger l’écran" }).click();
+
+    // Carrying a task and a line, the marked revision is designated: no refusal (WF-CYC-0030).
+    const designation = main.getByRole("region", { name: "Désignation de la référence" });
+    const offer = designation.getByRole("listitem").filter({ hasText: "v1.0" });
+    const designate = offer.getByRole("button", { name: "Désigner comme référence" });
+    await expect(designate).not.toHaveAttribute("aria-disabled", "true", { timeout: WORKING });
+    await designate.click();
+    await designation.getByRole("button", { name: "Confirmer la désignation" }).click();
+    const history = main.getByRole("table", { name: "Historique des révisions" });
+    await expect(history.getByRole("row").nth(1)).toContainText("Référence", { timeout: WORKING });
+
+    // Without a code the project stays in pricing, and the next state names the code alone.
+    await openHydrated(page, `${seeded.own.path}/lifecycle`);
+    const states = main.getByRole("table", { name: "Historique des états" });
+    await expect(states.getByRole("row").last()).toContainText("Chiffrage");
+    await expect(next).toContainText("code projet renseigné");
+    await expect(next).not.toContainText("révision de référence désignée");
+    // The revision now bears a task and a line: the condition is no longer named (WF-CYC-0050-A).
+    await expect(next).not.toContainText(
+      "révision portant au moins une tâche et une ligne de devis",
+    );
+
+    // The code entered takes the project In progress, without another action (WF-CYC-0020).
+    await openHydrated(page, `${seeded.own.path}/settings`);
+    await main.getByRole("button", { name: "Modifier le projet" }).click();
+    const identity = page.getByRole("dialog", { name: /^Modifier/ });
+    const code = `ENC-${seeded.own.label.slice(-8).toUpperCase()}`;
+    await identity.getByRole("textbox", { name: /^Code projet/ }).fill(code);
+    await identity.getByRole("button", { name: "Enregistrer" }).click();
+    await expect(identity).toBeHidden({ timeout: WORKING });
+    await openHydrated(page, `${seeded.own.path}/lifecycle`);
+    await expect(states.getByRole("row").last()).toContainText("En cours", { timeout: WORKING });
+  } finally {
+    await calls.dispose();
+  }
 });

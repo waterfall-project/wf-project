@@ -144,7 +144,9 @@ d'extension"); an entry point that depends on it imports the interface that regi
 A revised table is partitioned by list on `project_id`, one partition per project (WF-DAT-0050),
 which the function `create_project_partitions` of the owner of the tables (`SECURITY DEFINER`)
 creates in the transaction of the creation of the project; the role of the service alone may
-execute it, with no other right of DDL; each epic that adds a revised table replaces it. Two
+execute it, with no other right of DDL. It reads the revised tables in the catalogue (migration
+`0026`): a table an epic adds, with its function `<table>_refuse_truncate`, enters it without
+replacing it; it is called before any write of the transaction ([sql.md](sql.md), "Verrous"). Two
 triggers of the module of the revisions refuse, owner included, what a marked revision forbids
 (migration `0020`). The one of a revised table locks the revision of the row `FOR KEY SHARE`
 whatever its status, then reads it, and the marking locks the revision `FOR UPDATE` before marking
@@ -834,6 +836,15 @@ visual identity, then releases the instance. A choice that changes what a curve 
 payment terms, the basis and the organisation node of the workload plan — is a parameter of the
 address, which the server sends to the API: the front neither filters nor shifts anything.
 
+The workload plan of the project (`…/workload`, FBS-4.4.4) is wired to the service (EP-07,
+US-1520): the page no longer carries the notice of the mock-up (`MockupNotice`), `getProjectWorkload`
+returns the load, the capacity of each role, the totals without gaps and the zone of each month, and
+the screen offers only the bases the project admits — that of the reference when it has a reference
+revision, that of a marked revision when it has one, the revision under way always, alone with
+neither; the spreading and the calculation date are the service's, the front computes
+nothing. The paths of `workload.spec.ts` carry `@shared`, and `frontend/help/fr/FBS-4.4.4.md` says
+what the service does.
+
 ### The indicators screen
 
 The indicators screen of a project reads its indicators and its curves in the revision of its
@@ -1045,22 +1056,23 @@ nor Ctrl+Delete, it does not move, nothing drops next to it (`isRemoved`, `struc
 #1185), and the predecessors cell follows `editable_fields` (`task.predecessors`): that of a
 removed task, which does not name it, is not enterable (#1257).
 
-The comparison of two revisions (`/revisions?from_revision_id=…&to_revision_id=…`) is the same
-grid, read-only (`comparison-grid.tsx`, `components/revisions/`): the nodes of
-`compareRevisions` — the tree of the compared revision, the removed nodes in their place —, each
-with the mark the server renders (`difference`, `changes`, a task moved under another summary task
-marked modified, WF-REV-0080), the `DiffMark` column at the head, then the number, the label
-indented by its level under the icon of its nature, and what changes in the node, named as the
-server names it. The comparison does not paginate, like `listNodes` (#1201): the screen asks for
-the whole tree, reduced by `fields` to the columns it shows (`COMPARISON_FIELDS`, `kind`,
-`task.label`, `estimate_line.label`) and projected (`comparisonRows`); the server always renders
-the number, the level, the version and the mark. For lack of a parent among those fields, the tree
-does not fold; nothing sorts or searches, the order is that of the plan. The 5,999 nodes of the
-volume example (`volume/comparison_volume.json`, 2,770 of them modified) mount only one window of
-rows, and the screen keeps the bound of a grid screen (`WORKING`, 15 s, `revisions.spec.ts`); the
-path plays the example of the window, the fake back serving the first example of the operation.
-The amount gaps remain a table under the grid, and the screen is one of those of the accessibility
-harness (`DIFFERENTIAL_SCREENS`).
+The comparison of two revisions (`/revisions?from_revision_id=…&to_revision_id=…`) is the same grid,
+read-only (`comparison-grid.tsx`, `components/revisions/`): the nodes of `compareRevisions` — the
+tree of the compared revision, the removed nodes in their place —, each with the mark the server
+renders (`difference`, `changes`, a task moved under another summary task marked modified,
+WF-REV-0080), the `DiffMark` column at the head, then the number, the label indented by its level
+under the icon of its nature, and what changes in the node, named as the server names it. The
+comparison does not paginate, like `listNodes` (#1201): the screen asks for the whole tree, reduced
+by `fields` to the columns it shows (`COMPARISON_FIELDS`, `kind`, `task.label`,
+`estimate_line.label`) and projected (`comparisonRows`); the server always renders the number, the
+level, the version and the mark. For lack of a parent among those fields, the tree does not fold;
+nothing sorts or searches, the order is that of the plan. The 5,999 nodes of the volume example
+(`volume/comparison_volume.json`, 2,770 of them modified) mount only one window of rows, and the
+screen keeps the bound of a grid screen (`WORKING`, 15 s, `revisions.spec.ts`); the path plays the
+example of the window against the fake back, which serves the first example of the operation, and
+the whole structure against the service, where that of PRJ-001 counts 5,966 nodes, the volume of
+5,999 nodes staying with the fake back until EP-13 (#2696). The amount gaps remain a table under the
+grid, and the screen is one of those of the accessibility harness (`DIFFERENTIAL_SCREENS`).
 
 ### The planning grid and the Gantt
 
@@ -1219,23 +1231,25 @@ the grid — its icons, the « started » and « completed » states of a task o
 (WF-PLA-0080-A, #2595) —, its totals, the filter on an order item, the absence of a skeleton, the
 Gantt, its days off, the fold of a summary, the zoom and the PNG export; and `navigation.spec.ts`
 (the project that leads to its planning). They do not count on a row number: the service numbers the
-tasks alone, the lines, which advance the numbers of the fake back (7, 39, 311), being EP-07's;
-they find the row by its label and read the number a predecessor must bear in the grid. The
-carry-over from one grid to the other (#1057) is played by the operations the estimate grid sends,
-`createNode` then `moveNodes`, on the structure it shares with the planning: the screen of the
-estimate grid is not served before EP-07, and the gesture made from it is postponed to that EPIC
-(#2590); the task so created is read in the planning, and its indentation with it. The path of the
-account « chef de projet » plays the planning and FLX-02; FLX-01, the analysis of the exported file
-read back, plays against the service (`exchanges.spec.ts`, #2589), the path that confirms the
-import being EP-07's (#2683). What is not replayed against the service stays on the fake back,
-guarded by `inService` or untagged, the list of the entries being that of « An end-to-end path »:
-the paths of `planning.spec.ts` that write to the witness — the attachment, the entry of a cell, the
-duration and the predecessors, the start date — each have their twin in `planning-service.spec.ts`,
-on a project of the run; the lines, the amounts and the estimate are EP-07's, the remaining to
-commit EP-09's, the risks EP-08's, the indicators EP-10's and the differential structures EP-08's,
-so the path of `context.spec.ts` that opens the amendment, that of the risks screen and that of the
-indicators stay on the fake back. The measure of a cell validation (#196) and that of the move of
-the active cell over a thousand tasks (#620) are in the delivery report of US-1470.
+tasks alone, the lines of the witness, which advance the numbers of the fake back (7, 39, 311),
+waiting for US-1570 (EP-07); they find the row by its label and read the number a predecessor must
+bear in the grid. The carry-over from one grid to the other (#1057, #2590) is played from the
+estimate grid (EP-07, US-1560, `structure.spec.ts`), on the structure it shares with the planning:
+the task created in the estimate, and a line under it, are read in the planning — automatic, of one
+day, with no predecessor —, and its indentation from the estimate with it. The path of the account
+« chef de projet » plays the planning and FLX-02; FLX-01, the analysis of the exported file read
+back, then the import confirmed and followed in the shell, plays against the service
+(`exchanges.spec.ts`, #2589, #2683). What is not replayed against the service stays on the fake
+back, guarded by `inService` or untagged, the list of the entries being that of « An end-to-end
+path »: the paths of `planning.spec.ts` that write to the witness — the attachment, the entry of a
+cell, the duration and the predecessors, the start date — each have their twin in
+`planning-service.spec.ts`, on a project of the run; the lines, the amounts and the estimate play
+against the service on a project of the run (EP-07, US-1560), those that read the witness waiting
+for its lines (US-1570); the remaining to commit is EP-09's, the risks EP-08's, the indicators
+EP-10's and the differential structures EP-08's, so the path of `context.spec.ts` that opens the
+amendment, that of the risks screen and that of the indicators stay on the fake back. The measure
+of a cell validation (#196) and that of the move of the active cell over a thousand tasks (#620) are
+in the delivery report of US-1470.
 
 ### The risks screen
 
@@ -2074,8 +2088,14 @@ mock-up (`MockupNotice`). The MS Project planning is imported in two steps (`ope
 `exchanges.spec.ts` that exports the planning of a project the run creates, downloads it, then
 imports it back with no difference (FLX-01 and FLX-02 of the « project manager » account,
 WF-INTF-0010-A), and those of `tasks.spec.ts` that play the route and the refusal of a result on the
-export it made, carry `@shared`; the estimate, the remaining to commit and the actual costs (EP-07,
-EP-09) and the path of the marking stay on the fake back.
+export it made, carry `@shared`. The estimate is imported (`kind: estimate`) and exported (`kind:
+estimate`, file `…-devis.xlsx`) through the same screen; its `@shared` path, on a project the run
+creates, imports it in two steps (US-1550, #2687): it exports and downloads the estimate, sees a file
+that is no estimate refused at the analysis (format and version expected named), then imports the
+downloaded workbook back, reads the report without a difference, confirms the application, which it
+follows in the shell to its success, and finds the same lines. The lines rejected by a report and the
+abandonment stay on the fake back, as do the remaining to commit and the actual costs (EP-09) and the
+path of the marking.
 
 The page of a project proposes to start its planning through the « Start the project » insert
 (`ProjectStart`, `components/projects/project-start.tsx`, US-0490) as long as the main structure of
@@ -2208,9 +2228,12 @@ written, in one more sentence of the same announced region, `grid.paste.created`
 returns the tasks created in `nodes` (`PasteApplied`, `NodesWritten`), and the planning grid, which
 does not know where those rows are placed, reads its page anew when the plan created some
 (`router.refresh`, as after the creation of a task); the rows written take the place of the rows
-read, as usual. A block whose target is an estimate line has its rows beyond the last node refused
-as `FIELD_NOT_ACCEPTED` without any task being created (EP-07 will serve the lines): the refusal
-reads in the list of refused rows of the preview, like any refusal. Undoing the paste deletes the
+read, as usual. A block whose target is an estimate line has its rows beyond the last node created
+as estimate lines, siblings of that node, under the task that bears it (the label required, the
+other cells judged as those of a line written); with no task to bear them — the last node being a
+task at the root — the whole row is refused as `UNKNOWN_TASK`, on no column
+(`paste_plan_creating_lines`): the refusal reads in the list of refused rows of the preview, like
+any refusal. Undoing the paste deletes the
 tasks it created, redoing it recreates them: a single history entry (`undone.kind` stays `paste`,
 `undone.node_ids` names the nodes written and created). The path `paste.spec.ts` plays it against
 the service (`@shared`), the tests of the grid on the examples `paste_plan_creating` and
@@ -2248,9 +2271,12 @@ sign-in session. It stays said until it is closed or the next command leaves. Su
 service (`e2e/undo.spec.ts`, fifty inputs undone then redone through the grid, `@shared`), refusals
 and the announcement of success on the examples (`undo-wired.dom.test.tsx`).
 
-**Placed only.** The estimate and the remaining to commit receive no `undo`: their inputs, served by EP-07, have no
-history yet, and their commands stay unavailable, `aria-disabled`, described by their
-reason; the shortcut says it in an announced region.
+**The estimate.** The estimate grid receives `undoable` like the planning grid, where the structure read
+lists `edit_estimate` available (EP-07, US-1450/L3): fifty inputs of a line are undone then redone
+through the grid against the service, and the deletion of a task is undone with its lines
+(`e2e/undo.spec.ts`, `@shared`). **Placed only.** The remaining to commit receives no `undo`: its
+inputs, served by EP-09, have no history yet, and its commands stay unavailable, `aria-disabled`,
+described by their reason; the shortcut says it in an announced region.
 
 ### Grids: creating and deleting tasks and lines
 
@@ -2897,7 +2923,9 @@ screens whose service is delivered do not show the note, even though `make dev` 
 Prism and the same limits apply: administration (EP-03), the reference data (EP-05) and, from EP-04,
 the connected home (US-0920/L2), the revisions (US-0960, US-0970) and the settings of the project
 (US-1000), then, from EP-06, the timelines (US-1400), the exchanges (US-1430), the task tree
-(US-1440) and the planning (US-1470); a success there is what the service kept, read anew. Against
+(US-1440) and the planning (US-1470), and, from EP-07, the workload (US-1520), the comparison of
+revisions (US-1530), the proposed contributors (US-1540), the import and export of the estimate
+(US-1550) and the estimate (US-1560); a success there is what the service kept, read anew. Against
 the fake back, the timelines screen draws the whole volume Prism renders for `listNodes`, whatever
 the timeline: the paths of the frieze and of the focus judge only the layout there, and their
 selection is proven against the service.
@@ -4020,45 +4048,59 @@ which the `LAST_ADMINISTRATOR` refusals of `roles.spec.ts` depend: the role hold
 `updateMyPreferences`), which a sort or a filter of an earlier path would have left (#2282),
 which `service/grid-reset.spec.ts` tests.
 
-The project `shared` thus plays the paths of the project against the loaded witness, the slice of
-the projects included ("The back and the boundaries of the core"): PRJ-001 in Pricing, its
-revisions 100 and 101 marked, the 102 open, with no line and no reference. The slice of the tasks
-(`waterfall-api load-witness`, EP-06, US-1480) loads, for the main structure of each of the three
-revisions, the thousand tasks of PRJ-001 with their links, their modes and durations, their states
-and their start and completion dates, their inscriptions, the two timelines and the planning start
-date; it loads no line, whose amounts and role calendars are EP-07's (the 103 tasks on a 4×10 h
-calendar of the frieze wait for them, #2594), no risk (EP-08), no actual cost (EP-09), no indicator
-(EP-10). Their assertions of reading are not rewritten for what a project in pricing leaves to
-read; what reads PRJ-001 In progress, its reference or its lines is not replayed before EP-07. The
-assertions of a write affirm what was written, read anew, by `inService`.
+The project `shared` thus plays the paths of the project against the loaded witness, the slices of
+the projects, of the tasks and of the lines included ("The back and the boundaries of the core"):
+PRJ-001 In progress, its code set and the offer 100 designated as the reference, its revisions 100
+and 101 marked, the 102 open. The slice of the tasks (`waterfall-api load-witness`, EP-06, US-1480)
+loads, for the main structure of each of the three revisions, the thousand tasks of PRJ-001 with
+their links, their modes and durations, their states and their start and completion dates, their
+inscriptions, the two timelines and the planning start date. The slice of the lines (EP-07, US-1570)
+comes after the tasks of each revision and before its marking: it loads the estimate lines of the
+three revisions (five thousand for the main structure of the 102), with their roles, categories,
+quantities, payment delays and sub-projects, and the role calendars that give their dates to the 103
+tasks on the 4×10 h calendar of the frieze (#2594); then it replays the rate update of the 101 (on
+12 January 2026), designates the offer 100 as the reference (on 15 January 2026), and the passage to
+In progress that this designation produces is written to the transitions of the witness. It loads no
+provision and no amendment, no risk (EP-08, whose merge of the amendment 1 makes the 101 the
+reference: until then the reference is the offer 100), no actual cost (EP-09, which adds the five
+actual cost imports and the previous remaining to commit of the lines of the 102), no indicator
+(EP-10), and not the whole volumes (EP-13). Against the service, the structure of PRJ-001 counts
+5,966 nodes, not the 5,999 of the volume that the fake back serves. What reads PRJ-001 In progress,
+its reference and its lines thus plays against the service, to the expectations of the examples near
+that the list below names. The assertions of a write affirm what was written, read anew, by
+`inService`.
 
 The consolidated list of what a path does not replay against the service yet is kept here: it is
 skipped by `inService` (`test.skip(inService, …)`) when tagged, or stays untagged, each entry naming
 the epic that lifts it; that epic removes the guard and its entry:
 
-- `revisions.spec.ts` — the current revision and its parts, and the comparison, the volume's
-  included, and « Écarts seulement » (`BEFORE_EP07`): lifted by **EP-07**, which serves the
-  comparison (`compareRevisions`) and the rate update (`getRateUpdateProposal`). The screen of a
-  current revision reads the proposal by `readUnlessRefused` and renders without it on the 404 of
-  the service (#2173), its commands playable. The history plays against the service from US-0960,
-  with the revisions 100 and 101 of the witness marked from US-0970.
+- `revisions.spec.ts` — the volume (5,999 nodes) alone (`NO_VOLUME_IN_SERVICE`): the volume project
+  exists in the fake back only, until the volumes of EP-13 (#2696); **EP-13** removes the guard. The
+  current revision and its parts, the comparison and « Écarts seulement » play against the service
+  from US-1570/L2 (#2385), whose loader gives the witness its tasks and lines (the service serves
+  `compareRevisions` and `getRateUpdateProposal`); the comparison there is of the whole structure of
+  PRJ-001, 5,966 nodes against the service, where the fake back renders the window of its example.
+  The screen of a current revision reads the rate proposal as any read (`readOrFail`), no longer by
+  `readUnlessRefused`: the service serves `getRateUpdateProposal` (#2173). The history plays against
+  the service from US-0960, with the revisions 100 and 101 of the witness marked from US-0970.
 - `revision-cycle.spec.ts` — the commands of the revision 102 of PRJ-001 and the opening unavailable
   (`NOT_REPLAYED_IN_SERVICE`): the account of the run is not enrolled as project manager of the
-  projects of the witness, by decision (#2193, option A), so the service lists it no command of
-  PRJ-001; the paths that write create their own project. The designation of the reference of
-  PRJ-001, refused for the lack of tasks and lines, is lifted by **EP-07** (EP-06 serves the tasks).
-  The abandon of the 102 (`WITNESS_KEPT`) never plays against the service, which would take it from
-  every other path. The cycle (#1350) plays against the service alone (`SERVICE_ONLY`), on a project
-  the account of the run creates (`own-project.ts`), its project manager as its creator: a revision
-  opened then marked by the worker, the designation refused for the lack of tasks and lines — which
-  **EP-07** will reverse: the designation will succeed, and the code entered will take the project
-  In progress —, another opened then abandoned, opened again, the code entered, the project left to
-  Lost. It plays since **US-0850** (EP-05) serves the roles of resources: the minimal reference is
-  complete, and the service creates a project (#2194). The path of the restoration
-  (`service/backups.spec.ts`) creates one before the backup, marks its revision and creates a second
-  after it, and does not find them once restored (WF-ADM-0160-A); played again on the same
-  installation, it leaves one more account and one more project there, the restoration taking back
-  all the rest.
+  projects of the witness, by decision (#2193, option A) which no epic reverses, so the service
+  lists it no command of PRJ-001; the paths that write create their own project. The designation of
+  the offer 100 of PRJ-001 is the loader's (EP-07), and the project is In progress. The abandon of
+  the 102 (`WITNESS_KEPT`) never plays against the service, which would take it from every other
+  path. The cycle (#1350) plays against the service alone (`SERVICE_ONLY`), on a project the account
+  of the run creates (`own-project.ts`), its project manager as its creator: a revision opened then
+  marked by the worker, the designation refused for the lack of tasks and lines, another opened then
+  abandoned, opened again, the code entered, the project left to Lost. The path that follows it in
+  the file is the one that succeeds (US-1540): a reference that bears a task and a line is
+  designated, the project stays in Pricing while the code is missing, and the code entered takes it
+  In progress; `pricing.spec.ts` adds the pricing through the grid (see below). It plays since
+  **US-0850** (EP-05) serves the roles of resources: the minimal reference is complete, and the
+  service creates a project (#2194). The path of the restoration (`service/backups.spec.ts`) creates
+  one before the backup, marks its revision and creates a second after it, and does not find them
+  once restored (WF-ADM-0160-A); played again on the same installation, it leaves one more account
+  and one more project there, the restoration taking back all the rest.
 - `project-start.spec.ts` — no entry: the start towards the planning plays against the service
   (`BEFORE_EP06` lifted by US-1460), on a project the account of the run creates, which lists
   `import_planning` (US-1430) and serves the structures and `generatePlanningSkeleton`. The work
@@ -4067,34 +4109,54 @@ the epic that lifts it; that epic removes the guard and its entry:
   (`FAKE_BACK_FORGETS`) (#2543).
 - `context.spec.ts` — the banner of the context on the remaining to commit, the risks and the
   indicators, and on a differential structure (`BEFORE_THE_REMAINING`, `BEFORE_THE_INDICATORS`,
-  `BEFORE_THE_DIFFERENTIALS`): lifted screen by screen by **EP-07** (the estimate), **EP-09** (the
-  remaining to commit), **EP-08** (the risks and the differential structures) and **EP-10** (the
-  indicators). The banner of the planning, of the screens of a project created, of its settings and
-  of its revisions plays against the service (`BEFORE_THE_DATA` lifted for the planning by EP-06).
+  `BEFORE_THE_DIFFERENTIALS`): lifted screen by screen by **EP-09** (the remaining to commit),
+  **EP-08** (the risks and the differential structures) and **EP-10** (the indicators). The banner
+  of the planning (EP-06), of the estimate (US-1560, EP-07), of the screens of a project created, of
+  its settings and of its revisions plays against the service.
 - `planning.spec.ts`, `structure.spec.ts`, `computed.spec.ts`, `keyboard.spec.ts` — the paths that
   write to the witness of PRJ-001, whose account of the run is no contributor (#2193): each has its
   twin against the service on a project of the run (`planning-service.spec.ts`, `structure.spec.ts`,
   `computed.spec.ts`, `keyboard.spec.ts`), which no epic reverses; the paths of these files that
   read the witness play on both sides. The paths of the remaining to commit of `structure.spec.ts`
-  are **EP-09**'s, those of the estimate of `grid.spec.ts` and `keyboard.spec.ts` **EP-07**'s.
+  are **EP-09**'s.
 - `planning.spec.ts` — the read of the planning start date and of its headers « Démarrée le » and
   « Terminée le » plays on both sides; only its write (`updateCostStructure`) stays on the fake
   back, like the other writes to the witness above.
-- `timelines.spec.ts` — the frieze and the focus (`AFTER_THE_LINES`, #2594): lifted by **EP-07**
-  (US-1570), which tags both paths `@shared` once the lines give their calendars to the tasks of the
-  witness. Three paths that write to the witness of PRJ-001, whose account of the run is no
-  contributor (#2193), stay untagged: the inscription of a task to a timeline (`:52`, on the first
-  node of the fake back, whose twin `:422`, on a project of the run, plays the service), the
-  time/time tracking of an inscribed milestone (`:104`) and the creation then the deletion of a
-  timeline (`:310`); no epic reverses them. The navigation from the planning, the PNG export, the
-  two selections and the inscription on a project of the run play against the service.
-- `exchanges.spec.ts` — the import of the estimate in two steps (`:31`, #2683), which reads the
-  analysis, the application and the abandonment of an import of PRJ-001 that the service does not
-  serve: lifted by **EP-07**, which serves the estimate; the refusal of a file too large (`:101`),
-  which opens the imports screen of PRJ-001 whose account of the run is no contributor (#2193); the
-  two screens that lead to the imports screen from the estimate and the remaining to commit
-  (`:130`), lifted by **EP-07** and **EP-09**. The export of the planning, imported back, plays
-  against the service on a project of the run (US-1430).
+- `entry.spec.ts`, `computed.spec.ts`, `keyboard.spec.ts`, `paste.spec.ts`, `undo.spec.ts`,
+  `grid.spec.ts`, `structure.spec.ts`, `workload.spec.ts` — the estimate (US-1560, EP-07) and the
+  workload plan (US-1520): the paths that write play against the service on a project the run
+  creates, a phase, a task and a line written by the API (`e2e/estimate-seed.ts`), and carry
+  `@shared`; those that read the witness of PRJ-001 In progress play there from US-1570/L3 (the main
+  structure read only, `structure.spec.ts`; the computed amounts and the dates of the summaries,
+  `computed.spec.ts`; the grid, its indicators by lot, its filter, its sort, its columns and its
+  keyboard; the four paths of the workload plan). Do not play, for lack of what the service serves:
+  the volume of 5,999 nodes and its marks, which the fake back alone holds until the volumes of
+  **EP-13** (#2696) — the opening and the scroll of the grid, its low and narrow windows, its
+  folding by level, and the scroll of the keyboard to the six thousandth row (`grid.spec.ts`,
+  `keyboard.spec.ts`) —, the provision of the twelfth row (**EP-08**), the paths of the own estimate
+  of a risk and of the differential (`paste.spec.ts`, `entry.spec.ts`, guarded by `inService` or
+  untagged until **EP-08**) and those of the remaining to commit (`undo.spec.ts`, the sort after a
+  write in `grid.spec.ts`, `structure.spec.ts`, **EP-09**). The passage of a project to In progress
+  plays: the estimate of the main structure read only against PRJ-001 (`structure.spec.ts`), and the
+  pricing up to the passage to In progress (`pricing.spec.ts`); a line under a completed task,
+  refused, is written only in the remaining to commit (**EP-09**), the main structure of a project
+  In progress being read only.
+- `timelines.spec.ts` — the frieze and the focus (WF-IHM-0100-A) play against the service from
+  US-1570/L3: the lines of the witness give their role calendars to the tasks (#2594). Three paths
+  that write to the witness of PRJ-001, whose account of the run is no contributor (#2193), stay
+  untagged: the inscription of a task to a timeline (`:52`, on the first node of the fake back,
+  whose twin `:417`, on a project of the run, plays the service), the time/time tracking of an
+  inscribed milestone (`:104`) and the creation then the deletion of a timeline (`:310`); no epic
+  reverses them. The navigation from the planning, the PNG export, the two selections and the
+  inscription on a project of the run play against the service.
+- `exchanges.spec.ts` — the import in two steps of PRJ-001 (`:74`), which reads the lines a report
+  rejects and the abandonment: the service plays the import of an estimate, exported then imported
+  back and confirmed, on a project of the run (`:302`, US-1550), whose workbook has no line to
+  reject; the refusal of a file too large (`:144`), which opens the imports screen of PRJ-001 whose
+  account of the run is no contributor (#2193); the two screens that lead to the imports screen from
+  the estimate and the remaining to commit (`:173`), lifted by **EP-09**, the estimate being served
+  by EP-07. The export of the planning, imported back and confirmed, plays against the service on a
+  project of the run (US-1430, #2683).
 - `projects.spec.ts` — the paths that write to PRJ-001 or reach it through its planning: the screen
   of the project, its settings and its lifecycle, the exit, the sub-projects and the contributors,
   the work breakdown (`FAKE_BACK_ONLY`): the account of the run is not a project manager of PRJ-001,
@@ -4107,6 +4169,14 @@ the epic that lifts it; that epic removes the guard and its entry:
   screen, then read anew after a reload) and an exit to Lost from Pricing, read anew. The reading of
   PRJ-001 — the list, the sorts and the filters of the home, the lists of its settings — plays on
   both sides.
+
+The definition of done of EP-07 is observed by paths against the service, played by the « project
+manager » account of the run: a project priced through the grid then taken In progress — the
+quantity of a line entered, its amount computed by the service, the revision marked by the worker,
+designated as the reference, the code entered (`pricing.spec.ts`, WF-INTF-0010-A, FBS-4.4); an
+estimate exported to Excel, imported back without a difference and confirmed (`exchanges.spec.ts`,
+FLX-03 and FLX-04); fifty entries of a line undone one by one then redone in order (`undo.spec.ts`,
+WF-IHM-0110-A).
 
 The two readers of a project (`service/project-readers.spec.ts`, WF-ADM-0040-A) play against the
 service alone: two local accounts holding « Manager » and « Chef de projet », one reading in French
@@ -4133,14 +4203,32 @@ of duration, the correspondence of the actual costs — carry the `@serial` tag 
 The wait for the lock of the composed roles (`giveRoles`, `ROLES_WAIT`) is 25 s, under the 30 s of a
 test: its message says the lock and the number of workers queued behind it (#2214).
 
-A limit of the paths against the service: Prism, as a proxy of the contract, reads every body as
-text and alters binary bodies — every byte beyond `0x7f` of an `application/octet-stream` request or
-response becomes U+FFFD (#973, #1025). The paths therefore exercise neither
-the download nor the upload of an archive byte for byte: `backups.spec.ts` checks of
-the downloaded archive only its name and its non-zero size, and restores the backup of the list,
-not an upload. The restoration of an upload is proven by the tests of the service
-(`backend/tests/test_uploads.py`). Moving the binary operations out of Prism is deferred to
-EP-13.
+The bodies that are not JSON cross the proxy of the contract byte for byte (US-1550/L7, #973, #1025,
+#2687, #2695). Prism reads every body as text and rewrites every byte beyond `0x7f` as U+FFFD; two
+legs of `frontend/bench/contract-proxy.ts`, which the Node of its container runs, surround it: the
+entrance, on the published port, keeps the bytes of a request whose body is not JSON and gives Prism
+a copy without the high bit, of the same length; the exit, where Prism forwards, sends the API the
+bytes kept, and keeps those of an answer that is not JSON, which the entrance gives the front in
+place of those Prism rewrote. An answer of Prism in JSON — its refusal — passes as it is; an answer
+that is not JSON and no longer names bytes kept is refused with a 502, never given rewritten. Every
+exchange thus still goes through Prism, held to the contract and written to its log; the
+Content-Type of the request and that of the answer each decide for their own body, the download of a
+workbook being a GET without a body. The file lives in the front so that its lint, its type check
+and its tests hold it; the network guard of ESLint lets `frontend/bench/` alone call the network
+outside the generated client. Its test, `frontend/bench/contract-proxy.test.ts`, puts it between
+real `node:http` servers — a fake Prism that rewrites the bodies as Prism does and a fake API — and
+proves the round trip byte for byte, JSON and Prism's refusals given as they are, the failure of
+bytes kept too long or whose name does not come back, twenty exchanges at once, and an archive of
+more than 5 MiB cut into parts on a continuation byte (#2695). Against the service, the exported
+workbook is imported back as it is (`exchanges.spec.ts`), the avatar path of
+`service/account.spec.ts` compares the image read back with the one put, and `backups.spec.ts`
+compares each dump of the downloaded archive with the digest its manifest gives, deposits it, sees
+the service accept it with its date, then restores the backup of the list (WF-ADM-0160); the archive
+of a new installation (about 0.5 MiB) goes in a single part, and the cut into parts is proven by the
+test of the legs alone. The restoration of a deposit remains proven by the tests of the service
+(`backend/tests/test_uploads.py`). Set aside: sending those exchanges straight to the API, which a
+GET does not allow to decide before its answer and which would take them out of the contract; a
+patch of the compiled sources of Prism, to redo at each version.
 
 The second of §4.6.2 — opening a grid of a thousand tasks — is measured in
 `frontend/e2e/opening.spec.ts` (US-0110, US-0220), on the volume structure the fake back serves, for
@@ -4929,27 +5017,26 @@ targets neither `epic/*` nor `lot/*`. No check of the chain duplicates it: it is
 refuses, hence this section.
 
 The paths that depend on what the service does not do yet, or does not serve, are not replayed
-against it, being untagged; each is still played against the fake back, by `chromium`. What
-depends on the clock: nothing in the reference, whose dates are those of the loading (WF-DAT-0070)
-and which the paths do not wait for. On a screen the service does not serve: the opening, from `/`,
-of the portfolio in `navigation.spec.ts`, lifted by **EP-11**, and that of the status screen of the
-system, lifted by **EP-13** (`getSystemStatus`, #2307). The administration, for its part, is read
-under `@administration` (the account of the run holds there not the role "Manager" but
-« Administrateur (parcours) »): the paths of `admin.spec.ts` that read are
-`@shared @administration`. Not replayed are those of `admin.spec.ts` that write — the backups
-(start, keep, restore), the schedule of the backups, the accounts and the roles: each writes a
-single object of the installation, or asks for `users.write` or `access_roles.write`, which the
-account of `@administration` lacks, and which the paths of `frontend/e2e/service/`
-(`backups.spec.ts`, `accounts.spec.ts`, `roles.spec.ts`) prove as the administrator of the
-installation. The home is served since US-0920/L2 and plays on both sides (`projects.spec.ts`, and
-the icon of the tab in `navigation.spec.ts`), as do the screens of a project since US-1000 (among
-them, in `navigation.spec.ts`, the move from the settings to the lifecycle). Untagged in
-`navigation.spec.ts` stay the way back to the previous project from a function outside any project,
-which reopens the remaining to commit then the risks of PRJ-001 (lifted by **EP-07** and **EP-08**);
-the address of the project that leads to its planning, with its reading context, plays on both sides
-since EP-06. On what their US does not tag yet: the reading of the settings outside any project
-(`reference-costs.spec.ts`, US-0250). The change of the units of duration
-(`reference-resources.spec.ts`), which writes the single object of the installation, plays as
-`@serial` in the project `shared-serial`, like the other paths that write a single object.
-The `inService` guards of the tagged paths are not paths that are not replayed: the path is played
-on both sides, and only the assertion of a
+against it, being untagged; each is still played against the fake back, by `chromium`. What depends
+on the clock: nothing in the reference, whose dates are those of the loading (WF-DAT-0070) and which
+the paths do not wait for. On a screen the service does not serve: the opening, from `/`, of the
+portfolio in `navigation.spec.ts`, lifted by **EP-11**, and that of the status screen of the system,
+lifted by **EP-13** (`getSystemStatus`, #2307). The administration, for its part, is read under
+`@administration` (the account of the run holds there not the role "Manager" but « Administrateur
+(parcours) »): the paths of `admin.spec.ts` that read are `@shared @administration`. Not replayed
+are those of `admin.spec.ts` that write — the backups (start, keep, restore), the schedule of the
+backups, the accounts and the roles: each writes a single object of the installation, or asks for
+`users.write` or `access_roles.write`, which the account of `@administration` lacks, and which the
+paths of `frontend/e2e/service/` (`backups.spec.ts`, `accounts.spec.ts`, `roles.spec.ts`) prove as
+the administrator of the installation. The home is served since US-0920/L2 and plays on both sides
+(`projects.spec.ts`, and the icon of the tab in `navigation.spec.ts`), as do the screens of a
+project since US-1000 (among them, in `navigation.spec.ts`, the move from the settings to the
+lifecycle). Untagged in `navigation.spec.ts` stay the way back to the previous project from a
+function outside any project, which reopens the remaining to commit then the risks of PRJ-001
+(lifted by **EP-09** and **EP-08**); the address of the project that leads to its planning, with its
+reading context, plays on both sides since EP-06. On what their US does not tag yet: the reading of
+the settings outside any project (`reference-costs.spec.ts`, US-0250). The change of the units of
+duration (`reference-resources.spec.ts`), which writes the single object of the installation, plays
+as `@serial` in the project `shared-serial`, like the other paths that write a single object. The
+`inService` guards of the tagged paths are not paths that are not replayed: the path is played on
+both sides, and only the assertion of a

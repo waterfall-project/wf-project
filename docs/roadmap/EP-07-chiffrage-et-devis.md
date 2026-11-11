@@ -562,10 +562,11 @@ chargeur — s'étend à chacun.
 
 | Module | Registre | Qui le déclare | Qui le remplit | Ce qu'il fait |
 |---|---|---|---|---|
-| `core/planning` | `register_facet` (EP-06) | EP-06 | `estimate` (`estimate_line`), dès US-1490/L3 — non le socle (2026-11-08) | `listNodes` lit la facette, la copie et la suppression l'emportent, `calendar_of` lit ses rôles ; **complété par EP-07** : `create` (la facette d'un nœud créé, sa charge utile opaque pour `planning`), `snapshot`/`restore` (ses lignes de `estimate_line` pour l'historique), `judge_cell` (une cellule collée, dans l'ordre de `NodeColumn`), `reinflate` (les montants des lignes des nœuds redatés ou déplacés, rendus dans `reinflated`), `filters`/`sort`/`totals` (les colonnes de la ligne) |
+| `core/planning` | `register_facet` (EP-06) | EP-06 | `estimate` (`estimate_line`), dès US-1490/L3 — non le socle (2026-11-08) | `listNodes` lit la facette, la copie et la suppression l'emportent, `calendar_of` lit ses rôles ; **complété par EP-07** : `create` (la facette d'un nœud créé, sa charge utile opaque pour `planning`), `snapshot`/`restore` (ses lignes de `estimate_line` pour l'historique), `judge_cell` (une cellule collée, dans l'ordre de `NodeColumn`) et `write_cell` (son écriture), `reinflate` (les montants des lignes des nœuds redatés ou déplacés, rendus dans `reinflated`), `filters`/`sort`/`totals` (les colonnes de la ligne) |
 | `core/revisions` | `register_copy` (EP-04) | EP-04 | `estimate`, après `planning` | la copie des lignes (par les identifiants des nœuds copiés) et des taux conservés, projetés si l'année change |
 | `core/revisions` | `register_tasks_and_lines` (EP-04) | EP-04 | `estimate` (`revision_has_lines`) | la désignation exige une ligne |
 | `core/revisions` | `register_closing` (EP-06) | EP-06 | `estimate` | à l'abandon, les taux conservés supprimés (les lignes suivent les nœuds) |
+| `core/revisions` | `revisions.rate_update` (`register_rate_update`) | US-1500/L1 | `estimate` (`rate_update_offered`) | la condition `rate_update_available` de `apply_rate_update` : la proposition des taux d'une révision en cours présente une catégorie |
 | `core/revisions` | `register_marking` (nouveau) | socle d'EP-07 | `estimate` | dans la transaction du marquage, avant `compute_indicators` : les images des rôles, calendriers et catégories employés et des taux retenus, `revision.inflation_rate` et `win_probability` |
 | `core/revisions` | `register_designation` (nouveau) | socle d'EP-07 | `estimate` | après la désignation d'une référence : le budgété des lignes de la révision en cours rafraîchi par la lignée |
 | `core/cost_settings` | `register_employment` (nouveau) | socle d'EP-07 | `estimate` | `category_is_employed` d'EP-05 rempli ; la modification du type d'une nature et le rattachement d'une catégorie employée refusés |
@@ -842,7 +843,9 @@ deux lots ajoutés à l'EPIC, avant la vérification d'ensemble US-1570/L3, qui 
   d'EP-06, qui appellent les registres.
 - Chaque route déclare `RequiresProject(...)` : `estimate.read` pour les lectures, la qualité de
   contributeur et `estimate.write` pour `updateEstimateLine`, `revisions.write` pour
-  `applyRateUpdate` ; les refus sont ceux du contrat, dans l'ordre que chaque opération écrit ;
+  `applyRateUpdate`, la proposition `getRateUpdateProposal` se lisant sous `revisions.read`, comme
+  le contrat la range sous `revisions` à côté de `getRevision`, qui sert déjà l'instantané des
+  taux ; les refus sont ceux du contrat, dans l'ordre que chaque opération écrit ;
   chaque réponse d'un test passe par `ContractClient` ; `test_access_evaluation.py` reçoit chaque
   opération avec ses deux termes.
 
@@ -994,7 +997,7 @@ d'ensemble en dernier ; le plan de lots (étape 3) le détaille en vagues.
 
 ## US-1490 — La ligne de devis : sa facette, ses grandeurs, son montant et son année de consommation
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-DEV-0020-A`, `WF-DEV-0030-A`, `WF-DEV-0040-A`, `WF-DEV-0010-A`,
   `WF-PLA-0010-A`, `WF-DAT-0090-A`, `WF-DAT-0100-A`, `WF-DAT-0010-A`, `WF-DAT-0020-A`,
   `WF-DAT-0080-A`, `WF-REF-0040-A`, `WF-IHM-0110-A`
@@ -1236,7 +1239,7 @@ la mise à jour des taux (US-1500).
 
 ## US-1500 — L'instantané du référentiel conservé par la révision, et la mise à jour des taux
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-REV-0030-A`, `WF-REV-0060-A`, `WF-REV-0010-A`, `WF-REV-0020-A`,
   `WF-REV-0070-A`, `WF-REF-0020-A`, `WF-REF-0130-A`, `WF-REF-0030-A`, `WF-REF-0010-A`,
   `WF-PRJ-0040-A`
@@ -1390,7 +1393,7 @@ l'import de reste à engager (EP-09) ; l'indice de coût (EP-10).
 
 ## US-1510 — Les indicateurs de devis et les taux manquants
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-DEV-0060-A`, `WF-DEV-0010-A`
 - **opérations** : `getEstimateIndicators`, `getMissingRates`
 - **issue** : 2363
@@ -1441,7 +1444,7 @@ de totaux sert `NodeTotals` de `listNodes` (US-1490) et les ventilations.
 
 ## US-1520 — Le plan de charge sur le devis, et la valeur planifiée
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-DEV-0070-A`, `WF-DEV-0080-A`
 - **opérations** : `getProjectWorkload` ; `listRevisions`, `listOrgNodes` que l'écran lit
 - **issue** : 2364
@@ -1512,7 +1515,7 @@ et de valeur planifiée (EP-10) ; le plan de charge agrégé du portefeuille (EP
 
 ## US-1530 — La comparaison de deux révisions
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-REV-0080-A`
 - **opérations** : `compareRevisions`
 - **issue** : 2365
@@ -1574,7 +1577,7 @@ conservés (US-1500) : rien n'est recalculé sur le référentiel du jour. L'éc
 
 ## US-1540 — Le passage à En cours, le code projet et la proposition des contributeurs
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-CYC-0020-A`, `WF-CYC-0030-A`, `WF-CYC-0050-A`, `WF-PRJ-0010-A`,
   `WF-PRJ-0060-A`, `WF-PRJ-0070-A`
 - **opérations** : `listContributorSuggestions`, `designateReferenceRevision`,
@@ -1652,7 +1655,7 @@ n'y change.
 
 ## US-1550 — Le format Excel du devis : export, import et aller-retour
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-INTF-0070-A`, `WF-INTF-0100-A`, `WF-INTF-0110-A`, `WF-INTF-0180-A`,
   `WF-INTF-0080-A`, `WF-INTF-0090-A`, `WF-INTF-0040-A`, `WF-INTF-0050-A`, `WF-INTF-0060-A`,
   `WF-DAT-0110-A`, `WF-EXP-0020-A`, `WF-PRJ-0080-A`, `WF-REF-0140-A`
@@ -1849,7 +1852,7 @@ différentiel ou un devis propre, les lignes de provision (EP-08) ; l'écran des
 
 ## US-1560 — La grille de devis branchée sur le service
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-DEV-0050-A`, `WF-IHM-0060-A`, `WF-IHM-0110-A`
 - **opérations** : `previewPaste`, `applyPaste`, `undoLastChange`, `redoLastUndo` ; toutes celles
   de l'EPIC que la grille de devis lit et écrit
@@ -1946,7 +1949,7 @@ qui lisent le devis propre d'un risque (`paste.spec.ts`, `entry.spec.ts`) resten
 
 ## US-1570 — Le témoin : la tranche des lignes, PRJ-001 En cours, et les parcours rejoués
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-QUA-0040-A`, `WF-INTF-0010-A`
 - **opérations** : aucune en propre ; le chargement passe par les interfaces du noyau
 - **issue** : 2369

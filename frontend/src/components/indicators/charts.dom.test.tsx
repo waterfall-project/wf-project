@@ -317,7 +317,7 @@ describe("the cumulative curves", () => {
     ]);
     expect(series[2]?.data?.[0]).toEqual(["2026-06-03T00:00:00Z", "1412970.20"]);
     expect(series[2]?.data?.at(-1)).toEqual(["2029-08-31T00:00:00Z", "68883103.89"]);
-    expect(series[0]?.data?.at(-1)).toEqual(["2029-08-31T00:00:00Z", "68241569.21"]);
+    expect(series[0]?.data?.at(-1)).toEqual(["2029-08-31T00:00:00Z", "70288695.96"]);
     // The actual cost cumulates dated documents: by steps; the budget and the projection, spread
     // over durations, by lines.
     expect(series.slice(0, 3).map((each) => each.step)).toEqual([undefined, "end", undefined]);
@@ -366,12 +366,12 @@ describe("the cumulative curves", () => {
     ]);
     // The step is vertical: the curve bears the budget before and after it at its date.
     expect(lastSeries()[0]?.data?.slice(4, 6)).toEqual([
-      ["2026-03-10T00:00:00Z", "23333.33"],
+      ["2026-03-10T00:00:00Z", "24033.33"],
       ["2026-03-10T00:00:00Z", "26833.33"],
     ]);
     // Its two rows in the table of the values are told apart by their heading (#290).
     expect(
-      screen.getByRole("row", { name: "Reference budget, before the step 10 Mar 2026 23,333.33" }),
+      screen.getByRole("row", { name: "Reference budget, before the step 10 Mar 2026 24,033.33" }),
     ).toBeVisible();
     expect(
       screen.getByRole("row", { name: "Reference budget, after the step 10 Mar 2026 26,833.33" }),
@@ -381,7 +381,7 @@ describe("the cumulative curves", () => {
     // The amount of the step, not the budget after it (26,833.33).
     expect(within(table).getByRole("columnheader", { name: "Amount of the step" })).toBeVisible();
     expect(
-      within(table).getByRole("row", { name: "10 Mar 2026 Amendment 15,000.00" }),
+      within(table).getByRole("row", { name: "10 Mar 2026 Amendment 12,000.00" }),
     ).toBeVisible();
   });
 
@@ -434,8 +434,8 @@ describe("the cumulative curves", () => {
       "Earned value",
       "Actual cost",
     ]);
-    expect(series[0]?.data?.at(-1)).toEqual(["2029-08-31T00:00:00Z", "68241569.21"]);
-    expect(series[1]?.data?.at(-1)).toEqual(["2026-06-03T00:00:00Z", "1449858.33"]);
+    expect(series[0]?.data?.at(-1)).toEqual(["2029-08-31T00:00:00Z", "70288695.96"]);
+    expect(series[1]?.data?.at(-1)).toEqual(["2026-06-03T00:00:00Z", "1493354.19"]);
     // A task completed makes a step in the earned value at its date, as the actual cost at the
     // date of a document: both by steps, the planned value by a line.
     expect(series.map((each) => each.step)).toEqual([undefined, "end", "end"]);

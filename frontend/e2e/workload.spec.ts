@@ -1,9 +1,10 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
-import { expect, test } from "@playwright/test";
+import { expect } from "@playwright/test";
 
 import { compile } from "./compile";
 import { openHydrated, WORKING } from "./hydration";
+import { test } from "./mode";
 
 const PROJECT = "01926f3a-7c00-7000-8000-000000000001";
 const REVISION = "01926f3a-7c00-7000-8000-000000000102";
@@ -13,9 +14,13 @@ const ORG_NODE = "01926f3a-7c00-7000-8000-000000000471";
 
 test.use({ colorScheme: "light" });
 
-test("leads from the estimate to the workload on the reference budget, drawn in stacked bars, the capacity in its table, which a node of organisation filters at the server's", async ({
+test("leads from the estimate to the workload on the reference budget, drawn in stacked bars, the capacity in its table, which a node of organisation filters at the server's @shared [WF-DEV-0070-A]", async ({
   page,
 }) => {
+  // Three bounds of a screen of grid (`WORKING`): the estimate of the witness, the workload read
+  // from its lines, and the workload read again for the node chosen — more than the thirty seconds
+  // of a test.
+  test.slow();
   await compile(page.request, SCREEN);
   await openHydrated(page, `${ESTIMATE}?as_of=2026-03-16`);
   await page.getByRole("main").getByRole("link", { name: "Plan de charge" }).click();
@@ -50,10 +55,32 @@ test("leads from the estimate to the workload on the reference budget, drawn in 
     new RegExp(
       `^[^?]*${SCREEN}\\?as_of=2026-03-16&basis=reference_budget&.*org_node_id=${ORG_NODE}$`,
     ),
+    { timeout: WORKING },
   );
 });
 
-test("exports the workload, at the keyboard, as a PNG image drawn on a canvas, named after the project [WF-IHM-0130-A]", async ({
+// The load of the lines of the witness, filtered by the node chosen, is read again by the server:
+// here the context is kept and the node read again.
+test("reads the workload of the revision under way from its address, the context kept, the node of organisation chosen read again @shared [WF-DEV-0070-A]", async ({
+  page,
+}) => {
+  await openHydrated(page, `${SCREEN}?as_of=2026-03-16`);
+  const region = page.getByRole("region", { name: "Plan de charge du projet" });
+  await expect(page.getByRole("heading", { level: 1, name: "Plan de charge" })).toBeVisible({
+    timeout: WORKING,
+  });
+  await expect(region.getByText(/^Base : /)).toBeVisible();
+  await region.getByLabel("Nœud d’organisation").selectOption(ORG_NODE);
+  await region.getByRole("button", { name: "Afficher" }).click();
+  await expect(page).toHaveURL(new RegExp(`as_of=2026-03-16&.*org_node_id=${ORG_NODE}$`), {
+    timeout: WORKING,
+  });
+  // The node is read again by the server, which names it: the reading follows the filter.
+  await expect(region.getByLabel("Nœud d’organisation")).toHaveValue(ORG_NODE);
+  await expect(region.getByText(/^Base : /)).toBeVisible();
+});
+
+test("exports the workload, at the keyboard, as a PNG image drawn on a canvas, named after the project @shared [WF-IHM-0130-A]", async ({
   page,
 }) => {
   await openHydrated(page, SCREEN);
@@ -78,4 +105,21 @@ test("exports the workload, at the keyboard, as a PNG image drawn on a canvas, n
   expect([image.readUInt32BE(16), image.readUInt32BE(20)]).toEqual([2560, 1440]);
   // The instance out of the screen is gone with its canvas.
   await expect(page.locator("canvas")).toHaveCount(0);
+});
+
+test("offers the revision under way and only the other bases the project admits, the marked revision chosen with its basis alone @shared [WF-DEV-0070-A]", async ({
+  page,
+}) => {
+  await openHydrated(page, `${SCREEN}?basis=current_remaining`);
+  const region = page.getByRole("region", { name: "Plan de charge du projet" });
+  const bases = await region
+    .getByLabel("Base", { exact: true })
+    .locator("option")
+    .evaluateAll((options) => options.map((option) => (option as HTMLOptionElement).value));
+  // A basis the project does not admit is absent, never offered to be refused (409, 422). The
+  // witness PRJ-001 has a reference revision (the offer 100, designated by the loader) and marked
+  // ones (100, 101), as the fake back's project does: both offer the three bases, the reference
+  // budget first.
+  expect(bases).toEqual(["reference_budget", "marked_remaining", "current_remaining"]);
+  await expect(region.getByLabel("Révision marquée")).toHaveCount(1);
 });

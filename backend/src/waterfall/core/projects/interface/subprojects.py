@@ -14,9 +14,11 @@ folded into one space and trimmed, the case ignored): "Synthèse " and the decom
 "Synthèse" are the name (#1502); the code stored is the one sent.
 
 The three conditions of the deletion — no marked revision that cites it, no actual cost, no line
-of the current revision that bears it — are questions of this file that EP-07 and EP-09 fill; they
-hold here, so that none is ever lacking before ``project_not_terminal``. ``load_subprojects``
-writes those of the witness, by the very rules of the creation.
+of the current revision that bears it — are asked of the later modules: the estimate answers the
+first and the last by its lines (``estimate_facts``, US-1490/L4), the actual costs are EP-09's;
+none is ever lacking before ``project_not_terminal``. A deletion refused for the lines of the
+current revision names them (WF-DAT-0080). ``load_subprojects`` writes those of the witness, by the
+very rules of the creation.
 """
 
 import unicodedata
@@ -37,6 +39,11 @@ from waterfall.core.projects.commands import (
 from waterfall.core.projects.interface.contributors import (
     contributor_kind,
     require_project_manager,
+)
+from waterfall.core.projects.interface.estimate_facts import (
+    subproject_estimate_lines,
+    subprojects_cited,
+    subprojects_estimated,
 )
 from waterfall.core.projects.interface.projects import ALREADY_EXISTS, Viewer, lock_project
 from waterfall.core.projects.tables import Project, Subproject
@@ -61,6 +68,7 @@ if TYPE_CHECKING:
 
     from sqlalchemy.orm import Session
 
+    from waterfall.core.projects.interface.estimate_facts import EstimatedLine
     from waterfall.platform.audit import Act
 
 SUBPROJECT_CODE_INVALID = "SUBPROJECT_CODE_INVALID"
@@ -177,41 +185,46 @@ def _refuse_code(write: SubprojectWrite) -> None:
         raise UnprocessableError(VALIDATION_FAILED, fields=tuple(faults))
 
 
-def subproject_is_cited(session: Session, subproject_id: UUID) -> bool:
-    """Tell whether a marked revision cites the subproject by its lines; none does before EP-07."""
-    del session, subproject_id
-    return False
-
-
 def subproject_has_actual_costs(session: Session, subproject_id: UUID) -> bool:
     """Tell whether an actual cost is imputed to the subproject; none is before EP-09."""
     del session, subproject_id
     return False
 
 
-def subproject_is_estimated(session: Session, subproject_id: UUID) -> bool:
-    """Tell whether a line of the current revision bears the subproject; none does before EP-07."""
-    del session, subproject_id
-    return False
+@dataclass(frozen=True, slots=True)
+class _Deletion:
+    """What the deletion of a subproject lacks, in the order of the contract, and the lines."""
+
+    missing: tuple[str, ...] = ()
+    lines: tuple[EstimatedLine, ...] = ()
 
 
-def _deletion_lacks(session: Session, subproject_id: UUID) -> list[str]:
-    """Name the conditions of the deletion that are lacking, in the order of the contract."""
-    missing: list[str] = []
-    if subproject_is_cited(session, subproject_id):
-        missing.append(NOT_CITED)
-    if subproject_has_actual_costs(session, subproject_id):
-        missing.append(WITHOUT_ACTUAL_COSTS)
-    if subproject_is_estimated(session, subproject_id):
-        missing.append(WITHOUT_ESTIMATE_LINES)
-    return missing
+def _deletions(
+    session: Session, project_id: UUID, subproject_ids: Collection[UUID], *, naming: bool = False
+) -> dict[UUID, _Deletion]:
+    """Name what the deletion of each subproject of a project lacks.
+
+    The estimate is asked once for them all whether a line bears each; the lines themselves, which
+    only the refusal of a deletion shows, are read when ``naming``.
+    """
+    cited = subprojects_cited(session, project_id, subproject_ids)
+    estimated = subprojects_estimated(session, project_id, subproject_ids)
+    named = subproject_estimate_lines(session, project_id, subproject_ids) if naming else {}
+    found: dict[UUID, _Deletion] = {}
+    for each in subproject_ids:
+        missing = (
+            (NOT_CITED, each in cited),
+            (WITHOUT_ACTUAL_COSTS, subproject_has_actual_costs(session, each)),
+            (WITHOUT_ESTIMATE_LINES, each in estimated),
+        )
+        found[each] = _Deletion(
+            tuple(name for name, lacks in missing if lacks), named.get(each, ())
+        )
+    return found
 
 
 def _commands(
-    held: dict[str, tuple[str, ...]],
-    quality: tuple[str, ...],
-    session: Session,
-    subproject_id: UUID,
+    held: dict[str, tuple[str, ...]], quality: tuple[str, ...], deletion: _Deletion
 ) -> tuple[SubprojectCommandAvailability, ...]:
     """List the commands of a subproject as the command ``update`` of its project does.
 
@@ -221,10 +234,9 @@ def _commands(
     """
     if "update" not in held:
         return ()
-    lacking = _deletion_lacks(session, subproject_id)
     return (
         SubprojectCommandAvailability("update", held["update"]),
-        SubprojectCommandAvailability("delete", (*quality, *lacking)),
+        SubprojectCommandAvailability("delete", (*quality, *deletion.missing)),
     )
 
 
@@ -242,13 +254,15 @@ def _views(
         )
     )
     quality = tuple(quality_conditions(kind, manager=True))
+    asked = [row.id for row in rows] if "update" in held else []
+    deletions = _deletions(session, project.id, asked)
     return [
         SubprojectView(
             subproject_id=row.id,
             code=row.code,
             label=row.label,
             has_actual_costs=subproject_has_actual_costs(session, row.id),
-            commands=_commands(held, quality, session, row.id),
+            commands=_commands(held, quality, deletions.get(row.id, _Deletion())),
             created_at=row.created_at,
             created_by=row.created_by,
             updated_at=row.updated_at,
@@ -433,17 +447,73 @@ def delete_subproject(
     """Delete for good a subproject that nothing cites (``deleteSubproject``).
 
     Refused if unknown (404), at another version (412), and by the first condition of its command
-    that is lacking (409 ``STATE_FORBIDS_OPERATION``, ``missing_condition``). The place of the
-    risks that designate it for their provision is kept: EP-08 nulls the designation.
+    that is lacking (409 ``STATE_FORBIDS_OPERATION``, ``missing_condition``): the lines of the
+    current revision that bear it named for ``subproject_without_estimate_lines``
+    (``estimate_lines``, WF-DAT-0080). The place of the risks that designate it for their
+    provision is kept: EP-08 nulls the designation.
     """
     _, row = _locked(session, project_id, subproject_id, lock_version, viewer)
     # ``_locked`` has judged the project writable (``_writable``): the manager under the lock, and
-    # not terminal.
-    lacking = _deletion_lacks(session, row.id)
-    if lacking:
-        raise ConflictError(STATE_FORBIDS_OPERATION, {"missing_condition": lacking[0]})
+    # not terminal. The subproject is locked: a line that names it meanwhile waits on its key.
+    deletion = _deletions(session, project_id, [row.id], naming=True)[row.id]
+    if deletion.missing:
+        params: dict[str, object] = {"missing_condition": deletion.missing[0]}
+        if deletion.missing[0] == WITHOUT_ESTIMATE_LINES:
+            params["estimate_lines"] = [
+                {
+                    "structure_id": str(line.structure_id),
+                    "structure_label": line.structure_label,
+                    "node_id": str(line.node_id),
+                    "row_number": line.row_number,
+                    "label": line.label,
+                }
+                for line in deletion.lines
+            ]
+        raise ConflictError(STATE_FORBIDS_OPERATION, params)
     session.delete(row)
     session.flush()
+
+
+def subproject_labels(
+    session: Session, project_id: UUID, subproject_ids: Collection[UUID], *, held: bool = False
+) -> dict[UUID, str]:
+    """Give the label of each subproject of a project named; one of another project is left out.
+
+    What a line of estimate shows of its subproject, and what it may name (EP-07). ``held`` reads
+    them ``FOR KEY SHARE``, for a write that names them: a deletion under way is waited for, and a
+    subproject it took away is left out, as one that never was, instead of failing the key of the
+    line the write inserts (#2616); a deletion that comes after waits for the write, and sees the
+    line it then refuses (``subproject_without_estimate_lines``).
+    """
+    if not subproject_ids:
+        return {}
+    query = select(Subproject.id, Subproject.label).where(
+        Subproject.project_id == project_id, Subproject.id.in_(subproject_ids)
+    )
+    if held:
+        query = query.with_for_update(key_share=True, of=Subproject)
+    return dict(session.execute(query).all())
+
+
+def subprojects_named(
+    session: Session, project_id: UUID, labels: Collection[str]
+) -> dict[str, list[UUID]]:
+    """Give the subprojects of a project each label names; a label with none is absent.
+
+    What a cell pasted into the estimate names its subproject by (EP-07, US-1560); the label is not
+    unique, and the caller refuses a label of several as unknown.
+    """
+    found: dict[str, list[UUID]] = {}
+    if not labels:
+        return found
+    rows = session.execute(
+        select(Subproject.label, Subproject.id)
+        .where(Subproject.project_id == project_id, Subproject.label.in_(list(labels)))
+        .order_by(Subproject.code)
+    )
+    for label, subproject_id in rows:
+        found.setdefault(label, []).append(subproject_id)
+    return found
 
 
 def subprojects_present(session: Session, subproject_ids: Collection[UUID]) -> frozenset[UUID]:

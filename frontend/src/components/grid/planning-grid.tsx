@@ -90,7 +90,7 @@ import type { GridQuery } from "./query";
 import type { ChoiceOption, RowChoices } from "./row-choices";
 import type { GridPreferences } from "./settings";
 import { useStructureGestures } from "./structure-gestures";
-import { type StructureAccount, useStructureVersion } from "./structure-version";
+import { useStructureVersion, waiting } from "./structure-version";
 import { useUndoRedo } from "./undo-run";
 import type { RowCommands } from "./undo-commands";
 
@@ -309,11 +309,6 @@ function useRowNames(
   return useMemo(() => ({ resolve, ask }), [resolve, ask]);
 }
 
-/** The account of the writes, busy as long as the reading anew that follows a paste is under way. */
-function waiting(account: StructureAccount, reading: boolean): StructureAccount {
-  return { ...account, busy: account.busy || reading };
-}
-
 /** Render the grid of the planning, its totals counting the tasks the answer retained. */
 export function PlanningGrid({
   nodes,
@@ -527,6 +522,7 @@ export function PlanningGrid({
           tasks: true,
           lines: false,
           categories: undefined,
+          roles: undefined,
           rows: shown.items,
           version,
         }

@@ -1,0 +1,17 @@
+{
+  "summary": "Une tâche démarrée qui couvre exactement quatre mois civils, de janvier à avril 2026, sur un calendrier de huit heures du lundi au vendredi, à mi-parcours à la date de calcul, le 1er mars 2026 ; une ligne porte un reste de 80 heures : mars et avril comptent chacun 22 jours travaillés, les 80 heures se partagent en 40 et 40, et janvier et février ne portent rien (WF-DEV-0070-A).",
+  "examples": ["WF-DEV-0070-A#e69ddd150e53"],
+  "weekly_hours": {
+    "monday": "8",
+    "tuesday": "8",
+    "wednesday": "8",
+    "thursday": "8",
+    "friday": "8",
+    "saturday": "0",
+    "sunday": "0"
+  },
+  "task": {"start": "2026-01-01", "finish": "2026-04-30", "finish_hours": "8"},
+  "as_of": "2026-03-01",
+  "remaining_hours": "80",
+  "monthly_hours": {"2026-03": "40", "2026-04": "40"}
+}

@@ -8,6 +8,15 @@ that two stories filling two files write two places of this one. Another module 
 from here, never from the file.
 """
 
+# ``employment`` (US-1490/L1; the rates written, US-1500/L2): what the lines of an estimate tell,
+# a private module the files of the categories and of the rates both read.
+from waterfall.core.cost_settings.employment import (
+    RateWritten as RateWritten,
+)
+from waterfall.core.cost_settings.employment import (
+    register_employment as register_employment,
+)
+
 # ``actual_cost_mapping`` (US-0870): the mapping of the extraction of the actual costs.
 from waterfall.core.cost_settings.interface.actual_cost_mapping import (
     DUPLICATE_COLUMN_LABEL as DUPLICATE_COLUMN_LABEL,
@@ -41,7 +50,7 @@ from waterfall.core.cost_settings.interface.actual_cost_mapping import (
 )
 
 # ``cost_types`` (US-0820): the natures of cost.
-# ``cost_categories`` (US-0820): the categories of cost.
+# ``cost_categories`` (US-0820; the lines that employ one, US-1490/L1): the categories of cost.
 from waterfall.core.cost_settings.interface.cost_categories import (
     CategoryLabel as CategoryLabel,
 )
@@ -61,6 +70,9 @@ from waterfall.core.cost_settings.interface.cost_categories import (
     CostCategoryView as CostCategoryView,
 )
 from waterfall.core.cost_settings.interface.cost_categories import (
+    categories_named as categories_named,
+)
+from waterfall.core.cost_settings.interface.cost_categories import (
     category_is_employed as category_is_employed,
 )
 from waterfall.core.cost_settings.interface.cost_categories import (
@@ -77,6 +89,9 @@ from waterfall.core.cost_settings.interface.cost_categories import (
 )
 from waterfall.core.cost_settings.interface.cost_categories import (
     present_cost_categories as present_cost_categories,
+)
+from waterfall.core.cost_settings.interface.cost_categories import (
+    read_cost_categories as read_cost_categories,
 )
 from waterfall.core.cost_settings.interface.cost_categories import (
     set_cost_category_activation as set_cost_category_activation,
@@ -101,6 +116,9 @@ from waterfall.core.cost_settings.interface.cost_types import (
 )
 from waterfall.core.cost_settings.interface.cost_types import (
     Page as Page,
+)
+from waterfall.core.cost_settings.interface.cost_types import (
+    cost_type_labels as cost_type_labels,
 )
 from waterfall.core.cost_settings.interface.cost_types import (
     create_cost_type as create_cost_type,
@@ -203,4 +221,10 @@ from waterfall.core.cost_settings.interface.reference_settings import (
 )
 from waterfall.core.cost_settings.interface.reference_settings import (
     write_reference_settings as write_reference_settings,
+)
+
+# ``records`` (US-1570/L5, #2615): the lock of the natures, which a write of a line of estimate
+# shares before it locks its structure, in the order the rechiffrage takes them.
+from waterfall.core.cost_settings.records import (
+    share_natures as share_natures,
 )

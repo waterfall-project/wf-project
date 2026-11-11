@@ -37,7 +37,13 @@ const TRANSPORT = row("Transport exceptionnel");
 const MILESTONE = row("Réception usine");
 
 const STRUCTURE = { project_id: "p", revision_id: "r", structure_id: "s" };
-const CATEGORY = { id: "01926f3a-7c00-7000-8000-000000000405", label: "Matériel", active: true };
+const CATEGORY = {
+  id: "01926f3a-7c00-7000-8000-000000000405",
+  label: "Matériel",
+  active: true,
+  kind: "non_labor",
+} as const;
+const ROLE = { id: "01926f3a-7c00-7000-8000-000000000406", label: "Ingénieur", active: true };
 /** What a grid offers, the tasks and the lines unless said. */
 function offered(patch: Partial<StructureGestures> = {}): StructureGestures {
   return {
@@ -45,6 +51,7 @@ function offered(patch: Partial<StructureGestures> = {}): StructureGestures {
     tasks: true,
     lines: true,
     categories: [CATEGORY],
+    roles: [ROLE],
     rows: estimate.items,
     version: 4,
     ...patch,
@@ -79,17 +86,29 @@ describe("the gestures a row takes", () => {
       "down",
       "delete",
     ]);
-    expect(gesturesOn(LEAF, offered({ categories: undefined }))).toEqual([
+    const NONE = { categories: undefined, roles: undefined };
+    expect(gesturesOn(LEAF, offered(NONE))).toEqual([
       "below",
       "child",
       "outdent",
       "down",
       "delete",
     ]);
-    expect(gesturesOn(LINE, offered({ categories: [{ ...CATEGORY, active: false }] }))).toEqual([
+    const INACTIVE = { categories: [{ ...CATEGORY, active: false }], roles: [] };
+    expect(gesturesOn(LINE, offered(INACTIVE))).toEqual(["down", "delete"]);
+    // A category of labour or of provision is not offered, so that alone it offers no line.
+    const OTHER = [
+      { ...CATEGORY, kind: "labor" },
+      { ...CATEGORY, kind: "provision" },
+    ] as const;
+    expect(gesturesOn(LINE, offered({ categories: OTHER, roles: [] }))).toEqual(["down", "delete"]);
+    // A role alone, or a category of expense alone, offers it.
+    expect(gesturesOn(LINE, offered({ categories: undefined }))).toEqual([
+      "line",
       "down",
       "delete",
     ]);
+    expect(gesturesOn(LINE, offered({ roles: undefined }))).toEqual(["line", "down", "delete"]);
     // A line moves where the grid lists the lines.
     expect(gesturesOn(LINE, offered({ lines: false }))).toEqual([]);
     expect(gesturesOn(undefined, offered({ tasks: false }))).toEqual([]);
@@ -221,7 +240,14 @@ describe("the gesture a key asks", () => {
 
 describe("the body of the node a gesture creates", () => {
   const named = { label: "Étude", line: undefined };
-  const line = { label: "Pièces", line: { category: CATEGORY.id, quantity: "2" } };
+  const line = {
+    label: "Pièces",
+    line: { entry: { kind: "category", id: CATEGORY.id }, quantity: "2" },
+  } as const;
+  const labour = {
+    label: "Pièces",
+    line: { entry: { kind: "role", id: ROLE.id }, quantity: "2" },
+  } as const;
 
   it("places a task below a row after it among its siblings, by the node it follows", () => {
     expect(bodyOf("below", LEAF, named)).toEqual({
@@ -242,6 +268,19 @@ describe("the body of the node a gesture creates", () => {
       kind: "task",
       parent_id: null,
       task: { label: "Étude" },
+    });
+  });
+
+  it("sends the role of a line of labour without a category, and the category of an expense without a role [WF-DEV-0020-A]", () => {
+    expect(bodyOf("line", LEAF, labour)).toEqual({
+      kind: "estimate_line",
+      parent_id: LEAF.node_id,
+      estimate_line: { label: "Pièces", resource_role_id: ROLE.id, quantity: "2" },
+    });
+    expect(bodyOf("line", LEAF, line)).toEqual({
+      kind: "estimate_line",
+      parent_id: LEAF.node_id,
+      estimate_line: { label: "Pièces", cost_category_id: CATEGORY.id, quantity: "2" },
     });
   });
 

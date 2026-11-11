@@ -72,8 +72,9 @@ def test_a_labour_line_is_priced_by_its_hours_and_the_rate_of_the_reference_year
     assert (provision["is_computed"], provision["base_amount"]) == (True, "500000.00")
     # The provision of 751 today, 1,250,000 at 40 %, budgeted at the 250,000 the reference 101
     # knew — 1,000,000 at 25 % — which the reserve for risks counts, never the reference budget
-    # (WF-RIS-0050): the budgeted total of the wiring is 252,234.56, not the 502,234.56 of its
-    # lines (751 at the scale of the structure, EP-14/L45b).
+    # (WF-RIS-0050): the budgeted total of the wiring is 252,271.60, not the 502,234.56 of its
+    # lines (751 at the scale of the structure, EP-14/L45b), the terminal blocks keeping the budget
+    # the offer fixed, 1,234.56 of 2025 projected on 2026, 1,271.60 (#467, #1628).
     assert provision["budgeted_amount"] == str(mockwitness.REFERENCE_PROVISION_751)
     # The last review before the reference 101 was marked (1 February) is what justifies it.
     reviews = cast("list[dict[str, str]]", mockwitness.fixture("risk_reviews"))
@@ -84,7 +85,7 @@ def test_a_labour_line_is_priced_by_its_hours_and_the_rate_of_the_reference_year
     ]
     known = max(before, key=lambda review: review["reviewed_on"])
     assert Decimal(known["severity"]) * Decimal(known["probability"]) == Decimal("250000.00")
-    assert facet(estimate[WIRING])["budgeted_amount"] == "252234.56"
+    assert facet(estimate[WIRING])["budgeted_amount"] == "252271.60"
 
 
 def test_the_progress_is_read_at_the_day_given() -> None:

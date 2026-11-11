@@ -211,6 +211,17 @@ def _read_view(session: Session, type_id: UUID) -> CostTypeView:
     return _views(session, [nature], may_change=True)[0]
 
 
+def cost_type_labels(session: Session, type_ids: Collection[UUID]) -> dict[UUID, str]:
+    """Give the label of each nature given, deactivated ones too; an unknown one is left out.
+
+    What the indicators of an estimate name their ventilation by (EP-07, US-1510).
+    """
+    if not type_ids:
+        return {}
+    rows = session.execute(select(CostType.id, CostType.label).where(CostType.id.in_(type_ids)))
+    return dict(rows.all())
+
+
 def present_cost_types(session: Session, type_ids: Collection[UUID]) -> frozenset[UUID]:
     """Give, of the identifiers given, those a nature bears: the witness looks for its own."""
     return frozenset(session.scalars(select(CostType.id).where(CostType.id.in_(type_ids))))
