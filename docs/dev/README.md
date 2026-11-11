@@ -4431,8 +4431,8 @@ its parameters, never a sentence.
   or whose `code` is missing from the catalogue — a service more recent than the front —, counts as
   `INTERNAL_ERROR`, « unexpected error », at the status received, with the `correlation_id` of the
   envelope when it has the form of the contract, which the notice presents as the reference
-  (WF-OBS-0020, #2264): the screen never displays a raw key. The component says it through `OutcomeNotice` (`frontend/src/components/commands/`), as an
-  alert: the sentence of `problemMessage`, which also names the objects the refusal gives only by
+  (WF-OBS-0020, #2264): the screen never displays a raw key. The component says it through `OutcomeNotice`
+  (`frontend/src/components/commands/`), as an alert: the sentence of `problemMessage`, which also names the objects the refusal gives only by
   their identifiers when the screen has read them (`names`); the lines or the projects named beyond
   the sentence, outside the alert and described by its sentence (#765); on 412, the offer to reload
   the screen; the conflicting object (`params.conflicting_object_id`, or failing that the one of the

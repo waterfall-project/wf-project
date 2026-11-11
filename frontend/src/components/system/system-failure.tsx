@@ -9,8 +9,8 @@
  * could be too; the session closed (`SESSION_REVOKED`), that link asks for the identifiers again
  * (#855). Either way the sign-in comes back to the screen (`loginHref`, from the address
  * the browser shows). A read the API refused for a component of the platform unavailable names it,
- * by its label in the catalogue (WF-EXP-0040). Any other error is unexpected, with the reference that finds it again in
- * the logs when it carries one. An account Waterfall does not admit is offered the way out: the
+ * by its label in the catalogue (WF-EXP-0040). Any other error is unexpected, with the reference
+ * that finds it again in the logs when it carries one. An account Waterfall does not admit is offered the way out: the
  * realm signs it in again at each sign-in, and the shell offers it no menu of the account (#664).
  * In every case, the user may try again: the page is read anew from the server.
  *

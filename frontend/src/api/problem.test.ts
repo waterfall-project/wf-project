@@ -577,7 +577,7 @@ describe("a read refused for a component of the platform unavailable", () => {
     ],
     ["another code", { code: "INTERNAL_ERROR", status: 503, params: { component: "database" } }],
   ] as const)(
-    "throws an envelope 503 that names %s as unexpected, with its reference",
+    "throws an envelope 503 that names %s as unexpected, with its reference [WF-EXP-0040-A]",
     async (_, problem) => {
       const read = me({ problem: { ...problem, correlation_id: "req-503" } });
       await expect(read).rejects.toBeInstanceOf(UnexpectedAnswer);
@@ -589,7 +589,7 @@ describe("a read refused for a component of the platform unavailable", () => {
   );
 
   it.each([502, 503, 504])(
-    "throws a gateway's %i without the envelope as the API out of reach",
+    "throws a gateway's %i without the envelope as the API out of reach [WF-EXP-0040-A]",
     async (status) => {
       const page = new Response("<html>Service unavailable</html>", { status });
       const read = readOrFail("getMe", () => answering(() => Promise.resolve(page)).GET("/me"));
@@ -597,7 +597,7 @@ describe("a read refused for a component of the platform unavailable", () => {
     },
   );
 
-  it("never takes a digest for a component the contract does not name", () => {
+  it("never takes a digest for a component the contract does not name [WF-EXP-0040-A]", () => {
     const forged = Object.assign(new Error("forged"), {
       digest: "WATERFALL_COMPONENT_UNAVAILABLE;toString",
     });
@@ -643,7 +643,7 @@ describe("a refusal whose code the catalogue does not know (#2264)", () => {
     ["empty", ""],
     ["not of the form of the contract", "req 7f3a;redirect"],
     ["not a string", 42],
-  ])("keeps no correlation identifier %s", async (_, correlation) => {
+  ])("keeps no correlation identifier %s [WF-OBS-0020-A]", async (_, correlation) => {
     const outcome = await newer({
       code: "A_CODE_OF_A_NEWER_SERVICE",
       status: 403,
