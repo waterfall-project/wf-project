@@ -785,6 +785,12 @@ class GridPreferences(ContractModel):
             max_length=64,
         ),
     ] = None
+    filters_open: Annotated[
+        bool | None,
+        Field(
+            description="Whether the filter panel of the grid is open (`true`) or closed (`false`) (WF-IHM-0060, #2916). Optional: when absent — an account that has never written it —, the panel is closed. The server keeps it as written, without knowing the grids; a `null` or a value that is not a boolean is refused with 422 on `/grids/<grid>/filters_open`."
+        ),
+    ] = None
     column_widths: Annotated[
         dict[Annotated[str, StringConstraints(max_length=64)], ColumnWidthsAdditionalProperty]
         | None,

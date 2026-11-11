@@ -3114,6 +3114,8 @@ export interface components {
             hidden_columns?: string[];
             /** @description The keys of the columns the grid offered when its preferences were last written — the front rewrites it on each write of the grid, whole like the rest. A column absent from this list is a column the grid has received since: hidden if the grid hides it by default, shown otherwise, unless `hidden_columns` names it. A new column hidden by default thus stays hidden for an account that has already set up the grid, and a column the account has chosen to display stays displayed (EP-16/US-0650, #1260). Optional: when absent — an account that has never written it —, it counts as an empty list, and every column hidden by default that `hidden_columns` does not name is hidden. The server keeps it as written, without knowing the columns of any grid. */
             known_columns?: string[];
+            /** @description Whether the filter panel of the grid is open (`true`) or closed (`false`) (WF-IHM-0060, #2916). Optional: when absent — an account that has never written it —, the panel is closed. The server keeps it as written, without knowing the grids; a `null` or a value that is not a boolean is refused with 422 on `/grids/<grid>/filters_open`. */
+            filters_open?: boolean;
             /** @description The width of each widened column, in points, by its key: at least twenty, a narrower width being refused with 422, `VALUE_OUT_OF_RANGE` on `/grids/<grid>/column_widths/<column>`, `fields[].params.minimum` at `20`. */
             column_widths?: {
                 [key: string]: number;

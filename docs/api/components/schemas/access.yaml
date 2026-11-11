@@ -465,6 +465,13 @@ GridPreferences:
         #1260). Optional: when absent — an account that has never written it —, it counts as an
         empty list, and every column hidden by default that `hidden_columns` does not name is
         hidden. The server keeps it as written, without knowing the columns of any grid.
+    filters_open:
+      type: boolean
+      description: >-
+        Whether the filter panel of the grid is open (`true`) or closed (`false`) (WF-IHM-0060,
+        #2916). Optional: when absent — an account that has never written it —, the panel is
+        closed. The server keeps it as written, without knowing the grids; a `null` or a value
+        that is not a boolean is refused with 422 on `/grids/<grid>/filters_open`.
     column_widths:
       type: object
       maxProperties: 64
