@@ -436,6 +436,97 @@ l'option écartée :
   conception.
 - **Le paramètre commun `Offset` sans borne haute** (#2778) reste une dette du contrat commun, hors
   d'EP-09 et de la livraison du 2026-11-13.
+- **`startable_tasks` prend un visiteur** (#2799) : la conception s'aligne sur la signature
+  réalisée par US-1590/L2, `startable_tasks(session, project_id, viewer)` (« Les modules », « Le
+  Kanban et les lignes propres », « Ce que le cadrage laisse à EP-10 ») ; le noyau vide les gestes
+  des cartes sans `remaining.write`. Un lecteur d'indicateurs d'EP-10 passe un visiteur, ou demande à
+  son cadrage une variante sans gestes. Écartés : `viewer: Viewer | None = None`, où `None` voudrait
+  dire « sans geste », et une fonction séparée pour EP-10, qui toutes deux devançaient un besoin
+  qu'EP-10 n'a pas encore cadré.
+- **La lecture du Kanban est figée** (#2800) : `listStartableTasks` lit nœuds, lignes porteuses et
+  gestes sous `frozen_reading`, comme les exports et les imports (#2679), par US-1640/L1 #2412.
+  Écartée : la lecture en plusieurs instructions à `READ COMMITTED`, qu'une écriture entre elles
+  pouvait rendre incohérente.
+- **Les cartes du Kanban portent toutes les conditions d'`edit_remaining`** (#2804), dans l'ordre
+  de `structure_commands` : `is_contributor`, `project_in_progress`, `revision_draft`,
+  `no_background_task_running`, comme US-1590/L2 l'a réalisé ; la prose de `KanbanCommand` dans le
+  contrat est élargie par US-1650/L3 #2416, le critère « propre à l'US » d'US-1590 par une issue
+  `specification`. Écartée : les deux conditions de la prose actuelle, qui offraient comme
+  disponible un geste que le service refuse.
+- **La prose de `StructureCommand` suit le code** (#2801) : la qualité d'abord (`is_contributor`),
+  puis la phase, puis la révision, comme `structure_commands_of` ; par US-1650/L3 #2416. Écarté : le
+  code réordonné sur le contrat, qui changeait la condition que nomme un 409 déjà servi.
+- **Une récapitulative rouverte puis refermée garde la date de la mise à zéro de sa ligne propre**
+  (#2803, WF-PLA-0130 : « la plus tardive de celles de ses subordonnées et de la mise à zéro de ses
+  lignes propres ») : quand elle redevient terminée, la date de la mise à zéro se relit sur la
+  ligne (`reestimated_at`), et le test qui fixait l'écart
+  (`test_a_subordinate_deleted_under_a_summary_that_was_closed_leaves_no_stale_day`) change en
+  conséquence ; par US-1640/L1 #2412, déjà prévenu, sinon par US-1650/L2 #2415, son livreur disant
+  lequel. Écartées : l'écart admis, une mise à zéro antérieure à la réouverture se ressaisissant ;
+  la récapitulative laissée démarrée à la suppression.
+- **Les tests citent l'exigence dont ils éprouvent le Vérif** (#2802, #2807) : le test du Kanban
+  d'US-1580/L1 reçoit WF-RAE-0030-A, ou se retire s'il double ceux d'US-1590/L2 ; les tests des
+  conditions des cartes, qui éprouvent un critère propre à l'US, perdent leur marqueur — une seule
+  règle pour tout `test_startable_tasks.py` ; par US-1650/L3 #2416.
+- **L'ouverture d'un import du reste à engager juge `project_in_progress` d'abord** (#2796), dans
+  l'ordre de l'US : `project_in_progress`, puis `no_background_task_running` et
+  `may_create_revision` ; le contrat `openImport` le nomme en tête pour le reste à engager, et
+  `ImportRejection` décrit `COMPLETION_DATE_REQUIRED`, `VALUE_OUT_OF_RANGE` (`params.minimum`) et
+  `params.tasks` (`task_not_completed`) ; un test fixe l'ordre. Par US-1630/L4 #2411, en cours et
+  déjà prévenu, à défaut par US-1630/L5 #2738. Écarté : l'ordre actuel du service, que l'US et le
+  contrat auraient dû dire.
+- **Le débours d'une tâche à cheval sur deux années rend le montant saisi** (#2797, cas 4 : 103
+  saisis donnaient 101,80 réestimés) : c'est un écart de calcul, que corrige US-1630/L5 #2738. Les
+  trois autres cas de l'analyse gardent le comportement du service, que les tests d'US-1630/L3
+  fixent : une date de revue absente ou illisible ne rejette que les lignes qui termineraient leur
+  tâche (`COMPLETION_DATE_REQUIRED`) ; une tâche ne se termine que si le fichier met à zéro l'une de
+  ses lignes et qu'aucune ne garde de reste ; une cellule vide de « Jours restants » ou de « Débours
+  restant » d'une ligne connue vaut zéro. Une issue `specification` les porte vers la
+  spécification. Écartées : refuser tout le fichier sans date ; la cellule vide « laissée telle
+  quelle ».
+- **Une lignée en double dans un fichier importé est refusée** (#2798) au compte rendu de l'import,
+  pour le devis comme pour le reste à engager, le rejet décrit dans `ImportRejection` ; par
+  US-1630/L5 #2738. Écartée : la seconde occurrence devenue une ligne nouvelle sans signal.
+- **Coller l'avancement ou les dates d'exécution d'une tâche exige `remaining.write`** (#2805,
+  d'EP-07), comme `setTaskProgress`, dont la règle fait foi : la grille de reste à engager présente
+  `physical_progress`, `started_on` et `completed_on`, que le Kanban écrit déjà sous cette
+  permission ; par US-1650/L3 #2416, après la reprise d'`epic/EP-07` dans `epic/EP-09` (décision de
+  l'auteur du 2026-11-11, qui le retire à US-1640/L1 #2412), dans `core/planning/interface/paste.py`.
+  Écarté : ces colonnes retirées du collage sous `remaining.write` seul.
+
+### Les décisions du 2026-11-11
+
+Décisions de l'auteur du 2026-11-11 sur les constats laissés ouverts par les lots livrés ; toutes
+sont portées par la vérification d'ensemble US-1650/L3 #2416, qui passe aussi US-1630 `fini` (ses
+cinq lots fusionnés) dans ce fichier, au tableau de suivi et par la fermeture de #2395.
+
+- **Le générateur des exemples répartit une ligne de devis à cheval sur deux années comme le
+  service** (#2838, option A ; WF-DEV-0040) : `wftools` partage la ligne entre les années,
+  `make mock-data` régénère les exemples, et `backend/tests/test_witness_costs.py` perd la tolérance
+  qui expliquait l'écart (`spread`, `volume_excess`, `AMOUNTS_APART`) : le calculé fait l'attendu.
+  Écartée : l'écart admis comme une cause d'écart des exemples.
+- **Chaque onglet du classeur du reste à engager offre toutes les tâches non terminées** (#2834,
+  option B) : la liste de validation « Tâches » d'un onglet de sous-projet ou de « Hors
+  sous-projet » n'est plus restreinte aux tâches qui y portent une ligne ; le test qui fixait le
+  choix réalisé par US-1630/L4 change. Écartée : la liste par onglet, qui obligeait à taper le
+  libellé d'une tâche dont toutes les lignes sont dans un autre onglet.
+- **L'export écrit dans « Tâches » le coefficient pondéré par les parts des années de la tâche**
+  (#2848, option a), celui que l'import applique (US-1630/L5, `_task_coefficient`), au lieu du
+  coefficient de l'année où la tâche consomme le plus : la formule de « Main-d'œuvre » du classeur
+  rend alors le chiffre de l'application ; un test compare le coefficient de « Tâches » à celui de
+  l'import sur une tâche du 28 décembre au 8 janvier. « Le format Excel du reste à engager » le dit.
+  Écartée : l'année dominante, écart d'affichage du classeur.
+- **Le marquage d'une révision dans les parcours e2e n'est écrit qu'une fois** (#2835) : une aide
+  exportée, qui sort au plus tôt sur `failed` avec le `problem` de la tâche, sert
+  `frontend/e2e/in-progress.ts` et `frontend/e2e/service/backups.spec.ts`.
+- **Le test de l'export d'une structure non principale nettoie par une aide de la scène** (#2841) :
+  une aide de `project_rows` remplace la suppression table par table de
+  `backend/tests/test_remaining_export.py`, et le commentaire du test du refus de l'import d'un
+  projet laissé en cours dit que c'est l'annulation de la transaction qui ne laisse aucune révision.
+- **La date relue d'une récapitulative refermée est l'instant de saisie de la mise à zéro**
+  (#2803, limite acceptée) : `reestimated_at` est l'instant où la mise à zéro a été saisie, non le
+  jour de terminaison déclaré à la validation ; rien n'est à corriger.
+- Ces fichiers s'ajoutent à ceux qu'écrit US-1650/L3.
 
 ### Tables et migrations
 
@@ -468,7 +559,7 @@ révisionné et son déclencheur d'immuabilité d'EP-07, qui les protège sans r
 
 | Module | Tables | Interface offerte |
 |---|---|---|
-| `waterfall.core.estimate`, sous-paquet `remaining/` (FBS-4.5) | les six colonnes nouvelles d'`estimate_line` | `set_line_remaining` (la réestimation, la mise à zéro qui termine) ; `copy_previous` (le second enregistrement de `register_copy`) ; `open_lines(session, project_id, lines_by_task)` pour le registre de `planning` ; `startable_tasks(project_id)` (le Kanban) ; `remaining_indicators(project_id, revision_id)` et `register_coverage` ; `remaining_of_revision(session, project_id, revision_id)` — le total et le reste par ligne des tâches non terminées, à l'état des tâches de la révision — pour les indicateurs et EP-10 ; le format et l'exporteur `remaining` ; `remaining_entry` et `previous_*` rendus par la lecture de la facette d'EP-07, que le lot de la réestimation complète après #2372 |
+| `waterfall.core.estimate`, sous-paquet `remaining/` (FBS-4.5) | les six colonnes nouvelles d'`estimate_line` | `set_line_remaining` (la réestimation, la mise à zéro qui termine) ; `copy_previous` (le second enregistrement de `register_copy`) ; `open_lines(session, project_id, lines_by_task)` pour le registre de `planning` ; `startable_tasks(session, project_id, viewer)` (le Kanban ; #2799) ; `remaining_indicators(project_id, revision_id)` et `register_coverage` ; `remaining_of_revision(session, project_id, revision_id)` — le total et le reste par ligne des tâches non terminées, à l'état des tâches de la révision — pour les indicateurs et EP-10 ; le format et l'exporteur `remaining` ; `remaining_entry` et `previous_*` rendus par la lecture de la facette d'EP-07, que le lot de la réestimation complète après #2372 |
 | `waterfall.core.costs` (FBS-4.7) | `cost_line`, `cost_import` | le format `actual_costs` (l'en-tête selon la correspondance, l'analyse, l'application) ; `list_actual_costs` (filtres, tri, totaux, colonnes conservées, dernier import), `set_tracked_scope`, `list_cost_imports` ; `actual_cost_by_subproject(project_id)` et `actual_costs_until(project_id, date, scope)` — les lignes suivies, pour les indicateurs du reste à engager et pour EP-10 — ; `subproject_has_actual_costs` et `impute_waiting_lines(project_id, subproject_id, code)` pour le registre de `projects` ; `load_cost_import`, `load_cost_lines` et `load_exclusion` avec identifiants et instants imposés |
 
 - **La couche** : `estimate` importe l'interface de `costs` (le coût réel par sous-projet des
@@ -516,15 +607,18 @@ worker, le chargeur — s'étend à chacun.
 
 ### Le Kanban et les lignes propres
 
-- `startable_tasks` lit la structure principale de la révision courante — la révision en cours,
-  ou la dernière marquée sans elle — par l'interface de `planning` (les tâches, leur état, leurs
-  dates, leurs liaisons pour `predecessors_completed`), et par `estimate` les tâches qui portent une
-  ligne hors provision ; trois colonnes dans l'ordre du plan, jamais une récapitulative, sauf celle
-  dont `awaiting_own_lines` est vrai, dans `started` (#1851) ; chaque carte reçoit
-  `progress_commands` de `planning`, puis les conditions de `edit_remaining` de la structure
-  principale, vides sans `remaining.write`, et le nœud entier (`KanbanTask`, `NotStartedTask`). Une
-  requête par table, jamais une par tâche : la liste se tient en deux lectures (nœuds et liaisons,
-  lignes porteuses).
+- `startable_tasks(session, project_id, viewer)` lit la structure principale de la révision
+  courante — la révision en cours, ou la dernière marquée sans elle — par l'interface de `planning`
+  (les tâches, leur état, leurs dates, leurs liaisons pour `predecessors_completed`), et par
+  `estimate` les tâches qui portent une ligne hors provision ; trois colonnes dans l'ordre du plan,
+  jamais une récapitulative, sauf celle dont `awaiting_own_lines` est vrai, dans `started` (#1851) ;
+  chaque carte reçoit `progress_commands` de `planning`, puis les conditions de `edit_remaining` de
+  la structure principale dans l'ordre de `structure_commands` — `is_contributor`,
+  `project_in_progress`, `revision_draft`, `no_background_task_running` (#2804) —, vides sans
+  `remaining.write`, ce que le visiteur (`viewer`) permet de juger (#2799), et le nœud entier
+  (`KanbanTask`, `NotStartedTask`). Une requête par table, jamais une par tâche : la liste se tient
+  en deux lectures (nœuds et liaisons, lignes porteuses), faites sous `frozen_reading`, comme les
+  exports et les imports (#2800).
 - `open_lines(session, project_id, lines_by_task)` répond par une requête sur `estimate_line` :
   parmi les tâches nommées, chacune avec les lignes qu'elle porte — `planning` les connaît déjà et
   en écarte les lignes d'un risque (EP-08 : `origin_risk_id` du nœud) —, celles qui portent une
@@ -636,8 +730,9 @@ worker, le chargeur — s'étend à chacun.
   restants ou débours restant, puis les colonnes calculées (nature, code comptable, service, taux,
   main-d'œuvre, débours, reste à engager, type, coefficient), la lignée masquée —, listes de
   validation sur « Tâches » et « Paramètres », dix lignes vides pour les lignes nouvelles ;
-  « Tâches » (les tâches non terminées par sous-projet, leur lignée, leur état, le coefficient
-  d'inflation de leur année de consommation, leur description) et « Paramètres » (le référentiel
+  « Tâches » (les tâches non terminées, que la liste de validation de chaque onglet offre toutes
+  (#2834), leur lignée, leur état, leur coefficient d'inflation — la moyenne des coefficients de
+  leurs années pondérée par leurs parts, celui que l'import applique (#2848) —, leur description) et « Paramètres » (le référentiel
   que la révision retient, les heures par jour), protégés ; le logo et le pied de page d'EP-07 ;
   `strings_to_formulas` faux. Les montants des en-têtes sont ceux que `remaining_indicators` et
   `costs` calculent pour la révision exportée. Le nom : `<code ou libellé du projet>-<version>-reste-a-engager.xlsx`.
@@ -722,7 +817,8 @@ worker qu'à partir de ce lot — l'API et le chargeur les attendent dès le soc
   #2385) reçoit les trois modèles d'écriture après #2385. Rien n'est chargé pour le reste à engager :
   les états viennent d'EP-06, les lignes d'EP-07, `previous_*` de la copie de la révision 102 depuis
   la référence 101, marquée En cours — le registre est rempli dès le chargement, qui tourne entier
-  sur une plateforme neuve. Les imports du planning (a10) et du devis (a11) restent à EP-06, EP-07 et
+  sur une plateforme neuve. Le générateur des exemples répartit une ligne de devis à cheval sur deux
+  années comme le service (WF-DEV-0040, #2838). Les imports du planning (a10) et du devis (a11) restent à EP-06, EP-07 et
   EP-08. Les montants et imputations sont ceux que le service calcule : le calculé devient l'attendu.
 
 ### Le front
@@ -842,8 +938,10 @@ sa fusion. Il lui garantit `cost_line` et `cost_import`, les colonnes `previous_
 `reestimated_at` d'`estimate_line`, la chaîne des migrations arrêtée à `0027`, et l'interface
 déclarée que les indicateurs liront : `actual_costs_until(project_id, date, scope)` et
 `actual_cost_by_subproject` de `costs`, `remaining_of_revision(session, project_id, revision_id)` et
-`startable_tasks` d'`estimate`, à côté de `planned_value` d'EP-07 et des états et dates des tâches
-d'EP-06 ; les lots d'EP-10 qui lisent des coûts attendent US-1610/L2 #2404, qui sert
+`startable_tasks(session, project_id, viewer)` d'`estimate` — le visiteur, qui vide les gestes
+des cartes sans `remaining.write` ; un lecteur d'indicateurs passe un visiteur ou demande à son
+cadrage une variante sans gestes (#2799) —, à côté de `planned_value` d'EP-07 et des états et
+dates des tâches d'EP-06 ; les lots d'EP-10 qui lisent des coûts attendent US-1610/L2 #2404, qui sert
 `actual_costs_until`, ceux qui lisent un reste US-1580/L2 #2399, qui sert `remaining_of_revision`
 (#2708, « Les décisions du 2026-11-10 ») ; `CalculationContext` s'importe de l'interface
 d'`estimate`. EP-10 remplit `register_indicators` de `core/revisions` (EP-04) pour conserver au
@@ -1550,8 +1648,8 @@ périodique avec l'outil que mes interlocuteurs connaissent.
   (budget, coûts réels, reste à engager, projection, écart, avancement) puis ses lignes des tâches
   non terminées en tableau Excel — tâche, description, état, rôle ou catégorie, désignation, budget,
   reste précédent, jours restants ou débours restant, colonnes calculées, lignée masquée — aux
-  listes et formules étendues à la saisie ; « Tâches » (les tâches non terminées par sous-projet,
-  leur état, leur coefficient) et « Paramètres » (le référentiel de la révision et les heures par
+  listes et formules étendues à la saisie ; « Tâches » (les tâches non terminées, toutes offertes
+  à chaque onglet (#2834), leur état, leur coefficient pondéré par les parts de leurs années (#2848)) et « Paramètres » (le référentiel de la révision et les heures par
   jour), protégés ; le logo et le pied de page ; `review_date` de la demande, le jour par défaut ;
   le fichier `.xlsx`, `<code ou libellé du projet>-<version>-reste-a-engager.xlsx` ; `requestExport`
   sous `export_remaining`, gardée par `remaining.read`, disponible sur un projet terminal ;
