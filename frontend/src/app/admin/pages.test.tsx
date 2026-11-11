@@ -207,9 +207,7 @@ describe("the accounts", () => {
 
   it("offer the filters of the origins and of the node, the nodes in the order of the tree", async () => {
     const page = text(rendered(await UsersPage(searched())));
-    expect(page).toContain(
-      "Filtrer par origine Toutes les origines",
-    );
+    expect(page).toContain("Filtrer par origine Toutes les origines");
     expect(page).toContain("Nœud d’organisation Tous les nœuds DT · Direction technique");
     expect(queriesOf("GET /reference/org-nodes")).toEqual([{}]);
   });

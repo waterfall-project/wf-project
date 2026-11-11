@@ -26,17 +26,19 @@ export async function openMenu(page: Page, label: string): Promise<Locator> {
   return list;
 }
 
-/** Check, or uncheck, a value in the menu of a label. */
+/**
+ * Check, or uncheck, a value in the menu of a label, and close the menu: its list is a modal
+ * dialog, which hides the rest of the page until it is closed. What is chosen is read on the button.
+ */
 export async function pick(
   page: Page,
   label: string,
   value: string,
   role: "checkbox" | "radio" = "checkbox",
-): Promise<Locator> {
+): Promise<void> {
   const list = await openMenu(page, label);
-  const box = list.getByRole(role, { name: value, exact: true });
-  await box.click();
-  return box;
+  await list.getByRole(role, { name: value, exact: true }).click();
+  await closeMenu(page);
 }
 
 /** Open the section of the filters of audit of a panel, folded until opened. */
@@ -49,6 +51,8 @@ export async function openAudit(page: Page): Promise<void> {
 
 /** Close the menu that is open. */
 export async function closeMenu(page: Page): Promise<void> {
-  await page.keyboard.press("Escape");
+  if ((await page.getByRole("dialog").count()) > 0) {
+    await page.keyboard.press("Escape");
+  }
   await expect(page.getByRole("dialog")).toBeHidden();
 }

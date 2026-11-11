@@ -39,7 +39,10 @@ export async function openMenu(label: string): Promise<HTMLElement> {
   return screen.findByRole("dialog");
 }
 
-/** Check, or uncheck, a value in the menu of a label. */
+/**
+ * Check, or uncheck, a value in the menu of a label, and close the menu: the list is a modal
+ * dialog, which hides the rest of the page from a test as from a reader until it is closed.
+ */
 export async function pick(
   label: string,
   value: string | RegExp,
@@ -47,6 +50,7 @@ export async function pick(
 ): Promise<void> {
   const list = await openMenu(label);
   await userEvent.click(within(list).getByRole(role, { name: value }));
+  await closeMenu();
 }
 
 /** Close the menu that is open, the focus back to its button. */

@@ -80,9 +80,10 @@ async function restoreHome(
   await pick(page, "Filtre par état", "Tous les états");
   await pick(page, "Filtre par état", "Créé");
   await pick(page, "Filtre par état", "Chiffrage");
-  const running = await pick(page, "Filtre par état", "En cours");
-  await expect(running).toBeChecked({ timeout: WORKING });
-  await closeMenu(page);
+  await pick(page, "Filtre par état", "En cours");
+  await expect(menuButton(page, "Filtre par état")).toContainText("3 sélectionnés", {
+    timeout: WORKING,
+  });
   await liftSort(list);
   // What the account keeps of the home: no sort, and no state chosen, the default being unwritten.
   await expect
@@ -179,17 +180,17 @@ test("the home sorts its projects and filters them by state on the server, from 
     await expect(states.getByRole("checkbox", { name: "Créé", exact: true })).toBeChecked();
     await expect(states.getByRole("checkbox", { name: "Chiffrage", exact: true })).toBeChecked();
     await expect(states.getByRole("checkbox", { name: "Perdu", exact: true })).not.toBeChecked();
+    await closeMenu(page);
     // « Tous les états » lifts it, the rest of the address kept, and says so in the address.
     await pick(page, "Filtre par état", "Tous les états");
     await expect(page).toHaveURL("/?sort_by=code&sort_order=asc&states=all", { timeout: WORKING });
-    await expect(states.getByRole("checkbox", { name: "Tous les états" })).toBeChecked();
+    await expect(menuButton(page, "Filtre par état")).toContainText("Tous les états");
     await pick(page, "Filtre par état", "Chiffrage");
     await expect(page).toHaveURL("/?sort_by=code&sort_order=asc&states=pricing", {
       timeout: WORKING,
     });
     // The state the address names stays pressed, whatever the fake back says it retained.
-    await expect(states.getByRole("checkbox", { name: "Chiffrage", exact: true })).toBeChecked();
-    await closeMenu(page);
+    await expect(menuButton(page, "Filtre par état")).toContainText("Chiffrage");
     // The grid holds in the window: its totals in view.
     const total = list.getByRole("gridcell", { name: inService ? /^\d+ projets?$/ : "2 projets" });
     expect(await withinBox(list, total)).toBe(true);
@@ -415,10 +416,7 @@ test("the settings of a project search the sub-projects, filter the contributors
   await expect(page).toHaveURL(`${PROJECT}/settings?breakdown_search=Armoires`, {
     timeout: WORKING,
   });
-  await main
-    .getByRole("group", { name: "Filtrer par nature" })
-    .getByRole("button", { name: "Lot" })
-    .click();
+  await pick(page, "Filtrer par nature", "Lot");
   await expect(page).toHaveURL(
     `${PROJECT}/settings?breakdown_search=Armoires&breakdown_kinds=work_package`,
     { timeout: WORKING },
@@ -432,7 +430,6 @@ test("the settings of a project search the sub-projects, filter the contributors
   await openHydrated(page, `${PROJECT}/settings`);
 
   await pick(page, "Filtrer par qualité", "Chef de projet");
-  await closeMenu(page);
   await expect(page).toHaveURL(`${PROJECT}/settings?contributor_kinds=project_manager`, {
     timeout: WORKING,
   });

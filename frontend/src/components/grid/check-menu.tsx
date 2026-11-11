@@ -6,8 +6,9 @@
  * each value and one for every value, with a search over the list once it holds more than ten
  * values (or when asked). Checking a box applies at once and keeps the menu open, so that several
  * values are checked in a row; a menu of one choice (`multiple` false) takes the choice and
- * closes. The label stands above the button and names it, with what it says. Escape closes the menu
- * and gives the focus back to its button.
+ * closes. The label stands above the button and names it, with what it says. The list is a
+ * modal dialog, as the harness of accessibility wants of one (`e2e/tab-walk.ts`): Tab stays in it,
+ * Escape or a click away closes it and gives the focus back to its button.
  */
 "use client";
 
@@ -138,6 +139,7 @@ export function CheckMenu({
     <div className="flex min-w-48 flex-col gap-1 text-sm">
       <Label id={`${id}-label`}>{label}</Label>
       <Popover
+        modal
         open={open}
         onOpenChange={(next) => {
           setOpen(next);

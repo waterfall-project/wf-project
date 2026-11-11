@@ -21,7 +21,7 @@ import { CATALOGUES } from "@/i18n/catalogues";
 import { CurrencyProvider } from "@/currency/context";
 import type { Locale } from "@/i18n/locale";
 import { expectAccessible } from "@/test/axe";
-import { openMenu, pick } from "@/test/check-menu";
+import { closeMenu, openMenu, pick } from "@/test/check-menu";
 import { roomForCharts } from "@/test/chart-room";
 import { example, fakeClient } from "@/test/fixtures";
 
@@ -343,6 +343,7 @@ describe("the filter of the list of the projects by zone", () => {
     ).toEqual(["Nominal", "Vigilance", "Alerte"]);
     await userEvent.click(within(list).getByRole("checkbox", { name: "Alerte" }));
     expect(await lastAddress()).toBe(`${PATHNAME}?states=in_progress&zones=alert`);
+    await closeMenu();
     await expectAccessible(container);
   });
 

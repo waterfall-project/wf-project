@@ -8,7 +8,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { CATALOGUES } from "@/i18n/catalogues";
 import { expectAccessible } from "@/test/axe";
-import { menuSummary, openMenu, pick } from "@/test/check-menu";
+import { closeMenu, menuSummary, openMenu, pick } from "@/test/check-menu";
 
 import { ValuesFilter } from "./values-filter";
 
@@ -64,9 +64,11 @@ describe("the filter of a list on the values of a column", () => {
       scroll: false,
     });
     // The address has not changed yet: the value asked shows checked, never the address before it.
+    expect(menuSummary("État")).toBe("occurred");
+    await openMenu("État");
     expect(screen.getByRole("checkbox", { name: "occurred" })).toBeChecked();
     expect(screen.getByRole("checkbox", { name: "Tous les états" })).not.toBeChecked();
-    expect(menuSummary("État")).toBe("occurred");
+    await closeMenu();
     // The server answers: the address names the value, which the button goes on showing pressed.
     page.search = "states=occurred";
     await act(async () => {
@@ -74,6 +76,7 @@ describe("the filter of a list on the values of a column", () => {
       await navigation;
     });
     rerender(filter(["occurred"]));
+    await openMenu("État");
     expect(screen.getByRole("checkbox", { name: "occurred" })).toBeChecked();
   });
 
@@ -91,17 +94,20 @@ describe("the filter of a list on the values of a column", () => {
     expect(router.push).toHaveBeenLastCalledWith("/projects/p/revisions/r/risks", {
       scroll: false,
     });
+    await openMenu("État");
     expect(screen.getByRole("checkbox", { name: "Tous les états" })).toBeChecked();
+    await closeMenu();
     page.search = "";
     await act(async () => {
       arrive();
       await navigation;
     });
     rerender(filter([]));
+    await openMenu("État");
     expect(screen.getByRole("checkbox", { name: "Tous les états" })).toBeChecked();
   });
 
-  it("says Tous, the value, or how many are checked, and checks and unchecks a value in a row, the menu left open (#2916)", async () => {
+  it("says Tous, the value, or how many are checked, and checks and unchecks a value in a row (#2916)", async () => {
     // The server never answers: what is asked stays shown, and goes on from what was last asked.
     router.push.mockImplementation(() => {
       startTransition(() => new Promise<void>(() => undefined));
@@ -149,8 +155,9 @@ describe("the filter of a list on the values of a column", () => {
 
   it("offers no search to a short menu, and breaks no rule of accessibility (#2916)", async () => {
     const { container } = render(filter(["occurred"]));
+    // Closed, the page breaks no rule; open, the dialog is judged in a browser (`e2e/accessibility.spec.ts`).
+    await expectAccessible(container);
     await openMenu("État");
     expect(screen.queryByRole("searchbox")).toBeNull();
-    await expectAccessible(container);
   });
 });

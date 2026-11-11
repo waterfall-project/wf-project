@@ -1,6 +1,6 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
-import { closeMenu, menuButton, openAudit, pick } from "./check-menu";
+import { menuButton, openAudit, pick } from "./check-menu";
 import { expect, type Page } from "@playwright/test";
 
 import { compile } from "./compile";
@@ -267,15 +267,14 @@ test("sorts and filters the backups by the server, under the names of the contra
     "/admin/backups?sort_by=size_bytes&sort_order=asc",
   );
   // An origin and a marking chosen keep the sort, under the names of the contract.
-  const scheduled = await pick(page, "Filtrer par déclenchement", "Planifiée");
+  await pick(page, "Filtrer par déclenchement", "Planifiée");
   await expect(page).toHaveURL(
     "/admin/backups?sort_by=size_bytes&sort_order=asc&origins=scheduled",
     {
       timeout: WORKING,
     },
   );
-  await expect(scheduled).toBeChecked();
-  await closeMenu(page);
+  await expect(menuButton(page, "Filtrer par déclenchement")).toContainText("Planifiée");
   const retention = page.getByRole("combobox", { name: "Conservation" });
   await retention.selectOption({ label: "Marquées à conserver" });
   await expect(retention).toHaveValue("true");
@@ -309,13 +308,12 @@ test("sorts, searches and filters the accounts by the server, under the names of
   await expect(menuButton(page, "Filtrer par origine")).toBeHidden();
   await setExpanded(toggle, true);
   // An origin chosen keeps the sort; a second keeps the first, in the order of the contract.
-  const directory = await pick(page, "Filtrer par origine", "Importé de l’annuaire");
+  await pick(page, "Filtrer par origine", "Importé de l’annuaire");
   await expect(page).toHaveURL("/admin/users?sort_by=org_node&sort_order=asc&origins=directory", {
     timeout: WORKING,
   });
-  await expect(directory).toBeChecked();
+  await expect(menuButton(page, "Filtrer par origine")).toContainText("Importé de l’annuaire");
   await pick(page, "Filtrer par origine", "Créé dans Waterfall");
-  await closeMenu(page);
   await expect(page).toHaveURL(
     "/admin/users?sort_by=org_node&sort_order=asc&origins=local%2Cdirectory",
     { timeout: WORKING },
@@ -326,12 +324,11 @@ test("sorts, searches and filters the accounts by the server, under the names of
   await page.keyboard.press("Enter");
   await expect(page).toHaveURL(/origins=local%2Cdirectory&search=Mor$/, { timeout: WORKING });
   // A role chosen, under the name of the contract, by its identifier.
-  const manager = await pick(page, "Filtrer par rôle", "Manager");
+  await pick(page, "Filtrer par rôle", "Manager");
   await expect(page).toHaveURL(/search=Mor&access_role_ids=01926f3a-7c00-7000-8000-000000000702$/, {
     timeout: WORKING,
   });
-  await expect(manager).toBeChecked();
-  await closeMenu(page);
+  await expect(menuButton(page, "Filtrer par rôle")).toContainText("Manager");
   // The active accounts alone, by the one choice of the state, under the name of the contract.
   const state = page.getByRole("combobox", { name: "État du compte" });
   await state.selectOption({ label: "Comptes actifs" });

@@ -1,6 +1,6 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
-import { pick } from "./check-menu";
+import { menuButton, pick } from "./check-menu";
 import { type Download, expect, type Locator, test } from "@playwright/test";
 
 import { compile } from "./compile";
@@ -81,11 +81,11 @@ test("reads the risks of a revision: the register and its totals, the detail of 
   await expect(page).toHaveURL(`${RISKS}?sort_by=provision_amount&sort_order=asc`, {
     timeout: WORKING,
   });
-  const occurred = await pick(page, "Filtrer par état", "Survenu");
+  await pick(page, "Filtrer par état", "Survenu");
   await expect(page).toHaveURL(`${RISKS}?sort_by=provision_amount&sort_order=asc&states=occurred`, {
     timeout: WORKING,
   });
-  await expect(occurred).toBeChecked();
+  await expect(menuButton(page, "Filtrer par état")).toContainText("Survenu");
 });
 
 test("draws the matrix over the whole width between the cards and the grid, the count of each cell in a table under it [WF-IHM-0070-A]", async ({

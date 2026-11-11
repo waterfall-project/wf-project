@@ -12,7 +12,7 @@ import type { GridQuery } from "@/components/grid/query";
 import { CATALOGUES } from "@/i18n/catalogues";
 import type { Locale } from "@/i18n/locale";
 import { expectAccessible } from "@/test/axe";
-import { openMenu, pick } from "@/test/check-menu";
+import { closeMenu, openMenu, pick } from "@/test/check-menu";
 import { example, type FakeClient, fakeClient } from "@/test/fixtures";
 
 import type { RiskState } from "./address";
@@ -412,6 +412,7 @@ describe("the filter of the risks by state", () => {
       ["Survenu", "false"],
       ["Écarté", "false"],
     ]);
+    await closeMenu();
     await expectAccessible(container);
   });
 
@@ -430,6 +431,7 @@ describe("the filter of the risks by state", () => {
     const { rerender } = renderFilter(["occurred"]);
     await openMenu("Filtrer par état");
     expect(within(filter()).getByRole("checkbox", { name: "Survenu" })).toBeChecked();
+    await closeMenu();
     await pick("Filtrer par état", "Identifié");
     expect(router.push).toHaveBeenLastCalledWith(`${PATHNAME}?states=identified%2Coccurred`, {
       scroll: false,

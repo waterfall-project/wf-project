@@ -484,7 +484,9 @@ describe("the settings of a project", () => {
     expect(capacities[0]).toMatch(/<svg[^>]*aria-hidden="true"[^>]*>.*<\/svg>Project manager/);
     expect(capacities.slice(1).every((cell) => !cell.includes("<svg"))).toBe(true);
     expect(text(page)).toContain("Every capacity");
-    expect(text(page)).toContain("Account state Every account Active accounts Deactivated accounts");
+    expect(text(page)).toContain(
+      "Account state Every account Active accounts Deactivated accounts",
+    );
   });
 
   it("asks the server for the search, the sort and the filters of each list the address names, under the names of the contract", async () => {

@@ -1,6 +1,6 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
-import { closeMenu, pick } from "./check-menu";
+import { menuButton, pick } from "./check-menu";
 import { expect, test } from "@playwright/test";
 
 import { openHydrated, WORKING } from "./hydration";
@@ -57,12 +57,12 @@ test("reads the actual costs of a project: the lines and their three totals, the
   // The sort by amount, and the filter on the excluded lines, asked of the server by the address.
   await grid.getByRole("columnheader", { name: "Montant" }).getByRole("button").click();
   await expect(page).toHaveURL(`${COSTS}?sort_by=amount&sort_order=asc`, { timeout: WORKING });
-  const excluded = await pick(page, "Périmètre", "Exclues", "radio");
+  await pick(page, "Périmètre", "Exclues", "radio");
   await expect(page).toHaveURL(`${COSTS}?sort_by=amount&sort_order=asc&in_tracked_scope=false`, {
     timeout: WORKING,
   });
-  await expect(excluded).toBeChecked();
-  await closeMenu(page);
+  // A menu of one choice closes on the choice, and says it.
+  await expect(menuButton(page, "Périmètre")).toContainText("Exclues");
   // A period applied on Enter: the form stays once the address arrives, and the focus on its field (#537).
   const period = page.getByRole("form", { name: "Période des pièces" });
   const apply = period.getByLabel("Pièces du");

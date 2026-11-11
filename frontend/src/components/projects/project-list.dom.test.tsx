@@ -11,7 +11,7 @@ import type { ApiClient } from "@/api/client";
 import { PendingAddress } from "@/components/grid/pending-address";
 import { CATALOGUES } from "@/i18n/catalogues";
 import { expectAccessible } from "@/test/axe";
-import { menuSummary, openMenu, pick } from "@/test/check-menu";
+import { closeMenu, menuSummary, openMenu, pick } from "@/test/check-menu";
 import { example, fakeClient } from "@/test/fixtures";
 
 import { listedProject } from "./project-list-grid";
@@ -258,6 +258,7 @@ describe("the filter of the list by state", () => {
     expect(menuSummary("Filtre par état")).toBe("Tous les états");
     await openMenu("Filtre par état");
     expect(screen.getByRole("checkbox", { name: "Tous les états" })).toBeChecked();
+    await closeMenu();
     await pick("Filtre par état", "Perdu");
     expect(await lastAddress()).toBe("/?sort_by=code&states=lost");
   });
@@ -291,14 +292,13 @@ describe("the filter of the list by state", () => {
   });
 
   it("goes on from the states retained when the address names none, and lifts them by « Tous les états » (WF-IHM-0130)", async () => {
-    const user = userEvent.setup();
     page.search = "sort_by=code";
     render(inFrench(<ProjectStateFilter states={["created", "pricing", "in_progress"]} />));
     await pick("Filtre par état", "Perdu");
     expect(await lastAddress()).toBe(
       "/?sort_by=code&states=created%2Cpricing%2Cin_progress%2Clost",
     );
-    await user.click(screen.getByRole("checkbox", { name: "Tous les états" }));
+    await pick("Filtre par état", "Tous les états");
     expect(await lastAddress()).toBe("/?sort_by=code&states=all");
   });
 

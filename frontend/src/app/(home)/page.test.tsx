@@ -380,7 +380,6 @@ describe("the home, the list of projects", () => {
     expect(text(html)).toContain("Filter by state Every state");
   });
 
-
   it("presents the creation of a project unavailable while the minimum reference data is incomplete, which the server would refuse", async () => {
     server.answers = {
       ...server.answers,
