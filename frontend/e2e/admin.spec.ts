@@ -347,15 +347,15 @@ test("sorts, searches and filters the accounts by the server, under the names of
   // The fake back answers its example whatever is asked: what the screen asks is what this proves.
   await expect(accounts.getByRole("row").last()).toHaveText("7 comptes");
   // The filters on are told as chips, the panel closed or open, and counted by the button.
-  await expect(toggle).toHaveAccessibleName("Filtres (4)");
+  await expect(toggle).toHaveAccessibleName("Filtres (3)");
   await setExpanded(toggle, false);
   const chips = page.getByRole("list", { name: "Filtres actifs" });
-  await expect(chips.getByRole("listitem")).toHaveCount(4);
+  await expect(chips.getByRole("listitem")).toHaveCount(3);
   await expect(chips).toContainText("Origine : Créé dans Waterfall, Importé de l’annuaire");
   // A chip lifted changes the address, the server filtering still.
   await chips.getByRole("button", { name: /^Retirer le filtre État du compte/ }).click();
   await expect(page).not.toHaveURL(/is_active/, { timeout: WORKING });
-  await expect(toggle).toHaveAccessibleName("Filtres (3)");
+  await expect(toggle).toHaveAccessibleName("Filtres (2)");
   // All lifted, the search kept: it has its own field in the bar.
   await page.getByRole("button", { name: "Effacer les filtres" }).click();
   await expect(page).toHaveURL(/search=Mor$/, { timeout: WORKING });

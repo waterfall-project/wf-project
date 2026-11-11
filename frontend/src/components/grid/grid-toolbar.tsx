@@ -326,7 +326,7 @@ export function GridToolbar({
     return bar;
   }
   return (
-    <div className="flex min-w-min max-w-full flex-col gap-2" style={sized}>
+    <div className="flex min-w-min max-w-full flex-col gap-2" style={sized} data-folded="">
       {bar}
       <FilterPanel id={panel} open={filters.open}>
         {filters.panel}
