@@ -385,7 +385,11 @@ function SharedRangeFilter({ label, columns, kind, scope, page }: RangeFilterPro
     send(texts);
   };
   const confirm = (event: KeyboardEvent<HTMLFormElement>) => {
-    if (event.key === "Enter") {
+    // Enter in a field applies; on a button it is the button's own (« Lever les bornes »).
+    if (
+      event.key === "Enter" &&
+      (event.target instanceof HTMLInputElement || event.target instanceof HTMLSelectElement)
+    ) {
       event.preventDefault();
       send(texts);
     }
@@ -393,6 +397,10 @@ function SharedRangeFilter({ label, columns, kind, scope, page }: RangeFilterPro
   // Leaving the form with something typed applies it, without taking the focus back from where it went.
   const leave = (event: FocusEvent<HTMLFormElement>) => {
     const next = event.relatedTarget;
+    if (next === null && !document.hasFocus()) {
+      // The window lost the focus, the field did not: nothing was left.
+      return;
+    }
     if (
       Object.keys(entered).length > 0 &&
       !(next instanceof Node && event.currentTarget.contains(next))

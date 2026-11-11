@@ -280,3 +280,26 @@ describe("the filter of a list on a period of instants", () => {
     );
   });
 });
+
+describe("the period left by the window, or half typed", () => {
+  it("sends nothing when the window loses the focus with a side typed", () => {
+    render(filter());
+    enter("Du", "2026-03-01");
+    field("Du").focus();
+    vi.spyOn(document, "hasFocus").mockReturnValue(false);
+    field("Du").blur();
+    expect(router.push).not.toHaveBeenCalled();
+    vi.restoreAllMocks();
+  });
+
+  it("lifts no side while a date is half typed: the bound of the address stays", () => {
+    page.search = "from=2026-03-01";
+    render(filter({ from: "2026-03-01", to: undefined }));
+    enter("Au", "2026-03-20");
+    // The browser reads a date half typed as empty and says so.
+    Object.defineProperty(field("Du"), "validity", { value: { badInput: true } });
+    field("Au").focus();
+    field("Au").blur();
+    expect(router.push).not.toHaveBeenCalled();
+  });
+});

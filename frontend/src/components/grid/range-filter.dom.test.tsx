@@ -516,4 +516,22 @@ describe("the bounds as one command « du … au … » (#2916)", () => {
     await userEvent.type(screen.getByRole("textbox", { name: "Heures par mois, au" }), "40{Enter}");
     expect(lastAddress()).toBe("/reference/resources?role_monthly_hours_max=40");
   });
+
+  it("lifts the bounds by Enter on the button that lifts them, and applies a field by Enter in it", async () => {
+    page.search = "role_monthly_hours_min=10";
+    render(filter(roleColumns({ min: "10", max: undefined })));
+    screen.getByRole("button", { name: "Lever les bornes" }).focus();
+    await userEvent.keyboard("{Enter}");
+    expect(lastAddress()).toBe("/reference/resources");
+  });
+
+  it("sends nothing when the window loses the focus with a bound half typed", async () => {
+    render(filter(roleColumns()));
+    const least = screen.getByRole("textbox", { name: "Heures par mois, du" });
+    await userEvent.type(least, "1");
+    vi.spyOn(document, "hasFocus").mockReturnValue(false);
+    least.blur();
+    expect(router.push).not.toHaveBeenCalled();
+    vi.restoreAllMocks();
+  });
 });

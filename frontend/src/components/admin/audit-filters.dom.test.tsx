@@ -123,7 +123,7 @@ async function author(column: "Créé par" | "Modifié par"): Promise<HTMLElemen
 function offered(list: HTMLElement): (string | null | undefined)[] {
   return within(list)
     .getAllByRole("radio")
-    .map((radio) => radio.closest("label")?.textContent);
+    .map((radio) => radio.textContent);
 }
 
 beforeEach(() => {
@@ -329,5 +329,21 @@ describe("the filters of the audit columns, kept", () => {
         },
       },
     });
+  });
+});
+
+describe("the search inside the list of authors, cleared", () => {
+  it("forgets what the server found, with the sentence that counted it", async () => {
+    serve({ "GET /users": "users_search" });
+    render(accounts());
+    const modified = await author("Modifié par");
+    const search = within(modified).getByRole("searchbox", {
+      name: "Rechercher dans «\u00A0Modifié par\u00A0»",
+    });
+    await userEvent.type(search, "ines roux");
+    expect(await screen.findByText(/^1 compte trouvé/)).toBeInTheDocument();
+    await userEvent.clear(search);
+    expect(screen.queryByText(/compte trouvé/)).toBeNull();
+    expect(within(modified).queryByRole("radio", { name: "Inès Roux" })).toBeNull();
   });
 });

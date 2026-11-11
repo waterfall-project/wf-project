@@ -101,6 +101,13 @@ export function AuthorFilter({
   const query = useCallback(
     (text: string) => {
       latest.current = text;
+      if (text === "") {
+        // The search is cleared: what it found goes with it.
+        setTold(undefined);
+        setFound([]);
+        setFailure(undefined);
+        return;
+      }
       void findAccounts(text)
         .catch(rejected)
         .then((outcome) => {

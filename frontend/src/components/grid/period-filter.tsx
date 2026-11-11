@@ -202,6 +202,12 @@ export function PeriodFilter({
   // A side typed that the form cannot take: the start after the end, said at once and not sent.
   const [inverted, setInverted] = useState<string | undefined>(undefined);
   const apply = () => {
+    // A date half typed reads as empty: it is not a side lifted.
+    if (
+      [...(form.current?.querySelectorAll("input") ?? [])].some((field) => field.validity.badInput)
+    ) {
+      return;
+    }
     const asked = { from: sent("from"), to: sent("to") };
     if (fields.from !== "" && fields.to !== "" && fields.from > fields.to) {
       setInverted(over);
@@ -222,13 +228,17 @@ export function PeriodFilter({
     }
   };
   const confirm = (event: KeyboardEvent<HTMLFormElement>) => {
-    if (event.key === "Enter" && ready) {
+    if (event.key === "Enter" && ready && event.target instanceof HTMLInputElement) {
       event.preventDefault();
       apply();
     }
   };
   const leave = (event: FocusEvent<HTMLFormElement>) => {
     const next = event.relatedTarget;
+    if (next === null && !document.hasFocus()) {
+      // The window lost the focus, the field did not: nothing was left.
+      return;
+    }
     if (ready && touched && !(next instanceof Node && event.currentTarget.contains(next))) {
       apply();
     }

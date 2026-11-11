@@ -14,14 +14,14 @@
 
 import { ChevronDown } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { type ReactNode, useEffect, useId, useState } from "react";
+import { type KeyboardEvent, type ReactNode, useEffect, useId, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { cn } from "@/components/ui/utils";
 
 /** From how many values a menu offers a search. */
 export const SEARCHED_FROM = 11;
@@ -31,6 +31,18 @@ const SEARCH_DELAY = 300;
 
 /** The line of a value in the list. */
 const ROW = "flex items-center gap-2 rounded-sm px-1 py-1 text-sm hover:bg-accent";
+
+/** Move the focus among the radios of a menu, the arrows only moving it: a choice is made by Space, Enter or a click. */
+function moveFocus(event: KeyboardEvent<HTMLElement>) {
+  const step = { ArrowDown: 1, ArrowRight: 1, ArrowUp: -1, ArrowLeft: -1 }[event.key];
+  if (step === undefined) {
+    return;
+  }
+  event.preventDefault();
+  const radios = [...event.currentTarget.querySelectorAll<HTMLElement>('[role="radio"]')];
+  const at = radios.indexOf(document.activeElement as HTMLElement);
+  radios[(at + step + radios.length) % radios.length]?.focus();
+}
 
 /** A value of the menu: what is chosen, what shows it, and what the search matches. */
 export interface CheckOption {
@@ -119,21 +131,66 @@ export function CheckMenu({
     // Chosen by the address and not offered: named by what the address says.
     summary = chosen[0];
   }
+  /** Close the list, and forget what was searched in it. */
+  const close = () => {
+    setOpen(false);
+    setText("");
+  };
+  // What the list says to a reader while it is open and the page behind it is hidden.
+  let said: string = every;
+  if (chosen.length > 1) {
+    said = t("selected", { count: chosen.length });
+  } else if (picked.length === 1 && picked[0] !== undefined) {
+    said = plainOf(picked[0]);
+  } else if (chosen.length === 1) {
+    said = chosen[0] ?? every;
+  }
+  /** A value of a menu of one choice: a radio the arrows only reach. */
+  const radio = (value: string, text: ReactNode) => {
+    const checked = (chosen[0] ?? "") === value;
+    return (
+      <button
+        key={value}
+        type="button"
+        role="radio"
+        aria-checked={checked}
+        tabIndex={checked ? 0 : -1}
+        className={cn(
+          ROW,
+          "w-full text-left focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none",
+        )}
+        onClick={() => {
+          if (!checked) {
+            onChange(value === "" ? [] : [value]);
+          }
+          close();
+        }}
+      >
+        <span
+          aria-hidden="true"
+          className="flex size-4 shrink-0 items-center justify-center rounded-full border border-input bg-background"
+        >
+          {checked ? <span className="size-2 rounded-full bg-primary" /> : null}
+        </span>
+        {text}
+      </button>
+    );
+  };
   const lift = multiple ? (
     <label className={ROW}>
       <Checkbox
         checked={chosen.length === 0}
         onCheckedChange={() => {
-          onChange([]);
+          // Every value is already the choice: nothing to ask of the server.
+          if (chosen.length > 0) {
+            onChange([]);
+          }
         }}
       />
       {every}
     </label>
   ) : (
-    <label className={ROW}>
-      <RadioGroupItem value="" />
-      {every}
-    </label>
+    radio("", every)
   );
   return (
     <div className="flex min-w-48 flex-col gap-1 text-sm">
@@ -142,8 +199,11 @@ export function CheckMenu({
         modal
         open={open}
         onOpenChange={(next) => {
-          setOpen(next);
-          setText("");
+          if (next) {
+            setOpen(true);
+          } else {
+            close();
+          }
         }}
       >
         <PopoverTrigger asChild>
@@ -167,6 +227,9 @@ export function CheckMenu({
               value={text}
               onChange={(event) => {
                 setText(event.target.value);
+                if (event.target.value.trim() === "") {
+                  onQuery?.("");
+                }
               }}
               className="h-8"
             />
@@ -193,27 +256,22 @@ export function CheckMenu({
               ))}
             </div>
           ) : (
-            <RadioGroup
+            <div
+              role="radiogroup"
               aria-label={label}
-              value={chosen[0] ?? ""}
-              onValueChange={(value) => {
-                onChange(value === "" ? [] : [value]);
-                setOpen(false);
-              }}
-              className="flex max-h-60 flex-col gap-0 overflow-y-auto"
+              onKeyDown={moveFocus}
+              className="flex max-h-60 flex-col overflow-y-auto"
             >
               {lift}
-              {shown.map((option) => (
-                <label key={option.value} className={ROW}>
-                  <RadioGroupItem value={option.value} />
-                  {option.text}
-                </label>
-              ))}
-            </RadioGroup>
+              {shown.map((option) => radio(option.value, option.text))}
+            </div>
           )}
           {shown.length === 0 ? (
             <p className="px-1 text-xs text-muted-foreground">{t("noMatch")}</p>
           ) : null}
+          <p role="status" className="sr-only">
+            {said}
+          </p>
           {footer}
         </PopoverContent>
       </Popover>

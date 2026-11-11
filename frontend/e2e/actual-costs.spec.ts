@@ -1,6 +1,6 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
-import { menuButton, pick } from "./check-menu";
+import { closeMenu, menuButton, openMenu, pick } from "./check-menu";
 import { expect, test } from "@playwright/test";
 
 import { openHydrated, WORKING } from "./hydration";
@@ -57,6 +57,14 @@ test("reads the actual costs of a project: the lines and their three totals, the
   // The sort by amount, and the filter on the excluded lines, asked of the server by the address.
   await grid.getByRole("columnheader", { name: "Montant" }).getByRole("button").click();
   await expect(page).toHaveURL(`${COSTS}?sort_by=amount&sort_order=asc`, { timeout: WORKING });
+  // The arrows only move the focus in a menu of one choice: nothing is chosen, the menu stays open (#2916).
+  const scopeList = await openMenu(page, "Périmètre");
+  await scopeList.getByRole("radio", { name: "Toutes les lignes" }).focus();
+  await page.keyboard.press("ArrowDown");
+  await expect(scopeList.getByRole("radio", { name: "Suivies" })).toBeFocused();
+  await expect(scopeList).toBeVisible();
+  await expect(page).toHaveURL(`${COSTS}?sort_by=amount&sort_order=asc`);
+  await closeMenu(page);
   await pick(page, "Périmètre", "Exclues", "radio");
   await expect(page).toHaveURL(`${COSTS}?sort_by=amount&sort_order=asc&in_tracked_scope=false`, {
     timeout: WORKING,
