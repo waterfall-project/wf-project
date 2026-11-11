@@ -232,6 +232,30 @@ def test_the_grid_gives_a_row_per_category_of_labour_active_unless_the_deactivat
     )
 
 
+@pytest.mark.requirement("WF-REF-0150-A")
+def test_the_years_of_a_deactivated_category_stay_with_the_deactivated_asked_whatever_is_active(
+    api: ContractClient, sessions: PartSessions
+) -> None:
+    changing = sessions.changing
+    old = labour_category(api, changing, "OLD")
+    api.put(rate_url(old["cost_category_id"], 2030), headers=changing, json=amount("50"))
+    off = {"is_active": False, "lock_version": old["lock_version"]}
+    api.put(f"{CATEGORIES}/{old['cost_category_id']}/activation", headers=changing, json=off)
+    with_old = [*range(2012, 2027), 2030]
+    # The years never depend on is_active true: they count the deactivated when asked to.
+    for query in (
+        "include_inactive=true",
+        "include_inactive=true&is_active=true",
+        "include_inactive=true&is_active=true&search=MO-003",
+        "is_active=false",
+    ):
+        assert grid(api, changing, query)["years"] == with_old, query
+    # Not asked, they are those of the active categories.
+    for query in ("", "is_active=true"):
+        assert grid(api, changing, query)["years"] == list(range(2012, 2027)), query
+    assert codes(api, changing, "include_inactive=true&is_active=true&search=OLD") == []
+
+
 @pytest.mark.requirement("WF-REF-0050-A")
 def test_the_grid_is_searched_by_code_and_label_and_sorted_by_code_label_state_or_rate(
     api: ContractClient, sessions: PartSessions

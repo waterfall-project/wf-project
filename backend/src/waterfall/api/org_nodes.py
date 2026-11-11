@@ -113,7 +113,7 @@ class NodesQuery(BaseModel):
     """The parameters of the query of the tree, as the contract names them."""
 
     search: Annotated[Text | None, StringConstraints(min_length=1, max_length=200)] = None
-    code: Annotated[str | None, StringConstraints(min_length=1, max_length=20)] = None
+    code: Annotated[Text | None, StringConstraints(min_length=1, max_length=20)] = None
     level: Annotated[int | None, Field(ge=1)] = None
     level_min: Annotated[int | None, Field(ge=1)] = None
     level_max: Annotated[int | None, Field(ge=1)] = None

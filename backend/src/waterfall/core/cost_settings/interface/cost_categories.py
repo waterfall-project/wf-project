@@ -212,8 +212,9 @@ def _keys(column: CategoryColumn) -> tuple[SQLColumnExpression[object], ...]:
     keys: dict[CategoryColumn, tuple[SQLColumnExpression[object], ...]] = {
         "code": (CostCategory.code,),
         "label": (CostCategory.label,),
-        # The nature by its label, then by its code: two natures may bear one label.
-        "cost_type": (CostType.label, CostType.code),
+        # The nature by its label alone: equals are told apart by the code of the category,
+        # then by identifier.
+        "cost_type": (CostType.label,),
         "accounting_code": (CostCategory.accounting_code,),
         # False before true: the active categories first in the ascending order.
         "is_active": (not_(CostCategory.is_active),),

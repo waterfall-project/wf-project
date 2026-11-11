@@ -10,6 +10,7 @@ command and compared with the example the contract gives (``org_nodes_with_inact
 
 import json
 import threading
+from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, datetime
 from decimal import Decimal
 from typing import TYPE_CHECKING, Any
@@ -24,6 +25,7 @@ from waterfall.core.cost_settings.tables import CostCategory, CostType
 from waterfall.core.resource_settings.interface import (
     NodeWrite,
     create_node,
+    org_nodes,
     update_node,
     within_node,
 )
@@ -835,6 +837,50 @@ def test_two_creations_of_one_code_at_once_write_one_node_and_refuse_the_other(
     assert (len(results), len(refusals)) == (2, 1)
     assert "DT" in results
     assert refusals[0].fields[0].pointer == "/code"
+
+
+@pytest.mark.requirement("WF-REF-0070-A")
+def test_the_tree_is_read_whole_while_a_node_is_created_and_validated_held_after_its_read(
+    api: ContractClient,
+    sessions: PartSessions,
+    database: Database,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    make(api, sessions.changing, "DT", "Direction technique")
+    reading, written = threading.Barrier(2), threading.Barrier(2)
+    real = org_nodes.levels_of
+    armed = [True]  # the first resolution of the levels from now on is the reader's
+
+    def held(branches: Any) -> Any:
+        # The reader is held after it has resolved the levels, until the node is validated.
+        levels = real(branches)
+        if armed:
+            armed.clear()
+            reading.wait(timeout=10)
+            written.wait(timeout=10)
+        return levels
+
+    monkeypatch.setattr(org_nodes, "levels_of", held)
+    with ThreadPoolExecutor(max_workers=1) as pool:
+        answer = pool.submit(api.get, NODES, headers=sessions.changing)
+        reading.wait(timeout=10)
+        with database.transaction() as session:
+            create_node(session, NodeWrite("NEW", "Nouveau"), Act(None, DAY))
+        written.wait(timeout=10)
+        read = answer.result(timeout=30)
+    assert read.status_code == 200
+    # The reader is held after its only read and NEW is validated after: one snapshot, without NEW.
+    assert codes(read.json()) == ["DT"]
+
+
+@pytest.mark.requirement("WF-REF-0070-A")
+def test_a_code_filter_with_a_nul_character_is_refused_on_its_parameter(
+    api: ContractClient, sessions: PartSessions
+) -> None:
+    refused = api.get(f"{NODES}?code=%00", headers=sessions.changing)
+    assert refused.status_code == 422
+    assert refused.json()["code"] == "VALIDATION_FAILED"
+    assert [field["pointer"] for field in refused.json()["fields"]] == ["/query/code"]
 
 
 @pytest.mark.requirement("WF-REF-0070-A")

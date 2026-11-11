@@ -84,7 +84,8 @@ class HourlyRateFilters:
 
     ``states`` are the values of ``is_active`` kept: the active categories alone unless asked.
     The bounds, included, hold on the rate of ``rate_year``: a category without a rate that year
-    is kept by none of them. ``rate_year`` alone filters nothing.
+    is kept by none of them. ``rate_year`` alone filters nothing. ``with_inactive_years`` tells that
+    the years of the grid count the deactivated categories too: it does not follow ``states``.
     """
 
     search: str | None = None
@@ -92,6 +93,7 @@ class HourlyRateFilters:
     rate_year: int | None = None
     rate_min: Decimal | None = None
     rate_max: Decimal | None = None
+    with_inactive_years: bool = False
 
 
 @dataclass(frozen=True, slots=True)
@@ -155,12 +157,12 @@ def _scope(states: frozenset[bool]) -> list[ColumnElement[bool]]:
     return [CostType.kind == LABOUR, CostCategory.is_active.in_(states)]
 
 
-def _years(session: Session, states: frozenset[bool]) -> list[int]:
+def _years(session: Session, *, with_inactive: bool) -> list[int]:
     """Give the years of the whole grid: the ones a category in the scope of the read bears.
 
     The deactivated categories count only when the read asks for them, the active ones always.
     """
-    scope = frozenset({True, False}) if False in states else frozenset({True})
+    scope = frozenset({True, False}) if with_inactive else frozenset({True})
     return list(
         session.scalars(
             select(HourlyRate.year)
@@ -221,7 +223,7 @@ def read_hourly_rate_grid(
     order of the code, then come by identifier, ascending whatever the direction. A page beyond the
     last one is empty, and counts the same.
     """
-    years = _years(session, filters.states)
+    years = _years(session, with_inactive=filters.with_inactive_years)
     criteria = _criteria(filters)
     from_categories = select(CostCategory).join(CostType, CostType.id == CostCategory.cost_type_id)
     total = session.scalars(
