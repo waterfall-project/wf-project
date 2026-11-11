@@ -31,7 +31,6 @@ from waterfall.core.revisions.interface import (
     read_revision_for,
     structure_commands,
 )
-from waterfall.platform.database import frozen_reading
 from waterfall.platform.errors import NotFoundError
 
 if TYPE_CHECKING:
@@ -134,25 +133,20 @@ def startable_tasks(session: Session, project_id: UUID, viewer: Viewer) -> Start
     condition the entry names, so that a card and its refusal agree. ``viewer`` is required: the
     structure lists ``edit_remaining`` to the caller who holds ``remaining.write`` alone, so
     without it no card would hold a gesture (the core empties them).
-
-    The nodes, the tasks that bear a line and the gestures are read in a transaction frozen at its
-    first read (``frozen_reading``, #2679, #2800): a card never mixes a node with the lines or the
-    revision of another moment.
     """
-    with frozen_reading(session) as frozen:
-        revision_id = read_revision_for(frozen, project_id, None).revision_id
-        structure_id = aimed_structure(frozen, project_id, revision_id, None)
-        if structure_id is None:
-            raise NotFoundError(NOT_FOUND)
-        place = Place(project_id, revision_id, structure_id)
-        tasks = [
-            (each, each.task)
-            for each in list_nodes(frozen, place, NodeFilters(kinds=(TASK,))).items
-            if each.task is not None
-        ]
-        bearing = bearing_tasks(frozen, project_id, structure_id)
-        listed = _entry_conditions(frozen, place, viewer)
+    revision_id = read_revision_for(session, project_id, None).revision_id
+    structure_id = aimed_structure(session, project_id, revision_id, None)
+    if structure_id is None:
+        raise NotFoundError(NOT_FOUND)
+    place = Place(project_id, revision_id, structure_id)
+    tasks = [
+        (each, each.task)
+        for each in list_nodes(session, place, NodeFilters(kinds=(TASK,))).items
+        if each.task is not None
+    ]
     states = {node.node_id: task.progress for node, task in tasks}
+    bearing = bearing_tasks(session, project_id, structure_id)
+    listed = _entry_conditions(session, place, viewer)
     not_started: list[NotStartedTask] = []
     started: list[KanbanTask] = []
     completed: list[KanbanTask] = []
