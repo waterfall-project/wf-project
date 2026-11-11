@@ -332,9 +332,10 @@ describe("the network guard", { timeout: 60_000 }, () => {
     // Another file of bench/ does not exist: the typed rules cannot parse it, so the untyped
     // instance reads it, and the rules of the guard are the same.
     const [other] = await actions.lintText(http, { filePath: "bench/other.ts" });
-    expect(other?.messages.map((m) => [m.ruleId, m.severity])).toContainEqual([
+    expect(other?.messages.map((m) => [m.ruleId, m.severity, m.message])).toContainEqual([
       "no-restricted-imports",
       2,
+      expect.stringContaining(NETWORK),
     ]);
   });
 
