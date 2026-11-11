@@ -8290,7 +8290,7 @@ qui lit et écrit `known_columns` — est US-0650/L2.
 
 - **L'état du panneau de filtres.** `GridPreferences.filters_open` (#2916, WF-IHM-0060) : booléen,
   optionnel ; absent, le panneau est fermé. Gardé tel qu'écrit, la grille remplacée entière comme
-  ses voisines, sans que le service connaisse les grilles ; `null` ou une valeur non booléenne est
+  ses voisines, sans que le service connaisse les grilles ; `null` est
   refusé par 422 sur `/grids/<grille>/filters_open`.
 
 ### Les exemples manquants et les descriptions du contrat (US-0640/L1, #1329)
