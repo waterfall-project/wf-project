@@ -253,22 +253,23 @@ export async function armRequestSignOut(): Promise<string | undefined> {
 }
 
 /**
- * The access token of the session of the request; `SessionLost` without its cookie — none
- * open, the sign-in page being where it leads (#2914) — or when the session it names lives no
- * more; none (a request without a token) only just after a sign-in the realm refused. Redis out
- * of reach is a component of the platform out of reach, as Keycloak is (WF-EXP-0040): the request is `Unreachable`, which every screen says as
- * the service out of reach, never as an unexpected error (#861), and the log of the server as Redis
- * out of reach. Only the network fails so: a variable missing, an address badly written, a
- * password or a database Redis refuses, a certificate of Redis the front refuses, is a defect,
- * thrown as it is.
+ * The access token of the session of the request; `SessionLost` without its cookie — none open,
+ * the sign-in page being where it leads (#2914) — or when the session it names lives no more; none
+ * (a request without a token) without its cookie when the read is `optional` (the reads of the
+ * shell, `serverClient`), or just after a sign-in the realm refused. Redis out of reach is a
+ * component of the platform out of reach, as Keycloak is (WF-EXP-0040): the request is
+ * `Unreachable`, which every screen says as the service out of reach, never as an unexpected error
+ * (#861), and the log of the server as Redis out of reach. Only the network fails so: a variable
+ * missing, an address badly written, a password or a database Redis refuses, a certificate of
+ * Redis the front refuses, is a defect, thrown as it is.
  */
-export async function requestBearer(): Promise<string | undefined> {
+export async function requestBearer(optional = false): Promise<string | undefined> {
   const id = await requestSessionId();
   if (id === undefined || id === "") {
     // No cookie of session: the request does not leave, and the screen leads to the sign-in page
     // at once (WF-SEC-0020, #2914) — unless the realm just refused a sign-in, which would loop:
     // the request leaves without a token, and the API's 401 offers the sign-in by a link.
-    if ((await cookies()).get(SIGN_IN_REFUSED_COOKIE) !== undefined) {
+    if (optional || (await cookies()).get(SIGN_IN_REFUSED_COOKIE) !== undefined) {
       return undefined;
     }
     throw new SessionLost();

@@ -78,12 +78,18 @@ function apiAt(): { readonly address: string; readonly connections: Connections 
 
 /**
  * Make a client of the API at the configured address: the one place that carries the token of
- * the session to the API.
+ * the session to the API. Without a session cookie a request does not leave (`SessionLost`, which
+ * leads the screen to the sign-in page, #2914); the reads of the shell, which every page makes
+ * and which must render without a session — the account of the layout, the installation that
+ * decides the language —, ask for `session: "optional"`: they leave without a token, as the API
+ * answers them (a 401, or the public data), so that the page of a platform out of reach
+ * (`/login/unavailable`) is shown, never led to the sign-in page, which would loop (#687).
  */
-export function serverClient(): ApiClient {
+export function serverClient(options: { readonly session?: "optional" } = {}): ApiClient {
+  const optional = options.session === "optional";
   return createApiClient({
     ...apiAt(),
-    bearer: isMockAuthentication() ? () => MOCK_TOKEN : requestBearer,
+    bearer: isMockAuthentication() ? () => MOCK_TOKEN : () => requestBearer(optional),
   });
 }
 
