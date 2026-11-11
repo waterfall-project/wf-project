@@ -349,10 +349,13 @@ test("sorts, searches and filters the accounts by the server, under the names of
   await chips.getByRole("button", { name: /^Retirer le filtre État du compte/ }).click();
   await expect(page).not.toHaveURL(/is_active/, { timeout: WORKING });
   await expect(toggle).toHaveAccessibleName("Filtres (2)");
+  // The cross lifted took the focus with it: it goes to the cross of the previous chip.
+  await expect(chips.getByRole("button", { name: /^Retirer le filtre Rôles/ })).toBeFocused();
   // All lifted, the search kept: it has its own field in the bar.
   await page.getByRole("button", { name: "Effacer les filtres" }).click();
   await expect(page).toHaveURL(/search=Mor$/, { timeout: WORKING });
   await expect(page.getByRole("list", { name: "Filtres actifs" })).toHaveCount(0);
+  await expect(toggle).toBeFocused();
 });
 
 test("writes whether the panel of the filters of the accounts is open with the settings of the grid [WF-IHM-0060-A]", async ({

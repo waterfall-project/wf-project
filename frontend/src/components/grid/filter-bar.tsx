@@ -15,11 +15,19 @@
 import { ChevronDown, ChevronUp, ListFilter, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { usePathname } from "next/navigation";
-import { type ReactNode, useId, useTransition } from "react";
+import {
+  type ReactNode,
+  type Ref,
+  type RefObject,
+  useEffect,
+  useId,
+  useRef,
+  useTransition,
+} from "react";
 
 import { Button } from "@/components/ui/button";
 
-import { type FilterChip, liftedHref } from "./filter-chips";
+import { type FilterChip, liftedHref, liftedParams } from "./filter-chips";
 import { usePendingAddress } from "./pending-address";
 import { CONTRACT_ADDRESS, type GridAddress } from "./query";
 
@@ -34,6 +42,12 @@ export interface BarFilters {
   readonly onOpen: (open: boolean) => void;
   /** The parameter of the page of the list the server pages, which lifting a filter takes back to its first. */
   readonly page: string | undefined;
+  /**
+   * Every parameter of the address the grid reads as a filter, its search apart: clearing the
+   * filters lifts them all, those the reading set aside — a value the contract would refuse —
+   * besides those of the chips.
+   */
+  readonly every: readonly string[];
 }
 
 /** What a screen gives the bar of its table to fold its filters. */
@@ -44,10 +58,17 @@ export function barFilters(
   filtering: Filtering | undefined,
   state: Pick<BarFilters, "open" | "onOpen">,
   address: GridAddress | undefined,
+  names: readonly string[] | undefined,
 ): BarFilters | undefined {
+  const named = address ?? CONTRACT_ADDRESS;
   return filtering === undefined
     ? undefined
-    : { ...filtering, ...state, page: (address ?? CONTRACT_ADDRESS).offset };
+    : {
+        ...filtering,
+        ...state,
+        page: named.offset,
+        every: (names ?? []).filter((name) => name !== named.search),
+      };
 }
 
 /** What moves the top of the frame under the bar, to measure the room below again. */
@@ -69,7 +90,9 @@ export function FiltersButton({
   open,
   panel,
   onOpen,
+  ref,
 }: {
+  readonly ref?: Ref<HTMLButtonElement>;
   readonly count: number;
   readonly open: boolean;
   /** The identifier of the panel it controls. */
@@ -80,6 +103,7 @@ export function FiltersButton({
   const Chevron = open ? ChevronUp : ChevronDown;
   return (
     <Button
+      ref={ref}
       type="button"
       variant="outline"
       size="sm"
@@ -130,41 +154,83 @@ export function FilterPanel({
   );
 }
 
-/** The chips of the filters on, each lifted by its cross, and the button that lifts them all. */
+/**
+ * What a lift leaves for the focus: the cross to take once the chips lifted are gone from the address —
+ * the next one's, the previous one's for the last —, none for the button of the filters. The focus is
+ * given in an effect on the chips the address holds, not at the click: the navigation shows them
+ * later, and the cross lifted takes the focus with it (défaut n° 20).
+ */
+interface Lifted {
+  readonly gone: readonly string[];
+  readonly next: string | undefined;
+}
+
+/**
+ * The chips of the filters on, each lifted by its cross, and the button that lifts them all. A
+ * chip lifted gives the focus to the cross of the next, or of the previous for the last; the last
+ * one, or all of them, to the button of the filters (`toggle`).
+ */
 export function FilterChips({
   chips,
   page,
+  every,
+  toggle,
 }: {
   readonly chips: readonly FilterChip[];
   readonly page: string | undefined;
+  readonly every: readonly string[];
+  readonly toggle: RefObject<HTMLButtonElement | null>;
 }) {
   const t = useTranslations("grid.filtering");
   const pathname = usePathname();
   const { request } = usePendingAddress();
   const [, startTransition] = useTransition();
+  const crosses = useRef(new Map<string, HTMLButtonElement>());
+  const lifted = useRef<Lifted>(undefined);
+  useEffect(() => {
+    const waiting = lifted.current;
+    if (waiting === undefined || waiting.gone.some((key) => chips.some((c) => c.key === key))) {
+      return;
+    }
+    lifted.current = undefined;
+    // The focus is moved only if it was lost with the cross: it stays where the user took it.
+    if (document.activeElement === document.body || document.activeElement === null) {
+      const next = waiting.next === undefined ? undefined : crosses.current.get(waiting.next);
+      (next ?? toggle.current)?.focus();
+    }
+  }, [chips, toggle]);
   if (chips.length === 0) {
     return null;
   }
-  const lift = (lifted: readonly FilterChip[]) => {
+  const lift = (gone: readonly FilterChip[], next: string | undefined, all: boolean) => {
+    lifted.current = { gone: gone.map((chip) => chip.key), next };
+    const params = all ? [...every, ...liftedParams(gone)] : liftedParams(gone);
     startTransition(() => {
-      request((query) => liftedHref(pathname, query, lifted, page));
+      request((query) => liftedHref(pathname, query, params, page));
     });
   };
   return (
     <div className="flex flex-wrap items-center gap-2">
       <ul aria-label={t("active")} className="flex flex-wrap items-center gap-2">
-        {chips.map((chip) => (
+        {chips.map((chip, at) => (
           <li
             key={chip.key}
             className="inline-flex items-center gap-1 rounded-full border bg-muted py-0.5 pr-0.5 pl-2.5 text-xs"
           >
             <span>{t("chip", { name: chip.name, value: chip.value })}</span>
             <button
+              ref={(cross) => {
+                if (cross === null) {
+                  crosses.current.delete(chip.key);
+                } else {
+                  crosses.current.set(chip.key, cross);
+                }
+              }}
               type="button"
               aria-label={t("remove", { name: chip.name, value: chip.value })}
               className="inline-flex size-5 items-center justify-center rounded-full hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
               onClick={() => {
-                lift([chip]);
+                lift([chip], (chips[at + 1] ?? chips[at - 1])?.key, false);
               }}
             >
               <X aria-hidden="true" className="size-3" />
@@ -178,7 +244,7 @@ export function FilterChips({
         size="sm"
         className="h-7 text-xs"
         onClick={() => {
-          lift(chips);
+          lift(chips, undefined, true);
         }}
       >
         {t("clear")}

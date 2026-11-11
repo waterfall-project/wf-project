@@ -13,7 +13,7 @@
 import type { RowData } from "@tanstack/react-table";
 import { Columns3, ListTree, Search } from "lucide-react";
 import { useTranslations } from "next-intl";
-import type { ReactNode, SubmitEvent } from "react";
+import { type ReactNode, type SubmitEvent, useRef } from "react";
 
 import { CommandTooltip } from "@/components/commands/command-tooltip";
 import { MenuCommand } from "@/components/commands/menu-command";
@@ -130,6 +130,8 @@ export interface GridToolbarProps {
   readonly onOpen?: ((open: boolean) => void) | undefined;
   /** The names the table writes its address by, for the page its filters take back to its first. */
   readonly address?: GridAddress | undefined;
+  /** The parameters of the address the table reads as its search and its filters. */
+  readonly filterNames?: readonly string[] | undefined;
   /** What the bar says at its end of how many rows the table holds, when its filters are folded. */
   readonly count?: string | undefined;
 }
@@ -255,12 +257,19 @@ export function GridToolbar({
   open,
   onOpen,
   address,
+  filterNames,
   count,
 }: GridToolbarProps) {
-  const filters = barFilters(filtering, { open: open === true, onOpen: onOpen ?? noop }, address);
+  const filters = barFilters(
+    filtering,
+    { open: open === true, onOpen: onOpen ?? noop },
+    address,
+    filterNames,
+  );
   const t = useTranslations("grid.columnsMenu");
   const said = useTranslations("commands");
   const panel = usePanelId();
+  const toggle = useRef<HTMLButtonElement>(null);
   const folded = filters !== undefined;
   const sized = width === undefined ? undefined : { width };
   const bar = (
@@ -276,6 +285,7 @@ export function GridToolbar({
       )}
       {filters === undefined ? null : (
         <FiltersButton
+          ref={toggle}
           count={filters.chips.length}
           open={filters.open}
           panel={panel}
@@ -331,7 +341,12 @@ export function GridToolbar({
       <FilterPanel id={panel} open={filters.open}>
         {filters.panel}
       </FilterPanel>
-      <FilterChips chips={filters.chips} page={filters.page} />
+      <FilterChips
+        chips={filters.chips}
+        page={filters.page}
+        every={filters.every}
+        toggle={toggle}
+      />
     </div>
   );
 }
