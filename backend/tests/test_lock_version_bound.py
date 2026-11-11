@@ -54,6 +54,11 @@ def headers(database: Database, realm: TestRealm) -> dict[str, str]:
     return bearer(realm.token(SUBJECT, KEY))
 
 
+def update(counter: int) -> dict[str, object]:
+    """Give the body of a renaming of a role that carries a counter."""
+    return {"label": "x", "permissions": [], "lock_version": counter}
+
+
 def refusal(response: Any) -> tuple[int, str, list[dict[str, Any]]]:
     """Give the status, the code and the fields of a refusal."""
     body = response.json()
@@ -78,8 +83,7 @@ def test_a_counter_beyond_the_bound_in_a_body_is_refused_by_the_validation(
     api: ContractClient, database: Database, headers: dict[str, str]
 ) -> None:
     written = role(database, "Chiffreur")
-    sent = {"label": "x", "permissions": [], "lock_version": BEYOND}
-    response = api.patch(f"{ROLES}/{written}", headers=headers, json=sent)
+    response = api.patch(f"{ROLES}/{written}", headers=headers, json=update(BEYOND))
     assert refusal(response) == beyond("/lock_version")
     assert untouched(database, written) == ("Chiffreur", 0, False, [])
 
@@ -89,8 +93,7 @@ def test_a_counter_beyond_the_bound_is_refused_before_the_object_is_looked_up(
 ) -> None:
     # Refused by the model of the contract, not by the database: an object no row holds is
     # refused on the counter as one that exists, 422 and not 404.
-    sent = {"label": "x", "permissions": [], "lock_version": BEYOND}
-    response = api.patch(f"{ROLES}/{UNKNOWN}", headers=headers, json=sent)
+    response = api.patch(f"{ROLES}/{UNKNOWN}", headers=headers, json=update(BEYOND))
     assert refusal(response) == beyond("/lock_version")
 
 
@@ -113,8 +116,7 @@ def test_a_counter_at_the_bound_reaches_the_database_and_is_stale(
     # PostgreSQL raises nothing.
     written = role(database, "Chiffreur")
     if write == "patch":
-        sent = {"label": "x", "permissions": [], "lock_version": BOUND}
-        response = api.patch(f"{ROLES}/{written}", headers=headers, json=sent)
+        response = api.patch(f"{ROLES}/{written}", headers=headers, json=update(BOUND))
     else:
         response = api.delete(f"{ROLES}/{written}", headers=headers, params={"lock_version": BOUND})
     assert response.status_code == 412
