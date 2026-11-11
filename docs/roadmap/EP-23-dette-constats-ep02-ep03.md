@@ -976,7 +976,7 @@ critère d'US-0860 (#2245, corrigé par la pull request du cadrage).
 
 ## US-1840 — Les décimaux à l'entrée : une précision pour les seuils et les bornes, des chiffres de 0 à 9
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-DAT-0100-A`, `WF-REF-0160-A`, `WF-REF-0170-A`
 - **opérations** : `updateReferenceSettings`, `setHourlyRate`, et toute écriture dont le corps porte un
   `Money` ou un `Decimal` ; `listNodes` et `listResourceRoles` par leurs bornes
