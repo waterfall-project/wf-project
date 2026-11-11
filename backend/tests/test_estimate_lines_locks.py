@@ -25,6 +25,9 @@ from test_estimate_lines import blocked_by
 from waterfall.core.cost_settings.records import NATURES_LOCK
 from waterfall.core.estimate import applying
 from waterfall.core.exchanges.judgments import ImportTarget
+from waterfall.core.planning import importing
+from waterfall.core.planning.interface import loading, msproject
+from waterfall.core.planning.writing import Place
 from waterfall.core.projects.tables import Subproject
 from waterfall.core.revisions.tables import CostStructure
 
@@ -209,4 +212,45 @@ def test_the_application_of_an_import_shares_the_lock_of_the_natures_before_it_l
     target = ImportTarget(uuid4(), uuid4(), uuid4(), None)
     with pytest.raises(LookupError, match="stopped"):
         applying.apply(cast("Session", None), target, b"", {}, cast("Act", None))
+    assert taken == ["natures", "structure"]
+
+
+@pytest.mark.requirement("WF-REF-0040-A")
+@pytest.mark.parametrize("site", ["import of MS Project", "load of lines"])
+def test_the_import_of_ms_project_and_the_load_of_lines_share_the_natures_before_the_structure(
+    monkeypatch: pytest.MonkeyPatch, site: str
+) -> None:
+    # The import of a planning of MS Project removes the tasks it no longer holds, and their
+    # lines with them; the load of the lines of the witness writes lines: both take the lock of the
+    # natures before the one of the structure, as every write of a line does (#2615, #2782). Seen
+    # on the order of the two takes, the rest stubbed, as the twin of the import of a workbook.
+    taken: list[str] = []
+
+    def structure(*_: object, **kwargs: object) -> None:
+        taken.append("structure" if kwargs.get("lock") else "read")
+        msg = "stopped once the structure is locked"
+        raise LookupError(msg)
+
+    def natures(_session: object) -> None:
+        taken.append("natures")
+
+    def nothing(*_: object, **__: object) -> None:
+        return None
+
+    session = cast("Session", None)
+    act = cast("Act", None)
+    if site == "load of lines":
+        monkeypatch.setattr(loading, "judge_revision", nothing)
+        monkeypatch.setattr(loading, "hold_before_lock", natures)
+        monkeypatch.setattr(loading, "facts_of", structure)
+        place = Place(uuid4(), uuid4(), uuid4())
+        with pytest.raises(LookupError, match="stopped"):
+            loading.load_line_nodes(session, place, (), act)
+    else:
+        monkeypatch.setattr(msproject, "hold_before_lock", natures)
+        monkeypatch.setattr(msproject, "_read", nothing)
+        monkeypatch.setattr(importing, "plan_import", structure)
+        target = ImportTarget(uuid4(), uuid4(), uuid4(), None)
+        with pytest.raises(LookupError, match="stopped"):
+            msproject.MS_PROJECT_FORMAT.apply(session, target, b"", {}, act)
     assert taken == ["natures", "structure"]
